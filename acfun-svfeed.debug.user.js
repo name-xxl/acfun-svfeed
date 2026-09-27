@@ -6,6 +6,8 @@
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
 // @supportURL   https://github.com/name-xxl/acfun-svfeed/issues
+// @updateURL    https://github.com/name-xxl/acfun-svfeed/releases/latest/download/acfun-svfeed.debug.user.js
+// @downloadURL  https://github.com/name-xxl/acfun-svfeed/releases/latest/download/acfun-svfeed.debug.user.js
 // @match        https://www.acfun.cn/*
 // @grant        GM_xmlhttpRequest
 // @connect      m.acfun.cn
