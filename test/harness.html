@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>AcFun 竖滑页 - 本地预览 harness</title>
+<style>
+  body { margin: 0; font: 14px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f5f5; }
+  .note { padding: 12px 20px; color: #666; }
+</style>
+</head>
+<body>
+<div class="note">本地预览：脚本以 mock 数据运行。此页不在 www.acfun.cn 上，导航注入会走“悬浮按钮”兜底逻辑。
+  加 <code>?src=home</code> 预览首页推荐模式（mock 卡片 + 本地测试视频，弹幕/写接口不可用）。</div>
+<script src="feed-sample.js"></script>
+<script src="home-sample.js"></script>
+<script>
+  // ?src=home 预设内容源（脚本模块初始化时读 localStorage，须在加载产物前写入）
+  if (/[?&]src=home/.test(location.search)) {
+    try { localStorage.setItem('acsv-source', 'home'); } catch (e) { }
+  } else {
+    try { localStorage.removeItem('acsv-source'); } catch (e) { }
+  }
+</script>
+<script src="../acfun-svfeed.user.js"></script>
+<script>
+  // harness 不带 hash 启动，模拟用户从导航点进来；已有 #svfeed 路由则不覆盖
+  setTimeout(function () {
+    if (!/^#\/?svfeed/.test(location.hash)) location.hash = 'svfeed';
+  }, 300);
+</script>
+</body>
+</html>
