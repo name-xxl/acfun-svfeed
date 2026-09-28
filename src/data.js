@@ -4,6 +4,8 @@ import { CFG } from './cfg.js';
 // 两种内容源规整成同一份字段契约（feedstore/player/comments 只认这套字段）：
 //   sv   小视频 meow（urls 直接可用）
 //   home 首页推荐 selection/feed（卡片只有元信息，urls 由 douga/info+playInfo 懒解析）
+// 能力差异收敛在 cap 上：player 等消费端按能力分支，不再散布 kind==='home'；
+// 新内容源 = 新 normalize + 一份 cap 开关
 export function normalize(raw) {
   var play = raw.playInfo || {};
   var urls = (play.videoUrls || []).map(function (u) { return u && u.url; })
@@ -24,9 +26,21 @@ export function normalize(raw) {
     urls: urls,
     urlIdx: 0,
     refreshed: false,
+    // sv：直链 mp4、无弹幕/清晰度/投蕉/收藏，无需懒解析与观看上报
+    cap: {
+      hls: false, danmaku: false, quality: false, banana: false,
+      favorite: false, lazyResolve: false, watchReport: false
+    },
     like: counts.likeCount || 0,
     comment: counts.commentCount || 0,
     view: counts.viewCount || 0,
+    // 与 home 契约对齐的零值字段：sv 不提供这些数据，但消费端可无分支地 fmt()
+    banana: 0,
+    fav: 0,
+    share: 0,
+    danmakuCount: 0,
+    favorited: false,
+    thrown: false,
     date: (raw.createTime || '').slice(0, 10),
     shareUrl: raw.shareUrl || (CFG.api.shareBase + raw.meowId),
     liked: !!raw.isLike,
@@ -51,6 +65,11 @@ export function normalizeHome(bc) {
     urls: [],
     urlIdx: 0,
     refreshed: false,
+    // home：m3u8（hls.js）+ 弹幕 + 清晰度 + 投蕉/收藏；卡片懒解析；可上报观看历史
+    cap: {
+      hls: true, danmaku: true, quality: true, banana: true,
+      favorite: true, lazyResolve: true, watchReport: true
+    },
     // 懒解析状态：resolving 防并发，resolved 表示 douga/info+playInfo 已取过
     resolving: false,
     resolved: false,

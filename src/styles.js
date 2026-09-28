@@ -1,5 +1,8 @@
 // ---------- 样式与图标 ----------
-export var CSS = ''
+import { CFG } from './cfg.js';
+
+// RAW_CSS 里主题色一律写 #fd4c5d 占位，导出时统一替换为 CSS 变量（换肤只改 cfg.accent）
+var RAW_CSS = ''
   + '#acsv-root{position:fixed;inset:0;z-index:2147483000;background:#000;color:#fff;'
   + 'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;user-select:none}'
   + '.acsv-root *{box-sizing:border-box;margin:0;padding:0}'
@@ -33,9 +36,10 @@ export var CSS = ''
   + '.acsv-avatar:hover{transform:scale(1.08)}'
   + '.acsv-rail-btn{width:56px;border:none;background:none;cursor:pointer;display:flex;flex-direction:column;'
   + 'align-items:center;margin-bottom:18px}'
-  + '.acsv-rail-btn svg{width:40px;height:40px;fill:#fff;filter:drop-shadow(0 1px 4px rgba(0,0,0,.55));transition:transform .15s}'
+  + '.acsv-rail-btn svg{width:40px;height:40px;fill:#fff;filter:drop-shadow(0 1px 4px rgba(0,0,0,.55));transition:transform .15s,fill .15s}'
   + '.acsv-rail-btn:hover svg{transform:scale(1.12)}'
-  + '.acsv-rail-btn.on svg{fill:#fd4c5d}'
+  + '.acsv-rail-btn.on svg{fill:var(--acsv-accent)}'
+  + '.acsv-rail-btn.thrown svg{fill:#ffb323}' // 投过蕉：锁定蕉黄（A 站蕉色）
   + '.acsv-rail-btn.bump svg{animation:acsv-bump .4s ease}'
   + '@keyframes acsv-bump{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}'
   + '.acsv-count{font-size:13px;font-weight:500;line-height:16px;margin-top:4px;margin-bottom:0;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.7)}'
@@ -78,8 +82,14 @@ export var CSS = ''
   + '.acsv-time{font-size:12px;color:#ddd;font-variant-numeric:tabular-nums;margin-left:4px;white-space:nowrap;flex:none}'
   + '.acsv-icon-img{width:40px;height:40px;object-fit:contain;filter:drop-shadow(0 1px 4px rgba(0,0,0,.55));transition:transform .15s}'
   + '.acsv-rail-btn:hover .acsv-icon-img{transform:scale(1.12)}'
-  + '.acsv-rail-btn.on .acsv-icon-img{filter:invert(52%) sepia(52%) saturate(1800%) hue-rotate(310deg) brightness(1.05)}'
   + '.acsv-rail-btn.bump .acsv-icon-img{animation:acsv-bump .4s ease}'
+  + '.acsvg-icon-mask{display:block;width:40px;height:40px;background-color:#fff;'
+  + '-webkit-mask:var(--acsvg-icon) center/contain no-repeat;mask:var(--acsvg-icon) center/contain no-repeat;'
+  + 'filter:drop-shadow(0 1px 4px rgba(0,0,0,.55));transition:transform .15s,background-color .15s}'
+  + '.acsv-rail-btn:hover .acsvg-icon-mask{transform:scale(1.12)}'
+  + '.acsv-rail-btn.on .acsvg-icon-mask{background-color:var(--acsv-accent)}'
+  + '.acsv-rail-btn.thrown .acsvg-icon-mask{background-color:#ffb323}' // 投过蕉：锁定蕉黄（A 站蕉色）
+  + '.acsv-rail-btn.bump .acsvg-icon-mask{animation:acsv-bump .4s ease}'
   + '.acsv-rail-btn.thrown{cursor:default}'
   + '.acsv-drawer{position:absolute;top:0;right:0;bottom:0;width:min(380px,88vw);z-index:45;display:flex;flex-direction:column;'
   + 'background:rgba(22,22,27,.96);backdrop-filter:blur(12px);border-left:1px solid rgba(255,255,255,.09);'
@@ -175,7 +185,8 @@ export var CSS = ''
   + '.acsv-spinner{position:absolute;top:50%;left:50%;margin:-16px 0 0 -16px;width:32px;height:32px;z-index:8;'
   + 'border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:acsv-spin .8s linear infinite;pointer-events:none}'
   + '@keyframes acsv-spin{to{transform:rotate(360deg)}}'
-  + '.acsv-slide[data-state="loading"] .acsv-spinner{display:block}.acsv-spinner{display:none}'
+  + '.acsv-slide[data-state="loading"] .acsv-spinner{display:block}'
+  + '.acsv-spinner{display:none}'
   + '.acsv-playicon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9;width:72px;height:72px;'
   + 'border-radius:50%;background:rgba(0,0,0,.5);display:none;place-items:center;pointer-events:none}'
   + '.acsv-playicon svg{width:34px;height:34px;fill:#fff;margin-left:4px}'
@@ -209,9 +220,10 @@ export var CSS = ''
   // 评论抽屉避让：整体缩放（不平移视频、不裁画面），缩放比由 JS 按视口写入 --acsv-cscale
   + '.acsv-scroller,.acsv-side,.acsv-controls,.acsv-info{transition:transform .28s ease,right .28s ease,bottom .25s ease,opacity .25s,visibility .25s}'
   + '#acsv-root.acsv-with-comments .acsv-scroller{transform:translateX(calc(min(380px, 88vw) / -2)) scale(var(--acsv-cscale, 1))}'
-  // 评论内 UBB 渲染（表情/图片）
-  + '.ubb-emotion{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}'
-  + '.ubb-imgc{display:block;max-width:min(240px,100%);max-height:220px;border-radius:8px;margin-top:6px;cursor:zoom-in}'
+  // 评论内 UBB 渲染（表情/图片）。带 .acsv-cbody 作用域：
+  // 这是注入宿主页的全局样式表，不能留无前缀选择器（防与站点样式互染）
+  + '.acsv-cbody .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}'
+  + '.acsv-cbody .ubb-imgc{display:block;max-width:min(240px,100%);max-height:220px;border-radius:8px;margin-top:6px;cursor:zoom-in}'
   // 空间页小视频：工具栏（进度 + 排序）与分页条
   + '.acsv-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:0 0 10px;position:relative}'
   + '.acsv-progress-txt{font-size:12px;color:#999;margin-right:auto}'
@@ -270,6 +282,10 @@ export var CSS = ''
   + '.acsv-banpop button:hover{opacity:1;transform:scale(1.18)}'
   + '.acsv-banpop button img{width:26px;height:26px;display:block}';
 
+// 主题色收敛：RAW_CSS 中的 #fd4c5d 全部替换为 CSS 变量，:root 上定义唯一来源
+export var CSS = ':root{--acsv-accent:' + CFG.accent + '}'
+  + RAW_CSS.replace(/#fd4c5d/g, 'var(--acsv-accent)');
+
 export var ICONS = {
   heart: '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
   comment: '<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>',
@@ -294,12 +310,12 @@ export var SITE_ICONS = {
   share: 'https://ali-imgs.acfun.cn/kos/nlav10360/static/pages/shortVideo/img/icon_video_share@2x.f63773e510e6d3259acb.png'
 };
 
-// A 站视频页（/v/ac*）原生操作图标（正常/激活两态，取自站点样式表）
+// A 站视频页原生图标（取自站点样式表）：
+// like/favorite/banana 用作操作栏 CSS mask 的形状来源（只借形状，颜色由 CSS 背景色控制）；
+// bananaOn 供投蕉弹层悬停点亮（灰底→亮黄为既定交互）
 export var VIDEO_ICONS = {
   like: 'https://ali-imgs.acfun.cn/kos/nlav10360/static/newVideo/widget/bread/img/like/keyFrames/frame1.3039ed46b4f6639fa576.svg',
-  likeOn: 'https://ali-imgs.acfun.cn/kos/nlav10360/static/newVideo/widget/bread/img/like/keyFrames/frame12.fd90720499ace4b7850b.svg',
   favorite: 'https://ali-imgs.acfun.cn/kos/nlav10360/static/newVideo/widget/bread/img/icon_follow.67c57d40c135d9f5036d.svg',
-  favoriteOn: 'https://ali-imgs.acfun.cn/kos/nlav10360/static/newVideo/widget/bread/img/icon_follow_hover.c96c3455cd5ebe98a14d.svg',
   banana: 'https://ali-imgs.acfun.cn/kos/nlav10360/static/newVideo/widget/bread/img/icon_banana.d21040881e9721eb1fc8.svg',
   bananaOn: 'https://ali-imgs.acfun.cn/kos/nlav10360/static/newVideo/widget/bread/img/icon_banana_hover.31b7f8940e072833fa9c.svg'
 };

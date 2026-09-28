@@ -3,7 +3,7 @@ import { API } from './api.js';
 import { scroller } from './state.js';
 import { renderWindow } from './player.js';
 import { UpVideos } from './uppage.js';
-import { dbg } from './dbg.js';
+import { dbg, testHook } from './dbg.js';
 
 // ===
 // 5. 信息流数据仓库（纯数据 + 游标泵；UI 通过 env.onChange 得到通知）
@@ -15,6 +15,7 @@ function createFeedStore(env) {
     loading: false,
     pumpBusy: false,
     current: 0,
+    gen: 0, // 代际令牌：reset 自增；旧源在途请求的响应一律丢弃（防双源混流）
 
     changed: function () { if (env.onChange) env.onChange(); },
 
@@ -22,19 +23,24 @@ function createFeedStore(env) {
       var self = this;
       if (self.loading) return Promise.resolve();
       self.loading = true;
+      var gen = self.gen;
       return env.api.feed().then(function (list) {
+        if (gen !== self.gen) return; // 期间已 reset：不得回填新源，也不得碰新请求的 loading
         self.loading = false;
         dbg('fetch:list=' + list.length);
         list.forEach(function (n) {
-          // home 条目 urls 由懒解析补齐，允许为空入库
-          if (n.id && !self.seen[n.id] && (n.kind === 'home' || n.urls.length)) {
+          // 懒解析源（home）urls 由进播放器时补齐，允许为空入库
+          if (n.id && !self.seen[n.id] && (n.cap.lazyResolve || n.urls.length)) {
             self.seen[n.id] = 1;
             self.items.push(n);
           }
         });
         dbg('fetch:items=' + self.items.length);
         self.changed();
-      }, function () { self.loading = false; });
+      }, function () {
+        if (gen !== self.gen) return;
+        self.loading = false;
+      });
     },
 
     // 直链过期刷新：sv 换备用 CDN 或重取详情；home 重跑解析链
@@ -78,7 +84,9 @@ function createFeedStore(env) {
           return;
         }
         var raw = ctx.items[ctx.feedCursor];
+        var gen = self.gen;
         env.api.info(raw.id).then(function (n) {
+          if (gen !== self.gen) return; // 期间已 reset：旧列表的详情不得入新库
           if (n && n.id && n.urls.length && !self.seen[n.id]) {
             self.seen[n.id] = 1;
             self.items.push(n);
@@ -88,6 +96,7 @@ function createFeedStore(env) {
           if (self.items.length - self.current < CFG.feed.bufferSize) self.pumpListContext(ctx);
           else env.onChange();
         }, function () {
+          if (gen !== self.gen) return;
           ctx.feedCursor++;
           self.pumpBusy = false;
           self.pumpListContext(ctx);
@@ -96,6 +105,7 @@ function createFeedStore(env) {
     },
 
     resetForList: function () {
+      this.gen++; // 使所有在途请求的响应失效
       this.items = [];
       this.seen = {};
       this.current = 0;
@@ -120,7 +130,9 @@ function createFeedStore(env) {
         }
         return Promise.resolve();
       }
+      var gen = self.gen;
       return env.api.info(mid).then(function (n) {
+        if (gen !== self.gen) return; // 期间已 reset：这条属于旧源，丢弃
         if (n && n.id && n.urls.length) {
           self.seen[n.id] = 1;
           self.items.unshift(n);
@@ -128,7 +140,10 @@ function createFeedStore(env) {
           return;
         }
         return self.fetchMore();
-      }, function () { return self.fetchMore(); });
+      }, function () {
+        if (gen !== self.gen) return;
+        return self.fetchMore();
+      });
     }
   };
   return store;
@@ -144,4 +159,21 @@ export var FeedStore = createFeedStore({
   },
   onChange: function () { if (scroller) renderWindow(); },
   getListContext: function () { return UpVideos.feedActive ? UpVideos : null; }
+});
+
+// debug 构建测试钩子：harness 断言读列表快照（release 死码消除）
+testHook('feed', function () {
+  return {
+    current: FeedStore.current,
+    gen: FeedStore.gen,
+    items: FeedStore.items.map(function (it) {
+      return {
+        id: it.id,
+        kind: it.kind,
+        hasUrls: !!(it.urls && it.urls.length),
+        resolving: !!it.resolving,
+        qualities: it.qualities ? it.qualities.length : 0
+      };
+    })
+  };
 });

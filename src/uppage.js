@@ -2,14 +2,15 @@ import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { el, fmt, ensureStyle } from './ui.js';
 import { FeedStore } from './feedstore.js';
+import { API } from './api.js';
 
 // ---------- UP 主空间页：小视频区块 ----------
 // m 站 upPage 的 pagelet 数据（GM_xhr 抓取，跨域）；翻页游标为时间戳，no_more 表示到底。
-// 自动链式加载全部 → 页码分页浏览；最新=接口顺序，最热=渐进拉取 meow/info 点赞数后重排
-var PAGE_SIZE = 10;
+// 自动链式加载（有页数上限）→ 页码分页浏览；最新=接口顺序，最热=渐进拉取点赞数后重排
+var PAGE_SIZE = CFG.page.size;
 export var UpVideos = {
   uid: 0, pcursor: null, total: 0, busy: false, done: false, failed: false,
-  items: [], chainBusy: false, page: 1, sortBy: 'newest',
+  items: [], chainBusy: false, chainCapped: false, page: 1, sortBy: 'newest',
   counts: {}, countsFetched: 0, hotFetching: false,
   feedActive: false, feedCursor: 0,
   gridEl: null, pagebarEl: null, progressEl: null, sortWrapEl: null, countSpan: null
@@ -21,7 +22,7 @@ function gmGetText(url) {
       GM_xmlhttpRequest({
         method: 'GET',
         url: url,
-        timeout: 20000,
+        timeout: CFG.time.gm,
         headers: {
           'Referer': 'https://m.acfun.cn/',
           // m 站对桌面 UA 会 302 到 PC 空间页（无小视频数据），必须伪装手机 UA
@@ -38,18 +39,26 @@ function gmGetText(url) {
 }
 
 function parseUpItems(html) {
-  var box = document.createElement('div');
-  box.innerHTML = html;
+  // DOMParser 的文档是惰性的：不触发 img 预取（detached div.innerHTML 会对封面发起双份下载）
+  var doc = new DOMParser().parseFromString(html, 'text/html');
   var out = [];
-  var lis = box.querySelectorAll('li[meow-id]');
+  var lis = doc.querySelectorAll('li[meow-id]');
   for (var i = 0; i < lis.length; i++) {
     var img = lis[i].querySelector('img');
     out.push({
       id: lis[i].getAttribute('meow-id'),
-      cover: img ? img.src : ''
+      cover: img ? img.getAttribute('src') : ''
     });
   }
   return out;
+}
+
+// m 站把各投稿类型的数据内联成 var xxxInfo = {...}（0 投稿是 ""）；整页里 articlesInfo
+// 等也带 totalCount，裸抓首个 "totalCount" 会拿到别的投稿数——必须按变量名精确提取
+function extractSvInfo(text) {
+  var m = text.match(/var shortVideoInfo\s*=\s*([\s\S]*?);/);
+  if (!m || m[1].charAt(0) !== '{') return null;
+  try { return JSON.parse(m[1]); } catch (e) { return null; }
 }
 
 function loadUpVideos(first) {
@@ -62,25 +71,30 @@ function loadUpVideos(first) {
       + '&pagelets=short-video-list&ajaxpipe=1';
   return gmGetText(url).then(function (txt) {
     UpVideos.busy = false;
-    var html = txt, pc = 'no_more';
+    var html = txt, pc = 'no_more', svi;
     if (first) {
-      var pm = txt.match(/"pcursor":"([^"]+)"/);
-      pc = pm ? pm[1] : 'no_more';
+      svi = extractSvInfo(txt);
     } else {
       try {
         var j = JSON.parse(txt.replace(/\/\*<!-- fetch-stream -->\*\/\s*$/, ''));
         html = (j && j.html) || '';
-        var sm = ((j && j.scripts) || []).join('').match(/"pcursor":"([^"]+)"/);
-        pc = sm ? sm[1] : 'no_more';
+        // totalCount/pcursor 都在 scripts 内联的 shortVideoInfo 里，html 片段没有
+        svi = extractSvInfo(((j && j.scripts) || []).join(''));
       } catch (e) {
         UpVideos.failed = true;
         return [];
       }
     }
-    var tm = html.match(/"totalCount":(\d+)/) || txt.match(/"totalCount":(\d+)/);
-    if (tm) UpVideos.total = Number(tm[1]);
+    if (svi) {
+      if (svi.totalCount) UpVideos.total = Number(svi.totalCount) || 0;
+      if (svi.pcursor) pc = svi.pcursor;
+    }
     var items = parseUpItems(html);
-    if (pc === 'no_more' || !items.length) UpVideos.done = true;
+    if (pc === 'no_more' || !items.length) {
+      UpVideos.done = true;
+      // 到底后以实际加载条数为准：0 投稿归零，接口计数异常时也被纠正
+      UpVideos.total = UpVideos.items.length + items.length;
+    }
     UpVideos.pcursor = pc;
     return items;
   }, function () {
@@ -177,8 +191,8 @@ function renderUpPagebar(totalPagesLoaded) {
 function renderUpProgress() {
   var elp = UpVideos.progressEl;
   if (!elp) return;
-  // 标签页徽标同步总数
-  if (UpVideos.countSpan && UpVideos.total) {
+  // 标签页徽标同步总数（0 投稿也要把 '0' 写实，而不是留占位）
+  if (UpVideos.countSpan && (UpVideos.total || UpVideos.done)) {
     UpVideos.countSpan.textContent = fmt(UpVideos.total);
   }
   var loaded = UpVideos.items.length;
@@ -189,19 +203,24 @@ function renderUpProgress() {
     elp.textContent = loaded ? '热度统计 ' + UpVideos.countsFetched + ' / ' + loaded : base;
   } else {
     elp.textContent = UpVideos.done ? '共 ' + loaded + ' 个'
-      : (UpVideos.failed && !loaded ? '加载失败（需在 Tampermonkey 下运行）' : base + '（后台加载中）');
+      : (UpVideos.failed && !loaded ? '加载失败（需在 Tampermonkey 下运行）'
+        : (UpVideos.chainCapped ? base + '（已达自动加载上限）' : base + '（后台加载中）'));
   }
 }
 
 function startUpChain() {
   if (UpVideos.chainBusy) return;
   UpVideos.chainBusy = true;
+  UpVideos.chainCapped = false;
+  var pages = 0; // 本轮已加载页数：有上限，防超大 UP 主无感发几百个请求
   (function step() {
-    if (!UpVideos.chainBusy || UpVideos.done) {
+    if (!UpVideos.chainBusy || UpVideos.done || pages >= CFG.up.maxChainPages) {
+      UpVideos.chainCapped = !UpVideos.done && pages >= CFG.up.maxChainPages;
       UpVideos.chainBusy = false;
       renderUpProgress();
       return;
     }
+    pages++;
     loadUpVideos(UpVideos.pcursor === null).then(function (items) {
       if (items.length) {
         UpVideos.items = UpVideos.items.concat(items);
@@ -230,9 +249,9 @@ function ensureHotCounts() {
     }
     var batch = todo.slice(0, 4);
     Promise.all(batch.map(function (it) {
-      return request(CFG.api.info + it.id).then(function (j) {
-        var mc = (j && j.meowFeed && j.meowFeed.meowCounts) || {};
-        UpVideos.counts[it.id] = mc.likeCount || 0;
+      // 走 api.js 的统一解析（normalize），不再手取 meowFeed.meowCounts（避免双份解析）
+      return API.info(it.id).then(function (n) {
+        UpVideos.counts[it.id] = (n && n.like) || 0;
       }, function () {
         UpVideos.counts[it.id] = 0;
       });
@@ -251,6 +270,7 @@ function injectSpaceVideos(uid) {
   UpVideos.pcursor = null;
   UpVideos.done = false;
   UpVideos.failed = false;
+  UpVideos.chainCapped = false;
   UpVideos.total = 0;
   UpVideos.items = [];
   UpVideos.page = 1;
@@ -346,7 +366,7 @@ function injectSpaceVideos(uid) {
   sec.id = 'acsv-space';
   var head = el('div', 'acsv-space-head');
   head.appendChild(el('h2', null, '小视频'));
-  head.appendChild(el('span', 'n', ''));
+  head.appendChild(el('span', 'n', '0'));
   sec.appendChild(head);
   sec.appendChild(toolbar);
   sec.appendChild(grid);

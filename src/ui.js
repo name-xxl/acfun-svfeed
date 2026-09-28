@@ -55,6 +55,12 @@ export function copyText(text) {
   });
 }
 
+// 全屏开关：root 容器整体进出（控制栏按钮与 F 键共用）
+export function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (root && root.requestFullscreen) root.requestFullscreen();
+}
+
 // 样式表挂在 head 上，保证悬浮按钮在信息流未打开时也有样式
 export function ensureStyle() {
   if (document.getElementById('acsv-style')) return;

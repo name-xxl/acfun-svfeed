@@ -8,7 +8,7 @@ import { AppAPI } from './appapi.js';
 // ---------- 评论抽屉 ----------
 // A 站通用评论系统：小视频 sourceType=5（sourceId=meowId），普通视频 sourceType=3（sourceId=ac号），
 // 无需登录即可浏览；接口在 CFG.api.comment
-export var commentState = { meowId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, pcursor: 'no_more', loading: false, replyTo: null, kind: 'sv' };
+export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, pcursor: 'no_more', loading: false, replyTo: null, kind: 'sv' };
 
 // 表情包数据（复用动态广场 fetchEmoticonPacks/_applyEmoticons 思路）：
 // map[id]={url,big,name,pkg} 供 UBB 渲染；packs=[{name,items}] 供面板分包展示
@@ -70,7 +70,10 @@ function ensureEmotionMap() {
       });
       applyEmotPacks(flat);
       resolve();
-    }, function () { resolve(); });
+    }, function () {
+      EmotionMap.loading = null; // 清掉失败标记，下次进入可重试（否则整场会话表情失效）
+      resolve();
+    });
   });
   return EmotionMap.loading;
 }
@@ -82,7 +85,11 @@ function renderCommentHtml(content) {
   h = h.replace(/\[emot=acfun,(\w+)\/\]/g, function (_, id) {
     var em = EmotionMap.map[id];
     var u = em ? (typeof em === 'string' ? em : em.url) : null;
-    return u ? '<img class="ubb-emotion" src="' + u + '" referrerpolicy="no-referrer">' : '[表情]';
+    // 与 [img] 一致过 A 站图床白名单：映射值可能来自页面可写的 localStorage，防属性逃逸
+    if (u && IMG_CDN_OK.test(u.replace(/^\/\//, 'https://'))) {
+      return '<img class="ubb-emotion" src="' + u + '" referrerpolicy="no-referrer">';
+    }
+    return '[表情]';
   });
   h = h.replace(/\[emot=(\w+),(\w+)\/\]/g, function (_, pkg, id) {
     return '<img class="ubb-emotion" src="https://cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/' + pkg + '/' + id + '.gif" referrerpolicy="no-referrer">';
@@ -106,43 +113,51 @@ export function closeComments() {
   if (root) root.classList.remove('acsv-with-comments');
 }
 
-export function openComments(meowId, stype, shareUrl, kind) {
-  if (!commentDrawer || !meowId) return;
+export function openComments(sourceId, stype, shareUrl, kind) {
+  if (!commentDrawer || !sourceId) return;
   commentDrawer.el.classList.add('open');
   if (root) {
     root.classList.add('acsv-with-comments');
     // 整体缩放避让：视频区缩到剩余空间，不平移不裁画面
-    var dw = Math.min(380, window.innerWidth * 0.88);
-    var scale = Math.max(0.3, (window.innerWidth - dw) / window.innerWidth);
+    var dw = Math.min(CFG.comments.drawerW, window.innerWidth * CFG.comments.drawerMaxWp);
+    var scale = Math.max(CFG.comments.scaleMin, (window.innerWidth - dw) / window.innerWidth);
     root.style.setProperty('--acsv-cscale', String(scale));
   }
   commentState.stype = Number(stype) || 5;
   commentState.kind = kind === 'home' ? 'home' : 'sv';
-  commentState.shareUrl = shareUrl || (CFG.api.shareBase + meowId);
+  commentState.shareUrl = shareUrl || (CFG.api.shareBase + sourceId);
   ensureCommentInput();
   // 小视频模式纯浏览：不提供任何评论交互
   if (inputBar) inputBar.style.display = commentState.kind === 'home' ? 'flex' : 'none';
-  if (commentState.meowId !== meowId) {
+  if (commentState.sourceId !== sourceId) {
     setReply(null); // 换视频清掉未发送的回复目标
-    loadComments(meowId, 1, false);
+    loadComments(sourceId, 1, false);
   } else if (!commentDrawer.list.children.length) {
-    loadComments(meowId, 1, false);
+    loadComments(sourceId, 1, false);
   }
 }
 
-function loadComments(meowId, page, append) {
+// 右栏按钮与 C 键共用：同一条目开着就收起，否则展开该条目的评论
+export function toggleItemComments(item) {
+  if (isOpenComments() && commentState.sourceId === item.id) closeComments();
+  else openComments(item.id, item.stype, item.shareUrl, item.kind);
+}
+
+function loadComments(sourceId, page, append) {
   if (!commentDrawer) return;
   commentState.loading = true;
-  commentState.meowId = meowId;
+  commentState.sourceId = sourceId;
+  var reqId = sourceId; // 换视频后旧响应一律丢弃，防止评论串台/分页游标被污染
   if (!append) {
     commentDrawer.list.innerHTML = '';
     commentDrawer.list.appendChild(el('div', 'acsv-spinner',
       null)).style.cssText = 'position:static;margin:40px auto;display:block';
   }
   var p = window.__ACSV_MOCK__ ? Promise.resolve(mockComments()) :
-    request(CFG.api.comment + meowId + '&sourceType=' + commentState.stype + '&page=' + page +
+    request(CFG.api.comment + sourceId + '&sourceType=' + commentState.stype + '&page=' + page +
       '&pivotCommentId=0&newPivotCommentId=&showHotComments=1', 'GET');
   Promise.all([p, ensureEmotionMap()]).then(function (res) {
+    if (reqId !== commentState.sourceId) return; // 响应返回前已切到其他视频
     var j = res[0];
     commentState.loading = false;
     var list = (j && j.rootComments) || [];
@@ -152,6 +167,7 @@ function loadComments(meowId, page, append) {
     commentState.count = (j && j.commentCount != null) ? j.commentCount : list.length;
     renderComments(list, append, j && j.subCommentsMap, (j && j.hotComments) || []);
   }, function () {
+    if (reqId !== commentState.sourceId) return;
     commentState.loading = false;
     renderCommentTip('评论加载失败，请重试');
   });
@@ -166,7 +182,7 @@ function normalizeSubs(subMap, cid) {
   return [];
 }
 
-function commentItem(c, subMap, meowId) {
+function commentItem(c, subMap, sourceId) {
   var item = el('div', 'acsv-citem');
   // 头像 + 昵称可点击进入用户主页
   var homeUrl = c.userId ? CFG.api.userBase + c.userId : null;
@@ -191,45 +207,25 @@ function commentItem(c, subMap, meowId) {
   }
   if (c.isUp) name.appendChild(el('span', 'up', 'UP'));
   body.appendChild(name);
-  body.appendChild(el('div', 'acsv-ctext'));
-  body.lastChild.innerHTML = renderCommentHtml(c.content);
+  var ctext = el('div', 'acsv-ctext');
+  ctext.innerHTML = renderCommentHtml(c.content); // 内容先 esc 再 UBB 渲染（renderCommentHtml 内）
+  body.appendChild(ctext);
   var meta = el('div', 'acsv-cmeta');
   meta.appendChild(el('span', null, esc(c.postDate || '')));
   var like = null, replyBtn = null;
   if (commentState.kind === 'home') {
-    // 小视频模式纯浏览：点赞/回复仅推荐模式提供
+    // 小视频模式纯浏览：点赞/回复仅推荐模式提供。
+    // 点击统一委托在 drawer list 上（见 commentListClick），这里只挂数据引用，
+    // 免得长列表每条评论两个监听器、innerHTML 重建时反复创建丢弃
     like = el('span', 'acsv-clike' + ((c.isLike || c.localLike) ? ' on' : ''), ICONS.heart);
     var likeN = el('span', null, fmt((c.likeCount || 0) + (c.localLike ? 1 : 0)));
     like.appendChild(likeN);
     like.title = '点赞评论';
-    like.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      if (c.likeBusy) return;
-      var on = !(c.isLike || c.localLike);
-      c.likeBusy = true;
-      c.localLike = on;
-      like.classList.toggle('on', on);
-      likeN.textContent = fmt((c.likeCount || 0) + (on ? 1 : 0));
-      AppAPI.commentLike(commentState.meowId, commentState.stype, c.commentId, on)
-        .then(function (ok) {
-          c.likeBusy = false;
-          if (ok) return;
-          c.localLike = !on; // 失败回滚
-          like.classList.toggle('on', !on);
-          likeN.textContent = fmt(c.likeCount || 0);
-          toast('操作失败（未登录？）');
-        });
-    });
+    like._c = c;
+    like._n = likeN;
     meta.appendChild(like);
     replyBtn = el('span', 'acsv-creplybtn', '回复');
-    replyBtn.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      setReply({ id: String(c.commentId), name: c.userName || 'AcFun用户' });
-      if (inputBar) {
-        var inp = inputBar.querySelector('.acsv-cinput-text');
-        if (inp) inp.focus();
-      }
-    });
+    replyBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户' };
     meta.appendChild(replyBtn);
   } else {
     like = el('span', 'acsv-clike', ICONS.heart);
@@ -241,7 +237,7 @@ function commentItem(c, subMap, meowId) {
   var subBox = null;
   if (subs.length) {
     subBox = el('div', 'acsv-csub');
-    subs.forEach(function (s) { subBox.appendChild(commentItem(s, null, meowId)); });
+    subs.forEach(function (s) { subBox.appendChild(commentItem(s, null, sourceId)); });
     body.appendChild(subBox);
   }
   if ((c.subCommentCount || 0) > subs.length) {
@@ -252,6 +248,47 @@ function commentItem(c, subMap, meowId) {
   return item;
 }
 
+// 评论点赞（乐观更新 + 失败回滚）；like._c/_n 由 commentItem 挂上
+function toggleCommentLike(like) {
+  var c = like._c;
+  if (!c || c.likeBusy) return;
+  var on = !(c.isLike || c.localLike);
+  c.likeBusy = true;
+  c.localLike = on;
+  like.classList.toggle('on', on);
+  like._n.textContent = fmt((c.likeCount || 0) + (on ? 1 : 0));
+  AppAPI.commentLike(commentState.sourceId, commentState.stype, c.commentId, on)
+    .then(function (ok) {
+      c.likeBusy = false;
+      if (ok) return;
+      c.localLike = !on; // 失败回滚
+      like.classList.toggle('on', !on);
+      like._n.textContent = fmt(c.likeCount || 0);
+      toast('操作失败（未登录？）');
+    });
+}
+
+// 评论列表点击统一委托：挂一次在 drawer list 上，接管所有楼层的点赞/回复。
+// 挂载点在 player.js 建抽屉骨架处（dlist.addEventListener('click', commentListClick)）
+export function commentListClick(ev) {
+  var like = ev.target.closest('.acsv-clike');
+  if (like && like._c) {
+    // 与旧逐条绑定一致：stopPropagation，不惊动 document 级的外点关闭逻辑
+    ev.stopPropagation();
+    toggleCommentLike(like);
+    return;
+  }
+  var rb = ev.target.closest('.acsv-creplybtn');
+  if (rb && rb._target) {
+    ev.stopPropagation();
+    setReply(rb._target);
+    if (inputBar) {
+      var inp = inputBar.querySelector('.acsv-cinput-text');
+      if (inp) inp.focus();
+    }
+  }
+}
+
 // 楼中楼展开：comment/sublist 分页拉取，就地追加渲染（网页版交互）
 function expandSubComments(body, c, subBox) {
   var more = el('button', 'acsv-cmore', '展开 ' + c.subCommentCount + ' 条回复');
@@ -260,16 +297,16 @@ function expandSubComments(body, c, subBox) {
   function appendSubs(arr) {
     if (!arr.length) return;
     if (!subBox) { subBox = el('div', 'acsv-csub'); body.insertBefore(subBox, more); }
-    arr.forEach(function (s) { subBox.appendChild(commentItem(s, null, commentState.meowId)); });
+    arr.forEach(function (s) { subBox.appendChild(commentItem(s, null, commentState.sourceId)); });
   }
   more.addEventListener('click', function (ev) {
     ev.stopPropagation();
     if (more._busy) return;
     more._busy = true;
     more.textContent = '展开中…';
-    request(CFG.api.commentSub + '?sourceId=' + commentState.meowId
+    request(CFG.api.commentSub + '?sourceId=' + commentState.sourceId
       + '&sourceType=' + commentState.stype
-      + '&rootCommentId=' + c.commentId + '&pcursor=' + pcursor + '&count=20', 'GET')
+      + '&rootCommentId=' + c.commentId + '&pcursor=' + pcursor + '&count=' + CFG.comments.subCount, 'GET')
       .then(function (j) {
         more._busy = false;
         if (!j || j.result !== 0) { more.textContent = '展开失败，点击重试'; return; }
@@ -305,7 +342,7 @@ function renderComments(list, append, subMap, hot) {
   function push(c) {
     if (seen[c.commentId]) return;
     seen[c.commentId] = 1;
-    commentDrawer.list.appendChild(commentItem(c, subMap, commentState.meowId));
+    commentDrawer.list.appendChild(commentItem(c, subMap, commentState.sourceId));
   }
   // 热门评论置顶（网页版同款排序语义：hotComments + 最新流）
   if (!append && hot && hot.length) {
@@ -318,7 +355,7 @@ function renderComments(list, append, subMap, hot) {
     var more = el('button', 'acsv-drawer-more', '加载更多评论');
     more.addEventListener('click', function () {
       more.remove();
-      loadComments(commentState.meowId, commentState.page + 1, true);
+      loadComments(commentState.sourceId, commentState.page + 1, true);
     });
     commentDrawer.list.appendChild(more);
   }
@@ -357,7 +394,8 @@ function sendCurrent() {
   inputBar._busy = true;
   send.textContent = '发送中…';
   var replyTo = commentState.replyTo;
-  AppAPI.postComment(commentState.meowId, commentState.stype, text, replyTo ? replyTo.id : 0)
+  var forId = commentState.sourceId;
+  AppAPI.postComment(commentState.sourceId, commentState.stype, text, replyTo ? replyTo.id : 0)
     .then(function (r) {
       inputBar._busy = false;
       send.textContent = '发送';
@@ -369,8 +407,26 @@ function sendCurrent() {
       inp.value = '';
       if (inputBar._fit) inputBar._fit();
       setReply(null);
-      loadComments(commentState.meowId, 1, false); // 刷新显示新内容
+      if (forId !== commentState.sourceId) return; // 发送期间已切视频
+      if (insertLocalComment(r.comment, !!replyTo)) return; // 根评论乐观上屏，滚动位置不丢
+      loadComments(commentState.sourceId, 1, false); // 回复楼中楼/无回显数据：退回整页刷新
     });
+}
+
+// 发评论成功后的乐观上屏：根评论且有服务端回显时插到「最新」段首。
+// 返回 false 表示无法本地插入（回复进楼中楼 / 缺回显数据），调用方退回整页重拉
+function insertLocalComment(c, isReply) {
+  if (!commentDrawer || isReply || !c || !c.commentId) return false;
+  var list = commentDrawer.list;
+  var tip = list.querySelector('.acsv-drawer-tip');
+  if (tip) tip.remove(); // 清掉“还没有评论…”空提示
+  var node = commentItem(c, null, commentState.sourceId);
+  var divider = list.querySelector('.acsv-hot-divider');
+  if (divider) divider.insertAdjacentElement('afterend', node);
+  else list.insertBefore(node, list.firstChild);
+  commentState.count++;
+  commentDrawer.title.textContent = '评论 ' + fmt(commentState.count);
+  return true;
 }
 
 function ensureCommentInput() {
@@ -399,7 +455,7 @@ function ensureCommentInput() {
     var f = fileInp.files && fileInp.files[0];
     fileInp.value = '';
     if (!f) return;
-    if (f.size > 10 * 1024 * 1024) { toast('图片不能超过 10MB'); return; }
+    if (f.size > CFG.comments.imgMax) { toast('图片不能超过 10MB'); return; }
     imgBtn.textContent = '上传中';
     AppAPI.uploadImage(f).then(function (url) {
       imgBtn.innerHTML = ICONS.image;
@@ -439,8 +495,8 @@ function ensureCommentInput() {
     var l = commentDrawer.list;
     if (commentState.loading || commentState.page >= commentState.totalPage
       || commentState.pcursor === 'no_more') return;
-    if (l.scrollTop + l.clientHeight >= l.scrollHeight - 80) {
-      loadComments(commentState.meowId, commentState.page + 1, true);
+    if (l.scrollTop + l.clientHeight >= l.scrollHeight - CFG.comments.scrollPad) {
+      loadComments(commentState.sourceId, commentState.page + 1, true);
     }
   }, { passive: true });
 
@@ -454,7 +510,7 @@ function ensureCommentInput() {
       panel.appendChild(el('div', 'acsv-drawer-tip', '表情加载中…'));
       ensureEmotionMap().then(function () { renderPanel(); });
     } else if (show) {
-      renderPanel();
+      ensureEmotionMap().then(renderPanel); // 已加载时立即返回；上次失败则顺带重试
     }
   });
 
@@ -468,7 +524,7 @@ function ensureCommentInput() {
   function emotPick(id) {
     var ids = emotReadRecent().filter(function (x) { return x !== String(id); });
     ids.unshift(String(id));
-    try { localStorage.setItem('acsv_emot_recent_v1', JSON.stringify(ids.slice(0, 12))); } catch (e) { }
+    try { localStorage.setItem('acsv_emot_recent_v1', JSON.stringify(ids.slice(0, CFG.comments.recentMax))); } catch (e) { }
   }
   function emotFind(id) {
     var packs = EmotionMap.packs || [];
@@ -489,7 +545,7 @@ function ensureCommentInput() {
     panel.innerHTML = '';
     var packs = EmotionMap.packs || [];
     if (!packs.length) {
-      panel.appendChild(el('div', 'acsv-drawer-tip', '表情加载失败（需登录）'));
+      panel.appendChild(el('div', 'acsv-drawer-tip', '表情加载失败，请重试'));
       return;
     }
     function addEmot(grid, it) {

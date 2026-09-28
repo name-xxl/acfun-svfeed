@@ -1,10 +1,21 @@
 import { CFG } from './cfg.js';
+import { stat, set, testHook } from './dbg.js';
 
 // ---------- Canvas 弹幕渲染层 ----------
 // 移植 AcFun-Danmaku-Sender 的本地弹幕画布思路（src/71-canvas-preview.js）：
-// 无状态重绘——rAF 每帧读 video.currentTime 反推所有弹幕位置，
+// 无状态重绘——rVFC 每帧读 video.currentTime 反推所有弹幕位置，
 // 暂停/seek/倍速天然正确，零播放器事件监听。
 // 经典弹幕映射成"单帧模型"：mode 1=滚动(轨道分配) / 4=底部 / 5=顶部（未知兜底滚动）。
+// 0.9.4 绘制内层优化（架构不变）：
+//   1) 文本位图缓存：每条弹幕首次绘制渲染一次离屏位图（含描边），之后每帧 drawImage，
+//      免去逐帧 strokeText+fillText 的字形光栅化；过期释放 + FIFO 上限 300 条兜底；
+//   2) 时间窗扫描：items 按 at 升序（不变量），过期前缀 head 指针 + at>t 提前收工，
+//      每帧只扫活动窗口，不再全量遍历；
+//   3) 量宽缓存：文本+字号没变就不重复 measureText（发本地弹幕触发的全量重排不再卡顿）。
+
+// 调试构建的绘制埋点：每 60 帧结算平均 paint 耗时/可见条数
+// （正式构建 __ACSV_DEBUG__ 为 false，分支为空转，与 session.js 的模拟缝同一模式）
+var dmFc = 0, dmMs = 0, dmVisSum = 0;
 
 function createLayer(slide, video) {
   var canvas = document.createElement('canvas');
@@ -12,10 +23,14 @@ function createLayer(slide, video) {
   var ctx = canvas.getContext('2d');
   slide.insertBefore(canvas, slide.querySelector('.acsv-side'));
 
-  var items = [];            // {text, at(ms), mode, color, size, _px, _w, _dur, _lane}
+  var items = [];  // {text, at(ms), mode, color, size, _px, _w, _dur, _lane,
+                   //  _mk(量宽键), _bmp/_bk/_lw/_lh(位图缓存)}，按 at 升序
   var raf = 0, running = false, lastAlign = 0;
   var cssW = 0, cssH = 0, dpr = 1;
   var laneH = 30, lastW = 0;
+  var head = 0, lastT = -1;  // 活动窗口：head=首个未过期项下标
+  var devK = 1;              // 视觉缩放×dpr：位图按此分辨率渲染，上屏 1:1 不重采样
+  var sprQueue = [], sprN = 0; // 位图 FIFO（防 seek 回扫风暴撑爆内存）与存活计数
   // 有 requestVideoFrameCallback 时按视频帧率驱动：新帧上屏才重绘，暂停即停画（旧 rAF
   // 按显示器刷新率全量重绘，144Hz 屏放 30fps 视频时 ~4/5 的重绘是纯浪费，还和视频渲染抢主线程）
   var vfc = !!video.requestVideoFrameCallback;
@@ -46,6 +61,7 @@ function createLayer(slide, video) {
     canvas.style.width = cssW + 'px';
     canvas.style.height = cssH + 'px';
     dpr = window.devicePixelRatio || 1;
+    devK = scale * dpr;
     var pw = Math.round(cssW * scale * dpr), ph = Math.round(cssH * scale * dpr);
     // 位图按视觉尺寸×dpr 建，保证缩放显示下依然清晰；只在实际变化时赋值（赋值会清空画布）
     if (canvas.width !== pw) canvas.width = pw;
@@ -58,9 +74,44 @@ function createLayer(slide, video) {
   }
 
   function measure(it) {
-    it._px = fontPxOf(it.size);
-    ctx.font = it._px + 'px "Microsoft YaHei","PingFang SC",sans-serif';
+    var px = fontPxOf(it.size);
+    var key = px + '|' + it.text;
+    if (it._mk === key) return; // 量宽缓存：文本/字号没变不重复 measureText
+    it._px = px;
+    ctx.font = px + 'px "Microsoft YaHei","PingFang SC",sans-serif';
     it._w = Math.max(8, ctx.measureText(it.text).width);
+    it._mk = key;
+  }
+
+  // 文本位图：首次绘制（或文本/字号/缩放变化）时渲染一次，之后每帧 drawImage。
+  // 位图按设备像素（视觉缩放×dpr）建，主画布同变换绘制，1:1 上屏不重采样
+  function spriteOf(it) {
+    var bk = it._px + '|' + it.text + '|' + devK;
+    if (it._bmp && it._bk === bk) return;
+    var pad = Math.max(2, Math.ceil(it._px / 24) + 2); // 描边半径+抗锯齿余量
+    var lw = Math.ceil(it._w) + pad * 2;
+    var lh = Math.ceil(it._px * 1.4) + pad * 2;
+    var bmp = document.createElement('canvas');
+    bmp.width = Math.max(1, Math.round(lw * devK));
+    bmp.height = Math.max(1, Math.round(lh * devK));
+    var bctx = bmp.getContext('2d');
+    bctx.setTransform(devK, 0, 0, devK, 0, 0);
+    bctx.font = it._px + 'px "Microsoft YaHei","PingFang SC",sans-serif';
+    bctx.textAlign = 'center';
+    bctx.textBaseline = 'middle';
+    bctx.lineJoin = 'round';
+    bctx.lineWidth = Math.max(1, it._px / 12);
+    bctx.strokeStyle = 'rgba(0,0,0,.82)';
+    bctx.strokeText(it.text, lw / 2, lh / 2);
+    bctx.fillStyle = it.color;
+    bctx.fillText(it.text, lw / 2, lh / 2);
+    it._bmp = bmp; it._bk = bk; it._lw = lw; it._lh = lh;
+    sprQueue.push(it);
+    sprN++;
+    if (sprQueue.length > 300) {
+      var old = sprQueue.shift();
+      if (old._bmp) { old._bmp = null; sprN--; }
+    }
   }
 
   // 轨道分配：按出现时间排序，滚动轨要求上一条"尾部完全进入"才能复用，
@@ -106,6 +157,8 @@ function createLayer(slide, video) {
   }
 
   function paint() {
+    var t0 = 0, vis = 0;
+    if (__ACSV_DEBUG__) t0 = performance.now();
     // 几何对齐限频：布局读取没必要每帧做（250ms 内的缩放/尺寸变化下一帧补齐，无感）
     var now = Date.now();
     if (now - lastAlign > 250) {
@@ -116,9 +169,19 @@ function createLayer(slide, video) {
     ctx.clearRect(0, 0, cssW, cssH);
     if (items.length && cssW >= 10) {
       var t = video.currentTime * 1000;
-      for (var i = 0; i < items.length; i++) {
+      // 向后 seek 会让过期前缀判定失效：指针归零，本帧多扫一点，之后恢复窗口扫描
+      if (t < lastT) head = 0;
+      lastT = t;
+      // 前推 head 跳过过期前缀，顺带释放位图；_dur 未量出（NaN）时不动，等重排后自愈
+      while (head < items.length && items[head]._dur > 0 && t > items[head].at + items[head]._dur) {
+        var gone = items[head];
+        if (gone._bmp) { gone._bmp = null; sprN--; }
+        head++;
+      }
+      for (var i = head; i < items.length; i++) {
         var it = items[i];
-        if (t < it.at || t > it.at + it._dur) continue;
+        if (it.at > t) break;               // 升序不变量：后面只会更晚出现，收工
+        if (t > it.at + it._dur) continue;  // 窗口中段可能有先过期项（顶/底停留短）
         var p = (t - it.at) / it._dur;
         var x, y;
         if (it.mode === 5) {          // 顶部
@@ -130,15 +193,20 @@ function createLayer(slide, video) {
           y = laneH * (it._lane + 1);
         }
         if (x < -it._w / 2 || x > cssW + it._w / 2) continue;
-        ctx.font = it._px + 'px "Microsoft YaHei","PingFang SC",sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.lineJoin = 'round';
-        ctx.lineWidth = Math.max(1, it._px / 12);
-        ctx.strokeStyle = 'rgba(0,0,0,.82)';
-        ctx.strokeText(it.text, x, y);
-        ctx.fillStyle = it.color;
-        ctx.fillText(it.text, x, y);
+        spriteOf(it);
+        ctx.drawImage(it._bmp, x - it._lw / 2, y - it._lh / 2, it._lw, it._lh);
+        vis++;
+      }
+    }
+    if (__ACSV_DEBUG__) {
+      stat('dm.frame');
+      dmMs += performance.now() - t0;
+      dmVisSum += vis;
+      if (++dmFc >= 60) {
+        set('dm.paintMs', +(dmMs / dmFc).toFixed(2));
+        set('dm.visible', Math.round(dmVisSum / dmFc));
+        set('dm.sprites', sprN);
+        dmFc = 0; dmMs = 0; dmVisSum = 0;
       }
     }
   }
@@ -151,6 +219,9 @@ function createLayer(slide, video) {
 
   function frame() {
     if (!running) return;
+    // rAF 兜底路径按显示器刷新率驱动：暂停时不重绘（rVFC 路径暂停自然不出帧），
+    // 恢复播放后下一帧自动恢复
+    if (!vfc && video.paused) { schedule(); return; }
     paint();
     schedule();
   }
@@ -158,14 +229,18 @@ function createLayer(slide, video) {
   return {
     setItems: function (list) {
       items = (list || []).filter(function (m) { return m && m.text; });
+      head = 0; lastT = -1;      // 新数组：窗口指针作废
+      sprQueue = []; sprN = 0;   // 旧条目连同位图一起交给 GC
       if (running) {
         assignLanes();
         if (video.paused) paint(); // 暂停中 rVFC 不触发，主动画一帧让弹幕立即可见
       }
     },
-    // 发送成功后的本地回显
+    // 发送成功后的本地回显：按 at 有序插入（时间窗扫描依赖升序不变量，通常就落在队尾）
     addLocal: function (it) {
-      items.push(it);
+      var j = items.length;
+      while (j > 0 && items[j - 1].at > it.at) j--;
+      items.splice(j, 0, it);
       if (running) {
         assignLanes();
         if (video.paused) paint();
@@ -175,7 +250,9 @@ function createLayer(slide, video) {
       if (running) return;
       running = true;
       lastAlign = 0;
-      frame(); // 直接画一帧：暂停态开启弹幕也能马上显示（rVFC 暂停时不触发）
+      lastW = 0; // 强制重排：stop 期间 addLocal 攒下的条目可能没量过宽（否则首帧 NaN 坐标静默丢失）
+      paint();   // 直接画一帧：暂停态开启弹幕也能马上显示（rVFC 暂停时不触发）
+      schedule();
     },
     stop: function () {
       running = false;
@@ -189,6 +266,10 @@ function createLayer(slide, video) {
     destroy: function () {
       this.stop();
       if (canvas.parentNode) canvas.remove();
+      // 从图层表摘除自己：否则每次重挂（切清晰度）都泄漏一个闭包，
+      // 持有 canvas/ctx/video/items 直到整页退出才释放
+      var at = layers.indexOf(this);
+      if (at >= 0) layers.splice(at, 1);
     }
   };
 }
@@ -207,3 +288,6 @@ export var DmCanvas = {
     layers = [];
   }
 };
+
+// harness 模拟缝：绕过弹幕接口直接驱动图层做绘制冒烟（正式构建 testHook 为 noop）
+testHook('dmcanvas', function () { return DmCanvas; });

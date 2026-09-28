@@ -3,10 +3,11 @@ import { request } from './net.js';
 import { normalizeHome } from './data.js';
 
 // ---------- APP 家族接口层 ----------
-// 域名 api-new.app.acfun.cn（与 acfunchina.com 同后端），固定 mkey 免登录读；
-// 写操作（收藏/投蕉/评论点赞）靠 .acfun.cn 域 Cookie（GM_xhr 自动携带），
-// 另附 acfun.midground.api_st 双保险（未登录时 token 换不到，直发让接口报错）。
-// selection/feed 必须带 appVersion 头，douga/playInfo 不带（对齐 A 站客户端行为）。
+// 域名 api-new.app.acfun.cn（与 acfunchina.com 同后端），固定 mkey 免登录读。
+// 这里只剩读接口（首页推荐流/详情/播放直链/弹幕列表）；全部写操作（点赞/收藏/
+// 投蕉/关注/评论/弹幕）都在 www.acfun.cn PC 端或 interact API，走 postForm 页面
+// fetch（风控友好）。selection/feed 必须带 appVersion 头，douga/playInfo 不带
+// （对齐 A 站客户端行为）。
 
 var pcursor = '';
 var exhausted = false;
@@ -16,21 +17,20 @@ var apiSt = null, apiStBusy = null;
 export function ensureApiSt(force) {
   if (apiSt && !force) return Promise.resolve(apiSt);
   if (apiStBusy) return apiStBusy;
-  apiStBusy = fetch(CFG.api.token, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'sid=acfun.midground.api'
-  }).then(function (r) { return r.json(); }).then(function (j) {
-    apiStBusy = null;
-    if (j && j.result === 0 && j['acfun.midground.api_st']) {
-      apiSt = j['acfun.midground.api_st'];
-      return apiSt;
-    }
-    throw new Error('token-denied');
-  }, function (e) { apiStBusy = null; throw e; });
+  apiStBusy = postForm(CFG.api.token, 'sid=acfun.midground.api')
+    .then(function (j) {
+      apiStBusy = null;
+      if (j && j.result === 0 && j['acfun.midground.api_st']) {
+        apiSt = j['acfun.midground.api_st'];
+        return apiSt;
+      }
+      throw new Error('token-denied');
+    }, function (e) { apiStBusy = null; throw e; });
   return apiStBusy;
 }
+
+// 设备指纹会话内固定：每请求随机 udid 是风控典型特征，一个会话应像同一台设备
+var UDID = 'acsv-' + Math.random().toString(36).slice(2) + Date.now();
 
 function homeHeaders(withAppVer) {
   var d = new Date();
@@ -41,7 +41,7 @@ function homeHeaders(withAppVer) {
     'deviceType': '1',
     'net': 'WIFI',
     'productId': '2000',
-    'udid': 'acsv-' + Math.random().toString(36).slice(2) + Date.now(),
+    'udid': UDID,
     'resolution': '1080x1920',
     'market': 'tencent',
     'requestTime': d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
@@ -59,7 +59,8 @@ function q(extra) {
 // 同域（www.acfun.cn）表单 POST 走原生 fetch：携带完整 Cookie/Referer/Sec-Fetch 指纹。
 // 写操作（发弹幕/发评论）若经 GM_xmlhttpRequest 桥接会被风控判定为不可信设备
 // （返回「需要开启账号保护才能扫描二维码登录」），必须与动态广场一样用页面内 fetch。
-function postForm(url, body) {
+// 全项目的表单 POST 统一走这里（token/interact/follow 等写接口同语义），勿再内联 fetch
+export function postForm(url, body) {
   return fetch(url, {
     method: 'POST',
     credentials: 'include',
@@ -80,20 +81,113 @@ function cardsOf(body) {
   return out;
 }
 
-// 弹幕颜色十进制 int → '#rrggbb'
-export function intToHex(n) {
+// 弹幕颜色十进制 int → '#rrggbb'（仅供本模块 danmakuList 使用）
+function intToHex(n) {
   n = Number(n);
   if (!n || n < 0) n = 0xFFFFFF;
   return '#' + ('000000' + (n & 0xFFFFFF).toString(16)).slice(-6);
 }
 
+// 上传用 GM_xhr 的 Promise 化：POST + JSON 解析；无 GM/网络错/超时/解析失败一律 reject
+function gmPostJson(opts) {
+  return new Promise(function (resolve, reject) {
+    if (typeof GM_xmlhttpRequest !== 'function') return reject(new Error('no-gm'));
+    GM_xmlhttpRequest({
+      method: 'POST',
+      url: opts.url,
+      headers: opts.headers,
+      data: opts.data,
+      timeout: opts.timeout,
+      onload: function (r) {
+        try { resolve(JSON.parse(r.responseText)); } catch (e) { reject(e); }
+      },
+      onerror: function () { reject(new Error('network')); },
+      ontimeout: function () { reject(new Error('timeout')); }
+    });
+  });
+}
+
+// 图片上传四阶段：getToken → 分片（顺序逐一）→ complete → 换长期 URL
+function uploadGetToken(file) {
+  return gmPostJson({
+    url: 'https://www.acfun.cn/rest/pc-direct/image/upload/getToken',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    data: 'fileName=' + encodeURIComponent(file.name || 'image.png'),
+    timeout: CFG.upload.tokenT
+  }).then(function (d) {
+    if (!(d && d.result === 0 && d.info && d.info.token)) throw new Error('no-token');
+    return d.info.token;
+  });
+}
+
+function uploadChunks(token, file) {
+  var endpoint = CFG.upload.endpoint;
+  var total = file.size;
+  function step(i) {
+    if (i * CFG.upload.chunk >= total) return Promise.resolve();
+    var start = i * CFG.upload.chunk;
+    var end = Math.min(start + CFG.upload.chunk, total);
+    return gmPostJson({
+      url: endpoint + '/api/upload/fragment?upload_token=' + encodeURIComponent(token) + '&fragment_id=' + i,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Range': 'bytes ' + start + '-' + (end - 1) + '/' + total
+      },
+      data: file.slice(start, end),
+      timeout: CFG.upload.chunkT
+    }).then(function (d) {
+      if (!d || d.result !== 1) throw new Error('chunk-' + i);
+      return step(i + 1);
+    });
+  }
+  return step(0);
+}
+
+function uploadComplete(token, chunks) {
+  return gmPostJson({
+    url: CFG.upload.endpoint + '/api/upload/complete?upload_token=' + encodeURIComponent(token)
+      + '&fragment_count=' + chunks,
+    timeout: CFG.upload.completeT
+  }).then(function (d) {
+    if (!d || d.result !== 1) throw new Error('complete');
+  });
+}
+
+function uploadGetUrl(token) {
+  return gmPostJson({
+    url: 'https://www.acfun.cn/rest/pc-direct/image/upload/getUrlAfterUpload',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    data: 'token=' + encodeURIComponent(token) + '&bizFlag=web-comment-text',
+    timeout: CFG.upload.urlT
+  }).then(function (d) {
+    if (!(d && d.result === 0 && d.url)) throw new Error('no-url');
+    return d.url.split('?')[0]; // 剥签名参数，存裸路径长期可访问
+  });
+}
+
+// 默认收藏夹：收藏必须落夹，快速收藏统一进第一个夹（对齐 acfunsdk 的 default_fid 做法）。
+// 会话内缓存 + 单飞；无任何收藏夹时抛错（极罕见，需先在站内创建）
+var favFolderId = null, favFolderBusy = null;
+function ensureFavFolder() {
+  if (favFolderId) return Promise.resolve(favFolderId);
+  if (favFolderBusy) return favFolderBusy;
+  favFolderBusy = postForm(CFG.api.favFolderList, '').then(function (j) {
+    favFolderBusy = null;
+    var list = (j && (j.dataList || j.data)) || [];
+    if (list.length && list[0].folderId != null) {
+      favFolderId = String(list[0].folderId);
+      return favFolderId;
+    }
+    throw new Error('no-fav-folder');
+  }, function (e) { favFolderBusy = null; throw e; });
+  return favFolderBusy;
+}
+
 export var AppAPI = {
   // ---- 首页推荐流 ----
   resetPager: function () { pcursor = ''; exhausted = false; },
-  isExhausted: function () { return exhausted; },
   homeFeed: function () {
     if (exhausted) return Promise.resolve([]);
-    var self = this;
     return request(CFG.api.homeFeed + q('&appMode=0'), 'POST', homeHeaders(true),
       'mkey=' + CFG.home.mkey + '&pcursor=' + pcursor + '&count=' + CFG.homeFeedCfg.count)
       .then(function (j) {
@@ -116,13 +210,22 @@ export var AppAPI = {
       .then(function (j) {
         var streams = (j && j.playInfo && j.playInfo.streams) || [];
         return streams.map(function (s) {
+          var urls = (s.playUrls || []).map(function (u) {
+            return /^http:/.test(u) ? u.replace(/^http:/, 'https:') : u;
+          }).filter(function (u) { return /^https?:/.test(u); });
+          // 档位无编码字段：从首个 m3u8 文件名嗅探（实测依据见 cfg.codec 注释）
+          var hevc = CFG.codec.reHevc.test(urls[0] || '');
+          var raw = String(s.qualityLabel || s.qualityType || '默认');
           return {
-            label: s.qualityLabel || s.qualityType || '默认',
-            urls: (s.playUrls || []).map(function (u) {
-              return /^http:/.test(u) ? u.replace(/^http:/, 'https:') : u;
-            }).filter(function (u) { return /^https?:/.test(u); })
+            res: parseInt(raw, 10) || 0, // 排序键：同分辨率档（60fps/30fps）值相同，稳定排序保接口先后
+            label: raw + (hevc ? CFG.codec.suffix : ''),
+            codec: hevc ? 'hevc' : 'avc',
+            fps: s.fps || 0, // HealthMonitor 的理论帧间隔与降帧率判定用
+            urls: urls
           };
-        }).filter(function (x) { return x.urls.length; });
+        }).filter(function (x) { return x.urls.length; })
+          // applyQuality 的「无记忆取最高档 = idx 0」依赖降序，显式排一次不赌接口下发顺序
+          .sort(function (a, b) { return b.res - a.res; });
       }, function () { return []; });
   },
 
@@ -158,8 +261,23 @@ export var AppAPI = {
     });
   },
 
-  // 按记忆清晰度（无记忆取最高档，streams 本身按清晰度降序）
+  // 按记忆清晰度（无记忆取最高档；档位已在 playInfo 显式按分辨率数字降序）。
+  // 先按编码偏好过滤档位：avc 滤掉 HEVC 档（cast 对部分设备/未来 4K 档可能下发
+  // HEVC，默认 avc 是防无硬解卡帧的保底）；hevc 反之只留 HEVC 档；auto 不干预。
+  // 过滤后无匹配（如强 HEVC 但视频纯 H.264）则保留全集回落
   applyQuality: function (item) {
+    var pref = null;
+    try { pref = localStorage.getItem(CFG.lsCodec); } catch (e) { }
+    if (pref !== 'auto' && pref !== 'hevc') pref = CFG.codec.def;
+    if (pref !== 'auto' && item.qualities) {
+      var hit = item.qualities.filter(function (x) { return x.codec === pref; });
+      if (hit.length) item.qualities = hit;
+    }
+    // exp.q30（仅 debug）：滤掉 60fps 档模拟主站默认解码负载——归因实验用
+    if (CFG.exp.q30 && item.qualities) {
+      var lo = item.qualities.filter(function (x) { return !(x.fps > 30); });
+      if (lo.length) item.qualities = lo;
+    }
     var label = null;
     try { label = localStorage.getItem(CFG.lsQuality); } catch (e) { }
     var idx = 0;
@@ -173,114 +291,49 @@ export var AppAPI = {
     item.urlIdx = 0;
   },
 
-  // ---- 互动写接口 ----
-  appPost: function (url, body) {
-    return ensureApiSt().then(function (st) {
-      return request(url, 'POST', homeHeaders(false), body + '&acfun.midground.api_st=' + encodeURIComponent(st));
-    }, function () {
-      // 未登录换不到 token：不带 st 直发，让接口自行报未登录
-      return request(url, 'POST', homeHeaders(false), body);
+  // ---- 收藏（PC 端收藏夹体系） ----
+  // 视频 resourceType=9（收藏体系专用枚举，acfunsdk 里显式做 2→9 映射），且必须
+  // 落进收藏夹（addFolderIds/delFolderIds）。此前调的 APP 端 /rest/app/favorite
+  // 不带收藏夹参数，服务端返回 result:0 但实际不入库——「提示成功却没收藏」的根源。
+  // 网页 Cookie 即可鉴权（同域 fetch，无需 api_st），协议与 AcFunHelper/acfunsdk 一致
+  setFavorite: function (acId, on) {
+    return ensureFavFolder().then(function (fid) {
+      return postForm(on ? CFG.api.favoriteAdd : CFG.api.favoriteRemove, on
+        ? 'resourceId=' + acId + '&resourceType=9&addFolderIds=' + fid
+        : 'resourceType=9&resourceId=' + acId + '&delFolderIds=' + fid);
     }).then(function (j) {
       return !!(j && j.result === 0);
     }, function () { return false; });
   },
-  setFavorite: function (acId, on) {
-    return this.appPost(on ? CFG.api.favorite : CFG.api.unFavorite,
-      on ? 'resourceId=' + acId + '&resourceType=2'
-        : 'resourceIds=' + acId + '&resourceType=2');
-  },
+  // ---- 投蕉（PC 端点，网页 Cookie 即可） ----
+  // 推荐模式互动统一走 web 通道（收藏/关注/点赞/投蕉）。resourceType=2 与 APP 端同义
+  // （acfunsdk AcVideo 的 resource_type 即 2）；count 1~5
   throwBanana: function (acId, count) {
-    return this.appPost(CFG.api.banana,
-      'resourceId=' + acId + '&resourceType=2&count=' + (count > 0 ? count : 1));
+    return postForm(CFG.api.bananaPc,
+      'resourceId=' + acId + '&resourceType=2&count=' + (count > 0 ? count : 1))
+      .then(function (j) { return !!(j && j.result === 0); }, function () { return false; });
   },
   // 评论点赞：PC 端点（复用动态广场模块，网页 Cookie 即可，无需 token）
   commentLike: function (sourceId, sourceType, commentId, on) {
     return postForm(CFG.api.commentLikePc + (on ? 'like' : 'unlike'),
-      { 'Content-Type': 'application/x-www-form-urlencoded' },
       'sourceId=' + sourceId + '&sourceType=' + sourceType + '&commentId=' + commentId)
       .then(function (j) { return !!(j && j.result === 0); }, function () { return false; });
   },
 
-  // 图片上传（移植动态广场 uploadImage：getToken → 分片 → complete → 换 URL）
-  // 需 GM_xmlhttpRequest（二进制分片）；成功返回可长期访问的裸路径 URL
+  // ---- 图片上传（移植动态广场 uploadImage：getToken → 分片 → complete → 换 URL） ----
+  // 需 GM_xmlhttpRequest（二进制分片）；成功返回可长期访问的裸路径 URL。
+  // 各阶段独立成 Promise 小函数，任何一步失败统一落为 null
   uploadImage: function (file) {
-    return new Promise(function (resolve) {
-      if (typeof GM_xmlhttpRequest !== 'function') return resolve(null);
-      var CHUNK = 1 << 20; // 1MB 分片
-      GM_xmlhttpRequest({
-        method: 'POST',
-        url: 'https://www.acfun.cn/rest/pc-direct/image/upload/getToken',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        data: 'fileName=' + encodeURIComponent(file.name || 'image.png'),
-        timeout: 15000,
-        onload: function (r) {
-          var token = null;
-          try {
-            var d = JSON.parse(r.responseText);
-            token = d.result === 0 && d.info ? d.info.token : null;
-          } catch (e) { }
-          if (!token) return resolve(null);
-          var endpoint = 'https://upload.kuaishouzt.com';
-          var total = file.size;
-          var chunks = Math.max(1, Math.ceil(total / CHUNK));
-          var i = 0;
-          function nextChunk() {
-            if (i >= chunks) return complete();
-            var start = i * CHUNK;
-            var end = Math.min(start + CHUNK, total);
-            GM_xmlhttpRequest({
-              method: 'POST',
-              url: endpoint + '/api/upload/fragment?upload_token=' + encodeURIComponent(token) + '&fragment_id=' + i,
-              headers: {
-                'Content-Type': 'application/octet-stream',
-                'Content-Range': 'bytes ' + start + '-' + (end - 1) + '/' + total
-              },
-              data: file.slice(start, end),
-              timeout: 60000,
-              onload: function (r2) {
-                try {
-                  if (JSON.parse(r2.responseText).result === 1) { i++; return nextChunk(); }
-                } catch (e) { }
-                resolve(null);
-              },
-              onerror: function () { resolve(null); }
-            });
-          }
-          function complete() {
-            GM_xmlhttpRequest({
-              method: 'POST',
-              url: endpoint + '/api/upload/complete?upload_token=' + encodeURIComponent(token) + '&fragment_count=' + chunks,
-              timeout: 30000,
-              onload: function (r3) {
-                try {
-                  if (JSON.parse(r3.responseText).result === 1) return getUrl();
-                } catch (e) { }
-                resolve(null);
-              },
-              onerror: function () { resolve(null); }
-            });
-          }
-          function getUrl() {
-            GM_xmlhttpRequest({
-              method: 'POST',
-              url: 'https://www.acfun.cn/rest/pc-direct/image/upload/getUrlAfterUpload',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              data: 'token=' + encodeURIComponent(token) + '&bizFlag=web-comment-text',
-              timeout: 15000,
-              onload: function (r4) {
-                try {
-                  var d4 = JSON.parse(r4.responseText);
-                  resolve(d4.result === 0 && d4.url ? d4.url.split('?')[0] : null);
-                } catch (e) { resolve(null); }
-              },
-              onerror: function () { resolve(null); }
-            });
-          }
-          nextChunk();
-        },
-        onerror: function () { resolve(null); }
-      });
-    });
+    var chunks = Math.max(1, Math.ceil(file.size / CFG.upload.chunk));
+    return uploadGetToken(file)
+      .then(function (token) {
+        return uploadChunks(token, file).then(function () { return token; });
+      })
+      .then(function (token) {
+        return uploadComplete(token, chunks).then(function () { return token; });
+      })
+      .then(uploadGetUrl)
+      .then(function (url) { return url || null; }, function () { return null; });
   },
 
   // 发评论/回复（复用动态广场 postComment：replyToCommentId 传入则为回复楼中楼；
@@ -295,7 +348,7 @@ export var AppAPI = {
     }, function () {
       return postForm(CFG.api.commentAdd, base);
     }).then(function (j) {
-      if (j && j.result === 0) return { ok: true };
+      if (j && j.result === 0) return { ok: true, comment: j.comment || null };
       return { ok: false, msg: (j && (j.error_msg || j.msg)) || '' };
     }, function () { return { ok: false, msg: '网络错误' }; });
   },

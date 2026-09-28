@@ -1,5 +1,7 @@
 // ---------- 网络层 ----------
 // request(url, method, headers, body)：headers/body 可选（body 为 x-www-form-urlencoded 字符串）
+import { CFG } from './cfg.js';
+
 export function request(url, method, headers, body) {
   method = method || 'POST';
   return new Promise(function (resolve, reject) {
@@ -9,7 +11,7 @@ export function request(url, method, headers, body) {
         url: url,
         headers: headers || undefined,
         data: body || undefined,
-        timeout: 15000,
+        timeout: CFG.time.gm, // GM 桥接链路更长，享有更长超时
         onload: function (r) {
           try { resolve(JSON.parse(r.responseText)); }
           catch (e) { reject(new Error('bad json')); }
@@ -22,7 +24,7 @@ export function request(url, method, headers, body) {
       var x = new XMLHttpRequest();
       x.open(method, url);
       x.withCredentials = true;
-      x.timeout = 15000;
+      x.timeout = CFG.time.xhr;
       if (headers) {
         for (var k in headers) {
           try { x.setRequestHeader(k, headers[k]); } catch (e) { }

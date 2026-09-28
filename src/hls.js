@@ -1,4 +1,5 @@
 import { CFG } from './cfg.js';
+import { set } from './dbg.js';
 
 // ---------- hls.js 懒加载 ----------
 // 推荐模式的播放直链是 m3u8；Safari 原生支持，Chromium 系需要 hls.js。
@@ -14,29 +15,37 @@ export function ensureHls() {
   if (window.Hls && window.Hls.isSupported) return Promise.resolve(window.Hls);
   if (loading) return loading;
   loading = new Promise(function (resolve, reject) {
+    var urls = CFG.api.hlsCdns;
+    var i = 0;
     function ok() {
-      if (window.Hls && window.Hls.isSupported) resolve(window.Hls);
+      if (window.Hls && window.Hls.isSupported) { set('hls.cdnIdx', i - 1); resolve(window.Hls); }
       else reject(new Error('hls-load-failed'));
     }
-    if (typeof GM_xmlhttpRequest === 'function') {
-      GM_xmlhttpRequest({
-        method: 'GET',
-        url: CFG.api.hlsCdn,
-        timeout: 20000,
-        onload: function (r) {
-          try { (new Function(r.responseText))(); ok(); }
-          catch (e) { reject(e); }
-        },
-        onerror: function () { reject(new Error('hls-network')); },
-        ontimeout: function () { reject(new Error('hls-timeout')); }
-      });
-    } else {
-      var s = document.createElement('script');
-      s.src = CFG.api.hlsCdn;
-      s.onload = ok;
-      s.onerror = function () { reject(new Error('hls-network')); };
-      (document.head || document.documentElement).appendChild(s);
+    // 逐源尝试：单源失败（网络封锁/超时/文本损坏）自动换下一个，全灭才 reject
+    function next() {
+      if (i >= urls.length) return reject(new Error('hls-network'));
+      var url = urls[i++];
+      if (typeof GM_xmlhttpRequest === 'function') {
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url: url,
+          timeout: CFG.time.gm,
+          onload: function (r) {
+            try { (new Function(r.responseText))(); ok(); }
+            catch (e) { next(); }
+          },
+          onerror: next,
+          ontimeout: next
+        });
+      } else {
+        var s = document.createElement('script');
+        s.src = url;
+        s.onload = ok;
+        s.onerror = next;
+        (document.head || document.documentElement).appendChild(s);
+      }
     }
+    next();
   }).catch(function (e) { loading = null; throw e; });
   return loading;
 }

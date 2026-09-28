@@ -7,7 +7,8 @@ import { el, toast } from './ui.js';
 // 渲染在 dmcanvas（每 slide 一个 Canvas 图层）；数据走 PC 站弹幕接口（网页 Cookie）。
 // 输入框参考抖音：内嵌在控制栏内，点「发弹」横向展开，点外部/Esc 收起。
 
-var cache = {}; // videoId → Promise<规整弹幕列表>
+var DM_CACHE_MAX = 30; // 只留最近看过的 videoId：长会话不至于积攒几百份弹幕数组
+var cache = new Map(); // videoId → Promise<规整弹幕列表>；失败不占缓存
 var enabled = true;
 try { enabled = localStorage.getItem(CFG.lsDm) !== '0'; } catch (e) { }
 
@@ -19,15 +20,24 @@ export function setDmEnabled(on) {
 }
 
 function fetchList(videoId) {
-  if (!cache[videoId]) {
-    cache[videoId] = AppAPI.danmakuList(videoId).then(null, function () { return []; });
+  var hit = cache.get(videoId);
+  if (hit) {
+    cache.delete(videoId); // 触达挪到队尾：Map 迭代按插入序，等价 LRU
+    cache.set(videoId, hit);
+    return hit;
   }
-  return cache[videoId];
+  var p = AppAPI.danmakuList(videoId).then(null, function () {
+    cache.delete(videoId); // 失败不缓存：下次进入重试，避免一次网络抖动该视频永远没弹幕
+    return [];
+  });
+  cache.set(videoId, p);
+  if (cache.size > DM_CACHE_MAX) cache.delete(cache.keys().next().value);
+  return p;
 }
 
 // video 开始播放时由 player 调：绑图层、拉列表
 export function onPlaying(slide, item, video) {
-  if (!slide || !item || item.kind !== 'home' || !item.videoId) return;
+  if (!slide || !item || !item.cap || !item.cap.danmaku || !item.videoId) return;
   if (!slide._dmLayer) slide._dmLayer = DmCanvas.create(slide, video);
   var layer = slide._dmLayer;
   if (!enabled) { layer.stop(); return; }

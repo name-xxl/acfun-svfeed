@@ -2,31 +2,344 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>AcFun 竖滑页 - 本地预览 harness</title>
+<title>AcFun 竖滑页 - 本地验证 harness</title>
 <style>
   body { margin: 0; font: 14px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f5f5; }
   .note { padding: 12px 20px; color: #666; }
 </style>
 </head>
 <body>
-<div class="note">本地预览：脚本以 mock 数据运行。此页不在 www.acfun.cn 上，导航注入会走“悬浮按钮”兜底逻辑。
-  加 <code>?src=home</code> 预览首页推荐模式（mock 卡片 + 本地测试视频，弹幕/写接口不可用）。</div>
+<div class="note">本地验证 harness：mock 数据运行。断言结果写入 <code>window.__HARNESS_RESULTS__</code>。
+  场景：<code>?case=smoke|homeswitch|fastswipe|resolvefail</code>（默认 smoke）；
+  <code>?bundle=release</code> 加载正式构建（默认 debug，带 __ACSV_TEST__/__dbg）；
+  <code>?src=home</code> 人工预览推荐模式。测试媒体统一映射为免 h264 依赖的 webm。</div>
 <script src="feed-sample.js"></script>
 <script src="home-sample.js"></script>
 <script>
-  // ?src=home 预设内容源（脚本模块初始化时读 localStorage，须在加载产物前写入）
-  if (/[?&]src=home/.test(location.search)) {
+  // ============ 场景预处理（须在 bundle 加载前：改 mock / 写 localStorage） ============
+  var CASE = (location.search.match(/[?&]case=([\w-]+)/) || [])[1] || 'smoke';
+  var RELEASE = /[?&]bundle=release/.test(location.search);
+  // 官方 weblog 管道 stub：debug 构建 unsafeWindow===window，reportLeave 读 window.weblog。
+  // 所有场景无条件 stub——非 home 场景 cap.watchReport=false 不会触达；调用记录供断言
+  window.__WL_CALLS = [];
+  window.weblog = {
+    impr: {
+      getCurrentReqID: function () { return 'req-mock'; },
+      getCurrentGroupID: function () { return 'grp-mock'; }
+    },
+    sendImmediately: function (channel, payload) {
+      window.__WL_CALLS.push({ channel: channel, payload: payload });
+    }
+  };
+  // 页面级错误捕获（bundle 求值期错误发生在 dbgInit 之前，__dbg 抓不到）
+  window.__errs = [];
+  window.addEventListener('error', function (e) {
+    window.__errs.push((e.message || 'res:' + (e.target && e.target.tagName || '?'))
+      + ' @' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || 0));
+  }, true);
+  window.__HARNESS_RESULTS__ = { case: CASE, bundle: RELEASE ? 'release' : 'debug', results: [], done: false };
+  function rec(name, pass, info) { window.__HARNESS_RESULTS__.results.push({ name: name, pass: !!pass, info: info == null ? '' : String(info) }); }
+
+  // 走 home mock 的场景（其余默认 sv；显式 ?src=home 保持人工预览语义）
+  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1 };
+  if (HOME_CASES[CASE] || /[?&]src=home/.test(location.search)) {
     try { localStorage.setItem('acsv-source', 'home'); } catch (e) { }
   } else {
     try { localStorage.removeItem('acsv-source'); } catch (e) { }
   }
+  // 测试媒体统一换本地 webm（免 h264 依赖 + 免外网抖动；cc0，来自 MDN flower 样片）。
+  // 必须绝对 URL：normalize() 的直链过滤器要求 ^https?:
+  var TEST_WEBM = new URL('media/flower.webm', location.href).href;
+  (window.__ACSV_MOCK_HOME__ || []).forEach(function (c) { c.mockUrl = TEST_WEBM; });
+  ((window.__ACSV_MOCK__ || {}).feed || []).forEach(function (r) {
+    ((r.playInfo || {}).videoUrls || []).forEach(function (u) { if (u) u.url = TEST_WEBM; });
+  });
+  if (CASE === 'resolvefail') {
+    try { delete window.__ACSV_MOCK_HOME__[0].mockUrl; } catch (e) { } // 解析必失败 → slide0 应落 error 态
+  }
+  if (CASE === 'cdn-fallback') {
+    // 首条 sv 直链改为 [坏地址, 好地址]：video error → 自动换同档备用 CDN
+    var r0 = (window.__ACSV_MOCK__ || {}).feed && window.__ACSV_MOCK__.feed[0];
+    if (r0 && r0.playInfo) r0.playInfo.videoUrls = [{ url: location.origin + '/nope-404.mp4' }, { url: TEST_WEBM }];
+  }
 </script>
-<script src="../acfun-svfeed.user.js"></script>
 <script>
-  // harness 不带 hash 启动，模拟用户从导航点进来；已有 #svfeed 路由则不覆盖
-  setTimeout(function () {
-    if (!/^#\/?svfeed/.test(location.hash)) location.hash = 'svfeed';
-  }, 300);
+  // 按 ?bundle= 决定加载哪个构建（解析期 document.write，保证顺序）
+  document.write('<script src="../acfun-svfeed.' + (RELEASE ? '' : 'debug.') + 'user.js"><\/script>');
+</script>
+<script>
+  // ============ 场景执行（bundle 已同步加载完） ============
+  (function () {
+    var TEST = window.__ACSV_TEST__;
+    function feed() { try { return TEST.call('feed'); } catch (e) { return null; } }
+    function q(sel) { return document.querySelector(sel); }
+    function slide(i) { return q('.acsv-slide[data-idx="' + i + '"]'); }
+    function cur() { var f = feed(); return f ? f.current : -1; }
+    function key(k) { window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }
+    function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+    function waitFor(fn, timeout) {
+      return new Promise(function (res) {
+        var t0 = Date.now();
+        (function tick() {
+          var v = null;
+          try { v = fn(); } catch (e) { }
+          if (v) return res(v);
+          if (Date.now() - t0 > (timeout || 15000)) return res(null);
+          setTimeout(tick, 150);
+        })();
+      });
+    }
+    function firstVideoReady(i) {
+      var s = slide(i), v = s && s.querySelector('video');
+      return !!(s && s.dataset.state === 'ready' && v && !v.paused && v.currentTime > 0);
+    }
+
+    async function run() {
+      var root = await waitFor(function () { return document.getElementById('acsv-root'); }, 15000);
+      rec('mount', !!root);
+      if (!root) { finish(); return; }
+
+      if (CASE === 'smoke') {
+        rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+        key('ArrowDown');
+        // release 构建无 __ACSV_TEST__（读不到 current）：跳过索引断言，非死路
+        rec('next-on-arrowdown', !TEST ? true : !!(await waitFor(function () { return cur() === 1; }, 5000)),
+          TEST ? '' : 'skip:release');
+        await wait(1500);
+        var vids = document.querySelectorAll('#acsv-root video');
+        // 窗口 [cur-1, cur+1]：cur/cur+1 挂新 video，cur-1 保留旧 video（已暂停）→ 上限 3
+        rec('videos-capped', vids.length <= 3, 'count=' + vids.length);
+        key('Escape');
+        rec('esc-exits', !!(await waitFor(function () { return !document.getElementById('acsv-root'); }, 5000)));
+
+      } else if (CASE === 'homeswitch') {
+        rec('home-first-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+        var f = feed();
+        rec('home-resolved', !!(f && f.items[0] && f.items[0].hasUrls));
+
+      } else if (CASE === 'fastswipe') {
+        rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+        for (var i = 0; i < 4; i++) { key('ArrowDown'); await wait(150); }
+        await wait(3000); // 等滚动吸附/窗口回收收敛
+        var c = cur(), vids2 = document.querySelectorAll('#acsv-root video'), others = 0;
+        Array.prototype.forEach.call(vids2, function (v) {
+          var s = v.closest('.acsv-slide');
+          if (s && Number(s.dataset.idx) !== c && !v.paused) others++;
+        });
+        rec('video-count-capped', vids2.length <= 3, 'count=' + vids2.length + ' cur=' + c);
+        rec('only-current-plays', others === 0, 'othersPlaying=' + others);
+
+      } else if (CASE === 'resolvefail') {
+        rec('resolve-fail-error-state', !!(await waitFor(function () {
+          var s = slide(0);
+          return s && s.dataset.state === 'error';
+        }, 20000)));
+
+      } else if (CASE === 'prewarm') {
+        rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+        key('ArrowDown');
+        rec('next-on-arrowdown', !!(await waitFor(function () { return cur() === 1; }, 5000)));
+        // 等防抖(500ms)+解析。cur=1 时渲染窗口只解析到 idx2；idx3 有 urls 只能来自预热
+        await wait(2500);
+        var f = feed();
+        var it3 = f && f.items[3];
+        rec('prewarm-cur2-resolved', !!(it3 && it3.hasUrls), 'items=' + (f ? f.items.length : 0));
+        rec('preconnect-injected', !!document.querySelector('link[rel="preconnect"]'));
+        var st = TEST.getStats();
+        rec('prewarm-counted', (st.prewarm || 0) >= 1, 'stats=' + JSON.stringify(st));
+
+      } else if (CASE === 'stall-frozen') {
+        // 模拟缝：过滤看门狗的 rVFC 帧回调，真实 currentTime 照走 → FROZEN 可确定性复现
+        rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+        TEST.call('setStallSim', 'frozen');
+        var okF = await waitFor(function () {
+          var s = TEST.getStats();
+          // rVFC 饿死的面板（如后台内嵌页）拿不到检测延迟，用 novfc 标记放行
+          return s['stall.frozen'] >= 1 && (s['stall.detectLt800'] >= 1 || s['stall.novfc'] >= 1);
+        }, 8000);
+        rec('frozen-detected', !!okF, 'stats=' + JSON.stringify(TEST.getStats()));
+        TEST.call('setStallSim', 'off');
+        var okBack = await waitFor(function () { return firstVideoReady(0); }, 15000);
+        rec('recovers-after-sim-off', !!okBack);
+
+      } else if (CASE === 'stall-slow') {
+        rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+        // DEGRADED 依赖帧节奏（EMA），rVFC 饿死的面板无法度量——先探针，饿死则诚实跳过
+        var vfcLive = await new Promise(function (res) {
+          var v = slide(0).querySelector('video'), n = 0;
+          if (!v || !v.requestVideoFrameCallback) return res(false);
+          function tick() { n++; if (n >= 3) return res(true); v.requestVideoFrameCallback(tick); }
+          v.requestVideoFrameCallback(tick);
+          setTimeout(function () { res(n >= 3); }, 2500);
+        });
+        rec('rvfc-live', true, vfcLive ? 'live' : 'skip:rVFC-starved');
+        if (!vfcLive) { finish(); return; }
+        TEST.call('setStallSim', 'slow');
+        var okD = await waitFor(function () {
+          return TEST.getStats()['stall.degraded'] >= 1;
+        }, 12000);
+        rec('slow-degraded-detected', !!okD, 'stats=' + JSON.stringify(TEST.getStats()));
+        TEST.call('setStallSim', 'off');
+
+      } else if (CASE === 'cdn-fallback') {
+        var okC = await waitFor(function () { return firstVideoReady(0); }, 30000);
+        rec('fallback-to-second-cdn', !!okC);
+        var s3 = TEST.getStats();
+        rec('cdn-retry-counted', (s3['recover.cdn'] || 0) >= 1, 'stats=' + JSON.stringify(s3));
+
+      } else if (CASE === 'quality-switch') {
+        rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+        await wait(1500); // 攒一点进度
+        var v0 = slide(0).querySelector('video');
+        var tBefore = v0.currentTime;
+        var cq = document.querySelectorAll('.acsv-cq');
+        rec('menus-present', cq.length >= 3, 'cq=' + cq.length); // 清晰度/编码/缓冲
+        cq[0].click(); // 打开清晰度菜单
+        var qitems = document.querySelectorAll('.acsv-qitem');
+        rec('quality-menu-items', qitems.length >= 2, 'n=' + qitems.length);
+        var d0 = TEST.getStats()['session.dispose'] || 0;
+        qitems[qitems.length - 1].click(); // 切到第二档
+        var okQ = await waitFor(function () { return firstVideoReady(0); }, 15000);
+        rec('playing-after-switch', !!okQ);
+        var v1 = slide(0).querySelector('video');
+        rec('progress-kept', !!v1 && v1.currentTime >= tBefore - 0.6,
+          'before=' + tBefore.toFixed(1) + ' after=' + (v1 ? v1.currentTime.toFixed(1) : '-'));
+        rec('session-recreated', (TEST.getStats()['session.dispose'] || 0) > d0);
+
+      } else if (CASE === 'dispose-mid-recovery') {
+        // 恢复进行中划走 2 格：旧会话离开渲染窗口 → 必须 dispose 整体静默
+        // （监视器停止、无悬挂定时器继续顶针/计数）
+        rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+        TEST.call('setStallSim', 'frozen');
+        await waitFor(function () { return TEST.getStats()['stall.frozen'] >= 1; }, 8000);
+        var frozenAt = TEST.getStats()['stall.frozen'] || 0;
+        var d0 = TEST.getStats()['session.dispose'] || 0;
+        key('ArrowDown'); await wait(300);
+        key('ArrowDown');
+        await waitFor(function () { return cur() === 2; }, 5000);
+        TEST.call('setStallSim', 'off'); // 先关模拟：此后不应再有冻结事件
+        await wait(3000); // 留足时间暴露悬挂定时器
+        var s4 = TEST.getStats();
+        var v2 = slide(2) && slide(2).querySelector('video');
+        rec('old-session-quiet', (s4['stall.frozen'] || 0) <= frozenAt + 2,
+          'frozen ' + frozenAt + '->' + (s4['stall.frozen'] || 0));
+        rec('session-disposed', (s4['session.dispose'] || 0) > d0, 'dispose ' + d0 + '->' + (s4['session.dispose'] || 0));
+        rec('next-playing', !!(v2 && !v2.paused && v2.currentTime > 0));
+
+      } else if (CASE === 'stall-visibility') {
+        // 切回标签页基线重建后，冻结检测必须仍然存活（回归：重建后误分类放弃武装→永久失活）
+        rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+        TEST.call('setStallSim', 'frozen');
+        var f1 = 0;
+        await waitFor(function () { f1 = TEST.getStats()['stall.frozen'] || 0; return f1 >= 1; }, 8000);
+        // 合成一次可见性变化：监视器会重建基线（mediaT=-1）——这里正是旧实现失活的入口
+        document.dispatchEvent(new Event('visibilitychange'));
+        var okV = await waitFor(function () {
+          return (TEST.getStats()['stall.frozen'] || 0) >= f1 + 1;
+        }, 10000);
+        rec('frozen-detected-after-visibility', !!okV,
+          'before=' + f1 + ' after=' + (TEST.getStats()['stall.frozen'] || 0));
+        TEST.call('setStallSim', 'off');
+
+      } else if (CASE === 'spinner-recover') {
+        // 冻结恢复的「平滑 seek」边：waiting 打成 loading 后，顶针只引发 seeked 不引发
+        // playing——画面恢复时转圈必须归位（真机实测回归）
+        rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+        var sv0 = slide(0).querySelector('video');
+        sv0.dispatchEvent(new Event('waiting'));
+        await wait(500); // 300ms 定时器到点 → 转圈
+        rec('spinner-on-while-waiting', slide(0).dataset.state === 'loading');
+        sv0.dispatchEvent(new Event('seeked')); // 顶针恢复：未暂停 + seek 完成
+        await wait(500);
+        rec('spinner-cleared-after-seeked', slide(0).dataset.state === 'ready' && !sv0.paused && !sv0.ended);
+
+      } else if (CASE === 'watch-report') {
+        // 观看历史上报（home 源）：离开（划走/关页）时上报最终进度。
+        // 覆盖：≥门槛才报、payload 参数、pagehide 兜底、同秒位去重、门槛拦截。
+        // 上报链只读离开时刻 currentTime，不依赖播放态——autoplay 被环境拦截也能验证
+        function videoReady(i) {
+          var s = slide(i), v = s && s.querySelector('video');
+          return !!(s && v && v.duration > 0 && s.dataset.state !== 'error');
+        }
+        async function playUntil(i, minT) { // 真实播放攒进度（IAB 的 seekable 在激活播放前不展开，seek 不可靠）
+          return !!(await waitFor(function () {
+            var v = slide(i) && slide(i).querySelector('video');
+            if (!v || !(v.duration > 0)) return false;
+            if (v.paused && v.play) { try { v.play().catch(function () { }); } catch (e) { } }
+            return v.currentTime >= minT;
+          }, 20000));
+        }
+        function pauseAt(i) { // 冻结进度供精确断言
+          var v = slide(i) && slide(i).querySelector('video');
+          if (v) v.pause();
+          return v ? v.currentTime : 0;
+        }
+        function watchCount() { return TEST.getStats()['report-watch'] || 0; }
+        rec('first-media-ready', !!(await waitFor(function () { return videoReady(0); }, 25000)));
+        if (!!(await playUntil(0, 3.2))) {
+          var t0 = pauseAt(0);
+          var want0 = Math.floor(t0);
+          rec('playback-progress', want0 >= 3, 't=' + t0.toFixed(2));
+          var c0 = watchCount();
+          key('ArrowDown'); // setActive → 旧条目按离开上报
+          rec('swipe-reported', !!(await waitFor(function () { return watchCount() > c0; }, 5000)));
+          var last = window.__WL_CALLS[window.__WL_CALLS.length - 1] || {};
+          var rp = last.payload || null;
+          rec('report-payload', last.channel === 'CLICK' && !!rp
+            && rp.action === 'CLIENT_BROWSE_HISTORY' && rp.params
+            && rp.params.playedSeconds === want0 && rp.params.resourceType === 'video'
+            && !!rp.params.ac_id && !!rp.params.atom_id,
+            'want=' + want0 + ' got=' + JSON.stringify(rp && rp.params || null));
+          // pagehide 兜底：当前条目（idx1）真实播放过门槛后合成 pagehide → 补报
+          var c1 = watchCount();
+          var play1 = !!(await playUntil(1, 3.2));
+          pauseAt(1);
+          window.dispatchEvent(new Event('pagehide'));
+          rec('pagehide-reported', play1 && watchCount() > c1,
+            'play=' + play1 + ' watch=' + watchCount());
+          // 同秒位去重：进度未推进的重复 pagehide 不重发
+          window.dispatchEvent(new Event('pagehide'));
+          rec('same-second-deduped', watchCount() === c1 + 1, 'watch=' + watchCount());
+          // 门槛：idx2 播放不足 3s 即划走语义（pause 冻结在小进度），pagehide 不得上报
+          key('ArrowDown');
+          await waitFor(function () { return cur() === 2; }, 5000);
+          await waitFor(function () { return videoReady(2); }, 25000);
+          await playUntil(2, 0.8);
+          var t2 = pauseAt(2);
+          var c2 = watchCount();
+          window.dispatchEvent(new Event('pagehide'));
+          await wait(400);
+          rec('below-floor-skipped', watchCount() === c2 && t2 < 3,
+            't2=' + t2.toFixed(2) + ' watch=' + watchCount());
+        } else {
+          rec('playback-progress', false);
+        }
+
+      } else if (CASE === 'stall-healthy') {
+        rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+        await wait(10000); // 正常播放 10s：不允许任何画质损伤；冻结计数有界（后台面板 rVFC 饿死时可能有无害顶针）
+        var s2 = TEST.getStats();
+        rec('no-quality-damage', !s2['stall.rung3'] && !s2['stall.rung4'] && !s2['stall.degradeDown'] && !s2['stall.giveup'],
+          'stats=' + JSON.stringify(s2));
+        rec('frozen-bounded', (s2['stall.frozen'] || 0) <= 4, 'frozen=' + (s2['stall.frozen'] || 0));
+      }
+
+      finish();
+    }
+
+    function finish() {
+      var errs = (window.__dbg || []).filter(function (l) { return /^ERR:/.test(l); })
+        .concat((window.__errs || []).filter(function (l) { return !/^res:/.test(l); }));
+      rec('no-js-errors', errs.length === 0, errs.slice(0, 3).join(' | '));
+      window.__HARNESS_RESULTS__.done = true;
+    }
+
+    // 挂载由 hash 设置触发（模拟用户从导航点进来）
+    setTimeout(function () {
+      if (!/^#\/?svfeed/.test(location.hash)) location.hash = 'svfeed';
+      setTimeout(run, 0);
+    }, 300);
+  })();
 </script>
 </body>
 </html>

@@ -1,14 +1,18 @@
 {
   "name": "acfun-svfeed",
-  "version": "0.9.1",
+  "version": "0.9.14",
   "description": "AcFun PC 站抖音式竖滑页油猴脚本：小视频(meow) + APP 首页推荐双源，弹幕/清晰度/收藏投蕉（源码在 src/，构建产物为单文件 .user.js）",
   "scripts": {
     "build": "node build.js",
-    "watch": "node build.js --watch"
+    "watch": "node build.js --watch",
+    "release": "npm version patch && node build.js"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"
   },
   "author": "name-xxl",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "hls.js": "1.5.20"
+  }
 }

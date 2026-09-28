@@ -1,0 +1,19 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: node build.js
+      # 产物与源码必须同步：改了 src/ 忘了重新 build 会在这里 fail
+      - run: git diff --exit-code acfun-svfeed.user.js acfun-svfeed.debug.user.js

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>AcFun 竖滑页 - DmCanvas 绘制冒烟</title>
+<style>
+  body { margin: 0; font: 14px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f5f5; }
+  #slide { position: relative; width: 640px; height: 360px; overflow: hidden; background: #000; }
+  pre { padding: 12px 20px; color: #333; }
+</style>
+</head>
+<body>
+<div id="slide"></div>
+<pre id="out">waiting…</pre>
+<!-- 调试构建：testHook 模拟缝 + dm.* 埋点可用 -->
+<script src="../acfun-svfeed.debug.user.js"></script>
+<script>
+  // ============ DmCanvas 绘制冒烟（确定性驱动） ============
+  // 桌面自动化环境里合成器可能冻结（rAF/rVFC 全停），故不依赖真实视频出帧：
+  // 给图层一个"手动泵帧"的 stub video，逐帧驱动 paint，断言窗口扫描/位图缓存/
+  // 过期释放/seek 重置等全部路径。结果写入 window.__DM_RESULTS__。
+  window.__DM_RESULTS__ = { case: 'dm-smoke', results: [], done: false };
+  function rec(name, pass, info) {
+    window.__DM_RESULTS__.results.push({ name: name, pass: !!pass, info: info == null ? '' : String(info) });
+  }
+  var out = document.getElementById('out');
+  function flush() {
+    var r = window.__DM_RESULTS__;
+    out.textContent = r.results.map(function (x) {
+      return (x.pass ? 'PASS' : 'FAIL') + '  ' + x.name + (x.info ? '  (' + x.info + ')' : '');
+    }).join('\n') + '\n' + (r.done ? 'done' : 'running…');
+  }
+  setInterval(flush, 300);
+
+  function sampleAlpha() {
+    var cv = document.querySelector('.acsv-dmcanvas');
+    if (!cv) return -1;
+    try {
+      var d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+      var n = 0;
+      for (var j = 3; j < d.length; j += 4 * 97) if (d[j] > 0) n++;
+      return n;
+    } catch (e) { return -1; }
+  }
+
+  // stub video：可控 currentTime + 手动泵帧的 rVFC 桩（几何与真实元素一致）
+  function stubVideo() {
+    var cbs = [];
+    var v = {
+      paused: false,
+      currentTime: 0,
+      getBoundingClientRect: function () {
+        return { left: 0, top: 0, width: 640, height: 360 };
+      },
+      requestVideoFrameCallback: function (cb) { cbs.push(cb); return cbs.length; },
+      cancelVideoFrameCallback: function () { },
+      __pump: function (n) {
+        for (var k = 0; k < n; k++) {
+          var list = cbs; cbs = [];
+          v.currentTime += 1 / 30;
+          list.forEach(function (cb) { cb(0, { presentedFrames: k }); });
+        }
+      }
+    };
+    return v;
+  }
+
+  function makeItems(n) {
+    var items = [];
+    for (var i = 0; i < n; i++) {
+      items.push({
+        id: i, text: '弹幕测试第' + i + '条，覆盖宽度测量', at: (i % 30) * 1000,
+        mode: i % 5 === 0 ? 5 : (i % 7 === 0 ? 4 : 1),
+        color: i % 2 ? '#ffffff' : '#ff4444', size: 25
+      });
+    }
+    return items;
+  }
+
+  var t0 = Date.now();
+  (function boot() {
+    if (!window.__ACSV_TEST__) {
+      if (Date.now() - t0 > 15000) { rec('env', false, 'bundle 未就绪'); window.__DM_RESULTS__.done = true; return; }
+      return setTimeout(boot, 100);
+    }
+    try { run(); } catch (e) {
+      rec('执行异常', false, e && e.message);
+      window.__DM_RESULTS__.done = true;
+    }
+  })();
+
+  function run() {
+    var Dm = window.__ACSV_TEST__.call('dmcanvas');
+    if (!Dm || !Dm.create) { rec('模拟缝', false, 'dmcanvas hook 缺失'); window.__DM_RESULTS__.done = true; return; }
+    rec('模拟缝', true);
+
+    var slide = document.getElementById('slide');
+    var v = stubVideo();
+    var layer = Dm.create(slide, v);
+    layer.setItems(makeItems(60));
+    layer.start();
+
+    // —— 稳定播放态：泵 90 帧（3s@30fps），窗口扫描/位图缓存/埋点结算全覆盖
+    v.__pump(90);
+    var st = window.__ACSV_TEST__.getStats();
+    rec('dm.frame ≥ 90', (st['dm.frame'] || 0) >= 90, st['dm.frame']);
+    rec('dm.paintMs 结算且 <5ms', typeof st['dm.paintMs'] === 'number' && st['dm.paintMs'] < 5, st['dm.paintMs']);
+    rec('dm.visible > 0', (st['dm.visible'] || 0) > 0, st['dm.visible']);
+    rec('dm.sprites > 0', (st['dm.sprites'] || 0) > 0, st['dm.sprites']);
+    var px1 = sampleAlpha();
+    rec('画布有像素', px1 > 0, px1);
+
+    // —— 时间推进：弹幕移动，画面必须变化
+    v.__pump(30);
+    var px2 = sampleAlpha();
+    rec('播放中持续重绘（采样变化）', px2 >= 0 && px1 !== px2, px1 + '→' + px2);
+
+    // —— 全部过期：跳到 60s，head 应扫尽全部条目并释放位图
+    v.currentTime = 60;
+    v.__pump(130); // >60 帧：顺带触发下一次埋点结算
+    var st2 = window.__ACSV_TEST__.getStats();
+    var px3 = sampleAlpha();
+    rec('过期后位图清零', st2['dm.sprites'] === 0, st2['dm.sprites']);
+    rec('过期后画布清空', px3 === 0, px3);
+
+    // —— 从"窗口耗尽"状态向后 seek：head 重置、弹幕恢复绘制
+    v.currentTime = 0.1;
+    v.__pump(5);
+    var px4 = sampleAlpha();
+    rec('seek 回退后恢复绘制', px4 > 0, px4);
+
+    // —— 暂停中发本地弹幕：暂停补偿帧路径
+    v.paused = true;
+    var frameBefore = window.__ACSV_TEST__.getStats()['dm.frame'] || 0;
+    layer.addLocal({ text: '本地回显弹幕', at: v.currentTime * 1000 + 200, mode: 1, color: '#00ff44', size: 25 });
+    var px5 = sampleAlpha();
+    var frameAfter = window.__ACSV_TEST__.getStats()['dm.frame'] || 0;
+    rec('暂停中发弹幕可见', px5 > 0, px5);
+    rec('暂停中主动补帧', frameAfter > frameBefore, frameBefore + '→' + frameAfter);
+
+    // —— 有序插入：at=15300 应插到 15000 与 16000 之间（非队尾），扫描仍能命中
+    layer.addLocal({ text: '第二条回显', at: 15300, mode: 1, color: '#00ddff', size: 25 });
+    v.currentTime = 15.3;
+    v.paused = false;
+    v.__pump(5);
+    var px6 = sampleAlpha();
+    rec('乱序时间点绘制命中', px6 > 0, px6);
+
+    layer.destroy();
+    rec('destroy 后无画布残留', !document.querySelector('.acsv-dmcanvas'), '');
+    window.__DM_RESULTS__.done = true;
+  }
+</script>
+</body>
+</html>

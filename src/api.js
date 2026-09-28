@@ -24,6 +24,26 @@ export function resetHomePager() {
   if (curSource === 'home') AppAPI.resetPager();
 }
 
+// 懒解析统一入口：resolving 互斥 + 在途 Promise 复用。setActive 预热与 attachVideo
+// 挂载共用同一个 Promise——预热中途划到该条时，挂载侧直接等结果，不再出现
+// 「挂载撞上预热中」导致 slide 永远停在 loading 的竞态。
+// 走 refreshItem 分发：mock 拦截与真实解析（AppAPI.resolve）同路
+export function ensureResolved(item) {
+  if (!item.cap.lazyResolve) return Promise.resolve(true);
+  if (item.urls.length) return Promise.resolve(true);
+  if (item._resolveP) return item._resolveP;
+  item.resolving = true;
+  var p = API.refreshItem(item).then(function (ok) {
+    if (item._resolveP === p) { item._resolveP = null; item.resolving = false; }
+    return !!ok && item.urls.length > 0;
+  }, function () {
+    if (item._resolveP === p) { item._resolveP = null; item.resolving = false; }
+    return false;
+  });
+  item._resolveP = p;
+  return p;
+}
+
 export var API = {
   feed: function () {
     if (curSource === 'home') {
@@ -61,7 +81,10 @@ export var API = {
         var raw = mh.filter(function (c) { return String(c.href) === String(item.id); })[0];
         var mu = raw && raw.mockUrl;
         item.urls = mu ? [mu] : [];
-        item.qualities = mu ? [{ label: '示例', urls: [mu] }] : [];
+        // 两档同址：清晰度菜单可切（switchQuality 链路 harness 可断言）
+        item.qualities = mu ? [{ label: '示例', urls: [mu] }, { label: '示例·备线', urls: [mu] }] : [];
+        // mock 直链不是 m3u8：绕开 hls.js 管线走 video.src 直挂（仅 harness mock 生效）
+        if (mu) item.cap.hls = false;
         item.videoId = 'mock-' + item.id;
         item.resolved = true;
         item.fav = 12;
@@ -72,7 +95,12 @@ export var API = {
       return AppAPI.resolve(item);
     }
     return this.info(item.id).then(function (p) {
-      return !!(p && p.urls.length && (item.urls = p.urls, item.urlIdx = 0, true));
+      if (p && p.urls.length) {
+        item.urls = p.urls;
+        item.urlIdx = 0;
+        return true;
+      }
+      return false;
     }, function () { return false; });
   }
 };
