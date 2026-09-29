@@ -261,6 +261,30 @@ export var AppAPI = {
     });
   },
 
+  // 分享卡片详情：douga/info 一发拿全（title/coverUrl/durationMillis/计数，2026-09-29
+  // 实测；coverUrls/image/cover 恒空，封面就在 coverUrl）。Promise 级缓存——同一 ac 号
+  // 的多条分享消息只发一请求；失败即弃缓存，下条消息可重试（调用方降级纯文本）
+  cardCache: {},
+  dougaCard: function (acId) {
+    var self = this;
+    var key = String(acId);
+    if (self.cardCache[key]) return self.cardCache[key];
+    var p = this.dougaInfo(key).then(function (d) {
+      if (!d || d.result !== 0 || !d.title) { delete self.cardCache[key]; return null; }
+      return {
+        title: String(d.title || ''),
+        cover: String(d.coverUrl || ''),
+        durationSec: Math.round((Number(d.durationMillis) || 0) / 1000),
+        view: d.viewCountShow != null ? d.viewCountShow : (d.viewCount || ''),
+        comment: d.commentCountShow != null ? d.commentCountShow : (d.commentCount || ''),
+        danmaku: d.danmakuCountShow != null ? d.danmakuCountShow : (d.danmakuCount || ''),
+        url: CFG.api.videoBase + key
+      };
+    }, function () { delete self.cardCache[key]; return null; });
+    self.cardCache[key] = p;
+    return p;
+  },
+
   // 按记忆清晰度（无记忆取最高档；档位已在 playInfo 显式按分辨率数字降序）。
   // 先按编码偏好过滤档位：avc 滤掉 HEVC 档（cast 对部分设备/未来 4K 档可能下发
   // HEVC，默认 avc 是防无硬解卡帧的保底）；hevc 反之只留 HEVC 档；auto 不干预。

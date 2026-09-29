@@ -2,7 +2,7 @@ import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { el, esc, fmt, toast } from './ui.js';
 import { ICONS } from './styles.js';
-import { root, commentDrawer } from './state.js';
+import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
 import { AppAPI } from './appapi.js';
 
 // ---------- 评论抽屉 ----------
@@ -101,6 +101,11 @@ function renderCommentHtml(content) {
   h = h.replace(/\[img\](https?:\/\/[^\["']+?)\[\/img\]/g, function (_, u) {
     return IMG_CDN_OK.test(u) ? '<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">' : u;
   });
+  // 颜色：[color=#hex]…[/color]。颜色值白名单限 # + 3~8 位 hex（防 style 属性注入）；
+  // 跑在 emot/img 之后，正文里的表情/配图可被颜色 span 包裹；未闭合或非法值按字面显示（与未知 UBB 一致）
+  h = h.replace(/\[color=(#[0-9a-fA-F]{3,8})\]([\s\S]*?)\[\/color\]/g, function (_, cv, inner) {
+    return '<span style="color:' + cv + '">' + inner + '</span>';
+  });
   return h;
 }
 
@@ -108,21 +113,33 @@ export function isOpenComments() {
   return !!(commentDrawer && commentDrawer.el.classList.contains('open'));
 }
 
+// 抽屉避让变量与模式：--acsv-dw 抽屉实际宽（CSS 里抽屉宽/底栏收窄/侧栏顶栏平移全用它），
+// --acsv-cscale 视频画面缩放比。剩余空间不足（< avoidMin）时放弃避让改纯覆盖：
+// 不加 acsv-with-comments，视频原尺寸继续播，抽屉近乎全遮（背景本就 96% 不透明），关闭即恢复。
+// open/mount 各算一次，resize 持续重算——开着抽屉拉窗口会在两种模式间自动切换
+export function syncCommentVars() {
+  if (!root) return;
+  var vw = window.innerWidth;
+  var dw = Math.min(CFG.comments.drawerW, vw * CFG.comments.drawerMaxWp);
+  var ratio = (vw - dw) / vw;
+  root.style.setProperty('--acsv-dw', dw + 'px');
+  root.style.setProperty('--acsv-cscale', String(Math.max(CFG.comments.scaleMin, ratio)));
+  // 避让根类由槽位统一裁决（任一抽屉占槽即避让；两抽屉同宽同锚点，同一时刻只开一个）
+  root.classList.toggle('acsv-with-comments', !!currentDrawer() && ratio >= CFG.comments.avoidMin);
+}
+window.addEventListener('resize', syncCommentVars);
+
 export function closeComments() {
   if (commentDrawer) commentDrawer.el.classList.remove('open');
-  if (root) root.classList.remove('acsv-with-comments');
+  releaseDrawer('comments');
+  if (root) syncCommentVars(); // 根类统一由 syncCommentVars 收拾（覆盖模式下可能本就没加）
 }
 
 export function openComments(sourceId, stype, shareUrl, kind) {
   if (!commentDrawer || !sourceId) return;
+  claimDrawer('comments', closeComments); // 占槽：私信抽屉开着则自动收回，再展开评论
   commentDrawer.el.classList.add('open');
-  if (root) {
-    root.classList.add('acsv-with-comments');
-    // 整体缩放避让：视频区缩到剩余空间，不平移不裁画面
-    var dw = Math.min(CFG.comments.drawerW, window.innerWidth * CFG.comments.drawerMaxWp);
-    var scale = Math.max(CFG.comments.scaleMin, (window.innerWidth - dw) / window.innerWidth);
-    root.style.setProperty('--acsv-cscale', String(scale));
-  }
+  if (root) syncCommentVars(); // isOpenComments 此时已为真：空间够则加避让根类，不够则纯覆盖
   commentState.stype = Number(stype) || 5;
   commentState.kind = kind === 'home' ? 'home' : 'sv';
   commentState.shareUrl = shareUrl || (CFG.api.shareBase + sourceId);
@@ -268,7 +285,38 @@ function toggleCommentLike(like) {
     });
 }
 
-// 评论列表点击统一委托：挂一次在 drawer list 上，接管所有楼层的点赞/回复。
+// ---- 评论配图大图查看器 ----
+// 单例浮层挂在 root 上（盖过评论/私信抽屉）；打开期间 capture 键盘监听拦截按键（模态语义）。
+// Escape 的关闭在 input.js 分支里显式先行（isImgviewOpen 判定）——不依赖监听器注册顺序
+var imgview = null;
+function onImgviewKey(ev) {
+  ev.stopPropagation();
+  if (ev.key === 'Escape') closeImageViewer();
+}
+export function isImgviewOpen() {
+  return !!imgview;
+}
+export function closeImageViewer() {
+  if (!imgview) return;
+  var v = imgview;
+  imgview = null;
+  window.removeEventListener('keydown', onImgviewKey, true);
+  v.remove();
+}
+function openImageViewer(src) {
+  closeImageViewer();
+  if (!root || !src) return;
+  imgview = el('div', 'acsv-imgview');
+  var img = el('img');
+  img.src = src;
+  img.referrerPolicy = 'no-referrer';
+  imgview.appendChild(img);
+  imgview.addEventListener('click', closeImageViewer);
+  root.appendChild(imgview);
+  window.addEventListener('keydown', onImgviewKey, true);
+}
+
+// 评论列表点击统一委托：挂一次在 drawer list 上，接管所有楼层的点赞/回复/配图大图。
 // 挂载点在 player.js 建抽屉骨架处（dlist.addEventListener('click', commentListClick)）
 export function commentListClick(ev) {
   var like = ev.target.closest('.acsv-clike');
@@ -285,6 +333,16 @@ export function commentListClick(ev) {
     if (inputBar) {
       var inp = inputBar.querySelector('.acsv-cinput-text');
       if (inp) inp.focus();
+    }
+    return;
+  }
+  var pic = ev.target.closest('.ubb-imgc');
+  if (pic) {
+    // 划选文字收尾在图片上不弹大图（选区非折叠 = 在复制文字）
+    var sel = window.getSelection ? window.getSelection() : null;
+    if (!sel || sel.isCollapsed) {
+      ev.stopPropagation();
+      openImageViewer(pic.getAttribute('src') || '');
     }
   }
 }
@@ -619,12 +677,15 @@ function ensureCommentInput() {
 }
 
 function mockComments() {
-  // 本地 harness 用示例数据（真实环境走通用评论接口）
+  // 本地 harness 用示例数据（真实环境走通用评论接口）；m3/m4 演示 UBB 渲染：
+  // [color] 着色与划选复制、[img] 配图与点击看大图（URL 须过 IMG_CDN_OK 白名单）
   return {
-    commentCount: 2, curPage: 1, totalPage: 1, pcursor: 'no_more',
+    commentCount: 4, curPage: 1, totalPage: 1, pcursor: 'no_more',
     rootComments: [
       { commentId: 'm1', userId: 123, userName: '香蕉君', headUrl: '', content: '这条视频太棒了（示例评论，仅本地预览显示）', postDate: '2026-09-01', likeCount: 233, isUp: false, subCommentCount: 1 },
-      { commentId: 'm2', userId: 456, userName: 'UP主本人', headUrl: '', content: '感谢收看！', postDate: '2026-09-02', likeCount: 66, isUp: true, subCommentCount: 0 }
+      { commentId: 'm2', userId: 456, userName: 'UP主本人', headUrl: '', content: '感谢收看！', postDate: '2026-09-02', likeCount: 66, isUp: true, subCommentCount: 0 },
+      { commentId: 'm3', userId: 777, userName: '富文本示例', headUrl: '', content: '[color=#4f81bd]这条评论用 [color] 标签着了色，\n换行也保留；正文现在可以划选后右键复制。[/color]\n这段是着色范围外的普通文字。', postDate: '2026-09-03', likeCount: 12, isUp: false, subCommentCount: 0 },
+      { commentId: 'm4', userId: 888, userName: '配图示例', headUrl: '', content: '带配图的评论，点击图片可看大图：\n[img=图片]https://cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/ac2/1.gif[/img]', postDate: '2026-09-04', likeCount: 5, isUp: false, subCommentCount: 0 }
     ],
     subCommentsMap: { m1: [{ commentId: 'm1-1', userId: 789, userName: '路人甲', headUrl: '', content: '前排！', postDate: '2026-09-01', likeCount: 3, subCommentCount: 0 }] }
   };

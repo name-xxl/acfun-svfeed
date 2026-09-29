@@ -1,10 +1,10 @@
 import { CFG } from './cfg.js';
 import { toast, toggleFullscreen } from './ui.js';
-import { root, scroller, slideAt } from './state.js';
+import { root, scroller, slideAt, currentDrawer } from './state.js';
 import { isFeedRoute } from './route.js';
 import { FeedStore } from './feedstore.js';
 import { pb, currentVideo, sweepVideos, togglePlayGesture, toggleMuteGesture } from './playback.js';
-import { isOpenComments, closeComments, toggleItemComments } from './comments.js';
+import { toggleItemComments, isImgviewOpen, closeImageViewer } from './comments.js';
 
 // ---------- 键盘/全屏/幽灵扫描：全局监听的注册与解除 ----------
 // 上层导航（scrollToIndex/exitFeed）在 player.js，经 api 参数注入保持依赖单向；
@@ -54,11 +54,15 @@ export function setupInputHandlers(api) {
       case 'f': case 'F':
         toggleFullscreen();
         break;
-      case 'Escape':
-        // 评论抽屉开着：先关抽屉；否则退出竖刷页
-        if (isOpenComments()) closeComments();
+      case 'Escape': {
+        // 配图大图查看器开着：只关查看器（先于抽屉，不依赖事件监听顺序）
+        if (isImgviewOpen()) { closeImageViewer(); break; }
+        // 右侧抽屉槽位（评论/私信二选一）占用中：先收起当前抽屉；否则退出竖刷页
+        var curDrawer = currentDrawer();
+        if (curDrawer) curDrawer.close();
         else api.exitFeed();
         break;
+      }
       case 'c': case 'C': {
         var itC = FeedStore.items[cur];
         if (itC) toggleItemComments(itC);

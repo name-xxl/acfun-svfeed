@@ -1,11 +1,11 @@
 import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
 import { el, fmtTime, ensureStyle } from './ui.js';
-import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt } from './state.js';
+import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot } from './state.js';
 import { parseRoute, isFeedRoute, syncHash } from './route.js';
 import { FeedStore } from './feedstore.js';
 import { getSource, setSource, resetHomePager } from './api.js';
-import { isOpenComments, closeComments, openComments, commentState } from './comments.js';
+import { isOpenComments, closeComments, openComments, commentState, syncCommentVars } from './comments.js';
 import { onPlaying as dmOnPlaying, stopAll as dmStopAll } from './danmaku.js';
 import { UpVideos } from './uppage.js';
 import { dbg } from './dbg.js';
@@ -16,6 +16,7 @@ import { attachVideo, switchQuality, setSessionHooks } from './attach.js';
 import { showControls, updateArrows } from './controls.js';
 import { onHomeResolved } from './rail.js';
 import { buildSlide, buildDrawer } from './slide.js';
+import { openDrawer, mountBadge, teardownIm } from './imdrawer.js';
 import { setupInputHandlers, teardownInputHandlers } from './input.js';
 
 // ---------- UI ----------
@@ -26,6 +27,25 @@ var logoLabel = null, segSv = null, segHome = null;
 // 已迁出：播放态与声音 → playback.js；观看上报 → report.js；预热 → prewarm.js；
 // 控制栏 → controls.js；挂源/清晰度切换+契约总表 → attach.js；右侧栏 → rail.js；
 // 单条 slide/评论抽屉骨架 → slide.js。
+
+// ---- 抽屉避让的画幅分档：满高也装得下剩余区域的画面只平移不缩放 ----
+// 避让缩放比按宽度推导，对竖屏这类高度受限的画面纯属浪费（宽边远没到边界却被等比缩小）。
+// 判据：videoWidth/videoHeight ≤ (vw−dw)/vh → 满高画面宽 ≤ 剩余宽，translateX(−dw/2) 即可。
+// 元数据到达（onMeta）与 resize 时重估，结果写在 slide 的 data-panfit 上，CSS 据此切换平移/缩放
+function panFitOf(video) {
+  if (!video.videoWidth || !video.videoHeight) return false;
+  var dw = Math.min(CFG.comments.drawerW, window.innerWidth * CFG.comments.drawerMaxWp);
+  return video.videoWidth / video.videoHeight <= (window.innerWidth - dw) / window.innerHeight;
+}
+function syncPanFit(slide) {
+  var v = slide.querySelector('video');
+  if (v && panFitOf(v)) slide.dataset.panfit = '1';
+  else slide.removeAttribute('data-panfit');
+}
+window.addEventListener('resize', function () {
+  if (!scroller) return;
+  Array.prototype.forEach.call(scroller.querySelectorAll('.acsv-slide'), syncPanFit);
+});
 
 // 会话回接钩子：控件条/弹幕/连播/观看上报/挂源。播放态归 session.js，UI 编排留在这里
 var SESSION_HOOKS = {
@@ -68,6 +88,7 @@ var SESSION_HOOKS = {
     if (session.slide._ctlPlayBtn) session.slide._ctlPlayBtn.innerHTML = ICONS.play;
   },
   onMeta: function (session, video) {
+    syncPanFit(session.slide); // 竖屏等满高可容的画面标记只平移，抽屉避让不白缩
     if (session.slide._ctlTime) {
       session.slide._ctlTime.textContent = fmtTime(video.currentTime) + ' / ' + fmtTime(video.duration);
     }
@@ -266,6 +287,15 @@ function mount() {
   seg.appendChild(segSv);
   seg.appendChild(segHome);
   tr.appendChild(seg);
+  // 私信入口：A 站原生 iconfont 字形 + 未读徽标
+  var imBtn = el('button', 'acsv-tbtn acsv-im-btn');
+  imBtn.title = '私信';
+  imBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg><span class="acsv-im-badge" style="display:none"></span>';
+  imBtn.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    openDrawer();
+  });
+  tr.appendChild(imBtn);
   var exitBtn = el('button', 'acsv-tbtn', '✕');
   exitBtn.title = '退出（Esc）';
   exitBtn.addEventListener('click', exitFeed);
@@ -277,12 +307,14 @@ function mount() {
   root.appendChild(scroller);
 
   buildDrawer();
+  syncCommentVars(); // 首次打开抽屉前就写好 --acsv-dw（抽屉宽）/ --acsv-cscale
   root.appendChild(el('div', 'acsv-toast'));
 
   scroller.appendChild(el('div', 'acsv-spinner'));
   document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
   document.body.appendChild(root);
+  mountBadge(imBtn, imBtn.querySelector('.acsv-im-badge'));
   dbg('root-appended');
 
   io = new IntersectionObserver(function (entries) {
@@ -313,6 +345,8 @@ function unmount() {
   teardownInputHandlers();
   cancelSeekHold();
   dmStopAll();
+  teardownIm(); // 停私信徽标轮询/重置抽屉模块态（不清会让重进后的私信抽屉打不开）
+  resetDrawerSlot(); // 清槽位：评论侧没有 teardown，防残留闭包让重进后的第一次 Esc 被吃掉
 
   // 会话整批拆除（video/hls/看门狗/弹幕层/定时器一次拆净）
   Array.prototype.forEach.call(root.querySelectorAll('.acsv-slide'), function (s) {

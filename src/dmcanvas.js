@@ -38,8 +38,8 @@ function createLayer(slide, video) {
   function align() {
     var vr = video.getBoundingClientRect();
     var sr = slide.getBoundingClientRect();
-    // 评论区展开等场景会给 scroller 加缩放变换：rect 是缩放后的视觉尺寸，
-    // 需除以缩放比换算回 slide 本地坐标，否则画布会相对视频错位
+    // rect 是视觉尺寸；slide 本身不再被施加变换（评论抽屉避让只变换画面元素），
+    // scale 恒为 1——保留检测只为兜底未来可能的外层变换，画布贴视频视觉矩形即可
     var scale = sr.width && slide.offsetWidth ? sr.width / slide.offsetWidth : 1;
     var x = vr.left - sr.left, y = vr.top - sr.top;
     var w = vr.width, h = vr.height;

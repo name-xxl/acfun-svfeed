@@ -27,14 +27,14 @@ export function fmtTime(s) {
 }
 
 var toastTimer = null;
-export function toast(msg) {
+export function toast(msg, ms) {
   if (!root) return;
   var t = root.querySelector('.acsv-toast');
   if (!t) return;
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(function () { t.classList.remove('show'); }, CFG.time.toast);
+  toastTimer = setTimeout(function () { t.classList.remove('show'); }, ms || CFG.time.toast);
 }
 
 export function copyText(text) {

@@ -32,6 +32,10 @@ export var CFG = {
     shareBase: 'https://m.acfun.cn/sv/?mid=',
     userBase: 'https://www.acfun.cn/u/',
     videoBase: 'https://www.acfun.cn/v/ac',
+    // ---- 私信分享（网页私信 = 快手 ImSdk over WebSocket，无 REST 发送端点） ----
+    // imsdk CDN hash 随官方发版变化，运行时优先取页面 globalConfig.imsdkcdn，此为兜底
+    imsdk: 'https://static.yximgs.com/udata/pkg/acfun-im/ImSdk.eb6e95.js',
+    userCard: 'https://www.acfun.cn/rest/pc-direct/user/getUserCardList',
     defaultAvatar: 'https://imgs.aixifan.com/style/image/defaultAvatar.jpg',
     logoSvg: 'https://ali-imgs.acfun.cn/kos/nlav10360/static/common/widget/header/img/acfunlogo.11a9841251f31e1a3316.svg',
     // ---- APP 家族接口（api-new.app.acfun.cn，免登录读 + 域 Cookie 写） ----
@@ -121,6 +125,7 @@ export var CFG = {
     drawerW: 380,      // 抽屉宽度（窄屏按比例收缩）
     drawerMaxWp: 0.88, // 抽屉最大占视口宽比例
     scaleMin: 0.3,     // 视频区缩放下限
+    avoidMin: 0.5,     // 剩余空间占视口比低于此值时放弃避让改纯覆盖（视频不缩放原尺寸续播，抽屉近乎全遮）
     subCount: 20,      // 楼中楼每页条数
     imgMax: 10 * 1024 * 1024, // 评论图片上传上限
     scrollPad: 80,     // 无限滚动触发提前量（px）
@@ -128,6 +133,21 @@ export var CFG = {
   },
   rate: [0.5, 1, 1.5, 2],   // 倍速循环档位
   win: { back: 1, fwd: 1 }, // 渲染窗口：当前条向上 back/向下 fwd 张挂视频；slide DOM 与氛围背景在窗外更远一/两格回收
+  im: {
+    loadT: 12000,   // ImSdk 脚本加载超时（860KB，慢网放宽）
+    connT1: 3500,   // 等待连接的宽容期：widget 自带 3 次重试 + sync 自恢复，别抢跑
+    connT2: 25000,  // 主动 connect() 后的总等待
+    pollGap: 300,   // 会话列表轮询间隔：连接后服务端 sync 需 1~2 拍
+    pollMax: 15,    // 会话轮询上限（约 4.5s，超时按空列表处理）
+    sendT: 12000,   // 发送确认超时：官方失败无回调、链路层 10s 才超时——必须大于它，
+                    // 否则 SDK 的真实超时原因永远浮不出来（此前 8s 憋死过线索）
+    maxLen: 1000,   // 官方单条字数上限（超限 sendMessage 同步返回 false）
+    drawerListPoll: 1500, // 消息抽屉列表刷新间隔（打开期间；缓存读）
+    drawerChatPoll: 1500, // 聊天视图新消息增量间隔（打开期间；推送进缓存后由它上屏）
+    dayDivGap: 300000,    // 聊天时间分割线间隔：与上一条消息相隔超过该值插入时间分割（5 分钟）
+    badgePoll: 5000,      // 顶栏未读徽标刷新间隔（仅缓存读）
+    badgeDelay: 15000     // 徽标首次探测延迟：避免页面一打开就拉起 SDK
+  },
   upload: {
     endpoint: 'https://upload.kuaishouzt.com', // 评论图片分片上传图床
     chunk: 1 << 20,   // 分片大小（1MB）

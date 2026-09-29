@@ -1,9 +1,10 @@
 import { CFG } from './cfg.js';
 import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
-import { el, fmt, toast, copyText } from './ui.js';
+import { el, fmt, toast } from './ui.js';
 import { FeedStore } from './feedstore.js';
 import { setRealLike, setRealFollow, setRealFavorite, giveBanana } from './interact.js';
 import { toggleItemComments } from './comments.js';
+import { openSharePanel } from './imshare.js';
 
 // ---------- 右侧操作栏 + 上下翻页箭头 ----------
 // 从 buildSlide 抽出：头像/关注、点赞、评论、投蕉、收藏、分享。
@@ -163,17 +164,14 @@ export function buildSideRail(slide, item, goTo) {
       favUI.btn.classList.toggle('on', item.favorited);
     };
   }
-  // 分享（home 带分享数，sv 显示文字标签）
+  // 分享：打开私信分享面板（最近联系人一键发送；复制链接收纳在面板底部）。
+  // home 带分享数（解析后 _shareSync 回填），sv 显示文字标签
   var shareUI = item.kind === 'home'
-    ? railBtn({ img: SITE_ICONS.share, svg: ICONS.share }, fmt(item.share), '复制分享链接', function () {
-      copyText(item.shareUrl).then(function (ok) {
-        toast(ok ? '已复制：' + item.shareUrl : '复制失败，请手动复制');
-      });
+    ? railBtn({ img: SITE_ICONS.share, svg: ICONS.share }, fmt(item.share), '私信分享给朋友', function (b) {
+      openSharePanel(b, item);
     })
-    : railBtn({ img: SITE_ICONS.share, svg: ICONS.share }, '分享', '复制分享链接', function () {
-      copyText(item.shareUrl).then(function (ok) {
-        toast(ok ? '已复制：' + item.shareUrl : '复制失败，请手动复制');
-      });
+    : railBtn({ img: SITE_ICONS.share, svg: ICONS.share }, '分享', '私信分享给朋友', function (b) {
+      openSharePanel(b, item);
     });
   if (item.kind === 'home') slide._shareSync = function () { shareUI.count.textContent = fmt(item.share); };
   // 右侧功能区与上下翻页共用一个定位容器（箭头永远在功能区上方，不遮挡）
