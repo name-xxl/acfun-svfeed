@@ -5,13 +5,25 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   msgContentType, parseCard, parseShare, fmtDur,
-  degradeText, msgTextOf, previewOfMessage
+  degradeText, msgTextOf, previewOfMessage,
+  isQuotable, quoteOf, quoteExtraOf, quoteWireText, quoteWireTrimLen
 } from '../../src/immsg.js';
 
 // contentType 10001 的 content 是 UTF-8 解码即 JSON 的 ArrayBuffer
 function cardMsg(cardObj, contentType) {
   var bytes = new TextEncoder().encode(JSON.stringify(cardObj));
   return { rawMsg: { contentType: contentType == null ? 10001 : contentType, content: bytes.buffer } };
+}
+
+// contentType 12 引用消息：内核 decodeContent 解出的形态（.text 回复正文 + .originMsg 重建原消息）
+function refMsg(originMsg, text) {
+  return { rawMsg: { contentType: 12, seqId: '900' }, originMsg: originMsg, text: text };
+}
+
+// extra 兜底通道：文本消息 + rawMsg.extra 藏 {acsvQuote} JSON
+function extraMsg(payload, contentType) {
+  var bytes = new TextEncoder().encode(JSON.stringify(payload));
+  return { text: 'wire 文本', rawMsg: { contentType: contentType == null ? 0 : contentType, extra: bytes.buffer } };
 }
 
 var SAMPLE_CARD = {
@@ -125,6 +137,110 @@ test('msgTextOf：text → content → content.text → rawMsg.content → rawMs
   assert.equal(msgTextOf({}), '[暂不支持查看的消息，请前往客户端查看]');
   assert.equal(msgTextOf({ rawMsg: { backupTips: '说明文字' } }), '说明文字'); // 兜底接 backupTips
   assert.equal(msgTextOf(null), '[暂不支持查看的消息，请前往客户端查看]');
+});
+
+// ---------- 消息引用解析（0.9.39） ----------
+test('isQuotable：extra 通道文本/卡片/引用均可引；reference 通道禁卡；无预览类型禁', () => {
+  assert.equal(isQuotable({ rawMsg: { contentType: 0 } }), true);
+  assert.equal(isQuotable({ rawMsg: {} }), true); // 缺失按 0
+  assert.equal(isQuotable(cardMsg(SAMPLE_CARD)), true);   // extra 通道不经过内核解码
+  assert.equal(isQuotable(refMsg(null, 'x')), true);      // 引用套引用
+  assert.equal(isQuotable(cardMsg(SAMPLE_CARD), 'reference'), false); // 内核重建 originMsg 会崩
+  assert.equal(isQuotable(refMsg(null, 'x'), 'reference'), true);
+  assert.equal(isQuotable({ rawMsg: { contentType: 1 } }), true);     // 图片可引（预览 [图片]）
+  assert.equal(isQuotable({ rawMsg: { contentType: 2026 } }), false); // 未知类型同
+  assert.equal(isQuotable(null), true); // 容错契约：不抛错（缺失按 0 走）
+});
+
+test('previewOfMessage：图片消息出 [图片]；表情短代码统一显示 [表情]（官方列表预览同款）', () => {
+  assert.equal(previewOfMessage({ rawMsg: { contentType: 1 } }), '[图片]');
+  assert.equal(previewOfMessage({ text: '看 [emot=acfun,123/] 好笑' }), '看 [表情] 好笑');
+  assert.equal(previewOfMessage({ text: '哈哈[emot=acfun,1/]' }), '哈哈[表情]');
+});
+
+test('quoteOf：type 12 解出 {seqId, preview, text}，preview 复用预览映射', () => {
+  var q = quoteOf(refMsg({ rawMsg: { contentType: 0, seqId: '123' }, content: '原消息内容' }, '回复正文'));
+  assert.equal(q.seqId, '123');
+  assert.equal(q.preview, '原消息内容');
+  assert.equal(q.text, '回复正文');
+});
+
+test('quoteOf：originMsg 缺失降级不弃疗（锚点/摘要置空，正文保留）', () => {
+  var q = quoteOf(refMsg(null, '回复正文'));
+  assert.equal(q.seqId, '');
+  assert.equal(q.preview, '');
+  assert.equal(q.text, '回复正文');
+});
+
+test('quoteOf：非 type 12 / 脏输入返回 null 不抛错', () => {
+  assert.equal(quoteOf({ text: '普通文本' }), null);
+  assert.equal(quoteOf(cardMsg(SAMPLE_CARD)), null);
+  assert.equal(quoteOf(null), null);
+  var poisoned = { rawMsg: { contentType: 12 }, get originMsg() { throw new Error('boom'); }, text: 'x' };
+  assert.doesNotThrow(() => quoteOf(poisoned));
+});
+
+test('quoteExtraOf：extra 里翻出 acsvQuote，正文取结构化数据而非 wire 文本', () => {
+  var q = quoteExtraOf(extraMsg({ acsvQuote: { seqId: '7', preview: '摘要', text: '真实正文' } }));
+  assert.equal(q.seqId, '7');
+  assert.equal(q.preview, '摘要');
+  assert.equal(q.text, '真实正文'); // wire 上的 m.text 是可读拼接文本，不采用
+});
+
+test('quoteExtraOf：无 extra / 坏 JSON / 载荷不合规 / 非 type 0 一律 null', () => {
+  assert.equal(quoteExtraOf({ rawMsg: { contentType: 0 } }), null);
+  assert.equal(quoteExtraOf({ rawMsg: { contentType: 0, extra: new TextEncoder().encode('{oops').buffer } }), null);
+  assert.equal(quoteExtraOf(extraMsg({ other: 1 })), null);
+  assert.equal(quoteExtraOf(extraMsg({ acsvQuote: { preview: '没正文' } })), null);
+  assert.equal(quoteExtraOf(extraMsg({ acsvQuote: { seqId: '1', text: 'x' } }, 12)), null);
+  assert.equal(quoteExtraOf(null), null);
+});
+
+test('previewOfMessage：引用消息（两通道）出「[引用] 回复正文」，优先于分享/链接分支', () => {
+  assert.equal(previewOfMessage(refMsg({ rawMsg: { contentType: 0, seqId: '1' }, content: '原' }, '回复内容')),
+    '[引用] 回复内容');
+  assert.equal(previewOfMessage(extraMsg({ acsvQuote: { seqId: '', preview: '', text: '回复内容' } })),
+    '[引用] 回复内容');
+  // 回复正文里带 AcFun 链接仍归引用分支，不出 [分享]
+  assert.ok(previewOfMessage(refMsg({ rawMsg: { contentType: 0, seqId: '1' }, content: '原' },
+    '看 https://www.acfun.cn/v/ac1234')).startsWith('[引用] '));
+});
+
+// ---------- extra 通道 wire 拼接与原生页去重（0.9.42） ----------
+test('quoteWireText：发送侧拼接格式的唯一定义处；preview 缺省「原消息」', () => {
+  assert.equal(quoteWireText('摘要', '回复'), '[引用] 摘要\n回复');
+  assert.equal(quoteWireText('', '回复'), '[引用] 原消息\n回复');
+  assert.equal(quoteWireText(null, '回复'), '[引用] 原消息\n回复');
+});
+
+test('quoteWireTrimLen：恰为发送侧拼接形态时返回剥离长度（\\n 保留/<br> 丢失/空白折叠三形态）', () => {
+  var q = { preview: '红红火火恍恍惚惚', text: '111' };
+  var head = '[引用] 红红火火恍恍惚惚';
+  assert.equal(quoteWireTrimLen(head + '\n111', q), head.length + 1);      // 原生保留 \n（文本节点原样）
+  assert.equal(quoteWireTrimLen(head + '111', q), head.length);            // 换行渲染成 <br>（不产生文本）
+  assert.equal(quoteWireTrimLen(head + ' 111', q), head.length + 1);       // 换行折叠成空格
+  assert.equal(quoteWireTrimLen(head + '\u00a0111', q), head.length + 1);  // 折叠成 nbsp
+  // preview 缺省：发送侧拼的就是「原消息」
+  assert.equal(quoteWireTrimLen('[引用] 原消息\n回复', { preview: '', text: '回复' }), '[引用] 原消息'.length + 1);
+  // 正文含正则特殊字符照常命中（实现不走正则）
+  assert.equal(quoteWireTrimLen('[引用] a(b)\nc*d', { preview: 'a(b)', text: 'c*d' }), '[引用] a(b)'.length + 1);
+});
+
+test('quoteWireTrimLen：形态不匹配一律 0（只补条不动正文的兜底门槛）', () => {
+  var q = { preview: '摘要', text: '回复' };
+  assert.equal(quoteWireTrimLen('[引用] 另一条消息\n回复', q), 0);  // preview 不符
+  assert.equal(quoteWireTrimLen('[引用] 摘要\n别的正文', q), 0);   // 余部 ≠ q.text
+  assert.equal(quoteWireTrimLen('前缀 [引用] 摘要\n回复', q), 0);  // 拼接不在开头
+  assert.equal(quoteWireTrimLen('[引用] 摘要', q), 0);             // 只有前缀没有正文
+  // preview 与原生正文截断不一致（type 12 等来源 preview 是再映射摘要）不硬剥
+  var long = '这是一条特别长的原消息超过摘要上限';
+  assert.equal(quoteWireTrimLen('[引用] ' + long + '\n回复', { preview: long.slice(0, 5), text: '回复' }), 0);
+});
+
+test('quoteWireTrimLen：脏输入容错不抛错', () => {
+  assert.equal(quoteWireTrimLen(null, { preview: 'a', text: 'b' }), 0);
+  assert.equal(quoteWireTrimLen('[引用] a\nb', null), 0);
+  assert.equal(quoteWireTrimLen(undefined, undefined), 0);
 });
 
 // ---------- previewOfMessage ----------

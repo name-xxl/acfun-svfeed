@@ -1,5 +1,5 @@
 // ---------- 评论图片上传（0.9.38 自 appapi.js 迁出：接口层不再背上传管线） ----------
-// 四阶段：getToken → 分片（顺序逐一）→ complete → 换长期 URL。
+// 四阶段：getToken → 分片（顺序逐一）→ complete → 换签名 URL（长期地址由 comment/add 服务端改写）。
 // 需 GM_xmlhttpRequest（二进制分片）；各阶段独立成 Promise 小函数，任何一步失败
 // 由 uploadImage 统一落为 null
 import { CFG } from './cfg.js';
@@ -66,11 +66,14 @@ function uploadGetUrl(token) {
     timeout: CFG.upload.urlT
   }).then(function (d) {
     if (!(d && d.result === 0 && d.url)) throw new Error('no-url');
-    return d.url.split('?')[0]; // 剥签名参数，存裸路径长期可访问
+    // 完整签名 URL 原样返回（ksc2 裸路径 + ?pkey&imgId）。comment/add 的服务端靠这串
+    // 参数解析图片并把 content 改写成 imgs.aixifan.com/newUpload 长期地址；剥掉参数
+    // 服务端解析不到图，会把整条 content 清空（2026-09-30 实证：官方载荷 vs 回显对比）
+    return d.url;
   });
 }
 
-// 发评论配图入口：成功返回可长期访问的裸路径 URL，失败一律 null（调用方 toast 提示）
+// 发评论配图入口：成功返回 getUrlAfterUpload 的完整签名 URL，失败一律 null（调用方 toast 提示）
 export function uploadImage(file) {
   var chunks = Math.max(1, Math.ceil(file.size / CFG.upload.chunk));
   return uploadGetToken(file)

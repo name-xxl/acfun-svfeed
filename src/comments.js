@@ -6,7 +6,9 @@ import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from '
 import { AppAPI } from './appapi.js';
 import { uploadImage } from './upload.js';
 import { renderCommentHtml } from './ubb.js';
-import { ensureEmotionMap, renderEmotPanel } from './emoticon.js';
+import { mountEmotButton, ensureEmotionMap, insertAtCursor } from './emoticon.js';
+import { openImageViewer } from './imgview.js';
+import { buildInputBar } from './inputbar.js';
 
 // ---------- 评论抽屉 ----------
 // A 站通用评论系统：小视频 sourceType=5（sourceId=meowId），普通视频 sourceType=3（sourceId=ac号），
@@ -190,36 +192,7 @@ function toggleCommentLike(like) {
     });
 }
 
-// ---- 评论配图大图查看器 ----
-// 单例浮层挂在 root 上（盖过评论/私信抽屉）；打开期间 capture 键盘监听拦截按键（模态语义）。
-// Escape 的关闭在 input.js 分支里显式先行（isImgviewOpen 判定）——不依赖监听器注册顺序
-var imgview = null;
-function onImgviewKey(ev) {
-  ev.stopPropagation();
-  if (ev.key === 'Escape') closeImageViewer();
-}
-export function isImgviewOpen() {
-  return !!imgview;
-}
-export function closeImageViewer() {
-  if (!imgview) return;
-  var v = imgview;
-  imgview = null;
-  window.removeEventListener('keydown', onImgviewKey, true);
-  v.remove();
-}
-function openImageViewer(src) {
-  closeImageViewer();
-  if (!root || !src) return;
-  imgview = el('div', 'acsv-imgview');
-  var img = el('img');
-  img.src = src;
-  img.referrerPolicy = 'no-referrer';
-  imgview.appendChild(img);
-  imgview.addEventListener('click', closeImageViewer);
-  root.appendChild(imgview);
-  window.addEventListener('keydown', onImgviewKey, true);
-}
+// ---- 评论配图大图查看器：0.9.40 迁出为 imgview.js（评论/私信共用），此处只消费 ----
 
 // 评论列表点击统一委托：挂一次在 drawer list 上，接管所有楼层的点赞/回复/配图大图。
 // 挂载点在 player.js 建抽屉骨架处（dlist.addEventListener('click', commentListClick)）
@@ -394,7 +367,6 @@ function insertLocalComment(c, isReply) {
 
 function ensureCommentInput() {
   if (inputBar && inputBar.isConnected) return inputBar;
-  inputBar = el('div', 'acsv-cinput');
   var chip = el('button', 'acsv-creply');
   chip.style.display = 'none';
   chip.title = '取消回复';
@@ -402,56 +374,35 @@ function ensureCommentInput() {
     ev.stopPropagation();
     setReply(null);
   });
-  var emotBtn = elHtml('button', 'acsv-cinput-emot', ICONS.smiley);
-  emotBtn.title = '表情';
-  var imgBtn = elHtml('button', 'acsv-cinput-img', ICONS.image);
-  imgBtn.title = '插入图片';
-  var fileInp = el('input');
-  fileInp.type = 'file';
-  fileInp.accept = 'image/*';
-  fileInp.style.display = 'none';
-  imgBtn.addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    fileInp.click();
+  // 输入栏 DOM/行为收敛在 inputbar.buildInputBar（评论/私信共用）：这里只注入差异语义——
+  // 回复药丸置首、图片按钮走「上传→插配图代码」、长度 1000（配图代码含完整签名 URL 450+
+  // 字符，限 233 会把输入框锁死到打不了字）
+  var bar = buildInputBar({
+    chip: chip,
+    img: {
+      title: '插入图片',
+      onFile: function (f) {
+        if (f.size > CFG.comments.imgMax) { toast('图片不能超过 ' + Math.round(CFG.comments.imgMax / 1024 / 1024) + 'MB'); return; }
+        bar.imgBtn.textContent = '上传中';
+        uploadImage(f).then(function (url) {
+          bar.imgBtn.innerHTML = ICONS.image;
+          if (!url) { toast('图片上传失败（需登录）'); return; }
+          toast('图片上传成功');
+          insertAtCursor(bar.input, '[img=图片]' + url + '[/img]');
+        });
+      }
+    },
+    placeholder: '评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)',
+    maxLength: 1000,
+    onSend: sendCurrent
   });
-  fileInp.addEventListener('change', function () {
-    var f = fileInp.files && fileInp.files[0];
-    fileInp.value = '';
-    if (!f) return;
-    if (f.size > CFG.comments.imgMax) { toast('图片不能超过 ' + Math.round(CFG.comments.imgMax / 1024 / 1024) + 'MB'); return; }
-    imgBtn.textContent = '上传中';
-    uploadImage(f).then(function (url) {
-      imgBtn.innerHTML = ICONS.image;
-      if (!url) { toast('图片上传失败（需登录）'); return; }
-      toast('图片上传成功');
-      var pos = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
-      var code = '[img=图片]' + url + '[/img]';
-      inp.value = inp.value.slice(0, pos) + code + inp.value.slice(pos);
-      inp.focus();
-    });
-  });
-  var inp = el('textarea', 'acsv-cinput-text');
-  inp.rows = 1;
-  inp.maxLength = 233;
-  inp.placeholder = '评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)';
-  var send = el('button', 'acsv-cinput-send', '发送');
+  inputBar = bar.box;
+  inputBar.imgBtn = bar.imgBtn;
+  inputBar._fit = bar.fitHeight; // sendCurrent 清空后收回高度（既有约定）
+  var inp = bar.input;
   var panel = el('div', 'acsv-emotpanel');
-  inputBar.appendChild(chip);
-  inputBar.appendChild(emotBtn);
-  inputBar.appendChild(imgBtn);
-  inputBar.appendChild(fileInp);
-  inputBar.appendChild(inp);
-  inputBar.appendChild(send);
-  inputBar.addEventListener('click', function (ev) { ev.stopPropagation(); });
   commentDrawer.el.appendChild(panel);
   commentDrawer.el.appendChild(inputBar);
-
-  // 输入内容自动增高（1~4 行，超出滚动），清空后收回
-  function fitHeight() {
-    inp.style.height = 'auto';
-    inp.style.height = Math.min(Math.max(inp.scrollHeight, 36), 96) + 'px';
-  }
-  inp.addEventListener('input', fitHeight);
 
   // 评论区无限滚动：接近底部自动加载下一页
   commentDrawer.list.addEventListener('scroll', function () {
@@ -463,33 +414,8 @@ function ensureCommentInput() {
     }
   }, { passive: true });
 
-  var panelBuilt = false;
-  emotBtn.addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    var show = panel.style.display !== 'flex';
-    panel.style.display = show ? 'flex' : 'none';
-    function showPanel() { renderEmotPanel(panel, insertAtCursor); }
-    if (show && !panelBuilt) {
-      panelBuilt = true;
-      panel.appendChild(el('div', 'acsv-drawer-tip', '表情加载中…'));
-      ensureEmotionMap().then(showPanel);
-    } else if (show) {
-      ensureEmotionMap().then(showPanel); // 已加载时立即返回；上次失败则顺带重试
-    }
-  });
-
-  function insertAtCursor(code) {
-    var pos = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
-    inp.value = inp.value.slice(0, pos) + code + inp.value.slice(pos);
-    inp.focus();
-    try { inp.setSelectionRange(pos + code.length, pos + code.length); } catch (e) { }
-  }
-  inp.addEventListener('keydown', function (ev) {
-    ev.stopPropagation();
-    if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); sendCurrent(); }
-    else if (ev.key === 'Escape') { ev.stopPropagation(); inp.blur(); }
-  });
-  send.addEventListener('click', function (ev) { ev.stopPropagation(); sendCurrent(); });
+  // 表情面板三件套（toggle+懒加载+光标插入）抽进了 emoticon.mountEmotButton，评论/私信共用
+  mountEmotButton(bar.emotBtn, panel, inp);
   return inputBar;
 }
 

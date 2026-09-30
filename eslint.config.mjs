@@ -17,6 +17,7 @@ export default [
       globals: {
         ...globals.browser, ...globals.node,
         __ACSV_DEBUG__: 'readonly',
+        __ACSV_VERSION__: 'readonly',
         // Tampermonkey 沙箱注入（@grant 与跨 world 访问）
         GM_xmlhttpRequest: 'readonly', unsafeWindow: 'readonly'
       }

@@ -65,6 +65,88 @@ export function degradeText(m) {
   return '[暂不支持查看的消息，请前往客户端查看]';
 }
 
+// ---------- 消息引用（0.9.39，双 wire 通道共享一套接收契约 {seqId, preview, text}） ----------
+// ① 原生 Reference（contentType 12）：内核注册了 ReferenceMsg，收到即被 decodeContent
+//    解成 .text（回复正文）+ .originMsg（重建的原消息对象），零手写 protobuf；
+// ② extra 兜底：文本消息 + proto extra 字段藏 {acsvQuote:{seqId,preview,text}} JSON，
+//    服务端零风险，对方客户端只看到可读拼接文本（imshare.sendQuote 负责拼）。
+// 引用锚点 = 原消息 seqId（抽屉定位与列表 key 同源）。
+
+// 是否可被引用：有有效预览的类型（文本/分享 0、图片 1、作品卡 10001、引用 12）——引用条
+// 要有可读摘要才有意义，未知类型（预览只能是「暂不支持」文案）不给入口。图片两条通道都
+// 安全：ImageMsg 已注册，reference 通道的 originMsg 重建无碍；extra 通道更不经过内核解码。
+// reference 通道仍禁 10001：内核 decodeContent 查表 new，未注册类型会崩
+export function isQuotable(m, wire) {
+  var ct = msgContentType(m);
+  if (ct !== 0 && ct !== 1 && ct !== 10001 && ct !== 12) return false;
+  return !(wire === 'reference' && ct === 10001);
+}
+
+// 原生引用通道解析：非 type 12 返回 null。originMsg 缺失/异常时降级不弃疗——
+// seqId/preview 置空（引用条退化为无锚点样式），正文 text 照常可读
+export function quoteOf(m) {
+  try {
+    if (msgContentType(m) !== 12) return null;
+    var o = m.originMsg;
+    var seqId = '', preview = '';
+    if (o) {
+      try {
+        var raw = o.rawMsg || {};
+        if (raw.seqId !== undefined && raw.seqId !== null) seqId = String(raw.seqId);
+      } catch (e1) { }
+      preview = previewOfMessage(o) || '';
+    }
+    return {
+      seqId: seqId,
+      preview: String(preview).slice(0, 60),
+      text: String(typeof m.text === 'string' ? m.text : msgTextOf(m))
+    };
+  } catch (e) { return null; }
+}
+
+// extra 兜底通道解析：文本消息的 extra 里翻 acsvQuote。extra 被服务端/中间端剥掉时
+// 返回 null，消息按普通文本渲染（wire 文文本身可读，官方端观感不受影响）
+export function quoteExtraOf(m) {
+  try {
+    if (msgContentType(m) !== 0) return null;
+    var extra = m.rawMsg && m.rawMsg.extra;
+    if (!extra) return null;
+    var q = (JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(extra))) || {}).acsvQuote;
+    if (!q || typeof q.text !== 'string') return null;
+    return {
+      seqId: q.seqId != null ? String(q.seqId) : '',
+      preview: String(q.preview || '').slice(0, 60),
+      text: q.text
+    };
+  } catch (e) { return null; }
+}
+
+// ---------- extra 通道 wire 拼接的唯一定义处（0.9.42 收口） ----------
+// 发送侧（imshare.sendQuote）拼 wire 文本、原生页（imnative）去重判定，都从这里取，
+// 两处硬编码必然漂移。拼接格式是 APP 端可读性契约：对方客户端只看得到这段纯文本
+export function quoteWirePrefix(preview) {
+  return '[引用] ' + (preview || '原消息');
+}
+export function quoteWireText(preview, text) {
+  return quoteWirePrefix(preview) + '\n' + text;
+}
+// 原生页正文去重判定：官方把 extra 通道引用消息的 wire 文本原样渲染进气泡正文，
+// 补引用摘要条后「摘要」会出现两份（0.9.42）。官方正文恰为发送侧拼接形态时返回
+// 应剥离的前缀字符数（含紧随的分隔空白——原生渲染换行可能保留 \n、变 <br>（不产生
+// 文本）或折叠成空格，故余部容忍前导空白后须精确等于 q.text）；任何不匹配返回 0，
+// 调用方维持「只补条不动正文」的兜底。门槛在调用方：只有 extra/引用解析命中才询问
+export function quoteWireTrimLen(contentText, q) {
+  try {
+    var prefix = quoteWirePrefix(q && q.preview);
+    var t = String(contentText == null ? '' : contentText);
+    if (t.indexOf(prefix) !== 0) return 0;
+    var rest = t.slice(prefix.length);
+    var ws = /^[\s\u00a0]+/.exec(rest);
+    var body = rest.slice(ws ? ws[0].length : 0);
+    return body === q.text ? prefix.length + (ws ? ws[0].length : 0) : 0;
+  } catch (e) { return 0; }
+}
+
 // 消息文本提取（抽屉气泡用）；所有已知字段都拿不到时走 degradeText
 export function msgTextOf(m) {
   try {
@@ -78,6 +160,10 @@ export function msgTextOf(m) {
   return degradeText(m);
 }
 
+// 表情短代码 → [表情]（官方列表预览同款语义：convertEmotionCodeToHtml 的兜底分支）
+var RE_EMOT_CODE = /\[emot=\S+?\/\]/g;
+function plainPreview(s) { return String(s).replace(RE_EMOT_CODE, '[表情]'); }
+
 // 消息 → 列表预览文案（抽屉列表行 / 原生页列表占位共用）
 export function previewOfMessage(m) {
   try {
@@ -86,7 +172,11 @@ export function previewOfMessage(m) {
       var res = card.resourceBody[0] || {};
       return '[作品卡片] ' + String(res.title || card.prologue || '').slice(0, 30);
     }
-    var txt = String(msgTextOf(m));
+    if (msgContentType(m) === 1) return '[图片]';
+    // 引用消息：预览回复正文（引用链消息正文里带链接时也归引用，不出分享/视频预览）
+    var q = quoteOf(m) || quoteExtraOf(m);
+    if (q) return '[引用] ' + plainPreview(q.text).slice(0, 30);
+    var txt = plainPreview(msgTextOf(m));
     var share = parseShare(txt);
     if (share) return '[分享] ' + (share.title ? share.title.slice(0, 30) : '推荐视频');
     if (/https?:\/\/[^\s]*acfun\.cn/i.test(txt)) {

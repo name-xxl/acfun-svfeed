@@ -166,3 +166,30 @@ export function renderEmotPanel(panel, insert) {
   foot.appendChild(next);
   panel.appendChild(foot);
 }
+
+// ---- 输入条表情按钮三件套（0.9.40 自 comments.js 抽出：评论/私信输入条共用） ----
+// 光标处插入 UBB 短代码并聚焦（maxlength 由 textarea 自身属性约束）
+export function insertAtCursor(inp, code) {
+  var pos = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
+  inp.value = inp.value.slice(0, pos) + code + inp.value.slice(pos);
+  inp.focus();
+  try { inp.setSelectionRange(pos + code.length, pos + code.length); } catch (e) { }
+}
+// 按钮点击 toggle 面板显隐；首次打开懒加载表情数据再渲染，失败后重开顺带重试。
+// panel 由调用方创建并挂到自己抽屉的锚定位置（.acsv-emotpanel 定位随最近 positioned 祖先）
+export function mountEmotButton(btn, panel, textarea) {
+  var built = false;
+  btn.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    var show = panel.style.display !== 'flex';
+    panel.style.display = show ? 'flex' : 'none';
+    function showPanel() { renderEmotPanel(panel, function (code) { insertAtCursor(textarea, code); }); }
+    if (show && !built) {
+      built = true;
+      panel.appendChild(el('div', 'acsv-drawer-tip', '表情加载中…'));
+      ensureEmotionMap().then(showPanel);
+    } else if (show) {
+      ensureEmotionMap().then(showPanel); // 已加载时立即返回；上次失败则顺带重试
+    }
+  });
+}

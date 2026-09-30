@@ -45,6 +45,8 @@ function userscriptHeader(debug) {
     + '// @connect      www.acfun.cn\n'
     + '// @connect      api-new.app.acfun.cn\n'
     + '// @connect      upload.kuaishouzt.com\n'
+    + '// @connect      message.acfun.cn\n'
+    + '// @connect      id.app.acfun.cn\n'
     + '// @connect      static.yximgs.com\n'
     + '// @connect      registry.npmmirror.com\n'
     + '// @connect      cdn.jsdelivr.net\n'
@@ -78,7 +80,7 @@ function buildOptions(debug, forWatch) {
     target: ['es2018'],
     charset: 'utf8', // 中文文案/CSS 保持原样，不做 \uXXXX 转义
     outfile: debug ? 'acfun-svfeed.debug.user.js' : 'acfun-svfeed.user.js',
-    define: { __ACSV_DEBUG__: debug ? 'true' : 'false' },
+    define: { __ACSV_DEBUG__: debug ? 'true' : 'false', __ACSV_VERSION__: JSON.stringify(V) },
     // esbuild 的 IIFE 外再包一层，让 'use strict' 指令与拆分前的单文件保持一致；
     // 内嵌 hls.js 放在头注释之后、src IIFE 之外（UMD 自带封装，挂 window.Hls 供 ensureHls 首检）
     banner: { js: userscriptHeader(debug) + hlsInline + '\n(function () {\n\'use strict\';' },

@@ -1,7 +1,7 @@
 import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
 import { el, elHtml, toast, fmtTime, toggleFullscreen } from './ui.js';
-import { root, scroller } from './state.js';
+import { root, scroller, slideAt } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { pb, togglePlayGesture, toggleMuteGesture } from './playback.js';
 import { dmEnabled, setDmEnabled, onPlaying as dmOnPlaying, createDmBox as dmCreateBox } from './danmaku.js';
@@ -134,6 +134,23 @@ export function buildControls(slide, idx, item) {
   });
 
   // ---- 能力型控件：弹幕开关/发送框（cap.danmaku）、清晰度（cap.quality） ----
+  // 编码/缓冲改动同步重建前向预挂条：这俩是 hls 构造参数，预挂的下一条带着改动前的
+  // 实例继续跑（相邻划走只 pause 不 dispose），不重建就「间隔一条才生效」。
+  // 只重建前向——后向是已看过的暂停内容，重建丢播放位置。dropCache：编码偏好变了，
+  // 邻居 item 的清晰度链缓存（按旧偏好过滤的产物）一并作废；缓冲不涉及缓存不清
+  function rebuildFwdNeighbor(slide, dropCache) {
+    try {
+      var idx = Number(slide.dataset.idx);
+      var fwd = slideAt(idx + 1);
+      var it = fwd && FeedStore.items[idx + 1];
+      if (!fwd || !it || !fwd._session || !it.cap || !it.cap.hls) return;
+      if (dropCache) { it.urls = []; it.qualities = null; it.refreshed = false; }
+      fwd._session.dispose();
+      fwd._session = null;
+      attachVideo(fwd, it, idx + 1); // 直接重预挂；不经 renderWindow（避免 player↔controls 循环依赖）
+    } catch (e) { }
+  }
+
   var dmBtn = null, dmBox = null, qWrap = null, qBtn = null, qMenu = null, codecWrap = null, bufWrap = null;
   if (item && item.cap.danmaku) {
     dmBtn = el('button', 'acsv-cbtn acsv-cdm' + (dmEnabled() ? ' on' : ''), '弹');
@@ -197,6 +214,7 @@ export function buildControls(slide, idx, item) {
       item.qualities = null;
       item.refreshed = false;
       attachVideo(slide, item, Number(slide.dataset.idx));
+      rebuildFwdNeighbor(slide, true);
     });
     bufWrap = buildMenu('缓冲', function () {
       var key = null;
@@ -215,6 +233,7 @@ export function buildControls(slide, idx, item) {
       var v = slide.querySelector('video');
       if (v && v.currentTime > 1) slide._resumeAt = v.currentTime;
       attachVideo(slide, item, Number(slide.dataset.idx));
+      rebuildFwdNeighbor(slide, false);
     });
   }
 

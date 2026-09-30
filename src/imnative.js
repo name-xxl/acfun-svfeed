@@ -7,7 +7,7 @@
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { ICON_SVGS } from './imicons.js';
-import { parseCard, parseShare, degradeText, previewOfMessage, msgContentType, msgTextOf, fmtDur } from './immsg.js';
+import { parseCard, parseShare, degradeText, previewOfMessage, msgContentType, msgTextOf, fmtDur, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
 import { AppAPI } from './appapi.js';
 
 var UNSUPPORTED = '不支持查看此消息，请前往最新版客户端查看。';
@@ -32,14 +32,21 @@ var SHADOW_CSS = ''
   + '-webkit-mask:var(--i) center/contain no-repeat;mask:var(--i) center/contain no-repeat}'
   + '.dur{margin-left:auto;font-variant-numeric:tabular-nums}'
   + '.title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;'
-  + 'padding:0 9px 9px;font-size:12px;line-height:1.45;color:#333}';
+  + 'padding:0 9px 9px;font-size:12px;line-height:1.45;color:#333}'
+  // 消息引用（浅色主题，配官方白底气泡）：黑系内嵌+2px 主题红左边线，与抽屉同一设计语言
+  + '.qstrip{display:block;margin:0 0 6px;padding:4px 8px;border-left:2px solid #fd4c5d;'
+  + 'background:rgba(0,0,0,.045);border-radius:3px;font-size:12px;color:#666;line-height:1.5;min-width:0}'
+  + '.qstrip.link{cursor:pointer}'
+  + '.qstrip.link:hover{background:rgba(0,0,0,.08)}'
+  + '.qstrip .p{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+  + '.qbody{display:block;margin:0;font-size:14px;line-height:1.6;color:#333;white-space:pre-wrap}';
 var mo = null, moTimer = null;
 
 export function bootNativeIm() {
   // 挂载即观察，分享卡不等 SDK：解析源是消息元素自带的 data-text 属性（纯 DOM 可得），
   // 与内核是否可见无关。旧版先等 window.ImSdk 再干活——沙箱里那恒为 undefined（页面
   // SDK 在页面 world），整个模块自诞生从未激活过（0.9.29 自证日志：连就位行都不打）。
-  console.info('[acsv-im] 原生页增强挂载：分享卡走 DOM-only，内核探活中');
+  console.info('[acsv-im] 原生页增强挂载 v' + __ACSV_VERSION__ + '：分享卡走 DOM-only，内核探活中');
   watch();
   // 内核探活（kernel() 走 unsafeWindow 读页面 world）只解锁占位替换（10001 卡），
   // 常驻轮询永不放弃；探不到只影响占位替换，不影响分享卡
@@ -87,9 +94,9 @@ function enhance() {
 // 会话窗格扫描：锚在每条消息 `.chat-content-item .message` 上（实测结构 2026-09-30：
 // 线程容器 chat-content-item[data-id=0_{tid}] 内是逐条 message 元素，每条自带
 // data-id/data-seq-id/data-text 原始全文与 .content 气泡体；自发=.message-self、
-// 收到=.message-target——**旧扫描只写 .message-target，把自发分享全漏了**）。两分支：
-// 占位 → 数据配对替换（需内核）；文本消息 → 分享卡替换（纯 DOM，不依赖内核）。分支
-// 共用 pairMessage 的惰性 msgCache（一轮扫描至多一次 getMessages）
+// 收到=.message-target——**旧扫描只写 .message-target，把自发分享全漏了**）。三分支：
+// 占位 → 数据配对替换（需内核）；引用消息 → 补引用摘要条（见下）；文本消息 → 分享卡
+// 替换（纯 DOM，不依赖内核）。分支共用 pairMessage 的惰性 msgCache（一轮扫描至多一次 getMessages）
 function enhanceChat() {
   var msgCache = {};
   document.querySelectorAll('.chat-content-item .message').forEach(function (msgEl) {
@@ -103,11 +110,41 @@ function enhanceChat() {
       msgEl.setAttribute('data-acsv', '1');
       var card = parseCard(msg);
       if (card) renderCard(content, card);
+      else if (renderQuote(content, msg)) { } // 引用消息（占位形态）：摘要条+正文整体替换
       else {
         var tip = degradeText(msg);
         if (tip && tip !== UNSUPPORTED) content.textContent = tip;
       }
       return;
+    }
+    // 引用消息正文可读形态：官方对 type 12 的展示形态真机才能确认——若直接显示正文
+    // （ReferenceMsg 自带 .text），在这里把引用摘要条补到正文上方。配对成功即打标
+    //（普通文本消息不再重复配对；配对失败不打标留给下一轮），识别成功即止不再走分享卡
+    //（回复正文带链接时归属引用）。extra 通道的官方正文是发送侧拼接文本「[引用] 摘要␤回复」，
+    // 补条前先剥掉拼接前缀只留回复，否则摘要出现两份（0.9.42）；形态不识别（type 12 等）
+    // 维持只补条不动正文的兜底。剥离成败各打一条带正文样本的自证日志（每条消息至多
+    // 一次，靠打标幂等）——「新代码在不在跑/为何没剥」远程可判读，不重演 0.9.29 哑火
+    if (!msgEl.getAttribute('data-acsv-quote')) {
+      var m2 = pairMessage(msgEl, msgCache);
+      if (m2) {
+        msgEl.setAttribute('data-acsv-quote', '1');
+        var q2x = quoteExtraOf(m2);
+        var q2 = quoteOf(m2) || q2x;
+        if (q2 && (q2.preview || q2.seqId)) {
+          var trimLen = quoteWireTrimLen(content.textContent, q2);
+          if (trimLen > 0) {
+            if (stripLeadingContent(content, trimLen)) {
+              console.info('[acsv-im] 引用正文剥离 wire 前缀 ' + trimLen + ' 字');
+            } else {
+              console.info('[acsv-im] 引用正文 DOM 跨界，放弃剥离保留原文：' + bodySample(content));
+            }
+          } else if (q2x) { // type 12 形态未知不打；extra 通道对不上拼接形态才值得留痕
+            console.info('[acsv-im] 引用正文未识别拼接形态，保留原文：' + bodySample(content));
+          }
+          prependQuoteStrip(content, q2);
+          return;
+        }
+      }
     }
     tryShareCard(msgEl, content, msgCache);
   });
@@ -174,7 +211,8 @@ function enhanceList() {
     var last = sess && sess.lastMessage;
     if (!last) return;
     span.setAttribute('data-acsv', '1');
-    if (msgContentType(last) === 10001) {
+    var ct = msgContentType(last);
+    if (ct === 10001 || ct === 12) { // 10001 作品卡 / 12 引用消息：previewOfMessage 已统一映射
       var prev = previewOfMessage(last);
       if (prev) span.textContent = prev;
     } else {
@@ -234,14 +272,100 @@ function tryShareCard(msgEl, content, msgCache) {
 }
 
 function appendShadow(content, items, prologue) {
+  var sh = attachShadowRoot(content);
+  content.appendChild(sh.host);
+  if (prologue) sh.root.appendChild(el('div', 'prologue', prologue));
+  items.forEach(function (item) { sh.root.appendChild(item); });
+}
+
+// Shadow DOM 宿主构建（appendShadow / 引用条共用）：样式表随宿主走，宿主由调用方决定
+// 追加还是插到 .content 首位（引用条在官方正文上方）
+function attachShadowRoot(content) {
   var host = document.createElement('div');
   var root = host.attachShadow({ mode: 'open' });
   var style = document.createElement('style');
   style.textContent = SHADOW_CSS;
   root.appendChild(style);
-  if (prologue) root.appendChild(el('div', 'prologue', prologue));
-  items.forEach(function (item) { root.appendChild(item); });
-  content.appendChild(host);
+  return { host: host, root: root };
+}
+
+// ---------- 消息引用渲染（0.9.39 补条；0.9.42 起正文去重：剥 wire 拼接前缀） ----------
+// 摘要条：有 seqId 锚点才可点，按官方 message 元素自带的 data-seq-id 定位滚动
+function quoteStripEl(q) {
+  var s = el('div', 'qstrip' + (q.seqId ? ' link' : ''));
+  s.appendChild(el('span', 'p', q.preview || '[原消息]'));
+  if (q.seqId) {
+    s.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      try {
+        var t = document.querySelector('.chat-content-item .message[data-seq-id="'
+          + String(q.seqId).replace(/"/g, '') + '"]');
+        if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      } catch (e) { }
+    });
+  }
+  return s;
+}
+// 占位替换形态：摘要条 + 回复正文整体进 Shadow DOM。返回 false = 两条通道都解析不出，
+// 调用方回落 degradeText 文案
+function renderQuote(content, msg) {
+  var q = quoteOf(msg) || quoteExtraOf(msg);
+  if (!q) return false;
+  content.textContent = '';
+  var sh = attachShadowRoot(content);
+  content.appendChild(sh.host);
+  sh.root.appendChild(quoteStripEl(q));
+  sh.root.appendChild(el('div', 'qbody', q.text));
+  return true;
+}
+// 正文可读形态：官方正文上方补摘要条。extra 通道的官方正文是发送侧 wire 拼接文本
+//（「[引用] 摘要␤回复」，immsg.quoteWireText），调用方先按 quoteWireTrimLen 剥掉前缀，
+// 剥不动（形态不识别）才原样保留
+function prependQuoteStrip(content, q) {
+  var sh = attachShadowRoot(content);
+  sh.root.appendChild(quoteStripEl(q));
+  content.insertBefore(sh.host, content.firstChild);
+}
+
+// 正文样本（诊断日志用）：JSON 序列化让换行/空格显形，截 80 字符防刷屏
+function bodySample(content) {
+  return JSON.stringify(String(content.textContent || '').slice(0, 80));
+}
+
+// 外科手术式前缀剥离（quoteWireTrimLen 的 DOM 执行端）：按校验过的累计文本长度从头部
+// 摘节点。文本节点跨边界切片（官方正文常把整段排进少量文本节点，主场景）；元素节点
+// 跨界则预检后整体放弃（全有或全无，绝不剥一半）。到达边界后顺手摘掉贴界的零文本
+// 节点——换行渲染成的 <br> 不产生文本，不摘会留「空行+回复」（0.9.42 实缺陷）；遇首个
+// 非空节点收工，回复自身多行的 <br> 不会误伤
+function stripLeadingContent(content, trimLen) {
+  // 官方若把正文排进唯一包裹元素（<div>/<span>），下钻到真正排字的层级再走
+  while (content.childNodes.length === 1
+    && content.firstChild.nodeType === 1
+    && content.firstChild.textContent === content.textContent) {
+    content = content.firstChild;
+  }
+  var kids = Array.prototype.slice.call(content.childNodes);
+  var acc = 0, i, k, n;
+  for (i = 0; i < kids.length; i++) { // 预检：跨界元素即放弃，正文一字不动
+    if (acc >= trimLen) break;
+    k = kids[i];
+    n = (k.nodeType === 3 ? k.nodeValue : k.textContent) || '';
+    if (acc + n.length > trimLen && k.nodeType !== 3) return false;
+    acc += n.length;
+  }
+  acc = 0;
+  for (i = 0; i < kids.length && acc <= trimLen; i++) {
+    k = kids[i];
+    n = (k.nodeType === 3 ? k.nodeValue : k.textContent) || '';
+    if (acc === trimLen) {
+      if (n !== '') break; // 正文开始，收工
+      content.removeChild(k); // 贴界零文本节点（<br>/空文本）顺手清掉
+      continue;
+    }
+    if (acc + n.length > trimLen) { k.nodeValue = k.nodeValue.slice(trimLen - acc); acc = trimLen; } // 预检保证此处必为文本节点
+    else { content.removeChild(k); acc += n.length; }
+  }
+  return true;
 }
 
 // 单张卡片（10001 协议卡与脚本分享卡共用）：封面+播放/评论计数+时长+两行标题；

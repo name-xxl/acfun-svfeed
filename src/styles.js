@@ -245,10 +245,12 @@ var RAW_CSS = ''
   // （不随 cscale 缩放）；slide 级与首屏 scroller 级（包含块=root）都处理，随抽屉同步过渡
   + '.acsv-slide>.acsv-spinner,.acsv-scroller>.acsv-spinner{transition:left .28s ease}'
   + '#acsv-root.acsv-with-comments .acsv-slide>.acsv-spinner,#acsv-root.acsv-with-comments .acsv-scroller>.acsv-spinner{left:calc(50% - var(--acsv-dw,380px)/2)}'
-  // 评论内 UBB 渲染（表情/图片）。带 .acsv-cbody 作用域：
+  // 评论内 UBB 渲染（表情/图片/@提及/作品引用）。带 .acsv-cbody 作用域：
   // 这是注入宿主页的全局样式表，不能留无前缀选择器（防与站点样式互染）
   + '.acsv-cbody .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}'
   + '.acsv-cbody .ubb-imgc{display:block;max-width:min(240px,100%);max-height:220px;border-radius:8px;margin-top:6px;cursor:zoom-in}'
+  + '.acsv-cbody .ubb-at,.acsv-cbody .ubb-res{color:#9fd0ff;text-decoration:none}'
+  + '.acsv-cbody .ubb-at:hover,.acsv-cbody .ubb-res:hover{text-decoration:underline}'
   // 评论配图大图查看器：root 内全屏浮层，局部 z-index 盖过评论抽屉(45)与私信抽屉(50)
   + '.acsv-imgview{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.92);display:flex;'
   + 'align-items:center;justify-content:center;cursor:zoom-out;animation:acsv-fadein .18s ease}'
@@ -390,22 +392,56 @@ var RAW_CSS = ''
   + '.acsv-im-time{flex:none;font-size:11px;color:#7a7f8a;align-self:flex-start;margin-top:4px}'
   + '.acsv-im-chatview{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}'
   + '.acsv-im-bubble{max-width:78%;margin:4px 10px;padding:8px 12px;border-radius:14px;'
-  + 'font-size:13px;line-height:1.6;word-break:break-word;color:#f0f1f3;background:rgba(255,255,255,.1);align-self:flex-start}'
+  + 'font-size:13px;line-height:1.6;word-break:break-word;color:#f0f1f3;background:rgba(255,255,255,.1);align-self:flex-start;'
+  + 'user-select:text;-webkit-user-select:text;cursor:text}' // 气泡开文字选择（root 全局 user-select:none 之上的例外，同评论正文）：划选后原生右键即可复制
   + '.acsv-im-bubble a{color:#9fd0ff}'
   + '.acsv-im-bubble.mine{align-self:flex-end;background:#3e4a5a;color:#fff}' // 自己气泡深蓝灰：主题红是动作/强调色，不铺大面积
   + '.acsv-im-bubble.mine a{color:#9fd0ff}'
   + '.acsv-im-bubble.pending{opacity:.55}'
-  + '.acsv-im-bubble.sent{opacity:1}'
   + '.acsv-im-bubble.failed{background:rgba(255,255,255,.08);color:#ff8a93;cursor:pointer}'
-  + '.acsv-im-inputbar{flex:none;display:flex;align-items:flex-end;gap:8px;padding:10px 12px;'
-  + 'border-top:1px solid rgba(255,255,255,.09);background:rgba(22,22,27,.98)}'
-  + '.acsv-im-input{flex:1;min-height:36px;max-height:96px;border:none;background:rgba(255,255,255,.1);'
-  + 'border-radius:10px;color:#fff;font-size:13px;padding:9px 12px;outline:none;font-family:inherit;resize:none}'
-  + '.acsv-im-input::placeholder{color:rgba(255,255,255,.4)}'
-  + '.acsv-im-input:focus{background:rgba(255,255,255,.16)}'
-  + '.acsv-im-send{flex:none;border:none;background:var(--acsv-accent);color:#fff;font-size:13px;'
-  + 'padding:9px 16px;border-radius:10px;cursor:pointer;font-family:inherit}'
-  + '.acsv-im-send:hover{opacity:.88}'
+  // 消息引用：行包裹器（气泡+引用按钮同行；mine 行反序让按钮贴右缘）。气泡 margin 移交
+  // 包裹器，卡片/附言等未包裹节点不受影响；气泡 max-width 以包裹器为基准轻微收窄
+  + '.acsv-im-rowwrap{display:flex;align-items:center;gap:6px;align-self:flex-start;margin:4px 10px;max-width:96%}'
+  + '.acsv-im-rowwrap.mine{flex-direction:row-reverse;align-self:flex-end}'
+  + '.acsv-im-rowwrap .acsv-im-bubble{margin:0}'
+  // 卡片行：宽度上收到包裹器定值（卡 264px+按钮 24px+gap），卡片满占剩余空间——
+  // 卡片自身的 % 宽在内容尺寸包裹器里会循环解析，必须覆盖掉
+  + '.acsv-im-rowwrap.cardrow{width:min(294px,96%)}'
+  + '.acsv-im-rowwrap.cardrow .acsv-im-vcard{margin:0;align-self:auto;width:auto;flex:1 1 auto;min-width:0}'
+  + '.acsv-im-quotebtn{flex:none;width:24px;height:24px;border:none;border-radius:50%;'
+  + 'background:rgba(255,255,255,.08);color:#8b909a;font-size:13px;line-height:1;padding:0;'
+  + 'cursor:pointer;opacity:0;transition:opacity .12s}' // 默认隐身：气泡正文开文字选择，hover 才现身的按钮不抢划选
+  + '.acsv-im-rowwrap:hover .acsv-im-quotebtn,.acsv-im-quotebtn:focus{opacity:1}'
+  + '.acsv-im-quotebtn:hover{background:rgba(255,255,255,.18);color:#fff}'
+  // 气泡内引用摘要条：黑系内嵌+2px 主题红左边线——在对方浅灰气泡与自己的深蓝气泡上
+  // 都呈「凹进」观感（白系浮块会发糊）；单行省略，有点击锚点才显手型
+  + '.acsv-im-quote{margin:0 0 5px;padding:4px 8px;border-left:2px solid var(--acsv-accent);'
+  + 'background:rgba(0,0,0,.16);border-radius:3px;font-size:12px;line-height:1.5;min-width:0}'
+  + '.acsv-im-quote.link{cursor:pointer}'
+  + '.acsv-im-quote.link:hover{background:rgba(0,0,0,.28)}'
+  + '.acsv-im-quote-preview{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.72)}'
+  // 输入条上方引用 chip
+  + '.acsv-im-quotechip{flex:none;display:flex;align-items:center;gap:8px;margin:8px 12px 0;'
+  + 'padding:5px 8px 5px 12px;background:rgba(255,255,255,.08);border-radius:8px;font-size:12px;color:#b8bdc7}'
+  + '.acsv-im-quotechip-label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+  + '.acsv-im-quotechip-x{flex:none;border:none;background:transparent;color:#8b909a;cursor:pointer;'
+  + 'font-size:12px;padding:2px 4px;font-family:inherit}'
+  + '.acsv-im-quotechip-x:hover{color:#fff}'
+  // 引用定位高亮：主题红描边渐隐（加在被定位的消息主元素上，动画完移除类）
+  + '@keyframes acsv-im-flash{0%{box-shadow:0 0 0 2px var(--acsv-accent)}100%{box-shadow:0 0 0 2px transparent}}'
+  + '.acsv-im-flash{animation:acsv-im-flash 1.2s ease}'
+  // 输入栏 DOM/样式收敛在 inputbar.buildInputBar（.acsv-cinput*，评论/私信共用），
+  // IM 侧旧 .acsv-im-inputbar/-input/-send/-emot/-imgbtn 已退役（0.9.41）
+  // 图片气泡：去文本气泡底色，窄边框衬暗底图片；行包裹器内 margin 归零（同文本气泡约定）
+  + '.acsv-im-imgbubble{max-width:78%;margin:4px 10px;padding:4px;border-radius:14px;'
+  + 'background:rgba(255,255,255,.06);align-self:flex-start}'
+  + '.acsv-im-imgbubble.mine{align-self:flex-end}'
+  + '.acsv-im-rowwrap .acsv-im-imgbubble{margin:0}'
+  + '.acsv-im-imgbubble .acsv-im-imgimg{display:block;max-width:180px;border-radius:10px;cursor:zoom-in}'
+  + '.acsv-im-imgbubble.pending{opacity:.55}'
+  + '.acsv-im-imgbubble.failed{background:rgba(255,255,255,.08);cursor:pointer}'
+  // 气泡内表情图（正文/引用正文同款）：尺寸对齐评论正文 .ubb-emotion 的 34px 档
+  + '.acsv-im-emotimg{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}'
   // 顶栏私信按钮（A 站原生 iconfont 字形 + 未读徽标）
   + '.acsv-im-btn{position:relative;font-style:normal}'
   + '.acsv-im-btn svg{width:20px;height:20px;fill:#fff;display:block}'

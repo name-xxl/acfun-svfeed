@@ -37,7 +37,7 @@
 | 头像角标 +/✓ | **真实关注 / 取消关注** UP 主（需登录） |
 | 分享 | **抖音式私信分享面板**：列出最近联系人（头像/昵称/未读数，可搜索），点「分享」直接把 `标题+链接` 发进对方私信；发送成功后按钮转「捎句话」，点击直达与该联系人的聊天；底部保留「复制链接」「消息中心」。需登录 A 站（走官方 ImSdk 私信通道，加载/连接失败自动降级为复制链接） |
 | 顶栏信封（私信） | **私信抽屉**：列表（联系人/未读/相对时间/搜索）↔ 聊天（气泡/**时间分割线**/**作品卡片**（封面/计数/时长，点击跳视频；自己发出的 `标题+链接` 分享消息同样渲染为卡片）/发送/失败点击重试/已读上报；自己气泡深蓝灰不刺眼）两视图；与评论抽屉**并存**可同时展开（state.js 槽位协调）；Esc 逐层关：私信 → 收起浮条 → 评论 → 退出 |
-| 打开 message.acfun.cn 私信 | **原生私信页自动增强**（装脚本即生效）：「不支持查看此消息」占位原位替换为 10001 作品卡；脚本分享消息渲染为紧凑作品卡（限宽 228px、封面裁切，原文只留附言）；会话列表预览改写「[分享] 标题」 |
+| 打开 message.acfun.cn 私信 | **原生私信页自动增强**（装脚本即生效）：「不支持查看此消息」占位原位替换为 10001 作品卡；脚本分享消息渲染为紧凑作品卡（限宽 228px、封面裁切，原文只留附言）；引用消息补灰色摘要条并把正文剥成纯回复（与抽屉同观感，不再双份摘要）；会话列表预览改写「[分享] 标题」 |
 
 ### 推荐模式（顶栏「小视频 | 推荐」切换，选择记忆）
 
@@ -161,6 +161,130 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 环境级（GPU/驱动/Chromium 版本），脚本无责收尾。
 
 ## 更新日志
+
+### 0.9.43（2026-09-30）· 原生页引用去重加固 + 自证日志
+
+- **贴界 `<br>` 残留修复**（0.9.42 实缺陷）：实测结构里换行渲染成 `<br>`（不产生文本，
+  textContent 换行必丢），正文子节点是 `[文本节点(前缀), <br>, 文本节点(回复)]`——
+  0.9.42 的剥离循环在文本节点耗尽前缀长度后即停手，`<br>` 留下，剥完变「空行+回复」。
+  现在到达边界后顺手摘掉贴界零文本节点，遇首个非空节点收工（回复自身多行的 `<br>`
+  不误伤）；另兼容官方把正文排进唯一包裹元素的形态（下钻一层再走）。
+- **自证日志**（0.9.29 教训第三次生效：「依赖用户侧重装的验证必须自证新代码在跑」）：
+  构建注入 `__ACSV_VERSION__`，挂载行带版本号 `[acsv-im] 原生页增强挂载 v0.9.43`；
+  剥离成功打 `引用正文剥离 wire 前缀 n 字`，失败（拼接形态未识别 / DOM 跨界）各打
+  一条带正文前 80 字样本的 info——「为何没剥」远程可判读，不再静默。
+
+### 0.9.42（2026-09-30）· 原生页引用去重：剥掉正文里的 wire 拼接前缀
+
+- **根因**（用户截图逐字吻合）：extra 通道（默认）引用消息的 wire 可见文本是发送侧
+  拼接的「`[引用] 摘要\n回复`」（给 APP 端纯文本可读性的契约，不能改）。原生页官方把
+  这条文本消息整段渲染进气泡正文，脚本引用分支又按 extra 里的 `acsvQuote` 在正文上方
+  补灰色摘要条——摘要出现两份；嵌套引用时呈 `[引用] [引用] …` 叠加。
+- 修复：`immsg` 收口 wire 拼接唯一定义处（`quoteWirePrefix/quoteWireText`，发送侧
+  `sendQuote` 改同一来源），新增 `quoteWireTrimLen` 判定官方正文恰为发送侧拼接形态
+  （前缀命中 + 余部剥前导空白后精确等于回复正文；`\n` 保留/`<br>` 丢失/空白折叠三
+  形态均命中）；`imnative` 补摘要条前外科手术式剥离前缀（文本节点跨界切片，元素跨界
+  预检后整体放弃全有或全无），官方对回复部分的链接/表情渲染原样保留；形态不识别
+  （type 12 等）维持只补条不动正文的兜底。原生页观感对齐抽屉：引用条 + 纯回复。
+- 契约测试补位：发送侧 wire 格式此前零测试覆盖，本次 `quoteWireText/quoteWireTrimLen`
+  全形态钉死（命中三形态、四类不匹配、preview 缺省「原消息」、脏输入容错）。
+
+### 0.9.41（2026-09-30）· 私信表情与图片：官方同路消息 + 输入条 UI 抽离
+
+- **输入栏收敛 `inputbar.js`**：评论/私信底部输入栏此前各自一份（`.acsv-cinput*` /
+  `.acsv-im-*`），观感漂移（textarea 圆角 8/10 不一、发送键一药丸一圆角矩形、自动增高
+  只有评论有）。`buildInputBar(opts)` 统一为同一套 DOM/CSS/行为——评论侧零迁移（沿用
+  `.acsv-cinput*` 类名与既有 querySelector 引用），IM 侧补齐自动增高、Esc 失焦、发送键
+  药丸形；差异语义（回复药丸 chip、图片按钮行为、placeholder/maxLength、onSend）参数
+  注入。IM 侧重复样式（`.acsv-im-inputbar/-input/-send/-emot/-imgbtn`）退役。
+
+- **表情**：官方 IM 的表情就是 TEXT 消息里的 `[emot=acfun,ID/]` 短代码（SDK 内
+  `convertEmotionCodeToHtml` 收发双向转换，APP/官方 web 原生渲染）。输入条加表情按钮，
+  面板复用 emoticon.js（插 UBB 代码混排进文本）；气泡渲染 esc+linkify 后追加短代码转图
+  （EmotionMap 直查 → umeditor 老图兜底 → 「[表情]」文本兜底，与官方同构）；列表预览
+  统一显示「[表情]」。抽屉创建即预热 EmotionMap，避免没开过面板时表情只出文本。
+- **图片**：IMAGE 消息（contentType 1，官方同路）——`ImageMsg.create({image: File})` 走
+  `kernel.sendMessage`，SDK beforeSend 自动上传图床换 `ks://` 资源串，APP/官方 web 原生
+  渲染。**不能发 https 直链**：官方端渲染非 ks:// 资源会 throw，打断整个会话渲染循环。
+  即选即发（微信/抖音 IM 惯例）：读自然宽高 → 乐观占位（本地预览）→ `sendImage` → 成功
+  摘占位补真身 / 失败点击重试。收图 `msg.url`(ks://) 经 `kernel.file.resourceUrlToHttpUrl`
+  换链渲染，宽高按比例占位；点击开大图查看器。确认走 clientSeqId 对账（`sendKernel`
+  兼容上传期间 clientSeqId 晚赋；超时 `CFG.im.imgSendT=60s`，上限 `CFG.im.imgMax=10MB`）。
+- **UI 抽离**：大图查看器迁出 `imgview.js`（评论/私信共用，comments/input 改 import）；
+  表情按钮三件套（toggle+懒加载+光标插入）抽 `emoticon.mountEmotButton`，两处输入条
+  去重。表情面板样式 `.acsv-emot*` 本就无作用域，私信抽屉内锚定零覆写（bottom:57px 恰
+  对齐 IM 输入条）。
+- 图片消息可被引用（`isQuotable` 加 ct 1，预览「[图片]」；ImageMsg 已注册，两条 wire 通道皆安全）。
+- **缓冲档位降流量**：标准/加大/极限的前向缓冲 60/180/480s → **10/20/30s**（maxMaxBufferLength
+  与 maxBufferSize 等比收缩；backBufferLength 保持原值——回退缓冲不产生前向流量，调小反而
+  会让回拖进度条重新下载）。档位记忆键不变，已选档用户自动落到新值。
+- **编码/缓冲改动同步重建前向预挂条**：这俩是 hls 构造参数、仅会话创建时读取，预挂的下一条
+  带旧实例继续跑（相邻划走只 pause 不 dispose），此前「间隔一条才全部生效」。现在改动瞬间
+  邻居 item 会话重建（编码改动连带作废其清晰度链缓存）；后向邻居是已观看的暂停内容，
+  重建丢播放位置，不动。
+- **图片发送卡死修复**（真机定位）：站点 globalConfig 供给的旧版 SDK（rc.1）link 对象缺
+  `log/logPerformance` 方法，图片上传成功后的性能打点走 `kernel.log → this.link.log` 直接
+  TypeError，发送整体失败（文本路径不经此打点故长期未暴露）。`ensureTracer` 双侧补 no-op
+  桩（与补 tracer 同族手术，只丢埋点）；诊断中同时排除了 CORS——上传端点预检明确放行
+  www.acfun.cn，上传 POST 实测 200。
+- **图片渲染域改写 + GM 兜底**：内核换链产物指向远端配置下发的 apiAddress
+  （sixinpic.kuaishou.com，实测对 acfun token 401）；改写为 message.acfun.cn 官方参数形态
+  （白名单 resourceId/userId/did/kpn/imsdkver/platform，剥 token 与 w/h——官方页同资源该
+  形态实测 200）。下载端按 Cookie 里的 midground 令牌鉴权（直链跨站没这张 Cookie 必
+  401，query 带令牌实测不认；官方页 DOM 实锤 ks:// 形态 = resourceId + 数字尾缀）——
+  GM 拉字节前先 id.app.acfun.cn token/get（sid=acfun.midground.api）现换令牌写进
+  .acfun.cn 父域 Cookie（本页可写父域，message.acfun.cn 无 host 级同名时即采用），
+  被拒强刷重试一次；失败降级 [图片] 文本（gmRequest 增 arraybuffer、
+  `@connect message.acfun.cn + id.app.acfun.cn`）。
+  渲染链**零会话依赖**：uri 取 m.url → rawMsg.content 手解 proto 字段 1（重开会话内核
+  decodeContent/file 配置不保证就绪，「装后首开能渲染、重开失败」的根因）；URL 内核换链
+  失败时本地拼装（ks:// 尾段 resourceId + 本端 Cookie userId/_did）。
+- 与 0.9.40 评论配图修复零交集：那条链路产出签名 https URL 供 comment/add 改写落库，
+  私信图片走内核上传产 ks:// 资源串，各走各的管线。
+
+### 0.9.40（2026-09-30）· 评论图片修复：上传 URL 保留签名参数（服务端靠它改写长期地址）
+
+- **根因**（用户实测 DevTools 载荷 vs add 回显对比实证）：`comment/add` 服务端解析
+  content 里 `[img=图片]` 的完整签名 URL（`preview.ndcsk.com/ksc2/…?pkey=…&imgId=…`），
+  把它改写成 `imgs.aixifan.com/newUpload/{uid}_{hash}.png` 再落库；脚本此前在
+  `upload.js` 剥掉 `?` 后参数只发裸 ksc2 路径，服务端解析不到图，**整条 content 被
+  清空**——评论成空壳，原网页与脚本抽屉都渲染不出。
+- 修复：`uploadGetUrl` 原样返回 `getUrlAfterUpload` 的完整 URL；`IMG_CDN_OK` 白名单
+  补 `preview.ndcsk.com/ksc2/` 分支（host+path 双锚定，裸路径公开可访问已验证），
+  兜底服务端未改写的旧内容。
+- 附带：评论输入框 `maxLength` 233→1000——配图代码 450+ 字符，限 233 时插入图片后
+  输入框锁死打不了字（用户被迫发纯图评论的次生原因）。
+
+### 0.9.39（2026-09-30）· 私信消息引用：原生 Reference 双通道 + 摘要条/定位 UI
+
+- **双 wire 通道**（`CFG.im.quoteWire` 切换，默认 `extra`）：
+  - `extra`：文本消息 + proto extra 字段藏 `{acsvQuote:{seqId,preview,text}}`，对方
+    客户端只看到「[引用] 摘要\n正文」可读文本，零兼容风险。
+  - `reference`：原生引用消息（contentType 12，内核已注册 `ReferenceMsg`，编解码全由
+    SDK 承担，收到的消息自带 `.text` + `.originMsg`）。绕过 widget 文本/图片白名单走
+    `kernel.sendMessage` 直发（`imshare.sendKernel`），确认改为会话缓存里按
+    clientSeqId 对账（内核直发没有「信息发送成功」日志）。**2026-09-30 真机实测**：
+    服务端接受（消息正常落地、web 端渲染正常），但 AcFun APP 端不渲染、提示「客户端
+    不支持查看此消息」——降为保留通道，APP 后续支持引用了再切回。
+- **解析层**（`immsg.js`，两通道统一消费为 `{seqId, preview, text}`）：`quoteOf`（type 12，
+  originMsg 缺失降级不弃疗）、`quoteExtraOf`（extra 翻 acsvQuote）、`isQuotable(m, wire)`
+  （文本/卡片/引用套引用可引；图片与未知类型无有效预览不给入口；`wire='reference'` 时
+  卡片例外——内核 decodeContent 重建 originMsg 查表 `new`，10001 未注册会崩）； 
+  `previewOfMessage` 引用分支优先于分享/链接。
+- **抽屉 UI**（`imdrawer.js`）：文本/卡片/分享卡气泡 hover 出「引用」按钮（行包裹器
+  `.acsv-im-rowwrap` 承接，mine 行反序；卡片行宽度上收到包裹器避免 % 宽循环解析；
+  reference 通道卡片无按钮）；输入条上方引用 chip（复刻评论抽屉 acsv-creply 交互，
+  placeholder 联动）；发送失败点击重试会恢复引用 chip；引用气泡=摘要条（黑系内嵌+
+  主题红细左边线+单行省略）+ 回复正文，点击摘要条按 originMsg.seqId 定位原消息
+  （`chat.msgEls` 登记锚点 + flash 描边高亮）。引用判定先行于卡片/分享——回复正文带
+  链接依然是引用气泡。
+- **原生页**（`imnative.js`，只读）：type 12 占位形态整条替换（摘要条+正文进 Shadow
+  DOM）；官方能自行显示正文的形态则只在正文上方补摘要条；列表预览与抽屉同源。
+- **恢复逻辑泛化**：`sendOnce` 的失败恢复（tracer 重建/重连/forceSync）抽成
+  `withSendRecovery(inst, send)`，文本与引用发送共用，doSend 路径行为不变。
+- 随版本带入上一轮工作区成果：评论 UBB 补 `[at uid=N]`/`[resource id= type=]` 规则
+  （对齐动态广场方言，`CFG.api.articleBase` 配套）；私信气泡开文字选择（划选后原生右键
+  复制，退役 `.sent` 类与按文本对账的占位移除块）；`ubb.test.js` 单测落库。
 
 ### 0.9.38（2026-09-30）· P2-d 契约收口：upload 迁出 / CFG 纪律补漏 / dataset 投影登记
 
@@ -758,19 +882,21 @@ npm test             # immsg 单测 + 无头 harness 全场景（需先 npx play
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`fmt`/`toast`/剪贴板/样式注入等工具 |
 | `interact.js` | 真实点赞/关注（api_st → interact 接口）；收藏/投蕉转发 AppAPI |
-| `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3、配图大图查看器、楼中楼、分页、评论点赞；UBB/表情已拆出） |
-| `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[img]/[color] 逐一白名单放行 |
-| `emoticon.js` | 表情包服务 + 面板（localStorage 缓存优先、最近使用、分包 tab） |
+| `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出） |
+| `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[at]/[resource]/[img]/[color] 逐一白名单放行 |
+| `emoticon.js` | 表情包服务 + 面板 + 输入栏表情按钮挂载（localStorage 缓存优先、最近使用、分包 tab） |
+| `imgview.js` | 配图大图查看器（评论/私信共用；root 单例浮层、Esc 模态） |
+| `inputbar.js` | 抽屉输入栏 builder（评论/私信共用：表情/图片按钮、自动增高、Enter/Esc；差异语义参数注入） |
 | `upload.js` | 评论图片上传四阶段（GM 通道二进制分片，失败统一落 null） |
 | `hls.js` | hls.js 懒加载（GM_xhr 拉文本 + Function 执行，Safari 原生 HLS 探测） |
 | `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐） |
 | `danmaku.js` | 弹幕编排：列表拉取/缓存、开关记忆、绑定/解绑 slide、发送输入条 |
 | `player.js` | 播放器：slide 构建、控制栏（双形态）、懒解析挂载、清晰度切换、顶栏源切换、键盘、挂载/卸载 |
 | `nav.js` / `uppage.js` | 导航入口注入；UP 主空间页小视频标签 |
-| `imshare.js` | 私信基建：ImSdk 加载器（源码补丁 + Blob 执行）、连接/发送确认（轮询式恢复链）、用户卡片、分享面板 |
-| `imdrawer.js` | 私信抽屉（列表/聊天两视图、乐观气泡、未读徽标）；分享消息卡片化（dougaCard 拉详情原位补全） |
-| `imnative.js` | 原生私信页增强（message.acfun.cn）：占位替换（10001 卡，unsafeWindow 读页面内核）+ 分享卡（data-text 解析，DOM-only）+ Shadow DOM 隔离 |
-| `immsg.js` | 私信消息共享解析层（parseCard/parseShare 容忍式契约/降级文案），双端渲染器各自消费 |
+| `imshare.js` | 私信基建：ImSdk 加载器（源码补丁 + Blob 执行）、连接/发送确认（轮询式恢复链）、内核直发（引用/图片消息，clientSeqId 对账）、图片字节拉取（midground 令牌）、用户卡片、分享面板 |
+| `imdrawer.js` | 私信抽屉（列表/聊天两视图、乐观气泡、未读徽标、消息引用双 wire、表情/图片收发渲染）；分享消息卡片化（dougaCard 拉详情原位补全） |
+| `imnative.js` | 原生私信页增强（message.acfun.cn）：占位替换（10001 卡，unsafeWindow 读页面内核）+ 分享卡 + 引用消息渲染（去重加固）+ Shadow DOM 隔离 |
+| `immsg.js` | 私信消息共享解析层（parseCard/parseShare 容忍式契约、引用解析 quoteOf/quoteExtraOf/isQuotable、预览映射/降级文案），双端渲染器各自消费 |
 | `imicons.js` | 站点原生图标登记表（CDN SVG + 字形码点，双端共享） |
 | `boot.js` | 启动入口（构建 entry） |
 
@@ -788,6 +914,8 @@ flowchart LR
     data["data.js"]
     state["state.js（UI 单例中介）"]
     route["route.js"]
+    imgview["imgview.js（大图查看器）"]
+    inputbar["inputbar.js（抽屉输入栏）"]
   end
 
   subgraph apilayer["接口层"]
@@ -803,7 +931,9 @@ flowchart LR
     player["player.js（编排）"]
     feedstore["feedstore.js（流仓库）"]
     pb["playback.js"]
-    others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · comments(ubb/emoticon) · interact · report · uppage · nav · upload"]
+    ubb["ubb.js（评论 UBB）"]
+    emoticon["emoticon.js（表情）"]
+    others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · comments · interact · report · uppage · nav · upload"]
   end
 
   subgraph im["私信层"]
@@ -830,9 +960,9 @@ flowchart LR
   session --> api & hls
   pb --> feedstore
   feedstore --> api & state & player
-  comments --> appapi & net
+  comments --> ubb & emoticon & inputbar & imgview & appapi & net
   interact --> appapi
-  imdrawer --> imshare & immsg & imicons & appapi
+  imdrawer --> imshare & immsg & imicons & appapi & emoticon & inputbar & imgview
   imnative --> immsg & imicons & appapi
   imshare --> appapi & imdrawer
 
@@ -842,6 +972,8 @@ flowchart LR
 
 绿色两个节点是刻意的解耦点：`immsg.js`/`imicons.js` 零 import，双端渲染器各自消费，
 私信格式变更只改解析层一处（新格式渲染需两端各加分支，见 `imnative.js` 头注释）。
+0.9.41 起评论/私信的**输入栏（`inputbar.js`）与大图查看器（`imgview.js`）**同为共用件，
+两抽屉观感/行为单一来源。
 `player.js → attach.js → session.js` 的反向回调（qualitySwitch/reattach）不走 import，
 经 `setSessionHooks` 注入（见 `player.js` 头注释）——这是全项目唯一的钩子注入点；
 `state.js` 单例中介的存在就是为了切断 player 与只读方之间的循环 import。

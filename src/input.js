@@ -4,7 +4,8 @@ import { root, scroller, slideAt, currentDrawer } from './state.js';
 import { isFeedRoute } from './route.js';
 import { FeedStore } from './feedstore.js';
 import { pb, currentVideo, sweepVideos, togglePlayGesture, toggleMuteGesture } from './playback.js';
-import { toggleItemComments, isImgviewOpen, closeImageViewer } from './comments.js';
+import { toggleItemComments } from './comments.js';
+import { isImgviewOpen, closeImageViewer } from './imgview.js';
 
 // ---------- 键盘/全屏/幽灵扫描：全局监听的注册与解除 ----------
 // 上层导航（scrollToIndex/exitFeed）在 player.js，经 api 参数注入保持依赖单向；

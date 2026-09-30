@@ -1,8 +1,8 @@
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
-import { el, toast, copyText, cookieVal } from './ui.js';
-import { postForm } from './appapi.js';
+import { el, toast, copyText, cookieVal } from './ui.js';import { postForm } from './appapi.js';
 import { openChat } from './imdrawer.js';
+import { quoteWireText } from './immsg.js';
 
 // ---------- 私信分享（抖音式分享面板） ----------
 // 网页端私信没有 REST 发送端点：官方自己走快手 ImSdk（klink WebSocket + protobuf），
@@ -283,6 +283,14 @@ function tracerInstaller(G) {
     var zs = inst && inst.kernel && (inst.kernel.api || inst.kernel);
     var link = zs && zs.link;
     if (link && !link.tracer) link.tracer = G.__acsvTracer;
+    // 旧版构建的 link 缺 log/logPerformance（站点 globalConfig 供给的 rc.1 实测，0.9.41）：
+    // 图片上传成功后的性能打点走 kernel.log → this.link.log，只判 link 存在不判方法，
+    // 直接 TypeError 把发送整体打断（实测上传都 200 了死在打点上；文本路径不经此打点故无恙）。
+    // 补 no-op 与补 tracer 同性质：只丢性能埋点，零功能影响
+    if (link) {
+      if (typeof link.log !== 'function') link.log = function () { };
+      if (typeof link.logPerformance !== 'function') link.logPerformance = function () { };
+    }
     G.__acsvTracerOk = !!(link && link.tracer);
   } catch (e) { G.__acsvTracerOk = false; }
 }
@@ -294,6 +302,11 @@ export function ensureTracer(inst) {
     var k = inst.kernel || {};
     var zs = k.api || k;
     if (zs && zs.link && !zs.link.tracer && w.__acsvTracer) zs.link.tracer = w.__acsvTracer;
+    // 沙箱侧同款补桩：injectPageFn 装过一次后 installer 不再重跑，这里每次兜底
+    if (zs && zs.link) {
+      if (typeof zs.link.log !== 'function') zs.link.log = function () { };
+      if (typeof zs.link.logPerformance !== 'function') zs.link.logPerformance = function () { };
+    }
   } catch (e3) { }
 }
 
@@ -450,13 +463,13 @@ function rebuildIm() {
   return p;
 }
 
-// 发送 + 失败自动恢复重试一次。按失败指纹分派：
+// 发送 + 失败自动恢复重试一次（文本 doSend 与引用 sendQuote 共用）。按失败指纹分派：
 //   tracer 崩溃（weblog 缺失）→ 重建带病单例
 //   链路坏 → 重连
 //   sync-required（服务端 {syncOffset} 拒绝）→ 强制同步一轮
-// 恢复后仍失败才是真问题，原因走黑匣子
-function sendOnce(inst, targetId, text) {
-  return doSend(inst, targetId, text).catch(function () {
+// 恢复后仍失败才是真问题，原因走黑匣子。send(inst) 由调用方闭包打包「建消息+发送」
+function withSendRecovery(inst, send) {
+  return send(inst).catch(function () {
     var p;
     if (hadTracerCrash()) {
       console.warn('[acsv-im] 检测到 tracer 崩溃（weblog 缺失），重建 IM 实例后重试');
@@ -468,9 +481,170 @@ function sendOnce(inst, targetId, text) {
     }
     return p.then(function (useInst) {
       ensureTracer(useInst); // 每次发送前确保 tracer 就位（幂等）
-      return forceSync(useInst).then(function () {
-        return doSend(useInst, targetId, text);
-      });
+      return forceSync(useInst).then(function () { return send(useInst); });
+    });
+  });
+}
+
+function sendOnce(inst, targetId, text) {
+  return withSendRecovery(inst, function (i) { return doSend(i, targetId, text); });
+}
+
+// kernel 直发通道：widget 的 sendMessage 只放行文本/图片（第 3 参按类型分发），引用/图片等
+// 类型绕过它直接 kernel.sendMessage（内核对已注册消息类只做序列化+入缓存+下发，无白名单）。
+// 确认途径与 doSend 不同——没有 widget 的「信息发送成功」日志，改为在会话消息缓存里按
+// clientSeqId 对账：服务端接受后该消息落入 getMessages 缓存，对上即服务端已收。
+// timeout 可配（图片消息含内核上传，用 imgSendT 而非 sendT）；clientSeqId 每拍现读——
+// 图片消息走 beforeSend 上传时它可能晚赋，等出现即可，总闸兜底超时
+export function sendKernel(inst, msg, targetId, timeout) {
+  var limit = timeout || CFG.im.sendT;
+  return new Promise(function (resolve, reject) {
+    var done = false, start = Date.now();
+    function finish(err) {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      if (err) reject(err); else resolve();
+    }
+    var timer = setTimeout(function () { finish(new Error('send-timeout')); }, limit);
+    var r;
+    try { r = inst.kernel.sendMessage(msg); } catch (e) { finish(e); return; }
+    // 内核若返回 promise：resolve 只代表内核侧收发完成，仍以缓存对账为准（服务端
+    // sync-required 等拒绝不一定走 reject）；reject 则提前终局，不干等超时
+    if (r && typeof r.then === 'function') {
+      r.then(function () { }, function (e) { finish(e || new Error('send-fail')); });
+    }
+    (function poll() {
+      if (done) return;
+      var csid = '';
+      try { csid = String((msg.rawMsg && msg.rawMsg.clientSeqId) || ''); } catch (e1) { }
+      if (csid) {
+        var hit = false;
+        try {
+          var sess = null;
+          (inst.kernel.getSessions() || []).some(function (s) {
+            if (String(s.targetId) === String(targetId)) { sess = s; return true; }
+            return false;
+          });
+          if (sess) {
+            (inst.kernel.getMessages(sess) || []).some(function (m) {
+              var raw = m.rawMsg || {};
+              if (raw.clientSeqId !== undefined && String(raw.clientSeqId) === csid) { hit = true; return true; }
+              return false;
+            });
+          }
+        } catch (e) { }
+        if (hit) return finish(null);
+      }
+      if (Date.now() - start > limit) return finish(new Error('send-timeout'));
+      setTimeout(poll, 300);
+    })();
+  });
+}
+
+// 图片消息发送（contentType 1，官方同路）：ImageMsg.create({image: File, width, height}) 走
+// kernel.sendMessage 时 beforeSend 自动上传图床换 ks:// 资源串，APP/官方 web 原生渲染。
+// 不能发 https 直链：官方端渲染非 ks:// 资源会 throw，打断整个会话渲染循环
+export function sendImage(inst, targetId, file, w, h) {
+  return withSendRecovery(inst, function (i) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var map = i.kernel && i.kernel.messageConstructorMap;
+        var Img = map && map[1];
+        if (!Img || !Img.create) throw new Error('image-msg-class-missing');
+        resolve(sendKernel(i, Img.create({
+          image: file, width: w || 300, height: h || 300, targetType: 0, targetId: Number(targetId)
+        }), targetId, CFG.im.imgSendT));
+      } catch (e) { reject(e); }
+    });
+  });
+}
+
+// midground 服务令牌：IM 网关（message.acfun.cn）下载鉴权凭据。本页没有它的会话 Cookie
+//（只有官方页访问过才有，浏览器重开即失——渲染 401 的根因），走 id.app.acfun.cn 的
+// token/get 现换一枚（GM 带域 Cookie，未登录 -401）拼进下载 URL query（SDK 上传同款姿势）。
+// 单飞 + 模块缓存；失败清缓存允许下次重取
+var mgTokenP = null;
+function midgroundToken(refresh) {
+  if (!mgTokenP || refresh) {
+    mgTokenP = gmRequest({
+      method: 'POST',
+      url: 'https://id.app.acfun.cn/rest/web/token/get',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: 'sid=acfun.midground.api',
+      timeout: CFG.time.gm
+    }).then(function (j) {
+      var t = j && j['acfun.midground.api_st'];
+      if (!t) { mgTokenP = null; return ''; }
+      return String(t);
+    }, function () { mgTokenP = null; return ''; });
+  }
+  return mgTokenP;
+}
+
+// 图片字节拉取：下载端按 Cookie 里的 midground 令牌鉴权（直链跨站没这张 Cookie 必 401，
+// query 里带实测不认）。流程：id.app.acfun.cn token/get 现换令牌 → 写进 .acfun.cn 父域
+// Cookie（message.acfun.cn 无自己的 host 级同名 Cookie 时即采用；本页可写父域）→ GM 带
+// Cookie 拉字节换 blob。令牌被拒则强刷一枚重试一次。失败统一 null（降级 [图片] 文本）
+export function fetchImImageBlob(url) {
+  function setMgCookie(tk) {
+    if (!tk) return;
+    try {
+      document.cookie = 'acfun.midground.api_st=' + tk
+        + '; domain=.acfun.cn; path=/; max-age=86400; SameSite=None; Secure';
+    } catch (e0) { }
+  }
+  function once() {
+    var u = url + (url.indexOf('?') > -1 ? '&' : '?') + '_=' + Date.now();
+    return gmRequest({ url: u, timeout: CFG.time.gm, responseType: 'arraybuffer', okStatus: true });
+  }
+  function toBlob(buf) {
+    try { return (buf && buf.byteLength) ? URL.createObjectURL(new Blob([buf])) : null; }
+    catch (e) { return null; }
+  }
+  return midgroundToken(false).then(function (tk) {
+    setMgCookie(tk);
+    return once();
+  }, function () { return once(); }).then(toBlob, function () {
+    // 401/网络错：令牌可能过期，强刷一枚重写 Cookie 再试一次
+    return midgroundToken(true).then(function (tk) {
+      setMgCookie(tk);
+      return once();
+    }, function () { return once(); }).then(toBlob, function () { return null; });
+  });
+}
+
+// 引用消息发送（双通道按 CFG.im.quoteWire 切换，都走 kernel 直发 + 恢复重试）。
+// reference：ReferenceMsg.create({text, originMsg, targetType, targetId})，编解码内核全包；
+// extra：TextMsg + extra 藏 {acsvQuote} JSON，wire 文本拼「[引用] 摘要\n正文」给对方
+// 客户端兜底（脚本端收下后以 extra 结构化数据渲染，不读 wire 文本）
+export function sendQuote(inst, targetId, quote, text) {
+  return withSendRecovery(inst, function (i) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var map = i.kernel && i.kernel.messageConstructorMap;
+        if (CFG.im.quoteWire === 'reference') {
+          var Ref = map && map[12];
+          if (!Ref || !Ref.create) throw new Error('reference-msg-class-missing');
+          resolve(sendKernel(i, Ref.create({
+            text: text, originMsg: quote.originMsg, targetType: 0, targetId: Number(targetId)
+          }), targetId));
+        } else {
+          var Txt = map && map[0];
+          if (!Txt || !Txt.create) throw new Error('text-msg-class-missing');
+          var extra = null;
+          try {
+            extra = new TextEncoder().encode(JSON.stringify({
+              acsvQuote: { seqId: quote.seqId || '', preview: quote.preview || '', text: text }
+            }));
+          } catch (e1) { }
+          resolve(sendKernel(i, Txt.create({
+            targetType: 0, targetId: Number(targetId),
+            text: quoteWireText(quote.preview, text), // 拼接格式唯一定义处（immsg，原生页去重同源）
+            extra: extra
+          }), targetId));
+        }
+      } catch (e) { reject(e); }
     });
   });
 }

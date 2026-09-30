@@ -33,9 +33,13 @@ export var CFG = {
     shareBase: 'https://m.acfun.cn/sv/?mid=',
     userBase: 'https://www.acfun.cn/u/',
     videoBase: 'https://www.acfun.cn/v/ac',
+    articleBase: 'https://www.acfun.cn/a/ac',
     // ---- 私信分享（网页私信 = 快手 ImSdk over WebSocket，无 REST 发送端点） ----
     // imsdk CDN hash 随官方发版变化，运行时优先取页面 globalConfig.imsdkcdn，此为兜底
     imsdk: 'https://static.yximgs.com/udata/pkg/acfun-im/ImSdk.eb6e95.js',
+    // IM 图片资源官方下载域：内核换链产物指向远端配置下发的 apiAddress（sixinpic.kuaishou.com，
+    // 实测对 acfun token 401）；官方页同资源走本域、参数不含 token 即 200（0.9.41 实测）
+    imDownloadBase: 'https://message.acfun.cn',
     userCard: 'https://www.acfun.cn/rest/pc-direct/user/getUserCardList',
     defaultAvatar: 'https://imgs.aixifan.com/style/image/defaultAvatar.jpg',
     logoSvg: 'https://ali-imgs.acfun.cn/kos/nlav10360/static/common/widget/header/img/acfunlogo.11a9841251f31e1a3316.svg',
@@ -98,13 +102,15 @@ export var CFG = {
     reAvc: /h264|avc1|avc3/i    // 嗅探 H.264（仅确证用，未命中按 avc 推断）
   },
   // 缓冲档位（推荐模式 hls.js 构造参数）。maxBufferSize 单位是字节
-  // （0.9.1 前误写 120 当 MB，实为 120 字节，被 maxBufferLength 的时间上限掩盖）
+  // （0.9.1 前误写 120 当 MB，实为 120 字节，被 maxBufferLength 的时间上限掩盖）。
+  // 0.9.41 降流量调优：60/180/480s → 10/20/30s（maxMax/Bytes 等比收缩；backBuffer
+  // 保持原值——回退缓冲不产生前向流量，调小反而会让回拖进度条重新下载）
   buf: {
     def: 'mid',
     presets: {
-      std: { label: '标准', maxBufferLength: 60,  maxMaxBufferLength: 120, maxBufferSize: 60e6,  backBufferLength: 30 },
-      mid: { label: '加大', maxBufferLength: 180, maxMaxBufferLength: 300, maxBufferSize: 150e6, backBufferLength: 30 },
-      max: { label: '极限', maxBufferLength: 480, maxMaxBufferLength: 600, maxBufferSize: 400e6, backBufferLength: 60 }
+      std: { label: '标准', maxBufferLength: 10,  maxMaxBufferLength: 20, maxBufferSize: 15e6, backBufferLength: 30 },
+      mid: { label: '加大', maxBufferLength: 20,  maxMaxBufferLength: 40, maxBufferSize: 30e6, backBufferLength: 30 },
+      max: { label: '极限', maxBufferLength: 30,  maxMaxBufferLength: 60, maxBufferSize: 45e6, backBufferLength: 60 }
     }
   },
   time: {
@@ -145,6 +151,13 @@ export var CFG = {
     sendT: 12000,   // 发送确认超时：官方失败无回调、链路层 10s 才超时——必须大于它，
                     // 否则 SDK 的真实超时原因永远浮不出来（此前 8s 憋死过线索）
     maxLen: 1000,   // 官方单条字数上限（超限 sendMessage 同步返回 false）
+    imgMax: 10 * 1024 * 1024, // 私信图片上限：与评论配图取同值（内核上传接口的真实上限未知，稳妥）
+    imgSendT: 60000,          // 图片消息确认超时：含 SDK 内核上传图床耗时（大图慢网），远大于 sendT
+    // 消息引用 wire 通道（2026-09-30 真机实测定案）：'extra'=文本消息 + proto extra
+    // 字段藏 {acsvQuote} JSON，对方客户端看到「[引用] 摘要\n正文」可读文本；'reference'=
+    // 原生 Reference 消息（contentType 12）——服务端接受（消息正常落地），但 AcFun APP
+    // 端不渲染、提示「客户端不支持查看此消息」，故仅作保留通道（APP 后续支持了再切回）
+    quoteWire: 'extra',
     drawerListPoll: 1500, // 消息抽屉列表刷新间隔（打开期间；缓存读）
     drawerChatPoll: 1500, // 聊天视图新消息增量间隔（打开期间；推送进缓存后由它上屏）
     dayDivGap: 300000,    // 聊天时间分割线间隔：与上一条消息相隔超过该值插入时间分割（5 分钟）

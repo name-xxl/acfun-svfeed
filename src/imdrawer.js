@@ -3,10 +3,16 @@ import { el, esc, toast, cookieVal } from './ui.js';
 import { root, claimDrawer, releaseDrawer } from './state.js';
 import {
   ensureIm, ensureConnected, ensureTracer, linkOk, forceSync,
-  doSend, fetchCards, isLogined, imShutdown
+  doSend, sendQuote, sendImage, fetchImImageBlob, fetchCards, isLogined, imShutdown
 } from './imshare.js';
 import { syncCommentVars } from './comments.js';
-import { parseCard, parseShare, fmtDur, msgTextOf, previewOfMessage } from './immsg.js';
+import { mountEmotButton, EmotionMap, ensureEmotionMap } from './emoticon.js';
+import { openImageViewer } from './imgview.js';
+import { buildInputBar } from './inputbar.js';
+import {
+  parseCard, parseShare, fmtDur, msgTextOf, previewOfMessage,
+  msgContentType, isQuotable, quoteOf, quoteExtraOf
+} from './immsg.js';
 import { ICON_SVGS } from './imicons.js';
 import { AppAPI } from './appapi.js';
 
@@ -42,7 +48,8 @@ var chatPoll = makePoller(function () {
     chatPollOnce(inst, false);
   }, function () { });
 }, CFG.im.drawerChatPoll);
-var chat = null;            // { targetId, name, session, lastCount, seen, pendSeq, lastDivTs }
+var chat = null;            // { targetId, name, session, lastCount, seen, lastDivTs, quote, msgEls }
+var lastImInst = null;      // 最近一次轮询的 IM 实例：图片消息 ks:// 换链要用 kernel.file
 var badgeEl = null, mounted = false;
 
 function badgeText(n) { return n > 99 ? '99+' : (n > 0 ? String(n) : ''); }
@@ -87,6 +94,22 @@ function linkify(s) {
   });
 }
 
+// 表情短代码转图（官方 IM 的 wire 格式就是 [emot=acfun,ID/]，APP/官方 web 原生渲染）：
+// EmotionMap 直查转小图，未加载/查无此 ID 降级「[表情]」文本；其余方言包走 umeditor 老
+// 图路径——两分支与官方 convertEmotionCodeToHtml 同构。入参须是已 esc 的 HTML 文本
+function emotify(html) {
+  return html
+    .replace(/\[emot=acfun,(\S+?)\/\]/g, function (_, id) {
+      var it = EmotionMap.map && EmotionMap.map[id];
+      return (it && it.url)
+        ? '<img class="acsv-im-emotimg" src="' + it.url + '" referrerpolicy="no-referrer" alt="">'
+        : '[表情]';
+    })
+    .replace(/\[emot=(\S+?),(\S+?)\/\]/g,
+      '<img class="acsv-im-emotimg" src="//cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/$1/$2.gif" referrerpolicy="no-referrer" alt="">');
+}
+function imTextHtml(s) { return emotify(linkify(s)); }
+
 // ---------- DOM ----------
 function ensureDrawerDom() {
   if (drawer || !root) return;
@@ -127,32 +150,47 @@ function ensureDrawerDom() {
   var chatView = el('div', 'acsv-im-chatview');
   chatView.style.display = 'none';
   var bubbles = el('div', 'acsv-im-bubbles');
-  var inputBar = el('div', 'acsv-im-inputbar');
-  var input = el('textarea', 'acsv-im-input');
-  input.rows = 1;
-  input.placeholder = '发个消息…';
-  var send = el('button', 'acsv-im-send', '发送');
-  function doSubmit() {
-    var t = input.value.replace(/\s+$/, '');
-    if (!t) return;
-    input.value = '';
-    sendChat(t);
-  }
-  send.addEventListener('click', function (ev) { ev.stopPropagation(); doSubmit(); });
-  input.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); ev.stopPropagation(); doSubmit(); }
+  // 引用 chip（评论抽屉 acsv-creply 同款交互）：置输入条上方，setQuote 驱动显隐
+  var quoteChip = el('div', 'acsv-im-quotechip');
+  quoteChip.style.display = 'none';
+  var inputBar = buildInputBar({
+    img: { title: '发送图片', onFile: sendImageMsg }, // 尺寸门禁在 sendImageMsg 内
+    placeholder: '发个消息…',
+    onSend: function () {
+      var t = inputBar.input.value.replace(/\s+$/, '');
+      if (!t) return;
+      inputBar.input.value = '';
+      inputBar.fitHeight();
+      sendChat(t);
+    }
   });
-  inputBar.appendChild(input);
-  inputBar.appendChild(send);
+  var input = inputBar.input; // 引用 chip 联动 placeholder（renderQuoteChip）用
   chatView.appendChild(bubbles);
-  chatView.appendChild(inputBar);
+  chatView.appendChild(quoteChip);
+  chatView.appendChild(inputBar.box);
   d.appendChild(chatView);
+
+  // 表情面板挂抽屉根：.acsv-emotpanel 以最近 positioned 祖先锚定，私信抽屉同为 absolute
+  // 容器、bottom:57px 与 IM 输入条高度恰好对齐，无需覆写样式
+  var emotPanel = el('div', 'acsv-emotpanel');
+  emotPanel.style.display = 'none';
+  d.appendChild(emotPanel);
+  mountEmotButton(inputBar.emotBtn, emotPanel, input);
+  // 表情图渲染依赖 EmotionMap：抽屉创建即预热（localStorage 缓存命中近零开销），避免没开
+  // 过面板时收到的表情消息只能显示 [表情]；首次真拉取完成后聊天视图在场就重渲一拍
+  var mapCold = !EmotionMap.loaded;
+  ensureEmotionMap().then(function () {
+    if (!mapCold || !drawer || view !== 'chat' || !chat) return;
+    ensureIm().then(function (inst) {
+      if (inst.connected) chatPollOnce(inst, true);
+    }, function () { });
+  });
 
   root.appendChild(d);
   drawer = {
     el: d, head: head, back: back, title: title, close: close,
     listView: listView, search: search, listBody: listBody,
-    chatView: chatView, bubbles: bubbles, input: input, send: send
+    chatView: chatView, bubbles: bubbles, quoteChip: quoteChip, input: input, send: inputBar.send
   };
 }
 
@@ -178,7 +216,9 @@ function showChat(targetId) {
   drawer.listView.style.display = 'none';
   drawer.chatView.style.display = '';
   drawer.bubbles.innerHTML = '';
-  chat = { targetId: String(targetId), name: card.name || '', session: null, lastCount: -1, seen: {}, pendSeq: 0, lastDivTs: 0 };
+  // quote=待引用目标 {seqId, preview, originMsg}；msgEls=seen key→气泡主元素（引用定位用）。
+  // 都是会话级状态：切会话随 chat 重建自然清空，不残留上一会话的引用
+  chat = { targetId: String(targetId), name: card.name || '', session: null, lastCount: -1, seen: {}, lastDivTs: 0, quote: null, msgEls: {} };
   loadChat();
   drawer.input.value = ''; // 清掉上一会话可能残留的草稿
   setTimeout(function () { try { drawer.input.focus(); } catch (e) { } }, 60);
@@ -311,6 +351,7 @@ function loadChat() {
   });
 }
 function chatPollOnce(inst, reset) {
+  lastImInst = inst;
   try {
     var k = inst.kernel;
     if (!chat.session) {
@@ -319,7 +360,7 @@ function chatPollOnce(inst, reset) {
     }
     if (!chat.session) return;
     var msgs = k.getMessages(chat.session) || [];
-    if (reset) { chat.seen = {}; chat.lastCount = -1; drawer.bubbles.innerHTML = ''; }
+    if (reset) { chat.seen = {}; chat.msgEls = {}; chat.lastCount = -1; drawer.bubbles.innerHTML = ''; }
     var fresh = [];
     msgs.forEach(function (m) {
       // 兜底 key 用内容指纹而非随机数：reset 重建 seen 后同一条消息不会二次上屏
@@ -328,15 +369,13 @@ function chatPollOnce(inst, reset) {
       chat.seen[key] = true;
       fresh.push({ m: m, key: key });
     });
-    // 乐观气泡对账：一旦缓存里出现自己刚发的那条，就移除占位
-    if (chat.pending && fresh.some(function (x) {
-      return msgFrom(x.m) === selfUid() && msgTextOf(x.m) === chat.pending;
-    })) {
-      var ph = drawer.bubbles.querySelector('.acsv-im-bubble.pending');
-      if (ph) ph.remove();
-      chat.pending = null;
-    }
-    fresh.forEach(function (x) { appendBubble(x.m); });
+    fresh.forEach(function (x) {
+      appendBubble(x.m);
+      // 登记本条消息最后一个节点（文本气泡=rowwrap，卡片=vcard）作引用定位锚：
+      // 引用块点击按 originMsg.seqId 反查这里
+      var lastEl = drawer.bubbles.lastElementChild;
+      if (lastEl) chat.msgEls[x.key] = lastEl;
+    });
     if (fresh.length || reset) {
       drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
       // 已读上报（内核级，headless 可用）
@@ -362,19 +401,205 @@ function maybeDayDiv(ts) {
   }
   chat.lastDivTs = ts;
 }
+
+// ---------- 消息引用（气泡内摘要条 / hover 引用按钮 / 输入条 chip / 定位） ----------
+function setQuote(q) {
+  if (chat) chat.quote = q || null;
+  renderQuoteChip();
+}
+// chip 文案与 placeholder 联动（复刻 comments.setReply）；chat 为空时只藏不显
+function renderQuoteChip() {
+  if (!drawer) return;
+  var chip = drawer.quoteChip, q = chat && chat.quote;
+  if (!q) {
+    chip.style.display = 'none';
+    chip.textContent = '';
+    drawer.input.placeholder = '发个消息…';
+    return;
+  }
+  chip.style.display = 'flex';
+  chip.textContent = '';
+  chip.appendChild(el('span', 'acsv-im-quotechip-label', '引用：' + (q.preview || '原消息')));
+  var x = el('button', 'acsv-im-quotechip-x', '✕');
+  x.title = '取消引用';
+  x.addEventListener('click', function (ev) { ev.stopPropagation(); setQuote(null); });
+  chip.appendChild(x);
+  drawer.input.placeholder = '回复引用的内容…';
+}
+// 气泡内引用摘要条：有锚点（原消息 seqId）才可点定位
+function quoteStrip(q) {
+  var s = el('div', 'acsv-im-quote' + (q.seqId ? ' link' : ''));
+  s.appendChild(el('div', 'acsv-im-quote-preview', q.preview || '[原消息]'));
+  if (q.seqId) {
+    s.title = '点击查看原消息';
+    s.addEventListener('click', function (ev) { ev.stopPropagation(); locateMessage(q.seqId); });
+  }
+  return s;
+}
+function locateMessage(seqId) {
+  if (!drawer || !chat) return;
+  var wrap = chat.msgEls[String(seqId)];
+  if (!wrap || !wrap.isConnected) { toast('原消息不在已加载的记录里'); return; }
+  // 描边打在气泡/卡片本体：包裹器还含默认隐藏的引用按钮，连同描边会框进一段空位
+  var t = wrap.querySelector('.acsv-im-bubble') || wrap.querySelector('.acsv-im-vcard') || wrap;
+  try { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e1) { t.scrollIntoView(); }
+  t.classList.remove('acsv-im-flash');
+  void t.offsetWidth; // 强制 reflow：连续点击同一条也能重触发 CSS 动画
+  t.classList.add('acsv-im-flash');
+  setTimeout(function () { t.classList.remove('acsv-im-flash'); }, 1300);
+}
+// 行包裹器：气泡/卡片 + hover 引用按钮同行（mine 行反序让按钮贴右缘）。引用范围按通道
+// 裁决：extra 通道（默认）文本/卡片/引用都能引，reference 通道禁卡（内核重建 originMsg
+// 会崩，见 immsg.isQuotable）
+function bubbleRow(b, mine, m, extraCls) {
+  var wrap = el('div', 'acsv-im-rowwrap' + (extraCls ? ' ' + extraCls : '') + (mine ? ' mine' : ''));
+  wrap.appendChild(b);
+  if (m && isQuotable(m, CFG.im.quoteWire)) wrap.appendChild(quoteBtnEl(m));
+  return wrap;
+}
+function quoteBtnEl(m) {
+  var btn = el('button', 'acsv-im-quotebtn', '↩'); // 回复箭头字形：比文字药丸轻量
+  btn.title = '引用这条消息';
+  btn.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    var raw = m.rawMsg || {};
+    setQuote({
+      seqId: raw.seqId !== undefined && raw.seqId !== null ? String(raw.seqId) : '',
+      preview: previewOfMessage(m) || msgTextOf(m).slice(0, 40),
+      originMsg: m
+    });
+    try { drawer.input.focus(); } catch (e) { }
+  });
+  return btn;
+}
 function appendBubble(m) {
   if (!drawer) return;
   maybeDayDiv(msgTime(m));
   var mine = msgFrom(m) === selfUid();
-  var card = parseCard(m);
-  if (card) return appendCardBubble(card, mine);
-  var share = parseShare(msgTextOf(m));
-  if (share) return appendShareBubble(share, mine);
+  // 引用判定先行于卡片/分享：回复正文里带链接时依然是引用气泡，不出分享卡
+  var q = quoteOf(m) || quoteExtraOf(m);
   var b = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
+  if (q) {
+    b.appendChild(quoteStrip(q));
+    var qtxt = el('div', 'acsv-im-msgtext');
+    qtxt.innerHTML = imTextHtml(q.text);
+    b.appendChild(qtxt);
+    drawer.bubbles.appendChild(bubbleRow(b, mine, m)); // 引用消息本身也可被引用（套引用）
+    return;
+  }
+  if (msgContentType(m) === 1) return appendImageBubble(m, mine);
+  var card = parseCard(m);
+  if (card) return appendCardBubble(card, mine, m);
+  var share = parseShare(msgTextOf(m));
+  if (share) return appendShareBubble(share, mine, m);
   var txt = el('div', 'acsv-im-msgtext');
-  txt.innerHTML = linkify(msgTextOf(m));
+  txt.innerHTML = imTextHtml(msgTextOf(m));
   b.appendChild(txt);
-  drawer.bubbles.appendChild(b);
+  drawer.bubbles.appendChild(bubbleRow(b, mine, m));
+}
+// 图片气泡（contentType 1，官方同路消息 APP 原生渲染）：wire 上 uri 是 ks:// 资源串，须经
+// kernel.file 换带鉴权的 https 直链才能显示；换链失败不出裂图，降级 [图片] 文本。
+// 宽高非 0 时按比例占位防布局跳动；点击开大图查看器（划选文字收尾在图上不触发，对齐评论）
+function appendImageBubble(m, mine) {
+  if (!drawer) return;
+  var w = Number(m.width) || 0, h = Number(m.height) || 0;
+  var src = imageUrlOf(m);
+  var b = el('div', 'acsv-im-imgbubble' + (mine ? ' mine' : ''));
+  if (src) {
+    var img = document.createElement('img');
+    img.className = 'acsv-im-imgimg';
+    img.alt = '';
+    if (w > 0 && h > 0) {
+      img.style.width = Math.min(w, 180) + 'px';
+      img.style.aspectRatio = w + ' / ' + h; // 加载前占住宽高比，上屏不跳
+    }
+    b.appendChild(img);
+    var curSrc = '';
+    // 不做直链 <img>：跨站必缺 midground 会话 Cookie（401 教训），直接 GM 带 acfun 域
+    // Cookie + 现换令牌拉字节换 blob；失败降级 [图片] 文本
+    fetchImImageBlob(src).then(function (blobUrl) {
+      if (!img.isConnected) return;
+      if (blobUrl) { curSrc = blobUrl; img.src = blobUrl; }
+      else { img.remove(); b.appendChild(document.createTextNode('[图片]')); }
+    });
+    b.addEventListener('click', function (ev) {
+      var sel = window.getSelection ? window.getSelection() : null;
+      if (sel && !sel.isCollapsed) return;
+      if (!curSrc) return;
+      ev.stopPropagation();
+      openImageViewer(curSrc);
+    });
+  } else {
+    b.textContent = '[图片]';
+  }
+  drawer.bubbles.appendChild(bubbleRow(b, mine, m));
+}
+// ks:// 资源 → 官方 download 直链（message.acfun.cn，参数白名单官方形态，无 token）。
+// 零会话依赖三级兜底（重开会话后内核 decodeContent/file 配置都不保证就绪，首次能渲染
+// 重开挂车的前车之鉴）：uri 取 m.url → rawMsg.content 手解 proto 字段 1；URL 取内核换链
+// → 本地拼装（resourceId 从 ks:// 尾段、userId/did 取本端 Cookie）
+function imageUrlOf(m) {
+  var ks = '';
+  try { ks = (m && (m.url || (m.imageAttachment && m.imageAttachment.uri))) || ''; } catch (e0) { }
+  if (!ks) ks = imageUriFromRaw(m);
+  if (!ks) { console.warn('[acsv-im] 图片消息无 uri（decode 与 raw 均未恢复）'); return ''; }
+  if (!/^ks:\/\//.test(ks)) return officialize(ks);
+  try {
+    var k = lastImInst && lastImInst.kernel;
+    if (k && k.file && k.file.resourceUrlToHttpUrl) {
+      var u = officialize(k.file.resourceUrlToHttpUrl(ks, false, Number(m.width) || 0, Number(m.height) || 0));
+      if (u) return u;
+    }
+  } catch (e) { }
+  try {
+    // ks://<resourceId>[/<数字尾缀>]：官方页 DOM 实测形态（data-text="ks://xxx.jpg/1"），
+    // resourceId = 去掉 ks:// 后再剥尾缀的主段（官方 widget 同款 /\/\w+$/ 尾缀语义）
+    var rid = ks.slice(5).replace(/\/\w+$/, '');
+    if (!rid) { console.warn('[acsv-im] ks 资源串形态不识别:', ks.slice(0, 60)); return ''; }
+    var ver = '';
+    try {
+      var cfgk = lastImInst && lastImInst.kernel && lastImInst.kernel.config;
+      ver = (cfgk && (cfgk.imsdkver || cfgk.sdkVersion)) || '';
+    } catch (e2) { }
+    return CFG.api.imDownloadBase + '/rest/v2/app/download?resourceId=' + encodeURIComponent(rid)
+      + '&userId=' + encodeURIComponent(selfUid())
+      + '&did=' + encodeURIComponent(cookieVal('_did') || '')
+      + '&kpn=ACFUN_APP&platform=H5' + (ver ? '&imsdkver=' + encodeURIComponent(ver) : '');
+  } catch (e3) { return ''; }
+}
+// Image proto 字段 1（uri, string）手解：tag 0x0A + varint 长度 + 字节（uri 为 ASCII）。
+// 内核 decodeContent 没跑（重开会话的缓存消息）时从这里恢复 uri
+function imageUriFromRaw(m) {
+  try {
+    var buf = m && m.rawMsg && m.rawMsg.content;
+    if (!buf) return '';
+    var u8 = new Uint8Array(buf), i = 0;
+    if (u8[i++] !== 0x0a) return '';
+    var len = 0, shift = 0, b;
+    do { b = u8[i++]; len += (b & 0x7f) * Math.pow(2, shift); shift += 7; } while (b & 0x80);
+    if (!len || i + len > u8.length) return '';
+    var s = '';
+    for (var j = 0; j < len; j++) s += String.fromCharCode(u8[i + j]);
+    return (/^ks:\/\//.test(s) || /^https?:\/\//.test(s)) ? s : '';
+  } catch (e) { return ''; }
+}
+// 把 /rest/v2/app/download 产物改写成 message.acfun.cn 官方参数形态：剥 token 与 w/h
+//（sixinpic 域 401 的教训：acfun token 在该域不认，官方形态免 token），参数白名单对齐
+// 官方页抓包（resourceId/userId/did/kpn/imsdkver/platform）
+function officialize(httpUrl) {
+  try {
+    if (!httpUrl || !/^https?:\/\//.test(httpUrl)) return '';
+    var u = new URL(httpUrl);
+    var rid = u.searchParams.get('resourceId');
+    if (!rid) return '';
+    var q = ['resourceId', 'userId', 'did', 'kpn', 'imsdkver', 'platform']
+      .map(function (k) {
+        var v = u.searchParams.get(k);
+        return v == null ? null : k + '=' + encodeURIComponent(v);
+      })
+      .filter(Boolean).join('&');
+    return CFG.api.imDownloadBase + '/rest/v2/app/download?' + q;
+  } catch (e) { return ''; }
 }
 // 卡片 DOM 构造（10001 协议卡与脚本分享卡共用）：封面+计数条+两行标题；href 给出则整卡可点。
 // 封面/计数/时长 span 恒渲染（无值隐藏）——分享卡的骨架先以消息内标题上屏，dougaCard 回来
@@ -404,32 +629,33 @@ function vcardEl(r, mine) {
   if (r.title) cardEl.appendChild(el('div', 'acsv-im-vcard-title', r.title));
   return cardEl;
 }
-// 作品分享卡（对齐手机端）：封面 + 播放/评论计数 + 时长 + 两行标题；投稿视频整卡可点跳 ac 号页
-function appendCardBubble(card, mine) {
+// 作品分享卡（对齐手机端）：封面 + 播放/评论计数 + 时长 + 两行标题；投稿视频整卡可点跳 ac 号页。
+// 卡片包 cardrow 行挂引用按钮（同条多卡各自可点，引的都是同一条消息）
+function appendCardBubble(card, mine, m) {
   if (card.prologue) {
     var pre = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
     pre.textContent = card.prologue;
     drawer.bubbles.appendChild(pre);
   }
   card.resourceBody.forEach(function (r) {
-    drawer.bubbles.appendChild(vcardEl({
+    drawer.bubbles.appendChild(bubbleRow(vcardEl({
       href: Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : '',
       coverUrl: r.coverUrl, viewCountShow: r.viewCountShow,
       commentCountShow: r.commentCountShow, durationSec: r.durationSec, title: r.title
-    }, mine));
+    }, mine), mine, m, 'cardrow'));
   });
 }
 // 脚本分享消息（标题\n推荐链）与 10001 同契约：卡片替代纯文本。同步先渲染消息内标题的
 // 卡片骨架（整卡 href 即分享链，enrich 失败也保持可读可点，不再出现文本+卡片双份），
 // dougaCard 回来后原位 patch 以接口字段为准；标题外文本作附言气泡。等待期间切走会话/视图则放弃
-function appendShareBubble(share, mine) {
+function appendShareBubble(share, mine, m) {
   if (share.note) {
     var note = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
     note.textContent = share.note;
     drawer.bubbles.appendChild(note);
   }
   var cardEl = vcardEl({ href: share.url, title: share.title }, mine);
-  drawer.bubbles.appendChild(cardEl);
+  drawer.bubbles.appendChild(bubbleRow(cardEl, mine, m, 'cardrow'));
   var bubbles = drawer.bubbles;
   var tid = chat && chat.targetId;
   AppAPI.dougaCard(share.acId).then(function (c) {
@@ -458,58 +684,133 @@ function patchVcard(cardEl, c) {
   var tt = cardEl.querySelector('.acsv-im-vcard-title');
   if (tt && c.title) tt.textContent = c.title;
 }
+// 图片即选即发（微信/抖音 IM 惯例，不插入文本框）：读自然宽高 → 乐观占位（本地预览）→
+// sendImage（SDK 内核自动传图床换 ks://，确认含上传故用 imgSendT）→ 成功摘占位补真身。
+// File 留在闭包，失败点击重试整条重走（ImageMsg 每次新建，File 可重复上传）
+function sendImageMsg(file) {
+  var targetId = chat && chat.targetId;
+  if (!targetId) return;
+  if (file.size > CFG.im.imgMax) {
+    toast('图片不能超过 ' + Math.round(CFG.im.imgMax / 1024 / 1024) + 'MB');
+    return;
+  }
+  var localUrl = '';
+  try { localUrl = URL.createObjectURL(file); } catch (e0) { }
+  readSize(localUrl, function (w, h) {
+    maybeDayDiv(Date.now());
+    var b = el('div', 'acsv-im-imgbubble mine pending');
+    if (localUrl) {
+      var ph = document.createElement('img');
+      ph.className = 'acsv-im-imgimg';
+      ph.alt = '';
+      ph.src = localUrl;
+      if (w > 0 && h > 0) {
+        ph.style.width = Math.min(w, 180) + 'px';
+        ph.style.aspectRatio = w + ' / ' + h;
+      }
+      b.appendChild(ph);
+    } else {
+      b.textContent = '[图片]';
+    }
+    var holder = el('div', 'acsv-im-rowwrap mine');
+    holder.appendChild(b);
+    drawer.bubbles.appendChild(holder);
+    drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
+    function cleanup() { if (localUrl) { try { URL.revokeObjectURL(localUrl); } catch (e2) { } } }
+    function onFail(err) {
+      var stale = !chat || chat.targetId !== targetId;
+      if (!stale && holder.isConnected) {
+        b.classList.remove('pending');
+        b.classList.add('failed');
+        b.title = '发送失败，点击重试';
+        b.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          holder.remove();
+          cleanup();
+          sendImageMsg(file);
+        });
+      }
+      toast('图片发送失败：' + String((err && err.message) || '').slice(0, 120), 8000);
+    }
+    ensureIm().then(function (inst) {
+      return ensureConnected(inst).then(function () {
+        ensureTracer(inst);
+        return sendImage(inst, Number(targetId), file, w, h);
+      }).then(function () {
+        // 确认成功：内核缓存必有真身（ks:// 已回填），立即增量拉一拍渲染成图片气泡
+        if (!chat || chat.targetId !== targetId) { cleanup(); return; }
+        if (holder.isConnected) holder.remove();
+        cleanup();
+        chatPollOnce(inst, false);
+      }, onFail);
+    }, onFail);
+  });
+}
+function readSize(url, cb) {
+  if (!url) return cb(0, 0);
+  var img = new Image();
+  img.onload = function () { cb(img.naturalWidth || 0, img.naturalHeight || 0); };
+  img.onerror = function () { cb(0, 0); };
+  img.src = url;
+}
+
 function sendChat(text) {
   var targetId = chat && chat.targetId;
   if (!targetId) return;
-  // 乐观占位
+  // 裁剪先行：占位/发送/失败回填共用同一串，所见即所发（超限官方静默拒发，只会白等超时）
+  text = String(text).slice(0, CFG.im.maxLen);
+  var quote = chat.quote || null; // 发送即定格：发送期间改引用目标不影响本条
+  // 乐观占位（引用回复同款：摘要条 + 正文）
   maybeDayDiv(Date.now());
   var b = el('div', 'acsv-im-bubble mine pending');
+  if (quote) b.appendChild(quoteStrip({ seqId: quote.seqId, preview: quote.preview }));
   var txt = el('div', 'acsv-im-msgtext');
-  txt.innerHTML = linkify(text);
+  txt.innerHTML = imTextHtml(text);
   b.appendChild(txt);
-  drawer.bubbles.appendChild(b);
+  var holder = el('div', 'acsv-im-rowwrap mine');
+  holder.appendChild(b);
+  drawer.bubbles.appendChild(holder);
   drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-  chat.pending = text;
-  ensureIm().then(function (inst) {
-    return ensureConnected(inst).then(function () {
-      ensureTracer(inst);
-      return doSend(inst, Number(targetId), String(text).slice(0, CFG.im.maxLen)).catch(function (err) {
-        // 失败自动恢复一次（链路坏→重连；否则强制同步），再试一发
-        var pre = linkOk(inst) ? Promise.resolve() : ensureConnected(inst);
-        return pre.then(function () { return forceSync(inst); })
-          .then(function () { return doSend(inst, Number(targetId), String(text).slice(0, CFG.im.maxLen)); });
-      });
-    });
-  }).then(function () {
-    // 已切会话/收起抽屉：旧回调不得动新会话的占位与对账标记（0.9.34）
-    if (!chat || chat.targetId !== targetId) return;
-    // 成功：占位气泡等轮询对账移除；若超时未对账，轮询 reset 也会刷新
-    var ph = drawer.bubbles.querySelector('.acsv-im-bubble.pending');
-    if (ph) {
-      ph.classList.remove('pending');
-      ph.classList.add('sent');
-    }
-    chat.pending = null;
-  }).catch(function (err) {
+  function onFail(err) {
     var stale = !chat || chat.targetId !== targetId;
-    if (!stale) {
-      var ph = drawer.bubbles.querySelector('.acsv-im-bubble.pending');
-      if (ph) {
-        ph.classList.remove('pending');
-        ph.classList.add('failed');
-        ph.title = '发送失败，点击重试';
-        ph.addEventListener('click', function (ev) {
-          ev.stopPropagation();
-          ph.remove();
-          drawer.input.value = text;
-          drawer.input.focus();
-        });
-      }
-      chat.pending = null;
+    if (!stale && holder.isConnected) {
+      b.classList.remove('pending');
+      b.classList.add('failed');
+      b.title = '发送失败，点击重试';
+      b.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        holder.remove();
+        drawer.input.value = text;
+        if (quote && chat && !chat.quote) setQuote(quote); // 重试恢复引用 chip（期间没换目标才回填）
+        drawer.input.focus();
+      });
     }
     // 消息确实没发出去：无论是否已切会话都提示（切会话场景不碰 DOM，只告知）
     toast('发送失败：' + String((err && err.message) || '').slice(0, 120), 8000);
-  });
+  }
+  ensureIm().then(function (inst) {
+    return ensureConnected(inst).then(function () {
+      ensureTracer(inst);
+      // 引用走 sendQuote（内核直发，恢复重试已内置）；文本维持 doSend+就地恢复的既有路径
+      return quote
+        ? sendQuote(inst, Number(targetId), quote, text)
+        : doSend(inst, Number(targetId), text).catch(function (err) {
+          // 失败自动恢复一次（链路坏→重连；否则强制同步），再试一发
+          var pre = linkOk(inst) ? Promise.resolve() : ensureConnected(inst);
+          return pre.then(function () { return forceSync(inst); })
+            .then(function () { return doSend(inst, Number(targetId), text); });
+        });
+    }).then(function () {
+      // 成功即摘占位并就地补真身：文本走 doSend 确认、引用走 clientSeqId 对账，两条
+      // 确认途径都晚于内核 pushSentKwaiMessage 把消息写入缓存，此刻 getMessages 必有
+      // 真身，立即增量拉一拍上屏，不等下一拍轮询。占位节点走闭包引用，不用
+      // querySelector——连发多条时按选择器只能摸到第一条，会摘错
+      if (!chat || chat.targetId !== targetId) return;
+      if (holder.isConnected) holder.remove();
+      if (quote && chat.quote === quote) setQuote(null);
+      chatPollOnce(inst, false);
+    }, onFail);
+  }, onFail);
 }
 
 // ---------- 开关与徽标 ----------
