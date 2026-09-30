@@ -38,15 +38,16 @@ export function currentVideo() {
   return s && s.querySelector('video');
 }
 
+// 「非当前即暂停」谓词：setActive 窗口扫描与 sweepVideos 幽灵扫描共用（0.9.38 收敛）
+export function offCurrent(s) {
+  return !s || Number(s.dataset.idx) !== FeedStore.current;
+}
+
 // 硬性兜底：任何时刻只允许当前 slide 的视频在播，其余一律暂停（防 MSE 幽灵音频）
 export function sweepVideos() {
   if (!scroller) return;
-  var cur = FeedStore.current;
   Array.prototype.forEach.call(scroller.querySelectorAll('video'), function (v) {
-    var s = v.closest('.acsv-slide');
-    if (!s || Number(s.dataset.idx) !== cur) {
-      if (!v.paused) v.pause();
-    }
+    if (offCurrent(v.closest('.acsv-slide')) && !v.paused) v.pause();
   });
 }
 

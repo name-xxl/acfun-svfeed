@@ -11,6 +11,7 @@ export var CFG = {
   lsQuality: 'acsv-quality',    // 清晰度记忆（推荐模式，存 qualityLabel）
   lsCodec: 'acsv-codec',        // 编码偏好记忆（推荐模式）：auto|avc|hevc
   lsBuf: 'acsv-buf',            // 缓冲档位记忆（推荐模式）：std|mid|max
+  lsEmotRecent: 'acsv_emot_recent_v1', // 表情面板最近使用（emoticon.js）
   accent: '#fd4c5d',
   home: {
     appVer: '6.31.1.1026',
@@ -152,6 +153,8 @@ export var CFG = {
   },
   upload: {
     endpoint: 'https://upload.kuaishouzt.com', // 评论图片分片上传图床
+    tokenUrl: 'https://www.acfun.cn/rest/pc-direct/image/upload/getToken',
+    urlAfterUpload: 'https://www.acfun.cn/rest/pc-direct/image/upload/getUrlAfterUpload',
     chunk: 1 << 20,   // 分片大小（1MB）
     tokenT: 15000,    // getToken 超时
     chunkT: 60000,    // 单分片超时（二进制大，放宽）

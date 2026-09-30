@@ -4,6 +4,7 @@ import { el, elHtml, fmt, toast } from './ui.js';
 import { ICONS } from './styles.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
 import { AppAPI } from './appapi.js';
+import { uploadImage } from './upload.js';
 import { renderCommentHtml } from './ubb.js';
 import { ensureEmotionMap, renderEmotPanel } from './emoticon.js';
 
@@ -417,9 +418,9 @@ function ensureCommentInput() {
     var f = fileInp.files && fileInp.files[0];
     fileInp.value = '';
     if (!f) return;
-    if (f.size > CFG.comments.imgMax) { toast('图片不能超过 10MB'); return; }
+    if (f.size > CFG.comments.imgMax) { toast('图片不能超过 ' + Math.round(CFG.comments.imgMax / 1024 / 1024) + 'MB'); return; }
     imgBtn.textContent = '上传中';
-    AppAPI.uploadImage(f).then(function (url) {
+    uploadImage(f).then(function (url) {
       imgBtn.innerHTML = ICONS.image;
       if (!url) { toast('图片上传失败（需登录）'); return; }
       toast('图片上传成功');

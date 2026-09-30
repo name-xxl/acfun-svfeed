@@ -76,7 +76,7 @@ export function ensureEmotionMap() {
 // ---- 最近使用 ----
 function emotReadRecent() {
   try {
-    var ids = JSON.parse(localStorage.getItem('acsv_emot_recent_v1') || '[]');
+    var ids = JSON.parse(localStorage.getItem(CFG.lsEmotRecent) || '[]');
     if (Array.isArray(ids)) return ids.map(String).filter(Boolean).slice(0, CFG.comments.recentMax);
   } catch (e) { }
   return [];
@@ -84,7 +84,7 @@ function emotReadRecent() {
 function emotPick(id) {
   var ids = emotReadRecent().filter(function (x) { return x !== String(id); });
   ids.unshift(String(id));
-  try { localStorage.setItem('acsv_emot_recent_v1', JSON.stringify(ids.slice(0, CFG.comments.recentMax))); } catch (e) { }
+  try { localStorage.setItem(CFG.lsEmotRecent, JSON.stringify(ids.slice(0, CFG.comments.recentMax))); } catch (e) { }
 }
 function emotFind(id) {
   var packs = EmotionMap.packs || [];

@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { request, gmRequest } from './net.js';
+import { request } from './net.js';
 import { singleFlight } from './ui.js';
 import { normalizeHome } from './data.js';
 import { applyQuality } from './quality.js';
@@ -83,72 +83,6 @@ function intToHex(n) {
   n = Number(n);
   if (!n || n < 0) n = 0xFFFFFF;
   return '#' + ('000000' + (n & 0xFFFFFF).toString(16)).slice(-6);
-}
-
-// 上传用 GM 通道（POST + JSON 解析；无 GM/网络错/超时/解析失败一律 reject）
-function gmPostJson(opts) {
-  return gmRequest({
-    method: 'POST', url: opts.url, headers: opts.headers,
-    data: opts.data, timeout: opts.timeout
-  });
-}
-
-// 图片上传四阶段：getToken → 分片（顺序逐一）→ complete → 换长期 URL
-function uploadGetToken(file) {
-  return gmPostJson({
-    url: 'https://www.acfun.cn/rest/pc-direct/image/upload/getToken',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    data: 'fileName=' + encodeURIComponent(file.name || 'image.png'),
-    timeout: CFG.upload.tokenT
-  }).then(function (d) {
-    if (!(d && d.result === 0 && d.info && d.info.token)) throw new Error('no-token');
-    return d.info.token;
-  });
-}
-
-function uploadChunks(token, file) {
-  var endpoint = CFG.upload.endpoint;
-  var total = file.size;
-  function step(i) {
-    if (i * CFG.upload.chunk >= total) return Promise.resolve();
-    var start = i * CFG.upload.chunk;
-    var end = Math.min(start + CFG.upload.chunk, total);
-    return gmPostJson({
-      url: endpoint + '/api/upload/fragment?upload_token=' + encodeURIComponent(token) + '&fragment_id=' + i,
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Range': 'bytes ' + start + '-' + (end - 1) + '/' + total
-      },
-      data: file.slice(start, end),
-      timeout: CFG.upload.chunkT
-    }).then(function (d) {
-      if (!d || d.result !== 1) throw new Error('chunk-' + i);
-      return step(i + 1);
-    });
-  }
-  return step(0);
-}
-
-function uploadComplete(token, chunks) {
-  return gmPostJson({
-    url: CFG.upload.endpoint + '/api/upload/complete?upload_token=' + encodeURIComponent(token)
-      + '&fragment_count=' + chunks,
-    timeout: CFG.upload.completeT
-  }).then(function (d) {
-    if (!d || d.result !== 1) throw new Error('complete');
-  });
-}
-
-function uploadGetUrl(token) {
-  return gmPostJson({
-    url: 'https://www.acfun.cn/rest/pc-direct/image/upload/getUrlAfterUpload',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    data: 'token=' + encodeURIComponent(token) + '&bizFlag=web-comment-text',
-    timeout: CFG.upload.urlT
-  }).then(function (d) {
-    if (!(d && d.result === 0 && d.url)) throw new Error('no-url');
-    return d.url.split('?')[0]; // 剥签名参数，存裸路径长期可访问
-  });
 }
 
 // 默认收藏夹：收藏必须落夹，快速收藏统一进第一个夹（对齐 acfunsdk 的 default_fid 做法）。
@@ -293,22 +227,6 @@ export var AppAPI = {
     return postForm(CFG.api.commentLikePc + (on ? 'like' : 'unlike'),
       'sourceId=' + sourceId + '&sourceType=' + sourceType + '&commentId=' + commentId)
       .then(function (j) { return !!(j && j.result === 0); }, function () { return false; });
-  },
-
-  // ---- 图片上传（移植动态广场 uploadImage：getToken → 分片 → complete → 换 URL） ----
-  // 需 GM_xmlhttpRequest（二进制分片）；成功返回可长期访问的裸路径 URL。
-  // 各阶段独立成 Promise 小函数，任何一步失败统一落为 null
-  uploadImage: function (file) {
-    var chunks = Math.max(1, Math.ceil(file.size / CFG.upload.chunk));
-    return uploadGetToken(file)
-      .then(function (token) {
-        return uploadChunks(token, file).then(function () { return token; });
-      })
-      .then(function (token) {
-        return uploadComplete(token, chunks).then(function () { return token; });
-      })
-      .then(uploadGetUrl)
-      .then(function (url) { return url || null; }, function () { return null; });
   },
 
   // 发评论/回复（复用动态广场 postComment：replyToCommentId 传入则为回复楼中楼；

@@ -17,6 +17,13 @@ import { createSession } from './session.js';
 //   _likeSync/_favSync/_banSync/_cmtSync/_shareSync/_followSync
 //                计数回填钩子 写: rail.js(buildSideRail) 读: rail.js(onHomeResolved)
 //
+// slide 的 dataset 投影（与 _xxx 并行的第二协作面，0.9.36 登记拖动契约）：
+//   data-state   会话状态投影 写: session.js(setState: loading/ready/error…) 读: CSS、harness 断言
+//   data-paused  暂停投影     写: session.js(playing/pause) 读: controls 中央暂停图标
+//   data-drag    拖动进度条中 写: controls.js(拖动起止) 读: player(SESSION_HOOKS timeupdate——拖动期停写时间)
+//   data-idx     楼层序号     写: slide.js(buildSlide) 读: 全项目（定位/回收/扫描判定）
+//   data-panfit  画面 fit 标记 写: player.js(syncPanFit) 读: CSS
+//
 // item（feedstore 条目）：
 //   _resolveP    懒解析在途 Promise 写/读: api.js(ensureResolved)
 //   _freezeTries 卡帧恢复阶梯计数 写/读: session.js(HealthMonitor)；switchQuality 仅 manual 清零、回前台清零

@@ -162,6 +162,19 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.38（2026-09-30）· P2-d 契约收口：upload 迁出 / CFG 纪律补漏 / dataset 投影登记
+
+- 图片上传四阶段迁出 appapi → `upload.js`（接口层只留读/写接口与互动）；
+  getToken/getUrlAfterUpload 两个内联端点入 `CFG.upload`。
+- CFG 纪律补漏：表情最近使用键名入 `CFG.lsEmotRecent`；"10MB" toast 文案改由
+  `CFG.comments.imgMax` 推导（`slice(0,12)` 双写已在 0.9.36 随拆分消除）。
+- 「非当前即暂停」谓词收敛为 `playback.offCurrent`（setActive 窗口扫描与
+  sweepVideos 幽灵扫描共用，判定改一处即三处生效）。
+- attach.js 契约总表补 **dataset 投影节**（data-state/paused/drag/idx/panfit 的
+  读写方）——dataset 与 `_xxx` 并行的第二协作面此前在表外。
+- **有意不做**：paginate 通用分页泵——danmakuList 修复后已有页数/条目数双上限且
+  表意清晰，单调用点抽泵是 YAGNI；等第二个接入方出现再收敛。
+
 ### 0.9.37（2026-09-30）· P2-c 热路径效率：扫描界界化 + 观察器重建
 
 - **setActive 暂停扫描收敛为窗口内**：video 只存在于渲染窗口的 slide 里，原全量扫
@@ -745,7 +758,10 @@ npm test             # immsg 单测 + 无头 harness 全场景（需先 npx play
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`fmt`/`toast`/剪贴板/样式注入等工具 |
 | `interact.js` | 真实点赞/关注（api_st → interact 接口）；收藏/投蕉转发 AppAPI |
-| `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3、UBB 渲染（表情/配图/颜色）+ 配图大图查看器、楼中楼、分页、评论点赞） |
+| `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3、配图大图查看器、楼中楼、分页、评论点赞；UBB/表情已拆出） |
+| `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[img]/[color] 逐一白名单放行 |
+| `emoticon.js` | 表情包服务 + 面板（localStorage 缓存优先、最近使用、分包 tab） |
+| `upload.js` | 评论图片上传四阶段（GM 通道二进制分片，失败统一落 null） |
 | `hls.js` | hls.js 懒加载（GM_xhr 拉文本 + Function 执行，Safari 原生 HLS 探测） |
 | `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐） |
 | `danmaku.js` | 弹幕编排：列表拉取/缓存、开关记忆、绑定/解绑 slide、发送输入条 |
@@ -787,7 +803,7 @@ flowchart LR
     player["player.js（编排）"]
     feedstore["feedstore.js（流仓库）"]
     pb["playback.js"]
-    others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · comments · interact · report · uppage · nav"]
+    others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · comments(ubb/emoticon) · interact · report · uppage · nav · upload"]
   end
 
   subgraph im["私信层"]

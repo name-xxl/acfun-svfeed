@@ -11,7 +11,7 @@ import { UpVideos } from './uppage.js';
 import { dbg } from './dbg.js';
 import { reportLeave, reportLeaveCurrent } from './report.js';
 import { prewarm, preconnectSeed } from './prewarm.js';
-import { pb, playVideo, showSoundHint, resetForMount, cancelSeekHold } from './playback.js';
+import { pb, playVideo, showSoundHint, resetForMount, cancelSeekHold, offCurrent } from './playback.js';
 import { attachVideo, switchQuality, setSessionHooks } from './attach.js';
 import { showControls, updateArrows } from './controls.js';
 import { onHomeResolved } from './rail.js';
@@ -195,14 +195,14 @@ function setActive(idx) {
     var itC = FeedStore.items[idx];
     if (itC && commentState.sourceId !== itC.id) openComments(itC.id, itC.stype, itC.shareUrl, itC.kind);
   }
-  if (!scroller) return;
   // 暂停非当前视频，停掉其弹幕图层（滚动回来 playing 会自动重启）。
   // 0.9.37 收敛为窗口内扫描：video 只存在于渲染窗口的 slide 里，全量扫 scroller
-  // 会随会话长度线性放大（slide 元素常驻）；幽灵兜底仍由 playback.sweepVideos 负责
+  // 会随会话长度线性放大（slide 元素常驻）；判定谓词与 sweepVideos 共用（0.9.38）；
+  // 幽灵兜底仍由 playback.sweepVideos 负责
   for (var wi = Math.max(0, idx - CFG.win.back); wi <= idx + CFG.win.fwd && wi < FeedStore.items.length; wi++) {
-    if (wi === idx) continue;
     var ws = slideAt(wi);
-    var wv = ws && ws.querySelector('video');
+    if (!ws || !offCurrent(ws)) continue;
+    var wv = ws.querySelector('video');
     if (wv && !wv.paused) {
       wv.pause();
       if (ws._dmLayer) ws._dmLayer.stop();

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.37-debug
+// @version      0.9.38-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -99,6 +99,8 @@
     // 编码偏好记忆（推荐模式）：auto|avc|hevc
     lsBuf: "acsv-buf",
     // 缓冲档位记忆（推荐模式）：std|mid|max
+    lsEmotRecent: "acsv_emot_recent_v1",
+    // 表情面板最近使用（emoticon.js）
     accent: "#fd4c5d",
     home: {
       appVer: "6.31.1.1026",
@@ -295,6 +297,8 @@
     upload: {
       endpoint: "https://upload.kuaishouzt.com",
       // 评论图片分片上传图床
+      tokenUrl: "https://www.acfun.cn/rest/pc-direct/image/upload/getToken",
+      urlAfterUpload: "https://www.acfun.cn/rest/pc-direct/image/upload/getUrlAfterUpload",
       chunk: 1 << 20,
       // 分片大小（1MB）
       tokenT: 15e3,
@@ -757,67 +761,6 @@
     if (!n || n < 0) n = 16777215;
     return "#" + ("000000" + (n & 16777215).toString(16)).slice(-6);
   }
-  function gmPostJson(opts) {
-    return gmRequest({
-      method: "POST",
-      url: opts.url,
-      headers: opts.headers,
-      data: opts.data,
-      timeout: opts.timeout
-    });
-  }
-  function uploadGetToken(file) {
-    return gmPostJson({
-      url: "https://www.acfun.cn/rest/pc-direct/image/upload/getToken",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      data: "fileName=" + encodeURIComponent(file.name || "image.png"),
-      timeout: CFG.upload.tokenT
-    }).then(function(d) {
-      if (!(d && d.result === 0 && d.info && d.info.token)) throw new Error("no-token");
-      return d.info.token;
-    });
-  }
-  function uploadChunks(token, file) {
-    var endpoint = CFG.upload.endpoint;
-    var total = file.size;
-    function step(i) {
-      if (i * CFG.upload.chunk >= total) return Promise.resolve();
-      var start = i * CFG.upload.chunk;
-      var end = Math.min(start + CFG.upload.chunk, total);
-      return gmPostJson({
-        url: endpoint + "/api/upload/fragment?upload_token=" + encodeURIComponent(token) + "&fragment_id=" + i,
-        headers: {
-          "Content-Type": "application/octet-stream",
-          "Content-Range": "bytes " + start + "-" + (end - 1) + "/" + total
-        },
-        data: file.slice(start, end),
-        timeout: CFG.upload.chunkT
-      }).then(function(d) {
-        if (!d || d.result !== 1) throw new Error("chunk-" + i);
-        return step(i + 1);
-      });
-    }
-    return step(0);
-  }
-  function uploadComplete(token, chunks) {
-    return gmPostJson({
-      url: CFG.upload.endpoint + "/api/upload/complete?upload_token=" + encodeURIComponent(token) + "&fragment_count=" + chunks,
-      timeout: CFG.upload.completeT
-    }).then(function(d) {
-      if (!d || d.result !== 1) throw new Error("complete");
-    });
-  }
-  function uploadGetUrl(token) {
-    return gmPostJson({
-      url: "https://www.acfun.cn/rest/pc-direct/image/upload/getUrlAfterUpload",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      data: "token=" + encodeURIComponent(token) + "&bizFlag=web-comment-text",
-      timeout: CFG.upload.urlT
-    }).then(function(d) {
-      if (!(d && d.result === 0 && d.url)) throw new Error("no-url");
-      return d.url.split("?")[0];
-    });
-  }
   var favFolderFlight = singleFlight(function() {
     return postForm(CFG.api.favFolderList, "").then(function(j) {
       var list = j && (j.dataList || j.data) || [];
@@ -987,25 +930,6 @@
         return !!(j && j.result === 0);
       }, function() {
         return false;
-      });
-    },
-    // ---- 图片上传（移植动态广场 uploadImage：getToken → 分片 → complete → 换 URL） ----
-    // 需 GM_xmlhttpRequest（二进制分片）；成功返回可长期访问的裸路径 URL。
-    // 各阶段独立成 Promise 小函数，任何一步失败统一落为 null
-    uploadImage: function(file) {
-      var chunks = Math.max(1, Math.ceil(file.size / CFG.upload.chunk));
-      return uploadGetToken(file).then(function(token) {
-        return uploadChunks(token, file).then(function() {
-          return token;
-        });
-      }).then(function(token) {
-        return uploadComplete(token, chunks).then(function() {
-          return token;
-        });
-      }).then(uploadGetUrl).then(function(url) {
-        return url || null;
-      }, function() {
-        return null;
       });
     },
     // 发评论/回复（复用动态广场 postComment：replyToCommentId 传入则为回复楼中楼；
@@ -1771,6 +1695,85 @@
     }, 150);
   }
 
+  // src/upload.js
+  function gmPostJson(opts) {
+    return gmRequest({
+      method: "POST",
+      url: opts.url,
+      headers: opts.headers,
+      data: opts.data,
+      timeout: opts.timeout
+    });
+  }
+  function uploadGetToken(file) {
+    return gmPostJson({
+      url: CFG.upload.tokenUrl,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      data: "fileName=" + encodeURIComponent(file.name || "image.png"),
+      timeout: CFG.upload.tokenT
+    }).then(function(d) {
+      if (!(d && d.result === 0 && d.info && d.info.token)) throw new Error("no-token");
+      return d.info.token;
+    });
+  }
+  function uploadChunks(token, file) {
+    var endpoint = CFG.upload.endpoint;
+    var total = file.size;
+    function step(i) {
+      if (i * CFG.upload.chunk >= total) return Promise.resolve();
+      var start = i * CFG.upload.chunk;
+      var end = Math.min(start + CFG.upload.chunk, total);
+      return gmPostJson({
+        url: endpoint + "/api/upload/fragment?upload_token=" + encodeURIComponent(token) + "&fragment_id=" + i,
+        headers: {
+          "Content-Type": "application/octet-stream",
+          "Content-Range": "bytes " + start + "-" + (end - 1) + "/" + total
+        },
+        data: file.slice(start, end),
+        timeout: CFG.upload.chunkT
+      }).then(function(d) {
+        if (!d || d.result !== 1) throw new Error("chunk-" + i);
+        return step(i + 1);
+      });
+    }
+    return step(0);
+  }
+  function uploadComplete(token, chunks) {
+    return gmPostJson({
+      url: CFG.upload.endpoint + "/api/upload/complete?upload_token=" + encodeURIComponent(token) + "&fragment_count=" + chunks,
+      timeout: CFG.upload.completeT
+    }).then(function(d) {
+      if (!d || d.result !== 1) throw new Error("complete");
+    });
+  }
+  function uploadGetUrl(token) {
+    return gmPostJson({
+      url: CFG.upload.urlAfterUpload,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      data: "token=" + encodeURIComponent(token) + "&bizFlag=web-comment-text",
+      timeout: CFG.upload.urlT
+    }).then(function(d) {
+      if (!(d && d.result === 0 && d.url)) throw new Error("no-url");
+      return d.url.split("?")[0];
+    });
+  }
+  function uploadImage(file) {
+    var chunks = Math.max(1, Math.ceil(file.size / CFG.upload.chunk));
+    return uploadGetToken(file).then(function(token) {
+      return uploadChunks(token, file).then(function() {
+        return token;
+      });
+    }).then(function(token) {
+      return uploadComplete(token, chunks).then(function() {
+        return token;
+      });
+    }).then(uploadGetUrl).then(function(url) {
+      return url || null;
+    }, function() {
+      return null;
+    });
+  }
+
   // src/emoticon.js
   var EmotionMap = { loaded: false, loading: null, map: {}, packs: [] };
   function applyEmotPacks(flat) {
@@ -1836,7 +1839,7 @@
   }
   function emotReadRecent() {
     try {
-      var ids = JSON.parse(localStorage.getItem("acsv_emot_recent_v1") || "[]");
+      var ids = JSON.parse(localStorage.getItem(CFG.lsEmotRecent) || "[]");
       if (Array.isArray(ids)) return ids.map(String).filter(Boolean).slice(0, CFG.comments.recentMax);
     } catch (e) {
     }
@@ -1848,7 +1851,7 @@
     });
     ids.unshift(String(id));
     try {
-      localStorage.setItem("acsv_emot_recent_v1", JSON.stringify(ids.slice(0, CFG.comments.recentMax)));
+      localStorage.setItem(CFG.lsEmotRecent, JSON.stringify(ids.slice(0, CFG.comments.recentMax)));
     } catch (e) {
     }
   }
@@ -2345,11 +2348,11 @@
       fileInp.value = "";
       if (!f) return;
       if (f.size > CFG.comments.imgMax) {
-        toast("图片不能超过 10MB");
+        toast("图片不能超过 " + Math.round(CFG.comments.imgMax / 1024 / 1024) + "MB");
         return;
       }
       imgBtn.textContent = "上传中";
-      AppAPI.uploadImage(f).then(function(url) {
+      uploadImage(f).then(function(url) {
         imgBtn.innerHTML = ICONS.image;
         if (!url) {
           toast("图片上传失败（需登录）");
@@ -2972,14 +2975,13 @@
     var s = slideAt(FeedStore.current);
     return s && s.querySelector("video");
   }
+  function offCurrent(s) {
+    return !s || Number(s.dataset.idx) !== FeedStore.current;
+  }
   function sweepVideos() {
     if (!scroller) return;
-    var cur = FeedStore.current;
     Array.prototype.forEach.call(scroller.querySelectorAll("video"), function(v) {
-      var s = v.closest(".acsv-slide");
-      if (!s || Number(s.dataset.idx) !== cur) {
-        if (!v.paused) v.pause();
-      }
+      if (offCurrent(v.closest(".acsv-slide")) && !v.paused) v.pause();
     });
   }
   function playVideo(video) {
@@ -6139,11 +6141,10 @@
       var itC = FeedStore.items[idx];
       if (itC && commentState.sourceId !== itC.id) openComments(itC.id, itC.stype, itC.shareUrl, itC.kind);
     }
-    if (!scroller) return;
     for (var wi = Math.max(0, idx - CFG.win.back); wi <= idx + CFG.win.fwd && wi < FeedStore.items.length; wi++) {
-      if (wi === idx) continue;
       var ws = slideAt(wi);
-      var wv = ws && ws.querySelector("video");
+      if (!ws || !offCurrent(ws)) continue;
+      var wv = ws.querySelector("video");
       if (wv && !wv.paused) {
         wv.pause();
         if (ws._dmLayer) ws._dmLayer.stop();
