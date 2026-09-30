@@ -337,7 +337,6 @@ export var AppAPI = {
     var base = 'sourceId=' + sourceId + '&sourceType=' + sourceType
       + '&replyToCommentId=' + (replyToCommentId || 0)
       + '&content=' + encodeURIComponent(content);
-    var FORM = { 'Content-Type': 'application/x-www-form-urlencoded' };
     return ensureApiSt().then(function (st) {
       return postForm(CFG.api.commentAdd, base + '&midgroundToken=' + encodeURIComponent(st));
     }, function () {

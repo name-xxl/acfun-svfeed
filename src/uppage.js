@@ -1,5 +1,4 @@
 import { CFG } from './cfg.js';
-import { request } from './net.js';
 import { el, fmt, ensureStyle } from './ui.js';
 import { FeedStore } from './feedstore.js';
 import { API } from './api.js';

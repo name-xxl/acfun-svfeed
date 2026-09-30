@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.32
+// @version      0.9.33
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -993,7 +993,6 @@
     // midgroundToken 由网页 Cookie 换取，未登录时直发让接口报错）；失败透传 error_msg
     postComment: function(sourceId, sourceType, content, replyToCommentId) {
       var base = "sourceId=" + sourceId + "&sourceType=" + sourceType + "&replyToCommentId=" + (replyToCommentId || 0) + "&content=" + encodeURIComponent(content);
-      var FORM = { "Content-Type": "application/x-www-form-urlencoded" };
       return ensureApiSt().then(function(st) {
         return postForm(CFG.api.commentAdd, base + "&midgroundToken=" + encodeURIComponent(st));
       }, function() {
@@ -1840,7 +1839,8 @@
     h = h.replace(/\[emot=acfun,(\w+)\/\]/g, function(_, id) {
       var em = EmotionMap.map[id];
       var u = em ? typeof em === "string" ? em : em.url : null;
-      if (u && IMG_CDN_OK.test(u.replace(/^\/\//, "https://"))) {
+      var abs = u ? u.replace(/^\/\//, "https://") : u;
+      if (u && IMG_CDN_OK.test(abs) && /^[\w\-./:?=&%]+$/.test(abs)) {
         return '<img class="ubb-emotion" src="' + u + '" referrerpolicy="no-referrer">';
       }
       return "[表情]";
@@ -3176,7 +3176,6 @@
         this._attach();
       },
       _attach: function() {
-        var self = this;
         Array.prototype.forEach.call(slide.querySelectorAll("video"), function(v) {
           v.pause();
           v.removeAttribute("src");
@@ -3638,7 +3637,7 @@
         stop();
         return;
       }
-      var re = video.requestVideoFrameCallback(onFrame);
+      video.requestVideoFrameCallback(onFrame);
       var m2 = meta;
       if (false) return;
       if (false) {
@@ -4392,7 +4391,7 @@
         s.targetId,
         s.unread,
         s.t,
-        s.last && (s.last.seqId || msgTime(s.last) || msgText(s.last)) || ""
+        s.last && (s.last.seqId || msgTime(s.last) || msgTextOf(s.last)) || ""
       ].join(":");
     }).join("|");
   }
@@ -4561,13 +4560,13 @@
       }
       var fresh = [];
       msgs.forEach(function(m) {
-        var key = String(m.seqId !== void 0 && m.seqId || msgTime(m) || "h" + msgFrom(m) + ":" + msgText(m));
+        var key = String(m.seqId !== void 0 && m.seqId || msgTime(m) || "h" + msgFrom(m) + ":" + msgTextOf(m));
         if (chat.seen[key]) return;
         chat.seen[key] = true;
         fresh.push({ m, key });
       });
       if (chat.pending && fresh.some(function(x) {
-        return msgFrom(x.m) === selfUid() && msgText(x.m) === chat.pending;
+        return msgFrom(x.m) === selfUid() && msgTextOf(x.m) === chat.pending;
       })) {
         var ph = drawer.bubbles.querySelector(".acsv-im-bubble.pending");
         if (ph) ph.remove();
@@ -4636,7 +4635,7 @@
     bar.innerHTML = ICON_PLAY + '<span class="acsv-im-vcard-view">' + esc(r.viewCountShow || "") + "</span>" + ICON_COMMENT + '<span class="acsv-im-vcard-cmt">' + esc(r.commentCountShow || "") + '</span><span class="acsv-im-vcard-dur"' + (r.durationSec ? "" : ' style="display:none"') + ">" + (r.durationSec ? esc(fmtDur(r.durationSec)) : "") + "</span>";
     box.appendChild(bar);
     cardEl.appendChild(box);
-    if (r.title) cardEl.appendChild(el("div", "acsv-im-vcard-title", r.title));
+    if (r.title) cardEl.appendChild(el("div", "acsv-im-vcard-title", esc(r.title)));
     return cardEl;
   }
   function appendCardBubble(card, mine) {
@@ -6608,7 +6607,7 @@
     var style = document.createElement("style");
     style.textContent = SHADOW_CSS;
     root2.appendChild(style);
-    if (prologue) root2.appendChild(el("div", "prologue", prologue));
+    if (prologue) root2.appendChild(el("div", "prologue", esc(prologue)));
     items.forEach(function(item) {
       root2.appendChild(item);
     });
@@ -6635,15 +6634,15 @@
     var playIcon = el("i", "icon");
     playIcon.style.setProperty("--i", 'url("' + ICON_SVGS.play + '")');
     meta.appendChild(playIcon);
-    meta.appendChild(el("span", null, r.viewCountShow || ""));
+    meta.appendChild(el("span", null, esc(r.viewCountShow || "")));
     var commentIcon = el("i", "icon");
     commentIcon.style.setProperty("--i", 'url("' + ICON_SVGS.comment + '")');
     meta.appendChild(commentIcon);
-    meta.appendChild(el("span", null, r.commentCountShow || ""));
+    meta.appendChild(el("span", null, esc(r.commentCountShow || "")));
     if (r.durationSec) meta.appendChild(el("span", "dur", fmtDur(r.durationSec)));
     box.appendChild(meta);
     a.appendChild(box);
-    if (r.title) a.appendChild(el("span", "title", r.title));
+    if (r.title) a.appendChild(el("span", "title", esc(r.title)));
     a.addEventListener("click", function(ev) {
       ev.stopPropagation();
     });

@@ -14,6 +14,8 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      # 正确性底线：no-undef / no-unused-vars / no-constant-binary-expression
+      - run: npm run lint
       - run: node build.js
       # 产物与源码必须同步：改了 src/ 忘了重新 build 会在这里 fail
       - run: git diff --exit-code acfun-svfeed.user.js acfun-svfeed.debug.user.js

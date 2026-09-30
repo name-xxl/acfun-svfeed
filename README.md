@@ -162,6 +162,25 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.33（2026-09-30）· P0 安全与正确性：XSS 三点修复 + msgText 未定义引用 + eslint 落地
+
+- **XSS 三点修复（同根因：`el()` 第三参是 innerHTML，调用点漏 esc）**：
+  - 抽屉分享卡标题裸传 innerHTML（imdrawer vcardEl）——对方发送「HTML+AcFun 链接」文本，
+    parseShare 把 URL 前文本当 title 即可注入，**任意联系人可利用**；现 esc 后写入。
+  - 原生页 title/prologue/计数四处同病（imnative），且原注释自称「一律 textContent 防注入」
+    与实现不符——全部 esc，注释改为如实描述。
+  - 评论表情映射 URL 只锚 host 前缀，页面可写的 localStorage 投毒可破出 src 属性——
+    补全 URL 字符集白名单。
+- **msgText 未定义引用 ×3**（imdrawer sessionSig/去重 key/乐观对账，应为 msgTextOf）：
+  无 seqId 且无时间的消息触发 ReferenceError，被整体 try/catch 吞成「聊天不渲染 /
+  误报连接失败」的静默故障。
+- **eslint 落地**（flat config 最小规则集：no-undef / no-unused-vars /
+  no-constant-binary-expression，声明油猴全局与 `__ACSV_DEBUG__`），
+  `npm run lint` + CI 步骤。首跑 17 错全部清零：顺手清死代码 7 处
+  （imshare `lastImError`/`singletonHealthy`、appapi `FORM`、uppage 死 import、
+  nav `navTries`、session `self`/`re` 等）。
+- **安全版本，建议所有用户更新。**
+
 ### 0.9.32（2026-09-30）· 工程化四项：immsg 单测 / 质量策略剥离 / 架构依赖图 / harness 进 CI
 
 - **immsg.js 单元测试**（`test/unit/immsg.test.js`，Node 内置 test 运行器，零新依赖）：

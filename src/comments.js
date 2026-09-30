@@ -85,8 +85,10 @@ function renderCommentHtml(content) {
   h = h.replace(/\[emot=acfun,(\w+)\/\]/g, function (_, id) {
     var em = EmotionMap.map[id];
     var u = em ? (typeof em === 'string' ? em : em.url) : null;
-    // 与 [img] 一致过 A 站图床白名单：映射值可能来自页面可写的 localStorage，防属性逃逸
-    if (u && IMG_CDN_OK.test(u.replace(/^\/\//, 'https://'))) {
+    // 与 [img] 一致过 A 站图床白名单：映射值可能来自页面可写的 localStorage。白名单
+    // 只锚 host，斜杠后可带引号破出 src 属性（0.9.33 修复），故再限全 URL 字符集
+    var abs = u ? u.replace(/^\/\//, 'https://') : u;
+    if (u && IMG_CDN_OK.test(abs) && /^[\w\-./:?=&%]+$/.test(abs)) {
       return '<img class="ubb-emotion" src="' + u + '" referrerpolicy="no-referrer">';
     }
     return '[表情]';

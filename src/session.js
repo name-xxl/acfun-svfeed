@@ -68,7 +68,6 @@ export function createSession(slide, item, idx, hooks) {
     },
 
     _attach: function () {
-      var self = this;
       // 防御性清扫：slide 内残留的一切旧 video（幽灵防护；正常应已被上一会话 dispose）
       Array.prototype.forEach.call(slide.querySelectorAll('video'), function (v) {
         v.pause(); v.removeAttribute('src'); v.load(); v.remove();
@@ -529,7 +528,7 @@ function installHealthMonitor(S) {
   // 每帧回调：更新帧率 EMA/丢帧占比 → DEGRADED 判定 + 阶梯回退；并重新武装 FROZEN 超时
   function onFrame(now, meta) {
     if (dead()) { stop(); return; }
-    var re = video.requestVideoFrameCallback(onFrame); // 先续排队：模拟缝短路时也不断流
+    video.requestVideoFrameCallback(onFrame); // 先续排队：模拟缝短路时也不断流（句柄无需保存，stop 靠标志位退出）
     var m2 = meta;
     if (__ACSV_DEBUG__ && stallSim === 'frozen') return; // 冻结模拟：帧数据不再送达
     if (__ACSV_DEBUG__ && stallSim === 'slow') {

@@ -39,7 +39,7 @@ function tryInjectNav() {
   return true;
 }
 
-var navObserver = null, navTries = 0;
+var navObserver = null;
 export function watchNav() {
   if (tryInjectNav()) return;
   navObserver = new MutationObserver(function () {

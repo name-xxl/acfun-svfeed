@@ -85,17 +85,6 @@ function ensureLocalLog() {
     } catch (e2) { }
   }
 }
-function lastImError() {
-  var w = pageWin();
-  try { if (w.__acsvImErr) return String(w.__acsvImErr); } catch (e) { }
-  var buf = [];
-  try { buf = w.__acsvImLog || []; } catch (e2) { }
-  for (var i = buf.length - 1; i >= 0; i--) {
-    var l = String(buf[i]);
-    if (l.indexOf('reject:') > -1 || l.indexOf('error:') > -1 || l.indexOf('信息发送失败') > -1) return l;
-  }
-  return '';
-}
 function imLogMark() {
   try { return (pageWin().__acsvImLog || []).length; } catch (e) { return 0; }
 }
@@ -179,17 +168,6 @@ function ensureWeblogSync() {
 
 // 单例健康检查：kernel.config.logger 就是 send 时的 tracer 来源（be 名单命令打点用），
 // 缺失 ⇒ SendMsg 必崩。站点可能在 weblog 初始化前就创建了单例（weblog 异步加载），
-// 事后 window.weblog 存在并不代表单例健康——必须看它自己捕获的那份。
-// 读不到/无法证明健康一律按带病处理，重建是安全默认
-function singletonHealthy(inst) {
-  if (!tracerOk()) return false; // 全局 tracer 残缺：原地包裹已由 ensureWeblogSync 处理
-  try {
-    var cfg = inst.kernel && inst.kernel.config;
-    if (cfg) return !!cfg.logger; // 单例构造时捕获的那份也必须在（两处任一缺失都崩 send）
-  } catch (e) { }
-  return false;
-}
-
 export function isLogined() {
   return /(?:^|;\s*)auth_key=\d+/.test(document.cookie);
 }

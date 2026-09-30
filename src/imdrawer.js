@@ -176,7 +176,7 @@ var listSig = '';
 function sessionSig(ss) {
   return ss.map(function (s) {
     return [s.targetId, s.unread, s.t,
-      (s.last && (s.last.seqId || msgTime(s.last) || msgText(s.last))) || ''].join(':');
+      (s.last && (s.last.seqId || msgTime(s.last) || msgTextOf(s.last))) || ''].join(':');
   }).join('|');
 }
 function refreshList() {
@@ -307,14 +307,14 @@ function chatPollOnce(inst, reset) {
     var fresh = [];
     msgs.forEach(function (m) {
       // 兜底 key 用内容指纹而非随机数：reset 重建 seen 后同一条消息不会二次上屏
-      var key = String((m.seqId !== undefined && m.seqId) || msgTime(m) || ('h' + msgFrom(m) + ':' + msgText(m)));
+      var key = String((m.seqId !== undefined && m.seqId) || msgTime(m) || ('h' + msgFrom(m) + ':' + msgTextOf(m)));
       if (chat.seen[key]) return;
       chat.seen[key] = true;
       fresh.push({ m: m, key: key });
     });
     // 乐观气泡对账：一旦缓存里出现自己刚发的那条，就移除占位
     if (chat.pending && fresh.some(function (x) {
-      return msgFrom(x.m) === selfUid() && msgText(x.m) === chat.pending;
+      return msgFrom(x.m) === selfUid() && msgTextOf(x.m) === chat.pending;
     })) {
       var ph = drawer.bubbles.querySelector('.acsv-im-bubble.pending');
       if (ph) ph.remove();
@@ -385,7 +385,7 @@ function vcardEl(r, mine) {
     + (r.durationSec ? esc(fmtDur(r.durationSec)) : '') + '</span>';
   box.appendChild(bar);
   cardEl.appendChild(box);
-  if (r.title) cardEl.appendChild(el('div', 'acsv-im-vcard-title', r.title));
+  if (r.title) cardEl.appendChild(el('div', 'acsv-im-vcard-title', esc(r.title)));
   return cardEl;
 }
 // 作品分享卡（对齐手机端）：封面 + 播放/评论计数 + 时长 + 两行标题；投稿视频整卡可点跳 ac 号页
