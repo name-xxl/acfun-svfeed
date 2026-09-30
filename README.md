@@ -162,6 +162,22 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.32（2026-09-30）· 工程化四项：immsg 单测 / 质量策略剥离 / 架构依赖图 / harness 进 CI
+
+- **immsg.js 单元测试**（`test/unit/immsg.test.js`，Node 内置 test 运行器，零新依赖）：
+  解析层 7 个导出全用例覆盖，把「任何输入不抛错、只降级」的容错契约钉死
+  （含 null 输入与 getter 抛错的脏对象）。
+- **播放策略剥离**：`applyQuality` 从 appapi.js 迁出到新叶子模块 `src/quality.js`——
+  APP 接口层只管取档，选档策略（编码偏好过滤、清晰度记忆）归播放侧；对外无调用方变化。
+- **架构依赖图**：模块职责表后补 mermaid 依赖图（手绘自真实 import，四层分组），
+  标出 immsg/imicons 零依赖叶子与 `setSessionHooks` 唯一钩子注入点。
+- **harness 进 CI**：新增 `test/run-harness.mjs`（Playwright 无头驱动），跑全部 14 个
+  页内断言场景 + dm-smoke；依赖 `__ACSV_TEST__` 模拟缝的场景用 debug 构建、
+  smoke/resolvefail 用 release 构建覆盖正式产物。build.yml 在产物同步校验后追加
+  Playwright 缓存 + 单测 + harness 三步，回归不靠手测。
+- **构建脚本 ESM 化**：package.json 加 `type:module`，build.js 转 ESM import
+  （产物逐字节一致，已验证）；diag-out.js 改名 .cjs（原为 CJS dump，避免被误判）。
+
 ### 0.9.31（2026-09-30）· 原生页分享卡紧凑化（真机验收通过后的观感微调）
 
 - 0.9.30 真机验收通过：挂载/内核/识别三行日志齐备，分享卡与 10001 卡替换在
@@ -624,9 +640,11 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 源码按模块拆在 `src/`（ES 模块），构建打包成单文件油猴脚本：
 
 ```
-npm install          # 安装 esbuild（仅开发依赖）
+npm install          # 安装 esbuild + playwright（仅开发依赖）
 npm run build        # 产出 acfun-svfeed.user.js + acfun-svfeed.debug.user.js
 npm run watch        # 监听 src/ 变更自动重建
+npm test             # immsg 单测 + 无头 harness 全场景（需先 npx playwright install chromium，
+                     #   没装时本机自动回退系统 Edge）
 ```
 
 | 模块 | 职责 |
@@ -635,7 +653,8 @@ npm run watch        # 监听 src/ 变更自动重建
 | `net.js` | `request(url, method, headers, body)`：GM_xmlhttpRequest 优先、XHR 回退 |
 | `data.js` | 双 normalize：meow（kind=sv）与 selection 卡片（kind=home）→ 同一字段契约 |
 | `api.js` | 接口封装 + 内容源状态（getSource/setSource）+ feed/refresh 按源分发（mock 桩收口在这） |
-| `appapi.js` | APP 家族接口层：selection feed（游标）、douga/playInfo 懒解析、收藏/投蕉/评论点赞、弹幕 list/add、api_st 令牌 |
+| `appapi.js` | APP 家族接口层：selection feed（游标）、douga/playInfo 懒解析、收藏/投蕉/评论点赞、弹幕 list/add、api_st 令牌（播放档位策略已剥离到 quality.js） |
+| `quality.js` | 播放质量策略（零网络）：编码偏好过滤 HEVC/AVC、清晰度记忆选档；appapi 取档、它选档 |
 | `feedstore.js` | 信息流数据仓库（游标泵，空间页列表上下文按序泵入；home 条目允许空 urls 懒解析） |
 | `route.js` | `#svfeed[/<meowId>]` 路由解析与地址栏同步 |
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
@@ -653,6 +672,80 @@ npm run watch        # 监听 src/ 变更自动重建
 | `immsg.js` | 私信消息共享解析层（parseCard/parseShare 容忍式契约/降级文案），双端渲染器各自消费 |
 | `imicons.js` | 站点原生图标登记表（CDN SVG + 字形码点，双端共享） |
 | `boot.js` | 启动入口（构建 entry） |
+
+### 模块依赖图
+
+手绘自各文件的真实 `import`（改 import 时顺手更新本图）。两条「满连接」不画箭头以免糊成一团：
+`cfg.js` 被全部模块引用；`styles.js`/`ui.js`（CSS 与 `el`/`esc`/`toast` 工具）被几乎全部 UI 模块引用；
+`dbg.js` 仅调试构建存活（正式构建被 define 死码消除）。
+
+```mermaid
+flowchart LR
+  subgraph base["基建层"]
+    cfg["cfg.js"]
+    net["net.js"]
+    data["data.js"]
+    state["state.js（UI 单例中介）"]
+    route["route.js"]
+  end
+
+  subgraph apilayer["接口层"]
+    api["api.js（双源分发）"]
+    appapi["appapi.js（APP 接口）"]
+    quality["quality.js（选档策略）"]
+  end
+
+  subgraph play["播放层"]
+    hls["hls.js（加载器）"]
+    session["session.js（会话状态机）"]
+    attach["attach.js（挂源契约）"]
+    player["player.js（编排）"]
+    feedstore["feedstore.js（流仓库）"]
+    pb["playback.js"]
+    others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · comments · interact · report · uppage · nav"]
+  end
+
+  subgraph im["私信层"]
+    imshare["imshare.js（ImSdk 基建）"]
+    imdrawer["imdrawer.js（抽屉）"]
+    imnative["imnative.js（原生页增强）"]
+    immsg["immsg.js（解析·零依赖叶子）"]
+    imicons["imicons.js（图标·零依赖叶子）"]
+  end
+
+  boot["boot.js（入口）"]
+
+  net --> cfg
+  data --> cfg
+  route --> state & feedstore
+  quality --> cfg
+
+  api --> net & data & appapi
+  appapi --> net & data & quality
+
+  boot --> player & others & imnative
+  player --> attach & others & feedstore & imdrawer
+  attach --> session
+  session --> api & hls
+  pb --> feedstore
+  feedstore --> api & state & player
+  comments --> appapi & net
+  interact --> appapi
+  imdrawer --> imshare & immsg & imicons & appapi
+  imnative --> immsg & imicons & appapi
+  imshare --> appapi & imdrawer
+
+  classDef leaf fill:#e8f5e9,stroke:#2e7d32;
+  class immsg,imicons leaf;
+```
+
+绿色两个节点是刻意的解耦点：`immsg.js`/`imicons.js` 零 import，双端渲染器各自消费，
+私信格式变更只改解析层一处（新格式渲染需两端各加分支，见 `imnative.js` 头注释）。
+`player.js → attach.js → session.js` 的反向回调（qualitySwitch/reattach）不走 import，
+经 `setSessionHooks` 注入（见 `player.js` 头注释）——这是全项目唯一的钩子注入点；
+`state.js` 单例中介的存在就是为了切断 player 与只读方之间的循环 import。
+上图只画主要结构边，次要工具型 import（`cfg`/`styles`/`ui`/`dbg` 的满连接）归入分组节点不逐条画。
+
 
 `acfun-svfeed.debug.user.js` 与正式版出自同一源码，仅 `__ACSV_DEBUG__` 注入值不同：
 调试版在 `window.__dbg` 记录启动埋点（iife-start / cfg-ok / mount-enter / root-appended / toggle），

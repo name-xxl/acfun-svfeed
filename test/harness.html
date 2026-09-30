@@ -201,8 +201,14 @@
         qitems[qitems.length - 1].click(); // 切到第二档
         var okQ = await waitFor(function () { return firstVideoReady(0); }, 15000);
         rec('playing-after-switch', !!okQ);
+        // 进度续播是「playing 后 seek 回去」（session.resumeAt）：ready 观测与 seek 落地
+        // 存在竞态（无头合成器上 seek 排队更晚），立即读会撞上 seek 前的 0.x 秒。
+        // 暂停钉住自然推进，currentTime 就只剩 seek 一条路径可动——等它落位，确定性判定
         var v1 = slide(0).querySelector('video');
-        rec('progress-kept', !!v1 && v1.currentTime >= tBefore - 0.6,
+        if (v1) v1.pause();
+        rec('progress-kept', !!(v1 && (await waitFor(function () {
+          return v1.currentTime >= tBefore - 0.6;
+        }, 5000))),
           'before=' + tBefore.toFixed(1) + ' after=' + (v1 ? v1.currentTime.toFixed(1) : '-'));
         rec('session-recreated', (TEST.getStats()['session.dispose'] || 0) > d0);
 

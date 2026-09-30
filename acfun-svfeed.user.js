@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.31
+// @version      0.9.32
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -604,6 +604,45 @@
     };
   }
 
+  // src/quality.js
+  function applyQuality(item) {
+    var pref = null;
+    try {
+      pref = localStorage.getItem(CFG.lsCodec);
+    } catch (e) {
+    }
+    if (pref !== "auto" && pref !== "hevc") pref = CFG.codec.def;
+    if (pref !== "auto" && item.qualities) {
+      var hit = item.qualities.filter(function(x) {
+        return x.codec === pref;
+      });
+      if (hit.length) item.qualities = hit;
+    }
+    if (CFG.exp.q30 && item.qualities) {
+      var lo = item.qualities.filter(function(x) {
+        return !(x.fps > 30);
+      });
+      if (lo.length) item.qualities = lo;
+    }
+    var label = null;
+    try {
+      label = localStorage.getItem(CFG.lsQuality);
+    } catch (e) {
+    }
+    var idx = 0;
+    if (label) {
+      for (var i = 0; i < item.qualities.length; i++) {
+        if (item.qualities[i].label === label) {
+          idx = i;
+          break;
+        }
+      }
+    }
+    item.qIdx = idx;
+    item.urls = item.qualities[idx].urls;
+    item.urlIdx = 0;
+  }
+
   // src/appapi.js
   var pcursor = "";
   var exhausted = false;
@@ -859,7 +898,7 @@
         return self.playInfo(item.videoId, item.id).then(function(qualities) {
           if (!qualities.length) return false;
           item.qualities = qualities;
-          self.applyQuality(item);
+          applyQuality(item);
           return item.urls.length > 0;
         });
       });
@@ -892,47 +931,6 @@
       });
       self.cardCache[key] = p;
       return p;
-    },
-    // 按记忆清晰度（无记忆取最高档；档位已在 playInfo 显式按分辨率数字降序）。
-    // 先按编码偏好过滤档位：avc 滤掉 HEVC 档（cast 对部分设备/未来 4K 档可能下发
-    // HEVC，默认 avc 是防无硬解卡帧的保底）；hevc 反之只留 HEVC 档；auto 不干预。
-    // 过滤后无匹配（如强 HEVC 但视频纯 H.264）则保留全集回落
-    applyQuality: function(item) {
-      var pref = null;
-      try {
-        pref = localStorage.getItem(CFG.lsCodec);
-      } catch (e) {
-      }
-      if (pref !== "auto" && pref !== "hevc") pref = CFG.codec.def;
-      if (pref !== "auto" && item.qualities) {
-        var hit = item.qualities.filter(function(x) {
-          return x.codec === pref;
-        });
-        if (hit.length) item.qualities = hit;
-      }
-      if (CFG.exp.q30 && item.qualities) {
-        var lo = item.qualities.filter(function(x) {
-          return !(x.fps > 30);
-        });
-        if (lo.length) item.qualities = lo;
-      }
-      var label = null;
-      try {
-        label = localStorage.getItem(CFG.lsQuality);
-      } catch (e) {
-      }
-      var idx = 0;
-      if (label) {
-        for (var i = 0; i < item.qualities.length; i++) {
-          if (item.qualities[i].label === label) {
-            idx = i;
-            break;
-          }
-        }
-      }
-      item.qIdx = idx;
-      item.urls = item.qualities[idx].urls;
-      item.urlIdx = 0;
     },
     // ---- 收藏（PC 端收藏夹体系） ----
     // 视频 resourceType=9（收藏体系专用枚举，acfunsdk 里显式做 2→9 映射），且必须

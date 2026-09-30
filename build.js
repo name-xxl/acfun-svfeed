@@ -1,16 +1,15 @@
 /*
- * 构建脚本：src/（ES 模块）→ 单文件油猴脚本
+ * 构建脚本：src/（ES 模块）→ 单文件油猴脚本（ESM，package.json type:module）
  *   node build.js          产出 acfun-svfeed.user.js（正式）+ acfun-svfeed.debug.user.js（调试）
  *   node build.js --watch  监听 src/ 变更自动重建
  *
  * 两个产物出自同一份源码，仅 __ACSV_DEBUG__ 注入值不同：
  * 正式构建里 dbg()/dbgInit() 被 define 成 false 后死码消除，运行行为与调试版完全一致。
  */
-var esbuild = require('esbuild');
-var fs = require('fs');
-var pkg = require('./package.json');
+import esbuild from 'esbuild';
+import fs from 'fs';
 
-var V = pkg.version;
+var V = JSON.parse(fs.readFileSync('./package.json', 'utf8')).version;
 
 // 内嵌 hls.js（npm 依赖，构建时读取）：运行时零网络依赖。
 // 缘起：jsdelivr/npmmirror 在部分用户网络均不可达（attach.cdnFail 实测），
@@ -18,7 +17,7 @@ var V = pkg.version;
 // UMD 产物在脚本 IIFE 内执行会挂到沙箱 globalThis → window.Hls，ensureHls 首检即命中
 var hlsInline = '';
 try {
-  hlsInline = '\n// ==== vendored hls.js@' + (require('./node_modules/hls.js/package.json').version)
+  hlsInline = '\n// ==== vendored hls.js@' + (JSON.parse(fs.readFileSync('./node_modules/hls.js/package.json', 'utf8')).version)
     + '（构建时内嵌，勿手改；npm i hls.js 后重新构建） ====\n'
     + fs.readFileSync('node_modules/hls.js/dist/hls.min.js', 'utf8') + '\n';
 } catch (e) {
