@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.35
+// @version      0.9.36
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -386,9 +386,14 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
-  function el(tag, cls, html) {
+  function el(tag, cls, text) {
     var e = document.createElement(tag);
     if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function elHtml(tag, cls, html) {
+    var e = el(tag, cls);
     if (html != null) e.innerHTML = html;
     return e;
   }
@@ -624,9 +629,8 @@
         lazyResolve: true,
         watchReport: true
       },
-      // 懒解析状态：resolving 防并发，resolved 表示 douga/info+playInfo 已取过
+      // 懒解析状态：resolving 防并发（ensureResolved 在途复用同管）
       resolving: false,
-      resolved: false,
       videoId: "",
       channel: null,
       qualities: null,
@@ -1164,7 +1168,6 @@
           item.qualities = mu ? [{ label: "示例", urls: [mu] }, { label: "示例·备线", urls: [mu] }] : [];
           if (mu) item.cap.hls = false;
           item.videoId = "mock-" + item.id;
-          item.resolved = true;
           item.fav = 12;
           item.share = 34;
           item.date = "2026-09-26";
@@ -1546,7 +1549,7 @@
     if (!mU) return;
     var tries = 0;
     var attempt = function() {
-      if (document.getElementById("acsv-space")) return;
+      if (document.getElementById("acsv-space") || document.getElementById("acsv-space-grid")) return;
       if (document.getElementById("ac-space")) {
         injectSpaceVideos(mU[1]);
         return;
@@ -1770,8 +1773,7 @@
     }, 150);
   }
 
-  // src/comments.js
-  var commentState = { sourceId: 0, stype: 5, shareUrl: "", page: 1, totalPage: 1, pcursor: "no_more", loading: false, replyTo: null, kind: "sv" };
+  // src/emoticon.js
   var EmotionMap = { loaded: false, loading: null, map: {}, packs: [] };
   function applyEmotPacks(flat) {
     var map = {};
@@ -1834,14 +1836,124 @@
     });
     return EmotionMap.loading;
   }
+  function emotReadRecent() {
+    try {
+      var ids = JSON.parse(localStorage.getItem("acsv_emot_recent_v1") || "[]");
+      if (Array.isArray(ids)) return ids.map(String).filter(Boolean).slice(0, CFG.comments.recentMax);
+    } catch (e) {
+    }
+    return [];
+  }
+  function emotPick(id) {
+    var ids = emotReadRecent().filter(function(x) {
+      return x !== String(id);
+    });
+    ids.unshift(String(id));
+    try {
+      localStorage.setItem("acsv_emot_recent_v1", JSON.stringify(ids.slice(0, CFG.comments.recentMax)));
+    } catch (e) {
+    }
+  }
+  function emotFind(id) {
+    var packs = EmotionMap.packs || [];
+    for (var i = 0; i < packs.length; i++) {
+      for (var k = 0; k < packs[i].items.length; k++) {
+        if (String(packs[i].items[k].id) === String(id)) return packs[i].items[k];
+      }
+    }
+    return null;
+  }
+  function renderEmotPanel(panel, insert) {
+    panel.innerHTML = "";
+    var packs = EmotionMap.packs || [];
+    if (!packs.length) {
+      panel.appendChild(el("div", "acsv-drawer-tip", "表情加载失败，请重试"));
+      return;
+    }
+    function addEmot(grid, it) {
+      var b = el("button", "acsv-emot-item");
+      b.title = it.name || "[emot=acfun," + it.id + "/]";
+      var img = el("img");
+      img.src = it.url;
+      img.referrerPolicy = "no-referrer";
+      img.alt = "";
+      img.loading = "lazy";
+      b.appendChild(img);
+      b.addEventListener("click", function(ev2) {
+        ev2.stopPropagation();
+        insert("[emot=acfun," + it.id + "/]");
+        emotPick(it.id);
+      });
+      grid.appendChild(b);
+    }
+    function gridOf(items) {
+      var grid = el("div", "acsv-emot-grid");
+      items.forEach(function(it) {
+        addEmot(grid, it);
+      });
+      return grid;
+    }
+    var recent = emotReadRecent().map(emotFind).filter(Boolean);
+    var tabNames = [];
+    if (recent.length) tabNames.push("最近使用");
+    packs.forEach(function(p) {
+      tabNames.push(p.name);
+    });
+    var tab = panel._tab && tabNames.indexOf(panel._tab) !== -1 ? panel._tab : tabNames[0];
+    var body = el("div", "acsv-emot-body");
+    body.appendChild(el("div", "acsv-emot-head", tab));
+    if (tab === "最近使用") body.appendChild(gridOf(recent));
+    else packs.forEach(function(p) {
+      if (p.name === tab) body.appendChild(gridOf(p.items));
+    });
+    panel.appendChild(body);
+    var foot = el("div", "acsv-emot-foot");
+    var strip = el("div", "acsv-emot-strip");
+    function thumb(tabName, imgUrl) {
+      var tb = el("button", "acsv-emot-thumb" + (tab === tabName ? " on" : ""));
+      tb.title = tabName;
+      var ti = el("img");
+      ti.src = imgUrl;
+      ti.referrerPolicy = "no-referrer";
+      ti.alt = "";
+      tb.appendChild(ti);
+      tb.addEventListener("click", function(ev2) {
+        ev2.stopPropagation();
+        panel._tab = tabName;
+        renderEmotPanel(panel, insert);
+      });
+      strip.appendChild(tb);
+    }
+    if (recent.length) thumb("最近使用", recent[0].url);
+    packs.forEach(function(p) {
+      thumb(p.name, p.items[0].url);
+    });
+    var prev = el("button", "acsv-emot-page", "‹");
+    var next = el("button", "acsv-emot-page", "›");
+    prev.addEventListener("click", function(ev2) {
+      ev2.stopPropagation();
+      strip.scrollBy({ left: -120, behavior: "smooth" });
+    });
+    next.addEventListener("click", function(ev2) {
+      ev2.stopPropagation();
+      strip.scrollBy({ left: 120, behavior: "smooth" });
+    });
+    foot.appendChild(prev);
+    foot.appendChild(strip);
+    foot.appendChild(next);
+    panel.appendChild(foot);
+  }
+
+  // src/ubb.js
   var IMG_CDN_OK = /^https?:\/\/[\w.-]+\.(aixifan\.com|acfun\.cn)\//;
+  var URL_CHARS_OK = /^[\w\-./:?=&%]+$/;
   function renderCommentHtml(content) {
     var h = esc(content || "");
     h = h.replace(/\[emot=acfun,(\w+)\/\]/g, function(_, id) {
       var em = EmotionMap.map[id];
       var u = em ? typeof em === "string" ? em : em.url : null;
       var abs = u ? u.replace(/^\/\//, "https://") : u;
-      if (u && IMG_CDN_OK.test(abs) && /^[\w\-./:?=&%]+$/.test(abs)) {
+      if (u && IMG_CDN_OK.test(abs) && URL_CHARS_OK.test(abs)) {
         return '<img class="ubb-emotion" src="' + u + '" referrerpolicy="no-referrer">';
       }
       return "[表情]";
@@ -1860,6 +1972,9 @@
     });
     return h;
   }
+
+  // src/comments.js
+  var commentState = { sourceId: 0, stype: 5, shareUrl: "", page: 1, totalPage: 1, pcursor: "no_more", loading: false, replyTo: null, kind: "sv" };
   function isOpenComments() {
     return !!(commentDrawer && commentDrawer.el.classList.contains("open"));
   }
@@ -1956,12 +2071,12 @@
     var body = el("div", "acsv-cbody");
     var name = el("div", "acsv-cname");
     if (homeUrl) {
-      var na = el("a", null, esc(c.userName || "AcFun用户"));
+      var na = el("a", null, c.userName || "AcFun用户");
       na.href = homeUrl;
       na.target = "_blank";
       name.appendChild(na);
     } else {
-      name.appendChild(el("span", null, esc(c.userName || "AcFun用户")));
+      name.appendChild(el("span", null, c.userName || "AcFun用户"));
     }
     if (c.isUp) name.appendChild(el("span", "up", "UP"));
     body.appendChild(name);
@@ -1969,10 +2084,10 @@
     ctext.innerHTML = renderCommentHtml(c.content);
     body.appendChild(ctext);
     var meta = el("div", "acsv-cmeta");
-    meta.appendChild(el("span", null, esc(c.postDate || "")));
+    meta.appendChild(el("span", null, c.postDate || ""));
     var like = null, replyBtn = null;
     if (commentState.kind === "home") {
-      like = el("span", "acsv-clike" + (c.isLike || c.localLike ? " on" : ""), ICONS.heart);
+      like = elHtml("span", "acsv-clike" + (c.isLike || c.localLike ? " on" : ""), ICONS.heart);
       var likeN = el("span", null, fmt((c.likeCount || 0) + (c.localLike ? 1 : 0)));
       like.appendChild(likeN);
       like.title = "点赞评论";
@@ -1983,7 +2098,7 @@
       replyBtn._target = { id: String(c.commentId), name: c.userName || "AcFun用户" };
       meta.appendChild(replyBtn);
     } else {
-      like = el("span", "acsv-clike", ICONS.heart);
+      like = elHtml("span", "acsv-clike", ICONS.heart);
       like.appendChild(el("span", null, fmt(c.likeCount)));
       meta.appendChild(like);
     }
@@ -2215,9 +2330,9 @@
       ev.stopPropagation();
       setReply(null);
     });
-    var emotBtn = el("button", "acsv-cinput-emot", ICONS.smiley);
+    var emotBtn = elHtml("button", "acsv-cinput-emot", ICONS.smiley);
     emotBtn.title = "表情";
-    var imgBtn = el("button", "acsv-cinput-img", ICONS.image);
+    var imgBtn = elHtml("button", "acsv-cinput-img", ICONS.image);
     imgBtn.title = "插入图片";
     var fileInp = el("input");
     fileInp.type = "file";
@@ -2283,43 +2398,17 @@
       ev.stopPropagation();
       var show = panel.style.display !== "flex";
       panel.style.display = show ? "flex" : "none";
+      function showPanel() {
+        renderEmotPanel(panel, insertAtCursor);
+      }
       if (show && !panelBuilt) {
         panelBuilt = true;
         panel.appendChild(el("div", "acsv-drawer-tip", "表情加载中…"));
-        ensureEmotionMap().then(function() {
-          renderPanel();
-        });
+        ensureEmotionMap().then(showPanel);
       } else if (show) {
-        ensureEmotionMap().then(renderPanel);
+        ensureEmotionMap().then(showPanel);
       }
     });
-    function emotReadRecent() {
-      try {
-        var ids = JSON.parse(localStorage.getItem("acsv_emot_recent_v1") || "[]");
-        if (Array.isArray(ids)) return ids.map(String).filter(Boolean).slice(0, 12);
-      } catch (e) {
-      }
-      return [];
-    }
-    function emotPick(id) {
-      var ids = emotReadRecent().filter(function(x) {
-        return x !== String(id);
-      });
-      ids.unshift(String(id));
-      try {
-        localStorage.setItem("acsv_emot_recent_v1", JSON.stringify(ids.slice(0, CFG.comments.recentMax)));
-      } catch (e) {
-      }
-    }
-    function emotFind(id) {
-      var packs = EmotionMap.packs || [];
-      for (var i = 0; i < packs.length; i++) {
-        for (var k = 0; k < packs[i].items.length; k++) {
-          if (String(packs[i].items[k].id) === String(id)) return packs[i].items[k];
-        }
-      }
-      return null;
-    }
     function insertAtCursor(code) {
       var pos = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
       inp.value = inp.value.slice(0, pos) + code + inp.value.slice(pos);
@@ -2328,86 +2417,6 @@
         inp.setSelectionRange(pos + code.length, pos + code.length);
       } catch (e) {
       }
-    }
-    function renderPanel() {
-      panel.innerHTML = "";
-      var packs = EmotionMap.packs || [];
-      if (!packs.length) {
-        panel.appendChild(el("div", "acsv-drawer-tip", "表情加载失败，请重试"));
-        return;
-      }
-      function addEmot(grid, it) {
-        var b = el("button", "acsv-emot-item");
-        b.title = it.name || "[emot=acfun," + it.id + "/]";
-        var img = el("img");
-        img.src = it.url;
-        img.referrerPolicy = "no-referrer";
-        img.alt = "";
-        img.loading = "lazy";
-        b.appendChild(img);
-        b.addEventListener("click", function(ev2) {
-          ev2.stopPropagation();
-          insertAtCursor("[emot=acfun," + it.id + "/]");
-          emotPick(it.id);
-        });
-        grid.appendChild(b);
-      }
-      function gridOf(items) {
-        var grid = el("div", "acsv-emot-grid");
-        items.forEach(function(it) {
-          addEmot(grid, it);
-        });
-        return grid;
-      }
-      var recent = emotReadRecent().map(emotFind).filter(Boolean);
-      var tabNames = [];
-      if (recent.length) tabNames.push("最近使用");
-      packs.forEach(function(p) {
-        tabNames.push(p.name);
-      });
-      var tab = panel._tab && tabNames.indexOf(panel._tab) !== -1 ? panel._tab : tabNames[0];
-      var body = el("div", "acsv-emot-body");
-      body.appendChild(el("div", "acsv-emot-head", tab));
-      if (tab === "最近使用") body.appendChild(gridOf(recent));
-      else packs.forEach(function(p) {
-        if (p.name === tab) body.appendChild(gridOf(p.items));
-      });
-      panel.appendChild(body);
-      var foot = el("div", "acsv-emot-foot");
-      var strip = el("div", "acsv-emot-strip");
-      function thumb(tabName, imgUrl) {
-        var tb = el("button", "acsv-emot-thumb" + (tab === tabName ? " on" : ""));
-        tb.title = tabName;
-        var ti = el("img");
-        ti.src = imgUrl;
-        ti.referrerPolicy = "no-referrer";
-        ti.alt = "";
-        tb.appendChild(ti);
-        tb.addEventListener("click", function(ev2) {
-          ev2.stopPropagation();
-          panel._tab = tabName;
-          renderPanel();
-        });
-        strip.appendChild(tb);
-      }
-      if (recent.length) thumb("最近使用", recent[0].url);
-      packs.forEach(function(p) {
-        thumb(p.name, p.items[0].url);
-      });
-      var prev = el("button", "acsv-emot-page", "‹");
-      var next = el("button", "acsv-emot-page", "›");
-      prev.addEventListener("click", function(ev2) {
-        ev2.stopPropagation();
-        strip.scrollBy({ left: -120, behavior: "smooth" });
-      });
-      next.addEventListener("click", function(ev2) {
-        ev2.stopPropagation();
-        strip.scrollBy({ left: 120, behavior: "smooth" });
-      });
-      foot.appendChild(prev);
-      foot.appendChild(strip);
-      foot.appendChild(next);
-      panel.appendChild(foot);
     }
     inp.addEventListener("keydown", function(ev) {
       ev.stopPropagation();
@@ -3827,7 +3836,7 @@
       bubble.classList.remove("show");
     });
     var row = el("div", "acsv-ctl-row");
-    var playBtn = el("button", "acsv-cbtn acsv-cplay", ICONS.pause);
+    var playBtn = elHtml("button", "acsv-cbtn acsv-cplay", ICONS.pause);
     playBtn.title = "播放/暂停（空格）";
     playBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
@@ -3836,7 +3845,7 @@
     var timeLabel = el("span", "acsv-time", "00:00 / 00:00");
     var spacer = el("span");
     spacer.style.flex = "1";
-    var autoBtn = el("button", "acsv-cbtn acsv-cauto", '<span class="acsv-dot"></span>连播');
+    var autoBtn = elHtml("button", "acsv-cbtn acsv-cauto", '<span class="acsv-dot"></span>连播');
     autoBtn.title = "播完自动播放下一条（关闭则单条循环）";
     autoBtn.classList.toggle("on", pb.autoplayNext);
     autoBtn.addEventListener("click", function(ev) {
@@ -3872,13 +3881,13 @@
       },
       "切换播放速度"
     );
-    var muteBtn = el("button", "acsv-cbtn acsv-cmute", pb.soundOn ? ICONS.volOn : ICONS.volOff);
+    var muteBtn = elHtml("button", "acsv-cbtn acsv-cmute", pb.soundOn ? ICONS.volOn : ICONS.volOff);
     muteBtn.title = "静音开关（M）";
     muteBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
       toggleMuteGesture(videoOf());
     });
-    var fsBtn = el("button", "acsv-cbtn acsv-cfs", ICONS.fs);
+    var fsBtn = elHtml("button", "acsv-cbtn acsv-cfs", ICONS.fs);
     fsBtn.title = "全屏（F）";
     fsBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
@@ -4467,7 +4476,7 @@
       var nm = el("div", "acsv-im-name");
       nm.innerHTML = esc(name) + (r.unread > 0 ? '<span class="acsv-share-unread">' + (r.unread > 99 ? "99+" : r.unread) + "</span>" : "");
       mid.appendChild(nm);
-      var prev = el("div", "acsv-im-preview", esc(previewOf(r)));
+      var prev = el("div", "acsv-im-preview", previewOf(r));
       mid.appendChild(prev);
       row.appendChild(mid);
       var tm = el("div", "acsv-im-time", relTime(r.t));
@@ -4631,7 +4640,7 @@
     bar.innerHTML = ICON_PLAY + '<span class="acsv-im-vcard-view">' + esc(r.viewCountShow || "") + "</span>" + ICON_COMMENT + '<span class="acsv-im-vcard-cmt">' + esc(r.commentCountShow || "") + '</span><span class="acsv-im-vcard-dur"' + (r.durationSec ? "" : ' style="display:none"') + ">" + (r.durationSec ? esc(fmtDur(r.durationSec)) : "") + "</span>";
     box.appendChild(bar);
     cardEl.appendChild(box);
-    if (r.title) cardEl.appendChild(el("div", "acsv-im-vcard-title", esc(r.title)));
+    if (r.title) cardEl.appendChild(el("div", "acsv-im-vcard-title", r.title));
     return cardEl;
   }
   function appendCardBubble(card, mine) {
@@ -5442,7 +5451,7 @@
           av.src = CFG.api.defaultAvatar;
         });
         row.appendChild(av);
-        var name = el("div", "acsv-share-name", esc(card.name || "用户 " + c.targetId));
+        var name = el("div", "acsv-share-name", card.name || "用户 " + c.targetId);
         if (c.unread > 0) {
           var dot = el("span", "acsv-share-unread", c.unread > 99 ? "99+" : String(c.unread));
           name.appendChild(dot);
@@ -5675,12 +5684,12 @@
     };
     var side = el("div", "acsv-side");
     var arrows = el("div", "acsv-arrows");
-    var upBtn = el("button", "acsv-arrow acsv-arrow-up", ICONS.chevUp);
+    var upBtn = elHtml("button", "acsv-arrow acsv-arrow-up", ICONS.chevUp);
     upBtn.title = "上一个（↑）";
     upBtn.addEventListener("click", function() {
       goTo(FeedStore.current - 1);
     });
-    var downBtn = el("button", "acsv-arrow acsv-arrow-down", ICONS.chevDn);
+    var downBtn = elHtml("button", "acsv-arrow acsv-arrow-down", ICONS.chevDn);
     downBtn.title = "下一个（↓）";
     downBtn.addEventListener("click", function() {
       goTo(FeedStore.current + 1);
@@ -5773,7 +5782,7 @@
       slide.appendChild(amb);
     }
     var spinner = el("div", "acsv-spinner");
-    var playicon = el("div", "acsv-playicon", ICONS.play);
+    var playicon = elHtml("div", "acsv-playicon", ICONS.play);
     var errbox = el("div", "acsv-errbox");
     errbox.appendChild(el("p", null, "视频加载失败"));
     var retry = el("button", "acsv-retry", "重试");
@@ -5799,7 +5808,7 @@
       meta.innerHTML = up + "<span>" + esc(item.date || "") + '</span><span class="acsv-views">' + fmt(item.view) + "次播放</span>";
     }
     info.appendChild(meta);
-    info.appendChild(el("p", "acsv-title", esc(item.title)));
+    info.appendChild(el("p", "acsv-title", item.title));
     slide.appendChild(info);
     slide.addEventListener("mousemove", function() {
       showControls(slide);
@@ -6580,7 +6589,7 @@
     var style = document.createElement("style");
     style.textContent = SHADOW_CSS;
     root2.appendChild(style);
-    if (prologue) root2.appendChild(el("div", "prologue", esc(prologue)));
+    if (prologue) root2.appendChild(el("div", "prologue", prologue));
     items.forEach(function(item) {
       root2.appendChild(item);
     });
@@ -6607,15 +6616,15 @@
     var playIcon = el("i", "icon");
     playIcon.style.setProperty("--i", 'url("' + ICON_SVGS.play + '")');
     meta.appendChild(playIcon);
-    meta.appendChild(el("span", null, esc(r.viewCountShow || "")));
+    meta.appendChild(el("span", null, r.viewCountShow || ""));
     var commentIcon = el("i", "icon");
     commentIcon.style.setProperty("--i", 'url("' + ICON_SVGS.comment + '")');
     meta.appendChild(commentIcon);
-    meta.appendChild(el("span", null, esc(r.commentCountShow || "")));
+    meta.appendChild(el("span", null, r.commentCountShow || ""));
     if (r.durationSec) meta.appendChild(el("span", "dur", fmtDur(r.durationSec)));
     box.appendChild(meta);
     a.appendChild(box);
-    if (r.title) a.appendChild(el("span", "title", esc(r.title)));
+    if (r.title) a.appendChild(el("span", "title", r.title));
     a.addEventListener("click", function(ev) {
       ev.stopPropagation();
     });

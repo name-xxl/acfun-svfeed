@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
-import { el, esc, fmt } from './ui.js';
+import { el, elHtml, esc, fmt } from './ui.js';
 import { root, setCommentDrawer } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { togglePlayGesture } from './playback.js';
@@ -25,7 +25,7 @@ export function buildSlide(item, idx, goTo) {
   }
 
   var spinner = el('div', 'acsv-spinner');
-  var playicon = el('div', 'acsv-playicon', ICONS.play);
+  var playicon = elHtml('div', 'acsv-playicon', ICONS.play);
   var errbox = el('div', 'acsv-errbox');
   errbox.appendChild(el('p', null, '视频加载失败'));
   var retry = el('button', 'acsv-retry', '重试');
@@ -61,7 +61,7 @@ export function buildSlide(item, idx, goTo) {
       + '<span class="acsv-views">' + fmt(item.view) + '次播放</span>';
   }
   info.appendChild(meta);
-  info.appendChild(el('p', 'acsv-title', esc(item.title)));
+  info.appendChild(el('p', 'acsv-title', item.title));
   slide.appendChild(info);
 
   slide.addEventListener('mousemove', function () { showControls(slide); });

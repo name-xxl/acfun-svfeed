@@ -162,6 +162,22 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.36（2026-09-30）· P2-b 结构治理：comments 三分 + el() 语义重构 + 死契约清理
+
+- **comments.js 三分**（692 → 约 400 行）：UBB 渲染拆 `ubb.js`（esc-first 管线 +
+  IMG_CDN_OK/URL 字符集白名单），表情服务与面板拆 `emoticon.js`（EmotionMap/缓存/
+  最近使用/renderEmotPanel，插入经注入回调），本文件回归抽屉编排。顺带修掉
+  emotReadRecent 的 `slice(0,12)` 与 CFG.comments.recentMax 双写。
+- **el() 第三参改 textContent 语义，HTML 场景另立 `elHtml()`**：全项目 60+ 调用点
+  逐一分类——图标 SVG/拼 HTML 改 elHtml，纯文本统一走 el（esc() 包裹随之删除）。
+  这是 0.9.33 XSS 三坑的根因治理：「不可信文本被当 HTML 传」从此结构性不可能。
+  imdrawer/imnative/imshare/comments/slide 共 10 处 esc 包裹随之退役。
+- **mock 死契约清理**：`item.resolved` 声明于 data.js、仅 mock 分支写、全项目零消费——
+  字段与契约注释一并删除。comments 的 mock 真值判定**有意保留**（生产环境永不定义
+  __ACSV_MOCK__，harness 本地预览依赖该语义）。
+- **uppage 哨兵收口**：tryInjectSpace 同时查 `acsv-space-grid` 与 `acsv-space`——
+  此前只查兜底路径的 section id，主路径成功后靠内层守卫兜住反复重入。
+
 ### 0.9.35（2026-09-30）· P2-a 重复收敛：八组样板各归一处（等价重构，行为不变）
 
 - net.js 新增 `gmRequest(opts)`（GM 通道参数化出口：responseType/超时/自定义头/二进制

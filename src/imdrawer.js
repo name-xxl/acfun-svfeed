@@ -259,7 +259,7 @@ function renderList(kw, ss) {
     var nm = el('div', 'acsv-im-name');
     nm.innerHTML = esc(name) + (r.unread > 0 ? '<span class="acsv-share-unread">' + (r.unread > 99 ? '99+' : r.unread) + '</span>' : '');
     mid.appendChild(nm);
-    var prev = el('div', 'acsv-im-preview', esc(previewOf(r)));
+    var prev = el('div', 'acsv-im-preview', previewOf(r));
     mid.appendChild(prev);
     row.appendChild(mid);
     var tm = el('div', 'acsv-im-time', relTime(r.t));
@@ -401,7 +401,7 @@ function vcardEl(r, mine) {
     + (r.durationSec ? esc(fmtDur(r.durationSec)) : '') + '</span>';
   box.appendChild(bar);
   cardEl.appendChild(box);
-  if (r.title) cardEl.appendChild(el('div', 'acsv-im-vcard-title', esc(r.title)));
+  if (r.title) cardEl.appendChild(el('div', 'acsv-im-vcard-title', r.title));
   return cardEl;
 }
 // 作品分享卡（对齐手机端）：封面 + 播放/评论计数 + 时长 + 两行标题；投稿视频整卡可点跳 ac 号页

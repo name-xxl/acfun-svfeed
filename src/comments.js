@@ -1,115 +1,17 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { el, esc, fmt, toast } from './ui.js';
+import { el, elHtml, fmt, toast } from './ui.js';
 import { ICONS } from './styles.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
 import { AppAPI } from './appapi.js';
+import { renderCommentHtml } from './ubb.js';
+import { ensureEmotionMap, renderEmotPanel } from './emoticon.js';
 
 // ---------- 评论抽屉 ----------
 // A 站通用评论系统：小视频 sourceType=5（sourceId=meowId），普通视频 sourceType=3（sourceId=ac号），
 // 无需登录即可浏览；接口在 CFG.api.comment
+// UBB 渲染在 ubb.js、表情服务/面板在 emoticon.js（0.9.36 拆分，本文件回归抽屉编排）
 export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, pcursor: 'no_more', loading: false, replyTo: null, kind: 'sv' };
-
-// 表情包数据（复用动态广场 fetchEmoticonPacks/_applyEmoticons 思路）：
-// map[id]={url,big,name,pkg} 供 UBB 渲染；packs=[{name,items}] 供面板分包展示
-var EmotionMap = { loaded: false, loading: null, map: {}, packs: [] };
-
-function applyEmotPacks(flat) {
-  var map = {};
-  var packs = [];
-  var byName = {};
-  (flat || []).forEach(function (u) {
-    if (!u || !u.emotionId || !u.emotionImageUrl) return;
-    var big = u.emotionBigUrl || u.emotionImageUrl;
-    map[u.emotionId] = { url: u.emotionImageUrl, big: big, name: u.emotionName || '', pkg: u.emotionPkgName || '' };
-    var pack = byName[u.emotionPkgName];
-    if (!pack) {
-      pack = byName[u.emotionPkgName] = { name: u.emotionPkgName || '表情', items: [] };
-      packs.push(pack);
-    }
-    pack.items.push({ id: u.emotionId, url: u.emotionImageUrl, big: big, name: u.emotionName || '' });
-  });
-  EmotionMap.map = map;
-  EmotionMap.packs = packs;
-  EmotionMap.loaded = true;
-  return packs;
-}
-
-function ensureEmotionMap() {
-  if (EmotionMap.loaded) return Promise.resolve();
-  if (EmotionMap.loading) return EmotionMap.loading;
-  EmotionMap.loading = new Promise(function (resolve) {
-    // 原生页面写入的 localStorage 缓存优先（www.acfun.cn 登录后存在）
-    try {
-      var cached = JSON.parse(localStorage.getItem('emoticonList') || 'null');
-      if (Array.isArray(cached) && cached.length) { applyEmotPacks(cached); resolve(); return; }
-    } catch (e) { }
-    request(CFG.api.emotion, 'POST').then(function (j) {
-      var flat = [];
-      var pkgs = (j && (j.emotionPackageList || j.data)) || [];
-      pkgs.forEach(function (p) {
-        (p.emotions || []).forEach(function (e) {
-          try {
-            var url = e.emotionImageSmallUrl
-              || (e.smallImageInfo && e.smallImageInfo.thumbnailImageCdnUrl)
-              || (e.smallImageInfo && e.smallImageInfo.thumbnailImage && e.smallImageInfo.thumbnailImage.cdnUrls && e.smallImageInfo.thumbnailImage.cdnUrls[0] && e.smallImageInfo.thumbnailImage.cdnUrls[0].url)
-              || '';
-            var rawBig = (typeof e.emotionImageBigUrl === 'string' && e.emotionImageBigUrl)
-              || (e.bigImageInfo && e.bigImageInfo.thumbnailImageCdnUrl)
-              || (e.bigImageInfo && e.bigImageInfo.thumbnailImage && e.bigImageInfo.thumbnailImage.cdnUrls && e.bigImageInfo.thumbnailImage.cdnUrls[0] && e.bigImageInfo.thumbnailImage.cdnUrls[0].url)
-              || '';
-            flat.push({
-              emotionId: e.id,
-              emotionPkgName: p.name,
-              emotionImageUrl: url,
-              emotionBigUrl: rawBig || url,
-              emotionName: (typeof e.name === 'string' && e.name) || ''
-            });
-          } catch (err) { }
-        });
-      });
-      applyEmotPacks(flat);
-      resolve();
-    }, function () {
-      EmotionMap.loading = null; // 清掉失败标记，下次进入可重试（否则整场会话表情失效）
-      resolve();
-    });
-  });
-  return EmotionMap.loading;
-}
-
-var IMG_CDN_OK = /^https?:\/\/[\w.-]+\.(aixifan\.com|acfun\.cn)\//;
-function renderCommentHtml(content) {
-  var h = esc(content || '');
-  // 表情：[emot=acfun,id/] 走映射（值可能是字符串或 {url} 对象）；其他包走 umeditor 固定图床
-  h = h.replace(/\[emot=acfun,(\w+)\/\]/g, function (_, id) {
-    var em = EmotionMap.map[id];
-    var u = em ? (typeof em === 'string' ? em : em.url) : null;
-    // 与 [img] 一致过 A 站图床白名单：映射值可能来自页面可写的 localStorage。白名单
-    // 只锚 host，斜杠后可带引号破出 src 属性（0.9.33 修复），故再限全 URL 字符集
-    var abs = u ? u.replace(/^\/\//, 'https://') : u;
-    if (u && IMG_CDN_OK.test(abs) && /^[\w\-./:?=&%]+$/.test(abs)) {
-      return '<img class="ubb-emotion" src="' + u + '" referrerpolicy="no-referrer">';
-    }
-    return '[表情]';
-  });
-  h = h.replace(/\[emot=(\w+),(\w+)\/\]/g, function (_, pkg, id) {
-    return '<img class="ubb-emotion" src="https://cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/' + pkg + '/' + id + '.gif" referrerpolicy="no-referrer">';
-  });
-  // 图片：[img=图片]URL[/img] / [img=alt]URL[/img] / [img]URL[/img]，限 A 站图床白名单
-  h = h.replace(/\[img=[^\]]*\](https?:\/\/[^\["']+?)\[\/img\]/g, function (_, u) {
-    return IMG_CDN_OK.test(u) ? '<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">' : u;
-  });
-  h = h.replace(/\[img\](https?:\/\/[^\["']+?)\[\/img\]/g, function (_, u) {
-    return IMG_CDN_OK.test(u) ? '<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">' : u;
-  });
-  // 颜色：[color=#hex]…[/color]。颜色值白名单限 # + 3~8 位 hex（防 style 属性注入）；
-  // 跑在 emot/img 之后，正文里的表情/配图可被颜色 span 包裹；未闭合或非法值按字面显示（与未知 UBB 一致）
-  h = h.replace(/\[color=(#[0-9a-fA-F]{3,8})\]([\s\S]*?)\[\/color\]/g, function (_, cv, inner) {
-    return '<span style="color:' + cv + '">' + inner + '</span>';
-  });
-  return h;
-}
 
 export function isOpenComments() {
   return !!(commentDrawer && commentDrawer.el.classList.contains('open'));
@@ -218,11 +120,11 @@ function commentItem(c, subMap, sourceId) {
   var body = el('div', 'acsv-cbody');
   var name = el('div', 'acsv-cname');
   if (homeUrl) {
-    var na = el('a', null, esc(c.userName || 'AcFun用户'));
+    var na = el('a', null, c.userName || 'AcFun用户');
     na.href = homeUrl; na.target = '_blank';
     name.appendChild(na);
   } else {
-    name.appendChild(el('span', null, esc(c.userName || 'AcFun用户')));
+    name.appendChild(el('span', null, c.userName || 'AcFun用户'));
   }
   if (c.isUp) name.appendChild(el('span', 'up', 'UP'));
   body.appendChild(name);
@@ -230,13 +132,13 @@ function commentItem(c, subMap, sourceId) {
   ctext.innerHTML = renderCommentHtml(c.content); // 内容先 esc 再 UBB 渲染（renderCommentHtml 内）
   body.appendChild(ctext);
   var meta = el('div', 'acsv-cmeta');
-  meta.appendChild(el('span', null, esc(c.postDate || '')));
+  meta.appendChild(el('span', null, c.postDate || ''));
   var like = null, replyBtn = null;
   if (commentState.kind === 'home') {
     // 小视频模式纯浏览：点赞/回复仅推荐模式提供。
     // 点击统一委托在 drawer list 上（见 commentListClick），这里只挂数据引用，
     // 免得长列表每条评论两个监听器、innerHTML 重建时反复创建丢弃
-    like = el('span', 'acsv-clike' + ((c.isLike || c.localLike) ? ' on' : ''), ICONS.heart);
+    like = elHtml('span', 'acsv-clike' + ((c.isLike || c.localLike) ? ' on' : ''), ICONS.heart);
     var likeN = el('span', null, fmt((c.likeCount || 0) + (c.localLike ? 1 : 0)));
     like.appendChild(likeN);
     like.title = '点赞评论';
@@ -247,7 +149,7 @@ function commentItem(c, subMap, sourceId) {
     replyBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户' };
     meta.appendChild(replyBtn);
   } else {
-    like = el('span', 'acsv-clike', ICONS.heart);
+    like = elHtml('span', 'acsv-clike', ICONS.heart);
     like.appendChild(el('span', null, fmt(c.likeCount)));
     meta.appendChild(like);
   }
@@ -499,9 +401,9 @@ function ensureCommentInput() {
     ev.stopPropagation();
     setReply(null);
   });
-  var emotBtn = el('button', 'acsv-cinput-emot', ICONS.smiley);
+  var emotBtn = elHtml('button', 'acsv-cinput-emot', ICONS.smiley);
   emotBtn.title = '表情';
-  var imgBtn = el('button', 'acsv-cinput-img', ICONS.image);
+  var imgBtn = elHtml('button', 'acsv-cinput-img', ICONS.image);
   imgBtn.title = '插入图片';
   var fileInp = el('input');
   fileInp.type = 'file';
@@ -565,109 +467,21 @@ function ensureCommentInput() {
     ev.stopPropagation();
     var show = panel.style.display !== 'flex';
     panel.style.display = show ? 'flex' : 'none';
+    function showPanel() { renderEmotPanel(panel, insertAtCursor); }
     if (show && !panelBuilt) {
       panelBuilt = true;
       panel.appendChild(el('div', 'acsv-drawer-tip', '表情加载中…'));
-      ensureEmotionMap().then(function () { renderPanel(); });
+      ensureEmotionMap().then(showPanel);
     } else if (show) {
-      ensureEmotionMap().then(renderPanel); // 已加载时立即返回；上次失败则顺带重试
+      ensureEmotionMap().then(showPanel); // 已加载时立即返回；上次失败则顺带重试
     }
   });
 
-  function emotReadRecent() {
-    try {
-      var ids = JSON.parse(localStorage.getItem('acsv_emot_recent_v1') || '[]');
-      if (Array.isArray(ids)) return ids.map(String).filter(Boolean).slice(0, 12);
-    } catch (e) { }
-    return [];
-  }
-  function emotPick(id) {
-    var ids = emotReadRecent().filter(function (x) { return x !== String(id); });
-    ids.unshift(String(id));
-    try { localStorage.setItem('acsv_emot_recent_v1', JSON.stringify(ids.slice(0, CFG.comments.recentMax))); } catch (e) { }
-  }
-  function emotFind(id) {
-    var packs = EmotionMap.packs || [];
-    for (var i = 0; i < packs.length; i++) {
-      for (var k = 0; k < packs[i].items.length; k++) {
-        if (String(packs[i].items[k].id) === String(id)) return packs[i].items[k];
-      }
-    }
-    return null;
-  }
   function insertAtCursor(code) {
     var pos = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
     inp.value = inp.value.slice(0, pos) + code + inp.value.slice(pos);
     inp.focus();
     try { inp.setSelectionRange(pos + code.length, pos + code.length); } catch (e) { }
-  }
-  function renderPanel() {
-    panel.innerHTML = '';
-    var packs = EmotionMap.packs || [];
-    if (!packs.length) {
-      panel.appendChild(el('div', 'acsv-drawer-tip', '表情加载失败，请重试'));
-      return;
-    }
-    function addEmot(grid, it) {
-      var b = el('button', 'acsv-emot-item');
-      b.title = it.name || ('[emot=acfun,' + it.id + '/]');
-      var img = el('img');
-      img.src = it.url;
-      img.referrerPolicy = 'no-referrer';
-      img.alt = '';
-      img.loading = 'lazy';
-      b.appendChild(img);
-      b.addEventListener('click', function (ev2) {
-        ev2.stopPropagation();
-        insertAtCursor('[emot=acfun,' + it.id + '/]');
-        emotPick(it.id);
-      });
-      grid.appendChild(b);
-    }
-    function gridOf(items) {
-      var grid = el('div', 'acsv-emot-grid');
-      items.forEach(function (it) { addEmot(grid, it); });
-      return grid;
-    }
-    var recent = emotReadRecent().map(emotFind).filter(Boolean);
-    var tabNames = [];
-    if (recent.length) tabNames.push('最近使用');
-    packs.forEach(function (p) { tabNames.push(p.name); });
-    var tab = panel._tab && tabNames.indexOf(panel._tab) !== -1 ? panel._tab : tabNames[0];
-    // 内容区（可滚动）
-    var body = el('div', 'acsv-emot-body');
-    body.appendChild(el('div', 'acsv-emot-head', tab));
-    if (tab === '最近使用') body.appendChild(gridOf(recent));
-    else packs.forEach(function (p) { if (p.name === tab) body.appendChild(gridOf(p.items)); });
-    panel.appendChild(body);
-    // 底部包切换条（固定，不随内容滚动）
-    var foot = el('div', 'acsv-emot-foot');
-    var strip = el('div', 'acsv-emot-strip');
-    function thumb(tabName, imgUrl) {
-      var tb = el('button', 'acsv-emot-thumb' + (tab === tabName ? ' on' : ''));
-      tb.title = tabName;
-      var ti = el('img');
-      ti.src = imgUrl;
-      ti.referrerPolicy = 'no-referrer';
-      ti.alt = '';
-      tb.appendChild(ti);
-      tb.addEventListener('click', function (ev2) {
-        ev2.stopPropagation();
-        panel._tab = tabName;
-        renderPanel();
-      });
-      strip.appendChild(tb);
-    }
-    if (recent.length) thumb('最近使用', recent[0].url);
-    packs.forEach(function (p) { thumb(p.name, p.items[0].url); });
-    var prev = el('button', 'acsv-emot-page', '‹');
-    var next = el('button', 'acsv-emot-page', '›');
-    prev.addEventListener('click', function (ev2) { ev2.stopPropagation(); strip.scrollBy({ left: -120, behavior: 'smooth' }); });
-    next.addEventListener('click', function (ev2) { ev2.stopPropagation(); strip.scrollBy({ left: 120, behavior: 'smooth' }); });
-    foot.appendChild(prev);
-    foot.appendChild(strip);
-    foot.appendChild(next);
-    panel.appendChild(foot);
   }
   inp.addEventListener('keydown', function (ev) {
     ev.stopPropagation();

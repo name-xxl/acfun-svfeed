@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
-import { el, toast, fmtTime, toggleFullscreen } from './ui.js';
+import { el, elHtml, toast, fmtTime, toggleFullscreen } from './ui.js';
 import { root, scroller } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { pb, togglePlayGesture, toggleMuteGesture } from './playback.js';
@@ -75,7 +75,7 @@ export function buildControls(slide, idx, item) {
 
   var row = el('div', 'acsv-ctl-row');
 
-  var playBtn = el('button', 'acsv-cbtn acsv-cplay', ICONS.pause);
+  var playBtn = elHtml('button', 'acsv-cbtn acsv-cplay', ICONS.pause);
   playBtn.title = '播放/暂停（空格）';
   playBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
@@ -86,7 +86,7 @@ export function buildControls(slide, idx, item) {
   var spacer = el('span');
   spacer.style.flex = '1';
 
-  var autoBtn = el('button', 'acsv-cbtn acsv-cauto', '<span class="acsv-dot"></span>连播');
+  var autoBtn = elHtml('button', 'acsv-cbtn acsv-cauto', '<span class="acsv-dot"></span>连播');
   autoBtn.title = '播完自动播放下一条（关闭则单条循环）';
   autoBtn.classList.toggle('on', pb.autoplayNext);
   autoBtn.addEventListener('click', function (ev) {
@@ -119,14 +119,14 @@ export function buildControls(slide, idx, item) {
     '切换播放速度'
   );
 
-  var muteBtn = el('button', 'acsv-cbtn acsv-cmute', pb.soundOn ? ICONS.volOn : ICONS.volOff);
+  var muteBtn = elHtml('button', 'acsv-cbtn acsv-cmute', pb.soundOn ? ICONS.volOn : ICONS.volOff);
   muteBtn.title = '静音开关（M）';
   muteBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
     toggleMuteGesture(videoOf());
   });
 
-  var fsBtn = el('button', 'acsv-cbtn acsv-cfs', ICONS.fs);
+  var fsBtn = elHtml('button', 'acsv-cbtn acsv-cfs', ICONS.fs);
   fsBtn.title = '全屏（F）';
   fsBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();

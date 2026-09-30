@@ -5,7 +5,7 @@
 // 解析层与脚本抽屉共享（immsg.js）：以后新消息格式在 immsg 加解析，这里加渲染分支即可。
 
 import { CFG } from './cfg.js';
-import { el, esc } from './ui.js';
+import { el } from './ui.js';
 import { ICON_SVGS } from './imicons.js';
 import { parseCard, parseShare, degradeText, previewOfMessage, msgContentType, msgTextOf, fmtDur } from './immsg.js';
 import { AppAPI } from './appapi.js';
@@ -185,9 +185,8 @@ function enhanceList() {
 }
 
 // 卡片渲染进 Shadow DOM：宿主页 CSS 物理隔离（0.9.23 实测 .content img{height:48px}
-// 的表情图规则会把封面压成长条），样式完全自持。数据写入 textContent 直写优先；
-// 走 el()/innerHTML 的文本字段一律先 esc()（0.9.33：title/prologue/计数曾裸传，
-// 联系人可控文本可借此注入 HTML）
+// 的表情图规则会把封面压成长条），样式完全自持。数据一律经 el() 写入——0.9.36 起
+// el() 即 textContent，HTML 注入结构性不可能（0.9.33 曾以 esc+innerHTML 防守同一面）
 function renderCard(content, card) {
   content.textContent = '';
   appendShadow(content, card.resourceBody.map(function (r) { return cardItem(r); }), card.prologue);
@@ -240,7 +239,7 @@ function appendShadow(content, items, prologue) {
   var style = document.createElement('style');
   style.textContent = SHADOW_CSS;
   root.appendChild(style);
-  if (prologue) root.appendChild(el('div', 'prologue', esc(prologue)));
+  if (prologue) root.appendChild(el('div', 'prologue', prologue));
   items.forEach(function (item) { root.appendChild(item); });
   content.appendChild(host);
 }
@@ -267,15 +266,15 @@ function cardItem(r, hrefOverride) {
   var playIcon = el('i', 'icon');
   playIcon.style.setProperty('--i', 'url("' + ICON_SVGS.play + '")');
   meta.appendChild(playIcon);
-  meta.appendChild(el('span', null, esc(r.viewCountShow || '')));
+  meta.appendChild(el('span', null, r.viewCountShow || ''));
   var commentIcon = el('i', 'icon');
   commentIcon.style.setProperty('--i', 'url("' + ICON_SVGS.comment + '")');
   meta.appendChild(commentIcon);
-  meta.appendChild(el('span', null, esc(r.commentCountShow || '')));
+  meta.appendChild(el('span', null, r.commentCountShow || ''));
   if (r.durationSec) meta.appendChild(el('span', 'dur', fmtDur(r.durationSec)));
   box.appendChild(meta);
   a.appendChild(box);
-  if (r.title) a.appendChild(el('span', 'title', esc(r.title)));
+  if (r.title) a.appendChild(el('span', 'title', r.title));
   a.addEventListener('click', function (ev) { ev.stopPropagation(); });
   return a;
 }

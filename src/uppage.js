@@ -368,7 +368,9 @@ export function tryInjectSpace() {
   if (!mU) return;
   var tries = 0;
   var attempt = function () {
-    if (document.getElementById('acsv-space')) return;
+    // 主路径产物是 grid（tab 注入），兜底路径产物才是 section——两个哨兵都要查，
+    // 否则主路径成功后 attempt 会反复重入（此前靠 injectSpaceVideos 内层守卫兜住，0.9.36 收口）
+    if (document.getElementById('acsv-space') || document.getElementById('acsv-space-grid')) return;
     if (document.getElementById('ac-space')) {
       injectSpaceVideos(mU[1]);
       return;

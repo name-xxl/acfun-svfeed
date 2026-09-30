@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
-import { el, fmt, toast } from './ui.js';
+import { el, elHtml, fmt, toast } from './ui.js';
 import { FeedStore } from './feedstore.js';
 import { setRealLike, setRealFollow, setRealFavorite, giveBanana } from './interact.js';
 import { toggleItemComments } from './comments.js';
@@ -183,12 +183,12 @@ export function buildSideRail(slide, item, goTo) {
   // 右侧功能区与上下翻页共用一个定位容器（箭头永远在功能区上方，不遮挡）
   var side = el('div', 'acsv-side');
   var arrows = el('div', 'acsv-arrows');
-  var upBtn = el('button', 'acsv-arrow acsv-arrow-up', ICONS.chevUp);
+  var upBtn = elHtml('button', 'acsv-arrow acsv-arrow-up', ICONS.chevUp);
   upBtn.title = '上一个（↑）';
   upBtn.addEventListener('click', function () {
     goTo(FeedStore.current - 1);
   });
-  var downBtn = el('button', 'acsv-arrow acsv-arrow-down', ICONS.chevDn);
+  var downBtn = elHtml('button', 'acsv-arrow acsv-arrow-down', ICONS.chevDn);
   downBtn.title = '下一个（↓）';
   downBtn.addEventListener('click', function () {
     goTo(FeedStore.current + 1);

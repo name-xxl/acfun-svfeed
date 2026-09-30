@@ -86,7 +86,6 @@ export var API = {
         // mock 直链不是 m3u8：绕开 hls.js 管线走 video.src 直挂（仅 harness mock 生效）
         if (mu) item.cap.hls = false;
         item.videoId = 'mock-' + item.id;
-        item.resolved = true;
         item.fav = 12;
         item.share = 34;
         item.date = '2026-09-26';

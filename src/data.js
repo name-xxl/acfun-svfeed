@@ -70,9 +70,8 @@ export function normalizeHome(bc) {
       hls: true, danmaku: true, quality: true, banana: true,
       favorite: true, lazyResolve: true, watchReport: true
     },
-    // 懒解析状态：resolving 防并发，resolved 表示 douga/info+playInfo 已取过
+    // 懒解析状态：resolving 防并发（ensureResolved 在途复用同管）
     resolving: false,
-    resolved: false,
     videoId: '',
     channel: null,
     qualities: null,

@@ -8,9 +8,18 @@ export function esc(s) {
   });
 }
 
-export function el(tag, cls, html) {
+// el() 第三参一律 textContent（0.9.36）：把「不可信文本被当 HTML 传」这类错误结构性
+// 排除——0.9.33 的 XSS 三坑根因就是本函数原语义是 innerHTML。确需注入 HTML
+// （图标 SVG / linkify / UBB 产物）用 elHtml()。
+export function el(tag, cls, text) {
   var e = document.createElement(tag);
   if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+export function elHtml(tag, cls, html) {
+  var e = el(tag, cls);
   if (html != null) e.innerHTML = html;
   return e;
 }

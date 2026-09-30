@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
-import { el, esc, toast, copyText, cookieVal } from './ui.js';
+import { el, toast, copyText, cookieVal } from './ui.js';
 import { postForm } from './appapi.js';
 import { openChat } from './imdrawer.js';
 
@@ -583,7 +583,7 @@ function renderRows(pop, list, contacts, item, inst) {
       av.addEventListener('error', function () { av.src = CFG.api.defaultAvatar; });
       row.appendChild(av);
 
-      var name = el('div', 'acsv-share-name', esc(card.name || '用户 ' + c.targetId));
+      var name = el('div', 'acsv-share-name', card.name || '用户 ' + c.targetId);
       if (c.unread > 0) {
         var dot = el('span', 'acsv-share-unread', c.unread > 99 ? '99+' : String(c.unread));
         name.appendChild(dot);
