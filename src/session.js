@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { stat, set, testHook } from './dbg.js';
-import { toast } from './ui.js';
+import { toast, sweepSlideVideos } from './ui.js';
 import { ensureResolved } from './api.js';
 import { nativeHls, ensureHls } from './hls.js';
 
@@ -69,9 +69,7 @@ export function createSession(slide, item, idx, hooks) {
 
     _attach: function () {
       // 防御性清扫：slide 内残留的一切旧 video（幽灵防护；正常应已被上一会话 dispose）
-      Array.prototype.forEach.call(slide.querySelectorAll('video'), function (v) {
-        v.pause(); v.removeAttribute('src'); v.load(); v.remove();
-      });
+      sweepSlideVideos(slide);
       var video = document.createElement('video');
       video.className = 'acsv-video';
       hooks.initVideo(video); // muted/loop/playbackRate 由 player 全局状态决定
@@ -345,7 +343,7 @@ function installHealthMonitor(S) {
     // 自校准：理论帧间隔 与 近期实际到帧间隔×2.5 取大者——低帧率流/慢放态下
     // 「帧来得慢」不会被误判成冻结；真冻结（完全无帧）仍在亚秒级检出
     st.gapSec = Math.max(CFG.stall.minGapMs,
-      CFG.stall.gapFactor * 1000 / srcFps(), st.arrival * 2.5) / 1000;
+      CFG.stall.gapFactor * 1000 / srcFps(), st.arrival * CFG.stall.arriveFactor) / 1000;
     armTimer = setTimeout(onGap, st.gapSec * 1000);
   }
   function arm() {
@@ -449,8 +447,6 @@ function installHealthMonitor(S) {
       armTimeout();
       return;
     }
-    var canAutoQ = !item._qManual && item.cap.quality && item.qualities
-      && item.qualities.length > 1 && item.qIdx < item.qualities.length - 1;
     // 幻影冻结防护：两次恢复之间解码帧仍在明显推进（totalVideoFrames 增量 > 2s 帧量）
     // = 视频实际在正常出帧，只是 rVFC 被环境饿死——破坏性动作（降档/重挂）全部叫停，
     // 只回退计数。顶针/recoverMediaError 无害，保持响应
@@ -464,21 +460,10 @@ function installHealthMonitor(S) {
       return;
     }
     if (tfNow >= 0) st.lastTF = tfNow;
-    // 第 3 次：优先降帧率不降分辨率（1080P60 → 1080P），观感损失最小。
-    // label 可能带编码后缀（1080P60·HEVC），60 后面允许 · 或结尾
-    if (canAutoQ && /60(·|$)/.test(item.qualities[item.qIdx].label)) {
-      var curLabel = item.qualities[item.qIdx].label;
-      for (var q = item.qIdx + 1; q < item.qualities.length; q++) {
-        if (item.qualities[q].label === curLabel.replace(/60(?=·|$)/, '')) {
-          toast('播放卡顿，已切换到 ' + item.qualities[q].label + '（同分辨率降帧率）');
-          stat('stall.rung3');
-          S.hooks.qualitySwitch(S, q); // 换档 → 新会话接管，本监视器随 dispose 停止
-          return;
-        }
-      }
-    }
+    // 第 3 次：优先降帧率不降分辨率（1080P60 → 1080P），观感损失最小
+    if (dropFpsRung('播放卡顿，已切换到 ', 'stall.rung3')) return;
     // 第 4 次：降一档分辨率
-    if (canAutoQ) {
+    if (canAutoQ()) {
       toast('播放卡顿，已自动切换到 ' + item.qualities[item.qIdx + 1].label);
       stat('stall.rung4');
       S.hooks.qualitySwitch(S, item.qIdx + 1);
@@ -498,6 +483,27 @@ function installHealthMonitor(S) {
     S.hooks.reattach(S); // attachVideo → 本会话 dispose → 新会话接管
   }
 
+  // 自动降档前提五条件（recover 阶梯与慢放判定共用，原两处逐行重复 0.9.35 收敛）
+  function canAutoQ() {
+    return !item._qManual && item.cap.quality && item.qualities
+      && item.qualities.length > 1 && item.qIdx < item.qualities.length - 1;
+  }
+  // 同分辨率降帧率（1080P60 → 1080P）：label 可能带编码后缀（1080P60·HEVC），
+  // 60 后面允许 · 或结尾。阶梯第 3 级与慢放判定共用，找到即切并返回 true
+  function dropFpsRung(toastHead, statKey) {
+    if (!(canAutoQ() && /60(·|$)/.test(item.qualities[item.qIdx].label))) return false;
+    var curLabel = item.qualities[item.qIdx].label;
+    for (var q = item.qIdx + 1; q < item.qualities.length; q++) {
+      if (item.qualities[q].label === curLabel.replace(/60(?=·|$)/, '')) {
+        toast(toastHead + item.qualities[q].label + '（同分辨率降帧率）');
+        stat(statKey);
+        S.hooks.qualitySwitch(S, q); // 换档 → 新会话接管，本监视器随 dispose 停止
+        return true;
+      }
+    }
+    return false;
+  }
+
   // 慢放：解码没死但帧率撑不住。顶针/recoverMediaError 治不了，直接走降帧率档；
   // 无帧率档可降或用户锁档时只提示，不擅动分辨率
   function onDegraded() {
@@ -509,19 +515,7 @@ function installHealthMonitor(S) {
     st.lastEvent = now;
     st.degSince = 0;
     S.state = 'recovering';
-    var canAutoQ = !item._qManual && item.cap.quality && item.qualities
-      && item.qualities.length > 1 && item.qIdx < item.qualities.length - 1;
-    if (canAutoQ && /60(·|$)/.test(item.qualities[item.qIdx].label)) {
-      var curLabel = item.qualities[item.qIdx].label;
-      for (var q = item.qIdx + 1; q < item.qualities.length; q++) {
-        if (item.qualities[q].label === curLabel.replace(/60(?=·|$)/, '')) {
-          toast('持续掉帧，已降为 ' + item.qualities[q].label + '（同分辨率降帧率）');
-          stat('stall.degradeDown');
-          S.hooks.qualitySwitch(S, q);
-          return;
-        }
-      }
-    }
+    if (dropFpsRung('持续掉帧，已降为 ', 'stall.degradeDown')) return;
     if (!item._qManual) toast('画面持续掉帧，可尝试在清晰度菜单降低档位');
   }
 

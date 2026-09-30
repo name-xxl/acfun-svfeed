@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.34-debug
+// @version      0.9.35-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -166,6 +166,9 @@
       gapFactor: 3.5,
       minGapMs: 150,
       // 武装超时下限（ms）
+      arriveFactor: 2.5,
+      // 自校准系数：武装间隔取 理论帧间隔 与 近期实际到帧间隔×此值 的大者
+      // （低帧率流/慢放态下「帧来得慢」不被误判成冻结；与判冻的 gapFactor 是两回事）
       fpsEmaA: 0.2,
       // 渲染帧率 EMA 平滑系数（逐帧采样）
       degWindowMs: 3e3,
@@ -442,61 +445,105 @@
     st.id = "acsv-style";
     (document.head || document.documentElement).appendChild(st);
   }
+  function singleFlight(load) {
+    var val, busy = null;
+    return {
+      get: function() {
+        if (val !== void 0) return Promise.resolve(val);
+        if (busy) return busy;
+        busy = load().then(
+          function(v) {
+            busy = null;
+            val = v;
+            return v;
+          },
+          function(e) {
+            busy = null;
+            throw e;
+          }
+        );
+        return busy;
+      },
+      reset: function() {
+        val = void 0;
+      }
+    };
+  }
+  function cookieVal(name) {
+    var m = new RegExp("(?:^|;\\s*)" + name + "=([^;]*)").exec(document.cookie);
+    return m ? m[1] : "";
+  }
+  function teardownVideo(v) {
+    v.pause();
+    v.removeAttribute("src");
+    v.load();
+    v.remove();
+  }
+  function sweepSlideVideos(slide) {
+    Array.prototype.forEach.call(slide.querySelectorAll("video"), teardownVideo);
+  }
 
   // src/net.js
+  function gmRequest(opts) {
+    return new Promise(function(resolve, reject) {
+      if (typeof GM_xmlhttpRequest !== "function") return reject(new Error("no-gm"));
+      GM_xmlhttpRequest({
+        method: opts.method || "GET",
+        url: opts.url,
+        headers: opts.headers,
+        data: opts.data,
+        timeout: opts.timeout,
+        onload: function(r) {
+          if (opts.okStatus && (r.status < 200 || r.status >= 300))
+            return reject(new Error("http-" + r.status));
+          if (opts.responseType === "text") return resolve(r.responseText);
+          try {
+            resolve(JSON.parse(r.responseText));
+          } catch (e) {
+            reject(new Error("bad json"));
+          }
+        },
+        onerror: function() {
+          reject(new Error("network"));
+        },
+        ontimeout: function() {
+          reject(new Error("timeout"));
+        }
+      });
+    });
+  }
   function request(url, method, headers, body) {
     method = method || "POST";
+    if (typeof GM_xmlhttpRequest === "function") {
+      return gmRequest({ method, url, headers, data: body, timeout: CFG.time.gm });
+    }
     return new Promise(function(resolve, reject) {
-      if (typeof GM_xmlhttpRequest === "function") {
-        GM_xmlhttpRequest({
-          method,
-          url,
-          headers: headers || void 0,
-          data: body || void 0,
-          timeout: CFG.time.gm,
-          // GM 桥接链路更长，享有更长超时
-          onload: function(r) {
-            try {
-              resolve(JSON.parse(r.responseText));
-            } catch (e) {
-              reject(new Error("bad json"));
-            }
-          },
-          onerror: function() {
-            reject(new Error("network"));
-          },
-          ontimeout: function() {
-            reject(new Error("timeout"));
-          }
-        });
-      } else {
-        var x = new XMLHttpRequest();
-        x.open(method, url);
-        x.withCredentials = true;
-        x.timeout = CFG.time.xhr;
-        if (headers) {
-          for (var k in headers) {
-            try {
-              x.setRequestHeader(k, headers[k]);
-            } catch (e) {
-            }
+      var x = new XMLHttpRequest();
+      x.open(method, url);
+      x.withCredentials = true;
+      x.timeout = CFG.time.xhr;
+      if (headers) {
+        for (var k in headers) {
+          try {
+            x.setRequestHeader(k, headers[k]);
+          } catch (e) {
           }
         }
-        x.onload = function() {
-          try {
-            resolve(JSON.parse(x.responseText));
-          } catch (e) {
-            reject(e);
-          }
-        };
-        x.onerror = function() {
-          reject(new Error("network"));
-        };
-        x.ontimeout = function() {
-          reject(new Error("timeout"));
-        };
-        x.send(body || null);
       }
+      x.onload = function() {
+        try {
+          resolve(JSON.parse(x.responseText));
+        } catch (e) {
+          reject(e);
+        }
+      };
+      x.onerror = function() {
+        reject(new Error("network"));
+      };
+      x.ontimeout = function() {
+        reject(new Error("timeout"));
+      };
+      x.send(body || null);
     });
   }
 
@@ -647,23 +694,15 @@
   // src/appapi.js
   var pcursor = "";
   var exhausted = false;
-  var apiSt = null;
-  var apiStBusy = null;
-  function ensureApiSt(force) {
-    if (apiSt && !force) return Promise.resolve(apiSt);
-    if (apiStBusy) return apiStBusy;
-    apiStBusy = postForm(CFG.api.token, "sid=acfun.midground.api").then(function(j) {
-      apiStBusy = null;
-      if (j && j.result === 0 && j["acfun.midground.api_st"]) {
-        apiSt = j["acfun.midground.api_st"];
-        return apiSt;
-      }
+  var apiStFlight = singleFlight(function() {
+    return postForm(CFG.api.token, "sid=acfun.midground.api").then(function(j) {
+      if (j && j.result === 0 && j["acfun.midground.api_st"]) return j["acfun.midground.api_st"];
       throw new Error("token-denied");
-    }, function(e) {
-      apiStBusy = null;
-      throw e;
     });
-    return apiStBusy;
+  });
+  function ensureApiSt(force) {
+    if (force) apiStFlight.reset();
+    return apiStFlight.get();
   }
   var UDID = "acsv-" + Math.random().toString(36).slice(2) + Date.now();
   function homeHeaders(withAppVer) {
@@ -715,28 +754,12 @@
     return "#" + ("000000" + (n & 16777215).toString(16)).slice(-6);
   }
   function gmPostJson(opts) {
-    return new Promise(function(resolve, reject) {
-      if (typeof GM_xmlhttpRequest !== "function") return reject(new Error("no-gm"));
-      GM_xmlhttpRequest({
-        method: "POST",
-        url: opts.url,
-        headers: opts.headers,
-        data: opts.data,
-        timeout: opts.timeout,
-        onload: function(r) {
-          try {
-            resolve(JSON.parse(r.responseText));
-          } catch (e) {
-            reject(e);
-          }
-        },
-        onerror: function() {
-          reject(new Error("network"));
-        },
-        ontimeout: function() {
-          reject(new Error("timeout"));
-        }
-      });
+    return gmRequest({
+      method: "POST",
+      url: opts.url,
+      headers: opts.headers,
+      data: opts.data,
+      timeout: opts.timeout
     });
   }
   function uploadGetToken(file) {
@@ -791,24 +814,15 @@
       return d.url.split("?")[0];
     });
   }
-  var favFolderId = null;
-  var favFolderBusy = null;
-  function ensureFavFolder() {
-    if (favFolderId) return Promise.resolve(favFolderId);
-    if (favFolderBusy) return favFolderBusy;
-    favFolderBusy = postForm(CFG.api.favFolderList, "").then(function(j) {
-      favFolderBusy = null;
+  var favFolderFlight = singleFlight(function() {
+    return postForm(CFG.api.favFolderList, "").then(function(j) {
       var list = j && (j.dataList || j.data) || [];
-      if (list.length && list[0].folderId != null) {
-        favFolderId = String(list[0].folderId);
-        return favFolderId;
-      }
+      if (list.length && list[0].folderId != null) return String(list[0].folderId);
       throw new Error("no-fav-folder");
-    }, function(e) {
-      favFolderBusy = null;
-      throw e;
     });
-    return favFolderBusy;
+  });
+  function ensureFavFolder() {
+    return favFolderFlight.get();
   }
   var AppAPI = {
     // ---- 首页推荐流 ----
@@ -1194,31 +1208,14 @@
     sortWrapEl: null,
     countSpan: null
   };
+  var M_UA = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
   function gmGetText(url) {
-    return new Promise(function(resolve, reject) {
-      if (typeof GM_xmlhttpRequest === "function") {
-        GM_xmlhttpRequest({
-          method: "GET",
-          url,
-          timeout: CFG.time.gm,
-          headers: {
-            "Referer": "https://m.acfun.cn/",
-            // m 站对桌面 UA 会 302 到 PC 空间页（无小视频数据），必须伪装手机 UA
-            "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
-          },
-          onload: function(r) {
-            resolve(r.responseText);
-          },
-          onerror: function() {
-            reject(new Error("network"));
-          },
-          ontimeout: function() {
-            reject(new Error("timeout"));
-          }
-        });
-      } else {
-        reject(new Error("no-gm"));
-      }
+    return gmRequest({
+      method: "GET",
+      url,
+      timeout: CFG.time.gm,
+      responseType: "text",
+      headers: { "Referer": "https://m.acfun.cn/", "User-Agent": M_UA }
     });
   }
   function parseUpItems(html) {
@@ -3181,12 +3178,7 @@
         this._attach();
       },
       _attach: function() {
-        Array.prototype.forEach.call(slide.querySelectorAll("video"), function(v) {
-          v.pause();
-          v.removeAttribute("src");
-          v.load();
-          v.remove();
-        });
+        sweepSlideVideos(slide);
         var video = document.createElement("video");
         video.className = "acsv-video";
         hooks2.initVideo(video);
@@ -3463,7 +3455,7 @@
       st.gapSec = Math.max(
         CFG.stall.minGapMs,
         CFG.stall.gapFactor * 1e3 / srcFps(),
-        st.arrival * 2.5
+        st.arrival * CFG.stall.arriveFactor
       ) / 1e3;
       armTimer = setTimeout(onGap, st.gapSec * 1e3);
     }
@@ -3573,7 +3565,6 @@
         armTimeout();
         return;
       }
-      var canAutoQ = !item._qManual && item.cap.quality && item.qualities && item.qualities.length > 1 && item.qIdx < item.qualities.length - 1;
       if (item._freezeTries >= 2 && tfNow >= 0 && st.lastTF != null && tfNow - st.lastTF > srcFps() * 2) {
         stat("stall.phantom");
         item._freezeTries = 0;
@@ -3584,18 +3575,8 @@
         return;
       }
       if (tfNow >= 0) st.lastTF = tfNow;
-      if (canAutoQ && /60(·|$)/.test(item.qualities[item.qIdx].label)) {
-        var curLabel = item.qualities[item.qIdx].label;
-        for (var q2 = item.qIdx + 1; q2 < item.qualities.length; q2++) {
-          if (item.qualities[q2].label === curLabel.replace(/60(?=·|$)/, "")) {
-            toast("播放卡顿，已切换到 " + item.qualities[q2].label + "（同分辨率降帧率）");
-            stat("stall.rung3");
-            S.hooks.qualitySwitch(S, q2);
-            return;
-          }
-        }
-      }
-      if (canAutoQ) {
+      if (dropFpsRung("播放卡顿，已切换到 ", "stall.rung3")) return;
+      if (canAutoQ()) {
         toast("播放卡顿，已自动切换到 " + item.qualities[item.qIdx + 1].label);
         stat("stall.rung4");
         S.hooks.qualitySwitch(S, item.qIdx + 1);
@@ -3614,6 +3595,22 @@
       S.resumeAt = video.currentTime;
       S.hooks.reattach(S);
     }
+    function canAutoQ() {
+      return !item._qManual && item.cap.quality && item.qualities && item.qualities.length > 1 && item.qIdx < item.qualities.length - 1;
+    }
+    function dropFpsRung(toastHead, statKey) {
+      if (!(canAutoQ() && /60(·|$)/.test(item.qualities[item.qIdx].label))) return false;
+      var curLabel = item.qualities[item.qIdx].label;
+      for (var q2 = item.qIdx + 1; q2 < item.qualities.length; q2++) {
+        if (item.qualities[q2].label === curLabel.replace(/60(?=·|$)/, "")) {
+          toast(toastHead + item.qualities[q2].label + "（同分辨率降帧率）");
+          stat(statKey);
+          S.hooks.qualitySwitch(S, q2);
+          return true;
+        }
+      }
+      return false;
+    }
     function onDegraded() {
       if (Date.now() < st.protectUntil) return;
       stat("stall.degraded");
@@ -3623,18 +3620,7 @@
       st.lastEvent = now;
       st.degSince = 0;
       S.state = "recovering";
-      var canAutoQ = !item._qManual && item.cap.quality && item.qualities && item.qualities.length > 1 && item.qIdx < item.qualities.length - 1;
-      if (canAutoQ && /60(·|$)/.test(item.qualities[item.qIdx].label)) {
-        var curLabel = item.qualities[item.qIdx].label;
-        for (var q2 = item.qIdx + 1; q2 < item.qualities.length; q2++) {
-          if (item.qualities[q2].label === curLabel.replace(/60(?=·|$)/, "")) {
-            toast("持续掉帧，已降为 " + item.qualities[q2].label + "（同分辨率降帧率）");
-            stat("stall.degradeDown");
-            S.hooks.qualitySwitch(S, q2);
-            return;
-          }
-        }
-      }
+      if (dropFpsRung("持续掉帧，已降为 ", "stall.degradeDown")) return;
       if (!item._qManual) toast("画面持续掉帧，可尝试在清晰度菜单降低档位");
     }
     function onFrame(now, meta) {
@@ -3766,12 +3752,7 @@
       slide._session.dispose();
       slide._session = null;
     }
-    Array.prototype.forEach.call(slide.querySelectorAll("video"), function(v) {
-      v.pause();
-      v.removeAttribute("src");
-      v.load();
-      v.remove();
-    });
+    sweepSlideVideos(slide);
     var session = createSession(slide, item, idx, HOOKS);
     slide._session = session;
     session.resumeAt = slide._resumeAt || 0;
@@ -4214,10 +4195,33 @@
   var drawer = null;
   var view = "";
   var cards = {};
-  var listTimer = null;
-  var chatTimer = null;
   var badgeTimer = null;
   var badgeDelayTimer = null;
+  function makePoller(fn, gap) {
+    var t = null;
+    function stop() {
+      if (t) {
+        clearInterval(t);
+        t = null;
+      }
+    }
+    return { start: function() {
+      stop();
+      t = setInterval(fn, gap);
+    }, stop };
+  }
+  var listPoll = makePoller(function() {
+    if (view !== "list") return listPoll.stop();
+    refreshList();
+  }, CFG.im.drawerListPoll);
+  var chatPoll = makePoller(function() {
+    if (!chat) return chatPoll.stop();
+    ensureIm().then(function(inst) {
+      if (!inst.connected) return;
+      chatPollOnce(inst, false);
+    }, function() {
+    });
+  }, CFG.im.drawerChatPoll);
   var chat = null;
   var badgeEl = null;
   var mounted = false;
@@ -4225,7 +4229,7 @@
     return n > 99 ? "99+" : n > 0 ? String(n) : "";
   }
   function selfUid() {
-    var m = /(?:^|;\s*)auth_key=(\d+)/.exec(document.cookie);
+    var m = /^(\d+)/.exec(cookieVal("auth_key"));
     return m ? m[1] : "";
   }
   function msgFrom(m) {
@@ -4347,18 +4351,18 @@
   }
   function showList() {
     if (!drawer) return;
-    stopChatPoll();
+    chatPoll.stop();
     view = "list";
     drawer.back.style.display = "none";
     drawer.title.textContent = "私信";
     drawer.listView.style.display = "";
     drawer.chatView.style.display = "none";
     refreshList();
-    startListPoll();
+    listPoll.start();
   }
   function showChat(targetId) {
     if (!drawer) return;
-    stopListPoll();
+    listPoll.stop();
     view = "chat";
     var card = cards[targetId] || {};
     drawer.back.style.display = "block";
@@ -4375,19 +4379,7 @@
       } catch (e) {
       }
     }, 60);
-    startChatPoll();
-  }
-  function stopListPoll() {
-    if (listTimer) {
-      clearInterval(listTimer);
-      listTimer = null;
-    }
-  }
-  function stopChatPoll() {
-    if (chatTimer) {
-      clearInterval(chatTimer);
-      chatTimer = null;
-    }
+    chatPoll.start();
   }
   var listSig = "";
   function sessionSig(ss) {
@@ -4745,24 +4737,6 @@
       toast("发送失败：" + String(err && err.message || "").slice(0, 120), 8e3);
     });
   }
-  function startChatPoll() {
-    stopChatPoll();
-    chatTimer = setInterval(function() {
-      if (!chat) return stopChatPoll();
-      ensureIm().then(function(inst) {
-        if (!inst.connected) return;
-        chatPollOnce(inst, false);
-      }, function() {
-      });
-    }, CFG.im.drawerChatPoll);
-  }
-  function startListPoll() {
-    stopListPoll();
-    listTimer = setInterval(function() {
-      if (view !== "list") return stopListPoll();
-      refreshList();
-    }, CFG.im.drawerListPoll);
-  }
   function openDrawer() {
     if (!isLogined()) {
       toast("私信需要先登录 AcFun 账号");
@@ -4787,8 +4761,8 @@
   }
   function closeDrawer() {
     if (drawer) drawer.el.classList.remove("open");
-    stopListPoll();
-    stopChatPoll();
+    listPoll.stop();
+    chatPoll.stop();
     view = "";
     releaseDrawer("im");
     syncCommentVars();
@@ -4804,8 +4778,8 @@
       clearInterval(badgeTimer);
       badgeTimer = null;
     }
-    stopListPoll();
-    stopChatPoll();
+    listPoll.stop();
+    chatPoll.stop();
     releaseDrawer("im");
     drawer = null;
     view = "";
@@ -4931,22 +4905,27 @@
     } catch (e) {
     }
   }
-  function ensureLocalLog() {
+  function injectPageFn(installer, installed) {
     var w = pageWin();
-    if (w.localLog && w.__acsvImLog) return;
+    if (installed(w)) return false;
     try {
-      logInstaller(w);
+      installer(w);
     } catch (e) {
     }
-    if (!(w.localLog && w.__acsvImLog)) {
-      try {
-        var s = document.createElement("script");
-        s.textContent = "(" + logInstaller.toString() + ")(window);";
-        (document.head || document.documentElement).appendChild(s);
-        s.remove();
-      } catch (e2) {
-      }
+    if (installed(w)) return false;
+    try {
+      var s = document.createElement("script");
+      s.textContent = "(" + installer.toString() + ")(window);";
+      (document.head || document.documentElement).appendChild(s);
+      s.remove();
+    } catch (e2) {
     }
+    return true;
+  }
+  function ensureLocalLog() {
+    injectPageFn(logInstaller, function(w) {
+      return w.localLog && w.__acsvImLog;
+    });
   }
   function imLogMark() {
     try {
@@ -5024,43 +5003,15 @@
   }
   function ensureWeblogSync() {
     if (tracerOk()) return false;
-    var w = pageWin();
-    try {
-      weblogInstaller(w);
-    } catch (e) {
-    }
-    if (!tracerOk()) {
-      try {
-        var s = document.createElement("script");
-        s.textContent = "(" + weblogInstaller.toString() + ")(window);";
-        (document.head || document.documentElement).appendChild(s);
-        s.remove();
-      } catch (e2) {
-      }
-    }
-    return true;
+    return injectPageFn(weblogInstaller, function() {
+      return tracerOk();
+    });
   }
   function isLogined() {
-    return /(?:^|;\s*)auth_key=\d+/.test(document.cookie);
+    return /^\d/.test(cookieVal("auth_key"));
   }
   function gmGetText2(url) {
-    return new Promise(function(resolve, reject) {
-      if (typeof GM_xmlhttpRequest !== "function") return reject(new Error("no-gm"));
-      GM_xmlhttpRequest({
-        method: "GET",
-        url,
-        timeout: CFG.im.loadT,
-        onload: function(r) {
-          r.status >= 200 && r.status < 300 && r.responseText ? resolve(r.responseText) : reject(new Error("http-" + r.status));
-        },
-        onerror: function() {
-          reject(new Error("network"));
-        },
-        ontimeout: function() {
-          reject(new Error("timeout"));
-        }
-      });
-    });
+    return gmRequest({ url, timeout: CFG.im.loadT, responseType: "text", okStatus: true });
   }
   function loadImSdk() {
     return new Promise(function(resolve, reject) {
@@ -5199,20 +5150,10 @@
     }
   }
   function ensureTracer(inst) {
+    injectPageFn(tracerInstaller, function(w2) {
+      return w2.__acsvTracer && w2.__acsvTracerOk;
+    });
     var w = pageWin();
-    try {
-      tracerInstaller(w);
-    } catch (e) {
-    }
-    if (!w.__acsvTracer || !w.__acsvTracerOk) {
-      try {
-        var s = document.createElement("script");
-        s.textContent = "(" + tracerInstaller.toString() + ")(window);";
-        (document.head || document.documentElement).appendChild(s);
-        s.remove();
-      } catch (e2) {
-      }
-    }
     try {
       var k = inst.kernel || {};
       var zs = k.api || k;
@@ -5553,6 +5494,20 @@
   }
 
   // src/rail.js
+  function withBusy(item, key, send, done) {
+    if (item[key]) return;
+    item[key] = true;
+    send().then(
+      function(ok) {
+        item[key] = false;
+        done(ok === true);
+      },
+      function() {
+        item[key] = false;
+        done(false);
+      }
+    );
+  }
   function buildSideRail(slide, item, goTo) {
     var rail = el("div", "acsv-rail");
     if (item.head) {
@@ -5571,12 +5526,11 @@
         fb.title = item.isFollowing ? "点击取消关注" : "关注 UP 主";
         fb.addEventListener("click", function(ev) {
           ev.stopPropagation();
-          if (item.followBusy) return;
           var turnOn = !item.isFollowing;
-          item.followBusy = true;
-          fb.textContent = "…";
-          setRealFollow(item, turnOn).then(function(ok) {
-            item.followBusy = false;
+          withBusy(item, "followBusy", function() {
+            fb.textContent = "…";
+            return setRealFollow(item, turnOn);
+          }, function(ok) {
             if (ok) {
               item.isFollowing = turnOn;
               fb.textContent = turnOn ? "✓" : "+";
@@ -5639,7 +5593,6 @@
       return { btn: b, count: c, imgEl, imgOn, imgOff };
     }
     var likeUI = railBtn({ mask: item.kind === "home" ? VIDEO_ICONS.like : SITE_ICONS.heart, svg: ICONS.heart }, fmt(item.like), "点赞", function(b) {
-      if (item.likeBusy) return;
       var turnOn = !item.localLike;
       item.localLike = turnOn;
       item.like += turnOn ? 1 : -1;
@@ -5648,9 +5601,9 @@
       b.classList.remove("bump");
       void b.offsetWidth;
       b.classList.add("bump");
-      item.likeBusy = true;
-      setRealLike(item, turnOn).then(function(ok) {
-        item.likeBusy = false;
+      withBusy(item, "likeBusy", function() {
+        return setRealLike(item, turnOn);
+      }, function(ok) {
         if (ok) {
           item.liked = turnOn;
           toast(turnOn ? "已点赞" : "已取消点赞");
@@ -5691,14 +5644,13 @@
     }
     if (item.cap.favorite) {
       var favUI = railBtn({ mask: VIDEO_ICONS.favorite, svg: ICONS.star }, fmt(item.fav), "收藏", function(b) {
-        if (item.favBusy) return;
         var turnOn = !item.favorited;
-        item.favBusy = true;
         b.classList.remove("bump");
         void b.offsetWidth;
         b.classList.add("bump");
-        setRealFavorite(item, turnOn).then(function(ok) {
-          item.favBusy = false;
+        withBusy(item, "favBusy", function() {
+          return setRealFavorite(item, turnOn);
+        }, function(ok) {
           if (ok) {
             item.favorited = turnOn;
             toast(turnOn ? "已加入收藏" : "已取消收藏");
@@ -5767,10 +5719,9 @@
       ob.addEventListener("click", function(ev) {
         ev.stopPropagation();
         pop.remove();
-        if (item.banBusy) return;
-        item.banBusy = true;
-        giveBanana(item, n2).then(function(ok) {
-          item.banBusy = false;
+        withBusy(item, "banBusy", function() {
+          return giveBanana(item, n2);
+        }, function(ok) {
           if (ok) {
             item.banana += n2;
             item.thrown = true;

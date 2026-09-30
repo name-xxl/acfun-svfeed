@@ -72,6 +72,8 @@ export var CFG = {
     // FROZEN 判定（rVFC 事件驱动）：超过 gapFactor×理论帧间隔无新帧、且时间轴仍在推进
     gapFactor: 3.5,
     minGapMs: 150,     // 武装超时下限（ms）
+    arriveFactor: 2.5, // 自校准系数：武装间隔取 理论帧间隔 与 近期实际到帧间隔×此值 的大者
+                       // （低帧率流/慢放态下「帧来得慢」不被误判成冻结；与判冻的 gapFactor 是两回事）
     fpsEmaA: 0.2,      // 渲染帧率 EMA 平滑系数（逐帧采样）
     degWindowMs: 3000, // DEGRADED（慢放）持续判定窗口
     degFpsRatio: 0.5,  // EMA 帧率 < 源帧率×此值 → 慢放

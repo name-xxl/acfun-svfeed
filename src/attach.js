@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { toast } from './ui.js';
+import { toast, sweepSlideVideos } from './ui.js';
 import { createSession } from './session.js';
 
 // ---------- 元素级契约总表 ----------
@@ -57,12 +57,8 @@ export function switchQuality(item, slide, qIdx, manual) {
 export function attachVideo(slide, item, idx) {
   if (slide._session) { slide._session.dispose(); slide._session = null; }
   // 防御强拆残留 video（幽灵防护；正常应已被旧会话 dispose 拆除）。
-  // 不能用 src=''：空 src 会异步触发一次 SRC_NOT_SUPPORTED error，被移除元素的监听器
-  // 闭包着活 slide 驱动恢复链（0.9.1 幽灵 video 根因）；
-  // removeAttribute('src') + load() 是规范拆除，不产生 error 事件。
-  Array.prototype.forEach.call(slide.querySelectorAll('video'), function (v) {
-    v.pause(); v.removeAttribute('src'); v.load(); v.remove();
-  });
+  // 不能用 src=''：空 src 会异步触发 SRC_NOT_SUPPORTED error 驱动恢复链（0.9.1 根因）
+  sweepSlideVideos(slide);
   var session = createSession(slide, item, idx, HOOKS);
   slide._session = session;
   session.resumeAt = slide._resumeAt || 0;

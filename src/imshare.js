@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
-import { el, esc, toast, copyText } from './ui.js';
+import { gmRequest } from './net.js';
+import { el, esc, toast, copyText, cookieVal } from './ui.js';
 import { postForm } from './appapi.js';
 import { openChat } from './imdrawer.js';
 
@@ -72,18 +73,24 @@ function logInstaller(G) {
     });
   } catch (e) { }
 }
-function ensureLocalLog() {
+// 「直写 unsafeWindow → 失败再内联 script」统一出口：installer 是自包含函数（页面
+// world 无闭包变量可引用），installed(w) 探测注入是否已生效。返回 true = 本次注入过
+function injectPageFn(installer, installed) {
   var w = pageWin();
-  if (w.localLog && w.__acsvImLog) return;
-  try { logInstaller(w); } catch (e) { } // 直写 unsafeWindow：多数 TM 组合可用
-  if (!(w.localLog && w.__acsvImLog)) {
-    try {
-      var s = document.createElement('script');
-      s.textContent = '(' + logInstaller.toString() + ')(window);';
-      (document.head || document.documentElement).appendChild(s);
-      s.remove();
-    } catch (e2) { }
-  }
+  if (installed(w)) return false;
+  try { installer(w); } catch (e) { } // 直写 unsafeWindow：多数 TM 组合可用
+  if (installed(w)) return false;
+  try {
+    var s = document.createElement('script');
+    s.textContent = '(' + installer.toString() + ')(window);';
+    (document.head || document.documentElement).appendChild(s);
+    s.remove();
+  } catch (e2) { }
+  return true;
+}
+
+function ensureLocalLog() {
+  injectPageFn(logInstaller, function (w) { return w.localLog && w.__acsvImLog; });
 }
 function imLogMark() {
   try { return (pageWin().__acsvImLog || []).length; } catch (e) { return 0; }
@@ -153,23 +160,13 @@ function tracerOk() {
 }
 function ensureWeblogSync() {
   if (tracerOk()) return false;
-  var w = pageWin();
-  try { weblogInstaller(w); } catch (e) { } // 直写 unsafeWindow
-  if (!tracerOk()) {
-    try {
-      var s = document.createElement('script');
-      s.textContent = '(' + weblogInstaller.toString() + ')(window);';
-      (document.head || document.documentElement).appendChild(s);
-      s.remove();
-    } catch (e2) { }
-  }
-  return true; // 本次装了垫片/包裹
+  return injectPageFn(weblogInstaller, function () { return tracerOk(); });
 }
 
 // 单例健康检查：kernel.config.logger 就是 send 时的 tracer 来源（be 名单命令打点用），
 // 缺失 ⇒ SendMsg 必崩。站点可能在 weblog 初始化前就创建了单例（weblog 异步加载），
 export function isLogined() {
-  return /(?:^|;\s*)auth_key=\d+/.test(document.cookie);
+  return /^\d/.test(cookieVal('auth_key'));
 }
 
 // 加载 ImSdk：拉源码文本 → 打补丁 → blob 执行（CSP script-src 含 blob: ✓）。
@@ -178,21 +175,7 @@ export function isLogined() {
 // f.context 走既有 void 0 保护——零功能影响。补丁失配（官方换版）则回退未修补直载，
 // 那时发送崩溃走 hadTracerCrash 既有兜底
 function gmGetText(url) {
-  return new Promise(function (resolve, reject) {
-    if (typeof GM_xmlhttpRequest !== 'function') return reject(new Error('no-gm'));
-    GM_xmlhttpRequest({
-      method: 'GET',
-      url: url,
-      timeout: CFG.im.loadT,
-      onload: function (r) {
-        (r.status >= 200 && r.status < 300 && r.responseText)
-          ? resolve(r.responseText)
-          : reject(new Error('http-' + r.status));
-      },
-      onerror: function () { reject(new Error('network')); },
-      ontimeout: function () { reject(new Error('timeout')); }
-    });
-  });
+  return gmRequest({ url: url, timeout: CFG.im.loadT, responseType: 'text', okStatus: true });
 }
 
 function loadImSdk() {
@@ -304,16 +287,8 @@ function tracerInstaller(G) {
   } catch (e) { G.__acsvTracerOk = false; }
 }
 export function ensureTracer(inst) {
+  injectPageFn(tracerInstaller, function (w) { return w.__acsvTracer && w.__acsvTracerOk; });
   var w = pageWin();
-  try { tracerInstaller(w); } catch (e) { } // 直写 unsafeWindow（多数组合可用）
-  if (!w.__acsvTracer || !w.__acsvTracerOk) {
-    try {
-      var s = document.createElement('script');
-      s.textContent = '(' + tracerInstaller.toString() + ')(window);';
-      (document.head || document.documentElement).appendChild(s);
-      s.remove();
-    } catch (e2) { }
-  }
   // 沙箱侧再补一刀（页面内联若被 CSP 拦截时的尽力而为）
   try {
     var k = inst.kernel || {};

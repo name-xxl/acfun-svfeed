@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { el, esc, toast } from './ui.js';
+import { el, esc, toast, cookieVal } from './ui.js';
 import { root, claimDrawer, releaseDrawer } from './state.js';
 import {
   ensureIm, ensureConnected, ensureTracer, linkOk, forceSync,
@@ -23,14 +23,32 @@ var ICON_COMMENT = '<i class="acsvg-cicon" style="--acsvg-cicon:url(' + ICON_SVG
 var drawer = null;          // { el, head, back, title, close, listView, search, listBody, chatView, bubbles, input, send }
 var view = '';              // '' | 'list' | 'chat'
 var cards = {};             // targetId -> {name, headUrl}（跨视图缓存）
-var listTimer = null, chatTimer = null, badgeTimer = null, badgeDelayTimer = null;
+var badgeTimer = null, badgeDelayTimer = null;
+
+// 自停式轮询（0.9.35 收敛 stopX/startX 模板）：tick 内调 poll.stop() 即自拆
+function makePoller(fn, gap) {
+  var t = null;
+  function stop() { if (t) { clearInterval(t); t = null; } }
+  return { start: function () { stop(); t = setInterval(fn, gap); }, stop: stop };
+}
+var listPoll = makePoller(function () {
+  if (view !== 'list') return listPoll.stop();
+  refreshList();
+}, CFG.im.drawerListPoll);
+var chatPoll = makePoller(function () {
+  if (!chat) return chatPoll.stop();
+  ensureIm().then(function (inst) {
+    if (!inst.connected) return;
+    chatPollOnce(inst, false);
+  }, function () { });
+}, CFG.im.drawerChatPoll);
 var chat = null;            // { targetId, name, session, lastCount, seen, pendSeq, lastDivTs }
 var badgeEl = null, mounted = false;
 
 function badgeText(n) { return n > 99 ? '99+' : (n > 0 ? String(n) : ''); }
 
 function selfUid() {
-  var m = /(?:^|;\s*)auth_key=(\d+)/.exec(document.cookie);
+  var m = /^(\d+)/.exec(cookieVal('auth_key'));
   return m ? m[1] : '';
 }
 
@@ -141,18 +159,18 @@ function ensureDrawerDom() {
 // ---------- 视图切换 ----------
 function showList() {
   if (!drawer) return;
-  stopChatPoll();
+  chatPoll.stop();
   view = 'list';
   drawer.back.style.display = 'none';
   drawer.title.textContent = '私信';
   drawer.listView.style.display = '';
   drawer.chatView.style.display = 'none';
   refreshList();
-  startListPoll();
+  listPoll.start();
 }
 function showChat(targetId) {
   if (!drawer) return;
-  stopListPoll();
+  listPoll.stop();
   view = 'chat';
   var card = cards[targetId] || {};
   drawer.back.style.display = 'block';
@@ -164,10 +182,8 @@ function showChat(targetId) {
   loadChat();
   drawer.input.value = ''; // 清掉上一会话可能残留的草稿
   setTimeout(function () { try { drawer.input.focus(); } catch (e) { } }, 60);
-  startChatPoll();
+  chatPoll.start();
 }
-function stopListPoll() { if (listTimer) { clearInterval(listTimer); listTimer = null; } }
-function stopChatPoll() { if (chatTimer) { clearInterval(chatTimer); chatTimer = null; } }
 
 // ---------- 列表视图 ----------
 var listSig = '';
@@ -495,23 +511,6 @@ function sendChat(text) {
     toast('发送失败：' + String((err && err.message) || '').slice(0, 120), 8000);
   });
 }
-function startChatPoll() {
-  stopChatPoll();
-  chatTimer = setInterval(function () {
-    if (!chat) return stopChatPoll();
-    ensureIm().then(function (inst) {
-      if (!inst.connected) return;
-      chatPollOnce(inst, false);
-    }, function () { });
-  }, CFG.im.drawerChatPoll);
-}
-function startListPoll() {
-  stopListPoll();
-  listTimer = setInterval(function () {
-    if (view !== 'list') return stopListPoll();
-    refreshList();
-  }, CFG.im.drawerListPoll);
-}
 
 // ---------- 开关与徽标 ----------
 // 抽屉槽位（state.js 协调）：开前 claim 占槽（评论抽屉开着则被自动收回），关时 release；
@@ -534,8 +533,8 @@ export function openChat(targetId) {
 }
 export function closeDrawer() {
   if (drawer) drawer.el.classList.remove('open');
-  stopListPoll();
-  stopChatPoll();
+  listPoll.stop();
+  chatPoll.stop();
   view = '';
   releaseDrawer('im');
   syncCommentVars(); // 根类归 syncCommentVars 统一收拾
@@ -547,8 +546,8 @@ export function teardownIm() {
   imShutdown(); // 使在途连接轮询失效：孤儿 poll 不再 forceReconnect 动共享单例（0.9.34）
   if (badgeDelayTimer) { clearTimeout(badgeDelayTimer); badgeDelayTimer = null; }
   if (badgeTimer) { clearInterval(badgeTimer); badgeTimer = null; }
-  stopListPoll();
-  stopChatPoll();
+  listPoll.stop();
+  chatPoll.stop();
   releaseDrawer('im');
   drawer = null; view = ''; chat = null;
   cards = {}; listSig = ''; lastListRows = null;

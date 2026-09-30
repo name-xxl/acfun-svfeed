@@ -68,3 +68,41 @@ export function ensureStyle() {
   st.id = 'acsv-style';
   (document.head || document.documentElement).appendChild(st);
 }
+
+// ---------- 通用工具（0.9.35 收敛自各模块的重复样板） ----------
+
+// 单飞 + 值缓存：并发调用共享同一次加载；失败弃缓存下次自动重试；reset() 供强制刷新
+export function singleFlight(load) {
+  var val, busy = null;
+  return {
+    get: function () {
+      if (val !== undefined) return Promise.resolve(val);
+      if (busy) return busy;
+      busy = load().then(function (v) { busy = null; val = v; return v; },
+        function (e) { busy = null; throw e; });
+      return busy;
+    },
+    reset: function () { val = undefined; }
+  };
+}
+
+// 读 cookie 值（无 URLDecode——调用方按原始值消费）
+export function cookieVal(name) {
+  var m = new RegExp('(?:^|;\\s*)' + name + '=([^;]*)').exec(document.cookie);
+  return m ? m[1] : '';
+}
+
+// video 元素规范拆除：不能用 src=''——空 src 会异步触发一次 SRC_NOT_SUPPORTED error，
+// 被移除元素的监听器闭包着活 slide 驱动恢复链（0.9.1 幽灵 video 根因）；
+// removeAttribute('src') + load() 是规范拆除，不产生 error 事件
+export function teardownVideo(v) {
+  v.pause();
+  v.removeAttribute('src');
+  v.load();
+  v.remove();
+}
+
+// slide 内防御性清扫一切残留 video（幽灵防护；正常应已被上一会话 dispose 拆除）
+export function sweepSlideVideos(slide) {
+  Array.prototype.forEach.call(slide.querySelectorAll('video'), teardownVideo);
+}

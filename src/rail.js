@@ -10,6 +10,15 @@ import { openSharePanel } from './imshare.js';
 // 从 buildSlide 抽出：头像/关注、点赞、评论、投蕉、收藏、分享。
 // 箭头翻页依赖上层导航（scrollToIndex 在 player.js），经 goTo 参数注入保持依赖单向。
 
+// busy 守卫三件套：请求期间挡重复点击，完成/拒绝都复位（interact 层正常不 reject，
+// 这里兜住异常不让 busy 永久卡死）；done(ok) 收到布尔结果
+function withBusy(item, key, send, done) {
+  if (item[key]) return;
+  item[key] = true;
+  send().then(function (ok) { item[key] = false; done(ok === true); },
+    function () { item[key] = false; done(false); });
+}
+
 export function buildSideRail(slide, item, goTo) {
   var rail = el('div', 'acsv-rail');
   if (item.head) {
@@ -28,12 +37,11 @@ export function buildSideRail(slide, item, goTo) {
       fb.title = item.isFollowing ? '点击取消关注' : '关注 UP 主';
       fb.addEventListener('click', function (ev) {
         ev.stopPropagation();
-        if (item.followBusy) return;
         var turnOn = !item.isFollowing;
-        item.followBusy = true;
-        fb.textContent = '…';
-        setRealFollow(item, turnOn).then(function (ok) {
-          item.followBusy = false;
+        withBusy(item, 'followBusy', function () {
+          fb.textContent = '…';
+          return setRealFollow(item, turnOn);
+        }, function (ok) {
           if (ok) {
             item.isFollowing = turnOn;
             fb.textContent = turnOn ? '✓' : '+';
@@ -93,7 +101,6 @@ export function buildSideRail(slide, item, goTo) {
   // 原生图标形状 + CSS 换色：home 用视频页原生点赞/收藏/投蕉图标，
   // sv 点赞用小视频站原生心形 PNG；svg 字段为 CDN 失效时的回退
   var likeUI = railBtn({ mask: item.kind === 'home' ? VIDEO_ICONS.like : SITE_ICONS.heart, svg: ICONS.heart }, fmt(item.like), '点赞', function (b) {
-    if (item.likeBusy) return;
     var turnOn = !item.localLike;
     // 乐观更新
     item.localLike = turnOn;
@@ -101,9 +108,9 @@ export function buildSideRail(slide, item, goTo) {
     likeUI.count.textContent = fmt(item.like);
     b.classList.toggle('on', turnOn);
     b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
-    item.likeBusy = true;
-    setRealLike(item, turnOn).then(function (ok) {
-      item.likeBusy = false;
+    withBusy(item, 'likeBusy', function () {
+      return setRealLike(item, turnOn);
+    }, function (ok) {
       if (ok) {
         item.liked = turnOn;
         toast(turnOn ? '已点赞' : '已取消点赞');
@@ -143,12 +150,11 @@ export function buildSideRail(slide, item, goTo) {
   if (item.cap.favorite) {
     // 收藏
     var favUI = railBtn({ mask: VIDEO_ICONS.favorite, svg: ICONS.star }, fmt(item.fav), '收藏', function (b) {
-      if (item.favBusy) return;
       var turnOn = !item.favorited;
-      item.favBusy = true;
       b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
-      setRealFavorite(item, turnOn).then(function (ok) {
-        item.favBusy = false;
+      withBusy(item, 'favBusy', function () {
+        return setRealFavorite(item, turnOn);
+      }, function (ok) {
         if (ok) {
           item.favorited = turnOn;
           toast(turnOn ? '已加入收藏' : '已取消收藏');
@@ -215,10 +221,9 @@ function toggleBanPop(slide, btn, item) {
     ob.addEventListener('click', function (ev) {
       ev.stopPropagation();
       pop.remove();
-      if (item.banBusy) return;
-      item.banBusy = true;
-      giveBanana(item, n).then(function (ok) {
-        item.banBusy = false;
+      withBusy(item, 'banBusy', function () {
+        return giveBanana(item, n);
+      }, function (ok) {
         if (ok) {
           item.banana += n;
           item.thrown = true; // 投蕉不可取消：投过即锁定

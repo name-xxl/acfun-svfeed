@@ -1,4 +1,5 @@
 import { CFG } from './cfg.js';
+import { gmRequest } from './net.js';
 import { el, fmt, ensureStyle } from './ui.js';
 import { FeedStore } from './feedstore.js';
 import { API } from './api.js';
@@ -15,25 +16,12 @@ export var UpVideos = {
   gridEl: null, pagebarEl: null, progressEl: null, sortWrapEl: null, countSpan: null
 };
 
+// m 站对桌面 UA 会 302 到 PC 空间页（无小视频数据），必须伪装手机 UA
+var M_UA = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
 function gmGetText(url) {
-  return new Promise(function (resolve, reject) {
-    if (typeof GM_xmlhttpRequest === 'function') {
-      GM_xmlhttpRequest({
-        method: 'GET',
-        url: url,
-        timeout: CFG.time.gm,
-        headers: {
-          'Referer': 'https://m.acfun.cn/',
-          // m 站对桌面 UA 会 302 到 PC 空间页（无小视频数据），必须伪装手机 UA
-          'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36'
-        },
-        onload: function (r) { resolve(r.responseText); },
-        onerror: function () { reject(new Error('network')); },
-        ontimeout: function () { reject(new Error('timeout')); }
-      });
-    } else {
-      reject(new Error('no-gm'));
-    }
+  return gmRequest({
+    method: 'GET', url: url, timeout: CFG.time.gm, responseType: 'text',
+    headers: { 'Referer': 'https://m.acfun.cn/', 'User-Agent': M_UA }
   });
 }
 

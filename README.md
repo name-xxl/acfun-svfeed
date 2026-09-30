@@ -162,6 +162,26 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.35（2026-09-30）· P2-a 重复收敛：八组样板各归一处（等价重构，行为不变）
+
+- net.js 新增 `gmRequest(opts)`（GM 通道参数化出口：responseType/超时/自定义头/二进制
+  data/状态码门）——request 的 GM 分支、appapi 二进制上传、uppage/imshare 拉文本，
+  四处内联 GM 包装收敛为一处。
+- ui.js 新增 `singleFlight`：appapi 令牌/收藏夹两组「值缓存+单飞」收敛
+  （comments 表情映射与 api.ensureResolved 形状不同，保留原样并说明）。
+- ui.js 新增 `cookieVal`/`teardownVideo`/`sweepSlideVideos`：imdrawer.selfUid 与
+  imshare.isLogined 的 cookie 解析、attach/session 幽灵清扫两处逐字重复收敛。
+- imshare 新增 `injectPageFn`：「直写 unsafeWindow → 失败再内联 script」三处样板收敛；
+  已生效时跳过直写（installer 幂等，重复包裹本就该防）。
+- rail 新增 `withBusy`：关注/点赞/收藏/投蕉四处 busy 守卫收敛，顺手补上拒绝路径复位
+  （原实现请求异常时 busy 永真、按钮永久锁死）。
+- session 冻结阶梯第 3 级与慢放判定**逐行重复**的降帧率逻辑抽为 `dropFpsRung`/`canAutoQ()`
+  （调参/演进不再双改）；自校准系数 2.5 入 `CFG.stall.arriveFactor`（1500/300/1000 等
+  单点值维持内联+注释）。
+- imdrawer 新增 `makePoller`：列表/聊天双轮询的 start/stop 模板收敛。
+- **有意不做**：pad2 双定义保留——immsg 必须维持零依赖叶子属性，一行 helper 的去重
+  不值得破坏它。
+
 ### 0.9.34（2026-09-30）· P1 边界加固：六处防御补强
 
 - **弹幕列表翻页加页数上限**（appapi danmakuList）：原条目数上限挡不住「空页 + 活游标」

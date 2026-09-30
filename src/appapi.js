@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
-import { request } from './net.js';
+import { request, gmRequest } from './net.js';
+import { singleFlight } from './ui.js';
 import { normalizeHome } from './data.js';
 import { applyQuality } from './quality.js';
 
@@ -14,20 +15,15 @@ var pcursor = '';
 var exhausted = false;
 
 // 令牌：登录后 id.app.acfun.cn 用网页 Cookie 换 acfun.midground.api_st
-var apiSt = null, apiStBusy = null;
+var apiStFlight = singleFlight(function () {
+  return postForm(CFG.api.token, 'sid=acfun.midground.api').then(function (j) {
+    if (j && j.result === 0 && j['acfun.midground.api_st']) return j['acfun.midground.api_st'];
+    throw new Error('token-denied');
+  });
+});
 export function ensureApiSt(force) {
-  if (apiSt && !force) return Promise.resolve(apiSt);
-  if (apiStBusy) return apiStBusy;
-  apiStBusy = postForm(CFG.api.token, 'sid=acfun.midground.api')
-    .then(function (j) {
-      apiStBusy = null;
-      if (j && j.result === 0 && j['acfun.midground.api_st']) {
-        apiSt = j['acfun.midground.api_st'];
-        return apiSt;
-      }
-      throw new Error('token-denied');
-    }, function (e) { apiStBusy = null; throw e; });
-  return apiStBusy;
+  if (force) apiStFlight.reset();
+  return apiStFlight.get();
 }
 
 // 设备指纹会话内固定：每请求随机 udid 是风控典型特征，一个会话应像同一台设备
@@ -89,22 +85,11 @@ function intToHex(n) {
   return '#' + ('000000' + (n & 0xFFFFFF).toString(16)).slice(-6);
 }
 
-// 上传用 GM_xhr 的 Promise 化：POST + JSON 解析；无 GM/网络错/超时/解析失败一律 reject
+// 上传用 GM 通道（POST + JSON 解析；无 GM/网络错/超时/解析失败一律 reject）
 function gmPostJson(opts) {
-  return new Promise(function (resolve, reject) {
-    if (typeof GM_xmlhttpRequest !== 'function') return reject(new Error('no-gm'));
-    GM_xmlhttpRequest({
-      method: 'POST',
-      url: opts.url,
-      headers: opts.headers,
-      data: opts.data,
-      timeout: opts.timeout,
-      onload: function (r) {
-        try { resolve(JSON.parse(r.responseText)); } catch (e) { reject(e); }
-      },
-      onerror: function () { reject(new Error('network')); },
-      ontimeout: function () { reject(new Error('timeout')); }
-    });
+  return gmRequest({
+    method: 'POST', url: opts.url, headers: opts.headers,
+    data: opts.data, timeout: opts.timeout
   });
 }
 
@@ -167,21 +152,16 @@ function uploadGetUrl(token) {
 }
 
 // 默认收藏夹：收藏必须落夹，快速收藏统一进第一个夹（对齐 acfunsdk 的 default_fid 做法）。
-// 会话内缓存 + 单飞；无任何收藏夹时抛错（极罕见，需先在站内创建）
-var favFolderId = null, favFolderBusy = null;
-function ensureFavFolder() {
-  if (favFolderId) return Promise.resolve(favFolderId);
-  if (favFolderBusy) return favFolderBusy;
-  favFolderBusy = postForm(CFG.api.favFolderList, '').then(function (j) {
-    favFolderBusy = null;
+// 会话内缓存 + 单飞（singleFlight）；无任何收藏夹时抛错（极罕见，需先在站内创建）
+var favFolderFlight = singleFlight(function () {
+  return postForm(CFG.api.favFolderList, '').then(function (j) {
     var list = (j && (j.dataList || j.data)) || [];
-    if (list.length && list[0].folderId != null) {
-      favFolderId = String(list[0].folderId);
-      return favFolderId;
-    }
+    if (list.length && list[0].folderId != null) return String(list[0].folderId);
     throw new Error('no-fav-folder');
-  }, function (e) { favFolderBusy = null; throw e; });
-  return favFolderBusy;
+  });
+});
+function ensureFavFolder() {
+  return favFolderFlight.get();
 }
 
 export var AppAPI = {
