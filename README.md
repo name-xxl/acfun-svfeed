@@ -162,6 +162,21 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.37（2026-09-30）· P2-c 热路径效率：扫描界界化 + 观察器重建
+
+- **setActive 暂停扫描收敛为窗口内**：video 只存在于渲染窗口的 slide 里，原全量扫
+  scroller 会随会话长度线性放大（slide 元素常驻不拆）；幽灵兜底仍由 sweepVideos 负责。
+- **updateArrows 传当前 slide**：长会话中 `root.querySelectorAll('.acsv-arrow-up')`
+  同样线性放大；箭头显隐本就随激活重估，传参后 O(1 slide)，未传参回退全量。
+- **IntersectionObserver 工厂化（makeIO）**：切源清空 scroller 后观察列表同步重建，
+  detached slide 不再滞留 io 内部表（原实现滞留到卸载才释放）。
+- **onFrame 死亡判定去掉逐帧 querySelector**：video 元素在会话存活期内不会被换
+  （所有换绑路径都先 dispose 本会话），isConnected 足以覆盖。
+- **resize 尾节流 150ms**：拖窗口时全量 syncPanFit 不必逐帧跑。
+- **有意不做**：dmcanvas addLocal 增量插轨——量宽有缓存、items 近似有序，全量
+  assignLanes 实测为亚毫秒级且只在用户手动发弹幕时触发，增量分配需复制贪心分配器、
+  分歧风险大于收益。
+
 ### 0.9.36（2026-09-30）· P2-b 结构治理：comments 三分 + el() 语义重构 + 死契约清理
 
 - **comments.js 三分**（692 → 约 400 行）：UBB 渲染拆 `ubb.js`（esc-first 管线 +

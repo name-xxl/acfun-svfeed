@@ -351,7 +351,10 @@ function installHealthMonitor(S) {
     if (document.hidden || video.paused || video.seeking || video.ended || video.readyState < 2) return;
     armTimeout();
   }
-  function dead() { return st.stopped || S.state === 'disposed' || !slide.isConnected || slide.querySelector('video') !== video; }
+  // 每帧调用的死亡判定（0.9.37 去掉逐帧 querySelector）：video 元素在会话存活期内
+  // 不会被换——所有换绑路径（attachVideo/switchQuality/恢复链重挂）都先 dispose 本
+  // 会话（st.stopped 短路在前），isConnected 足以覆盖 slide 被拆的残余场景
+  function dead() { return st.stopped || S.state === 'disposed' || !slide.isConnected || !video.isConnected; }
   function stop() {
     st.stopped = true;
     disarm();

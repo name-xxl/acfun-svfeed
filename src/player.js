@@ -21,6 +21,17 @@ import { setupInputHandlers, teardownInputHandlers } from './input.js';
 
 // ---------- UI ----------
 var io = null;
+// 激活观察器工厂：切源清空 scroller 后观察列表必须重建，否则 detached slide 滞留
+// io 内部表（0.9.37）；供 mount 与 switchSource 共用
+function makeIO() {
+  return new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (en.isIntersecting && en.intersectionRatio >= CFG.io.ratio) {
+        setActive(Number(en.target.dataset.idx));
+      }
+    });
+  }, { root: scroller, threshold: [CFG.io.ratio] });
+}
 var logoLabel = null, segSv = null, segHome = null;
 
 // player.js 只留编排层：渲染窗口/激活/滚动/初始加载/生命周期/顶栏 + 会话回接钩子。
@@ -42,9 +53,14 @@ function syncPanFit(slide) {
   if (v && panFitOf(v)) slide.dataset.panfit = '1';
   else slide.removeAttribute('data-panfit');
 }
+var resizeTimer = null;
 window.addEventListener('resize', function () {
   if (!scroller) return;
-  Array.prototype.forEach.call(scroller.querySelectorAll('.acsv-slide'), syncPanFit);
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function () {
+    if (!scroller) return;
+    Array.prototype.forEach.call(scroller.querySelectorAll('.acsv-slide'), syncPanFit);
+  }, 150); // 尾节流：拖窗口时全量 syncPanFit 没必要逐帧跑（0.9.37）
 });
 
 // 会话回接钩子：控件条/弹幕/连播/观看上报/挂源。播放态归 session.js，UI 编排留在这里
@@ -162,7 +178,7 @@ export function renderWindow() {
     Array.prototype.some.call(scroller.children, function (c, k) { return c !== ordered[k]; })) {
     ordered.forEach(function (s) { scroller.appendChild(s); });
   }
-  updateArrows();
+  updateArrows(slideAt(cur));
 }
 
 function setActive(idx) {
@@ -174,21 +190,24 @@ function setActive(idx) {
   // 每次都补缓冲（空间页列表上下文的泵也在这里启动）
   FeedStore.ensureMore().then(renderWindow);
   prewarm(idx);
-  updateArrows();
+  updateArrows(slideAt(idx));
   if (isOpenComments()) {
     var itC = FeedStore.items[idx];
     if (itC && commentState.sourceId !== itC.id) openComments(itC.id, itC.stype, itC.shareUrl, itC.kind);
   }
   if (!scroller) return;
-  // 暂停非当前视频，停掉其弹幕图层（滚动回来 playing 会自动重启）
-  var vs = scroller.querySelectorAll('video');
-  Array.prototype.forEach.call(vs, function (v) {
-    var s = v.closest('.acsv-slide');
-    if (s && Number(s.dataset.idx) !== idx) {
-      v.pause();
-      if (s._dmLayer) s._dmLayer.stop();
+  // 暂停非当前视频，停掉其弹幕图层（滚动回来 playing 会自动重启）。
+  // 0.9.37 收敛为窗口内扫描：video 只存在于渲染窗口的 slide 里，全量扫 scroller
+  // 会随会话长度线性放大（slide 元素常驻）；幽灵兜底仍由 playback.sweepVideos 负责
+  for (var wi = Math.max(0, idx - CFG.win.back); wi <= idx + CFG.win.fwd && wi < FeedStore.items.length; wi++) {
+    if (wi === idx) continue;
+    var ws = slideAt(wi);
+    var wv = ws && ws.querySelector('video');
+    if (wv && !wv.paused) {
+      wv.pause();
+      if (ws._dmLayer) ws._dmLayer.stop();
     }
-  });
+  }
   var curSlide = slideAt(idx);
   var cur = curSlide && curSlide.querySelector('video');
   if (cur) {
@@ -317,13 +336,7 @@ function mount() {
   mountBadge(imBtn, imBtn.querySelector('.acsv-im-badge'));
   dbg('root-appended');
 
-  io = new IntersectionObserver(function (entries) {
-    entries.forEach(function (en) {
-      if (en.isIntersecting && en.intersectionRatio >= CFG.io.ratio) {
-        setActive(Number(en.target.dataset.idx));
-      }
-    });
-  }, { root: scroller, threshold: [CFG.io.ratio] });
+  io = makeIO();
 
   setupInputHandlers({ scrollToIndex: scrollToIndex, exitFeed: exitFeed });
 
@@ -379,6 +392,9 @@ function switchSource(s) {
   });
   scroller.innerHTML = '';
   scroller.scrollTop = 0;
+  // 旧 slide 全部移除：观察列表同步重建，detached slide 不滞留 io（0.9.37）
+  if (io) io.disconnect();
+  io = makeIO();
   FeedStore.reset();
   loadInitial(null);
 }

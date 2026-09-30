@@ -244,9 +244,12 @@ export function buildControls(slide, idx, item) {
   return box;
 }
 
-export function updateArrows() {
+export function updateArrows(slide) {
   if (!root) return;
-  var ups = root.querySelectorAll('.acsv-arrow-up');
+  // 当前 slide 的箭头即所见状态：传参免全量扫描（长会话 slide 常驻 scroller，
+  // querySelectorAll 随会话线性放大，0.9.37）；未传参回退全量（兜底路径）。
+  // 显隐在每次激活时重估——离开画面的箭头带旧状态无妨，滑回即刷新
+  var ups = slide ? slide.querySelectorAll('.acsv-arrow-up') : root.querySelectorAll('.acsv-arrow-up');
   Array.prototype.forEach.call(ups, function (up) {
     // 第一条直接隐藏上一条按钮
     up.style.display = FeedStore.current <= 0 ? 'none' : 'grid';

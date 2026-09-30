@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.36
+// @version      0.9.37
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -3473,7 +3473,7 @@
       armTimeout();
     }
     function dead() {
-      return st.stopped || S.state === "disposed" || !slide.isConnected || slide.querySelector("video") !== video;
+      return st.stopped || S.state === "disposed" || !slide.isConnected || !video.isConnected;
     }
     function stop() {
       st.stopped = true;
@@ -4012,9 +4012,9 @@
     slide._ctlTrack = track;
     return box;
   }
-  function updateArrows() {
+  function updateArrows(slide) {
     if (!root) return;
-    var ups = root.querySelectorAll(".acsv-arrow-up");
+    var ups = slide ? slide.querySelectorAll(".acsv-arrow-up") : root.querySelectorAll(".acsv-arrow-up");
     Array.prototype.forEach.call(ups, function(up) {
       up.style.display = FeedStore.current <= 0 ? "none" : "grid";
       up.disabled = FeedStore.current <= 0;
@@ -5969,6 +5969,15 @@
 
   // src/player.js
   var io = null;
+  function makeIO() {
+    return new IntersectionObserver(function(entries) {
+      entries.forEach(function(en) {
+        if (en.isIntersecting && en.intersectionRatio >= CFG.io.ratio) {
+          setActive(Number(en.target.dataset.idx));
+        }
+      });
+    }, { root: scroller, threshold: [CFG.io.ratio] });
+  }
   var logoLabel = null;
   var segSv = null;
   var segHome = null;
@@ -5982,9 +5991,14 @@
     if (v && panFitOf(v)) slide.dataset.panfit = "1";
     else slide.removeAttribute("data-panfit");
   }
+  var resizeTimer = null;
   window.addEventListener("resize", function() {
     if (!scroller) return;
-    Array.prototype.forEach.call(scroller.querySelectorAll(".acsv-slide"), syncPanFit);
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+      if (!scroller) return;
+      Array.prototype.forEach.call(scroller.querySelectorAll(".acsv-slide"), syncPanFit);
+    }, 150);
   });
   var SESSION_HOOKS = {
     initVideo: function(video) {
@@ -6111,7 +6125,7 @@
         scroller.appendChild(s);
       });
     }
-    updateArrows();
+    updateArrows(slideAt(cur));
   }
   function setActive(idx) {
     if (FeedStore.current !== idx) reportLeaveCurrent("swipe");
@@ -6119,20 +6133,21 @@
     FeedStore.current = idx;
     FeedStore.ensureMore().then(renderWindow);
     prewarm(idx);
-    updateArrows();
+    updateArrows(slideAt(idx));
     if (isOpenComments()) {
       var itC = FeedStore.items[idx];
       if (itC && commentState.sourceId !== itC.id) openComments(itC.id, itC.stype, itC.shareUrl, itC.kind);
     }
     if (!scroller) return;
-    var vs = scroller.querySelectorAll("video");
-    Array.prototype.forEach.call(vs, function(v) {
-      var s = v.closest(".acsv-slide");
-      if (s && Number(s.dataset.idx) !== idx) {
-        v.pause();
-        if (s._dmLayer) s._dmLayer.stop();
+    for (var wi = Math.max(0, idx - CFG.win.back); wi <= idx + CFG.win.fwd && wi < FeedStore.items.length; wi++) {
+      if (wi === idx) continue;
+      var ws = slideAt(wi);
+      var wv = ws && ws.querySelector("video");
+      if (wv && !wv.paused) {
+        wv.pause();
+        if (ws._dmLayer) ws._dmLayer.stop();
       }
-    });
+    }
     var curSlide = slideAt(idx);
     var cur = curSlide && curSlide.querySelector("video");
     if (cur) {
@@ -6250,13 +6265,7 @@
     document.body.appendChild(root);
     mountBadge(imBtn, imBtn.querySelector(".acsv-im-badge"));
     dbg("root-appended");
-    io = new IntersectionObserver(function(entries) {
-      entries.forEach(function(en) {
-        if (en.isIntersecting && en.intersectionRatio >= CFG.io.ratio) {
-          setActive(Number(en.target.dataset.idx));
-        }
-      });
-    }, { root: scroller, threshold: [CFG.io.ratio] });
+    io = makeIO();
     setupInputHandlers({ scrollToIndex, exitFeed });
     var route = parseRoute();
     var routeMid = route.mid;
@@ -6317,6 +6326,8 @@
     });
     scroller.innerHTML = "";
     scroller.scrollTop = 0;
+    if (io) io.disconnect();
+    io = makeIO();
     FeedStore.reset();
     loadInitial(null);
   }
