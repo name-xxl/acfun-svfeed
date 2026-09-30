@@ -962,7 +962,7 @@ flowchart LR
   feedstore --> api & state & player
   comments --> ubb & emoticon & inputbar & imgview & appapi & net
   interact --> appapi
-  imdrawer --> imshare & immsg & imicons & appapi & emoticon & inputbar & imgview
+  imdrawer --> imshare & immsg & imicons & appapi & emoticon & inputbar & imgview & comments
   imnative --> immsg & imicons & appapi
   imshare --> appapi & imdrawer
 
