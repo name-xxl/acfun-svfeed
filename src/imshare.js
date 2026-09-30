@@ -325,11 +325,14 @@ export function ensureTracer(inst) {
 // 等待链路就绪：健康则秒回。不挂任何事件——SDK 事件在页面 world 触发，跨 TM 沙箱
 // 回调不可靠（WS 已连上、面板却超时的教训）；改为轮询可观察状态（跨 world 读已证实可靠）。
 // connT1 后仍未连才主动重连（widget 自带 3 次重试，别抢它的活），connT2 总闸
+var connGen = 0; // 递增使在途连接轮询失效：抽屉拆除后孤儿 poll 不再动共享单例（0.9.34）
+export function imShutdown() { connGen++; }
 export function ensureConnected(inst) {
   if (inst.connected && linkOk(inst)) return Promise.resolve();
   return new Promise(function (resolve, reject) {
-    var start = Date.now(), forced = false;
+    var start = Date.now(), forced = false, gen = connGen;
     (function poll() {
+      if (gen !== connGen) return reject(new Error('im-cancelled'));
       var ok = false;
       try { ok = !!inst.connected && linkOk(inst); } catch (e) { }
       if (ok) return resolve();
@@ -456,14 +459,20 @@ function resetSingleton(Ctor) {
 }
 
 function rebuildIm() {
-  imPromise = null;
-  return loadImSdk().then(function (Ctor) {
+  // 先同步占住单例槽再走异步衔接：重建期间（loadImSdk 在途）任何 ensureIm() 都会
+  // 等到同一个 promise，而不是看到 null 又并行 new 一个（0.9.34 双单例窗口修复）
+  var p = loadImSdk().then(function (Ctor) {
     ensureWeblogSync();
     resetSingleton(Ctor);
     var inst = new Ctor({ dev: false });
     imPromise = Promise.resolve(inst);
     return ensureConnected(inst).then(function () { return inst; });
+  }, function (e) {
+    if (imPromise === p) imPromise = null; // 加载失败弃槽，下次 ensureIm 可重试
+    throw e;
   });
+  imPromise = p;
+  return p;
 }
 
 // 发送 + 失败自动恢复重试一次。按失败指纹分派：

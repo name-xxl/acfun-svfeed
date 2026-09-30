@@ -353,6 +353,7 @@ export var AppAPI = {
   danmakuList: function (videoId) {
     var all = [];
     var FORM = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    var pages = 0;
     function page(p) {
       return request(CFG.api.dmList, 'POST', FORM,
         'resourceId=' + videoId + '&resourceType=9&enableAdvanced=true&pcursor=' + p
@@ -370,7 +371,10 @@ export var AppAPI = {
             });
           });
           var next = j.pcursor;
+          // 页数与条目数双上限：条目数挡不住「空页 + 活游标」的服务端异常，
+          // 那会让同一游标无限递归爆栈（0.9.34）
           if (!next || next === 'no_more' || next === '0'
+            || ++pages >= CFG.danmaku.maxPages
             || all.length >= CFG.danmaku.maxPages * CFG.danmaku.pageSize) return all;
           return page(next);
         }, function () { return all; });

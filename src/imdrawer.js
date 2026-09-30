@@ -3,7 +3,7 @@ import { el, esc, toast } from './ui.js';
 import { root, claimDrawer, releaseDrawer } from './state.js';
 import {
   ensureIm, ensureConnected, ensureTracer, linkOk, forceSync,
-  doSend, fetchCards, isLogined
+  doSend, fetchCards, isLogined, imShutdown
 } from './imshare.js';
 import { syncCommentVars } from './comments.js';
 import { parseCard, parseShare, fmtDur, msgTextOf, previewOfMessage } from './immsg.js';
@@ -465,6 +465,8 @@ function sendChat(text) {
       });
     });
   }).then(function () {
+    // 已切会话/收起抽屉：旧回调不得动新会话的占位与对账标记（0.9.34）
+    if (!chat || chat.targetId !== targetId) return;
     // 成功：占位气泡等轮询对账移除；若超时未对账，轮询 reset 也会刷新
     var ph = drawer.bubbles.querySelector('.acsv-im-bubble.pending');
     if (ph) {
@@ -473,19 +475,23 @@ function sendChat(text) {
     }
     chat.pending = null;
   }).catch(function (err) {
-    var ph = drawer.bubbles.querySelector('.acsv-im-bubble.pending');
-    if (ph) {
-      ph.classList.remove('pending');
-      ph.classList.add('failed');
-      ph.title = '发送失败，点击重试';
-      ph.addEventListener('click', function (ev) {
-        ev.stopPropagation();
-        ph.remove();
-        drawer.input.value = text;
-        drawer.input.focus();
-      });
+    var stale = !chat || chat.targetId !== targetId;
+    if (!stale) {
+      var ph = drawer.bubbles.querySelector('.acsv-im-bubble.pending');
+      if (ph) {
+        ph.classList.remove('pending');
+        ph.classList.add('failed');
+        ph.title = '发送失败，点击重试';
+        ph.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          ph.remove();
+          drawer.input.value = text;
+          drawer.input.focus();
+        });
+      }
+      chat.pending = null;
     }
-    chat.pending = null;
+    // 消息确实没发出去：无论是否已切会话都提示（切会话场景不碰 DOM，只告知）
     toast('发送失败：' + String((err && err.message) || '').slice(0, 120), 8000);
   });
 }
@@ -538,6 +544,7 @@ export function closeDrawer() {
 // 会让重进的 ensureDrawerDom 拒绝重建（抽屉打不开直到刷新），badgeTimer 还会继续拉 SDK
 export function teardownIm() {
   mounted = false;
+  imShutdown(); // 使在途连接轮询失效：孤儿 poll 不再 forceReconnect 动共享单例（0.9.34）
   if (badgeDelayTimer) { clearTimeout(badgeDelayTimer); badgeDelayTimer = null; }
   if (badgeTimer) { clearInterval(badgeTimer); badgeTimer = null; }
   stopListPoll();

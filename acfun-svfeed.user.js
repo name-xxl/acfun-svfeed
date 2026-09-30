@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.33
+// @version      0.9.34
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -606,19 +606,22 @@
 
   // src/quality.js
   function applyQuality(item) {
+    if (!item.qualities || !item.qualities.length) return;
+    var all = item.qualities;
+    item._qualitiesAll = all;
     var pref = null;
     try {
       pref = localStorage.getItem(CFG.lsCodec);
     } catch (e) {
     }
     if (pref !== "auto" && pref !== "hevc") pref = CFG.codec.def;
-    if (pref !== "auto" && item.qualities) {
-      var hit = item.qualities.filter(function(x) {
+    if (pref !== "auto") {
+      var hit = all.filter(function(x) {
         return x.codec === pref;
       });
-      if (hit.length) item.qualities = hit;
+      item.qualities = hit.length ? hit : all;
     }
-    if (CFG.exp.q30 && item.qualities) {
+    if (CFG.exp.q30) {
       var lo = item.qualities.filter(function(x) {
         return !(x.fps > 30);
       });
@@ -1010,6 +1013,7 @@
     danmakuList: function(videoId) {
       var all = [];
       var FORM = { "Content-Type": "application/x-www-form-urlencoded" };
+      var pages = 0;
       function page(p) {
         return request(
           CFG.api.dmList,
@@ -1029,7 +1033,7 @@
             });
           });
           var next = j.pcursor;
-          if (!next || next === "no_more" || next === "0" || all.length >= CFG.danmaku.maxPages * CFG.danmaku.pageSize) return all;
+          if (!next || next === "no_more" || next === "0" || ++pages >= CFG.danmaku.maxPages || all.length >= CFG.danmaku.maxPages * CFG.danmaku.pageSize) return all;
           return page(next);
         }, function() {
           return all;
@@ -4713,6 +4717,7 @@
         });
       });
     }).then(function() {
+      if (!chat || chat.targetId !== targetId) return;
       var ph = drawer.bubbles.querySelector(".acsv-im-bubble.pending");
       if (ph) {
         ph.classList.remove("pending");
@@ -4720,19 +4725,22 @@
       }
       chat.pending = null;
     }).catch(function(err) {
-      var ph = drawer.bubbles.querySelector(".acsv-im-bubble.pending");
-      if (ph) {
-        ph.classList.remove("pending");
-        ph.classList.add("failed");
-        ph.title = "发送失败，点击重试";
-        ph.addEventListener("click", function(ev) {
-          ev.stopPropagation();
-          ph.remove();
-          drawer.input.value = text;
-          drawer.input.focus();
-        });
+      var stale = !chat || chat.targetId !== targetId;
+      if (!stale) {
+        var ph = drawer.bubbles.querySelector(".acsv-im-bubble.pending");
+        if (ph) {
+          ph.classList.remove("pending");
+          ph.classList.add("failed");
+          ph.title = "发送失败，点击重试";
+          ph.addEventListener("click", function(ev) {
+            ev.stopPropagation();
+            ph.remove();
+            drawer.input.value = text;
+            drawer.input.focus();
+          });
+        }
+        chat.pending = null;
       }
-      chat.pending = null;
       toast("发送失败：" + String(err && err.message || "").slice(0, 120), 8e3);
     });
   }
@@ -4786,6 +4794,7 @@
   }
   function teardownIm() {
     mounted = false;
+    imShutdown();
     if (badgeDelayTimer) {
       clearTimeout(badgeDelayTimer);
       badgeDelayTimer = null;
@@ -5210,11 +5219,16 @@
     } catch (e3) {
     }
   }
+  var connGen = 0;
+  function imShutdown() {
+    connGen++;
+  }
   function ensureConnected(inst) {
     if (inst.connected && linkOk(inst)) return Promise.resolve();
     return new Promise(function(resolve, reject) {
-      var start = Date.now(), forced = false;
+      var start = Date.now(), forced = false, gen = connGen;
       (function poll() {
+        if (gen !== connGen) return reject(new Error("im-cancelled"));
         var ok = false;
         try {
           ok = !!inst.connected && linkOk(inst);
@@ -5348,8 +5362,7 @@
     }
   }
   function rebuildIm() {
-    imPromise = null;
-    return loadImSdk().then(function(Ctor) {
+    var p = loadImSdk().then(function(Ctor) {
       ensureWeblogSync();
       resetSingleton(Ctor);
       var inst = new Ctor({ dev: false });
@@ -5357,7 +5370,12 @@
       return ensureConnected(inst).then(function() {
         return inst;
       });
+    }, function(e) {
+      if (imPromise === p) imPromise = null;
+      throw e;
     });
+    imPromise = p;
+    return p;
   }
   function sendOnce(inst, targetId, text) {
     return doSend(inst, targetId, text).catch(function() {
@@ -5909,14 +5927,17 @@
         }
         case " ":
           ev.preventDefault();
+          if (ev.repeat) break;
           togglePlayGesture(currentVideo());
           break;
         case "m":
         case "M":
+          if (ev.repeat) break;
           toggleMuteGesture(currentVideo());
           break;
         case "f":
         case "F":
+          if (ev.repeat) break;
           toggleFullscreen();
           break;
         case "Escape": {
@@ -5931,6 +5952,7 @@
         }
         case "c":
         case "C": {
+          if (ev.repeat) break;
           var itC = FeedStore.items[cur];
           if (itC) toggleItemComments(itC);
           break;

@@ -162,6 +162,21 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.34（2026-09-30）· P1 边界加固：六处防御补强
+
+- **弹幕列表翻页加页数上限**（appapi danmakuList）：原条目数上限挡不住「空页 + 活游标」
+  的服务端异常——同一游标无限递归爆栈；现页数/条目数双上限。
+- **编码过滤不再永久收窄档位集**（quality.js）：过滤始终从 playInfo 全集出发并留档
+  `_qualitiesAll`，二次调用/偏好切回时档位可恢复，不再砍一刀少一半。
+- **私信发送回调加会话校验**（imdrawer sendChat）：发送后快速切会话，旧回调不再污染
+  新会话的占位气泡与对账标记；失败 toast 保留（消息确实没发出去）。
+- **键盘空格/M/F/C 补 ev.repeat 守卫**（input.js）：长按不再播放暂停抖动/静音疯切/
+  全屏连切/评论反复开合（ArrowRight 原有守卫，ArrowDown/Escape 维持现状）。
+- **rebuildIm 先同步占住单例槽**（imshare）：重建期间并发 ensureIm 等同一个 promise，
+  不再看到 null 又并行 new 出双单例；加载失败弃槽保住重试语义。
+- **ensureConnected 轮询加代际取消**（imshare connGen + imShutdown）：抽屉拆除后，
+  在途连接轮询（最长 25s，3.5s 会触发 forceReconnect）立即失效，不再动共享单例。
+
 ### 0.9.33（2026-09-30）· P0 安全与正确性：XSS 三点修复 + msgText 未定义引用 + eslint 落地
 
 - **XSS 三点修复（同根因：`el()` 第三参是 innerHTML，调用点漏 esc）**：

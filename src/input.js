@@ -46,12 +46,15 @@ export function setupInputHandlers(api) {
       }
       case ' ':
         ev.preventDefault();
+        if (ev.repeat) break; // 长按连发会播放/暂停高频抖动（0.9.34）
         togglePlayGesture(currentVideo());
         break;
       case 'm': case 'M':
+        if (ev.repeat) break;
         toggleMuteGesture(currentVideo());
         break;
       case 'f': case 'F':
+        if (ev.repeat) break;
         toggleFullscreen();
         break;
       case 'Escape': {
@@ -64,6 +67,7 @@ export function setupInputHandlers(api) {
         break;
       }
       case 'c': case 'C': {
+        if (ev.repeat) break; // 长按评论反复开合（0.9.34）
         var itC = FeedStore.items[cur];
         if (itC) toggleItemComments(itC);
         break;
