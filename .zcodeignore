@@ -4,6 +4,17 @@
 # 修改 .gitignore 不会自动同步到本文件；可在设置页「从 .gitignore 同步」。
 
 
+node_modules/
+.zcode/
+*_tmp.*
+feedstore-block.txt
+diag-out.js
+backup/
+推荐帖.txt
+*.log
+Thumbs.db
+.DS_Store
+
 # ===== ↑ 以上同步自 .gitignore（「从 .gitignore 同步」只重写以上部分）=====
 .git/
 .hg/
@@ -34,4 +45,5 @@ eggs/
 pip-wheel-metadata/
 wheels/
 # ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
-# 自定义规则写在下方（本行提示可删除）
+# 自定义规则：构建产物（内嵌 hls.js，各 800KB+）只需按路径读取，不必出现在搜索候选
+acfun-svfeed*.user.js
