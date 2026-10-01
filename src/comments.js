@@ -8,7 +8,7 @@ import { uploadImage } from './upload.js';
 import { renderCommentHtml } from './ubb.js';
 import { mountEmotButton, ensureEmotionMap, insertAtCursor } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
-import { buildInputBar } from './inputbar.js';
+import { buildInputBar, buildQuoteChip } from './inputbar.js';
 
 // ---------- 评论抽屉 ----------
 // A 站通用评论系统：小视频 sourceType=5（sourceId=meowId），普通视频 sourceType=3（sourceId=ac号），
@@ -326,18 +326,18 @@ function renderCommentTip(text) {
 // ---- 评论输入条（复用动态广场 editor/postComment 模块思路）----
 // 常驻抽屉底部；支持发评论、回复评论（replyToCommentId=根评论）、回复楼中楼（=子评论）
 var inputBar = null;
+var replyChip = null; // 回复提示条（inputbar.buildQuoteChip 共用工厂，私信引用 chip 同款）：{box, label}
 
 function setReply(target) {
   commentState.replyTo = target || null;
   if (!inputBar) return;
-  var chip = inputBar.querySelector('.acsv-creply');
   var inp = inputBar.querySelector('.acsv-cinput-text');
   if (commentState.replyTo) {
-    chip.style.display = 'inline-flex';
-    chip.textContent = '回复 @' + commentState.replyTo.name + ' ✕';
+    replyChip.box.style.display = 'flex';
+    replyChip.label.textContent = '回复：@' + commentState.replyTo.name;
     inp.placeholder = '回复 @' + commentState.replyTo.name + '…';
   } else {
-    chip.style.display = 'none';
+    replyChip.box.style.display = 'none';
     inp.placeholder = '评论一时爽，一直评论一直爽。';
   }
 }
@@ -387,18 +387,13 @@ function insertLocalComment(c, isReply) {
 
 function ensureCommentInput() {
   if (inputBar && inputBar.isConnected) return inputBar;
-  var chip = el('button', 'acsv-creply');
-  chip.style.display = 'none';
-  chip.title = '取消回复';
-  chip.addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    setReply(null);
-  });
+  // 回复提示条（私信引用 chip 同款，输入条上方独立一行）：label 提目标、× 取消，
+  // 文案与 placeholder 联动收敛在 setReply
+  replyChip = buildQuoteChip(function () { setReply(null); }, '取消回复');
   // 输入栏 DOM/行为收敛在 inputbar.buildInputBar（评论/私信共用）：这里只注入差异语义——
-  // 回复药丸置首、图片按钮走「上传→插配图代码」、长度 1000（配图代码含完整签名 URL 450+
-  // 字符，限 233 会把输入框锁死到打不了字）
+  // 图片按钮走「上传→插配图代码」、长度 1000（配图代码含完整签名 URL 450+ 字符，
+  // 限 233 会把输入框锁死到打不了字）
   var bar = buildInputBar({
-    chip: chip,
     img: {
       title: '插入图片',
       onFile: function (f) {
@@ -422,6 +417,7 @@ function ensureCommentInput() {
   var inp = bar.input;
   var panel = el('div', 'acsv-emotpanel');
   commentDrawer.el.appendChild(panel);
+  commentDrawer.el.appendChild(replyChip.box); // 输入条上方：回复提示条
   commentDrawer.el.appendChild(inputBar);
 
   // 评论区无限滚动：接近底部自动加载下一页

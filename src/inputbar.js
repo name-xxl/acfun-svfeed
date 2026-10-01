@@ -1,7 +1,6 @@
 // ---------- 抽屉输入栏（0.9.41 收敛：评论/私信共用同一套 DOM/CSS/行为） ----------
 // 此前两栏各自一份（.acsv-cinput* / .acsv-im-*），观感漂移：圆角不一致、发送键一药丸
 // 一圆角、自动增高只有评论有。差异语义由 opts 注入：
-//   chip        栏内置药丸（评论的「回复 @xx」提示；IM 无，引用 chip 在栏外独立一行）
 //   img         {title, onFile} 图片按钮 + 隐藏 file input；IM 发图消息 / 评论插配图代码
 //   placeholder / maxLength / onSend
 // 行为统一：Enter 发送（Shift 换行）、Esc 失焦、栏内按键 stopPropagation、输入自动
@@ -12,7 +11,6 @@ import { ICONS } from './styles.js';
 
 export function buildInputBar(opts) {
   var box = el('div', 'acsv-cinput');
-  if (opts.chip) box.appendChild(opts.chip);
   var emotBtn = elHtml('button', 'acsv-cinput-emot', ICONS.smiley);
   emotBtn.title = '表情';
   box.appendChild(emotBtn);
@@ -54,4 +52,18 @@ export function buildInputBar(opts) {
   });
   send.addEventListener('click', function (ev) { ev.stopPropagation(); opts.onSend(); });
   return { box: box, emotBtn: emotBtn, input: input, send: send, imgBtn: imgBtn, fileInp: fileInp, fitHeight: fitHeight };
+}
+
+// 引用/回复 chip（0.9.47 收敛：私信引用与评论回复共用，置于输入条上方独立一行，原
+// 评论的栏内红药丸 .acsv-creply 废弃）。label 文案与显隐由调用方按态驱动；× 只管取消
+export function buildQuoteChip(onCancel, xTitle) {
+  var box = el('div', 'acsv-quotechip');
+  box.style.display = 'none';
+  var label = el('span', 'acsv-quotechip-label');
+  var x = el('button', 'acsv-quotechip-x', '✕');
+  x.title = xTitle || '取消';
+  x.addEventListener('click', function (ev) { ev.stopPropagation(); onCancel(); });
+  box.appendChild(label);
+  box.appendChild(x);
+  return { box: box, label: label };
 }

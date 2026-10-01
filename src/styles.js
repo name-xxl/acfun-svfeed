@@ -1,8 +1,7 @@
 // ---------- 样式与图标 ----------
 import { CFG } from './cfg.js';
 
-// RAW_CSS 里主题色一律写 #fd4c5d 占位，导出时统一替换为 CSS 变量（换肤只改 cfg.accent）；
-// 例外：alpha 形态 rgba(253,76,93,…) 不做替换，不随换肤（仅 .acsv-creply 底色一处）
+// RAW_CSS 里主题色一律写 #fd4c5d 占位，导出时统一替换为 CSS 变量（换肤只改 cfg.accent）
 var RAW_CSS = ''
   + '#acsv-root{position:fixed;inset:0;z-index:2147483000;background:#000;color:#fff;'
   + 'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;user-select:none}'
@@ -109,8 +108,6 @@ var RAW_CSS = ''
   // 抽屉输入栏（0.9.41 起评论/私信共用，DOM 由 inputbar.buildInputBar 统一产出）与表情面板
   + '.acsv-cinput{flex:none;display:flex;align-items:center;gap:8px;padding:10px 12px;'
   + 'border-top:1px solid rgba(255,255,255,.09);background:rgba(22,22,27,.98)}'
-  + '.acsv-creply{display:none;align-items:center;border:none;background:rgba(253,76,93,.16);color:#fd4c5d;'
-  + 'font-size:12px;padding:5px 9px;border-radius:999px;cursor:pointer;font-family:inherit;flex:none;white-space:nowrap}'
   + '.acsv-cinput-emot{border:none;background:none;font-size:18px;cursor:pointer;flex:none;padding:2px;line-height:1}'
   + '.acsv-cinput-emot:hover{transform:scale(1.12)}'
   + '.acsv-cinput-text{flex:1;min-width:0;height:36px;border:none;background:rgba(255,255,255,.1);border-radius:8px;'
@@ -423,13 +420,14 @@ var RAW_CSS = ''
   + '.acsv-im-quote.link{cursor:pointer}'
   + '.acsv-im-quote.link:hover{background:rgba(0,0,0,.28)}'
   + '.acsv-im-quote-preview{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.72)}'
-  // 输入条上方引用 chip
-  + '.acsv-im-quotechip{flex:none;display:flex;align-items:center;gap:8px;margin:8px 12px 0;'
+  // 输入条上方引用/回复 chip（0.9.47 起评论/私信共用，DOM 由 inputbar.buildQuoteChip 产出；
+  // 命名沿 .acsv-cinput* 先例——共用侧保留一侧前缀，此处为 im 来源）
+  + '.acsv-quotechip{flex:none;display:flex;align-items:center;gap:8px;margin:8px 12px 0;'
   + 'padding:5px 8px 5px 12px;background:rgba(255,255,255,.08);border-radius:8px;font-size:12px;color:#b8bdc7}'
-  + '.acsv-im-quotechip-label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
-  + '.acsv-im-quotechip-x{flex:none;border:none;background:transparent;color:#8b909a;cursor:pointer;'
+  + '.acsv-quotechip-label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+  + '.acsv-quotechip-x{flex:none;border:none;background:transparent;color:#8b909a;cursor:pointer;'
   + 'font-size:12px;padding:2px 4px;font-family:inherit}'
-  + '.acsv-im-quotechip-x:hover{color:#fff}'
+  + '.acsv-quotechip-x:hover{color:#fff}'
   // 引用定位高亮：主题红描边渐隐（加在被定位的消息主元素上，动画完移除类）
   + '@keyframes acsv-im-flash{0%{box-shadow:0 0 0 2px var(--acsv-accent)}100%{box-shadow:0 0 0 2px transparent}}'
   + '.acsv-im-flash{animation:acsv-im-flash 1.2s ease}'

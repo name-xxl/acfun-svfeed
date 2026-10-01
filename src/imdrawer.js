@@ -8,7 +8,7 @@ import {
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
-import { buildInputBar } from './inputbar.js';
+import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import {
   parseCard, parseShare, fmtDur, msgTextOf, previewOfMessage,
   msgContentType, isQuotable, quoteOf, quoteExtraOf
@@ -26,7 +26,7 @@ var ICON_COMMENT = '<i class="acsvg-cicon" style="--acsvg-cicon:url(' + ICON_SVG
 // 收发确认零事件依赖：新消息靠轮询 kernel.getMessages 增量（WS 推送由 SDK 内核自动
 // 写入缓存，推送事件仅作即时上屏的加速路径）；已读走内核级 markSessionRead。
 
-var drawer = null;          // { el, head, back, title, close, listView, search, listBody, chatView, bubbles, quoteChip, input, send }
+var drawer = null;          // { el, head, back, title, close, listView, search, listBody, chatView, bubbles, quoteChip:{box,label}, input, send }
 var view = '';              // '' | 'list' | 'chat'
 var cards = {};             // targetId -> {name, headUrl}（跨视图缓存）
 var badgeTimer = null, badgeDelayTimer = null;
@@ -150,9 +150,8 @@ function ensureDrawerDom() {
   var chatView = el('div', 'acsv-im-chatview');
   chatView.style.display = 'none';
   var bubbles = el('div', 'acsv-im-bubbles');
-  // 引用 chip（评论抽屉 acsv-creply 同款交互）：置输入条上方，setQuote 驱动显隐
-  var quoteChip = el('div', 'acsv-im-quotechip');
-  quoteChip.style.display = 'none';
+  // 引用 chip：DOM 由 inputbar.buildQuoteChip 统一产出（0.9.47 起评论回复同款），置输入条上方，setQuote 驱动显隐
+  var quoteChip = buildQuoteChip(function () { setQuote(null); }, '取消引用');
   var inputBar = buildInputBar({
     img: { title: '发送图片', onFile: sendImageMsg }, // 尺寸门禁在 sendImageMsg 内
     placeholder: '发个消息…',
@@ -407,23 +406,18 @@ function setQuote(q) {
   if (chat) chat.quote = q || null;
   renderQuoteChip();
 }
-// chip 文案与 placeholder 联动（复刻 comments.setReply）；chat 为空时只藏不显
+// chip 文案与 placeholder 联动（评论侧 comments.setReply 同构）；chat 为空时只藏不显
 function renderQuoteChip() {
   if (!drawer) return;
   var chip = drawer.quoteChip, q = chat && chat.quote;
   if (!q) {
-    chip.style.display = 'none';
-    chip.textContent = '';
+    chip.box.style.display = 'none';
+    chip.label.textContent = '';
     drawer.input.placeholder = '发个消息…';
     return;
   }
-  chip.style.display = 'flex';
-  chip.textContent = '';
-  chip.appendChild(el('span', 'acsv-im-quotechip-label', '引用：' + (q.preview || '原消息')));
-  var x = el('button', 'acsv-im-quotechip-x', '✕');
-  x.title = '取消引用';
-  x.addEventListener('click', function (ev) { ev.stopPropagation(); setQuote(null); });
-  chip.appendChild(x);
+  chip.box.style.display = 'flex';
+  chip.label.textContent = '引用：' + (q.preview || '原消息');
   drawer.input.placeholder = '回复引用的内容…';
 }
 // 气泡内引用摘要条：有锚点（原消息 seqId）才可点定位
