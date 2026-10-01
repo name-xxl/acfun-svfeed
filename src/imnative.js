@@ -7,7 +7,7 @@
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { ICON_SVGS } from './imicons.js';
-import { parseCard, parseShare, degradeText, previewOfMessage, msgContentType, msgTextOf, fmtDur, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
+import { parseCard, parseShare, isCommentShare, degradeText, previewOfMessage, msgContentType, msgTextOf, fmtDur, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
 import { AppAPI } from './appapi.js';
 
 var UNSUPPORTED = '不支持查看此消息，请前往最新版客户端查看。';
@@ -39,7 +39,18 @@ var SHADOW_CSS = ''
   + '.qstrip.link{cursor:pointer}'
   + '.qstrip.link:hover{background:rgba(0,0,0,.08)}'
   + '.qstrip .p{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
-  + '.qbody{display:block;margin:0;font-size:14px;line-height:1.6;color:#333;white-space:pre-wrap}';
+  + '.qbody{display:block;margin:0;font-size:14px;line-height:1.6;color:#333;white-space:pre-wrap}'
+  // 评论转发卡（0.9.51，浅色配官方白底；评论原文主视觉 + 来源作品小条，语言同 qstrip）
+  + '.cshare{display:block;width:228px;max-width:100%;margin:4px 0;border:1px solid #e7e7e7;'
+  + 'border-radius:8px;background:#fff;overflow:hidden;text-decoration:none;color:inherit;'
+  + 'transition:border-color .15s}'
+  + 'a.cshare:hover{border-color:#fd4c5d}'
+  + '.cshare .quote{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;'
+  + 'padding:8px 10px;border-left:2px solid #fd4c5d;font-size:13px;line-height:1.55;color:#333;'
+  + 'white-space:pre-wrap;word-break:break-word}'
+  + '.cshare .src{display:flex;align-items:center;gap:8px;padding:7px 9px;border-top:1px solid #efefef}'
+  + '.cshare .srcimg{flex:none;width:56px;height:36px;object-fit:cover;border-radius:4px;background:#f2f2f2}'
+  + '.cshare .srct{flex:1;min-width:0;font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
 var mo = null, moTimer = null;
 
 export function bootNativeIm() {
@@ -197,7 +208,8 @@ function enhanceList() {
         var sh = parseShare(span.textContent);
         if (sh) {
           span.setAttribute('data-acsv-share', '1');
-          span.textContent = '[分享] ' + (sh.title ? sh.title.slice(0, 30) : '推荐视频');
+          span.textContent = (isCommentShare(sh.title) ? '[评论] ' : '[分享] ')
+            + (sh.title ? sh.title.slice(0, 30) : '推荐视频');
         }
       }
       return;
@@ -263,6 +275,15 @@ function tryShareCard(msgEl, content, msgCache) {
   console.info('[acsv-im] 识别到分享消息 ac' + share.acId + '，拉取卡片详情');
   enrichShare(share, function (c) {
     if (!content.isConnected) return;
+    if (isCommentShare(share.title)) {
+      // 评论转发：原文整体保留（官方文本气泡就是评论主视觉，绝不能进视频卡标题槽——
+      // 会被 c.title 覆盖致评论丢失，0.9.51 前的误判），只补来源作品小条
+      var it = cshareItem(share.title, share.url);
+      if (c.cover) it.img.src = c.cover;
+      if (c.title) it.srct.textContent = c.title;
+      appendShadow(content, [it.item]);
+      return;
+    }
     content.textContent = share.note; // 原文只留附言；标题由卡片承载
     appendShadow(content, [cardItem({
       coverUrl: c.cover, viewCountShow: c.view, commentCountShow: c.comment,
@@ -401,4 +422,28 @@ function cardItem(r, hrefOverride) {
   if (r.title) a.appendChild(el('span', 'title', r.title));
   a.addEventListener('click', function (ev) { ev.stopPropagation(); });
   return a;
+}
+// 评论转发条目（0.9.51）：官方文本气泡保留原文（就是评论主视觉），我们只在下方补
+// 来源作品小条。封面 enrich 回来再上，img 先 display:none、load 放出，防裂图占位
+function cshareItem(text, href) {
+  var a = el(href ? 'a' : 'div', 'cshare');
+  if (href) {
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener';
+  }
+  a.appendChild(el('span', 'quote', text));
+  var src = el('span', 'src');
+  var img = el('img', 'srcimg');
+  img.alt = '';
+  img.referrerPolicy = 'no-referrer';
+  img.style.display = 'none';
+  img.addEventListener('load', function () { img.style.display = ''; });
+  img.addEventListener('error', function () { img.style.display = 'none'; });
+  src.appendChild(img);
+  var srct = el('span', 'srct', '查看来源作品');
+  src.appendChild(srct);
+  a.appendChild(src);
+  a.addEventListener('click', function (ev) { ev.stopPropagation(); });
+  return { item: a, img: img, srct: srct };
 }

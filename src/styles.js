@@ -464,8 +464,28 @@ var RAW_CSS = ''
   + 'border:1px solid rgba(255,255,255,.08);cursor:pointer;text-decoration:none;transition:border-color .15s}'
   + '.acsv-im-vcard:hover{border-color:rgba(255,255,255,.22)}'
   + '.acsv-im-vcard.mine{align-self:flex-end}'
+  // 评论转发卡（0.9.51，评论转发私信专属；容器语言与 vcard 一致，内容两段式）
+  + 'a.acsv-im-cshare,div.acsv-im-cshare{flex:none;display:block;width:min(260px,78%);margin:4px 10px;'
+  + 'border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);'
+  + 'cursor:pointer;text-decoration:none;transition:border-color .15s}'
+  + '.acsv-im-cshare:hover{border-color:rgba(255,255,255,.22)}'
+  + '.acsv-im-cshare.mine{align-self:flex-end}'
+  // 评论原文主视觉：accent 左条引用式；pre-wrap 保换行，超长钳 6 行截断（气泡内不滚动）
+  + '.acsv-im-cshare-quote{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;'
+  + 'padding:10px 12px 9px;border-left:3px solid var(--acsv-accent);margin:8px 0 2px 8px;'
+  + 'font-size:13px;line-height:1.55;color:#f0f1f3;white-space:pre-wrap;word-break:break-word}'
+  + '.acsv-im-cshare-src{display:flex;align-items:center;gap:8px;padding:8px 10px;'
+  + 'border-top:1px solid rgba(255,255,255,.09);margin-top:6px}'
+  + '.acsv-im-cshare-cover{flex:none;width:64px;height:40px;object-fit:cover;border-radius:4px;'
+  + 'background:rgba(255,255,255,.05)}'
+  + '.acsv-im-cshare-srctitle{flex:1;min-width:0;font-size:12px;color:#b8bdc7;'
+  + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
   + '.acsv-im-vcard-coverbox{position:relative}'
-  + '.acsv-im-vcard-cover{display:block;width:100%;height:auto;background:rgba(255,255,255,.05)}' // 原始比例，不裁剪
+  // 原始比例展示；仅对超高封面（竖屏小视频 9:16）钳高居中裁剪，否则 300px 气泡宽下
+  // 9:16 封面有 500px+ 高，整屏只剩一张卡（0.9.51）。object-fit 保比例不变形，
+  // 横版 16:9 封面（≈169px）在钳制值以下不受任何影响
+  + '.acsv-im-vcard-cover{display:block;width:100%;height:auto;max-height:190px;'
+  + 'object-fit:cover;object-position:center;background:rgba(255,255,255,.05)}'
   + '.acsv-im-vcard-bar{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:5px;'
   + 'padding:16px 8px 5px;font-size:11px;color:#fff;'
   + 'background:linear-gradient(transparent,rgba(0,0,0,.68));text-shadow:0 1px 2px rgba(0,0,0,.6)}'

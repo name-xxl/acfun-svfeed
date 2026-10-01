@@ -12,6 +12,7 @@ import { openImageViewer } from './imgview.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import {
   parseCard, parseShare, fmtDur, msgTextOf, previewOfMessage,
+  isCommentShare,
   msgContentType, isQuotable, quoteOf, quoteExtraOf
 } from './immsg.js';
 import { ICON_SVGS } from './imicons.js';
@@ -670,21 +671,27 @@ function appendCardBubble(card, mine, m) {
 }
 // 脚本分享消息（标题\n推荐链）与 10001 同契约：卡片替代纯文本。同步先渲染消息内标题的
 // 卡片骨架（整卡 href 即分享链，enrich 失败也保持可读可点，不再出现文本+卡片双份），
-// dougaCard 回来后原位 patch 以接口字段为准；标题外文本作附言气泡。等待期间切走会话/视图则放弃
+// dougaCard 回来后原位 patch 以接口字段为准；标题外文本作附言气泡。等待期间切走会话/视图则放弃。
+// 评论转发（isCommentShare 命中）走专属评论卡——评论内容是主视觉，绝不能进视频卡的标题槽
+//（会被 enrich 的视频标题覆盖，0.9.51 前评论因此整个消失）
 function appendShareBubble(share, mine, m) {
   if (share.note) {
     var note = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
     note.textContent = share.note;
     drawer.bubbles.appendChild(note);
   }
-  var cardEl = vcardEl({ href: share.url, title: share.title }, mine);
+  var isCmt = isCommentShare(share.title);
+  var cardEl = isCmt
+    ? cshareEl({ href: share.url, text: share.title }, mine)
+    : vcardEl({ href: share.url, title: share.title }, mine);
   drawer.bubbles.appendChild(bubbleRow(cardEl, mine, m, 'cardrow'));
   var bubbles = drawer.bubbles;
   var tid = chat && chat.targetId;
   AppAPI.dougaCard(share.acId).then(function (c) {
     if (!c || !cardEl.isConnected || !drawer || drawer.bubbles !== bubbles
       || !chat || chat.targetId !== tid) return;
-    patchVcard(cardEl, c);
+    if (isCmt) patchCshare(cardEl, c);
+    else patchVcard(cardEl, c);
     drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
   });
 }
@@ -706,6 +713,39 @@ function patchVcard(cardEl, c) {
   }
   var tt = cardEl.querySelector('.acsv-im-vcard-title');
   if (tt && c.title) tt.textContent = c.title;
+}
+// 评论转发卡（0.9.51）：评论原文（@作者：内容）是主视觉——accent 左条引用式排版，
+// 来源作品收进底部小条。整卡 href=作品链接（评论没有独立落地页）；小条 enrich 前显示
+// 占位文案，dougaCard 失败也保持可读可点（与分享卡同一兜底原则）
+function cshareEl(r, mine) {
+  var cardEl = el(r.href ? 'a' : 'div', 'acsv-im-cshare' + (mine ? ' mine' : ''));
+  if (r.href) {
+    cardEl.href = r.href;
+    cardEl.target = '_blank';
+    cardEl.rel = 'noopener';
+  }
+  cardEl.addEventListener('click', function (ev) { ev.stopPropagation(); });
+  cardEl.appendChild(el('div', 'acsv-im-cshare-quote', r.text));
+  var src = el('div', 'acsv-im-cshare-src');
+  var cover = el('img', 'acsv-im-cshare-cover');
+  cover.alt = '';
+  cover.referrerPolicy = 'no-referrer';
+  cover.style.visibility = 'hidden';
+  cover.addEventListener('error', function () { cover.style.visibility = 'hidden'; });
+  src.appendChild(cover);
+  src.appendChild(el('div', 'acsv-im-cshare-srctitle', '查看来源作品'));
+  cardEl.appendChild(src);
+  return cardEl;
+}
+// 评论卡 enrich 原位补全：只动来源小条，评论正文永远不碰
+function patchCshare(cardEl, c) {
+  var cover = cardEl.querySelector('.acsv-im-cshare-cover');
+  if (cover && c.cover) {
+    cover.src = c.cover;
+    cover.style.visibility = '';
+  }
+  var t = cardEl.querySelector('.acsv-im-cshare-srctitle');
+  if (t && c.title) t.textContent = c.title;
 }
 // 图片即选即发（微信/抖音 IM 惯例，不插入文本框）：读自然宽高 → 乐观占位（本地预览）→
 // sendImage（SDK 内核自动传图床换 ks://，确认含上传故用 imgSendT）→ 成功摘占位补真身。

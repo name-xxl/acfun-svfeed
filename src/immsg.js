@@ -21,6 +21,15 @@ export function parseCard(m) {
   } catch (e) { return null; }
 }
 
+// ---------- 评论转发识别（0.9.51，评论转发私信专属卡片的分流通约） ----------
+// 发送侧（comments 转发委托）wire 首行为「@作者：」，与手打视频分享（标题\n链接）只差
+// 首行形态——此前不加区分地走视频分享卡，评论内容进了标题槽后被 dougaCard enrich 的
+// 视频标题覆盖，评论在卡片上完全不可见（真机截图实证）。误判成本对称且低：「@某人：
+// 这个好看 URL」渲染成评论卡也说得通；作者名含全角冒号/超 40 字则回落视频分享卡（可读性无损）
+export function isCommentShare(title) {
+  return /^@[^\n：]{1,40}：/.test(String(title || ''));
+}
+
 // 脚本端分享文本（imshare 发送格式：标题行\n推荐链 URL）→ {title, note, acId, url}。
 // 容忍式契约：URL 可出现在文本任意位置——抽屉从内核消息数据解析（换行完整），原生页
 // 曾从 DOM 渲染产物解析（换行可能变 <br>/空格/直接拼接），「URL 独占末行」的严格锚定
@@ -178,7 +187,10 @@ export function previewOfMessage(m) {
     if (q) return '[引用] ' + plainPreview(q.text).slice(0, 30);
     var txt = plainPreview(msgTextOf(m));
     var share = parseShare(txt);
-    if (share) return '[分享] ' + (share.title ? share.title.slice(0, 30) : '推荐视频');
+    if (share) {
+      return (isCommentShare(share.title) ? '[评论] ' : '[分享] ')
+        + (share.title ? share.title.slice(0, 30) : '推荐视频');
+    }
     if (/https?:\/\/[^\s]*acfun\.cn/i.test(txt)) {
       var first = (txt.split('\n')[0] || '').trim();
       var title = /^https?:\/\//i.test(first) ? '' : first;

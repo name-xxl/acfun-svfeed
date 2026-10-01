@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import {
   msgContentType, parseCard, parseShare, fmtDur,
   degradeText, msgTextOf, previewOfMessage,
-  isQuotable, quoteOf, quoteExtraOf, quoteWireText, quoteWireTrimLen
+  isQuotable, quoteOf, quoteExtraOf, quoteWireText, quoteWireTrimLen,
+  isCommentShare
 } from '../../src/immsg.js';
 
 // contentType 10001 的 content 是 UTF-8 解码即 JSON 的 ArrayBuffer
@@ -260,4 +261,31 @@ test('previewOfMessage：脏输入不抛错（getter 抛异常也走降级）', 
   assert.doesNotThrow(() => previewOfMessage(poisoned));
   assert.equal(previewOfMessage(poisoned), '[暂不支持查看的消息，请前往客户端查看]');
   assert.equal(previewOfMessage(null), '[暂不支持查看的消息，请前往客户端查看]');
+});
+
+// ---------- isCommentShare（0.9.51 评论转发识别） ----------
+test('isCommentShare：发送侧 wire 首行「@作者：」命中，内容含换行/URL 不影响', () => {
+  assert.ok(isCommentShare('@森崎：好心的先生太太，给我一点🍌吧！'));
+  assert.ok(isCommentShare('@森崎：第一行\n第二行\nhttps://www.acfun.cn/v/ac123'));
+  assert.ok(isCommentShare('@a：')); // 空内容也算（转发空评论的极端形态）
+});
+
+test('isCommentShare：手打分享/纯标题/邮箱开头不误判', () => {
+  assert.ok(!isCommentShare('这就是你妹控的理由吗？'));
+  assert.ok(!isCommentShare('看这个 https://www.acfun.cn/v/ac123'));
+  assert.ok(!isCommentShare('联系我 test@example.com：'));
+  assert.ok(!isCommentShare(''));
+  assert.ok(!isCommentShare(null));
+});
+
+test('isCommentShare：全角冒号取第一个——名字含冒号只歪归属拆分不歪识别（整行进引用块，可读性无损）', () => {
+  assert.ok(isCommentShare('@带：冒号的名字：内容'));
+  assert.ok(!isCommentShare('@' + '长'.repeat(41) + '：内容'));
+  assert.ok(isCommentShare('@' + '名'.repeat(40) + '：内容'));
+});
+
+test('previewOfMessage：评论转发预览走 [评论] 前缀', () => {
+  assert.equal(
+    previewOfMessage({ text: '@森崎：好心的先生太太\nhttps://www.acfun.cn/v/ac123' }),
+    '[评论] @森崎：好心的先生太太');
 });
