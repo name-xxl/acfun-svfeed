@@ -41,6 +41,8 @@ function userscriptHeader(debug) {
     + '// @match        https://www.acfun.cn/*\n'
     + '// @match        https://message.acfun.cn/*\n'
     + '// @grant        GM_xmlhttpRequest\n'
+    + '// @grant        GM_getValue\n'
+    + '// @grant        GM_setValue\n'
     + '// @connect      m.acfun.cn\n'
     + '// @connect      www.acfun.cn\n'
     + '// @connect      api-new.app.acfun.cn\n'

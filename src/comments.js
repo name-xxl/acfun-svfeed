@@ -5,7 +5,7 @@ import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
 import { AppAPI } from './appapi.js';
 import { uploadImage } from './upload.js';
-import { renderCommentHtml, ubbPlainText } from './ubb.js';
+import { renderCommentHtml, ubbImText } from './ubb.js';
 import { mountEmotButton, ensureEmotionMap, insertAtCursor } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
@@ -110,12 +110,24 @@ function normalizeSubs(subMap, cid) {
   return [];
 }
 
-// 原生图标只借形状（CSS mask 染色，颜色跟容器 currentColor），CDN hash 失效时回退手绘 SVG（同 rail.js 探测模式）
+// 原生图标只借形状（CSS mask 染色，颜色跟容器 currentColor），CDN hash 失效时回退手绘
+// SVG（同 rail.js 探测模式）。探测结论按 URL 模块级 memo：长列表每条评论 1~2 个图标
+// （rail 同款模式但只有 5 个按钮），结论落地后新节点不再探测——CDN 死亡场景零探测扇出。
+// 未结论期各节点仍自挂 onerror 自愈（mask 图加载失败会渲染成 currentColor 色块），
+// 飞行期重复探测无害（浏览器按 URL 去重网络）
+var iconProbeOk = {};
 function nativeIcon(url, fallbackSvg) {
   var ic = el('i', 'acsvg-cicon');
+  if (iconProbeOk[url] === false) {
+    ic.classList.remove('acsvg-cicon');
+    ic.innerHTML = fallbackSvg;
+    return ic;
+  }
   ic.style.setProperty('--acsvg-cicon', 'url("' + url + '")');
   var probe = new Image();
+  probe.onload = function () { iconProbeOk[url] = true; };
   probe.onerror = function () {
+    iconProbeOk[url] = false;
     ic.classList.remove('acsvg-cicon');
     ic.style.removeProperty('--acsvg-cicon');
     ic.innerHTML = fallbackSvg;
@@ -252,7 +264,7 @@ export function commentListClick(ev) {
     ev.stopPropagation();
     var t = fw._target;
     openSharePanel(fw, {
-      title: '@' + t.name + '：' + ubbPlainText(t.content),
+      title: '@' + t.name + '：' + ubbImText(t.content),
       shareUrl: commentState.shareUrl + '#ncid=' + t.id,
       cmt: { ncid: t.id, content: t.content }
     }, {

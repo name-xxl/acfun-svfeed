@@ -164,6 +164,26 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.54（2026-10-01）· 评论转发链路评审整改：收口 ×2 + 效率 ×2 + 边角 ×2
+
+- **emotify 收口**（结构）：表情码转图从 imdrawer/imnative 两份同构实现收敛为
+  emoticon.js 单份导出（EmotionMap 属地，两端均已依赖；「两处硬编码必然漂移」收口
+  原则，quoteWireText 先例），输出类名统一 `acsv-emotimg`（原 `.acsv-im-emotimg` /
+  Shadow 内 `.cshare-emot` 退役）。
+- **wire 契约正则收口**（结构）：评论转发标题的检测与作者拆分共用 immsg 单一来源
+  （`RE_CMT_SHARE` + 新导出 `commentShareAuthor`）——0.9.52 起 imdrawer.cmtHtml 另写
+  一份拆分正则，靠「拆分仅在检测通过后运行」的隐式约束保持一致，已消除。
+- **nativeIcon 探测结论 memo**（效率）：模块级按 URL 记录探测结论，结论落地后新节点
+  不再发探测（CDN 死亡场景零扇出）；未结论期各节点仍自挂 onerror 自愈（mask 加载
+  失败会渲染成色块的坑），飞行期重复探测由浏览器按 URL 去重网络。
+- **表情包跨域缓存**（效率）：localStorage 按 origin 隔离，官方页写在 www 的
+  'emoticonList' 原生页读不到——message.acfun.cn 每次加载必打表情接口。新增 GM 存储
+  缓存层（跨 origin 共享，7 天 TTL，读取链 localStorage→GM→接口，成功回填 GM）；
+  `@grant` 补 GM_getValue/GM_setValue；修正「原生页面写入缓存」的误导注释。
+- **边角**：消息列表 `[评论]/[分享]` 预览先占位化再截断（wire 携原始表情码后直接
+  slice 会切在码中间）；`ubbPlainText` 改名 `ubbImText`（0.9.53 保留表情码后已非
+  纯文本，名实对齐）。
+
 ### 0.9.53（2026-10-01）· 评论转发 wire 回归官方表情契约 + 原生页去重
 
 - **契约修正（手机端问题的正解）**：官方 IM 的文本消息 wire 本来就携带

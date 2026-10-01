@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 // __ACSV_DEBUG__——Node 直采源码时两个都要先垫再动态 import
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { renderCommentHtml, ubbPlainText } = await import('../../src/ubb.js');
+var { renderCommentHtml, ubbImText } = await import('../../src/ubb.js');
 
 // ---------- [at] @ 提及 ----------
 test('at：线上原文出用户主页链接，@ 前缀保留', () => {
@@ -116,42 +116,42 @@ test('组合：resource 内嵌表情降级文本随标题保留；at 与正文�
   assert.equal(renderCommentHtml(undefined), '');
 });
 
-// ---------- ubbPlainText（0.9.50 评论转发私信的纯文本投影） ----------
+// ---------- ubbImText（0.9.50 引入；IM wire 文本投影） ----------
 test('plain：at 出 @昵称（带不带 @ 前缀均可），uid 不残留', () => {
-  assert.equal(ubbPlainText('[at uid=7]@甲[/at]'), '@甲');
-  assert.equal(ubbPlainText('[at uid=7]乙[/at]'), '@乙');
-  assert.ok(!ubbPlainText('[at uid=7]@甲[/at]').includes('uid'), 'uid 应被吃掉');
+  assert.equal(ubbImText('[at uid=7]@甲[/at]'), '@甲');
+  assert.equal(ubbImText('[at uid=7]乙[/at]'), '@乙');
+  assert.ok(!ubbImText('[at uid=7]@甲[/at]').includes('uid'), 'uid 应被吃掉');
 });
 
 test('plain：emot 码原样保留（官方 IM wire 原生渲染，0.9.53 契约修正）；img 转 [图片]', () => {
-  assert.equal(ubbPlainText('赞[emot=acfun,2797/]'), '赞[emot=acfun,2797/]');
-  assert.equal(ubbPlainText('[emot=ts,1/]'), '[emot=ts,1/]');
-  assert.equal(ubbPlainText('看[img=图片]https://imgs.aixifan.com/a.png?pkey=1[/img]'),
+  assert.equal(ubbImText('赞[emot=acfun,2797/]'), '赞[emot=acfun,2797/]');
+  assert.equal(ubbImText('[emot=ts,1/]'), '[emot=ts,1/]');
+  assert.equal(ubbImText('看[img=图片]https://imgs.aixifan.com/a.png?pkey=1[/img]'),
     '看[图片]');
-  assert.equal(ubbPlainText('[img]https://preview.ndcsk.com/ksc2/a.png[/img]'), '[图片]');
+  assert.equal(ubbImText('[img]https://preview.ndcsk.com/ksc2/a.png[/img]'), '[图片]');
 });
 
 test('plain：color/resource 摘内文，resource 的 icon 属性区不残留', () => {
-  assert.equal(ubbPlainText('[color=#ff0000]红[/color]'), '红');
+  assert.equal(ubbImText('[color=#ff0000]红[/color]'), '红');
   assert.equal(
-    ubbPlainText('[resource id=99 type=2 icon=https://ali-imgs.acfun.cn/x.png]标题[/resource]'),
+    ubbImText('[resource id=99 type=2 icon=https://ali-imgs.acfun.cn/x.png]标题[/resource]'),
     '标题');
-  assert.ok(!ubbPlainText('[resource id=99 type=2 icon=x]标题[/resource]').includes('icon'));
+  assert.ok(!ubbImText('[resource id=99 type=2 icon=x]标题[/resource]').includes('icon'));
 });
 
 test('plain：color 包 emot 时内层 emot 保留（处理顺序与渲染侧一致）', () => {
-  assert.equal(ubbPlainText('[color=#ff0000][emot=acfun,1/]红[/color]'), '[emot=acfun,1/]红');
+  assert.equal(ubbImText('[color=#ff0000][emot=acfun,1/]红[/color]'), '[emot=acfun,1/]红');
 });
 
 test('plain：未闭合/未知标签按字面保留；无 esc 语义——原始字符原样透传', () => {
   var open = '[at uid=1]没有尾';
-  assert.equal(ubbPlainText(open), open);
-  assert.equal(ubbPlainText('a<b>&"\'c'), 'a<b>&"\'c');
+  assert.equal(ubbImText(open), open);
+  assert.equal(ubbImText('a<b>&"\'c'), 'a<b>&"\'c');
 });
 
 test('plain：组合与空值', () => {
   var raw = '[at uid=5]@丙[/at]：说得好[emot=acfun,1/]，图在此[img]https://imgs.aixifan.com/b.png[/img]';
-  assert.equal(ubbPlainText(raw), '@丙：说得好[emot=acfun,1/]，图在此[图片]');
-  assert.equal(ubbPlainText(''), '');
-  assert.equal(ubbPlainText(null), '');
+  assert.equal(ubbImText(raw), '@丙：说得好[emot=acfun,1/]，图在此[图片]');
+  assert.equal(ubbImText(''), '');
+  assert.equal(ubbImText(null), '');
 });

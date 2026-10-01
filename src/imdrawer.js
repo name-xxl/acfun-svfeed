@@ -7,13 +7,13 @@ import {
   prewarmIm, peekImImageBlob
 } from './imshare.js';
 import { syncCommentVars } from './comments.js';
-import { mountEmotButton, EmotionMap, ensureEmotionMap } from './emoticon.js';
+import { mountEmotButton, EmotionMap, ensureEmotionMap, emotify } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
 import { renderCommentHtml } from './ubb.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import {
   parseCard, parseShare, fmtDur, msgTextOf, previewOfMessage,
-  isCommentShare, cmtShareOf,
+  isCommentShare, commentShareAuthor, cmtShareOf,
   msgContentType, isQuotable, quoteOf, quoteExtraOf
 } from './immsg.js';
 import { ICON_SVGS } from './imicons.js';
@@ -97,20 +97,6 @@ function linkify(s) {
   });
 }
 
-// 表情短代码转图（官方 IM 的 wire 格式就是 [emot=acfun,ID/]，APP/官方 web 原生渲染）：
-// EmotionMap 直查转小图，未加载/查无此 ID 降级「[表情]」文本；其余方言包走 umeditor 老
-// 图路径——两分支与官方 convertEmotionCodeToHtml 同构。入参须是已 esc 的 HTML 文本
-function emotify(html) {
-  return html
-    .replace(/\[emot=acfun,(\S+?)\/\]/g, function (_, id) {
-      var it = EmotionMap.map && EmotionMap.map[id];
-      return (it && it.url)
-        ? '<img class="acsv-im-emotimg" src="' + it.url + '" referrerpolicy="no-referrer" alt="">'
-        : '[表情]';
-    })
-    .replace(/\[emot=(\S+?),(\S+?)\/\]/g,
-      '<img class="acsv-im-emotimg" src="//cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/$1/$2.gif" referrerpolicy="no-referrer" alt="">');
-}
 function imTextHtml(s) { return emotify(linkify(s)); }
 
 // ---------- DOM ----------
@@ -761,10 +747,10 @@ function cshareEl(r, mine) {
 }
 // 富评论正文（extra 载荷 content=原始 UBB 时）：走 renderCommentHtml 完整管线（esc+白
 // 名单，表情经 EmotionMap 渲染真图、[img] 出可点大图）；at/resource 链接退化 span——
-// 卡片根是 <a>，HTML 不允许嵌套 a（解析器会拆散 DOM）。作者头从 wire 标题拆出，esc 后拼接
+// 卡片根是 <a>，HTML 不允许嵌套 a（解析器会拆散 DOM）。作者头取自 wire 契约单源
+// （immsg.commentShareAuthor），esc 后拼接
 function cmtHtml(title, raw) {
-  var am = /^@([^：]*)：/.exec(String(title || ''));
-  return esc('@' + (am ? am[1] : '') + '：')
+  return esc('@' + commentShareAuthor(title) + '：')
     + renderCommentHtml(raw).replace(/<a\b[^>]*>/g, '<span>').replace(/<\/a>/g, '</span>');
 }
 // 评论卡 enrich 原位补全：只动来源小条，评论正文永远不碰

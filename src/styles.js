@@ -449,7 +449,7 @@ var RAW_CSS = ''
   + '@keyframes acsv-im-shimmer{from{background-position:200% 0}to{background-position:-200% 0}}'
   + '.acsv-im-imgbubble.failed{background:rgba(255,255,255,.08);cursor:pointer}'
   // 气泡内表情图（正文/引用正文同款）：尺寸对齐评论正文 .ubb-emotion 的 34px 档
-  + '.acsv-im-emotimg{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}'
+  + '.acsv-emotimg{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}'
   // 顶栏私信按钮（A 站原生 iconfont 字形 + 未读徽标）
   + '.acsv-im-btn{position:relative;font-style:normal}'
   + '.acsv-im-btn svg{width:20px;height:20px;fill:#fff;display:block}'

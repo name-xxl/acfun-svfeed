@@ -7,25 +7,11 @@
 import { CFG } from './cfg.js';
 import { el, esc } from './ui.js';
 import { ICON_SVGS } from './imicons.js';
-import { EmotionMap, ensureEmotionMap } from './emoticon.js';
+import { ensureEmotionMap, emotify } from './emoticon.js';
 import { parseCard, parseShare, isCommentShare, degradeText, previewOfMessage, msgContentType, msgTextOf, fmtDur, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
 import { AppAPI } from './appapi.js';
 
 var UNSUPPORTED = '不支持查看此消息，请前往最新版客户端查看。';
-
-// 表情码转图（评论卡引用块用；与 imdrawer.emotify 同构同契约——入参须是已 esc 的
-// HTML 文本，EmotionMap 未加载/查无此 ID 降级「[表情]」文本，方言包走 umeditor 老图）
-function emotifyHtml(html) {
-  return html
-    .replace(/\[emot=acfun,(\S+?)\/\]/g, function (_, id) {
-      var it = EmotionMap.map && EmotionMap.map[id];
-      return (it && it.url)
-        ? '<img class="cshare-emot" src="' + it.url + '" referrerpolicy="no-referrer" alt="">'
-        : '[表情]';
-    })
-    .replace(/\[emot=(\S+?),(\S+?)\/\]/g,
-      '<img class="cshare-emot" src="//cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/$1/$2.gif" referrerpolicy="no-referrer" alt="">');
-}
 
 // 卡片样式只存在于 Shadow DOM 内：宿主页 CSS（如 .content img{height:48px} 的表情图
 // 规则）物理隔离，封面按原始比例完整呈现。气泡外壳留在 light DOM，保留原生观感。
@@ -63,7 +49,7 @@ var SHADOW_CSS = ''
   + '.cshare .quote{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;'
   + 'padding:8px 10px;border-left:2px solid #fd4c5d;font-size:13px;line-height:1.55;color:#333;'
   + 'white-space:pre-wrap;word-break:break-word}'
-  + '.cshare .quote .cshare-emot{display:inline-block;max-height:34px;max-width:68px;'
+  + '.cshare .quote .acsv-emotimg{display:inline-block;max-height:34px;max-width:68px;'
   + 'vertical-align:middle;margin:1px 2px}'
   + '.cshare .src{display:flex;align-items:center;gap:8px;padding:7px 9px;border-top:1px solid #efefef}'
   + '.cshare .srcimg{flex:none;width:56px;height:36px;object-fit:cover;border-radius:4px;background:#f2f2f2}'
@@ -452,7 +438,7 @@ function cshareItem(text, href) {
     a.rel = 'noopener';
   }
   var quote = el('span', 'quote');
-  quote.innerHTML = emotifyHtml(esc(text)); // 评论正文富渲染：表情码出真图（wire 携原始码，0.9.53）
+  quote.innerHTML = emotify(esc(text)); // 评论正文富渲染：表情码出真图（wire 携原始码，0.9.53）
   a.appendChild(quote);
   var src = el('span', 'src');
   var img = el('img', 'srcimg');

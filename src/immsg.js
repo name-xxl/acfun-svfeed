@@ -26,8 +26,16 @@ export function parseCard(m) {
 // 首行形态——此前不加区分地走视频分享卡，评论内容进了标题槽后被 dougaCard enrich 的
 // 视频标题覆盖，评论在卡片上完全不可见（真机截图实证）。误判成本对称且低：「@某人：
 // 这个好看 URL」渲染成评论卡也说得通；作者名含全角冒号/超 40 字则回落视频分享卡（可读性无损）
+var RE_CMT_SHARE = /^@([^\n：]{1,40})：/;
 export function isCommentShare(title) {
-  return /^@[^\n：]{1,40}：/.test(String(title || ''));
+  return RE_CMT_SHARE.test(String(title || ''));
+}
+// 从 wire 标题拆评论作者（「@作者：」首段）；检测未命中返回 ''。收口说明：检测与拆分
+// 共用同一正则（0.9.54 前 imdrawer.cmtHtml 各写一份，靠「拆分仅在检测通过后运行」的
+// 隐式约束保持一致）
+export function commentShareAuthor(title) {
+  var m = RE_CMT_SHARE.exec(String(title || ''));
+  return m ? m[1] : '';
 }
 
 // 脚本端分享文本（imshare 发送格式：标题行\n推荐链 URL）→ {title, note, acId, url}。
@@ -159,7 +167,7 @@ export function quoteWireTrimLen(contentText, q) {
 }
 
 // 评论转发 extra 通道解析（0.9.52）：文本消息 extra 里的 {acsvCmt:{ncid, content}}，
-// content 是原始 UBB 正文（发送侧 ubbPlainText 的输入）——接收端据此渲染真表情/[img]；
+// content 是原始 UBB 正文（发送侧 ubbImText 的输入）——接收端据此渲染真表情/[img]；
 // extra 被服务端/中间端剥掉时返回 null，走 isCommentShare 启发式降级（[表情] 占位文本）
 export function cmtShareOf(m) {
   try {
@@ -204,8 +212,9 @@ export function previewOfMessage(m) {
     var txt = plainPreview(msgTextOf(m));
     var share = parseShare(txt);
     if (share) {
+      // 先占位化再截断：wire 携原始表情码（0.9.53），直接 slice 会切在码中间
       return (isCommentShare(share.title) ? '[评论] ' : '[分享] ')
-        + (share.title ? share.title.slice(0, 30) : '推荐视频');
+        + (share.title ? plainPreview(share.title).slice(0, 30) : '推荐视频');
     }
     if (/https?:\/\/[^\s]*acfun\.cn/i.test(txt)) {
       var first = (txt.split('\n')[0] || '').trim();

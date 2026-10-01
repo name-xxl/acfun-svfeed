@@ -30,15 +30,55 @@ function applyEmotPacks(flat) {
   return packs;
 }
 
+// 表情短代码转图（0.9.54 自 imdrawer 收口，原生页 imnative 同消费——两处硬编码必然漂移）。
+// 官方 IM 的 wire 格式就是 [emot=acfun,ID/]，APP/官方 web 原生渲染；EmotionMap 直查转小图，
+// 未加载/查无此 ID 降级「[表情]」文本；其余方言包走 umeditor 老图路径——两分支与官方
+// convertEmotionCodeToHtml 同构。入参须是已 esc 的 HTML 文本
+export function emotify(html) {
+  return html
+    .replace(/\[emot=acfun,(\S+?)\/\]/g, function (_, id) {
+      var it = EmotionMap.map && EmotionMap.map[id];
+      return (it && it.url)
+        ? '<img class="acsv-emotimg" src="' + it.url + '" referrerpolicy="no-referrer" alt="">'
+        : '[表情]';
+    })
+    .replace(/\[emot=(\S+?),(\S+?)\/\]/g,
+      '<img class="acsv-emotimg" src="//cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/$1/$2.gif" referrerpolicy="no-referrer" alt="">');
+}
+
+// 表情包跨域缓存（0.9.54）：localStorage 按 origin 隔离——官方页在 www.acfun.cn 写的
+// 'emoticonList' 缓存，message.acfun.cn 读不到，原生页此前每次加载都得打接口。GM 存储
+// 跨 origin 共享（同一脚本管理器内），带 7 天 TTL；未登录页接口 401 时这层是唯一来源
+var GM_EMOT_KEY = 'acsvEmotPacks';
+var GM_EMOT_TTL = 7 * 24 * 3600 * 1000;
+function gmEmotRead() {
+  try {
+    if (typeof GM_getValue !== 'function') return null;
+    var c = JSON.parse(GM_getValue(GM_EMOT_KEY, 'null') || 'null');
+    if (!c || !Array.isArray(c.packs) || !c.packs.length) return null;
+    if (Date.now() - c.ts > GM_EMOT_TTL) return null;
+    return c.packs;
+  } catch (e) { return null; }
+}
+function gmEmotWrite(flat) {
+  try {
+    if (typeof GM_setValue !== 'function') return;
+    GM_setValue(GM_EMOT_KEY, JSON.stringify({ ts: Date.now(), packs: flat }));
+  } catch (e) { }
+}
+
 export function ensureEmotionMap() {
   if (EmotionMap.loaded) return Promise.resolve();
   if (EmotionMap.loading) return EmotionMap.loading;
   EmotionMap.loading = new Promise(function (resolve) {
-    // 原生页面写入的 localStorage 缓存优先（www.acfun.cn 登录后存在）
+    // 缓存两级：localStorage（origin 内；www.acfun.cn 官方页写入的 'emoticonList'）
+    // → GM 存储（跨 origin）→ 接口。都 miss 才请求
     try {
       var cached = JSON.parse(localStorage.getItem('emoticonList') || 'null');
       if (Array.isArray(cached) && cached.length) { applyEmotPacks(cached); resolve(); return; }
     } catch (e) { }
+    var gmPacks = gmEmotRead();
+    if (gmPacks) { applyEmotPacks(gmPacks); resolve(); return; }
     request(CFG.api.emotion, 'POST').then(function (j) {
       var flat = [];
       var pkgs = (j && (j.emotionPackageList || j.data)) || [];
@@ -64,6 +104,7 @@ export function ensureEmotionMap() {
         });
       });
       applyEmotPacks(flat);
+      gmEmotWrite(flat); // 回填跨域缓存：本域写入，全 origin（含原生页）后续命中
       resolve();
     }, function () {
       EmotionMap.loading = null; // 清掉失败标记，下次进入可重试（否则整场会话表情失效）

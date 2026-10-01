@@ -19,7 +19,8 @@ export default [
         __ACSV_DEBUG__: 'readonly',
         __ACSV_VERSION__: 'readonly',
         // Tampermonkey 沙箱注入（@grant 与跨 world 访问）
-        GM_xmlhttpRequest: 'readonly', unsafeWindow: 'readonly'
+        GM_xmlhttpRequest: 'readonly', unsafeWindow: 'readonly',
+        GM_getValue: 'readonly', GM_setValue: 'readonly'
       }
     },
     rules: {

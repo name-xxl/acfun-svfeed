@@ -64,7 +64,7 @@ export function renderCommentHtml(content) {
 // 0.9.52 曾转 [表情] 占位，官方端只能看到占位文本，系劣化，已纠正。[img] 是评论系 UBB、
 // IM 不认，转 [图片] 占位（真图渲染走 extra 载荷）；at/color/resource 摘内文。
 // 未知/未闭合标签按字面保留
-export function ubbPlainText(content) {
+export function ubbImText(content) {
   var t = String(content || '');
   t = t.replace(/\[img=[^\]]*\]https?:\/\/[^\["']+?\[\/img\]/g, '[图片]');
   t = t.replace(/\[img\]https?:\/\/[^\["']+?\[\/img\]/g, '[图片]');
