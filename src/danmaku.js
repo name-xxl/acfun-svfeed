@@ -45,12 +45,7 @@ export function onPlaying(slide, item, video) {
   fetchList(item.videoId).then(function (list) { layer.setItems(list); });
 }
 
-// 清晰度切换/重挂后 video 元素换了：销毁旧图层重绑
-export function rebind(slide, item, video) {
-  if (slide._dmLayer) { slide._dmLayer.destroy(); slide._dmLayer = null; }
-  onPlaying(slide, item, video);
-}
-
+// 清晰度切换/重挂后的图层重建不在此处：旧会话 dispose 销毁 _dmLayer，onPlaying 再建
 export function stopAll() { DmCanvas.stopAll(); }
 
 // ---- 常驻发送框（内嵌控制栏，不折叠；Enter 发送，Esc 失焦） ----

@@ -44,7 +44,6 @@ export var CFG = {
     defaultAvatar: 'https://imgs.aixifan.com/style/image/defaultAvatar.jpg',
     logoSvg: 'https://ali-imgs.acfun.cn/kos/nlav10360/static/common/widget/header/img/acfunlogo.11a9841251f31e1a3316.svg',
     // ---- APP 家族接口（api-new.app.acfun.cn，免登录读 + 域 Cookie 写） ----
-    appBase: 'https://api-new.app.acfun.cn/rest/app',
     homeFeed: 'https://api-new.app.acfun.cn/rest/app/selection/feed',
     dougaInfo: 'https://api-new.app.acfun.cn/rest/app/douga/info',
     playInfo: 'https://api-new.app.acfun.cn/rest/app/play/playInfo/cast',
@@ -98,8 +97,7 @@ export var CFG = {
   codec: {
     def: 'avc',
     suffix: '·HEVC',            // HEVC 档 label 后缀（纯 H.264 视频不加，避免视觉噪音）
-    reHevc: /hevc|hvc1|hev1|h265/i, // 嗅探 HEVC（h265 要求 h 前缀，防误伤 1080p_2650 之类码率数字）
-    reAvc: /h264|avc1|avc3/i    // 嗅探 H.264（仅确证用，未命中按 avc 推断）
+    reHevc: /hevc|hvc1|hev1|h265/i // 嗅探 HEVC（h265 要求 h 前缀，防误伤 1080p_2650 之类码率数字）；未命中按 avc 推断
   },
   // 缓冲档位（推荐模式 hls.js 构造参数）。maxBufferSize 单位是字节
   // （0.9.1 前误写 120 当 MB，实为 120 字节，被 maxBufferLength 的时间上限掩盖）。
