@@ -9,7 +9,7 @@ import {
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap, emotify } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
-import { renderCommentHtml } from './ubb.js';
+import { ubbQuoteHtml } from './ubb.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import {
   parseCard, parseShare, fmtDur, msgTextOf, previewOfMessage,
@@ -672,7 +672,7 @@ function appendShareBubble(share, mine, m, cmt) {
   var cardEl = isCmt
     ? cshareEl({
         href: share.url, text: share.title,
-        html: cmt && cmt.content ? cmtHtml(share.title, cmt.content) : ''
+        html: cmt && cmt.content ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : ''
       }, mine)
     : vcardEl({ href: share.url, title: share.title }, mine);
   drawer.bubbles.appendChild(bubbleRow(cardEl, mine, m, 'cardrow'));
@@ -744,14 +744,6 @@ function cshareEl(r, mine) {
   src.appendChild(el('div', 'acsv-im-cshare-srctitle', '查看来源作品'));
   cardEl.appendChild(src);
   return cardEl;
-}
-// 富评论正文（extra 载荷 content=原始 UBB 时）：走 renderCommentHtml 完整管线（esc+白
-// 名单，表情经 EmotionMap 渲染真图、[img] 出可点大图）；at/resource 链接退化 span——
-// 卡片根是 <a>，HTML 不允许嵌套 a（解析器会拆散 DOM）。作者头取自 wire 契约单源
-// （immsg.commentShareAuthor），esc 后拼接
-function cmtHtml(title, raw) {
-  return esc('@' + commentShareAuthor(title) + '：')
-    + renderCommentHtml(raw).replace(/<a\b[^>]*>/g, '<span>').replace(/<\/a>/g, '</span>');
 }
 // 评论卡 enrich 原位补全：只动来源小条，评论正文永远不碰
 function patchCshare(cardEl, c) {

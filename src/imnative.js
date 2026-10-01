@@ -8,7 +8,9 @@ import { CFG } from './cfg.js';
 import { el, esc } from './ui.js';
 import { ICON_SVGS } from './imicons.js';
 import { ensureEmotionMap, emotify } from './emoticon.js';
-import { parseCard, parseShare, isCommentShare, degradeText, previewOfMessage, msgContentType, msgTextOf, fmtDur, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
+import { parseCard, parseShare, isCommentShare, commentShareAuthor, cmtShareOf, degradeText, previewOfMessage, msgContentType, msgTextOf, fmtDur, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
+import { ubbQuoteHtml } from './ubb.js';
+import { openImageViewer } from './imgview.js';
 import { AppAPI } from './appapi.js';
 
 var UNSUPPORTED = '不支持查看此消息，请前往最新版客户端查看。';
@@ -51,6 +53,11 @@ var SHADOW_CSS = ''
   + 'white-space:pre-wrap;word-break:break-word}'
   + '.cshare .quote .acsv-emotimg{display:inline-block;max-height:34px;max-width:68px;'
   + 'vertical-align:middle;margin:1px 2px}'
+  // quote 富渲染（extra 载荷命中，renderCommentHtml 产出）的 UBB 元素：对齐抽屉数值
+  + '.cshare .quote .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;'
+  + 'vertical-align:middle;margin:1px 2px}'
+  + '.cshare .quote .ubb-imgc{display:block;max-width:min(200px,100%);max-height:150px;'
+  + 'border-radius:8px;margin-top:6px;cursor:zoom-in}'
   + '.cshare .src{display:flex;align-items:center;gap:8px;padding:7px 9px;border-top:1px solid #efefef}'
   + '.cshare .srcimg{flex:none;width:56px;height:36px;object-fit:cover;border-radius:4px;background:#f2f2f2}'
   + '.cshare .srct{flex:1;min-width:0;font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
@@ -280,10 +287,13 @@ function tryShareCard(msgEl, content, msgCache) {
   enrichShare(share, function (c) {
     if (!content.isConnected) return;
     if (isCommentShare(share.title)) {
-      // 评论转发：原文（引用行+URL 行）整体由卡片承载，官方气泡只留附言——保留原文会与
-      // 卡片引用块重复（0.9.52 真机截图实证）。quote 富渲染表情（0.9.53 wire 携原始码）
+      // 评论转发：原文（引用行+URL 行）整体由卡片承载，官方气泡只留附言——保留原文本会与
+      // 卡片引用块重复（0.9.52 真机截图实证）。extra 载荷命中（pairMessage 配对内核消息，
+      // 0.9.57）时引用块富渲染原始 UBB：真表情/[img] 真图可点看大图；被剥则 wire 文本降级
       content.textContent = share.note || '';
-      var it = cshareItem(share.title, share.url);
+      var cmt = cmtShareOf(pairMessage(msgEl, msgCache));
+      var it = cshareItem(share.title, share.url,
+        cmt ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : '');
       if (c.cover) it.img.src = c.cover;
       if (c.title) it.srct.textContent = c.title;
       appendShadow(content, [it.item]);
@@ -428,17 +438,28 @@ function cardItem(r, hrefOverride) {
   a.addEventListener('click', function (ev) { ev.stopPropagation(); });
   return a;
 }
-// 评论转发条目（0.9.51）：官方文本气泡保留原文（就是评论主视觉），我们只在下方补
-// 来源作品小条。封面 enrich 回来再上，img 先 display:none、load 放出，防裂图占位
-function cshareItem(text, href) {
+// 评论转发条目（0.9.51，官方气泡只留附言、卡片承载引用行+作品条——0.9.53 去重）：
+// quote 富渲染优先（html=ubbQuoteHtml 产物，extra 载荷命中时传），否则 wire 文本走
+// emotify（表情码仍真图，[图片] 占位）。封面 enrich 回来再上，img 先 display:none、
+// load 放出，防裂图占位
+function cshareItem(text, href, html) {
   var a = el(href ? 'a' : 'div', 'cshare');
   if (href) {
     a.href = href;
     a.target = '_blank';
     a.rel = 'noopener';
   }
+  // 评论正文：html（extra 载荷富渲染，表情真图/[img] 真图可点看大图）优先，
+  // 未命中走 wire 文本 + emotify（表情码仍真图）
   var quote = el('span', 'quote');
-  quote.innerHTML = emotify(esc(text)); // 评论正文富渲染：表情码出真图（wire 携原始码，0.9.53）
+  quote.innerHTML = html || emotify(esc(text));
+  quote.addEventListener('click', function (ev) {
+    var im = ev.target && ev.target.closest ? ev.target.closest('.ubb-imgc') : null;
+    if (!im) return;
+    ev.preventDefault(); // 整卡是 <a>：看大图不跳作品页
+    ev.stopPropagation();
+    openImageViewer(im.getAttribute('src') || '');
+  });
   a.appendChild(quote);
   var src = el('span', 'src');
   var img = el('img', 'srcimg');

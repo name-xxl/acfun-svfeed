@@ -164,6 +164,20 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.57（2026-10-01）· 原生页评论转发卡富渲染：配图真图可点看大图
+
+- 原生页（message.acfun.cn）评论卡引用块此前用 wire 文本渲染，`[img]` 配图只能显示
+  `[图片]` 占位。现接通 extra 载荷：`pairMessage` 配对内核消息 → `cmtShareOf` 解出
+  原始 UBB → `ubbQuoteHtml` 富渲染——真表情 + **配图真图，点击大图查看器**（extra 被
+  服务端剥掉则回落 wire 文本降级，表情码仍真图）。
+- **ubbQuoteHtml 收口**（ubb.js）：引用块富正文（作者头 esc + renderCommentHtml 完整
+  管线 + `<a>`退化 span 防卡片嵌套），抽屉 cmtHtml 迁此、原生页同消费——两端渲染
+  语义单源。
+- **imgview 样式单源拆分**（styles.IMGVIEW_CSS）：原生页不注入全量 CSS（既定设计），
+  boot 仅注入该段 + `root=body`（state.setRoot），大图查看器在原生页可用；fadein
+  动画随段提供（RAW_CSS 原 keyframes 定义随之移除）。
+- 官方 APP 维持 `[图片]` 占位（已拍板不做追发图片消息）。
+
 ### 0.9.56（2026-10-01）· 评论三键图标统一动态页原生字码 + 字形尺寸修正
 
 - **点赞/回复也换原生字码**：从动态页互动区实测提取评论 `\ue627`、点赞未点亮

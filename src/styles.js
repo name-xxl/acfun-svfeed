@@ -2,6 +2,14 @@
 import { CFG } from './cfg.js';
 
 // RAW_CSS 里主题色一律写 #fd4c5d 占位，导出时统一替换为 CSS 变量（换肤只改 cfg.accent）
+// 大图查看器样式（0.9.57 单源拆分）：RAW_CSS 拼接同段；原生页不注入全量 CSS（既定
+// 设计），boot 仅补此段 + root=body，评论卡配图点击看大图即可用。fadein 动画随段提供
+export var IMGVIEW_CSS = '.acsv-imgview{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.92);display:flex;'
+  + 'align-items:center;justify-content:center;cursor:zoom-out;animation:acsv-fadein .18s ease}'
+  + '.acsv-imgview img{max-width:94%;max-height:94%;border-radius:6px;'
+  + 'box-shadow:0 8px 48px rgba(0,0,0,.6);-webkit-user-select:none;user-select:none}'
+  + '@keyframes acsv-fadein{from{opacity:0}to{opacity:1}}';
+
 var RAW_CSS = ''
   // A 站原生 iconfont（acfun-frontend-next）：动态页等站内页面同款字体（src 取自
   // member/feeds 页面样式，0.9.55），小视频/推荐页不加载，抽屉内自注入；码点登记在
@@ -196,7 +204,7 @@ var RAW_CSS = ''
   + '.acsv-hint-btn:hover{background:#ff6b7a}'
   + '.acsv-hint-x{border:none;background:none;color:#aaa;font-size:14px;cursor:pointer;padding:4px 8px;line-height:1}'
   + '.acsv-hint-x:hover{color:#fff}'
-  + '@keyframes acsv-fadein{from{opacity:0}to{opacity:1}}'
+  // fadein 动画随 IMGVIEW_CSS 段提供（原生页注入该段时同样需要）
   + '.acsv-spinner{position:absolute;top:50%;left:50%;margin:-16px 0 0 -16px;width:32px;height:32px;z-index:8;'
   + 'border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:acsv-spin .8s linear infinite;pointer-events:none}'
   + '@keyframes acsv-spin{to{transform:rotate(360deg)}}'
@@ -262,10 +270,7 @@ var RAW_CSS = ''
   + '.acsv-cbody .ubb-at,.acsv-cbody .ubb-res{color:#9fd0ff;text-decoration:none}'
   + '.acsv-cbody .ubb-at:hover,.acsv-cbody .ubb-res:hover{text-decoration:underline}'
   // 评论配图大图查看器：root 内全屏浮层，局部 z-index 盖过评论抽屉(45)与私信抽屉(50)
-  + '.acsv-imgview{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.92);display:flex;'
-  + 'align-items:center;justify-content:center;cursor:zoom-out;animation:acsv-fadein .18s ease}'
-  + '.acsv-imgview img{max-width:94%;max-height:94%;border-radius:6px;'
-  + 'box-shadow:0 8px 48px rgba(0,0,0,.6);-webkit-user-select:none;user-select:none}'
+  + IMGVIEW_CSS
   // 空间页小视频：工具栏（进度 + 排序）与分页条
   + '.acsv-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:0 0 10px;position:relative}'
   + '.acsv-progress-txt{font-size:12px;color:#999;margin-right:auto}'

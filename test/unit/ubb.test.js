@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 // __ACSV_DEBUG__——Node 直采源码时两个都要先垫再动态 import
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { renderCommentHtml, ubbImText } = await import('../../src/ubb.js');
+var { renderCommentHtml, ubbImText, ubbQuoteHtml } = await import('../../src/ubb.js');
 
 // ---------- [at] @ 提及 ----------
 test('at：线上原文出用户主页链接，@ 前缀保留', () => {
@@ -154,4 +154,23 @@ test('plain：组合与空值', () => {
   assert.equal(ubbImText(raw), '@丙：说得好[emot=acfun,1/]，图在此[图片]');
   assert.equal(ubbImText(''), '');
   assert.equal(ubbImText(null), '');
+});
+
+// ---------- ubbQuoteHtml（0.9.57 引用块富正文，抽屉/原生页同消费） ----------
+test('quote：作者头 esc + raw 富渲染（白名单图出真 img）', () => {
+  var h = ubbQuoteHtml('甲', '[img]https://imgs.aixifan.com/a.png[/img]');
+  assert.ok(h.startsWith('@甲：'), h);
+  assert.ok(h.includes('<img class="ubb-imgc" src="https://imgs.aixifan.com/a.png"'), h);
+});
+
+test('quote：作者名注入被 esc；at 链接退化 span（卡片 <a> 内禁嵌套）', () => {
+  var h = ubbQuoteHtml('<b>甲</b>', '[at uid=7]@乙[/at]');
+  assert.ok(h.includes('@&lt;b&gt;甲&lt;/b&gt;：'), h);
+  assert.ok(!h.includes('<a'), h);
+  assert.ok(h.includes('<span>@乙</span>'), h);
+});
+
+test('quote：空作者/空正文容错', () => {
+  assert.equal(ubbQuoteHtml('', ''), '@：');
+  assert.equal(ubbQuoteHtml(null, null), '@：');
 });

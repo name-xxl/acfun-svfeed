@@ -73,3 +73,12 @@ export function ubbImText(content) {
   t = t.replace(/\[color=#[0-9a-fA-F]{3,8}\]([\s\S]*?)\[\/color\]/g, '$1');
   return t;
 }
+
+// ---------- 引用块富正文（0.9.57 收口：抽屉 cmtHtml 迁此，imnative 同消费） ----------
+// 「@作者：」头 + 原始 UBB 富渲染（renderCommentHtml 完整管线：表情 EmotionMap 真图、
+// [img] 出真图）；链接退化 span——引用块置于卡片 <a> 内，HTML 禁止嵌套 a（解析器会
+// 拆散 DOM）。author 为裸昵称（内部 esc），raw 为原始 UBB（renderCommentHtml 自带 esc）
+export function ubbQuoteHtml(author, raw) {
+  return esc('@' + (author || '') + '：')
+    + renderCommentHtml(raw).replace(/<a\b[^>]*>/g, '<span>').replace(/<\/a>/g, '</span>');
+}
