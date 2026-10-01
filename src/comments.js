@@ -1,7 +1,7 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { el, elHtml, fmt, toast } from './ui.js';
-import { ICONS } from './styles.js';
+import { el, fmt, toast } from './ui.js';
+import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
 import { AppAPI } from './appapi.js';
 import { uploadImage } from './upload.js';
@@ -106,6 +106,20 @@ function normalizeSubs(subMap, cid) {
   return [];
 }
 
+// 原生图标只借形状（CSS mask 染色，颜色跟容器 currentColor），CDN hash 失效时回退手绘 SVG（同 rail.js 探测模式）
+function nativeIcon(url, fallbackSvg) {
+  var ic = el('i', 'acsvg-cicon');
+  ic.style.setProperty('--acsvg-cicon', 'url("' + url + '")');
+  var probe = new Image();
+  probe.onerror = function () {
+    ic.classList.remove('acsvg-cicon');
+    ic.style.removeProperty('--acsvg-cicon');
+    ic.innerHTML = fallbackSvg;
+  };
+  probe.src = url;
+  return ic;
+}
+
 function commentItem(c, subMap, sourceId) {
   var item = el('div', 'acsv-citem');
   // 头像 + 昵称可点击进入用户主页
@@ -137,22 +151,28 @@ function commentItem(c, subMap, sourceId) {
   var meta = el('div', 'acsv-cmeta');
   meta.appendChild(el('span', null, c.postDate || ''));
   var like = null, replyBtn = null;
+  // 点赞形状跟随同页右侧操作栏（rail.js 同款选型）：推荐页视频页拇指，小视频站心形 PNG
+  var likeUrl = commentState.kind === 'home' ? VIDEO_ICONS.like : SITE_ICONS.heart;
   if (commentState.kind === 'home') {
     // 小视频模式纯浏览：点赞/回复仅推荐模式提供。
     // 点击统一委托在 drawer list 上（见 commentListClick），这里只挂数据引用，
     // 免得长列表每条评论两个监听器、innerHTML 重建时反复创建丢弃
-    like = elHtml('span', 'acsv-clike' + ((c.isLike || c.localLike) ? ' on' : ''), ICONS.heart);
+    like = el('span', 'acsv-clike' + ((c.isLike || c.localLike) ? ' on' : ''));
+    like.appendChild(nativeIcon(likeUrl, ICONS.heart));
     var likeN = el('span', null, fmt((c.likeCount || 0) + (c.localLike ? 1 : 0)));
     like.appendChild(likeN);
     like.title = '点赞评论';
     like._c = c;
     like._n = likeN;
     meta.appendChild(like);
-    replyBtn = el('span', 'acsv-creplybtn', '回复');
+    replyBtn = el('span', 'acsv-creplybtn');
+    replyBtn.appendChild(nativeIcon(SITE_ICONS.comment, ICONS.comment));
+    replyBtn.appendChild(document.createTextNode('回复'));
     replyBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户' };
     meta.appendChild(replyBtn);
   } else {
-    like = elHtml('span', 'acsv-clike', ICONS.heart);
+    like = el('span', 'acsv-clike');
+    like.appendChild(nativeIcon(likeUrl, ICONS.heart));
     like.appendChild(el('span', null, fmt(c.likeCount)));
     meta.appendChild(like);
   }

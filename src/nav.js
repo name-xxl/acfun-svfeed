@@ -41,6 +41,12 @@ function tryInjectNav() {
 
 var navObserver = null;
 export function watchNav() {
+  // 页面白名单闸门：白名单外不注入、不观察、不弹兜底胶囊（0.9.47 起仅首页）
+  var ok = false;
+  for (var i = 0; i < CFG.nav.pages.length; i++) {
+    if (CFG.nav.pages[i].test(location.pathname)) { ok = true; break; }
+  }
+  if (!ok) return;
   if (tryInjectNav()) return;
   navObserver = new MutationObserver(function () {
     if (tryInjectNav()) {
@@ -50,11 +56,9 @@ export function watchNav() {
   });
   navObserver.observe(document.body, { childList: true, subtree: true });
   // 兜底：导航一直没渲染出来（或结构变了），给个悬浮入口
-  // 个人主页（/u/<uid>）是独立布局，导航注入必失败，但那里已有「小视频」标签入口，不弹胶囊
   setTimeout(function () {
     if (navObserver) { navObserver.disconnect(); navObserver = null; }
     if (document.getElementById('acsv-fab') || document.querySelector('[data-acsv-nav]')) return;
-    if (/^\/u\/\d+/.test(location.pathname)) return;
     var fab = el('button', 'acsv-fab', '▶ AcFun 小视频');
     fab.id = 'acsv-fab';
     fab.addEventListener('click', function () { location.hash = CFG.hash; });
