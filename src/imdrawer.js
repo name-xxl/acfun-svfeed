@@ -3,7 +3,8 @@ import { el, esc, toast, cookieVal } from './ui.js';
 import { root, claimDrawer, releaseDrawer } from './state.js';
 import {
   ensureIm, ensureConnected, ensureTracer, linkOk, forceSync,
-  doSend, sendQuote, sendImage, fetchImImageBlob, fetchCards, isLogined, imShutdown
+  doSend, sendQuote, sendImage, fetchImImageBlob, fetchCards, isLogined, imShutdown,
+  prewarmIm, peekImImageBlob
 } from './imshare.js';
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap } from './emoticon.js';
@@ -165,7 +166,7 @@ function ensureDrawerDom() {
   });
   var input = inputBar.input; // 引用 chip 联动 placeholder（renderQuoteChip）用
   chatView.appendChild(bubbles);
-  chatView.appendChild(quoteChip);
+  chatView.appendChild(quoteChip.box); // chip 置输入条上方；buildQuoteChip 返回 {box,label}，挂 DOM 须取 .box
   chatView.appendChild(inputBar.box);
   d.appendChild(chatView);
 
@@ -493,7 +494,8 @@ function appendBubble(m) {
 }
 // 图片气泡（contentType 1，官方同路消息 APP 原生渲染）：wire 上 uri 是 ks:// 资源串，须经
 // kernel.file 换带鉴权的 https 直链才能显示；换链失败不出裂图，降级 [图片] 文本。
-// 宽高非 0 时按比例占位防布局跳动；点击开大图查看器（划选文字收尾在图上不触发，对齐评论）
+// 宽高非 0 时按比例占位防布局跳动；点击开大图查看器（划选文字收尾在图上不触发，对齐评论）。
+// 字节懒加载（0.9.49）：滚入视口才拉，长历史只加载可见几张；pending 骨架微光占位
 function appendImageBubble(m, mine) {
   if (!drawer) return;
   var w = Number(m.width) || 0, h = Number(m.height) || 0;
@@ -508,25 +510,52 @@ function appendImageBubble(m, mine) {
       img.style.aspectRatio = w + ' / ' + h; // 加载前占住宽高比，上屏不跳
     }
     b.appendChild(img);
-    var curSrc = '';
-    // 不做直链 <img>：跨站必缺 midground 会话 Cookie（401 教训），直接 GM 带 acfun 域
-    // Cookie + 现换令牌拉字节换 blob；失败降级 [图片] 文本
-    fetchImImageBlob(src).then(function (blobUrl) {
-      if (!img.isConnected) return;
-      if (blobUrl) { curSrc = blobUrl; img.src = blobUrl; }
-      else { img.remove(); b.appendChild(document.createTextNode('[图片]')); }
-    });
+    var cached = peekImImageBlob(src);
+    if (cached) {
+      img.src = cached; // 缓存同步上屏：重开/切回会话不闪微光、不等观察器一拍
+    } else {
+      b.classList.add('pending');
+      imImgLazy(img, function () {
+        fetchImImageBlob(src).then(function (blobUrl) {
+          if (!img.isConnected) return;
+          b.classList.remove('pending');
+          if (blobUrl) img.src = blobUrl;
+          else { img.remove(); b.appendChild(document.createTextNode('[图片]')); }
+        });
+      });
+    }
     b.addEventListener('click', function (ev) {
       var sel = window.getSelection ? window.getSelection() : null;
       if (sel && !sel.isCollapsed) return;
-      if (!curSrc) return;
       ev.stopPropagation();
-      openImageViewer(curSrc);
+      // 大图查看器也走 fetchImImageBlob：命中缓存秒开；旧 blob 被 LRU 淘汰 revoke 了则
+      // 自动重拉（直用渲染时的 curSrc 会裂图）。在飞去重保证与气泡加载共用同一次下载
+      fetchImImageBlob(src).then(function (blobUrl) {
+        if (blobUrl) openImageViewer(blobUrl);
+      });
     });
   } else {
     b.textContent = '[图片]';
   }
   drawer.bubbles.appendChild(bubbleRow(b, mine, m));
+}
+// 图片懒加载观察器（模块级单例）：root 缺省=viewport，祖先滚动容器的裁剪自动计入，
+// 抽屉关/拆无需重建；会话视图 display:none 期间不交叉也就不触发。rootMargin 提前
+// 200px 预读；加载回调挂元素属性上，观察器本身零业务语义
+var imImgObs = null;
+function imImgLazy(img, load) {
+  if (!imImgObs) {
+    imImgObs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        imImgObs.unobserve(en.target);
+        var fn = en.target.__acsvImgLoad;
+        if (fn) { en.target.__acsvImgLoad = null; fn(); }
+      });
+    }, { rootMargin: '200px 0px' });
+  }
+  img.__acsvImgLoad = load;
+  imImgObs.observe(img);
 }
 // ks:// 资源 → 官方 download 直链（message.acfun.cn，参数白名单官方形态，无 token）。
 // 零会话依赖三级兜底（重开会话后内核 decodeContent/file 配置都不保证就绪，首次能渲染
@@ -813,6 +842,7 @@ function sendChat(text) {
 export function openDrawer() {
   if (!isLogined()) { toast('私信需要先登录 AcFun 账号'); return; }
   ensureDrawerDom();
+  prewarmIm(); // 首图提前换好 midground 令牌，进会话不等 token 往返
   claimDrawer('im', closeDrawer);
   drawer.el.classList.add('open');
   syncCommentVars(); // 复用评论抽屉的避让（视频平移缩放/控制栏侧栏让位）
@@ -821,6 +851,7 @@ export function openDrawer() {
 export function openChat(targetId) {
   if (!isLogined()) { toast('私信需要先登录 AcFun 账号'); return; }
   ensureDrawerDom();
+  prewarmIm(); // 同 openDrawer：分享面板直达会话也不等 token 往返
   claimDrawer('im', closeDrawer);
   drawer.el.classList.add('open');
   syncCommentVars();

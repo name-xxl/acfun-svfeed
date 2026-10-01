@@ -5,10 +5,14 @@ import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
 import { AppAPI } from './appapi.js';
 import { uploadImage } from './upload.js';
-import { renderCommentHtml } from './ubb.js';
+import { renderCommentHtml, ubbPlainText } from './ubb.js';
 import { mountEmotButton, ensureEmotionMap, insertAtCursor } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
+import { openSharePanel } from './imshare.js';
+// 经 imshare→imdrawer 回指本模块（syncCommentVars）成环：两侧都是函数、调用期才解引用，
+// 与 attach.js 记录的 feedstore↔player 循环同款先例，模块求值期无依赖
+
 
 // ---------- 评论抽屉 ----------
 // A 站通用评论系统：小视频 sourceType=5（sourceId=meowId），普通视频 sourceType=3（sourceId=ac号），
@@ -170,6 +174,11 @@ function commentItem(c, subMap, sourceId) {
     replyBtn.appendChild(document.createTextNode('回复'));
     replyBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户' };
     meta.appendChild(replyBtn);
+    // 转发到私信（0.9.50，官方无此入口）：按钮只挂数据引用，弹层与发送在 commentListClick 委托
+    var fwdBtn = el('span', 'acsv-cfwdbtn', '转发');
+    fwdBtn.title = '转发这条评论到私信';
+    fwdBtn._target = { name: c.userName || 'AcFun用户', content: c.content || '' };
+    meta.appendChild(fwdBtn);
   } else {
     like = el('span', 'acsv-clike');
     like.appendChild(nativeIcon(likeUrl, ICONS.heart));
@@ -232,6 +241,21 @@ export function commentListClick(ev) {
       var inp = inputBar.querySelector('.acsv-cinput-text');
       if (inp) inp.focus();
     }
+    return;
+  }
+  // 转发到私信：弹层挂抽屉根（meta 行在滚动列表内会被裁剪），文本按官方动态转发格式
+  // 拼「@作者：内容」+ 作品链接（parseShare 契约：标题行\nURL，两端出分享卡）
+  var fw = ev.target.closest('.acsv-cfwdbtn');
+  if (fw && fw._target && commentDrawer) {
+    ev.stopPropagation();
+    openSharePanel(fw, {
+      title: '@' + fw._target.name + '：' + ubbPlainText(fw._target.content),
+      shareUrl: commentState.shareUrl
+    }, {
+      host: commentDrawer.el,
+      popClass: 'acsv-sharepop-drawer',
+      headText: '转发这条评论'
+    });
     return;
   }
   var pic = ev.target.closest('.ubb-imgc');

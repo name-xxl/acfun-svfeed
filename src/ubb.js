@@ -57,3 +57,19 @@ export function renderCommentHtml(content) {
   });
   return h;
 }
+
+// ---------- 纯文本化（0.9.50，评论转发私信的文本消息用） ----------
+// 与 renderCommentHtml 同一套标签清单的纯文本投影。输出进私信文本消息（对端官方 APP
+// 按纯文本显示），不进 HTML，故吃原始内容、不做 esc；表情/配图转占位符，at/resource/
+// color 摘内文。处理顺序与渲染侧一致（emot/img 先行，color 最后），[color] 包住表情/
+// 配图时先行规则已把内层转掉。未知/未闭合标签与渲染侧同策略按字面保留
+export function ubbPlainText(content) {
+  var t = String(content || '');
+  t = t.replace(/\[emot=[^\]]*\/\]/g, '[表情]');
+  t = t.replace(/\[img=[^\]]*\]https?:\/\/[^\["']+?\[\/img\]/g, '[图片]');
+  t = t.replace(/\[img\]https?:\/\/[^\["']+?\[\/img\]/g, '[图片]');
+  t = t.replace(/\[at uid=\d+\]@?(.*?)\[\/at\]/g, '@$1');
+  t = t.replace(/\[resource id=\d+ type=\d+[^\]]*\]([\s\S]*?)\[\/resource\]/gi, '$1');
+  t = t.replace(/\[color=#[0-9a-fA-F]{3,8}\]([\s\S]*?)\[\/color\]/g, '$1');
+  return t;
+}

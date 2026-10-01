@@ -580,11 +580,72 @@ function midgroundToken(refresh) {
   return mgTokenP;
 }
 
+// ---------- 图片字节：LRU 缓存 + 限流下载 ----------
+// blob objectURL 的 LRU 缓存（key=下载 URL）：重开/来回切会话不再全量重下，命中直接秒显；
+// 淘汰时 revoke，顺带修掉旧版 objectURL 永不回收的泄漏。查询在令牌之前——命中连 token/get
+// 往返都省。已上屏的 blob 被 revoke 不影响显示（已解码位图仍在 img 里）
+var imgBlobCache = new Map();
+var IMG_BLOB_CACHE_MAX = 30;
+function cacheBlobPut(url, blobUrl) {
+  imgBlobCache.delete(url); // delete+set 搬队尾：命中即续命（LRU）
+  imgBlobCache.set(url, blobUrl);
+  while (imgBlobCache.size > IMG_BLOB_CACHE_MAX) {
+    var k = imgBlobCache.keys().next().value;
+    var u = imgBlobCache.get(k);
+    imgBlobCache.delete(k);
+    try { URL.revokeObjectURL(u); } catch (e0) { }
+  }
+}
+
+// 下载并发上限：快滚长历史时也只保持 3 个在途 GM 请求，互不挤占带宽（FIFO 配对队列）
+var imgQ = [], imgActive = 0, IMG_Q_LIMIT = 3;
+function runQueuedImg(it) {
+  it[0]().then(function (v) { imgActive--; pumpImgQ(); it[1](v); },
+    function (e) { imgActive--; pumpImgQ(); it[2](e); });
+}
+function pumpImgQ() {
+  while (imgActive < IMG_Q_LIMIT && imgQ.length) runQueuedImg(imgQ.shift());
+}
+function enqueueImg(job) {
+  return new Promise(function (resolve, reject) {
+    imgQ.push([job, resolve, reject]);
+    pumpImgQ();
+  });
+}
+
+// 在飞去重：同 URL 的并发调用（气泡加载中又点开大图）共享同一次下载
+var imgInflight = new Map();
+
+// 缓存 key 取资源本体（resourceId）而非完整 URL：重开会话内核换链可用性不定（0.9.41
+// 「零会话依赖三级兜底」的同款前提），同一张图在「内核形态」与「本地拼装」两条路下
+// URL 参数不同（userId/did/imsdkver 有无），按整串 URL 做 key 两条路互不命中——真机
+// 首验「非秒出」的根因。两类形态产物都必带 resourceId 参数
+function imgCacheKey(url) {
+  var m = /[?&]resourceId=([^&]+)/.exec(url);
+  return m ? m[1] : url;
+}
+
+// 只读窥缓存（不触发下载/令牌）：渲染路径同步命中直接上屏，免 IntersectionObserver
+// 一拍延迟也不闪微光
+export function peekImImageBlob(url) {
+  var key = imgCacheKey(url);
+  var hit = imgBlobCache.get(key);
+  if (hit) cacheBlobPut(key, hit);
+  return hit || null;
+}
+
 // 图片字节拉取：下载端按 Cookie 里的 midground 令牌鉴权（直链跨站没这张 Cookie 必 401，
-// query 里带实测不认）。流程：id.app.acfun.cn token/get 现换令牌 → 写进 .acfun.cn 父域
-// Cookie（message.acfun.cn 无自己的 host 级同名 Cookie 时即采用；本页可写父域）→ GM 带
-// Cookie 拉字节换 blob。令牌被拒则强刷一枚重试一次。失败统一 null（降级 [图片] 文本）
+// query 里带实测不认）。流程：查缓存/在飞 → id.app.acfun.cn token/get 现换令牌 → 写进
+// .acfun.cn 父域 Cookie（message.acfun.cn 无自己的 host 级同名 Cookie 时即采用；本页可写
+// 父域）→ GM 带 Cookie 拉字节换 blob。首拉不带 buster 让浏览器 HTTP 缓存跨刷新生效；
+// 令牌被拒则强刷一枚、带 buster 重试一次（防命中可能已中毒的缓存响应）。
+// 失败统一 null（降级 [图片] 文本）
 export function fetchImImageBlob(url) {
+  var key = imgCacheKey(url);
+  var hit = imgBlobCache.get(key);
+  if (hit) { cacheBlobPut(key, hit); return Promise.resolve(hit); }
+  var flying = imgInflight.get(key);
+  if (flying) return flying;
   function setMgCookie(tk) {
     if (!tk) return;
     try {
@@ -592,24 +653,38 @@ export function fetchImImageBlob(url) {
         + '; domain=.acfun.cn; path=/; max-age=86400; SameSite=None; Secure';
     } catch (e0) { }
   }
-  function once() {
-    var u = url + (url.indexOf('?') > -1 ? '&' : '?') + '_=' + Date.now();
-    return gmRequest({ url: u, timeout: CFG.time.gm, responseType: 'arraybuffer', okStatus: true });
+  function once(bust) {
+    var u = bust ? url + (url.indexOf('?') > -1 ? '&' : '?') + '_=' + Date.now() : url;
+    return enqueueImg(function () {
+      return gmRequest({ url: u, timeout: CFG.time.gm, responseType: 'arraybuffer', okStatus: true });
+    });
   }
   function toBlob(buf) {
     try { return (buf && buf.byteLength) ? URL.createObjectURL(new Blob([buf])) : null; }
     catch (e) { return null; }
   }
-  return midgroundToken(false).then(function (tk) {
+  var p = midgroundToken(false).then(function (tk) {
     setMgCookie(tk);
-    return once();
-  }, function () { return once(); }).then(toBlob, function () {
+    return once(false);
+  }, function () { return once(false); }).then(toBlob, function () {
     // 401/网络错：令牌可能过期，强刷一枚重写 Cookie 再试一次
     return midgroundToken(true).then(function (tk) {
       setMgCookie(tk);
-      return once();
-    }, function () { return once(); }).then(toBlob, function () { return null; });
+      return once(true);
+    }, function () { return once(true); }).then(toBlob, function () { return null; });
+  }).then(function (blobUrl) {
+    imgInflight.delete(key); // 链路终态恒 resolve（失败也是 null），清在飞允许下次重试
+    if (blobUrl) cacheBlobPut(key, blobUrl);
+    return blobUrl;
   });
+  imgInflight.set(key, p);
+  return p;
+}
+
+// 令牌预热：开抽屉即单飞换好令牌写好 Cookie，进会话首图免去 token/get 串行往返。
+// midgroundToken 单飞缓存本身幂等，缓存命中时此令牌用不上也无副作用
+export function prewarmIm() {
+  midgroundToken(false);
 }
 
 // 引用消息发送（双通道按 CFG.im.quoteWire 切换，都走 kernel 直发 + 恢复重试）。
@@ -648,8 +723,14 @@ export function sendQuote(inst, targetId, quote, text) {
 }
 
 // ---------- 分享面板 ----------
-// 锚定在分享按钮左侧的浮层（banpop 同款挂载：随 slide 销毁自然回收，无全局监听残留）
-export function openSharePanel(btn, item) {
+// 锚定在分享按钮左侧的浮层（banpop 同款挂载：随 slide 销毁自然回收，无全局监听残留）。
+// opts（0.9.50，评论转发私信场景注入，rail 分享不传保持原状）：
+//   host      弹层挂载点——缺省挂 btn.parentNode；评论场景必须换抽屉根：meta 行在
+//             overflow-y:auto 的滚动列表里，浮层挂里面会被水平裁剪
+//   popClass  位置修饰类（.acsv-sharepop-drawer：锚抽屉输入条上方）
+//   headText  面板标题文案，缺省「分享给朋友」
+export function openSharePanel(btn, item, opts) {
+  opts = opts || {};
   var existed = document.querySelector('.acsv-sharepop');
   if (existed) {
     var reuse = existed._anchor === btn;
@@ -659,9 +740,10 @@ export function openSharePanel(btn, item) {
 
   var pop = el('div', 'acsv-sharepop');
   pop._anchor = btn;
+  if (opts.popClass) pop.classList.add(opts.popClass);
 
   var head = el('div', 'acsv-share-head');
-  head.appendChild(el('span', null, '分享给朋友'));
+  head.appendChild(el('span', null, opts.headText || '分享给朋友'));
   var closeBtn = el('button', 'acsv-share-close', '✕');
   closeBtn.addEventListener('click', function (ev) { ev.stopPropagation(); pop.remove(); });
   head.appendChild(closeBtn);
@@ -694,8 +776,8 @@ export function openSharePanel(btn, item) {
   foot.appendChild(centerLink);
   pop.appendChild(foot);
 
-  var wrap = btn.parentNode;
-  wrap.style.position = 'relative';
+  var wrap = opts.host || btn.parentNode;
+  if (!opts.host) wrap.style.position = 'relative'; // host 自带定位（抽屉根是 absolute），不许覆写
   wrap.appendChild(pop);
 
   setTimeout(function () {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.48-debug
+// @version      0.9.50-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -343,7 +343,7 @@
   dbg("cfg-ok");
 
   // src/styles.js
-  var RAW_CSS = '#acsv-root{position:fixed;inset:0;z-index:2147483000;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;user-select:none}.acsv-root *{box-sizing:border-box;margin:0;padding:0}.acsv-top{position:absolute;top:0;left:0;right:0;height:56px;display:flex;align-items:center;padding:0 24px;background:linear-gradient(rgba(0,0,0,.6),transparent);z-index:30;pointer-events:none}.acsv-top *{pointer-events:auto}.acsv-logo{display:flex;align-items:center;gap:8px;min-width:0}.acsv-logo-img{height:26px;width:auto;display:block}.acsv-logo em{color:#fff;font-style:normal;font-weight:400;font-size:13px;margin-left:8px;opacity:.9}.acsv-top-right{margin-left:auto;display:flex;gap:10px;transition:transform .28s ease}.acsv-tbtn{width:36px;height:36px;border:none;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;display:grid;place-items:center;font-size:16px;transition:transform .15s,background .15s}.acsv-tbtn:hover{transform:scale(1.08);background:rgba(255,255,255,.25)}.acsv-scroller{height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;overscroll-behavior:contain;scrollbar-width:none}.acsv-scroller::-webkit-scrollbar{display:none}.acsv-slide{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000}.acsv-video{display:block;width:100%;height:100%;object-fit:contain;cursor:pointer;z-index:5}.acsv-ambient{position:absolute;inset:-60px;z-index:0;background-size:cover;background-position:center;filter:blur(60px) brightness(.35) saturate(1.2);transform:scale(1.15)}.acsv-side{position:absolute;right:36px;bottom:96px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:14px}.acsv-rail{width:56px;display:flex;flex-direction:column;align-items:center;text-shadow:0 1px 3px rgba(0,0,0,.7)}.acsv-avatar{width:48px;height:48px;border-radius:50%;border:2px solid #fff;object-fit:cover;display:block;transition:transform .15s}.acsv-avwrap{position:relative;margin-bottom:18px}.acsv-followbtn{position:absolute;right:-2px;bottom:-4px;width:20px;height:20px;border-radius:50%;background:#fd4c5d;color:#fff;border:2px solid #111;font-size:13px;line-height:17px;text-align:center;cursor:pointer;font-weight:700;user-select:none;transition:transform .15s,background .15s;z-index:2}.acsv-followbtn:hover{transform:scale(1.15)}.acsv-followbtn.on{background:#555}.acsv-avatar:hover{transform:scale(1.08)}.acsv-rail-btn{width:56px;border:none;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;margin-bottom:18px;filter:drop-shadow(0 1px 4px rgba(0,0,0,.55))}.acsv-rail-btn svg{width:40px;height:40px;fill:#fff;transition:transform .15s,fill .15s}.acsv-rail-btn:hover svg{transform:scale(1.12)}.acsv-rail-btn.on svg{fill:var(--acsv-accent)}.acsv-rail-btn.thrown svg{fill:#ffb323}.acsv-rail-btn.bump svg{animation:acsv-bump .4s ease}@keyframes acsv-bump{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}.acsv-count{font-size:13px;font-weight:500;line-height:16px;margin-top:4px;margin-bottom:0;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.7)}.acsv-info{position:absolute;left:24px;bottom:40px;z-index:15;max-width:min(56%,560px);color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7);transition:bottom .25s ease}.acsv-slide[data-ctl="1"] .acsv-info,.acsv-slide[data-paused="1"] .acsv-info{bottom:96px}.acsv-meta{font-size:15px;font-weight:600;line-height:21px;margin-bottom:5px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}.acsv-meta .acsv-views{font-size:13px;font-weight:400;opacity:.85}.acsv-meta a{color:#fff;text-decoration:none}.acsv-meta a:hover{text-decoration:underline}.acsv-title{font-size:16px;font-weight:400;line-height:22px;max-height:66px;overflow:hidden;cursor:default}.acsv-arrows{display:flex;flex-direction:column;gap:10px}.acsv-arrow{width:40px;height:40px;border:none;border-radius:50%;background:rgba(255,255,255,.12);cursor:pointer;display:grid;place-items:center;backdrop-filter:blur(4px);transition:background .15s,transform .15s}.acsv-arrow svg{width:22px;height:22px;fill:#fff}.acsv-arrow:hover{background:rgba(255,255,255,.25);transform:scale(1.06)}.acsv-arrow:disabled{opacity:.3;cursor:default;transform:none}.acsv-controls{position:absolute;left:0;right:0;bottom:0;z-index:25;padding:26px 14px 8px;background:linear-gradient(transparent,rgba(0,0,0,.72));opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s,right .28s ease}.acsv-slide[data-ctl="1"] .acsv-controls,.acsv-slide[data-paused="1"] .acsv-controls{opacity:1;visibility:visible}.acsv-track{position:relative;height:4px;margin:0 4px 6px;border-radius:2px;background:rgba(255,255,255,.32);cursor:pointer;transition:height .15s}.acsv-track:hover,.acsv-track[data-drag="1"]{height:6px}.acsv-track-fill{position:absolute;left:0;top:0;bottom:0;width:0;background:#fd4c5d;border-radius:2px}.acsv-track-handle{position:absolute;top:50%;left:0;width:12px;height:12px;border-radius:50%;background:#fff;transform:translate(-50%,-50%) scale(0);transition:transform .15s;box-shadow:0 1px 4px rgba(0,0,0,.5)}.acsv-track:hover .acsv-track-handle,.acsv-track[data-drag="1"] .acsv-track-handle{transform:translate(-50%,-50%) scale(1)}.acsv-bubble{position:absolute;bottom:18px;transform:translateX(-50%);background:rgba(0,0,0,.82);padding:3px 8px;border-radius:6px;font-size:12px;display:none;white-space:nowrap}.acsv-bubble.show{display:block}.acsv-ctl-row{display:flex;align-items:center;gap:6px}.acsv-cbtn{border:none;background:none;color:#fff;cursor:pointer;height:32px;min-width:32px;padding:0 6px;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:13px;font-family:inherit;transition:background .15s;white-space:nowrap;flex:none}.acsv-cbtn:hover{background:rgba(255,255,255,.16)}.acsv-cbtn svg{width:20px;height:20px;fill:#fff}.acsv-cbtn.on{color:#fd4c5d}.acsv-cbtn.on svg{fill:#fd4c5d}.acsv-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.5)}.acsv-cbtn.on .acsv-dot{background:#fd4c5d}.acsv-time{font-size:12px;color:#ddd;font-variant-numeric:tabular-nums;margin-left:4px;white-space:nowrap;flex:none}.acsv-icon-img{width:40px;height:40px;object-fit:contain;transition:transform .15s}.acsv-rail-btn:hover .acsv-icon-img{transform:scale(1.12)}.acsv-rail-btn.bump .acsv-icon-img{animation:acsv-bump .4s ease}.acsvg-icon-mask{display:block;width:40px;height:40px;background-color:#fff;-webkit-mask:var(--acsvg-icon) center/contain no-repeat;mask:var(--acsvg-icon) center/contain no-repeat;transition:transform .15s,background-color .15s}.acsv-rail-btn:hover .acsvg-icon-mask{transform:scale(1.12)}.acsv-rail-btn.on .acsvg-icon-mask{background-color:var(--acsv-accent)}.acsv-rail-btn.thrown .acsvg-icon-mask{background-color:#ffb323}.acsv-rail-btn.bump .acsvg-icon-mask{animation:acsv-bump .4s ease}.acsv-rail-btn.thrown{cursor:default}.acsv-drawer{position:absolute;top:0;right:0;bottom:0;width:var(--acsv-dw,380px);z-index:45;display:flex;flex-direction:column;background:rgba(22,22,27,.96);backdrop-filter:blur(12px);border-left:1px solid rgba(255,255,255,.09);transform:translateX(100%);transition:transform .28s ease}.acsv-drawer.open{transform:translateX(0)}.acsv-drawer-head{display:flex;align-items:center;gap:10px;padding:14px 16px;font-size:15px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.09);flex:none}.acsv-drawer-close{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:13px;line-height:1}.acsv-drawer-close:hover{background:rgba(255,255,255,.22)}.acsv-drawer-list{flex:1;overflow-y:auto;padding:6px 0 14px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}.acsv-drawer-list::-webkit-scrollbar{width:5px}.acsv-drawer-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}.acsv-cinput{flex:none;display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.09);background:rgba(22,22,27,.98)}.acsv-cinput-emot{border:none;background:none;font-size:18px;cursor:pointer;flex:none;padding:2px;line-height:1}.acsv-cinput-emot:hover{transform:scale(1.12)}.acsv-cinput-text{flex:1;min-width:0;height:36px;border:none;background:rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:13px;padding:9px 12px;outline:none;font-family:inherit;resize:none}.acsv-cinput-text:focus{background:rgba(255,255,255,.16)}.acsv-cinput-send{flex:none;border:none;background:#fd4c5d;color:#fff;font-size:13px;padding:8px 16px;border-radius:999px;cursor:pointer;font-family:inherit}.acsv-cinput-send:hover{background:#ff6b7a}.acsv-emotpanel{position:absolute;left:0;right:0;bottom:57px;z-index:6;display:none;flex-direction:column;max-height:300px;padding:10px 10px 6px;background:rgba(22,22,27,.98);border-top:1px solid rgba(255,255,255,.1)}.acsv-emot-body{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}.acsv-emot-head{font-size:12px;color:#7a7f8a;padding:4px 2px 6px}.acsv-emot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:2px}.acsv-emot-item{border:none;background:none;padding:2px;cursor:pointer;line-height:0;border-radius:6px}.acsv-emot-item:hover{background:rgba(255,255,255,.08)}.acsv-emot-item img{width:100%;height:44px;object-fit:contain;pointer-events:none}.acsv-emot-foot{display:flex;align-items:center;gap:6px;margin-top:6px;padding:4px 6px;background:rgba(255,255,255,.05);border-radius:8px}.acsv-emot-strip{display:flex;align-items:center;gap:8px;overflow-x:auto;flex:1;min-width:0;padding:2px;scrollbar-width:none}.acsv-emot-strip::-webkit-scrollbar{display:none}.acsv-emot-thumb{flex:none;width:32px;height:32px;padding:0;border:2px solid transparent;border-radius:8px;background:none;cursor:pointer;line-height:0}.acsv-emot-thumb img{width:100%;height:100%;object-fit:contain;pointer-events:none}.acsv-emot-thumb.on{border-color:#fd4c5d}.acsv-emot-page{flex:none;width:24px;height:24px;border:none;border-radius:50%;background:none;color:#999;cursor:pointer;font-size:14px;line-height:1}.acsv-emot-page:hover{background:rgba(255,255,255,.1);color:#fff}.acsv-cinput-emot svg{width:20px;height:20px;fill:#999;transition:fill .15s}.acsv-cinput-emot:hover svg{fill:#fd4c5d}.acsv-cinput-img{border:none;background:none;padding:2px;cursor:pointer;line-height:0}.acsv-cinput-img svg{width:20px;height:20px;fill:#999;transition:fill .15s}.acsv-cinput-img:hover svg{fill:#fd4c5d}.acsv-creplybtn{cursor:pointer;color:#7a7f8a;font-size:12px;display:inline-flex;align-items:center;gap:3px}.acsv-creplybtn:hover{color:#9fd0ff}.acsv-citem{padding:10px 14px;display:flex;gap:10px;border-radius:10px;transition:background .15s}.acsv-citem:hover{background:rgba(255,255,255,.045)}.acsv-avlink{flex:none;display:block}.acsv-citem img.av{width:36px;height:36px;border-radius:50%;object-fit:cover;transition:transform .15s}.acsv-avlink:hover img.av{transform:scale(1.08)}.acsv-cbody{flex:1;min-width:0}.acsv-cname{font-size:13px;color:#9aa0ab;margin-bottom:4px;display:flex;align-items:center;gap:6px}.acsv-cname a{color:#9aa0ab;text-decoration:none}.acsv-cname a:hover{color:#e8eaed;text-decoration:underline}.acsv-cname .up{background:#fd4c5d;color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600}.acsv-ctext{font-size:14px;line-height:1.6;word-break:break-word;white-space:pre-wrap;color:#f0f1f3;user-select:text;-webkit-user-select:text}.acsv-cmeta{font-size:12px;color:#7a7f8a;margin-top:6px;display:flex;gap:12px;align-items:center}.acsv-clike{display:inline-flex;align-items:center;gap:3px;color:#7a7f8a}.acsv-clike svg,.acsv-creplybtn svg{width:12px;height:12px;fill:currentColor}.acsv-clike .acsvg-cicon,.acsv-creplybtn .acsvg-cicon{width:12px;height:12px}.acsv-csub{margin:8px 0 2px;padding:4px 12px;background:rgba(255,255,255,.05);border-radius:10px}.acsv-csub .acsv-citem{padding:8px 0}.acsv-csub .acsv-citem:hover{background:none}.acsv-csub .acsv-citem img.av{width:26px;height:26px}.acsv-cmore{font-size:12px;color:#9fd0ff;text-decoration:none;display:inline-block;background:none;border:none;cursor:pointer;padding:0;font-family:inherit}.acsv-cmore:hover{text-decoration:underline}.acsv-hot-head{padding:10px 14px 4px;font-size:12px;color:#fd4c5d;font-weight:700;display:flex;align-items:center;gap:5px}.acsv-hot-divider{padding:12px 14px 4px;font-size:12px;color:#7a7f8a}.acsv-drawer-more{display:block;margin:12px auto;padding:8px 24px;border:1px solid rgba(255,255,255,.22);background:none;color:#ddd;border-radius:999px;cursor:pointer;font-size:13px;font-family:inherit}.acsv-drawer-more:hover{background:rgba(255,255,255,.1)}.acsv-drawer-tip{padding:46px 0;text-align:center;color:#888;font-size:13px}.acsv-hint{position:absolute;bottom:140px;left:50%;transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;padding:8px 10px 8px 16px;background:rgba(0,0,0,.72);border-radius:999px;font-size:13px;white-space:nowrap;animation:acsv-fadein .3s ease}.acsv-hint.hide{display:none}.acsv-hint-btn{border:none;background:#fd4c5d;color:#fff;font-size:12px;font-family:inherit;padding:6px 14px;border-radius:999px;cursor:pointer}.acsv-hint-btn:hover{background:#ff6b7a}.acsv-hint-x{border:none;background:none;color:#aaa;font-size:14px;cursor:pointer;padding:4px 8px;line-height:1}.acsv-hint-x:hover{color:#fff}@keyframes acsv-fadein{from{opacity:0}to{opacity:1}}.acsv-spinner{position:absolute;top:50%;left:50%;margin:-16px 0 0 -16px;width:32px;height:32px;z-index:8;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:acsv-spin .8s linear infinite;pointer-events:none}@keyframes acsv-spin{to{transform:rotate(360deg)}}.acsv-slide[data-state="loading"] .acsv-spinner{display:block}.acsv-spinner{display:none}.acsv-playicon{position:absolute;top:50%;left:50%;margin:-36px 0 0 -36px;z-index:9;width:72px;height:72px;border-radius:50%;background:rgba(0,0,0,.5);display:none;place-items:center;pointer-events:none}.acsv-playicon svg{width:34px;height:34px;fill:#fff;margin-left:4px}.acsv-slide[data-paused="1"] .acsv-playicon{display:grid}.acsv-errbox{position:absolute;inset:0;display:none;place-items:center;z-index:12;flex-direction:column;gap:12px;color:#bbb}.acsv-slide[data-state="error"] .acsv-errbox{display:grid}.acsv-retry{padding:8px 22px;border:none;border-radius:999px;background:#fd4c5d;color:#fff;cursor:pointer;font-size:13px}.acsv-toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:2147483600;background:rgba(0,0,0,.78);color:#fff;padding:9px 18px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}.acsv-toast.show{opacity:1}.acsv-fab{position:fixed;right:18px;bottom:18px;z-index:2147482990;background:#fd4c5d;color:#fff;border:none;border-radius:999px;padding:10px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.3)}.acsv-space{margin:18px auto 40px;max-width:1160px;font-family:inherit}.acsv-space-head{display:flex;align-items:baseline;gap:8px;padding:0 4px 10px;border-bottom:2px solid #fd4c5d;margin-bottom:14px}.acsv-space-head h2{font-size:18px;color:#333;margin:0;font-weight:700}.acsv-space-head .n{color:#999;font-size:13px}.acsv-space-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}@media (max-width:1000px){.acsv-space-grid{grid-template-columns:repeat(3,1fr)}}@media (max-width:640px){.acsv-space-grid{grid-template-columns:repeat(2,1fr)}}.acsv-space-cell{position:relative;border-radius:6px;overflow:hidden;cursor:pointer;aspect-ratio:3/4;background:#000;display:block}.acsv-space-cell img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s,opacity .2s;opacity:0}.acsv-space-cell img.ld{opacity:1}.acsv-space-cell:hover img{transform:scale(1.06)}.acsv-space-more{display:block;margin:16px auto;padding:8px 28px;border:1px solid #ddd;background:#fff;color:#666;border-radius:999px;cursor:pointer;font-size:13px;font-family:inherit}.acsv-space-more:hover{color:#fd4c5d;border-color:#fd4c5d}.acsv-space-tip{padding:30px 0;text-align:center;color:#999;font-size:13px}.acsv-video,.acsv-playicon,.acsv-errbox,.acsv-side,.acsv-top-right{transition:transform .28s ease}#acsv-root.acsv-with-comments .acsv-video,#acsv-root.acsv-with-comments .acsv-playicon,#acsv-root.acsv-with-comments .acsv-errbox{transform:translateX(calc(var(--acsv-dw,380px) / -2)) scale(var(--acsv-cscale,1))}#acsv-root.acsv-with-comments .acsv-dmcanvas{transition:left .28s ease,top .28s ease,width .28s ease,height .28s ease}#acsv-root.acsv-with-comments .acsv-controls{right:var(--acsv-dw,380px)}#acsv-root.acsv-with-comments .acsv-side,#acsv-root.acsv-with-comments .acsv-top-right{transform:translateX(calc(var(--acsv-dw,380px) * -1))}#acsv-root.acsv-with-comments .acsv-slide[data-panfit="1"]>.acsv-video,#acsv-root.acsv-with-comments .acsv-slide[data-panfit="1"]>.acsv-playicon,#acsv-root.acsv-with-comments .acsv-slide[data-panfit="1"]>.acsv-errbox{transform:translateX(calc(var(--acsv-dw,380px) / -2))}.acsv-slide>.acsv-spinner,.acsv-scroller>.acsv-spinner{transition:left .28s ease}#acsv-root.acsv-with-comments .acsv-slide>.acsv-spinner,#acsv-root.acsv-with-comments .acsv-scroller>.acsv-spinner{left:calc(50% - var(--acsv-dw,380px)/2)}.acsv-cbody .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}.acsv-cbody .ubb-imgc{display:block;max-width:min(240px,100%);max-height:220px;border-radius:8px;margin-top:6px;cursor:zoom-in}.acsv-cbody .ubb-at,.acsv-cbody .ubb-res{color:#9fd0ff;text-decoration:none}.acsv-cbody .ubb-at:hover,.acsv-cbody .ubb-res:hover{text-decoration:underline}.acsv-imgview{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out;animation:acsv-fadein .18s ease}.acsv-imgview img{max-width:94%;max-height:94%;border-radius:6px;box-shadow:0 8px 48px rgba(0,0,0,.6);-webkit-user-select:none;user-select:none}.acsv-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:0 0 10px;position:relative}.acsv-progress-txt{font-size:12px;color:#999;margin-right:auto}.acsv-sort{position:relative;cursor:pointer;font-size:13px;color:#666;user-select:none;padding:4px 10px;border:1px solid #e5e5e5;border-radius:4px;background:#fff}.acsv-sort:hover{border-color:#fd4c5d;color:#fd4c5d}.acsv-sort .arrow{font-size:10px;margin-left:4px}.acsv-sort-menu{display:none;position:absolute;right:0;top:110%;z-index:30;min-width:100%;background:#fff;border:1px solid #eee;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.12);overflow:hidden}.acsv-sort.open .acsv-sort-menu{display:block}.acsv-sort-menu li{list-style:none;padding:8px 18px;white-space:nowrap}.acsv-sort-menu li:hover{background:#fdf0f1;color:#fd4c5d}.acsv-sort-menu li.on{color:#fd4c5d;font-weight:700}.acsv-pagebar{display:flex;justify-content:center;align-items:center;gap:6px;margin:18px 0 6px;flex-wrap:wrap}.acsv-pagebtn{min-width:32px;height:32px;padding:0 8px;border:1px solid #e0e0e0;background:#fff;color:#555;border-radius:4px;cursor:pointer;font-size:13px;font-family:inherit;transition:all .15s}.acsv-pagebtn:hover:not(:disabled):not(.cur){border-color:#fd4c5d;color:#fd4c5d}.acsv-pagebtn.cur{background:#fd4c5d;border-color:#fd4c5d;color:#fff;cursor:default}.acsv-pagebtn:disabled{color:#ccc;cursor:default;background:#f7f7f7}.acsv-pagebtn.dots{border:none;background:none;cursor:default}.acsv-dmcanvas{position:absolute;z-index:8;pointer-events:none}.acsv-seg{display:flex;align-items:center;background:rgba(255,255,255,.14);border-radius:999px;padding:3px;gap:2px}.acsv-seg-btn{border:none;background:none;color:#fff;opacity:.7;font-size:13px;font-family:inherit;padding:6px 16px;border-radius:999px;cursor:pointer;transition:background .15s,opacity .15s;white-space:nowrap}.acsv-seg-btn:hover{opacity:.9}.acsv-seg-btn.on{background:rgba(255,255,255,.24);opacity:1;font-weight:600}.acsv-cbtxt{font-size:12px;color:#ddd;margin-left:2px}.acsv-qwrap{position:relative;display:flex}.acsv-qmenu{position:absolute;right:0;bottom:calc(100% + 12px);z-index:35;min-width:88px;background:rgba(18,18,22,.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:2px;box-shadow:0 8px 28px rgba(0,0,0,.45)}.acsv-qitem{border:none;background:none;color:#ccc;font-size:13px;font-family:inherit;padding:7px 16px;border-radius:8px;cursor:pointer;text-align:center;white-space:nowrap}.acsv-qitem:hover{background:rgba(255,255,255,.12);color:#fff}.acsv-qitem.on{color:#fd4c5d;font-weight:700}.acsv-dmbox{display:flex;align-items:center;flex:1 1 auto;min-width:0;max-width:min(340px,38vw);height:32px;padding:0 4px 0 14px;overflow:hidden;background:rgba(255,255,255,.14);border-radius:999px;transition:background .15s}.acsv-dmbox:focus-within{background:rgba(255,255,255,.2)}.acsv-dm-input{flex:1;min-width:0;border:none;background:none;outline:none;color:#fff;font-size:13px;font-family:inherit}.acsv-dm-input::placeholder{color:rgba(255,255,255,.4)}.acsv-dm-send{flex:none;border:none;background:rgba(255,255,255,.22);color:#fff;font-size:12px;padding:5px 14px;border-radius:999px;cursor:pointer;font-family:inherit}.acsv-dm-send:hover{background:#fd4c5d}.acsv-clike{cursor:pointer}.acsv-clike:hover{color:#b9bec7}.acsv-clike.on{color:#fd4c5d}.acsv-cdm:not(.on){opacity:.55}.acsv-banpop{position:absolute;right:62px;top:-4px;z-index:30;display:flex;align-items:center;gap:2px;padding:7px 10px;background:rgba(22,22,27,.96);border:1px solid rgba(255,255,255,.12);border-radius:999px;}.acsv-banpop button{border:none;background:none;padding:2px;cursor:pointer;line-height:0;opacity:.9;transition:transform .12s}.acsv-banpop button:hover{opacity:1;transform:scale(1.18)}.acsv-banpop button img{width:26px;height:26px;display:block}.acsv-sharepop{position:absolute;right:66px;bottom:-6px;z-index:32;width:300px;max-height:min(430px,62vh);display:flex;flex-direction:column;background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);animation:acsv-fadein .18s ease}.acsv-share-head{flex:none;display:flex;align-items:center;padding:12px 14px 8px;font-size:14px;font-weight:600;color:#fff}.acsv-share-close{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}.acsv-share-close:hover{background:rgba(255,255,255,.22)}.acsv-share-searchwrap{flex:none;padding:0 12px 8px}.acsv-share-search{width:100%;height:32px;border:none;outline:none;background:rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:12px;padding:0 12px;font-family:inherit}.acsv-share-search::placeholder{color:rgba(255,255,255,.4)}.acsv-share-search:focus{background:rgba(255,255,255,.16)}.acsv-share-list{flex:1 1 auto;min-height:120px;overflow-y:auto;padding:2px 6px 6px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}.acsv-share-list::-webkit-scrollbar{width:5px}.acsv-share-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}.acsv-share-row{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:10px}.acsv-share-row:hover{background:rgba(255,255,255,.05)}.acsv-share-av{flex:none;width:38px;height:38px;border-radius:50%;object-fit:cover;display:block}.acsv-share-name{flex:1;min-width:0;font-size:13px;color:#f0f1f3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}.acsv-share-unread{flex:none;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--acsv-accent);color:#fff;font-size:10px;line-height:16px;text-align:center;font-weight:600}.acsv-share-send{flex:none;border:none;background:var(--acsv-accent);color:#fff;font-size:12px;font-family:inherit;padding:5px 14px;border-radius:999px;cursor:pointer;transition:opacity .15s}.acsv-share-send:hover{opacity:.88}.acsv-share-send:disabled{opacity:.6;cursor:default}.acsv-share-send.done{background:rgba(255,255,255,.16);color:#9fe3a1;cursor:default}.acsv-share-send.chat{background:rgba(255,255,255,.14);color:#9fe3a1}.acsv-share-send.chat:hover{background:rgba(255,255,255,.2)}.acsv-share-tip{padding:30px 18px;text-align:center;color:#8b909a;font-size:12px;line-height:1.8;white-space:pre-line;display:flex;flex-direction:column;align-items:center;gap:8px}.acsv-share-spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:acsv-spin .8s linear infinite}.acsv-share-foot{flex:none;display:flex;gap:8px;padding:8px 12px 12px}.acsv-share-copy{flex:1;height:34px;border:none;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;font-size:12px;font-family:inherit}.acsv-share-copy:hover{background:rgba(255,255,255,.2)}.acsv-share-center{flex:none;display:grid;place-items:center;height:34px;padding:0 14px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:12px;text-decoration:none}.acsv-share-center:hover{background:rgba(255,255,255,.2)}.acsv-msgdrawer{position:absolute;top:0;right:0;bottom:0;width:var(--acsv-dw,min(380px,88vw));z-index:50;display:flex;flex-direction:column;background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border-left:1px solid rgba(255,255,255,.09);transform:translateX(100%);transition:transform .28s ease}.acsv-msgdrawer.open{transform:translateX(0)}.acsv-im-head{flex:none;display:flex;align-items:center;gap:8px;padding:14px 16px;font-size:15px;font-weight:600;color:#fff;border-bottom:1px solid rgba(255,255,255,.09)}.acsv-im-back{border:none;background:rgba(255,255,255,.1);color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1;display:none}.acsv-im-back:hover{background:rgba(255,255,255,.22)}.acsv-im-close{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}.acsv-im-close:hover{background:rgba(255,255,255,.22)}.acsv-im-listview{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}.acsv-im-searchwrap{flex:none;padding:0 14px 10px}.acsv-im-search{width:100%;height:34px;border:none;outline:none;background:rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:13px;padding:0 12px;font-family:inherit}.acsv-im-search::placeholder{color:rgba(255,255,255,.4)}.acsv-im-search:focus{background:rgba(255,255,255,.16)}.acsv-im-list,.acsv-im-bubbles{flex:1 1 auto;min-height:0;overflow-y:auto;padding:4px 8px 10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}.acsv-im-bubbles{display:flex;flex-direction:column}.acsv-im-list::-webkit-scrollbar,.acsv-im-bubbles::-webkit-scrollbar{width:5px}.acsv-im-list::-webkit-scrollbar-thumb,.acsv-im-bubbles::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}.acsv-im-row{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:10px;cursor:pointer}.acsv-im-row:hover{background:rgba(255,255,255,.05)}.acsv-im-av{flex:none;width:42px;height:42px;border-radius:50%;object-fit:cover;display:block}.acsv-im-mid{flex:1;min-width:0}.acsv-im-name{font-size:13px;color:#f0f1f3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}.acsv-im-preview{font-size:12px;color:#8b909a;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.acsv-im-time{flex:none;font-size:11px;color:#7a7f8a;align-self:flex-start;margin-top:4px}.acsv-im-chatview{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}.acsv-im-bubble{max-width:78%;margin:4px 10px;padding:8px 12px;border-radius:14px;font-size:13px;line-height:1.6;word-break:break-word;color:#f0f1f3;background:rgba(255,255,255,.1);align-self:flex-start;user-select:text;-webkit-user-select:text;cursor:text}.acsv-im-bubble a{color:#9fd0ff}.acsv-im-bubble.mine{align-self:flex-end;background:#3e4a5a;color:#fff}.acsv-im-bubble.mine a{color:#9fd0ff}.acsv-im-bubble.pending{opacity:.55}.acsv-im-bubble.failed{background:rgba(255,255,255,.08);color:#ff8a93;cursor:pointer}.acsv-im-rowwrap{display:flex;align-items:center;gap:6px;align-self:flex-start;margin:4px 10px;max-width:96%}.acsv-im-rowwrap.mine{flex-direction:row-reverse;align-self:flex-end}.acsv-im-rowwrap .acsv-im-bubble{margin:0}.acsv-im-rowwrap.cardrow{width:min(294px,96%)}.acsv-im-rowwrap.cardrow .acsv-im-vcard{margin:0;align-self:auto;width:auto;flex:1 1 auto;min-width:0}.acsv-im-quotebtn{flex:none;width:24px;height:24px;border:none;border-radius:50%;background:rgba(255,255,255,.08);color:#8b909a;font-size:13px;line-height:1;padding:0;cursor:pointer;opacity:0;transition:opacity .12s}.acsv-im-rowwrap:hover .acsv-im-quotebtn,.acsv-im-quotebtn:focus{opacity:1}.acsv-im-quotebtn:hover{background:rgba(255,255,255,.18);color:#fff}.acsv-im-quote{margin:0 0 5px;padding:4px 8px;border-left:2px solid var(--acsv-accent);background:rgba(0,0,0,.16);border-radius:3px;font-size:12px;line-height:1.5;min-width:0}.acsv-im-quote.link{cursor:pointer}.acsv-im-quote.link:hover{background:rgba(0,0,0,.28)}.acsv-im-quote-preview{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.72)}.acsv-quotechip{flex:none;display:flex;align-items:center;gap:8px;margin:8px 12px 0;padding:5px 8px 5px 12px;background:rgba(255,255,255,.08);border-radius:8px;font-size:12px;color:#b8bdc7}.acsv-quotechip-label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.acsv-quotechip-x{flex:none;border:none;background:transparent;color:#8b909a;cursor:pointer;font-size:12px;padding:2px 4px;font-family:inherit}.acsv-quotechip-x:hover{color:#fff}@keyframes acsv-im-flash{0%{box-shadow:0 0 0 2px var(--acsv-accent)}100%{box-shadow:0 0 0 2px transparent}}.acsv-im-flash{animation:acsv-im-flash 1.2s ease}.acsv-im-imgbubble{max-width:78%;margin:4px 10px;padding:4px;border-radius:14px;background:rgba(255,255,255,.06);align-self:flex-start}.acsv-im-imgbubble.mine{align-self:flex-end}.acsv-im-rowwrap .acsv-im-imgbubble{margin:0}.acsv-im-imgbubble .acsv-im-imgimg{display:block;max-width:180px;border-radius:10px;cursor:zoom-in}.acsv-im-imgbubble.pending{opacity:.55}.acsv-im-imgbubble.failed{background:rgba(255,255,255,.08);cursor:pointer}.acsv-im-emotimg{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}.acsv-im-btn{position:relative;font-style:normal}.acsv-im-btn svg{width:20px;height:20px;fill:#fff;display:block}.acsv-im-badge{position:absolute;top:-4px;right:-6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--acsv-accent);color:#fff;font-size:10px;line-height:16px;text-align:center;font-weight:600}.acsv-im-daydiv{margin:10px 0 4px;text-align:center;font-size:11px;color:#7a7f8a}a.acsv-im-vcard,div.acsv-im-vcard{flex:none;display:block;width:min(260px,78%);margin:4px 10px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);cursor:pointer;text-decoration:none;transition:border-color .15s}.acsv-im-vcard:hover{border-color:rgba(255,255,255,.22)}.acsv-im-vcard.mine{align-self:flex-end}.acsv-im-vcard-coverbox{position:relative}.acsv-im-vcard-cover{display:block;width:100%;height:auto;background:rgba(255,255,255,.05)}.acsv-im-vcard-bar{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:5px;padding:16px 8px 5px;font-size:11px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.68));text-shadow:0 1px 2px rgba(0,0,0,.6)}.acsvg-cicon{display:inline-block;width:13px;height:13px;flex:none;background:currentColor;-webkit-mask:var(--acsvg-cicon) center/contain no-repeat;mask:var(--acsvg-cicon) center/contain no-repeat}.acsv-im-vcard-dur{margin-left:auto;font-variant-numeric:tabular-nums}.acsv-im-vcard-title{padding:7px 10px 9px;font-size:12px;line-height:1.5;color:#f0f1f3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}';
+  var RAW_CSS = '#acsv-root{position:fixed;inset:0;z-index:2147483000;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;user-select:none}.acsv-root *{box-sizing:border-box;margin:0;padding:0}.acsv-top{position:absolute;top:0;left:0;right:0;height:56px;display:flex;align-items:center;padding:0 24px;background:linear-gradient(rgba(0,0,0,.6),transparent);z-index:30;pointer-events:none}.acsv-top *{pointer-events:auto}.acsv-logo{display:flex;align-items:center;gap:8px;min-width:0}.acsv-logo-img{height:26px;width:auto;display:block}.acsv-logo em{color:#fff;font-style:normal;font-weight:400;font-size:13px;margin-left:8px;opacity:.9}.acsv-top-right{margin-left:auto;display:flex;gap:10px;transition:transform .28s ease}.acsv-tbtn{width:36px;height:36px;border:none;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;display:grid;place-items:center;font-size:16px;transition:transform .15s,background .15s}.acsv-tbtn:hover{transform:scale(1.08);background:rgba(255,255,255,.25)}.acsv-scroller{height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;overscroll-behavior:contain;scrollbar-width:none}.acsv-scroller::-webkit-scrollbar{display:none}.acsv-slide{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000}.acsv-video{display:block;width:100%;height:100%;object-fit:contain;cursor:pointer;z-index:5}.acsv-ambient{position:absolute;inset:-60px;z-index:0;background-size:cover;background-position:center;filter:blur(60px) brightness(.35) saturate(1.2);transform:scale(1.15)}.acsv-side{position:absolute;right:36px;bottom:96px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:14px}.acsv-rail{width:56px;display:flex;flex-direction:column;align-items:center;text-shadow:0 1px 3px rgba(0,0,0,.7)}.acsv-avatar{width:48px;height:48px;border-radius:50%;border:2px solid #fff;object-fit:cover;display:block;transition:transform .15s}.acsv-avwrap{position:relative;margin-bottom:18px}.acsv-followbtn{position:absolute;right:-2px;bottom:-4px;width:20px;height:20px;border-radius:50%;background:#fd4c5d;color:#fff;border:2px solid #111;font-size:13px;line-height:17px;text-align:center;cursor:pointer;font-weight:700;user-select:none;transition:transform .15s,background .15s;z-index:2}.acsv-followbtn:hover{transform:scale(1.15)}.acsv-followbtn.on{background:#555}.acsv-avatar:hover{transform:scale(1.08)}.acsv-rail-btn{width:56px;border:none;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;margin-bottom:18px;filter:drop-shadow(0 1px 4px rgba(0,0,0,.55))}.acsv-rail-btn svg{width:40px;height:40px;fill:#fff;transition:transform .15s,fill .15s}.acsv-rail-btn:hover svg{transform:scale(1.12)}.acsv-rail-btn.on svg{fill:var(--acsv-accent)}.acsv-rail-btn.thrown svg{fill:#ffb323}.acsv-rail-btn.bump svg{animation:acsv-bump .4s ease}@keyframes acsv-bump{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}.acsv-count{font-size:13px;font-weight:500;line-height:16px;margin-top:4px;margin-bottom:0;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.7)}.acsv-info{position:absolute;left:24px;bottom:40px;z-index:15;max-width:min(56%,560px);color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7);transition:bottom .25s ease}.acsv-slide[data-ctl="1"] .acsv-info,.acsv-slide[data-paused="1"] .acsv-info{bottom:96px}.acsv-meta{font-size:15px;font-weight:600;line-height:21px;margin-bottom:5px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}.acsv-meta .acsv-views{font-size:13px;font-weight:400;opacity:.85}.acsv-meta a{color:#fff;text-decoration:none}.acsv-meta a:hover{text-decoration:underline}.acsv-title{font-size:16px;font-weight:400;line-height:22px;max-height:66px;overflow:hidden;cursor:default}.acsv-arrows{display:flex;flex-direction:column;gap:10px}.acsv-arrow{width:40px;height:40px;border:none;border-radius:50%;background:rgba(255,255,255,.12);cursor:pointer;display:grid;place-items:center;backdrop-filter:blur(4px);transition:background .15s,transform .15s}.acsv-arrow svg{width:22px;height:22px;fill:#fff}.acsv-arrow:hover{background:rgba(255,255,255,.25);transform:scale(1.06)}.acsv-arrow:disabled{opacity:.3;cursor:default;transform:none}.acsv-controls{position:absolute;left:0;right:0;bottom:0;z-index:25;padding:26px 14px 8px;background:linear-gradient(transparent,rgba(0,0,0,.72));opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s,right .28s ease}.acsv-slide[data-ctl="1"] .acsv-controls,.acsv-slide[data-paused="1"] .acsv-controls{opacity:1;visibility:visible}.acsv-track{position:relative;height:4px;margin:0 4px 6px;border-radius:2px;background:rgba(255,255,255,.32);cursor:pointer;transition:height .15s}.acsv-track:hover,.acsv-track[data-drag="1"]{height:6px}.acsv-track-fill{position:absolute;left:0;top:0;bottom:0;width:0;background:#fd4c5d;border-radius:2px}.acsv-track-handle{position:absolute;top:50%;left:0;width:12px;height:12px;border-radius:50%;background:#fff;transform:translate(-50%,-50%) scale(0);transition:transform .15s;box-shadow:0 1px 4px rgba(0,0,0,.5)}.acsv-track:hover .acsv-track-handle,.acsv-track[data-drag="1"] .acsv-track-handle{transform:translate(-50%,-50%) scale(1)}.acsv-bubble{position:absolute;bottom:18px;transform:translateX(-50%);background:rgba(0,0,0,.82);padding:3px 8px;border-radius:6px;font-size:12px;display:none;white-space:nowrap}.acsv-bubble.show{display:block}.acsv-ctl-row{display:flex;align-items:center;gap:6px}.acsv-cbtn{border:none;background:none;color:#fff;cursor:pointer;height:32px;min-width:32px;padding:0 6px;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:13px;font-family:inherit;transition:background .15s;white-space:nowrap;flex:none}.acsv-cbtn:hover{background:rgba(255,255,255,.16)}.acsv-cbtn svg{width:20px;height:20px;fill:#fff}.acsv-cbtn.on{color:#fd4c5d}.acsv-cbtn.on svg{fill:#fd4c5d}.acsv-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.5)}.acsv-cbtn.on .acsv-dot{background:#fd4c5d}.acsv-time{font-size:12px;color:#ddd;font-variant-numeric:tabular-nums;margin-left:4px;white-space:nowrap;flex:none}.acsv-icon-img{width:40px;height:40px;object-fit:contain;transition:transform .15s}.acsv-rail-btn:hover .acsv-icon-img{transform:scale(1.12)}.acsv-rail-btn.bump .acsv-icon-img{animation:acsv-bump .4s ease}.acsvg-icon-mask{display:block;width:40px;height:40px;background-color:#fff;-webkit-mask:var(--acsvg-icon) center/contain no-repeat;mask:var(--acsvg-icon) center/contain no-repeat;transition:transform .15s,background-color .15s}.acsv-rail-btn:hover .acsvg-icon-mask{transform:scale(1.12)}.acsv-rail-btn.on .acsvg-icon-mask{background-color:var(--acsv-accent)}.acsv-rail-btn.thrown .acsvg-icon-mask{background-color:#ffb323}.acsv-rail-btn.bump .acsvg-icon-mask{animation:acsv-bump .4s ease}.acsv-rail-btn.thrown{cursor:default}.acsv-drawer{position:absolute;top:0;right:0;bottom:0;width:var(--acsv-dw,380px);z-index:45;display:flex;flex-direction:column;background:rgba(22,22,27,.96);backdrop-filter:blur(12px);border-left:1px solid rgba(255,255,255,.09);transform:translateX(100%);transition:transform .28s ease}.acsv-drawer.open{transform:translateX(0)}.acsv-drawer-head{display:flex;align-items:center;gap:10px;padding:14px 16px;font-size:15px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.09);flex:none}.acsv-drawer-close{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:13px;line-height:1}.acsv-drawer-close:hover{background:rgba(255,255,255,.22)}.acsv-drawer-list{flex:1;overflow-y:auto;padding:6px 0 14px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}.acsv-drawer-list::-webkit-scrollbar{width:5px}.acsv-drawer-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}.acsv-cinput{flex:none;display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.09);background:rgba(22,22,27,.98)}.acsv-cinput-emot{border:none;background:none;font-size:18px;cursor:pointer;flex:none;padding:2px;line-height:1}.acsv-cinput-emot:hover{transform:scale(1.12)}.acsv-cinput-text{flex:1;min-width:0;height:36px;border:none;background:rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:13px;padding:9px 12px;outline:none;font-family:inherit;resize:none}.acsv-cinput-text:focus{background:rgba(255,255,255,.16)}.acsv-cinput-send{flex:none;border:none;background:#fd4c5d;color:#fff;font-size:13px;padding:8px 16px;border-radius:999px;cursor:pointer;font-family:inherit}.acsv-cinput-send:hover{background:#ff6b7a}.acsv-emotpanel{position:absolute;left:0;right:0;bottom:57px;z-index:6;display:none;flex-direction:column;max-height:300px;padding:10px 10px 6px;background:rgba(22,22,27,.98);border-top:1px solid rgba(255,255,255,.1)}.acsv-emot-body{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}.acsv-emot-head{font-size:12px;color:#7a7f8a;padding:4px 2px 6px}.acsv-emot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:2px}.acsv-emot-item{border:none;background:none;padding:2px;cursor:pointer;line-height:0;border-radius:6px}.acsv-emot-item:hover{background:rgba(255,255,255,.08)}.acsv-emot-item img{width:100%;height:44px;object-fit:contain;pointer-events:none}.acsv-emot-foot{display:flex;align-items:center;gap:6px;margin-top:6px;padding:4px 6px;background:rgba(255,255,255,.05);border-radius:8px}.acsv-emot-strip{display:flex;align-items:center;gap:8px;overflow-x:auto;flex:1;min-width:0;padding:2px;scrollbar-width:none}.acsv-emot-strip::-webkit-scrollbar{display:none}.acsv-emot-thumb{flex:none;width:32px;height:32px;padding:0;border:2px solid transparent;border-radius:8px;background:none;cursor:pointer;line-height:0}.acsv-emot-thumb img{width:100%;height:100%;object-fit:contain;pointer-events:none}.acsv-emot-thumb.on{border-color:#fd4c5d}.acsv-emot-page{flex:none;width:24px;height:24px;border:none;border-radius:50%;background:none;color:#999;cursor:pointer;font-size:14px;line-height:1}.acsv-emot-page:hover{background:rgba(255,255,255,.1);color:#fff}.acsv-cinput-emot svg{width:20px;height:20px;fill:#999;transition:fill .15s}.acsv-cinput-emot:hover svg{fill:#fd4c5d}.acsv-cinput-img{border:none;background:none;padding:2px;cursor:pointer;line-height:0}.acsv-cinput-img svg{width:20px;height:20px;fill:#999;transition:fill .15s}.acsv-cinput-img:hover svg{fill:#fd4c5d}.acsv-creplybtn,.acsv-cfwdbtn{cursor:pointer;color:#7a7f8a;font-size:12px;display:inline-flex;align-items:center;gap:3px}.acsv-creplybtn:hover,.acsv-cfwdbtn:hover{color:#9fd0ff}.acsv-citem{padding:10px 14px;display:flex;gap:10px;border-radius:10px;transition:background .15s}.acsv-citem:hover{background:rgba(255,255,255,.045)}.acsv-avlink{flex:none;display:block}.acsv-citem img.av{width:36px;height:36px;border-radius:50%;object-fit:cover;transition:transform .15s}.acsv-avlink:hover img.av{transform:scale(1.08)}.acsv-cbody{flex:1;min-width:0}.acsv-cname{font-size:13px;color:#9aa0ab;margin-bottom:4px;display:flex;align-items:center;gap:6px}.acsv-cname a{color:#9aa0ab;text-decoration:none}.acsv-cname a:hover{color:#e8eaed;text-decoration:underline}.acsv-cname .up{background:#fd4c5d;color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600}.acsv-ctext{font-size:14px;line-height:1.6;word-break:break-word;white-space:pre-wrap;color:#f0f1f3;user-select:text;-webkit-user-select:text}.acsv-cmeta{font-size:12px;color:#7a7f8a;margin-top:6px;display:flex;gap:12px;align-items:center}.acsv-clike{display:inline-flex;align-items:center;gap:3px;color:#7a7f8a}.acsv-clike svg,.acsv-creplybtn svg{width:12px;height:12px;fill:currentColor}.acsv-clike .acsvg-cicon,.acsv-creplybtn .acsvg-cicon{width:12px;height:12px}.acsv-csub{margin:8px 0 2px;padding:4px 12px;background:rgba(255,255,255,.05);border-radius:10px}.acsv-csub .acsv-citem{padding:8px 0}.acsv-csub .acsv-citem:hover{background:none}.acsv-csub .acsv-citem img.av{width:26px;height:26px}.acsv-cmore{font-size:12px;color:#9fd0ff;text-decoration:none;display:inline-block;background:none;border:none;cursor:pointer;padding:0;font-family:inherit}.acsv-cmore:hover{text-decoration:underline}.acsv-hot-head{padding:10px 14px 4px;font-size:12px;color:#fd4c5d;font-weight:700;display:flex;align-items:center;gap:5px}.acsv-hot-divider{padding:12px 14px 4px;font-size:12px;color:#7a7f8a}.acsv-drawer-more{display:block;margin:12px auto;padding:8px 24px;border:1px solid rgba(255,255,255,.22);background:none;color:#ddd;border-radius:999px;cursor:pointer;font-size:13px;font-family:inherit}.acsv-drawer-more:hover{background:rgba(255,255,255,.1)}.acsv-drawer-tip{padding:46px 0;text-align:center;color:#888;font-size:13px}.acsv-hint{position:absolute;bottom:140px;left:50%;transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;padding:8px 10px 8px 16px;background:rgba(0,0,0,.72);border-radius:999px;font-size:13px;white-space:nowrap;animation:acsv-fadein .3s ease}.acsv-hint.hide{display:none}.acsv-hint-btn{border:none;background:#fd4c5d;color:#fff;font-size:12px;font-family:inherit;padding:6px 14px;border-radius:999px;cursor:pointer}.acsv-hint-btn:hover{background:#ff6b7a}.acsv-hint-x{border:none;background:none;color:#aaa;font-size:14px;cursor:pointer;padding:4px 8px;line-height:1}.acsv-hint-x:hover{color:#fff}@keyframes acsv-fadein{from{opacity:0}to{opacity:1}}.acsv-spinner{position:absolute;top:50%;left:50%;margin:-16px 0 0 -16px;width:32px;height:32px;z-index:8;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:acsv-spin .8s linear infinite;pointer-events:none}@keyframes acsv-spin{to{transform:rotate(360deg)}}.acsv-slide[data-state="loading"] .acsv-spinner{display:block}.acsv-spinner{display:none}.acsv-playicon{position:absolute;top:50%;left:50%;margin:-36px 0 0 -36px;z-index:9;width:72px;height:72px;border-radius:50%;background:rgba(0,0,0,.5);display:none;place-items:center;pointer-events:none}.acsv-playicon svg{width:34px;height:34px;fill:#fff;margin-left:4px}.acsv-slide[data-paused="1"] .acsv-playicon{display:grid}.acsv-errbox{position:absolute;inset:0;display:none;place-items:center;z-index:12;flex-direction:column;gap:12px;color:#bbb}.acsv-slide[data-state="error"] .acsv-errbox{display:grid}.acsv-retry{padding:8px 22px;border:none;border-radius:999px;background:#fd4c5d;color:#fff;cursor:pointer;font-size:13px}.acsv-toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:2147483600;background:rgba(0,0,0,.78);color:#fff;padding:9px 18px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}.acsv-toast.show{opacity:1}.acsv-fab{position:fixed;right:18px;bottom:18px;z-index:2147482990;background:#fd4c5d;color:#fff;border:none;border-radius:999px;padding:10px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.3)}.acsv-space{margin:18px auto 40px;max-width:1160px;font-family:inherit}.acsv-space-head{display:flex;align-items:baseline;gap:8px;padding:0 4px 10px;border-bottom:2px solid #fd4c5d;margin-bottom:14px}.acsv-space-head h2{font-size:18px;color:#333;margin:0;font-weight:700}.acsv-space-head .n{color:#999;font-size:13px}.acsv-space-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}@media (max-width:1000px){.acsv-space-grid{grid-template-columns:repeat(3,1fr)}}@media (max-width:640px){.acsv-space-grid{grid-template-columns:repeat(2,1fr)}}.acsv-space-cell{position:relative;border-radius:6px;overflow:hidden;cursor:pointer;aspect-ratio:3/4;background:#000;display:block}.acsv-space-cell img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s,opacity .2s;opacity:0}.acsv-space-cell img.ld{opacity:1}.acsv-space-cell:hover img{transform:scale(1.06)}.acsv-space-more{display:block;margin:16px auto;padding:8px 28px;border:1px solid #ddd;background:#fff;color:#666;border-radius:999px;cursor:pointer;font-size:13px;font-family:inherit}.acsv-space-more:hover{color:#fd4c5d;border-color:#fd4c5d}.acsv-space-tip{padding:30px 0;text-align:center;color:#999;font-size:13px}.acsv-video,.acsv-playicon,.acsv-errbox,.acsv-side,.acsv-top-right{transition:transform .28s ease}#acsv-root.acsv-with-comments .acsv-video,#acsv-root.acsv-with-comments .acsv-playicon,#acsv-root.acsv-with-comments .acsv-errbox{transform:translateX(calc(var(--acsv-dw,380px) / -2)) scale(var(--acsv-cscale,1))}#acsv-root.acsv-with-comments .acsv-dmcanvas{transition:left .28s ease,top .28s ease,width .28s ease,height .28s ease}#acsv-root.acsv-with-comments .acsv-controls{right:var(--acsv-dw,380px)}#acsv-root.acsv-with-comments .acsv-side,#acsv-root.acsv-with-comments .acsv-top-right{transform:translateX(calc(var(--acsv-dw,380px) * -1))}#acsv-root.acsv-with-comments .acsv-slide[data-panfit="1"]>.acsv-video,#acsv-root.acsv-with-comments .acsv-slide[data-panfit="1"]>.acsv-playicon,#acsv-root.acsv-with-comments .acsv-slide[data-panfit="1"]>.acsv-errbox{transform:translateX(calc(var(--acsv-dw,380px) / -2))}.acsv-slide>.acsv-spinner,.acsv-scroller>.acsv-spinner{transition:left .28s ease}#acsv-root.acsv-with-comments .acsv-slide>.acsv-spinner,#acsv-root.acsv-with-comments .acsv-scroller>.acsv-spinner{left:calc(50% - var(--acsv-dw,380px)/2)}.acsv-cbody .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}.acsv-cbody .ubb-imgc{display:block;max-width:min(240px,100%);max-height:220px;border-radius:8px;margin-top:6px;cursor:zoom-in}.acsv-cbody .ubb-at,.acsv-cbody .ubb-res{color:#9fd0ff;text-decoration:none}.acsv-cbody .ubb-at:hover,.acsv-cbody .ubb-res:hover{text-decoration:underline}.acsv-imgview{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out;animation:acsv-fadein .18s ease}.acsv-imgview img{max-width:94%;max-height:94%;border-radius:6px;box-shadow:0 8px 48px rgba(0,0,0,.6);-webkit-user-select:none;user-select:none}.acsv-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:0 0 10px;position:relative}.acsv-progress-txt{font-size:12px;color:#999;margin-right:auto}.acsv-sort{position:relative;cursor:pointer;font-size:13px;color:#666;user-select:none;padding:4px 10px;border:1px solid #e5e5e5;border-radius:4px;background:#fff}.acsv-sort:hover{border-color:#fd4c5d;color:#fd4c5d}.acsv-sort .arrow{font-size:10px;margin-left:4px}.acsv-sort-menu{display:none;position:absolute;right:0;top:110%;z-index:30;min-width:100%;background:#fff;border:1px solid #eee;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.12);overflow:hidden}.acsv-sort.open .acsv-sort-menu{display:block}.acsv-sort-menu li{list-style:none;padding:8px 18px;white-space:nowrap}.acsv-sort-menu li:hover{background:#fdf0f1;color:#fd4c5d}.acsv-sort-menu li.on{color:#fd4c5d;font-weight:700}.acsv-pagebar{display:flex;justify-content:center;align-items:center;gap:6px;margin:18px 0 6px;flex-wrap:wrap}.acsv-pagebtn{min-width:32px;height:32px;padding:0 8px;border:1px solid #e0e0e0;background:#fff;color:#555;border-radius:4px;cursor:pointer;font-size:13px;font-family:inherit;transition:all .15s}.acsv-pagebtn:hover:not(:disabled):not(.cur){border-color:#fd4c5d;color:#fd4c5d}.acsv-pagebtn.cur{background:#fd4c5d;border-color:#fd4c5d;color:#fff;cursor:default}.acsv-pagebtn:disabled{color:#ccc;cursor:default;background:#f7f7f7}.acsv-pagebtn.dots{border:none;background:none;cursor:default}.acsv-dmcanvas{position:absolute;z-index:8;pointer-events:none}.acsv-seg{display:flex;align-items:center;background:rgba(255,255,255,.14);border-radius:999px;padding:3px;gap:2px}.acsv-seg-btn{border:none;background:none;color:#fff;opacity:.7;font-size:13px;font-family:inherit;padding:6px 16px;border-radius:999px;cursor:pointer;transition:background .15s,opacity .15s;white-space:nowrap}.acsv-seg-btn:hover{opacity:.9}.acsv-seg-btn.on{background:rgba(255,255,255,.24);opacity:1;font-weight:600}.acsv-cbtxt{font-size:12px;color:#ddd;margin-left:2px}.acsv-qwrap{position:relative;display:flex}.acsv-qmenu{position:absolute;right:0;bottom:calc(100% + 12px);z-index:35;min-width:88px;background:rgba(18,18,22,.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:2px;box-shadow:0 8px 28px rgba(0,0,0,.45)}.acsv-qitem{border:none;background:none;color:#ccc;font-size:13px;font-family:inherit;padding:7px 16px;border-radius:8px;cursor:pointer;text-align:center;white-space:nowrap}.acsv-qitem:hover{background:rgba(255,255,255,.12);color:#fff}.acsv-qitem.on{color:#fd4c5d;font-weight:700}.acsv-dmbox{display:flex;align-items:center;flex:1 1 auto;min-width:0;max-width:min(340px,38vw);height:32px;padding:0 4px 0 14px;overflow:hidden;background:rgba(255,255,255,.14);border-radius:999px;transition:background .15s}.acsv-dmbox:focus-within{background:rgba(255,255,255,.2)}.acsv-dm-input{flex:1;min-width:0;border:none;background:none;outline:none;color:#fff;font-size:13px;font-family:inherit}.acsv-dm-input::placeholder{color:rgba(255,255,255,.4)}.acsv-dm-send{flex:none;border:none;background:rgba(255,255,255,.22);color:#fff;font-size:12px;padding:5px 14px;border-radius:999px;cursor:pointer;font-family:inherit}.acsv-dm-send:hover{background:#fd4c5d}.acsv-clike{cursor:pointer}.acsv-clike:hover{color:#b9bec7}.acsv-clike.on{color:#fd4c5d}.acsv-cdm:not(.on){opacity:.55}.acsv-banpop{position:absolute;right:62px;top:-4px;z-index:30;display:flex;align-items:center;gap:2px;padding:7px 10px;background:rgba(22,22,27,.96);border:1px solid rgba(255,255,255,.12);border-radius:999px;}.acsv-banpop button{border:none;background:none;padding:2px;cursor:pointer;line-height:0;opacity:.9;transition:transform .12s}.acsv-banpop button:hover{opacity:1;transform:scale(1.18)}.acsv-banpop button img{width:26px;height:26px;display:block}.acsv-sharepop{position:absolute;right:66px;bottom:-6px;z-index:32;width:300px;max-height:min(430px,62vh);display:flex;flex-direction:column;background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);animation:acsv-fadein .18s ease}.acsv-sharepop-drawer{right:12px;bottom:57px}.acsv-share-head{flex:none;display:flex;align-items:center;padding:12px 14px 8px;font-size:14px;font-weight:600;color:#fff}.acsv-share-close{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}.acsv-share-close:hover{background:rgba(255,255,255,.22)}.acsv-share-searchwrap{flex:none;padding:0 12px 8px}.acsv-share-search{width:100%;height:32px;border:none;outline:none;background:rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:12px;padding:0 12px;font-family:inherit}.acsv-share-search::placeholder{color:rgba(255,255,255,.4)}.acsv-share-search:focus{background:rgba(255,255,255,.16)}.acsv-share-list{flex:1 1 auto;min-height:120px;overflow-y:auto;padding:2px 6px 6px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}.acsv-share-list::-webkit-scrollbar{width:5px}.acsv-share-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}.acsv-share-row{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:10px}.acsv-share-row:hover{background:rgba(255,255,255,.05)}.acsv-share-av{flex:none;width:38px;height:38px;border-radius:50%;object-fit:cover;display:block}.acsv-share-name{flex:1;min-width:0;font-size:13px;color:#f0f1f3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}.acsv-share-unread{flex:none;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--acsv-accent);color:#fff;font-size:10px;line-height:16px;text-align:center;font-weight:600}.acsv-share-send{flex:none;border:none;background:var(--acsv-accent);color:#fff;font-size:12px;font-family:inherit;padding:5px 14px;border-radius:999px;cursor:pointer;transition:opacity .15s}.acsv-share-send:hover{opacity:.88}.acsv-share-send:disabled{opacity:.6;cursor:default}.acsv-share-send.done{background:rgba(255,255,255,.16);color:#9fe3a1;cursor:default}.acsv-share-send.chat{background:rgba(255,255,255,.14);color:#9fe3a1}.acsv-share-send.chat:hover{background:rgba(255,255,255,.2)}.acsv-share-tip{padding:30px 18px;text-align:center;color:#8b909a;font-size:12px;line-height:1.8;white-space:pre-line;display:flex;flex-direction:column;align-items:center;gap:8px}.acsv-share-spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:acsv-spin .8s linear infinite}.acsv-share-foot{flex:none;display:flex;gap:8px;padding:8px 12px 12px}.acsv-share-copy{flex:1;height:34px;border:none;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;font-size:12px;font-family:inherit}.acsv-share-copy:hover{background:rgba(255,255,255,.2)}.acsv-share-center{flex:none;display:grid;place-items:center;height:34px;padding:0 14px;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:12px;text-decoration:none}.acsv-share-center:hover{background:rgba(255,255,255,.2)}.acsv-msgdrawer{position:absolute;top:0;right:0;bottom:0;width:var(--acsv-dw,min(380px,88vw));z-index:50;display:flex;flex-direction:column;background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border-left:1px solid rgba(255,255,255,.09);transform:translateX(100%);transition:transform .28s ease}.acsv-msgdrawer.open{transform:translateX(0)}.acsv-im-head{flex:none;display:flex;align-items:center;gap:8px;padding:14px 16px;font-size:15px;font-weight:600;color:#fff;border-bottom:1px solid rgba(255,255,255,.09)}.acsv-im-back{border:none;background:rgba(255,255,255,.1);color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1;display:none}.acsv-im-back:hover{background:rgba(255,255,255,.22)}.acsv-im-close{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}.acsv-im-close:hover{background:rgba(255,255,255,.22)}.acsv-im-listview{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}.acsv-im-searchwrap{flex:none;padding:0 14px 10px}.acsv-im-search{width:100%;height:34px;border:none;outline:none;background:rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:13px;padding:0 12px;font-family:inherit}.acsv-im-search::placeholder{color:rgba(255,255,255,.4)}.acsv-im-search:focus{background:rgba(255,255,255,.16)}.acsv-im-list,.acsv-im-bubbles{flex:1 1 auto;min-height:0;overflow-y:auto;padding:4px 8px 10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}.acsv-im-bubbles{display:flex;flex-direction:column}.acsv-im-list::-webkit-scrollbar,.acsv-im-bubbles::-webkit-scrollbar{width:5px}.acsv-im-list::-webkit-scrollbar-thumb,.acsv-im-bubbles::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}.acsv-im-row{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:10px;cursor:pointer}.acsv-im-row:hover{background:rgba(255,255,255,.05)}.acsv-im-av{flex:none;width:42px;height:42px;border-radius:50%;object-fit:cover;display:block}.acsv-im-mid{flex:1;min-width:0}.acsv-im-name{font-size:13px;color:#f0f1f3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}.acsv-im-preview{font-size:12px;color:#8b909a;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.acsv-im-time{flex:none;font-size:11px;color:#7a7f8a;align-self:flex-start;margin-top:4px}.acsv-im-chatview{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}.acsv-im-bubble{max-width:78%;margin:4px 10px;padding:8px 12px;border-radius:14px;font-size:13px;line-height:1.6;word-break:break-word;color:#f0f1f3;background:rgba(255,255,255,.1);align-self:flex-start;user-select:text;-webkit-user-select:text;cursor:text}.acsv-im-bubble a{color:#9fd0ff}.acsv-im-bubble.mine{align-self:flex-end;background:#3e4a5a;color:#fff}.acsv-im-bubble.mine a{color:#9fd0ff}.acsv-im-bubble.pending{opacity:.55}.acsv-im-bubble.failed{background:rgba(255,255,255,.08);color:#ff8a93;cursor:pointer}.acsv-im-rowwrap{display:flex;align-items:center;gap:6px;align-self:flex-start;margin:4px 10px;max-width:96%}.acsv-im-rowwrap.mine{flex-direction:row-reverse;align-self:flex-end}.acsv-im-rowwrap .acsv-im-bubble{margin:0}.acsv-im-rowwrap.cardrow{width:min(294px,96%)}.acsv-im-rowwrap.cardrow .acsv-im-vcard{margin:0;align-self:auto;width:auto;flex:1 1 auto;min-width:0}.acsv-im-quotebtn{flex:none;width:24px;height:24px;border:none;border-radius:50%;background:rgba(255,255,255,.08);color:#8b909a;font-size:13px;line-height:1;padding:0;cursor:pointer;opacity:0;transition:opacity .12s}.acsv-im-rowwrap:hover .acsv-im-quotebtn,.acsv-im-quotebtn:focus{opacity:1}.acsv-im-quotebtn:hover{background:rgba(255,255,255,.18);color:#fff}.acsv-im-quote{margin:0 0 5px;padding:4px 8px;border-left:2px solid var(--acsv-accent);background:rgba(0,0,0,.16);border-radius:3px;font-size:12px;line-height:1.5;min-width:0}.acsv-im-quote.link{cursor:pointer}.acsv-im-quote.link:hover{background:rgba(0,0,0,.28)}.acsv-im-quote-preview{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.72)}.acsv-quotechip{flex:none;display:flex;align-items:center;gap:8px;margin:8px 12px 0;padding:5px 8px 5px 12px;background:rgba(255,255,255,.08);border-radius:8px;font-size:12px;color:#b8bdc7}.acsv-quotechip-label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.acsv-quotechip-x{flex:none;border:none;background:transparent;color:#8b909a;cursor:pointer;font-size:12px;padding:2px 4px;font-family:inherit}.acsv-quotechip-x:hover{color:#fff}@keyframes acsv-im-flash{0%{box-shadow:0 0 0 2px var(--acsv-accent)}100%{box-shadow:0 0 0 2px transparent}}.acsv-im-flash{animation:acsv-im-flash 1.2s ease}.acsv-im-imgbubble{max-width:78%;margin:4px 10px;padding:4px;border-radius:14px;background:rgba(255,255,255,.06);align-self:flex-start;position:relative}.acsv-im-imgbubble.mine{align-self:flex-end}.acsv-im-rowwrap .acsv-im-imgbubble{margin:0}.acsv-im-imgbubble .acsv-im-imgimg{display:block;max-width:180px;border-radius:10px;cursor:zoom-in}.acsv-im-imgbubble.pending{opacity:.55}.acsv-im-imgbubble.pending::after{content:"";position:absolute;inset:0;border-radius:14px;background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.08) 50%,transparent 65%);background-size:200% 100%;animation:acsv-im-shimmer 1.4s linear infinite;pointer-events:none}@keyframes acsv-im-shimmer{from{background-position:200% 0}to{background-position:-200% 0}}.acsv-im-imgbubble.failed{background:rgba(255,255,255,.08);cursor:pointer}.acsv-im-emotimg{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}.acsv-im-btn{position:relative;font-style:normal}.acsv-im-btn svg{width:20px;height:20px;fill:#fff;display:block}.acsv-im-badge{position:absolute;top:-4px;right:-6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--acsv-accent);color:#fff;font-size:10px;line-height:16px;text-align:center;font-weight:600}.acsv-im-daydiv{margin:10px 0 4px;text-align:center;font-size:11px;color:#7a7f8a}a.acsv-im-vcard,div.acsv-im-vcard{flex:none;display:block;width:min(260px,78%);margin:4px 10px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);cursor:pointer;text-decoration:none;transition:border-color .15s}.acsv-im-vcard:hover{border-color:rgba(255,255,255,.22)}.acsv-im-vcard.mine{align-self:flex-end}.acsv-im-vcard-coverbox{position:relative}.acsv-im-vcard-cover{display:block;width:100%;height:auto;background:rgba(255,255,255,.05)}.acsv-im-vcard-bar{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:5px;padding:16px 8px 5px;font-size:11px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.68));text-shadow:0 1px 2px rgba(0,0,0,.6)}.acsvg-cicon{display:inline-block;width:13px;height:13px;flex:none;background:currentColor;-webkit-mask:var(--acsvg-cicon) center/contain no-repeat;mask:var(--acsvg-cicon) center/contain no-repeat}.acsv-im-vcard-dur{margin-left:auto;font-variant-numeric:tabular-nums}.acsv-im-vcard-title{padding:7px 10px 9px;font-size:12px;line-height:1.5;color:#f0f1f3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}';
   var CSS = ":root{--acsv-accent:" + CFG.accent + "}" + RAW_CSS.replace(/#fd4c5d/g, "var(--acsv-accent)");
   var ICONS = {
     heart: '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
@@ -2042,6 +2042,16 @@
     });
     return h;
   }
+  function ubbPlainText(content) {
+    var t = String(content || "");
+    t = t.replace(/\[emot=[^\]]*\/\]/g, "[表情]");
+    t = t.replace(/\[img=[^\]]*\]https?:\/\/[^\["']+?\[\/img\]/g, "[图片]");
+    t = t.replace(/\[img\]https?:\/\/[^\["']+?\[\/img\]/g, "[图片]");
+    t = t.replace(/\[at uid=\d+\]@?(.*?)\[\/at\]/g, "@$1");
+    t = t.replace(/\[resource id=\d+ type=\d+[^\]]*\]([\s\S]*?)\[\/resource\]/gi, "$1");
+    t = t.replace(/\[color=#[0-9a-fA-F]{3,8}\]([\s\S]*?)\[\/color\]/g, "$1");
+    return t;
+  }
 
   // src/imgview.js
   var imgview = null;
@@ -2142,6 +2152,2059 @@
     box.appendChild(label);
     box.appendChild(x);
     return { box, label };
+  }
+
+  // src/immsg.js
+  function msgContentType(m) {
+    try {
+      return m.rawMsg && m.rawMsg.contentType || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+  function parseCard(m) {
+    try {
+      if (msgContentType(m) !== 10001) return null;
+      var buf = m.rawMsg && m.rawMsg.content;
+      if (!buf) return null;
+      var j = JSON.parse(new TextDecoder("utf-8").decode(buf));
+      if (!j || !Array.isArray(j.resourceBody) || !j.resourceBody.length) return null;
+      return j;
+    } catch (e) {
+      return null;
+    }
+  }
+  var RE_AC_URL = /https?:\/\/www\.acfun\.cn\/v\/ac(\d+)(?:\/?\?[^\s]*)?/i;
+  var RE_TAIL_PUNCT = /[\s.,;:!?)\]】」』。、！？；：]+$/;
+  var RE_HEAD_PUNCT = /^[\s.,;:!?(\[【「『。、！？；：]+/;
+  function parseShare(text) {
+    var t = String(text == null ? "" : text);
+    var m = RE_AC_URL.exec(t);
+    if (!m) return null;
+    var url = m[0].replace(RE_TAIL_PUNCT, "");
+    return {
+      title: t.slice(0, m.index).trim().slice(0, 400),
+      note: t.slice(m.index + m[0].length).replace(RE_HEAD_PUNCT, "").trim().slice(0, 300),
+      acId: m[1],
+      url
+    };
+  }
+  function pad2(n) {
+    return n < 10 ? "0" + n : "" + n;
+  }
+  function fmtDur(sec) {
+    var s = Math.round(Number(sec) || 0);
+    var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+    return (h ? h + ":" + pad2(m) : String(m)) + ":" + pad2(s % 60);
+  }
+  function degradeText(m) {
+    try {
+      var raw = m.rawMsg || {};
+      if (typeof raw.backupTips === "string" && raw.backupTips) {
+        return raw.backupTips.replace(/<a[^>]*>/gi, " [").replace(/<\/a>/gi, "] ").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
+      }
+    } catch (e) {
+    }
+    return "[暂不支持查看的消息，请前往客户端查看]";
+  }
+  function isQuotable(m, wire) {
+    var ct = msgContentType(m);
+    if (ct !== 0 && ct !== 1 && ct !== 10001 && ct !== 12) return false;
+    return !(wire === "reference" && ct === 10001);
+  }
+  function quoteOf(m) {
+    try {
+      if (msgContentType(m) !== 12) return null;
+      var o = m.originMsg;
+      var seqId = "", preview = "";
+      if (o) {
+        try {
+          var raw = o.rawMsg || {};
+          if (raw.seqId !== void 0 && raw.seqId !== null) seqId = String(raw.seqId);
+        } catch (e1) {
+        }
+        preview = previewOfMessage(o) || "";
+      }
+      return {
+        seqId,
+        preview: String(preview).slice(0, 60),
+        text: String(typeof m.text === "string" ? m.text : msgTextOf(m))
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+  function quoteExtraOf(m) {
+    try {
+      if (msgContentType(m) !== 0) return null;
+      var extra = m.rawMsg && m.rawMsg.extra;
+      if (!extra) return null;
+      var q2 = (JSON.parse(new TextDecoder("utf-8").decode(new Uint8Array(extra))) || {}).acsvQuote;
+      if (!q2 || typeof q2.text !== "string") return null;
+      return {
+        seqId: q2.seqId != null ? String(q2.seqId) : "",
+        preview: String(q2.preview || "").slice(0, 60),
+        text: q2.text
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+  function quoteWirePrefix(preview) {
+    return "[引用] " + (preview || "原消息");
+  }
+  function quoteWireText(preview, text) {
+    return quoteWirePrefix(preview) + "\n" + text;
+  }
+  function quoteWireTrimLen(contentText, q2) {
+    try {
+      var prefix = quoteWirePrefix(q2 && q2.preview);
+      var t = String(contentText == null ? "" : contentText);
+      if (t.indexOf(prefix) !== 0) return 0;
+      var rest = t.slice(prefix.length);
+      var ws = /^[\s\u00a0]+/.exec(rest);
+      var body = rest.slice(ws ? ws[0].length : 0);
+      return body === q2.text ? prefix.length + (ws ? ws[0].length : 0) : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+  function msgTextOf(m) {
+    try {
+      if (typeof m.text === "string" && m.text) return m.text;
+      if (typeof m.content === "string" && m.content) return m.content;
+      if (m.content && typeof m.content.text === "string") return m.content.text;
+      var raw = m.rawMsg || {};
+      if (typeof raw.content === "string" && raw.content) return raw.content;
+      if (raw.content && typeof raw.content.text === "string") return raw.content.text;
+    } catch (e) {
+    }
+    return degradeText(m);
+  }
+  var RE_EMOT_CODE = /\[emot=\S+?\/\]/g;
+  function plainPreview(s) {
+    return String(s).replace(RE_EMOT_CODE, "[表情]");
+  }
+  function previewOfMessage(m) {
+    try {
+      var card = parseCard(m);
+      if (card) {
+        var res = card.resourceBody[0] || {};
+        return "[作品卡片] " + String(res.title || card.prologue || "").slice(0, 30);
+      }
+      if (msgContentType(m) === 1) return "[图片]";
+      var q2 = quoteOf(m) || quoteExtraOf(m);
+      if (q2) return "[引用] " + plainPreview(q2.text).slice(0, 30);
+      var txt = plainPreview(msgTextOf(m));
+      var share = parseShare(txt);
+      if (share) return "[分享] " + (share.title ? share.title.slice(0, 30) : "推荐视频");
+      if (/https?:\/\/[^\s]*acfun\.cn/i.test(txt)) {
+        var first = (txt.split("\n")[0] || "").trim();
+        var title = /^https?:\/\//i.test(first) ? "" : first;
+        return "[视频] " + (title ? title.slice(0, 30) : "分享了一个视频");
+      }
+      return txt.slice(0, 40);
+    } catch (e) {
+      return "";
+    }
+  }
+
+  // src/imicons.js
+  var ICON_SVGS = {
+    play: "https://ali-imgs.acfun.cn/kos/nlav10360/static/img/icon_view_player.4a9692bb.svg",
+    // v/list60 播放计数
+    comment: "https://ali-imgs.acfun.cn/kos/nlav10360/static/img/icon_message.e89cfe55.svg"
+    // v/list60 评论计数
+  };
+
+  // src/imdrawer.js
+  var ICON_PLAY = '<i class="acsvg-cicon" style="--acsvg-cicon:url(' + ICON_SVGS.play + ')"></i>';
+  var ICON_COMMENT = '<i class="acsvg-cicon" style="--acsvg-cicon:url(' + ICON_SVGS.comment + ')"></i>';
+  var drawer = null;
+  var view = "";
+  var cards = {};
+  var badgeTimer = null;
+  var badgeDelayTimer = null;
+  function makePoller(fn, gap) {
+    var t = null;
+    function stop() {
+      if (t) {
+        clearInterval(t);
+        t = null;
+      }
+    }
+    return { start: function() {
+      stop();
+      t = setInterval(fn, gap);
+    }, stop };
+  }
+  var listPoll = makePoller(function() {
+    if (view !== "list") return listPoll.stop();
+    refreshList();
+  }, CFG.im.drawerListPoll);
+  var chatPoll = makePoller(function() {
+    if (!chat) return chatPoll.stop();
+    ensureIm().then(function(inst) {
+      if (!inst.connected) return;
+      chatPollOnce(inst, false);
+    }, function() {
+    });
+  }, CFG.im.drawerChatPoll);
+  var chat = null;
+  var lastImInst = null;
+  var badgeEl = null;
+  var mounted = false;
+  function badgeText(n) {
+    return n > 99 ? "99+" : n > 0 ? String(n) : "";
+  }
+  function selfUid() {
+    var m = /^(\d+)/.exec(cookieVal("auth_key"));
+    return m ? m[1] : "";
+  }
+  function msgFrom(m) {
+    try {
+      if (m.fromUserId != null) return String(m.fromUserId);
+      if (m.rawMsg && m.rawMsg.fromUserId != null) return String(m.rawMsg.fromUserId);
+    } catch (e) {
+    }
+    return "";
+  }
+  function msgTime(m) {
+    try {
+      if (m.date) return new Date(m.date).getTime() || 0;
+      if (m.rawMsg && m.rawMsg.timestampMs) return Number(m.rawMsg.timestampMs) || 0;
+    } catch (e) {
+    }
+    return 0;
+  }
+  function pad22(n) {
+    return n < 10 ? "0" + n : "" + n;
+  }
+  function relTime(ts) {
+    if (!ts) return "";
+    var d = Date.now() - ts;
+    if (d < 6e4) return "刚刚";
+    var now = /* @__PURE__ */ new Date(), t = new Date(ts);
+    if (t.toDateString() === now.toDateString()) return pad22(t.getHours()) + ":" + pad22(t.getMinutes());
+    if (t.toDateString() === new Date(now.getTime() - 864e5).toDateString()) return "昨天";
+    if (d < 6048e5) return "周" + "日一二三四五六".charAt(t.getDay());
+    return pad22(t.getMonth() + 1) + "-" + pad22(t.getDate());
+  }
+  function linkify(s) {
+    return esc(s).replace(/(https?:\/\/[^\s<]+)/g, function(u) {
+      return '<a href="' + u + '" target="_blank" rel="noopener">' + u + "</a>";
+    });
+  }
+  function emotify(html) {
+    return html.replace(/\[emot=acfun,(\S+?)\/\]/g, function(_, id) {
+      var it = EmotionMap.map && EmotionMap.map[id];
+      return it && it.url ? '<img class="acsv-im-emotimg" src="' + it.url + '" referrerpolicy="no-referrer" alt="">' : "[表情]";
+    }).replace(
+      /\[emot=(\S+?),(\S+?)\/\]/g,
+      '<img class="acsv-im-emotimg" src="//cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/$1/$2.gif" referrerpolicy="no-referrer" alt="">'
+    );
+  }
+  function imTextHtml(s) {
+    return emotify(linkify(s));
+  }
+  function ensureDrawerDom() {
+    if (drawer || !root) return;
+    var d = el("aside", "acsv-msgdrawer");
+    var head = el("div", "acsv-im-head");
+    var back = el("button", "acsv-im-back", "‹");
+    back.title = "返回消息列表";
+    back.style.display = "none";
+    var title = el("span", "acsv-im-title", "私信");
+    var close = el("button", "acsv-im-close", "✕");
+    close.title = "关闭";
+    close.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      closeDrawer();
+    });
+    back.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      showList();
+    });
+    head.appendChild(back);
+    head.appendChild(title);
+    head.appendChild(close);
+    d.appendChild(head);
+    var listView = el("div", "acsv-im-listview");
+    var searchWrap = el("div", "acsv-im-searchwrap");
+    var search = el("input", "acsv-im-search");
+    search.placeholder = "搜索联系人";
+    search.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+    });
+    search.addEventListener("input", function() {
+      renderList(search.value);
+    });
+    searchWrap.appendChild(search);
+    listView.appendChild(searchWrap);
+    var listBody = el("div", "acsv-im-list");
+    listView.appendChild(listBody);
+    d.appendChild(listView);
+    var chatView = el("div", "acsv-im-chatview");
+    chatView.style.display = "none";
+    var bubbles = el("div", "acsv-im-bubbles");
+    var quoteChip = buildQuoteChip(function() {
+      setQuote(null);
+    }, "取消引用");
+    var inputBar2 = buildInputBar({
+      img: { title: "发送图片", onFile: sendImageMsg },
+      // 尺寸门禁在 sendImageMsg 内
+      placeholder: "发个消息…",
+      onSend: function() {
+        var t = inputBar2.input.value.replace(/\s+$/, "");
+        if (!t) return;
+        inputBar2.input.value = "";
+        inputBar2.fitHeight();
+        sendChat(t);
+      }
+    });
+    var input = inputBar2.input;
+    chatView.appendChild(bubbles);
+    chatView.appendChild(quoteChip.box);
+    chatView.appendChild(inputBar2.box);
+    d.appendChild(chatView);
+    var emotPanel = el("div", "acsv-emotpanel");
+    emotPanel.style.display = "none";
+    d.appendChild(emotPanel);
+    mountEmotButton(inputBar2.emotBtn, emotPanel, input);
+    var mapCold = !EmotionMap.loaded;
+    ensureEmotionMap().then(function() {
+      if (!mapCold || !drawer || view !== "chat" || !chat) return;
+      ensureIm().then(function(inst) {
+        if (inst.connected) chatPollOnce(inst, true);
+      }, function() {
+      });
+    });
+    root.appendChild(d);
+    drawer = {
+      el: d,
+      head,
+      back,
+      title,
+      close,
+      listView,
+      search,
+      listBody,
+      chatView,
+      bubbles,
+      quoteChip,
+      input,
+      send: inputBar2.send
+    };
+  }
+  function showList() {
+    if (!drawer) return;
+    chatPoll.stop();
+    view = "list";
+    drawer.back.style.display = "none";
+    drawer.title.textContent = "私信";
+    drawer.listView.style.display = "";
+    drawer.chatView.style.display = "none";
+    refreshList();
+    listPoll.start();
+  }
+  function showChat(targetId) {
+    if (!drawer) return;
+    listPoll.stop();
+    view = "chat";
+    var card = cards[targetId] || {};
+    drawer.back.style.display = "block";
+    drawer.title.textContent = card.name || "用户 " + targetId;
+    drawer.listView.style.display = "none";
+    drawer.chatView.style.display = "";
+    drawer.bubbles.innerHTML = "";
+    chat = { targetId: String(targetId), name: card.name || "", session: null, lastCount: -1, seen: {}, lastDivTs: 0, quote: null, msgEls: {} };
+    loadChat();
+    drawer.input.value = "";
+    setTimeout(function() {
+      try {
+        drawer.input.focus();
+      } catch (e) {
+      }
+    }, 60);
+    chatPoll.start();
+  }
+  var listSig = "";
+  function sessionSig(ss) {
+    return ss.map(function(s) {
+      return [
+        s.targetId,
+        s.unread,
+        s.t,
+        s.last && (s.last.seqId || msgTime(s.last) || msgTextOf(s.last)) || ""
+      ].join(":");
+    }).join("|");
+  }
+  function refreshList() {
+    ensureIm().then(function(inst) {
+      return ensureConnected(inst).then(function() {
+        var ss = [];
+        try {
+          ss = inst.kernel.getSessions() || [];
+        } catch (e) {
+        }
+        ss = ss.map(function(s) {
+          var last = s.lastMessage || null;
+          try {
+            var msgs = inst.kernel.getMessages(s) || [];
+            if (msgs.length) last = msgs[msgs.length - 1];
+          } catch (e) {
+          }
+          return {
+            targetId: String(s.targetId),
+            unread: Number(s.unreadCount) || 0,
+            t: msgTime(last) || new Date(s.date || 0).getTime() || 0,
+            last
+          };
+        }).filter(function(s) {
+          return s.targetId && s.targetId !== selfUid();
+        }).sort(function(a, b) {
+          return b.t - a.t;
+        });
+        var ids = ss.map(function(s) {
+          return Number(s.targetId);
+        });
+        var sig = sessionSig(ss) + "|" + ids.join(",");
+        if (sig === listSig && drawer && drawer.listView.style.display !== "none") return;
+        listSig = sig;
+        return fetchCards(ids).then(function(m) {
+          Object.keys(m).forEach(function(k) {
+            cards[k] = m[k];
+          });
+          renderList("", ss);
+        });
+      });
+    }).catch(function() {
+      if (drawer && drawer.listBody && !drawer.listBody.children.length) {
+        drawer.listBody.innerHTML = "";
+        drawer.listBody.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
+      }
+    });
+  }
+  function renderList(kw, ss) {
+    if (!drawer) return;
+    kw = String(kw || "").trim().toLowerCase();
+    var rows = ss || lastListRows || [];
+    if (ss) lastListRows = ss;
+    var unreadTotal = 0;
+    rows.forEach(function(r) {
+      unreadTotal += r.unread || 0;
+    });
+    if (view === "list") drawer.title.textContent = "私信" + (unreadTotal > 0 ? " (" + unreadTotal + ")" : "");
+    drawer.listBody.innerHTML = "";
+    var shown = 0;
+    rows.forEach(function(r) {
+      var card = cards[r.targetId] || {};
+      var name = card.name || "用户 " + r.targetId;
+      if (kw && name.toLowerCase().indexOf(kw) < 0) return;
+      shown++;
+      var row = el("div", "acsv-im-row");
+      row.dataset.tid = r.targetId;
+      var av = el("img", "acsv-im-av");
+      av.referrerPolicy = "no-referrer";
+      av.src = (card.headUrl || CFG.api.defaultAvatar).split("?")[0];
+      av.addEventListener("error", function() {
+        av.src = CFG.api.defaultAvatar;
+      });
+      row.appendChild(av);
+      var mid = el("div", "acsv-im-mid");
+      var nm = el("div", "acsv-im-name");
+      nm.innerHTML = esc(name) + (r.unread > 0 ? '<span class="acsv-share-unread">' + (r.unread > 99 ? "99+" : r.unread) + "</span>" : "");
+      mid.appendChild(nm);
+      var prev = el("div", "acsv-im-preview", previewOf(r));
+      mid.appendChild(prev);
+      row.appendChild(mid);
+      var tm = el("div", "acsv-im-time", relTime(r.t));
+      row.appendChild(tm);
+      row.addEventListener("click", function(ev) {
+        ev.stopPropagation();
+        showChat(r.targetId);
+      });
+      drawer.listBody.appendChild(row);
+    });
+    if (!shown) {
+      drawer.listBody.appendChild(el(
+        "div",
+        "acsv-share-tip",
+        kw ? "没有匹配的联系人" : "还没有聊过天的朋友\n先在 A 站 APP / 网页和 TA 私聊一句\n再回来把视频分享给 TA"
+      ));
+    }
+  }
+  var lastListRows = null;
+  function previewOf(r) {
+    return r.last ? previewOfMessage(r.last) : "";
+  }
+  function loadChat() {
+    ensureIm().then(function(inst) {
+      return ensureConnected(inst).then(function() {
+        ensureTracer(inst);
+        var ss = [];
+        try {
+          ss = inst.kernel.getSessions() || [];
+        } catch (e) {
+        }
+        var sess = null;
+        ss.some(function(s) {
+          if (String(s.targetId) === chat.targetId) {
+            sess = s;
+            return true;
+          }
+          return false;
+        });
+        if (!sess) {
+          return inst.kernel.openSession(0, chat.targetId).then(function() {
+            var ss2 = inst.kernel.getSessions() || [];
+            ss2.some(function(s) {
+              if (String(s.targetId) === chat.targetId) {
+                sess = s;
+                return true;
+              }
+              return false;
+            });
+            chat.session = sess;
+            chatPollOnce(inst, true);
+            return null;
+          }, function() {
+            chat.session = null;
+            return null;
+          });
+        }
+        chat.session = sess;
+        return chatPollOnce(inst, true);
+      });
+    }).catch(function() {
+      if (drawer && drawer.bubbles && !drawer.bubbles.children.length) {
+        drawer.bubbles.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
+      }
+    });
+  }
+  function chatPollOnce(inst, reset) {
+    lastImInst = inst;
+    try {
+      var k = inst.kernel;
+      if (!chat.session) {
+        var ss = k.getSessions() || [];
+        ss.some(function(s) {
+          if (String(s.targetId) === chat.targetId) {
+            chat.session = s;
+            return true;
+          }
+          return false;
+        });
+      }
+      if (!chat.session) return;
+      var msgs = k.getMessages(chat.session) || [];
+      if (reset) {
+        chat.seen = {};
+        chat.msgEls = {};
+        chat.lastCount = -1;
+        drawer.bubbles.innerHTML = "";
+      }
+      var fresh = [];
+      msgs.forEach(function(m) {
+        var key = String(m.seqId !== void 0 && m.seqId || msgTime(m) || "h" + msgFrom(m) + ":" + msgTextOf(m));
+        if (chat.seen[key]) return;
+        chat.seen[key] = true;
+        fresh.push({ m, key });
+      });
+      fresh.forEach(function(x) {
+        appendBubble(x.m);
+        var lastEl = drawer.bubbles.lastElementChild;
+        if (lastEl) chat.msgEls[x.key] = lastEl;
+      });
+      if (fresh.length || reset) {
+        drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
+        try {
+          if (chat.session && k.markSessionRead && chat.session.unreadCount !== void 0) k.markSessionRead(chat.session);
+        } catch (e) {
+        }
+      }
+    } catch (e) {
+    }
+  }
+  function dayLabel(ts) {
+    var now = /* @__PURE__ */ new Date(), t = new Date(ts);
+    var hm = pad22(t.getHours()) + ":" + pad22(t.getMinutes());
+    if (t.toDateString() === now.toDateString()) return "今天 " + hm;
+    if (t.toDateString() === new Date(now.getTime() - 864e5).toDateString()) return "昨天 " + hm;
+    if (now.getTime() - ts < 6048e5) return "周" + "日一二三四五六".charAt(t.getDay()) + " " + hm;
+    return pad22(t.getMonth() + 1) + "-" + pad22(t.getDate()) + " " + hm;
+  }
+  function maybeDayDiv(ts) {
+    if (!ts || !drawer || !chat) return;
+    if (!chat.lastDivTs || ts - chat.lastDivTs >= CFG.im.dayDivGap) {
+      drawer.bubbles.appendChild(el("div", "acsv-im-daydiv", dayLabel(ts)));
+    }
+    chat.lastDivTs = ts;
+  }
+  function setQuote(q2) {
+    if (chat) chat.quote = q2 || null;
+    renderQuoteChip();
+  }
+  function renderQuoteChip() {
+    if (!drawer) return;
+    var chip = drawer.quoteChip, q2 = chat && chat.quote;
+    if (!q2) {
+      chip.box.style.display = "none";
+      chip.label.textContent = "";
+      drawer.input.placeholder = "发个消息…";
+      return;
+    }
+    chip.box.style.display = "flex";
+    chip.label.textContent = "引用：" + (q2.preview || "原消息");
+    drawer.input.placeholder = "回复引用的内容…";
+  }
+  function quoteStrip(q2) {
+    var s = el("div", "acsv-im-quote" + (q2.seqId ? " link" : ""));
+    s.appendChild(el("div", "acsv-im-quote-preview", q2.preview || "[原消息]"));
+    if (q2.seqId) {
+      s.title = "点击查看原消息";
+      s.addEventListener("click", function(ev) {
+        ev.stopPropagation();
+        locateMessage(q2.seqId);
+      });
+    }
+    return s;
+  }
+  function locateMessage(seqId) {
+    if (!drawer || !chat) return;
+    var wrap = chat.msgEls[String(seqId)];
+    if (!wrap || !wrap.isConnected) {
+      toast("原消息不在已加载的记录里");
+      return;
+    }
+    var t = wrap.querySelector(".acsv-im-bubble") || wrap.querySelector(".acsv-im-vcard") || wrap;
+    try {
+      t.scrollIntoView({ block: "center", behavior: "smooth" });
+    } catch (e1) {
+      t.scrollIntoView();
+    }
+    t.classList.remove("acsv-im-flash");
+    void t.offsetWidth;
+    t.classList.add("acsv-im-flash");
+    setTimeout(function() {
+      t.classList.remove("acsv-im-flash");
+    }, 1300);
+  }
+  function bubbleRow(b, mine, m, extraCls) {
+    var wrap = el("div", "acsv-im-rowwrap" + (extraCls ? " " + extraCls : "") + (mine ? " mine" : ""));
+    wrap.appendChild(b);
+    if (m && isQuotable(m, CFG.im.quoteWire)) wrap.appendChild(quoteBtnEl(m));
+    return wrap;
+  }
+  function quoteBtnEl(m) {
+    var btn = el("button", "acsv-im-quotebtn", "↩");
+    btn.title = "引用这条消息";
+    btn.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      var raw = m.rawMsg || {};
+      setQuote({
+        seqId: raw.seqId !== void 0 && raw.seqId !== null ? String(raw.seqId) : "",
+        preview: previewOfMessage(m) || msgTextOf(m).slice(0, 40),
+        originMsg: m
+      });
+      try {
+        drawer.input.focus();
+      } catch (e) {
+      }
+    });
+    return btn;
+  }
+  function appendBubble(m) {
+    if (!drawer) return;
+    maybeDayDiv(msgTime(m));
+    var mine = msgFrom(m) === selfUid();
+    var q2 = quoteOf(m) || quoteExtraOf(m);
+    var b = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
+    if (q2) {
+      b.appendChild(quoteStrip(q2));
+      var qtxt = el("div", "acsv-im-msgtext");
+      qtxt.innerHTML = imTextHtml(q2.text);
+      b.appendChild(qtxt);
+      drawer.bubbles.appendChild(bubbleRow(b, mine, m));
+      return;
+    }
+    if (msgContentType(m) === 1) return appendImageBubble(m, mine);
+    var card = parseCard(m);
+    if (card) return appendCardBubble(card, mine, m);
+    var share = parseShare(msgTextOf(m));
+    if (share) return appendShareBubble(share, mine, m);
+    var txt = el("div", "acsv-im-msgtext");
+    txt.innerHTML = imTextHtml(msgTextOf(m));
+    b.appendChild(txt);
+    drawer.bubbles.appendChild(bubbleRow(b, mine, m));
+  }
+  function appendImageBubble(m, mine) {
+    if (!drawer) return;
+    var w = Number(m.width) || 0, h = Number(m.height) || 0;
+    var src = imageUrlOf(m);
+    var b = el("div", "acsv-im-imgbubble" + (mine ? " mine" : ""));
+    if (src) {
+      var img = document.createElement("img");
+      img.className = "acsv-im-imgimg";
+      img.alt = "";
+      if (w > 0 && h > 0) {
+        img.style.width = Math.min(w, 180) + "px";
+        img.style.aspectRatio = w + " / " + h;
+      }
+      b.appendChild(img);
+      var cached = peekImImageBlob(src);
+      if (cached) {
+        img.src = cached;
+      } else {
+        b.classList.add("pending");
+        imImgLazy(img, function() {
+          fetchImImageBlob(src).then(function(blobUrl) {
+            if (!img.isConnected) return;
+            b.classList.remove("pending");
+            if (blobUrl) img.src = blobUrl;
+            else {
+              img.remove();
+              b.appendChild(document.createTextNode("[图片]"));
+            }
+          });
+        });
+      }
+      b.addEventListener("click", function(ev) {
+        var sel = window.getSelection ? window.getSelection() : null;
+        if (sel && !sel.isCollapsed) return;
+        ev.stopPropagation();
+        fetchImImageBlob(src).then(function(blobUrl) {
+          if (blobUrl) openImageViewer(blobUrl);
+        });
+      });
+    } else {
+      b.textContent = "[图片]";
+    }
+    drawer.bubbles.appendChild(bubbleRow(b, mine, m));
+  }
+  var imImgObs = null;
+  function imImgLazy(img, load) {
+    if (!imImgObs) {
+      imImgObs = new IntersectionObserver(function(entries) {
+        entries.forEach(function(en) {
+          if (!en.isIntersecting) return;
+          imImgObs.unobserve(en.target);
+          var fn = en.target.__acsvImgLoad;
+          if (fn) {
+            en.target.__acsvImgLoad = null;
+            fn();
+          }
+        });
+      }, { rootMargin: "200px 0px" });
+    }
+    img.__acsvImgLoad = load;
+    imImgObs.observe(img);
+  }
+  function imageUrlOf(m) {
+    var ks = "";
+    try {
+      ks = m && (m.url || m.imageAttachment && m.imageAttachment.uri) || "";
+    } catch (e0) {
+    }
+    if (!ks) ks = imageUriFromRaw(m);
+    if (!ks) {
+      console.warn("[acsv-im] 图片消息无 uri（decode 与 raw 均未恢复）");
+      return "";
+    }
+    if (!/^ks:\/\//.test(ks)) return officialize(ks);
+    try {
+      var k = lastImInst && lastImInst.kernel;
+      if (k && k.file && k.file.resourceUrlToHttpUrl) {
+        var u = officialize(k.file.resourceUrlToHttpUrl(ks, false, Number(m.width) || 0, Number(m.height) || 0));
+        if (u) return u;
+      }
+    } catch (e) {
+    }
+    try {
+      var rid = ks.slice(5).replace(/\/\w+$/, "");
+      if (!rid) {
+        console.warn("[acsv-im] ks 资源串形态不识别:", ks.slice(0, 60));
+        return "";
+      }
+      var ver = "";
+      try {
+        var cfgk = lastImInst && lastImInst.kernel && lastImInst.kernel.config;
+        ver = cfgk && (cfgk.imsdkver || cfgk.sdkVersion) || "";
+      } catch (e2) {
+      }
+      return CFG.api.imDownloadBase + "/rest/v2/app/download?resourceId=" + encodeURIComponent(rid) + "&userId=" + encodeURIComponent(selfUid()) + "&did=" + encodeURIComponent(cookieVal("_did") || "") + "&kpn=ACFUN_APP&platform=H5" + (ver ? "&imsdkver=" + encodeURIComponent(ver) : "");
+    } catch (e3) {
+      return "";
+    }
+  }
+  function imageUriFromRaw(m) {
+    try {
+      var buf = m && m.rawMsg && m.rawMsg.content;
+      if (!buf) return "";
+      var u8 = new Uint8Array(buf), i = 0;
+      if (u8[i++] !== 10) return "";
+      var len = 0, shift = 0, b;
+      do {
+        b = u8[i++];
+        len += (b & 127) * Math.pow(2, shift);
+        shift += 7;
+      } while (b & 128);
+      if (!len || i + len > u8.length) return "";
+      var s = "";
+      for (var j = 0; j < len; j++) s += String.fromCharCode(u8[i + j]);
+      return /^ks:\/\//.test(s) || /^https?:\/\//.test(s) ? s : "";
+    } catch (e) {
+      return "";
+    }
+  }
+  function officialize(httpUrl) {
+    try {
+      if (!httpUrl || !/^https?:\/\//.test(httpUrl)) return "";
+      var u = new URL(httpUrl);
+      var rid = u.searchParams.get("resourceId");
+      if (!rid) return "";
+      var q2 = ["resourceId", "userId", "did", "kpn", "imsdkver", "platform"].map(function(k) {
+        var v = u.searchParams.get(k);
+        return v == null ? null : k + "=" + encodeURIComponent(v);
+      }).filter(Boolean).join("&");
+      return CFG.api.imDownloadBase + "/rest/v2/app/download?" + q2;
+    } catch (e) {
+      return "";
+    }
+  }
+  function vcardEl(r, mine) {
+    var cardEl = el(r.href ? "a" : "div", "acsv-im-vcard" + (mine ? " mine" : ""));
+    if (r.href) {
+      cardEl.href = r.href;
+      cardEl.target = "_blank";
+      cardEl.rel = "noopener";
+    }
+    var box = el("div", "acsv-im-vcard-coverbox");
+    var cover = el("img", "acsv-im-vcard-cover");
+    cover.alt = "";
+    cover.referrerPolicy = "no-referrer";
+    if (r.coverUrl) cover.src = r.coverUrl;
+    else cover.style.visibility = "hidden";
+    cover.addEventListener("error", function() {
+      cover.style.visibility = "hidden";
+    });
+    box.appendChild(cover);
+    var bar = el("div", "acsv-im-vcard-bar");
+    bar.innerHTML = ICON_PLAY + '<span class="acsv-im-vcard-view">' + esc(r.viewCountShow || "") + "</span>" + ICON_COMMENT + '<span class="acsv-im-vcard-cmt">' + esc(r.commentCountShow || "") + '</span><span class="acsv-im-vcard-dur"' + (r.durationSec ? "" : ' style="display:none"') + ">" + (r.durationSec ? esc(fmtDur(r.durationSec)) : "") + "</span>";
+    box.appendChild(bar);
+    cardEl.appendChild(box);
+    if (r.title) cardEl.appendChild(el("div", "acsv-im-vcard-title", r.title));
+    return cardEl;
+  }
+  function appendCardBubble(card, mine, m) {
+    if (card.prologue) {
+      var pre = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
+      pre.textContent = card.prologue;
+      drawer.bubbles.appendChild(pre);
+    }
+    card.resourceBody.forEach(function(r) {
+      drawer.bubbles.appendChild(bubbleRow(vcardEl({
+        href: Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : "",
+        coverUrl: r.coverUrl,
+        viewCountShow: r.viewCountShow,
+        commentCountShow: r.commentCountShow,
+        durationSec: r.durationSec,
+        title: r.title
+      }, mine), mine, m, "cardrow"));
+    });
+  }
+  function appendShareBubble(share, mine, m) {
+    if (share.note) {
+      var note = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
+      note.textContent = share.note;
+      drawer.bubbles.appendChild(note);
+    }
+    var cardEl = vcardEl({ href: share.url, title: share.title }, mine);
+    drawer.bubbles.appendChild(bubbleRow(cardEl, mine, m, "cardrow"));
+    var bubbles = drawer.bubbles;
+    var tid = chat && chat.targetId;
+    AppAPI.dougaCard(share.acId).then(function(c) {
+      if (!c || !cardEl.isConnected || !drawer || drawer.bubbles !== bubbles || !chat || chat.targetId !== tid) return;
+      patchVcard(cardEl, c);
+      drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
+    });
+  }
+  function patchVcard(cardEl, c) {
+    var cover = cardEl.querySelector(".acsv-im-vcard-cover");
+    if (cover && c.cover) {
+      cover.src = c.cover;
+      cover.style.visibility = "";
+    }
+    var view2 = cardEl.querySelector(".acsv-im-vcard-view");
+    if (view2 && c.view != null) view2.textContent = c.view;
+    var cmt = cardEl.querySelector(".acsv-im-vcard-cmt");
+    if (cmt && c.comment != null) cmt.textContent = c.comment;
+    var dur = cardEl.querySelector(".acsv-im-vcard-dur");
+    if (dur && c.durationSec) {
+      dur.textContent = fmtDur(c.durationSec);
+      dur.style.display = "";
+    }
+    var tt = cardEl.querySelector(".acsv-im-vcard-title");
+    if (tt && c.title) tt.textContent = c.title;
+  }
+  function sendImageMsg(file) {
+    var targetId = chat && chat.targetId;
+    if (!targetId) return;
+    if (file.size > CFG.im.imgMax) {
+      toast("图片不能超过 " + Math.round(CFG.im.imgMax / 1024 / 1024) + "MB");
+      return;
+    }
+    var localUrl = "";
+    try {
+      localUrl = URL.createObjectURL(file);
+    } catch (e0) {
+    }
+    readSize(localUrl, function(w, h) {
+      maybeDayDiv(Date.now());
+      var b = el("div", "acsv-im-imgbubble mine pending");
+      if (localUrl) {
+        var ph = document.createElement("img");
+        ph.className = "acsv-im-imgimg";
+        ph.alt = "";
+        ph.src = localUrl;
+        if (w > 0 && h > 0) {
+          ph.style.width = Math.min(w, 180) + "px";
+          ph.style.aspectRatio = w + " / " + h;
+        }
+        b.appendChild(ph);
+      } else {
+        b.textContent = "[图片]";
+      }
+      var holder = el("div", "acsv-im-rowwrap mine");
+      holder.appendChild(b);
+      drawer.bubbles.appendChild(holder);
+      drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
+      function cleanup() {
+        if (localUrl) {
+          try {
+            URL.revokeObjectURL(localUrl);
+          } catch (e2) {
+          }
+        }
+      }
+      function onFail(err) {
+        var stale = !chat || chat.targetId !== targetId;
+        if (!stale && holder.isConnected) {
+          b.classList.remove("pending");
+          b.classList.add("failed");
+          b.title = "发送失败，点击重试";
+          b.addEventListener("click", function(ev) {
+            ev.stopPropagation();
+            holder.remove();
+            cleanup();
+            sendImageMsg(file);
+          });
+        }
+        toast("图片发送失败：" + String(err && err.message || "").slice(0, 120), 8e3);
+      }
+      ensureIm().then(function(inst) {
+        return ensureConnected(inst).then(function() {
+          ensureTracer(inst);
+          return sendImage(inst, Number(targetId), file, w, h);
+        }).then(function() {
+          if (!chat || chat.targetId !== targetId) {
+            cleanup();
+            return;
+          }
+          if (holder.isConnected) holder.remove();
+          cleanup();
+          chatPollOnce(inst, false);
+        }, onFail);
+      }, onFail);
+    });
+  }
+  function readSize(url, cb) {
+    if (!url) return cb(0, 0);
+    var img = new Image();
+    img.onload = function() {
+      cb(img.naturalWidth || 0, img.naturalHeight || 0);
+    };
+    img.onerror = function() {
+      cb(0, 0);
+    };
+    img.src = url;
+  }
+  function sendChat(text) {
+    var targetId = chat && chat.targetId;
+    if (!targetId) return;
+    text = String(text).slice(0, CFG.im.maxLen);
+    var quote = chat.quote || null;
+    maybeDayDiv(Date.now());
+    var b = el("div", "acsv-im-bubble mine pending");
+    if (quote) b.appendChild(quoteStrip({ seqId: quote.seqId, preview: quote.preview }));
+    var txt = el("div", "acsv-im-msgtext");
+    txt.innerHTML = imTextHtml(text);
+    b.appendChild(txt);
+    var holder = el("div", "acsv-im-rowwrap mine");
+    holder.appendChild(b);
+    drawer.bubbles.appendChild(holder);
+    drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
+    function onFail(err) {
+      var stale = !chat || chat.targetId !== targetId;
+      if (!stale && holder.isConnected) {
+        b.classList.remove("pending");
+        b.classList.add("failed");
+        b.title = "发送失败，点击重试";
+        b.addEventListener("click", function(ev) {
+          ev.stopPropagation();
+          holder.remove();
+          drawer.input.value = text;
+          if (quote && chat && !chat.quote) setQuote(quote);
+          drawer.input.focus();
+        });
+      }
+      toast("发送失败：" + String(err && err.message || "").slice(0, 120), 8e3);
+    }
+    ensureIm().then(function(inst) {
+      return ensureConnected(inst).then(function() {
+        ensureTracer(inst);
+        return quote ? sendQuote(inst, Number(targetId), quote, text) : doSend(inst, Number(targetId), text).catch(function(err) {
+          var pre = linkOk(inst) ? Promise.resolve() : ensureConnected(inst);
+          return pre.then(function() {
+            return forceSync(inst);
+          }).then(function() {
+            return doSend(inst, Number(targetId), text);
+          });
+        });
+      }).then(function() {
+        if (!chat || chat.targetId !== targetId) return;
+        if (holder.isConnected) holder.remove();
+        if (quote && chat.quote === quote) setQuote(null);
+        chatPollOnce(inst, false);
+      }, onFail);
+    }, onFail);
+  }
+  function openDrawer() {
+    if (!isLogined()) {
+      toast("私信需要先登录 AcFun 账号");
+      return;
+    }
+    ensureDrawerDom();
+    prewarmIm();
+    claimDrawer("im", closeDrawer);
+    drawer.el.classList.add("open");
+    syncCommentVars();
+    showList();
+  }
+  function openChat(targetId) {
+    if (!isLogined()) {
+      toast("私信需要先登录 AcFun 账号");
+      return;
+    }
+    ensureDrawerDom();
+    prewarmIm();
+    claimDrawer("im", closeDrawer);
+    drawer.el.classList.add("open");
+    syncCommentVars();
+    showChat(String(targetId));
+  }
+  function closeDrawer() {
+    if (drawer) drawer.el.classList.remove("open");
+    listPoll.stop();
+    chatPoll.stop();
+    view = "";
+    releaseDrawer("im");
+    syncCommentVars();
+  }
+  function teardownIm() {
+    mounted = false;
+    imShutdown();
+    if (badgeDelayTimer) {
+      clearTimeout(badgeDelayTimer);
+      badgeDelayTimer = null;
+    }
+    if (badgeTimer) {
+      clearInterval(badgeTimer);
+      badgeTimer = null;
+    }
+    listPoll.stop();
+    chatPoll.stop();
+    releaseDrawer("im");
+    drawer = null;
+    view = "";
+    chat = null;
+    cards = {};
+    listSig = "";
+    lastListRows = null;
+    badgeEl = null;
+  }
+  function mountBadge(btn, badge) {
+    badgeEl = badge;
+    mounted = true;
+    var last = -1;
+    function tick() {
+      if (!mounted) return;
+      if (!isLogined()) {
+        setBadge(0);
+        return;
+      }
+      ensureIm().then(function(inst) {
+        if (!mounted || !inst.connected) return;
+        var sum = 0;
+        try {
+          (inst.kernel.getSessions() || []).forEach(function(s) {
+            sum += Number(s.unreadCount) || 0;
+          });
+        } catch (e) {
+        }
+        setBadge(sum);
+      }, function() {
+      });
+    }
+    function setBadge(n) {
+      if (n === last) return;
+      last = n;
+      var txt = badgeText(n), show = n > 0 ? "" : "none";
+      if (badgeEl) {
+        badgeEl.textContent = txt;
+        badgeEl.style.display = show;
+      }
+    }
+    badgeTimer = setInterval(tick, CFG.im.badgePoll);
+    badgeDelayTimer = setTimeout(function() {
+      if (!mounted) return;
+      tick();
+      ensureIm().then(function(inst) {
+        try {
+          inst.on("unReadCountUpdate", function() {
+            if (mounted) tick();
+          });
+        } catch (e) {
+        }
+      }, function() {
+      });
+    }, CFG.im.badgeDelay);
+  }
+
+  // src/imshare.js
+  function pageWin() {
+    return typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+  }
+  function logInstaller(G) {
+    if (G.__acsvImLog) return;
+    G.__acsvImLog = [];
+    G.__acsvImErr = "";
+    var ser = function(a) {
+      if (a == null) return String(a);
+      var t = typeof a;
+      if (t === "string") return a;
+      if (t === "number" || t === "boolean") return String(a);
+      try {
+        if (typeof a.toJSON === "function") return JSON.stringify(a.toJSON());
+      } catch (e) {
+      }
+      if (a instanceof Error || a && a.message && a.stack) {
+        return JSON.stringify({ name: a.name, message: a.message, code: a.code });
+      }
+      try {
+        return JSON.stringify(a);
+      } catch (e2) {
+        return String(a);
+      }
+    };
+    var push = function() {
+      try {
+        var parts = [], errJson = "";
+        for (var i = 0; i < arguments.length; i++) {
+          var s = ser(arguments[i]);
+          parts.push(s);
+          if (s && s.charAt(0) === "{") errJson = s;
+        }
+        var line = parts.join(" ");
+        if (line.indexOf("[im-sdk]") > -1 || line.indexOf("信息发送") > -1 || line.indexOf("reject:") > -1) {
+          if (errJson) G.__acsvImErr = errJson;
+          G.__acsvImLog.push(line.slice(0, 2e3));
+          if (G.__acsvImLog.length > 60) G.__acsvImLog.shift();
+        }
+      } catch (e) {
+      }
+    };
+    G.localLog = {
+      log: function() {
+        push.apply(null, arguments);
+        console.log.apply(console, arguments);
+      },
+      info: function() {
+        push.apply(null, arguments);
+        console.info.apply(console, arguments);
+      },
+      error: function() {
+        push.apply(null, arguments);
+        console.error.apply(console, arguments);
+      }
+    };
+    try {
+      ["log", "info", "error"].forEach(function(lv) {
+        var orig = G.console[lv].bind(G.console);
+        G.console[lv] = function() {
+          push.apply(null, arguments);
+          orig.apply(null, arguments);
+        };
+      });
+    } catch (e) {
+    }
+  }
+  function injectPageFn(installer, installed) {
+    var w = pageWin();
+    if (installed(w)) return false;
+    try {
+      installer(w);
+    } catch (e) {
+    }
+    if (installed(w)) return false;
+    try {
+      var s = document.createElement("script");
+      s.textContent = "(" + installer.toString() + ")(window);";
+      (document.head || document.documentElement).appendChild(s);
+      s.remove();
+    } catch (e2) {
+    }
+    return true;
+  }
+  function ensureLocalLog() {
+    injectPageFn(logInstaller, function(w) {
+      return w.localLog && w.__acsvImLog;
+    });
+  }
+  function imLogMark() {
+    try {
+      return (pageWin().__acsvImLog || []).length;
+    } catch (e) {
+      return 0;
+    }
+  }
+  function imLogVerdict(mark) {
+    var buf = [];
+    try {
+      buf = pageWin().__acsvImLog || [];
+    } catch (e) {
+    }
+    for (var i = mark; i < buf.length; i++) {
+      var l = String(buf[i]);
+      if (l.indexOf("信息发送成功") > -1) return { ok: true };
+      if (l.indexOf("信息发送失败") > -1) return { ok: false, why: l };
+    }
+    return null;
+  }
+  function hadTracerCrash() {
+    var w = pageWin(), buf = [];
+    try {
+      buf = w.__acsvImLog || [];
+    } catch (e) {
+    }
+    for (var i = 0; i < buf.length; i++) {
+      if (String(buf[i]).indexOf("reading 'context'") > -1) return true;
+    }
+    return false;
+  }
+  function weblogInstaller(G) {
+    function makeSpan(opts) {
+      var span = {
+        context: opts && opts.context || { traceId: "acsv" + Date.now() },
+        setTags: function() {
+          return span;
+        },
+        end: function() {
+        },
+        createSubSpan: function(sub, o1, o2, parent) {
+          return makeSpan({ context: parent || span.context });
+        }
+      };
+      return span;
+    }
+    function safeStart(name, opts) {
+      var sp = null;
+      try {
+        sp = G.__acsvOrigStart ? G.__acsvOrigStart.apply(this, arguments) : null;
+      } catch (e) {
+      }
+      if (sp && sp.context !== void 0) return sp;
+      return makeSpan(opts);
+    }
+    if (!G.weblog) {
+      G.weblog = { startSpan: safeStart };
+      return;
+    }
+    if (!G.__acsvOrigStart) {
+      G.__acsvOrigStart = G.weblog.startSpan;
+      G.weblog.startSpan = safeStart;
+    }
+  }
+  function tracerOk() {
+    try {
+      var wl = pageWin().weblog;
+      if (!wl || typeof wl.startSpan !== "function") return false;
+      var sp = wl.startSpan("__acsv_probe__", {});
+      return !!(sp && sp.context !== void 0);
+    } catch (e) {
+      return false;
+    }
+  }
+  function ensureWeblogSync() {
+    if (tracerOk()) return false;
+    return injectPageFn(weblogInstaller, function() {
+      return tracerOk();
+    });
+  }
+  function isLogined() {
+    return /^\d/.test(cookieVal("auth_key"));
+  }
+  function gmGetText2(url) {
+    return gmRequest({ url, timeout: CFG.im.loadT, responseType: "text", okStatus: true });
+  }
+  function loadImSdk() {
+    return new Promise(function(resolve, reject) {
+      ensureLocalLog();
+      ensureWeblogSync();
+      var w = pageWin();
+      var src = w.globalConfig && w.globalConfig.imsdkcdn || CFG.api.imsdk;
+      if (src.indexOf("//") === 0) src = "https:" + src;
+      var settled = false;
+      function done(fn, val) {
+        if (!settled) {
+          settled = true;
+          fn(val);
+        }
+      }
+      function injectScript(url, onok, onfail) {
+        var s = document.createElement("script");
+        var timer = setTimeout(function() {
+          clearTimeout(timer);
+          s.remove();
+          if (url.indexOf("blob:") === 0) URL.revokeObjectURL(url);
+          onfail();
+        }, CFG.im.loadT);
+        s.onload = function() {
+          clearTimeout(timer);
+          var Ctor = pageWin().ImSdk;
+          if (Ctor) onok(Ctor);
+          else onfail();
+        };
+        s.onerror = function() {
+          clearTimeout(timer);
+          s.remove();
+          if (url.indexOf("blob:") === 0) URL.revokeObjectURL(url);
+          onfail();
+        };
+        s.src = url;
+        (document.head || document.documentElement).appendChild(s);
+      }
+      function directLoad() {
+        injectScript(
+          src,
+          function(Ctor) {
+            done(resolve, Ctor);
+          },
+          function() {
+            done(reject, new Error("imsdk-load-fail"));
+          }
+        );
+      }
+      gmGetText2(src).then(function(text) {
+        var n = 0;
+        text = text.replace('p=be.includes(e)&&(null==d?void 0:d.createSubSpan("Encode"', function(m) {
+          n++;
+          return 'p=!1&&(null==d?void 0:d.createSubSpan("Encode"';
+        }).replace('f=be.includes(e)&&(null==d?void 0:d.createSubSpan("Transfer"', function(m) {
+          n++;
+          return 'f=!1&&(null==d?void 0:d.createSubSpan("Transfer"';
+        });
+        if (n < 2) {
+          console.warn("[acsv-im] SDK 补丁失配（官方可能换了版），回退未修补加载");
+          return directLoad();
+        }
+        var url = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
+        injectScript(url, function(Ctor) {
+          done(resolve, Ctor);
+        }, function() {
+          directLoad();
+        });
+      }, function() {
+        directLoad();
+      });
+    });
+  }
+  var imPromise = null;
+  function ensureIm() {
+    if (imPromise) return imPromise;
+    imPromise = loadImSdk().then(function(Ctor) {
+      return new Ctor({ dev: false });
+    }, function(e) {
+      imPromise = null;
+      throw e;
+    });
+    return imPromise;
+  }
+  function linkOk(inst) {
+    try {
+      var k = inst.kernel;
+      if (!k) return false;
+      var probes = [];
+      if ("isConnected" in k) probes.push(k.isConnected === true);
+      if ("linkState" in k) probes.push(k.linkState === "connected");
+      if (k.api && "isConnected" in k.api) probes.push(k.api.isConnected === true);
+      if (k.api && "linkState" in k.api) probes.push(k.api.linkState === "connected");
+      if (!probes.length) return !!inst.connected;
+      return probes.indexOf(true) > -1;
+    } catch (e) {
+      return false;
+    }
+  }
+  function forceReconnect(inst) {
+    try {
+      inst.connected = false;
+      inst.retryNum = 0;
+      inst.connect();
+    } catch (e) {
+    }
+  }
+  function tracerInstaller(G) {
+    if (!G.__acsvTracer) {
+      var span = function(opts, parent) {
+        var s = {
+          context: opts && opts.context || parent || { traceId: "acsv" + Date.now() },
+          setTags: function() {
+            return s;
+          },
+          end: function() {
+          },
+          createSubSpan: function(n, parentCtx) {
+            return span(opts, parentCtx || s.context);
+          }
+        };
+        return s;
+      };
+      G.__acsvTracer = { startSpan: function(name, opts) {
+        return span(opts);
+      } };
+    }
+    try {
+      var inst = G.ImSdk && G.ImSdk.instance;
+      var zs = inst && inst.kernel && (inst.kernel.api || inst.kernel);
+      var link = zs && zs.link;
+      if (link && !link.tracer) link.tracer = G.__acsvTracer;
+      if (link) {
+        if (typeof link.log !== "function") link.log = function() {
+        };
+        if (typeof link.logPerformance !== "function") link.logPerformance = function() {
+        };
+      }
+      G.__acsvTracerOk = !!(link && link.tracer);
+    } catch (e) {
+      G.__acsvTracerOk = false;
+    }
+  }
+  function ensureTracer(inst) {
+    injectPageFn(tracerInstaller, function(w2) {
+      return w2.__acsvTracer && w2.__acsvTracerOk;
+    });
+    var w = pageWin();
+    try {
+      var k = inst.kernel || {};
+      var zs = k.api || k;
+      if (zs && zs.link && !zs.link.tracer && w.__acsvTracer) zs.link.tracer = w.__acsvTracer;
+      if (zs && zs.link) {
+        if (typeof zs.link.log !== "function") zs.link.log = function() {
+        };
+        if (typeof zs.link.logPerformance !== "function") zs.link.logPerformance = function() {
+        };
+      }
+    } catch (e3) {
+    }
+  }
+  var connGen = 0;
+  function imShutdown() {
+    connGen++;
+  }
+  function ensureConnected(inst) {
+    if (inst.connected && linkOk(inst)) return Promise.resolve();
+    return new Promise(function(resolve, reject) {
+      var start = Date.now(), forced = false, gen = connGen;
+      (function poll() {
+        if (gen !== connGen) return reject(new Error("im-cancelled"));
+        var ok = false;
+        try {
+          ok = !!inst.connected && linkOk(inst);
+        } catch (e) {
+        }
+        if (ok) return resolve();
+        var t = Date.now() - start;
+        if (t > CFG.im.connT2) return reject(new Error("im-connect-fail"));
+        if (!forced && t > CFG.im.connT1) {
+          forced = true;
+          forceReconnect(inst);
+        }
+        ensureTracer(inst);
+        setTimeout(poll, 250);
+      })();
+    });
+  }
+  function getContacts(inst) {
+    return new Promise(function(resolve) {
+      var n = 0;
+      (function poll() {
+        var ss = [];
+        try {
+          ss = inst.kernel.getSessions() || [];
+        } catch (e) {
+        }
+        if (ss.length) return resolve(mapSessions(ss));
+        if (++n >= CFG.im.pollMax) return resolve([]);
+        setTimeout(poll, CFG.im.pollGap);
+      })();
+    });
+  }
+  function mapSessions(ss) {
+    return ss.map(function(s) {
+      return {
+        targetId: Number(s.targetId) || 0,
+        unread: Number(s.unreadCount) || 0,
+        t: new Date(s.lastMessage && s.lastMessage.date || s.date || 0).getTime() || 0
+      };
+    }).filter(function(c) {
+      return c.targetId > 0;
+    }).sort(function(a, b) {
+      return b.t - a.t;
+    });
+  }
+  function fetchCards(ids) {
+    return postForm(CFG.api.userCard, "ids=" + ids.join(",")).then(function(j) {
+      var map = {};
+      (j && j.result === 0 && j.users || []).forEach(function(u) {
+        map[u.id] = { name: u.name || "A站用户", headUrl: u.headUrl || "" };
+      });
+      return map;
+    }, function() {
+      return {};
+    });
+  }
+  function doSend(inst, targetId, text) {
+    var mark = imLogMark();
+    return new Promise(function(resolve, reject) {
+      var done = false;
+      var timer = setTimeout(function() {
+        finish(new Error("send-timeout"));
+      }, CFG.im.sendT);
+      function settle() {
+        finish(null);
+      }
+      function finish(err) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try {
+          inst.off("sendSucceed", onEvt);
+        } catch (e) {
+        }
+        clearInterval(logPoll);
+        if (err) reject(err);
+        else resolve();
+      }
+      function onEvt(tid) {
+        if (String(tid) === String(targetId)) settle();
+      }
+      try {
+        inst.on("sendSucceed", onEvt);
+      } catch (e) {
+      }
+      var logPoll = setInterval(function() {
+        var v = imLogVerdict(mark);
+        if (!v) return;
+        finish(v.ok ? null : new Error(v.why || "send-fail"));
+      }, 300);
+      var r;
+      try {
+        if (inst.sendMessage.length >= 4) r = inst.sendMessage(targetId, text, 0, settle);
+        else r = inst.sendMessage(targetId, text, settle);
+      } catch (e) {
+        finish(e);
+        return;
+      }
+      if (r === false && !done) {
+        finish(new Error("send-rejected"));
+      }
+    });
+  }
+  function forceSync(inst) {
+    try {
+      var k = inst.kernel;
+      k.syncStatus.isSyncing = false;
+      k.syncStatus.lastSyncDate = 0;
+      k.sync();
+    } catch (e) {
+    }
+    return new Promise(function(resolve) {
+      var start = Date.now();
+      (function poll() {
+        var busy = false;
+        try {
+          busy = !!(inst.kernel && inst.kernel.syncStatus && inst.kernel.syncStatus.isSyncing);
+        } catch (e) {
+        }
+        if (!busy || Date.now() - start > 6e3) return resolve();
+        setTimeout(poll, 250);
+      })();
+    });
+  }
+  function resetSingleton(Ctor) {
+    try {
+      Ctor.instance = null;
+      if (Ctor.instance) Ctor.instance = void 0;
+      if (Ctor.instance) delete Ctor.instance;
+    } catch (e) {
+    }
+  }
+  function rebuildIm() {
+    var p = loadImSdk().then(function(Ctor) {
+      ensureWeblogSync();
+      resetSingleton(Ctor);
+      var inst = new Ctor({ dev: false });
+      imPromise = Promise.resolve(inst);
+      return ensureConnected(inst).then(function() {
+        return inst;
+      });
+    }, function(e) {
+      if (imPromise === p) imPromise = null;
+      throw e;
+    });
+    imPromise = p;
+    return p;
+  }
+  function withSendRecovery(inst, send) {
+    return send(inst).catch(function() {
+      var p;
+      if (hadTracerCrash()) {
+        console.warn("[acsv-im] 检测到 tracer 崩溃（weblog 缺失），重建 IM 实例后重试");
+        p = rebuildIm();
+      } else if (linkOk(inst)) {
+        p = Promise.resolve(inst);
+      } else {
+        p = ensureConnected(inst).then(function() {
+          return inst;
+        });
+      }
+      return p.then(function(useInst) {
+        ensureTracer(useInst);
+        return forceSync(useInst).then(function() {
+          return send(useInst);
+        });
+      });
+    });
+  }
+  function sendOnce(inst, targetId, text) {
+    return withSendRecovery(inst, function(i) {
+      return doSend(i, targetId, text);
+    });
+  }
+  function sendKernel(inst, msg, targetId, timeout) {
+    var limit = timeout || CFG.im.sendT;
+    return new Promise(function(resolve, reject) {
+      var done = false, start = Date.now();
+      function finish(err) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        if (err) reject(err);
+        else resolve();
+      }
+      var timer = setTimeout(function() {
+        finish(new Error("send-timeout"));
+      }, limit);
+      var r;
+      try {
+        r = inst.kernel.sendMessage(msg);
+      } catch (e) {
+        finish(e);
+        return;
+      }
+      if (r && typeof r.then === "function") {
+        r.then(function() {
+        }, function(e) {
+          finish(e || new Error("send-fail"));
+        });
+      }
+      (function poll() {
+        if (done) return;
+        var csid = "";
+        try {
+          csid = String(msg.rawMsg && msg.rawMsg.clientSeqId || "");
+        } catch (e1) {
+        }
+        if (csid) {
+          var hit = false;
+          try {
+            var sess = null;
+            (inst.kernel.getSessions() || []).some(function(s) {
+              if (String(s.targetId) === String(targetId)) {
+                sess = s;
+                return true;
+              }
+              return false;
+            });
+            if (sess) {
+              (inst.kernel.getMessages(sess) || []).some(function(m) {
+                var raw = m.rawMsg || {};
+                if (raw.clientSeqId !== void 0 && String(raw.clientSeqId) === csid) {
+                  hit = true;
+                  return true;
+                }
+                return false;
+              });
+            }
+          } catch (e) {
+          }
+          if (hit) return finish(null);
+        }
+        if (Date.now() - start > limit) return finish(new Error("send-timeout"));
+        setTimeout(poll, 300);
+      })();
+    });
+  }
+  function sendImage(inst, targetId, file, w, h) {
+    return withSendRecovery(inst, function(i) {
+      return new Promise(function(resolve, reject) {
+        try {
+          var map = i.kernel && i.kernel.messageConstructorMap;
+          var Img = map && map[1];
+          if (!Img || !Img.create) throw new Error("image-msg-class-missing");
+          resolve(sendKernel(i, Img.create({
+            image: file,
+            width: w || 300,
+            height: h || 300,
+            targetType: 0,
+            targetId: Number(targetId)
+          }), targetId, CFG.im.imgSendT));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+  }
+  var mgTokenP = null;
+  function midgroundToken(refresh) {
+    if (!mgTokenP || refresh) {
+      mgTokenP = gmRequest({
+        method: "POST",
+        url: "https://id.app.acfun.cn/rest/web/token/get",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        data: "sid=acfun.midground.api",
+        timeout: CFG.time.gm
+      }).then(function(j) {
+        var t = j && j["acfun.midground.api_st"];
+        if (!t) {
+          mgTokenP = null;
+          return "";
+        }
+        return String(t);
+      }, function() {
+        mgTokenP = null;
+        return "";
+      });
+    }
+    return mgTokenP;
+  }
+  var imgBlobCache = /* @__PURE__ */ new Map();
+  var IMG_BLOB_CACHE_MAX = 30;
+  function cacheBlobPut(url, blobUrl) {
+    imgBlobCache.delete(url);
+    imgBlobCache.set(url, blobUrl);
+    while (imgBlobCache.size > IMG_BLOB_CACHE_MAX) {
+      var k = imgBlobCache.keys().next().value;
+      var u = imgBlobCache.get(k);
+      imgBlobCache.delete(k);
+      try {
+        URL.revokeObjectURL(u);
+      } catch (e0) {
+      }
+    }
+  }
+  var imgQ = [];
+  var imgActive = 0;
+  var IMG_Q_LIMIT = 3;
+  function runQueuedImg(it) {
+    it[0]().then(
+      function(v) {
+        imgActive--;
+        pumpImgQ();
+        it[1](v);
+      },
+      function(e) {
+        imgActive--;
+        pumpImgQ();
+        it[2](e);
+      }
+    );
+  }
+  function pumpImgQ() {
+    while (imgActive < IMG_Q_LIMIT && imgQ.length) runQueuedImg(imgQ.shift());
+  }
+  function enqueueImg(job) {
+    return new Promise(function(resolve, reject) {
+      imgQ.push([job, resolve, reject]);
+      pumpImgQ();
+    });
+  }
+  var imgInflight = /* @__PURE__ */ new Map();
+  function imgCacheKey(url) {
+    var m = /[?&]resourceId=([^&]+)/.exec(url);
+    return m ? m[1] : url;
+  }
+  function peekImImageBlob(url) {
+    var key = imgCacheKey(url);
+    var hit = imgBlobCache.get(key);
+    if (hit) cacheBlobPut(key, hit);
+    return hit || null;
+  }
+  function fetchImImageBlob(url) {
+    var key = imgCacheKey(url);
+    var hit = imgBlobCache.get(key);
+    if (hit) {
+      cacheBlobPut(key, hit);
+      return Promise.resolve(hit);
+    }
+    var flying = imgInflight.get(key);
+    if (flying) return flying;
+    function setMgCookie(tk) {
+      if (!tk) return;
+      try {
+        document.cookie = "acfun.midground.api_st=" + tk + "; domain=.acfun.cn; path=/; max-age=86400; SameSite=None; Secure";
+      } catch (e0) {
+      }
+    }
+    function once(bust) {
+      var u = bust ? url + (url.indexOf("?") > -1 ? "&" : "?") + "_=" + Date.now() : url;
+      return enqueueImg(function() {
+        return gmRequest({ url: u, timeout: CFG.time.gm, responseType: "arraybuffer", okStatus: true });
+      });
+    }
+    function toBlob(buf) {
+      try {
+        return buf && buf.byteLength ? URL.createObjectURL(new Blob([buf])) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    var p = midgroundToken(false).then(function(tk) {
+      setMgCookie(tk);
+      return once(false);
+    }, function() {
+      return once(false);
+    }).then(toBlob, function() {
+      return midgroundToken(true).then(function(tk) {
+        setMgCookie(tk);
+        return once(true);
+      }, function() {
+        return once(true);
+      }).then(toBlob, function() {
+        return null;
+      });
+    }).then(function(blobUrl) {
+      imgInflight.delete(key);
+      if (blobUrl) cacheBlobPut(key, blobUrl);
+      return blobUrl;
+    });
+    imgInflight.set(key, p);
+    return p;
+  }
+  function prewarmIm() {
+    midgroundToken(false);
+  }
+  function sendQuote(inst, targetId, quote, text) {
+    return withSendRecovery(inst, function(i) {
+      return new Promise(function(resolve, reject) {
+        try {
+          var map = i.kernel && i.kernel.messageConstructorMap;
+          if (CFG.im.quoteWire === "reference") {
+            var Ref = map && map[12];
+            if (!Ref || !Ref.create) throw new Error("reference-msg-class-missing");
+            resolve(sendKernel(i, Ref.create({
+              text,
+              originMsg: quote.originMsg,
+              targetType: 0,
+              targetId: Number(targetId)
+            }), targetId));
+          } else {
+            var Txt = map && map[0];
+            if (!Txt || !Txt.create) throw new Error("text-msg-class-missing");
+            var extra = null;
+            try {
+              extra = new TextEncoder().encode(JSON.stringify({
+                acsvQuote: { seqId: quote.seqId || "", preview: quote.preview || "", text }
+              }));
+            } catch (e1) {
+            }
+            resolve(sendKernel(i, Txt.create({
+              targetType: 0,
+              targetId: Number(targetId),
+              text: quoteWireText(quote.preview, text),
+              // 拼接格式唯一定义处（immsg，原生页去重同源）
+              extra
+            }), targetId));
+          }
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+  }
+  function openSharePanel(btn, item, opts) {
+    opts = opts || {};
+    var existed = document.querySelector(".acsv-sharepop");
+    if (existed) {
+      var reuse = existed._anchor === btn;
+      existed.remove();
+      if (reuse) return;
+    }
+    var pop = el("div", "acsv-sharepop");
+    pop._anchor = btn;
+    if (opts.popClass) pop.classList.add(opts.popClass);
+    var head = el("div", "acsv-share-head");
+    head.appendChild(el("span", null, opts.headText || "分享给朋友"));
+    var closeBtn = el("button", "acsv-share-close", "✕");
+    closeBtn.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      pop.remove();
+    });
+    head.appendChild(closeBtn);
+    pop.appendChild(head);
+    var searchWrap = el("div", "acsv-share-searchwrap");
+    var search = el("input", "acsv-share-search");
+    search.placeholder = "搜索最近联系人";
+    search.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+    });
+    search.addEventListener("input", function() {
+      filterRows(pop, search.value);
+    });
+    searchWrap.appendChild(search);
+    pop.appendChild(searchWrap);
+    var list = el("div", "acsv-share-list");
+    pop.appendChild(list);
+    var foot = el("div", "acsv-share-foot");
+    var copyBtn = el("button", "acsv-share-copy", "复制链接");
+    copyBtn.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      copyText(item.shareUrl).then(function(ok) {
+        toast(ok ? "已复制：" + item.shareUrl : "复制失败，请手动复制");
+      });
+    });
+    var centerLink = el("a", "acsv-share-center", "消息中心");
+    centerLink.href = "https://message.acfun.cn/im";
+    centerLink.target = "_blank";
+    foot.appendChild(copyBtn);
+    foot.appendChild(centerLink);
+    pop.appendChild(foot);
+    var wrap = opts.host || btn.parentNode;
+    if (!opts.host) wrap.style.position = "relative";
+    wrap.appendChild(pop);
+    setTimeout(function() {
+      document.addEventListener("click", function onDoc(ev) {
+        document.removeEventListener("click", onDoc);
+        if (!pop.isConnected) return;
+        if (pop.contains(ev.target) || btn.contains(ev.target)) return;
+        pop.remove();
+      });
+    }, 0);
+    if (!isLogined()) {
+      list.appendChild(el("div", "acsv-share-tip", "私信需要先登录 AcFun 账号\n可先复制链接去站内分享"));
+      return;
+    }
+    renderLoading(list, "正在连接私信…");
+    ensureIm().then(function(inst) {
+      return ensureConnected(inst).then(function() {
+        return getContacts(inst).then(function(contacts) {
+          if (!pop.isConnected) return;
+          if (!contacts.length) {
+            list.innerHTML = "";
+            list.appendChild(el("div", "acsv-share-tip", "还没有聊过天的朋友\n先在 A 站 APP / 网页和 TA 私聊一句\n再回来把这条分享给 TA"));
+            return;
+          }
+          renderRows(pop, list, contacts, item, inst);
+        });
+      });
+    }).catch(function() {
+      if (!pop.isConnected) return;
+      list.innerHTML = "";
+      list.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
+    });
+  }
+  function renderLoading(list, text) {
+    list.innerHTML = "";
+    var tip = el("div", "acsv-share-tip", text);
+    tip.appendChild(el("div", "acsv-share-spin"));
+    list.appendChild(tip);
+  }
+  function renderRows(pop, list, contacts, item, inst) {
+    list.innerHTML = "";
+    fetchCards(contacts.map(function(c) {
+      return c.targetId;
+    })).then(function(cards2) {
+      if (!pop.isConnected) return;
+      contacts.forEach(function(c) {
+        var card = cards2[c.targetId] || {};
+        var row = el("div", "acsv-share-row");
+        row.dataset.name = (card.name || "").toLowerCase();
+        row.dataset.tid = c.targetId;
+        var av = el("img", "acsv-share-av");
+        av.referrerPolicy = "no-referrer";
+        av.src = (card.headUrl || CFG.api.defaultAvatar).split("?")[0];
+        av.addEventListener("error", function() {
+          av.src = CFG.api.defaultAvatar;
+        });
+        row.appendChild(av);
+        var name = el("div", "acsv-share-name", card.name || "用户 " + c.targetId);
+        if (c.unread > 0) {
+          var dot = el("span", "acsv-share-unread", c.unread > 99 ? "99+" : String(c.unread));
+          name.appendChild(dot);
+        }
+        row.appendChild(name);
+        var send = el("button", "acsv-share-send", "分享");
+        var shareText = String(item.title || "").slice(0, 400) + "\n" + item.shareUrl;
+        send.addEventListener("click", function(ev) {
+          ev.stopPropagation();
+          if (send.disabled) return;
+          send.disabled = true;
+          send.textContent = "…";
+          ensureConnected(inst).then(function() {
+            return sendOnce(inst, c.targetId, shareText.slice(0, CFG.im.maxLen));
+          }).then(function() {
+            var chatBtn = el("button", "acsv-share-send chat", "捎句话");
+            chatBtn.title = "打开与 " + (card.name || "好友") + " 的聊天，补充一句";
+            chatBtn.addEventListener("click", function(ev2) {
+              ev2.stopPropagation();
+              openChat(c.targetId);
+            });
+            send.replaceWith(chatBtn);
+            toast("已私信分享给 " + (card.name || "好友"));
+          }, function(err) {
+            send.disabled = false;
+            send.textContent = "分享";
+            var why = err && err.message || "";
+            console.warn(
+              "[acsv-im] 发送失败",
+              why,
+              "linkState=" + (inst.kernel && (inst.kernel.linkState || inst.kernel.isConnected) || "unknown")
+            );
+            toast(why.indexOf("send-timeout") === 0 || why.indexOf("send-rejected") === 0 ? "发送失败，请稍后再试" : "发送失败：" + why.slice(0, 200), 1e4);
+          });
+        });
+        row.appendChild(send);
+        list.appendChild(row);
+      });
+    });
+  }
+  function filterRows(pop, kw) {
+    kw = String(kw || "").trim().toLowerCase();
+    var rows = pop.querySelectorAll(".acsv-share-row");
+    for (var i = 0; i < rows.length; i++) {
+      var hit = !kw || (rows[i].dataset.name || "").indexOf(kw) > -1;
+      rows[i].style.display = hit ? "" : "none";
+    }
   }
 
   // src/comments.js
@@ -2284,6 +4347,10 @@
       replyBtn.appendChild(document.createTextNode("回复"));
       replyBtn._target = { id: String(c.commentId), name: c.userName || "AcFun用户" };
       meta.appendChild(replyBtn);
+      var fwdBtn = el("span", "acsv-cfwdbtn", "转发");
+      fwdBtn.title = "转发这条评论到私信";
+      fwdBtn._target = { name: c.userName || "AcFun用户", content: c.content || "" };
+      meta.appendChild(fwdBtn);
     } else {
       like = el("span", "acsv-clike");
       like.appendChild(nativeIcon(likeUrl, ICONS.heart));
@@ -2339,6 +4406,19 @@
         var inp = inputBar.querySelector(".acsv-cinput-text");
         if (inp) inp.focus();
       }
+      return;
+    }
+    var fw = ev.target.closest(".acsv-cfwdbtn");
+    if (fw && fw._target && commentDrawer) {
+      ev.stopPropagation();
+      openSharePanel(fw, {
+        title: "@" + fw._target.name + "：" + ubbPlainText(fw._target.content),
+        shareUrl: commentState.shareUrl
+      }, {
+        host: commentDrawer.el,
+        popClass: "acsv-sharepop-drawer",
+        headText: "转发这条评论"
+      });
       return;
     }
     var pic = ev.target.closest(".ubb-imgc");
@@ -4245,1959 +6325,6 @@
     return AppAPI.throwBanana(item.id, count);
   }
 
-  // src/immsg.js
-  function msgContentType(m) {
-    try {
-      return m.rawMsg && m.rawMsg.contentType || 0;
-    } catch (e) {
-      return 0;
-    }
-  }
-  function parseCard(m) {
-    try {
-      if (msgContentType(m) !== 10001) return null;
-      var buf = m.rawMsg && m.rawMsg.content;
-      if (!buf) return null;
-      var j = JSON.parse(new TextDecoder("utf-8").decode(buf));
-      if (!j || !Array.isArray(j.resourceBody) || !j.resourceBody.length) return null;
-      return j;
-    } catch (e) {
-      return null;
-    }
-  }
-  var RE_AC_URL = /https?:\/\/www\.acfun\.cn\/v\/ac(\d+)(?:\/?\?[^\s]*)?/i;
-  var RE_TAIL_PUNCT = /[\s.,;:!?)\]】」』。、！？；：]+$/;
-  var RE_HEAD_PUNCT = /^[\s.,;:!?(\[【「『。、！？；：]+/;
-  function parseShare(text) {
-    var t = String(text == null ? "" : text);
-    var m = RE_AC_URL.exec(t);
-    if (!m) return null;
-    var url = m[0].replace(RE_TAIL_PUNCT, "");
-    return {
-      title: t.slice(0, m.index).trim().slice(0, 400),
-      note: t.slice(m.index + m[0].length).replace(RE_HEAD_PUNCT, "").trim().slice(0, 300),
-      acId: m[1],
-      url
-    };
-  }
-  function pad2(n) {
-    return n < 10 ? "0" + n : "" + n;
-  }
-  function fmtDur(sec) {
-    var s = Math.round(Number(sec) || 0);
-    var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
-    return (h ? h + ":" + pad2(m) : String(m)) + ":" + pad2(s % 60);
-  }
-  function degradeText(m) {
-    try {
-      var raw = m.rawMsg || {};
-      if (typeof raw.backupTips === "string" && raw.backupTips) {
-        return raw.backupTips.replace(/<a[^>]*>/gi, " [").replace(/<\/a>/gi, "] ").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
-      }
-    } catch (e) {
-    }
-    return "[暂不支持查看的消息，请前往客户端查看]";
-  }
-  function isQuotable(m, wire) {
-    var ct = msgContentType(m);
-    if (ct !== 0 && ct !== 1 && ct !== 10001 && ct !== 12) return false;
-    return !(wire === "reference" && ct === 10001);
-  }
-  function quoteOf(m) {
-    try {
-      if (msgContentType(m) !== 12) return null;
-      var o = m.originMsg;
-      var seqId = "", preview = "";
-      if (o) {
-        try {
-          var raw = o.rawMsg || {};
-          if (raw.seqId !== void 0 && raw.seqId !== null) seqId = String(raw.seqId);
-        } catch (e1) {
-        }
-        preview = previewOfMessage(o) || "";
-      }
-      return {
-        seqId,
-        preview: String(preview).slice(0, 60),
-        text: String(typeof m.text === "string" ? m.text : msgTextOf(m))
-      };
-    } catch (e) {
-      return null;
-    }
-  }
-  function quoteExtraOf(m) {
-    try {
-      if (msgContentType(m) !== 0) return null;
-      var extra = m.rawMsg && m.rawMsg.extra;
-      if (!extra) return null;
-      var q2 = (JSON.parse(new TextDecoder("utf-8").decode(new Uint8Array(extra))) || {}).acsvQuote;
-      if (!q2 || typeof q2.text !== "string") return null;
-      return {
-        seqId: q2.seqId != null ? String(q2.seqId) : "",
-        preview: String(q2.preview || "").slice(0, 60),
-        text: q2.text
-      };
-    } catch (e) {
-      return null;
-    }
-  }
-  function quoteWirePrefix(preview) {
-    return "[引用] " + (preview || "原消息");
-  }
-  function quoteWireText(preview, text) {
-    return quoteWirePrefix(preview) + "\n" + text;
-  }
-  function quoteWireTrimLen(contentText, q2) {
-    try {
-      var prefix = quoteWirePrefix(q2 && q2.preview);
-      var t = String(contentText == null ? "" : contentText);
-      if (t.indexOf(prefix) !== 0) return 0;
-      var rest = t.slice(prefix.length);
-      var ws = /^[\s\u00a0]+/.exec(rest);
-      var body = rest.slice(ws ? ws[0].length : 0);
-      return body === q2.text ? prefix.length + (ws ? ws[0].length : 0) : 0;
-    } catch (e) {
-      return 0;
-    }
-  }
-  function msgTextOf(m) {
-    try {
-      if (typeof m.text === "string" && m.text) return m.text;
-      if (typeof m.content === "string" && m.content) return m.content;
-      if (m.content && typeof m.content.text === "string") return m.content.text;
-      var raw = m.rawMsg || {};
-      if (typeof raw.content === "string" && raw.content) return raw.content;
-      if (raw.content && typeof raw.content.text === "string") return raw.content.text;
-    } catch (e) {
-    }
-    return degradeText(m);
-  }
-  var RE_EMOT_CODE = /\[emot=\S+?\/\]/g;
-  function plainPreview(s) {
-    return String(s).replace(RE_EMOT_CODE, "[表情]");
-  }
-  function previewOfMessage(m) {
-    try {
-      var card = parseCard(m);
-      if (card) {
-        var res = card.resourceBody[0] || {};
-        return "[作品卡片] " + String(res.title || card.prologue || "").slice(0, 30);
-      }
-      if (msgContentType(m) === 1) return "[图片]";
-      var q2 = quoteOf(m) || quoteExtraOf(m);
-      if (q2) return "[引用] " + plainPreview(q2.text).slice(0, 30);
-      var txt = plainPreview(msgTextOf(m));
-      var share = parseShare(txt);
-      if (share) return "[分享] " + (share.title ? share.title.slice(0, 30) : "推荐视频");
-      if (/https?:\/\/[^\s]*acfun\.cn/i.test(txt)) {
-        var first = (txt.split("\n")[0] || "").trim();
-        var title = /^https?:\/\//i.test(first) ? "" : first;
-        return "[视频] " + (title ? title.slice(0, 30) : "分享了一个视频");
-      }
-      return txt.slice(0, 40);
-    } catch (e) {
-      return "";
-    }
-  }
-
-  // src/imicons.js
-  var ICON_SVGS = {
-    play: "https://ali-imgs.acfun.cn/kos/nlav10360/static/img/icon_view_player.4a9692bb.svg",
-    // v/list60 播放计数
-    comment: "https://ali-imgs.acfun.cn/kos/nlav10360/static/img/icon_message.e89cfe55.svg"
-    // v/list60 评论计数
-  };
-
-  // src/imdrawer.js
-  var ICON_PLAY = '<i class="acsvg-cicon" style="--acsvg-cicon:url(' + ICON_SVGS.play + ')"></i>';
-  var ICON_COMMENT = '<i class="acsvg-cicon" style="--acsvg-cicon:url(' + ICON_SVGS.comment + ')"></i>';
-  var drawer = null;
-  var view = "";
-  var cards = {};
-  var badgeTimer = null;
-  var badgeDelayTimer = null;
-  function makePoller(fn, gap) {
-    var t = null;
-    function stop() {
-      if (t) {
-        clearInterval(t);
-        t = null;
-      }
-    }
-    return { start: function() {
-      stop();
-      t = setInterval(fn, gap);
-    }, stop };
-  }
-  var listPoll = makePoller(function() {
-    if (view !== "list") return listPoll.stop();
-    refreshList();
-  }, CFG.im.drawerListPoll);
-  var chatPoll = makePoller(function() {
-    if (!chat) return chatPoll.stop();
-    ensureIm().then(function(inst) {
-      if (!inst.connected) return;
-      chatPollOnce(inst, false);
-    }, function() {
-    });
-  }, CFG.im.drawerChatPoll);
-  var chat = null;
-  var lastImInst = null;
-  var badgeEl = null;
-  var mounted = false;
-  function badgeText(n) {
-    return n > 99 ? "99+" : n > 0 ? String(n) : "";
-  }
-  function selfUid() {
-    var m = /^(\d+)/.exec(cookieVal("auth_key"));
-    return m ? m[1] : "";
-  }
-  function msgFrom(m) {
-    try {
-      if (m.fromUserId != null) return String(m.fromUserId);
-      if (m.rawMsg && m.rawMsg.fromUserId != null) return String(m.rawMsg.fromUserId);
-    } catch (e) {
-    }
-    return "";
-  }
-  function msgTime(m) {
-    try {
-      if (m.date) return new Date(m.date).getTime() || 0;
-      if (m.rawMsg && m.rawMsg.timestampMs) return Number(m.rawMsg.timestampMs) || 0;
-    } catch (e) {
-    }
-    return 0;
-  }
-  function pad22(n) {
-    return n < 10 ? "0" + n : "" + n;
-  }
-  function relTime(ts) {
-    if (!ts) return "";
-    var d = Date.now() - ts;
-    if (d < 6e4) return "刚刚";
-    var now = /* @__PURE__ */ new Date(), t = new Date(ts);
-    if (t.toDateString() === now.toDateString()) return pad22(t.getHours()) + ":" + pad22(t.getMinutes());
-    if (t.toDateString() === new Date(now.getTime() - 864e5).toDateString()) return "昨天";
-    if (d < 6048e5) return "周" + "日一二三四五六".charAt(t.getDay());
-    return pad22(t.getMonth() + 1) + "-" + pad22(t.getDate());
-  }
-  function linkify(s) {
-    return esc(s).replace(/(https?:\/\/[^\s<]+)/g, function(u) {
-      return '<a href="' + u + '" target="_blank" rel="noopener">' + u + "</a>";
-    });
-  }
-  function emotify(html) {
-    return html.replace(/\[emot=acfun,(\S+?)\/\]/g, function(_, id) {
-      var it = EmotionMap.map && EmotionMap.map[id];
-      return it && it.url ? '<img class="acsv-im-emotimg" src="' + it.url + '" referrerpolicy="no-referrer" alt="">' : "[表情]";
-    }).replace(
-      /\[emot=(\S+?),(\S+?)\/\]/g,
-      '<img class="acsv-im-emotimg" src="//cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/$1/$2.gif" referrerpolicy="no-referrer" alt="">'
-    );
-  }
-  function imTextHtml(s) {
-    return emotify(linkify(s));
-  }
-  function ensureDrawerDom() {
-    if (drawer || !root) return;
-    var d = el("aside", "acsv-msgdrawer");
-    var head = el("div", "acsv-im-head");
-    var back = el("button", "acsv-im-back", "‹");
-    back.title = "返回消息列表";
-    back.style.display = "none";
-    var title = el("span", "acsv-im-title", "私信");
-    var close = el("button", "acsv-im-close", "✕");
-    close.title = "关闭";
-    close.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      closeDrawer();
-    });
-    back.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      showList();
-    });
-    head.appendChild(back);
-    head.appendChild(title);
-    head.appendChild(close);
-    d.appendChild(head);
-    var listView = el("div", "acsv-im-listview");
-    var searchWrap = el("div", "acsv-im-searchwrap");
-    var search = el("input", "acsv-im-search");
-    search.placeholder = "搜索联系人";
-    search.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-    });
-    search.addEventListener("input", function() {
-      renderList(search.value);
-    });
-    searchWrap.appendChild(search);
-    listView.appendChild(searchWrap);
-    var listBody = el("div", "acsv-im-list");
-    listView.appendChild(listBody);
-    d.appendChild(listView);
-    var chatView = el("div", "acsv-im-chatview");
-    chatView.style.display = "none";
-    var bubbles = el("div", "acsv-im-bubbles");
-    var quoteChip = buildQuoteChip(function() {
-      setQuote(null);
-    }, "取消引用");
-    var inputBar2 = buildInputBar({
-      img: { title: "发送图片", onFile: sendImageMsg },
-      // 尺寸门禁在 sendImageMsg 内
-      placeholder: "发个消息…",
-      onSend: function() {
-        var t = inputBar2.input.value.replace(/\s+$/, "");
-        if (!t) return;
-        inputBar2.input.value = "";
-        inputBar2.fitHeight();
-        sendChat(t);
-      }
-    });
-    var input = inputBar2.input;
-    chatView.appendChild(bubbles);
-    chatView.appendChild(quoteChip);
-    chatView.appendChild(inputBar2.box);
-    d.appendChild(chatView);
-    var emotPanel = el("div", "acsv-emotpanel");
-    emotPanel.style.display = "none";
-    d.appendChild(emotPanel);
-    mountEmotButton(inputBar2.emotBtn, emotPanel, input);
-    var mapCold = !EmotionMap.loaded;
-    ensureEmotionMap().then(function() {
-      if (!mapCold || !drawer || view !== "chat" || !chat) return;
-      ensureIm().then(function(inst) {
-        if (inst.connected) chatPollOnce(inst, true);
-      }, function() {
-      });
-    });
-    root.appendChild(d);
-    drawer = {
-      el: d,
-      head,
-      back,
-      title,
-      close,
-      listView,
-      search,
-      listBody,
-      chatView,
-      bubbles,
-      quoteChip,
-      input,
-      send: inputBar2.send
-    };
-  }
-  function showList() {
-    if (!drawer) return;
-    chatPoll.stop();
-    view = "list";
-    drawer.back.style.display = "none";
-    drawer.title.textContent = "私信";
-    drawer.listView.style.display = "";
-    drawer.chatView.style.display = "none";
-    refreshList();
-    listPoll.start();
-  }
-  function showChat(targetId) {
-    if (!drawer) return;
-    listPoll.stop();
-    view = "chat";
-    var card = cards[targetId] || {};
-    drawer.back.style.display = "block";
-    drawer.title.textContent = card.name || "用户 " + targetId;
-    drawer.listView.style.display = "none";
-    drawer.chatView.style.display = "";
-    drawer.bubbles.innerHTML = "";
-    chat = { targetId: String(targetId), name: card.name || "", session: null, lastCount: -1, seen: {}, lastDivTs: 0, quote: null, msgEls: {} };
-    loadChat();
-    drawer.input.value = "";
-    setTimeout(function() {
-      try {
-        drawer.input.focus();
-      } catch (e) {
-      }
-    }, 60);
-    chatPoll.start();
-  }
-  var listSig = "";
-  function sessionSig(ss) {
-    return ss.map(function(s) {
-      return [
-        s.targetId,
-        s.unread,
-        s.t,
-        s.last && (s.last.seqId || msgTime(s.last) || msgTextOf(s.last)) || ""
-      ].join(":");
-    }).join("|");
-  }
-  function refreshList() {
-    ensureIm().then(function(inst) {
-      return ensureConnected(inst).then(function() {
-        var ss = [];
-        try {
-          ss = inst.kernel.getSessions() || [];
-        } catch (e) {
-        }
-        ss = ss.map(function(s) {
-          var last = s.lastMessage || null;
-          try {
-            var msgs = inst.kernel.getMessages(s) || [];
-            if (msgs.length) last = msgs[msgs.length - 1];
-          } catch (e) {
-          }
-          return {
-            targetId: String(s.targetId),
-            unread: Number(s.unreadCount) || 0,
-            t: msgTime(last) || new Date(s.date || 0).getTime() || 0,
-            last
-          };
-        }).filter(function(s) {
-          return s.targetId && s.targetId !== selfUid();
-        }).sort(function(a, b) {
-          return b.t - a.t;
-        });
-        var ids = ss.map(function(s) {
-          return Number(s.targetId);
-        });
-        var sig = sessionSig(ss) + "|" + ids.join(",");
-        if (sig === listSig && drawer && drawer.listView.style.display !== "none") return;
-        listSig = sig;
-        return fetchCards(ids).then(function(m) {
-          Object.keys(m).forEach(function(k) {
-            cards[k] = m[k];
-          });
-          renderList("", ss);
-        });
-      });
-    }).catch(function() {
-      if (drawer && drawer.listBody && !drawer.listBody.children.length) {
-        drawer.listBody.innerHTML = "";
-        drawer.listBody.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
-      }
-    });
-  }
-  function renderList(kw, ss) {
-    if (!drawer) return;
-    kw = String(kw || "").trim().toLowerCase();
-    var rows = ss || lastListRows || [];
-    if (ss) lastListRows = ss;
-    var unreadTotal = 0;
-    rows.forEach(function(r) {
-      unreadTotal += r.unread || 0;
-    });
-    if (view === "list") drawer.title.textContent = "私信" + (unreadTotal > 0 ? " (" + unreadTotal + ")" : "");
-    drawer.listBody.innerHTML = "";
-    var shown = 0;
-    rows.forEach(function(r) {
-      var card = cards[r.targetId] || {};
-      var name = card.name || "用户 " + r.targetId;
-      if (kw && name.toLowerCase().indexOf(kw) < 0) return;
-      shown++;
-      var row = el("div", "acsv-im-row");
-      row.dataset.tid = r.targetId;
-      var av = el("img", "acsv-im-av");
-      av.referrerPolicy = "no-referrer";
-      av.src = (card.headUrl || CFG.api.defaultAvatar).split("?")[0];
-      av.addEventListener("error", function() {
-        av.src = CFG.api.defaultAvatar;
-      });
-      row.appendChild(av);
-      var mid = el("div", "acsv-im-mid");
-      var nm = el("div", "acsv-im-name");
-      nm.innerHTML = esc(name) + (r.unread > 0 ? '<span class="acsv-share-unread">' + (r.unread > 99 ? "99+" : r.unread) + "</span>" : "");
-      mid.appendChild(nm);
-      var prev = el("div", "acsv-im-preview", previewOf(r));
-      mid.appendChild(prev);
-      row.appendChild(mid);
-      var tm = el("div", "acsv-im-time", relTime(r.t));
-      row.appendChild(tm);
-      row.addEventListener("click", function(ev) {
-        ev.stopPropagation();
-        showChat(r.targetId);
-      });
-      drawer.listBody.appendChild(row);
-    });
-    if (!shown) {
-      drawer.listBody.appendChild(el(
-        "div",
-        "acsv-share-tip",
-        kw ? "没有匹配的联系人" : "还没有聊过天的朋友\n先在 A 站 APP / 网页和 TA 私聊一句\n再回来把视频分享给 TA"
-      ));
-    }
-  }
-  var lastListRows = null;
-  function previewOf(r) {
-    return r.last ? previewOfMessage(r.last) : "";
-  }
-  function loadChat() {
-    ensureIm().then(function(inst) {
-      return ensureConnected(inst).then(function() {
-        ensureTracer(inst);
-        var ss = [];
-        try {
-          ss = inst.kernel.getSessions() || [];
-        } catch (e) {
-        }
-        var sess = null;
-        ss.some(function(s) {
-          if (String(s.targetId) === chat.targetId) {
-            sess = s;
-            return true;
-          }
-          return false;
-        });
-        if (!sess) {
-          return inst.kernel.openSession(0, chat.targetId).then(function() {
-            var ss2 = inst.kernel.getSessions() || [];
-            ss2.some(function(s) {
-              if (String(s.targetId) === chat.targetId) {
-                sess = s;
-                return true;
-              }
-              return false;
-            });
-            chat.session = sess;
-            chatPollOnce(inst, true);
-            return null;
-          }, function() {
-            chat.session = null;
-            return null;
-          });
-        }
-        chat.session = sess;
-        return chatPollOnce(inst, true);
-      });
-    }).catch(function() {
-      if (drawer && drawer.bubbles && !drawer.bubbles.children.length) {
-        drawer.bubbles.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
-      }
-    });
-  }
-  function chatPollOnce(inst, reset) {
-    lastImInst = inst;
-    try {
-      var k = inst.kernel;
-      if (!chat.session) {
-        var ss = k.getSessions() || [];
-        ss.some(function(s) {
-          if (String(s.targetId) === chat.targetId) {
-            chat.session = s;
-            return true;
-          }
-          return false;
-        });
-      }
-      if (!chat.session) return;
-      var msgs = k.getMessages(chat.session) || [];
-      if (reset) {
-        chat.seen = {};
-        chat.msgEls = {};
-        chat.lastCount = -1;
-        drawer.bubbles.innerHTML = "";
-      }
-      var fresh = [];
-      msgs.forEach(function(m) {
-        var key = String(m.seqId !== void 0 && m.seqId || msgTime(m) || "h" + msgFrom(m) + ":" + msgTextOf(m));
-        if (chat.seen[key]) return;
-        chat.seen[key] = true;
-        fresh.push({ m, key });
-      });
-      fresh.forEach(function(x) {
-        appendBubble(x.m);
-        var lastEl = drawer.bubbles.lastElementChild;
-        if (lastEl) chat.msgEls[x.key] = lastEl;
-      });
-      if (fresh.length || reset) {
-        drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-        try {
-          if (chat.session && k.markSessionRead && chat.session.unreadCount !== void 0) k.markSessionRead(chat.session);
-        } catch (e) {
-        }
-      }
-    } catch (e) {
-    }
-  }
-  function dayLabel(ts) {
-    var now = /* @__PURE__ */ new Date(), t = new Date(ts);
-    var hm = pad22(t.getHours()) + ":" + pad22(t.getMinutes());
-    if (t.toDateString() === now.toDateString()) return "今天 " + hm;
-    if (t.toDateString() === new Date(now.getTime() - 864e5).toDateString()) return "昨天 " + hm;
-    if (now.getTime() - ts < 6048e5) return "周" + "日一二三四五六".charAt(t.getDay()) + " " + hm;
-    return pad22(t.getMonth() + 1) + "-" + pad22(t.getDate()) + " " + hm;
-  }
-  function maybeDayDiv(ts) {
-    if (!ts || !drawer || !chat) return;
-    if (!chat.lastDivTs || ts - chat.lastDivTs >= CFG.im.dayDivGap) {
-      drawer.bubbles.appendChild(el("div", "acsv-im-daydiv", dayLabel(ts)));
-    }
-    chat.lastDivTs = ts;
-  }
-  function setQuote(q2) {
-    if (chat) chat.quote = q2 || null;
-    renderQuoteChip();
-  }
-  function renderQuoteChip() {
-    if (!drawer) return;
-    var chip = drawer.quoteChip, q2 = chat && chat.quote;
-    if (!q2) {
-      chip.box.style.display = "none";
-      chip.label.textContent = "";
-      drawer.input.placeholder = "发个消息…";
-      return;
-    }
-    chip.box.style.display = "flex";
-    chip.label.textContent = "引用：" + (q2.preview || "原消息");
-    drawer.input.placeholder = "回复引用的内容…";
-  }
-  function quoteStrip(q2) {
-    var s = el("div", "acsv-im-quote" + (q2.seqId ? " link" : ""));
-    s.appendChild(el("div", "acsv-im-quote-preview", q2.preview || "[原消息]"));
-    if (q2.seqId) {
-      s.title = "点击查看原消息";
-      s.addEventListener("click", function(ev) {
-        ev.stopPropagation();
-        locateMessage(q2.seqId);
-      });
-    }
-    return s;
-  }
-  function locateMessage(seqId) {
-    if (!drawer || !chat) return;
-    var wrap = chat.msgEls[String(seqId)];
-    if (!wrap || !wrap.isConnected) {
-      toast("原消息不在已加载的记录里");
-      return;
-    }
-    var t = wrap.querySelector(".acsv-im-bubble") || wrap.querySelector(".acsv-im-vcard") || wrap;
-    try {
-      t.scrollIntoView({ block: "center", behavior: "smooth" });
-    } catch (e1) {
-      t.scrollIntoView();
-    }
-    t.classList.remove("acsv-im-flash");
-    void t.offsetWidth;
-    t.classList.add("acsv-im-flash");
-    setTimeout(function() {
-      t.classList.remove("acsv-im-flash");
-    }, 1300);
-  }
-  function bubbleRow(b, mine, m, extraCls) {
-    var wrap = el("div", "acsv-im-rowwrap" + (extraCls ? " " + extraCls : "") + (mine ? " mine" : ""));
-    wrap.appendChild(b);
-    if (m && isQuotable(m, CFG.im.quoteWire)) wrap.appendChild(quoteBtnEl(m));
-    return wrap;
-  }
-  function quoteBtnEl(m) {
-    var btn = el("button", "acsv-im-quotebtn", "↩");
-    btn.title = "引用这条消息";
-    btn.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      var raw = m.rawMsg || {};
-      setQuote({
-        seqId: raw.seqId !== void 0 && raw.seqId !== null ? String(raw.seqId) : "",
-        preview: previewOfMessage(m) || msgTextOf(m).slice(0, 40),
-        originMsg: m
-      });
-      try {
-        drawer.input.focus();
-      } catch (e) {
-      }
-    });
-    return btn;
-  }
-  function appendBubble(m) {
-    if (!drawer) return;
-    maybeDayDiv(msgTime(m));
-    var mine = msgFrom(m) === selfUid();
-    var q2 = quoteOf(m) || quoteExtraOf(m);
-    var b = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
-    if (q2) {
-      b.appendChild(quoteStrip(q2));
-      var qtxt = el("div", "acsv-im-msgtext");
-      qtxt.innerHTML = imTextHtml(q2.text);
-      b.appendChild(qtxt);
-      drawer.bubbles.appendChild(bubbleRow(b, mine, m));
-      return;
-    }
-    if (msgContentType(m) === 1) return appendImageBubble(m, mine);
-    var card = parseCard(m);
-    if (card) return appendCardBubble(card, mine, m);
-    var share = parseShare(msgTextOf(m));
-    if (share) return appendShareBubble(share, mine, m);
-    var txt = el("div", "acsv-im-msgtext");
-    txt.innerHTML = imTextHtml(msgTextOf(m));
-    b.appendChild(txt);
-    drawer.bubbles.appendChild(bubbleRow(b, mine, m));
-  }
-  function appendImageBubble(m, mine) {
-    if (!drawer) return;
-    var w = Number(m.width) || 0, h = Number(m.height) || 0;
-    var src = imageUrlOf(m);
-    var b = el("div", "acsv-im-imgbubble" + (mine ? " mine" : ""));
-    if (src) {
-      var img = document.createElement("img");
-      img.className = "acsv-im-imgimg";
-      img.alt = "";
-      if (w > 0 && h > 0) {
-        img.style.width = Math.min(w, 180) + "px";
-        img.style.aspectRatio = w + " / " + h;
-      }
-      b.appendChild(img);
-      var curSrc = "";
-      fetchImImageBlob(src).then(function(blobUrl) {
-        if (!img.isConnected) return;
-        if (blobUrl) {
-          curSrc = blobUrl;
-          img.src = blobUrl;
-        } else {
-          img.remove();
-          b.appendChild(document.createTextNode("[图片]"));
-        }
-      });
-      b.addEventListener("click", function(ev) {
-        var sel = window.getSelection ? window.getSelection() : null;
-        if (sel && !sel.isCollapsed) return;
-        if (!curSrc) return;
-        ev.stopPropagation();
-        openImageViewer(curSrc);
-      });
-    } else {
-      b.textContent = "[图片]";
-    }
-    drawer.bubbles.appendChild(bubbleRow(b, mine, m));
-  }
-  function imageUrlOf(m) {
-    var ks = "";
-    try {
-      ks = m && (m.url || m.imageAttachment && m.imageAttachment.uri) || "";
-    } catch (e0) {
-    }
-    if (!ks) ks = imageUriFromRaw(m);
-    if (!ks) {
-      console.warn("[acsv-im] 图片消息无 uri（decode 与 raw 均未恢复）");
-      return "";
-    }
-    if (!/^ks:\/\//.test(ks)) return officialize(ks);
-    try {
-      var k = lastImInst && lastImInst.kernel;
-      if (k && k.file && k.file.resourceUrlToHttpUrl) {
-        var u = officialize(k.file.resourceUrlToHttpUrl(ks, false, Number(m.width) || 0, Number(m.height) || 0));
-        if (u) return u;
-      }
-    } catch (e) {
-    }
-    try {
-      var rid = ks.slice(5).replace(/\/\w+$/, "");
-      if (!rid) {
-        console.warn("[acsv-im] ks 资源串形态不识别:", ks.slice(0, 60));
-        return "";
-      }
-      var ver = "";
-      try {
-        var cfgk = lastImInst && lastImInst.kernel && lastImInst.kernel.config;
-        ver = cfgk && (cfgk.imsdkver || cfgk.sdkVersion) || "";
-      } catch (e2) {
-      }
-      return CFG.api.imDownloadBase + "/rest/v2/app/download?resourceId=" + encodeURIComponent(rid) + "&userId=" + encodeURIComponent(selfUid()) + "&did=" + encodeURIComponent(cookieVal("_did") || "") + "&kpn=ACFUN_APP&platform=H5" + (ver ? "&imsdkver=" + encodeURIComponent(ver) : "");
-    } catch (e3) {
-      return "";
-    }
-  }
-  function imageUriFromRaw(m) {
-    try {
-      var buf = m && m.rawMsg && m.rawMsg.content;
-      if (!buf) return "";
-      var u8 = new Uint8Array(buf), i = 0;
-      if (u8[i++] !== 10) return "";
-      var len = 0, shift = 0, b;
-      do {
-        b = u8[i++];
-        len += (b & 127) * Math.pow(2, shift);
-        shift += 7;
-      } while (b & 128);
-      if (!len || i + len > u8.length) return "";
-      var s = "";
-      for (var j = 0; j < len; j++) s += String.fromCharCode(u8[i + j]);
-      return /^ks:\/\//.test(s) || /^https?:\/\//.test(s) ? s : "";
-    } catch (e) {
-      return "";
-    }
-  }
-  function officialize(httpUrl) {
-    try {
-      if (!httpUrl || !/^https?:\/\//.test(httpUrl)) return "";
-      var u = new URL(httpUrl);
-      var rid = u.searchParams.get("resourceId");
-      if (!rid) return "";
-      var q2 = ["resourceId", "userId", "did", "kpn", "imsdkver", "platform"].map(function(k) {
-        var v = u.searchParams.get(k);
-        return v == null ? null : k + "=" + encodeURIComponent(v);
-      }).filter(Boolean).join("&");
-      return CFG.api.imDownloadBase + "/rest/v2/app/download?" + q2;
-    } catch (e) {
-      return "";
-    }
-  }
-  function vcardEl(r, mine) {
-    var cardEl = el(r.href ? "a" : "div", "acsv-im-vcard" + (mine ? " mine" : ""));
-    if (r.href) {
-      cardEl.href = r.href;
-      cardEl.target = "_blank";
-      cardEl.rel = "noopener";
-    }
-    var box = el("div", "acsv-im-vcard-coverbox");
-    var cover = el("img", "acsv-im-vcard-cover");
-    cover.alt = "";
-    cover.referrerPolicy = "no-referrer";
-    if (r.coverUrl) cover.src = r.coverUrl;
-    else cover.style.visibility = "hidden";
-    cover.addEventListener("error", function() {
-      cover.style.visibility = "hidden";
-    });
-    box.appendChild(cover);
-    var bar = el("div", "acsv-im-vcard-bar");
-    bar.innerHTML = ICON_PLAY + '<span class="acsv-im-vcard-view">' + esc(r.viewCountShow || "") + "</span>" + ICON_COMMENT + '<span class="acsv-im-vcard-cmt">' + esc(r.commentCountShow || "") + '</span><span class="acsv-im-vcard-dur"' + (r.durationSec ? "" : ' style="display:none"') + ">" + (r.durationSec ? esc(fmtDur(r.durationSec)) : "") + "</span>";
-    box.appendChild(bar);
-    cardEl.appendChild(box);
-    if (r.title) cardEl.appendChild(el("div", "acsv-im-vcard-title", r.title));
-    return cardEl;
-  }
-  function appendCardBubble(card, mine, m) {
-    if (card.prologue) {
-      var pre = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
-      pre.textContent = card.prologue;
-      drawer.bubbles.appendChild(pre);
-    }
-    card.resourceBody.forEach(function(r) {
-      drawer.bubbles.appendChild(bubbleRow(vcardEl({
-        href: Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : "",
-        coverUrl: r.coverUrl,
-        viewCountShow: r.viewCountShow,
-        commentCountShow: r.commentCountShow,
-        durationSec: r.durationSec,
-        title: r.title
-      }, mine), mine, m, "cardrow"));
-    });
-  }
-  function appendShareBubble(share, mine, m) {
-    if (share.note) {
-      var note = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
-      note.textContent = share.note;
-      drawer.bubbles.appendChild(note);
-    }
-    var cardEl = vcardEl({ href: share.url, title: share.title }, mine);
-    drawer.bubbles.appendChild(bubbleRow(cardEl, mine, m, "cardrow"));
-    var bubbles = drawer.bubbles;
-    var tid = chat && chat.targetId;
-    AppAPI.dougaCard(share.acId).then(function(c) {
-      if (!c || !cardEl.isConnected || !drawer || drawer.bubbles !== bubbles || !chat || chat.targetId !== tid) return;
-      patchVcard(cardEl, c);
-      drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-    });
-  }
-  function patchVcard(cardEl, c) {
-    var cover = cardEl.querySelector(".acsv-im-vcard-cover");
-    if (cover && c.cover) {
-      cover.src = c.cover;
-      cover.style.visibility = "";
-    }
-    var view2 = cardEl.querySelector(".acsv-im-vcard-view");
-    if (view2 && c.view != null) view2.textContent = c.view;
-    var cmt = cardEl.querySelector(".acsv-im-vcard-cmt");
-    if (cmt && c.comment != null) cmt.textContent = c.comment;
-    var dur = cardEl.querySelector(".acsv-im-vcard-dur");
-    if (dur && c.durationSec) {
-      dur.textContent = fmtDur(c.durationSec);
-      dur.style.display = "";
-    }
-    var tt = cardEl.querySelector(".acsv-im-vcard-title");
-    if (tt && c.title) tt.textContent = c.title;
-  }
-  function sendImageMsg(file) {
-    var targetId = chat && chat.targetId;
-    if (!targetId) return;
-    if (file.size > CFG.im.imgMax) {
-      toast("图片不能超过 " + Math.round(CFG.im.imgMax / 1024 / 1024) + "MB");
-      return;
-    }
-    var localUrl = "";
-    try {
-      localUrl = URL.createObjectURL(file);
-    } catch (e0) {
-    }
-    readSize(localUrl, function(w, h) {
-      maybeDayDiv(Date.now());
-      var b = el("div", "acsv-im-imgbubble mine pending");
-      if (localUrl) {
-        var ph = document.createElement("img");
-        ph.className = "acsv-im-imgimg";
-        ph.alt = "";
-        ph.src = localUrl;
-        if (w > 0 && h > 0) {
-          ph.style.width = Math.min(w, 180) + "px";
-          ph.style.aspectRatio = w + " / " + h;
-        }
-        b.appendChild(ph);
-      } else {
-        b.textContent = "[图片]";
-      }
-      var holder = el("div", "acsv-im-rowwrap mine");
-      holder.appendChild(b);
-      drawer.bubbles.appendChild(holder);
-      drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-      function cleanup() {
-        if (localUrl) {
-          try {
-            URL.revokeObjectURL(localUrl);
-          } catch (e2) {
-          }
-        }
-      }
-      function onFail(err) {
-        var stale = !chat || chat.targetId !== targetId;
-        if (!stale && holder.isConnected) {
-          b.classList.remove("pending");
-          b.classList.add("failed");
-          b.title = "发送失败，点击重试";
-          b.addEventListener("click", function(ev) {
-            ev.stopPropagation();
-            holder.remove();
-            cleanup();
-            sendImageMsg(file);
-          });
-        }
-        toast("图片发送失败：" + String(err && err.message || "").slice(0, 120), 8e3);
-      }
-      ensureIm().then(function(inst) {
-        return ensureConnected(inst).then(function() {
-          ensureTracer(inst);
-          return sendImage(inst, Number(targetId), file, w, h);
-        }).then(function() {
-          if (!chat || chat.targetId !== targetId) {
-            cleanup();
-            return;
-          }
-          if (holder.isConnected) holder.remove();
-          cleanup();
-          chatPollOnce(inst, false);
-        }, onFail);
-      }, onFail);
-    });
-  }
-  function readSize(url, cb) {
-    if (!url) return cb(0, 0);
-    var img = new Image();
-    img.onload = function() {
-      cb(img.naturalWidth || 0, img.naturalHeight || 0);
-    };
-    img.onerror = function() {
-      cb(0, 0);
-    };
-    img.src = url;
-  }
-  function sendChat(text) {
-    var targetId = chat && chat.targetId;
-    if (!targetId) return;
-    text = String(text).slice(0, CFG.im.maxLen);
-    var quote = chat.quote || null;
-    maybeDayDiv(Date.now());
-    var b = el("div", "acsv-im-bubble mine pending");
-    if (quote) b.appendChild(quoteStrip({ seqId: quote.seqId, preview: quote.preview }));
-    var txt = el("div", "acsv-im-msgtext");
-    txt.innerHTML = imTextHtml(text);
-    b.appendChild(txt);
-    var holder = el("div", "acsv-im-rowwrap mine");
-    holder.appendChild(b);
-    drawer.bubbles.appendChild(holder);
-    drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-    function onFail(err) {
-      var stale = !chat || chat.targetId !== targetId;
-      if (!stale && holder.isConnected) {
-        b.classList.remove("pending");
-        b.classList.add("failed");
-        b.title = "发送失败，点击重试";
-        b.addEventListener("click", function(ev) {
-          ev.stopPropagation();
-          holder.remove();
-          drawer.input.value = text;
-          if (quote && chat && !chat.quote) setQuote(quote);
-          drawer.input.focus();
-        });
-      }
-      toast("发送失败：" + String(err && err.message || "").slice(0, 120), 8e3);
-    }
-    ensureIm().then(function(inst) {
-      return ensureConnected(inst).then(function() {
-        ensureTracer(inst);
-        return quote ? sendQuote(inst, Number(targetId), quote, text) : doSend(inst, Number(targetId), text).catch(function(err) {
-          var pre = linkOk(inst) ? Promise.resolve() : ensureConnected(inst);
-          return pre.then(function() {
-            return forceSync(inst);
-          }).then(function() {
-            return doSend(inst, Number(targetId), text);
-          });
-        });
-      }).then(function() {
-        if (!chat || chat.targetId !== targetId) return;
-        if (holder.isConnected) holder.remove();
-        if (quote && chat.quote === quote) setQuote(null);
-        chatPollOnce(inst, false);
-      }, onFail);
-    }, onFail);
-  }
-  function openDrawer() {
-    if (!isLogined()) {
-      toast("私信需要先登录 AcFun 账号");
-      return;
-    }
-    ensureDrawerDom();
-    claimDrawer("im", closeDrawer);
-    drawer.el.classList.add("open");
-    syncCommentVars();
-    showList();
-  }
-  function openChat(targetId) {
-    if (!isLogined()) {
-      toast("私信需要先登录 AcFun 账号");
-      return;
-    }
-    ensureDrawerDom();
-    claimDrawer("im", closeDrawer);
-    drawer.el.classList.add("open");
-    syncCommentVars();
-    showChat(String(targetId));
-  }
-  function closeDrawer() {
-    if (drawer) drawer.el.classList.remove("open");
-    listPoll.stop();
-    chatPoll.stop();
-    view = "";
-    releaseDrawer("im");
-    syncCommentVars();
-  }
-  function teardownIm() {
-    mounted = false;
-    imShutdown();
-    if (badgeDelayTimer) {
-      clearTimeout(badgeDelayTimer);
-      badgeDelayTimer = null;
-    }
-    if (badgeTimer) {
-      clearInterval(badgeTimer);
-      badgeTimer = null;
-    }
-    listPoll.stop();
-    chatPoll.stop();
-    releaseDrawer("im");
-    drawer = null;
-    view = "";
-    chat = null;
-    cards = {};
-    listSig = "";
-    lastListRows = null;
-    badgeEl = null;
-  }
-  function mountBadge(btn, badge) {
-    badgeEl = badge;
-    mounted = true;
-    var last = -1;
-    function tick() {
-      if (!mounted) return;
-      if (!isLogined()) {
-        setBadge(0);
-        return;
-      }
-      ensureIm().then(function(inst) {
-        if (!mounted || !inst.connected) return;
-        var sum = 0;
-        try {
-          (inst.kernel.getSessions() || []).forEach(function(s) {
-            sum += Number(s.unreadCount) || 0;
-          });
-        } catch (e) {
-        }
-        setBadge(sum);
-      }, function() {
-      });
-    }
-    function setBadge(n) {
-      if (n === last) return;
-      last = n;
-      var txt = badgeText(n), show = n > 0 ? "" : "none";
-      if (badgeEl) {
-        badgeEl.textContent = txt;
-        badgeEl.style.display = show;
-      }
-    }
-    badgeTimer = setInterval(tick, CFG.im.badgePoll);
-    badgeDelayTimer = setTimeout(function() {
-      if (!mounted) return;
-      tick();
-      ensureIm().then(function(inst) {
-        try {
-          inst.on("unReadCountUpdate", function() {
-            if (mounted) tick();
-          });
-        } catch (e) {
-        }
-      }, function() {
-      });
-    }, CFG.im.badgeDelay);
-  }
-
-  // src/imshare.js
-  function pageWin() {
-    return typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
-  }
-  function logInstaller(G) {
-    if (G.__acsvImLog) return;
-    G.__acsvImLog = [];
-    G.__acsvImErr = "";
-    var ser = function(a) {
-      if (a == null) return String(a);
-      var t = typeof a;
-      if (t === "string") return a;
-      if (t === "number" || t === "boolean") return String(a);
-      try {
-        if (typeof a.toJSON === "function") return JSON.stringify(a.toJSON());
-      } catch (e) {
-      }
-      if (a instanceof Error || a && a.message && a.stack) {
-        return JSON.stringify({ name: a.name, message: a.message, code: a.code });
-      }
-      try {
-        return JSON.stringify(a);
-      } catch (e2) {
-        return String(a);
-      }
-    };
-    var push = function() {
-      try {
-        var parts = [], errJson = "";
-        for (var i = 0; i < arguments.length; i++) {
-          var s = ser(arguments[i]);
-          parts.push(s);
-          if (s && s.charAt(0) === "{") errJson = s;
-        }
-        var line = parts.join(" ");
-        if (line.indexOf("[im-sdk]") > -1 || line.indexOf("信息发送") > -1 || line.indexOf("reject:") > -1) {
-          if (errJson) G.__acsvImErr = errJson;
-          G.__acsvImLog.push(line.slice(0, 2e3));
-          if (G.__acsvImLog.length > 60) G.__acsvImLog.shift();
-        }
-      } catch (e) {
-      }
-    };
-    G.localLog = {
-      log: function() {
-        push.apply(null, arguments);
-        console.log.apply(console, arguments);
-      },
-      info: function() {
-        push.apply(null, arguments);
-        console.info.apply(console, arguments);
-      },
-      error: function() {
-        push.apply(null, arguments);
-        console.error.apply(console, arguments);
-      }
-    };
-    try {
-      ["log", "info", "error"].forEach(function(lv) {
-        var orig = G.console[lv].bind(G.console);
-        G.console[lv] = function() {
-          push.apply(null, arguments);
-          orig.apply(null, arguments);
-        };
-      });
-    } catch (e) {
-    }
-  }
-  function injectPageFn(installer, installed) {
-    var w = pageWin();
-    if (installed(w)) return false;
-    try {
-      installer(w);
-    } catch (e) {
-    }
-    if (installed(w)) return false;
-    try {
-      var s = document.createElement("script");
-      s.textContent = "(" + installer.toString() + ")(window);";
-      (document.head || document.documentElement).appendChild(s);
-      s.remove();
-    } catch (e2) {
-    }
-    return true;
-  }
-  function ensureLocalLog() {
-    injectPageFn(logInstaller, function(w) {
-      return w.localLog && w.__acsvImLog;
-    });
-  }
-  function imLogMark() {
-    try {
-      return (pageWin().__acsvImLog || []).length;
-    } catch (e) {
-      return 0;
-    }
-  }
-  function imLogVerdict(mark) {
-    var buf = [];
-    try {
-      buf = pageWin().__acsvImLog || [];
-    } catch (e) {
-    }
-    for (var i = mark; i < buf.length; i++) {
-      var l = String(buf[i]);
-      if (l.indexOf("信息发送成功") > -1) return { ok: true };
-      if (l.indexOf("信息发送失败") > -1) return { ok: false, why: l };
-    }
-    return null;
-  }
-  function hadTracerCrash() {
-    var w = pageWin(), buf = [];
-    try {
-      buf = w.__acsvImLog || [];
-    } catch (e) {
-    }
-    for (var i = 0; i < buf.length; i++) {
-      if (String(buf[i]).indexOf("reading 'context'") > -1) return true;
-    }
-    return false;
-  }
-  function weblogInstaller(G) {
-    function makeSpan(opts) {
-      var span = {
-        context: opts && opts.context || { traceId: "acsv" + Date.now() },
-        setTags: function() {
-          return span;
-        },
-        end: function() {
-        },
-        createSubSpan: function(sub, o1, o2, parent) {
-          return makeSpan({ context: parent || span.context });
-        }
-      };
-      return span;
-    }
-    function safeStart(name, opts) {
-      var sp = null;
-      try {
-        sp = G.__acsvOrigStart ? G.__acsvOrigStart.apply(this, arguments) : null;
-      } catch (e) {
-      }
-      if (sp && sp.context !== void 0) return sp;
-      return makeSpan(opts);
-    }
-    if (!G.weblog) {
-      G.weblog = { startSpan: safeStart };
-      return;
-    }
-    if (!G.__acsvOrigStart) {
-      G.__acsvOrigStart = G.weblog.startSpan;
-      G.weblog.startSpan = safeStart;
-    }
-  }
-  function tracerOk() {
-    try {
-      var wl = pageWin().weblog;
-      if (!wl || typeof wl.startSpan !== "function") return false;
-      var sp = wl.startSpan("__acsv_probe__", {});
-      return !!(sp && sp.context !== void 0);
-    } catch (e) {
-      return false;
-    }
-  }
-  function ensureWeblogSync() {
-    if (tracerOk()) return false;
-    return injectPageFn(weblogInstaller, function() {
-      return tracerOk();
-    });
-  }
-  function isLogined() {
-    return /^\d/.test(cookieVal("auth_key"));
-  }
-  function gmGetText2(url) {
-    return gmRequest({ url, timeout: CFG.im.loadT, responseType: "text", okStatus: true });
-  }
-  function loadImSdk() {
-    return new Promise(function(resolve, reject) {
-      ensureLocalLog();
-      ensureWeblogSync();
-      var w = pageWin();
-      var src = w.globalConfig && w.globalConfig.imsdkcdn || CFG.api.imsdk;
-      if (src.indexOf("//") === 0) src = "https:" + src;
-      var settled = false;
-      function done(fn, val) {
-        if (!settled) {
-          settled = true;
-          fn(val);
-        }
-      }
-      function injectScript(url, onok, onfail) {
-        var s = document.createElement("script");
-        var timer = setTimeout(function() {
-          clearTimeout(timer);
-          s.remove();
-          if (url.indexOf("blob:") === 0) URL.revokeObjectURL(url);
-          onfail();
-        }, CFG.im.loadT);
-        s.onload = function() {
-          clearTimeout(timer);
-          var Ctor = pageWin().ImSdk;
-          if (Ctor) onok(Ctor);
-          else onfail();
-        };
-        s.onerror = function() {
-          clearTimeout(timer);
-          s.remove();
-          if (url.indexOf("blob:") === 0) URL.revokeObjectURL(url);
-          onfail();
-        };
-        s.src = url;
-        (document.head || document.documentElement).appendChild(s);
-      }
-      function directLoad() {
-        injectScript(
-          src,
-          function(Ctor) {
-            done(resolve, Ctor);
-          },
-          function() {
-            done(reject, new Error("imsdk-load-fail"));
-          }
-        );
-      }
-      gmGetText2(src).then(function(text) {
-        var n = 0;
-        text = text.replace('p=be.includes(e)&&(null==d?void 0:d.createSubSpan("Encode"', function(m) {
-          n++;
-          return 'p=!1&&(null==d?void 0:d.createSubSpan("Encode"';
-        }).replace('f=be.includes(e)&&(null==d?void 0:d.createSubSpan("Transfer"', function(m) {
-          n++;
-          return 'f=!1&&(null==d?void 0:d.createSubSpan("Transfer"';
-        });
-        if (n < 2) {
-          console.warn("[acsv-im] SDK 补丁失配（官方可能换了版），回退未修补加载");
-          return directLoad();
-        }
-        var url = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
-        injectScript(url, function(Ctor) {
-          done(resolve, Ctor);
-        }, function() {
-          directLoad();
-        });
-      }, function() {
-        directLoad();
-      });
-    });
-  }
-  var imPromise = null;
-  function ensureIm() {
-    if (imPromise) return imPromise;
-    imPromise = loadImSdk().then(function(Ctor) {
-      return new Ctor({ dev: false });
-    }, function(e) {
-      imPromise = null;
-      throw e;
-    });
-    return imPromise;
-  }
-  function linkOk(inst) {
-    try {
-      var k = inst.kernel;
-      if (!k) return false;
-      var probes = [];
-      if ("isConnected" in k) probes.push(k.isConnected === true);
-      if ("linkState" in k) probes.push(k.linkState === "connected");
-      if (k.api && "isConnected" in k.api) probes.push(k.api.isConnected === true);
-      if (k.api && "linkState" in k.api) probes.push(k.api.linkState === "connected");
-      if (!probes.length) return !!inst.connected;
-      return probes.indexOf(true) > -1;
-    } catch (e) {
-      return false;
-    }
-  }
-  function forceReconnect(inst) {
-    try {
-      inst.connected = false;
-      inst.retryNum = 0;
-      inst.connect();
-    } catch (e) {
-    }
-  }
-  function tracerInstaller(G) {
-    if (!G.__acsvTracer) {
-      var span = function(opts, parent) {
-        var s = {
-          context: opts && opts.context || parent || { traceId: "acsv" + Date.now() },
-          setTags: function() {
-            return s;
-          },
-          end: function() {
-          },
-          createSubSpan: function(n, parentCtx) {
-            return span(opts, parentCtx || s.context);
-          }
-        };
-        return s;
-      };
-      G.__acsvTracer = { startSpan: function(name, opts) {
-        return span(opts);
-      } };
-    }
-    try {
-      var inst = G.ImSdk && G.ImSdk.instance;
-      var zs = inst && inst.kernel && (inst.kernel.api || inst.kernel);
-      var link = zs && zs.link;
-      if (link && !link.tracer) link.tracer = G.__acsvTracer;
-      if (link) {
-        if (typeof link.log !== "function") link.log = function() {
-        };
-        if (typeof link.logPerformance !== "function") link.logPerformance = function() {
-        };
-      }
-      G.__acsvTracerOk = !!(link && link.tracer);
-    } catch (e) {
-      G.__acsvTracerOk = false;
-    }
-  }
-  function ensureTracer(inst) {
-    injectPageFn(tracerInstaller, function(w2) {
-      return w2.__acsvTracer && w2.__acsvTracerOk;
-    });
-    var w = pageWin();
-    try {
-      var k = inst.kernel || {};
-      var zs = k.api || k;
-      if (zs && zs.link && !zs.link.tracer && w.__acsvTracer) zs.link.tracer = w.__acsvTracer;
-      if (zs && zs.link) {
-        if (typeof zs.link.log !== "function") zs.link.log = function() {
-        };
-        if (typeof zs.link.logPerformance !== "function") zs.link.logPerformance = function() {
-        };
-      }
-    } catch (e3) {
-    }
-  }
-  var connGen = 0;
-  function imShutdown() {
-    connGen++;
-  }
-  function ensureConnected(inst) {
-    if (inst.connected && linkOk(inst)) return Promise.resolve();
-    return new Promise(function(resolve, reject) {
-      var start = Date.now(), forced = false, gen = connGen;
-      (function poll() {
-        if (gen !== connGen) return reject(new Error("im-cancelled"));
-        var ok = false;
-        try {
-          ok = !!inst.connected && linkOk(inst);
-        } catch (e) {
-        }
-        if (ok) return resolve();
-        var t = Date.now() - start;
-        if (t > CFG.im.connT2) return reject(new Error("im-connect-fail"));
-        if (!forced && t > CFG.im.connT1) {
-          forced = true;
-          forceReconnect(inst);
-        }
-        ensureTracer(inst);
-        setTimeout(poll, 250);
-      })();
-    });
-  }
-  function getContacts(inst) {
-    return new Promise(function(resolve) {
-      var n = 0;
-      (function poll() {
-        var ss = [];
-        try {
-          ss = inst.kernel.getSessions() || [];
-        } catch (e) {
-        }
-        if (ss.length) return resolve(mapSessions(ss));
-        if (++n >= CFG.im.pollMax) return resolve([]);
-        setTimeout(poll, CFG.im.pollGap);
-      })();
-    });
-  }
-  function mapSessions(ss) {
-    return ss.map(function(s) {
-      return {
-        targetId: Number(s.targetId) || 0,
-        unread: Number(s.unreadCount) || 0,
-        t: new Date(s.lastMessage && s.lastMessage.date || s.date || 0).getTime() || 0
-      };
-    }).filter(function(c) {
-      return c.targetId > 0;
-    }).sort(function(a, b) {
-      return b.t - a.t;
-    });
-  }
-  function fetchCards(ids) {
-    return postForm(CFG.api.userCard, "ids=" + ids.join(",")).then(function(j) {
-      var map = {};
-      (j && j.result === 0 && j.users || []).forEach(function(u) {
-        map[u.id] = { name: u.name || "A站用户", headUrl: u.headUrl || "" };
-      });
-      return map;
-    }, function() {
-      return {};
-    });
-  }
-  function doSend(inst, targetId, text) {
-    var mark = imLogMark();
-    return new Promise(function(resolve, reject) {
-      var done = false;
-      var timer = setTimeout(function() {
-        finish(new Error("send-timeout"));
-      }, CFG.im.sendT);
-      function settle() {
-        finish(null);
-      }
-      function finish(err) {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        try {
-          inst.off("sendSucceed", onEvt);
-        } catch (e) {
-        }
-        clearInterval(logPoll);
-        if (err) reject(err);
-        else resolve();
-      }
-      function onEvt(tid) {
-        if (String(tid) === String(targetId)) settle();
-      }
-      try {
-        inst.on("sendSucceed", onEvt);
-      } catch (e) {
-      }
-      var logPoll = setInterval(function() {
-        var v = imLogVerdict(mark);
-        if (!v) return;
-        finish(v.ok ? null : new Error(v.why || "send-fail"));
-      }, 300);
-      var r;
-      try {
-        if (inst.sendMessage.length >= 4) r = inst.sendMessage(targetId, text, 0, settle);
-        else r = inst.sendMessage(targetId, text, settle);
-      } catch (e) {
-        finish(e);
-        return;
-      }
-      if (r === false && !done) {
-        finish(new Error("send-rejected"));
-      }
-    });
-  }
-  function forceSync(inst) {
-    try {
-      var k = inst.kernel;
-      k.syncStatus.isSyncing = false;
-      k.syncStatus.lastSyncDate = 0;
-      k.sync();
-    } catch (e) {
-    }
-    return new Promise(function(resolve) {
-      var start = Date.now();
-      (function poll() {
-        var busy = false;
-        try {
-          busy = !!(inst.kernel && inst.kernel.syncStatus && inst.kernel.syncStatus.isSyncing);
-        } catch (e) {
-        }
-        if (!busy || Date.now() - start > 6e3) return resolve();
-        setTimeout(poll, 250);
-      })();
-    });
-  }
-  function resetSingleton(Ctor) {
-    try {
-      Ctor.instance = null;
-      if (Ctor.instance) Ctor.instance = void 0;
-      if (Ctor.instance) delete Ctor.instance;
-    } catch (e) {
-    }
-  }
-  function rebuildIm() {
-    var p = loadImSdk().then(function(Ctor) {
-      ensureWeblogSync();
-      resetSingleton(Ctor);
-      var inst = new Ctor({ dev: false });
-      imPromise = Promise.resolve(inst);
-      return ensureConnected(inst).then(function() {
-        return inst;
-      });
-    }, function(e) {
-      if (imPromise === p) imPromise = null;
-      throw e;
-    });
-    imPromise = p;
-    return p;
-  }
-  function withSendRecovery(inst, send) {
-    return send(inst).catch(function() {
-      var p;
-      if (hadTracerCrash()) {
-        console.warn("[acsv-im] 检测到 tracer 崩溃（weblog 缺失），重建 IM 实例后重试");
-        p = rebuildIm();
-      } else if (linkOk(inst)) {
-        p = Promise.resolve(inst);
-      } else {
-        p = ensureConnected(inst).then(function() {
-          return inst;
-        });
-      }
-      return p.then(function(useInst) {
-        ensureTracer(useInst);
-        return forceSync(useInst).then(function() {
-          return send(useInst);
-        });
-      });
-    });
-  }
-  function sendOnce(inst, targetId, text) {
-    return withSendRecovery(inst, function(i) {
-      return doSend(i, targetId, text);
-    });
-  }
-  function sendKernel(inst, msg, targetId, timeout) {
-    var limit = timeout || CFG.im.sendT;
-    return new Promise(function(resolve, reject) {
-      var done = false, start = Date.now();
-      function finish(err) {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        if (err) reject(err);
-        else resolve();
-      }
-      var timer = setTimeout(function() {
-        finish(new Error("send-timeout"));
-      }, limit);
-      var r;
-      try {
-        r = inst.kernel.sendMessage(msg);
-      } catch (e) {
-        finish(e);
-        return;
-      }
-      if (r && typeof r.then === "function") {
-        r.then(function() {
-        }, function(e) {
-          finish(e || new Error("send-fail"));
-        });
-      }
-      (function poll() {
-        if (done) return;
-        var csid = "";
-        try {
-          csid = String(msg.rawMsg && msg.rawMsg.clientSeqId || "");
-        } catch (e1) {
-        }
-        if (csid) {
-          var hit = false;
-          try {
-            var sess = null;
-            (inst.kernel.getSessions() || []).some(function(s) {
-              if (String(s.targetId) === String(targetId)) {
-                sess = s;
-                return true;
-              }
-              return false;
-            });
-            if (sess) {
-              (inst.kernel.getMessages(sess) || []).some(function(m) {
-                var raw = m.rawMsg || {};
-                if (raw.clientSeqId !== void 0 && String(raw.clientSeqId) === csid) {
-                  hit = true;
-                  return true;
-                }
-                return false;
-              });
-            }
-          } catch (e) {
-          }
-          if (hit) return finish(null);
-        }
-        if (Date.now() - start > limit) return finish(new Error("send-timeout"));
-        setTimeout(poll, 300);
-      })();
-    });
-  }
-  function sendImage(inst, targetId, file, w, h) {
-    return withSendRecovery(inst, function(i) {
-      return new Promise(function(resolve, reject) {
-        try {
-          var map = i.kernel && i.kernel.messageConstructorMap;
-          var Img = map && map[1];
-          if (!Img || !Img.create) throw new Error("image-msg-class-missing");
-          resolve(sendKernel(i, Img.create({
-            image: file,
-            width: w || 300,
-            height: h || 300,
-            targetType: 0,
-            targetId: Number(targetId)
-          }), targetId, CFG.im.imgSendT));
-        } catch (e) {
-          reject(e);
-        }
-      });
-    });
-  }
-  var mgTokenP = null;
-  function midgroundToken(refresh) {
-    if (!mgTokenP || refresh) {
-      mgTokenP = gmRequest({
-        method: "POST",
-        url: "https://id.app.acfun.cn/rest/web/token/get",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        data: "sid=acfun.midground.api",
-        timeout: CFG.time.gm
-      }).then(function(j) {
-        var t = j && j["acfun.midground.api_st"];
-        if (!t) {
-          mgTokenP = null;
-          return "";
-        }
-        return String(t);
-      }, function() {
-        mgTokenP = null;
-        return "";
-      });
-    }
-    return mgTokenP;
-  }
-  function fetchImImageBlob(url) {
-    function setMgCookie(tk) {
-      if (!tk) return;
-      try {
-        document.cookie = "acfun.midground.api_st=" + tk + "; domain=.acfun.cn; path=/; max-age=86400; SameSite=None; Secure";
-      } catch (e0) {
-      }
-    }
-    function once() {
-      var u = url + (url.indexOf("?") > -1 ? "&" : "?") + "_=" + Date.now();
-      return gmRequest({ url: u, timeout: CFG.time.gm, responseType: "arraybuffer", okStatus: true });
-    }
-    function toBlob(buf) {
-      try {
-        return buf && buf.byteLength ? URL.createObjectURL(new Blob([buf])) : null;
-      } catch (e) {
-        return null;
-      }
-    }
-    return midgroundToken(false).then(function(tk) {
-      setMgCookie(tk);
-      return once();
-    }, function() {
-      return once();
-    }).then(toBlob, function() {
-      return midgroundToken(true).then(function(tk) {
-        setMgCookie(tk);
-        return once();
-      }, function() {
-        return once();
-      }).then(toBlob, function() {
-        return null;
-      });
-    });
-  }
-  function sendQuote(inst, targetId, quote, text) {
-    return withSendRecovery(inst, function(i) {
-      return new Promise(function(resolve, reject) {
-        try {
-          var map = i.kernel && i.kernel.messageConstructorMap;
-          if (CFG.im.quoteWire === "reference") {
-            var Ref = map && map[12];
-            if (!Ref || !Ref.create) throw new Error("reference-msg-class-missing");
-            resolve(sendKernel(i, Ref.create({
-              text,
-              originMsg: quote.originMsg,
-              targetType: 0,
-              targetId: Number(targetId)
-            }), targetId));
-          } else {
-            var Txt = map && map[0];
-            if (!Txt || !Txt.create) throw new Error("text-msg-class-missing");
-            var extra = null;
-            try {
-              extra = new TextEncoder().encode(JSON.stringify({
-                acsvQuote: { seqId: quote.seqId || "", preview: quote.preview || "", text }
-              }));
-            } catch (e1) {
-            }
-            resolve(sendKernel(i, Txt.create({
-              targetType: 0,
-              targetId: Number(targetId),
-              text: quoteWireText(quote.preview, text),
-              // 拼接格式唯一定义处（immsg，原生页去重同源）
-              extra
-            }), targetId));
-          }
-        } catch (e) {
-          reject(e);
-        }
-      });
-    });
-  }
-  function openSharePanel(btn, item) {
-    var existed = document.querySelector(".acsv-sharepop");
-    if (existed) {
-      var reuse = existed._anchor === btn;
-      existed.remove();
-      if (reuse) return;
-    }
-    var pop = el("div", "acsv-sharepop");
-    pop._anchor = btn;
-    var head = el("div", "acsv-share-head");
-    head.appendChild(el("span", null, "分享给朋友"));
-    var closeBtn = el("button", "acsv-share-close", "✕");
-    closeBtn.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      pop.remove();
-    });
-    head.appendChild(closeBtn);
-    pop.appendChild(head);
-    var searchWrap = el("div", "acsv-share-searchwrap");
-    var search = el("input", "acsv-share-search");
-    search.placeholder = "搜索最近联系人";
-    search.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-    });
-    search.addEventListener("input", function() {
-      filterRows(pop, search.value);
-    });
-    searchWrap.appendChild(search);
-    pop.appendChild(searchWrap);
-    var list = el("div", "acsv-share-list");
-    pop.appendChild(list);
-    var foot = el("div", "acsv-share-foot");
-    var copyBtn = el("button", "acsv-share-copy", "复制链接");
-    copyBtn.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      copyText(item.shareUrl).then(function(ok) {
-        toast(ok ? "已复制：" + item.shareUrl : "复制失败，请手动复制");
-      });
-    });
-    var centerLink = el("a", "acsv-share-center", "消息中心");
-    centerLink.href = "https://message.acfun.cn/im";
-    centerLink.target = "_blank";
-    foot.appendChild(copyBtn);
-    foot.appendChild(centerLink);
-    pop.appendChild(foot);
-    var wrap = btn.parentNode;
-    wrap.style.position = "relative";
-    wrap.appendChild(pop);
-    setTimeout(function() {
-      document.addEventListener("click", function onDoc(ev) {
-        document.removeEventListener("click", onDoc);
-        if (!pop.isConnected) return;
-        if (pop.contains(ev.target) || btn.contains(ev.target)) return;
-        pop.remove();
-      });
-    }, 0);
-    if (!isLogined()) {
-      list.appendChild(el("div", "acsv-share-tip", "私信需要先登录 AcFun 账号\n可先复制链接去站内分享"));
-      return;
-    }
-    renderLoading(list, "正在连接私信…");
-    ensureIm().then(function(inst) {
-      return ensureConnected(inst).then(function() {
-        return getContacts(inst).then(function(contacts) {
-          if (!pop.isConnected) return;
-          if (!contacts.length) {
-            list.innerHTML = "";
-            list.appendChild(el("div", "acsv-share-tip", "还没有聊过天的朋友\n先在 A 站 APP / 网页和 TA 私聊一句\n再回来把这条分享给 TA"));
-            return;
-          }
-          renderRows(pop, list, contacts, item, inst);
-        });
-      });
-    }).catch(function() {
-      if (!pop.isConnected) return;
-      list.innerHTML = "";
-      list.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
-    });
-  }
-  function renderLoading(list, text) {
-    list.innerHTML = "";
-    var tip = el("div", "acsv-share-tip", text);
-    tip.appendChild(el("div", "acsv-share-spin"));
-    list.appendChild(tip);
-  }
-  function renderRows(pop, list, contacts, item, inst) {
-    list.innerHTML = "";
-    fetchCards(contacts.map(function(c) {
-      return c.targetId;
-    })).then(function(cards2) {
-      if (!pop.isConnected) return;
-      contacts.forEach(function(c) {
-        var card = cards2[c.targetId] || {};
-        var row = el("div", "acsv-share-row");
-        row.dataset.name = (card.name || "").toLowerCase();
-        row.dataset.tid = c.targetId;
-        var av = el("img", "acsv-share-av");
-        av.referrerPolicy = "no-referrer";
-        av.src = (card.headUrl || CFG.api.defaultAvatar).split("?")[0];
-        av.addEventListener("error", function() {
-          av.src = CFG.api.defaultAvatar;
-        });
-        row.appendChild(av);
-        var name = el("div", "acsv-share-name", card.name || "用户 " + c.targetId);
-        if (c.unread > 0) {
-          var dot = el("span", "acsv-share-unread", c.unread > 99 ? "99+" : String(c.unread));
-          name.appendChild(dot);
-        }
-        row.appendChild(name);
-        var send = el("button", "acsv-share-send", "分享");
-        var shareText = String(item.title || "").slice(0, 400) + "\n" + item.shareUrl;
-        send.addEventListener("click", function(ev) {
-          ev.stopPropagation();
-          if (send.disabled) return;
-          send.disabled = true;
-          send.textContent = "…";
-          ensureConnected(inst).then(function() {
-            return sendOnce(inst, c.targetId, shareText.slice(0, CFG.im.maxLen));
-          }).then(function() {
-            var chatBtn = el("button", "acsv-share-send chat", "捎句话");
-            chatBtn.title = "打开与 " + (card.name || "好友") + " 的聊天，补充一句";
-            chatBtn.addEventListener("click", function(ev2) {
-              ev2.stopPropagation();
-              openChat(c.targetId);
-            });
-            send.replaceWith(chatBtn);
-            toast("已私信分享给 " + (card.name || "好友"));
-          }, function(err) {
-            send.disabled = false;
-            send.textContent = "分享";
-            var why = err && err.message || "";
-            console.warn(
-              "[acsv-im] 发送失败",
-              why,
-              "linkState=" + (inst.kernel && (inst.kernel.linkState || inst.kernel.isConnected) || "unknown")
-            );
-            toast(why.indexOf("send-timeout") === 0 || why.indexOf("send-rejected") === 0 ? "发送失败，请稍后再试" : "发送失败：" + why.slice(0, 200), 1e4);
-          });
-        });
-        row.appendChild(send);
-        list.appendChild(row);
-      });
-    });
-  }
-  function filterRows(pop, kw) {
-    kw = String(kw || "").trim().toLowerCase();
-    var rows = pop.querySelectorAll(".acsv-share-row");
-    for (var i = 0; i < rows.length; i++) {
-      var hit = !kw || (rows[i].dataset.name || "").indexOf(kw) > -1;
-      rows[i].style.display = hit ? "" : "none";
-    }
-  }
-
   // src/rail.js
   function withBusy(item, key, send, done) {
     if (item[key]) return;
@@ -7121,7 +7248,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.48：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.50：分享卡走 DOM-only，内核探活中");
     watch();
     var n = 0;
     (function waitKernel() {
