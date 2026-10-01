@@ -8,7 +8,7 @@ node_modules/
 .zcode/
 *_tmp.*
 feedstore-block.txt
-diag-out.js
+diag-out.cjs
 backup/
 推荐帖.txt
 *.log
