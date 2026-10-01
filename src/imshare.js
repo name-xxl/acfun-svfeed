@@ -163,8 +163,6 @@ function ensureWeblogSync() {
   return injectPageFn(weblogInstaller, function () { return tracerOk(); });
 }
 
-// 单例健康检查：kernel.config.logger 就是 send 时的 tracer 来源（be 名单命令打点用），
-// 缺失 ⇒ SendMsg 必崩。站点可能在 weblog 初始化前就创建了单例（weblog 异步加载），
 export function isLogined() {
   return /^\d/.test(cookieVal('auth_key'));
 }
@@ -231,7 +229,7 @@ export function ensureIm() {
   if (imPromise) return imPromise;
   imPromise = loadImSdk().then(function (Ctor) {
     // 单例直接复用：站点实例若已存在，其连接与同步缓存都是现成的（tracer 缺陷由
-    // ensureTracer 注入修复，无需重造）。跨 world 读 .instance 失败时 new 兜底
+    // ensureTracer 注入修复，无需重造）。复用语义在 SDK 构造器内部（构造即单例）
     return new Ctor({ dev: false });
   }, function (e) { imPromise = null; throw e; });
   return imPromise;

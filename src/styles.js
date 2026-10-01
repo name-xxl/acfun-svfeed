@@ -1,7 +1,8 @@
 // ---------- 样式与图标 ----------
 import { CFG } from './cfg.js';
 
-// RAW_CSS 里主题色一律写 #fd4c5d 占位，导出时统一替换为 CSS 变量（换肤只改 cfg.accent）
+// RAW_CSS 里主题色一律写 #fd4c5d 占位，导出时统一替换为 CSS 变量（换肤只改 cfg.accent）；
+// 例外：alpha 形态 rgba(253,76,93,…) 不做替换，不随换肤（仅 .acsv-creply 底色一处）
 var RAW_CSS = ''
   + '#acsv-root{position:fixed;inset:0;z-index:2147483000;background:#000;color:#fff;'
   + 'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;user-select:none}'
@@ -105,7 +106,7 @@ var RAW_CSS = ''
   + '.acsv-drawer-list{flex:1;overflow-y:auto;padding:6px 0 14px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}'
   + '.acsv-drawer-list::-webkit-scrollbar{width:5px}'
   + '.acsv-drawer-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}'
-  // 评论输入条（发评论/回复/楼中楼回复）与表情面板
+  // 抽屉输入栏（0.9.41 起评论/私信共用，DOM 由 inputbar.buildInputBar 统一产出）与表情面板
   + '.acsv-cinput{flex:none;display:flex;align-items:center;gap:8px;padding:10px 12px;'
   + 'border-top:1px solid rgba(255,255,255,.09);background:rgba(22,22,27,.98)}'
   + '.acsv-creply{display:none;align-items:center;border:none;background:rgba(253,76,93,.16);color:#fd4c5d;'

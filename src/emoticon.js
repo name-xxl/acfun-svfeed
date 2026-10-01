@@ -167,7 +167,7 @@ export function renderEmotPanel(panel, insert) {
   panel.appendChild(foot);
 }
 
-// ---- 输入条表情按钮三件套（0.9.40 自 comments.js 抽出：评论/私信输入条共用） ----
+// ---- 输入条表情按钮三件套（0.9.41 自 comments.js 抽出：评论/私信输入条共用） ----
 // 光标处插入 UBB 短代码并聚焦（maxlength 由 textarea 自身属性约束）
 export function insertAtCursor(inp, code) {
   var pos = inp.selectionStart != null ? inp.selectionStart : inp.value.length;

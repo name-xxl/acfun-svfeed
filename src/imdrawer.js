@@ -26,7 +26,7 @@ var ICON_COMMENT = '<i class="acsvg-cicon" style="--acsvg-cicon:url(' + ICON_SVG
 // 收发确认零事件依赖：新消息靠轮询 kernel.getMessages 增量（WS 推送由 SDK 内核自动
 // 写入缓存，推送事件仅作即时上屏的加速路径）；已读走内核级 markSessionRead。
 
-var drawer = null;          // { el, head, back, title, close, listView, search, listBody, chatView, bubbles, input, send }
+var drawer = null;          // { el, head, back, title, close, listView, search, listBody, chatView, bubbles, quoteChip, input, send }
 var view = '';              // '' | 'list' | 'chat'
 var cards = {};             // targetId -> {name, headUrl}（跨视图缓存）
 var badgeTimer = null, badgeDelayTimer = null;
@@ -449,8 +449,8 @@ function locateMessage(seqId) {
   setTimeout(function () { t.classList.remove('acsv-im-flash'); }, 1300);
 }
 // 行包裹器：气泡/卡片 + hover 引用按钮同行（mine 行反序让按钮贴右缘）。引用范围按通道
-// 裁决：extra 通道（默认）文本/卡片/引用都能引，reference 通道禁卡（内核重建 originMsg
-// 会崩，见 immsg.isQuotable）
+// 裁决：extra 通道（默认）文本/卡片/图片/引用都能引（0.9.41 起 isQuotable 含图片），
+// reference 通道禁卡（内核重建 originMsg 会崩，见 immsg.isQuotable）
 function bubbleRow(b, mine, m, extraCls) {
   var wrap = el('div', 'acsv-im-rowwrap' + (extraCls ? ' ' + extraCls : '') + (mine ? ' mine' : ''));
   wrap.appendChild(b);

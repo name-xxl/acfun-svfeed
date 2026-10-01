@@ -123,7 +123,7 @@ export var CFG = {
     navWait: 6000,      // 导航注入兜底等待
     ghostIv: 5000,      // 幽灵视频扫描间隔（兜底，低频即可）
     watchReportMin: 3,   // 观看历史上报门槛：离开时进度达到该秒数才计入历史（过滤闪滑）
-    watchReport: 10000   // 首报兜底：播到该毫秒数先保底入史（关标签页时离开上报送不出去）
+    watchReport: 10000   // 首报兜底：playing 后墙钟 10s 先保底入史（关标签页时离开上报送不出去）
   },
   nav: { labels: ['首页', '番剧', '直播', '文章区', '鱼塘'], tries: 20, retryMs: 500 },
   io: { ratio: 0.6 },
@@ -178,6 +178,7 @@ export var CFG = {
 // 用语句形式而非三元：esbuild 无 minify 时只消除 if(false) 语句块，三元函数体会残留产物。
 //   noMonitor 跳过看门狗（排除顶针/rME/降档动作本身致冻）  q30 滤掉 60fps 档（模拟主站解码负载）
 //   noWorker hls.js enableWorker:false                    smallBuf 缓冲强制 std 档（排除内存压力）
+//   native 强制走原生 HLS（0.9.12 对照组：MSE 可用时默认一律 hls.js）
 CFG.exp = {};
 if (__ACSV_DEBUG__) {
   try { CFG.exp = JSON.parse(localStorage.getItem('acsv-exp') || '{}') || {}; } catch (e) { }

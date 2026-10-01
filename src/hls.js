@@ -3,7 +3,8 @@ import { set } from './dbg.js';
 
 // ---------- hls.js 懒加载 ----------
 // 推荐模式的播放直链是 m3u8；Safari 原生支持，Chromium 系需要 hls.js。
-// 不用 @require 常驻：GM_xhr 拉文本后 Function 执行（不吃页面 CSP），只在首个 m3u8 视频时加载一次。
+// 0.9.14 起构建期内嵌进产物 banner（window.Hls 首检即命中）；下方 CDN 逐源拉取
+// （GM_xhr 文本 + Function 执行，不吃页面 CSP）仅为内嵌缺失时的兜底路径。
 var loading = null;
 
 export function nativeHls(video) {

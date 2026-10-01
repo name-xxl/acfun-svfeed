@@ -15,7 +15,8 @@ var URL_CHARS_OK = /^[\w\-./:?=&%]+$/;
 
 export function renderCommentHtml(content) {
   var h = esc(content || '');
-  // 表情：[emot=acfun,id/] 走映射（值可能是字符串或 {url} 对象）；其他包走 umeditor 固定图床
+  // 表情：[emot=acfun,id/] 走映射（map 值恒为 {url} 对象，string 分支系历史格式兼容）；
+  // 其他包走 umeditor 固定图床
   h = h.replace(/\[emot=acfun,(\w+)\/\]/g, function (_, id) {
     var em = EmotionMap.map[id];
     var u = em ? (typeof em === 'string' ? em : em.url) : null;

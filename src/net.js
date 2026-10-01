@@ -1,7 +1,7 @@
 // ---------- 网络层 ----------
 // request(url, method, headers, body)：headers/body 可选（body 为 x-www-form-urlencoded 字符串）
 // gmRequest(opts)：GM 通道参数化出口（responseType 'json'|'text'|'arraybuffer'、自定义超时/头/
-//   二进制 data、okStatus 状态码门）——appapi 二进制上传、uppage/imshare 拉文本等 GM-only
+//   二进制 data、okStatus 状态码门）——upload.js 二进制分片上传、uppage/imshare 拉文本等 GM-only
 //   场景统一走这里，勿再各自内联 GM_xmlhttpRequest 包装（0.9.35 收敛）
 import { CFG } from './cfg.js';
 

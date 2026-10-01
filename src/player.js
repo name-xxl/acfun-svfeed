@@ -306,7 +306,7 @@ function mount() {
   seg.appendChild(segSv);
   seg.appendChild(segHome);
   tr.appendChild(seg);
-  // 私信入口：A 站原生 iconfont 字形 + 未读徽标
+  // 私信入口：内联 SVG 信封字形 + 未读徽标
   var imBtn = el('button', 'acsv-tbtn acsv-im-btn');
   imBtn.title = '私信';
   imBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg><span class="acsv-im-badge" style="display:none"></span>';

@@ -192,10 +192,10 @@ function toggleCommentLike(like) {
     });
 }
 
-// ---- 评论配图大图查看器：0.9.40 迁出为 imgview.js（评论/私信共用），此处只消费 ----
+// ---- 评论配图大图查看器：0.9.41 迁出为 imgview.js（评论/私信共用），此处只消费 ----
 
 // 评论列表点击统一委托：挂一次在 drawer list 上，接管所有楼层的点赞/回复/配图大图。
-// 挂载点在 player.js 建抽屉骨架处（dlist.addEventListener('click', commentListClick)）
+// 挂载点在 slide.js 建抽屉骨架处（dlist.addEventListener('click', commentListClick)）
 export function commentListClick(ev) {
   var like = ev.target.closest('.acsv-clike');
   if (like && like._c) {

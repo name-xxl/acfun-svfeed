@@ -5,11 +5,11 @@ import { normalizeHome } from './data.js';
 import { applyQuality } from './quality.js';
 
 // ---------- APP 家族接口层 ----------
-// 域名 api-new.app.acfun.cn（与 acfunchina.com 同后端），固定 mkey 免登录读。
-// 这里只剩读接口（首页推荐流/详情/播放直链/弹幕列表）；全部写操作（点赞/收藏/
-// 投蕉/关注/评论/弹幕）都在 www.acfun.cn PC 端或 interact API，走 postForm 页面
-// fetch（风控友好）。selection/feed 必须带 appVersion 头，douga/playInfo 不带
-// （对齐 A 站客户端行为）。
+// 读接口走 api-new.app.acfun.cn（与 acfunchina.com 同后端），固定 mkey 免登录：
+// 首页推荐流/详情/播放直链（弹幕列表走 www.acfun.cn PC 端）。写操作端点全在
+// www.acfun.cn PC 端或 interact API（点赞/收藏/投蕉/关注/评论/弹幕），但 postForm
+// 请求通道（页面 fetch + Cookie，风控友好）收口在本文件。selection/feed 必须带
+// appVersion 头，douga/playInfo 不带（对齐 A 站客户端行为）。
 
 var pcursor = '';
 var exhausted = false;

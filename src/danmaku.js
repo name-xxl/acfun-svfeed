@@ -5,7 +5,7 @@ import { el, toast } from './ui.js';
 
 // ---------- 弹幕编排：拉取/缓存/开关/发送/输入框 ----------
 // 渲染在 dmcanvas（每 slide 一个 Canvas 图层）；数据走 PC 站弹幕接口（网页 Cookie）。
-// 输入框参考抖音：内嵌在控制栏内，点「发弹」横向展开，点外部/Esc 收起。
+// 发送框常驻内嵌于控制栏，不折叠（用户明确不要折叠入口）：Enter 发送，Esc 失焦。
 
 var DM_CACHE_MAX = 30; // 只留最近看过的 videoId：长会话不至于积攒几百份弹幕数组
 var cache = new Map(); // videoId → Promise<规整弹幕列表>；失败不占缓存

@@ -61,7 +61,7 @@ export var API = {
       return ((json && json.meowFeed) || []).map(normalize);
     });
   },
-  // 小视频单条详情（深链置顶用，home 模式不走）
+  // 小视频单条详情（深链置顶/空间页泵入/最热统计共用，home 模式不走）
   info: function (mid) {
     var mock = mockData();
     if (mock && mock.feed) {
