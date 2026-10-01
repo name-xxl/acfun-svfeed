@@ -21,7 +21,11 @@ export var GLYPHS = {
   star: '\ue160',       // 星星（动态；顶部与历史相邻那颗，非收藏——0.9.24 误标勘正）
   banana: '\ue2ea',     // 蕉
   share: '\ue15b',      // 分享/上传（站点头部）
-  repost: '\ue628',     // 分享/转发（member/feeds 动态卡互动区「分享」——0.9.55 浏览器实测码点）
+  // 动态卡（member/feeds）互动区四件套（0.9.55/0.9.56 浏览器实测码点，acfun-frontend-next）
+  feedRepost: '\ue628',     // 分享/转发
+  feedComment: '\ue627',    // 评论
+  feedLike: '\ue629',       // 点赞（未点亮）
+  feedLikeFill: '\ue660',   // 点赞（点亮实心）
   phone: '\ue242',      // 手机
   monitor: '\ue184',    // 电脑
   tablet: '\ue185',     // 平板

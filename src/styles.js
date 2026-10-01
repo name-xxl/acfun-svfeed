@@ -167,11 +167,12 @@ var RAW_CSS = ''
   + '.acsv-cmeta{font-size:12px;color:#7a7f8a;margin-top:6px;display:flex;gap:12px;align-items:center}'
   + '.acsv-clike{display:inline-flex;align-items:center;gap:3px;color:#7a7f8a}'
   // 原生形状走 mask（currentColor 染色），回退手绘 svg 走 fill:currentColor，状态色统一由容器 color 驱动
-  + '.acsv-clike svg,.acsv-creplybtn svg,.acsv-cfwdbtn svg{width:12px;height:12px;fill:currentColor}'
-  + '.acsv-clike .acsvg-cicon,.acsv-creplybtn .acsvg-cicon,.acsv-cfwdbtn .acsvg-cicon{width:12px;height:12px}'
-  // iconfont 字形图标（imicons.GLYPHS）：currentColor 跟随容器状态色，13px 与 12px svg 视觉等高
-  + '.acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-size:13px;'
-  + 'line-height:1;color:currentColor}'
+  // 评论操作三键图标统一 iconfont 字形（imicons.GLYPHS.feed*）：currentColor 跟随容器
+  // 状态色。字形墨迹 ≈1.02em（canvas 实测），11px 字号墨迹 ≈11px 与 12px 定盒的 svg
+  // 图标（墨迹约 10px）视觉等大；12×12 定盒与 mask/svg 图标盒子尺寸一致（0.9.56，
+  // 0.9.55 的 13px 偏大）
+  + '.acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-size:11px;'
+  + 'display:inline-block;width:12px;height:12px;line-height:12px;text-align:center;color:currentColor}'
   + '.acsv-csub{margin:8px 0 2px;padding:4px 12px;background:rgba(255,255,255,.05);border-radius:10px}'
   + '.acsv-csub .acsv-citem{padding:8px 0}'
   + '.acsv-csub .acsv-citem:hover{background:none}'

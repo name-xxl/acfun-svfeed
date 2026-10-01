@@ -1,7 +1,7 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { el, fmt, toast } from './ui.js';
-import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
+import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
 import { AppAPI } from './appapi.js';
@@ -111,30 +111,9 @@ function normalizeSubs(subMap, cid) {
   return [];
 }
 
-// 原生图标只借形状（CSS mask 染色，颜色跟容器 currentColor），CDN hash 失效时回退手绘
-// SVG（同 rail.js 探测模式）。探测结论按 URL 模块级 memo：长列表每条评论 1~2 个图标
-// （rail 同款模式但只有 5 个按钮），结论落地后新节点不再探测——CDN 死亡场景零探测扇出。
-// 未结论期各节点仍自挂 onerror 自愈（mask 图加载失败会渲染成 currentColor 色块），
-// 飞行期重复探测无害（浏览器按 URL 去重网络）
-var iconProbeOk = {};
-function nativeIcon(url, fallbackSvg) {
-  var ic = el('i', 'acsvg-cicon');
-  if (iconProbeOk[url] === false) {
-    ic.classList.remove('acsvg-cicon');
-    ic.innerHTML = fallbackSvg;
-    return ic;
-  }
-  ic.style.setProperty('--acsvg-cicon', 'url("' + url + '")');
-  var probe = new Image();
-  probe.onload = function () { iconProbeOk[url] = true; };
-  probe.onerror = function () {
-    iconProbeOk[url] = false;
-    ic.classList.remove('acsvg-cicon');
-    ic.style.removeProperty('--acsvg-cicon');
-    ic.innerHTML = fallbackSvg;
-  };
-  probe.src = url;
-  return ic;
+// 原生 iconfont 字形图标（imicons.GLYPHS 登记表消费；el() 即 textContent，码点直写）
+function glyph(codepoint) {
+  return el('i', 'acsvg-glyph', codepoint);
 }
 
 function commentItem(c, subMap, sourceId) {
@@ -168,14 +147,17 @@ function commentItem(c, subMap, sourceId) {
   var meta = el('div', 'acsv-cmeta');
   meta.appendChild(el('span', null, c.postDate || ''));
   var like = null, replyBtn = null;
-  // 点赞形状跟随同页右侧操作栏（rail.js 同款选型）：推荐页视频页拇指，小视频站心形 PNG
-  var likeUrl = commentState.kind === 'home' ? VIDEO_ICONS.like : SITE_ICONS.heart;
+  // 点赞/回复/转发三键图标统一用动态页互动区同款 iconfont 字形（imicons.GLYPHS.feed*
+  // 码点，字体抽屉内自注入）：点亮态切实心字形（feedLikeFill），颜色状态机由容器 color 驱动
+  var likeGlyph = function (on) { return glyph(on ? GLYPHS.feedLikeFill : GLYPHS.feedLike); };
   if (commentState.kind === 'home') {
     // 小视频模式纯浏览：点赞/回复仅推荐模式提供。
     // 点击统一委托在 drawer list 上（见 commentListClick），这里只挂数据引用，
     // 免得长列表每条评论两个监听器、innerHTML 重建时反复创建丢弃
-    like = el('span', 'acsv-clike' + ((c.isLike || c.localLike) ? ' on' : ''));
-    like.appendChild(nativeIcon(likeUrl, ICONS.heart));
+    var on0 = !!(c.isLike || c.localLike);
+    like = el('span', 'acsv-clike' + (on0 ? ' on' : ''));
+    like._g = likeGlyph(on0);
+    like.appendChild(like._g);
     var likeN = el('span', null, fmt((c.likeCount || 0) + (c.localLike ? 1 : 0)));
     like.appendChild(likeN);
     like.title = '点赞评论';
@@ -183,21 +165,20 @@ function commentItem(c, subMap, sourceId) {
     like._n = likeN;
     meta.appendChild(like);
     replyBtn = el('span', 'acsv-creplybtn');
-    replyBtn.appendChild(nativeIcon(SITE_ICONS.comment, ICONS.comment));
+    replyBtn.appendChild(glyph(GLYPHS.feedComment));
     replyBtn.appendChild(document.createTextNode('回复'));
     replyBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户' };
     meta.appendChild(replyBtn);
-    // 转发到私信（0.9.50，官方无此入口）：按钮只挂数据引用，弹层与发送在 commentListClick 委托。
-    // 图标用动态页互动区同款 iconfont 字形（imicons.GLYPHS.repost，字体抽屉内自注入）
+    // 转发到私信（0.9.50，官方无此入口）：按钮只挂数据引用，弹层与发送在 commentListClick 委托
     var fwdBtn = el('span', 'acsv-cfwdbtn');
-    fwdBtn.appendChild(el('i', 'acsvg-glyph', GLYPHS.repost));
+    fwdBtn.appendChild(glyph(GLYPHS.feedRepost));
     fwdBtn.appendChild(document.createTextNode('转发'));
     fwdBtn.title = '转发这条评论到私信';
     fwdBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户', content: c.content || '' };
     meta.appendChild(fwdBtn);
   } else {
     like = el('span', 'acsv-clike');
-    like.appendChild(nativeIcon(likeUrl, ICONS.heart));
+    like.appendChild(likeGlyph(false));
     like.appendChild(el('span', null, fmt(c.likeCount)));
     meta.appendChild(like);
   }
@@ -225,6 +206,7 @@ function toggleCommentLike(like) {
   c.likeBusy = true;
   c.localLike = on;
   like.classList.toggle('on', on);
+  like._g.textContent = on ? GLYPHS.feedLikeFill : GLYPHS.feedLike; // 点亮切实心字形
   like._n.textContent = fmt((c.likeCount || 0) + (on ? 1 : 0));
   AppAPI.commentLike(commentState.sourceId, commentState.stype, c.commentId, on)
     .then(function (ok) {
@@ -232,6 +214,7 @@ function toggleCommentLike(like) {
       if (ok) return;
       c.localLike = !on; // 失败回滚
       like.classList.toggle('on', !on);
+      like._g.textContent = on ? GLYPHS.feedLike : GLYPHS.feedLikeFill;
       like._n.textContent = fmt(c.likeCount || 0);
       toast('操作失败（未登录？）');
     });
