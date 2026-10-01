@@ -3,6 +3,7 @@ import { request } from './net.js';
 import { el, fmt, toast } from './ui.js';
 import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
+import { commentShareWire } from './immsg.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
 import { AppAPI } from './appapi.js';
 import { uploadImage } from './upload.js';
@@ -252,7 +253,7 @@ export function commentListClick(ev) {
     ev.stopPropagation();
     var t = fw._target;
     openSharePanel(fw, {
-      title: '@' + t.name + '：' + ubbImText(t.content),
+      title: commentShareWire(t.name, ubbImText(t.content)),
       shareUrl: commentState.shareUrl + '#ncid=' + t.id,
       cmt: { ncid: t.id, content: t.content }
     }, {

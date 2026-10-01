@@ -2,7 +2,7 @@ import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
 import { el, toast, copyText, cookieVal } from './ui.js';import { postForm } from './appapi.js';
 import { openChat } from './imdrawer.js';
-import { quoteWireText } from './immsg.js';
+import { quoteWireText, QUOTE_EXTRA_KEY, CMT_EXTRA_KEY } from './immsg.js';
 
 // ---------- 私信分享（抖音式分享面板） ----------
 // 网页端私信没有 REST 发送端点：官方自己走快手 ImSdk（klink WebSocket + protobuf），
@@ -707,9 +707,9 @@ export function sendQuote(inst, targetId, quote, text) {
           if (!Txt || !Txt.create) throw new Error('text-msg-class-missing');
           var extra = null;
           try {
-            extra = new TextEncoder().encode(JSON.stringify({
-              acsvQuote: { seqId: quote.seqId || '', preview: quote.preview || '', text: text }
-            }));
+            var qExtra = {};
+            qExtra[QUOTE_EXTRA_KEY] = { seqId: quote.seqId || '', preview: quote.preview || '', text: text };
+            extra = new TextEncoder().encode(JSON.stringify(qExtra));
           } catch (e1) { }
           resolve(sendKernel(i, Txt.create({
             targetType: 0, targetId: Number(targetId),
@@ -735,7 +735,9 @@ export function sendCmtShare(inst, targetId, payload, text) {
         if (!Txt || !Txt.create) throw new Error('text-msg-class-missing');
         var extra = null;
         try {
-          extra = new TextEncoder().encode(JSON.stringify({ acsvCmt: payload }));
+          var cExtra = {};
+          cExtra[CMT_EXTRA_KEY] = payload;
+          extra = new TextEncoder().encode(JSON.stringify(cExtra));
         } catch (e1) { }
         resolve(sendKernel(i, Txt.create({
           targetType: 0, targetId: Number(targetId), text: text, extra: extra

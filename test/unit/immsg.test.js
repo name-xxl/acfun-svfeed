@@ -7,7 +7,7 @@ import {
   msgContentType, parseCard, parseShare, fmtDur,
   degradeText, msgTextOf, previewOfMessage,
   isQuotable, quoteOf, quoteExtraOf, quoteWireText, quoteWireTrimLen,
-  isCommentShare, cmtShareOf
+  isCommentShare, commentShareWire, commentShareAuthor, cmtShareOf, QUOTE_EXTRA_KEY, CMT_EXTRA_KEY
 } from '../../src/immsg.js';
 
 // contentType 10001 的 content 是 UTF-8 解码即 JSON 的 ArrayBuffer
@@ -308,4 +308,24 @@ test('cmtShareOf：extra 载荷往返；被剥/非文本类型降级 null', () =
   assert.equal(cmtShareOf({ rawMsg: { contentType: 0, text: 'x' } }), null); // extra 被剥
   assert.equal(cmtShareOf(cardMsg(SAMPLE_CARD)), null); // 非文本类型
   assert.equal(cmtShareOf(null), null);
+});
+
+// ---------- commentShareWire / extra key 常量（0.9.59 收口） ----------
+test('commentShareWire：组装产物过检测且作者可还原（wire 契约单源往返）', () => {
+  var w = commentShareWire('森崎', '任意[emot=acfun,1/]正文');
+  assert.ok(isCommentShare(w), 'wire 必须过 isCommentShare');
+  assert.equal(commentShareAuthor(w), '森崎');
+  assert.ok(w.endsWith('：任意[emot=acfun,1/]正文'));
+  assert.equal(commentShareWire('', ''), '@：');
+  assert.equal(commentShareWire(null, null), '@：');
+});
+
+test('extra key 常量钉死字面值（发送/解析两端跨文件共用）', () => {
+  assert.equal(QUOTE_EXTRA_KEY, 'acsvQuote');
+  assert.equal(CMT_EXTRA_KEY, 'acsvCmt');
+  // cmtShareOf 用常量读 key：构造侧同样用常量写，往返不丢
+  var m = { rawMsg: { contentType: 0, text: 'x', extra: new TextEncoder().encode(JSON.stringify({ [CMT_EXTRA_KEY]: { ncid: '9', content: 'c' } })).buffer } };
+  var got = cmtShareOf(m);
+  assert.equal(got.ncid, '9');
+  assert.equal(got.content, 'c');
 });

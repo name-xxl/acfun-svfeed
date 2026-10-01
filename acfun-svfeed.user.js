@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.58
+// @version      0.9.59
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -1788,6 +1788,188 @@
     // 上箭头
   };
 
+  // src/immsg.js
+  function msgContentType(m) {
+    try {
+      return m.rawMsg && m.rawMsg.contentType || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+  function parseCard(m) {
+    try {
+      if (msgContentType(m) !== 10001) return null;
+      var buf = m.rawMsg && m.rawMsg.content;
+      if (!buf) return null;
+      var j = JSON.parse(new TextDecoder("utf-8").decode(buf));
+      if (!j || !Array.isArray(j.resourceBody) || !j.resourceBody.length) return null;
+      return j;
+    } catch (e) {
+      return null;
+    }
+  }
+  var QUOTE_EXTRA_KEY = "acsvQuote";
+  var CMT_EXTRA_KEY = "acsvCmt";
+  var RE_CMT_SHARE = /^@([^\n：]{1,40})：/;
+  function isCommentShare(title) {
+    return RE_CMT_SHARE.test(String(title || ""));
+  }
+  function commentShareAuthor(title) {
+    var m = RE_CMT_SHARE.exec(String(title || ""));
+    return m ? m[1] : "";
+  }
+  function commentShareWire(name, text) {
+    return "@" + (name || "") + "：" + (text || "");
+  }
+  var RE_AC_URL = /https?:\/\/www\.acfun\.cn\/v\/ac(\d+)(?:\/?\?[^\s]*)?(?:#[^\s]*)?/i;
+  var RE_TAIL_PUNCT = /[\s.,;:!?)\]】」』。、！？；：]+$/;
+  var RE_HEAD_PUNCT = /^[\s.,;:!?(\[【「『。、！？；：]+/;
+  function parseShare(text) {
+    var t = String(text == null ? "" : text);
+    var m = RE_AC_URL.exec(t);
+    if (!m) return null;
+    var url = m[0].replace(RE_TAIL_PUNCT, "");
+    return {
+      title: t.slice(0, m.index).trim().slice(0, 400),
+      note: t.slice(m.index + m[0].length).replace(RE_HEAD_PUNCT, "").trim().slice(0, 300),
+      acId: m[1],
+      url
+    };
+  }
+  function pad2(n) {
+    return n < 10 ? "0" + n : "" + n;
+  }
+  function fmtDur(sec) {
+    var s = Math.round(Number(sec) || 0);
+    var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+    return (h ? h + ":" + pad2(m) : String(m)) + ":" + pad2(s % 60);
+  }
+  function degradeText(m) {
+    try {
+      var raw = m.rawMsg || {};
+      if (typeof raw.backupTips === "string" && raw.backupTips) {
+        return raw.backupTips.replace(/<a[^>]*>/gi, " [").replace(/<\/a>/gi, "] ").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
+      }
+    } catch (e) {
+    }
+    return "[暂不支持查看的消息，请前往客户端查看]";
+  }
+  function isQuotable(m, wire) {
+    var ct = msgContentType(m);
+    if (ct !== 0 && ct !== 1 && ct !== 10001 && ct !== 12) return false;
+    return !(wire === "reference" && ct === 10001);
+  }
+  function quoteOf(m) {
+    try {
+      if (msgContentType(m) !== 12) return null;
+      var o = m.originMsg;
+      var seqId = "", preview = "";
+      if (o) {
+        try {
+          var raw = o.rawMsg || {};
+          if (raw.seqId !== void 0 && raw.seqId !== null) seqId = String(raw.seqId);
+        } catch (e1) {
+        }
+        preview = previewOfMessage(o) || "";
+      }
+      return {
+        seqId,
+        preview: String(preview).slice(0, 60),
+        text: String(typeof m.text === "string" ? m.text : msgTextOf(m))
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+  function quoteExtraOf(m) {
+    try {
+      if (msgContentType(m) !== 0) return null;
+      var extra = m.rawMsg && m.rawMsg.extra;
+      if (!extra) return null;
+      var q2 = (JSON.parse(new TextDecoder("utf-8").decode(new Uint8Array(extra))) || {})[QUOTE_EXTRA_KEY];
+      if (!q2 || typeof q2.text !== "string") return null;
+      return {
+        seqId: q2.seqId != null ? String(q2.seqId) : "",
+        preview: String(q2.preview || "").slice(0, 60),
+        text: q2.text
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+  function quoteWirePrefix(preview) {
+    return "[引用] " + (preview || "原消息");
+  }
+  function quoteWireText(preview, text) {
+    return quoteWirePrefix(preview) + "\n" + text;
+  }
+  function quoteWireTrimLen(contentText, q2) {
+    try {
+      var prefix = quoteWirePrefix(q2 && q2.preview);
+      var t = String(contentText == null ? "" : contentText);
+      if (t.indexOf(prefix) !== 0) return 0;
+      var rest = t.slice(prefix.length);
+      var ws = /^[\s\u00a0]+/.exec(rest);
+      var body = rest.slice(ws ? ws[0].length : 0);
+      return body === q2.text ? prefix.length + (ws ? ws[0].length : 0) : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+  function cmtShareOf(m) {
+    try {
+      if (msgContentType(m) !== 0) return null;
+      var extra = m.rawMsg && m.rawMsg.extra;
+      if (!extra) return null;
+      var q2 = (JSON.parse(new TextDecoder("utf-8").decode(new Uint8Array(extra))) || {})[CMT_EXTRA_KEY];
+      if (!q2 || typeof q2.content !== "string") return null;
+      return { ncid: q2.ncid != null ? String(q2.ncid) : "", content: q2.content };
+    } catch (e) {
+      return null;
+    }
+  }
+  function msgTextOf(m) {
+    try {
+      if (typeof m.text === "string" && m.text) return m.text;
+      if (typeof m.content === "string" && m.content) return m.content;
+      if (m.content && typeof m.content.text === "string") return m.content.text;
+      var raw = m.rawMsg || {};
+      if (typeof raw.content === "string" && raw.content) return raw.content;
+      if (raw.content && typeof raw.content.text === "string") return raw.content.text;
+    } catch (e) {
+    }
+    return degradeText(m);
+  }
+  var RE_EMOT_CODE = /\[emot=\S+?\/\]/g;
+  function plainPreview(s) {
+    return String(s).replace(RE_EMOT_CODE, "[表情]");
+  }
+  function previewOfMessage(m) {
+    try {
+      var card = parseCard(m);
+      if (card) {
+        var res = card.resourceBody[0] || {};
+        return "[作品卡片] " + String(res.title || card.prologue || "").slice(0, 30);
+      }
+      if (msgContentType(m) === 1) return "[图片]";
+      var q2 = quoteOf(m) || quoteExtraOf(m);
+      if (q2) return "[引用] " + plainPreview(q2.text).slice(0, 30);
+      var txt = plainPreview(msgTextOf(m));
+      var share = parseShare(txt);
+      if (share) {
+        return (isCommentShare(share.title) ? "[评论] " : "[分享] ") + (share.title ? plainPreview(share.title).slice(0, 30) : "推荐视频");
+      }
+      if (/https?:\/\/[^\s]*acfun\.cn/i.test(txt)) {
+        var first = (txt.split("\n")[0] || "").trim();
+        var title = /^https?:\/\//i.test(first) ? "" : first;
+        return "[视频] " + (title ? title.slice(0, 30) : "分享了一个视频");
+      }
+      return txt.slice(0, 40);
+    } catch (e) {
+      return "";
+    }
+  }
+
   // src/upload.js
   function gmPostJson(opts) {
     return gmRequest({
@@ -2250,183 +2432,6 @@
     box.appendChild(label);
     box.appendChild(x);
     return { box, label };
-  }
-
-  // src/immsg.js
-  function msgContentType(m) {
-    try {
-      return m.rawMsg && m.rawMsg.contentType || 0;
-    } catch (e) {
-      return 0;
-    }
-  }
-  function parseCard(m) {
-    try {
-      if (msgContentType(m) !== 10001) return null;
-      var buf = m.rawMsg && m.rawMsg.content;
-      if (!buf) return null;
-      var j = JSON.parse(new TextDecoder("utf-8").decode(buf));
-      if (!j || !Array.isArray(j.resourceBody) || !j.resourceBody.length) return null;
-      return j;
-    } catch (e) {
-      return null;
-    }
-  }
-  var RE_CMT_SHARE = /^@([^\n：]{1,40})：/;
-  function isCommentShare(title) {
-    return RE_CMT_SHARE.test(String(title || ""));
-  }
-  function commentShareAuthor(title) {
-    var m = RE_CMT_SHARE.exec(String(title || ""));
-    return m ? m[1] : "";
-  }
-  var RE_AC_URL = /https?:\/\/www\.acfun\.cn\/v\/ac(\d+)(?:\/?\?[^\s]*)?(?:#[^\s]*)?/i;
-  var RE_TAIL_PUNCT = /[\s.,;:!?)\]】」』。、！？；：]+$/;
-  var RE_HEAD_PUNCT = /^[\s.,;:!?(\[【「『。、！？；：]+/;
-  function parseShare(text) {
-    var t = String(text == null ? "" : text);
-    var m = RE_AC_URL.exec(t);
-    if (!m) return null;
-    var url = m[0].replace(RE_TAIL_PUNCT, "");
-    return {
-      title: t.slice(0, m.index).trim().slice(0, 400),
-      note: t.slice(m.index + m[0].length).replace(RE_HEAD_PUNCT, "").trim().slice(0, 300),
-      acId: m[1],
-      url
-    };
-  }
-  function pad2(n) {
-    return n < 10 ? "0" + n : "" + n;
-  }
-  function fmtDur(sec) {
-    var s = Math.round(Number(sec) || 0);
-    var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
-    return (h ? h + ":" + pad2(m) : String(m)) + ":" + pad2(s % 60);
-  }
-  function degradeText(m) {
-    try {
-      var raw = m.rawMsg || {};
-      if (typeof raw.backupTips === "string" && raw.backupTips) {
-        return raw.backupTips.replace(/<a[^>]*>/gi, " [").replace(/<\/a>/gi, "] ").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
-      }
-    } catch (e) {
-    }
-    return "[暂不支持查看的消息，请前往客户端查看]";
-  }
-  function isQuotable(m, wire) {
-    var ct = msgContentType(m);
-    if (ct !== 0 && ct !== 1 && ct !== 10001 && ct !== 12) return false;
-    return !(wire === "reference" && ct === 10001);
-  }
-  function quoteOf(m) {
-    try {
-      if (msgContentType(m) !== 12) return null;
-      var o = m.originMsg;
-      var seqId = "", preview = "";
-      if (o) {
-        try {
-          var raw = o.rawMsg || {};
-          if (raw.seqId !== void 0 && raw.seqId !== null) seqId = String(raw.seqId);
-        } catch (e1) {
-        }
-        preview = previewOfMessage(o) || "";
-      }
-      return {
-        seqId,
-        preview: String(preview).slice(0, 60),
-        text: String(typeof m.text === "string" ? m.text : msgTextOf(m))
-      };
-    } catch (e) {
-      return null;
-    }
-  }
-  function quoteExtraOf(m) {
-    try {
-      if (msgContentType(m) !== 0) return null;
-      var extra = m.rawMsg && m.rawMsg.extra;
-      if (!extra) return null;
-      var q2 = (JSON.parse(new TextDecoder("utf-8").decode(new Uint8Array(extra))) || {}).acsvQuote;
-      if (!q2 || typeof q2.text !== "string") return null;
-      return {
-        seqId: q2.seqId != null ? String(q2.seqId) : "",
-        preview: String(q2.preview || "").slice(0, 60),
-        text: q2.text
-      };
-    } catch (e) {
-      return null;
-    }
-  }
-  function quoteWirePrefix(preview) {
-    return "[引用] " + (preview || "原消息");
-  }
-  function quoteWireText(preview, text) {
-    return quoteWirePrefix(preview) + "\n" + text;
-  }
-  function quoteWireTrimLen(contentText, q2) {
-    try {
-      var prefix = quoteWirePrefix(q2 && q2.preview);
-      var t = String(contentText == null ? "" : contentText);
-      if (t.indexOf(prefix) !== 0) return 0;
-      var rest = t.slice(prefix.length);
-      var ws = /^[\s\u00a0]+/.exec(rest);
-      var body = rest.slice(ws ? ws[0].length : 0);
-      return body === q2.text ? prefix.length + (ws ? ws[0].length : 0) : 0;
-    } catch (e) {
-      return 0;
-    }
-  }
-  function cmtShareOf(m) {
-    try {
-      if (msgContentType(m) !== 0) return null;
-      var extra = m.rawMsg && m.rawMsg.extra;
-      if (!extra) return null;
-      var q2 = (JSON.parse(new TextDecoder("utf-8").decode(new Uint8Array(extra))) || {}).acsvCmt;
-      if (!q2 || typeof q2.content !== "string") return null;
-      return { ncid: q2.ncid != null ? String(q2.ncid) : "", content: q2.content };
-    } catch (e) {
-      return null;
-    }
-  }
-  function msgTextOf(m) {
-    try {
-      if (typeof m.text === "string" && m.text) return m.text;
-      if (typeof m.content === "string" && m.content) return m.content;
-      if (m.content && typeof m.content.text === "string") return m.content.text;
-      var raw = m.rawMsg || {};
-      if (typeof raw.content === "string" && raw.content) return raw.content;
-      if (raw.content && typeof raw.content.text === "string") return raw.content.text;
-    } catch (e) {
-    }
-    return degradeText(m);
-  }
-  var RE_EMOT_CODE = /\[emot=\S+?\/\]/g;
-  function plainPreview(s) {
-    return String(s).replace(RE_EMOT_CODE, "[表情]");
-  }
-  function previewOfMessage(m) {
-    try {
-      var card = parseCard(m);
-      if (card) {
-        var res = card.resourceBody[0] || {};
-        return "[作品卡片] " + String(res.title || card.prologue || "").slice(0, 30);
-      }
-      if (msgContentType(m) === 1) return "[图片]";
-      var q2 = quoteOf(m) || quoteExtraOf(m);
-      if (q2) return "[引用] " + plainPreview(q2.text).slice(0, 30);
-      var txt = plainPreview(msgTextOf(m));
-      var share = parseShare(txt);
-      if (share) {
-        return (isCommentShare(share.title) ? "[评论] " : "[分享] ") + (share.title ? plainPreview(share.title).slice(0, 30) : "推荐视频");
-      }
-      if (/https?:\/\/[^\s]*acfun\.cn/i.test(txt)) {
-        var first = (txt.split("\n")[0] || "").trim();
-        var title = /^https?:\/\//i.test(first) ? "" : first;
-        return "[视频] " + (title ? title.slice(0, 30) : "分享了一个视频");
-      }
-      return txt.slice(0, 40);
-    } catch (e) {
-      return "";
-    }
   }
 
   // src/imdrawer.js
@@ -3334,6 +3339,20 @@
       }, onFail);
     }, onFail);
   }
+  testHook("imDrawerSmoke", function() {
+    if (!root) setRoot(document.body);
+    ensureDrawerDom();
+    drawer.el.classList.add("open");
+    return {
+      drawerConnected: !!(drawer.el && drawer.el.isConnected),
+      drawerOpen: drawer.el.classList.contains("open"),
+      quoteChipIsNode: !!(drawer.quoteChip && drawer.quoteChip.box instanceof Element),
+      quoteChipInDrawer: !!(drawer.quoteChip && drawer.quoteChip.box && drawer.quoteChip.box.isConnected),
+      input: !!drawer.el.querySelector(".acsv-cinput-text"),
+      send: !!drawer.el.querySelector(".acsv-cinput-send"),
+      bubblesConnected: !!(drawer.bubbles && drawer.bubbles.isConnected)
+    };
+  });
   function openDrawer() {
     if (!isLogined()) {
       toast("私信需要先登录 AcFun 账号");
@@ -4188,9 +4207,9 @@
             if (!Txt || !Txt.create) throw new Error("text-msg-class-missing");
             var extra = null;
             try {
-              extra = new TextEncoder().encode(JSON.stringify({
-                acsvQuote: { seqId: quote.seqId || "", preview: quote.preview || "", text }
-              }));
+              var qExtra = {};
+              qExtra[QUOTE_EXTRA_KEY] = { seqId: quote.seqId || "", preview: quote.preview || "", text };
+              extra = new TextEncoder().encode(JSON.stringify(qExtra));
             } catch (e1) {
             }
             resolve(sendKernel(i, Txt.create({
@@ -4216,7 +4235,9 @@
           if (!Txt || !Txt.create) throw new Error("text-msg-class-missing");
           var extra = null;
           try {
-            extra = new TextEncoder().encode(JSON.stringify({ acsvCmt: payload }));
+            var cExtra = {};
+            cExtra[CMT_EXTRA_KEY] = payload;
+            extra = new TextEncoder().encode(JSON.stringify(cExtra));
           } catch (e1) {
           }
           resolve(sendKernel(i, Txt.create({
@@ -4591,7 +4612,7 @@
       ev.stopPropagation();
       var t = fw._target;
       openSharePanel(fw, {
-        title: "@" + t.name + "：" + ubbImText(t.content),
+        title: commentShareWire(t.name, ubbImText(t.content)),
         shareUrl: commentState.shareUrl + "#ncid=" + t.id,
         cmt: { ncid: t.id, content: t.content }
       }, {
@@ -7425,7 +7446,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.58：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.59：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

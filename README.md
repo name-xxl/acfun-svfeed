@@ -164,6 +164,23 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.59（2026-10-01）· 全链总览整改：wire/extra 收口 + 依赖图对齐 + 私信抽屉冒烟场景
+
+- **wire 拼装收口**（immsg）：评论转发 wire 新增 `commentShareWire(name, text)` 单源
+  组装——首行「@作者：」形态即 `isCommentShare`/`commentShareAuthor` 的检测契约，此前
+  拼装散在 comments.js，改格式会让检测静默失配（卡片无提示退化，quoteWireText 同款
+  先例）；单测钉死「组装→检测→拆作者」往返。
+- **extra 载荷 key 常量化**（immsg 属地）：`QUOTE_EXTRA_KEY`/`CMT_EXTRA_KEY` 替代
+  发送（imshare sendQuote/sendCmtShare）与解析（quoteExtraOf/cmtShareOf）四处字面量
+  ——两处硬编码时 typo 即静默丢载荷。
+- **依赖图对齐**：补 0.9.50/0.9.55/0.9.57 新增的 7 条 import 边（comments→state/
+  imicons/imshare，imnative→imshare/emoticon/ubb/imgview）；`ubb` 节点与模块职责表补
+  IM wire/引用富正文职责描述。
+- **新 harness 场景 `im-open`**（0.9.49 quoteChip 回归教训落地）：dm-smoke 实为弹幕
+  画布冒烟，私信抽屉此前零覆盖。imdrawer 新增 `imDrawerSmoke` 模拟缝（绕登录门槛直建
+  抽屉 DOM，harness 最小页无 player 时 root 兜底 setRoot），断言骨架可建可开、
+  quoteChip 是真实元素节点、输入栏/气泡容器在场。15→16 场景。
+
 ### 0.9.58（2026-10-01）· 评论转发链路复查抛光（注释/可读性，无行为变化）
 
 - 复查 0.9.55→0.9.57（三键字码统一 + 原生页富渲染）：结构符合设计语言、无新增热路径
@@ -1134,7 +1151,7 @@ npm test             # immsg/ubb 单测 + 无头 harness 全场景（需先 npx 
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`fmt`/`toast`/剪贴板/样式注入等工具 |
 | `interact.js` | 真实点赞/关注（api_st → interact 接口）；收藏/投蕉转发 AppAPI |
 | `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出） |
-| `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[at]/[resource]/[img]/[color] 逐一白名单放行 |
+| `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[at]/[resource]/[img]/[color] 逐一白名单放行；IM wire 文本投影（ubbImText）与引用块富正文（ubbQuoteHtml）单源 |
 | `emoticon.js` | 表情包服务 + 面板 + 输入栏表情按钮挂载（localStorage 缓存优先、最近使用、分包 tab） |
 | `imgview.js` | 配图大图查看器（评论/私信共用；root 单例浮层、Esc 模态） |
 | `inputbar.js` | 抽屉输入栏 builder（评论/私信共用：表情/图片按钮、自动增高、Enter/Esc；差异语义参数注入） |
@@ -1157,7 +1174,7 @@ npm test             # immsg/ubb 单测 + 无头 harness 全场景（需先 npx 
 | `imshare.js` | 私信基建：ImSdk 加载器（源码补丁 + Blob 执行）、连接/发送确认（轮询式恢复链）、内核直发（引用/图片消息，clientSeqId 对账）、图片字节拉取（midground 令牌 + LRU 缓存/并发限 3/在飞去重）、用户卡片、分享面板 |
 | `imdrawer.js` | 私信抽屉（列表/聊天两视图、乐观气泡、未读徽标、消息引用双 wire、表情/图片收发渲染）；分享消息卡片化（dougaCard 拉详情原位补全） |
 | `imnative.js` | 原生私信页增强（message.acfun.cn）：占位替换（10001 卡，unsafeWindow 读页面内核）+ 分享卡 + 引用消息渲染（去重加固）+ Shadow DOM 隔离 |
-| `immsg.js` | 私信消息共享解析层（parseCard/parseShare 容忍式契约、引用解析 quoteOf/quoteExtraOf/isQuotable、预览映射/降级文案），双端渲染器各自消费 |
+| `immsg.js` | 私信消息共享解析层（parseCard/parseShare 容忍式契约、引用解析 quoteOf/quoteExtraOf/isQuotable、评论转发 wire 组装与识别/拆分、extra 载荷 key 常量、预览映射/降级文案），双端渲染器各自消费 |
 | `imicons.js` | 站点原生图标登记表（CDN SVG + 字形码点，双端共享） |
 | `boot.js` | 启动入口（构建 entry） |
 
@@ -1192,7 +1209,7 @@ flowchart LR
     player["player.js（编排）"]
     feedstore["feedstore.js（流仓库）"]
     pb["playback.js"]
-    ubb["ubb.js（评论 UBB）"]
+    ubb["ubb.js（UBB：评论渲染/IM wire/引用富正文）"]
     emoticon["emoticon.js（表情）"]
     others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · interact · report · uppage · nav · upload"]
   end
@@ -1221,10 +1238,10 @@ flowchart LR
   session --> api & hls
   pb --> feedstore
   feedstore --> api & state & player
-  comments --> ubb & emoticon & inputbar & imgview & appapi & net & upload
+  comments --> ubb & emoticon & inputbar & imgview & appapi & net & upload & state & imicons & imshare
   interact --> appapi
   imdrawer --> imshare & immsg & imicons & appapi & emoticon & inputbar & imgview & comments
-  imnative --> immsg & imicons & appapi
+  imnative --> immsg & imicons & appapi & imshare & emoticon & ubb & imgview
   imshare --> appapi & imdrawer & immsg
 
   classDef leaf fill:#e8f5e9,stroke:#2e7d32;

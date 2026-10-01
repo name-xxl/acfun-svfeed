@@ -21,6 +21,11 @@ export function parseCard(m) {
   } catch (e) { return null; }
 }
 
+// extra 载荷 key 单源（0.9.59）：发送构造（imshare）与解析（quoteExtraOf/cmtShareOf）
+// 共用——字符串两处硬编码时 typo 即静默丢载荷
+export var QUOTE_EXTRA_KEY = 'acsvQuote';
+export var CMT_EXTRA_KEY = 'acsvCmt';
+
 // ---------- 评论转发识别（0.9.51，评论转发私信专属卡片的分流通约） ----------
 // 发送侧（comments 转发委托）wire 首行为「@作者：」，与手打视频分享（标题\n链接）只差
 // 首行形态——此前不加区分地走视频分享卡，评论内容进了标题槽后被 dougaCard enrich 的
@@ -36,6 +41,12 @@ export function isCommentShare(title) {
 export function commentShareAuthor(title) {
   var m = RE_CMT_SHARE.exec(String(title || ''));
   return m ? m[1] : '';
+}
+// 评论转发 wire 组装（0.9.59 收口）：发送侧唯一拼装处——首行「@作者：」形态即上方
+// 检测/拆分的契约来源，此前拼装散在 comments.js，改格式会静默失配（quoteWireText
+// 同款先例）。作者名含全角冒号/超 40 字不在此拦（检测回落视频卡是既有容错）
+export function commentShareWire(name, text) {
+  return '@' + (name || '') + '：' + (text || '');
 }
 
 // 脚本端分享文本（imshare 发送格式：标题行\n推荐链 URL）→ {title, note, acId, url}。
@@ -130,7 +141,7 @@ export function quoteExtraOf(m) {
     if (msgContentType(m) !== 0) return null;
     var extra = m.rawMsg && m.rawMsg.extra;
     if (!extra) return null;
-    var q = (JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(extra))) || {}).acsvQuote;
+    var q = (JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(extra))) || {})[QUOTE_EXTRA_KEY];
     if (!q || typeof q.text !== 'string') return null;
     return {
       seqId: q.seqId != null ? String(q.seqId) : '',
@@ -174,7 +185,7 @@ export function cmtShareOf(m) {
     if (msgContentType(m) !== 0) return null;
     var extra = m.rawMsg && m.rawMsg.extra;
     if (!extra) return null;
-    var q = (JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(extra))) || {}).acsvCmt;
+    var q = (JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(extra))) || {})[CMT_EXTRA_KEY];
     if (!q || typeof q.content !== 'string') return null;
     return { ncid: q.ncid != null ? String(q.ncid) : '', content: q.content };
   } catch (e) { return null; }

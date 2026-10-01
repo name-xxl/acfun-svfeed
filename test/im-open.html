@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>AcFun 竖滑页 - 私信抽屉开启冒烟</title>
+<style>
+  body { margin: 0; font: 14px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f5f5; }
+  pre { padding: 12px 20px; color: #333; }
+</style>
+</head>
+<body>
+<pre id="out">waiting…</pre>
+<!-- 调试构建：testHook 模拟缝可用 -->
+<script src="../acfun-svfeed.debug.user.js"></script>
+<script>
+  // ============ 私信抽屉开启冒烟（0.9.49 quoteChip 回归教训的哨兵场景） ============
+  // imdrawer.imDrawerSmoke 模拟缝绕过登录门槛直建抽屉 DOM；本页只做断言记录。
+  // 覆盖：骨架可建可开、quoteChip 是真实元素节点（工厂返回对象漏 .box 的同族回归）、
+  // 输入栏/气泡容器在场。
+  window.__IM_RESULTS__ = { case: 'im-open', results: [], done: false };
+  function rec(name, pass, info) {
+    window.__IM_RESULTS__.results.push({ name: name, pass: !!pass, info: info == null ? '' : String(info) });
+  }
+  var pre = document.getElementById('out');
+  setInterval(function () {
+    var r = window.__IM_RESULTS__;
+    pre.textContent = r.results.map(function (x) {
+      return (x.pass ? 'PASS' : 'FAIL') + '  ' + x.name + (x.info ? '  (' + x.info + ')' : '');
+    }).join('\n') + '\n' + (r.done ? 'done' : 'running…');
+  }, 300);
+
+  var t0 = Date.now();
+  (function boot() {
+    if (!window.__ACSV_TEST__) {
+      if (Date.now() - t0 > 15000) { rec('env', false, 'bundle 未就绪'); window.__IM_RESULTS__.done = true; return; }
+      return setTimeout(boot, 100);
+    }
+    try { run(); } catch (e) {
+      rec('执行异常', false, e && e.message);
+      window.__IM_RESULTS__.done = true;
+    }
+  })();
+
+  function run() {
+    var s = window.__ACSV_TEST__.call('imDrawerSmoke');
+    if (!s) { rec('模拟缝', false, 'imDrawerSmoke hook 缺失'); window.__IM_RESULTS__.done = true; return; }
+    rec('模拟缝', true);
+    rec('抽屉 DOM 已挂载且 open', s.drawerConnected && s.drawerOpen, 'open=' + s.drawerOpen);
+    rec('quoteChip 是真实元素节点（0.9.49 回归哨兵）', s.quoteChipIsNode);
+    rec('quoteChip 在抽屉内', s.quoteChipInDrawer);
+    rec('输入框/发送键在场', s.input && s.send);
+    rec('气泡容器已挂载', s.bubblesConnected);
+    window.__IM_RESULTS__.done = true;
+  }
+</script>
+</body>
+</html>

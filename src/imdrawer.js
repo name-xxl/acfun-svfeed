@@ -1,6 +1,7 @@
 import { CFG } from './cfg.js';
 import { el, esc, toast, cookieVal } from './ui.js';
-import { root, claimDrawer, releaseDrawer } from './state.js';
+import { root, claimDrawer, releaseDrawer, setRoot } from './state.js';
+import { testHook } from './dbg.js';
 import {
   ensureIm, ensureConnected, ensureTracer, linkOk, forceSync,
   doSend, sendQuote, sendImage, fetchImImageBlob, fetchCards, isLogined, imShutdown,
@@ -885,6 +886,22 @@ function sendChat(text) {
 }
 
 // ---------- 开关与徽标 ----------
+// 模拟缝（harness im-open 冒烟，0.9.49 quoteChip 回归教训）：绕过登录门槛直验「抽屉 DOM
+// 骨架可建可开」——quoteChip 必须是真实元素节点（工厂返回对象漏 .box 的同族回归在此拦截）
+testHook('imDrawerSmoke', function () {
+  if (!root) setRoot(document.body); // harness 最小页无 player 挂载，root 兜底（仅调试构建可达）
+  ensureDrawerDom();
+  drawer.el.classList.add('open');
+  return {
+    drawerConnected: !!(drawer.el && drawer.el.isConnected),
+    drawerOpen: drawer.el.classList.contains('open'),
+    quoteChipIsNode: !!(drawer.quoteChip && drawer.quoteChip.box instanceof Element),
+    quoteChipInDrawer: !!(drawer.quoteChip && drawer.quoteChip.box && drawer.quoteChip.box.isConnected),
+    input: !!drawer.el.querySelector('.acsv-cinput-text'),
+    send: !!drawer.el.querySelector('.acsv-cinput-send'),
+    bubblesConnected: !!(drawer.bubbles && drawer.bubbles.isConnected)
+  };
+});
 // 抽屉槽位（state.js 协调）：开前 claim 占槽（评论抽屉开着则被自动收回），关时 release；
 // 视频避让根类由 syncCommentVars 按 currentDrawer() 统一裁决
 export function openDrawer() {

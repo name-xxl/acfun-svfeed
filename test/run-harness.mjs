@@ -56,6 +56,11 @@ const CASES = HARNESS_CASES.map(function (c) {
   name: 'dm-smoke',
   url: '/test/dm-smoke.html',
   key: '__DM_RESULTS__'
+}, {
+  // im-open 私信抽屉开启冒烟（debug 构建 testHook 模拟缝）：0.9.49 quoteChip 回归哨兵
+  name: 'im-open',
+  url: '/test/im-open.html',
+  key: '__IM_RESULTS__'
 }]).filter(function (c) {
   return !ONLY.length || ONLY.indexOf(c.name) >= 0;
 });
