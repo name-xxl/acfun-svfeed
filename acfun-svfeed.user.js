@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.43
+// @version      0.9.44
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -137,7 +137,6 @@
       defaultAvatar: "https://imgs.aixifan.com/style/image/defaultAvatar.jpg",
       logoSvg: "https://ali-imgs.acfun.cn/kos/nlav10360/static/common/widget/header/img/acfunlogo.11a9841251f31e1a3316.svg",
       // ---- APP 家族接口（api-new.app.acfun.cn，免登录读 + 域 Cookie 写） ----
-      appBase: "https://api-new.app.acfun.cn/rest/app",
       homeFeed: "https://api-new.app.acfun.cn/rest/app/selection/feed",
       dougaInfo: "https://api-new.app.acfun.cn/rest/app/douga/info",
       playInfo: "https://api-new.app.acfun.cn/rest/app/play/playInfo/cast",
@@ -209,10 +208,8 @@
       def: "avc",
       suffix: "·HEVC",
       // HEVC 档 label 后缀（纯 H.264 视频不加，避免视觉噪音）
-      reHevc: /hevc|hvc1|hev1|h265/i,
-      // 嗅探 HEVC（h265 要求 h 前缀，防误伤 1080p_2650 之类码率数字）
-      reAvc: /h264|avc1|avc3/i
-      // 嗅探 H.264（仅确证用，未命中按 avc 推断）
+      reHevc: /hevc|hvc1|hev1|h265/i
+      // 嗅探 HEVC（h265 要求 h 前缀，防误伤 1080p_2650 之类码率数字）；未命中按 avc 推断
     },
     // 缓冲档位（推荐模式 hls.js 构造参数）。maxBufferSize 单位是字节
     // （0.9.1 前误写 120 当 MB，实为 120 字节，被 maxBufferLength 的时间上限掩盖）。
@@ -250,7 +247,7 @@
       watchReportMin: 3,
       // 观看历史上报门槛：离开时进度达到该秒数才计入历史（过滤闪滑）
       watchReport: 1e4
-      // 首报兜底：播到该毫秒数先保底入史（关标签页时离开上报送不出去）
+      // 首报兜底：playing 后墙钟 10s 先保底入史（关标签页时离开上报送不出去）
     },
     nav: { labels: ["首页", "番剧", "直播", "文章区", "鱼塘"], tries: 20, retryMs: 500 },
     io: { ratio: 0.6 },
@@ -1085,7 +1082,7 @@
         return (json && json.meowFeed || []).map(normalize);
       });
     },
-    // 小视频单条详情（深链置顶用，home 模式不走）
+    // 小视频单条详情（深链置顶/空间页泵入/最热统计共用，home 模式不走）
     info: function(mid) {
       var mock = mockData();
       if (mock && mock.feed) {
@@ -1443,7 +1440,7 @@
       var albumLi = tagsUl.querySelector('li[data-index="album"]');
       var siteSortSpan = tagsUl.querySelector("#ac-space-contribute-sort");
       var siteSortLi = siteSortSpan ? siteSortSpan.closest("li") : null;
-      var li = el("li", null, "小视频<span>0</span>");
+      var li = elHtml("li", null, "小视频<span>0</span>");
       li.dataset.index = "svideo";
       li.title = "该 UP 主的小视频";
       var panel = el("div", "tag-content");
@@ -3655,7 +3652,7 @@
         return;
       }
       stat("stall.tailReattach");
-      S.resumeAt = video.currentTime;
+      S.slide._resumeAt = video.currentTime;
       S.hooks.reattach(S);
     }
     function canAutoQ() {
@@ -7053,7 +7050,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.43：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.44：分享卡走 DOM-only，内核探活中");
     watch();
     var n = 0;
     (function waitKernel() {

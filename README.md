@@ -32,11 +32,11 @@
 | 悬停画面底部 | 浮出播放控制栏：可拖动进度条（带时间气泡）、播放/暂停、时间、连播、倍速、静音、全屏；鼠标静止 2.5 秒自动淡出 |
 | 连播开关 | 开：播完自动下一条；关（默认）：单条循环 |
 | 倍速按钮 | 0.5x → 1.0x → 1.5x → 2.0x 循环切换 |
-| 评论按钮 / C 键 | 展开右侧评论抽屉：真实评论列表（头像、UP 徽章、嵌套回复、**评论点赞**），头像和昵称可点击进入用户主页；切视频自动刷新，分页加载更多；Esc 先关抽屉再退出。**UBB 富文本**：表情、`[img]` 配图、`[color=#hex]` 着色均正常渲染；配图可**点击看大图**（点任意处/Esc 关闭）；**评论正文可划选复制**（右键原生复制）。**展开时视频画面等比缩放到剩余空间**（不裁画面，弹幕随画面），界面控件不缩放——底栏钉底收窄宽度，侧栏/顶栏按钮原尺寸左移避让；竖屏等满高可容的画面只平移不缩放（保持原始大小居中于剩余区域），窗口过窄（剩余空间 <50% 视口）时改纯覆盖：视频原尺寸继续播，抽屉近乎全遮，关闭即恢复 |
+| 评论按钮 / C 键 | 展开右侧评论抽屉：真实评论列表（头像、UP 徽章、嵌套回复），头像和昵称可点击进入用户主页；切视频自动刷新，分页加载更多。**互动按源门控**：推荐模式可用底部输入栏**发表评论/回复/表情/插配图**、评论可**点赞**；小视频模式纯浏览（输入栏隐藏、点赞仅展示）。Esc 关闭顺序：大图查看器 → 抽屉 → 退出。**UBB 富文本**：表情、`[img]` 配图、`[color=#hex]` 着色均正常渲染；配图可**点击看大图**（点任意处/Esc 关闭）；**评论正文可划选复制**（右键原生复制）。**展开时视频画面等比缩放到剩余空间**（不裁画面，弹幕随画面），界面控件不缩放——底栏钉底收窄宽度，侧栏/顶栏按钮原尺寸左移避让；竖屏等满高可容的画面只平移不缩放（保持原始大小居中于剩余区域），窗口过窄（剩余空间 <50% 视口）时改纯覆盖：视频原尺寸继续播，抽屉近乎全遮，关闭即恢复 |
 | 右侧红心 | **真实点赞**：登录 A 站后直接生效（自动换取 api_st 令牌调互动接口）；未登录回退本地状态并提示 |
 | 头像角标 +/✓ | **真实关注 / 取消关注** UP 主（需登录） |
 | 分享 | **抖音式私信分享面板**：列出最近联系人（头像/昵称/未读数，可搜索），点「分享」直接把 `标题+链接` 发进对方私信；发送成功后按钮转「捎句话」，点击直达与该联系人的聊天；底部保留「复制链接」「消息中心」。需登录 A 站（走官方 ImSdk 私信通道，加载/连接失败自动降级为复制链接） |
-| 顶栏信封（私信） | **私信抽屉**：列表（联系人/未读/相对时间/搜索）↔ 聊天（气泡/**时间分割线**/**作品卡片**（封面/计数/时长，点击跳视频；自己发出的 `标题+链接` 分享消息同样渲染为卡片）/发送/失败点击重试/已读上报；自己气泡深蓝灰不刺眼）两视图；与评论抽屉**并存**可同时展开（state.js 槽位协调）；Esc 逐层关：私信 → 收起浮条 → 评论 → 退出 |
+| 顶栏信封（私信） | **私信抽屉**：列表（联系人/未读/相对时间/搜索）↔ 聊天（气泡/**时间分割线**/**作品卡片**（封面/计数/时长，点击跳视频；自己发出的 `标题+链接` 分享消息同样渲染为卡片）/发送/失败点击重试/已读上报/**消息引用**（hover 引用按钮 → 引用 chip，摘要条点击定位高亮）/**表情收发**/**图片消息**（即拍即发、点击看大图）；自己气泡深蓝灰不刺眼）两视图；与评论抽屉**同槽互斥**（state.js 槽位协调：开一方自动收回另一方）；Esc 逐层关：大图查看器 → 当前抽屉 → 退出 |
 | 打开 message.acfun.cn 私信 | **原生私信页自动增强**（装脚本即生效）：「不支持查看此消息」占位原位替换为 10001 作品卡；脚本分享消息渲染为紧凑作品卡（限宽 228px、封面裁切，原文只留附言）；引用消息补灰色摘要条并把正文剥成纯回复（与抽屉同观感，不再双份摘要）；会话列表预览改写「[分享] 标题」 |
 
 ### 推荐模式（顶栏「小视频 | 推荐」切换，选择记忆）
@@ -81,9 +81,10 @@
   `GET https://www.acfun.cn/rest/pc-direct/comment/list?sourceId=<meowId>&sourceType=5`（评论列表，
   小视频在通用评论系统里的 sourceType 是 5，免登录；评论头像 headUrl 是 `[{cdn,url}]` 数组）。
   优先走 `GM_xmlhttpRequest`，未授权时回退 `fetch`。
-- 操作栏图标：赞/蕉/藏为内置 SVG，颜色由 CSS 控制——未激活白色（同评论/分享），
-  点赞/收藏激活后 A 站红（`--acsv-accent`），投过蕉锁定蕉黄；评论/分享取自 AcFun
-  小视频页面自带资源（ali-imgs CDN 的 PNG，加载失败自动回退到内置 SVG）。
+- 操作栏图标：推荐模式的赞/藏/蕉用视频页原生图标做 CSS mask（借形状换色：未激活白色 →
+  激活 A 站红 `--acsv-accent`，投过蕉锁定蕉黄）；小视频模式的赞用小视频站原生 PNG。
+  评论/分享取自 AcFun 小视频页面自带资源（ali-imgs CDN 的 PNG）。内置 SVG 仅为
+  CDN 资源加载失败时的回退。
 - feedList 是随机推荐池（无翻页 cursor，m 站"下一条"也是同一接口、每批 5 条），脚本内按 `meowId`
   去重后拼接成无限流；刷新页面时若地址带 `#svfeed/<meowId>` 则先加载该条，否则重新随机。
 - 视频直链带签名（约 7 天有效），播放失败时自动换备用 CDN → 刷新详情 → 手动重试。
@@ -161,6 +162,24 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 环境级（GPU/驱动/Chromium 版本），脚本无责收尾。
 
 ## 更新日志
+
+### 0.9.44（2026-10-01）· 全库注释/文档对齐 + 两处顺手修复
+
+- **空间页徽标修复**：0.9.36 `el()` 改 textContent 语义的漏网点——「小视频」标签的 HTML 串
+  被当纯文本（字面显示 `小视频<span>0</span>`），且计数 span 选择器恒空、标签页徽标总数失效；
+  改走 `elHtml()`（uppage.js）。
+- **恢复链末级重挂丢进度修复**：看门狗阶梯走到 tailReattach（锁档/到底档场景）时进度写进了
+  旧会话对象，而 attachVideo 只认 `slide._resumeAt` 传输槽位 → 重挂后从头播放；改写槽位
+  （session.js）。
+- **死码清理**：danmaku.rebind（零调用，图层重建由 dispose+onPlaying 覆盖）、cfg.codec.reAvc、
+  cfg.api.appBase（零消费）。
+- **src 注释全库校对**（43 模块逐文件通读）：attach.js 契约总表六组读写方按 grep 实证修正、
+  抽屉骨架/委托挂载点归属 slide.js、弹幕发送框常驻语义、hls.js 内嵌主路径、appapi 读写接口
+  收口表述、exp 开关补 native 键等约 20 处；imgview/emoticon 抽离的版本归属统一为 0.9.41
+  （inputbar.js 头注释自证 + 更新日志，源码三处 0.9.40 系笔误）。
+- **README 校对**：私信/评论抽屉同槽互斥（「并存」系 0.9.19 前旧表述）、Esc 关闭链更正、
+  私信能力清单补引用/表情/图片、评论互动按源门控表述、操作栏图标 mask 方案、依赖图补
+  `imshare→immsg`/`comments→upload` 边、模块职责表补全 11 个播放层文件、npm scripts 描述。
 
 ### 0.9.43（2026-09-30）· 原生页引用去重加固 + 自证日志
 
@@ -862,10 +881,10 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 源码按模块拆在 `src/`（ES 模块），构建打包成单文件油猴脚本：
 
 ```
-npm install          # 安装 esbuild + playwright（仅开发依赖）
+npm install          # 安装开发依赖（esbuild/eslint/playwright）与 hls.js（运行时依赖，构建期内嵌进产物）
 npm run build        # 产出 acfun-svfeed.user.js + acfun-svfeed.debug.user.js
 npm run watch        # 监听 src/ 变更自动重建
-npm test             # immsg 单测 + 无头 harness 全场景（需先 npx playwright install chromium，
+npm test             # immsg/ubb 单测 + 无头 harness 全场景（需先 npx playwright install chromium，
                      #   没装时本机自动回退系统 Edge）
 ```
 
@@ -891,7 +910,17 @@ npm test             # immsg 单测 + 无头 harness 全场景（需先 npx play
 | `hls.js` | hls.js 懒加载（GM_xhr 拉文本 + Function 执行，Safari 原生 HLS 探测） |
 | `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐） |
 | `danmaku.js` | 弹幕编排：列表拉取/缓存、开关记忆、绑定/解绑 slide、发送输入条 |
-| `player.js` | 播放器：slide 构建、控制栏（双形态）、懒解析挂载、清晰度切换、顶栏源切换、键盘、挂载/卸载 |
+| `player.js` | 播放器编排层：renderWindow 窗口扫描、setActive、顶栏源切换、挂载/卸载、SESSION_HOOKS 注入、观看历史触发 |
+| `session.js` | 播放会话：video 生命周期/懒解析等待/hls 实例与锁档/错误恢复链（换 CDN→重解析→重挂）/HealthMonitor（冻结/慢放检测与恢复阶梯），dispose 一次拆净 |
+| `attach.js` | 重挂统一入口 attachVideo + switchQuality；slide._xxx 与 dataset 投影的跨模块契约总表（唯一登记点） |
+| `playback.js` | 播放/声音原语与手势：播放/暂停/静音手势合并实现、_userPaused 暂停意图、幽灵音频清扫 |
+| `controls.js` | 控制栏：进度条（拖动/时间气泡）、清晰度/编码/缓冲菜单（buildMenu）、连播/倍速/静音/全屏、前向邻位重建 |
+| `rail.js` | 右侧操作栏（赞/蕉/藏/评/分享/关注）：乐观更新+失败回滚、原生图标 CSS mask 换色、计数回填钩子、分享面板入口 |
+| `slide.js` | buildSlide/buildDrawer：slide 骨架与评论抽屉骨架（commentDrawer 赋值点）、scroll 归零防护 |
+| `input.js` | 键盘/滚轮：翻页、快进快退、长按 2x、Esc 优先级链（大图查看器→抽屉→退出）、幽灵视频扫描 |
+| `report.js` | 观看历史上报（weblog CLICK 管道）：离开时上报最终进度 + 10s 首报兜底、同秒位去重 |
+| `prewarm.js` | 预热：索引稳定 500ms 后预解析 cur+1/2、媒体域动态 preconnect（上限 6 + 静态种子） |
+| `dbg.js` | 调试埋点（仅 debug 构建存活）：stat 计数、testHook、`acsv-stats` localStorage 镜像 |
 | `nav.js` / `uppage.js` | 导航入口注入；UP 主空间页小视频标签 |
 | `imshare.js` | 私信基建：ImSdk 加载器（源码补丁 + Blob 执行）、连接/发送确认（轮询式恢复链）、内核直发（引用/图片消息，clientSeqId 对账）、图片字节拉取（midground 令牌）、用户卡片、分享面板 |
 | `imdrawer.js` | 私信抽屉（列表/聊天两视图、乐观气泡、未读徽标、消息引用双 wire、表情/图片收发渲染）；分享消息卡片化（dougaCard 拉详情原位补全） |
@@ -933,7 +962,7 @@ flowchart LR
     pb["playback.js"]
     ubb["ubb.js（评论 UBB）"]
     emoticon["emoticon.js（表情）"]
-    others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · comments · interact · report · uppage · nav · upload"]
+    others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · interact · report · uppage · nav · upload"]
   end
 
   subgraph im["私信层"]
@@ -960,18 +989,19 @@ flowchart LR
   session --> api & hls
   pb --> feedstore
   feedstore --> api & state & player
-  comments --> ubb & emoticon & inputbar & imgview & appapi & net
+  comments --> ubb & emoticon & inputbar & imgview & appapi & net & upload
   interact --> appapi
   imdrawer --> imshare & immsg & imicons & appapi & emoticon & inputbar & imgview & comments
   imnative --> immsg & imicons & appapi
-  imshare --> appapi & imdrawer
+  imshare --> appapi & imdrawer & immsg
 
   classDef leaf fill:#e8f5e9,stroke:#2e7d32;
   class immsg,imicons leaf;
 ```
 
-绿色两个节点是刻意的解耦点：`immsg.js`/`imicons.js` 零 import，双端渲染器各自消费，
-私信格式变更只改解析层一处（新格式渲染需两端各加分支，见 `imnative.js` 头注释）。
+绿色两个节点是刻意的解耦点：`immsg.js`/`imicons.js` 零 import，渲染方各自消费
+（`immsg` 现为 imdrawer/imnative/imshare 三方），私信格式变更只改解析层一处
+（新格式渲染需各端各加分支，见 `imnative.js` 头注释）。
 0.9.41 起评论/私信的**输入栏（`inputbar.js`）与大图查看器（`imgview.js`）**同为共用件，
 两抽屉观感/行为单一来源。
 `player.js → attach.js → session.js` 的反向回调（qualitySwitch/reattach）不走 import，
