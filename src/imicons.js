@@ -2,7 +2,8 @@
 // 收录自实际页面提取并经视觉核对的 A 站原生图标。新页面发现新图标：登记进来，两端直接取用。
 //
 // ICON_SVGS：CDN SVG 资产（配合 CSS mask + currentColor 可任意着色，明暗主题通用）。
-// GLYPHS：acfun-frontend-next 字形码点（字体仅部分页面真正加载，用前需确认/注入 @font-face）。
+// GLYPHS：acfun-frontend-next 字形码点（www 页抽屉字体由 styles @font-face 统一注入
+// ——0.9.55，码点需与该字体实际字形核对；原生页官方自带同字体）。
 //
 // 注意：message(e15e) 是站点头部的「消息」图标，不是评论计数图标——评论计数用
 // ICON_SVGS.comment（0.9.23 误用教训）。计数字形码点从 list201/list60 实际使用提取。

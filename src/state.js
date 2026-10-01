@@ -1,6 +1,7 @@
 // ---------- 共享 UI 单例状态 ----------
 // root/scroller 由 player 挂载/卸载时赋值，commentDrawer 由 slide.js 建抽屉骨架时赋值
-// （player 卸载时置空）；comments/ui 只读。
+// （player 卸载时置空）；comments/ui 只读。0.9.57 起原生私信页 boot 也 setRoot(document.body)
+// （imgview 挂载点，原生页无 player）。
 // 单独成模块是为了让只读方不必反向 import player（避免无谓的循环依赖）。
 export var root = null;
 export var scroller = null;

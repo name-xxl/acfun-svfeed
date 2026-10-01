@@ -214,6 +214,7 @@ function toggleCommentLike(like) {
       if (ok) return;
       c.localLike = !on; // 失败回滚
       like.classList.toggle('on', !on);
+      // 恢复切换前状态的字形（on 是本次切换的目标态，故与乐观分支取值相反）
       like._g.textContent = on ? GLYPHS.feedLike : GLYPHS.feedLikeFill;
       like._n.textContent = fmt(c.likeCount || 0);
       toast('操作失败（未登录？）');
