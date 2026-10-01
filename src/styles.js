@@ -3,6 +3,12 @@ import { CFG } from './cfg.js';
 
 // RAW_CSS 里主题色一律写 #fd4c5d 占位，导出时统一替换为 CSS 变量（换肤只改 cfg.accent）
 var RAW_CSS = ''
+  // A 站原生 iconfont（acfun-frontend-next）：动态页等站内页面同款字体（src 取自
+  // member/feeds 页面样式，0.9.55），小视频/推荐页不加载，抽屉内自注入；码点登记在
+  // imicons.GLYPHS。同域 ali-imgs CDN，woff 失败走 ttf 兜底
+  + '@font-face{font-family:acfun-frontend-next;'
+  + 'src:url(//ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.90fc2dfc.woff) format("woff"),'
+  + 'url(//ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.bdc44d05.ttf) format("truetype")}'
   + '#acsv-root{position:fixed;inset:0;z-index:2147483000;background:#000;color:#fff;'
   + 'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;user-select:none}'
   + '.acsv-root *{box-sizing:border-box;margin:0;padding:0}'
@@ -161,8 +167,11 @@ var RAW_CSS = ''
   + '.acsv-cmeta{font-size:12px;color:#7a7f8a;margin-top:6px;display:flex;gap:12px;align-items:center}'
   + '.acsv-clike{display:inline-flex;align-items:center;gap:3px;color:#7a7f8a}'
   // 原生形状走 mask（currentColor 染色），回退手绘 svg 走 fill:currentColor，状态色统一由容器 color 驱动
-  + '.acsv-clike svg,.acsv-creplybtn svg{width:12px;height:12px;fill:currentColor}'
-  + '.acsv-clike .acsvg-cicon,.acsv-creplybtn .acsvg-cicon{width:12px;height:12px}'
+  + '.acsv-clike svg,.acsv-creplybtn svg,.acsv-cfwdbtn svg{width:12px;height:12px;fill:currentColor}'
+  + '.acsv-clike .acsvg-cicon,.acsv-creplybtn .acsvg-cicon,.acsv-cfwdbtn .acsvg-cicon{width:12px;height:12px}'
+  // iconfont 字形图标（imicons.GLYPHS）：currentColor 跟随容器状态色，13px 与 12px svg 视觉等高
+  + '.acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-size:13px;'
+  + 'line-height:1;color:currentColor}'
   + '.acsv-csub{margin:8px 0 2px;padding:4px 12px;background:rgba(255,255,255,.05);border-radius:10px}'
   + '.acsv-csub .acsv-citem{padding:8px 0}'
   + '.acsv-csub .acsv-citem:hover{background:none}'

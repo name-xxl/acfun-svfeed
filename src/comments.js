@@ -2,6 +2,7 @@ import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { el, fmt, toast } from './ui.js';
 import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
+import { GLYPHS } from './imicons.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
 import { AppAPI } from './appapi.js';
 import { uploadImage } from './upload.js';
@@ -186,8 +187,11 @@ function commentItem(c, subMap, sourceId) {
     replyBtn.appendChild(document.createTextNode('回复'));
     replyBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户' };
     meta.appendChild(replyBtn);
-    // 转发到私信（0.9.50，官方无此入口）：按钮只挂数据引用，弹层与发送在 commentListClick 委托
-    var fwdBtn = el('span', 'acsv-cfwdbtn', '转发');
+    // 转发到私信（0.9.50，官方无此入口）：按钮只挂数据引用，弹层与发送在 commentListClick 委托。
+    // 图标用动态页互动区同款 iconfont 字形（imicons.GLYPHS.repost，字体抽屉内自注入）
+    var fwdBtn = el('span', 'acsv-cfwdbtn');
+    fwdBtn.appendChild(el('i', 'acsvg-glyph', GLYPHS.repost));
+    fwdBtn.appendChild(document.createTextNode('转发'));
     fwdBtn.title = '转发这条评论到私信';
     fwdBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户', content: c.content || '' };
     meta.appendChild(fwdBtn);

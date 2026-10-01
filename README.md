@@ -164,6 +164,16 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.55（2026-10-01）· 评论转发按钮补动态页同款分享图标
+
+- 转发按钮此前是纯文字，与点赞/回复的图标风格不齐。补上**动态页（member/feeds）互动
+  区「分享」同款 iconfont 字形**（浏览器实测码点 `\ue628`，acfun-frontend-next 字体）：
+  imicons.GLYPHS 登记 `repost` 码点（首个真实消费者），styles 注入该字体的 @font-face
+  （src 取自动态页页面样式，woff+ttf 兜底）与 `.acsvg-glyph` 字形类（currentColor 跟随
+  容器状态色，13px 与 12px svg 视觉等高）。
+- 小视频站分享 PNG（`SITE_ICONS.share`）方案被此替代——iconfont 码点即动态页原生物，
+  无 CDN hash 失效问题。
+
 ### 0.9.54（2026-10-01）· 评论转发链路评审整改：收口 ×2 + 效率 ×2 + 边角 ×2
 
 - **emotify 收口**（结构）：表情码转图从 imdrawer/imnative 两份同构实现收敛为

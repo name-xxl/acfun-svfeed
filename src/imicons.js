@@ -20,7 +20,8 @@ export var GLYPHS = {
   clock: '\ue15f',      // 时钟（历史）
   star: '\ue160',       // 星星（动态；顶部与历史相邻那颗，非收藏——0.9.24 误标勘正）
   banana: '\ue2ea',     // 蕉
-  share: '\ue15b',      // 分享/上传
+  share: '\ue15b',      // 分享/上传（站点头部）
+  repost: '\ue628',     // 分享/转发（member/feeds 动态卡互动区「分享」——0.9.55 浏览器实测码点）
   phone: '\ue242',      // 手机
   monitor: '\ue184',    // 电脑
   tablet: '\ue185',     // 平板
