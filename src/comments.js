@@ -177,7 +177,7 @@ function commentItem(c, subMap, sourceId) {
     // 转发到私信（0.9.50，官方无此入口）：按钮只挂数据引用，弹层与发送在 commentListClick 委托
     var fwdBtn = el('span', 'acsv-cfwdbtn', '转发');
     fwdBtn.title = '转发这条评论到私信';
-    fwdBtn._target = { name: c.userName || 'AcFun用户', content: c.content || '' };
+    fwdBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户', content: c.content || '' };
     meta.appendChild(fwdBtn);
   } else {
     like = el('span', 'acsv-clike');
@@ -244,13 +244,17 @@ export function commentListClick(ev) {
     return;
   }
   // 转发到私信：弹层挂抽屉根（meta 行在滚动列表内会被裁剪），文本按官方动态转发格式
-  // 拼「@作者：内容」+ 作品链接（parseShare 契约：标题行\nURL，两端出分享卡）
+  // 拼「@作者：内容」+ 作品链接（parseShare 契约：标题行\nURL，两端出分享卡）。
+  // URL 带 #ncid= 评论锚点（A 站落地页原生定位楼层）；cmt 载荷携原始 UBB（extra 通道
+  // 发送，接收端渲染真表情）
   var fw = ev.target.closest('.acsv-cfwdbtn');
   if (fw && fw._target && commentDrawer) {
     ev.stopPropagation();
+    var t = fw._target;
     openSharePanel(fw, {
-      title: '@' + fw._target.name + '：' + ubbPlainText(fw._target.content),
-      shareUrl: commentState.shareUrl
+      title: '@' + t.name + '：' + ubbPlainText(t.content),
+      shareUrl: commentState.shareUrl + '#ncid=' + t.id,
+      cmt: { ncid: t.id, content: t.content }
     }, {
       host: commentDrawer.el,
       popClass: 'acsv-sharepop-drawer',

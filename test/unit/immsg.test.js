@@ -7,7 +7,7 @@ import {
   msgContentType, parseCard, parseShare, fmtDur,
   degradeText, msgTextOf, previewOfMessage,
   isQuotable, quoteOf, quoteExtraOf, quoteWireText, quoteWireTrimLen,
-  isCommentShare
+  isCommentShare, cmtShareOf
 } from '../../src/immsg.js';
 
 // contentType 10001 的 content 是 UTF-8 解码即 JSON 的 ArrayBuffer
@@ -288,4 +288,24 @@ test('previewOfMessage：评论转发预览走 [评论] 前缀', () => {
   assert.equal(
     previewOfMessage({ text: '@森崎：好心的先生太太\nhttps://www.acfun.cn/v/ac123' }),
     '[评论] @森崎：好心的先生太太');
+});
+
+// ---------- 0.9.52 评论转发的 URL 锚点与 extra 载荷 ----------
+test('parseShare：#ncid 片段保留进 url（卡片/复制链接可定位楼层），尾标点照剥', () => {
+  var s = parseShare('@森崎：看这条\nhttps://www.acfun.cn/v/ac48768753#ncid=807213320');
+  assert.equal(s.acId, '48768753');
+  assert.equal(s.url, 'https://www.acfun.cn/v/ac48768753#ncid=807213320');
+  var s2 = parseShare('看 https://www.acfun.cn/v/ac123?a=1#ncid=456。');
+  assert.equal(s2.url, 'https://www.acfun.cn/v/ac123?a=1#ncid=456');
+});
+
+test('cmtShareOf：extra 载荷往返；被剥/非文本类型降级 null', () => {
+  var payload = { ncid: '807213320', content: '[emot=acfun,1/]赞[at uid=7]@甲[/at]' };
+  var m = { rawMsg: { contentType: 0, text: 'x', extra: new TextEncoder().encode(JSON.stringify({ acsvCmt: payload })).buffer } };
+  var got = cmtShareOf(m);
+  assert.equal(got.ncid, '807213320');
+  assert.equal(got.content, payload.content);
+  assert.equal(cmtShareOf({ rawMsg: { contentType: 0, text: 'x' } }), null); // extra 被剥
+  assert.equal(cmtShareOf(cardMsg(SAMPLE_CARD)), null); // 非文本类型
+  assert.equal(cmtShareOf(null), null);
 });

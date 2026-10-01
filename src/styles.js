@@ -480,6 +480,12 @@ var RAW_CSS = ''
   + 'background:rgba(255,255,255,.05)}'
   + '.acsv-im-cshare-srctitle{flex:1;min-width:0;font-size:12px;color:#b8bdc7;'
   + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+  // quote 富渲染（extra 载荷命中，renderCommentHtml 产出）的 UBB 元素：作用域收在
+  // 评论卡内，样式对齐评论正文（.acsv-cbody 同款数值）
+  + '.acsv-im-cshare-quote .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;'
+  + 'vertical-align:middle;margin:1px 2px}'
+  + '.acsv-im-cshare-quote .ubb-imgc{display:block;max-width:min(200px,100%);max-height:150px;'
+  + 'border-radius:8px;margin-top:6px;cursor:zoom-in}'
   + '.acsv-im-vcard-coverbox{position:relative}'
   // 原始比例展示；仅对超高封面（竖屏小视频 9:16）钳高居中裁剪，否则 300px 气泡宽下
   // 9:16 封面有 500px+ 高，整屏只剩一张卡（0.9.51）。object-fit 保比例不变形，

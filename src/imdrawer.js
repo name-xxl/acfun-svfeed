@@ -9,10 +9,11 @@ import {
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
+import { renderCommentHtml } from './ubb.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import {
   parseCard, parseShare, fmtDur, msgTextOf, previewOfMessage,
-  isCommentShare,
+  isCommentShare, cmtShareOf,
   msgContentType, isQuotable, quoteOf, quoteExtraOf
 } from './immsg.js';
 import { ICON_SVGS } from './imicons.js';
@@ -487,7 +488,7 @@ function appendBubble(m) {
   var card = parseCard(m);
   if (card) return appendCardBubble(card, mine, m);
   var share = parseShare(msgTextOf(m));
-  if (share) return appendShareBubble(share, mine, m);
+  if (share) return appendShareBubble(share, mine, m, cmtShareOf(m));
   var txt = el('div', 'acsv-im-msgtext');
   txt.innerHTML = imTextHtml(msgTextOf(m));
   b.appendChild(txt);
@@ -673,8 +674,9 @@ function appendCardBubble(card, mine, m) {
 // 卡片骨架（整卡 href 即分享链，enrich 失败也保持可读可点，不再出现文本+卡片双份），
 // dougaCard 回来后原位 patch 以接口字段为准；标题外文本作附言气泡。等待期间切走会话/视图则放弃。
 // 评论转发（isCommentShare 命中）走专属评论卡——评论内容是主视觉，绝不能进视频卡的标题槽
-//（会被 enrich 的视频标题覆盖，0.9.51 前评论因此整个消失）
-function appendShareBubble(share, mine, m) {
+//（会被 enrich 的视频标题覆盖，0.9.51 前评论因此整个消失）。cmt=cmtShareOf 载荷
+//（extra 存活时），quote 用原始 UBB 富渲染真表情；被剥则按 wire 文本占位降级
+function appendShareBubble(share, mine, m, cmt) {
   if (share.note) {
     var note = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
     note.textContent = share.note;
@@ -682,7 +684,10 @@ function appendShareBubble(share, mine, m) {
   }
   var isCmt = isCommentShare(share.title);
   var cardEl = isCmt
-    ? cshareEl({ href: share.url, text: share.title }, mine)
+    ? cshareEl({
+        href: share.url, text: share.title,
+        html: cmt && cmt.content ? cmtHtml(share.title, cmt.content) : ''
+      }, mine)
     : vcardEl({ href: share.url, title: share.title }, mine);
   drawer.bubbles.appendChild(bubbleRow(cardEl, mine, m, 'cardrow'));
   var bubbles = drawer.bubbles;
@@ -715,8 +720,9 @@ function patchVcard(cardEl, c) {
   if (tt && c.title) tt.textContent = c.title;
 }
 // 评论转发卡（0.9.51）：评论原文（@作者：内容）是主视觉——accent 左条引用式排版，
-// 来源作品收进底部小条。整卡 href=作品链接（评论没有独立落地页）；小条 enrich 前显示
-// 占位文案，dougaCard 失败也保持可读可点（与分享卡同一兜底原则）
+// 来源作品收进底部小条。整卡 href=作品链接（评论没有独立落地页，URL 带 #ncid= 锚点
+// 时落地页原生定位楼层）；小条 enrich 前显示占位文案，dougaCard 失败也保持可读可点
+//（与分享卡同一兜底原则）
 function cshareEl(r, mine) {
   var cardEl = el(r.href ? 'a' : 'div', 'acsv-im-cshare' + (mine ? ' mine' : ''));
   if (r.href) {
@@ -725,7 +731,21 @@ function cshareEl(r, mine) {
     cardEl.rel = 'noopener';
   }
   cardEl.addEventListener('click', function (ev) { ev.stopPropagation(); });
-  cardEl.appendChild(el('div', 'acsv-im-cshare-quote', r.text));
+  var quote = el('div', 'acsv-im-cshare-quote');
+  if (r.html) {
+    quote.innerHTML = r.html;
+    // [img] 配图点击看大图：整卡是 <a>，preventDefault 防跳作品页
+    quote.addEventListener('click', function (ev) {
+      var im = ev.target && ev.target.closest ? ev.target.closest('.ubb-imgc') : null;
+      if (!im) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      openImageViewer(im.getAttribute('src') || '');
+    });
+  } else {
+    quote.textContent = r.text;
+  }
+  cardEl.appendChild(quote);
   var src = el('div', 'acsv-im-cshare-src');
   var cover = el('img', 'acsv-im-cshare-cover');
   cover.alt = '';
@@ -736,6 +756,14 @@ function cshareEl(r, mine) {
   src.appendChild(el('div', 'acsv-im-cshare-srctitle', '查看来源作品'));
   cardEl.appendChild(src);
   return cardEl;
+}
+// 富评论正文（extra 载荷 content=原始 UBB 时）：走 renderCommentHtml 完整管线（esc+白
+// 名单，表情经 EmotionMap 渲染真图、[img] 出可点大图）；at/resource 链接退化 span——
+// 卡片根是 <a>，HTML 不允许嵌套 a（解析器会拆散 DOM）。作者头从 wire 标题拆出，esc 后拼接
+function cmtHtml(title, raw) {
+  var am = /^@([^：]*)：/.exec(String(title || ''));
+  return esc('@' + (am ? am[1] : '') + '：')
+    + renderCommentHtml(raw).replace(/<a\b[^>]*>/g, '<span>').replace(/<\/a>/g, '</span>');
 }
 // 评论卡 enrich 原位补全：只动来源小条，评论正文永远不碰
 function patchCshare(cardEl, c) {

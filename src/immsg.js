@@ -35,7 +35,9 @@ export function isCommentShare(title) {
 // 曾从 DOM 渲染产物解析（换行可能变 <br>/空格/直接拼接），「URL 独占末行」的严格锚定
 // 正则在后者必然失配（0.9.26 原生页不出卡的根因）。URL 前文本=标题，URL 后文本=附言
 // note（手打转发场景「看这个 链接 再看看」两端一致消费）。纯 URL 消息同样命中。
-var RE_AC_URL = /https?:\/\/www\.acfun\.cn\/v\/ac(\d+)(?:\/?\?[^\s]*)?/i;
+// #片段（0.9.52，评论转发带 #ncid= 评论锚点）属 URL 一并保留进 url——卡片/复制链接
+// 都要能定位到楼层
+var RE_AC_URL = /https?:\/\/www\.acfun\.cn\/v\/ac(\d+)(?:\/?\?[^\s]*)?(?:#[^\s]*)?/i;
 var RE_TAIL_PUNCT = /[\s.,;:!?)\]】」』。、！？；：]+$/;
 var RE_HEAD_PUNCT = /^[\s.,;:!?(\[【「『。、！？；：]+/;
 export function parseShare(text) {
@@ -154,6 +156,20 @@ export function quoteWireTrimLen(contentText, q) {
     var body = rest.slice(ws ? ws[0].length : 0);
     return body === q.text ? prefix.length + (ws ? ws[0].length : 0) : 0;
   } catch (e) { return 0; }
+}
+
+// 评论转发 extra 通道解析（0.9.52）：文本消息 extra 里的 {acsvCmt:{ncid, content}}，
+// content 是原始 UBB 正文（发送侧 ubbPlainText 的输入）——接收端据此渲染真表情/[img]；
+// extra 被服务端/中间端剥掉时返回 null，走 isCommentShare 启发式降级（[表情] 占位文本）
+export function cmtShareOf(m) {
+  try {
+    if (msgContentType(m) !== 0) return null;
+    var extra = m.rawMsg && m.rawMsg.extra;
+    if (!extra) return null;
+    var q = (JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(extra))) || {}).acsvCmt;
+    if (!q || typeof q.content !== 'string') return null;
+    return { ncid: q.ncid != null ? String(q.ncid) : '', content: q.content };
+  } catch (e) { return null; }
 }
 
 // 消息文本提取（抽屉气泡用）；所有已知字段都拿不到时走 degradeText

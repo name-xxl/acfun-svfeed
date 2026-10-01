@@ -722,6 +722,29 @@ export function sendQuote(inst, targetId, quote, text) {
   });
 }
 
+// 评论转发私信（0.9.52，extra 通道唯一）：明文 wire（@作者：纯文本\n链接#ncid=，官方
+// APP 可读）+ proto extra 藏 {acsvCmt:{ncid, content:原始 UBB}}，接收端 extra 存活时
+// 渲染真表情/[img]，被剥则按 wire 走 isCommentShare 启发式降级（[表情] 占位文本）。
+// 不做 reference 通道：引用消息是「重建原消息」语义，装不下自构 payload
+export function sendCmtShare(inst, targetId, payload, text) {
+  return withSendRecovery(inst, function (i) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var map = i.kernel && i.kernel.messageConstructorMap;
+        var Txt = map && map[0];
+        if (!Txt || !Txt.create) throw new Error('text-msg-class-missing');
+        var extra = null;
+        try {
+          extra = new TextEncoder().encode(JSON.stringify({ acsvCmt: payload }));
+        } catch (e1) { }
+        resolve(sendKernel(i, Txt.create({
+          targetType: 0, targetId: Number(targetId), text: text, extra: extra
+        }), targetId));
+      } catch (e) { reject(e); }
+    });
+  });
+}
+
 // ---------- 分享面板 ----------
 // 锚定在分享按钮左侧的浮层（banpop 同款挂载：随 slide 销毁自然回收，无全局监听残留）。
 // opts（0.9.50，评论转发私信场景注入，rail 分享不传保持原状）：
@@ -852,7 +875,12 @@ function renderRows(pop, list, contacts, item, inst) {
         send.disabled = true;
         send.textContent = '…';
         ensureConnected(inst) // 发前校验真实链路，断线先重连（列表读缓存，感知不到断线）
-          .then(function () { return sendOnce(inst, c.targetId, shareText.slice(0, CFG.im.maxLen)); })
+          .then(function () {
+            // 评论转发（item.cmt 携原始 UBB payload）走 extra 通道发真表情，普通分享纯文本
+            return item.cmt
+              ? sendCmtShare(inst, c.targetId, item.cmt, shareText.slice(0, CFG.im.maxLen))
+              : sendOnce(inst, c.targetId, shareText.slice(0, CFG.im.maxLen));
+          })
           .then(function () {
             // 分享即发已完成：整体替换按钮节点——旧节点连同发送监听器一起销毁，新节点
             // 唯一行为是进聊天（捎句话，纯导航、输入框留空），结构上不可能经此按钮重发

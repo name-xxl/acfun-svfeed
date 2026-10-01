@@ -164,6 +164,21 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.52（2026-10-01）· 评论转发卡渲染真表情 + 点击定位到评论楼层
+
+- **表情**：wire 文本里表情在发送侧已转 `[表情]` 占位（官方 APP 可读性契约），接收端
+  拿不回表情码。改走**extra 通道**（0.9.42 引用消息同款双通道思路）：`sendCmtShare`
+  发明文 wire + proto extra 藏 `{acsvCmt:{ncid, content:原始 UBB}}`；接收端
+  `cmtShareOf` 命中时 quote 走 renderCommentHtml 完整管线富渲染——表情经 EmotionMap
+  出真图、`[img]` 配图出可点大图（preventDefault 防穿透卡片跳转）、at/resource 链接
+  退化 span（卡片根是 `<a>`，HTML 禁止嵌套 a）；extra 被服务端剥掉则回落 0.9.51 的
+  `[表情]` 占位降级，官方 APP 恒见可读文本。
+- **定位评论**：转发 URL 拼 `#ncid=<评论ID>` 锚点（A 站落地页原生定位楼层的格式）；
+  parseShare 的 URL 正则扩展保留 `#` 片段——卡片 href、复制链接、原生页挂卡全部带上，
+  点击直达被转发的那条评论。发送载荷同步携带 ncid。
+- 原生页（imnative）本轮保持 0.9.51 启发式卡片（extra 解析需 pairMessage 内核配对，
+  收益低未做）；官方 APP 渲染不受影响。
+
 ### 0.9.51（2026-10-01）· 评论转发误判视频分享卡修复：专属评论卡
 
 - **问题**：评论转发私信的 wire 文本（`@作者：评论内容\n作品链接`）命中 parseShare 后
