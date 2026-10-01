@@ -166,14 +166,16 @@ testHook('feed', function () {
   return {
     current: FeedStore.current,
     gen: FeedStore.gen,
-    items: FeedStore.items.map(function (it) {
-      return {
-        id: it.id,
-        kind: it.kind,
-        hasUrls: !!(it.urls && it.urls.length),
-        resolving: !!it.resolving,
-        qualities: it.qualities ? it.qualities.length : 0
-      };
-    })
+      items: FeedStore.items.map(function (it) {
+        return {
+          id: it.id,
+          kind: it.kind,
+          hasUrls: !!(it.urls && it.urls.length),
+          resolving: !!it.resolving,
+          qualities: it.qualities ? it.qualities.length : 0,
+          qIdx: it.qIdx || 0, // 切档同步断言用：邻居条目是否跟随新偏好
+          qLabel: it.qualities && it.qualities[it.qIdx] ? it.qualities[it.qIdx].label : null
+        };
+      })
   };
 });

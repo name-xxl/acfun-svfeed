@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.44-debug
+// @version      0.9.45-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -713,6 +713,12 @@
     item.qIdx = idx;
     item.urls = item.qualities[idx].urls;
     item.urlIdx = 0;
+  }
+  function reapplyQuality(item) {
+    if (!item || !item.qualities || !item.qualities.length) return false;
+    if (item._qualitiesAll && item._qualitiesAll.length) item.qualities = item._qualitiesAll;
+    applyQuality(item);
+    return true;
   }
 
   // src/appapi.js
@@ -1670,7 +1676,10 @@
           kind: it.kind,
           hasUrls: !!(it.urls && it.urls.length),
           resolving: !!it.resolving,
-          qualities: it.qualities ? it.qualities.length : 0
+          qualities: it.qualities ? it.qualities.length : 0,
+          qIdx: it.qIdx || 0,
+          // 切档同步断言用：邻居条目是否跟随新偏好
+          qLabel: it.qualities && it.qualities[it.qIdx] ? it.qualities[it.qIdx].label : null
         };
       })
     };
@@ -3789,7 +3798,10 @@
   }
   function switchQuality(item, slide, qIdx, manual) {
     var video = slide.querySelector("video");
-    if (!video || !item.qualities || !item.qualities[qIdx]) return;
+    if (!video || !item.qualities || !item.qualities[qIdx]) {
+      if (!video && item.qualities) toast("视频还没就绪，稍候再试");
+      return;
+    }
     var t = video.currentTime || 0;
     item.qIdx = qIdx;
     item.urls = item.qualities[qIdx].urls;
@@ -3807,6 +3819,22 @@
     if (slide._qBtn) slide._qBtn.textContent = item.qualities[qIdx].label;
     attachVideo(slide, item, Number(slide.dataset.idx));
     toast("清晰度：" + item.qualities[qIdx].label);
+    if (manual) syncFwdQuality(slide);
+  }
+  function syncFwdQuality(slide) {
+    try {
+      var idx = Number(slide.dataset.idx);
+      for (var k = 1; k <= 2; k++) reapplyQuality(FeedStore.items[idx + k]);
+      var fwd = slideAt(idx + 1);
+      var it = fwd && FeedStore.items[idx + 1];
+      if (!fwd || !it || !it.qualities || !fwd._session) return;
+      var fv = fwd.querySelector("video");
+      if (fv && fv.currentTime > 1) fwd._resumeAt = fv.currentTime;
+      fwd._session.dispose();
+      fwd._session = null;
+      attachVideo(fwd, it, idx + 1);
+    } catch (e) {
+    }
   }
   function attachVideo(slide, item, idx) {
     if (slide._session) {
@@ -3949,6 +3977,14 @@
     function rebuildFwdNeighbor(slide2, dropCache) {
       try {
         var idx2 = Number(slide2.dataset.idx);
+        if (dropCache) {
+          var it2 = FeedStore.items[idx2 + 2];
+          if (it2 && it2.cap && it2.cap.hls) {
+            it2.urls = [];
+            it2.qualities = null;
+            it2.refreshed = false;
+          }
+        }
         var fwd = slideAt(idx2 + 1);
         var it = fwd && FeedStore.items[idx2 + 1];
         if (!fwd || !it || !fwd._session || !it.cap || !it.cap.hls) return;
@@ -7051,7 +7087,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.44：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.45：分享卡走 DOM-only，内核探活中");
     watch();
     var n = 0;
     (function waitKernel() {

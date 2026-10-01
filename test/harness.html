@@ -211,6 +211,17 @@
         }, 5000))),
           'before=' + tBefore.toFixed(1) + ' after=' + (v1 ? v1.currentTime.toFixed(1) : '-'));
         rec('session-recreated', (TEST.getStats()['session.dispose'] || 0) > d0);
+        // 0.9.45 切档同步前向邻居：预挂 slide1 重选档重建（dispose 计数 +2：slide0+slide1），
+        // prewarm 已解析的 items[1]/[2] 重选档跟随新偏好——不再「隔一两个视频才生效」
+        rec('session-fwd-rebuilt', (TEST.getStats()['session.dispose'] || 0) >= d0 + 2,
+          'dispose=' + (TEST.getStats()['session.dispose'] || 0) + ' d0=' + d0);
+        var fs = feed();
+        rec('fwd-neighbor-qsync', !!fs && fs.items.length > 2
+          && fs.items[1].qIdx === fs.items[0].qIdx && fs.items[2].qIdx === fs.items[0].qIdx,
+          'qIdx=' + (fs ? fs.items.slice(0, 3).map(function (x) { return x.qIdx; }).join(',') : '-'));
+        rec('fwd-neighbor-label', !!fs && fs.items.length > 2
+          && fs.items[1].qLabel === fs.items[0].qLabel && fs.items[2].qLabel === fs.items[0].qLabel,
+          'label=' + (fs ? fs.items.slice(0, 3).map(function (x) { return x.qLabel; }).join('|') : '-'));
 
       } else if (CASE === 'dispose-mid-recovery') {
         // 恢复进行中划走 2 格：旧会话离开渲染窗口 → 必须 dispose 整体静默

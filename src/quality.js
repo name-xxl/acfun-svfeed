@@ -36,3 +36,14 @@ export function applyQuality(item) {
   item.urls = item.qualities[idx].urls;
   item.urlIdx = 0;
 }
+
+// 偏好变更后对已解析条目重选档（不重走网络）：先还原 playInfo 全集再跑 applyQuality，
+// 防止在已按旧编码偏好过滤过的 qualities 上二次收窄（0.9.34 教训）。解析时一次性的
+// applyQuality 留下的 qIdx/urls 冻结在旧偏好上，正是「切档后隔一两个视频才生效」的根源；
+// 未解析条目（含解析在途）qualities 为空返回 false——其后续 resolve 会现读最新偏好，无需经过这里
+export function reapplyQuality(item) {
+  if (!item || !item.qualities || !item.qualities.length) return false;
+  if (item._qualitiesAll && item._qualitiesAll.length) item.qualities = item._qualitiesAll;
+  applyQuality(item);
+  return true;
+}

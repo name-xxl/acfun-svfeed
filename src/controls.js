@@ -137,10 +137,16 @@ export function buildControls(slide, idx, item) {
   // 编码/缓冲改动同步重建前向预挂条：这俩是 hls 构造参数，预挂的下一条带着改动前的
   // 实例继续跑（相邻划走只 pause 不 dispose），不重建就「间隔一条才生效」。
   // 只重建前向——后向是已看过的暂停内容，重建丢播放位置。dropCache：编码偏好变了，
-  // 邻居 item 的清晰度链缓存（按旧偏好过滤的产物）一并作废；缓冲不涉及缓存不清
+  // 邻居 item 的清晰度链缓存（按旧偏好过滤的产物）一并作废；缓冲不涉及缓存不清。
+  // idx+2 没有 slide 但可能已被 prewarm 按旧偏好解析（qIdx 冻结），同样作废缓存，
+  // 划到时 renderWindow 会按新偏好现解析挂载
   function rebuildFwdNeighbor(slide, dropCache) {
     try {
       var idx = Number(slide.dataset.idx);
+      if (dropCache) {
+        var it2 = FeedStore.items[idx + 2];
+        if (it2 && it2.cap && it2.cap.hls) { it2.urls = []; it2.qualities = null; it2.refreshed = false; }
+      }
       var fwd = slideAt(idx + 1);
       var it = fwd && FeedStore.items[idx + 1];
       if (!fwd || !it || !fwd._session || !it.cap || !it.cap.hls) return;

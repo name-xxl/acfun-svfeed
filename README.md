@@ -163,6 +163,24 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.45（2026-10-01）· 切清晰度「隔一两个视频才生效」修复
+
+- **根因**：清晰度偏好只在条目解析时经 `applyQuality` 应用一次（appapi.js），解析完
+  `ensureResolved` 即短路永不再算；而手动切档时 idx+1 已被渲染窗口预挂（旧档会话在跑）、
+  idx+1/idx+2 已被 prewarm 按旧偏好解析完（qIdx 冻结）——新偏好要等划过这两条、到
+  idx+3 现解析才生效。0.9.43 给编码/缓冲菜单补过同族邻居重建，清晰度菜单漏接。
+- **修复**：`switchQuality(manual)` 尾部新增 `syncFwdQuality`——idx+1/idx+2 从
+  `_qualitiesAll` 还原全集本地重选档（新导出 `reapplyQuality`，不重走网络、防二次收窄）；
+  idx+1 有预挂会话则保进度（`_resumeAt` 槽位）dispose+attachVideo 重建，`_qBtn` 文本由
+  直挂快路径的 onResolved→onHomeResolved 连带刷新；idx+2 无 slide 划到时按新档挂载。
+  后向不动（已看内容重建丢位置）；自动降档不跟随（本机临时补救，不写偏好）。
+- **编码菜单同族补漏**：`rebuildFwdNeighbor` 的 dropCache 此前只作废 idx+1，prewarm 的
+  idx+2 仍旧编码过滤档位，一并作废（controls.js）。
+- **加固**：清晰度菜单在解析中/错误态（无 video）点击由静默早退改为 toast 提示。
+- **测试**：feed 快照补 qIdx/qLabel 字段；harness quality-switch 场景新增三条断言
+  （预挂条会话重建 dispose+2 / items[1][2] qIdx 跟随 / label 同步），连同 smoke、
+  homeswitch、prewarm、fastswipe 五场景全绿。
+
 ### 0.9.44（2026-10-01）· 全库注释/文档对齐 + 两处顺手修复
 
 - **空间页徽标修复**：0.9.36 `el()` 改 textContent 语义的漏网点——「小视频」标签的 HTML 串

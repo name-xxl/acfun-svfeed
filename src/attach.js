@@ -1,14 +1,17 @@
 import { CFG } from './cfg.js';
 import { toast, sweepSlideVideos } from './ui.js';
 import { createSession } from './session.js';
+import { slideAt } from './state.js';
+import { FeedStore } from './feedstore.js'; // 仅调用期解引用（feedstore↔player 循环同款先例）
+import { reapplyQuality } from './quality.js';
 
 // ---------- 元素级契约总表 ----------
 // 以下 _xxx 属性挂在 slide/item DOM 对象上，是跨模块的隐式协作面。
 // 曾散落在各文件的闭包里，现集中列出（读/写方），新增字段先来此处登记：
 //
 // slide（.acsv-slide 元素）：
-//   _session     会话句柄    写: attach.js(attachVideo 赋值);dispose+置 null: player(renderWindow/unmount/switchSource)、controls(rebuildFwdNeighbor) 读: report.js(离开上报)
-//   _resumeAt    续播秒位    写: attach.js(switchQuality)/controls(编码·缓冲菜单)/session(恢复链末级重挂) 读: attachVideo→session.resumeAt
+//   _session     会话句柄    写: attach.js(attachVideo 赋值);dispose+置 null: player(renderWindow/unmount/switchSource)、controls(rebuildFwdNeighbor)、attach(syncFwdQuality) 读: report.js(离开上报)
+//   _resumeAt    续播秒位    写: attach.js(switchQuality/syncFwdQuality)/controls(编码·缓冲菜单)/session(恢复链末级重挂) 读: attachVideo→session.resumeAt
 //   _userPaused  用户暂停意图 写: playback.js(暂停置 1/playVideo 清 0) 读: player(setActive)、session.js(自动续播判定)
 //   _ctlTimer/_ctlTime/_ctlPlayBtn/_ctlFill/_ctlHandle/_ctlTrack/_qBtn
 //                控制栏元素引用 写: controls.js(buildControls/showControls) 读: controls、player(SESSION_HOOKS);
@@ -37,10 +40,14 @@ var HOOKS = null;
 export function setSessionHooks(h) { HOOKS = h; }
 
 // 清晰度切换：保留进度重挂（slide._resumeAt 在 playing 后 seek 回去）
-// manual=true 表示用户在菜单手选：此后看门狗不再对该条目自动降档
+// manual=true 表示用户在菜单手选：此后看门狗不再对该条目自动降档，且把新偏好同步到前向邻居
 export function switchQuality(item, slide, qIdx, manual) {
   var video = slide.querySelector('video');
-  if (!video || !item.qualities || !item.qualities[qIdx]) return;
+  if (!video || !item.qualities || !item.qualities[qIdx]) {
+    // 解析中/错误态没有 video：菜单点击不能无声无息（!item.qualities 已由菜单侧 toast）
+    if (!video && item.qualities) toast('视频还没就绪，稍候再试');
+    return;
+  }
   var t = video.currentTime || 0;
   item.qIdx = qIdx;
   item.urls = item.qualities[qIdx].urls;
@@ -58,6 +65,29 @@ export function switchQuality(item, slide, qIdx, manual) {
   if (slide._qBtn) slide._qBtn.textContent = item.qualities[qIdx].label; // 底栏标识同步
   attachVideo(slide, item, Number(slide.dataset.idx));
   toast('清晰度：' + item.qualities[qIdx].label);
+  if (manual) syncFwdQuality(slide);
+}
+
+// 手动切档把新偏好同步到前向邻居。清晰度偏好在 resolve 时经 applyQuality 一次性应用，
+// 预挂的 idx+1（CFG.win.fwd）与 prewarm 已解析的 idx+1/idx+2 冻结在旧档上——不在这里
+// 重算，新偏好要隔一两个视频才生效（用户报障的根因）。idx+1 重选档并立刻重建会话
+// （运行中的预挂会话不会自己重读 item.urls）；idx+2 尚无 slide 只重选档，划到时按新档
+// 挂载。重建走 attachVideo → session 直挂快路径补发 onResolved，onHomeResolved 会连带
+// 刷新 _qBtn 档位文本。后向不动：已看过的内容重建丢播放位置（0.9.43 定例）；自动降档
+// （manual=false）不进来——它是本机临时补救，不写偏好，邻居不该跟随
+function syncFwdQuality(slide) {
+  try {
+    var idx = Number(slide.dataset.idx);
+    for (var k = 1; k <= 2; k++) reapplyQuality(FeedStore.items[idx + k]);
+    var fwd = slideAt(idx + 1);
+    var it = fwd && FeedStore.items[idx + 1];
+    if (!fwd || !it || !it.qualities || !fwd._session) return; // 解析在途时 reapply 未生效，等 resolve 现读新偏好
+    var fv = fwd.querySelector('video');
+    if (fv && fv.currentTime > 1) fwd._resumeAt = fv.currentTime; // 预挂条可能被回看过（滑回场景）
+    fwd._session.dispose();
+    fwd._session = null;
+    attachVideo(fwd, it, idx + 1);
+  } catch (e) { }
 }
 
 // 重挂统一入口：旧会话一次拆净（video/看门狗/弹幕层/定时器），新会话接管。
