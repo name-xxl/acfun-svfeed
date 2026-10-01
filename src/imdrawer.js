@@ -743,7 +743,9 @@ function cshareEl(r, mine) {
       openImageViewer(im.getAttribute('src') || '');
     });
   } else {
-    quote.textContent = r.text;
+    // wire 文本兜底（extra 被剥）：esc+emotify 出真表情（0.9.53 起 wire 携原始码）；
+    // 不走 linkify——quote 在卡片 <a> 内，禁嵌套 a
+    quote.innerHTML = emotify(esc(r.text));
   }
   cardEl.appendChild(quote);
   var src = el('div', 'acsv-im-cshare-src');

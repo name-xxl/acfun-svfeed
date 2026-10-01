@@ -123,9 +123,9 @@ test('plain：at 出 @昵称（带不带 @ 前缀均可），uid 不残留', () 
   assert.ok(!ubbPlainText('[at uid=7]@甲[/at]').includes('uid'), 'uid 应被吃掉');
 });
 
-test('plain：emot 统一转 [表情]，img 两种形态转 [图片]', () => {
-  assert.equal(ubbPlainText('赞[emot=acfun,2797/]'), '赞[表情]');
-  assert.equal(ubbPlainText('[emot=ts,1/]'), '[表情]');
+test('plain：emot 码原样保留（官方 IM wire 原生渲染，0.9.53 契约修正）；img 转 [图片]', () => {
+  assert.equal(ubbPlainText('赞[emot=acfun,2797/]'), '赞[emot=acfun,2797/]');
+  assert.equal(ubbPlainText('[emot=ts,1/]'), '[emot=ts,1/]');
   assert.equal(ubbPlainText('看[img=图片]https://imgs.aixifan.com/a.png?pkey=1[/img]'),
     '看[图片]');
   assert.equal(ubbPlainText('[img]https://preview.ndcsk.com/ksc2/a.png[/img]'), '[图片]');
@@ -139,8 +139,8 @@ test('plain：color/resource 摘内文，resource 的 icon 属性区不残留', 
   assert.ok(!ubbPlainText('[resource id=99 type=2 icon=x]标题[/resource]').includes('icon'));
 });
 
-test('plain：color 包 emot/img 时内层先转（处理顺序与渲染侧一致）', () => {
-  assert.equal(ubbPlainText('[color=#ff0000][emot=acfun,1/]红[/color]'), '[表情]红');
+test('plain：color 包 emot 时内层 emot 保留（处理顺序与渲染侧一致）', () => {
+  assert.equal(ubbPlainText('[color=#ff0000][emot=acfun,1/]红[/color]'), '[emot=acfun,1/]红');
 });
 
 test('plain：未闭合/未知标签按字面保留；无 esc 语义——原始字符原样透传', () => {
@@ -151,7 +151,7 @@ test('plain：未闭合/未知标签按字面保留；无 esc 语义——原始
 
 test('plain：组合与空值', () => {
   var raw = '[at uid=5]@丙[/at]：说得好[emot=acfun,1/]，图在此[img]https://imgs.aixifan.com/b.png[/img]';
-  assert.equal(ubbPlainText(raw), '@丙：说得好[表情]，图在此[图片]');
+  assert.equal(ubbPlainText(raw), '@丙：说得好[emot=acfun,1/]，图在此[图片]');
   assert.equal(ubbPlainText(''), '');
   assert.equal(ubbPlainText(null), '');
 });

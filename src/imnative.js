@@ -5,12 +5,27 @@
 // 解析层与脚本抽屉共享（immsg.js）：以后新消息格式在 immsg 加解析，这里加渲染分支即可。
 
 import { CFG } from './cfg.js';
-import { el } from './ui.js';
+import { el, esc } from './ui.js';
 import { ICON_SVGS } from './imicons.js';
+import { EmotionMap, ensureEmotionMap } from './emoticon.js';
 import { parseCard, parseShare, isCommentShare, degradeText, previewOfMessage, msgContentType, msgTextOf, fmtDur, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
 import { AppAPI } from './appapi.js';
 
 var UNSUPPORTED = '不支持查看此消息，请前往最新版客户端查看。';
+
+// 表情码转图（评论卡引用块用；与 imdrawer.emotify 同构同契约——入参须是已 esc 的
+// HTML 文本，EmotionMap 未加载/查无此 ID 降级「[表情]」文本，方言包走 umeditor 老图）
+function emotifyHtml(html) {
+  return html
+    .replace(/\[emot=acfun,(\S+?)\/\]/g, function (_, id) {
+      var it = EmotionMap.map && EmotionMap.map[id];
+      return (it && it.url)
+        ? '<img class="cshare-emot" src="' + it.url + '" referrerpolicy="no-referrer" alt="">'
+        : '[表情]';
+    })
+    .replace(/\[emot=(\S+?),(\S+?)\/\]/g,
+      '<img class="cshare-emot" src="//cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/$1/$2.gif" referrerpolicy="no-referrer" alt="">');
+}
 
 // 卡片样式只存在于 Shadow DOM 内：宿主页 CSS（如 .content img{height:48px} 的表情图
 // 规则）物理隔离，封面按原始比例完整呈现。气泡外壳留在 light DOM，保留原生观感。
@@ -48,6 +63,8 @@ var SHADOW_CSS = ''
   + '.cshare .quote{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;'
   + 'padding:8px 10px;border-left:2px solid #fd4c5d;font-size:13px;line-height:1.55;color:#333;'
   + 'white-space:pre-wrap;word-break:break-word}'
+  + '.cshare .quote .cshare-emot{display:inline-block;max-height:34px;max-width:68px;'
+  + 'vertical-align:middle;margin:1px 2px}'
   + '.cshare .src{display:flex;align-items:center;gap:8px;padding:7px 9px;border-top:1px solid #efefef}'
   + '.cshare .srcimg{flex:none;width:56px;height:36px;object-fit:cover;border-radius:4px;background:#f2f2f2}'
   + '.cshare .srct{flex:1;min-width:0;font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
@@ -59,6 +76,7 @@ export function bootNativeIm() {
   // SDK 在页面 world），整个模块自诞生从未激活过（0.9.29 自证日志：连就位行都不打）。
   console.info('[acsv-im] 原生页增强挂载 v' + __ACSV_VERSION__ + '：分享卡走 DOM-only，内核探活中');
   watch();
+  ensureEmotionMap(); // 评论卡引用块渲染表情码需要 EmotionMap：预热（localStorage miss 走接口）
   // 内核探活（kernel() 走 unsafeWindow 读页面 world）只解锁占位替换（10001 卡），
   // 常驻轮询永不放弃；探不到只影响占位替换，不影响分享卡
   var n = 0;
@@ -276,8 +294,9 @@ function tryShareCard(msgEl, content, msgCache) {
   enrichShare(share, function (c) {
     if (!content.isConnected) return;
     if (isCommentShare(share.title)) {
-      // 评论转发：原文整体保留（官方文本气泡就是评论主视觉，绝不能进视频卡标题槽——
-      // 会被 c.title 覆盖致评论丢失，0.9.51 前的误判），只补来源作品小条
+      // 评论转发：原文（引用行+URL 行）整体由卡片承载，官方气泡只留附言——保留原文会与
+      // 卡片引用块重复（0.9.52 真机截图实证）。quote 富渲染表情（0.9.53 wire 携原始码）
+      content.textContent = share.note || '';
       var it = cshareItem(share.title, share.url);
       if (c.cover) it.img.src = c.cover;
       if (c.title) it.srct.textContent = c.title;
@@ -432,7 +451,9 @@ function cshareItem(text, href) {
     a.target = '_blank';
     a.rel = 'noopener';
   }
-  a.appendChild(el('span', 'quote', text));
+  var quote = el('span', 'quote');
+  quote.innerHTML = emotifyHtml(esc(text)); // 评论正文富渲染：表情码出真图（wire 携原始码，0.9.53）
+  a.appendChild(quote);
   var src = el('span', 'src');
   var img = el('img', 'srcimg');
   img.alt = '';

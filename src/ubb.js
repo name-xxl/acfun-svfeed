@@ -58,14 +58,14 @@ export function renderCommentHtml(content) {
   return h;
 }
 
-// ---------- 纯文本化（0.9.50，评论转发私信的文本消息用） ----------
-// 与 renderCommentHtml 同一套标签清单的纯文本投影。输出进私信文本消息（对端官方 APP
-// 按纯文本显示），不进 HTML，故吃原始内容、不做 esc；表情/配图转占位符，at/resource/
-// color 摘内文。处理顺序与渲染侧一致（emot/img 先行，color 最后），[color] 包住表情/
-// 配图时先行规则已把内层转掉。未知/未闭合标签与渲染侧同策略按字面保留
+// ---------- IM wire 文本化（0.9.50 引入；0.9.53 语义修正：表情码原样保留） ----------
+// 评论转发私信的 wire 文本投影。官方 IM 的文本消息 wire 本来就携带 [emot=pkg,id/] 码，
+// APP/官方 web 原生渲染成表情图（imdrawer.emotify 同源契约，imdrawer.js 头部注）——
+// 0.9.52 曾转 [表情] 占位，官方端只能看到占位文本，系劣化，已纠正。[img] 是评论系 UBB、
+// IM 不认，转 [图片] 占位（真图渲染走 extra 载荷）；at/color/resource 摘内文。
+// 未知/未闭合标签按字面保留
 export function ubbPlainText(content) {
   var t = String(content || '');
-  t = t.replace(/\[emot=[^\]]*\/\]/g, '[表情]');
   t = t.replace(/\[img=[^\]]*\]https?:\/\/[^\["']+?\[\/img\]/g, '[图片]');
   t = t.replace(/\[img\]https?:\/\/[^\["']+?\[\/img\]/g, '[图片]');
   t = t.replace(/\[at uid=\d+\]@?(.*?)\[\/at\]/g, '@$1');

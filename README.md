@@ -164,6 +164,22 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.53（2026-10-01）· 评论转发 wire 回归官方表情契约 + 原生页去重
+
+- **契约修正（手机端问题的正解）**：官方 IM 的文本消息 wire 本来就携带
+  `[emot=pkg,id/]` 码，APP/官方 web 原生渲染成表情图（imdrawer.emotify 的既有前提）。
+  0.9.52 把码转成 `[表情]` 占位是违背该契约的劣化——官方端只能看到占位文本。
+  `ubbPlainText` 纠正为表情码原样保留（`[img]` 是评论系 UBB、IM 不认，仍转 `[图片]`；
+  at/color/resource 摘内文），**手机端/官方网页直接看到真表情**；extra 载荷职责收缩为
+  `[img]` 原图渲染与保真兜底，表情不再依赖它。
+- **原生页（message.acfun.cn）两处**：① 评论卡与原文重复渲染修复——官方气泡只留
+  附言（`content.textContent = share.note`），引用行+URL 行由卡片承载（与视频分享同一
+  模式）；② 引用块表情码出真图——imnative 本地 `emotifyHtml`（与 imdrawer.emotify
+  同构同契约）+ `ensureEmotionMap` 挂载预热。
+- **抽屉占位降级路径**（extra 被服务端剥掉时）同样 esc+emotify 渲染真表情，不再显示
+  `[表情]` 占位文本。
+- 0.9.52 期间发出的旧消息 wire 已固化为占位文本，无法追溯。
+
 ### 0.9.52（2026-10-01）· 评论转发卡渲染真表情 + 点击定位到评论楼层
 
 - **表情**：wire 文本里表情在发送侧已转 `[表情]` 占位（官方 APP 可读性契约），接收端

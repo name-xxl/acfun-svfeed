@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.52-debug
+// @version      0.9.53-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -2044,7 +2044,6 @@
   }
   function ubbPlainText(content) {
     var t = String(content || "");
-    t = t.replace(/\[emot=[^\]]*\/\]/g, "[表情]");
     t = t.replace(/\[img=[^\]]*\]https?:\/\/[^\["']+?\[\/img\]/g, "[图片]");
     t = t.replace(/\[img\]https?:\/\/[^\["']+?\[\/img\]/g, "[图片]");
     t = t.replace(/\[at uid=\d+\]@?(.*?)\[\/at\]/g, "@$1");
@@ -3091,7 +3090,7 @@
         openImageViewer(im.getAttribute("src") || "");
       });
     } else {
-      quote.textContent = r.text;
+      quote.innerHTML = emotify(esc(r.text));
     }
     cardEl.appendChild(quote);
     var src = el("div", "acsv-im-cshare-src");
@@ -7343,12 +7342,22 @@
 
   // src/imnative.js
   var UNSUPPORTED = "不支持查看此消息，请前往最新版客户端查看。";
-  var SHADOW_CSS = ":host{display:block}.prologue{margin:0 0 6px;font-size:14px;line-height:1.6;color:#333;white-space:pre-wrap}.item{display:block;width:228px;max-width:100%;margin:4px 0;border:1px solid #e7e7e7;border-radius:8px;background:#fff;overflow:hidden;text-decoration:none;color:inherit;transition:border-color .15s}.item:hover{border-color:#fd4c5d}a.item:hover .title{color:#fd4c5d}.coverbox{display:block;position:relative}.cover{display:block;width:100%;height:126px;object-fit:cover;background:#f2f2f2}.meta{display:flex;align-items:center;gap:4px;padding:5px 8px;font-size:11px;color:#999}.meta .icon{display:inline-block;width:12px;height:12px;flex:none;background:currentColor;-webkit-mask:var(--i) center/contain no-repeat;mask:var(--i) center/contain no-repeat}.dur{margin-left:auto;font-variant-numeric:tabular-nums}.title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:0 9px 9px;font-size:12px;line-height:1.45;color:#333}.qstrip{display:block;margin:0 0 6px;padding:4px 8px;border-left:2px solid #fd4c5d;background:rgba(0,0,0,.045);border-radius:3px;font-size:12px;color:#666;line-height:1.5;min-width:0}.qstrip.link{cursor:pointer}.qstrip.link:hover{background:rgba(0,0,0,.08)}.qstrip .p{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.qbody{display:block;margin:0;font-size:14px;line-height:1.6;color:#333;white-space:pre-wrap}.cshare{display:block;width:228px;max-width:100%;margin:4px 0;border:1px solid #e7e7e7;border-radius:8px;background:#fff;overflow:hidden;text-decoration:none;color:inherit;transition:border-color .15s}a.cshare:hover{border-color:#fd4c5d}.cshare .quote{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;padding:8px 10px;border-left:2px solid #fd4c5d;font-size:13px;line-height:1.55;color:#333;white-space:pre-wrap;word-break:break-word}.cshare .src{display:flex;align-items:center;gap:8px;padding:7px 9px;border-top:1px solid #efefef}.cshare .srcimg{flex:none;width:56px;height:36px;object-fit:cover;border-radius:4px;background:#f2f2f2}.cshare .srct{flex:1;min-width:0;font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}";
+  function emotifyHtml(html) {
+    return html.replace(/\[emot=acfun,(\S+?)\/\]/g, function(_, id) {
+      var it = EmotionMap.map && EmotionMap.map[id];
+      return it && it.url ? '<img class="cshare-emot" src="' + it.url + '" referrerpolicy="no-referrer" alt="">' : "[表情]";
+    }).replace(
+      /\[emot=(\S+?),(\S+?)\/\]/g,
+      '<img class="cshare-emot" src="//cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/$1/$2.gif" referrerpolicy="no-referrer" alt="">'
+    );
+  }
+  var SHADOW_CSS = ":host{display:block}.prologue{margin:0 0 6px;font-size:14px;line-height:1.6;color:#333;white-space:pre-wrap}.item{display:block;width:228px;max-width:100%;margin:4px 0;border:1px solid #e7e7e7;border-radius:8px;background:#fff;overflow:hidden;text-decoration:none;color:inherit;transition:border-color .15s}.item:hover{border-color:#fd4c5d}a.item:hover .title{color:#fd4c5d}.coverbox{display:block;position:relative}.cover{display:block;width:100%;height:126px;object-fit:cover;background:#f2f2f2}.meta{display:flex;align-items:center;gap:4px;padding:5px 8px;font-size:11px;color:#999}.meta .icon{display:inline-block;width:12px;height:12px;flex:none;background:currentColor;-webkit-mask:var(--i) center/contain no-repeat;mask:var(--i) center/contain no-repeat}.dur{margin-left:auto;font-variant-numeric:tabular-nums}.title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:0 9px 9px;font-size:12px;line-height:1.45;color:#333}.qstrip{display:block;margin:0 0 6px;padding:4px 8px;border-left:2px solid #fd4c5d;background:rgba(0,0,0,.045);border-radius:3px;font-size:12px;color:#666;line-height:1.5;min-width:0}.qstrip.link{cursor:pointer}.qstrip.link:hover{background:rgba(0,0,0,.08)}.qstrip .p{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.qbody{display:block;margin:0;font-size:14px;line-height:1.6;color:#333;white-space:pre-wrap}.cshare{display:block;width:228px;max-width:100%;margin:4px 0;border:1px solid #e7e7e7;border-radius:8px;background:#fff;overflow:hidden;text-decoration:none;color:inherit;transition:border-color .15s}a.cshare:hover{border-color:#fd4c5d}.cshare .quote{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;padding:8px 10px;border-left:2px solid #fd4c5d;font-size:13px;line-height:1.55;color:#333;white-space:pre-wrap;word-break:break-word}.cshare .quote .cshare-emot{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}.cshare .src{display:flex;align-items:center;gap:8px;padding:7px 9px;border-top:1px solid #efefef}.cshare .srcimg{flex:none;width:56px;height:36px;object-fit:cover;border-radius:4px;background:#f2f2f2}.cshare .srct{flex:1;min-width:0;font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}";
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.52：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.53：分享卡走 DOM-only，内核探活中");
     watch();
+    ensureEmotionMap();
     var n = 0;
     (function waitKernel() {
       if (kernel()) {
@@ -7538,6 +7547,7 @@
     enrichShare(share, function(c) {
       if (!content.isConnected) return;
       if (isCommentShare(share.title)) {
+        content.textContent = share.note || "";
         var it = cshareItem(share.title, share.url);
         if (c.cover) it.img.src = c.cover;
         if (c.title) it.srct.textContent = c.title;
@@ -7677,7 +7687,9 @@
       a.target = "_blank";
       a.rel = "noopener";
     }
-    a.appendChild(el("span", "quote", text));
+    var quote = el("span", "quote");
+    quote.innerHTML = emotifyHtml(esc(text));
+    a.appendChild(quote);
     var src = el("span", "src");
     var img = el("img", "srcimg");
     img.alt = "";
