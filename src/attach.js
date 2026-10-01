@@ -8,7 +8,7 @@ import { createSession } from './session.js';
 //
 // slide（.acsv-slide 元素）：
 //   _session     会话句柄    写: attach.js(attachVideo) 读: player/renderWindow、report.js、unmount/switchSource
-//   _resumeAt    续播秒位    写: attach.js(switchQuality)/controls(清晰度·编码·缓冲菜单) 读: attachVideo→session.resumeAt
+//   _resumeAt    续播秒位    写: attach.js(switchQuality)/controls(编码·缓冲菜单)/session(恢复链末级重挂) 读: attachVideo→session.resumeAt
 //   _userPaused  用户暂停意图 写: playback.js(togglePlayGesture/playVideo) 读: playback、session.js
 //   _ctlTimer/_ctlTime/_ctlPlayBtn/_ctlFill/_ctlHandle/_ctlTrack/_qBtn
 //                控制栏元素引用 写: controls.js(buildControls/showControls) 读: controls、player(SESSION_HOOKS)
@@ -60,7 +60,7 @@ export function switchQuality(item, slide, qIdx, manual) {
 }
 
 // 重挂统一入口：旧会话一次拆净（video/看门狗/弹幕层/定时器），新会话接管。
-// 进度续播槽 slide._resumeAt 语义不变：switchQuality/菜单/恢复链写入，这里转入新会话
+// 进度续播槽 slide._resumeAt 语义不变：switchQuality/编码缓冲菜单/恢复链末级重挂写入，这里转入新会话
 export function attachVideo(slide, item, idx) {
   if (slide._session) { slide._session.dispose(); slide._session = null; }
   // 防御强拆残留 video（幽灵防护；正常应已被旧会话 dispose 拆除）。

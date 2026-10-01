@@ -482,7 +482,8 @@ function installHealthMonitor(S) {
       return;
     }
     stat('stall.tailReattach');
-    S.resumeAt = video.currentTime;
+    // 进度必须走 slide._resumeAt 槽位：attachVideo 只认槽位，写 S.resumeAt 新会话读不到（进度归零）
+    S.slide._resumeAt = video.currentTime;
     S.hooks.reattach(S); // attachVideo → 本会话 dispose → 新会话接管
   }
 

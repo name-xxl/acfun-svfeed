@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
-import { el, fmt, ensureStyle } from './ui.js';
+import { el, elHtml, fmt, ensureStyle } from './ui.js';
 import { FeedStore } from './feedstore.js';
 import { API } from './api.js';
 
@@ -314,7 +314,7 @@ function injectSpaceVideos(uid) {
     // 站点原生排序（只对视频/文章/合辑生效）：小视频激活时隐藏，切走时恢复
     var siteSortSpan = tagsUl.querySelector('#ac-space-contribute-sort');
     var siteSortLi = siteSortSpan ? siteSortSpan.closest('li') : null;
-    var li = el('li', null, '小视频<span>0</span>');
+    var li = elHtml('li', null, '小视频<span>0</span>'); // 含徽标 span，须走 innerHTML 语义（el 第三参是 textContent）
     li.dataset.index = 'svideo';
     li.title = '该 UP 主的小视频';
     var panel = el('div', 'tag-content');
