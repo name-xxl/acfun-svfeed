@@ -101,6 +101,13 @@ export function cookieVal(name) {
   return m ? m[1] : '';
 }
 
+// 当前登录 uid = auth_key 前缀（私信自有会话排除 / 我的页头部同源，0.9.69 归一处）。
+// auth_key 形如 <uid>_<hex>；未登录返回 ''
+export function selfUid() {
+  var m = /^(\d+)/.exec(cookieVal('auth_key'));
+  return m ? m[1] : '';
+}
+
 // video 元素规范拆除：不能用 src=''——空 src 会异步触发一次 SRC_NOT_SUPPORTED error，
 // 被移除元素的监听器闭包着活 slide 驱动恢复链（0.9.1 幽灵 video 根因）；
 // removeAttribute('src') + load() 是规范拆除，不产生 error 事件

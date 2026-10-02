@@ -38,12 +38,20 @@
     for (var k = 0; k < 5; k++) {
       rows.push({
         dougaId: String(489500 + k), contentType: k === 4 ? 3 : 2, // 第 5 条文章形态：契约层过滤
-        contentTitle: '榜单' + name + '-' + period + '-' + k, videoCover: '',
-        contentDesc: '简介' + k, bananaCount: 500 - k, viewCount: 3000 - k * 10,
+        // k=3 极端行（0.9.69 行高不变量防回归）：超长标题（单行 ellipsis）/含 <br> 简介（pre-line
+        // 折行）/超长无空格签名（3 行硬裁）/粉丝不过万（万格式原样分支）
+        contentTitle: k === 3 ? new Array(40).join('超长标题') : '榜单' + name + '-' + period + '-' + k,
+        videoCover: '',
+        contentDesc: k === 3 ? '第一行简介<br/>第二行简介' : '简介' + k,
+        bananaCount: 500 - k, viewCount: 3000 - k * 10,
         commentCount: 40 - k, contributeTime: now - (k + 1) * 3600000,
-        channel: { parentName: name, channelName: name },
-        userName: '榜单UP' + (k % 2), authorId: 700 + (k % 2), fansCount: 8000 - k * 100,
-        contributionCount: 300 - k * 10, userImg: '', userSignature: '签名' + k
+        // 频道字段按真机形状：子频道名在顶层 channelName（= channel.name），parentName 是主分区
+        channelName: name,
+        channel: { id: 86, name: name, parentId: 201, parentName: name },
+        userName: '榜单UP' + (k % 2), authorId: 700 + (k % 2),
+        fansCount: k === 3 ? 8000 : 33235 - k * 1000, // k=3 不过万；其余走「N.N万」
+        contributionCount: 353 + k,
+        userImg: '', userSignature: k === 3 ? new Array(60).join('无空格长签名') : '签名' + k
       });
     }
     return { result: 0, rankList: rows };
@@ -62,8 +70,22 @@
       })
     },
     'browse/history/list': function (body) {
+      window.__ACSV_HIST_CALLS__ = (window.__ACSV_HIST_CALLS__ || 0) + 1; // 切 Tab 不重拉断言用
       var page = Number((String(body).match(/pageNo=(\d+)/) || [])[1] || 1);
       return { result: 0, totalCount: 22, histories: page === 1 ? HIST_P1 : HIST_P2 };
+    },
+    // 我的页资料头（0.9.69）：§4.4 getUserCardList 实测形状。计数器供场景断言
+    // 「二次进入命中缓存、不重复打接口」。following/followed→关注/粉丝 语义待真机核对
+    'user/getUserCardList': function () {
+      window.__ACSV_CARD_CALLS__ = (window.__ACSV_CARD_CALLS__ || 0) + 1;
+      return {
+        result: 0,
+        users: [{
+          id: 42, name: '测试用户',
+          headUrl: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+          signature: '签名第一行<br/>第二行', contentCount: 12, following: 34, followed: 56
+        }]
+      };
     },
     'favorite/folder/list': {
       result: 0,

@@ -36,5 +36,12 @@ export var GLYPHS = {
   power: '\ue19c',      // 电源
   rank: '\ue204',       // 排行/音柱
   arrowRight: '\ue3c2', // 右箭头
-  arrowUp: '\ue163'     // 上箭头
+  arrowUp: '\ue163',    // 上箭头
+  // 榜单卡 meta 与 UP 卡数据位（0.9.69，原生 rank/list 浏览器实测码点；同 acfun-frontend-next
+  // 字体已由 styles @font-face 注入）：rankView 与封面 hover 播放按钮同字；
+  // 投稿数复用 share('\ue15b')（原生 up-card 同字）
+  rankView: '\ue164',    // 播放数（原生 video-card extra 首位）
+  rankComment: '\ue161', // 评论数（原生 video-card extra 次位）
+  rankTime: '\ue2f5',    // 发布时间（原生 video-card extra 时钟）
+  fans: '\ue155'         // 粉丝数（原生 up-card 次数据位；音柱/人形字形实测渲染核对）
 };

@@ -34,14 +34,17 @@ function subChannelsOf(tree, name) {
 }
 
 function buildZoneView(body) {
+  // 原生 1200 内容宽居中（video-card≈860 + up-card 338）：chips/说明行/列头/列表
+  // 同轨同宽——列头与行必须共用同一 grid 模板（0.9.67 两栏对齐教训）
+  var wrap = el('div', 'acsv-zone-wrap');
   var zoneChips = el('div', 'acsv-vchips');
   var subChips = el('div', 'acsv-vchips');
   var periodChips = el('div', 'acsv-vchips');
-  var tip = el('div', 'acsv-vtip', '依赖综合指数排序，每日更新一次'); // 原生榜单页同款说明
-  body.appendChild(zoneChips);
-  body.appendChild(subChips);
-  body.appendChild(periodChips);
-  body.appendChild(tip);
+  var tip = el('div', 'acsv-vtip'); // 说明行文案随频道更新（原生「全站综合 / 依综合指数排序，每日更新一次」）
+  wrap.appendChild(zoneChips);
+  wrap.appendChild(subChips);
+  wrap.appendChild(periodChips);
+  wrap.appendChild(tip);
   // 双列头（原生 rlist__banner：榜单 Rank | Up主 Author）——rlist 行=视频卡+作者卡左右分栏
   var head = el('div', 'acsv-rlist-head');
   var hc1 = el('div', 'acsv-rlist-hcell');
@@ -52,9 +55,10 @@ function buildZoneView(body) {
   hc2.appendChild(el('span', 'acsv-rlist-hen', 'Author'));
   head.appendChild(hc1);
   head.appendChild(hc2);
-  body.appendChild(head);
+  wrap.appendChild(head);
   var list = el('div', 'acsv-rlist');
-  body.appendChild(list);
+  wrap.appendChild(list);
+  body.appendChild(wrap);
 
   var curZone = CFG.view.zones[0];
   var curSub = null;    // null=全部（subChannelId 空）
@@ -111,6 +115,7 @@ function buildZoneView(body) {
       });
   }
 
+  function syncTip() { tip.textContent = curZone.name + ' / 依综合指数排序，每日更新一次'; }
   CFG.view.zones.forEach(function (z, i) {
     var c = el('button', 'acsv-vchip' + (i === 0 ? ' on' : ''), z.name);
     c.addEventListener('click', function () {
@@ -119,6 +124,7 @@ function buildZoneView(body) {
       c.classList.add('on');
       curZone = z;
       curSub = null; // 切频道重置子频道选区（坑 E）
+      syncTip();
       fillSubChips();
       load();
     });
@@ -135,6 +141,7 @@ function buildZoneView(body) {
     });
     periodChips.appendChild(c);
   });
+  syncTip();
   fillSubChips();
   load();
 }

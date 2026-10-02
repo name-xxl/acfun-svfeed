@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { el, esc, toast, cookieVal } from './ui.js';
+import { el, esc, toast, cookieVal, selfUid } from './ui.js';
 import { root, claimDrawer, releaseDrawer, setRoot } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { testHook } from './dbg.js';
@@ -59,10 +59,6 @@ var badgeEl = null, mounted = false;
 
 function badgeText(n) { return n > 99 ? '99+' : (n > 0 ? String(n) : ''); }
 
-function selfUid() {
-  var m = /^(\d+)/.exec(cookieVal('auth_key'));
-  return m ? m[1] : '';
-}
 
 // ---------- 消息对象内省：方向/时间的降级提取（文本与卡片解析在 immsg.js 共享层） ----------
 function msgFrom(m) {

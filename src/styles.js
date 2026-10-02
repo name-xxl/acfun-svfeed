@@ -621,37 +621,49 @@ var RAW_CSS = ''
   + '.acsv-vrow-title{font-size:14px;color:#fff;line-height:20px;max-height:40px;overflow:hidden}'
   + '.acsv-vrow-desc{font-size:12px;color:#aab0bc;line-height:17px;max-height:34px;overflow:hidden;margin-top:2px}'
   + '.acsv-vrow-meta{font-size:12px;color:#8a90a0;margin-top:3px}'
-  // 榜单大卡（0.9.67 对齐原生卡尺寸/视觉）：横版大封面+标题/简介/meta 三行区、
-  // 行分隔线与呼吸感、排名大水印贴右下（原生视觉锚点）
-  + '.acsv-vrow.big{position:relative;align-items:flex-start;padding:16px 10px;overflow:hidden;'
-  + 'border-bottom:1px solid rgba(255,255,255,.06)}'
-  + '.acsv-vrow.big .acsv-vrow-thumb{width:260px;height:160px;flex:none}'
-  + '.acsv-vrow.big .acsv-vrow-main{padding-top:2px}'
-  + '.acsv-vrow.big .acsv-vrow-title{font-size:16px;font-weight:600;max-height:48px}'
+  // 榜单卡（0.9.69 全量对齐原生 rank/list @1200 内容宽）：1200 居中、视频卡 862 + UP 栏 338、
+  // 行高 129+分隔线、封面 160×90 直角、标题单行、简介 3 行 clamp、meta 贴封面底+原生三段图标、
+  // 水印 48px 旋转 10°（原生视觉锚点）、UP 卡扁平+左竖线（原生 up-card 同款）
+  + '.acsv-zone-wrap{max-width:1200px;margin:0 auto}'
+  + '.acsv-vrow.big{position:relative;align-items:stretch;gap:16px;padding:16px;overflow:hidden}'
+  + '.acsv-vrow.big .acsv-vrow-thumb{width:160px;height:90px;border-radius:0}'
+  + '.acsv-vrow.big .acsv-vrow-main{display:flex;flex-direction:column}'
+  + '.acsv-vrow.big .acsv-vrow-title{font-size:16px;font-weight:400;line-height:18px;max-height:none;'
+  + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px}'
   + '.acsv-vrow.big:hover .acsv-vrow-title{color:var(--acsv-accent)}'
-  + '.acsv-rlist-num{position:absolute;right:6px;bottom:-14px;font-size:110px;font-weight:700;'
-  + 'color:rgba(255,255,255,.05);line-height:1;pointer-events:none;font-style:italic}'
-  // UP 卡（原生 up-card 横排）：大圆头像左+信息右。行高基准=视频卡（封面 160+padding）：
-  // 行 align-items:stretch 显式（两栏严格等高），签名 3 行封顶+卡 overflow:hidden——
-  // 任何签名长度都不撑高行（0.9.68 实测行高波动源=签名 1~4 行 + 72px 旧封顶）
-  + '.acsv-upcard{background:rgba(255,255,255,.04);border-radius:10px;padding:14px;height:100%;'
-  + 'box-sizing:border-box;overflow:hidden}'
-  + '.acsv-upcard-link{display:flex;gap:12px;color:inherit;text-decoration:none;height:100%}'
-  + '.acsv-upcard-info{min-width:0;display:flex;flex-direction:column}'
-  + '.acsv-upcard-avatar{width:88px;height:88px;border-radius:50%;display:block;object-fit:cover;flex:none;align-self:flex-start}'
-  + '.acsv-upcard-name{font-size:15px;font-weight:600;color:var(--acsv-accent);line-height:21px}'
-  + '.acsv-upcard-sign{font-size:12px;color:#aab0bc;line-height:18px;max-height:54px;overflow:hidden;margin:6px 0 10px;word-break:break-all}'
-  + '.acsv-upcard-extra{font-size:12px;color:#8a90a0;margin-top:auto}'
-  // 作者卡（0.9.67 对齐原生 up-card）：rlist 行=视频卡+作者卡左右分栏（原生 980 布局等比，
-  // 视图全屏可用宽足够）；双列头/行 grid 同轨对齐；UP 卡整卡链接跳 UP 主页（原生同款）
-  + '.acsv-rlist-head,.acsv-rlist-row{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}'
-  + '.acsv-rlist-head{padding:2px 10px 8px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:6px}'
-  + '.acsv-rlist-hcell{font-size:15px;font-weight:600;color:#fff;display:flex;align-items:baseline;gap:6px;'
+  + '.acsv-vrow.big .acsv-vrow-desc{font-size:12px;line-height:16px;white-space:pre-line;'
+  + 'display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;margin-top:0}'
+  // meta 贴底机制（0.9.69）：main 拉伸高=封面 90（标题 18+6 / 简介峰值 48 / meta 12，合计 84
+  // 恒低于封面），meta margin-top:auto 即贴封面底；封面尺寸/卡内边距是该机制的一部分——
+  // 改动须同步 harness「meta 底-封面底 ≤6」断言
+  + '.acsv-vrow.big .acsv-vrow-meta{display:flex;align-items:center;margin-top:auto;font-size:12px;line-height:12px}'
+  + '.acsv-vmeta-i{display:inline-flex;align-items:center;gap:6px;margin-right:6px}'
+  + '.acsv-vrow-meta .acsv-vmeta-i:first-child{margin-right:24px}' // 原生首位播放数后 24px
+  + '.acsv-vmeta-i .acsvg-glyph{font-size:12px}'
+  + '.acsv-rlist-num{position:absolute;right:0;bottom:-8px;font-size:48px;font-weight:700;line-height:48px;'
+  + 'color:rgba(255,255,255,.07);transform:rotate(10deg);font-style:normal;pointer-events:none}'
+  // UP 卡（原生 up-card 扁平款）：透明底+左 1px 竖线（列分隔线），头像 90、签名固定 3 行
+  // （48px 恒占位）——行高基准=UP 卡 129，任何数据长度都不撑高行（0.9.68 波动源=签名行数）
+  + '.acsv-upcard{padding:16px;box-sizing:border-box;border-left:1px solid rgba(255,255,255,.1)}'
+  + '.acsv-upcard-link{display:flex;gap:16px;color:inherit;text-decoration:none;height:100%}'
+  + '.acsv-upcard-info{min-width:0;display:flex;flex-direction:column;flex:1}'
+  + '.acsv-upcard-avatar{width:90px;height:90px;border-radius:50%;display:block;object-fit:cover;flex:none;align-self:flex-start}'
+  + '.acsv-upcard-name{font-size:14px;font-weight:600;color:var(--acsv-accent);line-height:21px;min-height:21px}'
+  + '.acsv-upcard-sign{font-size:12px;color:#aab0bc;line-height:16px;height:48px;overflow:hidden;margin:6px 0;word-break:break-all}'
+  + '.acsv-upcard-extra{display:flex;align-items:center;height:16px;line-height:16px;font-size:12px;color:#8a90a0;margin-top:auto}'
+  + '.acsv-upcard-extra .acsv-vmeta-i{margin-right:24px}'
+  // 图标盒与行高显式钉死（14px 字形配 14×14 盒 + 16px 行盒）：UP 卡 16+（21+60+16）+16=129
+  // 是行高基准，任何一处行盒浮动都会让行高漂移（harness zone-upcard/zone-row-height 钉）
+  + '.acsv-upcard-extra .acsvg-glyph{font-size:14px;width:14px;height:14px;line-height:14px}'
+  // 行/列头同轨（0.9.67 教训：head 与 row 必须同一 grid 模板）；行分隔线在行上跨两栏（原生同款）
+  + '.acsv-rlist-head,.acsv-rlist-row{display:grid;grid-template-columns:minmax(0,1fr) 338px;gap:0}'
+  + '.acsv-rlist-head{padding:2px 16px 8px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:6px}'
+  + '.acsv-rlist-hcell{font-size:18px;font-weight:600;color:#fff;display:flex;align-items:baseline;gap:6px;'
   + 'border-left:3px solid var(--acsv-accent);padding-left:8px}'
-  + '.acsv-rlist-hen{font-size:11px;color:#8a90a0;font-weight:400}'
-  + '.acsv-rlist-row{padding:4px 0;align-items:stretch}'
+  + '.acsv-rlist-hen{font-size:10px;color:#8a90a0;font-weight:400}'
+  + '.acsv-rlist-row{padding:0;align-items:flex-start;border-bottom:1px solid rgba(255,255,255,.08)}'
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-rlist-head,.acsv-rlist-row{grid-template-columns:minmax(0,1fr)}}'
-  + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-upcard{margin-top:6px}}'
+  + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-upcard{border-left:none;margin-top:6px}}'
   + '.acsv-vempty{color:#8a90a0;font-size:13px;padding:14px 2px}'
   + '.acsv-vtip{color:#8a90a0;font-size:12px;margin:-4px 0 10px}'
   + '.acsv-vmore{display:block;margin:12px auto 0;border:none;border-radius:16px;padding:6px 20px;'
@@ -659,9 +671,63 @@ var RAW_CSS = ''
   + 'transition:background .15s}'
   + '.acsv-vmore:hover{background:rgba(255,255,255,.18)}'
   + '.acsv-vmore[disabled]{opacity:.5;cursor:default}'
+  // 我的页（0.9.69 抖音式个人主页）：内容容器收口 + 资料头 + Tab + 3:4 封面网格卡。
+  // 容器只挂在我页（不挂共享 .acsv-view-body——避免动榜单 0.9.67/68 的原生对齐）；
+  // 卡片类名独立（acsv-g*，不复用 vrow*，防同构元素污染既有行数断言）
+  + '.acsv-mewrap{max-width:1600px;margin:0 auto}'
+  + '.acsv-mecard{display:flex;align-items:center;gap:20px;padding:22px 2px 18px}'
+  + '.acsv-mecard-av{width:96px;height:96px;border-radius:50%;flex:none;object-fit:cover;display:block;'
+  + 'background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.14)}'
+  + '.acsv-mecard-info{min-width:0;flex:1}'
+  + '.acsv-mecard-name{font-size:20px;font-weight:600;color:#fff;line-height:28px;overflow:hidden;'
+  + 'text-overflow:ellipsis;white-space:nowrap}'
+  + '.acsv-mecard-stats{display:flex;flex-wrap:wrap;gap:8px 24px;margin-top:10px}'
+  + '.acsv-mecard-stat{font-size:13px;color:#aab0bc}'
+  + '.acsv-mecard-stat b{font-size:15px;font-weight:600;color:#fff;margin-right:5px}'
+  + '.acsv-mecard-id{font-size:12px;color:#8a90a0;margin-top:9px}'
+  + '.acsv-mecard-sign{font-size:12px;color:#aab0bc;margin-top:4px;overflow:hidden;text-overflow:ellipsis;'
+  + 'white-space:nowrap}'
+  // Tab 行：选中项 accent 下划线（抖音同款）；面板常驻 DOM 只切 display——保住翻页游标与已加载列表
+  + '.acsv-metabs{display:flex;gap:26px;padding:0 2px;border-bottom:1px solid rgba(255,255,255,.08)}'
+  + '.acsv-metab{border:none;background:none;padding:10px 2px;font-size:15px;font-family:inherit;cursor:pointer;'
+  + 'color:#cfd3da;border-bottom:2px solid transparent;transition:color .15s,border-color .15s}'
+  + '.acsv-metab:hover{color:#fff}'
+  + '.acsv-metab.on{color:#fff;font-weight:600;border-bottom-color:var(--acsv-accent)}'
+  + '.acsv-mepanel{padding-top:16px}'
+  + '.acsv-mepanel .acsv-vchips{margin-bottom:14px}'
+  // 网格：列数随容器宽自适应（minmax 自动填充，无硬断点）
+  + '.acsv-megrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(' + CFG.view.me.gridMin + 'px,1fr));'
+  + 'gap:18px ' + CFG.view.me.gridGap + 'px}'
+  + '.acsv-gcell{cursor:pointer;min-width:0}'
+  + '.acsv-gcover{position:relative;width:100%;aspect-ratio:' + CFG.view.me.coverRatio + ';border-radius:10px;overflow:hidden;'
+  + 'background:rgba(255,255,255,.06)}'
+  + '.acsv-gcover img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}'
+  + '.acsv-gcell:hover .acsv-gcover img{transform:scale(1.05)}'
+  + '.acsv-gtag{position:absolute;left:8px;bottom:8px;max-width:calc(100% - 16px);padding:2px 8px;'
+  + 'border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;line-height:18px;'
+  + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+  + '.acsv-gtitle{margin-top:8px;font-size:14px;line-height:20px;color:#fff;max-height:40px;overflow:hidden}'
+  + '.acsv-gcell:hover .acsv-gtitle{color:var(--acsv-accent)}'
+  + '.acsv-gmeta{margin-top:4px;font-size:12px;color:#8a90a0;white-space:nowrap;overflow:hidden;'
+  + 'text-overflow:ellipsis}'
+  // 首屏骨架（独立类名：绝不与行/卡计数选择器同构；成功/失败/空三路径都移除）
+  + '.acsv-gskel{aspect-ratio:' + CFG.view.me.coverRatio + ';border-radius:10px;background-color:rgba(255,255,255,.05);'
+  + 'background-image:linear-gradient(100deg,rgba(255,255,255,0) 40%,rgba(255,255,255,.07) 50%,rgba(255,255,255,0) 60%);'
+  + 'background-size:200% 100%;animation:acsv-skel 1.4s linear infinite}'
+  + '@keyframes acsv-skel{0%{background-position:120% 0}100%{background-position:-20% 0}}'
+  // 深色滚动条：视图滚动区（我的/榜单共用 .acsv-view-body，默认浅色条在深色页上是刺眼白条）
+  + '.acsv-view-body{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}'
+  + '.acsv-view-body::-webkit-scrollbar{width:8px;height:8px}'
+  + '.acsv-view-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:4px}'
+  + '.acsv-view-body::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.3)}'
+  + '.acsv-view-body::-webkit-scrollbar-track{background:transparent}'
   // 窄屏：dock 隐藏（CFG.view.narrow），主区/信息区/视图内容还原满宽
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-dock{display:none}.acsv-scroller{margin-left:0}'
-  + '.acsv-info{left:24px}.acsv-view-body,.acsv-view-head{padding-left:20px}}';
+  + '.acsv-info{left:24px}.acsv-view-body,.acsv-view-head{padding-left:20px}}'
+  // 窄屏我的页：资料头纵向堆叠、网格列宽下限收窄（沿用同一 CFG.view.narrow 断点）
+  + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-mecard{flex-direction:column;align-items:flex-start;'
+  + 'gap:12px;padding:16px 2px 14px}.acsv-mecard-av{width:72px;height:72px}'
+  + '.acsv-megrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px 10px}}';
 
 // 主题色收敛：RAW_CSS 中的 #fd4c5d 全部替换为 CSS 变量，:root 上定义唯一来源
 export var CSS = ':root{--acsv-accent:' + CFG.accent + '}'

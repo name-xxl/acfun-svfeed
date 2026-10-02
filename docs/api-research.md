@@ -137,6 +137,20 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
 - UP 空间页 /u/&lt;uid&gt;：新版 SPA 无 __INITIAL_STATE__，粉丝数无轻量端点（2026-10-02 探测）
 - 项目在用：cfg.api.userCard（getUserCardList）
 
+### 4.5 登录用户自身资料（0.9.69 我的页头部）〔端点实测；计数语义待核〕
+
+- **self uid = `auth_key` cookie 前缀**（`^(\d+)`，形如 `<uid>_<hex>`）——零网络、零鉴权即可得，
+  项目内自 0.9.19 起在用（imdrawer 自有会话排除）；0.9.69 上收为 `ui.selfUid()` 共享。
+  未登录无该 cookie → 返回 ''（我的页据此整块不渲染资料头）。
+- **资料字段直接复用 getUserCardList（§4.4）**：`POST /rest/pc-direct/user/getUserCardList`
+  body `ids=<selfUid>`（同源 postForm，携带网页 Cookie）→ headUrl / name / signature /
+  contentCount（投稿数）。契约投影：`data.meCardOf(j, uid)`（缺省字段一律 null，渲染层判空隐藏）。
+- **⚠ 待真机核对**：`following` / `followed` 与站点口径「关注 / 粉丝」的对应关系——本次按
+  `following=关注、followed=粉丝` 呈现（社区通用命名），**未在本轮真机验证**；核对方法：登录后
+  打开自己的空间页 `/u/<uid>` 对比数字。口径不符时只改 `data.js meCardOf` 的映射（渲染层零分支），
+  若两字段都不成立则按缺省 null 处理（头部自动只显示头像/昵称/签名/投稿数）。
+- 未采用：`info.app` 侧个人资料（无轻量端点）、UP 空间页 HTML 解析（重、且为 SPA）。
+
 ## 5. 内容扩展路线定性（〔实测〕）
 
 - **大家都在看**：无独立 JSON 接口（v 页 performance 时间线无相关请求），服务端直出进 v 页 HTML（实测 40 个 /v/ac 链接）→ 唯一路线 DOM 解析（uppage.js 同款）；window.videoInfo 内嵌 douga/info 等价数据（含 mkey）但**无**相关视频数组
@@ -154,7 +168,8 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
 - **channelId=0 = 全站综合**（100 条混合；URL 参数 cid=-1 是页面参数不是接口参数——接口 -1 返回空）
 - **subChannelId 服务端真过滤**（0.9.66 实测：channelId=1+sub=107→4 条 / 108→31 条 / 159→3 条，数量随子频道变化）
 - 频道 cid 实测（与 queryNavigators 分区一致）：动画1（100）/娱乐60（31）/生活201（100）/音乐58（95）/舞蹈·偶像123（100）/游戏59（100）/科技70（97）/影视68（40）/体育69（65）/鱼塘125（22）/文章63（89 条全 contentType=3）；番剧 cid=155 仅 3 条杂项
-- 响应 rankList[]：**dougaId（=ac 号）**/contentId、contentTitle、contentDesc、videoCover、duration、viewCount、bananaCount、danmuCount、commentCount、contributionCount、**fansCount/userImg/userSignature/authorId（UP 榜数据源）**、userName/userId、contentType（2=视频 3=文章）、channel{channelId,channelName,parentId,parentName}、contributeTime
+- 响应 rankList[]：**dougaId（=ac 号）**/contentId、contentTitle、contentDesc、videoCover、duration、viewCount、bananaCount、danmuCount、commentCount、contributionCount、**fansCount/userImg/userSignature/authorId（UP 榜数据源）**、userName/userId、contentType（2=视频 3=文章）、contributeTime
+  - 频道字段形状（0.9.69 真机对照修正）：子频道名在**顶层 channelName**（= `channel.name`，如「生活日常」；原生 extra 展示为 `channelName + 频道`）；`channel{id,name,parentId,parentName}` 里**是 name 不是 channelName**，parentName 为主分区（如「生活」），非展示项；另带 stowCount（视频收藏数，原生榜单卡不展示）
 - 直链获取：dougaId 接现有 resolve 链（douga/info + cast）即可竖刷——榜单条目自带计数与封面，resolve 只为拿直链
 
 ### 6.1.1 子频道（0.9.66）

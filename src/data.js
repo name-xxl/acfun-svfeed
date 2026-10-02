@@ -95,7 +95,9 @@ export function normalizeHome(bc) {
 // ---------- 视图面板条目契约（0.9.62）：三种来源规整成同一份字段 ----------
 // { acId, title, cover, progress, sub, kind }——面板渲染与「点击回竖刷」零分支（对齐
 // 顶部两源契约理念）。可选字段 desc（rank 简介，0.9.65）：无来源的 kind 上为 undefined，
-// rowOf 判空不渲染。返回 null = 非视频条目，调用方过滤（无 douga resolve 链，进竖刷必炸）。
+// rowOf 判空不渲染。rank 另带 meta（0.9.69，原生 extra 三段结构化）+ up（随行作者卡）；
+// 其余来源的 meta 为 undefined，rowOf 走 sub 纯文本分支。返回 null = 非视频条目，
+// 调用方过滤（无 douga resolve 链，进竖刷必炸）。
 // 类型字段实测（docs/api-research.md §4/§6，2026-10-02）：
 //   browse/history 的 resourceType 编码与收藏/榜单体系不同源——条目 2=普通视频（社区文档
 //   「参数 1 视频 2 番剧」的释义在条目字段上不成立），必须连 videoId 一起校验、宁可漏不错；
@@ -121,27 +123,62 @@ export function panelItem(kind, raw) {
     it.acId = Number(raw.dougaId || raw.contentId) || 0;
     it.title = raw.contentTitle || '';
     it.cover = raw.videoCover || '';
-    it.desc = String(raw.contentDesc || '').replace(/<br\s*\/?\s*>/gi, ' ').trim(); // 简介副行；官方简介是 HTML，<br> 折空格（契约层统一处理，douga/info description 将来同款）
-    // extra 对齐原生榜单卡构成（0.9.67，原生 video-card extra 三段：播放数/评论数/发布于xx·频道
-    // ——原生截图首位是播放数非蕉数，蕉是排序依据非展示项）；sub 契约层拼好，rowOf 零分支
-    var ch = raw.channel || {};
-    it.sub = (Number(raw.viewCount) || 0) + ' 播放 · ' + (Number(raw.commentCount) || 0)
-      + ' 评论 · ' + relTime(Number(raw.contributeTime) || 0)
-      + (ch.parentName || ch.channelName ? ' / ' + (ch.parentName || ch.channelName) : '');
+    // 简介：官方是 HTML，<br> 折行（0.9.69 原生同款——原生 description 保留 br 折行；
+    // 渲染层 white-space:pre-line，超过 3 行由 CSS 裁）
+    it.desc = String(raw.contentDesc || '').replace(/<br\s*\/?\s*>/gi, '\n').trim();
+    // meta 三段结构化（0.9.69 对齐原生 video-card extra：图标+播放数、图标+评论数、
+    // 图标+「发布于xx / 频道」——原生无「播放/评论」字样，图标代义）。文案契约层拼好，
+    // rowOf 只按 k 出字形；判空拼装：无时间不留「发布于」孤字、无频道不留悬空斜杠。
+    // 频道名实测在条目顶层 channelName（= channel.name，子频道名如「生活日常」），
+    // 原生文案 = 名 + 「频道」；channel.parentName 是主分区（生活），非展示项
+    var t = relTime(Number(raw.contributeTime) || 0);
+    var ch = raw.channelName || (raw.channel || {}).name || (raw.channel || {}).channelName || '';
+    it.meta = [
+      { k: 'view', t: String(Number(raw.viewCount) || 0) },
+      { k: 'comment', t: String(Number(raw.commentCount) || 0) },
+      { k: 'time', t: (t ? '发布于' + t : '') + (ch ? (t ? ' / ' : '') + ch + '频道' : '') }
+    ];
     // UP 随行卡（原生 up-card：视频卡按排名配对作者卡，无独立 UP 榜）：rankList 条目自带
-    // fansCount/userImg/userSignature——getUserCardList 无粉丝数，UP 粉丝以此为准（§4.4/§6.1）
+    // fansCount/userImg/userSignature——getUserCardList 无粉丝数，UP 粉丝以此为准（§4.4/§6.1）；
+    // 签名不截（原生 sign 全文渲染，3 行裁切在 CSS）；计数文案万格式（原生 353 / 3.3万）
     it.up = raw.userName ? {
       id: Number(raw.authorId || raw.userId) || 0,
       name: raw.userName,
       img: raw.userImg || '',
       fans: Number(raw.fansCount) || 0,
-      contrib: Number(raw.contributionCount) || 0, // UP 总投稿数（原生 up-card 第二数据位）
-      sign: String(raw.userSignature || '').replace(/<br\s*\/?\s*>/gi, ' ').slice(0, 60)
+      contrib: Number(raw.contributionCount) || 0,
+      fansText: fmtWan(raw.fansCount),
+      contribText: fmtWan(raw.contributionCount),
+      sign: String(raw.userSignature || '').replace(/<br\s*\/?\s*>/gi, ' ').trim()
     } : null;
   } else {
     return null;
   }
   return it.acId && it.title ? it : null;
+}
+
+// ---------- 个人资料卡契约（0.9.69）：getUserCardList 回包 → 我的页头部字段 ----------
+// 字段全部来自实测登记端点（docs/api-research.md §4.4：headUrl/name/signature/contentCount/
+// following/followed），**缺省一律 null**——渲染层判空隐藏，不伪造未实测的数据。
+// following/followed → 关注/粉丝 的语义待真机核对（站点口径若不同只改这里的映射，
+// 渲染层零分支）；uid 过滤失败时退第一条（回包里只有一条时同款）
+export function meCardOf(j, uid) {
+  var users = (j && j.result === 0 && j.users) || [];
+  var u = null;
+  for (var i = 0; i < users.length; i++) {
+    if (String(users[i] && users[i].id) === String(uid)) { u = users[i]; break; }
+  }
+  u = u || users[0];
+  if (!u || !u.id) return null;
+  return {
+    uid: Number(u.id) || 0,
+    name: u.name || '',
+    avatar: u.headUrl || '',
+    sign: String(u.signature || '').replace(/<br\s*\/?\s*>/gi, ' ').trim(),
+    contrib: u.contentCount != null ? Number(u.contentCount) || 0 : null,
+    follow: u.following != null ? Number(u.following) || 0 : null,
+    fans: u.followed != null ? Number(u.followed) || 0 : null
+  };
 }
 
 // 面板条目 → 竖刷 home 契约 item（懒解析：进播放器后 resolve 链回填直链与全量计数）。
@@ -150,18 +187,36 @@ export function homeItemOf(acId, title, cover) {
   return normalizeHome({ href: String(acId), title: title || '', img: cover ? [cover] : [] });
 }
 
-// 榜单 extra 的相对时间（0.9.67 对齐原生「发布于xx」）：<24h「N小时前」、<7天「N天前」、
-// 其余「M月D日」。纯函数（脏输入降级空串，单测钉）
-export function relTime(ms) {
+// 榜单 extra 的相对时间（0.9.69 对齐原生「发布于xx」四档，日历判定）：
+// 今天 <1h「N分钟前」/ 今天「N小时前」/ 昨天「昨天H时MM分」/ 前天「前天H时MM分」/
+// 更早「M月D日 H时MM分」（MM 补零、H 不补零——原生实测 0时10分 / 8时00分）。
+// now 可注入：日历判定纯函数化，单测钉跨日/跨月/跨年边界（不注入则用当前时间）；
+// 脏输入/未来时间降级空串。dayDiff 用本地零点差值 round（DST 23/25 小时日不误判）
+export function relTime(ms, now) {
   var t = Number(ms) || 0;
   if (!t) return '';
-  var diff = Date.now() - t;
+  var n = Number(now) || Date.now();
+  var diff = n - t;
   if (diff < 0 || isNaN(diff)) return '';
-  var h = Math.floor(diff / 3600000);
-  if (h < 1) return '1小时内';
-  if (h < 24) return h + '小时前';
-  var d = Math.floor(h / 24);
-  if (d < 7) return d + '天前';
-  var dt = new Date(t);
-  return (dt.getMonth() + 1) + '月' + dt.getDate() + '日';
+  var dt = new Date(t), nd = new Date(n);
+  var hm = dt.getHours() + '时' + (dt.getMinutes() < 10 ? '0' : '') + dt.getMinutes() + '分';
+  var dayDiff = Math.round(
+    (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate())
+      - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 86400000);
+  if (dayDiff <= 0) {
+    var min = Math.floor(diff / 60000);
+    if (min < 60) return Math.max(1, min) + '分钟前';
+    return Math.floor(diff / 3600000) + '小时前';
+  }
+  if (dayDiff === 1) return '昨天' + hm;
+  if (dayDiff === 2) return '前天' + hm;
+  return (dt.getMonth() + 1) + '月' + dt.getDate() + '日 ' + hm;
+}
+
+// UP 数据位计数文案（0.9.69 对齐原生 up-card）：<10000 原样；≥10000 一位小数「N.N万」
+// （原生实测 33235→3.3万 / 469000→46.9万 / 6062 原样）；脏输入按 0
+export function fmtWan(n) {
+  var v = Number(n) || 0;
+  if (v < 10000) return String(v);
+  return (Math.round(v / 1000) / 10) + '万';
 }

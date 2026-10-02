@@ -44,6 +44,8 @@
 | 顶栏信封（私信） | **私信抽屉**：列表（联系人/未读/相对时间/搜索）↔ 聊天（气泡/**时间分割线**/**作品卡片**（封面/计数/时长，点击跳视频；自己发出的 `标题+链接` 分享消息同样渲染为卡片）/发送/失败点击重试/已读上报/**消息引用**（hover 引用按钮 → 引用 chip，摘要条点击定位高亮）/**表情收发**/**图片消息**（即拍即发、点击看大图）；自己气泡深蓝灰不刺眼）两视图；与评论抽屉**同槽互斥**（state.js 槽位协调：开一方自动收回另一方）；Esc 逐层关：更新弹窗 → 大图查看器 → 当前抽屉 → 退出 |
 | 顶栏更新（信封旁） | **更新说明弹窗**：每次打开竖刷页自动检查一次新版本——更新后首次打开弹「vX 更新内容」（官方 release 渲染正文）；发现新版本首次弹「发现新版本」+ 说明 + [前往更新][忽略此版本]，此后仅 toast 轻提醒（红点亮至忽略或升级，忽略后该版本完全静默）；点按钮随时手动查看。数据取 GitHub 官方 `releases.atom`，拉取失败静默不打扰；Esc 关闭顺序：更新弹窗 → 大图查看器 → 抽屉 → 退出 |
 | 打开 message.acfun.cn 私信 | **原生私信页自动增强**（装脚本即生效）：「不支持查看此消息」占位原位替换为 10001 作品卡；脚本分享消息渲染为紧凑作品卡（限宽 228px、封面裁切，原文只留附言）；引用消息补灰色摘要条并把正文剥成纯回复（与抽屉同观感，不再双份摘要）；会话列表预览改写「[分享] 标题」 |
+| 左栏「我的」 | **个人主页**（`#svfeed/my`）：资料头（头像/昵称/关注·粉丝·投稿/签名，来源 `auth_key`→uid + `getUserCardList`；未登录或接口失败不显示头部）→ Tab（观看历史｜收藏夹，切换不重拉）→ **4:3 封面网格**（A 站普通视频封面固定 4:3，历史项封面左下角「观看至 xx:xx」角标，收藏显示 UP 名/续看秒数）；点卡片回竖刷续播，「加载更多」翻页 |
+| 左栏「榜单」 | **分区榜单**（`#svfeed/zone`，0.9.69 全量对齐原生 rank/list）：渠道/子频道/榜期 chips（全站日榜 100 条）→ 1200px 居中 rlist 分栏行（视频卡+UP 卡 338）；封面 160×90、标题单行、简介 3 行（`<br>` 折行）、**meta 贴封面底**（原生图标：播放/评论/发布于·频道），排名=48px 旋转 10° 水印贴卡右下；UP 卡扁平+左竖线（头像 90/名字/签名 3 行/投稿·粉丝万格式图标位）；点行回竖刷，整卡 UP 主页新窗 |
 
 ### 推荐模式（顶栏「小视频 | 推荐」切换，选择记忆）
 
@@ -172,6 +174,76 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 环境级（GPU/驱动/Chromium 版本），脚本无责收尾。
 
 ## 更新日志
+
+### 0.9.69（2026-10-02）· 榜单全量对齐原生（行高 201→130 + meta 贴底原生图标）+ 我的页抖音式个人主页
+
+#### 榜单对齐原生 rank/list（真机逐项量取定案）
+
+- **基准（IAB 打开原生 acfun.cn/rank/list 实测 computed style）**：行 **129.67**（UP 卡 129
+  撑起行、视频卡 125+4）、封面 **160×90** 直角、标题 **单行** 16px、简介 **clamp 3 行**（保
+  留 `<br>` 折行）、meta **贴信息块底（≈封面底）** 12px/12 三段图标、UP 栏 **338**（无间隙、
+  扁平透明+左 1px 竖线）、头像 90、签名 **固定 3 行（48px 恒占位）**、行分隔线在行上跨两栏、
+  列头 CN 18/EN 10、水印 **48px 粗体 rotate(10°)** #eee 贴卡右下（bottom:-8 探出被卡裁）、
+  内容 **1200px 居中**（`.acsv-zone-wrap`，视频卡 862+UP 338，文字块 654）。
+- **图标=原生字形零新依赖**：原生用 `acfun-frontend-next`，与 styles @font-face 注入的字体
+  **同一文件（URL 逐字节相同）**——码点实测登记 imicons.GLYPHS：播放 `U+E164`/评论 `U+E161`/
+  时间 `U+E2F5`/粉丝 `U+E155`（投稿复用 share `U+E15B`），真机 `document.fonts.check` 通过、
+  截图确认无豆腐块。
+- **契约层结构化（views 零分支）**：`panelItem('rank')` 产出 `meta=[{k:'view'|'comment'|'time'}]`
+  三段（契约层拼好文案，rowOf 按 k 出字形）+ `up.fansText/contribText`（新纯函数 `fmtWan`：
+  <1万原样、≥1万一位小数去尾随 .0——原生实测 33235→3.3万 / 29978→3万）；desc `<br>` 折行
+  （原折空格）；签名**去掉 60 字硬截**（3 行裁切交 CSS）。
+- **`relTime` 重写为原生四档 + now 可注入**：今天 `<1h`「N分钟前」/「N小时前」、昨天/前天
+  「昨天H时MM分」、更早「M月D日 H时MM分」（MM 补零 H 不补零，原生实测 0时10分/8时00分）；
+  日历判定（非 24h 差）——23:50 看 00:10 = 「昨天23时50分」；now 注入使跨日/跨月/跨年边界
+  可确定性单测（`<1h→N分钟前` 为推断项，待真机样本复核）。
+- **真机对照修正的字段坑**：频道文案原生是「生活日常频道」——子频道名在条目**顶层
+  `channelName`**（= `channel.name`），`channel.parentName` 是主分区（生活）；契约层取
+  `channelName + '频道'`（docs/api-research.md §6.1 字段形状同步勘正，另记 stowCount）。
+- **行高机制换代（0.9.68 机制作废重写）**：旧机制「行高基准=视频卡封面 160」→ 新机制
+  「UP 卡固定 129 撑起行、视频卡 122 自然高」；所有能撑高的输入逐一封死（标题 nowrap、简介
+  clamp、签名 height:48 恒占位、**UP 名/数据位空值 min-height 防高度塌陷**、图标盒/行盒显式）。
+  meta 贴底=不变量机制（main 拉伸高=封面 90，峰值内容 84 <90，`margin-top:auto` 贴封面底）。
+- harness view-zone 9→16 断言（**逐行**行高 126–134、meta 底-封面底 ≤6、三段图标码点、
+  频道文案、标题单行/简介 clamp+pre-line、水印 48px+rotate+宿主 `.big`、UP 卡双数据位+万+
+  卡高 129）；mock 补极端行（超长标题/无标题空格长签名/`<br>` 简介/不过万粉丝）。单测 91→95
+  （relTime 四档+日历边界 ×2、fmtWan、rank meta 形状与判空拼装）。
+- 坑实锤：① 断言按 `.acsv-vrow.big .acsv-vrow-meta .acsvg-glyph` 全查把 4 行×3=12 个图标
+  全数进去（应为宿主卡内 3 个）——改为先取首卡再 querySelectorAll；② UP 数据位行没有行盒
+  高度致卡高 132（原生 129）——`height/line-height:16px` + 14×14 图标盒钉死。
+- 真机复核：注入调试构建在真实排行榜页量取——100 行真实数据、**行高逐行 130**、封面
+  160×90、UP 卡 129、meta 贴底差 0、码点全对、1200 居中、窄屏（640）单列回落无溢出。
+
+#### 我的页抖音式个人主页（资料头 + Tab + 4:3 封面网格）
+
+- **布局形态（用户提供抖音个人主页参考图定案）**：全宽长列表（行 1699px、内容只占左侧
+  400px、右侧全空）→ 内容容器 max-width 1600 居中 + 资料头 + Tab + 封面网格
+  （1920 下 5 列）；卡片=封面（左下角标）+ 两行标题 + meta，hover 封面微放大/标题
+  accent。容器只挂我页（`.acsv-mewrap`，不动共享 `.acsv-view-body`，避开榜单 0.9.67/68
+  的原生对齐区）。
+- **封面比例 4:3（用户纠正实测口径）**：A 站**普通视频封面固定 4:3**，只有小视频是 3:4——
+  历史/收藏条目经契约层过滤后全是普通视频（panelItem 只收 resourceType=2+videoId），
+  卡面若套抖音的 3:4 会把封面左右各裁掉一大块（连标题字都被切）。比例入 `CFG.view.me.coverRatio`
+  （骨架同源），harness 加 `cover-ratio-4x3` 断言钉住；将来若混入小视频条目需按 kind 分档。
+- **资料头**：`auth_key` 前缀=当前 uid（`ui.selfUid`，原 imdrawer 私有函数上收共享）→
+  `getUserCardList`（§4.4 在册端点）取 头像/昵称/签名/投稿数/关注/粉丝；头像+昵称+关注·
+  粉丝·投稿+「AcFun号：uid」+签名。**缺省一律不显示**（契约层 meCardOf 全字段 null 语义，
+  不把「没这个数」显示成 0）；未登录（无 auth_key）或接口失败整块不渲染、静默、页面照常。
+  `following/followed → 关注/粉丝` 的语义待真机核对（口径不符只改契约层映射）。
+- **Tab 惰性 + 状态保留**：观看历史｜收藏夹 两个面板**常驻 DOM 只切 display**——首次激活
+  才拉接口，切回不重拉（harness 断言钉：切回后 22 卡仍在且 history 接口调用数不变）。
+- **修既有缺陷（几何实测实锤）**：收藏夹夹位 chips 原渲染在**列表下方**（`insertBefore(chips,
+  btn)` 而 list 先 append → [标题,列表,chips,按钮]；实测 favRow0 y=833 < chips y=997）——
+  改为 `insertBefore(chips, list)`，chips 归位筛选行（Tab 之下、网格之上），harness 加几何
+  顺序断言防同型回归。
+- **首屏骨架 + 深色滚动条**：`.acsv-gskel`（独立类名，绝不与卡片计数选择器同构）成功/
+  失败/空三路径都移除；`.acsv-view-body` 滚动条深色化（我的/榜单共用）。
+- **角标只用契约在册字段**：历史=`观看至 xx:xx`（`panelItem.sub`）；时长/播放量接口未实测
+  提供 → **不做**（不伪造）；收藏夹角标=续看秒数。
+- harness：view-my 14→24 断言（资料头/签名折空格/骨架已清/角标/无横向溢出/Tab 惰性/
+  chips 在列表之上/切 Tab 不重拉/资料头缓存不重复打接口）；mock 补 `user/getUserCardList`
+  快照与调用计数；单测 88→91（meCardOf 3 条）。
+- README 使用节补「左栏我的」一行；模块表 mypage/views/ui 行同步。
 
 ### 0.9.68（2026-10-02）· 榜单水印归位视频卡右下角 + 行高一致性
 
@@ -1369,9 +1441,9 @@ npm test             # immsg/ubb/release 单测 + 无头 harness 全场景（需
 | `imicons.js` | 站点原生图标登记表（CDN SVG + 字形码点，双端共享） |
 | `release.js` | 更新提示（0.9.60）：官方 releases.atom 拉取/解析纯函数（cmpVersion/normVer/parseRelAtom/latestEntry/decideUpd）+ 说明弹窗单例 + 红点；正文直接用 GitHub 官方渲染 HTML（elHtml 信任契约）；每次 mount 检查一次（60s 节流）、失败静默、unmount 显式拆监听 |
 | `overlay.js` | 浮层栈（0.9.61）：Esc 显式分支链的收拢（overlayOpen/Close/Top/IsOpen/Teardown，close 回调注册方自带、先出栈再调+异常隔离）；modal 键语义单监听承载（release/imgview capture 自关退役）；栈=显式状态（0.9.22 精神延续） |
-| `views.js` | 子视图框架（0.9.62）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（registerView/openPanel 同构协议）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、playAc 条目回竖刷（gen 校验/seen 查重/resolve 失败回退/append 不 unshift）、面板 kit（rowOf/moreBtn） |
+| `views.js` | 子视图框架（0.9.62）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（registerView/openPanel 同构协议）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、playAc 条目回竖刷（gen 校验/seen 查重/resolve 失败回退/append 不 unshift）、面板 kit（rowOf/moreBtn/gridCardOf） |
 | `sidebar.js` | 左栏 dock（0.9.62）：子视图入口图标列（我的/榜单），当前视图高亮，窄屏隐藏，随 unmount 拆除 |
-| `mypage.js` | 我的视图（0.9.62）：观看历史（双 resourceTypes、pageNo 翻页、观看至 xx:xx）+ 收藏夹（chips 切夹→dougaList 翻页）；条目经 panelItem 契约规整 |
+| `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf，缺省不渲染）+ Tab 惰性面板（观看历史=双 resourceTypes/pageNo 翻页；收藏夹=chips 切夹→dougaList 翻页）+ 4:3 封面网格卡（普通视频封面口径）；条目经 panelItem 契约规整、点击回竖刷 |
 | `zone.js` | 分区榜单视图（0.9.62）：渠道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
 | `boot.js` | 启动入口（构建 entry） |
 

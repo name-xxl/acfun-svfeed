@@ -433,8 +433,12 @@
         if (ubx) ubx.click();
 
       } else if (CASE === 'view-my') {
-        // 我的视图冒烟（0.9.62）：hash 子路由进出 + postForm mock 缝（__ACSV_MOCK_FORM__）+
-        // panelItem 契约过滤（坏例条目不渲染）+ 条目点击回竖刷插入播放（resolve 链走 mock）
+        // 我的视图冒烟（0.9.62 起；0.9.69 抖音式改造：资料头/Tab 惰性/网格卡/骨架/chips 顺序）：
+        // hash 子路由进出 + postForm mock 缝（__ACSV_MOCK_FORM__）+ panelItem 契约过滤
+        // （坏例条目不渲染）+ 条目点击回竖刷插入播放（resolve 链走 mock）
+        document.cookie = 'auth_key=42_deadbeef'; // ui.selfUid：auth_key 前缀=uid
+        window.__ACSV_CARD_CALLS__ = 0;
+        window.__ACSV_HIST_CALLS__ = 0;
         window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
         location.hash = 'svfeed/my';
         // 可见性断言一律查真实渲染态 offsetParent（0.9.62 黑屏教训：内联 '' 回落样式表
@@ -449,32 +453,83 @@
           return b && b.classList.contains('on');
         }, 3000)));
         rec('scroller-hidden', q('.acsv-scroller').style.display === 'none');
-        rec('hist-rows-filtered', !!(await waitFor(function () {
-          var rows = document.querySelectorAll('.acsv-vlist.hist .acsv-vrow');
-          var bad = [].some.call(rows, function (r) { return /应被过滤/.test(r.textContent); });
-          return rows.length === 18 && !bad;
+        // 资料头：昵称 + 关注/粉丝/投稿三数 + AcFun号（契约 meCardOf 落位）
+        rec('me-card', !!(await waitFor(function () {
+          var n = q('.acsv-mecard-name'), st = q('.acsv-mecard-stats');
+          return n && n.textContent === '测试用户' && st && /34/.test(st.textContent)
+            && /56/.test(st.textContent) && /12/.test(st.textContent);
         }, 8000)));
-        var histMore = document.querySelector('.acsv-vsec .acsv-vmore');
+        rec('me-card-id-sign', /AcFun号：42/.test((q('.acsv-mecard-id') || {}).textContent || '')
+          && (q('.acsv-mecard-sign') || {}).textContent === '签名第一行 第二行');
+        // 网格卡：历史首屏 18 条；骨架已清（独立类名，绝不与卡片计数选择器同构）
+        rec('hist-cards', !!(await waitFor(function () {
+          var cells = document.querySelectorAll('.acsv-vlist.hist .acsv-gcell');
+          var bad = [].some.call(cells, function (r) { return /应被过滤/.test(r.textContent); });
+          return cells.length === 18 && !bad;
+        }, 8000)));
+        rec('skeleton-gone', document.querySelectorAll('.acsv-gskel').length === 0);
+        rec('hist-tag', /观看至01:4/.test((q('.acsv-vlist.hist .acsv-gtag') || {}).textContent || ''));
+        // 封面比例 4:3（A 站普通视频封面固定 4:3，只有小视频是 3:4）：历史/收藏条目经契约层
+        // 过滤后全是普通视频，卡面套 3:4 会把封面左右各裁掉一大块（连标题字都被切）。钉住防回归
+        rec('cover-ratio-4x3', (function () {
+          var c = q('.acsv-vlist.hist .acsv-gcell .acsv-gcover');
+          if (!c) return false;
+          var r = c.getBoundingClientRect();
+          return r.height > 0 && Math.abs(r.width / r.height - 4 / 3) < 0.05;
+        })(), (function () {
+          var c = q('.acsv-vlist.hist .acsv-gcell .acsv-gcover');
+          if (!c) return 'n/a';
+          var r = c.getBoundingClientRect();
+          return 'w/h=' + (r.height ? (r.width / r.height).toFixed(3) : '0');
+        })());
+        // 面板无横向溢出（网格 minmax 自适应，宽窄都不撑破容器）
+        rec('no-overflow', (function () {
+          var b = q('.acsv-view-body');
+          return !!b && b.scrollWidth <= b.clientWidth + 1;
+        })());
+        var histMore = q('.acsv-mepanel[data-tab="hist"] .acsv-vmore');
         rec('hist-more-visible', !!histMore && histMore.style.display !== 'none');
         if (histMore) histMore.click();
         rec('hist-page2', !!(await waitFor(function () {
-          return document.querySelectorAll('.acsv-vlist.hist .acsv-vrow').length === 22;
+          return document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22;
         }, 8000)));
-        // 收藏夹：默认第一个夹 2 条；切夹二 1 条
+        // Tab 惰性：未激活的收藏夹不拉接口（0 卡）→ 点击后才建面板
+        rec('fav-tab-lazy', document.querySelectorAll('.acsv-vlist.fav .acsv-gcell').length === 0);
+        var tabFav = q('.acsv-metab[data-tab="fav"]');
+        if (tabFav) tabFav.click();
+        rec('fav-open', !!(await waitFor(function () {
+          var p = q('.acsv-mepanel[data-tab="fav"]');
+          return p && p.style.display !== 'none';
+        }, 3000)));
         rec('fav-default-rows', !!(await waitFor(function () {
-          var rows = document.querySelectorAll('.acsv-vlist.fav .acsv-vrow');
-          return rows.length === 2 && /测试收藏视频0/.test(rows[0].textContent);
+          var cells = document.querySelectorAll('.acsv-vlist.fav .acsv-gcell');
+          return cells.length === 2 && /测试收藏视频0/.test(cells[0].textContent);
         }, 8000)));
-        var chips = document.querySelectorAll('.acsv-vchip');
-        var chip2 = chips.length >= 2 ? chips[chips.length - 1] : null; // 夹二在收藏 chips 组末尾
+        // chips 顺序（0.9.69 修）：夹位选择器必须在**列表之上**（几何比较——原先
+        // insertBefore(chips, btn) 落在列表下方，真机实测 favRow0 y=833 < chips y=997）
+        rec('fav-chips-above', (function () {
+          var chips = q('.acsv-mepanel[data-tab="fav"] .acsv-vchips');
+          var first = q('.acsv-vlist.fav .acsv-gcell');
+          if (!chips || !first || !chips.offsetParent) return false;
+          return chips.getBoundingClientRect().bottom <= first.getBoundingClientRect().top + 1;
+        })());
+        var fchips = q('.acsv-mepanel[data-tab="fav"] .acsv-vchips').children;
+        var chip2 = fchips.length >= 2 ? fchips[fchips.length - 1] : null; // 夹二在收藏 chips 组末尾
         if (chip2) chip2.click();
         rec('fav-switch-rows', !!(await waitFor(function () {
-          var rows = document.querySelectorAll('.acsv-vlist.fav .acsv-vrow');
-          return rows.length === 1 && /测试收藏视频0/.test(rows[0].textContent);
+          var cells = document.querySelectorAll('.acsv-vlist.fav .acsv-gcell');
+          return cells.length === 1 && /测试收藏视频0/.test(cells[0].textContent);
         }, 8000)));
+        // Tab 切回：面板常驻 DOM 只切 display——历史 22 条仍在且**不重拉接口**
+        var histCalls = window.__ACSV_HIST_CALLS__;
+        var tabHist = q('.acsv-metab[data-tab="hist"]');
+        if (tabHist) tabHist.click();
+        await wait(500);
+        rec('tab-keep-state', document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22
+          && window.__ACSV_HIST_CALLS__ === histCalls, 'calls=' + window.__ACSV_HIST_CALLS__);
         // 点首条历史 → 回竖刷 + 队尾插入 + resolve 完成（hasUrls）。
         // hash 断言容忍 syncHash 150ms 后的 #svfeed/<id> 覆写（坑 5：回竖刷即恢复地址跟随）
-        var firstRow = q('.acsv-vrow');
+        var firstRow = q('.acsv-vlist.hist .acsv-gcell');
         var firstId = 488900;
         if (firstRow) firstRow.click();
         rec('back-to-feed', !!(await waitFor(function () {
@@ -485,11 +540,14 @@
           var last = f && f.items[f.items.length - 1];
           return last && String(last.id) === String(firstId) && last.hasUrls;
         }, 10000)));
-        // 视图内 Esc=返回竖刷：再进视图后合成 Esc 事件
+        // 视图内 Esc=返回竖刷：再进视图后合成 Esc 事件；顺带断言资料头命中缓存不重复打接口
         location.hash = 'svfeed/my';
         rec('re-enter-open', !!(await waitFor(function () {
           return q('.acsv-view').offsetParent !== null;
         }, 8000)));
+        rec('me-card-cached', !!(await waitFor(function () {
+          return q('.acsv-mecard-name') && window.__ACSV_CARD_CALLS__ === 1;
+        }, 5000)), 'calls=' + window.__ACSV_CARD_CALLS__);
         await wait(400); // 越过进视图前残留的 syncHash 150ms 定时器窗口（真实用户不可达的时序）
         key('Escape');
         rec('esc-back-to-feed', !!(await waitFor(function () {
@@ -519,6 +577,46 @@
           var n = q('.acsv-vrow.big .acsv-rlist-num');
           return !!n && n.textContent === '1' && !!n.offsetParent && /big/.test(n.offsetParent.className);
         })());
+        // ---- 0.9.69 原生对齐断言（原生 rank/list 实测基准） ----
+        // 行高恒定 129+1 分隔线：UP 卡固定 129 撑起行、视频卡 122 自然高——极端行（超长标题/
+        // 无空格长签名/含 <br> 简介）不许撑高（0.9.68 波动源=签名行数，这里逐行钉）
+        var rowHs = [].map.call(document.querySelectorAll('.acsv-rlist-row'), function (r) { return r.offsetHeight; });
+        rec('zone-row-height', rowHs.length === 4 && [].every.call(rowHs, function (h) { return h >= 126 && h <= 134; }),
+          'hs=' + rowHs.join(','));
+        // meta 贴封面底（不变量：main 拉伸高=封面 90 + meta margin-top:auto）
+        var mbT = q('.acsv-vrow.big .acsv-vrow-thumb'), mbM = q('.acsv-vrow.big .acsv-vrow-meta');
+        var mbD = (mbT && mbM) ? Math.round((mbM.getBoundingClientRect().bottom - mbT.getBoundingClientRect().bottom) * 10) / 10 : null;
+        rec('zone-meta-bottom', mbD != null && mbD >= -1 && mbD <= 6, 'd=' + mbD);
+        // meta 三段原生图标码点（播放 U+E164 / 评论 U+E161 / 时间 U+E2F5；字形渲染真机核对）
+        var mgHost = q('.acsv-vrow.big');
+        var mgList = mgHost ? mgHost.querySelectorAll('.acsv-vrow-meta .acsvg-glyph') : [];
+        var mgCps = [].map.call(mgList, function (x) { return 'U+' + ((x.textContent.codePointAt(0) || 0).toString(16).toUpperCase()); });
+        rec('zone-meta-icons', mgList.length === 3 && mgCps.join(',') === 'U+E164,U+E161,U+E2F5', 'cp=' + mgCps.join(','));
+        // 时间段文案：发布于… + 「 / 频道」（频道名 = 顶层 channelName + 「频道」——0.9.69 真机
+        // 对照修正：channel 对象里是 name 不是 channelName，parentName 是主分区不可当频道名）
+        var mtSeg = mgHost ? mgHost.querySelectorAll('.acsv-vrow-meta .acsv-vmeta-i')[2] : null;
+        var mtTxt = mtSeg ? mtSeg.textContent : '';
+        rec('zone-meta-channel', /发布于/.test(mtTxt) && / \/ 全站综合频道$/.test(mtTxt), 't=' + mtTxt);
+        // 截断规则：标题单行（nowrap+ellipsis）、简介 3 行 clamp + pre-line（原生同款）
+        rec('zone-clamp', (function () {
+          var t = q('.acsv-vrow.big .acsv-vrow-title'), d = q('.acsv-vrow.big .acsv-vrow-desc');
+          if (!t || !d) return false;
+          return getComputedStyle(t).whiteSpace === 'nowrap' && t.offsetHeight <= 20
+            && getComputedStyle(d).webkitLineClamp === '3' && getComputedStyle(d).whiteSpace === 'pre-line';
+        })());
+        // 水印原生形态：48px 粗体 + rotate(10deg)（宿主 .big 断言另见 zone-rank-badge）
+        var numEl = q('.acsv-vrow.big .acsv-rlist-num');
+        var numCS = numEl ? getComputedStyle(numEl) : null;
+        rec('zone-num-native', !!numCS && numCS.fontSize === '48px' && /^matrix\(0\.98/.test(numCS.transform),
+          numCS ? ('fs=' + numCS.fontSize + ' tf=' + numCS.transform.slice(0, 30)) : 'no-el');
+        // UP 卡：两个数据位图标（投稿 U+E15B / 粉丝 U+E155）+ 万格式 + 卡高 129（列宽 338 与行同轨）
+        var upcEl = q('.acsv-rlist-row .acsv-upcard');
+        var upcGlyphs = upcEl ? upcEl.querySelectorAll('.acsv-upcard-extra .acsvg-glyph') : [];
+        var upcCps = [].map.call(upcGlyphs, function (x) { return 'U+' + ((x.textContent.codePointAt(0) || 0).toString(16).toUpperCase()); });
+        var upcH = upcEl ? Math.round(upcEl.getBoundingClientRect().height) : null;
+        var upcTxt = upcEl && upcEl.querySelector('.acsv-upcard-extra') ? upcEl.querySelector('.acsv-upcard-extra').textContent : '';
+        rec('zone-upcard', upcCps.join(',') === 'U+E15B,U+E155' && /万/.test(upcTxt) && upcH >= 127 && upcH <= 131,
+          'cp=' + upcCps.join(',') + ' h=' + upcH + ' txt=' + upcTxt);
         var zchips = document.querySelectorAll('.acsv-vchips')[0].children;
         var gameChip = [].filter.call(zchips, function (c) { return c.textContent === '游戏'; })[0];
         if (gameChip) gameChip.click();

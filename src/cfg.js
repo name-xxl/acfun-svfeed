@@ -153,6 +153,16 @@ export var CFG = {
     narrow: 720,          // 视口宽低于此值隐藏左栏（竖刷是移动式布局，面板无意义）
     dockW: 168,           // 左栏展开宽（抖音式全高导航；scroller/info/视图 padding 与之绑定）
     pageSize: 20,         // 观看历史/收藏夹每页
+    me: {                 // 我的页（0.9.69 抖音式个人主页）
+      gridMin: 280,       // 网格卡最小列宽（列数随容器宽自适应，不写死断点；1920 下 5 列）
+      gridGap: 16,        // 网格间距
+      // 封面比例=4:3：A 站**普通视频封面固定 4:3**（只有小视频是 3:4）——历史/收藏条目
+      // 经契约层过滤后全是普通视频（panelItem 只收 resourceType=2+videoId），套 3:4 会把
+      // 封面左右各裁掉一大块（连标题字都被切）。将来若混入小视频条目需按 kind 分档
+      coverRatio: '4 / 3',
+      cardTtl: 1800000,   // 头部资料缓存（30min；视图每次进入重建 DOM，命中缓存免重复请求）
+      skel: 12            // 首屏骨架卡数（约一屏）
+    },
     rankLimit: 100,       // 榜单条数（原生全站日榜 100 条同款，rankLimit=100 实测生效）
     periods: ['DAY', 'THREE_DAYS', 'WEEK'], // 榜期（原生：今日/三日/本周）
     periodNames: { DAY: '今日', THREE_DAYS: '三日', WEEK: '本周' },

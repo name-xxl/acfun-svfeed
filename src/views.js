@@ -7,6 +7,7 @@ import { overlayOpen, overlayClose, overlayTeardown } from './overlay.js';
 import { FeedStore } from './feedstore.js';
 import { scrollToIndex } from './player.js';
 import { homeItemOf } from './data.js';
+import { GLYPHS } from './imicons.js';
 import { syncDock } from './sidebar.js';
 
 // ---------- 子视图框架（0.9.62：#svfeed/<view>/<arg>，左栏入口的多页面宿主） ----------
@@ -164,8 +165,11 @@ export function playAc(pi) {
 }
 
 // ---- 面板 kit：条目行（cover+标题+meta，点击回竖刷）与「加载更多」按钮 ----
-// meta 行拼装规则：sub 优先（历史=「观看至xx:xx」、榜单=蕉数、收藏=UP 名），
-// progress 仅在 sub 未表达时补显（收藏的续看秒数）
+// meta 行拼装规则：rank 走契约 meta 三段（原生 extra 图标位）；其余来源 sub 优先
+// （历史=「观看至xx:xx」、收藏=UP 名），progress 仅在 sub 未表达时补显（收藏的续看秒数）
+// 榜单 meta 段 kind → 原生字形（imicons.GLYPHS：原生 rank/list 浏览器实测码点）
+var META_GLYPH = { view: GLYPHS.rankView, comment: GLYPHS.rankComment, time: GLYPHS.rankTime };
+
 export function rowOf(pi, rank) {
   // 榜单条目走大卡+右侧 UP 卡（对齐原生 rlist 分栏）；历史/收藏维持小卡
   var row = el('div', 'acsv-vrow' + (pi.kind === 'rank' ? ' big' : ''));
@@ -190,18 +194,61 @@ export function rowOf(pi, rank) {
   var main = el('div', 'acsv-vrow-main');
   main.appendChild(el('div', 'acsv-vrow-title', pi.title));
   if (pi.desc) main.appendChild(el('div', 'acsv-vrow-desc', pi.desc));
-  // meta 行：契约层拼好（rank=原生 extra 构成；其余来源 sub+续看进度）
-  var bits = [];
-  if (pi.sub) bits.push(pi.sub);
-  if (pi.progress != null && pi.kind !== 'history') bits.push('看到 ' + fmtDur(pi.progress));
-  main.appendChild(el('div', 'acsv-vrow-meta', bits.join(' · ')));
+  // meta 行：rank=契约 meta 三段（图标代义，原生无「播放/评论」字样）；其余来源纯文本
+  if (pi.kind === 'rank' && pi.meta) {
+    var meta = el('div', 'acsv-vrow-meta');
+    pi.meta.forEach(function (b) {
+      var seg = el('span', 'acsv-vmeta-i');
+      seg.appendChild(el('i', 'acsvg-glyph', META_GLYPH[b.k] || ''));
+      if (b.t) seg.appendChild(document.createTextNode(b.t));
+      meta.appendChild(seg);
+    });
+    main.appendChild(meta);
+  } else {
+    var bits = [];
+    if (pi.sub) bits.push(pi.sub);
+    if (pi.progress != null && pi.kind !== 'history') bits.push('看到 ' + fmtDur(pi.progress));
+    main.appendChild(el('div', 'acsv-vrow-meta', bits.join(' · ')));
+  }
   row.appendChild(main);
   row.addEventListener('click', function () { playAc(pi); });
   return row;
 }
 
+// 网格卡（0.9.69 我的页抖音式）：3:4 封面 + 封面角标 + 两行标题 + meta。
+// 与 rowOf 并列而非替换——rowOf 被 zone 消费且 0.9.67/68 断言钉着它的类名与
+// watermark offsetParent 契约，共享导出的形状改动必须 grep 全消费点（既有教训）。
+// 角标只用契约在册字段（历史 sub=「观看至xx:xx」）；时长/播放量接口未实测提供，
+// **不做**（不伪造）——将来契约层补字段时在此加，渲染层仍零分支
+export function gridCardOf(pi) {
+  var cell = el('div', 'acsv-gcell');
+  var cover = el('div', 'acsv-gcover');
+  if (pi.cover) {
+    var img = el('img');
+    img.src = pi.cover;
+    img.referrerPolicy = 'no-referrer';
+    img.loading = 'lazy';
+    cover.appendChild(img);
+  }
+  // 封面角标 = 进度语义位：历史 sub 就是「观看至xx:xx」（契约在册）；收藏的 sub 是 UP 名，
+  // 只有续看秒数能进角标——没有时长算不出比例条，就不做比例条（不伪造）
+  var tag = pi.kind === 'history' ? pi.sub
+    : (pi.progress != null ? '看到 ' + fmtDur(pi.progress) : '');
+  if (tag) cover.appendChild(el('div', 'acsv-gtag', tag));
+  cell.appendChild(cover);
+  cell.appendChild(el('div', 'acsv-gtitle', pi.title));
+  // meta 行：历史进度已在角标，只收藏补 UP 名；无内容不挂空节点（网格下空行会撑高卡距）
+  var bits = [];
+  if (pi.kind !== 'history' && pi.sub) bits.push(pi.sub);
+  if (pi.kind !== 'history' && pi.progress != null) bits.push('看到 ' + fmtDur(pi.progress));
+  if (bits.length) cell.appendChild(el('div', 'acsv-gmeta', bits.join(' · ')));
+  cell.addEventListener('click', function () { playAc(pi); });
+  return cell;
+}
+
 // 原生 up-card 等价物（rlist 右栏作者卡，横排）：大圆头像左+信息块右（名字 accent/签名/
-// 粉丝·投稿）。签名可多行（原生 sign 不截）；收藏数 rankList 不带，双数据位=粉丝+投稿。
+// 数据位）。签名恒渲染（原生 p.sign 固定 3 行占位——空签名也占位，行高不随数据波动）；
+// 数据位=投稿数+粉丝数（原生 up-card 两位 U+E15B/U+E155，万格式文案契约层拼好）。
 // 整卡为 UP 主页链接（原生同款 target=_blank）
 export function upCardOf(pi) {
   var card = el('div', 'acsv-upcard');
@@ -217,9 +264,17 @@ export function upCardOf(pi) {
   a.appendChild(avatar);
   var info = el('div', 'acsv-upcard-info');
   info.appendChild(el('div', 'acsv-upcard-name', up.name || ''));
-  if (up.sign) info.appendChild(el('p', 'acsv-upcard-sign', up.sign));
-  info.appendChild(el('div', 'acsv-upcard-extra',
-    up.fans + ' 粉丝 · 投稿 ' + (up.contrib || 0)));
+  info.appendChild(el('p', 'acsv-upcard-sign', up.sign || ''));
+  var extra = el('div', 'acsv-upcard-extra');
+  var c1 = el('span', 'acsv-vmeta-i');
+  c1.appendChild(el('i', 'acsvg-glyph', GLYPHS.share));
+  c1.appendChild(document.createTextNode(up.contribText || '0'));
+  var c2 = el('span', 'acsv-vmeta-i');
+  c2.appendChild(el('i', 'acsvg-glyph', GLYPHS.fans));
+  c2.appendChild(document.createTextNode(up.fansText || '0'));
+  extra.appendChild(c1);
+  extra.appendChild(c2);
+  info.appendChild(extra);
   a.appendChild(info);
   card.appendChild(a);
   return card;
