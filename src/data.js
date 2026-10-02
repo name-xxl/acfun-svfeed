@@ -122,7 +122,8 @@ export function normalizeHome(bc) {
 // （对齐顶部两源契约理念）。字段语义（0.9.82 统一条目模型起）：
 //   up      作者契约（{id,name,img,isFollowing}|null）——**作者唯一出口**。榜单来源另带
 //           fans/contrib/fansText/contribText/sign（随行作者卡专用，进播放层时由 playItemOf 剥掉）；
-//           fav 由收藏夹条目映射；history 卡面不带作者故为 null
+//           fav 由 dougaList 条目映射、history 由 histories[].user 映射（0.9.84 实测与本站
+//           APP 家族 user 同形状：id 字符串 / name / headUrl / isFollowing）
 //   sub     进度文案（history=「观看至xx:xx」）——0.9.82 起 fav 不再把作者名塞在这里（语义混用）
 //   desc    rank 简介（0.9.65）；meta   rank 原生 extra 三段（0.9.69）——其余来源为 undefined
 // 返回 null = 非视频条目，调用方过滤（没有可解析的视频源，进播放层必失败）。
@@ -140,8 +141,17 @@ var PANEL_PARSERS = {
     it.cover = coverUrl(raw.cover);
     it.progress = raw.playedSeconds > 0 ? Number(raw.playedSeconds) : null;
     it.sub = raw.playedSecondsShow || '';
-    // 不产 up：docs §4.1 记了 histories[] 有 user 对象但**未记其形状**（仓库无原始抓包），
-    // 按"不伪造未实测的数据"留空——进播放层后由 resolve 回填能拿到的部分（0.9.82）
+    // 作者（0.9.84）：histories[].user 与 douga/info 的 user **同形状**（APP 家族）——
+    // 2026-10-03 用户登录态实测：{ id:"25380695"（字符串）, name, headUrl（头像）,
+    // isFollowing, fanCount:"6337", contributeCount, signature, avatarFrame… }。
+    // 所以历史条目**在列表层就有作者**：卡片首帧即出 @UP名 脚行，进播放层首帧就有头像与
+    // 关注角标（此前误以为该形状未实测、只能等 douga/info 回包）
+    var u = raw.user || {};
+    it.up = upOf(u.id, u.name, coverUrl(u.headUrl), u.isFollowing);
+    // 观看时间：browseTime 实测是**毫秒时间戳**（2026-10-03 实测值 1790961102971 / typeof number），
+    // 直接走项目既有的相对时间文案（同榜单「发布于xx」那套：N分钟前/昨天H时MM分/M月D日 H时MM分）。
+    // browseTimeGroup 是按日分组标题（"今天/昨天"），不是单条时间，用不得
+    it.dateText = relTime(Number(raw.browseTime));
     return true;
   },
   fav: function (raw, it) {
@@ -152,6 +162,11 @@ var PANEL_PARSERS = {
     // 作者：docs §4.2 实测 dougaList 条目自带 userId/userName/userImg。0.9.82 起进 up 契约
     // ——此前作者名塞在 sub 里，与历史的「观看至xx:xx」共用一个字段（语义混用）
     it.up = upOf(raw.userId, raw.userName, coverUrl(raw.userImg), false);
+    // 时间右槽 = **投稿时间**（contentCreateTime，实测毫秒时间戳：1790429958888），与搜索卡右槽
+    // 的「发布日期」同义。**不用 updateTime**：它是"这条收藏记录的最后变更时间"，续看进度/
+    // 改夹/点赞同步都会刷新（本条记录就带 userPlayedSeconds），语义不纯（实测两条值相差 6 天，
+    // 投稿 6 天前 / 记录更新 1.3 小时前，不变式 contentCreateTime ≤ updateTime 成立）
+    it.dateText = relTime(Number(raw.contentCreateTime));
     return true;
   },
   rank: function (raw, it) {

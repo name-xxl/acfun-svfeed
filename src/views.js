@@ -283,7 +283,10 @@ export function rowOf(pi, rank) {
 // 三种来源共用这一张卡，差异全部由契约字段决定（消费点已 grep：mypage.js ×2 与 searchview.js）：
 //   封面左下角标 = 进度/属性语义位：历史 sub=「观看至xx:xx」、收藏 progress=「看到 xx:xx」、
 //     搜索 views=播放数（右下另有时长 .acsv-gdur）
-//   脚行 = **作者唯一落点**（@UP名 + 日期）：搜索与收藏都从这里出作者，历史卡面无作者故不挂
+//   脚行 = **作者唯一落点**（@UP名 + 右槽时间）：历史/收藏/搜索三源都从这里出作者——历史条目的
+//     作者来自 histories[].user（0.9.84 实测与该站 APP 家族同形状），不是"卡面没有"；
+//     右槽 = 搜索的发布日期 / 历史的观看时间（browseTime 毫秒时间戳 → relTime 相对文案）/
+//     收藏（无时间字段）留空
 // 0.9.83 收口：作者与进度此前都在 meta 行（.acsv-gmeta）又各画了一遍——收藏卡出现
 // 「石悦」/「@石悦」与「看到xx:xx」双份。现在作者只走脚行、进度只留角标，meta 行整体删除
 export function gridCardOf(pi) {

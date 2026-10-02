@@ -90,9 +90,9 @@ body：`action=7&page=1&count=20&groupId=-1`（-1=不分组；action=8 为粉丝
   `{ id:"25380695"（**字符串**）, name, headUrl（头像，与 meow/首页卡片同键名）,
   isFollowing, fanCount:"6337"（字符串）, contributeCount:"3275", signature,
   avatarImage, headCdnUrls[{url,freeTrafficCdn}]（多 CDN 备选）, userHeadImgInfo{…},
-  avatarFramePcImg/MobileImg（头像框）}`。**头像是在这一发回包里**，所以"卡面不带作者"的
-  入口（观看历史、深链 ac 空间）进播放层后能拿到真实头像且**无需额外请求**（0.9.82 据此
-  在 appapi.resolve 回填 `item.up.img`）
+  avatarFramePcImg/MobileImg（头像框）}`。**头像是在这一发回包里**，与 `histories[].user`
+  （§4.1）**同形状**，所以深链 ac 空间进播放层后能拿到真实头像且**无需额外请求**（0.9.82 据此
+  在 appapi.resolve 回填 `item.up.img`；历史条目的同一字段在列表层就用上了，见 §4.1）
 - **currentVideoInfo.playInfos**：9 档直链（2160P60→360P），与 cast playInfo **等价**（同视频同档位）→ home 源 resolve 链可省一请求（douga/info 一发同时拿详情+直链）
 - 注意：videoList[].playInfos 恒空数组，直链在顶层 currentVideoInfo
 
@@ -103,11 +103,23 @@ body：`action=7&page=1&count=20&groupId=-1`（-1=不分组；action=8 为粉丝
 `POST https://www.acfun.cn/rest/pc-direct/browse/history/list`
 body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番剧，**两个同名参数都要带**）
 
-- 实测 totalCount=268；histories[] 字段：resourceId / videoId / title / cover / intro / user / browseTime / playedSeconds / **playedSecondsShow（"观看至03:51"）** / durationSecondsShow / viewCountShow / commentCountShow / browseTimeGroup（按日分组标题）等
-- ⚠ **待实测（0.9.82）**：`histories[].user` 的**形状未记**（只记了存在这个对象），仓库亦无原始抓包。
-  它决定"观看历史条目能否在**列表层**就拿到作者名/uid/头像"。目前按"不伪造未实测的数据"留空，
-  进播放层后由 `douga/info` 回包补名字/uid/头像（§3 实测该回包带 `user.headUrl`）——所以只差
-  列表层首帧那一段。核对方法：登录后拉一次 `browse/history/list`，打印首条的 `user` 键名
+- 实测 totalCount=268；histories[] 条目键（2026-10-03 登录态实测，共 29 个）：`disable /
+  groupId / resourceType / videoId / resourceId / itemId / comboId / title / dougaVideoTitle /
+  dougaTotalVideoCount / intro / cover / coverImgInfo / **user** / browseTime / **browseTimeGroup**
+  （按日分组标题）/ playedSeconds / playedSecondsShow（"观看至03:51"）/ durationSeconds /
+  durationSecondsShow / viewCount / viewCountShow / commentCount / commentCountShow /
+  bangumiItemTitle / bangumiItemEpisodeName / bangumiItemCover / priority / platform`
+- **`user` 对象与 `douga/info` 的 user 同形状**（同属本站 APP 家族；实测键）：
+  `{ id:"25380695"（**字符串**）, name, headUrl（头像）, isFollowing, fanCount:"6337",
+  contributeCount:"3275", signature, avatarFrame / avatarFramePcImg / avatarFrameMobileImg,
+  headCdnUrls[{url,freeTrafficCdn}], avatarImage, userHeadImgInfo{…}, isFollowed,
+  followingStatus, verifiedTypes[], gender, nameColor, action, href（= uid）… }`
+  → **观看历史条目在列表层就带作者三件套**，卡片首帧即可出 `@UP名` 脚行，进播放层首帧
+  即有头像与关注角标（项目 0.9.84 据此在 `PANEL_PARSERS.history` 映射 `it.up`）
+- **`browseTime` = 毫秒时间戳**（2026-10-03 实测值 `1790961102971` / `typeof number`）——单条的
+  **观看时间**，可直接进项目既有的相对时间文案（`data.relTime`：N分钟前 / 昨天H时MM分 /
+  M月D日 H时MM分，同榜单「发布于xx」那套）。**别把 `browseTimeGroup` 当时间**——那是"按日分组
+  标题"（今天/昨天），用于列表分组。项目 0.9.84 据此把观看时间放进历史卡脚行右槽
 - "继续观看"成立：playedSeconds 可直接 seek
 
 ### 4.2 收藏夹
@@ -118,6 +130,12 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
   - 响应：`{result, total, perpage, page, favoriteList[]}`——**列表键是 favoriteList**，没有 list/resourceList 别名（首轮误读键名差点误判空列表）
   - 实测：默认夹 total=5（与 folder/info 的 resourceCount 一致），page=2 空列表即取尽；另一夹 total=10 正常分页
   - favoriteList 条目（22 字段）：**contentId（=ac 号）**、contentTitle / contentDesc / contentImg、userName / userId / userImg、views / comments / stows / like / likeCount / likeCountShow / isLike、duration / **userPlayedSeconds（续看秒数）**、channelInfo、contentCreateTime、updateTime、requestId / groupId / status
+  - **两个时间字段都是毫秒时间戳**（2026-10-03 实测同一条：`contentCreateTime=1790429958888`
+    ≈6 天前、`updateTime=1790960018142` ≈1.3 小时前，不变式 `contentCreateTime ≤ updateTime` 成立）：
+    `contentCreateTime` = **投稿时间**（内容属性，与搜索卡的「发布日期」同义）；
+    `updateTime` = **这条收藏记录的最后变更时间**——续看进度 / 改夹 / 点赞同步都可能刷新它
+    （本条就带 `userPlayedSeconds`），**语义不纯**。项目 0.9.84 因此取 `contentCreateTime`
+    进收藏卡脚行右槽，不用 `updateTime`
 - **folder/info（夹 meta）**：`POST …/favorite/folder/info`（folderId=…）→ {folderId, name, resourceCount, favoriteCountLimit, cover, status, type, lastFavoriteTime, inFolder}，**不含资源列表**
 - 同族端点（站点 chunk 实锤请求形状 + 真机 result 0；本账号对应维度为空收藏故仅验证契约）：`GET /favorite/bangumiList?page=&perpage=`、`POST /favorite/articleList`、`POST /favorite/albumList`（均 page/perpage 分页，响应同构 favoriteList）
 - 探测教训：`/favorite/resource/list` 不存在（404）——资源列表按内容类型拆四个端点（dougaList/articleList/bangumiList/albumList；acfunsdk source.py 同构旁证）

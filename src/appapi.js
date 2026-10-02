@@ -167,10 +167,10 @@ export var AppAPI = {
       if (d.createTime) item.date = String(d.createTime).slice(0, 10);
       else if (d.createTimeMillis) item.date = new Date(d.createTimeMillis).toISOString().slice(0, 10);
       // 作者回填（0.9.82）：写进契约唯一出口 item.up——此前写扁平 item.userName/userId/
-      // isFollowing，而渲染面是构建期写死的，回填等于只写数据不刷屏。up 为 null（历史/深链
-      // 冷进入等卡面不带作者的来源）时就地建一个，名字/id/头像由这里能拿到的部分补
-      // 头像字段 headUrl 是 2026-10-03 真机实测（dougaId=42527415）：与 meow/首页卡片的
-      // user.headUrl 同键名，同一发回包里就有——历史与深链 ac 空间因此也能拿到**真实**头像，
+      // isFollowing，而渲染面是构建期写死的，回填等于只写数据不刷屏。up 为 null（深链冷
+      // 进入这类连卡片都没有的来源）时就地建一个，名字/id/头像由这里能拿到的部分补
+      // 头像字段 headUrl 是 2026-10-03 真机实测（dougaId=42527415）：与 meow/首页卡片以及
+      // histories[].user 同键名，同一发回包里就有——深链 ac 空间因此也能拿到**真实**头像，
       // 不必另发请求（id 实测是字符串，Number 归一）
       var u = d.user || {};
       if (u.id || u.name || u.headUrl) {

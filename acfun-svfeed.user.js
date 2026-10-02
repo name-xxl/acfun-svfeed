@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.83
+// @version      0.9.84
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -874,6 +874,9 @@
       it.cover = coverUrl(raw.cover);
       it.progress = raw.playedSeconds > 0 ? Number(raw.playedSeconds) : null;
       it.sub = raw.playedSecondsShow || "";
+      var u = raw.user || {};
+      it.up = upOf(u.id, u.name, coverUrl(u.headUrl), u.isFollowing);
+      it.dateText = relTime(Number(raw.browseTime));
       return true;
     },
     fav: function(raw, it) {
@@ -882,6 +885,7 @@
       it.cover = coverUrl(raw.contentImg);
       it.progress = raw.userPlayedSeconds > 0 ? Number(raw.userPlayedSeconds) : null;
       it.up = upOf(raw.userId, raw.userName, coverUrl(raw.userImg), false);
+      it.dateText = relTime(Number(raw.contentCreateTime));
       return true;
     },
     rank: function(raw, it) {
@@ -7624,7 +7628,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.83" : "");
+    return normVer(true ? "0.9.84" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -9125,7 +9129,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.83：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.84：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

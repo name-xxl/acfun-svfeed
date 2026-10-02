@@ -55,11 +55,47 @@ test('panelItem fav：无 userName 时 up 为 null（作者未知不伪造）', 
   assert.equal(pi.up, null);
 });
 
-test('panelItem history：卡面不带作者 → up 为 null（靠 resolve 回填，见 docs §4.1 待实测项）', () => {
-  var pi = panelItem('history', {
-    resourceType: 2, videoId: 900001, resourceId: 48820714, title: '测试视频', playedSecondsShow: '观看至02:47'
+test('panelItem fav：contentCreateTime（投稿时间，毫秒时间戳）→ 相对时间文案；updateTime 不用', () => {
+  var pi = panelItem('fav', {
+    contentId: 1, contentTitle: 't',
+    contentCreateTime: Date.now() - 3 * 3600 * 1000, // 投稿 3 小时前
+    updateTime: Date.now() - 60 * 1000              // 记录 1 分钟前刚变过（续看/改夹），不该被采用
   });
-  assert.equal(pi.up, null);
+  assert.match(pi.dateText, /^(3小时前|昨天\d{1,2}时\d{2}分)$/);
+  assert.doesNotMatch(pi.dateText, /分钟前/); // 用的是投稿时间，不是 updateTime
+  assert.equal(panelItem('fav', { contentId: 1, contentTitle: 't' }).dateText, '');
+  assert.equal(panelItem('fav', { contentId: 1, contentTitle: 't', contentCreateTime: 'x' }).dateText, '');
+});
+
+test('panelItem history：作者由 histories[].user 映射进 up（0.9.84 实测形状；id 是字符串要归一）', () => {
+  var pi = panelItem('history', {
+    resourceType: 2, videoId: 900001, resourceId: 48820714, title: '测试视频', playedSecondsShow: '观看至02:47',
+    user: { id: '25380695', name: '羽兰明月_01', headUrl: '//imgs.aixifan.com/u.jpg', isFollowing: true }
+  });
+  assert.deepEqual(pi.up, {
+    id: 25380695, name: '羽兰明月_01', img: 'https://imgs.aixifan.com/u.jpg', isFollowing: true
+  });
+  // 缺 user（坏例/降级）时 up 为 null——作者未知不伪造，进播放层后由 resolve 回填
+  assert.equal(panelItem('history', {
+    resourceType: 2, videoId: 900002, resourceId: 48820715, title: '无作者'
+  }).up, null);
+});
+
+test('panelItem history：browseTime（毫秒时间戳）→ 相对时间文案；缺省/脏值给空串', () => {
+  var pi = panelItem('history', {
+    resourceType: 2, videoId: 1, resourceId: 2, title: 't',
+    browseTime: Date.now() - 3 * 3600 * 1000
+  });
+  // 与榜单 meta 同款断法：3 小时前文案随运行的日历位置而变（凌晨跑则为「昨天HH时MM分」）
+  assert.match(pi.dateText, /^(3小时前|昨天\d{1,2}时\d{2}分)$/);
+  assert.equal(panelItem('history', { resourceType: 2, videoId: 1, resourceId: 2, title: 't' }).dateText, '');
+  assert.equal(panelItem('history', {
+    resourceType: 2, videoId: 1, resourceId: 2, title: 't', browseTime: 'abc'
+  }).dateText, '');
+  // 未来时间（时钟偏差）同样降级空串，不输出「-1小时前」这种假文案
+  assert.equal(panelItem('history', {
+    resourceType: 2, videoId: 1, resourceId: 2, title: 't', browseTime: Date.now() + 86400000
+  }).dateText, '');
 });
 
 // ---------- panelItem: rank ----------
