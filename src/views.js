@@ -1,12 +1,10 @@
 import { CFG } from './cfg.js';
 import { testHook } from './dbg.js';
-import { el, toast } from './ui.js';
+import { el } from './ui.js';
 import { root, scroller } from './state.js';
 import { parseRoute } from './route.js';
-import { overlayOpen, overlayClose, overlayTeardown } from './overlay.js';
+import { overlayOpen, overlayTeardown } from './overlay.js';
 import { FeedStore } from './feedstore.js';
-import { scrollToIndex } from './player.js';
-import { homeItemOf } from './data.js';
 import { GLYPHS } from './imicons.js';
 import { syncDock } from './sidebar.js';
 import { syncTopbar } from './topbar.js';
@@ -17,15 +15,21 @@ import { syncTopbar } from './topbar.js';
 //    hashchange 单一驱动与 player.toggle 编排，不引入 pathname/pushState 新机制
 //  - 视图打开时竖刷保活：scroller 隐藏 + 全视频暂停（paused 时间轴不推进，看门狗天然
 //    不判冻，无需 visibility 特判）；返回时恢复在播条目；FeedStore 不销毁，回来继续刷
-//  - 视图作为 overlay 栈的非模态层（id:'view'）：子视图内 Esc=返回竖刷；进视图先清全部
-//    浮层（离开竖刷舞台语义），视图内新浮层照常叠栈
-//  - 条目点击 playAc：gen 校验（切源丢弃）+ seen 查重（流内直接跳）+ resolve 失败回退 +
-//    append 不 unshift（不打乱当前流，滑过新条目自然回到原 feed）
-// 与 player 的循环依赖（views→player 取 scrollToIndex、player→views 调 syncRouteView）
-// 同 feedstore 先例：绑定只在调用期解引用，求值期互不触碰。
+//  - 视图作为 overlay 栈的非模态层（id:'view'）：Esc 关闭——普通视图=回竖刷，
+//    深界面（def.deep：搜索/播放层）=回"打开它的那个界面"
+//  - 深界面与来源链（0.9.74）：进深界面把来源记进来源链（origins 栈，可两级：我的→搜索→
+//    播放）；来源是普通视图时再额外**挂起其 DOM**（类名换 acsv-view-held + visibility:
+//    hidden ⇒ 盒子存活、滚动位不丢、跳过 build 原位复原；换类名是因为 .acsv-view 是全项目
+//    与 harness 的「当前视图」定位锚，留两个同构节点会污染既有断言）。来源是另一个深界面
+//    （搜索→播放）则只记路线、DOM 真拆——深界面各自握播放会话/定时器，挂起＝隐藏容器里
+//    继续出声，绝不允许
+//  - 普通视图（我的/榜单）之间与 dock 直跳维持旧语义：收旧 + 来源链作废
+//  - 条目点击：走播放层（playlayer.openPlayer），不再插入竖刷队尾（0.9.74 契约变更）
+// player→本模块单向调用（syncRouteView）；本模块不再 import player（0.9.74 删 playAc 的
+// scrollToIndex 依赖后循环消失）
 var registry = {};
-var container = null;  // root 内视图容器：首次进视图懒建，unmount 随 teardownViews 拆
-var current = null;    // { id, arg, def }
+var current = null;     // 当前视图 { id, arg, def, el }
+var origins = [];       // 来源链：[{ view, arg, rec }]；rec 非空=被挂起的普通视图 DOM
 var wasPlaying = false; // 切出时当前条是否在播（回来恢复播放，用户主动暂停态不打扰）
 
 export function registerView(def) {
@@ -33,11 +37,14 @@ export function registerView(def) {
 }
 export function currentView() { return current ? current.id : null; }
 
-function ensureContainer() {
-  if (container) return container;
-  container = el('div', 'acsv-view');
-  root.appendChild(container);
-  return container;
+// 条目点击出口（0.9.74）：由 playlayer 注册时注入（setItemOpener）——本模块不反向 import
+// 播放层，循环依赖归零（旧 playAc 的 views→player 边随之消失）。未注入时点击无动作
+var itemOpener = null;
+export function setItemOpener(fn) { itemOpener = typeof fn === 'function' ? fn : null; }
+// 来源界面名（来源链顶，空链/null view = 竖刷）：深界面的 dock 高亮与「向左返回」定位用它
+export function originView() {
+  if (!origins.length) return null;
+  return origins[origins.length - 1].view || 'feed';
 }
 
 function pauseAllVideos() {
@@ -56,71 +63,133 @@ function resumeCurrentVideo() {
   }
 }
 
-// 视图头（0.9.71 只留关闭键；0.9.73 整头删除）：关闭出口由共享顶栏的 ✕ 提供
-// （syncTopbar 已把 title/语义切成「返回竖刷（Esc）」，鼠标/键盘两条出口都在顶栏）
+// 舞台隐藏：只在「可见→隐藏」跃迁记账。0.9.74 修：进深界面会经"列表→播放"两级，
+// 旧实现每次 enterView 都重记 wasPlaying——彼时舞台早已隐藏、当前条已被暂停 ⇒ 覆盖成
+// false，列表关掉后竖刷不再恢复播放
+function stageHide() {
+  if (!scroller || scroller.style.display === 'none') return;
+  var slide = scroller.querySelector('.acsv-slide[data-idx="' + FeedStore.current + '"]');
+  var v = slide && slide.querySelector('video');
+  wasPlaying = !!(v && !v.paused);
+  scroller.style.display = 'none';
+  if (root) root.classList.add('acsv-with-view');
+  pauseAllVideos();
+}
+
+function stageShow(restore) {
+  if (!scroller) return;
+  // 显式 'block' 同 stageHide：'' 回落样式表值的坑不赌 scroller 的 CSS 现状
+  scroller.style.display = 'block';
+  if (root) root.classList.remove('acsv-with-view');
+  if (restore) resumeCurrentVideo();
+  wasPlaying = false;
+}
+
+// 真销毁一个视图记录（拆 DOM；overlay 栈由调用方统一收）
+function destroyRec(rec) {
+  if (!rec) return;
+  if (rec.def.teardown) { try { rec.def.teardown(); } catch (e) { } }
+  if (rec.el) rec.el.remove();
+}
+
+// 来源链整清：挂起的普通视图 DOM 一并销毁
+function clearOrigins() {
+  while (origins.length) {
+    var o = origins.pop();
+    if (o.rec) destroyRec(o.rec);
+  }
+}
+
+// 当前视图收尾：先摘 current（close 回调 closeView 靠它守卫早退——0.9.63 教训：切换/
+// teardown 路径不得动 hash），再拆
+function dropCurrent() {
+  var rec = current;
+  current = null;
+  destroyRec(rec);
+}
+
+// 视图关闭（Esc）：普通视图回竖刷；深界面回来源链顶，空链回竖刷
+function closeView() {
+  if (!current) return;
+  if (current.def.deep) return backFromOrigin();
+  if (location.hash !== '#' + CFG.hash) location.hash = CFG.hash;
+}
+
+// 深界面的返回动作（Esc 与顶栏「向左返回」共用）：回"打开它的那个界面"
+export function backFromOrigin() {
+  var top = origins.length ? origins[origins.length - 1] : null;
+  var to = top && top.view ? CFG.hash + '/' + top.view
+    + (top.arg == null || top.arg === '' ? '' : '/' + encodeURIComponent(top.arg)) : CFG.hash;
+  if (location.hash !== '#' + to) location.hash = to;
+}
+
+// 进深界面时把来源压链；来源是普通视图则挂起其 DOM（深界面只记路线，见文件头）
+function pushOrigin(prev) {
+  var rec = prev && !prev.def.deep ? prev : null;
+  if (rec) {
+    if (rec.def.suspend) { try { rec.def.suspend(); } catch (e) { } }
+    rec.el.className = 'acsv-view-held'; // 换类名：q('.acsv-view') 是全局定位锚
+  }
+  origins.push({ view: prev ? prev.id : null, arg: prev ? prev.arg : null, rec: rec });
+}
 
 function enterView(id, arg) {
   var def = registry[id];
   if (!def || !root) return false;
-  if (current) exitView(false); // 视图间切换（my↔zone）：先收旧
-  overlayTeardown(); // 离开竖刷舞台：抽屉/弹窗/大图全部收掉，视图从干净栈开始
-  ensureContainer();
-  container.innerHTML = '';
-  if (scroller) {
-    var slide = scroller.querySelector('.acsv-slide[data-idx="' + FeedStore.current + '"]');
-    var v = slide && slide.querySelector('video');
-    wasPlaying = !!(v && !v.paused);
-    scroller.style.display = 'none';
-    pauseAllVideos();
+  // 回来路径：目标＝来源链顶（深界面的来源）→ pop；顶着挂了 DOM 就原位复原（跳过 build）
+  var top = origins.length ? origins[origins.length - 1] : null;
+  var back = !!(top && String(top.view || '') === String(id || '')
+    && String(top.arg || '') === String(arg || ''));
+  var rec = back ? top.rec : null;
+  if (back) origins.pop();
+  var prev = current;
+  current = null; // 先摘 current：overlayTeardown→closeView 不得动 hash（0.9.63 教训）
+  if (prev) {
+    if (def.deep && !back) {
+      pushOrigin(prev);
+      if (prev.def.deep) destroyRec(prev); // 深→深：来源只记路线（会话必须拆净，见文件头）
+    } else {
+      destroyRec(prev);
+    }
   }
-  root.classList.add('acsv-with-view');
+  if (!def.deep) clearOrigins(); // 普通视图/回竖刷：来源链作废（dock 直跳语义）
+  overlayTeardown(); // 换舞台：抽屉/弹窗/大图全部收掉，新界面从干净栈开始
+  if (rec) {
+    rec.el.className = 'acsv-view';
+    rec.el.style.display = 'block';
+    if (rec.def.resume) { try { rec.def.resume(); } catch (e) { } }
+    current = rec;
+    overlayOpen({ id: 'view', close: closeView }); // 非模态层：Esc=关闭
+    return true;
+  }
+  stageHide();
+  var e = el('div', 'acsv-view');
   var body = el('div', 'acsv-view-body');
-  container.appendChild(body);
+  e.appendChild(body);
+  root.appendChild(e);
   // 必须显式 'block'：CSS 里 .acsv-view 初始 display:none，'' 会回落到样式表值——
   // 0.9.62 黑屏 bug 根因（内容渲染了但容器不可见，harness 断言只查内联值被骗过）
-  container.style.display = 'block';
-  current = { id: id, arg: arg, def: def };
-  overlayOpen({ id: 'view', close: backToFeed }); // 非模态层：Esc=返回竖刷
+  e.style.display = 'block';
+  current = { id: id, arg: arg, def: def, el: e };
+  overlayOpen({ id: 'view', close: closeView }); // 非模态层：Esc=关闭
   def.build(body, arg);
   return true;
 }
 
+// 最后一个视图退出（回竖刷）：拆当前 + 来源链作废 + 恢复舞台
 function exitView(restore) {
-  if (!current) return;
-  var def = current.def;
-  var resume = restore && wasPlaying;
-  wasPlaying = false;
-  current = null;
-  overlayClose('view'); // Esc 路径已出栈时空转；hash 变更路径由此同步栈
-  // 0.9.73 对称收尾：视图内新开的浮层（私信抽屉/更新弹窗）随视图一并收——与 enterView
-  // 的 overlayTeardown 成对，避免「回竖刷后抽屉还挂着、视频被避让顶开」的跨舞台残留。
-  // 顺序契约：必须在 current=null 之后（overlayClose('view') 的 close 回调 backToFeed
-  // 靠 current 守卫早退，0.9.63 教训）
-  overlayTeardown();
-  if (def.teardown) { try { def.teardown(); } catch (e) { } }
-  if (container) { container.innerHTML = ''; container.style.display = 'none'; }
-  if (root) root.classList.remove('acsv-with-view');
-  // 显式 'block' 同 enterView：'' 回落样式表值的坑不赌 scroller 的 CSS 现状
-  if (scroller) scroller.style.display = 'block';
-  if (resume) resumeCurrentVideo();
-}
-
-// Esc/✕ 回竖刷：hash 赋值（入一条历史），hashchange → toggle → syncRouteView →
-// exitView(true)。无条件回写：若地址已被 syncHash 残留定时器踩成深链（replaceState
-// 不触发 hashchange，视图态与地址会短暂脱钩），回写 #svfeed 正好把状态拉回一致。
-// 仅 Esc/✕ 路径生效（current 非空）：exitView 已清 current 后才 overlayClose 的
-// 切换/teardown 路径不得动 hash——否则我的→榜单直切会被改回 #svfeed 闪回竖刷
-// （0.9.63 真机验证踩实）
-function backToFeed() {
-  if (!current) return;
-  if (location.hash !== '#' + CFG.hash) location.hash = CFG.hash;
+  dropCurrent();
+  overlayTeardown(); // 0.9.73 对称收尾：视图内新开的浮层随视图一并收
+  clearOrigins();
+  stageShow(!!(restore && wasPlaying));
 }
 
 // hashchange 主钩子（player.toggle 调；boot 的 hashchange 链唯一入口）
 export function syncRouteView() {
   if (!root) return;
   var r = parseRoute();
-  if (r.view && registry[r.view]) {
+  var def = r.view ? registry[r.view] : null;
+  if (def) {
     if (!current || current.id !== r.view
       || String(current.arg || '') !== String(r.viewArg || '')) {
       enterView(r.view, r.viewArg);
@@ -128,43 +197,31 @@ export function syncRouteView() {
   } else if (current) {
     exitView(true);
   }
-  syncDock(r.view);
-  // 顶栏按界面同步（0.9.73：四处复用——视图态隐源切换 + ✕ 语义=返回竖刷；搜索视图回填关键词）
+  // dock 高亮：深界面（搜索/播放）不在 dock 里——指向来源界面（来源链顶），空链回「推荐」
+  syncDock(def && def.deep ? (originView() || 'feed') : r.view);
+  // 顶栏按界面同步（0.9.73 四处复用；0.9.74：✕ 收回"退出脚本"单一意义，深界面另有「向左返回」）
   syncTopbar(r.view, r.viewArg);
 }
 
-// 整流卸载（player.unmount 调）：不恢复播放（视频随后统一拆除），清容器与栈成员
+// 整流卸载（player.unmount 调）：不恢复播放（视频随后统一拆除），清当前视图与来源链
 export function teardownViews() {
-  if (current) exitView(false);
-  if (container) { container.remove(); container = null; }
+  dropCurrent();
+  clearOrigins();
+  stageShow(false);
 }
 
-// 视图条目点击：回竖刷 + 插入队尾播放。已在流内（seen）直接跳不重复插入
-export function playAc(pi) {
-  if (!pi || !pi.acId) return;
-  if (location.hash !== '#' + CFG.hash) location.hash = CFG.hash;
-  var gen = FeedStore.gen;
-  var i, j;
-  for (i = 0; i < FeedStore.items.length; i++) {
-    if (String(FeedStore.items[i].id) === String(pi.acId)) return scrollToIndex(i);
-  }
-  var item = homeItemOf(pi.acId, pi.title, pi.cover);
-  FeedStore.refresh(item).then(function (ok) {
-    if (gen !== FeedStore.gen) return; // 期间切源：这条属于旧源，丢弃
-    if (!ok) return toast('视频加载失败，稍后再试');
-    if (FeedStore.seen[item.id]) { // 竞态：等待期间已由别的路径插入
-      for (j = 0; j < FeedStore.items.length; j++) {
-        if (String(FeedStore.items[j].id) === String(item.id)) return scrollToIndex(j);
-      }
-      return;
-    }
-    FeedStore.seen[item.id] = 1;
-    FeedStore.items.push(item);
-    scrollToIndex(FeedStore.items.length - 1);
-  });
-}
+// debug 构建测试钩子：harness 钉舞台记账与来源链（release 死码消除）
+testHook('stage', function () {
+  return {
+    visible: !!(scroller && scroller.style.display !== 'none'),
+    wasPlaying: wasPlaying,
+    current: currentView(),
+    origin: originView(),
+    held: document.querySelectorAll('.acsv-view-held').length
+  };
+});
 
-// ---- 面板 kit：条目行（cover+标题+meta，点击回竖刷）与「加载更多」按钮 ----
+// ---- 面板 kit：条目行（cover+标题+meta，点击进播放层）与「加载更多」按钮 ----
 // meta 行拼装规则：rank 走契约 meta 三段（原生 extra 图标位）；其余来源 sub 优先
 // （历史=「观看至xx:xx」、收藏=UP 名），progress 仅在 sub 未表达时补显（收藏的续看秒数）
 // 榜单 meta 段 kind → 原生字形（imicons.GLYPHS：原生 rank/list 浏览器实测码点）
@@ -211,7 +268,7 @@ export function rowOf(pi, rank) {
     main.appendChild(el('div', 'acsv-vrow-meta', bits.join(' · ')));
   }
   row.appendChild(main);
-  row.addEventListener('click', function () { playAc(pi); });
+  row.addEventListener('click', function () { if (itemOpener) itemOpener(pi); });
   return row;
 }
 
@@ -257,7 +314,7 @@ export function gridCardOf(pi) {
     foot.appendChild(el('span', 'acsv-gtime', pi.dateText || ''));
     cell.appendChild(foot);
   }
-  cell.addEventListener('click', function () { playAc(pi); });
+  cell.addEventListener('click', function () { if (itemOpener) itemOpener(pi); });
   return cell;
 }
 

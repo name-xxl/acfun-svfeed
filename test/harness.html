@@ -597,8 +597,10 @@
         var firstRow = q('.acsv-vlist.hist .acsv-gcell');
         var firstId = 488900;
         if (firstRow) firstRow.click();
+        // 0.9.74：视图容器改为按需创建/销毁（此前留一个空 .acsv-view 常驻）——"无视图 DOM"
+        // 就是"已关闭"的不变式；挂起保活的来源视图类名是 .acsv-view-held，不会误判
         rec('back-to-feed', !!(await waitFor(function () {
-          return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && q('.acsv-view').style.display === 'none';
+          return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && q('.acsv-view') === null;
         }, 8000)));
         rec('feed-item-appended', !!(await waitFor(function () {
           var f = feed();
@@ -613,10 +615,32 @@
         rec('me-card-cached', !!(await waitFor(function () {
           return q('.acsv-mecard-name') && window.__ACSV_CARD_CALLS__ === 1;
         }, 5000)), 'calls=' + window.__ACSV_CARD_CALLS__);
+        // 来源视图保活（0.9.74）：我的 → 搜索（深界面）→ Esc 返回。钉四件事：挂起期只有一个
+        // .acsv-view（来源换类名 acsv-view-held，不污染全局定位锚）、回来是**同一个节点**、
+        // 滚动位保住（visibility 挂起而非 display:none）、数据不重拉
+        var myEl = q('.acsv-view');
+        var myBody = q('.acsv-view-body');
+        var histCalls0 = window.__ACSV_HIST_CALLS__;
+        myBody.scrollTop = 120;
+        location.hash = 'svfeed/search/测试词';
+        rec('hold-enter-deep', !!(await waitFor(function () {
+          return !!q('.acsv-sgrid') && document.querySelectorAll('.acsv-view').length === 1;
+        }, 8000)), 'views=' + document.querySelectorAll('.acsv-view').length);
+        rec('hold-origin-suspended', document.querySelectorAll('.acsv-view-held').length === 1
+          && q('.acsv-view-held') === myEl, 'held=' + document.querySelectorAll('.acsv-view-held').length);
+        key('Escape'); // 深界面 Esc=回来源（来源链顶），不是回竖刷
+        rec('hold-back-restored', !!(await waitFor(function () {
+          return location.hash === '#svfeed/my' && q('.acsv-view') === myEl;
+        }, 8000)), location.hash);
+        rec('hold-restore-invariants', q('.acsv-view-body') === myBody
+          && Math.abs(q('.acsv-view-body').scrollTop - 120) <= 2
+          && window.__ACSV_HIST_CALLS__ === histCalls0
+          && document.querySelectorAll('.acsv-view-held').length === 0,
+          'scrollTop=' + Math.round(q('.acsv-view-body').scrollTop) + ' histCalls=' + window.__ACSV_HIST_CALLS__);
         await wait(400); // 越过进视图前残留的 syncHash 150ms 定时器窗口（真实用户不可达的时序）
         key('Escape');
         rec('esc-back-to-feed', !!(await waitFor(function () {
-          return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && q('.acsv-view').style.display === 'none';
+          return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && q('.acsv-view') === null;
         }, 8000)));
 
       } else if (CASE === 'view-zone') {
@@ -724,6 +748,32 @@
           var st = s.getBoundingClientRect().top, r = sl.getBoundingClientRect();
           return r.top <= st + 2 && r.top >= st - 2; // 目标那张恰好顶在舞台上缘
         }, 8000)), 'idx=' + hj + ' cur=' + (feed() ? feed().current : 'n/a'));
+        // 两级进入的舞台记账（0.9.74 修）：榜单 → 搜索（深界面）→ Esc → Esc → 竖刷须恢复播放。
+        // 旧实现每次 enterView 都重记 wasPlaying——第二级进入时舞台早已隐藏、当前条被暂停 ⇒
+        // 覆盖成 false，回竖刷后不再起播（真机表现：返回后画面静止要手点一下）
+        rec('stage-resume-pre', !!(await waitFor(function () { return firstVideoReady(cur()); }, 15000)));
+        location.hash = 'svfeed/zone'; // 普通视图做来源（上一段末尾已在竖刷）
+        rec('deep2-zone', !!(await waitFor(function () {
+          return !!q('.acsv-vchips') && q('.acsv-view') !== null;
+        }, 8000)));
+        location.hash = 'svfeed/search/测试词'; // 深界面：来源视图挂起
+        rec('deep2-open', !!(await waitFor(function () { return !!q('.acsv-sgrid'); }, 8000)));
+        rec('deep2-origin-held', document.querySelectorAll('.acsv-view-held').length === 1 && q('.acsv-view') !== null,
+          'held=' + document.querySelectorAll('.acsv-view-held').length);
+        // 记账不变量：两级进入后 wasPlaying 必须仍是第一次跃迁捕获的 true（旧实现被二级覆盖成
+        // false；真机据此才恢复播放——IO 复显兜底会掩盖症状，所以直接钉记账值）
+        rec('stage-wasplaying-kept', TEST.call('stage').wasPlaying === true && TEST.call('stage').visible === false,
+          JSON.stringify(TEST.call('stage')));
+        key('Escape');
+        rec('deep2-back-zone', !!(await waitFor(function () {
+          // 钉「还原完成」：地址赋值是同步的，视图还原要等 hashchange——只查 hash 会与下一击竞态
+          return location.hash === '#svfeed/zone' && TEST.call('view') === 'zone'
+            && document.querySelectorAll('.acsv-view-held').length === 0;
+        }, 8000)), location.hash);
+        key('Escape');
+        rec('stage-resume', !!(await waitFor(function () {
+          return q('.acsv-view') === null && firstVideoReady(cur());
+        }, 15000)), 'cur=' + (feed() ? feed().current : 'n/a'));
 
       } else if (CASE.indexOf('deeplink-') === 0) {
         // 深链冒烟（0.9.72）：地址栏 id 跨两个 id 空间（v=meowId 小视频 / a=acId 推荐），
@@ -870,7 +920,7 @@
         var sCell = q('.acsv-sgrid .acsv-scell'); // 点卡片回竖刷（视图关闭 + 地址回竖刷路由）
         if (sCell) sCell.click();
         rec('search-back-feed', !!(await waitFor(function () {
-          return /^#svfeed(\/|$)/.test(location.hash) && q('.acsv-view').style.display === 'none';
+          return /^#svfeed(\/|$)/.test(location.hash) && q('.acsv-view') === null;
         }, 8000)));
         (function () { // 顶栏空词提交：只开视图出引导态，不发请求
           var i = q('.acsv-top .acsv-sbox input');
@@ -885,7 +935,7 @@
         key('Escape');
         rec('search-esc-back', !!(await waitFor(function () {
           return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash)
-            && q('.acsv-view').style.display === 'none';
+            && q('.acsv-view') === null;
         }, 8000)), location.hash);
         location.hash = 'svfeed/search/' + encodeURIComponent('深链词');
         rec('search-deeplink-prefill', !!(await waitFor(function () {
@@ -971,7 +1021,7 @@
         key('Escape'); // 再 Esc → 回竖刷
         rec('imview-esc-view', !!(await waitFor(function () {
           return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash)
-            && q('.acsv-view').style.display === 'none';
+            && q('.acsv-view') === null;
         }, 8000)), location.hash);
 
       } else if (CASE === 'stall-healthy') {

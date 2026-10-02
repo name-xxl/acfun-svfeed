@@ -14,6 +14,7 @@ import { setSearchHandler, focusSearch } from './topbar.js';
 // 不再自建输入框：共享顶栏的搜索框就是它（syncTopbar 按 arg 回填；本视图挂载期经
 // setSearchHandler 接管提交——同词再回车 hash 不变，必须就地重跑；teardown 还原默认提交）
 var seq = 0; // 换词竞态令牌（旧响应丢弃；跨重建单调递增）
+var activeSubmit = null; // 顶栏提交闭包（挂起/复原用：0.9.74 深界面保活期间交还默认提交）
 
 function runSearch(kw, ui) {
   kw = String(kw || '').trim();
@@ -81,6 +82,7 @@ function buildSearchView(body, arg) {
   }
 
   setSearchHandler(submit);
+  activeSubmit = submit;
   var kw0 = String(arg || '').trim();
   runSearch(kw0, ui); // 有词即自动搜（顶栏提交/深链直达）；空词出引导态
   if (!kw0) focusSearch();
@@ -89,7 +91,18 @@ function buildSearchView(body, arg) {
 // 退出/重建时还原默认提交（player.navSearch）——不还原则离开搜索视图后顶栏 Enter 仍打在本
 // 视图的旧闭包上（写 hash 前先撞同词判定，表现为"点了没反应"）
 function teardownSearchView() {
+  activeSubmit = null;
   setSearchHandler(null);
 }
 
-registerView({ id: 'search', build: buildSearchView, teardown: teardownSearchView });
+registerView({
+  id: 'search',
+  build: buildSearchView,
+  teardown: teardownSearchView,
+  // 深界面（0.9.74）：关闭/返回=回来源界面（挂起链顶）；被播放层盖住时作为来源视图挂起
+  deep: true,
+  // 顶栏输入框是常驻单例：挂起期（DOM 还在、输入框归别人用）必须交还默认提交，
+  // 否则本视图的闭包会劫持离开后写下的 Enter——复原时再接管回来
+  suspend: function () { setSearchHandler(null); },
+  resume: function () { if (activeSubmit) setSearchHandler(activeSubmit); }
+});

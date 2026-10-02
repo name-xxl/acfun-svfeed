@@ -622,6 +622,10 @@ var RAW_CSS = ''
   + '#acsv-root:fullscreen .acsv-dock{display:none}'
   + '#acsv-root:fullscreen .acsv-scroller{margin-left:0}'
   + '.acsv-view{position:absolute;inset:0;z-index:55;display:none;background:#16161b;overflow:hidden}'
+  // 来源视图保活（0.9.74）：被深界面盖住期间挂起。类名整只换掉——.acsv-view 是全项目与
+  // harness 的「当前视图」定位锚，留两个同构节点会污染既有断言；用 visibility 不用
+  // display:none——后者拆盒，.acsv-view-body 的滚动位会丢
+  + '.acsv-view-held{position:absolute;inset:0;z-index:55;visibility:hidden;pointer-events:none;background:#16161b;overflow:hidden}'
   // 视图正文顶=顶栏高（0.9.73 视图头删除：共享顶栏接管视图头部；不再写死 52px）。
   // right 过渡供抽屉避让（收窄/还原与抽屉滑入滑出同曲线同时序）
   + '.acsv-view-body{position:absolute;top:var(--acsv-top-h);bottom:0;left:0;right:0;overflow-y:auto;'
