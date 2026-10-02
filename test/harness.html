@@ -60,22 +60,29 @@
     'deeplink-bare': '#svfeed/11053531',     // 0.9.72 前的历史裸形态：无标记，靠探测出 meow
     'deeplink-ac': '#svfeed/a/48867212',     // 推荐标记形态（home-sample 首条 href）
     'deeplink-switch': '#svfeed/v/11053531', // 源记忆=home 下也必须落到小视频
-    'deeplink-miss': '#svfeed/a/99999999999' // 两个 id 空间都查不到：必须错误盒，不许随机流
+    'deeplink-miss': '#svfeed/a/99999999999', // 两个 id 空间都查不到：必须错误盒，不许随机流
+    'play-cold': '#svfeed/play/a/488900'      // 播放层直达（0.9.79）：分享链接冷启动不预热竖刷
   };
   if (DEEP_HASH[CASE]) {
     location.hash = DEEP_HASH[CASE];
-    // douga/info 桩：ac 深链的解析端点（生产 = api-new.app.acfun.cn/rest/app/douga/info）。
-    // key 收窄到 'douga/info' 单端点，防误伤其他请求；非白名单 id 回 result≠0 走未命中分支
-    window.__ACSV_MOCK_FORM__ = {
-      'douga/info': function (body, url) {
-        var id = (String(url).match(/dougaId=(\d+)/) || [])[1];
-        if (id !== '48867212') return { result: 1 };
-        return {
-          result: 0, videoList: [{ id: 'mock-douga-' + id }],
-          title: '深链推荐视频', coverUrl: 'https://i.example/deep.jpg'
-        };
-      }
-    };
+    if (CASE === 'play-cold') {
+      // 播放层直达：解析链同 view-my（douga/info 全量桩 + 直挂缝——webm 套 hls.js 会死在解析上）
+      window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+      window.__ACSV_MOCK_DIRECT__ = { '488900': 1 };
+    } else {
+      // douga/info 桩：ac 深链的解析端点（生产 = api-new.app.acfun.cn/rest/app/douga/info）。
+      // key 收窄到 'douga/info' 单端点，防误伤其他请求；非白名单 id 回 result≠0 走未命中分支
+      window.__ACSV_MOCK_FORM__ = {
+        'douga/info': function (body, url) {
+          var id = (String(url).match(/dougaId=(\d+)/) || [])[1];
+          if (id !== '48867212') return { result: 1 };
+          return {
+            result: 0, videoList: [{ id: 'mock-douga-' + id }],
+            title: '深链推荐视频', coverUrl: 'https://i.example/deep.jpg'
+          };
+        }
+      };
+    }
   }
   // 测试媒体统一换本地 webm（免 h264 依赖 + 免外网抖动；cc0，来自 MDN flower 样片）。
   // 必须绝对 URL：normalize() 的直链过滤器要求 ^https?:
@@ -948,6 +955,15 @@
         rec('stage-resume', !!(await waitFor(function () {
           return q('.acsv-view') === null && firstVideoReady(cur());
         }, 15000)), 'cur=' + (feed() ? feed().current : 'n/a'));
+        // 榜单首屏缓存（0.9.79）：退出视图再进——命中缓存零新增请求（榜单日更，5 分钟 TTL
+        // 无新鲜度风险；我的页的历史/收藏不做缓存，保持一致每次重拉）
+        var zoneCalls = window.__ACSV_RANK_CALLS__ || 0;
+        location.hash = 'svfeed/zone';
+        rec('zone-cache-reenter', !!(await waitFor(function () {
+          return document.querySelectorAll('.acsv-rlist .acsv-rlist-row').length > 0;
+        }, 10000)));
+        rec('zone-cache-no-refetch', (window.__ACSV_RANK_CALLS__ || 0) === zoneCalls,
+          'before=' + zoneCalls + ' after=' + (window.__ACSV_RANK_CALLS__ || 0));
 
       } else if (CASE.indexOf('deeplink-') === 0) {
         // 深链冒烟（0.9.72）：地址栏 id 跨两个 id 空间（v=meowId 小视频 / a=acId 推荐），
@@ -1320,6 +1336,31 @@
         })());
         key('Escape');
         rec('play-miss-back', !!(await waitFor(function () { return location.hash === '#svfeed'; }, 8000)), location.hash);
+
+      } else if (CASE === 'play-cold') {
+        // 播放层直达（0.9.79）：分享链接冷启动 = 层内自解析起播，**不预热后台竖刷**（层里根本
+        // 不看它，白拉一屏请求 + 后台缓冲一屏视频）；离开层回舞台那一刻才补拉首屏。
+        // 热路径（feed 已加载）的层内播放由 play-deep 覆盖
+        rec('cold-layer-playing', !!(await waitFor(function () {
+          var s = q('.acsv-slide[data-ovl="1"]');
+          var v = s && s.querySelector('video');
+          return !!v && !v.paused && v.currentTime > 0;
+        }, 25000)), (function () {
+          var s = q('.acsv-slide[data-ovl="1"]');
+          return 'state=' + (s && s.dataset.state);
+        })());
+        rec('cold-feed-not-warmed', !!feed() && feed().items.length === 0,
+          'items=' + (feed() ? feed().items.length : 'n/a'));
+        rec('cold-feed-no-video', document.querySelectorAll('.acsv-scroller video').length === 0,
+          'vids=' + document.querySelectorAll('.acsv-scroller video').length);
+        key('Escape'); // 层内 Esc → 回来源（本例来源=竖刷）→ 补拉首屏
+        rec('cold-back-feed', !!(await waitFor(function () {
+          return location.hash === '#svfeed' && q('.acsv-slide[data-ovl="1"]') === null;
+        }, 8000)), location.hash);
+        rec('cold-feed-loaded', !!(await waitFor(function () {
+          return feed() && feed().items.length > 0;
+        }, 15000)), 'items=' + (feed() ? feed().items.length : 'n/a'));
+        rec('cold-feed-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
 
       } else if (CASE === 'view-im' || CASE === 'view-im-narrow') {
         // 抽屉×视图避让冒烟（0.9.73）：视图里开私信抽屉 → 正文让位（宽视口右缘收窄到抽屉左缘，

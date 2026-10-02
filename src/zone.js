@@ -19,6 +19,13 @@ var navTreeFlight = singleFlight(function () {
   }, function () { return []; });
 });
 
+// 榜单首屏会话级缓存（0.9.79）：视图每次进入整块重建重拉 100 条，来回切纯浪费。榜单是
+// **日更数据**（rankPeriod 决定榜期、每日更新一次），5 分钟内复用零新鲜度风险。
+// 只缓存这一个视图——我的页的历史/收藏**不做缓存**：它们必须反映"刚看过/刚收藏"，
+// 新鲜度优先（现行为就是每次重拉，评审里明确保留）
+var rankCache = {}; // key=频道|子频道|榜期 -> { at, rows }
+var RANK_TTL = 5 * 60000;
+
 // 递归找 navName===name 的分区节点，返回其 children（无则 []）
 function subChannelsOf(tree, name) {
   var hit = null;
@@ -86,7 +93,25 @@ function buildZoneView(body) {
     });
   }
 
+  function render(rows) {
+    list.innerHTML = '';
+    if (!rows.length) {
+      list.appendChild(el('div', 'acsv-vempty', '该分区暂无榜单数据'));
+      return;
+    }
+    // 原生 rlist__cards：每行=视频卡+作者卡左右分栏（rowOf 出视频卡含排名水印，upCardOf 出作者卡）
+    rows.forEach(function (r) {
+      var pair = el('div', 'acsv-rlist-row');
+      pair.appendChild(rowOf(r.pi, r.rank));
+      pair.appendChild(upCardOf(r.pi));
+      list.appendChild(pair);
+    });
+  }
+
   function load() {
+    var key = curZone.id + '|' + (curSub == null ? '' : curSub) + '|' + curPeriod;
+    var hit = rankCache[key];
+    if (hit && Date.now() - hit.at < RANK_TTL) { render(hit.rows); return; } // 命中：零请求直出
     list.innerHTML = '';
     list.appendChild(el('div', 'acsv-vempty', '加载中…'));
     request(CFG.api.rank + '?channelId=' + curZone.id + '&subChannelId='
@@ -98,18 +123,8 @@ function buildZoneView(body) {
           var pi = panelItem('rank', raw);
           if (pi) rows.push({ pi: pi, rank: i + 1 });
         });
-        list.innerHTML = '';
-        if (!rows.length) {
-          list.appendChild(el('div', 'acsv-vempty', '该分区暂无榜单数据'));
-          return;
-        }
-        // 原生 rlist__cards：每行=视频卡+作者卡左右分栏（rowOf 出视频卡含排名水印，upCardOf 出作者卡）
-        rows.forEach(function (r) {
-          var pair = el('div', 'acsv-rlist-row');
-          pair.appendChild(rowOf(r.pi, r.rank));
-          pair.appendChild(upCardOf(r.pi));
-          list.appendChild(pair);
-        });
+        rankCache[key] = { at: Date.now(), rows: rows };
+        render(rows);
       }, function () {
         list.innerHTML = '';
         list.appendChild(el('div', 'acsv-vempty', '加载失败（网络不可达）'));

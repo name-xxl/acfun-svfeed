@@ -101,7 +101,11 @@
       for (var m = 0; m < n; m++) rows.push(favEntry(m));
       return { result: 0, total: n, favoriteList: rows };
     },
-    'rank/channel': function (body, url) { return rankList(url); },
+    // rank/channel 命中计数（0.9.79）：view-zone 断言「二次进入命中首屏缓存、不重打接口」用
+    'rank/channel': function (body, url) {
+      window.__ACSV_RANK_CALLS__ = (window.__ACSV_RANK_CALLS__ || 0) + 1;
+      return rankList(url);
+    },
     // 搜索页 SSR（0.9.72）：真机结构裁剪片段（未转义形态；真机 \" 转义形态由单测覆盖）。
     // 命中计数供 harness 断言「空词不发请求」
     'search?keyword=': function () {

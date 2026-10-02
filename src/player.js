@@ -432,6 +432,11 @@ function mount() {
   if (route.mid) {
     // 深链：按 id 空间解析后置顶该条（源随链接走，不再被持久化偏好拦掉）
     loadDeepLink(route.mid, route.src);
+  } else if (route.view === 'play') {
+    // 播放层直达（0.9.79）：**不预热后台竖刷**——层里根本不看它，白拉一屏请求 + 后台缓冲
+    // 一屏视频（0.9.77 评审实测）。推迟到真正离开层、回到舞台那一刻补拉（maybeStartFeed）。
+    // 代价明账：从分享链接退出回竖刷要等一次首屏加载（换掉那份白拉的流量）
+    feedDeferred = true;
   } else {
     // 普通入口：按持久化内容源清空缓冲重新随机拉取（resetHomePager 让推荐源不吃上次会话的游标）
     resetHomePager();
@@ -442,8 +447,27 @@ function mount() {
   }
 }
 
+// 播放层直达推迟的竖刷首屏（0.9.79）：toggle 每次 hashchange 尾部问一次——真正回到舞台
+// （无 currentView）才补拉；还在视图/播放层里就继续等。FeedStore 已非空（别的路径先拉了）
+// 则只清标志不重复拉
+var feedDeferred = false;
+function maybeStartFeed() {
+  if (!feedDeferred) return;
+  if (!scroller) { feedDeferred = false; return; }
+  if (currentView()) return;
+  feedDeferred = false;
+  if (FeedStore.items.length) return;
+  resetHomePager();
+  UpVideos.feedActive = false;
+  setAppliedMid(null);
+  FeedStore.reset();
+  scroller.appendChild(el('div', 'acsv-spinner'));
+  loadInitial();
+}
+
 function unmount() {
   if (!root) return;
+  feedDeferred = false; // 播放层直达的推迟标志随挂载态失效（重进按地址重新裁决）
   cancelHashSync();   // 在途地址回写随退出作废（否则会把已退出的深链地址补写回来）
   setAppliedMid(null); // 深链意图随挂载态失效：重进时要按地址重新解析
   if (io) { io.disconnect(); io = null; }
@@ -527,6 +551,7 @@ export function toggle() {
     mount();
     syncRouteFeed(); // 挂载态下 hash 跳到另一条深链：就地跳转，不重置流
     syncRouteView(); // hashchange 已在竖刷路由内跳变（#svfeed ↔ #svfeed/<view>）：视图层进出
+    maybeStartFeed(); // 0.9.79：播放层直达推迟的竖刷首屏，回到舞台这一刻补拉
   } else {
     teardownViews(); // 先收视图（含 close 回调），再走 unmount 全链
     unmount();

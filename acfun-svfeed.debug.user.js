@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.78-debug
+// @version      0.9.79-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -7466,7 +7466,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.78" : "");
+    return normVer(true ? "0.9.79" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -8771,6 +8771,8 @@
     var route = parseRoute();
     if (route.mid) {
       loadDeepLink(route.mid, route.src);
+    } else if (route.view === "play") {
+      feedDeferred = true;
     } else {
       resetHomePager();
       UpVideos.feedActive = false;
@@ -8779,8 +8781,26 @@
       loadInitial();
     }
   }
+  var feedDeferred = false;
+  function maybeStartFeed() {
+    if (!feedDeferred) return;
+    if (!scroller) {
+      feedDeferred = false;
+      return;
+    }
+    if (currentView()) return;
+    feedDeferred = false;
+    if (FeedStore.items.length) return;
+    resetHomePager();
+    UpVideos.feedActive = false;
+    setAppliedMid(null);
+    FeedStore.reset();
+    scroller.appendChild(el("div", "acsv-spinner"));
+    loadInitial();
+  }
   function unmount() {
     if (!root) return;
+    feedDeferred = false;
     cancelHashSync();
     setAppliedMid(null);
     if (io) {
@@ -8859,6 +8879,7 @@
       mount();
       syncRouteFeed();
       syncRouteView();
+      maybeStartFeed();
     } else {
       teardownViews();
       unmount();
@@ -8950,7 +8971,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.78：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.79：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -9561,6 +9582,8 @@
       return [];
     });
   });
+  var rankCache = {};
+  var RANK_TTL = 5 * 6e4;
   function subChannelsOf(tree, name) {
     var hit = null;
     (function walk(list) {
@@ -9626,7 +9649,26 @@
         });
       });
     }
+    function render(rows) {
+      list.innerHTML = "";
+      if (!rows.length) {
+        list.appendChild(el("div", "acsv-vempty", "该分区暂无榜单数据"));
+        return;
+      }
+      rows.forEach(function(r) {
+        var pair = el("div", "acsv-rlist-row");
+        pair.appendChild(rowOf(r.pi, r.rank));
+        pair.appendChild(upCardOf(r.pi));
+        list.appendChild(pair);
+      });
+    }
     function load() {
+      var key = curZone.id + "|" + (curSub == null ? "" : curSub) + "|" + curPeriod;
+      var hit = rankCache[key];
+      if (hit && Date.now() - hit.at < RANK_TTL) {
+        render(hit.rows);
+        return;
+      }
       list.innerHTML = "";
       list.appendChild(el("div", "acsv-vempty", "加载中…"));
       request(CFG.api.rank + "?channelId=" + curZone.id + "&subChannelId=" + (curSub == null ? "" : curSub) + "&rankLimit=" + CFG.view.rankLimit + "&rankPeriod=" + curPeriod, "GET").then(function(j) {
@@ -9635,17 +9677,8 @@
           var pi = panelItem("rank", raw);
           if (pi) rows.push({ pi, rank: i + 1 });
         });
-        list.innerHTML = "";
-        if (!rows.length) {
-          list.appendChild(el("div", "acsv-vempty", "该分区暂无榜单数据"));
-          return;
-        }
-        rows.forEach(function(r) {
-          var pair = el("div", "acsv-rlist-row");
-          pair.appendChild(rowOf(r.pi, r.rank));
-          pair.appendChild(upCardOf(r.pi));
-          list.appendChild(pair);
-        });
+        rankCache[key] = { at: Date.now(), rows };
+        render(rows);
       }, function() {
         list.innerHTML = "";
         list.appendChild(el("div", "acsv-vempty", "加载失败（网络不可达）"));
