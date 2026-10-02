@@ -10,9 +10,11 @@ import { registerView, rowOf } from './views.js';
 function buildZoneView(body) {
   var zoneChips = el('div', 'acsv-vchips');
   var periodChips = el('div', 'acsv-vchips');
+  var tip = el('div', 'acsv-vtip', '依赖综合指数排序，每日更新一次'); // 原生榜单页同款说明
   var list = el('div', 'acsv-vlist');
   body.appendChild(zoneChips);
   body.appendChild(periodChips);
+  body.appendChild(tip);
   body.appendChild(list);
 
   var curZone = CFG.view.zones[0].id;

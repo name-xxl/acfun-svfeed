@@ -48,13 +48,15 @@ test('panelItem fav：userPlayedSeconds 为 0/缺省时 progress 为 null', () =
 });
 
 // ---------- panelItem: rank ----------
-test('panelItem rank：contentType=2 收、3（文章）滤；dougaId 字符串转数', () => {
+test('panelItem rank：contentType=2 收、3（文章）滤；dougaId 字符串转数；meta 对齐原生（播放+蕉）', () => {
   var pi = panelItem('rank', {
     dougaId: '48885202', contentType: 2, contentTitle: '榜单视频',
-    videoCover: 'https://img.example/z.jpg', bananaCount: 527
+    contentDesc: '视频简介', videoCover: 'https://img.example/z.jpg',
+    bananaCount: 527, viewCount: 2329
   });
   assert.equal(pi.acId, 48885202);
-  assert.equal(pi.sub, '527 蕉');
+  assert.equal(pi.sub, '2329 播放 · 527 蕉');
+  assert.equal(pi.desc, '视频简介');
   assert.equal(panelItem('rank', { dougaId: '1', contentType: 3, contentTitle: '文章' }), null);
 });
 

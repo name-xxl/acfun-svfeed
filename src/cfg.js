@@ -152,12 +152,15 @@ export var CFG = {
     narrow: 720,          // 视口宽低于此值隐藏左栏（竖刷是移动式布局，面板无意义）
     dockW: 168,           // 左栏展开宽（抖音式全高导航；scroller/info/视图 padding 与之绑定）
     pageSize: 20,         // 观看历史/收藏夹每页
-    rankLimit: 20,        // 榜单条数（rank/channel 的 rankLimit 实测生效，GET 形状）
-    periods: ['DAY', 'THREE_DAYS', 'WEEK'], // 榜期（实测支持三档）
-    periodNames: { DAY: '日榜', THREE_DAYS: '三日榜', WEEK: '周榜' },
-    zones: [              // 线上分区 id（queryNavigators 实测，docs/api-research.md §6.2）
-      { id: 1, name: '动画' }, { id: 59, name: '游戏' }, { id: 58, name: '音乐' },
-      { id: 68, name: '影视' }, { id: 201, name: '生活' }, { id: 70, name: '科技' },
+    rankLimit: 100,       // 榜单条数（原生全站日榜 100 条同款，rankLimit=100 实测生效）
+    periods: ['DAY', 'THREE_DAYS', 'WEEK'], // 榜期（原生：今日/三日/本周）
+    periodNames: { DAY: '今日', THREE_DAYS: '三日', WEEK: '本周' },
+    zones: [              // 频道全集（对齐原生榜单页 tab 序；cid 实测 docs/api-research.md §6.2）：
+      // 番剧不放（cid=155 仅 3 条杂项）、文章榜不放（89 条全 contentType=3，竖刷不支持）
+      { id: 0, name: '全站综合' },
+      { id: 1, name: '动画' }, { id: 60, name: '娱乐' }, { id: 201, name: '生活' },
+      { id: 58, name: '音乐' }, { id: 123, name: '舞蹈·偶像' }, { id: 59, name: '游戏' },
+      { id: 70, name: '科技' }, { id: 68, name: '影视' }, { id: 69, name: '体育' },
       { id: 125, name: '鱼塘' }
     ]
   },

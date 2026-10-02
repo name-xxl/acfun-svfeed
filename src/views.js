@@ -180,6 +180,7 @@ export function rowOf(pi, rank) {
   row.appendChild(thumb);
   var main = el('div', 'acsv-vrow-main');
   main.appendChild(el('div', 'acsv-vrow-title', pi.title));
+  if (pi.desc) main.appendChild(el('div', 'acsv-vrow-desc', pi.desc));
   var bits = [];
   if (pi.sub) bits.push(pi.sub);
   if (pi.progress != null && pi.kind !== 'history') bits.push('看到 ' + fmtDur(pi.progress));

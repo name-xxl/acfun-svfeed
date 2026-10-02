@@ -94,7 +94,8 @@ export function normalizeHome(bc) {
 
 // ---------- 视图面板条目契约（0.9.62）：三种来源规整成同一份字段 ----------
 // { acId, title, cover, progress, sub, kind }——面板渲染与「点击回竖刷」零分支（对齐
-// 顶部两源契约理念）。返回 null = 非视频条目，调用方过滤（无 douga resolve 链，进竖刷必炸）。
+// 顶部两源契约理念）。可选字段 desc（rank 简介，0.9.65）：无来源的 kind 上为 undefined，
+// rowOf 判空不渲染。返回 null = 非视频条目，调用方过滤（无 douga resolve 链，进竖刷必炸）。
 // 类型字段实测（docs/api-research.md §4/§6，2026-10-02）：
 //   browse/history 的 resourceType 编码与收藏/榜单体系不同源——条目 2=普通视频（社区文档
 //   「参数 1 视频 2 番剧」的释义在条目字段上不成立），必须连 videoId 一起校验、宁可漏不错；
@@ -120,7 +121,8 @@ export function panelItem(kind, raw) {
     it.acId = Number(raw.dougaId || raw.contentId) || 0;
     it.title = raw.contentTitle || '';
     it.cover = raw.videoCover || '';
-    it.sub = (Number(raw.bananaCount) || 0) + ' 蕉';
+    it.desc = String(raw.contentDesc || '').replace(/<br\s*\/?\s*>/gi, ' ').trim(); // 简介副行；官方简介是 HTML，<br> 折空格（契约层统一处理，douga/info description 将来同款）
+    it.sub = (Number(raw.viewCount) || 0) + ' 播放 · ' + (Number(raw.bananaCount) || 0) + ' 蕉';
   } else {
     return null;
   }

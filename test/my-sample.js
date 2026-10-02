@@ -28,7 +28,7 @@
       userPlayedSeconds: 65 + n, userName: '收藏UP', stows: 12
     };
   }
-  var ZONE_NAMES = { 1: '动画', 59: '游戏', 58: '音乐', 68: '影视', 201: '生活', 70: '科技', 125: '鱼塘' };
+  var ZONE_NAMES = { 0: '全站综合', 1: '动画', 59: '游戏', 58: '音乐', 68: '影视', 201: '生活', 70: '科技', 125: '鱼塘' };
   function rankList(url) {
     var cid = (url.match(/channelId=(\d+)/) || [])[1] || '1';
     var period = (url.match(/rankPeriod=(\w+)/) || [])[1] || 'DAY';
@@ -38,7 +38,8 @@
       rows.push({
         dougaId: String(489500 + k), contentType: k === 4 ? 3 : 2, // 第 5 条文章形态：契约层过滤
         contentTitle: '榜单' + name + '-' + period + '-' + k, videoCover: '',
-        bananaCount: 500 - k, userName: '榜单UP', viewCount: 1000 - k
+        contentDesc: '简介' + k, bananaCount: 500 - k, viewCount: 3000 - k * 10,
+        userName: '榜单UP'
       });
     }
     return { result: 0, rankList: rows };
