@@ -67,8 +67,10 @@
   }
 </script>
 <script>
-  // 按 ?bundle= 决定加载哪个构建（解析期 document.write，保证顺序）
-  document.write('<script src="../acfun-svfeed.' + (RELEASE ? '' : 'debug.') + 'user.js"><\/script>');
+  // 按 ?bundle= 决定加载哪个构建（解析期 document.write，保证顺序）；`?v=` 时间戳破缓存——
+  // 手工调试用静态服务（无缓存头）时浏览器会缓存旧 bundle，出现"改了没生效"（0.9.71 踩实：
+  // 视图头标题已删但页面仍跑旧包）；harness runner 场景不受影响，此改动只保手工流不假红
+  document.write('<script src="../acfun-svfeed.' + (RELEASE ? '' : 'debug.') + 'user.js?v=' + Date.now() + '"><\/script>');
 </script>
 <script>
   // ============ 场景执行（bundle 已同步加载完） ============
@@ -360,11 +362,17 @@
             + '<content type="html">' + UPD_BODY + '</content>'
             + '</entry></feed>';
         }
-        async function remount() { // 模拟用户退出再进竖刷页（unmount→mount 全链）
+        var remountFails = 0;
+        var remountMaxMs = 0;
+        async function remount() { // 模拟用户退出再进竖刷页（unmount→mount 全链）。窗口 5s→15s 并计数：
+                                  // 静默超时会让后续断言指向错误对象（全量跑踩实——unmount 超窗时
+                                  // 相位②整体空转，弹窗直到下一次 remount 才出现，报错全落在错的地方）
+          var t0 = performance.now();
           location.hash = 'upd-off';
-          await waitFor(function () { return !document.getElementById('acsv-root'); }, 5000);
+          if (!(await waitFor(function () { return !document.getElementById('acsv-root'); }, 15000))) remountFails++;
           location.hash = 'svfeed';
-          await waitFor(function () { return document.getElementById('acsv-root'); }, 10000);
+          if (!(await waitFor(function () { return document.getElementById('acsv-root'); }, 15000))) remountFails++;
+          remountMaxMs = Math.max(remountMaxMs, Math.round(performance.now() - t0));
         }
         function updModal() { return document.querySelector('.acsv-upd'); }
         function updDot() { return document.querySelector('.acsv-upd-dot'); }
@@ -431,6 +439,8 @@
         }, 8000)));
         var ubx = updModal() && updModal().querySelector('.acsv-upd-x');
         if (ubx) ubx.click();
+        // remount 全链健康（4 次 unmount→mount 无静默超时）+ 最慢一轮耗时（超窗预警）
+        rec('remount-ok', remountFails === 0, 'fails=' + remountFails + ' maxMs=' + remountMaxMs);
 
       } else if (CASE === 'view-my') {
         // 我的视图冒烟（0.9.62 起；0.9.69 抖音式改造：资料头/Tab 惰性/网格卡/骨架/chips 顺序）：
