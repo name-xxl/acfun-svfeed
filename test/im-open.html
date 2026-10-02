@@ -98,6 +98,20 @@
     var lp2 = listPane.getBoundingClientRect(), cp2 = chatPane.getBoundingClientRect();
     rec('切回后列表归位、会话再退右缘外', Math.abs(lp2.left - lp0.left) <= 2 && cp2.left >= lp2.right - 1,
       'listDx=' + Math.round(lp2.left - lp0.left) + ' chatL=' + Math.round(cp2.left) + ' listR=' + Math.round(lp2.right));
+    // ---- 0.9.80：卡片装配迁共享层 imcard 后的抽屉皮肤（真机验收过的观感不变，结构回归进网） ----
+    // 与 harness im-native 场景的分工：那边验原生皮肤与 enrich 时序，这里验暗色皮肤的类名/
+    // 己方类/图标机制/封面隐藏（imCardSmoke 只装配不发网络，无内核依赖）
+    var cs = window.__ACSV_TEST__.call('imCardSmoke');
+    rec('卡片皮肤：整卡类名/己方类/链接', !!(cs && cs.vcardCls === 'acsv-im-vcard mine'
+      && cs.vcardHref === 'https://www.acfun.cn/v/ac1'), cs && (cs.vcardCls + ' href=' + cs.vcardHref));
+    rec('卡片皮肤：计数位与时长隐藏', !!(cs && cs.view === 'acsv-im-vcard-view|12'
+      && cs.cmt === 'acsv-im-vcard-cmt|3' && cs.durHidden === true), cs && (cs.view + ' ' + cs.cmt));
+    rec('卡片皮肤：标题位与图标绘制', !!(cs && cs.title === 'acsv-im-vcard-title|卡片标题'
+      && cs.iconCls === 'acsvg-cicon' && cs.iconVar === 'url('), cs && (cs.title + ' ' + cs.iconCls + ' ' + cs.iconVar));
+    rec('卡片皮肤：无封面时不设 src 且隐藏（不裂图）', !!(cs && cs.coverHidden === true), cs && String(cs.coverHidden));
+    rec('评论卡皮肤：结构/锚点/来源小条', !!(cs && cs.cshareCls === 'acsv-im-cshare'
+      && cs.cshareHref === 'https://www.acfun.cn/v/ac1#ncid=9' && cs.srct === '查看来源作品'
+      && cs.quoteHasViewer === true && cs.srcimgHidden === true), cs && JSON.stringify(cs).slice(0, 140));
     window.__IM_RESULTS__.done = true;
   }
 </script>

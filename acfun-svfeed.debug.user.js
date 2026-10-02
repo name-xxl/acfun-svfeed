@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.79-debug
+// @version      0.9.80-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -2957,9 +2957,115 @@
     return { box, label };
   }
 
+  // src/imcard.js
+  function hideCover(img, skin) {
+    if (skin.coverHidden === "display") img.style.display = "none";
+    else img.style.visibility = "hidden";
+  }
+  function showCover(img, skin) {
+    if (skin.coverHidden === "display") img.style.display = "";
+    else img.style.visibility = "";
+  }
+  function vcard(skin, r, mine) {
+    var a = el(r.href ? "a" : "div", skin.root + (mine && skin.rootMine ? " " + skin.rootMine : ""));
+    if (r.href) {
+      a.href = r.href;
+      a.target = "_blank";
+      a.rel = "noopener";
+    }
+    var box = el(skin.tag, skin.coverbox);
+    var cover = el("img", skin.cover);
+    cover.alt = "";
+    cover.referrerPolicy = "no-referrer";
+    cover.addEventListener("load", function() {
+      showCover(cover, skin);
+    });
+    cover.addEventListener("error", function() {
+      hideCover(cover, skin);
+    });
+    if (r.coverUrl) cover.src = r.coverUrl;
+    else hideCover(cover, skin);
+    box.appendChild(cover);
+    var bar = el(skin.tag, skin.bar);
+    bar.appendChild(skin.icon("play"));
+    var view2 = el(skin.tag, skin.view, r.viewCountShow || "");
+    bar.appendChild(view2);
+    bar.appendChild(skin.icon("comment"));
+    var cmt = el(skin.tag, skin.cmt, r.commentCountShow || "");
+    bar.appendChild(cmt);
+    var dur = el(skin.tag, skin.dur, r.durationSec ? fmtDur(r.durationSec) : "");
+    if (!r.durationSec) dur.style.display = "none";
+    bar.appendChild(dur);
+    box.appendChild(bar);
+    a.appendChild(box);
+    var title = el(skin.tag, skin.title, r.title || "");
+    if (!r.title) title.style.display = "none";
+    a.appendChild(title);
+    a.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+    });
+    return { el: a, cover, view: view2, cmt, dur, title };
+  }
+  function patchVcard(parts, c) {
+    if (parts.cover && c.cover) parts.cover.src = c.cover;
+    if (parts.view && c.view != null) parts.view.textContent = c.view;
+    if (parts.cmt && c.comment != null) parts.cmt.textContent = c.comment;
+    if (parts.dur && c.durationSec) {
+      parts.dur.textContent = fmtDur(c.durationSec);
+      parts.dur.style.display = "";
+    }
+    if (parts.title && c.title) {
+      parts.title.textContent = c.title;
+      parts.title.style.display = "";
+    }
+  }
+  function cshareCard(skin, spec, mine) {
+    var a = el(spec.href ? "a" : "div", skin.cshare + (mine && skin.rootMine ? " " + skin.rootMine : ""));
+    if (spec.href) {
+      a.href = spec.href;
+      a.target = "_blank";
+      a.rel = "noopener";
+    }
+    a.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+    });
+    var quote = el(skin.tag, skin.quote);
+    if (spec.html) {
+      quote.innerHTML = spec.html;
+      quote.addEventListener("click", function(ev) {
+        var im = ev.target && ev.target.closest ? ev.target.closest(".ubb-imgc") : null;
+        if (!im) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        openImageViewer(im.getAttribute("src") || "");
+      });
+    } else {
+      quote.innerHTML = emotify(esc(spec.text || ""));
+    }
+    a.appendChild(quote);
+    var src = el(skin.tag, skin.src);
+    var cover = el("img", skin.srcimg);
+    cover.alt = "";
+    cover.referrerPolicy = "no-referrer";
+    hideCover(cover, skin);
+    cover.addEventListener("load", function() {
+      showCover(cover, skin);
+    });
+    cover.addEventListener("error", function() {
+      hideCover(cover, skin);
+    });
+    src.appendChild(cover);
+    var srct = el(skin.tag, skin.srct, "查看来源作品");
+    src.appendChild(srct);
+    a.appendChild(src);
+    return { el: a, quote, cover, srct };
+  }
+  function patchCshare(parts, c) {
+    if (parts.cover && c.cover) parts.cover.src = c.cover;
+    if (parts.srct && c.title) parts.srct.textContent = c.title;
+  }
+
   // src/imdrawer.js
-  var ICON_PLAY = '<i class="acsvg-cicon" style="--acsvg-cicon:url(' + ICON_SVGS.play + ')"></i>';
-  var ICON_COMMENT = '<i class="acsvg-cicon" style="--acsvg-cicon:url(' + ICON_SVGS.comment + ')"></i>';
   var drawer = null;
   var view = "";
   var cards = {};
@@ -3574,30 +3680,31 @@
       return "";
     }
   }
-  function vcardEl(r, mine) {
-    var cardEl = el(r.href ? "a" : "div", "acsv-im-vcard" + (mine ? " mine" : ""));
-    if (r.href) {
-      cardEl.href = r.href;
-      cardEl.target = "_blank";
-      cardEl.rel = "noopener";
+  var SKIN = {
+    tag: "div",
+    root: "acsv-im-vcard",
+    coverbox: "acsv-im-vcard-coverbox",
+    cover: "acsv-im-vcard-cover",
+    bar: "acsv-im-vcard-bar",
+    view: "acsv-im-vcard-view",
+    cmt: "acsv-im-vcard-cmt",
+    dur: "acsv-im-vcard-dur",
+    title: "acsv-im-vcard-title",
+    rootMine: "mine",
+    cshare: "acsv-im-cshare",
+    quote: "acsv-im-cshare-quote",
+    src: "acsv-im-cshare-src",
+    srct: "acsv-im-cshare-srctitle",
+    srcimg: "acsv-im-cshare-cover",
+    coverHidden: "visibility",
+    // 沿用 0.9.51 真机验收形态（盒子保留，防布局跳动）
+    icon: function(kind) {
+      var i = document.createElement("i");
+      i.className = "acsvg-cicon";
+      i.style.setProperty("--acsvg-cicon", "url(" + (kind === "comment" ? ICON_SVGS.comment : ICON_SVGS.play) + ")");
+      return i;
     }
-    var box = el("div", "acsv-im-vcard-coverbox");
-    var cover = el("img", "acsv-im-vcard-cover");
-    cover.alt = "";
-    cover.referrerPolicy = "no-referrer";
-    if (r.coverUrl) cover.src = r.coverUrl;
-    else cover.style.visibility = "hidden";
-    cover.addEventListener("error", function() {
-      cover.style.visibility = "hidden";
-    });
-    box.appendChild(cover);
-    var bar = el("div", "acsv-im-vcard-bar");
-    bar.innerHTML = ICON_PLAY + '<span class="acsv-im-vcard-view">' + esc(r.viewCountShow || "") + "</span>" + ICON_COMMENT + '<span class="acsv-im-vcard-cmt">' + esc(r.commentCountShow || "") + '</span><span class="acsv-im-vcard-dur"' + (r.durationSec ? "" : ' style="display:none"') + ">" + (r.durationSec ? esc(fmtDur(r.durationSec)) : "") + "</span>";
-    box.appendChild(bar);
-    cardEl.appendChild(box);
-    if (r.title) cardEl.appendChild(el("div", "acsv-im-vcard-title", r.title));
-    return cardEl;
-  }
+  };
   function appendCardBubble(card, mine, m) {
     if (card.prologue) {
       var pre = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
@@ -3605,14 +3712,15 @@
       drawer.bubbles.appendChild(pre);
     }
     card.resourceBody.forEach(function(r) {
-      drawer.bubbles.appendChild(bubbleRow(vcardEl({
+      var parts = vcard(SKIN, {
         href: Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : "",
         coverUrl: r.coverUrl,
         viewCountShow: r.viewCountShow,
         commentCountShow: r.commentCountShow,
         durationSec: r.durationSec,
         title: r.title
-      }, mine), mine, m, "cardrow"));
+      }, mine);
+      drawer.bubbles.appendChild(bubbleRow(parts.el, mine, m, "cardrow"));
     });
   }
   function appendShareBubble(share, mine, m, cmt) {
@@ -3622,85 +3730,54 @@
       drawer.bubbles.appendChild(note);
     }
     var isCmt = isCommentShare(share.title);
-    var cardEl = isCmt ? cshareEl({
+    var parts = isCmt ? cshareCard(SKIN, {
       href: share.url,
       text: share.title,
       html: cmt && cmt.content ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : ""
-    }, mine) : vcardEl({ href: share.url, title: share.title }, mine);
+    }, mine) : vcard(SKIN, { href: share.url, title: share.title }, mine);
+    var cardEl = parts.el;
     drawer.bubbles.appendChild(bubbleRow(cardEl, mine, m, "cardrow"));
     var bubbles = drawer.bubbles;
     var tid = chat && chat.targetId;
     AppAPI.dougaCard(share.acId).then(function(c) {
       if (!c || !cardEl.isConnected || !drawer || drawer.bubbles !== bubbles || !chat || chat.targetId !== tid) return;
-      if (isCmt) patchCshare(cardEl, c);
-      else patchVcard(cardEl, c);
+      if (isCmt) patchCshare(parts, c);
+      else patchVcard(parts, c);
       drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
     });
   }
-  function patchVcard(cardEl, c) {
-    var cover = cardEl.querySelector(".acsv-im-vcard-cover");
-    if (cover && c.cover) {
-      cover.src = c.cover;
-      cover.style.visibility = "";
-    }
-    var view2 = cardEl.querySelector(".acsv-im-vcard-view");
-    if (view2 && c.view != null) view2.textContent = c.view;
-    var cmt = cardEl.querySelector(".acsv-im-vcard-cmt");
-    if (cmt && c.comment != null) cmt.textContent = c.comment;
-    var dur = cardEl.querySelector(".acsv-im-vcard-dur");
-    if (dur && c.durationSec) {
-      dur.textContent = fmtDur(c.durationSec);
-      dur.style.display = "";
-    }
-    var tt = cardEl.querySelector(".acsv-im-vcard-title");
-    if (tt && c.title) tt.textContent = c.title;
-  }
-  function cshareEl(r, mine) {
-    var cardEl = el(r.href ? "a" : "div", "acsv-im-cshare" + (mine ? " mine" : ""));
-    if (r.href) {
-      cardEl.href = r.href;
-      cardEl.target = "_blank";
-      cardEl.rel = "noopener";
-    }
-    cardEl.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-    });
-    var quote = el("div", "acsv-im-cshare-quote");
-    if (r.html) {
-      quote.innerHTML = r.html;
-      quote.addEventListener("click", function(ev) {
-        var im = ev.target && ev.target.closest ? ev.target.closest(".ubb-imgc") : null;
-        if (!im) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        openImageViewer(im.getAttribute("src") || "");
-      });
-    } else {
-      quote.innerHTML = emotify(esc(r.text));
-    }
-    cardEl.appendChild(quote);
-    var src = el("div", "acsv-im-cshare-src");
-    var cover = el("img", "acsv-im-cshare-cover");
-    cover.alt = "";
-    cover.referrerPolicy = "no-referrer";
-    cover.style.visibility = "hidden";
-    cover.addEventListener("error", function() {
-      cover.style.visibility = "hidden";
-    });
-    src.appendChild(cover);
-    src.appendChild(el("div", "acsv-im-cshare-srctitle", "查看来源作品"));
-    cardEl.appendChild(src);
-    return cardEl;
-  }
-  function patchCshare(cardEl, c) {
-    var cover = cardEl.querySelector(".acsv-im-cshare-cover");
-    if (cover && c.cover) {
-      cover.src = c.cover;
-      cover.style.visibility = "";
-    }
-    var t = cardEl.querySelector(".acsv-im-cshare-srctitle");
-    if (t && c.title) t.textContent = c.title;
-  }
+  testHook("imCardSmoke", function() {
+    if (!root) setRoot(document.body);
+    ensureDrawerDom();
+    var v = vcard(SKIN, {
+      href: "https://www.acfun.cn/v/ac1",
+      coverUrl: "",
+      viewCountShow: "12",
+      commentCountShow: "3",
+      title: "卡片标题"
+    }, true);
+    var c = cshareCard(SKIN, { href: "https://www.acfun.cn/v/ac1#ncid=9", text: "@张三：好看" }, false);
+    drawer.bubbles.appendChild(v.el);
+    drawer.bubbles.appendChild(c.el);
+    var icon = v.el.querySelector("i");
+    return {
+      vcardCls: v.el.className,
+      vcardHref: v.el.getAttribute("href"),
+      mine: v.el.classList.contains("mine"),
+      view: v.view.className + "|" + v.view.textContent,
+      cmt: v.cmt.className + "|" + v.cmt.textContent,
+      durHidden: getComputedStyle(v.dur).display === "none",
+      title: v.title.className + "|" + v.title.textContent,
+      coverHidden: getComputedStyle(v.cover).visibility === "hidden",
+      iconCls: icon ? icon.className : "",
+      iconVar: icon ? icon.style.getPropertyValue("--acsvg-cicon").slice(0, 4) : "",
+      cshareCls: c.el.className,
+      cshareHref: c.el.getAttribute("href"),
+      quoteHasViewer: !!c.quote.querySelector(".ubb-imgc, .acsv-emotimg, span, a") || c.quote.innerHTML.length > 0,
+      srct: c.srct.textContent,
+      srcimgHidden: getComputedStyle(c.cover).visibility === "hidden"
+    };
+  });
   function sendImageMsg(file) {
     var targetId = chat && chat.targetId;
     if (!targetId) return;
@@ -7466,7 +7543,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.79" : "");
+    return normVer(true ? "0.9.80" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -8967,11 +9044,18 @@
 
   // src/imnative.js
   var UNSUPPORTED = "不支持查看此消息，请前往最新版客户端查看。";
+  testHook("nativeChatEnhance", function() {
+    try {
+      enhanceChat();
+    } catch (e) {
+    }
+    return true;
+  });
   var SHADOW_CSS = ":host{display:block}.prologue{margin:0 0 6px;font-size:14px;line-height:1.6;color:#333;white-space:pre-wrap}.item{display:block;width:228px;max-width:100%;margin:4px 0;border:1px solid #e7e7e7;border-radius:8px;background:#fff;overflow:hidden;text-decoration:none;color:inherit;transition:border-color .15s}.item:hover{border-color:#fd4c5d}a.item:hover .title{color:#fd4c5d}.coverbox{display:block;position:relative}.cover{display:block;width:100%;height:126px;object-fit:cover;background:#f2f2f2}.meta{display:flex;align-items:center;gap:4px;padding:5px 8px;font-size:11px;color:#999}.meta .icon{display:inline-block;width:12px;height:12px;flex:none;background:currentColor;-webkit-mask:var(--i) center/contain no-repeat;mask:var(--i) center/contain no-repeat}.dur{margin-left:auto;font-variant-numeric:tabular-nums}.title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:0 9px 9px;font-size:12px;line-height:1.45;color:#333}.qstrip{display:block;margin:0 0 6px;padding:4px 8px;border-left:2px solid #fd4c5d;background:rgba(0,0,0,.045);border-radius:3px;font-size:12px;color:#666;line-height:1.5;min-width:0}.qstrip.link{cursor:pointer}.qstrip.link:hover{background:rgba(0,0,0,.08)}.qstrip .p{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.qbody{display:block;margin:0;font-size:14px;line-height:1.6;color:#333;white-space:pre-wrap}.cshare{display:block;width:228px;max-width:100%;margin:4px 0;border:1px solid #e7e7e7;border-radius:8px;background:#fff;overflow:hidden;text-decoration:none;color:inherit;transition:border-color .15s}a.cshare:hover{border-color:#fd4c5d}.cshare .quote{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;padding:8px 10px;border-left:2px solid #fd4c5d;font-size:13px;line-height:1.55;color:#333;white-space:pre-wrap;word-break:break-word}.cshare .quote .acsv-emotimg{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}.cshare .quote .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}.cshare .quote .ubb-imgc{display:block;max-width:min(200px,100%);max-height:150px;border-radius:8px;margin-top:6px;cursor:zoom-in}.cshare .src{display:flex;align-items:center;gap:8px;padding:7px 9px;border-top:1px solid #efefef}.cshare .srcimg{flex:none;width:56px;height:36px;object-fit:cover;border-radius:4px;background:#f2f2f2}.cshare .srct{flex:1;min-width:0;font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}";
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.79：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.80：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -9135,7 +9219,7 @@
   function renderCard(content, card) {
     content.textContent = "";
     appendShadow(content, card.resourceBody.map(function(r) {
-      return cardItem(r);
+      return cardItemOf(r);
     }), card.prologue);
   }
   function enrichShare(share, mount2) {
@@ -9165,18 +9249,17 @@
       if (isCommentShare(share.title)) {
         content.textContent = share.note || "";
         var cmt = cmtShareOf(pairMessage(msgEl, msgCache));
-        var it = cshareItem(
-          share.title,
-          share.url,
-          cmt ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : ""
-        );
-        if (c.cover) it.img.src = c.cover;
-        if (c.title) it.srct.textContent = c.title;
-        appendShadow(content, [it.item]);
+        var parts = cshareCard(SKIN2, {
+          href: share.url,
+          text: share.title,
+          html: cmt ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : ""
+        }, false);
+        patchCshare(parts, c);
+        appendShadow(content, [parts.el]);
         return;
       }
       content.textContent = share.note;
-      appendShadow(content, [cardItem({
+      appendShadow(content, [cardItemOf({
         coverUrl: c.cover,
         viewCountShow: c.view,
         commentCountShow: c.comment,
@@ -9266,77 +9349,40 @@
     }
     return true;
   }
-  function cardItem(r, hrefOverride) {
-    var href = hrefOverride || (Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : "");
-    var a = el(href ? "a" : "div", "item");
-    if (href) {
-      a.href = href;
-      a.target = "_blank";
-      a.rel = "noopener";
+  var SKIN2 = {
+    tag: "span",
+    root: "item",
+    coverbox: "coverbox",
+    cover: "cover",
+    bar: "meta",
+    view: "",
+    cmt: "",
+    dur: "dur",
+    title: "title",
+    rootMine: "",
+    // 原生页不分己方/对方（气泡方向由站方外壳决定）
+    cshare: "cshare",
+    quote: "quote",
+    src: "src",
+    srct: "srct",
+    srcimg: "srcimg",
+    coverHidden: "display",
+    // 沿用 0.9.51/0.9.57 真机验收形态（封面不占位、load 才放出）
+    icon: function(kind) {
+      var i = el("i", "icon");
+      i.style.setProperty("--i", 'url("' + (kind === "comment" ? ICON_SVGS.comment : ICON_SVGS.play) + '")');
+      return i;
     }
-    var box = el("span", "coverbox");
-    var img = el("img", "cover");
-    img.alt = "";
-    img.referrerPolicy = "no-referrer";
-    img.src = r.coverUrl || "";
-    img.addEventListener("error", function() {
-      img.style.display = "none";
-    });
-    box.appendChild(img);
-    var meta = el("span", "meta");
-    var playIcon = el("i", "icon");
-    playIcon.style.setProperty("--i", 'url("' + ICON_SVGS.play + '")');
-    meta.appendChild(playIcon);
-    meta.appendChild(el("span", null, r.viewCountShow || ""));
-    var commentIcon = el("i", "icon");
-    commentIcon.style.setProperty("--i", 'url("' + ICON_SVGS.comment + '")');
-    meta.appendChild(commentIcon);
-    meta.appendChild(el("span", null, r.commentCountShow || ""));
-    if (r.durationSec) meta.appendChild(el("span", "dur", fmtDur(r.durationSec)));
-    box.appendChild(meta);
-    a.appendChild(box);
-    if (r.title) a.appendChild(el("span", "title", r.title));
-    a.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-    });
-    return a;
-  }
-  function cshareItem(text, href, html) {
-    var a = el(href ? "a" : "div", "cshare");
-    if (href) {
-      a.href = href;
-      a.target = "_blank";
-      a.rel = "noopener";
-    }
-    var quote = el("span", "quote");
-    quote.innerHTML = html || emotify(esc(text));
-    quote.addEventListener("click", function(ev) {
-      var im = ev.target && ev.target.closest ? ev.target.closest(".ubb-imgc") : null;
-      if (!im) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      openImageViewer(im.getAttribute("src") || "");
-    });
-    a.appendChild(quote);
-    var src = el("span", "src");
-    var img = el("img", "srcimg");
-    img.alt = "";
-    img.referrerPolicy = "no-referrer";
-    img.style.display = "none";
-    img.addEventListener("load", function() {
-      img.style.display = "";
-    });
-    img.addEventListener("error", function() {
-      img.style.display = "none";
-    });
-    src.appendChild(img);
-    var srct = el("span", "srct", "查看来源作品");
-    src.appendChild(srct);
-    a.appendChild(src);
-    a.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-    });
-    return { item: a, img, srct };
+  };
+  function cardItemOf(r, hrefOverride) {
+    return vcard(SKIN2, {
+      href: hrefOverride || (Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : ""),
+      coverUrl: r.coverUrl,
+      viewCountShow: r.viewCountShow,
+      commentCountShow: r.commentCountShow,
+      durationSec: r.durationSec,
+      title: r.title
+    }, false).el;
   }
 
   // src/mypage.js

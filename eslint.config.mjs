@@ -28,8 +28,40 @@ export default [
       'no-undef': 'error',
       'no-unused-vars': ['error', { args: 'none', caughtErrors: 'none' }],
       'no-constant-binary-expression': 'error',
-      // URL 手剥 query 已禁：0.9.40 实锤（剥参数会把带签名的图整条清空）。
-      // 归一与失败重试链在 imgurl.coverUrl/coverAttempts（query 一律保留）
+      'no-restricted-syntax': ['error',
+        // URL 手剥 query 已禁：0.9.40 实锤（剥参数会把带签名的图整条清空）。
+        // 归一与失败重试链在 imgurl.coverUrl/coverAttempts（query 一律保留）
+        {
+          selector: "CallExpression[callee.property.name='split'][arguments.0.value='?']",
+          message: 'URL 手剥 query 已禁（0.9.40 教训）：走 imgurl.coverUrl / coverAttempts'
+        },
+        // 图片 DOM 手拼已禁（0.9.80）：项目图片字段（封面/头像）一律走 imgload.imgInto
+        // （归一 + 重试 + 终败降级 + 死链备忘）。例外文件见下方覆盖块，各自带理由
+        {
+          selector: "CallExpression[callee.name='el'][arguments.0.value='img']",
+          message: '图片 DOM 手拼已禁：走 imgload.imgInto（例外见 eslint.config.mjs 白名单）'
+        },
+        {
+          selector: "CallExpression[callee.property.name='createElement'][arguments.0.value='img']",
+          message: '图片 DOM 手拼已禁：走 imgload.imgInto（例外见 eslint.config.mjs 白名单）'
+        }
+      ]
+    }
+  },
+  // 图片白名单例外（0.9.80）：下列文件的 <img> 是有意不并入 imgload 的图面——
+  //   imgload.js  执行层本体
+  //   imcard.js   私信卡片封面：装配层自带"load 才放出/error 隐藏"时序，且要同时喂
+  //               Shadow DOM（原生页）与抽屉两套皮肤；并入 imgInto 需先统一时序语义（后续按需评估）
+  //   imdrawer.js 私信图片气泡：鉴权 blob 管线（fetchImImageBlob，0.9.41/0.9.49 真机验收）
+  //   emoticon.js 表情图：接口直给 URL + 未命中回落 [表情] 文本，无"封面字段"语义
+  //   imgview.js  大图查看器：转呈被点 <img> 的 src（blob/原图形态混杂），非字段加载
+  //   rail.js     站点静态图标（SITE_ICONS/VIDEO_ICONS 的 mask/img 探测 + 香蕉弹层）
+  //   sidebar.js  AcFun logo（站点静态 SVG）
+  // 注：new Image() 不受禁令（探测/读自然宽高不是页面图面）。新增图面若确有例外，加到这里并注明理由
+  {
+    files: ['src/imgload.js', 'src/imcard.js', 'src/imdrawer.js', 'src/emoticon.js',
+      'src/imgview.js', 'src/rail.js', 'src/sidebar.js'],
+    rules: {
       'no-restricted-syntax': ['error', {
         selector: "CallExpression[callee.property.name='split'][arguments.0.value='?']",
         message: 'URL 手剥 query 已禁（0.9.40 教训）：走 imgurl.coverUrl / coverAttempts'

@@ -11,21 +11,17 @@ import {
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap, emotify } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
+import { vcard, patchVcard, cshareCard, patchCshare } from './imcard.js';
 import { imgInto, lazyObserve } from './imgload.js';
 import { ubbQuoteHtml } from './ubb.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import {
-  parseCard, parseShare, fmtDur, msgTextOf, previewOfMessage,
+  parseCard, parseShare, msgTextOf, previewOfMessage,
   isCommentShare, commentShareAuthor, cmtShareOf,
   msgContentType, isQuotable, quoteOf, quoteExtraOf
 } from './immsg.js';
 import { ICON_SVGS } from './imicons.js';
 import { AppAPI } from './appapi.js';
-
-// 作品卡计数图标：站点原生 SVG 资产（imicons 登记表）+ CSS mask currentColor 着色，
-// 暗色气泡内为白色描边形状，与原生列表页计数观感一致
-var ICON_PLAY = '<i class="acsvg-cicon" style="--acsvg-cicon:url(' + ICON_SVGS.play + ')"></i>';
-var ICON_COMMENT = '<i class="acsvg-cicon" style="--acsvg-cicon:url(' + ICON_SVGS.comment + ')"></i>';
 
 // ---------- 私信抽屉（抖音式：列表 + 聊天两视图） ----------
 // 数据面全部复用 imshare 已验证基础设施（补丁版 SDK / 连接 / 发送 / 头像）。
@@ -599,34 +595,24 @@ function officialize(httpUrl) {
     return CFG.api.imDownloadBase + '/rest/v2/app/download?' + q;
   } catch (e) { return ''; }
 }
-// 卡片 DOM 构造（10001 协议卡与脚本分享卡共用）：封面+计数条+两行标题；href 给出则整卡可点。
-// 封面/计数/时长 span 恒渲染（无值隐藏）——分享卡的骨架先以消息内标题上屏，dougaCard 回来
-// 后由 patchVcard 原位填充，无需重建节点；无封面不设 src 灰底隐藏（默认头像当封面观感错误）
-function vcardEl(r, mine) {
-  var cardEl = el(r.href ? 'a' : 'div', 'acsv-im-vcard' + (mine ? ' mine' : ''));
-  if (r.href) {
-    cardEl.href = r.href;
-    cardEl.target = '_blank';
-    cardEl.rel = 'noopener';
+// 卡片皮肤（暗色抽屉，0.9.80）：装配逻辑在 imcard.js 共享层（与原生私信页同源），
+// 这里只声明命名与图标画法——布局/视觉仍在 styles.js 的 .acsv-im-* 规则里
+var SKIN = {
+  tag: 'div',
+  root: 'acsv-im-vcard', coverbox: 'acsv-im-vcard-coverbox', cover: 'acsv-im-vcard-cover',
+  bar: 'acsv-im-vcard-bar', view: 'acsv-im-vcard-view', cmt: 'acsv-im-vcard-cmt',
+  dur: 'acsv-im-vcard-dur', title: 'acsv-im-vcard-title',
+  rootMine: 'mine',
+  cshare: 'acsv-im-cshare', quote: 'acsv-im-cshare-quote', src: 'acsv-im-cshare-src',
+  srct: 'acsv-im-cshare-srctitle', srcimg: 'acsv-im-cshare-cover',
+  coverHidden: 'visibility', // 沿用 0.9.51 真机验收形态（盒子保留，防布局跳动）
+  icon: function (kind) {
+    var i = document.createElement('i');
+    i.className = 'acsvg-cicon';
+    i.style.setProperty('--acsvg-cicon', 'url(' + (kind === 'comment' ? ICON_SVGS.comment : ICON_SVGS.play) + ')');
+    return i;
   }
-  var box = el('div', 'acsv-im-vcard-coverbox');
-  var cover = el('img', 'acsv-im-vcard-cover');
-  cover.alt = '';
-  cover.referrerPolicy = 'no-referrer';
-  if (r.coverUrl) cover.src = r.coverUrl;
-  else cover.style.visibility = 'hidden';
-  cover.addEventListener('error', function () { cover.style.visibility = 'hidden'; });
-  box.appendChild(cover);
-  var bar = el('div', 'acsv-im-vcard-bar');
-  bar.innerHTML = ICON_PLAY + '<span class="acsv-im-vcard-view">' + esc(r.viewCountShow || '') + '</span>'
-    + ICON_COMMENT + '<span class="acsv-im-vcard-cmt">' + esc(r.commentCountShow || '') + '</span>'
-    + '<span class="acsv-im-vcard-dur"' + (r.durationSec ? '' : ' style="display:none"') + '>'
-    + (r.durationSec ? esc(fmtDur(r.durationSec)) : '') + '</span>';
-  box.appendChild(bar);
-  cardEl.appendChild(box);
-  if (r.title) cardEl.appendChild(el('div', 'acsv-im-vcard-title', r.title));
-  return cardEl;
-}
+};
 // 作品分享卡（对齐手机端）：封面 + 播放/评论计数 + 时长 + 两行标题；投稿视频整卡可点跳 ac 号页。
 // 卡片包 cardrow 行挂引用按钮（同条多卡各自可点，引的都是同一条消息）
 function appendCardBubble(card, mine, m) {
@@ -636,11 +622,12 @@ function appendCardBubble(card, mine, m) {
     drawer.bubbles.appendChild(pre);
   }
   card.resourceBody.forEach(function (r) {
-    drawer.bubbles.appendChild(bubbleRow(vcardEl({
+    var parts = vcard(SKIN, {
       href: Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : '',
       coverUrl: r.coverUrl, viewCountShow: r.viewCountShow,
       commentCountShow: r.commentCountShow, durationSec: r.durationSec, title: r.title
-    }, mine), mine, m, 'cardrow'));
+    }, mine);
+    drawer.bubbles.appendChild(bubbleRow(parts.el, mine, m, 'cardrow'));
   });
 }
 // 脚本分享消息（标题\n推荐链）与 10001 同契约：卡片替代纯文本。同步先渲染消息内标题的
@@ -656,92 +643,56 @@ function appendShareBubble(share, mine, m, cmt) {
     drawer.bubbles.appendChild(note);
   }
   var isCmt = isCommentShare(share.title);
-  var cardEl = isCmt
-    ? cshareEl({
+  var parts = isCmt
+    ? cshareCard(SKIN, {
         href: share.url, text: share.title,
         html: cmt && cmt.content ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : ''
       }, mine)
-    : vcardEl({ href: share.url, title: share.title }, mine);
+    : vcard(SKIN, { href: share.url, title: share.title }, mine);
+  var cardEl = parts.el;
   drawer.bubbles.appendChild(bubbleRow(cardEl, mine, m, 'cardrow'));
   var bubbles = drawer.bubbles;
   var tid = chat && chat.targetId;
   AppAPI.dougaCard(share.acId).then(function (c) {
     if (!c || !cardEl.isConnected || !drawer || drawer.bubbles !== bubbles
       || !chat || chat.targetId !== tid) return;
-    if (isCmt) patchCshare(cardEl, c);
-    else patchVcard(cardEl, c);
+    if (isCmt) patchCshare(parts, c);
+    else patchVcard(parts, c);
     drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
   });
 }
-// enrich 原位补全：接口字段优先，骨架已带消息内标题兜底
-function patchVcard(cardEl, c) {
-  var cover = cardEl.querySelector('.acsv-im-vcard-cover');
-  if (cover && c.cover) {
-    cover.src = c.cover;
-    cover.style.visibility = '';
-  }
-  var view = cardEl.querySelector('.acsv-im-vcard-view');
-  if (view && c.view != null) view.textContent = c.view;
-  var cmt = cardEl.querySelector('.acsv-im-vcard-cmt');
-  if (cmt && c.comment != null) cmt.textContent = c.comment;
-  var dur = cardEl.querySelector('.acsv-im-vcard-dur');
-  if (dur && c.durationSec) {
-    dur.textContent = fmtDur(c.durationSec);
-    dur.style.display = '';
-  }
-  var tt = cardEl.querySelector('.acsv-im-vcard-title');
-  if (tt && c.title) tt.textContent = c.title;
-}
-// 评论转发卡（0.9.51）：评论原文（@作者：内容）是主视觉——accent 左条引用式排版，
-// 来源作品收进底部小条。整卡 href=作品链接（评论没有独立落地页，URL 带 #ncid= 锚点
-// 时落地页原生定位楼层）；小条 enrich 前显示占位文案，dougaCard 失败也保持可读可点
-//（与分享卡同一兜底原则）
-function cshareEl(r, mine) {
-  var cardEl = el(r.href ? 'a' : 'div', 'acsv-im-cshare' + (mine ? ' mine' : ''));
-  if (r.href) {
-    cardEl.href = r.href;
-    cardEl.target = '_blank';
-    cardEl.rel = 'noopener';
-  }
-  cardEl.addEventListener('click', function (ev) { ev.stopPropagation(); });
-  var quote = el('div', 'acsv-im-cshare-quote');
-  if (r.html) {
-    quote.innerHTML = r.html;
-    // [img] 配图点击看大图：整卡是 <a>，preventDefault 防跳作品页
-    quote.addEventListener('click', function (ev) {
-      var im = ev.target && ev.target.closest ? ev.target.closest('.ubb-imgc') : null;
-      if (!im) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      openImageViewer(im.getAttribute('src') || '');
-    });
-  } else {
-    // wire 文本兜底（extra 被剥）：esc+emotify 出真表情（0.9.53 起 wire 携原始码）；
-    // 不走 linkify——quote 在卡片 <a> 内，禁嵌套 a
-    quote.innerHTML = emotify(esc(r.text));
-  }
-  cardEl.appendChild(quote);
-  var src = el('div', 'acsv-im-cshare-src');
-  var cover = el('img', 'acsv-im-cshare-cover');
-  cover.alt = '';
-  cover.referrerPolicy = 'no-referrer';
-  cover.style.visibility = 'hidden';
-  cover.addEventListener('error', function () { cover.style.visibility = 'hidden'; });
-  src.appendChild(cover);
-  src.appendChild(el('div', 'acsv-im-cshare-srctitle', '查看来源作品'));
-  cardEl.appendChild(src);
-  return cardEl;
-}
-// 评论卡 enrich 原位补全：只动来源小条，评论正文永远不碰
-function patchCshare(cardEl, c) {
-  var cover = cardEl.querySelector('.acsv-im-cshare-cover');
-  if (cover && c.cover) {
-    cover.src = c.cover;
-    cover.style.visibility = '';
-  }
-  var t = cardEl.querySelector('.acsv-im-cshare-srctitle');
-  if (t && c.title) t.textContent = c.title;
-}
+// debug 构建测试钩子（0.9.80）：卡片装配迁共享层 imcard 后，抽屉皮肤（类名/己方类/图标类/
+// 封面隐藏机制/骨架补全）在 im-open 页有结构断言——不做网络与内核依赖，只验装配产物。
+// 与 im-native 场景的分工：那边验原生皮肤与 attach 时序，这里验暗色皮肤
+testHook('imCardSmoke', function () {
+  if (!root) setRoot(document.body);
+  ensureDrawerDom();
+  var v = vcard(SKIN, {
+    href: 'https://www.acfun.cn/v/ac1', coverUrl: '', viewCountShow: '12',
+    commentCountShow: '3', title: '卡片标题'
+  }, true);
+  var c = cshareCard(SKIN, { href: 'https://www.acfun.cn/v/ac1#ncid=9', text: '@张三：好看' }, false);
+  drawer.bubbles.appendChild(v.el);
+  drawer.bubbles.appendChild(c.el);
+  var icon = v.el.querySelector('i');
+  return {
+    vcardCls: v.el.className,
+    vcardHref: v.el.getAttribute('href'),
+    mine: v.el.classList.contains('mine'),
+    view: v.view.className + '|' + v.view.textContent,
+    cmt: v.cmt.className + '|' + v.cmt.textContent,
+    durHidden: getComputedStyle(v.dur).display === 'none',
+    title: v.title.className + '|' + v.title.textContent,
+    coverHidden: getComputedStyle(v.cover).visibility === 'hidden',
+    iconCls: icon ? icon.className : '',
+    iconVar: icon ? icon.style.getPropertyValue('--acsvg-cicon').slice(0, 4) : '',
+    cshareCls: c.el.className,
+    cshareHref: c.el.getAttribute('href'),
+    quoteHasViewer: !!c.quote.querySelector('.ubb-imgc, .acsv-emotimg, span, a') || c.quote.innerHTML.length > 0,
+    srct: c.srct.textContent,
+    srcimgHidden: getComputedStyle(c.cover).visibility === 'hidden'
+  };
+});
 // 图片即选即发（微信/抖音 IM 惯例，不插入文本框）：读自然宽高 → 乐观占位（本地预览）→
 // sendImage（SDK 内核自动传图床换 ks://，确认含上传故用 imgSendT）→ 成功摘占位补真身。
 // File 留在闭包，失败点击重试整条重走（ImageMsg 每次新建，File 可重复上传）

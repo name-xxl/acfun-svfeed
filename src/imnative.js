@@ -5,15 +5,24 @@
 // 解析层与脚本抽屉共享（immsg.js）：以后新消息格式在 immsg 加解析，这里加渲染分支即可。
 
 import { CFG } from './cfg.js';
-import { el, esc } from './ui.js';
+import { el } from './ui.js';
+import { testHook } from './dbg.js';
 import { ICON_SVGS } from './imicons.js';
-import { ensureEmotionMap, emotify } from './emoticon.js';
-import { parseCard, parseShare, isCommentShare, commentShareAuthor, cmtShareOf, degradeText, previewOfMessage, msgContentType, msgTextOf, fmtDur, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
+import { ensureEmotionMap } from './emoticon.js';
+import { parseCard, parseShare, isCommentShare, commentShareAuthor, cmtShareOf, degradeText, previewOfMessage, msgContentType, msgTextOf, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
 import { ubbQuoteHtml } from './ubb.js';
-import { openImageViewer } from './imgview.js';
+import { vcard, cshareCard, patchCshare } from './imcard.js';
 import { AppAPI } from './appapi.js';
 
 var UNSUPPORTED = '不支持查看此消息，请前往最新版客户端查看。';
+
+// debug 构建测试钩子（0.9.80）：harness 造原生结构 + douga/info 桩后驱动 enhanceChat——
+// "wire → 卡 DOM 装配"这段此前零自动化覆盖（真机验收过），重构/改皮肤时有网可兜。
+// 覆盖边界：内核配对（占位替换/引用剥离）与真实站皮肤不在内（那部分靠真机验收）
+testHook('nativeChatEnhance', function () {
+  try { enhanceChat(); } catch (e) { }
+  return true;
+});
 
 // 卡片样式只存在于 Shadow DOM 内：宿主页 CSS（如 .content img{height:48px} 的表情图
 // 规则）物理隔离，封面按原始比例完整呈现。气泡外壳留在 light DOM，保留原生观感。
@@ -250,7 +259,7 @@ function enhanceList() {
 // el() 即 textContent，HTML 注入结构性不可能（0.9.33 曾以 esc+innerHTML 防守同一面）
 function renderCard(content, card) {
   content.textContent = '';
-  appendShadow(content, card.resourceBody.map(function (r) { return cardItem(r); }), card.prologue);
+  appendShadow(content, card.resourceBody.map(function (r) { return cardItemOf(r); }), card.prologue);
 }
 
 // 分享识别 → dougaCard 富化 → 渲染，公共尾部。dougaCard 失败打一次 warn
@@ -292,15 +301,16 @@ function tryShareCard(msgEl, content, msgCache) {
       // 0.9.57）时引用块富渲染原始 UBB：真表情/[img] 真图可点看大图；被剥则 wire 文本降级
       content.textContent = share.note || '';
       var cmt = cmtShareOf(pairMessage(msgEl, msgCache));
-      var it = cshareItem(share.title, share.url,
-        cmt ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : '');
-      if (c.cover) it.img.src = c.cover;
-      if (c.title) it.srct.textContent = c.title;
-      appendShadow(content, [it.item]);
+      var parts = cshareCard(SKIN, {
+        href: share.url, text: share.title,
+        html: cmt ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : ''
+      }, false);
+      patchCshare(parts, c); // 只补来源小条，评论正文永不碰（0.9.51 教训）
+      appendShadow(content, [parts.el]);
       return;
     }
     content.textContent = share.note; // 原文只留附言；标题由卡片承载
-    appendShadow(content, [cardItem({
+    appendShadow(content, [cardItemOf({
       coverUrl: c.cover, viewCountShow: c.view, commentCountShow: c.comment,
       durationSec: c.durationSec, title: c.title || share.title
     }, share.url)]);
@@ -404,74 +414,27 @@ function stripLeadingContent(content, trimLen) {
   return true;
 }
 
-// 单张卡片（10001 协议卡与脚本分享卡共用）：封面+播放/评论计数+时长+两行标题；
-// hrefOverride 给出则整卡可点（协议卡按 resourceType 投稿视频自跳 ac 号页）
-function cardItem(r, hrefOverride) {
-  var href = hrefOverride
-    || (Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : '');
-  var a = el(href ? 'a' : 'div', 'item');
-  if (href) {
-    a.href = href;
-    a.target = '_blank';
-    a.rel = 'noopener';
+// 卡片皮肤（原生私信页浅色 Shadow DOM，0.9.80）：装配逻辑在 imcard.js 共享层（与脚本抽屉
+// 同源），这里只声明命名与图标画法；样式在 SHADOW_CSS（宿主页 CSS 物理隔离，样式完全自持）
+var SKIN = {
+  tag: 'span',
+  root: 'item', coverbox: 'coverbox', cover: 'cover',
+  bar: 'meta', view: '', cmt: '', dur: 'dur', title: 'title',
+  rootMine: '', // 原生页不分己方/对方（气泡方向由站方外壳决定）
+  cshare: 'cshare', quote: 'quote', src: 'src', srct: 'srct', srcimg: 'srcimg',
+  coverHidden: 'display', // 沿用 0.9.51/0.9.57 真机验收形态（封面不占位、load 才放出）
+  icon: function (kind) {
+    var i = el('i', 'icon');
+    i.style.setProperty('--i', 'url("' + (kind === 'comment' ? ICON_SVGS.comment : ICON_SVGS.play) + '")');
+    return i;
   }
-  var box = el('span', 'coverbox');
-  var img = el('img', 'cover');
-  img.alt = '';
-  img.referrerPolicy = 'no-referrer';
-  img.src = r.coverUrl || '';
-  img.addEventListener('error', function () { img.style.display = 'none'; });
-  box.appendChild(img);
-  var meta = el('span', 'meta');
-  var playIcon = el('i', 'icon');
-  playIcon.style.setProperty('--i', 'url("' + ICON_SVGS.play + '")');
-  meta.appendChild(playIcon);
-  meta.appendChild(el('span', null, r.viewCountShow || ''));
-  var commentIcon = el('i', 'icon');
-  commentIcon.style.setProperty('--i', 'url("' + ICON_SVGS.comment + '")');
-  meta.appendChild(commentIcon);
-  meta.appendChild(el('span', null, r.commentCountShow || ''));
-  if (r.durationSec) meta.appendChild(el('span', 'dur', fmtDur(r.durationSec)));
-  box.appendChild(meta);
-  a.appendChild(box);
-  if (r.title) a.appendChild(el('span', 'title', r.title));
-  a.addEventListener('click', function (ev) { ev.stopPropagation(); });
-  return a;
-}
-// 评论转发条目（0.9.51，官方气泡只留附言、卡片承载引用行+作品条——0.9.53 去重）：
-// quote 富渲染优先（html=ubbQuoteHtml 产物，extra 载荷命中时传），否则 wire 文本走
-// emotify（表情码仍真图，[图片] 占位）。封面 enrich 回来再上，img 先 display:none、
-// load 放出，防裂图占位
-function cshareItem(text, href, html) {
-  var a = el(href ? 'a' : 'div', 'cshare');
-  if (href) {
-    a.href = href;
-    a.target = '_blank';
-    a.rel = 'noopener';
-  }
-  // 评论正文：html（extra 载荷富渲染，表情真图/[img] 真图可点看大图）优先，
-  // 未命中走 wire 文本 + emotify（表情码仍真图）
-  var quote = el('span', 'quote');
-  quote.innerHTML = html || emotify(esc(text));
-  quote.addEventListener('click', function (ev) {
-    var im = ev.target && ev.target.closest ? ev.target.closest('.ubb-imgc') : null;
-    if (!im) return;
-    ev.preventDefault(); // 整卡是 <a>：看大图不跳作品页
-    ev.stopPropagation();
-    openImageViewer(im.getAttribute('src') || '');
-  });
-  a.appendChild(quote);
-  var src = el('span', 'src');
-  var img = el('img', 'srcimg');
-  img.alt = '';
-  img.referrerPolicy = 'no-referrer';
-  img.style.display = 'none';
-  img.addEventListener('load', function () { img.style.display = ''; });
-  img.addEventListener('error', function () { img.style.display = 'none'; });
-  src.appendChild(img);
-  var srct = el('span', 'srct', '查看来源作品');
-  src.appendChild(srct);
-  a.appendChild(src);
-  a.addEventListener('click', function (ev) { ev.stopPropagation(); });
-  return { item: a, img: img, srct: srct };
+};
+// 资源共享卡的本地适配：hrefOverride 优先（脚本分享链），否则按协议字段自跳 ac 号页
+function cardItemOf(r, hrefOverride) {
+  return vcard(SKIN, {
+    href: hrefOverride
+      || (Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : ''),
+    coverUrl: r.coverUrl, viewCountShow: r.viewCountShow, commentCountShow: r.commentCountShow,
+    durationSec: r.durationSec, title: r.title
+  }, false).el;
 }
