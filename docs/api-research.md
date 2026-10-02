@@ -86,6 +86,13 @@ body：`action=7&page=1&count=20&groupId=-1`（-1=不分组；action=8 为粉丝
 - **tagList[]**：tagId + name——话题标签可靠数据源（feed 卡片只有标题内嵌 #话题）
 - channel、danmakuCount、全量计数（like/banana/comment/view/stow/share）
 - 初始状态：isLike / isFavorite / isThrowBanana / user.isFollowing
+- **`user` 对象（2026-10-03 实测，dougaId=42527415 免登录拉取）**：含作者头像——
+  `{ id:"25380695"（**字符串**）, name, headUrl（头像，与 meow/首页卡片同键名）,
+  isFollowing, fanCount:"6337"（字符串）, contributeCount:"3275", signature,
+  avatarImage, headCdnUrls[{url,freeTrafficCdn}]（多 CDN 备选）, userHeadImgInfo{…},
+  avatarFramePcImg/MobileImg（头像框）}`。**头像是在这一发回包里**，所以"卡面不带作者"的
+  入口（观看历史、深链 ac 空间）进播放层后能拿到真实头像且**无需额外请求**（0.9.82 据此
+  在 appapi.resolve 回填 `item.up.img`）
 - **currentVideoInfo.playInfos**：9 档直链（2160P60→360P），与 cast playInfo **等价**（同视频同档位）→ home 源 resolve 链可省一请求（douga/info 一发同时拿详情+直链）
 - 注意：videoList[].playInfos 恒空数组，直链在顶层 currentVideoInfo
 
@@ -97,6 +104,10 @@ body：`action=7&page=1&count=20&groupId=-1`（-1=不分组；action=8 为粉丝
 body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番剧，**两个同名参数都要带**）
 
 - 实测 totalCount=268；histories[] 字段：resourceId / videoId / title / cover / intro / user / browseTime / playedSeconds / **playedSecondsShow（"观看至03:51"）** / durationSecondsShow / viewCountShow / commentCountShow / browseTimeGroup（按日分组标题）等
+- ⚠ **待实测（0.9.82）**：`histories[].user` 的**形状未记**（只记了存在这个对象），仓库亦无原始抓包。
+  它决定"观看历史条目能否在**列表层**就拿到作者名/uid/头像"。目前按"不伪造未实测的数据"留空，
+  进播放层后由 `douga/info` 回包补名字/uid/头像（§3 实测该回包带 `user.headUrl`）——所以只差
+  列表层首帧那一段。核对方法：登录后拉一次 `browse/history/list`，打印首条的 `user` 键名
 - "继续观看"成立：playedSeconds 可直接 seek
 
 ### 4.2 收藏夹

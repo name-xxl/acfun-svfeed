@@ -16,7 +16,15 @@ document.cookie = 'auth_key=42_deadbeef'; // ui.selfUid：auth_key 前缀=uid
 window.__ACSV_CARD_CALLS__ = 0;
 window.__ACSV_HIST_CALLS__ = 0;
 window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
-window.__ACSV_MOCK_DIRECT__ = { '488900': 1 }; // 播放层条目直挂缝（webm 套 hls 会死在解析）
+// 播放层条目直挂缝（webm 套 hls 会死在解析）。0.9.82 起值可为对象 {id,name,head,delay}：
+// 连带模拟 douga/info 回包的作者部分（真实回包走 user.headUrl，见 my-sample 的实测形状）
+// ——历史条目卡面不带作者，靠这一发"回包"才补得上，作者面刷新（onHomeResolved →
+// syncMetaUp/syncRailUp）才有可断言的对象；delay 模拟网络往返，否则整条 resolve 链都是
+// 微任务，"首帧还没有作者"这个态在测试里抓不住
+window.__ACSV_MOCK_DIRECT__ = {
+  '488900': { id: 9, name: '测试UP', head: window.__ACSV_DOUGA_AVATAR__, delay: 700 }, // 历史：卡面无作者
+  '489100': { id: 4321, name: '收藏UP', head: window.__ACSV_SEARCH_AVATAR__ }          // 收藏：卡面已带作者
+};
 location.hash = 'svfeed/my';
 // 可见性断言一律查真实渲染态 offsetParent（0.9.62 黑屏教训：内联 '' 回落样式表
 // display:none，查内联值的断言被骗全绿）
@@ -97,6 +105,35 @@ rec('fav-switch-rows', !!(await waitFor(function () {
   var cells = document.querySelectorAll('.acsv-vlist.fav .acsv-gcell');
   return cells.length === 1 && /测试收藏视频0/.test(cells[0].textContent);
 }, 8000)));
+// 收藏条目 → 播放层（0.9.82 作者契约）：卡面自带作者（docs §4.2 的 userId/userName/userImg），
+// 首帧就应齐备——@名字 是链接、头像与关注角标都在，且**零额外请求**（不发 getUserCardList）
+var favRow0 = q('.acsv-vlist.fav .acsv-gcell');
+var cardCalls0 = window.__ACSV_CARD_CALLS__;
+if (favRow0) favRow0.click();
+rec('fav-item-overlay', !!(await waitFor(function () {
+  return location.hash === '#svfeed/play/a/489100' && !!q('.acsv-slide[data-ovl="1"]');
+}, 10000)), location.hash);
+rec('fav-item-author-firstframe', !!(await waitFor(function () {
+  var up = q('.acsv-slide[data-ovl="1"] .acsv-meta .acsv-up');
+  if (!up) return false;
+  return up.tagName === 'A' && up.textContent === '@收藏UP'
+    && /\/u\/4321$/.test(up.getAttribute('href') || '');
+}, 4000)), (function () {
+  var up = q('.acsv-slide[data-ovl="1"] .acsv-meta .acsv-up');
+  return up ? up.tagName + '|' + up.textContent : 'no-up';
+})());
+rec('fav-item-avatar-follow', (function () {
+  var s = q('.acsv-slide[data-ovl="1"] .acsv-rail');
+  var av = s && s.querySelector('.acsv-avatar');
+  var fb = s && s.querySelector('.acsv-followbtn');
+  return !!av && !!fb && fb.offsetParent !== null; // 可见性查 offsetParent（0.9.62 黑屏教训）
+})());
+rec('fav-item-no-extra-fetch', window.__ACSV_CARD_CALLS__ === cardCalls0,
+  'calls=' + window.__ACSV_CARD_CALLS__ + '/' + cardCalls0);
+key('Escape');
+rec('fav-item-back', !!(await waitFor(function () {
+  return location.hash === '#svfeed/my' && !q('.acsv-slide[data-ovl="1"]');
+}, 8000)), location.hash);
 // Tab 切回：面板常驻 DOM 只切 display——历史 22 条仍在且**不重拉接口**
 var histCalls = window.__ACSV_HIST_CALLS__;
 var tabHist = q('.acsv-metab[data-tab="hist"]');
@@ -111,9 +148,46 @@ var firstId = 488900;
 var myEl0 = q('.acsv-view');
 var bufBefore = feed().items.length, curBefore = feed().current;
 if (firstRow) firstRow.click();
-rec('item-plays-overlay', !!(await waitFor(function () {
-  return location.hash === '#svfeed/play/a/' + firstId && !!q('.acsv-slide[data-ovl="1"]');
-}, 10000)), location.hash);
+// 紧轮询（10ms）抓"层内 slide 刚出现"那一刻的作者面快照：resolve 有 delay，150ms 粒度的
+// waitFor 可能落在回包之后，那样"首帧还没有作者"这个态就抓不住了
+var histFirst = null;
+for (var tw = 0; tw < 400 && histFirst === null; tw++) {
+  var s0 = q('.acsv-slide[data-ovl="1"]');
+  if (s0) histFirst = {
+    meta: (s0.querySelector('.acsv-meta') || {}).textContent || '',
+    av: !!s0.querySelector('.acsv-rail .acsv-avatar'),
+    fb: !!s0.querySelector('.acsv-rail .acsv-followbtn')
+  };
+  else await wait(10);
+}
+rec('item-plays-overlay', location.hash === '#svfeed/play/a/' + firstId
+  && !!q('.acsv-slide[data-ovl="1"]'), location.hash);
+// 作者契约（0.9.82）：历史卡面不带作者 → 首帧**整个作者面都不挂**（无 @名字、无头像块、
+// 无关注角标），也绝不出现旧实现的 '未知用户' 占位文案（占位文案真源已从 data.js 删除，
+// 单测闸门 + eslint 禁令挡其回流）
+rec('item-author-unknown-firstframe',
+  !!histFirst && !/@/.test(histFirst.meta) && !/未知用户/.test(histFirst.meta)
+    && !histFirst.av && !histFirst.fb,
+  JSON.stringify(histFirst));
+// 回包（delay 模拟网络往返）后：真名补上、成为 UP 主页链接，**真实头像**与关注角标一并补建
+// （头像来自 douga/info 的 user.headUrl——2026-10-03 实测该字段确实存在，故这里断言的是
+// 回包那张图而不是默认头像兜底）
+rec('item-author-backfilled', !!(await waitFor(function () {
+  var s = q('.acsv-slide[data-ovl="1"]');
+  if (!s) return false;
+  var up = s.querySelector('.acsv-meta .acsv-up');
+  var av = s.querySelector('.acsv-rail .acsv-avatar');
+  var fb = s.querySelector('.acsv-rail .acsv-followbtn');
+  return !!up && up.tagName === 'A' && up.textContent === '@测试UP'
+    && /\/u\/9$/.test(up.getAttribute('href') || '')
+    && !!av && av.getAttribute('src') === window.__ACSV_DOUGA_AVATAR__
+    && !!fb && fb.offsetParent !== null;
+}, 6000)), (function () {
+  var s = q('.acsv-slide[data-ovl="1"]');
+  var av = s && s.querySelector('.acsv-rail .acsv-avatar');
+  var up = s && s.querySelector('.acsv-meta .acsv-up');
+  return (up ? up.textContent : 'no-up') + ' | src=' + (av ? String(av.getAttribute('src')).slice(0, 30) : 'no-av');
+})());
 rec('item-overlay-playing', !!(await waitFor(function () {
   var s = q('.acsv-slide[data-ovl="1"]');
   var v = s && s.querySelector('video');
@@ -365,7 +439,12 @@ rec('zone-cache-no-refetch', (window.__ACSV_RANK_CALLS__ || 0) === zoneCalls,
 // （#svfeed/search/<kw>）→ 搜索页 SSR HTML（mock 回放真机片段）→ 结果网格卡；
 // 视图内换词走地址重建；空词只出引导态不发请求；点卡片回竖刷
 window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
-window.__ACSV_MOCK_DIRECT__ = { '40742636': 1, '41033414': 1 }; // 播放层条目直挂缝
+// 直挂缝（0.9.82 对象形态）：40742636 带 delay —— 搜索条目的作者首帧来自 SSR，
+// 回包（详情）后会被换成 douga/info 里的名字与头像，正好验"回包刷新 DOM"这条链路
+window.__ACSV_MOCK_DIRECT__ = {
+  '40742636': { id: 9, name: '测试UP', head: window.__ACSV_DOUGA_AVATAR__, delay: 700 },
+  '41033414': 1
+};
 window.__ACSV_SEARCH_CALLS__ = 0;
 location.hash = 'svfeed';
 rec('topbar-72', !!(await waitFor(function () { return !!q('.acsv-top'); }, 8000))
@@ -443,9 +522,50 @@ var sCell = q('.acsv-sgrid .acsv-scell');
 var srEl0 = q('.acsv-view');
 var srCalls = window.__ACSV_SEARCH_CALLS__;
 if (sCell) sCell.click();
-rec('search-item-overlay', !!(await waitFor(function () {
-  return /^#svfeed\/play\/a\/\d+$/.test(location.hash) && !!q('.acsv-slide[data-ovl="1"]');
-}, 10000)), location.hash);
+// 紧轮询（10ms）抓"层内 slide 刚出现"那一刻的作者面快照：回包有 700ms delay，150ms 粒度的
+// waitFor 可能落在回包之后，那样"首帧作者来自 SSR"这个态就抓不住了
+var sFirst = null;
+for (var sw = 0; sw < 400 && !sFirst; sw++) {
+  sFirst = q('.acsv-slide[data-ovl="1"]');
+  if (!sFirst) await wait(10);
+}
+rec('search-item-overlay', /^#svfeed\/play\/a\/\d+$/.test(location.hash) && !!sFirst, location.hash);
+// 作者契约（0.9.82）：SSR 卡片里本来就带 UP 段（.video__main__user 的 /u/<uid> + user-avatar），
+// 解析器此前只抓名字文本把它们丢了。首帧即应为完整三件套（@名字 链接 + 头像 + 关注角标），
+// 且**零额外请求**（不发 getUserCardList——搜索条目的作者全在 SSR 里，这就是"其他地方都能
+// 正常获取"的真相）。用同步断言：这一态会被后面的回包覆写，不能拿等待式断言之
+rec('search-item-author-firstframe', (function () {
+  var s = q('.acsv-slide[data-ovl="1"]');
+  if (!s) return false;
+  var up = s.querySelector('.acsv-meta .acsv-up');
+  var av = s.querySelector('.acsv-rail .acsv-avatar');
+  var fb = s.querySelector('.acsv-rail .acsv-followbtn');
+  return !!up && up.tagName === 'A' && up.textContent === '@晨澜每日分享'
+    && /\/u\/73156935$/.test(up.getAttribute('href') || '')
+    && !!av && av.getAttribute('src') === window.__ACSV_SEARCH_AVATAR__ // SSR 那张，非默认头像
+    && !!fb && fb.offsetParent !== null; // 可见性查 offsetParent（0.9.62 黑屏教训）
+})(), (function () {
+  var s = q('.acsv-slide[data-ovl="1"]');
+  var av = s && s.querySelector('.acsv-rail .acsv-avatar');
+  var up = s && s.querySelector('.acsv-meta .acsv-up');
+  return (up ? up.textContent : 'no-up') + ' | src=' + (av ? String(av.getAttribute('src')).slice(0, 30) : 'no-av');
+})());
+rec('search-item-no-extra-fetch', !window.__ACSV_CARD_CALLS__,
+  'calls=' + window.__ACSV_CARD_CALLS__);
+// 回包后：作者行与头像都被真实详情覆写（原地更新，作者面不会因刷新而消失或退回占位）
+rec('search-item-author-refreshed', !!(await waitFor(function () {
+  var s = q('.acsv-slide[data-ovl="1"]');
+  if (!s) return false;
+  var up = s.querySelector('.acsv-meta .acsv-up');
+  var av = s.querySelector('.acsv-rail .acsv-avatar');
+  return !!up && up.tagName === 'A' && up.textContent === '@测试UP'
+    && !!av && av.getAttribute('src') === window.__ACSV_DOUGA_AVATAR__; // 头像节点被换掉
+}, 6000)), (function () {
+  var s = q('.acsv-slide[data-ovl="1"]');
+  var av = s && s.querySelector('.acsv-rail .acsv-avatar');
+  var up = s && s.querySelector('.acsv-meta .acsv-up');
+  return (up ? up.textContent : 'no-up') + ' | src=' + (av ? String(av.getAttribute('src')).slice(0, 30) : 'no-av');
+})());
 rec('search-item-overlay-kw', (function () { // 层内关键词保持（还没离开搜索上下文）
   var i = q('.acsv-top .acsv-sbox input');
   return TEST.call('view') === 'play' && !!i && i.value === '第二词';

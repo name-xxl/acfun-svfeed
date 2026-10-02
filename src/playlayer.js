@@ -2,7 +2,7 @@ import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { parseRoute } from './route.js';
 import { API } from './api.js';
-import { homeItemOf } from './data.js';
+import { playItemOf } from './data.js';
 import { setItemOpener } from './views.js';
 import { registerView } from './viewreg.js';
 import { setVideoTarget, OVL_IDX } from './state.js';
@@ -16,8 +16,10 @@ import { attachVideo } from './attach.js';
 //    parseRoute().view 守卫天然免疫 syncHash 回写（0.9.62/0.9.72 同型坑）
 //  - 条目真源=地址栏：#svfeed/play/<v|a>/<id>（复用 0.9.72 来源标记）。**不 setSource**：
 //    播放解析链走 appapi（douga/playInfo），与竖刷内容源无关，不写源记忆
-//  - 点击路径把面板条目暂存出"即时首帧"（标题/封面/UP 头像来自面板契约），解析回包由
+//  - 点击路径把面板条目暂存出"即时首帧"（标题/封面/作者来自面板契约的 up），解析回包由
 //    既有 onHomeResolved 补计数；深链/刷新直达无暂存 → 先 API.deepLink 拿标题封面再建
+//    （0.9.82：面板→播放的转换下沉为 data.playItemOf 纯函数——原来这层桥躺在本文件里，
+//     要 DOM 依赖、不可单测，且只认榜单的 up，是搜索/收藏/历史入口显示'未知用户'的病灶）
 //  - slide 不在竖刷流里：标记 slide.dataset.ovl='1' 是唯一判据，idx 用 state.OVL_IDX 哨兵
 //    （0.9.78 起哨兵与读出函数 state.isOvlSlide/ownerIdxOf 同源）。触面守卫清单（改共享导出
 //    形状必须 grep 全消费点，见 attach.js 契约表）：slide.js 点按判定、attach.syncFwdQuality、
@@ -29,16 +31,6 @@ var itemRef = null; // 当前层内条目（键盘 c=评论开合要打到它，
 
 // 层内当前条目（input.js 的 c 键用；无层=null）
 export function currentItem() { return itemRef; }
-
-// 面板条目 → 播放层。up 字段（榜单/搜索结果带）给首帧头像与 UP 名；缺则留空待解析回填
-function itemOfPanel(pi) {
-  var item = homeItemOf(pi.acId, pi.title, pi.cover);
-  var up = pi.up || {};
-  if (up.img) item.head = up.img;
-  if (up.name) item.userName = up.name;
-  if (up.id) item.userId = up.id;
-  return item;
-}
 
 export function openPlayer(pi) {
   if (!pi || !pi.acId) return;
@@ -87,7 +79,7 @@ function buildPlayView(body, arg) {
   var st = pending;
   pending = null;
   if (st && String(st.acId) === String(id)) {
-    mountSlide(body, itemOfPanel(st)); // 即时首帧：面板已有标题封面，直链交会话解析链补
+    mountSlide(body, playItemOf(st)); // 即时首帧：面板已有标题封面与作者（up 契约），直链交会话解析链补
     return;
   }
   // 深链/刷新直达：先解析（拿标题/封面/来源），失败出错误盒 + 重试（绝不静默）。

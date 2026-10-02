@@ -20,51 +20,102 @@ function withBusy(item, key, send, done) {
     function () { item[key] = false; done(false); });
 }
 
+// ---------- 作者面渲染与同步（0.9.82 统一条目模型） ----------
+// 作者只有一个数据出口 item.up{id,name,img,isFollowing}|null（data.upOf 定型）。渲染面有两处，
+// 都由 onHomeResolved 一处驱动刷新：
+//   syncMetaUp  左下角 .acsv-meta 的 @名字 行（slide.buildSlide 建、resolve 回包后重刷）
+//   syncRailUp  右侧栏头像 + 关注角标（buildSideRail 建、resolve 回包后重刷）
+// 两个函数都幂等。0.9.82 之前的病灶是"回填只写数据、从不刷 DOM"：appapi.resolve 早把真名写回
+// item，但 @名字 与头像块都是构建期一次性写死的，于是 '未知用户' 从此常驻屏幕。
+
+// 左下作者行（快手式：作者行在最前，日期/播放数在后）。未知作者**不挂节点**——不渲染
+// 伪造的占位文案（旧实现在 data.js 写死 '未知用户'）。有 uid 用链接、否则纯文本
+export function syncMetaUp(meta, item) {
+  if (!meta) return null;
+  var node = meta.querySelector('.acsv-up');
+  var up = item.up;
+  var name = up && up.name ? up.name : '';
+  if (!name) { if (node) node.remove(); return null; }
+  var wantLink = !!up.id;
+  if (node && (node.tagName === 'A') === wantLink) {
+    node.textContent = '@' + name; // textContent：昵称含 &<> 也不破版（0.9.33 的 el() 新规）
+    if (wantLink) node.href = CFG.api.userBase + up.id;
+    return node;
+  }
+  if (node) node.remove();
+  node = el(wantLink ? 'a' : 'span', 'acsv-up', '@' + name);
+  if (wantLink) { node.href = CFG.api.userBase + up.id; node.target = '_blank'; }
+  meta.insertBefore(node, meta.firstChild);
+  return node;
+}
+
+// 关注角标状态投影（文本/类名/提示语一处收口，点击回调与回包刷新共用）
+function followBtnState(fb, up) {
+  fb.textContent = up.isFollowing ? '✓' : '+';
+  fb.classList.toggle('on', !!up.isFollowing);
+  fb.title = up.isFollowing ? '点击取消关注' : '关注 UP 主';
+}
+
+// 右侧栏头像 + 关注角标（角标挂在头像下沿，故两者同块）。挂块判据=有头像或有 uid（与原
+// `if (item.head)` 的可见面一致并放宽到"回包后才拿到 uid"）；有 uid 但拿不到头像用站点默认
+// 头像兜底（与 imgload 头像策略的 fallback 同一张图：语义是"这张图取不到"，不是"没有作者"）；
+// 无 uid 时角标隐藏（无处可发关注，但仍照旧展示头像并链到分享页）
+function syncRailUp(rail, item) {
+  var up = item.up;
+  var wrap = rail.querySelector('.acsv-avwrap');
+  if (!up || (!up.img && !up.id)) { if (wrap) wrap.remove(); return; }
+  if (!wrap) {
+    wrap = el('div', 'acsv-avwrap');
+    var a = el('a');
+    a.target = '_blank';
+    wrap._avLink = a;
+    wrap._avUrl = null; // 已渲染的头像源（下面按需建/换）
+    wrap.appendChild(a);
+    var fbEl = el('div', 'acsv-followbtn');
+    wrap._fb = fbEl;
+    wrap.appendChild(fbEl);
+    rail.insertBefore(wrap, rail.firstChild); // 头像块恒在操作按钮之上
+    fbEl.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var u = item.up;
+      if (!u || !u.id) return;
+      var turnOn = !u.isFollowing;
+      withBusy(item, 'followBusy', function () {
+        fbEl.textContent = '…';
+        return setRealFollow(item, turnOn);
+      }, function (ok) {
+        var uu = item.up;
+        if (!uu) return;
+        if (ok) uu.isFollowing = turnOn;
+        else toast('关注失败（未登录？）');
+        if (fbEl.isConnected) followBtnState(fbEl, uu);
+        if (ok) toast(turnOn ? '已关注 @' + uu.name : '已取消关注 @' + uu.name);
+      });
+    });
+  }
+  // 头像源变了就重建 img 节点（0.9.82）：解析回包会把 up.img 从空/默认补成真实头像，
+  // imgInto 只在建节点时读一次 URL——原地改 src 会绕过它的归一 + 重试 + 死链备忘链。
+  // 头像走共享加载器（0.9.77）：归一 + 重试 + 默认头像兜底；query 绝不手剥
+  //（旧代码 split('?')[0] 与 imgurl 的「query 一律保留」契约相悖，签名头像会裂）
+  var imgUrl = up.img || CFG.api.defaultAvatar;
+  if (wrap._avUrl !== imgUrl) {
+    while (wrap._avLink.firstChild) wrap._avLink.removeChild(wrap._avLink.firstChild);
+    wrap._av = imgInto(wrap._avLink, imgUrl, 'avatar', 'acsv-avatar');
+    wrap._avUrl = imgUrl;
+  }
+  wrap._avLink.href = up.id ? CFG.api.userBase + up.id : item.shareUrl;
+  if (wrap._av) wrap._av.title = up.name || '';
+  wrap._fb.style.display = up.id ? '' : 'none';
+  if (up.id) followBtnState(wrap._fb, up);
+}
+
 export function buildSideRail(slide, item, goTo) {
   var rail = el('div', 'acsv-rail');
-  if (item.head) {
-    var avWrap = el('div', 'acsv-avwrap');
-    var a = el('a');
-    a.href = item.userId ? CFG.api.userBase + item.userId : item.shareUrl;
-    a.target = '_blank';
-    // 头像走共享加载器（0.9.77）：归一 + 重试 + 默认头像兜底；query 绝不手剥
-    //（旧代码 split('?')[0] 与 imgurl 的「query 一律保留」契约相悖，签名头像会裂）
-    var av = imgInto(a, item.head, 'avatar', 'acsv-avatar');
-    if (av) av.title = item.userName;
-    avWrap.appendChild(a);
-    if (item.userId) {
-      var fb = el('div', 'acsv-followbtn' + (item.isFollowing ? ' on' : ''), item.isFollowing ? '✓' : '+');
-      fb.title = item.isFollowing ? '点击取消关注' : '关注 UP 主';
-      fb.addEventListener('click', function (ev) {
-        ev.stopPropagation();
-        var turnOn = !item.isFollowing;
-        withBusy(item, 'followBusy', function () {
-          fb.textContent = '…';
-          return setRealFollow(item, turnOn);
-        }, function (ok) {
-          if (ok) {
-            item.isFollowing = turnOn;
-            fb.textContent = turnOn ? '✓' : '+';
-            fb.classList.toggle('on', turnOn);
-            fb.title = turnOn ? '点击取消关注' : '关注 UP 主';
-            toast(turnOn ? '已关注 @' + item.userName : '已取消关注 @' + item.userName);
-          } else {
-            fb.textContent = item.isFollowing ? '✓' : '+';
-            toast('关注失败（未登录？）');
-          }
-        });
-      });
-      avWrap.appendChild(fb);
-    }
-    rail.appendChild(avWrap);
-    // 关注状态刷新（推荐模式由 douga/info 的 user.isFollowing 回填后调用）
-    slide._followSync = function () {
-      if (!item.userId) return;
-      fb.textContent = item.isFollowing ? '✓' : '+';
-      fb.classList.toggle('on', item.isFollowing);
-      fb.title = item.isFollowing ? '点击取消关注' : '关注 UP 主';
-    };
-  }
+  syncRailUp(rail, item);
+  // 作者面刷新（0.9.82）：douga/info 回包回填 item.up 后由 onHomeResolved 调用。此前头像块
+  // 在构建期被 `if (item.head)` 门住、回包后无处补建，_followSync 也随之不注册——从搜索/
+  // 收藏/历史进播放层就一直没有头像与关注按钮。现在无条件注册，且幂等（块在则只同步状态）
+  slide._followSync = function () { syncRailUp(rail, item); };
   function railBtn(icon, count, title, onclick) {
     var wrap = el('div');
     wrap.style.marginBottom = '25px';
@@ -264,6 +315,9 @@ export function onHomeResolved(slide, item) {
   if (slide._shareSync) slide._shareSync();
   if (slide._followSync) slide._followSync();
   if (slide._qBtn) slide._qBtn.textContent = item.qualities ? item.qualities[item.qIdx].label : '自动';
+  // 作者面（0.9.82）：douga/info 回包已把真名/uid 写进 item.up——作者行在这里重刷，
+  // 占位/空缺才可能被真实作者替换。此前只刷日期，写死的 @名字 永不更新（本批病灶）
+  syncMetaUp(slide.querySelector('.acsv-meta'), item);
   var ds = slide.querySelector('.acsv-meta .acsv-date');
   if (ds) ds.textContent = item.date || '';
 }

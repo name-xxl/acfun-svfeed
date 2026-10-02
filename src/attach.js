@@ -20,6 +20,8 @@ import { reapplyQuality } from './quality.js';
 //   _watchTimer  首报兜底定时器 写/读: player(SESSION_HOOKS onPlaying/onDisposed)
 //   _likeSync/_favSync/_banSync/_cmtSync/_shareSync/_followSync
 //                计数回填钩子 写: rail.js(buildSideRail) 读: rail.js(onHomeResolved)
+//   _followSync  作者面同步（0.9.82 起**无条件注册**，幂等）：头像/关注块 + 左下 @名字 行由
+//                rail.syncRailUp / rail.syncMetaUp 渲染，up 为 null（作者未知）时对应节点不挂
 //
 // slide 的 dataset 投影（与 _xxx 并行的第二协作面，0.9.36 登记拖动契约）：
 //   data-state   会话状态投影 写: slide.js(buildSlide 初始)/session.js(setState: loading/ready/error…;waiting 处理器直写) 读: player(renderWindow error 判定)、CSS、harness 断言
@@ -33,6 +35,11 @@ import { reapplyQuality } from './quality.js';
 //   data-panfit  画面 fit 标记 写: player.js(syncPanFit) 读: CSS
 //
 // item（feedstore 条目）：
+//   up           作者契约（0.9.82 统一条目模型）{ id, name, img, isFollowing } | null——**作者
+//                唯一出口**。定型在 data.upOf；面板/搜索来源经 data.playItemOf 归一进播放层；
+//                resolve 回包在 appapi 就地补建。读方 rail(syncMetaUp/syncRailUp)、
+//                slide(buildSlide)、interact(setRealFollow)。顶层 userName/userId/head/
+//                isFollowing 已退役（test/unit/contract.test.js 禁其回流）
 //   _resolveP    懒解析在途 Promise 写/读: api.js(ensureResolved)
 //   _freezeTries 卡帧恢复阶梯计数 写/读: session.js(HealthMonitor)；switchQuality 仅 manual 清零、回前台清零
 //   _freezeGaveUp 阶梯放弃标记 写/读: session.js(HealthMonitor)；回前台清零（新故障域重新武装）

@@ -35,8 +35,10 @@ export function setRealLike(item, on) {
 }
 
 export function setRealFollow(item, on) {
+  var uid = item.up && item.up.id; // 作者契约唯一出口（0.9.82：原读 item.userId）
+  if (!uid) return Promise.resolve(false); // 无 uid 无从关注（rail 已按 up.id 决定是否出角标）
   return postForm(CFG.api.follow,
-    'toUserId=' + item.userId + '&action=' + (on ? 1 : 2) + '&groupId='
+    'toUserId=' + uid + '&action=' + (on ? 1 : 2) + '&groupId='
   ).then(function (j) {
     return !!(j && j.result === 0);
   }, function () { return false; });

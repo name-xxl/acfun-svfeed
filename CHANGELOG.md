@@ -3,6 +3,53 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.82（2026-10-03）· 作者契约统一（`item.up` 单一出口）+ 回填后渲染同步（可维护性/正确性批）
+
+- **病灶（用户报障：搜索页与我的页进播放显示「未知用户」）**：两处叠加。① 面板→播放的桥
+  `playlayer.itemOfPanel` 只认榜单来源的 `up` 对象，而搜索传 `upName`、收藏把作者名塞在进度
+  字段 `sub` 里、历史条目根本没有作者字段 → 桥造出的播放条目作者为空，落进 `data.js` 两个
+  `normalize` 里写死的 `user.name || '未知用户'`。② `douga/info` 回包其实一直把真名写回了
+  `item.userName/userId`（`appapi.resolve`），但渲染面是 `slide.buildSlide` 构建期一次性拼死的
+  innerHTML，唯一的回填钩子 `onHomeResolved` 只刷日期——于是回填写成功、屏幕上的假名字永久常驻。
+- **作者契约（统一条目模型）**：作者收敛为**一个可空子对象** `item.up{id,name,img,isFollowing}`，
+  顶层 `userName/userId/head/isFollowing` 退役。各来源只在自己的解析器里声明自家字段名（端点形状
+  差异是事实，只压缩成一行映射，同 0.9.80「皮肤差异不当重复消灭」）：meow/首页 `user{userId,name,
+  headUrl}`、榜单 `userName/authorId|userId/userImg`、收藏 `userName/userId/userImg`（§4.2 实测）、
+  搜索页 SSR 的 `.video__main__user`。**搜索来源是白捡的**：SSR 里本来就有 `a[href=/u/<uid>]` 与
+  `img.user-avatar`，旧正则只取 `user-name` 文本，把 uid 与头像一起丢了——现在取回，搜索与收藏
+  条目的首帧即带 UP 主页链接、头像与关注角标，**零额外请求**。
+- **桥梁下沉**：面板→播放的转换 `itemOfPanel` 从 `playlayer.js` 搬到 `data.js` 成为纯函数
+  `playItemOf`（作者只做四件套归一，榜单作者卡的扩展字段不带进播放层）。原来这层桥要 DOM 依赖、
+  进不了 node --test，且只认当时已知的那一种来源——这正是缺陷能穿过全部测试闸门的原因之一。
+- **渲染同步（数据 → DOM 的契约）**：`rail.syncMetaUp`（左下 `@名字` 行）与 `rail.syncRailUp`
+  （右侧栏头像/关注块，含"头像源变了就重建 img 节点"——`imgInto` 只在建节点时读一次 URL，
+  原地改 src 会绕过它的归一/重试/死链备忘链）都做成**幂等**，`slide._followSync` 无条件注册、
+  `onHomeResolved` 末尾重刷。作者未知时**不挂节点**（不编造占位文案）；历史条目与深链冷进入
+  在回包后补上名字/链接/头像/关注角标。
+- **头像来自同一发回包（2026-10-03 真机实测）**：`douga/info` 的 `user` 里就有 `headUrl`
+  （与 meow/首页卡片同键名，`id` 是字符串），所以卡面不带作者的入口（观看历史、深链 ac 空间）
+  也能拿到**真实**头像——据此在 `appapi.resolve` 回填 `item.up.img`，**零额外请求**（不必另调
+  `getUserCardList`）。实测形状记入 `docs/api-research.md` §3。
+- **测试**：新增 `test/unit/contract.test.js`——面板/播放各来源产出键 ⊆ 字段白名单、**播放契约
+  顶层禁出现 `userName`/`userId`/`head`/`isFollowing`**（本批病灶的防复发闸门）、`up` 形态固定
+  四件套；`data.test.js` 改按 `up` 断言并新增「空 user → `up` 为 null」。harness 三路断言：
+  搜索卡首帧 `@晨澜每日分享` + SSR 头像 + 关注角标且 `__ACSV_CARD_CALLS__` 不增（证零请求）→
+  回包后名字与头像**双双被真实详情覆写**（头像节点被换掉；`__ACSV_MOCK_DIRECT__` 新增对象形态
+  `{id,name,head,delay}` 模拟回包与网络往返）；收藏卡首帧即 `@收藏UP` 链接 + 头像 + 角标；
+  历史卡首帧**作者面整个不挂**且全文无「未知用户」→ 回包后补上 `@测试UP`、真实头像与关注角标
+  （用 10ms 紧轮询抓首帧态，150ms 粒度的 waitFor 会落在回包之后）。
+- **有意不做**：不额外调 `getUserCardList` 补头像——**不需要**：头像随 `douga/info` 那一发就到
+  （见上），再发一次是白拉流量（0.9.79 效率批方向）。不猜 `histories[].user` 的字段名
+  （docs §4.1 只记了有这个对象、未记形状，仓库无原始抓包）——记为待实测项，日后实测到只需在
+  层 1 加一行映射，下游零改动；当前影响仅剩"观看历史列表层首帧无作者行"这一段。
+- **eslint**：新增定向禁令——`src/` 下禁 `未知用户` 字面量（把"注释即规格"钉成工具规则，
+  同 0.9.78 三条禁令的做法）。
+- **回归**：lint 干净、单测 124 全绿、构建幂等、`npm run check` 三项静态校验通过（本批新增
+  `appapi → imgurl` 一条 import 边，依赖图已同步）。harness：**注**——`upd-open` 的
+  `remount-ok` 是**既存 flake**（偶发 `unmount FAIL@#svfeed/v/10882969`，30s 超窗）；
+  在改动前的提交状态上用相同命令复跑同样复现（3 次中 2 次），本批全量跑也时中时不中，
+  与改动前表现一致，**非本批引入**（其余 30 场景在各次全量跑中均稳定通过）。
+
 ### 0.9.81（2026-10-02）· 测试/文档/CI 工程化：harness 拆场景文件 + 三项静态一致性校验 + 并行驱动
 
 - **harness 拆分**：`test/harness.html` 1589→203 行，只留公共件与分发器；场景体按域拆进

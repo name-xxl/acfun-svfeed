@@ -95,21 +95,44 @@ export var API = {
         var raw = mh.filter(function (c) { return String(c.href) === String(item.id); })[0];
         // 点名直挂缝（harness）：面板/搜索结果条目 id 不在卡片池里，但测试要它真起播——走与
         // 卡片池同款的"本地 webm 直挂"（webm 不是 m3u8，套 hls.js 管线会死在解析上）。
-        // 生产无 __ACSV_MOCK_DIRECT__，整段不生效
+        // 值可为 1 或对象 {id,name,delay}（0.9.82）：对象形态连带模拟 douga/info 回包的作者
+        // 部分——这条缝跳过 resolve，作者契约 item.up 的"回包回填"就没有别的注入点，作者面
+        // 刷新（onHomeResolved → syncMetaUp/syncRailUp）也就断言不到。delay 模拟网络往返，
+        // 让"首帧无作者 → 回包后补上"这条状态转移真能被观测到（否则整条链全是微任务，
+        // 首帧态在测试里根本抓不住）。生产无 __ACSV_MOCK_DIRECT__，整段不生效
         var direct = window.__ACSV_MOCK_DIRECT__;
-        if (!raw && direct && direct[String(item.id)]) raw = { mockUrl: window.__ACSV_TEST_WEBM__ || '' };
+        var dv = direct && direct[String(item.id)];
+        if (!raw && dv) {
+          raw = {
+            mockUrl: window.__ACSV_TEST_WEBM__ || '',
+            up: typeof dv === 'object' ? dv : null,
+            delay: (dv && dv.delay) || 0
+          };
+        }
         if (raw) {
-          var mu = raw.mockUrl;
-          item.urls = mu ? [mu] : [];
-          // 两档同址：清晰度菜单可切（switchQuality 链路 harness 可断言）
-          item.qualities = mu ? [{ label: '示例', urls: [mu] }, { label: '示例·备线', urls: [mu] }] : [];
-          // mock 直链不是 m3u8：绕开 hls.js 管线走 video.src 直挂（仅 harness mock 生效）
-          if (mu) item.cap.hls = false;
-          item.videoId = 'mock-' + item.id;
-          item.fav = 12;
-          item.share = 34;
-          item.date = '2026-09-26';
-          return Promise.resolve(!!mu);
+          var apply = function () {
+            var mu = raw.mockUrl;
+            item.urls = mu ? [mu] : [];
+            // 两档同址：清晰度菜单可切（switchQuality 链路 harness 可断言）
+            item.qualities = mu ? [{ label: '示例', urls: [mu] }, { label: '示例·备线', urls: [mu] }] : [];
+            // mock 直链不是 m3u8：绕开 hls.js 管线走 video.src 直挂（仅 harness mock 生效）
+            if (mu) item.cap.hls = false;
+            if (raw.up) { // 同 appapi.resolve 的回填写法：就地补建/补充 item.up
+              item.up = item.up || { id: 0, name: '', img: '', isFollowing: false };
+              if (raw.up.id) item.up.id = Number(raw.up.id) || item.up.id;
+              if (raw.up.name) item.up.name = raw.up.name;
+              if (raw.up.head) item.up.img = raw.up.head; // 真实回包走 user.headUrl
+            }
+            item.videoId = 'mock-' + item.id;
+            item.fav = 12;
+            item.share = 34;
+            item.date = '2026-09-26';
+            return !!mu;
+          };
+          if (raw.delay) {
+            return new Promise(function (res) { setTimeout(function () { res(apply()); }, raw.delay); });
+          }
+          return Promise.resolve(apply());
         }
       }
       return AppAPI.resolve(item);

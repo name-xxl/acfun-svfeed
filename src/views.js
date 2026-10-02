@@ -282,7 +282,8 @@ export function rowOf(pi, rank) {
 // watermark offsetParent 契约，共享导出的形状改动必须 grep 全消费点（既有教训）。
 // 角标只用契约在册字段（历史 sub=「观看至xx:xx」）；0.9.72 搜索卡（kind='search'）增补
 // 抖音式角标与脚行：封面左下播放数（views，字形+数字）+ 右下时长（dur）、底部 @UP·日期——
-// 历史/收藏不传这些字段 → 渲染零变化（消费点已 grep：mypage.js 与 searchview.js 两处）
+// 历史/收藏不传这些字段 → 渲染零变化（消费点已 grep：mypage.js 与 searchview.js 两处）。
+// 作者一律读 up 契约（0.9.82）：收藏与搜索卡都从这里出 @UP 名，sub 不再承载作者
 export function gridCardOf(pi) {
   var cell = el('div', 'acsv-gcell' + (pi.kind === 'search' ? ' acsv-scell' : ''));
   var cover = el('div', 'acsv-gcover');
@@ -301,15 +302,17 @@ export function gridCardOf(pi) {
   if (pi.dur) cover.appendChild(el('div', 'acsv-gdur', pi.dur));
   cell.appendChild(cover);
   cell.appendChild(el('div', 'acsv-gtitle', pi.title));
-  // meta 行：历史进度已在角标，只收藏补 UP 名；无内容不挂空节点（网格下空行会撑高卡距）
+  // meta 行：历史进度已在角标，只收藏补 UP 名（0.9.82：作者走 up 契约，原先塞在 sub 里）；
+  // 无内容不挂空节点（网格下空行会撑高卡距）
   var bits = [];
-  if (pi.kind !== 'history' && pi.sub) bits.push(pi.sub);
+  if (pi.kind !== 'history' && pi.up && pi.up.name) bits.push(pi.up.name);
   if (pi.kind !== 'history' && pi.progress != null) bits.push('看到 ' + fmtDur(pi.progress));
   if (bits.length) cell.appendChild(el('div', 'acsv-gmeta', bits.join(' · ')));
   // 搜索卡脚行：@UP名 + 发布时间（抖音式；两字段皆空不挂节点）
-  if (pi.upName || pi.dateText) {
+  var upName = pi.up && pi.up.name ? pi.up.name : '';
+  if (upName || pi.dateText) {
     var foot = el('div', 'acsv-gfoot');
-    foot.appendChild(el('span', 'acsv-gup', pi.upName ? '@' + pi.upName : ''));
+    foot.appendChild(el('span', 'acsv-gup', upName ? '@' + upName : ''));
     foot.appendChild(el('span', 'acsv-gtime', pi.dateText || ''));
     cell.appendChild(foot);
   }

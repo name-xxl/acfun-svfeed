@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.81-debug
+// @version      0.9.82-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -764,6 +764,12 @@
   }
 
   // src/data.js
+  function upOf(id, name, img, isFollowing) {
+    var n = String(name || "").trim();
+    var i = Number(id) || 0;
+    if (!n && !i) return null;
+    return { id: i, name: n, img: img || "", isFollowing: !!isFollowing };
+  }
   function normalize(raw) {
     var play = raw.playInfo || {};
     var urls = (play.videoUrls || []).map(function(u) {
@@ -779,9 +785,7 @@
       stype: 5,
       id: raw.meowId || 0,
       title: raw.meowTitle || raw.intro || "#AcFun小视频",
-      userName: user.name || "未知用户",
-      userId: user.userId || 0,
-      head: coverUrl(user.headUrl),
+      up: upOf(user.userId, user.name, coverUrl(user.headUrl), user.isFollowing),
       cover: covers.length ? coverUrl(covers[0].url) : "",
       urls,
       urlIdx: 0,
@@ -820,10 +824,7 @@
       stype: 3,
       id: Number(bc.href) || 0,
       title: bc.title || "",
-      userName: user.name || "未知用户",
-      userId: Number(user.userId) || 0,
-      head: coverUrl(user.headUrl),
-      isFollowing: !!user.isFollowing,
+      up: upOf(user.userId, user.name, coverUrl(user.headUrl), user.isFollowing),
       cover: coverUrl(bc.img && bc.img[0]),
       urls: [],
       urlIdx: 0,
@@ -878,7 +879,7 @@
       it.title = raw.contentTitle || "";
       it.cover = coverUrl(raw.contentImg);
       it.progress = raw.userPlayedSeconds > 0 ? Number(raw.userPlayedSeconds) : null;
-      it.sub = raw.userName || "";
+      it.up = upOf(raw.userId, raw.userName, coverUrl(raw.userImg), false);
       return true;
     },
     rank: function(raw, it) {
@@ -898,6 +899,8 @@
         id: Number(raw.authorId || raw.userId) || 0,
         name: raw.userName,
         img: coverUrl(raw.userImg),
+        isFollowing: false,
+        // 榜单卡片不带关注态；进播放层后由 douga/info 的 user.isFollowing 回填
         fans: Number(raw.fansCount) || 0,
         contrib: Number(raw.contributionCount) || 0,
         fansText: fmtWan(raw.fansCount),
@@ -910,9 +913,14 @@
   function panelItem(kind, raw) {
     var p = PANEL_PARSERS[kind];
     if (!raw || !p) return null;
-    var it = { acId: 0, title: "", cover: "", progress: null, sub: "", kind };
+    var it = { acId: 0, title: "", cover: "", progress: null, sub: "", up: null, kind };
     if (p(raw, it) === false) return null;
     return it.acId && it.title ? it : null;
+  }
+  function playItemOf(pi) {
+    var item = homeItemOf(pi.acId, pi.title, pi.cover);
+    if (pi.up) item.up = upOf(pi.up.id, pi.up.name, pi.up.img, pi.up.isFollowing);
+    return item;
   }
   function meCardOf(j, uid) {
     var users = j && j.result === 0 && j.users || [];
@@ -998,7 +1006,10 @@
       var coverM = seg.match(/<img[^>]*\sdata-(?:src|original)="([^"]+)"/) || seg.match(/<img[^>]*\ssrc="([^"]+)"/);
       var durM = seg.match(/class="video__duration">([^<]*)</);
       var viewsM = seg.match(/class="info__view-count">([^<]*)</);
-      var upM = seg.match(/class="user-name">([^<]*)</);
+      var upSeg = (seg.match(/class="video__main__user"[\s\S]{0,400}?<\/div>/) || [""])[0];
+      var upM = upSeg.match(/class="user-name">([^<]*)</) || seg.match(/class="user-name">([^<]*)</);
+      var uidM = upSeg.match(/\/u\/(\d+)/);
+      var uimgM = upSeg.match(/<img[^>]*\ssrc="([^"]+)"/);
       var timeM = seg.match(/class="info__create-time">([^<]*)</);
       out.push({
         acId,
@@ -1007,7 +1018,7 @@
         dur: durM ? durM[1].trim() : "",
         // 播放数只取数字部分（原生文本「2037次播放」/「14.0万阅读」——后缀随分区变，统一剥掉）
         views: viewsM ? viewsM[1].replace(/(次播放|次观看|播放|阅读)$/, "").trim() : "",
-        upName: upM ? searchDeent(upM[1]).trim() : "",
+        up: upOf(uidM ? uidM[1] : 0, upM ? searchDeent(upM[1]).trim() : "", uimgM ? coverUrl(uimgM[1]) : "", false),
         dateText: timeM ? timeM[1].trim() : ""
       });
     }
@@ -1219,9 +1230,13 @@
         if (d.createTime) item.date = String(d.createTime).slice(0, 10);
         else if (d.createTimeMillis) item.date = new Date(d.createTimeMillis).toISOString().slice(0, 10);
         var u = d.user || {};
-        if (u.id) item.userId = Number(u.id) || item.userId;
-        if (u.name) item.userName = u.name;
-        item.isFollowing = !!u.isFollowing;
+        if (u.id || u.name || u.headUrl) {
+          item.up = item.up || { id: 0, name: "", img: "", isFollowing: false };
+          if (u.id) item.up.id = Number(u.id) || item.up.id;
+          if (u.name) item.up.name = u.name;
+          if (u.headUrl) item.up.img = coverUrl(u.headUrl);
+        }
+        if (item.up) item.up.isFollowing = !!u.isFollowing;
         return self.playInfo(item.videoId, item.id).then(function(qualities) {
           if (!qualities.length) return false;
           item.qualities = qualities;
@@ -1472,17 +1487,40 @@
             return String(c.href) === String(item.id);
           })[0];
           var direct = window.__ACSV_MOCK_DIRECT__;
-          if (!raw && direct && direct[String(item.id)]) raw = { mockUrl: window.__ACSV_TEST_WEBM__ || "" };
+          var dv = direct && direct[String(item.id)];
+          if (!raw && dv) {
+            raw = {
+              mockUrl: window.__ACSV_TEST_WEBM__ || "",
+              up: typeof dv === "object" ? dv : null,
+              delay: dv && dv.delay || 0
+            };
+          }
           if (raw) {
-            var mu = raw.mockUrl;
-            item.urls = mu ? [mu] : [];
-            item.qualities = mu ? [{ label: "示例", urls: [mu] }, { label: "示例·备线", urls: [mu] }] : [];
-            if (mu) item.cap.hls = false;
-            item.videoId = "mock-" + item.id;
-            item.fav = 12;
-            item.share = 34;
-            item.date = "2026-09-26";
-            return Promise.resolve(!!mu);
+            var apply = function() {
+              var mu = raw.mockUrl;
+              item.urls = mu ? [mu] : [];
+              item.qualities = mu ? [{ label: "示例", urls: [mu] }, { label: "示例·备线", urls: [mu] }] : [];
+              if (mu) item.cap.hls = false;
+              if (raw.up) {
+                item.up = item.up || { id: 0, name: "", img: "", isFollowing: false };
+                if (raw.up.id) item.up.id = Number(raw.up.id) || item.up.id;
+                if (raw.up.name) item.up.name = raw.up.name;
+                if (raw.up.head) item.up.img = raw.up.head;
+              }
+              item.videoId = "mock-" + item.id;
+              item.fav = 12;
+              item.share = 34;
+              item.date = "2026-09-26";
+              return !!mu;
+            };
+            if (raw.delay) {
+              return new Promise(function(res) {
+                setTimeout(function() {
+                  res(apply());
+                }, raw.delay);
+              });
+            }
+            return Promise.resolve(apply());
           }
         }
         return AppAPI.resolve(item);
@@ -7119,9 +7157,11 @@
     });
   }
   function setRealFollow(item, on) {
+    var uid = item.up && item.up.id;
+    if (!uid) return Promise.resolve(false);
     return postForm(
       CFG.api.follow,
-      "toUserId=" + item.userId + "&action=" + (on ? 1 : 2) + "&groupId="
+      "toUserId=" + uid + "&action=" + (on ? 1 : 2) + "&groupId="
     ).then(function(j) {
       return !!(j && j.result === 0);
     }, function() {
@@ -7150,48 +7190,88 @@
       }
     );
   }
+  function syncMetaUp(meta, item) {
+    if (!meta) return null;
+    var node = meta.querySelector(".acsv-up");
+    var up = item.up;
+    var name = up && up.name ? up.name : "";
+    if (!name) {
+      if (node) node.remove();
+      return null;
+    }
+    var wantLink = !!up.id;
+    if (node && node.tagName === "A" === wantLink) {
+      node.textContent = "@" + name;
+      if (wantLink) node.href = CFG.api.userBase + up.id;
+      return node;
+    }
+    if (node) node.remove();
+    node = el(wantLink ? "a" : "span", "acsv-up", "@" + name);
+    if (wantLink) {
+      node.href = CFG.api.userBase + up.id;
+      node.target = "_blank";
+    }
+    meta.insertBefore(node, meta.firstChild);
+    return node;
+  }
+  function followBtnState(fb, up) {
+    fb.textContent = up.isFollowing ? "✓" : "+";
+    fb.classList.toggle("on", !!up.isFollowing);
+    fb.title = up.isFollowing ? "点击取消关注" : "关注 UP 主";
+  }
+  function syncRailUp(rail, item) {
+    var up = item.up;
+    var wrap = rail.querySelector(".acsv-avwrap");
+    if (!up || !up.img && !up.id) {
+      if (wrap) wrap.remove();
+      return;
+    }
+    if (!wrap) {
+      wrap = el("div", "acsv-avwrap");
+      var a = el("a");
+      a.target = "_blank";
+      wrap._avLink = a;
+      wrap._avUrl = null;
+      wrap.appendChild(a);
+      var fbEl = el("div", "acsv-followbtn");
+      wrap._fb = fbEl;
+      wrap.appendChild(fbEl);
+      rail.insertBefore(wrap, rail.firstChild);
+      fbEl.addEventListener("click", function(ev) {
+        ev.stopPropagation();
+        var u = item.up;
+        if (!u || !u.id) return;
+        var turnOn = !u.isFollowing;
+        withBusy(item, "followBusy", function() {
+          fbEl.textContent = "…";
+          return setRealFollow(item, turnOn);
+        }, function(ok) {
+          var uu = item.up;
+          if (!uu) return;
+          if (ok) uu.isFollowing = turnOn;
+          else toast("关注失败（未登录？）");
+          if (fbEl.isConnected) followBtnState(fbEl, uu);
+          if (ok) toast(turnOn ? "已关注 @" + uu.name : "已取消关注 @" + uu.name);
+        });
+      });
+    }
+    var imgUrl = up.img || CFG.api.defaultAvatar;
+    if (wrap._avUrl !== imgUrl) {
+      while (wrap._avLink.firstChild) wrap._avLink.removeChild(wrap._avLink.firstChild);
+      wrap._av = imgInto(wrap._avLink, imgUrl, "avatar", "acsv-avatar");
+      wrap._avUrl = imgUrl;
+    }
+    wrap._avLink.href = up.id ? CFG.api.userBase + up.id : item.shareUrl;
+    if (wrap._av) wrap._av.title = up.name || "";
+    wrap._fb.style.display = up.id ? "" : "none";
+    if (up.id) followBtnState(wrap._fb, up);
+  }
   function buildSideRail(slide, item, goTo) {
     var rail = el("div", "acsv-rail");
-    if (item.head) {
-      var avWrap = el("div", "acsv-avwrap");
-      var a = el("a");
-      a.href = item.userId ? CFG.api.userBase + item.userId : item.shareUrl;
-      a.target = "_blank";
-      var av = imgInto(a, item.head, "avatar", "acsv-avatar");
-      if (av) av.title = item.userName;
-      avWrap.appendChild(a);
-      if (item.userId) {
-        var fb = el("div", "acsv-followbtn" + (item.isFollowing ? " on" : ""), item.isFollowing ? "✓" : "+");
-        fb.title = item.isFollowing ? "点击取消关注" : "关注 UP 主";
-        fb.addEventListener("click", function(ev) {
-          ev.stopPropagation();
-          var turnOn = !item.isFollowing;
-          withBusy(item, "followBusy", function() {
-            fb.textContent = "…";
-            return setRealFollow(item, turnOn);
-          }, function(ok) {
-            if (ok) {
-              item.isFollowing = turnOn;
-              fb.textContent = turnOn ? "✓" : "+";
-              fb.classList.toggle("on", turnOn);
-              fb.title = turnOn ? "点击取消关注" : "关注 UP 主";
-              toast(turnOn ? "已关注 @" + item.userName : "已取消关注 @" + item.userName);
-            } else {
-              fb.textContent = item.isFollowing ? "✓" : "+";
-              toast("关注失败（未登录？）");
-            }
-          });
-        });
-        avWrap.appendChild(fb);
-      }
-      rail.appendChild(avWrap);
-      slide._followSync = function() {
-        if (!item.userId) return;
-        fb.textContent = item.isFollowing ? "✓" : "+";
-        fb.classList.toggle("on", item.isFollowing);
-        fb.title = item.isFollowing ? "点击取消关注" : "关注 UP 主";
-      };
-    }
+    syncRailUp(rail, item);
+    slide._followSync = function() {
+      syncRailUp(rail, item);
+    };
     function railBtn(icon, count, title, onclick) {
       var wrap = el("div");
       wrap.style.marginBottom = "25px";
@@ -7400,6 +7480,7 @@
     if (slide._shareSync) slide._shareSync();
     if (slide._followSync) slide._followSync();
     if (slide._qBtn) slide._qBtn.textContent = item.qualities ? item.qualities[item.qIdx].label : "自动";
+    syncMetaUp(slide.querySelector(".acsv-meta"), item);
     var ds = slide.querySelector(".acsv-meta .acsv-date");
     if (ds) ds.textContent = item.date || "";
   }
@@ -7434,11 +7515,12 @@
     buildSideRail(slide, item, goTo);
     var info = el("div", "acsv-info");
     var meta = el("div", "acsv-meta");
-    var up = item.userId ? '<a href="' + CFG.api.userBase + item.userId + '" target="_blank">@' + esc(item.userName) + "</a>" : "<span>@" + esc(item.userName) + "</span>";
+    syncMetaUp(meta, item);
     if (item.kind === "home") {
-      meta.innerHTML = up + '<span class="acsv-date">' + esc(item.date || "") + "</span>";
+      meta.appendChild(el("span", "acsv-date", item.date || ""));
     } else {
-      meta.innerHTML = up + "<span>" + esc(item.date || "") + '</span><span class="acsv-views">' + fmt(item.view) + "次播放</span>";
+      meta.appendChild(el("span", null, item.date || ""));
+      meta.appendChild(el("span", "acsv-views", fmt(item.view) + "次播放"));
     }
     info.appendChild(meta);
     info.appendChild(el("p", "acsv-title", item.title));
@@ -7543,7 +7625,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.81" : "");
+    return normVer(true ? "0.9.82" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -8185,12 +8267,13 @@
     cell.appendChild(cover);
     cell.appendChild(el("div", "acsv-gtitle", pi.title));
     var bits = [];
-    if (pi.kind !== "history" && pi.sub) bits.push(pi.sub);
+    if (pi.kind !== "history" && pi.up && pi.up.name) bits.push(pi.up.name);
     if (pi.kind !== "history" && pi.progress != null) bits.push("看到 " + fmtDur2(pi.progress));
     if (bits.length) cell.appendChild(el("div", "acsv-gmeta", bits.join(" · ")));
-    if (pi.upName || pi.dateText) {
+    var upName = pi.up && pi.up.name ? pi.up.name : "";
+    if (upName || pi.dateText) {
       var foot = el("div", "acsv-gfoot");
-      foot.appendChild(el("span", "acsv-gup", pi.upName ? "@" + pi.upName : ""));
+      foot.appendChild(el("span", "acsv-gup", upName ? "@" + upName : ""));
       foot.appendChild(el("span", "acsv-gtime", pi.dateText || ""));
       cell.appendChild(foot);
     }
@@ -8250,14 +8333,6 @@
   function currentItem() {
     return itemRef;
   }
-  function itemOfPanel(pi) {
-    var item = homeItemOf(pi.acId, pi.title, pi.cover);
-    var up = pi.up || {};
-    if (up.img) item.head = up.img;
-    if (up.name) item.userName = up.name;
-    if (up.id) item.userId = up.id;
-    return item;
-  }
   function openPlayer(pi) {
     if (!pi || !pi.acId) return;
     pending = pi;
@@ -8300,7 +8375,7 @@
     var st = pending;
     pending = null;
     if (st && String(st.acId) === String(id)) {
-      mountSlide(body, itemOfPanel(st));
+      mountSlide(body, playItemOf(st));
       return;
     }
     var spinner = el("div", "acsv-spinner");
@@ -9055,7 +9130,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.81：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.82：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -9809,7 +9884,7 @@
           kind: "search",
           dur: it.dur,
           views: it.views,
-          upName: it.upName,
+          up: it.up,
           dateText: it.dateText
         }));
       });

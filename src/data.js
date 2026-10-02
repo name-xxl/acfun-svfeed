@@ -10,6 +10,32 @@ import { coverUrl } from './imgurl.js';
 //   home 首页推荐 selection/feed（卡片只有元信息，urls 由 douga/info+playInfo 懒解析）
 // 能力差异收敛在 cap 上：player 等消费端按能力分支，不再散布 kind==='home'；
 // 新内容源 = 新 normalize + 一份 cap 开关
+//
+// 作者契约（0.9.82）：作者从三个扁平字段（userName/userId/head/isFollowing）收敛为**一个
+// 可空子对象** item.up{id,name,img,isFollowing}，缺失即 null——不编造占位文案。各来源只允许
+// 在自家解析器里声明自家的字段名（5 个端点 5 种形状是事实，不消灭，只压缩成一行映射，
+// 同 0.9.80「皮肤差异不当重复消灭」）；下游（slide/rail/interact/回填）一律只读 item.up。
+// 此前搜索传 upName、收藏把作者塞进 sub、榜单传 up、播放契约又是扁平三件套——桥
+// playlayer.itemOfPanel 只认榜单那一种，其余入口进播放层就退化成 '未知用户'（0.9.82 病灶）。
+export function upOf(id, name, img, isFollowing) {
+  var n = String(name || '').trim();
+  var i = Number(id) || 0;
+  if (!n && !i) return null; // 无名无 id：作者未知（不伪造）
+  return { id: i, name: n, img: img || '', isFollowing: !!isFollowing };
+}
+
+// 契约字段白名单（可执行契约，0.9.82）：test/unit/contract.test.js 断言各来源产出 ⊆ 本表
+// ——新来源自带字段名会在单测直接红。play 侧作者只有 up 一个出口（顶层 userName/userId/head/
+// isFollowing 已退役），panel 侧作者同样只有 up（fav 原来的 sub 作者名已迁出）
+export var ITEM_FIELDS = {
+  play: ['kind', 'stype', 'id', 'title', 'up', 'cover', 'urls', 'urlIdx', 'refreshed', 'cap',
+    'resolving', 'videoId', 'channel', 'qualities', 'qIdx', 'like', 'comment', 'view',
+    'banana', 'fav', 'share', 'danmakuCount', 'date', 'shareUrl', 'liked', 'favorited',
+    'thrown', 'localLike'],
+  panel: ['kind', 'acId', 'title', 'cover', 'dur', 'views', 'dateText', 'desc', 'progress',
+    'sub', 'meta', 'up']
+};
+
 export function normalize(raw) {
   var play = raw.playInfo || {};
   var urls = (play.videoUrls || []).map(function (u) { return u && u.url; })
@@ -23,9 +49,7 @@ export function normalize(raw) {
     stype: 5,
     id: raw.meowId || 0,
     title: raw.meowTitle || raw.intro || '#AcFun小视频',
-    userName: user.name || '未知用户',
-    userId: user.userId || 0,
-    head: coverUrl(user.headUrl),
+    up: upOf(user.userId, user.name, coverUrl(user.headUrl), user.isFollowing),
     cover: covers.length ? coverUrl(covers[0].url) : '',
     urls: urls,
     urlIdx: 0,
@@ -61,10 +85,7 @@ export function normalizeHome(bc) {
     stype: 3,
     id: Number(bc.href) || 0,
     title: bc.title || '',
-    userName: user.name || '未知用户',
-    userId: Number(user.userId) || 0,
-    head: coverUrl(user.headUrl),
-    isFollowing: !!user.isFollowing,
+    up: upOf(user.userId, user.name, coverUrl(user.headUrl), user.isFollowing),
     cover: coverUrl(bc.img && bc.img[0]),
     urls: [],
     urlIdx: 0,
@@ -97,11 +118,14 @@ export function normalizeHome(bc) {
 }
 
 // ---------- 视图面板条目契约（0.9.62）：三种来源规整成同一份字段 ----------
-// { acId, title, cover, progress, sub, kind }——面板渲染与「点击进播放层（0.9.74）」零分支（对齐
-// 顶部两源契约理念）。可选字段 desc（rank 简介，0.9.65）：无来源的 kind 上为 undefined，
-// rowOf 判空不渲染。rank 另带 meta（0.9.69，原生 extra 三段结构化）+ up（随行作者卡）；
-// 其余来源的 meta 为 undefined，rowOf 走 sub 纯文本分支。返回 null = 非视频条目，
-// 调用方过滤（没有可解析的视频源，进播放层必失败）。
+// { kind, acId, title, cover, progress, sub, up }——面板渲染与「点击进播放层（0.9.74）」零分支
+// （对齐顶部两源契约理念）。字段语义（0.9.82 统一条目模型起）：
+//   up      作者契约（{id,name,img,isFollowing}|null）——**作者唯一出口**。榜单来源另带
+//           fans/contrib/fansText/contribText/sign（随行作者卡专用，进播放层时由 playItemOf 剥掉）；
+//           fav 由收藏夹条目映射；history 卡面不带作者故为 null
+//   sub     进度文案（history=「观看至xx:xx」）——0.9.82 起 fav 不再把作者名塞在这里（语义混用）
+//   desc    rank 简介（0.9.65）；meta   rank 原生 extra 三段（0.9.69）——其余来源为 undefined
+// 返回 null = 非视频条目，调用方过滤（没有可解析的视频源，进播放层必失败）。
 // 类型字段实测（docs/api-research.md §4/§6，2026-10-02）：
 //   browse/history 的 resourceType 编码与收藏/榜单体系不同源——条目 2=普通视频（社区文档
 //   「参数 1 视频 2 番剧」的释义在条目字段上不成立），必须连 videoId 一起校验、宁可漏不错；
@@ -116,6 +140,8 @@ var PANEL_PARSERS = {
     it.cover = coverUrl(raw.cover);
     it.progress = raw.playedSeconds > 0 ? Number(raw.playedSeconds) : null;
     it.sub = raw.playedSecondsShow || '';
+    // 不产 up：docs §4.1 记了 histories[] 有 user 对象但**未记其形状**（仓库无原始抓包），
+    // 按"不伪造未实测的数据"留空——进播放层后由 resolve 回填能拿到的部分（0.9.82）
     return true;
   },
   fav: function (raw, it) {
@@ -123,7 +149,9 @@ var PANEL_PARSERS = {
     it.title = raw.contentTitle || '';
     it.cover = coverUrl(raw.contentImg);
     it.progress = raw.userPlayedSeconds > 0 ? Number(raw.userPlayedSeconds) : null;
-    it.sub = raw.userName || '';
+    // 作者：docs §4.2 实测 dougaList 条目自带 userId/userName/userImg。0.9.82 起进 up 契约
+    // ——此前作者名塞在 sub 里，与历史的「观看至xx:xx」共用一个字段（语义混用）
+    it.up = upOf(raw.userId, raw.userName, coverUrl(raw.userImg), false);
     return true;
   },
   rank: function (raw, it) {
@@ -153,6 +181,7 @@ var PANEL_PARSERS = {
       id: Number(raw.authorId || raw.userId) || 0,
       name: raw.userName,
       img: coverUrl(raw.userImg),
+      isFollowing: false, // 榜单卡片不带关注态；进播放层后由 douga/info 的 user.isFollowing 回填
       fans: Number(raw.fansCount) || 0,
       contrib: Number(raw.contributionCount) || 0,
       fansText: fmtWan(raw.fansCount),
@@ -168,9 +197,19 @@ var PANEL_PARSERS = {
 export function panelItem(kind, raw) {
   var p = PANEL_PARSERS[kind];
   if (!raw || !p) return null;
-  var it = { acId: 0, title: '', cover: '', progress: null, sub: '', kind: kind };
+  var it = { acId: 0, title: '', cover: '', progress: null, sub: '', up: null, kind: kind };
   if (p(raw, it) === false) return null;
   return it.acId && it.title ? it : null;
+}
+
+// 面板/搜索条目 → 播放层条目（0.9.82 下沉自 playlayer.itemOfPanel）。原来这层桥躺在
+// playlayer.js——要 DOM 依赖、不是纯函数，既进不了 node --test，也只认榜单的 up（本次病灶）。
+// 作者只做四件套归一：榜单的作者卡扩展字段（fans/sign…）不带进播放层；缺作者则留 null，
+// 等 resolve 链回填（appapi.resolve 写 item.up）。
+export function playItemOf(pi) {
+  var item = homeItemOf(pi.acId, pi.title, pi.cover);
+  if (pi.up) item.up = upOf(pi.up.id, pi.up.name, pi.up.img, pi.up.isFollowing);
+  return item;
 }
 
 // ---------- 个人资料卡契约（0.9.69）：getUserCardList 回包 → 我的页头部字段 ----------
@@ -198,7 +237,8 @@ export function meCardOf(j, uid) {
 }
 
 // 面板条目 → 竖刷 home 契约 item（懒解析：进播放器后 resolve 链回填直链与全量计数）。
-// visit/user 留空走 normalizeHome 默认值，不伪造未实测的数据
+// user 留空 → up 为 null（0.9.82：作者未知就是 null，不再编造 '未知用户' 占位；
+// 回包后由 appapi.resolve 回填 + onHomeResolved 刷渲染）
 export function homeItemOf(acId, title, cover) {
   var c = coverUrl(cover);
   return normalizeHome({ href: String(acId), title: title || '', img: c ? [c] : [] });
@@ -261,10 +301,14 @@ export function fmtWan(n) {
 // 整页 113 个 /v/ac 混有 UP 最新投稿/文章/推荐位——只吃 <div class="search-video"> 区段
 // （区段收窄是硬要求，uppage.js 的 header-history 同款教训）。条目字段实测（2026-10-02 真机）：
 //   <a href="/v/ac<id>">封面 <img> + <span class="video__duration">02:04</span>
-//   <div class="video__main__title">…<a>标题</a></div> <span class="user-name">UP</span>
+//   <div class="video__main__title">…<a>标题</a></div>
+//   <div class="video__main__user"><a href="/u/<uid>"><img class="user-avatar" src="…"/>
+//     <span class="user-name">UP</span></a></div>
 //   <span class="info__view-count">2037次播放</span> <span class="info__create-time">2023-02-24</span>
-// 输出 { acId,title,cover,dur,views,upName,dateText }；坏段跳过、acId 去重、整体失败退空数组
-// （调用方出空态，不崩不伪造）
+// 输出 { acId,title,cover,dur,views,up,dateText }；坏段跳过、acId 去重、整体失败退空数组
+// （调用方出空态，不崩不伪造）。0.9.82：UP 段收窄到 .video__main__user 并取回 uid 与头像——
+// 此前只抓 user-name 文本，把 SSR 已经给到的 /u/<uid> 与 img.user-avatar 丢弃，导致搜索
+// 条目进播放层没有头像与关注按钮（真机形态见 test/unit/data.test.js 的搜索片段夹具）
 var SEARCH_ENT = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
 function searchDeent(s) {
   return String(s || '').replace(/&(amp|lt|gt|quot|#39);/g, function (m) { return SEARCH_ENT[m]; });
@@ -289,7 +333,13 @@ export function parseSearchItems(html) {
       || seg.match(/<img[^>]*\ssrc="([^"]+)"/);
     var durM = seg.match(/class="video__duration">([^<]*)</);
     var viewsM = seg.match(/class="info__view-count">([^<]*)</);
-    var upM = seg.match(/class="user-name">([^<]*)</);
+    // UP 段收窄到 .video__main__user：uid 与头像都只在这一段里取——封面 <img> 也在同一张卡上，
+    // 不收窄会抓错（img 收窄是硬要求）。user-name 兜底回落到全段匹配：变体页缺外层包裹时
+    // 至少保住名字（宁可少不错）
+    var upSeg = (seg.match(/class="video__main__user"[\s\S]{0,400}?<\/div>/) || [''])[0];
+    var upM = upSeg.match(/class="user-name">([^<]*)</) || seg.match(/class="user-name">([^<]*)</);
+    var uidM = upSeg.match(/\/u\/(\d+)/);
+    var uimgM = upSeg.match(/<img[^>]*\ssrc="([^"]+)"/);
     var timeM = seg.match(/class="info__create-time">([^<]*)</);
     out.push({
       acId: acId,
@@ -298,7 +348,7 @@ export function parseSearchItems(html) {
       dur: durM ? durM[1].trim() : '',
       // 播放数只取数字部分（原生文本「2037次播放」/「14.0万阅读」——后缀随分区变，统一剥掉）
       views: viewsM ? viewsM[1].replace(/(次播放|次观看|播放|阅读)$/, '').trim() : '',
-      upName: upM ? searchDeent(upM[1]).trim() : '',
+      up: upOf(uidM ? uidM[1] : 0, upM ? searchDeent(upM[1]).trim() : '', uimgM ? coverUrl(uimgM[1]) : '', false),
       dateText: timeM ? timeM[1].trim() : ''
     });
   }

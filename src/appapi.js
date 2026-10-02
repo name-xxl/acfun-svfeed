@@ -2,6 +2,7 @@ import { CFG } from './cfg.js';
 import { request, mockHit } from './net.js';
 import { singleFlight } from './ui.js';
 import { normalizeHome } from './data.js';
+import { coverUrl } from './imgurl.js';
 import { applyQuality } from './quality.js';
 
 // ---------- APP 家族接口层 ----------
@@ -165,10 +166,20 @@ export var AppAPI = {
       if (d.shareCount != null) item.share = d.shareCount;
       if (d.createTime) item.date = String(d.createTime).slice(0, 10);
       else if (d.createTimeMillis) item.date = new Date(d.createTimeMillis).toISOString().slice(0, 10);
+      // 作者回填（0.9.82）：写进契约唯一出口 item.up——此前写扁平 item.userName/userId/
+      // isFollowing，而渲染面是构建期写死的，回填等于只写数据不刷屏。up 为 null（历史/深链
+      // 冷进入等卡面不带作者的来源）时就地建一个，名字/id/头像由这里能拿到的部分补
+      // 头像字段 headUrl 是 2026-10-03 真机实测（dougaId=42527415）：与 meow/首页卡片的
+      // user.headUrl 同键名，同一发回包里就有——历史与深链 ac 空间因此也能拿到**真实**头像，
+      // 不必另发请求（id 实测是字符串，Number 归一）
       var u = d.user || {};
-      if (u.id) item.userId = Number(u.id) || item.userId;
-      if (u.name) item.userName = u.name;
-      item.isFollowing = !!u.isFollowing; // 关注状态以详情为准（卡片不带）
+      if (u.id || u.name || u.headUrl) {
+        item.up = item.up || { id: 0, name: '', img: '', isFollowing: false };
+        if (u.id) item.up.id = Number(u.id) || item.up.id;
+        if (u.name) item.up.name = u.name;
+        if (u.headUrl) item.up.img = coverUrl(u.headUrl);
+      }
+      if (item.up) item.up.isFollowing = !!u.isFollowing; // 关注状态以详情为准（卡片不带）
     return self.playInfo(item.videoId, item.id).then(function (qualities) {
       if (!qualities.length) return false;
         item.qualities = qualities;

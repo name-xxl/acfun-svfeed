@@ -1,14 +1,16 @@
 // data.js 面板条目契约单元测试：Node 内置 test 运行器，零依赖。
 // 契约（0.9.62，字段依据 docs/api-research.md 实测）：panelItem 三来源规整成
-// { acId,title,cover,progress,sub,kind }；非视频条目（番剧形态/无 videoId/文章）返回 null
+// { acId,title,cover,progress,sub,up,kind }；非视频条目（番剧形态/无 videoId/文章）返回 null
 // ——无 douga resolve 链，进竖刷必炸，宁可漏不错；homeItemOf 产出懒解析 home 契约；
 // deepLinkOf（0.9.72）= 地址栏深链的 id 空间判据（meow 详情 / douga 详情二选一）。
+// 作者契约（0.9.82）：所有来源的作者只有一个出口 up{id,name,img,isFollowing}|null
+// （字段白名单与"禁止回流扁平旧名"的闸门在 contract.test.js）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, deepLinkOf, relTime, fmtWan, meCardOf, parseSearchItems } = await import('../../src/data.js');
+var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtWan, meCardOf, parseSearchItems } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -32,20 +34,32 @@ test('panelItem history：番剧形态与无 videoId 一律 null（编码不同�
 });
 
 // ---------- panelItem: fav ----------
-test('panelItem fav：contentId/contentTitle 落位，续看秒数入 progress', () => {
+test('panelItem fav：contentId/contentTitle 落位，续看秒数入 progress，作者入 up 契约', () => {
   var pi = panelItem('fav', {
     contentId: 46651052, contentTitle: '收藏视频', contentImg: 'https://img.example/y.jpg',
-    userPlayedSeconds: 65, userName: '收藏UP', stows: 12
+    userPlayedSeconds: 65, userName: '收藏UP', userId: 1234,
+    userImg: 'https://img.example/fav-up.jpg', stows: 12
   });
   assert.equal(pi.acId, 46651052);
   assert.equal(pi.title, '收藏视频');
   assert.equal(pi.progress, 65);
-  assert.equal(pi.sub, '收藏UP');
+  // 作者（0.9.82）：docs §4.2 实测条目自带 userName/userId/userImg——进 up 契约，
+  // sub 不再承载作者（此前与历史的「观看至xx:xx」共用同一字段）
+  assert.deepEqual(pi.up, { id: 1234, name: '收藏UP', img: 'https://img.example/fav-up.jpg', isFollowing: false });
+  assert.equal(pi.sub, '');
 });
 
-test('panelItem fav：userPlayedSeconds 为 0/缺省时 progress 为 null', () => {
+test('panelItem fav：无 userName 时 up 为 null（作者未知不伪造）', () => {
   var pi = panelItem('fav', { contentId: 1, contentTitle: 't', userPlayedSeconds: 0 });
   assert.equal(pi.progress, null);
+  assert.equal(pi.up, null);
+});
+
+test('panelItem history：卡面不带作者 → up 为 null（靠 resolve 回填，见 docs §4.1 待实测项）', () => {
+  var pi = panelItem('history', {
+    resourceType: 2, videoId: 900001, resourceId: 48820714, title: '测试视频', playedSecondsShow: '观看至02:47'
+  });
+  assert.equal(pi.up, null);
 });
 
 // ---------- panelItem: rank ----------
@@ -76,6 +90,7 @@ test('panelItem rank：contentType=2 收、3（文章）滤；meta 三段原生�
   assert.equal(pi.up.fansText, '3.3万'); // 原生 up-card 万格式（去尾随 .0）
   assert.equal(pi.up.contribText, '353'); // 不过万原样
   assert.equal(pi.up.sign, '签名 折行'); // 签名不截（3 行裁切在 CSS）
+  assert.equal(pi.up.isFollowing, false); // 榜单卡片不带关注态，进播放层后由 douga/info 回填
   assert.equal(panelItem('rank', { dougaId: '1', contentType: 3, contentTitle: '文章' }), null);
 });
 
@@ -174,6 +189,39 @@ test('meCardOf：失败/空回包/无 users 一律 null（调用方据此不渲�
   assert.equal(meCardOf({ result: 0, users: [{ name: '无id' }] }, '42'), null);
 });
 
+// ---------- 作者契约（0.9.82）：两个 normalize 与面板→播放的桥 ----------
+test('normalize/normalizeHome：作者落 up 三件套；user 缺失或无名无 id → up 为 null', () => {
+  var sv = normalize({ meowId: 7, meowTitle: 't', user: { userId: 5, name: 'UP', headUrl: '//i/a.jpg' } });
+  assert.deepEqual(sv.up, { id: 5, name: 'UP', img: 'https://i/a.jpg', isFollowing: false });
+  assert.equal(sv.userName, undefined); // 扁平旧名已退役（禁回流见 contract.test.js）
+  assert.equal(sv.head, undefined);
+
+  var hm = normalizeHome({ href: '9', title: 't2', user: { userId: 6, name: 'UP2', headUrl: '//i/b.jpg', isFollowing: true } });
+  assert.deepEqual(hm.up, { id: 6, name: 'UP2', img: 'https://i/b.jpg', isFollowing: true });
+  assert.equal(hm.isFollowing, undefined); // 关注态随作者一起进 up
+
+  // 作者未知：不再编造 '未知用户' 占位（本次缺陷的文案源头）
+  assert.equal(normalize({ meowId: 8, user: {} }).up, null);
+  assert.equal(normalizeHome({ href: '10', user: {} }).up, null);
+  assert.equal(normalizeHome({ href: '11', user: { name: '   ' } }).up, null); // 空白名不当作作者
+});
+
+test('playItemOf：面板条目 → 播放条目，作者只做四件套归一（榜单作者卡扩展字段不带进层）', () => {
+  var item = playItemOf({
+    acId: 48820714, title: '标题', cover: 'https://i/c.jpg',
+    up: { id: 700, name: '榜单UP', img: 'https://i/u.jpg', isFollowing: false, fans: 33235, sign: '签名' }
+  });
+  assert.equal(item.kind, 'home');
+  assert.equal(item.id, 48820714);
+  assert.equal(item.title, '标题');
+  assert.deepEqual(item.up, { id: 700, name: '榜单UP', img: 'https://i/u.jpg', isFollowing: false });
+  assert.equal(item.cap.lazyResolve, true);
+  // 面板不带作者（历史）：up 留 null，等 resolve 回填——不再退化成 '未知用户'
+  var h = playItemOf({ acId: 1, title: '历史条目', cover: '' });
+  assert.equal(h.up, null);
+  assert.equal(playItemOf({ acId: 2, title: 't', up: { name: '只有名字' } }).up.name, '只有名字');
+});
+
 // ---------- homeItemOf ----------
 test('homeItemOf：产出懒解析 home 契约（id/cover 入位，urls 留空待 resolve）', () => {
   var it = homeItemOf(48820714, '标题', 'https://img.example/c.jpg');
@@ -185,6 +233,7 @@ test('homeItemOf：产出懒解析 home 契约（id/cover 入位，urls 留空�
   assert.deepEqual(it.urls, []);
   assert.equal(it.cap.lazyResolve, true);
   assert.equal(it.resolving, false);
+  assert.equal(it.up, null); // 面板条目建造时无作者（0.9.82：null 而非 '未知用户' 占位）
 });
 
 // ---------- deepLinkOf（0.9.72 深链 id 空间判据） ----------
@@ -258,13 +307,16 @@ test('parseSearchItems：区段收窄 + 字段落位（时长/播放/UP/日期/�
     cover: 'https://tx-free-imgs.acfun.cn/newUpload/x_1.png?imageView2/1/w/160/h/90',
     dur: '02:04',
     views: '2037',
-    upName: '晨澜每日分享',
+    // UP 段收窄到 .video__main__user：uid 与头像一并取回（0.9.82）——此时才可能进播放层
+    // 就带 @名字 链接、头像与关注按钮；封面 <img> 与头像 <img> 同卡，收窄是硬要求
+    up: { id: 73156935, name: '晨澜每日分享', img: 'a.png', isFollowing: false },
     dateText: '2023-02-24'
   });
   assert.equal(items[1].acId, 41033414);
   assert.equal(items[1].dur, '16:55');
   assert.equal(items[1].views, '14.0万'); // 「阅读」后缀剥掉
-  assert.equal(items[1].upName, 'UP & 名');
+  // 变体页缺 .video__main__user 外层包裹：名字兜底回落到全段匹配，但 uid/头像不猜（为 null）
+  assert.deepEqual(items[1].up, { id: 0, name: 'UP & 名', img: '', isFollowing: false });
   assert.equal(items[1].title, '标题带&实体');
   assert.equal(items[1].cover, 'https://x/y.png?a=1&b=2');
 });

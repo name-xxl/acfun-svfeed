@@ -39,10 +39,12 @@ function runSearch(kw, ui) {
     }
     ui.setState('');
     items.forEach(function (it) {
-      // 契约 → 网格卡（kind='search' 触发抖音式角标/脚行；点击进播放层就地播放）
+      // 契约 → 网格卡（kind='search' 触发抖音式角标/脚行；点击进播放层就地播放）。
+      // 作者走面板契约唯一的 up 出口（0.9.82）：SSR 里的 uid/头像已由 parseSearchItems 取回，
+      // 进播放层即带 @名字 链接、头像与关注按钮（此前只传 upName 字符串，播放层读不到）
       ui.grid.appendChild(gridCardOf({
         acId: it.acId, title: it.title, cover: it.cover, kind: 'search',
-        dur: it.dur, views: it.views, upName: it.upName, dateText: it.dateText
+        dur: it.dur, views: it.views, up: it.up, dateText: it.dateText
       }));
     });
     var a = el('a', 'acsv-smfoot', '去 A 站搜索页看全部 ›');
