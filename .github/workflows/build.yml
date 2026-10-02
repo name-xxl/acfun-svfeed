@@ -19,6 +19,8 @@ jobs:
       - run: node build.js
       # 产物与源码必须同步：改了 src/ 忘了重新 build 会在这里 fail
       - run: git diff --exit-code acfun-svfeed.user.js acfun-svfeed.debug.user.js
+      # 静态一致性（0.9.81）：场景登记双向对齐 / 版本号-产物-CHANGELOG 三者一致 / 依赖图不缺边
+      - run: npm run check
       # 回归测试：immsg 解析层单测（node:test）+ 页内断言 harness（Playwright 无头驱动）
       - uses: actions/cache@v4
         with:

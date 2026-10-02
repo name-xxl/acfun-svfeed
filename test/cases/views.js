@@ -1,0 +1,891 @@
+// test/cases/views.js —— harness 场景：子视图（我的/榜单/搜索/封面策略/私信抽屉避让宽窄两态）
+// 0.9.81 从 harness.html 原样搬迁（只加公共件参数前置，场景体逐字未改）——harness.html
+// 只留公共件与分发器。改场景来本文件；新增场景记得同步 run-harness.mjs 的 HARNESS_CASES
+//（test/check-cases.mjs 双向校验，漏登记/多登记直接失败）
+(function () {
+  var C = window.__ACSV_CASES__ = window.__ACSV_CASES__ || {};
+  // ---- view-my ----
+  C['view-my'] = async function (h) {
+    var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
+      waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
+      feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
+// 我的视图冒烟（0.9.62 起；0.9.69 抖音式改造：资料头/Tab 惰性/网格卡/骨架/chips 顺序）：
+// hash 子路由进出 + postForm mock 缝（__ACSV_MOCK_FORM__）+ panelItem 契约过滤
+// （坏例条目不渲染）+ 条目点击回竖刷插入播放（resolve 链走 mock）
+document.cookie = 'auth_key=42_deadbeef'; // ui.selfUid：auth_key 前缀=uid
+window.__ACSV_CARD_CALLS__ = 0;
+window.__ACSV_HIST_CALLS__ = 0;
+window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+window.__ACSV_MOCK_DIRECT__ = { '488900': 1 }; // 播放层条目直挂缝（webm 套 hls 会死在解析）
+location.hash = 'svfeed/my';
+// 可见性断言一律查真实渲染态 offsetParent（0.9.62 黑屏教训：内联 '' 回落样式表
+// display:none，查内联值的断言被骗全绿）
+rec('view-open', !!(await waitFor(function () {
+  var v = q('.acsv-view');
+  return v && v.offsetParent !== null; // 0.9.71 起视图头无标题字（dock 选中态为身份锚），下面 dock-highlight 断言之
+}, 10000)));
+topbarInView('my'); // 0.9.73：共享顶栏在视图态复用（可见/层级/seg 隐藏/视图头已删/正文不钻栏下）
+rec('dock-highlight', !!(await waitFor(function () {
+  var b = q('.acsv-dock-item[data-view="my"]');
+  return b && b.classList.contains('on');
+}, 3000)));
+rec('scroller-hidden', q('.acsv-scroller').style.display === 'none');
+// 资料头：昵称 + 关注/粉丝/投稿三数 + UID（契约 meCardOf 落位）
+rec('me-card', !!(await waitFor(function () {
+  var n = q('.acsv-mecard-name'), st = q('.acsv-mecard-stats');
+  return n && n.textContent === '测试用户' && st && /34/.test(st.textContent)
+    && /56/.test(st.textContent) && /12/.test(st.textContent);
+}, 8000)));
+rec('me-card-id-sign', /UID：42/.test((q('.acsv-mecard-id') || {}).textContent || '')
+  && (q('.acsv-mecard-sign') || {}).textContent === '签名第一行 第二行');
+// 网格卡：历史首屏 18 条；骨架已清（独立类名，绝不与卡片计数选择器同构）
+rec('hist-cards', !!(await waitFor(function () {
+  var cells = document.querySelectorAll('.acsv-vlist.hist .acsv-gcell');
+  var bad = [].some.call(cells, function (r) { return /应被过滤/.test(r.textContent); });
+  return cells.length === 18 && !bad;
+}, 8000)));
+rec('skeleton-gone', document.querySelectorAll('.acsv-gskel').length === 0);
+rec('hist-tag', /观看至01:4/.test((q('.acsv-vlist.hist .acsv-gtag') || {}).textContent || ''));
+// 封面比例 4:3（A 站普通视频封面固定 4:3，只有小视频是 3:4）：历史/收藏条目经契约层
+// 过滤后全是普通视频，卡面套 3:4 会把封面左右各裁掉一大块（连标题字都被切）。钉住防回归
+rec('cover-ratio-4x3', (function () {
+  var c = q('.acsv-vlist.hist .acsv-gcell .acsv-gcover');
+  if (!c) return false;
+  var r = c.getBoundingClientRect();
+  return r.height > 0 && Math.abs(r.width / r.height - 4 / 3) < 0.05;
+})(), (function () {
+  var c = q('.acsv-vlist.hist .acsv-gcell .acsv-gcover');
+  if (!c) return 'n/a';
+  var r = c.getBoundingClientRect();
+  return 'w/h=' + (r.height ? (r.width / r.height).toFixed(3) : '0');
+})());
+// 面板无横向溢出（网格 minmax 自适应，宽窄都不撑破容器）
+rec('no-overflow', (function () {
+  var b = q('.acsv-view-body');
+  return !!b && b.scrollWidth <= b.clientWidth + 1;
+})());
+var histMore = q('.acsv-mepanel[data-tab="hist"] .acsv-vmore');
+rec('hist-more-visible', !!histMore && histMore.style.display !== 'none');
+if (histMore) histMore.click();
+rec('hist-page2', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22;
+}, 8000)));
+// Tab 惰性：未激活的收藏夹不拉接口（0 卡）→ 点击后才建面板
+rec('fav-tab-lazy', document.querySelectorAll('.acsv-vlist.fav .acsv-gcell').length === 0);
+var tabFav = q('.acsv-metab[data-tab="fav"]');
+if (tabFav) tabFav.click();
+rec('fav-open', !!(await waitFor(function () {
+  var p = q('.acsv-mepanel[data-tab="fav"]');
+  return p && p.style.display !== 'none';
+}, 3000)));
+rec('fav-default-rows', !!(await waitFor(function () {
+  var cells = document.querySelectorAll('.acsv-vlist.fav .acsv-gcell');
+  return cells.length === 2 && /测试收藏视频0/.test(cells[0].textContent);
+}, 8000)));
+// chips 顺序（0.9.69 修）：夹位选择器必须在**列表之上**（几何比较——原先
+// insertBefore(chips, btn) 落在列表下方，真机实测 favRow0 y=833 < chips y=997）
+rec('fav-chips-above', (function () {
+  var chips = q('.acsv-mepanel[data-tab="fav"] .acsv-vchips');
+  var first = q('.acsv-vlist.fav .acsv-gcell');
+  if (!chips || !first || !chips.offsetParent) return false;
+  return chips.getBoundingClientRect().bottom <= first.getBoundingClientRect().top + 1;
+})());
+var fchips = q('.acsv-mepanel[data-tab="fav"] .acsv-vchips').children;
+var chip2 = fchips.length >= 2 ? fchips[fchips.length - 1] : null; // 夹二在收藏 chips 组末尾
+if (chip2) chip2.click();
+rec('fav-switch-rows', !!(await waitFor(function () {
+  var cells = document.querySelectorAll('.acsv-vlist.fav .acsv-gcell');
+  return cells.length === 1 && /测试收藏视频0/.test(cells[0].textContent);
+}, 8000)));
+// Tab 切回：面板常驻 DOM 只切 display——历史 22 条仍在且**不重拉接口**
+var histCalls = window.__ACSV_HIST_CALLS__;
+var tabHist = q('.acsv-metab[data-tab="hist"]');
+if (tabHist) tabHist.click();
+await wait(500);
+rec('tab-keep-state', document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22
+  && window.__ACSV_HIST_CALLS__ === histCalls, 'calls=' + window.__ACSV_HIST_CALLS__);
+// 播放层（0.9.74）：点首条历史 → 就地覆盖播放（旧契约「回竖刷 + 插队尾」已废止）。
+// 钉：地址是 play 形态、层内视频真的起播、竖刷缓冲/游标零改动、层内不建上下箭头
+var firstRow = q('.acsv-vlist.hist .acsv-gcell');
+var firstId = 488900;
+var myEl0 = q('.acsv-view');
+var bufBefore = feed().items.length, curBefore = feed().current;
+if (firstRow) firstRow.click();
+rec('item-plays-overlay', !!(await waitFor(function () {
+  return location.hash === '#svfeed/play/a/' + firstId && !!q('.acsv-slide[data-ovl="1"]');
+}, 10000)), location.hash);
+rec('item-overlay-playing', !!(await waitFor(function () {
+  var s = q('.acsv-slide[data-ovl="1"]');
+  var v = s && s.querySelector('video');
+  // resolve 链走 my mock（douga/info + playInfo）→ 真起播；只查"元素在"会被黑屏骗过
+  return !!v && !v.paused && v.currentTime > 0;
+}, 20000)), (function () {
+  var s = q('.acsv-slide[data-ovl="1"]');
+  var v = s && s.querySelector('video');
+  return 'state=' + (s && s.dataset.state) + ' paused=' + (v && v.paused) + ' t=' + (v && v.currentTime);
+})());
+rec('item-feed-untouched', feed().items.length === bufBefore && feed().current === curBefore,
+  'items=' + feed().items.length + '/' + bufBefore + ' cur=' + feed().current + '/' + curBefore);
+rec('item-no-arrows', !q('.acsv-slide[data-ovl="1"] .acsv-arrows'));
+rec('item-feed-paused', (function () {
+  var vs = document.querySelectorAll('.acsv-scroller video');
+  for (var i = 0; i < vs.length; i++) if (!vs[i].paused) return false;
+  return vs.length > 0;
+})());
+key('Escape'); // 返回来源：我的视图原位复原（同一节点、结果网格还在）
+rec('item-back-to-my', !!(await waitFor(function () {
+  return location.hash === '#svfeed/my' && TEST.call('view') === 'my'
+    && q('.acsv-view') === myEl0 && !q('.acsv-slide[data-ovl="1"]');
+}, 8000)), location.hash);
+rec('item-back-keeps-grid', document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22);
+// 视图内 Esc=返回竖刷：再进视图后合成 Esc 事件；顺带断言资料头命中缓存不重复打接口
+location.hash = 'svfeed/my';
+rec('re-enter-open', !!(await waitFor(function () {
+  return q('.acsv-view').offsetParent !== null;
+}, 8000)));
+rec('me-card-cached', !!(await waitFor(function () {
+  return q('.acsv-mecard-name') && window.__ACSV_CARD_CALLS__ === 1;
+}, 5000)), 'calls=' + window.__ACSV_CARD_CALLS__);
+// i 键在视图态不被吞（0.9.75：视图态只放行 Esc 与 i——顶栏私信按钮四界面常驻，键盘对齐）。
+// 本场景为资料头设了假 auth_key（登录态）→ i 会真开抽屉走网络；先撤 cookie 验未登录分支
+// （出提示＝键确实打到了私信模块），测完还原，后续步骤不受影响
+document.cookie = 'auth_key=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+key('i');
+rec('my-i-not-swallowed', !!(await waitFor(function () {
+  return /私信需要先登录/.test((q('.acsv-toast') || {}).textContent || '');
+}, 4000)), (q('.acsv-toast') || {}).textContent || '');
+rec('my-i-no-drawer', (function () { // 抽屉未开（元素可能还没被懒建：不存在也算未开）
+  var d = q('.acsv-msgdrawer');
+  return !d || !d.classList.contains('open');
+})());
+document.cookie = 'auth_key=42_deadbeef'; // 还原（ui.selfUid 语义同 harness 初始设定）
+// 来源视图保活（0.9.74）：我的 → 搜索（深界面）→ Esc 返回。钉四件事：挂起期只有一个
+// .acsv-view（来源换类名 acsv-view-held，不污染全局定位锚）、回来是**同一个节点**、
+// 滚动位保住（visibility 挂起而非 display:none）、数据不重拉
+var myEl = q('.acsv-view');
+var myBody = q('.acsv-view-body');
+var histCalls0 = window.__ACSV_HIST_CALLS__;
+myBody.scrollTop = 120;
+location.hash = 'svfeed/search/测试词';
+rec('hold-enter-deep', !!(await waitFor(function () {
+  return !!q('.acsv-sgrid') && document.querySelectorAll('.acsv-view').length === 1;
+}, 8000)), 'views=' + document.querySelectorAll('.acsv-view').length);
+rec('hold-origin-suspended', document.querySelectorAll('.acsv-view-held').length === 1
+  && q('.acsv-view-held') === myEl, 'held=' + document.querySelectorAll('.acsv-view-held').length);
+key('Escape'); // 深界面 Esc=回来源（来源链顶），不是回竖刷
+rec('hold-back-restored', !!(await waitFor(function () {
+  return location.hash === '#svfeed/my' && q('.acsv-view') === myEl;
+}, 8000)), location.hash);
+rec('hold-restore-invariants', q('.acsv-view-body') === myBody
+  && Math.abs(q('.acsv-view-body').scrollTop - 120) <= 2
+  && window.__ACSV_HIST_CALLS__ === histCalls0
+  && document.querySelectorAll('.acsv-view-held').length === 0,
+  'scrollTop=' + Math.round(q('.acsv-view-body').scrollTop) + ' histCalls=' + window.__ACSV_HIST_CALLS__);
+await wait(400); // 越过进视图前残留的 syncHash 150ms 定时器窗口（真实用户不可达的时序）
+key('Escape');
+rec('esc-back-to-feed', !!(await waitFor(function () {
+  return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && q('.acsv-view') === null;
+}, 8000)));
+  };
+  // ---- view-zone ----
+  C['view-zone'] = async function (h) {
+    var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
+      waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
+      feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
+// 分区榜单视图冒烟：渠道/榜期 chips 切换重渲染 + contentType 过滤 + 条目回竖刷
+window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+window.__ACSV_MOCK_DIRECT__ = { '489500': 1 }; // 播放层条目直挂缝（同 view-my）
+location.hash = 'svfeed/zone';
+rec('zone-open', !!(await waitFor(function () {
+  // 视图身份锚=左栏 dock 选中态（0.9.71 起视图头无标题字——文字与 dock 重复，用户点名删除）
+  var v = q('.acsv-view'), d = q('.acsv-dock-item[data-view="zone"]');
+  return v && v.offsetParent !== null && d && d.classList.contains('on');
+}, 10000)));
+topbarInView('zone'); // 0.9.73：共享顶栏在视图态复用（同 view-my）
+// 视频榜行数断言限定 .acsv-rlist——0.9.66 UP 榜 section 的行同为 .acsv-vrow
+rec('zone-rows-filtered', !!(await waitFor(function () {
+  var rows = document.querySelectorAll('.acsv-rlist .acsv-vrow');
+  return rows.length === 4; // 5 条 mock 里 1 条 contentType=3 被契约层过滤
+}, 8000)));
+rec('zone-ups', !!(await waitFor(function () {
+  // 原生 rlist 分栏：每行视频卡+作者卡左右并排（.acsv-upcard）
+  return document.querySelectorAll('.acsv-rlist-row .acsv-upcard').length === 4;
+}, 8000)));
+// 排名水印：挂在视频卡内（定位宿主=.acsv-vrow.big 有 relative）——0.9.67 挂 static
+// 行上致全部水印冒泡 view-body 叠一团，此断言钉住 offsetParent 防同型回归
+rec('zone-rank-badge', (function () {
+  var n = q('.acsv-vrow.big .acsv-rlist-num');
+  return !!n && n.textContent === '1' && !!n.offsetParent && /big/.test(n.offsetParent.className);
+})());
+// ---- 0.9.69 原生对齐断言（原生 rank/list 实测基准） ----
+// 行高恒定 129+1 分隔线：UP 卡固定 129 撑起行、视频卡 122 自然高——极端行（超长标题/
+// 无空格长签名/含 <br> 简介）不许撑高（0.9.68 波动源=签名行数，这里逐行钉）
+var rowHs = [].map.call(document.querySelectorAll('.acsv-rlist-row'), function (r) { return r.offsetHeight; });
+rec('zone-row-height', rowHs.length === 4 && [].every.call(rowHs, function (h) { return h >= 126 && h <= 134; }),
+  'hs=' + rowHs.join(','));
+// meta 贴封面底（不变量：main 拉伸高=封面 90 + meta margin-top:auto）
+var mbT = q('.acsv-vrow.big .acsv-vrow-thumb'), mbM = q('.acsv-vrow.big .acsv-vrow-meta');
+var mbD = (mbT && mbM) ? Math.round((mbM.getBoundingClientRect().bottom - mbT.getBoundingClientRect().bottom) * 10) / 10 : null;
+rec('zone-meta-bottom', mbD != null && mbD >= -1 && mbD <= 6, 'd=' + mbD);
+// meta 三段原生图标码点（播放 U+E164 / 评论 U+E161 / 时间 U+E2F5；字形渲染真机核对）
+var mgHost = q('.acsv-vrow.big');
+var mgList = mgHost ? mgHost.querySelectorAll('.acsv-vrow-meta .acsvg-glyph') : [];
+var mgCps = [].map.call(mgList, function (x) { return 'U+' + ((x.textContent.codePointAt(0) || 0).toString(16).toUpperCase()); });
+rec('zone-meta-icons', mgList.length === 3 && mgCps.join(',') === 'U+E164,U+E161,U+E2F5', 'cp=' + mgCps.join(','));
+// 时间段文案：发布于… + 「 / 频道」（频道名 = 顶层 channelName + 「频道」——0.9.69 真机
+// 对照修正：channel 对象里是 name 不是 channelName，parentName 是主分区不可当频道名）
+var mtSeg = mgHost ? mgHost.querySelectorAll('.acsv-vrow-meta .acsv-vmeta-i')[2] : null;
+var mtTxt = mtSeg ? mtSeg.textContent : '';
+rec('zone-meta-channel', /发布于/.test(mtTxt) && / \/ 全站综合频道$/.test(mtTxt), 't=' + mtTxt);
+// 截断规则：标题单行（nowrap+ellipsis）、简介 3 行 clamp + pre-line（原生同款）
+rec('zone-clamp', (function () {
+  var t = q('.acsv-vrow.big .acsv-vrow-title'), d = q('.acsv-vrow.big .acsv-vrow-desc');
+  if (!t || !d) return false;
+  return getComputedStyle(t).whiteSpace === 'nowrap' && t.offsetHeight <= 20
+    && getComputedStyle(d).webkitLineClamp === '3' && getComputedStyle(d).whiteSpace === 'pre-line';
+})());
+// 水印原生形态：48px 粗体 + rotate(10deg)（宿主 .big 断言另见 zone-rank-badge）
+var numEl = q('.acsv-vrow.big .acsv-rlist-num');
+var numCS = numEl ? getComputedStyle(numEl) : null;
+rec('zone-num-native', !!numCS && numCS.fontSize === '48px' && /^matrix\(0\.98/.test(numCS.transform),
+  numCS ? ('fs=' + numCS.fontSize + ' tf=' + numCS.transform.slice(0, 30)) : 'no-el');
+// UP 卡：两个数据位图标（投稿 U+E15B / 粉丝 U+E155）+ 万格式 + 卡高 129（列宽 338 与行同轨）
+var upcEl = q('.acsv-rlist-row .acsv-upcard');
+var upcGlyphs = upcEl ? upcEl.querySelectorAll('.acsv-upcard-extra .acsvg-glyph') : [];
+var upcCps = [].map.call(upcGlyphs, function (x) { return 'U+' + ((x.textContent.codePointAt(0) || 0).toString(16).toUpperCase()); });
+var upcH = upcEl ? Math.round(upcEl.getBoundingClientRect().height) : null;
+var upcTxt = upcEl && upcEl.querySelector('.acsv-upcard-extra') ? upcEl.querySelector('.acsv-upcard-extra').textContent : '';
+rec('zone-upcard', upcCps.join(',') === 'U+E15B,U+E155' && /万/.test(upcTxt) && upcH >= 127 && upcH <= 131,
+  'cp=' + upcCps.join(',') + ' h=' + upcH + ' txt=' + upcTxt);
+var zchips = document.querySelectorAll('.acsv-vchips')[0].children;
+var gameChip = [].filter.call(zchips, function (c) { return c.textContent === '游戏'; })[0];
+if (gameChip) gameChip.click();
+rec('zone-switch', !!(await waitFor(function () {
+  var t = q('.acsv-rlist .acsv-vrow .acsv-vrow-title');
+  return t && /榜单游戏-DAY-0/.test(t.textContent);
+}, 8000)));
+// 子频道行：切频道后填官方树 children（mock navTree），「全部」默认选中、请求带 subChannelId
+rec('zone-subs', !!(await waitFor(function () {
+  var chips = document.querySelectorAll('.acsv-vchips')[1].children;
+  return chips.length === 3 && chips[0].textContent === '全部' && chips[0].classList.contains('on');
+}, 8000)));
+// 播放层（0.9.74）：点榜单行 → 就地覆盖播放（不跳回竖刷、不插队尾）。钉：地址 play 形态、
+// 层内真起播（resolve 走 my mock）、竖刷零改动、层内无箭头、Esc 回榜单且原位复原
+var zoneEl0 = q('.acsv-view');
+var zBuf = feed().items.length, zCur = feed().current;
+var zrow = q('.acsv-rlist .acsv-vrow');
+if (zrow) zrow.click();
+rec('zone-play-overlay', !!(await waitFor(function () {
+  return location.hash === '#svfeed/play/a/489500' && !!q('.acsv-slide[data-ovl="1"]');
+}, 10000)), location.hash);
+rec('zone-play-playing', !!(await waitFor(function () {
+  var s = q('.acsv-slide[data-ovl="1"]');
+  var v = s && s.querySelector('video');
+  return !!v && !v.paused && v.currentTime > 0;
+}, 20000)));
+rec('zone-play-feed-untouched', feed().items.length === zBuf && feed().current === zCur,
+  'items=' + feed().items.length + '/' + zBuf + ' cur=' + feed().current + '/' + zCur);
+rec('zone-play-no-arrows', !q('.acsv-slide[data-ovl="1"] .acsv-arrows'));
+rec('zone-play-hash-stable', (function () { // 地址不被 syncHash 回写（视图形态守卫）
+  return location.hash === '#svfeed/play/a/489500';
+})());
+key('Escape'); // 深界面 Esc=回来源（榜单视图，同一节点、不重建）
+rec('zone-play-back', !!(await waitFor(function () {
+  return location.hash === '#svfeed/zone' && TEST.call('view') === 'zone'
+    && q('.acsv-view') === zoneEl0 && !q('.acsv-slide[data-ovl="1"]');
+}, 8000)), location.hash);
+rec('zone-no-backbtn', (function () { // 返回键只属深界面（普通视图出口是常驻 dock + Esc）
+  var b = q('.acsv-back-btn');
+  return !!b && b.style.display === 'none';
+})());
+rec('zone-x-single', (q('.acsv-top-right .acsv-tbtn:last-child') || {}).title === '退出');
+// 隐藏态落点（0.9.74）：视图开着时跳已缓冲条目——旧行为在 display:none 下量 offsetTop
+// （无布局盒恒 0）⇒ 静默滚回第一条，退出视图后要往下滑几条才见到目标（真机报障同型）。
+// 现在延后到舞台回来再落地，且落点必须是目标那张（结果不变式）
+location.hash = 'svfeed/zone';
+rec('hidden-jump-reopen', !!(await waitFor(function () {
+  return !!q('.acsv-view') && q('.acsv-view').offsetParent !== null;
+}, 8000)));
+var hj = feed().items.length > 1 ? 1 : 0; // 目标取非 0 的已缓冲条目：跳 0 会与旧 bug 巧合同向
+TEST.call('scrollTo', hj);
+await wait(200);
+key('Escape'); // 退出视图 → 舞台回来 → 落地
+rec('hidden-jump-landed', !!(await waitFor(function () {
+  var f = feed();
+  var s = q('.acsv-scroller');
+  // 舞台必须先回来：隐藏态全元素无布局盒、矩形恒 0，几何断言会被"全零"假绿骗过
+  if (!f || !s || s.style.display === 'none' || !s.offsetParent) return false;
+  var sl = slide(f.current);
+  if (!sl || f.current !== hj) return false;
+  var st = s.getBoundingClientRect().top, r = sl.getBoundingClientRect();
+  return r.top <= st + 2 && r.top >= st - 2; // 目标那张恰好顶在舞台上缘
+}, 8000)), 'idx=' + hj + ' cur=' + (feed() ? feed().current : 'n/a'));
+// 两级进入的舞台记账（0.9.74 修）：榜单 → 搜索（深界面）→ Esc → Esc → 竖刷须恢复播放。
+// 旧实现每次 enterView 都重记 wasPlaying——第二级进入时舞台早已隐藏、当前条被暂停 ⇒
+// 覆盖成 false，回竖刷后不再起播（真机表现：返回后画面静止要手点一下）
+rec('stage-resume-pre', !!(await waitFor(function () { return firstVideoReady(cur()); }, 15000)));
+location.hash = 'svfeed/zone'; // 普通视图做来源（上一段末尾已在竖刷）
+rec('deep2-zone', !!(await waitFor(function () {
+  return !!q('.acsv-vchips') && q('.acsv-view') !== null;
+}, 8000)));
+location.hash = 'svfeed/search/测试词'; // 深界面：来源视图挂起
+rec('deep2-open', !!(await waitFor(function () { return !!q('.acsv-sgrid'); }, 8000)));
+rec('deep2-origin-held', document.querySelectorAll('.acsv-view-held').length === 1 && q('.acsv-view') !== null,
+  'held=' + document.querySelectorAll('.acsv-view-held').length);
+// 记账不变量：两级进入后 wasPlaying 必须仍是第一次跃迁捕获的 true（旧实现被二级覆盖成
+// false；真机据此才恢复播放——IO 复显兜底会掩盖症状，所以直接钉记账值）
+rec('stage-wasplaying-kept', TEST.call('stage').wasPlaying === true && TEST.call('stage').visible === false,
+  JSON.stringify(TEST.call('stage')));
+key('Escape');
+rec('deep2-back-zone', !!(await waitFor(function () {
+  // 钉「还原完成」：地址赋值是同步的，视图还原要等 hashchange——只查 hash 会与下一击竞态
+  return location.hash === '#svfeed/zone' && TEST.call('view') === 'zone'
+    && document.querySelectorAll('.acsv-view-held').length === 0;
+}, 8000)), location.hash);
+key('Escape');
+rec('stage-resume', !!(await waitFor(function () {
+  return q('.acsv-view') === null && firstVideoReady(cur());
+}, 15000)), 'cur=' + (feed() ? feed().current : 'n/a'));
+// 榜单首屏缓存（0.9.79）：退出视图再进——命中缓存零新增请求（榜单日更，5 分钟 TTL
+// 无新鲜度风险；我的页的历史/收藏不做缓存，保持一致每次重拉）
+var zoneCalls = window.__ACSV_RANK_CALLS__ || 0;
+location.hash = 'svfeed/zone';
+rec('zone-cache-reenter', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-rlist .acsv-rlist-row').length > 0;
+}, 10000)));
+rec('zone-cache-no-refetch', (window.__ACSV_RANK_CALLS__ || 0) === zoneCalls,
+  'before=' + zoneCalls + ' after=' + (window.__ACSV_RANK_CALLS__ || 0));
+  };
+  // ---- view-search ----
+  C['view-search'] = async function (h) {
+    var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
+      waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
+      feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
+// 搜索视图冒烟（0.9.72 抖音式）：顶栏搜索框（72px 居中常驻）提交 → 关键词进地址
+// （#svfeed/search/<kw>）→ 搜索页 SSR HTML（mock 回放真机片段）→ 结果网格卡；
+// 视图内换词走地址重建；空词只出引导态不发请求；点卡片回竖刷
+window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+window.__ACSV_MOCK_DIRECT__ = { '40742636': 1, '41033414': 1 }; // 播放层条目直挂缝
+window.__ACSV_SEARCH_CALLS__ = 0;
+location.hash = 'svfeed';
+rec('topbar-72', !!(await waitFor(function () { return !!q('.acsv-top'); }, 8000))
+  && q('.acsv-top').offsetHeight === 72, q('.acsv-top') ? 'h=' + q('.acsv-top').offsetHeight : 'no-bar');
+rec('topbar-search-centered', (function () { // 居中常驻：左右余量对称 ±8px
+  var b = q('.acsv-top'), p = q('.acsv-top .acsv-sbox');
+  if (!b || !p) return false;
+  var br = b.getBoundingClientRect(), pr = p.getBoundingClientRect();
+  return Math.abs((pr.left - br.left) - (br.right - pr.right)) <= 8;
+})());
+rec('toast-below-topbar', (function () { // toast 落位引用 --acsv-top-h，不许压顶栏
+  var b = q('.acsv-top'), t = q('.acsv-toast');
+  if (!b || !t) return false;
+  return parseFloat(getComputedStyle(t).top) >= b.getBoundingClientRect().height;
+})());
+(function () { // 顶栏提交
+  var i = q('.acsv-top .acsv-sbox input');
+  i.value = '测试词';
+  i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+})();
+rec('search-url', !!(await waitFor(function () {
+  return location.hash === '#svfeed/search/' + encodeURIComponent('测试词');
+}, 8000)), location.hash);
+rec('search-cards', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3;
+}, 8000)));
+rec('search-card-fields', (function () {
+  var c = q('.acsv-sgrid .acsv-scell');
+  if (!c) return false;
+  return (c.querySelector('.acsv-gtitle') || {}).textContent === '热门小说推荐'
+    && /2037/.test((c.querySelector('.acsv-gviews') || {}).textContent || '')
+    && (c.querySelector('.acsv-gdur') || {}).textContent === '02:04'
+    && /^@晨澜每日分享/.test((c.querySelector('.acsv-gfoot') || {}).textContent || '');
+})());
+rec('search-more-link', (function () {
+  var a = q('.acsv-smfoot');
+  return !!a && /search\?keyword=/.test(a.getAttribute('href') || '');
+})());
+topbarInView('view'); // 0.9.73：搜索视图 = 共享顶栏（视图头 / 视图内胶囊都已删）
+rec('search-prefill', (function () { // 顶栏输入框是唯一输入框：提交后与地址关键词一致
+  var i = q('.acsv-top .acsv-sbox input');
+  return !!i && i.value === '测试词';
+})(), 'v=' + ((q('.acsv-top .acsv-sbox input') || {}).value));
+(function () { // 同词再回车：hash 不变不触发 hashchange——视图接管提交必须就地重跑
+  var i = q('.acsv-top .acsv-sbox input'); // （0.9.73 顶栏化后的新路径，旧视图内输入框同款语义）
+  i.value = '测试词';
+  i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+})();
+rec('search-sameword-rerun', !!(await waitFor(function () {
+  return window.__ACSV_SEARCH_CALLS__ === 2
+    && document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3
+    && location.hash === '#svfeed/search/' + encodeURIComponent('测试词');
+}, 8000)), 'calls=' + window.__ACSV_SEARCH_CALLS__);
+await wait(1200); // 等首屏落定（真机/手工流都在结果出齐后再换词）
+var sgrid0 = q('.acsv-view .acsv-sgrid'); // 重建指纹：视图重建后网格是新节点
+// （顶栏输入框是常驻单例，不能用"节点换新"证明重建——指纹必须挂在视图自有节点上）
+(function () { // 视图换词：顶栏 Enter 写地址 → hashchange → 按 arg 重建
+  var i = q('.acsv-top .acsv-sbox input');
+  i.value = '第二词';
+  i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+})();
+rec('search-resubmit', !!(await waitFor(function () {
+  return location.hash === '#svfeed/search/' + encodeURIComponent('第二词')
+    && document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3;
+}, 8000)));
+rec('search-rebuilt', !!(await waitFor(function () { // 换词必须真重建（DOM 换新节点）：
+  var g = q('.acsv-view .acsv-sgrid');               // hashchange→重建要一拍，等价断言必须 waitFor
+  return !!g && g !== sgrid0;
+}, 8000)));
+rec('search-calls', window.__ACSV_SEARCH_CALLS__ === 3, 'calls=' + window.__ACSV_SEARCH_CALLS__
+  + ' hash=' + location.hash + ' cells=' + document.querySelectorAll('.acsv-sgrid .acsv-scell').length
+  + ' viewOpen=' + (!!q('.acsv-view') && q('.acsv-view').style.display !== 'none'));
+// 播放层（0.9.74）：点结果卡 → 就地播放；Esc 回搜索视图且**结果原样**（保活，不重拉）
+var sCell = q('.acsv-sgrid .acsv-scell');
+var srEl0 = q('.acsv-view');
+var srCalls = window.__ACSV_SEARCH_CALLS__;
+if (sCell) sCell.click();
+rec('search-item-overlay', !!(await waitFor(function () {
+  return /^#svfeed\/play\/a\/\d+$/.test(location.hash) && !!q('.acsv-slide[data-ovl="1"]');
+}, 10000)), location.hash);
+rec('search-item-overlay-kw', (function () { // 层内关键词保持（还没离开搜索上下文）
+  var i = q('.acsv-top .acsv-sbox input');
+  return TEST.call('view') === 'play' && !!i && i.value === '第二词';
+})(), 'v=' + JSON.stringify((q('.acsv-top .acsv-sbox input') || {}).value));
+key('Escape');
+rec('search-item-back', !!(await waitFor(function () {
+  return /^#svfeed\/search/.test(location.hash) && TEST.call('view') === 'search'
+    && q('.acsv-view') === srEl0;
+}, 8000)), location.hash);
+rec('search-item-keeps-kw', (function () { // 深钻不算离开搜索上下文：关键词保持
+  var i = q('.acsv-top .acsv-sbox input');
+  return !!i && i.value === '第二词';
+})(), 'v=' + ((q('.acsv-top .acsv-sbox input') || {}).value));
+rec('search-item-back-kept', document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3
+  && window.__ACSV_SEARCH_CALLS__ === srCalls,
+  'calls=' + window.__ACSV_SEARCH_CALLS__ + '/' + srCalls);
+(function () { // 顶栏空词提交：只开视图出引导态，不发请求
+  var i = q('.acsv-top .acsv-sbox input');
+  i.value = '';
+  i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+})();
+rec('search-empty-nofetch', !!(await waitFor(function () {
+  return location.hash === '#svfeed/search'
+    && /输入关键词/.test((q('.acsv-sstate') || {}).textContent || '');
+}, 8000)) && window.__ACSV_SEARCH_CALLS__ === 3, 'calls=' + window.__ACSV_SEARCH_CALLS__);
+// 离开搜索视图 → 默认提交还原（handler 生命周期）+ 地址深链回填（分享链接/刷新回放的落点）
+key('Escape');
+rec('search-esc-back', !!(await waitFor(function () {
+  return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash)
+    && q('.acsv-view') === null;
+}, 8000)), location.hash);
+location.hash = 'svfeed/search/' + encodeURIComponent('深链词');
+rec('search-deeplink-prefill', !!(await waitFor(function () {
+  var i = q('.acsv-top .acsv-sbox input');
+  return q('.acsv-view').offsetParent !== null && !!i && i.value === '深链词'
+    && document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3;
+}, 8000)), 'v=' + ((q('.acsv-top .acsv-sbox input') || {}).value));
+rec('search-calls-final', window.__ACSV_SEARCH_CALLS__ === 4, 'calls=' + window.__ACSV_SEARCH_CALLS__);
+rec('search-backbtn-shown', (function () { // 搜索结果页是深界面：来源不在 dock 上
+  var b = q('.acsv-back-btn');
+  return !!b && b.style.display !== 'none' && b.offsetParent !== null;
+})());
+var sBack = q('.acsv-back-btn'); // 收尾顺带钉返回键真路径：回来源（此例来源是竖刷）
+if (sBack) sBack.click();
+rec('search-backbtn-back', !!(await waitFor(function () {
+  return location.hash === '#svfeed' && q('.acsv-view') === null;
+}, 8000)), location.hash);
+rec('search-leave-clears-kw', (function () { // 离开搜索上下文（回竖刷）即清空输入框
+  var i = q('.acsv-top .acsv-sbox input');
+  return !!i && i.value === '';
+})(), 'v=' + JSON.stringify((q('.acsv-top .acsv-sbox input') || {}).value));
+  };
+  // ---- cover-fallback ----
+  C['cover-fallback'] = async function (h) {
+    var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
+      waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
+      feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
+// 封面加载策略冒烟（0.9.76）：三种封面态各一条——好图（data:，load 后淡入）/
+// flaky（静态服务首拉 404 再拉 200，走通重试链；断 naturalWidth 即证明第二次真的发生）/
+// 死链（重试链耗尽 → 降级：img 隐藏 + .acsv-imgfail + 占位文案，严禁留 Chrome 裂图）
+document.cookie = 'auth_key=42_deadbeef';
+window.__ACSV_MOCK_FORM__ = {
+  // 资料头不是本场景关注点且不桩就会真打外网：桩成空回包（meCardOf 返回 null 静默）
+  'user/getUserCardList': { result: 1, users: [] },
+  'browse/history/list': {
+    result: 0, totalCount: 3,
+    histories: [
+      { resourceType: 2, videoId: 900101, resourceId: 488101, title: '好图封面',
+        cover: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+        playedSeconds: 10, playedSecondsShow: '观看至00:10' },
+      { resourceType: 2, videoId: 900102, resourceId: 488102, title: 'flaky 封面',
+        cover: '/flaky-cover.png?pid=' + CASE, playedSeconds: 20, playedSecondsShow: '观看至00:20' },
+      { resourceType: 2, videoId: 900103, resourceId: 488103, title: '死链封面',
+        cover: '/nope-404.png?pid=' + CASE, playedSeconds: 30, playedSecondsShow: '观看至00:30' }
+    ]
+  }
+};
+location.hash = 'svfeed/my';
+function coverBox(title) {
+  var cells = document.querySelectorAll('.acsv-vlist.hist .acsv-gcell');
+  for (var i = 0; i < cells.length; i++) {
+    var t = cells[i].querySelector('.acsv-gtitle');
+    if (t && t.textContent === title) return cells[i].querySelector('.acsv-gcover');
+  }
+  return null;
+}
+rec('cover-cards', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 3;
+}, 10000)));
+rec('cover-good-loads', !!(await waitFor(function () { // 加载成功 + 淡入到位（不许停在半透明）
+  var img = coverBox('好图封面') && coverBox('好图封面').querySelector('img');
+  return img && img.naturalWidth > 0 && getComputedStyle(img).opacity === '1';
+}, 8000)));
+rec('cover-retry-loads', !!(await waitFor(function () { // 首拉 404 → 重试链换 URL 再拉 200
+  var b = coverBox('flaky 封面'), img = b && b.querySelector('img');
+  return img && img.naturalWidth > 0 && !img.classList.contains('acsv-imgfail');
+}, 10000)), (function () {
+  var b = coverBox('flaky 封面'), img = b && b.querySelector('img');
+  return img ? ('src=' + img.getAttribute('src') + ' nw=' + img.naturalWidth) : 'no-img';
+})());
+rec('cover-dead-degrades', !!(await waitFor(function () { // 重试耗尽 → 隐藏裂图 + 占位文案
+  var b = coverBox('死链封面');
+  var img = b && b.querySelector('img');
+  var ph = b && b.querySelector('.acsv-gph');
+  return img && img.classList.contains('acsv-imgfail')
+    && (img.style.display === 'none' || getComputedStyle(img).display === 'none')
+    && ph && ph.textContent === '封面加载失败';
+}, 12000)), (function () {
+  var b = coverBox('死链封面');
+  var img = b && b.querySelector('img');
+  return img ? ('cls=' + img.className + ' disp=' + getComputedStyle(img).display) : 'no-img';
+})());
+rec('cover-no-broken-glyph', (function () { // 终态不变量：每张封面要么加载成功要么已隐藏
+  var imgs = document.querySelectorAll('.acsv-vlist.hist .acsv-gcover img');
+  if (imgs.length !== 3) return false;
+  return [].every.call(imgs, function (im) {
+    return im.naturalWidth > 0 || im.classList.contains('acsv-imgfail');
+  });
+})());
+// ---- 网络面证据（0.9.77）：计数端点 /__hits 让「重试链真的打了网络」可证
+//（此前只断终态——终态在重试链没跑的情况下也可能为真，属弱断言）----
+async function hitsOf(p) {
+  try { return (await (await fetch('/__hits?pid=' + CASE)).json())[p] || 0; } catch (e) { return -1; }
+}
+rec('cover-retry-counted', (await hitsOf('/flaky-cover.png')) === 2,
+  'flaky=' + (await hitsOf('/flaky-cover.png'))); // 首拉 404 + 换 URL 重拉 200：恰好两发
+rec('cover-dead-exhausted', (await hitsOf('/nope-404.png')) === 3,
+  'dead=' + (await hitsOf('/nope-404.png'))); // 三跳两两换 URL：恰好三发
+// ---- 二次进入（0.9.77 备忘语义）：死链备忘命中 → 连一发请求都不发（img 从未拿到
+// src），但仍出降级占位（用户可读结果不变）。0.9.76 的续期语义下这里会再打三发 ----
+// 退出必须等视图真的拆掉（view=null + DOM 消失）才继续：waitFor 首判是同步的，
+// 若在同一 task 内紧接着重写 hash，浏览器会把两次 fragment 变化合并成净零变化、
+// 一个 hashchange 都不发——视图从未退出，也就谈不上"重建"（踩实教训，写进断言里）
+key('Escape');
+rec('cover-exit', !!(await waitFor(function () {
+  return location.hash === '#svfeed' && document.querySelectorAll('.acsv-view').length === 0;
+}, 8000)), location.hash + ' views=' + document.querySelectorAll('.acsv-view').length);
+location.hash = 'svfeed/my';
+rec('cover-reenter', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 3;
+}, 10000)));
+rec('cover-reenter-degrade', !!(await waitFor(function () {
+  var b = coverBox('死链封面');
+  var img = b && b.querySelector('img');
+  return !!img && img.classList.contains('acsv-imgfail') && !!b.querySelector('.acsv-gph');
+}, 8000)));
+rec('cover-memo-no-src', (function () { // 备忘命中：这条死链的 src 从未赋值（零网络）
+  var b = coverBox('死链封面'), img = b && b.querySelector('img');
+  return !!img && !img.getAttribute('src');
+})(), (function () {
+  var b = coverBox('死链封面'), img = b && b.querySelector('img');
+  return img ? ('src=' + img.getAttribute('src') + ' cls=' + img.className) : 'no-img';
+})());
+rec('cover-memo-zero-hits', (await hitsOf('/nope-404.png')) === 3,
+  'dead=' + (await hitsOf('/nope-404.png'))); // 与首轮相同：二次进入零新增请求
+// 策略名解析（0.9.78）：拼错名字必须出声（此前静默退化成空策略，占位/兜底悄悄丢），
+// 已知名给全策略（断言里认 ph 字段——grid 策略的占位文案就在它上面）
+rec('img-policy-known', TEST.call('imgPolicy', 'grid').indexOf('"ph"') >= 0,
+  TEST.call('imgPolicy', 'grid'));
+var uWarns = [], oWarn = console.warn;
+console.warn = function (m) { uWarns.push(String(m)); };
+var uBogus = TEST.call('imgPolicy', 'grrid');
+console.warn = oWarn;
+rec('img-policy-unknown-warns', uBogus === '{}' && uWarns.length === 1 && /grrid/.test(uWarns[0]),
+  uBogus + ' warns=' + uWarns.length);
+  };
+  // ---- view-im ----
+  C['view-im'] = async function (h) {
+    var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
+      waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
+      feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
+// 抽屉×视图避让冒烟（0.9.73）：视图里开私信抽屉 → 正文让位（宽视口右缘收窄到抽屉左缘，
+// 逐帧贴合同曲线）或降级纯覆盖（中窄视口，CFG.view.avoidW 护栏）；顶栏右组避让平移后
+// 仍可点；Esc 链 = 先关抽屉（视图保留）→ 再退竖刷；离开视图 = 浮层随视图收（对称收尾）。
+// 走 imOpenSmoke 模拟缝：真实避让路径（浮层栈 + 抽屉槽 + syncCommentVars），不拉 ImSdk /
+// 不依赖登录。宽窄两态由驱动设视口（view-im=1280 / view-im-narrow=1000，见 run-harness.mjs）
+var IMV_WIDE = CASE === 'view-im';
+window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+location.hash = IMV_WIDE ? 'svfeed/my' : 'svfeed/zone';
+rec('imview-open', !!(await waitFor(function () {
+  return q('.acsv-view').offsetParent !== null;
+}, 10000)));
+topbarInView('imview');
+var imvSmoke = TEST.call('imOpenSmoke');
+rec('imview-drawer-open', !!(imvSmoke && imvSmoke.open && imvSmoke.drawerConnected && imvSmoke.withComments),
+  JSON.stringify(imvSmoke || {}));
+await wait(500); // 越过 .28s 抽屉滑入/正文收窄过渡
+rec('imview-body-geometry', (function () {
+  var b = q('.acsv-view-body'), d = q('.acsv-msgdrawer');
+  if (!b || !d) return false;
+  var br = b.getBoundingClientRect(), dr = d.getBoundingClientRect();
+  // 宽视口：正文右缘=抽屉左缘（同曲线过渡的稳态）；中窄视口：正文不动（right=0，纯覆盖）
+  return IMV_WIDE ? Math.abs(br.right - dr.left) <= 2 : Math.abs(br.right - window.innerWidth) <= 2;
+})(), (function () {
+  var b = q('.acsv-view-body'), d = q('.acsv-msgdrawer');
+  if (!b || !d) return 'n/a';
+  return 'bodyR=' + Math.round(b.getBoundingClientRect().right)
+    + ' drawerL=' + Math.round(d.getBoundingClientRect().left) + ' vw=' + window.innerWidth;
+})());
+// 护栏的核心目的：正文不因收窄/挤压出现横向溢出（榜单 338px 定宽列的最窄可用宽推算）
+rec('imview-no-overflow', (function () {
+  var b = q('.acsv-view-body');
+  return !!b && b.scrollWidth <= b.clientWidth + 1;
+})());
+rec('imview-topbar-right-clear', (function () { // 右组避让平移生效：整体在抽屉左缘左侧
+  var tr = q('.acsv-top-right'), d = q('.acsv-msgdrawer');
+  if (!tr || !d) return false;
+  return tr.getBoundingClientRect().right <= d.getBoundingClientRect().left + 1;
+})());
+rec('imview-buttons-clickable', (function () { // 私信/更新/✕ 被抽屉盖住即失去出口——必须真实渲染
+  var btns = [q('.acsv-im-btn'), q('.acsv-upd-btn'), q('.acsv-top-right .acsv-tbtn:last-child')];
+  return btns.every(function (b) { return !!b && b.offsetParent !== null && b.offsetWidth > 0; });
+})());
+// 搜索框让位（0.9.73 收口 0.9.72 遗留：右组左移会压到居中搜索框）：宽视口=收窄后与右组
+// 不重叠；窄视口（<CFG.view.avoidTopW=1012）=不可用即隐藏，只留右组
+rec('imview-pill-clear', (function () {
+  var p = q('.acsv-top .acsv-sbox'), tr = q('.acsv-top-right');
+  if (!p || !tr) return false;
+  var vis = getComputedStyle(p).display !== 'none' && p.offsetParent !== null;
+  if (!vis) return !IMV_WIDE;
+  return p.getBoundingClientRect().right <= tr.getBoundingClientRect().left + 1;
+})(), (function () {
+  var p = q('.acsv-top .acsv-sbox'), tr = q('.acsv-top-right');
+  if (!p || !tr) return 'n/a';
+  return 'pillR=' + Math.round(p.getBoundingClientRect().right)
+    + ' groupL=' + Math.round(tr.getBoundingClientRect().left)
+    + ' dw=' + Math.round(p.getBoundingClientRect().width);
+})());
+// 0.9.75：动画时长单源（--acsv-dw-t）——抽屉与两处"让位"（顶栏 right / 正文 right）必须同值，
+// 这是逐帧贴合不变式的前提（抽离共享规则时最容易悄悄改坏的点）
+rec('imview-timing-single-source', (function () {
+  var d = q('.acsv-msgdrawer'), t = q('.acsv-top'), b = q('.acsv-view-body');
+  if (!d || !t || !b) return false;
+  var dd = getComputedStyle(d).transitionDuration;
+  return dd === getComputedStyle(t).transitionDuration && dd === getComputedStyle(b).transitionDuration;
+})(), (function () {
+  var d = q('.acsv-msgdrawer'), t = q('.acsv-top'), b = q('.acsv-view-body');
+  return d && t && b ? (getComputedStyle(d).transitionDuration + '/' + getComputedStyle(t).transitionDuration
+    + '/' + getComputedStyle(b).transitionDuration) : 'n/a';
+})());
+key('i'); // 视图态按 i：直接关掉开着的抽屉（0.9.75 键位全界面通用，未登录也能关）
+rec('imview-i-closes-in-view', !!(await waitFor(function () {
+  var d = q('.acsv-msgdrawer');
+  return !!d && !d.classList.contains('open');
+}, 5000)));
+var s3 = TEST.call('imOpenSmoke'); // 缝开：Esc 链的起点恢复
+rec('imview-reopen-for-esc', !!(s3 && s3.open));
+key('Escape'); // 栈顶=im → 先关抽屉（视图保留）
+rec('imview-esc-drawer', !!(await waitFor(function () {
+  var d = q('.acsv-msgdrawer'), r = q('#acsv-root');
+  return !!d && !d.classList.contains('open') && !!r && !r.classList.contains('acsv-with-comments');
+}, 5000)));
+rec('imview-view-kept', q('.acsv-view').offsetParent !== null
+  && location.hash === (IMV_WIDE ? '#svfeed/my' : '#svfeed/zone'), location.hash);
+await wait(400); // 过渡回落
+rec('imview-restored', (function () {
+  var b = q('.acsv-view-body');
+  return !!b && Math.abs(b.getBoundingClientRect().right - window.innerWidth) <= 2;
+})(), (function () {
+  var b = q('.acsv-view-body');
+  return b ? 'bodyR=' + Math.round(b.getBoundingClientRect().right) + ' vw=' + window.innerWidth : 'n/a';
+})());
+key('Escape'); // 再 Esc → 回竖刷
+rec('imview-esc-view', !!(await waitFor(function () {
+  return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash)
+    && q('.acsv-view') === null;
+}, 8000)), location.hash);
+
+// ---- 0.9.75：私信开合（顶栏按钮/i 键）----
+// i 键在输入框聚焦时不触发（目标豁免在前）：事件派到顶栏输入框上，抽屉不开且无新提示
+var toastBefore = (q('.acsv-toast') || {}).textContent || '';
+(function () {
+  var i = q('.acsv-top .acsv-sbox input');
+  if (i) i.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', bubbles: true }));
+})();
+await wait(300);
+rec('imview-i-input-exempt', (function () {
+  var d = q('.acsv-msgdrawer');
+  return (!d || !d.classList.contains('open'))
+    && ((q('.acsv-toast') || {}).textContent || '') === toastBefore;
+})(), 'toast=' + ((q('.acsv-toast') || {}).textContent || ''));
+// i 键已接线（未登录）：出登录提示——证明键真的打到了私信抽屉模块（打开侧受登录门槛）
+key('i');
+rec('imview-i-login-guard', !!(await waitFor(function () {
+  return /私信需要先登录/.test((q('.acsv-toast') || {}).textContent || '');
+}, 4000)), (q('.acsv-toast') || {}).textContent || '');
+// 顶栏私信按钮＝开合（用户报障）：缝开后点按钮必须关——旧行为 onDrawer=openDrawer 恒开，
+// 二次点击走 overlayOpen 幂等收旧（同 tick 摘类又加类被合成）＝观感"点了没反应"
+var s1 = TEST.call('imOpenSmoke');
+rec('imview-btn-open', !!(s1 && s1.open));
+q('.acsv-im-btn').click();
+rec('imview-btn-toggle-close', !!(await waitFor(function () {
+  var d = q('.acsv-msgdrawer'), r = q('#acsv-root');
+  return !!d && !d.classList.contains('open') && !!r && !r.classList.contains('acsv-with-comments');
+}, 5000)));
+// i 键＝开合：缝开后再按必须关（关闭分支先于登录门槛，所以未登录也能关）
+var s2 = TEST.call('imOpenSmoke');
+rec('imview-i-close-open', !!(s2 && s2.open));
+key('i');
+rec('imview-i-toggle-close', !!(await waitFor(function () {
+  var d = q('.acsv-msgdrawer');
+  return !!d && !d.classList.contains('open');
+}, 5000)));
+  };
+  // ---- view-im-narrow ----
+  C['view-im-narrow'] = async function (h) {
+    var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
+      waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
+      feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
+// 抽屉×视图避让冒烟（0.9.73）：视图里开私信抽屉 → 正文让位（宽视口右缘收窄到抽屉左缘，
+// 逐帧贴合同曲线）或降级纯覆盖（中窄视口，CFG.view.avoidW 护栏）；顶栏右组避让平移后
+// 仍可点；Esc 链 = 先关抽屉（视图保留）→ 再退竖刷；离开视图 = 浮层随视图收（对称收尾）。
+// 走 imOpenSmoke 模拟缝：真实避让路径（浮层栈 + 抽屉槽 + syncCommentVars），不拉 ImSdk /
+// 不依赖登录。宽窄两态由驱动设视口（view-im=1280 / view-im-narrow=1000，见 run-harness.mjs）
+var IMV_WIDE = CASE === 'view-im';
+window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+location.hash = IMV_WIDE ? 'svfeed/my' : 'svfeed/zone';
+rec('imview-open', !!(await waitFor(function () {
+  return q('.acsv-view').offsetParent !== null;
+}, 10000)));
+topbarInView('imview');
+var imvSmoke = TEST.call('imOpenSmoke');
+rec('imview-drawer-open', !!(imvSmoke && imvSmoke.open && imvSmoke.drawerConnected && imvSmoke.withComments),
+  JSON.stringify(imvSmoke || {}));
+await wait(500); // 越过 .28s 抽屉滑入/正文收窄过渡
+rec('imview-body-geometry', (function () {
+  var b = q('.acsv-view-body'), d = q('.acsv-msgdrawer');
+  if (!b || !d) return false;
+  var br = b.getBoundingClientRect(), dr = d.getBoundingClientRect();
+  // 宽视口：正文右缘=抽屉左缘（同曲线过渡的稳态）；中窄视口：正文不动（right=0，纯覆盖）
+  return IMV_WIDE ? Math.abs(br.right - dr.left) <= 2 : Math.abs(br.right - window.innerWidth) <= 2;
+})(), (function () {
+  var b = q('.acsv-view-body'), d = q('.acsv-msgdrawer');
+  if (!b || !d) return 'n/a';
+  return 'bodyR=' + Math.round(b.getBoundingClientRect().right)
+    + ' drawerL=' + Math.round(d.getBoundingClientRect().left) + ' vw=' + window.innerWidth;
+})());
+// 护栏的核心目的：正文不因收窄/挤压出现横向溢出（榜单 338px 定宽列的最窄可用宽推算）
+rec('imview-no-overflow', (function () {
+  var b = q('.acsv-view-body');
+  return !!b && b.scrollWidth <= b.clientWidth + 1;
+})());
+rec('imview-topbar-right-clear', (function () { // 右组避让平移生效：整体在抽屉左缘左侧
+  var tr = q('.acsv-top-right'), d = q('.acsv-msgdrawer');
+  if (!tr || !d) return false;
+  return tr.getBoundingClientRect().right <= d.getBoundingClientRect().left + 1;
+})());
+rec('imview-buttons-clickable', (function () { // 私信/更新/✕ 被抽屉盖住即失去出口——必须真实渲染
+  var btns = [q('.acsv-im-btn'), q('.acsv-upd-btn'), q('.acsv-top-right .acsv-tbtn:last-child')];
+  return btns.every(function (b) { return !!b && b.offsetParent !== null && b.offsetWidth > 0; });
+})());
+// 搜索框让位（0.9.73 收口 0.9.72 遗留：右组左移会压到居中搜索框）：宽视口=收窄后与右组
+// 不重叠；窄视口（<CFG.view.avoidTopW=1012）=不可用即隐藏，只留右组
+rec('imview-pill-clear', (function () {
+  var p = q('.acsv-top .acsv-sbox'), tr = q('.acsv-top-right');
+  if (!p || !tr) return false;
+  var vis = getComputedStyle(p).display !== 'none' && p.offsetParent !== null;
+  if (!vis) return !IMV_WIDE;
+  return p.getBoundingClientRect().right <= tr.getBoundingClientRect().left + 1;
+})(), (function () {
+  var p = q('.acsv-top .acsv-sbox'), tr = q('.acsv-top-right');
+  if (!p || !tr) return 'n/a';
+  return 'pillR=' + Math.round(p.getBoundingClientRect().right)
+    + ' groupL=' + Math.round(tr.getBoundingClientRect().left)
+    + ' dw=' + Math.round(p.getBoundingClientRect().width);
+})());
+// 0.9.75：动画时长单源（--acsv-dw-t）——抽屉与两处"让位"（顶栏 right / 正文 right）必须同值，
+// 这是逐帧贴合不变式的前提（抽离共享规则时最容易悄悄改坏的点）
+rec('imview-timing-single-source', (function () {
+  var d = q('.acsv-msgdrawer'), t = q('.acsv-top'), b = q('.acsv-view-body');
+  if (!d || !t || !b) return false;
+  var dd = getComputedStyle(d).transitionDuration;
+  return dd === getComputedStyle(t).transitionDuration && dd === getComputedStyle(b).transitionDuration;
+})(), (function () {
+  var d = q('.acsv-msgdrawer'), t = q('.acsv-top'), b = q('.acsv-view-body');
+  return d && t && b ? (getComputedStyle(d).transitionDuration + '/' + getComputedStyle(t).transitionDuration
+    + '/' + getComputedStyle(b).transitionDuration) : 'n/a';
+})());
+key('i'); // 视图态按 i：直接关掉开着的抽屉（0.9.75 键位全界面通用，未登录也能关）
+rec('imview-i-closes-in-view', !!(await waitFor(function () {
+  var d = q('.acsv-msgdrawer');
+  return !!d && !d.classList.contains('open');
+}, 5000)));
+var s3 = TEST.call('imOpenSmoke'); // 缝开：Esc 链的起点恢复
+rec('imview-reopen-for-esc', !!(s3 && s3.open));
+key('Escape'); // 栈顶=im → 先关抽屉（视图保留）
+rec('imview-esc-drawer', !!(await waitFor(function () {
+  var d = q('.acsv-msgdrawer'), r = q('#acsv-root');
+  return !!d && !d.classList.contains('open') && !!r && !r.classList.contains('acsv-with-comments');
+}, 5000)));
+rec('imview-view-kept', q('.acsv-view').offsetParent !== null
+  && location.hash === (IMV_WIDE ? '#svfeed/my' : '#svfeed/zone'), location.hash);
+await wait(400); // 过渡回落
+rec('imview-restored', (function () {
+  var b = q('.acsv-view-body');
+  return !!b && Math.abs(b.getBoundingClientRect().right - window.innerWidth) <= 2;
+})(), (function () {
+  var b = q('.acsv-view-body');
+  return b ? 'bodyR=' + Math.round(b.getBoundingClientRect().right) + ' vw=' + window.innerWidth : 'n/a';
+})());
+key('Escape'); // 再 Esc → 回竖刷
+rec('imview-esc-view', !!(await waitFor(function () {
+  return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash)
+    && q('.acsv-view') === null;
+}, 8000)), location.hash);
+
+// ---- 0.9.75：私信开合（顶栏按钮/i 键）----
+// i 键在输入框聚焦时不触发（目标豁免在前）：事件派到顶栏输入框上，抽屉不开且无新提示
+var toastBefore = (q('.acsv-toast') || {}).textContent || '';
+(function () {
+  var i = q('.acsv-top .acsv-sbox input');
+  if (i) i.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', bubbles: true }));
+})();
+await wait(300);
+rec('imview-i-input-exempt', (function () {
+  var d = q('.acsv-msgdrawer');
+  return (!d || !d.classList.contains('open'))
+    && ((q('.acsv-toast') || {}).textContent || '') === toastBefore;
+})(), 'toast=' + ((q('.acsv-toast') || {}).textContent || ''));
+// i 键已接线（未登录）：出登录提示——证明键真的打到了私信抽屉模块（打开侧受登录门槛）
+key('i');
+rec('imview-i-login-guard', !!(await waitFor(function () {
+  return /私信需要先登录/.test((q('.acsv-toast') || {}).textContent || '');
+}, 4000)), (q('.acsv-toast') || {}).textContent || '');
+// 顶栏私信按钮＝开合（用户报障）：缝开后点按钮必须关——旧行为 onDrawer=openDrawer 恒开，
+// 二次点击走 overlayOpen 幂等收旧（同 tick 摘类又加类被合成）＝观感"点了没反应"
+var s1 = TEST.call('imOpenSmoke');
+rec('imview-btn-open', !!(s1 && s1.open));
+q('.acsv-im-btn').click();
+rec('imview-btn-toggle-close', !!(await waitFor(function () {
+  var d = q('.acsv-msgdrawer'), r = q('#acsv-root');
+  return !!d && !d.classList.contains('open') && !!r && !r.classList.contains('acsv-with-comments');
+}, 5000)));
+// i 键＝开合：缝开后再按必须关（关闭分支先于登录门槛，所以未登录也能关）
+var s2 = TEST.call('imOpenSmoke');
+rec('imview-i-close-open', !!(s2 && s2.open));
+key('i');
+rec('imview-i-toggle-close', !!(await waitFor(function () {
+  var d = q('.acsv-msgdrawer');
+  return !!d && !d.classList.contains('open');
+}, 5000)));
+  };
+})();

@@ -24,26 +24,28 @@ const HEADLESS_SKIP = [
   // { name: 'xxx', reason: '…' }
 ];
 
+// 并行策略（0.9.81）：serial 标记的场景编组串行独占（时序判定对并发负载敏感：帧间隔/冻结
+// 窗口/冻结计数在解码争抢下会假红），其余场景两两并发跑；夹具计数按 pid 隔离（见 serve）。
 // bundle 选择原则：
 //  - release：只跑不依赖 __ACSV_TEST__（或已做防御）的场景，覆盖正式产物；
 //  - debug：用 TEST 模拟缝做断言的场景（stall-*/prewarm/quality-switch/watch-report 等）
 //    本就是按 debug 构建写的——TEST 缺失时场景脚本会抛错，done 永不置位（表现为驱动超时）。
 const HARNESS_CASES = [
-  { name: 'smoke', release: true },
-  { name: 'homeswitch' },
-  { name: 'fastswipe' },
-  { name: 'resolvefail', release: true },
-  { name: 'prewarm' },
-  { name: 'stall-frozen' },
-  { name: 'stall-slow' },
-  { name: 'stall-healthy' },
-  { name: 'cdn-fallback' },
-  { name: 'quality-switch' },
-  { name: 'dispose-mid-recovery' },
-  { name: 'stall-visibility' },
-  { name: 'spinner-recover' },
-  { name: 'watch-report' },
-  { name: 'upd-open' }, // 0.9.60 更新提示冒烟（mock atom 注入，debug 构建）
+  { name: 'smoke', serial: true, release: true },
+  { name: 'homeswitch', serial: true  },
+  { name: 'fastswipe', serial: true  },
+  { name: 'resolvefail', serial: true, release: true },
+  { name: 'prewarm', serial: true  },
+  { name: 'stall-frozen', serial: true  },
+  { name: 'stall-slow', serial: true  },
+  { name: 'stall-healthy', serial: true  },
+  { name: 'cdn-fallback', serial: true  },
+  { name: 'quality-switch', serial: true  },
+  { name: 'dispose-mid-recovery', serial: true  },
+  { name: 'stall-visibility', serial: true  },
+  { name: 'spinner-recover', serial: true  },
+  { name: 'watch-report', serial: true  },
+  { name: 'upd-open', serial: true  }, // 0.9.60 更新提示冒烟（mock atom 注入，debug 构建）
   { name: 'view-my' }, // 0.9.62 我的视图冒烟（hash 子路由 + __ACSV_MOCK_FORM__ 缝，debug 构建）
   // 0.9.76 封面加载策略（URL 归一/失败重试/终败降级）：/flaky-cover.png 首拉 404 再拉 200
   // 走通重试链；/nope-404.png 死链走降级占位。依赖 debug 构建的 __ACSV_MOCK_FORM__ 缝
@@ -65,24 +67,39 @@ const HARNESS_CASES = [
   { name: 'deeplink-miss' }     // 两空间都查不到：错误盒，不许静默重随机
 ];
 
-const CASES = HARNESS_CASES.map(function (c) {
+const ALL_CASES = HARNESS_CASES.map(function (c) {
   return {
     name: c.name,
     url: '/test/harness.html?case=' + c.name + (c.release ? '&bundle=release' : ''),
     key: '__HARNESS_RESULTS__',
+    serial: !!c.serial,
     viewport: c.viewport // 少数场景需要特定视口（如 avoidW 护栏的窄态）；缺省用 Playwright 默认 1280×720
   };
 }).concat([{
   // dm-smoke 固定加载 debug 构建（依赖 testHook 模拟缝），自身确定性泵帧
   name: 'dm-smoke',
   url: '/test/dm-smoke.html',
-  key: '__DM_RESULTS__'
+  key: '__DM_RESULTS__',
+  serial: true
 }, {
   // im-open 私信抽屉开启冒烟（debug 构建 testHook 模拟缝）：0.9.49 quoteChip 回归哨兵
   name: 'im-open',
   url: '/test/im-open.html',
-  key: '__IM_RESULTS__'
-}]).filter(function (c) {
+  key: '__IM_RESULTS__',
+  serial: true
+}]);
+
+// ONLY 拼错过去会静默「0 场景 0 失败」通过（0.9.81 实锤：run-harness.mjs views-check 白跑）——
+// 先对全量名单校验，未知名直接报错退出（check-cases.mjs 管另一个方向：cases 侧漏登记）
+const unknown = ONLY.filter(function (n) {
+  return !ALL_CASES.some(function (c) { return c.name === n; });
+});
+if (unknown.length) {
+  console.log('未知场景名：' + unknown.join(', '));
+  console.log('可用：' + ALL_CASES.map(function (c) { return c.name; }).join(', '));
+  process.exit(1);
+}
+const CASES = ALL_CASES.filter(function (c) {
   return !ONLY.length || ONLY.indexOf(c.name) >= 0;
 });
 
@@ -104,19 +121,30 @@ const PIXEL_PNG = Buffer.from(
   'base64');
 // 夹具请求计数（0.9.77）：暴露成 /__hits 供场景页读取——让「重试链真的发了三发」「备忘命中的
 // 二次进入零请求」变成可证断言（0.9.76 的 cover-retry-loads 只断终态，计数器从不被读）
-const pathHits = {};
+const pathHits = {}; // key = `pid|path`：并行跑时各场景的夹具计数互不污染（0.9.81）
+function hitsFor(pid) {
+  var out = {};
+  Object.keys(pathHits).forEach(function (k) {
+    var i = k.indexOf('|');
+    if (k.slice(0, i) === pid) out[k.slice(i + 1)] = pathHits[k];
+  });
+  return out;
+}
 
 function serve(req, res) {
-  var urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  var u = new URL(req.url, 'http://x');
+  var urlPath = decodeURIComponent(u.pathname);
   if (urlPath === '/__hits') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify(pathHits));
+    return res.end(JSON.stringify(hitsFor(u.searchParams.get('pid') || '')));
   }
+  var fmKey = '';
   if (urlPath === '/flaky-cover.png' || urlPath === '/nope-404.png') {
-    pathHits[urlPath] = (pathHits[urlPath] || 0) + 1;
+    fmKey = (u.searchParams.get('pid') || '') + '|' + urlPath;
+    pathHits[fmKey] = (pathHits[fmKey] || 0) + 1;
   }
   if (urlPath === '/flaky-cover.png') {
-    if (pathHits[urlPath] < 2) { res.writeHead(404); return res.end('not found'); }
+    if (pathHits[fmKey] < 2) { res.writeHead(404); return res.end('not found'); }
     res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': PIXEL_PNG.length });
     return res.end(PIXEL_PNG);
   }
@@ -183,10 +211,9 @@ console.log('[info] 静态服务 http://127.0.0.1:' + port + '（docroot=' + ROO
 var browser = await launch();
 var failed = 0, ran = 0;
 
-for (var i = 0; i < CASES.length; i++) {
-  var c = CASES[i];
+async function runOne(c) {
   var skip = HEADLESS_SKIP.filter(function (s) { return s.name === c.name; })[0];
-  if (skip) { console.log('SKIP ' + c.name + ' — ' + skip.reason); continue; }
+  if (skip) { console.log('SKIP ' + c.name + ' — ' + skip.reason); return; }
 
   var page = await browser.newPage(c.viewport ? { viewport: c.viewport } : undefined);
   try {
@@ -214,6 +241,22 @@ for (var i = 0; i < CASES.length; i++) {
   } finally {
     await page.close();
   }
+}
+
+// 串行组先独占跑完（时序敏感：帧间隔/冻结窗口在解码争抢下会假红），再跑并行组（并发 2，夹具
+// 计数已按 pid 隔离）。并发只影响耗时，不影响断言结果——验收要求连跑多次零失败（0.9.81）
+var serialCases = CASES.filter(function (c) { return c.serial; });
+var parCases = CASES.filter(function (c) { return !c.serial; });
+for (var i = 0; i < serialCases.length; i++) await runOne(serialCases[i]);
+if (parCases.length) {
+  console.log('[info] 并行组 ' + parCases.length + ' 个场景 × 并发 2（时序敏感场景已串行独占）');
+  var pIdx = 0;
+  await Promise.all([0, 1].map(async function () {
+    while (pIdx < parCases.length) {
+      var c = parCases[pIdx++];
+      await runOne(c);
+    }
+  }));
 }
 
 await browser.close();
