@@ -703,6 +703,27 @@
           var last = f && f.items[f.items.length - 1];
           return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && last && String(last.id) === '489500' && last.hasUrls;
         }, 10000)));
+        // 隐藏态落点（0.9.74）：视图开着时跳已缓冲条目——旧行为在 display:none 下量 offsetTop
+        // （无布局盒恒 0）⇒ 静默滚回第一条，退出视图后要往下滑几条才见到目标（真机报障同型）。
+        // 现在延后到舞台回来再落地，且落点必须是目标那张（结果不变式）
+        location.hash = 'svfeed/zone';
+        rec('hidden-jump-reopen', !!(await waitFor(function () {
+          return !!q('.acsv-view') && q('.acsv-view').offsetParent !== null;
+        }, 8000)));
+        var hj = feed().items.length > 1 ? 1 : 0; // 目标取非 0 的已缓冲条目：跳 0 会与旧 bug 巧合同向
+        TEST.call('scrollTo', hj);
+        await wait(200);
+        key('Escape'); // 退出视图 → 舞台回来 → 落地
+        rec('hidden-jump-landed', !!(await waitFor(function () {
+          var f = feed();
+          var s = q('.acsv-scroller');
+          // 舞台必须先回来：隐藏态全元素无布局盒、矩形恒 0，几何断言会被"全零"假绿骗过
+          if (!f || !s || s.style.display === 'none' || !s.offsetParent) return false;
+          var sl = slide(f.current);
+          if (!sl || f.current !== hj) return false;
+          var st = s.getBoundingClientRect().top, r = sl.getBoundingClientRect();
+          return r.top <= st + 2 && r.top >= st - 2; // 目标那张恰好顶在舞台上缘
+        }, 8000)), 'idx=' + hj + ' cur=' + (feed() ? feed().current : 'n/a'));
 
       } else if (CASE.indexOf('deeplink-') === 0) {
         // 深链冒烟（0.9.72）：地址栏 id 跨两个 id 空间（v=meowId 小视频 / a=acId 推荐），
@@ -751,6 +772,21 @@
               return f && String(f.items[f.current].id) === '10606164' && firstVideoReady(f.current);
             }, 25000)));
             rec('warm-jump-url', /^#svfeed\/v\/10606164$/.test(location.hash), location.hash);
+            // 落点不变式（0.9.74）：跳转必须「视口里就是目标那张」——只钉游标/URL/起播会漏掉
+            // 落点漂移（旧行为：停在目标上方几条，真机可见而断言全绿：稀疏渲染 + 平滑滚动截断）
+            rec('warm-jump-landed', !!(await waitFor(function () {
+              var f = feed();
+              var s = q('.acsv-scroller');
+              var sl = f && document.querySelector('.acsv-slide[data-idx="' + f.current + '"]');
+              if (!s || !sl) return false;
+              var st = s.getBoundingClientRect().top, r = sl.getBoundingClientRect();
+              return r.top <= st + 2 && r.top >= st - 2; // 当前条恰好顶在舞台上缘
+            }, 8000)), (function () {
+              var s = q('.acsv-scroller');
+              var f = feed();
+              var sl = f && document.querySelector('.acsv-slide[data-idx="' + f.current + '"]');
+              return s && sl ? 'slideTop=' + Math.round(sl.getBoundingClientRect().top - s.getBoundingClientRect().top) : 'n/a';
+            })());
           }
         }
 

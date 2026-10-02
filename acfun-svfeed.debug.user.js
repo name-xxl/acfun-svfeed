@@ -486,6 +486,9 @@
   function slideAt(idx) {
     return scroller && scroller.querySelector('.acsv-slide[data-idx="' + idx + '"]');
   }
+  function stageVisible() {
+    return !!(scroller && scroller.offsetParent !== null);
+  }
 
   // src/ui.js
   function esc(s) {
@@ -8100,8 +8103,10 @@
     onResolved: function(session) {
       onHomeResolved(session.slide, session.item);
     },
+    // 会话驱动的起播（挂载/恢复链）：舞台被视图盖住时只挂不播——隐藏舞台起播＝幽灵音频
+    // （视图态 `loadInitial` 晚到的实锤路径）；退出视图由 views.resumeCurrentVideo 恢复
     play: function(video) {
-      playVideo(video);
+      if (stageVisible()) playVideo(video);
     },
     // HealthMonitor 恢复阶梯的降档动作（session.js 经 hooks 回接）
     qualitySwitch: function(session, qIdx) {
@@ -8115,6 +8120,7 @@
       attachVideo(session.slide, session.item, session.idx);
     },
     onAttachPlay: function(session, video) {
+      if (!stageVisible()) return;
       playVideo(video);
       if (!pb.soundOn && !pb.firstGestureSeen) {
         var slide = video.closest(".acsv-slide");
@@ -8239,26 +8245,60 @@
     var cur = curSlide && curSlide.querySelector("video");
     if (cur) {
       cur.muted = !pb.soundOn;
-      if (!curSlide._userPaused) playVideo(cur);
-      if (!pb.soundOn && !pb.firstGestureSeen) {
-        if (!curSlide.querySelector(".acsv-hint")) showSoundHint(curSlide);
+      if (stageVisible()) {
+        if (!curSlide._userPaused) playVideo(cur);
+        if (!pb.soundOn && !pb.firstGestureSeen) {
+          if (!curSlide.querySelector(".acsv-hint")) showSoundHint(curSlide);
+        }
       }
     }
+  }
+  var landTimer = null;
+  function landAt(idx, near) {
+    var slide = slideAt(idx);
+    if (!slide) return;
+    var target = slide.offsetTop;
+    scroller.scrollTo({ top: target, behavior: near ? "smooth" : "auto" });
+    setActive(idx);
+    if (near) return;
+    var tries = 2;
+    (function settle() {
+      if (!scroller || tries-- <= 0) return;
+      var s = slideAt(idx);
+      if (!s) return;
+      var d = s.offsetTop - scroller.scrollTop;
+      if (Math.abs(d) > 2 && Math.abs(d) < scroller.clientHeight / 2) scroller.scrollTop = s.offsetTop;
+      requestAnimationFrame(settle);
+    })();
+  }
+  function landWhenVisible(idx, near, tries) {
+    if (!scroller) return;
+    if (!stageVisible()) {
+      if (tries <= 0) return;
+      landTimer = setTimeout(function() {
+        landTimer = null;
+        landWhenVisible(idx, near, tries - 1);
+      }, 16);
+      return;
+    }
+    landAt(idx, near);
   }
   function scrollToIndex(idx) {
     if (!scroller) return;
     FeedStore.ensureMore().then(function() {
       if (!scroller) return;
+      var near = Math.abs(idx - FeedStore.current) <= 1;
       if (!slideAt(idx) && idx < FeedStore.items.length) {
         if (FeedStore.current !== idx) reportLeaveCurrent("swipe");
         FeedStore.current = idx;
       }
       renderWindow();
-      var slide = slideAt(idx);
-      if (slide) {
-        scroller.scrollTo({ top: slide.offsetTop, behavior: "smooth" });
-        setActive(idx);
+      if (landTimer) {
+        clearTimeout(landTimer);
+        landTimer = null;
       }
+      if (!stageVisible()) return landWhenVisible(idx, near, 60);
+      landAt(idx, near);
     });
   }
   function clearSpinner() {
@@ -8468,6 +8508,9 @@
     }
     dbg("toggle-done");
   }
+  testHook("scrollTo", function(idx) {
+    scrollToIndex(idx);
+  });
 
   // src/nav.js
   var NAV_LABELS = CFG.nav.labels;

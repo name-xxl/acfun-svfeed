@@ -1,14 +1,14 @@
 import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
 import { el, fmtTime, ensureStyle } from './ui.js';
-import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot } from './state.js';
+import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot, stageVisible } from './state.js';
 import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync } from './route.js';
 import { FeedStore } from './feedstore.js';
 import { getSource, setSource, resetHomePager, API } from './api.js';
 import { isOpenComments, closeComments, openComments, commentState, syncCommentVars } from './comments.js';
 import { onPlaying as dmOnPlaying, stopAll as dmStopAll } from './danmaku.js';
 import { UpVideos } from './uppage.js';
-import { dbg } from './dbg.js';
+import { dbg, testHook } from './dbg.js';
 import { reportLeave, reportLeaveCurrent } from './report.js';
 import { prewarm, preconnectSeed } from './prewarm.js';
 import { pb, playVideo, showSoundHint, resetForMount, cancelSeekHold, offCurrent } from './playback.js';
@@ -75,13 +75,16 @@ var SESSION_HOOKS = {
   },
   currentIdx: function () { return FeedStore.current; },
   onResolved: function (session) { onHomeResolved(session.slide, session.item); },
-  play: function (video) { playVideo(video); },
+  // 会话驱动的起播（挂载/恢复链）：舞台被视图盖住时只挂不播——隐藏舞台起播＝幽灵音频
+  // （视图态 `loadInitial` 晚到的实锤路径）；退出视图由 views.resumeCurrentVideo 恢复
+  play: function (video) { if (stageVisible()) playVideo(video); },
   // HealthMonitor 恢复阶梯的降档动作（session.js 经 hooks 回接）
   qualitySwitch: function (session, qIdx) { switchQuality(session.item, session.slide, qIdx); },
   // 恢复链的重跑解析（mock/真实同路）与末端重挂
   refreshItem: function (item) { return FeedStore.refresh(item); },
   reattach: function (session) { attachVideo(session.slide, session.item, session.idx); },
   onAttachPlay: function (session, video) {
+    if (!stageVisible()) return; // 同上：挂载即起播的路径同样让位（视图退出时统一恢复）
     playVideo(video);
     if (!pb.soundOn && !pb.firstGestureSeen) {
       var slide = video.closest('.acsv-slide');
@@ -215,12 +218,53 @@ function setActive(idx) {
   var cur = curSlide && curSlide.querySelector('video');
   if (cur) {
     cur.muted = !pb.soundOn;
-    // 用户明确暂停过的视频滑走再滑回：不强制播放（playVideo 会清 _userPaused，须先判断）
-    if (!curSlide._userPaused) playVideo(cur);
-    if (!pb.soundOn && !pb.firstGestureSeen) {
-      if (!curSlide.querySelector('.acsv-hint')) showSoundHint(curSlide);
+    // 舞台被视图盖住时不起播、不弹提示：隐藏舞台起播＝幽灵音频（视图冷启动时 loadInitial
+    // 晚到会把藏在视图后的视频播起来）；回来由 views.exitView 的恢复路径接管
+    if (stageVisible()) {
+      // 用户明确暂停过的视频滑走再滑回：不强制播放（playVideo 会清 _userPaused，须先判断）
+      if (!curSlide._userPaused) playVideo(cur);
+      if (!pb.soundOn && !pb.firstGestureSeen) {
+        if (!curSlide.querySelector('.acsv-hint')) showSoundHint(curSlide);
+      }
     }
   }
+}
+
+// 落地：把视口移到 idx 那张，并保证「落点就是它」（0.9.74）。
+//  - 舞台不可见时由 scrollToIndex 推迟调用：视图态 scroller 无布局盒，offsetTop 恒 0
+//    ⇒ 旧行为静默滚回第一条（命中缓冲的同步跳最常踩）
+//  - 远跳（|Δ|>1）用瞬时落位：跨多条平滑滚动期间泵流补渲染/强制吸附点都会截断动画，
+//    落点漂移成"停在目标上方几条"；近跳（箭头/连播 Δ=1）保持 smooth，手感与旧版零变化
+//  - 远跳落地后连续两帧复量回正一次（补插 slide 会让内容整体平移、像素锚点不动）；
+//    用户自己滚过（偏离超过半屏）立即放弃，不跟手势抢
+var landTimer = null;
+function landAt(idx, near) {
+  var slide = slideAt(idx);
+  if (!slide) return;
+  var target = slide.offsetTop;
+  scroller.scrollTo({ top: target, behavior: near ? 'smooth' : 'auto' });
+  setActive(idx);
+  if (near) return;
+  var tries = 2;
+  (function settle() {
+    if (!scroller || tries-- <= 0) return;
+    var s = slideAt(idx);
+    if (!s) return;
+    var d = s.offsetTop - scroller.scrollTop;
+    if (Math.abs(d) > 2 && Math.abs(d) < scroller.clientHeight / 2) scroller.scrollTop = s.offsetTop;
+    requestAnimationFrame(settle);
+  })();
+}
+
+// 视图态下 scroller 无布局盒：等它回来再落地（16ms 轮询，上限约 1s；期间离开流由 slideAt 兜底放弃）
+function landWhenVisible(idx, near, tries) {
+  if (!scroller) return;
+  if (!stageVisible()) {
+    if (tries <= 0) return;
+    landTimer = setTimeout(function () { landTimer = null; landWhenVisible(idx, near, tries - 1); }, 16);
+    return;
+  }
+  landAt(idx, near);
 }
 
 export function scrollToIndex(idx) {
@@ -230,16 +274,15 @@ export function scrollToIndex(idx) {
     // 目标可能落在渲染窗口外（深链就地跳转 / 视图条目回竖刷插入队尾）：renderWindow 只渲染
     // [cur-1, cur+1]，不先把游标挪过去就永远拿不到那条 slide，整跳会静默失败。挪游标前
     // 照 setActive 的规矩对旧条目报最终进度（划走即离开），挪后 setActive 不会重复报
+    var near = Math.abs(idx - FeedStore.current) <= 1;
     if (!slideAt(idx) && idx < FeedStore.items.length) {
       if (FeedStore.current !== idx) reportLeaveCurrent('swipe');
       FeedStore.current = idx;
     }
     renderWindow();
-    var slide = slideAt(idx);
-    if (slide) {
-      scroller.scrollTo({ top: slide.offsetTop, behavior: 'smooth' });
-      setActive(idx);
-    }
+    if (landTimer) { clearTimeout(landTimer); landTimer = null; } // 新落点作废旧等待
+    if (!stageVisible()) return landWhenVisible(idx, near, 60);
+    landAt(idx, near);
   });
 }
 
@@ -477,3 +520,6 @@ export function toggle() {
   dbg('toggle-done');
 }
 // hashchange 监听在 boot.js 统一编排（启动入口不散落）
+
+// debug 构建测试钩子：harness 驱动「隐藏态落点」（视图开着时对已缓冲条目跳转，release 死码消除）
+testHook('scrollTo', function (idx) { scrollToIndex(idx); });

@@ -30,3 +30,10 @@ export function resetDrawerSlot() { drawerSlot = null; } // 整流卸载时调�
 export function slideAt(idx) {
   return scroller && scroller.querySelector('.acsv-slide[data-idx="' + idx + '"]');
 }
+
+// 舞台可见性（0.9.74）：竖刷被视图盖住时 scroller 是 display:none——无布局盒 ⇒ `offsetTop`
+// 恒 0（落点会静默滚回第一条）、`video.play()` ＝幽灵音频。落点测量与自动起播前的统一判据，
+// 放本模块与 scroller 同处（消费方只读，不必反向 import player，沿用既定理）。
+export function stageVisible() {
+  return !!(scroller && scroller.offsetParent !== null);
+}
