@@ -106,24 +106,28 @@ export function normalizeHome(bc) {
 //   browse/history 的 resourceType 编码与收藏/榜单体系不同源——条目 2=普通视频（社区文档
 //   「参数 1 视频 2 番剧」的释义在条目字段上不成立），必须连 videoId 一起校验、宁可漏不错；
 //   rank/channel 的 contentType 2=视频 3=文章；dougaList 是纯视频端点无需过滤
-export function panelItem(kind, raw) {
-  if (!raw) return null;
-  var it = { acId: 0, title: '', cover: '', progress: null, sub: '', kind: kind };
-  if (kind === 'history') {
-    if (raw.resourceType !== 2 || !raw.videoId) return null;
+// 解析器表（0.9.78 表驱动，IMG_POLICY 同款模式）：新来源 = 加一行表项 + 单测，不再往
+// if 链里插分支。每个解析器往 it 上填字段，返回 false = 非视频条目（调用方过滤，宁可漏不错）
+var PANEL_PARSERS = {
+  history: function (raw, it) {
+    if (raw.resourceType !== 2 || !raw.videoId) return false;
     it.acId = Number(raw.resourceId) || 0;
     it.title = raw.title || raw.dougaVideoTitle || '';
     it.cover = coverUrl(raw.cover);
     it.progress = raw.playedSeconds > 0 ? Number(raw.playedSeconds) : null;
     it.sub = raw.playedSecondsShow || '';
-  } else if (kind === 'fav') {
+    return true;
+  },
+  fav: function (raw, it) {
     it.acId = Number(raw.contentId) || 0;
     it.title = raw.contentTitle || '';
     it.cover = coverUrl(raw.contentImg);
     it.progress = raw.userPlayedSeconds > 0 ? Number(raw.userPlayedSeconds) : null;
     it.sub = raw.userName || '';
-  } else if (kind === 'rank') {
-    if (raw.contentType !== 2) return null;
+    return true;
+  },
+  rank: function (raw, it) {
+    if (raw.contentType !== 2) return false;
     it.acId = Number(raw.dougaId || raw.contentId) || 0;
     it.title = raw.contentTitle || '';
     it.cover = coverUrl(raw.videoCover);
@@ -155,9 +159,17 @@ export function panelItem(kind, raw) {
       contribText: fmtWan(raw.contributionCount),
       sign: String(raw.userSignature || '').replace(/<br\s*\/?\s*>/gi, ' ').trim()
     } : null;
-  } else {
-    return null;
+    return true;
   }
+};
+
+// 视图面板条目契约（0.9.62）：三种来源规整成同一份字段；返回 null = 非视频条目，
+// 调用方过滤（无 douga resolve 链，进竖刷必炸）
+export function panelItem(kind, raw) {
+  var p = PANEL_PARSERS[kind];
+  if (!raw || !p) return null;
+  var it = { acId: 0, title: '', cover: '', progress: null, sub: '', kind: kind };
+  if (p(raw, it) === false) return null;
   return it.acId && it.title ? it : null;
 }
 

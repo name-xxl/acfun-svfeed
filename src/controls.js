@@ -1,7 +1,7 @@
 import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
 import { el, elHtml, toast, fmtTime, toggleFullscreen } from './ui.js';
-import { root, scroller, slideAt } from './state.js';
+import { root, scroller, slideAt, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { pb, togglePlayGesture, toggleMuteGesture } from './playback.js';
 import { dmEnabled, setDmEnabled, onPlaying as dmOnPlaying, createDmBox as dmCreateBox } from './danmaku.js';
@@ -142,7 +142,7 @@ export function buildControls(slide, idx, item) {
   // 划到时 renderWindow 会按新偏好现解析挂载
   function rebuildFwdNeighbor(slide, dropCache) {
     try {
-      if (slide.dataset.ovl === '1') return; // 播放层 slide 无前向邻居（idx 哨兵会打到竖刷第 0 条）
+      if (isOvlSlide(slide)) return; // 播放层 slide 无前向邻居（idx 哨兵会打到竖刷第 0 条）
       var idx = Number(slide.dataset.idx);
       if (dropCache) {
         var it2 = FeedStore.items[idx + 2];

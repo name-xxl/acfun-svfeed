@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.77-debug
+// @version      0.9.78-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -497,6 +497,10 @@
   function videoTarget() {
     return videoTargetFn;
   }
+  var OVL_IDX = -1;
+  function isOvlSlide(el2) {
+    return !!(el2 && el2.dataset && el2.dataset.ovl === "1");
+  }
 
   // src/ui.js
   function esc(s) {
@@ -859,24 +863,26 @@
       localLike: false
     };
   }
-  function panelItem(kind, raw) {
-    if (!raw) return null;
-    var it = { acId: 0, title: "", cover: "", progress: null, sub: "", kind };
-    if (kind === "history") {
-      if (raw.resourceType !== 2 || !raw.videoId) return null;
+  var PANEL_PARSERS = {
+    history: function(raw, it) {
+      if (raw.resourceType !== 2 || !raw.videoId) return false;
       it.acId = Number(raw.resourceId) || 0;
       it.title = raw.title || raw.dougaVideoTitle || "";
       it.cover = coverUrl(raw.cover);
       it.progress = raw.playedSeconds > 0 ? Number(raw.playedSeconds) : null;
       it.sub = raw.playedSecondsShow || "";
-    } else if (kind === "fav") {
+      return true;
+    },
+    fav: function(raw, it) {
       it.acId = Number(raw.contentId) || 0;
       it.title = raw.contentTitle || "";
       it.cover = coverUrl(raw.contentImg);
       it.progress = raw.userPlayedSeconds > 0 ? Number(raw.userPlayedSeconds) : null;
       it.sub = raw.userName || "";
-    } else if (kind === "rank") {
-      if (raw.contentType !== 2) return null;
+      return true;
+    },
+    rank: function(raw, it) {
+      if (raw.contentType !== 2) return false;
       it.acId = Number(raw.dougaId || raw.contentId) || 0;
       it.title = raw.contentTitle || "";
       it.cover = coverUrl(raw.videoCover);
@@ -898,9 +904,14 @@
         contribText: fmtWan(raw.contributionCount),
         sign: String(raw.userSignature || "").replace(/<br\s*\/?\s*>/gi, " ").trim()
       } : null;
-    } else {
-      return null;
+      return true;
     }
+  };
+  function panelItem(kind, raw) {
+    var p = PANEL_PARSERS[kind];
+    if (!raw || !p) return null;
+    var it = { acId: 0, title: "", cover: "", progress: null, sub: "", kind };
+    if (p(raw, it) === false) return null;
     return it.acId && it.title ? it : null;
   }
   function meCardOf(j, uid) {
@@ -1508,9 +1519,16 @@
     failMemo.set(url, Date.now());
     memoTrim(failMemo, MEMO_MAX);
   }
+  function policyOf(name) {
+    if (typeof name !== "string") return name || {};
+    var p = IMG_POLICY[name];
+    if (p) return p;
+    if (true) console.warn("[acsv-img] 未知图片策略名：" + name + "（该图面退化为基础重试）");
+    return {};
+  }
   function imgInto(host, rawUrl, policy, cls) {
     if (!host) return null;
-    var pol = typeof policy === "string" ? IMG_POLICY[policy] || {} : policy || {};
+    var pol = policyOf(policy);
     var plan = coverAttempts(rawUrl);
     if (!plan.length) return null;
     var img = el("img");
@@ -1575,6 +1593,9 @@
       return img;
     }
   }
+  testHook("imgPolicy", function(name) {
+    return JSON.stringify(policyOf(name));
+  });
   var obsByMargin = {};
   function lazyObserve(el2, fn, rootMargin) {
     var rm = rootMargin || "200px 0px";
@@ -6647,7 +6668,7 @@
   }
   function syncFwdQuality(slide) {
     try {
-      if (slide.dataset.ovl === "1") return;
+      if (isOvlSlide(slide)) return;
       var idx = Number(slide.dataset.idx);
       for (var k = 1; k <= 2; k++) reapplyQuality(FeedStore.items[idx + k]);
       var fwd = slideAt(idx + 1);
@@ -6801,7 +6822,7 @@
     });
     function rebuildFwdNeighbor(slide2, dropCache) {
       try {
-        if (slide2.dataset.ovl === "1") return;
+        if (isOvlSlide(slide2)) return;
         var idx2 = Number(slide2.dataset.idx);
         if (dropCache) {
           var it2 = FeedStore.items[idx2 + 2];
@@ -7356,7 +7377,7 @@
   }
   function onSlideTap(ev) {
     var slide = ev.currentTarget;
-    if (slide.dataset.ovl !== "1") {
+    if (!isOvlSlide(slide)) {
       var idx = Number(slide.dataset.idx);
       if (idx !== FeedStore.current) return;
     }
@@ -7445,7 +7466,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.77" : "");
+    return normVer(true ? "0.9.78" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -7643,28 +7664,41 @@
     closeReleaseModal();
   }
 
+  // src/viewreg.js
+  var registry = {};
+  function registerView(def) {
+    if (def && def.id && typeof def.build === "function") registry[def.id] = def;
+  }
+  function viewDef(id) {
+    return id && registry[id] || null;
+  }
+  function dockEntries() {
+    var out = [];
+    for (var k in registry) {
+      var d = registry[k];
+      if (!d || !d.dock) continue;
+      out.push({
+        id: d.id,
+        label: d.dock.label || d.id,
+        svg: d.dock.svg || "",
+        order: d.dock.order || 0,
+        group: d.dock.group || 0
+      });
+    }
+    out.sort(function(a, b) {
+      return a.order - b.order || (a.id < b.id ? -1 : 1);
+    });
+    return out;
+  }
+
   // src/sidebar.js
   var dockEl = null;
-  var ENTRIES = [
-    {
-      id: "feed",
-      label: "推荐",
-      svg: '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.2 10.9-6.1 3.5c-.5.3-1.1-.1-1.1-.7V8.3c0-.6.6-1 1.1-.7l6.1 3.5c.5.3.5 1 0 1.3z"/></svg>'
-    },
-    {
-      id: "zone",
-      label: "榜单",
-      svg: '<svg viewBox="0 0 24 24"><path d="M4 20V10h4v10H4zm6 0V4h4v16h-4zm6 0v-7h4v7h-4z"/></svg>'
-    },
-    {
-      sep: true
-    },
-    {
-      id: "my",
-      label: "我的",
-      svg: '<svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>'
-    }
-  ];
+  var FEED_ENTRY = {
+    id: "feed",
+    label: "推荐",
+    group: 0,
+    svg: '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.2 10.9-6.1 3.5c-.5.3-1.1-.1-1.1-.7V8.3c0-.6.6-1 1.1-.7l6.1 3.5c.5.3.5 1 0 1.3z"/></svg>'
+  };
   function buildDock(parent) {
     if (dockEl) return;
     dockEl = el("div", "acsv-dock");
@@ -7675,11 +7709,10 @@
     logo.appendChild(img);
     dockEl.appendChild(logo);
     dockEl.appendChild(el("div", "acsv-dock-sep"));
-    ENTRIES.forEach(function(e) {
-      if (e.sep) {
-        dockEl.appendChild(el("div", "acsv-dock-sep"));
-        return;
-      }
+    var prevGroup = null;
+    [FEED_ENTRY].concat(dockEntries()).forEach(function(e) {
+      if (prevGroup !== null && e.group !== prevGroup) dockEl.appendChild(el("div", "acsv-dock-sep"));
+      prevGroup = e.group;
       var b = el("button", "acsv-dock-item");
       b.dataset.view = e.id;
       b.title = e.label;
@@ -7850,13 +7883,9 @@
   }
 
   // src/views.js
-  var registry = {};
   var current = null;
   var origins = [];
   var wasPlaying = false;
-  function registerView(def) {
-    if (def && def.id && typeof def.build === "function") registry[def.id] = def;
-  }
   function currentView() {
     return current ? current.id : null;
   }
@@ -7941,7 +7970,7 @@
     origins.push({ view: prev.id, arg: prev.arg, rec: prev });
   }
   function enterView(id, arg) {
-    var def = registry[id];
+    var def = viewDef(id);
     if (!def || !root) return false;
     var top = origins.length ? origins[origins.length - 1] : null;
     var back = !!(top && String(top.view || "") === String(id) && String(top.arg || "") === String(arg || ""));
@@ -7998,7 +8027,7 @@
   function syncRouteView() {
     if (!root) return;
     var r = parseRoute();
-    var def = r.view ? registry[r.view] : null;
+    var def = viewDef(r.view);
     if (def) {
       if (!current || current.id !== r.view || String(current.arg || "") !== String(r.viewArg || "")) {
         enterView(r.view, r.viewArg);
@@ -8138,7 +8167,6 @@
   });
 
   // src/playlayer.js
-  var OVL_IDX = -1;
   var pending = null;
   var slideRef = null;
   var itemRef = null;
@@ -8490,7 +8518,9 @@
     // 播完也是一次"离开"：先报最终进度再连播滚动（后续 dispose 重复触发由同秒位去重拦截）
     onEnded: function(session) {
       reportLeave(session, session.video, "ended");
-      if (pb.autoplayNext && session.idx === FeedStore.current) scrollToIndex(session.idx + 1);
+      if (pb.autoplayNext && !isOvlSlide(session.slide) && session.idx === FeedStore.current) {
+        scrollToIndex(session.idx + 1);
+      }
     },
     // 兜底路径：滑出渲染窗口/换清晰度重挂/切源/关闭信息流才走 dispose（相邻划走只 pause
     // 不 dispose，那条路由 setActive 负责）；video 已拆但引用仍持有最终 currentTime
@@ -8920,7 +8950,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.77：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.78：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -9512,7 +9542,16 @@
     }
     select("hist");
   }
-  registerView({ id: "my", build: buildMyView });
+  registerView({
+    id: "my",
+    build: buildMyView,
+    dock: {
+      label: "我的",
+      order: 20,
+      group: 1,
+      svg: '<svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>'
+    }
+  });
 
   // src/zone.js
   var navTreeFlight = singleFlight(function() {
@@ -9648,7 +9687,16 @@
     fillSubChips();
     load();
   }
-  registerView({ id: "zone", build: buildZoneView });
+  registerView({
+    id: "zone",
+    build: buildZoneView,
+    dock: {
+      label: "榜单",
+      order: 10,
+      group: 0,
+      svg: '<svg viewBox="0 0 24 24"><path d="M4 20V10h4v10H4zm6 0V4h4v16h-4zm6 0v-7h4v7h-4z"/></svg>'
+    }
+  });
 
   // src/searchview.js
   var seq = 0;

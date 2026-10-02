@@ -44,3 +44,18 @@ export function stageVisible() {
 var videoTargetFn = null;
 export function setVideoTarget(fn) { videoTargetFn = typeof fn === 'function' ? fn : null; }
 export function videoTarget() { return videoTargetFn; }
+
+// ---------- 播放层哨兵（0.9.78 契约函数化） ----------
+// 播放层（playlayer）的 slide 不在竖刷流里，而且它的 idx 是哨兵：唯一判据是 dataset.ovl==='1'
+// （playlayer 写、判据函数在此读出）。0.9.74 起这条约束只活在注释里——0.9.77 评审实锤
+// player 的连播判定就靠"哨兵 -1 撞不上 current"的巧合正确。哨兵定义放本模块（零 import）：
+// playlayer/attach/controls/slide/player 都能读，不会引入 playlayer↔消费方的环。
+// 凡按 slide 的 idx 回查 FeedStore 的地方，一律先问 isOvlSlide/ownerIdxOf。
+export var OVL_IDX = -1;
+export function isOvlSlide(el) {
+  return !!(el && el.dataset && el.dataset.ovl === '1');
+}
+export function ownerIdxOf(el) {
+  if (isOvlSlide(el)) return OVL_IDX;
+  return Number(el && el.dataset ? el.dataset.idx : NaN);
+}

@@ -14,6 +14,7 @@
 // 的死链会永不过 TTL，与「过期给一次重试机会」的意图相反）
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
+import { testHook } from './dbg.js';
 import { coverAttempts, coverUrl, memoState, memoTrim } from './imgurl.js';
 
 // 策略表：图面差异的单一真源。
@@ -42,11 +43,22 @@ function memoMark(url) {
   memoTrim(failMemo, MEMO_MAX);
 }
 
+// 策略名 → 策略对象（0.9.78 抽出）：拼错策略名过去会静默退化成空策略（丢占位/兜底，
+// 只剩重试默认值仍在）——debug 构建出声；已知名/未知名两分支由 harness 的 imgPolicy 钩子钉住。
+// 传对象（内联策略）原样返回，等价旧行为
+export function policyOf(name) {
+  if (typeof name !== 'string') return name || {};
+  var p = IMG_POLICY[name];
+  if (p) return p;
+  if (__ACSV_DEBUG__) console.warn('[acsv-img] 未知图片策略名：' + name + '（该图面退化为基础重试）');
+  return {};
+}
+
 // 建 img 挂进宿主并驱动加载。policy 传策略名（IMG_POLICY 键）或内联对象；cls 给 img 类名
 // （宿主 CSS 用）。返回 img；rawUrl 无有效 URL 时返回 null（调用方无需判空，与旧行为一致）
 export function imgInto(host, rawUrl, policy, cls) {
   if (!host) return null;
-  var pol = typeof policy === 'string' ? (IMG_POLICY[policy] || {}) : (policy || {});
+  var pol = policyOf(policy);
   var plan = coverAttempts(rawUrl);
   if (!plan.length) return null;
   var img = el('img');
@@ -109,6 +121,9 @@ export function imgInto(host, rawUrl, policy, cls) {
     return img;
   }
 }
+
+// debug 构建测试钩子：harness 断言读策略解析（已知名给全策略 / 未知名出声并退化，release 死码消除）
+testHook('imgPolicy', function (name) { return JSON.stringify(policyOf(name)); });
 
 // 懒加载观察器（IntersectionObserver 单例，按 rootMargin 分桶）：root 缺省=viewport，
 // 祖先滚动容器的裁剪自动计入；触发一次即 unobserve（回调挂元素属性，观察器零业务语义）。

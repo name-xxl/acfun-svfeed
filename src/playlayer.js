@@ -3,8 +3,9 @@ import { el } from './ui.js';
 import { parseRoute } from './route.js';
 import { API } from './api.js';
 import { homeItemOf } from './data.js';
-import { registerView, setItemOpener } from './views.js';
-import { setVideoTarget } from './state.js';
+import { setItemOpener } from './views.js';
+import { registerView } from './viewreg.js';
+import { setVideoTarget, OVL_IDX } from './state.js';
 import { buildSlide } from './slide.js';
 import { attachVideo } from './attach.js';
 
@@ -17,11 +18,11 @@ import { attachVideo } from './attach.js';
 //    播放解析链走 appapi（douga/playInfo），与竖刷内容源无关，不写源记忆
 //  - 点击路径把面板条目暂存出"即时首帧"（标题/封面/UP 头像来自面板契约），解析回包由
 //    既有 onHomeResolved 补计数；深链/刷新直达无暂存 → 先 API.deepLink 拿标题封面再建
-//  - slide 不在竖刷流里：唯一判据 slide.dataset.ovl==='1'，idx 用 OVL_IDX 哨兵。触面守卫
-//    清单（改共享导出形状必须 grep 全消费点，见 attach.js 契约表）：slide.js 点按判定、
-//    attach.syncFwdQuality、controls.rebuildFwdNeighbor、rail 箭头（goTo 为空不建）、
-//    player.currentIdx（层开返回哨兵）；renderWindow/幽灵扫描都是 scroller 域内，天然隔离
-export var OVL_IDX = -1;
+//  - slide 不在竖刷流里：标记 slide.dataset.ovl='1' 是唯一判据，idx 用 state.OVL_IDX 哨兵
+//    （0.9.78 起哨兵与读出函数 state.isOvlSlide/ownerIdxOf 同源）。触面守卫清单（改共享导出
+//    形状必须 grep 全消费点，见 attach.js 契约表）：slide.js 点按判定、attach.syncFwdQuality、
+//    controls.rebuildFwdNeighbor、rail 箭头（goTo 为空不建）、player.currentIdx（层开返回哨兵）；
+//    renderWindow/幽灵扫描都是 scroller 域内，天然隔离
 var pending = null; // 点击路径暂存的面板条目（{ acId, title, cover, up }）
 var slideRef = null; // 当前层内 slide（teardown 拆会话用；DOM 由框架拆）
 var itemRef = null; // 当前层内条目（键盘 c=评论开合要打到它，不是竖刷当前条）

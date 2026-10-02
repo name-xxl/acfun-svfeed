@@ -5,6 +5,7 @@ import { imgInto } from './imgload.js';
 import { root, scroller } from './state.js';
 import { parseRoute } from './route.js';
 import { overlayOpen, overlayTeardown } from './overlay.js';
+import { viewDef } from './viewreg.js';
 import { FeedStore } from './feedstore.js';
 import { GLYPHS } from './imicons.js';
 import { syncDock } from './sidebar.js';
@@ -28,14 +29,12 @@ import { syncTopbar } from './topbar.js';
 //  - 条目点击：走播放层（playlayer.openPlayer），不再插入竖刷队尾（0.9.74 契约变更）
 // player→本模块单向调用（syncRouteView）；本模块不再 import player（0.9.74 删 playAc 的
 // scrollToIndex 依赖后循环消失）
-var registry = {};
+// 视图清单与 dock 元数据在 viewreg.js（registerView 的唯一真源；本模块只读 viewDef）。
+// 本模块只管编排：进出/保活/来源链/面板 kit
 var current = null;     // 当前视图 { id, arg, def, el }
 var origins = [];       // 来源链：[{ view, arg, rec }]；rec 非空=被挂起的普通视图 DOM
 var wasPlaying = false; // 切出时当前条是否在播（回来恢复播放，用户主动暂停态不打扰）
 
-export function registerView(def) {
-  if (def && def.id && typeof def.build === 'function') registry[def.id] = def;
-}
 export function currentView() { return current ? current.id : null; }
 
 // 条目点击出口（0.9.74）：由 playlayer 注册时注入（setItemOpener）——本模块不反向 import
@@ -132,7 +131,7 @@ function holdOrigin(prev) {
 }
 
 function enterView(id, arg) {
-  var def = registry[id];
+  var def = viewDef(id);
   if (!def || !root) return false;
   var top = origins.length ? origins[origins.length - 1] : null;
   // 回来路径：目标＝来源链顶（深界面的来源）→ pop；顶着挂了 DOM 就原位复原（跳过 build）
@@ -194,7 +193,7 @@ function exitView(restore) {
 export function syncRouteView() {
   if (!root) return;
   var r = parseRoute();
-  var def = r.view ? registry[r.view] : null;
+  var def = viewDef(r.view);
   if (def) {
     if (!current || current.id !== r.view
       || String(current.arg || '') !== String(r.viewArg || '')) {

@@ -2,7 +2,8 @@ import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { requestText } from './net.js';
 import { parseSearchItems } from './data.js';
-import { registerView, gridCardOf } from './views.js';
+import { gridCardOf } from './views.js';
+import { registerView } from './viewreg.js';
 import { setSearchHandler, focusSearch } from './topbar.js';
 
 // ---------- 搜索视图（0.9.72 抖音式）：顶栏搜索框 / 地址栏直达 → 结果网格卡 ----------

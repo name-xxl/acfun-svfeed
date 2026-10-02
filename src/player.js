@@ -1,7 +1,7 @@
 import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
 import { el, fmtTime, ensureStyle } from './ui.js';
-import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot, stageVisible } from './state.js';
+import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot, stageVisible, isOvlSlide, OVL_IDX } from './state.js';
 import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync } from './route.js';
 import { FeedStore } from './feedstore.js';
 import { getSource, setSource, resetHomePager, API } from './api.js';
@@ -20,7 +20,6 @@ import { toggleImDrawer, mountBadge, teardownIm } from './imdrawer.js';
 import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
 import { overlayTeardown } from './overlay.js';
 import { syncRouteView, teardownViews, currentView, backFromOrigin } from './views.js';
-import { OVL_IDX } from './playlayer.js';
 import { buildDock, teardownDock } from './sidebar.js';
 import { buildTopbar, teardownTopbar, syncTopbarSeg } from './topbar.js';
 import { setupInputHandlers, teardownInputHandlers } from './input.js';
@@ -134,10 +133,12 @@ var SESSION_HOOKS = {
   // 播完也是一次"离开"：先报最终进度再连播滚动（后续 dispose 重复触发由同秒位去重拦截）
   onEnded: function (session) {
     reportLeave(session, session.video, 'ended');
-    // 连播判定**必须**留 FeedStore.current 直比（不是 hooks.currentIdx()）：播放层会话
-    // idx=OVL_IDX(-1) 与 current 恒不等 ⇒ 层内播完天然不触发"下一条"（层里没有下一条）。
-    // 改成 currentIdx() 会变成 -1===-1 成立 → scrollToIndex(0)：把竖刷滚到第 0 条（哨兵陷阱）
-    if (pb.autoplayNext && session.idx === FeedStore.current) scrollToIndex(session.idx + 1);
+    // 连播判定：显式排除播放层（0.9.78 结构化）——层内没有"下一条"，层内会话也不该
+    // 动竖刷游标；旧写法只靠"哨兵 -1 撞不上 current"的巧合正确（改成 hooks.currentIdx()
+    // 会变成 -1===-1 成立 → scrollToIndex(0)，把竖刷滚到第 0 条——0.9.77 评审点名的陷阱）
+    if (pb.autoplayNext && !isOvlSlide(session.slide) && session.idx === FeedStore.current) {
+      scrollToIndex(session.idx + 1);
+    }
   },
   // 兜底路径：滑出渲染窗口/换清晰度重挂/切源/关闭信息流才走 dispose（相邻划走只 pause
   // 不 dispose，那条路由 setActive 负责）；video 已拆但引用仍持有最终 currentTime

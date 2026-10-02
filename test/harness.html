@@ -782,6 +782,16 @@
         })());
         rec('cover-memo-zero-hits', (await hitsOf('/nope-404.png')) === 3,
           'dead=' + (await hitsOf('/nope-404.png'))); // 与首轮相同：二次进入零新增请求
+        // 策略名解析（0.9.78）：拼错名字必须出声（此前静默退化成空策略，占位/兜底悄悄丢），
+        // 已知名给全策略（断言里认 ph 字段——grid 策略的占位文案就在它上面）
+        rec('img-policy-known', TEST.call('imgPolicy', 'grid').indexOf('"ph"') >= 0,
+          TEST.call('imgPolicy', 'grid'));
+        var uWarns = [], oWarn = console.warn;
+        console.warn = function (m) { uWarns.push(String(m)); };
+        var uBogus = TEST.call('imgPolicy', 'grrid');
+        console.warn = oWarn;
+        rec('img-policy-unknown-warns', uBogus === '{}' && uWarns.length === 1 && /grrid/.test(uWarns[0]),
+          uBogus + ' warns=' + uWarns.length);
 
       } else if (CASE === 'view-zone') {
         // 分区榜单视图冒烟：渠道/榜期 chips 切换重渲染 + contentType 过滤 + 条目回竖刷

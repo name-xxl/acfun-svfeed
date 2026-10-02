@@ -3,7 +3,8 @@ import { el, singleFlight } from './ui.js';
 import { request } from './net.js';
 import { postForm } from './appapi.js';
 import { panelItem } from './data.js';
-import { registerView, rowOf, upCardOf } from './views.js';
+import { rowOf, upCardOf } from './views.js';
+import { registerView } from './viewreg.js';
 
 // ---------- 分区榜单视图（0.9.62 建，0.9.66 对齐原生：子频道行 + UP 榜） ----------
 // GET rank/channel（§6.1 实测：rankLimit 生效；POST 形状无 rankLimit 只回 10 条，勿改 POST；
@@ -146,4 +147,11 @@ function buildZoneView(body) {
   load();
 }
 
-registerView({ id: 'zone', build: buildZoneView });
+// 左栏 dock 元数据随视图声明（0.9.78：sidebar 的条目从注册表派生）
+registerView({
+  id: 'zone', build: buildZoneView,
+  dock: {
+    label: '榜单', order: 10, group: 0,
+    svg: '<svg viewBox="0 0 24 24"><path d="M4 20V10h4v10H4zm6 0V4h4v16h-4zm6 0v-7h4v7h-4z"/></svg>'
+  }
+});

@@ -2,7 +2,8 @@ import { CFG } from './cfg.js';
 import { el, selfUid, fmt } from './ui.js';
 import { postForm } from './appapi.js';
 import { panelItem, meCardOf } from './data.js';
-import { registerView, gridCardOf, moreBtn } from './views.js';
+import { gridCardOf, moreBtn } from './views.js';
+import { registerView } from './viewreg.js';
 import { imgInto } from './imgload.js';
 
 // ---------- 我的视图（0.9.62 起；0.9.69 抖音式个人主页改造）----------
@@ -246,4 +247,11 @@ function buildMyView(body) {
   select('hist');
 }
 
-registerView({ id: 'my', build: buildMyView });
+// 左栏 dock 元数据随视图声明（0.9.78：sidebar 的条目从注册表派生，不再维护第二份清单）
+registerView({
+  id: 'my', build: buildMyView,
+  dock: {
+    label: '我的', order: 20, group: 1,
+    svg: '<svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>'
+  }
+});

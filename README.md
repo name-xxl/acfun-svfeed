@@ -180,6 +180,31 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.78（2026-10-02）· 契约钉死：可执行的三条禁令 + 视图清单单一真源（可维护性/可扩展性第一批）
+
+**背景**：0.9.77 评审指出项目多处「注释即规格」（图片唯一入口、播放层哨兵、左栏清单），
+本轮把它们钉成工具与结构约束——不新增行为，只为「以后不会写错」。
+
+- **eslint 定向禁令**（eslint.config.mjs）：禁 `URL.split('?')`——0.9.40 实锤（剥参数会把带签名的
+  图整条清空），归一/重试链只在 `imgurl.coverUrl`/`coverAttempts`。规则落地即绿（0.9.77 已清零）。
+- **策略名拼错必须出声**：`imgload.policyOf(name)` 抽出（未知名 → debug 构建 console.warn + 退化
+  空策略；此前静默退化，占位/兜底悄悄丢，只剩重试默认值）；`imgInto` 改走它。harness `cover-fallback`
+  补两条：`imgPolicy('grid')` 给全策略（认 `ph` 字段）、`imgPolicy('grrid')` 退化为 `{}` 且恰好一声警告。
+- **播放层哨兵函数化**（OVL_IDX，0.9.77 评审点名的"巧合正确"）：`state.js`（零 import）新增
+  `OVL_IDX`/`isOvlSlide(el)`/`ownerIdxOf(el)`，哨兵定义从 playlayer 迁入；`attach`/`controls`/`slide`
+  三处 `dataset.ovl==='1'` 散读换 `isOvlSlide`；`player` 连播判定改**显式**排除播放层
+  （`!isOvlSlide(session.slide) && idx === FeedStore.current`，不再靠 -1 撞不等于）；attach.js 契约
+  总表同步。新单测 `state.test.js`（3 条）。
+- **左栏 dock 从注册表派生**（消除漂移源）：新模块 `viewreg.js`（零依赖叶子：registerView/viewDef/
+  dockEntries）；四个视图模块改从它注册；`mypage`/`zone` 的注册带 `dock:{label,svg,order,group}`
+  （SVG 随视图声明，group 变化处 sidebar 插分隔线）；`sidebar.js` 删 ENTRIES 人工清单。`data-view`/
+  类名不变（harness 既有断言零改动）。依赖图/模块表/叶子类同步（viewreg 进 leaf）。
+- **panelItem 表驱动**（可扩展性第一批）：`data.js` 的 if 链改 `PANEL_PARSERS[kind]` 三解析器
+  （history/fav/rank，返回 false=过滤），新来源 = 加一行表项 + 单测，与 IMG_POLICY 同款模式；
+  语义零变化（data.test.js + view-my/view-zone 场景原样兜底）。
+- **测试**：单测 114→117（state.test.js：哨兵优先级/dataset 缺失/数字与字符串 idx 归一）；
+  harness cover-fallback +2 断言（策略名两分支）。29 场景全绿。
+
 ### 0.9.77（2026-10-02）· 收口三欠账：播放层重试盒残留 / 图片入口覆盖头像面 / 死链备忘 TTL 语义（+ 我的页三修）
 
 **背景**：0.9.60–0.9.76 一天内的架构与内容推进评审后，三处「名义契约 ≠ 实际」收口（每项都补了可证断言）。
@@ -1750,8 +1775,9 @@ npm test             # immsg/ubb/release 单测 + 无头 harness 全场景（需
 | `imicons.js` | 站点原生图标登记表（CDN SVG + 字形码点，双端共享） |
 | `release.js` | 更新提示（0.9.60）：官方 releases.atom 拉取/解析纯函数（cmpVersion/normVer/parseRelAtom/latestEntry/decideUpd）+ 说明弹窗单例 + 红点；正文直接用 GitHub 官方渲染 HTML（elHtml 信任契约）；每次 mount 检查一次（60s 节流）、失败静默、unmount 显式拆监听 |
 | `overlay.js` | 浮层栈（0.9.61）：Esc 显式分支链的收拢（overlayOpen/Close/Top/IsOpen/Teardown，close 回调注册方自带、先出栈再调+异常隔离）；modal 键语义单监听承载（release/imgview capture 自关退役）；栈=显式状态（0.9.22 精神延续） |
-| `views.js` | 子视图框架（0.9.62；0.9.74 来源保活）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（registerView 自注册）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、**深界面（def.deep）来源链 + 来源视图挂起保活**（非 volatile：换类名 acsv-view-held + visibility 挂起，回来原位复原；同屏换参替换链顶）、条目点击出口 setItemOpener（playlayer 注入，不再 import player）、面板 kit（rowOf/moreBtn/gridCardOf） |
-| `sidebar.js` | 左栏 dock（0.9.62）：子视图入口图标列（我的/榜单），当前视图高亮，窄屏隐藏，随 unmount 拆除 |
+| `views.js` | 子视图框架（0.9.62；0.9.74 来源保活）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（注册表自 0.9.78 独立为 viewreg.js）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、**深界面（def.deep）来源链 + 来源视图挂起保活**（非 volatile：换类名 acsv-view-held + visibility 挂起，回来原位复原；同屏换参替换链顶）、条目点击出口 setItemOpener（playlayer 注入，不再 import player）、面板 kit（rowOf/moreBtn/gridCardOf） |
+| `sidebar.js` | 左栏 dock（0.9.62；0.9.78 起条目从 viewreg 的 dock 元数据派生——此前是第二份人工清单，加视图要改两处）：「推荐」+ 各视图入口，当前视图高亮，窄屏隐藏，随 unmount 拆除 |
+| `viewreg.js` | 视图注册表（0.9.78，零依赖叶子）：`registerView`/`viewDef`/`dockEntries`——视图清单的唯一真源；dock 元数据（label/svg/order/group）随视图声明，sidebar 只读派生 |
 | `topbar.js` | 共享顶栏（0.9.72 抽离；0.9.73 四界面复用；0.9.74 ✕ 单一意义+向左返回）：搜索框（居中常驻；视图态按地址关键词回填，搜索视图经 setSearchHandler 挂载期接管提交、teardown 还原）+ 左缘「向左返回」（仅深界面，onBack hooks）+ 右侧按钮组（源切换/私信/更新/退出，行为 hooks 注入不反向 import player）；syncTopbar(view,arg,{deep})：**✕ 永远=退出脚本**（普通界面 Esc 另义），深界面出返回键 |
 | `searchview.js` | 搜索视图（0.9.72；0.9.73 并入共享顶栏；0.9.74 deep+suspend/resume）：搜索页 SSR HTML 区段解析（data.parseSearchItems）→ 抖音式结果网格卡；关键词唯一真源=地址栏，顶栏搜索框即其唯一输入框 |
 | `playlayer.js` | 播放层（0.9.74）：子视图 play（#svfeed/play/&lt;v\|a&gt;/&lt;id&gt;）就地播放——面板条目即时首帧（含 UP 头像）/ 冷进入 API.deepLink 解析（不 setSource）/ 失败错误盒+重试；OVL_IDX 哨兵 + data-ovl 判据（attach.js 契约表在册）、键盘重定向 state.setVideoTarget |
@@ -1776,6 +1802,7 @@ flowchart LR
     imgview["imgview.js（大图查看器）"]
     inputbar["inputbar.js（抽屉输入栏）"]
     imgurl["imgurl.js（图片 URL·零依赖叶子）"]
+    viewreg["viewreg.js（视图注册表·零依赖）"]
     imgload["imgload.js（图片字段加载入口）"]
   end
 
@@ -1821,6 +1848,9 @@ flowchart LR
   player --> attach & others & feedstore & imdrawer & views & sidebar & topbar & playlayer
   views --> sidebar & overlay & topbar & mypage & zone
   views --> imgload
+  views --> viewreg
+  sidebar --> viewreg
+  mypage & zone & searchview & playlayer --> viewreg
   playlayer --> views & slide & attach & api & state & route
   searchview --> views & topbar
   input --> overlay
@@ -1838,7 +1868,7 @@ flowchart LR
   zone --> net & data & views
 
   classDef leaf fill:#e8f5e9,stroke:#2e7d32;
-  class immsg,imicons,imgurl leaf;
+  class immsg,imicons,imgurl,viewreg leaf;
 ```
 
 绿色三个节点是刻意的解耦点：`immsg.js`/`imicons.js`/`imgurl.js` 零 import，消费方各自引入

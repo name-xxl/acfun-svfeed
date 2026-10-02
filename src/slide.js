@@ -1,7 +1,7 @@
 import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
 import { el, elHtml, esc, fmt } from './ui.js';
-import { root, setCommentDrawer } from './state.js';
+import { root, setCommentDrawer, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { togglePlayGesture } from './playback.js';
 import { attachVideo } from './attach.js';
@@ -76,8 +76,8 @@ export function buildSlide(item, idx, goTo) {
 
 function onSlideTap(ev) {
   var slide = ev.currentTarget;
-  // 播放层 slide（data-ovl）不在竖刷流里：点按即手势，不做"当前条"判定
-  if (slide.dataset.ovl !== '1') {
+  // 播放层 slide（isOvlSlide）不在竖刷流里：点按即手势，不做"当前条"判定
+  if (!isOvlSlide(slide)) {
     var idx = Number(slide.dataset.idx);
     if (idx !== FeedStore.current) return;
   }
