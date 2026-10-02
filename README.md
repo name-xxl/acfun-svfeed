@@ -173,6 +173,58 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.62（2026-10-02）· 架构升级二期：hash 子路由视图层 + 我的/分区视图
+
+- **子视图路由**：hash 语法扩展（route.js 纯函数 parseHash，全锚定顺修 `#svfeedother`
+  误判激活）——数字段=竖刷深链 `#svfeed/<id>`、字母段=子视图 `#svfeed/my`、`#svfeed/zone/<cid>`，
+  语法天然互斥；hashchange 链唯一入口不变（toggle→syncRouteView），无新路由机制。
+  依据「新机制必要性」裁定：pathname/pushState 方案否决——hash 已被深链活用且视图参数
+  可在现有语法内表达，新机制必要性不成立。
+- **views.js 视图框架**：registerView 自注册（boot import 即入册）、视图切换=旧 teardown→
+  新 build；**竖刷保活**：scroller 隐藏+全视频暂停（暂停态时间轴不推进，看门狗天然不判冻）、
+  返回时恢复在播条目，FeedStore 不销毁回来继续刷；视图是浮层栈非模态层（Esc=返回竖刷），
+  进视图先 overlayTeardown 清空竖刷舞台浮层。
+- **左栏 dock**（sidebar.js）：竖刷路由内常驻图标列（我的/榜单，二期关注/搜索不空挂），
+  当前视图高亮、<560px 隐藏（.acsv-info left 让位 72px 随媒体查询还原）。
+- **我的视图**（mypage.js）：观看历史（POST browse/history/list 双 resourceTypes 缺一即 21、
+  pageNo 翻页、「观看至xx:xx」）+ 收藏夹（chips 切夹→dougaList 翻页）。
+- **分区榜单视图**（zone.js）：CFG.view.zones 渠道 chips + 日/三日/周榜期，GET rank/channel
+  （rankLimit 实测生效；POST 形状无 rankLimit 只回 10 条）。
+- **数据契约**：data.js 新增 panelItem（history/fav/rank 三来源→统一条目契约，非视频条目
+  契约层过滤返回 null——历史条目 resourceType=2 且必须连 videoId 校验（该体系编码与收藏/
+  榜单不同源，实测 40/40 视频；「参数 2=番剧」的文档释义在条目字段上不成立）、榜单 contentType
+  2=视频 3=文章）+ homeItemOf（面板条目→懒解析 home 契约）。
+- **playAc 回竖刷**：gen 校验（切源丢弃在途回包）+ seen 查重（流内直接 scrollToIndex）+
+  resolve 失败 toast 回退 + append 不 unshift（不打乱当前流）。
+- **mock 缝**（net.mockHit）：debug 构建 `window.__ACSV_MOCK_FORM__` 按 url 子串命中即返回
+  （postForm 与 request GET 同缝），api.js refreshItem 的 home mock 不在卡片池的 id 放行走
+  真实解析链——面板插入条目在 harness 下由缝接住、生产走 AppAPI.resolve；快照
+  test/my-sample.js（实测原样形状：favoriteList 键、playUrls 字符串数组——曾照 meow 的
+  {url} 对象形态写桩致 resolve 全灭，逐级探针定位）。
+- **坑实锤**：syncHash 残留定时器在进视图 150ms 内 replaceState 把视图地址无声踩成深链
+  （不触发 hashchange，视图态与地址脱钩、Esc 回写判定失效）——回写前查 parseRoute().view
+  视图态直接跳过；backToFeed 改无条件回写（地址已被踩时回写正好拉回一致）。
+- **harness**：新增 view-my（14 断言：路由进出/dock 高亮/契约过滤/历史翻页/切夹/条目回竖刷
+  插入播放/Esc 返回）、view-zone（7 断言：渠道切换/排名徽章/过滤/回竖刷），17→19 场景；
+  run-harness 端口重抽避 Chromium 非安全端口黑名单（listen(0) 随机抽中 6665 全场景
+  ERR_UNSAFE_PORT）。单测 74→87（route 语法 6 + panelItem/homeItemOf 契约 7）。
+- README：模块表/依赖图补 overlay/views/sidebar/mypage/zone 六节点及 import 边。
+
+### 0.9.61（2026-10-02）· 架构升级一期：浮层栈管理器（Esc 显式分支链收拢，行为零变化）
+
+- **src/overlay.js**：overlayOpen/Close/Top/IsOpen/Teardown 单例栈——栈内容即状态
+  （0.9.22「不赌监听器注册顺序」的收拢，新增浮层零改 input.js）；close 回调注册方自带
+  （release 的 seen/notified 写入、imdrawer 停轮询不进管理器）、先出栈再调+异常隔离、
+  同 id 重开先收旧；close 内可再调 overlayClose(自身 id) 同步栈（显式关闭路径的自举）。
+- **模态键语义单点化**：imgview/release 各自的 capture 自关退役（双裁决点在合成事件路径
+  连关两层——capture 关本层后 input.js 又拿下一层；真实键盘归 overlay 单 capture，
+  target=window 合成事件由 input.js 同款门禁兜底，两路径行为一致）。
+- **四层接栈**：release（modal）/imgview（modal）/评论抽屉/私信抽屉（claimDrawer 右槽互斥
+  保留，Esc 判定接栈）；input.js 门禁（栈顶 modal 吞键）与 Escape 分支定长化。
+- **顺修**：imgview 无 teardown——开图后直接离开竖刷，残留监听吞站点键盘（unmount 补
+  overlayTeardown 自顶向下收尾）。
+- 单测 66→74（入栈出栈/幂等/自举空转/异常隔离/claim 序/teardown 序）；17 场景全绿。
+
 ### 0.9.60（2026-10-02）· 更新提示：release 说明弹窗 + 每次打开检查新版本
 
 - **数据源与渲染（官方形态复用）**：拉 GitHub 官方 `releases.atom`（与 @downloadURL 同域，
@@ -1215,6 +1267,11 @@ npm test             # immsg/ubb/release 单测 + 无头 harness 全场景（需
 | `immsg.js` | 私信消息共享解析层（parseCard/parseShare 容忍式契约、引用解析 quoteOf/quoteExtraOf/isQuotable、评论转发 wire 组装与识别/拆分、extra 载荷 key 常量、预览映射/降级文案），双端渲染器各自消费 |
 | `imicons.js` | 站点原生图标登记表（CDN SVG + 字形码点，双端共享） |
 | `release.js` | 更新提示（0.9.60）：官方 releases.atom 拉取/解析纯函数（cmpVersion/normVer/parseRelAtom/latestEntry/decideUpd）+ 说明弹窗单例 + 红点；正文直接用 GitHub 官方渲染 HTML（elHtml 信任契约）；每次 mount 检查一次（60s 节流）、失败静默、unmount 显式拆监听 |
+| `overlay.js` | 浮层栈（0.9.61）：Esc 显式分支链的收拢（overlayOpen/Close/Top/IsOpen/Teardown，close 回调注册方自带、先出栈再调+异常隔离）；modal 键语义单监听承载（release/imgview capture 自关退役）；栈=显式状态（0.9.22 精神延续） |
+| `views.js` | 子视图框架（0.9.62）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（registerView/openPanel 同构协议）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、playAc 条目回竖刷（gen 校验/seen 查重/resolve 失败回退/append 不 unshift）、面板 kit（rowOf/moreBtn） |
+| `sidebar.js` | 左栏 dock（0.9.62）：子视图入口图标列（我的/榜单），当前视图高亮，窄屏隐藏，随 unmount 拆除 |
+| `mypage.js` | 我的视图（0.9.62）：观看历史（双 resourceTypes、pageNo 翻页、观看至 xx:xx）+ 收藏夹（chips 切夹→dougaList 翻页）；条目经 panelItem 契约规整 |
+| `zone.js` | 分区榜单视图（0.9.62）：渠道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
 | `boot.js` | 启动入口（构建 entry） |
 
 ### 模块依赖图
@@ -1272,17 +1329,21 @@ flowchart LR
   appapi --> net & data & quality
 
   boot --> player & others & imnative
-  player --> attach & others & feedstore & imdrawer
+  player --> attach & others & feedstore & imdrawer & views
+  views --> sidebar & overlay & mypage & zone
+  input --> overlay
+  comments --> ubb & emoticon & inputbar & imgview & appapi & net & upload & state & imicons & imshare & overlay
   attach --> session
   session --> api & hls
   pb --> feedstore
   feedstore --> api & state & player
-  comments --> ubb & emoticon & inputbar & imgview & appapi & net & upload & state & imicons & imshare
   interact --> appapi
-  release --> net
-  imdrawer --> imshare & immsg & imicons & appapi & emoticon & inputbar & imgview & comments
+  release --> net & overlay
+  imdrawer --> imshare & immsg & imicons & appapi & emoticon & inputbar & imgview & comments & overlay
   imnative --> immsg & imicons & appapi & imshare & emoticon & ubb & imgview
   imshare --> appapi & imdrawer & immsg
+  mypage --> appapi & data & views
+  zone --> net & data & views
 
   classDef leaf fill:#e8f5e9,stroke:#2e7d32;
   class immsg,imicons leaf;

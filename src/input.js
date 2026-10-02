@@ -6,6 +6,7 @@ import { FeedStore } from './feedstore.js';
 import { pb, currentVideo, sweepVideos, togglePlayGesture, toggleMuteGesture } from './playback.js';
 import { toggleItemComments } from './comments.js';
 import { overlayTop, overlayClose } from './overlay.js';
+import { currentView } from './views.js';
 
 // ---------- 键盘/全屏/幽灵扫描：全局监听的注册与解除 ----------
 // 上层导航（scrollToIndex/exitFeed）在 player.js，经 api 参数注入保持依赖单向；
@@ -27,6 +28,13 @@ export function setupInputHandlers(api) {
       return;
     }
     if (ev.target && /^(input|textarea|select)$/i.test(ev.target.tagName)) return;
+    // 子视图（#svfeed/my 等）是全屏页面：导航/互动键无意义一律吞掉，仅 Esc 放行走
+    // 浮层栈（view 层在栈里，关=返回竖刷）。放在 target 豁免之后——视图内未来的
+    // 输入框（搜索二期）聚焦时不受影响
+    if (currentView()) {
+      if (ev.key === 'Escape' && overlayTop()) overlayClose(overlayTop().id);
+      return;
+    }
     var cur = FeedStore.current;
     switch (ev.key) {
       case 'ArrowDown': case 'PageDown': case 'j':

@@ -91,3 +91,44 @@ export function normalizeHome(bc) {
     localLike: false
   };
 }
+
+// ---------- 视图面板条目契约（0.9.62）：三种来源规整成同一份字段 ----------
+// { acId, title, cover, progress, sub, kind }——面板渲染与「点击回竖刷」零分支（对齐
+// 顶部两源契约理念）。返回 null = 非视频条目，调用方过滤（无 douga resolve 链，进竖刷必炸）。
+// 类型字段实测（docs/api-research.md §4/§6，2026-10-02）：
+//   browse/history 的 resourceType 编码与收藏/榜单体系不同源——条目 2=普通视频（社区文档
+//   「参数 1 视频 2 番剧」的释义在条目字段上不成立），必须连 videoId 一起校验、宁可漏不错；
+//   rank/channel 的 contentType 2=视频 3=文章；dougaList 是纯视频端点无需过滤
+export function panelItem(kind, raw) {
+  if (!raw) return null;
+  var it = { acId: 0, title: '', cover: '', progress: null, sub: '', kind: kind };
+  if (kind === 'history') {
+    if (raw.resourceType !== 2 || !raw.videoId) return null;
+    it.acId = Number(raw.resourceId) || 0;
+    it.title = raw.title || raw.dougaVideoTitle || '';
+    it.cover = raw.cover || '';
+    it.progress = raw.playedSeconds > 0 ? Number(raw.playedSeconds) : null;
+    it.sub = raw.playedSecondsShow || '';
+  } else if (kind === 'fav') {
+    it.acId = Number(raw.contentId) || 0;
+    it.title = raw.contentTitle || '';
+    it.cover = raw.contentImg || '';
+    it.progress = raw.userPlayedSeconds > 0 ? Number(raw.userPlayedSeconds) : null;
+    it.sub = raw.userName || '';
+  } else if (kind === 'rank') {
+    if (raw.contentType !== 2) return null;
+    it.acId = Number(raw.dougaId || raw.contentId) || 0;
+    it.title = raw.contentTitle || '';
+    it.cover = raw.videoCover || '';
+    it.sub = (Number(raw.bananaCount) || 0) + ' 蕉';
+  } else {
+    return null;
+  }
+  return it.acId && it.title ? it : null;
+}
+
+// 面板条目 → 竖刷 home 契约 item（懒解析：进播放器后 resolve 链回填直链与全量计数）。
+// visit/user 留空走 normalizeHome 默认值，不伪造未实测的数据
+export function homeItemOf(acId, title, cover) {
+  return normalizeHome({ href: String(acId), title: title || '', img: cover ? [cover] : [] });
+}

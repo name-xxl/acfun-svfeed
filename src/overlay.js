@@ -11,6 +11,7 @@
 // close 里，管理器零业务知识）；先出栈再调 close、异常隔离——单个浮层炸不掉整条
 // Esc 链。close 内可再调 overlayClose(自身 id)（显式关闭路径同步栈），已出栈时空转。
 var stack = []; // [{ id, close, modal }]，栈顶 = 最后打开
+import { testHook } from './dbg.js';
 
 export function overlayOpen(layer) {
   if (!layer || !layer.id || typeof layer.close !== 'function') return;
@@ -58,3 +59,6 @@ function ensureKey() {
   keyBound = true;
   window.addEventListener('keydown', onOverlayKey, true);
 }
+
+// debug 构建测试钩子：harness 断言读浮层栈快照
+testHook('overlay', function () { return stack.map(function (l) { return l.id + (l.modal ? ':m' : ''); }); });

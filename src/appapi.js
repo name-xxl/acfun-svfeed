@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { request } from './net.js';
+import { request, mockHit } from './net.js';
 import { singleFlight } from './ui.js';
 import { normalizeHome } from './data.js';
 import { applyQuality } from './quality.js';
@@ -58,6 +58,8 @@ function q(extra) {
 // （返回「需要开启账号保护才能扫描二维码登录」），必须与动态广场一样用页面内 fetch。
 // 全项目的表单 POST 统一走这里（token/interact/follow 等写接口同语义），勿再内联 fetch
 export function postForm(url, body) {
+  var mocked = mockHit(url, body);
+  if (mocked) return mocked;
   return fetch(url, {
     method: 'POST',
     credentials: 'include',
@@ -141,7 +143,7 @@ export var AppAPI = {
         }).filter(function (x) { return x.urls.length; })
           // applyQuality 的「无记忆取最高档 = idx 0」依赖降序，显式排一次不赌接口下发顺序
           .sort(function (a, b) { return b.res - a.res; });
-      }, function () { return []; });
+      }, function (e) { return []; });
   },
 
   // 懒解析链：douga/info（videoId/计数/初始状态）→ playInfo（分档直链）
@@ -167,8 +169,8 @@ export var AppAPI = {
       if (u.id) item.userId = Number(u.id) || item.userId;
       if (u.name) item.userName = u.name;
       item.isFollowing = !!u.isFollowing; // 关注状态以详情为准（卡片不带）
-      return self.playInfo(item.videoId, item.id).then(function (qualities) {
-        if (!qualities.length) return false;
+    return self.playInfo(item.videoId, item.id).then(function (qualities) {
+      if (!qualities.length) return false;
         item.qualities = qualities;
         applyQuality(item); // 播放策略（编码偏好/清晰度记忆）在 quality.js，接口层只管取数
         return item.urls.length > 0;

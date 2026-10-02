@@ -5,6 +5,23 @@
 //   场景统一走这里，勿再各自内联 GM_xmlhttpRequest 包装（0.9.35 收敛）
 import { CFG } from './cfg.js';
 
+// debug 测试缝（0.9.62）：视图面板请求在 harness 静态服务下真发必 404。__ACSV_MOCK_FORM__
+// 按 url 子串命中即返回（值可为函数 (body,url)=>响应），仅 debug 构建生效（正式产物死码
+// 消除）。postForm 与 request 的 GET 都先问它——命中前缀务必收窄到面板自己的端点，
+// 防误伤其他 harness 场景（0.9.49「改形状漏消费点」同型的边界教训）
+export function mockHit(url, body) {
+  if (!__ACSV_DEBUG__) return null;
+  var table = typeof window !== 'undefined' && window.__ACSV_MOCK_FORM__;
+  if (!table) return null;
+  for (var k in table) {
+    if (String(url).indexOf(k) !== -1) {
+      var v = table[k];
+      return Promise.resolve(typeof v === 'function' ? v(body, url) : v);
+    }
+  }
+  return null;
+}
+
 export function gmRequest(opts) {
   return new Promise(function (resolve, reject) {
     if (typeof GM_xmlhttpRequest !== 'function') return reject(new Error('no-gm'));
@@ -30,6 +47,8 @@ export function gmRequest(opts) {
 }
 
 export function request(url, method, headers, body) {
+  var mocked = mockHit(url, body);
+  if (mocked) return mocked;
   method = method || 'POST';
   if (typeof GM_xmlhttpRequest === 'function') {
     return gmRequest({ method: method, url: url, headers: headers, data: body, timeout: CFG.time.gm });

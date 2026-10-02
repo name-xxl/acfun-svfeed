@@ -19,6 +19,8 @@ import { buildSlide, buildDrawer } from './slide.js';
 import { openDrawer, mountBadge, teardownIm } from './imdrawer.js';
 import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
 import { overlayTeardown } from './overlay.js';
+import { syncRouteView, teardownViews } from './views.js';
+import { buildDock, teardownDock } from './sidebar.js';
 import { setupInputHandlers, teardownInputHandlers } from './input.js';
 
 // ---------- UI ----------
@@ -222,7 +224,7 @@ function setActive(idx) {
   }
 }
 
-function scrollToIndex(idx) {
+export function scrollToIndex(idx) {
   if (!scroller) return;
   FeedStore.ensureMore().then(function () {
     renderWindow();
@@ -344,6 +346,7 @@ function mount() {
   document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
   document.body.appendChild(root);
+  buildDock(root); // 左栏子视图入口：竖刷路由内常驻（unmount 随 teardownDock 拆）
   mountBadge(imBtn, imBtn.querySelector('.acsv-im-badge'));
   dbg('root-appended');
   releaseCheck(); // 每次打开竖刷页检查一次更新（内部带最小间隔节流，失败静默）
@@ -373,6 +376,8 @@ function unmount() {
   teardownIm(); // 停私信徽标轮询/重置抽屉模块态（不清会让重进后的私信抽屉打不开）
   teardownRelease(); // 拆更新弹窗单例与 capture 监听（root 拆后监听残留会吞站点页全局键盘）
   resetDrawerSlot(); // 清槽位：评论侧没有 teardown，防残留闭包让重进后的第一次 Esc 被吃掉
+  teardownDock(); // 左栏入口与视图容器随后由 teardownViews/overlayTeardown 收尾
+  teardownViews();
   // 浮层栈自顶向下收尾：含 imgview（此前它无 teardown——开图后直接离开竖刷，残留监听
   // 会吞掉普通站页的全局键盘）与任何未关的抽屉/弹窗，close 回调各自幂等
   overlayTeardown();
@@ -424,8 +429,13 @@ function exitFeed() {
 
 export function toggle() {
   dbg('toggle:' + (isFeedRoute() ? 'feed' : 'off'));
-  if (isFeedRoute()) mount();
-  else unmount();
+  if (isFeedRoute()) {
+    mount();
+    syncRouteView(); // hashchange 已在竖刷路由内跳变（#svfeed ↔ #svfeed/<view>）：视图层进出
+  } else {
+    teardownViews(); // 先收视图（含 close 回调），再走 unmount 全链
+    unmount();
+  }
   dbg('toggle-done');
 }
 // hashchange 监听在 boot.js 统一编排（启动入口不散落）

@@ -52,7 +52,11 @@ export var CFG = {
     favoriteAdd: 'https://www.acfun.cn/rest/pc-direct/favorite/resource/add',
     favoriteRemove: 'https://www.acfun.cn/rest/pc-direct/favorite/resource/remove',
     favFolderList: 'https://www.acfun.cn/rest/pc-direct/favorite/folder/list',
+    favDougaList: 'https://www.acfun.cn/rest/pc-direct/favorite/resource/dougaList',
     bananaPc: 'https://www.acfun.cn/rest/pc-direct/banana/throwBanana',
+    // ---- 视图面板（0.9.62，契约见 docs/api-research.md §4/§6 实测） ----
+    history: 'https://www.acfun.cn/rest/pc-direct/browse/history/list',
+    rank: 'https://www.acfun.cn/rest/pc-direct/rank/channel',
     // ---- 弹幕（www.acfun.cn 同域，网页 Cookie 鉴权） ----
     dmList: 'https://www.acfun.cn/rest/pc-direct/new-danmaku/list',
     dmAdd: 'https://www.acfun.cn/rest/pc-direct/new-danmaku/add',
@@ -143,6 +147,20 @@ export var CFG = {
   },
   io: { ratio: 0.6 },
   fmt: { wanMin: 9999 },
+  // ---- 子视图（0.9.62）：#svfeed/<view>/<arg>，左栏入口 + 面板参数 ----
+  view: {
+    narrow: 560,          // 视口宽低于此值隐藏左栏（竖刷是移动式布局，面板无意义）
+    dockW: 48,            // 左栏宽（.acsv-info 让位量与之绑定，见 styles.js）
+    pageSize: 20,         // 观看历史/收藏夹每页
+    rankLimit: 20,        // 榜单条数（rank/channel 的 rankLimit 实测生效，GET 形状）
+    periods: ['DAY', 'THREE_DAYS', 'WEEK'], // 榜期（实测支持三档）
+    periodNames: { DAY: '日榜', THREE_DAYS: '三日榜', WEEK: '周榜' },
+    zones: [              // 线上分区 id（queryNavigators 实测，docs/api-research.md §6.2）
+      { id: 1, name: '动画' }, { id: 59, name: '游戏' }, { id: 58, name: '音乐' },
+      { id: 68, name: '影视' }, { id: 201, name: '生活' }, { id: 70, name: '科技' },
+      { id: 125, name: '鱼塘' }
+    ]
+  },
   comments: {
     drawerW: 380,      // 抽屉宽度（窄屏按比例收缩）
     drawerMaxWp: 0.88, // 抽屉最大占视口宽比例

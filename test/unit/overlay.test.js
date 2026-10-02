@@ -2,11 +2,12 @@
 // 契约：栈内容就是状态（0.9.22「显式状态判定」的收拢）；先出栈再调 close、异常隔离；
 // 同 id 重开先收旧；close 内再调 overlayClose(自身 id) 必须空转（显式关闭路径同步栈的
 // 自举语义，imgview/closeComments/closeDrawer 都依赖它）；teardown 自顶向下。
-// overlay 的懒注册监听在测试里以 no-op 垫片承接（window.addEventListener 在 Node 不存在）
+// overlay 的懒注册监听与 testHook（dbg.js）在 Node 缺 API/常量，按 release.test.js 惯例垫桩
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
+globalThis.__ACSV_DEBUG__ = false;
 globalThis.addEventListener = function () { };
 
 var overlay = await import('../../src/overlay.js');

@@ -15,6 +15,7 @@
   <code>?src=home</code> 人工预览推荐模式。测试媒体统一映射为免 h264 依赖的 webm。</div>
 <script src="feed-sample.js"></script>
 <script src="home-sample.js"></script>
+<script src="my-sample.js"></script>
 <script>
   // ============ 场景预处理（须在 bundle 加载前：改 mock / 写 localStorage） ============
   var CASE = (location.search.match(/[?&]case=([\w-]+)/) || [])[1] || 'smoke';
@@ -50,6 +51,7 @@
   // 测试媒体统一换本地 webm（免 h264 依赖 + 免外网抖动；cc0，来自 MDN flower 样片）。
   // 必须绝对 URL：normalize() 的直链过滤器要求 ^https?:
   var TEST_WEBM = new URL('media/flower.webm', location.href).href;
+  window.__ACSV_TEST_WEBM__ = TEST_WEBM; // my-sample 的 playInfo mock 桩在调用期取
   (window.__ACSV_MOCK_HOME__ || []).forEach(function (c) { c.mockUrl = TEST_WEBM; });
   ((window.__ACSV_MOCK__ || {}).feed || []).forEach(function (r) {
     ((r.playInfo || {}).videoUrls || []).forEach(function (u) { if (u) u.url = TEST_WEBM; });
@@ -428,6 +430,96 @@
         }, 8000)));
         var ubx = updModal() && updModal().querySelector('.acsv-upd-x');
         if (ubx) ubx.click();
+
+      } else if (CASE === 'view-my') {
+        // 我的视图冒烟（0.9.62）：hash 子路由进出 + postForm mock 缝（__ACSV_MOCK_FORM__）+
+        // panelItem 契约过滤（坏例条目不渲染）+ 条目点击回竖刷插入播放（resolve 链走 mock）
+        window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+        location.hash = 'svfeed/my';
+        rec('view-open', !!(await waitFor(function () {
+          var v = q('.acsv-view');
+          return v && v.style.display !== 'none' && q('.acsv-view-title')
+            && q('.acsv-view-title').textContent === '我的';
+        }, 10000)));
+        rec('dock-highlight', !!(await waitFor(function () {
+          var b = q('.acsv-dock-btn[data-view="my"]');
+          return b && b.classList.contains('on');
+        }, 3000)));
+        rec('scroller-hidden', q('.acsv-scroller').style.display === 'none');
+        rec('hist-rows-filtered', !!(await waitFor(function () {
+          var rows = document.querySelectorAll('.acsv-vlist.hist .acsv-vrow');
+          var bad = [].some.call(rows, function (r) { return /应被过滤/.test(r.textContent); });
+          return rows.length === 18 && !bad;
+        }, 8000)));
+        var histMore = document.querySelector('.acsv-vsec .acsv-vmore');
+        rec('hist-more-visible', !!histMore && histMore.style.display !== 'none');
+        if (histMore) histMore.click();
+        rec('hist-page2', !!(await waitFor(function () {
+          return document.querySelectorAll('.acsv-vlist.hist .acsv-vrow').length === 22;
+        }, 8000)));
+        // 收藏夹：默认第一个夹 2 条；切夹二 1 条
+        rec('fav-default-rows', !!(await waitFor(function () {
+          var rows = document.querySelectorAll('.acsv-vlist.fav .acsv-vrow');
+          return rows.length === 2 && /测试收藏视频0/.test(rows[0].textContent);
+        }, 8000)));
+        var chips = document.querySelectorAll('.acsv-vchip');
+        var chip2 = chips.length >= 2 ? chips[chips.length - 1] : null; // 夹二在收藏 chips 组末尾
+        if (chip2) chip2.click();
+        rec('fav-switch-rows', !!(await waitFor(function () {
+          var rows = document.querySelectorAll('.acsv-vlist.fav .acsv-vrow');
+          return rows.length === 1 && /测试收藏视频0/.test(rows[0].textContent);
+        }, 8000)));
+        // 点首条历史 → 回竖刷 + 队尾插入 + resolve 完成（hasUrls）。
+        // hash 断言容忍 syncHash 150ms 后的 #svfeed/<id> 覆写（坑 5：回竖刷即恢复地址跟随）
+        var firstRow = q('.acsv-vrow');
+        var firstId = 488900;
+        if (firstRow) firstRow.click();
+        rec('back-to-feed', !!(await waitFor(function () {
+          return /^#svfeed(\/\d+)?$/.test(location.hash) && q('.acsv-view').style.display === 'none';
+        }, 8000)));
+        rec('feed-item-appended', !!(await waitFor(function () {
+          var f = feed();
+          var last = f && f.items[f.items.length - 1];
+          return last && String(last.id) === String(firstId) && last.hasUrls;
+        }, 10000)));
+        // 视图内 Esc=返回竖刷：再进视图后合成 Esc 事件
+        location.hash = 'svfeed/my';
+        rec('re-enter-open', !!(await waitFor(function () {
+          return q('.acsv-view').style.display !== 'none';
+        }, 8000)));
+        await wait(400); // 越过进视图前残留的 syncHash 150ms 定时器窗口（真实用户不可达的时序）
+        key('Escape');
+        rec('esc-back-to-feed', !!(await waitFor(function () {
+          return /^#svfeed(\/\d+)?$/.test(location.hash) && q('.acsv-view').style.display === 'none';
+        }, 8000)));
+
+      } else if (CASE === 'view-zone') {
+        // 分区榜单视图冒烟：渠道/榜期 chips 切换重渲染 + contentType 过滤 + 条目回竖刷
+        window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+        location.hash = 'svfeed/zone';
+        rec('zone-open', !!(await waitFor(function () {
+          var v = q('.acsv-view');
+          return v && v.style.display !== 'none' && q('.acsv-view-title').textContent === '分区榜单';
+        }, 10000)));
+        rec('zone-rows-filtered', !!(await waitFor(function () {
+          var rows = document.querySelectorAll('.acsv-vrow');
+          return rows.length === 4; // 5 条 mock 里 1 条 contentType=3 被契约层过滤
+        }, 8000)));
+        rec('zone-rank-badge', q('.acsv-vrow .acsv-vrow-rank').textContent === '1');
+        var zchips = document.querySelectorAll('.acsv-vchips')[0].children;
+        var gameChip = [].filter.call(zchips, function (c) { return c.textContent === '游戏'; })[0];
+        if (gameChip) gameChip.click();
+        rec('zone-switch', !!(await waitFor(function () {
+          var t = q('.acsv-vrow .acsv-vrow-title');
+          return t && /榜单游戏-DAY-0/.test(t.textContent);
+        }, 8000)));
+        var zrow = q('.acsv-vrow');
+        if (zrow) zrow.click();
+        rec('zone-play-ac', !!(await waitFor(function () {
+          var f = feed();
+          var last = f && f.items[f.items.length - 1];
+          return /^#svfeed(\/\d+)?$/.test(location.hash) && last && String(last.id) === '489500' && last.hasUrls;
+        }, 10000)));
 
       } else if (CASE === 'stall-healthy') {
         rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));

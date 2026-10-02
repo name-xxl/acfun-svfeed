@@ -43,7 +43,9 @@ const HARNESS_CASES = [
   { name: 'stall-visibility' },
   { name: 'spinner-recover' },
   { name: 'watch-report' },
-  { name: 'upd-open' } // 0.9.60 更新提示冒烟（mock atom 注入，debug 构建）
+  { name: 'upd-open' }, // 0.9.60 更新提示冒烟（mock atom 注入，debug 构建）
+  { name: 'view-my' }, // 0.9.62 我的视图冒烟（hash 子路由 + __ACSV_MOCK_FORM__ 缝，debug 构建）
+  { name: 'view-zone' } // 0.9.62 分区榜单视图冒烟（渠道/榜期切换 + 契约过滤，debug 构建）
 ];
 
 const CASES = HARNESS_CASES.map(function (c) {
@@ -122,8 +124,20 @@ async function launch() {
 }
 
 var server = http.createServer(serve);
-await new Promise(function (r) { server.listen(0, '127.0.0.1', r); });
-var port = server.address().port;
+// Chrome 按「不安全端口」黑名单拒绝导航（0.9.61 复现：listen(0) 系统随机抽中 6665 直接
+// ERR_UNSAFE_PORT 全场景报废）。取到黑名单端口就关掉重抽；名单 = Chromium net 基础设施
+// 的 restricted ports 全表
+var BLOCKED_PORTS = new Set([1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69,
+  77, 79, 87, 95, 101, 102, 103, 104, 109, 110, 111, 113, 115, 117, 119, 123, 135, 137, 139, 143,
+  161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531, 532, 540, 548, 554, 556, 563, 587,
+  601, 636, 989, 990, 993, 995, 1719, 1720, 1723, 2049, 3659, 4045, 5060, 5061, 6000, 6566,
+  6665, 6666, 6667, 6668, 6669, 6697, 10080]);
+var port = 0;
+while (!port || BLOCKED_PORTS.has(port)) {
+  if (port) server.close();
+  await new Promise(function (r) { server.listen(0, '127.0.0.1', r); });
+  port = server.address().port;
+}
 console.log('[info] 静态服务 http://127.0.0.1:' + port + '（docroot=' + ROOT + '）');
 
 var browser = await launch();

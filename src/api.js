@@ -77,19 +77,22 @@ export var API = {
     if (item.kind === 'home') {
       var mh = mockHome();
       if (mh) {
-        // harness：从 mock 卡片取本地测试播放地址
+        // harness：从 mock 卡片取本地测试播放地址。不在卡片池里的 id（如视图面板插入的
+        // 任意 ac）放行走真实解析链——harness 下由 net.mockHit 缝接住，生产本就走到 resolve
         var raw = mh.filter(function (c) { return String(c.href) === String(item.id); })[0];
-        var mu = raw && raw.mockUrl;
-        item.urls = mu ? [mu] : [];
-        // 两档同址：清晰度菜单可切（switchQuality 链路 harness 可断言）
-        item.qualities = mu ? [{ label: '示例', urls: [mu] }, { label: '示例·备线', urls: [mu] }] : [];
-        // mock 直链不是 m3u8：绕开 hls.js 管线走 video.src 直挂（仅 harness mock 生效）
-        if (mu) item.cap.hls = false;
-        item.videoId = 'mock-' + item.id;
-        item.fav = 12;
-        item.share = 34;
-        item.date = '2026-09-26';
-        return Promise.resolve(!!mu);
+        if (raw) {
+          var mu = raw.mockUrl;
+          item.urls = mu ? [mu] : [];
+          // 两档同址：清晰度菜单可切（switchQuality 链路 harness 可断言）
+          item.qualities = mu ? [{ label: '示例', urls: [mu] }, { label: '示例·备线', urls: [mu] }] : [];
+          // mock 直链不是 m3u8：绕开 hls.js 管线走 video.src 直挂（仅 harness mock 生效）
+          if (mu) item.cap.hls = false;
+          item.videoId = 'mock-' + item.id;
+          item.fav = 12;
+          item.share = 34;
+          item.date = '2026-09-26';
+          return Promise.resolve(!!mu);
+        }
       }
       return AppAPI.resolve(item);
     }
