@@ -20,15 +20,32 @@ var RAW_CSS = ''
   + '#acsv-root{position:fixed;inset:0;z-index:2147483000;background:#000;color:#fff;'
   + 'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;user-select:none}'
   + '.acsv-root *{box-sizing:border-box;margin:0;padding:0}'
-  // 顶栏（0.9.72 抽离共享组件）：高度走 --acsv-top-h（72px，:root 单源——toast 落位等
-  // 派生值一律 calc 引用，勿再写死）；左缘让开左栏 dock，窄屏媒体查询还原满宽。
-  // 左中右三区：搜索框居中常驻（抖音同款位置，0.9.72）+ 右侧按钮组（源切换/私信/更新/退出）
+  // 顶栏（0.9.72 抽离共享组件，0.9.73 四界面复用）：高度走 --acsv-top-h（72px，:root 单源——
+  // toast 落位等派生值一律 calc 引用，勿再写死）；左缘让开左栏 dock，窄屏媒体查询还原满宽。
+  // 左中右三区：搜索框居中常驻（抖音同款位置）+ 右侧按钮组（源切换/私信/更新/退出）
   + '.acsv-top{position:absolute;top:0;left:' + CFG.view.dockW + 'px;right:0;height:var(--acsv-top-h);'
   + 'display:flex;align-items:center;padding:0 24px;background:linear-gradient(rgba(0,0,0,.6),transparent);'
-  + 'z-index:30;pointer-events:none}'
+  + 'z-index:30;pointer-events:none;transition:right .28s ease}' // right 过渡供抽屉避让收窄（见下）
   + '.acsv-top *{pointer-events:auto}'
   + '.acsv-top .acsv-sbox{position:absolute;left:50%;transform:translateX(-50%);width:min(480px,44%)}'
-  + '.acsv-top-right{margin-left:auto;display:flex;gap:10px;transition:transform .28s ease}'
+  + '.acsv-top-right{margin-left:auto;display:flex;gap:10px}'
+  // 抽屉占槽时的顶栏让位（0.9.73）：顶栏整体收窄到抽屉左缘——右组随容器贴到抽屉边（不再吃
+  // transform），绝对居中的搜索框随容器自动回到剩余区中心，并按「剩余宽 − 右组预留」收窄，
+  // 绝不压到右组（0.9.72 遗留：右组 transform 左移后会与居中搜索框重叠）。预留 304 =
+  // 2×(im/upd/✕ 共 128) + 2×间距 12 + 两侧 48；源切换隐藏（抽屉开着时切源会静默重置背后
+  // 舞台）；视口窄到搜索框已不可用（<CFG.view.avoidTopW）时只留右组
+  + '#acsv-root.acsv-with-comments .acsv-top{right:var(--acsv-dw,380px)}'
+  + '#acsv-root.acsv-with-comments .acsv-seg{display:none}'
+  + '#acsv-root.acsv-with-comments .acsv-top .acsv-sbox{width:min(480px,44%,calc(100% - 304px))}'
+  + '@media (max-width:' + (CFG.view.avoidTopW - 1) + 'px){'
+  + '#acsv-root.acsv-with-comments .acsv-top .acsv-sbox{display:none}}'
+  // 视图态（0.9.73）：提到视图容器(55)/左栏(56)之上、抽屉(58)之下；实底+底边线对齐视图页底色
+  // （渐变是视频上的设计，不透明页上会发暗）。border 由 border-box 消化，offsetHeight 仍=72
+  // （harness topbar-72 精确断言依赖此点——不得加 padding/行高）
+  + '.acsv-top--view{background:#16161b;border-bottom:1px solid rgba(255,255,255,.08);z-index:57}'
+  // 视图态隐源切换：seg 只在竖刷有意义（0.9.73 前只是名义隐藏——视图里点它会静默重置背后
+  // feed 且零界面反馈，现在由 CSS 真正隐藏）
+  + '.acsv-top--view .acsv-seg{display:none}'
   + '.acsv-tbtn{width:36px;height:36px;border:none;border-radius:50%;background:rgba(255,255,255,.14);'
   + 'color:#fff;cursor:pointer;display:grid;place-items:center;font-size:16px;transition:transform .15s,background .15s}'
   + '.acsv-tbtn:hover{transform:scale(1.08);background:rgba(255,255,255,.25)}'
@@ -112,7 +129,10 @@ var RAW_CSS = ''
   + '.acsv-rail-btn.thrown .acsvg-icon-mask{background-color:#ffb323}' // 投过蕉：锁定蕉黄（A 站蕉色）
   + '.acsv-rail-btn.bump .acsvg-icon-mask{animation:acsv-bump .4s ease}'
   + '.acsv-rail-btn.thrown{cursor:default}'
-  + '.acsv-drawer{position:absolute;top:0;right:0;bottom:0;width:var(--acsv-dw,380px);z-index:45;display:flex;flex-direction:column;'
+  // 抽屉 z 58（0.9.73 由 45 提到视图态顶栏(57)之上）：视图里开抽屉时抽屉须盖住视图(55)/dock(56)/
+  // 顶栏(57)，顶栏右组靠避让平移贴到抽屉左缘保持可点；低于大图(60)/更新弹窗(65)。几何上
+  // 抽屉贴右、dock 贴左，两者不重叠——层级反转只保证「后开的浮层在上」与 overlay 栈序一致
+  + '.acsv-drawer{position:absolute;top:0;right:0;bottom:0;width:var(--acsv-dw,380px);z-index:58;display:flex;flex-direction:column;'
   + 'background:rgba(22,22,27,.96);backdrop-filter:blur(12px);border-left:1px solid rgba(255,255,255,.09);'
   + 'transform:translateX(100%);transition:transform .28s ease}'
   + '.acsv-drawer.open{transform:translateX(0)}'
@@ -248,16 +268,22 @@ var RAW_CSS = ''
   + '.acsv-space-tip{padding:30px 0;text-align:center;color:#999;font-size:13px}'
   // 评论抽屉避让（分层）：画面本体等比缩放+左移进剩余空间（几何与旧"整体缩放 scroller"一致——
   // 这些元素中心均=slide 中心，逐元素施加同一变换结果相同）；界面控件不缩放：
-  // 底栏钉底只收窄宽度（基础规则自带 right 过渡），侧栏/顶栏右组原尺寸左移。
+  // 底栏钉底只收窄宽度（基础规则自带 right 过渡），侧栏原尺寸左移；顶栏整体收窄到抽屉左缘
+  // （右组随容器内移、搜索框随容器自动回剩余区中心——0.9.73 收口，见顶栏段规则）。
   // 弹幕画布不参与变换：dmcanvas.align() 本就按视频视觉矩形定位，再叠 transform 会二次变换错位，
   // 只给它补同曲线的 left/top/width/height 过渡，让 align() 的 250ms 重定位随视频平滑滑动。
   // --acsv-dw（抽屉实际宽）/ --acsv-cscale（缩放比）由 JS 按 CFG.comments 写入 root
-  + '.acsv-video,.acsv-playicon,.acsv-errbox,.acsv-side,.acsv-top-right{transition:transform .28s ease}'
+  + '.acsv-video,.acsv-playicon,.acsv-errbox,.acsv-side{transition:transform .28s ease}'
   + '#acsv-root.acsv-with-comments .acsv-video,#acsv-root.acsv-with-comments .acsv-playicon,'
   + '#acsv-root.acsv-with-comments .acsv-errbox{transform:translateX(calc(var(--acsv-dw,380px) / -2)) scale(var(--acsv-cscale,1))}'
   + '#acsv-root.acsv-with-comments .acsv-dmcanvas{transition:left .28s ease,top .28s ease,width .28s ease,height .28s ease}'
   + '#acsv-root.acsv-with-comments .acsv-controls{right:var(--acsv-dw,380px)}'
-  + '#acsv-root.acsv-with-comments .acsv-side,#acsv-root.acsv-with-comments .acsv-top-right{transform:translateX(calc(var(--acsv-dw,380px) * -1))}'
+  + '#acsv-root.acsv-with-comments .acsv-side{transform:translateX(calc(var(--acsv-dw,380px) * -1))}'
+  // 视图正文让位（0.9.73）：抽屉占槽时视图正文右缘收窄到抽屉左缘——视图内容是「舞台」，与
+  // 竖刷同理念（卡片不缩放，只收窄可用宽，网格 auto-fill 自然重排）。正文 right 与抽屉
+  // transform 同用 .28s ease：线性插值下正文右缘恒等于抽屉左缘（逐帧贴合，无先跳后盖）。
+  // 中窄视口由 avoidW 护栏退化纯覆盖（视图不能像视频那样缩放，阈值只能比 avoidMin 更严）
+  + '@media (min-width:' + CFG.view.avoidW + 'px){#acsv-root.acsv-with-comments .acsv-view-body{right:var(--acsv-dw,380px)}}'
   // 画幅满高可容（竖屏/方屏/4:3，判据见 player.js panFitOf）：只平移不缩放——
   // 宽度驱动的缩放对高度受限的画面是纯浪费，平移后画面保持原始大小、居中于剩余区域
   + '#acsv-root.acsv-with-comments .acsv-slide[data-panfit="1"]>.acsv-video,'
@@ -381,7 +407,7 @@ var RAW_CSS = ''
   + 'border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:12px;text-decoration:none}'
   + '.acsv-share-center:hover{background:rgba(255,255,255,.2)}'
   // ---- 私信抽屉（列表 + 聊天两视图，评论抽屉同款滑入交互） ----
-  + '.acsv-msgdrawer{position:absolute;top:0;right:0;bottom:0;width:var(--acsv-dw,min(380px,88vw));z-index:50;'
+  + '.acsv-msgdrawer{position:absolute;top:0;right:0;bottom:0;width:var(--acsv-dw,min(380px,88vw));z-index:58;'
   + 'display:flex;flex-direction:column;background:rgba(22,22,27,.97);backdrop-filter:blur(12px);'
   + 'border-left:1px solid rgba(255,255,255,.09);transform:translateX(100%);transition:transform .28s ease}'
   + '.acsv-msgdrawer.open{transform:translateX(0)}'
@@ -576,7 +602,8 @@ var RAW_CSS = ''
   + '.acsv-upd-dot{position:absolute;top:-2px;right:-3px;width:9px;height:9px;border-radius:50%;'
   + 'background:var(--acsv-accent);box-shadow:0 0 0 2px rgba(22,22,27,.9)}'
   // ---- 左栏导航（0.9.63 抖音式）：全高贴左、图标+文字横排、当前项灰 pill ----
-  // z56：盖视图容器(55)、抽屉(45/50)，低于大图(60)/更新弹窗(65)——与 overlay 栈序一致。
+  // z56：盖视图容器(55)；低于视图态顶栏(57)/抽屉(58)/大图(60)/更新弹窗(65)——抽屉与 dock
+  // 几何不重叠（dock 贴左/抽屉贴右），该次序只保证「后开的浮层在上」与 overlay 栈序一致。
   // 主区让位：scroller/视图内容 margin/padding-left=CFG.view.dockW（抖音同款，视频居中于剩余空间）；
   // 已知取舍：评论抽屉避让中心仍按全视口算（不随 dock 右移），视觉可接受不展开
   + '.acsv-dock{position:absolute;left:0;top:0;bottom:0;width:' + CFG.view.dockW + 'px;'
@@ -595,13 +622,10 @@ var RAW_CSS = ''
   + '#acsv-root:fullscreen .acsv-dock{display:none}'
   + '#acsv-root:fullscreen .acsv-scroller{margin-left:0}'
   + '.acsv-view{position:absolute;inset:0;z-index:55;display:none;background:#16161b;overflow:hidden}'
-  + '.acsv-view-head{position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;'
-  + 'justify-content:flex-end;padding:0 20px 0 ' + (CFG.view.dockW + 14) + 'px;border-bottom:1px solid rgba(255,255,255,.08)}'
-  + '.acsv-view-x{border:none;background:rgba(255,255,255,.1);border-radius:50%;width:32px;height:32px;'
-  + 'cursor:pointer;color:#fff;font-size:15px;line-height:1;transition:background .15s}'
-  + '.acsv-view-x:hover{background:rgba(255,255,255,.2)}'
-  + '.acsv-view-body{position:absolute;top:52px;bottom:0;left:0;right:0;overflow-y:auto;'
-  + 'padding:6px 24px 30px ' + (CFG.view.dockW + 14) + 'px}'
+  // 视图正文顶=顶栏高（0.9.73 视图头删除：共享顶栏接管视图头部；不再写死 52px）。
+  // right 过渡供抽屉避让（收窄/还原与抽屉滑入滑出同曲线同时序）
+  + '.acsv-view-body{position:absolute;top:var(--acsv-top-h);bottom:0;left:0;right:0;overflow-y:auto;'
+  + 'padding:6px 24px 30px ' + (CFG.view.dockW + 14) + 'px;transition:right .28s ease}'
   + '.acsv-vsec{margin-bottom:26px}'
   + '.acsv-vsec-title{font-size:16px;font-weight:600;color:#fff;margin:18px 0 10px}'
   + '.acsv-vchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}'
@@ -718,10 +742,11 @@ var RAW_CSS = ''
   + 'background-image:linear-gradient(100deg,rgba(255,255,255,0) 40%,rgba(255,255,255,.07) 50%,rgba(255,255,255,0) 60%);'
   + 'background-size:200% 100%;animation:acsv-skel 1.4s linear infinite}'
   + '@keyframes acsv-skel{0%{background-position:120% 0}100%{background-position:-20% 0}}'
-  // 搜索视图（0.9.72 抖音式）：胶囊搜索框 + 结果网格。卡片复用我页 .acsv-g* 体系，
-  // 搜索域只加 .acsv-sgrid/.acsv-scell 与三个新件（播放数角标/时长角标/脚行）；
+  // 搜索视图（0.9.72 抖音式）：结果网格。0.9.73 起视图内的搜索胶囊（.acsv-vsrow）删除——
+  // 共享顶栏的搜索框即本视图唯一输入框（syncTopbar 按地址关键词回填）；.acsv-sbox 基础
+  // 胶囊样式保留为共享件（顶栏 .acsv-top .acsv-sbox 覆盖定位/宽度）。卡片复用我页
+  // .acsv-g* 体系，搜索域只加 .acsv-sgrid/.acsv-scell 与三个新件（播放数角标/时长角标/脚行）；
   // 封面 16:9 为搜索页原始比例（我页是 4:3 普通视频封面）——.acsv-sgrid 作用域内覆盖
-  + '.acsv-vsrow{display:flex;margin:4px 0 14px}'
   + '.acsv-sbox{display:flex;align-items:center;width:min(560px,100%);height:40px;padding:0 6px 0 16px;'
   + 'background:rgba(255,255,255,.1);border-radius:20px;transition:background .15s}'
   + '.acsv-sbox:focus-within{background:rgba(255,255,255,.16)}'
@@ -757,7 +782,7 @@ var RAW_CSS = ''
   + '.acsv-view-body::-webkit-scrollbar-track{background:transparent}'
   // 窄屏：dock 隐藏（CFG.view.narrow），主区/信息区/视图内容还原满宽
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-dock{display:none}.acsv-scroller{margin-left:0}'
-  + '.acsv-info{left:24px}.acsv-view-body,.acsv-view-head{padding-left:20px}}'
+  + '.acsv-info{left:24px}.acsv-view-body{padding-left:20px}}'
   // 窄屏顶栏（0.9.72）：dock 已隐藏 → 顶栏还原满宽；居中胶囊改流内自适应（不再绝对居中，
   // 否则会压到右侧按钮组上）
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-top{left:0;padding:0 16px}'

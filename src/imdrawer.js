@@ -899,27 +899,42 @@ testHook('imDrawerSmoke', function () {
     bubblesConnected: !!(drawer.bubbles && drawer.bubbles.isConnected)
   };
 });
+// 视图态避让冒烟（0.9.73）：走真实开抽屉路径（浮层栈 + 抽屉槽 + 避让根类三步），但不拉
+// ImSdk/不轮询/不依赖登录——抽屉×视图的避让几何（正文收窄/右组平移/降级）与 Esc 链的
+// 确定性验证面。与 imDrawerSmoke 的分工：那个只验骨架 DOM，这个验避让编排
+testHook('imOpenSmoke', function () {
+  if (!root) setRoot(document.body); // harness 最小页无 player 挂载，root 兜底（仅调试构建可达）
+  ensureDrawerDom();
+  openDrawerCore();
+  return {
+    open: drawer.el.classList.contains('open'),
+    withComments: root.classList.contains('acsv-with-comments'),
+    drawerConnected: drawer.el.isConnected
+  };
+});
 // 抽屉槽位（state.js 协调）：开前 claim 占槽（评论抽屉开着则被自动收回），关时 release；
 // 视频避让根类由 syncCommentVars 按 currentDrawer() 统一裁决
-export function openDrawer() {
-  if (!isLogined()) { toast('私信需要先登录 AcFun 账号'); return; }
-  ensureDrawerDom();
-  prewarmIm(); // 首图提前换好 midground 令牌，进会话不等 token 往返
+// 开抽屉的共用核心（0.9.73 抽出）：浮层栈 + 槽位 + 避让根类三步同源。生产两入口
+// （openDrawer/openChat）与测试缝（imOpenSmoke）共用——测试不再自建 .open 绕过避让路径
+function openDrawerCore() {
   // overlayOpen 先于 claimDrawer：同 openComments（0.9.64 顺序回归修复，防幂等收旧清槽后摘避让类）
   overlayOpen({ id: 'im', close: closeDrawer }); // 非模态层：不拦导航键，Esc 接栈
   claimDrawer('im', closeDrawer);
   drawer.el.classList.add('open');
-  syncCommentVars(); // 复用评论抽屉的避让（视频平移缩放/控制栏侧栏让位）
+  syncCommentVars(); // 复用评论抽屉的避让（视频平移缩放；0.9.73 起视图正文右缘收窄，见 styles.js）
+}
+export function openDrawer() {
+  if (!isLogined()) { toast('私信需要先登录 AcFun 账号'); return; }
+  ensureDrawerDom();
+  prewarmIm(); // 首图提前换好 midground 令牌，进会话不等 token 往返
+  openDrawerCore();
   showList();
 }
 export function openChat(targetId) {
   if (!isLogined()) { toast('私信需要先登录 AcFun 账号'); return; }
   ensureDrawerDom();
   prewarmIm(); // 同 openDrawer：分享面板直达会话也不等 token 往返
-  overlayOpen({ id: 'im', close: closeDrawer });
-  claimDrawer('im', closeDrawer);
-  drawer.el.classList.add('open');
-  syncCommentVars();
+  openDrawerCore();
   showChat(String(targetId));
 }
 export function closeDrawer() {

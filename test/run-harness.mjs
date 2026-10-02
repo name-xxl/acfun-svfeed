@@ -47,6 +47,9 @@ const HARNESS_CASES = [
   { name: 'view-my' }, // 0.9.62 我的视图冒烟（hash 子路由 + __ACSV_MOCK_FORM__ 缝，debug 构建）
   { name: 'view-zone' }, // 0.9.62 分区榜单视图冒烟（渠道/榜期切换 + 契约过滤，debug 构建）
   { name: 'view-search' }, // 0.9.72 搜索视图冒烟（搜索页 SSR HTML mock → 抖音式结果卡，debug 构建）
+  // 0.9.73 顶栏四界面复用 + 抽屉避让推广：抽屉×视图的避让几何/降级/Esc 链（imOpenSmoke 缝）
+  { name: 'view-im' },        // 宽视口：正文右缘收窄到抽屉左缘 + 顶栏右组让位 + Esc 链
+  { name: 'view-im-narrow', viewport: { width: 1000, height: 720 } }, // 中窄视口（<CFG.view.avoidW）：降级纯覆盖
   // 0.9.72 深链冒烟：hash 须在 bundle 前写好（冷启动深链路径）+ __ACSV_MOCK_FORM__ 的
   // douga/info 桩 + TEST.feed 断言，故全为 debug 构建
   { name: 'deeplink-sv' },      // v 标记形态置顶 + 挂载态就地跳转（不重置缓冲）
@@ -60,7 +63,8 @@ const CASES = HARNESS_CASES.map(function (c) {
   return {
     name: c.name,
     url: '/test/harness.html?case=' + c.name + (c.release ? '&bundle=release' : ''),
-    key: '__HARNESS_RESULTS__'
+    key: '__HARNESS_RESULTS__',
+    viewport: c.viewport // 少数场景需要特定视口（如 avoidW 护栏的窄态）；缺省用 Playwright 默认 1280×720
   };
 }).concat([{
   // dm-smoke 固定加载 debug 构建（依赖 testHook 模拟缝），自身确定性泵帧
@@ -156,7 +160,7 @@ for (var i = 0; i < CASES.length; i++) {
   var skip = HEADLESS_SKIP.filter(function (s) { return s.name === c.name; })[0];
   if (skip) { console.log('SKIP ' + c.name + ' — ' + skip.reason); continue; }
 
-  var page = await browser.newPage();
+  var page = await browser.newPage(c.viewport ? { viewport: c.viewport } : undefined);
   try {
     await page.goto('http://127.0.0.1:' + port + c.url, { waitUntil: 'load' });
     await page.waitForFunction(

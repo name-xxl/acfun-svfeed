@@ -56,16 +56,8 @@ function resumeCurrentVideo() {
   }
 }
 
-// 视图头（0.9.71 只留关闭键）：标题字删除——左栏 dock 已有选中态（label+高亮），
-// 顶部再写一遍是重复信息；✕ 保留（鼠标操作出口，Esc 同效）
-function buildHead() {
-  var head = el('div', 'acsv-view-head');
-  var x = el('button', 'acsv-view-x', '✕');
-  x.title = '返回竖刷（Esc）';
-  x.addEventListener('click', backToFeed);
-  head.appendChild(x);
-  return head;
-}
+// 视图头（0.9.71 只留关闭键；0.9.73 整头删除）：关闭出口由共享顶栏的 ✕ 提供
+// （syncTopbar 已把 title/语义切成「返回竖刷（Esc）」，鼠标/键盘两条出口都在顶栏）
 
 function enterView(id, arg) {
   var def = registry[id];
@@ -83,7 +75,6 @@ function enterView(id, arg) {
   }
   root.classList.add('acsv-with-view');
   var body = el('div', 'acsv-view-body');
-  container.appendChild(buildHead());
   container.appendChild(body);
   // 必须显式 'block'：CSS 里 .acsv-view 初始 display:none，'' 会回落到样式表值——
   // 0.9.62 黑屏 bug 根因（内容渲染了但容器不可见，harness 断言只查内联值被骗过）
@@ -101,6 +92,11 @@ function exitView(restore) {
   wasPlaying = false;
   current = null;
   overlayClose('view'); // Esc 路径已出栈时空转；hash 变更路径由此同步栈
+  // 0.9.73 对称收尾：视图内新开的浮层（私信抽屉/更新弹窗）随视图一并收——与 enterView
+  // 的 overlayTeardown 成对，避免「回竖刷后抽屉还挂着、视频被避让顶开」的跨舞台残留。
+  // 顺序契约：必须在 current=null 之后（overlayClose('view') 的 close 回调 backToFeed
+  // 靠 current 守卫早退，0.9.63 教训）
+  overlayTeardown();
   if (def.teardown) { try { def.teardown(); } catch (e) { } }
   if (container) { container.innerHTML = ''; container.style.display = 'none'; }
   if (root) root.classList.remove('acsv-with-view');
@@ -133,7 +129,8 @@ export function syncRouteView() {
     exitView(true);
   }
   syncDock(r.view);
-  syncTopbar(r.view); // 顶栏按界面同步（0.9.72：视图态隐源切换 + ✕ 语义=返回竖刷）
+  // 顶栏按界面同步（0.9.73：四处复用——视图态隐源切换 + ✕ 语义=返回竖刷；搜索视图回填关键词）
+  syncTopbar(r.view, r.viewArg);
 }
 
 // 整流卸载（player.unmount 调）：不恢复播放（视频随后统一拆除），清容器与栈成员

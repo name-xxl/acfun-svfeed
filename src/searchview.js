@@ -2,16 +2,17 @@ import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { requestText } from './net.js';
 import { parseSearchItems } from './data.js';
-import { GLYPHS } from './imicons.js';
 import { registerView, gridCardOf } from './views.js';
+import { setSearchHandler, focusSearch } from './topbar.js';
 
 // ---------- 搜索视图（0.9.72 抖音式）：顶栏搜索框 / 地址栏直达 → 结果网格卡 ----------
 // 数据源实测（docs/api-research.md「站内搜索」，2026-10-02）：GET www.acfun.cn/search?keyword=
 // 是 **SSR 整页 HTML**（非 JSON），条目由 data.parseSearchItems 区段收窄解析（播放/时长/UP/
 // 日期全有）；?pageNo= 实测无效（1/2 页同一结果集）→ 只做首屏，底部给「去 A 站搜索页看全部」
 // 出口（不做假的加载更多）。
-// 关键词唯一真源 = 地址栏（#svfeed/search/<kw>，route.js 已放行视图关键词段）：顶栏搜索框提交
-// 与视图内输入框 Enter 都写地址，换词由 hashchange → 视图按 arg 重建（views.js 的 arg 比对）
+// 关键词唯一真源 = 地址栏（#svfeed/search/<kw>，route.js 已放行视图关键词段）。0.9.73 起视图内
+// 不再自建输入框：共享顶栏的搜索框就是它（syncTopbar 按 arg 回填；本视图挂载期经
+// setSearchHandler 接管提交——同词再回车 hash 不变，必须就地重跑；teardown 还原默认提交）
 var seq = 0; // 换词竞态令牌（旧响应丢弃；跨重建单调递增）
 
 function runSearch(kw, ui) {
@@ -54,19 +55,6 @@ function runSearch(kw, ui) {
 }
 
 function buildSearchView(body, arg) {
-  var row = el('div', 'acsv-vsrow');
-  var pill = el('div', 'acsv-sbox');
-  var input = el('input');
-  input.type = 'search';
-  input.placeholder = '搜索 A 站视频';
-  var btn = el('button', 'acsv-sbtn');
-  btn.title = '搜索';
-  btn.appendChild(el('i', 'acsvg-glyph', GLYPHS.search));
-  pill.appendChild(input);
-  pill.appendChild(btn);
-  row.appendChild(pill);
-  body.appendChild(row);
-
   var state = el('div', 'acsv-sstate');
   var grid = el('div', 'acsv-sgrid');
   var foot = el('div', 'acsv-sfoot');
@@ -83,24 +71,25 @@ function buildSearchView(body, arg) {
     }
   };
 
-  function submit() {
-    var kw = String(input.value || '').trim();
+  // 顶栏输入框提交（setSearchHandler 接管期）
+  function submit(kw) {
     var target = CFG.hash + '/search' + (kw ? '/' + encodeURIComponent(kw) : '');
     // 关键词唯一真源 = 地址栏（可分享/刷新回放）：换词走 hashchange → 视图按 arg 重建；
     // 同词再搜 hash 不变（不触发 hashchange），就地重跑一次
     if (location.hash === '#' + target) { runSearch(kw, ui); return; }
     location.hash = target;
   }
-  input.addEventListener('keydown', function (ev) {
-    // 输入框聚焦期间的按键不进竖刷手柄（input.js 另有 target 豁免，这里双保险 + 阻止表单语义）
-    if (ev.key === 'Enter') { ev.preventDefault(); submit(); }
-  });
-  btn.addEventListener('click', submit);
 
+  setSearchHandler(submit);
   var kw0 = String(arg || '').trim();
-  input.value = kw0;
   runSearch(kw0, ui); // 有词即自动搜（顶栏提交/深链直达）；空词出引导态
-  if (!kw0) { try { input.focus(); } catch (e) { } }
+  if (!kw0) focusSearch();
 }
 
-registerView({ id: 'search', build: buildSearchView });
+// 退出/重建时还原默认提交（player.navSearch）——不还原则离开搜索视图后顶栏 Enter 仍打在本
+// 视图的旧闭包上（写 hash 前先撞同词判定，表现为"点了没反应"）
+function teardownSearchView() {
+  setSearchHandler(null);
+}
+
+registerView({ id: 'search', build: buildSearchView, teardown: teardownSearchView });
