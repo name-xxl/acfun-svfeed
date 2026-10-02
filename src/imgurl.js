@@ -28,20 +28,41 @@ var CI_QUERY = /[?&](imageMogr2|imageView2|x-oss-process)/i;
 //   ① 归一 URL + no-referrer（全项目图片基线策略）
 //   ② 600ms 后换**不同** URL：CI 形态→去 query 回原图；否则追加 acsv_r 破缓存参数。
 //      必须换 URL：浏览器对失败过的 URL 有负缓存，原样重发可能不打网络直接再报错
-//   ③ 1200ms 后同 ② 的 URL、referrer 改默认策略（发 https://www.acfun.cn/ 原生同款
-//      referer，兜住宿主防盗链把 no-referrer 拒掉的情况——原生页面能看说明白名单在）
+//   ③ 1200ms 后**再换一个 URL**（同款破缓存尾参，值不同）并把 referrer 改默认策略
+//      （发 https://www.acfun.cn/ 原生同款 referer，兜住宿主防盗链把 no-referrer 拒掉的情况
+//      ——原生页面能看说明白名单在）。0.9.76 第三跳只换 referrer 不换 URL，与该理由自相矛盾
+//      （同一 URL 吃负缓存就连请求都发不出去），0.9.77 修
 // data:/blob:（测试夹具与本地 blob）只一跳：不重试也没意义，且 harness 断言要确定性。
 // 空/空白输入 → []（调用方据此不挂 img，与旧行为一致）
 export function coverAttempts(raw, now) {
   var u = coverUrl(raw);
   if (!u) return [];
   if (/^(data|blob):/i.test(u)) return [{ url: u, ref: 'no-referrer', delay: 0 }];
+  var t = Number(now) || Date.now();
   var out = [{ url: u, ref: 'no-referrer', delay: 0 }];
   var q = u.indexOf('?');
   var alt;
   if (CI_QUERY.test(u) && q > 0) alt = u.slice(0, q);
-  else alt = u + (q > 0 ? '&' : '?') + 'acsv_r=' + (Number(now) || Date.now());
+  else alt = u + (q > 0 ? '&' : '?') + 'acsv_r=' + t;
   out.push({ url: alt, ref: 'no-referrer', delay: 600 });
-  out.push({ url: alt, ref: 'strict-origin-when-cross-origin', delay: 1200 });
+  out.push({ url: alt + (alt.indexOf('?') >= 0 ? '&' : '?') + 'acsv_r3=' + t,
+    ref: 'strict-origin-when-cross-origin', delay: 1200 });
   return out;
+}
+
+// ---------- 死链备忘（会话级）纯判定（0.9.77） ----------
+// 'fresh' 未记录 | 'dead' 记死且未过期 | 'expired' 已过期（旧记录即时清除，给一次复试机会）。
+// 判定**只读不写不续期**——0.9.76 的终败路径每渲染一次就重写时间戳，反复进出的视图会让
+// 死链永不过 TTL（与「过期给一次重试机会」的设计意图相反）。写入与容量裁剪分开：
+//   memoMark(memo, url, now) 首次判死才调；命中 'dead' 的路径不得回写
+export function memoState(memo, url, now, ttl) {
+  var t = memo.get(url);
+  if (t == null) return 'fresh';
+  if (Number(now) - t < ttl) return 'dead';
+  memo.delete(url);
+  return 'expired';
+}
+// 容量裁剪：超限按插入序淘汰最旧（Map 迭代序即插入序）
+export function memoTrim(memo, max) {
+  while (memo.size > max) memo.delete(memo.keys().next().value);
 }

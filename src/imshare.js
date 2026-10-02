@@ -1,6 +1,7 @@
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
 import { el, toast, copyText, cookieVal } from './ui.js';import { postForm } from './appapi.js';
+import { imgInto } from './imgload.js';
 import { openChat } from './imdrawer.js';
 import { quoteWireText, QUOTE_EXTRA_KEY, CMT_EXTRA_KEY } from './immsg.js';
 
@@ -856,11 +857,8 @@ function renderRows(pop, list, contacts, item, inst) {
       row.dataset.name = (card.name || '').toLowerCase();
       row.dataset.tid = c.targetId;
 
-      var av = el('img', 'acsv-share-av');
-      av.referrerPolicy = 'no-referrer';
-      av.src = (card.headUrl || CFG.api.defaultAvatar).split('?')[0];
-      av.addEventListener('error', function () { av.src = CFG.api.defaultAvatar; });
-      row.appendChild(av);
+      // 头像走共享加载器（0.9.77，与私信列表同一份）：归一 + 重试 + 默认头像兜底
+      imgInto(row, card.headUrl || CFG.api.defaultAvatar, 'avatar', 'acsv-share-av');
 
       var name = el('div', 'acsv-share-name', card.name || '用户 ' + c.targetId);
       if (c.unread > 0) {

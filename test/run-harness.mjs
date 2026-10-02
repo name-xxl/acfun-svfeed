@@ -100,13 +100,21 @@ const MIME = {
 const PIXEL_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNwcHD4DwADRAHA6ce2AgAAAABJRU5ErkJggg==',
   'base64');
-const flakyHits = {};
+// 夹具请求计数（0.9.77）：暴露成 /__hits 供场景页读取——让「重试链真的发了三发」「备忘命中的
+// 二次进入零请求」变成可证断言（0.9.76 的 cover-retry-loads 只断终态，计数器从不被读）
+const pathHits = {};
 
 function serve(req, res) {
   var urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (urlPath === '/__hits') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(pathHits));
+  }
+  if (urlPath === '/flaky-cover.png' || urlPath === '/nope-404.png') {
+    pathHits[urlPath] = (pathHits[urlPath] || 0) + 1;
+  }
   if (urlPath === '/flaky-cover.png') {
-    flakyHits[urlPath] = (flakyHits[urlPath] || 0) + 1;
-    if (flakyHits[urlPath] < 2) { res.writeHead(404); return res.end('not found'); }
+    if (pathHits[urlPath] < 2) { res.writeHead(404); return res.end('not found'); }
     res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': PIXEL_PNG.length });
     return res.end(PIXEL_PNG);
   }

@@ -11,7 +11,7 @@ import {
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap, emotify } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
-import { lazyObserve } from './imgload.js';
+import { imgInto, lazyObserve } from './imgload.js';
 import { ubbQuoteHtml } from './ubb.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import {
@@ -282,11 +282,9 @@ function renderList(kw, ss) {
     shown++;
     var row = el('div', 'acsv-im-row');
     row.dataset.tid = r.targetId;
-    var av = el('img', 'acsv-im-av');
-    av.referrerPolicy = 'no-referrer';
-    av.src = (card.headUrl || CFG.api.defaultAvatar).split('?')[0];
-    av.addEventListener('error', function () { av.src = CFG.api.defaultAvatar; });
-    row.appendChild(av);
+    // 头像走共享加载器（0.9.77，与分享面板同一份）：归一 + 重试 + 默认头像兜底；
+    // 旧实现手拼 src + split('?')[0] + onerror 兜底，与 imshare 同构双份（改一处漏一处）
+    imgInto(row, card.headUrl || CFG.api.defaultAvatar, 'avatar', 'acsv-im-av');
     var mid = el('div', 'acsv-im-mid');
     var nm = el('div', 'acsv-im-name');
     nm.innerHTML = esc(name) + (r.unread > 0 ? '<span class="acsv-share-unread">' + (r.unread > 99 ? '99+' : r.unread) + '</span>' : '');

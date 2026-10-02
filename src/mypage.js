@@ -84,45 +84,52 @@ function buildHistory(panel) {
   var list = rowList(panel, 'hist');
   var btn = moreBtn(load);
   panel.appendChild(btn);
-  var pageNo = 0;
+  var pageNo = 0, seq = 0; // seq：换页/重试令牌，旧回包丢弃（0.9.77，searchview 同款模式）
 
-  function load(b) {
+  function load() {
+    var my = ++seq;
     var gone = skeleton(list);
     postForm(CFG.api.history,
       'pageNo=' + (pageNo + 1) + '&pageSize=' + CFG.view.pageSize
       + '&resourceTypes=1&resourceTypes=2').then(function (j) {
         gone();
-        if (!list.isConnected) return; // 退出视图/重建：在途回包丢弃
-        if (b) { b.disabled = false; b.textContent = '加载更多'; }
+        if (my !== seq || !list.isConnected) return; // 过期/退出视图：在途回包丢弃
+        btn.disabled = false;
+        btn.textContent = '加载更多';
+        var raws = (j && j.histories) || [];
         var rows = [];
-        ((j && j.histories) || []).forEach(function (raw) {
+        raws.forEach(function (raw) {
           var pi = panelItem('history', raw);
           if (pi) rows.push(pi);
         });
         pageNo++;
         rows.forEach(function (pi) { list.appendChild(gridCardOf(pi)); });
-        // 到底判定：本页有票数不足一页或零条（空页防死循环，feedstore 同款）
-        if (rows.length < CFG.view.pageSize && b) b.style.display = 'none';
+        // 到底判定按**原始条数**（非筛除后条数）：契约层会滤掉非视频条目（番剧/无 videoId），
+        // 「有效行 < pageSize」在筛除后恒真会把还有下一页的列表误判成到底（0.9.77 实锤：
+        // mock 首页 20 原始 → 18 有效，按有效数判到底则第二页 4 条永远拉不到）。
+        // 判据用闭包 btn（恒在）：首屏 b 不存在，旧实现首屏到底仍显示「加载更多」
+        if (raws.length < CFG.view.pageSize) btn.style.display = 'none';
         if (!rows.length && pageNo === 1) list.appendChild(el('div', 'acsv-vempty', '暂无观看记录'));
       }, function () {
         gone();
-        if (!list.isConnected) return;
-        if (b) { b.disabled = false; b.textContent = '加载失败，点击重试'; }
-        else if (pageNo === 0) list.appendChild(el('div', 'acsv-vempty', '加载失败，稍后重试'));
+        if (my !== seq || !list.isConnected) return;
+        btn.disabled = false;
+        btn.textContent = '加载失败，点击重试';
       });
   }
-  load(null);
+  load();
 }
 
 // ---- 收藏夹：夹 chips（列表之上）→ 单夹 dougaList 翻页 ----
 function buildFav(panel) {
   var chips = el('div', 'acsv-vchips');
   var list = rowList(panel, 'fav');
-  var btn = moreBtn(null);
+  // 0.9.77 修：旧实现 moreBtn(null) 仍被其内部 onClick(b) 调用——每次点击抛 TypeError 且
+  // 按钮卡死「加载中…」（load 收的是 null，无人复位）。改为经 moreBtn 回调统一驱动
+  var btn = moreBtn(function () { load(); });
   panel.appendChild(btn);
-  var folderId = null, page = 0;
+  var folderId = null, page = 0, seq = 0; // seq：换夹令牌，旧夹在途回包丢弃（0.9.77）
 
-  btn.addEventListener('click', function () { if (folderId) load(null); });
   var gone = skeleton(list);
   postForm(CFG.api.favFolderList, '').then(function (j) {
     gone();
@@ -142,10 +149,12 @@ function buildFav(panel) {
         c.classList.add('on');
         folderId = f.folderId;
         page = 0;
+        seq++; // 作废旧夹在途回包（慢网连点换夹：旧行不得追加进新夹列表）
         list.innerHTML = '';
         btn.style.display = '';
+        btn.disabled = false;
         btn.textContent = '加载更多';
-        load(null);
+        load();
       });
       chips.appendChild(c);
       if (i === 0) folderId = f.folderId; // 默认选中第一个夹
@@ -153,7 +162,7 @@ function buildFav(panel) {
     // chips 插在**列表之前**（0.9.69 修：原先 insertBefore(chips, btn) 落在列表下方，
     // 夹位选择器跑到视频行底下；真机几何实测 favRow0 y=833 < chips y=997 实锤）
     panel.insertBefore(chips, list);
-    if (folderId) load(null);
+    if (folderId) load();
   }, function () {
     gone();
     if (!list.isConnected) return;
@@ -161,13 +170,20 @@ function buildFav(panel) {
     btn.style.display = 'none';
   });
 
-  function load(b) {
+  function load() {
+    if (!folderId) { // 夹列表未到（按钮先于数据可见）：复位按钮，不发废请求
+      btn.disabled = false;
+      btn.textContent = '加载更多';
+      return;
+    }
+    var my = ++seq;
     postForm(CFG.api.favDougaList,
       'folderId=' + folderId + '&page=' + (page + 1) + '&perpage=' + CFG.view.pageSize)
       .then(function (j) {
-        if (!list.isConnected) return;
+        if (my !== seq || !list.isConnected) return; // 过期/退出视图：在途回包丢弃
         page++;
-        if (b) { b.disabled = false; b.textContent = '加载更多'; }
+        btn.disabled = false;
+        btn.textContent = '加载更多';
         var rows = [];
         ((j && j.favoriteList) || []).forEach(function (raw) {
           var pi = panelItem('fav', raw);
@@ -178,8 +194,9 @@ function buildFav(panel) {
         if ((j && rows.length < CFG.view.pageSize) || !rows.length) btn.style.display = 'none';
         if (!rows.length && page === 1) list.appendChild(el('div', 'acsv-vempty', '这个夹还没有收藏'));
       }, function () {
-        if (!list.isConnected) return;
-        if (b) { b.disabled = false; b.textContent = '加载失败，点击重试'; }
+        if (my !== seq || !list.isConnected) return;
+        btn.disabled = false;
+        btn.textContent = '加载失败，点击重试';
       });
   }
 }

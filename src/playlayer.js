@@ -59,11 +59,24 @@ function mountSlide(body, item) {
   attachVideo(slide, item, OVL_IDX); // 懒解析/错误恢复/弹幕/互动栏/上报全走既有链路
 }
 
-function buildErr(body, msg) {
+// 错误盒 + 盒内重试（0.9.77 修）：重试键必须在盒内且点击时整盒撤除——.acsv-errbox 是
+// inset:0 的全幅遮罩（styles.js），旧实现把按钮挂盒外、点击只摘按钮，重载成功后错误盒
+// 仍覆盖在视频上（文案常驻 + 吃掉点按），反复失败还会一盒一盒叠起来。
+// 网络失败分支同走此盒：两条失败路径的出口形态一致（此前该分支无重试口）。
+function buildErr(body, msg, onRetry) {
   var box = el('div', 'acsv-errbox');
   box.style.display = 'grid'; // 同 player.showLoadError：错误盒与转圈不并存
   box.appendChild(el('p', null, msg));
+  if (onRetry) {
+    var b = el('button', 'acsv-retry', '重试');
+    b.addEventListener('click', function () {
+      box.remove(); // 先撤盒再重跑：盒在则遮罩在
+      onRetry();
+    });
+    box.appendChild(b);
+  }
   body.appendChild(box);
+  return box;
 }
 
 function buildPlayView(body, arg) {
@@ -76,27 +89,23 @@ function buildPlayView(body, arg) {
     mountSlide(body, itemOfPanel(st)); // 即时首帧：面板已有标题封面，直链交会话解析链补
     return;
   }
-  // 深链/刷新直达：先解析（拿标题/封面/来源），失败出错误盒 + 重试（绝不静默）
+  // 深链/刷新直达：先解析（拿标题/封面/来源），失败出错误盒 + 重试（绝不静默）。
+  // load() 自带转圈进出：每次重跑先挂 spinner、结束时撤（成功/失败都不留）
   var spinner = el('div', 'acsv-spinner');
-  body.appendChild(spinner);
-  (function load() {
+  function load() {
+    body.appendChild(spinner);
     API.deepLink(id, parseRoute().src).then(function (hit) {
       if (!body.isConnected) return; // 期间已离开播放层
       spinner.remove();
-      if (!hit) {
-        buildErr(body, '视频加载失败');
-        var b = el('button', 'acsv-retry', '重试');
-        b.addEventListener('click', function () { b.remove(); body.appendChild(spinner); load(); });
-        body.appendChild(b);
-        return;
-      }
+      if (!hit) { buildErr(body, '视频加载失败', load); return; }
       mountSlide(body, hit.item);
     }, function () {
       if (!body.isConnected) return;
       spinner.remove();
-      buildErr(body, '视频加载失败（网络不可达）');
+      buildErr(body, '视频加载失败（网络不可达）', load);
     });
-  })();
+  }
+  load();
 }
 
 function teardownPlayView() {

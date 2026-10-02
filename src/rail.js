@@ -1,6 +1,7 @@
 import { CFG } from './cfg.js';
 import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
 import { el, elHtml, fmt, toast } from './ui.js';
+import { imgInto } from './imgload.js';
 import { FeedStore } from './feedstore.js';
 import { setRealLike, setRealFollow, setRealFavorite, giveBanana } from './interact.js';
 import { toggleItemComments } from './comments.js';
@@ -26,11 +27,10 @@ export function buildSideRail(slide, item, goTo) {
     var a = el('a');
     a.href = item.userId ? CFG.api.userBase + item.userId : item.shareUrl;
     a.target = '_blank';
-    var av = el('img', 'acsv-avatar');
-    av.referrerPolicy = 'no-referrer';
-    av.src = item.head.split('?')[0];
-    av.title = item.userName;
-    a.appendChild(av);
+    // 头像走共享加载器（0.9.77）：归一 + 重试 + 默认头像兜底；query 绝不手剥
+    //（旧代码 split('?')[0] 与 imgurl 的「query 一律保留」契约相悖，签名头像会裂）
+    var av = imgInto(a, item.head, 'avatar', 'acsv-avatar');
+    if (av) av.title = item.userName;
     avWrap.appendChild(a);
     if (item.userId) {
       var fb = el('div', 'acsv-followbtn' + (item.isFollowing ? ' on' : ''), item.isFollowing ? '✓' : '+');

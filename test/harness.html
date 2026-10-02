@@ -413,20 +413,27 @@
         }
         var remountFails = 0;
         var remountMaxMs = 0;
-        async function remountStep(fn) { // 每步允许重试一次：全量跑尾部负载抖动（实测偶发一步 >15s，
+        var remountNote = ''; // 失败/最慢那轮的分解（unmount/mount 各自耗时与失守步）
+        async function remountStep(fn, tag, note) { // 每步允许重试一次：全量跑尾部负载抖动（实测偶发一步 >15s，
                                          // 真机同路径 3.5s 内完成）与真卡死分开——两步都超窗才计数
-          if (await waitFor(fn, 15000)) return true;
-          return await waitFor(fn, 15000);
+          var t = performance.now();
+          if (await waitFor(fn, 15000)) { note[tag] = Math.round(performance.now() - t); return true; }
+          if (await waitFor(fn, 15000)) { note[tag] = Math.round(performance.now() - t); return true; }
+          note[tag] = 'FAIL@' + location.hash;
+          return false;
         }
         async function remount() { // 模拟用户退出再进竖刷页（unmount→mount 全链）。窗宽与计数：
                                   // 静默超时会让后续断言指向错误对象（全量跑踩实——unmount 超窗时
                                   // 相位②整体空转，弹窗直到下一次 remount 才出现，报错全落在错的地方）
           var t0 = performance.now();
+          var note = {};
           location.hash = 'upd-off';
-          if (!(await remountStep(function () { return !document.getElementById('acsv-root'); }))) remountFails++;
+          if (!(await remountStep(function () { return !document.getElementById('acsv-root'); }, 'unmount', note))) remountFails++;
           location.hash = 'svfeed';
-          if (!(await remountStep(function () { return document.getElementById('acsv-root'); }))) remountFails++;
-          remountMaxMs = Math.max(remountMaxMs, Math.round(performance.now() - t0));
+          if (!(await remountStep(function () { return document.getElementById('acsv-root'); }, 'mount', note))) remountFails++;
+          var ms = Math.round(performance.now() - t0);
+          remountMaxMs = Math.max(remountMaxMs, ms);
+          if (remountFails || ms > 15000) remountNote = JSON.stringify(note) + ' total=' + ms;
         }
         function updModal() { return document.querySelector('.acsv-upd'); }
         function updDot() { return document.querySelector('.acsv-upd-dot'); }
@@ -494,7 +501,8 @@
         var ubx = updModal() && updModal().querySelector('.acsv-upd-x');
         if (ubx) ubx.click();
         // remount 全链健康（4 次 unmount→mount 无静默超时）+ 最慢一轮耗时（超窗预警）
-        rec('remount-ok', remountFails === 0, 'fails=' + remountFails + ' maxMs=' + remountMaxMs);
+        rec('remount-ok', remountFails === 0, 'fails=' + remountFails + ' maxMs=' + remountMaxMs
+          + (remountNote ? ' note=' + remountNote : ''));
 
       } else if (CASE === 'view-my') {
         // 我的视图冒烟（0.9.62 起；0.9.69 抖音式改造：资料头/Tab 惰性/网格卡/骨架/chips 顺序）：
@@ -738,6 +746,42 @@
             return im.naturalWidth > 0 || im.classList.contains('acsv-imgfail');
           });
         })());
+        // ---- 网络面证据（0.9.77）：计数端点 /__hits 让「重试链真的打了网络」可证
+        //（此前只断终态——终态在重试链没跑的情况下也可能为真，属弱断言）----
+        async function hitsOf(p) {
+          try { return (await (await fetch('/__hits')).json())[p] || 0; } catch (e) { return -1; }
+        }
+        rec('cover-retry-counted', (await hitsOf('/flaky-cover.png')) === 2,
+          'flaky=' + (await hitsOf('/flaky-cover.png'))); // 首拉 404 + 换 URL 重拉 200：恰好两发
+        rec('cover-dead-exhausted', (await hitsOf('/nope-404.png')) === 3,
+          'dead=' + (await hitsOf('/nope-404.png'))); // 三跳两两换 URL：恰好三发
+        // ---- 二次进入（0.9.77 备忘语义）：死链备忘命中 → 连一发请求都不发（img 从未拿到
+        // src），但仍出降级占位（用户可读结果不变）。0.9.76 的续期语义下这里会再打三发 ----
+        // 退出必须等视图真的拆掉（view=null + DOM 消失）才继续：waitFor 首判是同步的，
+        // 若在同一 task 内紧接着重写 hash，浏览器会把两次 fragment 变化合并成净零变化、
+        // 一个 hashchange 都不发——视图从未退出，也就谈不上"重建"（踩实教训，写进断言里）
+        key('Escape');
+        rec('cover-exit', !!(await waitFor(function () {
+          return location.hash === '#svfeed' && document.querySelectorAll('.acsv-view').length === 0;
+        }, 8000)), location.hash + ' views=' + document.querySelectorAll('.acsv-view').length);
+        location.hash = 'svfeed/my';
+        rec('cover-reenter', !!(await waitFor(function () {
+          return document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 3;
+        }, 10000)));
+        rec('cover-reenter-degrade', !!(await waitFor(function () {
+          var b = coverBox('死链封面');
+          var img = b && b.querySelector('img');
+          return !!img && img.classList.contains('acsv-imgfail') && !!b.querySelector('.acsv-gph');
+        }, 8000)));
+        rec('cover-memo-no-src', (function () { // 备忘命中：这条死链的 src 从未赋值（零网络）
+          var b = coverBox('死链封面'), img = b && b.querySelector('img');
+          return !!img && !img.getAttribute('src');
+        })(), (function () {
+          var b = coverBox('死链封面'), img = b && b.querySelector('img');
+          return img ? ('src=' + img.getAttribute('src') + ' cls=' + img.className) : 'no-img';
+        })());
+        rec('cover-memo-zero-hits', (await hitsOf('/nope-404.png')) === 3,
+          'dead=' + (await hitsOf('/nope-404.png'))); // 与首轮相同：二次进入零新增请求
 
       } else if (CASE === 'view-zone') {
         // 分区榜单视图冒烟：渠道/榜期 chips 切换重渲染 + contentType 过滤 + 条目回竖刷
@@ -1214,6 +1258,10 @@
           var v = q('.acsv-view');
           return !!v && /链接不完整/.test(v.textContent);
         }, 8000)));
+        rec('play-badform-visible', (function () { // 0.9.77：错误态必须真在屏（0.9.63 黑屏同型防线）
+          var v = q('.acsv-view');
+          return !!v && v.offsetParent !== null;
+        })());
         // 未命中：douga/info 回 result≠0 → 错误盒 + 重试
         window.__ACSV_MOCK_FORM__ = { 'douga/info': function () { return { result: 1 }; } };
         window.__ACSV_MOCK_DIRECT__ = {};
@@ -1223,6 +1271,43 @@
           return !!v && /视频加载失败/.test(v.textContent);
         }, 12000)));
         rec('play-miss-retry', !!q('.acsv-view .acsv-retry'));
+        rec('play-miss-errbox-visible', (function () { // 错误盒是全幅遮罩，必须真在屏且可点
+          var eb = q('.acsv-view .acsv-errbox');
+          return !!eb && eb.offsetParent !== null && eb.getBoundingClientRect().height > 0;
+        })());
+        // 重试链（0.9.77）：失败重试不叠盒（旧实现按钮挂盒外、盒体不清 → 每失败一次叠一盒）；
+        // 恢复 mock 后重试 → 错误盒整只撤除且层内真起播（旧实现成功后错误文案仍常驻遮罩）。
+        // 计数必须限定「正文直接子级」——slide 自带一只隐藏的 .acsv-errbox（buildSlide），
+        // 层内起播后被它污染计数会假红（.acsv-vbody-play 的直接子盒才是加载错误盒）
+        function playErrBoxes() {
+          var b = q('.acsv-view-body.acsv-vbody-play');
+          return b ? b.querySelectorAll(':scope > .acsv-errbox') : [];
+        }
+        function playSpin() {
+          var b = q('.acsv-view-body.acsv-vbody-play');
+          return b ? b.querySelectorAll(':scope > .acsv-spinner').length : -1;
+        }
+        q('.acsv-view .acsv-retry').click();
+        rec('play-retry-no-stack', !!(await waitFor(function () {
+          var v = q('.acsv-view');
+          return !!v && playErrBoxes().length === 1 && /视频加载失败/.test(v.textContent);
+        }, 12000)), 'errboxes=' + playErrBoxes().length);
+        // 恢复解析链（mock 回正常 shape + 直挂缝：webm 套 hls.js 会死在解析上，见本场景开局）
+        window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+        window.__ACSV_MOCK_DIRECT__ = { '999999999': 1 };
+        q('.acsv-view .acsv-retry').click();
+        rec('play-retry-recovers', !!(await waitFor(function () {
+          return playErrBoxes().length === 0 && playSpin() === 0;
+        }, 12000)), 'errboxes=' + playErrBoxes().length + ' spin=' + playSpin());
+        rec('play-retry-playing', !!(await waitFor(function () {
+          var s = q('.acsv-slide[data-ovl="1"]');
+          var v = s && s.querySelector('video');
+          return !!v && !v.paused && v.currentTime > 0;
+        }, 25000)), (function () {
+          var s = q('.acsv-slide[data-ovl="1"]');
+          var v = s && s.querySelector('video');
+          return 'state=' + (s && s.dataset.state) + ' paused=' + (v && v.paused);
+        })());
         key('Escape');
         rec('play-miss-back', !!(await waitFor(function () { return location.hash === '#svfeed'; }, 8000)), location.hash);
 

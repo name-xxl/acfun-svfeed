@@ -180,6 +180,46 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.77（2026-10-02）· 收口三欠账：播放层重试盒残留 / 图片入口覆盖头像面 / 死链备忘 TTL 语义（+ 我的页三修）
+
+**背景**：0.9.60–0.9.76 一天内的架构与内容推进评审后，三处「名义契约 ≠ 实际」收口（每项都补了可证断言）。
+
+- **播放层重试残留错误盒（用户可见，P1）**：`playlayer.buildErr` 把「重试」键挂在盒外且点击只摘按钮，
+  而 `.acsv-errbox` 是 `inset:0` 的全幅遮罩（styles.js）——重载成功后错误文案常驻最上层并吃掉视频
+  点按，反复失败还会一盒叠一盒。修：重试键进盒、点击整盒撤除再重跑；「网络不可达」分支同走此盒
+  （此前该分支没有重试出口）。harness `play-deep` 补四条：错误盒真在屏（offsetParent+几何）、
+  失败重试不叠盒（errboxes===1）、恢复后重试盒撤且层内真起播、坏形态视图可见性。
+- **图片入口覆盖头像面（P2）**：`imgInto` 此前只有 5 处调用——竖刷右栏头像（rail）、评论头像
+  （comments）、私信列表头像（imdrawer）、分享面板头像（imshare）四处仍是手拼 `el('img')`，其中
+  前两处**连失败兜底都没有**，评论头像还直吃接口值（http 老头像在 https 页必被混合内容拦）；四处的
+  `.split('?')[0]` 与 `imgurl` 的「query 一律保留」契约相悖（0.9.40 教训的残留形态）。全部改走
+  `imgInto(..., 'avatar')`（归一+重试+默认头像兜底），`split('?')[0]` 全仓归零；`imgload.js` 头注
+  按实况校准「覆盖边界」（已收口清单 + 有意不并入的例外：鉴权 blob 管线/UBB 与表情 HTML/站点静态
+  图标/大图查看器），README 模块表同步。
+- **死链备忘 TTL 语义（P2）**：0.9.76 的终败路径每渲染一次就重写时间戳——来回进出视图的死链
+  **永不过 TTL**，与「过期给一次复试机会」的注释意图相反；且备忘命中被 `terminal()` 直接吞掉，
+  头像策略跳过默认头像兜底。修：判定抽成 `imgurl.memoState`/`memoTrim` 纯函数（**只读不写不续期**，
+  离线单测钉三轮语义），`imgload` 只在首次判死时 `memoMark`，命中备忘且有 fallback 的策略直走兜底图。
+- **重试链第三跳换 URL**：0.9.76 第三跳只换 referrer、URL 与第二跳全同，与自家「失败负缓存必须换
+  URL」的理由自相矛盾；现追加 `acsv_r3` 尾参（同一次决策内三跳 URL 两两互异，单测断言）。
+- **我的页三修（P2）**：① 历史翻页「到底」判据原按**筛除后**条数（契约层会滤掉番剧/无 videoId
+  条目，"有效行 < pageSize" 在筛除后恒真，首页 20 原始→18 有效时会把还有下一页的列表误判成到底）
+  且首屏走 null 分支恒不隐藏——改按**原始条数**判、判据用闭包 `btn`（0.9.77 首轮修复按有效条数
+  判被 view-my 场景钉出误判，一并校正）。② `moreBtn(null)` 被其内部 `onClick(b)` 调用——收藏夹
+  点「加载更多」每次抛 TypeError 且按钮卡死「加载中…」；`moreBtn` 加防御 + 收藏夹改经回调驱动。
+  ③ 我的页两列表补请求令牌（searchview 同款 `seq`）：慢网换夹/换页时旧回包丢弃，不再把旧夹的
+  行追加进新夹列表、不再推进页码。
+- **顺带**：删 `views.js` 的无 CSS 死类 `acsv-with-view`（0.9.73 起已无消费方）；`player.js` 连播
+  判定补哨兵注释（播放层 idx=OVL_IDX 与 FeedStore.current 恒不等是**有意**的层内隔离，禁改
+  `hooks.currentIdx()`——-1===-1 会把竖刷滚到第 0 条）。
+- **测试**：单测 112→114（`memoState` 三分支/命中不续期/过期即清、`memoTrim` 淘汰序；第三跳断言
+  改写为「两两互异」）；harness 新增 `GET /__hits` 计数端点（run-harness）把「重试链真的打了网络」
+  与「备忘命中的二次进入零请求」变成可证断言——`cover-fallback` 补六条（flaky 恰好两发、死链恰好
+  三发、退出等到视图真拆（waitFor 首判同步，同 task 内连改 hash 会被浏览器合并成净零变化、
+  一个 hashchange 都不发——踩实教训写进断言）、二次进入 img 无 src、零新增请求、降级占位仍在）；
+  `play-deep` 补五条（错误盒真在屏/不叠盒/恢复后盒撤且起播/坏形态可见性；计数限定正文直接子级
+  ——slide 自带隐藏错误盒会污染计数）。29 场景全绿。
+
 ### 0.9.76（2026-10-02）· 封面加载策略：URL 归一 + 失败重试链 + 终败降级（图片加载收成单一入口）
 
 **病灶**（用户实测：搜索/历史/收藏偶发封面裂图）：三处封面此前共用一段裸 `<img>` 装配
@@ -1679,8 +1719,8 @@ npm test             # immsg/ubb/release 单测 + 无头 harness 全场景（需
 | `route.js` | `#svfeed[/v|a/<id>]`、`#svfeed/play/<v|a>/<id>`（0.9.74 播放层：view=play + src 标记、**不填 mid**）路由解析、地址栏同步与深链意图（appliedMid/cancelHashSync） |
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`fmt`/`toast`/剪贴板/样式注入等工具 |
-| `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策——URL 正确性只在这里定义 |
-| `imgload.js` | 图片加载执行层（0.9.76，**全项目 `<img>` 图面唯一入口**）：`IMG_POLICY` 策略表（grid/thumb/avatar/space）+ `imgInto(host,url,policy[,cls])`（懒加载/重试链/终败降级/淡入/失败备忘）+ `lazyObserve` 观察器单例（私信气泡共用） |
+| `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策（三跳两两换 URL）+ `memoState`/`memoTrim` 死链备忘纯判定（0.9.77：只读不续期）——URL 正确性只在这里定义 |
+| `imgload.js` | 图片加载执行层（0.9.76；0.9.77 头注校准覆盖边界）：项目图片字段（封面/头像）统一入口——`IMG_POLICY` 策略表（grid/thumb/avatar/space）+ `imgInto(host,url,policy[,cls])`（懒加载/重试链/终败降级/淡入/死链备忘）+ `lazyObserve` 观察器单例（私信气泡共用）。有意在外的例外：鉴权 blob 管线（imshare）、UBB/表情 HTML、站点静态图标、大图查看器 |
 | `interact.js` | 真实点赞/关注（api_st → interact 接口）；收藏/投蕉转发 AppAPI |
 | `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出） |
 | `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[at]/[resource]/[img]/[color] 逐一白名单放行；IM wire 文本投影（ubbImText）与引用块富正文（ubbQuoteHtml）单源 |
@@ -1736,7 +1776,7 @@ flowchart LR
     imgview["imgview.js（大图查看器）"]
     inputbar["inputbar.js（抽屉输入栏）"]
     imgurl["imgurl.js（图片 URL·零依赖叶子）"]
-    imgload["imgload.js（图片加载唯一入口）"]
+    imgload["imgload.js（图片字段加载入口）"]
   end
 
   subgraph apilayer["接口层"]

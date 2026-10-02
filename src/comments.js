@@ -3,6 +3,7 @@ import { request } from './net.js';
 import { el, fmt, toast } from './ui.js';
 import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
+import { imgInto } from './imgload.js';
 import { commentShareWire } from './immsg.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
@@ -130,14 +131,13 @@ function commentItem(c, subMap, sourceId) {
   var homeUrl = c.userId ? CFG.api.userBase + c.userId : null;
   var avLink = el('a', 'acsv-avlink');
   if (homeUrl) { avLink.href = homeUrl; avLink.target = '_blank'; avLink.title = '访问 ' + (c.userName || '') + ' 的空间'; }
-  var av = el('img', 'av');
-  av.referrerPolicy = 'no-referrer';
   // headUrl 可能是字符串或 [{cdn,url}] 数组
   var hu = c.headUrl;
   if (Array.isArray(hu)) hu = (hu[0] && hu[0].url) || '';
   else if (hu && typeof hu === 'object') hu = hu.url || '';
-  av.src = (typeof hu === 'string' && hu ? hu : CFG.api.defaultAvatar).split('?')[0];
-  avLink.appendChild(av);
+  // 头像走共享加载器（0.9.77）：http 老头像归一 + 重试 + 默认头像兜底（此前直吃接口值且
+  // split('?')[0]——混合内容裂图 / 签名 query 被剥，两坑同现）；类名 av 供既有尺寸规则消费
+  imgInto(avLink, typeof hu === 'string' && hu ? hu : CFG.api.defaultAvatar, 'avatar', 'av');
   var body = el('div', 'acsv-cbody');
   var name = el('div', 'acsv-cname');
   if (homeUrl) {

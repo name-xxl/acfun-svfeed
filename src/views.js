@@ -73,7 +73,6 @@ function stageHide() {
   var v = slide && slide.querySelector('video');
   wasPlaying = !!(v && !v.paused);
   scroller.style.display = 'none';
-  if (root) root.classList.add('acsv-with-view');
   pauseAllVideos();
 }
 
@@ -81,7 +80,6 @@ function stageShow(restore) {
   if (!scroller) return;
   // 显式 'block' 同 stageHide：'' 回落样式表值的坑不赌 scroller 的 CSS 现状
   scroller.style.display = 'block';
-  if (root) root.classList.remove('acsv-with-view');
   if (restore) resumeCurrentVideo();
   wasPlaying = false;
 }
@@ -357,7 +355,8 @@ export function moreBtn(onClick) {
     if (b.disabled) return;
     b.disabled = true;
     b.textContent = '加载中…';
-    onClick(b);
+    // 防误传 null（0.9.77：收藏夹曾把回调传 null，点击抛 TypeError 且按钮卡死「加载中…」）
+    if (typeof onClick === 'function') onClick(b);
   });
   return b;
 }

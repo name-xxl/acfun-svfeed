@@ -3,7 +3,7 @@
 // 负缓存），修复的关键判定全在这两个纯函数里——纯函数化就是为了在这里钉死边界。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-var { coverUrl, coverAttempts } = await import('../../src/imgurl.js');
+var { coverUrl, coverAttempts, memoState, memoTrim } = await import('../../src/imgurl.js');
 
 test('coverUrl：http→https、协议相对→https、实体解码、trim；query 与其它 scheme 原样', () => {
   assert.equal(coverUrl('http://a.cn/x.png'), 'https://a.cn/x.png');
@@ -41,10 +41,15 @@ test('coverAttempts：CI 处理参数形态 → 第二跳去 query 回原图；�
   assert.equal(a[0].delay, 0);
   assert.equal(a[1].url, 'https://tx-free-imgs.acfun.cn/newUpload/x.jpg'); // 去 query 回原图
   assert.equal(a[1].delay, 600);
-  assert.equal(a[2].url, a[1].url);
+  // 第三跳也必须换 URL（0.9.77）：同一 URL 会吃浏览器失败负缓存、连请求都发不出去，
+  // 与第二跳的换址理由同款——本跳在此基础上再挂一枚破缓存尾参
+  assert.notEqual(a[2].url, a[1].url);
+  assert.ok(/[?&]acsv_r3=\d+$/.test(a[2].url), a[2].url);
   // 原生页面同款 referer（host 白名单里必有 acfun.cn）：兜住宿主防盗链拒 no-referrer 的情况
   assert.equal(a[2].ref, 'strict-origin-when-cross-origin');
   assert.equal(a[2].delay, 1200);
+  // 同一次决策内三跳 URL 两两互异（负缓存规避的硬要求）
+  assert.equal(new Set([a[0].url, a[1].url, a[2].url]).size, 3);
   // imageView2/x-oss-process 同为处理参数形态，判定同路
   assert.equal(coverAttempts('https://a.cn/x.png?imageView2/1/w/160/h/90')[1].url, 'https://a.cn/x.png');
   assert.equal(coverAttempts('https://a.cn/x.png?x-oss-process=image/resize')[1].url, 'https://a.cn/x.png');
@@ -60,4 +65,31 @@ test('coverAttempts：普通 URL 第二跳追加 acsv_r 破缓存；签名类 qu
   // 签名类 query（pkey/imgId 等）不是处理参数形态：保留原参数只加破缓存（0.9.40 同源教训）
   var c = coverAttempts('https://preview.ndcsk.com/ksc2/a.png?pkey=AA&imgId=BB', 7);
   assert.equal(c[1].url, 'https://preview.ndcsk.com/ksc2/a.png?pkey=AA&imgId=BB&acsv_r=7');
+  assert.equal(c[2].url, 'https://preview.ndcsk.com/ksc2/a.png?pkey=AA&imgId=BB&acsv_r=7&acsv_r3=7');
+});
+
+test('memoState：未记/命中/过期三分支；命中不续期、过期即清（0.9.77）', () => {
+  var m = new Map();
+  assert.equal(memoState(m, 'a.png', 1000, 60000), 'fresh');
+  m.set('a.png', 1000);
+  assert.equal(memoState(m, 'a.png', 1000 + 59999, 60000), 'dead');
+  // 反复命中不得续期：时间戳原样（否则来回进出视图的死链永不过 TTL，复试机会消失）
+  memoState(m, 'a.png', 1000 + 59999, 60000);
+  memoState(m, 'a.png', 1000 + 59999, 60000);
+  assert.equal(m.get('a.png'), 1000);
+  // 过期：返回 expired 且旧记录即时清除 → 同一时刻再判已是 fresh（给一次复试机会）
+  assert.equal(memoState(m, 'a.png', 1000 + 60000, 60000), 'expired');
+  assert.equal(m.has('a.png'), false);
+  assert.equal(memoState(m, 'a.png', 1000 + 60000, 60000), 'fresh');
+});
+
+test('memoTrim：超限按插入序淘汰最旧；未超限不动', () => {
+  var m = new Map();
+  ['a', 'b', 'c'].forEach(function (k) { m.set(k, 1); });
+  memoTrim(m, 2);
+  assert.equal(m.size, 2);
+  assert.equal(m.has('a'), false);
+  assert.equal(m.has('c'), true);
+  memoTrim(m, 5);
+  assert.equal(m.size, 2);
 });

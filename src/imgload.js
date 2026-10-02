@@ -1,13 +1,20 @@
-// ---------- 图片加载执行层（0.9.76）：全项目 <img> 图面的唯一入口 ----------
+// ---------- 图片加载执行层（0.9.76）：项目图片字段（封面/头像）的统一入口 ----------
 // 懒加载 + 失败重试链（imgurl.coverAttempts）+ 终败降级（隐藏裂图 + 暗字占位/默认头像）+
 // 淡入。各图面的差异集中在 IMG_POLICY 策略表——改策略只改这张表，新图面优先复用已有策略，
 // 调用一行 imgInto 即可（散落的 referrerPolicy/loading 手动三元组不再新增）。
 // URL 归一与重试链决策是纯函数（imgurl.js，离线单测钉住）；本模块只做 DOM 装配。
-// 有意不并入：私信图片气泡的鉴权/blob 管线（imshare.fetchImImageBlob，0.9.41/0.9.49 真机
-// 验收）——它只共用本模块的 lazyObserve 观察器，字节链保持原样。
+// 覆盖边界（0.9.77 头注校准——0.9.76 的「全项目唯一入口」表述与当时实际不符）：
+//   已收口：网格封面/行缩略图/榜单 UP 卡/我的资料头/空间页投稿格/竖刷右栏头像/评论头像/
+//           私信列表头像/分享面板头像
+//   有意不并入：私信图片气泡的鉴权 blob 管线（imshare.fetchImImageBlob，只共用 lazyObserve）、
+//           UBB/表情的 innerHTML 产物（ubb.js/emoticon.js，白名单过滤）、站点静态图标与 logo
+//           （SITE_ICONS/VIDEO_ICONS/CFG.api.logoSvg）、大图查看器（转呈被点 img 的 src）
+// 死链备忘（会话级，判定在 imgurl.memoState）：TTL 内命中即降级不再打网络；命中不续期、
+// 带 fallback 的策略命中时直走兜底图（0.9.77 —— 0.9.76 每渲染一次就续期，来回进出视图
+// 的死链会永不过 TTL，与「过期给一次重试机会」的意图相反）
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
-import { coverAttempts, coverUrl } from './imgurl.js';
+import { coverAttempts, coverUrl, memoState, memoTrim } from './imgurl.js';
 
 // 策略表：图面差异的单一真源。
 //   retry   是否走 imgurl.coverAttempts 的重试链（默认 true）
@@ -27,19 +34,12 @@ export var IMG_POLICY = {
 };
 
 // 终败备忘（会话级）：视图重建不重打同一死链（TTL 过期给一次重试机会，防长期把瞬时
-// 故障记成永久）。Map 插入序即淘汰序
+// 故障记成永久）。Map 插入序即淘汰序；判定/裁剪是 imgurl 的纯函数（离线单测钉住）
 var MEMO_MAX = 200, MEMO_TTL = 10 * 60000;
 var failMemo = new Map();
-function memoDead(url) {
-  var t = failMemo.get(url);
-  if (t == null) return false;
-  if (Date.now() - t < MEMO_TTL) return true;
-  failMemo.delete(url);
-  return false;
-}
-function memoPut(url) {
+function memoMark(url) {
   failMemo.set(url, Date.now());
-  while (failMemo.size > MEMO_MAX) failMemo.delete(failMemo.keys().next().value);
+  memoTrim(failMemo, MEMO_MAX);
 }
 
 // 建 img 挂进宿主并驱动加载。policy 传策略名（IMG_POLICY 键）或内联对象；cls 给 img 类名
@@ -58,7 +58,17 @@ export function imgInto(host, rawUrl, policy, cls) {
   var primary = plan[0].url;
   var fb = pol.fallback && coverUrl(pol.fallback) !== primary ? coverUrl(pol.fallback) : '';
   var i = 0, timer = null, fbUsed = false;
-  if (memoDead(primary)) return terminal();
+  // 死链备忘命中（0.9.77）：不再打这条死链——有兜底（头像）直走兜底图，无兜底直接降级。
+  // memo 同时是 terminal() 的「本次是否该记」判据：命中 'dead' 不回写，时间戳不续期
+  var memo = memoState(failMemo, primary, Date.now(), MEMO_TTL);
+  if (memo === 'dead') {
+    if (fb) {
+      plan = [{ url: fb, ref: 'no-referrer', delay: 0 }];
+      fbUsed = true; // 兜底已占位：出错后不再重回 fb 分支
+    } else {
+      return terminal();
+    }
+  }
 
   img.addEventListener('load', function () {
     if (timer) { clearTimeout(timer); timer = null; }
@@ -92,7 +102,7 @@ export function imgInto(host, rawUrl, policy, cls) {
     }
   }
   function terminal() {
-    memoPut(primary);
+    if (memo !== 'dead') memoMark(primary); // 只记首次判死；命中备忘的渲染不回写（0.9.77）
     img.classList.add('acsv-imgfail');
     img.style.display = 'none';
     if (pol.ph) host.appendChild(el('div', 'acsv-gph', pol.ph));

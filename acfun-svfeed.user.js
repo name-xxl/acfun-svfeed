@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.76
+// @version      0.9.77
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -736,14 +736,29 @@
     var u = coverUrl(raw);
     if (!u) return [];
     if (/^(data|blob):/i.test(u)) return [{ url: u, ref: "no-referrer", delay: 0 }];
+    var t = Number(now) || Date.now();
     var out = [{ url: u, ref: "no-referrer", delay: 0 }];
     var q2 = u.indexOf("?");
     var alt;
     if (CI_QUERY.test(u) && q2 > 0) alt = u.slice(0, q2);
-    else alt = u + (q2 > 0 ? "&" : "?") + "acsv_r=" + (Number(now) || Date.now());
+    else alt = u + (q2 > 0 ? "&" : "?") + "acsv_r=" + t;
     out.push({ url: alt, ref: "no-referrer", delay: 600 });
-    out.push({ url: alt, ref: "strict-origin-when-cross-origin", delay: 1200 });
+    out.push({
+      url: alt + (alt.indexOf("?") >= 0 ? "&" : "?") + "acsv_r3=" + t,
+      ref: "strict-origin-when-cross-origin",
+      delay: 1200
+    });
     return out;
+  }
+  function memoState(memo, url, now, ttl) {
+    var t = memo.get(url);
+    if (t == null) return "fresh";
+    if (Number(now) - t < ttl) return "dead";
+    memo.delete(url);
+    return "expired";
+  }
+  function memoTrim(memo, max) {
+    while (memo.size > max) memo.delete(memo.keys().next().value);
   }
 
   // src/data.js
@@ -1491,16 +1506,9 @@
   var MEMO_MAX = 200;
   var MEMO_TTL = 10 * 6e4;
   var failMemo = /* @__PURE__ */ new Map();
-  function memoDead(url) {
-    var t = failMemo.get(url);
-    if (t == null) return false;
-    if (Date.now() - t < MEMO_TTL) return true;
-    failMemo.delete(url);
-    return false;
-  }
-  function memoPut(url) {
+  function memoMark(url) {
     failMemo.set(url, Date.now());
-    while (failMemo.size > MEMO_MAX) failMemo.delete(failMemo.keys().next().value);
+    memoTrim(failMemo, MEMO_MAX);
   }
   function imgInto(host, rawUrl, policy, cls) {
     if (!host) return null;
@@ -1516,7 +1524,15 @@
     var primary = plan[0].url;
     var fb = pol.fallback && coverUrl(pol.fallback) !== primary ? coverUrl(pol.fallback) : "";
     var i = 0, timer = null, fbUsed = false;
-    if (memoDead(primary)) return terminal();
+    var memo = memoState(failMemo, primary, Date.now(), MEMO_TTL);
+    if (memo === "dead") {
+      if (fb) {
+        plan = [{ url: fb, ref: "no-referrer", delay: 0 }];
+        fbUsed = true;
+      } else {
+        return terminal();
+      }
+    }
     img.addEventListener("load", function() {
       if (timer) {
         clearTimeout(timer);
@@ -1554,7 +1570,7 @@
       }
     }
     function terminal() {
-      memoPut(primary);
+      if (memo !== "dead") memoMark(primary);
       img.classList.add("acsv-imgfail");
       img.style.display = "none";
       if (pol.ph) host.appendChild(el("div", "acsv-gph", pol.ph));
@@ -3195,13 +3211,7 @@
       shown++;
       var row = el("div", "acsv-im-row");
       row.dataset.tid = r.targetId;
-      var av = el("img", "acsv-im-av");
-      av.referrerPolicy = "no-referrer";
-      av.src = (card.headUrl || CFG.api.defaultAvatar).split("?")[0];
-      av.addEventListener("error", function() {
-        av.src = CFG.api.defaultAvatar;
-      });
-      row.appendChild(av);
+      imgInto(row, card.headUrl || CFG.api.defaultAvatar, "avatar", "acsv-im-av");
       var mid = el("div", "acsv-im-mid");
       var nm = el("div", "acsv-im-name");
       nm.innerHTML = esc(name) + (r.unread > 0 ? '<span class="acsv-share-unread">' + (r.unread > 99 ? "99+" : r.unread) + "</span>" : "");
@@ -4848,13 +4858,7 @@
         var row = el("div", "acsv-share-row");
         row.dataset.name = (card.name || "").toLowerCase();
         row.dataset.tid = c.targetId;
-        var av = el("img", "acsv-share-av");
-        av.referrerPolicy = "no-referrer";
-        av.src = (card.headUrl || CFG.api.defaultAvatar).split("?")[0];
-        av.addEventListener("error", function() {
-          av.src = CFG.api.defaultAvatar;
-        });
-        row.appendChild(av);
+        imgInto(row, card.headUrl || CFG.api.defaultAvatar, "avatar", "acsv-share-av");
         var name = el("div", "acsv-share-name", card.name || "用户 " + c.targetId);
         if (c.unread > 0) {
           var dot = el("span", "acsv-share-unread", c.unread > 99 ? "99+" : String(c.unread));
@@ -4998,13 +5002,10 @@
       avLink.target = "_blank";
       avLink.title = "访问 " + (c.userName || "") + " 的空间";
     }
-    var av = el("img", "av");
-    av.referrerPolicy = "no-referrer";
     var hu = c.headUrl;
     if (Array.isArray(hu)) hu = hu[0] && hu[0].url || "";
     else if (hu && typeof hu === "object") hu = hu.url || "";
-    av.src = (typeof hu === "string" && hu ? hu : CFG.api.defaultAvatar).split("?")[0];
-    avLink.appendChild(av);
+    imgInto(avLink, typeof hu === "string" && hu ? hu : CFG.api.defaultAvatar, "avatar", "av");
     var body = el("div", "acsv-cbody");
     var name = el("div", "acsv-cname");
     if (homeUrl) {
@@ -7057,11 +7058,8 @@
       var a = el("a");
       a.href = item.userId ? CFG.api.userBase + item.userId : item.shareUrl;
       a.target = "_blank";
-      var av = el("img", "acsv-avatar");
-      av.referrerPolicy = "no-referrer";
-      av.src = item.head.split("?")[0];
-      av.title = item.userName;
-      a.appendChild(av);
+      var av = imgInto(a, item.head, "avatar", "acsv-avatar");
+      if (av) av.title = item.userName;
       avWrap.appendChild(a);
       if (item.userId) {
         var fb = el("div", "acsv-followbtn" + (item.isFollowing ? " on" : ""), item.isFollowing ? "✓" : "+");
@@ -7446,7 +7444,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.76" : "");
+    return normVer(true ? "0.9.77" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -7892,13 +7890,11 @@
     var v = slide && slide.querySelector("video");
     wasPlaying = !!(v && !v.paused);
     scroller.style.display = "none";
-    if (root) root.classList.add("acsv-with-view");
     pauseAllVideos();
   }
   function stageShow(restore) {
     if (!scroller) return;
     scroller.style.display = "block";
-    if (root) root.classList.remove("acsv-with-view");
     if (restore) resumeCurrentVideo();
     wasPlaying = false;
   }
@@ -8127,7 +8123,7 @@
       if (b.disabled) return;
       b.disabled = true;
       b.textContent = "加载中…";
-      onClick(b);
+      if (typeof onClick === "function") onClick(b);
     });
     return b;
   }
@@ -8173,11 +8169,20 @@
     });
     attachVideo(slide, item, OVL_IDX);
   }
-  function buildErr(body, msg) {
+  function buildErr(body, msg, onRetry) {
     var box = el("div", "acsv-errbox");
     box.style.display = "grid";
     box.appendChild(el("p", null, msg));
+    if (onRetry) {
+      var b = el("button", "acsv-retry", "重试");
+      b.addEventListener("click", function() {
+        box.remove();
+        onRetry();
+      });
+      box.appendChild(b);
+    }
     body.appendChild(box);
+    return box;
   }
   function buildPlayView(body, arg) {
     body.classList.add("acsv-vbody-play");
@@ -8193,29 +8198,23 @@
       return;
     }
     var spinner = el("div", "acsv-spinner");
-    body.appendChild(spinner);
-    (function load() {
+    function load() {
+      body.appendChild(spinner);
       API.deepLink(id, parseRoute().src).then(function(hit) {
         if (!body.isConnected) return;
         spinner.remove();
         if (!hit) {
-          buildErr(body, "视频加载失败");
-          var b = el("button", "acsv-retry", "重试");
-          b.addEventListener("click", function() {
-            b.remove();
-            body.appendChild(spinner);
-            load();
-          });
-          body.appendChild(b);
+          buildErr(body, "视频加载失败", load);
           return;
         }
         mountSlide(body, hit.item);
       }, function() {
         if (!body.isConnected) return;
         spinner.remove();
-        buildErr(body, "视频加载失败（网络不可达）");
+        buildErr(body, "视频加载失败（网络不可达）", load);
       });
-    })();
+    }
+    load();
   }
   function teardownPlayView() {
     setVideoTarget(null);
@@ -8920,7 +8919,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.76：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.77：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -9354,21 +9353,21 @@
     var list = rowList(panel, "hist");
     var btn = moreBtn(load);
     panel.appendChild(btn);
-    var pageNo = 0;
-    function load(b) {
+    var pageNo = 0, seq2 = 0;
+    function load() {
+      var my = ++seq2;
       var gone = skeleton(list);
       postForm(
         CFG.api.history,
         "pageNo=" + (pageNo + 1) + "&pageSize=" + CFG.view.pageSize + "&resourceTypes=1&resourceTypes=2"
       ).then(function(j) {
         gone();
-        if (!list.isConnected) return;
-        if (b) {
-          b.disabled = false;
-          b.textContent = "加载更多";
-        }
+        if (my !== seq2 || !list.isConnected) return;
+        btn.disabled = false;
+        btn.textContent = "加载更多";
+        var raws = j && j.histories || [];
         var rows = [];
-        (j && j.histories || []).forEach(function(raw) {
+        raws.forEach(function(raw) {
           var pi = panelItem("history", raw);
           if (pi) rows.push(pi);
         });
@@ -9376,28 +9375,25 @@
         rows.forEach(function(pi) {
           list.appendChild(gridCardOf(pi));
         });
-        if (rows.length < CFG.view.pageSize && b) b.style.display = "none";
+        if (raws.length < CFG.view.pageSize) btn.style.display = "none";
         if (!rows.length && pageNo === 1) list.appendChild(el("div", "acsv-vempty", "暂无观看记录"));
       }, function() {
         gone();
-        if (!list.isConnected) return;
-        if (b) {
-          b.disabled = false;
-          b.textContent = "加载失败，点击重试";
-        } else if (pageNo === 0) list.appendChild(el("div", "acsv-vempty", "加载失败，稍后重试"));
+        if (my !== seq2 || !list.isConnected) return;
+        btn.disabled = false;
+        btn.textContent = "加载失败，点击重试";
       });
     }
-    load(null);
+    load();
   }
   function buildFav(panel) {
     var chips = el("div", "acsv-vchips");
     var list = rowList(panel, "fav");
-    var btn = moreBtn(null);
-    panel.appendChild(btn);
-    var folderId = null, page = 0;
-    btn.addEventListener("click", function() {
-      if (folderId) load(null);
+    var btn = moreBtn(function() {
+      load();
     });
+    panel.appendChild(btn);
+    var folderId = null, page = 0, seq2 = 0;
     var gone = skeleton(list);
     postForm(CFG.api.favFolderList, "").then(function(j) {
       gone();
@@ -9422,33 +9418,39 @@
           c.classList.add("on");
           folderId = f.folderId;
           page = 0;
+          seq2++;
           list.innerHTML = "";
           btn.style.display = "";
+          btn.disabled = false;
           btn.textContent = "加载更多";
-          load(null);
+          load();
         });
         chips.appendChild(c);
         if (i === 0) folderId = f.folderId;
       });
       panel.insertBefore(chips, list);
-      if (folderId) load(null);
+      if (folderId) load();
     }, function() {
       gone();
       if (!list.isConnected) return;
       panel.insertBefore(el("div", "acsv-vempty", "收藏夹加载失败"), list);
       btn.style.display = "none";
     });
-    function load(b) {
+    function load() {
+      if (!folderId) {
+        btn.disabled = false;
+        btn.textContent = "加载更多";
+        return;
+      }
+      var my = ++seq2;
       postForm(
         CFG.api.favDougaList,
         "folderId=" + folderId + "&page=" + (page + 1) + "&perpage=" + CFG.view.pageSize
       ).then(function(j) {
-        if (!list.isConnected) return;
+        if (my !== seq2 || !list.isConnected) return;
         page++;
-        if (b) {
-          b.disabled = false;
-          b.textContent = "加载更多";
-        }
+        btn.disabled = false;
+        btn.textContent = "加载更多";
         var rows = [];
         (j && j.favoriteList || []).forEach(function(raw) {
           var pi = panelItem("fav", raw);
@@ -9460,11 +9462,9 @@
         if (j && rows.length < CFG.view.pageSize || !rows.length) btn.style.display = "none";
         if (!rows.length && page === 1) list.appendChild(el("div", "acsv-vempty", "这个夹还没有收藏"));
       }, function() {
-        if (!list.isConnected) return;
-        if (b) {
-          b.disabled = false;
-          b.textContent = "加载失败，点击重试";
-        }
+        if (my !== seq2 || !list.isConnected) return;
+        btn.disabled = false;
+        btn.textContent = "加载失败，点击重试";
       });
     }
   }
