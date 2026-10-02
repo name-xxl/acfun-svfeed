@@ -504,20 +504,21 @@
           var v = q('.acsv-view');
           return v && v.offsetParent !== null && q('.acsv-view-title').textContent === '分区榜单';
         }, 10000)));
-        // 视频榜行数断言限定 .acsv-vlist:not(.ups)——0.9.66 UP 榜 section 的行同为 .acsv-vrow
+        // 视频榜行数断言限定 .acsv-rlist——0.9.66 UP 榜 section 的行同为 .acsv-vrow
         rec('zone-rows-filtered', !!(await waitFor(function () {
-          var rows = document.querySelectorAll('.acsv-vlist:not(.ups) .acsv-vrow');
+          var rows = document.querySelectorAll('.acsv-rlist .acsv-vrow');
           return rows.length === 4; // 5 条 mock 里 1 条 contentType=3 被契约层过滤
         }, 8000)));
         rec('zone-ups', !!(await waitFor(function () {
-          return document.querySelectorAll('.acsv-vlist.ups .acsv-vrow').length === 2; // mock 5 条按作者去重
+          // 原生 rlist 分栏：每行视频卡+作者卡左右并排（.acsv-upcard）
+          return document.querySelectorAll('.acsv-rlist-row .acsv-upcard').length === 4;
         }, 8000)));
-        rec('zone-rank-badge', q('.acsv-vlist:not(.ups) .acsv-vrow .acsv-vrow-rank').textContent === '1');
+        rec('zone-rank-badge', q('.acsv-rlist .acsv-rlist-num').textContent === '1');
         var zchips = document.querySelectorAll('.acsv-vchips')[0].children;
         var gameChip = [].filter.call(zchips, function (c) { return c.textContent === '游戏'; })[0];
         if (gameChip) gameChip.click();
         rec('zone-switch', !!(await waitFor(function () {
-          var t = q('.acsv-vlist:not(.ups) .acsv-vrow .acsv-vrow-title');
+          var t = q('.acsv-rlist .acsv-vrow .acsv-vrow-title');
           return t && /榜单游戏-DAY-0/.test(t.textContent);
         }, 8000)));
         // 子频道行：切频道后填官方树 children（mock navTree），「全部」默认选中、请求带 subChannelId
@@ -525,7 +526,7 @@
           var chips = document.querySelectorAll('.acsv-vchips')[1].children;
           return chips.length === 3 && chips[0].textContent === '全部' && chips[0].classList.contains('on');
         }, 8000)));
-        var zrow = q('.acsv-vlist:not(.ups) .acsv-vrow');
+        var zrow = q('.acsv-rlist .acsv-vrow');
         if (zrow) zrow.click();
         rec('zone-play-ac', !!(await waitFor(function () {
           var f = feed();

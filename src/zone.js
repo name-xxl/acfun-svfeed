@@ -2,8 +2,8 @@ import { CFG } from './cfg.js';
 import { el, singleFlight } from './ui.js';
 import { request } from './net.js';
 import { postForm } from './appapi.js';
-import { panelItem, upListOf } from './data.js';
-import { registerView, rowOf } from './views.js';
+import { panelItem } from './data.js';
+import { registerView, rowOf, upCardOf } from './views.js';
 
 // ---------- 分区榜单视图（0.9.62 建，0.9.66 对齐原生：子频道行 + UP 榜） ----------
 // GET rank/channel（§6.1 实测：rankLimit 生效；POST 形状无 rankLimit 只回 10 条，勿改 POST；
@@ -38,17 +38,23 @@ function buildZoneView(body) {
   var subChips = el('div', 'acsv-vchips');
   var periodChips = el('div', 'acsv-vchips');
   var tip = el('div', 'acsv-vtip', '依赖综合指数排序，每日更新一次'); // 原生榜单页同款说明
-  var list = el('div', 'acsv-vlist');
   body.appendChild(zoneChips);
   body.appendChild(subChips);
   body.appendChild(periodChips);
   body.appendChild(tip);
+  // 双列头（原生 rlist__banner：榜单 Rank | Up主 Author）——rlist 行=视频卡+作者卡左右分栏
+  var head = el('div', 'acsv-rlist-head');
+  var hc1 = el('div', 'acsv-rlist-hcell');
+  hc1.appendChild(el('span', 'acsv-rlist-hcn', '榜单'));
+  hc1.appendChild(el('span', 'acsv-rlist-hen', 'Rank'));
+  var hc2 = el('div', 'acsv-rlist-hcell');
+  hc2.appendChild(el('span', 'acsv-rlist-hcn', 'Up主'));
+  hc2.appendChild(el('span', 'acsv-rlist-hen', 'Author'));
+  head.appendChild(hc1);
+  head.appendChild(hc2);
+  body.appendChild(head);
+  var list = el('div', 'acsv-rlist');
   body.appendChild(list);
-  var upSec = el('div', 'acsv-vsec');
-  upSec.appendChild(el('div', 'acsv-vsec-title', 'UP 主'));
-  var upList = el('div', 'acsv-vlist ups');
-  upSec.appendChild(upList);
-  body.appendChild(upSec);
 
   var curZone = CFG.view.zones[0];
   var curSub = null;    // null=全部（subChannelId 空）
@@ -77,43 +83,29 @@ function buildZoneView(body) {
 
   function load() {
     list.innerHTML = '';
-    upList.innerHTML = '';
     list.appendChild(el('div', 'acsv-vempty', '加载中…'));
     request(CFG.api.rank + '?channelId=' + curZone.id + '&subChannelId='
       + (curSub == null ? '' : curSub) + '&rankLimit=' + CFG.view.rankLimit
       + '&rankPeriod=' + curPeriod, 'GET')
       .then(function (j) {
-        var raws = (j && j.rankList) || [];
         var rows = [];
-        raws.forEach(function (raw, i) {
+        ((j && j.rankList) || []).forEach(function (raw, i) {
           var pi = panelItem('rank', raw);
           if (pi) rows.push({ pi: pi, rank: i + 1 });
         });
         list.innerHTML = '';
         if (!rows.length) {
           list.appendChild(el('div', 'acsv-vempty', '该分区暂无榜单数据'));
-        } else {
-          rows.forEach(function (r) { list.appendChild(rowOf(r.pi, r.rank)); });
+          return;
         }
-        // UP 榜：契约层聚合（原始 rankList 过 contentType 前——文章作者也算 UP 热度）
-        upList.innerHTML = '';
-        upListOf(raws, 10).forEach(function (up) {
-          var row = el('div', 'acsv-vrow up');
-          var thumb = el('div', 'acsv-vrow-thumb'); // 圆头像尺寸由 .acsv-vrow.up 修饰（52px 圆）
-          if (up.img) {
-            var img = el('img');
-            img.src = up.img;
-            img.referrerPolicy = 'no-referrer';
-            img.loading = 'lazy';
-            thumb.appendChild(img);
-          }
-          row.appendChild(thumb);
-          var main = el('div', 'acsv-vrow-main');
-          main.appendChild(el('div', 'acsv-vrow-title', up.name));
-          main.appendChild(el('div', 'acsv-vrow-meta', up.fans + ' 粉丝 · 榜单第 ' + up.rank + ' 名'));
-          if (up.sign) main.appendChild(el('div', 'acsv-vrow-desc', up.sign));
-          row.appendChild(main);
-          upList.appendChild(row);
+        // 原生 rlist__cards：每行=视频卡+作者卡左右分栏（rowOf 出视频卡，upCardOf 出作者卡）；
+        // 排名大水印贴行右下（原生视觉锚点，半透明灰）
+        rows.forEach(function (r) {
+          var pair = el('div', 'acsv-rlist-row');
+          pair.appendChild(rowOf(r.pi, r.rank));
+          pair.appendChild(upCardOf(r.pi));
+          pair.appendChild(el('div', 'acsv-rlist-num', String(r.rank)));
+          list.appendChild(pair);
         });
       }, function () {
         list.innerHTML = '';

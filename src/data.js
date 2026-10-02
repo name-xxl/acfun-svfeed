@@ -122,14 +122,20 @@ export function panelItem(kind, raw) {
     it.title = raw.contentTitle || '';
     it.cover = raw.videoCover || '';
     it.desc = String(raw.contentDesc || '').replace(/<br\s*\/?\s*>/gi, ' ').trim(); // 简介副行；官方简介是 HTML，<br> 折空格（契约层统一处理，douga/info description 将来同款）
-    it.sub = (Number(raw.viewCount) || 0) + ' 播放 · ' + (Number(raw.bananaCount) || 0) + ' 蕉';
-    // UP 信息（0.9.66 UP 榜）：rankList 条目自带 fansCount/userImg/userSignature——
-    // getUserCardList 无粉丝数，UP 粉丝以此为准（docs/api-research.md §4.3/§6.1）
+    // extra 对齐原生榜单卡构成（0.9.67，原生 video-card extra 三段：播放数/评论数/发布于xx·频道
+    // ——原生截图首位是播放数非蕉数，蕉是排序依据非展示项）；sub 契约层拼好，rowOf 零分支
+    var ch = raw.channel || {};
+    it.sub = (Number(raw.viewCount) || 0) + ' 播放 · ' + (Number(raw.commentCount) || 0)
+      + ' 评论 · ' + relTime(Number(raw.contributeTime) || 0)
+      + (ch.parentName || ch.channelName ? ' / ' + (ch.parentName || ch.channelName) : '');
+    // UP 随行卡（原生 up-card：视频卡按排名配对作者卡，无独立 UP 榜）：rankList 条目自带
+    // fansCount/userImg/userSignature——getUserCardList 无粉丝数，UP 粉丝以此为准（§4.4/§6.1）
     it.up = raw.userName ? {
       id: Number(raw.authorId || raw.userId) || 0,
       name: raw.userName,
       img: raw.userImg || '',
       fans: Number(raw.fansCount) || 0,
+      contrib: Number(raw.contributionCount) || 0, // UP 总投稿数（原生 up-card 第二数据位）
       sign: String(raw.userSignature || '').replace(/<br\s*\/?\s*>/gi, ' ').slice(0, 60)
     } : null;
   } else {
@@ -144,25 +150,18 @@ export function homeItemOf(acId, title, cover) {
   return normalizeHome({ href: String(acId), title: title || '', img: cover ? [cover] : [] });
 }
 
-// 榜单 UP 聚合（0.9.66 UP 榜）：rankList 原始条目 → 按作者去重的 UP 列表（top limit）。
-// 每位 UP 取最高排名与该条 fansCount（同 UP 粉丝数恒定）；key=authorId，缺失兜底 userName。
-// 纯函数（契约层，单测钉：去重/排序/limit/脏输入不抛）
-export function upListOf(rawList, limit) {
-  var seen = {};
-  var out = [];
-  (rawList || []).forEach(function (raw, i) {
-    if (!raw || !raw.userName) return;
-    var key = String(raw.authorId || raw.userId || raw.userName);
-    if (seen[key]) return;
-    seen[key] = 1;
-    out.push({
-      id: Number(raw.authorId || raw.userId) || 0,
-      name: raw.userName,
-      img: raw.userImg || '',
-      fans: Number(raw.fansCount) || 0,
-      sign: String(raw.userSignature || '').replace(/<br\s*\/?\s*>/gi, ' ').slice(0, 60),
-      rank: i + 1
-    });
-  });
-  return out.slice(0, limit || 10);
+// 榜单 extra 的相对时间（0.9.67 对齐原生「发布于xx」）：<24h「N小时前」、<7天「N天前」、
+// 其余「M月D日」。纯函数（脏输入降级空串，单测钉）
+export function relTime(ms) {
+  var t = Number(ms) || 0;
+  if (!t) return '';
+  var diff = Date.now() - t;
+  if (diff < 0 || isNaN(diff)) return '';
+  var h = Math.floor(diff / 3600000);
+  if (h < 1) return '1小时内';
+  if (h < 24) return h + '小时前';
+  var d = Math.floor(h / 24);
+  if (d < 7) return d + '天前';
+  var dt = new Date(t);
+  return (dt.getMonth() + 1) + '月' + dt.getDate() + '日';
 }

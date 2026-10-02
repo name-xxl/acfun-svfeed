@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, upListOf } = await import('../../src/data.js');
+var { panelItem, homeItemOf, relTime } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -48,48 +48,37 @@ test('panelItem fav：userPlayedSeconds 为 0/缺省时 progress 为 null', () =
 });
 
 // ---------- panelItem: rank ----------
-test('panelItem rank：contentType=2 收、3（文章）滤；dougaId 字符串转数；meta 对齐原生（播放+蕉）；up 信息落位', () => {
+test('panelItem rank：contentType=2 收、3（文章）滤；dougaId 字符串转数；sub 对齐原生 extra（蕉/评论/相对时间/频道）；up 信息落位', () => {
   var pi = panelItem('rank', {
     dougaId: '48885202', contentType: 2, contentTitle: '榜单视频',
     contentDesc: '视频简介<br/>第二行', videoCover: 'https://img.example/z.jpg',
-    bananaCount: 527, viewCount: 2329,
-    userName: '榜单UP', authorId: 700, fansCount: 8000, userImg: 'https://img.example/u.jpg',
-    userSignature: '签名<br/>折行'
+    bananaCount: 527, commentCount: 50, contributeTime: Date.now() - 3 * 3600000,
+    viewCount: 2329,
+    channel: { parentName: '生活日常', channelName: '生活日常' },
+    userName: '榜单UP', authorId: 700, fansCount: 8000, contributionCount: 300,
+    userImg: 'https://img.example/u.jpg', userSignature: '签名<br/>折行'
   });
   assert.equal(pi.acId, 48885202);
-  assert.equal(pi.sub, '2329 播放 · 527 蕉');
+  assert.equal(pi.sub, '2329 播放 · 50 评论 · 3小时前 / 生活日常'); // 原生 extra 首位=播放数非蕉数
   assert.equal(pi.desc, '视频简介 第二行'); // 官方简介 HTML <br> 折空格
   assert.equal(pi.up.id, 700);
   assert.equal(pi.up.name, '榜单UP');
   assert.equal(pi.up.fans, 8000);
+  assert.equal(pi.up.contrib, 300);
   assert.equal(pi.up.sign, '签名 折行');
   assert.equal(panelItem('rank', { dougaId: '1', contentType: 3, contentTitle: '文章' }), null);
 });
 
-// ---------- upListOf ----------
-test('upListOf：按作者去重取最高排名，limit 截断', () => {
-  var raws = [];
-  for (var i = 0; i < 15; i++) {
-    raws.push({ userName: 'UP' + (i % 10), authorId: 100 + (i % 10), fansCount: 1000 + i, userImg: '', userSignature: '签' + i });
-  }
-  var ups = upListOf(raws, 5);
-  assert.equal(ups.length, 5);
-  assert.equal(ups[0].name, 'UP0');
-  assert.equal(ups[0].rank, 1);   // 首次出现位次（最高排名）
-  assert.equal(ups[0].fans, 1000); // 首条粉丝数
-  assert.equal(ups[1].name, 'UP1');
-});
-
-test('upListOf：authorId 缺失兜底 userName；脏输入不抛', () => {
-  var ups = upListOf([
-    { userName: '甲', fansCount: 1 },
-    { userName: '甲', fansCount: 2 }, // 无 authorId：同名去重
-    null, undefined
-  ], 10);
-  assert.equal(ups.length, 1);
-  assert.equal(ups[0].name, '甲');
-  assert.equal(upListOf(null).length, 0);
-  assert.equal(upListOf([], 10).length, 0);
+// ---------- relTime ----------
+test('relTime：<24h 小时前、<7天 天前、其余 M月D日；脏输入降级空串', () => {
+  var now = Date.now();
+  assert.equal(relTime(now - 3600000 * 3), '3小时前');
+  assert.equal(relTime(now - 3600000 * 25), '1天前');
+  assert.equal(relTime(now - 3600000 * 24 * 6), '6天前');
+  assert.match(relTime(now - 3600000 * 24 * 8), /^\d{1,2}月\d{1,2}日$/);
+  assert.equal(relTime(0), '');
+  assert.equal(relTime(null), '');
+  assert.equal(relTime(now + 999999), ''); // 未来时间不显示
 });
 
 test('panelItem：未知 kind 与缺 acId/标题一律 null', () => {

@@ -167,9 +167,11 @@ export function playAc(pi) {
 // meta 行拼装规则：sub 优先（历史=「观看至xx:xx」、榜单=蕉数、收藏=UP 名），
 // progress 仅在 sub 未表达时补显（收藏的续看秒数）
 export function rowOf(pi, rank) {
-  // 榜单条目走大卡（对齐原生榜单卡尺寸：横版大封面+三行文字区）；历史/收藏维持小卡
+  // 榜单条目走大卡+右侧 UP 卡（对齐原生 rlist 分栏）；历史/收藏维持小卡
   var row = el('div', 'acsv-vrow' + (pi.kind === 'rank' ? ' big' : ''));
-  if (rank != null) row.appendChild(el('div', 'acsv-vrow-rank' + (rank <= 3 ? ' top' : ''), String(rank)));
+  if (rank != null && pi.kind !== 'rank') {
+    row.appendChild(el('div', 'acsv-vrow-rank' + (rank <= 3 ? ' top' : ''), String(rank)));
+  }
   var thumb = el('div', 'acsv-vrow-thumb');
   if (pi.cover) {
     var img = el('img');
@@ -182,6 +184,7 @@ export function rowOf(pi, rank) {
   var main = el('div', 'acsv-vrow-main');
   main.appendChild(el('div', 'acsv-vrow-title', pi.title));
   if (pi.desc) main.appendChild(el('div', 'acsv-vrow-desc', pi.desc));
+  // meta 行：契约层拼好（rank=原生 extra 构成；其余来源 sub+续看进度）
   var bits = [];
   if (pi.sub) bits.push(pi.sub);
   if (pi.progress != null && pi.kind !== 'history') bits.push('看到 ' + fmtDur(pi.progress));
@@ -189,6 +192,31 @@ export function rowOf(pi, rank) {
   row.appendChild(main);
   row.addEventListener('click', function () { playAc(pi); });
   return row;
+}
+
+// 原生 up-card 等价物（rlist 右栏作者卡，横排）：大圆头像左+信息块右（名字 accent/签名/
+// 粉丝·投稿）。签名可多行（原生 sign 不截）；收藏数 rankList 不带，双数据位=粉丝+投稿。
+// 整卡为 UP 主页链接（原生同款 target=_blank）
+export function upCardOf(pi) {
+  var card = el('div', 'acsv-upcard');
+  var up = pi.up || {};
+  var a = el('a', 'acsv-upcard-link');
+  a.href = CFG.api.userBase + (up.id || '');
+  a.target = '_blank';
+  a.rel = 'noopener';
+  var avatar = el('img', 'acsv-upcard-avatar');
+  avatar.src = up.img || CFG.api.defaultAvatar;
+  avatar.referrerPolicy = 'no-referrer';
+  avatar.loading = 'lazy';
+  a.appendChild(avatar);
+  var info = el('div', 'acsv-upcard-info');
+  info.appendChild(el('div', 'acsv-upcard-name', up.name || ''));
+  if (up.sign) info.appendChild(el('p', 'acsv-upcard-sign', up.sign));
+  info.appendChild(el('div', 'acsv-upcard-extra',
+    up.fans + ' 粉丝 · 投稿 ' + (up.contrib || 0)));
+  a.appendChild(info);
+  card.appendChild(a);
+  return card;
 }
 
 export function moreBtn(onClick) {

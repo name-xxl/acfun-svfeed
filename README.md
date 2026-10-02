@@ -173,6 +173,30 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.67（2026-10-02）· 榜单结构对齐原生 rlist：视频卡+UP 卡左右分栏
+
+- **结构定案（用户提供原生页 HTML+CSS）**：原生榜单=双列头（榜单 Rank | Up主 Author）+
+  `rlist__cards` 每行「视频卡 | UP 卡」**左右分栏按排名配对**——无独立 UP 榜。0.9.66 的
+  分离 UP 榜 section 与 0.9.67 初版的卡底随行条均不合原生结构，一并退役（upListOf 死码
+  删除）；zone 视图重写为 `.acsv-rlist-row` grid 双列（`minmax(0,1fr) 300px`，双列头同轨
+  对齐；窄屏媒体查询回落单列）。
+- **UP 卡**（views.upCardOf，原生 up-card 等价）：圆头像+名字+签名（多行不截）+粉丝/投稿
+  双数据位（rankList 的 fansCount+contributionCount；原生第二位是用户收藏数，接口不带，
+  以投稿数补位并注释）；整卡 UP 主页链接 target=_blank（原生同款）。
+- **extra 对齐原生 video-card 构成**：meta=「2347 播放 · 51 评论 · 21小时前 / 生活」
+  （原生截图首位是**播放数**非蕉数——蕉是排序依据非展示项）；新增 relTime 纯函数
+  （<24h 小时前/<7天 天前/其余 M月D日，脏输入降级空串）；契约层拼好 sub，rowOf 零分支。
+- **视觉对齐原生（用户对比图差异清单逐条）**：排名=右下大号半透明水印数字（原生视觉
+  锚点，替代左缘小徽章）；UP 卡横排（88px 大圆头像左+信息块右，名字 accent 色，签名
+  break-all 整齐换行）；双列头 accent 竖线+中英文（榜单 Rank/Up主 Author）；行分隔线+
+  封面 260×160+标题 hover accent（链接语义用 hover 表达）；UP 双数据位=粉丝+投稿（原生
+  为粉丝+收藏，收藏数 rankList 不带，补位并注释）。原生 CSS 参考点：--acr-primary
+  #fd4c5d 与我们 --acsv-accent 同色。
+- **坑实锤**：视图列表类名 vlist→rlist 后 harness 断言未跟随（null.textContent 炸驱动
+  120s 超时）；UP 行数断言与视频行数断言分离。
+- mock 补 commentCount/contributeTime/channel/contributionCount；88 单测（relTime 新增）
+  +19 场景（view-zone 9 断言）全绿；真机截图对照原生 rlist 分栏一致。
+
 ### 0.9.66（2026-10-02）· 榜单大卡+子频道+UP 榜（对齐原生三件套）+ UP 接口入库
 
 - **卡片对齐原生尺寸**：rank 条目走大卡（`acsv-vrow--big`：横版封面 160×100+标题/简介/meta

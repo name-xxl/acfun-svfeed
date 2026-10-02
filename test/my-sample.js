@@ -34,13 +34,16 @@
     var period = (url.match(/rankPeriod=(\w+)/) || [])[1] || 'DAY';
     var name = ZONE_NAMES[cid] || ('分区' + cid);
     var rows = [];
+    var now = Date.now();
     for (var k = 0; k < 5; k++) {
       rows.push({
         dougaId: String(489500 + k), contentType: k === 4 ? 3 : 2, // 第 5 条文章形态：契约层过滤
         contentTitle: '榜单' + name + '-' + period + '-' + k, videoCover: '',
         contentDesc: '简介' + k, bananaCount: 500 - k, viewCount: 3000 - k * 10,
+        commentCount: 40 - k, contributeTime: now - (k + 1) * 3600000,
+        channel: { parentName: name, channelName: name },
         userName: '榜单UP' + (k % 2), authorId: 700 + (k % 2), fansCount: 8000 - k * 100,
-        userImg: '', userSignature: '签名' + k
+        contributionCount: 300 - k * 10, userImg: '', userSignature: '签名' + k
       });
     }
     return { result: 0, rankList: rows };
