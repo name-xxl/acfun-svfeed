@@ -277,19 +277,21 @@ export function rowOf(pi, rank) {
   return row;
 }
 
-// 网格卡（0.9.69 我的页抖音式）：封面 + 封面角标 + 两行标题 + meta。
+// 网格卡（0.9.69 我的页抖音式；0.9.83 卡面收口）：封面 + 封面角标 + 两行标题 + 脚行。
 // 与 rowOf 并列而非替换——rowOf 被 zone 消费且 0.9.67/68 断言钉着它的类名与
 // watermark offsetParent 契约，共享导出的形状改动必须 grep 全消费点（既有教训）。
-// 角标只用契约在册字段（历史 sub=「观看至xx:xx」）；0.9.72 搜索卡（kind='search'）增补
-// 抖音式角标与脚行：封面左下播放数（views，字形+数字）+ 右下时长（dur）、底部 @UP·日期——
-// 历史/收藏不传这些字段 → 渲染零变化（消费点已 grep：mypage.js 与 searchview.js 两处）。
-// 作者一律读 up 契约（0.9.82）：收藏与搜索卡都从这里出 @UP 名，sub 不再承载作者
+// 三种来源共用这一张卡，差异全部由契约字段决定（消费点已 grep：mypage.js ×2 与 searchview.js）：
+//   封面左下角标 = 进度/属性语义位：历史 sub=「观看至xx:xx」、收藏 progress=「看到 xx:xx」、
+//     搜索 views=播放数（右下另有时长 .acsv-gdur）
+//   脚行 = **作者唯一落点**（@UP名 + 日期）：搜索与收藏都从这里出作者，历史卡面无作者故不挂
+// 0.9.83 收口：作者与进度此前都在 meta 行（.acsv-gmeta）又各画了一遍——收藏卡出现
+// 「石悦」/「@石悦」与「看到xx:xx」双份。现在作者只走脚行、进度只留角标，meta 行整体删除
 export function gridCardOf(pi) {
   var cell = el('div', 'acsv-gcell' + (pi.kind === 'search' ? ' acsv-scell' : ''));
   var cover = el('div', 'acsv-gcover');
   imgInto(cover, pi.cover, 'grid');
-  // 封面角标 = 进度语义位：历史 sub 就是「观看至xx:xx」（契约在册）；收藏的 sub 是 UP 名，
-  // 只有续看秒数能进角标——没有时长算不出比例条，就不做比例条（不伪造）
+  // 封面角标 = 进度语义位：历史 sub 就是「观看至xx:xx」（契约在册）；收藏只有续看秒数能进
+  // 角标——没有时长算不出比例条，就不做比例条（不伪造）
   var tag = pi.kind === 'history' ? pi.sub
     : (pi.progress != null ? '看到 ' + fmtDur(pi.progress) : '');
   if (tag) cover.appendChild(el('div', 'acsv-gtag', tag));
@@ -302,13 +304,8 @@ export function gridCardOf(pi) {
   if (pi.dur) cover.appendChild(el('div', 'acsv-gdur', pi.dur));
   cell.appendChild(cover);
   cell.appendChild(el('div', 'acsv-gtitle', pi.title));
-  // meta 行：历史进度已在角标，只收藏补 UP 名（0.9.82：作者走 up 契约，原先塞在 sub 里）；
-  // 无内容不挂空节点（网格下空行会撑高卡距）
-  var bits = [];
-  if (pi.kind !== 'history' && pi.up && pi.up.name) bits.push(pi.up.name);
-  if (pi.kind !== 'history' && pi.progress != null) bits.push('看到 ' + fmtDur(pi.progress));
-  if (bits.length) cell.appendChild(el('div', 'acsv-gmeta', bits.join(' · ')));
-  // 搜索卡脚行：@UP名 + 发布时间（抖音式；两字段皆空不挂节点）
+  // 脚行：@UP名 + 日期（抖音式；两字段皆空不挂节点）。搜索卡右槽是发布日期，收藏卡无日期字段
+  // → 右槽留空、只出 @UP名；历史（无作者无日期）整行不挂
   var upName = pi.up && pi.up.name ? pi.up.name : '';
   if (upName || pi.dateText) {
     var foot = el('div', 'acsv-gfoot');

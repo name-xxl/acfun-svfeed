@@ -54,6 +54,13 @@ rec('hist-cards', !!(await waitFor(function () {
 }, 8000)));
 rec('skeleton-gone', document.querySelectorAll('.acsv-gskel').length === 0);
 rec('hist-tag', /观看至01:4/.test((q('.acsv-vlist.hist .acsv-gtag') || {}).textContent || ''));
+// 卡面收口（0.9.83）：历史条目卡面无作者字段 → 只有封面角标（进度语义位），不挂脚行/ meta 行
+rec('hist-card-composition', (function () {
+  var c = q('.acsv-vlist.hist .acsv-gcell');
+  if (!c) return false;
+  return !!c.querySelector('.acsv-gtag') && !c.querySelector('.acsv-gfoot')
+    && !c.querySelector('.acsv-gmeta') && !/@/.test(c.textContent);
+})());
 // 封面比例 4:3（A 站普通视频封面固定 4:3，只有小视频是 3:4）：历史/收藏条目经契约层
 // 过滤后全是普通视频，卡面套 3:4 会把封面左右各裁掉一大块（连标题字都被切）。钉住防回归
 rec('cover-ratio-4x3', (function () {
@@ -90,6 +97,33 @@ rec('fav-default-rows', !!(await waitFor(function () {
   var cells = document.querySelectorAll('.acsv-vlist.fav .acsv-gcell');
   return cells.length === 2 && /测试收藏视频0/.test(cells[0].textContent);
 }, 8000)));
+// 卡面收口（0.9.83）：三种来源共用一张 gridCardOf，作者唯一落点=脚行、进度唯一落点=封面角标。
+// 这里钉的是"同名文本只能画一次"——0.9.82 收藏卡曾出现「石悦 / @石悦」（meta+脚行）与
+// 「看到xx:xx」两遍（角标+meta），两类重复都是同一根因：卡面元素没有单一归属
+function cardTexts(cell) {
+  return {
+    name: (cell.textContent.match(/收藏UP/g) || []).length,
+    seen: (cell.textContent.match(/看到/g) || []).length,
+    gmeta: !!cell.querySelector('.acsv-gmeta'),
+    gfoot: cell.querySelector('.acsv-gfoot'),
+    gtag: cell.querySelector('.acsv-gtag')
+  };
+}
+rec('fav-card-composition', (function () {
+  var c = q('.acsv-vlist.fav .acsv-gcell');
+  if (!c) return false;
+  var t = cardTexts(c);
+  // 收藏条目夹具带 userPlayedSeconds（progress 非空）→ 角标应出「看到 01:05」；作者只在脚行
+  return t.name === 1 && t.seen === 1 && !t.gmeta
+    && !!t.gfoot && /^@收藏UP/.test(t.gfoot.textContent)
+    && !!t.gtag && /^看到 /.test(t.gtag.textContent);
+})(), (function () {
+  var c = q('.acsv-vlist.fav .acsv-gcell');
+  if (!c) return 'no-cell';
+  var t = cardTexts(c);
+  return 'name=' + t.name + ' seen=' + t.seen + ' gmeta=' + t.gmeta
+    + ' gfoot=' + JSON.stringify((t.gfoot || {}).textContent) + ' gtag=' + JSON.stringify((t.gtag || {}).textContent);
+})());
 // chips 顺序（0.9.69 修）：夹位选择器必须在**列表之上**（几何比较——原先
 // insertBefore(chips, btn) 落在列表下方，真机实测 favRow0 y=833 < chips y=997）
 rec('fav-chips-above', (function () {
@@ -482,6 +516,13 @@ rec('search-card-fields', (function () {
 rec('search-more-link', (function () {
   var a = q('.acsv-smfoot');
   return !!a && /search\?keyword=/.test(a.getAttribute('href') || '');
+})());
+// 卡面收口（0.9.83）：搜索卡同为 gridCardOf——作者走脚行、无 meta 行（该行已删，无生产者）
+rec('search-card-composition', (function () {
+  var c = q('.acsv-sgrid .acsv-scell');
+  if (!c) return false;
+  return !!c.querySelector('.acsv-gfoot') && !c.querySelector('.acsv-gmeta')
+    && (c.textContent.match(/晨澜每日分享/g) || []).length === 1;
 })());
 topbarInView('view'); // 0.9.73：搜索视图 = 共享顶栏（视图头 / 视图内胶囊都已删）
 rec('search-prefill', (function () { // 顶栏输入框是唯一输入框：提交后与地址关键词一致
