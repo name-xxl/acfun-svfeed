@@ -82,7 +82,9 @@ function enterView(id, arg) {
   var body = el('div', 'acsv-view-body');
   container.appendChild(buildHead(def));
   container.appendChild(body);
-  container.style.display = '';
+  // 必须显式 'block'：CSS 里 .acsv-view 初始 display:none，'' 会回落到样式表值——
+  // 0.9.62 黑屏 bug 根因（内容渲染了但容器不可见，harness 断言只查内联值被骗过）
+  container.style.display = 'block';
   current = { id: id, arg: arg, def: def };
   overlayOpen({ id: 'view', close: backToFeed }); // 非模态层：Esc=返回竖刷
   def.build(body, arg);
@@ -99,14 +101,19 @@ function exitView(restore) {
   if (def.teardown) { try { def.teardown(); } catch (e) { } }
   if (container) { container.innerHTML = ''; container.style.display = 'none'; }
   if (root) root.classList.remove('acsv-with-view');
-  if (scroller) scroller.style.display = '';
+  // 显式 'block' 同 enterView：'' 回落样式表值的坑不赌 scroller 的 CSS 现状
+  if (scroller) scroller.style.display = 'block';
   if (resume) resumeCurrentVideo();
 }
 
 // Esc/✕ 回竖刷：hash 赋值（入一条历史），hashchange → toggle → syncRouteView →
 // exitView(true)。无条件回写：若地址已被 syncHash 残留定时器踩成深链（replaceState
-// 不触发 hashchange，视图态与地址会短暂脱钩），回写 #svfeed 正好把状态拉回一致
+// 不触发 hashchange，视图态与地址会短暂脱钩），回写 #svfeed 正好把状态拉回一致。
+// 仅 Esc/✕ 路径生效（current 非空）：exitView 已清 current 后才 overlayClose 的
+// 切换/teardown 路径不得动 hash——否则我的→榜单直切会被改回 #svfeed 闪回竖刷
+// （0.9.63 真机验证踩实）
 function backToFeed() {
+  if (!current) return;
   if (location.hash !== '#' + CFG.hash) location.hash = CFG.hash;
 }
 

@@ -149,8 +149,8 @@ export var CFG = {
   fmt: { wanMin: 9999 },
   // ---- 子视图（0.9.62）：#svfeed/<view>/<arg>，左栏入口 + 面板参数 ----
   view: {
-    narrow: 560,          // 视口宽低于此值隐藏左栏（竖刷是移动式布局，面板无意义）
-    dockW: 48,            // 左栏宽（.acsv-info 让位量与之绑定，见 styles.js）
+    narrow: 720,          // 视口宽低于此值隐藏左栏（竖刷是移动式布局，面板无意义）
+    dockW: 168,           // 左栏展开宽（抖音式全高导航；scroller/info/视图 padding 与之绑定）
     pageSize: 20,         // 观看历史/收藏夹每页
     rankLimit: 20,        // 榜单条数（rank/channel 的 rankLimit 实测生效，GET 形状）
     periods: ['DAY', 'THREE_DAYS', 'WEEK'], // 榜期（实测支持三档）

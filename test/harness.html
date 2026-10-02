@@ -436,13 +436,15 @@
         // panelItem 契约过滤（坏例条目不渲染）+ 条目点击回竖刷插入播放（resolve 链走 mock）
         window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
         location.hash = 'svfeed/my';
+        // 可见性断言一律查真实渲染态 offsetParent（0.9.62 黑屏教训：内联 '' 回落样式表
+        // display:none，查内联值的断言被骗全绿）
         rec('view-open', !!(await waitFor(function () {
           var v = q('.acsv-view');
-          return v && v.style.display !== 'none' && q('.acsv-view-title')
+          return v && v.offsetParent !== null && q('.acsv-view-title')
             && q('.acsv-view-title').textContent === '我的';
         }, 10000)));
         rec('dock-highlight', !!(await waitFor(function () {
-          var b = q('.acsv-dock-btn[data-view="my"]');
+          var b = q('.acsv-dock-item[data-view="my"]');
           return b && b.classList.contains('on');
         }, 3000)));
         rec('scroller-hidden', q('.acsv-scroller').style.display === 'none');
@@ -485,7 +487,7 @@
         // 视图内 Esc=返回竖刷：再进视图后合成 Esc 事件
         location.hash = 'svfeed/my';
         rec('re-enter-open', !!(await waitFor(function () {
-          return q('.acsv-view').style.display !== 'none';
+          return q('.acsv-view').offsetParent !== null;
         }, 8000)));
         await wait(400); // 越过进视图前残留的 syncHash 150ms 定时器窗口（真实用户不可达的时序）
         key('Escape');
@@ -499,7 +501,7 @@
         location.hash = 'svfeed/zone';
         rec('zone-open', !!(await waitFor(function () {
           var v = q('.acsv-view');
-          return v && v.style.display !== 'none' && q('.acsv-view-title').textContent === '分区榜单';
+          return v && v.offsetParent !== null && q('.acsv-view-title').textContent === '分区榜单';
         }, 10000)));
         rec('zone-rows-filtered', !!(await waitFor(function () {
           var rows = document.querySelectorAll('.acsv-vrow');

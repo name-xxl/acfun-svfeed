@@ -173,6 +173,22 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.63（2026-10-02）· 黑屏修复 + 抖音式左侧栏重设计
+
+- **黑屏修复**：`.acsv-view` 样式表初始 `display:none`，enterView 恢复写 `style.display=''`
+  只是清内联值、回落样式表值——内容渲染了但容器不可见（harness 断言只查内联值被骗全绿，
+  0.9.62 发布版黑屏根因）。修复=显式 `'block'`（scroller 恢复同步显式，防同型坑）；
+  harness 可见性断言全部改查真实渲染态 `offsetParent`。
+- **侧栏重设计（抖音式）**：48px 悬浮图标块 → 168px 全高贴左导航（图标+文字横排、
+  hover/当前项灰 pill、分组分隔线）；新增「推荐」条目（回竖刷，竖刷模式高亮它）。
+- **主区让位**：scroller margin-left=dockW（视频居中于剩余空间，抖音同款）、info/视图
+  padding 适配；全屏（:fullscreen）下 dock 隐藏+让位还原（沉浸满幅）；窄屏阈值 560→720。
+- **顺修视图间直切**：我的→榜单直切闪回竖刷——exitView 清 current 后 overlayClose 仍触发
+  backToFeed 改 hash，新视图被随后的 hashchange 关掉；backToFeed 加 current 守卫
+  （Esc 路径 current 非空不受影响）。真机验证踩实，harness 此前只测了经竖刷中转的切换。
+- 真机验证（内置浏览器注入构建实拍）：我的（历史 20 行+收藏夹）、榜单（真实排名/封面/蕉数/
+  chips）、竖刷让位布局、my↔zone 直切，全部通过。19 场景+87 单测全绿。
+
 ### 0.9.62（2026-10-02）· 架构升级二期：hash 子路由视图层 + 我的/分区视图
 
 - **子视图路由**：hash 语法扩展（route.js 纯函数 parseHash，全锚定顺修 `#svfeedother`

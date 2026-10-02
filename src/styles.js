@@ -60,7 +60,7 @@ var RAW_CSS = ''
   + '@keyframes acsv-bump{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}'
   + '.acsv-count{font-size:13px;font-weight:500;line-height:16px;margin-top:4px;margin-bottom:0;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.7)}'
   // 左下 info 让位左栏 dock（CFG.view.dockW=48）：窄屏 dock 隐藏时媒体查询还原
-  + '.acsv-info{position:absolute;left:72px;bottom:40px;z-index:15;max-width:min(56%,560px);color:#fff;'
+  + '.acsv-info{position:absolute;left:' + (CFG.view.dockW + 16) + 'px;bottom:40px;z-index:15;max-width:min(56%,560px);color:#fff;'
   + 'text-shadow:0 1px 4px rgba(0,0,0,.7);transition:bottom .25s ease}'
   + '.acsv-slide[data-ctl="1"] .acsv-info,.acsv-slide[data-paused="1"] .acsv-info{bottom:96px}'
   + '.acsv-meta{font-size:15px;font-weight:600;line-height:21px;margin-bottom:5px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}'
@@ -571,26 +571,32 @@ var RAW_CSS = ''
   + '.acsv-upd-btn svg{width:20px;height:20px;fill:#fff;display:block}'
   + '.acsv-upd-dot{position:absolute;top:-2px;right:-3px;width:9px;height:9px;border-radius:50%;'
   + 'background:var(--acsv-accent);box-shadow:0 0 0 2px rgba(22,22,27,.9)}'
-  // ---- 左栏 dock + 子视图（0.9.62）：#svfeed/<view> 多页面宿主 ----
-  // dock z56：盖视图容器(55)、抽屉(45/50)，低于大图(60)/更新弹窗(65)——与 overlay 栈序一致
-  + '.acsv-dock{position:absolute;left:0;top:50%;transform:translateY(-50%);width:' + CFG.view.dockW + 'px;'
-  + 'display:flex;flex-direction:column;gap:6px;z-index:56}'
-  + '.acsv-dock-btn{border:none;background:rgba(22,22,27,.55);border-radius:10px;padding:9px 2px 7px;'
-  + 'cursor:pointer;color:#cfd3da;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;'
-  + 'transition:background .15s,color .15s;backdrop-filter:blur(4px)}'
-  + '.acsv-dock-btn svg{width:20px;height:20px;fill:currentColor;display:block}'
-  + '.acsv-dock-btn span{font-size:11px;line-height:14px}'
-  + '.acsv-dock-btn:hover{background:rgba(22,22,27,.85);color:#fff}'
-  + '.acsv-dock-btn.on{background:var(--acsv-accent);color:#fff}'
+  // ---- 左栏导航（0.9.63 抖音式）：全高贴左、图标+文字横排、当前项灰 pill ----
+  // z56：盖视图容器(55)、抽屉(45/50)，低于大图(60)/更新弹窗(65)——与 overlay 栈序一致。
+  // 主区让位：scroller/视图内容 margin/padding-left=CFG.view.dockW（抖音同款，视频居中于剩余空间）；
+  // 已知取舍：评论抽屉避让中心仍按全视口算（不随 dock 右移），视觉可接受不展开
+  + '.acsv-dock{position:absolute;left:0;top:0;bottom:0;width:' + CFG.view.dockW + 'px;'
+  + 'padding:68px 10px 20px;display:flex;flex-direction:column;gap:4px;z-index:56}'
+  + '.acsv-dock-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border:none;'
+  + 'background:transparent;border-radius:10px;color:#d5d8df;font-size:15px;font-family:inherit;'
+  + 'cursor:pointer;text-align:left;transition:background .15s,color .15s}'
+  + '.acsv-dock-item svg{width:20px;height:20px;fill:currentColor;display:block;flex:none}'
+  + '.acsv-dock-item:hover{background:rgba(255,255,255,.08);color:#fff}'
+  + '.acsv-dock-item.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600}'
+  + '.acsv-dock-sep{height:1px;background:rgba(255,255,255,.09);margin:8px 6px}'
+  // 主区让位：竖刷视频区居中于剩余空间；全屏沉浸还原满幅
+  + '.acsv-scroller{margin-left:' + CFG.view.dockW + 'px}'
+  + '#acsv-root:fullscreen .acsv-dock{display:none}'
+  + '#acsv-root:fullscreen .acsv-scroller{margin-left:0}'
   + '.acsv-view{position:absolute;inset:0;z-index:55;display:none;background:#16161b;overflow:hidden}'
   + '.acsv-view-head{position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;'
-  + 'justify-content:space-between;padding:0 20px 0 68px;border-bottom:1px solid rgba(255,255,255,.08)}'
+  + 'justify-content:space-between;padding:0 20px 0 ' + (CFG.view.dockW + 14) + 'px;border-bottom:1px solid rgba(255,255,255,.08)}'
   + '.acsv-view-title{font-size:17px;font-weight:600;color:#fff}'
   + '.acsv-view-x{border:none;background:rgba(255,255,255,.1);border-radius:50%;width:32px;height:32px;'
   + 'cursor:pointer;color:#fff;font-size:15px;line-height:1;transition:background .15s}'
   + '.acsv-view-x:hover{background:rgba(255,255,255,.2)}'
   + '.acsv-view-body{position:absolute;top:52px;bottom:0;left:0;right:0;overflow-y:auto;'
-  + 'padding:6px 24px 30px 68px}'
+  + 'padding:6px 24px 30px ' + (CFG.view.dockW + 14) + 'px}'
   + '.acsv-vsec{margin-bottom:26px}'
   + '.acsv-vsec-title{font-size:16px;font-weight:600;color:#fff;margin:18px 0 10px}'
   + '.acsv-vchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}'
@@ -616,9 +622,9 @@ var RAW_CSS = ''
   + 'transition:background .15s}'
   + '.acsv-vmore:hover{background:rgba(255,255,255,.18)}'
   + '.acsv-vmore[disabled]{opacity:.5;cursor:default}'
-  // 窄屏：dock 隐藏（CFG.view.narrow），info 与视图内容还原满宽
-  + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-dock{display:none}.acsv-info{left:24px}'
-  + '.acsv-view-body,.acsv-view-head{padding-left:20px}}';
+  // 窄屏：dock 隐藏（CFG.view.narrow），主区/信息区/视图内容还原满宽
+  + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-dock{display:none}.acsv-scroller{margin-left:0}'
+  + '.acsv-info{left:24px}.acsv-view-body,.acsv-view-head{padding-left:20px}}';
 
 // 主题色收敛：RAW_CSS 中的 #fd4c5d 全部替换为 CSS 变量，:root 上定义唯一来源
 export var CSS = ':root{--acsv-accent:' + CFG.accent + '}'
