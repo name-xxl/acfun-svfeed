@@ -5195,6 +5195,14 @@
       subCommentsMap: { m1: [{ commentId: "m1-1", userId: 789, userName: "路人甲", headUrl: "", content: "前排！", postDate: "2026-09-01", likeCount: 3, subCommentCount: 0 }] }
     };
   }
+  testHook("comments", function() {
+    return {
+      sourceId: commentState.sourceId,
+      stype: commentState.stype,
+      kind: commentState.kind,
+      open: isOpenComments()
+    };
+  });
 
   // src/dmcanvas.js
   var dmFc = 0;
@@ -8017,6 +8025,10 @@
   var OVL_IDX = -1;
   var pending = null;
   var slideRef = null;
+  var itemRef = null;
+  function currentItem() {
+    return itemRef;
+  }
   function itemOfPanel(pi) {
     var item = homeItemOf(pi.acId, pi.title, pi.cover);
     var up = pi.up || {};
@@ -8035,6 +8047,7 @@
     slide.dataset.ovl = "1";
     body.appendChild(slide);
     slideRef = slide;
+    itemRef = item;
     setVideoTarget(function() {
       var v = slideRef && slideRef.querySelector("video");
       return v || null;
@@ -8092,6 +8105,7 @@
       slideRef._session = null;
     }
     slideRef = null;
+    itemRef = null;
     pending = null;
   }
   registerView({
@@ -8193,8 +8207,7 @@
         case "c":
         case "C": {
           if (ev.repeat) break;
-          if (inPlay) break;
-          var itC = FeedStore.items[cur];
+          var itC = inPlay ? currentItem() : FeedStore.items[cur];
           if (itC) toggleItemComments(itC);
           break;
         }

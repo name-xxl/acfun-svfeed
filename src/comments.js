@@ -6,6 +6,7 @@ import { GLYPHS } from './imicons.js';
 import { commentShareWire } from './immsg.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
+import { testHook } from './dbg.js';
 import { AppAPI } from './appapi.js';
 import { uploadImage } from './upload.js';
 import { renderCommentHtml, ubbImText } from './ubb.js';
@@ -484,3 +485,12 @@ function mockComments() {
     subCommentsMap: { m1: [{ commentId: 'm1-1', userId: 789, userName: '路人甲', headUrl: '', content: '前排！', postDate: '2026-09-01', likeCount: 3, subCommentCount: 0 }] }
   };
 }
+
+// debug 构建测试钩子：harness 断言评论抽屉当前源与开合态（播放层键盘 c 打的是层内那条，
+// 不是竖刷当前条——0.9.74）
+testHook('comments', function () {
+  return {
+    sourceId: commentState.sourceId, stype: commentState.stype,
+    kind: commentState.kind, open: isOpenComments()
+  };
+});

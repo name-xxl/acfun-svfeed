@@ -219,16 +219,17 @@ harness 盲区：旧断言只看游标/URL/起播，**没有一条钉「视口�
   ——竖刷被盖住不起播（视图冷启动 `loadInitial` 晚到会把背后视频播起来＝幽灵音频），但同一门禁
   **不拦播放层里的视频**（层内 slide 不在 scroller 里，用全局 stageVisible 会连自己一起挡，
   实现期实测踩过）；键盘手势按 `state.videoTarget` 覆盖「当前视频」，**有钩子不回落竖刷**
-  （层内还没挂上 video 就什么都不打）。
+  （层内还没挂上 video 就什么都不打）；`c` 键评论开合打层内条目（`playlayer.currentItem`，
+  不是竖刷当前条）、`↑↓` 照旧吞掉（层内没有竖刷邻居）。
 - **解耦守卫（`data-ovl` 唯一判据，attach.js 契约表在册）**：层内 slide 用 `OVL_IDX=-1` 哨兵
   ——slide 点按判定、`attach.syncFwdQuality`、`controls.rebuildFwdNeighbor` 全加守卫（少了它
   `items[-1+1]` 会打到竖刷第 0 条，把背后邻居重挂一遍）；rail 在 `goTo=null` 时不建箭头；
   `SESSION_HOOKS.currentIdx` 层开返回哨兵（会话自动起播判定）。视图条目点击出口改由
   playlayer 注册注入（`setItemOpener`）——views 不再 import player，循环依赖少一条。
 - **测试**：单测 106（route 加 play 形态：v/a 标记 + src 落位、**不填 mid**、裸 `#svfeed/play`
-  落视图分支、脏输入不激活）；harness 28 场景——新增 `play-deep`（26 断言：冷进入自解析/标题/
+  落视图分支、脏输入不激活）；harness 28 场景——新增 `play-deep`（28 断言：冷进入自解析/标题/
   不切源/竖刷零改动/层内切清晰度不污染邻居/坏形态错误态/未命中错误盒+重试/返回键与 ✕ 语义/
-  键盘重定向与幽灵音频防线），view-my·view-zone 改写为播放层契约（40/38 断言：开层真起播、
+  键盘重定向/评论键打层内条/幽灵音频防线），view-my·view-zone 改写为播放层契约（40/38 断言：开层真起播、
   竖刷零改动、关闭回来源且**同一节点**），view-search 点卡改播放层 + 返回键回搜索页不重拉
   （29 断言）；`deeplink-sv` 加 `warm-jump-landed`、view-zone 加 `hidden-jump-landed` 落点
   不变式（**断言先判舞台可见**——隐藏态矩形恒 0 会把几何断言假绿骗过，实测踩过）；view-my 加

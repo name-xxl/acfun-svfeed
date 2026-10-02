@@ -24,6 +24,10 @@ import { attachVideo } from './attach.js';
 export var OVL_IDX = -1;
 var pending = null; // 点击路径暂存的面板条目（{ acId, title, cover, up }）
 var slideRef = null; // 当前层内 slide（teardown 拆会话用；DOM 由框架拆）
+var itemRef = null; // 当前层内条目（键盘 c=评论开合要打到它，不是竖刷当前条）
+
+// 层内当前条目（input.js 的 c 键用；无层=null）
+export function currentItem() { return itemRef; }
 
 // 面板条目 → 播放层。up 字段（榜单/搜索结果带）给首帧头像与 UP 名；缺则留空待解析回填
 function itemOfPanel(pi) {
@@ -46,6 +50,7 @@ function mountSlide(body, item) {
   slide.dataset.ovl = '1';
   body.appendChild(slide);
   slideRef = slide;
+  itemRef = item;
   // 键盘手势重定向（空格/静音/快进/全屏打层内那条；有钩子不回落竖刷，见 state.videoTarget）
   setVideoTarget(function () {
     var v = slideRef && slideRef.querySelector('video');
@@ -98,6 +103,7 @@ function teardownPlayView() {
   setVideoTarget(null); // 撤键盘重定向：此后"当前视频"回到竖刷当前条
   if (slideRef && slideRef._session) { slideRef._session.dispose(); slideRef._session = null; }
   slideRef = null;
+  itemRef = null;
   pending = null;
 }
 

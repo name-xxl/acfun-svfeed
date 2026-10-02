@@ -1095,6 +1095,17 @@
           for (var i = 0; i < vs.length; i++) if (!vs[i].paused) return false;
           return true;
         })());
+        key('c'); // 层内评论开合（0.9.74）：必须打层内那条，不是竖刷当前条
+        rec('play-key-comments', !!(await waitFor(function () {
+          var r = q('#acsv-root'), d = q('.acsv-drawer'), cs = TEST.call('comments');
+          return !!r && r.classList.contains('acsv-with-comments') && !!d && d.classList.contains('open')
+            && !!cs && String(cs.sourceId) === '488900';
+        }, 6000)), JSON.stringify(TEST.call('comments')));
+        key('c');
+        rec('play-key-comments-close', !!(await waitFor(function () {
+          var r = q('#acsv-root');
+          return !!r && !r.classList.contains('acsv-with-comments');
+        }, 6000)));
         key('Escape');
         rec('play-esc-back', !!(await waitFor(function () {
           return location.hash === '#svfeed' && q('.acsv-slide[data-ovl="1"]') === null;
