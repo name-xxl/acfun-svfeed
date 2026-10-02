@@ -173,6 +173,21 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.64（2026-10-02）· 让位回归三连修：标题对齐 / logo 进侧栏 / 抽屉避让跟随
+
+- **标题栏双重让位回归**：`.acsv-info` 挂 slide 内（slide 已随 scroller margin 让位 dock），
+  0.9.63 误把 left 改成 dockW+16 致标题落 352px——恢复 24px（注释防再犯）。
+- **抽屉避让"下滑不跟随"（0.9.61 回归，真机复现+猴补丁抓栈实锤）**：抽屉开着下滑时
+  setActive 会 openComments 切评论源（旧功能），而 openComments 内 claimDrawer 先占槽、
+  overlayOpen 后入栈——其内部幂等收旧层调 closeComments 清槽+摘避让根类，末尾
+  syncCommentVars 读到空槽把根类摘掉 → 新视频按无抽屉渲染被覆盖。修=overlayOpen 挪到
+  claimDrawer 之前（先收旧层再占槽），openComments/openDrawer/openChat 三处同修。
+  定性：回归而非旧架构缺陷，避让系统（根类+变量+panfit 分层）本身健康，补丁不重构。
+- **logo 进左侧栏常驻**（0.9.63 侧栏化后的归位）：dock 顶部 AcFun logo+分隔；顶栏删
+  logo 与「小视频/推荐」源提示（updateSegUI 的 logoLabel 引用删除，seg 按钮保留）。
+- 真机验证：猴补丁抓摘类调用栈定位 → 修复后同路径复验（根类保持/新视频 transform 正确
+  apply/截图确认避让并排布局）。19 场景+87 单测全绿。
+
 ### 0.9.63（2026-10-02）· 黑屏修复 + 抖音式左侧栏重设计
 
 - **黑屏修复**：`.acsv-view` 样式表初始 `display:none`，enterView 恢复写 `style.display=''`

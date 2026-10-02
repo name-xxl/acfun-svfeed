@@ -29,6 +29,14 @@ var ENTRIES = [
 export function buildDock(parent) {
   if (dockEl) return;
   dockEl = el('div', 'acsv-dock');
+  // 顶栏 logo 迁此常驻（0.9.64）：AcFun 图标 + 分隔，其后才是导航条目
+  var logo = el('div', 'acsv-dock-logo');
+  var img = el('img');
+  img.src = CFG.api.logoSvg;
+  img.alt = 'AcFun';
+  logo.appendChild(img);
+  dockEl.appendChild(logo);
+  dockEl.appendChild(el('div', 'acsv-dock-sep'));
   ENTRIES.forEach(function (e) {
     if (e.sep) {
       dockEl.appendChild(el('div', 'acsv-dock-sep'));

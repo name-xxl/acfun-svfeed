@@ -36,7 +36,7 @@ function makeIO() {
     });
   }, { root: scroller, threshold: [CFG.io.ratio] });
 }
-var logoLabel = null, segSv = null, segHome = null;
+var segSv = null, segHome = null;
 
 // player.js 只留编排层：渲染窗口/激活/滚动/初始加载/生命周期/顶栏 + 会话回接钩子。
 // 已迁出：播放态与声音 → playback.js；观看上报 → report.js；预热 → prewarm.js；
@@ -290,14 +290,7 @@ function mount() {
   root.className = 'acsv-root';
 
   var top = el('div', 'acsv-top');
-  var logo = el('div', 'acsv-logo');
-  var logoImg = el('img', 'acsv-logo-img');
-  logoImg.src = CFG.api.logoSvg;
-  logoImg.alt = 'AcFun';
-  logo.appendChild(logoImg);
-  logoLabel = el('span', null, getSource() === 'home' ? '推荐' : '小视频');
-  logo.appendChild(logoLabel);
-  top.appendChild(logo);
+  // AcFun logo 迁左侧栏常驻（0.9.64），「小视频/推荐」源提示随之删除（seg 按钮自带选中态）
   var tr = el('div', 'acsv-top-right');
   // 内容源切换：小视频(meow) / 推荐(APP 首页推荐)
   segSv = el('button', 'acsv-seg-btn' + (getSource() !== 'home' ? ' on' : ''), '小视频');
@@ -397,7 +390,6 @@ function unmount() {
 function updateSegUI() {
   if (segSv) segSv.classList.toggle('on', getSource() !== 'home');
   if (segHome) segHome.classList.toggle('on', getSource() === 'home');
-  if (logoLabel) logoLabel.textContent = getSource() === 'home' ? '推荐' : '小视频';
 }
 
 // 顶栏开关：小视频 ↔ 推荐，立即重置数据流并回到第一条

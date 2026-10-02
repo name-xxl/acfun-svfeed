@@ -909,8 +909,9 @@ export function openDrawer() {
   if (!isLogined()) { toast('私信需要先登录 AcFun 账号'); return; }
   ensureDrawerDom();
   prewarmIm(); // 首图提前换好 midground 令牌，进会话不等 token 往返
-  claimDrawer('im', closeDrawer);
+  // overlayOpen 先于 claimDrawer：同 openComments（0.9.64 顺序回归修复，防幂等收旧清槽后摘避让类）
   overlayOpen({ id: 'im', close: closeDrawer }); // 非模态层：不拦导航键，Esc 接栈
+  claimDrawer('im', closeDrawer);
   drawer.el.classList.add('open');
   syncCommentVars(); // 复用评论抽屉的避让（视频平移缩放/控制栏侧栏让位）
   showList();
@@ -919,8 +920,8 @@ export function openChat(targetId) {
   if (!isLogined()) { toast('私信需要先登录 AcFun 账号'); return; }
   ensureDrawerDom();
   prewarmIm(); // 同 openDrawer：分享面板直达会话也不等 token 往返
-  claimDrawer('im', closeDrawer);
   overlayOpen({ id: 'im', close: closeDrawer });
+  claimDrawer('im', closeDrawer);
   drawer.el.classList.add('open');
   syncCommentVars();
   showChat(String(targetId));

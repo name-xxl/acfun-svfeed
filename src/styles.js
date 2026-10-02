@@ -60,7 +60,9 @@ var RAW_CSS = ''
   + '@keyframes acsv-bump{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}'
   + '.acsv-count{font-size:13px;font-weight:500;line-height:16px;margin-top:4px;margin-bottom:0;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.7)}'
   // 左下 info 让位左栏 dock（CFG.view.dockW=48）：窄屏 dock 隐藏时媒体查询还原
-  + '.acsv-info{position:absolute;left:' + (CFG.view.dockW + 16) + 'px;bottom:40px;z-index:15;max-width:min(56%,560px);color:#fff;'
+  // info 挂 slide 内（slide 已随 scroller margin 让位 dock），left 恒 24——再加 dockW 是双重让位
+  // （0.9.63 曾误改 184 致标题落到 352px，回归实锤）
+  + '.acsv-info{position:absolute;left:24px;bottom:40px;z-index:15;max-width:min(56%,560px);color:#fff;'
   + 'text-shadow:0 1px 4px rgba(0,0,0,.7);transition:bottom .25s ease}'
   + '.acsv-slide[data-ctl="1"] .acsv-info,.acsv-slide[data-paused="1"] .acsv-info{bottom:96px}'
   + '.acsv-meta{font-size:15px;font-weight:600;line-height:21px;margin-bottom:5px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}'
@@ -576,7 +578,9 @@ var RAW_CSS = ''
   // 主区让位：scroller/视图内容 margin/padding-left=CFG.view.dockW（抖音同款，视频居中于剩余空间）；
   // 已知取舍：评论抽屉避让中心仍按全视口算（不随 dock 右移），视觉可接受不展开
   + '.acsv-dock{position:absolute;left:0;top:0;bottom:0;width:' + CFG.view.dockW + 'px;'
-  + 'padding:68px 10px 20px;display:flex;flex-direction:column;gap:4px;z-index:56}'
+  + 'padding:10px 10px 20px;display:flex;flex-direction:column;gap:4px;z-index:56}'
+  + '.acsv-dock-logo{padding:2px 8px 10px}'
+  + '.acsv-dock-logo img{height:20px;display:block}'
   + '.acsv-dock-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border:none;'
   + 'background:transparent;border-radius:10px;color:#d5d8df;font-size:15px;font-family:inherit;'
   + 'cursor:pointer;text-align:left;transition:background .15s,color .15s}'

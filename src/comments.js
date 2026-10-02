@@ -52,8 +52,11 @@ export function closeComments() {
 
 export function openComments(sourceId, stype, shareUrl, kind) {
   if (!commentDrawer || !sourceId) return;
-  claimDrawer('comments', closeComments); // 占槽：私信抽屉开着则自动收回，再展开评论
+  // overlayOpen 必须先于 claimDrawer（0.9.64 顺序回归修复）：其内部幂等收旧层会调
+  // closeComments 清槽+摘避让根类——若槽先占后清，末尾 syncCommentVars 读到空槽会把
+  // 根类摘掉（抽屉开着下滑切评论源 → 新视频按无抽屉渲染被覆盖，真机复现实锤）
   overlayOpen({ id: 'comments', close: closeComments }); // 非模态层：不拦导航键，Esc 接栈
+  claimDrawer('comments', closeComments); // 占槽：私信抽屉开着则自动收回，再展开评论
   commentDrawer.el.classList.add('open');
   if (root) syncCommentVars(); // isOpenComments 此时已为真：空间够则加避让根类，不够则纯覆盖
   commentState.stype = Number(stype) || 5;
