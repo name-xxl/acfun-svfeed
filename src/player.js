@@ -17,6 +17,7 @@ import { showControls, updateArrows } from './controls.js';
 import { onHomeResolved } from './rail.js';
 import { buildSlide, buildDrawer } from './slide.js';
 import { openDrawer, mountBadge, teardownIm } from './imdrawer.js';
+import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
 import { setupInputHandlers, teardownInputHandlers } from './input.js';
 
 // ---------- UI ----------
@@ -315,6 +316,15 @@ function mount() {
     openDrawer();
   });
   tr.appendChild(imBtn);
+  // 更新入口：release 说明弹窗 + 新版本红点（0.9.60，imBtn 同款内联 SVG + 角标）
+  var updBtn = el('button', 'acsv-tbtn acsv-upd-btn');
+  updBtn.title = '更新说明';
+  updBtn.innerHTML = ICONS.upd + '<span class="acsv-upd-dot" style="display:none"></span>';
+  updBtn.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    openReleaseNotes();
+  });
+  tr.appendChild(updBtn);
   var exitBtn = el('button', 'acsv-tbtn', '✕');
   exitBtn.title = '退出（Esc）';
   exitBtn.addEventListener('click', exitFeed);
@@ -335,6 +345,7 @@ function mount() {
   document.body.appendChild(root);
   mountBadge(imBtn, imBtn.querySelector('.acsv-im-badge'));
   dbg('root-appended');
+  releaseCheck(); // 每次打开竖刷页检查一次更新（内部带最小间隔节流，失败静默）
 
   io = makeIO();
 
@@ -359,6 +370,7 @@ function unmount() {
   cancelSeekHold();
   dmStopAll();
   teardownIm(); // 停私信徽标轮询/重置抽屉模块态（不清会让重进后的私信抽屉打不开）
+  teardownRelease(); // 拆更新弹窗单例与 capture 监听（root 拆后监听残留会吞站点页全局键盘）
   resetDrawerSlot(); // 清槽位：评论侧没有 teardown，防残留闭包让重进后的第一次 Esc 被吃掉
 
   // 会话整批拆除（video/hls/看门狗/弹幕层/定时器一次拆净）

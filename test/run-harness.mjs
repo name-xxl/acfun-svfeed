@@ -42,7 +42,8 @@ const HARNESS_CASES = [
   { name: 'dispose-mid-recovery' },
   { name: 'stall-visibility' },
   { name: 'spinner-recover' },
-  { name: 'watch-report' }
+  { name: 'watch-report' },
+  { name: 'upd-open' } // 0.9.60 更新提示冒烟（mock atom 注入，debug 构建）
 ];
 
 const CASES = HARNESS_CASES.map(function (c) {

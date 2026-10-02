@@ -12,6 +12,7 @@ export var CFG = {
   lsCodec: 'acsv-codec',        // 编码偏好记忆（推荐模式）：auto|avc|hevc
   lsBuf: 'acsv-buf',            // 缓冲档位记忆（推荐模式）：std|mid|max
   lsEmotRecent: 'acsv_emot_recent_v1', // 表情面板最近使用（emoticon.js）
+  lsUpd: 'acsv-upd-v1',         // 更新检查状态：{seen,notified,ignored,lastCheck}（release.js）
   accent: '#fd4c5d',
   home: {
     appVer: '6.31.1.1026',
@@ -60,7 +61,11 @@ export var CFG = {
     hlsCdns: [
       'https://registry.npmmirror.com/hls.js/1.5.20/files/dist/hls.min.js',
       'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js'
-    ]
+    ],
+    // ---- 更新检查（0.9.60）：GitHub 官方 releases.atom（与 @downloadURL 同域——分发通道
+    // 可达则它可达；无 API 限流）。正文直接用官方渲染 HTML，releasePage 供「前往更新」跳转
+    ghRelAtom: 'https://github.com/name-xxl/acfun-svfeed/releases.atom',
+    releasePage: 'https://github.com/name-xxl/acfun-svfeed/releases/latest'
   },
   feed: { bufferSize: 4 }, // 滚动缓冲：当前条之后保持的余量（条数）
   homeFeedCfg: { count: 10 },
@@ -123,7 +128,9 @@ export var CFG = {
     navWait: 6000,      // 导航注入兜底等待
     ghostIv: 5000,      // 幽灵视频扫描间隔（兜底，低频即可）
     watchReportMin: 3,   // 观看历史上报门槛：离开时进度达到该秒数才计入历史（过滤闪滑）
-    watchReport: 10000   // 首报兜底：playing 后墙钟 10s 先保底入史（关标签页时离开上报送不出去）
+    watchReport: 10000,  // 首报兜底：playing 后墙钟 10s 先保底入史（关标签页时离开上报送不出去）
+    upd: 10000,          // release.atom 拉取超时
+    updGap: 60000        // 两次更新检查最小间隔：防 Esc 频繁进出竖刷刷请求（mock 注入时绕过）
   },
   nav: {
     labels: ['首页', '番剧', '直播', '文章区', '鱼塘'],

@@ -52,6 +52,7 @@ function userscriptHeader(debug) {
     + '// @connect      static.yximgs.com\n'
     + '// @connect      registry.npmmirror.com\n'
     + '// @connect      cdn.jsdelivr.net\n'
+    + '// @connect      github.com\n' // 更新检查拉 releases.atom（0.9.60；TM 首次请求会弹授权确认）
     + '// @run-at       document-end\n'
     + '// @noframes\n'
     + '// @license      MIT\n'

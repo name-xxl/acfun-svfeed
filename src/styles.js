@@ -514,7 +514,62 @@ var RAW_CSS = ''
   + '-webkit-mask:var(--acsvg-cicon) center/contain no-repeat;mask:var(--acsvg-cicon) center/contain no-repeat}'
   + '.acsv-im-vcard-dur{margin-left:auto;font-variant-numeric:tabular-nums}'
   + '.acsv-im-vcard-title{padding:7px 10px 9px;font-size:12px;line-height:1.5;color:#f0f1f3;'
-  + 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}';
+  + 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}'
+  // ---- 更新说明弹窗（0.9.60）：imgview 之上的最高模态。GitHub 渲染 HTML 的元素样式
+  // 全部作用域收在 .acsv-upd-body 下（无前缀选择器红线，防与站点样式互染）
+  + '.acsv-upd{position:absolute;inset:0;z-index:65;background:rgba(0,0,0,.62);'
+  + 'display:flex;align-items:center;justify-content:center;animation:acsv-upd-in .18s ease}'
+  // 自带 keyframes：acsv-fadein 只随 IMGVIEW_CSS 段提供（0.9.57 拆分），不跨段依赖
+  + '@keyframes acsv-upd-in{from{opacity:0}to{opacity:1}}'
+  + '.acsv-upd-panel{width:min(560px,92vw);max-height:min(76vh,640px);display:flex;flex-direction:column;'
+  + 'background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);'
+  + 'border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden}'
+  + '.acsv-upd-head{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px;'
+  + 'border-bottom:1px solid rgba(255,255,255,.09)}'
+  + '.acsv-upd-title{min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;'
+  + 'font-size:15px;font-weight:600;color:#fff}'
+  + '.acsv-upd-sub{font-size:12px;font-weight:400;color:#8b909a}'
+  + '.acsv-upd-x{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;'
+  + 'width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}'
+  + '.acsv-upd-x:hover{background:rgba(255,255,255,.22)}'
+  + '.acsv-upd-body{flex:1 1 auto;min-height:64px;overflow-y:auto;padding:12px 18px 16px;'
+  // 正文可划选复制（评论正文先例：root 全局 user-select:none 之上的例外区，只开正文）
+  + 'user-select:text;-webkit-user-select:text;'
+  + 'scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;'
+  + 'font-size:13px;line-height:1.7;color:#d6d9de}'
+  + '.acsv-upd-note{padding:28px 0;text-align:center;color:#8b909a;font-size:13px}'
+  + '.acsv-upd-body h1,.acsv-upd-body h2,.acsv-upd-body h3,.acsv-upd-body h4{color:#fff;'
+  + 'font-size:15px;line-height:1.45;margin:14px 0 6px}'
+  + '.acsv-upd-body h1:first-child,.acsv-upd-body h2:first-child,.acsv-upd-body h3:first-child{margin-top:0}'
+  + '.acsv-upd-body p{margin:6px 0}'
+  + '.acsv-upd-body ul,.acsv-upd-body ol{margin:6px 0;padding-left:22px}'
+  + '.acsv-upd-body li{margin:3px 0}'
+  // 链接色对齐私信气泡（release.js 已统一加 target=_blank/rel/相对补全，点击不丢 #svfeed 路由）
+  + '.acsv-upd-body a{color:#9fd0ff;text-decoration:none}'
+  + '.acsv-upd-body a:hover{text-decoration:underline}'
+  + '.acsv-upd-body code{background:rgba(255,255,255,.1);border-radius:4px;padding:1px 5px;'
+  + 'font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}'
+  + '.acsv-upd-body pre{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);'
+  + 'border-radius:8px;padding:10px 12px;overflow-x:auto;margin:8px 0}'
+  + '.acsv-upd-body pre code{background:none;padding:0}'
+  + '.acsv-upd-body hr{border:none;border-top:1px solid rgba(255,255,255,.1);margin:12px 0}'
+  + '.acsv-upd-body blockquote{margin:8px 0;padding:2px 10px;border-left:3px solid var(--acsv-accent);color:#b8bdc7}'
+  + '.acsv-upd-body img{max-width:100%;border-radius:6px}'
+  + '.acsv-upd-body table{border-collapse:collapse;margin:8px 0}'
+  + '.acsv-upd-body th,.acsv-upd-body td{border:1px solid rgba(255,255,255,.14);padding:4px 8px;font-size:12px}'
+  + '.acsv-upd-foot{flex:none;display:flex;gap:8px;justify-content:flex-end;padding:10px 16px 14px;'
+  + 'border-top:1px solid rgba(255,255,255,.09)}'
+  + '.acsv-upd-foot:empty{display:none}'
+  + '.acsv-upd-act{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;'
+  + 'cursor:pointer;background:rgba(255,255,255,.12);color:#fff;transition:background .15s,opacity .15s}'
+  + '.acsv-upd-act:hover{background:rgba(255,255,255,.2)}'
+  + '.acsv-upd-act.primary{background:var(--acsv-accent)}'
+  + '.acsv-upd-act.primary:hover{background:var(--acsv-accent);opacity:.88}'
+  // 顶栏「更新」按钮（imBtn 同款骨架）：内联 SVG + 新版本红点
+  + '.acsv-upd-btn{position:relative}'
+  + '.acsv-upd-btn svg{width:20px;height:20px;fill:#fff;display:block}'
+  + '.acsv-upd-dot{position:absolute;top:-2px;right:-3px;width:9px;height:9px;border-radius:50%;'
+  + 'background:var(--acsv-accent);box-shadow:0 0 0 2px rgba(22,22,27,.9)}';
 
 // 主题色收敛：RAW_CSS 中的 #fd4c5d 全部替换为 CSS 变量，:root 上定义唯一来源
 export var CSS = ':root{--acsv-accent:' + CFG.accent + '}'
@@ -534,7 +589,9 @@ export var ICONS = {
   star: '<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>',
   banana: '<svg viewBox="0 0 24 24"><path d="M21 18.2c-6.9 0-12.6-5-13.7-11.6C7.1 5.2 6 4.2 4.8 4.5 3.7 4.7 3 5.8 3.2 7 4.6 15.4 12 21.5 20.6 21c1.1-.1 1.9-1 1.9-2.1 0-.4-.6-.7-1.5-.7z"/></svg>',
   image: '<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>',
-  smiley: '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm-7 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>'
+  smiley: '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm-7 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>',
+  // 更新入口（0.9.60）：下载箭头入托盘（Material download）
+  upd: '<svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>'
 };
 
 // A 站小视频页面自带的操作图标（加载失败自动回退到手绘 SVG）

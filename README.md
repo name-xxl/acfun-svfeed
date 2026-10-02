@@ -16,6 +16,10 @@
    **入口只出现在首页**（0.9.47 起）：播放页、文章页等其他页面不注入、不弹胶囊；
    但分享链接 `#svfeed`（含带 meowId 的回跳链接）在**任意页面**打开仍可进入竖刷页。
 
+> **更新检查授权提示（0.9.60 起）**：脚本会拉 GitHub 官方 `releases.atom` 做更新提示，
+> 首次触发时 Tampermonkey 可能弹 **`github.com` 跨域授权确认，请点允许**——拒绝/漏点只影响
+> 自动更新提示（debug 版可用 `acsv-stats` 的 `upd.check`/`upd.err` 计数自诊），其余功能不受影响。
+
 ## 使用
 
 | 操作 | 效果 |
@@ -37,7 +41,8 @@
 | 右侧红心 | **真实点赞**：登录 A 站后直接生效（自动换取 api_st 令牌调互动接口）；未登录回退本地状态并提示 |
 | 头像角标 +/✓ | **真实关注 / 取消关注** UP 主（需登录） |
 | 分享 | **抖音式私信分享面板**：列出最近联系人（头像/昵称/未读数，可搜索），点「分享」直接把 `标题+链接` 发进对方私信；发送成功后按钮转「捎句话」，点击直达与该联系人的聊天；底部保留「复制链接」「消息中心」。需登录 A 站（走官方 ImSdk 私信通道，加载/连接失败自动降级为复制链接） |
-| 顶栏信封（私信） | **私信抽屉**：列表（联系人/未读/相对时间/搜索）↔ 聊天（气泡/**时间分割线**/**作品卡片**（封面/计数/时长，点击跳视频；自己发出的 `标题+链接` 分享消息同样渲染为卡片）/发送/失败点击重试/已读上报/**消息引用**（hover 引用按钮 → 引用 chip，摘要条点击定位高亮）/**表情收发**/**图片消息**（即拍即发、点击看大图）；自己气泡深蓝灰不刺眼）两视图；与评论抽屉**同槽互斥**（state.js 槽位协调：开一方自动收回另一方）；Esc 逐层关：大图查看器 → 当前抽屉 → 退出 |
+| 顶栏信封（私信） | **私信抽屉**：列表（联系人/未读/相对时间/搜索）↔ 聊天（气泡/**时间分割线**/**作品卡片**（封面/计数/时长，点击跳视频；自己发出的 `标题+链接` 分享消息同样渲染为卡片）/发送/失败点击重试/已读上报/**消息引用**（hover 引用按钮 → 引用 chip，摘要条点击定位高亮）/**表情收发**/**图片消息**（即拍即发、点击看大图）；自己气泡深蓝灰不刺眼）两视图；与评论抽屉**同槽互斥**（state.js 槽位协调：开一方自动收回另一方）；Esc 逐层关：更新弹窗 → 大图查看器 → 当前抽屉 → 退出 |
+| 顶栏更新（信封旁） | **更新说明弹窗**：每次打开竖刷页自动检查一次新版本——更新后首次打开弹「vX 更新内容」（官方 release 渲染正文）；发现新版本首次弹「发现新版本」+ 说明 + [前往更新][忽略此版本]，此后仅 toast 轻提醒（红点亮至忽略或升级，忽略后该版本完全静默）；点按钮随时手动查看。数据取 GitHub 官方 `releases.atom`，拉取失败静默不打扰；Esc 关闭顺序：更新弹窗 → 大图查看器 → 抽屉 → 退出 |
 | 打开 message.acfun.cn 私信 | **原生私信页自动增强**（装脚本即生效）：「不支持查看此消息」占位原位替换为 10001 作品卡；脚本分享消息渲染为紧凑作品卡（限宽 228px、封面裁切，原文只留附言）；引用消息补灰色摘要条并把正文剥成纯回复（与抽屉同观感，不再双份摘要）；会话列表预览改写「[分享] 标题」 |
 
 ### 推荐模式（顶栏「小视频 | 推荐」切换，选择记忆）
@@ -82,6 +87,10 @@
   `GET https://www.acfun.cn/rest/pc-direct/comment/list?sourceId=<meowId>&sourceType=5`（评论列表，
   小视频在通用评论系统里的 sourceType 是 5，免登录；评论头像 headUrl 是 `[{cdn,url}]` 数组）。
   优先走 `GM_xmlhttpRequest`，未授权时回退 `fetch`。
+- 更新检查（0.9.60）：每次打开竖刷页查一次官方 `releases.atom`（与 @downloadURL 同域，
+  60s 最小间隔防频繁进出刷请求），正文直接用 GitHub 官方渲染 HTML（不自研 markdown 渲染）；
+  状态存 `localStorage['acsv-upd-v1']`（{seen,notified,ignored,lastCheck}）。拉取失败/未授权
+  一律静默——GitHub 不可达意味着发布通道本身不可达，弹窗无意义。
 - 操作栏图标：推荐模式的赞/藏/蕉用视频页原生图标做 CSS mask（借形状换色：未激活白色 →
   激活 A 站红 `--acsv-accent`，投过蕉锁定蕉黄）；小视频模式的赞用小视频站原生 PNG。
   评论/分享取自 AcFun 小视频页面自带资源（ali-imgs CDN 的 PNG）。内置 SVG 仅为
@@ -163,6 +172,35 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 环境级（GPU/驱动/Chromium 版本），脚本无责收尾。
 
 ## 更新日志
+
+### 0.9.60（2026-10-02）· 更新提示：release 说明弹窗 + 每次打开检查新版本
+
+- **数据源与渲染（官方形态复用）**：拉 GitHub 官方 `releases.atom`（与 @downloadURL 同域，
+  无 API 限流；`@connect` 补 github.com，TM 首次请求会弹授权确认），正文直接注入**官方
+  渲染 HTML**（自家仓库发布物 + GitHub 管线消毒，elHtml 信任契约）——不自研 markdown
+  渲染（ubb.js 只认 AcFun 方言，md 另起炉灶违背单源原则）；注入后统一 `a` 标签
+  target=_blank/rel/相对链接补全（防点击把 #svfeed 路由导航走）。
+- **交互**：每次打开刷视频界面检查一次（60s 最小间隔，防 Esc 频繁进出刷请求）。更新后
+  首次打开弹「vX 更新内容」（中性标题，兼容首装/升级——首发版所有用户都没有状态文件）；
+  发现新版本仅首次弹「发现新版本」+ [前往更新][忽略此版本]，此后 toast 轻提醒、红点亮至
+  忽略或升级；顶栏信封旁新增「更新」按钮（ICONS.upd）随时手动查看。状态存
+  `localStorage['acsv-upd-v1']`；弹窗真实打开才写 seen/notified（fetch 回来用户已退出则
+  丢弃，防弹窗被永久吞掉）。
+- **解析纯函数区**（导出供单测）：cmpVersion 逐段数值比（字典序会把 0.10.0 误判小于
+  0.9.59）；normVer 剥 v 前缀/-debug 后缀；parseRelAtom 稳定机器格式惰性正则 + XML 实体
+  解码（&amp; 恒最后替，防 &amp;lt; 双重解码穿到 '<'）；**latestEntry 按版本号取最大**——
+  atom 按 updated 排序，编辑旧 release 会把它顶到首位，信顺序会把老版本误报成新版本；
+  decideUpd 门控（popup/toast/updated/none × ignored/notified）。
+- **Esc 链更新**（0.9.22 定稿延续）：input.js 显式分支最前——更新弹窗开着吞全部按键、
+  Esc 先关弹窗（顺序变更为 更新弹窗 → 大图查看器 → 抽屉 → 退出）；capture 监听只补真实
+  键盘的模态语义，不依赖监听器注册顺序。unmount 新增 `teardownRelease`——单例与 capture
+  监听不过夜（root 拆除后监听残留会吞掉普通站页的全局键盘）。
+- **localStorage 兜底语义**：写失败（隐私模式）才启用内存态覆盖合并、写成功即清——读侧
+  无条件信内存会遮蔽外部写入（harness 场景 toast-only 首跑即踩实：②步 writeState 落下的
+  状态把 ③步直接种进 localStorage 的种子挡住了，17 断言挂 2，已修）。
+- 测试：单测 +11 例（55→66）；新 harness 场景 `upd-open`（`__ACSV_MOCK_RELEASE__` 注入走
+  真实 mount→releaseCheck 链路，mock 绕过 GM 依赖与节流；版本号从 debug 产物头正则自取，
+  升版本不假红），16→17 场景。
 
 ### 0.9.59（2026-10-01）· 全链总览整改：wire/extra 收口 + 依赖图对齐 + 私信抽屉冒烟场景
 
@@ -1133,7 +1171,7 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 npm install          # 安装开发依赖（esbuild/eslint/playwright）与 hls.js（运行时依赖，构建期内嵌进产物）
 npm run build        # 产出 acfun-svfeed.user.js + acfun-svfeed.debug.user.js
 npm run watch        # 监听 src/ 变更自动重建
-npm test             # immsg/ubb 单测 + 无头 harness 全场景（需先 npx playwright install chromium，
+npm test             # immsg/ubb/release 单测 + 无头 harness 全场景（需先 npx playwright install chromium，
                      #   没装时本机自动回退系统 Edge）
 ```
 
@@ -1166,7 +1204,7 @@ npm test             # immsg/ubb 单测 + 无头 harness 全场景（需先 npx 
 | `controls.js` | 控制栏：进度条（拖动/时间气泡）、清晰度/编码/缓冲菜单（buildMenu）、连播/倍速/静音/全屏、前向邻位重建 |
 | `rail.js` | 右侧操作栏（赞/蕉/藏/评/分享/关注）：乐观更新+失败回滚、原生图标 CSS mask 换色、计数回填钩子、分享面板入口 |
 | `slide.js` | buildSlide/buildDrawer：slide 骨架与评论抽屉骨架（commentDrawer 赋值点）、scroll 归零防护 |
-| `input.js` | 键盘/滚轮：翻页、快进快退、长按 2x、Esc 优先级链（大图查看器→抽屉→退出）、幽灵视频扫描 |
+| `input.js` | 键盘/滚轮：翻页、快进快退、长按 2x、Esc 优先级链（更新弹窗→大图查看器→抽屉→退出）、幽灵视频扫描 |
 | `report.js` | 观看历史上报（weblog CLICK 管道）：离开时上报最终进度 + 10s 首报兜底、同秒位去重 |
 | `prewarm.js` | 预热：索引稳定 500ms 后预解析 cur+1/2、媒体域动态 preconnect（上限 6 + 静态种子） |
 | `dbg.js` | 调试埋点（仅 debug 构建存活）：stat 计数、testHook、`acsv-stats` localStorage 镜像 |
@@ -1176,6 +1214,7 @@ npm test             # immsg/ubb 单测 + 无头 harness 全场景（需先 npx 
 | `imnative.js` | 原生私信页增强（message.acfun.cn）：占位替换（10001 卡，unsafeWindow 读页面内核）+ 分享卡 + 引用消息渲染（去重加固）+ Shadow DOM 隔离 |
 | `immsg.js` | 私信消息共享解析层（parseCard/parseShare 容忍式契约、引用解析 quoteOf/quoteExtraOf/isQuotable、评论转发 wire 组装与识别/拆分、extra 载荷 key 常量、预览映射/降级文案），双端渲染器各自消费 |
 | `imicons.js` | 站点原生图标登记表（CDN SVG + 字形码点，双端共享） |
+| `release.js` | 更新提示（0.9.60）：官方 releases.atom 拉取/解析纯函数（cmpVersion/normVer/parseRelAtom/latestEntry/decideUpd）+ 说明弹窗单例 + 红点；正文直接用 GitHub 官方渲染 HTML（elHtml 信任契约）；每次 mount 检查一次（60s 节流）、失败静默、unmount 显式拆监听 |
 | `boot.js` | 启动入口（构建 entry） |
 
 ### 模块依赖图
@@ -1211,7 +1250,7 @@ flowchart LR
     pb["playback.js"]
     ubb["ubb.js（UBB：评论渲染/IM wire/引用富正文）"]
     emoticon["emoticon.js（表情）"]
-    others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · interact · report · uppage · nav · upload"]
+    others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · interact · report · uppage · nav · upload · release"]
   end
 
   subgraph im["私信层"]
@@ -1240,6 +1279,7 @@ flowchart LR
   feedstore --> api & state & player
   comments --> ubb & emoticon & inputbar & imgview & appapi & net & upload & state & imicons & imshare
   interact --> appapi
+  release --> net
   imdrawer --> imshare & immsg & imicons & appapi & emoticon & inputbar & imgview & comments
   imnative --> immsg & imicons & appapi & imshare & emoticon & ubb & imgview
   imshare --> appapi & imdrawer & immsg
