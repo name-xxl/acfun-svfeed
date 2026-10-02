@@ -78,7 +78,7 @@ var RAW_CSS = ''
   + '.acsv-rail-btn.bump svg{animation:acsv-bump .4s ease}'
   + '@keyframes acsv-bump{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}'
   + '.acsv-count{font-size:13px;font-weight:500;line-height:16px;margin-top:4px;margin-bottom:0;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.7)}'
-  // 左下 info 让位左栏 dock（CFG.view.dockW=48）：窄屏 dock 隐藏时媒体查询还原
+  // 左下 info 让位左栏 dock（CFG.view.dockW=168）：窄屏 dock 隐藏时媒体查询还原
   // info 挂 slide 内（slide 已随 scroller margin 让位 dock），left 恒 24——再加 dockW 是双重让位
   // （0.9.63 曾误改 184 致标题落到 352px，回归实锤）
   + '.acsv-info{position:absolute;left:24px;bottom:40px;z-index:15;max-width:min(56%,560px);color:#fff;'
@@ -304,7 +304,7 @@ var RAW_CSS = ''
   + '.acsv-cbody .ubb-imgc{display:block;max-width:min(240px,100%);max-height:220px;border-radius:8px;margin-top:6px;cursor:zoom-in}'
   + '.acsv-cbody .ubb-at,.acsv-cbody .ubb-res{color:#9fd0ff;text-decoration:none}'
   + '.acsv-cbody .ubb-at:hover,.acsv-cbody .ubb-res:hover{text-decoration:underline}'
-  // 评论配图大图查看器：root 内全屏浮层，局部 z-index 盖过评论抽屉(45)与私信抽屉(50)
+  // 评论配图大图查看器：root 内全屏浮层，局部 z-index 盖过两抽屉(58，评论/私信共用同款规则)
   + IMGVIEW_CSS
   // 空间页小视频：工具栏（进度 + 排序）与分页条
   + '.acsv-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:0 0 10px;position:relative}'

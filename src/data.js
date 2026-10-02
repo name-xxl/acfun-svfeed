@@ -97,11 +97,11 @@ export function normalizeHome(bc) {
 }
 
 // ---------- 视图面板条目契约（0.9.62）：三种来源规整成同一份字段 ----------
-// { acId, title, cover, progress, sub, kind }——面板渲染与「点击回竖刷」零分支（对齐
+// { acId, title, cover, progress, sub, kind }——面板渲染与「点击进播放层（0.9.74）」零分支（对齐
 // 顶部两源契约理念）。可选字段 desc（rank 简介，0.9.65）：无来源的 kind 上为 undefined，
 // rowOf 判空不渲染。rank 另带 meta（0.9.69，原生 extra 三段结构化）+ up（随行作者卡）；
 // 其余来源的 meta 为 undefined，rowOf 走 sub 纯文本分支。返回 null = 非视频条目，
-// 调用方过滤（无 douga resolve 链，进竖刷必炸）。
+// 调用方过滤（没有可解析的视频源，进播放层必失败）。
 // 类型字段实测（docs/api-research.md §4/§6，2026-10-02）：
 //   browse/history 的 resourceType 编码与收藏/榜单体系不同源——条目 2=普通视频（社区文档
 //   「参数 1 视频 2 番剧」的释义在条目字段上不成立），必须连 videoId 一起校验、宁可漏不错；
@@ -164,7 +164,7 @@ var PANEL_PARSERS = {
 };
 
 // 视图面板条目契约（0.9.62）：三种来源规整成同一份字段；返回 null = 非视频条目，
-// 调用方过滤（无 douga resolve 链，进竖刷必炸）
+// 调用方过滤（没有可解析的视频源，进播放层必失败）
 export function panelItem(kind, raw) {
   var p = PANEL_PARSERS[kind];
   if (!raw || !p) return null;

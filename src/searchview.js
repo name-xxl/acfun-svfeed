@@ -39,7 +39,7 @@ function runSearch(kw, ui) {
     }
     ui.setState('');
     items.forEach(function (it) {
-      // 契约 → 网格卡（kind='search' 触发抖音式角标/脚行；点击 playAc 回竖刷连播）
+      // 契约 → 网格卡（kind='search' 触发抖音式角标/脚行；点击进播放层就地播放）
       ui.grid.appendChild(gridCardOf({
         acId: it.acId, title: it.title, cover: it.cover, kind: 'search',
         dur: it.dur, views: it.views, upName: it.upName, dateText: it.dateText

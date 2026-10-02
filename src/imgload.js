@@ -3,10 +3,12 @@
 // 淡入。各图面的差异集中在 IMG_POLICY 策略表——改策略只改这张表，新图面优先复用已有策略，
 // 调用一行 imgInto 即可（散落的 referrerPolicy/loading 手动三元组不再新增）。
 // URL 归一与重试链决策是纯函数（imgurl.js，离线单测钉住）；本模块只做 DOM 装配。
-// 覆盖边界（0.9.77 头注校准——0.9.76 的「全项目唯一入口」表述与当时实际不符）：
+// 覆盖边界（0.9.77 头注校准；0.9.80 起**权威例外清单在 eslint.config.mjs 的图片禁令白名单**
+// ——新图面绕开 imgInto 会被 lint 拦下，确需例外须在那里注明理由）：
 //   已收口：网格封面/行缩略图/榜单 UP 卡/我的资料头/空间页投稿格/竖刷右栏头像/评论头像/
 //           私信列表头像/分享面板头像
 //   有意不并入：私信图片气泡的鉴权 blob 管线（imshare.fetchImImageBlob，只共用 lazyObserve）、
+//           私信卡片封面（imcard.js，装配层自带"load 才放出/error 隐藏"时序供两皮肤共用）、
 //           UBB/表情的 innerHTML 产物（ubb.js/emoticon.js，白名单过滤）、站点静态图标与 logo
 //           （SITE_ICONS/VIDEO_ICONS/CFG.api.logoSvg）、大图查看器（转呈被点 img 的 src）
 // 死链备忘（会话级，判定在 imgurl.memoState）：TTL 内命中即降级不再打网络；命中不续期、

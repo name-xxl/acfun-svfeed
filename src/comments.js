@@ -29,7 +29,7 @@ export function isOpenComments() {
   return !!(commentDrawer && commentDrawer.el.classList.contains('open'));
 }
 
-// 抽屉避让变量与模式：--acsv-dw 抽屉实际宽（CSS 里抽屉宽/底栏收窄/侧栏顶栏平移全用它），
+// 抽屉避让变量与模式：--acsv-dw 抽屉实际宽（CSS 里抽屉宽/底栏收窄/侧栏平移/顶栏收窄全用它），
 // --acsv-cscale 视频画面缩放比。剩余空间不足（< avoidMin）时放弃避让改纯覆盖：
 // 不加 acsv-with-comments，视频原尺寸继续播，抽屉近乎全遮（背景本就 96% 不透明），关闭即恢复。
 // open/mount 各算一次，resize 持续重算——开着抽屉拉窗口会在两种模式间自动切换

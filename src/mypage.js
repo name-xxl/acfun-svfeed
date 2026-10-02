@@ -10,11 +10,11 @@ import { imgInto } from './imgload.js';
 // 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（观看历史｜收藏夹）→ 3:4 封面网格。
 // 接口契约 docs/api-research.md §4.1/§4.2（2026-10-02 实测）：历史 body 双 resourceTypes
 // 缺一即 result 21「参数格式错误」；dougaList 列表键是 favoriteList（无 list 别名）。
-// 条目一律经 panelItem 规整（类型过滤在契约层），点击 gridCardOf 内置 playAc 回竖刷；
+// 条目一律经 panelItem 规整（类型过滤在契约层），点击 gridCardOf 走播放层（playlayer.openPlayer 就地播放，0.9.74 起不再插竖刷队尾）；
 // 资料头经 meCardOf（§4.4 getUserCardList）——两处缺省字段都不伪造，缺就不渲染对应块
 // （无 auth_key=未登录 → 整块头部不渲染；卡片角标只用契约在册字段）。
-// 缓存：资料头模块级缓存（CFG.view.me.cardTtl）——views.js 契约是「每次 enter 重建 DOM」，
-// 不缓存会每次进入都打一次接口；失败不写缓存（下次进入重试）。
+// 缓存：资料头模块级缓存（CFG.view.me.cardTtl）——views.js 的**新建** enter 会重建 DOM
+// （0.9.74 来源复原路径不重建），不缓存的话每次新建都打一次接口；失败不写缓存（下次重试）。
 var meCache = null; // { at, card }
 
 function rowList(parent, cls) {

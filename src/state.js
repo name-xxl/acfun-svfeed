@@ -13,8 +13,8 @@ export function setCommentDrawer(v) { commentDrawer = v; }
 
 // ---------- 抽屉槽位协调 ----------
 // 右侧抽屉（评论/私信）同一时刻只开一个：open 前 claim 占槽（自动收回已占槽的另一个），
-// close 时 release。两抽屉模块各自只依赖本模块、互不 import（0.9.17 循环依赖漏导出
-// 正是"评论抽屉打不开"回归的温床）；Esc 与视频避让根类统一读 currentDrawer。
+// close 时 release。两抽屉的**槽位协调**只经本模块（业务链路上二者仍有 import 环，按调用期解引用约定处理，
+// 见 comments.js 头注；0.9.17 循环依赖漏导出正是"评论抽屉打不开"回归的温床）；Esc 与视频避让根类统一读 currentDrawer。
 var drawerSlot = null; // { id: 'comments' | 'im', close: Function }
 export function claimDrawer(id, close) {
   if (drawerSlot && drawerSlot.id !== id) drawerSlot.close();

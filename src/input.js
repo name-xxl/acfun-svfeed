@@ -37,8 +37,7 @@ export function setupInputHandlers(api) {
       return;
     }
     // 子视图（#svfeed/my 等）是全屏页面：导航/互动键无意义一律吞掉，仅 Esc 放行走
-    // 浮层栈（view 层在栈里，关=返回来源/竖刷）。放在 target 豁免之后——视图内未来的
-    // 输入框（搜索二期）聚焦时不受影响。
+    // 浮层栈（view 层在栈里，关=返回来源/竖刷）。放在 target 豁免之后——共享顶栏输入框（含搜索视图）聚焦时不受影响。
     // 播放层（0.9.74）例外：媒体键（空格/静音/快进快退/全屏）作用层内视频——currentVideo()
     // 已按 state.videoTarget 重定向；评论键 c 打层内条目（playlayer.currentItem）；导航（↑↓）
     // 照旧吞掉（层内没有竖刷邻居）

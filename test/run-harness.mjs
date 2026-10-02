@@ -1,7 +1,8 @@
 /*
- * harness 无头驱动：Playwright 逐场景加载 test/harness.html（release 构建）与
- * test/dm-smoke.html，等页内断言写完（__HARNESS_RESULTS__/__DM_RESULTS__.done），
- * 汇总失败项，非 0 退出码供 CI 拦截。
+ * harness 无头驱动：Playwright 逐场景加载 test/harness.html（仅 smoke/resolvefail 走 release
+ * 构建，其余 debug——见下方「bundle 选择原则」）、test/dm-smoke.html 与 test/im-open.html，
+ * 等页内断言写完（__HARNESS_RESULTS__/__DM_RESULTS__/__IM_RESULTS__.done），汇总失败项，
+ * 非 0 退出码供 CI 拦截。场景体在 test/cases/*.js；ONLY 传未知名会报错退出。
  *
  *   node test/run-harness.mjs                 全部场景
  *   node test/run-harness.mjs smoke,fastswipe 只跑指定场景（调试用）

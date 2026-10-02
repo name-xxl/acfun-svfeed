@@ -526,8 +526,8 @@ function appendImageBubble(m, mine) {
   drawer.bubbles.appendChild(bubbleRow(b, mine, m));
 }
 // 图片懒加载观察器（0.9.76 起共用 imgload.lazyObserve 单例实现——全项目只留一份 IO：
-// root 缺省=viewport，祖先滚动容器裁剪自动计入；抽屉关/拆无需重建；会话视图 display:none
-// 期间不交叉也就不触发）
+// root 缺省=viewport，祖先滚动容器裁剪自动计入；抽屉关/拆无需重建；会话视图平移出裁剪舞台
+// 期间（transform + overflow:hidden）不交叉也就不触发）
 // ks:// 资源 → 官方 download 直链（message.acfun.cn，参数白名单官方形态，无 token）。
 // 零会话依赖三级兜底（重开会话后内核 decodeContent/file 配置都不保证就绪，首次能渲染
 // 重开挂车的前车之鉴）：uri 取 m.url → rawMsg.content 手解 proto 字段 1；URL 取内核换链
@@ -840,7 +840,7 @@ testHook('imDrawerSmoke', function () {
   };
 });
 // 视图态避让冒烟（0.9.73）：走真实开抽屉路径（浮层栈 + 抽屉槽 + 避让根类三步），但不拉
-// ImSdk/不轮询/不依赖登录——抽屉×视图的避让几何（正文收窄/右组平移/降级）与 Esc 链的
+// ImSdk/不轮询/不依赖登录——抽屉×视图的避让几何（正文收窄/顶栏右组随容器收窄/降级）与 Esc 链的
 // 确定性验证面。与 imDrawerSmoke 的分工：那个只验骨架 DOM，这个验避让编排
 testHook('imOpenSmoke', function () {
   if (!root) setRoot(document.body); // harness 最小页无 player 挂载，root 兜底（仅调试构建可达）

@@ -582,7 +582,7 @@ function midgroundToken(refresh) {
 }
 
 // ---------- 图片字节：LRU 缓存 + 限流下载 ----------
-// blob objectURL 的 LRU 缓存（key=下载 URL）：重开/来回切会话不再全量重下，命中直接秒显；
+// blob objectURL 的 LRU 缓存（key=资源本体：imgCacheKey 取 resourceId，缺则退整串 URL）：重开/来回切会话不再全量重下，命中直接秒显；
 // 淘汰时 revoke，顺带修掉旧版 objectURL 永不回收的泄漏。查询在令牌之前——命中连 token/get
 // 往返都省。已上屏的 blob 被 revoke 不影响显示（已解码位图仍在 img 里）
 var imgBlobCache = new Map();

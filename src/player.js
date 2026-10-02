@@ -283,7 +283,7 @@ export function scrollToIndex(idx) {
   if (!scroller) return;
   FeedStore.ensureMore().then(function () {
     if (!scroller) return;
-    // 目标可能落在渲染窗口外（深链就地跳转 / 视图条目回竖刷插入队尾）：renderWindow 只渲染
+    // 目标可能落在渲染窗口外（深链就地跳转）：renderWindow 只渲染
     // [cur-1, cur+1]，不先把游标挪过去就永远拿不到那条 slide，整跳会静默失败。挪游标前
     // 照 setActive 的规矩对旧条目报最终进度（划走即离开），挪后 setActive 不会重复报
     var near = Math.abs(idx - FeedStore.current) <= 1;

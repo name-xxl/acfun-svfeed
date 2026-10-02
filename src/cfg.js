@@ -163,7 +163,7 @@ export var CFG = {
       // 经契约层过滤后全是普通视频（panelItem 只收 resourceType=2+videoId），套 3:4 会把
       // 封面左右各裁掉一大块（连标题字都被切）。将来若混入小视频条目需按 kind 分档
       coverRatio: '4 / 3',
-      cardTtl: 1800000,   // 头部资料缓存（30min；视图每次进入重建 DOM，命中缓存免重复请求）
+      cardTtl: 1800000,   // 头部资料缓存（30min；视图新建 enter 重建 DOM——来源复原路径不重建，命中缓存免重复请求）
       skel: 12            // 首屏骨架卡数（约一屏）
     },
     rankLimit: 100,       // 榜单条数（原生全站日榜 100 条同款，rankLimit=100 实测生效）

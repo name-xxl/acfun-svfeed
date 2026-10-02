@@ -4,10 +4,10 @@ import { GLYPHS } from './imicons.js';
 
 // ---------- 顶栏（0.9.72 抽离为共享组件，0.9.73 四界面复用） ----------
 // 结构（左中右）：[搜索框·居中常驻（抖音同款位置）] [右侧按钮组：源切换 seg | 私信 | 更新 | 退出 ✕]。
-// 一份组件、按界面同步（syncTopbar(view, arg)，与 syncDock 对位）：竖刷态显示源切换、✕=退出；
-// 视图态隐源切换（CSS 规则）、✕=返回竖刷；搜索视图把关键词回填进同一个输入框（唯一输入框）。
+// 一份组件、按界面同步（syncTopbar(view, arg)，与 syncDock 对位）：竖刷态显示源切换；✕ 单一意义=退出脚本（0.9.74 用户裁决，普通界面的 Esc 另义回竖刷）；
+// 视图态隐源切换（CSS 规则）；搜索视图把关键词回填进同一个输入框（唯一输入框）。
 // 行为全部经 hooks 注入（onSearch/onExit/onSource/onDrawer/onRelease/getSource），组件不 import
-// player（避免循环依赖）；右侧四件套类名保持不变——抽屉避让（.acsv-top-right 的 translateX）
+// player（避免循环依赖）；右侧四件套类名保持不变——抽屉避让（.acsv-top 的 right 收窄，右组随容器贴边）
 // 与 harness 既有断言（.acsv-upd-dot/.acsv-upd-btn）都挂在它们上面。
 // 搜索提交可被挂载中的视图临时接管（setSearchHandler）：搜索视图接管后，「同词再回车」
 // 走就地重跑而非死等 hashchange（hash 不变不触发）；视图 teardown 必须还原（null）——

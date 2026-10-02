@@ -10,7 +10,8 @@
 </head>
 <body>
 <div class="note">本地验证 harness：mock 数据运行。断言结果写入 <code>window.__HARNESS_RESULTS__</code>。
-  场景：<code>?case=smoke|homeswitch|fastswipe|resolvefail</code>（默认 smoke）；
+  场景：<code>?case=&lt;已登记场景名&gt;</code>（默认 smoke；完整清单见 test/run-harness.mjs 的
+  HARNESS_CASES 与 test/cases/*.js，两者由 test/check-cases.mjs 双向校验）；
   <code>?bundle=release</code> 加载正式构建（默认 debug，带 __ACSV_TEST__/__dbg）；
   <code>?src=home</code> 人工预览推荐模式。测试媒体统一映射为免 h264 依赖的 webm。</div>
 <script src="feed-sample.js"></script>

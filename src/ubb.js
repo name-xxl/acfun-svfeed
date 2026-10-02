@@ -60,7 +60,7 @@ export function renderCommentHtml(content) {
 
 // ---------- IM wire 文本化（0.9.50 引入；0.9.53 语义修正：表情码原样保留） ----------
 // 评论转发私信的 wire 文本投影。官方 IM 的文本消息 wire 本来就携带 [emot=pkg,id/] 码，
-// APP/官方 web 原生渲染成表情图（imdrawer.emotify 同源契约，imdrawer.js 头部注）——
+// APP/官方 web 原生渲染成表情图（emoticon.emotify 同源契约——0.9.54 起表情转图收口在 emoticon.js）——
 // 0.9.52 曾转 [表情] 占位，官方端只能看到占位文本，系劣化，已纠正。[img] 是评论系 UBB、
 // IM 不认，转 [图片] 占位（真图渲染走 extra 载荷）；at/color/resource 摘内文。
 // 未知/未闭合标签按字面保留

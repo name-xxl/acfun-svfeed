@@ -10,7 +10,7 @@ import { reapplyQuality } from './quality.js';
 // 曾散落在各文件的闭包里，现集中列出（读/写方），新增字段先来此处登记：
 //
 // slide（.acsv-slide 元素）：
-//   _session     会话句柄    写: attach.js(attachVideo 赋值);dispose+置 null: player(renderWindow/unmount/switchSource)、controls(rebuildFwdNeighbor)、attach(syncFwdQuality) 读: report.js(离开上报)
+//   _session     会话句柄    写: attach.js(attachVideo 赋值);dispose+置 null: player(renderWindow/unmount/switchSource)、controls(rebuildFwdNeighbor)、playlayer(teardownPlayView)、attach(syncFwdQuality) 读: report.js(离开上报)
 //   _resumeAt    续播秒位    写: attach.js(switchQuality/syncFwdQuality)/controls(编码·缓冲菜单)/session(恢复链末级重挂) 读: attachVideo→session.resumeAt
 //   _userPaused  用户暂停意图 写: playback.js(暂停置 1/playVideo 清 0) 读: player(setActive)、session.js(自动续播判定)
 //   _ctlTimer/_ctlTime/_ctlPlayBtn/_ctlFill/_ctlHandle/_ctlTrack/_qBtn

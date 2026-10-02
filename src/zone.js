@@ -9,7 +9,7 @@ import { registerView } from './viewreg.js';
 // ---------- 分区榜单视图（0.9.62 建，0.9.66 对齐原生：子频道行 + UP 榜） ----------
 // GET rank/channel（§6.1 实测：rankLimit 生效；POST 形状无 rankLimit 只回 10 条，勿改 POST；
 // subChannelId 服务端真过滤——107/108/159 返回条数各异，直连参数）。条目经 panelItem
-// 规整（contentType 2=视频，3=文章在契约层过滤），点击 rowOf 内置 playAc。
+// 规整（contentType 2=视频，3=文章在契约层过滤），点击 rowOf 走播放层（playlayer 就地播放）。
 // 子频道树：queryNavigators 分区树 children（cid+navName 官方树），singleFlight 单飞缓存；
 // 树拉不到或频道无 children → 子频道行隐藏（降级不阻塞主榜）。
 // UP 榜 = upListOf(rankList) 聚合作者 top10（契约层纯函数），section 置于视频榜下方。
