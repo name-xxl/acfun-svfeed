@@ -513,7 +513,12 @@
           // 原生 rlist 分栏：每行视频卡+作者卡左右并排（.acsv-upcard）
           return document.querySelectorAll('.acsv-rlist-row .acsv-upcard').length === 4;
         }, 8000)));
-        rec('zone-rank-badge', q('.acsv-rlist .acsv-rlist-num').textContent === '1');
+        // 排名水印：挂在视频卡内（定位宿主=.acsv-vrow.big 有 relative）——0.9.67 挂 static
+        // 行上致全部水印冒泡 view-body 叠一团，此断言钉住 offsetParent 防同型回归
+        rec('zone-rank-badge', (function () {
+          var n = q('.acsv-vrow.big .acsv-rlist-num');
+          return !!n && n.textContent === '1' && !!n.offsetParent && /big/.test(n.offsetParent.className);
+        })());
         var zchips = document.querySelectorAll('.acsv-vchips')[0].children;
         var gameChip = [].filter.call(zchips, function (c) { return c.textContent === '游戏'; })[0];
         if (gameChip) gameChip.click();

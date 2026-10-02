@@ -172,6 +172,12 @@ export function rowOf(pi, rank) {
   if (rank != null && pi.kind !== 'rank') {
     row.appendChild(el('div', 'acsv-vrow-rank' + (rank <= 3 ? ' top' : ''), String(rank)));
   }
+  // 榜单排名=视频卡右下角大水印（原生视觉锚点）。定位宿主契约：必须挂在有
+  // position:relative 的卡内（.acsv-vrow.big）——0.9.67 挂视图行上（行 static）
+  // 致全部水印冒泡到 view-body 叠成一团，真机 dump offsetParent 实锤
+  if (rank != null && pi.kind === 'rank') {
+    row.appendChild(el('div', 'acsv-rlist-num', String(rank)));
+  }
   var thumb = el('div', 'acsv-vrow-thumb');
   if (pi.cover) {
     var img = el('img');

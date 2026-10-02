@@ -98,13 +98,11 @@ function buildZoneView(body) {
           list.appendChild(el('div', 'acsv-vempty', '该分区暂无榜单数据'));
           return;
         }
-        // 原生 rlist__cards：每行=视频卡+作者卡左右分栏（rowOf 出视频卡，upCardOf 出作者卡）；
-        // 排名大水印贴行右下（原生视觉锚点，半透明灰）
+        // 原生 rlist__cards：每行=视频卡+作者卡左右分栏（rowOf 出视频卡含排名水印，upCardOf 出作者卡）
         rows.forEach(function (r) {
           var pair = el('div', 'acsv-rlist-row');
           pair.appendChild(rowOf(r.pi, r.rank));
           pair.appendChild(upCardOf(r.pi));
-          pair.appendChild(el('div', 'acsv-rlist-num', String(r.rank)));
           list.appendChild(pair);
         });
       }, function () {

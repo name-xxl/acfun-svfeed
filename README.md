@@ -173,6 +173,19 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.68（2026-10-02）· 榜单水印归位视频卡右下角 + 行高一致性
+
+- **水印叠团修复（真机 dump 实锤）**：排名水印 `.acsv-rlist-num` 定位宿主=视图行但行是
+  `position:static`——absolute 冒泡到 `.acsv-view-body`，全部水印叠在视图右下同一处
+  （实测 5 行 offsetParent 全 view-body、top 全 586 相同）。修=水印移入视频卡（rowOf 的
+  rank 分支内建，宿主 `.acsv-vrow.big` 已有 relative），定位卡右下角（right:6/bottom:-14
+  探出微裁，仿原生）；harness 断言钉 offsetParent 应为 .acsv-vrow.big 防同型回归。
+- **行高一致性加固**：实测当前行高已统一（rowH 全 201、两栏全 193 等高），波动源=UP 卡
+  签名 1~4 行（旧封顶 72px）——签名 3 行封顶（54px）+ `.acsv-upcard` overflow:hidden
+  （极端长签名绝不撑高行）+ 行 `align-items:stretch` 显式声明（行高基准=视频卡）。
+- 真机复核：6 行水印逐行贴各自卡右下（numAtCard/宿主断言全 true）、行高逐行 201/193 全等；
+  88 单测+19 场景全绿。
+
 ### 0.9.67（2026-10-02）· 榜单结构对齐原生 rlist：视频卡+UP 卡左右分栏
 
 - **结构定案（用户提供原生页 HTML+CSS）**：原生榜单=双列头（榜单 Rank | Up主 Author）+

@@ -629,15 +629,18 @@ var RAW_CSS = ''
   + '.acsv-vrow.big .acsv-vrow-main{padding-top:2px}'
   + '.acsv-vrow.big .acsv-vrow-title{font-size:16px;font-weight:600;max-height:48px}'
   + '.acsv-vrow.big:hover .acsv-vrow-title{color:var(--acsv-accent)}'
-  + '.acsv-rlist-num{position:absolute;right:8px;bottom:-28px;font-size:110px;font-weight:700;'
+  + '.acsv-rlist-num{position:absolute;right:6px;bottom:-14px;font-size:110px;font-weight:700;'
   + 'color:rgba(255,255,255,.05);line-height:1;pointer-events:none;font-style:italic}'
-  // UP 卡（原生 up-card 横排）：大圆头像左+信息右；签名中文长串 break-all 整齐换行
-  + '.acsv-upcard{background:rgba(255,255,255,.04);border-radius:10px;padding:14px;height:100%;box-sizing:border-box}'
+  // UP 卡（原生 up-card 横排）：大圆头像左+信息右。行高基准=视频卡（封面 160+padding）：
+  // 行 align-items:stretch 显式（两栏严格等高），签名 3 行封顶+卡 overflow:hidden——
+  // 任何签名长度都不撑高行（0.9.68 实测行高波动源=签名 1~4 行 + 72px 旧封顶）
+  + '.acsv-upcard{background:rgba(255,255,255,.04);border-radius:10px;padding:14px;height:100%;'
+  + 'box-sizing:border-box;overflow:hidden}'
   + '.acsv-upcard-link{display:flex;gap:12px;color:inherit;text-decoration:none;height:100%}'
   + '.acsv-upcard-info{min-width:0;display:flex;flex-direction:column}'
   + '.acsv-upcard-avatar{width:88px;height:88px;border-radius:50%;display:block;object-fit:cover;flex:none;align-self:flex-start}'
   + '.acsv-upcard-name{font-size:15px;font-weight:600;color:var(--acsv-accent);line-height:21px}'
-  + '.acsv-upcard-sign{font-size:12px;color:#aab0bc;line-height:18px;max-height:72px;overflow:hidden;margin:6px 0 10px;word-break:break-all}'
+  + '.acsv-upcard-sign{font-size:12px;color:#aab0bc;line-height:18px;max-height:54px;overflow:hidden;margin:6px 0 10px;word-break:break-all}'
   + '.acsv-upcard-extra{font-size:12px;color:#8a90a0;margin-top:auto}'
   // 作者卡（0.9.67 对齐原生 up-card）：rlist 行=视频卡+作者卡左右分栏（原生 980 布局等比，
   // 视图全屏可用宽足够）；双列头/行 grid 同轨对齐；UP 卡整卡链接跳 UP 主页（原生同款）
@@ -646,7 +649,7 @@ var RAW_CSS = ''
   + '.acsv-rlist-hcell{font-size:15px;font-weight:600;color:#fff;display:flex;align-items:baseline;gap:6px;'
   + 'border-left:3px solid var(--acsv-accent);padding-left:8px}'
   + '.acsv-rlist-hen{font-size:11px;color:#8a90a0;font-weight:400}'
-  + '.acsv-rlist-row{padding:4px 0}'
+  + '.acsv-rlist-row{padding:4px 0;align-items:stretch}'
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-rlist-head,.acsv-rlist-row{grid-template-columns:minmax(0,1fr)}}'
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-upcard{margin-top:6px}}'
   + '.acsv-vempty{color:#8a90a0;font-size:13px;padding:14px 2px}'
