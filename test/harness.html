@@ -453,13 +453,13 @@
           return b && b.classList.contains('on');
         }, 3000)));
         rec('scroller-hidden', q('.acsv-scroller').style.display === 'none');
-        // 资料头：昵称 + 关注/粉丝/投稿三数 + AcFun号（契约 meCardOf 落位）
+        // 资料头：昵称 + 关注/粉丝/投稿三数 + UID（契约 meCardOf 落位）
         rec('me-card', !!(await waitFor(function () {
           var n = q('.acsv-mecard-name'), st = q('.acsv-mecard-stats');
           return n && n.textContent === '测试用户' && st && /34/.test(st.textContent)
             && /56/.test(st.textContent) && /12/.test(st.textContent);
         }, 8000)));
-        rec('me-card-id-sign', /AcFun号：42/.test((q('.acsv-mecard-id') || {}).textContent || '')
+        rec('me-card-id-sign', /UID：42/.test((q('.acsv-mecard-id') || {}).textContent || '')
           && (q('.acsv-mecard-sign') || {}).textContent === '签名第一行 第二行');
         // 网格卡：历史首屏 18 条；骨架已清（独立类名，绝不与卡片计数选择器同构）
         rec('hist-cards', !!(await waitFor(function () {

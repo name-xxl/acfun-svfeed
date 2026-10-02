@@ -621,10 +621,12 @@ var RAW_CSS = ''
   + '.acsv-vrow-title{font-size:14px;color:#fff;line-height:20px;max-height:40px;overflow:hidden}'
   + '.acsv-vrow-desc{font-size:12px;color:#aab0bc;line-height:17px;max-height:34px;overflow:hidden;margin-top:2px}'
   + '.acsv-vrow-meta{font-size:12px;color:#8a90a0;margin-top:3px}'
-  // 榜单卡（0.9.69 全量对齐原生 rank/list @1200 内容宽）：1200 居中、视频卡 862 + UP 栏 338、
-  // 行高 129+分隔线、封面 160×90 直角、标题单行、简介 3 行 clamp、meta 贴封面底+原生三段图标、
-  // 水印 48px 旋转 10°（原生视觉锚点）、UP 卡扁平+左竖线（原生 up-card 同款）
-  + '.acsv-zone-wrap{max-width:1200px;margin:0 auto}'
+  // 榜单卡（0.9.69 全量对齐原生 rank/list；内容宽 0.9.70 定 1600）：行高 129+分隔线、封面
+  // 160×90 直角、标题单行、简介 3 行 clamp、meta 贴封面底+原生三段图标、水印 48px 旋转 10°
+  // （原生视觉锚点）、UP 卡扁平+左竖线（原生 up-card 同款）；内容宽 = 原生 1200 在 1920 下
+  // 两侧各留 355px 太空（用户实看），提到 1600 与我的页 .acsv-mewrap 同宽同密度——卡内指标
+  // （封面/行高/文字块构成）仍按原生
+  + '.acsv-zone-wrap{max-width:1600px;margin:0 auto}'
   + '.acsv-vrow.big{position:relative;align-items:stretch;gap:16px;padding:16px;overflow:hidden}'
   + '.acsv-vrow.big .acsv-vrow-thumb{width:160px;height:90px;border-radius:0}'
   + '.acsv-vrow.big .acsv-vrow-main{display:flex;flex-direction:column}'

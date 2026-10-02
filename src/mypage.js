@@ -67,7 +67,7 @@ function buildMeCard(slot) {
     addStat(stats, card.fans, '粉丝');
     addStat(stats, card.contrib, '投稿');
     if (stats.firstChild) info.appendChild(stats);
-    info.appendChild(el('div', 'acsv-mecard-id', 'AcFun号：' + card.uid));
+    info.appendChild(el('div', 'acsv-mecard-id', 'UID：' + card.uid));
     if (card.sign) info.appendChild(el('div', 'acsv-mecard-sign', card.sign));
     box.appendChild(info);
     slot.appendChild(box);
