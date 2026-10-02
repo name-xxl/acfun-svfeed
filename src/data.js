@@ -123,6 +123,15 @@ export function panelItem(kind, raw) {
     it.cover = raw.videoCover || '';
     it.desc = String(raw.contentDesc || '').replace(/<br\s*\/?\s*>/gi, ' ').trim(); // 简介副行；官方简介是 HTML，<br> 折空格（契约层统一处理，douga/info description 将来同款）
     it.sub = (Number(raw.viewCount) || 0) + ' 播放 · ' + (Number(raw.bananaCount) || 0) + ' 蕉';
+    // UP 信息（0.9.66 UP 榜）：rankList 条目自带 fansCount/userImg/userSignature——
+    // getUserCardList 无粉丝数，UP 粉丝以此为准（docs/api-research.md §4.3/§6.1）
+    it.up = raw.userName ? {
+      id: Number(raw.authorId || raw.userId) || 0,
+      name: raw.userName,
+      img: raw.userImg || '',
+      fans: Number(raw.fansCount) || 0,
+      sign: String(raw.userSignature || '').replace(/<br\s*\/?\s*>/gi, ' ').slice(0, 60)
+    } : null;
   } else {
     return null;
   }
@@ -133,4 +142,27 @@ export function panelItem(kind, raw) {
 // visit/user 留空走 normalizeHome 默认值，不伪造未实测的数据
 export function homeItemOf(acId, title, cover) {
   return normalizeHome({ href: String(acId), title: title || '', img: cover ? [cover] : [] });
+}
+
+// 榜单 UP 聚合（0.9.66 UP 榜）：rankList 原始条目 → 按作者去重的 UP 列表（top limit）。
+// 每位 UP 取最高排名与该条 fansCount（同 UP 粉丝数恒定）；key=authorId，缺失兜底 userName。
+// 纯函数（契约层，单测钉：去重/排序/limit/脏输入不抛）
+export function upListOf(rawList, limit) {
+  var seen = {};
+  var out = [];
+  (rawList || []).forEach(function (raw, i) {
+    if (!raw || !raw.userName) return;
+    var key = String(raw.authorId || raw.userId || raw.userName);
+    if (seen[key]) return;
+    seen[key] = 1;
+    out.push({
+      id: Number(raw.authorId || raw.userId) || 0,
+      name: raw.userName,
+      img: raw.userImg || '',
+      fans: Number(raw.fansCount) || 0,
+      sign: String(raw.userSignature || '').replace(/<br\s*\/?\s*>/gi, ' ').slice(0, 60),
+      rank: i + 1
+    });
+  });
+  return out.slice(0, limit || 10);
 }

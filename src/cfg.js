@@ -57,6 +57,7 @@ export var CFG = {
     // ---- 视图面板（0.9.62，契约见 docs/api-research.md §4/§6 实测） ----
     history: 'https://www.acfun.cn/rest/pc-direct/browse/history/list',
     rank: 'https://www.acfun.cn/rest/pc-direct/rank/channel',
+    navTree: 'https://www.acfun.cn/rest/pc-direct/page/queryNavigators',
     // ---- 弹幕（www.acfun.cn 同域，网页 Cookie 鉴权） ----
     dmList: 'https://www.acfun.cn/rest/pc-direct/new-danmaku/list',
     dmAdd: 'https://www.acfun.cn/rest/pc-direct/new-danmaku/add',

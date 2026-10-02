@@ -130,6 +130,13 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
 - 实测 "ac娘" → userList 30 条（含 userId/userName）
 - 可接"搜 UP 主 → 看 TA 最新投稿"链路（配合 uppage / getFollows）
 
+### 4.4 UP 信息（〔实测〕2026-10-02，榜单 UP 榜/未来 UP 面板用）
+
+- **UP 卡批量**：`POST /rest/pc-direct/user/getUserCardList` body `ids=<uid,uid,…>`（多值逗号分隔，acfunsdk 同款）→ `{result, users[]}`：headUrl / name / id / signature / **contentCount（投稿数）** / verifiedType / verifiedTypes / followed / following / isFollowedByCurrentUser——**无粉丝数**
+- **UP 粉丝数来源 = rankList 条目自带 fansCount**（§6.1，UP 榜据此展示；getUserCardList 不补）
+- UP 空间页 /u/&lt;uid&gt;：新版 SPA 无 __INITIAL_STATE__，粉丝数无轻量端点（2026-10-02 探测）
+- 项目在用：cfg.api.userCard（getUserCardList）
+
 ## 5. 内容扩展路线定性（〔实测〕）
 
 - **大家都在看**：无独立 JSON 接口（v 页 performance 时间线无相关请求），服务端直出进 v 页 HTML（实测 40 个 /v/ac 链接）→ 唯一路线 DOM 解析（uppage.js 同款）；window.videoInfo 内嵌 douga/info 等价数据（含 mkey）但**无**相关视频数组
@@ -141,12 +148,20 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
 
 ### 6.1 频道榜单 rank/channel（JSON，主推）
 
-`GET https://www.acfun.cn/rest/pc-direct/rank/channel?channelId=0&subChannelId=&rankLimit=50&rankPeriod=DAY`
+`GET https://www.acfun.cn/rest/pc-direct/rank/channel?channelId=0&subChannelId=&rankLimit=100&rankPeriod=DAY`
 
-- rankPeriod：DAY / THREE_DAYS / WEEK（周榜实测可用）；rankLimit 实测 50 生效（社区文档写 POST 且无 rankLimit，POST 只回默认 10 条——用 GET）
-- 响应 rankList[]：**dougaId（=ac 号）**/contentId、contentTitle、contentDesc、videoCover、duration、viewCount、bananaCount、danmuCount、commentCount、contributionCount、userName/userId/userImg/userSignature、contentType（2=视频 3=文章）、channel{channelId,channelName,parentId,parentName}、contributeTime
-- 频道过滤实测：channelId=0 全站混合 / 1=动画 / 59=游戏 全部命中对应分区；subChannelId=107（MAD·AMV）result 0 返回动画父级条目（子频道粒度以条目 channel.channelId 自校）
+- rankPeriod：DAY / THREE_DAYS / WEEK（周榜实测可用）；**rankLimit=100 实测生效**（原生全站日榜同款 100 条；社区文档写 POST 且无 rankLimit，POST 只回默认 10 条——用 GET）
+- **channelId=0 = 全站综合**（100 条混合；URL 参数 cid=-1 是页面参数不是接口参数——接口 -1 返回空）
+- **subChannelId 服务端真过滤**（0.9.66 实测：channelId=1+sub=107→4 条 / 108→31 条 / 159→3 条，数量随子频道变化）
+- 频道 cid 实测（与 queryNavigators 分区一致）：动画1（100）/娱乐60（31）/生活201（100）/音乐58（95）/舞蹈·偶像123（100）/游戏59（100）/科技70（97）/影视68（40）/体育69（65）/鱼塘125（22）/文章63（89 条全 contentType=3）；番剧 cid=155 仅 3 条杂项
+- 响应 rankList[]：**dougaId（=ac 号）**/contentId、contentTitle、contentDesc、videoCover、duration、viewCount、bananaCount、danmuCount、commentCount、contributionCount、**fansCount/userImg/userSignature/authorId（UP 榜数据源）**、userName/userId、contentType（2=视频 3=文章）、channel{channelId,channelName,parentId,parentName}、contributeTime
 - 直链获取：dougaId 接现有 resolve 链（douga/info + cast）即可竖刷——榜单条目自带计数与封面，resolve 只为拿直链
+
+### 6.1.1 子频道（0.9.66）
+
+- **官方分区树动态取**：POST /rest/pc-direct/page/queryNavigators（无参）→ data[] 递归 children{cid,navName,link}；按 zone 名（navName）递归匹配取 children 即子频道 chips（动画实测 9 个：动画综合106/短片·手书·配音190/MAD·AMV107/MMD·3D108/虚拟偶像207/动画资讯159/COSPLAY·声优133/特摄99/次元衍生212）
+- 树中无 TV动画(67)/剧场动画(180)/国产动画(120)（主导航有）——以官方树为准
+- rank 页 URL 参数语义：**pcid=主频道、cid=子频道**（接口侧映射 channelId/subChannelId）
 
 ### 6.2 线上分区 id 对照表（queryNavigators，站点每页自调）
 

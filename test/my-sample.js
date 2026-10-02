@@ -39,14 +39,25 @@
         dougaId: String(489500 + k), contentType: k === 4 ? 3 : 2, // 第 5 条文章形态：契约层过滤
         contentTitle: '榜单' + name + '-' + period + '-' + k, videoCover: '',
         contentDesc: '简介' + k, bananaCount: 500 - k, viewCount: 3000 - k * 10,
-        userName: '榜单UP'
+        userName: '榜单UP' + (k % 2), authorId: 700 + (k % 2), fansCount: 8000 - k * 100,
+        userImg: '', userSignature: '签名' + k
       });
     }
     return { result: 0, rankList: rows };
   }
 
   window.__ACSV_MY_MOCK__ = {
-    // view-my 场景组装 __ACSV_MOCK_FORM__ 用（harness.html）
+    // view-my/view-zone 场景组装 __ACSV_MOCK_FORM__ 用（harness.html）
+    // 子频道树：官方树形状裁剪（children cid+navName），zone 视图选频道后填子频道 chips
+    'page/queryNavigators': {
+      result: 0,
+      data: ['全站综合', '动画', '娱乐', '生活', '音乐', '舞蹈·偶像', '游戏', '科技', '影视', '体育', '鱼塘'].map(function (n, i) {
+        return {
+          navName: n, cid: [0, 1, 60, 201, 58, 123, 59, 70, 68, 69, 125][i],
+          children: [{ cid: 900 + i, navName: n + '子频道' }, { cid: 901 + i, navName: n + '子频道二' }]
+        };
+      })
+    },
     'browse/history/list': function (body) {
       var page = Number((String(body).match(/pageNo=(\d+)/) || [])[1] || 1);
       return { result: 0, totalCount: 22, histories: page === 1 ? HIST_P1 : HIST_P2 };

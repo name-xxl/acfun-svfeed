@@ -167,7 +167,8 @@ export function playAc(pi) {
 // meta 行拼装规则：sub 优先（历史=「观看至xx:xx」、榜单=蕉数、收藏=UP 名），
 // progress 仅在 sub 未表达时补显（收藏的续看秒数）
 export function rowOf(pi, rank) {
-  var row = el('div', 'acsv-vrow');
+  // 榜单条目走大卡（对齐原生榜单卡尺寸：横版大封面+三行文字区）；历史/收藏维持小卡
+  var row = el('div', 'acsv-vrow' + (pi.kind === 'rank' ? ' big' : ''));
   if (rank != null) row.appendChild(el('div', 'acsv-vrow-rank' + (rank <= 3 ? ' top' : ''), String(rank)));
   var thumb = el('div', 'acsv-vrow-thumb');
   if (pi.cover) {

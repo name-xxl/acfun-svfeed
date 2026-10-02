@@ -173,6 +173,23 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.66（2026-10-02）· 榜单大卡+子频道+UP 榜（对齐原生三件套）+ UP 接口入库
+
+- **卡片对齐原生尺寸**：rank 条目走大卡（`acsv-vrow--big`：横版封面 160×100+标题/简介/meta
+  三行区），历史/收藏维持小卡；真机对照原生榜单卡观感一致。
+- **子频道行**：queryNavigators 分区树 children（cid+navName 官方树）动态填充，选主频道后
+  出现（「全部」+各子频道），rank 请求带 subChannelId——**服务端真过滤实测**（107→4 条/
+  108→31 条/159→3 条）；树拉不到或频道无 children 隐藏子频道行（降级不阻塞）；切频道重置
+  选区。rank 页 URL 参数语义破解：pcid=主频道、cid=子频道。
+- **UP 榜 section**：视频榜下方 top10（圆形头像+名字+粉丝数+「榜单第 N 名」+签名）。
+  数据=upListOf（data.js 新纯函数：rankList 按 authorId 去重取最高排名，契约层单测钉）。
+  **UP 粉丝来源=rankList.fansCount**——getUserCardList（ids 多值批量）返回 users 无粉丝数，
+  UP 空间页新版 SPA 无轻量端点（均实测）；UP 接口契约入 docs/api-research.md §4.4。
+- **坑实锤**：UP 行头像类名笔误（upimg 无样式规则致头像原尺寸渲染）真机截图抓出即修；
+  harness view-zone 断言限定 `.acsv-vlist:not(.ups)`（UP 行同为 .acsv-vrow 会污染行数断言）。
+- mock 补 navTree 子频道树/fansCount/authorId；89 单测（up/upListOf 新增）+19 场景
+  （view-zone 9 断言）全绿；真机截图对照原生（大卡/子频道/UP 榜）。
+
 ### 0.9.65（2026-10-02）· 榜单对齐原生（补全/文案/UI）+ 状态观察钩子沉淀
 
 - **榜单补全（"不全"实锤）**：原生全站日榜 100 条、频道 13 个，此前只取 20 条 7 频道。
