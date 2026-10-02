@@ -634,6 +634,19 @@
         rec('me-card-cached', !!(await waitFor(function () {
           return q('.acsv-mecard-name') && window.__ACSV_CARD_CALLS__ === 1;
         }, 5000)), 'calls=' + window.__ACSV_CARD_CALLS__);
+        // i 键在视图态不被吞（0.9.75：视图态只放行 Esc 与 i——顶栏私信按钮四界面常驻，键盘对齐）。
+        // 本场景为资料头设了假 auth_key（登录态）→ i 会真开抽屉走网络；先撤 cookie 验未登录分支
+        // （出提示＝键确实打到了私信模块），测完还原，后续步骤不受影响
+        document.cookie = 'auth_key=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        key('i');
+        rec('my-i-not-swallowed', !!(await waitFor(function () {
+          return /私信需要先登录/.test((q('.acsv-toast') || {}).textContent || '');
+        }, 4000)), (q('.acsv-toast') || {}).textContent || '');
+        rec('my-i-no-drawer', (function () { // 抽屉未开（元素可能还没被懒建：不存在也算未开）
+          var d = q('.acsv-msgdrawer');
+          return !d || !d.classList.contains('open');
+        })());
+        document.cookie = 'auth_key=42_deadbeef'; // 还原（ui.selfUid 语义同 harness 初始设定）
         // 来源视图保活（0.9.74）：我的 → 搜索（深界面）→ Esc 返回。钉四件事：挂起期只有一个
         // .acsv-view（来源换类名 acsv-view-held，不污染全局定位锚）、回来是**同一个节点**、
         // 滚动位保住（visibility 挂起而非 display:none）、数据不重拉
@@ -1095,6 +1108,15 @@
           for (var i = 0; i < vs.length; i++) if (!vs[i].paused) return false;
           return true;
         })());
+        // i 键在播放层不被吞（0.9.75）：未登录出提示、层内视频不受影响
+        key('i');
+        rec('play-i-not-swallowed', !!(await waitFor(function () {
+          return /私信需要先登录/.test((q('.acsv-toast') || {}).textContent || '');
+        }, 4000)), (q('.acsv-toast') || {}).textContent || '');
+        rec('play-i-layer-kept', (function () {
+          var v = q('.acsv-slide[data-ovl="1"] video');
+          return !!v && !v.paused;
+        })());
         key('c'); // 层内评论开合（0.9.74）：必须打层内那条，不是竖刷当前条
         rec('play-key-comments', !!(await waitFor(function () {
           var r = q('#acsv-root'), d = q('.acsv-drawer'), cs = TEST.call('comments');
@@ -1186,6 +1208,25 @@
             + ' groupL=' + Math.round(tr.getBoundingClientRect().left)
             + ' dw=' + Math.round(p.getBoundingClientRect().width);
         })());
+        // 0.9.75：动画时长单源（--acsv-dw-t）——抽屉与两处"让位"（顶栏 right / 正文 right）必须同值，
+        // 这是逐帧贴合不变式的前提（抽离共享规则时最容易悄悄改坏的点）
+        rec('imview-timing-single-source', (function () {
+          var d = q('.acsv-msgdrawer'), t = q('.acsv-top'), b = q('.acsv-view-body');
+          if (!d || !t || !b) return false;
+          var dd = getComputedStyle(d).transitionDuration;
+          return dd === getComputedStyle(t).transitionDuration && dd === getComputedStyle(b).transitionDuration;
+        })(), (function () {
+          var d = q('.acsv-msgdrawer'), t = q('.acsv-top'), b = q('.acsv-view-body');
+          return d && t && b ? (getComputedStyle(d).transitionDuration + '/' + getComputedStyle(t).transitionDuration
+            + '/' + getComputedStyle(b).transitionDuration) : 'n/a';
+        })());
+        key('i'); // 视图态按 i：直接关掉开着的抽屉（0.9.75 键位全界面通用，未登录也能关）
+        rec('imview-i-closes-in-view', !!(await waitFor(function () {
+          var d = q('.acsv-msgdrawer');
+          return !!d && !d.classList.contains('open');
+        }, 5000)));
+        var s3 = TEST.call('imOpenSmoke'); // 缝开：Esc 链的起点恢复
+        rec('imview-reopen-for-esc', !!(s3 && s3.open));
         key('Escape'); // 栈顶=im → 先关抽屉（视图保留）
         rec('imview-esc-drawer', !!(await waitFor(function () {
           var d = q('.acsv-msgdrawer'), r = q('#acsv-root');
@@ -1206,6 +1247,42 @@
           return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash)
             && q('.acsv-view') === null;
         }, 8000)), location.hash);
+
+        // ---- 0.9.75：私信开合（顶栏按钮/i 键）----
+        // i 键在输入框聚焦时不触发（目标豁免在前）：事件派到顶栏输入框上，抽屉不开且无新提示
+        var toastBefore = (q('.acsv-toast') || {}).textContent || '';
+        (function () {
+          var i = q('.acsv-top .acsv-sbox input');
+          if (i) i.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', bubbles: true }));
+        })();
+        await wait(300);
+        rec('imview-i-input-exempt', (function () {
+          var d = q('.acsv-msgdrawer');
+          return (!d || !d.classList.contains('open'))
+            && ((q('.acsv-toast') || {}).textContent || '') === toastBefore;
+        })(), 'toast=' + ((q('.acsv-toast') || {}).textContent || ''));
+        // i 键已接线（未登录）：出登录提示——证明键真的打到了私信抽屉模块（打开侧受登录门槛）
+        key('i');
+        rec('imview-i-login-guard', !!(await waitFor(function () {
+          return /私信需要先登录/.test((q('.acsv-toast') || {}).textContent || '');
+        }, 4000)), (q('.acsv-toast') || {}).textContent || '');
+        // 顶栏私信按钮＝开合（用户报障）：缝开后点按钮必须关——旧行为 onDrawer=openDrawer 恒开，
+        // 二次点击走 overlayOpen 幂等收旧（同 tick 摘类又加类被合成）＝观感"点了没反应"
+        var s1 = TEST.call('imOpenSmoke');
+        rec('imview-btn-open', !!(s1 && s1.open));
+        q('.acsv-im-btn').click();
+        rec('imview-btn-toggle-close', !!(await waitFor(function () {
+          var d = q('.acsv-msgdrawer'), r = q('#acsv-root');
+          return !!d && !d.classList.contains('open') && !!r && !r.classList.contains('acsv-with-comments');
+        }, 5000)));
+        // i 键＝开合：缝开后再按必须关（关闭分支先于登录门槛，所以未登录也能关）
+        var s2 = TEST.call('imOpenSmoke');
+        rec('imview-i-close-open', !!(s2 && s2.open));
+        key('i');
+        rec('imview-i-toggle-close', !!(await waitFor(function () {
+          var d = q('.acsv-msgdrawer');
+          return !!d && !d.classList.contains('open');
+        }, 5000)));
 
       } else if (CASE === 'stall-healthy') {
         rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));

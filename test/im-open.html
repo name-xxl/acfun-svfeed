@@ -16,7 +16,8 @@
   // ============ 私信抽屉开启冒烟（0.9.49 quoteChip 回归教训的哨兵场景） ============
   // imdrawer.imDrawerSmoke 模拟缝绕过登录门槛直建抽屉 DOM；本页只做断言记录。
   // 覆盖：骨架可建可开、quoteChip 是真实元素节点（工厂返回对象漏 .box 的同族回归）、
-  // 输入栏/气泡容器在场。
+  // 输入栏/气泡容器在场；0.9.75 起加「列表↔会话双向平移」的动画契约（舞台裁剪/两面板位移/
+  // 过渡时长与抽屉同源——时长单源化后逐帧贴合的前提就是它们必须相等）。
   window.__IM_RESULTS__ = { case: 'im-open', results: [], done: false };
   function rec(name, pass, info) {
     window.__IM_RESULTS__.results.push({ name: name, pass: !!pass, info: info == null ? '' : String(info) });
@@ -35,13 +36,20 @@
       if (Date.now() - t0 > 15000) { rec('env', false, 'bundle 未就绪'); window.__IM_RESULTS__.done = true; return; }
       return setTimeout(boot, 100);
     }
-    try { run(); } catch (e) {
+    try {
+      Promise.resolve(run()).catch(function (e) {
+        rec('执行异常', false, e && e.message);
+        window.__IM_RESULTS__.done = true;
+      });
+    } catch (e) {
       rec('执行异常', false, e && e.message);
       window.__IM_RESULTS__.done = true;
     }
   })();
 
-  function run() {
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  async function run() {
     var s = window.__ACSV_TEST__.call('imDrawerSmoke');
     if (!s) { rec('模拟缝', false, 'imDrawerSmoke hook 缺失'); window.__IM_RESULTS__.done = true; return; }
     rec('模拟缝', true);
@@ -50,6 +58,46 @@
     rec('quoteChip 在抽屉内', s.quoteChipInDrawer);
     rec('输入框/发送键在场', s.input && s.send);
     rec('气泡容器已挂载', s.bubblesConnected);
+    // ---- 0.9.75：切页动画契约（舞台裁剪 + 面板叠加 + 时长单源） ----
+    var stage = document.querySelector('.acsv-im-stage');
+    var listPane = document.querySelector('.acsv-im-listview');
+    var chatPane = document.querySelector('.acsv-im-chatview');
+    rec('舞台在场且裁剪（滑出面板不溢视口）', !!stage
+      && getComputedStyle(stage).overflow === 'hidden' && getComputedStyle(stage).position === 'relative',
+      stage ? ('ov=' + getComputedStyle(stage).overflow + ' pos=' + getComputedStyle(stage).position) : 'no-stage');
+    rec('两面板绝对定位叠加', !!listPane && !!chatPane
+      && getComputedStyle(listPane).position === 'absolute' && getComputedStyle(chatPane).position === 'absolute');
+    rec('面板有 transform 过渡', (function () {
+      var c = chatPane && getComputedStyle(chatPane);
+      return !!(c && c.transitionProperty.indexOf('transform') >= 0 && parseFloat(c.transitionDuration) > 0);
+    })(), (function () { var c = chatPane && getComputedStyle(chatPane); return c ? c.transitionProperty + ' ' + c.transitionDuration : 'n/a'; })());
+    // 时长单源（--acsv-dw-t）：抽屉与让位组必须同值——0.9.75 单源化后这条是逐帧贴合的前提
+    var drw = document.querySelector('.acsv-msgdrawer');
+    rec('抽屉/面板时长同源（--acsv-dw-t）', (function () {
+      if (!drw || !chatPane) return false;
+      return getComputedStyle(drw).transitionDuration === getComputedStyle(chatPane).transitionDuration;
+    })(), (function () {
+      return drw && chatPane ? ('drawer=' + getComputedStyle(drw).transitionDuration + ' pane=' + getComputedStyle(chatPane).transitionDuration) : 'n/a';
+    })());
+    // 默认 list 态（chat 停在右侧 100%）+ 切到 chat（imPaneSmoke 只切状态类，不跑网络/轮询）
+    var lp0 = listPane && listPane.getBoundingClientRect();
+    var cp0 = chatPane && chatPane.getBoundingClientRect();
+    rec('默认 list 态（会话停在右缘外）', !!lp0 && !!cp0 && cp0.left >= lp0.right - 1,
+      lp0 && cp0 ? ('listR=' + Math.round(lp0.right) + ' chatL=' + Math.round(cp0.left)) : 'n/a');
+    var p1 = window.__ACSV_TEST__.call('imPaneSmoke', 'chat');
+    rec('切到会话：状态类与返回键', !!(p1 && p1.chatOn && p1.view === 'chat' && p1.backShown), JSON.stringify(p1));
+    await wait(420); // 过渡回落（.28s + 余量）：翻类后立刻量等于量起点（变换是异步的）
+    var lp1 = listPane.getBoundingClientRect(), cp1 = chatPane.getBoundingClientRect();
+    // 双向平移：会话从右缘外滑到「列表原位」（左移 W），列表同步左移 W 退场
+    rec('会话归位到列表原位、列表左移 W', Math.abs(cp1.left - lp0.left) <= 3
+      && Math.abs((lp1.left - lp0.left) + Math.round(cp1.width)) <= 3,
+      'chatL=' + Math.round(cp1.left) + '/listL0=' + Math.round(lp0.left) + ' listDx=' + Math.round(lp1.left - lp0.left) + ' W=' + Math.round(cp1.width));
+    var p2 = window.__ACSV_TEST__.call('imPaneSmoke', 'list');
+    rec('切回列表：状态与返回键复位', !!(p2 && !p2.chatOn && p2.view === 'list' && !p2.backShown), JSON.stringify(p2));
+    await wait(420);
+    var lp2 = listPane.getBoundingClientRect(), cp2 = chatPane.getBoundingClientRect();
+    rec('切回后列表归位、会话再退右缘外', Math.abs(lp2.left - lp0.left) <= 2 && cp2.left >= lp2.right - 1,
+      'listDx=' + Math.round(lp2.left - lp0.left) + ' chatL=' + Math.round(cp2.left) + ' listR=' + Math.round(lp2.right));
     window.__IM_RESULTS__.done = true;
   }
 </script>

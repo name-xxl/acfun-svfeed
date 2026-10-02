@@ -8,6 +8,7 @@ import { toggleItemComments } from './comments.js';
 import { overlayTop, overlayClose } from './overlay.js';
 import { currentView } from './views.js';
 import { currentItem } from './playlayer.js';
+import { toggleImDrawer } from './imdrawer.js';
 
 // ---------- 键盘/全屏/幽灵扫描：全局监听的注册与解除 ----------
 // 上层导航（scrollToIndex/exitFeed）在 player.js，经 api 参数注入保持依赖单向；
@@ -29,6 +30,12 @@ export function setupInputHandlers(api) {
       return;
     }
     if (ev.target && /^(input|textarea|select)$/i.test(ev.target.tagName)) return;
+    // 私信抽屉开合（0.9.75）：全界面通用——放在视图门禁**之前**（顶栏私信按钮在我的/榜单/
+    // 搜索/播放层都常驻，键盘要对齐；视图态其余键照旧吞）。输入框聚焦不触发（上面的目标豁免）
+    if (ev.key === 'i' || ev.key === 'I') {
+      if (!ev.repeat) toggleImDrawer();
+      return;
+    }
     // 子视图（#svfeed/my 等）是全屏页面：导航/互动键无意义一律吞掉，仅 Esc 放行走
     // 浮层栈（view 层在栈里，关=返回来源/竖刷）。放在 target 豁免之后——视图内未来的
     // 输入框（搜索二期）聚焦时不受影响。

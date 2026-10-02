@@ -25,7 +25,7 @@ var RAW_CSS = ''
   // 左中右三区：搜索框居中常驻（抖音同款位置）+ 右侧按钮组（源切换/私信/更新/退出）
   + '.acsv-top{position:absolute;top:0;left:' + CFG.view.dockW + 'px;right:0;height:var(--acsv-top-h);'
   + 'display:flex;align-items:center;padding:0 24px;background:linear-gradient(rgba(0,0,0,.6),transparent);'
-  + 'z-index:30;pointer-events:none;transition:right .28s ease}' // right 过渡供抽屉避让收窄（见下）
+  + 'z-index:30;pointer-events:none;transition:right var(--acsv-dw-t) ease}' // right 过渡供抽屉避让收窄（见下）
   + '.acsv-top *{pointer-events:auto}'
   + '.acsv-top .acsv-sbox{position:absolute;left:50%;transform:translateX(-50%);width:min(480px,44%)}'
   + '.acsv-top-right{margin-left:auto;display:flex;gap:10px}'
@@ -96,7 +96,7 @@ var RAW_CSS = ''
   + '.acsv-arrow:hover{background:rgba(255,255,255,.25);transform:scale(1.06)}'
   + '.acsv-arrow:disabled{opacity:.3;cursor:default;transform:none}'
   + '.acsv-controls{position:absolute;left:0;right:0;bottom:0;z-index:25;padding:26px 14px 8px;'
-  + 'background:linear-gradient(transparent,rgba(0,0,0,.72));opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s,right .28s ease}'
+  + 'background:linear-gradient(transparent,rgba(0,0,0,.72));opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s,right var(--acsv-dw-t) ease}'
   + '.acsv-slide[data-ctl="1"] .acsv-controls,.acsv-slide[data-paused="1"] .acsv-controls{opacity:1;visibility:visible}'
   + '.acsv-track{position:relative;height:4px;margin:0 4px 6px;border-radius:2px;background:rgba(255,255,255,.32);cursor:pointer;transition:height .15s}'
   + '.acsv-track:hover,.acsv-track[data-drag="1"]{height:6px}'
@@ -132,10 +132,13 @@ var RAW_CSS = ''
   // 抽屉 z 58（0.9.73 由 45 提到视图态顶栏(57)之上）：视图里开抽屉时抽屉须盖住视图(55)/dock(56)/
   // 顶栏(57)，顶栏右组靠避让平移贴到抽屉左缘保持可点；低于大图(60)/更新弹窗(65)。几何上
   // 抽屉贴右、dock 贴左，两者不重叠——层级反转只保证「后开的浮层在上」与 overlay 栈序一致
-  + '.acsv-drawer{position:absolute;top:0;right:0;bottom:0;width:var(--acsv-dw,380px);z-index:58;display:flex;flex-direction:column;'
+  // 抽屉滑入骨架（0.9.75 抽离）：评论/私信两抽屉共用同一条规则（此前逐字重复两份，只差
+  // 宽度默认值与背景透明度 .96/.97）；各自的差异写在共享规则**之后**（同权重靠后生效）
+  + '.acsv-drawer,.acsv-msgdrawer{position:absolute;top:0;right:0;bottom:0;z-index:58;display:flex;flex-direction:column;'
   + 'background:rgba(22,22,27,.96);backdrop-filter:blur(12px);border-left:1px solid rgba(255,255,255,.09);'
-  + 'transform:translateX(100%);transition:transform .28s ease}'
-  + '.acsv-drawer.open{transform:translateX(0)}'
+  + 'transform:translateX(100%);transition:transform var(--acsv-dw-t) ease}'
+  + '.acsv-drawer.open,.acsv-msgdrawer.open{transform:translateX(0)}'
+  + '.acsv-drawer{width:var(--acsv-dw,380px)}'
   + '.acsv-drawer-head{display:flex;align-items:center;gap:10px;padding:14px 16px;font-size:15px;font-weight:600;'
   + 'border-bottom:1px solid rgba(255,255,255,.09);flex:none}'
   + '.acsv-drawer-close{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:30px;height:30px;'
@@ -273,15 +276,16 @@ var RAW_CSS = ''
   // 弹幕画布不参与变换：dmcanvas.align() 本就按视频视觉矩形定位，再叠 transform 会二次变换错位，
   // 只给它补同曲线的 left/top/width/height 过渡，让 align() 的 250ms 重定位随视频平滑滑动。
   // --acsv-dw（抽屉实际宽）/ --acsv-cscale（缩放比）由 JS 按 CFG.comments 写入 root
-  + '.acsv-video,.acsv-playicon,.acsv-errbox,.acsv-side{transition:transform .28s ease}'
+  + '.acsv-video,.acsv-playicon,.acsv-errbox,.acsv-side{transition:transform var(--acsv-dw-t) ease}'
   + '#acsv-root.acsv-with-comments .acsv-video,#acsv-root.acsv-with-comments .acsv-playicon,'
   + '#acsv-root.acsv-with-comments .acsv-errbox{transform:translateX(calc(var(--acsv-dw,380px) / -2)) scale(var(--acsv-cscale,1))}'
-  + '#acsv-root.acsv-with-comments .acsv-dmcanvas{transition:left .28s ease,top .28s ease,width .28s ease,height .28s ease}'
+  + '#acsv-root.acsv-with-comments .acsv-dmcanvas{transition:left var(--acsv-dw-t) ease,top var(--acsv-dw-t) ease,width var(--acsv-dw-t) ease,height var(--acsv-dw-t) ease}'
   + '#acsv-root.acsv-with-comments .acsv-controls{right:var(--acsv-dw,380px)}'
   + '#acsv-root.acsv-with-comments .acsv-side{transform:translateX(calc(var(--acsv-dw,380px) * -1))}'
   // 视图正文让位（0.9.73）：抽屉占槽时视图正文右缘收窄到抽屉左缘——视图内容是「舞台」，与
   // 竖刷同理念（卡片不缩放，只收窄可用宽，网格 auto-fill 自然重排）。正文 right 与抽屉
-  // transform 同用 .28s ease：线性插值下正文右缘恒等于抽屉左缘（逐帧贴合，无先跳后盖）。
+  // transform 与抽屉同用 var(--acsv-dw-t)（:root 单源）：线性插值下正文右缘恒等于抽屉左缘
+  // （逐帧贴合，无先跳后盖）。
   // 中窄视口由 avoidW 护栏退化纯覆盖（视图不能像视频那样缩放，阈值只能比 avoidMin 更严）
   + '@media (min-width:' + CFG.view.avoidW + 'px){#acsv-root.acsv-with-comments .acsv-view-body{right:var(--acsv-dw,380px)}}'
   // 画幅满高可容（竖屏/方屏/4:3，判据见 player.js panFitOf）：只平移不缩放——
@@ -292,7 +296,7 @@ var RAW_CSS = ''
   // spinner 不进上面的 transform 避让名单：它的旋转动画 acsv-spin 独占 transform
   // （CSS 动画优先级高于普通规则，translateX 会被覆盖而永不生效），改用 left 平移避让
   // （不随 cscale 缩放）；slide 级与首屏 scroller 级（包含块=root）都处理，随抽屉同步过渡
-  + '.acsv-slide>.acsv-spinner,.acsv-scroller>.acsv-spinner{transition:left .28s ease}'
+  + '.acsv-slide>.acsv-spinner,.acsv-scroller>.acsv-spinner{transition:left var(--acsv-dw-t) ease}'
   + '#acsv-root.acsv-with-comments .acsv-slide>.acsv-spinner,#acsv-root.acsv-with-comments .acsv-scroller>.acsv-spinner{left:calc(50% - var(--acsv-dw,380px)/2)}'
   // 评论内 UBB 渲染（表情/图片/@提及/作品引用）。带 .acsv-cbody 作用域：
   // 这是注入宿主页的全局样式表，不能留无前缀选择器（防与站点样式互染）
@@ -406,20 +410,26 @@ var RAW_CSS = ''
   + '.acsv-share-center{flex:none;display:grid;place-items:center;height:34px;padding:0 14px;'
   + 'border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:12px;text-decoration:none}'
   + '.acsv-share-center:hover{background:rgba(255,255,255,.2)}'
-  // ---- 私信抽屉（列表 + 聊天两视图，评论抽屉同款滑入交互） ----
-  + '.acsv-msgdrawer{position:absolute;top:0;right:0;bottom:0;width:var(--acsv-dw,min(380px,88vw));z-index:58;'
-  + 'display:flex;flex-direction:column;background:rgba(22,22,27,.97);backdrop-filter:blur(12px);'
-  + 'border-left:1px solid rgba(255,255,255,.09);transform:translateX(100%);transition:transform .28s ease}'
-  + '.acsv-msgdrawer.open{transform:translateX(0)}'
+  // ---- 私信抽屉（列表 + 聊天两视图；滑入骨架见上共享规则，这里只写差异） ----
+  + '.acsv-msgdrawer{width:var(--acsv-dw,min(380px,88vw));background:rgba(22,22,27,.97)}'
   + '.acsv-im-head{flex:none;display:flex;align-items:center;gap:8px;padding:14px 16px;font-size:15px;'
   + 'font-weight:600;color:#fff;border-bottom:1px solid rgba(255,255,255,.09)}'
   + '.acsv-im-back{border:none;background:rgba(255,255,255,.1);color:#fff;width:28px;height:28px;'
   + 'border-radius:50%;cursor:pointer;font-size:16px;line-height:1;display:none}'
+  + '.acsv-msgdrawer.chat-on .acsv-im-back{display:block}' // 返回键只属会话页（0.9.75 收进 CSS）
   + '.acsv-im-back:hover{background:rgba(255,255,255,.22)}'
   + '.acsv-im-close{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;'
   + 'width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}'
   + '.acsv-im-close:hover{background:rgba(255,255,255,.22)}'
-  + '.acsv-im-listview{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}'
+  // 列表↔会话「双向平移」（0.9.75，iOS/微信式下钻）：舞台负责裁剪——两面板要 translateX(±100%)，
+  // 而 .acsv-msgdrawer / #acsv-root 都没有 overflow，不裁就会滑出视口/出横向滚动条；
+  // 两面板绝对定位叠加，状态类挂在抽屉根（.chat-on）：列表左移退场、会话从右滑入，返回反向
+  + '.acsv-im-stage{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}'
+  + '.acsv-im-pane{position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;'
+  + 'transition:transform var(--acsv-dw-t) ease}'
+  + '.acsv-im-chatview{transform:translateX(100%)}'
+  + '.acsv-msgdrawer.chat-on .acsv-im-listview{transform:translateX(-100%)}'
+  + '.acsv-msgdrawer.chat-on .acsv-im-chatview{transform:translateX(0)}'
   + '.acsv-im-searchwrap{flex:none;padding:0 14px 10px}'
   + '.acsv-im-search{width:100%;height:34px;border:none;outline:none;background:rgba(255,255,255,.1);'
   + 'border-radius:8px;color:#fff;font-size:13px;padding:0 12px;font-family:inherit}'
@@ -438,7 +448,6 @@ var RAW_CSS = ''
   + 'display:flex;align-items:center;gap:6px}'
   + '.acsv-im-preview{font-size:12px;color:#8b909a;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
   + '.acsv-im-time{flex:none;font-size:11px;color:#7a7f8a;align-self:flex-start;margin-top:4px}'
-  + '.acsv-im-chatview{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}'
   + '.acsv-im-bubble{max-width:78%;margin:4px 10px;padding:8px 12px;border-radius:14px;'
   + 'font-size:13px;line-height:1.6;word-break:break-word;color:#f0f1f3;background:rgba(255,255,255,.1);align-self:flex-start;'
   + 'user-select:text;-webkit-user-select:text;cursor:text}' // 气泡开文字选择（root 全局 user-select:none 之上的例外，同评论正文）：划选后原生右键即可复制
@@ -629,7 +638,7 @@ var RAW_CSS = ''
   // 视图正文顶=顶栏高（0.9.73 视图头删除：共享顶栏接管视图头部；不再写死 52px）。
   // right 过渡供抽屉避让（收窄/还原与抽屉滑入滑出同曲线同时序）
   + '.acsv-view-body{position:absolute;top:var(--acsv-top-h);bottom:0;left:0;right:0;overflow-y:auto;'
-  + 'padding:6px 24px 30px ' + (CFG.view.dockW + 14) + 'px;transition:right .28s ease}'
+  + 'padding:6px 24px 30px ' + (CFG.view.dockW + 14) + 'px;transition:right var(--acsv-dw-t) ease}'
   // 播放层正文（0.9.74）：满幅承载一条 slide——不滚动、无内边距、左缘让开 dock（与竖刷
   // scroller 同款）；抽屉避让交给 slide 自带规则（styles.js 上方 root 级那组），正文不能再
   // 收窄一次——双份收窄会把画面推两次
@@ -803,7 +812,10 @@ var RAW_CSS = ''
   + '.acsv-megrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px 10px}}';
 
 // 主题色收敛：RAW_CSS 中的 #fd4c5d 全部替换为 CSS 变量，:root 上定义唯一来源
-export var CSS = ':root{--acsv-accent:' + CFG.accent + ';--acsv-top-h:72px}'
+// --acsv-dw-t（0.9.75 单源）：抽屉滑入/滑出与所有"让位"过渡共用同一时长——
+// 抽屉贴右、让位量按它插值，只有同曲线同时长才逐帧贴合（styles.js 让位组注释同契约）。
+// 改这一处＝抽屉与让位同步改，禁止各自取值
+export var CSS = ':root{--acsv-accent:' + CFG.accent + ';--acsv-top-h:72px;--acsv-dw-t:.28s}'
   + RAW_CSS.replace(/#fd4c5d/g, 'var(--acsv-accent)');
 
 export var ICONS = {

@@ -106,7 +106,6 @@ function ensureDrawerDom() {
   var head = el('div', 'acsv-im-head');
   var back = el('button', 'acsv-im-back', '‹');
   back.title = '返回消息列表';
-  back.style.display = 'none';
   var title = el('span', 'acsv-im-title', '私信');
   var close = el('button', 'acsv-im-close', '✕');
   close.title = '关闭';
@@ -120,8 +119,8 @@ function ensureDrawerDom() {
   head.appendChild(close);
   d.appendChild(head);
 
-  // 列表视图
-  var listView = el('div', 'acsv-im-listview');
+  // 列表视图（0.9.75：两视图绝对定位叠在裁剪舞台上，滑入/退场走 CSS 类，见 setPane）
+  var listView = el('div', 'acsv-im-listview acsv-im-pane');
   var searchWrap = el('div', 'acsv-im-searchwrap');
   var search = el('input', 'acsv-im-search');
   search.placeholder = '搜索联系人';
@@ -131,11 +130,9 @@ function ensureDrawerDom() {
   listView.appendChild(searchWrap);
   var listBody = el('div', 'acsv-im-list');
   listView.appendChild(listBody);
-  d.appendChild(listView);
 
   // 聊天视图
-  var chatView = el('div', 'acsv-im-chatview');
-  chatView.style.display = 'none';
+  var chatView = el('div', 'acsv-im-chatview acsv-im-pane');
   var bubbles = el('div', 'acsv-im-bubbles');
   // 引用 chip：DOM 由 inputbar.buildQuoteChip 统一产出（0.9.47 起评论回复同款），置输入条上方，setQuote 驱动显隐
   var quoteChip = buildQuoteChip(function () { setQuote(null); }, '取消引用');
@@ -154,7 +151,13 @@ function ensureDrawerDom() {
   chatView.appendChild(bubbles);
   chatView.appendChild(quoteChip.box); // chip 置输入条上方；buildQuoteChip 返回 {box,label}，挂 DOM 须取 .box
   chatView.appendChild(inputBar.box);
-  d.appendChild(chatView);
+
+  // 舞台（0.9.75）：position:relative + overflow:hidden 承载两面板（滑出面板必须被裁剪——
+  // .acsv-msgdrawer / #acsv-root 都无 overflow，不裁会滑出视口）
+  var stage = el('div', 'acsv-im-stage');
+  stage.appendChild(listView);
+  stage.appendChild(chatView);
+  d.appendChild(stage);
 
   // 表情面板挂抽屉根：.acsv-emotpanel 以最近 positioned 祖先锚定，私信抽屉同为 absolute
   // 容器、bottom:57px 与 IM 输入条高度恰好对齐，无需覆写样式
@@ -180,27 +183,29 @@ function ensureDrawerDom() {
   };
 }
 
-// ---------- 视图切换 ----------
+// ---------- 视图切换（0.9.75：类状态 + CSS 双向平移） ----------
+// 旧实现是内联 style.display 硬切（无过渡＝生硬）。现在状态类挂抽屉根 .chat-on：列表左移
+// 退场、会话从右滑入（返回反向，时长走 --acsv-dw-t 单源）；返回键显隐与面板位移都在 CSS 里。
+// 关抽屉保留 chat-on：重开还是上次那个会话（与旧 display 行为一致）
+function setPane(name) {
+  if (!drawer) return;
+  view = name;
+  drawer.el.classList.toggle('chat-on', name === 'chat');
+}
 function showList() {
   if (!drawer) return;
   chatPoll.stop();
-  view = 'list';
-  drawer.back.style.display = 'none';
+  setPane('list');
   drawer.title.textContent = '私信';
-  drawer.listView.style.display = '';
-  drawer.chatView.style.display = 'none';
   refreshList();
   listPoll.start();
 }
 function showChat(targetId) {
   if (!drawer) return;
   listPoll.stop();
-  view = 'chat';
   var card = cards[targetId] || {};
-  drawer.back.style.display = 'block';
   drawer.title.textContent = card.name || '用户 ' + targetId;
-  drawer.listView.style.display = 'none';
-  drawer.chatView.style.display = '';
+  setPane('chat');
   drawer.bubbles.innerHTML = '';
   // quote=待引用目标 {seqId, preview, originMsg}；msgEls=seen key→气泡主元素（引用定位用）。
   // 都是会话级状态：切会话随 chat 重建自然清空，不残留上一会话的引用
@@ -244,7 +249,7 @@ function refreshList() {
         .sort(function (a, b) { return b.t - a.t; });
       var ids = ss.map(function (s) { return Number(s.targetId); });
       var sig = sessionSig(ss) + '|' + ids.join(',');
-      if (sig === listSig && drawer && drawer.listView.style.display !== 'none') return;
+      if (sig === listSig && drawer && view === 'list') return; // 0.9.75：视图态看 view，不再看 display
       listSig = sig;
       return fetchCards(ids).then(function (m) {
         Object.keys(m).forEach(function (k) { cards[k] = m[k]; });
@@ -912,6 +917,18 @@ testHook('imOpenSmoke', function () {
     drawerConnected: drawer.el.isConnected
   };
 });
+// 视图切换冒烟（0.9.75）：只切 setPane 状态类，不跑 loadChat/轮询/网络——「舞台裁剪 +
+// 两面板位移 + 返回键显隐」这套动画契约的确定性验证面
+testHook('imPaneSmoke', function (mode) {
+  if (!root) setRoot(document.body);
+  ensureDrawerDom();
+  setPane(mode === 'chat' ? 'chat' : 'list');
+  return {
+    view: view,
+    chatOn: drawer.el.classList.contains('chat-on'),
+    backShown: getComputedStyle(drawer.back).display !== 'none'
+  };
+});
 // 抽屉槽位（state.js 协调）：开前 claim 占槽（评论抽屉开着则被自动收回），关时 release；
 // 视频避让根类由 syncCommentVars 按 currentDrawer() 统一裁决
 // 开抽屉的共用核心（0.9.73 抽出）：浮层栈 + 槽位 + 避让根类三步同源。生产两入口
@@ -936,6 +953,17 @@ export function openChat(targetId) {
   prewarmIm(); // 同 openDrawer：分享面板直达会话也不等 token 往返
   openDrawerCore();
   showChat(String(targetId));
+}
+// 抽屉是否开着（class 是唯一真源；顶栏按钮/i 键开合判据）
+export function isImOpen() {
+  return !!(drawer && drawer.el && drawer.el.classList.contains('open'));
+}
+// 顶栏私信按钮与 i 键的开合入口（0.9.75）：关闭分支**先于登录门槛**——未登录/登录失效也能关
+// （旧行为 onDrawer=openDrawer 恒开：二次点击走 overlayOpen 幂等收旧→同 tick 摘类又加类，
+// 合成掉＝观感"点了没反应"）。开着就关，否则走 openDrawer（含登录门槛与 toast）
+export function toggleImDrawer() {
+  if (isImOpen()) { closeDrawer(); return; }
+  openDrawer();
 }
 export function closeDrawer() {
   if (drawer) drawer.el.classList.remove('open');

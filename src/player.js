@@ -16,7 +16,7 @@ import { attachVideo, switchQuality, setSessionHooks } from './attach.js';
 import { showControls, updateArrows } from './controls.js';
 import { onHomeResolved } from './rail.js';
 import { buildSlide, buildDrawer } from './slide.js';
-import { openDrawer, mountBadge, teardownIm } from './imdrawer.js';
+import { toggleImDrawer, mountBadge, teardownIm } from './imdrawer.js';
 import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
 import { overlayTeardown } from './overlay.js';
 import { syncRouteView, teardownViews, currentView, backFromOrigin } from './views.js';
@@ -399,7 +399,7 @@ function mount() {
     onExit: exitFeed,
     onBack: backFromOrigin,
     onSource: switchSource,
-    onDrawer: openDrawer,
+    onDrawer: toggleImDrawer, // 开合（0.9.75）：二次点击关闭——旧 openDrawer 恒开，点第二遍像没反应
     onRelease: openReleaseNotes,
     getSource: getSource
   });
