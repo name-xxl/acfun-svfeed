@@ -1,4 +1,8 @@
 import { CFG } from './cfg.js';
+import { coverUrl } from './imgurl.js';
+
+// 图片字段（cover/head/avatar）一律经 imgurl.coverUrl 归一（0.9.76）：http:// 老条目在
+// https 页面会被混合内容拦成裂图，归一在这里做一次，全部消费端（卡片/氛围底图/播放层）继承
 
 // ---------- 数据层 ----------
 // 两种内容源规整成同一份字段契约（feedstore/player/comments 只认这套字段）：
@@ -21,8 +25,8 @@ export function normalize(raw) {
     title: raw.meowTitle || raw.intro || '#AcFun小视频',
     userName: user.name || '未知用户',
     userId: user.userId || 0,
-    head: user.headUrl || '',
-    cover: covers.length ? covers[0].url : '',
+    head: coverUrl(user.headUrl),
+    cover: covers.length ? coverUrl(covers[0].url) : '',
     urls: urls,
     urlIdx: 0,
     refreshed: false,
@@ -59,9 +63,9 @@ export function normalizeHome(bc) {
     title: bc.title || '',
     userName: user.name || '未知用户',
     userId: Number(user.userId) || 0,
-    head: user.headUrl || '',
+    head: coverUrl(user.headUrl),
     isFollowing: !!user.isFollowing,
-    cover: (bc.img && bc.img[0]) || '',
+    cover: coverUrl(bc.img && bc.img[0]),
     urls: [],
     urlIdx: 0,
     refreshed: false,
@@ -109,20 +113,20 @@ export function panelItem(kind, raw) {
     if (raw.resourceType !== 2 || !raw.videoId) return null;
     it.acId = Number(raw.resourceId) || 0;
     it.title = raw.title || raw.dougaVideoTitle || '';
-    it.cover = raw.cover || '';
+    it.cover = coverUrl(raw.cover);
     it.progress = raw.playedSeconds > 0 ? Number(raw.playedSeconds) : null;
     it.sub = raw.playedSecondsShow || '';
   } else if (kind === 'fav') {
     it.acId = Number(raw.contentId) || 0;
     it.title = raw.contentTitle || '';
-    it.cover = raw.contentImg || '';
+    it.cover = coverUrl(raw.contentImg);
     it.progress = raw.userPlayedSeconds > 0 ? Number(raw.userPlayedSeconds) : null;
     it.sub = raw.userName || '';
   } else if (kind === 'rank') {
     if (raw.contentType !== 2) return null;
     it.acId = Number(raw.dougaId || raw.contentId) || 0;
     it.title = raw.contentTitle || '';
-    it.cover = raw.videoCover || '';
+    it.cover = coverUrl(raw.videoCover);
     // 简介：官方是 HTML，<br> 折行（0.9.69 原生同款——原生 description 保留 br 折行；
     // 渲染层 white-space:pre-line，超过 3 行由 CSS 裁）
     it.desc = String(raw.contentDesc || '').replace(/<br\s*\/?\s*>/gi, '\n').trim();
@@ -144,7 +148,7 @@ export function panelItem(kind, raw) {
     it.up = raw.userName ? {
       id: Number(raw.authorId || raw.userId) || 0,
       name: raw.userName,
-      img: raw.userImg || '',
+      img: coverUrl(raw.userImg),
       fans: Number(raw.fansCount) || 0,
       contrib: Number(raw.contributionCount) || 0,
       fansText: fmtWan(raw.fansCount),
@@ -173,7 +177,7 @@ export function meCardOf(j, uid) {
   return {
     uid: Number(u.id) || 0,
     name: u.name || '',
-    avatar: u.headUrl || '',
+    avatar: coverUrl(u.headUrl),
     sign: String(u.signature || '').replace(/<br\s*\/?\s*>/gi, ' ').trim(),
     contrib: u.contentCount != null ? Number(u.contentCount) || 0 : null,
     follow: u.following != null ? Number(u.following) || 0 : null,
@@ -184,7 +188,8 @@ export function meCardOf(j, uid) {
 // 面板条目 → 竖刷 home 契约 item（懒解析：进播放器后 resolve 链回填直链与全量计数）。
 // visit/user 留空走 normalizeHome 默认值，不伪造未实测的数据
 export function homeItemOf(acId, title, cover) {
-  return normalizeHome({ href: String(acId), title: title || '', img: cover ? [cover] : [] });
+  var c = coverUrl(cover);
+  return normalizeHome({ href: String(acId), title: title || '', img: c ? [c] : [] });
 }
 
 // ---------- 深链判据（0.9.72，纯函数，离线单测） ----------
@@ -267,7 +272,9 @@ export function parseSearchItems(html) {
     var title = titleM ? searchDeent(titleM[1]).trim() : '';
     if (!title) continue; // 无标题不成条（宁可少不错）
     seen[acId] = 1;
-    var coverM = seg.match(/<img src="([^"]+)"/);
+    // 封面：懒加载形态（data-src/data-original）优先——src 可能是占位图；无则取 src
+    var coverM = seg.match(/<img[^>]*\sdata-(?:src|original)="([^"]+)"/)
+      || seg.match(/<img[^>]*\ssrc="([^"]+)"/);
     var durM = seg.match(/class="video__duration">([^<]*)</);
     var viewsM = seg.match(/class="info__view-count">([^<]*)</);
     var upM = seg.match(/class="user-name">([^<]*)</);
@@ -275,7 +282,7 @@ export function parseSearchItems(html) {
     out.push({
       acId: acId,
       title: title,
-      cover: coverM ? searchDeent(coverM[1]) : '',
+      cover: coverUrl(coverM ? coverM[1] : ''),
       dur: durM ? durM[1].trim() : '',
       // 播放数只取数字部分（原生文本「2037次播放」/「14.0万阅读」——后缀随分区变，统一剥掉）
       views: viewsM ? viewsM[1].replace(/(次播放|次观看|播放|阅读)$/, '').trim() : '',

@@ -747,7 +747,12 @@ var RAW_CSS = ''
   + '.acsv-gcell{cursor:pointer;min-width:0}'
   + '.acsv-gcover{position:relative;width:100%;aspect-ratio:' + CFG.view.me.coverRatio + ';border-radius:10px;overflow:hidden;'
   + 'background:rgba(255,255,255,.06)}'
-  + '.acsv-gcover img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}'
+  + '.acsv-gcover img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s,opacity .2s;opacity:0}'
+  + '.acsv-gcover img.ld{opacity:1}'
+  // 终败图（imgload 策略 grid 的降级形态）：隐藏与占位由脚本单源做（不再写同名 CSS 兜底——
+  // 重复实现会掩盖脚本分支被改坏，harness 的降级断言必须钉在脚本行为上）；.acsv-imgfail 类
+  // 是断言/钩子用的标记
+  + '.acsv-gph{position:absolute;inset:0;display:grid;place-items:center;color:#8a90a0;font-size:12px;pointer-events:none}'
   + '.acsv-gcell:hover .acsv-gcover img{transform:scale(1.05)}'
   + '.acsv-gtag{position:absolute;left:8px;bottom:8px;max-width:calc(100% - 16px);padding:2px 8px;'
   + 'border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;line-height:18px;'

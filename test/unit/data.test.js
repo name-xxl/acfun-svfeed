@@ -281,3 +281,37 @@ test('parseSearchItems：真机转义形态（\\" 反转义）可解析；空/�
   assert.deepEqual(parseSearchItems(null), []);
   assert.deepEqual(parseSearchItems('<html><body>没有搜索结果</body></html>'), []);
 });
+
+// ---------- 图片字段归一（0.9.76）：http 老条目在 https 页面会被混合内容拦成裂图 ----------
+test('panelItem/meCardOf：封面与头像 http:// 与协议相对 // 一律升 https', () => {
+  var h = panelItem('history', {
+    resourceType: 2, videoId: 1, resourceId: 2, title: 'T',
+    cover: 'http://tx-free-imgs.acfun.cn/a.jpg'
+  });
+  assert.equal(h.cover, 'https://tx-free-imgs.acfun.cn/a.jpg');
+  var f = panelItem('fav', { contentId: 1, contentTitle: 'F', contentImg: '//imgs.aixifan.com/b.jpg' });
+  assert.equal(f.cover, 'https://imgs.aixifan.com/b.jpg');
+  var r = panelItem('rank', {
+    contentType: 2, contentId: 3, contentTitle: 'R',
+    videoCover: 'http://x/y.jpg', userName: 'UP', authorId: 1, userImg: '//imgs.aixifan.com/u.jpg'
+  });
+  assert.equal(r.cover, 'https://x/y.jpg');
+  assert.equal(r.up.img, 'https://imgs.aixifan.com/u.jpg');
+  var card = meCardOf({ result: 0, users: [{ id: 7, name: 'U', headUrl: 'http://imgs.aixifan.com/h.jpg' }] }, '7');
+  assert.equal(card.avatar, 'https://imgs.aixifan.com/h.jpg');
+  // 缺省不伪造：空字段仍是空串（渲染层判空不挂图）
+  assert.equal(panelItem('history', { resourceType: 2, videoId: 1, resourceId: 2, title: 'T' }).cover, '');
+});
+
+test('parseSearchItems：data-src/data-original 懒加载形态优先于 src（src 可能是占位图）', () => {
+  var html = '<div class="search-video"><a href="/v/ac777">'
+    + '<img src="data:image/gif;base64,PLACEHOLDER" data-src="http://tx-free-imgs.acfun.cn/real.jpg"/></a>'
+    + '<div class="video__main__title"><a href="/v/ac777">懒加载条目</a></div></div>'
+    + '<div class="search-video"><a href="/v/ac778">'
+    + '<img data-original="https://tx-free-imgs.acfun.cn/real2.jpg" src="a.png"/></a>'
+    + '<div class="video__main__title"><a href="/v/ac778">data-original 条目</a></div></div>';
+  var items = parseSearchItems(html);
+  assert.equal(items.length, 2);
+  assert.equal(items[0].cover, 'https://tx-free-imgs.acfun.cn/real.jpg'); // 升 https + 不取占位图
+  assert.equal(items[1].cover, 'https://tx-free-imgs.acfun.cn/real2.jpg');
+});

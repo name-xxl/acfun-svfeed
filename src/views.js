@@ -1,6 +1,7 @@
 import { CFG } from './cfg.js';
 import { testHook } from './dbg.js';
 import { el } from './ui.js';
+import { imgInto } from './imgload.js';
 import { root, scroller } from './state.js';
 import { parseRoute } from './route.js';
 import { overlayOpen, overlayTeardown } from './overlay.js';
@@ -253,13 +254,7 @@ export function rowOf(pi, rank) {
     row.appendChild(el('div', 'acsv-rlist-num', String(rank)));
   }
   var thumb = el('div', 'acsv-vrow-thumb');
-  if (pi.cover) {
-    var img = el('img');
-    img.src = pi.cover;
-    img.referrerPolicy = 'no-referrer';
-    img.loading = 'lazy';
-    thumb.appendChild(img);
-  }
+  imgInto(thumb, pi.cover, 'thumb');
   row.appendChild(thumb);
   var main = el('div', 'acsv-vrow-main');
   main.appendChild(el('div', 'acsv-vrow-title', pi.title));
@@ -294,13 +289,7 @@ export function rowOf(pi, rank) {
 export function gridCardOf(pi) {
   var cell = el('div', 'acsv-gcell' + (pi.kind === 'search' ? ' acsv-scell' : ''));
   var cover = el('div', 'acsv-gcover');
-  if (pi.cover) {
-    var img = el('img');
-    img.src = pi.cover;
-    img.referrerPolicy = 'no-referrer';
-    img.loading = 'lazy';
-    cover.appendChild(img);
-  }
+  imgInto(cover, pi.cover, 'grid');
   // 封面角标 = 进度语义位：历史 sub 就是「观看至xx:xx」（契约在册）；收藏的 sub 是 UP 名，
   // 只有续看秒数能进角标——没有时长算不出比例条，就不做比例条（不伪造）
   var tag = pi.kind === 'history' ? pi.sub
@@ -342,11 +331,8 @@ export function upCardOf(pi) {
   a.href = CFG.api.userBase + (up.id || '');
   a.target = '_blank';
   a.rel = 'noopener';
-  var avatar = el('img', 'acsv-upcard-avatar');
-  avatar.src = up.img || CFG.api.defaultAvatar;
-  avatar.referrerPolicy = 'no-referrer';
-  avatar.loading = 'lazy';
-  a.appendChild(avatar);
+  // 头像走共享加载器：失败自动回落默认头像（本模块与 mypage 资料头同族策略）
+  imgInto(a, up.img || CFG.api.defaultAvatar, 'avatar', 'acsv-upcard-avatar');
   var info = el('div', 'acsv-upcard-info');
   info.appendChild(el('div', 'acsv-upcard-name', up.name || ''));
   info.appendChild(el('p', 'acsv-upcard-sign', up.sign || ''));

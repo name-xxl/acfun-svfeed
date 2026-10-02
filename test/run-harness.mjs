@@ -45,6 +45,9 @@ const HARNESS_CASES = [
   { name: 'watch-report' },
   { name: 'upd-open' }, // 0.9.60 更新提示冒烟（mock atom 注入，debug 构建）
   { name: 'view-my' }, // 0.9.62 我的视图冒烟（hash 子路由 + __ACSV_MOCK_FORM__ 缝，debug 构建）
+  // 0.9.76 封面加载策略（URL 归一/失败重试/终败降级）：/flaky-cover.png 首拉 404 再拉 200
+  // 走通重试链；/nope-404.png 死链走降级占位。依赖 debug 构建的 __ACSV_MOCK_FORM__ 缝
+  { name: 'cover-fallback' },
   { name: 'view-zone' }, // 0.9.62 分区榜单视图冒烟（渠道/榜期切换 + 契约过滤，debug 构建）
   { name: 'view-search' }, // 0.9.72 搜索视图冒烟（搜索页 SSR HTML mock → 抖音式结果卡，debug 构建）
   { name: 'play-deep' }, // 0.9.74 播放层深链冒烟（直挂缝/坏形态/未命中错误盒/清晰度隔离，debug 构建）
@@ -91,8 +94,22 @@ const MIME = {
   '.json': 'application/json'
 };
 
+// cover-fallback 场景：/flaky-cover.png 首拉 404、再拉 200——封面重试链端到端（第二次请求
+// 带 acsv_r 破缓存参数，此处按 pathname 匹配天然忽略 query）。1×1 PNG 用内联 base64 常量
+// （node 生成并校验：1×1 RGBA），不为一个测试夹具往仓库塞二进制
+const PIXEL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNwcHD4DwADRAHA6ce2AgAAAABJRU5ErkJggg==',
+  'base64');
+const flakyHits = {};
+
 function serve(req, res) {
   var urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (urlPath === '/flaky-cover.png') {
+    flakyHits[urlPath] = (flakyHits[urlPath] || 0) + 1;
+    if (flakyHits[urlPath] < 2) { res.writeHead(404); return res.end('not found'); }
+    res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': PIXEL_PNG.length });
+    return res.end(PIXEL_PNG);
+  }
   var file = path.normalize(path.join(ROOT, urlPath));
   if (!file.startsWith(ROOT)) { res.writeHead(403); return res.end(); }
   fs.stat(file, function (err, st) {

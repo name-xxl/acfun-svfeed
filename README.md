@@ -180,6 +180,44 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.76（2026-10-02）· 封面加载策略：URL 归一 + 失败重试链 + 终败降级（图片加载收成单一入口）
+
+**病灶**（用户实测：搜索/历史/收藏偶发封面裂图）：三处封面此前共用一段裸 `<img>` 装配
+（`src` 直取契约字段 + `no-referrer` + `loading=lazy`），**链上零失败处理**——无归一、无重试、无兜底，
+一次失败就把 Chrome 裂图永久留在卡上。三个成因：① 老条目 http 封面在 https 页面被混合内容拦掉
+（播放直链早有同款归一 `appapi.js`，封面漏了）；② 腾讯 CI 处理参数（`imageMogr2/…`）失败时没有回退
+原图的路；③ 瞬时网络失败无重试，且浏览器对失败过的 URL 有负缓存，原样重发可能不打网络直接再报错。
+
+- **新模块 `imgurl.js`（纯逻辑层，零 import）**：`coverUrl` 归一（trim/实体解码/http→https/协议相对
+  →https/其它 scheme 原样；**query 一律保留**——0.9.40 剥参数清空签名图的教训）+ `coverAttempts`
+  重试链决策（三跳：原 URL → 600ms 后**换一个 URL** 重试[CI 形态去 query 回原图，否则追加 `acsv_r`
+  破缓存] → 1200ms 后同 URL 换原生同款 referer 兜住宿主防盗链；`data:`/`blob:` 只一跳不重试）。
+- **新模块 `imgload.js`（执行层，图片唯一入口）**：`IMG_POLICY` 策略表把图面差异收成一表
+  （grid/thumb/avatar/space 四种：懒加载/重试/兜底/占位/淡入）+ `imgInto(host,url,policy[,cls])` +
+  `lazyObserve` 观察器单例。终败形态：img 隐藏 + `.acsv-imgfail` 类 + 网格卡暗字「封面加载失败」
+  （用户点名：静默灰块分不清加载中/已失败）；头像失败回落默认头像；会话级失败备忘（TTL 10 分钟/
+  上限 200）让视图重建不重打同一死链。
+- **契约层归一**：`data.js` 的封面/头像字段（history `cover`/fav `contentImg`/rank `videoCover` +
+  `up.img`/资料头 avatar/meow 与 selection 的 cover·head/`homeItemOf`）全部过 `coverUrl`——氛围底图
+  与播放层继承；搜索 SSR 解析顺带支持 `data-src`/`data-original` 懒加载形态（`src` 可能是占位图）。
+- **消费点收敛（grep 全消费点后逐一接线）**：`gridCardOf`（搜索/历史/收藏）、`rowOf` 缩略图、
+  `upCardOf` 头像、我的页资料头、空间页投稿格全部收敛成一行 `imgInto`；空间页顺带修掉「失败即永久
+  `opacity:0` 隐身空卡」（旧代码只有 load 才加 `ld`，error 无人管）；`imdrawer` 的 `imImgLazy` 并入
+  共享 `lazyObserve`（全项目只留一份 IO 实现；私信鉴权/blob 管线保持原样——真机验收过的链路不重开）。
+- **测试**：新单测 `imgurl.test.js`（归一 + 重试链枚举：CI 形态/普通 URL/签名 query/data:/空）+
+  `data.test.js` 补 http→https 与 `data-src` 两例（单测 106→112）；新 harness 场景 `cover-fallback`
+  （mock 历史三条封面：好图/flaky/死链；静态服务加 `/flaky-cover.png` 特判首拉 404 再拉 200——
+  断 `naturalWidth>0` 即证明重试链真的发生；死链断 `.acsv-imgfail`+隐藏+占位文案；终态不变量：
+  每张封面要么加载成功要么已隐藏，不许裂图）（28→29 场景）。**变异验证**：短路重试链 →
+  `cover-retry-loads` 挂（实测 `src=/flaky-cover.png nw=0`，即只发了首拉 404）；`terminal()` 置空 →
+  `cover-dead-degrades`/`cover-no-broken-glyph` 挂。**首个变异暴露的教训**：`img.acsv-imgfail{display:none}`
+  的 CSS 兜底会让「删掉脚本隐藏分支」的变异照样全绿（断言被 CSS 兜住、没钉在脚本行为上）——已删该 CSS
+  规则，隐藏/占位收成脚本单源（重复实现会掩盖分支被改坏）。
+- **有意不做**：GM 通道拉封面（要扩 `@connect` + blob 生命周期，收益不值）；封面 preconnect
+  （`<img>` 是 no-cors 连接，复用不了现有 CORS 匿名 preconnect；首个 img 请求本身即建连）；不做每图
+  微光 shimmer（懒加载离屏图会长期微光，灰底与骨架同色更安静）；评论/侧栏头像与表情/UBB 图本次不迁
+  （README 已登记：新图面一律走 `imgInto`）。
+
 ### 0.9.75（2026-10-02）· 抽屉动画抽离（列表↔会话双向平移）+ 私信信封开合 + I 快捷键
 
 **用户三点实测**：① 联系人列表↔会话切换无动画、生硬；② 私信没有快捷键；③ 顶栏信封点第二遍没反应、关不掉抽屉。
@@ -1641,6 +1679,8 @@ npm test             # immsg/ubb/release 单测 + 无头 harness 全场景（需
 | `route.js` | `#svfeed[/v|a/<id>]`、`#svfeed/play/<v|a>/<id>`（0.9.74 播放层：view=play + src 标记、**不填 mid**）路由解析、地址栏同步与深链意图（appliedMid/cancelHashSync） |
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`fmt`/`toast`/剪贴板/样式注入等工具 |
+| `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策——URL 正确性只在这里定义 |
+| `imgload.js` | 图片加载执行层（0.9.76，**全项目 `<img>` 图面唯一入口**）：`IMG_POLICY` 策略表（grid/thumb/avatar/space）+ `imgInto(host,url,policy[,cls])`（懒加载/重试链/终败降级/淡入/失败备忘）+ `lazyObserve` 观察器单例（私信气泡共用） |
 | `interact.js` | 真实点赞/关注（api_st → interact 接口）；收藏/投蕉转发 AppAPI |
 | `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出） |
 | `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[at]/[resource]/[img]/[color] 逐一白名单放行；IM wire 文本投影（ubbImText）与引用块富正文（ubbQuoteHtml）单源 |
@@ -1695,6 +1735,8 @@ flowchart LR
     route["route.js"]
     imgview["imgview.js（大图查看器）"]
     inputbar["inputbar.js（抽屉输入栏）"]
+    imgurl["imgurl.js（图片 URL·零依赖叶子）"]
+    imgload["imgload.js（图片加载唯一入口）"]
   end
 
   subgraph apilayer["接口层"]
@@ -1727,9 +1769,10 @@ flowchart LR
   boot["boot.js（入口）"]
 
   net --> cfg
-  data --> cfg
+  data --> cfg & imgurl
   route --> state & feedstore
   quality --> cfg
+  imgload --> imgurl
 
   api --> net & data & appapi
   appapi --> net & data & quality
@@ -1737,6 +1780,7 @@ flowchart LR
   boot --> player & others & playlayer & imnative
   player --> attach & others & feedstore & imdrawer & views & sidebar & topbar & playlayer
   views --> sidebar & overlay & topbar & mypage & zone
+  views --> imgload
   playlayer --> views & slide & attach & api & state & route
   searchview --> views & topbar
   input --> overlay
@@ -1747,19 +1791,20 @@ flowchart LR
   feedstore --> api & state & player
   interact --> appapi
   release --> net & overlay
-  imdrawer --> imshare & immsg & imicons & appapi & emoticon & inputbar & imgview & comments & overlay
+  imdrawer --> imshare & immsg & imicons & appapi & emoticon & inputbar & imgview & comments & overlay & imgload
   imnative --> immsg & imicons & appapi & imshare & emoticon & ubb & imgview
   imshare --> appapi & imdrawer & immsg
-  mypage --> appapi & data & views
+  mypage --> appapi & data & views & imgload
   zone --> net & data & views
 
   classDef leaf fill:#e8f5e9,stroke:#2e7d32;
-  class immsg,imicons leaf;
+  class immsg,imicons,imgurl leaf;
 ```
 
-绿色两个节点是刻意的解耦点：`immsg.js`/`imicons.js` 零 import，渲染方各自消费
-（`immsg` 现为 imdrawer/imnative/imshare 三方），私信格式变更只改解析层一处
-（新格式渲染需各端各加分支，见 `imnative.js` 头注释）。
+绿色三个节点是刻意的解耦点：`immsg.js`/`imicons.js`/`imgurl.js` 零 import，消费方各自引入
+（`immsg` 现为 imdrawer/imnative/imshare 三方），私信格式与图片 URL 规则变更只改各自一处；
+图片加载面（懒加载/重试/降级）统一走 `imgload.js`——新图面加一行 `imgInto`，别再手拼
+`referrerPolicy`/`loading`（`uppage` 在 others 组内，同引 imgload）。
 0.9.41 起评论/私信的**输入栏（`inputbar.js`）与大图查看器（`imgview.js`）**同为共用件，
 两抽屉观感/行为单一来源。
 `player.js → attach.js → session.js` 的反向回调（qualitySwitch/reattach）不走 import，

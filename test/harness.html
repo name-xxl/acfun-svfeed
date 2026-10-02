@@ -675,6 +675,70 @@
           return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && q('.acsv-view') === null;
         }, 8000)));
 
+      } else if (CASE === 'cover-fallback') {
+        // 封面加载策略冒烟（0.9.76）：三种封面态各一条——好图（data:，load 后淡入）/
+        // flaky（静态服务首拉 404 再拉 200，走通重试链；断 naturalWidth 即证明第二次真的发生）/
+        // 死链（重试链耗尽 → 降级：img 隐藏 + .acsv-imgfail + 占位文案，严禁留 Chrome 裂图）
+        document.cookie = 'auth_key=42_deadbeef';
+        window.__ACSV_MOCK_FORM__ = {
+          // 资料头不是本场景关注点且不桩就会真打外网：桩成空回包（meCardOf 返回 null 静默）
+          'user/getUserCardList': { result: 1, users: [] },
+          'browse/history/list': {
+            result: 0, totalCount: 3,
+            histories: [
+              { resourceType: 2, videoId: 900101, resourceId: 488101, title: '好图封面',
+                cover: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+                playedSeconds: 10, playedSecondsShow: '观看至00:10' },
+              { resourceType: 2, videoId: 900102, resourceId: 488102, title: 'flaky 封面',
+                cover: '/flaky-cover.png', playedSeconds: 20, playedSecondsShow: '观看至00:20' },
+              { resourceType: 2, videoId: 900103, resourceId: 488103, title: '死链封面',
+                cover: '/nope-404.png', playedSeconds: 30, playedSecondsShow: '观看至00:30' }
+            ]
+          }
+        };
+        location.hash = 'svfeed/my';
+        function coverBox(title) {
+          var cells = document.querySelectorAll('.acsv-vlist.hist .acsv-gcell');
+          for (var i = 0; i < cells.length; i++) {
+            var t = cells[i].querySelector('.acsv-gtitle');
+            if (t && t.textContent === title) return cells[i].querySelector('.acsv-gcover');
+          }
+          return null;
+        }
+        rec('cover-cards', !!(await waitFor(function () {
+          return document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 3;
+        }, 10000)));
+        rec('cover-good-loads', !!(await waitFor(function () { // 加载成功 + 淡入到位（不许停在半透明）
+          var img = coverBox('好图封面') && coverBox('好图封面').querySelector('img');
+          return img && img.naturalWidth > 0 && getComputedStyle(img).opacity === '1';
+        }, 8000)));
+        rec('cover-retry-loads', !!(await waitFor(function () { // 首拉 404 → 重试链换 URL 再拉 200
+          var b = coverBox('flaky 封面'), img = b && b.querySelector('img');
+          return img && img.naturalWidth > 0 && !img.classList.contains('acsv-imgfail');
+        }, 10000)), (function () {
+          var b = coverBox('flaky 封面'), img = b && b.querySelector('img');
+          return img ? ('src=' + img.getAttribute('src') + ' nw=' + img.naturalWidth) : 'no-img';
+        })());
+        rec('cover-dead-degrades', !!(await waitFor(function () { // 重试耗尽 → 隐藏裂图 + 占位文案
+          var b = coverBox('死链封面');
+          var img = b && b.querySelector('img');
+          var ph = b && b.querySelector('.acsv-gph');
+          return img && img.classList.contains('acsv-imgfail')
+            && (img.style.display === 'none' || getComputedStyle(img).display === 'none')
+            && ph && ph.textContent === '封面加载失败';
+        }, 12000)), (function () {
+          var b = coverBox('死链封面');
+          var img = b && b.querySelector('img');
+          return img ? ('cls=' + img.className + ' disp=' + getComputedStyle(img).display) : 'no-img';
+        })());
+        rec('cover-no-broken-glyph', (function () { // 终态不变量：每张封面要么加载成功要么已隐藏
+          var imgs = document.querySelectorAll('.acsv-vlist.hist .acsv-gcover img');
+          if (imgs.length !== 3) return false;
+          return [].every.call(imgs, function (im) {
+            return im.naturalWidth > 0 || im.classList.contains('acsv-imgfail');
+          });
+        })());
+
       } else if (CASE === 'view-zone') {
         // 分区榜单视图冒烟：渠道/榜期 chips 切换重渲染 + contentType 过滤 + 条目回竖刷
         window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;

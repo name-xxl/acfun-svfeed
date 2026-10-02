@@ -3,6 +3,7 @@ import { el, selfUid, fmt } from './ui.js';
 import { postForm } from './appapi.js';
 import { panelItem, meCardOf } from './data.js';
 import { registerView, gridCardOf, moreBtn } from './views.js';
+import { imgInto } from './imgload.js';
 
 // ---------- 我的视图（0.9.62 起；0.9.69 抖音式个人主页改造）----------
 // 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（观看历史｜收藏夹）→ 3:4 封面网格。
@@ -52,11 +53,7 @@ function buildMeCard(slot) {
   function render(card) {
     var box = el('div', 'acsv-mecard');
     if (card.avatar) {
-      var av = el('img', 'acsv-mecard-av');
-      av.src = card.avatar;
-      av.referrerPolicy = 'no-referrer';
-      av.loading = 'lazy';
-      box.appendChild(av);
+      imgInto(box, card.avatar, 'avatar', 'acsv-mecard-av');
     } else {
       box.appendChild(el('div', 'acsv-mecard-av')); // 无头像保排版（底色圆）
     }

@@ -3,6 +3,7 @@ import { gmRequest } from './net.js';
 import { el, elHtml, fmt, ensureStyle } from './ui.js';
 import { FeedStore } from './feedstore.js';
 import { API } from './api.js';
+import { imgInto } from './imgload.js';
 
 // ---------- UP 主空间页：小视频区块 ----------
 // m 站 upPage 的 pagelet 数据（GM_xhr 抓取，跨域）；翻页游标为时间戳，no_more 表示到底。
@@ -98,12 +99,8 @@ function appendUpCells(items, offset) {
   items.forEach(function (it, k) {
     var cell = el('div', 'acsv-space-cell');
     cell.title = '播放小视频';
-    var img = el('img');
-    img.referrerPolicy = 'no-referrer';
-    img.loading = 'lazy';
-    img.addEventListener('load', function () { img.classList.add('ld'); });
-    img.src = it.cover;
-    cell.appendChild(img);
+    // 封面走共享加载器（space 策略：重试 + 淡入；失败隐藏，不再留永久 opacity:0 的隐身空卡）
+    imgInto(cell, it.cover, 'space');
     cell.addEventListener('click', function () {
       // 从列表第 offset+k 个进入：后续按主页列表顺序播放
       UpVideos.feedActive = true;

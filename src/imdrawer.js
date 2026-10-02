@@ -11,6 +11,7 @@ import {
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap, emotify } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
+import { lazyObserve } from './imgload.js';
 import { ubbQuoteHtml } from './ubb.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import {
@@ -506,7 +507,7 @@ function appendImageBubble(m, mine) {
       img.src = cached; // 缓存同步上屏：重开/切回会话不闪微光、不等观察器一拍
     } else {
       b.classList.add('pending');
-      imImgLazy(img, function () {
+      lazyObserve(img, function () {
         fetchImImageBlob(src).then(function (blobUrl) {
           if (!img.isConnected) return;
           b.classList.remove('pending');
@@ -530,24 +531,9 @@ function appendImageBubble(m, mine) {
   }
   drawer.bubbles.appendChild(bubbleRow(b, mine, m));
 }
-// 图片懒加载观察器（模块级单例）：root 缺省=viewport，祖先滚动容器的裁剪自动计入，
-// 抽屉关/拆无需重建；会话视图 display:none 期间不交叉也就不触发。rootMargin 提前
-// 200px 预读；加载回调挂元素属性上，观察器本身零业务语义
-var imImgObs = null;
-function imImgLazy(img, load) {
-  if (!imImgObs) {
-    imImgObs = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (!en.isIntersecting) return;
-        imImgObs.unobserve(en.target);
-        var fn = en.target.__acsvImgLoad;
-        if (fn) { en.target.__acsvImgLoad = null; fn(); }
-      });
-    }, { rootMargin: '200px 0px' });
-  }
-  img.__acsvImgLoad = load;
-  imImgObs.observe(img);
-}
+// 图片懒加载观察器（0.9.76 起共用 imgload.lazyObserve 单例实现——全项目只留一份 IO：
+// root 缺省=viewport，祖先滚动容器裁剪自动计入；抽屉关/拆无需重建；会话视图 display:none
+// 期间不交叉也就不触发）
 // ks:// 资源 → 官方 download 直链（message.acfun.cn，参数白名单官方形态，无 token）。
 // 零会话依赖三级兜底（重开会话后内核 decodeContent/file 配置都不保证就绪，首次能渲染
 // 重开挂车的前车之鉴）：uri 取 m.url → rawMsg.content 手解 proto 字段 1；URL 取内核换链
