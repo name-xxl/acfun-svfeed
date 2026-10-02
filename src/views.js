@@ -17,13 +17,13 @@ import { syncTopbar } from './topbar.js';
 //    不判冻，无需 visibility 特判）；返回时恢复在播条目；FeedStore 不销毁，回来继续刷
 //  - 视图作为 overlay 栈的非模态层（id:'view'）：Esc 关闭——普通视图=回竖刷，
 //    深界面（def.deep：搜索/播放层）=回"打开它的那个界面"
-//  - 深界面与来源链（0.9.74）：进深界面把来源记进来源链（origins 栈，可两级：我的→搜索→
-//    播放）；来源是普通视图时再额外**挂起其 DOM**（类名换 acsv-view-held + visibility:
-//    hidden ⇒ 盒子存活、滚动位不丢、跳过 build 原位复原；换类名是因为 .acsv-view 是全项目
-//    与 harness 的「当前视图」定位锚，留两个同构节点会污染既有断言）。来源是另一个深界面
-//    （搜索→播放）则只记路线、DOM 真拆——深界面各自握播放会话/定时器，挂起＝隐藏容器里
-//    继续出声，绝不允许
-//  - 普通视图（我的/榜单）之间与 dock 直跳维持旧语义：收旧 + 来源链作废
+//  - 深界面与来源链（0.9.74）：进深界面（def.deep：搜索/播放层）把来源压进来源链（origins
+//    栈，可两级：我的→搜索→播放）；来源可保活（非 def.volatile 的视图）则同时**挂起其 DOM**
+//    （类名换 acsv-view-held + visibility:hidden ⇒ 盒子存活、滚动位不丢、跳过 build 原位复原；
+//    换类名是因为 .acsv-view 是全项目与 harness 的「当前视图」定位锚，留两个同构节点会污染
+//    既有断言）。def.volatile（播放层：握播放会话/定时器）不入链也不挂起——离开即真拆；
+//    同屏换参（搜索换词）=替换链顶那层，不叠层。普通视图（我的/榜单）之间与 dock 直跳维持
+//    旧语义：收旧 + 来源链作废
 //  - 条目点击：走播放层（playlayer.openPlayer），不再插入竖刷队尾（0.9.74 契约变更）
 // player→本模块单向调用（syncRouteView）；本模块不再 import player（0.9.74 删 playAc 的
 // scrollToIndex 依赖后循环消失）
@@ -123,35 +123,42 @@ export function backFromOrigin() {
   if (location.hash !== '#' + to) location.hash = to;
 }
 
-// 进深界面时把来源压链；来源是普通视图则挂起其 DOM（深界面只记路线，见文件头）
-function pushOrigin(prev) {
-  var rec = prev && !prev.def.deep ? prev : null;
-  if (rec) {
-    if (rec.def.suspend) { try { rec.def.suspend(); } catch (e) { } }
-    rec.el.className = 'acsv-view-held'; // 换类名：q('.acsv-view') 是全局定位锚
-  }
-  origins.push({ view: prev ? prev.id : null, arg: prev ? prev.arg : null, rec: rec });
+// 进深界面时把来源压链；来源可保活（非 volatile 的视图）则挂起其 DOM 并留 rec
+// volatile（播放层：握播放会话/定时器）= 不入链也不挂起——隐藏容器里继续出声绝不允许，
+// 它自己的来源本来就在链上，Esc 直接回那一层
+function holdOrigin(prev) {
+  if (prev.def.suspend) { try { prev.def.suspend(); } catch (e) { } }
+  prev.el.className = 'acsv-view-held'; // 换类名：q('.acsv-view') 是全局定位锚
+  origins.push({ view: prev.id, arg: prev.arg, rec: prev });
 }
 
 function enterView(id, arg) {
   var def = registry[id];
   if (!def || !root) return false;
-  // 回来路径：目标＝来源链顶（深界面的来源）→ pop；顶着挂了 DOM 就原位复原（跳过 build）
   var top = origins.length ? origins[origins.length - 1] : null;
-  var back = !!(top && String(top.view || '') === String(id || '')
+  // 回来路径：目标＝来源链顶（深界面的来源）→ pop；顶着挂了 DOM 就原位复原（跳过 build）
+  var back = !!(top && String(top.view || '') === String(id)
     && String(top.arg || '') === String(arg || ''));
-  var rec = back ? top.rec : null;
-  if (back) origins.pop();
+  var rec = null;
+  var replaced = false;
+  if (back) {
+    rec = top.rec;
+    origins.pop();
+  } else if (top && String(top.view || '') === String(id)) {
+    // 同屏换参（搜索换词/顶栏再搜）：替换链顶那层——不叠新的，也不把旧屏当来源
+    destroyRec(top.rec);
+    origins.pop();
+    replaced = true;
+  }
   var prev = current;
   current = null; // 先摘 current：overlayTeardown→closeView 不得动 hash（0.9.63 教训）
-  if (prev) {
-    if (def.deep && !back) {
-      pushOrigin(prev);
-      if (prev.def.deep) destroyRec(prev); // 深→深：来源只记路线（会话必须拆净，见文件头）
-    } else {
-      destroyRec(prev);
-    }
+  var heldRec = null;
+  // 同 id 的 prev（搜索换词那一拍）不保活：那是同一个屏换了参数，留着就是双份 DOM
+  if (prev && !back && !replaced && def.deep && !prev.def.volatile && prev.id !== id) {
+    holdOrigin(prev);
+    heldRec = prev;
   }
+  if (prev && prev !== heldRec) destroyRec(prev);
   if (!def.deep) clearOrigins(); // 普通视图/回竖刷：来源链作废（dock 直跳语义）
   overlayTeardown(); // 换舞台：抽屉/弹窗/大图全部收掉，新界面从干净栈开始
   if (rec) {
@@ -199,8 +206,8 @@ export function syncRouteView() {
   }
   // dock 高亮：深界面（搜索/播放）不在 dock 里——指向来源界面（来源链顶），空链回「推荐」
   syncDock(def && def.deep ? (originView() || 'feed') : r.view);
-  // 顶栏按界面同步（0.9.73 四处复用；0.9.74：✕ 收回"退出脚本"单一意义，深界面另有「向左返回」）
-  syncTopbar(r.view, r.viewArg);
+  // 顶栏按界面同步（0.9.73 四处复用；0.9.74：✕ 恒=退出脚本，深界面另出「向左返回」）
+  syncTopbar(r.view, r.viewArg, { deep: !!(def && def.deep) });
 }
 
 // 整流卸载（player.unmount 调）：不恢复播放（视频随后统一拆除），清当前视图与来源链

@@ -504,6 +504,7 @@
         window.__ACSV_CARD_CALLS__ = 0;
         window.__ACSV_HIST_CALLS__ = 0;
         window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+        window.__ACSV_MOCK_DIRECT__ = { '488900': 1 }; // 播放层条目直挂缝（webm 套 hls 会死在解析）
         location.hash = 'svfeed/my';
         // 可见性断言一律查真实渲染态 offsetParent（0.9.62 黑屏教训：内联 '' 回落样式表
         // display:none，查内联值的断言被骗全绿）
@@ -591,22 +592,40 @@
         await wait(500);
         rec('tab-keep-state', document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22
           && window.__ACSV_HIST_CALLS__ === histCalls, 'calls=' + window.__ACSV_HIST_CALLS__);
-        // 点首条历史 → 回竖刷 + 队尾插入 + resolve 完成（hasUrls）。
-        // hash 断言容忍 syncHash 150ms 后的标记深链覆写（坑 5：回竖刷即恢复地址跟随；
-        // 0.9.72 起形态是 #svfeed/v|a/<id>，下方正则两种形态都接）
+        // 播放层（0.9.74）：点首条历史 → 就地覆盖播放（旧契约「回竖刷 + 插队尾」已废止）。
+        // 钉：地址是 play 形态、层内视频真的起播、竖刷缓冲/游标零改动、层内不建上下箭头
         var firstRow = q('.acsv-vlist.hist .acsv-gcell');
         var firstId = 488900;
+        var myEl0 = q('.acsv-view');
+        var bufBefore = feed().items.length, curBefore = feed().current;
         if (firstRow) firstRow.click();
-        // 0.9.74：视图容器改为按需创建/销毁（此前留一个空 .acsv-view 常驻）——"无视图 DOM"
-        // 就是"已关闭"的不变式；挂起保活的来源视图类名是 .acsv-view-held，不会误判
-        rec('back-to-feed', !!(await waitFor(function () {
-          return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && q('.acsv-view') === null;
-        }, 8000)));
-        rec('feed-item-appended', !!(await waitFor(function () {
-          var f = feed();
-          var last = f && f.items[f.items.length - 1];
-          return last && String(last.id) === String(firstId) && last.hasUrls;
-        }, 10000)));
+        rec('item-plays-overlay', !!(await waitFor(function () {
+          return location.hash === '#svfeed/play/a/' + firstId && !!q('.acsv-slide[data-ovl="1"]');
+        }, 10000)), location.hash);
+        rec('item-overlay-playing', !!(await waitFor(function () {
+          var s = q('.acsv-slide[data-ovl="1"]');
+          var v = s && s.querySelector('video');
+          // resolve 链走 my mock（douga/info + playInfo）→ 真起播；只查"元素在"会被黑屏骗过
+          return !!v && !v.paused && v.currentTime > 0;
+        }, 20000)), (function () {
+          var s = q('.acsv-slide[data-ovl="1"]');
+          var v = s && s.querySelector('video');
+          return 'state=' + (s && s.dataset.state) + ' paused=' + (v && v.paused) + ' t=' + (v && v.currentTime);
+        })());
+        rec('item-feed-untouched', feed().items.length === bufBefore && feed().current === curBefore,
+          'items=' + feed().items.length + '/' + bufBefore + ' cur=' + feed().current + '/' + curBefore);
+        rec('item-no-arrows', !q('.acsv-slide[data-ovl="1"] .acsv-arrows'));
+        rec('item-feed-paused', (function () {
+          var vs = document.querySelectorAll('.acsv-scroller video');
+          for (var i = 0; i < vs.length; i++) if (!vs[i].paused) return false;
+          return vs.length > 0;
+        })());
+        key('Escape'); // 返回来源：我的视图原位复原（同一节点、结果网格还在）
+        rec('item-back-to-my', !!(await waitFor(function () {
+          return location.hash === '#svfeed/my' && TEST.call('view') === 'my'
+            && q('.acsv-view') === myEl0 && !q('.acsv-slide[data-ovl="1"]');
+        }, 8000)), location.hash);
+        rec('item-back-keeps-grid', document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22);
         // 视图内 Esc=返回竖刷：再进视图后合成 Esc 事件；顺带断言资料头命中缓存不重复打接口
         location.hash = 'svfeed/my';
         rec('re-enter-open', !!(await waitFor(function () {
@@ -646,6 +665,7 @@
       } else if (CASE === 'view-zone') {
         // 分区榜单视图冒烟：渠道/榜期 chips 切换重渲染 + contentType 过滤 + 条目回竖刷
         window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+        window.__ACSV_MOCK_DIRECT__ = { '489500': 1 }; // 播放层条目直挂缝（同 view-my）
         location.hash = 'svfeed/zone';
         rec('zone-open', !!(await waitFor(function () {
           // 视图身份锚=左栏 dock 选中态（0.9.71 起视图头无标题字——文字与 dock 重复，用户点名删除）
@@ -720,13 +740,36 @@
           var chips = document.querySelectorAll('.acsv-vchips')[1].children;
           return chips.length === 3 && chips[0].textContent === '全部' && chips[0].classList.contains('on');
         }, 8000)));
+        // 播放层（0.9.74）：点榜单行 → 就地覆盖播放（不跳回竖刷、不插队尾）。钉：地址 play 形态、
+        // 层内真起播（resolve 走 my mock）、竖刷零改动、层内无箭头、Esc 回榜单且原位复原
+        var zoneEl0 = q('.acsv-view');
+        var zBuf = feed().items.length, zCur = feed().current;
         var zrow = q('.acsv-rlist .acsv-vrow');
         if (zrow) zrow.click();
-        rec('zone-play-ac', !!(await waitFor(function () {
-          var f = feed();
-          var last = f && f.items[f.items.length - 1];
-          return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && last && String(last.id) === '489500' && last.hasUrls;
-        }, 10000)));
+        rec('zone-play-overlay', !!(await waitFor(function () {
+          return location.hash === '#svfeed/play/a/489500' && !!q('.acsv-slide[data-ovl="1"]');
+        }, 10000)), location.hash);
+        rec('zone-play-playing', !!(await waitFor(function () {
+          var s = q('.acsv-slide[data-ovl="1"]');
+          var v = s && s.querySelector('video');
+          return !!v && !v.paused && v.currentTime > 0;
+        }, 20000)));
+        rec('zone-play-feed-untouched', feed().items.length === zBuf && feed().current === zCur,
+          'items=' + feed().items.length + '/' + zBuf + ' cur=' + feed().current + '/' + zCur);
+        rec('zone-play-no-arrows', !q('.acsv-slide[data-ovl="1"] .acsv-arrows'));
+        rec('zone-play-hash-stable', (function () { // 地址不被 syncHash 回写（视图形态守卫）
+          return location.hash === '#svfeed/play/a/489500';
+        })());
+        key('Escape'); // 深界面 Esc=回来源（榜单视图，同一节点、不重建）
+        rec('zone-play-back', !!(await waitFor(function () {
+          return location.hash === '#svfeed/zone' && TEST.call('view') === 'zone'
+            && q('.acsv-view') === zoneEl0 && !q('.acsv-slide[data-ovl="1"]');
+        }, 8000)), location.hash);
+        rec('zone-no-backbtn', (function () { // 返回键只属深界面（普通视图出口是常驻 dock + Esc）
+          var b = q('.acsv-back-btn');
+          return !!b && b.style.display === 'none';
+        })());
+        rec('zone-x-single', (q('.acsv-top-right .acsv-tbtn:last-child') || {}).title === '退出');
         // 隐藏态落点（0.9.74）：视图开着时跳已缓冲条目——旧行为在 display:none 下量 offsetTop
         // （无布局盒恒 0）⇒ 静默滚回第一条，退出视图后要往下滑几条才见到目标（真机报障同型）。
         // 现在延后到舞台回来再落地，且落点必须是目标那张（结果不变式）
@@ -845,6 +888,7 @@
         // （#svfeed/search/<kw>）→ 搜索页 SSR HTML（mock 回放真机片段）→ 结果网格卡；
         // 视图内换词走地址重建；空词只出引导态不发请求；点卡片回竖刷
         window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+        window.__ACSV_MOCK_DIRECT__ = { '40742636': 1, '41033414': 1 }; // 播放层条目直挂缝
         window.__ACSV_SEARCH_CALLS__ = 0;
         location.hash = 'svfeed';
         rec('topbar-72', !!(await waitFor(function () { return !!q('.acsv-top'); }, 8000))
@@ -917,11 +961,22 @@
         rec('search-calls', window.__ACSV_SEARCH_CALLS__ === 3, 'calls=' + window.__ACSV_SEARCH_CALLS__
           + ' hash=' + location.hash + ' cells=' + document.querySelectorAll('.acsv-sgrid .acsv-scell').length
           + ' viewOpen=' + (!!q('.acsv-view') && q('.acsv-view').style.display !== 'none'));
-        var sCell = q('.acsv-sgrid .acsv-scell'); // 点卡片回竖刷（视图关闭 + 地址回竖刷路由）
+        // 播放层（0.9.74）：点结果卡 → 就地播放；Esc 回搜索视图且**结果原样**（保活，不重拉）
+        var sCell = q('.acsv-sgrid .acsv-scell');
+        var srEl0 = q('.acsv-view');
+        var srCalls = window.__ACSV_SEARCH_CALLS__;
         if (sCell) sCell.click();
-        rec('search-back-feed', !!(await waitFor(function () {
-          return /^#svfeed(\/|$)/.test(location.hash) && q('.acsv-view') === null;
-        }, 8000)));
+        rec('search-item-overlay', !!(await waitFor(function () {
+          return /^#svfeed\/play\/a\/\d+$/.test(location.hash) && !!q('.acsv-slide[data-ovl="1"]');
+        }, 10000)), location.hash);
+        key('Escape');
+        rec('search-item-back', !!(await waitFor(function () {
+          return /^#svfeed\/search/.test(location.hash) && TEST.call('view') === 'search'
+            && q('.acsv-view') === srEl0;
+        }, 8000)), location.hash);
+        rec('search-item-back-kept', document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3
+          && window.__ACSV_SEARCH_CALLS__ === srCalls,
+          'calls=' + window.__ACSV_SEARCH_CALLS__ + '/' + srCalls);
         (function () { // 顶栏空词提交：只开视图出引导态，不发请求
           var i = q('.acsv-top .acsv-sbox input');
           i.value = '';
@@ -944,6 +999,123 @@
             && document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3;
         }, 8000)), 'v=' + ((q('.acsv-top .acsv-sbox input') || {}).value));
         rec('search-calls-final', window.__ACSV_SEARCH_CALLS__ === 4, 'calls=' + window.__ACSV_SEARCH_CALLS__);
+        rec('search-backbtn-shown', (function () { // 搜索结果页是深界面：来源不在 dock 上
+          var b = q('.acsv-back-btn');
+          return !!b && b.style.display !== 'none' && b.offsetParent !== null;
+        })());
+        var sBack = q('.acsv-back-btn'); // 收尾顺带钉返回键真路径：回来源（此例来源是竖刷）
+        if (sBack) sBack.click();
+        rec('search-backbtn-back', !!(await waitFor(function () {
+          return location.hash === '#svfeed' && q('.acsv-view') === null;
+        }, 8000)), location.hash);
+
+      } else if (CASE === 'play-deep') {
+        // 播放层深链（0.9.74）：地址栏直达 = 视图内自解析（不 reset 竖刷流、不切源）；坏形态
+        // 出"链接不完整"；解析未命中出错误盒+重试；层内切清晰度不得污染竖刷邻居
+        window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+        window.__ACSV_MOCK_DIRECT__ = { '488900': 1 }; // 直挂缝：webm 套 hls.js 会死在解析上
+        rec('play-feed-up', !!(await waitFor(function () { return feed() && feed().items.length > 0; }, 15000)));
+        var bufA = feed().items.length, curA = feed().current;
+        location.hash = 'svfeed/play/a/488900'; // 冷进入（等价分享链接/刷新回放）
+        rec('play-open', !!(await waitFor(function () {
+          return !!q('.acsv-slide[data-ovl="1"]');
+        }, 10000)), location.hash);
+        rec('play-playing', !!(await waitFor(function () {
+          var s = q('.acsv-slide[data-ovl="1"]');
+          var v = s && s.querySelector('video');
+          return !!v && !v.paused && v.currentTime > 0;
+        }, 25000)), (function () {
+          var s = q('.acsv-slide[data-ovl="1"]');
+          var v = s && s.querySelector('video');
+          return 'state=' + (s && s.dataset.state) + ' paused=' + (v && v.paused);
+        })());
+        rec('play-title', !!(await waitFor(function () {
+          var t = q('.acsv-slide[data-ovl="1"] .acsv-title');
+          return !!t && /测试视频488900/.test(t.textContent); // 深链解析回包带标题（douga/info）
+        }, 8000)), (q('.acsv-slide[data-ovl="1"] .acsv-title') || {}).textContent);
+        rec('play-no-arrows', !q('.acsv-slide[data-ovl="1"] .acsv-arrows'));
+        rec('play-source-kept', (function () { // 不 setSource：播放解析与内容源无关
+          var b = q('.acsv-seg-btn.on');
+          return !!b && b.textContent === '小视频';
+        })());
+        rec('play-feed-untouched', feed().items.length === bufA && feed().current === curA,
+          'items=' + feed().items.length + '/' + bufA + ' cur=' + feed().current + '/' + curA);
+        // 顶栏：深界面出「向左返回」（顶栏左缘，样式同右组）；✕ 收回单一意义=退出脚本
+        rec('play-backbtn-shown', (function () {
+          var b = q('.acsv-back-btn');
+          return !!b && b.style.display !== 'none' && b.offsetParent !== null;
+        })());
+        rec('play-backbtn-nopill', (function () { // 左键与居中搜索框不得压在一起
+          var b = q('.acsv-back-btn'), p = q('.acsv-top .acsv-sbox');
+          if (!b || !p) return false;
+          return b.getBoundingClientRect().right <= p.getBoundingClientRect().left + 1;
+        })());
+        rec('play-x-single', (q('.acsv-top-right .acsv-tbtn:last-child') || {}).title === '退出');
+        // 层内切清晰度：竖刷邻居 qIdx 必须零污染（syncFwdQuality 的 data-ovl 守卫——
+        // 少了它 OVL_IDX+1 会打到竖刷第 0 条，把背后邻居重挂一遍）
+        var qBefore = feed().items.map(function (x) { return x.qIdx; }).join(',');
+        var cq = document.querySelectorAll('.acsv-slide[data-ovl="1"] .acsv-cq');
+        if (cq.length) cq[0].click();
+        var qi = document.querySelectorAll('.acsv-qitem');
+        rec('play-quality-menu', qi.length >= 2, 'cq=' + cq.length + ' items=' + qi.length);
+        if (qi.length > 1) qi[qi.length - 1].click();
+        await wait(800);
+        rec('play-quality-isolated', qi.length > 1
+          && feed().items.map(function (x) { return x.qIdx; }).join(',') === qBefore,
+          'before=' + qBefore + ' after=' + feed().items.map(function (x) { return x.qIdx; }).join(','));
+        var backEl = q('.acsv-back-btn'); // 顶栏「向左返回」=回来源（此例来源是竖刷）
+        if (backEl) backEl.click();
+        rec('play-back', !!(await waitFor(function () {
+          return location.hash === '#svfeed' && q('.acsv-slide[data-ovl="1"]') === null;
+        }, 8000)), location.hash);
+        rec('play-backbtn-hidden-feed', (function () {
+          var b = q('.acsv-back-btn');
+          return !!b && b.style.display === 'none';
+        })());
+        rec('play-x-feed', (q('.acsv-top-right .acsv-tbtn:last-child') || {}).title === '退出（Esc）');
+        // 键盘重定向（0.9.74）：媒体键打层内那条，导航键与竖刷一动不能动（幽灵音频防线）
+        location.hash = 'svfeed/play/a/488900';
+        rec('play-open2', !!(await waitFor(function () {
+          var v = q('.acsv-slide[data-ovl="1"] video');
+          return !!v && !v.paused && v.currentTime > 0;
+        }, 20000)));
+        var curBeforeKey = feed().current;
+        key('ArrowDown');
+        await wait(300);
+        rec('play-key-nonav', feed().current === curBeforeKey, 'cur=' + feed().current + '/' + curBeforeKey);
+        var vk = q('.acsv-slide[data-ovl="1"] video');
+        var m0 = vk && vk.muted;
+        key('m');
+        rec('play-key-mute', !!(await waitFor(function () {
+          var v = q('.acsv-slide[data-ovl="1"] video');
+          return !!v && v.muted !== m0;
+        }, 5000)));
+        rec('play-key-no-ghost', (function () {
+          var vs = document.querySelectorAll('.acsv-scroller video');
+          for (var i = 0; i < vs.length; i++) if (!vs[i].paused) return false;
+          return true;
+        })());
+        key('Escape');
+        rec('play-esc-back', !!(await waitFor(function () {
+          return location.hash === '#svfeed' && q('.acsv-slide[data-ovl="1"]') === null;
+        }, 8000)), location.hash);
+        // 坏形态：缺 id → 视图内错误态（不静默）
+        location.hash = 'svfeed/play';
+        rec('play-badform', !!(await waitFor(function () {
+          var v = q('.acsv-view');
+          return !!v && /链接不完整/.test(v.textContent);
+        }, 8000)));
+        // 未命中：douga/info 回 result≠0 → 错误盒 + 重试
+        window.__ACSV_MOCK_FORM__ = { 'douga/info': function () { return { result: 1 }; } };
+        window.__ACSV_MOCK_DIRECT__ = {};
+        location.hash = 'svfeed/play/a/999999999';
+        rec('play-miss-errbox', !!(await waitFor(function () {
+          var v = q('.acsv-view');
+          return !!v && /视频加载失败/.test(v.textContent);
+        }, 12000)));
+        rec('play-miss-retry', !!q('.acsv-view .acsv-retry'));
+        key('Escape');
+        rec('play-miss-back', !!(await waitFor(function () { return location.hash === '#svfeed'; }, 8000)), location.hash);
 
       } else if (CASE === 'view-im' || CASE === 'view-im-narrow') {
         // 抽屉×视图避让冒烟（0.9.73）：视图里开私信抽屉 → 正文让位（宽视口右缘收窄到抽屉左缘，

@@ -6,6 +6,7 @@ import { FeedStore } from './feedstore.js';
 // 全锚定（$）：#svfeedother 之类前缀粘连串不算竖刷路由（旧版无锚定的语法松散，0.9.62 顺修）
 var routeRe = new RegExp('^' + CFG.hash + '(?:/(\\d+))?$');           // 裸深链（0.9.72 前的历史链接）：svfeed / svfeed/<id>
 var markRe = new RegExp('^' + CFG.hash + '/([va])/(\\d+)$');          // 标记深链：svfeed/v/<meowId>、svfeed/a/<acId>
+var playRe = new RegExp('^' + CFG.hash + '/play/([va])/(\\d+)$');     // 播放层（0.9.74）：svfeed/play/<v|a>/<id>
 var viewRe = new RegExp('^' + CFG.hash + '/([a-z]+)(?:/([^/]+))?$');   // 子视图：svfeed/my、svfeed/zone/59、svfeed/search/<kw>
 
 // 视图参数解码（0.9.72）：search 的关键词是 URL 编码中文（#svfeed/search/%E5%B0%8F%E8%AF%B4）；
@@ -19,18 +20,21 @@ function decodeArg(s) {
 // src（0.9.72）是深链的 id 空间标记：地址栏 id 跨两张详情表——小视频是 meowId、推荐是 acId
 // （normalize/normalizeHome 各自落 id），裸数字形态语法同形无法分辨，故 syncHash 一律写标记形态；
 // src=null 的裸形态只剩历史链接，由调用方探测（player.loadDeepLink）。标记段必须优先于视图段
-// （v/a 也是字母），但必须带数字段才成立：#svfeed/v 裸字母仍落视图分支（形状同 #svfeed/foo）
+// （v/a 也是字母），但必须带数字段才成立：#svfeed/v 裸字母仍落视图分支（形状同 #svfeed/foo）。
+// play（0.9.74）是播放层形态：view='play' + viewArg=id + src 带空间标记，**不填 mid**——
+// 播放层自解析（playlayer），不经 mount 的深链置顶路径，竖刷缓冲/源记忆都不动
 export function parseHash(h) {
   h = String(h == null ? '' : h).replace(/^#\/?/, '');
   var m = h.match(routeRe);
   var k = m ? null : h.match(markRe);
-  var v = (m || k) ? null : h.match(viewRe);
+  var p = (m || k) ? null : h.match(playRe);
+  var v = (m || k || p) ? null : h.match(viewRe);
   return {
-    active: !!(m || k || v),
+    active: !!(m || k || p || v),
     mid: (m && m[1]) || (k && k[2]) || null,
-    src: k ? (k[1] === 'a' ? 'home' : 'sv') : null,
-    view: v ? v[1] : null,
-    viewArg: v && v[2] ? decodeArg(v[2]) : null
+    src: (k && (k[1] === 'a' ? 'home' : 'sv')) || (p && (p[1] === 'a' ? 'home' : 'sv')) || null,
+    view: p ? 'play' : (v ? v[1] : null),
+    viewArg: p ? p[2] : (v && v[2] ? decodeArg(v[2]) : null)
   };
 }
 

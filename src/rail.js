@@ -180,22 +180,25 @@ export function buildSideRail(slide, item, goTo) {
       openSharePanel(b, item);
     });
   if (item.kind === 'home') slide._shareSync = function () { shareUI.count.textContent = fmt(item.share); };
-  // 右侧功能区与上下翻页共用一个定位容器（箭头永远在功能区上方，不遮挡）
+  // 右侧功能区与上下翻页共用一个定位容器（箭头永远在功能区上方，不遮挡）。
+  // 播放层（buildSlide 传 goTo=null，0.9.74）不建箭头：层内没有竖刷邻居，"上/下一个"无意义
   var side = el('div', 'acsv-side');
-  var arrows = el('div', 'acsv-arrows');
-  var upBtn = elHtml('button', 'acsv-arrow acsv-arrow-up', ICONS.chevUp);
-  upBtn.title = '上一个（↑）';
-  upBtn.addEventListener('click', function () {
-    goTo(FeedStore.current - 1);
-  });
-  var downBtn = elHtml('button', 'acsv-arrow acsv-arrow-down', ICONS.chevDn);
-  downBtn.title = '下一个（↓）';
-  downBtn.addEventListener('click', function () {
-    goTo(FeedStore.current + 1);
-  });
-  arrows.appendChild(upBtn);
-  arrows.appendChild(downBtn);
-  side.appendChild(arrows);
+  if (goTo) {
+    var arrows = el('div', 'acsv-arrows');
+    var upBtn = elHtml('button', 'acsv-arrow acsv-arrow-up', ICONS.chevUp);
+    upBtn.title = '上一个（↑）';
+    upBtn.addEventListener('click', function () {
+      goTo(FeedStore.current - 1);
+    });
+    var downBtn = elHtml('button', 'acsv-arrow acsv-arrow-down', ICONS.chevDn);
+    downBtn.title = '下一个（↓）';
+    downBtn.addEventListener('click', function () {
+      goTo(FeedStore.current + 1);
+    });
+    arrows.appendChild(upBtn);
+    arrows.appendChild(downBtn);
+    side.appendChild(arrows);
+  }
   side.appendChild(rail);
   slide.appendChild(side);
 }

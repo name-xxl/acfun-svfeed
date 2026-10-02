@@ -142,6 +142,7 @@ export function buildControls(slide, idx, item) {
   // 划到时 renderWindow 会按新偏好现解析挂载
   function rebuildFwdNeighbor(slide, dropCache) {
     try {
+      if (slide.dataset.ovl === '1') return; // 播放层 slide 无前向邻居（idx 哨兵会打到竖刷第 0 条）
       var idx = Number(slide.dataset.idx);
       if (dropCache) {
         var it2 = FeedStore.items[idx + 2];

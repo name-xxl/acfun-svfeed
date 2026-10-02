@@ -17,6 +17,7 @@ var imBtnEl = null;
 var segSv = null;
 var segHome = null;
 var xBtn = null;
+var backBtn = null;
 var searchInput = null;
 var hooks = {};
 var searchHandler = null;
@@ -44,6 +45,14 @@ export function buildTopbar(parent, h) {
   if (barEl) return topbarRefs();
   hooks = h || {};
   barEl = el('div', 'acsv-top');
+  // 左缘「向左返回」（0.9.74）：仅深界面（搜索结果页/播放层）显示——它们的来源不在 dock 上，
+  // 必须有返回出口；样式与右组同款（.acsv-tbtn），DOM 在首位（顶栏左缘=左栏右缘，紧贴侧栏）
+  backBtn = el('button', 'acsv-tbtn acsv-back-btn');
+  backBtn.title = '返回';
+  backBtn.innerHTML = ICONS.chevLt;
+  backBtn.style.display = 'none';
+  backBtn.addEventListener('click', function (ev) { ev.stopPropagation(); if (hooks.onBack) hooks.onBack(); });
+  barEl.appendChild(backBtn);
   // 搜索框：居中常驻；Enter/按钮 = 提交（去哪由宿主决定）；聚焦态 Esc 先退聚焦
   // （input.js 对 input target 已豁免竖刷快捷键，这里只管浏览器的默认行为体验）
   var pill = el('div', 'acsv-sbox');
@@ -106,18 +115,21 @@ export function syncTopbarSeg() {
   segHome.classList.toggle('on', home);
 }
 
-// 按当前界面同步（views.syncRouteView 调）：视图态隐源切换（CSS）+ ✕ 语义改「返回竖刷」；
+// 按当前界面同步（views.syncRouteView 调）：视图态隐源切换（CSS）+ 深界面出「向左返回」；
 // 搜索视图按地址栏 arg 回填关键词（深链/换词直达时顶栏输入框与地址一致）。只在 view==='search'
 // 时写输入框：其余 hashchange（切视图/竖刷深链回写）不碰用户可能在拼的输入。
-export function syncTopbar(view, arg) {
+// ✕ 单一意义（0.9.74 用户裁决）：永远=退出脚本回首页——普通界面 Esc 另义（回竖刷），
+// 故 title 只在竖刷态带 Esc 提示；视图出口靠 dock（常驻）+ Esc，深界面靠「向左返回」
+export function syncTopbar(view, arg, opts) {
   if (!barEl) return;
   barEl.classList.toggle('acsv-top--view', !!view);
-  if (xBtn) xBtn.title = view ? '返回竖刷（Esc）' : '退出（Esc）';
+  if (backBtn) backBtn.style.display = opts && opts.deep ? '' : 'none';
+  if (xBtn) xBtn.title = view ? '退出' : '退出（Esc）';
   if (view === 'search' && searchInput) searchInput.value = arg == null ? '' : String(arg);
 }
 
 export function teardownTopbar() {
   if (barEl) { barEl.remove(); barEl = null; }
-  imBtnEl = null; segSv = null; segHome = null; xBtn = null; searchInput = null;
+  imBtnEl = null; segSv = null; segHome = null; xBtn = null; backBtn = null; searchInput = null;
   hooks = {}; searchHandler = null;
 }

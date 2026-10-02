@@ -37,3 +37,10 @@ export function slideAt(idx) {
 export function stageVisible() {
   return !!(scroller && scroller.offsetParent !== null);
 }
+
+// "当前可播视频"覆盖钩子（0.9.74）：播放层的 slide 不在竖刷流里，键盘手势（空格/静音/快进）
+// 必须打到层内那条。播放层进出时设置/清除；有钩子时**不回落**竖刷——层内还没挂上 video 就
+// 该什么都不播，绝不能打到背后隐藏的竖刷（幽灵音频）。与 root/scroller 同款中介，读方零反向依赖
+var videoTargetFn = null;
+export function setVideoTarget(fn) { videoTargetFn = typeof fn === 'function' ? fn : null; }
+export function videoTarget() { return videoTargetFn; }

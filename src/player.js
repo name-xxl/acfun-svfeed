@@ -19,7 +19,8 @@ import { buildSlide, buildDrawer } from './slide.js';
 import { openDrawer, mountBadge, teardownIm } from './imdrawer.js';
 import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
 import { overlayTeardown } from './overlay.js';
-import { syncRouteView, teardownViews, currentView } from './views.js';
+import { syncRouteView, teardownViews, currentView, backFromOrigin } from './views.js';
+import { OVL_IDX } from './playlayer.js';
 import { buildDock, teardownDock } from './sidebar.js';
 import { buildTopbar, teardownTopbar, syncTopbarSeg } from './topbar.js';
 import { setupInputHandlers, teardownInputHandlers } from './input.js';
@@ -73,18 +74,19 @@ var SESSION_HOOKS = {
     video.loop = !pb.autoplayNext;
     video.playbackRate = pb.seekHold.active ? 2 : pb.playRate;
   },
-  currentIdx: function () { return FeedStore.current; },
+  // 播放层开着时"当前条"是层内那条（哨兵 idx）：session 的自动起播判定按它比对
+  currentIdx: function () { return currentView() === 'play' ? OVL_IDX : FeedStore.current; },
   onResolved: function (session) { onHomeResolved(session.slide, session.item); },
   // 会话驱动的起播（挂载/恢复链）：舞台被视图盖住时只挂不播——隐藏舞台起播＝幽灵音频
   // （视图态 `loadInitial` 晚到的实锤路径）；退出视图由 views.resumeCurrentVideo 恢复
-  play: function (video) { if (stageVisible()) playVideo(video); },
+  play: function (video) { if (videoStageVisible(video)) playVideo(video); },
   // HealthMonitor 恢复阶梯的降档动作（session.js 经 hooks 回接）
   qualitySwitch: function (session, qIdx) { switchQuality(session.item, session.slide, qIdx); },
   // 恢复链的重跑解析（mock/真实同路）与末端重挂
   refreshItem: function (item) { return FeedStore.refresh(item); },
   reattach: function (session) { attachVideo(session.slide, session.item, session.idx); },
   onAttachPlay: function (session, video) {
-    if (!stageVisible()) return; // 同上：挂载即起播的路径同样让位（视图退出时统一恢复）
+    if (!videoStageVisible(video)) return; // 同上：挂载即起播的路径同样按"自己那张"让位
     playVideo(video);
     if (!pb.soundOn && !pb.firstGestureSeen) {
       var slide = video.closest('.acsv-slide');
@@ -142,6 +144,12 @@ var SESSION_HOOKS = {
     reportLeave(session, video, 'dispose');
   }
 };
+// 会话驱动的起播（挂载/恢复链）门禁：按"视频自己那张舞台"判——竖刷被视图盖住不起播
+// （视图冷启动 loadInitial 晚到会把背后视频播起来＝幽灵音频），但同一门禁绝不能拦住
+// 播放层里的视频（层内 slide 不在 scroller 里，stageVisible() 对它恒 false，0.9.74 踩过）
+function videoStageVisible(video) {
+  return !!(video && video.offsetParent !== null);
+}
 // 钩子注入 attach.js（SESSION_HOOKS 依赖上层导航/侧栏/控制栏，不能反向 import）
 setSessionHooks(SESSION_HOOKS);
 
@@ -220,7 +228,7 @@ function setActive(idx) {
     cur.muted = !pb.soundOn;
     // 舞台被视图盖住时不起播、不弹提示：隐藏舞台起播＝幽灵音频（视图冷启动时 loadInitial
     // 晚到会把藏在视图后的视频播起来）；回来由 views.exitView 的恢复路径接管
-    if (stageVisible()) {
+    if (videoStageVisible(cur)) {
       // 用户明确暂停过的视频滑走再滑回：不强制播放（playVideo 会清 _userPaused，须先判断）
       if (!curSlide._userPaused) playVideo(cur);
       if (!pb.soundOn && !pb.firstGestureSeen) {
@@ -386,8 +394,10 @@ function mount() {
   // 右侧按钮组（源切换/私信/更新/退出）。行为经 hooks 注入，组件不反向 import 本模块
   var tb = buildTopbar(root, {
     onSearch: navSearch,
-    // ✕ 语义跟随 Esc：视图在栈 → 返回竖刷；竖刷态 → 退出（视图态顶栏是否可见待复用拍板）
-    onExit: function () { if (currentView()) location.hash = CFG.hash; else exitFeed(); },
+    // ✕ 单一意义（0.9.74 用户裁决）：退出脚本回首页——视图出口是 dock（常驻）+ Esc，
+    // 深界面另有顶栏「向左返回」（onBack → 来源链顶）
+    onExit: exitFeed,
+    onBack: backFromOrigin,
     onSource: switchSource,
     onDrawer: openDrawer,
     onRelease: openReleaseNotes,

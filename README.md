@@ -179,6 +179,69 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.74（2026-10-02）· 列表条目就地播放（播放层子视图）+ 竖刷落点稳定化
+
+**病灶**（用户实测：「点榜单/我的页条目跳转播放，要往下滑几条才见到所选的视频」，初判像缓存）：
+不是缓存脏数据，是 `playAc → scrollToIndex` 的**落点**算不准，三条机制叠加——
+① 索引→像素映射不稳定：`renderWindow` 只渲染 `[cur-1, cur+1]`，远跳时 DOM 稀疏，而
+`slide.offsetTop` 表达的是「DOM 顺序 × 视口高」（不是索引）；落地后窗口渲染在 cur 前补插一张
+就会让内容整体平移，而 `scrollTop` 是像素锚点不动 ⇒ 视口里显示上一张，IO 顺手把 current
+设回去——观感正是「停在目标上方几条」。② 远跳的平滑滚动会被泵流补渲染/`scroll-snap-stop:
+always` 吸附点截断，落点漂移。③ **命中缓冲的同步跳**在子视图里执行（hashchange 是异步任务，
+微任务链先跑完）：此刻 scroller 是 `display:none`，无布局盒 ⇒ `offsetTop` 恒 0 ⇒ 等价
+「滚回第一条」——越常看的条目越容易命中缓冲，越必现，这就是「像缓存问题」的来源。
+harness 盲区：旧断言只看游标/URL/起播，**没有一条钉「视口里就是目标那张」**，全绿而真机坏。
+
+- **播放层（`src/playlayer.js`，子路由 `#svfeed/play/<v|a>/<id>`）**：列表条目（我的/榜单/
+  搜索）点击改为**就地覆盖播放**——不再插竖刷队尾、不再跳回竖刷，竖刷缓冲/游标/源记忆零改动
+  （旧 `playAc` 契约废止删除）。形态=子视图 `play`（复用 0.9.62 框架 + 深界面来源保活）：
+  z 档（视图 55）、共享顶栏、dock、Esc 栈、抽屉避让全部复用；地址是标记深链形态，**天然免疫
+  syncHash 回写**（既有的 `parseRoute().view` 守卫零改动）。条目真源=地址栏：点击路径用面板
+  条目出即时首帧（标题/封面/UP 头像），冷进入（分享链接/刷新）走 `API.deepLink` 先解析（拿
+  标题/封面/来源），失败出错误盒+重试（绝不静默）；**不 setSource**——播放解析链走 appapi
+  （douga/info + playInfo），与竖刷内容源无关。层内不建上下箭头（没有竖刷邻居）。
+- **来源视图保活 + 来源链（`views.js`）**：进深界面（`def.deep`：搜索/播放层）把来源压进来源
+  链；来源可保活（非 `def.volatile`）则**挂起其 DOM**——类名换 `acsv-view-held` + `visibility:
+  hidden`（visibility 保盒子在，`.acsv-view-body` 的滚动位不丢；换类名是因为 `.acsv-view` 是
+  全项目/harness 的「当前视图」定位锚，留两个同构节点会污染既有断言）。回来原位复原、跳过
+  build、不重拉。`def.volatile`（播放层握播放会话/定时器）不入链也不挂起：离开即真拆——隐藏
+  容器里继续出声绝不允许；同屏换参（搜索换词）替换链顶那层，不叠层。关闭语义：普通视图
+  Esc=回竖刷（不变）；深界面 Esc=回来源链顶（空链回竖刷）。
+- **✕ 单一意义 + 顶栏「向左返回」**（用户裁决）：✕ 永远=退出脚本回首页（普通界面 Esc 另义，
+  故 title 只在竖刷态带 Esc 提示）；深界面（搜索结果页/播放层）在顶栏左缘（=左栏右缘）出
+  样式同款「向左返回」=回来源链顶——它们的来源不在 dock 上，必须有返回出口；普通视图出口
+  仍是常驻 dock + Esc。
+- **竖刷落点稳定化（`player.js`）**：`scrollToIndex` 三条收敛——目标不可见时**延后落地**
+  （rAF 轮询舞台可见）；远跳（|Δ|>1）改**瞬时落位**；落地后两帧复量回正一次（补插 slide 会
+  平移内容），用户自己滚过（偏离超半屏）立即放弃。近跳（箭头/连播）保持 smooth，手感与代码
+  路径零变化。
+- **隐藏态起播门禁**：`setActive`/会话 `play`/`onAttachPlay` 按「视频自己那张舞台」判可见性
+  ——竖刷被盖住不起播（视图冷启动 `loadInitial` 晚到会把背后视频播起来＝幽灵音频），但同一门禁
+  **不拦播放层里的视频**（层内 slide 不在 scroller 里，用全局 stageVisible 会连自己一起挡，
+  实现期实测踩过）；键盘手势按 `state.videoTarget` 覆盖「当前视频」，**有钩子不回落竖刷**
+  （层内还没挂上 video 就什么都不打）。
+- **解耦守卫（`data-ovl` 唯一判据，attach.js 契约表在册）**：层内 slide 用 `OVL_IDX=-1` 哨兵
+  ——slide 点按判定、`attach.syncFwdQuality`、`controls.rebuildFwdNeighbor` 全加守卫（少了它
+  `items[-1+1]` 会打到竖刷第 0 条，把背后邻居重挂一遍）；rail 在 `goTo=null` 时不建箭头；
+  `SESSION_HOOKS.currentIdx` 层开返回哨兵（会话自动起播判定）。视图条目点击出口改由
+  playlayer 注册注入（`setItemOpener`）——views 不再 import player，循环依赖少一条。
+- **测试**：单测 106（route 加 play 形态：v/a 标记 + src 落位、**不填 mid**、裸 `#svfeed/play`
+  落视图分支、脏输入不激活）；harness 28 场景——新增 `play-deep`（26 断言：冷进入自解析/标题/
+  不切源/竖刷零改动/层内切清晰度不污染邻居/坏形态错误态/未命中错误盒+重试/返回键与 ✕ 语义/
+  键盘重定向与幽灵音频防线），view-my·view-zone 改写为播放层契约（40/38 断言：开层真起播、
+  竖刷零改动、关闭回来源且**同一节点**），view-search 点卡改播放层 + 返回键回搜索页不重拉
+  （29 断言）；`deeplink-sv` 加 `warm-jump-landed`、view-zone 加 `hidden-jump-landed` 落点
+  不变式（**断言先判舞台可见**——隐藏态矩形恒 0 会把几何断言假绿骗过，实测踩过）；view-my 加
+  4 条来源保活断言（节点同一性/滚动位/请求计数/唯一 `.acsv-view`）+ view-zone 加两级进入的
+  舞台记账断言。**变异验证**：还原旧落点行为 `hidden-jump-landed` 挂（cur=0，正是用户报障）；
+  还原旧记账 `stage-wasplaying-kept` 挂（wasPlaying 被二级进入覆盖成 false）。
+- **有意不做**：播放层内列表上下条切换、方向键在层内改列表（需注入列表上下文，二期再说）；
+  绝对定位+占位撑高的布局改造（点击路径已改播放层，残余面只剩深链热跳，落点三条收敛已够；
+  该改造动核心布局、28 场景几何断言面太大）；播放层切内容源（不 setSource 是契约）。
+- harness 驱动：场景表新增 `play-deep`；mock 缝新增 `__ACSV_MOCK_DIRECT__`（点名直挂：
+  面板/搜索结果条目 id 不在 home 卡片池时，测试要它真起播——同款本地 webm 直挂，webm 套
+  hls.js 会死在解析上）。
+
 ### 0.9.73（2026-10-02）· 顶栏四界面复用（推荐/榜单/我的/搜索）+ 抽屉避让推广到视图
 
 - **顶栏四界面复用**（0.9.72「待拍板」定稿）：共享顶栏（搜索框 | 私信 | 更新 | ✕）在视图态提到
@@ -1535,7 +1598,7 @@ npm test             # immsg/ubb/release 单测 + 无头 harness 全场景（需
 | `appapi.js` | APP 家族接口层：selection feed（游标）、douga/playInfo 懒解析、收藏/投蕉/评论点赞、弹幕 list/add、api_st 令牌（播放档位策略已剥离到 quality.js） |
 | `quality.js` | 播放质量策略（零网络）：编码偏好过滤 HEVC/AVC、清晰度记忆选档；appapi 取档、它选档 |
 | `feedstore.js` | 信息流数据仓库（游标泵，空间页列表上下文按序泵入；home 条目允许空 urls 懒解析） |
-| `route.js` | `#svfeed[/v|a/<id>]` 路由解析、地址栏同步与深链意图（appliedMid/cancelHashSync） |
+| `route.js` | `#svfeed[/v|a/<id>]`、`#svfeed/play/<v|a>/<id>`（0.9.74 播放层：view=play + src 标记、**不填 mid**）路由解析、地址栏同步与深链意图（appliedMid/cancelHashSync） |
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`fmt`/`toast`/剪贴板/样式注入等工具 |
 | `interact.js` | 真实点赞/关注（api_st → interact 接口）；收藏/投蕉转发 AppAPI |
@@ -1554,7 +1617,7 @@ npm test             # immsg/ubb/release 单测 + 无头 harness 全场景（需
 | `playback.js` | 播放/声音原语与手势：播放/暂停/静音手势合并实现、_userPaused 暂停意图、幽灵音频清扫 |
 | `controls.js` | 控制栏：进度条（拖动/时间气泡）、清晰度/编码/缓冲菜单（buildMenu）、连播/倍速/静音/全屏、前向邻位重建 |
 | `rail.js` | 右侧操作栏（赞/蕉/藏/评/分享/关注）：乐观更新+失败回滚、原生图标 CSS mask 换色、计数回填钩子、分享面板入口 |
-| `slide.js` | buildSlide/buildDrawer：slide 骨架与评论抽屉骨架（commentDrawer 赋值点）、scroll 归零防护 |
+| `slide.js` | buildSlide/buildDrawer：slide 骨架与评论抽屉骨架（commentDrawer 赋值点）、scroll 归零防护；点按判定对 data-ovl（播放层）免「当前条」检查 |
 | `input.js` | 键盘/滚轮：翻页、快进快退、长按 2x、Esc 优先级链（更新弹窗→大图查看器→抽屉→退出）、幽灵视频扫描 |
 | `report.js` | 观看历史上报（weblog CLICK 管道）：离开时上报最终进度 + 10s 首报兜底、同秒位去重 |
 | `prewarm.js` | 预热：索引稳定 500ms 后预解析 cur+1/2、媒体域动态 preconnect（上限 6 + 静态种子） |
@@ -1567,10 +1630,11 @@ npm test             # immsg/ubb/release 单测 + 无头 harness 全场景（需
 | `imicons.js` | 站点原生图标登记表（CDN SVG + 字形码点，双端共享） |
 | `release.js` | 更新提示（0.9.60）：官方 releases.atom 拉取/解析纯函数（cmpVersion/normVer/parseRelAtom/latestEntry/decideUpd）+ 说明弹窗单例 + 红点；正文直接用 GitHub 官方渲染 HTML（elHtml 信任契约）；每次 mount 检查一次（60s 节流）、失败静默、unmount 显式拆监听 |
 | `overlay.js` | 浮层栈（0.9.61）：Esc 显式分支链的收拢（overlayOpen/Close/Top/IsOpen/Teardown，close 回调注册方自带、先出栈再调+异常隔离）；modal 键语义单监听承载（release/imgview capture 自关退役）；栈=显式状态（0.9.22 精神延续） |
-| `views.js` | 子视图框架（0.9.62）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（registerView/openPanel 同构协议）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、playAc 条目回竖刷（gen 校验/seen 查重/resolve 失败回退/append 不 unshift）、面板 kit（rowOf/moreBtn/gridCardOf） |
+| `views.js` | 子视图框架（0.9.62；0.9.74 来源保活）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（registerView 自注册）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、**深界面（def.deep）来源链 + 来源视图挂起保活**（非 volatile：换类名 acsv-view-held + visibility 挂起，回来原位复原；同屏换参替换链顶）、条目点击出口 setItemOpener（playlayer 注入，不再 import player）、面板 kit（rowOf/moreBtn/gridCardOf） |
 | `sidebar.js` | 左栏 dock（0.9.62）：子视图入口图标列（我的/榜单），当前视图高亮，窄屏隐藏，随 unmount 拆除 |
-| `topbar.js` | 共享顶栏（0.9.72 抽离；0.9.73 四界面复用）：搜索框（居中常驻；视图态按地址关键词回填，搜索视图经 setSearchHandler 挂载期接管提交、teardown 还原）+ 右侧按钮组（源切换/私信/更新/退出，行为 hooks 注入不反向 import player）；syncTopbar 按界面同步（视图态隐源切换 + ✕=返回竖刷） |
-| `searchview.js` | 搜索视图（0.9.72；0.9.73 并入共享顶栏）：搜索页 SSR HTML 区段解析（data.parseSearchItems）→ 抖音式结果网格卡；关键词唯一真源=地址栏，顶栏搜索框即其唯一输入框 |
+| `topbar.js` | 共享顶栏（0.9.72 抽离；0.9.73 四界面复用；0.9.74 ✕ 单一意义+向左返回）：搜索框（居中常驻；视图态按地址关键词回填，搜索视图经 setSearchHandler 挂载期接管提交、teardown 还原）+ 左缘「向左返回」（仅深界面，onBack hooks）+ 右侧按钮组（源切换/私信/更新/退出，行为 hooks 注入不反向 import player）；syncTopbar(view,arg,{deep})：**✕ 永远=退出脚本**（普通界面 Esc 另义），深界面出返回键 |
+| `searchview.js` | 搜索视图（0.9.72；0.9.73 并入共享顶栏；0.9.74 deep+suspend/resume）：搜索页 SSR HTML 区段解析（data.parseSearchItems）→ 抖音式结果网格卡；关键词唯一真源=地址栏，顶栏搜索框即其唯一输入框 |
+| `playlayer.js` | 播放层（0.9.74）：子视图 play（#svfeed/play/&lt;v\|a&gt;/&lt;id&gt;）就地播放——面板条目即时首帧（含 UP 头像）/ 冷进入 API.deepLink 解析（不 setSource）/ 失败错误盒+重试；OVL_IDX 哨兵 + data-ovl 判据（attach.js 契约表在册）、键盘重定向 state.setVideoTarget |
 | `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf，缺省不渲染）+ Tab 惰性面板（观看历史=双 resourceTypes/pageNo 翻页；收藏夹=chips 切夹→dougaList 翻页）+ 4:3 封面网格卡（普通视频封面口径）；条目经 panelItem 契约规整、点击回竖刷 |
 | `zone.js` | 分区榜单视图（0.9.62）：渠道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
 | `boot.js` | 启动入口（构建 entry） |
@@ -1608,6 +1672,7 @@ flowchart LR
     pb["playback.js"]
     ubb["ubb.js（UBB：评论渲染/IM wire/引用富正文）"]
     emoticon["emoticon.js（表情）"]
+    playlayer["playlayer.js（播放层·子视图 play）"]
     others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · interact · report · uppage · nav · upload · release"]
   end
 
@@ -1629,9 +1694,10 @@ flowchart LR
   api --> net & data & appapi
   appapi --> net & data & quality
 
-  boot --> player & others & imnative
-  player --> attach & others & feedstore & imdrawer & views & sidebar & topbar
+  boot --> player & others & playlayer & imnative
+  player --> attach & others & feedstore & imdrawer & views & sidebar & topbar & playlayer
   views --> sidebar & overlay & topbar & mypage & zone
+  playlayer --> views & slide & attach & api & state & route
   searchview --> views & topbar
   input --> overlay
   comments --> ubb & emoticon & inputbar & imgview & appapi & net & upload & state & imicons & imshare & overlay

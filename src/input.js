@@ -29,17 +29,22 @@ export function setupInputHandlers(api) {
     }
     if (ev.target && /^(input|textarea|select)$/i.test(ev.target.tagName)) return;
     // 子视图（#svfeed/my 等）是全屏页面：导航/互动键无意义一律吞掉，仅 Esc 放行走
-    // 浮层栈（view 层在栈里，关=返回竖刷）。放在 target 豁免之后——视图内未来的
-    // 输入框（搜索二期）聚焦时不受影响
+    // 浮层栈（view 层在栈里，关=返回来源/竖刷）。放在 target 豁免之后——视图内未来的
+    // 输入框（搜索二期）聚焦时不受影响。
+    // 播放层（0.9.74）例外：媒体键（空格/静音/快进快退/全屏）作用层内视频——currentVideo()
+    // 已按 state.videoTarget 重定向，导航（↑↓）与评论键照旧吞掉（层内没有竖刷邻居/当前条）
+    var inPlay = currentView() === 'play';
     if (currentView()) {
-      if (ev.key === 'Escape' && overlayTop()) overlayClose(overlayTop().id);
-      return;
+      if (ev.key === 'Escape' && overlayTop()) { overlayClose(overlayTop().id); return; }
+      if (!inPlay) return;
     }
     var cur = FeedStore.current;
     switch (ev.key) {
       case 'ArrowDown': case 'PageDown': case 'j':
+        if (inPlay) { ev.preventDefault(); break; }
         ev.preventDefault(); api.scrollToIndex(cur + 1); break;
       case 'ArrowUp': case 'PageUp': case 'k':
+        if (inPlay) { ev.preventDefault(); break; }
         ev.preventDefault(); api.scrollToIndex(Math.max(0, cur - 1)); break;
       case 'ArrowLeft':
         ev.preventDefault();
@@ -85,6 +90,7 @@ export function setupInputHandlers(api) {
       }
       case 'c': case 'C': {
         if (ev.repeat) break; // 长按评论反复开合（0.9.34）
+        if (inPlay) break; // 层内评论走右侧栏按钮（FeedStore 当前条不是它）
         var itC = FeedStore.items[cur];
         if (itC) toggleItemComments(itC);
         break;

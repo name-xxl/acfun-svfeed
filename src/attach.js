@@ -26,6 +26,9 @@ import { reapplyQuality } from './quality.js';
 //   data-paused  暂停投影     写: session.js(playing/pause)/playback.js(play() 被拒) 读: CSS(中央暂停图标/控制栏常显)
 //   data-drag    拖动进度条中 写: controls.js(拖动起止) 读: player(SESSION_HOOKS timeupdate——拖动期停写时间)
 //   data-idx     楼层序号     写: slide.js(buildSlide) 读: 全项目（定位/回收/扫描判定）
+//   data-ovl     播放层标记   写: playlayer.js(层内 slide) 读: slide(点按判定)/attach(syncFwdQuality)/
+//                             controls(rebuildFwd邻位)/…（0.9.74：层内 slide 不在竖刷流里，
+//                             idx 用 OVL_IDX 哨兵——凡按 idx 回查 FeedStore 的地方都要先看它）
 //   data-panfit  画面 fit 标记 写: player.js(syncPanFit) 读: CSS
 //
 // item（feedstore 条目）：
@@ -77,6 +80,7 @@ export function switchQuality(item, slide, qIdx, manual) {
 // （manual=false）不进来——它是本机临时补救，不写偏好，邻居不该跟随
 function syncFwdQuality(slide) {
   try {
+    if (slide.dataset.ovl === '1') return; // 播放层 slide 无前向邻居（idx 哨兵会打到竖刷第 0 条）
     var idx = Number(slide.dataset.idx);
     for (var k = 1; k <= 2; k++) reapplyQuality(FeedStore.items[idx + k]);
     var fwd = slideAt(idx + 1);

@@ -9,6 +9,7 @@ import { IMGVIEW_CSS } from './styles.js';
 import './mypage.js'; // 子视图自注册（registerView）：import 即入册，boot 链统一收口
 import './zone.js';
 import './searchview.js';
+import './playlayer.js'; // 播放层（0.9.74）：注册 play 视图 + 注入条目点击出口（setItemOpener）
 
 // ---------- 启动（入口编排统一在这里：样式/路由响应/导航注入/空间页注入） ----------
 // 原生私信页（message.acfun.cn）：只跑消息增强模块——不注入竖刷样式，不做导航/空间页注入。

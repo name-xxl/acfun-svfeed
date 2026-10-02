@@ -76,8 +76,11 @@ export function buildSlide(item, idx, goTo) {
 
 function onSlideTap(ev) {
   var slide = ev.currentTarget;
-  var idx = Number(slide.dataset.idx);
-  if (idx !== FeedStore.current) return;
+  // 播放层 slide（data-ovl）不在竖刷流里：点按即手势，不做"当前条"判定
+  if (slide.dataset.ovl !== '1') {
+    var idx = Number(slide.dataset.idx);
+    if (idx !== FeedStore.current) return;
+  }
   togglePlayGesture(slide.querySelector('video'));
 }
 

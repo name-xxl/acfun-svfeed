@@ -93,6 +93,11 @@ export var API = {
         // harness：从 mock 卡片取本地测试播放地址。不在卡片池里的 id（如视图面板插入的
         // 任意 ac）放行走真实解析链——harness 下由 net.mockHit 缝接住，生产本就走到 resolve
         var raw = mh.filter(function (c) { return String(c.href) === String(item.id); })[0];
+        // 点名直挂缝（harness）：面板/搜索结果条目 id 不在卡片池里，但测试要它真起播——走与
+        // 卡片池同款的"本地 webm 直挂"（webm 不是 m3u8，套 hls.js 管线会死在解析上）。
+        // 生产无 __ACSV_MOCK_DIRECT__，整段不生效
+        var direct = window.__ACSV_MOCK_DIRECT__;
+        if (!raw && direct && direct[String(item.id)]) raw = { mockUrl: window.__ACSV_TEST_WEBM__ || '' };
         if (raw) {
           var mu = raw.mockUrl;
           item.urls = mu ? [mu] : [];

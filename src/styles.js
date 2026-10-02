@@ -630,6 +630,12 @@ var RAW_CSS = ''
   // right 过渡供抽屉避让（收窄/还原与抽屉滑入滑出同曲线同时序）
   + '.acsv-view-body{position:absolute;top:var(--acsv-top-h);bottom:0;left:0;right:0;overflow-y:auto;'
   + 'padding:6px 24px 30px ' + (CFG.view.dockW + 14) + 'px;transition:right .28s ease}'
+  // 播放层正文（0.9.74）：满幅承载一条 slide——不滚动、无内边距、左缘让开 dock（与竖刷
+  // scroller 同款）；抽屉避让交给 slide 自带规则（styles.js 上方 root 级那组），正文不能再
+  // 收窄一次——双份收窄会把画面推两次
+  + '.acsv-vbody-play{overflow:hidden;padding:0;left:' + CFG.view.dockW + 'px}'
+  + '#acsv-root.acsv-with-comments .acsv-view-body.acsv-vbody-play{right:0}'
+  + '#acsv-root:fullscreen .acsv-vbody-play{left:0}'
   + '.acsv-vsec{margin-bottom:26px}'
   + '.acsv-vsec-title{font-size:16px;font-weight:600;color:#fff;margin:18px 0 10px}'
   + '.acsv-vchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}'
@@ -786,7 +792,7 @@ var RAW_CSS = ''
   + '.acsv-view-body::-webkit-scrollbar-track{background:transparent}'
   // 窄屏：dock 隐藏（CFG.view.narrow），主区/信息区/视图内容还原满宽
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-dock{display:none}.acsv-scroller{margin-left:0}'
-  + '.acsv-info{left:24px}.acsv-view-body{padding-left:20px}}'
+  + '.acsv-info{left:24px}.acsv-view-body{padding-left:20px}.acsv-vbody-play{padding:0;left:0}}'
   // 窄屏顶栏（0.9.72）：dock 已隐藏 → 顶栏还原满宽；居中胶囊改流内自适应（不再绝对居中，
   // 否则会压到右侧按钮组上）
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-top{left:0;padding:0 16px}'
@@ -811,6 +817,7 @@ export var ICONS = {
   fs: '<svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>',
   chevUp: '<svg viewBox="0 0 24 24"><path d="M12 8l-6 6 1.4 1.4L12 10.8l4.6 4.6L18 14z"/></svg>',
   chevDn: '<svg viewBox="0 0 24 24"><path d="M12 16l-6-6 1.4-1.4L12 13.2l4.6-4.6L18 10z"/></svg>',
+  chevLt: '<svg viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg>',
   star: '<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>',
   banana: '<svg viewBox="0 0 24 24"><path d="M21 18.2c-6.9 0-12.6-5-13.7-11.6C7.1 5.2 6 4.2 4.8 4.5 3.7 4.7 3 5.8 3.2 7 4.6 15.4 12 21.5 20.6 21c1.1-.1 1.9-1 1.9-2.1 0-.4-.6-.7-1.5-.7z"/></svg>',
   image: '<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>',

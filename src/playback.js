@@ -1,7 +1,7 @@
 import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
 import { el } from './ui.js';
-import { root, scroller, slideAt } from './state.js';
+import { root, scroller, slideAt, videoTarget } from './state.js';
 import { FeedStore } from './feedstore.js';
 
 // ---------- 播放态与声音原语 ----------
@@ -34,6 +34,10 @@ export function cancelSeekHold() {
 }
 
 export function currentVideo() {
+  // 播放层开着时"当前视频"=层内那条（覆盖钩子由 playlayer 设置/清除；有钩子不回落竖刷——
+  // 层内还没挂上 video 就该什么都打不到，绝不能打到背后隐藏的竖刷）
+  var tf = videoTarget();
+  if (tf) return tf();
   var s = slideAt(FeedStore.current);
   return s && s.querySelector('video');
 }

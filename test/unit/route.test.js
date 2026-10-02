@@ -78,6 +78,20 @@ test('互斥：字母段不吞数字深链，数字段不产生视图，注册�
   assert.equal(zone.viewArg, '59');
 });
 
+test('播放层形态（0.9.74）：#svfeed/play/<v|a>/<id> → view=play + viewArg=id + src 带空间标记，不填 mid', () => {
+  // 不填 mid 是契约：播放层自解析（playlayer），不走 mount 的深链置顶路径，竖刷缓冲/源记忆都不动
+  assert.deepEqual(parseHash('#svfeed/play/a/48820714'),
+    { active: true, mid: null, src: 'home', view: 'play', viewArg: '48820714' });
+  assert.deepEqual(parseHash('#svfeed/play/v/11053531'),
+    { active: true, mid: null, src: 'sv', view: 'play', viewArg: '11053531' });
+  // 裸 #svfeed/play（缺标记与 id）仍落视图分支：由 playlayer 出"链接不完整"错误态
+  assert.deepEqual(parseHash('#svfeed/play'),
+    { active: true, mid: null, src: null, view: 'play', viewArg: null });
+  // 脏输入：缺 id / 非 v|a 标记 一律不激活
+  assert.equal(parseHash('#svfeed/play/a/').active, false);
+  assert.equal(parseHash('#svfeed/play/x/123').active, false);
+});
+
 test('非竖刷 hash：inactive 且各段为空', () => {
   assert.deepEqual(parseHash(''), { active: false, mid: null, src: null, view: null, viewArg: null });
   assert.deepEqual(parseHash('#otherroute'), { active: false, mid: null, src: null, view: null, viewArg: null });
