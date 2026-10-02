@@ -116,34 +116,6 @@ function createFeedStore(env) {
     // 内容源切换/进入竖刷页时的全量重置（resetForList 的别名，语义更明确）
     reset: function () {
       this.resetForList();
-    },
-
-    // 进入时带 meowId：缓冲为空则加载该条置顶；缓冲已有则跳到它
-    loadFirst: function (mid) {
-      var self = this;
-      if (self.items.length) {
-        for (var i = 0; i < self.items.length; i++) {
-          if (String(self.items[i].id) === String(mid)) {
-            self.current = i;
-            return Promise.resolve();
-          }
-        }
-        return Promise.resolve();
-      }
-      var gen = self.gen;
-      return env.api.info(mid).then(function (n) {
-        if (gen !== self.gen) return; // 期间已 reset：这条属于旧源，丢弃
-        if (n && n.id && n.urls.length) {
-          self.seen[n.id] = 1;
-          self.items.unshift(n);
-          self.current = 0;
-          return;
-        }
-        return self.fetchMore();
-      }, function () {
-        if (gen !== self.gen) return;
-        return self.fetchMore();
-      });
     }
   };
   return store;

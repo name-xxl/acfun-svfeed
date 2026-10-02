@@ -1,13 +1,14 @@
 // data.js 面板条目契约单元测试：Node 内置 test 运行器，零依赖。
 // 契约（0.9.62，字段依据 docs/api-research.md 实测）：panelItem 三来源规整成
 // { acId,title,cover,progress,sub,kind }；非视频条目（番剧形态/无 videoId/文章）返回 null
-// ——无 douga resolve 链，进竖刷必炸，宁可漏不错；homeItemOf 产出懒解析 home 契约。
+// ——无 douga resolve 链，进竖刷必炸，宁可漏不错；homeItemOf 产出懒解析 home 契约；
+// deepLinkOf（0.9.72）= 地址栏深链的 id 空间判据（meow 详情 / douga 详情二选一）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, relTime, fmtWan, meCardOf } = await import('../../src/data.js');
+var { panelItem, homeItemOf, deepLinkOf, relTime, fmtWan, meCardOf, parseSearchItems } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -184,4 +185,99 @@ test('homeItemOf：产出懒解析 home 契约（id/cover 入位，urls 留空�
   assert.deepEqual(it.urls, []);
   assert.equal(it.cap.lazyResolve, true);
   assert.equal(it.resolving, false);
+});
+
+// ---------- deepLinkOf（0.9.72 深链 id 空间判据） ----------
+test('deepLinkOf：meow 命中（有直链）→ sv 源，原样置顶', () => {
+  var meow = { kind: 'sv', id: 48820714, urls: ['https://v.example/a.mp4'] };
+  var hit = deepLinkOf(meow, null, '48820714');
+  assert.equal(hit.source, 'sv');
+  assert.equal(hit.item, meow); // 同一对象，不做拷贝（置顶即入缓冲）
+});
+
+test('deepLinkOf：meow 无直链不算命中（sv 直链随详情下发，空即不可播）', () => {
+  assert.equal(deepLinkOf({ kind: 'sv', id: 1, urls: [] }, null, '1'), null);
+});
+
+test('deepLinkOf：meow 未命中 → 回落 ac（douga 详情）并造懒解析 home 条目', () => {
+  var hit = deepLinkOf(null, { result: 0, videoList: [{ id: 'v1' }], title: '标题', coverUrl: 'https://i/c.jpg' }, '42455525');
+  assert.equal(hit.source, 'home');
+  assert.equal(hit.item.kind, 'home');
+  assert.equal(hit.item.id, 42455525); // id 取请求用的 acId（resolve 要用它回查）
+  assert.equal(hit.item.title, '标题');
+  assert.equal(hit.item.cover, 'https://i/c.jpg');
+  assert.deepEqual(hit.item.urls, []); // 直链留给懒解析链补
+  assert.equal(hit.item.cap.lazyResolve, true);
+});
+
+test('deepLinkOf：meow 与 ac 双命中时 meow 优先（裸链接探测的优先级基准）', () => {
+  var meow = { kind: 'sv', id: 7, urls: ['https://v.example/a.mp4'] };
+  var douga = { result: 0, videoList: [{ id: 'v1' }], title: 'ac 标题' };
+  assert.equal(deepLinkOf(meow, douga, '7').source, 'sv');
+});
+
+test('deepLinkOf：douga 形态不合格一律未命中（result≠0 / videoList 空 / 无回包）', () => {
+  assert.equal(deepLinkOf(null, { result: 1, videoList: [{ id: 'v1' }] }, '1'), null);
+  assert.equal(deepLinkOf(null, { result: 0, videoList: [] }, '1'), null);
+  assert.equal(deepLinkOf(null, { result: 0 }, '1'), null);
+  assert.equal(deepLinkOf(null, null, '1'), null);
+  assert.equal(deepLinkOf(null, undefined, '1'), null);
+});
+
+// ---------- parseSearchItems（0.9.72 搜索页 SSR HTML → 视频条目） ----------
+// fixture 按真机实测结构裁剪（2026-10-02 抓 www.acfun.cn/search）：只吃 .search-video 区段，
+// 文章区/UP 投稿等其它 /v/ac 链接不得混入
+test('parseSearchItems：区段收窄 + 字段落位（时长/播放/UP/日期/封面）+ acId 去重 + 坏段跳过', () => {
+  var html = [
+    '<div class="article__main">',
+    '<a href="/a/ac4414392" data-click-log=\'{"cont_type":"article","content_id":4414392,"title":"文章干扰条目"}\'>文章干扰条目</a>',
+    '</div>',
+    '<div class="search-video" data-exposure-log=\'{"content_id":40742636}\'>',
+    '<div class="cover"><a href="/v/ac40742636" target="_blank" data-click-log=\'{"cont_type":"douga","content_id":40742636,"title":"热门小说推荐"}\'>',
+    '<img src="https://tx-free-imgs.acfun.cn/newUpload/x_1.png?imageView2/1/w/160/h/90"/><span class="video__duration">02:04</span></a></div>',
+    '<div class="video__main"><div class="video__main__title"><a href="/v/ac40742636" target="_blank">热门小说推荐</a></div>',
+    '<div class="video__main__info"><div class="video__main__user"><a href="/u/73156935"><img class="user-avatar" src="a.png"/><span class="user-name">晨澜每日分享</span></a></div>',
+    '<span class="info__view-count">2037次播放</span><span class="info__danmaku-count">0条弹幕</span><span class="info__create-time">2023-02-24</span></div></div></div>',
+    '<div class="search-video" data-exposure-log=\'{"content_id":40742636}\'>',
+    '<a href="/v/ac40742636"><img src="d.png"/><span class="video__duration">01:00</span></a>',
+    '<div class="video__main__title"><a href="/v/ac40742636">重复条目</a></div></div>',
+    '<div class="search-video">',
+    '<a href="/v/ac99999"><img src="e.png"/></a>',
+    '<div class="video__main__title"><a href="/v/ac99999">   </a></div></div>',
+    '<div class="search-video">',
+    '<a href="/v/ac41033414"><img src="https://x/y.png?a=1&amp;b=2"/><span class="video__duration">16:55</span></a>',
+    '<div class="video__main__title"><a href="/v/ac41033414">标题带&amp;实体</a></div>',
+    '<div class="video__main__info"><span class="user-name">UP &amp; 名</span>',
+    '<span class="info__view-count">14.0万阅读</span><span class="info__create-time">2021-05-01</span></div></div>'
+  ].join('\n');
+  var items = parseSearchItems(html);
+  assert.equal(items.length, 2);
+  assert.deepEqual(items[0], {
+    acId: 40742636,
+    title: '热门小说推荐',
+    cover: 'https://tx-free-imgs.acfun.cn/newUpload/x_1.png?imageView2/1/w/160/h/90',
+    dur: '02:04',
+    views: '2037',
+    upName: '晨澜每日分享',
+    dateText: '2023-02-24'
+  });
+  assert.equal(items[1].acId, 41033414);
+  assert.equal(items[1].dur, '16:55');
+  assert.equal(items[1].views, '14.0万'); // 「阅读」后缀剥掉
+  assert.equal(items[1].upName, 'UP & 名');
+  assert.equal(items[1].title, '标题带&实体');
+  assert.equal(items[1].cover, 'https://x/y.png?a=1&b=2');
+});
+
+test('parseSearchItems：真机转义形态（\\" 反转义）可解析；空/非 HTML/无结果退空数组', () => {
+  var esc = '<div class=\\"search-video\\"><a href=\\"/v/ac123\\"><img src=\\"c.png\\"/></a>'
+    + '<div class=\\"video__main__title\\"><a href=\\"/v/ac123\\">转义条目</a></div></div>';
+  var items = parseSearchItems(esc);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].acId, 123);
+  assert.equal(items[0].title, '转义条目');
+  assert.equal(items[0].cover, 'c.png');
+  assert.deepEqual(parseSearchItems(''), []);
+  assert.deepEqual(parseSearchItems(null), []);
+  assert.deepEqual(parseSearchItems('<html><body>没有搜索结果</body></html>'), []);
 });

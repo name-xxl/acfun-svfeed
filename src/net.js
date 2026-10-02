@@ -1,5 +1,7 @@
 // ---------- 网络层 ----------
 // request(url, method, headers, body)：headers/body 可选（body 为 x-www-form-urlencoded 字符串）
+// requestText(url)：文本通道（GET，SSR HTML/纯文本端点——搜索页等非 JSON 源）；
+//   mockHit 命中时取字符串（或 {html}），harness 才能回放真机 HTML 片段
 // gmRequest(opts)：GM 通道参数化出口（responseType 'json'|'text'|'arraybuffer'、自定义超时/头/
 //   二进制 data、okStatus 状态码门）——upload.js 二进制分片上传、uppage/imshare 拉文本等 GM-only
 //   场景统一走这里，勿再各自内联 GM_xmlhttpRequest 包装（0.9.35 收敛）
@@ -43,6 +45,29 @@ export function gmRequest(opts) {
       onerror: function () { reject(new Error('network')); },
       ontimeout: function () { reject(new Error('timeout')); }
     });
+  });
+}
+
+export function requestText(url) {
+  var mocked = mockHit(url);
+  if (mocked) return mocked.then(function (v) {
+    return typeof v === 'string' ? v : String((v && v.html) || '');
+  });
+  if (typeof GM_xmlhttpRequest === 'function') {
+    return gmRequest({ method: 'GET', url: url, timeout: CFG.time.gm, responseType: 'text', okStatus: true });
+  }
+  return new Promise(function (resolve, reject) {
+    var x = new XMLHttpRequest();
+    x.open('GET', url);
+    x.withCredentials = true;
+    x.timeout = CFG.time.xhr;
+    x.onload = function () {
+      if (x.status < 200 || x.status >= 300) return reject(new Error('http-' + x.status));
+      resolve(x.responseText || '');
+    };
+    x.onerror = function () { reject(new Error('network')); };
+    x.ontimeout = function () { reject(new Error('timeout')); };
+    x.send(null);
   });
 }
 

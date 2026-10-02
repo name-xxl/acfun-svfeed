@@ -20,12 +20,14 @@ var RAW_CSS = ''
   + '#acsv-root{position:fixed;inset:0;z-index:2147483000;background:#000;color:#fff;'
   + 'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;user-select:none}'
   + '.acsv-root *{box-sizing:border-box;margin:0;padding:0}'
-  + '.acsv-top{position:absolute;top:0;left:0;right:0;height:56px;display:flex;align-items:center;'
-  + 'padding:0 24px;background:linear-gradient(rgba(0,0,0,.6),transparent);z-index:30;pointer-events:none}'
+  // 顶栏（0.9.72 抽离共享组件）：高度走 --acsv-top-h（72px，:root 单源——toast 落位等
+  // 派生值一律 calc 引用，勿再写死）；左缘让开左栏 dock，窄屏媒体查询还原满宽。
+  // 左中右三区：搜索框居中常驻（抖音同款位置，0.9.72）+ 右侧按钮组（源切换/私信/更新/退出）
+  + '.acsv-top{position:absolute;top:0;left:' + CFG.view.dockW + 'px;right:0;height:var(--acsv-top-h);'
+  + 'display:flex;align-items:center;padding:0 24px;background:linear-gradient(rgba(0,0,0,.6),transparent);'
+  + 'z-index:30;pointer-events:none}'
   + '.acsv-top *{pointer-events:auto}'
-  + '.acsv-logo{display:flex;align-items:center;gap:8px;min-width:0}'
-  + '.acsv-logo-img{height:26px;width:auto;display:block}'
-  + '.acsv-logo em{color:#fff;font-style:normal;font-weight:400;font-size:13px;margin-left:8px;opacity:.9}'
+  + '.acsv-top .acsv-sbox{position:absolute;left:50%;transform:translateX(-50%);width:min(480px,44%)}'
   + '.acsv-top-right{margin-left:auto;display:flex;gap:10px;transition:transform .28s ease}'
   + '.acsv-tbtn{width:36px;height:36px;border:none;border-radius:50%;background:rgba(255,255,255,.14);'
   + 'color:#fff;cursor:pointer;display:grid;place-items:center;font-size:16px;transition:transform .15s,background .15s}'
@@ -221,7 +223,7 @@ var RAW_CSS = ''
   + '.acsv-errbox{position:absolute;inset:0;display:none;place-items:center;z-index:12;flex-direction:column;gap:12px;color:#bbb}'
   + '.acsv-slide[data-state="error"] .acsv-errbox{display:grid}'
   + '.acsv-retry{padding:8px 22px;border:none;border-radius:999px;background:#fd4c5d;color:#fff;cursor:pointer;font-size:13px}'
-  + '.acsv-toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:2147483600;background:rgba(0,0,0,.78);'
+  + '.acsv-toast{position:fixed;top:calc(var(--acsv-top-h) + 14px);left:50%;transform:translateX(-50%);z-index:2147483600;background:rgba(0,0,0,.78);'
   + 'color:#fff;padding:9px 18px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}'
   + '.acsv-toast.show{opacity:1}'
   + '.acsv-fab{position:fixed;right:18px;bottom:18px;z-index:2147482990;background:#fd4c5d;color:#fff;border:none;'
@@ -716,6 +718,37 @@ var RAW_CSS = ''
   + 'background-image:linear-gradient(100deg,rgba(255,255,255,0) 40%,rgba(255,255,255,.07) 50%,rgba(255,255,255,0) 60%);'
   + 'background-size:200% 100%;animation:acsv-skel 1.4s linear infinite}'
   + '@keyframes acsv-skel{0%{background-position:120% 0}100%{background-position:-20% 0}}'
+  // 搜索视图（0.9.72 抖音式）：胶囊搜索框 + 结果网格。卡片复用我页 .acsv-g* 体系，
+  // 搜索域只加 .acsv-sgrid/.acsv-scell 与三个新件（播放数角标/时长角标/脚行）；
+  // 封面 16:9 为搜索页原始比例（我页是 4:3 普通视频封面）——.acsv-sgrid 作用域内覆盖
+  + '.acsv-vsrow{display:flex;margin:4px 0 14px}'
+  + '.acsv-sbox{display:flex;align-items:center;width:min(560px,100%);height:40px;padding:0 6px 0 16px;'
+  + 'background:rgba(255,255,255,.1);border-radius:20px;transition:background .15s}'
+  + '.acsv-sbox:focus-within{background:rgba(255,255,255,.16)}'
+  + '.acsv-sbox input{flex:1;min-width:0;background:none;border:none;outline:none;color:#fff;'
+  + 'font-size:14px;font-family:inherit}'
+  + '.acsv-sbox input::placeholder{color:rgba(255,255,255,.45)}'
+  + '.acsv-sbox input::-webkit-search-cancel-button{filter:invert(1);opacity:.5;cursor:pointer}'
+  + '.acsv-sbtn{width:30px;height:30px;flex:none;border:none;border-radius:50%;background:none;color:#fff;'
+  + 'cursor:pointer;display:grid;place-items:center;transition:background .15s}'
+  + '.acsv-sbtn:hover{background:rgba(255,255,255,.18)}'
+  + '.acsv-sbtn .acsvg-glyph{font-size:16px}'
+  + '.acsv-sstate{color:#8a90a0;font-size:13px;padding:8px 2px}'
+  + '.acsv-sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(' + CFG.view.search.gridMin + 'px,1fr));'
+  + 'gap:18px ' + CFG.view.search.gridGap + 'px}'
+  + '.acsv-sgrid .acsv-gcover{aspect-ratio:16 / 9}'
+  + '.acsv-gviews{display:inline-flex;align-items:center;gap:4px}'
+  + '.acsv-gviews .acsvg-glyph{font-size:12px}'
+  + '.acsv-gdur{position:absolute;right:8px;bottom:8px;padding:2px 8px;border-radius:999px;'
+  + 'background:rgba(0,0,0,.55);color:#fff;font-size:12px;line-height:18px}'
+  + '.acsv-gfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px;'
+  + 'font-size:12px;color:#8a90a0}'
+  + '.acsv-gup{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+  + '.acsv-gtime{flex:none}'
+  + '.acsv-smfoot{display:inline-block;margin:18px 0 4px;color:#9fd0ff;font-size:13px;text-decoration:none}'
+  + '.acsv-smfoot:hover{text-decoration:underline}'
+  + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-sgrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));'
+  + 'gap:14px 10px}}'
   // 深色滚动条：视图滚动区（我的/榜单共用 .acsv-view-body，默认浅色条在深色页上是刺眼白条）
   + '.acsv-view-body{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}'
   + '.acsv-view-body::-webkit-scrollbar{width:8px;height:8px}'
@@ -725,13 +758,17 @@ var RAW_CSS = ''
   // 窄屏：dock 隐藏（CFG.view.narrow），主区/信息区/视图内容还原满宽
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-dock{display:none}.acsv-scroller{margin-left:0}'
   + '.acsv-info{left:24px}.acsv-view-body,.acsv-view-head{padding-left:20px}}'
+  // 窄屏顶栏（0.9.72）：dock 已隐藏 → 顶栏还原满宽；居中胶囊改流内自适应（不再绝对居中，
+  // 否则会压到右侧按钮组上）
+  + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-top{left:0;padding:0 16px}'
+  + '.acsv-top .acsv-sbox{position:static;transform:none;width:auto;flex:1;min-width:0;margin:0 12px}}'
   // 窄屏我的页：资料头纵向堆叠、网格列宽下限收窄（沿用同一 CFG.view.narrow 断点）
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-mecard{flex-direction:column;align-items:flex-start;'
   + 'gap:12px;padding:16px 2px 14px}.acsv-mecard-av{width:72px;height:72px}'
   + '.acsv-megrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px 10px}}';
 
 // 主题色收敛：RAW_CSS 中的 #fd4c5d 全部替换为 CSS 变量，:root 上定义唯一来源
-export var CSS = ':root{--acsv-accent:' + CFG.accent + '}'
+export var CSS = ':root{--acsv-accent:' + CFG.accent + ';--acsv-top-h:72px}'
   + RAW_CSS.replace(/#fd4c5d/g, 'var(--acsv-accent)');
 
 export var ICONS = {

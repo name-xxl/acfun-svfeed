@@ -45,7 +45,15 @@ const HARNESS_CASES = [
   { name: 'watch-report' },
   { name: 'upd-open' }, // 0.9.60 更新提示冒烟（mock atom 注入，debug 构建）
   { name: 'view-my' }, // 0.9.62 我的视图冒烟（hash 子路由 + __ACSV_MOCK_FORM__ 缝，debug 构建）
-  { name: 'view-zone' } // 0.9.62 分区榜单视图冒烟（渠道/榜期切换 + 契约过滤，debug 构建）
+  { name: 'view-zone' }, // 0.9.62 分区榜单视图冒烟（渠道/榜期切换 + 契约过滤，debug 构建）
+  { name: 'view-search' }, // 0.9.72 搜索视图冒烟（搜索页 SSR HTML mock → 抖音式结果卡，debug 构建）
+  // 0.9.72 深链冒烟：hash 须在 bundle 前写好（冷启动深链路径）+ __ACSV_MOCK_FORM__ 的
+  // douga/info 桩 + TEST.feed 断言，故全为 debug 构建
+  { name: 'deeplink-sv' },      // v 标记形态置顶 + 挂载态就地跳转（不重置缓冲）
+  { name: 'deeplink-bare' },    // 0.9.72 前的裸数字形态：靠探测出 meow
+  { name: 'deeplink-ac' },      // a 标记形态（推荐 acId）经 douga 详情置顶
+  { name: 'deeplink-switch' },  // 源记忆=推荐 时深链仍须落地（源随链接走）
+  { name: 'deeplink-miss' }     // 两空间都查不到：错误盒，不许静默重随机
 ];
 
 const CASES = HARNESS_CASES.map(function (c) {

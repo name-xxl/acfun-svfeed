@@ -102,6 +102,28 @@
       return { result: 0, total: n, favoriteList: rows };
     },
     'rank/channel': function (body, url) { return rankList(url); },
+    // 搜索页 SSR（0.9.72）：真机结构裁剪片段（未转义形态；真机 \" 转义形态由单测覆盖）。
+    // 命中计数供 harness 断言「空词不发请求」
+    'search?keyword=': function () {
+      window.__ACSV_SEARCH_CALLS__ = (window.__ACSV_SEARCH_CALLS__ || 0) + 1;
+      return [
+        '<div class="search-video">',
+        '<a href="/v/ac40742636"><img src="https://img.example/1.png?imageView2/1/w/160/h/90"/><span class="video__duration">02:04</span></a>',
+        '<div class="video__main__title"><a href="/v/ac40742636">热门小说推荐</a></div>',
+        '<div class="video__main__info"><span class="user-name">晨澜每日分享</span>',
+        '<span class="info__view-count">2037次播放</span><span class="info__create-time">2023-02-24</span></div></div>',
+        '<div class="search-video">',
+        '<a href="/v/ac41033414"><img src="https://img.example/2.png"/><span class="video__duration">02:52</span></a>',
+        '<div class="video__main__title"><a href="/v/ac41033414">#小说推荐#宝藏小说</a></div>',
+        '<div class="video__main__info"><span class="user-name">西瓜推文</span>',
+        '<span class="info__view-count">1459次播放</span><span class="info__create-time">2023-04-02</span></div></div>',
+        '<div class="search-video">',
+        '<a href="/v/ac41023197"><img src="https://img.example/3.png"/><span class="video__duration">03:05</span></a>',
+        '<div class="video__main__title"><a href="/v/ac41023197">一口气看完《苏沅念裴以桉》</a></div>',
+        '<div class="video__main__info"><span class="user-name">误为微物迁</span>',
+        '<span class="info__view-count">1029次播放</span><span class="info__create-time">2025-12-05</span></div></div>'
+      ].join('\n');
+    },
     // resolve 链两段（GET，经 request() 同样命中 mockHit）：面板条目点击回竖刷要跑通
     'douga/info': function (body, url) {
       var id = (url.match(/dougaId=(\d+)/) || [])[1] || '0';

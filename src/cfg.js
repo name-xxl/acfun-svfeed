@@ -58,6 +58,9 @@ export var CFG = {
     history: 'https://www.acfun.cn/rest/pc-direct/browse/history/list',
     rank: 'https://www.acfun.cn/rest/pc-direct/rank/channel',
     navTree: 'https://www.acfun.cn/rest/pc-direct/page/queryNavigators',
+    // 站内搜索（0.9.72）：**非 JSON**——整页 SSR HTML（结果区 div.search-video），
+    // 走 net.requestText + data.parseSearchItems；?pageNo= 实测无效（两页同一结果集），只做首屏
+    search: 'https://www.acfun.cn/search',
     // ---- 弹幕（www.acfun.cn 同域，网页 Cookie 鉴权） ----
     dmList: 'https://www.acfun.cn/rest/pc-direct/new-danmaku/list',
     dmAdd: 'https://www.acfun.cn/rest/pc-direct/new-danmaku/add',
@@ -164,6 +167,10 @@ export var CFG = {
       skel: 12            // 首屏骨架卡数（约一屏）
     },
     rankLimit: 100,       // 榜单条数（原生全站日榜 100 条同款，rankLimit=100 实测生效）
+    search: {             // 搜索视图（0.9.72 抖音式结果网格；封面 16:9 为搜索页原始比例）
+      gridMin: 300,       // 网格卡最小列宽（1920 下约 5-6 列，对齐抖音搜索页密度）
+      gridGap: 16
+    },
     periods: ['DAY', 'THREE_DAYS', 'WEEK'], // 榜期（原生：今日/三日/本周）
     periodNames: { DAY: '今日', THREE_DAYS: '三日', WEEK: '本周' },
     zones: [              // 频道全集（对齐原生榜单页 tab 序；cid 实测 docs/api-research.md §6.2）：

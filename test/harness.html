@@ -49,6 +49,34 @@
   } else {
     try { localStorage.removeItem('acsv-source'); } catch (e) { }
   }
+  // 深链场景（0.9.72）：源记忆故意留「推荐」，验证地址栏深链的 id 空间标记能压过持久化偏好
+  // （这是「粘贴分享链接却重新随机一屏」的原始复现条件：旧代码 source=home 直接丢弃深链）
+  if (CASE === 'deeplink-switch') { try { localStorage.setItem('acsv-source', 'home'); } catch (e) { } }
+  // 深链的 hash 必须在本 bundle 求值前写好——boot 的 toggle 在 document-end 读 location.hash。
+  // 其余场景一律是 bundle 加载后 300ms 才设 hash（见文件尾），那种时序走不到「冷启动深链」路径。
+  // 目标 id 都取样例里**非首条**（首条会被随机流首条蒙对，断言失去意义）
+  var DEEP_HASH = {
+    'deeplink-sv': '#svfeed/v/11053531',     // 小视频标记形态（feed-sample 第 7 条）
+    'deeplink-bare': '#svfeed/11053531',     // 0.9.72 前的历史裸形态：无标记，靠探测出 meow
+    'deeplink-ac': '#svfeed/a/48867212',     // 推荐标记形态（home-sample 首条 href）
+    'deeplink-switch': '#svfeed/v/11053531', // 源记忆=home 下也必须落到小视频
+    'deeplink-miss': '#svfeed/a/99999999999' // 两个 id 空间都查不到：必须错误盒，不许随机流
+  };
+  if (DEEP_HASH[CASE]) {
+    location.hash = DEEP_HASH[CASE];
+    // douga/info 桩：ac 深链的解析端点（生产 = api-new.app.acfun.cn/rest/app/douga/info）。
+    // key 收窄到 'douga/info' 单端点，防误伤其他请求；非白名单 id 回 result≠0 走未命中分支
+    window.__ACSV_MOCK_FORM__ = {
+      'douga/info': function (body, url) {
+        var id = (String(url).match(/dougaId=(\d+)/) || [])[1];
+        if (id !== '48867212') return { result: 1 };
+        return {
+          result: 0, videoList: [{ id: 'mock-douga-' + id }],
+          title: '深链推荐视频', coverUrl: 'https://i.example/deep.jpg'
+        };
+      }
+    };
+  }
   // 测试媒体统一换本地 webm（免 h264 依赖 + 免外网抖动；cc0，来自 MDN flower 样片）。
   // 必须绝对 URL：normalize() 的直链过滤器要求 ^https?:
   var TEST_WEBM = new URL('media/flower.webm', location.href).href;
@@ -364,14 +392,19 @@
         }
         var remountFails = 0;
         var remountMaxMs = 0;
-        async function remount() { // 模拟用户退出再进竖刷页（unmount→mount 全链）。窗口 5s→15s 并计数：
+        async function remountStep(fn) { // 每步允许重试一次：全量跑尾部负载抖动（实测偶发一步 >15s，
+                                         // 真机同路径 3.5s 内完成）与真卡死分开——两步都超窗才计数
+          if (await waitFor(fn, 15000)) return true;
+          return await waitFor(fn, 15000);
+        }
+        async function remount() { // 模拟用户退出再进竖刷页（unmount→mount 全链）。窗宽与计数：
                                   // 静默超时会让后续断言指向错误对象（全量跑踩实——unmount 超窗时
                                   // 相位②整体空转，弹窗直到下一次 remount 才出现，报错全落在错的地方）
           var t0 = performance.now();
           location.hash = 'upd-off';
-          if (!(await waitFor(function () { return !document.getElementById('acsv-root'); }, 15000))) remountFails++;
+          if (!(await remountStep(function () { return !document.getElementById('acsv-root'); }))) remountFails++;
           location.hash = 'svfeed';
-          if (!(await waitFor(function () { return document.getElementById('acsv-root'); }, 15000))) remountFails++;
+          if (!(await remountStep(function () { return document.getElementById('acsv-root'); }))) remountFails++;
           remountMaxMs = Math.max(remountMaxMs, Math.round(performance.now() - t0));
         }
         function updModal() { return document.querySelector('.acsv-upd'); }
@@ -537,12 +570,13 @@
         rec('tab-keep-state', document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22
           && window.__ACSV_HIST_CALLS__ === histCalls, 'calls=' + window.__ACSV_HIST_CALLS__);
         // 点首条历史 → 回竖刷 + 队尾插入 + resolve 完成（hasUrls）。
-        // hash 断言容忍 syncHash 150ms 后的 #svfeed/<id> 覆写（坑 5：回竖刷即恢复地址跟随）
+        // hash 断言容忍 syncHash 150ms 后的标记深链覆写（坑 5：回竖刷即恢复地址跟随；
+        // 0.9.72 起形态是 #svfeed/v|a/<id>，下方正则两种形态都接）
         var firstRow = q('.acsv-vlist.hist .acsv-gcell');
         var firstId = 488900;
         if (firstRow) firstRow.click();
         rec('back-to-feed', !!(await waitFor(function () {
-          return /^#svfeed(\/\d+)?$/.test(location.hash) && q('.acsv-view').style.display === 'none';
+          return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && q('.acsv-view').style.display === 'none';
         }, 8000)));
         rec('feed-item-appended', !!(await waitFor(function () {
           var f = feed();
@@ -560,7 +594,7 @@
         await wait(400); // 越过进视图前残留的 syncHash 150ms 定时器窗口（真实用户不可达的时序）
         key('Escape');
         rec('esc-back-to-feed', !!(await waitFor(function () {
-          return /^#svfeed(\/\d+)?$/.test(location.hash) && q('.acsv-view').style.display === 'none';
+          return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && q('.acsv-view').style.display === 'none';
         }, 8000)));
 
       } else if (CASE === 'view-zone') {
@@ -644,8 +678,134 @@
         rec('zone-play-ac', !!(await waitFor(function () {
           var f = feed();
           var last = f && f.items[f.items.length - 1];
-          return /^#svfeed(\/\d+)?$/.test(location.hash) && last && String(last.id) === '489500' && last.hasUrls;
+          return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && last && String(last.id) === '489500' && last.hasUrls;
         }, 10000)));
+
+      } else if (CASE.indexOf('deeplink-') === 0) {
+        // 深链冒烟（0.9.72）：地址栏 id 跨两个 id 空间（v=meowId 小视频 / a=acId 推荐），
+        // 且 mount 的 if(root) return 让深链只在冷启动生效。这里钉五件事：跨空间解析、
+        // 置顶落地、源随链接、挂载态就地跳转、失败可见（旧行为是静默重随机一屏）。
+        // hash 已在 bundle 前写好（见上方 DEEP_HASH），所以这里走的就是冷启动深链路径
+        function segOn() { var b = q('.acsv-seg-btn.on'); return b ? b.textContent : ''; }
+        if (CASE === 'deeplink-miss') {
+          // 两个 id 空间都查不到：必须错误盒 + 缓冲为空（旧行为=静默 fetchMore 随机流）
+          rec('miss-errbox', !!(await waitFor(function () { return q('.acsv-errbox'); }, 12000)));
+          rec('miss-no-random', (function () {
+            var f = feed();
+            return !!f && f.items.length === 0;
+          })(), 'items=' + (feed() ? feed().items.length : 'no-feed'));
+          rec('miss-retry', !!q('.acsv-retry'));
+          rec('miss-spinner-gone', !q('.acsv-spinner'));
+        } else {
+          var DEEP_WANT = CASE === 'deeplink-ac' ? '48867212' : '11053531';
+          rec('deep-first-item', !!(await waitFor(function () {
+            var f = feed();
+            return f && f.items[0] && String(f.items[0].id) === DEEP_WANT;
+          }, 15000)), 'want=' + DEEP_WANT);
+          rec('deep-plays', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+          // 源随链接走：a → 推荐 / v → 小视频（deeplink-switch 的源记忆故意留 home，必须被压过）
+          rec('deep-source', segOn() === (CASE === 'deeplink-ac' ? '推荐' : '小视频'), 'seg=' + segOn());
+          // 地址栏被回写成**标记形态**：以后复制出去的链接零探测零歧义
+          rec('deep-hash-marked', !!(await waitFor(function () {
+            return new RegExp('^#svfeed/' + (CASE === 'deeplink-ac' ? 'a' : 'v')
+              + '/' + DEEP_WANT + '$').test(location.hash);
+          }, 6000)), location.hash);
+          // 挂载态就地跳转（P2 钉）：地址换成另一条深链 → 跳到那条并真的渲染/起播
+          // （目标落在渲染窗口外，靠 scrollToIndex 先挪游标才拿得到 slide——曾经整跳静默失败）
+          if (CASE === 'deeplink-sv') {
+            var bufBefore = feed().items.length;
+            location.hash = 'svfeed/v/10606164'; // feed-sample 第 5 条：已在缓冲里（走原地跳分支）
+            rec('warm-jump', !!(await waitFor(function () {
+              var f = feed();
+              return f && f.items[f.current] && String(f.items[f.current].id) === '10606164';
+            }, 10000)));
+            rec('warm-jump-keeps-buffer', feed().items.length >= bufBefore,
+              'before=' + bufBefore + ' after=' + feed().items.length);
+            rec('warm-jump-playing', !!(await waitFor(function () {
+              var f = feed();
+              // 与 warm-jump 合起来才有效：单看 firstVideoReady(f.current) 在「没跳、还在原位」
+              // 时也会绿（游标 0 那条本来就在播），必须连 id 一起钉
+              return f && String(f.items[f.current].id) === '10606164' && firstVideoReady(f.current);
+            }, 25000)));
+            rec('warm-jump-url', /^#svfeed\/v\/10606164$/.test(location.hash), location.hash);
+          }
+        }
+
+      } else if (CASE === 'view-search') {
+        // 搜索视图冒烟（0.9.72 抖音式）：顶栏搜索框（72px 居中常驻）提交 → 关键词进地址
+        // （#svfeed/search/<kw>）→ 搜索页 SSR HTML（mock 回放真机片段）→ 结果网格卡；
+        // 视图内换词走地址重建；空词只出引导态不发请求；点卡片回竖刷
+        window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+        window.__ACSV_SEARCH_CALLS__ = 0;
+        location.hash = 'svfeed';
+        rec('topbar-72', !!(await waitFor(function () { return !!q('.acsv-top'); }, 8000))
+          && q('.acsv-top').offsetHeight === 72, q('.acsv-top') ? 'h=' + q('.acsv-top').offsetHeight : 'no-bar');
+        rec('topbar-search-centered', (function () { // 居中常驻：左右余量对称 ±8px
+          var b = q('.acsv-top'), p = q('.acsv-top .acsv-sbox');
+          if (!b || !p) return false;
+          var br = b.getBoundingClientRect(), pr = p.getBoundingClientRect();
+          return Math.abs((pr.left - br.left) - (br.right - pr.right)) <= 8;
+        })());
+        rec('toast-below-topbar', (function () { // toast 落位引用 --acsv-top-h，不许压顶栏
+          var b = q('.acsv-top'), t = q('.acsv-toast');
+          if (!b || !t) return false;
+          return parseFloat(getComputedStyle(t).top) >= b.getBoundingClientRect().height;
+        })());
+        (function () { // 顶栏提交
+          var i = q('.acsv-top .acsv-sbox input');
+          i.value = '测试词';
+          i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        })();
+        rec('search-url', !!(await waitFor(function () {
+          return location.hash === '#svfeed/search/' + encodeURIComponent('测试词');
+        }, 8000)), location.hash);
+        rec('search-cards', !!(await waitFor(function () {
+          return document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3;
+        }, 8000)));
+        rec('search-card-fields', (function () {
+          var c = q('.acsv-sgrid .acsv-scell');
+          if (!c) return false;
+          return (c.querySelector('.acsv-gtitle') || {}).textContent === '热门小说推荐'
+            && /2037/.test((c.querySelector('.acsv-gviews') || {}).textContent || '')
+            && (c.querySelector('.acsv-gdur') || {}).textContent === '02:04'
+            && /^@晨澜每日分享/.test((c.querySelector('.acsv-gfoot') || {}).textContent || '');
+        })());
+        rec('search-more-link', (function () {
+          var a = q('.acsv-smfoot');
+          return !!a && /search\?keyword=/.test(a.getAttribute('href') || '');
+        })());
+        await wait(1200); // 等首屏落定（真机/手工流都在结果出齐后再换词）
+        (function () { // 视图内换词：Enter 写地址 → hashchange → 按 arg 重建
+          var i = q('.acsv-view .acsv-sbox input');
+          i.dataset.old = '1'; // 重建指纹：重建后是新节点，不该带这个标记
+          i.value = '第二词';
+          i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        })();
+        rec('search-resubmit', !!(await waitFor(function () {
+          return location.hash === '#svfeed/search/' + encodeURIComponent('第二词')
+            && document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3;
+        }, 8000)));
+        rec('search-rebuilt', !!(await waitFor(function () { // 换词必须真重建（DOM 换新节点）：
+          var i = q('.acsv-view .acsv-sbox input');          // hashchange→重建要一拍，等价断言必须 waitFor
+          return !!i && !i.dataset.old;
+        }, 8000)));
+        rec('search-calls', window.__ACSV_SEARCH_CALLS__ === 2, 'calls=' + window.__ACSV_SEARCH_CALLS__
+          + ' hash=' + location.hash + ' cells=' + document.querySelectorAll('.acsv-sgrid .acsv-scell').length
+          + ' viewOpen=' + (!!q('.acsv-view') && q('.acsv-view').style.display !== 'none'));
+        var sCell = q('.acsv-sgrid .acsv-scell'); // 点卡片回竖刷（视图关闭 + 地址回竖刷路由）
+        if (sCell) sCell.click();
+        rec('search-back-feed', !!(await waitFor(function () {
+          return /^#svfeed(\/|$)/.test(location.hash) && q('.acsv-view').style.display === 'none';
+        }, 8000)));
+        (function () { // 顶栏空词提交：只开视图出引导态，不发请求
+          var i = q('.acsv-top .acsv-sbox input');
+          i.value = '';
+          i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        })();
+        rec('search-empty-nofetch', !!(await waitFor(function () {
+          return location.hash === '#svfeed/search'
+            && /输入关键词/.test((q('.acsv-sstate') || {}).textContent || '');
+        }, 8000)) && window.__ACSV_SEARCH_CALLS__ === 2, 'calls=' + window.__ACSV_SEARCH_CALLS__);
 
       } else if (CASE === 'stall-healthy') {
         rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));

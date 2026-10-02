@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { normalize, normalizeHome } from './data.js';
+import { normalize, normalizeHome, deepLinkOf } from './data.js';
 import { AppAPI } from './appapi.js';
 
 // ---------- API：站点接口（mock 桩统一在 API 层收口） ----------
@@ -71,6 +71,19 @@ export var API = {
     return request(CFG.api.info + mid).then(function (json) {
       return (json && json.meowFeed) ? normalize(json.meowFeed) : null;
     });
+  },
+  // 深链解析（0.9.72）：地址栏 id 跨两个 id 空间——meowId（小视频）与 acId（推荐），
+  // 详情各自落在 normalize / normalizeHome 的 id 上，故解析要按空间选端点。标记形态（src
+  // 由 route.parseHash 给出）只打对应的一个；历史裸数字链接并行打两个、由 deepLinkOf 定
+  // 优先级（meow 先：脚本主源，且 README 的分享格式基准）。任一失败只当未命中并返回 null
+  // ——**不**回落随机流，由调用方出错误盒（旧行为：链接失效时用户只看到一屏随机内容）
+  deepLink: function (mid, src) {
+    var self = this;
+    var meowP = src === 'home' ? Promise.resolve(null)
+      : self.info(mid).then(function (n) { return n || null; }, function () { return null; });
+    var acP = src === 'sv' ? Promise.resolve(null)
+      : AppAPI.dougaInfo(mid).then(function (d) { return d || null; }, function () { return null; });
+    return Promise.all([meowP, acP]).then(function (r) { return deepLinkOf(r[0], r[1], mid); });
   },
   // 直链过期/缺失时的补链：sv 重取详情，home 重跑解析
   refreshItem: function (item) {

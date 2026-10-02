@@ -2,9 +2,9 @@ import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
 import { el, fmtTime, ensureStyle } from './ui.js';
 import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot } from './state.js';
-import { parseRoute, isFeedRoute, syncHash } from './route.js';
+import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync } from './route.js';
 import { FeedStore } from './feedstore.js';
-import { getSource, setSource, resetHomePager } from './api.js';
+import { getSource, setSource, resetHomePager, API } from './api.js';
 import { isOpenComments, closeComments, openComments, commentState, syncCommentVars } from './comments.js';
 import { onPlaying as dmOnPlaying, stopAll as dmStopAll } from './danmaku.js';
 import { UpVideos } from './uppage.js';
@@ -19,8 +19,9 @@ import { buildSlide, buildDrawer } from './slide.js';
 import { openDrawer, mountBadge, teardownIm } from './imdrawer.js';
 import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
 import { overlayTeardown } from './overlay.js';
-import { syncRouteView, teardownViews } from './views.js';
+import { syncRouteView, teardownViews, currentView } from './views.js';
 import { buildDock, teardownDock } from './sidebar.js';
+import { buildTopbar, teardownTopbar, syncTopbarSeg } from './topbar.js';
 import { setupInputHandlers, teardownInputHandlers } from './input.js';
 
 // ---------- UI ----------
@@ -36,8 +37,6 @@ function makeIO() {
     });
   }, { root: scroller, threshold: [CFG.io.ratio] });
 }
-var segSv = null, segHome = null;
-
 // player.js 只留编排层：渲染窗口/激活/滚动/初始加载/生命周期/顶栏 + 会话回接钩子。
 // 已迁出：播放态与声音 → playback.js；观看上报 → report.js；预热 → prewarm.js；
 // 控制栏 → controls.js；挂源/清晰度切换+契约总表 → attach.js；右侧栏 → rail.js；
@@ -227,6 +226,14 @@ function setActive(idx) {
 export function scrollToIndex(idx) {
   if (!scroller) return;
   FeedStore.ensureMore().then(function () {
+    if (!scroller) return;
+    // 目标可能落在渲染窗口外（深链就地跳转 / 视图条目回竖刷插入队尾）：renderWindow 只渲染
+    // [cur-1, cur+1]，不先把游标挪过去就永远拿不到那条 slide，整跳会静默失败。挪游标前
+    // 照 setActive 的规矩对旧条目报最终进度（划走即离开），挪后 setActive 不会重复报
+    if (!slideAt(idx) && idx < FeedStore.items.length) {
+      if (FeedStore.current !== idx) reportLeaveCurrent('swipe');
+      FeedStore.current = idx;
+    }
     renderWindow();
     var slide = slideAt(idx);
     if (slide) {
@@ -243,8 +250,8 @@ function clearSpinner() {
   if (sp) sp.remove();
 }
 
-// 首屏/切源加载失败的统一错误盒：重试重新走 loadInitial，可反复重试直到成功
-function showLoadError(msg, routeMid) {
+// 首屏/切源/深链加载失败的统一错误盒：重试重跑传入的加载链，可反复重试直到成功
+function showLoadError(msg, retry) {
   if (!scroller) return;
   clearSpinner(); // 错误盒与转圈不并存
   var box = el('div', 'acsv-errbox');
@@ -256,18 +263,18 @@ function showLoadError(msg, routeMid) {
     FeedStore.reset(); // 统一走 reset，不绕过封装直接改 seen/items
     if (!scroller) return;
     scroller.appendChild(el('div', 'acsv-spinner'));
-    loadInitial(routeMid);
+    retry();
   });
   box.appendChild(b);
   scroller.appendChild(box);
 }
 
 // 首屏/切源共用的初始加载链：spinner 撤除、错误盒、渲染与吸附都在这一处收口
-function loadInitial(routeMid) {
-  (routeMid ? FeedStore.loadFirst(routeMid) : FeedStore.ensureMore()).then(function () {
+function loadInitial() {
+  FeedStore.ensureMore().then(function () {
     if (!scroller) return; // 加载期间已退出竖刷页
     if (!FeedStore.items.length) {
-      showLoadError('内容加载失败，请检查网络后重试', routeMid);
+      showLoadError('内容加载失败，请检查网络后重试', loadInitial);
       return;
     }
     clearSpinner();
@@ -275,6 +282,49 @@ function loadInitial(routeMid) {
     var slide = slideAt(FeedStore.current);
     if (slide) scroller.scrollTop = slide.offsetTop;
     setActive(FeedStore.current);
+  });
+}
+
+// 流整批重置：拆旧会话/slide、重建观察器、清 scroller 与滚动位（切源与深链重置共用，勿各自内联）
+function resetStream() {
+  if (!scroller) return;
+  Array.prototype.forEach.call(scroller.querySelectorAll('.acsv-slide'), function (sl) {
+    if (sl._session) { sl._session.dispose(); sl._session = null; }
+  });
+  scroller.innerHTML = '';
+  scroller.scrollTop = 0;
+  // 旧 slide 全部移除：观察列表同步重建，detached slide 不滞留 io（0.9.37）
+  if (io) io.disconnect();
+  io = makeIO();
+}
+
+// 深链置顶：解析 id 空间（meow/ac；标记形态直取、历史裸数字探测）后整批重置并落到该条。
+// 源随链接走（命中即 setSource，与顶栏手动切源同语义、同持久化）——否则推荐源下分享链接
+// 永远打不开（旧行为：source=home 直接丢弃深链，重新随机一屏）。未命中出错误盒，
+// **绝不**静默回落随机流（旧行为：链接失效时用户只看到一屏随机内容，无从判断）
+function loadDeepLink(mid, src) {
+  setAppliedMid(mid); // 同步登记意图：toggle 紧随其后的 syncRouteFeed 不得重复处理
+  cancelHashSync();   // 残留回写会拿旧 index 把地址踩成上一条的深链
+  FeedStore.reset();  // gen++：作废旧流在途响应（旧源不得回填新库）
+  resetStream();
+  if (scroller) scroller.appendChild(el('div', 'acsv-spinner'));
+  API.deepLink(mid, src).then(function (hit) {
+    if (!scroller) return; // 加载期间已退出竖刷页
+    if (!hit) {
+      showLoadError('链接的视频加载失败，请重试', function () { loadDeepLink(mid, src); });
+      return;
+    }
+    setSource(hit.source);
+    updateSegUI();
+    // 不动 UpVideos.feedActive：空间页入口（uppage）靠它继续按主页列表顺序泵流，
+    // 深链只负责把点击的那条置顶（旧路径 loadFirst 同款语义）
+    FeedStore.reset();           // 源可能已变：清一次再置顶（gen++ 丢切换窗口内的在途响应）
+    FeedStore.items.push(hit.item);
+    FeedStore.seen[hit.item.id] = 1;
+    FeedStore.current = 0;
+    clearSpinner();
+    renderWindow();
+    setActive(0); // 地址栏由 syncHash 落到 #svfeed/<标记>/<id>，随后继续向下泵流
   });
 }
 
@@ -289,44 +339,17 @@ function mount() {
   root.id = 'acsv-root';
   root.className = 'acsv-root';
 
-  var top = el('div', 'acsv-top');
-  // AcFun logo 迁左侧栏常驻（0.9.64），「小视频/推荐」源提示随之删除（seg 按钮自带选中态）
-  var tr = el('div', 'acsv-top-right');
-  // 内容源切换：小视频(meow) / 推荐(APP 首页推荐)
-  segSv = el('button', 'acsv-seg-btn' + (getSource() !== 'home' ? ' on' : ''), '小视频');
-  segHome = el('button', 'acsv-seg-btn' + (getSource() === 'home' ? ' on' : ''), '推荐');
-  segSv.title = '切换到小视频流';
-  segHome.title = '切换到 APP 首页推荐流';
-  segSv.addEventListener('click', function (ev) { ev.stopPropagation(); switchSource('sv'); });
-  segHome.addEventListener('click', function (ev) { ev.stopPropagation(); switchSource('home'); });
-  var seg = el('div', 'acsv-seg');
-  seg.appendChild(segSv);
-  seg.appendChild(segHome);
-  tr.appendChild(seg);
-  // 私信入口：内联 SVG 信封字形 + 未读徽标
-  var imBtn = el('button', 'acsv-tbtn acsv-im-btn');
-  imBtn.title = '私信';
-  imBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg><span class="acsv-im-badge" style="display:none"></span>';
-  imBtn.addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    openDrawer();
+  // 顶栏（0.9.72 抽离为共享组件 topbar.js，对齐左栏 dock 模式）：搜索框居中常驻 +
+  // 右侧按钮组（源切换/私信/更新/退出）。行为经 hooks 注入，组件不反向 import 本模块
+  var tb = buildTopbar(root, {
+    onSearch: navSearch,
+    // ✕ 语义跟随 Esc：视图在栈 → 返回竖刷；竖刷态 → 退出（视图态顶栏是否可见待复用拍板）
+    onExit: function () { if (currentView()) location.hash = CFG.hash; else exitFeed(); },
+    onSource: switchSource,
+    onDrawer: openDrawer,
+    onRelease: openReleaseNotes,
+    getSource: getSource
   });
-  tr.appendChild(imBtn);
-  // 更新入口：release 说明弹窗 + 新版本红点（0.9.60，imBtn 同款内联 SVG + 角标）
-  var updBtn = el('button', 'acsv-tbtn acsv-upd-btn');
-  updBtn.title = '更新说明';
-  updBtn.innerHTML = ICONS.upd + '<span class="acsv-upd-dot" style="display:none"></span>';
-  updBtn.addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    openReleaseNotes();
-  });
-  tr.appendChild(updBtn);
-  var exitBtn = el('button', 'acsv-tbtn', '✕');
-  exitBtn.title = '退出（Esc）';
-  exitBtn.addEventListener('click', exitFeed);
-  tr.appendChild(exitBtn);
-  top.appendChild(tr);
-  root.appendChild(top);
 
   setScroller(el('div', 'acsv-scroller'));
   root.appendChild(scroller);
@@ -340,7 +363,7 @@ function mount() {
   document.body.style.overflow = 'hidden';
   document.body.appendChild(root);
   buildDock(root); // 左栏子视图入口：竖刷路由内常驻（unmount 随 teardownDock 拆）
-  mountBadge(imBtn, imBtn.querySelector('.acsv-im-badge'));
+  mountBadge(tb.imBtn, tb.imBtn.querySelector('.acsv-im-badge'));
   dbg('root-appended');
   releaseCheck(); // 每次打开竖刷页检查一次更新（内部带最小间隔节流，失败静默）
 
@@ -349,19 +372,23 @@ function mount() {
   setupInputHandlers({ scrollToIndex: scrollToIndex, exitFeed: exitFeed });
 
   var route = parseRoute();
-  var routeMid = route.mid;
-  resetHomePager(); // 推荐源重新拉首屏，不吃上次会话的游标
-  if (!routeMid || getSource() === 'home') {
-    // 普通入口（home 模式不支持 meow 深链置顶）：清空缓冲重新拉取
-    routeMid = null;
+  if (route.mid) {
+    // 深链：按 id 空间解析后置顶该条（源随链接走，不再被持久化偏好拦掉）
+    loadDeepLink(route.mid, route.src);
+  } else {
+    // 普通入口：按持久化内容源清空缓冲重新随机拉取（resetHomePager 让推荐源不吃上次会话的游标）
+    resetHomePager();
     UpVideos.feedActive = false;
+    setAppliedMid(null);
     FeedStore.reset();
+    loadInitial();
   }
-  loadInitial(routeMid);
 }
 
 function unmount() {
   if (!root) return;
+  cancelHashSync();   // 在途地址回写随退出作废（否则会把已退出的深链地址补写回来）
+  setAppliedMid(null); // 深链意图随挂载态失效：重进时要按地址重新解析
   if (io) { io.disconnect(); io = null; }
   teardownInputHandlers();
   cancelSeekHold();
@@ -369,6 +396,7 @@ function unmount() {
   teardownIm(); // 停私信徽标轮询/重置抽屉模块态（不清会让重进后的私信抽屉打不开）
   teardownRelease(); // 拆更新弹窗单例与 capture 监听（root 拆后监听残留会吞站点页全局键盘）
   resetDrawerSlot(); // 清槽位：评论侧没有 teardown，防残留闭包让重进后的第一次 Esc 被吃掉
+  teardownTopbar(); // 顶栏组件拆（含搜索框与右侧按钮组；徽标/红点在 teardownIm/teardownRelease 清）
   teardownDock(); // 左栏入口与视图容器随后由 teardownViews/overlayTeardown 收尾
   teardownViews();
   // 浮层栈自顶向下收尾：含 imgview（此前它无 teardown——开图后直接离开竖刷，残留监听
@@ -388,8 +416,14 @@ function unmount() {
 }
 
 function updateSegUI() {
-  if (segSv) segSv.classList.toggle('on', getSource() !== 'home');
-  if (segHome) segHome.classList.toggle('on', getSource() === 'home');
+  syncTopbarSeg(); // seg 高亮由 topbar 组件统一维护（0.9.72 抽离）
+}
+
+// 搜索提交（顶栏搜索框 Enter/按钮）：进搜索视图，关键词走地址栏
+// （#svfeed/search/<kw>）——可分享/刷新回放；空词只开视图（视图内出引导态）
+function navSearch(kw) {
+  var base = CFG.hash + '/search';
+  location.hash = kw ? base + '/' + encodeURIComponent(kw) : base;
 }
 
 // 顶栏开关：小视频 ↔ 推荐，立即重置数据流并回到第一条
@@ -399,17 +433,9 @@ function switchSource(s) {
   updateSegUI();
   closeComments();
   dmStopAll();
-
-  Array.prototype.forEach.call(scroller.querySelectorAll('.acsv-slide'), function (sl) {
-    if (sl._session) { sl._session.dispose(); sl._session = null; }
-  });
-  scroller.innerHTML = '';
-  scroller.scrollTop = 0;
-  // 旧 slide 全部移除：观察列表同步重建，detached slide 不滞留 io（0.9.37）
-  if (io) io.disconnect();
-  io = makeIO();
+  resetStream();
   FeedStore.reset();
-  loadInitial(null);
+  loadInitial();
 }
 
 function exitFeed() {
@@ -419,10 +445,30 @@ function exitFeed() {
   }
 }
 
+// 挂载态深链同步：mount 的 if(root) return 让深链只在冷启动生效——已在竖刷页时把地址换成
+// 另一条深链（粘贴链接、点别人的分享链接）会变成彻底无操作，随后 syncHash 还把地址栏回写成
+// 正在播的那条。这里是与 views.syncRouteView 对位的补位（子视图早已做「当前 vs 路由」比对）。
+// 只处理根路由：子视图段与无目标段一律不动流（Esc 回 #svfeed 不得触发任何重置）
+function syncRouteFeed() {
+  if (!root) return;
+  var r = parseRoute();
+  if (r.view || !r.mid) return;
+  if (String(r.mid) === String(getAppliedMid())) return; // 同一条（含 mount 刚登记的意图）
+  for (var i = 0; i < FeedStore.items.length; i++) {
+    if (String(FeedStore.items[i].id) === String(r.mid)) {
+      setAppliedMid(r.mid); // 已在缓冲：原地跳，不重置缓冲也不重拉
+      scrollToIndex(i);
+      return;
+    }
+  }
+  loadDeepLink(r.mid, r.src); // 不在缓冲：与冷启动同一条路径（含按标记/探测选源）
+}
+
 export function toggle() {
   dbg('toggle:' + (isFeedRoute() ? 'feed' : 'off'));
   if (isFeedRoute()) {
     mount();
+    syncRouteFeed(); // 挂载态下 hash 跳到另一条深链：就地跳转，不重置流
     syncRouteView(); // hashchange 已在竖刷路由内跳变（#svfeed ↔ #svfeed/<view>）：视图层进出
   } else {
     teardownViews(); // 先收视图（含 close 回调），再走 unmount 全链

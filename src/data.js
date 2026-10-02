@@ -187,6 +187,24 @@ export function homeItemOf(acId, title, cover) {
   return normalizeHome({ href: String(acId), title: title || '', img: cover ? [cover] : [] });
 }
 
+// ---------- 深链判据（0.9.72，纯函数，离线单测） ----------
+// 地址栏深链的 id 跨两个 id 空间（见 route.js parseHash 注释）：meow 详情 / douga 详情二选一
+// → { item, source }；两者皆未命中 = 该 id 不是可播放视频 → null（调用方出错误盒，
+// **不**回落随机流）。命中要求：meow 必须带直链（sv 直链随详情下发，无直链即不可播）；
+// douga 必须 result=0 且 videoList 非空（否则后续 playInfo 必空——appapi.resolve 同款判据）。
+// home 条目直链留空交懒解析链补（home 卡片本就 urls:[]，cap.lazyResolve 已在契约里）；
+// id 取请求用的 acId 本身（douga/info 回包不带 dougaId，且 resolve 要用它回查）
+export function deepLinkOf(meow, douga, mid) {
+  if (meow && meow.id && meow.urls && meow.urls.length) return { item: meow, source: 'sv' };
+  if (douga && douga.result === 0 && (douga.videoList || []).length) {
+    return {
+      item: homeItemOf(mid, String(douga.title || ''), String(douga.coverUrl || '')),
+      source: 'home'
+    };
+  }
+  return null;
+}
+
 // 榜单 extra 的相对时间（0.9.69 对齐原生「发布于xx」四档，日历判定）：
 // 今天 <1h「N分钟前」/ 今天「N小时前」/ 昨天「昨天H时MM分」/ 前天「前天H时MM分」/
 // 更早「M月D日 H时MM分」（MM 补零、H 不补零——原生实测 0时10分 / 8时00分）。
@@ -219,4 +237,51 @@ export function fmtWan(n) {
   var v = Number(n) || 0;
   if (v < 10000) return String(v);
   return (Math.round(v / 1000) / 10) + '万';
+}
+
+// ---------- 站内搜索（0.9.72）：搜索页 SSR HTML → 视频条目 ----------
+// 端点**非 JSON**：整页 HTML 里结果是"转义过"的内嵌片段（原始响应引号为 \" 形态，先还原）。
+// 整页 113 个 /v/ac 混有 UP 最新投稿/文章/推荐位——只吃 <div class="search-video"> 区段
+// （区段收窄是硬要求，uppage.js 的 header-history 同款教训）。条目字段实测（2026-10-02 真机）：
+//   <a href="/v/ac<id>">封面 <img> + <span class="video__duration">02:04</span>
+//   <div class="video__main__title">…<a>标题</a></div> <span class="user-name">UP</span>
+//   <span class="info__view-count">2037次播放</span> <span class="info__create-time">2023-02-24</span>
+// 输出 { acId,title,cover,dur,views,upName,dateText }；坏段跳过、acId 去重、整体失败退空数组
+// （调用方出空态，不崩不伪造）
+var SEARCH_ENT = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
+function searchDeent(s) {
+  return String(s || '').replace(/&(amp|lt|gt|quot|#39);/g, function (m) { return SEARCH_ENT[m]; });
+}
+export function parseSearchItems(html) {
+  var out = [];
+  var seen = {};
+  var t = String(html || '').replace(/\\"/g, '"');
+  if (!t) return out;
+  var parts = t.split('<div class="search-video"');
+  for (var i = 1; i < parts.length; i++) {
+    var seg = parts[i].slice(0, 4000); // 单条卡结构固定，截窗防跨条误配
+    var idM = seg.match(/href="\/v\/ac(\d+)"/);
+    var acId = idM ? Number(idM[1]) || 0 : 0;
+    if (!acId || seen[acId]) continue;
+    var titleM = seg.match(/class="video__main__title"[\s\S]{0,600}?<a[^>]*>([^<]*)<\/a>/);
+    var title = titleM ? searchDeent(titleM[1]).trim() : '';
+    if (!title) continue; // 无标题不成条（宁可少不错）
+    seen[acId] = 1;
+    var coverM = seg.match(/<img src="([^"]+)"/);
+    var durM = seg.match(/class="video__duration">([^<]*)</);
+    var viewsM = seg.match(/class="info__view-count">([^<]*)</);
+    var upM = seg.match(/class="user-name">([^<]*)</);
+    var timeM = seg.match(/class="info__create-time">([^<]*)</);
+    out.push({
+      acId: acId,
+      title: title,
+      cover: coverM ? searchDeent(coverM[1]) : '',
+      dur: durM ? durM[1].trim() : '',
+      // 播放数只取数字部分（原生文本「2037次播放」/「14.0万阅读」——后缀随分区变，统一剥掉）
+      views: viewsM ? viewsM[1].replace(/(次播放|次观看|播放|阅读)$/, '').trim() : '',
+      upName: upM ? searchDeent(upM[1]).trim() : '',
+      dateText: timeM ? timeM[1].trim() : ''
+    });
+  }
+  return out;
 }

@@ -9,6 +9,7 @@ import { scrollToIndex } from './player.js';
 import { homeItemOf } from './data.js';
 import { GLYPHS } from './imicons.js';
 import { syncDock } from './sidebar.js';
+import { syncTopbar } from './topbar.js';
 
 // ---------- 子视图框架（0.9.62：#svfeed/<view>/<arg>，左栏入口的多页面宿主） ----------
 // 设计契约（接口依据 docs/api-research.md）：
@@ -132,6 +133,7 @@ export function syncRouteView() {
     exitView(true);
   }
   syncDock(r.view);
+  syncTopbar(r.view); // 顶栏按界面同步（0.9.72：视图态隐源切换 + ✕ 语义=返回竖刷）
 }
 
 // 整流卸载（player.unmount 调）：不恢复播放（视频随后统一拆除），清容器与栈成员
@@ -216,13 +218,14 @@ export function rowOf(pi, rank) {
   return row;
 }
 
-// 网格卡（0.9.69 我的页抖音式）：3:4 封面 + 封面角标 + 两行标题 + meta。
+// 网格卡（0.9.69 我的页抖音式）：封面 + 封面角标 + 两行标题 + meta。
 // 与 rowOf 并列而非替换——rowOf 被 zone 消费且 0.9.67/68 断言钉着它的类名与
 // watermark offsetParent 契约，共享导出的形状改动必须 grep 全消费点（既有教训）。
-// 角标只用契约在册字段（历史 sub=「观看至xx:xx」）；时长/播放量接口未实测提供，
-// **不做**（不伪造）——将来契约层补字段时在此加，渲染层仍零分支
+// 角标只用契约在册字段（历史 sub=「观看至xx:xx」）；0.9.72 搜索卡（kind='search'）增补
+// 抖音式角标与脚行：封面左下播放数（views，字形+数字）+ 右下时长（dur）、底部 @UP·日期——
+// 历史/收藏不传这些字段 → 渲染零变化（消费点已 grep：mypage.js 与 searchview.js 两处）
 export function gridCardOf(pi) {
-  var cell = el('div', 'acsv-gcell');
+  var cell = el('div', 'acsv-gcell' + (pi.kind === 'search' ? ' acsv-scell' : ''));
   var cover = el('div', 'acsv-gcover');
   if (pi.cover) {
     var img = el('img');
@@ -236,6 +239,13 @@ export function gridCardOf(pi) {
   var tag = pi.kind === 'history' ? pi.sub
     : (pi.progress != null ? '看到 ' + fmtDur(pi.progress) : '');
   if (tag) cover.appendChild(el('div', 'acsv-gtag', tag));
+  if (pi.views) {
+    var vb = el('div', 'acsv-gtag acsv-gviews');
+    vb.appendChild(el('i', 'acsvg-glyph', GLYPHS.rankView));
+    vb.appendChild(document.createTextNode(pi.views));
+    cover.appendChild(vb);
+  }
+  if (pi.dur) cover.appendChild(el('div', 'acsv-gdur', pi.dur));
   cell.appendChild(cover);
   cell.appendChild(el('div', 'acsv-gtitle', pi.title));
   // meta 行：历史进度已在角标，只收藏补 UP 名；无内容不挂空节点（网格下空行会撑高卡距）
@@ -243,6 +253,13 @@ export function gridCardOf(pi) {
   if (pi.kind !== 'history' && pi.sub) bits.push(pi.sub);
   if (pi.kind !== 'history' && pi.progress != null) bits.push('看到 ' + fmtDur(pi.progress));
   if (bits.length) cell.appendChild(el('div', 'acsv-gmeta', bits.join(' · ')));
+  // 搜索卡脚行：@UP名 + 发布时间（抖音式；两字段皆空不挂节点）
+  if (pi.upName || pi.dateText) {
+    var foot = el('div', 'acsv-gfoot');
+    foot.appendChild(el('span', 'acsv-gup', pi.upName ? '@' + pi.upName : ''));
+    foot.appendChild(el('span', 'acsv-gtime', pi.dateText || ''));
+    cell.appendChild(foot);
+  }
   cell.addEventListener('click', function () { playAc(pi); });
   return cell;
 }

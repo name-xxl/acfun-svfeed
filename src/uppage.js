@@ -109,7 +109,8 @@ function appendUpCells(items, offset) {
       UpVideos.feedActive = true;
       UpVideos.feedCursor = offset + k + 1;
       FeedStore.resetForList();
-      location.hash = CFG.hash + '/' + it.id;
+      // 写标记形态（0.9.72）：空间页条目全是 meow 小视频，带 v 标记免去解析层的 id 空间探测
+      location.hash = CFG.hash + '/v/' + it.id;
     });
     grid.appendChild(cell);
   });
