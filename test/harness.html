@@ -445,8 +445,7 @@
         // display:none，查内联值的断言被骗全绿）
         rec('view-open', !!(await waitFor(function () {
           var v = q('.acsv-view');
-          return v && v.offsetParent !== null && q('.acsv-view-title')
-            && q('.acsv-view-title').textContent === '我的';
+          return v && v.offsetParent !== null; // 0.9.71 起视图头无标题字（dock 选中态为身份锚），下面 dock-highlight 断言之
         }, 10000)));
         rec('dock-highlight', !!(await waitFor(function () {
           var b = q('.acsv-dock-item[data-view="my"]');
@@ -559,8 +558,9 @@
         window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
         location.hash = 'svfeed/zone';
         rec('zone-open', !!(await waitFor(function () {
-          var v = q('.acsv-view');
-          return v && v.offsetParent !== null && q('.acsv-view-title').textContent === '分区榜单';
+          // 视图身份锚=左栏 dock 选中态（0.9.71 起视图头无标题字——文字与 dock 重复，用户点名删除）
+          var v = q('.acsv-view'), d = q('.acsv-dock-item[data-view="zone"]');
+          return v && v.offsetParent !== null && d && d.classList.contains('on');
         }, 10000)));
         // 视频榜行数断言限定 .acsv-rlist——0.9.66 UP 榜 section 的行同为 .acsv-vrow
         rec('zone-rows-filtered', !!(await waitFor(function () {

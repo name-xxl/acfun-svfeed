@@ -55,9 +55,10 @@ function resumeCurrentVideo() {
   }
 }
 
-function buildHead(def) {
+// 视图头（0.9.71 只留关闭键）：标题字删除——左栏 dock 已有选中态（label+高亮），
+// 顶部再写一遍是重复信息；✕ 保留（鼠标操作出口，Esc 同效）
+function buildHead() {
   var head = el('div', 'acsv-view-head');
-  head.appendChild(el('div', 'acsv-view-title', def.title || def.id));
   var x = el('button', 'acsv-view-x', '✕');
   x.title = '返回竖刷（Esc）';
   x.addEventListener('click', backToFeed);
@@ -81,7 +82,7 @@ function enterView(id, arg) {
   }
   root.classList.add('acsv-with-view');
   var body = el('div', 'acsv-view-body');
-  container.appendChild(buildHead(def));
+  container.appendChild(buildHead());
   container.appendChild(body);
   // 必须显式 'block'：CSS 里 .acsv-view 初始 display:none，'' 会回落到样式表值——
   // 0.9.62 黑屏 bug 根因（内容渲染了但容器不可见，harness 断言只查内联值被骗过）

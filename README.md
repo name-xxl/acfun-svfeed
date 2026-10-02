@@ -175,6 +175,17 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 
 ## 更新日志
 
+### 0.9.71（2026-10-02）· 视图头去掉标题字（左栏 dock 已有选中态）
+
+- 分区榜单/我的 视图顶部原显示「分区榜单」「我的」标题（`.acsv-view-title`）——与左栏
+  dock 的标签+高亮重复（用户点名删除）。头部只留右上角 ✕（返回竖刷，Esc 同效），head
+  改 `justify-content:flex-end`；框架 `buildHead()` 不再接收 def.title，registerView 的
+  title 参数随之退役（消费点 grep 全清：规则/参数/断言一并删）。
+- harness 断言改钉「dock 选中态」为视图身份锚：zone-open 查
+  `.acsv-dock-item[data-view="zone"].on`；view-my 的 view-open 去掉标题字检查
+  （紧随其后的 dock-highlight 断言已覆盖）。
+- 95 单测 + 19 场景全绿；真机复核头部仅 ✕、dock 高亮正常、榜单内容不受影响。
+
 ### 0.9.70（2026-10-02）· 榜单内容宽 1200→1600（宽屏两侧太"空"）
 
 - 0.9.69 按原生把 rlist 内容宽定为原生同款 1200 居中；实看 1920 屏两侧各留 355px 空白

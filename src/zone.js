@@ -146,4 +146,4 @@ function buildZoneView(body) {
   load();
 }
 
-registerView({ id: 'zone', title: '分区榜单', build: buildZoneView });
+registerView({ id: 'zone', build: buildZoneView });

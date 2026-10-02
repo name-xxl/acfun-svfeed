@@ -232,4 +232,4 @@ function buildMyView(body) {
   select('hist');
 }
 
-registerView({ id: 'my', title: '我的', build: buildMyView });
+registerView({ id: 'my', build: buildMyView });
