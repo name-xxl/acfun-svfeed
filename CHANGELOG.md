@@ -3,6 +3,46 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.85（2026-10-03）· 时间口径三处收口：播放层对齐站方发布时刻 + 卡片时间带年份
+
+- **病灶（用户报障「收藏夹时间不对」+「创建时间没有年份判定、老视频点进去才看得到年份」）**：
+  同一条视频（ac48875146）在三个界面给出三个不同的时间，根因是**读的字段不同源**：
+
+  | 界面 | 显示 | 实际字段 |
+  |---|---|---|
+  | 原生 UP 空间页 | 2026/10/02 | `douga/info` 的 `createTimeMillis`（发布时刻） |
+  | 我们播放层 | 「24小时前」 | 同一个 `createTime`——但它是**展示串**，被 `slice(0,10)` 当日期透传 |
+  | 我们收藏卡 | 「9月26日 21时39分」 | `dougaList.contentCreateTime` = 稿件**上传时刻** |
+
+  另有既存缺陷：日期兜底分支 `new Date(ms).toISOString().slice(0,10)` 是 **UTC**，本地凌晨/晚上
+  整体差一天；卡片时间走 `relTime` 的"更早"档是 `M月D日 H时MM分`（**无年份**），三年前的投稿
+  在卡片上根本判不出年份。
+- **实测（2026-10-03，三稿交叉验证，见 docs §3）**：`createTime` 是展示串（旧稿 `"2023-10-2"`、
+  近期 `"24小时前"`）；`createTimeMillis` = 站方页面展示的发布时刻（原生 UP 页 2026/10/02 与之
+  吻合）；**顶层没有** `uploadTime`，它在 `videoList[0].uploadTime`，且与收藏接口的
+  `contentCreateTime` **只差 9 秒**（两接口互证 = 上传时刻）——`createTime − uploadTime` 三例为
+  12 秒 / 19.5 小时 / 5.16 天，二者是不同口径。
+- **修法**：
+  - 新增两个纯函数（`data.js`）：`fmtDate(ms)` → **本地时区** `YYYY-MM-DD`（明令不准用
+    `toISOString`，UTC 口径会差一天）；`fmtAgo(ms, now)` → 今天/昨天/前天走 `relTime` 相对文案，
+    **更早退回带年份日期**（`relTime` 本身不动——榜单卡的「发布于xx」是 0.9.69 对齐原生的口径）。
+  - `appapi.resolve` 日期槽改用 `fmtDate(d.createTimeMillis)`（站方口径），删掉 slice 展示串与
+    UTC 兜底；**不用** `videoList[0].uploadTime`（那是上传时刻，会与站方页面矛盾）。
+  - 收藏卡右槽 → `fmtDate(contentCreateTime)`（带年份）；历史卡右槽 → `fmtAgo(browseTime)`。
+- **测试**：单测 +2（`fmtDate` 本地分量断言与"非 UTC"判据、`fmtAgo` 五档含跨年），fav/history
+  用例改按新口径断言；harness 加两条——`view-my` 点**第二条**历史卡（488901，既不在直挂缝也不在
+  mock 卡片池里 → 走**真实 resolve**）断言日期槽 = 发布时刻（夹具把 `createTime` 摆成诱饵
+  `"24小时前"`、`uploadTime` 摆成更早时刻，读错任一个即红）；`__ACSV_MOCK_DIRECT__` 增 `date`
+  字段（缝自己编日期会掩盖口径，改由调用方显式给），`play-deep` 据此断言。历史卡"更早 → 带年份"
+  单独一条断言（夹具第 2 条给 10 天前）。
+- **回归**：lint 干净、单测 128 全绿、`npm run check` 三项通过、构建幂等；`upd-open` 的
+  `remount-ok` 仍是既存 flake（0.9.82 已实测其在改动前同样复现），非本次引入。
+- **文档**：`docs §3/§4.1/§4.2`、README 时间口径段与 `data.js` 模块行按实测改写；顺带清掉 5 处
+  过时注释（`views.js` 还写着"收藏卡无日期字段、右槽留空"、`slide.js` 写"投稿时间"、
+  面板契约注释块漏 `dateText`、meow 的 `createTime` 缺风险注记）；README 补
+  「开发 → 发布（Release）」清单——**每次 release 正文必须写明下载 `acfun-svfeed.user.js`**、
+  别下 `.debug` 版（历史下载记录里真出现过误下：v0.9.81 正式版 3 次 / debug 1 次）。
+
 ### 0.9.84（2026-10-03）· 观看历史接上作者（`histories[].user` 实测）+ 推翻 0.9.82/0.9.83 的两处误判
 
 - **病灶（用户追问："观看历史没脚行吗"）**：对。0.9.82/0.9.83 两节都把"观看历史卡面无作者"当成

@@ -1,7 +1,7 @@
 import { CFG } from './cfg.js';
 import { request, mockHit } from './net.js';
 import { singleFlight } from './ui.js';
-import { normalizeHome } from './data.js';
+import { normalizeHome, fmtDate } from './data.js';
 import { coverUrl } from './imgurl.js';
 import { applyQuality } from './quality.js';
 
@@ -164,8 +164,15 @@ export var AppAPI = {
       if (d.viewCount != null) item.view = d.viewCount;
       if (d.stowCount != null) item.fav = d.stowCount;
       if (d.shareCount != null) item.share = d.shareCount;
-      if (d.createTime) item.date = String(d.createTime).slice(0, 10);
-      else if (d.createTimeMillis) item.date = new Date(d.createTimeMillis).toISOString().slice(0, 10);
+      // 发布时间（0.9.85 口径修正）：**站方页面展示的就是 createTime 那一档**——原生 UP 空间页
+      // 对 ac48875146 显示「2026/10/02」，正是 createTimeMillis（10-02 01:25）。而顶层 createTime
+      // 是**展示串**（旧稿 "2023-10-2"、近期 "24小时前"，格式随稿件新旧变），旧实现
+      // `String(d.createTime).slice(0,10)` 把它当日期透传 → 播放层与竖刷卡日期槽会冒出「24小时前」；
+      // 兜底分支的 toISOString().slice(0,10) 又是 UTC，本地凌晨/晚上整体差一天。改读毫秒字段 +
+      // fmtDate 本地格式化，两个 bug 一起修，且与站方口径一致（缺失则留空，不伪造）
+      // **不用 videoList[0].uploadTime**：实测那是"上传时刻"，比站方展示的发布时刻早
+      // （三例差 12 秒 / 19.5 小时 / 5.16 天），拿它显示会与站方页面矛盾（见 docs §3）
+      item.date = fmtDate(Number(d.createTimeMillis));
       // 作者回填（0.9.82）：写进契约唯一出口 item.up——此前写扁平 item.userName/userId/
       // isFollowing，而渲染面是构建期写死的，回填等于只写数据不刷屏。up 为 null（深链冷
       // 进入这类连卡片都没有的来源）时就地建一个，名字/id/头像由这里能拿到的部分补

@@ -69,6 +69,10 @@ export function normalize(raw) {
     danmakuCount: 0,
     favorited: false,
     thrown: false,
+    // meow 源的 createTime 实测是日期串（feed-sample: "2019-09-06"），且该流无毫秒兄弟字段，
+    // 故仍按"日期串切前 10 位"取。⚠️ 若哪天真机发现它也返回相对文案（APP 家族的 douga/info
+    // createTime 就是 "24小时前" 这种展示串，见 appapi.resolve 的 0.9.85 注释），同法改成
+    // 先取毫秒字段再 fmtDate
     date: (raw.createTime || '').slice(0, 10),
     shareUrl: raw.shareUrl || (CFG.api.shareBase + raw.meowId),
     liked: !!raw.isLike,
@@ -118,13 +122,17 @@ export function normalizeHome(bc) {
 }
 
 // ---------- 视图面板条目契约（0.9.62）：三种来源规整成同一份字段 ----------
-// { kind, acId, title, cover, progress, sub, up }——面板渲染与「点击进播放层（0.9.74）」零分支
-// （对齐顶部两源契约理念）。字段语义（0.9.82 统一条目模型起）：
+// { kind, acId, title, cover, progress, sub, up, dateText }——面板渲染与「点击进播放层（0.9.74）」
+// 零分支（对齐顶部两源契约理念）。字段语义（0.9.82 统一条目模型起）：
 //   up      作者契约（{id,name,img,isFollowing}|null）——**作者唯一出口**。榜单来源另带
 //           fans/contrib/fansText/contribText/sign（随行作者卡专用，进播放层时由 playItemOf 剥掉）；
 //           fav 由 dougaList 条目映射、history 由 histories[].user 映射（0.9.84 实测与本站
 //           APP 家族 user 同形状：id 字符串 / name / headUrl / isFollowing）
 //   sub     进度文案（history=「观看至xx:xx」）——0.9.82 起 fav 不再把作者名塞在这里（语义混用）
+//   dateText 脚行右槽的时间文案（0.9.84 起）：**各源口径不同，由解析器各自拼好**——
+//           历史=观看时间（fmtAgo：三天内相对、更早带年份）、收藏=稿件上传时刻（fmtDate 带年份）、
+//           搜索=SSR 原样的发布日期、rank 不产（它的随行作者卡另有 meta）。取数口径与差异见
+//           docs §3/§4.1/§4.2
 //   desc    rank 简介（0.9.65）；meta   rank 原生 extra 三段（0.9.69）——其余来源为 undefined
 // 返回 null = 非视频条目，调用方过滤（没有可解析的视频源，进播放层必失败）。
 // 类型字段实测（docs/api-research.md §4/§6，2026-10-02）：
@@ -148,10 +156,10 @@ var PANEL_PARSERS = {
     // 关注角标（此前误以为该形状未实测、只能等 douga/info 回包）
     var u = raw.user || {};
     it.up = upOf(u.id, u.name, coverUrl(u.headUrl), u.isFollowing);
-    // 观看时间：browseTime 实测是**毫秒时间戳**（2026-10-03 实测值 1790961102971 / typeof number），
-    // 直接走项目既有的相对时间文案（同榜单「发布于xx」那套：N分钟前/昨天H时MM分/M月D日 H时MM分）。
-    // browseTimeGroup 是按日分组标题（"今天/昨天"），不是单条时间，用不得
-    it.dateText = relTime(Number(raw.browseTime));
+    // 观看时间：browseTime 实测是**毫秒时间戳**（2026-10-03 实测值 1790961102971 / typeof number）。
+    // 走 fmtAgo（0.9.85）：三天内相对文案，更早带年份的绝对日期。browseTimeGroup 是按日分组
+    // 标题（"今天/昨天"），不是单条时间，用不得
+    it.dateText = fmtAgo(Number(raw.browseTime));
     return true;
   },
   fav: function (raw, it) {
@@ -162,11 +170,13 @@ var PANEL_PARSERS = {
     // 作者：docs §4.2 实测 dougaList 条目自带 userId/userName/userImg。0.9.82 起进 up 契约
     // ——此前作者名塞在 sub 里，与历史的「观看至xx:xx」共用一个字段（语义混用）
     it.up = upOf(raw.userId, raw.userName, coverUrl(raw.userImg), false);
-    // 时间右槽 = **投稿时间**（contentCreateTime，实测毫秒时间戳：1790429958888），与搜索卡右槽
-    // 的「发布日期」同义。**不用 updateTime**：它是"这条收藏记录的最后变更时间"，续看进度/
-    // 改夹/点赞同步都会刷新（本条记录就带 userPlayedSeconds），语义不纯（实测两条值相差 6 天，
-    // 投稿 6 天前 / 记录更新 1.3 小时前，不变式 contentCreateTime ≤ updateTime 成立）
-    it.dateText = relTime(Number(raw.contentCreateTime));
+    // 时间右槽 = 稿件**上传时刻**（contentCreateTime，实测毫秒时间戳 1790429958888，与 douga/info
+    // 的 videoList[0].uploadTime 只差 9 秒，两接口互证）。用 fmtDate 出带年份的绝对日期：
+    // 它是"内容属性"，老投稿必须有年份可判（0.9.85 用户实报"没年份判定、点进去才看得到"）。
+    // **注意与站方页面的口径差**：站方 UP 空间页/v 页展示的是"发布时刻"（douga/info 的
+    // createTimeMillis，实测同稿比上传时刻晚 5.16 天），收藏列表接口不提供该值，故此处按上传
+    // 时刻显示——差异来源已记入 docs §4.2，不做静默对齐（要拿发布时刻得每张卡各发一发详情请求）
+    it.dateText = fmtDate(Number(raw.contentCreateTime));
     return true;
   },
   rank: function (raw, it) {
@@ -301,6 +311,35 @@ export function relTime(ms, now) {
   if (dayDiff === 1) return '昨天' + hm;
   if (dayDiff === 2) return '前天' + hm;
   return (dt.getMonth() + 1) + '月' + dt.getDate() + '日 ' + hm;
+}
+
+// 本地时区 YYYY-MM-DD（0.9.85）。**不要用 toISOString().slice(0,10)**：那是 UTC，
+// 本地凌晨/晚上会整体差一天（既有 resolve 兜底分支就踩过）
+export function fmtDate(ms) {
+  var t = Number(ms) || 0;
+  if (!t) return '';
+  var d = new Date(t);
+  var p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+// 卡片上的"时间"文案（0.9.85）：今天/昨天/前天走 relTime 的相对文案（今天8小时前 / 昨天20时36分 /
+// 前天14时02分——不带年份也不会有歧义），更早则退回**带年份**的绝对日期。
+// 为什么不直接用 relTime：它的"更早"档是「M月D日 H时MM分」（0.9.69 对齐直播/榜单原生卡片的
+// 既定口径，榜单卡继续用它），但收藏/历史卡上一条三年前的投稿只写"9月26日 21时39分"根本
+// 判断不出年份，必须点进去才看得到（用户实报）。dayDiff 用本地零点差值 round（同 relTime，
+// DST 23/25 小时日不误判）；脏输入/未来时间降级空串
+export function fmtAgo(ms, now) {
+  var t = Number(ms) || 0;
+  if (!t) return '';
+  var n = Number(now) || Date.now();
+  var diff = n - t;
+  if (diff < 0 || isNaN(diff)) return '';
+  var dt = new Date(t), nd = new Date(n);
+  var dayDiff = Math.round(
+    (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate())
+      - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 86400000);
+  return dayDiff <= 2 ? relTime(t, n) : fmtDate(t);
 }
 
 // UP 数据位计数文案（0.9.69 对齐原生 up-card）：<10000 原样；≥10000 一位小数「N.N万」

@@ -44,7 +44,8 @@ export function buildSlide(item, idx, goTo) {
   // 右侧操作栏 + 上下翻页箭头（点赞/评论/投蕉/收藏/分享/关注）
   buildSideRail(slide, item, goTo);
 
-  // 左下角信息（快手式：作者行在上，标题在下；home 用投稿时间替代播放量）。
+  // 左下角信息（快手式：作者行在上，标题在下；home 用发布时间替代播放量——取数口径见
+  // appapi.resolve：createTimeMillis = 站方 UP 空间页展示的那个时刻，本地时区格式化）。
   // 作者行走 syncMetaUp（0.9.82）：作者未知就不挂节点，解析回包后由 onHomeResolved 重刷
   var info = el('div', 'acsv-info');
   var meta = el('div', 'acsv-meta');

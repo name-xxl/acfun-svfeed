@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.84-debug
+// @version      0.9.85-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -810,6 +810,10 @@
       danmakuCount: 0,
       favorited: false,
       thrown: false,
+      // meow 源的 createTime 实测是日期串（feed-sample: "2019-09-06"），且该流无毫秒兄弟字段，
+      // 故仍按"日期串切前 10 位"取。⚠️ 若哪天真机发现它也返回相对文案（APP 家族的 douga/info
+      // createTime 就是 "24小时前" 这种展示串，见 appapi.resolve 的 0.9.85 注释），同法改成
+      // 先取毫秒字段再 fmtDate
       date: (raw.createTime || "").slice(0, 10),
       shareUrl: raw.shareUrl || CFG.api.shareBase + raw.meowId,
       liked: !!raw.isLike,
@@ -874,7 +878,7 @@
       it.sub = raw.playedSecondsShow || "";
       var u = raw.user || {};
       it.up = upOf(u.id, u.name, coverUrl(u.headUrl), u.isFollowing);
-      it.dateText = relTime(Number(raw.browseTime));
+      it.dateText = fmtAgo(Number(raw.browseTime));
       return true;
     },
     fav: function(raw, it) {
@@ -883,7 +887,7 @@
       it.cover = coverUrl(raw.contentImg);
       it.progress = raw.userPlayedSeconds > 0 ? Number(raw.userPlayedSeconds) : null;
       it.up = upOf(raw.userId, raw.userName, coverUrl(raw.userImg), false);
-      it.dateText = relTime(Number(raw.contentCreateTime));
+      it.dateText = fmtDate(Number(raw.contentCreateTime));
       return true;
     },
     rank: function(raw, it) {
@@ -980,6 +984,27 @@
     if (dayDiff === 1) return "昨天" + hm;
     if (dayDiff === 2) return "前天" + hm;
     return dt.getMonth() + 1 + "月" + dt.getDate() + "日 " + hm;
+  }
+  function fmtDate(ms) {
+    var t = Number(ms) || 0;
+    if (!t) return "";
+    var d = new Date(t);
+    var p = function(n) {
+      return (n < 10 ? "0" : "") + n;
+    };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  }
+  function fmtAgo(ms, now) {
+    var t = Number(ms) || 0;
+    if (!t) return "";
+    var n = Number(now) || Date.now();
+    var diff = n - t;
+    if (diff < 0 || isNaN(diff)) return "";
+    var dt = new Date(t), nd = new Date(n);
+    var dayDiff = Math.round(
+      (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate()) - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 864e5
+    );
+    return dayDiff <= 2 ? relTime(t, n) : fmtDate(t);
   }
   function fmtWan(n) {
     var v = Number(n) || 0;
@@ -1231,8 +1256,7 @@
         if (d.viewCount != null) item.view = d.viewCount;
         if (d.stowCount != null) item.fav = d.stowCount;
         if (d.shareCount != null) item.share = d.shareCount;
-        if (d.createTime) item.date = String(d.createTime).slice(0, 10);
-        else if (d.createTimeMillis) item.date = new Date(d.createTimeMillis).toISOString().slice(0, 10);
+        item.date = fmtDate(Number(d.createTimeMillis));
         var u = d.user || {};
         if (u.id || u.name || u.headUrl) {
           item.up = item.up || { id: 0, name: "", img: "", isFollowing: false };
@@ -1496,6 +1520,7 @@
             raw = {
               mockUrl: window.__ACSV_TEST_WEBM__ || "",
               up: typeof dv === "object" ? dv : null,
+              date: dv && dv.date || "",
               delay: dv && dv.delay || 0
             };
           }
@@ -1514,7 +1539,7 @@
               item.videoId = "mock-" + item.id;
               item.fav = 12;
               item.share = 34;
-              item.date = "2026-09-26";
+              item.date = raw.date || "2026-09-26";
               return !!mu;
             };
             if (raw.delay) {
@@ -7629,7 +7654,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.84" : "");
+    return normVer(true ? "0.9.85" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -9130,7 +9155,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.84：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.85：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

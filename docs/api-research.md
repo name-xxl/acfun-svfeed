@@ -95,6 +95,24 @@ body：`action=7&page=1&count=20&groupId=-1`（-1=不分组；action=8 为粉丝
   在 appapi.resolve 回填 `item.up.img`；历史条目的同一字段在列表层就用上了，见 §4.1）
 - **currentVideoInfo.playInfos**：9 档直链（2160P60→360P），与 cast playInfo **等价**（同视频同档位）→ home 源 resolve 链可省一请求（douga/info 一发同时拿详情+直链）
 - 注意：videoList[].playInfos 恒空数组，直链在顶层 currentVideoInfo
+- **三个时间字段（2026-10-03 实测，三个稿件交叉验证）**——**口径互不相同，别混用**：
+  - 顶层 `createTimeMillis` = **站方展示的"发布时刻"**。判据：原生 UP 空间页对 ac48875146
+    显示「2026/10/02」，正是该值（10-02 01:25）。**项目 0.9.85 起就用它填日期槽**。
+  - 顶层 `createTime` = **展示串**，格式随稿件新旧变：旧稿 `"2023-10-2"`（不补零、非 ISO）、
+    近期稿 `"24小时前"`（相对文案）。**它不是机器可读日期**——旧实现 `slice(0,10)` 当日期用，
+    于是播放层/竖刷卡日期槽会冒出「24小时前」（用户实报）。
+  - `videoList[0].uploadTime` = **稿件上传时刻**（顶层**没有** uploadTime 字段）；
+    `currentVideoInfo.playInfos[0..8].uploadTime` 是各档转码时间（同稿毫秒级差异）。
+    它与收藏接口的 `contentCreateTime`（§4.2）只差 9 秒 → **两接口互证这是"上传时刻"**。
+  - 两口径的差：`createTime − uploadTime` 实测 **12 秒**（2017 老稿）/ **19.5 小时** / **5.16 天**
+    （ac48875146）——即"上传后被发布/过审"的等待，随稿件而异。
+  - 顶层字段清单（ac48875146 实测，44 个）：isLike、commentCountRealValue、groupId、
+    bananaCountShow、stowCount(Show)、giftPeachCount(Show)、channel、description、likeCount(Show)、
+    title、shareCount(Show)、belongToSpecifyArubamu、hasHotComment、isDislike、result、shareCount、
+    picShareUrl、videoList、danmakuCount(Show)、isThrowBanana、viewCount(Show)、bananaCount、
+    currentVideoInfo、coverCdnUrls、dougaId、isRewardSupportted、durationMillis、
+    commentCountTenThousandShow、coverImgInfo、host-name、coverUrl、disableEdit、**createTime**、
+    **createTimeMillis**、superUbb、shareUrl、user、status、isFavorite
 
 ## 4. 观看历史 / 收藏 / 搜索（〔实测〕）
 
@@ -117,9 +135,10 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
   → **观看历史条目在列表层就带作者三件套**，卡片首帧即可出 `@UP名` 脚行，进播放层首帧
   即有头像与关注角标（项目 0.9.84 据此在 `PANEL_PARSERS.history` 映射 `it.up`）
 - **`browseTime` = 毫秒时间戳**（2026-10-03 实测值 `1790961102971` / `typeof number`）——单条的
-  **观看时间**，可直接进项目既有的相对时间文案（`data.relTime`：N分钟前 / 昨天H时MM分 /
-  M月D日 H时MM分，同榜单「发布于xx」那套）。**别把 `browseTimeGroup` 当时间**——那是"按日分组
-  标题"（今天/昨天），用于列表分组。项目 0.9.84 据此把观看时间放进历史卡脚行右槽
+  **观看时间**：0.9.84 起进历史卡脚行右槽，0.9.85 起走 `data.fmtAgo`（三天内相对文案：N分钟前 /
+  昨天H时MM分 / 前天H时MM分；**更早退回带年份的 `YYYY-MM-DD`**——`relTime` 的"更早"档只有
+  「M月D日 H时MM分」，老内容判不出年份）。**别把 `browseTimeGroup` 当时间**——那是"按日分组
+  标题"（今天/昨天），用于列表分组
 - "继续观看"成立：playedSeconds 可直接 seek
 
 ### 4.2 收藏夹
@@ -132,10 +151,12 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
   - favoriteList 条目（22 字段）：**contentId（=ac 号）**、contentTitle / contentDesc / contentImg、userName / userId / userImg、views / comments / stows / like / likeCount / likeCountShow / isLike、duration / **userPlayedSeconds（续看秒数）**、channelInfo、contentCreateTime、updateTime、requestId / groupId / status
   - **两个时间字段都是毫秒时间戳**（2026-10-03 实测同一条：`contentCreateTime=1790429958888`
     ≈6 天前、`updateTime=1790960018142` ≈1.3 小时前，不变式 `contentCreateTime ≤ updateTime` 成立）：
-    `contentCreateTime` = **投稿时间**（内容属性，与搜索卡的「发布日期」同义）；
-    `updateTime` = **这条收藏记录的最后变更时间**——续看进度 / 改夹 / 点赞同步都可能刷新它
-    （本条就带 `userPlayedSeconds`），**语义不纯**。项目 0.9.84 因此取 `contentCreateTime`
-    进收藏卡脚行右槽，不用 `updateTime`
+    `contentCreateTime` = **稿件上传时刻**（与 douga/info 的 `videoList[0].uploadTime` **只差 9 秒**，
+    两接口互证，见 §3——注意它**不是**站方页面展示的"发布时刻"，后者见 §3 的 `createTimeMillis`，
+    本稿两者差 5.16 天）；`updateTime` = **这条收藏记录的最后变更时间**——续看进度 / 改夹 /
+    点赞同步都可能刷新它（本条就带 `userPlayedSeconds`），**语义不纯**。项目 0.9.85 的取舍：
+    收藏卡脚行右槽显示 `contentCreateTime` 的**带年份日期**，不用 `updateTime`；
+    与站方页面的口径差是有意保留的（列表接口不提供发布时刻，要拿得每张卡各发一发详情请求）
 - **folder/info（夹 meta）**：`POST …/favorite/folder/info`（folderId=…）→ {folderId, name, resourceCount, favoriteCountLimit, cover, status, type, lastFavoriteTime, inFolder}，**不含资源列表**
 - 同族端点（站点 chunk 实锤请求形状 + 真机 result 0；本账号对应维度为空收藏故仅验证契约）：`GET /favorite/bangumiList?page=&perpage=`、`POST /favorite/articleList`、`POST /favorite/albumList`（均 page/perpage 分页，响应同构 favoriteList）
 - 探测教训：`/favorite/resource/list` 不存在（404）——资源列表按内容类型拆四个端点（dougaList/articleList/bangumiList/albumList；acfunsdk source.py 同构旁证）

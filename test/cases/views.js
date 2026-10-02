@@ -54,6 +54,17 @@ rec('hist-cards', !!(await waitFor(function () {
 }, 8000)));
 rec('skeleton-gone', document.querySelectorAll('.acsv-gskel').length === 0);
 rec('hist-tag', /观看至01:4/.test((q('.acsv-vlist.hist .acsv-gtag') || {}).textContent || ''));
+// 时间文案的年份判定（0.9.85）：首条是"5 分钟前"（三天内走相对文案），第 2 条夹具给了 10 天前
+// → 必须退回**带年份**的绝对日期（relTime 的"更早"档只写「M月D日 H时MM分」，老内容看不出年份）
+rec('hist-card-time-year', (function () {
+  var cells = document.querySelectorAll('.acsv-vlist.hist .acsv-gcell');
+  var tm = cells[1] && cells[1].querySelector('.acsv-gtime');
+  return !!tm && /^\d{4}-\d{2}-\d{2}$/.test(tm.textContent);
+})(), (function () {
+  var cells = document.querySelectorAll('.acsv-vlist.hist .acsv-gcell');
+  var tm = cells[1] && cells[1].querySelector('.acsv-gtime');
+  return tm ? tm.textContent : 'n/a';
+})());
 // 卡面收口（0.9.84）：历史条目**也带作者**——histories[].user 与 douga/info 的 user 同形状
 // （真机实测见 my-sample 夹具），所以历史卡与收藏卡同构：进度只占封面角标、作者只占脚行。
 // 同时钉"同名文本只能画一次"（0.9.83 那两类重复的机器闸门）
@@ -129,11 +140,12 @@ rec('fav-card-composition', (function () {
   var t = cardTexts(c);
   var tm = c.querySelector('.acsv-gtime');
   // 收藏条目夹具带 userPlayedSeconds（progress 非空）→ 角标应出「看到 01:05」；作者只在脚行；
-  // 右槽出**投稿时间**（夹具是"5 分钟前"的 contentCreateTime，updateTime 是"1 分钟前"的诱饵）
+  // 右槽出稿件**上传时刻**的带年份日期（夹具是真机实测值 2026-09-26；updateTime 那栏是"1 分钟前"
+  // 的诱饵——若实现误用 updateTime，这里会看到「分钟前」而不是日期）
   return t.name === 1 && t.seen === 1 && !t.gmeta
     && !!t.gfoot && /^@收藏UP/.test(t.gfoot.textContent)
     && !!t.gtag && /^看到 /.test(t.gtag.textContent)
-    && !!tm && /分钟前$/.test(tm.textContent);
+    && !!tm && tm.textContent === '2026-09-26';
 })(), (function () {
   var c = q('.acsv-vlist.fav .acsv-gcell');
   if (!c) return 'no-cell';
@@ -287,6 +299,24 @@ rec('item-back-to-my', !!(await waitFor(function () {
     && q('.acsv-view') === myEl0 && !q('.acsv-slide[data-ovl="1"]');
 }, 8000)), location.hash);
 rec('item-back-keeps-grid', document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22);
+// 日期槽口径（0.9.85）：点**第二条**历史卡（id 488901）——它既不在直挂缝里、也不在 mock 卡片池里，
+// 所以这条路走的是**真实 appapi.resolve**（前一条 488900 走直挂缝，钉不到 resolve 的取数逻辑）。
+// 期望值 = createTimeMillis（站方 UP 空间页展示的发布时刻）；夹具把 createTime 摆成展示串诱饵
+// "24小时前"、videoList[0].uploadTime 摆成更早的上传时刻——读错任一个都会在这里露馅。
+// 播放本身会因 webm 走 hls 管线失败（cap.hls 未绕开），这一腿只看日期槽，不断言起播
+var secondRow = document.querySelectorAll('.acsv-vlist.hist .acsv-gcell')[1];
+if (secondRow) secondRow.click();
+rec('item2-date-published', !!(await waitFor(function () {
+  var ds = q('.acsv-slide[data-ovl="1"] .acsv-meta .acsv-date');
+  return !!ds && ds.textContent === window.__ACSV_PUBLISH_DATE__;
+}, 15000)), (function () {
+  var ds = q('.acsv-slide[data-ovl="1"] .acsv-meta .acsv-date');
+  return (ds ? JSON.stringify(ds.textContent) : 'no-date') + ' 期望=' + window.__ACSV_PUBLISH_DATE__;
+})());
+key('Escape');
+rec('item2-back', !!(await waitFor(function () {
+  return location.hash === '#svfeed/my' && !q('.acsv-slide[data-ovl="1"]');
+}, 8000)), location.hash);
 // 视图内 Esc=返回竖刷：再进视图后合成 Esc 事件；顺带断言资料头命中缓存不重复打接口
 location.hash = 'svfeed/my';
 rec('re-enter-open', !!(await waitFor(function () {

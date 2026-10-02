@@ -95,17 +95,20 @@ export var API = {
         var raw = mh.filter(function (c) { return String(c.href) === String(item.id); })[0];
         // 点名直挂缝（harness）：面板/搜索结果条目 id 不在卡片池里，但测试要它真起播——走与
         // 卡片池同款的"本地 webm 直挂"（webm 不是 m3u8，套 hls.js 管线会死在解析上）。
-        // 值可为 1 或对象 {id,name,head,delay}（0.9.82）：对象形态连带模拟 douga/info 回包的
-        // 作者部分——这条缝跳过 resolve，作者契约 item.up 的"回包覆写"就没有别的注入点，
-        // 作者面刷新（onHomeResolved → syncMetaUp/syncRailUp）也就断言不到。delay 模拟网络
-        // 往返，让"面板首帧作者 → 回包后被详情覆写"这条状态转移真能被观测到（否则整条链
-        // 全是微任务，首帧态在测试里根本抓不住）。生产无 __ACSV_MOCK_DIRECT__，整段不生效
+        // 值可为 1 或对象 {id,name,head,date,delay}（0.9.82）：对象形态连带模拟 douga/info 回包
+        // 的作者与发布日期——这条缝跳过 resolve，作者契约 item.up 的"回包覆写"与日期槽的
+        // 口径（0.9.85 起 = 发布时刻，见 appapi.resolve）就没有别的注入点。date 让调用方
+        // 显式给出该口径的值（不给则用历史默认），免得缝自己编一个语义不明的日期。
+        // delay 模拟网络往返，让"面板首帧作者 → 回包后被详情覆写"这条状态转移真能被观测到
+        // （否则整条链全是微任务，首帧态在测试里根本抓不住）。生产无 __ACSV_MOCK_DIRECT__，
+        // 整段不生效
         var direct = window.__ACSV_MOCK_DIRECT__;
         var dv = direct && direct[String(item.id)];
         if (!raw && dv) {
           raw = {
             mockUrl: window.__ACSV_TEST_WEBM__ || '',
             up: typeof dv === 'object' ? dv : null,
+            date: (dv && dv.date) || '',
             delay: (dv && dv.delay) || 0
           };
         }
@@ -126,7 +129,7 @@ export var API = {
             item.videoId = 'mock-' + item.id;
             item.fav = 12;
             item.share = 34;
-            item.date = '2026-09-26';
+            item.date = raw.date || '2026-09-26'; // 同上：日期也由调用方按目标口径给
             return !!mu;
           };
           if (raw.delay) {

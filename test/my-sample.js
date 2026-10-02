@@ -12,6 +12,19 @@
   var RESOLVE_AVATAR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
   window.__ACSV_PANEL_AVATAR__ = PANEL_AVATAR;
   window.__ACSV_RESOLVE_AVATAR__ = RESOLVE_AVATAR;
+  // 时间夹具（0.9.85）：三个值刻意互不相同，才能分辨实现读的是哪一个
+  //   PUBLISH_TIME 站方展示的"发布时刻"（douga/info 的 createTimeMillis）= 播放层日期槽的期望值
+  //   UPLOAD_TIME  稿件"上传时刻"（videoList[0].uploadTime）= 比发布时刻更早的诱饵
+  //   createTime   顶层那个只是展示串（见 douga/info mock 里的 '24小时前' 诱饵）
+  var PUBLISH_TIME = new Date(2026, 9, 2, 1, 25, 0).getTime();  // 本地 2026-10-02 01:25
+  var UPLOAD_TIME = new Date(2026, 8, 26, 21, 39, 9).getTime(); // 本地 2026-09-26 21:39
+  window.__ACSV_PUBLISH_TIME__ = PUBLISH_TIME;
+  window.__ACSV_UPLOAD_TIME__ = UPLOAD_TIME;
+  // 播放层日期槽的期望文案（本地时区 YYYY-MM-DD，与 fmtDate 同口径；时区无关地由本地分量构造）
+  window.__ACSV_PUBLISH_DATE__ = PUBLISH_TIME ? (function () {
+    var d = new Date(PUBLISH_TIME), p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  })() : '';
   // 观看历史条目作者（0.9.84 真机实测形状）：histories[].user 与 douga/info 的 user 同形状
   // ——id 是**字符串**、名字在 name、头像在 headUrl。故意与回包 mock 的名字（测试UP）不同，
   // 才能断言"首帧作者来自列表 API、回包后被详情覆写"
@@ -20,13 +33,16 @@
     return { id: String(25380695 + i), name: '历史UP', headUrl: PANEL_AVATAR, isFollowing: false };
   }
   var HIST_AGO = Date.now() - 5 * 60 * 1000; // 5 分钟前：相对时间文案稳定落在「N分钟前」
+  var HIST_OLD = Date.now() - 10 * 86400000; // 10 天前：fmtAgo 应退回**带年份**的绝对日期
   var HIST_VIDS = [];
   for (var i = 0; i < 18; i++) {
     HIST_VIDS.push({
       resourceType: 2, videoId: 900000 + i, resourceId: 488900 + i,
       title: '测试历史视频' + i, cover: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
       playedSeconds: 100 + i, playedSecondsShow: '观看至01:4' + (i % 10),
-      user: histUser(i), browseTime: HIST_AGO - i * 60000
+      user: histUser(i),
+      // 第 2 条给"10 天前"：场景里钉住"更早 → 带年份日期"这一档（首条仍是 5 分钟前）
+      browseTime: i === 1 ? HIST_OLD : HIST_AGO - i * 60000
     });
   }
   var HIST_P1 = HIST_VIDS.concat([
@@ -48,10 +64,10 @@
       // 作者字段按 docs §4.2 实测形状补全（0.9.82）：收藏条目进播放层要靠它出
       // @名字 链接、头像与关注按钮——此前夹具只给 userName，解析器也就只能拿到名字
       userId: 4321, userImg: PANEL_AVATAR,
-      // 时间字段按实测补全（0.9.84）：contentCreateTime=投稿时间（毫秒戳，进卡片右槽）、
-      // updateTime=记录最后变更（语义不纯，解析器**不采用**——这里给个"1 分钟前"的诱饵值，
-      // 断言若误用 updateTime 就会露出「分钟前」被单测/场景抓住）
-      contentCreateTime: Date.now() - 5 * 60 * 1000,
+      // 时间字段按实测补全（0.9.84/0.9.85）：contentCreateTime 取真机实测值（2026-09-26 21:39，
+      // 稿件**上传时刻**）→ 卡片右槽应显示带年份的 2026-09-26；updateTime 给"1 分钟前"的
+      // **诱饵**值（语义不纯，解析器不得采用——若误用，断言会看到分钟前而不是日期）
+      contentCreateTime: new Date(2026, 8, 26, 21, 39, 18).getTime(),
       updateTime: Date.now() - 60 * 1000
     };
   }
@@ -164,12 +180,18 @@
       var id = (url.match(/dougaId=(\d+)/) || [])[1] || '0';
       return {
         result: 0, title: '测试视频' + id, description: '', tagList: [], channel: null,
-        videoList: [{ id: 7700000 + Number(id) % 100000 }],
+        // uploadTime = 稿件上传时刻（实测语义，**不是**发布时刻）——放进 videoList[0]
+        videoList: [{ id: 7700000 + Number(id) % 100000, uploadTime: UPLOAD_TIME }],
         // user 形状 = 2026-10-03 真机实测（dougaId=42527415）：id 是**字符串**、头像在 headUrl
         // （与 meow/首页卡片同键名）——回填链要按这个形状读，历史/深链的真实头像就来自这里
         user: { id: '9', name: '测试UP', headUrl: RESOLVE_AVATAR, isFollowing: false },
         likeCount: 12, bananaCount: 3, commentCount: 4, viewCount: 56, stowCount: 7, shareCount: 8,
-        danmakuCount: 9, createTime: '2026-10-01 00:00:00',
+        danmakuCount: 9,
+        // 时间字段按实测形态摆两个**诱饵**（0.9.85）：站方展示的发布时刻在 createTimeMillis，
+        // 顶层 createTime 只是展示串（近期稿件是相对文案）。若实现回退去读 createTime（或
+        // slice 它）或误用 uploadTime，播放层日期槽就会露出下面这些值，断言立刻红
+        createTime: '24小时前',
+        createTimeMillis: PUBLISH_TIME,
         isLike: false, isFavorite: false, isThrowBanana: false
       };
     },

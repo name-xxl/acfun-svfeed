@@ -12,7 +12,7 @@
 // 播放层深链（0.9.74）：地址栏直达 = 视图内自解析（不 reset 竖刷流、不切源）；坏形态
 // 出"链接不完整"；解析未命中出错误盒+重试；层内切清晰度不得污染竖刷邻居
 window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
-window.__ACSV_MOCK_DIRECT__ = { '488900': 1 }; // 直挂缝：webm 套 hls.js 会死在解析上
+window.__ACSV_MOCK_DIRECT__ = { '488900': { date: window.__ACSV_PUBLISH_DATE__ } }; // 直挂缝：webm 套 hls.js 会死在解析上（date 按发布时刻口径给，见 play-date-published）
 rec('play-feed-up', !!(await waitFor(function () { return feed() && feed().items.length > 0; }, 15000)));
 var bufA = feed().items.length, curA = feed().current;
 location.hash = 'svfeed/play/a/488900'; // 冷进入（等价分享链接/刷新回放）
@@ -32,6 +32,18 @@ rec('play-title', !!(await waitFor(function () {
   var t = q('.acsv-slide[data-ovl="1"] .acsv-title');
   return !!t && /测试视频488900/.test(t.textContent); // 深链解析回包带标题（douga/info）
 }, 8000)), (q('.acsv-slide[data-ovl="1"] .acsv-title') || {}).textContent);
+// 日期槽口径（0.9.85）：站方 UP 空间页展示的是"发布时刻"（douga/info 的 createTimeMillis），
+// 而顶层 createTime 只是**展示串**（近期稿件是 "24小时前" 这种相对文案）。夹具特意把两者
+// 摆成互不相同的诱饵——若实现回退去读 createTime（旧实现 slice(0,10)）或误用 uploadTime，
+// 这里就会看到 "24小时前" 或别的值；正确实现应出本地时区的 YYYY-MM-DD
+rec('play-date-published', (function () {
+  var d = q('.acsv-slide[data-ovl="1"] .acsv-meta .acsv-date');
+  return !!d && d.textContent === window.__ACSV_PUBLISH_DATE__
+    && d.textContent !== '24小时前';
+})(), (function () {
+  var d = q('.acsv-slide[data-ovl="1"] .acsv-meta .acsv-date');
+  return d ? JSON.stringify(d.textContent) + ' 期望=' + window.__ACSV_PUBLISH_DATE__ : 'no-date';
+})());
 rec('play-no-arrows', !q('.acsv-slide[data-ovl="1"] .acsv-arrows'));
 rec('play-source-kept', (function () { // 不 setSource：播放解析与内容源无关
   var b = q('.acsv-seg-btn.on');

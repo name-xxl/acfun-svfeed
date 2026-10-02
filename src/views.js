@@ -283,10 +283,10 @@ export function rowOf(pi, rank) {
 // 三种来源共用这一张卡，差异全部由契约字段决定（消费点已 grep：mypage.js ×2 与 searchview.js）：
 //   封面左下角标 = 进度/属性语义位：历史 sub=「观看至xx:xx」、收藏 progress=「看到 xx:xx」、
 //     搜索 views=播放数（右下另有时长 .acsv-gdur）
-//   脚行 = **作者唯一落点**（@UP名 + 右槽时间）：历史/收藏/搜索三源都从这里出作者——历史条目的
-//     作者来自 histories[].user（0.9.84 实测与该站 APP 家族同形状），不是"卡面没有"；
-//     右槽 = 搜索的发布日期 / 历史的观看时间（browseTime 毫秒时间戳 → relTime 相对文案）/
-//     收藏（无时间字段）留空
+//   脚行 = **作者与时间的唯一落点**（@UP名 + 右槽时间）：三源都从这里出作者（历史条目的作者来自
+//     histories[].user，0.9.84 实测与该站 APP 家族同形状，不是"卡面没有"）；右槽 = 搜索的发布
+//     日期（SSR 原样）/ 收藏的稿件上传时刻（fmtDate，带年份）/ 历史的观看时间（fmtAgo：三天内
+//     相对文案、更早带年份）——三处的取数口径差异见 data.js 对应解析器与 docs §3/§4.1/§4.2
 // 0.9.83 收口：作者与进度此前都在 meta 行（.acsv-gmeta）又各画了一遍——收藏卡出现
 // 「石悦」/「@石悦」与「看到xx:xx」双份。现在作者只走脚行、进度只留角标，meta 行整体删除
 export function gridCardOf(pi) {
@@ -307,8 +307,9 @@ export function gridCardOf(pi) {
   if (pi.dur) cover.appendChild(el('div', 'acsv-gdur', pi.dur));
   cell.appendChild(cover);
   cell.appendChild(el('div', 'acsv-gtitle', pi.title));
-  // 脚行：@UP名 + 日期（抖音式；两字段皆空不挂节点）。搜索卡右槽是发布日期，收藏卡无日期字段
-  // → 右槽留空、只出 @UP名；历史（无作者无日期）整行不挂
+  // 脚行：@UP名 + 右槽时间（抖音式；两字段皆空不挂节点）。右槽由契约层拼好（三源各自的取数
+  // 口径见 data.js 解析器）：搜索=SSR 的发布日期、收藏=稿件上传时刻、历史=观看时间；
+  // 无作者又无时间（如历史缺 user 的降级条目）整行不挂
   var upName = pi.up && pi.up.name ? pi.up.name : '';
   if (upName || pi.dateText) {
     var foot = el('div', 'acsv-gfoot');

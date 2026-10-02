@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtWan, meCardOf, parseSearchItems } = await import('../../src/data.js');
+var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -55,14 +55,14 @@ test('panelItem fav：无 userName 时 up 为 null（作者未知不伪造）', 
   assert.equal(pi.up, null);
 });
 
-test('panelItem fav：contentCreateTime（投稿时间，毫秒时间戳）→ 相对时间文案；updateTime 不用', () => {
+test('panelItem fav：contentCreateTime（稿件上传时刻）→ 带年份日期；updateTime 不用', () => {
   var pi = panelItem('fav', {
     contentId: 1, contentTitle: 't',
-    contentCreateTime: Date.now() - 3 * 3600 * 1000, // 投稿 3 小时前
-    updateTime: Date.now() - 60 * 1000              // 记录 1 分钟前刚变过（续看/改夹），不该被采用
+    contentCreateTime: new Date(2026, 8, 26, 21, 39, 18).getTime(), // 真机实测值（上传时刻）
+    updateTime: Date.now() - 60 * 1000                             // 记录 1 分钟前刚变过，不该被采用
   });
-  assert.match(pi.dateText, /^(3小时前|昨天\d{1,2}时\d{2}分)$/);
-  assert.doesNotMatch(pi.dateText, /分钟前/); // 用的是投稿时间，不是 updateTime
+  assert.equal(pi.dateText, '2026-09-26'); // 带年份（0.9.85：老投稿必须能判年）
+  assert.doesNotMatch(pi.dateText, /分钟前/); // 用的是 contentCreateTime，不是 updateTime
   assert.equal(panelItem('fav', { contentId: 1, contentTitle: 't' }).dateText, '');
   assert.equal(panelItem('fav', { contentId: 1, contentTitle: 't', contentCreateTime: 'x' }).dateText, '');
 });
@@ -81,13 +81,20 @@ test('panelItem history：作者由 histories[].user 映射进 up（0.9.84 实�
   }).up, null);
 });
 
-test('panelItem history：browseTime（毫秒时间戳）→ 相对时间文案；缺省/脏值给空串', () => {
+test('panelItem history：browseTime 近三天走相对文案、更早带年份；缺省/脏值给空串', () => {
   var pi = panelItem('history', {
     resourceType: 2, videoId: 1, resourceId: 2, title: 't',
     browseTime: Date.now() - 3 * 3600 * 1000
   });
   // 与榜单 meta 同款断法：3 小时前文案随运行的日历位置而变（凌晨跑则为「昨天HH时MM分」）
   assert.match(pi.dateText, /^(3小时前|昨天\d{1,2}时\d{2}分)$/);
+  // 更早（10 天前）→ 退回**带年份**的绝对日期（relTime 的"更早"档只有「M月D日 H时MM分」，
+  // 老内容看不出年份——0.9.85 用户实报"点进去才看得到年份"）
+  var old = panelItem('history', {
+    resourceType: 2, videoId: 1, resourceId: 2, title: 't',
+    browseTime: Date.now() - 10 * 86400000
+  });
+  assert.match(old.dateText, /^\d{4}-\d{2}-\d{2}$/);
   assert.equal(panelItem('history', { resourceType: 2, videoId: 1, resourceId: 2, title: 't' }).dateText, '');
   assert.equal(panelItem('history', {
     resourceType: 2, videoId: 1, resourceId: 2, title: 't', browseTime: 'abc'
@@ -169,6 +176,34 @@ test('relTime：脏输入/未来时间降级空串', () => {
   assert.equal(relTime(null, now), '');
   assert.equal(relTime('abc', now), '');
   assert.equal(relTime(now + 999999, now), '');
+});
+
+// ---------- fmtDate / fmtAgo（0.9.85：本地时区日期 + 带年份判定的时间文案） ----------
+// 时区不可注入（Date 的本地时区在进程里固定），所以断言用**本地分量**构造期望值：
+// `new Date(2026, 9, 2, 1, 25)` 在任务时区下就是本地 2026-10-02 01:25，任何时区都成立
+test('fmtDate：本地时区 YYYY-MM-DD（补零），不是 UTC 口径；脏值空串', () => {
+  var ms = new Date(2026, 9, 2, 1, 25, 0).getTime(); // 本地 2026-10-02 01:25
+  assert.equal(fmtDate(ms), '2026-10-02');
+  assert.equal(fmtDate(new Date(2026, 0, 5, 9, 5, 0).getTime()), '2026-01-05'); // 月份/日补零
+  // UTC 口径在这一刻会落到前一天（UTC+8 下 01:25 本地 = 前一日 17:25 UTC）——fmtDate 必须跟本地走
+  var utc = new Date(ms).toISOString().slice(0, 10);
+  if (utc !== '2026-10-02') assert.notEqual(fmtDate(ms), utc);
+  assert.equal(fmtDate(0), '');
+  assert.equal(fmtDate('abc'), '');
+  assert.equal(fmtDate(null), '');
+});
+
+test('fmtAgo：今天/昨天/前天走相对文案，更早退回带年份日期；脏输入/未来空串', () => {
+  var now = new Date(2026, 9, 3, 12, 0, 0).getTime(); // 本地 2026-10-03 12:00
+  assert.equal(fmtAgo(new Date(2026, 9, 3, 11, 30, 0).getTime(), now), '30分钟前');
+  assert.equal(fmtAgo(new Date(2026, 9, 3, 6, 0, 0).getTime(), now), '6小时前');
+  assert.equal(fmtAgo(new Date(2026, 9, 2, 20, 36, 0).getTime(), now), '昨天20时36分');
+  assert.equal(fmtAgo(new Date(2026, 9, 1, 14, 2, 0).getTime(), now), '前天14时02分');
+  assert.equal(fmtAgo(new Date(2026, 8, 26, 21, 39, 0).getTime(), now), '2026-09-26'); // 更早 → 带年
+  assert.equal(fmtAgo(new Date(2025, 2, 5, 10, 0, 0).getTime(), now), '2025-03-05');   // 跨年同样带年
+  assert.equal(fmtAgo(0, now), '');
+  assert.equal(fmtAgo('abc', now), '');
+  assert.equal(fmtAgo(now + 86400000, now), ''); // 未来（时钟偏差）不输出假文案
 });
 
 // ---------- fmtWan（0.9.69 UP 数据位；原生实测 33235→3.3万 / 29978→3万 / 6062 原样） ----------
