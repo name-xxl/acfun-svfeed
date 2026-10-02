@@ -21,6 +21,7 @@ var backBtn = null;
 var searchInput = null;
 var hooks = {};
 var searchHandler = null;
+var searchCtxPrev = false; // 上次同步是否处于搜索上下文（离开那一刻清空输入框）
 
 function submitSearch() {
   if (!searchInput) return;
@@ -116,8 +117,10 @@ export function syncTopbarSeg() {
 }
 
 // 按当前界面同步（views.syncRouteView 调）：视图态隐源切换（CSS）+ 深界面出「向左返回」；
-// 搜索视图按地址栏 arg 回填关键词（深链/换词直达时顶栏输入框与地址一致）。只在 view==='search'
-// 时写输入框：其余 hashchange（切视图/竖刷深链回写）不碰用户可能在拼的输入。
+// 搜索视图按地址栏 arg 回填关键词（深链/换词直达时顶栏输入框与地址一致）。
+// 输入框只在两处动（0.9.75 补）：① view==='search' 按地址回填；② **离开搜索上下文那一刻清空**
+// （opts.searchCtx 由 views 判定：搜索视图本身，或从搜索页打开、尚未回到别处的播放层）。
+// 其余 hashchange（切视图途中的竖刷深链回写等）不碰输入框——保留 0.9.73「不打断正在拼字」契约
 // ✕ 单一意义（0.9.74 用户裁决）：永远=退出脚本回首页——普通界面 Esc 另义（回竖刷），
 // 故 title 只在竖刷态带 Esc 提示；视图出口靠 dock（常驻）+ Esc，深界面靠「向左返回」
 export function syncTopbar(view, arg, opts) {
@@ -125,11 +128,14 @@ export function syncTopbar(view, arg, opts) {
   barEl.classList.toggle('acsv-top--view', !!view);
   if (backBtn) backBtn.style.display = opts && opts.deep ? '' : 'none';
   if (xBtn) xBtn.title = view ? '退出' : '退出（Esc）';
+  var ctx = !!(opts && opts.searchCtx);
   if (view === 'search' && searchInput) searchInput.value = arg == null ? '' : String(arg);
+  else if (!ctx && searchCtxPrev && searchInput) searchInput.value = '';
+  searchCtxPrev = ctx;
 }
 
 export function teardownTopbar() {
   if (barEl) { barEl.remove(); barEl = null; }
   imBtnEl = null; segSv = null; segHome = null; xBtn = null; backBtn = null; searchInput = null;
-  hooks = {}; searchHandler = null;
+  hooks = {}; searchHandler = null; searchCtxPrev = false;
 }

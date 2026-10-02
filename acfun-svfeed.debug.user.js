@@ -7610,6 +7610,7 @@
   var searchInput = null;
   var hooks2 = {};
   var searchHandler = null;
+  var searchCtxPrev = false;
   function submitSearch() {
     if (!searchInput) return;
     var kw = String(searchInput.value || "").trim();
@@ -7721,7 +7722,10 @@
     barEl.classList.toggle("acsv-top--view", !!view2);
     if (backBtn) backBtn.style.display = opts && opts.deep ? "" : "none";
     if (xBtn) xBtn.title = view2 ? "退出" : "退出（Esc）";
+    var ctx = !!(opts && opts.searchCtx);
     if (view2 === "search" && searchInput) searchInput.value = arg == null ? "" : String(arg);
+    else if (!ctx && searchCtxPrev && searchInput) searchInput.value = "";
+    searchCtxPrev = ctx;
   }
   function teardownTopbar() {
     if (barEl) {
@@ -7736,6 +7740,7 @@
     searchInput = null;
     hooks2 = {};
     searchHandler = null;
+    searchCtxPrev = false;
   }
 
   // src/views.js
@@ -7898,7 +7903,11 @@
       exitView(true);
     }
     syncDock(def && def.deep ? originView() || "feed" : r.view);
-    syncTopbar(r.view, r.viewArg, { deep: !!(def && def.deep) });
+    var deep = !!(def && def.deep);
+    syncTopbar(r.view, r.viewArg, {
+      deep,
+      searchCtx: r.view === "search" || deep && originView() === "search"
+    });
   }
   function teardownViews() {
     dropCurrent();

@@ -206,8 +206,14 @@ export function syncRouteView() {
   }
   // dock 高亮：深界面（搜索/播放）不在 dock 里——指向来源界面（来源链顶），空链回「推荐」
   syncDock(def && def.deep ? (originView() || 'feed') : r.view);
-  // 顶栏按界面同步（0.9.73 四处复用；0.9.74：✕ 恒=退出脚本，深界面另出「向左返回」）
-  syncTopbar(r.view, r.viewArg, { deep: !!(def && def.deep) });
+  // 顶栏按界面同步（0.9.73 四处复用；0.9.74：✕ 恒=退出脚本，深界面另出「向左返回」）。
+  // searchCtx（0.9.75 补）：搜索视图本身，或从搜索页打开、尚未回到别处的播放层——顶栏输入框
+  // 靠它决定「保持关键词 / 离开即清空」（离开＝回列表/竖刷，或经播放层再跳到别的界面）
+  var deep = !!(def && def.deep);
+  syncTopbar(r.view, r.viewArg, {
+    deep: deep,
+    searchCtx: r.view === 'search' || (deep && originView() === 'search')
+  });
 }
 
 // 整流卸载（player.unmount 调）：不恢复播放（视频随后统一拆除），清当前视图与来源链
