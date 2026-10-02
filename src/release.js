@@ -4,13 +4,14 @@
 // UBB 产物同级）——不自研 md 渲染（ubb.js 只认 AcFun 方言，md 另起炉灶违背单源原则），
 // 与「复用官方形态」路线一致（私信渲染走官方形态、图标只用站点原生资源）。
 // 失败一律静默（GitHub 不可达 = 发布通道本身不可达，弹窗无意义），绝不打扰刷视频主流程。
-// Esc 语义按 0.9.22 定稿：input.js 显式分支优先（模态开着吞键、Esc 关弹窗），capture 监听
-// 只补真实键盘的模态语义——不依赖监听器注册顺序。
+// Esc 语义按 0.9.22 定稿、0.9.61 收口：模态键语义（吞键/Esc 关）统一由 overlay.js 承载，
+// 本模块只负责把弹窗注册进浮层栈（modal:true），不赌监听器注册顺序。
 // 状态存 localStorage（TM 两 world 共享同步读写，0.9.9 结论；不碰 unsafeWindow）。
 // 模块顶层零副作用（message.acfun.cn 也执行 boot 的静态 import 链，顶层碰 DOM/网络会炸原生页）。
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
 import { root } from './state.js';
+import { overlayOpen, overlayClose } from './overlay.js';
 import { el, elHtml, toast } from './ui.js';
 import { stat } from './dbg.js';
 
@@ -128,25 +129,18 @@ function writeState(st) {
 }
 
 // ===================================================================
-// 弹窗单例（imgview.js 骨架：挂 root、open 先 close、背景点击关、capture 吞键）
+// 弹窗单例（imgview.js 骨架：挂 root、open 先 close、背景点击关；模态键语义在 overlay.js）
 // ===================================================================
 
 var modal = null;
 var knownLatest = ''; // 本页会话内最近一次解析出的最新版本号（红点判定用）
 
-function onModalKey(ev) {
-  ev.stopPropagation();
-  if (ev.key === 'Escape') closeReleaseModal();
-}
-export function isReleaseModalOpen() {
-  return !!modal;
-}
 export function closeReleaseModal() {
   if (!modal) return;
   var m = modal;
   modal = null;
-  window.removeEventListener('keydown', onModalKey, true);
   m.remove();
+  overlayClose('release'); // 已出栈（Esc 路径）时空转；显式关闭路径（✕/按钮/背景）由此同步栈
 }
 
 // 正文注入：GitHub 渲染 HTML 走 elHtml 唯一通道；链接统一新标签 + 相对链接补全
@@ -208,7 +202,7 @@ function openModal(opts) {
   setModalContent(modal, opts.html, opts.note || (opts.html ? '' : '该版本未填写更新说明'));
   setModalFoot(modal, opts.actions);
   root.appendChild(modal);
-  window.addEventListener('keydown', onModalKey, true);
+  overlayOpen({ id: 'release', modal: true, close: closeReleaseModal });
   return modal;
 }
 
@@ -326,8 +320,9 @@ export function openReleaseNotes() {
   });
 }
 
-// 竖刷页拆除（player.unmount 调）：单例与 capture 监听绝不过夜——root 已拆而监听残留
-// 会吞掉普通站页的全局键盘（0.9.22 Esc 教训的另一半：显式拆，不赌事件顺序）
+// 竖刷页拆除（player.unmount 调）：弹窗单例绝不过夜——root 已拆而闭包/监听残留
+// 会吞掉普通站页的全局键盘（0.9.22 Esc 教训的另一半：显式拆，不赌事件顺序）。
+// 栈成员身份由 overlayTeardown 统一兜底，这里只管把自家单例拆掉
 export function teardownRelease() {
   closeReleaseModal();
 }

@@ -1,6 +1,7 @@
 import { CFG } from './cfg.js';
 import { el, esc, toast, cookieVal } from './ui.js';
 import { root, claimDrawer, releaseDrawer, setRoot } from './state.js';
+import { overlayOpen, overlayClose } from './overlay.js';
 import { testHook } from './dbg.js';
 import {
   ensureIm, ensureConnected, ensureTracer, linkOk, forceSync,
@@ -909,6 +910,7 @@ export function openDrawer() {
   ensureDrawerDom();
   prewarmIm(); // 首图提前换好 midground 令牌，进会话不等 token 往返
   claimDrawer('im', closeDrawer);
+  overlayOpen({ id: 'im', close: closeDrawer }); // 非模态层：不拦导航键，Esc 接栈
   drawer.el.classList.add('open');
   syncCommentVars(); // 复用评论抽屉的避让（视频平移缩放/控制栏侧栏让位）
   showList();
@@ -918,6 +920,7 @@ export function openChat(targetId) {
   ensureDrawerDom();
   prewarmIm(); // 同 openDrawer：分享面板直达会话也不等 token 往返
   claimDrawer('im', closeDrawer);
+  overlayOpen({ id: 'im', close: closeDrawer });
   drawer.el.classList.add('open');
   syncCommentVars();
   showChat(String(targetId));
@@ -928,6 +931,7 @@ export function closeDrawer() {
   chatPoll.stop();
   view = '';
   releaseDrawer('im');
+  overlayClose('im'); // 已出栈（Esc 路径）时空转；显式关闭路径由此同步栈
   syncCommentVars(); // 根类归 syncCommentVars 统一收拾
 }
 // 整体拆除（退出竖刷时 unmount 调用）：停全部轮询并重置模块态。不清的话旧 aside 引用

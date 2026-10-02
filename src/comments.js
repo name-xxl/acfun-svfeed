@@ -5,6 +5,7 @@ import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
 import { commentShareWire } from './immsg.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
+import { overlayOpen, overlayClose } from './overlay.js';
 import { AppAPI } from './appapi.js';
 import { uploadImage } from './upload.js';
 import { renderCommentHtml, ubbImText } from './ubb.js';
@@ -45,12 +46,14 @@ window.addEventListener('resize', syncCommentVars);
 export function closeComments() {
   if (commentDrawer) commentDrawer.el.classList.remove('open');
   releaseDrawer('comments');
+  overlayClose('comments'); // 已出栈（Esc 路径）时空转；显式关闭路径由此同步栈
   if (root) syncCommentVars(); // 根类统一由 syncCommentVars 收拾（覆盖模式下可能本就没加）
 }
 
 export function openComments(sourceId, stype, shareUrl, kind) {
   if (!commentDrawer || !sourceId) return;
   claimDrawer('comments', closeComments); // 占槽：私信抽屉开着则自动收回，再展开评论
+  overlayOpen({ id: 'comments', close: closeComments }); // 非模态层：不拦导航键，Esc 接栈
   commentDrawer.el.classList.add('open');
   if (root) syncCommentVars(); // isOpenComments 此时已为真：空间够则加避让根类，不够则纯覆盖
   commentState.stype = Number(stype) || 5;

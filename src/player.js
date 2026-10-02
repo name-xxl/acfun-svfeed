@@ -18,6 +18,7 @@ import { onHomeResolved } from './rail.js';
 import { buildSlide, buildDrawer } from './slide.js';
 import { openDrawer, mountBadge, teardownIm } from './imdrawer.js';
 import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
+import { overlayTeardown } from './overlay.js';
 import { setupInputHandlers, teardownInputHandlers } from './input.js';
 
 // ---------- UI ----------
@@ -372,6 +373,9 @@ function unmount() {
   teardownIm(); // 停私信徽标轮询/重置抽屉模块态（不清会让重进后的私信抽屉打不开）
   teardownRelease(); // 拆更新弹窗单例与 capture 监听（root 拆后监听残留会吞站点页全局键盘）
   resetDrawerSlot(); // 清槽位：评论侧没有 teardown，防残留闭包让重进后的第一次 Esc 被吃掉
+  // 浮层栈自顶向下收尾：含 imgview（此前它无 teardown——开图后直接离开竖刷，残留监听
+  // 会吞掉普通站页的全局键盘）与任何未关的抽屉/弹窗，close 回调各自幂等
+  overlayTeardown();
 
   // 会话整批拆除（video/hls/看门狗/弹幕层/定时器一次拆净）
   Array.prototype.forEach.call(root.querySelectorAll('.acsv-slide'), function (s) {

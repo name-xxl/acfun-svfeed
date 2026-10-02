@@ -1,12 +1,11 @@
 import { CFG } from './cfg.js';
 import { toast, toggleFullscreen } from './ui.js';
-import { root, scroller, slideAt, currentDrawer } from './state.js';
+import { root, scroller, slideAt } from './state.js';
 import { isFeedRoute } from './route.js';
 import { FeedStore } from './feedstore.js';
 import { pb, currentVideo, sweepVideos, togglePlayGesture, toggleMuteGesture } from './playback.js';
 import { toggleItemComments } from './comments.js';
-import { isImgviewOpen, closeImageViewer } from './imgview.js';
-import { isReleaseModalOpen, closeReleaseModal } from './release.js';
+import { overlayTop, overlayClose } from './overlay.js';
 
 // ---------- 键盘/全屏/幽灵扫描：全局监听的注册与解除 ----------
 // 上层导航（scrollToIndex/exitFeed）在 player.js，经 api 参数注入保持依赖单向；
@@ -18,11 +17,13 @@ var keyHandler = null, keyUpHandler = null, fsChangeHandler = null, ghostIv = nu
 export function setupInputHandlers(api) {
   keyHandler = function (ev) {
     if (!isFeedRoute() || !root) return;
-    // 更新说明弹窗开着：模态语义——吞掉全部按键（0.9.22 定稿：靠显式状态，不赌监听器
-    // 注册顺序；capture 监听只管真实键盘，target=window 的合成事件仍会走到这里），
-    // 仅 Escape 关弹窗，其余键不许穿透到弹窗后面的视频
-    if (isReleaseModalOpen()) {
-      if (ev.key === 'Escape') closeReleaseModal();
+    // 浮层栈门禁（0.9.61 收口，0.9.22「靠显式状态」精神不变——栈就是状态）：模态层
+    // （更新弹窗/大图查看器）吞掉全部按键、仅 Escape 关栈顶，其余键不许穿透到弹窗
+    // 后面的视频。真实键盘的模态语义在 overlay.js capture 已拦截（到不了这里），此门禁
+    // 主要兜合成事件（harness，target=window）——两条路径行为一致
+    var top = overlayTop();
+    if (top && top.modal) {
+      if (ev.key === 'Escape') overlayClose(top.id);
       return;
     }
     if (ev.target && /^(input|textarea|select)$/i.test(ev.target.tagName)) return;
@@ -67,13 +68,10 @@ export function setupInputHandlers(api) {
         toggleFullscreen();
         break;
       case 'Escape': {
-        // 更新说明弹窗（z65，最高模态）：先于大图查看器关闭
-        if (isReleaseModalOpen()) { closeReleaseModal(); break; }
-        // 配图大图查看器开着：只关查看器（先于抽屉，不依赖事件监听顺序）
-        if (isImgviewOpen()) { closeImageViewer(); break; }
-        // 右侧抽屉槽位（评论/私信二选一）占用中：先收起当前抽屉；否则退出竖刷页
-        var curDrawer = currentDrawer();
-        if (curDrawer) curDrawer.close();
+        // 浮层栈顶（更新弹窗→大图→抽屉，按打开序）：关栈顶；栈空退出竖刷页。
+        // 0.9.61 起显式分支链收拢为栈——新增浮层不再改这里
+        var ov = overlayTop();
+        if (ov) overlayClose(ov.id);
         else api.exitFeed();
         break;
       }

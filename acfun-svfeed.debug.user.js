@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.60-debug
+// @version      0.9.61-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -1981,6 +1981,45 @@
     }
   }
 
+  // src/overlay.js
+  var stack = [];
+  function overlayOpen(layer) {
+    if (!layer || !layer.id || typeof layer.close !== "function") return;
+    ensureKey();
+    overlayClose(layer.id);
+    stack.push({ id: layer.id, close: layer.close, modal: !!layer.modal });
+  }
+  function overlayClose(id) {
+    for (var i = stack.length - 1; i >= 0; i--) {
+      if (stack[i].id !== id) continue;
+      var layer = stack.splice(i, 1)[0];
+      try {
+        layer.close();
+      } catch (e) {
+      }
+      return;
+    }
+  }
+  function overlayTop() {
+    return stack.length ? stack[stack.length - 1] : null;
+  }
+  function overlayTeardown() {
+    while (stack.length) overlayClose(stack[stack.length - 1].id);
+  }
+  var keyBound = false;
+  function onOverlayKey(ev) {
+    if (ev.target === window) return;
+    var top = overlayTop();
+    if (!top || !top.modal) return;
+    ev.stopPropagation();
+    if (ev.key === "Escape") overlayClose(top.id);
+  }
+  function ensureKey() {
+    if (keyBound) return;
+    keyBound = true;
+    window.addEventListener("keydown", onOverlayKey, true);
+  }
+
   // src/upload.js
   function gmPostJson(opts) {
     return gmRequest({
@@ -2346,19 +2385,12 @@
 
   // src/imgview.js
   var imgview = null;
-  function onImgviewKey(ev) {
-    ev.stopPropagation();
-    if (ev.key === "Escape") closeImageViewer();
-  }
-  function isImgviewOpen() {
-    return !!imgview;
-  }
   function closeImageViewer() {
     if (!imgview) return;
     var v = imgview;
     imgview = null;
-    window.removeEventListener("keydown", onImgviewKey, true);
     v.remove();
+    overlayClose("imgview");
   }
   function openImageViewer(src) {
     closeImageViewer();
@@ -2370,7 +2402,7 @@
     imgview.appendChild(img);
     imgview.addEventListener("click", closeImageViewer);
     root.appendChild(imgview);
-    window.addEventListener("keydown", onImgviewKey, true);
+    overlayOpen({ id: "imgview", modal: true, close: closeImageViewer });
   }
 
   // src/inputbar.js
@@ -3372,6 +3404,7 @@
     ensureDrawerDom();
     prewarmIm();
     claimDrawer("im", closeDrawer);
+    overlayOpen({ id: "im", close: closeDrawer });
     drawer.el.classList.add("open");
     syncCommentVars();
     showList();
@@ -3384,6 +3417,7 @@
     ensureDrawerDom();
     prewarmIm();
     claimDrawer("im", closeDrawer);
+    overlayOpen({ id: "im", close: closeDrawer });
     drawer.el.classList.add("open");
     syncCommentVars();
     showChat(String(targetId));
@@ -3394,6 +3428,7 @@
     chatPoll.stop();
     view = "";
     releaseDrawer("im");
+    overlayClose("im");
     syncCommentVars();
   }
   function teardownIm() {
@@ -4436,11 +4471,13 @@
   function closeComments() {
     if (commentDrawer) commentDrawer.el.classList.remove("open");
     releaseDrawer("comments");
+    overlayClose("comments");
     if (root) syncCommentVars();
   }
   function openComments(sourceId, stype, shareUrl, kind) {
     if (!commentDrawer || !sourceId) return;
     claimDrawer("comments", closeComments);
+    overlayOpen({ id: "comments", close: closeComments });
     commentDrawer.el.classList.add("open");
     if (root) syncCommentVars();
     commentState.stype = Number(stype) || 5;
@@ -6944,7 +6981,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.60" : "");
+    return normVer(true ? "0.9.61" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -6969,19 +7006,12 @@
   }
   var modal = null;
   var knownLatest = "";
-  function onModalKey(ev) {
-    ev.stopPropagation();
-    if (ev.key === "Escape") closeReleaseModal();
-  }
-  function isReleaseModalOpen() {
-    return !!modal;
-  }
   function closeReleaseModal() {
     if (!modal) return;
     var m = modal;
     modal = null;
-    window.removeEventListener("keydown", onModalKey, true);
     m.remove();
+    overlayClose("release");
   }
   function buildRich(html) {
     var rich = elHtml("div", "acsv-upd-md", html);
@@ -7037,7 +7067,7 @@
     setModalContent(modal, opts.html, opts.note || (opts.html ? "" : "该版本未填写更新说明"));
     setModalFoot(modal, opts.actions);
     root.appendChild(modal);
-    window.addEventListener("keydown", onModalKey, true);
+    overlayOpen({ id: "release", modal: true, close: closeReleaseModal });
     return modal;
   }
   function refreshDot() {
@@ -7157,8 +7187,9 @@
   function setupInputHandlers(api) {
     keyHandler = function(ev) {
       if (!isFeedRoute() || !root) return;
-      if (isReleaseModalOpen()) {
-        if (ev.key === "Escape") closeReleaseModal();
+      var top = overlayTop();
+      if (top && top.modal) {
+        if (ev.key === "Escape") overlayClose(top.id);
         return;
       }
       if (ev.target && /^(input|textarea|select)$/i.test(ev.target.tagName)) return;
@@ -7212,16 +7243,8 @@
           toggleFullscreen();
           break;
         case "Escape": {
-          if (isReleaseModalOpen()) {
-            closeReleaseModal();
-            break;
-          }
-          if (isImgviewOpen()) {
-            closeImageViewer();
-            break;
-          }
-          var curDrawer = currentDrawer();
-          if (curDrawer) curDrawer.close();
+          var ov = overlayTop();
+          if (ov) overlayClose(ov.id);
           else api.exitFeed();
           break;
         }
@@ -7612,6 +7635,7 @@
     teardownIm();
     teardownRelease();
     resetDrawerSlot();
+    overlayTeardown();
     Array.prototype.forEach.call(root.querySelectorAll(".acsv-slide"), function(s) {
       if (s._session) {
         s._session.dispose();
@@ -7749,7 +7773,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.60：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.61：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
