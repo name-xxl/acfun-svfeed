@@ -49,6 +49,11 @@ async function remount() { // 模拟用户退出再进竖刷页（unmount→moun
                           // 相位②整体空转，弹窗直到下一次 remount 才出现，报错全落在错的地方）
   var t0 = performance.now();
   var note = {};
+  // 越窗守卫（0.9.95 根因）：竖刷自己的地址栏回写 syncHash 是 150ms 尾节流——若它在本步
+  // 之后落地，会把 'upd-off' 改回 '#svfeed/v/<id>'，toggle 判定仍在竖刷路由 → 当场重挂，
+  // unmount 永远等不到 root 消失（实测失败时 note 里的 hash 正是深层链接形态，0.9.82 起
+  // 断续复现的那条「负载抖动」真身）。先越窗再翻 hash（同族断言早有的惰性等 400ms 同款）
+  await wait(400);
   location.hash = 'upd-off';
   if (!(await remountStep(function () { return !document.getElementById('acsv-root'); }, 'unmount', note))) remountFails++;
   location.hash = 'svfeed';

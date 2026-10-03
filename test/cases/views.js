@@ -1273,6 +1273,59 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
         && aCard && !aCard.querySelector('.acsv-gmom-head') && !aCard.querySelector('.acsv-gdur')
         && mCard && !mCard.querySelector('.acsv-gdur') && !mCard.querySelector('.acsv-gart-desc'));
     })());
+    // 尾件沉底（0.9.95 用户实报）：引用块/计数行贴卡底，为正文腾余量、同行各卡底对齐
+    // 口径：尾件贴的是**自己卡的内容底**（卡底 − 卡自己的内边距）——panel 卡有 12px 内边距，
+    // 视频卡无 panel 内边距为 0，按 border-box 直接比会误判（首版断言就是这么红的）
+    function tailGap(c) {
+      var tail = c.querySelector('.acsv-gstats') || c.querySelector('.acsv-gfoot');
+      if (!tail) return null;
+      var padB = parseFloat(getComputedStyle(c).paddingBottom) || 0;
+      return Math.round((c.getBoundingClientRect().bottom - padB) - tail.getBoundingClientRect().bottom);
+    }
+    rec('follow-moment-stats-bottom', (function () {
+      var ms = document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-gmom');
+      var checked = 0, bad = 0;
+      [].forEach.call(ms, function (c) {
+        var g = tailGap(c);
+        if (g === null) return;
+        checked++;
+        if (Math.abs(g) > 1) bad++;
+      });
+      return checked > 0 && bad === 0;
+    })(), (function () {
+      var c = q('.acsv-vlist.acsv-follow .acsv-gmom');
+      return 'gap=' + tailGap(c);
+    })());
+    rec('follow-quote-above-stats', (function () {
+      if (!rCard) return false;
+      var qt = rCard.querySelector('.acsv-gquote'), st = rCard.querySelector('.acsv-gstats');
+      var tx = rCard.querySelector('.acsv-gmom-text');
+      if (!qt || !st || !tx) return false;
+      // 引用块与计数行成组相邻（计数行本身带 6px 上距，允许 ≤ 8px）
+      return Math.abs(qt.getBoundingClientRect().bottom - st.getBoundingClientRect().top) <= 8
+        && qt.getBoundingClientRect().top >= tx.getBoundingClientRect().bottom - 1;
+    })(), (function () {
+      if (!rCard) return 'n/a';
+      var qt = rCard.querySelector('.acsv-gquote'), st = rCard.querySelector('.acsv-gstats');
+      if (!qt || !st) return 'n/a';
+      return 'quoteB=' + Math.round(qt.getBoundingClientRect().bottom) + ' statsT=' + Math.round(st.getBoundingClientRect().top);
+    })());
+    // 逐行结果不变式：同一行内各卡的尾件（计数行 / 脚行）底对齐——「观感更整齐」的机器化
+    rec('follow-row-bottoms-aligned', (function () { // 每张卡的尾件都贴自己卡的内容底（逐卡不变式）
+      var cells = document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-gcell');
+      var rows = [];
+      [].forEach.call(cells, function (c) {
+        var gg = tailGap(c);
+        if (gg === null) return;
+        rows.push(gg);
+      });
+      return rows.length > 1 && rows.every(function (x) { return Math.abs(x) <= 1; });
+    })(), (function () {
+      var cells = document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-gcell');
+      var out = [];
+      [].forEach.call(cells, function (c) { var gg = tailGap(c); if (gg !== null) out.push(gg); });
+      return 'gaps=' + out.slice(0, 8).join(',');
+    })());
     // 视频卡点击 → 播放层（外链卡不参与：href 卡点击由浏览器接管，脚本不该改地址栏）
     if (vCard) vCard.click();
     // hashchange 是异步事件（脚本同步判定会假红——首跑实锤）：等播放层挂上

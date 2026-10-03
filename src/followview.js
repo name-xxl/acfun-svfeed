@@ -46,6 +46,9 @@ function momentCardOf(pi) {
   a.href = pi.href;
   a.target = '_blank';
   a.rel = 'noopener';
+  // 有引用的卡打修饰类：引用块与计数行**沉底**（margin-top:auto 由 styles 按此类分派——
+  // 0.9.95 用户实报「引用的信息和脚注置底、为正文腾出空间」；用类而非 :has()，避开旧浏览器支持面）
+  if (pi.repost) a.classList.add('acsv-gmom-quoted');
   var head = el('div', 'acsv-gmom-head');
   var av = el('span', 'acsv-gmom-av');
   imgInto(av, (pi.up && pi.up.img) || CFG.api.defaultAvatar, 'avatar');

@@ -839,7 +839,7 @@ var RAW_CSS = ''
   + '.acsv-follow .acsv-gcell{grid-column:span 1}'
   + '.acsv-follow .acsv-ggroup{grid-column:1 / -1}'
   // 文章卡（文本向：薄条封面 + 标题 + 摘要 + 脚行）——形态与视频的 4:3 图卡明显不同，一眼可辨
-  + '.acsv-gart{display:flex;flex-direction:column;padding:10px;border-radius:10px;background:rgba(255,255,255,.05)}'
+  + '.acsv-gart{display:flex;flex-direction:column;padding:12px;border-radius:10px;background:rgba(255,255,255,.05)}'
   + '.acsv-gart-cover{position:relative;flex:none;height:120px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06)}'
   + '.acsv-gart-cover img{width:100%;height:100%;object-fit:cover;display:block}'
   + '.acsv-gart-title{margin-top:10px;font-size:14px;line-height:20px;color:#fff;max-height:40px;overflow:hidden}'
@@ -863,6 +863,13 @@ var RAW_CSS = ''
   + '.acsv-gquote-body{min-width:0;flex:1 1 auto}'
   + '.acsv-gquote-title{font-size:13px;line-height:18px;color:#d5d8df;max-height:36px;overflow:hidden}'
   + '.acsv-gquote-kind{margin-top:4px;font-size:11px;color:#8a90a0}'
+  // 尾件沉底（0.9.95 用户实报「引用的信息和脚注置底、为正文腾出空间，观感更整齐」）：
+  // 有引用 → 引用块吃余量（与计数行成组贴底）；无引用 → 计数行贴底。**图不沉底**——
+  // 图是内容不是尾件，跟着正文走才读得顺（取舍在册）。余量落在「正文与尾件之间」，
+  // 卡高由同行最高者定（grid stretch）→ 沉底后同行各卡底自动对齐，这就是「整齐」的机制。
+  // 与视频/文章卡脚行的 margin-top:auto（0.9.90）同一手法、同一纪律
+  + '.acsv-gmom-quoted .acsv-gquote{margin-top:auto}'
+  + '.acsv-gmom:not(.acsv-gmom-quoted) .acsv-gstats{margin-top:auto}'
   // 外链卡（文章/动态）：根元素是 <a>，浏览器默认链接样式必须清掉（标题/脚行的显式色不受影响）
   + '.acsv-gcell{color:inherit;text-decoration:none}'
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-sgrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));'
