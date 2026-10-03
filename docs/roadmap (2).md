@@ -175,7 +175,7 @@ feed/webPush 目前只有**视频条目**的字段实测。待测清单：
 
 - 契约：`kind: 'moment'`——UP 头 + 正文（ubb 管线渲染）+ 图片宫格（1/2/4/9 布局，**全部走 imgInto**）+ 头像框覆盖层 + 赞/评/蕉三计数。
 - 点击行为：原地展开详情 + 评论区，或跳 `/moment/amX`。
-- **关键验证**：comments.js 的 `stype` 参数化是否完整覆盖 sourceType=4。成立 → 动态详情评论区复用现有抽屉，省半个模块；不成立 → 本 Phase 工作量 +50%，届时重估。
+- **关键验证**：comments.js 的 `stype` 参数化是否完整覆盖 sourceType=4。成立 → 动态详情评论区复用现有抽屉，省半个模块；不成立 → 本 Phase 工作量 +50%，届时重估。**已闭合**（2026-10-03 前置实测成立，见 api-research §4.7——响应与视频同族、`page=` 分页有效，动态详情评论区复用现有抽屉）。
 
 **0.9.89 验收**：emot/img 夹具；详情展开 harness 场景。
 
@@ -185,8 +185,9 @@ feed/webPush 目前只有**视频条目**的字段实测。待测清单：
 
 #### 任务卡 4.1：写链路
 
-- `kuaishouzt interact/add`（objectType=10）点赞、动态投蕉（resourceType=10）、`comment/add`（sourceType=4）——广场实测资产吸收重写。
+- 端点形状**已实测闭环**（2026-10-03，api-research §4.7）：`interact/add|delete`（objectType=10，**svfeed 精简参数即可，无需 userId/kpf**）、`banana/throwBanana`（resourceType=10，**禁自投 170008**、Referer=moment 页）、`comment/add`（sourceType=4，响应=完整评论对象）、`comment/delete`（**新入档端点**：sourceId+sourceType+commentId，官方 UI 抓包）。广场资产吸收时注意三处差异：cursor+count 写法无效（count 被忽略，page= 才有效）、userId 非必需、其无删评端点——逐条复核别照抄（吸收不搬家）。
 - 乐观更新 + 回滚模式照 `toggleCommentLike` 的既有范式。
+- **出口分析（副作用通则「关页时它在哪」）**：四个写链全是幂等意图动作（赞/投蕉/发评/删评），在途请求关页即丢 = 动作未发生，用户可见状态不变、可重按——**无需持久账本**（对比：上报是进度覆盖语义才需要出口兜底）；唯一硬要求是乐观更新失败必须回滚（计数与按钮态一并回退）。
 
 #### 任务卡 4.2：表情面板
 
@@ -194,7 +195,7 @@ feed/webPush 目前只有**视频条目**的字段实测。待测清单：
 
 #### 任务卡 4.3：未读徽标 + 轮询
 
-- followUpers 未读徽标；轮询退避 60s 起步翻倍封顶 10min（广场现成策略）。
+- followUpers 未读徽标（数据源**已实测**：`hasUnReadResource` 布尔且假值真实存在，§2.1.1）；轮询退避 60s 起步翻倍封顶 10min（广场现成策略）。
 
 **0.9.90 验收**：写路径单测 + 乐观更新/回滚钉牢；轮询退避单测。
 
@@ -310,7 +311,7 @@ feed/webPush 目前只有**视频条目**的字段实测。待测清单：
 | --- | --- | --- |
 | R1 | feed/webPush 不推动态/文章 | 0.9.88 gating 实测；最坏情况动态入口改道，先视频+文章 |
 | R2 | 官方 history 上报节奏未知（影响心跳方案） | **已闭合**（2026-10-03 实测：官方事件驱动、无心跳；方案改为触发点对齐 + 信封嗅探，原心跳案废弃） |
-| R3 | comments.js stype=4 复用不成立 | 0.9.89 工作量 +50%，届时重估 |
+| R3 | comments.js stype=4 复用不成立 | **已闭合**（2026-10-03 前置实测成立，api-research §4.7；动态详情评论区复用现有抽屉，无 +50% 工作量） |
 | R4 | CC BY-NC-SA 数据混布合规 | 0.9.91 前完成 README 数据许可段；数据段与 MIT 代码分声明 |
 | R5 | sv 源观看无 web 上报通道 | api-research 记「未实测」，不当 bug 反复查 |
 | R6 | 单文件体积过 1MB | 盯水位；死链备忘式惰性加载守住 |

@@ -302,6 +302,41 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
 - **消费侧**：`browse/history/list`（§4.1）即对账读口——实测 `browseTime` 随上报即时
   刷新，可用来做端到端验证。
 
+### 4.7 动态互动写链（〔实测〕2026-10-03，Phase 4 前置）
+
+**采集方式**：内置浏览器登录态、未装脚本的干净环境，页面内 fetch/XHR 直接打端点 +
+官方 UI 路径抓包。靶子：点赞/投蕉 = 关注流动态（AC娘本体 am5104362）；评论 add/delete =
+自有动态 am5103843（写链测试一律用自己的地盘）。广场 README 的 API 段为对照资产——
+**逐条复核出三处差异**（见各条），吸收时别照抄。
+
+- **R3 判定：comments.js 的 stype=4 复用成立**。`comment/list?sourceId={momentId}&sourceType=4`
+  响应与视频评论同族（rootComments / subCommentsMap / hotComments / totalPage / curPage /
+  pcursor 全在），**`page=` 分页有效**——svfeed 现有请求形状（不带 count，附
+  pivotCommentId/newPivotCommentId/showHotComments=1）实测 23 根评论一页全出（服务端默认
+  pageSize=50），`page=2` 越界返空不报错。两个坑：① **count 参数被忽略**——
+  `cursor=&count=10` 实测仍按 pageSize=50 返回（广场 README 的 cursor+count 写法是无效
+  旧口径）；② `commentCount` **含楼中楼**（实测 30 = 23 根 + 7 子），显示计数别当根数用。
+- **点赞 interact/add|delete（objectType=10）**：`objectId={momentId}&objectType=10&interactType=1&subBiz=mainApp&kpn=ACFUN_APP&acfun.midground.api_st={token}`
+  实测 add/delete 均 `result:1`（kuaishouzt 家族成功码）。**广场版多带的 userId 与
+  kpf=PC_WEB 不是必需**——svfeed 现有 callInteract 的精简参数即通。token 同 §4.6
+  （id.app.acfun.cn token/get，sid=acfun.midground.api，约 30min）。
+- **发评论 comment/add（sourceType=4）**：`sourceId&sourceType=4&replyToCommentId=0&content&midgroundToken`
+  → `result:0`，响应即**完整评论对象**（commentId/floor/timestamp/deviceModel/nameColor/
+  isLiked/likeCountFormat…与视频评论同族，可直接进渲染）。
+- **删评论 comment/delete（〔新端点〕官方 UI 抓包）**：body
+  `sourceId={momentId}&sourceType=4&commentId={commentId}`。UI 路径：评论行 ⋮
+  （`span.area-comment-more`）→「删除」（`span.area-comm-delete`，预渲染藏在行内，合成
+  mouseover 激不出 CSS hover 需真实指针）→ 确认（`button.area-comm-del`）。广场无此
+  端点文档。svfeed Phase 4 不含删评，入档备查。
+- **投蕉 banana/throwBanana（resourceType=10）**：`resourceId={momentId}&count=1&resourceType=10`
+  → `result:0`，`extData.bananaRealCount:1`（实花 1 蕉，不可逆）。**不能给自己投**
+  （result 170008「禁止投蕉」）；Referer=moment 页（同广场记录）。端点与视频投蕉（§4.6
+  同名端点 resourceType=2）同族。
+- **评论列表带 deviceModel / nameColor**：动态评论区照常下发机型串与红紫名
+  （nameColor 0/1/2 三值并存）——Phase 5.2 设备美化与红名渲染的数据源在动态侧可用。
+- **未实测**：楼中楼 sublist 的 sourceType=4（同族推断可用，动工时顺手验证）；评论图片
+  上传（广场有 4 步分片文档，svfeed 无带图评论需求，不吸收）。
+
 ## 5. 内容扩展路线定性（〔实测〕）
 
 - **大家都在看**：无独立 JSON 接口（v 页 performance 时间线无相关请求），服务端直出进 v 页 HTML（实测 40 个 /v/ac 链接）→ 唯一路线 DOM 解析（uppage.js 同款）；window.videoInfo 内嵌 douga/info 等价数据（含 mkey）但**无**相关视频数组
