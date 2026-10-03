@@ -15,7 +15,7 @@ import { CFG } from './cfg.js';
 import { el, fmt, toast } from './ui.js';
 import { request } from './net.js';
 import { followPanelOf } from './data.js';
-import { ubbTextOf, quoteBlockOf, openPanelItem } from './views.js';
+import { ubbTextOf, quoteBlockOf, openPanelItem, setMomentOpener } from './views.js';
 import { ubbPlain } from './ubb.js';
 import { commentShareWire } from './immsg.js';
 import { openSharePanel } from './imshare.js';
@@ -33,6 +33,8 @@ import { releaseDrawer } from './state.js';
 // ---------- 原位评论区（0.9.100）：行内开合的宿主状态（模块级——teardown 要能收拾它） ----------
 // 开新行前必须**显式关旧行**：claimDrawer 同槽重入不互收（comments.js 注释在册），不关的话
 // 旧容器还挂着管线 DOM、commentState 却已指向新行——列表更新串台。
+// 0.9.101：视频行也原位展开（原生 member-feed 三类条目都是原地开评论；sv=5 是 meow，
+// www 视频=3——data.js normalizeHome 同值）；文章评论 stype 未实测，仍外链官方页
 var openCmt = null; // { pi, box, list }
 
 function closeInlineComments() {
@@ -44,7 +46,8 @@ function closeInlineComments() {
   releaseDrawer('comments');
 }
 
-function toggleInlineComments(pi, btn) {
+// cmt = { sourceId, stype, shareUrl }：按条目型给管线端点参数（动态=4/momentId，视频=3/acId）
+function toggleInlineComments(pi, btn, cmt) {
   if (openCmt && openCmt.pi === pi) { closeInlineComments(); return; } // 同条目再点=收起
   closeInlineComments();
   var row = btn.closest('.acsv-frow');
@@ -62,7 +65,7 @@ function toggleInlineComments(pi, btn) {
     title: btn._n, // 评论计数 span 交给管线回写（momentdetail 同款）
     list: list,
     close: closeInlineComments
-  }, pi.momentId, 4, pi.href, 'home');
+  }, cmt.sourceId, cmt.stype, cmt.shareUrl, 'home');
 }
 
 // ---------- 行渲染（feedRowOf）：原生骨架四段 head / content / acts（sep=行间灰带） ----------
@@ -138,13 +141,15 @@ function momentMedia(pi) {
 }
 
 // 互动行（feed-interactive 等价）：分享=icon+「分享」文字（原生无数字）、评论/蕉/赞=icon+数字；
-// 蕉/赞双态（点亮换 fill glyph + accent 色，GLYPHS 单件等价原生 path/fill 机制）
+// 蕉/赞双态（点亮换 fill glyph + accent 色，GLYPHS 单件等价原生 path/fill 机制）。
+// 图标码点是**原生四件套**（0.9.101 采样复核：share=E628/comment=E627/banana=E62A·E65F/
+// like=E629·E660；此前 share 误用站点头部 E15B、蕉误用竖刷侧栏 E2EA——用户实报「投蕉图标用错」）
 function actRowOf(pi) {
   var bar = el('div', 'acsv-frow-acts');
   [
-    { k: 'share', label: '分享', glyph: GLYPHS.share, text: '分享' },
+    { k: 'share', label: '分享', glyph: GLYPHS.feedRepost, text: '分享' },
     { k: 'comment', label: '评论', glyph: GLYPHS.feedComment, n: pi.comment },
-    { k: 'banana', label: pi.thrown ? '已投蕉' : '投蕉', glyph: GLYPHS.banana, n: pi.banana, on: !!pi.thrown },
+    { k: 'banana', label: pi.thrown ? '已投蕉' : '投蕉', glyph: pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana, n: pi.banana, on: !!pi.thrown },
     { k: 'like', label: pi.liked ? '已赞' : '点赞', glyph: pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike, n: pi.like, on: !!pi.liked }
   ].forEach(function (def) {
     var b = el('span', 'acsv-fact' + (def.on ? ' on' : ''));
@@ -195,6 +200,8 @@ function syncAct(btn, pi) {
   } else if (k === 'banana') {
     btn.classList.toggle('on', !!pi.thrown);
     btn.title = pi.thrown ? '已投蕉' : '投蕉';
+    var gb = btn.querySelector('.acsvg-glyph');
+    if (gb) gb.textContent = pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana; // 双态同原生 path/fill
   }
   if (btn._n) btn._n.textContent = fmt(k === 'like' ? pi.like : k === 'banana' ? pi.banana : pi.comment);
 }
@@ -361,6 +368,10 @@ function buildFollowView(body) {
   list.addEventListener('click', function (ev) {
     var row = ev.target.closest('.acsv-frow');
     if (!row || !row._pi) return;
+    // 行内评论区内部（评论列表/输入条/表情面板/回复条）一律不参与行默认——**0.9.100 的病灶**：
+    // 这些点击冒泡到本委托后落 rowDefault，点一下表情按钮就把评论区关掉换成详情面板
+    //（用户实报「表情面板打不开」）；评论区自己的委托（commentListClick）已各自处理
+    if (ev.target.closest('.acsv-frow-cmts')) return;
     var pi = row._pi;
     var act = ev.target.closest('.acsv-fact');
     if (act) {
@@ -369,8 +380,11 @@ function buildFollowView(body) {
       if (k === 'like') actLike(pi, act);
       else if (k === 'banana') actBanana(pi, act);
       else if (k === 'comment') {
-        if (pi.ct === 'moment') toggleInlineComments(pi, act); // 原位展开（原生同款）
-        else actComment(pi);
+        if (pi.ct === 'moment') {
+          toggleInlineComments(pi, act, { sourceId: pi.momentId, stype: 4, shareUrl: pi.href });
+        } else if (pi.ct === 'video') {
+          toggleInlineComments(pi, act, { sourceId: pi.acId, stype: 3, shareUrl: CFG.api.videoBase + pi.acId });
+        } else actComment(pi); // 文章评论 stype 未实测：外链官方页（宁可漏不错）
       } else if (k === 'share') actShare(pi, act, body);
       return;
     }
@@ -416,11 +430,15 @@ function buildFollowView(body) {
   load();
 }
 
-// 评论/分享以外的一条旧出口收敛（视频/文章的评论键仍走各自落点）
+// 评论键的剩余出口（0.9.101：动态/视频都走行内原位展开，这里只剩文章——stype 未实测，
+// 外链官方页开评论）
 function actComment(pi) {
-  if (pi.ct === 'video') openPanelItem(pi); // 播放层直达，评论在层内抽屉
-  else if (pi.href) window.open(pi.href, '_blank'); // 文章评论在官方页
+  if (pi.href) window.open(pi.href, '_blank');
 }
+
+// 动态详情出口注册（0.9.101）：views.quoteBlockOf 点源动态条时要开 momentdetail——
+// views 不反向依赖本模块，走注入；registerView 之外的模块级注册（bundle 加载即生效）
+setMomentOpener(openMomentDetail);
 
 // 左栏 dock 元数据随视图声明（0.9.78：sidebar 从注册表派生）。无 deep/无 volatile——
 // 普通 dock 视图（收旧 + 来源链作废）；「视频」侧从顶栏 seg 进（followstream.enterVideos）。

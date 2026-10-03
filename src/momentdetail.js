@@ -174,7 +174,9 @@ function actionBar(pi) {
 
   var banana = el('span', 'acsv-mdl-ban' + (pi.thrown ? ' on' : ''));
   var banN = el('span', null, fmt(pi.banana));
-  banana.appendChild(el('i', 'acsvg-glyph', GLYPHS.banana));
+  // 蕉图标=原生四件套 E62A/E65F（0.9.101 采样复核；此前误用竖刷侧栏的 GLYPHS.banana E2EA）
+  var banG = el('i', 'acsvg-glyph', pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana);
+  banana.appendChild(banG);
   banana.appendChild(banN);
   banana.title = pi.thrown ? '已投蕉' : '投蕉';
   banana.addEventListener('click', function (ev) {
@@ -187,6 +189,7 @@ function actionBar(pi) {
       pi.thrown = true; // 投蕉不可逆：只进不退（官方无取消端点），锁死防重复投
       pi.banana += 1;
       banana.classList.add('on');
+      banG.textContent = GLYPHS.feedBananaFill; // 点亮换实心（原生 path/fill 同款）
       banN.textContent = fmt(pi.banana);
       banana.title = '已投蕉';
       toast('投蕉成功');

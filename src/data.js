@@ -296,24 +296,36 @@ var PANEL_PARSERS = {
         // **转发的 coverUrl 实测恒等于源内容的封面**（9/9 全等，2026-10-03）——所以转发卡
         // 不能拿它当主视觉（会伪装成视频/文章卡，用户实报「分不清」），渲染层改挂源条
         it.cover = coverUrl(raw.coverUrl);
-        // 转发（23/36 实测占比）：repostSource 是完整分支条目，此处只取卡面够用的三件套
-        // （源类型/源标题/源缩略图）；源条文案与形态由渲染层按 ct 出。
+        // 转发（23/36 实测占比）：repostSource 是完整分支条目，取**卡面 + 落点**所需
+        //（源类型/源 id/源标题/源缩略图/源作者；0.9.101 起源条可点，id/up/text 是落点与
+        // 详情面板的料）；源条文案与形态由渲染层按 ct 出。
         // 0.9.98 补 rs10（源是另一条动态，实测关注流实存 3/21）：此前漏接，这类卡被当
-        // 原创渲染、误把源首图挂成作者自己的图。引用块取源正文明文（ubbPlain 投影）+ 源首图
+        // 原创渲染、误把源首图挂成作者自己的图。引用块取源正文明文（ubbPlain 投影）+ 源首图。
+        // up 形状：rs.user 与关注流条目同款（userId/userName/userHead，§2.1.1）
         var rs = raw.repostSource;
+        function rsUp(u) {
+          u = u || {};
+          return upOf(u.userId, u.userName, coverUrl(u.userHead));
+        }
         if (rs && (rs.resourceType === 2 || rs.resourceType === 3)) {
           it.repost = {
             ct: rs.resourceType === 2 ? 'video' : 'article',
+            id: Number(rs.resourceId) || 0,
             title: String(rs.caption || rs.articleTitle || ''),
-            cover: coverUrl(rs.coverUrl)
+            cover: coverUrl(rs.coverUrl),
+            up: rsUp(rs.user)
           };
         } else if (rs && rs.resourceType === 10 && rs.resourceId) {
           var rsm = rs.moment || {};
           var rsImgs = Array.isArray(rsm.imgs) ? rsm.imgs : [];
           it.repost = {
             ct: 'moment',
+            id: Number(rs.resourceId) || 0,
             title: ubbPlain(rsm.text || rs.discoveryResourceFeedShowContent || ''),
-            cover: coverUrl((rsImgs[0] && (rsImgs[0].url || rsImgs[0].originUrl)) || rs.coverUrl)
+            cover: coverUrl((rsImgs[0] && (rsImgs[0].url || rsImgs[0].originUrl)) || rs.coverUrl),
+            // 源正文**原文**（UBB）：点源条开详情面板时正文要靠它渲染（unplain 不可逆）
+            text: rsm.text || rs.discoveryResourceFeedShowContent || '',
+            up: rsUp(rs.user)
           };
         }
         // 三计数（路线图 Phase 3 的动态卡规格）：复用 meta 三段语义与 META_GLYPH，不新增字段

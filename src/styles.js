@@ -911,6 +911,9 @@ var RAW_CSS = ''
   + '.acsv-gquote-body{min-width:0;flex:1 1 auto}'
   + '.acsv-gquote-title{font-size:13px;line-height:18px;color:#d5d8df;max-height:36px;overflow:hidden}'
   + '.acsv-gquote-kind{margin-top:4px;font-size:11px;color:#8a90a0}'
+  // 源条可点态（0.9.101）：视频→播放层/文章→外链/动态→详情面板；hover 提亮 + 主色竖线
+  + '.acsv-gquote-on{cursor:pointer}'
+  + '.acsv-gquote-on:hover{background:rgba(255,255,255,.1);border-left-color:var(--acsv-accent)}'
   // 尾件沉底（0.9.95 用户实报「引用的信息和脚注置底、为正文腾出空间，观感更整齐」）：
   // 有引用 → 引用块吃余量（与计数行成组贴底）；无引用 → 计数行贴底。**图不沉底**——
   // 图是内容不是尾件，跟着正文走才读得顺（取舍在册）。余量落在「正文与尾件之间」，
@@ -930,7 +933,7 @@ var RAW_CSS = ''
   // 暗色换算对照：#333→#e8eaee、#f8f8f8→rgba(255,255,255,.06)、#999→#8a90a0、
   // hover/active 红→var(--acsv-accent)。原生是**扁平列表**（条目无底色无圆角），条目间
   // feed-separate 是 830×10 灰带——这里用相邻行 border-top 等价实现
-  + '.acsv-frows{max-width:870px}'
+  + '.acsv-frows{max-width:870px;margin:0 auto}'
   + '.acsv-frow{padding:0 20px}'
   + '.acsv-frow + .acsv-frow{border-top:10px solid rgba(255,255,255,.05)}'
   // 头像行（member-feed-user）：头像 50 圆 + 右距 10；名字 16px 链接（hover 红）；时间块级在名字下
@@ -987,8 +990,10 @@ var RAW_CSS = ''
   + '.acsv-fact:hover{color:var(--acsv-accent)}'
   + '.acsv-fact.on{color:var(--acsv-accent)}'
   + '.acsv-fact .acsvg-glyph{font-size:14px}'
-  // 原位评论区（0.9.100）：60px 缩进对齐内容区；列表/输入条/表情面板样式全继承评论族
-  + '.acsv-frow-cmts{margin:0 0 6px 60px}'
+  // 原位评论区（0.9.100）：60px 缩进对齐内容区；列表/输入条/表情面板样式全继承评论族。
+  // position:relative 是表情面板的锚（.acsv-emotpanel 是 absolute;bottom:57px——宿主无定位
+  // 时它逃逸到 .acsv-view-body 底缘，看起来就是「打不开」；0.9.101 用户实报修复）
+  + '.acsv-frow-cmts{position:relative;margin:0 0 6px 60px}'
   + '.acsv-frow-cmtlist{max-height:420px;overflow-y:auto;scrollbar-width:thin;'
   + 'scrollbar-color:rgba(255,255,255,.2) transparent}'
   // 三态底部状态行（借鉴广场 load-more-status）；busy 态加点点动画的克制版=文字+降透明

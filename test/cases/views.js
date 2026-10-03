@@ -1271,6 +1271,55 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       return !mRow.querySelector('.acsv-frow-cmts') && !!gRow.querySelector('.acsv-frow-cmts');
     }, 8000)));
     if (gActs[1]) gActs[1].click(); // 收起，防污染后续断言
+    // 冒泡守卫（0.9.101 实报修复）：行内评论区内部（评论条目/输入条/表情按钮）的点击
+    // 不得冒泡成行默认——0.9.100 的病灶是点一下表情按钮把评论区关掉换详情面板
+    mActs[1].click();
+    await waitFor(function () { return !!mRow.querySelector('.acsv-frow-cmts .acsv-citem'); }, 8000);
+    var citem = mRow.querySelector('.acsv-frow-cmts .acsv-citem');
+    if (citem) citem.click();
+    await wait(300);
+    rec('follow-cmts-no-bubble', !q('.acsv-mdetail') && !!mRow.querySelector('.acsv-frow-cmts'),
+      'panel=' + !!q('.acsv-mdetail') + ' cmts=' + !!mRow.querySelector('.acsv-frow-cmts'));
+    mActs[1].click(); // 收起
+    // 视频行也原位展开评论（0.9.101）：stype=3（www 视频）+ sourceId=acId，不再进播放层
+    var vActs = vRow.querySelectorAll('.acsv-fact');
+    vActs[1].click();
+    rec('follow-video-cmts', !!(await waitFor(function () {
+      var box = vRow.querySelector('.acsv-frow-cmts');
+      return box && box.querySelectorAll('.acsv-citem').length >= 2;
+    }, 8000)));
+    var vcst = TEST.call('comments');
+    rec('follow-video-cmts-params', !!(vcst && vcst.stype === 3 && String(vcst.sourceId) === '488801'),
+      JSON.stringify(vcst));
+    // 表情面板（0.9.101 实报「表情面板打不开」）：宿主锚定后的可开性——面板在行内盒里
+    // 展示（position:relative 锚，0.9.100 宿主无定位会逃逸到视图底缘；冒泡守卫挡它被关）
+    var emotBtn = vRow.querySelector('.acsv-frow-cmts .acsv-cinput-emot');
+    if (emotBtn) emotBtn.click();
+    rec('follow-cmts-emotpanel', !!(await waitFor(function () {
+      var p2 = vRow.querySelector('.acsv-frow-cmts .acsv-emotpanel');
+      return p2 && p2.style.display !== 'none' && p2.offsetParent !== null;
+    }, 5000)));
+    if (emotBtn) emotBtn.click(); // 再点收面板
+    vActs[1].click(); // 收起
+    // 图标码点（0.9.101 实报「投蕉图标用错」）：原生 member-feed 四件套
+    // 分享 E628 / 评论 E627 / 蕉 E62A / 赞（该行预置已赞）E660——竖刷侧栏的蕉(E2EA)与
+    // 站点头部分享(E15B)都是错的（0.9.100 用错那两个）
+    rec('follow-icon-codepoints', (function () {
+      function cp(act) {
+        var b = null;
+        [].forEach.call(vRow.querySelectorAll('.acsv-fact'), function (x) { if (x._act === act) b = x; });
+        var g = b && b.querySelector('.acsvg-glyph');
+        return g ? g.textContent.codePointAt(0) : 0;
+      }
+      return cp('share') === 0xE628 && cp('comment') === 0xE627 && cp('banana') === 0xE62A && cp('like') === 0xE660;
+    })(), 'share/comment/banana/like=' + (function () {
+      var out = [];
+      [].forEach.call(vRow.querySelectorAll('.acsv-fact'), function (x) {
+        var g = x.querySelector('.acsvg-glyph');
+        out.push(x._act + ':' + (g ? g.textContent.codePointAt(0).toString(16) : '?'));
+      });
+      return out.join(' ');
+    })());
     // ---- 多图行：九宫格原生形制（默认容器 342、3 格 110 方）----
     rec('follow-moment-multigrid', !!(gRow && gRow.querySelector('.acsv-frow-imgs:not(.n1):not(.n24)')
       && gRow.querySelectorAll('.acsv-frow-img').length === 3),
@@ -1288,6 +1337,41 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       && (rRow3.querySelector('.acsv-gquote-kind') || {}).textContent === '动态'
       && /被转发的动态正文\s+带\s+@某人/.test((rRow3.querySelector('.acsv-gquote-title') || {}).textContent || '')),
       rRow3 ? (rRow3.querySelector('.acsv-gquote') || {}).textContent : 'no-row');
+    // 引用块可点（0.9.101 实报「点转发的内容小卡不会打开播放」）：三落点分别验证——
+    // 视频源→播放层（直挂缝）、文章源→官方页新窗（window.open 桩）、动态源→详情面板
+    window.__ACSV_MOCK_DIRECT__ = { '488900': 1 };
+    var qVideo = rRow.querySelector('.acsv-gquote');
+    if (qVideo) qVideo.click();
+    // 等待条件必须钉**播放层真挂载**：hash 是 openPlayer 同步写的、.acsv-slide 在舞台里
+    // 本来就有（竖刷的 slide）——只看这两样会同步通过，case 抢在 hashchange 处理前按
+    // Escape，播放层从未挂载、关注视图反被关掉（0.9.101 首跑实锤：后续断言全打在游离
+    // DOM 上假绿）。view==='play' + data-ovl 哨兵才是「层已建」的可观测面
+    rec('follow-quote-play', !!(await waitFor(function () {
+      return location.hash === '#svfeed/play/a/488900' && TEST.call('view') === 'play'
+        && !!q('.acsv-slide[data-ovl="1"]');
+    }, 10000)), location.hash + ' view=' + TEST.call('view'));
+    key('Escape');
+    // 返回同理钉「视图真恢复」：backFromOrigin 同步改 hash，但 enterView('follow') 在
+    // 随后的 hashchange 里才跑——只等 hash 会在恢复完成前抢跑
+    rec('follow-quote-back', !!(await waitFor(function () {
+      return location.hash === '#svfeed/follow' && TEST.call('view') === 'follow'
+        && !q('.acsv-view-held');
+    }, 8000)), location.hash + ' view=' + TEST.call('view'));
+    var rRow2 = rowOf('转发文章的动态');
+    window.__ACSV_LAST_OPEN__ = '';
+    window.open = function (u) { window.__ACSV_LAST_OPEN__ = String(u); return null; };
+    var qArt = rRow2 && rRow2.querySelector('.acsv-gquote');
+    if (qArt) qArt.click();
+    rec('follow-quote-article', /\/a\/ac488700$/.test(window.__ACSV_LAST_OPEN__ || ''),
+      window.__ACSV_LAST_OPEN__);
+    var qMom = rRow3.querySelector('.acsv-gquote');
+    if (qMom) qMom.click();
+    rec('follow-quote-moment', !!(await waitFor(function () {
+      var md = TEST.call('momentdetail');
+      return md && md.open === true && md.momentId === 510091;
+    }, 8000)), JSON.stringify(TEST.call('momentdetail')));
+    key('Escape');
+    await waitFor(function () { return !q('.acsv-mdetail'); }, 8000);
     // ---- 展开/收起：溢出才挂按钮（rAF 探测），点击切换钳高 ----
     var longRow = rowOf('无图动态');
     rec('follow-expand-armed', !!(longRow && longRow.querySelector('.acsv-fmore') !== null

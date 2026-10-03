@@ -27,6 +27,8 @@ export var GLYPHS = {
   feedComment: '\ue627',    // 评论
   feedLike: '\ue629',       // 点赞（未点亮）
   feedLikeFill: '\ue660',   // 点赞（点亮实心）
+  feedBanana: '\ue62a',     // 投蕉（未点亮；0.9.101 采样补——此前误用 GLYPHS.banana E2EA）
+  feedBananaFill: '\ue65f', // 投蕉（点亮实心；0.9.101 采样补）
   phone: '\ue242',      // 手机
   monitor: '\ue184',    // 电脑
   tablet: '\ue185',     // 平板

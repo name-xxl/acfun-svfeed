@@ -3,6 +3,41 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.101（2026-10-03）· 关注行流交互补课：五处实报逐条修
+
+- **病灶（用户真机五点实报）**：0.9.100 的结构量取到位了，但交互层还有一套账——
+  ①「评论展开逻辑没做吗」②「表情面板打不开」③「投蕉图标用错了」④「动态卡片应该居中」
+  ⑤「转发卡片，点击转发的内容小卡不会打开播放」。
+- **①+② 同根：评论区内点击冒泡 + 宿主无定位（两处都得修）**
+  - 冒泡：行级委托只挡了互动键，评论区内部（评论条目/输入条/表情按钮）的点击冒到
+    `rowDefault`——点一下表情按钮就把评论区关掉换详情面板。修法：委托入口加
+    `closest('.acsv-frow-cmts')` 早退（评论区有自己的 commentListClick 委托）。
+  - 定位：`.acsv-emotpanel` 是 `absolute;bottom:57px`，靠宿主定位——行内盒无 `position`
+    时它逃逸到 `.acsv-view-body` 底缘（看起来就是打不开）。修法：`.acsv-frow-cmts`
+    加 `position:relative`（输入条/回复条同宿主，一并归位）。
+  - 顺带：**视频行也原位展开评论**（原生 member-feed 三类条目同款交互；stype=3——
+    www 视频的 comment sourceType，data.js normalizeHome 同值；sv=5 是 meow）；文章评论
+    stype 未实测，仍外链官方页（宁可漏不错）。
+- **③ 图标码点**：原生 member-feed 互动行实测采样（2026-10-03 内置浏览器 charCodeAt）：
+  分享 **E628** / 评论 E627 / 蕉 **E62A**（点亮 E65F）/ 赞 E629（点亮 E660）。0.9.100 里
+  分享误用了站点头部的 E15B（GLYPHS.share）、蕉误用了竖刷侧栏的 E2EA（GLYPHS.banana）；
+  修法：imicons 补 `feedBanana/feedBananaFill`，行内与 momentdetail 互动栏改走
+  `feedRepost/feedBanana(+Fill)`（点亮换字同原生 path/fill 双态）。
+- **④ 居中**：`.acsv-frows` 补 `margin:0 auto`（原生 member 页 870 列居中，此前左对齐）。
+- **⑤ 引用块可点**（原生同款：官方源条就是指向源内容的链接）：契约层 `repost` 补
+  `id`（落点）+ `up`（播放层首帧作者/详情面板头像）+ rs10 补 `text`（源正文原文，详情面板
+  用）；`quoteBlockOf` 挂点击——视频→播放层（openPanelItem 注入出口）、文章→官方页新窗、
+  动态→详情面板（`setMomentOpener` 注入，views 不反向依赖 momentdetail；未注册外链兜底）；
+  无 id 的旧数据保持静展示。
+- **测试**：单测 182（转发源契约改 deepEqual 钉 id/up 全形）；harness `view-follow`
+  51 断言（+冒泡守卫/视频行内评论 stype=3/图标码点逐字面/**表情面板可开**/引用块三落点）。
+  **测试自身踩坑登记**：引用块→播放层的等待条件只写 hash+`.acsv-slide` 会被同步满足
+  （hash 是 openPlayer 同步写的、舞台本来就有 slide）→ case 抢在 hashchange 前按 Esc，
+  播放层从未挂载、后续断言全打在游离 DOM 上假绿。等待条件必须钉**层已建**的可观测面
+  （`view==='play'` + `.acsv-slide[data-ovl="1"]` 哨兵），返回同理钉「视图已恢复」。
+- **回归**：lint 干净、check 三项过、单测 182 全绿、harness 42 场景 0 失败。真机验收：
+  五点实报逐条复看 + 行内评论发删（自有动态）。
+
 ### 0.9.100（2026-10-03）· 关注行流还原度重构：按原生骨架重做
 
 - **病灶（用户实报「无限画布不还原，违背尽量复用原生设计的原则」）**：0.9.99 的行流是

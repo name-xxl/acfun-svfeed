@@ -46,6 +46,13 @@ export function setItemOpener(fn) { itemOpener = typeof fn === 'function' ? fn :
 // 条目点击出口的转发（0.9.99）：followview 互动行与 rowOf/gridCardOf 同门进播放层——
 // 不直接 import playlayer（依赖方向维持 views 不反向依赖播放层），经注入的 opener 出
 export function openPanelItem(pi) { if (itemOpener) itemOpener(pi); }
+
+// 动态详情出口（0.9.101）：引用块点源条（源是动态）时要开 momentdetail——同款注入，
+// 避免 views→momentdetail 反向依赖；未注册（理论上不会有：followview 随 bundle 加载）
+// 时调用方外链官方页兜底
+var momentOpener = null;
+export function setMomentOpener(fn) { momentOpener = typeof fn === 'function' ? fn : null; }
+export function openMomentPi(pi) { if (momentOpener) momentOpener(pi); }
 // 来源界面名（来源链顶，空链/null view = 竖刷）：深界面的 dock 高亮与「向左返回」定位用它
 export function originView() {
   if (!origins.length) return null;
@@ -371,7 +378,11 @@ export function statRowOf(meta) {
 }
 
 // 转发引用块（0.9.96 抽共享）：左竖线 + 源缩略图 + 源标题 + 源类型字——转发的结构性签名，
-// followview 动态卡与 momentdetail 详情面板两处消费同一件（新重复即 lint 候选的先手）
+// followview 动态卡与 momentdetail 详情面板两处消费同一件（新重复即 lint 候选的先手）。
+// 0.9.101 起源条**可点**（用户实报「点转发的内容小卡不会打开播放」；原生同款——官方
+// member-feed 的源条就是指向源内容的链接）：视频→播放层（openPanelItem 注入出口）、
+// 文章→官方页新窗、动态→详情面板（setMomentOpener 注入；未注册外链兜底）。源 id 缺席
+// （老契约数据）就不挂点击，保持静展示
 var QUOTE_KIND = { video: '视频', article: '文章', moment: '动态' };
 export function quoteBlockOf(repost) {
   var q = el('div', 'acsv-gquote');
@@ -382,6 +393,30 @@ export function quoteBlockOf(repost) {
   qb.appendChild(el('div', 'acsv-gquote-title', repost.title || '（无标题）'));
   qb.appendChild(el('div', 'acsv-gquote-kind', QUOTE_KIND[repost.ct] || '内容'));
   q.appendChild(qb);
+  if (repost.id) {
+    q.classList.add('acsv-gquote-on');
+    q.addEventListener('click', function (ev) {
+      ev.stopPropagation(); // 不冒泡成宿主行/卡的行默认动作（开转发本身）
+      if (repost.ct === 'video') {
+        openPanelItem({ acId: Number(repost.id) || 0, title: repost.title || '', cover: repost.cover || '', up: repost.up || null });
+      } else if (repost.ct === 'article') {
+        window.open(CFG.api.articleBase + repost.id, '_blank');
+      } else if (repost.ct === 'moment') {
+        if (momentOpener) {
+          // 源动态 → 详情面板：正文用源原文（data.js 存的 text），up 用源作者；
+          // 计数未知给 0（面板互动栏不虚标），评论区走管线真拉（sourceId=源 momentId）
+          openMomentPi({
+            ct: 'moment', kind: 'follow', momentId: repost.id, text: repost.text || '',
+            href: 'https://www.acfun.cn/moment/am' + repost.id, up: repost.up || null,
+            cover: repost.cover || '', dateText: '',
+            like: 0, comment: 0, banana: 0, liked: false, thrown: false
+          });
+        } else {
+          window.open('https://www.acfun.cn/moment/am' + repost.id, '_blank');
+        }
+      }
+    });
+  }
   return q;
 }
 
