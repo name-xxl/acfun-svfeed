@@ -220,6 +220,12 @@
     'token/get': function () { return { result: 0, 'acfun.midground.api_st': 'mock-st' }; },
     'interact/add': function () { return { result: window.__ACSV_LIKE_FAIL__ ? 0 : 1 }; },
     'interact/delete': function () { return { result: window.__ACSV_LIKE_FAIL__ ? 0 : 1 }; },
+    // 投蕉桩（0.9.104：数量层断言用）——成功码 0（AppAPI.throwBanana 判 result===0）；
+    // body 记到 __ACSV_BAN_BODY__ 供 resourceType（视频=2/文章=3）与 count 断言
+    'banana/throwBanana': function (body) {
+      window.__ACSV_BAN_BODY__ = String(body || '');
+      return { result: 0 };
+    },
     // 子频道树：官方树形状裁剪（children cid+navName），zone 视图选频道后填子频道 chips
     'page/queryNavigators': {
       result: 0,

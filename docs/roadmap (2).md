@@ -261,6 +261,7 @@ feed/webPush 目前只有**视频条目**的字段实测。待测清单：
 - **行内写链**：赞/蕉（乐观回滚 + 投蕉不可逆锁，rail 范式；文章只读——写链未实测）、评论（动态→详情面板/视频→播放层/文章→外链）、分享（imshare 面板，wire 契约「标题行\nURL」）。
 - **徽标语义**：进关注语境（任一侧）即清零；`isFollowContext()` 单源（hash 前缀 ‖ 流活动）——只看 hash 会在舞台放关注视频（地址是深链形态）时误点亮。
 - **验收**：单测 182；harness `view-follow` 38 断言 + 新场景 `follow-videos` 15 断言（seg 显隐/深链接管/泵序 488912/全部回路/原地续看不重置缓冲）。
+- **9.1 追记五（0.9.104 关注语境三处实报）**：舞台态隐源 seg（与关注 seg 互斥）；蕉「已投」锁定蕉黄 #ffb323（拆色，与 rail 同源）；视频/文章行接投蕉数量层（banpop.js 自 rail 抽件共享；文章 resourceType=3 未实测标注）；动态维持单蕉。view-follow 61 / follow-videos 18 断言。
 - **9.1 追记四（0.9.103 详情页小红书式改版，用户裁决）**：动态详情面板按 xiaohongshu.com 详情实测重做——两栏（左媒体 504 黑底/右栏 400 三段式）按内容型换布局（有图两栏、无图/转发单栏收窄）；互动栏留内容底部；comments 管线 titleFmt（「共 N 条评论」）；✕ 浮卡片外。detail-open 28 断言 + 两栏/单栏目检。backlog：作者行关注钮/底栏窄输入框展开。
 - **9.1 追记三（0.9.102 收口，用户裁决两处口径）**：死代码/死配置清理（含「转发旗标」需求作废登记——原生无文字旗标）；共享件抽取（媒体块 dispatcher `momentMediaOf`、写链 pi 级 `likePi/throwBananaPi`、`stripOf` 下沉、`skeletonRows`、`.acsv-seg-follow` 修饰类、`CFG.api.momentBase`、`momentPiOfRepost`）；**引用卡完全照原生**（@源UP 蓝链 + 内嵌完整源内容卡）；seg 显隐收紧到关注语境（与徽标抑制判据分用途）。harness view-follow 53 / follow-videos 17 断言。
 - **9.1 追记二（0.9.101 交互补课，用户真机五点实报）**：评论冒泡守卫（评论区内部点击不再冒成行默认）+ 表情面板宿主锚定（position:relative）+ 视频行也原位展开评论（stype=3）+ 图标码点采样修正（分享 E628/蕉 E62A·E65F——此前误用 E15B/E2EA）+ 列居中 + 引用块可点（视频→播放层/文章→外链/动态→详情面板）。harness 51 断言；**等待条件钉「层已建」（view+data-ovl 哨兵）防同步假绿**的教训同期入册。

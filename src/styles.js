@@ -700,7 +700,8 @@ var RAW_CSS = ''
   + '.acsv-mdl-like,.acsv-mdl-ban,.acsv-mdl-cmt{display:inline-flex;align-items:center;gap:5px}'
   + '.acsv-mdl-like,.acsv-mdl-ban{cursor:pointer}'
   + '.acsv-mdl-like:hover,.acsv-mdl-ban:hover{color:#fff}'
-  + '.acsv-mdl-like.on,.acsv-mdl-ban.on{color:var(--acsv-accent)}'
+  + '.acsv-mdl-like.on{color:var(--acsv-accent)}'
+  + '.acsv-mdl-ban.thrown{color:#ffb323}' // 蕉黄（0.9.104 拆色，A 站蕉色）
   + '.acsv-mdetail-cmthead{margin:16px 0 6px;text-align:center}'
   + '.acsv-mdetail-cmt{font-size:14px;font-weight:400;color:#8a90a0}'
   // 表情悬停大图（0.9.96 4.2）：锚定宿主面板（absolute），预览在条目上方、不挡交互
@@ -989,6 +990,9 @@ var RAW_CSS = ''
   + 'font-size:12px;color:#8a90a0;cursor:pointer;user-select:none}'
   + '.acsv-fact:hover{color:var(--acsv-accent)}'
   + '.acsv-fact.on{color:var(--acsv-accent)}'
+  + '.acsv-fact.thrown{color:#ffb323}' // 投过蕉：锁定蕉黄（A 站蕉色，rail .thrown 同源；0.9.104）
+  // 数量层在行内互动行的落位（共享件 acsv-banpop 原为竖刷右栏设计：right:62——行内改锚底部上方）
+  + '.acsv-frow-acts .acsv-banpop{right:0;top:auto;bottom:100%;margin-bottom:4px}'
   + '.acsv-fact .acsvg-glyph{font-size:14px}'
   // 原位评论区（0.9.100）：60px 缩进对齐内容区；列表/输入条/表情面板样式全继承评论族。
   // position:relative 是表情面板的锚（.acsv-emotpanel 是 absolute;bottom:57px——宿主无定位

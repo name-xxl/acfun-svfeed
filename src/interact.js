@@ -70,7 +70,12 @@ export function likePi(pi, on) {
   return setRealLike(item, on);
 }
 
-export function throwBananaPi(pi) {
-  // 动态 resourceType=10 / www 视频省略（默认 2）；count=1 同广场语义
-  return pi.ct === 'moment' ? AppAPI.throwBanana(pi.momentId, 1, 10) : AppAPI.throwBanana(pi.acId, 1);
+export function throwBananaPi(pi, count, resourceType) {
+  // resourceType：动态=10（§4.7 实测）/ 视频=2 / **文章=3（enum 与 follow feed 一致，未实测
+  // ——写链测试纪律不能对他人文章投蕉，失败态由 toast 兜底）**；count 1~5（0.9.104 视频/文章
+  // 行接数量层，默认 1 同广场语义）
+  var n = count > 0 ? count : 1;
+  var rt = resourceType || (pi.ct === 'moment' ? 10 : pi.ct === 'article' ? 3 : 2);
+  var id = pi.ct === 'moment' ? pi.momentId : pi.acId;
+  return AppAPI.throwBanana(id, n, rt);
 }

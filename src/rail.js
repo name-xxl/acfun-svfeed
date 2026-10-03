@@ -6,6 +6,7 @@ import { FeedStore } from './feedstore.js';
 import { setRealLike, setRealFollow, setRealFavorite, giveBanana } from './interact.js';
 import { toggleItemComments } from './comments.js';
 import { openSharePanel } from './imshare.js';
+import { toggleBananaPop } from './banpop.js';
 
 // ---------- 右侧操作栏 + 上下翻页箭头 ----------
 // 从 buildSlide 抽出：头像/关注、点赞、评论、投蕉、收藏、分享。
@@ -190,7 +191,14 @@ export function buildSideRail(slide, item, goTo) {
     // 投蕉：弹数量层（对齐视频页"点第 N 根投 N"）；已投过则不可再展开
     var banUI = railBtn({ mask: VIDEO_ICONS.banana, svg: ICONS.banana }, fmt(item.banana), '投蕉', function (b) {
       if (item.thrown) { toast('已投过蕉啦，明天再来~'); return; }
-      toggleBanPop(slide, b, item);
+      toggleBananaPop(b, {
+        send: function (n) { return giveBanana(item, n); },
+        applied: function (n) {
+          item.banana += n;
+          item.thrown = true; // 投蕉不可取消：投过即锁定
+          if (slide._banSync) slide._banSync();
+        }
+      });
     });
     slide._banSync = function () {
       banUI.count.textContent = fmt(item.banana);
@@ -254,57 +262,7 @@ export function buildSideRail(slide, item, goTo) {
   slide.appendChild(side);
 }
 
-// 投蕉数量选择弹层：默认全灰，悬停第 N 根时 1~N 一起变亮，点第 N 根投 N，点外部关闭
-function toggleBanPop(slide, btn, item) {
-  var existing = slide.querySelector('.acsv-banpop');
-  if (existing) { existing.remove(); return; }
-  var pop = el('div', 'acsv-banpop');
-  var opts = [];
-  var build = function (n) {
-    var ob = el('button');
-    ob.title = '投 ' + n + ' 根香蕉';
-    var img = el('img');
-    img.alt = '';
-    img.src = VIDEO_ICONS.banana; // 默认灰
-    img.addEventListener('error', function () { ob.textContent = n; });
-    ob.appendChild(img);
-    ob._img = img;
-    ob.addEventListener('mouseenter', function () {
-      opts.forEach(function (o, i) { o._img.src = i < n ? VIDEO_ICONS.bananaOn : VIDEO_ICONS.banana; });
-    });
-    ob.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      pop.remove();
-      withBusy(item, 'banBusy', function () {
-        return giveBanana(item, n);
-      }, function (ok) {
-        if (ok) {
-          item.banana += n;
-          item.thrown = true; // 投蕉不可取消：投过即锁定
-          if (slide._banSync) slide._banSync();
-          toast('投出 ' + n + ' 根香蕉');
-        } else {
-          toast('投蕉失败（未登录或今日已投完？）');
-        }
-      });
-    });
-    opts.push(ob);
-    pop.appendChild(ob);
-  };
-  for (var n = 1; n <= 5; n++) build(n);
-  pop.addEventListener('mouseleave', function () {
-    opts.forEach(function (o) { o._img.src = VIDEO_ICONS.banana; });
-  });
-  btn.parentNode.style.position = 'relative';
-  btn.parentNode.appendChild(pop);
-  setTimeout(function () {
-    document.addEventListener('click', function onDoc() {
-      document.removeEventListener('click', onDoc);
-      if (!pop.isConnected) return; // slide 已销毁（切源/退出）时闭包自然释放，不留全局监听
-      pop.remove();
-    });
-  }, 0);
-}
+// 投蕉数量层：0.9.104 抽至 banpop.js（rail 与关注行流视频/文章行共享，同一「点第 N 根投 N」交互）
 
 // home 条目解析完成后，把右侧栏/控制栏的计数与初始状态回填
 export function onHomeResolved(slide, item) {

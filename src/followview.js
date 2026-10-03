@@ -25,6 +25,7 @@ import { registerView } from './viewreg.js';
 import { setDockBadge } from './sidebar.js';
 import { openMomentDetail } from './momentdetail.js';
 import { likePi, throwBananaPi } from './interact.js';
+import { toggleBananaPop } from './banpop.js';
 import { openImageViewer } from './imgview.js';
 import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
 import { releaseDrawer } from './state.js';
@@ -123,10 +124,12 @@ function actRowOf(pi) {
   [
     { k: 'share', label: '分享', glyph: GLYPHS.feedRepost, text: '分享' },
     { k: 'comment', label: '评论', glyph: GLYPHS.feedComment, n: pi.comment },
-    { k: 'banana', label: pi.thrown ? '已投蕉' : '投蕉', glyph: pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana, n: pi.banana, on: !!pi.thrown },
-    { k: 'like', label: pi.liked ? '已赞' : '点赞', glyph: pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike, n: pi.like, on: !!pi.liked }
+    // 蕉=thrown（锁定蕉黄 #ffb323，A 站蕉色，与竖刷 rail 同源）；赞=on（accent）——0.9.104
+    // 用户实报「已投蕉的颜色是黄的」：此前两者共用 .on 的 accent 红，与视频侧不一致
+    { k: 'banana', label: pi.thrown ? '已投蕉' : '投蕉', glyph: pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana, n: pi.banana, cls: pi.thrown ? 'thrown' : '' },
+    { k: 'like', label: pi.liked ? '已赞' : '点赞', glyph: pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike, n: pi.like, cls: pi.liked ? 'on' : '' }
   ].forEach(function (def) {
-    var b = el('span', 'acsv-fact' + (def.on ? ' on' : ''));
+    var b = el('span', 'acsv-fact' + (def.cls ? ' ' + def.cls : ''));
     b._act = def.k;
     b.title = def.label;
     b.appendChild(el('i', 'acsvg-glyph', def.glyph));
@@ -171,7 +174,7 @@ function syncAct(btn, pi) {
     var g = btn.querySelector('.acsvg-glyph');
     if (g) g.textContent = pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
   } else if (k === 'banana') {
-    btn.classList.toggle('on', !!pi.thrown);
+    btn.classList.toggle('thrown', !!pi.thrown); // 蕉黄（.on 留给赞的 accent；0.9.104 拆色）
     btn.title = pi.thrown ? '已投蕉' : '投蕉';
     var gb = btn.querySelector('.acsvg-glyph');
     if (gb) gb.textContent = pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana; // 双态同原生 path/fill
@@ -198,17 +201,26 @@ function actLike(pi, btn) {
 }
 
 function actBanana(pi, btn) {
-  if (pi.ct === 'article') return; // 文章写链未实测：只读
-  if (pi.banBusy || pi.thrown) return;
-  pi.banBusy = true;
-  // 投蕉不可逆（官方无取消端点，0.9.96 同款）：失败只 toast 不回滚投态——没投出去才留重试
-  throwBananaPi(pi).then(function (ok) { // pi 级写路径（interact，0.9.102 收口：与详情面板单源）
-    pi.banBusy = false;
-    if (!ok) { toast('投蕉失败' + (pi.thrown ? '' : '（今日已投过/未登录？）')); return; }
-    pi.thrown = true;
-    pi.banana += 1;
-    syncAct(btn, pi);
-    toast('投蕉成功');
+  if (pi.banBusy) return;
+  if (pi.thrown) { toast('已投过蕉啦，明天再来~'); return; } // rail 同款语义（0.9.104 统一，此前静默吞掉）
+  if (pi.ct === 'moment') {
+    // 动态：单蕉直投——官方机制=一蕉（resourceType=10）；投蕉不可逆：失败只 toast 不回滚
+    pi.banBusy = true;
+    throwBananaPi(pi).then(function (ok) { // pi 级写路径（interact，0.9.102 收口：与详情面板单源）
+      pi.banBusy = false;
+      if (!ok) { toast('投蕉失败（今日已投过/未登录？）'); return; }
+      pi.thrown = true;
+      pi.banana += 1;
+      syncAct(btn, pi);
+      toast('投蕉成功');
+    });
+    return;
+  }
+  // 视频/文章行：视频页同款**数量层**（0.9.104 用户口径「和视频机制一样」——点第 N 根投 N）。
+  // 文章 resourceType=3（enum 一致，未实测；interact.throwBananaPi 注释在册）
+  toggleBananaPop(btn, {
+    send: function (n) { return throwBananaPi(pi, n); },
+    applied: function (n) { pi.banana += n; pi.thrown = true; syncAct(btn, pi); }
   });
 }
 

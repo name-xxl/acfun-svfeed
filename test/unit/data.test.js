@@ -456,7 +456,9 @@ test('panelItem follow：视频条目——时长是展示串直用、作者取 
   assert.equal(pi.up.name, '一只芸喵喵');
   assert.equal(pi.up.img, 'https://tx-free-imgs.acfun.cn/h.jpg'); // 头像是 userHead（不是 headUrl）
   assert.equal(pi.up.isFollowing, true);
-  assert.match(pi.dateText, /小时前$/);
+  // 2 小时前文案随运行的日历位置而变（凌晨跑则为「昨天HH时MM分」）——双档同 file 既有惯例
+  //（0.9.104 半夜跑实锤：单档 /小时前$/ 每天 00:00~02:00 必红）
+  assert.match(pi.dateText, /^(2小时前|昨天\d{1,2}时\d{2}分)$/);
   assert.equal(pi.href, undefined); // 视频进播放层，无外链
 });
 

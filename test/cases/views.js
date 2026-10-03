@@ -1320,6 +1320,49 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       });
       return out.join(' ');
     })());
+    // ---- 投蕉（0.9.104 用户口径「视频/文章=视频机制」）：数量层（点第 N 根投 N）+ 蕉黄 ----
+    var vBan = null;
+    [].forEach.call(vRow.querySelectorAll('.acsv-fact'), function (x) { if (x._act === 'banana') vBan = x; });
+    if (vBan) vBan.click();
+    rec('follow-ban-pop', !!(await waitFor(function () {
+      return vRow.querySelectorAll('.acsv-banpop button').length === 5;
+    }, 5000)), 'n=' + vRow.querySelectorAll('.acsv-banpop button').length);
+    var popBtns = vRow.querySelectorAll('.acsv-banpop button');
+    if (popBtns[2]) popBtns[2].dispatchEvent(new MouseEvent('mouseenter'));
+    rec('follow-ban-hover', (function () {
+      if (popBtns.length !== 5) return false;
+      var src = [].map.call(popBtns, function (b) { return (b._img || {}).src || ''; });
+      // 悬停第 3 根：1~3 一起亮（banana_hover），4/5 仍灰（视频页原生交互）
+      return /banana_hover/.test(src[0]) && /banana_hover/.test(src[2])
+        && !/banana_hover/.test(src[3]) && !/banana_hover/.test(src[4]);
+    })(), (function () {
+      return [].map.call(popBtns, function (b) { return /hover/.test((b._img || {}).src || '') ? 'L' : 'G'; }).join('');
+    })());
+    if (popBtns[2]) popBtns[2].click(); // 点第 3 根投 3
+    rec('follow-ban-applied', !!(await waitFor(function () {
+      return vBan.classList.contains('thrown') && vBan._n.textContent === '8';
+    }, 5000)), 'n=' + vBan._n.textContent);
+    // 蕉黄 = A 站蕉色 #ffb323（与竖刷 rail .thrown 同源；0.9.104 实报「已投蕉的颜色是黄的」）
+    rec('follow-ban-yellow', getComputedStyle(vBan).color === 'rgb(255, 179, 35)',
+      getComputedStyle(vBan).color);
+    rec('follow-ban-video-rt', /resourceType=2/.test(window.__ACSV_BAN_BODY__ || '')
+      && /count=3/.test(window.__ACSV_BAN_BODY__ || ''), window.__ACSV_BAN_BODY__);
+    // 已投过不可再展开（rail 同款语义：toast 提示，不弹层）
+    if (vBan) vBan.click();
+    await wait(200);
+    rec('follow-ban-locked', !vRow.querySelector('.acsv-banpop'));
+    // 文章行：同款数量层 + resourceType=3（enum 一致，未实测标注在 interact）
+    var aBan = null;
+    [].forEach.call(aRow.querySelectorAll('.acsv-fact'), function (x) { if (x._act === 'banana') aBan = x; });
+    if (aBan) aBan.click();
+    await waitFor(function () { return aRow.querySelectorAll('.acsv-banpop button').length === 5; }, 5000);
+    var aPop = aRow.querySelectorAll('.acsv-banpop button');
+    if (aPop[1]) aPop[1].click(); // 投 2
+    rec('follow-ban-article', !!(await waitFor(function () {
+      return aBan.classList.contains('thrown') && aBan._n.textContent === '9';
+    }, 5000)), 'n=' + aBan._n.textContent);
+    rec('follow-ban-article-rt', /resourceType=3/.test(window.__ACSV_BAN_BODY__ || '')
+      && /count=2/.test(window.__ACSV_BAN_BODY__ || ''), window.__ACSV_BAN_BODY__);
     // ---- 多图行：九宫格原生形制（默认容器 342、3 格 110 方）----
     rec('follow-moment-multigrid', !!(gRow && gRow.querySelector('.acsv-frow-imgs:not(.n1):not(.n24)')
       && gRow.querySelectorAll('.acsv-frow-img').length === 3),
@@ -1696,6 +1739,14 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       var b = q('.acsv-seg-follow .acsv-seg-btn:nth-child(1)');
       return b && b.classList.contains('on');
     }, 5000)));
+    // 源切换 seg（小视频/推荐）在关注流舞台态隐藏（0.9.104 实报「切视频冒出小视频/推荐栏」）
+    rec('fv-srcseg-hidden', (function () {
+      var sg = q('.acsv-top .acsv-seg:not(.acsv-seg-follow)');
+      return !!sg && sg.style.display === 'none';
+    })(), (function () {
+      var sg = q('.acsv-top .acsv-seg:not(.acsv-seg-follow)');
+      return sg ? (sg.style.display || '(empty)') : 'no-seg';
+    })());
     // seg「全部」= 确定性回路：回关注视图，行流还在
     q('.acsv-seg-follow .acsv-seg-btn:nth-child(2)').click();
     rec('fv-back-all', !!(await waitFor(function () {

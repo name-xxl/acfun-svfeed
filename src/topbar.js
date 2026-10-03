@@ -17,6 +17,7 @@ import { FollowVideos, enterVideos, enterAll } from './followstream.js';
 // 否则离开搜索视图后默认提交被旧闭包劫持。
 var barEl = null;
 var fsegEl = null, fsegVideos = null, fsegAll = null;
+var segEl = null; // 源切换 seg 容器（关注流舞台态要隐，0.9.104）
 var imBtnEl = null;
 var segSv = null;
 var segHome = null;
@@ -83,10 +84,10 @@ export function buildTopbar(parent, h) {
   segHome.title = '切换到 APP 首页推荐流';
   segSv.addEventListener('click', function (ev) { ev.stopPropagation(); if (hooks.onSource) hooks.onSource('sv'); });
   segHome.addEventListener('click', function (ev) { ev.stopPropagation(); if (hooks.onSource) hooks.onSource('home'); });
-  var seg = el('div', 'acsv-seg');
-  seg.appendChild(segSv);
-  seg.appendChild(segHome);
-  tr.appendChild(seg);
+  segEl = el('div', 'acsv-seg');
+  segEl.appendChild(segSv);
+  segEl.appendChild(segHome);
+  tr.appendChild(segEl);
   // 关注语境 seg（0.9.99）：「视频 | 全部」双面切换——视频=关注视频流接管舞台
   //（followstream.enterVideos），全部=关注视图（仿原生列表）。仅关注语境可见；类名与源
   // 切换 .acsv-seg 刻意不同：.acsv-top--view 的隐藏规则只打 .acsv-seg，关注视图里本 seg
@@ -159,6 +160,10 @@ export function syncFollowSeg(view) {
   fsegEl.style.display = show ? '' : 'none';
   fsegVideos.classList.toggle('on', !view && FollowVideos.feedActive);
   fsegAll.classList.toggle('on', view === 'follow');
+  // 源切换 seg（小视频/推荐）与关注 seg 在**舞台态互斥**（0.9.104 用户实报「关注页切到视频时
+  // 冒出小视频/推荐栏」）：舞台正放关注流时换源=退出关注流，语义冲突——隐源 seg；退出关注流
+  // 后复位（视图态仍归 CSS 的 .acsv-top--view 管，此处只补 inline 的舞台态）
+  if (segEl) segEl.style.display = (view == null && FollowVideos.feedActive) ? 'none' : '';
 }
 
 // 按当前界面同步（views.syncRouteView 调）：视图态隐源切换（CSS）+ 深界面出「向左返回」；
@@ -183,6 +188,6 @@ export function syncTopbar(view, arg, opts) {
 export function teardownTopbar() {
   if (barEl) { barEl.remove(); barEl = null; }
   imBtnEl = null; segSv = null; segHome = null; xBtn = null; backBtn = null; searchInput = null;
-  fsegEl = null; fsegVideos = null; fsegAll = null;
+  fsegEl = null; fsegVideos = null; fsegAll = null; segEl = null;
   hooks = {}; searchHandler = null; searchCtxPrev = false;
 }
