@@ -37,7 +37,7 @@ export var ITEM_FIELDS = {
     // 关注流（0.9.91）：content type 判别子与动态卡字段。ct 与 kind 正交——kind 在契约里是
     // **来源方言**（= PANEL_PARSERS 的表键），不能兼内容类型；关注流一个来源出三种内容，
     // 故内容判别子另立 ct（video|article|moment），卡片渲染按 ct 分支（同一张卡，契约驱动）
-    'ct', 'momentId', 'text', 'href']
+    'ct', 'momentId', 'text', 'href', 'repost']
 };
 
 export function normalize(raw) {
@@ -259,8 +259,20 @@ var PANEL_PARSERS = {
         // 接口另有 replaceUbbText（UBB 已换成 [表情] 明文占位）——那是给不做 UBB 的客户端的，
         // 我们不用它（intake「ubb/emotify 单源」）
         it.text = ((raw.moment || {}).text) || raw.discoveryResourceFeedShowContent || '';
-        // 图：feed 只给单张 coverUrl（多图形状未实测，宫格不做——见 0.9.91 计划「明确不做」）
+        // 图：feed 只给单张 coverUrl（多图形状未实测，宫格不做——见 0.9.91 计划「明确不做」）。
+        // **转发的 coverUrl 实测恒等于源内容的封面**（9/9 全等，2026-10-03）——所以转发卡
+        // 不能拿它当主视觉（会伪装成视频/文章卡，用户实报「分不清」），渲染层改挂源条
         it.cover = coverUrl(raw.coverUrl);
+        // 转发（23/36 实测占比）：repostSource 是完整分支条目，此处只取卡面够用的三件套
+        // （源类型/源标题/源缩略图）；源条文案与形态由渲染层按 ct 出
+        var rs = raw.repostSource;
+        if (rs && (rs.resourceType === 2 || rs.resourceType === 3)) {
+          it.repost = {
+            ct: rs.resourceType === 2 ? 'video' : 'article',
+            title: String(rs.caption || rs.articleTitle || ''),
+            cover: coverUrl(rs.coverUrl)
+          };
+        }
         // 三计数（路线图 Phase 3 的动态卡规格）：复用 meta 三段语义与 META_GLYPH，不新增字段
         it.meta = [
           { k: 'like', t: String(Number(raw.likeCount) || 0) },

@@ -1213,6 +1213,52 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       var st = mCard ? mCard.querySelectorAll('.acsv-gstats .acsv-gstat') : [];
       return st.length === 3 && /11/.test(st[0].textContent || '') && /3/.test(st[1].textContent || '');
     })(), mCard ? (mCard.querySelector('.acsv-gstats') || {}).textContent : 'no-stats');
+    // 内容类型角标体系（0.9.92 用户实报「分不清」后的形态裁决）：
+    // 角标在**左上**（左下是播放数、右下是时长，各占其位不打架）；三类各有标识
+    function kindChip(c) { var k = c.querySelector('.acsv-gkind'); return k ? k.textContent : ''; }
+    rec('follow-chip-article', kindChip(aCard) === '文章', kindChip(aCard));
+    rec('follow-chip-moment', kindChip(mCard) === '动态', kindChip(mCard));
+    // 角标位不变式（几何，别看 computed 关键字）：贴封面左上，且与播放数/时长角标**不重叠**
+    // ——0.9.91 文章卡「文章」与播放数同在左下会叠字，本条钉住
+    function overlap(a, b) {
+      return !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
+    }
+    rec('follow-chip-pos', (function () {
+      var k = aCard.querySelector('.acsv-gkind');
+      var cov = aCard.querySelector('.acsv-gcover');
+      if (!k || !cov) return false;
+      var kr = k.getBoundingClientRect(), cr = cov.getBoundingClientRect();
+      return (kr.top - cr.top) <= 12 && (kr.left - cr.left) <= 12;
+    })(), (function () {
+      var k = aCard.querySelector('.acsv-gkind'), cov = aCard.querySelector('.acsv-gcover');
+      if (!k || !cov) return 'n/a';
+      var kr = k.getBoundingClientRect(), cr = cov.getBoundingClientRect();
+      return 'dt=' + Math.round(kr.top - cr.top) + ' dl=' + Math.round(kr.left - cr.left);
+    })());
+    rec('follow-chip-no-overlap', (function () {
+      var k = aCard.querySelector('.acsv-gkind'), v = aCard.querySelector('.acsv-gviews');
+      if (!k || !v) return false;
+      return !overlap(k.getBoundingClientRect(), v.getBoundingClientRect());
+    })(), (function () {
+      var k = aCard.querySelector('.acsv-gkind'), v = aCard.querySelector('.acsv-gviews');
+      if (!k || !v) return 'n/a';
+      var kr = k.getBoundingClientRect(), vr = v.getBoundingClientRect();
+      return 'chip=' + [kr.left, kr.top, kr.right, kr.bottom].map(Math.round).join(',')
+        + ' views=' + [vr.left, vr.top, vr.right, vr.bottom].map(Math.round).join(',');
+    })());
+    rec('follow-chip-video-none', kindChip(vCard) === '', kindChip(vCard));
+    // 转发动态：角标「转发」+ 封面位是正文瓦片（**不拿源封面当主视觉**——实测转发的 coverUrl
+    // 恒等于源封面，照放会伪装成视频卡）+ 正文位是源条（缩略图 + 源标题 + 源类型字）
+    var rCard = cardOf('转发视频的动态', '.acsv-grepost');
+    rec('follow-repost-chip', kindChip(rCard) === '转发', kindChip(rCard));
+    rec('follow-repost-tile', !!(rCard && rCard.querySelector('.acsv-gcover .acsv-gtext-tile')));
+    rec('follow-repost-strip', !!(rCard && rCard.querySelector('.acsv-grepost-thumb img')
+      && /被转发的视频标题/.test((rCard.querySelector('.acsv-grepost-title') || {}).textContent || '')
+      && (rCard.querySelector('.acsv-grepost-kind') || {}).textContent === '视频'),
+      rCard ? (rCard.querySelector('.acsv-grepost') || {}).textContent : 'no-strip');
+    var rCard2 = cardOf('转发文章的动态', '.acsv-grepost');
+    rec('follow-repost-article-kind', !!(rCard2 && (rCard2.querySelector('.acsv-grepost-kind') || {}).textContent === '文章'),
+      rCard2 ? (rCard2.querySelector('.acsv-grepost-kind') || {}).textContent : 'no-strip');
     // 无图动态：正文占封面位（文本瓦片），不留空封面
     var noImg = cardOf('无图动态', '.acsv-gtext-tile');
     rec('follow-moment-tile', !!noImg && !!noImg.querySelector('.acsv-gcover .acsv-gtext-tile'));

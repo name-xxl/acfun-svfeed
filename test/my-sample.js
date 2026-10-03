@@ -127,11 +127,18 @@
     e.resourceId = 488601 + i; e.articleTitle = title; e.coverUrl = FOLLOW_COVER; e.viewCount = 200 + i;
     return e;
   }
-  function fMoment(i, g, text, withImg) {
+  function fMoment(i, g, text, withImg, repost) {
     var e = fBase(i, g, 10);
     e.resourceId = 510001 + i; e.coverUrl = withImg ? FOLLOW_COVER : '';
     e.likeCount = 10 + i; e.commentCount = 2 + i; e.bananaCount = 1 + i;
     e.moment = { momentId: 510001 + i, text: text };
+    // 转发源（0.9.92 卡面形态夹具）：实测 repostSource 是完整分支条目，且转发的 coverUrl
+    // 恒等于源封面——夹具照此构形（源封面与顶层封面同值），卡面才测得到「不拿源封面当主视觉」
+    if (repost) {
+      e.coverUrl = FOLLOW_COVER;
+      if (repost === 'video') e.repostSource = { resourceType: 2, resourceId: 488900, caption: '被转发的视频标题', coverUrl: FOLLOW_COVER, playDuration: '01:23' };
+      else e.repostSource = { resourceType: 3, resourceId: 488700, articleTitle: '被转发的文章标题', coverUrl: FOLLOW_COVER };
+    }
     return e;
   }
   var FOLLOW_P1 = [
@@ -142,10 +149,10 @@
     (function () { var e = fBase(7, 1, 4); e.resourceId = 488999; e.caption = '未观察类型应被过滤'; return e; })(),
     // 昨天（group 2）：2 视频 + 2 动态 + 2 文章
     fVideo(8, 2, '昨天的视频'), fArticle(9, 2, '昨天的文章'), fMoment(10, 2, '昨天的动态', true),
-    fVideo(11, 2, '昨天的视频二'), fArticle(12, 2, '昨天的文章二'), fMoment(13, 2, '昨天的动态二', false),
+    fVideo(11, 2, '昨天的视频二'), fArticle(12, 2, '昨天的文章二'), fMoment(13, 2, '转发视频的动态：说说理由', true, 'video'),
     // 更早（group 10）：3 视频 + 2 动态 + 1 文章
     fVideo(14, 10, '更早的视频'), fMoment(15, 10, '更早的动态', true), fArticle(16, 10, '更早的文章'),
-    fVideo(17, 10, '更早的视频二'), fMoment(18, 10, '更早的动态二', false), fVideo(19, 10, '更早的视频三')
+    fVideo(17, 10, '更早的视频二'), fMoment(18, 10, '转发文章的动态', true, 'article'), fVideo(19, 10, '更早的视频三')
   ];
   var FOLLOW_P2 = [
     fVideo(20, 10, '续页视频'), fArticle(21, 10, '续页文章'), fMoment(22, 10, '续页动态', true), fVideo(23, 10, '续页视频二')

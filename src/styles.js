@@ -827,8 +827,19 @@ var RAW_CSS = ''
   + '.acsv-gstats{display:flex;align-items:center;gap:14px;margin-top:6px;font-size:12px;color:#8a90a0}'
   + '.acsv-gstat{display:inline-flex;align-items:center;gap:4px}'
   + '.acsv-gstat .acsvg-glyph{font-size:12px}'
-  // 文章属性角标（与进度角标同族，只是语义位不同）
-  + '.acsv-gkind{background:rgba(0,0,0,.55)}'
+  // 内容类型角标（文章/动态/转发）：**左上**——左下是播放数、右下是时长，各占其位不打架
+  // （0.9.92 用户实报「分不清转发/图文/视频」后挪位并补「动态」「转发」两类）
+  + '.acsv-gkind{left:8px;top:8px;bottom:auto;background:rgba(253,76,92,.78);font-weight:600}'
+  // 转发动态的源条（正文位）：缩略图 44×44 圆角 + 标题两行钳 + 源类型字
+  + '.acsv-grepost{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 8px;'
+  + 'border-radius:8px;background:rgba(255,255,255,.07)}'
+  + '.acsv-grepost-thumb{flex:none;width:44px;height:44px;border-radius:6px;overflow:hidden;'
+  + 'background:rgba(255,255,255,.06)}'
+  + '.acsv-grepost-thumb img{width:100%;height:100%;object-fit:cover;display:block}'
+  + '.acsv-grepost-body{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:3px}'
+  + '.acsv-grepost-title{font-size:12px;line-height:16px;color:#d5d8df;max-height:32px;overflow:hidden}'
+  + '.acsv-grepost-kind{align-self:flex-start;font-size:11px;line-height:14px;padding:0 5px;'
+  + 'border-radius:3px;background:rgba(255,255,255,.14);color:#cfd3da}'
   // 外链卡（文章/动态）：根元素是 <a>，浏览器默认链接样式必须清掉（标题/脚行的显式色不受影响）
   + '.acsv-gcell{color:inherit;text-decoration:none}'
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-sgrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));'

@@ -512,3 +512,21 @@ test('panelItem follow：作者缺失不伪造（up=null），动态回退 disco
   assert.equal(pi.up, null);
   assert.equal(pi.text, '只有列表正文');
 });
+
+test('panelItem follow：转发动态取源三件套（ct/title/cover）；未知源类型不挂 repost', () => {
+  function mom(rs) {
+    return panelItem('follow', {
+      resourceType: 10, resourceId: 5104252, coverUrl: 'https://tx-free-imgs.acfun.cn/源封面.jpg',
+      likeCount: 1, commentCount: 2, bananaCount: 3, createTime: Date.now(),
+      moment: { momentId: 5104252, text: '可以的，居然还有独家[emot=acfun,2766/]' },
+      repostSource: rs, user: { userId: 1, userName: 'u', userHead: 'h' }
+    });
+  }
+  var v = mom({ resourceType: 2, resourceId: 488900, caption: '被转发的视频标题', coverUrl: 'https://tx-free-imgs.acfun.cn/视频封面.jpg' });
+  assert.deepEqual(v.repost, { ct: 'video', title: '被转发的视频标题', cover: 'https://tx-free-imgs.acfun.cn/视频封面.jpg' });
+  var a = mom({ resourceType: 3, resourceId: 488700, articleTitle: '被转发的文章标题', coverUrl: 'https://tx-free-imgs.acfun.cn/文章封面.jpg' });
+  assert.deepEqual(a.repost, { ct: 'article', title: '被转发的文章标题', cover: 'https://tx-free-imgs.acfun.cn/文章封面.jpg' });
+  // 未观察的源类型（如直播 4）：不挂 repost（渲染层按「原创动态」出，不编造源类型）
+  assert.equal(mom({ resourceType: 4, resourceId: 9, caption: 'x' }).repost, undefined);
+  assert.equal(mom(null).repost, undefined);
+});
