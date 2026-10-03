@@ -287,9 +287,18 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
   ——补报单调守卫因此是实测必需）。
 - **官方卸载形态**：SDK 批量 flush 本就走 sendBeacon；队列卸载期不 flush（0.9.2 真机
   实测「pagehide 送不出去」的根因）。项目 0.9.87 关页直发=复刻官方自己的 flush 形态。
-- **已知窄窗（并档）**：①pagehide 早于官方首次 flush（<3s 关页：嗅探缓存未建立，回落
-  SDK 队列，卸载期可能丢一条）；②weblog 未就绪 3s 窗口（live 路径 1s×3 短重试后放弃）。
-  均极低频、损失一条，接受。
+- **嗅探时序实测**（2026-10-03，内置浏览器登录态；`navigator.sendBeacon` 为 native 的
+  干净环境，未被本脚本包装污染）：官方 SDK 是**页面静态脚本**——原始 HTML 携带
+  `ks-track-platform-new/weblogger/3.9.21/log.browser-full.min.js` 等 4 个日志 script
+  标签（首页实测脚本 243ms 开始加载），且**启动批 flush 早于 document-end**（首页
+  misc2 首两批 411/507ms，DCL=1269ms）——@run-at document-end 的嗅探包装**必然漏掉
+  启动批**，自 DCL 后首批（实测 ~2.3s）起进缓存，此后每 2-8s 一批；静置页（/v/ 无活动）
+  首批可迟至 ~35s，上报场景必有播放活动不受此影响。**漏批不伤直发承诺**：可报进度下限
+  `watchReportMin=3s` > 缓存就绪 ~2.3s。要全捕启动批须 @run-at document-start（全局
+  boot 时序变更，未采纳，实测在案；roadmap v1.3 据此废弃原「document-start 时序铁律」）。
+- **已知窄窗（并档）**：①pagehide 早于嗅探缓存就绪（DCL 后首批 flush 之前关页——含
+  DCL 前的官方启动批，嗅探包装捕不到，回落 SDK 队列，卸载期可能丢一条）；②weblog
+  未就绪 3s 窗口（live 路径 1s×3 短重试后放弃）。均极低频、损失一条，接受。
 - **消费侧**：`browse/history/list`（§4.1）即对账读口——实测 `browseTime` 随上报即时
   刷新，可用来做端到端验证。
 

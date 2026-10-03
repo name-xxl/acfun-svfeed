@@ -80,10 +80,14 @@ export function reportLeaveCurrent(via) {
   } catch (e) { }
 }
 
-// ---------- 官方 klog 信封嗅探（0.9.87） ----------
-// 必须在 document-start、官方 SDK 首次 flush 之前包上 sendBeacon——这是「关页时新鲜
-// common 必有」承诺的前提：官方 SDK 每几秒攒批 flush 一次 misc2，晚包就漏掉头几批
-// （@run-at 时序由构建头部保证，这里只钉契约）。
+// ---------- 官方 klog 信封嗅探（0.9.87；时序实测 2026-10-03 入档 api-research §4.6） ----------
+// 时序实测：官方 SDK 是页面静态脚本（原始 HTML 携带 script 标签，首页实测 243ms 开始
+// 加载），且**启动批** flush 早于 document-end（首页实测首两批 411/507ms，DCL=1269ms）
+// ——@run-at document-end 的本包装**必然漏掉启动批**，自 DCL 后首批（实测 ~2.3s）起才
+// 进缓存。这不伤「关页时新鲜 common 必有」承诺：可上报进度下限是 watchReportMin=3s 的
+// 观看，必然晚于缓存就绪；flush 节奏随后续活动每 2-8s 一批持续刷新（静置页首批可迟至
+// ~35s，但上报场景必有活动）。此前关页无缓存 → 回落 SDK 队列路径（pagehide 处理器）。
+// 要全捕启动批须 @run-at document-start（全局 boot 时序变更，实测在案、未采纳）。
 // cacheEnvelope 解析完成才整体覆盖缓存——Blob body 是异步读，不用同步占位（防半个信封）
 var beaconCache = null; // { url, common, tpl, inc }——官方 misc2 批的最新一份
 (function sniffBeacon() {
