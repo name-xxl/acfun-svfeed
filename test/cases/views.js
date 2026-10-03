@@ -1245,23 +1245,26 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     function colSpan(c) {
       if (!c) return '';
       var cs = getComputedStyle(c);
-      return cs.gridColumnStart + '/' + cs.gridColumnEnd; // 通栏='1/-1'，单格='auto/auto'
+      return cs.gridColumnStart + '/' + cs.gridColumnEnd; // 单格='auto/auto'；分组标题='1/-1'
     }
-    rec('follow-row-full-moment', colSpan(mCard) === '1/-1', 'moment=' + colSpan(mCard));
-    rec('follow-row-full-repost', colSpan(rCard) === '1/-1', 'repost=' + colSpan(rCard));
-    rec('follow-col-single-mn', colSpan(vCard) !== '1/-1' && colSpan(aCard) !== '1/-1',
-      'video=' + colSpan(vCard) + ' article=' + colSpan(aCard));
+    // 尺寸统一（0.9.94 用户裁决）：动态/转发/文章卡与视频卡**同尺寸**（同格宽），
+    // 只保留卡内样式差异——「浪费横向空间」的根因是短文本卡占满整行留白
+    rec('follow-size-uniform', (function () {
+      if (!mCard || !vCard || !aCard || !rCard) return false;
+      var w = vCard.getBoundingClientRect().width;
+      function same(c) { return Math.abs(c.getBoundingClientRect().width - w) <= 1; }
+      return same(mCard) && same(aCard) && same(rCard);
+    })(), (function () {
+      if (!mCard || !vCard || !aCard || !rCard) return 'n/a';
+      return [vCard, aCard, mCard, rCard].map(function (c) { return Math.round(c.getBoundingClientRect().width); }).join('/');
+    })());
+    rec('follow-col-single-all', (function () {
+      // 统一单格：所有卡跨度一致且非整行（分组标题除外，它是分节线）
+      var v = colSpan(vCard);
+      return v !== '1/-1' && colSpan(mCard) === v && colSpan(aCard) === v && colSpan(rCard) === v;
+    })(), 'moment=' + colSpan(mCard) + ' video=' + colSpan(vCard) + ' article=' + colSpan(aCard));
     rec('follow-row-full-group', colSpan(q('.acsv-vlist.acsv-follow .acsv-ggroup')) === '1/-1',
       colSpan(q('.acsv-vlist.acsv-follow .acsv-ggroup')));
-    // 空间利用的几何不变式：文本向卡确实比媒体向卡宽（「改进横向空间利用」的机器化）
-    rec('follow-wide-geometry', (function () {
-      if (!mCard || !vCard) return false;
-      return mCard.getBoundingClientRect().width > vCard.getBoundingClientRect().width * 1.5;
-    })(), (function () {
-      if (!mCard || !vCard) return 'n/a';
-      return 'moment=' + Math.round(mCard.getBoundingClientRect().width)
-        + ' video=' + Math.round(vCard.getBoundingClientRect().width);
-    })());
     rec('follow-dense', /dense/.test(getComputedStyle(q('.acsv-vlist.acsv-follow')).gridAutoFlow),
       getComputedStyle(q('.acsv-vlist.acsv-follow')).gridAutoFlow);
     // 形态互斥（一眼能区分的机器化）：视频有图卡+时长、文章有薄条封面+摘要、动态有头像行+计数

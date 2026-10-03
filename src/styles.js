@@ -831,13 +831,12 @@ var RAW_CSS = ''
   // 原生量取值（2026-10-03，/member/feeds 实测）→ 本卡族取值：头像行 50px→24px 头像、
   // 内容缩进 60px→0（宽卡自带内边距）、单图限高 299px→240px、计数行 48px/12px 次级灰→
   // 26px/12px 次级灰（宽行卡尺度压到卡尺度，差异有据）
-  // **整行通栏**（1 / -1）而非固定跨 2 列：2 跨度在 3+ 列网格里必然在右侧留空洞
-  //（首版实测：repost 占 1-2 列、第三列空两行；分组标题还被当成普通格塞进列里）。
-  // 「文本向整行 + 媒体向多列 + dense 回填」是卡片流不破洞的通行解（知乎/掘金同款）；
-  // 分组标题同样整行，视觉上就是分节线
+  // **尺寸统一**（用户二次裁决 0.9.94）：文本向卡与视频卡同尺寸（单格），只保留卡内样式差异——
+  // 通栏版实测定性：短文本的转发卡占满 1064px、右侧大片留白，仍是浪费横向空间；
+  // 「同尺寸格子 + 卡内按内容型换样式」既无空洞也无大片留白（dense 仍开，防个别行留洞）。
+  // 分组标题是分节线，仍整行
   + '.acsv-follow{grid-auto-flow:dense}'
   + '.acsv-follow .acsv-gcell{grid-column:span 1}'
-  + '.acsv-follow .acsv-gwide{grid-column:1 / -1}'
   + '.acsv-follow .acsv-ggroup{grid-column:1 / -1}'
   // 文章卡（文本向：薄条封面 + 标题 + 摘要 + 脚行）——形态与视频的 4:3 图卡明显不同，一眼可辨
   + '.acsv-gart{display:flex;flex-direction:column;padding:10px;border-radius:10px;background:rgba(255,255,255,.05)}'
@@ -854,7 +853,7 @@ var RAW_CSS = ''
   + 'background:rgba(253,76,92,.78);color:#fff;font-weight:600}'
   + '.acsv-gmom-text{margin-top:8px;font-size:14px;line-height:21px;color:#e8eaee;max-height:84px;overflow:hidden;word-break:break-word}'
   + '.acsv-gmom-img{margin-top:10px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06);'
-  + 'max-height:260px;max-width:460px}'
+  + 'max-height:260px;width:100%}'
   + '.acsv-gmom-img img{width:100%;max-height:260px;object-fit:cover;display:block}'
   // 转发引用块（左竖线 + 缩略图 + 源标题 + 源类型）：转发的结构性签名
   + '.acsv-gquote{margin-top:10px;padding:8px 10px;border-left:3px solid rgba(255,255,255,.18);'
@@ -868,8 +867,8 @@ var RAW_CSS = ''
   + '.acsv-gcell{color:inherit;text-decoration:none}'
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-sgrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));'
   + 'gap:14px 10px}'
-  // 窄屏：关注流全部回落单列（文本向宽卡的 span 2 在单列网格里会溢出，必须复位）
-  + '.acsv-follow .acsv-gwide{grid-column:1 / -1}}'
+  // 窄屏：关注流回落单列（.acsv-gwide 无跨度，规则天然成立）
+  + '}'
   // 深色滚动条：视图滚动区（我的/榜单共用 .acsv-view-body，默认浅色条在深色页上是刺眼白条）
   + '.acsv-view-body{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}'
   + '.acsv-view-body::-webkit-scrollbar{width:8px;height:8px}'
