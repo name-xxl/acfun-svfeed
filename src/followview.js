@@ -14,8 +14,8 @@
 import { CFG } from './cfg.js';
 import { el, fmt, toast } from './ui.js';
 import { request } from './net.js';
-import { followPanelOf } from './data.js';
-import { ubbTextOf, quoteBlockOf, openPanelItem, setMomentOpener } from './views.js';
+import { followPanelOf, momentPiOfRepost } from './data.js';
+import { ubbTextOf, openPanelItem, setMomentOpener, stripOf, momentCellOf, momentMediaOf, skeletonRows } from './views.js';
 import { ubbPlain } from './ubb.js';
 import { commentShareWire } from './immsg.js';
 import { openSharePanel } from './imshare.js';
@@ -24,8 +24,7 @@ import { imgInto } from './imgload.js';
 import { registerView } from './viewreg.js';
 import { setDockBadge } from './sidebar.js';
 import { openMomentDetail } from './momentdetail.js';
-import { setRealLike } from './interact.js';
-import { AppAPI } from './appapi.js';
+import { likePi, throwBananaPi } from './interact.js';
 import { openImageViewer } from './imgview.js';
 import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
 import { releaseDrawer } from './state.js';
@@ -89,55 +88,30 @@ function headOf(pi) {
   return head;
 }
 
-// 媒体横条（member-feed-resource-content 等价）：左右两块灰底拼合——cover 块 204（img
-// 204×128、时长 hover 浮层、文章红角标）+ body 块（title 600 单行省略 / desc 两行 / info 绝对定位）
-function stripMedia(pi) {
-  var strip = el('div', 'acsv-frow-strip');
-  var cov = el('div', 'acsv-frow-scover');
-  imgInto(cov, pi.cover, 'grid');
-  if (pi.ct === 'article') cov.appendChild(el('span', 'acsv-frow-tag', '文章'));
-  if (pi.dur) cov.appendChild(el('span', 'acsv-frow-mdur', pi.dur));
-  strip.appendChild(cov);
-  var bd = el('div', 'acsv-frow-sbody');
-  bd.appendChild(el('div', 'acsv-frow-stitle', pi.title || ''));
-  if (pi.desc) bd.appendChild(el('div', 'acsv-frow-sdesc', pi.desc));
-  var info = el('div', 'acsv-frow-sinfo');
-  info.appendChild(el('i', 'acsvg-glyph', GLYPHS.rankView));
-  info.appendChild(document.createTextNode(pi.views || '0'));
-  bd.appendChild(info);
-  strip.appendChild(bd);
-  return strip;
-}
-
+// 行流的两块媒体构建器（0.9.102 收口：strip 下沉 views.stripOf、格子上挂 views.momentCellOf，
+// 本模块只留**行流特有的布局决策**——九宫格 n1/n24 容器类；dispatch 走 views.momentMediaOf）
 // 九宫格（member-feed-moment-image 等价）：容器 342、图 110 方 margin 0 4 4 0；1 图容器
 // 299（图自适应 max299）；2/4 图容器 228。格上 cursor:pointer（原生同款），点击开大图
-function momentImgs(pi) {
+function rowGrid(pi) {
   var box = el('div', 'acsv-frow-imgs');
   var n = pi.imgs.length;
   if (n === 1) box.classList.add('n1');
   else if (n === 2 || n === 4) box.classList.add('n24');
-  pi.imgs.forEach(function (im) {
-    var cell = el('div', 'acsv-frow-img');
-    cell._big = im.big || im.url; // 大图查看转呈 expandedUrl（点缩略看大图，原生同款）
-    imgInto(cell, im.url, 'grid');
-    box.appendChild(cell);
-  });
+  pi.imgs.forEach(function (im) { box.appendChild(momentCellOf('acsv-frow-img', im)); });
   return box;
 }
 
-// 动态媒体块分派：转发=引用块（quoteBlockOf 共享件）；配图=九宫格（含单图 n1 形态）；
-// 无图旧条目兜底顶层 cover 单图。返回 null=纯文字
+// 无图旧条目兜底：顶层 cover 单图（n1 容器，同 native 单图自适应形制）
+function rowSingle(pi, im0) {
+  var box = el('div', 'acsv-frow-imgs n1');
+  var im = im0 || { url: pi.cover, big: pi.cover };
+  box.appendChild(momentCellOf('acsv-frow-img', im));
+  return box;
+}
+
+// 动态媒体块分派（dispatcher 单源；行流 gridMin=1——单图也走宫格容器拿 299 自适应）
 function momentMedia(pi) {
-  if (pi.repost) return quoteBlockOf(pi.repost);
-  if (pi.imgs && pi.imgs.length) return momentImgs(pi);
-  if (pi.cover) {
-    var box = el('div', 'acsv-frow-imgs n1');
-    var cell = el('div', 'acsv-frow-img');
-    imgInto(cell, pi.cover, 'grid');
-    box.appendChild(cell);
-    return box;
-  }
-  return null;
+  return momentMediaOf(pi, { gridMin: 1, grid: rowGrid, single: rowSingle });
 }
 
 // 互动行（feed-interactive 等价）：分享=icon+「分享」文字（原生无数字）、评论/蕉/赞=icon+数字；
@@ -177,9 +151,8 @@ function feedRowOf(pi) {
     content.appendChild(ubbTextOf(pi.text, 'acsv-frow-text clamp'));
   }
   var media = null;
-  if (pi.repost) media = quoteBlockOf(pi.repost);
-  else if (pi.ct === 'moment') media = momentMedia(pi);
-  else media = stripMedia(pi);
+  if (pi.ct === 'moment') media = momentMedia(pi); // 内含 repost→引用卡 分派（dispatcher 单源）
+  else media = stripOf(pi); // 视频/文章行：与引用卡内嵌源卡共用构建件（原生同款复用）
   if (media) content.appendChild(media);
   row.appendChild(content);
   row.appendChild(actRowOf(pi));
@@ -206,11 +179,6 @@ function syncAct(btn, pi) {
   if (btn._n) btn._n.textContent = fmt(k === 'like' ? pi.like : k === 'banana' ? pi.banana : pi.comment);
 }
 
-function likeItemOf(pi) {
-  // objectType 派生在 interact.js：动态=10、其余=2；home 形状加 kpf=PC_WEB 对齐官方网页
-  return pi.ct === 'moment' ? { id: pi.momentId, kind: 'moment' } : { id: pi.acId, kind: 'home' };
-}
-
 function actLike(pi, btn) {
   if (pi.ct === 'article') return; // 文章写链未实测：只读
   if (pi.likeBusy) return;
@@ -219,7 +187,7 @@ function actLike(pi, btn) {
   pi.liked = on;
   pi.like += on ? 1 : -1;
   syncAct(btn, pi);
-  setRealLike(likeItemOf(pi), on).then(function (ok) {
+  likePi(pi, on).then(function (ok) { // pi 级写路径（interact，0.9.102 收口：与详情面板单源）
     pi.likeBusy = false;
     if (ok) return;
     pi.liked = !on; // 失败回滚（乐观值全退，rail 同款）
@@ -234,8 +202,7 @@ function actBanana(pi, btn) {
   if (pi.banBusy || pi.thrown) return;
   pi.banBusy = true;
   // 投蕉不可逆（官方无取消端点，0.9.96 同款）：失败只 toast 不回滚投态——没投出去才留重试
-  var throwP = pi.ct === 'moment' ? AppAPI.throwBanana(pi.momentId, 1, 10) : AppAPI.throwBanana(pi.acId, 1);
-  throwP.then(function (ok) {
+  throwBananaPi(pi).then(function (ok) { // pi 级写路径（interact，0.9.102 收口：与详情面板单源）
     pi.banBusy = false;
     if (!ok) { toast('投蕉失败' + (pi.thrown ? '' : '（今日已投过/未登录？）')); return; }
     pi.thrown = true;
@@ -265,17 +232,9 @@ function rowDefault(pi) {
 
 // ---------- 视图组装 ----------
 
-// 首屏骨架行（独立类名 acsv-fskel：绝不与行内计数选择器同构——0.9.66 教训）
+// 首屏骨架行（0.9.102 收口：计数/移除走 views.skeletonRows；类名仍独立 acsv-fskel）
 function skeleton(listEl) {
-  var nodes = [];
-  for (var i = 0; i < CFG.view.follow.skel; i++) {
-    var d = el('div', 'acsv-fskel');
-    nodes.push(d);
-    listEl.appendChild(d);
-  }
-  return function () {
-    nodes.forEach(function (d) { if (d.parentNode) d.parentNode.removeChild(d); });
-  };
+  return skeletonRows(listEl, CFG.view.follow.skel, 'acsv-fskel');
 }
 
 // 展开/收起的溢出探测：clamp 类先渲染，rAF 后量 scrollHeight——溢出才挂按钮（不溢出
@@ -397,12 +356,8 @@ function buildFollowView(body) {
       }
       return;
     }
-    var img = ev.target.closest('.acsv-frow-img');
-    if (img) {
-      ev.stopPropagation();
-      openImageViewer(img._big || img.querySelector('img') && img.querySelector('img').src || '');
-      return;
-    }
+    // 宫格图的大图查看由格子自挂（views.momentCellOf，含 stopPropagation）——委托不再接
+    //（0.9.102 收口：此前两处各挂一份会双开）
     var pic = ev.target.closest('.ubb-imgc');
     if (pic) {
       // 划选文字收尾在图片上不弹大图（commentListClick 同款判据）
@@ -436,9 +391,9 @@ function actComment(pi) {
   if (pi.href) window.open(pi.href, '_blank');
 }
 
-// 动态详情出口注册（0.9.101）：views.quoteBlockOf 点源动态条时要开 momentdetail——
-// views 不反向依赖本模块，走注入；registerView 之外的模块级注册（bundle 加载即生效）
-setMomentOpener(openMomentDetail);
+// 动态详情出口注册（0.9.101；0.9.102 载荷改 repost）：views.quoteBlockOf 点源动态卡时要开
+// momentdetail——views 不反向依赖本模块，走注入；pi 构造在 data.momentPiOfRepost（契约层）
+setMomentOpener(function (rp) { openMomentDetail(momentPiOfRepost(rp)); });
 
 // 左栏 dock 元数据随视图声明（0.9.78：sidebar 从注册表派生）。无 deep/无 volatile——
 // 普通 dock 视图（收旧 + 来源链作废）；「视频」侧从顶栏 seg 进（followstream.enterVideos）。

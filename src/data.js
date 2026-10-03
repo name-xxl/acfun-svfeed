@@ -297,10 +297,12 @@ var PANEL_PARSERS = {
         // 不能拿它当主视觉（会伪装成视频/文章卡，用户实报「分不清」），渲染层改挂源条
         it.cover = coverUrl(raw.coverUrl);
         // 转发（23/36 实测占比）：repostSource 是完整分支条目，取**卡面 + 落点**所需
-        //（源类型/源 id/源标题/源缩略图/源作者；0.9.101 起源条可点，id/up/text 是落点与
-        // 详情面板的料）；源条文案与形态由渲染层按 ct 出。
+        //（源类型/源 id/源标题/源封面/源作者 + 视频源的时长与播放数；0.9.101 起源条可点，
+        // id/up/text 是落点与详情面板的料）；源条文案与形态由渲染层按 ct 出。
         // 0.9.98 补 rs10（源是另一条动态，实测关注流实存 3/21）：此前漏接，这类卡被当
-        // 原创渲染、误把源首图挂成作者自己的图。引用块取源正文明文（ubbPlain 投影）+ 源首图。
+        // 原创渲染、误把源首图挂成作者自己的图。引用块取源正文明文 + 源首图。
+        // 0.9.102（引用卡完全照原生）：视频/文章源内嵌**完整源内容卡**——契约补 dur（展示串
+        // 直用）/views（万格式），渲染层与行内 strip 共用同一构建件（原生就是同款 markup 复用）；
         // up 形状：rs.user 与关注流条目同款（userId/userName/userHead，§2.1.1）
         var rs = raw.repostSource;
         function rsUp(u) {
@@ -313,6 +315,9 @@ var PANEL_PARSERS = {
             id: Number(rs.resourceId) || 0,
             title: String(rs.caption || rs.articleTitle || ''),
             cover: coverUrl(rs.coverUrl),
+            // 时长是展示串直用（同 follow 视频行）；播放数缺则不挂（不虚标 0）
+            dur: String(rs.playDuration || ''),
+            views: rs.viewCount != null ? fmtWan(rs.viewCount) : '',
             up: rsUp(rs.user)
           };
         } else if (rs && rs.resourceType === 10 && rs.resourceId) {
@@ -323,7 +328,8 @@ var PANEL_PARSERS = {
             id: Number(rs.resourceId) || 0,
             title: ubbPlain(rsm.text || rs.discoveryResourceFeedShowContent || ''),
             cover: coverUrl((rsImgs[0] && (rsImgs[0].url || rsImgs[0].originUrl)) || rs.coverUrl),
-            // 源正文**原文**（UBB）：点源条开详情面板时正文要靠它渲染（unplain 不可逆）
+            // 源正文**原文**（UBB）：引用卡内嵌正文与详情面板都靠它渲染（ubbPlain 投影不可逆；
+            // 原生实测内嵌正文 UBB 已渲染出表情图——我们同走 ubb 单源）
             text: rsm.text || rs.discoveryResourceFeedShowContent || '',
             up: rsUp(rs.user)
           };
@@ -346,7 +352,7 @@ var PANEL_PARSERS = {
         it.thrown = !!raw.isThrowBanana;
         // 落点实测：www.acfun.cn/moment/am<resourceId> 真渲染（2026-10-03，h1 与正文都在）；
         // 接口 shareUrl 是 m.acfun.cn/communityCircle/moment/<id> 分享链，PC 侧并档不用
-        it.href = 'https://www.acfun.cn/moment/am' + it.momentId;
+        it.href = CFG.api.momentBase + it.momentId;
         return true;
       default:
         return false; // 其余 resourceType（直播等未观察到）一概不接——宁可漏不错
@@ -357,6 +363,17 @@ var PANEL_PARSERS = {
 // 关注流条目派发（0.9.91）：列表加载与"动态里转发的源条目"共用同一入口
 export function followPanelOf(raw) {
   return raw ? panelItem('follow', raw) : null;
+}
+
+// 转发源（动态）→ 可开详情面板的 pi（0.9.102）：此前在 views.quoteBlockOf 里手搓契约
+// 字段（UI 层定义契约=漂移源），下沉为纯函数——id/text/up/cover 由 repost 透传，计数未知
+// 给 0（面板互动栏不虚标），评论区走管线真拉（sourceId=源 momentId）
+export function momentPiOfRepost(rp) {
+  return {
+    ct: 'moment', kind: 'follow', momentId: rp.id, text: rp.text || '',
+    href: CFG.api.momentBase + rp.id, up: rp.up || null, cover: rp.cover || '', dateText: '',
+    like: 0, comment: 0, banana: 0, liked: false, thrown: false
+  };
 }
 
 // 关注视频流单页规整（0.9.99，§2.1.2 实测）：followDougaFeed 响应 → {items:[{id:acId}],

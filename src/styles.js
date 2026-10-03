@@ -35,7 +35,7 @@ var RAW_CSS = ''
   // 2×(im/upd/✕ 共 128) + 2×间距 12 + 两侧 48；源切换隐藏（抽屉开着时切源会静默重置背后
   // 舞台）；视口窄到搜索框已不可用（<CFG.view.avoidTopW）时只留右组
   + '#acsv-root.acsv-with-comments .acsv-top{right:var(--acsv-dw,380px)}'
-  + '#acsv-root.acsv-with-comments .acsv-seg{display:none}'
+  + '#acsv-root.acsv-with-comments .acsv-seg:not(.acsv-seg-follow){display:none}'
   + '#acsv-root.acsv-with-comments .acsv-top .acsv-sbox{width:min(480px,44%,calc(100% - 304px))}'
   + '@media (max-width:' + (CFG.view.avoidTopW - 1) + 'px){'
   + '#acsv-root.acsv-with-comments .acsv-top .acsv-sbox{display:none}}'
@@ -45,7 +45,7 @@ var RAW_CSS = ''
   + '.acsv-top--view{background:#16161b;border-bottom:1px solid rgba(255,255,255,.08);z-index:57}'
   // 视图态隐源切换：seg 只在竖刷有意义（0.9.73 前只是名义隐藏——视图里点它会静默重置背后
   // feed 且零界面反馈，现在由 CSS 真正隐藏）
-  + '.acsv-top--view .acsv-seg{display:none}'
+  + '.acsv-top--view .acsv-seg:not(.acsv-seg-follow){display:none}'
   + '.acsv-tbtn{width:36px;height:36px;border:none;border-radius:50%;background:rgba(255,255,255,.14);'
   + 'color:#fff;cursor:pointer;display:grid;place-items:center;font-size:16px;transition:transform .15s,background .15s}'
   + '.acsv-tbtn:hover{transform:scale(1.08);background:rgba(255,255,255,.25)}'
@@ -333,10 +333,9 @@ var RAW_CSS = ''
   + 'padding:6px 16px;border-radius:999px;cursor:pointer;transition:background .15s,opacity .15s;white-space:nowrap}'
   + '.acsv-seg-btn:hover{opacity:.9}'
   + '.acsv-seg-btn.on{background:rgba(255,255,255,.24);opacity:1;font-weight:600}'
-  // 关注语境 seg（0.9.99）：复用 seg-btn 视觉，容器独立类名——.acsv-top--view 只隐源切换
-  // .acsv-seg，关注视图里本 seg 保持可见（它是「视频」侧的确定性回路口）；按钮更紧凑不挤右组
-  + '.acsv-fseg{display:flex;align-items:center;background:rgba(255,255,255,.14);border-radius:999px;padding:3px;gap:2px}'
-  + '.acsv-fseg .acsv-seg-btn{padding:6px 12px}'
+  // 关注语境 seg（0.9.99；0.9.102 收口为 .acsv-seg 修饰类——pill 容器样式不再第二份；
+  // 两处隐藏规则均带 :not(.acsv-seg-follow)，fseg 显隐只由 syncFollowSeg 控）
+  + '.acsv-seg-follow .acsv-seg-btn{padding:6px 12px}'
   + '.acsv-cbtxt{font-size:12px;color:#ddd;margin-left:2px}'
   + '.acsv-qwrap{position:relative;display:flex}'
   + '.acsv-qmenu{position:absolute;right:0;bottom:calc(100% + 12px);z-index:35;min-width:88px;'
@@ -861,78 +860,52 @@ var RAW_CSS = ''
   + '.acsv-smfoot{display:inline-block;margin:18px 0 4px;color:#9fd0ff;font-size:13px;text-decoration:none}'
   + '.acsv-smfoot:hover{text-decoration:underline}'
   // ---- 关注视图（0.9.91，路线图 2.2） ----
-  // 量取（0.9.69 纪律）：对象 = A 站关注动态页的动态卡（www.acfun.cn/member/feeds，
-  // 2026-10-03，内置浏览器登录态）。站方是**浅色宽行卡**（870 宽、头像占 60px 左栏、
-  // 计数行 48px 高 / 12px 次级灰 rgb(153,153,153) / 项间距 42px / 图标 13px、正文不钳高），
-  // 我们是深色窄网格卡（280px+）——故只借**计数行的字号与次级灰**，其余按本方卡族取值，
-  // 差异有据不硬抄（0.9.69 同款裁决）。计数行 42px 项距是宽行卡尺度，窄卡压到 14px。
-  + '.acsv-ggroup{margin:18px 2px 10px;font-size:13px;font-weight:600;color:#cfd3da}'
-  + '.acsv-ggroup:first-child{margin-top:2px}'
+  // .acsv-ggroup（分档标题）于 0.9.102 删除：0.9.99 行流化后不再渲染分档（仿原生无分组头），
+  // 无生产者；.acsv-follow 网格规则同批删除（列表类已改 .acsv-frows 单列流）
   // 计数行（动态三计数；12px 次级灰取自站方量取值）
   + '.acsv-gstats{display:flex;align-items:center;gap:14px;margin-top:6px;font-size:12px;color:#8a90a0}'
   + '.acsv-gstat{display:inline-flex;align-items:center;gap:4px}'
   + '.acsv-gstat .acsvg-glyph{font-size:12px}'
-  // 内容类型角标（0.9.93 起只剩文章用；动态/转发改由专属宽卡的结构自身区分）：**左上**——
-  // 左下是播放数、右下是时长，各占其位不打架（0.9.92 修掉了文章角标与播放数同占左下的叠字）
-  + '.acsv-gkind{left:8px;top:8px;bottom:auto;background:rgba(253,76,92,.78);font-weight:600}'
-  // ---- 关注视图卡面 v2（0.9.93）：**模仿原生信息层级、改进横向空间利用** ----
-  // 用户裁决（0.9.92 后）：原生关注流是 870px 单列宽卡，桌面宽屏浪费大——保留它的层级
-  //（头像行 / 正文 / 单图 / 计数行；引用块表达转发），但把布局改成**多列 + 按内容型定宽**：
-  // 媒体向（视频卡）单格、文本向（动态/转发）跨两列，dense 填洞不留空档；窄屏回落单列。
-  // 原生量取值（2026-10-03，/member/feeds 实测）→ 本卡族取值：头像行 50px→24px 头像、
-  // 内容缩进 60px→0（宽卡自带内边距）、单图限高 299px→240px、计数行 48px/12px 次级灰→
-  // 26px/12px 次级灰（宽行卡尺度压到卡尺度，差异有据）
-  // **尺寸统一**（用户二次裁决 0.9.94）：文本向卡与视频卡同尺寸（单格），只保留卡内样式差异——
-  // 通栏版实测定性：短文本的转发卡占满 1064px、右侧大片留白，仍是浪费横向空间；
-  // 「同尺寸格子 + 卡内按内容型换样式」既无空洞也无大片留白（dense 仍开，防个别行留洞）。
-  // 分组标题是分节线，仍整行
-  + '.acsv-follow{grid-auto-flow:dense}'
-  + '.acsv-follow .acsv-gcell{grid-column:span 1}'
-  + '.acsv-follow .acsv-ggroup{grid-column:1 / -1}'
-  // 文章卡（文本向：薄条封面 + 标题 + 摘要 + 脚行）——形态与视频的 4:3 图卡明显不同，一眼可辨
-  + '.acsv-gart{display:flex;flex-direction:column;padding:12px;border-radius:10px;background:rgba(255,255,255,.05)}'
-  + '.acsv-gart-cover{position:relative;flex:none;height:120px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06)}'
-  + '.acsv-gart-cover img{width:100%;height:100%;object-fit:cover;display:block}'
-  + '.acsv-gart-title{margin-top:10px;font-size:14px;line-height:20px;color:#fff;max-height:40px;overflow:hidden}'
-  + '.acsv-gart-desc{margin-top:6px;font-size:12px;line-height:18px;color:#8a90a0;max-height:36px;overflow:hidden}'
-  // 动态宽卡（头像行 + 正文 + 单图 + 计数行；转发再多一个引用块）
-  + '.acsv-gmom{display:flex;flex-direction:column;padding:12px;border-radius:10px;background:rgba(255,255,255,.05)}'
+  // .acsv-gkind（内容类型角标）与 .acsv-gart*（文章卡）于 0.9.102 删除：0.9.99 行流化后
+  // 无生产者（文章行走 strip 卡内红角标 .acsv-frow-tag，原生同款）；.acsv-gmom 根卡同批删除
+  //（动态宽卡重写为行，仅 .acsv-gmom-head/-av/-name 被详情面板头复用保留）
   + '.acsv-gmom-head{display:flex;align-items:center;gap:8px;font-size:12px;color:#8a90a0}'
   + '.acsv-gmom-head img{width:24px;height:24px;border-radius:50%;object-fit:cover;display:block;background:rgba(255,255,255,.08)}'
   + '.acsv-gmom-name{font-size:13px;color:#d5d8df}'
-  + '.acsv-gmom-flag{flex:none;font-size:11px;line-height:15px;padding:0 5px;border-radius:3px;'
-  + 'background:rgba(253,76,92,.78);color:#fff;font-weight:600}'
-  + '.acsv-gmom-text{margin-top:8px;font-size:14px;line-height:21px;color:#e8eaee;max-height:84px;overflow:hidden;word-break:break-word}'
-  // 转发引用块（左竖线 + 缩略图 + 源标题 + 源类型）：转发的结构性签名
-  + '.acsv-gquote{margin-top:10px;padding:8px 10px;border-left:3px solid rgba(255,255,255,.18);'
-  + 'border-radius:0 8px 8px 0;background:rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}'
-  + '.acsv-gquote-thumb{flex:none;width:56px;height:56px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.08)}'
-  + '.acsv-gquote-thumb img{width:100%;height:100%;object-fit:cover;display:block}'
-  + '.acsv-gquote-body{min-width:0;flex:1 1 auto}'
-  + '.acsv-gquote-title{font-size:13px;line-height:18px;color:#d5d8df;max-height:36px;overflow:hidden}'
-  + '.acsv-gquote-kind{margin-top:4px;font-size:11px;color:#8a90a0}'
-  // 源条可点态（0.9.101）：视频→播放层/文章→外链/动态→详情面板；hover 提亮 + 主色竖线
+  // .acsv-gmom-flag（转发旗标）于 0.9.102 删除并**作废该需求**：原生实测 50 条转发内
+  // 「转发」文字 0 次——转发由引用卡形态本身表达，0.9.92 的旗标需求据此作废（api-research §2.1.1）
+  // .acsv-gmom-text 同批删除（行流正文改 .acsv-frow-text）
+  // 转发引用卡（0.9.102 完全照原生；量取日 2026-10-03 §2.1.1）：灰块容器（padding 10、
+  // 左出血 -10 对齐 60px 缩进线、**无圆角无竖线**——原生 repost-content 实测 borderLeft 0）
+  // + @源UP 行（14px、下距 12；名字=原生蓝链 rgb(64,155,239)，深色换算同值亮蓝即可用）
+  // + 源内容卡（视频/文章=与行内同款 .acsv-frow-strip；动态=UBB 正文+首图）
+  + '.acsv-gquote{margin:10px 0 10px -10px;padding:10px;background:rgba(255,255,255,.06)}'
+  + '.acsv-gquote-up{font-size:14px;line-height:22px;color:#8a90a0;margin-bottom:12px}'
+  + '.acsv-gquote-upname{color:#57a9f5;text-decoration:none}'
+  + '.acsv-gquote-upname:hover{text-decoration:underline}'
+  + '.acsv-gquote-text{min-width:0}'
+  // 动态源正文：UBB 单源渲染（原生同款含表情图）；钳 3 行——原生不钳，长文引用会撑行，
+  // 尺寸纪律取舍在册（行流正文亦 4 行钳高同族）
+  + '.acsv-gquote-textbody{font-size:14px;line-height:21px;color:#e8eaee;word-break:break-word;max-height:63px;overflow:hidden}'
+  + '.acsv-gquote-img{margin-top:10px;max-width:299px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.06)}'
+  + '.acsv-gquote-img img{max-width:299px;max-height:299px;display:block}'
   + '.acsv-gquote-on{cursor:pointer}'
-  + '.acsv-gquote-on:hover{background:rgba(255,255,255,.1);border-left-color:var(--acsv-accent)}'
-  // 尾件沉底（0.9.95 用户实报「引用的信息和脚注置底、为正文腾出空间，观感更整齐」）：
-  // 有引用 → 引用块吃余量（与计数行成组贴底）；无引用 → 计数行贴底。**图不沉底**——
-  // 图是内容不是尾件，跟着正文走才读得顺（取舍在册）。余量落在「正文与尾件之间」，
-  // 卡高由同行最高者定（grid stretch）→ 沉底后同行各卡底自动对齐，这就是「整齐」的机制。
-  // 与视频/文章卡脚行的 margin-top:auto（0.9.90）同一手法、同一纪律
-  + '.acsv-gmom-quoted .acsv-gquote{margin-top:auto}'
-  + '.acsv-gmom:not(.acsv-gmom-quoted) .acsv-gstats{margin-top:auto}'
+  // .acsv-gmom-quoted 尾件沉底（0.9.95）于 0.9.102 删除：卡流时代的网格 stretch 机制，
+  // 0.9.99 行流化后无生产者（行内不需要沉底——原生就是自然文档流）
   // 外链卡（文章/动态）：根元素是 <a>，浏览器默认链接样式必须清掉（标题/脚行的显式色不受影响）
   + '.acsv-gcell{color:inherit;text-decoration:none}'
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-sgrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));'
   + 'gap:14px 10px}'
-  // 窄屏：关注流回落单列（.acsv-gwide 无跨度，规则天然成立）
+  // 窄屏：搜索网格回落（原「关注流回落单列」注释随 .acsv-gwide 一并退役，0.9.102）
   + '}'
-  // ---- 关注视图单列行流（0.9.100 原生骨架复刻，替代 0.9.99 自创暗色卡）----
+  // ---- 关注视图单列行流（0.9.100 原生骨架复刻；0.9.101 交互补课；0.9.102 收口清理）----
   // 量取日 2026-10-03（站方 /member/feeds computed style + 样式表规则；复刻法=广场
   // renderer.js/css.js 的逐类名复刻路数）。结构/字号/间距/信息层级 1:1 照量取值；颜色
   // 暗色换算对照：#333→#e8eaee、#f8f8f8→rgba(255,255,255,.06)、#999→#8a90a0、
-  // hover/active 红→var(--acsv-accent)。原生是**扁平列表**（条目无底色无圆角），条目间
-  // feed-separate 是 830×10 灰带——这里用相邻行 border-top 等价实现
+  // hover/active 红→var(--acsv-accent)、原生蓝链 rgb(64,155,239)→#57a9f5。原生是**扁平
+  // 列表**（条目无底色无圆角），条目间 feed-separate 是 830×10 灰带——相邻行 border-top
+  // 等价实现；列 870 居中。退役登记：ggroup/gkind/gart*/gmom 根与 flag/text/quoted 均于
+  // 0.9.102 删除（上文各自登记）；.acsv-frow-strip 被引用卡内嵌源卡复用（原生同款 markup）
   + '.acsv-frows{max-width:870px;margin:0 auto}'
   + '.acsv-frow{padding:0 20px}'
   + '.acsv-frow + .acsv-frow{border-top:10px solid rgba(255,255,255,.05)}'

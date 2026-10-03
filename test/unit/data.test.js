@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf } = await import('../../src/data.js');
+var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf, momentPiOfRepost } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -640,22 +640,44 @@ test('panelItem follow：转发源契约（ct/id/title/cover/up）；未知源�
       repostSource: rs, user: { userId: 1, userName: 'u', userHead: 'h' }
     });
   }
-  // 0.9.101：源条可点（用户实报「点转发的内容小卡不会打开播放」）——契约补 id（落点）与
-  // up（播放层首帧作者 / 详情面板头像）；rs.user 与关注流条目同款（userId/userName/userHead）
+  // 0.9.101：源条可点——契约补 id（落点）与 up（播放层首帧作者 / 详情面板头像）；
+  // 0.9.102（引用卡完全照原生）：视频/文章源再补 dur（展示串直用）/views（万格式，缺则不挂）
   var v = mom({
     resourceType: 2, resourceId: 488900, caption: '被转发的视频标题', coverUrl: 'https://tx-free-imgs.acfun.cn/视频封面.jpg',
+    playDuration: '01:23', viewCount: 12345,
     user: { userId: 42, userName: '源UP', userHead: 'https://tx-free-imgs.acfun.cn/源头像.jpg' }
   });
   assert.deepEqual(v.repost, {
     ct: 'video', id: 488900, title: '被转发的视频标题', cover: 'https://tx-free-imgs.acfun.cn/视频封面.jpg',
+    dur: '01:23', views: '1.2万',
     up: { id: 42, name: '源UP', img: 'https://tx-free-imgs.acfun.cn/源头像.jpg', isFollowing: false }
   });
   var a = mom({ resourceType: 3, resourceId: 488700, articleTitle: '被转发的文章标题', coverUrl: 'https://tx-free-imgs.acfun.cn/文章封面.jpg' });
   assert.deepEqual(a.repost, {
     ct: 'article', id: 488700, title: '被转发的文章标题', cover: 'https://tx-free-imgs.acfun.cn/文章封面.jpg',
+    dur: '', views: '', // 缺字段不虚标（时长空串、播放数空串）
     up: null // 源条不带 user：作者契约不伪造（upOf 空输入 → null）
   });
   // 未观察的源类型（如直播 4）：不挂 repost（渲染层按「原创动态」出，不编造源类型）
   assert.equal(mom({ resourceType: 4, resourceId: 9, caption: 'x' }).repost, undefined);
   assert.equal(mom(null).repost, undefined);
+});
+
+test('momentPiOfRepost（0.9.102）：转发源 → 详情面板 pi 纯函数——透传 id/text/up/cover，计数给 0', () => {
+  var pi = momentPiOfRepost({
+    ct: 'moment', id: 510091, text: '源正文[emot=acfun,2/]', cover: 'https://tx-free-imgs.acfun.cn/c.jpg',
+    up: { id: 7, name: '源UP', img: 'h.jpg', isFollowing: false }
+  });
+  assert.equal(pi.ct, 'moment');
+  assert.equal(pi.momentId, 510091);
+  assert.equal(pi.text, '源正文[emot=acfun,2/]');
+  assert.equal(pi.href, 'https://www.acfun.cn/moment/am510091'); // momentBase 单源（0.9.102）
+  assert.equal(pi.up.name, '源UP');
+  assert.equal(pi.cover, 'https://tx-free-imgs.acfun.cn/c.jpg');
+  // 计数未知给 0（面板互动栏不虚标）——评论区走管线真拉（sourceId=源 momentId）
+  assert.deepEqual([pi.like, pi.comment, pi.banana, pi.liked, pi.thrown], [0, 0, 0, false, false]);
+  // 空输入容错：up/cover 缺省不炸
+  var bare = momentPiOfRepost({ id: 1 });
+  assert.equal(bare.up, null);
+  assert.equal(bare.text, '');
 });

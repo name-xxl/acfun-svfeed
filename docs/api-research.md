@@ -88,6 +88,15 @@ followUpers[]（左侧关注列表+未读徽标数据源）：hasUnReadResource 
   `moment.imgInfos[]`（thumbnailImage/originImage/expandedImage 各裹 cdnUrls 三层嵌套）
   ——**取 imgs 不取 imgInfos**（一物二源必漂移）。顶层 `coverUrl` 恒=首图（多图时只是
   其中之一）；首屏 20 条里配图动态 8 条，imgs 长度分布 1×5、3×1、4×1、9×1
+- **转发引用卡内部形制（0.9.102 补测，/member/feeds 原生 computed style，样本 9 条转发：7 资源 + 2 动态）**：
+  转发行 = 转发者正文 + `.member-feed-repost-content`——**#f8f8f8 灰块、padding 10、margin-left:-10
+  左出血**（内容仍对齐 60px 缩进线）、**无左侧竖线**（borderLeft 0）。内部两段：① `.repost-up >
+  .up-name` = 「@源UP」14px/#666、下距 12，名字是**蓝色链接 rgb(64,155,239)**（→ /u/uid）；
+  ② 源内容卡——视频/文章源 = 与顶层资源卡**同规格**（cover 204×128、title 16/600，原生就是
+  同款 markup 复用）；**动态源（rs10）实测样本 = 纯正文**（`member-feed-moment > member-feed-text`，
+  UBB 已渲染、含表情图 48×48），**无封面/宫格**（配图动态源未观察到——实现按「正文 + 有图则
+  首图」最小形态，标未实测）。**原生 50 条内「转发」文字出现 0 次** ⇒ 0.9.92 的「转发旗标」
+  需求据此作废（转发由引用卡形态本身表达，0.9.102 登记）。
 - **`repostSource.resourceType=10`（转发动态）实存**：同页 21 条转发里 rs2×12 / rs3×6 /
   **rs10×3**。源条是完整分支条目（带自家顶层 coverUrl），源正文与源首图在**源嵌套
   `repostSource.moment`** 的 `text` / `imgs[]` 里（对照资产：广场项目的取法相同）

@@ -57,3 +57,20 @@ export function setRealFavorite(item, on) {
 export function giveBanana(item, count) {
   return AppAPI.throwBanana(item.id, count);
 }
+
+// ---------- pi 级写链（0.9.102 收口：关注行流与动态详情面板共用） ----------
+// 两处（followview 行内互动行 / momentdetail 互动栏）此前各抄一份「kind 派生 + 端点调用」；
+// 0.9.96「乐观更新不抽公共件」裁决的前提是「rail/comments/panel 三处语境各异」，对这两个
+// **同 pi 契约、同字段、同端点**的消费面不再成立——按「写路径与渲染分离」理念下沉写路径，
+// 乐观翻转/回滚/锁 仍留调用方（DOM 更新各异）。rail（slide DOM 同步）与 comments（列表
+// 插入）维持不并入，各自语境边界不变
+export function likePi(pi, on) {
+  // objectType 派生单源：动态=10、其余=2（home 形状在 callInteract 里加 kpf=PC_WEB）
+  var item = pi.ct === 'moment' ? { id: pi.momentId, kind: 'moment' } : { id: pi.acId, kind: 'home' };
+  return setRealLike(item, on);
+}
+
+export function throwBananaPi(pi) {
+  // 动态 resourceType=10 / www 视频省略（默认 2）；count=1 同广场语义
+  return pi.ct === 'moment' ? AppAPI.throwBanana(pi.momentId, 1, 10) : AppAPI.throwBanana(pi.acId, 1);
+}

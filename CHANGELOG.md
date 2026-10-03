@@ -3,6 +3,44 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.102（2026-10-03）· 关注页收口：死代码清理 + 共享件抽取 + 引用卡完全照原生
+
+- **背景**：0.9.98–0.9.101 连改四版（多图/双面/还原度/交互），代码评审发现两类欠账：
+  ①0.9.100 行流重写遗留的死 CSS/死配置；②同一概念两套实现（媒体块、写链）。用户裁决
+  两处口径后一并收口。
+- **A 死代码清理（零行为变化）**：styles 删除并逐条登记（0.9.83 先例）：`.acsv-ggroup`×2
+  （分组标题随行流退役）、`.acsv-gkind`、`.acsv-follow*` 网格规则、「卡面 v2」段头、
+  `.acsv-gart*`×5、`.acsv-gmom` 根卡、`.acsv-gmom-flag`、`.acsv-gmom-text`、
+  `.acsv-gmom-quoted`×2、`.acsv-gwide` 陈旧注释；cfg 删 `followStream.pageSize`（无消费，
+  服务端钳制事实在 §2.1.2）。**「转发旗标」需求作废登记**：原生实测 50 条转发内「转发」
+  文字 0 次——转发由引用卡形态表达（0.9.92 需求据此关闭）。
+- **B 共享件抽取**：①媒体块：`views.momentCellOf`（大图挂法单源）+ `views.momentMediaOf`
+  dispatcher（repost/宫格/单图分派；行流 gridMin=1 原生 px、面板 gridMin=2 模态栅格——布局
+  有意分叉入注释）；②`views.stripOf`（资源横条构建件自 followview 下沉，行内与引用卡内嵌
+  源卡共用——原生同款 markup 复用）；③`interact.likePi/throwBananaPi`（pi 级写路径单源，
+  followview 与 momentdetail 改调；rail/comments 维持不并入，0.9.96 裁决的「三处语境各异」
+  前提对这两个同 pi 契约的消费面不再成立，注释更新）；④`views.skeletonRows`（mypage/
+  followview 各传独立类名）；⑤`.acsv-fseg` 并入 `.acsv-seg` 修饰类（pill 样式不再第二份；
+  两处隐藏规则带 `:not(.acsv-seg-follow)`，fseg 显隐仍只由 syncFollowSeg 控）；⑥
+  `CFG.api.momentBase`（散落三处字面量收口）；⑦`data.momentPiOfRepost`（契约字段不再由
+  UI 层拼装；`setMomentOpener` 载荷改 repost）。
+- **C 引用卡完全照原生（用户裁决）**：按原生实测（§2.1.1 追补：repost-content 灰块
+  padding 10/左出血 -10/无竖线；repost-up 14px #666 下距 12 + **蓝链** rgb(64,155,239)；
+  内嵌源卡与顶层同规格；rs10 源=纯正文无封面）重做为「@源UP 行 + 完整源内容卡」；契约补
+  `dur/views`；rs10 正文走 UBB 单源渲染（原生同款含表情图）；@源UP 是独立落点（→源UP主页，
+  锚点不冒泡），源卡三落点不变。0.9.92 期「缩略图+类型字」自创形态退役。
+- **D seg 显隐收紧（用户裁决）**：仅「关注视图开」或「舞台态+关注流激活」可见（此前
+  feedActive 常驻导致我的/榜单等视图里常显）；与徽标抑制的 `isFollowContext()` 是两个
+  用途（宽松/严格），两侧注释写明。
+- **E 文档漂移修正**：momentdetail 陈旧注释（源条已可点）、styles 段头注（101/102 现状+
+  退役登记）、topbar 头注（fseg 直接 import 例外）、README 两行。
+- **测试**：单测 183（repost 契约 deepEqual 补 dur/views + `momentPiOfRepost` 纯函数用例）；
+  harness `view-follow` 53 断言（引用卡原生形制断言重写 + 宫格点图开大图新断言）、
+  `follow-videos` 17 断言（+seg 收紧：进我的即隐/Esc 回舞台恢复）。
+- **回归**：lint 干净、check 三项过（依赖图去 followview→appapi、momentdetail→appapi 两
+  条死边，+views→imgview）、单测 183 全绿、harness 42 场景 0 失败。真机验收：引用卡
+  目检（对照原生）+ 转发三种源的点按。
+
 ### 0.9.101（2026-10-03）· 关注行流交互补课：五处实报逐条修
 
 - **病灶（用户真机五点实报）**：0.9.100 的结构量取到位了，但交互层还有一套账——

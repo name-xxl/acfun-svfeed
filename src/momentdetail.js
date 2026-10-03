@@ -3,12 +3,11 @@ import { el, fmt, toast } from './ui.js';
 import { root, releaseDrawer } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { imgInto } from './imgload.js';
-import { ubbTextOf, quoteBlockOf } from './views.js';
+import { ubbTextOf, momentCellOf, momentMediaOf } from './views.js';
 import { GLYPHS } from './imicons.js';
 import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
 import { openImageViewer } from './imgview.js';
-import { setRealLike } from './interact.js';
-import { AppAPI } from './appapi.js';
+import { likePi, throwBananaPi } from './interact.js';
 import { ensureEmotionMap } from './emoticon.js';
 import { testHook } from './dbg.js';
 
@@ -34,6 +33,29 @@ export function closeMomentDetail() {
   closeCommentsHost(); // 管线宿主复位（宿主 DOM 已随面板拆除，残留引用会读到死节点）
   releaseDrawer('comments');
   overlayClose('comments'); // Esc 路径已出栈时空转；显式关闭由此同步栈
+}
+
+// 媒体块构建器（dispatcher 注入件，0.9.102 收口）：面板宫格=模态栅格类名 + 共用
+// views.momentCellOf 的格子挂法（大图挂法单源）；单图=面板件（big 拿不到就静展示）
+function panelGrid(pi) {
+  var grid = el('div', 'acsv-mdetail-imgs');
+  grid.dataset.n = String(pi.imgs.length);
+  pi.imgs.forEach(function (im) { grid.appendChild(momentCellOf('acsv-mdetail-imgcell', im)); });
+  return grid;
+}
+function panelSingle(pi, im0) {
+  var im = el('div', 'acsv-mdetail-img');
+  imgInto(im, pi.cover, 'grid');
+  var big = im0 && (im0.big || im0.url);
+  if (big) {
+    im._big = big;
+    im.classList.add('onbig');
+    im.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      openImageViewer(im._big);
+    });
+  }
+  return im;
 }
 
 // pi = follow 契约条目（ct='moment'）；正文/计数用列表载荷——text 全文性已实测
@@ -81,40 +103,11 @@ export function openMomentDetail(pi) {
     if (!panelEl) return;
     textSlot.appendChild(ubbTextOf(pi.text, 'acsv-mdetail-text'));
   });
-  if (pi.repost) {
-    // 引用块与动态卡同源（views.quoteBlockOf）；源条点击不接播放（v1 静态展示）
-    pin.appendChild(quoteBlockOf(pi.repost));
-  } else if (pi.imgs && pi.imgs.length > 1) {
-    // 多图（0.9.98）：与卡面同款的九宫格；格上另挂**大图查看**（详情面板是独立交互面，
-    // 不像卡面整卡一个点击目标）——imgview 转呈 expandedUrl（native 同款点缩略看大图）
-    var grid = el('div', 'acsv-mdetail-imgs');
-    grid.dataset.n = String(pi.imgs.length);
-    pi.imgs.forEach(function (im) {
-      var cell = el('div', 'acsv-mdetail-imgcell');
-      imgInto(cell, im.url, 'grid');
-      cell._big = im.big || im.url;
-      cell.addEventListener('click', function (ev) {
-        ev.stopPropagation(); // 不惊动列表委托（commentListClick）与背板关闭判定
-        openImageViewer(cell._big);
-      });
-      grid.appendChild(cell);
-    });
-    pin.appendChild(grid);
-  } else if (pi.cover) {
-    var im = el('div', 'acsv-mdetail-img');
-    imgInto(im, pi.cover, 'grid');
-    // 单图也接大图查看（big 来自嵌套 imgs 的 expandedUrl；拿不到就不挂，保持静展示）
-    var big1 = pi.imgs && pi.imgs[0] && (pi.imgs[0].big || pi.imgs[0].url);
-    if (big1) {
-      im._big = big1;
-      im.classList.add('onbig');
-      im.addEventListener('click', function (ev) {
-        ev.stopPropagation();
-        openImageViewer(im._big);
-      });
-    }
-    pin.appendChild(im);
-  }
+  // 媒体块 → dispatcher（0.9.102 收口：与行流共享 repost/宫格/单图 分派；布局各传构建器——
+  // 面板 gridMin=2（单图走单图件）、模态栅格类名；行流网格见 followview。引用卡自 0.9.101
+  // 起源卡可点（视频→播放层/文章外链/动态→详情面板），0.9.102 起为原生形制（@源UP+源卡）
+  var media = momentMediaOf(pi, { gridMin: 2, grid: panelGrid, single: panelSingle });
+  if (media) pin.appendChild(media);
   pin.appendChild(actionBar(pi));
   // 评论区标题 = 管线的 title（insertLocalComment/renderComments 会重写计数）
   var cmthead = el('div', 'acsv-mdetail-cmthead');
@@ -159,7 +152,7 @@ function actionBar(pi) {
     like.classList.toggle('on', on);
     likeG.textContent = on ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
     likeN.textContent = fmt(pi.like);
-    setRealLike({ id: pi.momentId, kind: 'moment' }, on).then(function (ok) {
+    likePi(pi, on).then(function (ok) { // pi 级写路径单源（interact，0.9.102 收口）
       pi.likeBusy = false;
       if (ok) return;
       pi.liked = !on; // 失败回滚（乐观值全部退回，rail 同款）
@@ -183,7 +176,7 @@ function actionBar(pi) {
     ev.stopPropagation();
     if (pi.banBusy || pi.thrown) return;
     pi.banBusy = true;
-    AppAPI.throwBanana(pi.momentId, 1, 10).then(function (ok) {
+    throwBananaPi(pi).then(function (ok) { // pi 级写路径单源（interact，0.9.102 收口）
       pi.banBusy = false;
       if (!ok) { toast('投蕉失败' + (pi.thrown ? '' : '（今日已投过/未登录？）')); return; }
       pi.thrown = true; // 投蕉不可逆：只进不退（官方无取消端点），锁死防重复投

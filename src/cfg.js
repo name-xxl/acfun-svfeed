@@ -40,6 +40,8 @@ export var CFG = {
     userBase: 'https://www.acfun.cn/u/',
     videoBase: 'https://www.acfun.cn/v/ac',
     articleBase: 'https://www.acfun.cn/a/ac',
+    // 动态 PC 落点（0.9.102 收口：此前该基址在 data.js/views.js 散落三处字面量）
+    momentBase: 'https://www.acfun.cn/moment/am',
     // ---- 私信分享（网页私信 = 快手 ImSdk over WebSocket，无 REST 发送端点） ----
     // imsdk CDN hash 随官方发版变化，运行时优先取页面 globalConfig.imsdkcdn，此为兜底
     imsdk: 'https://static.yximgs.com/udata/pkg/acfun-im/ImSdk.eb6e95.js',
@@ -235,11 +237,10 @@ export var CFG = {
     pollMax: 600000,
     tick: 5000
   },
-  // 关注视频流（0.9.99）：followDougaFeed 后台分页链参数。pageSize 是**服务端钳制值**（实测
-  // count 被忽略固定 10/页，§2.1.2），不是请求参数；maxChainPages 防超长关注列表无感发几百请求
-  //（uppage 同款上限思路）；翻页间隔沿用 time.chainGap
+  // 关注视频流（0.9.99）：followDougaFeed 后台分页链参数。每页条数**不在这里**——服务端钳制
+  // 固定 10/页（实测 §2.1.2，count 被忽略），客户端无可调项；maxChainPages 防超长关注列表
+  // 无感发几百请求（uppage 同款上限思路）；翻页间隔沿用 time.chainGap
   followStream: {
-    pageSize: 10,
     maxChainPages: 8
   },
   im: {

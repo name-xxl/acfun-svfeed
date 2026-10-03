@@ -152,14 +152,16 @@
     // 恒等于源封面——夹具照此构形（源封面与顶层封面同值），卡面才测得到「不拿源封面当主视觉」
     if (repost) {
       e.coverUrl = FOLLOW_COVER;
-      if (repost === 'video') e.repostSource = { resourceType: 2, resourceId: 488900, caption: '被转发的视频标题', coverUrl: FOLLOW_COVER, playDuration: '01:23' };
+      // 0.9.102：源条补 user（@源UP 行夹具——rSource 形状与关注流同款）与计数（内嵌源卡时长/播放数）
+      if (repost === 'video') e.repostSource = { resourceType: 2, resourceId: 488900, caption: '被转发的视频标题', coverUrl: FOLLOW_COVER, playDuration: '01:23', viewCount: 1234, user: { userId: 9001, userName: '源UP甲', userHead: PANEL_AVATAR } };
       // 转发动态（0.9.98 实测关注流实存）：源条 resourceType=10，源正文/源首图都在源嵌套 moment 里
       else if (repost === 'moment') e.repostSource = {
         resourceType: 10, resourceId: 510091,
+        user: { userId: 9002, userName: '源UP乙', userHead: PANEL_AVATAR },
         moment: { momentId: 510091, text: '被转发的动态正文[emot=acfun,2/]带[at uid=9]@某人[/at]',
           imgs: [{ url: FOLLOW_COVER, expandedUrl: FOLLOW_COVER, originUrl: FOLLOW_COVER }] }
       };
-      else e.repostSource = { resourceType: 3, resourceId: 488700, articleTitle: '被转发的文章标题', coverUrl: FOLLOW_COVER };
+      else e.repostSource = { resourceType: 3, resourceId: 488700, articleTitle: '被转发的文章标题', coverUrl: FOLLOW_COVER, viewCount: 567, user: { userId: 9003, userName: '源UP丙', userHead: PANEL_AVATAR } };
     }
     return e;
   }

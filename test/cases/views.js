@@ -1192,9 +1192,9 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     rec('follow-skeleton-gone', document.querySelectorAll('.acsv-fskel').length === 0);
     rec('follow-bad-filtered', !/未观察类型/.test(q('.acsv-mewrap').textContent));
     // 顶栏关注 seg：语境可见、默认「全部」高亮（dock 直进的默认侧，0.9.99 口径）
-    var fsegAll = q('.acsv-fseg .acsv-seg-btn:nth-child(2)');
-    var fsegVideos = q('.acsv-fseg .acsv-seg-btn:nth-child(1)');
-    rec('follow-seg-ctx', !!fsegAll && fsegAll.closest('.acsv-fseg').style.display !== 'none'
+    var fsegAll = q('.acsv-seg-follow .acsv-seg-btn:nth-child(2)');
+    var fsegVideos = q('.acsv-seg-follow .acsv-seg-btn:nth-child(1)');
+    rec('follow-seg-ctx', !!fsegAll && fsegAll.closest('.acsv-seg-follow').style.display !== 'none'
       && fsegAll.classList.contains('on') && fsegVideos && !fsegVideos.classList.contains('on'),
       'all=' + (fsegAll && fsegAll.classList.contains('on')) + ' videos=' + (fsegVideos && fsegVideos.classList.contains('on')));
     // 行定位器（按文本找行）
@@ -1324,18 +1324,30 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     rec('follow-moment-multigrid', !!(gRow && gRow.querySelector('.acsv-frow-imgs:not(.n1):not(.n24)')
       && gRow.querySelectorAll('.acsv-frow-img').length === 3),
       gRow ? 'cells=' + gRow.querySelectorAll('.acsv-frow-img').length : 'no-row');
-    // ---- 转发行：引用块（源类型字 + 源标题），不挂横条 ----
+    // 宫格图点击 → 大图查看（0.9.102：格子自挂 momentCellOf，委托分支已删防双开）
+    var gCell = gRow && gRow.querySelector('.acsv-frow-imgs .acsv-frow-img');
+    if (gCell) gCell.click();
+    rec('follow-grid-imgview', !!(await waitFor(function () { return !!q('.acsv-imgview img'); }, 5000)));
+    key('Escape');
+    rec('follow-grid-imgview-close', !!(await waitFor(function () { return !q('.acsv-imgview'); }, 5000)));
+    // ---- 转发行（0.9.102 完全照原生）：引用卡 = @源UP 行 + 完整源内容卡 ----
     var rRow = rowOf('转发视频的动态');
-    rec('follow-repost-quote', !!(rRow && rRow.querySelector('.acsv-gquote-thumb img')
-      && /被转发的视频标题/.test((rRow.querySelector('.acsv-gquote-title') || {}).textContent || '')
-      && (rRow.querySelector('.acsv-gquote-kind') || {}).textContent === '视频'
-      && !rRow.querySelector('.acsv-frow-strip')),
+    rec('follow-repost-quote', !!(rRow
+      && (rRow.querySelector('.acsv-gquote-upname') || {}).textContent === '@源UP甲'
+      && (rRow.querySelector('.acsv-gquote-upname') || {}).getAttribute
+      && rRow.querySelector('.acsv-gquote-upname').getAttribute('href') === 'https://www.acfun.cn/u/9001'
+      && rRow.querySelector('.acsv-gquote .acsv-frow-strip') // 内嵌完整源卡（与行内同款构建件）
+      && /被转发的视频标题/.test((rRow.querySelector('.acsv-gquote .acsv-frow-stitle') || {}).textContent || '')
+      && (rRow.querySelector('.acsv-gquote .acsv-frow-mdur') || {}).textContent === '01:23'
+      && /1234/.test((rRow.querySelector('.acsv-gquote .acsv-frow-sinfo') || {}).textContent || '')),
       rRow ? (rRow.querySelector('.acsv-gquote') || {}).textContent : 'no-row');
-    // 转发动态（rs10）：源正文明文（UBB 剥除）+「动态」类型字
+    // 转发动态（rs10）：@源UP + 源正文 UBB 单源渲染（at 出链）+ 无源卡 strip
     var rRow3 = rowOf('更早的动态');
     rec('follow-repost-moment', !!(rRow3
-      && (rRow3.querySelector('.acsv-gquote-kind') || {}).textContent === '动态'
-      && /被转发的动态正文\s+带\s+@某人/.test((rRow3.querySelector('.acsv-gquote-title') || {}).textContent || '')),
+      && (rRow3.querySelector('.acsv-gquote-upname') || {}).textContent === '@源UP乙'
+      && rRow3.querySelector('.acsv-gquote-textbody a.ubb-at')
+      && /被转发的动态正文/.test((rRow3.querySelector('.acsv-gquote-textbody') || {}).textContent || '')
+      && !rRow3.querySelector('.acsv-gquote .acsv-frow-strip')),
       rRow3 ? (rRow3.querySelector('.acsv-gquote') || {}).textContent : 'no-row');
     // 引用块可点（0.9.101 实报「点转发的内容小卡不会打开播放」）：三落点分别验证——
     // 视频源→播放层（直挂缝）、文章源→官方页新窗（window.open 桩）、动态源→详情面板
@@ -1641,10 +1653,10 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       return document.querySelectorAll('.acsv-mewrap .acsv-frow').length >= 19;
     }, 10000)));
     // seg 语境可见、默认「全部」高亮
-    var segAll = q('.acsv-fseg .acsv-seg-btn:nth-child(2)');
+    var segAll = q('.acsv-seg-follow .acsv-seg-btn:nth-child(2)');
     rec('fv-seg-ctx', !!segAll && segAll.classList.contains('on'));
     // 点「视频」→ 深链首条接管舞台（夹具页1 首条 = 488911）
-    q('.acsv-fseg .acsv-seg-btn:nth-child(1)').click();
+    q('.acsv-seg-follow .acsv-seg-btn:nth-child(1)').click();
     rec('fv-deeplink', !!(await waitFor(function () {
       return location.hash === '#svfeed/a/488911';
     }, 10000)), location.hash);
@@ -1667,23 +1679,35 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       'n=' + document.querySelectorAll('.acsv-slide').length);
     // 深链态视图已退：语境由 feedActive 顶住，seg 高亮切「视频」
     rec('fv-seg-videos', !!(await waitFor(function () {
-      var b = q('.acsv-fseg .acsv-seg-btn:nth-child(1)');
+      var b = q('.acsv-seg-follow .acsv-seg-btn:nth-child(1)');
       return b && b.classList.contains('on');
     }, 5000)));
     // seg「全部」= 确定性回路：回关注视图，行流还在
-    q('.acsv-fseg .acsv-seg-btn:nth-child(2)').click();
+    q('.acsv-seg-follow .acsv-seg-btn:nth-child(2)').click();
     rec('fv-back-all', !!(await waitFor(function () {
       return location.hash === '#svfeed/follow'
         && document.querySelectorAll('.acsv-mewrap .acsv-frow').length >= 19;
     }, 10000)), location.hash);
     // 再点「视频」= 原地续（缓冲不重置：条数不涨、地址跳回当前条）
     var lenBefore = (feed() || { items: [] }).items.length;
-    q('.acsv-fseg .acsv-seg-btn:nth-child(1)').click();
+    q('.acsv-seg-follow .acsv-seg-btn:nth-child(1)').click();
     rec('fv-resume', !!(await waitFor(function () {
       return location.hash === '#svfeed/a/488911';
     }, 10000)), location.hash);
     rec('fv-resume-keeps-buffer', (feed() || { items: [] }).items.length === lenBefore,
       'before=' + lenBefore + ' after=' + (feed() ? feed().items.length : 'n/a'));
+    // seg 显隐收紧（0.9.102 裁决）：仅「关注视图开」或「舞台态+关注流激活」——进「我的」等
+    // dock 视图即隐（语境判据不是流活动）；Esc 回舞台（feedActive 仍在）恢复可见
+    location.hash = 'svfeed/my';
+    rec('fv-seg-hidden-in-view', !!(await waitFor(function () {
+      var fe = q('.acsv-seg-follow');
+      return fe && fe.style.display === 'none' && TEST.call('view') === 'my';
+    }, 8000)), 'display=' + (q('.acsv-seg-follow') || {}).style.display);
+    key('Escape');
+    rec('fv-seg-back-on-stage', !!(await waitFor(function () {
+      var fe = q('.acsv-seg-follow');
+      return fe && fe.style.display !== 'none' && TEST.call('view') === null;
+    }, 8000)), 'display=' + (q('.acsv-seg-follow') || {}).style.display);
     key('Escape');
     await wait(400);
   };

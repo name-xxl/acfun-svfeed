@@ -1,14 +1,16 @@
 import { el, toast } from './ui.js';
 import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
-import { FollowVideos, enterVideos, enterAll, isFollowContext } from './followstream.js';
+import { FollowVideos, enterVideos, enterAll } from './followstream.js';
 
 // ---------- 顶栏（0.9.72 抽离为共享组件，0.9.73 四界面复用） ----------
 // 结构（左中右）：[搜索框·居中常驻（抖音同款位置）] [右侧按钮组：源切换 seg | 关注 seg（0.9.99，仅关注语境可见）| 私信 | 更新 | 退出 ✕]。
 // 一份组件、按界面同步（syncTopbar(view, arg)，与 syncDock 对位）：竖刷态显示源切换；✕ 单一意义=退出脚本（0.9.74 用户裁决，普通界面的 Esc 另义回竖刷）；
 // 视图态隐源切换（CSS 规则）；搜索视图把关键词回填进同一个输入框（唯一输入框）。
 // 行为全部经 hooks 注入（onSearch/onExit/onSource/onDrawer/onRelease/getSource），组件不 import
-// player（避免循环依赖）；右侧四件套类名保持不变——抽屉避让（.acsv-top 的 right 收窄，右组随容器贴边）
+// player（避免循环依赖）；**例外登记（0.9.99）**：关注 seg 直接 import followstream——hooks 表
+// 是为防 topbar→player 环而生，followstream 与 topbar 无环（依赖单向，check-deps 在册）；
+// 右侧四件套类名保持不变——抽屉避让（.acsv-top 的 right 收窄，右组随容器贴边）
 // 与 harness 既有断言（.acsv-upd-dot/.acsv-upd-btn）都挂在它们上面。
 // 搜索提交可被挂载中的视图临时接管（setSearchHandler）：搜索视图接管后，「同词再回车」
 // 走就地重跑而非死等 hashchange（hash 不变不触发）；视图 teardown 必须还原（null）——
@@ -107,7 +109,7 @@ export function buildTopbar(parent, h) {
     enterAll();
     syncFollowSeg();
   });
-  fsegEl = el('div', 'acsv-fseg');
+  fsegEl = el('div', 'acsv-seg acsv-seg-follow');
   fsegEl.appendChild(fsegVideos);
   fsegEl.appendChild(fsegAll);
   fsegEl.style.display = 'none';
@@ -146,11 +148,15 @@ export function syncTopbarSeg() {
 }
 
 // 关注语境 seg 同步（syncTopbar 尾部调；enterVideos/enterAll 的点击出口也手动调一次——
-// enterVideos 是异步接管，等 hashchange 的 syncTopbar 有一拍延迟，直接刷让高亮立即跟上）
-// 显隐=isFollowContext()（关注视图开或舞台在放关注流）；高亮=全部侧按视图、视频侧按流活动
+// enterVideos 是异步接管，等 hashchange 的 syncTopbar 有一拍延迟，直接刷让高亮立即跟上）。
+// **显隐收窄**（0.9.102 裁决）：仅「关注视图打开」或「舞台态（无视图）且关注流激活」——
+// 与头注声明一致；此前用 isFollowContext()（只问流活动）会在我的/榜单等 dock 视图里常驻。
+// 与徽标抑制的 isFollowContext() 是**两个用途**：那个问「会话内是否正在消费关注流」（宽松
+// 合理），这个问「当前界面是否属关注语境」（严格）。高亮=全部侧按视图、视频侧按流活动
 export function syncFollowSeg(view) {
   if (!fsegEl) return;
-  fsegEl.style.display = isFollowContext() ? '' : 'none';
+  var show = view === 'follow' || (view == null && FollowVideos.feedActive);
+  fsegEl.style.display = show ? '' : 'none';
   fsegVideos.classList.toggle('on', !view && FollowVideos.feedActive);
   fsegAll.classList.toggle('on', view === 'follow');
 }

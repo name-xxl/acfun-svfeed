@@ -2,6 +2,7 @@ import { CFG } from './cfg.js';
 import { testHook } from './dbg.js';
 import { el } from './ui.js';
 import { imgInto } from './imgload.js';
+import { openImageViewer } from './imgview.js';
 import { root, scroller } from './state.js';
 import { parseRoute } from './route.js';
 import { overlayOpen, overlayTeardown } from './overlay.js';
@@ -47,12 +48,25 @@ export function setItemOpener(fn) { itemOpener = typeof fn === 'function' ? fn :
 // 不直接 import playlayer（依赖方向维持 views 不反向依赖播放层），经注入的 opener 出
 export function openPanelItem(pi) { if (itemOpener) itemOpener(pi); }
 
-// 动态详情出口（0.9.101）：引用块点源条（源是动态）时要开 momentdetail——同款注入，
-// 避免 views→momentdetail 反向依赖；未注册（理论上不会有：followview 随 bundle 加载）
-// 时调用方外链官方页兜底
+// 动态详情出口（0.9.101；0.9.102 收口：载荷改为 **repost 对象**——pi 构造下沉
+// data.momentPiOfRepost，契约字段不再由 UI 层拼装）。同款注入，避免 views→momentdetail
+// 反向依赖；未注册（理论上不会有：followview 随 bundle 加载）时调用方外链官方页兜底
 var momentOpener = null;
 export function setMomentOpener(fn) { momentOpener = typeof fn === 'function' ? fn : null; }
-export function openMomentPi(pi) { if (momentOpener) momentOpener(pi); }
+
+// 骨架行共享件（0.9.102 收口）：N 个占位 div + 移除闭包；**类名必传且各视图独立**
+//（acsv-gskel/acsv-fskel——绝不与行/卡计数选择器同构，0.9.66 同构元素污染计数断言）
+export function skeletonRows(listEl, n, cls) {
+  var nodes = [];
+  for (var i = 0; i < n; i++) {
+    var d = el('div', cls);
+    nodes.push(d);
+    listEl.appendChild(d);
+  }
+  return function () {
+    nodes.forEach(function (d) { if (d.parentNode) d.parentNode.removeChild(d); });
+  };
+}
 // 来源界面名（来源链顶，空链/null view = 竖刷）：深界面的 dock 高亮与「向左返回」定位用它
 export function originView() {
   if (!origins.length) return null;
@@ -377,25 +391,94 @@ export function statRowOf(meta) {
   return stat;
 }
 
-// 转发引用块（0.9.96 抽共享）：左竖线 + 源缩略图 + 源标题 + 源类型字——转发的结构性签名，
-// followview 动态卡与 momentdetail 详情面板两处消费同一件（新重复即 lint 候选的先手）。
-// 0.9.101 起源条**可点**（用户实报「点转发的内容小卡不会打开播放」；原生同款——官方
-// member-feed 的源条就是指向源内容的链接）：视频→播放层（openPanelItem 注入出口）、
-// 文章→官方页新窗、动态→详情面板（setMomentOpener 注入；未注册外链兜底）。源 id 缺席
-// （老契约数据）就不挂点击，保持静展示
-var QUOTE_KIND = { video: '视频', article: '文章', moment: '动态' };
+// 资源横条卡（0.9.100 自 followview 下沉，0.9.102 收口共享）：「封面左（时长 hover 浮层）+
+// 标题右（600 单行省略）+ 播放数」——原生 member-feed-resource 形制的构建单源。两处消费：
+// 关注行流的视频/文章行（item=pi），与引用卡内嵌的源内容卡（item=repost 透传字段）——原生
+// 本身就是同款 markup 复用（§2.1.1 实测：内嵌源卡与顶层资源卡同规格），故同一套类名不加
+// 前缀参数。仅消费 item.ct/title/cover/dur/views 五个字段
+export function stripOf(item) {
+  var strip = el('div', 'acsv-frow-strip');
+  var cov = el('div', 'acsv-frow-scover');
+  imgInto(cov, item.cover, 'grid');
+  if (item.ct === 'article') cov.appendChild(el('span', 'acsv-frow-tag', '文章'));
+  if (item.dur) cov.appendChild(el('span', 'acsv-frow-mdur', item.dur));
+  strip.appendChild(cov);
+  var bd = el('div', 'acsv-frow-sbody');
+  bd.appendChild(el('div', 'acsv-frow-stitle', item.title || ''));
+  if (item.ct === 'article' && item.desc) bd.appendChild(el('div', 'acsv-frow-sdesc', item.desc));
+  var info = el('div', 'acsv-frow-sinfo');
+  info.appendChild(el('i', 'acsvg-glyph', GLYPHS.rankView));
+  info.appendChild(document.createTextNode(item.views || '0'));
+  bd.appendChild(info);
+  strip.appendChild(bd);
+  return strip;
+}
+
+// 可点图片单元（0.9.102 大图挂法单源）：imgInto 缩略 + `_big`（expandedUrl）+ 点击开
+// imgview；stopPropagation 防冒泡成宿主（行默认/背板关闭）。行宫格与面板宫格共用
+export function momentCellOf(cls, im) {
+  var cell = el('div', cls);
+  cell._big = im.big || im.url; // 大图转呈 expandedUrl（点缩略看大图，原生同款）
+  imgInto(cell, im.url, 'grid');
+  cell.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    openImageViewer(cell._big);
+  });
+  return cell;
+}
+
+// 动态媒体块 dispatcher（0.9.102 收口）：repost→引用卡；imgs≥opts.gridMin→opts.grid(pi)；
+// 有 cover→opts.single(pi, im0)。**布局有意分叉**：行流=原生固定 px 形制（gridMin=1，单图
+// 也走宫格容器拿 299 自适应），详情面板=模态栅格（gridMin=2）；两处各传构建器，dispatcher
+// 本身单源（0.9.100 时是两份复制）
+export function momentMediaOf(pi, opts) {
+  if (pi.repost) return quoteBlockOf(pi.repost);
+  var n = pi.imgs ? pi.imgs.length : 0;
+  if (n >= opts.gridMin) return opts.grid(pi);
+  if (pi.cover || n) return opts.single(pi, n ? pi.imgs[0] : null);
+  return null;
+}
+
+// 转发引用卡（0.9.96 抽共享；0.9.102 按原生形制重做——用户裁决「完全照原生」）。
+// 原生实测（§2.1.1，2026-10-03）：转发行 = 转发者正文 + `.member-feed-repost-content`
+//（#f8f8f8 灰块、padding 10、左出血 -10、**无竖线**），内部两段：
+//   ① `.repost-up > .up-name`「@源UP」——14px/#666、下距 12、名字是**蓝链**（→ /u/uid）；
+//   ② 源内容卡：视频/文章 = 与行内同款 stripOf（原生就是同款 markup 复用）；
+//      动态（rs10）= **纯正文**（原生实测样本 UBB 已渲染、含表情图 48×48；配图动态源未观察
+//      → 有图则首图最小形态，标未实测）。
+// 点击语义（0.9.101 起）：@源UP → 源UP主页（锚点自导航，不冒泡）；源卡 → 视频播放层 /
+// 文章官方页 / 动态详情面板（setMomentOpener 注入，未注册外链兜底）；源 id 缺席保持静展示
 export function quoteBlockOf(repost) {
   var q = el('div', 'acsv-gquote');
-  var qt = el('div', 'acsv-gquote-thumb');
-  imgInto(qt, repost.cover, 'thumb');
-  q.appendChild(qt);
-  var qb = el('div', 'acsv-gquote-body');
-  qb.appendChild(el('div', 'acsv-gquote-title', repost.title || '（无标题）'));
-  qb.appendChild(el('div', 'acsv-gquote-kind', QUOTE_KIND[repost.ct] || '内容'));
-  q.appendChild(qb);
+  // ① @源UP 行
+  var up = el('div', 'acsv-gquote-up');
+  var name = el('a', 'acsv-gquote-upname', '@' + (repost.up && repost.up.name ? repost.up.name : ''));
+  if (repost.up && repost.up.id) {
+    name.href = CFG.api.userBase + repost.up.id;
+    name.target = '_blank';
+    name.rel = 'noopener';
+  }
+  // 名字是独立落点（源 UP 主页）：锚点自己导航，不冒泡成源卡点击/行默认
+  name.addEventListener('click', function (ev) { ev.stopPropagation(); });
+  up.appendChild(name);
+  q.appendChild(up);
+  // ② 源内容卡
+  if (repost.ct === 'video' || repost.ct === 'article') {
+    q.appendChild(stripOf(repost));
+  } else {
+    var txt = el('div', 'acsv-gquote-text');
+    txt.appendChild(ubbTextOf(repost.text || repost.title || '', 'acsv-gquote-textbody'));
+    if (repost.cover) {
+      var img = el('div', 'acsv-gquote-img');
+      imgInto(img, repost.cover, 'grid');
+      txt.appendChild(img);
+    }
+    q.appendChild(txt);
+  }
   if (repost.id) {
     q.classList.add('acsv-gquote-on');
     q.addEventListener('click', function (ev) {
+      if (ev.target.closest('.acsv-gquote-upname')) return; // @源UP 走自己的锚点
       ev.stopPropagation(); // 不冒泡成宿主行/卡的行默认动作（开转发本身）
       if (repost.ct === 'video') {
         openPanelItem({ acId: Number(repost.id) || 0, title: repost.title || '', cover: repost.cover || '', up: repost.up || null });
@@ -403,16 +486,10 @@ export function quoteBlockOf(repost) {
         window.open(CFG.api.articleBase + repost.id, '_blank');
       } else if (repost.ct === 'moment') {
         if (momentOpener) {
-          // 源动态 → 详情面板：正文用源原文（data.js 存的 text），up 用源作者；
-          // 计数未知给 0（面板互动栏不虚标），评论区走管线真拉（sourceId=源 momentId）
-          openMomentPi({
-            ct: 'moment', kind: 'follow', momentId: repost.id, text: repost.text || '',
-            href: 'https://www.acfun.cn/moment/am' + repost.id, up: repost.up || null,
-            cover: repost.cover || '', dateText: '',
-            like: 0, comment: 0, banana: 0, liked: false, thrown: false
-          });
+          // 源动态 → 详情面板（pi 构造下沉 data.momentPiOfRepost，契约字段出 UI 层）
+          momentOpener(repost);
         } else {
-          window.open('https://www.acfun.cn/moment/am' + repost.id, '_blank');
+          window.open(CFG.api.momentBase + repost.id, '_blank');
         }
       }
     });

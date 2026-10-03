@@ -2,7 +2,7 @@ import { CFG } from './cfg.js';
 import { el, selfUid, fmt } from './ui.js';
 import { postForm } from './appapi.js';
 import { panelItem, meCardOf } from './data.js';
-import { gridCardOf, moreBtn } from './views.js';
+import { gridCardOf, moreBtn, skeletonRows } from './views.js';
 import { registerView } from './viewreg.js';
 import { imgInto } from './imgload.js';
 
@@ -23,18 +23,11 @@ function rowList(parent, cls) {
   return list;
 }
 
-// 首屏骨架：类名独立（acsv-gskel，绝不与行/卡计数选择器同构——0.9.66 同构元素污染计数
-// 断言是既有教训）；成功/失败/空三条路径都必须调 remove，否则骨架常驻
+// 首屏骨架（0.9.102 收口：计数/移除走 views.skeletonRows；类名仍独立 acsv-gskel——
+// 绝不与行/卡计数选择器同构，0.9.66 同构元素污染计数断言是既有教训；成功/失败/空三条路径
+// 都必须调 remove，否则骨架常驻）
 function skeleton(listEl) {
-  var nodes = [];
-  for (var i = 0; i < CFG.view.me.skel; i++) {
-    var d = el('div', 'acsv-gskel');
-    nodes.push(d);
-    listEl.appendChild(d);
-  }
-  return function () {
-    nodes.forEach(function (d) { if (d.parentNode) d.parentNode.removeChild(d); });
-  };
+  return skeletonRows(listEl, CFG.view.me.skel, 'acsv-gskel');
 }
 
 // ---- 资料头：auth_key 前缀=uid（ui.selfUid，与私信自有会话排除同源）→ getUserCardList ----
