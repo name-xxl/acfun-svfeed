@@ -41,7 +41,9 @@ function tryInjectNav() {
 
 var navObserver = null;
 export function watchNav() {
-  // 页面白名单闸门：白名单外不注入、不观察、不弹兜底胶囊（0.9.47 起仅首页）
+  // 页面白名单闸门：白名单外不注入、不观察、不弹兜底胶囊（0.9.47 起仅首页）。
+  // 注意这是**显示闸门**（导航入口往哪张页面注入），不是运行门槛——boot 的运行分流
+  // 由 pagekind.pageKind 总表决定（0.9.88），扩 @match 不改本表语义，防误删防误扩
   var ok = false;
   for (var i = 0; i < CFG.nav.pages.length; i++) {
     if (CFG.nav.pages[i].test(location.pathname)) { ok = true; break; }

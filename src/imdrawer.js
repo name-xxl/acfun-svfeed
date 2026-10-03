@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { el, esc, toast, cookieVal, selfUid } from './ui.js';
+import { el, esc, toast, cookieVal, selfUid, ensureStyle } from './ui.js';
 import { root, claimDrawer, releaseDrawer, setRoot } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { testHook } from './dbg.js';
@@ -827,6 +827,8 @@ function sendChat(text) {
 // 骨架可建可开」——quoteChip 必须是真实元素节点（工厂返回对象漏 .box 的同族回归在此拦截）
 testHook('imDrawerSmoke', function () {
   if (!root) setRoot(document.body); // harness 最小页无 player 挂载，root 兜底（仅调试构建可达）
+  ensureStyle(); // 0.9.88：boot 只在首页注入全量样式（im-open 页两不沾）——生产态抽屉恒在
+                 // 挂载（样式随 mount 就位）之后打开，这里补齐同一前置，否则量到的 computed style 全是默认值
   ensureDrawerDom();
   drawer.el.classList.add('open');
   return {

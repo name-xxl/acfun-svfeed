@@ -1,4 +1,4 @@
-import { dbgInit } from './dbg.js';
+import { dbgInit, dbg } from './dbg.js';
 import { ensureStyle } from './ui.js';
 import { toggle } from './player.js';
 import { watchNav } from './nav.js';
@@ -6,15 +6,26 @@ import { tryInjectSpace } from './uppage.js';
 import { bootNativeIm } from './imnative.js';
 import { setRoot } from './state.js';
 import { IMGVIEW_CSS } from './styles.js';
+import { pageKind } from './pagekind.js';
 import './mypage.js'; // 子视图自注册（registerView）：import 即入册，boot 链统一收口
 import './zone.js';
 import './searchview.js';
 import './playlayer.js'; // 播放层（0.9.74）：注册 play 视图 + 注入条目点击出口（setItemOpener）
 
-// ---------- 启动（入口编排统一在这里：样式/路由响应/导航注入/空间页注入） ----------
-// 原生私信页（message.acfun.cn）：只跑消息增强模块——不注入竖刷样式，不做导航/空间页注入。
-// root 指到 body + 仅注入大图查看器样式段：评论卡配图点击看大图在原生页可用
-if (location.hostname === 'message.acfun.cn') {
+// ---------- 启动：按页面类型分流（0.9.88 总表；加页面级模块改这张表，不要往各模块塞路径判断） ----------
+//   native（message.acfun.cn）：只跑消息增强模块——不注入竖刷样式，不做导航/空间页注入。
+//     root 指到 body + 仅注入大图查看器样式段：评论卡配图点击看大图在原生页可用
+//   home（/）：全量初始化（现状不动）。ensureStyle 在 boot 跑是有意的——导航兜底胶囊
+//     可能在流未打开时出现，样式必须先就位（见 ui.ensureStyle 注释）
+//   member（/u/<数字>）：+ tryInjectSpace（空间页小视频区块）；样式由注入点自持（uppage 内调 ensureStyle）
+//   video / article / other：仅基础设施（dbgInit + 路由监听）。全量 CSS 不再无条件注入——
+//     挂载时 player.mount 自持（ensureStyle）；设置存储 / 更新检查 / 原生页 IP·设备模块
+//     将来在 video/article 分支入住（Phase 5/6），勿在此处塞临时判断
+// 路由监听（toggle + hashchange）全 www 保留：任何页面粘 #svfeed 深链都能进竖刷（0.9.72 起
+// 性质；route.js 的 /svfeed 路径别名同样依赖它），不挂载时零成本。
+// 注意：上报链路（report.js 信封嗅探 / pagehide 监听 / 账本补报）是模块求值期行为，不经本表
+var kind = pageKind(location);
+if (kind === 'native') {
   setRoot(document.body);
   var ivSt = document.createElement('style');
   ivSt.textContent = IMGVIEW_CSS;
@@ -22,13 +33,17 @@ if (location.hostname === 'message.acfun.cn') {
   bootNativeIm();
 } else {
   dbgInit();
-  ensureStyle();
+  dbg('boot:' + kind); // harness boot-home / boot-video 断言点（正式构建死码消除）
+  if (kind === 'home') ensureStyle();
   toggle();
   window.addEventListener('hashchange', toggle);
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', watchNav);
-  } else {
-    watchNav();
+  if (kind === 'home') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', watchNav);
+    } else {
+      watchNav();
+    }
+  } else if (kind === 'member') {
+    tryInjectSpace();
   }
-  tryInjectSpace();
 }

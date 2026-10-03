@@ -71,7 +71,11 @@ const HARNESS_CASES = [
   { name: 'deeplink-bare' },    // 0.9.72 前的裸数字形态：靠探测出 meow
   { name: 'deeplink-ac' },      // a 标记形态（推荐 acId）经 douga 详情置顶
   { name: 'deeplink-switch' },  // 源记忆=推荐 时深链仍须落地（源随链接走）
-  { name: 'deeplink-miss' }     // 两空间都查不到：错误盒，不许静默重随机
+  { name: 'deeplink-miss' },   // 两空间都查不到：错误盒，不许静默重随机
+  // 0.9.88 boot 页面类型分流：pathname 在 bundle 前改写（harness.html 的 BOOT_PATH）+
+  // 挂载前快照（__BOOT_SNAP__）断言样式注入差异与 dbg 埋点，故为 debug 构建
+  { name: 'boot-home', serial: true },  // '/'：全量初始化（样式先就位）
+  { name: 'boot-video', serial: true }  // '/v/…'：仅基础设施（全量 CSS 不得注入）+ 深链仍可挂载
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

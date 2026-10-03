@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.87
+// @version      0.9.88
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -929,10 +929,10 @@
       return true;
     }
   };
-  function panelItem(kind, raw) {
-    var p = PANEL_PARSERS[kind];
+  function panelItem(kind2, raw) {
+    var p = PANEL_PARSERS[kind2];
     if (!raw || !p) return null;
-    var it = { acId: 0, title: "", cover: "", progress: null, sub: "", up: null, kind };
+    var it = { acId: 0, title: "", cover: "", progress: null, sub: "", up: null, kind: kind2 };
     if (p(raw, it) === false) return null;
     return it.acId && it.title ? it : null;
   }
@@ -2385,20 +2385,37 @@
   function commentShareWire(name, text) {
     return "@" + (name || "") + "：" + (text || "");
   }
-  var RE_AC_URL = /https?:\/\/www\.acfun\.cn\/v\/ac(\d+)(?:\/?\?[^\s]*)?(?:#[^\s]*)?/i;
+  var RE_AC_URL = /https?:\/\/www\.acfun\.cn\/v\/ac(\d+)(?:\/?\?[^\s]*)?(?:#[^\s]*)?/ig;
   var RE_TAIL_PUNCT = /[\s.,;:!?)\]】」』。、！？；：]+$/;
   var RE_HEAD_PUNCT = /^[\s.,;:!?(\[【「『。、！？；：]+/;
-  function parseShare(text) {
-    var t = String(text == null ? "" : text);
-    var m = RE_AC_URL.exec(t);
-    if (!m) return null;
-    var url = m[0].replace(RE_TAIL_PUNCT, "");
+  function shareAt(t, m) {
     return {
       title: t.slice(0, m.index).trim().slice(0, 400),
-      note: t.slice(m.index + m[0].length).replace(RE_HEAD_PUNCT, "").trim().slice(0, 300),
+      note: noteOf(t, m),
       acId: m[1],
-      url
+      url: m[0].replace(RE_TAIL_PUNCT, "")
     };
+  }
+  function noteOf(t, m) {
+    return t.slice(m.index + m[0].length).replace(RE_HEAD_PUNCT, "").trim().slice(0, 300);
+  }
+  function parseShare(text) {
+    var t = String(text == null ? "" : text);
+    var ms = [], m;
+    RE_AC_URL.lastIndex = 0;
+    while (ms.length < 8 && (m = RE_AC_URL.exec(t))) ms.push(m);
+    if (!ms.length) return null;
+    var pick = ms[0];
+    if (ms.length > 1 && isCommentShare(t.slice(0, ms[0].index).trim())) {
+      for (var i = ms.length - 1; i > 0; i--) {
+        if (!noteOf(t, ms[i])) {
+          pick = ms[i];
+          break;
+        }
+      }
+      if (pick === ms[0]) pick = ms[ms.length - 1];
+    }
+    return shareAt(t, pick);
   }
   function pad2(n) {
     return n < 10 ? "0" + n : "" + n;
@@ -3776,10 +3793,10 @@
     srcimg: "acsv-im-cshare-cover",
     coverHidden: "visibility",
     // 沿用 0.9.51 真机验收形态（盒子保留，防布局跳动）
-    icon: function(kind) {
+    icon: function(kind2) {
       var i = document.createElement("i");
       i.className = "acsvg-cicon";
-      i.style.setProperty("--acsvg-cicon", "url(" + (kind === "comment" ? ICON_SVGS.comment : ICON_SVGS.play) + ")");
+      i.style.setProperty("--acsvg-cicon", "url(" + (kind2 === "comment" ? ICON_SVGS.comment : ICON_SVGS.play) + ")");
       return i;
     }
   };
@@ -3990,6 +4007,7 @@
   }
   testHook("imDrawerSmoke", function() {
     if (!root) setRoot(document.body);
+    ensureStyle();
     ensureDrawerDom();
     drawer.el.classList.add("open");
     return {
@@ -5104,14 +5122,14 @@
     overlayClose("comments");
     if (root) syncCommentVars();
   }
-  function openComments(sourceId, stype, shareUrl, kind) {
+  function openComments(sourceId, stype, shareUrl, kind2) {
     if (!commentDrawer || !sourceId) return;
     overlayOpen({ id: "comments", close: closeComments });
     claimDrawer("comments", closeComments);
     commentDrawer.el.classList.add("open");
     if (root) syncCommentVars();
     commentState.stype = Number(stype) || 5;
-    commentState.kind = kind === "home" ? "home" : "sv";
+    commentState.kind = kind2 === "home" ? "home" : "sv";
     commentState.shareUrl = shareUrl || CFG.api.shareBase + sourceId;
     ensureCommentInput();
     if (inputBar) inputBar.style.display = commentState.kind === "home" ? "flex" : "none";
@@ -7928,7 +7946,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.87" : "");
+    return normVer(true ? "0.9.88" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -9425,7 +9443,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.87：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.88：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -9738,9 +9756,9 @@
     srcimg: "srcimg",
     coverHidden: "display",
     // 沿用 0.9.51/0.9.57 真机验收形态（封面不占位、load 才放出）
-    icon: function(kind) {
+    icon: function(kind2) {
       var i = el("i", "icon");
-      i.style.setProperty("--i", 'url("' + (kind === "comment" ? ICON_SVGS.comment : ICON_SVGS.play) + '")');
+      i.style.setProperty("--i", 'url("' + (kind2 === "comment" ? ICON_SVGS.comment : ICON_SVGS.play) + '")');
       return i;
     }
   };
@@ -9753,6 +9771,18 @@
       durationSec: r.durationSec,
       title: r.title
     }, false).el;
+  }
+
+  // src/pagekind.js
+  function pageKind(loc) {
+    var host = String(loc && loc.hostname || "");
+    var path = String(loc && loc.pathname || "");
+    if (host === "message.acfun.cn") return "native";
+    if (path === "/") return "home";
+    if (/^\/v\//.test(path)) return "video";
+    if (/^\/a\//.test(path)) return "article";
+    if (/^\/u\/\d+/.test(path)) return "member";
+    return "other";
   }
 
   // src/mypage.js
@@ -10243,7 +10273,8 @@
   });
 
   // src/boot.js
-  if (location.hostname === "message.acfun.cn") {
+  var kind = pageKind(location);
+  if (kind === "native") {
     setRoot(document.body);
     ivSt = document.createElement("style");
     ivSt.textContent = IMGVIEW_CSS;
@@ -10251,15 +10282,19 @@
     bootNativeIm();
   } else {
     dbgInit();
-    ensureStyle();
+    dbg("boot:" + kind);
+    if (kind === "home") ensureStyle();
     toggle();
     window.addEventListener("hashchange", toggle);
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", watchNav);
-    } else {
-      watchNav();
+    if (kind === "home") {
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", watchNav);
+      } else {
+        watchNav();
+      }
+    } else if (kind === "member") {
+      tryInjectSpace();
     }
-    tryInjectSpace();
   }
   var ivSt;
 })();

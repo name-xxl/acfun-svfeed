@@ -299,6 +299,43 @@ test('parseShare：#ncid 片段保留进 url（卡片/复制链接可定位楼�
   assert.equal(s2.url, 'https://www.acfun.cn/v/ac123?a=1#ncid=456');
 });
 
+// ---------- 0.9.88 评论转发选链（正文内嵌裸链不劫持推荐链） ----------
+test('parseShare：评论转发正文内嵌裸链，推荐链仍取末行（0.9.88 验收案例）', () => {
+  // wire 组装序与发送侧逐字一致（comments.js commentShareWire + imshare「title\nshareUrl#ncid」）
+  var wire = commentShareWire('作者', '看看这个 https://www.acfun.cn/v/ac999 哈哈哈')
+    + '\n' + 'https://www.acfun.cn/v/ac888#ncid=5';
+  var s = parseShare(wire);
+  assert.equal(s.acId, '888');
+  assert.equal(s.url, 'https://www.acfun.cn/v/ac888#ncid=5');
+  assert.equal(s.title, '@作者：看看这个 https://www.acfun.cn/v/ac999 哈哈哈');
+  assert.equal(s.note, '');
+  assert.ok(isCommentShare(s.title), '卡面分流仍须命中评论卡');
+  assert.equal(commentShareAuthor(s.title), '作者');
+});
+
+test('parseShare：评论正文多个裸链仍选末行推荐链', () => {
+  var s = parseShare('@甲：先看 https://www.acfun.cn/v/ac1 再看 https://www.acfun.cn/v/ac2\nhttps://www.acfun.cn/v/ac3#ncid=9');
+  assert.equal(s.acId, '3');
+  assert.equal(s.url, 'https://www.acfun.cn/v/ac3#ncid=9');
+  assert.equal(s.note, '');
+});
+
+test('parseShare：手打多链分享保持首个匹配（新规则只认评论 wire 形态）', () => {
+  var s = parseShare('看这个 https://www.acfun.cn/v/ac1 再看看 https://www.acfun.cn/v/ac2');
+  assert.equal(s.acId, '1');
+  assert.equal(s.note, '再看看 https://www.acfun.cn/v/ac2');
+});
+
+test('parseShare：评论形态但无空 note 候选（wire 被外力改写）→ 回落末个候选', () => {
+  var s = parseShare('@甲：看 https://www.acfun.cn/v/ac1 和 https://www.acfun.cn/v/ac2 都不错');
+  assert.equal(s.acId, '2');
+});
+
+test('previewOfMessage：评论转发内嵌裸链时预览含完整正文（不再截断在链接前）', () => {
+  var p = previewOfMessage({ text: '@作者：看看这个 https://www.acfun.cn/v/ac999 哈哈哈\nhttps://www.acfun.cn/v/ac888#ncid=5' });
+  assert.ok(p.indexOf('[评论] @作者：看看这个 https://www.acfun') === 0, p);
+});
+
 test('cmtShareOf：extra 载荷往返；被剥/非文本类型降级 null', () => {
   var payload = { ncid: '807213320', content: '[emot=acfun,1/]赞[at uid=7]@甲[/at]' };
   var m = { rawMsg: { contentType: 0, text: 'x', extra: new TextEncoder().encode(JSON.stringify({ acsvCmt: payload })).buffer } };

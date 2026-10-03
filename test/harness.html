@@ -25,6 +25,7 @@
 <script src="cases/deeplink.js"></script>
 <script src="cases/upd.js"></script>
 <script src="cases/msg.js"></script>
+<script src="cases/boot.js"></script>
 <script>
   // ============ 场景预处理（须在 bundle 加载前：改 mock / 写 localStorage） ============
   var CASE = (location.search.match(/[?&]case=([\w-]+)/) || [])[1] || 'smoke';
@@ -127,12 +128,34 @@
     var r0 = (window.__ACSV_MOCK__ || {}).feed && window.__ACSV_MOCK__.feed[0];
     if (r0 && r0.playInfo) r0.playInfo.videoUrls = [{ url: location.origin + '/nope-404.mp4' }, { url: TEST_WEBM }];
   }
+  // 页面类型场景（0.9.88）：boot 按 location 分类分流，而 harness 恒跑在 /test/harness.html——
+  // 必须在 bundle 求值前把 pathname 改到位（与 DEEP_HASH 同款时序契约，时序错=测的不是冷启动分流）。
+  // 必须放本块**最后**：replaceState 改相对基准后上面 TEST_WEBM 那种相对解析会算错路径；
+  // bundle 加载器同理改用绝对路径（见下方 script）
+  var BOOT_PATH = {
+    'boot-home': '/',             // 首页：全量初始化（样式先就位）
+    'boot-video': '/v/ac99999999' // 视频页：仅基础设施（全量 CSS 不得注入）
+  };
+  if (BOOT_PATH[CASE]) {
+    try { history.replaceState(null, '', BOOT_PATH[CASE] + location.search + location.hash); } catch (e) { }
+  }
 </script>
 <script>
   // 按 ?bundle= 决定加载哪个构建（解析期 document.write，保证顺序）；`?v=` 时间戳破缓存——
   // 手工调试用静态服务（无缓存头）时浏览器会缓存旧 bundle，出现"改了没生效"（0.9.71 踩实：
-  // 视图头标题已删但页面仍跑旧包）；harness runner 场景不受影响，此改动只保手工流不假红
-  document.write('<script src="../acfun-svfeed.' + (RELEASE ? '' : 'debug.') + 'user.js?v=' + Date.now() + '"><\/script>');
+  // 视图头标题已删但页面仍跑旧包）；harness runner 场景不受影响，此改动只保手工流不假红。
+  // 走绝对路径（0.9.88）：BOOT_PATH 场景在 bundle 前 replaceState 改了 pathname，
+  // '../' 相对基准会跟着漂到 /v/… 下解析错
+  document.write('<script src="/acfun-svfeed.' + (RELEASE ? '' : 'debug.') + 'user.js?v=' + Date.now() + '"><\/script>');
+</script>
+<script>
+  // boot 分流快照（0.9.88）：此刻 bundle 已同步求值完、页面尾部的自动挂载（300ms）还没跑——
+  // 这是「boot 跑完但尚未挂载」的唯一干净观察窗。boot-home / boot-video 场景断言消费
+  window.__BOOT_SNAP__ = {
+    style: !!document.getElementById('acsv-style'),
+    root: !!document.getElementById('acsv-root'),
+    dbg: (window.__dbg || []).slice()
+  };
 </script>
 <script>
   // ============ 场景执行（bundle 已同步加载完） ============

@@ -3,6 +3,43 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.88（2026-10-03）· Phase 0 收尾：评论转发选链修复 + boot 页面类型分流 + LICENSE
+
+- **评论链接劫持修复（路线图 0.1，中危）**：
+  - **病灶**：转发评论 wire = `@作者：ubbImText(评论)\n分享链#ncid`（comments.js → imshare 组装序），
+    `parseShare` 只取首个 URL 匹配——评论正文里嵌的裸 acfun 链接（A 站评论常见）会抢走匹配：
+    卡片 href 指向评论里提到的视频、`#ncid` 锚点丢失、`note` 变成「哈哈哈\nhttps://…」这类残渣、
+    预览截断在链接前。0.9.51 的「评论卡 vs 视频卡」分流通约成立，但链选错了。
+  - **修法（全收在 immsg.parseShare 内，导出形状不变）**：`RE_AC_URL` 带 `g` 循环收候选（上界 8 防御）；
+    首段过 `isCommentShare`（与卡面分流同一判据）即按评论 wire 处理——推荐链恒独占末行，故
+    从后往前挑首个 `note` 为空（剥句读后）的候选，正文内嵌链后面必有内容/换行天然排除；
+    无空 note 候选回落末个候选；非评论形态一律首个匹配（手打分享「看这个 链接 再看看」语义不动）。
+    消费点零改动：5 个调用点（预览/抽屉/原生页两处）都在解析后判断形态并逐字用 `share.url`。
+- **boot 页面类型分流（路线图 0.2）**：
+  - **病灶**：@match 早已覆盖全 www（该半张卡是 no-op），但 boot 只有 host 判断——v/a/member
+    页全走全量初始化，**每个 www 页无条件注入 76KB 全量 CSS**；分流实际藏在 nav 白名单 /
+    uppage 路径匹配 / toggle 路由检查各自的守卫里，boot 层无显式契约。
+  - **修法**：新零依赖叶子 `pagekind.js`：`pageKind({hostname,pathname})` → native/home/video/
+    article/member/other（member 判据与 uppage 的 `/u/\d+` 逐字一致，单测钉一致性）。boot 改为
+    按总表分流（表在 boot 头注释里）：native 现状不动；home 全量（ensureStyle 保留——导航兜底胶囊
+    未挂载也要有样式）；member + tryInjectSpace（样式由注入点自持）；video/article/other 仅基础设施，
+    全量 CSS 不再注入（挂载时 player.mount 自持）。**保留 toggle + hashchange 到全部 www 页**
+    （路线图写「other 仅基础设施」的偏离，有意）：任何页面粘 `#svfeed` 深链都能进竖刷是 0.9.72 起
+    的性质，route.js 的 `/svfeed` 路径别名同样依赖它，不挂载时零成本。nav 白名单补注「显示闸门
+    非运行门槛」。上报链路是模块求值期行为，不经本表、不受影响。
+- **LICENSE（路线图 0.3）**：补 MIT LICENSE（package.json 早已声明，GitHub API 读不到文件）。
+- **附带**：`imDrawerSmoke` 补 `ensureStyle()`——im-open 页既不挂载也不在首页，样式不再自动注入后
+  其 computed style 断言全量失效（生产态抽屉恒在挂载之后打开，样式必已就位）。
+- **测试**：单测 +12——`immsg` +5（评论 wire 往返验收案例：内嵌裸链不劫持推荐链/多链选末行/手打
+  多链保持首个/无空 note 候选回落/预览含完整正文）；新增 `pagekind.test.js` 7 例（六分类分支表 +
+  member 判据与 uppage 一致性 + 脏输入容错）。harness +2：`boot-home`（pathname `/` → 样式先就位 +
+  `boot:home` 埋点）、`boot-video`（`/v/…` → 挂载前**无**全量 CSS + `boot:video` 埋点 + hash 深链
+  仍可挂载的不变式）——机制是 harness.html 的 `BOOT_PATH`（bundle 前 replaceState 改 pathname，
+  与 DEEP_HASH 同款时序；bundle 加载器改绝对路径、TEST_WEBM 相对解析挪到改路径之前）+ 挂载前
+  快照 `__BOOT_SNAP__`。**回归**：lint 干净、`npm run check` 三项通过、单测 150 全绿、构建幂等、
+  harness 36 场景（34 例 + dm-smoke/im-open）0 失败（基线轮曾复现 upd-open 负载抖动——
+  0.9.82/0.9.85 已登记的 remount unmount 步超窗连锁假红，单跑 21/21 绿；本版全量轮 21/21 过）。
+
 ### 0.9.87（2026-10-03）· 观看上报补全非合作出口：关页官方同款直发 + 持久账本崩溃补报，删 10s 首报
 
 - **实测（内置浏览器登录态，ac24325439 全程 240s，详见 docs §4.6）**：

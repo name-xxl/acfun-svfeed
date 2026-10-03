@@ -56,21 +56,45 @@ export function commentShareWire(name, text) {
 // note（手打转发场景「看这个 链接 再看看」两端一致消费）。纯 URL 消息同样命中。
 // #片段（0.9.52，评论转发带 #ncid= 评论锚点）属 URL 一并保留进 url——卡片/复制链接
 // 都要能定位到楼层
-var RE_AC_URL = /https?:\/\/www\.acfun\.cn\/v\/ac(\d+)(?:\/?\?[^\s]*)?(?:#[^\s]*)?/i;
+var RE_AC_URL = /https?:\/\/www\.acfun\.cn\/v\/ac(\d+)(?:\/?\?[^\s]*)?(?:#[^\s]*)?/ig;
 var RE_TAIL_PUNCT = /[\s.,;:!?)\]】」』。、！？；：]+$/;
 var RE_HEAD_PUNCT = /^[\s.,;:!?(\[【「『。、！？；：]+/;
-export function parseShare(text) {
-  var t = String(text == null ? '' : text);
-  var m = RE_AC_URL.exec(t);
-  if (!m) return null;
-  // 句读贴着链接写（「给你 https://…。」）时两侧标点都不归属：URL 剥尾、附言剥头
-  var url = m[0].replace(RE_TAIL_PUNCT, '');
+
+// 单匹配 → 解析结果。句读贴着链接写（「给你 https://…。」）时两侧标点都不归属：
+// URL 剥尾、附言剥头
+function shareAt(t, m) {
   return {
     title: t.slice(0, m.index).trim().slice(0, 400),
-    note: t.slice(m.index + m[0].length).replace(RE_HEAD_PUNCT, '').trim().slice(0, 300),
+    note: noteOf(t, m),
     acId: m[1],
-    url: url
+    url: m[0].replace(RE_TAIL_PUNCT, '')
   };
+}
+function noteOf(t, m) {
+  return t.slice(m.index + m[0].length).replace(RE_HEAD_PUNCT, '').trim().slice(0, 300);
+}
+export function parseShare(text) {
+  var t = String(text == null ? '' : text);
+  // 全量候选（评论正文里可能嵌裸链，见下选链规则）；上界 8 个是纯防御
+  var ms = [], m;
+  RE_AC_URL.lastIndex = 0;
+  while (ms.length < 8 && (m = RE_AC_URL.exec(t))) ms.push(m);
+  if (!ms.length) return null;
+  var pick = ms[0];
+  // 评论转发选链（0.9.88）：wire = 「@作者：正文\n推荐链#ncid」（comments.js / imshare
+  // 组装序）——正文里嵌的裸链会抢走首个匹配，卡片 href 指向评论里提到的视频、#ncid 锚点
+  // 丢失（0.9.51 卡面分流通约成立但链选错）。首段过 isCommentShare（与卡片分流同一判据）
+  // 即按评论 wire 处理：推荐链恒独占末行（其后无文本），故从后往前挑首个 note 为空的候选；
+  // 正文内嵌链后面必有内容/换行 → note 非空，天然排除。无空 note 候选（wire 被外力改写/
+  // 截断）回落末个候选。非评论形态一律保持首个匹配——手打分享「看这个 链接 再看看」的
+  // 既有语义不动（RE_CMT_SHARE 失配的作者名/超 40 字同样落回首个匹配，容错同级）
+  if (ms.length > 1 && isCommentShare(t.slice(0, ms[0].index).trim())) {
+    for (var i = ms.length - 1; i > 0; i--) {
+      if (!noteOf(t, ms[i])) { pick = ms[i]; break; }
+    }
+    if (pick === ms[0]) pick = ms[ms.length - 1];
+  }
+  return shareAt(t, pick);
 }
 
 function pad2(n) { return n < 10 ? '0' + n : '' + n; }
