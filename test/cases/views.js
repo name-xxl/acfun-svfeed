@@ -1148,4 +1148,101 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
   return !!d && !d.classList.contains('open');
 }, 5000)));
   };
+
+  // ---- view-follow：关注视图冒烟（0.9.91）----
+  // 数据源 followFeedV2 混合流（视频/文章/动态）；夹具在 my-sample.js（首屏 20 原始条含 1 条
+  // 未观察类型探过滤，第二页 4 条）。断言按份量：契约过滤 / 分档标题顺序 / 三类卡各自的判别位
+  // （视频=时长+播放数角标、文章=「文章」角标+外链、动态=UBB 正文+三计数+外链）/ 视频卡进播放层
+  // （外链卡不得进）/ 翻页到底 / Esc 回竖刷
+  C['view-follow'] = async function (h) {
+    var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor, key = h.key,
+      topbarInView = h.topbarInView, TEST = h.TEST, feed = h.feed;
+    window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+    window.__ACSV_FOLLOW_CALLS__ = 0;
+    // 视频卡点击进播放层用直挂缝（webm 套 hls 会死在解析）——只给第一条视频卡
+    window.__ACSV_MOCK_DIRECT__ = { '488801': 1 };
+    location.hash = 'svfeed/follow';
+    rec('follow-open', !!(await waitFor(function () {
+      var v = q('.acsv-view');
+      return v && v.offsetParent !== null;
+    }, 10000)));
+    topbarInView('follow');
+    rec('follow-dock-highlight', !!(await waitFor(function () {
+      var b = q('.acsv-dock-item[data-view="follow"]');
+      return b && b.classList.contains('on');
+    }, 3000)));
+    rec('follow-scroller-hidden', q('.acsv-scroller').style.display === 'none');
+    // 首屏：19 张卡（20 原始条 − 1 条未观察类型），骨架已清
+    rec('follow-cards', !!(await waitFor(function () {
+      return document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-gcell').length === 19;
+    }, 8000)), 'n=' + document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-gcell').length);
+    rec('follow-skeleton-gone', document.querySelectorAll('.acsv-gskel').length === 0);
+    rec('follow-bad-filtered', !/未观察类型/.test(q('.acsv-vlist.acsv-follow').textContent));
+    // 分档标题：按 createTimeGroup 1/2/10 → 今天/昨天/更早，顺序固定
+    rec('follow-groups', (function () {
+      var gs = document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-ggroup');
+      var t = [].map.call(gs, function (x) { return x.textContent; });
+      return gs.length === 3 && t.join('|') === '今天|昨天|更早';
+    })(), [].map.call(document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-ggroup'), function (x) { return x.textContent; }).join('|'));
+    // 三类卡判别位：视频（时长 + 播放数角标）、文章（「文章」角标 + 外链）、动态（UBB 正文 + 三计数 + 外链）
+    var cards = document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-gcell');
+    function cardOf(text, sel) {
+      for (var i = 0; i < cards.length; i++) {
+        if (cards[i].querySelector(sel) && new RegExp(text).test(cards[i].textContent)) return cards[i];
+      }
+      return null;
+    }
+    var vCard = cardOf('关注视频甲', '.acsv-gdur');
+    rec('follow-video-card', !!vCard && !!vCard.querySelector('.acsv-gdur')
+      && /00:10/.test((vCard.querySelector('.acsv-gdur') || {}).textContent || '')
+      && !!vCard.querySelector('.acsv-gviews')
+      && vCard.tagName === 'DIV', vCard ? (vCard.querySelector('.acsv-gdur') || {}).textContent : 'no-card');
+    var aCard = cardOf('关注文章甲', '.acsv-gkind');
+    rec('follow-article-card', !!aCard && aCard.tagName === 'A'
+      && aCard.getAttribute('target') === '_blank' && aCard.getAttribute('rel') === 'noopener'
+      && aCard.getAttribute('href') === 'https://www.acfun.cn/a/ac488603',
+      aCard ? aCard.getAttribute('href') : 'no-card');
+    rec('follow-article-kind-tag', !!(aCard && (aCard.querySelector('.acsv-gkind') || {}).textContent === '文章'));
+    var mCard = cardOf('动态正文带 UBB', '.acsv-gstats');
+    rec('follow-moment-card', !!mCard && mCard.tagName === 'A'
+      && mCard.getAttribute('href') === 'https://www.acfun.cn/moment/am510002',
+      mCard ? mCard.getAttribute('href') : 'no-card');
+    rec('follow-moment-ubb', !!(mCard && mCard.querySelector('.acsv-gtext a.ubb-at')),
+      mCard ? (mCard.querySelector('.acsv-gtext') || {}).textContent : 'no-text');
+    rec('follow-moment-stats', (function () {
+      var st = mCard ? mCard.querySelectorAll('.acsv-gstats .acsv-gstat') : [];
+      return st.length === 3 && /11/.test(st[0].textContent || '') && /3/.test(st[1].textContent || '');
+    })(), mCard ? (mCard.querySelector('.acsv-gstats') || {}).textContent : 'no-stats');
+    // 无图动态：正文占封面位（文本瓦片），不留空封面
+    var noImg = cardOf('无图动态', '.acsv-gtext-tile');
+    rec('follow-moment-tile', !!noImg && !!noImg.querySelector('.acsv-gcover .acsv-gtext-tile'));
+    // 视频卡点击 → 播放层（外链卡不参与：href 卡点击由浏览器接管，脚本不该改地址栏）
+    if (vCard) vCard.click();
+    // hashchange 是异步事件（脚本同步判定会假红——首跑实锤）：等播放层挂上
+    rec('follow-play-overlay', !!(await waitFor(function () {
+      return location.hash === '#svfeed/play/a/488801' && !!q('.acsv-slide[data-ovl="1"]');
+    }, 8000)), location.hash);
+    key('Escape');
+    rec('follow-back-from-play', !!(await waitFor(function () {
+      return location.hash === '#svfeed/follow' && !q('.acsv-slide[data-ovl="1"]');
+    }, 8000)));
+    // 翻页：第二页 4 条 → 合计 23；原始 4 < pageSize=20 → 按钮隐藏
+    var calls0 = window.__ACSV_FOLLOW_CALLS__;
+    var more = q('.acsv-mewrap .acsv-vmore'); // 关注视图只有一个 more（无 Tab 分面板）
+    rec('follow-more-visible', !!more && more.style.display !== 'none');
+    if (more) more.click();
+    rec('follow-page2', !!(await waitFor(function () {
+      return document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-gcell').length === 23;
+    }, 8000)), 'n=' + document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-gcell').length
+      + ' calls=' + window.__ACSV_FOLLOW_CALLS__ + '/' + calls0);
+    rec('follow-more-hidden', !!more && more.style.display === 'none');
+    // 分档标题跨页去重：第二页仍是「更早」组 → 不重复插头
+    rec('follow-group-dedup', document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-ggroup').length === 3);
+    // Esc 回竖刷（普通 dock 视图语义：收旧 + 回舞台）
+    await wait(400);
+    key('Escape');
+    rec('follow-esc-to-feed', !!(await waitFor(function () {
+      return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && q('.acsv-view') === null;
+    }, 8000)), location.hash);
+  };
 })();

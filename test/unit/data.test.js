@@ -438,3 +438,77 @@ test('parseSearchItems：data-src/data-original 懒加载形态优先于 src（s
   assert.equal(items[0].cover, 'https://tx-free-imgs.acfun.cn/real.jpg'); // 升 https + 不取占位图
   assert.equal(items[1].cover, 'https://tx-free-imgs.acfun.cn/real2.jpg');
 });
+
+// ---------- panelItem: follow（0.9.91 关注流，形状实测 docs/api-research.md §2.1.1） ----------
+test('panelItem follow：视频条目——时长是展示串直用、作者取 userHead、时间走 fmtAgo', () => {
+  var pi = panelItem('follow', {
+    resourceType: 2, resourceId: 48887520, caption: '心月狐的闪身boom？',
+    coverUrl: 'https://tx-free-imgs.acfun.cn/x.jpg', playDuration: '00:11', viewCount: 832,
+    createTime: Date.now() - 2 * 3600 * 1000,
+    user: { userId: 12229455, userName: '一只芸喵喵', userHead: 'https://tx-free-imgs.acfun.cn/h.jpg', isFollowing: true }
+  });
+  assert.equal(pi.ct, 'video');
+  assert.equal(pi.kind, 'follow');
+  assert.equal(pi.acId, 48887520);
+  assert.equal(pi.title, '心月狐的闪身boom？');
+  assert.equal(pi.dur, '00:11'); // 展示串直用（不格式化——实测 typeof string）
+  assert.equal(pi.views, '832');
+  assert.equal(pi.up.name, '一只芸喵喵');
+  assert.equal(pi.up.img, 'https://tx-free-imgs.acfun.cn/h.jpg'); // 头像是 userHead（不是 headUrl）
+  assert.equal(pi.up.isFollowing, true);
+  assert.match(pi.dateText, /小时前$/);
+  assert.equal(pi.href, undefined); // 视频进播放层，无外链
+});
+
+test('panelItem follow：文章条目——articleTitle + 外链落点 articleBase', () => {
+  var pi = panelItem('follow', {
+    resourceType: 3, resourceId: 48868671, articleTitle: '天涯此时共明月 DD歌回唱团圆',
+    coverUrl: 'https://tx-free-imgs.acfun.cn/a.jpg', viewCount: 7669, createTime: Date.now() - 5 * 60000,
+    user: { userId: 23682490, userName: 'AC娘本体', userHead: 'h.jpg' }
+  });
+  assert.equal(pi.ct, 'article');
+  assert.equal(pi.acId, 48868671);
+  assert.equal(pi.title, '天涯此时共明月 DD歌回唱团圆');
+  assert.equal(pi.views, '7669');
+  assert.equal(pi.href, 'https://www.acfun.cn/a/ac48868671');
+  assert.equal(pi.dur, undefined); // 文章无时长角标
+});
+
+test('panelItem follow：动态条目——momentId 身份、UBB 原文进 text、三计数进 meta、外链 /moment/am', () => {
+  var pi = panelItem('follow', {
+    resourceType: 10, resourceId: 5104008,
+    coverUrl: 'https://tx-free-imgs.acfun.cn/m.jpg',
+    discoveryResourceFeedShowContent: '列表用正文[表情]',
+    likeCount: 6, commentCount: 0, bananaCount: 0,
+    createTime: Date.now() - 4 * 3600 * 1000,
+    moment: { momentId: 5104008, text: '拿我和教授级别专业老师比较[emot=acfun,1656/]感到很荣幸', replaceUbbText: '拿我和教授级别专业老师比较[表情]感到很荣幸' },
+    user: { userId: 11361784, userName: '潇湘huya', userHead: 'h.jpg' }
+  });
+  assert.equal(pi.ct, 'moment');
+  assert.equal(pi.acId, 0);
+  assert.equal(pi.momentId, 5104008);
+  // 正文用嵌套 moment.text（UBB 原文），不用 replaceUbbText 的明文占位版
+  assert.match(pi.text, /\[emot=acfun,1656\/\]/);
+  assert.equal(pi.href, 'https://www.acfun.cn/moment/am5104008');
+  assert.deepEqual(pi.meta, [{ k: 'like', t: '6' }, { k: 'comment', t: '0' }, { k: 'banana', t: '0' }]);
+  assert.equal(pi.views, undefined); // 动态不挂播放数角标（实测 viewCount 恒 0，是噪音不是信息）
+  assert.equal(pi.up.name, '潇湘huya');
+});
+
+test('panelItem follow：未知类型与缺身份字段一律 null（宁可漏不错）', () => {
+  var u = { user: { userId: 1, userName: 'u' } };
+  assert.equal(panelItem('follow', Object.assign({ resourceType: 4, resourceId: 9, caption: 'x' }, u)), null); // 直播等未观察类型
+  assert.equal(panelItem('follow', Object.assign({ resourceType: 2, resourceId: 0, caption: 'x' }, u)), null); // 视频缺 id
+  assert.equal(panelItem('follow', Object.assign({ resourceType: 10, resourceId: 0 }, u)), null);              // 动态缺 id
+  assert.equal(panelItem('follow', Object.assign({ resourceType: 3, resourceId: 8 }, u)), null);              // 文章缺标题
+  assert.equal(panelItem('follow', Object.assign({ resourceType: 10, resourceId: 8 }, u)), null);             // 动态缺正文
+  assert.equal(panelItem('follow', null), null);
+});
+
+test('panelItem follow：作者缺失不伪造（up=null），动态回退 discoveryResourceFeedShowContent', () => {
+  var pi = panelItem('follow', {
+    resourceType: 10, resourceId: 7, discoveryResourceFeedShowContent: '只有列表正文', createTime: Date.now(), user: {}
+  });
+  assert.equal(pi.up, null);
+  assert.equal(pi.text, '只有列表正文');
+});

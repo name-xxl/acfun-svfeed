@@ -809,6 +809,28 @@ var RAW_CSS = ''
   + '.acsv-gtime{flex:none}'
   + '.acsv-smfoot{display:inline-block;margin:18px 0 4px;color:#9fd0ff;font-size:13px;text-decoration:none}'
   + '.acsv-smfoot:hover{text-decoration:underline}'
+  // ---- 关注视图（0.9.91，路线图 2.2） ----
+  // 量取（0.9.69 纪律）：对象 = A 站关注动态页的动态卡（www.acfun.cn/member/feeds，
+  // 2026-10-03，内置浏览器登录态）。站方是**浅色宽行卡**（870 宽、头像占 60px 左栏、
+  // 计数行 48px 高 / 12px 次级灰 rgb(153,153,153) / 项间距 42px / 图标 13px、正文不钳高），
+  // 我们是深色窄网格卡（280px+）——故只借**计数行的字号与次级灰**，其余按本方卡族取值，
+  // 差异有据不硬抄（0.9.69 同款裁决）。计数行 42px 项距是宽行卡尺度，窄卡压到 14px。
+  + '.acsv-ggroup{margin:18px 2px 10px;font-size:13px;font-weight:600;color:#cfd3da}'
+  + '.acsv-ggroup:first-child{margin-top:2px}'
+  // 动态正文：UBB 渲染块（有图时占标题位 → 与 .acsv-gtitle 同字族；无图时占封面位 → 文本瓦片）
+  + '.acsv-gtext{font-size:13px;line-height:19px;color:#d5d8df;max-height:57px;overflow:hidden;'
+  + 'word-break:break-word}'
+  + '.acsv-gtext-tile{position:absolute;inset:0;padding:10px 12px;max-height:none;height:100%;'
+  + 'background:rgba(255,255,255,.06);font-size:13px;line-height:19px;overflow:hidden}'
+  + '.acsv-gtext a,.acsv-gtext .acsv-at{color:#9fd0ff}'
+  // 计数行（动态三计数；12px 次级灰取自站方量取值）
+  + '.acsv-gstats{display:flex;align-items:center;gap:14px;margin-top:6px;font-size:12px;color:#8a90a0}'
+  + '.acsv-gstat{display:inline-flex;align-items:center;gap:4px}'
+  + '.acsv-gstat .acsvg-glyph{font-size:12px}'
+  // 文章属性角标（与进度角标同族，只是语义位不同）
+  + '.acsv-gkind{background:rgba(0,0,0,.55)}'
+  // 外链卡（文章/动态）：根元素是 <a>，浏览器默认链接样式必须清掉（标题/脚行的显式色不受影响）
+  + '.acsv-gcell{color:inherit;text-decoration:none}'
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-sgrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));'
   + 'gap:14px 10px}}'
   // 深色滚动条：视图滚动区（我的/榜单共用 .acsv-view-body，默认浅色条在深色页上是刺眼白条）

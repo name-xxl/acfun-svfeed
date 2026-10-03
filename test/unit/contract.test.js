@@ -34,6 +34,13 @@ var PANEL_CASES = {
     dougaId: '6', contentType: 2, contentTitle: 't', contentDesc: 'd', videoCover: 'x',
     viewCount: 1, commentCount: 2, contributeTime: Date.now(), channelName: 'c',
     userName: 'u', authorId: 1, userImg: 'y', fansCount: 1, contributionCount: 1, userSignature: 's'
+  },
+  // 关注流（0.9.91）：动态条目是最宽的一套字段（ct/momentId/text/href/meta 全带）——
+  // 契约白名单由它兜住；三类内容各自的取值落位由 data.test.js 钉
+  follow: {
+    resourceType: 10, resourceId: 5, coverUrl: 'x', likeCount: 1, commentCount: 2, bananaCount: 3,
+    createTime: Date.now(), moment: { text: '正文[emot=acfun,1/]' },
+    user: { userId: 9, userName: 'u', userHead: 'h' }
   }
 };
 var SEARCH_HTML = '<div class="search-video"><a href="/v/ac5"><img src="c.png"/>'

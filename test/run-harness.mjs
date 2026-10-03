@@ -79,7 +79,10 @@ const HARNESS_CASES = [
   // 0.9.89 设置面板（Shadow DOM 断言走 host.shadowRoot）：开/关/持久化 + 老键收养，
   // settings-migrate 依赖 bundle 前预置老键（见 harness.html），故为 debug 构建
   { name: 'settings-open', serial: true },
-  { name: 'settings-migrate', serial: true }
+  { name: 'settings-migrate', serial: true },
+  // 0.9.91 关注视图（followFeedV2 混合流：视频/文章/动态三类卡 + 分档标题 + 翻页；mock 缝依赖
+  // debug 构建，夹具在 my-sample.js）
+  { name: 'view-follow' }
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

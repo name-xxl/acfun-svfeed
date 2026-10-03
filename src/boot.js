@@ -10,6 +10,7 @@ import { pageKind } from './pagekind.js';
 import './mypage.js'; // 子视图自注册（registerView）：import 即入册，boot 链统一收口
 import './zone.js';
 import './searchview.js';
+import './followview.js'; // 关注视图（0.9.91）：dock 卡片流，同款自注册
 import './playlayer.js'; // 播放层（0.9.74）：注册 play 视图 + 注入条目点击出口（setItemOpener）
 
 // ---------- 启动：按页面类型分流（0.9.88 总表；加页面级模块改这张表，不要往各模块塞路径判断） ----------

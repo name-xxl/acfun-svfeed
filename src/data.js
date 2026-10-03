@@ -33,7 +33,11 @@ export var ITEM_FIELDS = {
     'banana', 'fav', 'share', 'danmakuCount', 'date', 'shareUrl', 'liked', 'favorited',
     'thrown', 'localLike'],
   panel: ['kind', 'acId', 'title', 'cover', 'dur', 'views', 'dateText', 'desc', 'progress',
-    'sub', 'meta', 'up']
+    'sub', 'meta', 'up',
+    // 关注流（0.9.91）：content type 判别子与动态卡字段。ct 与 kind 正交——kind 在契约里是
+    // **来源方言**（= PANEL_PARSERS 的表键），不能兼内容类型；关注流一个来源出三种内容，
+    // 故内容判别子另立 ct（video|article|moment），卡片渲染按 ct 分支（同一张卡，契约驱动）
+    'ct', 'momentId', 'text', 'href']
 };
 
 export function normalize(raw) {
@@ -214,17 +218,81 @@ var PANEL_PARSERS = {
       sign: String(raw.userSignature || '').replace(/<br\s*\/?\s*>/gi, ' ').trim()
     } : null;
     return true;
+  },
+  // 关注流（0.9.91）：一个来源三种内容，靠 ct 判别（cross-来源见 ITEM_FIELDS.panel 注释）。
+  // 端点与三类条目形状全部实测在册：docs/api-research.md §2.1.1（2026-10-03，内置浏览器登录态）
+  follow: function (raw, it) {
+    var u = raw.user || {};
+    // 作者：followFeedV2 的 user 形状是 **userHead**（不是 meow 的 headUrl，也不是 APP 家族的
+    // headUrl——三套并存的又一例，只在本解析器里认一次）。进播放层/卡面都走同一份 up 契约
+    it.up = upOf(u.userId, u.userName, coverUrl(u.userHead), u.isFollowing);
+    it.dateText = fmtAgo(Number(raw.createTime));
+    // 播放数只在视频/文章分支赋值；**动态不挂**——实测动态 viewCount 恒 0，「0 播放」不是
+    // 信息是噪音（真数据复核截图发现；动态卡面只留三计数行）
+    switch (raw.resourceType) {
+      case 2: // 视频
+        if (!raw.resourceId) return false;
+        it.ct = 'video';
+        it.acId = Number(raw.resourceId) || 0;
+        it.title = raw.caption || '';
+        it.cover = coverUrl(raw.coverUrl);
+        it.views = fmtWan(raw.viewCount);
+        // 时长实测是**展示串**（"00:11"，2026-10-03 实测 typeof string）——直用不格式化；
+        // 缺则不挂角标
+        it.dur = raw.playDuration || '';
+        return true;
+      case 3: // 文章：与视频同族字段，差异只在正文型字段名（§2.1.1 实测）
+        if (!raw.resourceId) return false;
+        it.ct = 'article';
+        it.acId = Number(raw.resourceId) || 0;
+        it.title = raw.articleTitle || '';
+        it.cover = coverUrl(raw.coverUrl);
+        it.views = fmtWan(raw.viewCount);
+        // 外链落点：文章页（upCardOf 同款 target=_blank；进不了播放层——解析链只覆盖视频）
+        it.href = CFG.api.articleBase + it.acId;
+        return true;
+      case 10: // 动态
+        if (!raw.resourceId) return false;
+        it.ct = 'moment';
+        it.momentId = Number(raw.resourceId) || 0;
+        // 正文用嵌套 moment.text（**UBB 原文**）→ 渲染走 ubb.js 单源（表情/at/资源链）；
+        // 接口另有 replaceUbbText（UBB 已换成 [表情] 明文占位）——那是给不做 UBB 的客户端的，
+        // 我们不用它（intake「ubb/emotify 单源」）
+        it.text = ((raw.moment || {}).text) || raw.discoveryResourceFeedShowContent || '';
+        // 图：feed 只给单张 coverUrl（多图形状未实测，宫格不做——见 0.9.91 计划「明确不做」）
+        it.cover = coverUrl(raw.coverUrl);
+        // 三计数（路线图 Phase 3 的动态卡规格）：复用 meta 三段语义与 META_GLYPH，不新增字段
+        it.meta = [
+          { k: 'like', t: String(Number(raw.likeCount) || 0) },
+          { k: 'comment', t: String(Number(raw.commentCount) || 0) },
+          { k: 'banana', t: String(Number(raw.bananaCount) || 0) }
+        ];
+        // 落点实测：www.acfun.cn/moment/am<resourceId> 真渲染（2026-10-03，h1 与正文都在）；
+        // 接口 shareUrl 是 m.acfun.cn/communityCircle/moment/<id> 分享链，PC 侧并档不用
+        it.href = 'https://www.acfun.cn/moment/am' + it.momentId;
+        return true;
+      default:
+        return false; // 其余 resourceType（直播等未观察到）一概不接——宁可漏不错
+    }
   }
 };
 
-// 视图面板条目契约（0.9.62）：三种来源规整成同一份字段；返回 null = 非视频条目，
-// 调用方过滤（没有可解析的视频源，进播放层必失败）
+// 关注流条目派发（0.9.91）：列表加载与"动态里转发的源条目"共用同一入口
+export function followPanelOf(raw) {
+  return raw ? panelItem('follow', raw) : null;
+}
+
+// 视图面板条目契约（0.9.62）：三种来源规整成同一份字段；返回 null = 不可渲染条目，
+// 调用方过滤（没有可解析的入口，进播放层/外链必失败）。
+// 身份判据（0.9.91 放宽）：`(acId || momentId) && (title || text)`——动态条目既没有 acId
+// 也没有 title（它的内容就是 text，落点靠 momentId 拼官方页 URL），是关注流带来的唯一结构差异；
+// 其余来源仍要求 acId + title（放宽不改变它们的行为）
 export function panelItem(kind, raw) {
   var p = PANEL_PARSERS[kind];
   if (!raw || !p) return null;
   var it = { acId: 0, title: '', cover: '', progress: null, sub: '', up: null, kind: kind };
   if (p(raw, it) === false) return null;
-  return it.acId && it.title ? it : null;
+  return (it.acId || it.momentId) && (it.title || it.text) ? it : null;
 }
 
 // 面板/搜索条目 → 播放层条目（0.9.82 下沉自 playlayer.itemOfPanel）。原来这层桥躺在

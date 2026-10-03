@@ -304,6 +304,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `playlayer.js` | 播放层（0.9.74；0.9.82 面板→播放的桥下沉为 data.playItemOf 纯函数）：子视图 play（#svfeed/play/&lt;v\|a&gt;/&lt;id&gt;）就地播放——面板条目即时首帧（标题/封面/作者来自面板契约的 up：搜索与收藏来源带作者，历史来源不带、由回包补）/ 冷进入 API.deepLink 解析（不 setSource）/ 失败错误盒+重试；OVL_IDX 哨兵 + data-ovl 判据（attach.js 契约表在册）、键盘重定向 state.setVideoTarget |
 | `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf，缺省不渲染）+ Tab 惰性面板（观看历史=双 resourceTypes/pageNo 翻页；收藏夹=chips 切夹→dougaList 翻页）+ 4:3 封面网格卡（普通视频封面口径）；条目经 panelItem 契约规整、点击进播放层（0.9.74） |
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
+| `followview.js` | 关注视图（0.9.91，路线图 2.2/3 主体）：dock 卡片流——`followFeedV2` 混合流（视频/文章/动态）一张卡 + `ct` 判别子；分档标题（createTimeGroup 枚举 1/2/10 → 今天/昨天/更早）；pcursor 毫秒游标翻页。视频卡进播放层，文章/动态外链官方页（新标签 noopener） |
 | `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷） |
 | `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/other——boot 运行分流的唯一判据（判据与 uppage 的 `/u/\d+` 逐字一致，单测钉一致性） |
 | `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）；`onChange` 订阅让消费方零反向依赖地即时生效 |
@@ -367,6 +368,7 @@ flowchart LR
 
   boot["boot.js（入口）"]
   settingspanel["settingspanel.js（脚本页设置皮肤·Shadow DOM）"]
+  followview["followview.js（关注视图·混合卡流）"]
   data --> imgurl
   route --> feedstore
   imgview --> overlay
@@ -387,9 +389,10 @@ flowchart LR
   imdrawer --> appapi & comments & emoticon & imcard & imgload & imgview & imicons & immsg & imshare & inputbar & overlay & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
-  boot --> imnative & mypage & pagekind & player & playlayer & searchview & zone
-  views --> feedstore & imgload & imicons & overlay & sidebar & topbar & viewreg
+  boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & zone
+  views --> feedstore & imgload & imicons & overlay & sidebar & topbar & ubb & viewreg
   sidebar --> viewreg & settingspanel
+  followview --> viewreg & views
   settingspanel --> settings & overlay
   searchview --> topbar & viewreg & views
   input --> comments & feedstore & imdrawer & overlay & pb & playlayer & settings & views

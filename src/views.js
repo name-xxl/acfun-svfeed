@@ -8,6 +8,7 @@ import { overlayOpen, overlayTeardown } from './overlay.js';
 import { viewDef } from './viewreg.js';
 import { FeedStore } from './feedstore.js';
 import { GLYPHS } from './imicons.js';
+import { renderCommentHtml } from './ubb.js'; // 动态正文 UBB 单源（0.9.91）
 import { syncDock } from './sidebar.js';
 import { syncTopbar } from './topbar.js';
 
@@ -235,8 +236,13 @@ testHook('stage', function () {
 // ---- 面板 kit：条目行（cover+标题+meta，点击进播放层）与「加载更多」按钮 ----
 // meta 行拼装规则：rank 走契约 meta 三段（原生 extra 图标位）；其余来源 sub 优先
 // （历史=「观看至xx:xx」、收藏=UP 名），progress 仅在 sub 未表达时补显（收藏的续看秒数）
-// 榜单 meta 段 kind → 原生字形（imicons.GLYPHS：原生 rank/list 浏览器实测码点）
-var META_GLYPH = { view: GLYPHS.rankView, comment: GLYPHS.rankComment, time: GLYPHS.rankTime };
+// 榜单 meta 段 kind → 原生字形（imicons.GLYPHS：原生 rank/list 浏览器实测码点）。
+// 0.9.91 补 like/banana：关注流动态卡的三计数（点赞/评论/投蕉）复用同一张字形表，
+// 码点来自 0.9.55/0.9.56 的动态卡互动区实测（feedLike 未点亮位 / banana）
+var META_GLYPH = {
+  view: GLYPHS.rankView, comment: GLYPHS.rankComment, time: GLYPHS.rankTime,
+  like: GLYPHS.feedLike, banana: GLYPHS.banana
+};
 
 export function rowOf(pi, rank) {
   // 榜单条目走大卡+右侧 UP 卡（对齐原生 rlist 分栏）；历史/收藏维持小卡
@@ -277,27 +283,46 @@ export function rowOf(pi, rank) {
   return row;
 }
 
-// 网格卡（0.9.69 我的页抖音式；0.9.83 卡面收口）：封面 + 封面角标 + 两行标题 + 脚行。
-// 与 rowOf 并列而非替换——rowOf 被 zone 消费且 0.9.67/68 断言钉着它的类名与
-// watermark offsetParent 契约，共享导出的形状改动必须 grep 全消费点（既有教训）。
-// 三种来源共用这一张卡，差异全部由契约字段决定（消费点已 grep：mypage.js ×2 与 searchview.js）：
+// 网格卡（0.9.69 我的页抖音式；0.9.83 卡面收口；0.9.91 关注流三内容型）：封面 + 封面角标
+// + 标题/正文 + 计数行 + 脚行。与 rowOf 并列而非替换——rowOf 被 zone 消费且 0.9.67/68 断言
+// 钉着它的类名与 watermark offsetParent 契约，共享导出的形状改动必须 grep 全消费点（既有教训）。
+// 来源类共用这一张卡，差异全部由契约字段决定（消费点已 grep：mypage.js ×2、searchview.js、
+// followview.js——0.9.91 起）：
 //   封面左下角标 = 进度/属性语义位：历史 sub=「观看至xx:xx」、收藏 progress=「看到 xx:xx」、
-//     搜索 views=播放数（右下另有时长 .acsv-gdur）
-//   脚行 = **作者与时间的唯一落点**（@UP名 + 右槽时间）：三源都从这里出作者（历史条目的作者来自
+//     搜索/关注视频 views=播放数（右下另有时长 .acsv-gdur）、关注文章=「文章」（ct 判别）
+//   正文位（0.9.91，关注动态）：ct='moment' 时正文用 ubb 单源渲染（renderCommentHtml），
+//     有图走标题位、无图占封面位（.acsv-gtext-tile，窄网格卡不留空封面）；站方同元素**不钳高**
+//     （它是 830px 宽行卡），网格窄卡必须钳（见 styles 段注释，量取值在册）
+//   计数行（0.9.91）：pi.meta（复用 rank 的三段语义）在脚行之上渲染，字形按 k 走 META_GLYPH
+//   脚行 = **作者与时间的唯一落点**（@UP名 + 右槽时间）：四源都从这里出作者（历史条目的作者来自
 //     histories[].user，0.9.84 实测与该站 APP 家族同形状，不是"卡面没有"）；右槽 = 搜索的发布
-//     日期（SSR 原样）/ 收藏的稿件上传时刻（fmtDate，带年份）/ 历史的观看时间（fmtAgo：三天内
-//     相对文案、更早带年份）——三处的取数口径差异见 data.js 对应解析器与 docs §3/§4.1/§4.2
+//     日期（SSR 原样）/ 收藏的稿件上传时刻（fmtDate，带年份）/ 历史的观看时间与关注流的条目时间
+//     （fmtAgo：三天内相对文案、更早带年份）——各源取数口径见 data.js 解析器与 docs 各节
 // 0.9.83 收口：作者与进度此前都在 meta 行（.acsv-gmeta）又各画了一遍——收藏卡出现
 // 「石悦」/「@石悦」与「看到xx:xx」双份。现在作者只走脚行、进度只留角标，meta 行整体删除
+// 外链语义（0.9.91）：pi.href 有值 → 根元素换 <a target=_blank rel=noopener>（文章/动态的
+// 落点在站方页，进不了播放层——解析链只覆盖视频）；无 href → div + itemOpener（播放层直达）
 export function gridCardOf(pi) {
-  var cell = el('div', 'acsv-gcell' + (pi.kind === 'search' ? ' acsv-scell' : ''));
+  var cell = el(pi.href ? 'a' : 'div', 'acsv-gcell' + (pi.kind === 'search' ? ' acsv-scell' : ''));
+  if (pi.href) {
+    cell.href = pi.href;
+    cell.target = '_blank';
+    cell.rel = 'noopener'; // 对外新标签一律 noopener（upCardOf 同款纪律）
+  }
   var cover = el('div', 'acsv-gcover');
-  imgInto(cover, pi.cover, 'grid');
-  // 封面角标 = 进度语义位：历史 sub 就是「观看至xx:xx」（契约在册）；收藏只有续看秒数能进
-  // 角标——没有时长算不出比例条，就不做比例条（不伪造）
+  var isMoment = pi.ct === 'moment';
+  if (isMoment && !pi.cover) {
+    // 无图动态：正文占封面位（文本瓦片）——窄网格卡里空封面的观感比占位符更差
+    cover.appendChild(momentTextOf(pi, 'acsv-gtext acsv-gtext-tile'));
+  } else {
+    imgInto(cover, pi.cover, 'grid');
+  }
+  // 封面角标 = 进度/属性语义位：历史 sub 就是「观看至xx:xx」（契约在册）；收藏只有续看秒数能进
+  // 角标——没有时长算不出比例条，就不做比例条（不伪造）；文章贴「文章」属性角标
   var tag = pi.kind === 'history' ? pi.sub
     : (pi.progress != null ? '看到 ' + fmtDur(pi.progress) : '');
   if (tag) cover.appendChild(el('div', 'acsv-gtag', tag));
+  if (pi.ct === 'article') cover.appendChild(el('div', 'acsv-gtag acsv-gkind', '文章'));
   if (pi.views) {
     var vb = el('div', 'acsv-gtag acsv-gviews');
     vb.appendChild(el('i', 'acsvg-glyph', GLYPHS.rankView));
@@ -306,10 +331,22 @@ export function gridCardOf(pi) {
   }
   if (pi.dur) cover.appendChild(el('div', 'acsv-gdur', pi.dur));
   cell.appendChild(cover);
-  cell.appendChild(el('div', 'acsv-gtitle', pi.title));
-  // 脚行：@UP名 + 右槽时间（抖音式；两字段皆空不挂节点）。右槽由契约层拼好（三源各自的取数
-  // 口径见 data.js 解析器）：搜索=SSR 的发布日期、收藏=稿件上传时刻、历史=观看时间；
-  // 无作者又无时间（如历史缺 user 的降级条目）整行不挂
+  if (isMoment && pi.cover) cell.appendChild(momentTextOf(pi, 'acsv-gtitle acsv-gtext'));
+  else if (!isMoment) cell.appendChild(el('div', 'acsv-gtitle', pi.title));
+  // 计数行（meta 三段 + 字形）：0.9.91 关注流首批用（动态三计数）；rank 的 meta 走 rowOf，互不影响
+  if (pi.meta && pi.meta.length) {
+    var stat = el('div', 'acsv-gstats');
+    pi.meta.forEach(function (m) {
+      var s = el('span', 'acsv-gstat');
+      var gl = META_GLYPH[m.k];
+      if (gl) s.appendChild(el('i', 'acsvg-glyph', gl));
+      s.appendChild(document.createTextNode(m.t));
+      stat.appendChild(s);
+    });
+    cell.appendChild(stat);
+  }
+  // 脚行：@UP名 + 右槽时间（抖音式；两字段皆空不挂节点）。右槽由契约层拼好（各源取数口径见
+  // data.js 解析器）；无作者又无时间（如历史缺 user 的降级条目）整行不挂
   var upName = pi.up && pi.up.name ? pi.up.name : '';
   if (upName || pi.dateText) {
     var foot = el('div', 'acsv-gfoot');
@@ -317,8 +354,19 @@ export function gridCardOf(pi) {
     foot.appendChild(el('span', 'acsv-gtime', pi.dateText || ''));
     cell.appendChild(foot);
   }
-  cell.addEventListener('click', function () { if (itemOpener) itemOpener(pi); });
+  if (!pi.href) cell.addEventListener('click', function () { if (itemOpener) itemOpener(pi); });
   return cell;
+}
+
+// 动态正文块（0.9.91）：内容走 ubb 单源渲染（表情/[at]/资源链与评论同一条管线，
+// 接口另给的 replaceUbbText 明文版不用——intake「ubb/emotify 单源」）。
+// 注：外链动态卡（根元素是 <a>）里会**嵌套** ubb 产出的 <a class="ubb-at">——这是 DOM 构造
+// 的嵌套（createElement/appendChild 允许），不是 HTML 解析器的嵌套（那是非法的）：内层链接
+// 在自己的命中区优先，其余区域走外层外链，行为符合预期，故不做剥离
+function momentTextOf(pi, cls) {
+  var t = el('div', cls);
+  t.innerHTML = renderCommentHtml(pi.text || '');
+  return t;
 }
 
 // 原生 up-card 等价物（rlist 右栏作者卡，横排）：大圆头像左+信息块右（名字 accent/签名/

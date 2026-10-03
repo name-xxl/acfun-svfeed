@@ -105,8 +105,61 @@
     return { result: 0, rankList: rows };
   }
 
+  // ---- 关注流夹具（0.9.91 view-follow；形状裁剪自 docs/api-research.md §2.1.1 实测）----
+  // 首屏 20 原始条：视频/文章/动态混排（动态含「有图」「无图」两种，正文带 UBB [at] 走单源渲染）
+  // + 1 条未观察类型（resourceType 4）探契约过滤；分档枚举覆盖 1/2/10（今天/昨天/更早）。
+  // 第二页 4 条（< pageSize → 「加载更多」该隐藏）
+  var FOLLOW_COVER = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+  function fu(i, name) {
+    return { userId: 1000 + i, userName: name, userHead: PANEL_AVATAR, isFollowing: true };
+  }
+  function fBase(i, g, kind) {
+    return { createTime: Date.now() - (2 + i) * 3600 * 1000, createTimeGroup: g, user: fu(i, '关注UP' + i), resourceType: kind };
+  }
+  function fVideo(i, g, title) {
+    var e = fBase(i, g, 2);
+    e.resourceId = 488801 + i; e.caption = title; e.coverUrl = FOLLOW_COVER;
+    e.playDuration = '00:1' + (i % 10); e.viewCount = 100 + i;
+    return e;
+  }
+  function fArticle(i, g, title) {
+    var e = fBase(i, g, 3);
+    e.resourceId = 488601 + i; e.articleTitle = title; e.coverUrl = FOLLOW_COVER; e.viewCount = 200 + i;
+    return e;
+  }
+  function fMoment(i, g, text, withImg) {
+    var e = fBase(i, g, 10);
+    e.resourceId = 510001 + i; e.coverUrl = withImg ? FOLLOW_COVER : '';
+    e.likeCount = 10 + i; e.commentCount = 2 + i; e.bananaCount = 1 + i;
+    e.moment = { momentId: 510001 + i, text: text };
+    return e;
+  }
+  var FOLLOW_P1 = [
+    // 今天（group 1）：3 视频 + 3 动态 + 1 文章 + 1 条未观察类型（4 → 应被过滤）
+    fVideo(0, 1, '关注视频甲'), fMoment(1, 1, '动态正文带 UBB[at uid=1001]@关注UP1[/at]与表情[emot=acfun,1/]', true),
+    fArticle(2, 1, '关注文章甲'), fVideo(3, 1, '关注视频乙'), fMoment(4, 1, '无图动态：只有文字的一条', false),
+    fVideo(5, 1, '关注视频丙'), fMoment(6, 1, '另一条图文动态', true),
+    (function () { var e = fBase(7, 1, 4); e.resourceId = 488999; e.caption = '未观察类型应被过滤'; return e; })(),
+    // 昨天（group 2）：2 视频 + 2 动态 + 2 文章
+    fVideo(8, 2, '昨天的视频'), fArticle(9, 2, '昨天的文章'), fMoment(10, 2, '昨天的动态', true),
+    fVideo(11, 2, '昨天的视频二'), fArticle(12, 2, '昨天的文章二'), fMoment(13, 2, '昨天的动态二', false),
+    // 更早（group 10）：3 视频 + 2 动态 + 1 文章
+    fVideo(14, 10, '更早的视频'), fMoment(15, 10, '更早的动态', true), fArticle(16, 10, '更早的文章'),
+    fVideo(17, 10, '更早的视频二'), fMoment(18, 10, '更早的动态二', false), fVideo(19, 10, '更早的视频三')
+  ];
+  var FOLLOW_P2 = [
+    fVideo(20, 10, '续页视频'), fArticle(21, 10, '续页文章'), fMoment(22, 10, '续页动态', true), fVideo(23, 10, '续页视频二')
+  ];
+
   window.__ACSV_MY_MOCK__ = {
-    // view-my/view-zone 场景组装 __ACSV_MOCK_FORM__ 用（harness.html）
+    // view-my/view-zone/view-follow 场景组装 __ACSV_MOCK_FORM__ 用（harness.html）
+    // 关注流（0.9.91）：pcursor=0 取首屏，其余取第二页（游标语义与真实端点一致：响应回带新游标）
+    'feed/followFeedV2': function (body, url) {
+      window.__ACSV_FOLLOW_CALLS__ = (window.__ACSV_FOLLOW_CALLS__ || 0) + 1;
+      var cur = (String(url).match(/pcursor=([^&]*)/) || [])[1] || '0';
+      if (cur === '0') return { result: 0, feedList: FOLLOW_P1, pcursor: '1790785548652' };
+      return { result: 0, feedList: FOLLOW_P2, pcursor: '' };
+    },
     // 子频道树：官方树形状裁剪（children cid+navName），zone 视图选频道后填子频道 chips
     'page/queryNavigators': {
       result: 0,

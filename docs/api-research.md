@@ -40,6 +40,69 @@ feedList 条目（实测首屏 10 条字段清单）：
 
 followUpers[]（左侧关注列表+未读徽标数据源）：hasUnReadResource / headUrl / userId / name，首屏 20 条
 
+#### 2.1.1 Gating 补测：关注流到底推什么（0.9.91 关注视图动工前置，2026-10-03 内置浏览器登录态）
+
+**更正（同日第二稿）**：本小节初稿下过「动态不在关注流」的结论——**错的**。错因两条：只看
+`/member/feeds` 的 tab 名推断类目、只查了 `feed/webPush` 一条端点。用户当场指出「全部里有动态」，
+复测证实：**关注流有动态**（`resourceType: 10`），但**不在 webPush 上，而在 `followFeedV2` 上**。
+初稿结论作废，以下为修正后的实测。
+
+**数据源（PC 关注动态页 `/member/feeds` 抓包，四处）**：
+
+- **全部 tab** = **服务端渲染**（首屏 HTML 里直接有 `member-feed-moment` 节点，页面加载无 feed 类 XHR）
+- **视频 tab** → `GET /rest/pc-direct/feed/followDougaFeed?pcursor=<毫秒>&count=20`
+- **文章 tab** → `GET /rest/pc-direct/feed/followFeedV2?useWebp=true&pcursor=<毫秒>&count=20&resourceTypes=3`
+- （tab 结构里只找到 全部/视频/文章 三个可点元素；直播条目在「全部」流里以类目标签出现）
+
+**`followFeedV2` 是统一关注流端点**（本轮实测，pcursor=毫秒时间戳）：
+
+| 请求 | 结果 |
+|---|---|
+| 不带 resourceTypes | 20 条 = **视频 8 + 动态 12**（混合流） |
+| `resourceTypes=2` | 20 条全视频 |
+| `resourceTypes=3` | 20 条全文章 |
+| `resourceTypes=1` / `=4` | 空（枚举观察：视频 2 / 文章 3 / 动态 10） |
+
+顶层还带 `pullCount / userInfo / requestId / followTags / ups / pcursor`（`ups` 本次为空数组，
+语义未确认；关注列表与未读徽标仍以 webPush 的 `followUpers` 为准）。
+
+**`feed/webPush` 与 `followFeedV2` 的实质差异**：webPush 连翻 6 页 60 条 = 59×视频 + 1×文章、
+**零动态**（同一时间窗内 followFeedV2 首屏就有 12 条动态）⇒ **关注视图若要做动态，必须用
+`followFeedV2`，webPush 拿不到**。这条差异是选型关键。
+
+**动态条目形状（resourceType 10，实测样本 momentId 5104008）**：
+
+- 顶层：`resourceId`（=动态号，**非 ac 号**）/ `resourceType: 10` / `tagResourceType: 3` /
+  `authorId` / `user{userId,userName,userHead,...}` / `createTime` / `time` / `createTimeGroup` /
+  `coverUrl`（配图封面）/ `shareUrl` = **`https://m.acfun.cn/communityCircle/moment/<momentId>`** /
+  计数 `viewCount/commentCount/stowCount/bananaCount/shareCount/likeCount` /
+  状态 `isLike/isFavorite/isThrowBanana` / `groupId`
+- `discoveryResourceFeedShowContent`：**列表用正文**（携 UBB 方言，实测含 `[emot=acfun,1656/]`）
+- 嵌套 `moment`：`{momentId, text(UBB 原文), replaceUbbText(**UBB 已替换为明文占位**，如 `[表情]`),
+  momentType(本条 2), originResourceType(本条 1), visibleForFans, commentCount, bananaCount,
+  shareCount, isThrowBanana}`——`replaceUbbText` 可直接用于列表预览
+- `repostSource`：**转发动态的源条目，是完整的分支条目**（本条源是视频：带 `caption/playDuration/
+  channel/user/createTimeGroup/resourceType/resourceId/...` 整族字段）⇒ 动态卡可内嵌"转发的视频/文章"卡
+
+**文章条目形状（resourceType 3，实测样本 ac48868671）**：`articleTitle` / `beginParagraph`
+（正文引导段）/ `articleBody`（正文全文开头）/ `description`（**本条为空串——摘要取 beginParagraph，
+不是它**）/ `coverUrl` / `imageCount` + `articleImgInfos[]` / `articleBodyPics` /
+`articleBodyImgsWithFormat` / `discoveryResourceFeedShowImageCount`；计数/状态/user/shareUrl/
+时间/tag/hotComments 与视频条目**同族**（⇒ 三类条目一张卡 + `kind` 判别子即可承载）。
+
+**`createTimeGroup` 是数字枚举，不是文案**：实测取值 {1, 2, 10}，分档边界（逐条「距今小时」实证）：
+`1` = 今天（样本 2.3h/2.4h）、`2` = 昨天（16.6~26.3h，含 `time` 已成日期串的条目）、`10` = 更早
+（45.4h 起）。跨页单调不跳变 ⇒ 「今天/昨天/更早」分组标题可用（枚举值是契约，文案由客户端映射）。
+
+**`followUpers[].hasUnReadResource`（webPush 侧）**：布尔且**有假值**（19 个关注 6 true / 13 false）
+⇒ 未读徽标数据源可用；条目 `{userId, name, headUrl, hasUnReadResource}`。
+
+**直播**：站方「全部」流里有直播条目（样本：付小远brenda 直播中）；feed/webPush 与 followFeedV2
+本轮样本均未出现直播条目 ⇒ 「未观察到」，关注视图按不推处理（不入契约）。
+
+**0.9.91 形态据此定**：关注视图 = **视频 + 文章 + 动态**三类混合卡片流（`kind` 判别子），
+数据源用 **`followFeedV2`**，带今天/昨天/更早分组标题；直播不做。
+
 ### 2.2 关注分组 getGroups
 
 `GET https://www.acfun.cn/rest/pc-direct/relation/getGroups`
