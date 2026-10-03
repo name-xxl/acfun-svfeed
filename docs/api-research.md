@@ -113,6 +113,36 @@ followUpers[]（左侧关注列表+未读徽标数据源）：hasUnReadResource 
 **0.9.91 形态据此定**：关注视图 = **视频 + 文章 + 动态**三类混合卡片流（`kind` 判别子），
 数据源用 **`followFeedV2`**，带今天/昨天/更早分组标题；直播不做。
 
+### 2.1.2 关注视频流 followDougaFeed（〔实测〕2026-10-03，0.9.99 关注语境「视频」tab 前置）
+
+官方 `/member/feeds`「视频」tab 的真实数据源（§2.1.1 的抓包结论），`GET
+https://www.acfun.cn/rest/pc-direct/feed/followDougaFeed?pcursor=<毫秒>&count=20`（登录态）：
+
+- **翻页语义**：`count` **被忽略，服务端固定每页 10 条**（响应 `pageSize: 10`；实测 count=20
+  仍回 10——与广场 feedSquare 的「cursor+count 写法无效」同款行为）。`pcursor` 毫秒时间戳
+  续页；**终页响应 `pcursor === 'no_more'`**（极老游标实测：回 1 条 + no_more）——终判以
+  `pcursor==='no_more'` 为准，条数 `< pageSize` 只作辅助。
+- **外壳**：`{result, feedList, userInfo, followUpers, requestId, pcursor, pageSize,
+  favBangumis, host-name}`——与 followFeedV2 同族；**followUpers 也在**（徽标数据源此端点
+  同样可得，我们仍用 webPush，不换）。
+- **条目形状：与 followFeedV2 的视频条目（resourceType=2）高度同构**——核心族一字不差：
+  `resourceId`(=ac 号) / `caption` / `coverUrl` / `playDuration`（展示串 "00:13" 直用）/
+  `viewCount` / `commentCount` / `stowCount` / `bananaCount` / `shareCount` / `likeCount` /
+  `isLike` / `isFavorite` / `isThrowBanana` / `createTime` / `createTimeGroup` / `time` /
+  `channel` / `user{userId, userName, userHead, isFollowing, nameColor, verifiedType}` /
+  `shareUrl` / `tagResourceType` / `authorId` / `groupId`。⇒ **解析器复用 follow 的 ct=video
+  分支，零形状新增**。
+- **followDougaFeed 独有的加料字段**（followFeedV2 视频条目没有的）：
+  - `videoId`（**字符串** "39240684"）与 `videoSizeType`——关注混合流里没有这对键；
+  - `detail`：**嵌套完整 douga/info 同族形状**（dougaId/durationMillis/danmakuCount/
+    createTimeMillis/videoList/user 详形状含 fans/contributes/signature/recoReason 等）——
+    竖刷流的 resolve 链理论上可借它省掉 douga/info 一段（只走 playInfo 拿直链）；
+    v1 不做此优化（标准 resolve 链正确性优先），留档备查；
+  - `userInfo`（详版作者，同 detail.user）、`coverImgInfo`（非 null）、`picShareUrl`、
+    `disableThrowBanana`、`verifiedTypes`。
+- **与 followFeedV2&resourceTypes=2 的取舍**：两者都能出纯视频流；选 followDougaFeed 是
+  官方「视频」tab 的真实端点（语义正、官方在维护），且形状经本轮全字段实测。
+
 ### 2.2 关注分组 getGroups
 
 `GET https://www.acfun.cn/rest/pc-direct/relation/getGroups`

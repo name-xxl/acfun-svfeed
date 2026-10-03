@@ -1,9 +1,10 @@
-import { el } from './ui.js';
+import { el, toast } from './ui.js';
 import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
+import { FollowVideos, enterVideos, enterAll, isFollowContext } from './followstream.js';
 
 // ---------- 顶栏（0.9.72 抽离为共享组件，0.9.73 四界面复用） ----------
-// 结构（左中右）：[搜索框·居中常驻（抖音同款位置）] [右侧按钮组：源切换 seg | 私信 | 更新 | 退出 ✕]。
+// 结构（左中右）：[搜索框·居中常驻（抖音同款位置）] [右侧按钮组：源切换 seg | 关注 seg（0.9.99，仅关注语境可见）| 私信 | 更新 | 退出 ✕]。
 // 一份组件、按界面同步（syncTopbar(view, arg)，与 syncDock 对位）：竖刷态显示源切换；✕ 单一意义=退出脚本（0.9.74 用户裁决，普通界面的 Esc 另义回竖刷）；
 // 视图态隐源切换（CSS 规则）；搜索视图把关键词回填进同一个输入框（唯一输入框）。
 // 行为全部经 hooks 注入（onSearch/onExit/onSource/onDrawer/onRelease/getSource），组件不 import
@@ -13,6 +14,7 @@ import { GLYPHS } from './imicons.js';
 // 走就地重跑而非死等 hashchange（hash 不变不触发）；视图 teardown 必须还原（null）——
 // 否则离开搜索视图后默认提交被旧闭包劫持。
 var barEl = null;
+var fsegEl = null, fsegVideos = null, fsegAll = null;
 var imBtnEl = null;
 var segSv = null;
 var segHome = null;
@@ -83,6 +85,33 @@ export function buildTopbar(parent, h) {
   seg.appendChild(segSv);
   seg.appendChild(segHome);
   tr.appendChild(seg);
+  // 关注语境 seg（0.9.99）：「视频 | 全部」双面切换——视频=关注视频流接管舞台
+  //（followstream.enterVideos），全部=关注视图（仿原生列表）。仅关注语境可见；类名与源
+  // 切换 .acsv-seg 刻意不同：.acsv-top--view 的隐藏规则只打 .acsv-seg，关注视图里本 seg
+  // 必须保持可见——它是「视频」侧的确定性回路口（深链进出不依赖 Esc 链）。
+  // 直接 import followstream 不走 hooks：hooks 表为避免 topbar→player 循环而生，
+  // followstream 与 topbar 无环（依赖单向），不再多绕一层
+  fsegVideos = el('button', 'acsv-seg-btn', '视频');
+  fsegVideos.title = '关注视频竖刷';
+  fsegVideos.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    enterVideos().then(function (ok) {
+      if (!ok) toast('关注视频加载失败');
+      syncFollowSeg();
+    });
+  });
+  fsegAll = el('button', 'acsv-seg-btn', '全部');
+  fsegAll.title = '关注动态列表';
+  fsegAll.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    enterAll();
+    syncFollowSeg();
+  });
+  fsegEl = el('div', 'acsv-fseg');
+  fsegEl.appendChild(fsegVideos);
+  fsegEl.appendChild(fsegAll);
+  fsegEl.style.display = 'none';
+  tr.appendChild(fsegEl);
   var imBtn = el('button', 'acsv-tbtn acsv-im-btn');
   imBtn.title = '私信';
   imBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg><span class="acsv-im-badge" style="display:none"></span>';
@@ -116,6 +145,16 @@ export function syncTopbarSeg() {
   segHome.classList.toggle('on', home);
 }
 
+// 关注语境 seg 同步（syncTopbar 尾部调；enterVideos/enterAll 的点击出口也手动调一次——
+// enterVideos 是异步接管，等 hashchange 的 syncTopbar 有一拍延迟，直接刷让高亮立即跟上）
+// 显隐=isFollowContext()（关注视图开或舞台在放关注流）；高亮=全部侧按视图、视频侧按流活动
+export function syncFollowSeg(view) {
+  if (!fsegEl) return;
+  fsegEl.style.display = isFollowContext() ? '' : 'none';
+  fsegVideos.classList.toggle('on', !view && FollowVideos.feedActive);
+  fsegAll.classList.toggle('on', view === 'follow');
+}
+
 // 按当前界面同步（views.syncRouteView 调）：视图态隐源切换（CSS）+ 深界面出「向左返回」；
 // 搜索视图按地址栏 arg 回填关键词（深链/换词直达时顶栏输入框与地址一致）。
 // 输入框只在两处动（0.9.75 补）：① view==='search' 按地址回填；② **离开搜索上下文那一刻清空**
@@ -132,10 +171,12 @@ export function syncTopbar(view, arg, opts) {
   if (view === 'search' && searchInput) searchInput.value = arg == null ? '' : String(arg);
   else if (!ctx && searchCtxPrev && searchInput) searchInput.value = '';
   searchCtxPrev = ctx;
+  syncFollowSeg(view);
 }
 
 export function teardownTopbar() {
   if (barEl) { barEl.remove(); barEl = null; }
   imBtnEl = null; segSv = null; segHome = null; xBtn = null; backBtn = null; searchInput = null;
+  fsegEl = null; fsegVideos = null; fsegAll = null;
   hooks = {}; searchHandler = null; searchCtxPrev = false;
 }

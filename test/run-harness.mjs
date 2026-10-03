@@ -80,11 +80,13 @@ const HARNESS_CASES = [
   // settings-migrate 依赖 bundle 前预置老键（见 harness.html），故为 debug 构建
   { name: 'settings-open', serial: true },
   { name: 'settings-migrate', serial: true },
-  // 0.9.91 关注视图（followFeedV2 混合流：视频/文章/动态三类卡 + 分档标题 + 翻页；mock 缝依赖
-  // debug 构建，夹具在 my-sample.js）
+  // 0.9.91 关注视图（followFeedV2 混合流；0.9.99 重构为仿原生单列无限流：三类行判别位 +
+  // 行内写链乐观两向 + 展开/收起 + 滚动触底翻页/状态行；mock 缝依赖 debug 构建，夹具在 my-sample.js）
   { name: 'view-follow' },
   // 0.9.96 动态详情面板（卡点击原地展开 + 评论区管线复用 stype=4 + 赞/评写链乐观回滚 + 表情面板落位）
   { name: 'detail-open' },
+  // 0.9.99 关注语境「视频」侧（顶栏 seg → FollowVideos 上下文 → 舞台深链接管 + 按列表泵入 + 全部回路）
+  { name: 'follow-videos' },
   // 0.9.97 关注未读徽标（webPush 桩驱动 poll 状态机：计数/回落/翻倍/进视图不打扰）
   { name: 'badge-poll' }
 ];

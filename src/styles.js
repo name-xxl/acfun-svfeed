@@ -333,6 +333,10 @@ var RAW_CSS = ''
   + 'padding:6px 16px;border-radius:999px;cursor:pointer;transition:background .15s,opacity .15s;white-space:nowrap}'
   + '.acsv-seg-btn:hover{opacity:.9}'
   + '.acsv-seg-btn.on{background:rgba(255,255,255,.24);opacity:1;font-weight:600}'
+  // 关注语境 seg（0.9.99）：复用 seg-btn 视觉，容器独立类名——.acsv-top--view 只隐源切换
+  // .acsv-seg，关注视图里本 seg 保持可见（它是「视频」侧的确定性回路口）；按钮更紧凑不挤右组
+  + '.acsv-fseg{display:flex;align-items:center;background:rgba(255,255,255,.14);border-radius:999px;padding:3px;gap:2px}'
+  + '.acsv-fseg .acsv-seg-btn{padding:6px 12px}'
   + '.acsv-cbtxt{font-size:12px;color:#ddd;margin-left:2px}'
   + '.acsv-qwrap{position:relative;display:flex}'
   + '.acsv-qmenu{position:absolute;right:0;bottom:calc(100% + 12px);z-index:35;min-width:88px;'
@@ -929,6 +933,55 @@ var RAW_CSS = ''
   + 'gap:14px 10px}'
   // 窄屏：关注流回落单列（.acsv-gwide 无跨度，规则天然成立）
   + '}'
+  // ---- 关注视图仿原生单列行流（0.9.99）----
+  // 量取口径（2026-10-03 站方 /member/feeds computed style）：头像 40 圆、条目卡圆角 8、
+  // 深色体系沿用本面板 rgba 白系面（站方是亮色页，颜色照本面板惯例换算、尺寸照站方）
+  + '.acsv-frows{display:flex;flex-direction:column;gap:10px;max-width:760px}'
+  + '.acsv-frow{border-radius:8px;background:rgba(255,255,255,.05);padding:12px 14px;'
+  + 'display:flex;flex-direction:column}'
+  + '.acsv-frow-head{display:flex;align-items:center;gap:10px;font-size:12px;color:#8a90a0}'
+  + '.acsv-frow-av{flex:none;width:40px;height:40px;border-radius:50%;overflow:hidden;'
+  + 'background:rgba(255,255,255,.08)}'
+  + '.acsv-frow-av img{width:100%;height:100%;object-fit:cover;display:block}'
+  + '.acsv-frow-name{font-size:13px;color:#d5d8df}'
+  + '.acsv-frow-time{margin-left:auto;font-size:12px;color:#8a90a0}'
+  // 正文：UBB 单源产物；clamp 是展开态开关的初始类（溢出才挂「展开」——armExpanders 量测）
+  + '.acsv-frow-text{margin-top:10px;font-size:14px;line-height:21px;color:#e8eaee;word-break:break-word}'
+  + '.acsv-frow-text.clamp{max-height:84px;overflow:hidden}'
+  + '.acsv-fmore{margin-top:6px;font-size:12px;color:var(--acsv-accent);cursor:pointer;align-self:flex-start}'
+  // 媒体横条（视频/文章）：仿原生 content-left/right，封面 204:128（量取 2026-10-03）
+  + '.acsv-frow-media{margin-top:10px;display:flex;gap:10px;align-items:stretch;min-width:0}'
+  + '.acsv-frow-mcover{position:relative;flex:none;width:186px;aspect-ratio:204/128;border-radius:8px;'
+  + 'overflow:hidden;background:rgba(255,255,255,.06)}'
+  + '.acsv-frow-mcover img{width:100%;height:100%;object-fit:cover;display:block}'
+  + '.acsv-frow-mdur{position:absolute;right:4px;bottom:4px;padding:0 4px;border-radius:3px;'
+  + 'font-size:11px;line-height:16px;background:rgba(0,0,0,.62);color:#fff}'
+  + '.acsv-frow-mbody{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:6px}'
+  + '.acsv-frow-mkind{align-self:flex-start;font-size:11px;line-height:16px;padding:0 5px;'
+  + 'border-radius:3px;background:rgba(255,255,255,.1);color:#cfd3da}'
+  + '.acsv-frow-mtitle{font-size:14px;line-height:20px;color:#e8eaee;max-height:40px;overflow:hidden;word-break:break-word}'
+  + '.acsv-frow-mmeta{margin-top:auto;font-size:12px;color:#8a90a0}'
+  + '.acsv-frow-mdesc{font-size:12px;line-height:18px;color:#8a90a0;max-height:36px;overflow:hidden}'
+  // 动态单图：横条位同款钳高（九宫格/引用块复用 .acsv-gmom-imgs/.acsv-gquote 既有规则，不另立）
+  + '.acsv-frow .acsv-gmom-img{margin-top:10px}'
+  // 互动行：分享 → 评论 → 蕉 → 赞（站方同序，量取 2026-10-03）；点亮态沿 .on accent 语义
+  + '.acsv-frow-acts{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07);'
+  + 'display:flex;gap:26px;font-size:13px;color:#8a90a0}'
+  + '.acsv-fact{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}'
+  + '.acsv-fact:hover{color:#e8eaee}'
+  + '.acsv-fact.on{color:var(--acsv-accent)}'
+  + '.acsv-fact .acsvg-glyph{font-size:14px}'
+  // 三态底部状态行（借鉴广场 load-more-status）；busy 态加点点动画的克制版=文字+降透明
+  + '.acsv-fstatus{min-height:34px;padding:8px 2px;text-align:center;font-size:12px;color:#8a90a0;cursor:pointer}'
+  + '.acsv-fstatus.busy{opacity:.7;cursor:default}'
+  // 回顶按钮（借鉴广场 back-top）：sticky 钉滚动流右下，超 backTopAt 由 JS 挂 .on 现身
+  + '.acsv-fbacktop{position:sticky;bottom:18px;margin:0 6px 6px auto;width:36px;height:36px;'
+  + 'border-radius:50%;background:rgba(255,255,255,.12);color:#e8eaee;font-size:16px;line-height:36px;'
+  + 'text-align:center;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .18s ease;z-index:5}'
+  + '.acsv-fbacktop.on{opacity:1;pointer-events:auto}'
+  + '.acsv-fbacktop:hover{background:rgba(255,255,255,.2)}'
+  // 首屏骨架行（独立类名，绝不与行内计数选择器同构——0.9.66 教训）
+  + '.acsv-fskel{height:120px;border-radius:8px;background:rgba(255,255,255,.05)}'
   // 深色滚动条：视图滚动区（我的/榜单共用 .acsv-view-body，默认浅色条在深色页上是刺眼白条）
   + '.acsv-view-body{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}'
   + '.acsv-view-body::-webkit-scrollbar{width:8px;height:8px}'

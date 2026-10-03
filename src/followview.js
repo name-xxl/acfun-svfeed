@@ -1,77 +1,72 @@
-// ---------- 关注视图（0.9.91，路线图 Phase 2 主体 + Phase 3 动态卡并入） ----------
-// 形态（D1 锁定决策）：dock 卡片视图——混合内容源（视频/文章/动态）只有卡片能共存；
-// 复用 panelItem 契约 + 播放层直达，**不动 FeedStore**（它是竖刷渲染管线的单例，子视图另有
-// 先例：我的/榜单/搜索各自持数组与游标）。
-// 数据源：followFeedV2（统一混合流；首屏实测 20 条里 12 条是动态，占位很大——动态卡不能缺席）。
-// 端点与三类条目形状实测在册：docs/api-research.md §2.1.1（2026-10-03 内置浏览器登录态）。
-// 分档标题：契约字段 createTimeGroup 是**数字枚举**（1=今天/2=昨天/10=更早，边界实测钉死）——
-// 文案由我们定（站方该页实测不渲染分档标题），语义以枚举为准。
+// ---------- 关注视图（0.9.99 重构）：全部侧 = 仿原生单列无限流 ----------
+// 形态沿革：0.9.91 混合卡流（D1 dock 卡片视图）→ 0.9.99 顶栏「视频|全部」双面（D1 修订在册：
+// 竖刷化仅限纯视频子流，本视图=「全部」侧仍是列表）。仿原生对象 = 站方 /member/feeds「全部」
+// 单列条目（头像行 + 正文 + 媒体块 + 互动行），样式按量取口径对齐（0.9.69 纪律，量取日
+// 2026-10-03：头像 40 圆、封面横条 204:128、互动行四键等分、主色 --acsv-accent）。
+// 「视频」侧不归本视图：followstream.js 把关注视频流接进宿主竖刷舞台，顶栏 seg 切换。
+// 光 DOM 有意偏离 intake 的「el()+Shadow DOM」（0.9.96 登记同款理由：评论/引用块族样式
+// 单源在全局 styles.js，进影子根=复制 CSS 造漂移源）。
+// 无限滚动借鉴动态广场 controller.js 的成熟实现（吸收不搬家，五条全重写进本闸门体系）：
+//   ① append-only 不整列表重建（新行只追加尾部——展开态/大图/面板引用不因翻页丢失）
+//   ② 失败不置到底（状态行「加载失败，滚动重试」，下次触底自动重试）
+//   ③ 三态底部状态行（加载中… / 加载失败，滚动重试 / 已加载全部动态）
+//   ④ 整页 0 新增判到底（防服务端翻页异常死循环）
+//   ⑤ loading 标志代数保护——本视图无刷新入口、闭包随视图生死，代数退化成 seq+isConnected
+//     双检（广场场景里「新会话接管标志」在这里不存在，注释防误修成复杂版）
+// 数据源不变：followFeedV2 统一混合流（§2.1.1）；行内写链：赞/蕉（互动行，rail 乐观范式）、
+// 评论/分享/大图（各自既有出口）。
 import { CFG } from './cfg.js';
-import { el } from './ui.js';
+import { el, fmt, toast } from './ui.js';
 import { request } from './net.js';
 import { followPanelOf } from './data.js';
-import { gridCardOf, moreBtn, ubbTextOf, statRowOf, quoteBlockOf } from './views.js';
+import { ubbTextOf, quoteBlockOf, openPanelItem } from './views.js';
+import { ubbPlain } from './ubb.js';
+import { commentShareWire } from './immsg.js';
+import { openSharePanel } from './imshare.js';
+import { GLYPHS } from './imicons.js';
 import { imgInto } from './imgload.js';
 import { registerView } from './viewreg.js';
-import { setDockBadge } from './sidebar.js'; // 进视图清徽标（0.9.97）
-import { openMomentDetail } from './momentdetail.js'; // 动态卡点击 → 原地详情面板（0.9.96）
+import { setDockBadge } from './sidebar.js';
+import { openMomentDetail } from './momentdetail.js';
+import { setRealLike } from './interact.js';
+import { AppAPI } from './appapi.js';
+import { openImageViewer } from './imgview.js';
 
-// createTimeGroup 枚举 → 分档标题文案（枚举值是契约，文案是我们的）
-var GROUP_NAMES = { 1: '今天', 2: '昨天', 10: '更早' };
+// ---------- 行渲染（feedRowOf）：头像行 + 正文（动态）+ 媒体块 + 互动行 ----------
 
-// ---------- 卡面 v2（0.9.93）：模仿原生信息层级、改进横向空间利用 ----------
-// 用户裁决（0.9.92 后）：「站方原生展示没很好利用网页空间，可以模仿但要改进」——
-// 媒体向（视频）走网格卡单格；文本向（动态/转发）走**专属宽卡跨两列**（`acsv-gwide`），
-// 容器 dense 填洞（styles.js 关注流段有量取与取值来源）。
-
-// 文章卡（文本向：薄条封面 + 标题 + 摘要 + 脚行）——形态与视频的 4:3 图卡明显不同，一眼可辨
-function articleCardOf(pi) {
-  var a = el('a', 'acsv-gcell acsv-gart');
-  a.href = pi.href;
-  a.target = '_blank';
-  a.rel = 'noopener';
-  var cov = el('div', 'acsv-gart-cover');
-  imgInto(cov, pi.cover, 'grid');
-  cov.appendChild(el('div', 'acsv-gtag acsv-gkind', '文章')); // 角标在封面左上（0.9.92 起）
-  a.appendChild(cov);
-  a.appendChild(el('div', 'acsv-gart-title', pi.title));
-  if (pi.desc) a.appendChild(el('div', 'acsv-gart-desc', pi.desc)); // 摘要=beginParagraph（实测）
-  footOf(pi, a);
-  return a;
-}
-
-// 动态卡（文本向宽卡）：头像行 + 正文（UBB 单源）+ 单图 + 计数行；转发再加引用块。
-// 作者落在**头像行**而非脚行——0.9.83「作者唯一落点=脚行」是网格卡族的收口，本卡是文本向
-// 卡型（原生关注流同款形制：头像行随内容一起读），信息仍只出现一次、不重复
-// 0.9.96：根元素 <a>→<div>——点击开**原地详情面板**（momentdetail），不再是外链跳官方页；
-// 卡内 UBB 产出的内链（@/资源）保持原生行为（点击命中 <a> 时不触详情），嵌套 <a> 的
-// DOM 构造特例随外链语义一并消失
-function momentCardOf(pi) {
-  var a = el('div', 'acsv-gcell acsv-gwide acsv-gmom');
-  a.addEventListener('click', function (ev) {
-    if (ev.target.closest('a')) return; // 内链优先（@提及/资源链），不冒泡成详情
-    openMomentDetail(pi);
-  });
-  // 有引用的卡打修饰类：引用块与计数行**沉底**（margin-top:auto 由 styles 按此类分派——
-  // 0.9.95 用户实报「引用的信息和脚注置底、为正文腾出空间」；用类而非 :has()，避开旧浏览器支持面）
-  if (pi.repost) a.classList.add('acsv-gmom-quoted');
-  var head = el('div', 'acsv-gmom-head');
-  var av = el('span', 'acsv-gmom-av');
+// 头像行：原生 member-feed-user 同位（头像 + @名 + 时间）
+function headOf(pi) {
+  var head = el('div', 'acsv-frow-head');
+  var av = el('span', 'acsv-frow-av');
   imgInto(av, (pi.up && pi.up.img) || CFG.api.defaultAvatar, 'avatar');
   head.appendChild(av);
-  head.appendChild(el('span', 'acsv-gmom-name', pi.up && pi.up.name ? '@' + pi.up.name : ''));
-  if (pi.repost) head.appendChild(el('span', 'acsv-gmom-flag', '转发')); // 转发标识（0.9.92 需求在册）
-  head.appendChild(el('span', 'acsv-gmom-time', pi.dateText || ''));
-  a.appendChild(head);
-  a.appendChild(ubbTextOf(pi.text, 'acsv-gmom-text'));
-  if (pi.repost) {
-    // 引用块 = 转发的结构性签名（views.quoteBlockOf 共享件，详情面板同款）：
-    // **不用源封面当主视觉**——实测转发的 coverUrl 恒等于源封面（9/9），照放会伪装成视频卡
-    a.appendChild(quoteBlockOf(pi.repost));
-  } else if (pi.imgs && pi.imgs.length > 1) {
-    // 多图（0.9.98 实报修复「多图只出第一张」）：原生九宫格形制——3 列方格（2/4 张降 2 列，
-    // 原生 member-feed 尺寸律），缩略走 imgs[].url（224 方图）。整卡仍是一个点击目标（点卡
-    // 进详情面板，大图在那里看），格上不另挂点击
+  head.appendChild(el('span', 'acsv-frow-name', pi.up && pi.up.name ? '@' + pi.up.name : ''));
+  head.appendChild(el('span', 'acsv-frow-time', pi.dateText || ''));
+  return head;
+}
+
+// 媒体横条（视频/文章）：仿原生 content-left/right——封面左（时长角标右下）+ 标题右
+//（量取 2026-10-03：封面 204:128，标题两行钳高；文章加「文章」chip）
+function stripMedia(pi) {
+  var m = el('div', 'acsv-frow-media');
+  var cov = el('div', 'acsv-frow-mcover');
+  imgInto(cov, pi.cover, 'grid');
+  if (pi.dur) cov.appendChild(el('span', 'acsv-frow-mdur', pi.dur));
+  m.appendChild(cov);
+  var bd = el('div', 'acsv-frow-mbody');
+  if (pi.ct === 'article') bd.appendChild(el('span', 'acsv-frow-mkind', '文章'));
+  bd.appendChild(el('div', 'acsv-frow-mtitle', pi.title || ''));
+  if (pi.views) bd.appendChild(el('div', 'acsv-frow-mmeta', pi.views + '次播放'));
+  if (pi.ct === 'article' && pi.desc) bd.appendChild(el('div', 'acsv-frow-mdesc', pi.desc));
+  m.appendChild(bd);
+  return m;
+}
+
+// 媒体块分派（动态）：转发=引用块（quoteBlockOf 共享件）；多图=九宫格（0.9.98 形制，
+// 类名与详情面板共用——同一视觉意图不复制第二份规则）；单图=cover 大图
+function momentMedia(pi) {
+  if (pi.repost) return quoteBlockOf(pi.repost);
+  if (pi.imgs && pi.imgs.length > 1) {
     var grid = el('div', 'acsv-gmom-imgs');
     grid.dataset.n = String(pi.imgs.length);
     pi.imgs.forEach(function (im) {
@@ -79,39 +74,141 @@ function momentCardOf(pi) {
       imgInto(cell, im.url, 'grid');
       grid.appendChild(cell);
     });
-    a.appendChild(grid);
-  } else if (pi.cover) {
-    // 原创动态：自己的图（实测 36/36 都有图）；纯文字形态未观察到，缺图自然不挂
+    return grid;
+  }
+  if (pi.cover) {
     var im = el('div', 'acsv-gmom-img');
     imgInto(im, pi.cover, 'grid');
-    a.appendChild(im);
+    return im;
   }
-  if (pi.meta && pi.meta.length) a.appendChild(statRowOf(pi.meta));
-  return a;
+  return null;
 }
 
-// 脚行（@作者 + 右槽时间）：网格卡族与文章卡共用（动态宽卡的作者在头像行，不走这里）
-function footOf(pi, cell) {
-  var upName = pi.up && pi.up.name ? pi.up.name : '';
-  if (!upName && !pi.dateText) return;
-  var foot = el('div', 'acsv-gfoot');
-  foot.appendChild(el('span', 'acsv-gup', upName ? '@' + upName : ''));
-  foot.appendChild(el('span', 'acsv-gtime', pi.dateText || ''));
-  cell.appendChild(foot);
+// 互动行：原生 feed-interactive 同序（分享 → 评论 → 蕉 → 赞，量取 2026-10-03）。
+// 文章的赞/蕉**只读**（写链未实测，§2.1.1 同族但端点未验证——渲染成哑键不算丢功能）
+function actRowOf(pi) {
+  var bar = el('div', 'acsv-frow-acts');
+  [
+    { k: 'share', label: '分享', glyph: GLYPHS.share, n: pi.share, on: false },
+    { k: 'comment', label: '评论', glyph: GLYPHS.feedComment, n: pi.comment, on: false },
+    { k: 'banana', label: pi.thrown ? '已投蕉' : '投蕉', glyph: GLYPHS.banana, n: pi.banana, on: !!pi.thrown },
+    { k: 'like', label: pi.liked ? '已赞' : '点赞', glyph: pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike, n: pi.like, on: !!pi.liked }
+  ].forEach(function (def) {
+    var b = el('span', 'acsv-fact' + (def.on ? ' on' : ''));
+    b._act = def.k;
+    b.title = def.label;
+    b.appendChild(el('i', 'acsvg-glyph', def.glyph));
+    var n = el('span', null, fmt(def.n));
+    b.appendChild(n);
+    b._n = n;
+    bar.appendChild(b);
+  });
+  return bar;
 }
 
-// 契约 ct → 卡型（0.9.93 起按内容型换卡；视频继续复用共享网格卡，点击走播放层直达）
-function cardOf(pi) {
-  if (pi.ct === 'article') return articleCardOf(pi);
-  if (pi.ct === 'moment') return momentCardOf(pi);
-  return gridCardOf(pi);
+function feedRowOf(pi) {
+  var row = el('div', 'acsv-frow');
+  row._pi = pi; // 行级数据引用：列表级委托按它分派（comments.js commentListClick 同款挂法）
+  row.appendChild(headOf(pi));
+  if (pi.ct === 'moment') {
+    // 正文 UBB 单源（表情/at/资源链）；clamp 是展开态开关的初始类（溢出才挂「展开」按钮）
+    row.appendChild(ubbTextOf(pi.text, 'acsv-frow-text clamp'));
+  }
+  var media = null;
+  if (pi.repost) media = quoteBlockOf(pi.repost);
+  else if (pi.ct === 'moment') media = momentMedia(pi);
+  else media = stripMedia(pi);
+  if (media) row.appendChild(media);
+  row.appendChild(actRowOf(pi));
+  return row;
 }
 
-// 首屏骨架（复用我的页的独立类名 acsv-gskel：绝不与卡片计数选择器同构——0.9.66 教训）
+// ---------- 互动行为（乐观更新照 rail.js:154-177 范式；pi 与详情面板同引用——
+// 面板里再操作计数，行内 DOM 不自动跟新：v1 不做跨面实时同步，低频场景，注释防误判） ----------
+
+// like/banana 的按钮态统一回写（glyph 点亮 + 计数）；act 行里计数 span 挂在 _n 上
+function syncAct(btn, pi) {
+  var k = btn._act;
+  if (k === 'like') {
+    btn.classList.toggle('on', !!pi.liked);
+    btn.title = pi.liked ? '已赞' : '点赞';
+    var g = btn.querySelector('.acsvg-glyph');
+    if (g) g.textContent = pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
+  } else if (k === 'banana') {
+    btn.classList.toggle('on', !!pi.thrown);
+    btn.title = pi.thrown ? '已投蕉' : '投蕉';
+  }
+  btn._n.textContent = fmt(k === 'like' ? pi.like : k === 'banana' ? pi.banana : k === 'comment' ? pi.comment : pi.share);
+}
+
+function likeItemOf(pi) {
+  // objectType 派生在 interact.js：动态=10、其余=2；home 形状加 kpf=PC_WEB 对齐官方网页
+  return pi.ct === 'moment' ? { id: pi.momentId, kind: 'moment' } : { id: pi.acId, kind: 'home' };
+}
+
+function actLike(pi, btn) {
+  if (pi.ct === 'article') return; // 文章写链未实测：只读
+  if (pi.likeBusy) return;
+  pi.likeBusy = true;
+  var on = !pi.liked;
+  pi.liked = on;
+  pi.like += on ? 1 : -1;
+  syncAct(btn, pi);
+  setRealLike(likeItemOf(pi), on).then(function (ok) {
+    pi.likeBusy = false;
+    if (ok) return;
+    pi.liked = !on; // 失败回滚（乐观值全退，rail 同款）
+    pi.like += on ? -1 : 1;
+    syncAct(btn, pi);
+    toast('操作失败（未登录？）');
+  });
+}
+
+function actBanana(pi, btn) {
+  if (pi.ct === 'article') return; // 文章写链未实测：只读
+  if (pi.banBusy || pi.thrown) return;
+  pi.banBusy = true;
+  // 投蕉不可逆（官方无取消端点，0.9.96 同款）：失败只 toast 不回滚投态——没投出去才留重试
+  var throwP = pi.ct === 'moment' ? AppAPI.throwBanana(pi.momentId, 1, 10) : AppAPI.throwBanana(pi.acId, 1);
+  throwP.then(function (ok) {
+    pi.banBusy = false;
+    if (!ok) { toast('投蕉失败' + (pi.thrown ? '' : '（今日已投过/未登录？）')); return; }
+    pi.thrown = true;
+    pi.banana += 1;
+    syncAct(btn, pi);
+    toast('投蕉成功');
+  });
+}
+
+function actComment(pi) {
+  if (pi.ct === 'moment') openMomentDetail(pi); // 评论在详情面板（stype=4 管线复用）
+  else if (pi.ct === 'video') openPanelItem(pi); // 播放层直达，评论在层内抽屉
+  else if (pi.href) window.open(pi.href, '_blank'); // 文章评论在官方页
+}
+
+function actShare(pi, btn, host) {
+  // wire 契约「标题行\nURL」（parseShare 两端出分享卡）：标题=@作者：正文/标题明文
+  var text = pi.ct === 'moment' ? ubbPlain(pi.text) : (pi.title || '');
+  var url = pi.ct === 'video' ? CFG.api.videoBase + pi.acId : pi.href;
+  openSharePanel(btn, {
+    title: commentShareWire(pi.up && pi.up.name, text),
+    shareUrl: url
+  }, { host: host, headText: '分享给朋友' });
+}
+
+function rowDefault(pi) {
+  if (pi.ct === 'moment') openMomentDetail(pi);
+  else if (pi.ct === 'video') openPanelItem(pi);
+  else if (pi.href) window.open(pi.href, '_blank');
+}
+
+// ---------- 视图组装 ----------
+
+// 首屏骨架行（独立类名 acsv-fskel：绝不与行内计数选择器同构——0.9.66 教训）
 function skeleton(listEl) {
   var nodes = [];
   for (var i = 0; i < CFG.view.follow.skel; i++) {
-    var d = el('div', 'acsv-gskel');
+    var d = el('div', 'acsv-fskel');
     nodes.push(d);
     listEl.appendChild(d);
   }
@@ -120,63 +217,145 @@ function skeleton(listEl) {
   };
 }
 
+// 展开/收起的溢出探测：clamp 类先渲染，rAF 后量 scrollHeight——溢出才挂按钮（不溢出
+// 的正文不出现假按钮）。批量一帧做一次，不做滚动监听（翻页时对新批再 arm 一次即可）
+function armExpanders(scope) {
+  requestAnimationFrame(function () {
+    if (!scope.isConnected) return;
+    [].forEach.call(scope.querySelectorAll('.acsv-frow-text.clamp'), function (t) {
+      if (t.scrollHeight <= t.clientHeight + 1) return;
+      var more = el('span', 'acsv-fmore', '展开');
+      t.parentNode.insertBefore(more, t.nextSibling);
+    });
+  });
+}
+
 function buildFollowView(body) {
+  setDockBadge('follow', 0); // 进关注语境即清（0.9.97；视频侧的清零在 followstream.enterVideos）
   var wrap = el('div', 'acsv-mewrap');
   body.appendChild(wrap);
-  setDockBadge('follow', 0); // 进视图即清（0.9.97）：用户已到场，未读角标不再打扰；poll 侧在视图内也不点亮
-  var list = el('div', 'acsv-vlist acsv-megrid acsv-follow');
+  var list = el('div', 'acsv-frows');
   wrap.appendChild(list);
-  var btn = moreBtn(function () { load(); });
-  wrap.appendChild(btn);
+  // 三态底部状态行（借鉴广场 load-more-status）：加载中… / 加载失败，滚动重试 / 已加载全部
+  // 动态；点击=手动重试（首屏失败列表为空没有滚动可依，点击是唯一重试出口）
+  var status = el('div', 'acsv-fstatus');
+  wrap.appendChild(status);
+  // 回顶（借鉴广场 back-top）：sticky 钉在滚动流底部右缘，超 backTopAt 才现身
+  var backTop = el('div', 'acsv-fbacktop', '↑');
+  backTop.title = '回到顶部';
+  body.appendChild(backTop);
 
-  var pcursor = '0';   // 首页游标：实测 feed 用字符串 '0'（毫秒时间戳游标由响应回填）
-  var seq = 0;         // 换视图重入 / 重试令牌：旧回包丢弃（mypage 同款）
-  var lastGroup = null; // 上一张渲染出的分档：跨页去重（翻页处不重复插头）
+  var pcursor = '0';    // 首页游标（毫秒时间戳由响应回填；空/缺=no_more → 到底）
+  var seq = 0;          // 在途回包令牌：视图已拆（闭包死）或重建时旧回包丢弃
+  var loading = false;
+  var noMore = false;
+  var firstPage = true;
+  var seenKeys = null;  // 去重键集（momentId||acId）：整页 0 新增 → 判到底（广场安全阀）
+
+  function setStatus(text, busy) {
+    status.textContent = text || '';
+    status.classList.toggle('busy', !!busy);
+  }
 
   function load() {
+    if (loading || noMore) return;
+    loading = true;
     var my = ++seq;
-    var gone = skeleton(list);
+    var sk = firstPage ? skeleton(list) : null;
+    if (!firstPage) setStatus('加载中…', true);
     request(CFG.api.followFeed + '?useWebp=true&count=' + CFG.view.pageSize + '&pcursor=' + pcursor, 'GET')
       .then(function (j) {
-        gone();
-        if (my !== seq || !list.isConnected) return; // 过期/退出视图：在途回包丢弃
-        btn.disabled = false;
-        btn.textContent = '加载更多';
+        if (sk) sk();
+        if (my !== seq || !list.isConnected) return; // 视图已拆/重建：在途回包丢弃
         var raws = (j && j.feedList) || [];
-        var rendered = 0;
+        // 整页重复安全阀：新增键=0 即判到底（被契约过滤的条目不算新增也不算重复）
+        var fresh = 0;
+        if (!seenKeys) seenKeys = new Set();
         raws.forEach(function (raw) {
           var pi = followPanelOf(raw);
           if (!pi) return; // 契约层过滤（未知类型/缺身份字段——宁可漏不错）
-          // 分档标题：组变化处插一条（跨页按 lastGroup 去重）
-          var g = raw.createTimeGroup;
-          if (g !== lastGroup) {
-            lastGroup = g;
-            list.appendChild(el('div', 'acsv-ggroup', GROUP_NAMES[g] || '更早'));
-          }
-          list.appendChild(cardOf(pi));
-          rendered++;
+          var key = pi.momentId || pi.acId;
+          if (key && seenKeys.has(key)) return;
+          if (key) seenKeys.add(key);
+          fresh++;
+          // **append-only 不变量**：新行只追加尾部，绝不重渲染整列表（头部注释①——
+          // 展开态/大图/面板引用靠它保命）
+          list.appendChild(feedRowOf(pi));
         });
-        // 下一页游标：响应 pcursor 是毫秒时间戳；空/缺 → 到底
         var next = j && j.pcursor != null ? String(j.pcursor) : '';
-        // 到底判定按**原始条数**（非筛除后条数）：契约层会滤掉未知类型条目，按有效数判到底
-        // 会把还有下一页的列表误判成到底（0.9.77 我的页实锤）
-        if (!next || !raws.length || raws.length < CFG.view.pageSize) btn.style.display = 'none';
+        // 到底判定：终值 'no_more'（与 followDougaFeed 同族语义）/ 空游标 / 空页 / 整页 0 新增
+        if (next === 'no_more' || !next || !raws.length || (fresh === 0 && raws.length)) noMore = true;
         pcursor = next;
-        if (!rendered && !list.querySelector('.acsv-gcell')) {
+        armExpanders(list);
+        if (firstPage && !list.children.length && noMore) {
           list.appendChild(el('div', 'acsv-vempty', '关注的 UP 还没有新动态'));
         }
+        firstPage = false;
+        setStatus(noMore ? '已加载全部动态' : '');
+        loading = false;
       }, function () {
-        gone();
+        if (sk) sk();
         if (my !== seq || !list.isConnected) return;
-        btn.disabled = false;
-        btn.textContent = '加载失败，点击重试';
+        // 失败不置到底（头部注释②）：下次触底自动重试；首屏失败列表为空，点击是唯一出口
+        setStatus(list.children.length ? '加载失败，滚动重试' : '加载失败，点击重试');
+        loading = false;
       });
   }
+
+  // 列表级委托（commentListClick 同款挂法）：互动键 → 行为分派；展开 → 钳高切换；
+  // 正文配图 → 大图；内链不劫持；其余落行默认动作。命中即 return，不双触发行默认
+  list.addEventListener('click', function (ev) {
+    var row = ev.target.closest('.acsv-frow');
+    if (!row || !row._pi) return;
+    var pi = row._pi;
+    var act = ev.target.closest('.acsv-fact');
+    if (act) {
+      ev.stopPropagation();
+      var k = act._act;
+      if (k === 'like') actLike(pi, act);
+      else if (k === 'banana') actBanana(pi, act);
+      else if (k === 'comment') actComment(pi);
+      else if (k === 'share') actShare(pi, act, body);
+      return;
+    }
+    var more = ev.target.closest('.acsv-fmore');
+    if (more) {
+      var t = row.querySelector('.acsv-frow-text');
+      if (t) {
+        var clamped = t.classList.toggle('clamp');
+        more.textContent = clamped ? '展开' : '收起';
+      }
+      return;
+    }
+    var pic = ev.target.closest('.ubb-imgc');
+    if (pic) {
+      // 划选文字收尾在图片上不弹大图（commentListClick 同款判据）
+      var sel = window.getSelection ? window.getSelection() : null;
+      if (!sel || sel.isCollapsed) {
+        ev.stopPropagation();
+        openImageViewer(pic.getAttribute('src') || '');
+      }
+      return;
+    }
+    if (ev.target.closest('a')) return; // 内链（@/资源/文章条）自导航，不冒泡成行默认
+    rowDefault(pi);
+  });
+
+  // 无限滚动：挂在**实际滚动容器**（.acsv-view-body 即本 body）——非 window（与广场的
+  // 差异点，广场列表直接活在页面流里）；触底提前量 300px（CFG.view.follow.scrollPad）
+  body.addEventListener('scroll', function () {
+    if (body.scrollTop + body.clientHeight >= body.scrollHeight - CFG.view.follow.scrollPad) load();
+    backTop.classList.toggle('on', body.scrollTop > CFG.view.follow.backTopAt);
+  }, { passive: true });
+  backTop.addEventListener('click', function () {
+    body.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
   load();
 }
 
-// 左栏 dock 元数据随视图声明（0.9.78：sidebar 从注册表派生，不再维护第二份清单）。
-// 无 deep / 无 volatile——普通 dock 视图（我的/榜单同款语义：收旧 + 来源链作废）
+// 左栏 dock 元数据随视图声明（0.9.78：sidebar 从注册表派生）。无 deep/无 volatile——
+// 普通 dock 视图（收旧 + 来源链作废）；「视频」侧从顶栏 seg 进（followstream.enterVideos）
 registerView({
   id: 'follow', build: buildFollowView,
   dock: {

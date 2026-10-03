@@ -42,6 +42,8 @@ export var ITEM_FIELDS = {
     // 0.9.98 动态多图：配图列表（{url 缩略, big 大图}[]，来自嵌套 moment.imgs——0.9.91 时
     // 以为 feed 只给单张 coverUrl，实报「多图只出第一张」后实测形状在册）
     'imgs',
+    // 0.9.99 仿原生互动行：分享计数（shareCount 在三族条目顶层计数族，§2.1.1/§2.1.2 实测）
+    'share',
     // 0.9.96 详情面板写链：数值计数与互动态（字段名对齐 rail 词汇，见 follow 解析器注释）
     'like', 'comment', 'banana', 'liked', 'thrown']
 };
@@ -243,9 +245,17 @@ var PANEL_PARSERS = {
         it.title = raw.caption || '';
         it.cover = coverUrl(raw.coverUrl);
         it.views = fmtWan(raw.viewCount);
+        it.share = Number(raw.shareCount) || 0;
         // 时长实测是**展示串**（"00:11"，2026-10-03 实测 typeof string）——直用不格式化；
         // 缺则不挂角标
         it.dur = raw.playDuration || '';
+        // 互动行数值态（0.9.99 仿原生行内写链）：字段名对齐 rail 词汇，isLike/isThrowBanana
+        // 两端点实测都在条目顶层（§2.1.1/§2.1.2）；赞走 setRealLike({id,kind:'home'})
+        it.like = Number(raw.likeCount) || 0;
+        it.comment = Number(raw.commentCount) || 0;
+        it.banana = Number(raw.bananaCount) || 0;
+        it.liked = !!raw.isLike;
+        it.thrown = !!raw.isThrowBanana;
         return true;
       case 3: // 文章：与视频同族字段，差异只在正文型字段名（§2.1.1 实测）
         if (!raw.resourceId) return false;
@@ -254,6 +264,11 @@ var PANEL_PARSERS = {
         it.title = raw.articleTitle || '';
         it.cover = coverUrl(raw.coverUrl);
         it.views = fmtWan(raw.viewCount);
+        it.share = Number(raw.shareCount) || 0;
+        // 互动行数值态只作**展示**（0.9.99）：文章赞/蕉写链未实测，行内不接写链（渲染层裁决）
+        it.like = Number(raw.likeCount) || 0;
+        it.comment = Number(raw.commentCount) || 0;
+        it.banana = Number(raw.bananaCount) || 0;
         // 摘要 = beginParagraph（实测的正文引导段；description 该条为空串，是坑不是摘要源——
         // 见 §2.1.1）。文章卡是文本向的卡，摘要就是它区别于视频图卡的主体（0.9.93）
         it.desc = String(raw.beginParagraph || raw.description || '').trim();
@@ -314,6 +329,7 @@ var PANEL_PARSERS = {
         it.like = Number(raw.likeCount) || 0;
         it.comment = Number(raw.commentCount) || 0;
         it.banana = Number(raw.bananaCount) || 0;
+        it.share = Number(raw.shareCount) || 0;
         it.liked = !!raw.isLike;
         it.thrown = !!raw.isThrowBanana;
         // 落点实测：www.acfun.cn/moment/am<resourceId> 真渲染（2026-10-03，h1 与正文都在）；
@@ -329,6 +345,19 @@ var PANEL_PARSERS = {
 // 关注流条目派发（0.9.91）：列表加载与"动态里转发的源条目"共用同一入口
 export function followPanelOf(raw) {
   return raw ? panelItem('follow', raw) : null;
+}
+
+// 关注视频流单页规整（0.9.99，§2.1.2 实测）：followDougaFeed 响应 → {items:[{id:acId}],
+// nextCursor, noMore}。只收 resourceType=2（端点语义即纯视频，过滤是宁漏不错的最后防线）；
+// 终判 pcursor='no_more'（实测终值）/空壳/空页。**纯函数**放契约层——followstream 的
+// loadFollowPage 转发它，单测直采不必拉起竖刷依赖图
+export function followVideoPageOf(j) {
+  var raws = (j && j.feedList) || [];
+  var items = raws.filter(function (r) { return r && r.resourceType === 2 && r.resourceId; })
+    .map(function (r) { return { id: Number(r.resourceId) }; });
+  var next = j && j.pcursor != null ? String(j.pcursor) : '';
+  var noMore = next === 'no_more' || !raws.length || !items.length;
+  return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
 }
 
 // 视图面板条目契约（0.9.62）：三种来源规整成同一份字段；返回 null = 不可渲染条目，

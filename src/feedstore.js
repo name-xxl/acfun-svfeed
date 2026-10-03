@@ -3,6 +3,7 @@ import { API } from './api.js';
 import { scroller } from './state.js';
 import { renderWindow } from './player.js';
 import { UpVideos } from './uppage.js';
+import { FollowVideos } from './followstream.js';
 import { dbg, testHook } from './dbg.js';
 
 // ===
@@ -85,7 +86,10 @@ function createFeedStore(env) {
         }
         var raw = ctx.items[ctx.feedCursor];
         var gen = self.gen;
-        env.api.info(raw.id).then(function (n) {
+        // 详情源按上下文分派（0.9.99 关注流）：ctx 自带 info（home 家族 resolve）则用它，
+        // 否则回落本 store 的 meow info——泵代码单处，两种列表上下文各自声明详情源
+        var infoFn = ctx.info || env.api.info;
+        infoFn(raw.id).then(function (n) {
           if (gen !== self.gen) return; // 期间已 reset：旧列表的详情不得入新库
           if (n && n.id && n.urls.length && !self.seen[n.id]) {
             self.seen[n.id] = 1;
@@ -122,7 +126,8 @@ function createFeedStore(env) {
 }
 
 // env 里引用的 scroller/renderWindow/UpVideos 都在调用期才解引用，
-// 与 player/uppage 的模块循环是安全的（求值期互不触碰对方绑定）。
+// 与 player/uppage 的模块循环是安全的（求值期互不触碰对方绑定）。FollowVideos 同款：
+// followstream 运行期才触达 FeedStore（enterVideos），此处运行期才读它的 feedActive
 export var FeedStore = createFeedStore({
   api: {
     feed: function () { return API.feed(); },
@@ -130,7 +135,13 @@ export var FeedStore = createFeedStore({
     refreshItem: function (item) { return API.refreshItem(item); }
   },
   onChange: function () { if (scroller) renderWindow(); },
-  getListContext: function () { return UpVideos.feedActive ? UpVideos : null; }
+  // 列表上下文二选一（0.9.99 +关注流）：空间页 UP 主列表 / 关注视频流，命中即按列表泵入，
+  // 都不活动回落随机流
+  getListContext: function () {
+    if (UpVideos.feedActive) return UpVideos;
+    if (FollowVideos.feedActive) return FollowVideos;
+    return null;
+  }
 });
 
 // debug 构建测试钩子：harness 断言读列表快照（release 死码消除）

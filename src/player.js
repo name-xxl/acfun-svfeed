@@ -8,6 +8,7 @@ import { getSource, setSource, resetHomePager, API } from './api.js';
 import { isOpenComments, closeComments, openComments, commentState, syncCommentVars } from './comments.js';
 import { onPlaying as dmOnPlaying, stopAll as dmStopAll } from './danmaku.js';
 import { UpVideos } from './uppage.js';
+import { FollowVideos } from './followstream.js';
 import { dbg, testHook } from './dbg.js';
 import { markWatchProgress, reportLeave, reportLeaveCurrent } from './report.js';
 import { prewarm, preconnectSeed } from './prewarm.js';
@@ -440,6 +441,7 @@ function mount() {
     // 普通入口：按持久化内容源清空缓冲重新随机拉取（resetHomePager 让推荐源不吃上次会话的游标）
     resetHomePager();
     UpVideos.feedActive = false;
+    FollowVideos.feedActive = false; // 0.9.99：普通入口同样退出关注视频流（seg 回隐）
     setAppliedMid(null);
     FeedStore.reset();
     loadInitial();
@@ -458,6 +460,7 @@ function maybeStartFeed() {
   if (FeedStore.items.length) return;
   resetHomePager();
   UpVideos.feedActive = false;
+  FollowVideos.feedActive = false; // 0.9.99：同 mount 普通入口，退出关注视频流
   setAppliedMid(null);
   FeedStore.reset();
   scroller.appendChild(el('div', 'acsv-spinner'));
@@ -515,6 +518,7 @@ function switchSource(s) {
   closeComments();
   dmStopAll();
   resetStream();
+  FollowVideos.feedActive = false; // 0.9.99：显式换源=退出关注流（用户选了别的源，seg 回隐）
   FeedStore.reset();
   loadInitial();
 }

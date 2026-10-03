@@ -42,6 +42,10 @@ export function currentView() { return current ? current.id : null; }
 // 播放层，循环依赖归零（旧 playAc 的 views→player 边随之消失）。未注入时点击无动作
 var itemOpener = null;
 export function setItemOpener(fn) { itemOpener = typeof fn === 'function' ? fn : null; }
+
+// 条目点击出口的转发（0.9.99）：followview 互动行与 rowOf/gridCardOf 同门进播放层——
+// 不直接 import playlayer（依赖方向维持 views 不反向依赖播放层），经注入的 opener 出
+export function openPanelItem(pi) { if (itemOpener) itemOpener(pi); }
 // 来源界面名（来源链顶，空链/null view = 竖刷）：深界面的 dock 高亮与「向左返回」定位用它
 export function originView() {
   if (!origins.length) return null;

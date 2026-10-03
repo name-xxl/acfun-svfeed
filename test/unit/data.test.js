@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems } = await import('../../src/data.js');
+var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -458,6 +458,56 @@ test('panelItem follow：视频条目——时长是展示串直用、作者取 
   assert.equal(pi.up.isFollowing, true);
   assert.match(pi.dateText, /小时前$/);
   assert.equal(pi.href, undefined); // 视频进播放层，无外链
+});
+
+test('panelItem follow：互动行数值态（0.9.99）——三族 share + 视频赞/蕉数值与互动态', () => {
+  var u = { user: { userId: 1, userName: 'u' } };
+  var v = panelItem('follow', Object.assign({
+    resourceType: 2, resourceId: 48888718, caption: '朽叶', coverUrl: 'c.jpg',
+    playDuration: '00:13', viewCount: 1001, createTime: Date.now() - 3600 * 1000,
+    likeCount: 36, commentCount: 6, bananaCount: 126, shareCount: 0,
+    isLike: true, isThrowBanana: false
+  }, u));
+  // 仿原生互动行（行内写链）的数值态：字段名对齐 rail 词汇（§2.1.1/§2.1.2 顶层实测）
+  assert.equal(v.like, 36);
+  assert.equal(v.comment, 6);
+  assert.equal(v.banana, 126);
+  assert.equal(v.share, 0);
+  assert.equal(v.liked, true);
+  assert.equal(v.thrown, false);
+  var a = panelItem('follow', Object.assign({
+    resourceType: 3, resourceId: 48868671, articleTitle: 't', coverUrl: '',
+    likeCount: 1, commentCount: 2, bananaCount: 3, shareCount: 4, createTime: Date.now()
+  }, u));
+  assert.equal(a.share, 4); // 文章行内赞/蕉只读，但计数照常展示
+  var m = panelItem('follow', Object.assign({
+    resourceType: 10, resourceId: 5103843, coverUrl: '',
+    likeCount: 2, commentCount: 3, bananaCount: 4, shareCount: 5,
+    moment: { momentId: 5103843, text: 'x' }
+  }, u));
+  assert.equal(m.share, 5);
+});
+
+test('followVideoPageOf（0.9.99 §2.1.2）：单页规整——只收 type2、终判 no_more、空页兜底', () => {
+  var page = followVideoPageOf({
+    feedList: [
+      { resourceType: 2, resourceId: 48888718 },
+      { resourceType: 10, resourceId: 5104409 }, // 非视频：宁漏不错滤掉
+      { resourceType: 2, resourceId: 0 },        // 缺 id：丢弃
+      { resourceType: 2, resourceId: 48890001 }
+    ],
+    pcursor: '1790824871458'
+  });
+  assert.deepEqual(page.items, [{ id: 48888718 }, { id: 48890001 }]);
+  assert.equal(page.nextCursor, '1790824871458');
+  assert.equal(page.noMore, false);
+  // 实测终值（极老游标回 1 条 + no_more）
+  var end = followVideoPageOf({ feedList: [{ resourceType: 2, resourceId: 4424929 }], pcursor: 'no_more' });
+  assert.equal(end.noMore, true);
+  assert.equal(end.nextCursor, '');
+  // 空壳/空页兜底同判
+  assert.equal(followVideoPageOf({ feedList: [] }).noMore, true);
+  assert.equal(followVideoPageOf(null).noMore, true);
 });
 
 test('panelItem follow：文章条目——articleTitle + 外链落点 articleBase', () => {

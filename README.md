@@ -304,7 +304,8 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `playlayer.js` | 播放层（0.9.74；0.9.82 面板→播放的桥下沉为 data.playItemOf 纯函数）：子视图 play（#svfeed/play/&lt;v\|a&gt;/&lt;id&gt;）就地播放——面板条目即时首帧（标题/封面/作者来自面板契约的 up：搜索与收藏来源带作者，历史来源不带、由回包补）/ 冷进入 API.deepLink 解析（不 setSource）/ 失败错误盒+重试；OVL_IDX 哨兵 + data-ovl 判据（attach.js 契约表在册）、键盘重定向 state.setVideoTarget |
 | `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf，缺省不渲染）+ Tab 惰性面板（观看历史=双 resourceTypes/pageNo 翻页；收藏夹=chips 切夹→dougaList 翻页）+ 4:3 封面网格卡（普通视频封面口径）；条目经 panelItem 契约规整、点击进播放层（0.9.74） |
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
-| `followview.js` | 关注视图（0.9.91，路线图 2.2/3 主体）：dock 卡片流——`followFeedV2` 混合流（视频/文章/动态）一张卡 + `ct` 判别子；分档标题（createTimeGroup 枚举 1/2/10 → 今天/昨天/更早）；pcursor 毫秒游标翻页。视频卡进播放层，文章卡外链官方页，动态卡点开原地详情面板（0.9.96） |
+| `followview.js` | 关注视图「全部」侧（0.9.99 重构，0.9.91 起）：仿原生单列无限流——`followFeedV2` 混合流（视频/文章/动态）一行 + `ct` 判别子；行=头像行+正文（UBB 单源，钳高+展开）+媒体块（横条封面/九宫格/引用块）+互动行（分享/评论/蕉/赞，行内写链乐观回滚，文章只读）；无限滚动五条借鉴广场（append-only/失败不置到底/三态状态行/整页 0 新增判到底/loading 代数保护）+ 回顶按钮；pcursor 毫秒游标。视频行进播放层，动态行/评论键开详情面板（0.9.96），文章行外链 |
+| `followstream.js` | 关注语境「视频」侧（0.9.99）：FollowVideos 列表上下文（UpVideos 通道先例）——followDougaFeed 后台分页链（§2.1.2：固定 10/页、终页 no_more）→ 深链 `svfeed/a/<acId>` 接管宿主竖刷舞台 → feedstore 泵按列表灌入（`ctx.info` 自带 home 家族 resolve，非 m3u8 直链绕 hls）；`isFollowContext()` 是顶栏 seg 显隐与徽标不点亮的单源判据；enterVideos 原地续看不重置缓冲 |
 | `momentdetail.js` | 动态详情面板（0.9.96，路线图 4.1/4.2）：动态卡点击原地展开居中 overlay——正文全文（列表载荷，text 全文性已实测 §4.7）+ 互动栏（赞=乐观回滚、投蕉 resourceType=10 不可逆锁）+ 评论区（comments.js 管线 host 化复用，stype=4）+ 底部输入条（表情面板直接落位；4.2=单源补悬停大图）。**光 DOM 有意偏离 intake**（评论 CSS 单源，登记在模块头）；与评论抽屉共用 overlay 'comments' 层位 + claimDrawer 槽互斥 |
 | `followbadge.js` | 关注未读徽标（0.9.97，路线图 4.3）：webPush 的 followUpers 未读数（唯一携 followUpers 的端点）→ dock 角标（setDockBadge 命令式出口，运行态不进 viewreg）；轮询=固定 tick + nextAt 闸门 + 代数丢弃（广场骨架吸收重写），退避真逐次翻倍 60s→10min 封顶、发现新内容回落基准（纯函数单测钉序列）；挂 player.mount/unmount，hidden 短路、未登录静默、进关注视图清零 |
 | `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷） |
@@ -370,7 +371,8 @@ flowchart LR
 
   boot["boot.js（入口）"]
   settingspanel["settingspanel.js（脚本页设置皮肤·Shadow DOM）"]
-  followview["followview.js（关注视图·混合卡流）"]
+  followview["followview.js（关注视图·仿原生单列无限流）"]
+  followstream["followstream.js（关注视频流·列表上下文+分页链）"]
   momentdetail["momentdetail.js（动态详情面板·评论区复用+写链）"]
   followbadge["followbadge.js（关注未读徽标·轮询退避）"]
   data --> imgurl & ubb
@@ -384,7 +386,7 @@ flowchart LR
   appapi --> imgurl
   session --> api & hls & settings
   attach --> feedstore & quality & session & settings
-  player --> api & attach & comments & feedstore & imdrawer & input & overlay & pb & release & sidebar & topbar & views
+  player --> api & attach & comments & feedstore & followstream & imdrawer & input & overlay & pb & release & sidebar & topbar & views
   feedstore --> api & player
   pb --> feedstore & settings
   ubb --> emoticon
@@ -396,7 +398,11 @@ flowchart LR
   boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & zone
   views --> feedstore & imgload & imicons & overlay & sidebar & topbar & ubb & viewreg
   sidebar --> viewreg & settingspanel
-  followview --> imgload & sidebar & viewreg & views & momentdetail
+  followview --> appapi & imgload & imgview & imicons & immsg & imshare & interact & sidebar & ubb & viewreg & views & momentdetail
+  followstream --> appapi & data & feedstore & net & sidebar
+  feedstore --> followstream
+  topbar --> followstream
+  followbadge --> followstream
   momentdetail --> appapi & comments & emoticon & imgload & imgview & imicons & interact & overlay & views
   followbadge --> net & sidebar
   player --> followbadge

@@ -67,6 +67,9 @@ export var CFG = {
     // pcursor 是毫秒时间戳（翻页用响应值）。实测与差异见 docs/api-research.md §2.1.1：
     // 注意 feed/webPush 是另一条端点（只有视频+文章、无动态），不要混用
     followFeed: 'https://www.acfun.cn/rest/pc-direct/feed/followFeedV2',
+    // 关注视频流（0.9.99）：官方「视频」tab 真实端点，纯视频（resourceType 全 2），形状与
+    // followFeedV2 视频条目同构。实测 §2.1.2：count 被忽略固定每页 10、终页 pcursor='no_more'
+    followDouga: 'https://www.acfun.cn/rest/pc-direct/feed/followDougaFeed',
     // 关注未读徽标数据源（0.9.97）：followUpers[].hasUnReadResource 只在此端点响应里
     // （followFeedV2 顶层的 ups 字段语义未确认，不可依赖——§2.1.1）
     webPush: 'https://www.acfun.cn/rest/pc-direct/feed/webPush',
@@ -194,11 +197,13 @@ export var CFG = {
       gridMin: 300,       // 网格卡最小列宽（1920 下约 5-6 列，对齐抖音搜索页密度）
       gridGap: 16
     },
-    // 关注视图（0.9.91）：只声明它**自己**的东西——网格列的规格与封面比例与我的页同族，
-    // 直接共用 `.acsv-megrid` / `.acsv-gcover` 那两条规则（不复制第二份取值：值一旦分叉
-    // 就该各自建规则，届时再拆；现在同规格是事实，同规格就同一条）
+    // 关注视图（0.9.91）：只声明它**自己**的东西——0.9.99 起全部侧是仿原生单列行流
+    //（不再用网格），本块只剩行流自己的参数
     follow: {
-      skel: 12            // 首屏骨架卡数（约一屏）
+      skel: 12,           // 首屏骨架行数（约一屏）
+      scrollPad: 300,     // 无限滚动触底提前量（px；借鉴广场 SCROLL_BOTTOM_OFFSET——长图片列表
+                          // 提前量大些，避免用户看到加载停顿；评论区 80 是小容器场景）
+      backTopAt: 300      // 距顶多少 px 显示回顶按钮（借鉴广场 BACK_TOP_THRESHOLD）
     },
     periods: ['DAY', 'THREE_DAYS', 'WEEK'], // 榜期（原生：今日/三日/本周）
     periodNames: { DAY: '今日', THREE_DAYS: '三日', WEEK: '本周' },
@@ -229,6 +234,13 @@ export var CFG = {
     pollStart: 60000,
     pollMax: 600000,
     tick: 5000
+  },
+  // 关注视频流（0.9.99）：followDougaFeed 后台分页链参数。pageSize 是**服务端钳制值**（实测
+  // count 被忽略固定 10/页，§2.1.2），不是请求参数；maxChainPages 防超长关注列表无感发几百请求
+  //（uppage 同款上限思路）；翻页间隔沿用 time.chainGap
+  followStream: {
+    pageSize: 10,
+    maxChainPages: 8
   },
   im: {
     loadT: 12000,   // ImSdk 脚本加载超时（860KB，慢网放宽）

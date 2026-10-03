@@ -120,6 +120,9 @@
     var e = fBase(i, g, 2);
     e.resourceId = 488801 + i; e.caption = title; e.coverUrl = FOLLOW_COVER;
     e.playDuration = '00:1' + (i % 10); e.viewCount = 100 + i;
+    // 互动行数值态（0.9.99）：行内写链断言要两向（i=0 预置已赞、i=2 预置已投蕉）
+    e.likeCount = 20 + i; e.commentCount = 3 + i; e.bananaCount = 5 + i; e.shareCount = i;
+    e.isLike = i % 4 === 0; e.isThrowBanana = i === 2;
     return e;
   }
   function fArticle(i, g, title) {
@@ -127,6 +130,8 @@
     e.resourceId = 488601 + i; e.articleTitle = title; e.coverUrl = FOLLOW_COVER; e.viewCount = 200 + i;
     // 摘要源：实测是 beginParagraph（description 该条为空串，不是摘要源——§2.1.1）
     e.beginParagraph = '又是一年团圆时节，又想听家人们动人的歌喉了那么话不多说';
+    // 互动行数值态（0.9.99）：文章行内赞/蕉只读，但计数照常展示
+    e.likeCount = 30 + i; e.commentCount = 6; e.bananaCount = 7; e.shareCount = 8;
     return e;
   }
   function fMoment(i, g, text, withImg, repost) {
@@ -161,7 +166,10 @@
   var FOLLOW_P1 = [
     // 今天（group 1）：3 视频 + 3 动态 + 1 文章 + 1 条未观察类型（4 → 应被过滤）
     fVideo(0, 1, '关注视频甲'), fMoment(1, 1, '动态正文带 UBB[at uid=1001]@关注UP1[/at]与表情[emot=acfun,1/]', true),
-    fArticle(2, 1, '关注文章甲'), fVideo(3, 1, '关注视频乙'), fMoment(4, 1, '无图动态：只有文字的一条', false),
+    fArticle(2, 1, '关注文章甲'), fVideo(3, 1, '关注视频乙'),
+    // 无图动态正文刻意写长：展开/收起的溢出探测夹具（0.9.99）——前缀「无图动态」是
+    // detail-open 场景的定位锚，截断不得动它
+    fMoment(4, 1, '无图动态：只有文字的一条' + new Array(40).join('这条动态的正文刻意写得很长，用来验证展开按钮的溢出探测与钳高切换，'), false),
     fVideo(5, 1, '关注视频丙'), fMoment(6, 1, '另一条图文动态', 'multi'),
     (function () { var e = fBase(7, 1, 4); e.resourceId = 488999; e.caption = '未观察类型应被过滤'; return e; })(),
     // 昨天（group 2）：2 视频 + 2 动态 + 2 文章
@@ -184,6 +192,32 @@
       if (cur === '0') return { result: 0, feedList: FOLLOW_P1, pcursor: '1790785548652' };
       return { result: 0, feedList: FOLLOW_P2, pcursor: '' };
     },
+    // 关注视频流（0.9.99 follow-videos）：官方视频 tab 端点。实测 §2.1.2：count 被忽略
+    // 固定每页 10、终页 pcursor='no_more'——夹具照此构形（页1 10 条 / 页2 4 条+no_more）
+    'feed/followDougaFeed': function (body, url) {
+      var cur = (String(url).match(/pcursor=([^&]*)/) || [])[1] || '0';
+      function fv(n) {
+        return {
+          resourceType: 2, resourceId: n, caption: '关注视频' + n, coverUrl: FOLLOW_COVER,
+          playDuration: '00:2' + (n % 10), viewCount: 500 + n % 100,
+          likeCount: 8, commentCount: 2, bananaCount: 3, shareCount: 1,
+          createTime: Date.now() - n * 3600 * 1000, createTimeGroup: 1,
+          user: { userId: 2000 + n % 5, userName: '视频UP' + n % 5, userHead: PANEL_AVATAR, isFollowing: true }
+        };
+      }
+      if (cur === '0') {
+        var p1 = [];
+        for (var a = 488911; a <= 488920; a++) p1.push(fv(a));
+        return { result: 0, feedList: p1, pcursor: '1790785548000', pageSize: 10 };
+      }
+      var p2 = [];
+      for (var b = 488921; b <= 488924; b++) p2.push(fv(b));
+      return { result: 0, feedList: p2, pcursor: 'no_more', pageSize: 10 };
+    },
+    // 行内写链桩（0.9.99 view-follow 的互动行断言；detail-open 会用同名桩覆盖出更全的一套）
+    'token/get': function () { return { result: 0, 'acfun.midground.api_st': 'mock-st' }; },
+    'interact/add': function () { return { result: window.__ACSV_LIKE_FAIL__ ? 0 : 1 }; },
+    'interact/delete': function () { return { result: window.__ACSV_LIKE_FAIL__ ? 0 : 1 }; },
     // 子频道树：官方树形状裁剪（children cid+navName），zone 视图选频道后填子频道 chips
     'page/queryNavigators': {
       result: 0,

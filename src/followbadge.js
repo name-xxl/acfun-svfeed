@@ -2,6 +2,7 @@ import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { selfUid } from './ui.js';
 import { setDockBadge } from './sidebar.js';
+import { isFollowContext } from './followstream.js';
 import { testHook } from './dbg.js';
 
 // ---------- 关注未读徽标 + 轮询（0.9.97，路线图 4.3） ----------
@@ -32,7 +33,9 @@ export function nextBadgeInterval(prev, found, start, max) {
 }
 
 function inFollowView() {
-  return /#svfeed\/follow/.test(String(location.hash || ''));
+  // 关注语境判据单源（0.9.99 起走 followstream.isFollowContext）：只看 hash 会在「舞台
+  // 放关注视频流」时误点亮——那时地址是视频深链形态，不在 #svfeed/follow 下
+  return isFollowContext();
 }
 
 function applyBadge(n) {
