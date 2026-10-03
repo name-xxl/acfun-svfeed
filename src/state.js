@@ -45,6 +45,15 @@ var videoTargetFn = null;
 export function setVideoTarget(fn) { videoTargetFn = typeof fn === 'function' ? fn : null; }
 export function videoTarget() { return videoTargetFn; }
 
+// "当前待报会话"覆盖钩子（0.9.86）：播放层的 slide 不在竖刷流里，关页/切标签的兜底上报
+// （report.reportLeaveCurrent）按 FeedStore.current 查 slide 永远查不到层内那条——层内观看
+// 关页时最终进度全丢。与 videoTarget 同款中介、同款"不回落"纪律：有钩子说明播放层开着，
+// 层内还没挂上会话就什么都不报，绝不能打到背后暂停的竖刷旧条（幽灵进度）。值=函数，
+// 返回 { session, video }（层内当前会话），无层/未挂上返回 null
+var watchTargetFn = null;
+export function setWatchTarget(fn) { watchTargetFn = typeof fn === 'function' ? fn : null; }
+export function watchTarget() { return watchTargetFn; }
+
 // ---------- 播放层哨兵（0.9.78 契约函数化） ----------
 // 播放层（playlayer）的 slide 不在竖刷流里，而且它的 idx 是哨兵：唯一判据是 dataset.ovl==='1'
 // （playlayer 写、判据函数在此读出）。0.9.74 起这条约束只活在注释里——0.9.77 评审实锤

@@ -20,8 +20,12 @@ for (const f of fs.readdirSync(casesDir)) {
   const txt = fs.readFileSync(path.join(casesDir, f), 'utf8');
   for (const m of txt.matchAll(/C\['([\w-]+)'\]\s*=/g)) registered.add(m[1]);
 }
-// 先剥行注释再扫：HEADLESS_SKIP 里的示例条目（注释形态）不算登记
+// 先剥行注释再扫：HEADLESS_SKIP 里的示例条目（注释形态）不算登记。
+// \r 必须先清：git autocrlf 往返会把工作区转成 CRLF，行尾残留的 \r 让 `\/\/.*$`
+// 剥不掉整行注释（`.` 不匹配 \r、$ 又非多行模式）→ 注释里的示例条目被当成登记
+// （0.9.86 stash 往返实锤）
 const runnerTxt = fs.readFileSync(path.join(ROOT, 'test', 'run-harness.mjs'), 'utf8')
+  .replace(/\r/g, '')
   .split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n');
 const listed = new Set();
 for (const m of runnerTxt.matchAll(/name:\s*'([\w-]+)'/g)) listed.add(m[1]);

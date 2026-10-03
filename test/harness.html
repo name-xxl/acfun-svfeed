@@ -51,7 +51,7 @@
   function rec(name, pass, info) { window.__HARNESS_RESULTS__.results.push({ name: name, pass: !!pass, info: info == null ? '' : String(info) }); }
 
   // 走 home mock 的场景（其余默认 sv；显式 ?src=home 保持人工预览语义）
-  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1 };
+  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1, 'watch-playlayer-pagehide': 1 };
   if (HOME_CASES[CASE] || /[?&]src=home/.test(location.search)) {
     try { localStorage.setItem('acsv-source', 'home'); } catch (e) { }
   } else {

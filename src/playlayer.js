@@ -5,7 +5,7 @@ import { API } from './api.js';
 import { playItemOf } from './data.js';
 import { setItemOpener } from './views.js';
 import { registerView } from './viewreg.js';
-import { setVideoTarget, OVL_IDX } from './state.js';
+import { setVideoTarget, setWatchTarget, OVL_IDX } from './state.js';
 import { buildSlide } from './slide.js';
 import { attachVideo } from './attach.js';
 
@@ -48,6 +48,12 @@ function mountSlide(body, item) {
   setVideoTarget(function () {
     var v = slideRef && slideRef.querySelector('video');
     return v || null;
+  });
+  // 关页/切标签兜底上报的重定向（0.9.86，见 state.watchTarget）：reportLeaveCurrent 必须能
+  // 找到层内会话；会话未挂上（_session 还没建）返回 null=什么都不报
+  setWatchTarget(function () {
+    var s = slideRef && slideRef._session;
+    return s ? { session: s, video: s.video } : null;
   });
   attachVideo(slide, item, OVL_IDX); // 懒解析/错误恢复/弹幕/互动栏/上报全走既有链路
 }
@@ -103,6 +109,7 @@ function buildPlayView(body, arg) {
 
 function teardownPlayView() {
   setVideoTarget(null); // 撤键盘重定向：此后"当前视频"回到竖刷当前条
+  setWatchTarget(null); // 撤上报重定向（0.9.86）：兜底上报回到竖刷当前条
   if (slideRef && slideRef._session) { slideRef._session.dispose(); slideRef._session = null; }
   slideRef = null;
   itemRef = null;

@@ -109,6 +109,10 @@ var SESSION_HOOKS = {
   },
   onPause: function (session, video) {
     if (session.slide._ctlPlayBtn) session.slide._ctlPlayBtn.innerHTML = ICONS.play;
+    // 官方对齐（0.9.86 实测）：官方 video 页暂停即报当前位（CLIENT_BROWSE_HISTORY，
+    // playedSeconds=当前秒）。暂停是自然检查点——长停留/切标签后的进度不再只停在 10s 首报。
+    // dispose 链先 pause 后 dispose 的同值近邻双报由同秒位去重兜住，无需另设门槛
+    reportLeave(session, video, 'pause');
   },
   onMeta: function (session, video) {
     syncPanFit(session.slide); // 竖屏等满高可容的画面标记只平移，抽屉避让不白缩

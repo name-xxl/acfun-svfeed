@@ -172,7 +172,8 @@ rec('fwd-neighbor-label', !!fs && fs.items.length > 2
       waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
       feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
 // 观看历史上报（home 源）：离开（划走/关页）时上报最终进度。
-// 覆盖：≥门槛才报、payload 参数、pagehide 兜底、同秒位去重、门槛拦截。
+// 覆盖：≥门槛才报、payload 参数、暂停即报（0.9.86 官方对齐）、pagehide 兜底、
+// 同秒位去重、门槛拦截、live 路径无单调守卫（低秒位如实重报的防修哨兵）。
 // 上报链只读离开时刻 currentTime，不依赖播放态——autoplay 被环境拦截也能验证
 function videoReady(i) {
   var s = slide(i), v = s && s.querySelector('video');
@@ -197,26 +198,34 @@ if (!!(await playUntil(0, 3.2))) {
   var t0 = pauseAt(0);
   var want0 = Math.floor(t0);
   rec('playback-progress', want0 >= 3, 't=' + t0.toFixed(2));
-  var c0 = watchCount();
-  key('ArrowDown'); // setActive → 旧条目按离开上报
-  rec('swipe-reported', !!(await waitFor(function () { return watchCount() > c0; }, 5000)));
+  // 0.9.86 官方对齐：暂停即报当前位（官方 video 页实测语义）
+  var cp = watchCount();
+  rec('pause-reported', !!(await waitFor(function () { return watchCount() > cp; }, 5000)));
   var last = window.__WL_CALLS[window.__WL_CALLS.length - 1] || {};
   var rp = last.payload || null;
   rec('report-payload', last.channel === 'CLICK' && !!rp
     && rp.action === 'CLIENT_BROWSE_HISTORY' && rp.params
     && rp.params.playedSeconds === want0 && rp.params.resourceType === 'video'
+    && rp.params.bangumiItemId === null
     && !!rp.params.ac_id && !!rp.params.atom_id,
     'want=' + want0 + ' got=' + JSON.stringify(rp && rp.params || null));
-  // pagehide 兜底：当前条目（idx1）真实播放过门槛后合成 pagehide → 补报
+  // 划走（setActive 离开上报）：同一秒位 → 去重不重发（进度未推进）
+  var c0 = watchCount();
+  key('ArrowDown');
+  rec('swipe-same-sec-deduped', watchCount() === c0, 'watch=' + watchCount());
+  // pagehide 兜底（竖刷路径）：播放中直接合成 pagehide → 报 live 秒位（idx1 此前未报过）
   var c1 = watchCount();
   var play1 = !!(await playUntil(1, 3.2));
+  window.dispatchEvent(new Event('pagehide'));
+  rec('pagehide-reported', play1 && watchCount() > c1, 'play=' + play1 + ' watch=' + watchCount());
+  // 同秒位去重：暂停报当前位 → 后续 pagehide 进度未推进不重发
   pauseAt(1);
+  await waitFor(function () { return watchCount() > c1 + 1; }, 5000); // pause 即报（idx1）
+  var c1b = watchCount();
   window.dispatchEvent(new Event('pagehide'));
-  rec('pagehide-reported', play1 && watchCount() > c1,
-    'play=' + play1 + ' watch=' + watchCount());
-  // 同秒位去重：进度未推进的重复 pagehide 不重发
+  rec('pagehide-same-sec-deduped', watchCount() === c1b, 'watch=' + watchCount());
   window.dispatchEvent(new Event('pagehide'));
-  rec('same-second-deduped', watchCount() === c1 + 1, 'watch=' + watchCount());
+  rec('same-second-deduped', watchCount() === c1b, 'watch=' + watchCount());
   // 门槛：idx2 播放不足 3s 即划走语义（pause 冻结在小进度），pagehide 不得上报
   key('ArrowDown');
   await waitFor(function () { return cur() === 2; }, 5000);
@@ -228,6 +237,27 @@ if (!!(await playUntil(0, 3.2))) {
   await wait(400);
   rec('below-floor-skipped', watchCount() === c2 && t2 < 3,
     't2=' + t2.toFixed(2) + ' watch=' + watchCount());
+  // 防修哨兵（0.9.86 单调性不对称）：高秒位已报（pause 即报）→ 回拉到 3.2 重看再暂停 →
+  // 必须如实发低秒位。live 路径镜像官方语义（重看回退=历史回退），**别把它修成单调的**——
+  // 单调守卫只属于 0.9.87 账本补报（死会话）
+  var v2 = slide(2) && slide(2).querySelector('video');
+  var dur = v2 ? v2.duration : 0;
+  rec('duration-known', dur >= 4.5, 'dur=' + dur);
+  var hiT = Math.max(4.05, dur * 0.8); // 测试片 loop=true 会回绕：高水位 ≥4.05 且 < 时长（防回绕永不满足）
+  rec('replay-progress', !!(await playUntil(2, hiT)));
+  pauseAt(2); // pause 即报高秒位（≥hiT）
+  await waitFor(function () { return watchCount() > c2; }, 5000);
+  var hi = Math.floor(v2.currentTime);
+  v2.play();
+  await wait(150);
+  v2.currentTime = 3.2; // 回拉重看
+  await wait(300);
+  var cLow = watchCount();
+  pauseAt(2); // 再暂停 → 报当前位 3 < hi
+  rec('low-sec-live-reported', !!(await waitFor(function () { return watchCount() > cLow; }, 5000)), 'hi=' + hi);
+  var lp = (window.__WL_CALLS[window.__WL_CALLS.length - 1] || {}).payload || null;
+  rec('low-sec-live-value', !!lp && lp.params && lp.params.playedSeconds === 3 && hi > 3,
+    'hi=' + hi + ' got=' + JSON.stringify(lp && lp.params || null));
 } else {
   rec('playback-progress', false);
 }

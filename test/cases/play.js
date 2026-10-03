@@ -218,4 +218,59 @@ rec('cold-feed-loaded', !!(await waitFor(function () {
 }, 15000)), 'items=' + (feed() ? feed().items.length : 'n/a'));
 rec('cold-feed-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
   };
+  // ---- watch-playlayer-pagehide ----
+  C['watch-playlayer-pagehide'] = async function (h) {
+    var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
+      waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
+      feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
+// 0.9.86 对齐哨兵：层内 slide 不在竖刷流里（dataset.ovl='1'），pagehide 兜底上报必须经
+// state.watchTarget 找到层内会话——旧实现只查 slideAt(FeedStore.current)，层内关页时
+// 10s 首报之后的进度全丢。home 源：teardown 清钩子后，pagehide 必须回落竖刷当前条
+function ovlVideo() { var s = q('.acsv-slide[data-ovl="1"]'); return s && s.querySelector('video'); }
+function watchCount() { return TEST.getStats()['report-watch'] || 0; }
+function lastPayload() { return (window.__WL_CALLS[window.__WL_CALLS.length - 1] || {}).payload || null; }
+rec('feed-up', !!(await waitFor(function () { return feed() && feed().items.length > 0; }, 15000)));
+window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+window.__ACSV_MOCK_DIRECT__ = { '488900': 1 }; // 直挂缝：webm 套 hls.js 会死在解析上（同 play-deep）
+location.hash = 'svfeed/play/a/488900';
+rec('layer-open', !!(await waitFor(function () { return !!q('.acsv-slide[data-ovl="1"]'); }, 10000)));
+rec('layer-playing', !!(await waitFor(function () {
+  var v = ovlVideo();
+  return !!v && !v.paused && v.currentTime > 0;
+}, 25000)));
+rec('layer-progress', !!(await waitFor(function () {
+  var v = ovlVideo();
+  return !!v && v.currentTime >= 3.2;
+}, 20000)));
+// 层开着合成 pagehide：必须报层内条目（488900），秒位=派发瞬间 currentTime
+var c0 = watchCount();
+var t0 = Math.floor(ovlVideo().currentTime);
+window.dispatchEvent(new Event('pagehide')); // 同步派发：处理器读同一时刻的 currentTime
+rec('pagehide-reports-layer', watchCount() > c0, 'watch=' + watchCount());
+var lp = lastPayload();
+rec('pagehide-layer-acid', !!lp && lp.action === 'CLIENT_BROWSE_HISTORY'
+  && String(lp.params.ac_id) === '488900', JSON.stringify(lp && lp.params || null));
+rec('pagehide-layer-sec', !!lp && lp.params.playedSeconds >= t0 && lp.params.playedSeconds <= t0 + 1,
+  'want~' + t0 + ' got=' + (lp && lp.params.playedSeconds));
+window.dispatchEvent(new Event('pagehide')); // 进度未推进 → 同秒位去重
+rec('pagehide-layer-deduped', watchCount() === c0 + 1, 'watch=' + watchCount());
+// teardown 清 watchTarget：此后 pagehide 回落竖刷当前条（home 条目可报），绝不残留层内旧会话
+key('Escape');
+rec('layer-back', !!(await waitFor(function () {
+  return location.hash === '#svfeed' && q('.acsv-slide[data-ovl="1"]') === null;
+}, 8000)));
+// teardown 清 watchTarget：此后 pagehide 回落竖刷当前条（home 条目可报），绝不残留层内旧会话。
+// 竖刷视频此前被层挡住（幽灵音频防线）停在 0——先真实播放攒过门槛再派发
+rec('feed-playing', !!(await waitFor(function () {
+  var v = slide(0) && slide(0).querySelector('video');
+  return !!v && !v.paused && v.currentTime >= 3.2;
+}, 30000)));
+var c1 = watchCount();
+window.dispatchEvent(new Event('pagehide'));
+rec('pagehide-back-to-feed', watchCount() > c1, 'watch=' + watchCount());
+var lp1 = lastPayload();
+rec('pagehide-feed-acid', !!lp1 && String(lp1.params.ac_id) !== '488900'
+  && String(lp1.params.ac_id) === String((feed().items[feed().current] || {}).id),
+  JSON.stringify(lp1 && lp1.params || null));
+  };
 })();

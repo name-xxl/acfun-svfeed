@@ -46,6 +46,8 @@ const HARNESS_CASES = [
   { name: 'stall-visibility', serial: true  },
   { name: 'spinner-recover', serial: true  },
   { name: 'watch-report', serial: true  },
+  // 0.9.86 播放层 pagehide 兜底上报（watchTarget 重定向；home 源 + MY_MOCK 直挂缝，debug 构建）
+  { name: 'watch-playlayer-pagehide', serial: true  },
   { name: 'upd-open', serial: true  }, // 0.9.60 更新提示冒烟（mock atom 注入，debug 构建）
   { name: 'view-my' }, // 0.9.62 我的视图冒烟（hash 子路由 + __ACSV_MOCK_FORM__ 缝，debug 构建）
   // 0.9.76 封面加载策略（URL 归一/失败重试/终败降级）：/flaky-cover.png 首拉 404 再拉 200

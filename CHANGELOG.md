@@ -3,6 +3,34 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.86（2026-10-03）· 观看上报对齐官方事件流：播放层 pagehide 补洞 + 暂停即报 + 载荷补键
+
+- **病灶（内置浏览器登录态实测 + 代码核查，实测见 docs/api-research.md「写侧上报」）**：
+  两处进度丢失 + 一处形态偏差——
+  1. **播放层 pagehide 全丢**：`reportLeaveCurrent` 只查 `slideAt(FeedStore.current)`，播放层
+     slide（`dataset.ovl='1'`、idx 哨兵 -1）永远查不到——层内观看关页/切标签时，10s 首报之后
+     的进度没有出口；
+  2. **暂停不报**：官方 video 页实测是「暂停即报当前位」（`playedSeconds=当前秒`），我们此前
+     只在划走/播完/dispose/定时器报——长停留+崩溃窗口内的进度粒度比官方粗；
+  3. **载荷缺键**：官方 CLIENT_BROWSE_HISTORY params 带 `bangumiItemId: null`（普通视频恒
+     null），我们没有。
+- **修法**：
+  - `state.js` 新增 `setWatchTarget/watchTarget` 中介（与 0.9.74 `videoTarget` 同款、同款
+    「不回落」纪律）：返回层内 `{ session, video }`；`playlayer` 进出层设置/清除；
+    `reportLeaveCurrent` 先问钩子，层内开着只报层内会话，绝不回落竖刷（背后是暂停旧条，
+    报它=幽灵进度）。
+  - `SESSION_HOOKS.onPause` 加 `reportLeave(…, 'pause')`（官方对齐：暂停=自然检查点）。
+    dispose 链先 pause 后 dispose 的同值近邻双报由同秒位去重兜住。
+  - 载荷补 `bangumiItemId: null`，与官方逐字段一致。
+  - 两条纪律注释钉死防误「修」：①`watchSentAt` 是**乐观水位**（sendImmediately fire-and-
+    forget，网络层失败不可感知，差量由下一次离开事件天然愈合）；②**单调性不对称**——live
+    路径镜像官方语义（重看回退=历史回退，如实报），单调守卫只属于 0.9.87 账本补报。
+- **测试**：单测 0（本版改动全在 DOM 挂钩点，纯逻辑随 0.9.87 账本一起进单测）；harness
+  `watch-report` 场景改按 pause 语义重排（pause 即报 / 划走同秒去重 / pagehide live 秒位 /
+  防修哨兵「高秒位已报 → 回拉 3.5 暂停 → 断言发 3」）+ payload 断言加 `bangumiItemId`；
+  新增 `watch-playlayer-pagehide` 场景（home 源 + MY_MOCK 直挂缝）：层开 pagehide 断言报
+  488900 与派发瞬间秒位、重复 pagehide 去重、Esc 后断言回落竖刷当前条。
+
 ### 0.9.85（2026-10-03）· 时间口径三处收口：播放层对齐站方发布时刻 + 卡片时间带年份
 
 - **病灶（用户报障「收藏夹时间不对」+「创建时间没有年份判定、老视频点进去才看得到年份」）**：
