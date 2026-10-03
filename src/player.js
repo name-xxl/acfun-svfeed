@@ -519,6 +519,7 @@ function switchSource(s) {
   dmStopAll();
   resetStream();
   FollowVideos.feedActive = false; // 0.9.99：显式换源=退出关注流（用户选了别的源，seg 回隐）
+  UpVideos.feedActive = false; // 0.9.106：空间页上下文同清（互踩修复：此前换源只清关注侧）
   FeedStore.reset();
   loadInitial();
 }

@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
+import { createFeedContext, runChain, registerContext, activateContext } from './feedctx.js';
 import { el, elHtml, fmt, ensureStyle } from './ui.js';
 import { FeedStore } from './feedstore.js';
 import { API } from './api.js';
@@ -9,13 +10,22 @@ import { imgInto } from './imgload.js';
 // m 站 upPage 的 pagelet 数据（GM_xhr 抓取，跨域）；翻页游标为时间戳，no_more 表示到底。
 // 自动链式加载（有页数上限）→ 页码分页浏览；最新=接口顺序，最热=渐进拉取点赞数后重排
 var PAGE_SIZE = CFG.page.size;
-export var UpVideos = {
-  uid: 0, pcursor: null, total: 0, busy: false, done: false, failed: false,
-  items: [], chainBusy: false, chainCapped: false, page: 1, sortBy: 'newest',
-  counts: {}, countsFetched: 0, hotFetching: false,
-  feedActive: false, feedCursor: 0,
-  gridEl: null, pagebarEl: null, progressEl: null, sortWrapEl: null, countSpan: null
-};
+// 核心字段由工厂生成（0.9.106，与 FollowVideos 同源）；本对象余下是空间页自有 UI 壳字段。
+// pcursor 初值 null 是首拉判据（loadUpVideos(pcursor === null)），故 firstCursor: null
+export var UpVideos = registerContext(createFeedContext({ firstCursor: null }));
+UpVideos.uid = 0;
+UpVideos.total = 0;
+UpVideos.busy = false;
+UpVideos.page = 1;
+UpVideos.sortBy = 'newest';
+UpVideos.counts = {};
+UpVideos.countsFetched = 0;
+UpVideos.hotFetching = false;
+UpVideos.gridEl = null;
+UpVideos.pagebarEl = null;
+UpVideos.progressEl = null;
+UpVideos.sortWrapEl = null;
+UpVideos.countSpan = null;
 
 // m 站对桌面 UA 会 302 到 PC 空间页（无小视频数据），必须伪装手机 UA
 var M_UA = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
@@ -102,8 +112,8 @@ function appendUpCells(items, offset) {
     // 封面走共享加载器（space 策略：重试 + 淡入；失败隐藏，不再留永久 opacity:0 的隐身空卡）
     imgInto(cell, it.cover, 'space');
     cell.addEventListener('click', function () {
-      // 从列表第 offset+k 个进入：后续按主页列表顺序播放
-      UpVideos.feedActive = true;
+      // 从列表第 offset+k 个进入：后续按主页列表顺序播放（单活互斥：清关注视频流等，0.9.106）
+      activateContext(UpVideos);
       UpVideos.feedCursor = offset + k + 1;
       FeedStore.resetForList();
       // 写标记形态（0.9.72）：空间页条目全是 meow 小视频，带 v 标记免去解析层的 id 空间探测
@@ -193,32 +203,22 @@ function renderUpProgress() {
   }
 }
 
+// 链式加载：状态机单源=feedctx.runChain（0.9.106；与关注视频流链同机）。
+// loadUpVideos 已自带 done/failed/pcursor/total 写状态与页数语义，这里只做并入与 UI 回调
 function startUpChain() {
-  if (UpVideos.chainBusy) return;
-  UpVideos.chainBusy = true;
-  UpVideos.chainCapped = false;
-  var pages = 0; // 本轮已加载页数：有上限，防超大 UP 主无感发几百个请求
-  (function step() {
-    if (!UpVideos.chainBusy || UpVideos.done || pages >= CFG.up.maxChainPages) {
-      UpVideos.chainCapped = !UpVideos.done && pages >= CFG.up.maxChainPages;
-      UpVideos.chainBusy = false;
-      renderUpProgress();
-      return;
+  runChain(UpVideos, {
+    maxPages: CFG.up.maxChainPages,
+    onDone: renderUpProgress,
+    loadPage: function (ctx, isFirst) {
+      return loadUpVideos(isFirst).then(function (items) {
+        if (items.length) {
+          ctx.items = ctx.items.concat(items);
+          renderUpPage();
+        }
+        return { loaded: items.length > 0 };
+      });
     }
-    pages++;
-    loadUpVideos(UpVideos.pcursor === null).then(function (items) {
-      if (items.length) {
-        UpVideos.items = UpVideos.items.concat(items);
-        renderUpPage();
-      }
-      if (UpVideos.done || !items.length) {
-        UpVideos.chainBusy = false;
-        renderUpProgress();
-        return;
-      }
-      setTimeout(step, CFG.time.chainGap);
-    });
-  })();
+  });
 }
 
 function ensureHotCounts() {

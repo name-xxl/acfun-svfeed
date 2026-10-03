@@ -1,9 +1,10 @@
 import { CFG } from './cfg.js';
-import { request } from './net.js';
 import { AppAPI } from './appapi.js';
-import { playItemOf, followVideoPageOf } from './data.js';
+import { playItemOf } from './data.js';
 import { setDockBadge } from './sidebar.js';
 import { FeedStore } from './feedstore.js'; // 仅 enterVideos 运行期触达（下方头注的循环先例）
+import { createFeedContext, runChain, registerContext, activateContext } from './feedctx.js';
+import { listVideos } from './momentapi.js';
 import { testHook } from './dbg.js';
 
 // ---------- 关注视频流（0.9.99）：FollowVideos 列表上下文 + followDougaFeed 分页链 ----------
@@ -15,17 +16,11 @@ import { testHook } from './dbg.js';
 // 依赖注意：import FeedStore 是**调用期才解引用**（feedstore→本模块取上下文，本模块只在
 // enterVideos 运行时触达 FeedStore——uppage↔feedstore 循环先例，求值期互不触碰对方绑定）。
 
-export var FollowVideos = {
-  feedActive: false,
-  dockView: 'follow', // 舞台态 dock 高亮归属（views.syncRouteView 经 getListContext 读；0.9.105）
-  feedCursor: 0,   // 泵游标：下一条待泵入的下标（首条由深链置顶，从 1 起泵——uppage offset+k+1 同款）
-  items: [],       // [{id: acId}]，接口顺序即最新在前
-  pcursor: '0',
-  done: false,     // pcursor='no_more' 或整页 0 新增（§2.1.2 终判）
-  failed: false,
-  chainBusy: false,
-  chainCapped: false
-};
+// 核心字段由工厂生成（0.9.106；与 UpVideos 同源——8 字段+链机不再两套）
+export var FollowVideos = registerContext(createFeedContext({
+  dockView: 'follow', // 舞台态 dock 高亮归属（views.syncRouteView 经 listContext 读；0.9.105）
+  firstCursor: '0'
+}));
 
 // 竖刷泵的详情解析：home 家族（douga/info + playInfo resolve），产出**item 本体**——
 // 注意 AppAPI.resolve 返回的是布尔（成功与否），泵守卫读 n.id/n.urls.length，必须在这层
@@ -40,42 +35,27 @@ FollowVideos.info = function (id) {
   });
 };
 
-// 单页拉取：规整逻辑在契约层纯函数 followVideoPageOf（单测直采），这里只做传输
+// 单页拉取：传输收口在 momentapi（URL 逐字保持以护 mock 缝），规整逻辑在契约层纯函数
+// followVideoPageOf（单测直采）——本函数做「ctx 状态并入」并回 {loaded, page}（page=规整
+// 后的原始页，enterVideos 首屏读它；runChain 只读 loaded——两消费面各取所需）
 export function loadFollowPage(cur) {
-  return request(CFG.api.followDouga + '?pcursor=' + encodeURIComponent(cur || '0'), 'GET')
-    .then(followVideoPageOf);
+  return listVideos(cur).then(function (page) {
+    if (page.items.length) {
+      FollowVideos.items = FollowVideos.items.concat(page.items);
+      FollowVideos.pcursor = page.nextCursor;
+    }
+    if (page.noMore || !page.items.length) FollowVideos.done = true;
+    return { loaded: page.items.length > 0, page: page };
+  });
 }
 
-// 后台分页链（uppage startUpChain 同款骨架）：页数有上限，防超长关注列表无感发几百请求；
-// 到底/失败置 done/failed——泵见 failed 即回落当前源随机流（UpVideos 同款回落语义）
+// 后台分页链：状态机单源=feedctx.runChain（0.9.106；与空间页链同机）；页数有上限，防超长
+// 关注列表无感发几百请求；到底/失败置 done/failed——泵见 failed 即回落当前源随机流
 export function startFollowChain() {
-  if (FollowVideos.chainBusy) return;
-  FollowVideos.chainBusy = true;
-  FollowVideos.chainCapped = false;
-  var pages = 0;
-  (function step() {
-    if (!FollowVideos.chainBusy || FollowVideos.done || pages >= CFG.followStream.maxChainPages) {
-      FollowVideos.chainCapped = !FollowVideos.done && pages >= CFG.followStream.maxChainPages;
-      FollowVideos.chainBusy = false;
-      return;
-    }
-    pages++;
-    loadFollowPage(FollowVideos.pcursor).then(function (page) {
-      if (page.items.length) {
-        FollowVideos.items = FollowVideos.items.concat(page.items);
-        FollowVideos.pcursor = page.nextCursor;
-      }
-      if (page.noMore || !page.items.length) {
-        FollowVideos.done = true;
-        FollowVideos.chainBusy = false;
-        return;
-      }
-      setTimeout(step, CFG.time.chainGap);
-    }, function () {
-      FollowVideos.failed = true;
-      FollowVideos.chainBusy = false;
-    });
-  })();
+  runChain(FollowVideos, {
+    maxPages: CFG.followStream.maxChainPages,
+    loadPage: function (ctx) { return loadFollowPage(ctx.pcursor); }
+  });
 }
 
 // 关注语境判据（单源）：关注视图开着，或舞台正在放关注视频流。顶栏 seg 显隐与徽标
@@ -98,13 +78,12 @@ export function enterVideos() {
     }
     // feedActive 残留但缓冲已空（被切源/重置过）：落回全新进入
   }
-  FollowVideos.feedActive = true;
+  activateContext(FollowVideos); // 单活互斥：清掉空间页等其余上下文（0.9.106 互踩修复）
   FollowVideos.failed = false;
-  return loadFollowPage('0').then(function (page) {
+  return loadFollowPage('0').then(function (res) {
+    var page = res.page; // 0.9.106：loadFollowPage 回 {loaded, page}（并入已在其内完成）
     if (!page.items.length) { FollowVideos.feedActive = false; FollowVideos.done = true; return false; }
-    FollowVideos.items = page.items;
-    FollowVideos.pcursor = page.nextCursor;
-    FollowVideos.feedCursor = 1;
+    FollowVideos.feedCursor = 1; // 首条由深链置顶，从 1 起泵（items/pcursor 已并入）
     FeedStore.resetForList(); // 深链前清一次：上一源的缓冲与游标不得混进关注流
     location.hash = CFG.hash + '/a/' + FollowVideos.items[0].id;
     startFollowChain();

@@ -2,8 +2,7 @@ import { CFG } from './cfg.js';
 import { API } from './api.js';
 import { scroller } from './state.js';
 import { renderWindow } from './player.js';
-import { UpVideos } from './uppage.js';
-import { FollowVideos } from './followstream.js';
+import { activeContext } from './feedctx.js';
 import { dbg, testHook } from './dbg.js';
 
 // ===
@@ -125,12 +124,10 @@ function createFeedStore(env) {
   return store;
 }
 
-// 当前列表上下文（0.9.105 抽出导出）：getListContext 与 views 的 dock 归属读同一处判据
-//（UpVideos 优先序保持原语义）
+// 当前列表上下文：判据收口在 feedctx 注册表（0.9.106 起「单活互斥」——activateContext
+// 已清其余，优先序兜底不再需要；getListContext 与 views 的 dock 归属读同一处）
 export function listContext() {
-  if (UpVideos.feedActive) return UpVideos;
-  if (FollowVideos.feedActive) return FollowVideos;
-  return null;
+  return activeContext();
 }
 
 // env 里引用的 scroller/renderWindow/UpVideos 都在调用期才解引用，

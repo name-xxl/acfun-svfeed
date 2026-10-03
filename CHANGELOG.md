@@ -3,6 +3,32 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.106（2026-10-04）· 架构重构：列表上下文工厂 + 动态域接口收口（用户三问的根因）
+
+- **背景（用户三问）**：「关注页在和推荐页抢竖刷组件吗？组件不能抽出来共用吗？」「动态的接口
+  放进接口模块统一管理了吗？」——0.9.105 已答一半（竖刷舞台本就共享、端点已全在 cfg），
+  本版收**真债务**两笔：
+- **债务一：列表上下文两套 + 双上下文互踩**（实锤：空间流激活时进关注视频流，getListContext
+  优先 UpVideos ⇒ 关注列表永不被泵且无清理路径；switchSource 也只清关注侧）。
+  修法：新模块 **feedctx.js**——①`createFeedContext`（8 核心字段 + reset 单源；UpVideos/
+  FollowVideos 都由此生成，UI 壳各自挂）；②`runChain`（链式加载状态机单源：上限/间隔/
+  done/failed/chainCapped 判定一处收口，两侧只提供各异的 loadPage——uppage 仍 gmRequest
+  通道、关注流仍 net.request，通道不换）；③**注册表 + 单活互斥**（activateContext 清其余，
+  替代"优先序兜底"）——空间格点击/enterVideos 互相清场，player 显式换源补清空间侧。
+  单测 5 条钉状态机（推进/到底/上限截断/reject 不卡死/单活互斥）。
+- **债务二：动态域请求编排散落**（端点已在 cfg ✓，但 followview/followstream/followbadge
+  三处各拼查询串各解析）。修法：新模块 **momentapi.js** 收「关注/动态读」三条
+  （listMoments/listVideos/unreadCount）+ 落点拼串；**URL 形态逐字保持**（harness mock 按
+  子串命中）；边界登记：评论管线属评论域留 comments.js、写链在 interact/appapi 不动；顺修
+  imshare token/get 内联硬编码（重复 cfg.api.token 的第二份）。
+- **回归中抓到的两处契约错配（同版修复）**：loadFollowPage 迁 fetch 收口后返回值形状变了、
+  enterVideos 仍按旧形状读（feedCursor 不设/深链不跳——harness fv-deeplink 一击命中）；
+  以及 followbadge poll 未 return 导致 await 语义少一层微任务（badge 退避断言假红）——
+  均按新契约改齐并把 loadFollowPage 契约写清 `{loaded, page}`。
+- **测试**：单测 193（feedctx 5 条新增）；harness 42 场景全绿（follow-videos 19/view-follow
+  66/detail-open 37 不变——重构行为不变由全量保护）。README 依赖图 +feedctx/momentapi 两
+  节点与 8 条边。
+
 ### 0.9.105（2026-10-04）· 关注/详情整批整修（用户实报九项 + 架构三问）
 
 - **A 详情左区改多图轮播**（用户裁决；XHS 实测对齐 2026-10-04）：track translate3d 平移 +

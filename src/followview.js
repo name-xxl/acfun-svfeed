@@ -13,12 +13,12 @@
 // 单源在全局 styles.js，进影子根=复制 CSS 造漂移源）。
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
-import { request } from './net.js';
 import { followPanelOf, momentPiOfRepost } from './data.js';
 import { ubbTextOf, openPanelItem, setMomentOpener, stripOf, momentCellOf, momentMediaOf, skeletonRows } from './views.js';
 import { ICONS } from './styles.js';
 import { openSharePanel } from './imshare.js';
 import { momentBarOf, momentShareItemOf } from './momentbar.js';
+import { listMoments } from './momentapi.js';
 import { imgInto } from './imgload.js';
 import { registerView } from './viewreg.js';
 import { setDockBadge } from './sidebar.js';
@@ -242,7 +242,7 @@ function buildFollowView(body) {
     var my = ++seq;
     var sk = firstPage ? skeleton(list) : null;
     if (!firstPage) setStatus('加载中…', true);
-    request(CFG.api.followFeed + '?useWebp=true&count=' + CFG.view.pageSize + '&pcursor=' + pcursor, 'GET')
+    listMoments(pcursor) // 传输收口 momentapi（0.9.106）；解析留在视图（分档/去重是视图语义）
       .then(function (j) {
         if (sk) sk();
         if (my !== seq || !list.isConnected) return; // 视图已拆/重建：在途回包丢弃

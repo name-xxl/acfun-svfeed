@@ -1,8 +1,8 @@
 import { CFG } from './cfg.js';
-import { request } from './net.js';
 import { selfUid } from './ui.js';
 import { setDockBadge } from './sidebar.js';
 import { isFollowContext } from './followstream.js';
+import { unreadCount as fetchUnread } from './momentapi.js';
 import { testHook } from './dbg.js';
 
 // ---------- 关注未读徽标 + 轮询（0.9.97，路线图 4.3） ----------
@@ -46,11 +46,8 @@ function applyBadge(n) {
 function poll() {
   if (!selfUid()) return; // 未登录静默：followUpers 要登录态，不弹错不打扰
   var my = ++gen;
-  request(CFG.api.webPush + '?count=10&pcursor=0', 'GET').then(function (j) {
+  return fetchUnread().then(function (n) { // 传输+计数收口 momentapi（0.9.106）；return 供 await 语义
     if (my !== gen || !mounted) return; // 陈旧回包/已卸载：丢弃
-    var ups = (j && j.followUpers) || [];
-    var n = 0;
-    ups.forEach(function (u) { if (u && u.hasUnReadResource) n++; });
     applyBadge(n);
     interval = nextBadgeInterval(interval, n > 0);
     nextAt = Date.now() + interval;

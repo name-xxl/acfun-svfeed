@@ -568,7 +568,7 @@ function midgroundToken(refresh) {
   if (!mgTokenP || refresh) {
     mgTokenP = gmRequest({
       method: 'POST',
-      url: 'https://id.app.acfun.cn/rest/web/token/get',
+      url: CFG.api.token, // 0.9.106 收口：此前内联硬编码与 cfg 重复一份（appapi 同端点）
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       data: 'sid=acfun.midground.api',
       timeout: CFG.time.gm
