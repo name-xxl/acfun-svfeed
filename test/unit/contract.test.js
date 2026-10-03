@@ -36,10 +36,13 @@ var PANEL_CASES = {
     userName: 'u', authorId: 1, userImg: 'y', fansCount: 1, contributionCount: 1, userSignature: 's'
   },
   // 关注流（0.9.91）：动态条目是最宽的一套字段（ct/momentId/text/href/meta 全带）——
-  // 契约白名单由它兜住；三类内容各自的取值落位由 data.test.js 钉
+  // 契约白名单由它兜住；三类内容各自的取值落位由 data.test.js 钉。
+  // 0.9.98：moment.imgs（多图）与 rs10 转发也走 follow 解析器——白名单 'imgs' 由它兜住
   follow: {
     resourceType: 10, resourceId: 5, coverUrl: 'x', likeCount: 1, commentCount: 2, bananaCount: 3,
-    createTime: Date.now(), moment: { text: '正文[emot=acfun,1/]' },
+    createTime: Date.now(),
+    moment: { text: '正文[emot=acfun,1/]', imgs: [{ url: 't.png', expandedUrl: 'b.png', originUrl: 'o.png' }] },
+    repostSource: { resourceType: 10, resourceId: 6, moment: { text: '源正文', imgs: [{ url: 's.png' }] } },
     user: { userId: 9, userName: 'u', userHead: 'h' }
   }
 };

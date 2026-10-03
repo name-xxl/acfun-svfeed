@@ -368,6 +368,7 @@ export function statRowOf(meta) {
 
 // 转发引用块（0.9.96 抽共享）：左竖线 + 源缩略图 + 源标题 + 源类型字——转发的结构性签名，
 // followview 动态卡与 momentdetail 详情面板两处消费同一件（新重复即 lint 候选的先手）
+var QUOTE_KIND = { video: '视频', article: '文章', moment: '动态' };
 export function quoteBlockOf(repost) {
   var q = el('div', 'acsv-gquote');
   var qt = el('div', 'acsv-gquote-thumb');
@@ -375,7 +376,7 @@ export function quoteBlockOf(repost) {
   q.appendChild(qt);
   var qb = el('div', 'acsv-gquote-body');
   qb.appendChild(el('div', 'acsv-gquote-title', repost.title || '（无标题）'));
-  qb.appendChild(el('div', 'acsv-gquote-kind', (repost.ct === 'video' ? '视频' : '文章')));
+  qb.appendChild(el('div', 'acsv-gquote-kind', QUOTE_KIND[repost.ct] || '内容'));
   q.appendChild(qb);
   return q;
 }

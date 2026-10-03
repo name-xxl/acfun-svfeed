@@ -505,6 +505,64 @@ test('panelItem follow：动态条目——momentId 身份、UBB 原文进 text�
   assert.equal(pi.up.name, '潇湘huya');
 });
 
+test('panelItem follow：动态多图——嵌套 moment.imgs 映射 {url,big}，无图条目 imgs 为空数组', () => {
+  var u = { user: { userId: 1, userName: 'u' } };
+  var pi = panelItem('follow', Object.assign({
+    resourceType: 10, resourceId: 5103843, coverUrl: 'https://tx-free-imgs.acfun.cn/first.jpeg',
+    likeCount: 1, commentCount: 2, bananaCount: 3,
+    moment: {
+      momentId: 5103843, text: '多图正文',
+      // 形状实测（2026-10-03 §2.1.1）：url=224 方缩略、expandedUrl=大图、originUrl=原图
+      imgs: [
+        { url: 'https://tx-free-imgs.acfun.cn/a.jpeg?imageView2/5/w/224/h/224', expandedUrl: 'https://tx-free-imgs.acfun.cn/a.jpeg?imageView2/2/w/0', originUrl: 'https://tx-free-imgs.acfun.cn/a.jpeg' },
+        { url: 'https://tx-free-imgs.acfun.cn/b.jpeg?imageView2/5/w/224/h/224', expandedUrl: 'https://tx-free-imgs.acfun.cn/b.jpeg?imageView2/2/w/0' }
+      ],
+      // 冗长形状 imgInfos 与 imgs 同信息——解析器刻意不取（一物二源必漂移），给个诱饵验证
+      imgInfos: [{ thumbnailImageCdnUrl: 'https://decoy.example/x' }]
+    }
+  }, u));
+  assert.equal(pi.ct, 'moment');
+  assert.equal(pi.imgs.length, 2);
+  assert.equal(pi.imgs[0].url, 'https://tx-free-imgs.acfun.cn/a.jpeg?imageView2/5/w/224/h/224');
+  assert.equal(pi.imgs[0].big, 'https://tx-free-imgs.acfun.cn/a.jpeg?imageView2/2/w/0');
+  // big 优先 expandedUrl；该条给了 expandedUrl 没给 originUrl——逐级回落到 expandedUrl
+  assert.equal(pi.imgs[1].big, 'https://tx-free-imgs.acfun.cn/b.jpeg?imageView2/2/w/0');
+  var pi2 = panelItem('follow', Object.assign({
+    resourceType: 10, resourceId: 5104409, coverUrl: '',
+    moment: { momentId: 5104409, text: '无配图' } // 无配图时接口整个不给 imgs 字段
+  }, u));
+  assert.deepEqual(pi2.imgs, []);
+});
+
+test('panelItem follow：转发动态（rs10）——引用块取源正文明文 + 源首图', () => {
+  var u = { user: { userId: 1, userName: 'u' } };
+  var pi = panelItem('follow', Object.assign({
+    resourceType: 10, resourceId: 5104410, coverUrl: 'https://tx-free-imgs.acfun.cn/src-t.jpeg',
+    moment: { momentId: 5104410, text: '转发理由' },
+    repostSource: {
+      resourceType: 10, resourceId: 510091,
+      moment: {
+        momentId: 510091, text: '源正文[emot=acfun,2/]带[at uid=9]@某人[/at]',
+        imgs: [{ url: 'https://tx-free-imgs.acfun.cn/src-t.jpeg' }]
+      }
+    }
+  }, u));
+  assert.equal(pi.repost.ct, 'moment');
+  // 源正文走 ubbPlain 明文投影（表情码删除、at 留名字）——quote 块 title 是单行文本
+  assert.equal(pi.repost.title, '源正文 带 @某人');
+  // 源首图优先（imgs[0].url），缺图回落 rs 顶层 coverUrl（转发恒等律）
+  assert.equal(pi.repost.cover, 'https://tx-free-imgs.acfun.cn/src-t.jpeg');
+  var pi2 = panelItem('follow', Object.assign({
+    resourceType: 10, resourceId: 5104411, coverUrl: 'https://tx-free-imgs.acfun.cn/c.jpeg',
+    moment: { momentId: 5104411, text: '转发理由二' },
+    // rs 是完整分支条目：纯文字源动态没嵌套 imgs，顶层 coverUrl（=源封面恒等律）兜底
+    repostSource: { resourceType: 10, resourceId: 510092, coverUrl: 'https://tx-free-imgs.acfun.cn/c.jpeg', moment: { momentId: 510092, text: '纯文字源动态' } }
+  }, u));
+  assert.equal(pi2.repost.ct, 'moment');
+  assert.equal(pi2.repost.title, '纯文字源动态');
+  assert.equal(pi2.repost.cover, 'https://tx-free-imgs.acfun.cn/c.jpeg');
+});
+
 test('panelItem follow：未知类型与缺身份字段一律 null（宁可漏不错）', () => {
   var u = { user: { userId: 1, userName: 'u' } };
   assert.equal(panelItem('follow', Object.assign({ resourceType: 4, resourceId: 9, caption: 'x' }, u)), null); // 直播等未观察类型

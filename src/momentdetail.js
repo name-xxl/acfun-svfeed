@@ -6,6 +6,7 @@ import { imgInto } from './imgload.js';
 import { ubbTextOf, quoteBlockOf } from './views.js';
 import { GLYPHS } from './imicons.js';
 import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
+import { openImageViewer } from './imgview.js';
 import { setRealLike } from './interact.js';
 import { AppAPI } from './appapi.js';
 import { ensureEmotionMap } from './emoticon.js';
@@ -83,9 +84,35 @@ export function openMomentDetail(pi) {
   if (pi.repost) {
     // 引用块与动态卡同源（views.quoteBlockOf）；源条点击不接播放（v1 静态展示）
     pin.appendChild(quoteBlockOf(pi.repost));
+  } else if (pi.imgs && pi.imgs.length > 1) {
+    // 多图（0.9.98）：与卡面同款的九宫格；格上另挂**大图查看**（详情面板是独立交互面，
+    // 不像卡面整卡一个点击目标）——imgview 转呈 expandedUrl（native 同款点缩略看大图）
+    var grid = el('div', 'acsv-mdetail-imgs');
+    grid.dataset.n = String(pi.imgs.length);
+    pi.imgs.forEach(function (im) {
+      var cell = el('div', 'acsv-mdetail-imgcell');
+      imgInto(cell, im.url, 'grid');
+      cell._big = im.big || im.url;
+      cell.addEventListener('click', function (ev) {
+        ev.stopPropagation(); // 不惊动列表委托（commentListClick）与背板关闭判定
+        openImageViewer(cell._big);
+      });
+      grid.appendChild(cell);
+    });
+    pin.appendChild(grid);
   } else if (pi.cover) {
     var im = el('div', 'acsv-mdetail-img');
     imgInto(im, pi.cover, 'grid');
+    // 单图也接大图查看（big 来自嵌套 imgs 的 expandedUrl；拿不到就不挂，保持静展示）
+    var big1 = pi.imgs && pi.imgs[0] && (pi.imgs[0].big || pi.imgs[0].url);
+    if (big1) {
+      im._big = big1;
+      im.classList.add('onbig');
+      im.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        openImageViewer(im._big);
+      });
+    }
     pin.appendChild(im);
   }
   pin.appendChild(actionBar(pi));

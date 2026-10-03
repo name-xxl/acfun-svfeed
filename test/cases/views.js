@@ -1242,6 +1242,20 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     var rCard2 = cardOf('转发文章的动态', '.acsv-gquote');
     rec('follow-repost-article-kind', !!(rCard2 && (rCard2.querySelector('.acsv-gquote-kind') || {}).textContent === '文章'),
       rCard2 ? (rCard2.querySelector('.acsv-gquote-kind') || {}).textContent : 'no-quote');
+    // 多图动态（0.9.98 实报修复「多图只出第一张」）：嵌套 moment.imgs → 九宫格
+    //（data-n=3 + 3 格），单图大图（.acsv-gmom-img）不再挂
+    var gCard = cardOf('另一条图文动态', '.acsv-gmom-imgs');
+    rec('follow-moment-multigrid', !!(gCard && gCard.querySelector('.acsv-gmom-imgs[data-n="3"]')
+      && gCard.querySelectorAll('.acsv-gmom-imgcell img').length === 3
+      && !gCard.querySelector('.acsv-gmom-img')),
+      gCard ? 'cells=' + gCard.querySelectorAll('.acsv-gmom-imgcell').length : 'no-card');
+    // 转发动态（rs10，0.9.98 补接）：引用块 = 源正文明文（UBB 剥除）+「动态」类型字 + 转发旗标
+    var rCard3 = cardOf('更早的动态', '.acsv-gquote');
+    rec('follow-repost-moment', !!(rCard3
+      && (rCard3.querySelector('.acsv-gquote-kind') || {}).textContent === '动态'
+      && (rCard3.querySelector('.acsv-gmom-flag') || {}).textContent === '转发'
+      && /被转发的动态正文\s+带\s+@某人/.test((rCard3.querySelector('.acsv-gquote-title') || {}).textContent || '')),
+      rCard3 ? (rCard3.querySelector('.acsv-gquote') || {}).textContent : 'no-quote');
     // 多列定宽（模仿原生层级、改进空间利用）：文本向宽卡跨两列、媒体向单格；dense 填洞
     function colSpan(c) {
       if (!c) return '';
@@ -1470,6 +1484,33 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       return !!q('.acsv-mdetail-panel .acsv-cinput');
     }, 8000)));
     key('Escape');
+    await wait(400);
+    // 多图动态详情（0.9.98）：正文后出九宫格（data-n=3），点格开大图——imgview 是独立
+    // 模态层（先关图层、面板留存），再 Esc 收面板复位
+    var gCard = null;
+    for (var gi = 0; gi < cards.length; gi++) {
+      if (cards[gi].matches('.acsv-gmom') && /另一条图文动态/.test(cards[gi].textContent)) { gCard = cards[gi]; break; }
+    }
+    rec('detail-multigrid-card', !!gCard);
+    if (gCard) gCard.click();
+    rec('detail-multigrid', !!(await waitFor(function () {
+      var g = q('.acsv-mdetail-list .acsv-cpin .acsv-mdetail-imgs');
+      return g && g.dataset.n === '3' && g.querySelectorAll('img').length === 3;
+    }, 8000)), 'n=' + document.querySelectorAll('.acsv-mdetail-imgs img').length);
+    var cell0 = q('.acsv-mdetail-imgs .acsv-mdetail-imgcell');
+    if (cell0) cell0.click();
+    rec('detail-imgview', !!(await waitFor(function () {
+      return !!q('.acsv-imgview img');
+    }, 5000)));
+    key('Escape');
+    rec('detail-imgview-close', !!(await waitFor(function () {
+      return !q('.acsv-imgview') && !!q('.acsv-mdetail'); // 图层关、面板留存（模态栈分层）
+    }, 5000)));
+    key('Escape');
+    rec('detail-multigrid-close', !!(await waitFor(function () {
+      var md = TEST.call('momentdetail');
+      return !q('.acsv-mdetail') && md && md.open === false;
+    }, 8000)));
     await wait(400);
   };
 

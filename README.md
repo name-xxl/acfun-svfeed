@@ -373,7 +373,7 @@ flowchart LR
   followview["followview.js（关注视图·混合卡流）"]
   momentdetail["momentdetail.js（动态详情面板·评论区复用+写链）"]
   followbadge["followbadge.js（关注未读徽标·轮询退避）"]
-  data --> imgurl
+  data --> imgurl & ubb
   route --> feedstore
   imgview --> overlay
   imgload --> imgurl
@@ -397,7 +397,7 @@ flowchart LR
   views --> feedstore & imgload & imicons & overlay & sidebar & topbar & ubb & viewreg
   sidebar --> viewreg & settingspanel
   followview --> imgload & sidebar & viewreg & views & momentdetail
-  momentdetail --> appapi & comments & emoticon & imgload & imicons & interact & overlay & views
+  momentdetail --> appapi & comments & emoticon & imgload & imgview & imicons & interact & overlay & views
   followbadge --> net & sidebar
   player --> followbadge
   settingspanel --> settings & overlay

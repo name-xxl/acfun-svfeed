@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 // __ACSV_DEBUG__——Node 直采源码时两个都要先垫再动态 import
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { renderCommentHtml, ubbImText, ubbQuoteHtml } = await import('../../src/ubb.js');
+var { renderCommentHtml, ubbImText, ubbQuoteHtml, ubbPlain } = await import('../../src/ubb.js');
 
 // ---------- [at] @ 提及 ----------
 test('at：线上原文出用户主页链接，@ 前缀保留', () => {
@@ -173,4 +173,14 @@ test('quote：作者名注入被 esc；at 链接退化 span（卡片 <a> 内禁�
 test('quote：空作者/空正文容错', () => {
   assert.equal(ubbQuoteHtml('', ''), '@：');
   assert.equal(ubbQuoteHtml(null, null), '@：');
+});
+
+// ---------- ubbPlain（0.9.98 明文投影，转发动态引用块标题用） ----------
+test('plain：表情码删除、成对标签剥壳留内文、空白压平', () => {
+  assert.equal(ubbPlain('源正文[emot=acfun,2/]带[at uid=9]@某人[/at]'), '源正文 带 @某人');
+  assert.equal(ubbPlain('[resource id=1 type=2 icon=x]标题[/resource]尾部'), '标题 尾部');
+  assert.equal(ubbPlain('多行\n正文\t压平'), '多行 正文 压平');
+  assert.equal(ubbPlain('[表情]与[img]https://x/a.png[/img]'), '与');
+  assert.equal(ubbPlain(''), '');
+  assert.equal(ubbPlain(null), '');
 });

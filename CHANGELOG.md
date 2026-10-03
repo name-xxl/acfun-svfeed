@@ -3,6 +3,31 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.98（2026-10-03）· 关注动态多图出全 + 转发动态（rs10）补接
+
+- **病灶（用户实报「多图动态只出第一张」）**：0.9.91 落关注视图时首测样本恰好无图，把
+  「feed 只给单张 coverUrl」当成了契约、宫格进了「明确不做」。本次登录态重抓 followFeedV2
+  实证：配图动态的嵌套 `moment` 带**紧凑 `imgs[]`**（url 224 方缩略/expandedUrl 大图/
+  originUrl 原图，无图时字段缺席），顶层 `coverUrl` 恒=首图——多图时卡面只挂 coverUrl
+  自然只剩第一张。同信息冗长形状 `imgInfos[]`（cdnUrls 三层嵌套）刻意不取（一物二源必漂移）。
+- **修法**：
+  - **契约层（data.js）**：follow 解析器补 `it.imgs`（`{url, big}[]`，big 按
+    expandedUrl→originUrl→url 逐级回落）；`ITEM_FIELDS.panel` 加 `'imgs'`。
+  - **卡面（followview.js）**：原创动态 `imgs.length>1` 出**九宫格**（3 列方格贴原生
+    member-feed 尺寸律，2/4 张降 2 列防角洞，`data-n` 驱动 CSS 降列）；单图/无图分支不变。
+    整卡仍是单一点击目标（进详情面板），格上不另挂点击。
+  - **详情面板（momentdetail.js）**：同款九宫格 + **点格开大图**（imgview 转呈 expandedUrl，
+    原生同款交互；单图也接，拿不到 big 则静展示）；`stopPropagation` 防惊动列表委托与背板。
+  - **顺带补接 rs10（转发动态，实测关注流实存 3/21）**：此前解析只认 repostSource 的
+    resourceType 2/3，源是动态的转发被当原创渲染、误把源首图挂成作者自己的图。现引用块取
+    源正文明文（新 `ubb.ubbPlain` 投影：表情/`[img]` 整删、成对标签剥壳留内文）+ 源首图
+    （`rsImgs[0]` → `rs.coverUrl` 回落）；`quoteBlockOf` 类型字三态（视频/文章/动态）。
+- **测试**：单测 180（imgs 映射/回落/空数组、rs10 引用块契约、ubbPlain 剥离规则、契约
+  白名单夹具带上 imgs 分支）；harness `view-follow` +2 断言（九宫格 data-n=3、rs10 引用块
+  明文+旗标+类型字）、`detail-open` +5 断言（面板九宫格→点格开大图→Esc 分层关）。
+- **回归**：lint 干净、`npm run check` 三项通过（README 依赖图 +`data→ubb`、
+  `momentdetail→imgview` 两边）、单测 180 全绿、harness 41 场景 0 失败。
+
 ### 0.9.97（2026-10-03）· Phase 4.3：关注未读徽标 + 轮询退避
 
 - **背景**：数据源已实测在册（§2.1.1：`followUpers[].hasUnReadResource` 布尔且假值真实

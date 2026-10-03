@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
 import { coverUrl } from './imgurl.js';
+import { ubbPlain } from './ubb.js';
 
 // 图片字段（cover/head/avatar）一律经 imgurl.coverUrl 归一（0.9.76）：http:// 老条目在
 // https 页面会被混合内容拦成裂图，归一在这里做一次，全部消费端（卡片/氛围底图/播放层）继承
@@ -38,6 +39,9 @@ export var ITEM_FIELDS = {
     // **来源方言**（= PANEL_PARSERS 的表键），不能兼内容类型；关注流一个来源出三种内容，
     // 故内容判别子另立 ct（video|article|moment），卡片渲染按 ct 分支（同一张卡，契约驱动）
     'ct', 'momentId', 'text', 'href', 'repost',
+    // 0.9.98 动态多图：配图列表（{url 缩略, big 大图}[]，来自嵌套 moment.imgs——0.9.91 时
+    // 以为 feed 只给单张 coverUrl，实报「多图只出第一张」后实测形状在册）
+    'imgs',
     // 0.9.96 详情面板写链：数值计数与互动态（字段名对齐 rail 词汇，见 follow 解析器注释）
     'like', 'comment', 'banana', 'liked', 'thrown']
 };
@@ -260,22 +264,41 @@ var PANEL_PARSERS = {
         if (!raw.resourceId) return false;
         it.ct = 'moment';
         it.momentId = Number(raw.resourceId) || 0;
+        var mo = raw.moment || {};
         // 正文用嵌套 moment.text（**UBB 原文**）→ 渲染走 ubb.js 单源（表情/at/资源链）；
         // 接口另有 replaceUbbText（UBB 已换成 [表情] 明文占位）——那是给不做 UBB 的客户端的，
         // 我们不用它（intake「ubb/emotify 单源」）
-        it.text = ((raw.moment || {}).text) || raw.discoveryResourceFeedShowContent || '';
-        // 图：feed 只给单张 coverUrl（多图形状未实测，宫格不做——见 0.9.91 计划「明确不做」）。
+        it.text = mo.text || raw.discoveryResourceFeedShowContent || '';
+        // 多图契约（0.9.98 实测，用户实报「多图动态只出第一张」的病灶在此）：配图动态的嵌套
+        // moment 带**紧凑 imgs[]**（{url 224 方缩略, expandedUrl 大图, originUrl 原图,
+        // width/height}），无配图时整个字段缺席；顶层 coverUrl 恒=首图——多图时它只是
+        // 其中之一，此前卡面只挂 coverUrl 就只剩第一张。同信息的冗长形状 imgInfos[]
+        // （cdnUrls 三层嵌套）刻意不取：一物二源必漂移
+        it.imgs = (Array.isArray(mo.imgs) ? mo.imgs : []).map(function (im) {
+          im = im || {};
+          return { url: coverUrl(im.url), big: coverUrl(im.expandedUrl || im.originUrl || im.url) };
+        }).filter(function (im) { return im.url; });
         // **转发的 coverUrl 实测恒等于源内容的封面**（9/9 全等，2026-10-03）——所以转发卡
         // 不能拿它当主视觉（会伪装成视频/文章卡，用户实报「分不清」），渲染层改挂源条
         it.cover = coverUrl(raw.coverUrl);
         // 转发（23/36 实测占比）：repostSource 是完整分支条目，此处只取卡面够用的三件套
-        // （源类型/源标题/源缩略图）；源条文案与形态由渲染层按 ct 出
+        // （源类型/源标题/源缩略图）；源条文案与形态由渲染层按 ct 出。
+        // 0.9.98 补 rs10（源是另一条动态，实测关注流实存 3/21）：此前漏接，这类卡被当
+        // 原创渲染、误把源首图挂成作者自己的图。引用块取源正文明文（ubbPlain 投影）+ 源首图
         var rs = raw.repostSource;
         if (rs && (rs.resourceType === 2 || rs.resourceType === 3)) {
           it.repost = {
             ct: rs.resourceType === 2 ? 'video' : 'article',
             title: String(rs.caption || rs.articleTitle || ''),
             cover: coverUrl(rs.coverUrl)
+          };
+        } else if (rs && rs.resourceType === 10 && rs.resourceId) {
+          var rsm = rs.moment || {};
+          var rsImgs = Array.isArray(rsm.imgs) ? rsm.imgs : [];
+          it.repost = {
+            ct: 'moment',
+            title: ubbPlain(rsm.text || rs.discoveryResourceFeedShowContent || ''),
+            cover: coverUrl((rsImgs[0] && (rsImgs[0].url || rsImgs[0].originUrl)) || rs.coverUrl)
           };
         }
         // 三计数（路线图 Phase 3 的动态卡规格）：复用 meta 三段语义与 META_GLYPH，不新增字段

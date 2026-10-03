@@ -136,11 +136,24 @@
     // 互动态（0.9.96 详情面板写链夹具）：有真有假，赞/蕉状态机才测得到两向
     e.isLike = i % 3 === 0; e.isThrowBanana = false;
     e.moment = { momentId: 510001 + i, text: text };
+    // 多图（0.9.98 实报修复「多图只出第一张」）：withImg='multi' 时给嵌套 imgs[]（紧凑
+    // 三件套形状，§2.1.1 实测；顶层 coverUrl 仍=首图恒等律）——卡面应出九宫格而非单图
+    if (withImg === 'multi') {
+      e.moment.imgs = [1, 2, 3].map(function () {
+        return { url: FOLLOW_COVER, expandedUrl: FOLLOW_COVER, originUrl: FOLLOW_COVER, width: 100, height: 100, type: 1 };
+      });
+    }
     // 转发源（0.9.92 卡面形态夹具）：实测 repostSource 是完整分支条目，且转发的 coverUrl
     // 恒等于源封面——夹具照此构形（源封面与顶层封面同值），卡面才测得到「不拿源封面当主视觉」
     if (repost) {
       e.coverUrl = FOLLOW_COVER;
       if (repost === 'video') e.repostSource = { resourceType: 2, resourceId: 488900, caption: '被转发的视频标题', coverUrl: FOLLOW_COVER, playDuration: '01:23' };
+      // 转发动态（0.9.98 实测关注流实存）：源条 resourceType=10，源正文/源首图都在源嵌套 moment 里
+      else if (repost === 'moment') e.repostSource = {
+        resourceType: 10, resourceId: 510091,
+        moment: { momentId: 510091, text: '被转发的动态正文[emot=acfun,2/]带[at uid=9]@某人[/at]',
+          imgs: [{ url: FOLLOW_COVER, expandedUrl: FOLLOW_COVER, originUrl: FOLLOW_COVER }] }
+      };
       else e.repostSource = { resourceType: 3, resourceId: 488700, articleTitle: '被转发的文章标题', coverUrl: FOLLOW_COVER };
     }
     return e;
@@ -149,13 +162,13 @@
     // 今天（group 1）：3 视频 + 3 动态 + 1 文章 + 1 条未观察类型（4 → 应被过滤）
     fVideo(0, 1, '关注视频甲'), fMoment(1, 1, '动态正文带 UBB[at uid=1001]@关注UP1[/at]与表情[emot=acfun,1/]', true),
     fArticle(2, 1, '关注文章甲'), fVideo(3, 1, '关注视频乙'), fMoment(4, 1, '无图动态：只有文字的一条', false),
-    fVideo(5, 1, '关注视频丙'), fMoment(6, 1, '另一条图文动态', true),
+    fVideo(5, 1, '关注视频丙'), fMoment(6, 1, '另一条图文动态', 'multi'),
     (function () { var e = fBase(7, 1, 4); e.resourceId = 488999; e.caption = '未观察类型应被过滤'; return e; })(),
     // 昨天（group 2）：2 视频 + 2 动态 + 2 文章
     fVideo(8, 2, '昨天的视频'), fArticle(9, 2, '昨天的文章'), fMoment(10, 2, '昨天的动态', true),
     fVideo(11, 2, '昨天的视频二'), fArticle(12, 2, '昨天的文章二'), fMoment(13, 2, '转发视频的动态：说说理由', true, 'video'),
     // 更早（group 10）：3 视频 + 2 动态 + 1 文章
-    fVideo(14, 10, '更早的视频'), fMoment(15, 10, '更早的动态', true), fArticle(16, 10, '更早的文章'),
+    fVideo(14, 10, '更早的视频'), fMoment(15, 10, '更早的动态', true, 'moment'), fArticle(16, 10, '更早的文章'),
     fVideo(17, 10, '更早的视频二'), fMoment(18, 10, '转发文章的动态', true, 'article'), fVideo(19, 10, '更早的视频三')
   ];
   var FOLLOW_P2 = [

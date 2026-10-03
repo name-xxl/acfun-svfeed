@@ -74,6 +74,19 @@ export function ubbImText(content) {
   return t;
 }
 
+// ---------- UBB → 明文投影（0.9.98）：转发动态引用块标题用 ----------
+// 与 ubbImText 同族的纯文本投影，但更狠：表情码/占位与 [img] 整体删除（引用块单行预览
+// 不挂图、也不露图链裸文），at/resource 等成对标签只剥壳留内文（名字/标题自然落在明文里）。
+// 只投影不渲染——富渲染走 renderCommentHtml/ubbTextOf 单源；空白压平成单空格（title 单行）
+export function ubbPlain(content) {
+  return String(content || '')
+    .replace(/\[img=[^\]]*\][\s\S]*?\[\/img\]/gi, ' ')
+    .replace(/\[img\][\s\S]*?\[\/img\]/gi, ' ')
+    .replace(/\[[^\[\]]{1,64}\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // ---------- 引用块富正文（0.9.57 收口：抽屉 cmtHtml 迁此，imnative 同消费） ----------
 // 「@作者：」头 + 原始 UBB 富渲染（renderCommentHtml 完整管线：表情 EmotionMap 真图、
 // [img] 出真图）；链接退化 span——引用块置于卡片 <a> 内，HTML 禁止嵌套 a（解析器会

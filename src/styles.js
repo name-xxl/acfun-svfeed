@@ -658,6 +658,12 @@ var RAW_CSS = ''
   + '.acsv-mdetail-text{font-size:14px;line-height:22px;color:#e8eaee;word-break:break-word}'
   + '.acsv-mdetail-img{margin-top:10px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06);max-height:320px;width:100%}'
   + '.acsv-mdetail-img img{width:100%;max-height:320px;object-fit:cover;display:block}'
+  + '.acsv-mdetail-img.onbig{cursor:zoom-in}' // 单图接了大图查看时才出放大光标（渲染层挂类）
+  // 多图九宫格（0.9.98，卡面同款形制；面板更宽，限宽防格子被撑过大）
+  + '.acsv-mdetail-imgs{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:420px}'
+  + '.acsv-mdetail-imgs[data-n="2"],.acsv-mdetail-imgs[data-n="4"]{grid-template-columns:repeat(2,1fr)}'
+  + '.acsv-mdetail-imgcell{aspect-ratio:1/1;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06);cursor:zoom-in}'
+  + '.acsv-mdetail-imgcell img{width:100%;height:100%;object-fit:cover;display:block}'
   // 互动栏（赞/蕉可点写链、评论数展示）；点亮态同抽屉评论点赞的 accent 语义
   + '.acsv-mdetail-actions{display:flex;align-items:center;gap:26px;margin-top:12px;padding-bottom:12px;'
   + 'border-bottom:1px solid rgba(255,255,255,.09);font-size:13px;color:#8a90a0}'
@@ -896,6 +902,12 @@ var RAW_CSS = ''
   + '.acsv-gmom-img{margin-top:10px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06);'
   + 'max-height:260px;width:100%}'
   + '.acsv-gmom-img img{width:100%;max-height:260px;object-fit:cover;display:block}'
+  // 多图九宫格（0.9.98）：3 列方格贴原生 member-feed 尺寸律；2/4 张降 2 列（原生同款——
+  // 3 列摆 2/4 张必留角洞）。data-n 属性是格子数（渲染层 dataset.n），选择器按它降列
+  + '.acsv-gmom-imgs{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}'
+  + '.acsv-gmom-imgs[data-n="2"],.acsv-gmom-imgs[data-n="4"]{grid-template-columns:repeat(2,1fr)}'
+  + '.acsv-gmom-imgcell{aspect-ratio:1/1;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.06)}'
+  + '.acsv-gmom-imgcell img{width:100%;height:100%;object-fit:cover;display:block}'
   // 转发引用块（左竖线 + 缩略图 + 源标题 + 源类型）：转发的结构性签名
   + '.acsv-gquote{margin-top:10px;padding:8px 10px;border-left:3px solid rgba(255,255,255,.18);'
   + 'border-radius:0 8px 8px 0;background:rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}'

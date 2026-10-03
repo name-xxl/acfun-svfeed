@@ -68,6 +68,18 @@ function momentCardOf(pi) {
     // 引用块 = 转发的结构性签名（views.quoteBlockOf 共享件，详情面板同款）：
     // **不用源封面当主视觉**——实测转发的 coverUrl 恒等于源封面（9/9），照放会伪装成视频卡
     a.appendChild(quoteBlockOf(pi.repost));
+  } else if (pi.imgs && pi.imgs.length > 1) {
+    // 多图（0.9.98 实报修复「多图只出第一张」）：原生九宫格形制——3 列方格（2/4 张降 2 列，
+    // 原生 member-feed 尺寸律），缩略走 imgs[].url（224 方图）。整卡仍是一个点击目标（点卡
+    // 进详情面板，大图在那里看），格上不另挂点击
+    var grid = el('div', 'acsv-gmom-imgs');
+    grid.dataset.n = String(pi.imgs.length);
+    pi.imgs.forEach(function (im) {
+      var cell = el('div', 'acsv-gmom-imgcell');
+      imgInto(cell, im.url, 'grid');
+      grid.appendChild(cell);
+    });
+    a.appendChild(grid);
   } else if (pi.cover) {
     // 原创动态：自己的图（实测 36/36 都有图）；纯文字形态未观察到，缺图自然不挂
     var im = el('div', 'acsv-gmom-img');

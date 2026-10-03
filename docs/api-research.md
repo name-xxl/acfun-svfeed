@@ -81,6 +81,16 @@ followUpers[]（左侧关注列表+未读徽标数据源）：hasUnReadResource 
 - 嵌套 `moment`：`{momentId, text(UBB 原文), replaceUbbText(**UBB 已替换为明文占位**，如 `[表情]`),
   momentType(本条 2), originResourceType(本条 1), visibleForFans, commentCount, bananaCount,
   shareCount, isThrowBanana}`——`replaceUbbText` 可直接用于列表预览
+- **嵌套 `moment.imgs[]`（多图，2026-10-03 二次实测补）**：**配图动态才有此字段**（无配图
+  整个缺席，首测样本 5104008 恰好无图差点把「只有单张 coverUrl」当成契约）。紧凑形状
+  `{url(224 方缩略, imageView2/5/w/224/h/224 webp), expandedUrl(大图, imageView2/2/w/0
+  q75), originUrl(原图), width, height, size, type}`。另有同信息的冗长形状
+  `moment.imgInfos[]`（thumbnailImage/originImage/expandedImage 各裹 cdnUrls 三层嵌套）
+  ——**取 imgs 不取 imgInfos**（一物二源必漂移）。顶层 `coverUrl` 恒=首图（多图时只是
+  其中之一）；首屏 20 条里配图动态 8 条，imgs 长度分布 1×5、3×1、4×1、9×1
+- **`repostSource.resourceType=10`（转发动态）实存**：同页 21 条转发里 rs2×12 / rs3×6 /
+  **rs10×3**。源条是完整分支条目（带自家顶层 coverUrl），源正文与源首图在**源嵌套
+  `repostSource.moment`** 的 `text` / `imgs[]` 里（对照资产：广场项目的取法相同）
 - `repostSource`：**转发动态的源条目，是完整的分支条目**（本条源是视频：带 `caption/playDuration/
   channel/user/createTimeGroup/resourceType/resourceId/...` 整族字段）⇒ 动态卡可内嵌"转发的视频/文章"卡
 
