@@ -26,6 +26,7 @@
 <script src="cases/upd.js"></script>
 <script src="cases/msg.js"></script>
 <script src="cases/boot.js"></script>
+<script src="cases/settings.js"></script>
 <script>
   // ============ 场景预处理（须在 bundle 加载前：改 mock / 写 localStorage） ============
   var CASE = (location.search.match(/[?&]case=([\w-]+)/) || [])[1] || 'smoke';
@@ -71,15 +72,25 @@
   function rec(name, pass, info) { window.__HARNESS_RESULTS__.results.push({ name: name, pass: !!pass, info: info == null ? '' : String(info) }); }
 
   // 走 home mock 的场景（其余默认 sv；显式 ?src=home 保持人工预览语义）
-  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1, 'watch-playlayer-pagehide': 1, 'watch-pagehide-beacon': 1 };
-  if (HOME_CASES[CASE] || /[?&]src=home/.test(location.search)) {
-    try { localStorage.setItem('acsv-source', 'home'); } catch (e) { }
-  } else {
-    try { localStorage.removeItem('acsv-source'); } catch (e) { }
-  }
+  // 0.9.89 起源记忆收编进设置层：写新键 acsv.s.source（JSON 标量）
+  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1, 'watch-playlayer-pagehide': 1, 'watch-pagehide-beacon': 1, 'settings-open': 1, 'settings-migrate': 1 };
+  try {
+    if (HOME_CASES[CASE] || /[?&]src=home/.test(location.search)) localStorage.setItem('acsv.s.source', '"home"');
+    else localStorage.removeItem('acsv.s.source');
+  } catch (e) { }
   // 深链场景（0.9.72）：源记忆故意留「推荐」，验证地址栏深链的 id 空间标记能压过持久化偏好
   // （这是「粘贴分享链接却重新随机一屏」的原始复现条件：旧代码 source=home 直接丢弃深链）
-  if (CASE === 'deeplink-switch') { try { localStorage.setItem('acsv-source', 'home'); } catch (e) { } }
+  if (CASE === 'deeplink-switch') { try { localStorage.setItem('acsv.s.source', '"home"'); } catch (e) { } }
+  // 设置迁移场景（0.9.89）：bundle 前只预置**老键**（无新键）——首读收养路径的端到端取证。
+  // 值域取自 docs/api-research.md §7 真值表；刻意选与默认不同的值（hevc≠avc、std≠mid、关≠开）
+  if (CASE === 'settings-migrate') {
+    try {
+      localStorage.setItem('acsv-codec', 'hevc');
+      localStorage.setItem('acsv-buf', 'std');
+      localStorage.setItem('acsv-dm-on', '0');
+      localStorage.setItem('acsv-sound-on', '1');
+    } catch (e) { }
+  }
   // 深链的 hash 必须在本 bundle 求值前写好——boot 的 toggle 在 document-end 读 location.hash。
   // 其余场景一律是 bundle 加载后 300ms 才设 hash（见文件尾），那种时序走不到「冷启动深链」路径。
   // 目标 id 都取样例里**非首条**（首条会被随机流首条蒙对，断言失去意义）

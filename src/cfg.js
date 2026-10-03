@@ -5,12 +5,17 @@ import { dbg } from './dbg.js';
 // ===================================================================
 export var CFG = {
   hash: 'svfeed',
-  lsSound: 'acsv-sound-on',
+  // ---- 老偏好键（0.9.89 起由 settings.js 收编）----
+  // 六个 ls* 偏好键的**唯一真源仍是这里**（settings schema 的 legacy 字段引用它们）；
+  // 但写入点已全部改走 settings.setSetting（`acsv.s.<key>`）。老键只在 settings 首读时
+  // 被养一次（值不丢、键不删——回滚友好），此后不再读写。键名/值形态见 docs/api-research.md §7
+  lsSound: 'acsv-sound-on',     // 静音记忆（关态写空串，不是删键）
   lsSource: 'acsv-source',      // 内容源记忆：sv=小视频 home=首页推荐
   lsDm: 'acsv-dm-on',           // 弹幕开关记忆
   lsQuality: 'acsv-quality',    // 清晰度记忆（推荐模式，存 qualityLabel）
   lsCodec: 'acsv-codec',        // 编码偏好记忆（推荐模式）：auto|avc|hevc
   lsBuf: 'acsv-buf',            // 缓冲档位记忆（推荐模式）：std|mid|max
+  // 未收编：最近项缓存与更新状态机各有理由（见 settings.js 头注释与 docs §7）
   lsEmotRecent: 'acsv_emot_recent_v1', // 表情面板最近使用（emoticon.js）
   lsUpd: 'acsv-upd-v1',         // 更新检查状态：{seen,notified,ignored,lastCheck}（release.js）
   accent: '#fd4c5d',
@@ -138,6 +143,7 @@ export var CFG = {
     watchReportMin: 3,   // 观看历史上报门槛：离开时进度达到该秒数才计入历史（过滤闪滑）
     watchLedgerFlush: 3000,    // 持久账本落盘节奏（0.9.87）：崩溃补报的误差上界=此间隔
     watchLedgerTtl: 86400000,  // 账本条目 TTL（24h）：陈旧差量没有补报价值，不养僵尸
+    setFlush: 300,             // 设置写盘防抖窗（0.9.89）：面板连点开关只落一次盘；关面板/pagehide 强制 flush
     upd: 10000,          // release.atom 拉取超时
     updGap: 60000        // 两次更新检查最小间隔：防 Esc 频繁进出竖刷刷请求（mock 注入时绕过）
   },

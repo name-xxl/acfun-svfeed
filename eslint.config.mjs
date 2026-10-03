@@ -75,5 +75,36 @@ export default [
         message: 'URL 手剥 query 已禁（0.9.40 教训）：走 imgurl.coverUrl / coverAttempts'
       }]
     }
+  },
+  // 设置共享层单向依赖（0.9.89，D4「共享层禁止 import 皮肤」的机制化）：src/settings.js 是
+  // schema+存储的零 UI 共享层，只许 import cfg.js（默认值单一来源）。任何 UI/皮肤/特性模块
+  // 混进来都是架构反向（皮肤 → 共享层是唯一允许的方向）——白名单式封死，比黑名单更难绕。
+  // 按要求重列基础选择器（flat config 逐文件替换整条规则，不合并）
+  {
+    files: ['src/settings.js'],
+    rules: {
+      'no-restricted-syntax': ['error',
+        {
+          selector: "ImportDeclaration:not([source.value='./cfg.js'])",
+          message: '设置共享层只许 import ./cfg.js（0.9.89 D4）：schema/存储零 UI，皮肤方向是 皮肤→本层'
+        },
+        {
+          selector: "CallExpression[callee.property.name='split'][arguments.0.value='?']",
+          message: 'URL 手剥 query 已禁（0.9.40 教训）：走 imgurl.coverUrl / coverAttempts'
+        },
+        {
+          selector: "CallExpression[callee.name='el'][arguments.0.value='img']",
+          message: '图片 DOM 手拼已禁：走 imgload.imgInto（例外见 eslint.config.mjs 白名单）'
+        },
+        {
+          selector: "CallExpression[callee.property.name='createElement'][arguments.0.value='img']",
+          message: '图片 DOM 手拼已禁：走 imgload.imgInto（例外见 eslint.config.mjs 白名单）'
+        },
+        {
+          selector: "Literal[value=/未知用户/]",
+          message: '作者占位文案已禁（0.9.82）：作者未知就让 up 为 null，不要编造名字'
+        }
+      ]
+    }
   }
 ];

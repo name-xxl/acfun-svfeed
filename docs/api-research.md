@@ -291,12 +291,42 @@ body 实测（生活分区滚动加载抓包）：`cursor=<毫秒时间戳>_<文
 - 分区：6.3 精选块做首屏 + 榜单续刷；或左栏只做榜单
 - 直播：不立项（仅开播提醒，形式待定）——直播 API 家族未探，followLiveUsers 本账号空列表无样本
 
-## 7. 遗留注意事项
+## 7. 本地偏好存储真值与迁移（0.9.89 实测）
+
+采集方式：内置浏览器（登录态）在 www.acfun.cn 读取本机 profile 的 localStorage——该 profile 此前跑过脚本的
+debug 构建（`acsv-stats` 埋点键与 mount 埋点在场佐证，非本次写入），本次只读不写（复核：探测前后键清单一致）。
+日期 2026-10-03。目的：0.9.89「设置层收编」（老键 → `acsv.s.<key>`）的迁移夹具用真值，不脑补形态。
+
+**本机 profile 实际存在的键（原值原文）**：
+
+| key | 实测值 | 形态说明 |
+|---|---|---|
+| `acsv-source` | `sv` | 值域 sv/home（写入点 api.setSource） |
+| `acsv-sound-on` | `1` | 开=`1`、关=**空串**（playback.toggleSound 写 `''`，不是删键） |
+| `acsv-upd-v1` | `{"lastCheck":1790947748603}` | 更新检查状态机；本机仅有 lastCheck，seen/notified/ignored 缺席（形态由 release.readState 钉死） |
+| `acsv-stats` | `{"t":…,"stats":{…},"dbg":[…]}` | **不是偏好**：debug 构建的埋点镜像（dbg.js 周期写），不收编 |
+
+**本机未出现（该 profile 未改过该项 → 消费点走默认）**：`acsv-dm-on`（`"1"`/`"0"`）、`acsv-codec`
+（`"auto"|"avc"|"hevc"`）、`acsv-buf`（`"std"|"mid"|"max"`）、`acsv-quality`（清晰度 label）。
+**标注：这四项为「未在现场观测到」**，形态来自仓库写入点（danmaku.setDmEnabled / controls 编码·缓冲菜单 /
+attach.switchQuality），迁移夹具按写入点原文构造。
+
+**清晰度 label 的真实形态（同机实测，官方播放器清晰度菜单选项文本）**：`1080P+ / 1080P / 720P / 540P / 360P / 自动`
+（视频 ac24325439）。脚本存的是 app 接口 `qualityLabel`，可能带编码后缀（`…·HEVC`，session.js 实测注释）。
+
+**无其它写入方**：本机 LS 里 `acsv` 前缀只有上表 4 键；GM 存储（观看账本 / 表情包）在管理器侧、不在 LS。
+
+**迁移方向（0.9.89 设置层）**：`source` / `dmDefault`（自 acsv-dm-on）/ `codec` / `buf` / `quality` / `sound`
+六项收编进 `acsv.s.<key>`——首读时新键缺 → 收养老键值并落新键，**老键不删**（回滚友好）。
+不迁移：`acsv-upd-v1`（是状态机 seen/notified/ignored，不是设置）、`acsv-stats`（调试通道）、
+`acsv_emot_recent_v1`（最近项缓存）、GM 键（账本/表情包）。
+
+## 8. 遗留注意事项
 
 1. feed/webPush 条目 tag[] 覆盖率不稳 → 富化一律以 douga/info 的 tagList 为准，feed 内嵌 tag 仅作加速
 2. 收藏资源列表响应键是 favoriteList（无 list/resourceList 别名），normalize 时直接取；取尽判定用 page 自增后 favoriteList 空 / total 对照
 
-## 8. 来源
+## 9. 来源
 
 - 真机实测：内置浏览器带登录态（2026-10-02，本文所有〔实测〕标注）
 - 站点源码实锤：member/favourite 页 webpack chunk（GetFavoriteDougas 请求构造与同族端点 /favorite/articleList、/favorite/albumList、/favorite/bangumiList）；acfunsdk source.py 同构旁证

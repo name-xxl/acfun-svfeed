@@ -14,6 +14,7 @@ import { root } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { el, elHtml, toast } from './ui.js';
 import { stat } from './dbg.js';
+import { getSetting } from './settings.js';
 
 // ===================================================================
 // 纯函数区（导出供单测；任何脏输入不许抛错，只许降级）
@@ -222,8 +223,11 @@ function refreshDot() {
 // ===================================================================
 
 // 每次打开竖刷页检查一次（mount 调）。最小间隔防 Esc 频繁进出刷请求（mock 注入时绕过，
-// 供场景 remount 确定性复现）
+// 供场景 remount 确定性复现）。
+// 「自动检查更新」开关（0.9.89 收编进设置层）门在最前——**mock 注入也不绕它**（场景要测
+// 关掉后的静默）；顶栏「更新」按钮走 openReleaseNotes（用户显式动作，不受此门约束）
 export function releaseCheck() {
+  if (!getSetting('updCheck')) return;
   if (!mockAtom()) {
     var st = readState();
     var now = Date.now();

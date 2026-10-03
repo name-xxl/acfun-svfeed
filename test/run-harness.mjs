@@ -75,7 +75,11 @@ const HARNESS_CASES = [
   // 0.9.88 boot 页面类型分流：pathname 在 bundle 前改写（harness.html 的 BOOT_PATH）+
   // 挂载前快照（__BOOT_SNAP__）断言样式注入差异与 dbg 埋点，故为 debug 构建
   { name: 'boot-home', serial: true },  // '/'：全量初始化（样式先就位）
-  { name: 'boot-video', serial: true }  // '/v/…'：仅基础设施（全量 CSS 不得注入）+ 深链仍可挂载
+  { name: 'boot-video', serial: true }, // '/v/…'：仅基础设施（全量 CSS 不得注入）+ 深链仍可挂载
+  // 0.9.89 设置面板（Shadow DOM 断言走 host.shadowRoot）：开/关/持久化 + 老键收养，
+  // settings-migrate 依赖 bundle 前预置老键（见 harness.html），故为 debug 构建
+  { name: 'settings-open', serial: true },
+  { name: 'settings-migrate', serial: true }
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

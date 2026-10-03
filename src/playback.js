@@ -1,8 +1,8 @@
-import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
 import { el } from './ui.js';
 import { root, scroller, slideAt, videoTarget } from './state.js';
 import { FeedStore } from './feedstore.js';
+import { getSetting, setSetting } from './settings.js';
 
 // ---------- 播放态与声音原语 ----------
 // 播放相关全局状态收拢在 pb 一个对象里（原 player.js 顶部散落的一批模块变量）：
@@ -17,11 +17,11 @@ export var pb = {
   soundHintDismissed: false
 };
 
-// mount 时复位会话内手势/提示状态；静音偏好从 localStorage 恢复
+// mount 时复位会话内手势/提示状态；静音偏好从设置层取（0.9.89 收编：老键 acsv-sound-on 首读收养）
 export function resetForMount() {
   pb.firstGestureSeen = false;
   pb.soundHintShown = false;
-  try { pb.soundOn = localStorage.getItem(CFG.lsSound) === '1'; } catch (e) { pb.soundOn = false; }
+  pb.soundOn = getSetting('sound');
 }
 
 // 退出信息流时复位长按快进：恢复原速，否则倍速残留到下次进入
@@ -68,7 +68,7 @@ export function playVideo(video) {
 }
 
 export function enableSound(video) {
-  try { localStorage.setItem(CFG.lsSound, '1'); } catch (e) { }
+  setSetting('sound', true);
   pb.soundOn = true;
   if (video) { video.muted = false; video.volume = 1; playVideo(video); }
   refreshMuteIcons();
@@ -77,7 +77,7 @@ export function enableSound(video) {
 export function toggleSound(video) {
   if (pb.soundOn) {
     pb.soundOn = false;
-    try { localStorage.setItem(CFG.lsSound, ''); } catch (e) { }
+    setSetting('sound', false);
     if (video) video.muted = true;
   } else {
     enableSound(video);

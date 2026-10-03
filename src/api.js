@@ -2,21 +2,22 @@ import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { normalize, normalizeHome, deepLinkOf } from './data.js';
 import { AppAPI } from './appapi.js';
+import { getSetting, setSetting } from './settings.js';
 
 // ---------- API：站点接口（mock 桩统一在 API 层收口） ----------
 // 内容源：sv=小视频 meow（随机池重复拉+去重）；home=首页推荐 selection/feed（真 pcursor 游标）
 function mockData() { return window.__ACSV_MOCK__ || null; }
 function mockHome() { return window.__ACSV_MOCK_HOME__ || null; }
 
-var curSource = 'sv';
-try { curSource = localStorage.getItem(CFG.lsSource) === 'home' ? 'home' : 'sv'; } catch (e) { }
+// 源记忆（0.9.89 收编）：老键 acsv-source 由 settings 首读收养一次，此后读写 acsv.s.source
+var curSource = getSetting('source');
 
 export function getSource() { return curSource; }
 
 export function setSource(s) {
   curSource = s === 'home' ? 'home' : 'sv';
   if (curSource === 'home') AppAPI.resetPager();
-  try { localStorage.setItem(CFG.lsSource, curSource); } catch (e) { }
+  setSetting('source', curSource);
 }
 
 // 进入竖刷页时推荐源重新拉首屏（退出再进不吃旧游标）

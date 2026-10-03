@@ -3,6 +3,7 @@ import { stat, set, testHook } from './dbg.js';
 import { toast, sweepSlideVideos } from './ui.js';
 import { ensureResolved } from './api.js';
 import { nativeHls, ensureHls } from './hls.js';
+import { getSetting } from './settings.js';
 
 // ---------- 播放会话：一个「正在播放的视频」的完整生命周期 ----------
 // 状态机：idle → resolving → loading → ready(⇄paused)；→ error；任意 → disposed。
@@ -295,12 +296,12 @@ export function createSession(slide, item, idx, hooks) {
   return S;
 }
 
-// hls.js 构造参数（推荐模式）。缓冲档位用户可调（控制栏「缓冲」菜单，记忆 lsBuf）；
-// startFragPrefetch 让首片在 attach 阶段就预取，缩短出画时间。VOD 不碰 lowLatencyMode：
-// 它只对 LL-HLS 直播有意义。maxBufferSize 单位是字节（0.9.1 前误写 120 当 MB）
+// hls.js 构造参数（推荐模式）。缓冲档位用户可调（控制栏「缓冲」菜单 + 设置面板，0.9.89
+// 收编进设置层 acsv.s.buf）；startFragPrefetch 让首片在 attach 阶段就预取，缩短出画时间。
+// VOD 不碰 lowLatencyMode：它只对 LL-HLS 直播有意义。maxBufferSize 单位是字节
+//（0.9.1 前误写 120 当 MB）
 function bufConfig() {
-  var key = null;
-  try { key = localStorage.getItem(CFG.lsBuf); } catch (e) { }
+  var key = getSetting('buf');
   var p = (key && CFG.buf.presets[key]) || CFG.buf.presets[CFG.buf.def];
   if (CFG.exp.smallBuf) p = CFG.buf.presets.std; // exp（仅 debug）：缩缓冲，排除内存压力因素
   return {

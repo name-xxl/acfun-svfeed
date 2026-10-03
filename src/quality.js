@@ -1,6 +1,7 @@
 // ---------- 播放质量策略（从 appapi.js 剥离的纯播放侧逻辑） ----------
-// 只依赖 CFG + localStorage 偏好，不碰网络——APP 接口层负责取档位，这里负责选档位。
+// 只依赖 CFG + 设置层偏好，不碰网络——APP 接口层负责取档位，这里负责选档位。
 import { CFG } from './cfg.js';
+import { getSetting } from './settings.js';
 
 // 按记忆清晰度（无记忆取最高档；档位已在 playInfo 显式按分辨率数字降序）。
 // 先按编码偏好过滤档位：avc 滤掉 HEVC 档（cast 对部分设备/未来 4K 档可能下发
@@ -12,8 +13,7 @@ export function applyQuality(item) {
   if (!item.qualities || !item.qualities.length) return;
   var all = item.qualities;
   item._qualitiesAll = all;
-  var pref = null;
-  try { pref = localStorage.getItem(CFG.lsCodec); } catch (e) { }
+  var pref = getSetting('codec'); // 0.9.89 收编（老键 acsv-codec 首读收养、值域由设置层兜）
   if (pref !== 'auto' && pref !== 'hevc') pref = CFG.codec.def;
   if (pref !== 'auto') {
     var hit = all.filter(function (x) { return x.codec === pref; });
@@ -24,8 +24,7 @@ export function applyQuality(item) {
     var lo = item.qualities.filter(function (x) { return !(x.fps > 30); });
     if (lo.length) item.qualities = lo;
   }
-  var label = null;
-  try { label = localStorage.getItem(CFG.lsQuality); } catch (e) { }
+  var label = getSetting('quality'); // 0.9.89 收编（老键 acsv-quality；动态 label 原样透传）
   var idx = 0;
   if (label) {
     for (var i = 0; i < item.qualities.length; i++) {

@@ -306,6 +306,8 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
 | `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷） |
 | `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/other——boot 运行分流的唯一判据（判据与 uppage 的 `/u/\d+` 逐字一致，单测钉一致性） |
+| `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）；`onChange` 订阅让消费方零反向依赖地即时生效 |
+| `settingspanel.js` | 脚本页设置皮肤（0.9.89）：dock 齿轮 → `openSettings()` → overlay 栈（modal，Esc 白拿）；host + **Shadow DOM** 作用域样式（量取值与日期在文件头注释）；控件按 schema 表驱动（bool 开关 / select 下拉 / number 步进器）；原生页皮肤 Phase 6 是兄弟模块 |
 
 ### 模块依赖图
 
@@ -325,6 +327,7 @@ flowchart LR
     inputbar["inputbar.js（抽屉输入栏）"]
     imgurl["imgurl.js（图片 URL·零依赖叶子）"]
     pagekind["pagekind.js（页面类型分类器·零依赖叶子）"]
+    settings["settings.js（设置共享层·只依赖 cfg）"]
     viewreg["viewreg.js（视图注册表·零依赖）"]
     imgload["imgload.js（图片字段加载入口）"]
     overlay["overlay.js（浮层栈）"]
@@ -363,19 +366,21 @@ flowchart LR
   end
 
   boot["boot.js（入口）"]
+  settingspanel["settingspanel.js（脚本页设置皮肤·Shadow DOM）"]
   data --> imgurl
   route --> feedstore
   imgview --> overlay
   imgload --> imgurl
   topbar --> imicons
-  api --> appapi
+  api --> appapi & settings
   appapi --> quality
+  quality --> settings
   appapi --> imgurl
-  session --> api & hls
-  attach --> feedstore & quality & session
+  session --> api & hls & settings
+  attach --> feedstore & quality & session & settings
   player --> api & attach & comments & feedstore & imdrawer & input & overlay & pb & release & sidebar & topbar & views
   feedstore --> api & player
-  pb --> feedstore
+  pb --> feedstore & settings
   ubb --> emoticon
   playlayer --> api & attach & viewreg & views
   imshare --> appapi & imdrawer & imgload & immsg
@@ -384,12 +389,13 @@ flowchart LR
   imcard --> emoticon & imgview & immsg
   boot --> imnative & mypage & pagekind & player & playlayer & searchview & zone
   views --> feedstore & imgload & imicons & overlay & sidebar & topbar & viewreg
-  sidebar --> viewreg
+  sidebar --> viewreg & settingspanel
+  settingspanel --> settings & overlay
   searchview --> topbar & viewreg & views
-  input --> comments & feedstore & imdrawer & overlay & pb & playlayer & views
+  input --> comments & feedstore & imdrawer & overlay & pb & playlayer & settings & views
   comments --> appapi & emoticon & imgload & imgview & imicons & immsg & imshare & inputbar & overlay & ubb
   interact --> appapi
-  release --> overlay
+  release --> overlay & settings
   mypage --> appapi & imgload & viewreg & views
   zone --> appapi & viewreg & views
 

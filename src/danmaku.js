@@ -1,7 +1,7 @@
-import { CFG } from './cfg.js';
 import { AppAPI } from './appapi.js';
 import { DmCanvas } from './dmcanvas.js';
 import { el, toast } from './ui.js';
+import { getSetting, setSetting, onChange } from './settings.js';
 
 // ---------- 弹幕编排：拉取/缓存/开关/发送/输入框 ----------
 // 渲染在 dmcanvas（每 slide 一个 Canvas 图层）；数据走 PC 站弹幕接口（网页 Cookie）。
@@ -9,14 +9,15 @@ import { el, toast } from './ui.js';
 
 var DM_CACHE_MAX = 30; // 只留最近看过的 videoId：长会话不至于积攒几百份弹幕数组
 var cache = new Map(); // videoId → Promise<规整弹幕列表>；失败不占缓存
-var enabled = true;
-try { enabled = localStorage.getItem(CFG.lsDm) !== '0'; } catch (e) { }
+// 弹幕默认开关（0.9.89 收编）：老键 acsv-dm-on 由 settings 首读收养；设置面板改动即时生效
+var enabled = getSetting('dmDefault');
+onChange('dmDefault', function (v) { enabled = v; });
 
 export function dmEnabled() { return enabled; }
 
 export function setDmEnabled(on) {
   enabled = !!on;
-  try { localStorage.setItem(CFG.lsDm, on ? '1' : '0'); } catch (e) { }
+  setSetting('dmDefault', enabled);
 }
 
 function fetchList(videoId) {

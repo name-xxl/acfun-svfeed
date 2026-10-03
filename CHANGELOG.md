@@ -3,6 +3,48 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.89（2026-10-03）· Phase 1 收尾：设置层收编（路线图 1.1）+ 脚本页设置面板（1.2）
+
+- **前置实测（铁律 3，内置浏览器登录态，落档 docs/api-research.md §7）**：
+  - **老键真值快照**：本机 profile 实存 4 键——`acsv-source=sv`、`acsv-sound-on=1`（关态写**空串**）、
+    `acsv-upd-v1={"lastCheck":…}`、`acsv-stats`（debug 埋点镜像，非偏好）；`acsv-dm-on`/`acsv-codec`/
+    `acsv-buf`/`acsv-quality` 未出现，**标注「未现场观测、形态按写入点原文构造」**（不脑补成实测）。
+    清晰度 label 真实形态同机实测 = `1080P+ / 1080P / 720P / 540P / 360P / 自动`（官方播放器菜单）。
+    探测只读不写，前后键清单一致（无其它写入方）。
+  - **样式量取（0.9.69 纪律）**：官方弹幕设置面板（400 宽、rgba(21,21,21,.8)、radius 2px、行高 18+20
+    节奏、开关 34×18、按钮 126×26）+ 官方清晰度菜单（radius 4px、选项行 36px、选中 accent）——
+    量取值与日期写在 settingspanel.js 文件头；**几何取官方、表面取本方 .acsv-upd 家族**（脚本页面板
+    必须与自家模态同族；官方是扁平 2px 圆角无模糊，差异有据）；未量到的开关旋钮几何按药丸内切推导，注释在册。
+- **设置共享层 `src/settings.js`（1.1）**：SCHEMA 唯一契约（`def` 引用 CFG——默认值单一来源不复制，
+  两皮肤表驱动同源）；存储**逐键** `acsv.s.<key>`（GM 优先 / localStorage 回落，watchledger 体例）+
+  写防抖（`CFG.time.setFlush`，关面板 / pagehide 强制 flush）；**无 TTL 是知情设计**（偏好不是缓存——
+  对照观看账本的 24h TTL：那是差量缓存过期即无价值，偏好过期没有语义，理由在模块头）。读取三态
+  = 新键 → 老键收养 → 默认；`onChange` 订阅（读方零反向依赖，同 state.js 中介纪律）；纯逻辑抽纯
+  （coerceValue / fromLegacy / validateValue / clampNumber / defaultsSnapshot）供单测直采。
+  **lint 新禁令**：`src/settings.js` 只许 import `./cfg.js`（D4「共享层禁止 import 皮肤」的机制化）。
+- **收编（迁移式，六项老键）**：`acsv-source→source`、`acsv-dm-on→dmDefault`、`acsv-codec→codec`、
+  `acsv-buf→buf`、`acsv-quality→quality`、`acsv-sound-on→sound`——九个消费点全部改走设置层
+  （api / danmaku / quality / controls / session / attach / playback / release / input）；首读收养老值
+  并落新键、**老键不删**（回滚友好，5.3「兼容老 key」提前成立）。不迁移：`acsv-upd-v1`（是状态机
+  seen/notified/ignored）、`acsv-stats`（调试通道）、`acsv_emot_recent_v1`（最近项缓存）、GM 键。
+- **脚本页设置皮肤 `src/settingspanel.js`（1.2）**：dock 底部齿轮（`margin-top:auto`；复用 dock-item
+  样式但不带 data-view，故不进 syncDock 高亮）→ overlay 栈 modal 层（Esc 与模态键语义零改 input.js）；
+  host 挂 root + **Shadow DOM** 作用域样式（intake 清单体例；主题变量穿影子边界继承）；控件按 schema
+  表驱动——bool 开关 / select 下拉 / number 步进器，**text 不实现控件**（单测钉「panel:true 的类型必须在
+  实现集内」，将来塞 text 项会红而非静默无控件）。首批五项：自动检查更新（新；门在 `releaseCheck()`
+  入口，**mock 注入不绕门**供场景测，顶栏「更新」手动入口不受门约束）、弹幕默认开启（即时生效：
+  订阅读回，控制栏「弹」按钮与当前条图层单源走 `applyDmState`）、编码偏好、缓冲档位、快进步长
+  （原硬编码 5s 无入口；5..30 可调，按键时现读、改完即生效）。
+- **测试**：单测 +16（`settings.test.js`：schema 不变量四组 + coerceValue / fromLegacy / clampNumber +
+  存储编排组——读三态、收养一次、非法值落默认、防抖落盘、订阅退订；编排组用 10 行 localStorage 垫片
+  直测，专治「mem 预填默认值 → 存储永远读不到」这一类初稿真 bug）。harness +2：`settings-open`
+  （点齿轮——首个点 dock 的驱动；五控件在场、开关写盘 + 控制栏「弹」按钮即时同步、Esc 关且浮层栈空、
+  重开状态保持；**面板改编码偏好 → 关面板即 flush → 控制栏「编码」菜单高亮同步**，收编端到端证据）、
+  `settings-migrate`（bundle 前只预置老键 → 面板读出收养值 + 新键生成 + 老键未删；
+  影子根断言走 host.shadowRoot）。harness.html 的源记忆种子键同步改 `acsv.s.source`。
+- **回归**：lint 干净、`npm run check` 三项通过（依赖图新增 settings / settingspanel 节点与 8 条边）、
+  单测 166 全绿、构建幂等、harness 38 场景 0 失败。
+
 ### 0.9.88（2026-10-03）· Phase 0 收尾：评论转发选链修复 + boot 页面类型分流 + LICENSE
 
 - **评论链接劫持修复（路线图 0.1，中危）**：

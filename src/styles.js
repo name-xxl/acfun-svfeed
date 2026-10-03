@@ -626,6 +626,11 @@ var RAW_CSS = ''
   + '.acsv-dock-item:hover{background:rgba(255,255,255,.08);color:#fff}'
   + '.acsv-dock-item.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600}'
   + '.acsv-dock-sep{height:1px;background:rgba(255,255,255,.09);margin:8px 6px}'
+  // 设置齿轮（0.9.89）：钉 dock 底部；条目样式复用 .acsv-dock-item，只补钉底与顶部留白
+  + '.acsv-dock-gear{margin-top:auto}'
+  // 设置面板 host（0.9.89）：光 DOM 侧只负责定位与层级，内里视觉全在影子根（settingspanel.js）。
+  // z 62：压过 imgview(60)，低于更新弹窗(65)——系统级模态仍最高（z 档位表见 overlay.js 头注释）
+  + '.acsv-set-host{position:absolute;inset:0;z-index:62}'
   // 主区让位：竖刷视频区居中于剩余空间；全屏沉浸还原满幅
   + '.acsv-scroller{margin-left:' + CFG.view.dockW + 'px}'
   + '#acsv-root:fullscreen .acsv-dock{display:none}'

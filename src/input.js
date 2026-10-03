@@ -9,6 +9,7 @@ import { overlayTop, overlayClose } from './overlay.js';
 import { currentView } from './views.js';
 import { currentItem } from './playlayer.js';
 import { toggleImDrawer } from './imdrawer.js';
+import { getSetting } from './settings.js';
 
 // ---------- 键盘/全屏/幽灵扫描：全局监听的注册与解除 ----------
 // 上层导航（scrollToIndex/exitFeed）在 player.js，经 api 参数注入保持依赖单向；
@@ -58,7 +59,8 @@ export function setupInputHandlers(api) {
         ev.preventDefault();
         (function () {
           var v = currentVideo();
-          if (v && v.duration) v.currentTime = Math.max(0, v.currentTime - CFG.time.seekStep);
+          // 步长走设置层（0.9.89 收编：面板可调 5..30s；键位时现读，改完下一次按键即生效）
+          if (v && v.duration) v.currentTime = Math.max(0, v.currentTime - getSetting('seekStep'));
         })();
         break;
       case 'ArrowRight': {
@@ -109,10 +111,10 @@ export function setupInputHandlers(api) {
     if (ev.key !== 'ArrowRight' || !root) return;
     var v = currentVideo();
     if (pb.seekHold.timer) {
-      // 短按：快进 5 秒
+      // 短按：快进一个步长（步长见设置层 seekStep）
       clearTimeout(pb.seekHold.timer);
       pb.seekHold.timer = null;
-      if (v && v.duration) v.currentTime = Math.min(v.duration, v.currentTime + CFG.time.seekStep);
+      if (v && v.duration) v.currentTime = Math.min(v.duration, v.currentTime + getSetting('seekStep'));
     } else if (pb.seekHold.active) {
       // 长按结束：恢复原速
       pb.seekHold.active = false;

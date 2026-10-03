@@ -6,8 +6,25 @@ import { FeedStore } from './feedstore.js';
 import { pb, togglePlayGesture, toggleMuteGesture } from './playback.js';
 import { dmEnabled, setDmEnabled, onPlaying as dmOnPlaying, createDmBox as dmCreateBox } from './danmaku.js';
 import { switchQuality, attachVideo } from './attach.js';
+import { getSetting, setSetting, onChange } from './settings.js';
 
 // ---------- 播放控制栏 ----------
+// 弹幕开关的「作用」单源（0.9.89）：控制栏按钮与设置面板是同一全局开关的两个入口——
+// 面板侧没有 slide 闭包，故这里下沉成纯函数，两处共用（按钮态 + 当前条图层起停）
+function applyDmState(sl, item) {
+  var on = dmEnabled();
+  if (sl && sl._ctlDmBtn) sl._ctlDmBtn.classList.toggle('on', on);
+  if (!sl) return;
+  var v = sl.querySelector('video');
+  if (on && v) dmOnPlaying(sl, item, v);
+  else if (sl._dmLayer) sl._dmLayer.stop();
+}
+// 设置面板改弹幕开关 → 当前条即时同步（面板是模态：开着时看不见控制栏，关掉后必须已就位）
+onChange('dmDefault', function () {
+  var idx = FeedStore.current;
+  applyDmState(idx >= 0 ? slideAt(idx) : null, idx >= 0 ? FeedStore.items[idx] : null);
+});
+
 export function showControls(slide) {
   if (slide.dataset.ctl !== '1') slide.dataset.ctl = '1'; // mousemove 高频：避免重复写 DOM 属性
   clearTimeout(slide._ctlTimer);
@@ -164,14 +181,12 @@ export function buildControls(slide, idx, item) {
     dmBtn.title = '弹幕开关';
     dmBtn.addEventListener('click', function (ev) {
       ev.stopPropagation();
+      // 只翻开关：按钮态与图层起停统一走 onChange('dmDefault') → applyDmState（单源，
+      // 面板路径同一条链；这里再调一次会双重起停图层）
       setDmEnabled(!dmEnabled());
-      dmBtn.classList.toggle('on', dmEnabled());
-      var v = videoOf();
-      var sl = v && v.closest('.acsv-slide');
-      if (dmEnabled() && sl) dmOnPlaying(sl, item, v);
-      else if (sl && sl._dmLayer) sl._dmLayer.stop();
       toast(dmEnabled() ? '弹幕已开启' : '弹幕已关闭');
     });
+    slide._ctlDmBtn = dmBtn; // 面板路径经 applyDmState 找得到本条按钮（同 _qBtn 体例）
 
     // 常驻内嵌输入框（Enter 发送，Esc 失焦）
     dmBox = dmCreateBox(item, videoOf);
@@ -212,7 +227,7 @@ export function buildControls(slide, idx, item) {
       ];
     }, function (i) {
       var keys = ['auto', 'avc', 'hevc'];
-      try { localStorage.setItem(CFG.lsCodec, keys[i]); } catch (e) { }
+      setSetting('codec', keys[i]); // 0.9.89 收编：同键设置面板也改，控制栏菜单 getter 展开时现读
       toast('编码偏好：' + ['自动', 'H.264', 'HEVC'][i]);
       // 档位集随偏好过滤（applyQuality）：清懒解析缓存强制重跑解析链
       var v = slide.querySelector('video');
@@ -224,8 +239,7 @@ export function buildControls(slide, idx, item) {
       rebuildFwdNeighbor(slide, true);
     });
     bufWrap = buildMenu('缓冲', function () {
-      var key = null;
-      try { key = localStorage.getItem(CFG.lsBuf); } catch (e) { }
+      var key = getSetting('buf');
       if (!CFG.buf.presets[key]) key = CFG.buf.def;
       return Object.keys(CFG.buf.presets).map(function (k) {
         var p = CFG.buf.presets[k];
@@ -234,7 +248,7 @@ export function buildControls(slide, idx, item) {
     }, function (i) {
       var k = Object.keys(CFG.buf.presets)[i];
       var p = CFG.buf.presets[k];
-      try { localStorage.setItem(CFG.lsBuf, k); } catch (e) { }
+      setSetting('buf', k); // 0.9.89 收编（会话内即时生效靠下面的重挂；落盘走设置层防抖）
       toast('缓冲：' + p.label + '（前向 ' + p.maxBufferLength + 's）');
       // 只影响 Hls 构造参数：重挂即生效
       var v = slide.querySelector('video');
@@ -284,10 +298,10 @@ export function updateArrows(slide) {
 }
 
 // hls 实例/挂源/错误恢复链已迁入 session.js（3b）；这里只留编码偏好的 UI 读取。
-// 当前编码偏好（档位集已在 applyQuality 按偏好过滤，这里只供 UI 高亮与 toast）
+// 当前编码偏好（档位集已在 applyQuality 按偏好过滤，这里只供 UI 高亮与 toast）。
+// 0.9.89 收编：值域校验留在设置层（coerceValue），此处只管 UI 兜底默认
 export function codecPref() {
-  var v = null;
-  try { v = localStorage.getItem(CFG.lsCodec); } catch (e) { }
+  var v = getSetting('codec');
   if (v !== 'auto' && v !== 'hevc') v = CFG.codec.def;
   return v;
 }

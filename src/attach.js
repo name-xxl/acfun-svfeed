@@ -1,9 +1,9 @@
-import { CFG } from './cfg.js';
 import { toast, sweepSlideVideos } from './ui.js';
 import { createSession } from './session.js';
 import { slideAt, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js'; // 仅调用期解引用（feedstore↔player 循环同款先例）
 import { reapplyQuality } from './quality.js';
+import { setSetting } from './settings.js';
 
 // ---------- 元素级契约总表 ----------
 // 以下 _xxx 属性挂在 slide/item DOM 对象上，是跨模块的隐式协作面。
@@ -70,7 +70,7 @@ export function switchQuality(item, slide, qIdx, manual) {
   if (manual) item._qManual = true;
   // 仅用户手选才记忆：看门狗自动降档是临时的，写进去会跨会话固化成低清偏好
   if (manual) {
-    try { localStorage.setItem(CFG.lsQuality, item.qualities[qIdx].label); } catch (e) { }
+    setSetting('quality', item.qualities[qIdx].label); // 0.9.89 收编（老键 acsv-quality）
   }
   slide._resumeAt = t;
   if (slide._qBtn) slide._qBtn.textContent = item.qualities[qIdx].label; // 底栏标识同步
