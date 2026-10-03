@@ -3,6 +3,51 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.105（2026-10-04）· 关注/详情整批整修（用户实报九项 + 架构三问）
+
+- **A 详情左区改多图轮播**（用户裁决；XHS 实测对齐 2026-10-04）：track translate3d 平移 +
+  箭头 60×60 垂直居中 + 底部分页点 + **滚轮**（媒体区 wheel passive:false，preventDefault +
+  逐格，XHS 实测同款：dispatch 后 defaultPrevented=true、页面不滚、wrapper 平移一张）；循环；
+  单图不轮播；slide 点击开大图。
+- **B 作者名统一蓝**：行流 `.acsv-frow-name` 与面板头名字 → #57a9f5（引用卡 @源UP 同源；
+  实报「灰字在黑底不显眼」）；面板头名字 span→真链接（userBase+up.id）。
+- **C UBB 吸收广场资产**：字面 `[表情]` 灰字占位（+data 供回填）、emot 正则容差（斜杠可选/
+  数字 id）、`#话题#`→站内搜索、裸 `ac123`/`v/acN` 转链、`m.acfun.cn` 动态短链→momentBase；
+  行内规则排在 `[resource]` 前（靠顺序等价广场的保护块，剥壳防 <a> 嵌套）。**不吸收登记**：
+  `[ac=]` 方言（广场自家数据源）、保护块机制（顺序 replace 已稳）。配套：三处正文表情/图片
+  尺寸作用域（34/68——实报「动态卡不支持 ubb 解析吗」真凶=表情图自然尺寸≈80px）、面板与
+  引用卡正文补 pre-line、白名单自 ubb 搬至 emoticon（表情域）、`emotImgOf/emotPlaceholderHtml/
+  refillEmoticons` 三件套 + 行流 `ensureEmotionMap` 预热回填（不再赌"别处先加载"）。
+- **D 展开截断**：`.clamp` max-height:84px → `-webkit-line-clamp:4`（像素硬裁切半行 → 行盒级
+  裁剪）；armExpanders 图片 load 后重测（img 无尺寸属性时首测不准）。
+- **E 引用卡标题换行**（实报「省略号截断、卡片有显示空间」）：引用卡内标题 2 行 clamp、
+  藏摘要；顶层行 strip 保持原生单行。
+- **F 共用资产抽离（用户点名）**：新模块 **momentbar.js**——键定义表 + 写链编排单源，行流卡
+  与详情面板同源、skin 分皮肤（类名沿用旧值防测试钉子）；**面板互动栏四键统一**（分享/评论/
+  蕉/赞，补上面板的分享入口）；CSS 行流 `.acsv-fact` 族 scope 到 `.acsv-frow-acts` 防面板
+  吃 48/42 尺寸。momentdetail 头注「乐观更新不抽公共件」裁决条目按递进史修订。
+- **G 分享卡定位**（裁决几何）：`openSharePanel` 增 `opts.place`（rect 计算落宿主内容坐标系
+  → 随列表滚动跟随）：行流=右缘挨行左缘 12px、底部共用坐标；面板=左缘挨面板右缘、底对齐；
+  空间不足**翻转**兜底、锚下空间不足**压缩弹层高度**（内部滚动）；RO 引用保留（局部
+  observer 会被 GC 停观察——底对齐漂移实锤）。默认无 place 调用（rail/comments）零改动。
+- **H 私信×详情共存**（裁决「左移避让」）：根因=面板占 claimDrawer 槽被 IM 驱逐拆面板——
+  面板/行内宿主**不再占槽**（互斥改双向显式收：openComments 见宿主先收）；`acsv-with-comments`
+  根类下面板 `padding-right:var(--acsv-dw)` 左移避让（复用既有避让体系+过渡）；`.acsv-msgdrawer`
+  z 62（浮于面板 61 上）；imdrawer 加 debug testHook。
+- **I 回顶按钮**：'↑' 文本 → `.acsv-tbtn` 圆钮 + chevUp SVG（顶栏图标语言统一）。
+- **J dock 高亮修复**（架构问一实锤）：舞台深链 r.view=null → syncDock 回落「推荐」——
+  改经 `feedstore.listContext()`（新导出）读上下文 `dockView`（FollowVideos='follow'），
+  深界面空链兜底同款；follow-videos 场景补 dock 断言（原无 dock 断言=漏网处）。
+- **K 无图动态的官方封面修复**（实测量化）：29 条动态 21 条无图且 coverUrl 恒非空——三类
+  来源（官方默认封面池/转发源封面/用户图）都不是"本条配图"。契约层 ct=moment 不再赋
+  `it.cover`、渲染层去 cover 兜底、详情 hasMedia 只看 imgs（转发源卡 repost.cover 不受影响）。
+- **与架构三问的关系（详见 0.9.106）**：竖刷组件本就共享（stage 唯一实现，FollowVideos 是
+  第二数据上下文）；真债务=双上下文互踩清理 + 上下文核心重复——0.9.106 收。
+- **测试**：单测 188（UBB 新规则 ×5 + 占位/回填形态更新）；harness：view-follow 66（分享几何
+  实测 1600×900 桌面视口/UBB 话题与裸 ac 渲染/引用卡换行/回顶 svg）、detail-open 37（轮播
+  三向/四键/分享几何/私信共存避让 0.2s 过渡等待）、follow-videos 19（dock 高亮）；三场景
+  视口固定 1600×900（几何裁决坐标需行侧留白）。全绿后提交。
+
 ### 0.9.104（2026-10-03）· 关注语境三处实报：源 seg 冲突 / 蕉黄 / 投蕉数量层
 
 - **① 舞台放关注流时冒出「小视频/推荐」栏**（用户实报）：源切换 seg 与关注 seg 在舞台态

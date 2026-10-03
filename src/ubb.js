@@ -4,30 +4,29 @@
 // 正则与语义对齐动态广场项目（acfun-moment-plaza parser.js）的同名规则。
 import { esc } from './ui.js';
 import { CFG } from './cfg.js';
-import { EmotionMap } from './emoticon.js';
+import { emotImgOf, emotPlaceholderHtml } from './emoticon.js';
 
-// A 站图床白名单：host 锚定 + 斜杠后全 URL 字符集（白名单只锚 host 时，斜杠后可带
-// 引号破出 src 属性——emot 映射分支曾栽在这里，0.9.33）。第二个分支是评论图床的
-// ksc2 预览域（upload.js 换出的签名 URL 就落在这里），host+path 双锚定防子域伪装；
-// 裸路径公开可访问，服务端 add 时会把它改写成 imgs.aixifan.com/newUpload 长期地址
+// A 站图床白名单（[img] 用）：host 锚定 + 斜杠后全 URL 字符集（白名单只锚 host 时，斜杠后
+// 可带引号破出 src 属性——0.9.33 教训）。第二个分支是评论图床的 ksc2 预览域（upload.js
+// 换出的签名 URL 就落在这里），host+path 双锚定防子域伪装；裸路径公开可访问，服务端 add
+// 时会把它改写成 imgs.aixifan.com/newUpload 长期地址。**表情域的白名单已随 emotImgOf
+// 搬去 emoticon.js（0.9.105）**——表情与评论图两张网不共用一套字符集
 var IMG_CDN_OK = /^https?:\/\/([\w.-]+\.(aixifan\.com|acfun\.cn)|preview\.ndcsk\.com\/ksc2)\//;
-var URL_CHARS_OK = /^[\w\-./:?=&%]+$/;
 
 export function renderCommentHtml(content) {
   var h = esc(content || '');
-  // 表情：[emot=acfun,id/] 走映射（map 值恒为 {url} 对象，string 分支系历史格式兼容）；
-  // 其他包走 umeditor 固定图床
-  h = h.replace(/\[emot=acfun,(\w+)\/\]/g, function (_, id) {
-    var em = EmotionMap.map[id];
-    var u = em ? (typeof em === 'string' ? em : em.url) : null;
-    var abs = u ? u.replace(/^\/\//, 'https://') : u;
-    if (u && IMG_CDN_OK.test(abs) && URL_CHARS_OK.test(abs)) {
-      return '<img class="ubb-emotion" src="' + u + '" referrerpolicy="no-referrer">';
-    }
-    return '[表情]';
+  // 字面量 [表情]（API 直接给的明文）→ 灰字占位（0.9.105 吸收广场规则；**先于 emot 规则**，
+  // 防自家占位 span 里的 [表情] 文本被二次包裹）
+  h = h.replace(/\[表情\]/g, function () { return emotPlaceholderHtml('', ''); });
+  // 表情：[emot=acfun,id/] 走映射（斜杠可选、id 限数字——0.9.105 对齐广场容差；未命中出带
+  // data-pkg/id 的占位供 refillEmoticons 回填）；其他包走 umeditor 固定图床
+  h = h.replace(/\[emot=acfun,(\d+)\/?\]/g, function (_, id) {
+    var hit = emotImgOf('acfun', id);
+    return hit ? hit.html : emotPlaceholderHtml('acfun', id);
   });
-  h = h.replace(/\[emot=(\w+),(\w+)\/\]/g, function (_, pkg, id) {
-    return '<img class="ubb-emotion" src="https://cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/' + pkg + '/' + id + '.gif" referrerpolicy="no-referrer">';
+  h = h.replace(/\[emot=(\w+),(\d+)\/?\]/g, function (_, pkg, id) {
+    var hit = emotImgOf(pkg, id);
+    return hit ? hit.html : '[表情]';
   });
   // 图片：[img=图片]URL[/img] / [img=alt]URL[/img] / [img]URL[/img]，限 A 站图床白名单
   h = h.replace(/\[img=[^\]]*\](https?:\/\/[^\["']+?)\[\/img\]/g, function (_, u) {
@@ -41,6 +40,22 @@ export function renderCommentHtml(content) {
   // （广场项目 v3.7.0 修过的双重转义教训）
   h = h.replace(/\[at uid=(\d+)\]@?(.*?)\[\/at\]/g, function (_, uid, name) {
     return '<a class="ubb-at" href="' + CFG.api.userBase + uid + '" target="_blank" rel="noopener">@' + name + '</a>';
+  });
+  // 行内链接类三条（0.9.105 吸收广场规则，须跑在 [resource] 之前——它剥内层标签防 <a> 嵌套；
+  // 广场靠"保护块"机制，我们靠顺序等价）：#话题# → 站内搜索；裸 ac 号/v/ac、a/ac → 作品链；
+  // 动态短链 m.acfun.cn/communityCircle/moment/N → PC 动态页
+  h = h.replace(/#([^#\s]{1,30}?)#/g, function (_, topic) {
+    return '<a class="ubb-topic" href="https://www.acfun.cn/search?keyword=' + encodeURIComponent(topic)
+      + '" target="_blank" rel="noopener">#' + topic + '#</a>';
+  });
+  h = h.replace(/\b(?:([va])\/)?(ac\d{4,})\b/gi, function (_, prefix, id) {
+    var type = (prefix || 'a').toLowerCase();
+    var display = prefix ? prefix + '/' + id : id;
+    return '<a class="ubb-ac" href="https://www.acfun.cn/' + type + '/' + id + '" target="_blank" rel="noopener">'
+      + display + '</a>';
+  });
+  h = h.replace(/m\.acfun\.cn\/communityCircle\/moment\/(\d+)/g, function (_, id) {
+    return '<a class="ubb-ac" href="' + CFG.api.momentBase + id + '" target="_blank" rel="noopener">am' + id + '</a>';
   });
   // 作品引用：[resource id=456 type=2 icon=URL]标题[/resource] → 视频/文章链接
   //（pc-direct 评论方言；type 2=视频，其余按文章）。icon 等其余属性区用 [^\]]* 整体吞掉

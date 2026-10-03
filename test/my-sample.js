@@ -142,11 +142,14 @@
     e.isLike = i % 3 === 0; e.isThrowBanana = false;
     e.moment = { momentId: 510001 + i, text: text };
     // 多图（0.9.98 实报修复「多图只出第一张」）：withImg='multi' 时给嵌套 imgs[]（紧凑
-    // 三件套形状，§2.1.1 实测；顶层 coverUrl 仍=首图恒等律）——卡面应出九宫格而非单图
+    // 三件套形状，§2.1.1 实测；顶层 coverUrl 仍=首图恒等律）——卡面应出九宫格而非单图。
+    // 0.9.105：单图动态也必须带 imgs（契约「图像权威=imgs」，顶层 cover 不再作兜底渲染）
     if (withImg === 'multi') {
       e.moment.imgs = [1, 2, 3].map(function () {
         return { url: FOLLOW_COVER, expandedUrl: FOLLOW_COVER, originUrl: FOLLOW_COVER, width: 100, height: 100, type: 1 };
       });
+    } else if (withImg) {
+      e.moment.imgs = [{ url: FOLLOW_COVER, expandedUrl: FOLLOW_COVER, originUrl: FOLLOW_COVER, width: 100, height: 100, type: 1 }];
     }
     // 转发源（0.9.92 卡面形态夹具）：实测 repostSource 是完整分支条目，且转发的 coverUrl
     // 恒等于源封面——夹具照此构形（源封面与顶层封面同值），卡面才测得到「不拿源封面当主视觉」
@@ -172,7 +175,7 @@
     // 无图动态正文刻意写长：展开/收起的溢出探测夹具（0.9.99）——前缀「无图动态」是
     // detail-open 场景的定位锚，截断不得动它
     fMoment(4, 1, '无图动态：只有文字的一条' + new Array(40).join('这条动态的正文刻意写得很长，用来验证展开按钮的溢出探测与钳高切换，'), false),
-    fVideo(5, 1, '关注视频丙'), fMoment(6, 1, '另一条图文动态', 'multi'),
+    fVideo(5, 1, '关注视频丙'), fMoment(6, 1, '另一条图文动态 #测试话题# ac488900', 'multi'),
     (function () { var e = fBase(7, 1, 4); e.resourceId = 488999; e.caption = '未观察类型应被过滤'; return e; })(),
     // 昨天（group 2）：2 视频 + 2 动态 + 2 文章
     fVideo(8, 2, '昨天的视频'), fArticle(9, 2, '昨天的文章'), fMoment(10, 2, '昨天的动态', true),

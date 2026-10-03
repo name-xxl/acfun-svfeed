@@ -9,6 +9,43 @@ import { el } from './ui.js';
 // map[id]={url,big,name,pkg} 供 UBB 渲染；packs=[{name,items}] 供面板分包展示
 export var EmotionMap = { loaded: false, loading: null, map: {}, packs: [] };
 
+// ---------- UBB 表情三件（0.9.105 自 ubb.js 收口表情域） ----------
+// 白名单（host 锚定 + 全 URL 字符集，0.9.33 破出 src 属性教训）随表情域走：
+// emotImgOf 供 ubb.js 渲染、refillEmoticons 供行流「占位→真图」回填（map 就绪晚于首屏渲染）
+var EMOT_CDN_OK = /^https?:\/\/([\w.-]+\.(aixifan\.com|acfun\.cn)|preview\.ndcsk\.com\/ksc2)\//;
+var EMOT_URL_OK = /^[\w\-./:?=&%]+$/;
+// 返回 { html }（真图）或 null（未就绪/未命中——调用方出占位 span）
+export function emotImgOf(pkg, id) {
+  pkg = String(pkg || '');
+  id = String(id || '');
+  if (!pkg || !id) return null;
+  if (pkg !== 'acfun') {
+    // 非主包老表情走 umeditor 静态路径（与原生 fallback 同构；pkg/id 已过 \w+/\d+ 正则）
+    return { html: '<img class="ubb-emotion" src="https://cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/'
+      + pkg + '/' + id + '.gif" referrerpolicy="no-referrer">' };
+  }
+  var em = EmotionMap.map[id];
+  var u = em ? (typeof em === 'string' ? em : em.url) : null;
+  if (!u) return null;
+  var abs = u.replace(/^\/\//, 'https://');
+  if (!EMOT_CDN_OK.test(abs) || !EMOT_URL_OK.test(abs)) return null;
+  return { html: '<img class="ubb-emotion" src="' + u + '" referrerpolicy="no-referrer">' };
+}
+// 表情占位（灰字；带 data-pkg/id 供回填定位）
+export function emotPlaceholderHtml(pkg, id) {
+  return '<span class="ubb-emot-ph"'
+    + (pkg ? ' data-pkg="' + pkg + '"' : '') + (id ? ' data-id="' + id + '"' : '')
+    + '>[表情]</span>';
+}
+// 占位回填（行流首屏渲染早于 EmotionMap 就绪时；只认带 data 的占位，字面量 [表情] 不动）
+export function refillEmoticons(root) {
+  if (!root || !EmotionMap.loaded) return;
+  [].forEach.call(root.querySelectorAll('.ubb-emot-ph[data-pkg="acfun"][data-id]'), function (ph) {
+    var hit = emotImgOf('acfun', ph.getAttribute('data-id'));
+    if (hit) ph.outerHTML = hit.html;
+  });
+}
+
 function applyEmotPacks(flat) {
   var map = {};
   var packs = [];

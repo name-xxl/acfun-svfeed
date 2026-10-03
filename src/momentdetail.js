@@ -1,13 +1,14 @@
 import { CFG } from './cfg.js';
-import { el, fmt, toast } from './ui.js';
+import { el, fmt } from './ui.js';
 import { root, releaseDrawer } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { imgInto } from './imgload.js';
-import { ubbTextOf, quoteBlockOf, momentCellOf } from './views.js';
-import { GLYPHS } from './imicons.js';
+import { ubbTextOf, quoteBlockOf } from './views.js';
+import { ICONS } from './styles.js';
 import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
 import { openImageViewer } from './imgview.js';
-import { likePi, throwBananaPi } from './interact.js';
+import { openSharePanel } from './imshare.js';
+import { momentBarOf, momentShareItemOf } from './momentbar.js';
 import { ensureEmotionMap } from './emoticon.js';
 import { testHook } from './dbg.js';
 
@@ -20,8 +21,10 @@ import { testHook } from './dbg.js';
 // 造漂移源（单源理念重于 intake 字面）；光 DOM 先例=评论抽屉/imgview/release 整族。
 // 与评论抽屉共用 overlay 层位 id 'comments' + claimDrawer 槽（同槽互斥，防 commentState
 // 被两份宿主互踩）；modal:true 的按键豁免（输入框打字）在 overlay.js/input.js 各有一半。
-// 乐观更新不抽公共件：rail（slide DOM 同步）/comments（列表插入）/本面板（互动栏计数）
-// 三处语境各异，强行抽=预留抽象层（YAGNI 守门）——此裁决与计划在案，勿当"重复"归一。
+// 乐观更新递进史：0.9.96 裁决「不抽公共件」（rail/comments/面板三处语境各异）→ 0.9.102
+// 收「pi 级写路径」（interact.likePi/throwBananaPi）→ 0.9.105 收「键定义表+写链编排」
+// （momentbar 共享件，行流卡与面板同源、skin 分皮肤）——原裁决的前提（三处各异）对
+// 「行流卡 vs 详情面板」这一对已不成立；rail/comments 仍各自独立，边界不变。
 
 var panelEl = null; // 背板单例（含 .acsv-mdetail-panel）；host 三元组挂在闭包里随面板生死
 
@@ -35,17 +38,65 @@ export function closeMomentDetail() {
   overlayClose('comments'); // Esc 路径已出栈时空转；显式关闭由此同步栈
 }
 
-// 媒体块构建器（dispatcher 注入件，0.9.102 收口）：面板宫格=模态栅格类名 + 共用
-// views.momentCellOf 的格子挂法（大图挂法单源）；单图=面板件（big 拿不到就静展示）
-function panelGrid(pi) {
-  var grid = el('div', 'acsv-mdetail-imgs');
-  grid.dataset.n = String(pi.imgs.length);
-  pi.imgs.forEach(function (im) { grid.appendChild(momentCellOf('acsv-mdetail-imgcell', im)); });
-  return grid;
+// 多图轮播（0.9.105 用户裁决「左侧不是宫格，是左右切换+滚轮」；XHS 实测形制 2026-10-04：
+// track translate3d 平移 + 箭头 60×60 垂直居中 + 底部居中小点 + **媒体区滚轮逐格切图**
+//（XHS 实测 dispatch wheel 后 defaultPrevented=true、页面不滚、wrapper 平移一张））。
+// 循环切换；slide 点击开大图（当前图 big）；单图走 panelSingle 保持静态。
+function carouselOf(pi) {
+  var n = pi.imgs.length;
+  var idx = 0;
+  var box = el('div', 'acsv-mdcar');
+  var track = el('div', 'acsv-mdcar-track');
+  var dots = [];
+  pi.imgs.forEach(function (im) {
+    var slide = el('div', 'acsv-mdcar-slide');
+    imgInto(slide, im.url, 'grid');
+    slide._big = im.big || im.url;
+    slide.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      openImageViewer(slide._big);
+    });
+    track.appendChild(slide);
+  });
+  box.appendChild(track);
+  function go(i) {
+    idx = ((i % n) + n) % n; // 循环（XHS swiper loop 同款语义）
+    track.style.transform = 'translate3d(' + (-idx * 100) + '%,0,0)';
+    dots.forEach(function (d, k) { d.classList.toggle('on', k === idx); });
+  }
+  var prev = el('button', 'acsv-mdcar-btn prev');
+  prev.title = '上一张';
+  prev.innerHTML = ICONS.chevLt;
+  prev.addEventListener('click', function (ev) { ev.stopPropagation(); go(idx - 1); });
+  var next = el('button', 'acsv-mdcar-btn next');
+  next.title = '下一张';
+  next.innerHTML = ICONS.chevRt;
+  next.addEventListener('click', function (ev) { ev.stopPropagation(); go(idx + 1); });
+  box.appendChild(prev);
+  box.appendChild(next);
+  var dotWrap = el('div', 'acsv-mdcar-dots');
+  pi.imgs.forEach(function (_, k) {
+    var d = el('span', 'acsv-mdcar-dot' + (k === 0 ? ' on' : ''));
+    d.addEventListener('click', function (ev) { ev.stopPropagation(); go(k); });
+    dotWrap.appendChild(d);
+    dots.push(d);
+  });
+  box.appendChild(dotWrap);
+  // 滚轮切图（passive:false 才能 preventDefault；触控板连发节流 260ms≈一滚一张）
+  var lock = 0;
+  box.addEventListener('wheel', function (ev) {
+    ev.preventDefault();
+    var t = Date.now();
+    if (t - lock < 260) return;
+    lock = t;
+    go(ev.deltaY > 0 ? idx + 1 : idx - 1);
+  }, { passive: false });
+  go(0);
+  return box;
 }
 function panelSingle(pi, im0) {
   var im = el('div', 'acsv-mdetail-img');
-  imgInto(im, pi.cover, 'grid');
+  imgInto(im, im0 && im0.url, 'grid');
   var big = im0 && (im0.big || im0.url);
   if (big) {
     im._big = big;
@@ -76,15 +127,15 @@ export function openMomentDetail(pi) {
   x.addEventListener('click', closeMomentDetail);
   backdrop.appendChild(x);
 
-  // 布局判定（0.9.103 用户裁决「按内容型换布局」）：有自有图（单图/多图、非转发）→ 小红书式
-  // 两栏（左媒体/右内容，XHS 904×672 实测比例）；无图/纯文字/转发 → 单栏收窄（转发卡自带源
-  // 缩略图，左区再放源封面会重复）
-  var hasMedia = !pi.repost && ((pi.imgs && pi.imgs.length) || pi.cover);
+  // 布局判定（0.9.103 裁决「按内容型换布局」；0.9.105 收紧：图像权威=imgs——无图动态的
+  // 顶层 coverUrl 是官方默认封面池/源封面，不算自有媒体）：有 imgs → 两栏（左媒体/右内容）；
+  // 无图/纯文字/转发 → 单栏收窄（转发卡自带源缩略图，左区再放源封面会重复）
+  var hasMedia = !pi.repost && pi.imgs && pi.imgs.length > 0;
   var side = null; // 右栏（两栏态）；管线 host.el 指向它——输入条 append 到 h.el 末尾=贴 side 底
   if (hasMedia) {
     panel.classList.add('acsv-mdetail-split');
     var mediaCol = el('div', 'acsv-mdetail-media');
-    mediaCol.appendChild(pi.imgs && pi.imgs.length > 1 ? panelGrid(pi) : panelSingle(pi));
+    mediaCol.appendChild(pi.imgs.length > 1 ? carouselOf(pi) : panelSingle(pi, pi.imgs[0]));
     panel.appendChild(mediaCol);
     side = el('div', 'acsv-mdetail-side');
     panel.appendChild(side);
@@ -97,7 +148,15 @@ export function openMomentDetail(pi) {
   var av = el('span', 'acsv-gmom-av');
   imgInto(av, (pi.up && pi.up.img) || CFG.api.defaultAvatar, 'avatar');
   head.appendChild(av);
-  head.appendChild(el('span', 'acsv-gmom-name', pi.up && pi.up.name ? '@' + pi.up.name : ''));
+  // 作者名=真链接（0.9.105 统一蓝链语言：与行流/引用卡 @源UP 同款；无 up.id 则不可点）
+  var nameEl = el('a', 'acsv-gmom-name', pi.up && pi.up.name ? '@' + pi.up.name : '');
+  if (pi.up && pi.up.id) {
+    nameEl.href = CFG.api.userBase + pi.up.id;
+    nameEl.target = '_blank';
+    nameEl.rel = 'noopener';
+    nameEl.addEventListener('click', function (ev) { ev.stopPropagation(); });
+  }
+  head.appendChild(nameEl);
   head.appendChild(el('span', 'acsv-gmom-time', pi.dateText || ''));
   hostEl.appendChild(head);
 
@@ -121,7 +180,25 @@ export function openMomentDetail(pi) {
   // 转发卡（0.9.103）：两栏态媒体在左栏；单栏态只剩转发卡（quoteBlockOf 原生形制，@源UP+源卡）。
   // 互动栏留内容底部（0.9.103 用户裁决：赞/蕉/评论不搬进底栏）
   if (!hasMedia && pi.repost) pin.appendChild(quoteBlockOf(pi.repost));
-  pin.appendChild(actionBar(pi));
+  // 互动栏（0.9.105 共享件：与行流卡同键定义表/写链编排，skin=detail 走面板皮肤；
+  // 四键统一 分享/评论/蕉/赞——分享卡 place=右贴：左缘挨面板右缘、底部对齐，0.9.105 裁决）
+  pin.appendChild(momentBarOf(pi, {
+    skin: 'detail',
+    onShare: function (btn) {
+      openSharePanel(btn, momentShareItemOf(pi), {
+        headText: '分享给朋友',
+        host: backdrop,
+        place: { mode: 'right-of', anchorEl: panel }
+      });
+    },
+    onComment: function () {
+      // 评论区就在本面板（滚动体内）：滚到评论头并聚焦输入框
+      var c = list.querySelector('.acsv-mdetail-cmthead');
+      if (c) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      var inp = hostEl.querySelector('.acsv-cinput-text');
+      if (inp) inp.focus();
+    }
+  }));
   // 评论区标题 = 管线的 title（insertLocalComment/renderComments 会重写计数；titleFmt=XHS 文案）
   var cmthead = el('div', 'acsv-mdetail-cmthead');
   var title = el('span', 'acsv-mdetail-cmt', '评论');
@@ -145,72 +222,6 @@ export function openMomentDetail(pi) {
     el: hostEl, title: title, list: list, close: closeMomentDetail, pin: pin,
     titleFmt: function (n) { return '共 ' + fmt(n) + ' 条评论'; }
   }, pi.momentId, 4, pi.href, 'home');
-}
-
-// 互动栏（赞/蕉写链 + 评论数展示）。乐观更新+回滚照 rail.js:154-177 范式；投蕉 count=1
-//（广场同款）且不可逆——失败仅 toast 不回滚（没有"取消投蕉"可回滚到，注释防误修成回滚）
-function actionBar(pi) {
-  var bar = el('div', 'acsv-mdetail-actions');
-
-  var like = el('span', 'acsv-mdl-like' + (pi.liked ? ' on' : ''));
-  var likeG = el('i', 'acsvg-glyph', pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike);
-  var likeN = el('span', null, fmt(pi.like));
-  like.appendChild(likeG);
-  like.appendChild(likeN);
-  like.title = '点赞动态';
-  like.addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    if (pi.likeBusy) return;
-    pi.likeBusy = true;
-    var on = !pi.liked;
-    pi.liked = on;
-    pi.like += on ? 1 : -1;
-    like.classList.toggle('on', on);
-    likeG.textContent = on ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
-    likeN.textContent = fmt(pi.like);
-    likePi(pi, on).then(function (ok) { // pi 级写路径单源（interact，0.9.102 收口）
-      pi.likeBusy = false;
-      if (ok) return;
-      pi.liked = !on; // 失败回滚（乐观值全部退回，rail 同款）
-      pi.like += on ? -1 : 1;
-      like.classList.toggle('on', pi.liked);
-      likeG.textContent = pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
-      likeN.textContent = fmt(pi.like);
-      toast('操作失败（未登录？）');
-    });
-  });
-  bar.appendChild(like);
-
-  var banana = el('span', 'acsv-mdl-ban' + (pi.thrown ? ' thrown' : '')); // 蕉黄态（0.9.104 拆色：.on 是赞的 accent）
-  var banN = el('span', null, fmt(pi.banana));
-  // 蕉图标=原生四件套 E62A/E65F（0.9.101 采样复核；此前误用竖刷侧栏的 GLYPHS.banana E2EA）
-  var banG = el('i', 'acsvg-glyph', pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana);
-  banana.appendChild(banG);
-  banana.appendChild(banN);
-  banana.title = pi.thrown ? '已投蕉' : '投蕉';
-  banana.addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    if (pi.banBusy || pi.thrown) return;
-    pi.banBusy = true;
-    throwBananaPi(pi).then(function (ok) { // pi 级写路径单源（interact，0.9.102 收口）
-      pi.banBusy = false;
-      if (!ok) { toast('投蕉失败' + (pi.thrown ? '' : '（今日已投过/未登录？）')); return; }
-      pi.thrown = true; // 投蕉不可逆：只进不退（官方无取消端点），锁死防重复投
-      pi.banana += 1;
-      banana.classList.add('thrown');
-      banG.textContent = GLYPHS.feedBananaFill; // 点亮换实心（原生 path/fill 同款）
-      banN.textContent = fmt(pi.banana);
-      banana.title = '已投蕉';
-      toast('投蕉成功');
-    });
-  });
-  bar.appendChild(banana);
-
-  var cmt = el('span', 'acsv-mdl-cmt');
-  cmt.appendChild(el('i', 'acsvg-glyph', GLYPHS.feedComment));
-  cmt.appendChild(el('span', null, fmt(pi.comment)));
-  bar.appendChild(cmt);
-  return bar;
 }
 
 // debug 构建测试钩子：harness 断言面板开合与当前动态 id（结构断言走 DOM 类名）

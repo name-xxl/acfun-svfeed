@@ -293,9 +293,11 @@ var PANEL_PARSERS = {
           im = im || {};
           return { url: coverUrl(im.url), big: coverUrl(im.expandedUrl || im.originUrl || im.url) };
         }).filter(function (im) { return im.url; });
-        // **转发的 coverUrl 实测恒等于源内容的封面**（9/9 全等，2026-10-03）——所以转发卡
-        // 不能拿它当主视觉（会伪装成视频/文章卡，用户实报「分不清」），渲染层改挂源条
-        it.cover = coverUrl(raw.coverUrl);
+        // 动态的**图像唯一权威 = moment.imgs**（0.9.105 实报「无配图却带官方封面」修复）：
+        // 顶层 coverUrl 对无图动态恒非空——实测三类来源（2026-10-04：29 条动态 21 条无图）：
+        // 官方默认封面池（tx-free-imgs 根路径乱码名 PNG，同张共享出现 3 次/2 次）、转发源
+        // 封面（恒等律）、用户图——都不是「本条动态自己的配图」。契约层不再赋 it.cover，
+        // 渲染层不再做 cover 兜底；转发源卡独家使用 repost.cover（不受影响）
         // 转发（23/36 实测占比）：repostSource 是完整分支条目，取**卡面 + 落点**所需
         //（源类型/源 id/源标题/源封面/源作者 + 视频源的时长与播放数；0.9.101 起源条可点，
         // id/up/text 是落点与详情面板的料）；源条文案与形态由渲染层按 ct 出。

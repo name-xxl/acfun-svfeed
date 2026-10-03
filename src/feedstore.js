@@ -125,6 +125,14 @@ function createFeedStore(env) {
   return store;
 }
 
+// 当前列表上下文（0.9.105 抽出导出）：getListContext 与 views 的 dock 归属读同一处判据
+//（UpVideos 优先序保持原语义）
+export function listContext() {
+  if (UpVideos.feedActive) return UpVideos;
+  if (FollowVideos.feedActive) return FollowVideos;
+  return null;
+}
+
 // env 里引用的 scroller/renderWindow/UpVideos 都在调用期才解引用，
 // 与 player/uppage 的模块循环是安全的（求值期互不触碰对方绑定）。FollowVideos 同款：
 // followstream 运行期才触达 FeedStore（enterVideos），此处运行期才读它的 feedActive
@@ -136,12 +144,8 @@ export var FeedStore = createFeedStore({
   },
   onChange: function () { if (scroller) renderWindow(); },
   // 列表上下文二选一（0.9.99 +关注流）：空间页 UP 主列表 / 关注视频流，命中即按列表泵入，
-  // 都不活动回落随机流
-  getListContext: function () {
-    if (UpVideos.feedActive) return UpVideos;
-    if (FollowVideos.feedActive) return FollowVideos;
-    return null;
-  }
+  // 都不活动回落随机流（判据单源=listContext 导出）
+  getListContext: listContext
 });
 
 // debug 构建测试钩子：harness 断言读列表快照（release 死码消除）

@@ -134,6 +134,7 @@ var RAW_CSS = ''
   // 抽屉贴右、dock 贴左，两者不重叠——层级反转只保证「后开的浮层在上」与 overlay 栈序一致
   // 抽屉滑入骨架（0.9.75 抽离）：评论/私信两抽屉共用同一条规则（此前逐字重复两份，只差
   // 宽度默认值与背景透明度 .96/.97）；各自的差异写在共享规则**之后**（同权重靠后生效）
+  + '.acsv-msgdrawer{z-index:62}' // 私信抽屉与详情面板（z61）共存时浮于其上（0.9.105 裁决）；评论抽屉仍 58
   + '.acsv-drawer,.acsv-msgdrawer{position:absolute;top:0;right:0;bottom:0;z-index:58;display:flex;flex-direction:column;'
   + 'background:rgba(22,22,27,.96);backdrop-filter:blur(12px);border-left:1px solid rgba(255,255,255,.09);'
   + 'transform:translateX(100%);transition:transform var(--acsv-dw-t) ease}'
@@ -288,6 +289,9 @@ var RAW_CSS = ''
   // （逐帧贴合，无先跳后盖）。
   // 中窄视口由 avoidW 护栏退化纯覆盖（视图不能像视频那样缩放，阈值只能比 avoidMin 更严）
   + '@media (min-width:' + CFG.view.avoidW + 'px){#acsv-root.acsv-with-comments .acsv-view-body{right:var(--acsv-dw,380px)}}'
+  // 详情面板避让（0.9.105 裁决「左移避让」）：IM/评论抽屉占槽时面板在剩余区居中（右让位）
+  + '#acsv-root.acsv-with-comments .acsv-mdetail{padding-right:var(--acsv-dw,380px);'
+  + 'transition:padding-right var(--acsv-dw-t,.2s) ease}'
   // 画幅满高可容（竖屏/方屏/4:3，判据见 player.js panFitOf）：只平移不缩放——
   // 宽度驱动的缩放对高度受限的画面是纯浪费，平移后画面保持原始大小、居中于剩余区域
   + '#acsv-root.acsv-with-comments .acsv-slide[data-panfit="1"]>.acsv-video,'
@@ -373,6 +377,7 @@ var RAW_CSS = ''
   + 'border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);animation:acsv-fadein .18s ease}'
   // 评论转发私信变体（0.9.50）：挂在抽屉根（滚动列表内挂载会被水平裁剪），锚输入条上方
   + '.acsv-sharepop-drawer{right:12px;bottom:57px}'
+  + '.acsv-sharepop-anch{right:auto;bottom:auto}' // place 定位模式（0.9.105）：left/top 由 JS 给
   + '.acsv-share-head{flex:none;display:flex;align-items:center;padding:12px 14px 8px;'
   + 'font-size:14px;font-weight:600;color:#fff}'
   + '.acsv-share-close{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;'
@@ -660,8 +665,22 @@ var RAW_CSS = ''
   // 按内容型换布局（用户裁决）：有自有图=两栏，无图/转发=单栏收窄（上方面板基准）。
   + '.acsv-mdetail-panel.acsv-mdetail-split{flex-direction:row;width:min(920px,94vw);height:min(84vh,672px)}'
   + '.acsv-mdetail-media{flex:1 1 auto;min-width:0;background:#000;border-radius:20px 0 0 20px;'
-  + 'display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 16px}'
-  + '.acsv-mdetail-media .acsv-mdetail-imgs{margin:0;max-width:none;width:100%}'
+  + 'display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0}'
+  // ---- 多图轮播（0.9.105，XHS 实测对齐：track translate3d 平移 / 箭头 60×60 垂直居中 /
+  // 底部居中小点 / 滚轮在媒体区被监听并 preventDefault 逐格切图——实测 2026-10-04）----
+  + '.acsv-mdcar{position:relative;width:100%;height:100%;overflow:hidden}'
+  + '.acsv-mdcar-track{display:flex;height:100%;transition:transform .3s ease;will-change:transform}'
+  + '.acsv-mdcar-slide{flex:none;width:100%;height:100%;display:flex;align-items:center;justify-content:center;cursor:zoom-in}'
+  + '.acsv-mdcar-slide img{max-width:100%;max-height:100%;object-fit:contain;display:block}'
+  + '.acsv-mdcar-btn{position:absolute;top:50%;transform:translateY(-50%);width:60px;height:60px;'
+  + 'border:none;border-radius:50%;background:rgba(0,0,0,.45);cursor:pointer;display:grid;place-items:center;opacity:.9}'
+  + '.acsv-mdcar-btn:hover{background:rgba(0,0,0,.68);opacity:1}'
+  + '.acsv-mdcar-btn svg{width:24px;height:24px;fill:#fff}'
+  + '.acsv-mdcar-btn.prev{left:16px}'
+  + '.acsv-mdcar-btn.next{right:16px}'
+  + '.acsv-mdcar-dots{position:absolute;left:0;right:0;bottom:20px;display:flex;justify-content:center;gap:6px}'
+  + '.acsv-mdcar-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4);cursor:pointer}'
+  + '.acsv-mdcar-dot.on{background:#fff}'
   + '.acsv-mdetail-media .acsv-mdetail-img{margin:0;width:auto;max-width:100%;max-height:100%;background:none;overflow:visible}'
   + '.acsv-mdetail-media .acsv-mdetail-img img{width:auto;height:auto;max-width:100%;max-height:min(78vh,620px);'
   + 'object-fit:contain;margin:0 auto}'
@@ -673,12 +692,20 @@ var RAW_CSS = ''
   + 'border-bottom:1px solid rgba(255,255,255,.09)}'
   + '.acsv-mdetail-head .acsv-gmom-av{width:40px;height:40px}'
   + '.acsv-mdetail-head .acsv-gmom-av img{width:40px;height:40px}'
-  + '.acsv-mdetail-head .acsv-gmom-name{font-size:16px;color:rgba(255,255,255,.85)}'
+  + '.acsv-mdetail-head .acsv-gmom-name{font-size:16px;color:#57a9f5;text-decoration:none}' // 链接蓝同源（0.9.105）
+  + '.acsv-mdetail-head .acsv-gmom-name:hover{text-decoration:underline}'
   // 列表 = 管线宿主（正文 pin 在首、评论区衔接其后；输入条是 list 的兄弟节点不遮列表，底距收小）
   + '.acsv-mdetail-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px 20px 10px;'
   + 'scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}'
   // 正文 16/24 = XHS 实测（此前 14/22）
-  + '.acsv-mdetail-text{font-size:16px;line-height:24px;color:#e8eaee;word-break:break-word}'
+  + '.acsv-mdetail-text{font-size:16px;line-height:24px;color:#e8eaee;word-break:break-word;white-space:pre-line}' // pre-line：保留手打换行（0.9.105 对齐行流/广场）
+  // 正文表情/配图尺寸作用域（0.9.105：此前只在 .acsv-cbody 下有限制，行流/面板/引用卡内
+  // 表情图以自然尺寸显示≈80px——实报「动态卡片不支持 ubb 解析吗」的真凶）；34/68 与评论同源
+  + '.acsv-frow-text .ubb-emotion,.acsv-mdetail-text .ubb-emotion,.acsv-gquote-textbody .ubb-emotion'
+  + '{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}'
+  + '.acsv-frow-text .ubb-imgc,.acsv-mdetail-text .ubb-imgc,.acsv-gquote-textbody .ubb-imgc'
+  + '{max-width:100%;border-radius:6px;vertical-align:middle}'
+  + '.ubb-emot-ph{color:#8a90a0;font-size:13px}' // 表情占位（字面 [表情] 与未就绪回填前）
   // 窄屏回落单栏（XHS 移动端同构：媒体转上方）；860 = 面板两栏宽度裕量断点（与 CFG.view.narrow
   // 的 720「隐藏左栏」用途不同，独立取值）
   + '@media (max-width:860px){.acsv-mdetail-panel.acsv-mdetail-split{flex-direction:column;'
@@ -697,9 +724,9 @@ var RAW_CSS = ''
   + '.acsv-mdetail-actions{display:flex;align-items:center;gap:26px;margin-top:12px;padding-bottom:12px;'
   + 'border-bottom:1px solid rgba(255,255,255,.09);font-size:13px;color:#8a90a0}'
   + '.acsv-mdetail-actions .acsvg-glyph{font-size:14px}'
-  + '.acsv-mdl-like,.acsv-mdl-ban,.acsv-mdl-cmt{display:inline-flex;align-items:center;gap:5px}'
-  + '.acsv-mdl-like,.acsv-mdl-ban{cursor:pointer}'
-  + '.acsv-mdl-like:hover,.acsv-mdl-ban:hover{color:#fff}'
+  + '.acsv-mdl-like,.acsv-mdl-ban,.acsv-mdl-cmt,.acsv-mdl-fwd{display:inline-flex;align-items:center;gap:5px}'
+  + '.acsv-mdl-like,.acsv-mdl-ban,.acsv-mdl-fwd{cursor:pointer}'
+  + '.acsv-mdl-like:hover,.acsv-mdl-ban:hover,.acsv-mdl-fwd:hover{color:#fff}'
   + '.acsv-mdl-like.on{color:var(--acsv-accent)}'
   + '.acsv-mdl-ban.thrown{color:#ffb323}' // 蕉黄（0.9.104 拆色，A 站蕉色）
   + '.acsv-mdetail-cmthead{margin:16px 0 6px;text-align:center}'
@@ -914,7 +941,7 @@ var RAW_CSS = ''
   + '.acsv-gquote-text{min-width:0}'
   // 动态源正文：UBB 单源渲染（原生同款含表情图）；钳 3 行——原生不钳，长文引用会撑行，
   // 尺寸纪律取舍在册（行流正文亦 4 行钳高同族）
-  + '.acsv-gquote-textbody{font-size:14px;line-height:21px;color:#e8eaee;word-break:break-word;max-height:63px;overflow:hidden}'
+  + '.acsv-gquote-textbody{font-size:14px;line-height:21px;color:#e8eaee;word-break:break-word;max-height:63px;overflow:hidden;white-space:pre-line}'
   + '.acsv-gquote-img{margin-top:10px;max-width:299px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.06)}'
   + '.acsv-gquote-img img{max-width:299px;max-height:299px;display:block}'
   + '.acsv-gquote-on{cursor:pointer}'
@@ -944,14 +971,16 @@ var RAW_CSS = ''
   + '.acsv-frow-av img{width:100%;height:100%;object-fit:cover;display:block}'
   + '.acsv-frow-info{min-width:0}'
   + '.acsv-frow-name{display:block;margin:5px 0 6px;max-width:380px;font-size:16px;line-height:18px;'
-  + 'color:#e8eaee;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
-  + '.acsv-frow-name:hover{color:var(--acsv-accent)}'
+  + 'color:#57a9f5;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' // 链接蓝：与引用卡 @源UP 同源（0.9.105 实报灰字不显眼）
+  + '.acsv-frow-name:hover{text-decoration:underline}'
   + '.acsv-frow-time{display:block;font-size:12px;line-height:12px;color:#8a90a0}'
   // 内容区（feed-content）：padding 6px 0 0 60px——正文/媒体/互动与名字左对齐，头像下不排文
   + '.acsv-frow-content{padding:6px 0 0 60px}'
   + '.acsv-frow-text{margin-bottom:10px;font-size:14px;line-height:21px;color:#e8eaee;'
   + 'word-break:break-word;white-space:pre-line}' // 原生 pre-line：保留 UP 手打的换行
-  + '.acsv-frow-text.clamp{max-height:84px;overflow:hidden}'
+  // 钳高走 line-clamp（0.9.105 实报「一行显示一半」：max-height:84px 是像素级硬裁，遇内联大
+  // 表情/图片撑高的行盒必切在半行——line-clamp 按行盒计数，图整张落在某行盒内不被腰斩）
+  + '.acsv-frow-text.clamp{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}'
   + '.acsv-fmore{font-size:12px;color:var(--acsv-accent);cursor:pointer}'
   // 九宫格（member-feed-moment-image 形制）：容器 342、图 110 方 margin 0 4 4 0；
   // 1 图容器 299（图自适应 max299）；2/4 图容器 228；格上 pointer（原生同款，点击开大图）
@@ -979,18 +1008,24 @@ var RAW_CSS = ''
   + 'background:rgba(255,255,255,.06);border-radius:0 3px 3px 0}'
   + '.acsv-frow-stitle{margin-bottom:12px;font-size:16px;font-weight:600;line-height:22px;color:#e8eaee;'
   + 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+  // 引用卡内标题换行（0.9.105 用户实报「省略号截断、卡片有显示空间」）：2 行 clamp、藏摘要
+  + '.acsv-gquote .acsv-frow-stitle{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;'
+  + '-webkit-line-clamp:2;overflow:hidden;margin-bottom:8px}'
+  + '.acsv-gquote .acsv-frow-sdesc{display:none}'
   + '.acsv-frow-sdesc{font-size:12px;line-height:18px;color:#cfd3da;overflow:hidden;text-overflow:ellipsis;'
   + 'display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}'
   + '.acsv-frow-sinfo{position:absolute;bottom:13px;left:14px;display:inline-flex;align-items:center;'
   + 'gap:4px;font-size:14px;line-height:14px;color:#8a90a0}'
   // 互动行（feed-interactive 形制）：margin 4px 0 0 60px、行高 48、item 12px 右距 42、
   // hover/点亮 accent；分享=icon+「分享」文字（原生无数字），评论/蕉/赞=icon+数字
+  // 互动键（0.9.105 起 .acsv-fact 是**两皮肤共用键类**：行流在这里定尺寸/间距，面板在
+  // .acsv-mdetail-actions 段定——行流族选择器全部 scope 到 .acsv-frow-acts，防面板吃 48/42）
   + '.acsv-frow-acts{margin:4px 0 0 60px;display:flex}'
-  + '.acsv-fact{display:inline-flex;align-items:center;gap:5px;height:48px;margin-right:42px;'
+  + '.acsv-frow-acts .acsv-fact{display:inline-flex;align-items:center;gap:5px;height:48px;margin-right:42px;'
   + 'font-size:12px;color:#8a90a0;cursor:pointer;user-select:none}'
-  + '.acsv-fact:hover{color:var(--acsv-accent)}'
-  + '.acsv-fact.on{color:var(--acsv-accent)}'
-  + '.acsv-fact.thrown{color:#ffb323}' // 投过蕉：锁定蕉黄（A 站蕉色，rail .thrown 同源；0.9.104）
+  + '.acsv-frow-acts .acsv-fact:hover{color:var(--acsv-accent)}'
+  + '.acsv-frow-acts .acsv-fact.on{color:var(--acsv-accent)}'
+  + '.acsv-frow-acts .acsv-fact.thrown{color:#ffb323}' // 投过蕉：锁定蕉黄（A 站蕉色，rail .thrown 同源）
   // 数量层在行内互动行的落位（共享件 acsv-banpop 原为竖刷右栏设计：right:62——行内改锚底部上方）
   + '.acsv-frow-acts .acsv-banpop{right:0;top:auto;bottom:100%;margin-bottom:4px}'
   + '.acsv-fact .acsvg-glyph{font-size:14px}'
@@ -1004,11 +1039,12 @@ var RAW_CSS = ''
   + '.acsv-fstatus{min-height:34px;padding:8px 2px;text-align:center;font-size:12px;color:#8a90a0;cursor:pointer}'
   + '.acsv-fstatus.busy{opacity:.7;cursor:default}'
   // 回顶按钮（借鉴广场 back-top）：sticky 钉滚动流右下，超 backTopAt 由 JS 挂 .on 现身
-  + '.acsv-fbacktop{position:sticky;bottom:18px;margin:0 6px 6px auto;width:36px;height:36px;'
-  + 'border-radius:50%;background:rgba(255,255,255,.12);color:#e8eaee;font-size:16px;line-height:36px;'
-  + 'text-align:center;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .18s ease;z-index:5}'
+  // 回顶按钮（0.9.105 图标语言统一）：视觉走 .acsv-tbtn（顶栏圆钮同族：36 圆/白 svg/hover 提亮），
+  // 本类只保留定位（sticky 右下）与显隐（opacity + on）
+  + '.acsv-fbacktop{position:sticky;bottom:18px;margin:0 6px 6px auto;opacity:0;pointer-events:none;'
+  + 'transition:opacity .18s ease;z-index:5}'
   + '.acsv-fbacktop.on{opacity:1;pointer-events:auto}'
-  + '.acsv-fbacktop:hover{background:rgba(255,255,255,.2)}'
+  + '.acsv-fbacktop svg{width:22px;height:22px;fill:#fff}'
   // 首屏骨架行（独立类名，绝不与行内计数选择器同构——0.9.66 教训）
   + '.acsv-fskel{height:120px;border-radius:8px;background:rgba(255,255,255,.05)}'
   // 深色滚动条：视图滚动区（我的/榜单共用 .acsv-view-body，默认浅色条在深色页上是刺眼白条）
@@ -1048,6 +1084,7 @@ export var ICONS = {
   chevUp: '<svg viewBox="0 0 24 24"><path d="M12 8l-6 6 1.4 1.4L12 10.8l4.6 4.6L18 14z"/></svg>',
   chevDn: '<svg viewBox="0 0 24 24"><path d="M12 16l-6-6 1.4-1.4L12 13.2l4.6-4.6L18 10z"/></svg>',
   chevLt: '<svg viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg>',
+  chevRt: '<svg viewBox="0 0 24 24"><path d="M8.6 7.4L10 6l6 6-6 6-1.4-1.4L13.2 12z"/></svg>', // 轮播右箭头（0.9.105 镜像 chevLt）
   star: '<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>',
   banana: '<svg viewBox="0 0 24 24"><path d="M21 18.2c-6.9 0-12.6-5-13.7-11.6C7.1 5.2 6 4.2 4.8 4.5 3.7 4.7 3 5.8 3.2 7 4.6 15.4 12 21.5 20.6 21c1.1-.1 1.9-1 1.9-2.1 0-.4-.6-.7-1.5-.7z"/></svg>',
   image: '<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>',

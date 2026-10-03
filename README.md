@@ -304,9 +304,10 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `playlayer.js` | 播放层（0.9.74；0.9.82 面板→播放的桥下沉为 data.playItemOf 纯函数）：子视图 play（#svfeed/play/&lt;v\|a&gt;/&lt;id&gt;）就地播放——面板条目即时首帧（标题/封面/作者来自面板契约的 up：搜索与收藏来源带作者，历史来源不带、由回包补）/ 冷进入 API.deepLink 解析（不 setSource）/ 失败错误盒+重试；OVL_IDX 哨兵 + data-ovl 判据（attach.js 契约表在册）、键盘重定向 state.setVideoTarget |
 | `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf，缺省不渲染）+ Tab 惰性面板（观看历史=双 resourceTypes/pageNo 翻页；收藏夹=chips 切夹→dougaList 翻页）+ 4:3 封面网格卡（普通视频封面口径）；条目经 panelItem 契约规整、点击进播放层（0.9.74） |
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
-| `followview.js` | 关注视图「全部」侧（0.9.100 原生骨架复刻；0.9.101 交互补课；0.9.102 收口）：单列无限流——**逐段复刻原生 /member/feeds 骨架与量取值**（扁平列表+灰带分隔、头像 50、名字 16px、60px 内容缩进、正文 14/21 pre-line+展开、九宫格 342/110/299/228、横条双灰块+title 600+时长 hover 浮层、互动行 48px/42/12px、图标四件套逐码点采样；量取日与暗色换算表在 styles 段头注）；互动行写链（乐观回滚；点赞文章只读；**投蕉**：动态=单蕉直投、视频/文章=视频页同款数量层 banpop.js「点第 N 根投 N」、已投锁定蕉黄 #ffb323；pi 级写路径单源=interact.likePi/throwBananaPi）；**评论键原位展开评论区**（全类型：动态 stype=4/视频 stype=3，comments 管线 host 化挂行内，开新关旧互斥）；**引用卡完全照原生**（@源UP 蓝链 + 内嵌完整源内容卡，复用 stripOf；三落点可点）；无限滚动五条借鉴广场 + 回顶按钮。视频行进播放层，动态行点详情面板，文章行外链 |
+| `followview.js` | 关注视图「全部」侧（0.9.100 原生骨架复刻；0.9.101 交互补课；0.9.102 收口）：单列无限流——**逐段复刻原生 /member/feeds 骨架与量取值**（扁平列表+灰带分隔、头像 50、名字 16px、60px 内容缩进、正文 14/21 pre-line+展开、九宫格 342/110/299/228、横条双灰块+title 600+时长 hover 浮层、互动行 48px/42/12px、图标四件套逐码点采样；量取日与暗色换算表在 styles 段头注）；互动行写链（乐观回滚；点赞文章只读；**投蕉**：动态=单蕉直投、视频/文章=视频页同款数量层 banpop.js「点第 N 根投 N」、已投锁定蕉黄 #ffb323；pi 级写路径单源=interact.likePi/throwBananaPi）；**评论键原位展开评论区**（全类型：动态 stype=4/视频 stype=3，comments 管线 host 化挂行内，开新关旧互斥）；**引用卡完全照原生**（@源UP 蓝链 + 内嵌完整源内容卡，复用 stripOf；三落点可点）；无限滚动五条借鉴广场 + **回顶按钮（0.9.105 顶栏同款圆钮+chevUp）**；**作者名蓝链**（与引用卡同源）；互动栏/分享出口走 **momentbar 共享件**（分享 place=右缘贴行左缘 12px、底部共用坐标）。视频行进播放层，动态行点详情面板，文章行外链 |
 | `followstream.js` | 关注语境「视频」侧（0.9.99）：FollowVideos 列表上下文（UpVideos 通道先例）——followDougaFeed 后台分页链（§2.1.2：固定 10/页、终页 no_more）→ 深链 `svfeed/a/<acId>` 接管宿主竖刷舞台 → feedstore 泵按列表灌入（`ctx.info` 自带 home 家族 resolve，非 m3u8 直链绕 hls）；`isFollowContext()` 是顶栏 seg 显隐与徽标不点亮的单源判据；enterVideos 原地续看不重置缓冲 |
-| `momentdetail.js` | 动态详情面板（0.9.96 起；**0.9.103 小红书式两栏**）：按内容型换布局——有自有图=两栏（左 `.acsv-mdetail-media` 黑底媒体台 / 右 `.acsv-mdetail-side` 400：作者行 XHS 尺寸 + 管线 list + 输入条贴底），无图/转发=单栏 min(620px)；✕ 浮卡片外右上；正文 16/24、评论标题「共 N 条评论」（comments 管线 titleFmt）；互动栏留内容底部（赞回滚/投蕉不可逆锁）；管线 host.el 两栏态指右栏（stype=4）；量取值+量取日 xiaohongshu 2026-10-03 在 styles 段头注。**光 DOM 有意偏离 intake**（评论 CSS 单源，登记在模块头）；与评论抽屉共用 overlay 'comments' 层位 + claimDrawer 槽互斥 |
+| `momentdetail.js` | 动态详情面板（0.9.96 起；0.9.103 小红书式两栏；0.9.105 轮播+共存）：按内容型换布局——有 imgs（**图像权威=imgs**，0.9.105）两栏（左媒体黑底台 / 右 `.acsv-mdetail-side` 400）+**多图轮播**（track translate3d/60×60 箭头/底点/滚轮 preventDefault 逐格，XHS 实测 2026-10-04），无图/转发单栏 min(620px)；✕ 浮卡片外右上；正文 16/24；评论标题「共 N 条评论」（comments 管线 titleFmt）；互动栏（momentbar 共享件 skin=detail 四键）留内容底部；管线 host.el 两栏态指右栏（stype=4）；**不占 claimDrawer 槽**（私信抽屉共存+acsv-with-comments 左移避让，0.9.105）。**光 DOM 有意偏离 intake**（评论 CSS 单源，登记在模块头）；与评论抽屉共用 overlay 'comments' 层位 |
+| `momentbar.js` | 动态互动栏共享件（0.9.105）：行流卡与详情面板同键定义表（分享/评论/蕉/赞）+ 写链编排单源（乐观回滚/投蕉锁/动态单蕉/视频文章数量层），skin 分皮肤（尺寸/类名由 CSS 按根类作用域）；键出口经 opts 注入（行流=原位评论+place 分享；面板=滚动聚焦评论+右贴分享） |
 | `followbadge.js` | 关注未读徽标（0.9.97，路线图 4.3）：webPush 的 followUpers 未读数（唯一携 followUpers 的端点）→ dock 角标（setDockBadge 命令式出口，运行态不进 viewreg）；轮询=固定 tick + nextAt 闸门 + 代数丢弃（广场骨架吸收重写），退避真逐次翻倍 60s→10min 封顶、发现新内容回落基准（纯函数单测钉序列）；挂 player.mount/unmount，hidden 短路、未登录静默、进关注视图清零 |
 | `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷） |
 | `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/other——boot 运行分流的唯一判据（判据与 uppage 的 `/u/\d+` 逐字一致，单测钉一致性） |
@@ -373,7 +374,8 @@ flowchart LR
   settingspanel["settingspanel.js（脚本页设置皮肤·Shadow DOM）"]
   followview["followview.js（关注视图·仿原生单列无限流）"]
   followstream["followstream.js（关注视频流·列表上下文+分页链）"]
-  momentdetail["momentdetail.js（动态详情面板·评论区复用+写链）"]
+  momentdetail["momentdetail.js（动态详情面板·小红书式两栏+评论区复用+写链）"]
+  momentbar["momentbar.js（动态互动栏·两皮肤共享件）"]
   followbadge["followbadge.js（关注未读徽标·轮询退避）"]
   data --> imgurl & ubb
   route --> feedstore
@@ -398,12 +400,13 @@ flowchart LR
   boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & zone
   views --> feedstore & imgload & imgview & imicons & overlay & sidebar & topbar & ubb & viewreg
   sidebar --> viewreg & settingspanel
-  followview --> comments & imgload & imgview & imicons & immsg & imshare & interact & sidebar & ubb & viewreg & views & momentdetail
+  followview --> comments & emoticon & imgload & imgview & imshare & momentbar & sidebar & viewreg & views & momentdetail
   followstream --> appapi & data & feedstore & net & sidebar
   feedstore --> followstream
   topbar --> followstream
+  momentbar --> banpop & imicons & immsg & interact & styles & ubb & ui
   followbadge --> followstream
-  momentdetail --> comments & emoticon & imgload & imgview & imicons & interact & overlay & views
+  momentdetail --> comments & emoticon & imgload & imgview & imshare & momentbar & overlay & views
   followbadge --> net & sidebar
   player --> followbadge
   settingspanel --> settings & overlay

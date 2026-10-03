@@ -17,6 +17,7 @@ import { testHook } from './dbg.js';
 
 export var FollowVideos = {
   feedActive: false,
+  dockView: 'follow', // 舞台态 dock 高亮归属（views.syncRouteView 经 getListContext 读；0.9.105）
   feedCursor: 0,   // 泵游标：下一条待泵入的下标（首条由深链置顶，从 1 起泵——uppage offset+k+1 同款）
   items: [],       // [{id: acId}]，接口顺序即最新在前
   pcursor: '0',

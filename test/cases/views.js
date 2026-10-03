@@ -1363,10 +1363,31 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     }, 5000)), 'n=' + aBan._n.textContent);
     rec('follow-ban-article-rt', /resourceType=3/.test(window.__ACSV_BAN_BODY__ || '')
       && /count=2/.test(window.__ACSV_BAN_BODY__ || ''), window.__ACSV_BAN_BODY__);
+    // ---- 分享卡定位（0.9.105 裁决几何）：右缘挨行左缘、底部对齐 ----
+    var vFwd = null;
+    [].forEach.call(vRow.querySelectorAll('.acsv-fact'), function (x) { if (x._act === 'share') vFwd = x; });
+    if (vFwd) vFwd.click();
+    rec('follow-share-geometry', !!(await waitFor(function () {
+      var pop = q('.acsv-sharepop');
+      if (!pop) return false;
+      var pr = pop.getBoundingClientRect(), rr = vRow.getBoundingClientRect();
+      return Math.abs(pr.right - rr.left) <= 16 && Math.abs(pr.bottom - rr.bottom) <= 2;
+    }, 5000)), (function () {
+      var pop = q('.acsv-sharepop');
+      if (!pop) return 'no-pop';
+      var pr = pop.getBoundingClientRect(), rr = vRow.getBoundingClientRect();
+      return 'popR=' + Math.round(pr.right) + ' rowL=' + Math.round(rr.left) + ' popB=' + Math.round(pr.bottom) + ' rowB=' + Math.round(rr.bottom) + ' popH=' + Math.round(pr.height);
+    })());
+    if (vFwd) vFwd.click(); // 同按钮再点=关
+    // 回顶按钮图标语言统一（0.9.105）：顶栏同款圆钮 + chevUp SVG
+    rec('follow-backtop-icon', !!(q('.acsv-fbacktop svg')));
     // ---- 多图行：九宫格原生形制（默认容器 342、3 格 110 方）----
     rec('follow-moment-multigrid', !!(gRow && gRow.querySelector('.acsv-frow-imgs:not(.n1):not(.n24)')
       && gRow.querySelectorAll('.acsv-frow-img').length === 3),
       gRow ? 'cells=' + gRow.querySelectorAll('.acsv-frow-img').length : 'no-row');
+    // UBB 广场方言（0.9.105 吸收）：话题/裸 ac 出链（夹具文本尾部带 #测试话题# ac488900）
+    rec('follow-ubb-topic', !!(gRow && gRow.querySelector('.acsv-frow-text a.ubb-topic')));
+    rec('follow-ubb-ac', !!(gRow && gRow.querySelector('.acsv-frow-text a.ubb-ac')));
     // 宫格图点击 → 大图查看（0.9.102：格子自挂 momentCellOf，委托分支已删防双开）
     var gCell = gRow && gRow.querySelector('.acsv-frow-imgs .acsv-frow-img');
     if (gCell) gCell.click();
@@ -1427,6 +1448,14 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     }, 8000)), JSON.stringify(TEST.call('momentdetail')));
     key('Escape');
     await waitFor(function () { return !q('.acsv-mdetail'); }, 8000);
+    // 引用卡标题换行（0.9.105 实报「省略号截断、卡片有显示空间」）：引用卡内 2 行 clamp
+    rec('follow-quote-title-wrap', (function () {
+      var t = rRow && rRow.querySelector('.acsv-gquote .acsv-frow-stitle');
+      return !!t && getComputedStyle(t).whiteSpace !== 'nowrap';
+    })(), (function () {
+      var t = rRow && rRow.querySelector('.acsv-gquote .acsv-frow-stitle');
+      return t ? getComputedStyle(t).whiteSpace : 'no-title';
+    })());
     // ---- 展开/收起：溢出才挂按钮（rAF 探测），点击切换钳高 ----
     var longRow = rowOf('无图动态');
     rec('follow-expand-armed', !!(longRow && longRow.querySelector('.acsv-fmore') !== null
@@ -1503,7 +1532,9 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
         return { result: 0, commentId: 'c9', userId: 99, userName: 'name_xxl', headUrl: '', content: txt, postDate: '刚刚', likeCount: 0 };
       },
       'interact/add': function () { return { result: window.__ACSV_LIKE_FAIL__ ? 0 : 1 }; },
-      'interact/delete': function () { return { result: window.__ACSV_LIKE_FAIL__ ? 0 : 1 }; }
+      'interact/delete': function () { return { result: window.__ACSV_LIKE_FAIL__ ? 0 : 1 }; },
+      // 私信抽屉共存断言用：抽屉 DOM 构建链会顺带预热表情 map（0.9.105）
+      'emotion/getUserEmotion': function () { return { result: 0, emotionPackageList: [] }; }
     });
     location.hash = 'svfeed/follow';
     rec('detail-feed-open', !!(await waitFor(function () {
@@ -1580,6 +1611,26 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     // 表情面板（4.2）：节点挂面板宿主（display:none 待开）；输入条在面板内（宿主迁移）
     rec('detail-emotpanel', !!q('.acsv-mdetail-panel > .acsv-emotpanel'));
     rec('detail-input-in-panel', !!q('.acsv-mdetail-panel .acsv-cinput'));
+    // 私信×详情共存（0.9.105 裁决「左移避让」）：面板不拆 + 避让根类 + 关私信恢复
+    document.cookie = 'auth_key=51737407_x; path=/';
+    var im = TEST.call('imdrawer');
+    rec('detail-im-hook', !!(im && typeof im.open === 'function'));
+    if (im) im.open();
+    rec('detail-im-coexist', !!(await waitFor(function () {
+      var back = q('.acsv-mdetail');
+      var rt = document.getElementById('acsv-root');
+      return !!back && !!q('.acsv-msgdrawer.open') && rt.classList.contains('acsv-with-comments');
+    }, 5000)), 'panel=' + !!q('.acsv-mdetail') + ' drawer=' + !!q('.acsv-msgdrawer.open'));
+    // 避让有 .2s 过渡：等值到位再断言（首版读瞬时值 0px 假红）
+    rec('detail-im-avoid', !!(await waitFor(function () {
+      var back = q('.acsv-mdetail');
+      return !!back && parseFloat(getComputedStyle(back).paddingRight) > 100;
+    }, 5000)), (function () { var b = q('.acsv-mdetail'); return b ? getComputedStyle(b).paddingRight : 'n/a'; })());
+    if (im) im.close();
+    rec('detail-im-restore', !!(await waitFor(function () {
+      var back = q('.acsv-mdetail');
+      return !!back && parseFloat(getComputedStyle(back).paddingRight) === 0 && !!q('.acsv-mdetail-panel');
+    }, 5000)));
     // Esc 关面板（模态层顶）→ 面板拆净、宿主复位、栈回到视图层
     key('Escape');
     rec('detail-esc-close', !!(await waitFor(function () {
@@ -1607,15 +1658,57 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
         && !!q('.acsv-mdetail-media') && !!q('.acsv-mdetail-side')
         && !!q('.acsv-mdetail-side .acsv-mdetail-head');
     }, 8000)));
-    rec('detail-multigrid', !!(await waitFor(function () {
-      var g = q('.acsv-mdetail-media .acsv-mdetail-imgs');
-      return g && g.dataset.n === '3' && g.querySelectorAll('img').length === 3;
-    }, 8000)), 'n=' + document.querySelectorAll('.acsv-mdetail-imgs img').length);
+    // 多图=轮播（0.9.105 裁决：左区非宫格）——3 slide 3 点；箭头/滚轮/点三向切换
+    rec('detail-carousel', !!(await waitFor(function () {
+      return q('.acsv-mdetail-media .acsv-mdcar')
+        && document.querySelectorAll('.acsv-mdcar-slide').length === 3
+        && document.querySelectorAll('.acsv-mdcar-dot').length === 3;
+    }, 8000)), 'slides=' + document.querySelectorAll('.acsv-mdcar-slide').length);
+    var nextBtn = q('.acsv-mdcar-btn.next');
+    if (nextBtn) nextBtn.click();
+    rec('detail-carousel-arrow', (function () {
+      var tr = q('.acsv-mdcar-track');
+      var dots = document.querySelectorAll('.acsv-mdcar-dot');
+      return !!tr && /translate3d\(-100%/.test(tr.style.transform) && dots[1] && dots[1].classList.contains('on');
+    })(), (q('.acsv-mdcar-track') || {}).style && q('.acsv-mdcar-track').style.transform);
+    // 滚轮切图（XHS 实测同款：媒体区派发、preventDefault、逐格）
+    var car = q('.acsv-mdcar');
+    var evW = new WheelEvent('wheel', { deltaY: 200, bubbles: true, cancelable: true });
+    if (car) car.dispatchEvent(evW);
+    rec('detail-carousel-wheel', !!(await waitFor(function () {
+      var tr = q('.acsv-mdcar-track');
+      return tr && /translate3d\(-200%/.test(tr.style.transform);
+    }, 3000)) && evW.defaultPrevented);
+    var d0 = document.querySelectorAll('.acsv-mdcar-dot')[0];
+    if (d0) d0.click();
+    rec('detail-carousel-dot', /translate3d\(0%/.test(((q('.acsv-mdcar-track') || {}).style || {}).transform || ''));
+    // 面板互动栏四键统一（0.9.105 共享件）：分享/评论/蕉/赞
+    rec('detail-bar-four', (function () {
+      var acts = document.querySelectorAll('.acsv-mdetail-actions .acsv-fact');
+      return acts.length === 4 && acts[0]._act === 'share' && acts[1]._act === 'comment'
+        && acts[2]._act === 'banana' && acts[3]._act === 'like';
+    })(), [].map.call(document.querySelectorAll('.acsv-mdetail-actions .acsv-fact'), function (x) { return x._act; }).join('|'));
+    // 分享卡定位（0.9.105 裁决几何）：左缘挨面板右缘、底部对齐；再点同键收起
+    var fwd = q('.acsv-mdetail-actions .acsv-mdl-fwd');
+    if (fwd) fwd.click();
+    rec('detail-share-geometry', !!(await waitFor(function () {
+      var pop = q('.acsv-sharepop');
+      var pn = q('.acsv-mdetail-panel');
+      if (!pop || !pn) return false;
+      var pr = pop.getBoundingClientRect(), nr = pn.getBoundingClientRect();
+      return Math.abs(pr.left - nr.right) <= 16 && Math.abs(pr.bottom - nr.bottom) <= 2;
+    }, 5000)), (function () {
+      var pop = q('.acsv-sharepop'), pn = q('.acsv-mdetail-panel');
+      if (!pop || !pn) return 'no-pop';
+      var pr = pop.getBoundingClientRect(), nr = pn.getBoundingClientRect();
+      return 'popL=' + Math.round(pr.left) + ' panelR=' + Math.round(nr.right) + ' popB=' + Math.round(pr.bottom) + ' panelB=' + Math.round(nr.bottom);
+    })());
+    if (fwd) fwd.click(); // 同键再点=关（openSharePanel toggle 语义）
     // 输入条与表情面板落**右栏**（管线 host.el=side：append 到 h.el 末尾=贴右栏底）
     rec('detail-side-input', !!(await waitFor(function () {
       return !!q('.acsv-mdetail-side .acsv-cinput');
     }, 8000)));
-    var cell0 = q('.acsv-mdetail-imgs .acsv-mdetail-imgcell');
+    var cell0 = q('.acsv-mdcar-slide');
     if (cell0) cell0.click();
     rec('detail-imgview', !!(await waitFor(function () {
       return !!q('.acsv-imgview img');
@@ -1717,6 +1810,13 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     rec('fv-deeplink', !!(await waitFor(function () {
       return location.hash === '#svfeed/a/488911';
     }, 10000)), location.hash);
+    // dock 高亮归属（0.9.105 实报修复）：舞台放关注流时高亮「关注」而非回落「推荐」
+    rec('fv-dock-follow', (function () {
+      var b = q('.acsv-dock-item[data-view="follow"]');
+      var f = q('.acsv-dock-item[data-view="feed"]');
+      return !!b && b.classList.contains('on') && !(f && f.classList.contains('on'));
+    })(), 'follow=' + !!(q('.acsv-dock-item[data-view="follow"]') || {}).classList
+      + ' feed=' + !!(q('.acsv-dock-item[data-view="feed"]') || {}).classList);
     rec('fv-first-item', !!(await waitFor(function () {
       var f = feed();
       return f && f.items[0] && String(f.items[0].id) === '488911';

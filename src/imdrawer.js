@@ -825,6 +825,16 @@ function sendChat(text) {
 // ---------- 开关与徽标 ----------
 // 模拟缝（harness im-open 冒烟，0.9.49 quoteChip 回归教训）：绕过登录门槛直验「抽屉 DOM
 // 骨架可建可开」——quoteChip 必须是真实元素节点（工厂返回对象漏 .box 的同族回归在此拦截）
+// debug 测试钩子（0.9.105）：供 harness 驱动「面板×私信避让共存」断言——open 走 openDrawerCore
+// （不触发 ImSdk 预热，纯 DOM/槽位/避让链）
+testHook('imdrawer', function () {
+  return {
+    open: function () { ensureDrawerDom(); openDrawerCore(); return true; },
+    close: function () { closeDrawer(); return true; },
+    isOpen: function () { return !!drawer && drawer.el.classList.contains('open'); }
+  };
+});
+
 testHook('imDrawerSmoke', function () {
   if (!root) setRoot(document.body); // harness 最小页无 player 挂载，root 兜底（仅调试构建可达）
   ensureStyle(); // 0.9.88：boot 只在首页注入全量样式（im-open 页两不沾）——生产态抽屉恒在

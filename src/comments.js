@@ -60,6 +60,9 @@ export function closeComments() {
 
 export function openComments(sourceId, stype, shareUrl, kind) {
   if (!commentDrawer || !sourceId) return;
+  // 面板/行内宿主先显式收（0.9.105：面板不再占抽屉槽，互斥改**双向显式收**——私有信抽屉
+  // 场景：面板与 IM 抽屉共存（避让由 CSS 根类做），抽屉 vs 面板仍是互斥的两面宿主）
+  if (host) { var hPrev = host; host = null; try { hPrev.close(); } catch (e) { } }
   host = null; // 抽屉路径：管线宿主回到经典抽屉（面板路径见 openCommentsHost）
   // overlayOpen 必须先于 claimDrawer（0.9.64 顺序回归修复）：其内部幂等收旧层会调
   // closeComments 清槽+摘避让根类——若槽先占后清，末尾 syncCommentVars 读到空槽会把
@@ -96,7 +99,9 @@ export function toggleItemComments(item) {
 export function openCommentsHost(h, sourceId, stype, shareUrl, kind) {
   if (commentDrawer && commentDrawer.el.classList.contains('open')) closeComments();
   host = h;
-  claimDrawer('comments', function () { h.close(); }); // 私信抽屉抢槽时经此收面板
+  // 0.9.105：**不占 claimDrawer 槽**——面板/行内宿主不是"抽屉"，占槽会让私信抽屉打开时
+  // 整个拆面板（实报「打开私信时详情页被挤掉」的根因）；与评论抽屉的互斥由 openComments
+  // 的显式收承担（反向已在此函数首行关闭抽屉）
   commentState.stype = Number(stype) || 5;
   commentState.kind = kind === 'home' ? 'home' : 'sv';
   commentState.shareUrl = shareUrl || '';

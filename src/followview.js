@@ -12,22 +12,20 @@
 // 光 DOM 有意偏离 intake 的「el()+Shadow DOM」（0.9.96 登记同款理由：评论/引用块族样式
 // 单源在全局 styles.js，进影子根=复制 CSS 造漂移源）。
 import { CFG } from './cfg.js';
-import { el, fmt, toast } from './ui.js';
+import { el } from './ui.js';
 import { request } from './net.js';
 import { followPanelOf, momentPiOfRepost } from './data.js';
 import { ubbTextOf, openPanelItem, setMomentOpener, stripOf, momentCellOf, momentMediaOf, skeletonRows } from './views.js';
-import { ubbPlain } from './ubb.js';
-import { commentShareWire } from './immsg.js';
+import { ICONS } from './styles.js';
 import { openSharePanel } from './imshare.js';
-import { GLYPHS } from './imicons.js';
+import { momentBarOf, momentShareItemOf } from './momentbar.js';
 import { imgInto } from './imgload.js';
 import { registerView } from './viewreg.js';
 import { setDockBadge } from './sidebar.js';
 import { openMomentDetail } from './momentdetail.js';
-import { likePi, throwBananaPi } from './interact.js';
-import { toggleBananaPop } from './banpop.js';
 import { openImageViewer } from './imgview.js';
 import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
+import { ensureEmotionMap, refillEmoticons } from './emoticon.js';
 import { releaseDrawer } from './state.js';
 
 // ---------- 原位评论区（0.9.100）：行内开合的宿主状态（模块级——teardown 要能收拾它） ----------
@@ -102,11 +100,12 @@ function rowGrid(pi) {
   return box;
 }
 
-// 无图旧条目兜底：顶层 cover 单图（n1 容器，同 native 单图自适应形制）
+// 单图兜底（imgInfos 缺失的老数据）；无图返 null——动态图像权威=imgs（0.9.105，cover 兜底
+// 已退役：无图动态的顶层 coverUrl 是官方默认封面池/源封面，不是本条配图）
 function rowSingle(pi, im0) {
+  if (!im0) return null;
   var box = el('div', 'acsv-frow-imgs n1');
-  var im = im0 || { url: pi.cover, big: pi.cover };
-  box.appendChild(momentCellOf('acsv-frow-img', im));
+  box.appendChild(momentCellOf('acsv-frow-img', im0));
   return box;
 }
 
@@ -115,33 +114,30 @@ function momentMedia(pi) {
   return momentMediaOf(pi, { gridMin: 1, grid: rowGrid, single: rowSingle });
 }
 
-// 互动行（feed-interactive 等价）：分享=icon+「分享」文字（原生无数字）、评论/蕉/赞=icon+数字；
-// 蕉/赞双态（点亮换 fill glyph + accent 色，GLYPHS 单件等价原生 path/fill 机制）。
-// 图标码点是**原生四件套**（0.9.101 采样复核：share=E628/comment=E627/banana=E62A·E65F/
-// like=E629·E660；此前 share 误用站点头部 E15B、蕉误用竖刷侧栏 E2EA——用户实报「投蕉图标用错」）
-function actRowOf(pi) {
-  var bar = el('div', 'acsv-frow-acts');
-  [
-    { k: 'share', label: '分享', glyph: GLYPHS.feedRepost, text: '分享' },
-    { k: 'comment', label: '评论', glyph: GLYPHS.feedComment, n: pi.comment },
-    // 蕉=thrown（锁定蕉黄 #ffb323，A 站蕉色，与竖刷 rail 同源）；赞=on（accent）——0.9.104
-    // 用户实报「已投蕉的颜色是黄的」：此前两者共用 .on 的 accent 红，与视频侧不一致
-    { k: 'banana', label: pi.thrown ? '已投蕉' : '投蕉', glyph: pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana, n: pi.banana, cls: pi.thrown ? 'thrown' : '' },
-    { k: 'like', label: pi.liked ? '已赞' : '点赞', glyph: pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike, n: pi.like, cls: pi.liked ? 'on' : '' }
-  ].forEach(function (def) {
-    var b = el('span', 'acsv-fact' + (def.cls ? ' ' + def.cls : ''));
-    b._act = def.k;
-    b.title = def.label;
-    b.appendChild(el('i', 'acsvg-glyph', def.glyph));
-    if (def.text) b.appendChild(el('span', null, def.text));
-    if (def.n != null) {
-      var n = el('span', null, fmt(def.n));
-      b.appendChild(n);
-      b._n = n;
+// 互动栏（0.9.105 收口共享件 momentbar）：键定义/写链编排单源，行流只提供两个出口——
+// 分享（place=左贴行：右缘挨行左缘、底部对齐，0.9.105 裁决几何）与评论（动态/视频行内
+// 原位展开、文章外链官方页）
+function rowBarOf(pi, row) {
+  return momentBarOf(pi, {
+    skin: 'row',
+    onShare: function (btn) {
+      // 宿主=滚动视图体（absolute 坐标系含滚动偏移 → 弹层随列表滚动跟随）
+      openSharePanel(btn, momentShareItemOf(pi), {
+        headText: '分享给朋友',
+        host: row.closest('.acsv-view-body'),
+        place: { mode: 'left-of', anchorEl: row }
+      });
+    },
+    onComment: function (btn) {
+      if (pi.ct === 'moment') {
+        toggleInlineComments(pi, btn, { sourceId: pi.momentId, stype: 4, shareUrl: pi.href });
+      } else if (pi.ct === 'video') {
+        toggleInlineComments(pi, btn, { sourceId: pi.acId, stype: 3, shareUrl: CFG.api.videoBase + pi.acId });
+      } else if (pi.href) {
+        window.open(pi.href, '_blank'); // 文章评论 stype 未实测：外链官方页（宁可漏不错）
+      }
     }
-    bar.appendChild(b);
   });
-  return bar;
 }
 
 function feedRowOf(pi) {
@@ -158,81 +154,12 @@ function feedRowOf(pi) {
   else media = stripOf(pi); // 视频/文章行：与引用卡内嵌源卡共用构建件（原生同款复用）
   if (media) content.appendChild(media);
   row.appendChild(content);
-  row.appendChild(actRowOf(pi));
+  row.appendChild(rowBarOf(pi, row));
   return row;
 }
 
 // ---------- 互动行为（乐观更新照 rail.js:154-177 范式；pi 与详情面板同引用——
 // 面板里再操作计数，行内 DOM 不自动跟新：v1 不做跨面实时同步，低频场景，注释防误判） ----------
-
-// like/banana 的按钮态统一回写（glyph 点亮 + 计数）；分享无计数（原生同款）
-function syncAct(btn, pi) {
-  var k = btn._act;
-  if (k === 'like') {
-    btn.classList.toggle('on', !!pi.liked);
-    btn.title = pi.liked ? '已赞' : '点赞';
-    var g = btn.querySelector('.acsvg-glyph');
-    if (g) g.textContent = pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
-  } else if (k === 'banana') {
-    btn.classList.toggle('thrown', !!pi.thrown); // 蕉黄（.on 留给赞的 accent；0.9.104 拆色）
-    btn.title = pi.thrown ? '已投蕉' : '投蕉';
-    var gb = btn.querySelector('.acsvg-glyph');
-    if (gb) gb.textContent = pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana; // 双态同原生 path/fill
-  }
-  if (btn._n) btn._n.textContent = fmt(k === 'like' ? pi.like : k === 'banana' ? pi.banana : pi.comment);
-}
-
-function actLike(pi, btn) {
-  if (pi.ct === 'article') return; // 文章写链未实测：只读
-  if (pi.likeBusy) return;
-  pi.likeBusy = true;
-  var on = !pi.liked;
-  pi.liked = on;
-  pi.like += on ? 1 : -1;
-  syncAct(btn, pi);
-  likePi(pi, on).then(function (ok) { // pi 级写路径（interact，0.9.102 收口：与详情面板单源）
-    pi.likeBusy = false;
-    if (ok) return;
-    pi.liked = !on; // 失败回滚（乐观值全退，rail 同款）
-    pi.like += on ? -1 : 1;
-    syncAct(btn, pi);
-    toast('操作失败（未登录？）');
-  });
-}
-
-function actBanana(pi, btn) {
-  if (pi.banBusy) return;
-  if (pi.thrown) { toast('已投过蕉啦，明天再来~'); return; } // rail 同款语义（0.9.104 统一，此前静默吞掉）
-  if (pi.ct === 'moment') {
-    // 动态：单蕉直投——官方机制=一蕉（resourceType=10）；投蕉不可逆：失败只 toast 不回滚
-    pi.banBusy = true;
-    throwBananaPi(pi).then(function (ok) { // pi 级写路径（interact，0.9.102 收口：与详情面板单源）
-      pi.banBusy = false;
-      if (!ok) { toast('投蕉失败（今日已投过/未登录？）'); return; }
-      pi.thrown = true;
-      pi.banana += 1;
-      syncAct(btn, pi);
-      toast('投蕉成功');
-    });
-    return;
-  }
-  // 视频/文章行：视频页同款**数量层**（0.9.104 用户口径「和视频机制一样」——点第 N 根投 N）。
-  // 文章 resourceType=3（enum 一致，未实测；interact.throwBananaPi 注释在册）
-  toggleBananaPop(btn, {
-    send: function (n) { return throwBananaPi(pi, n); },
-    applied: function (n) { pi.banana += n; pi.thrown = true; syncAct(btn, pi); }
-  });
-}
-
-function actShare(pi, btn, host) {
-  // wire 契约「标题行\nURL」（parseShare 两端出分享卡）：标题=@作者：正文/标题明文
-  var text = pi.ct === 'moment' ? ubbPlain(pi.text) : (pi.title || '');
-  var url = pi.ct === 'video' ? CFG.api.videoBase + pi.acId : pi.href;
-  openSharePanel(btn, {
-    title: commentShareWire(pi.up && pi.up.name, text),
-    shareUrl: url
-  }, { host: host, headText: '分享给朋友' });
-}
 
 function rowDefault(pi) {
   if (pi.ct === 'moment') {
@@ -255,6 +182,24 @@ function armExpanders(scope) {
   requestAnimationFrame(function () {
     if (!scope.isConnected) return;
     [].forEach.call(scope.querySelectorAll('.acsv-frow-text.clamp'), function (t) {
+      if (t._armed) return; // 已判过（挂了按钮或确认不溢出）：不重复
+      // 图未解码时量不准（ubb 产出的 img 无尺寸属性，0.9.105）——等齐了再判，一次 load 重测
+      var imgs = t.querySelectorAll('img'), pending = 0;
+      [].forEach.call(imgs, function (im) { if (!im.complete) pending++; });
+      if (pending) {
+        [].forEach.call(imgs, function (im) {
+          if (im.complete) return;
+          var once = function () {
+            im.removeEventListener('load', once);
+            im.removeEventListener('error', once);
+            armExpanders(scope); // 重测这一批（_armed 防重复）
+          };
+          im.addEventListener('load', once);
+          im.addEventListener('error', once);
+        });
+        return;
+      }
+      t._armed = true;
       if (t.scrollHeight <= t.clientHeight + 1) return;
       var more = el('span', 'acsv-fmore', '展开');
       t.parentNode.insertBefore(more, t.nextSibling);
@@ -272,8 +217,10 @@ function buildFollowView(body) {
   // 动态；点击=手动重试（首屏失败列表为空没有滚动可依，点击是唯一重试出口）
   var status = el('div', 'acsv-fstatus');
   wrap.appendChild(status);
-  // 回顶（借鉴广场 back-top）：sticky 钉在滚动流底部右缘，超 backTopAt 才现身
-  var backTop = el('div', 'acsv-fbacktop', '↑');
+  // 回顶（借鉴广场 back-top；0.9.105 图标语言统一）：顶栏同款圆钮 .acsv-tbtn + chevUp SVG，
+  // sticky 钉在滚动流右下，超 backTopAt 才现身（.on）
+  var backTop = el('button', 'acsv-tbtn acsv-fbacktop');
+  backTop.innerHTML = ICONS.chevUp;
   backTop.title = '回到顶部';
   body.appendChild(backTop);
 
@@ -344,21 +291,7 @@ function buildFollowView(body) {
     //（用户实报「表情面板打不开」）；评论区自己的委托（commentListClick）已各自处理
     if (ev.target.closest('.acsv-frow-cmts')) return;
     var pi = row._pi;
-    var act = ev.target.closest('.acsv-fact');
-    if (act) {
-      ev.stopPropagation();
-      var k = act._act;
-      if (k === 'like') actLike(pi, act);
-      else if (k === 'banana') actBanana(pi, act);
-      else if (k === 'comment') {
-        if (pi.ct === 'moment') {
-          toggleInlineComments(pi, act, { sourceId: pi.momentId, stype: 4, shareUrl: pi.href });
-        } else if (pi.ct === 'video') {
-          toggleInlineComments(pi, act, { sourceId: pi.acId, stype: 3, shareUrl: CFG.api.videoBase + pi.acId });
-        } else actComment(pi); // 文章评论 stype 未实测：外链官方页（宁可漏不错）
-      } else if (k === 'share') actShare(pi, act, body);
-      return;
-    }
+    // 互动键已自挂监听（momentbar 共享件）——委托不再接 act 分支
     var more = ev.target.closest('.acsv-fmore');
     if (more) {
       var t = row.querySelector('.acsv-frow-text');
@@ -384,6 +317,12 @@ function buildFollowView(body) {
     rowDefault(pi);
   });
 
+  // 表情 map 预热 + 占位回填（0.9.105）：行流渲染不等 map（列表量大），先出占位灰字，
+  // map 就绪后把占位回填成真表情——此前依赖"别处先加载过"的运气，冷启动首开表情全是 [表情]
+  ensureEmotionMap().then(function () {
+    if (list.isConnected) refillEmoticons(list);
+  }, function () { });
+
   // 无限滚动：挂在**实际滚动容器**（.acsv-view-body 即本 body）——非 window（与广场的
   // 差异点，广场列表直接活在页面流里）；触底提前量 300px（CFG.view.follow.scrollPad）
   body.addEventListener('scroll', function () {
@@ -395,12 +334,6 @@ function buildFollowView(body) {
   });
 
   load();
-}
-
-// 评论键的剩余出口（0.9.101：动态/视频都走行内原位展开，这里只剩文章——stype 未实测，
-// 外链官方页开评论）
-function actComment(pi) {
-  if (pi.href) window.open(pi.href, '_blank');
 }
 
 // 动态详情出口注册（0.9.101；0.9.102 载荷改 repost）：views.quoteBlockOf 点源动态卡时要开

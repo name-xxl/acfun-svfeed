@@ -755,6 +755,56 @@ export function sendCmtShare(inst, targetId, payload, text) {
 //             overflow-y:auto 的滚动列表里，浮层挂里面会被水平裁剪
 //   popClass  位置修饰类（.acsv-sharepop-drawer：锚抽屉输入条上方）
 //   headText  面板标题文案，缺省「分享给朋友」
+// 分享卡锚定定位（0.9.105 用户裁决几何）：place={mode:'left-of'|'right-of', anchorEl, gap}——
+// rect 计算落宿主的**内容坐标系**（+scroll 偏移）→ 弹层随列表滚动天然跟随；**底部共用坐标**
+// （弹层底=锚点底，XHS/需求原话）。默认无 place 时保持 CSS right/bottom 偏移（rail/comments
+// 调用零改动）。内容异步填充（联系人列表）会改高：ResizeObserver 重贴（缺则一次性延时兜底）
+function placePop(pop, opts, btn) {
+  var place = opts && opts.place;
+  if (!place || !place.anchorEl) return;
+  var wrap = pop.parentNode;
+  if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
+  pop.classList.add('acsv-sharepop-anch');
+  var gap = place.gap != null ? place.gap : 12;
+  function leftAt(mode) {
+    var a = place.anchorEl.getBoundingClientRect();
+    var h = wrap.getBoundingClientRect();
+    var sl = wrap.scrollLeft || 0;
+    return mode === 'right-of'
+      ? a.right - h.left + sl + gap
+      : a.left - h.left + sl - pop.offsetWidth - gap;
+  }
+  function placeNow() {
+    if (!pop.isConnected || !place.anchorEl.isConnected) return;
+    var a = place.anchorEl.getBoundingClientRect();
+    var h = wrap.getBoundingClientRect();
+    // 高度自适应（0.9.105 拍板）：底对齐要求弹层完全落在锚点底之上——锚下可用空间不足时
+    // 压缩自身高度（列表内部滚动），否则 clamp 顶在宿主上缘、底部溢出（harness 实锤 +24px）
+    var avail = a.bottom - h.top + (wrap.scrollTop || 0) - 4;
+    if (pop.offsetHeight > avail) pop.style.maxHeight = Math.max(140, avail) + 'px';
+    var left = leftAt(place.mode);
+    // 空间不足兜底（0.9.105 登记）：主位溢出视口左/右缘时先**翻转**到对侧（保持与锚点相邻、
+    // 不遮卡片），对侧也放不下才 clamp 到可视内——harness 场景视口 1600 走主位，兜底只保底
+    var minL = h.left + 4, maxL = h.right - pop.offsetWidth - 4;
+    if (left < minL || left > maxL) {
+      var flip = leftAt(place.mode === 'left-of' ? 'right-of' : 'left-of');
+      left = (flip >= h.left && flip <= maxL) ? flip : Math.max(minL, Math.min(maxL, left));
+    }
+    var top = a.bottom - h.top + (wrap.scrollTop || 0) - pop.offsetHeight; // 底部共用坐标
+    pop.style.left = Math.max(0, left) + 'px';
+    pop.style.top = Math.max(4, top) + 'px';
+  }
+  placeNow();
+  requestAnimationFrame(placeNow); // 首帧布局（弹层宽高）校准
+  if (typeof ResizeObserver === 'function') {
+    // 引用必须保留（0.9.105 拍板：局部 observer 会被 GC → 停观察 → 内容异步填充后底对齐漂移）
+    pop._ro = new ResizeObserver(function () { requestAnimationFrame(placeNow); });
+    pop._ro.observe(pop);
+  } else {
+    setTimeout(placeNow, 350);
+  }
+}
+
 export function openSharePanel(btn, item, opts) {
   opts = opts || {};
   var existed = document.querySelector('.acsv-sharepop');
@@ -805,6 +855,7 @@ export function openSharePanel(btn, item, opts) {
   var wrap = opts.host || btn.parentNode;
   if (!opts.host) wrap.style.position = 'relative'; // host 自带定位（抽屉根是 absolute），不许覆写
   wrap.appendChild(pop);
+  placePop(pop, opts, btn); // 0.9.105：place 模式（行流左贴/面板右贴）rect 定位
 
   setTimeout(function () {
     document.addEventListener('click', function onDoc(ev) {

@@ -96,8 +96,12 @@ test('img：ksc2 分支 host+path 双锚定——ksc2 伪装进子域不渲染',
 });
 
 // ---------- 既有规则回归 ----------
-test('emot：Node 下 EmotionMap 为空，主包表情降级 [表情]；img 过白名单；color 包裹', () => {
-  assert.equal(renderCommentHtml('[emot=acfun,2797/]'), '[表情]');
+test('emot：Node 下 EmotionMap 为空，主包表情降级占位；img 过白名单；color 包裹', () => {
+  // 0.9.105：降级改为带 data 的占位 span（refillEmoticons 回填定位用）
+  assert.equal(renderCommentHtml('[emot=acfun,2797/]'),
+    '<span class="ubb-emot-ph" data-pkg="acfun" data-id="2797">[表情]</span>');
+  assert.equal(renderCommentHtml('[emot=acfun,2797]'),
+    '<span class="ubb-emot-ph" data-pkg="acfun" data-id="2797">[表情]</span>'); // 斜杠可选（广场容差）
   assert.equal(renderCommentHtml('[img]https://evil.example/x.png[/img]'),
     'https://evil.example/x.png'); // 非白名单图床按字面回落为 URL 文本
   assert.ok(renderCommentHtml('[img]https://imgs.aixifan.com/x.png[/img]')
@@ -183,4 +187,39 @@ test('plain：表情码删除、成对标签剥壳留内文、空白压平', () 
   assert.equal(ubbPlain('[表情]与[img]https://x/a.png[/img]'), '与');
   assert.equal(ubbPlain(''), '');
   assert.equal(ubbPlain(null), '');
+});
+
+
+// ---------- 广场方言吸收（0.9.105） ----------
+test('话题：#话题# → 站内搜索链接（encodeURIComponent）', () => {
+  assert.equal(renderCommentHtml('看 #A站十周年# 活动'),
+    '看 <a class="ubb-topic" href="https://www.acfun.cn/search?keyword=A%E7%AB%99%E5%8D%81%E5%91%A8%E5%B9%B4" target="_blank" rel="noopener">#A站十周年#</a> 活动');
+});
+
+test('裸 ac 号：ac123456 → 文章链（无前缀缺省 a）；v/ac123456 → 视频链', () => {
+  assert.equal(renderCommentHtml('ac123456'),
+    '<a class="ubb-ac" href="https://www.acfun.cn/a/ac123456" target="_blank" rel="noopener">ac123456</a>');
+  assert.equal(renderCommentHtml('v/ac123456'),
+    '<a class="ubb-ac" href="https://www.acfun.cn/v/ac123456" target="_blank" rel="noopener">v/ac123456</a>');
+  assert.equal(renderCommentHtml('ac12'), 'ac12'); // 少于 4 位不转（广场同款门槛）
+});
+
+test('动态短链：m.acfun.cn/communityCircle/moment/N → PC 动态页 amN', () => {
+  assert.equal(renderCommentHtml('m.acfun.cn/communityCircle/moment/5104008'),
+    '<a class="ubb-ac" href="https://www.acfun.cn/moment/am5104008" target="_blank" rel="noopener">am5104008</a>');
+});
+
+test('字面量 [表情] 明文占位：灰字 span（不带 data，回填不动它）；不二次包裹', () => {
+  assert.equal(renderCommentHtml('[表情]'),
+    '<span class="ubb-emot-ph">[表情]</span>');
+  // emot 降级 span 里的 [表情] 文本不得被字面规则再包一层（字面规则先跑）
+  var h = renderCommentHtml('[emot=acfun,1/]');
+  assert.equal((h.match(/ubb-emot-ph/g) || []).length, 1, h);
+});
+
+test('方言顺序：[resource] 标题里的 #话题# 先成链再被剥壳（无 <a> 嵌套）', () => {
+  var h = renderCommentHtml('[resource id=9 type=2 icon=i]看 #话题# 了[/resource]');
+  assert.ok(h.includes('<a class="ubb-res" href="https://www.acfun.cn/v/ac9"'), h);
+  assert.ok(!/ubb-res[^>]*>[^<]*<a/.test(h), h); // 内层不再有 <a>
+  assert.ok(h.includes('看 #话题# 了'), h); // 话题链接被资源规则剥壳为纯文本
 });

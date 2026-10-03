@@ -7,7 +7,7 @@ import { root, scroller } from './state.js';
 import { parseRoute } from './route.js';
 import { overlayOpen, overlayTeardown } from './overlay.js';
 import { viewDef } from './viewreg.js';
-import { FeedStore } from './feedstore.js';
+import { FeedStore, listContext } from './feedstore.js';
 import { GLYPHS } from './imicons.js';
 import { renderCommentHtml } from './ubb.js'; // 动态正文 UBB 单源（0.9.91）
 import { syncDock } from './sidebar.js';
@@ -228,8 +228,15 @@ export function syncRouteView() {
   } else if (current) {
     exitView(true);
   }
-  // dock 高亮：深界面（搜索/播放）不在 dock 里——指向来源界面（来源链顶），空链回「推荐」
-  syncDock(def && def.deep ? (originView() || 'feed') : r.view);
+  // dock 高亮：深界面（搜索/播放）不在 dock 里——指向来源界面（来源链顶），空链回「推荐」；
+  // 舞台态（r.view=null）若列表上下文自带归属 dock（FollowVideos.dockView='follow'，0.9.105
+  // 实报「点视频后高亮变推荐」）→ 指向它。走 FeedStore 边（已有）读上下文，零新依赖
+  var dockView = def && def.deep ? originView() : r.view;
+  if (dockView == null) {
+    var ctx = listContext();
+    dockView = (ctx && ctx.dockView) || (def && def.deep ? 'feed' : dockView);
+  }
+  syncDock(dockView);
   // 顶栏按界面同步（0.9.73 四处复用；0.9.74：✕ 恒=退出脚本，深界面另出「向左返回」）。
   // searchCtx（0.9.75 补）：搜索视图本身，或从搜索页打开、尚未回到别处的播放层——顶栏输入框
   // 靠它决定「保持关键词 / 离开即清空」（离开＝回列表/竖刷，或经播放层再跳到别的界面）
