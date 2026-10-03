@@ -21,6 +21,7 @@ import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
 import { overlayTeardown } from './overlay.js';
 import { syncRouteView, teardownViews, currentView, backFromOrigin } from './views.js';
 import { buildDock, teardownDock } from './sidebar.js';
+import { startFollowBadge, stopFollowBadge } from './followbadge.js';
 import { buildTopbar, teardownTopbar, syncTopbarSeg } from './topbar.js';
 import { setupInputHandlers, teardownInputHandlers } from './input.js';
 
@@ -417,6 +418,7 @@ function mount() {
   document.body.style.overflow = 'hidden';
   document.body.appendChild(root);
   buildDock(root); // 左栏子视图入口：竖刷路由内常驻（unmount 随 teardownDock 拆）
+  startFollowBadge(); // 关注未读徽标轮询（0.9.97，4.3）：dock 常驻生命周期，unmount 停
   mountBadge(tb.imBtn, tb.imBtn.querySelector('.acsv-im-badge'));
   dbg('root-appended');
   releaseCheck(); // 每次打开竖刷页检查一次更新（内部带最小间隔节流，失败静默）
@@ -475,6 +477,7 @@ function unmount() {
   teardownRelease(); // 拆更新弹窗单例与 capture 监听（root 拆后监听残留会吞站点页全局键盘）
   resetDrawerSlot(); // 清槽位：评论侧没有 teardown，防残留闭包让重进后的第一次 Esc 被吃掉
   teardownTopbar(); // 顶栏组件拆（含搜索框与右侧按钮组；徽标/红点在 teardownIm/teardownRelease 清）
+  stopFollowBadge(); // 徽标轮询随 dock 拆（0.9.97）：清定时器 + 清条目角标
   teardownDock(); // 左栏入口与视图容器随后由 teardownViews/overlayTeardown 收尾
   teardownViews();
   // 浮层栈自顶向下收尾：含 imgview（此前它无 teardown——开图后直接离开竖刷，残留监听

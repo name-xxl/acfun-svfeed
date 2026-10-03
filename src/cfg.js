@@ -67,6 +67,9 @@ export var CFG = {
     // pcursor 是毫秒时间戳（翻页用响应值）。实测与差异见 docs/api-research.md §2.1.1：
     // 注意 feed/webPush 是另一条端点（只有视频+文章、无动态），不要混用
     followFeed: 'https://www.acfun.cn/rest/pc-direct/feed/followFeedV2',
+    // 关注未读徽标数据源（0.9.97）：followUpers[].hasUnReadResource 只在此端点响应里
+    // （followFeedV2 顶层的 ups 字段语义未确认，不可依赖——§2.1.1）
+    webPush: 'https://www.acfun.cn/rest/pc-direct/feed/webPush',
     // 站内搜索（0.9.72）：**非 JSON**——整页 SSR HTML（结果区 div.search-video），
     // 走 net.requestText + data.parseSearchItems；?pageNo= 实测无效（两页同一结果集），只做首屏
     search: 'https://www.acfun.cn/search',
@@ -220,6 +223,13 @@ export var CFG = {
   },
   rate: [0.5, 1, 1.5, 2],   // 倍速循环档位
   win: { back: 1, fwd: 1 }, // 渲染窗口：当前条向上 back/向下 fwd 张挂视频；slide DOM 与氛围背景在窗外更远一/两格回收
+  // 关注未读徽标轮询（0.9.97，4.3）：60s 起步逐次翻倍封顶 10min，发现新内容即刻回落基准
+  //（退避序列钉单测；tick 是固定节拍器粒度——真实间隔由 nextAt 闸门控制，广场同款骨架）
+  follow: {
+    pollStart: 60000,
+    pollMax: 600000,
+    tick: 5000
+  },
   im: {
     loadT: 12000,   // ImSdk 脚本加载超时（860KB，慢网放宽）
     connT1: 3500,   // 等待连接的宽容期：widget 自带 3 次重试 + sync 自恢复，别抢跑

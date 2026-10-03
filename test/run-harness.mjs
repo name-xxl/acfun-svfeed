@@ -84,7 +84,9 @@ const HARNESS_CASES = [
   // debug 构建，夹具在 my-sample.js）
   { name: 'view-follow' },
   // 0.9.96 动态详情面板（卡点击原地展开 + 评论区管线复用 stype=4 + 赞/评写链乐观回滚 + 表情面板落位）
-  { name: 'detail-open' }
+  { name: 'detail-open' },
+  // 0.9.97 关注未读徽标（webPush 桩驱动 poll 状态机：计数/回落/翻倍/进视图不打扰）
+  { name: 'badge-poll' }
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

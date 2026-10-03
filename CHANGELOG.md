@@ -3,6 +3,32 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.97（2026-10-03）· Phase 4.3：关注未读徽标 + 轮询退避
+
+- **背景**：数据源已实测在册（§2.1.1：`followUpers[].hasUnReadResource` 布尔且假值真实
+  存在）；**webPush 是唯一携 followUpers 的端点**（followFeedV2 顶层 ups 字段语义未确认，
+  不可依赖）——徽标需新增 webPush 拉取，cfg.js 补端点常量。
+- **修法**：
+  - **followbadge.js（新）**：轮询状态机 = 广场 background.js 骨架的吸收重写（固定 tick
+    + nextAt 闸门 + 重入门禁 + 代数丢弃陈旧回包），退避按 roadmap 措辞做**真逐次翻倍**
+    （广场实为 idle 分档阶梯，不照抄）：`nextBadgeInterval` 纯函数——60s 起步 ×2 封顶
+    10min、发现新内容即刻回落基准（首查未发现的第一档=基准本身）。生命周期挂
+    player.mount/unmount（dock 常驻先例——不挂视图 enter/exit，离开关注页徽标不死）；
+    `document.hidden` 短路省请求；未登录静默（selfUid 判据，followUpers 要登录态）。
+  - **徽标落点**：sidebar buildDock 循环给每个视图条目加 `.acsv-dock-badge` 位 +
+    `setDockBadge(view, n)` 命令式出口——运行状态不塞 viewreg 静态声明（混入即第二份
+    状态源）；n>99 封顶沿 imdrawer badgeText 语义；样式沿 .acsv-upd-dot 家族（描边用
+    面板底色防压 on 高亮发糊）。
+  - **进关注视图即清**（buildFollowView 清零）：用户已到场，角标不再打扰；poll 侧在
+    视图内也不点亮（无状态路由判据 inFollowView，退出后下一拍自然恢复）。
+- **测试**：单测 174（`nextBadgeInterval` 序列 60→120→240→480→600 封顶/回落/首查档/
+  脏输入与自定义档注入——roadmap 4.3 验收「轮询退避单测」落位）；harness 新场景
+  **badge-poll 14 断言**（webPush 桩驱动 poll：徽标 2→清→翻倍 120/240→再发现回落
+  60→进关注视图不打扰；假 auth_key cookie 供 selfUid）。
+- **回归**：lint 干净、`npm run check` 三项通过（README 依赖图 +followbadge 节点与
+  followbadge→net/sidebar、player→followbadge、followview→sidebar 边）、单测 174 全绿、
+  构建幂等、harness 41 场景 0 失败。
+
 ### 0.9.96（2026-10-03）· Phase 4.1+4.2：动态详情面板——评论区复用 + 赞/蕉写链 + 表情面板落位
 
 - **背景（路线图 Phase 4 动工前置已闭环 62d7295）**：动态写链五端点真机实测入档

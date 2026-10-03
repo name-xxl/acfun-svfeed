@@ -1472,4 +1472,69 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     key('Escape');
     await wait(400);
   };
+
+  // ---- 关注未读徽标（0.9.97，4.3）：webPush 桩驱动 poll 状态机——计数/回落/翻倍/进视图不打扰 ----
+  C['badge-poll'] = async function (h) {
+    var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor, key = h.key, TEST = h.TEST;
+    // harness 页无登录 cookie：设假 auth_key（selfUid 只读前缀数字段）
+    document.cookie = 'auth_key=51737407_x; path=/';
+    var unread = [true, true, false, false, false]; // 2 真 3 假（§2.1.1 实测布尔有假值）
+    window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
+      'feed/webPush': function () {
+        return {
+          result: 0,
+          followUpers: unread.map(function (u, i) {
+            return { userId: 100 + i, name: 'UP' + i, headUrl: '', hasUnReadResource: u };
+          })
+        };
+      }
+    });
+    location.hash = 'svfeed';
+    rec('badge-feed-open', !!(await waitFor(function () { return !!q('.acsv-dock'); }, 10000)));
+    rec('badge-mounted', !!(TEST.call('followbadge') || {}).mounted);
+    // 首查：2 未读 → 徽标 2；发现新内容 → 间隔回落基准 60s
+    await TEST.call('followbadge').poll();
+    rec('badge-shows-2', !!(await waitFor(function () {
+      var b = q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge');
+      return b && b.textContent === '2' && b.style.display === 'block';
+    }, 5000)));
+    rec('badge-interval-base', TEST.call('followbadge').interval === 60000,
+      'interval=' + TEST.call('followbadge').interval);
+    // 空手 → 徽标清 + 逐次翻倍（60→120→240）
+    unread = [false, false, false, false, false];
+    await TEST.call('followbadge').poll();
+    rec('badge-cleared', !!(await waitFor(function () {
+      var b = q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge');
+      return b && b.style.display === 'none';
+    }, 5000)));
+    rec('badge-interval-120', TEST.call('followbadge').interval === 120000,
+      'interval=' + TEST.call('followbadge').interval);
+    await TEST.call('followbadge').poll();
+    rec('badge-interval-240', TEST.call('followbadge').interval === 240000,
+      'interval=' + TEST.call('followbadge').interval);
+    // 再发现新内容 → 回落基准（从 240 档直接跳回 60，不沿用退避档）
+    unread = [true, false, false, false, false];
+    await TEST.call('followbadge').poll();
+    rec('badge-shows-1', !!(await waitFor(function () {
+      var b = q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge');
+      return b && b.textContent === '1';
+    }, 5000)));
+    rec('badge-interval-reset-again', TEST.call('followbadge').interval === 60000,
+      'interval=' + TEST.call('followbadge').interval);
+    // 进关注视图不打扰：未读仍真，但 poll 不点亮（stateless 路由判据）
+    location.hash = 'svfeed/follow';
+    rec('badge-follow-view', !!(await waitFor(function () {
+      var v = q('.acsv-view');
+      return v && v.offsetParent !== null;
+    }, 8000)));
+    unread = [true, true, true, false, false];
+    await TEST.call('followbadge').poll();
+    await wait(300);
+    rec('badge-suppressed-in-view', (function () {
+      var b = q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge');
+      return b && b.style.display === 'none';
+    })());
+    key('Escape');
+    await wait(400);
+  };
 })();

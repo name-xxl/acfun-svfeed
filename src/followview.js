@@ -13,6 +13,7 @@ import { followPanelOf } from './data.js';
 import { gridCardOf, moreBtn, ubbTextOf, statRowOf, quoteBlockOf } from './views.js';
 import { imgInto } from './imgload.js';
 import { registerView } from './viewreg.js';
+import { setDockBadge } from './sidebar.js'; // 进视图清徽标（0.9.97）
 import { openMomentDetail } from './momentdetail.js'; // 动态卡点击 → 原地详情面板（0.9.96）
 
 // createTimeGroup 枚举 → 分档标题文案（枚举值是契约，文案是我们的）
@@ -110,6 +111,7 @@ function skeleton(listEl) {
 function buildFollowView(body) {
   var wrap = el('div', 'acsv-mewrap');
   body.appendChild(wrap);
+  setDockBadge('follow', 0); // 进视图即清（0.9.97）：用户已到场，未读角标不再打扰；poll 侧在视图内也不点亮
   var list = el('div', 'acsv-vlist acsv-megrid acsv-follow');
   wrap.appendChild(list);
   var btn = moreBtn(function () { load(); });

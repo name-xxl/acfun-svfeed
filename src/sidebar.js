@@ -39,6 +39,7 @@ export function buildDock(parent) {
     b.dataset.view = e.id;
     b.title = e.label;
     b.innerHTML = e.svg + '<span>' + e.label + '</span>';
+    b.appendChild(el('span', 'acsv-dock-badge')); // 视图未读徽标位（0.9.97）：默认隐藏，setDockBadge 更新
     b.addEventListener('click', function () {
       location.hash = e.id === 'feed' ? CFG.hash : CFG.hash + '/' + e.id;
     });
@@ -62,6 +63,22 @@ export function syncDock(view) {
   Array.prototype.forEach.call(dockEl.querySelectorAll('.acsv-dock-item'), function (b) {
     b.classList.toggle('on', b.dataset.view === cur);
   });
+}
+
+// 视图未读徽标（0.9.97，4.3）：运行态走本命令式出口（viewreg dock 元数据是静态声明，
+// 运行状态混入即成第二份状态源——评审裁决）；n<=0 隐藏、>99 封顶（imdrawer badgeText 同语义）
+export function setDockBadge(view, n) {
+  if (!dockEl) return;
+  var b = dockEl.querySelector('.acsv-dock-item[data-view="' + view + '"]');
+  if (!b) return;
+  var badge = b.querySelector('.acsv-dock-badge');
+  if (!badge) return;
+  if (n > 0) {
+    badge.textContent = n > 99 ? '99+' : String(n);
+    badge.style.display = 'block';
+  } else {
+    badge.style.display = 'none';
+  }
 }
 
 export function teardownDock() {

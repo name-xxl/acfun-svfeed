@@ -306,6 +306,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
 | `followview.js` | 关注视图（0.9.91，路线图 2.2/3 主体）：dock 卡片流——`followFeedV2` 混合流（视频/文章/动态）一张卡 + `ct` 判别子；分档标题（createTimeGroup 枚举 1/2/10 → 今天/昨天/更早）；pcursor 毫秒游标翻页。视频卡进播放层，文章卡外链官方页，动态卡点开原地详情面板（0.9.96） |
 | `momentdetail.js` | 动态详情面板（0.9.96，路线图 4.1/4.2）：动态卡点击原地展开居中 overlay——正文全文（列表载荷，text 全文性已实测 §4.7）+ 互动栏（赞=乐观回滚、投蕉 resourceType=10 不可逆锁）+ 评论区（comments.js 管线 host 化复用，stype=4）+ 底部输入条（表情面板直接落位；4.2=单源补悬停大图）。**光 DOM 有意偏离 intake**（评论 CSS 单源，登记在模块头）；与评论抽屉共用 overlay 'comments' 层位 + claimDrawer 槽互斥 |
+| `followbadge.js` | 关注未读徽标（0.9.97，路线图 4.3）：webPush 的 followUpers 未读数（唯一携 followUpers 的端点）→ dock 角标（setDockBadge 命令式出口，运行态不进 viewreg）；轮询=固定 tick + nextAt 闸门 + 代数丢弃（广场骨架吸收重写），退避真逐次翻倍 60s→10min 封顶、发现新内容回落基准（纯函数单测钉序列）；挂 player.mount/unmount，hidden 短路、未登录静默、进关注视图清零 |
 | `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷） |
 | `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/other——boot 运行分流的唯一判据（判据与 uppage 的 `/u/\d+` 逐字一致，单测钉一致性） |
 | `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）；`onChange` 订阅让消费方零反向依赖地即时生效 |
@@ -371,6 +372,7 @@ flowchart LR
   settingspanel["settingspanel.js（脚本页设置皮肤·Shadow DOM）"]
   followview["followview.js（关注视图·混合卡流）"]
   momentdetail["momentdetail.js（动态详情面板·评论区复用+写链）"]
+  followbadge["followbadge.js（关注未读徽标·轮询退避）"]
   data --> imgurl
   route --> feedstore
   imgview --> overlay
@@ -394,8 +396,10 @@ flowchart LR
   boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & zone
   views --> feedstore & imgload & imicons & overlay & sidebar & topbar & ubb & viewreg
   sidebar --> viewreg & settingspanel
-  followview --> imgload & viewreg & views & momentdetail
+  followview --> imgload & sidebar & viewreg & views & momentdetail
   momentdetail --> appapi & comments & emoticon & imgload & imicons & interact & overlay & views
+  followbadge --> net & sidebar
+  player --> followbadge
   settingspanel --> settings & overlay
   searchview --> topbar & viewreg & views
   input --> comments & feedstore & imdrawer & overlay & pb & playlayer & settings & views
