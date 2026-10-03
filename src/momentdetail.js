@@ -3,7 +3,7 @@ import { el, fmt, toast } from './ui.js';
 import { root, releaseDrawer } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { imgInto } from './imgload.js';
-import { ubbTextOf, momentCellOf, momentMediaOf } from './views.js';
+import { ubbTextOf, quoteBlockOf, momentCellOf } from './views.js';
 import { GLYPHS } from './imicons.js';
 import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
 import { openImageViewer } from './imgview.js';
@@ -70,21 +70,36 @@ export function openMomentDetail(pi) {
     if (ev.target === backdrop) closeMomentDetail(); // 背板点击关（settings 同款）
   });
   var panel = el('div', 'acsv-mdetail-panel');
+  // ✕ 浮于背板右上（XHS 同款：卡片外圆形钮；Esc/背板点击语义不变）
+  var x = el('button', 'acsv-mdetail-x', '✕');
+  x.title = '关闭';
+  x.addEventListener('click', closeMomentDetail);
+  backdrop.appendChild(x);
 
-  // 头部：作者行 + ✕（作者在头像行——0.9.93 文本向卡形制）。类名复用 .acsv-gmom-head：
-  // 头像 24px 等规则的样式作用域在其下（styles.js），面板头同形制就同一条规则（单源）；
-  // .acsv-mdetail-head 只补边框分隔
+  // 布局判定（0.9.103 用户裁决「按内容型换布局」）：有自有图（单图/多图、非转发）→ 小红书式
+  // 两栏（左媒体/右内容，XHS 904×672 实测比例）；无图/纯文字/转发 → 单栏收窄（转发卡自带源
+  // 缩略图，左区再放源封面会重复）
+  var hasMedia = !pi.repost && ((pi.imgs && pi.imgs.length) || pi.cover);
+  var side = null; // 右栏（两栏态）；管线 host.el 指向它——输入条 append 到 h.el 末尾=贴 side 底
+  if (hasMedia) {
+    panel.classList.add('acsv-mdetail-split');
+    var mediaCol = el('div', 'acsv-mdetail-media');
+    mediaCol.appendChild(pi.imgs && pi.imgs.length > 1 ? panelGrid(pi) : panelSingle(pi));
+    panel.appendChild(mediaCol);
+    side = el('div', 'acsv-mdetail-side');
+    panel.appendChild(side);
+  }
+  var hostEl = side || panel;
+
+  // 头部：作者行（XHS 尺寸：头像 40 圆、名字 16px——gmom 类名复用处的显式覆盖规则在 styles，
+  // 类名复用=连作用域复用，0.9.96 教训）。✕ 已移至背板浮层，不再占头部
   var head = el('div', 'acsv-gmom-head acsv-mdetail-head');
   var av = el('span', 'acsv-gmom-av');
   imgInto(av, (pi.up && pi.up.img) || CFG.api.defaultAvatar, 'avatar');
   head.appendChild(av);
   head.appendChild(el('span', 'acsv-gmom-name', pi.up && pi.up.name ? '@' + pi.up.name : ''));
   head.appendChild(el('span', 'acsv-gmom-time', pi.dateText || ''));
-  var x = el('button', 'acsv-mdetail-x', '✕');
-  x.title = '关闭';
-  x.addEventListener('click', closeMomentDetail);
-  head.appendChild(x);
-  panel.appendChild(head);
+  hostEl.appendChild(head);
 
   // 可滚动体 = 评论管线的 list：正文 pin 在其首（管线清列表重挂，见 comments.resetList），
   // 评论区自然衔接在正文之后——一滚到底的整页阅读，不做双滚动区
@@ -103,19 +118,17 @@ export function openMomentDetail(pi) {
     if (!panelEl) return;
     textSlot.appendChild(ubbTextOf(pi.text, 'acsv-mdetail-text'));
   });
-  // 媒体块 → dispatcher（0.9.102 收口：与行流共享 repost/宫格/单图 分派；布局各传构建器——
-  // 面板 gridMin=2（单图走单图件）、模态栅格类名；行流网格见 followview。引用卡自 0.9.101
-  // 起源卡可点（视频→播放层/文章外链/动态→详情面板），0.9.102 起为原生形制（@源UP+源卡）
-  var media = momentMediaOf(pi, { gridMin: 2, grid: panelGrid, single: panelSingle });
-  if (media) pin.appendChild(media);
+  // 转发卡（0.9.103）：两栏态媒体在左栏；单栏态只剩转发卡（quoteBlockOf 原生形制，@源UP+源卡）。
+  // 互动栏留内容底部（0.9.103 用户裁决：赞/蕉/评论不搬进底栏）
+  if (!hasMedia && pi.repost) pin.appendChild(quoteBlockOf(pi.repost));
   pin.appendChild(actionBar(pi));
-  // 评论区标题 = 管线的 title（insertLocalComment/renderComments 会重写计数）
+  // 评论区标题 = 管线的 title（insertLocalComment/renderComments 会重写计数；titleFmt=XHS 文案）
   var cmthead = el('div', 'acsv-mdetail-cmthead');
   var title = el('span', 'acsv-mdetail-cmt', '评论');
   cmthead.appendChild(title);
   pin.appendChild(cmthead);
   list.appendChild(pin);
-  panel.appendChild(list);
+  hostEl.appendChild(list);
 
   backdrop.appendChild(panel);
   root.appendChild(backdrop);
@@ -125,10 +138,13 @@ export function openMomentDetail(pi) {
   // 层位与槽位：与评论抽屉共用 overlay id 'comments'（同 id 幂等先收旧层——抽屉开着会经
   // closeComments 收掉）+ claimDrawer 槽；modal:true（背板模态，Esc 接栈）
   overlayOpen({ id: 'comments', modal: true, close: closeMomentDetail });
-  // 评论区管线灌进面板宿主：stype=4（动态评论，R3 闭合）+ kind='home'（开放互动）——
-  // shareUrl 用官方动态页落点（评论转发的 #ncid 锚点在原页原生定位楼层）
-  openCommentsHost({ el: panel, title: title, list: list, close: closeMomentDetail, pin: pin },
-    pi.momentId, 4, pi.href, 'home');
+  // 评论区管线灌进宿主：host.el 两栏态=右栏（输入条 append 到 h.el 末尾=贴右栏底）、单栏态=
+  // 面板；stype=4（动态评论，R3 闭合）+ kind='home'（开放互动）；titleFmt（0.9.103）=XHS
+  // 文案「共 N 条评论」；shareUrl 用官方动态页落点（评论转发的 #ncid 锚点在原页原生定位楼层）
+  openCommentsHost({
+    el: hostEl, title: title, list: list, close: closeMomentDetail, pin: pin,
+    titleFmt: function (n) { return '共 ' + fmt(n) + ' 条评论'; }
+  }, pi.momentId, 4, pi.href, 'home');
 }
 
 // 互动栏（赞/蕉写链 + 评论数展示）。乐观更新+回滚照 rail.js:154-177 范式；投蕉 count=1

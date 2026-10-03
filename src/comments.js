@@ -88,7 +88,8 @@ export function toggleItemComments(item) {
   else openComments(item.id, item.stype, item.shareUrl, item.kind);
 }
 
-// 在自定义宿主里跑评论管线（0.9.96 动态详情面板）：h = { el, title, list, close, pin? }。
+// 在自定义宿主里跑评论管线（0.9.96 动态详情面板）：h = { el, title, list, close, pin?, titleFmt? }。
+// titleFmt(n) 可选：计数标题文案定制（0.9.103，面板传「共 N 条评论」）；缺省「评论 N」。
 // 面板与抽屉共用 claimDrawer('comments') 槽 + commentState 单例——同 id 槽位重入不互收
 // （state.claimDrawer 语义），故抽屉开着须先显式关，防两份宿主互踩；overlay 层由调用方
 // 注册（modal 与否是面板自己的事），close 路径里 host 复位见 closeCommentsHost
@@ -109,6 +110,12 @@ export function openCommentsHost(h, sourceId, stype, shareUrl, kind) {
 
 // 面板关闭时复位管线宿主（宿主 DOM 已随面板拆除，残留引用会让 curHost() 读到死节点）
 export function closeCommentsHost() { host = null; }
+
+// 评论计数标题文案（0.9.103）：宿主可选 titleFmt 定制（小红书式详情面板用「共 N 条评论」）；
+// 缺省维持「评论 N」——抽屉/行内不传，行为零变化
+function titleText(h, n) {
+  return h && h.titleFmt ? h.titleFmt(n) : '评论 ' + fmt(n);
+}
 
 // 清空评论列表（宿主感知）：面板宿主的正文 pin（h.pin，.acsv-cpin）由宿主持有，
 // 管线清列表必须重挂——否则 loadComments 一跑把动态正文冲掉
@@ -356,7 +363,7 @@ function renderComments(list, append, subMap, hot) {
   var h = curHost();
   if (!h) return;
   if (!append) resetList(h);
-  h.title.textContent = '评论 ' + fmt(commentState.count);
+  h.title.textContent = titleText(h, commentState.count);
   if (!list.length && !append) {
     var empty = el('div', 'acsv-drawer-tip', '还没有评论，去原页抢沙发 →');
     var a = el('a', 'acsv-cmore');
@@ -462,7 +469,7 @@ function insertLocalComment(c, isReply) {
   else if (h.pin && h.pin.parentNode === list) list.insertBefore(node, h.pin.nextSibling);
   else list.insertBefore(node, list.firstChild);
   commentState.count++;
-  h.title.textContent = '评论 ' + fmt(commentState.count);
+  h.title.textContent = titleText(h, commentState.count);
   return true;
 }
 

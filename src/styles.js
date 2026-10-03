@@ -646,19 +646,45 @@ var RAW_CSS = ''
   + '@keyframes mdetail-in{from{opacity:0}to{opacity:1}}'
   + '.acsv-mdetail{position:absolute;inset:0;z-index:61;background:rgba(0,0,0,.62);display:flex;'
   + 'align-items:center;justify-content:center;animation:mdetail-in .18s ease}'
-  + '.acsv-mdetail-panel{position:relative;width:min(680px,94vw);max-height:min(84vh,760px);display:flex;flex-direction:column;'
-  + 'background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);'
-  + 'border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden;color:#fff;'
-  + 'font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}'
-  + '.acsv-mdetail-head{flex:none;display:flex;align-items:center;gap:10px;padding:12px 16px;'
-  + 'border-bottom:1px solid rgba(255,255,255,.09)}'
-  + '.acsv-mdetail-x{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;'
-  + 'width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}'
+  // ✕ 浮于卡片外右上（0.9.103 XHS 同款：40 圆钮在背板层，Esc/背板点击语义不变）
+  + '.acsv-mdetail-x{position:absolute;top:16px;right:16px;z-index:2;border:none;background:rgba(255,255,255,.12);'
+  + 'color:#fff;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1}'
   + '.acsv-mdetail-x:hover{background:rgba(255,255,255,.22)}'
-  // 列表 = 管线宿主（整页一滚：正文 pin 在首、评论区衔接其后）；padding-bottom 给底部输入条让位
-  + '.acsv-mdetail-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:14px 18px 78px;'
+  // 面板（单栏态基准；圆角 20 = XHS 实测）
+  + '.acsv-mdetail-panel{position:relative;width:min(620px,94vw);max-height:min(84vh,760px);display:flex;flex-direction:column;'
+  + 'background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);'
+  + 'border-radius:20px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden;color:#fff;'
+  + 'font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}'
+  // ---- 两栏态（0.9.103 小红书式；量取日 2026-10-03 xiaohongshu.com 详情页 computed style）----
+  // XHS 实测：容器 904×672 圆角 20 深色 #121212；左媒体区 504 黑底（圆角 20 0 0 20）/右栏 400。
+  // 按内容型换布局（用户裁决）：有自有图=两栏，无图/转发=单栏收窄（上方面板基准）。
+  + '.acsv-mdetail-panel.acsv-mdetail-split{flex-direction:row;width:min(920px,94vw);height:min(84vh,672px)}'
+  + '.acsv-mdetail-media{flex:1 1 auto;min-width:0;background:#000;border-radius:20px 0 0 20px;'
+  + 'display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 16px}'
+  + '.acsv-mdetail-media .acsv-mdetail-imgs{margin:0;max-width:none;width:100%}'
+  + '.acsv-mdetail-media .acsv-mdetail-img{margin:0;width:auto;max-width:100%;max-height:100%;background:none;overflow:visible}'
+  + '.acsv-mdetail-media .acsv-mdetail-img img{width:auto;height:auto;max-width:100%;max-height:min(78vh,620px);'
+  + 'object-fit:contain;margin:0 auto}'
+  // 右栏（XHS 400 固定）：作者行 / 滚动区（管线 list）/ 管线输入条（append 到 host.el 末尾=贴底）
+  + '.acsv-mdetail-side{flex:none;width:min(400px,46%);display:flex;flex-direction:column;min-height:0}'
+  // 作者行（XHS 实测 81 高：头像 40 圆、名字 16px rgba(255,255,255,.8)；gmom 类名复用处的
+  // 显式尺寸覆盖——类名复用=连作用域复用，0.9.96 教训）
+  + '.acsv-mdetail-head{flex:none;display:flex;align-items:center;gap:10px;padding:14px 20px;'
+  + 'border-bottom:1px solid rgba(255,255,255,.09)}'
+  + '.acsv-mdetail-head .acsv-gmom-av{width:40px;height:40px}'
+  + '.acsv-mdetail-head .acsv-gmom-av img{width:40px;height:40px}'
+  + '.acsv-mdetail-head .acsv-gmom-name{font-size:16px;color:rgba(255,255,255,.85)}'
+  // 列表 = 管线宿主（正文 pin 在首、评论区衔接其后；输入条是 list 的兄弟节点不遮列表，底距收小）
+  + '.acsv-mdetail-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px 20px 10px;'
   + 'scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}'
-  + '.acsv-mdetail-text{font-size:14px;line-height:22px;color:#e8eaee;word-break:break-word}'
+  // 正文 16/24 = XHS 实测（此前 14/22）
+  + '.acsv-mdetail-text{font-size:16px;line-height:24px;color:#e8eaee;word-break:break-word}'
+  // 窄屏回落单栏（XHS 移动端同构：媒体转上方）；860 = 面板两栏宽度裕量断点（与 CFG.view.narrow
+  // 的 720「隐藏左栏」用途不同，独立取值）
+  + '@media (max-width:860px){.acsv-mdetail-panel.acsv-mdetail-split{flex-direction:column;'
+  + 'width:min(560px,94vw);height:auto;max-height:min(88vh,780px)}'
+  + '.acsv-mdetail-media{width:100%;height:38vh;flex:none;border-radius:20px 20px 0 0}'
+  + '.acsv-mdetail-side{width:100%;flex:1 1 auto;min-height:0}}'
   + '.acsv-mdetail-img{margin-top:10px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06);max-height:320px;width:100%}'
   + '.acsv-mdetail-img img{width:100%;max-height:320px;object-fit:cover;display:block}'
   + '.acsv-mdetail-img.onbig{cursor:zoom-in}' // 单图接了大图查看时才出放大光标（渲染层挂类）
@@ -675,7 +701,8 @@ var RAW_CSS = ''
   + '.acsv-mdl-like,.acsv-mdl-ban{cursor:pointer}'
   + '.acsv-mdl-like:hover,.acsv-mdl-ban:hover{color:#fff}'
   + '.acsv-mdl-like.on,.acsv-mdl-ban.on{color:var(--acsv-accent)}'
-  + '.acsv-mdetail-cmthead{margin:14px 0 4px;font-size:13px;font-weight:600;color:#cfd3da}'
+  + '.acsv-mdetail-cmthead{margin:16px 0 6px;text-align:center}'
+  + '.acsv-mdetail-cmt{font-size:14px;font-weight:400;color:#8a90a0}'
   // 表情悬停大图（0.9.96 4.2）：锚定宿主面板（absolute），预览在条目上方、不挡交互
   + '.acsv-emot-prev{position:absolute;width:124px;height:124px;z-index:7;display:none;padding:8px;pointer-events:none;'
   + 'background:rgba(22,22,27,.97);border:1px solid rgba(255,255,255,.14);border-radius:10px;'

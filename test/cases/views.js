@@ -1490,7 +1490,11 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       return document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length >= 2;
     }, 8000)), 'n=' + document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length);
     // 计数标题 = commentCount（含楼中楼口径，§4.7 坑②的契约化）
-    rec('detail-comments-title', /评论\s*3/.test((q('.acsv-mdetail-cmt') || {}).textContent || ''));
+    // 标题文案走 titleFmt（0.9.103 XHS 式「共 N 条评论」）
+    rec('detail-comments-title', /共\s*3\s*条评论/.test((q('.acsv-mdetail-cmt') || {}).textContent || ''));
+    // 单栏态（无图动态）：不得出现两栏媒体列（按内容型换布局——0.9.103 裁决）
+    rec('detail-single-no-media', !q('.acsv-mdetail-split') && !q('.acsv-mdetail-media')
+      && !!q('.acsv-mdetail-panel .acsv-mdetail-head'));
     // 互动栏：赞乐观 +1（mock add 成功）→ 再点取消（delete 成功）。点击间留一拍：
     // 乐观态是同步的、likeBusy 复位在异步 then——连点会被 busy 守卫吞掉（非产品 bug）
     var like = q('.acsv-mdl-like');
@@ -1528,7 +1532,7 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       var first = pin2 && pin2.nextElementSibling;
       return first && first.classList.contains('acsv-citem')
         && /详情面板的测试评论/.test(first.textContent)
-        && /评论\s*4/.test((q('.acsv-mdetail-cmt') || {}).textContent || '');
+        && /共\s*4\s*条评论/.test((q('.acsv-mdetail-cmt') || {}).textContent || '');
     }, 8000)), 'n=' + document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length);
     // 表情面板（4.2）：节点挂面板宿主（display:none 待开）；输入条在面板内（宿主迁移）
     rec('detail-emotpanel', !!q('.acsv-mdetail-panel > .acsv-emotpanel'));
@@ -1554,10 +1558,20 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     }
     rec('detail-multigrid-card', !!gCard);
     if (gCard) gCard.click();
+    // 两栏态（0.9.103 XHS 式）：split 类 + 左媒体列 + 右内容栏；宫格在**媒体列**内
+    rec('detail-split-layout', !!(await waitFor(function () {
+      return !!q('.acsv-mdetail-panel.acsv-mdetail-split')
+        && !!q('.acsv-mdetail-media') && !!q('.acsv-mdetail-side')
+        && !!q('.acsv-mdetail-side .acsv-mdetail-head');
+    }, 8000)));
     rec('detail-multigrid', !!(await waitFor(function () {
-      var g = q('.acsv-mdetail-list .acsv-cpin .acsv-mdetail-imgs');
+      var g = q('.acsv-mdetail-media .acsv-mdetail-imgs');
       return g && g.dataset.n === '3' && g.querySelectorAll('img').length === 3;
     }, 8000)), 'n=' + document.querySelectorAll('.acsv-mdetail-imgs img').length);
+    // 输入条与表情面板落**右栏**（管线 host.el=side：append 到 h.el 末尾=贴右栏底）
+    rec('detail-side-input', !!(await waitFor(function () {
+      return !!q('.acsv-mdetail-side .acsv-cinput');
+    }, 8000)));
     var cell0 = q('.acsv-mdetail-imgs .acsv-mdetail-imgcell');
     if (cell0) cell0.click();
     rec('detail-imgview', !!(await waitFor(function () {
