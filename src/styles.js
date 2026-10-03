@@ -4,7 +4,7 @@ import { CFG } from './cfg.js';
 // RAW_CSS 里主题色一律写 #fd4c5d 占位，导出时统一替换为 CSS 变量（换肤只改 cfg.accent）
 // 大图查看器样式（0.9.57 单源拆分）：RAW_CSS 拼接同段；原生页不注入全量 CSS（既定
 // 设计），boot 仅补此段 + root=body，评论卡配图点击看大图即可用。fadein 动画随段提供
-export var IMGVIEW_CSS = '.acsv-imgview{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.92);display:flex;'
+export var IMGVIEW_CSS = '.acsv-imgview{position:absolute;inset:0;z-index:63;background:rgba(0,0,0,.92);display:flex;' // z 63：浮于动态详情(61)与设置(62)之上（0.9.108 实报：详情面板从内部开大图被面板覆盖）
   + 'align-items:center;justify-content:center;cursor:zoom-out;animation:acsv-fadein .18s ease}'
   + '.acsv-imgview img{max-width:94%;max-height:94%;border-radius:6px;'
   + 'box-shadow:0 8px 48px rgba(0,0,0,.6);-webkit-user-select:none;user-select:none}'
@@ -130,7 +130,7 @@ var RAW_CSS = ''
   + '.acsv-rail-btn.bump .acsvg-icon-mask{animation:acsv-bump .4s ease}'
   + '.acsv-rail-btn.thrown{cursor:default}'
   // 抽屉 z 58（0.9.73 由 45 提到视图态顶栏(57)之上）：视图里开抽屉时抽屉须盖住视图(55)/dock(56)/
-  // 顶栏(57)，顶栏右组靠避让平移贴到抽屉左缘保持可点；低于大图(60)/更新弹窗(65)。几何上
+  // 顶栏(57)，顶栏右组靠避让平移贴到抽屉左缘保持可点；低于大图(63)/更新弹窗(65)。几何上
   // 抽屉贴右、dock 贴左，两者不重叠——层级反转只保证「后开的浮层在上」与 overlay 栈序一致
   // 抽屉滑入骨架（0.9.75 抽离）：评论/私信两抽屉共用同一条规则（此前逐字重复两份，只差
   // 宽度默认值与背景透明度 .96/.97）；各自的差异写在共享规则**之后**（同权重靠后生效）
@@ -619,7 +619,7 @@ var RAW_CSS = ''
   + '.acsv-upd-dot{position:absolute;top:-2px;right:-3px;width:9px;height:9px;border-radius:50%;'
   + 'background:var(--acsv-accent);box-shadow:0 0 0 2px rgba(22,22,27,.9)}'
   // ---- 左栏导航（0.9.63 抖音式）：全高贴左、图标+文字横排、当前项灰 pill ----
-  // z56：盖视图容器(55)；低于视图态顶栏(57)/抽屉(58)/大图(60)/更新弹窗(65)——抽屉与 dock
+  // z56：盖视图容器(55)；低于视图态顶栏(57)/抽屉(58)/大图(63)/更新弹窗(65)——抽屉与 dock
   // 几何不重叠（dock 贴左/抽屉贴右），该次序只保证「后开的浮层在上」与 overlay 栈序一致。
   // 主区让位：scroller/视图内容 margin/padding-left=CFG.view.dockW（抖音同款，视频居中于剩余空间）；
   // 已知取舍：评论抽屉避让中心仍按全视口算（不随 dock 右移），视觉可接受不展开
@@ -647,7 +647,7 @@ var RAW_CSS = ''
   // ---- 动态详情面板（0.9.96）：光 DOM 复用全局评论 CSS（intake Shadow 偏离登记见 momentdetail.js 头）。
   // 量取（0.9.69 纪律）：站方 PC **无动态详情弹层可量取**（动态详情是整页不是浮层）——按本方
   // 模态家族推导：表面/圆角/阴影/动画同 .set 段（settingspanel 0.9.89 量取值），宽 680px 给
-  // 正文与评论可读列宽；z 61 = 大图(60)之上、设置(62)之下
+  // 正文与评论可读列宽；z 61 = 设置(62)之下；大图查看器已提到 63（0.9.108）——面板内开图必须浮于面板
   + '@keyframes mdetail-in{from{opacity:0}to{opacity:1}}'
   + '.acsv-mdetail{position:absolute;inset:0;z-index:61;background:rgba(0,0,0,.62);display:flex;'
   + 'align-items:center;justify-content:center;animation:mdetail-in .18s ease}'

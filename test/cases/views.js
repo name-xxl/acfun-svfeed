@@ -1722,6 +1722,14 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     rec('detail-imgview', !!(await waitFor(function () {
       return !!q('.acsv-imgview img');
     }, 5000)));
+    // 层级（0.9.108 实报：大图被详情面板覆盖）——大图 z 必须高于面板
+    rec('detail-imgview-z', (function () {
+      var iv = q('.acsv-imgview'), md = q('.acsv-mdetail');
+      return !!iv && !!md && Number(getComputedStyle(iv).zIndex) > Number(getComputedStyle(md).zIndex);
+    })(), (function () {
+      var iv = q('.acsv-imgview'), md = q('.acsv-mdetail');
+      return 'iv=' + (iv ? getComputedStyle(iv).zIndex : 'n/a') + ' md=' + (md ? getComputedStyle(md).zIndex : 'n/a');
+    })());
     key('Escape');
     rec('detail-imgview-close', !!(await waitFor(function () {
       return !q('.acsv-imgview') && !!q('.acsv-mdetail'); // 图层关、面板留存（模态栈分层）
