@@ -107,3 +107,18 @@ test('非法注册：缺 id / 缺 close 回调不入栈', () => {
   overlay.overlayOpen({ close: () => { } });
   assert.equal(overlay.overlayTop(), null);
 });
+
+// ---------- 输入元素豁免分类器（0.9.96 动态详情面板） ----------
+// 面板 modal 层内有评论输入框：分类器决定打字放行；Esc 永不豁免（关层语义）由调用侧保证，
+// 这里钉的是分类本体（接线在 overlay.js capture 与 input.js 气泡各 2 行）
+test('isInputTarget：input/textarea/select/contentEditable 为真，其余为假；脏输入不炸', () => {
+  assert.equal(overlay.isInputTarget({ target: { tagName: 'INPUT' } }), true);
+  assert.equal(overlay.isInputTarget({ target: { tagName: 'textarea' } }), true);
+  assert.equal(overlay.isInputTarget({ target: { tagName: 'SELECT' } }), true);
+  assert.equal(overlay.isInputTarget({ target: { isContentEditable: true } }), true);
+  assert.equal(overlay.isInputTarget({ target: { tagName: 'DIV' } }), false);
+  assert.equal(overlay.isInputTarget({ target: { tagName: 'BUTTON' } }), false);
+  assert.equal(overlay.isInputTarget({ target: {} }), false);
+  assert.equal(overlay.isInputTarget({ target: null }), false);
+  assert.equal(overlay.isInputTarget({}), false);
+});

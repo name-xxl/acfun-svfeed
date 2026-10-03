@@ -3,6 +3,64 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.96（2026-10-03）· Phase 4.1+4.2：动态详情面板——评论区复用 + 赞/蕉写链 + 表情面板落位
+
+- **背景（路线图 Phase 4 动工前置已闭环 62d7295）**：动态写链五端点真机实测入档
+  api-research §4.7（R3 闭合：comment/list sourceType=4 与视频同族、`page=` 分页有效、
+  楼中楼 sublist 同族；text 全文性=list 与 detail 逐字节相等，且 detail 的 moment 内
+  commentCount/bananaCount 实测不可信——**详情面板只吃列表载荷，不接 moment/detail**）。
+  入口形态用户裁决「详情展开优先」：点动态卡原地展开居中 overlay，卡面保持纯展示。
+- **修法**：
+  - **comments.js 管线 host 化**（评论区复用的最小路径）：管线对 commentDrawer 单例的
+    直读收敛为 `curHost()`（null=经典抽屉，行为零变）；新出口 `openCommentsHost(h,…)/
+    closeCommentsHost()`——宿主三元组 `{el, title, list, close, pin?}` 由面板供给；
+    输入条三件套（输入栏/回复 chip/表情面板）随宿主**迁移**（append 搬移 + scroll 监听
+    换挂，scroll 不冒泡挂公共祖先救不了）；`resetList` 收口三处 innerHTML 清空并重挂
+    正文 pin（防「清列表冲掉动态正文」）；`postComment` 归一 sourceType=4 的回显形状
+    （实测评论对象平铺在响应顶层，无嵌套 comment 字段——乐观上屏否则失效）。
+  - **momentdetail.js（新）**：面板 = 头部作者行 + 可滚动体（正文 pin：UBB 全文
+    ensureEmotionMap 就绪后渲染 + 单图/引用块（views.quoteBlockOf 抽共享，卡面同源）+
+    互动栏）+ 评论区（管线灌入 stype=4、kind='home' 开放互动）+ 底部输入条。互动栏：
+    **赞**=乐观 +1/−1 失败整体回滚（rail 范式）；**投蕉**=count 1 不可逆只进不退（官方无
+    取消端点，thrown 锁死——注释防误修成回滚）；评论数展示（commentCount 含楼中楼口径）。
+    与评论抽屉共用 overlay 层位 id 'comments' + claimDrawer 槽（同槽互斥，commentState
+    单例不被两份宿主互踩）。
+  - **【intake 有意偏离登记】**：面板用**光 DOM** 不用 Shadow DOM——评论区/输入条/表情
+    样式全在全局 styles.js，进影子根=复制 CSS 造漂移源（单源重于 intake 字面）；光 DOM
+    先例=评论抽屉/imgview/release 整族。乐观更新**不抽公共件**：rail/comments/面板三处
+    语境各异，强行抽=预留抽象层（YAGNI 守门），裁决入注释。
+  - **写链参数化**：interact.callInteract 的 objectType 按 item 派生（kind='moment'→10，
+    实测精简参数即可、userId/kpf 非必需）；AppAPI.throwBanana 加 resourceType 参数
+    （默认 2，端点不动）。
+  - **overlay/input 模态键输入豁免（双路径同语义）**：modal 层 capture 对 input/textarea/
+    select/contentEditable 放行（Esc 除外，输入框内 Esc 由 inputbar 失焦）——面板模态
+    后评论框要能打字；分类器 isInputTarget 导出钉单测。
+  - **4.2 表情面板 = 单源补特性（吸收不搬家）**：emoticon.renderEmotPanel 补「悬停大图
+    预览」（广场特性对照物；124px 随条目定位、横向钳在面板内、pointer-events:none），
+    不搬广场面板代码；面板容器 position 锚定使 .acsv-emotpanel 的 bottom:57px 既有规则
+    直接成立，emoticon 零架构改动。
+  - **数据契约**：follow 解析器 case 10 补数值态 like/comment/banana（字段名对齐 rail
+    词汇）+ liked/thrown（接口已有未映射）；meta 字符串三段保留给卡面（两份并存刻意：
+    卡面展示口径 vs 乐观更新的可变数值）。
+- **测试**：单测 173（overlay.isInputTarget 分类器 9 断言含脏输入不炸；data 动态数值态
+  两向）；harness 新场景 **detail-open 20 断言**（面板结构/正文 pin 防冲哨兵/stype=4+
+  sourceId/赞乐观→取消→mock 失败回滚三段/发评论乐观上屏且插正文 pin 之后/表情面板
+  落位/输入条宿主迁移重开/Esc 拆净宿主复位）；view-follow 45 断言同步（动态卡
+  `<a>`→`<div>` 无 href，宽度/沉底不变式保持）。排障记：场景首跑 3 红——①harness 全局
+  `__ACSV_MOCK__`（feed-sample）真值令评论管线走内置 mockComments、定向桩永不命中
+  （calls=undefined 实锤），场景内显式 delete；②连点被 likeBusy 守卫吞（乐观同步、
+  复位异步的竞态），点击间加一拍；③正文 pin 渲染等 ensureEmotionMap 的时序竞态改
+  waitFor。守卫/竞态均是测试侧口径，产品代码无改。
+- **真数据复核**（内置浏览器登录态，debug 产物注入真实页）：自有动态（am5103843）面板
+  全链在位——正文（内联表情真图）/真实评论 2 条/互动栏/输入条；**赞真机往返** 2→3→2
+  （kuaishouzt add/delete 均 result 1）；**自投报错路径**顺带实测：170008 → toast 投蕉
+  失败、计数不动（失败不触发 thrown 锁，正确）。复核抓出并修复：头部头像用了
+  `.acsv-gmom-av` 但 24px 规则作用域是 `.acsv-gmom-head img`——原生尺寸头像撑爆面板；
+  修法 = 头部类名复用 `.acsv-gmom-head`（同形制同一条规则），`.acsv-mdetail-head` 只补
+  分隔线（单源样式纪律的又一实例）。
+- **回归**：lint 干净、`npm run check` 三项通过（README 依赖图 +momentdetail 节点）、
+  单测 173 全绿、构建幂等、harness 40 场景 0 失败（detail-open/view-follow 单跑均绿）。
+
 ### 0.9.95（2026-10-03）· 动态卡尾件沉底：引用块与计数行贴底，正文吃余量
 
 - **病灶（用户实报）**：「卡片内引用的信息和脚注可以置底，为正文腾出空间，同时观感更整齐」——

@@ -47,10 +47,22 @@ export function overlayTeardown() {
 // ---- 模态键语义（仅真实键盘；合成事件见文件头） ----
 // 懒注册（首个浮层打开时），模块生命周期常驻：栈空时监听器空转，unmount 后不吞站点键盘
 var keyBound = false;
+// 输入元素判定（0.9.96 面板评论框打字豁免）：导出供单测钉分类器——双路径（overlay capture
+// 与 input.js 气泡）的接线各 2 行，分类器才是逻辑本体
+export function isInputTarget(ev) {
+  var t = ev.target;
+  return !!t && !!(typeof t.tagName === 'string'
+    && /^(input|textarea|select)$/i.test(t.tagName) || t.isContentEditable);
+}
 function onOverlayKey(ev) {
   if (ev.target === window) return; // 合成事件：input.js 栈判定兜底
   var top = overlayTop();
   if (!top || !top.modal) return; // 非模态层不拦键：抽屉开着导航键照常到 input.js
+  // 输入元素豁免（0.9.96 动态详情面板）：模态面板内有评论输入框，吞键=打不了字。
+  // 与 input.js 的目标豁免/模态门禁三处同语义（0.9.61「两条路径行为一致」纪律）——
+  // Esc 不豁免：输入框聚焦时按 Esc 由 inputbar 自己失焦（栏内按键 stopPropagation），
+  // 非聚焦时走下方关层
+  if (ev.key !== 'Escape' && isInputTarget(ev)) return;
   ev.stopPropagation();
   if (ev.key === 'Escape') overlayClose(top.id);
 }

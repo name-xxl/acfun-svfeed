@@ -82,7 +82,9 @@ const HARNESS_CASES = [
   { name: 'settings-migrate', serial: true },
   // 0.9.91 关注视图（followFeedV2 混合流：视频/文章/动态三类卡 + 分档标题 + 翻页；mock 缝依赖
   // debug 构建，夹具在 my-sample.js）
-  { name: 'view-follow' }
+  { name: 'view-follow' },
+  // 0.9.96 动态详情面板（卡点击原地展开 + 评论区管线复用 stype=4 + 赞/评写链乐观回滚 + 表情面板落位）
+  { name: 'detail-open' }
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

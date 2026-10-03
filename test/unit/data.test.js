@@ -483,6 +483,7 @@ test('panelItem follow：动态条目——momentId 身份、UBB 原文进 text�
     coverUrl: 'https://tx-free-imgs.acfun.cn/m.jpg',
     discoveryResourceFeedShowContent: '列表用正文[表情]',
     likeCount: 6, commentCount: 0, bananaCount: 0,
+    isLike: true, isThrowBanana: false,
     createTime: Date.now() - 4 * 3600 * 1000,
     moment: { momentId: 5104008, text: '拿我和教授级别专业老师比较[emot=acfun,1656/]感到很荣幸', replaceUbbText: '拿我和教授级别专业老师比较[表情]感到很荣幸' },
     user: { userId: 11361784, userName: '潇湘huya', userHead: 'h.jpg' }
@@ -494,6 +495,12 @@ test('panelItem follow：动态条目——momentId 身份、UBB 原文进 text�
   assert.match(pi.text, /\[emot=acfun,1656\/\]/);
   assert.equal(pi.href, 'https://www.acfun.cn/moment/am5104008');
   assert.deepEqual(pi.meta, [{ k: 'like', t: '6' }, { k: 'comment', t: '0' }, { k: 'banana', t: '0' }]);
+  // 数值态（0.9.96 详情面板写链）：字段名对齐 rail 词汇；缺 isLike/isThrowBanana 时落 false
+  assert.equal(pi.like, 6);
+  assert.equal(pi.comment, 0);
+  assert.equal(pi.banana, 0);
+  assert.equal(pi.liked, true);
+  assert.equal(pi.thrown, false);
   assert.equal(pi.views, undefined); // 动态不挂播放数角标（实测 viewCount 恒 0，是噪音不是信息）
   assert.equal(pi.up.name, '潇湘huya');
 });

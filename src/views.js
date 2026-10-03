@@ -366,6 +366,20 @@ export function statRowOf(meta) {
   return stat;
 }
 
+// 转发引用块（0.9.96 抽共享）：左竖线 + 源缩略图 + 源标题 + 源类型字——转发的结构性签名，
+// followview 动态卡与 momentdetail 详情面板两处消费同一件（新重复即 lint 候选的先手）
+export function quoteBlockOf(repost) {
+  var q = el('div', 'acsv-gquote');
+  var qt = el('div', 'acsv-gquote-thumb');
+  imgInto(qt, repost.cover, 'thumb');
+  q.appendChild(qt);
+  var qb = el('div', 'acsv-gquote-body');
+  qb.appendChild(el('div', 'acsv-gquote-title', repost.title || '（无标题）'));
+  qb.appendChild(el('div', 'acsv-gquote-kind', (repost.ct === 'video' ? '视频' : '文章')));
+  q.appendChild(qb);
+  return q;
+}
+
 // 原生 up-card 等价物（rlist 右栏作者卡，横排）：大圆头像左+信息块右（名字 accent/签名/
 // 数据位）。签名恒渲染（原生 p.sign 固定 3 行占位——空签名也占位，行高不随数据波动）；
 // 数据位=投稿数+粉丝数（原生 up-card 两位 U+E15B/U+E155，万格式文案契约层拼好）。

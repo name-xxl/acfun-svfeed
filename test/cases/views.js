@@ -1213,11 +1213,12 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       aCard ? 'cover/title/foot/chip' : 'no-card');
     rec('follow-article-desc', !!(aCard && aCard.querySelector('.acsv-gart-desc')),
       aCard ? (aCard.querySelector('.acsv-gart-desc') || {}).textContent : 'no-desc');
-    // 动态宽卡（文本向：头像行 + 正文 + 图 + 计数行），整卡外链动态官方页
+    // 动态宽卡（文本向：头像行 + 正文 + 图 + 计数行），0.9.96 起点击开**原地详情面板**
+    //（不再是外链：根元素 div、无 href——详情交互在 detail-open 场景钉）
     var mCard = cardOf('动态正文带 UBB', '.acsv-gmom');
-    rec('follow-moment-card', !!mCard && mCard.tagName === 'A'
-      && mCard.getAttribute('href') === 'https://www.acfun.cn/moment/am510002',
-      mCard ? mCard.getAttribute('href') : 'no-card');
+    rec('follow-moment-card', !!mCard && mCard.tagName === 'DIV'
+      && mCard.getAttribute('href') === null,
+      mCard ? 'tag=' + mCard.tagName : 'no-card');
     rec('follow-moment-head', !!(mCard && mCard.querySelector('.acsv-gmom-head img')
       && /@关注UP1/.test((mCard.querySelector('.acsv-gmom-name') || {}).textContent || '')),
       mCard ? (mCard.querySelector('.acsv-gmom-head') || {}).textContent : 'no-head');
@@ -1354,5 +1355,121 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     rec('follow-esc-to-feed', !!(await waitFor(function () {
       return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash) && q('.acsv-view') === null;
     }, 8000)), location.hash);
+  };
+
+  // ---- 动态详情面板（0.9.96）：卡点击原地展开 + 评论区管线复用（stype=4）+ 写链乐观回滚 ----
+  // 同槽互斥的「面板收回抽屉」半向由 view-follow 之外的抽屉场景语境覆盖成本高，此处钉
+  // 可观测不变量：面板开着时抽屉 open=false（TEST.call('comments')），模态层 'comments:m' 在栈
+  C['detail-open'] = async function (h) {
+    var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor, key = h.key, TEST = h.TEST;
+    // 评论管线在 __ACSV_MOCK__ 真值时走内置 mockComments（feed-sample 全局夹具）——本场景
+    // 要测的是**定向端点桩**（真实请求形状），先摘掉它；每场景独立页面，无需恢复
+    delete window.__ACSV_MOCK__;
+    // 评论/写链 mock：token 桩 + 定向端点桩（mockHit 按 url 子串命中）；
+    // __ACSV_LIKE_FAIL__ 切 interact add/delete 失败测回滚
+    window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
+      'token/get': function () { return { result: 0, 'acfun.midground.api_st': 'mock-st' }; },
+      'comment/list': function () {
+        return { result: 0, commentCount: 3, curPage: 1, totalPage: 1, pcursor: 'no_more',
+          hotComments: [],
+          rootComments: [
+            { commentId: 'c1', userId: 21, userName: '测试员甲', headUrl: '', content: '详情面板首条评论', postDate: '1分钟前', likeCount: 2, isLike: false, subCommentCount: 0 },
+            { commentId: 'c2', userId: 22, userName: '测试员乙', headUrl: '', content: '第二条', postDate: '2分钟前', likeCount: 0, isLike: false, subCommentCount: 0 }
+          ],
+          subCommentsMap: {} };
+      },
+      'comment/add': function (body) {
+        if (window.__ACSV_CMT_FAIL__) return { result: 1, error_msg: 'mock 失败' };
+        var txt = '';
+        try { txt = decodeURIComponent((String(body).match(/content=([^&]*)/) || [])[1] || ''); } catch (e) { }
+        return { result: 0, commentId: 'c9', userId: 99, userName: 'name_xxl', headUrl: '', content: txt, postDate: '刚刚', likeCount: 0 };
+      },
+      'interact/add': function () { return { result: window.__ACSV_LIKE_FAIL__ ? 0 : 1 }; },
+      'interact/delete': function () { return { result: window.__ACSV_LIKE_FAIL__ ? 0 : 1 }; }
+    });
+    location.hash = 'svfeed/follow';
+    rec('detail-feed-open', !!(await waitFor(function () {
+      return document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-gcell').length === 19;
+    }, 10000)));
+    // 点动态卡（无图那条正文唯一）→ 面板原地展开
+    var cards = document.querySelectorAll('.acsv-vlist.acsv-follow .acsv-gcell');
+    var mCard = null;
+    for (var i = 0; i < cards.length; i++) {
+      if (cards[i].matches('.acsv-gmom') && /无图动态/.test(cards[i].textContent)) { mCard = cards[i]; break; }
+    }
+    rec('detail-moment-card', !!mCard);
+    if (mCard) mCard.click();
+    rec('detail-panel-open', !!(await waitFor(function () {
+      return !!q('.acsv-mdetail .acsv-mdetail-panel') && !!q('.acsv-mdetail-list .acsv-cpin');
+    }, 8000)));
+    // 正文 pin 在列表首位且评论区加载后仍在（管线 reset 重挂——防「清列表冲掉正文」哨兵）
+    rec('detail-text-pin', !!(await waitFor(function () {
+      return /无图动态/.test((q('.acsv-mdetail-list .acsv-cpin .acsv-mdetail-text') || {}).textContent || '');
+    }, 8000)));
+    // 评论区管线复用：stype=4 + sourceId=momentId（510005 = 夹具 fMoment(4)）+ 面板非抽屉
+    rec('detail-comments-type', !!(await waitFor(function () {
+      var c = TEST.call('comments');
+      return c && c.open === false && c.stype === 4 && String(c.sourceId) === '510005';
+    }, 8000)), JSON.stringify(TEST.call('comments')));
+    rec('detail-comments-list', !!(await waitFor(function () {
+      return document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length >= 2;
+    }, 8000)), 'n=' + document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length);
+    // 计数标题 = commentCount（含楼中楼口径，§4.7 坑②的契约化）
+    rec('detail-comments-title', /评论\s*3/.test((q('.acsv-mdetail-cmt') || {}).textContent || ''));
+    // 互动栏：赞乐观 +1（mock add 成功）→ 再点取消（delete 成功）。点击间留一拍：
+    // 乐观态是同步的、likeBusy 复位在异步 then——连点会被 busy 守卫吞掉（非产品 bug）
+    var like = q('.acsv-mdl-like');
+    rec('detail-like-init', !!like && !like.classList.contains('on') && /14/.test(like.textContent));
+    if (like) like.click();
+    rec('detail-like-on', !!(await waitFor(function () {
+      var l = q('.acsv-mdl-like');
+      return l && l.classList.contains('on') && /15/.test(l.textContent);
+    }, 5000)));
+    await wait(120);
+    if (like) like.click();
+    rec('detail-like-off', !!(await waitFor(function () {
+      var l = q('.acsv-mdl-like');
+      return l && !l.classList.contains('on') && /14/.test(l.textContent);
+    }, 5000)));
+    // 失败回滚：mock 切失败 → 乐观 +1 后整体退回（计数与点亮态一并，rail 同款）
+    window.__ACSV_LIKE_FAIL__ = true;
+    await wait(120);
+    if (like) like.click();
+    rec('detail-like-rollback', !!(await waitFor(function () {
+      var l = q('.acsv-mdl-like');
+      return l && !l.classList.contains('on') && /14/.test(l.textContent);
+    }, 5000)));
+    window.__ACSV_LIKE_FAIL__ = false;
+    // 发评论乐观上屏：新评论紧跟正文 pin（无热门段 → pin 后第一条），标题计数 +1
+    var inp = q('.acsv-mdetail-panel .acsv-cinput-text');
+    rec('detail-input-present', !!inp);
+    if (inp) {
+      inp.value = '详情面板的测试评论';
+      var send = q('.acsv-mdetail-panel .acsv-cinput-send');
+      if (send) send.click();
+    }
+    rec('detail-comment-inserted', !!(await waitFor(function () {
+      var pin2 = q('.acsv-mdetail-list .acsv-cpin');
+      var first = pin2 && pin2.nextElementSibling;
+      return first && first.classList.contains('acsv-citem')
+        && /详情面板的测试评论/.test(first.textContent)
+        && /评论\s*4/.test((q('.acsv-mdetail-cmt') || {}).textContent || '');
+    }, 8000)), 'n=' + document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length);
+    // 表情面板（4.2）：节点挂面板宿主（display:none 待开）；输入条在面板内（宿主迁移）
+    rec('detail-emotpanel', !!q('.acsv-mdetail-panel > .acsv-emotpanel'));
+    rec('detail-input-in-panel', !!q('.acsv-mdetail-panel .acsv-cinput'));
+    // Esc 关面板（模态层顶）→ 面板拆净、宿主复位、栈回到视图层
+    key('Escape');
+    rec('detail-esc-close', !!(await waitFor(function () {
+      var md = TEST.call('momentdetail');
+      return !q('.acsv-mdetail') && md && md.open === false;
+    }, 8000)));
+    // 重开：输入条宿主再迁移回来（复用第二向——面板↔抽屉/面板↔面板的搬移路径）
+    if (mCard) mCard.click();
+    rec('detail-reopen-input', !!(await waitFor(function () {
+      return !!q('.acsv-mdetail-panel .acsv-cinput');
+    }, 8000)));
+    key('Escape');
+    await wait(400);
   };
 })();

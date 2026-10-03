@@ -27,6 +27,10 @@ export function setupInputHandlers(api) {
     // 主要兜合成事件（harness，target=window）——两条路径行为一致
     var top = overlayTop();
     if (top && top.modal) {
+      // 输入元素豁免（0.9.96 动态详情面板）：模态面板内的评论框要能打字（合成事件路径；
+      // 真实键盘同款豁免在 overlay.js capture）——Esc 不豁免，关层语义保持
+      if (ev.key !== 'Escape' && ev.target
+        && /^(input|textarea|select)$/i.test(ev.target.tagName)) return;
       if (ev.key === 'Escape') overlayClose(top.id);
       return;
     }

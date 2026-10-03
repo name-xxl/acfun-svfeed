@@ -37,7 +37,9 @@ export var ITEM_FIELDS = {
     // 关注流（0.9.91）：content type 判别子与动态卡字段。ct 与 kind 正交——kind 在契约里是
     // **来源方言**（= PANEL_PARSERS 的表键），不能兼内容类型；关注流一个来源出三种内容，
     // 故内容判别子另立 ct（video|article|moment），卡片渲染按 ct 分支（同一张卡，契约驱动）
-    'ct', 'momentId', 'text', 'href', 'repost']
+    'ct', 'momentId', 'text', 'href', 'repost',
+    // 0.9.96 详情面板写链：数值计数与互动态（字段名对齐 rail 词汇，见 follow 解析器注释）
+    'like', 'comment', 'banana', 'liked', 'thrown']
 };
 
 export function normalize(raw) {
@@ -282,6 +284,15 @@ var PANEL_PARSERS = {
           { k: 'comment', t: String(Number(raw.commentCount) || 0) },
           { k: 'banana', t: String(Number(raw.bananaCount) || 0) }
         ];
+        // 详情面板写链的数值态（0.9.96）：字段名对齐视频侧 rail 词汇（like/comment/banana
+        // 数值 + liked/thrown 布尔），互动态实测在条目顶层（api-research §2.1.1/§4.7）。
+        // meta 字符串三段保留给卡面计数行——两份并存是刻意的（卡面展示口径 vs 乐观更新
+        // 需要的可变数值，合成一份会让卡面渲染耦合写链状态）
+        it.like = Number(raw.likeCount) || 0;
+        it.comment = Number(raw.commentCount) || 0;
+        it.banana = Number(raw.bananaCount) || 0;
+        it.liked = !!raw.isLike;
+        it.thrown = !!raw.isThrowBanana;
         // 落点实测：www.acfun.cn/moment/am<resourceId> 真渲染（2026-10-03，h1 与正文都在）；
         // 接口 shareUrl 是 m.acfun.cn/communityCircle/moment/<id> 分享链，PC 侧并档不用
         it.href = 'https://www.acfun.cn/moment/am' + it.momentId;

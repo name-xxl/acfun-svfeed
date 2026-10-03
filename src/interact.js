@@ -12,8 +12,12 @@ import { AppAPI, postForm, ensureApiSt } from './appapi.js';
 // 表单 POST 统一复用 appapi 的 postForm（fetch + Cookie + urlencoded），此处只留差异
 
 function callInteract(st, item, add, webStyle) {
+  // objectType 按条目派生（0.9.96 动态写链）：动态=10（api-research §4.7 实测 add/delete
+  // 均 result 1），视频/meow 维持 2；动态条目以 {id: momentId, kind: 'moment'} 过链，
+  // kpf 不带——实测非必需（广场版多带的 userId/kpf 都不是必要条件）
+  var ot = item.kind === 'moment' ? 10 : 2;
   return postForm(CFG.api.interact + (add ? 'add' : 'delete'),
-    'objectId=' + item.id + '&objectType=2&interactType=1&subBiz=mainApp&kpn=ACFUN_APP'
+    'objectId=' + item.id + '&objectType=' + ot + '&interactType=1&subBiz=mainApp&kpn=ACFUN_APP'
       + (webStyle ? '&kpf=PC_WEB' : '') // 网页版身份标识：推荐模式点赞对齐官方网页参数
       + '&acfun.midground.api_st=' + encodeURIComponent(st)
   ).then(function (j) {

@@ -631,6 +631,42 @@ var RAW_CSS = ''
   // 设置面板 host（0.9.89）：光 DOM 侧只负责定位与层级，内里视觉全在影子根（settingspanel.js）。
   // z 62：压过 imgview(60)，低于更新弹窗(65)——系统级模态仍最高（z 档位表见 overlay.js 头注释）
   + '.acsv-set-host{position:absolute;inset:0;z-index:62}'
+  // ---- 动态详情面板（0.9.96）：光 DOM 复用全局评论 CSS（intake Shadow 偏离登记见 momentdetail.js 头）。
+  // 量取（0.9.69 纪律）：站方 PC **无动态详情弹层可量取**（动态详情是整页不是浮层）——按本方
+  // 模态家族推导：表面/圆角/阴影/动画同 .set 段（settingspanel 0.9.89 量取值），宽 680px 给
+  // 正文与评论可读列宽；z 61 = 大图(60)之上、设置(62)之下
+  + '@keyframes mdetail-in{from{opacity:0}to{opacity:1}}'
+  + '.acsv-mdetail{position:absolute;inset:0;z-index:61;background:rgba(0,0,0,.62);display:flex;'
+  + 'align-items:center;justify-content:center;animation:mdetail-in .18s ease}'
+  + '.acsv-mdetail-panel{position:relative;width:min(680px,94vw);max-height:min(84vh,760px);display:flex;flex-direction:column;'
+  + 'background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);'
+  + 'border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden;color:#fff;'
+  + 'font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}'
+  + '.acsv-mdetail-head{flex:none;display:flex;align-items:center;gap:10px;padding:12px 16px;'
+  + 'border-bottom:1px solid rgba(255,255,255,.09)}'
+  + '.acsv-mdetail-x{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;'
+  + 'width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}'
+  + '.acsv-mdetail-x:hover{background:rgba(255,255,255,.22)}'
+  // 列表 = 管线宿主（整页一滚：正文 pin 在首、评论区衔接其后）；padding-bottom 给底部输入条让位
+  + '.acsv-mdetail-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:14px 18px 78px;'
+  + 'scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}'
+  + '.acsv-mdetail-text{font-size:14px;line-height:22px;color:#e8eaee;word-break:break-word}'
+  + '.acsv-mdetail-img{margin-top:10px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06);max-height:320px;width:100%}'
+  + '.acsv-mdetail-img img{width:100%;max-height:320px;object-fit:cover;display:block}'
+  // 互动栏（赞/蕉可点写链、评论数展示）；点亮态同抽屉评论点赞的 accent 语义
+  + '.acsv-mdetail-actions{display:flex;align-items:center;gap:26px;margin-top:12px;padding-bottom:12px;'
+  + 'border-bottom:1px solid rgba(255,255,255,.09);font-size:13px;color:#8a90a0}'
+  + '.acsv-mdetail-actions .acsvg-glyph{font-size:14px}'
+  + '.acsv-mdl-like,.acsv-mdl-ban,.acsv-mdl-cmt{display:inline-flex;align-items:center;gap:5px}'
+  + '.acsv-mdl-like,.acsv-mdl-ban{cursor:pointer}'
+  + '.acsv-mdl-like:hover,.acsv-mdl-ban:hover{color:#fff}'
+  + '.acsv-mdl-like.on,.acsv-mdl-ban.on{color:var(--acsv-accent)}'
+  + '.acsv-mdetail-cmthead{margin:14px 0 4px;font-size:13px;font-weight:600;color:#cfd3da}'
+  // 表情悬停大图（0.9.96 4.2）：锚定宿主面板（absolute），预览在条目上方、不挡交互
+  + '.acsv-emot-prev{position:absolute;width:124px;height:124px;z-index:7;display:none;padding:8px;pointer-events:none;'
+  + 'background:rgba(22,22,27,.97);border:1px solid rgba(255,255,255,.14);border-radius:10px;'
+  + 'box-shadow:0 8px 28px rgba(0,0,0,.45)}'
+  + '.acsv-emot-prev img{width:100%;height:100%;object-fit:contain;display:block}'
   // 主区让位：竖刷视频区居中于剩余空间；全屏沉浸还原满幅
   + '.acsv-scroller{margin-left:' + CFG.view.dockW + 'px}'
   + '#acsv-root:fullscreen .acsv-dock{display:none}'

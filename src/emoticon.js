@@ -160,6 +160,29 @@ export function renderEmotPanel(panel, insert) {
       insert('[emot=acfun,' + it.id + '/]');
       emotPick(it.id);
     });
+    // 悬停大图预览（0.9.96 4.2，广场 emotpanel 特性对照物在 svfeed 单源上的补齐）：
+    // 小网格里看不清的表情悬停放大；预览 pointer-events:none 不挡交互，随条目定位
+    b.addEventListener('mouseenter', function () {
+      var pr = panel._prev;
+      if (!pr || !pr.isConnected) {
+        pr = el('div', 'acsv-emot-prev');
+        pr._img = el('img');
+        pr._img.referrerPolicy = 'no-referrer';
+        pr.appendChild(pr._img);
+        panel.appendChild(pr);
+        panel._prev = pr;
+      }
+      pr._img.src = it.url;
+      var prr = panel.getBoundingClientRect(), br = b.getBoundingClientRect();
+      var left = br.left - prr.left + br.width / 2 - 62;
+      left = Math.max(6, Math.min(left, prr.width - 130)); // 横向钳在面板内
+      pr.style.left = left + 'px';
+      pr.style.top = Math.max(4, br.top - prr.top - 132) + 'px';
+      pr.style.display = 'block';
+    });
+    b.addEventListener('mouseleave', function () {
+      if (panel._prev) panel._prev.style.display = 'none';
+    });
     grid.appendChild(b);
   }
   function gridOf(items) {

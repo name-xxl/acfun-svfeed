@@ -25,6 +25,12 @@ import { openSharePanel } from './imshare.js';
 // UBB 渲染在 ubb.js、表情服务/面板在 emoticon.js（0.9.36 拆分，本文件回归抽屉编排）
 export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, pcursor: 'no_more', loading: false, replyTo: null, kind: 'sv' };
 
+// 评论管线 DOM 宿主（0.9.96 动态详情面板）：null = 经典抽屉（commentDrawer）。管线全经
+// curHost() 取宿主——与 commentState 数据单例配对；claimDrawer('comments') 同槽互斥保证
+// 一次只有一个宿主在消费（面板与抽屉互斥开，openCommentsHost 里显式关抽屉）
+var host = null;
+function curHost() { return host || commentDrawer; }
+
 export function isOpenComments() {
   return !!(commentDrawer && commentDrawer.el.classList.contains('open'));
 }
@@ -54,6 +60,7 @@ export function closeComments() {
 
 export function openComments(sourceId, stype, shareUrl, kind) {
   if (!commentDrawer || !sourceId) return;
+  host = null; // 抽屉路径：管线宿主回到经典抽屉（面板路径见 openCommentsHost）
   // overlayOpen 必须先于 claimDrawer（0.9.64 顺序回归修复）：其内部幂等收旧层会调
   // closeComments 清槽+摘避让根类——若槽先占后清，末尾 syncCommentVars 读到空槽会把
   // 根类摘掉（抽屉开着下滑切评论源 → 新视频按无抽屉渲染被覆盖，真机复现实锤）
@@ -81,14 +88,44 @@ export function toggleItemComments(item) {
   else openComments(item.id, item.stype, item.shareUrl, item.kind);
 }
 
+// 在自定义宿主里跑评论管线（0.9.96 动态详情面板）：h = { el, title, list, close, pin? }。
+// 面板与抽屉共用 claimDrawer('comments') 槽 + commentState 单例——同 id 槽位重入不互收
+// （state.claimDrawer 语义），故抽屉开着须先显式关，防两份宿主互踩；overlay 层由调用方
+// 注册（modal 与否是面板自己的事），close 路径里 host 复位见 closeCommentsHost
+export function openCommentsHost(h, sourceId, stype, shareUrl, kind) {
+  if (commentDrawer && commentDrawer.el.classList.contains('open')) closeComments();
+  host = h;
+  claimDrawer('comments', function () { h.close(); }); // 私信抽屉抢槽时经此收面板
+  commentState.stype = Number(stype) || 5;
+  commentState.kind = kind === 'home' ? 'home' : 'sv';
+  commentState.shareUrl = shareUrl || '';
+  ensureCommentInput();
+  if (inputBar) inputBar.style.display = commentState.kind === 'home' ? 'flex' : 'none';
+  setReply(null); // 跨宿主残留的回复目标一律清掉
+  if (commentState.sourceId !== sourceId || !h.list.querySelector('.acsv-citem')) {
+    loadComments(sourceId, 1, false);
+  }
+}
+
+// 面板关闭时复位管线宿主（宿主 DOM 已随面板拆除，残留引用会让 curHost() 读到死节点）
+export function closeCommentsHost() { host = null; }
+
+// 清空评论列表（宿主感知）：面板宿主的正文 pin（h.pin，.acsv-cpin）由宿主持有，
+// 管线清列表必须重挂——否则 loadComments 一跑把动态正文冲掉
+function resetList(h) {
+  h.list.innerHTML = '';
+  if (h.pin) h.list.appendChild(h.pin);
+}
+
 function loadComments(sourceId, page, append) {
-  if (!commentDrawer) return;
+  var h = curHost();
+  if (!h) return;
   commentState.loading = true;
   commentState.sourceId = sourceId;
   var reqId = sourceId; // 换视频后旧响应一律丢弃，防止评论串台/分页游标被污染
   if (!append) {
-    commentDrawer.list.innerHTML = '';
-    commentDrawer.list.appendChild(el('div', 'acsv-spinner',
+    resetList(h);
+    h.list.appendChild(el('div', 'acsv-spinner',
       null)).style.cssText = 'position:static;margin:40px auto;display:block';
   }
   var p = window.__ACSV_MOCK__ ? Promise.resolve(mockComments()) :
@@ -256,7 +293,7 @@ export function commentListClick(ev) {
   // URL 带 #ncid= 评论锚点（A 站落地页原生定位楼层）；cmt 载荷携原始 UBB（extra 通道
   // 发送，接收端渲染真表情）
   var fw = ev.target.closest('.acsv-cfwdbtn');
-  if (fw && fw._target && commentDrawer) {
+  if (fw && fw._target && curHost()) {
     ev.stopPropagation();
     var t = fw._target;
     openSharePanel(fw, {
@@ -264,7 +301,7 @@ export function commentListClick(ev) {
       shareUrl: commentState.shareUrl + '#ncid=' + t.id,
       cmt: { ncid: t.id, content: t.content }
     }, {
-      host: commentDrawer.el,
+      host: curHost().el,
       popClass: 'acsv-sharepop-drawer',
       headText: '转发这条评论'
     });
@@ -316,9 +353,10 @@ function expandSubComments(body, c, subBox) {
 }
 
 function renderComments(list, append, subMap, hot) {
-  if (!commentDrawer) return;
-  if (!append) commentDrawer.list.innerHTML = '';
-  commentDrawer.title.textContent = '评论 ' + fmt(commentState.count);
+  var h = curHost();
+  if (!h) return;
+  if (!append) resetList(h);
+  h.title.textContent = '评论 ' + fmt(commentState.count);
   if (!list.length && !append) {
     var empty = el('div', 'acsv-drawer-tip', '还没有评论，去原页抢沙发 →');
     var a = el('a', 'acsv-cmore');
@@ -327,20 +365,20 @@ function renderComments(list, append, subMap, hot) {
     a.textContent = '前往原页';
     empty.appendChild(document.createElement('br'));
     empty.appendChild(a);
-    commentDrawer.list.appendChild(empty);
+    h.list.appendChild(empty);
     return;
   }
   var seen = {};
   function push(c) {
     if (seen[c.commentId]) return;
     seen[c.commentId] = 1;
-    commentDrawer.list.appendChild(commentItem(c, subMap, commentState.sourceId));
+    h.list.appendChild(commentItem(c, subMap, commentState.sourceId));
   }
   // 热门评论置顶（网页版同款排序语义：hotComments + 最新流）
   if (!append && hot && hot.length) {
-    commentDrawer.list.appendChild(el('div', 'acsv-hot-head', '热门评论'));
+    h.list.appendChild(el('div', 'acsv-hot-head', '热门评论'));
     hot.forEach(push);
-    commentDrawer.list.appendChild(el('div', 'acsv-hot-divider', '最新评论'));
+    h.list.appendChild(el('div', 'acsv-hot-divider', '最新评论'));
   }
   list.forEach(push);
   if (commentState.page < commentState.totalPage && commentState.pcursor !== 'no_more') {
@@ -349,20 +387,24 @@ function renderComments(list, append, subMap, hot) {
       more.remove();
       loadComments(commentState.sourceId, commentState.page + 1, true);
     });
-    commentDrawer.list.appendChild(more);
+    h.list.appendChild(more);
   }
 }
 
 function renderCommentTip(text) {
-  if (!commentDrawer) return;
-  commentDrawer.list.innerHTML = '';
-  commentDrawer.list.appendChild(el('div', 'acsv-drawer-tip', text));
+  var h = curHost();
+  if (!h) return;
+  resetList(h);
+  h.list.appendChild(el('div', 'acsv-drawer-tip', text));
 }
 
 // ---- 评论输入条（复用动态广场 editor/postComment 模块思路）----
-// 常驻抽屉底部；支持发评论、回复评论（replyToCommentId=根评论）、回复楼中楼（=子评论）
+// 常驻宿主底部；支持发评论、回复评论（replyToCommentId=根评论）、回复楼中楼（=子评论）
 var inputBar = null;
 var replyChip = null; // 回复提示条（inputbar.buildQuoteChip 共用工厂，私信引用 chip 同款）：{box, label}
+var emotPanelEl = null; // 表情面板容器（emoticon.mountEmotButton 消费）
+var scrollList = null; // 滚动监听当前挂的列表（scroll 不冒泡：宿主切换必须换挂）
+var scrollFn = null;
 
 function setReply(target) {
   commentState.replyTo = target || null;
@@ -408,66 +450,77 @@ function sendCurrent() {
 // 发评论成功后的乐观上屏：根评论且有服务端回显时插到「最新」段首。
 // 返回 false 表示无法本地插入（回复进楼中楼 / 缺回显数据），调用方退回整页重拉
 function insertLocalComment(c, isReply) {
-  if (!commentDrawer || isReply || !c || !c.commentId) return false;
-  var list = commentDrawer.list;
+  var h = curHost();
+  if (!h || isReply || !c || !c.commentId) return false;
+  var list = h.list;
   var tip = list.querySelector('.acsv-drawer-tip');
   if (tip) tip.remove(); // 清掉“还没有评论…”空提示
   var node = commentItem(c, null, commentState.sourceId);
   var divider = list.querySelector('.acsv-hot-divider');
   if (divider) divider.insertAdjacentElement('afterend', node);
+  // 面板宿主的正文 pin 占列表首位：新评论插 pin 之后，不能盖住正文
+  else if (h.pin && h.pin.parentNode === list) list.insertBefore(node, h.pin.nextSibling);
   else list.insertBefore(node, list.firstChild);
   commentState.count++;
-  commentDrawer.title.textContent = '评论 ' + fmt(commentState.count);
+  h.title.textContent = '评论 ' + fmt(commentState.count);
   return true;
 }
 
 function ensureCommentInput() {
-  if (inputBar && inputBar.isConnected) return inputBar;
-  // 回复提示条（私信引用 chip 同款，输入条上方独立一行）：label 提目标、× 取消，
-  // 文案与 placeholder 联动收敛在 setReply
-  replyChip = buildQuoteChip(function () { setReply(null); }, '取消回复');
-  // 输入栏 DOM/行为收敛在 inputbar.buildInputBar（评论/私信共用）：这里只注入差异语义——
-  // 图片按钮走「上传→插配图代码」、长度 1000（配图代码含完整签名 URL 450+ 字符，
-  // 限 233 会把输入框锁死到打不了字）
-  var bar = buildInputBar({
-    img: {
-      title: '插入图片',
-      onFile: function (f) {
-        if (f.size > CFG.comments.imgMax) { toast('图片不能超过 ' + Math.round(CFG.comments.imgMax / 1024 / 1024) + 'MB'); return; }
-        bar.imgBtn.textContent = '上传中';
-        uploadImage(f).then(function (url) {
-          bar.imgBtn.innerHTML = ICONS.image;
-          if (!url) { toast('图片上传失败（需登录）'); return; }
-          toast('图片上传成功');
-          insertAtCursor(bar.input, '[img=图片]' + url + '[/img]');
-        });
+  var h = curHost();
+  if (!h) return inputBar;
+  if (!inputBar) {
+    // 回复提示条（私信引用 chip 同款，输入条上方独立一行）：label 提目标、× 取消，
+    // 文案与 placeholder 联动收敛在 setReply
+    replyChip = buildQuoteChip(function () { setReply(null); }, '取消回复');
+    // 输入栏 DOM/行为收敛在 inputbar.buildInputBar（评论/私信共用）：这里只注入差异语义——
+    // 图片按钮走「上传→插配图代码」、长度 1000（配图代码含完整签名 URL 450+ 字符，
+    // 限 233 会把输入框锁死到打不了字）
+    var bar = buildInputBar({
+      img: {
+        title: '插入图片',
+        onFile: function (f) {
+          if (f.size > CFG.comments.imgMax) { toast('图片不能超过 ' + Math.round(CFG.comments.imgMax / 1024 / 1024) + 'MB'); return; }
+          bar.imgBtn.textContent = '上传中';
+          uploadImage(f).then(function (url) {
+            bar.imgBtn.innerHTML = ICONS.image;
+            if (!url) { toast('图片上传失败（需登录）'); return; }
+            toast('图片上传成功');
+            insertAtCursor(bar.input, '[img=图片]' + url + '[/img]');
+          });
+        }
+      },
+      placeholder: '评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)',
+      maxLength: 1000,
+      onSend: sendCurrent
+    });
+    inputBar = bar.box;
+    inputBar.imgBtn = bar.imgBtn;
+    inputBar._fit = bar.fitHeight; // sendCurrent 清空后收回高度（既有约定）
+    var inp = bar.input;
+    emotPanelEl = el('div', 'acsv-emotpanel');
+    // 表情面板三件套（toggle+懒加载+光标插入）抽进了 emoticon.mountEmotButton，评论/私信共用
+    mountEmotButton(bar.emotBtn, emotPanelEl, inp);
+  }
+  // 宿主迁移（0.9.96 面板↔抽屉互斥开，输入条三件套同一时刻只在一个宿主里）：
+  // append 即搬移；滚动监听随宿主 list 换挂（scroll 不冒泡，挂公共祖先救不了）
+  if (inputBar._host !== h) {
+    if (scrollList && scrollFn) scrollList.removeEventListener('scroll', scrollFn);
+    h.el.appendChild(emotPanelEl);
+    h.el.appendChild(replyChip.box);
+    h.el.appendChild(inputBar);
+    scrollFn = function () {
+      var l = curHost().list;
+      if (commentState.loading || commentState.page >= commentState.totalPage
+        || commentState.pcursor === 'no_more') return;
+      if (l.scrollTop + l.clientHeight >= l.scrollHeight - CFG.comments.scrollPad) {
+        loadComments(commentState.sourceId, commentState.page + 1, true);
       }
-    },
-    placeholder: '评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)',
-    maxLength: 1000,
-    onSend: sendCurrent
-  });
-  inputBar = bar.box;
-  inputBar.imgBtn = bar.imgBtn;
-  inputBar._fit = bar.fitHeight; // sendCurrent 清空后收回高度（既有约定）
-  var inp = bar.input;
-  var panel = el('div', 'acsv-emotpanel');
-  commentDrawer.el.appendChild(panel);
-  commentDrawer.el.appendChild(replyChip.box); // 输入条上方：回复提示条
-  commentDrawer.el.appendChild(inputBar);
-
-  // 评论区无限滚动：接近底部自动加载下一页
-  commentDrawer.list.addEventListener('scroll', function () {
-    var l = commentDrawer.list;
-    if (commentState.loading || commentState.page >= commentState.totalPage
-      || commentState.pcursor === 'no_more') return;
-    if (l.scrollTop + l.clientHeight >= l.scrollHeight - CFG.comments.scrollPad) {
-      loadComments(commentState.sourceId, commentState.page + 1, true);
-    }
-  }, { passive: true });
-
-  // 表情面板三件套（toggle+懒加载+光标插入）抽进了 emoticon.mountEmotButton，评论/私信共用
-  mountEmotButton(bar.emotBtn, panel, inp);
+    };
+    h.list.addEventListener('scroll', scrollFn, { passive: true });
+    scrollList = h.list;
+    inputBar._host = h;
+  }
   return inputBar;
 }
 

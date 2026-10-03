@@ -334,8 +334,14 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
   同名端点 resourceType=2）同族。
 - **评论列表带 deviceModel / nameColor**：动态评论区照常下发机型串与红紫名
   （nameColor 0/1/2 三值并存）——Phase 5.2 设备美化与红名渲染的数据源在动态侧可用。
-- **未实测**：楼中楼 sublist 的 sourceType=4（同族推断可用，动工时顺手验证）；评论图片
-  上传（广场有 4 步分片文档，svfeed 无带图评论需求，不吸收）。
+- **补课实测（同日，动工前置）**：① **moment.text 即全文**——feed 列表与
+  `moment/detail`（`GET /rest/pc-direct/moment/detail?momentId=`，广场对照资产）的 text
+  逐字节相等（feed 内最长样本 155 字）；且 detail 的 moment 内 `commentCount/bananaCount`
+  **不可信**（实测 8/0/0 vs feed 顶层 15/2/2）——详情面板直接吃列表载荷，不接 detail。
+  ② **楼中楼 sublist sourceType=4 同族**：`comment/sublist?sourceId&sourceType=4&rootCommentId&pcursor=&count=`
+  → result 0，响应 subComments/pcursor/subCommentCount/totalPage 与视频评论同族——
+  expandSubComments 零改动复用。R3 至此列表/楼中楼/发评/删评全链闭合。
+- **未实测**：评论图片上传（广场有 4 步分片文档，svfeed 无带图评论需求，不吸收）。
 
 ## 5. 内容扩展路线定性（〔实测〕）
 

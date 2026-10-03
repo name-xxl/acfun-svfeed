@@ -133,6 +133,8 @@
     var e = fBase(i, g, 10);
     e.resourceId = 510001 + i; e.coverUrl = withImg ? FOLLOW_COVER : '';
     e.likeCount = 10 + i; e.commentCount = 2 + i; e.bananaCount = 1 + i;
+    // 互动态（0.9.96 详情面板写链夹具）：有真有假，赞/蕉状态机才测得到两向
+    e.isLike = i % 3 === 0; e.isThrowBanana = false;
     e.moment = { momentId: 510001 + i, text: text };
     // 转发源（0.9.92 卡面形态夹具）：实测 repostSource 是完整分支条目，且转发的 coverUrl
     // 恒等于源封面——夹具照此构形（源封面与顶层封面同值），卡面才测得到「不拿源封面当主视觉」

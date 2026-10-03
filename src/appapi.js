@@ -237,9 +237,11 @@ export var AppAPI = {
   // ---- 投蕉（PC 端点，网页 Cookie 即可） ----
   // 推荐模式互动统一走 web 通道（收藏/关注/点赞/投蕉）。resourceType=2 与 APP 端同义
   // （acfunsdk AcVideo 的 resource_type 即 2）；count 1~5
-  throwBanana: function (acId, count) {
+  // 投蕉：resourceType 可选（0.9.96 动态写链=10，api-research §4.7；默认 2=视频），
+  // 同一端点 bananaPc；count 1~5。动态实测禁自投（result 170008）
+  throwBanana: function (acId, count, resourceType) {
     return postForm(CFG.api.bananaPc,
-      'resourceId=' + acId + '&resourceType=2&count=' + (count > 0 ? count : 1))
+      'resourceId=' + acId + '&resourceType=' + (resourceType || 2) + '&count=' + (count > 0 ? count : 1))
       .then(function (j) { return !!(j && j.result === 0); }, function () { return false; });
   },
   // 评论点赞：PC 端点（复用动态广场模块，网页 Cookie 即可，无需 token）
@@ -260,7 +262,10 @@ export var AppAPI = {
     }, function () {
       return postForm(CFG.api.commentAdd, base);
     }).then(function (j) {
-      if (j && j.result === 0) return { ok: true, comment: j.comment || null };
+      // sourceType=4（动态）的回显是**评论对象平铺在响应顶层**（2026-10-03 实测：
+      // commentId/content/deviceModel… 全在 j 上，无嵌套 comment 字段）——归一成
+      // 乐观上屏要的形状；视频族（3/5）的嵌套 comment 字段维持原样
+      if (j && j.result === 0) return { ok: true, comment: j.comment || (j.commentId ? j : null) };
       return { ok: false, msg: (j && (j.error_msg || j.msg)) || '' };
     }, function () { return { ok: false, msg: '网络错误' }; });
   },

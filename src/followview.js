@@ -10,9 +10,10 @@ import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { request } from './net.js';
 import { followPanelOf } from './data.js';
-import { gridCardOf, moreBtn, ubbTextOf, statRowOf } from './views.js';
+import { gridCardOf, moreBtn, ubbTextOf, statRowOf, quoteBlockOf } from './views.js';
 import { imgInto } from './imgload.js';
 import { registerView } from './viewreg.js';
+import { openMomentDetail } from './momentdetail.js'; // 动态卡点击 → 原地详情面板（0.9.96）
 
 // createTimeGroup 枚举 → 分档标题文案（枚举值是契约，文案是我们的）
 var GROUP_NAMES = { 1: '今天', 2: '昨天', 10: '更早' };
@@ -41,11 +42,15 @@ function articleCardOf(pi) {
 // 动态卡（文本向宽卡）：头像行 + 正文（UBB 单源）+ 单图 + 计数行；转发再加引用块。
 // 作者落在**头像行**而非脚行——0.9.83「作者唯一落点=脚行」是网格卡族的收口，本卡是文本向
 // 卡型（原生关注流同款形制：头像行随内容一起读），信息仍只出现一次、不重复
+// 0.9.96：根元素 <a>→<div>——点击开**原地详情面板**（momentdetail），不再是外链跳官方页；
+// 卡内 UBB 产出的内链（@/资源）保持原生行为（点击命中 <a> 时不触详情），嵌套 <a> 的
+// DOM 构造特例随外链语义一并消失
 function momentCardOf(pi) {
-  var a = el('a', 'acsv-gcell acsv-gwide acsv-gmom');
-  a.href = pi.href;
-  a.target = '_blank';
-  a.rel = 'noopener';
+  var a = el('div', 'acsv-gcell acsv-gwide acsv-gmom');
+  a.addEventListener('click', function (ev) {
+    if (ev.target.closest('a')) return; // 内链优先（@提及/资源链），不冒泡成详情
+    openMomentDetail(pi);
+  });
   // 有引用的卡打修饰类：引用块与计数行**沉底**（margin-top:auto 由 styles 按此类分派——
   // 0.9.95 用户实报「引用的信息和脚注置底、为正文腾出空间」；用类而非 :has()，避开旧浏览器支持面）
   if (pi.repost) a.classList.add('acsv-gmom-quoted');
@@ -59,17 +64,9 @@ function momentCardOf(pi) {
   a.appendChild(head);
   a.appendChild(ubbTextOf(pi.text, 'acsv-gmom-text'));
   if (pi.repost) {
-    // 引用块 = 转发的结构性签名：左竖线 + 源缩略图 + 源标题 + 源类型字。
+    // 引用块 = 转发的结构性签名（views.quoteBlockOf 共享件，详情面板同款）：
     // **不用源封面当主视觉**——实测转发的 coverUrl 恒等于源封面（9/9），照放会伪装成视频卡
-    var q = el('div', 'acsv-gquote');
-    var qt = el('div', 'acsv-gquote-thumb');
-    imgInto(qt, pi.repost.cover, 'thumb');
-    q.appendChild(qt);
-    var qb = el('div', 'acsv-gquote-body');
-    qb.appendChild(el('div', 'acsv-gquote-title', pi.repost.title || '（无标题）'));
-    qb.appendChild(el('div', 'acsv-gquote-kind', (pi.repost.ct === 'video' ? '视频' : '文章')));
-    q.appendChild(qb);
-    a.appendChild(q);
+    a.appendChild(quoteBlockOf(pi.repost));
   } else if (pi.cover) {
     // 原创动态：自己的图（实测 36/36 都有图）；纯文字形态未观察到，缺图自然不挂
     var im = el('div', 'acsv-gmom-img');

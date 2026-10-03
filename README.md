@@ -266,7 +266,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策（三跳两两换 URL）+ `memoState`/`memoTrim` 死链备忘纯判定（0.9.77：只读不续期）——URL 正确性只在这里定义 |
 | `imgload.js` | 图片加载执行层（0.9.76；0.9.77 头注校准覆盖边界）：项目图片字段（封面/头像）统一入口——`IMG_POLICY` 策略表（grid/thumb/avatar/space）+ `imgInto(host,url,policy[,cls])`（懒加载/重试链/终败降级/淡入/死链备忘）+ `lazyObserve` 观察器单例（私信气泡共用）。有意在外的例外：鉴权 blob 管线（imshare）、UBB/表情 HTML、站点静态图标、大图查看器 |
 | `interact.js` | 真实点赞/关注（api_st → interact 接口）；收藏/投蕉转发 AppAPI |
-| `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出） |
+| `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3/4、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出）。0.9.96 管线 **host 化**：DOM 宿主显式化（默认=抽屉单例，动态详情面板灌入同款三元组），`openCommentsHost`/`closeCommentsHost` 为面板入口，输入条三件套随宿主迁移 |
 | `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[at]/[resource]/[img]/[color] 逐一白名单放行；IM wire 文本投影（ubbImText）与引用块富正文（ubbQuoteHtml）单源 |
 | `emoticon.js` | 表情包服务 + 面板 + 输入栏表情按钮挂载（localStorage 缓存优先、最近使用、分包 tab） |
 | `imgview.js` | 配图大图查看器（评论/私信共用；root 单例浮层、Esc 模态） |
@@ -304,7 +304,8 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `playlayer.js` | 播放层（0.9.74；0.9.82 面板→播放的桥下沉为 data.playItemOf 纯函数）：子视图 play（#svfeed/play/&lt;v\|a&gt;/&lt;id&gt;）就地播放——面板条目即时首帧（标题/封面/作者来自面板契约的 up：搜索与收藏来源带作者，历史来源不带、由回包补）/ 冷进入 API.deepLink 解析（不 setSource）/ 失败错误盒+重试；OVL_IDX 哨兵 + data-ovl 判据（attach.js 契约表在册）、键盘重定向 state.setVideoTarget |
 | `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf，缺省不渲染）+ Tab 惰性面板（观看历史=双 resourceTypes/pageNo 翻页；收藏夹=chips 切夹→dougaList 翻页）+ 4:3 封面网格卡（普通视频封面口径）；条目经 panelItem 契约规整、点击进播放层（0.9.74） |
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
-| `followview.js` | 关注视图（0.9.91，路线图 2.2/3 主体）：dock 卡片流——`followFeedV2` 混合流（视频/文章/动态）一张卡 + `ct` 判别子；分档标题（createTimeGroup 枚举 1/2/10 → 今天/昨天/更早）；pcursor 毫秒游标翻页。视频卡进播放层，文章/动态外链官方页（新标签 noopener） |
+| `followview.js` | 关注视图（0.9.91，路线图 2.2/3 主体）：dock 卡片流——`followFeedV2` 混合流（视频/文章/动态）一张卡 + `ct` 判别子；分档标题（createTimeGroup 枚举 1/2/10 → 今天/昨天/更早）；pcursor 毫秒游标翻页。视频卡进播放层，文章卡外链官方页，动态卡点开原地详情面板（0.9.96） |
+| `momentdetail.js` | 动态详情面板（0.9.96，路线图 4.1/4.2）：动态卡点击原地展开居中 overlay——正文全文（列表载荷，text 全文性已实测 §4.7）+ 互动栏（赞=乐观回滚、投蕉 resourceType=10 不可逆锁）+ 评论区（comments.js 管线 host 化复用，stype=4）+ 底部输入条（表情面板直接落位；4.2=单源补悬停大图）。**光 DOM 有意偏离 intake**（评论 CSS 单源，登记在模块头）；与评论抽屉共用 overlay 'comments' 层位 + claimDrawer 槽互斥 |
 | `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷） |
 | `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/other——boot 运行分流的唯一判据（判据与 uppage 的 `/u/\d+` 逐字一致，单测钉一致性） |
 | `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）；`onChange` 订阅让消费方零反向依赖地即时生效 |
@@ -369,6 +370,7 @@ flowchart LR
   boot["boot.js（入口）"]
   settingspanel["settingspanel.js（脚本页设置皮肤·Shadow DOM）"]
   followview["followview.js（关注视图·混合卡流）"]
+  momentdetail["momentdetail.js（动态详情面板·评论区复用+写链）"]
   data --> imgurl
   route --> feedstore
   imgview --> overlay
@@ -392,7 +394,8 @@ flowchart LR
   boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & zone
   views --> feedstore & imgload & imicons & overlay & sidebar & topbar & ubb & viewreg
   sidebar --> viewreg & settingspanel
-  followview --> imgload & viewreg & views
+  followview --> imgload & viewreg & views & momentdetail
+  momentdetail --> appapi & comments & emoticon & imgload & imicons & interact & overlay & views
   settingspanel --> settings & overlay
   searchview --> topbar & viewreg & views
   input --> comments & feedstore & imdrawer & overlay & pb & playlayer & settings & views
