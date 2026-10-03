@@ -21,7 +21,7 @@ import { toggleImDrawer, mountBadge, teardownIm } from './imdrawer.js';
 import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
 import { overlayTeardown } from './overlay.js';
 import { syncRouteView, teardownViews, currentView, backFromOrigin } from './views.js';
-import { buildDock, teardownDock } from './sidebar.js';
+import { buildDock, teardownDock, setFeedHomeHandler } from './sidebar.js';
 import { startFollowBadge, stopFollowBadge } from './followbadge.js';
 import { buildTopbar, teardownTopbar, syncTopbarSeg } from './topbar.js';
 import { setupInputHandlers, teardownInputHandlers } from './input.js';
@@ -419,6 +419,7 @@ function mount() {
   document.body.style.overflow = 'hidden';
   document.body.appendChild(root);
   buildDock(root); // 左栏子视图入口：竖刷路由内常驻（unmount 随 teardownDock 拆）
+  setFeedHomeHandler(goFeedHome); // 推荐条目显式重置入口（0.9.107）
   startFollowBadge(); // 关注未读徽标轮询（0.9.97，4.3）：dock 常驻生命周期，unmount 停
   mountBadge(tb.imBtn, tb.imBtn.querySelector('.acsv-im-badge'));
   dbg('root-appended');
@@ -522,6 +523,26 @@ function switchSource(s) {
   UpVideos.feedActive = false; // 0.9.106：空间页上下文同清（互踩修复：此前换源只清关注侧）
   FeedStore.reset();
   loadInitial();
+}
+
+// 「推荐」入口（dock FEED_ENTRY 专用；0.9.107 实报修复）：回竖刷舞台并**重置为当前源的
+// 随机流**——清列表上下文（关注视频流/空间页）、缓冲与游标重拉。此前该入口只赋裸 hash：
+// 舞台已带上下文时 hashchange 链不做任何重置（syncRouteFeed 无 mid 直接 return）⇒
+// 「进视频后点推荐没反应」/「从全部回舞台仍是关注视频流」两形态的共同病灶。
+// 与 Esc 的分工：Esc 回舞台=**接着看**（不清上下文）；本入口=**去推荐**（显式重置）。
+export function goFeedHome() {
+  if (!root) { location.hash = CFG.hash; return; }
+  FollowVideos.feedActive = false;
+  UpVideos.feedActive = false;
+  cancelHashSync();   // 残留回写会拿旧 index 把地址踩成上一条的深链（同 switchSource 纪律）
+  resetHomePager();
+  setAppliedMid(null);
+  resetStream();
+  FeedStore.reset();
+  loadInitial(); // 当前源随机流（loadInitial 自管 spinner，照 switchSource 不手动 append）
+  if (location.hash !== '#' + CFG.hash) location.hash = CFG.hash; // 视图/播放层退出走既有链
+  else syncRouteView(); // hash 已是裸 #svfeed（如从视图 Esc 回来后）时 hashchange 不会来——
+  // dock 高亮/关注 seg 显隐必须显式同步一次，否则停在旧态（0.9.107 首跑实锤两断言红）
 }
 
 function exitFeed() {

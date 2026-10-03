@@ -1413,6 +1413,11 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       && /被转发的动态正文/.test((rRow3.querySelector('.acsv-gquote-textbody') || {}).textContent || '')
       && !rRow3.querySelector('.acsv-gquote .acsv-frow-strip')),
       rRow3 ? (rRow3.querySelector('.acsv-gquote') || {}).textContent : 'no-row');
+    // 源多图（0.9.107 实报：源动态两张图只出首图）——引用卡宫格 n24 双列 2 格
+    rec('follow-repost-moment-imgs', !!(rRow3
+      && rRow3.querySelector('.acsv-gquote .acsv-frow-imgs.n24')
+      && rRow3.querySelectorAll('.acsv-gquote .acsv-frow-img').length === 2),
+      'n=' + (rRow3 ? rRow3.querySelectorAll('.acsv-gquote .acsv-frow-img').length : 'n/a'));
     // 引用块可点（0.9.101 实报「点转发的内容小卡不会打开播放」）：三落点分别验证——
     // 视频源→播放层（直挂缝）、文章源→官方页新窗（window.open 桩）、动态源→详情面板
     window.__ACSV_MOCK_DIRECT__ = { '488900': 1 };
@@ -1446,6 +1451,10 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       var md = TEST.call('momentdetail');
       return md && md.open === true && md.momentId === 510091;
     }, 8000)), JSON.stringify(TEST.call('momentdetail')));
+    // 从引用卡进详情：源有图 → 两栏 + 轮播出图（0.9.107 实报「纯文字样式、实际有图」修复）
+    rec('follow-quote-moment-media', !!(await waitFor(function () {
+      return !!q('.acsv-mdetail-split') && document.querySelectorAll('.acsv-mdcar-slide').length === 2;
+    }, 5000)), 'slides=' + document.querySelectorAll('.acsv-mdcar-slide').length);
     key('Escape');
     await waitFor(function () { return !q('.acsv-mdetail'); }, 8000);
     // 引用卡标题换行（0.9.105 实报「省略号截断、卡片有显示空间」）：引用卡内 2 行 clamp
@@ -1725,35 +1734,46 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     await wait(400);
   };
 
-  // ---- 关注未读徽标（0.9.97，4.3）：webPush 桩驱动 poll 状态机——计数/回落/翻倍/进视图不打扰 ----
+  // ---- 关注未读徽标（0.9.97 起；0.9.107 改时间水位线）----
+  // 语义（0.9.107 实报「固定数量未读反复出现」修复）：徽标=**自水位 lastSeenAt 以来的新条数**
+  // （followFeedV2 首屏 createTime > 水位）；进关注语境期间 poll 自持推进水位（看过即已读）→
+  // 离开后不复亮；UP 再发新内容越过水位 → 亮真实新增。旧布尔计数（webPush followUpers，
+  // 服务端长期不清）已退役。场景用 testHook setSeen 控制水位（无 GM 环境走内存降级）
   C['badge-poll'] = async function (h) {
     var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor, key = h.key, TEST = h.TEST;
     // harness 页无登录 cookie：设假 auth_key（selfUid 只读前缀数字段）
     document.cookie = 'auth_key=51737407_x; path=/';
-    var unread = [true, true, false, false, false]; // 2 真 3 假（§2.1.1 实测布尔有假值）
+    var NOW0 = Date.now();
+    window.__FEED_LIST__ = []; // 可控新内容流（createTime 毫秒）
     window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
-      'feed/webPush': function () {
-        return {
-          result: 0,
-          followUpers: unread.map(function (u, i) {
-            return { userId: 100 + i, name: 'UP' + i, headUrl: '', hasUnReadResource: u };
-          })
-        };
+      'feed/followFeedV2': function () {
+        return { result: 0, feedList: window.__FEED_LIST__, pcursor: '1790833290632' };
       }
     });
     location.hash = 'svfeed';
     rec('badge-feed-open', !!(await waitFor(function () { return !!q('.acsv-dock'); }, 10000)));
     rec('badge-mounted', !!(TEST.call('followbadge') || {}).mounted);
-    // 首查：2 未读 → 徽标 2；发现新内容 → 间隔回落基准 60s
+    // 水位可控：置到 NOW0（场景内可重设）
+    TEST.call('followbadge').setSeen(NOW0);
+    // 1) 水位后无新内容 → 不亮 + 首查落基准 60s
     await TEST.call('followbadge').poll();
-    rec('badge-shows-2', !!(await waitFor(function () {
+    rec('badge-idle', (function () {
       var b = q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge');
-      return b && b.textContent === '2' && b.style.display === 'block';
-    }, 5000)));
+      return b && b.style.display === 'none';
+    })());
     rec('badge-interval-base', TEST.call('followbadge').interval === 60000,
       'interval=' + TEST.call('followbadge').interval);
-    // 空手 → 徽标清 + 逐次翻倍（60→120→240）
-    unread = [false, false, false, false, false];
+    // 2) 新内容 1 条（createTime 越水位）→ 亮 1；发现新 → 间隔回落基准
+    window.__FEED_LIST__ = [{ resourceType: 10, resourceId: 9001, createTime: NOW0 + 1000 }];
+    await TEST.call('followbadge').poll();
+    rec('badge-shows-new', !!(await waitFor(function () {
+      var b = q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge');
+      return b && b.textContent === '1' && b.style.display === 'block';
+    }, 5000)));
+    rec('badge-interval-reset', TEST.call('followbadge').interval === 60000,
+      'interval=' + TEST.call('followbadge').interval);
+    // 3) 空手（清流）→ 徽标清 + 逐次翻倍 60→120→240
+    window.__FEED_LIST__ = [];
     await TEST.call('followbadge').poll();
     rec('badge-cleared', !!(await waitFor(function () {
       var b = q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge');
@@ -1764,30 +1784,43 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     await TEST.call('followbadge').poll();
     rec('badge-interval-240', TEST.call('followbadge').interval === 240000,
       'interval=' + TEST.call('followbadge').interval);
-    // 再发现新内容 → 回落基准（从 240 档直接跳回 60，不沿用退避档）
-    unread = [true, false, false, false, false];
-    await TEST.call('followbadge').poll();
-    rec('badge-shows-1', !!(await waitFor(function () {
-      var b = q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge');
-      return b && b.textContent === '1';
-    }, 5000)));
-    rec('badge-interval-reset-again', TEST.call('followbadge').interval === 60000,
-      'interval=' + TEST.call('followbadge').interval);
-    // 进关注视图不打扰：未读仍真，但 poll 不点亮（stateless 路由判据）
+    // 4) **进关注视图：poll 自持推进水位**（看过即已读）→ 不打扰；离开后空手 poll **不复亮**
+    //（0.9.107 实报核心断言：旧布尔实现下一拍原样复亮固定数）
     location.hash = 'svfeed/follow';
     rec('badge-follow-view', !!(await waitFor(function () {
       var v = q('.acsv-view');
       return v && v.offsetParent !== null;
     }, 8000)));
-    unread = [true, true, true, false, false];
+    // 语境中发布的新内容：createTime 取当下稍早（真实发布时刻必在过去；首跑曾用 NOW0+5000
+    // 未来时间戳 → 超出水位吸收窗口假红）
+    window.__FEED_LIST__ = [{ resourceType: 2, resourceId: 9002, createTime: Date.now() - 500 }];
     await TEST.call('followbadge').poll();
-    await wait(300);
-    rec('badge-suppressed-in-view', (function () {
+    rec('badge-seen-advanced', TEST.call('followbadge').seen() > NOW0,
+      'seen=' + TEST.call('followbadge').seen());
+    rec('badge-suppressed-in-view', !!(await waitFor(function () {
       var b = q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge');
       return b && b.style.display === 'none';
-    })());
+    }, 5000)));
     key('Escape');
     await wait(400);
+    await TEST.call('followbadge').poll();
+    rec('badge-no-reflash', !!(await waitFor(function () {
+      var b = q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge');
+      return b && b.style.display === 'none'; // 固定复亮修复：语境期间的"新内容"已被吸收
+    }, 5000)));
+    // 5) 离开后再有新内容（2 条越水位）→ 亮真实新增数 + 退避回落基准
+    var t = Date.now();
+    window.__FEED_LIST__ = [
+      { resourceType: 10, resourceId: 9003, createTime: t + 1000 },
+      { resourceType: 10, resourceId: 9004, createTime: t + 2000 }
+    ];
+    await TEST.call('followbadge').poll();
+    rec('badge-shows-real-count', !!(await waitFor(function () {
+      var b = q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge');
+      return b && b.textContent === '2' && b.style.display === 'block';
+    }, 5000)), 'text=' + ((q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge') || {}).textContent));
+    rec('badge-interval-reset-final', TEST.call('followbadge').interval === 60000,
+      'interval=' + TEST.call('followbadge').interval);
   };
 
   // ---- follow-videos（0.9.99）：关注语境「视频」侧——顶栏 seg → FollowVideos 上下文 →
@@ -1873,6 +1906,31 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       var fe = q('.acsv-seg-follow');
       return fe && fe.style.display !== 'none' && TEST.call('view') === null;
     }, 8000)), 'display=' + (q('.acsv-seg-follow') || {}).style.display);
+    // dock「推荐」入口（0.9.107 实报修复）：舞台带关注流上下文时点推荐=**显式重置**为当前源
+    // 随机流（清上下文/缓冲重拉）——此前裸 hash 在舞台态零重置（实报「没反应」）
+    var feedBtn = q('.acsv-dock-item[data-view="feed"]');
+    rec('fv-dock-entry', !!feedBtn);
+    if (feedBtn) feedBtn.click();
+    rec('fv-feed-reset', !!(await waitFor(function () {
+      var st = TEST.call('followstream');
+      return st && st.feedActive === false && q('.acsv-dock-item[data-view="feed"]').classList.contains('on');
+    }, 8000)), 'active=' + (TEST.call('followstream') || {}).feedActive);
+    rec('fv-feed-stream-reloaded', !!(await waitFor(function () {
+      var f = feed();
+      return f && f.items.length > 0 && String(f.items[0].id) !== '488911'; // meow 样本接管（非关注流首条）
+    }, 8000)), 'first=' + (feed() && feed().items[0] ? feed().items[0].id : 'n/a'));
+    rec('fv-feed-srcseg-back', (function () {
+      var sg = q('.acsv-top .acsv-seg:not(.acsv-seg-follow)');
+      return !!sg && sg.style.display !== 'none'; // 源 seg 恢复（feedActive 已清）
+    })());
+    // 第二形态：从「全部」视图点 dock 推荐（实报「会切换到视频/不切推荐」——同根修复）
+    var allBtn2 = q('.acsv-seg-follow .acsv-seg-btn:nth-child(2)');
+    if (allBtn2) allBtn2.click();
+    await waitFor(function () { return document.querySelectorAll('.acsv-mewrap .acsv-frow').length >= 1; }, 8000);
+    if (feedBtn) feedBtn.click();
+    rec('fv-feed-from-view', !!(await waitFor(function () {
+      return !q('.acsv-view') && (TEST.call('followstream') || {}).feedActive === false;
+    }, 8000)), location.hash);
     key('Escape');
     await wait(400);
   };

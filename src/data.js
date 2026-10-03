@@ -289,10 +289,7 @@ var PANEL_PARSERS = {
         // width/height}），无配图时整个字段缺席；顶层 coverUrl 恒=首图——多图时它只是
         // 其中之一，此前卡面只挂 coverUrl 就只剩第一张。同信息的冗长形状 imgInfos[]
         // （cdnUrls 三层嵌套）刻意不取：一物二源必漂移
-        it.imgs = (Array.isArray(mo.imgs) ? mo.imgs : []).map(function (im) {
-          im = im || {};
-          return { url: coverUrl(im.url), big: coverUrl(im.expandedUrl || im.originUrl || im.url) };
-        }).filter(function (im) { return im.url; });
+        it.imgs = imgsOfMoment(mo);
         // 动态的**图像唯一权威 = moment.imgs**（0.9.105 实报「无配图却带官方封面」修复）：
         // 顶层 coverUrl 对无图动态恒非空——实测三类来源（2026-10-04：29 条动态 21 条无图）：
         // 官方默认封面池（tx-free-imgs 根路径乱码名 PNG，同张共享出现 3 次/2 次）、转发源
@@ -333,6 +330,9 @@ var PANEL_PARSERS = {
             // 源正文**原文**（UBB）：引用卡内嵌正文与详情面板都靠它渲染（ubbPlain 投影不可逆；
             // 原生实测内嵌正文 UBB 已渲染出表情图——我们同走 ubb 单源）
             text: rsm.text || rs.discoveryResourceFeedShowContent || '',
+            // 源多图（0.9.107 实报：外层 5104362 的源 5104327 列表载荷 imgs=2、引用卡只出
+            // 首图；另一 rs 源带 6 张）——与主动态同款映射，引用卡宫格与详情面板共用
+            imgs: imgsOfMoment(rsm),
             up: rsUp(rs.user)
           };
         }
@@ -362,6 +362,14 @@ var PANEL_PARSERS = {
   }
 };
 
+// moment.imgs → 契约配图数组（0.9.107 抽出：主动态与转发源共用同一映射）
+function imgsOfMoment(mo) {
+  return (Array.isArray(mo && mo.imgs) ? mo.imgs : []).map(function (im) {
+    im = im || {};
+    return { url: coverUrl(im.url), big: coverUrl(im.expandedUrl || im.originUrl || im.url) };
+  }).filter(function (im) { return im.url; });
+}
+
 // 关注流条目派发（0.9.91）：列表加载与"动态里转发的源条目"共用同一入口
 export function followPanelOf(raw) {
   return raw ? panelItem('follow', raw) : null;
@@ -374,6 +382,8 @@ export function momentPiOfRepost(rp) {
   return {
     ct: 'moment', kind: 'follow', momentId: rp.id, text: rp.text || '',
     href: CFG.api.momentBase + rp.id, up: rp.up || null, cover: rp.cover || '', dateText: '',
+    // 源配图透传（0.9.107 实报：从引用卡点进详情"纯文字样式、实际有图"——hasMedia 看 imgs）
+    imgs: rp.imgs || [],
     like: 0, comment: 0, banana: 0, liked: false, thrown: false
   };
 }

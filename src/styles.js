@@ -1012,6 +1012,7 @@ var RAW_CSS = ''
   + '.acsv-gquote .acsv-frow-stitle{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;'
   + '-webkit-line-clamp:2;overflow:hidden;margin-bottom:8px}'
   + '.acsv-gquote .acsv-frow-sdesc{display:none}'
+  + '.acsv-gquote .acsv-frow-imgs{max-width:100%}' // 面板右栏 ~340 vs 宫格 342：防 2px 溢出（0.9.107）
   + '.acsv-frow-sdesc{font-size:12px;line-height:18px;color:#cfd3da;overflow:hidden;text-overflow:ellipsis;'
   + 'display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}'
   + '.acsv-frow-sinfo{position:absolute;bottom:13px;left:14px;display:inline-flex;align-items:center;'

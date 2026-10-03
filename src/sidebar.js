@@ -7,11 +7,15 @@ import { openSettings } from './settingspanel.js'; // 皮肤→皮肤（面板�
 // ---------- 左栏导航（0.9.63 抖音式重设计）：全高贴左、图标+文字横排、当前项 pill ----------
 // player.mount 建、unmount 拆；<CFG.view.narrow 视口宽与全屏下 CSS 隐藏（styles.js）。
 // 条目点击 = hash 赋值（推荐→#svfeed 回竖刷，其余→#svfeed/<id>），高亮由 syncDock 按
-// parseRoute 更新（views.syncRouteView 在 hashchange 链上调用）。
+// parseRoute 更新（views.syncRouteView 在 hashchange 链上调用）。**例外（0.9.107）**：推荐
+// 条目经 setFeedHomeHandler 走 player.goFeedHome——裸 hash 在"舞台已带列表上下文"时零重置
+//（实报「进视频后点推荐没反应/从全部回舞台仍是视频流」），必须显式清上下文并重拉当前源。
 // 0.9.78 起条目**从视图注册表派生**：视图在 registerView 里声明 dock 元数据（label/svg/
 // order/group），本文件只保留「推荐」（裸竖刷路由，不是视图）——此前 ENTRIES 是第二份人工
 // 清单，加一个视图要改两处（漂移源）；order 升序、group 变化处插分隔线
 var dockEl = null;
+var feedHomeHandler = null; // player 注入（0.9.107）：推荐条目=回竖刷并重置为当前源随机流
+export function setFeedHomeHandler(fn) { feedHomeHandler = typeof fn === 'function' ? fn : null; }
 var FEED_ENTRY = {
   id: 'feed', label: '推荐', group: 0,
   svg: '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.2 10.9-6.1 3.5c-.5.3-1.1-.1-1.1-.7V8.3c0-.6.6-1 1.1-.7l6.1 3.5c.5.3.5 1 0 1.3z"/></svg>'
@@ -41,6 +45,7 @@ export function buildDock(parent) {
     b.innerHTML = e.svg + '<span>' + e.label + '</span>';
     b.appendChild(el('span', 'acsv-dock-badge')); // 视图未读徽标位（0.9.97）：默认隐藏，setDockBadge 更新
     b.addEventListener('click', function () {
+      if (e.id === 'feed' && feedHomeHandler) { feedHomeHandler(); return; } // 0.9.107：显式重置入口
       location.hash = e.id === 'feed' ? CFG.hash : CFG.hash + '/' + e.id;
     });
     dockEl.appendChild(b);

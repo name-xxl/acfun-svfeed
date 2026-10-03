@@ -161,8 +161,11 @@
       else if (repost === 'moment') e.repostSource = {
         resourceType: 10, resourceId: 510091,
         user: { userId: 9002, userName: '源UP乙', userHead: PANEL_AVATAR },
+        // 源多图 2 张（0.9.107 实报样本形态：外层 5104362 → 源 5104327 imgs=2）
         moment: { momentId: 510091, text: '被转发的动态正文[emot=acfun,2/]带[at uid=9]@某人[/at]',
-          imgs: [{ url: FOLLOW_COVER, expandedUrl: FOLLOW_COVER, originUrl: FOLLOW_COVER }] }
+          imgs: [FOLLOW_COVER, FOLLOW_COVER].map(function (u) {
+            return { url: u, expandedUrl: u, originUrl: u, width: 100, height: 100 };
+          }) }
       };
       else e.repostSource = { resourceType: 3, resourceId: 488700, articleTitle: '被转发的文章标题', coverUrl: FOLLOW_COVER, viewCount: 567, user: { userId: 9003, userName: '源UP丙', userHead: PANEL_AVATAR } };
     }

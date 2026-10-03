@@ -72,8 +72,9 @@ export var CFG = {
     // 关注视频流（0.9.99）：官方「视频」tab 真实端点，纯视频（resourceType 全 2），形状与
     // followFeedV2 视频条目同构。实测 §2.1.2：count 被忽略固定每页 10、终页 pcursor='no_more'
     followDouga: 'https://www.acfun.cn/rest/pc-direct/feed/followDougaFeed',
-    // 关注未读徽标数据源（0.9.97）：followUpers[].hasUnReadResource 只在此端点响应里
-    // （followFeedV2 顶层的 ups 字段语义未确认，不可依赖——§2.1.1）
+    // webPush（0.9.97 曾作徽标源；0.9.107 退役备用）：followUpers[].hasUnReadResource 是
+    // UP 级**长期不清**的服务端标记（无时间戳；实测访问原生页也不清）——徽标已改 followFeedV2
+    // 时间水位线；顶层 feedList 是新内容条目流（带 createTime），留档备用
     webPush: 'https://www.acfun.cn/rest/pc-direct/feed/webPush',
     // 站内搜索（0.9.72）：**非 JSON**——整页 SSR HTML（结果区 div.search-video），
     // 走 net.requestText + data.parseSearchItems；?pageNo= 实测无效（两页同一结果集），只做首屏

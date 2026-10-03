@@ -475,12 +475,21 @@ export function quoteBlockOf(repost) {
   } else {
     var txt = el('div', 'acsv-gquote-text');
     txt.appendChild(ubbTextOf(repost.text || repost.title || '', 'acsv-gquote-textbody'));
-    if (repost.cover) {
+    q.appendChild(txt);
+    // 源配图（0.9.107 实报修复：此前只出 cover 首图）：多图=行流九宫格形制（n1/n24，
+    // 格子自挂大图——复用主动态同一套件）；无 imgs 才退 cover 单图（老数据兜底）
+    var rImgs = repost.imgs || [];
+    if (rImgs.length) {
+      var box = el('div', 'acsv-frow-imgs');
+      if (rImgs.length === 1) box.classList.add('n1');
+      else if (rImgs.length === 2 || rImgs.length === 4) box.classList.add('n24');
+      rImgs.forEach(function (im) { box.appendChild(momentCellOf('acsv-frow-img', im)); });
+      q.appendChild(box);
+    } else if (repost.cover) {
       var img = el('div', 'acsv-gquote-img');
       imgInto(img, repost.cover, 'grid');
-      txt.appendChild(img);
+      q.appendChild(img);
     }
-    q.appendChild(txt);
   }
   if (repost.id) {
     q.classList.add('acsv-gquote-on');

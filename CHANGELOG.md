@@ -3,6 +3,38 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.107（2026-10-04）· 三修：dock 推荐失效 / 转发源多图链 / 未读徽标改时间水位线
+
+- **A dock「推荐」在带上下文的舞台上失效**（实报两形态：进视频后点推荐没反应 / 从全部回舞台
+  仍是视频流）：旧实现只赋裸 hash，舞台已带列表上下文时 hashchange 链零重置。修法：
+  player 新增导出 `goFeedHome()`（清 FollowVideos/UpVideos 上下文 → cancelHashSync/
+  resetHomePager/setAppliedMid/resetStream/FeedStore.reset → loadInitial → 改 hash 走视图退出
+  链；**hash 已是裸 #svfeed 时显式补跑 syncRouteView**——dock 高亮/seg 显隐需显式同步，
+  首跑实锤）；sidebar 经 `setFeedHomeHandler` 注入（先例 setItemOpener），无回调兜底裸 hash。
+  **Esc 回舞台保持「接着看」语义**（对照注释在册）。
+- **B 转发源动态（rs10）多图链**（实报：「两张图只渲染一张」+「从引用卡进详情是纯文字样式、
+  实际有图」同根）：实测样本 外层 5104362 → 源 5104327，**列表载荷 `rs.moment.imgs` 就有
+  2 张**（另发现一条源带 6 张）——病灶=0.9.102 rs10「无样本最小形态」只取 cover 首图、且
+  `momentPiOfRepost` 未透传 imgs。修法三处贯通：契约 rs10 补 `imgs`（与主动态同款映射，
+  抽出 `imgsOfMoment`）；引用卡渲染改**行流九宫格**（n1/n24、格子自挂大图；无 imgs 才退
+  cover 单图；补 `.acsv-gquote .acsv-frow-imgs{max-width:100%}` 防面板 340 溢出）；
+  `momentPiOfRepost` 透传 imgs → 从引用卡进详情：两栏 + 轮播出图。
+- **C 未读徽标改时间水位线**（实报「固定数量的未读反复出现」）：实测（2026-10-04）
+  `followUpers[]` 只有四字段**无时间戳**、是 UP 级**服务端长期不清**的标记（重载原生
+  /member/feeds 前后同一批 UP 纹丝不动、期间无任何清未读请求）——旧实现"布尔计数+进视图
+  本地清零"⇒ 下一拍原样复亮同一固定数。**关键发现**：webPush 顶层 `feedList` 是新内容条目流
+  （带毫秒 createTime）；但 webPush 无动态，水位源改用 **followFeedV2**（混合流含动态）。
+  修法：持久水位 `acsvFollowSeenAt`（GM，无 GM 环境内存降级；首装初始化=now 防误报）→
+  徽标=首屏 `createTime > 水位` 条数；**进关注语境期间 poll 自持推进水位**（看过即已读，
+  且保持基准节奏把落后窗口压到 60s）→ 离开后不复亮、UP 再发新内容亮真实新增数；退避/
+  hidden 短路/未登录静默全保留；momentapi.unreadCount 退役（webPush 常量留档备用）。
+- **测试**：badge-poll 场景重写 18 断言（水位线全链：空手不亮/新内容亮真实数/退避 60→120→
+  240/进语境水位推进且不打扰/离开不复亮（核心）/再发新亮 2）；follow-videos 24 断言
+  （+dock 推荐两形态 + 源 seg 恢复）；view-follow 68 断言（+源多图宫格 2 格 + 引用卡进详情
+  split/轮播 2 slide）。42 场景全绿；单测 193。
+- **回归坑（两处首跑实锤）**：goFeedHome 在 hash 已裸时需显式 syncRouteView；badge 场景
+  夹具曾用"未来时间戳"（真实 createTime 必在过去）。
+
 ### 0.9.106（2026-10-04）· 架构重构：列表上下文工厂 + 动态域接口收口（用户三问的根因）
 
 - **背景（用户三问）**：「关注页在和推荐页抢竖刷组件吗？组件不能抽出来共用吗？」「动态的接口
