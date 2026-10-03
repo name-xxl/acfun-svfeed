@@ -463,6 +463,7 @@ test('panelItem follow：视频条目——时长是展示串直用、作者取 
 test('panelItem follow：文章条目——articleTitle + 外链落点 articleBase', () => {
   var pi = panelItem('follow', {
     resourceType: 3, resourceId: 48868671, articleTitle: '天涯此时共明月 DD歌回唱团圆',
+    beginParagraph: '又是一年团圆时节，又想听家人们动人的歌喉了',
     coverUrl: 'https://tx-free-imgs.acfun.cn/a.jpg', viewCount: 7669, createTime: Date.now() - 5 * 60000,
     user: { userId: 23682490, userName: 'AC娘本体', userHead: 'h.jpg' }
   });
@@ -471,6 +472,8 @@ test('panelItem follow：文章条目——articleTitle + 外链落点 articleBa
   assert.equal(pi.title, '天涯此时共明月 DD歌回唱团圆');
   assert.equal(pi.views, '7669');
   assert.equal(pi.href, 'https://www.acfun.cn/a/ac48868671');
+  // 摘要=beginParagraph（description 那条是空串，不是摘要源——0.9.93 文章卡的主体）
+  assert.equal(pi.desc, '又是一年团圆时节，又想听家人们动人的歌喉了');
   assert.equal(pi.dur, undefined); // 文章无时长角标
 });
 

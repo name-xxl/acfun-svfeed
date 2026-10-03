@@ -817,33 +817,59 @@ var RAW_CSS = ''
   // 差异有据不硬抄（0.9.69 同款裁决）。计数行 42px 项距是宽行卡尺度，窄卡压到 14px。
   + '.acsv-ggroup{margin:18px 2px 10px;font-size:13px;font-weight:600;color:#cfd3da}'
   + '.acsv-ggroup:first-child{margin-top:2px}'
-  // 动态正文：UBB 渲染块（有图时占标题位 → 与 .acsv-gtitle 同字族；无图时占封面位 → 文本瓦片）
-  + '.acsv-gtext{font-size:13px;line-height:19px;color:#d5d8df;max-height:57px;overflow:hidden;'
-  + 'word-break:break-word}'
-  + '.acsv-gtext-tile{position:absolute;inset:0;padding:10px 12px;max-height:none;height:100%;'
-  + 'background:rgba(255,255,255,.06);font-size:13px;line-height:19px;overflow:hidden}'
-  + '.acsv-gtext a,.acsv-gtext .acsv-at{color:#9fd0ff}'
   // 计数行（动态三计数；12px 次级灰取自站方量取值）
   + '.acsv-gstats{display:flex;align-items:center;gap:14px;margin-top:6px;font-size:12px;color:#8a90a0}'
   + '.acsv-gstat{display:inline-flex;align-items:center;gap:4px}'
   + '.acsv-gstat .acsvg-glyph{font-size:12px}'
-  // 内容类型角标（文章/动态/转发）：**左上**——左下是播放数、右下是时长，各占其位不打架
-  // （0.9.92 用户实报「分不清转发/图文/视频」后挪位并补「动态」「转发」两类）
+  // 内容类型角标（0.9.93 起只剩文章用；动态/转发改由专属宽卡的结构自身区分）：**左上**——
+  // 左下是播放数、右下是时长，各占其位不打架（0.9.92 修掉了文章角标与播放数同占左下的叠字）
   + '.acsv-gkind{left:8px;top:8px;bottom:auto;background:rgba(253,76,92,.78);font-weight:600}'
-  // 转发动态的源条（正文位）：缩略图 44×44 圆角 + 标题两行钳 + 源类型字
-  + '.acsv-grepost{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 8px;'
-  + 'border-radius:8px;background:rgba(255,255,255,.07)}'
-  + '.acsv-grepost-thumb{flex:none;width:44px;height:44px;border-radius:6px;overflow:hidden;'
-  + 'background:rgba(255,255,255,.06)}'
-  + '.acsv-grepost-thumb img{width:100%;height:100%;object-fit:cover;display:block}'
-  + '.acsv-grepost-body{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:3px}'
-  + '.acsv-grepost-title{font-size:12px;line-height:16px;color:#d5d8df;max-height:32px;overflow:hidden}'
-  + '.acsv-grepost-kind{align-self:flex-start;font-size:11px;line-height:14px;padding:0 5px;'
-  + 'border-radius:3px;background:rgba(255,255,255,.14);color:#cfd3da}'
+  // ---- 关注视图卡面 v2（0.9.93）：**模仿原生信息层级、改进横向空间利用** ----
+  // 用户裁决（0.9.92 后）：原生关注流是 870px 单列宽卡，桌面宽屏浪费大——保留它的层级
+  //（头像行 / 正文 / 单图 / 计数行；引用块表达转发），但把布局改成**多列 + 按内容型定宽**：
+  // 媒体向（视频卡）单格、文本向（动态/转发）跨两列，dense 填洞不留空档；窄屏回落单列。
+  // 原生量取值（2026-10-03，/member/feeds 实测）→ 本卡族取值：头像行 50px→24px 头像、
+  // 内容缩进 60px→0（宽卡自带内边距）、单图限高 299px→240px、计数行 48px/12px 次级灰→
+  // 26px/12px 次级灰（宽行卡尺度压到卡尺度，差异有据）
+  // **整行通栏**（1 / -1）而非固定跨 2 列：2 跨度在 3+ 列网格里必然在右侧留空洞
+  //（首版实测：repost 占 1-2 列、第三列空两行；分组标题还被当成普通格塞进列里）。
+  // 「文本向整行 + 媒体向多列 + dense 回填」是卡片流不破洞的通行解（知乎/掘金同款）；
+  // 分组标题同样整行，视觉上就是分节线
+  + '.acsv-follow{grid-auto-flow:dense}'
+  + '.acsv-follow .acsv-gcell{grid-column:span 1}'
+  + '.acsv-follow .acsv-gwide{grid-column:1 / -1}'
+  + '.acsv-follow .acsv-ggroup{grid-column:1 / -1}'
+  // 文章卡（文本向：薄条封面 + 标题 + 摘要 + 脚行）——形态与视频的 4:3 图卡明显不同，一眼可辨
+  + '.acsv-gart{display:flex;flex-direction:column;padding:10px;border-radius:10px;background:rgba(255,255,255,.05)}'
+  + '.acsv-gart-cover{position:relative;flex:none;height:120px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06)}'
+  + '.acsv-gart-cover img{width:100%;height:100%;object-fit:cover;display:block}'
+  + '.acsv-gart-title{margin-top:10px;font-size:14px;line-height:20px;color:#fff;max-height:40px;overflow:hidden}'
+  + '.acsv-gart-desc{margin-top:6px;font-size:12px;line-height:18px;color:#8a90a0;max-height:36px;overflow:hidden}'
+  // 动态宽卡（头像行 + 正文 + 单图 + 计数行；转发再多一个引用块）
+  + '.acsv-gmom{display:flex;flex-direction:column;padding:12px;border-radius:10px;background:rgba(255,255,255,.05)}'
+  + '.acsv-gmom-head{display:flex;align-items:center;gap:8px;font-size:12px;color:#8a90a0}'
+  + '.acsv-gmom-head img{width:24px;height:24px;border-radius:50%;object-fit:cover;display:block;background:rgba(255,255,255,.08)}'
+  + '.acsv-gmom-name{font-size:13px;color:#d5d8df}'
+  + '.acsv-gmom-flag{flex:none;font-size:11px;line-height:15px;padding:0 5px;border-radius:3px;'
+  + 'background:rgba(253,76,92,.78);color:#fff;font-weight:600}'
+  + '.acsv-gmom-text{margin-top:8px;font-size:14px;line-height:21px;color:#e8eaee;max-height:84px;overflow:hidden;word-break:break-word}'
+  + '.acsv-gmom-img{margin-top:10px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06);'
+  + 'max-height:260px;max-width:460px}'
+  + '.acsv-gmom-img img{width:100%;max-height:260px;object-fit:cover;display:block}'
+  // 转发引用块（左竖线 + 缩略图 + 源标题 + 源类型）：转发的结构性签名
+  + '.acsv-gquote{margin-top:10px;padding:8px 10px;border-left:3px solid rgba(255,255,255,.18);'
+  + 'border-radius:0 8px 8px 0;background:rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}'
+  + '.acsv-gquote-thumb{flex:none;width:56px;height:56px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.08)}'
+  + '.acsv-gquote-thumb img{width:100%;height:100%;object-fit:cover;display:block}'
+  + '.acsv-gquote-body{min-width:0;flex:1 1 auto}'
+  + '.acsv-gquote-title{font-size:13px;line-height:18px;color:#d5d8df;max-height:36px;overflow:hidden}'
+  + '.acsv-gquote-kind{margin-top:4px;font-size:11px;color:#8a90a0}'
   // 外链卡（文章/动态）：根元素是 <a>，浏览器默认链接样式必须清掉（标题/脚行的显式色不受影响）
   + '.acsv-gcell{color:inherit;text-decoration:none}'
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-sgrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));'
-  + 'gap:14px 10px}}'
+  + 'gap:14px 10px}'
+  // 窄屏：关注流全部回落单列（文本向宽卡的 span 2 在单列网格里会溢出，必须复位）
+  + '.acsv-follow .acsv-gwide{grid-column:1 / -1}}'
   // 深色滚动条：视图滚动区（我的/榜单共用 .acsv-view-body，默认浅色条在深色页上是刺眼白条）
   + '.acsv-view-body{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}'
   + '.acsv-view-body::-webkit-scrollbar{width:8px;height:8px}'

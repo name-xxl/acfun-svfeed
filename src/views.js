@@ -310,29 +310,12 @@ export function gridCardOf(pi) {
     cell.rel = 'noopener'; // 对外新标签一律 noopener（upCardOf 同款纪律）
   }
   var cover = el('div', 'acsv-gcover');
-  var isMoment = pi.ct === 'moment';
-  var isRepost = !!(isMoment && pi.repost);
-  // 动态的封面位（0.9.92 用户实报「分不清转发/图文/视频」后的形态裁决）：
-  //   原创动态：自己的图（实测 36/36 都有图；纯文字的文本瓦片保留为兜底——该形态未观察到）
-  //   **转发动态：正文文本瓦片**——实测转发的 coverUrl 恒等于源内容封面（9/9），照放会伪装成
-  //     视频/文章卡；改把「这是转发语」摆在主视觉位，源内容以源条形式挂在正文位（见下）
-  if (isRepost) {
-    cover.appendChild(momentTextOf(pi, 'acsv-gtext acsv-gtext-tile'));
-  } else if (isMoment && !pi.cover) {
-    cover.appendChild(momentTextOf(pi, 'acsv-gtext acsv-gtext-tile'));
-  } else {
-    imgInto(cover, pi.cover, 'grid');
-  }
+  imgInto(cover, pi.cover, 'grid');
   // 封面角标 = 进度/属性语义位：历史 sub 就是「观看至xx:xx」（契约在册）；收藏只有续看秒数能进
   // 角标——没有时长算不出比例条，就不做比例条（不伪造）
   var tag = pi.kind === 'history' ? pi.sub
     : (pi.progress != null ? '看到 ' + fmtDur(pi.progress) : '');
   if (tag) cover.appendChild(el('div', 'acsv-gtag', tag));
-  // 内容类型角标（0.9.91 起；0.9.92 挪到**左上**）：左下是播放数、右下是时长，各占其位不打架
-  // （此前文章卡「文章」与播放数同在左下，会叠字）。转发动态打「转发」而非「动态」——
-  // 「这是转发」是比「这是动态」更该先看到的信息；原创动态打「动态」（0.9.91 漏了，本次补）
-  var kindText = pi.ct === 'article' ? '文章' : (isRepost ? '转发' : (isMoment ? '动态' : ''));
-  if (kindText) cover.appendChild(el('div', 'acsv-gtag acsv-gkind', kindText));
   if (pi.views) {
     var vb = el('div', 'acsv-gtag acsv-gviews');
     vb.appendChild(el('i', 'acsvg-glyph', GLYPHS.rankView));
@@ -341,32 +324,10 @@ export function gridCardOf(pi) {
   }
   if (pi.dur) cover.appendChild(el('div', 'acsv-gdur', pi.dur));
   cell.appendChild(cover);
-  if (isRepost) {
-    // 转发动态正文位 = **内嵌源条**（缩略图 + 源标题 + 源类型字）：原生关注流对转发也是
-    // 「转发语 + 引用块」的信息层级，这里压到网格卡尺度（整卡点击仍跳动态自己的官方页）
-    var rp = el('div', 'acsv-grepost');
-    var rt = el('div', 'acsv-grepost-thumb');
-    imgInto(rt, pi.repost.cover, 'thumb');
-    rp.appendChild(rt);
-    var rb = el('div', 'acsv-grepost-body');
-    rb.appendChild(el('div', 'acsv-grepost-title', pi.repost.title || '（无标题）'));
-    rb.appendChild(el('span', 'acsv-grepost-kind', pi.repost.ct === 'video' ? '视频' : '文章'));
-    rp.appendChild(rb);
-    cell.appendChild(rp);
-  } else if (isMoment && pi.cover) cell.appendChild(momentTextOf(pi, 'acsv-gtitle acsv-gtext'));
-  else if (!isMoment) cell.appendChild(el('div', 'acsv-gtitle', pi.title));
-  // 计数行（meta 三段 + 字形）：0.9.91 关注流首批用（动态三计数）；rank 的 meta 走 rowOf，互不影响
-  if (pi.meta && pi.meta.length) {
-    var stat = el('div', 'acsv-gstats');
-    pi.meta.forEach(function (m) {
-      var s = el('span', 'acsv-gstat');
-      var gl = META_GLYPH[m.k];
-      if (gl) s.appendChild(el('i', 'acsvg-glyph', gl));
-      s.appendChild(document.createTextNode(m.t));
-      stat.appendChild(s);
-    });
-    cell.appendChild(stat);
-  }
+  cell.appendChild(el('div', 'acsv-gtitle', pi.title));
+  // 计数行（meta 三段 + 字形）：rank 走 rowOf；关注流的动态三计数由 followview 的专属宽卡出
+  //（0.9.93 起本函数只服务网格卡族：我的/搜索/关注流里的视频卡——内容型差异在各自卡型里表达）
+  if (pi.meta && pi.meta.length) cell.appendChild(statRowOf(pi.meta));
   // 脚行：@UP名 + 右槽时间（抖音式；两字段皆空不挂节点）。右槽由契约层拼好（各源取数口径见
   // data.js 解析器）；无作者又无时间（如历史缺 user 的降级条目）整行不挂
   var upName = pi.up && pi.up.name ? pi.up.name : '';
@@ -380,15 +341,29 @@ export function gridCardOf(pi) {
   return cell;
 }
 
-// 动态正文块（0.9.91）：内容走 ubb 单源渲染（表情/[at]/资源链与评论同一条管线，
-// 接口另给的 replaceUbbText 明文版不用——intake「ubb/emotify 单源」）。
-// 注：外链动态卡（根元素是 <a>）里会**嵌套** ubb 产出的 <a class="ubb-at">——这是 DOM 构造
-// 的嵌套（createElement/appendChild 允许），不是 HTML 解析器的嵌套（那是非法的）：内层链接
+// UBB 正文块（0.9.91 起；0.9.93 供关注流的动态/转发卡）：内容走 ubb 单源渲染（表情/[at]/
+// 资源链与评论同一条管线，接口另给的 replaceUbbText 明文版不用——intake「ubb/emotify 单源」）。
+// 注：外链卡（根元素是 <a>）里会**嵌套** ubb 产出的 <a class="ubb-at">——这是 DOM 构造的
+// 嵌套（createElement/appendChild 允许），不是 HTML 解析器的嵌套（那是非法的）：内层链接
 // 在自己的命中区优先，其余区域走外层外链，行为符合预期，故不做剥离
-function momentTextOf(pi, cls) {
+export function ubbTextOf(text, cls) {
   var t = el('div', cls);
-  t.innerHTML = renderCommentHtml(pi.text || '');
+  t.innerHTML = renderCommentHtml(text || '');
   return t;
+}
+
+// meta 三段 → 计数行（0.9.93 抽出共享）：字形按 k 走 META_GLYPH；rank 的 meta 走 rowOf 的
+// 另一种拼法，两处互不影响
+export function statRowOf(meta) {
+  var stat = el('div', 'acsv-gstats');
+  (meta || []).forEach(function (m) {
+    var s = el('span', 'acsv-gstat');
+    var gl = META_GLYPH[m.k];
+    if (gl) s.appendChild(el('i', 'acsvg-glyph', gl));
+    s.appendChild(document.createTextNode(m.t));
+    stat.appendChild(s);
+  });
+  return stat;
 }
 
 // 原生 up-card 等价物（rlist 右栏作者卡，横排）：大圆头像左+信息块右（名字 accent/签名/

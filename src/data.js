@@ -248,6 +248,9 @@ var PANEL_PARSERS = {
         it.title = raw.articleTitle || '';
         it.cover = coverUrl(raw.coverUrl);
         it.views = fmtWan(raw.viewCount);
+        // 摘要 = beginParagraph（实测的正文引导段；description 该条为空串，是坑不是摘要源——
+        // 见 §2.1.1）。文章卡是文本向的卡，摘要就是它区别于视频图卡的主体（0.9.93）
+        it.desc = String(raw.beginParagraph || raw.description || '').trim();
         // 外链落点：文章页（upCardOf 同款 target=_blank；进不了播放层——解析链只覆盖视频）
         it.href = CFG.api.articleBase + it.acId;
         return true;

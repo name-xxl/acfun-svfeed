@@ -125,6 +125,8 @@
   function fArticle(i, g, title) {
     var e = fBase(i, g, 3);
     e.resourceId = 488601 + i; e.articleTitle = title; e.coverUrl = FOLLOW_COVER; e.viewCount = 200 + i;
+    // 摘要源：实测是 beginParagraph（description 该条为空串，不是摘要源——§2.1.1）
+    e.beginParagraph = '又是一年团圆时节，又想听家人们动人的歌喉了那么话不多说';
     return e;
   }
   function fMoment(i, g, text, withImg, repost) {

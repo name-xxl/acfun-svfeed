@@ -392,7 +392,7 @@ flowchart LR
   boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & zone
   views --> feedstore & imgload & imicons & overlay & sidebar & topbar & ubb & viewreg
   sidebar --> viewreg & settingspanel
-  followview --> viewreg & views
+  followview --> imgload & viewreg & views
   settingspanel --> settings & overlay
   searchview --> topbar & viewreg & views
   input --> comments & feedstore & imdrawer & overlay & pb & playlayer & settings & views
