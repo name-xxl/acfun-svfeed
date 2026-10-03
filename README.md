@@ -304,7 +304,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `playlayer.js` | 播放层（0.9.74；0.9.82 面板→播放的桥下沉为 data.playItemOf 纯函数）：子视图 play（#svfeed/play/&lt;v\|a&gt;/&lt;id&gt;）就地播放——面板条目即时首帧（标题/封面/作者来自面板契约的 up：搜索与收藏来源带作者，历史来源不带、由回包补）/ 冷进入 API.deepLink 解析（不 setSource）/ 失败错误盒+重试；OVL_IDX 哨兵 + data-ovl 判据（attach.js 契约表在册）、键盘重定向 state.setVideoTarget |
 | `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf，缺省不渲染）+ Tab 惰性面板（观看历史=双 resourceTypes/pageNo 翻页；收藏夹=chips 切夹→dougaList 翻页）+ 4:3 封面网格卡（普通视频封面口径）；条目经 panelItem 契约规整、点击进播放层（0.9.74） |
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
-| `followview.js` | 关注视图「全部」侧（0.9.99 重构，0.9.91 起）：仿原生单列无限流——`followFeedV2` 混合流（视频/文章/动态）一行 + `ct` 判别子；行=头像行+正文（UBB 单源，钳高+展开）+媒体块（横条封面/九宫格/引用块）+互动行（分享/评论/蕉/赞，行内写链乐观回滚，文章只读）；无限滚动五条借鉴广场（append-only/失败不置到底/三态状态行/整页 0 新增判到底/loading 代数保护）+ 回顶按钮；pcursor 毫秒游标。视频行进播放层，动态行/评论键开详情面板（0.9.96），文章行外链 |
+| `followview.js` | 关注视图「全部」侧（0.9.100 原生骨架复刻，0.9.91 起）：单列无限流——**逐段复刻原生 /member/feeds 骨架与量取值**（扁平列表+灰带分隔、头像 50、名字 16px、60px 内容缩进、正文 14/21 pre-line+展开、九宫格 342/110/299/228、横条双灰块+title 600+时长 hover 浮层、互动行 48px/42/12px；量取日与暗色换算表在 styles 段头注）；互动行写链乐观回滚（文章只读）；**评论键原位展开评论区**（comments 管线 host 化挂行内，开新关旧互斥）；无限滚动五条借鉴广场 + 回顶按钮。视频行进播放层，动态行点详情面板，文章行外链 |
 | `followstream.js` | 关注语境「视频」侧（0.9.99）：FollowVideos 列表上下文（UpVideos 通道先例）——followDougaFeed 后台分页链（§2.1.2：固定 10/页、终页 no_more）→ 深链 `svfeed/a/<acId>` 接管宿主竖刷舞台 → feedstore 泵按列表灌入（`ctx.info` 自带 home 家族 resolve，非 m3u8 直链绕 hls）；`isFollowContext()` 是顶栏 seg 显隐与徽标不点亮的单源判据；enterVideos 原地续看不重置缓冲 |
 | `momentdetail.js` | 动态详情面板（0.9.96，路线图 4.1/4.2）：动态卡点击原地展开居中 overlay——正文全文（列表载荷，text 全文性已实测 §4.7）+ 互动栏（赞=乐观回滚、投蕉 resourceType=10 不可逆锁）+ 评论区（comments.js 管线 host 化复用，stype=4）+ 底部输入条（表情面板直接落位；4.2=单源补悬停大图）。**光 DOM 有意偏离 intake**（评论 CSS 单源，登记在模块头）；与评论抽屉共用 overlay 'comments' 层位 + claimDrawer 槽互斥 |
 | `followbadge.js` | 关注未读徽标（0.9.97，路线图 4.3）：webPush 的 followUpers 未读数（唯一携 followUpers 的端点）→ dock 角标（setDockBadge 命令式出口，运行态不进 viewreg）；轮询=固定 tick + nextAt 闸门 + 代数丢弃（广场骨架吸收重写），退避真逐次翻倍 60s→10min 封顶、发现新内容回落基准（纯函数单测钉序列）；挂 player.mount/unmount，hidden 短路、未登录静默、进关注视图清零 |
@@ -398,7 +398,7 @@ flowchart LR
   boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & zone
   views --> feedstore & imgload & imicons & overlay & sidebar & topbar & ubb & viewreg
   sidebar --> viewreg & settingspanel
-  followview --> appapi & imgload & imgview & imicons & immsg & imshare & interact & sidebar & ubb & viewreg & views & momentdetail
+  followview --> appapi & comments & imgload & imgview & imicons & immsg & imshare & interact & sidebar & ubb & viewreg & views & momentdetail
   followstream --> appapi & data & feedstore & net & sidebar
   feedstore --> followstream
   topbar --> followstream

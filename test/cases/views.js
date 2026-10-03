@@ -1149,17 +1149,31 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
 }, 5000)));
   };
 
-  // ---- view-follow：关注视图冒烟（0.9.99 重构：全部侧=仿原生单列无限流）----
-  // 数据源 followFeedV2 混合流不变（视频/文章/动态）；断言按份量：契约过滤 / 三类行的判别位
-  // （视频=横条封面+时长角标、文章=「文章」chip+摘要、动态=UBB 正文+单图/九宫格+互动行）/
-  // 互动行写链（赞乐观两向）/ 展开/收起溢出探测 / 顶栏关注 seg 语境可见+高亮 / 无限滚动
-  //（滚动触底翻页 + 三态状态行）/ Esc 回竖刷。旧网格几何断言（尺寸统一/尾件沉底/分档标题）
-  // 随卡流退场退役——行流没有这些不变式，新不变式=append-only（本场景的翻页断言隐式钉住）
+  // ---- view-follow：关注视图冒烟（0.9.100 还原度重构：原生骨架单列无限流）----
+  // 数据源 followFeedV2 混合流不变；断言按份量：契约过滤 / 三类行的**原生骨架判别位**
+  // （视频=横条双灰块+600 标题+info 播放数+hover 时长浮层、文章=红角标+两行摘要、
+  // 动态=正文 pre-line+九宫格原生形制）/ 互动行四键（分享带文字无数字）+赞乐观两向 /
+  // **评论键原位展开评论区**（管线回写计数、再点收起、开新关旧互斥）/ 展开/收起 /
+  // 无限滚动（触底翻页+三态状态行+append-only）/ Esc 回竖刷
   C['view-follow'] = async function (h) {
     var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor, key = h.key,
       topbarInView = h.topbarInView, TEST = h.TEST;
-    window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+    // MY_MOCK（行流/写链桩）+ 评论列表桩（原位评论区断言用，形状同 detail-open）
+    window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
+      'comment/list': function () {
+        return { result: 0, commentCount: 3, curPage: 1, totalPage: 1, pcursor: 'no_more',
+          hotComments: [],
+          rootComments: [
+            { commentId: 'c1', userId: 21, userName: '测试员甲', headUrl: '', content: '原位评论第一条', postDate: '1分钟前', likeCount: 2, isLike: false, subCommentCount: 0 },
+            { commentId: 'c2', userId: 22, userName: '测试员乙', headUrl: '', content: '原位评论第二条', postDate: '2分钟前', likeCount: 0, isLike: false, subCommentCount: 0 }
+          ],
+          subCommentsMap: {} };
+      }
+    });
     window.__ACSV_FOLLOW_CALLS__ = 0;
+    // 摘掉全局 SV 夹具：loadComments 见 __ACSV_MOCK__ 真值会走内置 mockComments
+    //（commentCount 4）而不是下面的定向桩（detail-open 同款处置）
+    delete window.__ACSV_MOCK__;
     location.hash = 'svfeed/follow';
     rec('follow-open', !!(await waitFor(function () {
       var v = q('.acsv-view');
@@ -1183,7 +1197,7 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     rec('follow-seg-ctx', !!fsegAll && fsegAll.closest('.acsv-fseg').style.display !== 'none'
       && fsegAll.classList.contains('on') && fsegVideos && !fsegVideos.classList.contains('on'),
       'all=' + (fsegAll && fsegAll.classList.contains('on')) + ' videos=' + (fsegVideos && fsegVideos.classList.contains('on')));
-    // 行定位器（旧 cardOf 的行版）：按文本找行
+    // 行定位器（按文本找行）
     var rows = document.querySelectorAll('.acsv-mewrap .acsv-frow');
     function rowOf(text) {
       for (var i = 0; i < rows.length; i++) {
@@ -1191,35 +1205,38 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       }
       return null;
     }
-    // ---- 视频行：横条封面 + 时长角标 + 标题 + 播放数（仿原生 content-left/right）----
+    // ---- 视频行（原生骨架）：横条双灰块 + 时长 hover 浮层 + 600 标题 + info 播放数 ----
     var vRow = rowOf('关注视频甲');
-    rec('follow-video-row', !!(vRow && vRow.querySelector('.acsv-frow-mcover img')
+    rec('follow-video-row', !!(vRow && vRow.querySelector('.acsv-frow-strip')
+      && vRow.querySelector('.acsv-frow-scover img')
+      && vRow.querySelector('.acsv-frow-sbody')
       && /00:10/.test((vRow.querySelector('.acsv-frow-mdur') || {}).textContent || '')
-      && /关注视频甲/.test((vRow.querySelector('.acsv-frow-mtitle') || {}).textContent || '')
-      && /100次播放/.test((vRow.querySelector('.acsv-frow-mmeta') || {}).textContent || '')),
-      vRow ? (vRow.querySelector('.acsv-frow-mtitle') || {}).textContent : 'no-row');
+      && /关注视频甲/.test((vRow.querySelector('.acsv-frow-stitle') || {}).textContent || '')
+      && /100/.test((vRow.querySelector('.acsv-frow-sinfo') || {}).textContent || '')),
+      vRow ? (vRow.querySelector('.acsv-frow-stitle') || {}).textContent : 'no-row');
     rec('follow-video-like-on', !!(vRow && [].some.call(vRow.querySelectorAll('.acsv-fact'),
       function (b) { return b._act === 'like' && b.classList.contains('on'); })),
       '预置 isLike（夹具 i=0）→ 赞键点亮');
-    // ---- 文章行：「文章」chip + 摘要 + 无时长角标 ----
+    // ---- 文章行：红角标「文章」+ 两行摘要 + 无时长浮层 ----
     var aRow = rowOf('关注文章甲');
-    rec('follow-article-row', !!(aRow && aRow.querySelector('.acsv-frow-mcover img')
-      && (aRow.querySelector('.acsv-frow-mkind') || {}).textContent === '文章'
-      && /团圆时节/.test((aRow.querySelector('.acsv-frow-mdesc') || {}).textContent || '')
+    rec('follow-article-row', !!(aRow && aRow.querySelector('.acsv-frow-scover img')
+      && (aRow.querySelector('.acsv-frow-tag') || {}).textContent === '文章'
+      && /团圆时节/.test((aRow.querySelector('.acsv-frow-sdesc') || {}).textContent || '')
       && !aRow.querySelector('.acsv-frow-mdur')),
-      aRow ? 'kind/desc' : 'no-row');
-    // ---- 动态行：UBB 正文 + 单图 + 互动行四键（原生同序：分享评论蕉赞）----
+      aRow ? 'tag/desc' : 'no-row');
+    // ---- 动态行：正文（pre-line）+ 单图 n1 + 互动行四键（分享带文字无数字）----
     var mRow = rowOf('动态正文带 UBB');
     rec('follow-moment-ubb', !!(mRow && mRow.querySelector('.acsv-frow-text a.ubb-at')),
       mRow ? (mRow.querySelector('.acsv-frow-text') || {}).textContent : 'no-row');
-    rec('follow-moment-img', !!(mRow && mRow.querySelector('.acsv-gmom-img img')));
+    rec('follow-moment-img', !!(mRow && mRow.querySelector('.acsv-frow-imgs.n1 .acsv-frow-img img')));
     var mActs = mRow ? mRow.querySelectorAll('.acsv-fact') : [];
     rec('follow-moment-acts', mActs.length === 4
       && mActs[0]._act === 'share' && mActs[1]._act === 'comment'
       && mActs[2]._act === 'banana' && mActs[3]._act === 'like'
-      && mActs[0]._n.textContent === '0' && mActs[1]._n.textContent === '3'
-      && mActs[2]._n.textContent === '2' && mActs[3]._n.textContent === '11',
-      [].map.call(mActs, function (b) { return b._act + '=' + b._n.textContent; }).join('|'));
+      && /分享/.test(mActs[0].textContent) && mActs[0]._n === undefined
+      && mActs[1]._n.textContent === '3' && mActs[2]._n.textContent === '2'
+      && mActs[3]._n.textContent === '11',
+      [].map.call(mActs, function (b) { return b._act + '=' + (b._n ? b._n.textContent : 'txt'); }).join('|'));
     // 行内写链：赞乐观两向（mock add/delete 均 result 1 → 成功）
     mActs[3].click();
     rec('follow-like-on', !!(await waitFor(function () {
@@ -1232,18 +1249,38 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     rec('follow-like-off', !!(await waitFor(function () {
       return !mActs[3].classList.contains('on') && mActs[3]._n.textContent === '11';
     }, 5000)), 'n=' + mActs[3]._n.textContent);
-    // ---- 多图行：九宫格 data-n=3（0.9.98 契约沿用），单图大图不挂 ----
+    // ---- 原位评论区（0.9.100）：点评论键 → 行内展开（列表+输入条+计数回写）----
+    mActs[1].click();
+    rec('follow-cmts-inline', !!(await waitFor(function () {
+      var box = mRow.querySelector('.acsv-frow-cmts');
+      return box && box.querySelectorAll('.acsv-citem').length >= 2
+        && !!box.querySelector('.acsv-cinput');
+    }, 8000)), 'items=' + (mRow.querySelectorAll('.acsv-frow-cmts .acsv-citem') || []).length);
+    rec('follow-cmts-count', /3/.test(mActs[1]._n.textContent || ''),
+      'n=' + (mActs[1]._n || {}).textContent); // 计数被管线回写（host title 语义）
+    mActs[1].click(); // 同条目再点=收起
+    rec('follow-cmts-toggle', !!(await waitFor(function () {
+      return !mRow.querySelector('.acsv-frow-cmts');
+    }, 5000)));
+    // 开新关旧互斥：A 行开着再点 B 行 → A 收 B 开
+    mActs[1].click(); // A=动态正文带 UBB
     var gRow = rowOf('另一条图文动态');
-    rec('follow-moment-multigrid', !!(gRow && gRow.querySelector('.acsv-gmom-imgs[data-n="3"]')
-      && gRow.querySelectorAll('.acsv-gmom-imgcell img').length === 3
-      && !gRow.querySelector('.acsv-gmom-img')),
-      gRow ? 'cells=' + gRow.querySelectorAll('.acsv-gmom-imgcell').length : 'no-row');
-    // ---- 转发行：引用块（源类型字 + 源标题），不拿源封面当主图 ----
+    var gActs = gRow ? gRow.querySelectorAll('.acsv-fact') : [];
+    if (gActs[1]) gActs[1].click();
+    rec('follow-cmts-mutex', !!(await waitFor(function () {
+      return !mRow.querySelector('.acsv-frow-cmts') && !!gRow.querySelector('.acsv-frow-cmts');
+    }, 8000)));
+    if (gActs[1]) gActs[1].click(); // 收起，防污染后续断言
+    // ---- 多图行：九宫格原生形制（默认容器 342、3 格 110 方）----
+    rec('follow-moment-multigrid', !!(gRow && gRow.querySelector('.acsv-frow-imgs:not(.n1):not(.n24)')
+      && gRow.querySelectorAll('.acsv-frow-img').length === 3),
+      gRow ? 'cells=' + gRow.querySelectorAll('.acsv-frow-img').length : 'no-row');
+    // ---- 转发行：引用块（源类型字 + 源标题），不挂横条 ----
     var rRow = rowOf('转发视频的动态');
     rec('follow-repost-quote', !!(rRow && rRow.querySelector('.acsv-gquote-thumb img')
       && /被转发的视频标题/.test((rRow.querySelector('.acsv-gquote-title') || {}).textContent || '')
       && (rRow.querySelector('.acsv-gquote-kind') || {}).textContent === '视频'
-      && !rRow.querySelector('.acsv-frow-media')),
+      && !rRow.querySelector('.acsv-frow-strip')),
       rRow ? (rRow.querySelector('.acsv-gquote') || {}).textContent : 'no-row');
     // 转发动态（rs10）：源正文明文（UBB 剥除）+「动态」类型字
     var rRow3 = rowOf('更早的动态');

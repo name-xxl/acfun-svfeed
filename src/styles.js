@@ -903,15 +903,6 @@ var RAW_CSS = ''
   + '.acsv-gmom-flag{flex:none;font-size:11px;line-height:15px;padding:0 5px;border-radius:3px;'
   + 'background:rgba(253,76,92,.78);color:#fff;font-weight:600}'
   + '.acsv-gmom-text{margin-top:8px;font-size:14px;line-height:21px;color:#e8eaee;max-height:84px;overflow:hidden;word-break:break-word}'
-  + '.acsv-gmom-img{margin-top:10px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06);'
-  + 'max-height:260px;width:100%}'
-  + '.acsv-gmom-img img{width:100%;max-height:260px;object-fit:cover;display:block}'
-  // 多图九宫格（0.9.98）：3 列方格贴原生 member-feed 尺寸律；2/4 张降 2 列（原生同款——
-  // 3 列摆 2/4 张必留角洞）。data-n 属性是格子数（渲染层 dataset.n），选择器按它降列
-  + '.acsv-gmom-imgs{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}'
-  + '.acsv-gmom-imgs[data-n="2"],.acsv-gmom-imgs[data-n="4"]{grid-template-columns:repeat(2,1fr)}'
-  + '.acsv-gmom-imgcell{aspect-ratio:1/1;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.06)}'
-  + '.acsv-gmom-imgcell img{width:100%;height:100%;object-fit:cover;display:block}'
   // 转发引用块（左竖线 + 缩略图 + 源标题 + 源类型）：转发的结构性签名
   + '.acsv-gquote{margin-top:10px;padding:8px 10px;border-left:3px solid rgba(255,255,255,.18);'
   + 'border-radius:0 8px 8px 0;background:rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}'
@@ -933,44 +924,73 @@ var RAW_CSS = ''
   + 'gap:14px 10px}'
   // 窄屏：关注流回落单列（.acsv-gwide 无跨度，规则天然成立）
   + '}'
-  // ---- 关注视图仿原生单列行流（0.9.99）----
-  // 量取口径（2026-10-03 站方 /member/feeds computed style）：头像 40 圆、条目卡圆角 8、
-  // 深色体系沿用本面板 rgba 白系面（站方是亮色页，颜色照本面板惯例换算、尺寸照站方）
-  + '.acsv-frows{display:flex;flex-direction:column;gap:10px;max-width:760px}'
-  + '.acsv-frow{border-radius:8px;background:rgba(255,255,255,.05);padding:12px 14px;'
-  + 'display:flex;flex-direction:column}'
-  + '.acsv-frow-head{display:flex;align-items:center;gap:10px;font-size:12px;color:#8a90a0}'
-  + '.acsv-frow-av{flex:none;width:40px;height:40px;border-radius:50%;overflow:hidden;'
+  // ---- 关注视图单列行流（0.9.100 原生骨架复刻，替代 0.9.99 自创暗色卡）----
+  // 量取日 2026-10-03（站方 /member/feeds computed style + 样式表规则；复刻法=广场
+  // renderer.js/css.js 的逐类名复刻路数）。结构/字号/间距/信息层级 1:1 照量取值；颜色
+  // 暗色换算对照：#333→#e8eaee、#f8f8f8→rgba(255,255,255,.06)、#999→#8a90a0、
+  // hover/active 红→var(--acsv-accent)。原生是**扁平列表**（条目无底色无圆角），条目间
+  // feed-separate 是 830×10 灰带——这里用相邻行 border-top 等价实现
+  + '.acsv-frows{max-width:870px}'
+  + '.acsv-frow{padding:0 20px}'
+  + '.acsv-frow + .acsv-frow{border-top:10px solid rgba(255,255,255,.05)}'
+  // 头像行（member-feed-user）：头像 50 圆 + 右距 10；名字 16px 链接（hover 红）；时间块级在名字下
+  + '.acsv-frow-head{display:flex;gap:10px}'
+  + '.acsv-frow-av{flex:none;width:50px;height:50px;border-radius:50%;overflow:hidden;'
   + 'background:rgba(255,255,255,.08)}'
   + '.acsv-frow-av img{width:100%;height:100%;object-fit:cover;display:block}'
-  + '.acsv-frow-name{font-size:13px;color:#d5d8df}'
-  + '.acsv-frow-time{margin-left:auto;font-size:12px;color:#8a90a0}'
-  // 正文：UBB 单源产物；clamp 是展开态开关的初始类（溢出才挂「展开」——armExpanders 量测）
-  + '.acsv-frow-text{margin-top:10px;font-size:14px;line-height:21px;color:#e8eaee;word-break:break-word}'
+  + '.acsv-frow-info{min-width:0}'
+  + '.acsv-frow-name{display:block;margin:5px 0 6px;max-width:380px;font-size:16px;line-height:18px;'
+  + 'color:#e8eaee;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+  + '.acsv-frow-name:hover{color:var(--acsv-accent)}'
+  + '.acsv-frow-time{display:block;font-size:12px;line-height:12px;color:#8a90a0}'
+  // 内容区（feed-content）：padding 6px 0 0 60px——正文/媒体/互动与名字左对齐，头像下不排文
+  + '.acsv-frow-content{padding:6px 0 0 60px}'
+  + '.acsv-frow-text{margin-bottom:10px;font-size:14px;line-height:21px;color:#e8eaee;'
+  + 'word-break:break-word;white-space:pre-line}' // 原生 pre-line：保留 UP 手打的换行
   + '.acsv-frow-text.clamp{max-height:84px;overflow:hidden}'
-  + '.acsv-fmore{margin-top:6px;font-size:12px;color:var(--acsv-accent);cursor:pointer;align-self:flex-start}'
-  // 媒体横条（视频/文章）：仿原生 content-left/right，封面 204:128（量取 2026-10-03）
-  + '.acsv-frow-media{margin-top:10px;display:flex;gap:10px;align-items:stretch;min-width:0}'
-  + '.acsv-frow-mcover{position:relative;flex:none;width:186px;aspect-ratio:204/128;border-radius:8px;'
-  + 'overflow:hidden;background:rgba(255,255,255,.06)}'
-  + '.acsv-frow-mcover img{width:100%;height:100%;object-fit:cover;display:block}'
-  + '.acsv-frow-mdur{position:absolute;right:4px;bottom:4px;padding:0 4px;border-radius:3px;'
-  + 'font-size:11px;line-height:16px;background:rgba(0,0,0,.62);color:#fff}'
-  + '.acsv-frow-mbody{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:6px}'
-  + '.acsv-frow-mkind{align-self:flex-start;font-size:11px;line-height:16px;padding:0 5px;'
-  + 'border-radius:3px;background:rgba(255,255,255,.1);color:#cfd3da}'
-  + '.acsv-frow-mtitle{font-size:14px;line-height:20px;color:#e8eaee;max-height:40px;overflow:hidden;word-break:break-word}'
-  + '.acsv-frow-mmeta{margin-top:auto;font-size:12px;color:#8a90a0}'
-  + '.acsv-frow-mdesc{font-size:12px;line-height:18px;color:#8a90a0;max-height:36px;overflow:hidden}'
-  // 动态单图：横条位同款钳高（九宫格/引用块复用 .acsv-gmom-imgs/.acsv-gquote 既有规则，不另立）
-  + '.acsv-frow .acsv-gmom-img{margin-top:10px}'
-  // 互动行：分享 → 评论 → 蕉 → 赞（站方同序，量取 2026-10-03）；点亮态沿 .on accent 语义
-  + '.acsv-frow-acts{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07);'
-  + 'display:flex;gap:26px;font-size:13px;color:#8a90a0}'
-  + '.acsv-fact{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}'
-  + '.acsv-fact:hover{color:#e8eaee}'
+  + '.acsv-fmore{font-size:12px;color:var(--acsv-accent);cursor:pointer}'
+  // 九宫格（member-feed-moment-image 形制）：容器 342、图 110 方 margin 0 4 4 0；
+  // 1 图容器 299（图自适应 max299）；2/4 图容器 228；格上 pointer（原生同款，点击开大图）
+  + '.acsv-frow-imgs{margin:10px 0 -4px;width:342px}'
+  + '.acsv-frow-imgs.n1{width:299px}'
+  + '.acsv-frow-imgs.n24{width:228px}'
+  + '.acsv-frow-img{display:inline-block;vertical-align:top;width:110px;height:110px;margin:0 4px 4px 0;'
+  + 'border-radius:3px;overflow:hidden;background:rgba(255,255,255,.06);cursor:pointer}'
+  + '.acsv-frow-img img{width:100%;height:100%;object-fit:cover;display:block}'
+  + '.acsv-frow-imgs.n1 .acsv-frow-img{width:auto;height:auto;max-width:299px;max-height:299px}'
+  + '.acsv-frow-imgs.n1 .acsv-frow-img img{width:auto;height:auto;max-width:299px;max-height:299px}'
+  // 视频横条（member-feed-resource-content 形制）：左右两块灰底拼合——cover 块 204
+  //（img 204×128 圆角 3、时长是 **hover 浮层**、文章红角标右上）+ body 块
+  //（title 16/600 单行省略、desc 12/18 两行 clamp、info 绝对定位 bottom 13 left 14）
+  + '.acsv-frow-strip{display:flex;min-width:0}'
+  + '.acsv-frow-scover{position:relative;flex:none;width:204px;background:rgba(255,255,255,.06);'
+  + 'border-radius:3px;overflow:hidden}'
+  + '.acsv-frow-scover img{width:204px;height:128px;object-fit:cover;display:block;border-radius:3px}'
+  + '.acsv-frow-tag{position:absolute;top:6px;right:6px;width:34px;height:18px;line-height:18px;'
+  + 'text-align:center;background:var(--acsv-accent);border-radius:3px;font-size:12px;color:#fff}'
+  + '.acsv-frow-mdur{display:none;position:absolute;inset:0;padding:108px 8px 0 0;'
+  + 'background:rgba(0,0,0,.7);color:#fff;font-size:12px;text-align:right}'
+  + '.acsv-frow-scover:hover .acsv-frow-mdur{display:block}'
+  + '.acsv-frow-sbody{position:relative;flex:1 1 auto;min-width:0;padding:10px 10px 10px 14px;'
+  + 'background:rgba(255,255,255,.06);border-radius:0 3px 3px 0}'
+  + '.acsv-frow-stitle{margin-bottom:12px;font-size:16px;font-weight:600;line-height:22px;color:#e8eaee;'
+  + 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+  + '.acsv-frow-sdesc{font-size:12px;line-height:18px;color:#cfd3da;overflow:hidden;text-overflow:ellipsis;'
+  + 'display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}'
+  + '.acsv-frow-sinfo{position:absolute;bottom:13px;left:14px;display:inline-flex;align-items:center;'
+  + 'gap:4px;font-size:14px;line-height:14px;color:#8a90a0}'
+  // 互动行（feed-interactive 形制）：margin 4px 0 0 60px、行高 48、item 12px 右距 42、
+  // hover/点亮 accent；分享=icon+「分享」文字（原生无数字），评论/蕉/赞=icon+数字
+  + '.acsv-frow-acts{margin:4px 0 0 60px;display:flex}'
+  + '.acsv-fact{display:inline-flex;align-items:center;gap:5px;height:48px;margin-right:42px;'
+  + 'font-size:12px;color:#8a90a0;cursor:pointer;user-select:none}'
+  + '.acsv-fact:hover{color:var(--acsv-accent)}'
   + '.acsv-fact.on{color:var(--acsv-accent)}'
   + '.acsv-fact .acsvg-glyph{font-size:14px}'
+  // 原位评论区（0.9.100）：60px 缩进对齐内容区；列表/输入条/表情面板样式全继承评论族
+  + '.acsv-frow-cmts{margin:0 0 6px 60px}'
+  + '.acsv-frow-cmtlist{max-height:420px;overflow-y:auto;scrollbar-width:thin;'
+  + 'scrollbar-color:rgba(255,255,255,.2) transparent}'
   // 三态底部状态行（借鉴广场 load-more-status）；busy 态加点点动画的克制版=文字+降透明
   + '.acsv-fstatus{min-height:34px;padding:8px 2px;text-align:center;font-size:12px;color:#8a90a0;cursor:pointer}'
   + '.acsv-fstatus.busy{opacity:.7;cursor:default}'
