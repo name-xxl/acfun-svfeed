@@ -99,6 +99,34 @@ rec('cover-ratio-4x3', (function () {
   var r = c.getBoundingClientRect();
   return 'w/h=' + (r.height ? (r.width / r.height).toFixed(3) : '0');
 })());
+// 脚行钉卡底（0.9.90）：网格行内所有卡等高（grid stretch），脚行须 margin-top:auto 钉到卡底——
+// 否则单行标题的卡富余空间落在脚行下方，脚注悬在半空、与双行标题的邻居错位（真机截图实证：
+// 同一行三张卡，单行标题那张的 @作者/时间 比邻居高约 28px）。夹具里第 2 条是双行长标题
+// （my-sample.js），首行单双行共存——不这样断言会在"全单行"的行里假绿
+rec('card-foot-pinned', (function () {
+  var cells = document.querySelectorAll('.acsv-vlist.hist .acsv-gcell');
+  var checked = 0, bad = 0;
+  for (var i = 0; i < cells.length; i++) {
+    var foot = cells[i].querySelector('.acsv-gfoot');
+    if (!foot) continue; // 无脚行的卡（作者与时间双缺的降级条目）不参与
+    checked++;
+    var gap = cells[i].getBoundingClientRect().bottom - foot.getBoundingClientRect().bottom;
+    if (gap > 1) bad++;
+  }
+  return checked > 0 && bad === 0;
+})(), (function () {
+  var cells = document.querySelectorAll('.acsv-vlist.hist .acsv-gcell');
+  var maxGap = 0, lines = [];
+  for (var i = 0; i < Math.min(cells.length, 6); i++) {
+    var foot = cells[i].querySelector('.acsv-gfoot');
+    var t = cells[i].querySelector('.acsv-gtitle');
+    if (!foot) continue;
+    var gap = Math.round(cells[i].getBoundingClientRect().bottom - foot.getBoundingClientRect().bottom);
+    if (gap > maxGap) maxGap = gap;
+    lines.push('#' + i + ' gap=' + gap + (t ? ('/' + Math.round(t.getBoundingClientRect().height)) : ''));
+  }
+  return 'maxGap=' + maxGap + ' ' + lines.join(' ');
+})());
 // 面板无横向溢出（网格 minmax 自适应，宽窄都不撑破容器）
 rec('no-overflow', (function () {
   var b = q('.acsv-view-body');

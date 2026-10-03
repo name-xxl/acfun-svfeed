@@ -38,7 +38,12 @@
   for (var i = 0; i < 18; i++) {
     HIST_VIDS.push({
       resourceType: 2, videoId: 900000 + i, resourceId: 488900 + i,
-      title: '测试历史视频' + i, cover: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+      // 第 2 条（首行内）**刻意给双行长标题**：网格行内单双行标题共存是脚行钉底（0.9.90）
+      // 的布局夹具——标题全单行时行内无富余，"脚行底=卡底" 断言会假绿，钉不住回归
+      title: i === 1
+        ? '测试历史视频1（这条标题刻意写长，用来占满两行，验证单双行标题共存时脚行仍钉在卡底）'
+        : '测试历史视频' + i,
+      cover: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
       playedSeconds: 100 + i, playedSecondsShow: '观看至01:4' + (i % 10),
       user: histUser(i),
       // 第 2 条给"10 天前"：场景里钉住"更早 → 带年份日期"这一档（首条仍是 5 分钟前）

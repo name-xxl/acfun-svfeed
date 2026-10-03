@@ -749,9 +749,14 @@ var RAW_CSS = ''
   // 网格：列数随容器宽自适应（minmax 自动填充，无硬断点）
   + '.acsv-megrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(' + CFG.view.me.gridMin + 'px,1fr));'
   + 'gap:18px ' + CFG.view.me.gridGap + 'px}'
-  + '.acsv-gcell{cursor:pointer;min-width:0}'
+  // 网格卡 flex 列 + 脚行钉底（0.9.90）：网格行内所有卡等高（grid 默认 stretch），脚行
+  // margin-top:auto 钉到卡底——否则单行标题的卡脚注悬在半空，与双行标题的邻居错位
+  //（真机截图实证：同一行三张卡，单行标题那张的 @作者/时间 比邻居高约 28px）。
+  // 封面/标题 flex:none：防 flex 收缩覆盖封面的 aspect-ratio 与标题 max-height 的钳高
+  //（行高由内容最长者定，正常不触发收缩，这里是纪律性防御）。行卡/UP 卡的同类钉底是既有实现
+  + '.acsv-gcell{cursor:pointer;min-width:0;display:flex;flex-direction:column}'
   + '.acsv-gcover{position:relative;width:100%;aspect-ratio:' + CFG.view.me.coverRatio + ';border-radius:10px;overflow:hidden;'
-  + 'background:rgba(255,255,255,.06)}'
+  + 'flex:none;background:rgba(255,255,255,.06)}'
   + '.acsv-gcover img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s,opacity .2s;opacity:0}'
   + '.acsv-gcover img.ld{opacity:1}'
   // 终败图（imgload 策略 grid 的降级形态）：隐藏与占位由脚本单源做（不再写同名 CSS 兜底——
@@ -762,7 +767,7 @@ var RAW_CSS = ''
   + '.acsv-gtag{position:absolute;left:8px;bottom:8px;max-width:calc(100% - 16px);padding:2px 8px;'
   + 'border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;line-height:18px;'
   + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
-  + '.acsv-gtitle{margin-top:8px;font-size:14px;line-height:20px;color:#fff;max-height:40px;overflow:hidden}'
+  + '.acsv-gtitle{margin-top:8px;font-size:14px;line-height:20px;color:#fff;max-height:40px;overflow:hidden;flex:none}'
   + '.acsv-gcell:hover .acsv-gtitle{color:var(--acsv-accent)}'
   // .acsv-gmeta 于 0.9.83 删除：卡面收口后作者只走脚行（.acsv-gfoot）、进度只留封面角标，
   // 该行没有生产者了（唯一消费者 views.gridCardOf 已移除）
@@ -795,8 +800,11 @@ var RAW_CSS = ''
   + '.acsv-gviews .acsvg-glyph{font-size:12px}'
   + '.acsv-gdur{position:absolute;right:8px;bottom:8px;padding:2px 8px;border-radius:999px;'
   + 'background:rgba(0,0,0,.55);color:#fff;font-size:12px;line-height:18px}'
-  + '.acsv-gfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px;'
-  + 'font-size:12px;color:#8a90a0}'
+  // 脚行钉卡底（0.9.90）：auto 吸走卡内富余（单行标题卡不再把脚注吊起来），padding-top 保底
+  // 4px 间距——内容顶满的卡（双行标题）观感与 0.9.89 前完全一致。
+  // 防「修」哨兵在册：撤掉 auto 即 view-my.card-foot-pinned 变红（maxGap=20 逐卡 gap 打印）
+  + '.acsv-gfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;'
+  + 'padding-top:4px;font-size:12px;color:#8a90a0}'
   + '.acsv-gup{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
   + '.acsv-gtime{flex:none}'
   + '.acsv-smfoot{display:inline-block;margin:18px 0 4px;color:#9fd0ff;font-size:13px;text-decoration:none}'
