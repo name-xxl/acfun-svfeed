@@ -17,7 +17,7 @@ import { reapplyQuality } from './quality.js';
 //                控制栏元素引用 写: controls.js(buildControls/showControls) 读: controls、player(SESSION_HOOKS);
 //                _qBtn 的档位文本另由 attach(switchQuality)/rail(onHomeResolved) 写 textContent
 //   _dmLayer     弹幕图层    写/读: danmaku.js(onPlaying 建/本地弹幕);stop: controls(开关)/player(窗口扫描);session.js dispose 销毁
-//   _watchTimer  首报兜底定时器 写/读: player(SESSION_HOOKS onPlaying/onDisposed)
+//   （_watchTimer 首报兜底定时器已删：0.9.87 起 pause 即报 + pagehide 直发接管其职责）
 //   _likeSync/_favSync/_banSync/_cmtSync/_shareSync/_followSync
 //                计数回填钩子 写: rail.js(buildSideRail) 读: rail.js(onHomeResolved)
 //   _followSync  作者面同步（0.9.82 起**无条件注册**，幂等）：头像/关注块 + 左下 @名字 行由

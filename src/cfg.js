@@ -136,7 +136,8 @@ export var CFG = {
     navWait: 6000,      // 导航注入兜底等待
     ghostIv: 5000,      // 幽灵视频扫描间隔（兜底，低频即可）
     watchReportMin: 3,   // 观看历史上报门槛：离开时进度达到该秒数才计入历史（过滤闪滑）
-    watchReport: 10000,  // 首报兜底：playing 后墙钟 10s 先保底入史（关标签页时离开上报送不出去）
+    watchLedgerFlush: 3000,    // 持久账本落盘节奏（0.9.87）：崩溃补报的误差上界=此间隔
+    watchLedgerTtl: 86400000,  // 账本条目 TTL（24h）：陈旧差量没有补报价值，不养僵尸
     upd: 10000,          // release.atom 拉取超时
     updGap: 60000        // 两次更新检查最小间隔：防 Esc 频繁进出竖刷刷请求（mock 注入时绕过）
   },

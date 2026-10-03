@@ -201,6 +201,35 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
   若两字段都不成立则按缺省 null 处理（头部自动只显示头像/昵称/签名/投稿数）。
 - 未采用：`info.app` 侧个人资料（无轻量端点）、UP 空间页 HTML 解析（重、且为 SPA）。
 
+### 4.6 写侧上报 CLIENT_BROWSE_HISTORY（0.9.86/0.9.87 实测，内置浏览器登录态）
+
+**采集方式**：acfun.cn 视频页（/v/ac24325439，240s 稿）页面内包 `XMLHttpRequest/sendBeacon/`
+官方 `weblog` SDK，播放全程记录（2026-10-03，登录态，账号 uid 51737407）。
+
+- **节奏 = 纯事件驱动，无心跳**：实测暂停报一次（`playedSeconds=0`，与 `VIDEO_PAUSE`
+  同批）、播完报整段（`playedSeconds=240`），中间 238 秒连续播放**零上报**。官方自己
+  容忍崩溃丢数据——我们没有心跳的形态依据（0.9.87 据此把心跳从方案里删掉）。
+- **官方管道与线格式**：页面 `weblog.sendImmediately('CLICK', {action, params})` → SDK
+  攒批 → **`navigator.sendBeacon` POST** 到
+  `https://log-sdk.ksapisrv.com/rest/wd/common/log/collect/misc2?v=3.9.21&kpn=ACFUN_WEB`
+  （大批走同域 `…/collect/radar?…`，perf 域名 apilog-web.acfun.cn 是另一条管道）。
+  body 是**明文 JSON**（`need_encrypt:false`）：`{ common(设备/用户/safety_id 等), logs:
+  [{ client_timestamp, client_increment_id, session_id, time_zone, event_package.task_event.
+  element_package: { action, params(JSON 串) } }] }`。params 与项目载荷逐字段一致
+  （含 `bangumiItemId: null`），0.9.86 已对齐。
+- **手搓信封端到端验证（两次）**：克隆官方 misc2 批（或最小化成 common+单条 log）改
+  `client_timestamp`/`client_increment_id` 重发 → 观看历史 `browseTime` **精确等于所发
+  client_timestamp（0ms 滞后）**，`playedSeconds` 相应落库。服务器**采信客户端时间戳**、
+  `playedSeconds` 取 **latest**（发 100 真实把「已看完」回退成 01:40，随后报 240 恢复
+  ——补报单调守卫因此是实测必需）。
+- **官方卸载形态**：SDK 批量 flush 本就走 sendBeacon；队列卸载期不 flush（0.9.2 真机
+  实测「pagehide 送不出去」的根因）。项目 0.9.87 关页直发=复刻官方自己的 flush 形态。
+- **已知窄窗（并档）**：①pagehide 早于官方首次 flush（<3s 关页：嗅探缓存未建立，回落
+  SDK 队列，卸载期可能丢一条）；②weblog 未就绪 3s 窗口（live 路径 1s×3 短重试后放弃）。
+  均极低频、损失一条，接受。
+- **消费侧**：`browse/history/list`（§4.1）即对账读口——实测 `browseTime` 随上报即时
+  刷新，可用来做端到端验证。
+
 ## 5. 内容扩展路线定性（〔实测〕）
 
 - **大家都在看**：无独立 JSON 接口（v 页 performance 时间线无相关请求），服务端直出进 v 页 HTML（实测 40 个 /v/ac 链接）→ 唯一路线 DOM 解析（uppage.js 同款）；window.videoInfo 内嵌 douga/info 等价数据（含 mkey）但**无**相关视频数组

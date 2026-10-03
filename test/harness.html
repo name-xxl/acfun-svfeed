@@ -41,6 +41,25 @@
       window.__WL_CALLS.push({ channel: channel, payload: payload });
     }
   };
+  // navigator.sendBeacon stub（0.9.87）：bundle 的嗅探层会包上本 stub（嗅探→缓存信封、
+  // 直发→记录），断言消费 window.__BEACON_CALLS。真实浏览器此 API 恒存在，无 TM 兜底分支不受影响
+  window.__BEACON_CALLS = [];
+  navigator.sendBeacon = function (url, body) {
+    window.__BEACON_CALLS.push({ url: String(url), body: typeof body === 'string' ? body : String(body) });
+    return true;
+  };
+  // 账本对账场景（0.9.87）：bundle 求值前预置账本——模块 init 读账即"重启语义"
+  //（Playwright 每场景都是新鲜页面加载，等价崩溃后重启；488901 账平、488902 过 TTL，
+  //  都不该补报，且清洗后应从账上消失）
+  if (CASE === 'watch-ledger-replay') {
+    try {
+      localStorage.setItem('acsvWatchLedger', JSON.stringify({
+        '488900:21005858': { maxSec: 42, reportedSec: 10, ts: Date.now() },
+        '488901:21005859': { maxSec: 30, reportedSec: 30, ts: Date.now() },
+        '488902:21005860': { maxSec: 60, reportedSec: 5, ts: Date.now() - 25 * 3600 * 1000 }
+      }));
+    } catch (e) { }
+  }
   // 页面级错误捕获（bundle 求值期错误发生在 dbgInit 之前，__dbg 抓不到）
   window.__errs = [];
   window.addEventListener('error', function (e) {
@@ -51,7 +70,7 @@
   function rec(name, pass, info) { window.__HARNESS_RESULTS__.results.push({ name: name, pass: !!pass, info: info == null ? '' : String(info) }); }
 
   // 走 home mock 的场景（其余默认 sv；显式 ?src=home 保持人工预览语义）
-  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1, 'watch-playlayer-pagehide': 1 };
+  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1, 'watch-playlayer-pagehide': 1, 'watch-pagehide-beacon': 1 };
   if (HOME_CASES[CASE] || /[?&]src=home/.test(location.search)) {
     try { localStorage.setItem('acsv-source', 'home'); } catch (e) { }
   } else {

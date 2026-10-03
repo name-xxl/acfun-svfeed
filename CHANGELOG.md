@@ -3,6 +3,47 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.87（2026-10-03）· 观看上报补全非合作出口：关页官方同款直发 + 持久账本崩溃补报，删 10s 首报
+
+- **实测（内置浏览器登录态，ac24325439 全程 240s，详见 docs §4.6）**：
+  官方 CLIENT_BROWSE_HISTORY 纯事件驱动（暂停报当前位/播完报整段，238s 连播零上报——
+  官方自己容忍崩溃丢数据）；官方 SDK 批量 flush 本就走 `navigator.sendBeacon` 到
+  `log-sdk.ksapisrv.com/…/collect/misc2`，线格式明文 JSON webLogger 信封；服务器 `browseTime`
+  **精确采信信封 `client_timestamp`**（手搓信封端到端实测 0ms 滞后）、`playedSeconds` 取
+  **latest**（发 100 实测把「已看完」回退成 01:40，报 240 恢复）。原方案的「60s 心跳」与
+  「sendBeacon 逆向」两个前提双双死于实测：心跳无形态依据（官方没有）、直发无逆向成本
+  （复刻官方自己的 flush 形态）。
+- **修法**：
+  - **信封嗅探（report.js，脚本启动处）**：document-start 包一层 `sendBeacon`（官方 SDK
+    之前，时序契约钉注释），URL 含 `/collect/misc2` 的批解析缓存 `{ url, common, tpl, inc }`
+    ——common 原样透传（含 safety_id，服务器认）、tpl 取批内一条 log 作信封骨架、inc=批内
+    最大自增号；**Blob body 异步解析完成才整体覆盖缓存**（防半个信封）。
+  - **关页直发**：pagehide 时若有缓存 → `buildHistoryEnvelope` 克隆骨架换 action/params/
+    时间戳、`client_increment_id` 从官方序列 **+1 续号**（不自起炉灶，防会话级单调/去重
+    校验当重复丢弃）→ `sendBeacon(缓存 url)`；直发回环再被嗅探层解析，续号连续性天然保持。
+    无缓存（<3s 关页窄窗）回落 SDK 队列路径，极低频损失一条，接受（已并档 docs）。
+  - **持久账本（崩溃/断电/强杀出口）**：`watchledger.js` 纯逻辑层——账本
+    `{ [id:videoId]: { maxSec, reportedSec, ts } }`，GM 存储优先（无 TM 回落 localStorage）；
+    onTime 节流 3s 只推 `maxSec` 水位（重看回退不污染）；`reportLeave` 成功处同步
+    `reportedSec`（**乐观水位**，注释钉死：fire-and-forget，差量由下一次离开事件天然愈合）；
+    启动 `reconcile` 对账——TTL 24h/账平即清/畸形容错/容量 32 按 ts 淘汰，差量经
+    `weblog.sendImmediately` 按官方事件形态补发（req_id 用当期 impression，归因漂移可接受：
+    落库采信 client_timestamp）→ 清账。**单调守卫只在补报侧**：live 路径镜像官方语义允许
+    回退（0.9.86 防修哨兵钉住），补报是死会话无用户意图——两者不冲突。
+  - **删 10s 首报定时器**（player.js onPlaying/onDisposed 的 `_watchTimer` 全清）：其兜底
+    职责由 pause 即报（0.9.86）+ pagehide 直发接管，进度检查点不再依赖墙钟；attach.js
+    slide 字段登记表同步注销。
+- **测试**：单测 +10（`watch-ledger.test.js`：reconcile 六项边界——TTL 恰好到限/账平/畸形
+  JSON/字段容错/key 反解含 videoId 带冒号/容量淘汰按 ts 最旧/差量门槛；params 与官方逐字段
+  对齐；信封续号 +1/深拷贝不污染模板/缓存不完整返 null）。harness +2：
+  `watch-pagehide-beacon`（stub sendBeacon 喂假官方批建缓存 → 真实播放 → pagehide 断言
+  信封 common 原样/续号=假批+1/params 逐字段/同秒位去重）；`watch-ledger-replay`
+  （bundle 求值前预置账本，页面新鲜加载=重启语义：差量补发断言 playedSeconds=42、账平与
+  TTL 条目不补、清账）。**附带修复**：`check-cases.mjs` 行注释剥离不兼容 CRLF（git autocrlf
+  往返后 `\r` 残留使 HEADLESS_SKIP 示例条目被当成登记）——先剥 `\r` 再按行剥注释。
+- **回归**：lint 干净、单测 138 全绿、`npm run check` 三项通过、harness 34 场景 0 失败、
+  构建幂等。
+
 ### 0.9.86（2026-10-03）· 观看上报对齐官方事件流：播放层 pagehide 补洞 + 暂停即报 + 载荷补键
 
 - **病灶（内置浏览器登录态实测 + 代码核查，实测见 docs/api-research.md「写侧上报」）**：

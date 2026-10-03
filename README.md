@@ -283,7 +283,8 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `rail.js` | 右侧操作栏（赞/蕉/藏/评/分享/关注）：乐观更新+失败回滚、原生图标 CSS mask 换色、计数回填钩子、分享面板入口 |
 | `slide.js` | buildSlide/buildDrawer：slide 骨架与评论抽屉骨架（commentDrawer 赋值点）、scroll 归零防护；点按判定对 data-ovl（播放层）免「当前条」检查 |
 | `input.js` | 键盘/全屏/幽灵扫描：翻页、快进快退、长按 2x、Esc 优先级链（更新弹窗→大图查看器→抽屉→退出）、幽灵视频扫描；**I=私信抽屉开合**（0.9.75，模态门禁与输入框豁免之后、视图门禁之前——视图/播放层也生效） |
-| `report.js` | 观看历史上报（weblog CLICK 管道）：离开时上报最终进度 + 10s 首报兜底、同秒位去重 |
+| `report.js` | 观看历史上报：与官方事件流对齐（0.9.86 实测——暂停即报/播完/离开，无心跳），页内走官方 SDK 队列，关页 sendBeacon 直发官方同款信封（0.9.87 嗅探+续号）、同秒位去重；播放中账本落盘 + 启动对账补报（崩溃出口，误差≤3s） |
+| `watchledger.js` | 观看上报纯逻辑层（0.9.87）：持久账本 reconcile（TTL/账平/容量/单调守卫）、上报参数与直发信封构造——node --test 直测，环境触点留在 report.js |
 | `prewarm.js` | 预热：索引稳定 500ms 后预解析 cur+1/2、媒体域动态 preconnect（上限 6 + 静态种子） |
 | `dbg.js` | 调试埋点（仅 debug 构建存活）：stat 计数、testHook、`acsv-stats` localStorage 镜像 |
 | `nav.js` / `uppage.js` | 导航入口注入；UP 主空间页小视频标签 |
@@ -347,7 +348,7 @@ flowchart LR
     ubb["ubb.js（UBB：评论渲染/IM wire/引用富正文）"]
     emoticon["emoticon.js（表情）"]
     playlayer["playlayer.js（播放层·子视图 play）"]
-    others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · interact · report · uppage · nav · upload · release"]
+    others["controls · slide · rail · input · prewarm · danmaku · dmcanvas · interact · report · watchledger · uppage · nav · upload · release"]
   end
 
   subgraph im["私信层"]

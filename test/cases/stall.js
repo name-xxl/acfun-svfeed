@@ -262,4 +262,84 @@ if (!!(await playUntil(0, 3.2))) {
   rec('playback-progress', false);
 }
   };
+  // ---- watch-pagehide-beacon ----
+  C['watch-pagehide-beacon'] = async function (h) {
+    var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
+      waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
+      feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
+// 0.9.87 官方同款卸载形态：pagehide 直发 sendBeacon（同端点同信封），自嗅探缓存续号。
+// 先喂一条假官方批（走 stub sendBeacon → 嗅探层缓存信封），再真实播放攒进度 → pagehide。
+// 直发回环经嗅探层解析，inc 随之推进——续号连续性由回环天然保持
+var FAKE_INC = 4242;
+navigator.sendBeacon('https://log-sdk.ksapisrv.com/rest/wd/common/log/collect/misc2?v=3.9.21&kpn=ACFUN_WEB',
+  JSON.stringify({ common: { ok: 1 }, logs: [{ client_timestamp: Date.now(), client_increment_id: FAKE_INC,
+    session_id: 's', time_zone: 'GMT+08:00',
+    event_package: { task_event: { type: 1, status: 0, operation_type: 1, operation_direction: 0,
+      session_id: 's', url_package: { page: location.href, identity: 'i', page_type: 2 },
+      element_package: { action: 'VIDEO_PAUSE', params: '{}' } } } }] }));
+function videoReady(i) {
+  var s = slide(i), v = s && s.querySelector('video');
+  return !!(s && v && v.duration > 0 && s.dataset.state !== 'error');
+}
+async function playUntil(i, minT) {
+  return !!(await waitFor(function () {
+    var v = slide(i) && slide(i).querySelector('video');
+    if (!v || !(v.duration > 0)) return false;
+    if (v.paused && v.play) { try { v.play().catch(function () { }); } catch (e) { } }
+    return v.currentTime >= minT;
+  }, 20000));
+}
+rec('feed-up', !!(await waitFor(function () { return feed() && feed().items.length > 0; }, 15000)));
+rec('first-media-ready', !!(await waitFor(function () { return videoReady(0); }, 25000)));
+if (!!(await playUntil(0, 3.2))) {
+  var n0 = window.__BEACON_CALLS.length; // =1（假批）
+  var t0 = Math.floor(slide(0).querySelector('video').currentTime);
+  window.dispatchEvent(new Event('pagehide')); // 同步：直发在本行内完成
+  rec('beacon-sent', window.__BEACON_CALLS.length === n0 + 1,
+    'beacons=' + window.__BEACON_CALLS.length);
+  var mine = JSON.parse(window.__BEACON_CALLS[window.__BEACON_CALLS.length - 1].body);
+  rec('envelope-common', !!(mine.common && mine.common.ok === 1)); // 嗅探缓存里的官方 common 原样
+  var log = mine.logs[0];
+  rec('envelope-inc', log.client_increment_id === FAKE_INC + 1, 'inc=' + log.client_increment_id); // 续号连续性
+  rec('envelope-ts', Math.abs(Date.now() - log.client_timestamp) < 10000, 'ts=' + log.client_timestamp);
+  var ep = log.event_package.task_event.element_package;
+  rec('envelope-action', ep.action === 'CLIENT_BROWSE_HISTORY');
+  var p = JSON.parse(ep.params);
+  rec('envelope-params', p.ac_id === String(feed().items[feed().current].id)
+    && p.playedSeconds === t0 && p.bangumiItemId === null && p.resourceTypeCode === 2,
+    'want=' + t0 + ' got=' + JSON.stringify(p));
+  // 同秒位去重：进度未推进的重复 pagehide 不重发
+  window.dispatchEvent(new Event('pagehide'));
+  rec('beacon-deduped', window.__BEACON_CALLS.length === n0 + 1,
+    'beacons=' + window.__BEACON_CALLS.length);
+} else {
+  rec('playback-progress', false);
+}
+  };
+  // ---- watch-ledger-replay ----
+  C['watch-ledger-replay'] = async function (h) {
+    var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
+      waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
+      feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
+// 0.9.87 崩溃补报对账：bundle 求值前 harness 预置账本（见 harness.html）——页面级新鲜加载
+// 即"崩溃后重启"语义（崩溃路径本身模拟不了，模块 init 读账就是重启）。init 读账 → 差量
+// 补发（官方事件形态）→ 清账。488901 账平、488902 过 TTL：不补且清洗后从账上消失（不养僵尸）
+function replayCount() { return TEST.getStats()['report-watch-replay'] || 0; }
+rec('replay-sent', !!(await waitFor(function () { return replayCount() >= 1; }, 15000)),
+  'replay=' + replayCount());
+var last = window.__WL_CALLS[window.__WL_CALLS.length - 1] || {};
+var rp = last.payload || null;
+rec('replay-params', !!rp && rp.action === 'CLIENT_BROWSE_HISTORY' && rp.params
+  && rp.params.ac_id === '488900' && rp.params.atom_id === '21005858'
+  && rp.params.playedSeconds === 42 && rp.params.bangumiItemId === null,
+  JSON.stringify(rp && rp.params || null));
+rec('replay-only-delta', replayCount() === 1, 'n=' + replayCount()); // 账平/TTL 条目不补
+rec('ledger-cleaned', !!(await waitFor(function () {
+  try {
+    var raw = localStorage.getItem('acsvWatchLedger');
+    var m = raw ? JSON.parse(raw) : {};
+    return !m['488900:21005858'] && !m['488901:21005859'] && !m['488902:21005860'];
+  } catch (e) { return false; }
+}, 5000)), 'raw=' + localStorage.getItem('acsvWatchLedger'));
+  };
 })();

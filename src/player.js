@@ -9,7 +9,7 @@ import { isOpenComments, closeComments, openComments, commentState, syncCommentV
 import { onPlaying as dmOnPlaying, stopAll as dmStopAll } from './danmaku.js';
 import { UpVideos } from './uppage.js';
 import { dbg, testHook } from './dbg.js';
-import { reportLeave, reportLeaveCurrent } from './report.js';
+import { markWatchProgress, reportLeave, reportLeaveCurrent } from './report.js';
 import { prewarm, preconnectSeed } from './prewarm.js';
 import { pb, playVideo, showSoundHint, resetForMount, cancelSeekHold, offCurrent } from './playback.js';
 import { attachVideo, switchQuality, setSessionHooks } from './attach.js';
@@ -97,15 +97,8 @@ var SESSION_HOOKS = {
     if (slide._ctlPlayBtn) slide._ctlPlayBtn.innerHTML = ICONS.pause;
     showControls(slide);
     dmOnPlaying(slide, item, video);
-    // 10s 首报兜底：关标签页时 pagehide 上报送不出去（真机实测），播放中先保底入史；
-    // 最终进度仍由离开时上报覆盖（同秒位去重，进度推进后会再报）
-    clearTimeout(slide._watchTimer);
-    slide._watchTimer = setTimeout(function () {
-      slide._watchTimer = null;
-      if (slide.isConnected && !video.paused && session.state !== 'disposed') {
-        reportLeave(session, video, 'timer');
-      }
-    }, CFG.time.watchReport);
+    // 10s 首报定时器已删（0.9.87）：其"关页送不出"的兜底职责由 pause 即报（0.9.86 官方
+    // 对齐）+ pagehide 直发（官方同款 sendBeacon，0.9.87 实测）接管，进度检查点不再依赖墙钟
   },
   onPause: function (session, video) {
     if (session.slide._ctlPlayBtn) session.slide._ctlPlayBtn.innerHTML = ICONS.play;
@@ -123,6 +116,7 @@ var SESSION_HOOKS = {
   onTime: function (session, video) {
     var slide = session.slide;
     if (!video.duration) return;
+    markWatchProgress(session, video); // 崩溃补报的落盘水位（0.9.87，内部按 CFG 节流）
     var trackEl = slide._ctlTrack;
     var draggingNow = !!trackEl && trackEl.dataset.drag === '1';
     var pct = (video.currentTime / video.duration * 100) + '%';
@@ -148,7 +142,6 @@ var SESSION_HOOKS = {
   // 不 dispose，那条路由 setActive 负责）；video 已拆但引用仍持有最终 currentTime
   // （见 session.js dispose），在此上报离开时刻的观看进度
   onDisposed: function (session, video) {
-    if (session.slide._watchTimer) { clearTimeout(session.slide._watchTimer); session.slide._watchTimer = null; }
     reportLeave(session, video, 'dispose');
   }
 };
