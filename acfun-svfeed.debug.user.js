@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.117-debug
+// @version      0.9.118-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -4274,8 +4274,17 @@
     overlayClose("comments");
     if (root) syncCommentVars();
   }
+  function ensureDrawerWired() {
+    var d = commentDrawer;
+    if (!d || d._acsvWired) return;
+    d._acsvWired = true;
+    var dclose = d.el.querySelector(".acsv-drawer-close");
+    if (dclose) dclose.addEventListener("click", closeComments);
+    if (d.list) d.list.addEventListener("click", commentListClick);
+  }
   function openComments(sourceId, stype, shareUrl, kind2) {
     if (!commentDrawer || !sourceId) return;
+    ensureDrawerWired();
     if (host) {
       var hPrev = host;
       host = null;
@@ -7608,11 +7617,9 @@
     var dtitle = el("span", null, "评论");
     var dclose = el("button", "acsv-drawer-close", "✕");
     dclose.title = "收起评论（Esc）";
-    dclose.addEventListener("click", closeComments);
     dhead.appendChild(dtitle);
     dhead.appendChild(dclose);
     var dlist = el("div", "acsv-drawer-list");
-    dlist.addEventListener("click", commentListClick);
     drawer2.appendChild(dhead);
     drawer2.appendChild(dlist);
     root.appendChild(drawer2);
@@ -8805,7 +8812,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.117" : "");
+    return normVer(true ? "0.9.118" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -10373,7 +10380,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.117：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.118：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

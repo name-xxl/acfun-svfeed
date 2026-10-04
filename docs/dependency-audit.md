@@ -68,7 +68,8 @@ feedstore.js → player.js → input.js → feedstore.js
 ## 六、方向诊断（0.9.116–0.9.117 收尾）
 
 - **0.9.116**：三条同形边（input→comments / input→imdrawer / rail→comments）全部改注入/注册缝
-  ——剩余清单收敛为 2 条（下表）。
+  ——剩余清单收敛为 2 条（下表）。**0.9.118**：`slide→comments` 走缓裁选项①（接线自附）收边
+  ——在册收敛为 1 条（data→ubb）。
 - **V3 正式关闭**：方向卫生库存 = 5 条、全部无环、消法现成——**永远不值得一座门**。幸存者 =
   `test/check-direction.mjs`（npm script `check-direction`）：每 Phase 顺手跑一次的**非门禁**
   诊断，并列两条保守口径（正式分层 / 特性域），在册项带理由、未登记项报警、永远 exit 0。
@@ -79,5 +80,5 @@ feedstore.js → player.js → input.js → feedstore.js
 
 | 遗留项 | 状态 | 候选修法 |
 |---|---|---|
-| `slide→comments` | 缓裁 | ①接线自附（`setCommentDrawer` 手柄已有，slide 建空容器+注册句柄，commentListClick/closeComments 挪进 comments 自附）——边因"slide 不再 import"而死；②登记为刻意设计（抽屉是 slide 的宿主职责） |
+| `slide→comments` | **已修（0.9.118）** | 接线自附：slide 只建空壳+注册句柄（`setCommentDrawer`）；comments 首次打开时自附关闭键/列表委托（标记打在抽屉对象上，重挂载各自绑）——边因「slide 不再 import」而死。评论列表委托分支的行为面在全仓本就零覆盖（harness 不 mock comment/list，既有缺口），自附执行由 play-deep 关闭键哨兵钉住（两处同一次调用） |
 | `data→ubb` | 待随手下沉 | 先查 `ubbPlain` 与渲染路径是否共享正则常量：共享则连正则一起沉到纯文本投影小模块，`ubb.js` 反向 import 它（下行） |

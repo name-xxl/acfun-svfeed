@@ -42,12 +42,8 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   'searchview.js', 'playlayer.js', 'settingspanel.js', 'uppage.js', 'nav.js']);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 
-// 在册项（0.9.117 首跑清单；改动须同步 docs/dependency-audit.md）
+// 在册项（0.9.118 起；改动须同步 docs/dependency-audit.md）
 const KNOWN = [
-  {
-    edge: 'slide.js -> comments.js',
-    note: '缓裁：抽屉骨架/事件接线的宿主职责——候选修法=接线自附（setCommentDrawer 手柄已有，slide 不再 import），或登记为刻意设计'
-  },
   {
     edge: 'data.js -> ubb.js',
     note: 'ubbPlain 纯逻辑寄居——随手下沉（先查其与渲染路径是否共享正则常量：共享则连正则一起沉到纯文本投影小模块，ubb.js 反向 import 它）'

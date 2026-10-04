@@ -58,8 +58,21 @@ export function closeComments() {
   if (root) syncCommentVars(); // 根类统一由 syncCommentVars 收拾（覆盖模式下可能本就没加）
 }
 
+// 抽屉接线自附（0.9.118）：slide 只建空壳+注册句柄（setCommentDrawer），关闭键与列表委托由
+// 本模块首次打开时自绑——slide 不再 import 本模块（原 slide→comments 边=buildDrawer 里那两行
+// 接线，接线自附后边死）。标记打在抽屉对象上：重挂载=新抽屉各自绑；监听器随 DOM 拆除免解绑
+function ensureDrawerWired() {
+  var d = commentDrawer;
+  if (!d || d._acsvWired) return;
+  d._acsvWired = true;
+  var dclose = d.el.querySelector('.acsv-drawer-close');
+  if (dclose) dclose.addEventListener('click', closeComments);
+  if (d.list) d.list.addEventListener('click', commentListClick);
+}
+
 export function openComments(sourceId, stype, shareUrl, kind) {
   if (!commentDrawer || !sourceId) return;
+  ensureDrawerWired(); // 0.9.118：首次打开时自附关闭键/列表委托（边 slide→comments 已收）
   // 面板/行内宿主先显式收（0.9.105：面板不再占抽屉槽，互斥改**双向显式收**——私有信抽屉
   // 场景：面板与 IM 抽屉共存（避让由 CSS 根类做），抽屉 vs 面板仍是互斥的两面宿主）
   if (host) { var hPrev = host; host = null; try { hPrev.close(); } catch (e) { } }
@@ -280,8 +293,9 @@ function toggleCommentLike(like) {
 
 // ---- 评论配图大图查看器：0.9.41 迁出为 imgview.js（评论/私信共用），此处只消费 ----
 
-// 评论列表点击统一委托：挂一次在 drawer list 上，接管所有楼层的点赞/回复/配图大图。
-// 挂载点在 slide.js 建抽屉骨架处（dlist.addEventListener('click', commentListClick)）
+// 评论列表点击统一委托：挂一次在宿主 list 上，接管所有楼层的点赞/回复/配图大图。
+// 挂载点（0.9.118 起）：经典抽屉=openComments 自附（ensureDrawerWired）；行内/面板宿主
+// 由 followview/momentdetail 各自挂（宿主自洽，不变）
 export function commentListClick(ev) {
   var like = ev.target.closest('.acsv-clike');
   if (like && like._c) {

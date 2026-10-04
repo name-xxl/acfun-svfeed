@@ -3,6 +3,19 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.118（2026-10-04）· slide→comments 接线自附：方向清单再收一条
+
+- **背景**：方向清单缓裁项（0.9.116 留账）。整个依赖=slide 建评论抽屉骨架时的两行接线
+  （关闭键 closeComments / 列表委托 commentListClick）。
+- **修法（缓裁选项①：接线自附）**：slide 只建空壳 + 注册句柄（setCommentDrawer 现成，
+  0.9.48 建）；comments.js 首次打开抽屉时经句柄自绑两处监听（标记打在抽屉对象上——重挂载
+  =新抽屉各自绑；监听器随 DOM 拆除，无需解绑）。slide 删 comments import——边死。
+  commentListClick 保持导出（followview/momentdetail 的行内/面板宿主各自挂，不变）。
+- **测试**：check-deps 无图边可删（slide 在 others 聚合、本就免画）；check-direction 在册
+  2 条 → 1 条（剩 data→ubb）；play-deep +2 断言（play-drawer-close-btn 钉自附执行——两处
+  绑定同一次调用；play-comments-reopen 铺路）。评论列表委托分支的行为面在全仓本就零覆盖
+  （harness 不 mock comment/list，既有缺口非本片引入，已如实登记 docs）。单测 194 + 42 场景全绿。
+
 ### 0.9.117（2026-10-04）· 方向诊断 check-direction（V3 关闭后的幸存者）
 
 - **背景**：V3（@family + check-taxonomy 方向规则）经审计关闭——「规则的上游是口径，口径不定，

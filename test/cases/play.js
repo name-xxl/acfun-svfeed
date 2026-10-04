@@ -121,6 +121,19 @@ rec('play-key-comments', !!(await waitFor(function () {
   return !!r && r.classList.contains('acsv-with-comments') && !!d && d.classList.contains('open')
     && !!cs && String(cs.sourceId) === '488900';
 }, 6000)), JSON.stringify(TEST.call('comments')));
+// 抽屉接线自附（0.9.118）：关闭键由 comments 首次打开时自绑（不再由 slide 建壳时挂）——
+// 点击必须能关（哨兵：自附未执行=静默死键；列表委托与之同一次自附调用，同源可证）
+var dcls = q('.acsv-drawer-close');
+if (dcls) dcls.click();
+rec('play-drawer-close-btn', !!(await waitFor(function () {
+  var r = q('#acsv-root');
+  return !!r && !r.classList.contains('acsv-with-comments');
+}, 6000)));
+key('c'); // 重开（铺路后续 c 键关闭断言）
+rec('play-comments-reopen', !!(await waitFor(function () {
+  var r = q('#acsv-root');
+  return !!r && r.classList.contains('acsv-with-comments');
+}, 6000)));
 key('c');
 rec('play-key-comments-close', !!(await waitFor(function () {
   var r = q('#acsv-root');

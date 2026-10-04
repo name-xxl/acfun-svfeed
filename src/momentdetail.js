@@ -163,7 +163,7 @@ export function openMomentDetail(pi) {
   // 可滚动体 = 评论管线的 list：正文 pin 在其首（管线清列表重挂，见 comments.resetList），
   // 评论区自然衔接在正文之后——一滚到底的整页阅读，不做双滚动区
   var list = el('div', 'acsv-mdetail-list');
-  list.addEventListener('click', commentListClick); // 点赞/回复/转发/配图大图委托（slide.js 同款挂法）
+  list.addEventListener('click', commentListClick); // 点赞/回复/转发/配图大图委托（经典抽屉同款委托；宿主各自挂，0.9.118 起抽屉侧自附）
   var pin = el('div', 'acsv-cpin');
   var textSlot = el('div', 'acsv-mdetail-textwrap');
   pin.appendChild(textSlot);

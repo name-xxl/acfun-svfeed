@@ -51,7 +51,7 @@ function toggleInlineComments(pi, btn, cmt) {
   var row = btn.closest('.acsv-frow');
   var box = el('div', 'acsv-frow-cmts');
   var list = el('div', 'acsv-frow-cmtlist');
-  list.addEventListener('click', commentListClick); // 行内点赞/回复/配图大图委托（slide 同款挂法）
+  list.addEventListener('click', commentListClick); // 行内点赞/回复/配图大图委托（经典抽屉同款委托；宿主各自挂，0.9.118 起抽屉侧自附）
   box.appendChild(list);
   var acts = btn.parentNode;
   if (acts.nextSibling) row.insertBefore(box, acts.nextSibling);

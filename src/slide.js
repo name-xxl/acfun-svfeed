@@ -6,7 +6,6 @@ import { togglePlayGesture } from './playback.js';
 import { attachVideo } from './attach.js';
 import { buildControls, showControls } from './controls.js';
 import { buildSideRail, syncMetaUp } from './rail.js';
-import { closeComments, commentListClick } from './comments.js';
 
 // ---------- 单条 slide 的构建 ----------
 // buildSlide 把控制栏（controls.js）、右侧栏（rail.js）、信息区拼成一个 slide；
@@ -82,18 +81,17 @@ function onSlideTap(ev) {
   togglePlayGesture(slide.querySelector('video'));
 }
 
-// 评论抽屉骨架（挂载时构建一次；列表点击统一委托在 list 上）
+// 评论抽屉骨架（挂载时构建一次；**只建空壳 + 注册句柄**——关闭键/列表委托由 comments.js
+// 首次打开时经 setCommentDrawer 句柄自附，0.9.118 接线自附；本模块不再 import 评论域）
 export function buildDrawer() {
   var drawer = el('aside', 'acsv-drawer');
   var dhead = el('div', 'acsv-drawer-head');
   var dtitle = el('span', null, '评论');
   var dclose = el('button', 'acsv-drawer-close', '✕');
   dclose.title = '收起评论（Esc）';
-  dclose.addEventListener('click', closeComments);
   dhead.appendChild(dtitle);
   dhead.appendChild(dclose);
   var dlist = el('div', 'acsv-drawer-list');
-  dlist.addEventListener('click', commentListClick);
   drawer.appendChild(dhead);
   drawer.appendChild(dlist);
   root.appendChild(drawer);
