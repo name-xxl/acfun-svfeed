@@ -53,6 +53,16 @@ function addAmAnchor(row, pi) {
   row.appendChild(a);
 }
 
+// 入口选中态（0.9.131 真机实报修复「选中后字体样式和原生不一致」）：此前自绘 .acsv-mnav-active
+// （色 #ff4b76、字重 600）与原生不同——真机量取原生选中项（粉丝列表/关注动态）是**站点自己的
+// 类**在管：色 #FD4C5D、字重不变(400)。改为**镜像原生 active 类名**，样式由站点样式表原样接管
+//（含 hover），一致性由构造保证；开=加 / 收=撤 / 悬空复位=撤，单源在此
+var ACTIVE_CLASSES = ['router-link-exact-active', 'ac-member-navigation-item-active'];
+function setActive(on) {
+  if (!itemEl || !itemEl.isConnected) return;
+  ACTIVE_CLASSES.forEach(function (c) { itemEl.classList.toggle(c, !!on); });
+}
+
 // ---------- 就地展开/收回 ----------
 function openPlaza() {
   if (mpRoot) return true;
@@ -73,7 +83,7 @@ function openPlaza() {
     onOpen: noop,       // 原页语义（plaza 行点击无动作）：不穿越深色详情面板；互动/评论/配图照常
     onRow: addAmAnchor
   });
-  if (itemEl) itemEl.classList.add('acsv-mnav-active');
+  if (itemEl) setActive(true);
   if (promoEl) promoEl.style.display = 'none';
   return true;
 }
@@ -87,7 +97,7 @@ function closePlaza() {
   root.remove();
   hiddenNative.forEach(function (p) { p[0].style.display = p[1]; });
   hiddenNative = [];
-  if (itemEl && itemEl.isConnected) itemEl.classList.remove('acsv-mnav-active');
+  setActive(false);
   if (promoEl && promoEl.isConnected) promoEl.style.display = '';
 }
 
@@ -102,7 +112,7 @@ function dropStaleState() {
   hiddenNative.forEach(function (p) { p[0].style.display = p[1]; });
   hiddenNative = [];
   pendingOpen = false;
-  if (itemEl && itemEl.isConnected) itemEl.classList.remove('acsv-mnav-active');
+  setActive(false);
   if (promoEl && promoEl.isConnected) promoEl.style.display = '';
 }
 

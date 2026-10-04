@@ -1134,9 +1134,10 @@ var RAW_CSS = ''
   + '.acsv-mp .acsv-gquote-textbody{color:#333}'
   // am 号锚（plaza 原物，memberplaza 行后处理挂上）：行右上角
   + '.acsv-mp-am{position:absolute;top:6px;right:0;font-size:12px;color:#bbb;text-decoration:none}'
-  + '.acsv-mp-am:hover{color:var(--acsv-accent)}'
-  // 注入件：成员导航「动态广场」项展开期 active 态（原生浅色）
-  + '.acsv-mnav-active{color:#ff4b76!important;font-weight:600}';
+  + '.acsv-mp-am:hover{color:var(--acsv-accent)}';
+  // 「动态广场」入口选中态自绘样式于 0.9.131 撤除（真机实报「选中后字体样式和原生不一致」）：
+  // 改为镜像原生 active 类名（router-link-exact-active/ac-member-navigation-item-active），
+  // 样式由站点样式表原样接管——见 memberplaza.setActive
 
 // 主题色收敛：RAW_CSS 中的 #fd4c5d 全部替换为 CSS 变量，:root 上定义唯一来源
 // --acsv-dw-t（0.9.75 单源）：抽屉滑入/滑出与所有"让位"过渡共用同一时长——

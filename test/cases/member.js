@@ -82,6 +82,13 @@
     }, 8000)), 'rows=' + document.querySelectorAll('.acsv-mp .acsv-frow').length);
     rec('mp-native-hidden', q('#mp-hd-native').style.display === 'none');
     rec('mp-still-no-shell', q('#acsv-root') === null);
+    // 入口选中态=镜像原生 active 类名（0.9.131 实报「选中后字体样式和原生不一致」修复：
+    // 自绘 #ff4b76/600 撤除，样式交站点样式表接管）
+    rec('mp-nav-active', (function () {
+      var it = q('[data-acsv-mnav]');
+      return !!it && it.classList.contains('ac-member-navigation-item-active')
+        && it.classList.contains('router-link-exact-active');
+    })());
     // 浅色皮肤生效：行名 computed 色 = 原生 #333（深色皮肤是 #57a9f5）
     rec('mp-skin-name', (function () {
       var n = q('.acsv-mp .acsv-frow-name');
@@ -138,6 +145,10 @@
     rec('mp-close-restore', !!(await waitFor(function () {
       return !q('.acsv-mp') && q('#mp-hd-native').style.display !== 'none';
     }, 5000)));
+    rec('mp-nav-active-off', (function () {
+      var it = q('[data-acsv-mnav]');
+      return !!it && !it.classList.contains('ac-member-navigation-item-active');
+    })());
     rec('mp-banner-back', (function () {
       var b = q('[data-acsv-mpromo]');
       return !!b && b.style.display !== 'none';
