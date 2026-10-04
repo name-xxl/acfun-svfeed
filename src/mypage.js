@@ -119,272 +119,69 @@ function buildHistory(panel) {
   load();
 }
 
-// ---- 收藏夹：夹 chips（列表之上）→ 单夹 dougaList 翻页；**0.9.143 管理化** ----
-// 管理面：＋新建夹 / 组头「改名·删除收藏夹」（删除二次确认——**连带移除仅存于该夹的收藏记录**，
-// 2026-10-04 隔离实测在册）+ 卡面 hover「移动 / 移除收藏」两键。读链走 favapi（folderList 带
-// inFolder 是选择层专用，本页只用夹表与 dougaList）；夹 id/名一律字符串。
-// 骨架沿用 0.9.77 的 moreBtn 回调驱动与 seq 令牌（换夹/删夹丢弃在途回包）。
-function buildFav(panel) {
+// ---- 管理 tab 壳（0.9.150 抽件）：chips（[全部?]＋各档＋「＋ 新建」）+ 组头操作（改名/删除，sys 档豁免）
+// + 内联表单（新建/改名共用）+ 列表 + moreBtn 翻页 + 选中/刷新骨架 ----
+// 由头（0.9.148 审计）：`buildFav` 与 `buildFollowGroups` 此前是同形副本（各约百行，差异只有数据源/
+// 校验/文案），违背理念 3「同形副本必漂移」——骨架收口到本壳。**仍作我页局部工厂**（单一消费面；
+// 出现第三个消费方再提独立模块）。
+// 壳零业务：数据/文案/校验/行渲染全由 opts 注入——
+//   list            列表容器（消费方建：收藏夹=网格、分组=普通 div）；壳按 chips→ops→form→list→btn 序挂
+//   allChip/allId   有 allChip 则加「全部」档（值 = allId）
+//   addLabel        「＋ 新建 x」；delLabel「删除 x」
+//   formLabel       { placeholder, maxLen, submit:{create,rename}, created, renamed }（后两为 toast 前缀）
+//   nameError(name) 契约层校验（''=通过）
+//   loadTabs()      → Promise<[{ id, chipText, raw }]>
+//   loadPage(sel, cursor) → Promise<{ rows, noMore, nextCursor }>（分页口径自洽：收藏夹=页号递增/
+//                   分组=响应偏移量；游标由壳持有并原样交给下一拍）
+//   renderRow(row, ctx) → 元素（ctx={ list, refresh, sel() }——行内操作要用当前档与刷新）
+//   emptyText(selId)/emptyTabsText/tabsFailText/loadFailText  四种空/失败文案
+//   onCreate(name)/onRename(id,name) → Promise<id|true|null>（null=失败）
+//   delConfirm(tab, refresh) → openConfirmPop opts（确认文案与 run/done 全由消费方给）
+//   sysTab(tab)     → true 不给改名/删除（系统档）
+//   reloadOnRefresh  refresh 后是否重拉列表（收藏夹=true：计数与卡面归属要重排；分组=false：成员行原地改）
+//   firstCursor     首屏游标（缺省 0）
+function adminTab(panel, o) {
   var chips = el('div', 'acsv-vchips');
   var ops = el('div', 'acsv-gops');
   var form = el('div', 'acsv-gform');
   form.style.display = 'none';
-  panel.appendChild(chips);
-  panel.appendChild(ops);
-  panel.appendChild(form);
-  var list = rowList(panel, 'fav');
-  var btn = moreBtn(function () { load(); });
-  panel.appendChild(btn);
-  var folders = [];
-  var folderId = null, page = 0, seq = 0; // seq：换夹令牌，旧夹在途回包丢弃（0.9.77）
-
-  function curFolder() {
-    for (var i = 0; i < folders.length; i++) if (folders[i].id === folderId) return folders[i];
-    return null;
-  }
-
-  function renderChips() {
-    chips.textContent = '';
-    folders.forEach(function (f) {
-      var c = el('button', 'acsv-vchip' + (f.id === folderId ? ' on' : ''),
-        (f.name || '收藏夹') + (f.count != null ? ' ' + f.count : ''));
-      c.type = 'button';
-      c.addEventListener('click', function () {
-        if (folderId === f.id) return;
-        folderId = f.id;
-        page = 0;
-        seq++; // 作废旧夹在途回包（慢网连点换夹：旧行不得追加进新夹列表）
-        list.textContent = '';
-        btn.style.display = '';
-        btn.disabled = false;
-        btn.textContent = '加载更多';
-        renderChips();
-        load();
-      });
-      chips.appendChild(c);
-    });
-    var add = el('button', 'acsv-vchip', '＋ 新建夹');
-    add.type = 'button';
-    add.addEventListener('click', function () { openForm('create'); });
-    chips.appendChild(add);
-    renderOps();
-  }
-
-  function renderOps() {
-    ops.textContent = '';
-    var f = curFolder();
-    if (!f) return;
-    var rn = el('button', 'acsv-vchip sm', '改名');
-    rn.type = 'button';
-    rn.addEventListener('click', function () { openForm('rename', f); });
-    var del = el('button', 'acsv-vchip sm acsv-gdanger', '删除收藏夹');
-    del.type = 'button';
-    del.addEventListener('click', function () {
-      openConfirmPop(del, {
-        title: '删除收藏夹',
-        text: '「' + f.name + '」及其中收藏会一并移除（视频本身不受影响，不可恢复）。',
-        okLabel: '删除',
-        run: function () { return folderDelete(f.id); },
-        done: function () { toast('已删除收藏夹：' + f.name); folderId = null; refreshFolders(); }
-      });
-    });
-    ops.appendChild(rn);
-    ops.appendChild(del);
-  }
-
-  // 建夹/改名共用内联表单（夹名正则与后端口径一致，见 data.folderNameError）
-  function openForm(mode, f) {
-    form.textContent = '';
-    form.style.display = '';
-    var input = el('input', 'acsv-ginput');
-    input.maxLength = 40;
-    input.placeholder = '收藏夹名（1~40 字）';
-    if (mode === 'rename') input.value = f.name;
-    var ok = el('button', 'acsv-gok', mode === 'rename' ? '改名' : '新建');
-    ok.type = 'button';
-    var cancel = el('button', 'acsv-gcancel', '取消');
-    cancel.type = 'button';
-    var err = el('span', 'acsv-gerr');
-    var label = mode === 'rename' ? '改名' : '新建';
-    cancel.addEventListener('click', function () { form.style.display = 'none'; form.textContent = ''; });
-    ok.addEventListener('click', function () {
-      if (form._busy) return;
-      var name = (input.value || '').trim();
-      var msg = folderNameError(name);
-      if (msg) { err.textContent = msg; return; }
-      form._busy = true;
-      ok.textContent = '提交中…';
-      var req = mode === 'rename' ? folderRename(f.id, name) : folderAdd(name);
-      req.then(function (made) {
-        form._busy = false;
-        ok.textContent = label;
-        if (!made) { err.textContent = label + '失败（重名或未登录？）'; return; }
-        form.style.display = 'none';
-        form.textContent = '';
-        toast(mode === 'rename' ? '已改名：' + name : '已新建收藏夹：' + name);
-        // 新建：选中新夹（id 来自响应 data.folderId）；改名：停在原夹
-        if (mode === 'create') folderId = String(made);
-        refreshFolders();
-      }, function () {
-        form._busy = false;
-        ok.textContent = label;
-        err.textContent = '操作失败（未登录？）';
-      });
-    });
-    form.appendChild(input);
-    form.appendChild(ok);
-    form.appendChild(cancel);
-    form.appendChild(err);
-    input.focus();
-  }
-
-  // 夹表刷新（建/改名/删/移动/移除后——计数与选中态都要跟着动）；当前夹没了回落第一个
-  function refreshFolders() {
-    return folderList().then(function (fs) {
-      if (!list.isConnected) return;
-      folders = fs;
-      if (!curFolder()) folderId = folders.length ? folders[0].id : null;
-      renderChips();
-      if (!folders.length) {
-        list.textContent = '';
-        list.appendChild(el('div', 'acsv-vempty', '还没有收藏夹'));
-        btn.style.display = 'none';
-        return;
-      }
-      page = 0;
-      seq++;
-      list.textContent = '';
-      btn.style.display = '';
-      btn.disabled = false;
-      btn.textContent = '加载更多';
-      load();
-    }, function () {
-      if (!list.isConnected) return;
-      list.textContent = '';
-      list.appendChild(el('div', 'acsv-vempty', '收藏夹加载失败'));
-      btn.style.display = 'none';
-    });
-  }
-
-  // 卡面 + hover 管理键（移动=调整收藏夹弹层；移除=二次确认）——wrapper 是网格项，卡面照常进
-  function favCell(pi) {
-    var box = el('div', 'acsv-favcell');
-    box.appendChild(gridCardOf(pi));
-    var acts = el('div', 'acsv-favacts');
-    var mv = el('button', 'acsv-vchip sm', '移动');
-    mv.type = 'button';
-    mv.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      openFavFolderPop(mv, {
-        acId: pi.acId, favorited: true, title: '调整收藏夹',
-        done: function (res) {
-          // 本夹被取消勾选（或整条移除）→ 该卡不再属于当前列表：摘除；否则原地留（夹计数刷新）
-          // 契约由 favpop 保证：done 回 { favorited, ids }（0.9.148 实锤——旧契约只回 favorited 时
-          // 这里抛 TypeError、卡不摘除且夹计数不刷新）。**刻意不做 `|| []` 容错**：缺 ids 即契约破坏，
-          // 由 harness ff-move-refresh 钉住（容错会把该缺陷掩盖成"删了卡"）
-          if (!res.ids.length || res.ids.indexOf(String(folderId)) < 0) box.remove();
-          refreshFolders();
-        }
-      });
-    });
-    var rm = el('button', 'acsv-vchip sm', '移除收藏');
-    rm.type = 'button';
-    rm.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      openConfirmPop(rm, {
-        title: '移除收藏',
-        text: '把「' + (pi.title || '这条视频') + '」从所有收藏夹移除？',
-        okLabel: '移除',
-        run: function () { return favRemove(pi.acId, [folderId]); },
-        done: function () { toast('已移除收藏'); box.remove(); refreshFolders(); }
-      });
-    });
-    acts.appendChild(mv);
-    acts.appendChild(rm);
-    box.appendChild(acts);
-    return box;
-  }
-
-  var gone = skeleton(list);
-  refreshFolders().then(gone);
-
-  function load() {
-    if (!folderId) { // 夹列表未到（按钮先于数据可见）：复位按钮，不发废请求
-      btn.disabled = false;
-      btn.textContent = '加载更多';
-      return;
-    }
-    var my = ++seq;
-    favList(folderId, page + 1) // 收藏域读链收口 favapi（0.9.148：此前视图自拼查询串，IO 一分为二）
-      .then(function (j) {
-        if (my !== seq || !list.isConnected) return; // 过期/退出视图：在途回包丢弃
-        page++;
-        btn.disabled = false;
-        btn.textContent = '加载更多';
-        var rows = [];
-        ((j && j.favoriteList) || []).forEach(function (raw) {
-          var pi = panelItem('fav', raw);
-          if (pi) rows.push(pi);
-        });
-        rows.forEach(function (pi) { list.appendChild(favCell(pi)); });
-        // total 对照判定到底（favoriteList 与 folder/info 的 resourceCount 自洽，§4.2 实测）
-        if ((j && rows.length < CFG.view.pageSize) || !rows.length) btn.style.display = 'none';
-        if (!rows.length && page === 1) list.appendChild(el('div', 'acsv-vempty', '这个夹还没有收藏'));
-      }, function () {
-        if (my !== seq || !list.isConnected) return;
-        btn.disabled = false;
-        btn.textContent = '加载失败，点击重试';
-      });
-  }
-}
-
-// ---- 关注分组（0.9.142）：组 chips（全部/各分组）+ 建/改名/删 + 成员列表（移组/取关）----
-// 读链走 relationapi（getGroups / listFollows action=9 组内·7 全部）；**游标是偏移量**
-//（与 feed 域毫秒时间戳不同源，relationapi 内收口，别在这里另拼）。成员行自带 groupId/
-// groupName（真机实测 §2.3），"全部"视图里直接显归属标签。系统组（未分组 id="0"、保留名
-// "特别关注"）不给改名/删除（站方语义：未分组不可删）。**分组不动关注流内容**——服务端
-// followFeedV2 不吃 groupId（2026-10-04 实测参数被忽略），所以关注视图无分组 chips，
-// 分组只在这里做"关系管理"（建/删/改名/移组/取关）。
-function buildFollowGroups(panel) {
-  var chips = el('div', 'acsv-vchips');
-  var ops = el('div', 'acsv-gops');
-  var form = el('div', 'acsv-gform');
-  form.style.display = 'none';
-  var list = el('div', 'acsv-glist');
+  var list = o.list;
   var btn = moreBtn(function () { load(); });
   panel.appendChild(chips);
   panel.appendChild(ops);
   panel.appendChild(form);
-  panel.appendChild(list);
+  panel.appendChild(list); // 消费方可能已挂过（rowList）——appendChild 即搬移，落位统一在此
   panel.appendChild(btn);
 
-  var groups = [];
-  var cur = '-1'; // '-1' = 全部（action=7）
-  var pcursor = '';
-  var seq = 0; // 在途回包令牌：换组/视图拆（isConnected）即丢弃
+  var tabs = [];
+  var cur = o.allChip ? o.allId : null;
+  var cursor = o.firstCursor || 0;
+  var seq = 0; // 在途回包令牌：换档/视图拆（isConnected）即丢弃
   var loading = false;
   var done = false;
+  var started = false; // 是否已完成首拉（首进 refresh 要 select 一次把列表带起来）
 
-  function sysGroup(g) { return g.id === '0' || g.name === '特别关注'; }
-  function groupOf(id) {
-    for (var i = 0; i < groups.length; i++) if (groups[i].id === id) return groups[i];
+  function tabOf(id) {
+    for (var i = 0; i < tabs.length; i++) if (tabs[i].id === id) return tabs[i];
     return null;
   }
+  function resetBtn() { btn.style.display = ''; btn.disabled = false; btn.textContent = '加载更多'; }
 
   function renderChips() {
     chips.textContent = '';
-    var all = el('button', 'acsv-vchip' + (cur === '-1' ? ' on' : ''), '全部');
-    all.type = 'button';
-    all.addEventListener('click', function () { select('-1'); });
-    chips.appendChild(all);
-    groups.forEach(function (g) {
-      var c = el('button', 'acsv-vchip' + (cur === g.id ? ' on' : ''),
-        g.name + (g.count != null ? ' ' + g.count : ''));
+    if (o.allChip) {
+      var all = el('button', 'acsv-vchip' + (cur === o.allId ? ' on' : ''), o.allChip);
+      all.type = 'button';
+      all.addEventListener('click', function () { select(o.allId); });
+      chips.appendChild(all);
+    }
+    tabs.forEach(function (t) {
+      var c = el('button', 'acsv-vchip' + (cur === t.id ? ' on' : ''), t.chipText);
       c.type = 'button';
-      c.addEventListener('click', function () { select(g.id); });
+      c.addEventListener('click', function () { select(t.id); });
       chips.appendChild(c);
     });
-    var add = el('button', 'acsv-vchip', '＋ 新建分组');
+    var add = el('button', 'acsv-vchip', o.addLabel);
     add.type = 'button';
     add.addEventListener('click', function () { openForm('create'); });
     chips.appendChild(add);
@@ -393,57 +190,51 @@ function buildFollowGroups(panel) {
 
   function renderOps() {
     ops.textContent = '';
-    var g = groupOf(cur);
-    if (!g || sysGroup(g)) return;
+    var t = tabOf(cur);
+    if (!t || (o.sysTab && o.sysTab(t))) return;
     var rn = el('button', 'acsv-vchip sm', '改名');
     rn.type = 'button';
-    rn.addEventListener('click', function () { openForm('rename', g); });
-    var del = el('button', 'acsv-vchip sm acsv-gdanger', '删除分组');
+    rn.addEventListener('click', function () { openForm('rename', t); });
+    var del = el('button', 'acsv-vchip sm acsv-gdanger', o.delLabel);
     del.type = 'button';
     del.addEventListener('click', function () {
-      openConfirmPop(del, {
-        title: '删除分组',
-        text: '「' + g.name + '」里的成员会移到「未分组」，关注关系不变。',
-        okLabel: '删除',
-        run: function () { return removeGroup(g.id); },
-        done: function () { toast('已删除分组：' + g.name); refreshGroups('-1'); }
-      });
+      openConfirmPop(del, o.delConfirm(t, refresh));
     });
     ops.appendChild(rn);
     ops.appendChild(del);
   }
 
-  // 建组/改名共用的内联表单（不弹层：管理页本来就是"编辑态"，原地输入最轻）
-  function openForm(mode, g) {
+  // 新建/改名共用内联表单（不弹层：管理页本来就是"编辑态"，原地输入最轻）
+  function openForm(mode, t) {
     form.textContent = '';
     form.style.display = '';
     var input = el('input', 'acsv-ginput');
-    input.maxLength = 8;
-    input.placeholder = '分组名（1~8 字）';
-    if (mode === 'rename') input.value = g.name;
-    var ok = el('button', 'acsv-gok', mode === 'rename' ? '改名' : '新建');
+    input.maxLength = o.formLabel.maxLen;
+    input.placeholder = o.formLabel.placeholder;
+    if (mode === 'rename') input.value = t.raw.name;
+    var label = o.formLabel.submit[mode];
+    var ok = el('button', 'acsv-gok', label);
     ok.type = 'button';
     var cancel = el('button', 'acsv-gcancel', '取消');
     cancel.type = 'button';
     var err = el('span', 'acsv-gerr');
-    var label = mode === 'rename' ? '改名' : '新建';
     cancel.addEventListener('click', function () { form.style.display = 'none'; form.textContent = ''; });
     ok.addEventListener('click', function () {
       if (form._busy) return;
       var name = (input.value || '').trim();
-      var msg = groupNameError(name);
+      var msg = o.nameError(name);
       if (msg) { err.textContent = msg; return; }
       form._busy = true;
       ok.textContent = '提交中…';
-      var req = mode === 'rename' ? renameGroup(g.id, name) : createGroup(name);
+      var req = mode === 'rename' ? o.onRename(t.id, name) : o.onCreate(name);
       req.then(function (made) {
         form._busy = false;
         ok.textContent = label;
         if (!made) { err.textContent = label + '失败（重名或未登录？）'; return; }
         form.style.display = 'none';
         form.textContent = '';
-        toast(mode === 'rename' ? '已改名：' + name : '已新建分组：' + name);
-        refreshGroups(mode === 'rename' ? undefined : String(made));
+        toast((mode === 'rename' ? o.formLabel.renamed : o.formLabel.created) + name);
+        refresh(mode === 'create' ? String(made) : undefined); // 新建跳新档；改名停在原档
       }, function () {
         form._busy = false;
         ok.textContent = label;
@@ -459,34 +250,188 @@ function buildFollowGroups(panel) {
 
   function select(id) {
     cur = id;
-    pcursor = '';
+    started = true;
+    cursor = o.firstCursor || 0;
     seq++;
     loading = false;
     done = false;
     list.textContent = '';
-    btn.style.display = '';
-    btn.disabled = false;
-    btn.textContent = '加载更多';
+    resetBtn();
     renderChips();
     load();
   }
 
-  // 组表刷新（建/改名/删/移组/取关后都要——计数要跟着动）：nextSel 给了就跳过去（新建/删组后）
-  function refreshGroups(nextSel) {
-    return getGroups().then(function (gs) {
+  // 档表刷新（建/改名/删/移组/取关后——计数与选中态都要跟着动）；nextSel 给了就跳过去（新建/删组后）
+  function refresh(nextSel) {
+    return o.loadTabs().then(function (ts) {
       if (!list.isConnected) return;
-      groups = gs;
+      tabs = ts;
       if (nextSel !== undefined) { select(nextSel); return; }
-      if (cur !== '-1' && !groupOf(cur)) { select('-1'); return; } // 当前组没了（被删）
+      if (!tabs.length) { // 无档（收藏夹被删空）：空态 + 收按钮
+        chips.textContent = '';
+        ops.textContent = '';
+        list.textContent = '';
+        list.appendChild(el('div', 'acsv-vempty', o.emptyTabsText));
+        btn.style.display = 'none';
+        return;
+      }
+      // 「全部」是伪档（不在 tabs 里）——不算失效；其余当前档查无（被删/首进）才回落
+      var curValid = o.allChip ? (cur === o.allId || !!tabOf(cur)) : !!tabOf(cur);
+      if (cur === null || !curValid) {
+        select(o.allChip ? o.allId : tabs[0].id);
+        return;
+      }
+      // 首进（列表还没起来）或需重拉：走 select（含 renderChips + load）；否则只重画 chips
+      // （分组=成员行原地改，不重拉；收藏夹 reloadOnRefresh=true 走上面这条）
+      if (!started || o.reloadOnRefresh) { select(cur); return; }
       renderChips();
     }, function () {
       if (!list.isConnected) return;
-      chips.textContent = '';
-      ops.textContent = '';
+      if (list.children.length) return; // 已有内容：静默（计数可能略旧，下一拍再刷）
+      list.textContent = '';
+      list.appendChild(el('div', 'acsv-vempty', o.tabsFailText));
+      btn.style.display = 'none';
     });
   }
 
-  function memberRow(u) {
+  function load() {
+    if (loading || done) return;
+    if (cur == null) { resetBtn(); return; } // 档表未到（按钮先于数据可见）：不发废请求
+    loading = true;
+    var my = ++seq;
+    o.loadPage(cur, cursor).then(function (p) {
+      if (my !== seq || !list.isConnected) return; // 过期/退出视图：在途回包丢弃
+      loading = false;
+      var added = 0;
+      (p.rows || []).forEach(function (r) { list.appendChild(o.renderRow(r, ctx)); added++; });
+      cursor = p.nextCursor;
+      if (p.noMore) { done = true; btn.style.display = 'none'; } else resetBtn();
+      if (!added && !list.children.length) list.appendChild(el('div', 'acsv-vempty', o.emptyText(cur)));
+    }, function () {
+      if (my !== seq || !list.isConnected) return;
+      loading = false;
+      btn.disabled = false;
+      btn.textContent = o.loadFailText;
+    });
+  }
+
+  var ctx = {
+    list: list,
+    refresh: refresh,
+    sel: function () { return cur; }
+  };
+  return { refresh: refresh, select: select, list: list, chips: chips, btn: btn };
+}
+
+// ---- 收藏夹 tab（0.9.143 管理化；0.9.150 骨架交 adminTab 壳）----
+// 管理面：＋新建夹 / 组头「改名·删除收藏夹」（删除二次确认——**连带移除仅存于该夹的收藏记录**，
+// 2026-10-04 隔离实测在册）+ 卡面 hover「移动 / 移除收藏」两键。读链走 favapi（folderList 带
+// inFolder 是选择层专用，本页只用夹表与 favList）；夹 id/名一律字符串。
+// reloadOnRefresh=true：夹表一变（建/删/改名/移动/移除）计数与卡面归属都要重排 ⇒ 重拉列表。
+function buildFav(panel) {
+  var list = rowList(panel, 'fav');
+  var sk = skeleton(list);
+
+  // 卡面 + hover 管理键（移动=调整收藏夹弹层；移除=二次确认）——wrapper 是网格项，卡面照常进
+  function favCell(pi, ctx) {
+    var box = el('div', 'acsv-favcell');
+    box.appendChild(gridCardOf(pi));
+    var acts = el('div', 'acsv-favacts');
+    var mv = el('button', 'acsv-vchip sm', '移动');
+    mv.type = 'button';
+    mv.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      openFavFolderPop(mv, {
+        acId: pi.acId, favorited: true, title: '调整收藏夹',
+        done: function (res) {
+          // 本夹被取消勾选（或整条移除）→ 该卡不再属于当前列表：摘除；否则原地留（夹计数刷新）
+          // 契约由 favpop 保证：done 回 { favorited, ids }（0.9.148 实锤——旧契约只回 favorited 时
+          // 这里抛 TypeError、卡不摘除且夹计数不刷新）。**刻意不做 `|| []` 容错**：缺 ids 即契约破坏，
+          // 由 harness ff-move-refresh 钉住（容错会把该缺陷掩盖成"删了卡"）
+          if (!res.ids.length || res.ids.indexOf(String(ctx.sel())) < 0) box.remove();
+          ctx.refresh();
+        }
+      });
+    });
+    var rm = el('button', 'acsv-vchip sm', '移除收藏');
+    rm.type = 'button';
+    rm.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      openConfirmPop(rm, {
+        title: '移除收藏',
+        text: '把「' + (pi.title || '这条视频') + '」从所有收藏夹移除？',
+        okLabel: '移除',
+        run: function () { return favRemove(pi.acId, [ctx.sel()]); },
+        done: function () { toast('已移除收藏'); box.remove(); ctx.refresh(); }
+      });
+    });
+    acts.appendChild(mv);
+    acts.appendChild(rm);
+    box.appendChild(acts);
+    return box;
+  }
+
+  var tab = adminTab(panel, {
+    list: list,
+    allChip: null, // 收藏夹无「全部」档
+    addLabel: '＋ 新建夹',
+    delLabel: '删除收藏夹',
+    formLabel: {
+      placeholder: '收藏夹名（1~40 字）', maxLen: 40,
+      submit: { create: '新建', rename: '改名' },
+      created: '已新建收藏夹：', renamed: '已改名：'
+    },
+    nameError: folderNameError,
+    reloadOnRefresh: true,
+    emptyTabsText: '还没有收藏夹',
+    tabsFailText: '收藏夹加载失败',
+    loadFailText: '加载失败，点击重试',
+    loadTabs: function () {
+      return folderList().then(function (fs) {
+        return fs.map(function (f) {
+          return { id: f.id, chipText: (f.name || '收藏夹') + (f.count != null ? ' ' + f.count : ''), raw: f };
+        });
+      });
+    },
+    loadPage: function (sel, cursor) {
+      return favList(sel, cursor + 1).then(function (j) { // 收藏夹分页=页号（1 起）
+        var rows = [];
+        ((j && j.favoriteList) || []).forEach(function (raw) {
+          var pi = panelItem('fav', raw);
+          if (pi) rows.push(pi);
+        });
+        // 到底判定：返回行数 < 页大小（favoriteList 与 folder/info 的 resourceCount 自洽，§4.2 实测）
+        return { rows: rows, noMore: !rows.length || rows.length < CFG.view.pageSize, nextCursor: cursor + 1 };
+      });
+    },
+    renderRow: function (pi, ctx) { return favCell(pi, ctx); },
+    emptyText: function () { return '这个夹还没有收藏'; },
+    onCreate: function (name) { return folderAdd(name); },        // → 新夹 id（响应 data.folderId）
+    onRename: function (id, name) { return folderRename(id, name); },
+    delConfirm: function (t, refresh) {
+      return {
+        title: '删除收藏夹',
+        text: '「' + t.raw.name + '」及其中收藏会一并移除（视频本身不受影响，不可恢复）。',
+        okLabel: '删除',
+        run: function () { return folderDelete(t.id); },
+        done: function () { toast('已删除收藏夹：' + t.raw.name); refresh(); }
+      };
+    }
+  });
+  tab.refresh().then(sk);
+}
+
+// ---- 关注分组 tab（0.9.142；0.9.150 骨架交 adminTab 壳）----
+// 读链走 relationapi（getGroups / listFollows action=9 组内·7 全部）；**游标是偏移量**
+//（与 feed 域毫秒时间戳不同源，relationapi 内收口）。成员行自带 groupId/groupName（真机实测 §2.3），
+// 「全部」视图里直接显归属标签。系统组（未分组 id="0"、保留名"特别关注"）不给改名/删除（站方语义：
+// 未分组不可删）。**分组不动关注流内容**——服务端 followFeedV2 不吃 groupId（2026-10-04 实测参数
+// 被忽略），所以关注视图无分组 chips，分组只在这里做"关系管理"（建/删/改名/移组/取关）。
+// reloadOnRefresh=false：成员行自带回调原地更新（移组改标签/摘行、取关摘行），重拉会覆盖成旧夹具形态。
+function buildFollowGroups(panel) {
+  var list = el('div', 'acsv-glist');
+
+  function memberRow(u, ctx) {
     var row = el('div', 'acsv-grow');
     var a = el('a', 'acsv-grow-link');
     a.href = CFG.api.userBase + u.id;
@@ -499,7 +444,7 @@ function buildFollowGroups(panel) {
     var meta = el('div', 'acsv-grow-meta');
     if (u.fans) meta.appendChild(el('span', null, '粉丝 ' + u.fans));
     if (u.contrib) meta.appendChild(el('span', null, '投稿 ' + u.contrib));
-    if (cur === '-1' && u.groupName) meta.appendChild(el('span', 'acsv-grow-tag', u.groupName));
+    if (ctx.sel() === '-1' && u.groupName) meta.appendChild(el('span', 'acsv-grow-tag', u.groupName));
     info.appendChild(meta);
     row.appendChild(info);
     var acts = el('div', 'acsv-grow-acts');
@@ -509,14 +454,14 @@ function buildFollowGroups(panel) {
       openFollowGroupPop(move, {
         uid: u.id, name: u.name, following: true, noExtra: true,
         done: function (res) {
-          if (cur !== '-1' && String(res.groupId) !== String(cur)) {
+          if (ctx.sel() !== '-1' && String(res.groupId) !== String(ctx.sel())) {
             row.remove(); // 组内视图：移走的成员即离席
-            if (!list.querySelector('.acsv-grow')) list.appendChild(el('div', 'acsv-vempty', '这个分组还没有成员'));
+            if (!ctx.list.querySelector('.acsv-grow')) ctx.list.appendChild(el('div', 'acsv-vempty', '这个分组还没有成员'));
           } else {
             var tag = meta.querySelector('.acsv-grow-tag');
             if (tag) tag.textContent = res.groupName || '';
           }
-          refreshGroups();
+          ctx.refresh();
         }
       });
     });
@@ -531,8 +476,8 @@ function buildFollowGroups(panel) {
         if (!ok) { un.textContent = '取关'; toast('操作失败（未登录？）'); return; }
         toast('已取消关注 @' + u.name);
         row.remove();
-        if (!list.querySelector('.acsv-grow')) list.appendChild(el('div', 'acsv-vempty', '还没有关注'));
-        refreshGroups();
+        if (!ctx.list.querySelector('.acsv-grow')) ctx.list.appendChild(el('div', 'acsv-vempty', '还没有关注'));
+        ctx.refresh();
       });
     });
     acts.appendChild(move);
@@ -541,39 +486,55 @@ function buildFollowGroups(panel) {
     return row;
   }
 
-  function load() {
-    if (loading || done) return;
-    loading = true;
-    var my = ++seq;
-    listFollows(cur === '-1' ? '' : cur, pcursor).then(function (page) {
-      if (my !== seq || !list.isConnected) return;
-      loading = false;
-      page.items.forEach(function (u) { list.appendChild(memberRow(u)); });
-      pcursor = page.nextCursor;
-      if (page.noMore || !page.items.length) {
-        done = true;
-        btn.style.display = 'none';
-      } else {
-        btn.disabled = false;
-        btn.textContent = '加载更多';
-      }
-      if (!list.querySelector('.acsv-grow')) {
-        list.appendChild(el('div', 'acsv-vempty', cur === '-1' ? '还没有关注' : '这个分组还没有成员'));
-      }
-    }, function () {
-      if (my !== seq || !list.isConnected) return;
-      loading = false;
-      btn.disabled = false;
-      btn.textContent = '加载失败，点击重试';
-    });
-  }
-
-  if (!selfUid()) {
+  if (!selfUid()) { // 未登录：只出提示，不拉数据
     list.appendChild(el('div', 'acsv-vempty', '登录后可管理关注分组'));
-    btn.style.display = 'none';
+    panel.appendChild(list);
     return;
   }
-  refreshGroups('-1');
+  var tab = adminTab(panel, {
+    list: list,
+    allChip: '全部', allId: '-1',
+    addLabel: '＋ 新建分组',
+    delLabel: '删除分组',
+    formLabel: {
+      placeholder: '分组名（1~8 字）', maxLen: 8,
+      submit: { create: '新建', rename: '改名' },
+      created: '已新建分组：', renamed: '已改名：'
+    },
+    nameError: groupNameError,
+    sysTab: function (t) { return t.id === '0' || t.raw.name === '特别关注'; },
+    reloadOnRefresh: false,
+    firstCursor: '', // 偏移量游标（首页空串）
+    emptyTabsText: '还没有分组',
+    tabsFailText: '分组加载失败',
+    loadFailText: '加载失败，点击重试',
+    loadTabs: function () {
+      return getGroups().then(function (gs) {
+        return gs.map(function (g) {
+          return { id: g.id, chipText: g.name + (g.count != null ? ' ' + g.count : ''), raw: g };
+        });
+      });
+    },
+    loadPage: function (sel, cursor) {
+      return listFollows(sel === '-1' ? '' : sel, cursor).then(function (page) {
+        return { rows: page.items, noMore: page.noMore, nextCursor: page.nextCursor };
+      });
+    },
+    renderRow: function (u, ctx) { return memberRow(u, ctx); },
+    emptyText: function (sel) { return sel === '-1' ? '还没有关注' : '这个分组还没有成员'; },
+    onCreate: function (name) { return createGroup(name); },      // → 新组 id（响应带，差集兜底）
+    onRename: function (id, name) { return renameGroup(id, name); },
+    delConfirm: function (t, refresh) {
+      return {
+        title: '删除分组',
+        text: '「' + t.raw.name + '」里的成员会移到「未分组」，关注关系不变。',
+        okLabel: '删除',
+        run: function () { return removeGroup(t.id); },
+        done: function () { toast('已删除分组：' + t.raw.name); refresh('-1'); }
+      };
+    }
+  });
+  tab.refresh(); // 首进：拉组表 → 回落「全部」档（allId）并载入成员
 }
 
 function buildMyView(body) {

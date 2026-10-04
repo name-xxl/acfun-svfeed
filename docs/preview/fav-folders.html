@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 收藏夹（0.9.143 追补稿）</title>
+<!-- docs/preview/fav-folders.html —— **追补稿**（2026-10-04 回画，非事前确认）：
+     0.9.143「收藏夹全闭环」在「UI 先出静态预览」规矩入册之前落地，本稿按**已出货形态**回画存档
+     （0.9.148 审计遗留项 ④ 的处置）。形态以后续代码为准；改版先改本稿。
+     覆盖：① rail 收藏键的「选择收藏夹」层（多选勾选/默认勾第一个夹/行内新建/三分支提交）
+           ② 我的页收藏夹 tab 管理化（chips/＋新建夹/改名·删除收藏夹/卡面 hover 移动·移除收藏）。
+     真实实现：src/favpop.js（选择层语义）、src/favapi.js（收藏域读写）、src/mypage.js（buildFav）。 -->
+<style>
+  :root{--accent:#fd4c5d;--t1:#fff;--t2:#cfd3da;--t3:#8a90a0;--panel:rgba(22,22,27,.97)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#000;color:var(--t1);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1240px;margin:0 auto;padding:26px 22px 70px}
+  h1{font-size:18px;font-weight:600}
+  .lead{color:var(--t3);font-size:12.5px;line-height:1.9;margin:8px 0 18px}
+  .lead b{color:var(--t2)}
+  .sec{margin:24px 0 10px;padding-top:14px;border-top:1px solid rgba(255,255,255,.09)}
+  .sec>h2{font-size:13.5px;font-weight:600;color:var(--t2)}
+  .sec>h2 em{color:var(--t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .stage{position:relative;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:16px 18px;background:#0b0d12}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:none;border-radius:16px;padding:5px 14px;font-size:13px;font-family:inherit;cursor:pointer;background:rgba(255,255,255,.1);color:var(--t2)}
+  .chip.sm{padding:4px 10px;font-size:12px}
+  .chip.on{background:var(--accent);color:#fff}
+  .chip.danger{color:#ff8a95}
+  .pop{width:224px;background:var(--panel);border:1px solid rgba(255,255,255,.12);border-radius:10px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:12.5px;display:inline-block;vertical-align:top}
+  .pop .hd{display:flex;align-items:center;padding:8px 10px 6px;font-weight:600}
+  .pop .hd .x{margin-left:auto;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.1);display:grid;place-items:center;font-size:10px}
+  .pop .bd{padding:0 5px 5px}
+  .pop .it{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;color:var(--t2)}
+  .pop .it.on{color:#fff;background:rgba(253,76,93,.16)}
+  .pop .it .t{width:12px;color:var(--accent);font-size:11px}
+  .pop .nw{padding:6px 8px;color:var(--accent);border-top:1px solid rgba(255,255,255,.08);margin-top:3px}
+  .pop .ft{display:flex;gap:6px;justify-content:flex-end;padding:7px 10px 9px}
+  .pop .ft .cc{padding:4px 12px;border-radius:14px;background:rgba(255,255,255,.12);color:var(--t2);font-size:12px}
+  .pop .ft .ok{padding:4px 14px;border-radius:14px;background:var(--accent);color:#fff;font-size:12px}
+  .pop .ft .ok.dis{opacity:.5}
+  .grid{display:grid;grid-template-columns:repeat(3,210px);gap:16px}
+  .cell{position:relative;display:flex;flex-direction:column}
+  .cover{width:100%;aspect-ratio:4/3;border-radius:10px;background:linear-gradient(140deg,#2a2f3a,#1a1e26);position:relative}
+  .cover .t{position:absolute;left:8px;bottom:8px;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,.55);font-size:12px}
+  .title{margin-top:8px;font-size:14px;color:#fff}
+  .foot{margin-top:6px;font-size:12px;color:var(--t3);display:flex;justify-content:space-between}
+  .acts{position:absolute;right:6px;top:6px;display:flex;gap:6px}
+  .acts .chip{background:rgba(0,0,0,.62);color:#fff}
+  .ops{display:flex;gap:8px;margin:12px 0}
+  .cap{font-size:12px;color:var(--t3);margin:0 0 8px}
+  .pair{display:flex;gap:24px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>收藏夹 —— 静态预览<span style="font-size:12px;color:#ffb323;margin-left:8px">追补稿（0.9.143 回画 · 非事前确认）</span></h1>
+  <p class="lead">
+    0.9.143 出货的是两处：<b>rail 收藏键的选择层</b>（多选勾选 + 行内新建 + 三分支提交：
+    新增=add / 有改动=updateFolder 差集 / 全取消=remove）与 <b>我的页收藏夹 tab 管理化</b>
+    （建夹 / 改名 / 删除收藏夹（连带移除该夹独有收藏，真机实测）/ 卡面「移动·移除收藏」）。本稿按已出货形态回画。
+  </p>
+
+  <div class="sec">
+    <h2>① rail 收藏键 →「选择收藏夹」层<em>未收藏默认勾第一个夹；已收藏回显已藏夹</em></h2>
+    <div class="pair">
+      <div>
+        <p class="cap">未收藏：默认勾「默认收藏夹」（点开即确定 ≈ 原一键收藏）</p>
+        <div class="pop">
+          <div class="hd">选择收藏夹<button class="x">✕</button></div>
+          <div class="bd">
+            <div class="it on"><span class="t">✓</span><span>默认收藏夹 (7)</span></div>
+            <div class="it"><span class="t"></span><span>AC (10)</span></div>
+            <div class="it"><span class="t"></span><span>古 (27)</span></div>
+            <div class="nw">＋ 新建收藏夹</div>
+          </div>
+          <div class="ft"><button class="cc">取消</button><button class="ok">确定</button></div>
+        </div>
+      </div>
+      <div>
+        <p class="cap">已收藏在两个夹：回显勾选 → 取消其一 = updateFolder 差集移动</p>
+        <div class="pop">
+          <div class="hd">调整收藏夹<button class="x">✕</button></div>
+          <div class="bd">
+            <div class="it on"><span class="t">✓</span><span>默认收藏夹 (7)</span></div>
+            <div class="it on"><span class="t">✓</span><span>AC (10)</span></div>
+            <div class="it"><span class="t"></span><span>古 (27)</span></div>
+            <div class="nw">＋ 新建收藏夹</div>
+          </div>
+          <div class="ft"><button class="cc">取消</button><button class="ok">确定</button></div>
+        </div>
+      </div>
+      <div>
+        <p class="cap">全部取消勾选 → 确定 = 移除收藏（remove）</p>
+        <div class="pop">
+          <div class="hd">调整收藏夹<button class="x">✕</button></div>
+          <div class="bd">
+            <div class="it"><span class="t"></span><span>默认收藏夹 (7)</span></div>
+            <div class="it"><span class="t"></span><span>AC (10)</span></div>
+            <div class="nw">＋ 新建收藏夹</div>
+          </div>
+          <div class="ft"><button class="cc">取消</button><button class="ok">确定</button></div>
+        </div>
+      </div>
+    </div>
+    <p class="cap" style="margin-top:12px">夹名校验 1~40 字（中英数下划线）；夹 CRUD（建/改名/删）在本页管理面；删夹连带移除仅存于该夹的收藏（真机隔离实测）。</p>
+  </div>
+
+  <div class="sec">
+    <h2>② 我的页收藏夹 tab 管理化<em>chips＋新建夹 / 组头改名·删除收藏夹 / 卡面 hover 两键</em></h2>
+    <div class="stage">
+      <div class="chips">
+        <button class="chip on">默认收藏夹 7</button>
+        <button class="chip">AC 10</button>
+        <button class="chip">古 27</button>
+        <button class="chip">＋ 新建夹</button>
+      </div>
+      <div class="ops">
+        <button class="chip sm">改名</button>
+        <button class="chip sm danger">删除收藏夹</button>
+        <span style="font-size:12px;color:#8a90a0;align-self:center">← 删除二次确认：「…及其中的收藏会一并移除（视频本身不受影响，不可恢复）」</span>
+      </div>
+      <div class="grid">
+        <div class="cell">
+          <div class="cover"><span class="t">看到 01:05</span></div>
+          <div class="acts"><button class="chip sm">移动</button><button class="chip sm">移除收藏</button></div>
+          <div class="title">测试收藏视频0</div>
+          <div class="foot"><span>@收藏UP</span><span>2026-09-26</span></div>
+        </div>
+        <div class="cell">
+          <div class="cover"><span class="t">看到 01:06</span></div>
+          <div class="acts"><button class="chip sm">移动</button><button class="chip sm">移除收藏</button></div>
+          <div class="title">测试收藏视频1</div>
+          <div class="foot"><span>@收藏UP</span><span>2026-09-26</span></div>
+        </div>
+      </div>
+      <p class="cap" style="margin-top:12px">卡面 hover 才显形两键（上图常显只为示意）；「移动」= 调整收藏夹层，「移除收藏」= 二次确认后从当前夹移除。</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

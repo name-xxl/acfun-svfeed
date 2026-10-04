@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 关注分组（0.9.142 追补稿）</title>
+<!-- docs/preview/follow-groups.html —— **追补稿**（2026-10-04 回画，非事前确认）：
+     0.9.142「关注分组全闭环」在「UI 先出静态预览」规矩入册（0.9.143 期间）之前落地，本稿按**已出货形态**
+     回画存档（0.9.148 审计遗留项 ④ 的处置）。形态以后续代码为准；改版先改本稿。
+     覆盖：① 我的页第三 tab「关注分组」（chips/组头操作/成员行）② rail 关注角标的分组选择层两态。
+     真实实现：src/mypage.js（adminTab 壳 + buildFollowGroups）、src/grouppop.js、src/relationapi.js。 -->
+<style>
+  :root{--accent:#fd4c5d;--t1:#fff;--t2:#cfd3da;--t3:#8a90a0;--panel:rgba(22,22,27,.97)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#000;color:var(--t1);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1240px;margin:0 auto;padding:26px 22px 70px}
+  h1{font-size:18px;font-weight:600}
+  .lead{color:var(--t3);font-size:12.5px;line-height:1.9;margin:8px 0 18px}
+  .lead b{color:var(--t2)}
+  .sec{margin:24px 0 10px;padding-top:14px;border-top:1px solid rgba(255,255,255,.09)}
+  .sec>h2{font-size:13.5px;font-weight:600;color:var(--t2)}
+  .sec>h2 em{color:var(--t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .stage{position:relative;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:16px 18px;background:#0b0d12}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:none;border-radius:16px;padding:5px 14px;font-size:13px;font-family:inherit;cursor:pointer;background:rgba(255,255,255,.1);color:var(--t2)}
+  .chip.sm{padding:4px 10px;font-size:12px}
+  .chip.on{background:var(--accent);color:#fff}
+  .chip.danger{color:#ff8a95}
+  .ops{display:flex;gap:8px;margin:12px 0}
+  .grow{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:1px solid rgba(255,255,255,.07)}
+  .grow .av{width:50px;height:50px;border-radius:50%;flex:none;background:rgba(255,255,255,.08)}
+  .grow .info{flex:1;min-width:0}
+  .grow .nm{font-size:14px}
+  .grow .meta{margin-top:5px;font-size:12px;color:var(--t3);display:flex;gap:12px;align-items:center}
+  .tag{padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.1);color:var(--t2)}
+  .pop{width:212px;background:var(--panel);border:1px solid rgba(255,255,255,.12);border-radius:10px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:12.5px;display:inline-block;vertical-align:top}
+  .pop .hd{display:flex;align-items:center;padding:8px 10px 6px;font-weight:600}
+  .pop .hd .x{margin-left:auto;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.1);display:grid;place-items:center;font-size:10px}
+  .pop .bd{padding:0 5px 5px}
+  .pop .it{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;color:var(--t2)}
+  .pop .it.on{color:#fff;background:rgba(253,76,93,.16)}
+  .pop .it .t{width:12px;color:var(--accent);font-size:11px}
+  .pop .nw{padding:6px 8px;color:var(--accent);border-top:1px solid rgba(255,255,255,.08);margin-top:3px}
+  .pop .ft{display:flex;gap:6px;align-items:center;padding:7px 10px 9px}
+  .pop .ft .ex{margin-right:auto;color:#ff8a95;font-size:12px}
+  .pop .ft .cc{padding:4px 12px;border-radius:14px;background:rgba(255,255,255,.12);color:var(--t2);font-size:12px}
+  .pop .ft .ok{padding:4px 14px;border-radius:14px;background:var(--accent);color:#fff;font-size:12px}
+  .pop .ft .ok.dis{opacity:.5}
+  .pair{display:flex;gap:24px;flex-wrap:wrap}
+  .cap{font-size:12px;color:var(--t3);margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>关注分组 —— 静态预览<span style="font-size:12px;color:#ffb323;margin-left:8px">追补稿（0.9.142 回画 · 非事前确认）</span></h1>
+  <p class="lead">
+    0.9.142 出货的是两处：<b>我的页第三 tab「关注分组」</b>（关系管理：组 chips / 建·删·改名 / 组内成员 /
+    移组 / 取关）与 <b>rail 关注角标的分组选择层</b>（点开=选组或改分组，含行内新建）。本稿按已出货形态回画。
+  </p>
+
+  <div class="sec">
+    <h2>① 我的页「关注分组」tab<em>chips（全部/未分组/各组(N)/＋新建分组）→ 组头操作 → 成员行</em></h2>
+    <div class="stage">
+      <div class="chips">
+        <button class="chip on">全部</button>
+        <button class="chip">未分组 14</button>
+        <button class="chip">舞 8</button>
+        <button class="chip">新 22</button>
+        <button class="chip">＋ 新建分组</button>
+      </div>
+      <div class="ops">
+        <button class="chip sm">改名</button>
+        <button class="chip sm danger">删除分组</button>
+        <span style="font-size:12px;color:#8a90a0;align-self:center">← 仅真分组显示；「未分组」等系统组不给改删</span>
+      </div>
+      <div class="grow">
+        <div class="av"></div>
+        <div class="info">
+          <div class="nm">一只芸喵喵</div>
+          <div class="meta"><span>粉丝 1.6万</span><span>投稿 286</span><span class="tag">舞</span></div>
+        </div>
+        <div class="chips"><button class="chip sm">移组</button><button class="chip sm">取关</button></div>
+      </div>
+      <div class="grow">
+        <div class="av"></div>
+        <div class="info">
+          <div class="nm">渣丸子</div>
+          <div class="meta"><span>粉丝 3323</span><span>投稿 45</span><span class="tag">未分组</span></div>
+        </div>
+        <div class="chips"><button class="chip sm">移组</button><button class="chip sm">取关</button></div>
+      </div>
+      <p class="cap" style="margin-top:10px">「全部」档显归属标签；组内档不显（标签无意义）。到底后无「加载更多」（偏移量游标翻页）。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>② rail 关注角标的选择层<em>点开=弹层；未关注态默认勾「未分组」；已关注态不预选</em></h2>
+    <div class="pair">
+      <div>
+        <p class="cap">未关注 →「选择分组」：默认勾「未分组」（点开即确定 ≈ 原一键关注）</p>
+        <div class="pop">
+          <div class="hd">选择分组<button class="x">✕</button></div>
+          <div class="bd">
+            <div class="it on"><span class="t"></span><span>未分组 (14)</span></div>
+            <div class="it"><span class="t"></span><span>舞 (8)</span></div>
+            <div class="it"><span class="t"></span><span>新 (22)</span></div>
+            <div class="nw">＋ 新建分组</div>
+          </div>
+          <div class="ft"><button class="cc">取消</button><button class="ok">确定</button></div>
+        </div>
+      </div>
+      <div>
+        <p class="cap">已关注 →「更改分组」：<b>不预选</b>（防默默移组）+ 层内「取消关注」</p>
+        <div class="pop">
+          <div class="hd">更改分组<button class="x">✕</button></div>
+          <div class="bd">
+            <div class="it"><span class="t"></span><span>未分组 (14)</span></div>
+            <div class="it"><span class="t"></span><span>舞 (8)</span></div>
+            <div class="it"><span class="t"></span><span>新 (22)</span></div>
+            <div class="nw">＋ 新建分组</div>
+          </div>
+          <div class="ft"><button class="ex">取消关注</button><button class="cc">取消</button><button class="ok dis">确定</button></div>
+        </div>
+      </div>
+      <div>
+        <p class="cap">行内新建：输入 → 校验（1~8 字，中英数下划线）→ 新建后自动选中新组</p>
+        <div class="pop" style="width:212px">
+          <div class="hd">选择分组<button class="x">✕</button></div>
+          <div class="bd">
+            <div class="it on"><span class="t"></span><span>未分组 (14)</span></div>
+            <div class="it on"><span class="t"></span><span>临时组 (0)</span></div>
+            <div style="border-top:1px solid rgba(255,255,255,.08);margin-top:3px;padding:6px 4px 2px">
+              <input value="临时组" style="width:100%;height:28px;border:1px solid rgba(255,255,255,.18);border-radius:8px;background:rgba(255,255,255,.08);color:#fff;font-size:12.5px;padding:0 8px">
+              <button class="chip sm" style="margin-top:6px;background:var(--accent);color:#fff">新建</button>
+            </div>
+          </div>
+          <div class="ft"><button class="cc">取消</button><button class="ok">确定</button></div>
+        </div>
+      </div>
+    </div>
+    <p class="cap" style="margin-top:12px">落位（0.9.144/0.9.146 起）：内容到达后重算；下方优先→翻上→按可用空间压高；横向<b>让开宿主一列</b>（不看被点的角标自身宽度）。外点收起（0.9.147）。</p>
+  </div>
+</div>
+</body>
+</html>

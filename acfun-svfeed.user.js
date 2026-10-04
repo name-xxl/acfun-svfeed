@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.149
+// @version      0.9.150
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -9909,7 +9909,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.149" : "");
+    return normVer(true ? "0.9.150" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12448,7 +12448,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.149：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.150：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -12951,241 +12951,12 @@
     }
     load();
   }
-  function buildFav(panel2) {
+  function adminTab(panel2, o) {
     var chips = el("div", "acsv-vchips");
     var ops = el("div", "acsv-gops");
     var form = el("div", "acsv-gform");
     form.style.display = "none";
-    panel2.appendChild(chips);
-    panel2.appendChild(ops);
-    panel2.appendChild(form);
-    var list = rowList(panel2, "fav");
-    var btn = moreBtn(function() {
-      load();
-    });
-    panel2.appendChild(btn);
-    var folders = [];
-    var folderId = null, page = 0, seq2 = 0;
-    function curFolder() {
-      for (var i = 0; i < folders.length; i++) if (folders[i].id === folderId) return folders[i];
-      return null;
-    }
-    function renderChips() {
-      chips.textContent = "";
-      folders.forEach(function(f) {
-        var c = el(
-          "button",
-          "acsv-vchip" + (f.id === folderId ? " on" : ""),
-          (f.name || "收藏夹") + (f.count != null ? " " + f.count : "")
-        );
-        c.type = "button";
-        c.addEventListener("click", function() {
-          if (folderId === f.id) return;
-          folderId = f.id;
-          page = 0;
-          seq2++;
-          list.textContent = "";
-          btn.style.display = "";
-          btn.disabled = false;
-          btn.textContent = "加载更多";
-          renderChips();
-          load();
-        });
-        chips.appendChild(c);
-      });
-      var add = el("button", "acsv-vchip", "＋ 新建夹");
-      add.type = "button";
-      add.addEventListener("click", function() {
-        openForm("create");
-      });
-      chips.appendChild(add);
-      renderOps();
-    }
-    function renderOps() {
-      ops.textContent = "";
-      var f = curFolder();
-      if (!f) return;
-      var rn = el("button", "acsv-vchip sm", "改名");
-      rn.type = "button";
-      rn.addEventListener("click", function() {
-        openForm("rename", f);
-      });
-      var del = el("button", "acsv-vchip sm acsv-gdanger", "删除收藏夹");
-      del.type = "button";
-      del.addEventListener("click", function() {
-        openConfirmPop(del, {
-          title: "删除收藏夹",
-          text: "「" + f.name + "」及其中收藏会一并移除（视频本身不受影响，不可恢复）。",
-          okLabel: "删除",
-          run: function() {
-            return folderDelete(f.id);
-          },
-          done: function() {
-            toast("已删除收藏夹：" + f.name);
-            folderId = null;
-            refreshFolders();
-          }
-        });
-      });
-      ops.appendChild(rn);
-      ops.appendChild(del);
-    }
-    function openForm(mode, f) {
-      form.textContent = "";
-      form.style.display = "";
-      var input = el("input", "acsv-ginput");
-      input.maxLength = 40;
-      input.placeholder = "收藏夹名（1~40 字）";
-      if (mode === "rename") input.value = f.name;
-      var ok = el("button", "acsv-gok", mode === "rename" ? "改名" : "新建");
-      ok.type = "button";
-      var cancel = el("button", "acsv-gcancel", "取消");
-      cancel.type = "button";
-      var err = el("span", "acsv-gerr");
-      var label = mode === "rename" ? "改名" : "新建";
-      cancel.addEventListener("click", function() {
-        form.style.display = "none";
-        form.textContent = "";
-      });
-      ok.addEventListener("click", function() {
-        if (form._busy) return;
-        var name = (input.value || "").trim();
-        var msg = folderNameError(name);
-        if (msg) {
-          err.textContent = msg;
-          return;
-        }
-        form._busy = true;
-        ok.textContent = "提交中…";
-        var req = mode === "rename" ? folderRename(f.id, name) : folderAdd(name);
-        req.then(function(made) {
-          form._busy = false;
-          ok.textContent = label;
-          if (!made) {
-            err.textContent = label + "失败（重名或未登录？）";
-            return;
-          }
-          form.style.display = "none";
-          form.textContent = "";
-          toast(mode === "rename" ? "已改名：" + name : "已新建收藏夹：" + name);
-          if (mode === "create") folderId = String(made);
-          refreshFolders();
-        }, function() {
-          form._busy = false;
-          ok.textContent = label;
-          err.textContent = "操作失败（未登录？）";
-        });
-      });
-      form.appendChild(input);
-      form.appendChild(ok);
-      form.appendChild(cancel);
-      form.appendChild(err);
-      input.focus();
-    }
-    function refreshFolders() {
-      return folderList().then(function(fs) {
-        if (!list.isConnected) return;
-        folders = fs;
-        if (!curFolder()) folderId = folders.length ? folders[0].id : null;
-        renderChips();
-        if (!folders.length) {
-          list.textContent = "";
-          list.appendChild(el("div", "acsv-vempty", "还没有收藏夹"));
-          btn.style.display = "none";
-          return;
-        }
-        page = 0;
-        seq2++;
-        list.textContent = "";
-        btn.style.display = "";
-        btn.disabled = false;
-        btn.textContent = "加载更多";
-        load();
-      }, function() {
-        if (!list.isConnected) return;
-        list.textContent = "";
-        list.appendChild(el("div", "acsv-vempty", "收藏夹加载失败"));
-        btn.style.display = "none";
-      });
-    }
-    function favCell(pi) {
-      var box = el("div", "acsv-favcell");
-      box.appendChild(gridCardOf(pi));
-      var acts = el("div", "acsv-favacts");
-      var mv = el("button", "acsv-vchip sm", "移动");
-      mv.type = "button";
-      mv.addEventListener("click", function(ev) {
-        ev.stopPropagation();
-        openFavFolderPop(mv, {
-          acId: pi.acId,
-          favorited: true,
-          title: "调整收藏夹",
-          done: function(res) {
-            if (!res.ids.length || res.ids.indexOf(String(folderId)) < 0) box.remove();
-            refreshFolders();
-          }
-        });
-      });
-      var rm = el("button", "acsv-vchip sm", "移除收藏");
-      rm.type = "button";
-      rm.addEventListener("click", function(ev) {
-        ev.stopPropagation();
-        openConfirmPop(rm, {
-          title: "移除收藏",
-          text: "把「" + (pi.title || "这条视频") + "」从所有收藏夹移除？",
-          okLabel: "移除",
-          run: function() {
-            return favRemove(pi.acId, [folderId]);
-          },
-          done: function() {
-            toast("已移除收藏");
-            box.remove();
-            refreshFolders();
-          }
-        });
-      });
-      acts.appendChild(mv);
-      acts.appendChild(rm);
-      box.appendChild(acts);
-      return box;
-    }
-    var gone = skeleton(list);
-    refreshFolders().then(gone);
-    function load() {
-      if (!folderId) {
-        btn.disabled = false;
-        btn.textContent = "加载更多";
-        return;
-      }
-      var my = ++seq2;
-      favList(folderId, page + 1).then(function(j) {
-        if (my !== seq2 || !list.isConnected) return;
-        page++;
-        btn.disabled = false;
-        btn.textContent = "加载更多";
-        var rows = [];
-        (j && j.favoriteList || []).forEach(function(raw) {
-          var pi = panelItem("fav", raw);
-          if (pi) rows.push(pi);
-        });
-        rows.forEach(function(pi) {
-          list.appendChild(favCell(pi));
-        });
-        if (j && rows.length < CFG.view.pageSize || !rows.length) btn.style.display = "none";
-        if (!rows.length && page === 1) list.appendChild(el("div", "acsv-vempty", "这个夹还没有收藏"));
-      }, function() {
-        if (my !== seq2 || !list.isConnected) return;
-        btn.disabled = false;
-        btn.textContent = "加载失败，点击重试";
-      });
-    }
-  }
-  function buildFollowGroups(panel2) {
-    var chips = el("div", "acsv-vchips");
-    var ops = el("div", "acsv-gops");
-    var form = el("div", "acsv-gform");
-    form.style.display = "none";
-    var list = el("div", "acsv-glist");
+    var list = o.list;
     var btn = moreBtn(function() {
       load();
     });
@@ -13194,40 +12965,41 @@
     panel2.appendChild(form);
     panel2.appendChild(list);
     panel2.appendChild(btn);
-    var groups = [];
-    var cur = "-1";
-    var pcursor2 = "";
+    var tabs = [];
+    var cur = o.allChip ? o.allId : null;
+    var cursor = o.firstCursor || 0;
     var seq2 = 0;
     var loading2 = false;
     var done = false;
-    function sysGroup(g) {
-      return g.id === "0" || g.name === "特别关注";
-    }
-    function groupOf(id) {
-      for (var i = 0; i < groups.length; i++) if (groups[i].id === id) return groups[i];
+    var started = false;
+    function tabOf(id) {
+      for (var i = 0; i < tabs.length; i++) if (tabs[i].id === id) return tabs[i];
       return null;
+    }
+    function resetBtn() {
+      btn.style.display = "";
+      btn.disabled = false;
+      btn.textContent = "加载更多";
     }
     function renderChips() {
       chips.textContent = "";
-      var all = el("button", "acsv-vchip" + (cur === "-1" ? " on" : ""), "全部");
-      all.type = "button";
-      all.addEventListener("click", function() {
-        select("-1");
-      });
-      chips.appendChild(all);
-      groups.forEach(function(g) {
-        var c = el(
-          "button",
-          "acsv-vchip" + (cur === g.id ? " on" : ""),
-          g.name + (g.count != null ? " " + g.count : "")
-        );
+      if (o.allChip) {
+        var all = el("button", "acsv-vchip" + (cur === o.allId ? " on" : ""), o.allChip);
+        all.type = "button";
+        all.addEventListener("click", function() {
+          select(o.allId);
+        });
+        chips.appendChild(all);
+      }
+      tabs.forEach(function(t) {
+        var c = el("button", "acsv-vchip" + (cur === t.id ? " on" : ""), t.chipText);
         c.type = "button";
         c.addEventListener("click", function() {
-          select(g.id);
+          select(t.id);
         });
         chips.appendChild(c);
       });
-      var add = el("button", "acsv-vchip", "＋ 新建分组");
+      var add = el("button", "acsv-vchip", o.addLabel);
       add.type = "button";
       add.addEventListener("click", function() {
         openForm("create");
@@ -13237,45 +13009,34 @@
     }
     function renderOps() {
       ops.textContent = "";
-      var g = groupOf(cur);
-      if (!g || sysGroup(g)) return;
+      var t = tabOf(cur);
+      if (!t || o.sysTab && o.sysTab(t)) return;
       var rn = el("button", "acsv-vchip sm", "改名");
       rn.type = "button";
       rn.addEventListener("click", function() {
-        openForm("rename", g);
+        openForm("rename", t);
       });
-      var del = el("button", "acsv-vchip sm acsv-gdanger", "删除分组");
+      var del = el("button", "acsv-vchip sm acsv-gdanger", o.delLabel);
       del.type = "button";
       del.addEventListener("click", function() {
-        openConfirmPop(del, {
-          title: "删除分组",
-          text: "「" + g.name + "」里的成员会移到「未分组」，关注关系不变。",
-          okLabel: "删除",
-          run: function() {
-            return removeGroup(g.id);
-          },
-          done: function() {
-            toast("已删除分组：" + g.name);
-            refreshGroups("-1");
-          }
-        });
+        openConfirmPop(del, o.delConfirm(t, refresh));
       });
       ops.appendChild(rn);
       ops.appendChild(del);
     }
-    function openForm(mode, g) {
+    function openForm(mode, t) {
       form.textContent = "";
       form.style.display = "";
       var input = el("input", "acsv-ginput");
-      input.maxLength = 8;
-      input.placeholder = "分组名（1~8 字）";
-      if (mode === "rename") input.value = g.name;
-      var ok = el("button", "acsv-gok", mode === "rename" ? "改名" : "新建");
+      input.maxLength = o.formLabel.maxLen;
+      input.placeholder = o.formLabel.placeholder;
+      if (mode === "rename") input.value = t.raw.name;
+      var label = o.formLabel.submit[mode];
+      var ok = el("button", "acsv-gok", label);
       ok.type = "button";
       var cancel = el("button", "acsv-gcancel", "取消");
       cancel.type = "button";
       var err = el("span", "acsv-gerr");
-      var label = mode === "rename" ? "改名" : "新建";
       cancel.addEventListener("click", function() {
         form.style.display = "none";
         form.textContent = "";
@@ -13283,14 +13044,14 @@
       ok.addEventListener("click", function() {
         if (form._busy) return;
         var name = (input.value || "").trim();
-        var msg = groupNameError(name);
+        var msg = o.nameError(name);
         if (msg) {
           err.textContent = msg;
           return;
         }
         form._busy = true;
         ok.textContent = "提交中…";
-        var req = mode === "rename" ? renameGroup(g.id, name) : createGroup(name);
+        var req = mode === "rename" ? o.onRename(t.id, name) : o.onCreate(name);
         req.then(function(made) {
           form._busy = false;
           ok.textContent = label;
@@ -13300,8 +13061,8 @@
           }
           form.style.display = "none";
           form.textContent = "";
-          toast(mode === "rename" ? "已改名：" + name : "已新建分组：" + name);
-          refreshGroups(mode === "rename" ? void 0 : String(made));
+          toast((mode === "rename" ? o.formLabel.renamed : o.formLabel.created) + name);
+          refresh(mode === "create" ? String(made) : void 0);
         }, function() {
           form._busy = false;
           ok.textContent = label;
@@ -13316,37 +13077,200 @@
     }
     function select(id) {
       cur = id;
-      pcursor2 = "";
+      started = true;
+      cursor = o.firstCursor || 0;
       seq2++;
       loading2 = false;
       done = false;
       list.textContent = "";
-      btn.style.display = "";
-      btn.disabled = false;
-      btn.textContent = "加载更多";
+      resetBtn();
       renderChips();
       load();
     }
-    function refreshGroups(nextSel) {
-      return getGroups().then(function(gs) {
+    function refresh(nextSel) {
+      return o.loadTabs().then(function(ts) {
         if (!list.isConnected) return;
-        groups = gs;
+        tabs = ts;
         if (nextSel !== void 0) {
           select(nextSel);
           return;
         }
-        if (cur !== "-1" && !groupOf(cur)) {
-          select("-1");
+        if (!tabs.length) {
+          chips.textContent = "";
+          ops.textContent = "";
+          list.textContent = "";
+          list.appendChild(el("div", "acsv-vempty", o.emptyTabsText));
+          btn.style.display = "none";
+          return;
+        }
+        var curValid = o.allChip ? cur === o.allId || !!tabOf(cur) : !!tabOf(cur);
+        if (cur === null || !curValid) {
+          select(o.allChip ? o.allId : tabs[0].id);
+          return;
+        }
+        if (!started || o.reloadOnRefresh) {
+          select(cur);
           return;
         }
         renderChips();
       }, function() {
         if (!list.isConnected) return;
-        chips.textContent = "";
-        ops.textContent = "";
+        if (list.children.length) return;
+        list.textContent = "";
+        list.appendChild(el("div", "acsv-vempty", o.tabsFailText));
+        btn.style.display = "none";
       });
     }
-    function memberRow(u) {
+    function load() {
+      if (loading2 || done) return;
+      if (cur == null) {
+        resetBtn();
+        return;
+      }
+      loading2 = true;
+      var my = ++seq2;
+      o.loadPage(cur, cursor).then(function(p) {
+        if (my !== seq2 || !list.isConnected) return;
+        loading2 = false;
+        var added = 0;
+        (p.rows || []).forEach(function(r) {
+          list.appendChild(o.renderRow(r, ctx));
+          added++;
+        });
+        cursor = p.nextCursor;
+        if (p.noMore) {
+          done = true;
+          btn.style.display = "none";
+        } else resetBtn();
+        if (!added && !list.children.length) list.appendChild(el("div", "acsv-vempty", o.emptyText(cur)));
+      }, function() {
+        if (my !== seq2 || !list.isConnected) return;
+        loading2 = false;
+        btn.disabled = false;
+        btn.textContent = o.loadFailText;
+      });
+    }
+    var ctx = {
+      list,
+      refresh,
+      sel: function() {
+        return cur;
+      }
+    };
+    return { refresh, select, list, chips, btn };
+  }
+  function buildFav(panel2) {
+    var list = rowList(panel2, "fav");
+    var sk = skeleton(list);
+    function favCell(pi, ctx) {
+      var box = el("div", "acsv-favcell");
+      box.appendChild(gridCardOf(pi));
+      var acts = el("div", "acsv-favacts");
+      var mv = el("button", "acsv-vchip sm", "移动");
+      mv.type = "button";
+      mv.addEventListener("click", function(ev) {
+        ev.stopPropagation();
+        openFavFolderPop(mv, {
+          acId: pi.acId,
+          favorited: true,
+          title: "调整收藏夹",
+          done: function(res) {
+            if (!res.ids.length || res.ids.indexOf(String(ctx.sel())) < 0) box.remove();
+            ctx.refresh();
+          }
+        });
+      });
+      var rm = el("button", "acsv-vchip sm", "移除收藏");
+      rm.type = "button";
+      rm.addEventListener("click", function(ev) {
+        ev.stopPropagation();
+        openConfirmPop(rm, {
+          title: "移除收藏",
+          text: "把「" + (pi.title || "这条视频") + "」从所有收藏夹移除？",
+          okLabel: "移除",
+          run: function() {
+            return favRemove(pi.acId, [ctx.sel()]);
+          },
+          done: function() {
+            toast("已移除收藏");
+            box.remove();
+            ctx.refresh();
+          }
+        });
+      });
+      acts.appendChild(mv);
+      acts.appendChild(rm);
+      box.appendChild(acts);
+      return box;
+    }
+    var tab = adminTab(panel2, {
+      list,
+      allChip: null,
+      // 收藏夹无「全部」档
+      addLabel: "＋ 新建夹",
+      delLabel: "删除收藏夹",
+      formLabel: {
+        placeholder: "收藏夹名（1~40 字）",
+        maxLen: 40,
+        submit: { create: "新建", rename: "改名" },
+        created: "已新建收藏夹：",
+        renamed: "已改名："
+      },
+      nameError: folderNameError,
+      reloadOnRefresh: true,
+      emptyTabsText: "还没有收藏夹",
+      tabsFailText: "收藏夹加载失败",
+      loadFailText: "加载失败，点击重试",
+      loadTabs: function() {
+        return folderList().then(function(fs) {
+          return fs.map(function(f) {
+            return { id: f.id, chipText: (f.name || "收藏夹") + (f.count != null ? " " + f.count : ""), raw: f };
+          });
+        });
+      },
+      loadPage: function(sel, cursor) {
+        return favList(sel, cursor + 1).then(function(j) {
+          var rows = [];
+          (j && j.favoriteList || []).forEach(function(raw) {
+            var pi = panelItem("fav", raw);
+            if (pi) rows.push(pi);
+          });
+          return { rows, noMore: !rows.length || rows.length < CFG.view.pageSize, nextCursor: cursor + 1 };
+        });
+      },
+      renderRow: function(pi, ctx) {
+        return favCell(pi, ctx);
+      },
+      emptyText: function() {
+        return "这个夹还没有收藏";
+      },
+      onCreate: function(name) {
+        return folderAdd(name);
+      },
+      // → 新夹 id（响应 data.folderId）
+      onRename: function(id, name) {
+        return folderRename(id, name);
+      },
+      delConfirm: function(t, refresh) {
+        return {
+          title: "删除收藏夹",
+          text: "「" + t.raw.name + "」及其中收藏会一并移除（视频本身不受影响，不可恢复）。",
+          okLabel: "删除",
+          run: function() {
+            return folderDelete(t.id);
+          },
+          done: function() {
+            toast("已删除收藏夹：" + t.raw.name);
+            refresh();
+          }
+        };
+      }
+    });
+    tab.refresh().then(sk);
+  }
+  function buildFollowGroups(panel2) {
+    var list = el("div", "acsv-glist");
+    function memberRow(u, ctx) {
       var row = el("div", "acsv-grow");
       var a = el("a", "acsv-grow-link");
       a.href = CFG.api.userBase + u.id;
@@ -13359,7 +13283,7 @@
       var meta = el("div", "acsv-grow-meta");
       if (u.fans) meta.appendChild(el("span", null, "粉丝 " + u.fans));
       if (u.contrib) meta.appendChild(el("span", null, "投稿 " + u.contrib));
-      if (cur === "-1" && u.groupName) meta.appendChild(el("span", "acsv-grow-tag", u.groupName));
+      if (ctx.sel() === "-1" && u.groupName) meta.appendChild(el("span", "acsv-grow-tag", u.groupName));
       info.appendChild(meta);
       row.appendChild(info);
       var acts = el("div", "acsv-grow-acts");
@@ -13372,14 +13296,14 @@
           following: true,
           noExtra: true,
           done: function(res) {
-            if (cur !== "-1" && String(res.groupId) !== String(cur)) {
+            if (ctx.sel() !== "-1" && String(res.groupId) !== String(ctx.sel())) {
               row.remove();
-              if (!list.querySelector(".acsv-grow")) list.appendChild(el("div", "acsv-vempty", "这个分组还没有成员"));
+              if (!ctx.list.querySelector(".acsv-grow")) ctx.list.appendChild(el("div", "acsv-vempty", "这个分组还没有成员"));
             } else {
               var tag = meta.querySelector(".acsv-grow-tag");
               if (tag) tag.textContent = res.groupName || "";
             }
-            refreshGroups();
+            ctx.refresh();
           }
         });
       });
@@ -13398,8 +13322,8 @@
           }
           toast("已取消关注 @" + u.name);
           row.remove();
-          if (!list.querySelector(".acsv-grow")) list.appendChild(el("div", "acsv-vempty", "还没有关注"));
-          refreshGroups();
+          if (!ctx.list.querySelector(".acsv-grow")) ctx.list.appendChild(el("div", "acsv-vempty", "还没有关注"));
+          ctx.refresh();
         });
       });
       acts.appendChild(move);
@@ -13407,40 +13331,75 @@
       row.appendChild(acts);
       return row;
     }
-    function load() {
-      if (loading2 || done) return;
-      loading2 = true;
-      var my = ++seq2;
-      listFollows(cur === "-1" ? "" : cur, pcursor2).then(function(page) {
-        if (my !== seq2 || !list.isConnected) return;
-        loading2 = false;
-        page.items.forEach(function(u) {
-          list.appendChild(memberRow(u));
-        });
-        pcursor2 = page.nextCursor;
-        if (page.noMore || !page.items.length) {
-          done = true;
-          btn.style.display = "none";
-        } else {
-          btn.disabled = false;
-          btn.textContent = "加载更多";
-        }
-        if (!list.querySelector(".acsv-grow")) {
-          list.appendChild(el("div", "acsv-vempty", cur === "-1" ? "还没有关注" : "这个分组还没有成员"));
-        }
-      }, function() {
-        if (my !== seq2 || !list.isConnected) return;
-        loading2 = false;
-        btn.disabled = false;
-        btn.textContent = "加载失败，点击重试";
-      });
-    }
     if (!selfUid()) {
       list.appendChild(el("div", "acsv-vempty", "登录后可管理关注分组"));
-      btn.style.display = "none";
+      panel2.appendChild(list);
       return;
     }
-    refreshGroups("-1");
+    var tab = adminTab(panel2, {
+      list,
+      allChip: "全部",
+      allId: "-1",
+      addLabel: "＋ 新建分组",
+      delLabel: "删除分组",
+      formLabel: {
+        placeholder: "分组名（1~8 字）",
+        maxLen: 8,
+        submit: { create: "新建", rename: "改名" },
+        created: "已新建分组：",
+        renamed: "已改名："
+      },
+      nameError: groupNameError,
+      sysTab: function(t) {
+        return t.id === "0" || t.raw.name === "特别关注";
+      },
+      reloadOnRefresh: false,
+      firstCursor: "",
+      // 偏移量游标（首页空串）
+      emptyTabsText: "还没有分组",
+      tabsFailText: "分组加载失败",
+      loadFailText: "加载失败，点击重试",
+      loadTabs: function() {
+        return getGroups().then(function(gs) {
+          return gs.map(function(g) {
+            return { id: g.id, chipText: g.name + (g.count != null ? " " + g.count : ""), raw: g };
+          });
+        });
+      },
+      loadPage: function(sel, cursor) {
+        return listFollows(sel === "-1" ? "" : sel, cursor).then(function(page) {
+          return { rows: page.items, noMore: page.noMore, nextCursor: page.nextCursor };
+        });
+      },
+      renderRow: function(u, ctx) {
+        return memberRow(u, ctx);
+      },
+      emptyText: function(sel) {
+        return sel === "-1" ? "还没有关注" : "这个分组还没有成员";
+      },
+      onCreate: function(name) {
+        return createGroup(name);
+      },
+      // → 新组 id（响应带，差集兜底）
+      onRename: function(id, name) {
+        return renameGroup(id, name);
+      },
+      delConfirm: function(t, refresh) {
+        return {
+          title: "删除分组",
+          text: "「" + t.raw.name + "」里的成员会移到「未分组」，关注关系不变。",
+          okLabel: "删除",
+          run: function() {
+            return removeGroup(t.id);
+          },
+          done: function() {
+            toast("已删除分组：" + t.raw.name);
+            refresh("-1");
+          }
+        };
+      }
+    });
+    tab.refresh();
   }
   function buildMyView(body) {
     var wrap = el("div", "acsv-mewrap");
