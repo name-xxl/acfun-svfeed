@@ -3,6 +3,20 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.124（2026-10-04）· 广场吸收 S0：抽 rowkit.js（关注/广场共用行卡 kit）
+
+- **背景（广场吸收计划首片）**：广场页（0.9.126 起）与关注·全部页要共用同一套原生骨架行卡
+  ——followview 的行卡构建件与行内评论控制器在 pi 契约下自包含，机械抽为 `rowkit.js`。
+- **修法（逐字搬迁零逻辑改动）**：followview.js 353→155 行——行卡（原生骨架四段）/九宫格/
+  媒体分派/互动栏接线/行内评论宿主控制器/列表级委托迁入 `rowkit.js`（215 行）。两处适配：
+  列表委托包成 `wireRowList(list, onOpen)`（末行 rowDefault→onOpen；落点策略留各视图）；
+  四处加 export（closeInlineComments/toggleInlineComments/feedRowOf/armExpanders）。
+  `feedRowOf` 全通用（分享/评论出口本就是共享件，无需注入）；view 壳/游标方言/rowDefault 留守。
+- **测试**：代码行机器比对（预期差集=拆分 import 行+export 变体+wireRowList 包装，逐条列示）；
+  单测 205 + 42 场景全绿——`.acsv-frow*` 全部既有断言原样通过＝零视觉/行为漂移的机器证据；
+  check-deps 图加 rowkit 节点+六出边、followview 边改画；check-direction 特性清单加 rowkit
+  （视图层 kit、与 followview/squareview 同层，口径 B 校准）。
+
 ### 0.9.123（2026-10-04）· IM 评审 #2 落地：imshare 拆分 imsend（协议核心）+ sharepanel（面板 UI）
 
 - **背景（此前挂"下次动 IM 顺手"的挂账项，本次点名执行）**：45.9K/1037 行单文件里住着五簇
