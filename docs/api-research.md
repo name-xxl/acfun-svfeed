@@ -124,6 +124,8 @@ followUpers[]（左侧关注列表+未读徽标数据源）：hasUnReadResource 
 
 ### 2.1.2 关注视频流 followDougaFeed（〔实测〕2026-10-03，0.9.99 关注语境「视频」tab 前置）
 
+（另：**followFeedV2 不吃 `groupId` 过滤**、条目 `groupId` 是埋点串——见 §2.6 复验补记）
+
 官方 `/member/feeds`「视频」tab 的真实数据源（§2.1.1 的抓包结论），`GET
 https://www.acfun.cn/rest/pc-direct/feed/followDougaFeed?pcursor=<毫秒>&count=20`（登录态）：
 
@@ -435,7 +437,7 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
   expandSubComments 零改动复用。R3 至此列表/楼中楼/发评/删评全链闭合。
 - **未实测**：评论图片上传（广场有 4 步分片文档，svfeed 无带图评论需求，不吸收）。
 
-### 4.8 分享上报 CHOOSE_SHARE_PLATFORM（〔实测〕2026-10-05，内置浏览器登录态）
+### 4.8 分享上报 CHOOSE_SHARE_PLATFORM（〔实测〕2026-10-04，内置浏览器登录态）
 
 **采集方式**：acfun.cn 视频页（/v/ac26640967）页面内包 `navigator.sendBeacon` + `weblog.sendImmediately`
 （全网络留档 fetch/XHR/beacon/Image 兼收）。
@@ -455,6 +457,19 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
 - **项目落地（0.9.145）**：`report.buildShareParams`（纯函数，单测直采）+ `reportShare`；
   接缝=sharepanel「复制链接」→ `COPY_LINK`（官方同形）、私信发送成功 → `'IM'`
   （**自创枚举，官方无"私信分享"路径**——登记在册，站方若给正式标签只改一处）。
+
+### 4.9 评论列表分页 comment/list（〔实测〕2026-10-04；0.9.140 修复前置，此前只在 CHANGELOG 在册）
+
+`GET www.acfun.cn/rest/pc-direct/comment/list?sourceId=&sourceType=&page=&pivotCommentId=0&newPivotCommentId=&showHotComments=1`
+（网页 Cookie；sourceType：视频 3 / 小视频 5 / 动态 4）
+
+- **每一页都回 `pcursor:"no_more"`**：38 页 2221 条的样本（/v/ac26640967）逐页实测——页 1 也是
+  `no_more`；`page=N` 才驱动分页（实测每页 37~47 根浮动，服务端默认 pageSize≈50），页 38 有货、
+  页 39 空壳。
+- **项目口径**：根评论翻页**只认 `curPage/totalPage`**（`pcursor` 只对 `comment/sublist` 楼中楼有意义）。
+  旧实现拿 `pcursor !== 'no_more'` 当附加闸门 ⇒ 恒假 ⇒ 「加载更多评论」永不出现、全站卡首页——
+  **0.9.140 实报修复**（0.9.141 起按钮撤除改哨兵自动续页）。
+- `commentCount` **含楼中楼**（2221 = 根 + 子）——抽屉标题数比根评论条数大是站方口径，非缺陷。
 
 ## 5. 内容扩展路线定性（〔实测〕）
 

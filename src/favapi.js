@@ -30,6 +30,13 @@ export function folderList(resourceId) {
     });
 }
 
+// 单夹收藏列表（dougaList，读）：0.9.148 收口——此前我的页自拼查询串（收藏域 IO 一分为二）。
+// **URL/参数逐字保持**（harness mock 按子串命中，改字符即断夹具）；响应规整仍在视图（panelItem 属契约层）
+export function favList(folderId, page) {
+  return postForm(CFG.api.favDougaList,
+    'folderId=' + folderId + '&page=' + page + '&perpage=' + CFG.view.pageSize);
+}
+
 // 建夹：→ 新夹 id（响应 data.folderId）；失败/拿不到 id 回 null（调用方可回查夹列表兜底）
 export function folderAdd(name) {
   return postForm(CFG.api.favFolderAdd, 'name=' + encodeURIComponent(name)).then(function (j) {

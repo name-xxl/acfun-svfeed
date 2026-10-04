@@ -1,5 +1,7 @@
 // ---------- 私信分享面板（0.9.123 自 imshare.js 拆出：协议核心 ↔ 面板 UI 分居） ----------
-// openSharePanel 一族：锚定浮层（place 模式 rect 定位）/搜索过滤/联系人行/分享按钮
+// openSharePanel 一族：锚定浮层（place 模式 rect 定位；**与 pickpop.pickPlaceOf 是两套定位**：
+// 本件锚行/面板底对齐、pickpop 锚按钮旁并让开宿主列，常数各异，见各自注释）/搜索过滤/联系人行/分享按钮
+// （分享上报 0.9.145 经 report.reportShare；外点收起 0.9.147 走 ui.closeOnOutsideClick）
 //（含「捎句话」注册缝 setChatOpener 与 im-open 页哨兵）。单向依赖 imsend 的出口
 //（ensureIm/ensureConnected/getContacts/fetchCards/isLogined/sendCmtShare/sendMomentShare），
 // 核心完全不知道面板。纯搬迁零逻辑改动。

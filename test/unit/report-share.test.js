@@ -1,5 +1,5 @@
 // report.js 分享上报参数单元测试（0.9.145 真机抓包对齐的机器化）：
-// 官方口径（2026-10-05 内置浏览器登录态实测，/v/ac26640967 复制链接 + 微博两采样）：
+// 官方口径（2026-10-04 内置浏览器登录态实测，/v/ac26640967 复制链接 + 微博两采样）：
 // weblog.sendImmediately('CLICK', {action:'CHOOSE_SHARE_PLATFORM', params:{…}})；
 // 这里钉**参数映射**（不拉网络）：videoId→atom_id/content_id、item.id→ac_id/parent_content_id、
 // 恒定件（album_id/resourceType/cont_type/content_type/content_episode/share_type）、

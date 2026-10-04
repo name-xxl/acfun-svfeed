@@ -8,7 +8,8 @@ import { applyQuality } from './quality.js';
 // ---------- APP 家族接口层 ----------
 // 读接口走 api-new.app.acfun.cn（与 acfunchina.com 同后端），固定 mkey 免登录：
 // 首页推荐流/详情/播放直链（弹幕列表走 www.acfun.cn PC 端）。写操作端点全在
-// www.acfun.cn PC 端或 interact API（点赞/收藏/投蕉/关注/评论/弹幕），但 postForm
+// www.acfun.cn PC 端或 interact API（点赞/投蕉/评论/弹幕；收藏/关注域已迁 favapi/relationapi，
+// 但仍经本件 postForm 发），postForm
 // 请求通道（页面 fetch + Cookie，风控友好）收口在本文件。selection/feed 必须带
 // appVersion 头，douga/playInfo 不带（对齐 A 站客户端行为）。
 

@@ -95,7 +95,7 @@ const HARNESS_CASES = [
   // 0.9.99 关注语境「视频」侧（顶栏 seg → FollowVideos 上下文 → 舞台深链接管 + 按列表泵入 + 全部回路）
   // 视口 1600×900：桌面几何（分享卡贴行左缘/贴面板右缘的裁决坐标需行侧留白 ≥310px）
   { name: 'follow-videos', viewport: { width: 1600, height: 900 } },
-  // 0.9.97 关注未读徽标（webPush 桩驱动 poll 状态机：计数/回落/翻倍/进视图不打扰）
+  // 0.9.97 关注未读徽标（followFeedV2 桩驱动 poll 状态机：计数/回落/翻倍/进视图不打扰；webPush 自 0.9.107 退役）
   { name: 'badge-poll' },
   // 0.9.142 关注分组全闭环（我的页第三 tab 建/改名/删/移组/取关 + rail 分组选择层两态）
   { name: 'follow-groups' },

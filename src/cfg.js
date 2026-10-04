@@ -227,6 +227,7 @@ export var CFG = {
     follow: {
       skel: 12,           // 首屏骨架行数（约一屏）
       scrollPad: 300,     // 无限滚动触底提前量（px；借鉴广场 SCROLL_BOTTOM_OFFSET——长图片列表
+      // （注：comments.scrollPad 已于 0.9.141 退役——评论翻页改哨兵，无"提前量"口径；勿混）
                           // 提前量大些，避免用户看到加载停顿；评论区 80 是小容器场景）
       backTopAt: 300      // 距顶多少 px 显示回顶按钮（借鉴广场 BACK_TOP_THRESHOLD）
     },

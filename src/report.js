@@ -8,6 +8,7 @@ import {
   ledgerSnapshot, reconcileLedger
 } from './watchledger.js';
 
+// 本件两域上报：**观看历史**（主体，见下）与**分享**（0.9.145，`CHOOSE_SHARE_PLATFORM`，见文末）。
 // 观看历史上报：离开（划走/暂停/播完/关页）时把最终进度计入 A 站观看记录。触发点与
 // 官方 video 页事件流对齐（0.9.86 实测：官方纯事件驱动——暂停报当前位/播完报整段/
 // 离开时报，无心跳无定时器），页内走官方 weblog SDK 队列（线上字节形态与原生不可分），
@@ -222,7 +223,7 @@ function replayWatchLedger() {
 setTimeout(replayWatchLedger, 2000);
 
 // ---------- 分享上报 CHOOSE_SHARE_PLATFORM（0.9.145；真机抓包对齐） ----------
-// 用户实报「点击分享不会上报」。**官方口径实测**（2026-10-05 内置浏览器登录态 /v/ac26640967，
+// 用户实报「点击分享不会上报」。**官方口径实测**（2026-10-04 内置浏览器登录态 /v/ac26640967，
 // 全网络间谍：fetch/XHR/sendBeacon/Image 全部留档）：
 //   · 上报时机 = 分享面板里**选平台那一刻**（点开面板本身**不上报**，每个面板只发一条）；
 //   · 通道 = 与观看历史**同一条**：`weblog.sendImmediately('CLICK', {action, params})`

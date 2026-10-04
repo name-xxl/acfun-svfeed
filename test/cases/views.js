@@ -2048,7 +2048,8 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     await TEST.call('followbadge').poll();
     rec('badge-interval-240', TEST.call('followbadge').interval === 240000,
       'interval=' + TEST.call('followbadge').interval);
-    // 4) **进关注视图：poll 自持推进水位**（看过即已读）→ 不打扰；离开后空手 poll **不复亮**
+    // 4) **进关注视图：水位推进（0.9.139 起正式钩子=首屏到达 markSeen；此处 poll 兜底同效）**→
+    // 不打扰；离开后空手 poll **不复亮**
     //（0.9.107 实报核心断言：旧布尔实现下一拍原样复亮固定数）
     location.hash = 'svfeed/follow';
     rec('badge-follow-view', !!(await waitFor(function () {

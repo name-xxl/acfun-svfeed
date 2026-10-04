@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.147
+// @version      0.9.148
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -373,6 +373,7 @@
         // 首屏骨架行数（约一屏）
         scrollPad: 300,
         // 无限滚动触底提前量（px；借鉴广场 SCROLL_BOTTOM_OFFSET——长图片列表
+        // （注：comments.scrollPad 已于 0.9.141 退役——评论翻页改哨兵，无"提前量"口径；勿混）
         // 提前量大些，避免用户看到加载停顿；评论区 80 是小容器场景）
         backTopAt: 300
         // 距顶多少 px 显示回顶按钮（借鉴广场 BACK_TOP_THRESHOLD）
@@ -5459,7 +5460,7 @@
       commentCount: 4,
       curPage: 1,
       totalPage: 1,
-      pcursor: "no_more",
+      // pcursor 已退役（0.9.140：根评论翻页只认 page/totalPage）
       rootComments: [
         { commentId: "m1", userId: 123, userName: "香蕉君", headUrl: "", content: "这条视频太棒了（示例评论，仅本地预览显示）", postDate: "2026-09-01", likeCount: 233, isUp: false, subCommentCount: 1 },
         { commentId: "m2", userId: 456, userName: "UP主本人", headUrl: "", content: "感谢收看！", postDate: "2026-09-02", likeCount: 66, isUp: true, subCommentCount: 0 },
@@ -6126,9 +6127,9 @@
       ev.stopPropagation();
       sort.classList.toggle("open");
     });
-    document.addEventListener("click", function() {
+    closeOnOutsideClick(menu, [sort], function() {
       sort.classList.remove("open");
-    }, { once: false });
+    });
     var toolbar = el("div", "acsv-toolbar");
     toolbar.appendChild(progress);
     toolbar.appendChild(sort);
@@ -8141,6 +8142,12 @@
       return folderListOf(j);
     });
   }
+  function favList(folderId, page) {
+    return postForm(
+      CFG.api.favDougaList,
+      "folderId=" + folderId + "&page=" + page + "&perpage=" + CFG.view.pageSize
+    );
+  }
   function folderAdd(name) {
     return postForm(CFG.api.favFolderAdd, "name=" + encodeURIComponent(name)).then(function(j) {
       if (!ok02(j)) return null;
@@ -8212,13 +8219,16 @@
         else if (!sel.ids.length) req = favRemove(opts.acId, sel.removed);
         else req = favUpdate(opts.acId, sel.added, sel.removed);
         return req.then(function(ok) {
-          if (ok) state.on = sel.ids.length > 0;
+          if (ok) {
+            state.on = sel.ids.length > 0;
+            state.ids = sel.ids.slice();
+          }
           return ok;
         });
       },
       done: function() {
         toast(state.on ? "已加入收藏" : "已取消收藏");
-        if (opts.done) opts.done({ favorited: state.on });
+        if (opts.done) opts.done({ favorited: state.on, ids: state.ids || [] });
       }
     });
   }
@@ -8329,7 +8339,7 @@
   function followBtnState(fb, up) {
     fb.textContent = up.isFollowing ? "✓" : "+";
     fb.classList.toggle("on", !!up.isFollowing);
-    fb.title = up.isFollowing ? "点击取消关注" : "关注 UP 主";
+    fb.title = up.isFollowing ? "点击选择/更改分组" : "点击关注（可选分组）";
   }
   function syncRailUp(rail, item) {
     var up = item.up;
@@ -9887,7 +9897,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.147" : "");
+    return normVer(true ? "0.9.148" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12426,7 +12436,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.147：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.148：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -13136,10 +13146,7 @@
         return;
       }
       var my = ++seq2;
-      postForm(
-        CFG.api.favDougaList,
-        "folderId=" + folderId + "&page=" + (page + 1) + "&perpage=" + CFG.view.pageSize
-      ).then(function(j) {
+      favList(folderId, page + 1).then(function(j) {
         if (my !== seq2 || !list.isConnected) return;
         page++;
         btn.disabled = false;

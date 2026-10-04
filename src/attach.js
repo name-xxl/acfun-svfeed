@@ -37,8 +37,8 @@ import { setSetting } from './settings.js';
 // item（feedstore 条目）：
 //   up           作者契约（0.9.82 统一条目模型）{ id, name, img, isFollowing } | null——**作者
 //                唯一出口**。定型在 data.upOf；面板/搜索来源经 data.playItemOf 归一进播放层；
-//                resolve 回包在 appapi 就地补建。读方 rail(syncMetaUp/syncRailUp)、
-//                slide(buildSlide)、interact(setRealFollow)。顶层 userName/userId/head/
+//                resolve 回包在 appapi 就地补建。读方 rail(syncMetaUp/syncRailUp) 与
+//                slide（经 rail.syncMetaUp 代渲染）；关注写入在 relationapi/grouppop（0.9.142）。顶层 userName/userId/head/
 //                isFollowing 已退役（test/unit/contract.test.js 禁其回流）
 //   _resolveP    懒解析在途 Promise 写/读: api.js(ensureResolved)
 //   _freezeTries 卡帧恢复阶梯计数 写/读: session.js(HealthMonitor)；switchQuality 仅 manual 清零、回前台清零

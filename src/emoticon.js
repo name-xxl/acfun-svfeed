@@ -276,7 +276,8 @@ export function insertAtCursor(inp, code) {
   inp.focus();
   try { inp.setSelectionRange(pos + code.length, pos + code.length); } catch (e) { }
 }
-// 按钮点击 toggle 面板显隐；首次打开懒加载表情数据再渲染，失败后重开顺带重试。
+// 按钮点击 toggle 面板显隐（**外点收起 0.9.147**：closeOnOutsideClick，面板只隐不拆、每面板装一次）；
+// 首次打开懒加载表情数据再渲染，失败后重开顺带重试。
 // panel 由调用方创建并挂到自己抽屉的锚定位置（.acsv-emotpanel 定位随最近 positioned 祖先）
 export function mountEmotButton(btn, panel, textarea) {
   var built = false;

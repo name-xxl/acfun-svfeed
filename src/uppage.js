@@ -1,7 +1,7 @@
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
 import { createFeedContext, runChain, registerContext, activateContext } from './feedctx.js';
-import { el, elHtml, fmt, ensureStyle } from './ui.js';
+import { el, elHtml, fmt, ensureStyle, closeOnOutsideClick } from './ui.js';
 import { FeedStore } from './feedstore.js';
 import { API } from './api.js';
 import { imgInto } from './imgload.js';
@@ -294,7 +294,9 @@ function injectSpaceVideos(uid) {
     ev.stopPropagation();
     sort.classList.toggle('open');
   });
-  document.addEventListener('click', function () { sort.classList.remove('open'); }, { once: false });
+  // 外点收起（0.9.148 收口）：原为自挂 document 冒泡监听且永不注销；与弹层/面板共用 ui.closeOnOutsideClick（捕获相）。
+  // 菜单选项自有关闭逻辑（li 点击内 sort.classList.remove('open')）⇒ 内部点击不算外点
+  closeOnOutsideClick(menu, [sort], function () { sort.classList.remove('open'); });
 
   var toolbar = el('div', 'acsv-toolbar');
   toolbar.appendChild(progress);

@@ -1,14 +1,14 @@
 import { CFG } from './cfg.js';
 import { AppAPI, postForm, ensureApiSt } from './appapi.js';
 
-// ---------- 真实互动（点赞 / 关注 / 收藏 / 投蕉） ----------
+// ---------- 真实互动（点赞 / 投蕉；关注→relationapi、收藏→favapi，0.9.142/143 迁出） ----------
 // 推荐模式互动统一走 web 通道；小视频仅有点赞（纯浏览模式无其余交互）。
 // 点赞：A 站没有 pc-direct 点赞端点——官方网页版自己就调 kuaishouzt interact API。
 //   objectType=2 对 meow 和普通视频同样有效：objectId 传 meowId（sv）或 ac号（home）。
 //   home 对齐网页版参数追加 kpf=PC_WEB（acfunsdk/动态广场同款）；sv 维持原参数
-// 收藏：www.acfun.cn PC 端收藏夹体系（resourceType=9 + 默认收藏夹，Cookie 即可）
 // 投蕉：www.acfun.cn/rest/pc-direct/banana/throwBanana（PC 端，Cookie 即可）
-// 关注：www.acfun.cn/rest/pc-direct/relation/follow（toUserId + action 1/2）
+//（迁出登记）关注/取关/改分组 → relationapi.js + grouppop.js（0.9.142）；
+// 收藏三分支（add/updateFolder/remove，resourceType=9 必须落夹）→ favapi.js + favpop.js（0.9.143）
 // 表单 POST 统一复用 appapi 的 postForm（fetch + Cookie + urlencoded），此处只留差异
 
 function callInteract(st, item, add, webStyle) {

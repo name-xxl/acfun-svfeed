@@ -295,6 +295,25 @@
       return !favPanel().querySelector('.acsv-confirmpop') && favPanel().querySelectorAll('.acsv-favcell').length === 1;
     }, 8000)), 'n=' + favPanel().querySelectorAll('.acsv-favcell').length);
     rec('ff-rm-body', /^remove:resourceId=\d+&resourceType=9&delFolderIds=111$/.test(lastFav()), lastFav());
+    // 收藏卡「移动」（0.9.148 修 P0：favpop 只回 favorited 时该路径抛 TypeError、
+    // 卡不摘除且列表不刷新）：开移动层 → 勾选一个夹 → 确定 → 钉 updateFolder body + **列表真重渲染**
+    var cardBefore = favPanel().querySelector('.acsv-favcell');
+    var mvBtn = favPanel().querySelector('.acsv-favcell .acsv-favacts .acsv-vchip');
+    if (mvBtn) mvBtn.click();
+    rec('ff-move-pop', !!(await waitFor(function () {
+      var pop = q('.acsv-pickpop');
+      return !!pop && pop.querySelectorAll('.acsv-pick-item').length >= 2;
+    }, 8000)), (q('.acsv-pickpop') || {}).textContent);
+    var mvItems = document.querySelectorAll('.acsv-pickpop .acsv-pick-item');
+    if (mvItems[0]) mvItems[0].click();
+    var mvOk = q('.acsv-pickpop .acsv-pick-ok');
+    if (mvOk) mvOk.click();
+    rec('ff-move-done', !!(await waitFor(function () { return !q('.acsv-pickpop'); }, 8000)));
+    rec('ff-move-body', /^update:resourceId=\d+&resourceType=9&addFolderIds=\d+&delFolderIds=$/.test(lastFav()), lastFav());
+    rec('ff-move-refresh', !!(await waitFor(function () {
+      return !!cardBefore && !cardBefore.isConnected; // refreshFolders 重渲染列表（抛错时旧节点常留）
+    }, 8000)), 'connected=' + (cardBefore ? cardBefore.isConnected : 'n/a'));
+
     // 删夹（连带移除文案）→ chip 消失
     if (chipOf('新夹子2')) chipOf('新夹子2').click();
     await waitFor(function () { return !!(favPanel().querySelector('.acsv-gops .acsv-gdanger')); }, 8000);

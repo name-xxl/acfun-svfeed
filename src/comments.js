@@ -467,7 +467,7 @@ function mockComments() {
   // 本地 harness 用示例数据（真实环境走通用评论接口）；m3/m4 演示 UBB 渲染：
   // [color] 着色与划选复制、[img] 配图与点击看大图（URL 须过 IMG_CDN_OK 白名单）
   return {
-    commentCount: 4, curPage: 1, totalPage: 1, pcursor: 'no_more',
+    commentCount: 4, curPage: 1, totalPage: 1, // pcursor 已退役（0.9.140：根评论翻页只认 page/totalPage）
     rootComments: [
       { commentId: 'm1', userId: 123, userName: '香蕉君', headUrl: '', content: '这条视频太棒了（示例评论，仅本地预览显示）', postDate: '2026-09-01', likeCount: 233, isUp: false, subCommentCount: 1 },
       { commentId: 'm2', userId: 456, userName: 'UP主本人', headUrl: '', content: '感谢收看！', postDate: '2026-09-02', likeCount: 66, isUp: true, subCommentCount: 0 },

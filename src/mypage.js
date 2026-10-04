@@ -8,11 +8,11 @@ import { imgInto } from './imgload.js';
 import { getGroups, listFollows, createGroup, renameGroup, removeGroup, unfollowUser } from './relationapi.js';
 import { openFollowGroupPop } from './grouppop.js';
 import { openConfirmPop } from './pickpop.js';
-import { folderList, folderAdd, folderRename, folderDelete, favRemove } from './favapi.js';
+import { folderList, folderAdd, folderRename, folderDelete, favRemove, favList } from './favapi.js';
 import { openFavFolderPop } from './favpop.js';
 
 // ---------- 我的视图（0.9.62 起；0.9.69 抖音式个人主页改造）----------
-// 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（观看历史｜收藏夹）→ 3:4 封面网格。
+// 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（观看历史｜收藏夹｜**关注分组**，0.9.142 加第三个）→ 4:3 封面网格。
 // 接口契约 docs/api-research.md §4.1/§4.2（2026-10-02 实测）：历史 body 双 resourceTypes
 // 缺一即 result 21「参数格式错误」；dougaList 列表键是 favoriteList（无 list 别名）。
 // 条目一律经 panelItem 规整（类型过滤在契约层），点击 gridCardOf 走播放层（playlayer.openPlayer 就地播放，0.9.74 起不再插竖刷队尾）；
@@ -119,7 +119,6 @@ function buildHistory(panel) {
   load();
 }
 
-// ---- 收藏夹：夹 chips（列表之上）→ 单夹 dougaList 翻页 ----
 // ---- 收藏夹：夹 chips（列表之上）→ 单夹 dougaList 翻页；**0.9.143 管理化** ----
 // 管理面：＋新建夹 / 组头「改名·删除收藏夹」（删除二次确认——**连带移除仅存于该夹的收藏记录**，
 // 2026-10-04 隔离实测在册）+ 卡面 hover「移动 / 移除收藏」两键。读链走 favapi（folderList 带
@@ -280,6 +279,9 @@ function buildFav(panel) {
         acId: pi.acId, favorited: true, title: '调整收藏夹',
         done: function (res) {
           // 本夹被取消勾选（或整条移除）→ 该卡不再属于当前列表：摘除；否则原地留（夹计数刷新）
+          // 契约由 favpop 保证：done 回 { favorited, ids }（0.9.148 实锤——旧契约只回 favorited 时
+          // 这里抛 TypeError、卡不摘除且夹计数不刷新）。**刻意不做 `|| []` 容错**：缺 ids 即契约破坏，
+          // 由 harness ff-move-refresh 钉住（容错会把该缺陷掩盖成"删了卡"）
           if (!res.ids.length || res.ids.indexOf(String(folderId)) < 0) box.remove();
           refreshFolders();
         }
@@ -313,8 +315,7 @@ function buildFav(panel) {
       return;
     }
     var my = ++seq;
-    postForm(CFG.api.favDougaList,
-      'folderId=' + folderId + '&page=' + (page + 1) + '&perpage=' + CFG.view.pageSize)
+    favList(folderId, page + 1) // 收藏域读链收口 favapi（0.9.148：此前视图自拼查询串，IO 一分为二）
       .then(function (j) {
         if (my !== seq || !list.isConnected) return; // 过期/退出视图：在途回包丢弃
         page++;

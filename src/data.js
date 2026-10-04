@@ -515,9 +515,10 @@ function userHeadOf(u) {
   return t ? String(t) : '';
 }
 
-// 建组后的新 id 定位（真机坑，§2.6）：action=4 建组响应**不带新 groupId**——须拿 before 的
-// id 集与 after 的组列表做差集。同名组本就存在（after 里有两项同名且都不是新 id）时返回 ''，
-// 调用方按"重名"提示（站点本身也拦重名，这里只是兜底）
+// 建组后的新 id 定位（**兜底路径**：响应无 groupId 的旧形态）——拿 before 的 id 集与 after
+// 的组列表做差集。**真机复验（2026-10-04）：现形态响应带 `{result:0, groupId}`，
+// relationapi.createGroup 优先取响应 id、本函数仅作兜底**（旧记载"必须差集"已订正）。
+// 同名组本就存在（after 里有两项同名且都不是新 id）时返回 ''，调用方按"重名"提示
 export function newGroupIdOf(beforeIds, afterList, name) {
   var old = {};
   (beforeIds || []).forEach(function (id) { old[String(id)] = 1; });

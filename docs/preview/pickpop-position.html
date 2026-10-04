@@ -2,8 +2,10 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>UI 预览 · 选择层定位修法（pickpop placement）· 已确认</title>
-<!-- docs/preview/pickpop-position.html —— **已确认稿**（2026-10-05 用户选「按预览提案」，0.9.144 落地：
+<title>UI 预览 · 选择层定位修法（纵向/时机；横向已被 pickpop-align 取代）· 已确认</title>
+<!-- docs/preview/pickpop-position.html —— **已确认稿**（2026-10-04 用户选「按预览提案」，0.9.144 落地：
+     ⚠ **横向口径已被 0.9.146 取代**（"右缘对齐锚点右缘" → "让开宿主一列"，见 pickpop-align.html）；
+     本稿仅**纵向**（下方优先/翻上/按可用空间压高）与定位时机（内容到达后重算）仍有效
      pickpop.pickPlaceOf 纯函数 + 内容到达后重算 + 翻上/压高 + 右缘对齐；
      改版先改本稿——下次调整先看它
      病灶：place() 只在插入瞬间算一次（此时内容还是「加载中…」~110px）⇒ 判定"下方放得下"向下展开，
@@ -59,7 +61,7 @@
 </head>
 <body>
 <div class="board">
-  <h1>选择层定位修法 —— 静态预览<span style="font-size:12px;color:#9fe3a1;margin-left:8px">已确认 · 0.9.144 落地</span></h1>
+  <h1>选择层定位修法（纵向/时机） —— 静态预览<span style="font-size:12px;color:#9fe3a1;margin-left:8px">已确认 · 0.9.144 落地</span><span style="font-size:12px;color:#ff8a95;margin-left:10px">横向口径已被 0.9.146 取代 → pickpop-align.html</span></h1>
   <p class="lead">
     <b>病灶</b>：弹层只在插入瞬间算一次位置，那一刻内容还是「加载中…」（约 110px 高），于是判定"锚点下方放得下"
     就向下展开；等列表（7 个分组 + 新建 + 按钮 ≈ 420px）到达，<b>没有人再算一次</b>——弹层从锚点往下长出视口，

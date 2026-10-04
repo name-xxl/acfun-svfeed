@@ -60,7 +60,7 @@ export function syncMetaUp(meta, item) {
 function followBtnState(fb, up) {
   fb.textContent = up.isFollowing ? '✓' : '+';
   fb.classList.toggle('on', !!up.isFollowing);
-  fb.title = up.isFollowing ? '点击取消关注' : '关注 UP 主';
+  fb.title = up.isFollowing ? '点击选择/更改分组' : '点击关注（可选分组）'; // 0.9.142 起点开=分组层
 }
 
 // 右侧栏头像 + 关注角标（角标挂在头像下沿，故两者同块）。挂块判据=有头像或有 uid（与原

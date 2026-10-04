@@ -12,7 +12,9 @@ import { folderList, folderAdd, favAdd, favUpdate, favRemove } from './favapi.js
 import { folderNameError } from './data.js';
 import { toast } from './ui.js';
 
-// opts：{ acId, favorited, title?, done(res) }——done 回传 { favorited:bool }
+// opts：{ acId, favorited, title?, done(res) }——done 回传 **{ favorited:bool, ids:[] }**
+//（ids=提交后仍勾选的夹；我的页「移动」用它判该卡是否已不属于当前夹——
+//  0.9.148 修：此前只回 favorited，移动路径读 res.ids 抛 TypeError、卡不摘除）
 export function openFavFolderPop(btn, opts) {
   var favorited = !!opts.favorited;
   var state = { on: favorited };
@@ -41,13 +43,13 @@ export function openFavFolderPop(btn, opts) {
       else if (!sel.ids.length) req = favRemove(opts.acId, sel.removed);
       else req = favUpdate(opts.acId, sel.added, sel.removed);
       return req.then(function (ok) {
-        if (ok) state.on = sel.ids.length > 0;
+        if (ok) { state.on = sel.ids.length > 0; state.ids = sel.ids.slice(); }
         return ok;
       });
     },
     done: function () {
       toast(state.on ? '已加入收藏' : '已取消收藏');
-      if (opts.done) opts.done({ favorited: state.on });
+      if (opts.done) opts.done({ favorited: state.on, ids: state.ids || [] });
     }
   });
 }

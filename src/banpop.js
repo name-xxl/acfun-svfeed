@@ -6,7 +6,8 @@ import { VIDEO_ICONS } from './styles.js';
 // 「已投过不可再展开」的守卫在**调用方点击入口**（语义各异：rail 看 item.thrown、关注行看
 // pi.thrown），本件只管「选几根 → send(n) → 成功 applied(n)」——模块化归一：新消费面=新 opts。
 // 消费面：竖刷右栏（rail，item 实体 + slide._banSync 回流）/ 关注行流的视频·文章行（0.9.104
-// 用户口径「和视频机制一样」）。pop 是 toggle：同按钮再点=关；文档级一次性监听收外点。
+// 用户口径「和视频机制一样」）。pop 是 toggle：同按钮再点=关；外点收起走
+// ui.closeOnOutsideClick（0.9.147 收口：捕获相 + 常驻到拆除）。
 export function toggleBananaPop(btn, opts) {
   var host = btn.parentNode;
   var existing = host && host.querySelector('.acsv-banpop');
