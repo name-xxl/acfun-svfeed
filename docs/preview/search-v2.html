@@ -51,8 +51,8 @@
   .upsig{font-size:12px;color:#9aa0ae;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .upfollow{flex:none;height:28px;padding:0 14px;border:none;border-radius:14px;font-size:12px;font-family:inherit;cursor:pointer;background:var(--accent);color:#fff}
   .upfollow.on{background:rgba(255,255,255,.12);color:var(--t2)}
-  .uprecs{display:flex;gap:8px}
-  .rec{flex:1;min-width:0;cursor:pointer}
+  .uprecs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .rec{min-width:0;cursor:pointer}
   .rec .cov{position:relative;width:100%;aspect-ratio:16/9;border-radius:6px;background:linear-gradient(140deg,#333a47,#1d222b)}
   .rec .dur{position:absolute;right:4px;bottom:4px;padding:0 6px;border-radius:999px;background:rgba(0,0,0,.6);font-size:11px;line-height:16px;color:#fff}
   .rec .tt{margin-top:4px;font-size:12px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -136,7 +136,23 @@
           <div class="rec"><div class="cov"><span class="dur">10:02</span></div><div class="tt">SCBOY 周报 #208</div><div class="tm">2022-05-28</div></div>
         </div>
       </div>
-      <p class="cap" style="margin-top:12px">已关注态（键变灰、点它=取关二次确认？见问题②） + 无最近投稿的 UP（整行不挂）：</p>
+      <p class="cap" style="margin-top:12px">最近投稿只有 1 条（真机常见：30 条样本里 1 条的 3 个）——小卡**保持三列尺寸、左对齐不拉伸**
+        （0.9.152 实报修：修前 flex:1 会把唯一一张拉满整行成巨幅封面）；无最近投稿的 UP 整行不挂：</p>
+      <div class="upcard" style="margin-bottom:10px">
+        <div class="uphd">
+          <div class="upav"></div>
+          <div class="upinfo">
+            <div class="upname">独稿UP</div>
+            <div class="upmeta"><span>粉丝 88</span><span>投稿 2</span></div>
+            <div class="upsig">只投过一条</div>
+          </div>
+          <button class="upfollow">＋ 关注</button>
+        </div>
+        <div class="uprecs" style="grid-template-columns:repeat(3,1fr)">
+          <div class="rec"><div class="cov"><span class="dur">01:11</span></div><div class="tt">唯一投稿</div><div class="tm">2022-01-01</div></div>
+        </div>
+      </div>
+      <p class="cap">已关注态（键变灰）+ 无最近投稿的 UP（整行不挂）：</p>
       <div class="upcard" style="margin-top:6px">
         <div class="uphd">
           <div class="upav"></div>

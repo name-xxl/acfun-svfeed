@@ -1053,8 +1053,12 @@ var RAW_CSS = ''
   + 'font-family:inherit;cursor:pointer;background:' + CFG.accent + ';color:#fff;transition:filter .15s,background .15s}'
   + '.acsv-supfollow:hover{filter:brightness(1.12)}'
   + '.acsv-supfollow.on{background:rgba(255,255,255,.12);color:#cfd3da;filter:none}'
-  + '.acsv-suprecs{display:flex;gap:8px;margin-top:10px}'
-  + '.acsv-srec{flex:1;min-width:0;cursor:pointer}'
+  // 最近投稿行（0.9.152 实报修）：**固定三列**——原 flex:1 在「只有 1~2 条最近投稿」的 UP 上
+  // 把小卡拉满/拉半行，16:9 撑成一张巨幅封面（真机样本 30 条里 1 条的 3 个、2 条的 2 个、0 条的 4 个，
+  // 不是边角情形）。grid 三列后 1/2/3 条都保持同一小卡尺寸（左对齐，不拉伸）——形态与已确认
+  // 预览稿 docs/preview/search-v2.html 的三条并列一致
+  + '.acsv-suprecs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}'
+  + '.acsv-srec{min-width:0;cursor:pointer}'
   + '.acsv-sreccov{position:relative;width:100%;aspect-ratio:16 / 9;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.06)}'
   + '.acsv-sreccov img{width:100%;height:100%;object-fit:cover}'
   + '.acsv-srecdur{position:absolute;right:4px;bottom:4px;padding:0 6px;border-radius:999px;background:rgba(0,0,0,.6);'

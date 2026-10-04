@@ -335,11 +335,13 @@
       }
       return { result: 0, totalNum: total, pageSize: 30, pageNum: 2, videoList: list };
     },
-    // UP主：一条带最近投稿三连（含粉丝/投稿计数串），一条已关注、无投稿、无计数字段
+    // UP主：一条带最近投稿三连（含粉丝/投稿计数串），一条已关注、无投稿、无计数字段，
+    // 一条**只有 1 条最近投稿**（0.9.152 实报修夹具：小卡不许被拉满整行——真机 30 条样本里
+    // 1 条的 3 个、2 条的 2 个，不是边角情形）
     '/search/user?': function () {
       window.__ACSV_SU_CALLS__ = (window.__ACSV_SU_CALLS__ || 0) + 1;
       return {
-        result: 0, totalNum: 2, pageSize: 30, pageNum: 1,
+        result: 0, totalNum: 3, pageSize: 30, pageNum: 1,
         userList: [
           {
             userId: 14266286, userName: '星际老男孩SCBOY', emTitle: '<em>星际</em>老男孩SCBOY',
@@ -355,6 +357,13 @@
           {
             userId: 2, userName: '无投稿UP', userImg: PANEL_AVATAR, fansCountStr: '302',
             contentCountStr: '41', signature: '这个UP很懒', isFollowing: true
+          },
+          {
+            userId: 3, userName: '独稿UP', userImg: PANEL_AVATAR, fansCountStr: '88',
+            contentCountStr: '2', signature: '只投过一条', isFollowing: false,
+            dougaFeedList: [
+              { videoId: 's', contentId: '600009', caption: '唯一投稿', coverUrls: ['https://img.example/r9.png'], playDuration: '01:11', contributeTime: '2022-01-01' }
+            ]
           }
         ]
       };

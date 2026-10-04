@@ -648,7 +648,7 @@ rec('search-chips', (function () { // 三 chips + 计数来自各端点 totalNum
   var cs = document.querySelectorAll('.acsv-schip');
   if (cs.length !== 3) return false;
   return cs[0].classList.contains('on')
-    && /视频 33/.test(cs[0].textContent) && /UP主 2/.test(cs[1].textContent) && /文章 2/.test(cs[2].textContent);
+    && /视频 33/.test(cs[0].textContent) && /UP主 3/.test(cs[1].textContent) && /文章 2/.test(cs[2].textContent);
 })(), (function () {
   var cs = document.querySelectorAll('.acsv-schip');
   return cs.length + ':' + (cs[0] ? cs[0].textContent : '')
@@ -697,7 +697,7 @@ rec('search-kind-nofetch', (function () {
     && window.__ACSV_SA_CALLS__ === 2;
 })(), 'sv/su/sa=' + window.__ACSV_SV_CALLS__ + '/' + window.__ACSV_SU_CALLS__ + '/' + window.__ACSV_SA_CALLS__);
 rec('search-up-cards', !!(await waitFor(function () {
-  return document.querySelectorAll('.acsv-supcard').length === 2;
+  return document.querySelectorAll('.acsv-supcard').length === 3;
 }, 8000)));
 rec('search-up-fields', (function () { // 名字 em 剥标签 + 计数串直用 + 签名 + 最近投稿三连
   var c = q('.acsv-supcard');
@@ -716,12 +716,30 @@ rec('search-up-fields', (function () { // 名字 em 剥标签 + 计数串直用 
 })());
 rec('search-up-follow-two-states', (function () { // 未关注=红键＋关注；已关注=灰键已关注
   var cs = document.querySelectorAll('.acsv-supcard .acsv-supfollow');
-  return cs.length === 2
+  return cs.length === 3
     && cs[0].textContent === '＋ 关注' && !cs[0].classList.contains('on')
-    && cs[1].textContent === '已关注' && cs[1].classList.contains('on');
+    && cs[1].textContent === '已关注' && cs[1].classList.contains('on')
+    && cs[2].textContent === '＋ 关注';
 })(), (function () {
   var cs = document.querySelectorAll('.acsv-supcard .acsv-supfollow');
   return cs.length + ':' + (cs[0] ? cs[0].textContent : '') + '/' + (cs[1] ? cs[1].textContent : '');
+})());
+rec('search-up-single-rec-size', (function () { // 0.9.152 实报修：只有 1 条最近投稿的小卡
+  var cards = document.querySelectorAll('.acsv-supcard'); // 不许被拉满整行（固定三列）
+  var c = cards[2];
+  if (!c) return false;
+  var rc = c.querySelector('.acsv-srec');
+  if (!rc) return false;
+  var w = rc.getBoundingClientRect().width, cw = c.getBoundingClientRect().width;
+  return w > cw * 0.2 && w < cw * 0.4; // ≈1/3 列宽（flex:1 修前这里会是 ≈1.0）
+})(), (function () {
+  var cards = document.querySelectorAll('.acsv-supcard');
+  var c = cards[2];
+  var rc = c && c.querySelector('.acsv-srec');
+  if (!rc) return 'no-rec';
+  var n = rc.querySelectorAll('.acsv-srec').length;
+  return 'w=' + Math.round(rc.getBoundingClientRect().width) + '/' + Math.round(c.getBoundingClientRect().width)
+    + ' n=' + (c.querySelectorAll('.acsv-srec').length);
 })());
 (function () { q('.acsv-supcard .acsv-supfollow').click(); })();
 rec('search-up-follow', !!(await waitFor(function () { // 一键关注走 relationapi（body 留档）
@@ -924,7 +942,7 @@ location.hash = 'svfeed/search/up/' + encodeURIComponent('深链词');
 rec('search-deeplink-kind', !!(await waitFor(function () { // 类目段深链：直接落 UP主 类目
   var i = q('.acsv-top .acsv-sbox input');
   return q('.acsv-view') && q('.acsv-view').offsetParent !== null && !!i && i.value === '深链词'
-    && document.querySelectorAll('.acsv-supcard').length === 2;
+    && document.querySelectorAll('.acsv-supcard').length === 3;
 }, 8000)), 'v=' + ((q('.acsv-top .acsv-sbox input') || {}).value));
 rec('search-calls-final', window.__ACSV_SV_CALLS__ === svHist + 1 && window.__ACSV_SU_CALLS__ === suHist + 1
   && window.__ACSV_SA_CALLS__ === saHist + 1, // 深链词=新词：三端点各一发
