@@ -9,9 +9,11 @@
     var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
       waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
       feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
-// 原生私信页增强（0.9.80）：不加载 message.acfun.cn 也能覆盖"wire → 卡 DOM 装配"——
-// 造原生结构（.chat-content-item .message[data-text]）+ douga/info 桩，驱动 enhanceChat，
-// 断言 Shadow DOM 内的卡片结构（封面/计数/时长/标题）、附言、评论卡（引用块 + 来源条 + 锚点）。
+// 原生私信页增强（0.9.80；0.9.120 扩）：不加载 message.acfun.cn 也能覆盖"wire → 卡 DOM 装配"
+// 与会话列表预览改写——造原生结构（.chat-content-item .message[data-text]、.chat-nav-item
+// .content-last-message）+ douga/info 桩，驱动 enhance，断言 Shadow DOM 内的卡片结构
+//（封面/计数/时长/标题）、附言、评论卡（引用块 + 来源条 + 锚点）、列表预览文案与选择器契约
+// 清单全命中（TEST.call('nativeStructure')）。
 // 覆盖边界：内核配对（占位替换/引用剥离）不在内（需页面 world 的 ImSdk，靠真机验收）
 window.__ACSV_MOCK_FORM__ = {
   'douga/info': function () {
@@ -31,7 +33,12 @@ document.body.insertAdjacentHTML('beforeend',
   + '<div class="message" data-id="52" data-seq-id="12"'
   + ' data-text="@张三：小说真好看\nhttps://www.acfun.cn/v/ac488900#ncid=999">'
   + '<div class="content">@张三：小说真好看\nhttps://www.acfun.cn/v/ac488900#ncid=999</div></div>'
-  + '</div></div>');
+  + '</div></div>'
+  // 会话列表行（0.9.120）：enhanceList 预览改写分支的 fixture（分享/评论转发两种形态）
+  + '<div class="chat-nav-item" data-user-id="9001">'
+  + '<span class="content-last-message">分享标题\nhttps://www.acfun.cn/v/ac488900 来看看</span></div>'
+  + '<div class="chat-nav-item" data-user-id="9002">'
+  + '<span class="content-last-message">@张三：小说真好看\nhttps://www.acfun.cn/v/ac488900#ncid=999</span></div>');
 function shadowRootOf(id) {
   var m = q('.message[data-id="' + id + '"]');
   var host = m && m.querySelector('.content').firstElementChild;
@@ -70,5 +77,28 @@ rec('native-cshare-cover', !!(await waitFor(function () { // 封面 load 才放�
   var img = s.root && s.root.querySelector('img.srcimg');
   return !!img && img.naturalWidth > 0 && getComputedStyle(img).display !== 'none';
 }, 8000)));
+// ---- 0.9.120：会话列表预览改写（enhanceList 纯 DOM 分支，零内核）----
+rec('native-list-share', (function () {
+  var s = q('.chat-nav-item[data-user-id="9001"] .content-last-message');
+  return !!s && s.textContent === '[分享] 分享标题';
+})(), (function () {
+  var s = q('.chat-nav-item[data-user-id="9001"] .content-last-message');
+  return s ? JSON.stringify(s.textContent) : 'no-row';
+})());
+rec('native-list-cmt', (function () {
+  var s = q('.chat-nav-item[data-user-id="9002"] .content-last-message');
+  return !!s && s.textContent === '[评论] @张三：小说真好看';
+})(), (function () {
+  var s = q('.chat-nav-item[data-user-id="9002"] .content-last-message');
+  return s ? JSON.stringify(s.textContent) : 'no-row';
+})());
+// ---- 0.9.120：官方 DOM 契约清单在 fixture 全命中（改选择器必须同步 fixture 与自检清单）----
+rec('native-structure-contract', (function () {
+  var inv = TEST.call('nativeStructure');
+  return !!inv && inv.missing.length === 0;
+})(), (function () {
+  var inv = TEST.call('nativeStructure');
+  return inv ? JSON.stringify(inv.missing) : 'no-hook';
+})());
   };
 })();

@@ -6,7 +6,7 @@
 
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
-import { testHook } from './dbg.js';
+import { testHook, stat } from './dbg.js';
 import { ICON_SVGS } from './imicons.js';
 import { ensureEmotionMap } from './emoticon.js';
 import { parseCard, parseShare, isCommentShare, commentShareAuthor, cmtShareOf, degradeText, previewOfMessage, msgContentType, msgTextOf, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
@@ -16,11 +16,11 @@ import { AppAPI } from './appapi.js';
 
 var UNSUPPORTED = '不支持查看此消息，请前往最新版客户端查看。';
 
-// debug 构建测试钩子（0.9.80）：harness 造原生结构 + douga/info 桩后驱动 enhanceChat——
-// "wire → 卡 DOM 装配"这段此前零自动化覆盖（真机验收过），重构/改皮肤时有网可兜。
+// debug 构建测试钩子（0.9.80；0.9.120 起驱动范围扩到 enhanceList）：harness 造原生结构 +
+// douga/info 桩后驱动 enhance——"wire → 卡 DOM 装配"与"会话列表预览改写"有网可兜。
 // 覆盖边界：内核配对（占位替换/引用剥离）与真实站皮肤不在内（那部分靠真机验收）
 testHook('nativeChatEnhance', function () {
-  try { enhanceChat(); } catch (e) { }
+  try { enhance(); } catch (e) { }
   return true;
 });
 
@@ -90,6 +90,9 @@ export function bootNativeIm() {
     }
     setTimeout(waitKernel, ++n > 120 ? 1000 : 250);
   })();
+  // 结构自检（0.9.120）：10s 后盘点官方选择器命中——本模块是对官方 DOM 的外科手术，
+  // 官方改版即静默失效；自检把"第一现场"钉在页面控制台（详见 structureCanary）
+  setTimeout(structureCanary, 10000);
 }
 
 function watch() {
@@ -121,6 +124,55 @@ function enhance() {
   try { enhanceChat(); } catch (e) { }
   try { enhanceList(); } catch (e) { }
 }
+
+// ---------- 官方 DOM 结构自检（0.9.120） ----------
+// 本模块依赖官方私信页的内部 DOM 形状——官方改版即静默失效，而线上唯一在场者就是页面里的
+// 脚本自己。故挂一次结构自检：启动约 10s 后盘点全部依赖选择器的命中情况，打一行 info 自证
+//（0.9.29「连就位行都不打」/0.9.42 剥离自证日志传统）；三位功能家族（线程消息/会话列表/容器）
+// 全空且页面确有 [class*="chat-"] 元素 → warn 点名 + stat 留痕（官方可能改版的第一现场信号）。
+// 合法空态不加戏：空收件箱等无任何 chat-* 元素时只留 info 不告警。
+// 覆盖边界：本自检的"命中"只证明页面结构与我们认知一致；断言级覆盖在 harness im-native
+// fixture（test/cases/msg.js，含本清单的契约断言——改选择器必须同步那里）。
+var NATIVE_SELECTORS = [ // 官方 DOM 契约清单（改动=需重读官方页并同步 im-native fixture）
+  '.container-im', '.chat-content-item', '.chat-content-item .message', '.content',
+  '.chat-nav-item[data-user-id]', '.content-last-message', '.message[data-seq-id]'
+];
+function structureInventory() {
+  var hits = [], missing = [];
+  NATIVE_SELECTORS.forEach(function (sel) {
+    var n = 0;
+    try { n = document.querySelectorAll(sel).length; } catch (e) { }
+    hits.push({ sel: sel, n: n });
+    if (!n) missing.push(sel);
+  });
+  return { hits: hits, missing: missing };
+}
+function structureCanary(retry) {
+  var inv = structureInventory();
+  var hit = {}, total = 0;
+  inv.hits.forEach(function (h) { hit[h.sel] = h.n; if (h.n) total++; });
+  var lines = inv.hits.map(function (h) { return h.sel + (h.n ? '✓' + h.n : '✗'); });
+  // 三位功能家族：任一有命中即视为"页面结构仍被我们认得出"
+  var familiesOk = hit['.container-im'] || hit['.chat-content-item .message']
+    || hit['.chat-nav-item[data-user-id]'];
+  var shell = false;
+  try { shell = document.querySelectorAll('[class*="chat-"]').length > 0; } catch (e) { }
+  if (!familiesOk && shell && !retry) {
+    // 页面是 IM 壳但三位家族全空：可能只是加载慢——20s 复跑终判（告警以复跑为准）
+    setTimeout(function () { structureCanary(true); }, 20000);
+    return;
+  }
+  console.info('[acsv-im] 原生页结构自检：命中 ' + total + '/' + NATIVE_SELECTORS.length
+    + '（' + lines.join(' ') + '）');
+  if (!familiesOk && shell) {
+    console.warn('[acsv-im] 原生页结构自检未命中（官方可能改版）：' + inv.missing.join(' '));
+    stat('native-struct-miss');
+  } else {
+    stat('native-struct-ok');
+  }
+}
+// debug 构建测试钩子（0.9.120）：结构盘点可被 harness 对 fixture 直接断言（im-native 场景）
+testHook('nativeStructure', function () { return structureInventory(); });
 
 // 会话窗格扫描：锚在每条消息 `.chat-content-item .message` 上（实测结构 2026-09-30：
 // 线程容器 chat-content-item[data-id=0_{tid}] 内是逐条 message 元素，每条自带

@@ -3,6 +3,21 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.120（2026-10-04）· 原生页结构自检 canary + im-native fixture 扩列表分支
+
+- **背景（IM 层评审）**：imnative 是对官方私信页内部 DOM 的外科手术——官方改版即静默失效，
+  而线上唯一在场者是页面里的脚本自己；harness fixture 是自造 DOM，抓不到官方改版。
+  故保险拆两层：页内自检（主）+ fixture 契约（补）。
+- **修法**：① `structureCanary`（imnative）：启动 10s 后盘点 7 项官方选择器命中，打一行 info
+  自证（0.9.29/0.9.42 自证日志传统）；三位功能家族（线程消息/会话列表/容器）全空且页面确有
+  `[class*="chat-"]` 元素 → warn 点名 + `stat('native-struct-miss')`（复跑 20s 终判，防慢加载
+  冤告警；空收件箱等无 chat-* 元素只留 info）；② 新增 `testHook('nativeStructure')`，
+  im-native fixture 扩 `enhanceList` 纯 DOM 分支（会话列表预览改写：`[分享]`/`[评论]` 两形态）。
+- **测试**：im-native 7→10 断言（native-list-share / native-list-cmt / native-structure-contract
+  ——官方 DOM 契约清单在 fixture 全命中，改选择器必须同步 fixture 与自检清单）；
+  `nativeChatEnhance` 钩子驱动范围扩至 `enhance()`（chat+list 同跑）——列表预览改写分支
+  此前零自动化覆盖。单测 194 + 42 场景全绿。
+
 ### 0.9.119（2026-10-04）· data→ubb 随手下沉：纯文本投影独立为 ubbtext.js，方向清单清零
 
 - **前置检查（用户定的约束）**：ubbPlain 与渲染路径**不共享正则常量**（各函数内联字面量，

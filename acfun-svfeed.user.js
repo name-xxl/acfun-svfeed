@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.119
+// @version      0.9.120
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -8813,7 +8813,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.119" : "");
+    return normVer(true ? "0.9.120" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -10372,7 +10372,7 @@
   var UNSUPPORTED = "不支持查看此消息，请前往最新版客户端查看。";
   testHook("nativeChatEnhance", function() {
     try {
-      enhanceChat();
+      enhance();
     } catch (e) {
     }
     return true;
@@ -10381,7 +10381,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.119：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.120：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -10393,6 +10393,7 @@
       }
       setTimeout(waitKernel, ++n > 120 ? 1e3 : 250);
     })();
+    setTimeout(structureCanary, 1e4);
   }
   function watch() {
     if (mo) return;
@@ -10427,6 +10428,62 @@
     } catch (e) {
     }
   }
+  var NATIVE_SELECTORS = [
+    // 官方 DOM 契约清单（改动=需重读官方页并同步 im-native fixture）
+    ".container-im",
+    ".chat-content-item",
+    ".chat-content-item .message",
+    ".content",
+    ".chat-nav-item[data-user-id]",
+    ".content-last-message",
+    ".message[data-seq-id]"
+  ];
+  function structureInventory() {
+    var hits = [], missing = [];
+    NATIVE_SELECTORS.forEach(function(sel) {
+      var n = 0;
+      try {
+        n = document.querySelectorAll(sel).length;
+      } catch (e) {
+      }
+      hits.push({ sel, n });
+      if (!n) missing.push(sel);
+    });
+    return { hits, missing };
+  }
+  function structureCanary(retry) {
+    var inv = structureInventory();
+    var hit = {}, total = 0;
+    inv.hits.forEach(function(h) {
+      hit[h.sel] = h.n;
+      if (h.n) total++;
+    });
+    var lines = inv.hits.map(function(h) {
+      return h.sel + (h.n ? "✓" + h.n : "✗");
+    });
+    var familiesOk = hit[".container-im"] || hit[".chat-content-item .message"] || hit[".chat-nav-item[data-user-id]"];
+    var shell = false;
+    try {
+      shell = document.querySelectorAll('[class*="chat-"]').length > 0;
+    } catch (e) {
+    }
+    if (!familiesOk && shell && !retry) {
+      setTimeout(function() {
+        structureCanary(true);
+      }, 2e4);
+      return;
+    }
+    console.info("[acsv-im] 原生页结构自检：命中 " + total + "/" + NATIVE_SELECTORS.length + "（" + lines.join(" ") + "）");
+    if (!familiesOk && shell) {
+      console.warn("[acsv-im] 原生页结构自检未命中（官方可能改版）：" + inv.missing.join(" "));
+      stat("native-struct-miss");
+    } else {
+      stat("native-struct-ok");
+    }
+  }
+  testHook("nativeStructure", function() {
+    return structureInventory();
+  });
   function enhanceChat() {
     var msgCache = {};
     document.querySelectorAll(".chat-content-item .message").forEach(function(msgEl) {
