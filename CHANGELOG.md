@@ -3,6 +3,18 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.119（2026-10-04）· data→ubb 随手下沉：纯文本投影独立为 ubbtext.js，方向清单清零
+
+- **前置检查（用户定的约束）**：ubbPlain 与渲染路径**不共享正则常量**（各函数内联字面量，
+  模块级仅 IMG_CDN_OK 且渲染侧私有）——无"正则单源劈半"风险，故只沉纯函数、不动正则。
+- **修法**：ubbImText（IM wire 文本化）+ ubbPlain（明文投影）自 ubb.js 下沉到新模块
+  `ubbtext.js`（零依赖纯函数家族，逐字搬迁）；消费方改道：data/momentbar → ubbtext，
+  comments 拆双 import（renderCommentHtml 仍自 ubb）。**data→ubb 边死**；ubb.js 只剩渲染侧
+  （renderCommentHtml/ubbQuoteHtml）。
+- **测试**：check-deps 图同步（ubbtext 独立节点 + 三入边；data/momentbar 改边、comments 加边）；
+  check-direction **两口径清零**（在册清单清空，进入常驻观察态——方向卫生库存全清）；单测
+  194（ubb.test 拆双 import，用例零改动）+ 42 场景全绿。
+
 ### 0.9.118（2026-10-04）· slide→comments 接线自附：方向清单再收一条
 
 - **背景**：方向清单缓裁项（0.9.116 留账）。整个依赖=slide 建评论抽屉骨架时的两行接线

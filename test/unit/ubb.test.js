@@ -1,4 +1,4 @@
-// ubb.js（评论 UBB 渲染）单元测试：Node 内置 test 运行器，零依赖。
+// ubb.js（评论 UBB 渲染）+ ubbtext.js（纯文本投影族）单元测试：Node 内置 test 运行器，零依赖。
 // 管线契约：先 esc 全文再白名单放行——注入要么被转义成死文本、要么整标签不命中按字面
 // 显示；任何输入不允许抛错。规则语义对齐动态广场项目（acfun-moment-plaza parser.js）。
 import { test } from 'node:test';
@@ -8,7 +8,8 @@ import assert from 'node:assert/strict';
 // __ACSV_DEBUG__——Node 直采源码时两个都要先垫再动态 import
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { renderCommentHtml, ubbImText, ubbQuoteHtml, ubbPlain } = await import('../../src/ubb.js');
+var { renderCommentHtml, ubbQuoteHtml } = await import('../../src/ubb.js');
+var { ubbImText, ubbPlain } = await import('../../src/ubbtext.js'); // 0.9.119 自 ubb 下沉（纯投影族，零依赖）
 
 // ---------- [at] @ 提及 ----------
 test('at：线上原文出用户主页链接，@ 前缀保留', () => {

@@ -3,7 +3,7 @@ import { CFG } from './cfg.js';
 import { GLYPHS } from './imicons.js';
 import { likePi, throwBananaPi } from './interact.js';
 import { toggleBananaPop } from './banpop.js';
-import { ubbPlain } from './ubb.js';
+import { ubbPlain } from './ubbtext.js';
 import { commentShareWire } from './immsg.js';
 
 // ---------- 动态互动栏（0.9.105 自 followview/momentdetail 收口共享） ----------

@@ -30,11 +30,11 @@ const INFRA = new Set(['cfg.js', 'net.js', 'data.js', 'state.js', 'route.js', 'i
   'imgurl.js', 'pagekind.js', 'settings.js', 'viewreg.js', 'imgload.js', 'overlay.js', 'topbar.js',
   'ui.js', 'styles.js', 'dbg.js']);
 const API = new Set(['api.js', 'appapi.js', 'quality.js']);
-// 校准（0.9.117 首跑即立）：README 明示的五件零依赖解耦点里，immsg/imicons 现居私信层
-// subgraph——那是出身 placement，不是专属域；它们被 topbar/cards/momentbar/comments 等广泛
-// 消费，视同基础件。不校准则口径 A 会持续误报「共享叶子被顶层消费」（同 report→watchledger
-// 的误报自纠：错的是归类，不是依赖）。
-const LEAF_SHARED = new Set(['immsg.js', 'imicons.js']);
+// 校准（0.9.117 首跑即立；0.9.119 扩一项）：README 明示的五件零依赖解耦点里，immsg/imicons
+// 现居私信层 subgraph——那是出身 placement，不是专属域；它们被 topbar/cards/momentbar/comments
+// 等广泛消费，视同基础件。ubbtext（0.9.119 下沉的纯投影族）同为零依赖叶子。不校准则口径 A
+// 会持续误报「共享叶子被顶层消费」（同 report→watchledger 的误报自纠：错的是归类，不是依赖）。
+const LEAF_SHARED = new Set(['immsg.js', 'imicons.js', 'ubbtext.js']);
 
 // 口径 B 用：特性域清单（0.9.117 定版；新增特性模块时同步）
 const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 'momentbar.js',
@@ -42,13 +42,9 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   'searchview.js', 'playlayer.js', 'settingspanel.js', 'uppage.js', 'nav.js']);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 
-// 在册项（0.9.118 起；改动须同步 docs/dependency-audit.md）
-const KNOWN = [
-  {
-    edge: 'data.js -> ubb.js',
-    note: 'ubbPlain 纯逻辑寄居——随手下沉（先查其与渲染路径是否共享正则常量：共享则连正则一起沉到纯文本投影小模块，ubb.js 反向 import 它）'
-  }
-];
+// 在册项（0.9.119 起清空——data→ubb 随手下沉完成，方向卫生库存归零；新增项=需要一次裁决，
+// 改动须同步 docs/dependency-audit.md）
+const KNOWN = [];
 const knownSet = new Set(KNOWN.map((k) => k.edge));
 
 const files = fs.readdirSync(SRC).filter((f) => f.endsWith('.js'));

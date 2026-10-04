@@ -2,6 +2,7 @@
 // 管线：先 esc 全文，再按特性逐一白名单放行——[img] 字符类排除引号、[color] 限 hex、
 // [emot] 过图床白名单 + 全 URL 字符集、[at] uid 限数字、[resource] 属性区整体吞并。
 // 正则与语义对齐动态广场项目（acfun-moment-plaza parser.js）的同名规则。
+// 纯文本投影族（ubbImText/ubbPlain）0.9.119 下沉 ubbtext.js——本模块只留渲染侧。
 import { esc } from './ui.js';
 import { CFG } from './cfg.js';
 import { emotImgOf, emotPlaceholderHtml } from './emoticon.js';
@@ -71,35 +72,6 @@ export function renderCommentHtml(content) {
     return '<span style="color:' + cv + '">' + inner + '</span>';
   });
   return h;
-}
-
-// ---------- IM wire 文本化（0.9.50 引入；0.9.53 语义修正：表情码原样保留） ----------
-// 评论转发私信的 wire 文本投影。官方 IM 的文本消息 wire 本来就携带 [emot=pkg,id/] 码，
-// APP/官方 web 原生渲染成表情图（emoticon.emotify 同源契约——0.9.54 起表情转图收口在 emoticon.js）——
-// 0.9.52 曾转 [表情] 占位，官方端只能看到占位文本，系劣化，已纠正。[img] 是评论系 UBB、
-// IM 不认，转 [图片] 占位（真图渲染走 extra 载荷）；at/color/resource 摘内文。
-// 未知/未闭合标签按字面保留
-export function ubbImText(content) {
-  var t = String(content || '');
-  t = t.replace(/\[img=[^\]]*\]https?:\/\/[^\["']+?\[\/img\]/g, '[图片]');
-  t = t.replace(/\[img\]https?:\/\/[^\["']+?\[\/img\]/g, '[图片]');
-  t = t.replace(/\[at uid=\d+\]@?(.*?)\[\/at\]/g, '@$1');
-  t = t.replace(/\[resource id=\d+ type=\d+[^\]]*\]([\s\S]*?)\[\/resource\]/gi, '$1');
-  t = t.replace(/\[color=#[0-9a-fA-F]{3,8}\]([\s\S]*?)\[\/color\]/g, '$1');
-  return t;
-}
-
-// ---------- UBB → 明文投影（0.9.98）：转发动态引用块标题用 ----------
-// 与 ubbImText 同族的纯文本投影，但更狠：表情码/占位与 [img] 整体删除（引用块单行预览
-// 不挂图、也不露图链裸文），at/resource 等成对标签只剥壳留内文（名字/标题自然落在明文里）。
-// 只投影不渲染——富渲染走 renderCommentHtml/ubbTextOf 单源；空白压平成单空格（title 单行）
-export function ubbPlain(content) {
-  return String(content || '')
-    .replace(/\[img=[^\]]*\][\s\S]*?\[\/img\]/gi, ' ')
-    .replace(/\[img\][\s\S]*?\[\/img\]/gi, ' ')
-    .replace(/\[[^\[\]]{1,64}\]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 // ---------- 引用块富正文（0.9.57 收口：抽屉 cmtHtml 迁此，imnative 同消费） ----------

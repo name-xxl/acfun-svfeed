@@ -69,7 +69,8 @@ feedstore.js → player.js → input.js → feedstore.js
 
 - **0.9.116**：三条同形边（input→comments / input→imdrawer / rail→comments）全部改注入/注册缝
   ——剩余清单收敛为 2 条（下表）。**0.9.118**：`slide→comments` 走缓裁选项①（接线自附）收边
-  ——在册收敛为 1 条（data→ubb）。
+  ——在册收敛为 1 条（data→ubb）。**0.9.119**：`data→ubb` 随手下沉（前置检查：两纯函数与渲染
+  路径无共享正则常量，故只沉纯投影族、不动正则）——**方向清单清零**，诊断进入常驻观察态。
 - **V3 正式关闭**：方向卫生库存 = 5 条、全部无环、消法现成——**永远不值得一座门**。幸存者 =
   `test/check-direction.mjs`（npm script `check-direction`）：每 Phase 顺手跑一次的**非门禁**
   诊断，并列两条保守口径（正式分层 / 特性域），在册项带理由、未登记项报警、永远 exit 0。
@@ -81,4 +82,4 @@ feedstore.js → player.js → input.js → feedstore.js
 | 遗留项 | 状态 | 候选修法 |
 |---|---|---|
 | `slide→comments` | **已修（0.9.118）** | 接线自附：slide 只建空壳+注册句柄（`setCommentDrawer`）；comments 首次打开时自附关闭键/列表委托（标记打在抽屉对象上，重挂载各自绑）——边因「slide 不再 import」而死。评论列表委托分支的行为面在全仓本就零覆盖（harness 不 mock comment/list，既有缺口），自附执行由 play-deep 关闭键哨兵钉住（两处同一次调用） |
-| `data→ubb` | 待随手下沉 | 先查 `ubbPlain` 与渲染路径是否共享正则常量：共享则连正则一起沉到纯文本投影小模块，`ubb.js` 反向 import 它（下行） |
+| `data→ubb` | **已修（0.9.119）** | 随手下沉：`ubbImText`/`ubbPlain` 纯投影族独立为 `ubbtext.js`（零依赖），data/momentbar/comments 改道——契约层只碰纯逻辑；ubb.js 只留渲染侧 |

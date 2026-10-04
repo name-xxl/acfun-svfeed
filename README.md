@@ -358,7 +358,8 @@ flowchart LR
     player["player.js（编排）"]
     feedstore["feedstore.js（流仓库）"]
     pb["playback.js"]
-    ubb["ubb.js（UBB：评论渲染/IM wire/引用富正文）"]
+    ubb["ubb.js（UBB 评论渲染/引用富正文）"]
+    ubbtext["ubbtext.js（UBB 纯文本投影·零依赖）"]
     emoticon["emoticon.js（表情）"]
     playlayer["playlayer.js（播放层·子视图 play）"]
     others["controls · slide · rail · banpop · input · prewarm · danmaku · dmcanvas · interact · report · watchledger · uppage · nav · upload · release"]
@@ -382,7 +383,7 @@ flowchart LR
   feedctx["feedctx.js（列表上下文工厂·单活互斥）"]
   momentapi["momentapi.js（动态域读接口）"]
   followbadge["followbadge.js（关注未读徽标·轮询退避）"]
-  data --> imgurl & ubb
+  data --> imgurl & ubbtext
   imgview --> overlay
   imgload --> imgurl
   topbar --> imicons
@@ -408,7 +409,7 @@ flowchart LR
   sidebar --> viewreg
   followview --> comments & emoticon & imgload & imgview & imshare & momentapi & momentbar & sidebar & viewreg & cards & momentdetail
   followstream --> appapi & data & feedctx & feedstore & momentapi & sidebar
-  momentbar --> banpop & imicons & immsg & interact & styles & ubb & ui
+  momentbar --> banpop & imicons & immsg & interact & styles & ubbtext & ui
   followbadge --> followstream & momentapi
   momentdetail --> comments & emoticon & imgload & imgview & imshare & momentbar & overlay & cards
   followbadge --> net & sidebar
@@ -416,7 +417,7 @@ flowchart LR
   settingspanel --> settings & overlay
   searchview --> cards & topbar & viewreg
   input --> feedstore & overlay & pb & settings
-  comments --> appapi & emoticon & imgload & imgview & imicons & immsg & imshare & inputbar & overlay & ubb
+  comments --> appapi & emoticon & imgload & imgview & imicons & immsg & imshare & inputbar & overlay & ubb & ubbtext
   interact --> appapi
   release --> overlay & settings
   mypage --> appapi & cards & imgload & viewreg

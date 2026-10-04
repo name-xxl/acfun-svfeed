@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { coverUrl } from './imgurl.js';
-import { ubbPlain } from './ubb.js';
+import { ubbPlain } from './ubbtext.js';
 
 // 图片字段（cover/head/avatar）一律经 imgurl.coverUrl 归一（0.9.76）：http:// 老条目在
 // https 页面会被混合内容拦成裂图，归一在这里做一次，全部消费端（卡片/氛围底图/播放层）继承

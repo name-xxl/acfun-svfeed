@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.118-debug
+// @version      0.9.119-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -899,333 +899,7 @@
     while (memo.size > max) memo.delete(memo.keys().next().value);
   }
 
-  // src/emoticon.js
-  var EmotionMap = { loaded: false, loading: null, map: {}, packs: [] };
-  var EMOT_CDN_OK = /^https?:\/\/([\w.-]+\.(aixifan\.com|acfun\.cn)|preview\.ndcsk\.com\/ksc2)\//;
-  var EMOT_URL_OK = /^[\w\-./:?=&%]+$/;
-  function emotImgOf(pkg, id) {
-    pkg = String(pkg || "");
-    id = String(id || "");
-    if (!pkg || !id) return null;
-    if (pkg !== "acfun") {
-      return { html: '<img class="ubb-emotion" src="https://cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/' + pkg + "/" + id + '.gif" referrerpolicy="no-referrer">' };
-    }
-    var em = EmotionMap.map[id];
-    var u = em ? typeof em === "string" ? em : em.url : null;
-    if (!u) return null;
-    var abs = u.replace(/^\/\//, "https://");
-    if (!EMOT_CDN_OK.test(abs) || !EMOT_URL_OK.test(abs)) return null;
-    return { html: '<img class="ubb-emotion" src="' + u + '" referrerpolicy="no-referrer">' };
-  }
-  function emotPlaceholderHtml(pkg, id) {
-    return '<span class="ubb-emot-ph"' + (pkg ? ' data-pkg="' + pkg + '"' : "") + (id ? ' data-id="' + id + '"' : "") + ">[表情]</span>";
-  }
-  function refillEmoticons(root2) {
-    if (!root2 || !EmotionMap.loaded) return;
-    [].forEach.call(root2.querySelectorAll('.ubb-emot-ph[data-pkg="acfun"][data-id]'), function(ph) {
-      var hit = emotImgOf("acfun", ph.getAttribute("data-id"));
-      if (hit) ph.outerHTML = hit.html;
-    });
-  }
-  function applyEmotPacks(flat) {
-    var map = {};
-    var packs = [];
-    var byName = {};
-    (flat || []).forEach(function(u) {
-      if (!u || !u.emotionId || !u.emotionImageUrl) return;
-      var big = u.emotionBigUrl || u.emotionImageUrl;
-      map[u.emotionId] = { url: u.emotionImageUrl, big, name: u.emotionName || "", pkg: u.emotionPkgName || "" };
-      var pack = byName[u.emotionPkgName];
-      if (!pack) {
-        pack = byName[u.emotionPkgName] = { name: u.emotionPkgName || "表情", items: [] };
-        packs.push(pack);
-      }
-      pack.items.push({ id: u.emotionId, url: u.emotionImageUrl, big, name: u.emotionName || "" });
-    });
-    EmotionMap.map = map;
-    EmotionMap.packs = packs;
-    EmotionMap.loaded = true;
-    return packs;
-  }
-  function emotify(html) {
-    return html.replace(/\[emot=acfun,(\S+?)\/\]/g, function(_, id) {
-      var it = EmotionMap.map && EmotionMap.map[id];
-      return it && it.url ? '<img class="acsv-emotimg" src="' + it.url + '" referrerpolicy="no-referrer" alt="">' : "[表情]";
-    }).replace(
-      /\[emot=(\S+?),(\S+?)\/\]/g,
-      '<img class="acsv-emotimg" src="//cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/$1/$2.gif" referrerpolicy="no-referrer" alt="">'
-    );
-  }
-  var GM_EMOT_KEY = "acsvEmotPacks";
-  var GM_EMOT_TTL = 7 * 24 * 3600 * 1e3;
-  function gmEmotRead() {
-    try {
-      if (typeof GM_getValue !== "function") return null;
-      var c = JSON.parse(GM_getValue(GM_EMOT_KEY, "null") || "null");
-      if (!c || !Array.isArray(c.packs) || !c.packs.length) return null;
-      if (Date.now() - c.ts > GM_EMOT_TTL) return null;
-      return c.packs;
-    } catch (e) {
-      return null;
-    }
-  }
-  function gmEmotWrite(flat) {
-    try {
-      if (typeof GM_setValue !== "function") return;
-      GM_setValue(GM_EMOT_KEY, JSON.stringify({ ts: Date.now(), packs: flat }));
-    } catch (e) {
-    }
-  }
-  function ensureEmotionMap() {
-    if (EmotionMap.loaded) return Promise.resolve();
-    if (EmotionMap.loading) return EmotionMap.loading;
-    EmotionMap.loading = new Promise(function(resolve) {
-      try {
-        var cached = JSON.parse(localStorage.getItem("emoticonList") || "null");
-        if (Array.isArray(cached) && cached.length) {
-          applyEmotPacks(cached);
-          resolve();
-          return;
-        }
-      } catch (e) {
-      }
-      var gmPacks = gmEmotRead();
-      if (gmPacks) {
-        applyEmotPacks(gmPacks);
-        resolve();
-        return;
-      }
-      request(CFG.api.emotion, "POST").then(function(j) {
-        var flat = [];
-        var pkgs = j && (j.emotionPackageList || j.data) || [];
-        pkgs.forEach(function(p) {
-          (p.emotions || []).forEach(function(e) {
-            try {
-              var url = e.emotionImageSmallUrl || e.smallImageInfo && e.smallImageInfo.thumbnailImageCdnUrl || e.smallImageInfo && e.smallImageInfo.thumbnailImage && e.smallImageInfo.thumbnailImage.cdnUrls && e.smallImageInfo.thumbnailImage.cdnUrls[0] && e.smallImageInfo.thumbnailImage.cdnUrls[0].url || "";
-              var rawBig = typeof e.emotionImageBigUrl === "string" && e.emotionImageBigUrl || e.bigImageInfo && e.bigImageInfo.thumbnailImageCdnUrl || e.bigImageInfo && e.bigImageInfo.thumbnailImage && e.bigImageInfo.thumbnailImage.cdnUrls && e.bigImageInfo.thumbnailImage.cdnUrls[0] && e.bigImageInfo.thumbnailImage.cdnUrls[0].url || "";
-              flat.push({
-                emotionId: e.id,
-                emotionPkgName: p.name,
-                emotionImageUrl: url,
-                emotionBigUrl: rawBig || url,
-                emotionName: typeof e.name === "string" && e.name || ""
-              });
-            } catch (err) {
-            }
-          });
-        });
-        applyEmotPacks(flat);
-        gmEmotWrite(flat);
-        resolve();
-      }, function() {
-        EmotionMap.loading = null;
-        resolve();
-      });
-    });
-    return EmotionMap.loading;
-  }
-  function emotReadRecent() {
-    try {
-      var ids = JSON.parse(localStorage.getItem(CFG.lsEmotRecent) || "[]");
-      if (Array.isArray(ids)) return ids.map(String).filter(Boolean).slice(0, CFG.comments.recentMax);
-    } catch (e) {
-    }
-    return [];
-  }
-  function emotPick(id) {
-    var ids = emotReadRecent().filter(function(x) {
-      return x !== String(id);
-    });
-    ids.unshift(String(id));
-    try {
-      localStorage.setItem(CFG.lsEmotRecent, JSON.stringify(ids.slice(0, CFG.comments.recentMax)));
-    } catch (e) {
-    }
-  }
-  function emotFind(id) {
-    var packs = EmotionMap.packs || [];
-    for (var i = 0; i < packs.length; i++) {
-      for (var k = 0; k < packs[i].items.length; k++) {
-        if (String(packs[i].items[k].id) === String(id)) return packs[i].items[k];
-      }
-    }
-    return null;
-  }
-  function renderEmotPanel(panel2, insert) {
-    panel2.innerHTML = "";
-    var packs = EmotionMap.packs || [];
-    if (!packs.length) {
-      panel2.appendChild(el("div", "acsv-drawer-tip", "表情加载失败，请重试"));
-      return;
-    }
-    function addEmot(grid, it) {
-      var b = el("button", "acsv-emot-item");
-      b.title = it.name || "[emot=acfun," + it.id + "/]";
-      var img = el("img");
-      img.src = it.url;
-      img.referrerPolicy = "no-referrer";
-      img.alt = "";
-      img.loading = "lazy";
-      b.appendChild(img);
-      b.addEventListener("click", function(ev2) {
-        ev2.stopPropagation();
-        insert("[emot=acfun," + it.id + "/]");
-        emotPick(it.id);
-      });
-      b.addEventListener("mouseenter", function() {
-        var pr = panel2._prev;
-        if (!pr || !pr.isConnected) {
-          pr = el("div", "acsv-emot-prev");
-          pr._img = el("img");
-          pr._img.referrerPolicy = "no-referrer";
-          pr.appendChild(pr._img);
-          panel2.appendChild(pr);
-          panel2._prev = pr;
-        }
-        pr._img.src = it.url;
-        var prr = panel2.getBoundingClientRect(), br = b.getBoundingClientRect();
-        var left = br.left - prr.left + br.width / 2 - 62;
-        left = Math.max(6, Math.min(left, prr.width - 130));
-        pr.style.left = left + "px";
-        pr.style.top = Math.max(4, br.top - prr.top - 132) + "px";
-        pr.style.display = "block";
-      });
-      b.addEventListener("mouseleave", function() {
-        if (panel2._prev) panel2._prev.style.display = "none";
-      });
-      grid.appendChild(b);
-    }
-    function gridOf(items) {
-      var grid = el("div", "acsv-emot-grid");
-      items.forEach(function(it) {
-        addEmot(grid, it);
-      });
-      return grid;
-    }
-    var recent = emotReadRecent().map(emotFind).filter(Boolean);
-    var tabNames = [];
-    if (recent.length) tabNames.push("最近使用");
-    packs.forEach(function(p) {
-      tabNames.push(p.name);
-    });
-    var tab = panel2._tab && tabNames.indexOf(panel2._tab) !== -1 ? panel2._tab : tabNames[0];
-    var body = el("div", "acsv-emot-body");
-    body.appendChild(el("div", "acsv-emot-head", tab));
-    if (tab === "最近使用") body.appendChild(gridOf(recent));
-    else packs.forEach(function(p) {
-      if (p.name === tab) body.appendChild(gridOf(p.items));
-    });
-    panel2.appendChild(body);
-    var foot = el("div", "acsv-emot-foot");
-    var strip = el("div", "acsv-emot-strip");
-    function thumb(tabName, imgUrl) {
-      var tb = el("button", "acsv-emot-thumb" + (tab === tabName ? " on" : ""));
-      tb.title = tabName;
-      var ti = el("img");
-      ti.src = imgUrl;
-      ti.referrerPolicy = "no-referrer";
-      ti.alt = "";
-      tb.appendChild(ti);
-      tb.addEventListener("click", function(ev2) {
-        ev2.stopPropagation();
-        panel2._tab = tabName;
-        renderEmotPanel(panel2, insert);
-      });
-      strip.appendChild(tb);
-    }
-    if (recent.length) thumb("最近使用", recent[0].url);
-    packs.forEach(function(p) {
-      thumb(p.name, p.items[0].url);
-    });
-    var prev = el("button", "acsv-emot-page", "‹");
-    var next = el("button", "acsv-emot-page", "›");
-    prev.addEventListener("click", function(ev2) {
-      ev2.stopPropagation();
-      strip.scrollBy({ left: -120, behavior: "smooth" });
-    });
-    next.addEventListener("click", function(ev2) {
-      ev2.stopPropagation();
-      strip.scrollBy({ left: 120, behavior: "smooth" });
-    });
-    foot.appendChild(prev);
-    foot.appendChild(strip);
-    foot.appendChild(next);
-    panel2.appendChild(foot);
-  }
-  function insertAtCursor(inp, code) {
-    var pos = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
-    inp.value = inp.value.slice(0, pos) + code + inp.value.slice(pos);
-    inp.focus();
-    try {
-      inp.setSelectionRange(pos + code.length, pos + code.length);
-    } catch (e) {
-    }
-  }
-  function mountEmotButton(btn, panel2, textarea) {
-    var built = false;
-    btn.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      var show = panel2.style.display !== "flex";
-      panel2.style.display = show ? "flex" : "none";
-      function showPanel() {
-        renderEmotPanel(panel2, function(code) {
-          insertAtCursor(textarea, code);
-        });
-      }
-      if (show && !built) {
-        built = true;
-        panel2.appendChild(el("div", "acsv-drawer-tip", "表情加载中…"));
-        ensureEmotionMap().then(showPanel);
-      } else if (show) {
-        ensureEmotionMap().then(showPanel);
-      }
-    });
-  }
-
-  // src/ubb.js
-  var IMG_CDN_OK = /^https?:\/\/([\w.-]+\.(aixifan\.com|acfun\.cn)|preview\.ndcsk\.com\/ksc2)\//;
-  function renderCommentHtml(content) {
-    var h = esc(content || "");
-    h = h.replace(/\[表情\]/g, function() {
-      return emotPlaceholderHtml("", "");
-    });
-    h = h.replace(/\[emot=acfun,(\d+)\/?\]/g, function(_, id) {
-      var hit = emotImgOf("acfun", id);
-      return hit ? hit.html : emotPlaceholderHtml("acfun", id);
-    });
-    h = h.replace(/\[emot=(\w+),(\d+)\/?\]/g, function(_, pkg, id) {
-      var hit = emotImgOf(pkg, id);
-      return hit ? hit.html : "[表情]";
-    });
-    h = h.replace(/\[img=[^\]]*\](https?:\/\/[^\["']+?)\[\/img\]/g, function(_, u) {
-      return IMG_CDN_OK.test(u) ? '<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">' : u;
-    });
-    h = h.replace(/\[img\](https?:\/\/[^\["']+?)\[\/img\]/g, function(_, u) {
-      return IMG_CDN_OK.test(u) ? '<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">' : u;
-    });
-    h = h.replace(/\[at uid=(\d+)\]@?(.*?)\[\/at\]/g, function(_, uid, name) {
-      return '<a class="ubb-at" href="' + CFG.api.userBase + uid + '" target="_blank" rel="noopener">@' + name + "</a>";
-    });
-    h = h.replace(/#([^#\s]{1,30}?)#/g, function(_, topic) {
-      return '<a class="ubb-topic" href="https://www.acfun.cn/search?keyword=' + encodeURIComponent(topic) + '" target="_blank" rel="noopener">#' + topic + "#</a>";
-    });
-    h = h.replace(/\b(?:([va])\/)?(ac\d{4,})\b/gi, function(_, prefix, id) {
-      var type = (prefix || "a").toLowerCase();
-      var display = prefix ? prefix + "/" + id : id;
-      return '<a class="ubb-ac" href="https://www.acfun.cn/' + type + "/" + id + '" target="_blank" rel="noopener">' + display + "</a>";
-    });
-    h = h.replace(/m\.acfun\.cn\/communityCircle\/moment\/(\d+)/g, function(_, id) {
-      return '<a class="ubb-ac" href="' + CFG.api.momentBase + id + '" target="_blank" rel="noopener">am' + id + "</a>";
-    });
-    h = h.replace(/\[resource id=(\d+) type=(\d+)[^\]]*\]([\s\S]*?)\[\/resource\]/gi, function(_, id, type, inner) {
-      var base = type === "2" ? CFG.api.videoBase : CFG.api.articleBase;
-      return '<a class="ubb-res" href="' + base + id + '" target="_blank" rel="noopener">' + inner.replace(/<[^>]+>/g, "") + "</a>";
-    });
-    h = h.replace(/\[color=(#[0-9a-fA-F]{3,8})\]([\s\S]*?)\[\/color\]/g, function(_, cv, inner) {
-      return '<span style="color:' + cv + '">' + inner + "</span>";
-    });
-    return h;
-  }
+  // src/ubbtext.js
   function ubbImText(content) {
     var t = String(content || "");
     t = t.replace(/\[img=[^\]]*\]https?:\/\/[^\["']+?\[\/img\]/g, "[图片]");
@@ -1237,9 +911,6 @@
   }
   function ubbPlain(content) {
     return String(content || "").replace(/\[img=[^\]]*\][\s\S]*?\[\/img\]/gi, " ").replace(/\[img\][\s\S]*?\[\/img\]/gi, " ").replace(/\[[^\[\]]{1,64}\]/g, " ").replace(/\s+/g, " ").trim();
-  }
-  function ubbQuoteHtml(author, raw) {
-    return esc("@" + (author || "") + "：") + renderCommentHtml(raw).replace(/<a\b[^>]*>/g, "<span>").replace(/<\/a>/g, "</span>");
   }
 
   // src/data.js
@@ -3158,6 +2829,337 @@
     }, function() {
       return null;
     });
+  }
+
+  // src/emoticon.js
+  var EmotionMap = { loaded: false, loading: null, map: {}, packs: [] };
+  var EMOT_CDN_OK = /^https?:\/\/([\w.-]+\.(aixifan\.com|acfun\.cn)|preview\.ndcsk\.com\/ksc2)\//;
+  var EMOT_URL_OK = /^[\w\-./:?=&%]+$/;
+  function emotImgOf(pkg, id) {
+    pkg = String(pkg || "");
+    id = String(id || "");
+    if (!pkg || !id) return null;
+    if (pkg !== "acfun") {
+      return { html: '<img class="ubb-emotion" src="https://cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/' + pkg + "/" + id + '.gif" referrerpolicy="no-referrer">' };
+    }
+    var em = EmotionMap.map[id];
+    var u = em ? typeof em === "string" ? em : em.url : null;
+    if (!u) return null;
+    var abs = u.replace(/^\/\//, "https://");
+    if (!EMOT_CDN_OK.test(abs) || !EMOT_URL_OK.test(abs)) return null;
+    return { html: '<img class="ubb-emotion" src="' + u + '" referrerpolicy="no-referrer">' };
+  }
+  function emotPlaceholderHtml(pkg, id) {
+    return '<span class="ubb-emot-ph"' + (pkg ? ' data-pkg="' + pkg + '"' : "") + (id ? ' data-id="' + id + '"' : "") + ">[表情]</span>";
+  }
+  function refillEmoticons(root2) {
+    if (!root2 || !EmotionMap.loaded) return;
+    [].forEach.call(root2.querySelectorAll('.ubb-emot-ph[data-pkg="acfun"][data-id]'), function(ph) {
+      var hit = emotImgOf("acfun", ph.getAttribute("data-id"));
+      if (hit) ph.outerHTML = hit.html;
+    });
+  }
+  function applyEmotPacks(flat) {
+    var map = {};
+    var packs = [];
+    var byName = {};
+    (flat || []).forEach(function(u) {
+      if (!u || !u.emotionId || !u.emotionImageUrl) return;
+      var big = u.emotionBigUrl || u.emotionImageUrl;
+      map[u.emotionId] = { url: u.emotionImageUrl, big, name: u.emotionName || "", pkg: u.emotionPkgName || "" };
+      var pack = byName[u.emotionPkgName];
+      if (!pack) {
+        pack = byName[u.emotionPkgName] = { name: u.emotionPkgName || "表情", items: [] };
+        packs.push(pack);
+      }
+      pack.items.push({ id: u.emotionId, url: u.emotionImageUrl, big, name: u.emotionName || "" });
+    });
+    EmotionMap.map = map;
+    EmotionMap.packs = packs;
+    EmotionMap.loaded = true;
+    return packs;
+  }
+  function emotify(html) {
+    return html.replace(/\[emot=acfun,(\S+?)\/\]/g, function(_, id) {
+      var it = EmotionMap.map && EmotionMap.map[id];
+      return it && it.url ? '<img class="acsv-emotimg" src="' + it.url + '" referrerpolicy="no-referrer" alt="">' : "[表情]";
+    }).replace(
+      /\[emot=(\S+?),(\S+?)\/\]/g,
+      '<img class="acsv-emotimg" src="//cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/$1/$2.gif" referrerpolicy="no-referrer" alt="">'
+    );
+  }
+  var GM_EMOT_KEY = "acsvEmotPacks";
+  var GM_EMOT_TTL = 7 * 24 * 3600 * 1e3;
+  function gmEmotRead() {
+    try {
+      if (typeof GM_getValue !== "function") return null;
+      var c = JSON.parse(GM_getValue(GM_EMOT_KEY, "null") || "null");
+      if (!c || !Array.isArray(c.packs) || !c.packs.length) return null;
+      if (Date.now() - c.ts > GM_EMOT_TTL) return null;
+      return c.packs;
+    } catch (e) {
+      return null;
+    }
+  }
+  function gmEmotWrite(flat) {
+    try {
+      if (typeof GM_setValue !== "function") return;
+      GM_setValue(GM_EMOT_KEY, JSON.stringify({ ts: Date.now(), packs: flat }));
+    } catch (e) {
+    }
+  }
+  function ensureEmotionMap() {
+    if (EmotionMap.loaded) return Promise.resolve();
+    if (EmotionMap.loading) return EmotionMap.loading;
+    EmotionMap.loading = new Promise(function(resolve) {
+      try {
+        var cached = JSON.parse(localStorage.getItem("emoticonList") || "null");
+        if (Array.isArray(cached) && cached.length) {
+          applyEmotPacks(cached);
+          resolve();
+          return;
+        }
+      } catch (e) {
+      }
+      var gmPacks = gmEmotRead();
+      if (gmPacks) {
+        applyEmotPacks(gmPacks);
+        resolve();
+        return;
+      }
+      request(CFG.api.emotion, "POST").then(function(j) {
+        var flat = [];
+        var pkgs = j && (j.emotionPackageList || j.data) || [];
+        pkgs.forEach(function(p) {
+          (p.emotions || []).forEach(function(e) {
+            try {
+              var url = e.emotionImageSmallUrl || e.smallImageInfo && e.smallImageInfo.thumbnailImageCdnUrl || e.smallImageInfo && e.smallImageInfo.thumbnailImage && e.smallImageInfo.thumbnailImage.cdnUrls && e.smallImageInfo.thumbnailImage.cdnUrls[0] && e.smallImageInfo.thumbnailImage.cdnUrls[0].url || "";
+              var rawBig = typeof e.emotionImageBigUrl === "string" && e.emotionImageBigUrl || e.bigImageInfo && e.bigImageInfo.thumbnailImageCdnUrl || e.bigImageInfo && e.bigImageInfo.thumbnailImage && e.bigImageInfo.thumbnailImage.cdnUrls && e.bigImageInfo.thumbnailImage.cdnUrls[0] && e.bigImageInfo.thumbnailImage.cdnUrls[0].url || "";
+              flat.push({
+                emotionId: e.id,
+                emotionPkgName: p.name,
+                emotionImageUrl: url,
+                emotionBigUrl: rawBig || url,
+                emotionName: typeof e.name === "string" && e.name || ""
+              });
+            } catch (err) {
+            }
+          });
+        });
+        applyEmotPacks(flat);
+        gmEmotWrite(flat);
+        resolve();
+      }, function() {
+        EmotionMap.loading = null;
+        resolve();
+      });
+    });
+    return EmotionMap.loading;
+  }
+  function emotReadRecent() {
+    try {
+      var ids = JSON.parse(localStorage.getItem(CFG.lsEmotRecent) || "[]");
+      if (Array.isArray(ids)) return ids.map(String).filter(Boolean).slice(0, CFG.comments.recentMax);
+    } catch (e) {
+    }
+    return [];
+  }
+  function emotPick(id) {
+    var ids = emotReadRecent().filter(function(x) {
+      return x !== String(id);
+    });
+    ids.unshift(String(id));
+    try {
+      localStorage.setItem(CFG.lsEmotRecent, JSON.stringify(ids.slice(0, CFG.comments.recentMax)));
+    } catch (e) {
+    }
+  }
+  function emotFind(id) {
+    var packs = EmotionMap.packs || [];
+    for (var i = 0; i < packs.length; i++) {
+      for (var k = 0; k < packs[i].items.length; k++) {
+        if (String(packs[i].items[k].id) === String(id)) return packs[i].items[k];
+      }
+    }
+    return null;
+  }
+  function renderEmotPanel(panel2, insert) {
+    panel2.innerHTML = "";
+    var packs = EmotionMap.packs || [];
+    if (!packs.length) {
+      panel2.appendChild(el("div", "acsv-drawer-tip", "表情加载失败，请重试"));
+      return;
+    }
+    function addEmot(grid, it) {
+      var b = el("button", "acsv-emot-item");
+      b.title = it.name || "[emot=acfun," + it.id + "/]";
+      var img = el("img");
+      img.src = it.url;
+      img.referrerPolicy = "no-referrer";
+      img.alt = "";
+      img.loading = "lazy";
+      b.appendChild(img);
+      b.addEventListener("click", function(ev2) {
+        ev2.stopPropagation();
+        insert("[emot=acfun," + it.id + "/]");
+        emotPick(it.id);
+      });
+      b.addEventListener("mouseenter", function() {
+        var pr = panel2._prev;
+        if (!pr || !pr.isConnected) {
+          pr = el("div", "acsv-emot-prev");
+          pr._img = el("img");
+          pr._img.referrerPolicy = "no-referrer";
+          pr.appendChild(pr._img);
+          panel2.appendChild(pr);
+          panel2._prev = pr;
+        }
+        pr._img.src = it.url;
+        var prr = panel2.getBoundingClientRect(), br = b.getBoundingClientRect();
+        var left = br.left - prr.left + br.width / 2 - 62;
+        left = Math.max(6, Math.min(left, prr.width - 130));
+        pr.style.left = left + "px";
+        pr.style.top = Math.max(4, br.top - prr.top - 132) + "px";
+        pr.style.display = "block";
+      });
+      b.addEventListener("mouseleave", function() {
+        if (panel2._prev) panel2._prev.style.display = "none";
+      });
+      grid.appendChild(b);
+    }
+    function gridOf(items) {
+      var grid = el("div", "acsv-emot-grid");
+      items.forEach(function(it) {
+        addEmot(grid, it);
+      });
+      return grid;
+    }
+    var recent = emotReadRecent().map(emotFind).filter(Boolean);
+    var tabNames = [];
+    if (recent.length) tabNames.push("最近使用");
+    packs.forEach(function(p) {
+      tabNames.push(p.name);
+    });
+    var tab = panel2._tab && tabNames.indexOf(panel2._tab) !== -1 ? panel2._tab : tabNames[0];
+    var body = el("div", "acsv-emot-body");
+    body.appendChild(el("div", "acsv-emot-head", tab));
+    if (tab === "最近使用") body.appendChild(gridOf(recent));
+    else packs.forEach(function(p) {
+      if (p.name === tab) body.appendChild(gridOf(p.items));
+    });
+    panel2.appendChild(body);
+    var foot = el("div", "acsv-emot-foot");
+    var strip = el("div", "acsv-emot-strip");
+    function thumb(tabName, imgUrl) {
+      var tb = el("button", "acsv-emot-thumb" + (tab === tabName ? " on" : ""));
+      tb.title = tabName;
+      var ti = el("img");
+      ti.src = imgUrl;
+      ti.referrerPolicy = "no-referrer";
+      ti.alt = "";
+      tb.appendChild(ti);
+      tb.addEventListener("click", function(ev2) {
+        ev2.stopPropagation();
+        panel2._tab = tabName;
+        renderEmotPanel(panel2, insert);
+      });
+      strip.appendChild(tb);
+    }
+    if (recent.length) thumb("最近使用", recent[0].url);
+    packs.forEach(function(p) {
+      thumb(p.name, p.items[0].url);
+    });
+    var prev = el("button", "acsv-emot-page", "‹");
+    var next = el("button", "acsv-emot-page", "›");
+    prev.addEventListener("click", function(ev2) {
+      ev2.stopPropagation();
+      strip.scrollBy({ left: -120, behavior: "smooth" });
+    });
+    next.addEventListener("click", function(ev2) {
+      ev2.stopPropagation();
+      strip.scrollBy({ left: 120, behavior: "smooth" });
+    });
+    foot.appendChild(prev);
+    foot.appendChild(strip);
+    foot.appendChild(next);
+    panel2.appendChild(foot);
+  }
+  function insertAtCursor(inp, code) {
+    var pos = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
+    inp.value = inp.value.slice(0, pos) + code + inp.value.slice(pos);
+    inp.focus();
+    try {
+      inp.setSelectionRange(pos + code.length, pos + code.length);
+    } catch (e) {
+    }
+  }
+  function mountEmotButton(btn, panel2, textarea) {
+    var built = false;
+    btn.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      var show = panel2.style.display !== "flex";
+      panel2.style.display = show ? "flex" : "none";
+      function showPanel() {
+        renderEmotPanel(panel2, function(code) {
+          insertAtCursor(textarea, code);
+        });
+      }
+      if (show && !built) {
+        built = true;
+        panel2.appendChild(el("div", "acsv-drawer-tip", "表情加载中…"));
+        ensureEmotionMap().then(showPanel);
+      } else if (show) {
+        ensureEmotionMap().then(showPanel);
+      }
+    });
+  }
+
+  // src/ubb.js
+  var IMG_CDN_OK = /^https?:\/\/([\w.-]+\.(aixifan\.com|acfun\.cn)|preview\.ndcsk\.com\/ksc2)\//;
+  function renderCommentHtml(content) {
+    var h = esc(content || "");
+    h = h.replace(/\[表情\]/g, function() {
+      return emotPlaceholderHtml("", "");
+    });
+    h = h.replace(/\[emot=acfun,(\d+)\/?\]/g, function(_, id) {
+      var hit = emotImgOf("acfun", id);
+      return hit ? hit.html : emotPlaceholderHtml("acfun", id);
+    });
+    h = h.replace(/\[emot=(\w+),(\d+)\/?\]/g, function(_, pkg, id) {
+      var hit = emotImgOf(pkg, id);
+      return hit ? hit.html : "[表情]";
+    });
+    h = h.replace(/\[img=[^\]]*\](https?:\/\/[^\["']+?)\[\/img\]/g, function(_, u) {
+      return IMG_CDN_OK.test(u) ? '<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">' : u;
+    });
+    h = h.replace(/\[img\](https?:\/\/[^\["']+?)\[\/img\]/g, function(_, u) {
+      return IMG_CDN_OK.test(u) ? '<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">' : u;
+    });
+    h = h.replace(/\[at uid=(\d+)\]@?(.*?)\[\/at\]/g, function(_, uid, name) {
+      return '<a class="ubb-at" href="' + CFG.api.userBase + uid + '" target="_blank" rel="noopener">@' + name + "</a>";
+    });
+    h = h.replace(/#([^#\s]{1,30}?)#/g, function(_, topic) {
+      return '<a class="ubb-topic" href="https://www.acfun.cn/search?keyword=' + encodeURIComponent(topic) + '" target="_blank" rel="noopener">#' + topic + "#</a>";
+    });
+    h = h.replace(/\b(?:([va])\/)?(ac\d{4,})\b/gi, function(_, prefix, id) {
+      var type = (prefix || "a").toLowerCase();
+      var display = prefix ? prefix + "/" + id : id;
+      return '<a class="ubb-ac" href="https://www.acfun.cn/' + type + "/" + id + '" target="_blank" rel="noopener">' + display + "</a>";
+    });
+    h = h.replace(/m\.acfun\.cn\/communityCircle\/moment\/(\d+)/g, function(_, id) {
+      return '<a class="ubb-ac" href="' + CFG.api.momentBase + id + '" target="_blank" rel="noopener">am' + id + "</a>";
+    });
+    h = h.replace(/\[resource id=(\d+) type=(\d+)[^\]]*\]([\s\S]*?)\[\/resource\]/gi, function(_, id, type, inner) {
+      var base = type === "2" ? CFG.api.videoBase : CFG.api.articleBase;
+      return '<a class="ubb-res" href="' + base + id + '" target="_blank" rel="noopener">' + inner.replace(/<[^>]+>/g, "") + "</a>";
+    });
+    h = h.replace(/\[color=(#[0-9a-fA-F]{3,8})\]([\s\S]*?)\[\/color\]/g, function(_, cv, inner) {
+      return '<span style="color:' + cv + '">' + inner + "</span>";
+    });
+    return h;
+  }
+  function ubbQuoteHtml(author, raw) {
+    return esc("@" + (author || "") + "：") + renderCommentHtml(raw).replace(/<a\b[^>]*>/g, "<span>").replace(/<\/a>/g, "</span>");
   }
 
   // src/imgview.js
@@ -8812,7 +8814,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.118" : "");
+    return normVer(true ? "0.9.119" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -10380,7 +10382,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.118：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.119：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
