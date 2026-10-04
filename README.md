@@ -399,7 +399,7 @@ flowchart LR
   pb --> feedstore & settings
   ubb --> emoticon
   playlayer --> api & attach & cards & viewreg
-  imshare --> appapi & imdrawer & imgload & immsg
+  imshare --> appapi & imgload & immsg
   imdrawer --> appapi & comments & emoticon & imcard & imgload & imgview & imicons & immsg & imshare & inputbar & overlay & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg

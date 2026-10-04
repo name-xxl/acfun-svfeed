@@ -2,7 +2,7 @@ import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
 import { el, toast, copyText, cookieVal } from './ui.js';import { postForm } from './appapi.js';
 import { imgInto } from './imgload.js';
-import { openChat } from './imdrawer.js';
+import { testHook } from './dbg.js';
 import { quoteWireText, QUOTE_EXTRA_KEY, CMT_EXTRA_KEY } from './immsg.js';
 
 // ---------- 私信分享（抖音式分享面板） ----------
@@ -11,6 +11,13 @@ import { quoteWireText, QUOTE_EXTRA_KEY, CMT_EXTRA_KEY } from './immsg.js';
 // new ImSdk({dev:false})）。构造是单例：若顶栏已建实例则复用同一条 WS 连接，不重复握手。
 // 头像昵称用 getUserCardList（SDK 内部同款接口，网页 Cookie 鉴权）。
 // 全链路失败均降级为「复制链接」，不阻断分享。
+
+// 聊天打开出口（0.9.114）：分享发送后「捎句话」要进与好友的会话——由 imdrawer 模块求值期
+// 注册（openChat），本模块不再 import imdrawer（imshare↔imdrawer 互 import 环的一半，
+// 0.9.114 断；注册缝先例=views.setItemOpener）。未注册时（理论不会有：home 页
+// player→imdrawer 链必载本模块）点击 no-op——im-open 页哨兵 testHook('chatOpener') 钉注册态
+var chatOpener = null;
+export function setChatOpener(fn) { chatOpener = typeof fn === 'function' ? fn : null; }
 
 // 脚本在 TM 隔离 world 运行，页面变量（globalConfig/ImSdk）必须经 unsafeWindow 读
 function pageWin() {
@@ -939,7 +946,7 @@ function renderRows(pop, list, contacts, item, inst) {
             chatBtn.title = '打开与 ' + (card.name || '好友') + ' 的聊天，补充一句';
             chatBtn.addEventListener('click', function (ev) {
               ev.stopPropagation();
-              openChat(c.targetId);
+              if (chatOpener) chatOpener(c.targetId); // 0.9.114：经注册缝（imdrawer 注册）
             });
             send.replaceWith(chatBtn);
             toast('已私信分享给 ' + (card.name || '好友'));
@@ -968,3 +975,7 @@ function filterRows(pop, kw) {
     rows[i].style.display = hit ? '' : 'none';
   }
 }
+
+// debug 构建测试钩子：harness 哨兵——「捎句话」出口注册状态（im-open 页断言；防未来重构
+// 悄悄丢掉 imdrawer 的注册行 ⇒ 点击静默 no-op，这类断线只有注册态断言能兜住）
+testHook('chatOpener', function () { return !!chatOpener; });

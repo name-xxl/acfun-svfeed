@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.113
+// @version      0.9.114
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -3251,1126 +3251,11 @@
     return { box, label };
   }
 
-  // src/imcard.js
-  function hideCover(img, skin) {
-    if (skin.coverHidden === "display") img.style.display = "none";
-    else img.style.visibility = "hidden";
-  }
-  function showCover(img, skin) {
-    if (skin.coverHidden === "display") img.style.display = "";
-    else img.style.visibility = "";
-  }
-  function vcard(skin, r, mine) {
-    var a = el(r.href ? "a" : "div", skin.root + (mine && skin.rootMine ? " " + skin.rootMine : ""));
-    if (r.href) {
-      a.href = r.href;
-      a.target = "_blank";
-      a.rel = "noopener";
-    }
-    var box = el(skin.tag, skin.coverbox);
-    var cover = el("img", skin.cover);
-    cover.alt = "";
-    cover.referrerPolicy = "no-referrer";
-    cover.addEventListener("load", function() {
-      showCover(cover, skin);
-    });
-    cover.addEventListener("error", function() {
-      hideCover(cover, skin);
-    });
-    if (r.coverUrl) cover.src = r.coverUrl;
-    else hideCover(cover, skin);
-    box.appendChild(cover);
-    var bar = el(skin.tag, skin.bar);
-    bar.appendChild(skin.icon("play"));
-    var view2 = el(skin.tag, skin.view, r.viewCountShow || "");
-    bar.appendChild(view2);
-    bar.appendChild(skin.icon("comment"));
-    var cmt = el(skin.tag, skin.cmt, r.commentCountShow || "");
-    bar.appendChild(cmt);
-    var dur = el(skin.tag, skin.dur, r.durationSec ? fmtDur(r.durationSec) : "");
-    if (!r.durationSec) dur.style.display = "none";
-    bar.appendChild(dur);
-    box.appendChild(bar);
-    a.appendChild(box);
-    var title = el(skin.tag, skin.title, r.title || "");
-    if (!r.title) title.style.display = "none";
-    a.appendChild(title);
-    a.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-    });
-    return { el: a, cover, view: view2, cmt, dur, title };
-  }
-  function patchVcard(parts, c) {
-    if (parts.cover && c.cover) parts.cover.src = c.cover;
-    if (parts.view && c.view != null) parts.view.textContent = c.view;
-    if (parts.cmt && c.comment != null) parts.cmt.textContent = c.comment;
-    if (parts.dur && c.durationSec) {
-      parts.dur.textContent = fmtDur(c.durationSec);
-      parts.dur.style.display = "";
-    }
-    if (parts.title && c.title) {
-      parts.title.textContent = c.title;
-      parts.title.style.display = "";
-    }
-  }
-  function cshareCard(skin, spec, mine) {
-    var a = el(spec.href ? "a" : "div", skin.cshare + (mine && skin.rootMine ? " " + skin.rootMine : ""));
-    if (spec.href) {
-      a.href = spec.href;
-      a.target = "_blank";
-      a.rel = "noopener";
-    }
-    a.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-    });
-    var quote = el(skin.tag, skin.quote);
-    if (spec.html) {
-      quote.innerHTML = spec.html;
-      quote.addEventListener("click", function(ev) {
-        var im = ev.target && ev.target.closest ? ev.target.closest(".ubb-imgc") : null;
-        if (!im) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        openImageViewer(im.getAttribute("src") || "");
-      });
-    } else {
-      quote.innerHTML = emotify(esc(spec.text || ""));
-    }
-    a.appendChild(quote);
-    var src = el(skin.tag, skin.src);
-    var cover = el("img", skin.srcimg);
-    cover.alt = "";
-    cover.referrerPolicy = "no-referrer";
-    hideCover(cover, skin);
-    cover.addEventListener("load", function() {
-      showCover(cover, skin);
-    });
-    cover.addEventListener("error", function() {
-      hideCover(cover, skin);
-    });
-    src.appendChild(cover);
-    var srct = el(skin.tag, skin.srct, "查看来源作品");
-    src.appendChild(srct);
-    a.appendChild(src);
-    return { el: a, quote, cover, srct };
-  }
-  function patchCshare(parts, c) {
-    if (parts.cover && c.cover) parts.cover.src = c.cover;
-    if (parts.srct && c.title) parts.srct.textContent = c.title;
-  }
-
-  // src/imdrawer.js
-  var drawer = null;
-  var view = "";
-  var cards = {};
-  var badgeTimer = null;
-  var badgeDelayTimer = null;
-  function makePoller(fn, gap) {
-    var t = null;
-    function stop() {
-      if (t) {
-        clearInterval(t);
-        t = null;
-      }
-    }
-    return { start: function() {
-      stop();
-      t = setInterval(fn, gap);
-    }, stop };
-  }
-  var listPoll = makePoller(function() {
-    if (view !== "list") return listPoll.stop();
-    refreshList();
-  }, CFG.im.drawerListPoll);
-  var chatPoll = makePoller(function() {
-    if (!chat) return chatPoll.stop();
-    ensureIm().then(function(inst) {
-      if (!inst.connected) return;
-      chatPollOnce(inst, false);
-    }, function() {
-    });
-  }, CFG.im.drawerChatPoll);
-  var chat = null;
-  var lastImInst = null;
-  var badgeEl = null;
-  var mounted = false;
-  function badgeText(n) {
-    return n > 99 ? "99+" : n > 0 ? String(n) : "";
-  }
-  function msgFrom(m) {
-    try {
-      if (m.fromUserId != null) return String(m.fromUserId);
-      if (m.rawMsg && m.rawMsg.fromUserId != null) return String(m.rawMsg.fromUserId);
-    } catch (e) {
-    }
-    return "";
-  }
-  function msgTime(m) {
-    try {
-      if (m.date) return new Date(m.date).getTime() || 0;
-      if (m.rawMsg && m.rawMsg.timestampMs) return Number(m.rawMsg.timestampMs) || 0;
-    } catch (e) {
-    }
-    return 0;
-  }
-  function pad22(n) {
-    return n < 10 ? "0" + n : "" + n;
-  }
-  function relTime2(ts) {
-    if (!ts) return "";
-    var d = Date.now() - ts;
-    if (d < 6e4) return "刚刚";
-    var now = /* @__PURE__ */ new Date(), t = new Date(ts);
-    if (t.toDateString() === now.toDateString()) return pad22(t.getHours()) + ":" + pad22(t.getMinutes());
-    if (t.toDateString() === new Date(now.getTime() - 864e5).toDateString()) return "昨天";
-    if (d < 6048e5) return "周" + "日一二三四五六".charAt(t.getDay());
-    return pad22(t.getMonth() + 1) + "-" + pad22(t.getDate());
-  }
-  function linkify(s) {
-    return esc(s).replace(/(https?:\/\/[^\s<]+)/g, function(u) {
-      return '<a href="' + u + '" target="_blank" rel="noopener">' + u + "</a>";
-    });
-  }
-  function imTextHtml(s) {
-    return emotify(linkify(s));
-  }
-  function ensureDrawerDom() {
-    if (drawer || !root) return;
-    var d = el("aside", "acsv-msgdrawer");
-    var head = el("div", "acsv-im-head");
-    var back = el("button", "acsv-im-back", "‹");
-    back.title = "返回消息列表";
-    var title = el("span", "acsv-im-title", "私信");
-    var close = el("button", "acsv-im-close", "✕");
-    close.title = "关闭";
-    close.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      closeDrawer();
-    });
-    back.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      showList();
-    });
-    head.appendChild(back);
-    head.appendChild(title);
-    head.appendChild(close);
-    d.appendChild(head);
-    var listView = el("div", "acsv-im-listview acsv-im-pane");
-    var searchWrap = el("div", "acsv-im-searchwrap");
-    var search = el("input", "acsv-im-search");
-    search.placeholder = "搜索联系人";
-    search.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-    });
-    search.addEventListener("input", function() {
-      renderList(search.value);
-    });
-    searchWrap.appendChild(search);
-    listView.appendChild(searchWrap);
-    var listBody = el("div", "acsv-im-list");
-    listView.appendChild(listBody);
-    var chatView = el("div", "acsv-im-chatview acsv-im-pane");
-    var bubbles = el("div", "acsv-im-bubbles");
-    var quoteChip = buildQuoteChip(function() {
-      setQuote(null);
-    }, "取消引用");
-    var inputBar2 = buildInputBar({
-      img: { title: "发送图片", onFile: sendImageMsg },
-      // 尺寸门禁在 sendImageMsg 内
-      placeholder: "发个消息…",
-      onSend: function() {
-        var t = inputBar2.input.value.replace(/\s+$/, "");
-        if (!t) return;
-        inputBar2.input.value = "";
-        inputBar2.fitHeight();
-        sendChat(t);
-      }
-    });
-    var input = inputBar2.input;
-    chatView.appendChild(bubbles);
-    chatView.appendChild(quoteChip.box);
-    chatView.appendChild(inputBar2.box);
-    var stage = el("div", "acsv-im-stage");
-    stage.appendChild(listView);
-    stage.appendChild(chatView);
-    d.appendChild(stage);
-    var emotPanel = el("div", "acsv-emotpanel");
-    emotPanel.style.display = "none";
-    d.appendChild(emotPanel);
-    mountEmotButton(inputBar2.emotBtn, emotPanel, input);
-    var mapCold = !EmotionMap.loaded;
-    ensureEmotionMap().then(function() {
-      if (!mapCold || !drawer || view !== "chat" || !chat) return;
-      ensureIm().then(function(inst) {
-        if (inst.connected) chatPollOnce(inst, true);
-      }, function() {
-      });
-    });
-    root.appendChild(d);
-    drawer = {
-      el: d,
-      head,
-      back,
-      title,
-      close,
-      listView,
-      search,
-      listBody,
-      chatView,
-      bubbles,
-      quoteChip,
-      input,
-      send: inputBar2.send
-    };
-  }
-  function setPane(name) {
-    if (!drawer) return;
-    view = name;
-    drawer.el.classList.toggle("chat-on", name === "chat");
-  }
-  function showList() {
-    if (!drawer) return;
-    chatPoll.stop();
-    setPane("list");
-    drawer.title.textContent = "私信";
-    refreshList();
-    listPoll.start();
-  }
-  function showChat(targetId) {
-    if (!drawer) return;
-    listPoll.stop();
-    var card = cards[targetId] || {};
-    drawer.title.textContent = card.name || "用户 " + targetId;
-    setPane("chat");
-    drawer.bubbles.innerHTML = "";
-    chat = { targetId: String(targetId), name: card.name || "", session: null, lastCount: -1, seen: {}, lastDivTs: 0, quote: null, msgEls: {} };
-    loadChat();
-    drawer.input.value = "";
-    setTimeout(function() {
-      try {
-        drawer.input.focus();
-      } catch (e) {
-      }
-    }, 60);
-    chatPoll.start();
-  }
-  var listSig = "";
-  function sessionSig(ss) {
-    return ss.map(function(s) {
-      return [
-        s.targetId,
-        s.unread,
-        s.t,
-        s.last && (s.last.seqId || msgTime(s.last) || msgTextOf(s.last)) || ""
-      ].join(":");
-    }).join("|");
-  }
-  function refreshList() {
-    ensureIm().then(function(inst) {
-      return ensureConnected(inst).then(function() {
-        var ss = [];
-        try {
-          ss = inst.kernel.getSessions() || [];
-        } catch (e) {
-        }
-        ss = ss.map(function(s) {
-          var last = s.lastMessage || null;
-          try {
-            var msgs = inst.kernel.getMessages(s) || [];
-            if (msgs.length) last = msgs[msgs.length - 1];
-          } catch (e) {
-          }
-          return {
-            targetId: String(s.targetId),
-            unread: Number(s.unreadCount) || 0,
-            t: msgTime(last) || new Date(s.date || 0).getTime() || 0,
-            last
-          };
-        }).filter(function(s) {
-          return s.targetId && s.targetId !== selfUid();
-        }).sort(function(a, b) {
-          return b.t - a.t;
-        });
-        var ids = ss.map(function(s) {
-          return Number(s.targetId);
-        });
-        var sig = sessionSig(ss) + "|" + ids.join(",");
-        if (sig === listSig && drawer && view === "list") return;
-        listSig = sig;
-        return fetchCards(ids).then(function(m) {
-          Object.keys(m).forEach(function(k) {
-            cards[k] = m[k];
-          });
-          renderList("", ss);
-        });
-      });
-    }).catch(function() {
-      if (drawer && drawer.listBody && !drawer.listBody.children.length) {
-        drawer.listBody.innerHTML = "";
-        drawer.listBody.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
-      }
-    });
-  }
-  function renderList(kw, ss) {
-    if (!drawer) return;
-    kw = String(kw || "").trim().toLowerCase();
-    var rows = ss || lastListRows || [];
-    if (ss) lastListRows = ss;
-    var unreadTotal = 0;
-    rows.forEach(function(r) {
-      unreadTotal += r.unread || 0;
-    });
-    if (view === "list") drawer.title.textContent = "私信" + (unreadTotal > 0 ? " (" + unreadTotal + ")" : "");
-    drawer.listBody.innerHTML = "";
-    var shown = 0;
-    rows.forEach(function(r) {
-      var card = cards[r.targetId] || {};
-      var name = card.name || "用户 " + r.targetId;
-      if (kw && name.toLowerCase().indexOf(kw) < 0) return;
-      shown++;
-      var row = el("div", "acsv-im-row");
-      row.dataset.tid = r.targetId;
-      imgInto(row, card.headUrl || CFG.api.defaultAvatar, "avatar", "acsv-im-av");
-      var mid = el("div", "acsv-im-mid");
-      var nm = el("div", "acsv-im-name");
-      nm.innerHTML = esc(name) + (r.unread > 0 ? '<span class="acsv-share-unread">' + (r.unread > 99 ? "99+" : r.unread) + "</span>" : "");
-      mid.appendChild(nm);
-      var prev = el("div", "acsv-im-preview", previewOf(r));
-      mid.appendChild(prev);
-      row.appendChild(mid);
-      var tm = el("div", "acsv-im-time", relTime2(r.t));
-      row.appendChild(tm);
-      row.addEventListener("click", function(ev) {
-        ev.stopPropagation();
-        showChat(r.targetId);
-      });
-      drawer.listBody.appendChild(row);
-    });
-    if (!shown) {
-      drawer.listBody.appendChild(el(
-        "div",
-        "acsv-share-tip",
-        kw ? "没有匹配的联系人" : "还没有聊过天的朋友\n先在 A 站 APP / 网页和 TA 私聊一句\n再回来把视频分享给 TA"
-      ));
-    }
-  }
-  var lastListRows = null;
-  function previewOf(r) {
-    return r.last ? previewOfMessage(r.last) : "";
-  }
-  function loadChat() {
-    ensureIm().then(function(inst) {
-      return ensureConnected(inst).then(function() {
-        ensureTracer(inst);
-        var ss = [];
-        try {
-          ss = inst.kernel.getSessions() || [];
-        } catch (e) {
-        }
-        var sess = null;
-        ss.some(function(s) {
-          if (String(s.targetId) === chat.targetId) {
-            sess = s;
-            return true;
-          }
-          return false;
-        });
-        if (!sess) {
-          return inst.kernel.openSession(0, chat.targetId).then(function() {
-            var ss2 = inst.kernel.getSessions() || [];
-            ss2.some(function(s) {
-              if (String(s.targetId) === chat.targetId) {
-                sess = s;
-                return true;
-              }
-              return false;
-            });
-            chat.session = sess;
-            chatPollOnce(inst, true);
-            return null;
-          }, function() {
-            chat.session = null;
-            return null;
-          });
-        }
-        chat.session = sess;
-        return chatPollOnce(inst, true);
-      });
-    }).catch(function() {
-      if (drawer && drawer.bubbles && !drawer.bubbles.children.length) {
-        drawer.bubbles.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
-      }
-    });
-  }
-  function chatPollOnce(inst, reset) {
-    lastImInst = inst;
-    try {
-      var k = inst.kernel;
-      if (!chat.session) {
-        var ss = k.getSessions() || [];
-        ss.some(function(s) {
-          if (String(s.targetId) === chat.targetId) {
-            chat.session = s;
-            return true;
-          }
-          return false;
-        });
-      }
-      if (!chat.session) return;
-      var msgs = k.getMessages(chat.session) || [];
-      if (reset) {
-        chat.seen = {};
-        chat.msgEls = {};
-        chat.lastCount = -1;
-        drawer.bubbles.innerHTML = "";
-      }
-      var fresh = [];
-      msgs.forEach(function(m) {
-        var key = String(m.seqId !== void 0 && m.seqId || msgTime(m) || "h" + msgFrom(m) + ":" + msgTextOf(m));
-        if (chat.seen[key]) return;
-        chat.seen[key] = true;
-        fresh.push({ m, key });
-      });
-      fresh.forEach(function(x) {
-        appendBubble(x.m);
-        var lastEl = drawer.bubbles.lastElementChild;
-        if (lastEl) chat.msgEls[x.key] = lastEl;
-      });
-      if (fresh.length || reset) {
-        drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-        try {
-          if (chat.session && k.markSessionRead && chat.session.unreadCount !== void 0) k.markSessionRead(chat.session);
-        } catch (e) {
-        }
-      }
-    } catch (e) {
-    }
-  }
-  function dayLabel(ts) {
-    var now = /* @__PURE__ */ new Date(), t = new Date(ts);
-    var hm = pad22(t.getHours()) + ":" + pad22(t.getMinutes());
-    if (t.toDateString() === now.toDateString()) return "今天 " + hm;
-    if (t.toDateString() === new Date(now.getTime() - 864e5).toDateString()) return "昨天 " + hm;
-    if (now.getTime() - ts < 6048e5) return "周" + "日一二三四五六".charAt(t.getDay()) + " " + hm;
-    return pad22(t.getMonth() + 1) + "-" + pad22(t.getDate()) + " " + hm;
-  }
-  function maybeDayDiv(ts) {
-    if (!ts || !drawer || !chat) return;
-    if (!chat.lastDivTs || ts - chat.lastDivTs >= CFG.im.dayDivGap) {
-      drawer.bubbles.appendChild(el("div", "acsv-im-daydiv", dayLabel(ts)));
-    }
-    chat.lastDivTs = ts;
-  }
-  function setQuote(q2) {
-    if (chat) chat.quote = q2 || null;
-    renderQuoteChip();
-  }
-  function renderQuoteChip() {
-    if (!drawer) return;
-    var chip = drawer.quoteChip, q2 = chat && chat.quote;
-    if (!q2) {
-      chip.box.style.display = "none";
-      chip.label.textContent = "";
-      drawer.input.placeholder = "发个消息…";
-      return;
-    }
-    chip.box.style.display = "flex";
-    chip.label.textContent = "引用：" + (q2.preview || "原消息");
-    drawer.input.placeholder = "回复引用的内容…";
-  }
-  function quoteStrip(q2) {
-    var s = el("div", "acsv-im-quote" + (q2.seqId ? " link" : ""));
-    s.appendChild(el("div", "acsv-im-quote-preview", q2.preview || "[原消息]"));
-    if (q2.seqId) {
-      s.title = "点击查看原消息";
-      s.addEventListener("click", function(ev) {
-        ev.stopPropagation();
-        locateMessage(q2.seqId);
-      });
-    }
-    return s;
-  }
-  function locateMessage(seqId) {
-    if (!drawer || !chat) return;
-    var wrap = chat.msgEls[String(seqId)];
-    if (!wrap || !wrap.isConnected) {
-      toast("原消息不在已加载的记录里");
-      return;
-    }
-    var t = wrap.querySelector(".acsv-im-bubble") || wrap.querySelector(".acsv-im-vcard") || wrap;
-    try {
-      t.scrollIntoView({ block: "center", behavior: "smooth" });
-    } catch (e1) {
-      t.scrollIntoView();
-    }
-    t.classList.remove("acsv-im-flash");
-    void t.offsetWidth;
-    t.classList.add("acsv-im-flash");
-    setTimeout(function() {
-      t.classList.remove("acsv-im-flash");
-    }, 1300);
-  }
-  function bubbleRow(b, mine, m, extraCls) {
-    var wrap = el("div", "acsv-im-rowwrap" + (extraCls ? " " + extraCls : "") + (mine ? " mine" : ""));
-    wrap.appendChild(b);
-    if (m && isQuotable(m, CFG.im.quoteWire)) wrap.appendChild(quoteBtnEl(m));
-    return wrap;
-  }
-  function quoteBtnEl(m) {
-    var btn = el("button", "acsv-im-quotebtn", "↩");
-    btn.title = "引用这条消息";
-    btn.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      var raw = m.rawMsg || {};
-      setQuote({
-        seqId: raw.seqId !== void 0 && raw.seqId !== null ? String(raw.seqId) : "",
-        preview: previewOfMessage(m) || msgTextOf(m).slice(0, 40),
-        originMsg: m
-      });
-      try {
-        drawer.input.focus();
-      } catch (e) {
-      }
-    });
-    return btn;
-  }
-  function appendBubble(m) {
-    if (!drawer) return;
-    maybeDayDiv(msgTime(m));
-    var mine = msgFrom(m) === selfUid();
-    var q2 = quoteOf(m) || quoteExtraOf(m);
-    var b = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
-    if (q2) {
-      b.appendChild(quoteStrip(q2));
-      var qtxt = el("div", "acsv-im-msgtext");
-      qtxt.innerHTML = imTextHtml(q2.text);
-      b.appendChild(qtxt);
-      drawer.bubbles.appendChild(bubbleRow(b, mine, m));
-      return;
-    }
-    if (msgContentType(m) === 1) return appendImageBubble(m, mine);
-    var card = parseCard(m);
-    if (card) return appendCardBubble(card, mine, m);
-    var share = parseShare(msgTextOf(m));
-    if (share) return appendShareBubble(share, mine, m, cmtShareOf(m));
-    var txt = el("div", "acsv-im-msgtext");
-    txt.innerHTML = imTextHtml(msgTextOf(m));
-    b.appendChild(txt);
-    drawer.bubbles.appendChild(bubbleRow(b, mine, m));
-  }
-  function appendImageBubble(m, mine) {
-    if (!drawer) return;
-    var w = Number(m.width) || 0, h = Number(m.height) || 0;
-    var src = imageUrlOf(m);
-    var b = el("div", "acsv-im-imgbubble" + (mine ? " mine" : ""));
-    if (src) {
-      var img = document.createElement("img");
-      img.className = "acsv-im-imgimg";
-      img.alt = "";
-      if (w > 0 && h > 0) {
-        img.style.width = Math.min(w, 180) + "px";
-        img.style.aspectRatio = w + " / " + h;
-      }
-      b.appendChild(img);
-      var cached = peekImImageBlob(src);
-      if (cached) {
-        img.src = cached;
-      } else {
-        b.classList.add("pending");
-        lazyObserve(img, function() {
-          fetchImImageBlob(src).then(function(blobUrl) {
-            if (!img.isConnected) return;
-            b.classList.remove("pending");
-            if (blobUrl) img.src = blobUrl;
-            else {
-              img.remove();
-              b.appendChild(document.createTextNode("[图片]"));
-            }
-          });
-        });
-      }
-      b.addEventListener("click", function(ev) {
-        var sel = window.getSelection ? window.getSelection() : null;
-        if (sel && !sel.isCollapsed) return;
-        ev.stopPropagation();
-        fetchImImageBlob(src).then(function(blobUrl) {
-          if (blobUrl) openImageViewer(blobUrl);
-        });
-      });
-    } else {
-      b.textContent = "[图片]";
-    }
-    drawer.bubbles.appendChild(bubbleRow(b, mine, m));
-  }
-  function imageUrlOf(m) {
-    var ks = "";
-    try {
-      ks = m && (m.url || m.imageAttachment && m.imageAttachment.uri) || "";
-    } catch (e0) {
-    }
-    if (!ks) ks = imageUriFromRaw(m);
-    if (!ks) {
-      console.warn("[acsv-im] 图片消息无 uri（decode 与 raw 均未恢复）");
-      return "";
-    }
-    if (!/^ks:\/\//.test(ks)) return officialize(ks);
-    try {
-      var k = lastImInst && lastImInst.kernel;
-      if (k && k.file && k.file.resourceUrlToHttpUrl) {
-        var u = officialize(k.file.resourceUrlToHttpUrl(ks, false, Number(m.width) || 0, Number(m.height) || 0));
-        if (u) return u;
-      }
-    } catch (e) {
-    }
-    try {
-      var rid = ks.slice(5).replace(/\/\w+$/, "");
-      if (!rid) {
-        console.warn("[acsv-im] ks 资源串形态不识别:", ks.slice(0, 60));
-        return "";
-      }
-      var ver = "";
-      try {
-        var cfgk = lastImInst && lastImInst.kernel && lastImInst.kernel.config;
-        ver = cfgk && (cfgk.imsdkver || cfgk.sdkVersion) || "";
-      } catch (e2) {
-      }
-      return CFG.api.imDownloadBase + "/rest/v2/app/download?resourceId=" + encodeURIComponent(rid) + "&userId=" + encodeURIComponent(selfUid()) + "&did=" + encodeURIComponent(cookieVal("_did") || "") + "&kpn=ACFUN_APP&platform=H5" + (ver ? "&imsdkver=" + encodeURIComponent(ver) : "");
-    } catch (e3) {
-      return "";
-    }
-  }
-  function imageUriFromRaw(m) {
-    try {
-      var buf = m && m.rawMsg && m.rawMsg.content;
-      if (!buf) return "";
-      var u8 = new Uint8Array(buf), i = 0;
-      if (u8[i++] !== 10) return "";
-      var len = 0, shift = 0, b;
-      do {
-        b = u8[i++];
-        len += (b & 127) * Math.pow(2, shift);
-        shift += 7;
-      } while (b & 128);
-      if (!len || i + len > u8.length) return "";
-      var s = "";
-      for (var j = 0; j < len; j++) s += String.fromCharCode(u8[i + j]);
-      return /^ks:\/\//.test(s) || /^https?:\/\//.test(s) ? s : "";
-    } catch (e) {
-      return "";
-    }
-  }
-  function officialize(httpUrl) {
-    try {
-      if (!httpUrl || !/^https?:\/\//.test(httpUrl)) return "";
-      var u = new URL(httpUrl);
-      var rid = u.searchParams.get("resourceId");
-      if (!rid) return "";
-      var q2 = ["resourceId", "userId", "did", "kpn", "imsdkver", "platform"].map(function(k) {
-        var v = u.searchParams.get(k);
-        return v == null ? null : k + "=" + encodeURIComponent(v);
-      }).filter(Boolean).join("&");
-      return CFG.api.imDownloadBase + "/rest/v2/app/download?" + q2;
-    } catch (e) {
-      return "";
-    }
-  }
-  var SKIN = {
-    tag: "div",
-    root: "acsv-im-vcard",
-    coverbox: "acsv-im-vcard-coverbox",
-    cover: "acsv-im-vcard-cover",
-    bar: "acsv-im-vcard-bar",
-    view: "acsv-im-vcard-view",
-    cmt: "acsv-im-vcard-cmt",
-    dur: "acsv-im-vcard-dur",
-    title: "acsv-im-vcard-title",
-    rootMine: "mine",
-    cshare: "acsv-im-cshare",
-    quote: "acsv-im-cshare-quote",
-    src: "acsv-im-cshare-src",
-    srct: "acsv-im-cshare-srctitle",
-    srcimg: "acsv-im-cshare-cover",
-    coverHidden: "visibility",
-    // 沿用 0.9.51 真机验收形态（盒子保留，防布局跳动）
-    icon: function(kind2) {
-      var i = document.createElement("i");
-      i.className = "acsvg-cicon";
-      i.style.setProperty("--acsvg-cicon", "url(" + (kind2 === "comment" ? ICON_SVGS.comment : ICON_SVGS.play) + ")");
-      return i;
-    }
-  };
-  function appendCardBubble(card, mine, m) {
-    if (card.prologue) {
-      var pre = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
-      pre.textContent = card.prologue;
-      drawer.bubbles.appendChild(pre);
-    }
-    card.resourceBody.forEach(function(r) {
-      var parts = vcard(SKIN, {
-        href: Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : "",
-        coverUrl: r.coverUrl,
-        viewCountShow: r.viewCountShow,
-        commentCountShow: r.commentCountShow,
-        durationSec: r.durationSec,
-        title: r.title
-      }, mine);
-      drawer.bubbles.appendChild(bubbleRow(parts.el, mine, m, "cardrow"));
-    });
-  }
-  function appendShareBubble(share, mine, m, cmt) {
-    if (share.note) {
-      var note = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
-      note.textContent = share.note;
-      drawer.bubbles.appendChild(note);
-    }
-    var isCmt = isCommentShare(share.title);
-    var parts = isCmt ? cshareCard(SKIN, {
-      href: share.url,
-      text: share.title,
-      html: cmt && cmt.content ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : ""
-    }, mine) : vcard(SKIN, { href: share.url, title: share.title }, mine);
-    var cardEl = parts.el;
-    drawer.bubbles.appendChild(bubbleRow(cardEl, mine, m, "cardrow"));
-    var bubbles = drawer.bubbles;
-    var tid = chat && chat.targetId;
-    AppAPI.dougaCard(share.acId).then(function(c) {
-      if (!c || !cardEl.isConnected || !drawer || drawer.bubbles !== bubbles || !chat || chat.targetId !== tid) return;
-      if (isCmt) patchCshare(parts, c);
-      else patchVcard(parts, c);
-      drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-    });
-  }
-  testHook("imCardSmoke", function() {
-    if (!root) setRoot(document.body);
-    ensureDrawerDom();
-    var v = vcard(SKIN, {
-      href: "https://www.acfun.cn/v/ac1",
-      coverUrl: "",
-      viewCountShow: "12",
-      commentCountShow: "3",
-      title: "卡片标题"
-    }, true);
-    var c = cshareCard(SKIN, { href: "https://www.acfun.cn/v/ac1#ncid=9", text: "@张三：好看" }, false);
-    drawer.bubbles.appendChild(v.el);
-    drawer.bubbles.appendChild(c.el);
-    var icon = v.el.querySelector("i");
-    return {
-      vcardCls: v.el.className,
-      vcardHref: v.el.getAttribute("href"),
-      mine: v.el.classList.contains("mine"),
-      view: v.view.className + "|" + v.view.textContent,
-      cmt: v.cmt.className + "|" + v.cmt.textContent,
-      durHidden: getComputedStyle(v.dur).display === "none",
-      title: v.title.className + "|" + v.title.textContent,
-      coverHidden: getComputedStyle(v.cover).visibility === "hidden",
-      iconCls: icon ? icon.className : "",
-      iconVar: icon ? icon.style.getPropertyValue("--acsvg-cicon").slice(0, 4) : "",
-      cshareCls: c.el.className,
-      cshareHref: c.el.getAttribute("href"),
-      quoteHasViewer: !!c.quote.querySelector(".ubb-imgc, .acsv-emotimg, span, a") || c.quote.innerHTML.length > 0,
-      srct: c.srct.textContent,
-      srcimgHidden: getComputedStyle(c.cover).visibility === "hidden"
-    };
-  });
-  function sendImageMsg(file) {
-    var targetId = chat && chat.targetId;
-    if (!targetId) return;
-    if (file.size > CFG.im.imgMax) {
-      toast("图片不能超过 " + Math.round(CFG.im.imgMax / 1024 / 1024) + "MB");
-      return;
-    }
-    var localUrl = "";
-    try {
-      localUrl = URL.createObjectURL(file);
-    } catch (e0) {
-    }
-    readSize(localUrl, function(w, h) {
-      maybeDayDiv(Date.now());
-      var b = el("div", "acsv-im-imgbubble mine pending");
-      if (localUrl) {
-        var ph = document.createElement("img");
-        ph.className = "acsv-im-imgimg";
-        ph.alt = "";
-        ph.src = localUrl;
-        if (w > 0 && h > 0) {
-          ph.style.width = Math.min(w, 180) + "px";
-          ph.style.aspectRatio = w + " / " + h;
-        }
-        b.appendChild(ph);
-      } else {
-        b.textContent = "[图片]";
-      }
-      var holder = el("div", "acsv-im-rowwrap mine");
-      holder.appendChild(b);
-      drawer.bubbles.appendChild(holder);
-      drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-      function cleanup() {
-        if (localUrl) {
-          try {
-            URL.revokeObjectURL(localUrl);
-          } catch (e2) {
-          }
-        }
-      }
-      function onFail(err) {
-        var stale = !chat || chat.targetId !== targetId;
-        if (!stale && holder.isConnected) {
-          b.classList.remove("pending");
-          b.classList.add("failed");
-          b.title = "发送失败，点击重试";
-          b.addEventListener("click", function(ev) {
-            ev.stopPropagation();
-            holder.remove();
-            cleanup();
-            sendImageMsg(file);
-          });
-        }
-        toast("图片发送失败：" + String(err && err.message || "").slice(0, 120), 8e3);
-      }
-      ensureIm().then(function(inst) {
-        return ensureConnected(inst).then(function() {
-          ensureTracer(inst);
-          return sendImage(inst, Number(targetId), file, w, h);
-        }).then(function() {
-          if (!chat || chat.targetId !== targetId) {
-            cleanup();
-            return;
-          }
-          if (holder.isConnected) holder.remove();
-          cleanup();
-          chatPollOnce(inst, false);
-        }, onFail);
-      }, onFail);
-    });
-  }
-  function readSize(url, cb) {
-    if (!url) return cb(0, 0);
-    var img = new Image();
-    img.onload = function() {
-      cb(img.naturalWidth || 0, img.naturalHeight || 0);
-    };
-    img.onerror = function() {
-      cb(0, 0);
-    };
-    img.src = url;
-  }
-  function sendChat(text) {
-    var targetId = chat && chat.targetId;
-    if (!targetId) return;
-    text = String(text).slice(0, CFG.im.maxLen);
-    var quote = chat.quote || null;
-    maybeDayDiv(Date.now());
-    var b = el("div", "acsv-im-bubble mine pending");
-    if (quote) b.appendChild(quoteStrip({ seqId: quote.seqId, preview: quote.preview }));
-    var txt = el("div", "acsv-im-msgtext");
-    txt.innerHTML = imTextHtml(text);
-    b.appendChild(txt);
-    var holder = el("div", "acsv-im-rowwrap mine");
-    holder.appendChild(b);
-    drawer.bubbles.appendChild(holder);
-    drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-    function onFail(err) {
-      var stale = !chat || chat.targetId !== targetId;
-      if (!stale && holder.isConnected) {
-        b.classList.remove("pending");
-        b.classList.add("failed");
-        b.title = "发送失败，点击重试";
-        b.addEventListener("click", function(ev) {
-          ev.stopPropagation();
-          holder.remove();
-          drawer.input.value = text;
-          if (quote && chat && !chat.quote) setQuote(quote);
-          drawer.input.focus();
-        });
-      }
-      toast("发送失败：" + String(err && err.message || "").slice(0, 120), 8e3);
-    }
-    ensureIm().then(function(inst) {
-      return ensureConnected(inst).then(function() {
-        ensureTracer(inst);
-        return quote ? sendQuote(inst, Number(targetId), quote, text) : doSend(inst, Number(targetId), text).catch(function(err) {
-          var pre = linkOk(inst) ? Promise.resolve() : ensureConnected(inst);
-          return pre.then(function() {
-            return forceSync(inst);
-          }).then(function() {
-            return doSend(inst, Number(targetId), text);
-          });
-        });
-      }).then(function() {
-        if (!chat || chat.targetId !== targetId) return;
-        if (holder.isConnected) holder.remove();
-        if (quote && chat.quote === quote) setQuote(null);
-        chatPollOnce(inst, false);
-      }, onFail);
-    }, onFail);
-  }
-  testHook("imdrawer", function() {
-    return {
-      open: function() {
-        ensureDrawerDom();
-        openDrawerCore();
-        return true;
-      },
-      close: function() {
-        closeDrawer();
-        return true;
-      },
-      isOpen: function() {
-        return !!drawer && drawer.el.classList.contains("open");
-      }
-    };
-  });
-  testHook("imDrawerSmoke", function() {
-    if (!root) setRoot(document.body);
-    ensureStyle();
-    ensureDrawerDom();
-    drawer.el.classList.add("open");
-    return {
-      drawerConnected: !!(drawer.el && drawer.el.isConnected),
-      drawerOpen: drawer.el.classList.contains("open"),
-      quoteChipIsNode: !!(drawer.quoteChip && drawer.quoteChip.box instanceof Element),
-      quoteChipInDrawer: !!(drawer.quoteChip && drawer.quoteChip.box && drawer.quoteChip.box.isConnected),
-      input: !!drawer.el.querySelector(".acsv-cinput-text"),
-      send: !!drawer.el.querySelector(".acsv-cinput-send"),
-      bubblesConnected: !!(drawer.bubbles && drawer.bubbles.isConnected)
-    };
-  });
-  testHook("imOpenSmoke", function() {
-    if (!root) setRoot(document.body);
-    ensureDrawerDom();
-    openDrawerCore();
-    return {
-      open: drawer.el.classList.contains("open"),
-      withComments: root.classList.contains("acsv-with-comments"),
-      drawerConnected: drawer.el.isConnected
-    };
-  });
-  testHook("imPaneSmoke", function(mode) {
-    if (!root) setRoot(document.body);
-    ensureDrawerDom();
-    setPane(mode === "chat" ? "chat" : "list");
-    return {
-      view,
-      chatOn: drawer.el.classList.contains("chat-on"),
-      backShown: getComputedStyle(drawer.back).display !== "none"
-    };
-  });
-  function openDrawerCore() {
-    overlayOpen({ id: "im", close: closeDrawer });
-    claimDrawer("im", closeDrawer);
-    drawer.el.classList.add("open");
-    syncCommentVars();
-  }
-  function openDrawer() {
-    if (!isLogined()) {
-      toast("私信需要先登录 AcFun 账号");
-      return;
-    }
-    ensureDrawerDom();
-    prewarmIm();
-    openDrawerCore();
-    showList();
-  }
-  function openChat(targetId) {
-    if (!isLogined()) {
-      toast("私信需要先登录 AcFun 账号");
-      return;
-    }
-    ensureDrawerDom();
-    prewarmIm();
-    openDrawerCore();
-    showChat(String(targetId));
-  }
-  function isImOpen() {
-    return !!(drawer && drawer.el && drawer.el.classList.contains("open"));
-  }
-  function toggleImDrawer() {
-    if (isImOpen()) {
-      closeDrawer();
-      return;
-    }
-    openDrawer();
-  }
-  function closeDrawer() {
-    if (drawer) drawer.el.classList.remove("open");
-    listPoll.stop();
-    chatPoll.stop();
-    view = "";
-    releaseDrawer("im");
-    overlayClose("im");
-    syncCommentVars();
-  }
-  function teardownIm() {
-    mounted = false;
-    imShutdown();
-    if (badgeDelayTimer) {
-      clearTimeout(badgeDelayTimer);
-      badgeDelayTimer = null;
-    }
-    if (badgeTimer) {
-      clearInterval(badgeTimer);
-      badgeTimer = null;
-    }
-    listPoll.stop();
-    chatPoll.stop();
-    releaseDrawer("im");
-    drawer = null;
-    view = "";
-    chat = null;
-    cards = {};
-    listSig = "";
-    lastListRows = null;
-    badgeEl = null;
-  }
-  function mountBadge(btn, badge) {
-    badgeEl = badge;
-    mounted = true;
-    var last = -1;
-    function tick2() {
-      if (!mounted) return;
-      if (!isLogined()) {
-        setBadge(0);
-        return;
-      }
-      ensureIm().then(function(inst) {
-        if (!mounted || !inst.connected) return;
-        var sum = 0;
-        try {
-          (inst.kernel.getSessions() || []).forEach(function(s) {
-            sum += Number(s.unreadCount) || 0;
-          });
-        } catch (e) {
-        }
-        setBadge(sum);
-      }, function() {
-      });
-    }
-    function setBadge(n) {
-      if (n === last) return;
-      last = n;
-      var txt = badgeText(n), show = n > 0 ? "" : "none";
-      if (badgeEl) {
-        badgeEl.textContent = txt;
-        badgeEl.style.display = show;
-      }
-    }
-    badgeTimer = setInterval(tick2, CFG.im.badgePoll);
-    badgeDelayTimer = setTimeout(function() {
-      if (!mounted) return;
-      tick2();
-      ensureIm().then(function(inst) {
-        try {
-          inst.on("unReadCountUpdate", function() {
-            if (mounted) tick2();
-          });
-        } catch (e) {
-        }
-      }, function() {
-      });
-    }, CFG.im.badgeDelay);
-  }
-
   // src/imshare.js
+  var chatOpener = null;
+  function setChatOpener(fn) {
+    chatOpener = typeof fn === "function" ? fn : null;
+  }
   function pageWin() {
     return typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
   }
@@ -5328,7 +4213,7 @@
             chatBtn.title = "打开与 " + (card.name || "好友") + " 的聊天，补充一句";
             chatBtn.addEventListener("click", function(ev2) {
               ev2.stopPropagation();
-              openChat(c.targetId);
+              if (chatOpener) chatOpener(c.targetId);
             });
             send.replaceWith(chatBtn);
             toast("已私信分享给 " + (card.name || "好友"));
@@ -5357,6 +4242,9 @@
       rows[i].style.display = hit ? "" : "none";
     }
   }
+  testHook("chatOpener", function() {
+    return !!chatOpener;
+  });
 
   // src/comments.js
   var commentState = { sourceId: 0, stype: 5, shareUrl: "", page: 1, totalPage: 1, pcursor: "no_more", loading: false, replyTo: null, kind: "sv" };
@@ -8721,6 +7609,1126 @@
     setCommentDrawer({ el: drawer2, title: dtitle, list: dlist });
   }
 
+  // src/imcard.js
+  function hideCover(img, skin) {
+    if (skin.coverHidden === "display") img.style.display = "none";
+    else img.style.visibility = "hidden";
+  }
+  function showCover(img, skin) {
+    if (skin.coverHidden === "display") img.style.display = "";
+    else img.style.visibility = "";
+  }
+  function vcard(skin, r, mine) {
+    var a = el(r.href ? "a" : "div", skin.root + (mine && skin.rootMine ? " " + skin.rootMine : ""));
+    if (r.href) {
+      a.href = r.href;
+      a.target = "_blank";
+      a.rel = "noopener";
+    }
+    var box = el(skin.tag, skin.coverbox);
+    var cover = el("img", skin.cover);
+    cover.alt = "";
+    cover.referrerPolicy = "no-referrer";
+    cover.addEventListener("load", function() {
+      showCover(cover, skin);
+    });
+    cover.addEventListener("error", function() {
+      hideCover(cover, skin);
+    });
+    if (r.coverUrl) cover.src = r.coverUrl;
+    else hideCover(cover, skin);
+    box.appendChild(cover);
+    var bar = el(skin.tag, skin.bar);
+    bar.appendChild(skin.icon("play"));
+    var view2 = el(skin.tag, skin.view, r.viewCountShow || "");
+    bar.appendChild(view2);
+    bar.appendChild(skin.icon("comment"));
+    var cmt = el(skin.tag, skin.cmt, r.commentCountShow || "");
+    bar.appendChild(cmt);
+    var dur = el(skin.tag, skin.dur, r.durationSec ? fmtDur(r.durationSec) : "");
+    if (!r.durationSec) dur.style.display = "none";
+    bar.appendChild(dur);
+    box.appendChild(bar);
+    a.appendChild(box);
+    var title = el(skin.tag, skin.title, r.title || "");
+    if (!r.title) title.style.display = "none";
+    a.appendChild(title);
+    a.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+    });
+    return { el: a, cover, view: view2, cmt, dur, title };
+  }
+  function patchVcard(parts, c) {
+    if (parts.cover && c.cover) parts.cover.src = c.cover;
+    if (parts.view && c.view != null) parts.view.textContent = c.view;
+    if (parts.cmt && c.comment != null) parts.cmt.textContent = c.comment;
+    if (parts.dur && c.durationSec) {
+      parts.dur.textContent = fmtDur(c.durationSec);
+      parts.dur.style.display = "";
+    }
+    if (parts.title && c.title) {
+      parts.title.textContent = c.title;
+      parts.title.style.display = "";
+    }
+  }
+  function cshareCard(skin, spec, mine) {
+    var a = el(spec.href ? "a" : "div", skin.cshare + (mine && skin.rootMine ? " " + skin.rootMine : ""));
+    if (spec.href) {
+      a.href = spec.href;
+      a.target = "_blank";
+      a.rel = "noopener";
+    }
+    a.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+    });
+    var quote = el(skin.tag, skin.quote);
+    if (spec.html) {
+      quote.innerHTML = spec.html;
+      quote.addEventListener("click", function(ev) {
+        var im = ev.target && ev.target.closest ? ev.target.closest(".ubb-imgc") : null;
+        if (!im) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        openImageViewer(im.getAttribute("src") || "");
+      });
+    } else {
+      quote.innerHTML = emotify(esc(spec.text || ""));
+    }
+    a.appendChild(quote);
+    var src = el(skin.tag, skin.src);
+    var cover = el("img", skin.srcimg);
+    cover.alt = "";
+    cover.referrerPolicy = "no-referrer";
+    hideCover(cover, skin);
+    cover.addEventListener("load", function() {
+      showCover(cover, skin);
+    });
+    cover.addEventListener("error", function() {
+      hideCover(cover, skin);
+    });
+    src.appendChild(cover);
+    var srct = el(skin.tag, skin.srct, "查看来源作品");
+    src.appendChild(srct);
+    a.appendChild(src);
+    return { el: a, quote, cover, srct };
+  }
+  function patchCshare(parts, c) {
+    if (parts.cover && c.cover) parts.cover.src = c.cover;
+    if (parts.srct && c.title) parts.srct.textContent = c.title;
+  }
+
+  // src/imdrawer.js
+  var drawer = null;
+  var view = "";
+  var cards = {};
+  var badgeTimer = null;
+  var badgeDelayTimer = null;
+  function makePoller(fn, gap) {
+    var t = null;
+    function stop() {
+      if (t) {
+        clearInterval(t);
+        t = null;
+      }
+    }
+    return { start: function() {
+      stop();
+      t = setInterval(fn, gap);
+    }, stop };
+  }
+  var listPoll = makePoller(function() {
+    if (view !== "list") return listPoll.stop();
+    refreshList();
+  }, CFG.im.drawerListPoll);
+  var chatPoll = makePoller(function() {
+    if (!chat) return chatPoll.stop();
+    ensureIm().then(function(inst) {
+      if (!inst.connected) return;
+      chatPollOnce(inst, false);
+    }, function() {
+    });
+  }, CFG.im.drawerChatPoll);
+  var chat = null;
+  var lastImInst = null;
+  var badgeEl = null;
+  var mounted = false;
+  function badgeText(n) {
+    return n > 99 ? "99+" : n > 0 ? String(n) : "";
+  }
+  function msgFrom(m) {
+    try {
+      if (m.fromUserId != null) return String(m.fromUserId);
+      if (m.rawMsg && m.rawMsg.fromUserId != null) return String(m.rawMsg.fromUserId);
+    } catch (e) {
+    }
+    return "";
+  }
+  function msgTime(m) {
+    try {
+      if (m.date) return new Date(m.date).getTime() || 0;
+      if (m.rawMsg && m.rawMsg.timestampMs) return Number(m.rawMsg.timestampMs) || 0;
+    } catch (e) {
+    }
+    return 0;
+  }
+  function pad22(n) {
+    return n < 10 ? "0" + n : "" + n;
+  }
+  function relTime2(ts) {
+    if (!ts) return "";
+    var d = Date.now() - ts;
+    if (d < 6e4) return "刚刚";
+    var now = /* @__PURE__ */ new Date(), t = new Date(ts);
+    if (t.toDateString() === now.toDateString()) return pad22(t.getHours()) + ":" + pad22(t.getMinutes());
+    if (t.toDateString() === new Date(now.getTime() - 864e5).toDateString()) return "昨天";
+    if (d < 6048e5) return "周" + "日一二三四五六".charAt(t.getDay());
+    return pad22(t.getMonth() + 1) + "-" + pad22(t.getDate());
+  }
+  function linkify(s) {
+    return esc(s).replace(/(https?:\/\/[^\s<]+)/g, function(u) {
+      return '<a href="' + u + '" target="_blank" rel="noopener">' + u + "</a>";
+    });
+  }
+  function imTextHtml(s) {
+    return emotify(linkify(s));
+  }
+  function ensureDrawerDom() {
+    if (drawer || !root) return;
+    var d = el("aside", "acsv-msgdrawer");
+    var head = el("div", "acsv-im-head");
+    var back = el("button", "acsv-im-back", "‹");
+    back.title = "返回消息列表";
+    var title = el("span", "acsv-im-title", "私信");
+    var close = el("button", "acsv-im-close", "✕");
+    close.title = "关闭";
+    close.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      closeDrawer();
+    });
+    back.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      showList();
+    });
+    head.appendChild(back);
+    head.appendChild(title);
+    head.appendChild(close);
+    d.appendChild(head);
+    var listView = el("div", "acsv-im-listview acsv-im-pane");
+    var searchWrap = el("div", "acsv-im-searchwrap");
+    var search = el("input", "acsv-im-search");
+    search.placeholder = "搜索联系人";
+    search.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+    });
+    search.addEventListener("input", function() {
+      renderList(search.value);
+    });
+    searchWrap.appendChild(search);
+    listView.appendChild(searchWrap);
+    var listBody = el("div", "acsv-im-list");
+    listView.appendChild(listBody);
+    var chatView = el("div", "acsv-im-chatview acsv-im-pane");
+    var bubbles = el("div", "acsv-im-bubbles");
+    var quoteChip = buildQuoteChip(function() {
+      setQuote(null);
+    }, "取消引用");
+    var inputBar2 = buildInputBar({
+      img: { title: "发送图片", onFile: sendImageMsg },
+      // 尺寸门禁在 sendImageMsg 内
+      placeholder: "发个消息…",
+      onSend: function() {
+        var t = inputBar2.input.value.replace(/\s+$/, "");
+        if (!t) return;
+        inputBar2.input.value = "";
+        inputBar2.fitHeight();
+        sendChat(t);
+      }
+    });
+    var input = inputBar2.input;
+    chatView.appendChild(bubbles);
+    chatView.appendChild(quoteChip.box);
+    chatView.appendChild(inputBar2.box);
+    var stage = el("div", "acsv-im-stage");
+    stage.appendChild(listView);
+    stage.appendChild(chatView);
+    d.appendChild(stage);
+    var emotPanel = el("div", "acsv-emotpanel");
+    emotPanel.style.display = "none";
+    d.appendChild(emotPanel);
+    mountEmotButton(inputBar2.emotBtn, emotPanel, input);
+    var mapCold = !EmotionMap.loaded;
+    ensureEmotionMap().then(function() {
+      if (!mapCold || !drawer || view !== "chat" || !chat) return;
+      ensureIm().then(function(inst) {
+        if (inst.connected) chatPollOnce(inst, true);
+      }, function() {
+      });
+    });
+    root.appendChild(d);
+    drawer = {
+      el: d,
+      head,
+      back,
+      title,
+      close,
+      listView,
+      search,
+      listBody,
+      chatView,
+      bubbles,
+      quoteChip,
+      input,
+      send: inputBar2.send
+    };
+  }
+  function setPane(name) {
+    if (!drawer) return;
+    view = name;
+    drawer.el.classList.toggle("chat-on", name === "chat");
+  }
+  function showList() {
+    if (!drawer) return;
+    chatPoll.stop();
+    setPane("list");
+    drawer.title.textContent = "私信";
+    refreshList();
+    listPoll.start();
+  }
+  function showChat(targetId) {
+    if (!drawer) return;
+    listPoll.stop();
+    var card = cards[targetId] || {};
+    drawer.title.textContent = card.name || "用户 " + targetId;
+    setPane("chat");
+    drawer.bubbles.innerHTML = "";
+    chat = { targetId: String(targetId), name: card.name || "", session: null, lastCount: -1, seen: {}, lastDivTs: 0, quote: null, msgEls: {} };
+    loadChat();
+    drawer.input.value = "";
+    setTimeout(function() {
+      try {
+        drawer.input.focus();
+      } catch (e) {
+      }
+    }, 60);
+    chatPoll.start();
+  }
+  var listSig = "";
+  function sessionSig(ss) {
+    return ss.map(function(s) {
+      return [
+        s.targetId,
+        s.unread,
+        s.t,
+        s.last && (s.last.seqId || msgTime(s.last) || msgTextOf(s.last)) || ""
+      ].join(":");
+    }).join("|");
+  }
+  function refreshList() {
+    ensureIm().then(function(inst) {
+      return ensureConnected(inst).then(function() {
+        var ss = [];
+        try {
+          ss = inst.kernel.getSessions() || [];
+        } catch (e) {
+        }
+        ss = ss.map(function(s) {
+          var last = s.lastMessage || null;
+          try {
+            var msgs = inst.kernel.getMessages(s) || [];
+            if (msgs.length) last = msgs[msgs.length - 1];
+          } catch (e) {
+          }
+          return {
+            targetId: String(s.targetId),
+            unread: Number(s.unreadCount) || 0,
+            t: msgTime(last) || new Date(s.date || 0).getTime() || 0,
+            last
+          };
+        }).filter(function(s) {
+          return s.targetId && s.targetId !== selfUid();
+        }).sort(function(a, b) {
+          return b.t - a.t;
+        });
+        var ids = ss.map(function(s) {
+          return Number(s.targetId);
+        });
+        var sig = sessionSig(ss) + "|" + ids.join(",");
+        if (sig === listSig && drawer && view === "list") return;
+        listSig = sig;
+        return fetchCards(ids).then(function(m) {
+          Object.keys(m).forEach(function(k) {
+            cards[k] = m[k];
+          });
+          renderList("", ss);
+        });
+      });
+    }).catch(function() {
+      if (drawer && drawer.listBody && !drawer.listBody.children.length) {
+        drawer.listBody.innerHTML = "";
+        drawer.listBody.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
+      }
+    });
+  }
+  function renderList(kw, ss) {
+    if (!drawer) return;
+    kw = String(kw || "").trim().toLowerCase();
+    var rows = ss || lastListRows || [];
+    if (ss) lastListRows = ss;
+    var unreadTotal = 0;
+    rows.forEach(function(r) {
+      unreadTotal += r.unread || 0;
+    });
+    if (view === "list") drawer.title.textContent = "私信" + (unreadTotal > 0 ? " (" + unreadTotal + ")" : "");
+    drawer.listBody.innerHTML = "";
+    var shown = 0;
+    rows.forEach(function(r) {
+      var card = cards[r.targetId] || {};
+      var name = card.name || "用户 " + r.targetId;
+      if (kw && name.toLowerCase().indexOf(kw) < 0) return;
+      shown++;
+      var row = el("div", "acsv-im-row");
+      row.dataset.tid = r.targetId;
+      imgInto(row, card.headUrl || CFG.api.defaultAvatar, "avatar", "acsv-im-av");
+      var mid = el("div", "acsv-im-mid");
+      var nm = el("div", "acsv-im-name");
+      nm.innerHTML = esc(name) + (r.unread > 0 ? '<span class="acsv-share-unread">' + (r.unread > 99 ? "99+" : r.unread) + "</span>" : "");
+      mid.appendChild(nm);
+      var prev = el("div", "acsv-im-preview", previewOf(r));
+      mid.appendChild(prev);
+      row.appendChild(mid);
+      var tm = el("div", "acsv-im-time", relTime2(r.t));
+      row.appendChild(tm);
+      row.addEventListener("click", function(ev) {
+        ev.stopPropagation();
+        showChat(r.targetId);
+      });
+      drawer.listBody.appendChild(row);
+    });
+    if (!shown) {
+      drawer.listBody.appendChild(el(
+        "div",
+        "acsv-share-tip",
+        kw ? "没有匹配的联系人" : "还没有聊过天的朋友\n先在 A 站 APP / 网页和 TA 私聊一句\n再回来把视频分享给 TA"
+      ));
+    }
+  }
+  var lastListRows = null;
+  function previewOf(r) {
+    return r.last ? previewOfMessage(r.last) : "";
+  }
+  function loadChat() {
+    ensureIm().then(function(inst) {
+      return ensureConnected(inst).then(function() {
+        ensureTracer(inst);
+        var ss = [];
+        try {
+          ss = inst.kernel.getSessions() || [];
+        } catch (e) {
+        }
+        var sess = null;
+        ss.some(function(s) {
+          if (String(s.targetId) === chat.targetId) {
+            sess = s;
+            return true;
+          }
+          return false;
+        });
+        if (!sess) {
+          return inst.kernel.openSession(0, chat.targetId).then(function() {
+            var ss2 = inst.kernel.getSessions() || [];
+            ss2.some(function(s) {
+              if (String(s.targetId) === chat.targetId) {
+                sess = s;
+                return true;
+              }
+              return false;
+            });
+            chat.session = sess;
+            chatPollOnce(inst, true);
+            return null;
+          }, function() {
+            chat.session = null;
+            return null;
+          });
+        }
+        chat.session = sess;
+        return chatPollOnce(inst, true);
+      });
+    }).catch(function() {
+      if (drawer && drawer.bubbles && !drawer.bubbles.children.length) {
+        drawer.bubbles.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
+      }
+    });
+  }
+  function chatPollOnce(inst, reset) {
+    lastImInst = inst;
+    try {
+      var k = inst.kernel;
+      if (!chat.session) {
+        var ss = k.getSessions() || [];
+        ss.some(function(s) {
+          if (String(s.targetId) === chat.targetId) {
+            chat.session = s;
+            return true;
+          }
+          return false;
+        });
+      }
+      if (!chat.session) return;
+      var msgs = k.getMessages(chat.session) || [];
+      if (reset) {
+        chat.seen = {};
+        chat.msgEls = {};
+        chat.lastCount = -1;
+        drawer.bubbles.innerHTML = "";
+      }
+      var fresh = [];
+      msgs.forEach(function(m) {
+        var key = String(m.seqId !== void 0 && m.seqId || msgTime(m) || "h" + msgFrom(m) + ":" + msgTextOf(m));
+        if (chat.seen[key]) return;
+        chat.seen[key] = true;
+        fresh.push({ m, key });
+      });
+      fresh.forEach(function(x) {
+        appendBubble(x.m);
+        var lastEl = drawer.bubbles.lastElementChild;
+        if (lastEl) chat.msgEls[x.key] = lastEl;
+      });
+      if (fresh.length || reset) {
+        drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
+        try {
+          if (chat.session && k.markSessionRead && chat.session.unreadCount !== void 0) k.markSessionRead(chat.session);
+        } catch (e) {
+        }
+      }
+    } catch (e) {
+    }
+  }
+  function dayLabel(ts) {
+    var now = /* @__PURE__ */ new Date(), t = new Date(ts);
+    var hm = pad22(t.getHours()) + ":" + pad22(t.getMinutes());
+    if (t.toDateString() === now.toDateString()) return "今天 " + hm;
+    if (t.toDateString() === new Date(now.getTime() - 864e5).toDateString()) return "昨天 " + hm;
+    if (now.getTime() - ts < 6048e5) return "周" + "日一二三四五六".charAt(t.getDay()) + " " + hm;
+    return pad22(t.getMonth() + 1) + "-" + pad22(t.getDate()) + " " + hm;
+  }
+  function maybeDayDiv(ts) {
+    if (!ts || !drawer || !chat) return;
+    if (!chat.lastDivTs || ts - chat.lastDivTs >= CFG.im.dayDivGap) {
+      drawer.bubbles.appendChild(el("div", "acsv-im-daydiv", dayLabel(ts)));
+    }
+    chat.lastDivTs = ts;
+  }
+  function setQuote(q2) {
+    if (chat) chat.quote = q2 || null;
+    renderQuoteChip();
+  }
+  function renderQuoteChip() {
+    if (!drawer) return;
+    var chip = drawer.quoteChip, q2 = chat && chat.quote;
+    if (!q2) {
+      chip.box.style.display = "none";
+      chip.label.textContent = "";
+      drawer.input.placeholder = "发个消息…";
+      return;
+    }
+    chip.box.style.display = "flex";
+    chip.label.textContent = "引用：" + (q2.preview || "原消息");
+    drawer.input.placeholder = "回复引用的内容…";
+  }
+  function quoteStrip(q2) {
+    var s = el("div", "acsv-im-quote" + (q2.seqId ? " link" : ""));
+    s.appendChild(el("div", "acsv-im-quote-preview", q2.preview || "[原消息]"));
+    if (q2.seqId) {
+      s.title = "点击查看原消息";
+      s.addEventListener("click", function(ev) {
+        ev.stopPropagation();
+        locateMessage(q2.seqId);
+      });
+    }
+    return s;
+  }
+  function locateMessage(seqId) {
+    if (!drawer || !chat) return;
+    var wrap = chat.msgEls[String(seqId)];
+    if (!wrap || !wrap.isConnected) {
+      toast("原消息不在已加载的记录里");
+      return;
+    }
+    var t = wrap.querySelector(".acsv-im-bubble") || wrap.querySelector(".acsv-im-vcard") || wrap;
+    try {
+      t.scrollIntoView({ block: "center", behavior: "smooth" });
+    } catch (e1) {
+      t.scrollIntoView();
+    }
+    t.classList.remove("acsv-im-flash");
+    void t.offsetWidth;
+    t.classList.add("acsv-im-flash");
+    setTimeout(function() {
+      t.classList.remove("acsv-im-flash");
+    }, 1300);
+  }
+  function bubbleRow(b, mine, m, extraCls) {
+    var wrap = el("div", "acsv-im-rowwrap" + (extraCls ? " " + extraCls : "") + (mine ? " mine" : ""));
+    wrap.appendChild(b);
+    if (m && isQuotable(m, CFG.im.quoteWire)) wrap.appendChild(quoteBtnEl(m));
+    return wrap;
+  }
+  function quoteBtnEl(m) {
+    var btn = el("button", "acsv-im-quotebtn", "↩");
+    btn.title = "引用这条消息";
+    btn.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      var raw = m.rawMsg || {};
+      setQuote({
+        seqId: raw.seqId !== void 0 && raw.seqId !== null ? String(raw.seqId) : "",
+        preview: previewOfMessage(m) || msgTextOf(m).slice(0, 40),
+        originMsg: m
+      });
+      try {
+        drawer.input.focus();
+      } catch (e) {
+      }
+    });
+    return btn;
+  }
+  function appendBubble(m) {
+    if (!drawer) return;
+    maybeDayDiv(msgTime(m));
+    var mine = msgFrom(m) === selfUid();
+    var q2 = quoteOf(m) || quoteExtraOf(m);
+    var b = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
+    if (q2) {
+      b.appendChild(quoteStrip(q2));
+      var qtxt = el("div", "acsv-im-msgtext");
+      qtxt.innerHTML = imTextHtml(q2.text);
+      b.appendChild(qtxt);
+      drawer.bubbles.appendChild(bubbleRow(b, mine, m));
+      return;
+    }
+    if (msgContentType(m) === 1) return appendImageBubble(m, mine);
+    var card = parseCard(m);
+    if (card) return appendCardBubble(card, mine, m);
+    var share = parseShare(msgTextOf(m));
+    if (share) return appendShareBubble(share, mine, m, cmtShareOf(m));
+    var txt = el("div", "acsv-im-msgtext");
+    txt.innerHTML = imTextHtml(msgTextOf(m));
+    b.appendChild(txt);
+    drawer.bubbles.appendChild(bubbleRow(b, mine, m));
+  }
+  function appendImageBubble(m, mine) {
+    if (!drawer) return;
+    var w = Number(m.width) || 0, h = Number(m.height) || 0;
+    var src = imageUrlOf(m);
+    var b = el("div", "acsv-im-imgbubble" + (mine ? " mine" : ""));
+    if (src) {
+      var img = document.createElement("img");
+      img.className = "acsv-im-imgimg";
+      img.alt = "";
+      if (w > 0 && h > 0) {
+        img.style.width = Math.min(w, 180) + "px";
+        img.style.aspectRatio = w + " / " + h;
+      }
+      b.appendChild(img);
+      var cached = peekImImageBlob(src);
+      if (cached) {
+        img.src = cached;
+      } else {
+        b.classList.add("pending");
+        lazyObserve(img, function() {
+          fetchImImageBlob(src).then(function(blobUrl) {
+            if (!img.isConnected) return;
+            b.classList.remove("pending");
+            if (blobUrl) img.src = blobUrl;
+            else {
+              img.remove();
+              b.appendChild(document.createTextNode("[图片]"));
+            }
+          });
+        });
+      }
+      b.addEventListener("click", function(ev) {
+        var sel = window.getSelection ? window.getSelection() : null;
+        if (sel && !sel.isCollapsed) return;
+        ev.stopPropagation();
+        fetchImImageBlob(src).then(function(blobUrl) {
+          if (blobUrl) openImageViewer(blobUrl);
+        });
+      });
+    } else {
+      b.textContent = "[图片]";
+    }
+    drawer.bubbles.appendChild(bubbleRow(b, mine, m));
+  }
+  function imageUrlOf(m) {
+    var ks = "";
+    try {
+      ks = m && (m.url || m.imageAttachment && m.imageAttachment.uri) || "";
+    } catch (e0) {
+    }
+    if (!ks) ks = imageUriFromRaw(m);
+    if (!ks) {
+      console.warn("[acsv-im] 图片消息无 uri（decode 与 raw 均未恢复）");
+      return "";
+    }
+    if (!/^ks:\/\//.test(ks)) return officialize(ks);
+    try {
+      var k = lastImInst && lastImInst.kernel;
+      if (k && k.file && k.file.resourceUrlToHttpUrl) {
+        var u = officialize(k.file.resourceUrlToHttpUrl(ks, false, Number(m.width) || 0, Number(m.height) || 0));
+        if (u) return u;
+      }
+    } catch (e) {
+    }
+    try {
+      var rid = ks.slice(5).replace(/\/\w+$/, "");
+      if (!rid) {
+        console.warn("[acsv-im] ks 资源串形态不识别:", ks.slice(0, 60));
+        return "";
+      }
+      var ver = "";
+      try {
+        var cfgk = lastImInst && lastImInst.kernel && lastImInst.kernel.config;
+        ver = cfgk && (cfgk.imsdkver || cfgk.sdkVersion) || "";
+      } catch (e2) {
+      }
+      return CFG.api.imDownloadBase + "/rest/v2/app/download?resourceId=" + encodeURIComponent(rid) + "&userId=" + encodeURIComponent(selfUid()) + "&did=" + encodeURIComponent(cookieVal("_did") || "") + "&kpn=ACFUN_APP&platform=H5" + (ver ? "&imsdkver=" + encodeURIComponent(ver) : "");
+    } catch (e3) {
+      return "";
+    }
+  }
+  function imageUriFromRaw(m) {
+    try {
+      var buf = m && m.rawMsg && m.rawMsg.content;
+      if (!buf) return "";
+      var u8 = new Uint8Array(buf), i = 0;
+      if (u8[i++] !== 10) return "";
+      var len = 0, shift = 0, b;
+      do {
+        b = u8[i++];
+        len += (b & 127) * Math.pow(2, shift);
+        shift += 7;
+      } while (b & 128);
+      if (!len || i + len > u8.length) return "";
+      var s = "";
+      for (var j = 0; j < len; j++) s += String.fromCharCode(u8[i + j]);
+      return /^ks:\/\//.test(s) || /^https?:\/\//.test(s) ? s : "";
+    } catch (e) {
+      return "";
+    }
+  }
+  function officialize(httpUrl) {
+    try {
+      if (!httpUrl || !/^https?:\/\//.test(httpUrl)) return "";
+      var u = new URL(httpUrl);
+      var rid = u.searchParams.get("resourceId");
+      if (!rid) return "";
+      var q2 = ["resourceId", "userId", "did", "kpn", "imsdkver", "platform"].map(function(k) {
+        var v = u.searchParams.get(k);
+        return v == null ? null : k + "=" + encodeURIComponent(v);
+      }).filter(Boolean).join("&");
+      return CFG.api.imDownloadBase + "/rest/v2/app/download?" + q2;
+    } catch (e) {
+      return "";
+    }
+  }
+  var SKIN = {
+    tag: "div",
+    root: "acsv-im-vcard",
+    coverbox: "acsv-im-vcard-coverbox",
+    cover: "acsv-im-vcard-cover",
+    bar: "acsv-im-vcard-bar",
+    view: "acsv-im-vcard-view",
+    cmt: "acsv-im-vcard-cmt",
+    dur: "acsv-im-vcard-dur",
+    title: "acsv-im-vcard-title",
+    rootMine: "mine",
+    cshare: "acsv-im-cshare",
+    quote: "acsv-im-cshare-quote",
+    src: "acsv-im-cshare-src",
+    srct: "acsv-im-cshare-srctitle",
+    srcimg: "acsv-im-cshare-cover",
+    coverHidden: "visibility",
+    // 沿用 0.9.51 真机验收形态（盒子保留，防布局跳动）
+    icon: function(kind2) {
+      var i = document.createElement("i");
+      i.className = "acsvg-cicon";
+      i.style.setProperty("--acsvg-cicon", "url(" + (kind2 === "comment" ? ICON_SVGS.comment : ICON_SVGS.play) + ")");
+      return i;
+    }
+  };
+  function appendCardBubble(card, mine, m) {
+    if (card.prologue) {
+      var pre = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
+      pre.textContent = card.prologue;
+      drawer.bubbles.appendChild(pre);
+    }
+    card.resourceBody.forEach(function(r) {
+      var parts = vcard(SKIN, {
+        href: Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : "",
+        coverUrl: r.coverUrl,
+        viewCountShow: r.viewCountShow,
+        commentCountShow: r.commentCountShow,
+        durationSec: r.durationSec,
+        title: r.title
+      }, mine);
+      drawer.bubbles.appendChild(bubbleRow(parts.el, mine, m, "cardrow"));
+    });
+  }
+  function appendShareBubble(share, mine, m, cmt) {
+    if (share.note) {
+      var note = el("div", "acsv-im-bubble" + (mine ? " mine" : ""));
+      note.textContent = share.note;
+      drawer.bubbles.appendChild(note);
+    }
+    var isCmt = isCommentShare(share.title);
+    var parts = isCmt ? cshareCard(SKIN, {
+      href: share.url,
+      text: share.title,
+      html: cmt && cmt.content ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : ""
+    }, mine) : vcard(SKIN, { href: share.url, title: share.title }, mine);
+    var cardEl = parts.el;
+    drawer.bubbles.appendChild(bubbleRow(cardEl, mine, m, "cardrow"));
+    var bubbles = drawer.bubbles;
+    var tid = chat && chat.targetId;
+    AppAPI.dougaCard(share.acId).then(function(c) {
+      if (!c || !cardEl.isConnected || !drawer || drawer.bubbles !== bubbles || !chat || chat.targetId !== tid) return;
+      if (isCmt) patchCshare(parts, c);
+      else patchVcard(parts, c);
+      drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
+    });
+  }
+  testHook("imCardSmoke", function() {
+    if (!root) setRoot(document.body);
+    ensureDrawerDom();
+    var v = vcard(SKIN, {
+      href: "https://www.acfun.cn/v/ac1",
+      coverUrl: "",
+      viewCountShow: "12",
+      commentCountShow: "3",
+      title: "卡片标题"
+    }, true);
+    var c = cshareCard(SKIN, { href: "https://www.acfun.cn/v/ac1#ncid=9", text: "@张三：好看" }, false);
+    drawer.bubbles.appendChild(v.el);
+    drawer.bubbles.appendChild(c.el);
+    var icon = v.el.querySelector("i");
+    return {
+      vcardCls: v.el.className,
+      vcardHref: v.el.getAttribute("href"),
+      mine: v.el.classList.contains("mine"),
+      view: v.view.className + "|" + v.view.textContent,
+      cmt: v.cmt.className + "|" + v.cmt.textContent,
+      durHidden: getComputedStyle(v.dur).display === "none",
+      title: v.title.className + "|" + v.title.textContent,
+      coverHidden: getComputedStyle(v.cover).visibility === "hidden",
+      iconCls: icon ? icon.className : "",
+      iconVar: icon ? icon.style.getPropertyValue("--acsvg-cicon").slice(0, 4) : "",
+      cshareCls: c.el.className,
+      cshareHref: c.el.getAttribute("href"),
+      quoteHasViewer: !!c.quote.querySelector(".ubb-imgc, .acsv-emotimg, span, a") || c.quote.innerHTML.length > 0,
+      srct: c.srct.textContent,
+      srcimgHidden: getComputedStyle(c.cover).visibility === "hidden"
+    };
+  });
+  function sendImageMsg(file) {
+    var targetId = chat && chat.targetId;
+    if (!targetId) return;
+    if (file.size > CFG.im.imgMax) {
+      toast("图片不能超过 " + Math.round(CFG.im.imgMax / 1024 / 1024) + "MB");
+      return;
+    }
+    var localUrl = "";
+    try {
+      localUrl = URL.createObjectURL(file);
+    } catch (e0) {
+    }
+    readSize(localUrl, function(w, h) {
+      maybeDayDiv(Date.now());
+      var b = el("div", "acsv-im-imgbubble mine pending");
+      if (localUrl) {
+        var ph = document.createElement("img");
+        ph.className = "acsv-im-imgimg";
+        ph.alt = "";
+        ph.src = localUrl;
+        if (w > 0 && h > 0) {
+          ph.style.width = Math.min(w, 180) + "px";
+          ph.style.aspectRatio = w + " / " + h;
+        }
+        b.appendChild(ph);
+      } else {
+        b.textContent = "[图片]";
+      }
+      var holder = el("div", "acsv-im-rowwrap mine");
+      holder.appendChild(b);
+      drawer.bubbles.appendChild(holder);
+      drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
+      function cleanup() {
+        if (localUrl) {
+          try {
+            URL.revokeObjectURL(localUrl);
+          } catch (e2) {
+          }
+        }
+      }
+      function onFail(err) {
+        var stale = !chat || chat.targetId !== targetId;
+        if (!stale && holder.isConnected) {
+          b.classList.remove("pending");
+          b.classList.add("failed");
+          b.title = "发送失败，点击重试";
+          b.addEventListener("click", function(ev) {
+            ev.stopPropagation();
+            holder.remove();
+            cleanup();
+            sendImageMsg(file);
+          });
+        }
+        toast("图片发送失败：" + String(err && err.message || "").slice(0, 120), 8e3);
+      }
+      ensureIm().then(function(inst) {
+        return ensureConnected(inst).then(function() {
+          ensureTracer(inst);
+          return sendImage(inst, Number(targetId), file, w, h);
+        }).then(function() {
+          if (!chat || chat.targetId !== targetId) {
+            cleanup();
+            return;
+          }
+          if (holder.isConnected) holder.remove();
+          cleanup();
+          chatPollOnce(inst, false);
+        }, onFail);
+      }, onFail);
+    });
+  }
+  function readSize(url, cb) {
+    if (!url) return cb(0, 0);
+    var img = new Image();
+    img.onload = function() {
+      cb(img.naturalWidth || 0, img.naturalHeight || 0);
+    };
+    img.onerror = function() {
+      cb(0, 0);
+    };
+    img.src = url;
+  }
+  function sendChat(text) {
+    var targetId = chat && chat.targetId;
+    if (!targetId) return;
+    text = String(text).slice(0, CFG.im.maxLen);
+    var quote = chat.quote || null;
+    maybeDayDiv(Date.now());
+    var b = el("div", "acsv-im-bubble mine pending");
+    if (quote) b.appendChild(quoteStrip({ seqId: quote.seqId, preview: quote.preview }));
+    var txt = el("div", "acsv-im-msgtext");
+    txt.innerHTML = imTextHtml(text);
+    b.appendChild(txt);
+    var holder = el("div", "acsv-im-rowwrap mine");
+    holder.appendChild(b);
+    drawer.bubbles.appendChild(holder);
+    drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
+    function onFail(err) {
+      var stale = !chat || chat.targetId !== targetId;
+      if (!stale && holder.isConnected) {
+        b.classList.remove("pending");
+        b.classList.add("failed");
+        b.title = "发送失败，点击重试";
+        b.addEventListener("click", function(ev) {
+          ev.stopPropagation();
+          holder.remove();
+          drawer.input.value = text;
+          if (quote && chat && !chat.quote) setQuote(quote);
+          drawer.input.focus();
+        });
+      }
+      toast("发送失败：" + String(err && err.message || "").slice(0, 120), 8e3);
+    }
+    ensureIm().then(function(inst) {
+      return ensureConnected(inst).then(function() {
+        ensureTracer(inst);
+        return quote ? sendQuote(inst, Number(targetId), quote, text) : doSend(inst, Number(targetId), text).catch(function(err) {
+          var pre = linkOk(inst) ? Promise.resolve() : ensureConnected(inst);
+          return pre.then(function() {
+            return forceSync(inst);
+          }).then(function() {
+            return doSend(inst, Number(targetId), text);
+          });
+        });
+      }).then(function() {
+        if (!chat || chat.targetId !== targetId) return;
+        if (holder.isConnected) holder.remove();
+        if (quote && chat.quote === quote) setQuote(null);
+        chatPollOnce(inst, false);
+      }, onFail);
+    }, onFail);
+  }
+  testHook("imdrawer", function() {
+    return {
+      open: function() {
+        ensureDrawerDom();
+        openDrawerCore();
+        return true;
+      },
+      close: function() {
+        closeDrawer();
+        return true;
+      },
+      isOpen: function() {
+        return !!drawer && drawer.el.classList.contains("open");
+      }
+    };
+  });
+  testHook("imDrawerSmoke", function() {
+    if (!root) setRoot(document.body);
+    ensureStyle();
+    ensureDrawerDom();
+    drawer.el.classList.add("open");
+    return {
+      drawerConnected: !!(drawer.el && drawer.el.isConnected),
+      drawerOpen: drawer.el.classList.contains("open"),
+      quoteChipIsNode: !!(drawer.quoteChip && drawer.quoteChip.box instanceof Element),
+      quoteChipInDrawer: !!(drawer.quoteChip && drawer.quoteChip.box && drawer.quoteChip.box.isConnected),
+      input: !!drawer.el.querySelector(".acsv-cinput-text"),
+      send: !!drawer.el.querySelector(".acsv-cinput-send"),
+      bubblesConnected: !!(drawer.bubbles && drawer.bubbles.isConnected)
+    };
+  });
+  testHook("imOpenSmoke", function() {
+    if (!root) setRoot(document.body);
+    ensureDrawerDom();
+    openDrawerCore();
+    return {
+      open: drawer.el.classList.contains("open"),
+      withComments: root.classList.contains("acsv-with-comments"),
+      drawerConnected: drawer.el.isConnected
+    };
+  });
+  testHook("imPaneSmoke", function(mode) {
+    if (!root) setRoot(document.body);
+    ensureDrawerDom();
+    setPane(mode === "chat" ? "chat" : "list");
+    return {
+      view,
+      chatOn: drawer.el.classList.contains("chat-on"),
+      backShown: getComputedStyle(drawer.back).display !== "none"
+    };
+  });
+  function openDrawerCore() {
+    overlayOpen({ id: "im", close: closeDrawer });
+    claimDrawer("im", closeDrawer);
+    drawer.el.classList.add("open");
+    syncCommentVars();
+  }
+  function openDrawer() {
+    if (!isLogined()) {
+      toast("私信需要先登录 AcFun 账号");
+      return;
+    }
+    ensureDrawerDom();
+    prewarmIm();
+    openDrawerCore();
+    showList();
+  }
+  function openChat(targetId) {
+    if (!isLogined()) {
+      toast("私信需要先登录 AcFun 账号");
+      return;
+    }
+    ensureDrawerDom();
+    prewarmIm();
+    openDrawerCore();
+    showChat(String(targetId));
+  }
+  setChatOpener(openChat);
+  function isImOpen() {
+    return !!(drawer && drawer.el && drawer.el.classList.contains("open"));
+  }
+  function toggleImDrawer() {
+    if (isImOpen()) {
+      closeDrawer();
+      return;
+    }
+    openDrawer();
+  }
+  function closeDrawer() {
+    if (drawer) drawer.el.classList.remove("open");
+    listPoll.stop();
+    chatPoll.stop();
+    view = "";
+    releaseDrawer("im");
+    overlayClose("im");
+    syncCommentVars();
+  }
+  function teardownIm() {
+    mounted = false;
+    imShutdown();
+    if (badgeDelayTimer) {
+      clearTimeout(badgeDelayTimer);
+      badgeDelayTimer = null;
+    }
+    if (badgeTimer) {
+      clearInterval(badgeTimer);
+      badgeTimer = null;
+    }
+    listPoll.stop();
+    chatPoll.stop();
+    releaseDrawer("im");
+    drawer = null;
+    view = "";
+    chat = null;
+    cards = {};
+    listSig = "";
+    lastListRows = null;
+    badgeEl = null;
+  }
+  function mountBadge(btn, badge) {
+    badgeEl = badge;
+    mounted = true;
+    var last = -1;
+    function tick2() {
+      if (!mounted) return;
+      if (!isLogined()) {
+        setBadge(0);
+        return;
+      }
+      ensureIm().then(function(inst) {
+        if (!mounted || !inst.connected) return;
+        var sum = 0;
+        try {
+          (inst.kernel.getSessions() || []).forEach(function(s) {
+            sum += Number(s.unreadCount) || 0;
+          });
+        } catch (e) {
+        }
+        setBadge(sum);
+      }, function() {
+      });
+    }
+    function setBadge(n) {
+      if (n === last) return;
+      last = n;
+      var txt = badgeText(n), show = n > 0 ? "" : "none";
+      if (badgeEl) {
+        badgeEl.textContent = txt;
+        badgeEl.style.display = show;
+      }
+    }
+    badgeTimer = setInterval(tick2, CFG.im.badgePoll);
+    badgeDelayTimer = setTimeout(function() {
+      if (!mounted) return;
+      tick2();
+      ensureIm().then(function(inst) {
+        try {
+          inst.on("unReadCountUpdate", function() {
+            if (mounted) tick2();
+          });
+        } catch (e) {
+        }
+      }, function() {
+      });
+    }, CFG.im.badgeDelay);
+  }
+
   // src/release.js
   function normVer(v) {
     var s = String(v == null ? "" : v).trim();
@@ -8787,7 +8795,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.113" : "");
+    return normVer(true ? "0.9.114" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -10350,7 +10358,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.113：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.114：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

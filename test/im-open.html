@@ -53,6 +53,8 @@
     var s = window.__ACSV_TEST__.call('imDrawerSmoke');
     if (!s) { rec('模拟缝', false, 'imDrawerSmoke hook 缺失'); window.__IM_RESULTS__.done = true; return; }
     rec('模拟缝', true);
+    rec('捎句话出口已注册（0.9.114 imshare↔imdrawer 反边撤销哨兵）',
+      window.__ACSV_TEST__.call('chatOpener') === true);
     rec('抽屉 DOM 已挂载且 open', s.drawerConnected && s.drawerOpen, 'open=' + s.drawerOpen);
     rec('quoteChip 是真实元素节点（0.9.49 回归哨兵）', s.quoteChipIsNode);
     rec('quoteChip 在抽屉内', s.quoteChipInDrawer);

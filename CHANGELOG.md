@@ -3,6 +3,18 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.114（2026-10-04）· 反向例外清收⑤：imshare↔imdrawer 互 import 环改注册缝
+
+- **背景**：imshare（ImSdk 基建）为分享完成后的「捎句话」直连 imdrawer.openChat——
+  imshare↔imdrawer 是全仓两条真环之一（README 在册）。
+- **修法**：imshare 导出 setChatOpener 注册缝（先例 views.setItemOpener），imdrawer 模块
+  求值期注册 openChat；「捎句话」点击经缝转发，缺席 no-op。注册必达链：home 页
+  player→imdrawer→imshare（求值序 imshare 先、注册后；原生页不加载分享面板无此需求）。
+  新增 im-open 页哨兵 testHook('chatOpener')——防未来重构悄悄丢注册行导致点击静默 no-op。
+- **测试**：check-deps 删 imshare→imdrawer 边；im-open 冒烟 +1 断言（出口已注册）；
+  单测 193 + 42 场景全绿。真机抽验点（分享发送→「捎句话」→打开对应会话）由用户在真实
+  账号执行——自动化不发他人私信。
+
 ### 0.9.113（2026-10-04）· 反向例外清收④：route→feedstore 改 provider 注入
 
 - **背景**：syncHash（地址栏回写）读 FeedStore.items 取"当前条"{id,kind}——基建层（路由）

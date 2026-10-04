@@ -6,7 +6,7 @@ import { testHook } from './dbg.js';
 import {
   ensureIm, ensureConnected, ensureTracer, linkOk, forceSync,
   doSend, sendQuote, sendImage, fetchImImageBlob, fetchCards, isLogined, imShutdown,
-  prewarmIm, peekImImageBlob
+  prewarmIm, peekImImageBlob, setChatOpener
 } from './imshare.js';
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap, emotify } from './emoticon.js';
@@ -901,6 +901,9 @@ export function openChat(targetId) {
   openDrawerCore();
   showChat(String(targetId));
 }
+// 「捎句话」出口注册（0.9.114）：imshare 不再 import 本模块（互 import 环已断）——模块求值期
+// 把 openChat 注册进去；home 页本模块必经 player→imdrawer 装载，注册必达（im-open 页哨兵在册）
+setChatOpener(openChat);
 // 抽屉是否开着（class 是唯一真源；顶栏按钮/i 键开合判据）
 export function isImOpen() {
   return !!(drawer && drawer.el && drawer.el.classList.contains('open'));
