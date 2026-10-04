@@ -388,6 +388,24 @@ export function momentPiOfRepost(rp) {
   };
 }
 
+// 动态 pi → 私信转发 extra 载荷（0.9.122）：发送侧（momentbar.momentShareItemOf）唯一拼装处。
+// wire 走 ubbPlain 明文（官方客户端可读），本载荷带原始 UBB 正文/配图（限 9）/UP 供接收端
+// 脚本富渲染真表情真图——extra 是脚本↔脚本通道，被服务端剥掉则降级文本动态卡（同 0.9.52
+// 评论转发纪律）。momentId 取 pi.momentId，缺省从 href（/moment/am<id>）反推
+export function momentExtraOf(pi) {
+  pi = pi || {};
+  var m = /\/moment\/am(\d+)/.exec(String(pi.href || ''));
+  return {
+    momentId: String(pi.momentId != null && pi.momentId !== '' ? pi.momentId : (m ? m[1] : '')),
+    text: String(pi.text || ''),
+    imgs: (pi.imgs || []).slice(0, 9).map(function (im) {
+      im = im || {};
+      return { url: im.url || '', big: im.big || im.url || '' };
+    }).filter(function (im) { return im.url; }),
+    up: pi.up ? { id: pi.up.id || '', name: pi.up.name || '' } : null
+  };
+}
+
 // 关注视频流单页规整（0.9.99，§2.1.2 实测）：followDougaFeed 响应 → {items:[{id:acId}],
 // nextCursor, noMore}。只收 resourceType=2（端点语义即纯视频，过滤是宁漏不错的最后防线）；
 // 终判 pcursor='no_more'（实测终值）/空壳/空页。**纯函数**放契约层——followstream 的

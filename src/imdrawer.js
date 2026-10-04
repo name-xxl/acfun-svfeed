@@ -11,13 +11,13 @@ import {
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap, emotify } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
-import { vcard, patchVcard, cshareCard, patchCshare } from './imcard.js';
+import { vcard, patchVcard, cshareCard, patchCshare, mcard } from './imcard.js';
 import { imgInto, lazyObserve } from './imgload.js';
 import { ubbQuoteHtml } from './ubb.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import {
   parseCard, parseShare, msgTextOf, previewOfMessage,
-  isCommentShare, commentShareAuthor, cmtShareOf,
+  isCommentShare, commentShareAuthor, cmtShareOf, momentShareOf,
   msgContentType, isQuotable, quoteOf, quoteExtraOf
 } from './immsg.js';
 import { ICON_SVGS } from './imicons.js';
@@ -472,7 +472,7 @@ function appendBubble(m) {
   var card = parseCard(m);
   if (card) return appendCardBubble(card, mine, m);
   var share = parseShare(msgTextOf(m));
-  if (share) return appendShareBubble(share, mine, m, cmtShareOf(m));
+  if (share) return appendShareBubble(share, mine, m, cmtShareOf(m), momentShareOf(m));
   var txt = el('div', 'acsv-im-msgtext');
   txt.innerHTML = imTextHtml(msgTextOf(m));
   b.appendChild(txt);
@@ -605,6 +605,7 @@ var SKIN = {
   rootMine: 'mine',
   cshare: 'acsv-im-cshare', quote: 'acsv-im-cshare-quote', src: 'acsv-im-cshare-src',
   srct: 'acsv-im-cshare-srctitle', srcimg: 'acsv-im-cshare-cover',
+  mimgs: 'acsv-im-cshare-mimgs', mimg: 'acsv-im-cshare-mimg', // 动态卡配图行（0.9.122）
   coverHidden: 'visibility', // 沿用 0.9.51 真机验收形态（盒子保留，防布局跳动）
   icon: function (kind) {
     var i = document.createElement('i');
@@ -635,8 +636,11 @@ function appendCardBubble(card, mine, m) {
 // dougaCard 回来后原位 patch 以接口字段为准；标题外文本作附言气泡。等待期间切走会话/视图则放弃。
 // 评论转发（isCommentShare 命中）走专属评论卡——评论内容是主视觉，绝不能进视频卡的标题槽
 //（会被 enrich 的视频标题覆盖，0.9.51 前评论因此整个消失）。cmt=cmtShareOf 载荷
-//（extra 存活时），quote 用原始 UBB 富渲染真表情；被剥则按 wire 文本占位降级
-function appendShareBubble(share, mine, m, cmt) {
+//（extra 存活时），quote 用原始 UBB 富渲染真表情；被剥则按 wire 文本占位降级。
+// 动态转发（0.9.122）走专属动态卡：动态 wire 首行也是 @作者： 形态**会过 isCommentShare**，
+// 必须按 kind 先分流（否则被评论卡抢走）；动态无按 id 的读接口，不回拉 enrich
+function appendShareBubble(share, mine, m, cmt, moment) {
+  if (share.kind === 'moment') return appendMomentBubble(share, mine, m, moment);
   if (share.note) {
     var note = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
     note.textContent = share.note;
@@ -661,6 +665,21 @@ function appendShareBubble(share, mine, m, cmt) {
     drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
   });
 }
+// 动态分享气泡（0.9.122）：extra 载荷（momentShareOf）命中富渲染正文/真图，被剥按 wire
+// 文本降级——两态都出「查看动态」动态卡；附言（note）仍走独立文本气泡
+function appendMomentBubble(share, mine, m, moment) {
+  if (share.note) {
+    var note = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
+    note.textContent = share.note;
+    drawer.bubbles.appendChild(note);
+  }
+  var parts = mcard(SKIN, {
+    href: share.url, text: share.title,
+    html: moment && moment.text ? ubbQuoteHtml(commentShareAuthor(share.title), moment.text) : '',
+    imgs: moment ? moment.imgs : []
+  }, mine);
+  drawer.bubbles.appendChild(bubbleRow(parts.el, mine, m, 'cardrow'));
+}
 // debug 构建测试钩子（0.9.80）：卡片装配迁共享层 imcard 后，抽屉皮肤（类名/己方类/图标类/
 // 封面隐藏机制/骨架补全）在 im-open 页有结构断言——不做网络与内核依赖，只验装配产物。
 // 与 im-native 场景的分工：那边验原生皮肤与 attach 时序，这里验暗色皮肤
@@ -672,8 +691,16 @@ testHook('imCardSmoke', function () {
     commentCountShow: '3', title: '卡片标题'
   }, true);
   var c = cshareCard(SKIN, { href: 'https://www.acfun.cn/v/ac1#ncid=9', text: '@张三：好看' }, false);
+  var mt = mcard(SKIN, { // 动态卡富态（0.9.122）：html 富渲染 + 配图行 + 查看动态条
+    href: 'https://www.acfun.cn/moment/am5104327', text: '@李四：动态正文',
+    html: '<span class="ubb-emotion">富渲染</span>正文',
+    imgs: [{ url: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==', big: 'https://imgs.aixifan.com/big.jpg' }]
+  }, false);
+  var md = mcard(SKIN, { href: '', text: '@李四：动态正文', imgs: [] }, true); // 降级态（extra 被剥）
   drawer.bubbles.appendChild(v.el);
   drawer.bubbles.appendChild(c.el);
+  drawer.bubbles.appendChild(mt.el);
+  drawer.bubbles.appendChild(md.el);
   var icon = v.el.querySelector('i');
   return {
     vcardCls: v.el.className,
@@ -690,7 +717,14 @@ testHook('imCardSmoke', function () {
     cshareHref: c.el.getAttribute('href'),
     quoteHasViewer: !!c.quote.querySelector('.ubb-imgc, .acsv-emotimg, span, a') || c.quote.innerHTML.length > 0,
     srct: c.srct.textContent,
-    srcimgHidden: getComputedStyle(c.cover).visibility === 'hidden'
+    srcimgHidden: getComputedStyle(c.cover).visibility === 'hidden',
+    mcardCls: mt.el.className,
+    mcardHref: mt.el.getAttribute('href'),
+    mcardImgs: mt.el.querySelectorAll('.' + SKIN.mimg).length,
+    mcardQuoteHtml: mt.quote.querySelector('.ubb-emotion') !== null,
+    mcardSrct: mt.el.querySelector('.' + SKIN.srct).textContent,
+    mcardDegraded: md.el.classList.contains('mine') && md.quote.textContent.indexOf('动态正文') > -1
+      && md.el.querySelector('.' + SKIN.mimg) === null
   };
 });
 // 图片即选即发（微信/抖音 IM 惯例，不插入文本框）：读自然宽高 → 乐观占位（本地预览）→

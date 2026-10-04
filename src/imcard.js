@@ -131,3 +131,60 @@ export function patchCshare(parts, c) {
   if (parts.cover && c.cover) parts.cover.src = c.cover;
   if (parts.srct && c.title) parts.srct.textContent = c.title;
 }
+
+// 动态分享卡（0.9.122）：动态正文是主视觉——html（extra 载荷 ubbQuoteHtml 富渲染）优先，
+// 缺则 wire 文本 emotify（降级链与评论卡同款）；配图行（extra imgs，发送侧已限 9）点击看
+// 大图；底部「查看动态」小条。骨架与评论卡同族——根类复用 cshare（皮肤 CSS 直接继承），
+// 新增 mimgs/mimg 两个皮肤名承载配图行
+export function mcard(skin, spec, mine) {
+  var a = el(spec.href ? 'a' : 'div', skin.cshare + (mine && skin.rootMine ? ' ' + skin.rootMine : ''));
+  if (spec.href) {
+    a.href = spec.href;
+    a.target = '_blank';
+    a.rel = 'noopener';
+  }
+  a.addEventListener('click', function (ev) { ev.stopPropagation(); });
+  var quote = el(skin.tag, skin.quote);
+  if (spec.html) {
+    quote.innerHTML = spec.html;
+    // [img] 配图点击看大图：整卡是 <a>，preventDefault 防跳动态页（评论卡同款）
+    quote.addEventListener('click', function (ev) {
+      var im = ev.target && ev.target.closest ? ev.target.closest('.ubb-imgc') : null;
+      if (!im) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      openImageViewer(im.getAttribute('src') || '');
+    });
+  } else {
+    // wire 文本兜底：esc + emotify 出真表情（同评论卡 0.9.53 纪律）；不走 linkify——quote 在卡片 <a> 内
+    quote.innerHTML = emotify(esc(spec.text || ''));
+  }
+  a.appendChild(quote);
+  var imgs = spec.imgs || [];
+  if (imgs.length) {
+    var row = el(skin.tag, skin.mimgs);
+    imgs.forEach(function (im) {
+      var cell = el(skin.tag, skin.mimg);
+      cell._big = im.big || im.url;
+      var img = el('img');
+      img.alt = '';
+      img.referrerPolicy = 'no-referrer';
+      img.src = im.url;
+      cell.appendChild(img);
+      row.appendChild(cell);
+    });
+    // 一格一委托：点图开大图（与评论正文 [img] 同款交互，整卡是 <a> 须 preventDefault）
+    row.addEventListener('click', function (ev) {
+      var cell = ev.target && ev.target.closest ? ev.target.closest('.' + skin.mimg) : null;
+      if (!cell) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      openImageViewer(cell._big);
+    });
+    a.appendChild(row);
+  }
+  var src = el(skin.tag, skin.src);
+  src.appendChild(el(skin.tag, skin.srct, '查看动态'));
+  a.appendChild(src);
+  return { el: a, quote: quote };
+}

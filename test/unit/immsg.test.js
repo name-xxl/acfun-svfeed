@@ -7,7 +7,8 @@ import {
   msgContentType, parseCard, parseShare, fmtDur,
   degradeText, msgTextOf, previewOfMessage,
   isQuotable, quoteOf, quoteExtraOf, quoteWireText, quoteWireTrimLen,
-  isCommentShare, commentShareWire, commentShareAuthor, cmtShareOf, QUOTE_EXTRA_KEY, CMT_EXTRA_KEY
+  isCommentShare, commentShareWire, commentShareAuthor, cmtShareOf, momentShareOf,
+  QUOTE_EXTRA_KEY, CMT_EXTRA_KEY, MOMENT_EXTRA_KEY
 } from '../../src/immsg.js';
 
 // contentType 10001 的 content 是 UTF-8 解码即 JSON 的 ArrayBuffer
@@ -360,9 +361,67 @@ test('commentShareWire：组装产物过检测且作者可还原（wire 契约�
 test('extra key 常量钉死字面值（发送/解析两端跨文件共用）', () => {
   assert.equal(QUOTE_EXTRA_KEY, 'acsvQuote');
   assert.equal(CMT_EXTRA_KEY, 'acsvCmt');
+  assert.equal(MOMENT_EXTRA_KEY, 'acsvMoment'); // 0.9.122
   // cmtShareOf 用常量读 key：构造侧同样用常量写，往返不丢
   var m = { rawMsg: { contentType: 0, text: 'x', extra: new TextEncoder().encode(JSON.stringify({ [CMT_EXTRA_KEY]: { ncid: '9', content: 'c' } })).buffer } };
   var got = cmtShareOf(m);
   assert.equal(got.ncid, '9');
   assert.equal(got.content, 'c');
+});
+
+// ---------- 0.9.122 动态转发（识别 kind / extra 载荷 / 预览文案） ----------
+test('parseShare：动态链两形态（www /moment/am + 官方短链 m.acfun）→ kind=moment 出 momentId', () => {
+  var s = parseShare('@李四：动态正文\nhttps://www.acfun.cn/moment/am5104327');
+  assert.equal(s.kind, 'moment');
+  assert.equal(s.momentId, '5104327');
+  assert.equal(s.acId, '');
+  assert.equal(s.title, '@李四：动态正文');
+  assert.equal(s.url, 'https://www.acfun.cn/moment/am5104327');
+  // 官方客户端转发进来是短链形态（0.9.105 实测在册），同样收编
+  var s2 = parseShare('看看这个 https://m.acfun.cn/communityCircle/moment/5104327?shareUserId=1 好玩');
+  assert.equal(s2.kind, 'moment');
+  assert.equal(s2.momentId, '5104327');
+  assert.equal(s2.title, '看看这个');
+  assert.equal(s2.note, '好玩');
+});
+
+test('parseShare：视频链 kind 默认 video（既有语义不动）；动态与视频混扫按出现序', () => {
+  var s = parseShare('看这个 https://www.acfun.cn/v/ac1234 再看看');
+  assert.equal(s.kind, 'video');
+  assert.equal(s.acId, '1234');
+  assert.equal(s.momentId, '');
+});
+
+test('parseShare：动态 wire 正文内嵌视频链不劫持末行动态链（0.9.88 规则同收编）', () => {
+  var wire = commentShareWire('李四', '转的视频 https://www.acfun.cn/v/ac999 好看')
+    + '\n' + 'https://www.acfun.cn/moment/am888';
+  var s = parseShare(wire);
+  assert.equal(s.kind, 'moment');
+  assert.equal(s.momentId, '888');
+  assert.equal(s.note, '');
+});
+
+test('momentShareOf：extra 载荷往返；被剥/非文本/空载荷（无正文且无有效图）降级 null', () => {
+  var payload = {
+    momentId: '5104327', text: '[emot=acfun,1/]正文',
+    imgs: [{ url: 'https://imgs.aixifan.com/a.jpg', big: 'https://imgs.aixifan.com/ab.jpg' }],
+    up: { id: '7', name: '李四' }
+  };
+  var m = { rawMsg: { contentType: 0, text: 'x', extra: new TextEncoder().encode(JSON.stringify({ acsvMoment: payload })).buffer } };
+  var got = momentShareOf(m);
+  assert.equal(got.momentId, '5104327');
+  assert.equal(got.text, payload.text);
+  assert.equal(got.imgs.length, 1);
+  assert.equal(got.imgs[0].big, 'https://imgs.aixifan.com/ab.jpg');
+  assert.equal(got.up.name, '李四');
+  assert.equal(momentShareOf({ rawMsg: { contentType: 0, text: 'x' } }), null); // extra 被剥
+  assert.equal(momentShareOf(cardMsg(SAMPLE_CARD)), null); // 非文本类型
+  assert.equal(momentShareOf(extraMsg({ acsvMoment: { momentId: '9' } })), null); // 空载荷
+  assert.equal(momentShareOf(extraMsg({ acsvMoment: { imgs: [{ url: '' }] } })), null); // 无效图过滤后为空
+  assert.equal(momentShareOf(null), null);
+});
+
+test('previewOfMessage：动态转发出 [动态] 前缀（先于 @作者： 评论形态分流）', () => {
+  assert.equal(previewOfMessage({ text: '@李四：动态正文\nhttps://www.acfun.cn/moment/am5104327' }),
+    '[动态] @李四：动态正文');
 });

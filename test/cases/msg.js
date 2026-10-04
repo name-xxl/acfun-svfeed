@@ -33,12 +33,17 @@ document.body.insertAdjacentHTML('beforeend',
   + '<div class="message" data-id="52" data-seq-id="12"'
   + ' data-text="@张三：小说真好看\nhttps://www.acfun.cn/v/ac488900#ncid=999">'
   + '<div class="content">@张三：小说真好看\nhttps://www.acfun.cn/v/ac488900#ncid=999</div></div>'
+  + '<div class="message" data-id="53" data-seq-id="13"' // 0.9.122：动态分享（wire 降级链，harness 无内核 extra 不可达）
+  + ' data-text="@李四：动态正文\nhttps://www.acfun.cn/moment/am5104999">'
+  + '<div class="content">@李四：动态正文\nhttps://www.acfun.cn/moment/am5104999</div></div>'
   + '</div></div>'
-  // 会话列表行（0.9.120）：enhanceList 预览改写分支的 fixture（分享/评论转发两种形态）
+  // 会话列表行（0.9.120）：enhanceList 预览改写分支的 fixture（分享/评论转发/动态三形态）
   + '<div class="chat-nav-item" data-user-id="9001">'
   + '<span class="content-last-message">分享标题\nhttps://www.acfun.cn/v/ac488900 来看看</span></div>'
   + '<div class="chat-nav-item" data-user-id="9002">'
-  + '<span class="content-last-message">@张三：小说真好看\nhttps://www.acfun.cn/v/ac488900#ncid=999</span></div>');
+  + '<span class="content-last-message">@张三：小说真好看\nhttps://www.acfun.cn/v/ac488900#ncid=999</span></div>'
+  + '<div class="chat-nav-item" data-user-id="9003">'
+  + '<span class="content-last-message">@李四：动态正文\nhttps://www.acfun.cn/moment/am5104999</span></div>');
 function shadowRootOf(id) {
   var m = q('.message[data-id="' + id + '"]');
   var host = m && m.querySelector('.content').firstElementChild;
@@ -99,6 +104,29 @@ rec('native-structure-contract', (function () {
 })(), (function () {
   var inv = TEST.call('nativeStructure');
   return inv ? JSON.stringify(inv.missing) : 'no-hook';
+})());
+// ---- 0.9.122：动态分享（harness 无内核 → extra 不可达，验 wire 降级动态卡）----
+rec('native-moment-card', !!(await waitFor(function () {
+  var s = shadowRootOf('53');
+  if (!s.m || s.m.getAttribute('data-acsv-share') !== '1' || !s.root) return false;
+  var a = s.root.querySelector('a.cshare');
+  return !!a && /动态正文/.test(a.querySelector('.quote').textContent)
+    && a.querySelector('.srct').textContent === '查看动态'
+    && /\/moment\/am5104999$/.test(a.getAttribute('href'));
+}, 8000)));
+rec('native-moment-note', (function () { // 无附言：.content 被清空（正文全由卡承载）
+  var s = shadowRootOf('53');
+  return !!s.m && s.m.querySelector('.content').textContent === '';
+})(), (function () {
+  var s = shadowRootOf('53');
+  return s.m ? JSON.stringify(s.m.querySelector('.content').textContent) : 'no-msg';
+})());
+rec('native-list-moment', (function () { // 列表预览按 kind 分流，不误标 [评论]
+  var s = q('.chat-nav-item[data-user-id="9003"] .content-last-message');
+  return !!s && s.textContent === '[动态] @李四：动态正文';
+})(), (function () {
+  var s = q('.chat-nav-item[data-user-id="9003"] .content-last-message');
+  return s ? JSON.stringify(s.textContent) : 'no-row';
 })());
   };
 })();

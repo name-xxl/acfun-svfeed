@@ -549,6 +549,11 @@ var RAW_CSS = ''
   + 'vertical-align:middle;margin:1px 2px}'
   + '.acsv-im-cshare-quote .ubb-imgc{display:block;max-width:min(200px,100%);max-height:150px;'
   + 'border-radius:8px;margin-top:6px;cursor:zoom-in}'
+  // 动态卡配图行（0.9.122，骨架根类复用评论卡）：缩略网格，点图开大图
+  + '.acsv-im-cshare .acsv-im-cshare-mimgs{display:flex;flex-wrap:wrap;gap:4px;padding:8px 10px 0 11px}'
+  + '.acsv-im-cshare .acsv-im-cshare-mimg{display:block;width:92px;height:92px;border-radius:6px;'
+  + 'overflow:hidden;cursor:zoom-in;flex:none;background:rgba(255,255,255,.05)}'
+  + '.acsv-im-cshare .acsv-im-cshare-mimg img{display:block;width:100%;height:100%;object-fit:cover}'
   + '.acsv-im-vcard-coverbox{position:relative}'
   // 原始比例展示；仅对超高封面（竖屏小视频 9:16）钳高居中裁剪，否则 300px 气泡宽下
   // 9:16 封面有 500px+ 高，整屏只剩一张卡（0.9.51）。object-fit 保比例不变形，

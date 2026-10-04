@@ -114,6 +114,12 @@
     rec('评论卡皮肤：结构/锚点/来源小条', !!(cs && cs.cshareCls === 'acsv-im-cshare'
       && cs.cshareHref === 'https://www.acfun.cn/v/ac1#ncid=9' && cs.srct === '查看来源作品'
       && cs.quoteHasViewer === true && cs.srcimgHidden === true), cs && JSON.stringify(cs).slice(0, 140));
+    // 动态卡（0.9.122）：根类复用评论卡 + 配图行 + 「查看动态」条；降级态（extra 被剥）
+    rec('动态卡皮肤：根类/链接/配图行/查看动态条', !!(cs && cs.mcardCls === 'acsv-im-cshare'
+      && cs.mcardHref === 'https://www.acfun.cn/moment/am5104327' && cs.mcardImgs === 1
+      && cs.mcardQuoteHtml === true && cs.mcardSrct === '查看动态'),
+      cs && JSON.stringify([cs.mcardCls, cs.mcardHref, cs.mcardImgs, cs.mcardSrct]).slice(0, 140));
+    rec('动态卡降级（extra 被剥）：wire 文本可读 + 己方类 + 无配图行', !!(cs && cs.mcardDegraded === true));
     window.__IM_RESULTS__.done = true;
   }
 </script>

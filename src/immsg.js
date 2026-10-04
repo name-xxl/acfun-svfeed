@@ -25,6 +25,7 @@ export function parseCard(m) {
 // 共用——字符串两处硬编码时 typo 即静默丢载荷
 export var QUOTE_EXTRA_KEY = 'acsvQuote';
 export var CMT_EXTRA_KEY = 'acsvCmt';
+export var MOMENT_EXTRA_KEY = 'acsvMoment'; // 0.9.122 动态转发（发送 momentbar / 解析 momentShareOf）
 
 // ---------- 评论转发识别（0.9.51，评论转发私信专属卡片的分流通约） ----------
 // 发送侧（comments 转发委托）wire 首行为「@作者：」，与手打视频分享（标题\n链接）只差
@@ -57,16 +58,23 @@ export function commentShareWire(name, text) {
 // #片段（0.9.52，评论转发带 #ncid= 评论锚点）属 URL 一并保留进 url——卡片/复制链接
 // 都要能定位到楼层
 var RE_AC_URL = /https?:\/\/www\.acfun\.cn\/v\/ac(\d+)(?:\/?\?[^\s]*)?(?:#[^\s]*)?/ig;
+// 动态链两形态（0.9.122）：PC 页 www /moment/am<id>（脚本分享面板发这个）+ 官方分享短链
+// m.acfun.cn/communityCircle/moment/<id>（官方客户端转发进来的是这个，0.9.105 实测在册）
+var RE_MOMENT_URL = /(?:https?:\/\/www\.acfun\.cn\/moment\/am|https?:\/\/m\.acfun\.cn\/communityCircle\/moment\/)(\d+)(?:\/?\?[^\s]*)?(?:#[^\s]*)?/ig;
 var RE_TAIL_PUNCT = /[\s.,;:!?)\]】」』。、！？；：]+$/;
 var RE_HEAD_PUNCT = /^[\s.,;:!?(\[【「『。、！？；：]+/;
 
 // 单匹配 → 解析结果。句读贴着链接写（「给你 https://…。」）时两侧标点都不归属：
-// URL 剥尾、附言剥头
-function shareAt(t, m) {
+// URL 剥尾、附言剥头。kind='video'|'moment'（0.9.122）：moment 出 momentId、acId 置空——
+// 消费方必须先看 kind 再取 id（动态 wire 首行是 @作者： 形态、会过 isCommentShare，
+// 不按 kind 优先会被评论卡分流抢走）
+function shareAt(t, m, kind, id) {
   return {
     title: t.slice(0, m.index).trim().slice(0, 400),
     note: noteOf(t, m),
-    acId: m[1],
+    kind: kind,
+    acId: kind === 'video' ? id : '',
+    momentId: kind === 'moment' ? id : '',
     url: m[0].replace(RE_TAIL_PUNCT, '')
   };
 }
@@ -75,11 +83,14 @@ function noteOf(t, m) {
 }
 export function parseShare(text) {
   var t = String(text == null ? '' : text);
-  // 全量候选（评论正文里可能嵌裸链，见下选链规则）；上界 8 个是纯防御
+  // 全量候选（视频链 + 动态链两类混扫，按出现序合并；上界 8 个是纯防御）
   var ms = [], m;
   RE_AC_URL.lastIndex = 0;
-  while (ms.length < 8 && (m = RE_AC_URL.exec(t))) ms.push(m);
+  while (ms.length < 8 && (m = RE_AC_URL.exec(t))) ms.push({ m: m, kind: 'video', id: m[1] });
+  RE_MOMENT_URL.lastIndex = 0;
+  while (ms.length < 8 && (m = RE_MOMENT_URL.exec(t))) ms.push({ m: m, kind: 'moment', id: m[1] });
   if (!ms.length) return null;
+  ms.sort(function (a, b) { return a.m.index - b.m.index; });
   var pick = ms[0];
   // 评论转发选链（0.9.88）：wire = 「@作者：正文\n推荐链#ncid」（comments.js / imshare
   // 组装序）——正文里嵌的裸链会抢走首个匹配，卡片 href 指向评论里提到的视频、#ncid 锚点
@@ -88,13 +99,14 @@ export function parseShare(text) {
   // 正文内嵌链后面必有内容/换行 → note 非空，天然排除。无空 note 候选（wire 被外力改写/
   // 截断）回落末个候选。非评论形态一律保持首个匹配——手打分享「看这个 链接 再看看」的
   // 既有语义不动（RE_CMT_SHARE 失配的作者名/超 40 字同样落回首个匹配，容错同级）
-  if (ms.length > 1 && isCommentShare(t.slice(0, ms[0].index).trim())) {
+  //（0.9.122：动态转发 wire 同形（@作者：首行），同一规则同样收编——正文内嵌视频链不劫持末行动态链）
+  if (ms.length > 1 && isCommentShare(t.slice(0, ms[0].m.index).trim())) {
     for (var i = ms.length - 1; i > 0; i--) {
-      if (!noteOf(t, ms[i])) { pick = ms[i]; break; }
+      if (!noteOf(t, ms[i].m)) { pick = ms[i]; break; }
     }
     if (pick === ms[0]) pick = ms[ms.length - 1];
   }
-  return shareAt(t, pick);
+  return shareAt(t, pick.m, pick.kind, pick.id);
 }
 
 function pad2(n) { return n < 10 ? '0' + n : '' + n; }
@@ -215,6 +227,28 @@ export function cmtShareOf(m) {
   } catch (e) { return null; }
 }
 
+// 动态转发 extra 通道解析（0.9.122）：文本消息 extra 里的 {acsvMoment:{momentId,text,imgs,up}}，
+// text 是原始 UBB 正文（接收端富渲染用——wire 上的明文是 ubbPlain 只求官方可读）。extra 被
+// 服务端/中间端剥掉时返回 null，走 wire 文本降级（文本动态卡，仍可读可点）；空载荷（text 与
+// imgs 全无）视为没有
+export function momentShareOf(m) {
+  try {
+    if (msgContentType(m) !== 0) return null;
+    var extra = m.rawMsg && m.rawMsg.extra;
+    if (!extra) return null;
+    var raw = (JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(extra))) || {})[MOMENT_EXTRA_KEY];
+    if (!raw) return null;
+    var imgs = (Array.isArray(raw.imgs) ? raw.imgs : []).filter(function (im) { return im && im.url; });
+    if (!raw.text && !imgs.length) return null; // 空载荷（无正文、无有效图）视为没有
+    return {
+      momentId: raw.momentId != null ? String(raw.momentId) : '',
+      text: String(raw.text || ''),
+      imgs: imgs,
+      up: raw.up || null
+    };
+  } catch (e) { return null; }
+}
+
 // 消息文本提取（抽屉气泡用）；所有已知字段都拿不到时走 degradeText
 export function msgTextOf(m) {
   try {
@@ -248,6 +282,10 @@ export function previewOfMessage(m) {
     var share = parseShare(txt);
     if (share) {
       // 先占位化再截断：wire 携原始表情码（0.9.53），直接 slice 会切在码中间
+      //（0.9.122：动态 wire 首行是 @作者： 形态、会过 isCommentShare——先按 kind 分流防误标评论）
+      if (share.kind === 'moment') {
+        return '[动态] ' + (share.title ? plainPreview(share.title).slice(0, 30) : '动态');
+      }
       return (isCommentShare(share.title) ? '[评论] ' : '[分享] ')
         + (share.title ? plainPreview(share.title).slice(0, 30) : '推荐视频');
     }

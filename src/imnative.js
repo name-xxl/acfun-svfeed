@@ -9,9 +9,9 @@ import { el } from './ui.js';
 import { testHook, stat } from './dbg.js';
 import { ICON_SVGS } from './imicons.js';
 import { ensureEmotionMap } from './emoticon.js';
-import { parseCard, parseShare, isCommentShare, commentShareAuthor, cmtShareOf, degradeText, previewOfMessage, msgContentType, msgTextOf, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
+import { parseCard, parseShare, isCommentShare, commentShareAuthor, cmtShareOf, momentShareOf, degradeText, previewOfMessage, msgContentType, msgTextOf, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
 import { ubbQuoteHtml } from './ubb.js';
-import { vcard, cshareCard, patchCshare } from './imcard.js';
+import { vcard, cshareCard, patchCshare, mcard } from './imcard.js';
 import { AppAPI } from './appapi.js';
 
 var UNSUPPORTED = '不支持查看此消息，请前往最新版客户端查看。';
@@ -69,7 +69,11 @@ var SHADOW_CSS = ''
   + 'border-radius:8px;margin-top:6px;cursor:zoom-in}'
   + '.cshare .src{display:flex;align-items:center;gap:8px;padding:7px 9px;border-top:1px solid #efefef}'
   + '.cshare .srcimg{flex:none;width:56px;height:36px;object-fit:cover;border-radius:4px;background:#f2f2f2}'
-  + '.cshare .srct{flex:1;min-width:0;font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
+  + '.cshare .srct{flex:1;min-width:0;font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+  // 动态卡配图行（0.9.122，骨架根类复用评论卡）：缩略网格，点图开大图
+  + '.cshare .mimgs{display:flex;flex-wrap:wrap;gap:4px;padding:8px 10px 0}'
+  + '.cshare .mimg{display:block;width:92px;height:92px;border-radius:6px;overflow:hidden;cursor:zoom-in;flex:none;background:#f2f2f2}'
+  + '.cshare .mimg img{display:block;width:100%;height:100%;object-fit:cover}';
 var mo = null, moTimer = null;
 
 export function bootNativeIm() {
@@ -280,7 +284,9 @@ function enhanceList() {
         var sh = parseShare(span.textContent);
         if (sh) {
           span.setAttribute('data-acsv-share', '1');
-          span.textContent = (isCommentShare(sh.title) ? '[评论] ' : '[分享] ')
+          // 0.9.122：动态 wire 首行也是 @作者： 形态——按 kind 优先，防误标 [评论]
+          span.textContent = (sh.kind === 'moment' ? '[动态] '
+            : isCommentShare(sh.title) ? '[评论] ' : '[分享] ')
             + (sh.title ? sh.title.slice(0, 30) : '推荐视频');
         }
       }
@@ -344,6 +350,19 @@ function tryShareCard(msgEl, content, msgCache) {
   }
   if (!share) return;
   msgEl.setAttribute('data-acsv-share', '1');
+  // 动态分享（0.9.122）：不回拉 enrich（动态无按 id 的读接口）——extra 载荷命中富渲染
+  // 正文/真图，被剥按 wire 文本降级；两态都出「查看动态」动态卡
+  if (share.kind === 'moment') {
+    console.info('[acsv-im] 识别到动态分享 am' + share.momentId + '，渲染动态卡');
+    content.textContent = share.note || '';
+    var mm = momentShareOf(pairMessage(msgEl, msgCache));
+    appendShadow(content, [mcard(SKIN, {
+      href: share.url, text: share.title,
+      html: mm && mm.text ? ubbQuoteHtml(commentShareAuthor(share.title), mm.text) : '',
+      imgs: mm ? mm.imgs : []
+    }, false).el]);
+    return;
+  }
   console.info('[acsv-im] 识别到分享消息 ac' + share.acId + '，拉取卡片详情');
   enrichShare(share, function (c) {
     if (!content.isConnected) return;
@@ -474,6 +493,7 @@ var SKIN = {
   bar: 'meta', view: '', cmt: '', dur: 'dur', title: 'title',
   rootMine: '', // 原生页不分己方/对方（气泡方向由站方外壳决定）
   cshare: 'cshare', quote: 'quote', src: 'src', srct: 'srct', srcimg: 'srcimg',
+  mimgs: 'mimgs', mimg: 'mimg', // 动态卡配图行（0.9.122）
   coverHidden: 'display', // 沿用 0.9.51/0.9.57 真机验收形态（封面不占位、load 才放出）
   icon: function (kind) {
     var i = el('i', 'icon');

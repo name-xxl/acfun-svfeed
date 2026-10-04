@@ -5,6 +5,7 @@ import { likePi, throwBananaPi } from './interact.js';
 import { toggleBananaPop } from './banpop.js';
 import { ubbPlain } from './ubbtext.js';
 import { commentShareWire } from './immsg.js';
+import { momentExtraOf } from './data.js';
 
 // ---------- 动态互动栏（0.9.105 自 followview/momentdetail 收口共享） ----------
 // 两个消费面（行流卡 / 详情面板）此前各一套：键集不同（面板缺分享）、尺寸不同（48/42/12px
@@ -21,7 +22,10 @@ import { commentShareWire } from './immsg.js';
 export function momentShareItemOf(pi) {
   var text = pi.ct === 'moment' ? ubbPlain(pi.text) : (pi.title || '');
   var url = pi.ct === 'video' ? CFG.api.videoBase + pi.acId : pi.href;
-  return { title: commentShareWire(pi.up && pi.up.name, text), shareUrl: url };
+  var item = { title: commentShareWire(pi.up && pi.up.name, text), shareUrl: url };
+  // 动态携 extra 载荷（0.9.122）：接收端脚本渲染真图动态卡；官方客户端只看 wire 文本
+  if (pi.ct === 'moment') item.moment = momentExtraOf(pi);
+  return item;
 }
 
 function syncLike(btn, pi) {

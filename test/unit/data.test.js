@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf, momentPiOfRepost } = await import('../../src/data.js');
+var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf, momentPiOfRepost, momentExtraOf } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -682,4 +682,31 @@ test('momentPiOfRepost（0.9.102）：转发源 → 详情面板 pi 纯函数—
   var bare = momentPiOfRepost({ id: 1 });
   assert.equal(bare.up, null);
   assert.equal(bare.text, '');
+});
+
+// ---------- momentExtraOf（0.9.122 私信转发动态的 extra 载荷） ----------
+test('momentExtraOf：momentId 优先 pi.momentId；图归一（big 回退 url、无 url 丢）限 9；up 只收 id/name', () => {
+  var p = momentExtraOf({
+    momentId: 5104327, href: 'https://www.acfun.cn/moment/am5104327',
+    text: '[emot=acfun,1/]正文', up: { id: '7', name: '李四', isFollowing: true },
+    imgs: [{ url: 'a.jpg' }, { url: 'b.jpg', big: 'b2.jpg' }, { url: '' }]
+  });
+  assert.equal(p.momentId, '5104327');
+  assert.equal(p.text, '[emot=acfun,1/]正文');
+  assert.equal(p.imgs.length, 2); // 无 url 的丢弃
+  assert.equal(p.imgs[0].big, 'a.jpg'); // big 缺省回退 url
+  assert.equal(p.imgs[1].big, 'b2.jpg');
+  assert.deepEqual(p.up, { id: '7', name: '李四' }); // 只收 id/name（契约收窄）
+});
+
+test('momentExtraOf：momentId 缺省从 href 反推；超 9 图截断；脏输入不抛', () => {
+  var p = momentExtraOf({
+    href: 'https://www.acfun.cn/moment/am888',
+    imgs: new Array(12).fill({ url: 'x.jpg' })
+  });
+  assert.equal(p.momentId, '888');
+  assert.equal(p.imgs.length, 9);
+  assert.equal(momentExtraOf(null).momentId, '');
+  assert.equal(momentExtraOf({}).up, null);
+  assert.equal(momentExtraOf({}).text, '');
 });

@@ -3,7 +3,7 @@ import { gmRequest } from './net.js';
 import { el, toast, copyText, cookieVal } from './ui.js';import { postForm } from './appapi.js';
 import { imgInto } from './imgload.js';
 import { testHook } from './dbg.js';
-import { quoteWireText, QUOTE_EXTRA_KEY, CMT_EXTRA_KEY } from './immsg.js';
+import { quoteWireText, QUOTE_EXTRA_KEY, CMT_EXTRA_KEY, MOMENT_EXTRA_KEY } from './immsg.js';
 
 // ---------- 私信分享（抖音式分享面板） ----------
 // 网页端私信没有 REST 发送端点：官方自己走快手 ImSdk（klink WebSocket + protobuf），
@@ -784,6 +784,30 @@ export function sendCmtShare(inst, targetId, payload, text) {
   });
 }
 
+// 动态转发私信（0.9.122，extra 通道唯一；与评论转发同纪律）：明文 wire「@作者：明文\n动态链」
+// 官方可读 + proto extra 藏 {acsvMoment:{momentId,text,imgs,up}}——接收端 extra 存活时渲染
+// 真图动态卡，被剥则按 wire 降级为文本动态卡（仍可读可点）
+export function sendMomentShare(inst, targetId, payload, text) {
+  return withSendRecovery(inst, function (i) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var map = i.kernel && i.kernel.messageConstructorMap;
+        var Txt = map && map[0];
+        if (!Txt || !Txt.create) throw new Error('text-msg-class-missing');
+        var extra = null;
+        try {
+          var mExtra = {};
+          mExtra[MOMENT_EXTRA_KEY] = payload;
+          extra = new TextEncoder().encode(JSON.stringify(mExtra));
+        } catch (e1) { }
+        resolve(sendKernel(i, Txt.create({
+          targetType: 0, targetId: Number(targetId), text: text, extra: extra
+        }), targetId));
+      } catch (e) { reject(e); }
+    });
+  });
+}
+
 // ---------- 分享面板 ----------
 // 锚定在分享按钮左侧的浮层（banpop 同款挂载：随 slide 销毁自然回收，无全局监听残留）。
 // opts（0.9.50，评论转发私信场景注入，rail 分享不传保持原状）：
@@ -963,10 +987,13 @@ function renderRows(pop, list, contacts, item, inst) {
         send.textContent = '…';
         ensureConnected(inst) // 发前校验真实链路，断线先重连（列表读缓存，感知不到断线）
           .then(function () {
-            // 评论转发（item.cmt 携原始 UBB payload）走 extra 通道发真表情，普通分享纯文本
+            // 评论转发（item.cmt 携原始 UBB payload）走 extra 通道发真表情；动态转发
+            //（item.moment，0.9.122）同走 extra 发真图；普通分享纯文本
             return item.cmt
               ? sendCmtShare(inst, c.targetId, item.cmt, shareText.slice(0, CFG.im.maxLen))
-              : sendOnce(inst, c.targetId, shareText.slice(0, CFG.im.maxLen));
+              : item.moment
+                ? sendMomentShare(inst, c.targetId, item.moment, shareText.slice(0, CFG.im.maxLen))
+                : sendOnce(inst, c.targetId, shareText.slice(0, CFG.im.maxLen));
           })
           .then(function () {
             // 分享即发已完成：整体替换按钮节点——旧节点连同发送监听器一起销毁，新节点

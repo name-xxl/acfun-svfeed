@@ -3,6 +3,29 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.122（2026-10-04）· 私信转发动态渲染动态卡（富版：extra 载荷 + 双皮肤卡 + 降级链）
+
+- **病灶（用户实报「私信转发动态不会渲染动态卡」）**：非回归、是缺口——动态转发在 IM 层
+  从未卡片化。发送侧 wire=「@作者：明文\n动态链」（ubbPlain，无 extra）；接收侧识别器只有
+  parseCard（10001）与 parseShare（正则只认 /v/ac），动态 URL 双双不匹配 → 落纯文本气泡。
+  IM 层全仓 grep "moment" 零命中（从头就没接过）。连带症状：列表预览把动态链误标 [视频]；
+  且动态 wire 首行是 @作者： 形态会过 isCommentShare（识别后不按 kind 优先会被评论卡抢走）。
+- **修法（富版一次到位）**：① immsg：RE_MOMENT_URL 收编两形态（PC /moment/am<id> + 官方
+  分享短链 m.acfun.cn/communityCircle/moment/<id>），parseShare 出 kind/momentId（视频链
+  kind 默认 video，既有语义不动；评论选链规则同收编动态 wire）；新 extra 契约
+  MOMENT_EXTRA_KEY+momentShareOf；previewOfMessage 出 [动态]。② data：momentExtraOf
+  （pi→载荷纯函数：原始 UBB 正文/配图归一限 9/UP 收窄，momentId 缺省从 href 反推）。
+  ③ 发送：momentbar.momentShareItemOf 携 moment 载荷 → imshare.sendMomentShare（extra 通道，
+  与 0.9.52 评论转发同纪律）。④ 接收：imcard.mcard（动态卡=引用块+配图行+「查看动态」条，
+  骨架根类复用评论卡、皮肤 CSS 继承，新增 mimgs/mimg 两皮肤名）；imdrawer/imnative 按 kind
+  先分动态卡（先于 isCommentShare 分流），extra 被剥自动降级 wire 文本态——两态都可读可点。
+  ⑤ 预览/列表：imnative.enhanceList 与 previewOfMessage 按 kind 出 [动态]（修 [视频]/[评论] 误标）。
+- **测试**：immsg.test +5（动态链两形态/视频 kind 不动/选链收编/载荷往返与空载荷/预览）；
+  data.test +2（载荷构造：归一/限 9/回退/收窄）；im-open +2（动态卡富态皮肤断言 + 降级态）；
+  im-native 10→13（动态 wire 降级卡/无附言清空/列表 [动态] 不误标）。单测 198→205 + 42 场景全绿。
+- **边界**：对方官方客户端无论哪种都只看 wire 文本（协议如此）；extra 存活同 0.9.52 纪律，
+  需真机抽验（发送→在自己抽屉看富卡）。文章（/a/ac）分享同族缺口已登记、本次未动。
+
 ### 0.9.121（2026-10-04）· hadTracerCrash 水位修复：旧崩溃不再误诊重建
 
 - **病灶（IM 层评审确认）**：`hadTracerCrash` 从日志缓冲 0 号全量扫——已治愈的旧 tracer 崩溃
