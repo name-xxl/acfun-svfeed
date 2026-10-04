@@ -359,6 +359,39 @@ var PANEL_PARSERS = {
       default:
         return false; // 其余 resourceType（直播等未观察到）一概不接——宁可漏不错
     }
+  },
+  // 动态广场（0.9.125，广场页数据源；实测依据 docs/api-research.md §2.7）：feedSquare 条目与
+  // followFeedV2 动态条目**不同构**——无 resourceId（momentId 嵌在 moment.momentId 字符串）、
+  // 无转发源（服务端已过滤，v3.3.0 起 1000 条样本 resourceType 全 10）、createTime 是**绝对
+  // 毫秒**；user/userInfo 两形状归一。互动态在条目顶层但免登录恒 false——解析层照收不虚改，
+  // 新鲜度刷新（≤3h 走 moment/detail）补偿在视图层
+  square: function (raw, it) {
+    if (!raw || raw.resourceType !== 10) return false; // 端点语义即纯动态（过滤=宁漏不错兜底）
+    var u = raw.user || raw.userInfo || {};
+    it.up = upOf(u.userId, u.userName, coverUrl(u.userHead), u.isFollowing);
+    it.dateText = fmtAgo(Number(raw.createTime));
+    it.ct = 'moment';
+    var mo = raw.moment || {};
+    it.momentId = Number(mo.momentId) || 0;
+    // 正文 UBB 原文（渲染走 ubb.js 单源；replaceUbbText 明文版不用，intake「ubb/emotify 单源」）
+    it.text = mo.text || '';
+    it.imgs = imgsOfMoment(mo);
+    // 三计数（meta 三段语义，与 follow 同）+ 写链数值态：isLike/isThrowBanana 无登录态
+    // 恒 false（§2.7 实测）——视图层对新鲜条目补真值，展示层不虚改
+    it.meta = [
+      { k: 'like', t: String(Number(raw.likeCount) || 0) },
+      { k: 'comment', t: String(Number(raw.commentCount) || 0) },
+      { k: 'banana', t: String(Number(raw.bananaCount) || 0) }
+    ];
+    it.like = Number(raw.likeCount) || 0;
+    it.comment = Number(raw.commentCount) || 0;
+    it.banana = Number(raw.bananaCount) || 0;
+    it.share = Number(raw.shareCount) || 0;
+    it.liked = !!raw.isLike;
+    it.thrown = !!raw.isThrowBanana;
+    // 落点：www.acfun.cn/moment/am<id>（与 follow 动态同款；接口 shareUrl 是 m.acfun 短链不用）
+    it.href = CFG.api.momentBase + it.momentId;
+    return true;
   }
 };
 
@@ -373,6 +406,12 @@ function imgsOfMoment(mo) {
 // 关注流条目派发（0.9.91）：列表加载与"动态里转发的源条目"共用同一入口
 export function followPanelOf(raw) {
   return raw ? panelItem('follow', raw) : null;
+}
+
+// 广场条目派发（0.9.125）：与 followPanelOf 同形——契约层过滤在 panelItem（身份判据/白名单），
+// 视图只管渲染
+export function squarePanelOf(raw) {
+  return raw ? panelItem('square', raw) : null;
 }
 
 // 转发源（动态）→ 可开详情面板的 pi（0.9.102）：此前在 views.quoteBlockOf 里手搓契约
@@ -415,6 +454,22 @@ export function followVideoPageOf(j) {
   var items = raws.filter(function (r) { return r && r.resourceType === 2 && r.resourceId; })
     .map(function (r) { return { id: Number(r.resourceId) }; });
   var next = j && j.pcursor != null ? String(j.pcursor) : '';
+  var noMore = next === 'no_more' || !raws.length || !items.length;
+  return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
+}
+
+// 广场流单页规整（0.9.125，§2.7 实测）：feedSquare 响应 → {items:[pi], nextCursor, noMore}。
+// **result!==0 = 失败（throw）**——调用方区分「失败可重试」与「到底」，绝不许把失败当到底
+//（「失败不置到底」不变量在传输面兑现）；终判 pcursor='no_more'。**纯函数**放契约层，单测直采
+export function squarePageOf(j) {
+  if (!j || j.result !== 0) throw new Error('square-fail');
+  var raws = Array.isArray(j.feedList) ? j.feedList : [];
+  var items = [];
+  raws.forEach(function (raw) {
+    var pi = squarePanelOf(raw);
+    if (pi) items.push(pi); // 契约层过滤（宁漏不错）
+  });
+  var next = j.pcursor != null ? String(j.pcursor) : '';
   var noMore = next === 'no_more' || !raws.length || !items.length;
   return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
 }

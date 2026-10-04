@@ -190,6 +190,17 @@ body：`action=7&page=1&count=20&groupId=-1`（-1=不分组；action=8 为粉丝
 - 实测闭环链：建组×2 → 关注入组1（action=9 过滤 total=1）→ action=3 移到组2（组1 归零、组2 total=1）→ 取关 → 删组×2，各步 result 0，终态组列表复原（7 组、无残留）
 - 对接现状：补全抓手 = 组下拉（getGroups）+ 建组（action=4）+ 移组（action=3）+ 组过滤（action=9）；官方弹窗不做建组，插件可自行做全
 
+### 2.7 动态广场 feedSquare（〔实测转引〕2026-10-04，广场页吸收前置）
+
+实测积累来自同作者脚本 `D:\My_APP\cherry\work\acfun-moment-plaza`（「AcFun 动态广场」，已运行数十版本后 sunset 并入本脚本）：
+
+- `GET https://api-new.app.acfun.cn/rest/app/feed/feedSquare?pcursor={cursor}` —— **免登录、免 header**（api-new APP 域，GM 通道天然可用）
+- 单页固定 20（`Num` 参数无效）；**首页不传 pcursor**；游标形态 `时间戳:时间戳`（手工构造可跳任意时间点）；终页 `pcursor='no_more'`；历史深度实测约 53~54 小时
+- 服务端已过滤粉丝可见动态；**不含转发动态**（v3.3.0 起 1000 条样本 resourceType 全 10）
+- 条目形状：`{resourceType:10, createTime(绝对毫秒), likeCount/commentCount/bananaCount/shareCount, isLike/isThrowBanana(无登录态恒 false), user{userId,userName,userHead,nameColor}, moment{momentId(字符串), text(UBB 原文), replaceUbbText, imgs[{url,originUrl,width,height}]}}`——无 resourceId、无 coverUrl/caption；`contentType` 与 IM 卡片无关
+- **互动态恒 false 的补偿**：plaza 对 ≤3h 新鲜条目后台走 `moment/detail` 刷新回填（S3 接入时补记该端点的本仓实测）；>3h 直接用列表快照（与 plaza 同款策略）
+- 规整落位：`data.squarePageOf`（契约层纯函数，`result!==0` 抛错=失败可重试）；传输在 `momentapi.listSquare`
+
 ## 3. 详情与 meta 富化素材（douga/info，〔实测〕）
 
 `GET https://api-new.app.acfun.cn/rest/app/douga/info?product=ACFUN_APP&app_version=…&dougaId=…&mkey=…`（免登录，ac48820714 实测）

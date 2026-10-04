@@ -3,6 +3,20 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.125（2026-10-04）· 广场吸收 S1：数据面（feedSquare 端点 + 契约规整）
+
+- **内容**：`CFG.api.feedSquare`（api-new 免登录域，注释载实测语义：单页固定 20、首页不传
+  游标、`时间戳:时间戳` 游标、`no_more` 终页、历史约 53h、无转发、**互动态恒 false**）；
+  `CFG.view.square.*`（skel/24h 窗口/3h 新鲜窗/scrollPad/backTopAt）与 `CFG.square` 轮询块
+  （60s 起步封顶 10min——S2/S3 消费）；`momentapi.listSquare`（**首页省略 query**，与
+  followFeedV2 的 pcursor=0 方言不同；URL 逐字护 mock 缝）；`data` 契约层 `PANEL_PARSERS.square`
+  （无 resourceId→momentId 取 moment.momentId、绝对 createTime 直走 fmtAgo、user/userInfo
+  两形状归一、meta 三计数 + 写链数值态照收不虚改）+ `squarePanelOf` + `squarePageOf`
+  （**result!==0 抛错=失败可重试**——「失败不置到底」不变量在传输面兑现）。
+- **文档**：docs/api-research.md §2.7 入册（feedSquare 实测转引，来源=plaza 仓积累）。
+- **测试**：data.test +2（条目落位/身份判据/失败抛错/终页与空页兜底）；contract.test
+  PANEL_CASES 加 square（白名单子集断言兜住 nameColor 等扩展字段不混入）；单测 205→207。
+
 ### 0.9.124（2026-10-04）· 广场吸收 S0：抽 rowkit.js（关注/广场共用行卡 kit）
 
 - **背景（广场吸收计划首片）**：广场页（0.9.126 起）与关注·全部页要共用同一套原生骨架行卡

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf, momentPiOfRepost, momentExtraOf } = await import('../../src/data.js');
+var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf, momentPiOfRepost, momentExtraOf, squarePageOf } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -682,6 +682,54 @@ test('momentPiOfRepost（0.9.102）：转发源 → 详情面板 pi 纯函数—
   var bare = momentPiOfRepost({ id: 1 });
   assert.equal(bare.up, null);
   assert.equal(bare.text, '');
+});
+
+// ---------- 广场（0.9.125）：feedSquare 条目与单页规整 ----------
+test('panelItem square：feedSquare 条目——momentId 嵌在 moment 里、绝对 createTime、互动态照收', () => {
+  var pi = panelItem('square', {
+    resourceType: 10, createTime: Date.now() - 5 * 60000,
+    likeCount: 2, commentCount: 3, bananaCount: 4, shareCount: 5,
+    isLike: false, isThrowBanana: false,
+    moment: { momentId: '5104327', text: '正文[emot=acfun,1/]', imgs: [{ url: 'a.png', originUrl: 'b.png' }] },
+    user: { userId: 7, userName: '李四', userHead: 'h.png' }
+  });
+  assert.equal(pi.ct, 'moment');
+  assert.equal(pi.momentId, 5104327);
+  assert.equal(pi.kind, 'square');
+  assert.equal(pi.text, '正文[emot=acfun,1/]');
+  assert.equal(pi.imgs.length, 1);
+  assert.equal(pi.imgs[0].big, 'b.png'); // expandedUrl 缺席 → originUrl 回退
+  assert.equal(pi.href, 'https://www.acfun.cn/moment/am5104327');
+  assert.equal(pi.up.name, '李四');
+  assert.deepEqual([pi.like, pi.comment, pi.banana, pi.share], [2, 3, 4, 5]);
+  assert.ok(pi.dateText.length > 0); // fmtAgo 文案在位
+  // 非 type10 / 缺 momentId / 缺正文 一律拒（身份判据=panelItem 统一闸门）
+  assert.equal(panelItem('square', { resourceType: 2, resourceId: 1 }), null);
+  assert.equal(panelItem('square', { resourceType: 10, moment: { text: '无id' } }), null);
+  assert.equal(panelItem('square', { resourceType: 10, moment: { momentId: '5' } }), null);
+});
+
+test('squarePageOf：单页规整——result!==0 抛错（失败≠到底）；no_more/空页兜底；非动态滤掉', () => {
+  var page = squarePageOf({
+    result: 0, pcursor: '1790824871458:1790824871458',
+    feedList: [
+      { resourceType: 10, createTime: Date.now(), moment: { momentId: '1', text: 'a' }, user: {} },
+      { resourceType: 2, resourceId: 9 }, // 非动态：宁漏不错滤掉
+      { resourceType: 10, moment: { momentId: '2', text: 'b' }, user: {} }
+    ]
+  });
+  assert.equal(page.items.length, 2);
+  assert.equal(page.nextCursor, '1790824871458:1790824871458');
+  assert.equal(page.noMore, false);
+  var end = squarePageOf({
+    result: 0, pcursor: 'no_more',
+    feedList: [{ resourceType: 10, moment: { momentId: '3', text: 'c' }, user: {} }]
+  });
+  assert.equal(end.noMore, true);
+  assert.equal(end.nextCursor, '');
+  assert.throws(() => squarePageOf({ result: 1 }), /square-fail/); // 失败必须可辨（重试出口）
+  assert.throws(() => squarePageOf(null), /square-fail/);
+  assert.equal(squarePageOf({ result: 0, feedList: [] }).noMore, true);
 });
 
 // ---------- momentExtraOf（0.9.122 私信转发动态的 extra 载荷） ----------

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.124
+// @version      0.9.125
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -174,6 +174,11 @@
       // UP 级**长期不清**的服务端标记（无时间戳；实测访问原生页也不清）——徽标已改 followFeedV2
       // 时间水位线；顶层 feedList 是新内容条目流（带 createTime），留档备用
       webPush: "https://www.acfun.cn/rest/pc-direct/feed/webPush",
+      // 动态广场（0.9.125，广场页数据源；实测依据 docs/api-research.md §2.7）：api-new APP 域、
+      // **免登录免 header**、单页固定 20（count 被忽略）、**首页不传 pcursor**（游标形态
+      // `时间戳:时间戳`）、终页 'no_more'、历史深度约 53h；服务端已过滤转发（1000 条样本全
+      // type10）；**isLike/isThrowBanana 无登录态恒 false**（新鲜度刷新在视图层补偿）
+      feedSquare: "https://api-new.app.acfun.cn/rest/app/feed/feedSquare",
       // 站内搜索（0.9.72）：**非 JSON**——整页 SSR HTML（结果区 div.search-video），
       // 走 net.requestText + data.parseSearchItems；?pageNo= 实测无效（两页同一结果集），只做首屏
       search: "https://www.acfun.cn/search",
@@ -355,6 +360,19 @@
         backTopAt: 300
         // 距顶多少 px 显示回顶按钮（借鉴广场 BACK_TOP_THRESHOLD）
       },
+      // 广场视图（0.9.126）：全站最新动态流——24h 窗口 + 新鲜度刷新 + 发现态轮询
+      square: {
+        skel: 12,
+        // 首屏骨架行数（与关注视图同量级）
+        windowMs: 24 * 3600 * 1e3,
+        // 向下翻页截止：只展示发布 ≤24h（plaza DOWN_STOP_AFTER_MS 语义）
+        freshMs: 3 * 3600 * 1e3,
+        // 新鲜窗口：≤3h 条目走 moment/detail 补互动态（S3）
+        scrollPad: 300,
+        // 无限滚动触底提前量（同 follow）
+        backTopAt: 300
+        // 回顶按钮显隐阈值（同 follow）
+      },
       periods: ["DAY", "THREE_DAYS", "WEEK"],
       // 榜期（原生：今日/三日/本周）
       periodNames: { DAY: "今日", THREE_DAYS: "三日", WEEK: "本周" },
@@ -399,6 +417,13 @@
     // 关注未读徽标轮询（0.9.97，4.3）：60s 起步逐次翻倍封顶 10min，发现新内容即刻回落基准
     //（退避序列钉单测；tick 是固定节拍器粒度——真实间隔由 nextAt 闸门控制，广场同款骨架）
     follow: {
+      pollStart: 6e4,
+      pollMax: 6e5,
+      tick: 5e3
+    },
+    // 广场发现态轮询（0.9.127）：60s 起步逐次翻倍封顶 10min，发现新动态即刻回落基准（与关注
+    // 徽标同款骨架与退避序列；仅在广场视图打开时运转——build 启动/teardown 停止）
+    square: {
       pollStart: 6e4,
       pollMax: 6e5,
       tick: 5e3
@@ -1161,6 +1186,35 @@
         default:
           return false;
       }
+    },
+    // 动态广场（0.9.125，广场页数据源；实测依据 docs/api-research.md §2.7）：feedSquare 条目与
+    // followFeedV2 动态条目**不同构**——无 resourceId（momentId 嵌在 moment.momentId 字符串）、
+    // 无转发源（服务端已过滤，v3.3.0 起 1000 条样本 resourceType 全 10）、createTime 是**绝对
+    // 毫秒**；user/userInfo 两形状归一。互动态在条目顶层但免登录恒 false——解析层照收不虚改，
+    // 新鲜度刷新（≤3h 走 moment/detail）补偿在视图层
+    square: function(raw, it) {
+      if (!raw || raw.resourceType !== 10) return false;
+      var u = raw.user || raw.userInfo || {};
+      it.up = upOf(u.userId, u.userName, coverUrl(u.userHead), u.isFollowing);
+      it.dateText = fmtAgo(Number(raw.createTime));
+      it.ct = "moment";
+      var mo2 = raw.moment || {};
+      it.momentId = Number(mo2.momentId) || 0;
+      it.text = mo2.text || "";
+      it.imgs = imgsOfMoment(mo2);
+      it.meta = [
+        { k: "like", t: String(Number(raw.likeCount) || 0) },
+        { k: "comment", t: String(Number(raw.commentCount) || 0) },
+        { k: "banana", t: String(Number(raw.bananaCount) || 0) }
+      ];
+      it.like = Number(raw.likeCount) || 0;
+      it.comment = Number(raw.commentCount) || 0;
+      it.banana = Number(raw.bananaCount) || 0;
+      it.share = Number(raw.shareCount) || 0;
+      it.liked = !!raw.isLike;
+      it.thrown = !!raw.isThrowBanana;
+      it.href = CFG.api.momentBase + it.momentId;
+      return true;
     }
   };
   function imgsOfMoment(mo2) {
@@ -8994,7 +9048,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.124" : "");
+    return normVer(true ? "0.9.125" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -10562,7 +10616,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.124：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.125：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

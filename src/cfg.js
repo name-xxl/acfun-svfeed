@@ -76,6 +76,11 @@ export var CFG = {
     // UP 级**长期不清**的服务端标记（无时间戳；实测访问原生页也不清）——徽标已改 followFeedV2
     // 时间水位线；顶层 feedList 是新内容条目流（带 createTime），留档备用
     webPush: 'https://www.acfun.cn/rest/pc-direct/feed/webPush',
+    // 动态广场（0.9.125，广场页数据源；实测依据 docs/api-research.md §2.7）：api-new APP 域、
+    // **免登录免 header**、单页固定 20（count 被忽略）、**首页不传 pcursor**（游标形态
+    // `时间戳:时间戳`）、终页 'no_more'、历史深度约 53h；服务端已过滤转发（1000 条样本全
+    // type10）；**isLike/isThrowBanana 无登录态恒 false**（新鲜度刷新在视图层补偿）
+    feedSquare: 'https://api-new.app.acfun.cn/rest/app/feed/feedSquare',
     // 站内搜索（0.9.72）：**非 JSON**——整页 SSR HTML（结果区 div.search-video），
     // 走 net.requestText + data.parseSearchItems；?pageNo= 实测无效（两页同一结果集），只做首屏
     search: 'https://www.acfun.cn/search',
@@ -208,6 +213,14 @@ export var CFG = {
                           // 提前量大些，避免用户看到加载停顿；评论区 80 是小容器场景）
       backTopAt: 300      // 距顶多少 px 显示回顶按钮（借鉴广场 BACK_TOP_THRESHOLD）
     },
+    // 广场视图（0.9.126）：全站最新动态流——24h 窗口 + 新鲜度刷新 + 发现态轮询
+    square: {
+      skel: 12,                    // 首屏骨架行数（与关注视图同量级）
+      windowMs: 24 * 3600 * 1000,  // 向下翻页截止：只展示发布 ≤24h（plaza DOWN_STOP_AFTER_MS 语义）
+      freshMs: 3 * 3600 * 1000,    // 新鲜窗口：≤3h 条目走 moment/detail 补互动态（S3）
+      scrollPad: 300,              // 无限滚动触底提前量（同 follow）
+      backTopAt: 300               // 回顶按钮显隐阈值（同 follow）
+    },
     periods: ['DAY', 'THREE_DAYS', 'WEEK'], // 榜期（原生：今日/三日/本周）
     periodNames: { DAY: '今日', THREE_DAYS: '三日', WEEK: '本周' },
     zones: [              // 频道全集（对齐原生榜单页 tab 序；cid 实测 docs/api-research.md §6.2）：
@@ -234,6 +247,13 @@ export var CFG = {
   // 关注未读徽标轮询（0.9.97，4.3）：60s 起步逐次翻倍封顶 10min，发现新内容即刻回落基准
   //（退避序列钉单测；tick 是固定节拍器粒度——真实间隔由 nextAt 闸门控制，广场同款骨架）
   follow: {
+    pollStart: 60000,
+    pollMax: 600000,
+    tick: 5000
+  },
+  // 广场发现态轮询（0.9.127）：60s 起步逐次翻倍封顶 10min，发现新动态即刻回落基准（与关注
+  // 徽标同款骨架与退避序列；仅在广场视图打开时运转——build 启动/teardown 停止）
+  square: {
     pollStart: 60000,
     pollMax: 600000,
     tick: 5000

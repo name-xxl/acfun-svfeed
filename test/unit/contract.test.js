@@ -44,6 +44,14 @@ var PANEL_CASES = {
     moment: { text: '正文[emot=acfun,1/]', imgs: [{ url: 't.png', expandedUrl: 'b.png', originUrl: 'o.png' }] },
     repostSource: { resourceType: 10, resourceId: 6, moment: { text: '源正文', imgs: [{ url: 's.png' }] } },
     user: { userId: 9, userName: 'u', userHead: 'h' }
+  },
+  // 广场（0.9.125）：feedSquare 条目——无 resourceId（momentId 在 moment 里）、user 带
+  // nameColor 扩展字段（白名单只认契约字段，扩展不混入）
+  square: {
+    resourceType: 10, createTime: Date.now(), likeCount: 1, commentCount: 2, bananaCount: 3,
+    shareCount: 4, isLike: false, isThrowBanana: false,
+    moment: { momentId: '5104327', text: '广场正文[emot=acfun,1/]', imgs: [{ url: 't.png', originUrl: 'o.png' }] },
+    user: { userId: 9, userName: 'u', userHead: 'h', nameColor: 0 }
   }
 };
 var SEARCH_HTML = '<div class="search-video"><a href="/v/ac5"><img src="c.png"/>'
