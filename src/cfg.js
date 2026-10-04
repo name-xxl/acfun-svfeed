@@ -242,7 +242,9 @@ export var CFG = {
     avoidMin: 0.5,     // 剩余空间占视口比低于此值时放弃避让改纯覆盖（视频不缩放原尺寸续播，抽屉近乎全遮）
     subCount: 20,      // 楼中楼每页条数
     imgMax: 10 * 1024 * 1024, // 评论图片上传上限
-    scrollPad: 80,     // 无限滚动触发提前量（px）
+    //（0.9.141 撤除）scrollPad：按宿主 list 挂 scroll 的触底提前量——只有抽屉的 list 是滚动
+    // 容器、行内/面板宿主恒挂错；翻页改哨兵 + IntersectionObserver（rootMargin 内建 200px），
+    // 本项随之退役（退役登记，勿再加回）
     recentMax: 12      // 最近使用表情保留数
   },
   rate: [0.5, 1, 1.5, 2],   // 倍速循环档位

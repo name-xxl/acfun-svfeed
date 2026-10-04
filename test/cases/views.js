@@ -1182,7 +1182,8 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       topbarInView = h.topbarInView, TEST = h.TEST;
     // MY_MOCK（行流/写链桩）+ 评论列表桩（原位评论区断言用，形状同 detail-open）。
     // 0.9.140：桩改**两页**且照真机形态给 `pcursor:'no_more'`（登录态抓包实测：pc-direct/
-    // comment/list 每页都回 no_more，38 页样本页 1 亦如此）——根评论翻页只认 page/totalPage
+    // comment/list 每页都回 no_more，38 页样本页 1 亦如此）——根评论翻页只认 page/totalPage；
+    // 0.9.141 起这两页桩驱动「哨兵自动续页」断言（按钮已撤除，见下方翻页钉）
     window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
       'comment/list': function (body, url) {
         var page = Number((String(url).match(/[?&]page=(\d+)/) || [])[1] || 1);
@@ -1313,25 +1314,28 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     await wait(300);
     rec('follow-cmts-no-bubble', !q('.acsv-mdetail') && !!mRow.querySelector('.acsv-frow-cmts'),
       'panel=' + !!q('.acsv-mdetail') + ' cmts=' + !!mRow.querySelector('.acsv-frow-cmts'));
-    // 根评论翻页（0.9.140 实报「视频评论加载不全」的回归钉；同一 renderComments/触底判据服务
-    // 抽屉与行内两宿主）：旧判据 `page<totalPage && pcursor!=='no_more'` 拿恒真的 no_more 当闸门
-    // ⇒ 全站永远停在首页；这里按真机形态（pcursor 恒 no_more、page/totalPage 有效）钉
-    // 「按钮出现 → 点击追加第二页 → 到 totalPage 收口」
-    rec('follow-cmts-more-btn', !!(await waitFor(function () {
-      return !!mRow.querySelector('.acsv-frow-cmts .acsv-drawer-more');
-    }, 5000)));
-    var moreBtn = mRow.querySelector('.acsv-frow-cmts .acsv-drawer-more');
-    if (moreBtn) moreBtn.click();
-    rec('follow-cmts-page2', !!(await waitFor(function () {
+    // 根评论翻页（0.9.140 修判据 / 0.9.141 改自动加载。同一 renderComments/翻页闸门服务抽屉、
+    // 行内、详情面板三宿主）：旧判据 `page<totalPage && pcursor!=='no_more'` 拿恒真的 no_more
+    // 当闸门 ⇒ 全站停在首页（0.9.140 按真机形态修：pcursor 恒 no_more、page/totalPage 有效）；
+    // 0.9.141 起翻页=**哨兵 + IntersectionObserver 自动续页，没有「加载更多评论」按钮**
+    //（实报：按钮在自动翻页后残留列表中部；行内/面板宿主也没有可挂的滚动容器）。
+    // 这里钉三样：无按钮、哨兵进视口即自动续页、append 不重渲染且到底即停
+    rec('follow-cmts-no-btn', !mRow.querySelector('.acsv-frow-cmts .acsv-drawer-more'));
+    var sen = mRow.querySelector('.acsv-frow-cmts .acsv-cmore-sentinel');
+    rec('follow-cmts-sentinel', !!sen);
+    if (sen && sen.scrollIntoView) sen.scrollIntoView({ block: 'center' }); // 行内宿主自己不是滚动容器（滚动的是视图体）
+    rec('follow-cmts-autoload', !!(await waitFor(function () {
       return /第二页评论/.test((mRow.querySelector('.acsv-frow-cmts') || {}).textContent || '');
-    }, 5000)));
+    }, 8000)));
     rec('follow-cmts-append', (function () {
       var box = mRow.querySelector('.acsv-frow-cmts');
       // append 不重渲染：第一页两条仍在 + 条目数=3
       return !!box && /原位评论第一条/.test(box.textContent)
         && box.querySelectorAll('.acsv-citem').length === 3;
     })(), 'n=' + (mRow.querySelectorAll('.acsv-frow-cmts .acsv-citem') || []).length);
-    rec('follow-cmts-more-done', !mRow.querySelector('.acsv-frow-cmts .acsv-drawer-more')); // page=totalPage
+    await wait(400); // 到底（page=totalPage）后不再续翻：等一拍条数不变
+    rec('follow-cmts-stop', mRow.querySelectorAll('.acsv-frow-cmts .acsv-citem').length === 3,
+      'n=' + mRow.querySelectorAll('.acsv-frow-cmts .acsv-citem').length);
     mActs[1].click(); // 收起
     // 视频行也原位展开评论（0.9.101）：stype=3（www 视频）+ sourceId=acId，不再进播放层
     var vActs = vRow.querySelectorAll('.acsv-fact');

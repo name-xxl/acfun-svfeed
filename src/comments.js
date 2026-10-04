@@ -30,7 +30,9 @@ import { commentItemOf } from './commentkit.js'; // 条目构建单源（0.9.133
 // **每一页都回 `pcursor:"no_more"`**，连页 1 也是；带 page=N 请求有效、页 38 有货、页 39 空壳）。
 // 旧实现把 `pcursor !== 'no_more'` 当附加闸门 ⇒ 恒假 ⇒ 「加载更多评论」按钮/触底翻页**永不触发**，
 // 全部视频都卡在首页（~40 根），正是实报现象。pcursor 只对 **comment/sublist（楼中楼）** 有意义，
-// 那条链在 commentkit.expandSubComments 里按 pcursor 翻，勿与根评论口径混用
+// 那条链在 commentkit.expandSubComments 里按 pcursor 翻，勿与根评论口径混用。
+// **翻页触发（0.9.141 实报改）**：按钮撤除，改「哨兵 + IntersectionObserver」自动续页（三宿主
+// 通用，机制与缘由见下方 armMoreSentinel 块注）
 export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, loading: false, replyTo: null, kind: 'sv' };
 
 // 评论管线 DOM 宿主（0.9.96 动态详情面板）：null = 经典抽屉（commentDrawer）。管线全经
@@ -269,6 +271,44 @@ function cmtOpts() {
   return { mode: commentState.kind, sourceId: commentState.sourceId, stype: commentState.stype };
 }
 
+// ---- 触底自动加载（0.9.141 实报改）：哨兵 + IntersectionObserver，三宿主通用 ----
+// 实报两连（「加载更多评论 ui 自动加载后仍显示，没啥用就删了吧」+「现在的逻辑是滚动到底自动
+// 加载吗」）：①**滚动到底自动加载只对经典抽屉成立**——旧实现把 scroll 监听挂在宿主 list 上，
+// 但只有抽屉的 .acsv-drawer-list 自己是滚动容器；行内（rowkit，活在被 .acsv-view-body 滚动的
+// 视图流里）与详情面板（momentdetail，被面板体滚动）两个宿主的 list **从不滚动** ⇒ 那两个
+// 宿主里只有按钮能翻页；②按钮在自动翻页后**残留列表中部**（append 把新条目接在按钮之后，
+// 旧按钮没被摘除——正是截图里夹在 #9 与 #8 之间的那枚）。处置：**按钮整体撤除**，改哨兵——
+// 挂在当前宿主 list 末尾，进视口（rootMargin 预取）即续翻；IO 天然对任意祖先滚动容器成立
+//（含 overflow 裁剪与 transform 位移），无需按宿主换挂，也不再有可残留的按钮。
+// 每次渲染后重挂到末尾（新条目要在它之上），并**重新 observe 一次**：IO 只在交叉状态"变化"
+// 时回调，短路页（一页装不满视口）重挂后状态未变不会再回调，重 observe 的初始投递负责续翻
+// ——canLoadMore 闸门（loading/page<totalPage）保证收敛，到底即静默停。
+var moreSentinel = null, moreIO = null;
+
+function canLoadMore() {
+  return !commentState.loading && commentState.page < commentState.totalPage && !!curHost();
+}
+
+function onSentinel(es) {
+  for (var i = 0; i < es.length; i++) {
+    if (!es[i].isIntersecting) continue;
+    if (canLoadMore()) loadComments(commentState.sourceId, commentState.page + 1, true);
+    return;
+  }
+}
+
+function armMoreSentinel(h) {
+  if (!moreSentinel) {
+    // 1px 高的占位（零面积目标在 IO 里判不成交叉——勿改 height:0）
+    moreSentinel = el('div', 'acsv-cmore-sentinel');
+    moreIO = new IntersectionObserver(onSentinel, { rootMargin: '200px' });
+  }
+  h.list.appendChild(moreSentinel); // 每渲染后重挂末尾（innerHTML 清空/宿主迁移后同路恢复）
+  if (!canLoadMore()) return;       // 到底/在途：不 observe，省掉无意义回调
+  moreIO.unobserve(moreSentinel);
+  moreIO.observe(moreSentinel);     // 初始投递：哨兵已在视口内（短路页）即续翻
+}
+
 function renderComments(list, append, subMap, hot) {
   var h = curHost();
   if (!h) return;
@@ -298,16 +338,7 @@ function renderComments(list, append, subMap, hot) {
     h.list.appendChild(el('div', 'acsv-hot-divider', '最新评论'));
   }
   list.forEach(push);
-  // 翻页判据：只认 page/totalPage（pc-direct 每页都回 pcursor='no_more'，拿它当闸门=恒不翻页，
-  // 见文件头「翻页口径」——0.9.140 实报修复）
-  if (commentState.page < commentState.totalPage) {
-    var more = el('button', 'acsv-drawer-more', '加载更多评论');
-    more.addEventListener('click', function () {
-      more.remove();
-      loadComments(commentState.sourceId, commentState.page + 1, true);
-    });
-    h.list.appendChild(more);
-  }
+  armMoreSentinel(h); // 列表末尾挂触底哨兵（有下一页才有效；0.9.141 取代「加载更多评论」按钮）
 }
 
 function renderCommentTip(text) {
@@ -322,8 +353,8 @@ function renderCommentTip(text) {
 var inputBar = null;
 var replyChip = null; // 回复提示条（inputbar.buildQuoteChip 共用工厂，私信引用 chip 同款）：{box, label}
 var emotPanelEl = null; // 表情面板容器（emoticon.mountEmotButton 消费）
-var scrollList = null; // 滚动监听当前挂的列表（scroll 不冒泡：宿主切换必须换挂）
-var scrollFn = null;
+// （0.9.141 撤除）scrollList/scrollFn：按宿主 list 挂 scroll 的触底翻页——只有抽屉的 list 是
+// 滚动容器，行内/面板宿主恒挂错，已由上面的哨兵 + IO 取代（退役登记，勿再加回）
 
 function setReply(target) {
   commentState.replyTo = target || null;
@@ -421,23 +452,12 @@ function ensureCommentInput() {
     // 表情面板三件套（toggle+懒加载+光标插入）抽进了 emoticon.mountEmotButton，评论/私信共用
     mountEmotButton(bar.emotBtn, emotPanelEl, inp);
   }
-  // 宿主迁移（0.9.96 面板↔抽屉互斥开，输入条三件套同一时刻只在一个宿主里）：
-  // append 即搬移；滚动监听随宿主 list 换挂（scroll 不冒泡，挂公共祖先救不了）
+  // 宿主迁移（0.9.96 面板↔抽屉互斥开，输入条三件套同一时刻只在一个宿主里）：append 即搬移。
+  // 触底翻页不再随宿主换挂监听（0.9.141 起哨兵随 list 走，见 armMoreSentinel）
   if (inputBar._host !== h) {
-    if (scrollList && scrollFn) scrollList.removeEventListener('scroll', scrollFn);
     h.el.appendChild(emotPanelEl);
     h.el.appendChild(replyChip.box);
     h.el.appendChild(inputBar);
-    scrollFn = function () {
-      var l = curHost().list;
-      // 触底续翻判据同按钮：只认 page/totalPage（0.9.140；pcursor 恒 no_more 见文件头）
-      if (commentState.loading || commentState.page >= commentState.totalPage) return;
-      if (l.scrollTop + l.clientHeight >= l.scrollHeight - CFG.comments.scrollPad) {
-        loadComments(commentState.sourceId, commentState.page + 1, true);
-      }
-    };
-    h.list.addEventListener('scroll', scrollFn, { passive: true });
-    scrollList = h.list;
     inputBar._host = h;
   }
   return inputBar;

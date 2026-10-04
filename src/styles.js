@@ -247,9 +247,12 @@ var RAW_CSS = ''
   + '.acsv-hot-head{padding:10px 14px 4px;font-size:12px;color:#fd4c5d;font-weight:700;'
   + 'display:flex;align-items:center;gap:5px}'
   + '.acsv-hot-divider{padding:12px 14px 4px;font-size:12px;color:#7a7f8a}'
-  + '.acsv-drawer-more{display:block;margin:12px auto;padding:8px 24px;border:1px solid rgba(255,255,255,.22);'
-  + 'background:none;color:#ddd;border-radius:999px;cursor:pointer;font-size:13px;font-family:inherit}'
-  + '.acsv-drawer-more:hover{background:rgba(255,255,255,.1)}'
+  // 触底哨兵（0.9.141）：评论列表末尾的 1px 占位，IntersectionObserver 盯它续翻。
+  // height 必须非 0——零面积目标在 IO 里判不成"交叉"
+  + '.acsv-cmore-sentinel{height:1px}'
+  //（0.9.141 撤除）.acsv-drawer-more（「加载更多评论」按钮）：自动翻页后残留列表中部（append
+  // 把新条目接在它之后），且行内/面板宿主没有可挂的滚动容器——翻页全权交给上面的哨兵。
+  // 退役登记在册，勿再加回
   + '.acsv-drawer-tip{padding:46px 0;text-align:center;color:#888;font-size:13px}'
   + '.acsv-hint{position:absolute;bottom:140px;left:50%;transform:translateX(-50%);z-index:40;display:flex;'
   + 'align-items:center;gap:10px;padding:8px 10px 8px 16px;background:rgba(0,0,0,.72);border-radius:999px;'
