@@ -1527,7 +1527,7 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
         return { result: 0, commentCount: 1, curPage: 1, totalPage: 1, pcursor: 'no_more',
           hotComments: [],
           rootComments: [
-            { commentId: 'q1', userId: 31, userName: '广场评论员', headUrl: '', content: '广场原位评论', postDate: '1分钟前', likeCount: 0, isLiked: true, subCommentCount: 1, nameColor: 2, floor: 5, deviceModel: 'iPhone客户端', avatarFrameImgInfo: { thumbnailImageCdnUrl: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' } }
+            { commentId: 'q1', userId: 31, userName: '广场评论员', headUrl: '', content: '广场原位评论', postDate: '1分钟前', likeCount: 0, isLiked: true, subCommentCount: 1, nameColor: 2, floor: 5, deviceModel: 'iPhone客户端', isUp: true, avatarFrameImgInfo: { thumbnailImageCdnUrl: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' } }
           ],
           subCommentsMap: { q1: [{ commentId: 'q1-1', userId: 32, userName: '楼中楼甲', headUrl: '', content: '楼中楼内容', postDate: '1分钟前', likeCount: 0, isLiked: false, replyToUserName: '广场评论员', replyTo: 31, floor: 1, deviceModel: 'Android客户端', avatarFrameImgInfo: { thumbnailImageCdnUrl: 'https://s.example/frame2.png' } }] } };
       },
@@ -1625,6 +1625,8 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       var hrs = cmtBox.querySelectorAll('.acsv-chr');
       return hrs.length === 1 && !(subItem && subItem.querySelector('.acsv-chr'));
     })(), 'n=' + cmtBox.querySelectorAll('.acsv-chr').length);
+    // UP 标不渲染（0.9.137；真机核对：原生评论组件无 UP 标识——isUp:true 样本也不该出标）
+    rec('square-cmt-no-up', !cmtBox.querySelector('.acsv-cname .up'));
     if (mActs[1]) mActs[1].click();
     rec('square-cmts-close', !!(await waitFor(function () {
       return !mRow.querySelector('.acsv-frow-cmts');

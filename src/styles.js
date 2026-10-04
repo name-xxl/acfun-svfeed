@@ -196,7 +196,7 @@ var RAW_CSS = ''
   + '.acsv-cname{font-size:13px;color:#9aa0ab;margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}'
   + '.acsv-cname a{color:#9aa0ab;text-decoration:none}'
   + '.acsv-cname a:hover{color:#e8eaed;text-decoration:underline}'
-  + '.acsv-cname .up{background:#fd4c5d;color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600}'
+  // 评论名后「UP」标样式于 0.9.137 删除（真机核对：原生 pc 评论组件无 UP 标识——勿再自加）
   // 评论正文开文字选择（root 全局 user-select:none 之上的例外）：划选后原生右键即可复制；
   // 只开正文，昵称/时间/按钮保持不可选，避免误选
   + '.acsv-ctext{font-size:14px;line-height:1.6;word-break:break-word;white-space:pre-wrap;color:#f0f1f3;'

@@ -19,7 +19,7 @@
         return { result: 0, commentCount: 1, curPage: 1, totalPage: 1, pcursor: 'no_more',
           hotComments: [],
           rootComments: [
-            { commentId: 'mp1', userId: 41, userName: '广场评论员', headUrl: '', content: '内嵌原位评论', postDate: '1分钟前', likeCount: 0, isLiked: false, subCommentCount: 3 }
+            { commentId: 'mp1', userId: 41, userName: '广场评论员', headUrl: '', content: '内嵌原位评论', postDate: '1分钟前', likeCount: 0, isLiked: false, subCommentCount: 3, isUp: true }
           ],
           subCommentsMap: { mp1: [{ commentId: 'mp1-1', userId: 42, userName: '楼中楼甲', headUrl: '', content: '楼中楼内容', postDate: '1分钟前', likeCount: 0, isLiked: false, replyToUserName: '广场评论员', replyTo: 41 }] } };
       },
@@ -141,6 +141,9 @@
       return !!hr && getComputedStyle(hr).borderTopColor === 'rgb(230, 230, 230)'
         && !(mpBox && mpBox.querySelector('.acsv-csub .acsv-chr'));
     })());
+    // UP 标不渲染（0.9.137；真机核对：原生评论组件无 UP 标识——isUp:true 样本也不该出标）
+    rec('mp-cmt-no-up', !(mpBox && mpBox.querySelector('.acsv-cname .up'))
+      && !(mpName && /UP/.test(mpName.textContent)), mpName ? mpName.textContent.trim().slice(0, 20) : 'none');
     if (acts[1]) acts[1].click();
     await wait(250);
     rec('mp-cmts-close', !mRow.querySelector('.acsv-frow-cmts'));

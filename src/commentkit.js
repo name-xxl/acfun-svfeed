@@ -78,7 +78,9 @@ export function commentItemOf(c, subMap, opts) {
   // 名字等级色（0.9.134，真机 nameColor 0/1/2）：2=紫、1=红、0/缺失不加色（根+楼中楼同款）
   var ncss = nameColorCss(c.nameColor);
   if (ncss) nameChild.style.color = ncss;
-  if (c.isUp) name.appendChild(el('span', 'up', 'UP'));
+  // （0.9.137 撤除）isUp →「UP」标：真机核对（2026-10-04，视频 /v/ac26640967 56 条 + 文章
+  // /a/ac48885762 19 条 + feeds 动态展开区）——A站 pc 评论组件三域均**不渲染任何 UP 标识**
+  //（标题行只有 名字/发表于/时间），此前自加的标与原生不符
   // 日期并入名字行「发表于 x」（0.9.136 两形态统一，native 版式）：工具行不再放日期——
   // 设备件上身后 meta 行过挤，窄容器（抽屉 380px）会逐字断行
   name.appendChild(el('span', 'acsv-cpostday', '发表于'));
