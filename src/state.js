@@ -54,6 +54,12 @@ var watchTargetFn = null;
 export function setWatchTarget(fn) { watchTargetFn = typeof fn === 'function' ? fn : null; }
 export function watchTarget() { return watchTargetFn; }
 
+// 播放层层内当前条目（0.9.111 自 playlayer 下沉）：键盘 c 键（评论开合）要打层内那条而不是
+// 竖刷当前条——该事实与 videoTarget/watchTarget 同族（"层内状态"中介），放本模块让 input
+// 只读不反向 import playlayer。playlayer 在 mountSlide/teardown 同步；无层=null
+export var playItem = null;
+export function setPlayItem(it) { playItem = it; }
+
 // ---------- 播放层哨兵（0.9.78 契约函数化） ----------
 // 播放层（playlayer）的 slide 不在竖刷流里，而且它的 idx 是哨兵：唯一判据是 dataset.ovl==='1'
 // （playlayer 写、判据函数在此读出）。0.9.74 起这条约束只活在注释里——0.9.77 评审实锤

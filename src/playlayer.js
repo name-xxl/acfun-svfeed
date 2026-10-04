@@ -5,7 +5,7 @@ import { API } from './api.js';
 import { playItemOf } from './data.js';
 import { setItemOpener } from './cards.js';
 import { registerView } from './viewreg.js';
-import { setVideoTarget, setWatchTarget, OVL_IDX } from './state.js';
+import { setVideoTarget, setWatchTarget, setPlayItem, OVL_IDX } from './state.js';
 import { buildSlide } from './slide.js';
 import { attachVideo } from './attach.js';
 
@@ -27,10 +27,6 @@ import { attachVideo } from './attach.js';
 //    renderWindow/幽灵扫描都是 scroller 域内，天然隔离
 var pending = null; // 点击路径暂存的面板条目（{ acId, title, cover, up }）
 var slideRef = null; // 当前层内 slide（teardown 拆会话用；DOM 由框架拆）
-var itemRef = null; // 当前层内条目（键盘 c=评论开合要打到它，不是竖刷当前条）
-
-// 层内当前条目（input.js 的 c 键用；无层=null）
-export function currentItem() { return itemRef; }
 
 export function openPlayer(pi) {
   if (!pi || !pi.acId) return;
@@ -43,7 +39,9 @@ function mountSlide(body, item) {
   slide.dataset.ovl = '1';
   body.appendChild(slide);
   slideRef = slide;
-  itemRef = item;
+  // 层内当前条目镜像（0.9.111 下沉 state）：input 的 c 键读 state.playItem，不再反向 import
+  // 本模块（旧 itemRef/currentItem 已删——全仓唯一消费者是 input）
+  setPlayItem(item);
   // 键盘手势重定向（空格/静音/快进/全屏打层内那条；有钩子不回落竖刷，见 state.videoTarget）
   setVideoTarget(function () {
     var v = slideRef && slideRef.querySelector('video');
@@ -112,7 +110,7 @@ function teardownPlayView() {
   setWatchTarget(null); // 撤上报重定向（0.9.86）：兜底上报回到竖刷当前条
   if (slideRef && slideRef._session) { slideRef._session.dispose(); slideRef._session = null; }
   slideRef = null;
-  itemRef = null;
+  setPlayItem(null); // 镜像随层拆（0.9.111）
   pending = null;
 }
 

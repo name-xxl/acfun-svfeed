@@ -417,7 +417,7 @@ flowchart LR
   player --> followbadge
   settingspanel --> settings & overlay
   searchview --> cards & topbar & viewreg
-  input --> comments & feedstore & imdrawer & overlay & pb & playlayer & settings & views
+  input --> comments & feedstore & imdrawer & overlay & pb & settings
   comments --> appapi & emoticon & imgload & imgview & imicons & immsg & imshare & inputbar & overlay & ubb
   interact --> appapi
   release --> overlay & settings

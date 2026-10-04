@@ -1,23 +1,22 @@
 import { CFG } from './cfg.js';
 import { toast, toggleFullscreen } from './ui.js';
-import { root, scroller, slideAt } from './state.js';
+import { root, scroller, slideAt, playItem } from './state.js';
 import { isFeedRoute } from './route.js';
 import { FeedStore } from './feedstore.js';
 import { pb, currentVideo, sweepVideos, togglePlayGesture, toggleMuteGesture } from './playback.js';
 import { toggleItemComments } from './comments.js';
 import { overlayTop, overlayClose } from './overlay.js';
-import { currentView } from './views.js';
-import { currentItem } from './playlayer.js';
 import { toggleImDrawer } from './imdrawer.js';
 import { getSetting } from './settings.js';
 
 // ---------- 键盘/全屏/幽灵扫描：全局监听的注册与解除 ----------
-// 上层导航（scrollToIndex/exitFeed）在 player.js，经 api 参数注入保持依赖单向；
+// 上层导航（scrollToIndex/exitFeed）与视图门禁读（getView）在 player.js，经 api 参数注入保持
+// 依赖单向（0.9.111 收编）；层内条目的读走 state.playItem 镜像——本模块不再 import views/playlayer。
 // 解除统一走 teardownInputHandlers（unmount 调用）。
 
 var keyHandler = null, keyUpHandler = null, fsChangeHandler = null, ghostIv = null;
 
-// api: { scrollToIndex, exitFeed }
+// api: { scrollToIndex, exitFeed, getView }
 export function setupInputHandlers(api) {
   keyHandler = function (ev) {
     if (!isFeedRoute() || !root) return;
@@ -44,10 +43,11 @@ export function setupInputHandlers(api) {
     // 子视图（#svfeed/my 等）是全屏页面：导航/互动键无意义一律吞掉，仅 Esc 放行走
     // 浮层栈（view 层在栈里，关=返回来源/竖刷）。放在 target 豁免之后——共享顶栏输入框（含搜索视图）聚焦时不受影响。
     // 播放层（0.9.74）例外：媒体键（空格/静音/快进快退/全屏）作用层内视频——currentVideo()
-    // 已按 state.videoTarget 重定向；评论键 c 打层内条目（playlayer.currentItem）；导航（↑↓）
-    // 照旧吞掉（层内没有竖刷邻居）
-    var inPlay = currentView() === 'play';
-    if (currentView()) {
+    // 已按 state.videoTarget 重定向；评论键 c 打层内条目（state.playItem，0.9.111 自
+    // playlayer 下沉）；导航（↑↓）照旧吞掉（层内没有竖刷邻居）
+    var curView = api.getView();
+    var inPlay = curView === 'play';
+    if (curView) {
       if (ev.key === 'Escape' && overlayTop()) { overlayClose(overlayTop().id); return; }
       if (!inPlay) return;
     }
@@ -105,7 +105,7 @@ export function setupInputHandlers(api) {
       case 'c': case 'C': {
         if (ev.repeat) break; // 长按评论反复开合（0.9.34）
         // 播放层（0.9.74）：评论开合打层内那条（FeedStore 当前条不是它）
-        var itC = inPlay ? currentItem() : FeedStore.items[cur];
+        var itC = inPlay ? playItem : FeedStore.items[cur];
         if (itC) toggleItemComments(itC);
         break;
       }

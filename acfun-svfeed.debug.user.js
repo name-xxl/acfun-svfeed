@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.110-debug
+// @version      0.9.111-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -552,6 +552,10 @@
   }
   function watchTarget() {
     return watchTargetFn;
+  }
+  var playItem = null;
+  function setPlayItem(it) {
+    playItem = it;
   }
   var OVL_IDX = -1;
   function isOvlSlide(el2) {
@@ -8937,7 +8941,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.110" : "");
+    return normVer(true ? "0.9.111" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -9604,349 +9608,6 @@
     };
   });
 
-  // src/cards.js
-  var itemOpener = null;
-  function setItemOpener(fn) {
-    itemOpener = typeof fn === "function" ? fn : null;
-  }
-  function openPanelItem(pi) {
-    if (itemOpener) itemOpener(pi);
-  }
-  var momentOpener = null;
-  function setMomentOpener(fn) {
-    momentOpener = typeof fn === "function" ? fn : null;
-  }
-  function skeletonRows(listEl, n, cls) {
-    var nodes = [];
-    for (var i = 0; i < n; i++) {
-      var d = el("div", cls);
-      nodes.push(d);
-      listEl.appendChild(d);
-    }
-    return function() {
-      nodes.forEach(function(d2) {
-        if (d2.parentNode) d2.parentNode.removeChild(d2);
-      });
-    };
-  }
-  var META_GLYPH = {
-    view: GLYPHS.rankView,
-    comment: GLYPHS.rankComment,
-    time: GLYPHS.rankTime,
-    like: GLYPHS.feedLike,
-    banana: GLYPHS.banana
-  };
-  function rowOf(pi, rank) {
-    var row = el("div", "acsv-vrow" + (pi.kind === "rank" ? " big" : ""));
-    if (rank != null && pi.kind !== "rank") {
-      row.appendChild(el("div", "acsv-vrow-rank" + (rank <= 3 ? " top" : ""), String(rank)));
-    }
-    if (rank != null && pi.kind === "rank") {
-      row.appendChild(el("div", "acsv-rlist-num", String(rank)));
-    }
-    var thumb = el("div", "acsv-vrow-thumb");
-    imgInto(thumb, pi.cover, "thumb");
-    row.appendChild(thumb);
-    var main = el("div", "acsv-vrow-main");
-    main.appendChild(el("div", "acsv-vrow-title", pi.title));
-    if (pi.desc) main.appendChild(el("div", "acsv-vrow-desc", pi.desc));
-    if (pi.kind === "rank" && pi.meta) {
-      var meta = el("div", "acsv-vrow-meta");
-      pi.meta.forEach(function(b) {
-        var seg = el("span", "acsv-vmeta-i");
-        seg.appendChild(el("i", "acsvg-glyph", META_GLYPH[b.k] || ""));
-        if (b.t) seg.appendChild(document.createTextNode(b.t));
-        meta.appendChild(seg);
-      });
-      main.appendChild(meta);
-    } else {
-      var bits = [];
-      if (pi.sub) bits.push(pi.sub);
-      if (pi.progress != null && pi.kind !== "history") bits.push("看到 " + fmtDur2(pi.progress));
-      main.appendChild(el("div", "acsv-vrow-meta", bits.join(" · ")));
-    }
-    row.appendChild(main);
-    row.addEventListener("click", function() {
-      if (itemOpener) itemOpener(pi);
-    });
-    return row;
-  }
-  function gridCardOf(pi) {
-    var cell = el(pi.href ? "a" : "div", "acsv-gcell" + (pi.kind === "search" ? " acsv-scell" : ""));
-    if (pi.href) {
-      cell.href = pi.href;
-      cell.target = "_blank";
-      cell.rel = "noopener";
-    }
-    var cover = el("div", "acsv-gcover");
-    imgInto(cover, pi.cover, "grid");
-    var tag = pi.kind === "history" ? pi.sub : pi.progress != null ? "看到 " + fmtDur2(pi.progress) : "";
-    if (tag) cover.appendChild(el("div", "acsv-gtag", tag));
-    if (pi.views) {
-      var vb = el("div", "acsv-gtag acsv-gviews");
-      vb.appendChild(el("i", "acsvg-glyph", GLYPHS.rankView));
-      vb.appendChild(document.createTextNode(pi.views));
-      cover.appendChild(vb);
-    }
-    if (pi.dur) cover.appendChild(el("div", "acsv-gdur", pi.dur));
-    cell.appendChild(cover);
-    cell.appendChild(el("div", "acsv-gtitle", pi.title));
-    if (pi.meta && pi.meta.length) cell.appendChild(statRowOf(pi.meta));
-    var upName = pi.up && pi.up.name ? pi.up.name : "";
-    if (upName || pi.dateText) {
-      var foot = el("div", "acsv-gfoot");
-      foot.appendChild(el("span", "acsv-gup", upName ? "@" + upName : ""));
-      foot.appendChild(el("span", "acsv-gtime", pi.dateText || ""));
-      cell.appendChild(foot);
-    }
-    if (!pi.href) cell.addEventListener("click", function() {
-      if (itemOpener) itemOpener(pi);
-    });
-    return cell;
-  }
-  function ubbTextOf(text, cls) {
-    var t = el("div", cls);
-    t.innerHTML = renderCommentHtml(text || "");
-    return t;
-  }
-  function statRowOf(meta) {
-    var stat2 = el("div", "acsv-gstats");
-    (meta || []).forEach(function(m) {
-      var s = el("span", "acsv-gstat");
-      var gl = META_GLYPH[m.k];
-      if (gl) s.appendChild(el("i", "acsvg-glyph", gl));
-      s.appendChild(document.createTextNode(m.t));
-      stat2.appendChild(s);
-    });
-    return stat2;
-  }
-  function stripOf(item) {
-    var strip = el("div", "acsv-frow-strip");
-    var cov = el("div", "acsv-frow-scover");
-    imgInto(cov, item.cover, "grid");
-    if (item.ct === "article") cov.appendChild(el("span", "acsv-frow-tag", "文章"));
-    if (item.dur) cov.appendChild(el("span", "acsv-frow-mdur", item.dur));
-    strip.appendChild(cov);
-    var bd = el("div", "acsv-frow-sbody");
-    bd.appendChild(el("div", "acsv-frow-stitle", item.title || ""));
-    if (item.ct === "article" && item.desc) bd.appendChild(el("div", "acsv-frow-sdesc", item.desc));
-    var info = el("div", "acsv-frow-sinfo");
-    info.appendChild(el("i", "acsvg-glyph", GLYPHS.rankView));
-    info.appendChild(document.createTextNode(item.views || "0"));
-    bd.appendChild(info);
-    strip.appendChild(bd);
-    return strip;
-  }
-  function momentCellOf(cls, im) {
-    var cell = el("div", cls);
-    cell._big = im.big || im.url;
-    imgInto(cell, im.url, "grid");
-    cell.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      openImageViewer(cell._big);
-    });
-    return cell;
-  }
-  function momentMediaOf(pi, opts) {
-    if (pi.repost) return quoteBlockOf(pi.repost);
-    var n = pi.imgs ? pi.imgs.length : 0;
-    if (n >= opts.gridMin) return opts.grid(pi);
-    if (pi.cover || n) return opts.single(pi, n ? pi.imgs[0] : null);
-    return null;
-  }
-  function quoteBlockOf(repost) {
-    var q2 = el("div", "acsv-gquote");
-    var up = el("div", "acsv-gquote-up");
-    var name = el("a", "acsv-gquote-upname", "@" + (repost.up && repost.up.name ? repost.up.name : ""));
-    if (repost.up && repost.up.id) {
-      name.href = CFG.api.userBase + repost.up.id;
-      name.target = "_blank";
-      name.rel = "noopener";
-    }
-    name.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-    });
-    up.appendChild(name);
-    q2.appendChild(up);
-    if (repost.ct === "video" || repost.ct === "article") {
-      q2.appendChild(stripOf(repost));
-    } else {
-      var txt = el("div", "acsv-gquote-text");
-      txt.appendChild(ubbTextOf(repost.text || repost.title || "", "acsv-gquote-textbody"));
-      q2.appendChild(txt);
-      var rImgs = repost.imgs || [];
-      if (rImgs.length) {
-        var box = el("div", "acsv-frow-imgs");
-        if (rImgs.length === 1) box.classList.add("n1");
-        else if (rImgs.length === 2 || rImgs.length === 4) box.classList.add("n24");
-        rImgs.forEach(function(im) {
-          box.appendChild(momentCellOf("acsv-frow-img", im));
-        });
-        q2.appendChild(box);
-      } else if (repost.cover) {
-        var img = el("div", "acsv-gquote-img");
-        imgInto(img, repost.cover, "grid");
-        q2.appendChild(img);
-      }
-    }
-    if (repost.id) {
-      q2.classList.add("acsv-gquote-on");
-      q2.addEventListener("click", function(ev) {
-        if (ev.target.closest(".acsv-gquote-upname")) return;
-        ev.stopPropagation();
-        if (repost.ct === "video") {
-          openPanelItem({ acId: Number(repost.id) || 0, title: repost.title || "", cover: repost.cover || "", up: repost.up || null });
-        } else if (repost.ct === "article") {
-          window.open(CFG.api.articleBase + repost.id, "_blank");
-        } else if (repost.ct === "moment") {
-          if (momentOpener) {
-            momentOpener(repost);
-          } else {
-            window.open(CFG.api.momentBase + repost.id, "_blank");
-          }
-        }
-      });
-    }
-    return q2;
-  }
-  function upCardOf(pi) {
-    var card = el("div", "acsv-upcard");
-    var up = pi.up || {};
-    var a = el("a", "acsv-upcard-link");
-    a.href = CFG.api.userBase + (up.id || "");
-    a.target = "_blank";
-    a.rel = "noopener";
-    imgInto(a, up.img || CFG.api.defaultAvatar, "avatar", "acsv-upcard-avatar");
-    var info = el("div", "acsv-upcard-info");
-    info.appendChild(el("div", "acsv-upcard-name", up.name || ""));
-    info.appendChild(el("p", "acsv-upcard-sign", up.sign || ""));
-    var extra = el("div", "acsv-upcard-extra");
-    var c1 = el("span", "acsv-vmeta-i");
-    c1.appendChild(el("i", "acsvg-glyph", GLYPHS.share));
-    c1.appendChild(document.createTextNode(up.contribText || "0"));
-    var c2 = el("span", "acsv-vmeta-i");
-    c2.appendChild(el("i", "acsvg-glyph", GLYPHS.fans));
-    c2.appendChild(document.createTextNode(up.fansText || "0"));
-    extra.appendChild(c1);
-    extra.appendChild(c2);
-    info.appendChild(extra);
-    a.appendChild(info);
-    card.appendChild(a);
-    return card;
-  }
-  function moreBtn(onClick) {
-    var b = el("button", "acsv-vmore", "加载更多");
-    b.addEventListener("click", function() {
-      if (b.disabled) return;
-      b.disabled = true;
-      b.textContent = "加载中…";
-      if (typeof onClick === "function") onClick(b);
-    });
-    return b;
-  }
-  function fmtDur2(sec) {
-    sec = Math.max(0, Number(sec) || 0);
-    var m = Math.floor(sec / 60), s = Math.floor(sec % 60);
-    return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
-  }
-
-  // src/playlayer.js
-  var pending2 = null;
-  var slideRef = null;
-  var itemRef = null;
-  function currentItem() {
-    return itemRef;
-  }
-  function openPlayer(pi) {
-    if (!pi || !pi.acId) return;
-    pending2 = pi;
-    location.hash = CFG.hash + "/play/a/" + pi.acId;
-  }
-  function mountSlide(body, item) {
-    var slide = buildSlide(item, OVL_IDX, null);
-    slide.dataset.ovl = "1";
-    body.appendChild(slide);
-    slideRef = slide;
-    itemRef = item;
-    setVideoTarget(function() {
-      var v = slideRef && slideRef.querySelector("video");
-      return v || null;
-    });
-    setWatchTarget(function() {
-      var s = slideRef && slideRef._session;
-      return s ? { session: s, video: s.video } : null;
-    });
-    attachVideo(slide, item, OVL_IDX);
-  }
-  function buildErr(body, msg, onRetry) {
-    var box = el("div", "acsv-errbox");
-    box.style.display = "grid";
-    box.appendChild(el("p", null, msg));
-    if (onRetry) {
-      var b = el("button", "acsv-retry", "重试");
-      b.addEventListener("click", function() {
-        box.remove();
-        onRetry();
-      });
-      box.appendChild(b);
-    }
-    body.appendChild(box);
-    return box;
-  }
-  function buildPlayView(body, arg) {
-    body.classList.add("acsv-vbody-play");
-    var id = Number(arg) || 0;
-    if (!id) {
-      buildErr(body, "播放链接不完整（缺少视频 id）");
-      return;
-    }
-    var st = pending2;
-    pending2 = null;
-    if (st && String(st.acId) === String(id)) {
-      mountSlide(body, playItemOf(st));
-      return;
-    }
-    var spinner = el("div", "acsv-spinner");
-    function load() {
-      body.appendChild(spinner);
-      API.deepLink(id, parseRoute().src).then(function(hit) {
-        if (!body.isConnected) return;
-        spinner.remove();
-        if (!hit) {
-          buildErr(body, "视频加载失败", load);
-          return;
-        }
-        mountSlide(body, hit.item);
-      }, function() {
-        if (!body.isConnected) return;
-        spinner.remove();
-        buildErr(body, "视频加载失败（网络不可达）", load);
-      });
-    }
-    load();
-  }
-  function teardownPlayView() {
-    setVideoTarget(null);
-    setWatchTarget(null);
-    if (slideRef && slideRef._session) {
-      slideRef._session.dispose();
-      slideRef._session = null;
-    }
-    slideRef = null;
-    itemRef = null;
-    pending2 = null;
-  }
-  registerView({
-    id: "play",
-    build: buildPlayView,
-    teardown: teardownPlayView,
-    deep: true,
-    // 深界面：关闭/返回=回来源链顶（打开它的那个列表/搜索页）
-    volatile: true
-    // 握播放会话/定时器：离开即真拆，绝不挂起（隐藏容器里继续出声绝不允许）
-  });
-  setItemOpener(openPlayer);
-
   // src/input.js
   var keyHandler = null;
   var keyUpHandler = null;
@@ -9966,8 +9627,9 @@
         if (!ev.repeat) toggleImDrawer();
         return;
       }
-      var inPlay = currentView() === "play";
-      if (currentView()) {
+      var curView = api.getView();
+      var inPlay = curView === "play";
+      if (curView) {
         if (ev.key === "Escape" && overlayTop()) {
           overlayClose(overlayTop().id);
           return;
@@ -10040,7 +9702,7 @@
         case "c":
         case "C": {
           if (ev.repeat) break;
-          var itC = inPlay ? currentItem() : FeedStore.items[cur];
+          var itC = inPlay ? playItem : FeedStore.items[cur];
           if (itC) toggleItemComments(itC);
           break;
         }
@@ -10449,7 +10111,7 @@
     dbg("root-appended");
     releaseCheck();
     io = makeIO();
-    setupInputHandlers({ scrollToIndex, exitFeed });
+    setupInputHandlers({ scrollToIndex, exitFeed, getView: currentView });
     var route = parseRoute();
     if (route.mid) {
       loadDeepLink(route.mid, route.src);
@@ -10681,7 +10343,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.110：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.111：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -11021,6 +10683,252 @@
     if (/^\/a\//.test(path)) return "article";
     if (/^\/u\/\d+/.test(path)) return "member";
     return "other";
+  }
+
+  // src/cards.js
+  var itemOpener = null;
+  function setItemOpener(fn) {
+    itemOpener = typeof fn === "function" ? fn : null;
+  }
+  function openPanelItem(pi) {
+    if (itemOpener) itemOpener(pi);
+  }
+  var momentOpener = null;
+  function setMomentOpener(fn) {
+    momentOpener = typeof fn === "function" ? fn : null;
+  }
+  function skeletonRows(listEl, n, cls) {
+    var nodes = [];
+    for (var i = 0; i < n; i++) {
+      var d = el("div", cls);
+      nodes.push(d);
+      listEl.appendChild(d);
+    }
+    return function() {
+      nodes.forEach(function(d2) {
+        if (d2.parentNode) d2.parentNode.removeChild(d2);
+      });
+    };
+  }
+  var META_GLYPH = {
+    view: GLYPHS.rankView,
+    comment: GLYPHS.rankComment,
+    time: GLYPHS.rankTime,
+    like: GLYPHS.feedLike,
+    banana: GLYPHS.banana
+  };
+  function rowOf(pi, rank) {
+    var row = el("div", "acsv-vrow" + (pi.kind === "rank" ? " big" : ""));
+    if (rank != null && pi.kind !== "rank") {
+      row.appendChild(el("div", "acsv-vrow-rank" + (rank <= 3 ? " top" : ""), String(rank)));
+    }
+    if (rank != null && pi.kind === "rank") {
+      row.appendChild(el("div", "acsv-rlist-num", String(rank)));
+    }
+    var thumb = el("div", "acsv-vrow-thumb");
+    imgInto(thumb, pi.cover, "thumb");
+    row.appendChild(thumb);
+    var main = el("div", "acsv-vrow-main");
+    main.appendChild(el("div", "acsv-vrow-title", pi.title));
+    if (pi.desc) main.appendChild(el("div", "acsv-vrow-desc", pi.desc));
+    if (pi.kind === "rank" && pi.meta) {
+      var meta = el("div", "acsv-vrow-meta");
+      pi.meta.forEach(function(b) {
+        var seg = el("span", "acsv-vmeta-i");
+        seg.appendChild(el("i", "acsvg-glyph", META_GLYPH[b.k] || ""));
+        if (b.t) seg.appendChild(document.createTextNode(b.t));
+        meta.appendChild(seg);
+      });
+      main.appendChild(meta);
+    } else {
+      var bits = [];
+      if (pi.sub) bits.push(pi.sub);
+      if (pi.progress != null && pi.kind !== "history") bits.push("看到 " + fmtDur2(pi.progress));
+      main.appendChild(el("div", "acsv-vrow-meta", bits.join(" · ")));
+    }
+    row.appendChild(main);
+    row.addEventListener("click", function() {
+      if (itemOpener) itemOpener(pi);
+    });
+    return row;
+  }
+  function gridCardOf(pi) {
+    var cell = el(pi.href ? "a" : "div", "acsv-gcell" + (pi.kind === "search" ? " acsv-scell" : ""));
+    if (pi.href) {
+      cell.href = pi.href;
+      cell.target = "_blank";
+      cell.rel = "noopener";
+    }
+    var cover = el("div", "acsv-gcover");
+    imgInto(cover, pi.cover, "grid");
+    var tag = pi.kind === "history" ? pi.sub : pi.progress != null ? "看到 " + fmtDur2(pi.progress) : "";
+    if (tag) cover.appendChild(el("div", "acsv-gtag", tag));
+    if (pi.views) {
+      var vb = el("div", "acsv-gtag acsv-gviews");
+      vb.appendChild(el("i", "acsvg-glyph", GLYPHS.rankView));
+      vb.appendChild(document.createTextNode(pi.views));
+      cover.appendChild(vb);
+    }
+    if (pi.dur) cover.appendChild(el("div", "acsv-gdur", pi.dur));
+    cell.appendChild(cover);
+    cell.appendChild(el("div", "acsv-gtitle", pi.title));
+    if (pi.meta && pi.meta.length) cell.appendChild(statRowOf(pi.meta));
+    var upName = pi.up && pi.up.name ? pi.up.name : "";
+    if (upName || pi.dateText) {
+      var foot = el("div", "acsv-gfoot");
+      foot.appendChild(el("span", "acsv-gup", upName ? "@" + upName : ""));
+      foot.appendChild(el("span", "acsv-gtime", pi.dateText || ""));
+      cell.appendChild(foot);
+    }
+    if (!pi.href) cell.addEventListener("click", function() {
+      if (itemOpener) itemOpener(pi);
+    });
+    return cell;
+  }
+  function ubbTextOf(text, cls) {
+    var t = el("div", cls);
+    t.innerHTML = renderCommentHtml(text || "");
+    return t;
+  }
+  function statRowOf(meta) {
+    var stat2 = el("div", "acsv-gstats");
+    (meta || []).forEach(function(m) {
+      var s = el("span", "acsv-gstat");
+      var gl = META_GLYPH[m.k];
+      if (gl) s.appendChild(el("i", "acsvg-glyph", gl));
+      s.appendChild(document.createTextNode(m.t));
+      stat2.appendChild(s);
+    });
+    return stat2;
+  }
+  function stripOf(item) {
+    var strip = el("div", "acsv-frow-strip");
+    var cov = el("div", "acsv-frow-scover");
+    imgInto(cov, item.cover, "grid");
+    if (item.ct === "article") cov.appendChild(el("span", "acsv-frow-tag", "文章"));
+    if (item.dur) cov.appendChild(el("span", "acsv-frow-mdur", item.dur));
+    strip.appendChild(cov);
+    var bd = el("div", "acsv-frow-sbody");
+    bd.appendChild(el("div", "acsv-frow-stitle", item.title || ""));
+    if (item.ct === "article" && item.desc) bd.appendChild(el("div", "acsv-frow-sdesc", item.desc));
+    var info = el("div", "acsv-frow-sinfo");
+    info.appendChild(el("i", "acsvg-glyph", GLYPHS.rankView));
+    info.appendChild(document.createTextNode(item.views || "0"));
+    bd.appendChild(info);
+    strip.appendChild(bd);
+    return strip;
+  }
+  function momentCellOf(cls, im) {
+    var cell = el("div", cls);
+    cell._big = im.big || im.url;
+    imgInto(cell, im.url, "grid");
+    cell.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      openImageViewer(cell._big);
+    });
+    return cell;
+  }
+  function momentMediaOf(pi, opts) {
+    if (pi.repost) return quoteBlockOf(pi.repost);
+    var n = pi.imgs ? pi.imgs.length : 0;
+    if (n >= opts.gridMin) return opts.grid(pi);
+    if (pi.cover || n) return opts.single(pi, n ? pi.imgs[0] : null);
+    return null;
+  }
+  function quoteBlockOf(repost) {
+    var q2 = el("div", "acsv-gquote");
+    var up = el("div", "acsv-gquote-up");
+    var name = el("a", "acsv-gquote-upname", "@" + (repost.up && repost.up.name ? repost.up.name : ""));
+    if (repost.up && repost.up.id) {
+      name.href = CFG.api.userBase + repost.up.id;
+      name.target = "_blank";
+      name.rel = "noopener";
+    }
+    name.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+    });
+    up.appendChild(name);
+    q2.appendChild(up);
+    if (repost.ct === "video" || repost.ct === "article") {
+      q2.appendChild(stripOf(repost));
+    } else {
+      var txt = el("div", "acsv-gquote-text");
+      txt.appendChild(ubbTextOf(repost.text || repost.title || "", "acsv-gquote-textbody"));
+      q2.appendChild(txt);
+      var rImgs = repost.imgs || [];
+      if (rImgs.length) {
+        var box = el("div", "acsv-frow-imgs");
+        if (rImgs.length === 1) box.classList.add("n1");
+        else if (rImgs.length === 2 || rImgs.length === 4) box.classList.add("n24");
+        rImgs.forEach(function(im) {
+          box.appendChild(momentCellOf("acsv-frow-img", im));
+        });
+        q2.appendChild(box);
+      } else if (repost.cover) {
+        var img = el("div", "acsv-gquote-img");
+        imgInto(img, repost.cover, "grid");
+        q2.appendChild(img);
+      }
+    }
+    if (repost.id) {
+      q2.classList.add("acsv-gquote-on");
+      q2.addEventListener("click", function(ev) {
+        if (ev.target.closest(".acsv-gquote-upname")) return;
+        ev.stopPropagation();
+        if (repost.ct === "video") {
+          openPanelItem({ acId: Number(repost.id) || 0, title: repost.title || "", cover: repost.cover || "", up: repost.up || null });
+        } else if (repost.ct === "article") {
+          window.open(CFG.api.articleBase + repost.id, "_blank");
+        } else if (repost.ct === "moment") {
+          if (momentOpener) {
+            momentOpener(repost);
+          } else {
+            window.open(CFG.api.momentBase + repost.id, "_blank");
+          }
+        }
+      });
+    }
+    return q2;
+  }
+  function upCardOf(pi) {
+    var card = el("div", "acsv-upcard");
+    var up = pi.up || {};
+    var a = el("a", "acsv-upcard-link");
+    a.href = CFG.api.userBase + (up.id || "");
+    a.target = "_blank";
+    a.rel = "noopener";
+    imgInto(a, up.img || CFG.api.defaultAvatar, "avatar", "acsv-upcard-avatar");
+    var info = el("div", "acsv-upcard-info");
+    info.appendChild(el("div", "acsv-upcard-name", up.name || ""));
+    info.appendChild(el("p", "acsv-upcard-sign", up.sign || ""));
+    var extra = el("div", "acsv-upcard-extra");
+    var c1 = el("span", "acsv-vmeta-i");
+    c1.appendChild(el("i", "acsvg-glyph", GLYPHS.share));
+    c1.appendChild(document.createTextNode(up.contribText || "0"));
+    var c2 = el("span", "acsv-vmeta-i");
+    c2.appendChild(el("i", "acsvg-glyph", GLYPHS.fans));
+    c2.appendChild(document.createTextNode(up.fansText || "0"));
+    extra.appendChild(c1);
+    extra.appendChild(c2);
+    info.appendChild(extra);
+    a.appendChild(info);
+    card.appendChild(a);
+    return card;
+  }
+  function moreBtn(onClick) {
+    var b = el("button", "acsv-vmore", "加载更多");
+    b.addEventListener("click", function() {
+      if (b.disabled) return;
+      b.disabled = true;
+      b.textContent = "加载中…";
+      if (typeof onClick === "function") onClick(b);
+    });
+    return b;
+  }
+  function fmtDur2(sec) {
+    sec = Math.max(0, Number(sec) || 0);
+    var m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+    return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
   }
 
   // src/mypage.js
@@ -12070,6 +11978,99 @@
       svg: '<svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>'
     }
   });
+
+  // src/playlayer.js
+  var pending2 = null;
+  var slideRef = null;
+  function openPlayer(pi) {
+    if (!pi || !pi.acId) return;
+    pending2 = pi;
+    location.hash = CFG.hash + "/play/a/" + pi.acId;
+  }
+  function mountSlide(body, item) {
+    var slide = buildSlide(item, OVL_IDX, null);
+    slide.dataset.ovl = "1";
+    body.appendChild(slide);
+    slideRef = slide;
+    setPlayItem(item);
+    setVideoTarget(function() {
+      var v = slideRef && slideRef.querySelector("video");
+      return v || null;
+    });
+    setWatchTarget(function() {
+      var s = slideRef && slideRef._session;
+      return s ? { session: s, video: s.video } : null;
+    });
+    attachVideo(slide, item, OVL_IDX);
+  }
+  function buildErr(body, msg, onRetry) {
+    var box = el("div", "acsv-errbox");
+    box.style.display = "grid";
+    box.appendChild(el("p", null, msg));
+    if (onRetry) {
+      var b = el("button", "acsv-retry", "重试");
+      b.addEventListener("click", function() {
+        box.remove();
+        onRetry();
+      });
+      box.appendChild(b);
+    }
+    body.appendChild(box);
+    return box;
+  }
+  function buildPlayView(body, arg) {
+    body.classList.add("acsv-vbody-play");
+    var id = Number(arg) || 0;
+    if (!id) {
+      buildErr(body, "播放链接不完整（缺少视频 id）");
+      return;
+    }
+    var st = pending2;
+    pending2 = null;
+    if (st && String(st.acId) === String(id)) {
+      mountSlide(body, playItemOf(st));
+      return;
+    }
+    var spinner = el("div", "acsv-spinner");
+    function load() {
+      body.appendChild(spinner);
+      API.deepLink(id, parseRoute().src).then(function(hit) {
+        if (!body.isConnected) return;
+        spinner.remove();
+        if (!hit) {
+          buildErr(body, "视频加载失败", load);
+          return;
+        }
+        mountSlide(body, hit.item);
+      }, function() {
+        if (!body.isConnected) return;
+        spinner.remove();
+        buildErr(body, "视频加载失败（网络不可达）", load);
+      });
+    }
+    load();
+  }
+  function teardownPlayView() {
+    setVideoTarget(null);
+    setWatchTarget(null);
+    if (slideRef && slideRef._session) {
+      slideRef._session.dispose();
+      slideRef._session = null;
+    }
+    slideRef = null;
+    setPlayItem(null);
+    pending2 = null;
+  }
+  registerView({
+    id: "play",
+    build: buildPlayView,
+    teardown: teardownPlayView,
+    deep: true,
+    // 深界面：关闭/返回=回来源链顶（打开它的那个列表/搜索页）
+    volatile: true
+    // 握播放会话/定时器：离开即真拆，绝不挂起（隐藏容器里继续出声绝不允许）
+  });
+  setItemOpener(openPlayer);
 
   // src/boot.js
   var kind = pageKind(location);

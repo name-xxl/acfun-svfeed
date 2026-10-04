@@ -3,6 +3,18 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.111（2026-10-04）· 反向例外清收②：input 去 views/playlayer 反边（playItem 下沉 state）
+
+- **背景**：input（键盘件）直连 views（currentView 视图门禁）与 playlayer（currentItem 层内
+  条目）——两条下行反边；其 api 注入面（scrollToIndex/exitFeed）本已存在，这两条属漏收编。
+- **修法**：① 视图门禁改 `api.getView` 注入（player 已 import views，零新边）；② 层内条目
+  事实下沉 state（`playItem` 镜像 + setPlayItem，与 videoTarget/watchTarget 同族"层内状态
+  中介"）——playlayer 在 mountSlide/teardown 同步，itemRef/currentItem 导出整体删除（全仓
+  唯一消费者即 input，测试零引用）。刻意不做 player→playlayer import：那会在 B6 落地前
+  制造 player→playlayer→attach/route→feedstore→player 新环；状态镜像零新边。
+- **测试**：check-deps 删 input→views、input→playlayer 边；单测 193 + 42 场景全绿
+  （play-deep/play-cold 断言覆盖层内门禁与 c 键面）。
+
 ### 0.9.110（2026-10-04）· 反向例外清收①：topbar 关注 seg 改 hooks 注入
 
 - **背景（架构评审）**：topbar→followstream 是全仓唯一"纯省事型"反向边（基建共享件直连

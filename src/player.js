@@ -432,7 +432,7 @@ function mount() {
 
   io = makeIO();
 
-  setupInputHandlers({ scrollToIndex: scrollToIndex, exitFeed: exitFeed });
+  setupInputHandlers({ scrollToIndex: scrollToIndex, exitFeed: exitFeed, getView: currentView }); // getView（0.9.111）：视图门禁读经注入，input 不再 import views
 
   var route = parseRoute();
   if (route.mid) {
