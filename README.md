@@ -308,6 +308,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf，缺省不渲染）+ Tab 惰性面板（观看历史=双 resourceTypes/pageNo 翻页；收藏夹=chips 切夹→dougaList 翻页）+ 4:3 封面网格卡（普通视频封面口径）；条目经 panelItem 契约规整、点击进播放层（0.9.74） |
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
 | `followview.js` | 关注视图「全部」侧（0.9.100 原生骨架复刻；0.9.101 交互补课；0.9.102 收口）：单列无限流——**逐段复刻原生 /member/feeds 骨架与量取值**（扁平列表+灰带分隔、头像 50、名字 16px、60px 内容缩进、正文 14/21 pre-line+展开、九宫格 342/110/299/228、横条双灰块+title 600+时长 hover 浮层、互动行 48px/42/12px、图标四件套逐码点采样；量取日与暗色换算表在 styles 段头注）；互动行写链（乐观回滚；点赞文章只读；**投蕉**：动态=单蕉直投、视频/文章=视频页同款数量层 banpop.js「点第 N 根投 N」、已投锁定蕉黄 #ffb323；pi 级写路径单源=interact.likePi/throwBananaPi）；**评论键原位展开评论区**（全类型：动态 stype=4/视频 stype=3，comments 管线 host 化挂行内，开新关旧互斥）；**引用卡完全照原生**（@源UP 蓝链 + 内嵌完整源内容卡，复用 stripOf；三落点可点）；无限滚动五条借鉴广场 + **回顶按钮（0.9.105 顶栏同款圆钮+chevUp）**；**作者名蓝链**（与引用卡同源）；互动栏/分享出口走 **momentbar 共享件**（分享 place=右缘贴行左缘 12px、底部共用坐标）。视频行进播放层，动态行点详情面板，文章行外链；行卡构建件与行内评论控制器 0.9.124 下沉 rowkit（本文件只留视图壳/游标方言/落点策略） |
+| `squareview.js` | 广场视图（0.9.126，吸收「AcFun 动态广场」）：feedSquare 免登录全站动态流——首页不传游标、**24h 窗口**（契约层 squarePageOf 收口：超窗剔除+即止）、互动态恒 false（S3 新鲜度补偿）；行卡/委托/行内评论全走 rowkit（与关注同源零漂移）；dock order 15（榜单下面）；容器/骨架独立类名 acsv-sqwrap/acsv-sqskel。IndexedDB 留存随之**丢弃**（plaza 审计：只写不读、无消费面） |
 | `followstream.js` | 关注语境「视频」侧（0.9.99）：FollowVideos 列表上下文（UpVideos 通道先例）——followDougaFeed 后台分页链（§2.1.2：固定 10/页、终页 no_more）→ 深链 `svfeed/a/<acId>` 接管宿主竖刷舞台 → feedstore 泵按列表灌入（`ctx.info` 自带 home 家族 resolve，非 m3u8 直链绕 hls）；`isFollowContext()` 是顶栏 seg 显隐与徽标不点亮的单源判据；enterVideos 原地续看不重置缓冲 |
 
 | `feedctx.js` | 列表上下文工厂（0.9.106）：`createFeedContext`（8 核心字段+reset 单源，UpVideos/FollowVideos 同源生成）+ `runChain`（链式加载状态机单源：上限/间隔/done/failed/chainCapped 判定一处）+ **注册表单活互斥**（activateContext 清其余——空间页/关注视频流互踩修复） |
@@ -380,6 +381,7 @@ flowchart LR
   boot["boot.js（入口）"]
   settingspanel["settingspanel.js（脚本页设置皮肤·Shadow DOM）"]
   followview["followview.js（关注视图·仿原生单列无限流）"]
+  squareview["squareview.js（广场视图·feedSquare 全站动态流）"]
   followstream["followstream.js（关注视频流·列表上下文+分页链）"]
   momentdetail["momentdetail.js（动态详情面板·小红书式两栏+评论区复用+写链）"]
   momentbar["momentbar.js（动态互动栏·两皮肤共享件）"]
@@ -407,11 +409,12 @@ flowchart LR
   imdrawer --> appapi & comments & emoticon & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
-  boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & zone
+  boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & squareview & zone
   views --> feedstore & overlay & sidebar & topbar & viewreg
   cards --> imgload & imgview & imicons & ubb
   sidebar --> viewreg
   followview --> cards & emoticon & momentapi & momentdetail & rowkit & sidebar & viewreg
+  squareview --> cards & emoticon & momentapi & momentdetail & rowkit & viewreg
   rowkit --> cards & comments & imgload & imgview & momentbar & sharepanel
   followstream --> appapi & data & feedctx & feedstore & momentapi & sidebar
   momentbar --> banpop & data & imicons & immsg & interact & styles & ubbtext & ui

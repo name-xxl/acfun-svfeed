@@ -210,6 +210,17 @@ test('动态短链：m.acfun.cn/communityCircle/moment/N → PC 动态页 amN', 
     '<a class="ubb-ac" href="https://www.acfun.cn/moment/am5104008" target="_blank" rel="noopener">am5104008</a>');
 });
 
+test('ac= 紧凑方言（0.9.126，feedSquare）：@video→/v/、@article/无后缀→/a/、剥先行标签防嵌套', () => {
+  assert.equal(renderCommentHtml('[ac=48879687@video]看这个[/ac]'),
+    '<a class="ubb-ac" href="https://www.acfun.cn/v/ac48879687" target="_blank" rel="noopener">看这个</a>');
+  assert.ok(renderCommentHtml('[ac=488700@article]文[/ac]').includes('href="https://www.acfun.cn/a/ac488700"'));
+  assert.ok(renderCommentHtml('[ac=488700]无后缀按文章[/ac]').includes('href="https://www.acfun.cn/a/ac488700"'));
+  // display 内嵌裸 ac 号：先行规则可能已出 <a>，剥壳后本条统一出链（只出一个链接，防嵌套）
+  var h = renderCommentHtml('[ac=488801@video]ac488802 标题[/ac]');
+  assert.equal((h.match(/<a /g) || []).length, 1, h);
+  assert.ok(h.includes('>ac488802 标题</a>'), h);
+});
+
 test('字面量 [表情] 明文占位：灰字 span（不带 data，回填不动它）；不二次包裹', () => {
   assert.equal(renderCommentHtml('[表情]'),
     '<span class="ubb-emot-ph">[表情]</span>');

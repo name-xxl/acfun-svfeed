@@ -11,6 +11,7 @@ import './mypage.js'; // 子视图自注册（registerView）：import 即入册
 import './zone.js';
 import './searchview.js';
 import './followview.js'; // 关注视图（0.9.91）：dock 卡片流，同款自注册
+import './squareview.js'; // 广场视图（0.9.126，吸收动态广场）：feedSquare 全站动态流，dock order 15
 import './playlayer.js'; // 播放层（0.9.74）：注册 play 视图 + 注入条目点击出口（setItemOpener）
 
 // ---------- 启动：按页面类型分流（0.9.88 总表；加页面级模块改这张表，不要往各模块塞路径判断） ----------

@@ -730,6 +730,18 @@ test('squarePageOf：单页规整——result!==0 抛错（失败≠到底）；
   assert.throws(() => squarePageOf({ result: 1 }), /square-fail/); // 失败必须可辨（重试出口）
   assert.throws(() => squarePageOf(null), /square-fail/);
   assert.equal(squarePageOf({ result: 0, feedList: [] }).noMore, true);
+  // 24h 窗口（0.9.126 收口）：超窗条目剔除且直接判到底（广场「翻到 >24h 即止」的契约面）
+  var win = squarePageOf({
+    result: 0, pcursor: 'a:b',
+    feedList: [
+      { resourceType: 10, createTime: Date.now() - 3600 * 1000, moment: { momentId: '11', text: '窗内' }, user: {} },
+      { resourceType: 10, createTime: Date.now() - 25 * 3600 * 1000, moment: { momentId: '12', text: '超窗' }, user: {} }
+    ]
+  });
+  assert.equal(win.items.length, 1);
+  assert.equal(win.items[0].momentId, 11);
+  assert.equal(win.noMore, true); // 超窗=边界即止（nextCursor 作废）
+  assert.equal(win.nextCursor, '');
 });
 
 // ---------- momentExtraOf（0.9.122 私信转发动态的 extra 载荷） ----------

@@ -835,7 +835,7 @@ var RAW_CSS = ''
   // 我的页（0.9.69 抖音式个人主页）：内容容器收口 + 资料头 + Tab + 3:4 封面网格卡。
   // 容器只挂在我页（不挂共享 .acsv-view-body——避免动榜单 0.9.67/68 的原生对齐）；
   // 卡片类名独立（acsv-g*，不复用 vrow*，防同构元素污染既有行数断言）
-  + '.acsv-mewrap{max-width:1600px;margin:0 auto}'
+  + '.acsv-mewrap,.acsv-sqwrap{max-width:1600px;margin:0 auto}'
   + '.acsv-mecard{display:flex;align-items:center;gap:20px;padding:22px 2px 18px}'
   + '.acsv-mecard-av{width:96px;height:96px;border-radius:50%;flex:none;object-fit:cover;display:block;'
   + 'background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.14)}'
@@ -1052,7 +1052,7 @@ var RAW_CSS = ''
   + '.acsv-fbacktop.on{opacity:1;pointer-events:auto}'
   + '.acsv-fbacktop svg{width:22px;height:22px;fill:#fff}'
   // 首屏骨架行（独立类名，绝不与行内计数选择器同构——0.9.66 教训）
-  + '.acsv-fskel{height:120px;border-radius:8px;background:rgba(255,255,255,.05)}'
+  + '.acsv-fskel,.acsv-sqskel{height:120px;border-radius:8px;background:rgba(255,255,255,.05)}'
   // 深色滚动条：视图滚动区（我的/榜单共用 .acsv-view-body，默认浅色条在深色页上是刺眼白条）
   + '.acsv-view-body{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}'
   + '.acsv-view-body::-webkit-scrollbar{width:8px;height:8px}'

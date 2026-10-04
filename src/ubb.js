@@ -58,6 +58,15 @@ export function renderCommentHtml(content) {
   h = h.replace(/m\.acfun\.cn\/communityCircle\/moment\/(\d+)/g, function (_, id) {
     return '<a class="ubb-ac" href="' + CFG.api.momentBase + id + '" target="_blank" rel="noopener">am' + id + '</a>';
   });
+  // 紧凑引用方言（0.9.126 吸收广场）：[ac=48879687@video]文字[/ac]（feedSquare 列表专有形态；
+  // 详情/评论是下方 [resource] 完整形态）。@video→/v/，其余（@article/无后缀）→/a/。必须排在
+  // 裸 ac 号规则之后：display 文本可能已被先行规则渲染成 <a>，剥标签后由本条统一出链防嵌套
+  h = h.replace(/\[ac=(\d+)(?:@(\w+))?\]([\s\S]*?)\[\/ac\]/gi, function (_, id, suffix, inner) {
+    var type = String(suffix || '').toLowerCase() === 'video' ? 'v' : 'a';
+    // id 是纯数字：落点补 'ac' 前缀（/v/ac<id>），与裸 ac 号规则同形
+    return '<a class="ubb-ac" href="https://www.acfun.cn/' + type + '/ac' + id + '" target="_blank" rel="noopener">'
+      + inner.replace(/<[^>]+>/g, '') + '</a>';
+  });
   // 作品引用：[resource id=456 type=2 icon=URL]标题[/resource] → 视频/文章链接
   //（pc-direct 评论方言；type 2=视频，其余按文章）。icon 等其余属性区用 [^\]]* 整体吞掉
   //（值是 URL 不参与输出，还能防 URL 里恰有 id 形态串扰）；标题先剥标签——内层若含

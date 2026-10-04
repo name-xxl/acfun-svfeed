@@ -222,6 +222,27 @@
       for (var b = 488921; b <= 488924; b++) p2.push(fv(b));
       return { result: 0, feedList: p2, pcursor: 'no_more', pageSize: 10 };
     },
+    // 广场流（0.9.126 view-square）：feedSquare——**首页不传 pcursor**（URL 无 query 即首页）；
+    // 续页返回 `时间戳:时间戳` 游标；页2 含一条超 24h（26h）验证窗口剔除+即止；互动态恒 false
+    // 照实测（免登录），createTime 绝对毫秒
+    'feed/feedSquare': function (body, url) {
+      function sq(n, hours) {
+        return {
+          resourceType: 10, createTime: Date.now() - hours * 3600 * 1000,
+          likeCount: 3 + n, commentCount: 2 + n, bananaCount: 1 + n, shareCount: n,
+          isLike: false, isThrowBanana: false,
+          moment: { momentId: String(5105000 + n), text: '广场动态' + n + ' [emot=acfun,1/]', imgs: [] },
+          user: { userId: 3000 + n, userName: '广场UP' + n, userHead: PANEL_AVATAR, nameColor: 0 }
+        };
+      }
+      if (String(url).indexOf('pcursor=') === -1) {
+        return { result: 0, feedList: [sq(1, 1), sq(2, 2), sq(3, 5), sq(4, 20)], pcursor: '1790785548652:1790785548652' };
+      }
+      if (String(url).indexOf('1790785548652') > -1) {
+        return { result: 0, feedList: [sq(6, 23), sq(7, 26)], pcursor: 'no_more' };
+      }
+      return { result: 0, feedList: [], pcursor: 'no_more' };
+    },
     // 行内写链桩（0.9.99 view-follow 的互动行断言；detail-open 会用同名桩覆盖出更全的一套）
     'token/get': function () { return { result: 0, 'acfun.midground.api_st': 'mock-st' }; },
     'interact/add': function () { return { result: window.__ACSV_LIKE_FAIL__ ? 0 : 1 }; },

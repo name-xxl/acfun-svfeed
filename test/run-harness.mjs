@@ -83,6 +83,9 @@ const HARNESS_CASES = [
   // 0.9.91 关注视图（followFeedV2 混合流；0.9.99 重构为仿原生单列无限流：三类行判别位 +
   // 行内写链乐观两向 + 展开/收起 + 滚动触底翻页/状态行；mock 缝依赖 debug 构建，夹具在 my-sample.js）
   { name: 'view-follow', viewport: { width: 1600, height: 900 } },
+  // 0.9.126 广场视图（吸收动态广场）：feedSquare 免登录流——dock 高亮/行卡契约/行内评论/
+  // 触底续翻/24h 窗口剔除即止/状态行；夹具在 my-sample.js（mock 缝依赖 debug 构建）
+  { name: 'view-square', viewport: { width: 1600, height: 900 } },
   // 0.9.96 动态详情面板（卡点击原地展开 + 评论区管线复用 stype=4 + 赞/评写链乐观回滚 + 表情面板落位）
   { name: 'detail-open', viewport: { width: 1600, height: 900 } },
   // 0.9.99 关注语境「视频」侧（顶栏 seg → FollowVideos 上下文 → 舞台深链接管 + 按列表泵入 + 全部回路）

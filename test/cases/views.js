@@ -1513,6 +1513,77 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     }, 8000)), location.hash);
   };
 
+  // ---- 广场视图（0.9.126，吸收动态广场）：feedSquare 全站动态流冒烟 ----
+  // 夹具（my-sample 'feed/feedSquare'）：页1 四条窗内（1/2/5/20h）+ 页2 一条窗内（23h）一条
+  // 超窗（26h）→ 窗口即止；断言 dock 高亮/行卡契约/行内评论/触底续翻/24h 剔除/状态行/Esc
+  C['view-square'] = async function (h) {
+    var rec = h.rec, q = h.q, waitFor = h.waitFor, key = h.key,
+      topbarInView = h.topbarInView;
+    window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
+      'comment/list': function () {
+        return { result: 0, commentCount: 1, curPage: 1, totalPage: 1, pcursor: 'no_more',
+          hotComments: [],
+          rootComments: [
+            { commentId: 'q1', userId: 31, userName: '广场评论员', headUrl: '', content: '广场原位评论', postDate: '1分钟前', likeCount: 0, isLike: false, subCommentCount: 0 }
+          ],
+          subCommentsMap: {} };
+      }
+    });
+    delete window.__ACSV_MOCK__; // 走定向桩（view-follow 同款处置）
+    location.hash = 'svfeed/square';
+    rec('square-open', !!(await waitFor(function () {
+      var v = q('.acsv-view');
+      return v && v.offsetParent !== null;
+    }, 10000)));
+    topbarInView('square');
+    rec('square-dock-highlight', !!(await waitFor(function () {
+      var b = q('.acsv-dock-item[data-view="square"]');
+      return b && b.classList.contains('on');
+    }, 3000)));
+    rec('square-scroller-hidden', q('.acsv-scroller').style.display === 'none');
+    // 首屏：4 行（页1 全窗内）；骨架清；无空态文案
+    rec('square-rows-p1', !!(await waitFor(function () {
+      return document.querySelectorAll('.acsv-sqwrap .acsv-frow').length === 4;
+    }, 8000)), 'n=' + document.querySelectorAll('.acsv-sqwrap .acsv-frow').length);
+    rec('square-skeleton-gone', document.querySelectorAll('.acsv-sqskel').length === 0);
+    rec('square-empty-none', !/广场暂时没有新动态/.test(q('.acsv-sqwrap').textContent));
+    // 行卡契约落位：正文 UBB / 作者 / 时间 / 互动栏四键齐全
+    var rows = document.querySelectorAll('.acsv-sqwrap .acsv-frow');
+    var mRow = null;
+    for (var i = 0; i < rows.length; i++) if (/广场动态1/.test(rows[i].textContent)) mRow = rows[i];
+    var mActs = mRow ? mRow.querySelectorAll('.acsv-fact') : [];
+    rec('square-row-contract', !!(mRow
+      && /广场动态1/.test(mRow.querySelector('.acsv-frow-text').textContent)
+      && /广场UP1/.test(mRow.querySelector('.acsv-frow-name').textContent)
+      && mRow.querySelector('.acsv-frow-time').textContent.length > 0
+      && mActs.length === 4), mRow ? 'ok' : 'no-row');
+    // 行内评论原位展开（rowkit 共享控制器）：评论键 → 管线列表；再点收起
+    if (mActs[1]) mActs[1].click();
+    rec('square-cmts-inline', !!(await waitFor(function () {
+      var box = mRow.querySelector('.acsv-frow-cmts');
+      return box && /广场原位评论/.test(box.textContent);
+    }, 8000)));
+    if (mActs[1]) mActs[1].click();
+    rec('square-cmts-close', !!(await waitFor(function () {
+      return !mRow.querySelector('.acsv-frow-cmts');
+    }, 5000)));
+    // 触底续翻 + 24h 窗口即止（页2 超窗一条被剔除且判到底）：总行 5、状态行终态
+    var body = q('.acsv-view-body');
+    body.scrollTop = body.scrollHeight;
+    body.dispatchEvent(new Event('scroll'));
+    rec('square-rows-p2', !!(await waitFor(function () {
+      return document.querySelectorAll('.acsv-sqwrap .acsv-frow').length === 5;
+    }, 8000)), 'n=' + document.querySelectorAll('.acsv-sqwrap .acsv-frow').length);
+    rec('square-window-cut', !/广场动态7/.test(q('.acsv-sqwrap').textContent)); // 26h 超窗条目不在列表
+    rec('square-status-done', /已加载全部动态/.test(q('.acsv-fstatus').textContent),
+      q('.acsv-fstatus').textContent);
+    // Esc 回竖刷（普通 dock 视图语义）
+    key('Escape');
+    rec('square-esc-to-feed', !!(await waitFor(function () {
+      return /^#svfeed(\/(?:[va])?\d+)?$/.test(location.hash) && q('.acsv-view') === null;
+    }, 8000)), location.hash);
+  };
+
   // ---- 动态详情面板（0.9.96）：卡点击原地展开 + 评论区管线复用（stype=4）+ 写链乐观回滚 ----
   // 同槽互斥的「面板收回抽屉」半向由 view-follow 之外的抽屉场景语境覆盖成本高，此处钉
   // 可观测不变量：面板开着时抽屉 open=false（TEST.call('comments')），模态层 'comments:m' 在栈

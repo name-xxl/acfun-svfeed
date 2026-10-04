@@ -458,19 +458,25 @@ export function followVideoPageOf(j) {
   return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
 }
 
-// 广场流单页规整（0.9.125，§2.7 实测）：feedSquare 响应 → {items:[pi], nextCursor, noMore}。
-// **result!==0 = 失败（throw）**——调用方区分「失败可重试」与「到底」，绝不许把失败当到底
-//（「失败不置到底」不变量在传输面兑现）；终判 pcursor='no_more'。**纯函数**放契约层，单测直采
+// 广场流单页规整（0.9.125，§2.7 实测；0.9.126 收口 **24h 窗口**）：feedSquare 响应 →
+// {items:[pi], nextCursor, noMore}。窗口=广场的原味（plaza：翻到发布 >24h 即止）——超窗条目
+// 逐条剔除且**直接判到底**（首屏/翻页两态同此判据）；**result!==0 = 失败（throw）**——调用方
+// 区分「失败可重试」与「到底」，绝不许把失败当到底（「失败不置到底」不变量在传输面兑现）；
+// 终判 pcursor='no_more'。**纯函数**放契约层，单测直采（窗口判据用相对时间构造，Determinism 够）
 export function squarePageOf(j) {
   if (!j || j.result !== 0) throw new Error('square-fail');
   var raws = Array.isArray(j.feedList) ? j.feedList : [];
+  var cutoff = Date.now() - CFG.view.square.windowMs;
   var items = [];
+  var crossed = false;
   raws.forEach(function (raw) {
+    var t = Number(raw && raw.createTime) || 0;
+    if (t && t < cutoff) { crossed = true; return; } // 超 24h 窗口：剔除并标记边界
     var pi = squarePanelOf(raw);
     if (pi) items.push(pi); // 契约层过滤（宁漏不错）
   });
   var next = j.pcursor != null ? String(j.pcursor) : '';
-  var noMore = next === 'no_more' || !raws.length || !items.length;
+  var noMore = crossed || next === 'no_more' || !raws.length || !items.length;
   return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
 }
 
