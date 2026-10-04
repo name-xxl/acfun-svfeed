@@ -927,7 +927,9 @@ var RAW_CSS = ''
   + '.acsv-pick-x{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:22px;height:22px;'
   + 'border-radius:50%;cursor:pointer;font-size:11px;line-height:1}'
   + '.acsv-pick-x:hover{background:rgba(255,255,255,.22)}'
-  + '.acsv-pick-body{flex:1 1 auto;min-height:60px;overflow-y:auto;padding:0 6px 6px;scrollbar-width:thin;'
+  // 弹体：0.9.144 起 min-height:0（原 60px）——JS 会按可用空间给弹层写 maxHeight，
+  // flex 子项若带 min-height 会把弹层顶出去（越界的老病灶路径）；标题/底键 flex:none 常驻
+  + '.acsv-pick-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 6px 6px;scrollbar-width:thin;'
   + 'scrollbar-color:rgba(255,255,255,.2) transparent}'
   + '.acsv-pick-item{display:flex;align-items:center;gap:8px;width:100%;border:none;background:none;'
   + 'color:#cfd3da;font-size:13px;font-family:inherit;text-align:left;padding:8px 10px;border-radius:8px;cursor:pointer}'

@@ -241,5 +241,37 @@
       return !q('.acsv-pickpop') && !q('.acsv-followbtn').classList.contains('on');
     }, 8000)), 'class=' + q('.acsv-followbtn').className);
     rec('fg-rail-unfollow-body', /action=2&groupId=$/.test(lastBody()), lastBody());
+    // 选择层定位（0.9.144 实报「弹出浮层的位置不是很合理」）：组表堆到 31 项再开层——
+    // 钉结果不变式：①弹层整体不越出视口（旧实现无高度上限：31 项 ~960px 会从锚点往下长出去被裁）；
+    // ②垂直分支服从规则（下方可用 < 240 且上方更宽裕 → 必须翻上，否则保持向下）；③高度 <= 所选方向可用空间
+    for (var gi = 0; gi < 28; gi++) GROUPS.push({ groupId: '9' + (100 + gi), groupName: '长组' + gi, followingCount: gi });
+    q('.acsv-followbtn').click();
+    rec('fg-pop-tall', !!(await waitFor(function () {
+      var pop = q('.acsv-avwrap .acsv-pickpop');
+      return !!pop && pop.querySelectorAll('.acsv-pick-item').length === 31;
+    }, 8000)), (function () {
+      var pop = q('.acsv-avwrap .acsv-pickpop');
+      return 'n=' + (pop ? pop.querySelectorAll('.acsv-pick-item').length : 'n/a');
+    })());
+    rec('fg-pop-geom', (function () {
+      var pop = q('.acsv-avwrap .acsv-pickpop'), b = q('.acsv-followbtn');
+      if (!pop || !b) return false;
+      var r = pop.getBoundingClientRect(), br = b.getBoundingClientRect();
+      if (!(r.top >= 4 && r.left >= 4 && r.bottom <= window.innerHeight - 4 && r.right <= window.innerWidth - 4)) return false;
+      var below = window.innerHeight - br.bottom - 6 - 8;
+      var above = br.top - 6 - 8;
+      var wantFlip = below < 240 && above > below;
+      var flipped = r.bottom <= br.top + 1;
+      if (wantFlip !== flipped) return false;
+      return r.height <= Math.max(wantFlip ? above : below, 120) + 1;
+    })(), (function () {
+      var pop = q('.acsv-avwrap .acsv-pickpop'), b = q('.acsv-followbtn');
+      if (!pop || !b) return 'no-pop';
+      var r = pop.getBoundingClientRect(), br = b.getBoundingClientRect();
+      return 'pop(t=' + Math.round(r.top) + ',b=' + Math.round(r.bottom) + ',h=' + Math.round(r.height) + ',maxH=' + pop.style.maxHeight + ')'
+        + ' btn(t=' + Math.round(br.top) + ',b=' + Math.round(br.bottom) + ') vp=' + window.innerHeight;
+    })());
+    var popX = q('.acsv-avwrap .acsv-pickpop .acsv-pick-x');
+    if (popX) popX.click();
   };
 })();

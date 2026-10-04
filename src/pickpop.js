@@ -4,29 +4,80 @@
 // 交互范式照 banpop（先例，勿另起一套）：
 //   · **toggle 语义**——同一按钮再点=收起；✕/取消/外点关闭；
 //   · 挂 **btn.parentNode**（缺相对定位则补 position:relative），随宿主 DOM 一起销毁，
-//     不注册全局监听残留（文档级监听一次性、外点即卸）；
-//   · 定位=rect 计算落宿主内容坐标系（滚动跟随），视口边缘收边、下方放不下自动翻上。
+//     不注册全局监听残留（文档级监听一次性、外点即卸）。
+// **定位（0.9.144 实报重做）**：用户实报「弹出浮层的位置不是很合理」（截图：收藏夹层从锚点
+// 往下长出视口、底部被裁）。病灶两点——①place 只在**插入瞬间**算一次，那一刻内容还是
+// 「加载中…」（~110px）⇒ 判定"下方放得下"就向下，内容（7 组/多夹）到达后无人重算；
+// ②没有"按可用空间压高"的规则。修法（形态经 docs/preview/pickpop-position.html 确认）：
+//   · 定位数学抽成**纯函数 pickPlaceOf**（单测直采）；
+//   · **内容到达后重算**（渲染完成即重跑 place；ResizeObserver + window resize 兜底）；
+//   · 垂直：下方优先；下方可用 < MIN_BELOW(240) 且上方更宽裕 → 翻到锚点上方（底边贴锚点上缘）；
+//     高度上限=所选方向可用空间（再受 420 / 64vh 约束）——列表内部滚动、footer 常驻，永不越界；
+//   · 水平：**右缘对齐锚点**（弹层整体向按钮左侧展开），越界收进视口并保 8px 内边距。
 // 分工：本件**零业务**——数据/校验/提交全由 opts 注入（load/check/create/confirm/done），
 // 关注分组语义在 grouppop.js、收藏夹在 favpop.js（0.9.143）。
 import { el } from './ui.js';
 
-// pop 相对宿主（wrap 内容坐标系）定位：默认按钮正下方，越界即收边/翻上
-function place(pop, btn) {
-  var wrap = pop.parentNode;
-  if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
-  var b = btn.getBoundingClientRect(), h = wrap.getBoundingClientRect();
-  var sl = wrap.scrollLeft || 0, st = wrap.scrollTop || 0;
-  var pw = pop.offsetWidth, ph = pop.offsetHeight;
-  var left = b.left - h.left + sl;
-  var minL = -h.left + sl + 4;
-  var maxL = window.innerWidth - h.left + sl - pw - 4;
+var GAP = 6;      // 弹层与锚点的间距
+var PAD = 8;      // 弹层与视口边缘的最小内边距
+var MIN_BELOW = 240; // 下方可用空间的"够用"阈值：低于它且上方更宽裕才翻上
+
+// 定位纯函数（单测直采）：几何进 → 落位出，不碰 DOM。
+//   a    锚点 rect（视口坐标 {left,top,right,bottom}）
+//   host 宿主 rect 左上角 + 滚动偏移 {left,top,sl,st}（返回值为宿主内容坐标系）
+//   vp   视口 {w,h}；popW/popH 弹层当前尺寸
+// 返回 {up, left, top, maxH}：up=是否翻上；maxH=生效高度上限（调用方写进 style.maxHeight）
+export function pickPlaceOf(a, host, vp, popW, popH) {
+  var below = vp.h - a.bottom - GAP - PAD;
+  var above = a.top - GAP - PAD;
+  var up = below < MIN_BELOW && above > below;
+  var avail = up ? above : below;
+  // 高度上限：所选方向可用空间 ∩ 既有视觉上限（420 / 64vh）；下限 120（空间极窄时尽力而为）
+  var maxH = Math.max(120, Math.min(avail, 420, vp.h * 0.64));
+  var h = Math.min(Math.max(popH, 0), maxH);
+  var top = up
+    ? a.top - GAP - h - host.top + host.st   // 翻上：底边贴锚点上缘 - GAP
+    : a.bottom + GAP - host.top + host.st;   // 向下：顶边贴锚点下缘 + GAP
+  var left = a.right - host.left + host.sl - popW; // 右缘对齐锚点右缘（向按钮左侧展开）
+  var minL = PAD - host.left + host.sl;
+  var maxL = vp.w - PAD - host.left + host.sl - popW;
   if (maxL < minL) maxL = minL;
   if (left > maxL || left < minL) left = Math.max(minL, Math.min(maxL, left));
-  var top = b.bottom - h.top + st + 6;
-  var above = b.top - h.top + st - ph - 6;
-  if (b.bottom + 6 + ph > window.innerHeight && above > st - h.top) top = above;
-  pop.style.left = Math.round(left) + 'px';
-  pop.style.top = Math.round(top) + 'px';
+  return { up: up, left: left, top: top, maxH: maxH };
+}
+
+// 落位（DOM 侧薄壳）：算出几何 → 写 style；内容到达/尺寸变化后重复调用即可（幂等）
+function place(pop, btn) {
+  var wrap = pop.parentNode;
+  if (!wrap) return;
+  if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
+  var b = btn.getBoundingClientRect(), h = wrap.getBoundingClientRect();
+  var r = pickPlaceOf(
+    { left: b.left, top: b.top, right: b.right, bottom: b.bottom },
+    { left: h.left, top: h.top, sl: wrap.scrollLeft || 0, st: wrap.scrollTop || 0 },
+    { w: window.innerWidth, h: window.innerHeight },
+    pop.offsetWidth, pop.offsetHeight
+  );
+  pop.style.maxHeight = Math.round(r.maxH) + 'px';
+  pop.style.left = Math.round(r.left) + 'px';
+  pop.style.top = Math.round(r.top) + 'px';
+}
+
+// 落位守望（0.9.144）：内容异步到达会改高 ⇒ 重算；自清理（pop 拆了就注销，无监听残留）
+function watchPlace(pop, btn) {
+  var ro = null;
+  if (typeof ResizeObserver === 'function') {
+    ro = new ResizeObserver(function () {
+      if (!pop.isConnected) { ro.disconnect(); return; }
+      place(pop, btn);
+    });
+    ro.observe(pop);
+  }
+  function onWin() {
+    if (!pop.isConnected) { window.removeEventListener('resize', onWin); if (ro) ro.disconnect(); return; }
+    place(pop, btn);
+  }
+  window.addEventListener('resize', onWin);
 }
 
 function guardOutside(pop, btn) {
@@ -135,6 +186,7 @@ export function openPickPop(btn, opts) {
     });
     firstRender = false;
     syncOk();
+    place(pop, btn); // 0.9.144：内容到达即重算位置（插入时还是"加载中…"的高度）
   }
   function selIds() { return Object.keys(sel); }
   function diff() {
@@ -245,6 +297,7 @@ export function openPickPop(btn, opts) {
 
   host.appendChild(pop);
   place(pop, btn);
+  watchPlace(pop, btn); // 后续尺寸变化（内容到达/新建刷新/窗口缩放）自会重算
   guardOutside(pop, btn);
   refresh('');
   return pop;
@@ -290,6 +343,7 @@ export function openConfirmPop(btn, opts) {
   cancel.addEventListener('click', function () { pop.remove(); });
   host.appendChild(pop);
   place(pop, btn);
+  watchPlace(pop, btn);
   guardOutside(pop, btn);
   return pop;
 }
