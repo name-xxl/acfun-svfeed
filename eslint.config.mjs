@@ -66,10 +66,12 @@ export default [
   //   rail.js     站点静态图标（SITE_ICONS/VIDEO_ICONS 的 mask/img 探测 + 香蕉弹层）
   //   banpop.js   投蕉数量层（0.9.104 自 rail 抽出共享）：站点静态图标两态切图（banana/bananaOn）
   //   sidebar.js  AcFun logo（站点静态 SVG）
+  //   commentkit.js 评论头像框覆盖层（0.9.134）：装饰性 PNG，失败语义=整框摘除（imgInto 的
+  //               defaultAvatar 兜底会误盖头像；框仅覆盖层无"封面字段"语义）
   // 注：new Image() 不受禁令（探测/读自然宽高不是页面图面）。新增图面若确有例外，加到这里并注明理由
   {
     files: ['src/imgload.js', 'src/imcard.js', 'src/imdrawer.js', 'src/emoticon.js',
-      'src/imgview.js', 'src/rail.js', 'src/banpop.js', 'src/sidebar.js'],
+      'src/imgview.js', 'src/rail.js', 'src/banpop.js', 'src/sidebar.js', 'src/commentkit.js'],
     rules: {
       'no-restricted-syntax': ['error', {
         selector: "CallExpression[callee.property.name='split'][arguments.0.value='?']",

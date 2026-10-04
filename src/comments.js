@@ -183,7 +183,7 @@ function loadComments(sourceId, page, append) {
 function toggleCommentLike(like) {
   var c = like._c;
   if (!c || c.likeBusy) return;
-  var on = !(c.isLike || c.localLike);
+  var on = !(c.isLiked || c.isLike || c.localLike); // 三读（0.9.134 实锤：列表真机字段为 isLiked）
   c.likeBusy = true;
   c.localLike = on;
   like.classList.toggle('on', on);

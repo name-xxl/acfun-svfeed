@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf, momentPiOfRepost, momentExtraOf, squarePageOf, momentDetailStateOf } = await import('../../src/data.js');
+var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf, momentPiOfRepost, momentExtraOf, squarePageOf, momentDetailStateOf, nameColorCss, frameUrlOf } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -691,7 +691,7 @@ test('panelItem square：feedSquare 条目——momentId 嵌在 moment 里、绝
     likeCount: 2, commentCount: 3, bananaCount: 4, shareCount: 5,
     isLike: false, isThrowBanana: false,
     moment: { momentId: '5104327', text: '正文[emot=acfun,1/]', imgs: [{ url: 'a.png', originUrl: 'b.png' }] },
-    user: { userId: 7, userName: '李四', userHead: 'h.png' }
+    user: { userId: 7, userName: '李四', userHead: 'h.png', nameColor: 2 }
   });
   assert.equal(pi.ct, 'moment');
   assert.equal(pi.momentId, 5104327);
@@ -701,9 +701,12 @@ test('panelItem square：feedSquare 条目——momentId 嵌在 moment 里、绝
   assert.equal(pi.imgs[0].big, 'b.png'); // expandedUrl 缺席 → originUrl 回退
   assert.equal(pi.href, 'https://www.acfun.cn/moment/am5104327');
   assert.equal(pi.up.name, '李四');
+  assert.equal(pi.up.nameColor, 2); // 行名等级色透传（0.9.134；plaza 真机在册）
   assert.deepEqual([pi.like, pi.comment, pi.banana, pi.share], [2, 3, 4, 5]);
   assert.ok(pi.dateText.length > 0); // fmtAgo 文案在位
-  // 非 type10 / 缺 momentId / 缺正文 一律拒（身份判据=panelItem 统一闸门）
+  // nameColor 缺失 → 挂 0（nameColorCss 不加色）；非 type10 / 缺 momentId / 缺正文 一律拒
+  var pi0 = panelItem('square', { resourceType: 10, moment: { momentId: '5104328', text: 'x' }, user: { userId: 8, userName: '王五' } });
+  assert.equal(pi0.up.nameColor, 0);
   assert.equal(panelItem('square', { resourceType: 2, resourceId: 1 }), null);
   assert.equal(panelItem('square', { resourceType: 10, moment: { text: '无id' } }), null);
   assert.equal(panelItem('square', { resourceType: 10, moment: { momentId: '5' } }), null);
@@ -756,6 +759,23 @@ test('momentDetailStateOf：五件回填态；失败/形状不合→null（调�
   assert.equal(momentDetailStateOf({ result: 1, moment: {} }), null); // 失败
   assert.equal(momentDetailStateOf({ result: 0 }), null);            // 缺 moment
   assert.equal(momentDetailStateOf(null), null);
+});
+
+// ---------- 评论观感纯函数（0.9.134；字段名真机双源核对在册） ----------
+test('nameColorCss：2=紫/1=红/0与缺失=不加色（字符串也认）', () => {
+  assert.equal(nameColorCss(2), '#964cfd');
+  assert.equal(nameColorCss(1), '#fd4c5c');
+  assert.equal(nameColorCss(0), '');
+  assert.equal(nameColorCss(undefined), '');
+  assert.equal(nameColorCss('2'), '#964cfd');
+});
+test('frameUrlOf：thumbnailImageCdnUrl 优先、回退 thumbnailImage.cdnUrls[0].url；空/缺形→空串', () => {
+  assert.equal(frameUrlOf({ avatarFrameImgInfo: { thumbnailImageCdnUrl: 'a.png' } }), 'a.png');
+  assert.equal(frameUrlOf({ avatarFrameImgInfo: { thumbnailImage: { cdnUrls: [{ url: 'b.png' }] } } }), 'b.png');
+  assert.equal(frameUrlOf({ avatarFrameImgInfo: { thumbnailImageCdnUrl: '', thumbnailImage: { cdnUrls: [{ url: 'b.png' }] } } }), 'b.png');
+  assert.equal(frameUrlOf({ avatarFrameImgInfo: {} }), '');
+  assert.equal(frameUrlOf({}), '');
+  assert.equal(frameUrlOf(null), '');
 });
 
 // ---------- momentExtraOf（0.9.122 私信转发动态的 extra 载荷） ----------

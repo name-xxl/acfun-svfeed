@@ -1521,12 +1521,15 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       topbarInView = h.topbarInView, TEST = h.TEST;
     window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
       'comment/list': function () {
+        // 0.9.134 评论观感字段（真机双源核对在册）：等级色 nameColor=2 / floor / deviceModel /
+        // avatarFrameImgInfo / isLiked（已赞态真机字段）；子评论带 replyToUserName+replyTo，
+        // 且**故意**带 floor 与头像框——断言要钉「根限定：子评论两样都不显」
         return { result: 0, commentCount: 1, curPage: 1, totalPage: 1, pcursor: 'no_more',
           hotComments: [],
           rootComments: [
-            { commentId: 'q1', userId: 31, userName: '广场评论员', headUrl: '', content: '广场原位评论', postDate: '1分钟前', likeCount: 0, isLike: false, subCommentCount: 0 }
+            { commentId: 'q1', userId: 31, userName: '广场评论员', headUrl: '', content: '广场原位评论', postDate: '1分钟前', likeCount: 0, isLiked: true, subCommentCount: 1, nameColor: 2, floor: 5, deviceModel: 'iPhone客户端', avatarFrameImgInfo: { thumbnailImageCdnUrl: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' } }
           ],
-          subCommentsMap: {} };
+          subCommentsMap: { q1: [{ commentId: 'q1-1', userId: 32, userName: '楼中楼甲', headUrl: '', content: '楼中楼内容', postDate: '1分钟前', likeCount: 0, isLiked: false, replyToUserName: '广场评论员', replyTo: 31, floor: 1, deviceModel: 'Android客户端', avatarFrameImgInfo: { thumbnailImageCdnUrl: 'https://s.example/frame2.png' } }] } };
       },
       // S3 新鲜度回填桩：详情返回全亮互动态（列表恒 false → 回填后应点亮）
       'moment/detail': function (body, url) {
@@ -1570,6 +1573,44 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       var box = mRow.querySelector('.acsv-frow-cmts');
       return box && /广场原位评论/.test(box.textContent);
     }, 8000)));
+    // ---- 0.9.134 评论观感（真机字段）：等级色/头像框/楼层/设备/回复前缀/已赞态（isLiked）----
+    // 楼中楼嵌在根条目内：直系巡航取根自己的 cbody/ctext/meta（后代选择器会串层）
+    var cmtBox = mRow.querySelector('.acsv-frow-cmts');
+    function ownChild(node, cls) {
+      for (var i = 0; node && i < node.children.length; i++) if (node.children[i].classList.contains(cls)) return node.children[i];
+      return null;
+    }
+    var rootItem = cmtBox && cmtBox.querySelector('.acsv-citem');
+    var rootBody = ownChild(rootItem, 'acsv-cbody');
+    var rootCtext = ownChild(rootBody, 'acsv-ctext');
+    var rootMeta = ownChild(rootBody, 'acsv-cmeta');
+    var subItem = cmtBox && cmtBox.querySelector('.acsv-csub .acsv-citem');
+    rec('square-cmt-namecolor', (function () {
+      var na = rootItem && rootItem.querySelector('.acsv-cname a');
+      return !!na && getComputedStyle(na).color === 'rgb(150, 76, 253)'; // nameColor 2=紫 #964cfd
+    })(), (function () { var na = rootItem && rootItem.querySelector('.acsv-cname a'); return na ? getComputedStyle(na).color : 'none'; })());
+    rec('square-cmt-frame', (function () {
+      var fr = rootItem && rootItem.querySelector('.acsv-cavframe');
+      return !!fr && /^data:image\//.test(fr.getAttribute('src') || '') // 夹具 data URI（假域名会被失败摘框逻辑摘掉）
+        && !(subItem && subItem.querySelector('.acsv-cavframe')); // 根有框、子无框（根限定）
+    })());
+    rec('square-cmt-floor', (function () {
+      var f = rootItem && rootItem.querySelector('.acsv-cfloor');
+      return !!f && f.textContent === '#5' && !(subItem && subItem.querySelector('.acsv-cfloor'));
+    })());
+    rec('square-cmt-device', (function () {
+      var a = rootMeta && rootMeta.querySelector('.acsv-cfrom a');
+      return !!a && a.textContent === 'iPhone客户端' && /acfun\.cn\/app/.test(a.getAttribute('href') || '');
+    })());
+    rec('square-cmt-prefix', (function () {
+      var p = subItem && subItem.querySelector('.acsv-creplyto');
+      return !!p && /广场评论员/.test(p.textContent) && /\/u\/31$/.test(p.getAttribute('href') || '')
+        && !(rootCtext && rootCtext.querySelector('.acsv-creplyto')); // 根正文无前缀
+    })());
+    rec('square-cmt-liked', (function () {
+      var like = rootMeta && rootMeta.querySelector('.acsv-clike');
+      return !!like && like.classList.contains('on'); // isLiked:true → 已赞点亮（0.9.134 三读）
+    })());
     if (mActs[1]) mActs[1].click();
     rec('square-cmts-close', !!(await waitFor(function () {
       return !mRow.querySelector('.acsv-frow-cmts');

@@ -3,6 +3,25 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.134（2026-10-04）· 评论观感落地（名字等级色/头像框/设备/楼层/回复前缀 + 已赞态实锤修复）
+
+- **字段依据**（真机双源回包核对：视频 sourceType=3 + 动态 sourceType=4）：`nameColor` 0/1/2
+  （2=紫 `#964cfd`、1=红 `#fd4c5c`、0/缺失不加色）；`avatarFrameImgInfo`（读序
+  `thumbnailImageCdnUrl → thumbnailImage.cdnUrls[0].url`，空=无框）；`deviceModel`（机型串）；
+  `floor`（数字）；回复前缀字段**两源不同名**——动态侧 `replyToUserName`、视频侧 `replyToName`
+  （+`replyTo` 为目标 uid）。
+- **实锤顺修**：已赞态列表真机字段是 **`isLiked`**（`isLike` 字段不存在）——原读 `isLike` 使
+  「早就赞过的评论从不点亮、点它还会再发一次赞」，改三读 `isLiked↔isLike↔localLike`。
+- **落地**（在 0.9.133 抽出的 commentkit 一处收口）：名字等级色（根+楼中楼，`data.nameColorCss`
+  纯函数）；头像框覆盖层**仅根评论**（36px 头像等比 58×50、-11/-11——plaza 50px 配 80×70、-15
+  的 ×0.72）；设备「来自 x」链 `//www.acfun.cn/app/`（根+子）；楼层 **仅根评论**（子评论 floor
+  是线程内序号且会重复 1，native 不显）；楼中楼「回复 @名 :」前缀（仅子评论，双字段读）。
+  行名等级色同源小改：广场映射把 `user.nameColor` 挂进 up + `rowkit.headOf` 内联色。
+- **测试**：单测 `nameColorCss`/`frameUrlOf` + 广场 `up.nameColor` 透传（209→211）；view-square
+  评论桩扩字段（根：nameColor2/floor5/device/frame/isLiked；子：replyToUserName+replyTo 且
+  **故意带** floor 与头像框——钉「根限定：子评论两样都不显」）+6 断言（等级色 computed=紫/
+  根有框子无框/根有 #5 子无楼层/设备文本+链接/子前缀且根无前缀/已赞亮态）26→32。
+
 ### 0.9.133（2026-10-04）· 评论条目 kit 抽离（commentkit.js；观感追平的动工前置）
 
 - **由头**（用户问「评论区渲染卡片共有几处？能否抽离统一处理」）：全仓审计结论——**条目渲染

@@ -369,6 +369,8 @@ var PANEL_PARSERS = {
     if (!raw || raw.resourceType !== 10) return false; // 端点语义即纯动态（过滤=宁漏不错兜底）
     var u = raw.user || raw.userInfo || {};
     it.up = upOf(u.userId, u.userName, coverUrl(u.userHead), u.isFollowing);
+    // 行名等级色（0.9.134）：feedSquare 的 user 带 nameColor（plaza 真机代码在册；0/缺失不加色）
+    if (it.up) it.up.nameColor = Number(u.nameColor) || 0;
     it.dateText = fmtAgo(Number(raw.createTime));
     it.ct = 'moment';
     var mo = raw.moment || {};
@@ -499,6 +501,21 @@ export function momentDetailStateOf(j) {
     comment: Number(mo.commentCount) || 0,
     banana: Number(mo.bananaCount) || 0
   };
+}
+
+// ---------- 评论观感纯函数（0.9.134；字段名真机双源核对在册：视频 sourceType=3 与动态=4） ----------
+// 名字等级色：nameColor 2=紫、1=红、0/缺失=不加内联色（plaza 真机值；双源回包三值齐见）
+export function nameColorCss(v) {
+  var n = Number(v) || 0;
+  return n === 2 ? '#964cfd' : n === 1 ? '#fd4c5c' : '';
+}
+// 头像框 URL：thumbnailImageCdnUrl 优先，回退 thumbnailImage.cdnUrls[0].url（双源实测形状）
+export function frameUrlOf(c) {
+  if (!c || !c.avatarFrameImgInfo) return '';
+  var f = c.avatarFrameImgInfo;
+  if (f.thumbnailImageCdnUrl) return f.thumbnailImageCdnUrl;
+  var u = f.thumbnailImage && f.thumbnailImage.cdnUrls && f.thumbnailImage.cdnUrls[0];
+  return (u && u.url) || '';
 }
 
 // 视图面板条目契约（0.9.62）：三种来源规整成同一份字段；返回 null = 不可渲染条目，
