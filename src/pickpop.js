@@ -13,7 +13,12 @@
 //   · **内容到达后重算**（渲染完成即重跑 place；ResizeObserver + window resize 兜底）；
 //   · 垂直：下方优先；下方可用 < MIN_BELOW(240) 且上方更宽裕 → 翻到锚点上方（底边贴锚点上缘）；
 //     高度上限=所选方向可用空间（再受 420 / 64vh 约束）——列表内部滚动、footer 常驻，永不越界；
-//   · 水平：**右缘对齐锚点**（弹层整体向按钮左侧展开），越界收进视口并保 8px 内边距。
+//   · 水平（0.9.146 实报重改）：**按头像/宿主列让位**——右缘 = min(宿主左缘, 锚点左缘) − 10px。
+//     实报病灶：0.9.144 的"右缘对齐锚点右缘" 在 rail 上把弹层压在 56px 操作栏列上
+//     ⇒ 盖住 点赞/评论/收藏/分享 一列图标；对照分享面板（用户点名）：它不看按钮自身，
+//     而是**让开宿主（btn.parentNode）整列**（CSS right:66px 相对 56px 宿主 = 宿主左缘往左 10px）。
+//     rail 上宿主刚好是**头像块**（关注拖处就是头像；关注角标仅 20px 宽，拿它自身左缘当基准还是会压列）
+//     ⇒ 取 min 是为了"宽宿主（头像块）也算数"；左侧放不下 → 翻到宿主右侧，再不行 → 视口收边（8px）。
 // 分工：本件**零业务**——数据/校验/提交全由 opts 注入（load/check/create/confirm/done），
 // 关注分组语义在 grouppop.js、收藏夹在 favpop.js（0.9.143）。
 import { el } from './ui.js';
@@ -21,10 +26,11 @@ import { el } from './ui.js';
 var GAP = 6;      // 弹层与锚点的间距
 var PAD = 8;      // 弹层与视口边缘的最小内边距
 var MIN_BELOW = 240; // 下方可用空间的"够用"阈值：低于它且上方更宽裕才翻上
+var GAP_H = 10;   // 水平让位间距（分享面板实测口径：宿主左缘往左 10px）
 
 // 定位纯函数（单测直采）：几何进 → 落位出，不碰 DOM。
 //   a    锚点 rect（视口坐标 {left,top,right,bottom}）
-//   host 宿主 rect 左上角 + 滚动偏移 {left,top,sl,st}（返回值为宿主内容坐标系）
+//   host 宿主 rect {left,top,right} + 滚动偏移 {sl,st}（返回值为宿主内容坐标系；right 供水平翻侧兑底）
 //   vp   视口 {w,h}；popW/popH 弹层当前尺寸
 // 返回 {up, left, top, maxH}：up=是否翻上；maxH=生效高度上限（调用方写进 style.maxHeight）
 export function pickPlaceOf(a, host, vp, popW, popH) {
@@ -38,7 +44,12 @@ export function pickPlaceOf(a, host, vp, popW, popH) {
   var top = up
     ? a.top - GAP - h - host.top + host.st   // 翻上：底边贴锚点上缘 - GAP
     : a.bottom + GAP - host.top + host.st;   // 向下：顶边贴锚点下缘 + GAP
-  var left = a.right - host.left + host.sl - popW; // 右缘对齐锚点右缘（向按钮左侧展开）
+  // 水平（按头像/宿主列让位）：右缘 = min(宿主左缘, 锚点左缘) − GAP_H；
+  // 左侧放不下（让位后会出视口）→ 翻到宿主右侧（左缘 = max(宿主右缘, 锚右缘) + GAP_H）
+  var refLeft = Math.min(a.left, host.left);
+  var want = refLeft - GAP_H - popW;
+  if (want < PAD) want = Math.max(a.right, host.right) + GAP_H;
+  var left = want - host.left + host.sl;
   var minL = PAD - host.left + host.sl;
   var maxL = vp.w - PAD - host.left + host.sl - popW;
   if (maxL < minL) maxL = minL;
@@ -54,7 +65,7 @@ function place(pop, btn) {
   var b = btn.getBoundingClientRect(), h = wrap.getBoundingClientRect();
   var r = pickPlaceOf(
     { left: b.left, top: b.top, right: b.right, bottom: b.bottom },
-    { left: h.left, top: h.top, sl: wrap.scrollLeft || 0, st: wrap.scrollTop || 0 },
+    { left: h.left, top: h.top, right: h.right, sl: wrap.scrollLeft || 0, st: wrap.scrollTop || 0 },
     { w: window.innerWidth, h: window.innerHeight },
     pop.offsetWidth, pop.offsetHeight
   );

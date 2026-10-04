@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 选择层横向对齐（让开操作栏图标列）· 已确认</title>
+<!-- docs/preview/pickpop-align.html —— **已确认稿**（2026-10-05 用户裁决「按头像位置算」，0.9.146 落地：
+     让位基准 = min(宿主=头像块左缘, 锚点左缘) − 10px；左放不下翻宿主右侧、再不行视口收边；
+     纵向沿用 0.9.144 规则。改版先改本稿——下次调整先看它
+     实报：关注分组 / 收藏夹两个弹层「会盖住图标」——0.9.144 的横向口径是"右缘对齐锚点右缘"，
+     锚点是右侧操作栏里的按钮 ⇒ 弹层整块压在 56px 操作栏列上，把 点赞/评论/收藏/分享 那一列图标盖住。
+     对照：分享面板（.acsv-sharepop）口径是「整块让开操作栏」——按钮宽 56，CSS right:66px
+     = 右缘落在按钮左缘再往左 10px ⇒ 图标列完全可见。本稿把该口径套到选择层上。
+     ⚠ 仅改**横向**；纵向仍是 0.9.144 确认过的规则（下方优先 → 翻上 → 按可用空间压高）。 -->
+<style>
+  :root{--accent:#fd4c5d;--t1:#fff;--t2:#cfd3da;--t3:#8a90a0;--panel:rgba(22,22,27,.97)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#000;color:var(--t1);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1280px;margin:0 auto;padding:26px 22px 80px}
+  h1{font-size:18px;font-weight:600}
+  .lead{color:var(--t3);font-size:12.5px;line-height:1.9;margin:8px 0 20px}
+  .lead b{color:var(--t2)}
+  .sec{margin:24px 0 10px;padding-top:14px;border-top:1px solid rgba(255,255,255,.09)}
+  .sec>h2{font-size:13.5px;font-weight:600;color:var(--t2)}
+  .sec>h2 em{color:var(--t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .tagbad,.tagok{font-size:11px;padding:1px 8px;border-radius:999px;margin-left:8px;vertical-align:1px}
+  .tagbad{background:rgba(253,76,93,.18);color:#ff8a95}
+  .tagok{background:rgba(120,220,150,.14);color:#9fe3a1}
+  .pair{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px}
+  .case{flex:1 1 420px;min-width:380px}
+  .case .cap{font-size:12px;color:var(--t3);margin-bottom:6px}
+  .stage{position:relative;height:330px;border:1px solid rgba(255,255,255,.14);border-radius:10px;overflow:hidden;
+    background:linear-gradient(160deg,#233 0%,#1a1f2b 60%,#12161e 100%)}
+  .stage .ctr{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.26);font-size:13px}
+  /* 右侧操作栏（真机几何：right:36px，列宽 56，按钮 40 图标） */
+  .side{position:absolute;right:36px;bottom:40px;width:56px;display:flex;flex-direction:column;align-items:center;gap:14px}
+  .rb{width:56px;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#fff}
+  .rb .ic{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center;font-size:17px}
+  .rb .n{font-size:11px;color:#dfe3ea}
+  .rb.anchor .ic{outline:2px dashed rgba(253,76,93,.75);outline-offset:3px}
+  .colline{position:absolute;top:0;bottom:0;width:56px;border-left:1px dashed rgba(255,255,255,.18);border-right:1px dashed rgba(255,255,255,.18);pointer-events:none}
+  .pop{position:absolute;width:250px;display:flex;flex-direction:column;background:var(--panel);
+    border:1px solid rgba(255,255,255,.12);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:12.5px}
+  .pop .hd{display:flex;align-items:center;padding:8px 10px 6px;font-weight:600}
+  .pop .hd .x{margin-left:auto;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.1);display:grid;place-items:center;font-size:10px}
+  .pop .bd{padding:0 5px 5px}
+  .pop .it{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;color:var(--t2)}
+  .pop .it.on{color:#fff;background:rgba(253,76,93,.16)}
+  .pop .ft{display:flex;gap:6px;justify-content:flex-end;padding:7px 10px 9px}
+  .pop .ft .cc{padding:4px 12px;border-radius:14px;background:rgba(255,255,255,.12);color:var(--t2);font-size:12px}
+  .pop .ft .ok{padding:4px 14px;border-radius:14px;background:var(--accent);color:#fff;font-size:12px}
+  .anno{position:absolute;font-size:11px;color:#9fe3a1;white-space:nowrap}
+  .anno.bad{color:#ff8a95}
+  .rules{margin-top:16px;padding:14px 16px;background:rgba(255,255,255,.04);border-radius:10px;font-size:12.5px;color:var(--t2)}
+  .rules li{margin:5px 0 5px 18px}
+  .rules b{color:#fff}
+  code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;font-size:11.5px}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>选择层横向对齐：让开操作栏图标列 —— 静态预览<span class="tagok">已确认 · 0.9.146 落地</span></h1>
+  <p class="lead">
+    <b>现状（0.9.144）</b>：弹层<b>右缘对齐锚点右缘</b>——锚点是右侧操作栏里的按钮时，弹层整块压在
+    56px 的操作栏列上，<b>把 点赞/评论/收藏/分享 那一列图标盖住</b>（你的实报）。<br>
+    <b>对照分享面板</b>（用户点名）：按钮宽 56、CSS <code>right:66px</code> ⇒ <b>右缘落在按钮左缘再往左 10px</b>，
+    图标列完全可见。本稿把这条口径套到关注分组 / 收藏夹两个选择层上。<b>仅改横向</b>，纵向沿用
+    0.9.144 已确认的规则（下方优先 → 翻上 → 按可用空间压高）。
+  </p>
+
+  <div class="sec">
+    <h2>① 现状 vs 提案 · 锚=操作栏里的「收藏」键<em>虚线框=操作栏列（宽 56）</em></h2>
+    <div class="pair">
+      <div class="case">
+        <div class="cap">现状<span class="tagbad">盖住图标</span>：右缘=锚右缘，弹层压在图标列上</div>
+        <div class="stage">
+          <div class="ctr">视频画面</div>
+          <div class="colline" style="right:36px"></div>
+          <div class="side">
+            <div class="rb"><div class="ic">👍</div><div class="n">934</div></div>
+            <div class="rb"><div class="ic">💬</div><div class="n">116</div></div>
+            <div class="rb"><div class="ic">🍌</div><div class="n">4722</div></div>
+            <div class="rb anchor"><div class="ic">★</div></div>
+          </div>
+          <!-- 右缘 = 锚右缘（≈ 操作栏右缘）⇒ 覆盖整条列 -->
+          <div class="pop" style="right:36px;bottom:8px">
+            <div class="hd">选择收藏夹<button class="x">✕</button></div>
+            <div class="bd">
+              <div class="it on"><span>默认收藏夹 (7)</span></div>
+              <div class="it"><span>AC (10)</span></div>
+              <div class="it"><span>古 (27)</span></div>
+            </div>
+            <div class="ft"><span class="cc">取消</span><span class="ok">确定</span></div>
+          </div>
+          <div class="anno bad" style="right:100px;top:150px">← 这一列图标被弹层盖住</div>
+        </div>
+      </div>
+      <div class="case">
+        <div class="cap">提案<span class="tagok">让开宿主一列</span>：右缘 = <b>宿主（按钮容器）左缘</b> − 10px（与分享面板同款）</div>
+        <div class="stage">
+          <div class="ctr">视频画面</div>
+          <div class="colline" style="right:36px"></div>
+          <div class="side">
+            <div class="rb"><div class="ic">👍</div><div class="n">934</div></div>
+            <div class="rb"><div class="ic">💬</div><div class="n">116</div></div>
+            <div class="rb"><div class="ic">🍌</div><div class="n">4722</div></div>
+            <div class="rb anchor"><div class="ic">★</div></div>
+          </div>
+          <!-- 右缘 = 操作栏左缘 − 10 ⇒ 列外 -->
+          <div class="pop" style="right:102px;bottom:8px">
+            <div class="hd">选择收藏夹<button class="x">✕</button></div>
+            <div class="bd">
+              <div class="it on"><span>默认收藏夹 (7)</span></div>
+              <div class="it"><span>AC (10)</span></div>
+              <div class="it"><span>古 (27)</span></div>
+            </div>
+            <div class="ft"><span class="cc">取消</span><span class="ok">确定</span></div>
+          </div>
+          <div class="anno" style="right:108px;bottom:8px">↑ 右缘 = 宿主左缘 − 10px ⇒ 图标列全可见</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>② 横向空间不足时的兜底<em>左不够 → 翻到锚点右侧；两侧都不够 → 视口内收边（现行为）</em></h2>
+    <div class="pair">
+      <div class="case">
+        <div class="cap">锚贴近屏幕左缘：弹层翻到按钮**右侧**展开</div>
+        <div class="stage">
+          <div class="ctr">页面内容</div>
+          <div class="pop" style="left:74px;top:40px">
+            <div class="hd">更改分组<button class="x">✕</button></div>
+            <div class="bd">
+              <div class="it on"><span>舞 (8)</span></div>
+              <div class="it"><span>回 (11)</span></div>
+            </div>
+            <div class="ft"><span class="cc">取消</span><span class="ok">确定</span></div>
+          </div>
+          <div class="rb anchor" style="position:absolute;left:8px;top:64px"><div class="ic">＋</div></div>
+          <div class="anno" style="left:80px;top:22px">↑ 左缘 = 锚右缘 + 10px</div>
+        </div>
+      </div>
+      <div class="case">
+        <div class="cap">页面中部（我的页行内「移组」）：同一口径=弹层落在按钮左侧</div>
+        <div class="stage">
+          <div class="ctr">我的页 · 成员行</div>
+          <div class="pop" style="right:150px;top:110px">
+            <div class="hd">更改分组<button class="x">✕</button></div>
+            <div class="bd">
+              <div class="it on"><span>未分组 (14)</span></div>
+              <div class="it"><span>舞 (8)</span></div>
+            </div>
+            <div class="ft"><span class="cc">取消</span><span class="ok">确定</span></div>
+          </div>
+          <div class="rb anchor" style="position:absolute;right:96px;top:130px;width:44px"><div class="ic" style="width:30px;height:30px;font-size:13px">移组</div></div>
+          <div class="anno" style="right:150px;top:92px">↑ 右缘 = 按钮左缘 − 10px</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <b>规则小结（确认后改进 pickpop.pickPlaceOf，仅横向）</b>
+    <ul>
+      <li><b>水平</b>：优先<b>让开宿主一列</b>——右缘 = <b>宿主（<code>btn.parentNode</code>）左缘 − 10px</b>（与分享面板同款；rail 上 宿主=操作栏列，
+        所以即使锚是 20px 的关注角标也能让开整列）；左侧放不下（<code>宿主左缘 − 10 − 弹层宽 &lt; 8px</code>）→
+        翻到<b>宿主右侧</b>（左缘 = 宿主右缘 + 10px）；两侧都放不下 → 视口内收边（8px 内边距，现行为）。</li>
+      <li><b>垂直</b>：不变——下方优先 → 下方可用 &lt; 240px 且上方更宽裕则翻上 → 高度按所选方向可用空间压顶（内部滚动）。</li>
+      <li>影响面：rail（竖刷/播放层，本次实报现场）与我页成员行的「移组」共用同一条规则；锚在同一位置时行为一致。</li>
+      <li>窄宽 540：同上（宽 250~260 的弹层左贴锚点；不足时翻右/收边）。</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

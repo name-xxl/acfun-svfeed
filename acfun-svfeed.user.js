@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.145
+// @version      0.9.146
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -7642,6 +7642,7 @@
   var GAP = 6;
   var PAD = 8;
   var MIN_BELOW = 240;
+  var GAP_H = 10;
   function pickPlaceOf(a, host3, vp, popW, popH) {
     var below = vp.h - a.bottom - GAP - PAD;
     var above = a.top - GAP - PAD;
@@ -7650,7 +7651,10 @@
     var maxH = Math.max(120, Math.min(avail, 420, vp.h * 0.64));
     var h = Math.min(Math.max(popH, 0), maxH);
     var top = up ? a.top - GAP - h - host3.top + host3.st : a.bottom + GAP - host3.top + host3.st;
-    var left = a.right - host3.left + host3.sl - popW;
+    var refLeft = Math.min(a.left, host3.left);
+    var want = refLeft - GAP_H - popW;
+    if (want < PAD) want = Math.max(a.right, host3.right) + GAP_H;
+    var left = want - host3.left + host3.sl;
     var minL = PAD - host3.left + host3.sl;
     var maxL = vp.w - PAD - host3.left + host3.sl - popW;
     if (maxL < minL) maxL = minL;
@@ -7664,7 +7668,7 @@
     var b = btn.getBoundingClientRect(), h = wrap.getBoundingClientRect();
     var r = pickPlaceOf(
       { left: b.left, top: b.top, right: b.right, bottom: b.bottom },
-      { left: h.left, top: h.top, sl: wrap.scrollLeft || 0, st: wrap.scrollTop || 0 },
+      { left: h.left, top: h.top, right: h.right, sl: wrap.scrollLeft || 0, st: wrap.scrollTop || 0 },
       { w: window.innerWidth, h: window.innerHeight },
       pop.offsetWidth,
       pop.offsetHeight
@@ -9865,7 +9869,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.145" : "");
+    return normVer(true ? "0.9.146" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12404,7 +12408,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.145：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.146：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

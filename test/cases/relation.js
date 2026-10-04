@@ -263,13 +263,25 @@
       var wantFlip = below < 240 && above > below;
       var flipped = r.bottom <= br.top + 1;
       if (wantFlip !== flipped) return false;
-      return r.height <= Math.max(wantFlip ? above : below, 120) + 1;
+      if (!(r.height <= Math.max(wantFlip ? above : below, 120) + 1)) return false;
+      // 水平（0.9.146 实报：「会盖住图标」）——弹层必须**整体让开操作栏列**
+      // （右缘 ≤ 操作栏列左缘），且右缘 = 宿主（头像块）左缘 − 10px（±2px 容差）
+      var rail = q('.acsv-rail');
+      var wrap = b.parentNode;
+      var rr = rail ? rail.getBoundingClientRect() : null;
+      var wr = wrap ? wrap.getBoundingClientRect() : null;
+      if (!rr || !wr) return false;
+      if (!(r.right <= rr.left + 0.5)) return false;
+      return Math.abs(r.right - (wr.left - 10)) <= 2;
     })(), (function () {
       var pop = q('.acsv-avwrap .acsv-pickpop'), b = q('.acsv-followbtn');
       if (!pop || !b) return 'no-pop';
       var r = pop.getBoundingClientRect(), br = b.getBoundingClientRect();
-      return 'pop(t=' + Math.round(r.top) + ',b=' + Math.round(r.bottom) + ',h=' + Math.round(r.height) + ',maxH=' + pop.style.maxHeight + ')'
-        + ' btn(t=' + Math.round(br.top) + ',b=' + Math.round(br.bottom) + ') vp=' + window.innerHeight;
+      var rail2 = q('.acsv-rail');
+      return 'pop(t=' + Math.round(r.top) + ',b=' + Math.round(r.bottom) + ',r=' + Math.round(r.right) + ',h=' + Math.round(r.height) + ')'
+        + ' railL=' + (rail2 ? Math.round(rail2.getBoundingClientRect().left) : 'n/a')
+        + ' wrapL=' + Math.round(br.left - (br.left - b.parentNode.getBoundingClientRect().left)) + '/' + Math.round(b.parentNode.getBoundingClientRect().left)
+        + ' vp=' + window.innerWidth;
     })());
     var popX = q('.acsv-avwrap .acsv-pickpop .acsv-pick-x');
     if (popX) popX.click();
