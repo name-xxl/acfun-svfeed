@@ -34,6 +34,16 @@ rec('view-open', !!(await waitFor(function () {
 }, 10000)));
 topbarInView('my'); // 0.9.73：共享顶栏在视图态复用（可见/层级/seg 隐藏/视图头已删/正文不钻栏下）
 rec('dock-highlight', !!(await waitFor(function () {
+  // 左栏顺序（0.9.155 用户裁决：「我的」「关注」互换——我的沉底）：dock 条目序须为
+  // 推荐/榜单/广场/关注/我的（group 变处在 广场→关注 之间插分隔线）；钉顺序防再度漂移
+  rec('dock-order-my-last', (function () {
+    var seq = [].map.call(document.querySelectorAll('.acsv-dock-item[data-view]'),
+      function (x) { return x.getAttribute('data-view'); });
+    return seq.join(',') === 'feed,zone,square,follow,my';
+  })(), (function () {
+    return [].map.call(document.querySelectorAll('.acsv-dock-item[data-view]'),
+      function (x) { return x.getAttribute('data-view'); }).join(',');
+  })());
   var b = q('.acsv-dock-item[data-view="my"]');
   return b && b.classList.contains('on');
 }, 3000)));
@@ -510,6 +520,33 @@ rec('zone-no-backbtn', (function () { // 返回键只属深界面（普通视图
   return !!b && b.style.display === 'none';
 })());
 rec('zone-x-single', (q('.acsv-top-right .acsv-tbtn:last-child') || {}).title === '退出');
+// 回顶（0.9.155；共享件 .acsv-backtop，与关注/广场/搜索同款）：榜单是单发长列表，需要它。
+// 夹具默认 5 条不足以滚动——置 __ACSV_RANK_N__=14 后切榜期重拉（缓存键含榜期）造长列表
+rec('zone-backtop-idle-top', (function () { // 在顶部：按钮在（视图层件）但不现身
+  var b = q('.acsv-backtop');
+  return !!b && !b.classList.contains('on');
+})(), (function () {
+  var b = q('.acsv-backtop');
+  return b ? ('on=' + b.classList.contains('on')) : 'no-btn';
+})());
+window.__ACSV_RANK_N__ = 14;
+var weekChip = [].filter.call(document.querySelectorAll('.acsv-vchips')[2].children,
+  function (c) { return c.textContent === '本周'; })[0];
+if (weekChip) weekChip.click();
+rec('zone-backtop-tall', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-rlist .acsv-vrow').length >= 12;
+}, 8000)), 'rows=' + document.querySelectorAll('.acsv-rlist .acsv-vrow').length);
+(function () { var b = q('.acsv-view-body'); if (b) b.scrollTop = b.scrollHeight; })();
+rec('zone-backtop-shown', !!(await waitFor(function () {
+  return q('.acsv-backtop') && q('.acsv-backtop').classList.contains('on')
+    && q('.acsv-backtop').offsetParent !== null;
+}, 5000)), 's=' + Math.round((q('.acsv-view-body') || {}).scrollTop));
+(function () { q('.acsv-backtop').click(); })();
+rec('zone-backtop-return', !!(await waitFor(function () { // 平滑回顶 + .on 摘除
+  var b = q('.acsv-view-body');
+  return b && b.scrollTop <= 4 && q('.acsv-backtop') && !q('.acsv-backtop').classList.contains('on');
+}, 8000)), 's=' + Math.round((q('.acsv-view-body') || {}).scrollTop));
+window.__ACSV_RANK_N__ = 0; // 复位（后随钉子若再拉榜单走默认 5 条夹具）
 // 隐藏态落点（0.9.74）：视图开着时跳已缓冲条目——旧行为在 display:none 下量 offsetTop
 // （无布局盒恒 0）⇒ 静默滚回第一条，退出视图后要往下滑几条才见到目标（真机报障同型）。
 // 现在延后到舞台回来再落地，且落点必须是目标那张（结果不变式）

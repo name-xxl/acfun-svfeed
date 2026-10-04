@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.154-debug
+// @version      0.9.155-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -353,6 +353,9 @@
       },
       rankLimit: 100,
       // 榜单条数（原生全站日榜 100 条同款，rankLimit=100 实测生效）
+      zoneBackTopAt: 300,
+      // 榜单回顶按钮显隐阈值（0.9.155；与 follow/square/search 同值——
+      // 四处各持一份是有意的：阈值属各视图，可独立调）
       // 视图正文让位的最小视口宽（0.9.73）：抽屉占槽时视图正文右缘收窄到抽屉左缘，低于此宽
       // 退化为纯覆盖（与 comments.avoidMin 同款降级哲学）。推导=榜单行最小可用宽 ≈546
       // （封面 160+行左右 padding 32+gap 16+UP 卡 338）+ 正文左右内边距 206（dockW+14 与 24）
@@ -9923,7 +9926,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.154" : "");
+    return normVer(true ? "0.9.155" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12470,7 +12473,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.154：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.155：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -13476,8 +13479,9 @@
     build: buildMyView,
     dock: {
       label: "我的",
-      order: 20,
+      order: 30,
       group: 1,
+      // 0.9.155 用户裁决：与「关注」互换——放左栏最底
       svg: '<svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>'
     }
   });
@@ -13530,6 +13534,16 @@
     var list = el("div", "acsv-rlist");
     wrap.appendChild(list);
     body.appendChild(wrap);
+    var backTop = el("button", "acsv-tbtn acsv-backtop");
+    backTop.innerHTML = ICONS.chevUp;
+    backTop.title = "回到顶部";
+    body.appendChild(backTop);
+    body.addEventListener("scroll", function() {
+      backTop.classList.toggle("on", body.scrollTop > CFG.view.zoneBackTopAt);
+    }, { passive: true });
+    backTop.addEventListener("click", function() {
+      body.scrollTo({ top: 0, behavior: "smooth" });
+    });
     var curZone = CFG.view.zones[0];
     var curSub = null;
     var curPeriod = CFG.view.periods[0];
@@ -14351,8 +14365,9 @@
     teardown: closeInlineComments,
     dock: {
       label: "关注",
-      order: 30,
+      order: 20,
       group: 1,
+      // 0.9.155 用户裁决：与「我的」互换（我的沉底）
       svg: '<svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>'
     }
   });

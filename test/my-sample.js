@@ -93,7 +93,9 @@
     var name = ZONE_NAMES[cid] || ('分区' + cid);
     var rows = [];
     var now = Date.now();
-    for (var k = 0; k < 5; k++) {
+    // 行数可调（0.9.155 回顶钉用：默认 5 不动既有断言；置 __ACSV_RANK_N__=14 造"可滚动长列表"）
+    var n = Number(window.__ACSV_RANK_N__) || 5;
+    for (var k = 0; k < n; k++) {
       rows.push({
         dougaId: String(489500 + k), contentType: k === 4 ? 3 : 2, // 第 5 条文章形态：契约层过滤
         // k=3 极端行（0.9.69 行高不变量防回归）：超长标题（单行 ellipsis）/含 <br> 简介（pre-line

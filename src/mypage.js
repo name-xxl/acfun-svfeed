@@ -591,7 +591,7 @@ function buildMyView(body) {
 registerView({
   id: 'my', build: buildMyView,
   dock: {
-    label: '我的', order: 20, group: 1,
+    label: '我的', order: 30, group: 1, // 0.9.155 用户裁决：与「关注」互换——放左栏最底
     svg: '<svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>'
   }
 });
