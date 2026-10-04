@@ -986,6 +986,8 @@ rec('search-history-clear', !!(await waitFor(function () {
   return document.querySelectorAll('.acsv-shchip').length === 0
     && /输入关键词/.test(document.body.textContent || '');
 }, 8000)));
+rec('search-empty-hint', /搜过的词会记在这里/.test((q('.acsv-sres') || {}).textContent || ''),
+  (q('.acsv-sres') || {}).textContent); // 空历史时引导文案要说清"历史会记在这"（0.9.156）
 // 离开搜索视图 → 默认提交还原（handler 生命周期）+ 地址深链回填（分享链接/刷新回放的落点）
 key('Escape');
 rec('search-esc-back', !!(await waitFor(function () {
@@ -1015,6 +1017,28 @@ rec('search-leave-clears-kw', (function () { // 离开搜索上下文（回竖�
   var i = q('.acsv-top .acsv-sbox input');
   return !!i && i.value === '';
 })(), 'v=' + JSON.stringify((q('.acsv-top .acsv-sbox input') || {}).value));
+// ---- 空框聚焦=搜索入口（0.9.156 实报「点击不出搜索历史」）----
+// 此前点输入框只是聚焦，历史（在空词搜索态里）看不出来；现在非搜索界面点空框即进该态。
+// 此刻历史里有「深链词」（前面深链步骤记的）——聚焦后应直接看到它
+(function () { q('.acsv-top .acsv-sbox input').click(); })();
+rec('search-focus-opens', !!(await waitFor(function () {
+  return location.hash === '#svfeed/search' && !!q('.acsv-view')
+    && q('.acsv-view').offsetParent !== null && !!q('.acsv-shchip');
+}, 8000)), 'hash=' + location.hash + ' chips=' + document.querySelectorAll('.acsv-shchip').length);
+rec('search-focus-history', (function () { // 历史就是点它的理由：真词在、且输入框仍聚焦可续打
+  var cs = document.querySelectorAll('.acsv-shchip');
+  var tx = [].map.call(cs, function (c) { return c.textContent; }).join(',');
+  return tx === '深链词' && document.activeElement === q('.acsv-top .acsv-sbox input');
+})(), (function () {
+  var cs = document.querySelectorAll('.acsv-shchip');
+  return [].map.call(cs, function (c) { return c.textContent; }).join(',') + ' focus='
+    + (document.activeElement === q('.acsv-top .acsv-sbox input'));
+})());
+rec('search-focus-noloop', (function () { // 已在搜索态再点击不重复导航（curView 守卫）
+  var before = location.hash;
+  q('.acsv-top .acsv-sbox input').click();
+  return location.hash === before && document.querySelectorAll('.acsv-view').length === 1;
+})());
   };
   // ---- cover-fallback ----
   C['cover-fallback'] = async function (h) {

@@ -172,7 +172,7 @@ function buildSearchView(body, arg, kind) {
       clr.addEventListener('click', function () { histClear(); render(); });
       row.appendChild(clr);
     } else {
-      row.appendChild(el('span', 'acsv-shlb', '输入关键词，搜索 A 站视频 / UP主 / 文章'));
+      row.appendChild(el('span', 'acsv-shlb', '输入关键词，搜索 A 站视频 / UP主 / 文章（搜过的词会记在这里）'));
     }
     res.textContent = '';
     res.appendChild(row);

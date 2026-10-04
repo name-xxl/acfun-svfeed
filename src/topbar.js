@@ -28,6 +28,7 @@ var searchInput = null;
 var hooks = {};
 var searchHandler = null;
 var searchCtxPrev = false; // 上次同步是否处于搜索上下文（离开那一刻清空输入框）
+var curView = null; // 当前视图名（syncTopbar 更新；focus 守卫读它，防在搜索视图里自我导航）
 
 function submitSearch() {
   if (!searchInput) return;
@@ -70,6 +71,18 @@ export function buildTopbar(parent, h) {
     if (ev.key === 'Enter') { ev.preventDefault(); submitSearch(); }
     else if (ev.key === 'Escape') searchInput.blur();
   });
+  // 空框点击=搜索入口（0.9.156 实报「点击不出搜索历史」）：非搜索视图里点空输入框，直接进
+  // 空词搜索态——最近搜索/引导就在那里（此前只有"空框回车/点放大镜"才进得去，点击看不出东西）。
+  // 输入框是共享单例且导航后保持聚焦，可无缝继续打字；Esc/返回回原界面（播放中的视频按既有
+  // wasPlaying 语义恢复）。搜索视图内点击不导航（curView 守卫）——它本来就是目的地。
+  // 挂 click 而非 focus：从搜索视图返回后焦点往往还在输入框上，再"聚焦"不触发 focus 事件
+  //（真机同型——已聚焦的框被点，只有 click 恒定派发）
+  searchInput.addEventListener('click', function () {
+    if (curView === 'search') return;
+    if (String(searchInput.value || '').trim()) return; // 有词（深链回填等）不动
+    if (hooks.onSearch) hooks.onSearch('');
+  });
+
   var sBtn = el('button', 'acsv-sbtn');
   sBtn.title = '搜索';
   sBtn.appendChild(el('i', 'acsvg-glyph', GLYPHS.search));
@@ -180,6 +193,7 @@ export function syncFollowSeg(view) {
 // 故 title 只在竖刷态带 Esc 提示；视图出口靠 dock（常驻）+ Esc，深界面靠「向左返回」
 export function syncTopbar(view, arg, opts) {
   if (!barEl) return;
+  curView = view || null;
   barEl.classList.toggle('acsv-top--view', !!view);
   if (backBtn) backBtn.style.display = opts && opts.deep ? '' : 'none';
   if (xBtn) xBtn.title = view ? '退出' : '退出（Esc）';

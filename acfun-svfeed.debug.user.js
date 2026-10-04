@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.155-debug
+// @version      0.9.156-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -9926,7 +9926,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.155" : "");
+    return normVer(true ? "0.9.156" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -10298,6 +10298,7 @@
   var hooks2 = {};
   var searchHandler = null;
   var searchCtxPrev = false;
+  var curView = null;
   function submitSearch() {
     if (!searchInput) return;
     var kw = String(searchInput.value || "").trim();
@@ -10339,6 +10340,11 @@
         ev.preventDefault();
         submitSearch();
       } else if (ev.key === "Escape") searchInput.blur();
+    });
+    searchInput.addEventListener("click", function() {
+      if (curView === "search") return;
+      if (String(searchInput.value || "").trim()) return;
+      if (hooks2.onSearch) hooks2.onSearch("");
     });
     var sBtn = el("button", "acsv-sbtn");
     sBtn.title = "搜索";
@@ -10438,6 +10444,7 @@
   }
   function syncTopbar(view2, arg, opts) {
     if (!barEl) return;
+    curView = view2 || null;
     barEl.classList.toggle("acsv-top--view", !!view2);
     if (backBtn) backBtn.style.display = opts && opts.deep ? "" : "none";
     if (xBtn) xBtn.title = view2 ? "退出" : "退出（Esc）";
@@ -10754,9 +10761,9 @@
         if (!ev.repeat) api.toggleImDrawer();
         return;
       }
-      var curView = api.getView();
-      var inPlay = curView === "play";
-      if (curView) {
+      var curView2 = api.getView();
+      var inPlay = curView2 === "play";
+      if (curView2) {
         if (ev.key === "Escape" && overlayTop()) {
           overlayClose(overlayTop().id);
           return;
@@ -12473,7 +12480,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.155：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.156：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -13840,7 +13847,7 @@
         });
         row.appendChild(clr);
       } else {
-        row.appendChild(el("span", "acsv-shlb", "输入关键词，搜索 A 站视频 / UP主 / 文章"));
+        row.appendChild(el("span", "acsv-shlb", "输入关键词，搜索 A 站视频 / UP主 / 文章（搜过的词会记在这里）"));
       }
       res.textContent = "";
       res.appendChild(row);
