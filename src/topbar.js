@@ -1,4 +1,5 @@
-import { el, toast } from './ui.js';
+import { el, toast, closeOnOutsideClick } from './ui.js';
+import { histList, histClear } from './searchhist.js'; // 搜索历史=站方 searchCache（0.9.158 读写复用）
 import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
 
@@ -28,13 +29,41 @@ var searchInput = null;
 var hooks = {};
 var searchHandler = null;
 var searchCtxPrev = false; // 上次同步是否处于搜索上下文（离开那一刻清空输入框）
-var curView = null; // 当前视图名（syncTopbar 更新；focus 守卫读它，防在搜索视图里自我导航）
+var spop = null, spopList = null; // 聚焦历史面板与其词表（0.9.158）
 
 function submitSearch() {
   if (!searchInput) return;
+  hideSearchPop();
   var kw = String(searchInput.value || '').trim();
   if (searchHandler) { searchHandler(kw); return; }
   if (hooks.onSearch) hooks.onSearch(kw);
+}
+
+// 历史面板（0.9.158）：渲染一次词表；无历史返回 false（不弹）
+function renderSearchPop() {
+  if (!spopList) return false;
+  var words = histList();
+  spopList.textContent = '';
+  if (!words.length) return false;
+  words.forEach(function (w) {
+    var b = el('button', 'acsv-spop-item', w);
+    b.type = 'button';
+    b.addEventListener('click', function () {
+      searchInput.value = w; // 回填后走既有提交链（与回车同路：会记历史/进视图/就地重跑）
+      submitSearch();
+    });
+    spopList.appendChild(b);
+  });
+  return true;
+}
+export function openSearchPop() {
+  if (!spop) return;
+  if (!searchInput || String(searchInput.value || '').trim()) return; // 有词（深链回填等）：不弹历史
+  if (!renderSearchPop()) { hideSearchPop(); return; }
+  spop.style.display = '';
+}
+export function hideSearchPop() {
+  if (spop) spop.style.display = 'none';
 }
 
 // 搜索视图挂载期接管提交（null 还原默认）；与 hooks 分离：hooks 是 mount 期注入的常驻配置，
@@ -69,19 +98,18 @@ export function buildTopbar(parent, h) {
   searchInput.placeholder = '搜索 A 站视频';
   searchInput.addEventListener('keydown', function (ev) {
     if (ev.key === 'Enter') { ev.preventDefault(); submitSearch(); }
-    else if (ev.key === 'Escape') searchInput.blur();
+    else if (ev.key === 'Escape') { hideSearchPop(); searchInput.blur(); }
   });
-  // 空框点击=搜索入口（0.9.156 实报「点击不出搜索历史」）：非搜索视图里点空输入框，直接进
-  // 空词搜索态——最近搜索/引导就在那里（此前只有"空框回车/点放大镜"才进得去，点击看不出东西）。
-  // 输入框是共享单例且导航后保持聚焦，可无缝继续打字；Esc/返回回原界面（播放中的视频按既有
-  // wasPlaying 语义恢复）。搜索视图内点击不导航（curView 守卫）——它本来就是目的地。
-  // 挂 click 而非 focus：从搜索视图返回后焦点往往还在输入框上，再"聚焦"不触发 focus 事件
-  //（真机同型——已聚焦的框被点，只有 click 恒定派发）
-  searchInput.addEventListener('click', function () {
-    if (curView === 'search') return;
-    if (String(searchInput.value || '').trim()) return; // 有词（深链回填等）不动
-    if (hooks.onSearch) hooks.onSearch('');
+  // focus/输入联动（原生 onSearchInputFocus / 输入即切联想面板——我们没有联想，输入即收起历史）
+  searchInput.addEventListener('focus', function () {
+    if (!String(searchInput.value || '').trim()) openSearchPop();
   });
+  searchInput.addEventListener('input', function () {
+    if (String(searchInput.value || '').trim()) hideSearchPop();
+    else openSearchPop();
+  });
+  // 空框点击=展开历史面板（0.9.158 复用原生「聚焦面板」逻辑，取代 0.9.156 的"跳搜索视图"）
+  searchInput.addEventListener('click', function () { openSearchPop(); });
 
   var sBtn = el('button', 'acsv-sbtn');
   sBtn.title = '搜索';
@@ -90,6 +118,34 @@ export function buildTopbar(parent, h) {
   pill.appendChild(searchInput);
   pill.appendChild(sBtn);
   barEl.appendChild(pill);
+  // ---- 聚焦面板（0.9.158「ui 也复用」）：结构/交互照站方 searchBox 组件（源码实证）----
+  //   · focus 空框 → 展开；mouseleave 面板 → 收起（原生同款绑定）；
+  //   · 词条点击 → 即搜（走既有提交链：搜索视图内=就地重跑，别处=进搜索视图）+ 收起；
+  //   · 「清除历史」= histClear（站方语义=移除 searchCache 键）+ 收起；
+  //   · 另加项目既有的外点收起（ui.closeOnOutsideClick，0.9.147 统一件）与 Esc 收起；
+  //   · **无历史不弹**（原生无历史时不弹历史块、靠热搜兜底；我们没有热搜 → 整块不弹，不占位）。
+  //   联想/热搜未做（联想端点通但服务端恒空、热搜来源未定位）——见 CHANGELOG 0.9.158。
+  spop = el('div', 'acsv-searchpop'); // 赋模块级（勿加 var：会遮蔽模块变量）
+  spop.style.display = 'none';
+  var spopHead = el('div', 'acsv-spop-head');
+  spopHead.appendChild(el('span', null, '历史记录'));
+  var spopClr = el('a', 'acsv-spop-clr', '清除历史');
+  spopClr.href = 'javascript:void(0)';
+  spopClr.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    histClear();
+    hideSearchPop();
+    // 广播（0.9.158）：清空是共享键级动作，已挂载的空词搜索视图据此重画「最近搜索」chips——
+    // 否则面板清空后，身后那份 chips 还是旧的（两个面同源不同步）。事件名见 searchview 订阅处
+    try { document.dispatchEvent(new Event('acsv-searchhist')); } catch (e) { }
+  });
+  spopHead.appendChild(spopClr);
+  spopList = el('div', 'acsv-spop-list'); // 同上
+  spop.appendChild(spopHead);
+  spop.appendChild(spopList);
+  barEl.appendChild(spop);
+  spop.addEventListener('mouseleave', function () { hideSearchPop(); }); // 原生 mouseleave 同款
+  closeOnOutsideClick(spop, [pill], function () { hideSearchPop(); });   // 常驻外点收起（self-clean 语义同 0.9.147）
   // 右侧按钮组（自 player.mount 迁出，事件经 hooks 回调）
   var tr = el('div', 'acsv-top-right');
   segSv = el('button', 'acsv-seg-btn', '小视频');
@@ -193,7 +249,6 @@ export function syncFollowSeg(view) {
 // 故 title 只在竖刷态带 Esc 提示；视图出口靠 dock（常驻）+ Esc，深界面靠「向左返回」
 export function syncTopbar(view, arg, opts) {
   if (!barEl) return;
-  curView = view || null;
   barEl.classList.toggle('acsv-top--view', !!view);
   if (backBtn) backBtn.style.display = opts && opts.deep ? '' : 'none';
   if (xBtn) xBtn.title = view ? '退出' : '退出（Esc）';
@@ -208,5 +263,5 @@ export function teardownTopbar() {
   if (barEl) { barEl.remove(); barEl = null; }
   imBtnEl = null; segSv = null; segHome = null; xBtn = null; backBtn = null; searchInput = null;
   fsegEl = null; fsegVideos = null; fsegAll = null; segEl = null;
-  hooks = {}; searchHandler = null; searchCtxPrev = false;
+  hooks = {}; searchHandler = null; searchCtxPrev = false; spop = null; spopList = null;
 }

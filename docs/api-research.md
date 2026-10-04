@@ -509,6 +509,29 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
   `pCursor`、视图层三类目 chips/哨兵续页/UP 卡/文章行/搜索历史；SSR 解析（原 §4.3 后记的
   parseSearchItems 路线）整体退役
 
+**补记（0.9.158「复用原生搜索框面板」反查实证，站方组件源码 + 真机）**：
+
+- **搜索历史存储 = `localStorage['searchCache']`**（同域可直读直写）：站方 searchBox 组件
+  （`static/common/widget/searchBox/index.*.js`）写入原文 = `JSON.parse(getItem)||[]` →
+  **`filter` 去重** → **`unshift`**（新在前）→ **`splice(8)`（上限 8 条）** → `setItem`；
+  词过一道 `@kwaisec/kwai-js-xss` 的 `xssFilter`（**因为它渲染时把词拼进 HTML 字符串**——
+  共享这个键的第三方也不许写带 `<`/`>` 的词）。实测复验：搜「测试乙→测试甲→测试乙」得
+  `["测试乙","测试甲","ac娘"]` ✓。**「清除历史」= 移除该键**（点原生按钮后 `getItem === null`）。
+  面板区块：`历史记录` + `清除历史` + 词条（`<a href="/search?keyword=…" target="_blank">`）。
+- **聚焦面板交互原文**：`focus #search-text--standalone → onSearchInputFocus`（展开）、
+  **`mouseleave .search-result → hideSearchResultPanel`（鼠标移出即收）**、`keyup → 拉联想`、
+  `click .search-history-body / .rec ul / .sug ul` 三类词条点击、`click .clear-history`。
+- **联想端点存在的修正**（推翻 0.9.151 的「不存在」判断）：`GET /rest/pc-direct/search/suggest
+  ?count=6&keyword=…&callback=…` —— **只吃 JSONP**（不带 `callback` 回 result 21「参数格式错误」，
+  这正是上轮判死的原因）。但实测「星 / 星际 / ac娘 / 动漫」全部只回 `result:0`、**不带任何
+  `suggestKeywords`**；站方代码本身有「联想不到就切热搜面板」的兜底 ⇒ 该服务当前恒空，
+  做也白做（结论「不做联想」不变，依据更新）。
+- **今日热搜**：面板里零请求出现（非 XHR/fetch），但不在抓取的 SSR HTML、也不在已下载的 JS 里
+  ——**来源未定位**（疑在未下载的主 bundle / bigpipe 流）；本项目不复用（宁可空白不可编造）。
+- 项目落地（0.9.158）：`searchhist.js` 后端改读写 `searchCache`（语义照抄、上限 8、写入过滤、
+  老 GM 键一次性并入不删）；顶栏搜索框挂**聚焦历史面板**（focus 开 / mouseleave+外点+Esc 收 /
+  点词即搜 / 清除历史）
+
 ## 5. 内容扩展路线定性（〔实测〕）
 
 - **大家都在看**：无独立 JSON 接口（v 页 performance 时间线无相关请求），服务端直出进 v 页 HTML（实测 40 个 /v/ac 链接）→ 唯一路线 DOM 解析（uppage.js 同款）；window.videoInfo 内嵌 douga/info 等价数据（含 mkey）但**无**相关视频数组

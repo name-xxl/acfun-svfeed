@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 顶栏搜索框聚焦面板（历史记录 · 复用原生）· 待确认</title>
+<!-- docs/preview/search-dropdown.html —— 0.9.158「顶栏搜索框聚焦面板」事前预览稿（已确认：按预览落地；0.9.158 实现）。
+     用户口径（2026-10-05）：「你看看 A 站首页原生的搜索框聚焦出现的历史记录面板逻辑，我们能不能拿来复用」→「ui 也复用」。
+     原生实证（站方组件源码 static/common/widget/searchBox/index.*.js + 真机实测）：
+       · focus 空框 → 展开 .search-result 面板；mouseleave .search-result → hideSearchResultPanel
+       · 历史块 = 「历史记录」+「清除历史」+ 词条（<a href="/search?keyword=…" target="_blank">）
+       · 存储 = localStorage['searchCache']（去重 → unshift → splice(8) 上限 8）；清除 = 移除键
+     本稿 = 原生结构 + 我们的暗色皮肤（顶栏搜索框是四界面共用的单例，面板随它）。
+     未做并留位：联想词（端点通但服务端恒空——站方自己也是空）、今日热搜（来源未定位）。 -->
+<style>
+  :root{--accent:#fd4c5d;--t1:#fff;--t2:#cfd3da;--t3:#8a90a0}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#000;color:#fff;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1240px;margin:0 auto;padding:26px 22px 70px}
+  h1{font-size:18px;font-weight:600}
+  .lead{color:var(--t3);font-size:12.5px;line-height:1.9;margin:8px 0 18px}
+  .lead b{color:var(--t2)}
+  .sec{margin:26px 0 10px;padding-top:14px;border-top:1px solid rgba(255,255,255,.09)}
+  .sec>h2{font-size:13.5px;font-weight:600;color:var(--t2)}
+  .sec>h2 em{color:var(--t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .cap{font-size:12px;color:var(--t3);margin:8px 0 8px}
+  .stage{border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:16px 18px;background:#0b0d12}
+  /* ---- 顶栏 + 搜索胶囊（复刻 .acsv-top / .acsv-sbox） ---- */
+  .topbar{position:relative;height:72px;display:flex;align-items:center;justify-content:center;background:#000;border-bottom:1px solid rgba(255,255,255,.06)}
+  .sboxwrap{position:relative;width:min(560px,100%)}
+  .sbox{display:flex;align-items:center;width:100%;height:40px;padding:0 6px 0 16px;background:rgba(255,255,255,.1);border-radius:20px}
+  .sbox input{flex:1;min-width:0;background:none;border:none;outline:none;color:#fff;font-size:14px;font-family:inherit}
+  .sbox input::placeholder{color:rgba(255,255,255,.45)}
+  .sbtn{width:30px;height:30px;flex:none;border:none;border-radius:50%;background:none;color:#fff;display:grid;place-items:center;cursor:pointer}
+  /* ---- 聚焦面板（新件 .acsv-searchpop；结构照原生 .search-result>history-box）---- */
+  .searchpop{position:absolute;left:0;right:0;top:46px;background:rgba(22,22,27,.98);border:1px solid rgba(255,255,255,.12);
+    border-radius:12px;box-shadow:0 12px 34px rgba(0,0,0,.55);overflow:hidden;z-index:5}
+  .pophead{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 6px;font-size:12px;color:#8a90a0}
+  .pophead .clr{color:#8a90a0;cursor:pointer;text-decoration:none}
+  .pophead .clr:hover{color:#fff;text-decoration:underline}
+  .poplist{max-height:264px;overflow-y:auto;padding:0 6px 8px}
+  .popitem{display:block;width:100%;text-align:left;border:none;background:none;color:#e8eaee;font:14px/1.5 inherit;
+    padding:8px 10px;border-radius:8px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .popitem:hover{background:rgba(255,255,255,.08);color:#fff}
+  .popempty{padding:12px 14px 14px;font-size:12.5px;color:#8a90a0}
+  .stage-tall{min-height:400px} /* ① 段：绝对定位面板要落在这个舞台内（预览排版用） */
+  /* 状态件示意 */
+  .ghost{opacity:.35}
+  .badge{display:inline-block;margin-left:8px;font-size:11px;padding:1px 7px;border-radius:999px;background:rgba(255,255,255,.08);color:#8a90a0}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>顶栏搜索框 · 聚焦面板<span style="font-size:12px;color:#57d68a;margin-left:8px">已确认（0.9.158 落地）</span></h1>
+  <p class="lead">
+    复用 A 站首页原生搜索框的**面板逻辑**：<b>聚焦空框 → 面板</b>（历史记录 + 清除历史 + 词条），
+    点词即搜、鼠标移出面板收起（原生同款）+ 外点收起（我们既有统一件）；皮肤走我们的暗色。
+    数据后端也换成站方同一份 <code style="color:#ffd479">localStorage['searchCache']</code>——
+    两边历史共享（原生搜的我们能看到，反之亦然）。
+  </p>
+
+  <div class="sec">
+    <h2>① 聚焦面板（有历史）<em>顶栏搜索框下方锚定；词条 hover 高亮，点它即搜</em></h2>
+    <div class="stage stage-tall" style="padding:0">
+      <div class="topbar">
+        <div class="sboxwrap">
+          <div class="sbox"><input type="search" placeholder="搜索 A 站视频" readonly><button class="sbtn">⌕</button></div>
+          <div class="searchpop">
+            <div class="pophead"><span>历史记录</span><a class="clr" href="#">清除历史</a></div>
+            <div class="poplist">
+              <button class="popitem">星际穿越</button>
+              <button class="popitem">ac娘</button>
+              <button class="popitem">MMD 3D 渲染</button>
+              <button class="popitem">一条特别长的关键词，用来验证单行省略号截断不会把面板撑宽</button>
+              <button class="popitem">老番补完计划</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">点「星际穿越」→ 走既有搜索提交（同顶栏回车）：进搜索视图搜该词，面板随即收起。</p>
+  </div>
+
+  <div class="sec">
+    <h2>② 空历史<em>原生在无历史时不弹历史块（它靠热搜兜底；我们没有热搜 → 整块不弹）</em></h2>
+    <div class="stage" style="padding:0">
+      <div class="topbar">
+        <div class="sboxwrap">
+          <div class="sbox"><input type="search" placeholder="搜索 A 站视频" readonly><button class="sbtn">⌕</button></div>
+          <div class="searchpop ghost" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">无历史时聚焦 = 什么都不弹（不占位、不显空框）；搜索视图里的「输入关键词…（搜过的词会记在这里）」引导文案仍在。</p>
+  </div>
+
+  <div class="sec">
+    <h2>③ 交互三态<em>hover 词条 / hover 清除历史 / 点词后收起</em></h2>
+    <div class="stage">
+      <div style="display:flex;gap:26px;flex-wrap:wrap">
+        <div style="width:300px;position:relative">
+          <p class="cap">hover 词条（白 8% 底 + 提亮）</p>
+          <div class="searchpop" style="position:static">
+            <div class="pophead"><span>历史记录</span><a class="clr" href="#">清除历史</a></div>
+            <div class="poplist">
+              <button class="popitem" style="background:rgba(255,255,255,.08);color:#fff">星际穿越</button>
+              <button class="popitem">ac娘</button>
+            </div>
+          </div>
+        </div>
+        <div style="width:300px;position:relative">
+          <p class="cap">hover「清除历史」（下划线 + 提亮；点击=清空并收起）</p>
+          <div class="searchpop" style="position:static">
+            <div class="pophead"><span>历史记录</span><a class="clr" href="#" style="color:#fff;text-decoration:underline">清除历史</a></div>
+            <div class="poplist">
+              <button class="popitem">星际穿越</button>
+              <button class="popitem">ac娘</button>
+            </div>
+          </div>
+        </div>
+        <div style="width:300px;position:relative">
+          <p class="cap">点词后：面板收起，搜索直接进行</p>
+          <div class="searchpop" style="position:static;opacity:.25">
+            <div class="pophead"><span>历史记录</span><a class="clr" href="#">清除历史</a></div>
+            <div class="poplist"><button class="popitem">星际穿越</button></div>
+          </div>
+          <p class="cap" style="margin-top:4px">→ 收起（面板不残留）</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>④ 收合规则（与原生逐条对照）</h2>
+    <table style="border-collapse:collapse;font-size:12.5px">
+      <tr><th style="border:1px solid rgba(255,255,255,.14);padding:6px 10px;text-align:left;color:#cfd3da">触发</th><th style="border:1px solid rgba(255,255,255,.14);padding:6px 10px;text-align:left;color:#cfd3da">行为</th><th style="border:1px solid rgba(255,255,255,.14);padding:6px 10px;text-align:left;color:#cfd3da">出处</th></tr>
+      <tr><td style="border:1px solid rgba(255,255,255,.14);padding:6px 10px">聚焦空框</td><td style="border:1px solid rgba(255,255,255,.14);padding:6px 10px">展开面板</td><td style="border:1px solid rgba(255,255,255,.14);padding:6px 10px">原生 <code>focus → onSearchInputFocus</code></td></tr>
+      <tr><td style="border:1px solid rgba(255,255,255,.14);padding:6px 10px">鼠标移出面板</td><td style="border:1px solid rgba(255,255,255,.14);padding:6px 10px">收起</td><td style="border:1px solid rgba(255,255,255,.14);padding:6px 10px">原生 <code>mouseleave .search-result</code></td></tr>
+      <tr><td style="border:1px solid rgba(255,255,255,.14);padding:6px 10px">点面板外任意处</td><td style="border:1px solid rgba(255,255,255,.14);padding:6px 10px">收起</td><td style="border:1px solid rgba(255,255,255,.14);padding:6px 10px">我们既有 <code>ui.closeOnOutsideClick</code>（0.9.147）</td></tr>
+      <tr><td style="border:1px solid rgba(255,255,255,.14);padding:6px 10px">Esc / 点词 / 回车</td><td style="border:1px solid rgba(255,255,255,.14);padding:6px 10px">收起（点词/回车同时提交搜索）</td><td style="border:1px solid rgba(255,255,255,.14);padding:6px 10px">原生 <code>hideSearchResultPanel</code> 同义</td></tr>
+    </table>
+    <p class="cap" style="margin-top:10px">
+      <b>未做的两块（如实留档）</b><span class="badge">联想词</span>端点 <code>/search/suggest?count=6&callback=…</code> 确实存在（**修正 0.9.151 的"不存在"误判**：它只吃 JSONP），但实测多个词都只回 <code>result:0</code> 不带任何候选——站方自己的代码里就有"联想不到切热搜"的兜底，面板上你看到的从来是热搜块，所以做也白做。
+      <span class="badge">今日热搜</span>零请求出现，但不在我抓到的页面 HTML 与已下载 JS 里，来源未定位——宁可空白不可编造，后续拿到来源再加。
+    </p>
+  </div>
+</div>
+</body>
+</html>

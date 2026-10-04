@@ -646,6 +646,8 @@ window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
 });
 // 直挂缝（0.9.82 对象形态）：首条视频回包后作者/头像被详情覆写（对象带 delay 抓首帧态）；
 // 600001 供"UP 卡最近投稿点进播放层"用
+// 站方搜索历史预置（0.9.158 复用 searchCache）：面板/chips 都要能读到它、且我们的写入与它共存
+try { localStorage.setItem('searchCache', JSON.stringify(['站方预置词'])); } catch (e) { }
 window.__ACSV_MOCK_DIRECT__ = {
   '500001': { id: 9, name: '测试UP', head: window.__ACSV_RESOLVE_AVATAR__, delay: 700 },
   '600001': 1
@@ -954,11 +956,11 @@ var svHist = window.__ACSV_SV_CALLS__, suHist = window.__ACSV_SU_CALLS__, saHist
 rec('search-empty-history', !!(await waitFor(function () {
   return location.hash === '#svfeed/search' && document.querySelectorAll('.acsv-shchip').length >= 1;
 }, 8000)), location.hash);
-rec('search-history-word', (function () { // 记过的词按新在前：失败词 / 测试词
+rec('search-history-word', (function () { // 记过的词按新在前 + **站方预置词同屏**（0.9.158 并库实证）
   var cs = document.querySelectorAll('.acsv-shchip');
   var tx = [];
   cs.forEach(function (c) { tx.push(c.textContent); });
-  return tx.join(',') === '失败词,测试词';
+  return tx.join(',') === '失败词,测试词,站方预置词';
 })(), (function () {
   var tx = [];
   document.querySelectorAll('.acsv-shchip').forEach(function (c) { tx.push(c.textContent); });
@@ -1017,28 +1019,88 @@ rec('search-leave-clears-kw', (function () { // 离开搜索上下文（回竖�
   var i = q('.acsv-top .acsv-sbox input');
   return !!i && i.value === '';
 })(), 'v=' + JSON.stringify((q('.acsv-top .acsv-sbox input') || {}).value));
-// ---- 空框聚焦=搜索入口（0.9.156 实报「点击不出搜索历史」）----
-// 此前点输入框只是聚焦，历史（在空词搜索态里）看不出来；现在非搜索界面点空框即进该态。
-// 此刻历史里有「深链词」（前面深链步骤记的）——聚焦后应直接看到它
+// ---- 聚焦历史面板（0.9.158「ui 也复用」；取代 0.9.156 的"点空框→跳搜索视图"）----
+// 面板钉前重铺站方键（前面为测「清空历史」把键清空了）：两词，最近的在前的语义照站方
+try { localStorage.setItem('searchCache', JSON.stringify(['站方预置词', '深链词'])); } catch (e) { }
+// 结构/交互照站方 searchBox：focus 开、mouseleave 收、点词即搜、清除历史=移除 searchCache 键。
 (function () { q('.acsv-top .acsv-sbox input').click(); })();
-rec('search-focus-opens', !!(await waitFor(function () {
-  return location.hash === '#svfeed/search' && !!q('.acsv-view')
-    && q('.acsv-view').offsetParent !== null && !!q('.acsv-shchip');
-}, 8000)), 'hash=' + location.hash + ' chips=' + document.querySelectorAll('.acsv-shchip').length);
-rec('search-focus-history', (function () { // 历史就是点它的理由：真词在、且输入框仍聚焦可续打
-  var cs = document.querySelectorAll('.acsv-shchip');
-  var tx = [].map.call(cs, function (c) { return c.textContent; }).join(',');
-  return tx === '深链词' && document.activeElement === q('.acsv-top .acsv-sbox input');
-})(), (function () {
-  var cs = document.querySelectorAll('.acsv-shchip');
-  return [].map.call(cs, function (c) { return c.textContent; }).join(',') + ' focus='
-    + (document.activeElement === q('.acsv-top .acsv-sbox input'));
+rec('search-pop-open', !!(await waitFor(function () {
+  var p = q('.acsv-searchpop');
+  return !!p && p.style.display !== 'none';
+}, 5000)), (function () {
+  var i = q('.acsv-top .acsv-sbox input');
+  return 'disp=' + ((q('.acsv-searchpop') || {}).style ? q('.acsv-searchpop').style.display : 'n/a')
+    + ' v=' + JSON.stringify(i ? i.value : null)
+    + ' key=' + (function () { try { return String(localStorage.getItem('searchCache')).slice(0, 60); } catch (e) { return 'err'; } })();
 })());
-rec('search-focus-noloop', (function () { // 已在搜索态再点击不重复导航（curView 守卫）
-  var before = location.hash;
-  q('.acsv-top .acsv-sbox input').click();
-  return location.hash === before && document.querySelectorAll('.acsv-view').length === 1;
+rec('search-pop-items', (function () { // 词表=站方键原序（“读到站方历史”实锤：站方词在列）
+  var items = [].map.call(document.querySelectorAll('.acsv-spop-item'), function (b) { return b.textContent; });
+  return items.join(',') === '站方预置词,深链词';
+})(), [].map.call(document.querySelectorAll('.acsv-spop-item'), function (b) { return b.textContent; }).join(','));
+rec('search-pop-format', (function () { // 站方键=JSON 数组且词都在（读写成实锤）
+  try {
+    var j = JSON.parse(localStorage.getItem('searchCache'));
+    return Array.isArray(j) && j.indexOf('站方预置词') >= 0 && j.indexOf('深链词') >= 0;
+  } catch (e) { return false; }
+})(), (function () { try { return String(localStorage.getItem('searchCache')).slice(0, 80); } catch (e) { return 'err'; } })());
+// mouseleave 收起（原生同款绑定）
+(function () {
+  var p = q('.acsv-searchpop');
+  if (p) p.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
+})();
+rec('search-pop-mouseleave', (function () {
+  var p = q('.acsv-searchpop');
+  return !!p && p.style.display === 'none';
 })());
+// 外点收起（0.9.147 统一件）
+(function () { q('.acsv-top .acsv-sbox input').click(); })();
+await wait(120);
+(function () { document.body.click(); })(); // 面板外任意处
+rec('search-pop-outside-close', !!(await waitFor(function () {
+  var p = q('.acsv-searchpop');
+  return !!p && p.style.display === 'none';
+}, 5000)));
+// 点词即搜（走既有提交链）+ 收起；顺序：站方词被点后提到最前（去重提前语义）
+var popWord = null;
+[].forEach.call(document.querySelectorAll('.acsv-spop-item'), function (b) { if (b.textContent === '站方预置词' && !popWord) popWord = b; });
+rec('search-pop-word-found', !!popWord);
+(function () { q('.acsv-top .acsv-sbox input').click(); })();
+await wait(120);
+var wbtn = null;
+[].forEach.call(document.querySelectorAll('.acsv-spop-item'), function (b) { if (b.textContent === '站方预置词' && !wbtn) wbtn = b; });
+if (wbtn) wbtn.click();
+rec('search-pop-click-search', !!(await waitFor(function () { // 视图异步挂：并进等待条件
+  var ok = /^#svfeed\/search\/(video\/)?(%E7%AB%99%E6%96%B9%E9%A2%84%E7%BD%AE%E8%AF%8D|站方预置词)$/.test(location.hash);
+  return ok && !!q('.acsv-view');
+}, 8000)), location.hash);
+rec('search-pop-click-closed', (function () {
+  var p = q('.acsv-searchpop');
+  return !!p && p.style.display === 'none';
+})());
+rec('search-pop-click-bumped', (function () { // 点站方词 => 提到最前（站方去重提前语义；键仍在）
+  try { return JSON.parse(localStorage.getItem('searchCache'))[0] === '站方预置词'; } catch (e) { return false; }
+})(), (function () { try { return String(localStorage.getItem('searchCache')).slice(0, 80); } catch (e) { return 'err'; } })());
+// 清除历史 = 移除站方键（原生「清除历史」实测同款）
+location.hash = 'svfeed/search'; // 回空词态（面板可用）
+rec('search-pop-reopen', !!(await waitFor(function () { // 等视图重建且输入框已清空（面板才有得弹）
+  var i = q('.acsv-top .acsv-sbox input');
+  return !!q('.acsv-view') && !!q('.acsv-searchpop') && !!i && i.value === '';
+}, 8000)));
+(function () { q('.acsv-top .acsv-sbox input').click(); })();
+rec('search-pop-open2', !!(await waitFor(function () {
+  var p = q('.acsv-searchpop');
+  return !!p && p.style.display !== 'none' && document.querySelectorAll('.acsv-spop-item').length >= 1;
+}, 5000)));
+(function () { var c = q('.acsv-spop-clr'); if (c) c.click(); })();
+rec('search-pop-clear', !!(await waitFor(function () {
+  var p = q('.acsv-searchpop');
+  return !!p && p.style.display === 'none';
+}, 5000)) && (function () { try { return localStorage.getItem('searchCache') === null; } catch (e) { return false; } })(),
+  (function () { try { return String(localStorage.getItem('searchCache')); } catch (e) { return 'err'; } })());
+rec('search-pop-clear-chips', !!(await waitFor(function () { // 清空后空词态回到引导文案
+  return document.querySelectorAll('.acsv-shchip').length === 0
+    && /输入关键词/.test(document.body.textContent || '');
+}, 8000)));
   };
   // ---- cover-fallback ----
   C['cover-fallback'] = async function (h) {

@@ -60,6 +60,7 @@ function hashOf(kind, kw) {
 // 顶栏提交接管（挂起/复原用；0.9.74 深界面保活期间交还默认提交）
 var activeSubmit = null;
 var activeIO = null; // 当前视图的续页哨兵观察器（teardown 断开；同一时刻只有一个搜索视图）
+var histListener = null; // 共享历史清空广播的订阅器（0.9.158；teardown 摘除）
 
 function buildSearchView(body, arg, kind) {
   var kw = String(arg || '').trim();
@@ -98,6 +99,11 @@ function buildSearchView(body, arg, kind) {
     body.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
+  // 共享历史被外部清空（顶栏面板「清除历史」）→ 空词态重画 chips（0.9.158；非空词态无历史件，免画）
+  if (!histListener) {
+    histListener = function () { if (!String(arg || '').trim() && res.isConnected) render(); };
+    document.addEventListener('acsv-searchhist', histListener);
+  }
   var skelGone = null;
   function showSkel() {
     if (skelGone) return;
@@ -391,6 +397,7 @@ function teardownSearchView() {
   activeSubmit = null;
   setSearchHandler(null);
   if (activeIO) { activeIO.disconnect(); activeIO = null; }
+  if (histListener) { document.removeEventListener('acsv-searchhist', histListener); histListener = null; }
 }
 
 registerView({
