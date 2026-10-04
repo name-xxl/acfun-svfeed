@@ -3,6 +3,29 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.154（2026-10-04）· 搜索页回到顶部（实报「三栏都需要回到顶部按钮」；回顶件正名共享）
+
+- **由头**：用户实报「搜索结果页，三栏都需要回到顶部按钮」（形态预览经用户裁决=推荐项：
+  关注/广场同款右下圆钮、滚过 300px 淡入）。
+- **修法**：搜索视图接入既有回顶件——`.acsv-tbtn`（顶栏圆钮同族：36 圆/白 chevUp/hover 提亮）
+  + `sticky` 钉滚动流右下、超 `CFG.view.search.backTopAt`（300，同 follow/square）淡入、点击
+  `body.scrollTo({top:0,behavior:'smooth'})`。按钮挂在**视图层**（不进类目）——三个类目共用一个；
+  每拍渲染把钮与哨兵一并重挂流末（否则被后追结果卡挤到中间不再钉底）；评论抽屉打开时正文右缘
+  让位、钮 sticky 在正文流里跟着让位。
+- **顺修（正名）**：`.acsv-fbacktop` → **`.acsv-backtop`**——该类已是四处共享件（关注视图 /
+  广场 / 原生内嵌广场 mp 皮肤 / 本次搜索），名字里的 follow 前缀名不符（0.9.149 popplace 同款
+  「统一」纪律）。机械改名入册：styles 4 处（含 mp 覆盖）+ followview / squarefeed 各 1 处 +
+  既有两个钉子（view-follow 的 `follow-backtop-icon` / 回顶断言）。
+- **测试**：view-search 60→**63 断言**——`search-backtop-shown`（滚过多屏后 .on 且可见）/
+  `search-backtop-return`（点击平滑回顶到 ≤4px 且 .on 摘除）/ `search-backtop-in-layer-only`
+  （类目切换后仍是同一件、页内唯一）。**反跑实证**：阈值停用（永不挂 .on）⇒ shown 转红
+  （打印 `on=false s=2405`）。类名改名波及面回归：view-follow 75 / view-square 37 /
+  member-plaza 32 原样全绿。**顺修夹具跨午夜脆点**（本轮全量实跑踩中：00:04 时夹具的
+  「5 分钟前」落到昨天，`hist-card-composition` 的 /分钟前$/ 假红）——my-sample 的 HIST_AGO
+  钳到「今天零点后 1 秒」与「now−0.5s」较近者（保证 dayDiff=0 且仍在过去）。lint/check +
+  全量 46 场景全绿。
+- **文档**：预览稿 `docs/preview/search-v2.html` 补 ⑥ 回顶段（形态/显隐阈值/让位规则与示意）。
+
 ### 0.9.153（2026-10-04）· 动态正文可划选复制（实报「动态正文不支持拖动选择复制」）
 
 - **病灶**（用户实报）：`#acsv-root` 全局 `user-select:none`（竖刷页防误选手势），此前只给

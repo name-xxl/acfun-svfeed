@@ -56,7 +56,7 @@ function buildFollowView(body) {
   wrap.appendChild(status);
   // 回顶（借鉴广场 back-top；0.9.105 图标语言统一）：顶栏同款圆钮 .acsv-tbtn + chevUp SVG，
   // sticky 钉在滚动流右下，超 backTopAt 才现身（.on）
-  var backTop = el('button', 'acsv-tbtn acsv-fbacktop');
+  var backTop = el('button', 'acsv-tbtn acsv-backtop');
   backTop.innerHTML = ICONS.chevUp;
   backTop.title = '回到顶部';
   body.appendChild(backTop);

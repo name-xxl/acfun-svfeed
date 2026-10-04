@@ -37,7 +37,12 @@
   function histUser(i) {
     return { id: String(25380695 + i), name: '历史UP', headUrl: PANEL_AVATAR, isFollowing: false };
   }
-  var HIST_AGO = Date.now() - 5 * 60 * 1000; // 5 分钟前：相对时间文案稳定落在「N分钟前」
+  // 5 分钟前：相对时间文案稳定落在「N分钟前」；**跨午夜钳位**（0.9.154 顺修，实测踩中）——
+  // 刚过零点跑测试时「5 分钟前」落在昨天，fmtAgo 出「昨天23时59分」，而钉子 hist-card-composition
+  // 钉的是 /分钟前$/ ⇒ 假红。钳到「今天零点后 1 秒」与「now-0.5s」的较近者：保证 dayDiff=0
+  // 且仍是过去（relTime 同日档 min<60 也至少回 1分钟前，不会空）
+  var HIST_AGO = Math.max(Date.now() - 5 * 60 * 1000,
+    Math.min(new Date().setHours(0, 0, 1, 0), Date.now() - 500));
   var HIST_OLD = Date.now() - 10 * 86400000; // 10 天前：fmtAgo 应退回**带年份**的绝对日期
   var HIST_VIDS = [];
   for (var i = 0; i < 18; i++) {

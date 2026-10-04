@@ -37,7 +37,7 @@ export function createSquareFeed(opts) {
   // 没有滚动可依时点击是唯一出口）
   var status = el('div', 'acsv-fstatus');
   root.appendChild(status);
-  var backTop = el('button', 'acsv-tbtn acsv-fbacktop');
+  var backTop = el('button', 'acsv-tbtn acsv-backtop');
   backTop.innerHTML = ICONS.chevUp;
   backTop.title = '回到顶部';
   (opts.backTopHost || root).appendChild(backTop);

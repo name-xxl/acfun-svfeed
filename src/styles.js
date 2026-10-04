@@ -1203,13 +1203,14 @@ var RAW_CSS = ''
   + '.acsv-fstatus.busy{opacity:.7;cursor:default}'
   // 广场发现态提示（0.9.127）：复用 fstatus 骨架 + accent 高亮（列表顶部，点击刷新）
   + '.acsv-sup{color:var(--acsv-accent);font-weight:600}'
-  // 回顶按钮（借鉴广场 back-top）：sticky 钉滚动流右下，超 backTopAt 由 JS 挂 .on 现身
-  // 回顶按钮（0.9.105 图标语言统一）：视觉走 .acsv-tbtn（顶栏圆钮同族：36 圆/白 svg/hover 提亮），
-  // 本类只保留定位（sticky 右下）与显隐（opacity + on）
-  + '.acsv-fbacktop{position:sticky;bottom:18px;margin:0 6px 6px auto;opacity:0;pointer-events:none;'
+  // 回顶按钮（0.9.105 图标语言统一；0.9.154 正名共享件——原 .acsv-fbacktop 名带 follow 前缀，
+  // 而消费方已有四处：关注视图 / 广场 / 原生内嵌广场（mp 皮肤）/ 搜索三栏）。sticky 钉滚动流
+  // 右下，超各视图 CFG.view.*.backTopAt 由 JS 挂 .on 现身；视觉走 .acsv-tbtn（顶栏圆钮同族：
+  // 36 圆/白 svg/hover 提亮），本类只保留定位（sticky 右下）与显隐（opacity + on）
+  + '.acsv-backtop{position:sticky;bottom:18px;margin:0 6px 6px auto;opacity:0;pointer-events:none;'
   + 'transition:opacity .18s ease;z-index:5}'
-  + '.acsv-fbacktop.on{opacity:1;pointer-events:auto}'
-  + '.acsv-fbacktop svg{width:22px;height:22px;fill:#fff}'
+  + '.acsv-backtop.on{opacity:1;pointer-events:auto}'
+  + '.acsv-backtop svg{width:22px;height:22px;fill:#fff}'
   // 首屏骨架行（独立类名，绝不与行内计数选择器同构——0.9.66 教训）
   + '.acsv-fskel,.acsv-sqskel{height:120px;border-radius:8px;background:rgba(255,255,255,.05)}'
   // 深色滚动条：视图滚动区（我的/榜单共用 .acsv-view-body，默认浅色条在深色页上是刺眼白条）
@@ -1251,7 +1252,7 @@ var RAW_CSS = ''
   + '.acsv-mp .ubb-at,.acsv-mp .ubb-res,.acsv-mp .ubb-ac,.acsv-mp .ubb-topic{color:#409bef;text-decoration:none}'
   + '.acsv-mp .ubb-at:hover,.acsv-mp .ubb-res:hover,.acsv-mp .ubb-ac:hover,.acsv-mp .ubb-topic:hover{text-decoration:underline}'
   // 回顶钮：原生页固定右下（视图内的 sticky 定位不适用），浅色圆钮+阴影
-  + '.acsv-mp .acsv-fbacktop{position:fixed;right:24px;bottom:28px;margin:0;z-index:20}'
+  + '.acsv-mp .acsv-backtop{position:fixed;right:24px;bottom:28px;margin:0;z-index:20}'
   + '.acsv-mp .acsv-tbtn{background:#fff;color:#666;box-shadow:0 2px 10px rgba(0,0,0,.16)}'
   + '.acsv-mp .acsv-tbtn:hover{background:#f5f5f5}'
   + '.acsv-mp .acsv-tbtn svg{fill:#666}'

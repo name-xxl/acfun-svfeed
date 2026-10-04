@@ -5,6 +5,7 @@ import {
   searchVideoPageOf, searchUserPageOf, searchArticlePageOf, upOf
 } from './data.js';
 import { gridCardOf, openPanelItem, skeletonRows } from './cards.js';
+import { ICONS } from './styles.js'; // chevUp 回顶图标（与关注/广场同源）
 import { imgInto } from './imgload.js';
 import { registerView } from './viewreg.js';
 import { setSearchHandler, focusSearch } from './topbar.js';
@@ -77,12 +78,25 @@ function buildSearchView(body, arg, kind) {
   var res = el('div', 'acsv-sres');
   var end = el('div', 'acsv-send');
   var sentinel = el('div', 'acsv-cmore-sentinel');
+  // 回顶（0.9.154；关注/广场/原生内嵌广场同款共享件 .acsv-backtop）：sticky 钉滚动流右下，
+  // 超 backTopAt 淡入；**三个类目共用一个**（按钮在视图层、不在类目里）；评论抽屉打开时
+  // 正文右缘本就让位到抽屉左缘，它 sticky 在正文流里跟着让位
+  var backTop = el('button', 'acsv-tbtn acsv-backtop');
+  backTop.innerHTML = ICONS.chevUp;
+  backTop.title = '回到顶部';
   body.appendChild(chips);
   body.appendChild(state);
   body.appendChild(res);
   body.appendChild(end);
   body.appendChild(sentinel);
+  body.appendChild(backTop); // 须在内容之后（sticky 的定位基准）
   sentinel.style.display = 'none';
+  body.addEventListener('scroll', function () {
+    backTop.classList.toggle('on', body.scrollTop > CFG.view.search.backTopAt);
+  }, { passive: true });
+  backTop.addEventListener('click', function () {
+    body.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 
   var skelGone = null;
   function showSkel() {
@@ -328,8 +342,10 @@ function buildSearchView(body, arg, kind) {
     else if (curKind === 'up') st.items.forEach(function (u) { res.appendChild(upCardOf(u)); });
     else st.items.forEach(function (a) { res.appendChild(articleRowOf(a)); });
     if (st.done && st.total) end.textContent = '已显示全部 ' + st.total + ' 条';
-    // 续页哨兵：每渲染后重挂末尾（IO 已在视口内即续翻，短路页自动补）
+    // 续页哨兵：每渲染后重挂末尾（IO 已在视口内即续翻，短路页自动补）；回顶钮紧随其后
+    // （同为 sticky/流末件，被后追加的结果卡挤到中间就不再钉底）
     body.appendChild(sentinel);
+    body.appendChild(backTop);
     sentinel.style.display = st.done ? 'none' : '';
     if (activeIO) {
       activeIO.unobserve(sentinel);

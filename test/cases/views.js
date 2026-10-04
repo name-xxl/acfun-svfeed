@@ -814,6 +814,23 @@ rec('search-end-line', /已显示全部 33 条/.test((q('.acsv-send') || {}).tex
   (q('.acsv-send') || {}).textContent);
 rec('search-more-only-current', window.__ACSV_SU_CALLS__ === 2 && window.__ACSV_SA_CALLS__ === 2,
   'su/sa=' + window.__ACSV_SU_CALLS__ + '/' + window.__ACSV_SA_CALLS__);
+// ---- 回顶（0.9.154；三栏共用视图层按钮，与关注/广场同款 sticky 右下）----
+rec('search-backtop-shown', !!(await waitFor(function () { // 已滚过多屏（s>300）→ .on 现身
+  return q('.acsv-backtop') && q('.acsv-backtop').classList.contains('on')
+    && q('.acsv-backtop').offsetParent !== null;
+}, 5000)), (function () {
+  var b = q('.acsv-backtop');
+  return b ? ('on=' + b.classList.contains('on') + ' s=' + Math.round(q('.acsv-view-body').scrollTop)) : 'no-btn';
+})());
+(function () { q('.acsv-backtop').click(); })();
+rec('search-backtop-return', !!(await waitFor(function () { // 点击平滑回顶 + .on 摘除
+  var b = q('.acsv-view-body');
+  return b && b.scrollTop <= 4 && q('.acsv-backtop') && !q('.acsv-backtop').classList.contains('on');
+}, 8000)), 's=' + Math.round((q('.acsv-view-body') || {}).scrollTop));
+rec('search-backtop-in-layer-only', (function () { // 按钮是视图层独件：类目切换不重建它
+  var b = q('.acsv-backtop');
+  return !!b && document.querySelectorAll('.acsv-backtop').length === 1;
+})());
 // 播放层（0.9.74）：点结果卡 → 就地播放；Esc 回搜索视图且**结果原样**（保活，不重拉）
 var sCell = q('.acsv-sgrid .acsv-scell');
 var srEl0 = q('.acsv-view');
@@ -1632,7 +1649,7 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     })());
     if (vFwd) vFwd.click(); // 同按钮再点=关
     // 回顶按钮图标语言统一（0.9.105）：顶栏同款圆钮 + chevUp SVG
-    rec('follow-backtop-icon', !!(q('.acsv-fbacktop svg')));
+    rec('follow-backtop-icon', !!(q('.acsv-backtop svg')));
     // ---- 多图行：九宫格原生形制（默认容器 342、3 格 110 方）----
     rec('follow-moment-multigrid', !!(gRow && gRow.querySelector('.acsv-frow-imgs:not(.n1):not(.n24)')
       && gRow.querySelectorAll('.acsv-frow-img').length === 3),
@@ -1742,7 +1759,7 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       (q('.acsv-fstatus') || {}).textContent);
     // 回顶按钮：滚过了阈值才现身（backTopAt=300）
     rec('follow-backtop-on', !!(await waitFor(function () {
-      return q('.acsv-fbacktop').classList.contains('on');
+      return q('.acsv-backtop').classList.contains('on');
     }, 3000)));
     // append-only 不变式的可观测面：翻页后首行仍是原首行（整列表未重建）
     rec('follow-append-only', new RegExp('关注视频甲').test(
