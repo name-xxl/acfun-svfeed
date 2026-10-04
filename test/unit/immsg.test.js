@@ -88,7 +88,7 @@ test('parseShare：句读贴着链接——URL 剥尾标点、附言剥头标点
   assert.equal(s2.note, '（附言');
 });
 
-test('parseShare：纯 URL / 带 query / 多行标题（imshare 发送格式）', () => {
+test('parseShare：纯 URL / 带 query / 多行标题（imsend 发送格式）', () => {
   var s = parseShare('https://www.acfun.cn/v/ac9');
   assert.equal(s.acId, '9');
   assert.equal(s.title, '');
@@ -302,7 +302,7 @@ test('parseShare：#ncid 片段保留进 url（卡片/复制链接可定位楼�
 
 // ---------- 0.9.88 评论转发选链（正文内嵌裸链不劫持推荐链） ----------
 test('parseShare：评论转发正文内嵌裸链，推荐链仍取末行（0.9.88 验收案例）', () => {
-  // wire 组装序与发送侧逐字一致（comments.js commentShareWire + imshare「title\nshareUrl#ncid」）
+  // wire 组装序与发送侧逐字一致（comments.js commentShareWire + imsend「title\nshareUrl#ncid」）
   var wire = commentShareWire('作者', '看看这个 https://www.acfun.cn/v/ac999 哈哈哈')
     + '\n' + 'https://www.acfun.cn/v/ac888#ncid=5';
   var s = parseShare(wire);

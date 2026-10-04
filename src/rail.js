@@ -4,7 +4,7 @@ import { el, elHtml, fmt, toast } from './ui.js';
 import { imgInto } from './imgload.js';
 import { FeedStore } from './feedstore.js';
 import { setRealLike, setRealFollow, setRealFavorite, giveBanana } from './interact.js';
-import { openSharePanel } from './imshare.js';
+import { openSharePanel } from './sharepanel.js';
 import { toggleBananaPop } from './banpop.js';
 
 // ---------- 右侧操作栏 + 上下翻页箭头 ----------
@@ -12,7 +12,7 @@ import { toggleBananaPop } from './banpop.js';
 // 箭头翻页依赖上层导航（scrollToIndex 在 player.js），经 goTo 参数注入保持依赖单向。
 
 // 评论键出口（0.9.116）：本组件不 import 评论域——「展开/收起评论」动作由 player 模块求值期
-// 注册（setCommentsOpener；先例 cards.setItemOpener / imshare.setChatOpener）；未注册时点击 no-op
+// 注册（setCommentsOpener；先例 cards.setItemOpener / sharepanel.setChatOpener）；未注册时点击 no-op
 var commentsOpener = null;
 export function setCommentsOpener(fn) { commentsOpener = typeof fn === 'function' ? fn : null; }
 

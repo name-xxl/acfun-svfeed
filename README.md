@@ -264,7 +264,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`fmt`/`toast`/剪贴板/样式注入等工具 |
 | `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策（三跳两两换 URL）+ `memoState`/`memoTrim` 死链备忘纯判定（0.9.77：只读不续期）——URL 正确性只在这里定义 |
-| `imgload.js` | 图片加载执行层（0.9.76；0.9.77 头注校准覆盖边界）：项目图片字段（封面/头像）统一入口——`IMG_POLICY` 策略表（grid/thumb/avatar/space）+ `imgInto(host,url,policy[,cls])`（懒加载/重试链/终败降级/淡入/死链备忘）+ `lazyObserve` 观察器单例（私信气泡共用）。有意在外的例外：鉴权 blob 管线（imshare）、UBB/表情 HTML、站点静态图标、大图查看器 |
+| `imgload.js` | 图片加载执行层（0.9.76；0.9.77 头注校准覆盖边界）：项目图片字段（封面/头像）统一入口——`IMG_POLICY` 策略表（grid/thumb/avatar/space）+ `imgInto(host,url,policy[,cls])`（懒加载/重试链/终败降级/淡入/死链备忘）+ `lazyObserve` 观察器单例（私信气泡共用）。有意在外的例外：鉴权 blob 管线（imsend）、UBB/表情 HTML、站点静态图标、大图查看器 |
 | `interact.js` | 真实点赞/关注（api_st → interact 接口）；收藏/投蕉转发 AppAPI |
 | `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3/4、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出）。0.9.96 管线 **host 化**：DOM 宿主显式化（默认=抽屉单例，动态详情面板灌入同款三元组），`openCommentsHost`/`closeCommentsHost` 为面板入口，输入条三件套随宿主迁移 |
 | `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[at]/[resource]/[img]/[color] 逐一白名单放行；IM wire 文本投影（ubbImText）与引用块富正文（ubbQuoteHtml）单源 |
@@ -288,7 +288,8 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `prewarm.js` | 预热：索引稳定 500ms 后预解析 cur+1/2、媒体域动态 preconnect（上限 6 + 静态种子） |
 | `dbg.js` | 调试埋点（仅 debug 构建存活）：stat 计数、testHook、`acsv-stats` localStorage 镜像 |
 | `nav.js` / `uppage.js` | 导航入口注入；UP 主空间页小视频标签 |
-| `imshare.js` | 私信基建：ImSdk 加载器（源码补丁 + Blob 执行）、连接/发送确认（轮询式恢复链）、内核直发（引用/图片消息，clientSeqId 对账）、图片字节拉取（midground 令牌 + LRU 缓存/并发限 3/在飞去重）、用户卡片、分享面板 |
+| `imsend.js` | 私信发送基建（0.9.123 自 imshare.js 拆出，协议核心 ↔ 面板 UI 分居）：ImSdk 加载器（源码补丁 + Blob 执行 + tracer 手术 + 日志黑匣子）、连接/发送确认（轮询式恢复链）、内核直发（引用/图片/评论转发/动态转发 extra 通道，clientSeqId 对账）、图片字节拉取（midground 令牌 + LRU 缓存/并发限 3/在飞去重）。分享面板 UI 在 sharepanel.js（单向依赖本模块出口） |
+| `sharepanel.js` | 私信分享面板（0.9.123 拆分）：锚定浮层（place rect 定位/翻转与高度兜底）/搜索过滤/联系人行/分享按钮与「捎句话」注册缝（setChatOpener + im-open 哨兵）；消费方 comments/followview/momentdetail/rail 只认 openSharePanel |
 | `imdrawer.js` | 私信抽屉（列表/聊天两视图、乐观气泡、未读徽标、消息引用双 wire、表情/图片收发渲染；卡片装配自 0.9.80 走 `imcard.js` 共享层——只留暗色皮肤声明）；分享消息卡片化（dougaCard 拉详情原位补全）；0.9.75：列表↔会话改「双向平移」（舞台 .acsv-im-stage 裁剪 + 两面板 .acsv-im-pane 叠加，状态类 .chat-on，时长走 --acsv-dw-t 单源）、`toggleImDrawer`（信封/ I 键开合，关闭分支先于登录门槛） |
 | `imnative.js` | 原生私信页增强（message.acfun.cn）：占位替换（10001 卡，unsafeWindow 读页面内核）+ 分享卡 + 引用消息渲染（去重加固）+ Shadow DOM 隔离（0.9.80：卡片装配与抽屉同源，只留浅色皮肤声明）+ **结构自检 canary**（0.9.120：启动 10s 盘点官方选择器命中，改版第一现场点名；清单=test/cases/msg.js im-native 契约断言同源） |
 | `imcard.js` | 私信卡片装配（0.9.80，两皮肤共用）：视频卡=封面+计数条+两行标题、评论卡=引用块+来源小条、**动态卡**=引用块+配图行+「查看动态」条（0.9.122，extra 被剥自动降级 wire 文本态）；共享"load 才放出/error 隐藏"时序、[img]/配图看图、dougaCard 原位 patch（信封双皮肤：抽屉暗色 `.acsv-im-*` / 原生页浅色 Shadow） |
@@ -366,7 +367,8 @@ flowchart LR
   end
 
   subgraph im["私信层"]
-    imshare["imshare.js（ImSdk 基建）"]
+    imsend["imsend.js（ImSdk 基建·发送核心）"]
+    sharepanel["sharepanel.js（分享面板 UI）"]
     imdrawer["imdrawer.js（抽屉）"]
     imnative["imnative.js（原生页增强）"]
     imcard["imcard.js（卡片装配·两皮肤共用）"]
@@ -399,25 +401,26 @@ flowchart LR
   pb --> feedstore & settings
   ubb --> emoticon
   playlayer --> api & attach & cards & viewreg
-  imshare --> appapi & imgload & immsg
-  imdrawer --> appapi & comments & emoticon & imcard & imgload & imgview & imicons & immsg & imshare & inputbar & overlay & ubb
+  imsend --> appapi & immsg
+  sharepanel --> imsend & imgload
+  imdrawer --> appapi & comments & emoticon & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
   boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & zone
   views --> feedstore & overlay & sidebar & topbar & viewreg
   cards --> imgload & imgview & imicons & ubb
   sidebar --> viewreg
-  followview --> comments & emoticon & imgload & imgview & imshare & momentapi & momentbar & sidebar & viewreg & cards & momentdetail
+  followview --> comments & emoticon & imgload & imgview & sharepanel & momentapi & momentbar & sidebar & viewreg & cards & momentdetail
   followstream --> appapi & data & feedctx & feedstore & momentapi & sidebar
   momentbar --> banpop & data & imicons & immsg & interact & styles & ubbtext & ui
   followbadge --> followstream & momentapi
-  momentdetail --> comments & emoticon & imgload & imgview & imshare & momentbar & overlay & cards
+  momentdetail --> comments & emoticon & imgload & imgview & sharepanel & momentbar & overlay & cards
   followbadge --> net & sidebar
   player --> followbadge
   settingspanel --> settings & overlay
   searchview --> cards & topbar & viewreg
   input --> feedstore & overlay & pb & settings
-  comments --> appapi & emoticon & imgload & imgview & imicons & immsg & imshare & inputbar & overlay & ubb & ubbtext
+  comments --> appapi & emoticon & imgload & imgview & imicons & immsg & sharepanel & inputbar & overlay & ubb & ubbtext
   interact --> appapi
   release --> overlay & settings
   mypage --> appapi & cards & imgload & viewreg
@@ -428,7 +431,7 @@ flowchart LR
 ```
 
 绿色五个节点是刻意的解耦点：`immsg.js`/`imicons.js`/`imgurl.js`/`pagekind.js`/`viewreg.js` 零 import，消费方各自引入
-（`immsg` 现为 imdrawer/imnative/imshare 三方），私信格式与图片 URL 规则变更只改各自一处；
+（`immsg` 现为 imdrawer/imnative/imsend 三方），私信格式与图片 URL 规则变更只改各自一处；
 `pagekind` 零依赖是为 boot 与单测都能直采（含 `location` 的 boot 不可单测，判据必须抽纯）；
 图片加载面（懒加载/重试/降级）统一走 `imgload.js`——新图面加一行 `imgInto`，别再手拼
 `referrerPolicy`/`loading`（`uppage` 在 others 组内，同引 imgload）。

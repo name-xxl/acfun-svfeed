@@ -7,7 +7,7 @@ import { ubbTextOf, quoteBlockOf } from './cards.js';
 import { ICONS } from './styles.js';
 import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
 import { openImageViewer } from './imgview.js';
-import { openSharePanel } from './imshare.js';
+import { openSharePanel } from './sharepanel.js';
 import { momentBarOf, momentShareItemOf } from './momentbar.js';
 import { ensureEmotionMap } from './emoticon.js';
 import { testHook } from './dbg.js';

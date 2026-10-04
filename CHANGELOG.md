@@ -3,6 +3,23 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.123（2026-10-04）· IM 评审 #2 落地：imshare 拆分 imsend（协议核心）+ sharepanel（面板 UI）
+
+- **背景（此前挂"下次动 IM 顺手"的挂账项，本次点名执行）**：45.9K/1037 行单文件里住着五簇
+  ——SDK 加载/注入/补丁、连接重连、发送核心、图片字节管线、分享面板 UI；协议核心与需求
+  高频区的面板 UI 同文件，UI 改动牵动发送可靠性表面。
+- **修法（纯搬迁零逻辑改动）**：机械抽取（锚点切片脚本落盘 + 代码行机器比对）——`imsend.js`
+  （SDK 加载器/tracer 手术/日志黑匣子/连接重连/doSend/sendKernel/withSendRecovery/sendQuote/
+  sendImage/sendCmtShare/sendMomentShare/图片字节管线）+ `sharepanel.js`（openSharePanel 一族
+  + 「捎句话」注册缝 setChatOpener 与 im-open 哨兵）。边界仅两处可见性调整：getContacts/
+  sendOnce 加 export 供面板消费（eslint 精准抓出，正是门的价值）；imshare.js 删除，消费方
+  六文件改 import（imdrawer→imsend+sharepanel；comments/followview/momentdetail/rail→
+  sharepanel）；搬迁引发的模块名注释校准 13 处（immsg/imgload/net/imdrawer/comments/rail/测试）。
+- **测试**：check-deps 图同步（imsend/sharepanel 两节点 + 三边；imdrawer 与四消费方行改指）；
+  imsend.test.js（原 imshare.test.js 更名，链收窄至 cfg/net/ui/appapi/immsg）；单测 205 +
+  42 场景全绿——im-open 的 chatOpener 哨兵随缝迁至 sharepanel 后照绿（注册链未断的机器证据）。
+- **收益兑现**：协议核心与面板 UI 自此独立演化；发送侧单测的独立面已就位。
+
 ### 0.9.122（2026-10-04）· 私信转发动态渲染动态卡（富版：extra 载荷 + 双皮肤卡 + 降级链）
 
 - **病灶（用户实报「私信转发动态不会渲染动态卡」）**：非回归、是缺口——动态转发在 IM 层

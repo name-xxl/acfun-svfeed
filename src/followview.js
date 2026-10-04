@@ -16,7 +16,7 @@ import { el } from './ui.js';
 import { followPanelOf, momentPiOfRepost } from './data.js';
 import { ubbTextOf, openPanelItem, setMomentOpener, stripOf, momentCellOf, momentMediaOf, skeletonRows } from './cards.js';
 import { ICONS } from './styles.js';
-import { openSharePanel } from './imshare.js';
+import { openSharePanel } from './sharepanel.js';
 import { momentBarOf, momentShareItemOf } from './momentbar.js';
 import { listMoments } from './momentapi.js';
 import { imgInto } from './imgload.js';

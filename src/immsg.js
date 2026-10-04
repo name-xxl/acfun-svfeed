@@ -21,7 +21,7 @@ export function parseCard(m) {
   } catch (e) { return null; }
 }
 
-// extra 载荷 key 单源（0.9.59）：发送构造（imshare）与解析（quoteExtraOf/cmtShareOf）
+// extra 载荷 key 单源（0.9.59）：发送构造（imsend）与解析（quoteExtraOf/cmtShareOf）
 // 共用——字符串两处硬编码时 typo 即静默丢载荷
 export var QUOTE_EXTRA_KEY = 'acsvQuote';
 export var CMT_EXTRA_KEY = 'acsvCmt';
@@ -50,7 +50,7 @@ export function commentShareWire(name, text) {
   return '@' + (name || '') + '：' + (text || '');
 }
 
-// 脚本端分享文本（imshare 发送格式：标题行\n推荐链 URL）→ {title, note, acId, url}。
+// 脚本端分享文本（imsend 发送格式：标题行\n推荐链 URL）→ {title, note, acId, url}。
 // 容忍式契约：URL 可出现在文本任意位置——抽屉从内核消息数据解析（换行完整），原生页
 // 曾从 DOM 渲染产物解析（换行可能变 <br>/空格/直接拼接），「URL 独占末行」的严格锚定
 // 正则在后者必然失配（0.9.26 原生页不出卡的根因）。URL 前文本=标题，URL 后文本=附言
@@ -92,7 +92,7 @@ export function parseShare(text) {
   if (!ms.length) return null;
   ms.sort(function (a, b) { return a.m.index - b.m.index; });
   var pick = ms[0];
-  // 评论转发选链（0.9.88）：wire = 「@作者：正文\n推荐链#ncid」（comments.js / imshare
+  // 评论转发选链（0.9.88）：wire = 「@作者：正文\n推荐链#ncid」（comments.js / imsend
   // 组装序）——正文里嵌的裸链会抢走首个匹配，卡片 href 指向评论里提到的视频、#ncid 锚点
   // 丢失（0.9.51 卡面分流通约成立但链选错）。首段过 isCommentShare（与卡片分流同一判据）
   // 即按评论 wire 处理：推荐链恒独占末行（其后无文本），故从后往前挑首个 note 为空的候选；
@@ -135,7 +135,7 @@ export function degradeText(m) {
 // ① 原生 Reference（contentType 12）：内核注册了 ReferenceMsg，收到即被 decodeContent
 //    解成 .text（回复正文）+ .originMsg（重建的原消息对象），零手写 protobuf；
 // ② extra 兜底：文本消息 + proto extra 字段藏 {acsvQuote:{seqId,preview,text}} JSON，
-//    服务端零风险，对方客户端只看到可读拼接文本（imshare.sendQuote 负责拼）。
+//    服务端零风险，对方客户端只看到可读拼接文本（imsend.sendQuote 负责拼）。
 // 引用锚点 = 原消息 seqId（抽屉定位与列表 key 同源）。
 
 // 是否可被引用：有有效预览的类型（文本/分享 0、图片 1、作品卡 10001、引用 12）——引用条
@@ -188,7 +188,7 @@ export function quoteExtraOf(m) {
 }
 
 // ---------- extra 通道 wire 拼接的唯一定义处（0.9.42 收口） ----------
-// 发送侧（imshare.sendQuote）拼 wire 文本、原生页（imnative）去重判定，都从这里取，
+// 发送侧（imsend.sendQuote）拼 wire 文本、原生页（imnative）去重判定，都从这里取，
 // 两处硬编码必然漂移。拼接格式是 APP 端可读性契约：对方客户端只看得到这段纯文本
 export function quoteWirePrefix(preview) {
   return '[引用] ' + (preview || '原消息');

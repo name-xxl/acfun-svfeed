@@ -15,9 +15,9 @@ import { ubbImText } from './ubbtext.js';
 import { mountEmotButton, ensureEmotionMap, insertAtCursor } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
-import { openSharePanel } from './imshare.js';
+import { openSharePanel } from './sharepanel.js';
 // imdrawer→本模块（syncCommentVars）为单向回指（0.9.114 断 imshare→imdrawer 后不再成环）；
-// 本模块→imshare 侧均为函数、调用期才解引用，模块求值期无依赖
+// 本模块→sharepanel（原 imshare 面板族）侧均为函数、调用期才解引用，模块求值期无依赖
 
 
 // ---------- 评论抽屉 ----------

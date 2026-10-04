@@ -3,7 +3,7 @@
 // requestText(url)：文本通道（GET，SSR HTML/纯文本端点——搜索页等非 JSON 源）；
 //   mockHit 命中时取字符串（或 {html}），harness 才能回放真机 HTML 片段
 // gmRequest(opts)：GM 通道参数化出口（responseType 'json'|'text'|'arraybuffer'、自定义超时/头/
-//   二进制 data、okStatus 状态码门）——upload.js 二进制分片上传、uppage/imshare 拉文本等 GM-only
+//   二进制 data、okStatus 状态码门）——upload.js 二进制分片上传、uppage/imsend 拉文本等 GM-only
 //   场景统一走这里，勿再各自内联 GM_xmlhttpRequest 包装（0.9.35 收敛）
 import { CFG } from './cfg.js';
 

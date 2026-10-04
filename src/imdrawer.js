@@ -6,8 +6,9 @@ import { testHook } from './dbg.js';
 import {
   ensureIm, ensureConnected, ensureTracer, linkOk, forceSync,
   doSend, sendQuote, sendImage, fetchImImageBlob, fetchCards, isLogined, imShutdown,
-  prewarmIm, peekImImageBlob, setChatOpener
-} from './imshare.js';
+  prewarmIm, peekImImageBlob
+} from './imsend.js';
+import { setChatOpener } from './sharepanel.js';
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap, emotify } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
@@ -24,7 +25,7 @@ import { ICON_SVGS } from './imicons.js';
 import { AppAPI } from './appapi.js';
 
 // ---------- 私信抽屉（抖音式：列表 + 聊天两视图） ----------
-// 数据面全部复用 imshare 已验证基础设施（补丁版 SDK / 连接 / 发送 / 头像）。
+// 数据面全部复用 imsend 已验证基础设施（补丁版 SDK / 连接 / 发送 / 头像）。
 // 收发确认零事件依赖：新消息靠轮询 kernel.getMessages 增量（WS 推送由 SDK 内核自动
 // 写入缓存，推送事件仅作即时上屏的加速路径）；已读走内核级 markSessionRead。
 
@@ -279,7 +280,7 @@ function renderList(kw, ss) {
     var row = el('div', 'acsv-im-row');
     row.dataset.tid = r.targetId;
     // 头像走共享加载器（0.9.77，与分享面板同一份）：归一 + 重试 + 默认头像兜底；
-    // 旧实现手拼 src + split('?')[0] + onerror 兜底，与 imshare 同构双份（改一处漏一处）
+    // 旧实现手拼 src + split('?')[0] + onerror 兜底，与 imsend 同构双份（改一处漏一处）
     imgInto(row, card.headUrl || CFG.api.defaultAvatar, 'avatar', 'acsv-im-av');
     var mid = el('div', 'acsv-im-mid');
     var nm = el('div', 'acsv-im-name');
@@ -935,7 +936,7 @@ export function openChat(targetId) {
   openDrawerCore();
   showChat(String(targetId));
 }
-// 「捎句话」出口注册（0.9.114）：imshare 不再 import 本模块（互 import 环已断）——模块求值期
+// 「捎句话」出口注册（0.9.114）：sharepanel 不再 import 本模块（互 import 环已断）——模块求值期
 // 把 openChat 注册进去；home 页本模块必经 player→imdrawer 装载，注册必达（im-open 页哨兵在册）
 setChatOpener(openChat);
 // 抽屉是否开着（class 是唯一真源；顶栏按钮/i 键开合判据）

@@ -1,5 +1,5 @@
-// imshare.js（私信基建）单元测试：只测与页面/内核无关的纯判据——tracer 崩溃水位扫描
-//（0.9.121 修复的核心语义）。环境垫桩按 route/followbadge 惯例。
+// imsend.js（私信发送基建；0.9.123 自 imshare.js 拆出）单元测试：只测与页面/内核无关的
+// 纯判据——tracer 崩溃水位扫描（0.9.121 修复的核心语义）。环境垫桩按 route/followbadge 惯例。
 // 覆盖边界如实登记：单测钉的是水位语义（旧崩溃忽略/新崩溃命中/驱逐补偿）；live 侧
 //「旧崩溃不再误诊重建」由该语义保证，发送路径本身需真 SDK，无自动化直测。
 import { test } from 'node:test';
@@ -24,9 +24,9 @@ globalThis.document = {
     return { style: {}, setAttribute: function () { }, appendChild: function () { } };
   }
 };
-// imshare 链：cfg/net/ui/appapi/imgload/immsg/dbg（imdrawer 已于 0.9.114 断）——垫桩不足
+// imsend 链：cfg/net/ui/appapi/immsg（imgload/dbg 已随面板拆出至 sharepanel）——垫桩不足
 // 时按"先怀疑链上新触点、再扩垫桩"纪律补齐，不放宽断言
-var { tracerCrashAfter } = await import('../../src/imshare.js');
+var { tracerCrashAfter } = await import('../../src/imsend.js');
 
 var CRASH = "TypeError: Cannot read properties of undefined (reading 'context')";
 var OK = '信息发送成功';
