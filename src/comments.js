@@ -3,19 +3,18 @@ import { request } from './net.js';
 import { el, fmt, toast } from './ui.js';
 import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
-import { imgInto } from './imgload.js';
 import { commentShareWire } from './immsg.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { testHook } from './dbg.js';
 import { AppAPI } from './appapi.js';
 import { uploadImage } from './upload.js';
-import { renderCommentHtml } from './ubb.js';
 import { ubbImText } from './ubbtext.js';
 import { mountEmotButton, ensureEmotionMap, insertAtCursor } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import { openSharePanel } from './sharepanel.js';
+import { commentItemOf } from './commentkit.js'; // 条目构建单源（0.9.133 自本文件下沉）
 // imdrawer→本模块（syncCommentVars）为单向回指（0.9.114 断 imshare→imdrawer 后不再成环）；
 // 本模块→sharepanel（原 imshare 面板族）侧均为函数、调用期才解引用，模块求值期无依赖
 
@@ -23,7 +22,9 @@ import { openSharePanel } from './sharepanel.js';
 // ---------- 评论抽屉 ----------
 // A 站通用评论系统：小视频 sourceType=5（sourceId=meowId），普通视频 sourceType=3（sourceId=ac号），
 // 无需登录即可浏览；接口在 CFG.api.comment
-// UBB 渲染在 ubb.js、表情服务/面板在 emoticon.js（0.9.36 拆分，本文件回归抽屉编排）
+// UBB 渲染在 ubb.js、表情服务/面板在 emoticon.js（0.9.36 拆分，本文件回归抽屉编排）；
+// 评论条目构建/楼中楼展开于 0.9.133 下沉 commentkit.js（本文件只留管线：状态/宿主/输入条/
+// 点击委托/乐观插入/翻页——条目渲染一律经 commentItemOf(c, subMap, cmtOpts()) 单源出口）
 export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, pcursor: 'no_more', loading: false, replyTo: null, kind: 'sv' };
 
 // 评论管线 DOM 宿主（0.9.96 动态详情面板）：null = 经典抽屉（commentDrawer）。管线全经
@@ -174,100 +175,9 @@ function loadComments(sourceId, page, append) {
   });
 }
 
-function normalizeSubs(subMap, cid) {
-  if (!subMap) return [];
-  var v = subMap[String(cid)] || subMap[cid];
-  if (!v) return [];
-  if (Array.isArray(v)) return v;
-  if (v.subComments) return v.subComments;
-  return [];
-}
-
-// 原生 iconfont 字形图标（imicons.GLYPHS 登记表消费；el() 即 textContent，码点直写）
-function glyph(codepoint) {
-  return el('i', 'acsvg-glyph', codepoint);
-}
-
-function commentItem(c, subMap, sourceId) {
-  var item = el('div', 'acsv-citem');
-  // 头像 + 昵称可点击进入用户主页
-  var homeUrl = c.userId ? CFG.api.userBase + c.userId : null;
-  var avLink = el('a', 'acsv-avlink');
-  if (homeUrl) { avLink.href = homeUrl; avLink.target = '_blank'; avLink.title = '访问 ' + (c.userName || '') + ' 的空间'; }
-  // headUrl 可能是字符串或 [{cdn,url}] 数组
-  var hu = c.headUrl;
-  if (Array.isArray(hu)) hu = (hu[0] && hu[0].url) || '';
-  else if (hu && typeof hu === 'object') hu = hu.url || '';
-  // 头像走共享加载器（0.9.77）：http 老头像归一 + 重试 + 默认头像兜底（此前直吃接口值且
-  // split('?')[0]——混合内容裂图 / 签名 query 被剥，两坑同现）；类名 av 供既有尺寸规则消费
-  imgInto(avLink, typeof hu === 'string' && hu ? hu : CFG.api.defaultAvatar, 'avatar', 'av');
-  var body = el('div', 'acsv-cbody');
-  var name = el('div', 'acsv-cname');
-  if (homeUrl) {
-    var na = el('a', null, c.userName || 'AcFun用户');
-    na.href = homeUrl; na.target = '_blank';
-    name.appendChild(na);
-  } else {
-    name.appendChild(el('span', null, c.userName || 'AcFun用户'));
-  }
-  if (c.isUp) name.appendChild(el('span', 'up', 'UP'));
-  body.appendChild(name);
-  var ctext = el('div', 'acsv-ctext');
-  ctext.innerHTML = renderCommentHtml(c.content); // 内容先 esc 再 UBB 渲染（renderCommentHtml 内）
-  body.appendChild(ctext);
-  var meta = el('div', 'acsv-cmeta');
-  meta.appendChild(el('span', null, c.postDate || ''));
-  var like = null, replyBtn = null;
-  // 点赞/回复/转发三键图标统一用动态页互动区同款 iconfont 字形（imicons.GLYPHS.feed*
-  // 码点，字体抽屉内自注入）：点亮态切实心字形（feedLikeFill），颜色状态机由容器 color 驱动
-  var likeGlyph = function (on) { return glyph(on ? GLYPHS.feedLikeFill : GLYPHS.feedLike); };
-  if (commentState.kind === 'home') {
-    // 小视频模式纯浏览：点赞/回复仅推荐模式提供。
-    // 点击统一委托在 drawer list 上（见 commentListClick），这里只挂数据引用，
-    // 免得长列表每条评论两个监听器、innerHTML 重建时反复创建丢弃
-    var on0 = !!(c.isLike || c.localLike);
-    like = el('span', 'acsv-clike' + (on0 ? ' on' : ''));
-    like._g = likeGlyph(on0);
-    like.appendChild(like._g);
-    var likeN = el('span', null, fmt((c.likeCount || 0) + (c.localLike ? 1 : 0)));
-    like.appendChild(likeN);
-    like.title = '点赞评论';
-    like._c = c;
-    like._n = likeN;
-    meta.appendChild(like);
-    replyBtn = el('span', 'acsv-creplybtn');
-    replyBtn.appendChild(glyph(GLYPHS.feedComment));
-    replyBtn.appendChild(document.createTextNode('回复'));
-    replyBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户' };
-    meta.appendChild(replyBtn);
-    // 转发到私信（0.9.50，官方无此入口）：按钮只挂数据引用，弹层与发送在 commentListClick 委托
-    var fwdBtn = el('span', 'acsv-cfwdbtn');
-    fwdBtn.appendChild(glyph(GLYPHS.feedRepost));
-    fwdBtn.appendChild(document.createTextNode('转发'));
-    fwdBtn.title = '转发这条评论到私信';
-    fwdBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户', content: c.content || '' };
-    meta.appendChild(fwdBtn);
-  } else {
-    like = el('span', 'acsv-clike');
-    like.appendChild(likeGlyph(false));
-    like.appendChild(el('span', null, fmt(c.likeCount)));
-    meta.appendChild(like);
-  }
-  body.appendChild(meta);
-  var subs = normalizeSubs(subMap, c.commentId);
-  var subBox = null;
-  if (subs.length) {
-    subBox = el('div', 'acsv-csub');
-    subs.forEach(function (s) { subBox.appendChild(commentItem(s, null, sourceId)); });
-    body.appendChild(subBox);
-  }
-  if ((c.subCommentCount || 0) > subs.length) {
-    expandSubComments(body, c, subBox);
-  }
-  item.appendChild(avLink);
-  item.appendChild(body);
-  return item;
-}
+// （0.9.133 下沉）normalizeSubs / glyph / commentItem / expandSubComments → commentkit.js：
+// 全项目评论条目构建单源（view-follow 68 / detail-open 38 断言钉着类名与 DOM）；本文件经
+// commentItemOf(c, subMap, cmtOpts()) 消费——kit 无状态，mode/sourceId/stype 由 cmtOpts 注入
 
 // 评论点赞（乐观更新 + 失败回滚）；like._c/_n 由 commentItem 挂上
 function toggleCommentLike(like) {
@@ -345,38 +255,11 @@ export function commentListClick(ev) {
   }
 }
 
-// 楼中楼展开：comment/sublist 分页拉取，就地追加渲染（网页版交互）
-function expandSubComments(body, c, subBox) {
-  var more = el('button', 'acsv-cmore', '展开 ' + c.subCommentCount + ' 条回复');
-  var pcursor = '';
-  var loaded = subBox ? subBox.querySelectorAll('.acsv-citem').length : 0;
-  function appendSubs(arr) {
-    if (!arr.length) return;
-    if (!subBox) { subBox = el('div', 'acsv-csub'); body.insertBefore(subBox, more); }
-    arr.forEach(function (s) { subBox.appendChild(commentItem(s, null, commentState.sourceId)); });
-  }
-  more.addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    if (more._busy) return;
-    more._busy = true;
-    more.textContent = '展开中…';
-    request(CFG.api.commentSub + '?sourceId=' + commentState.sourceId
-      + '&sourceType=' + commentState.stype
-      + '&rootCommentId=' + c.commentId + '&pcursor=' + pcursor + '&count=' + CFG.comments.subCount, 'GET')
-      .then(function (j) {
-        more._busy = false;
-        if (!j || j.result !== 0) { more.textContent = '展开失败，点击重试'; return; }
-        appendSubs(j.subComments || []);
-        loaded += (j.subComments || []).length;
-        pcursor = j.pcursor;
-        if (!pcursor || pcursor === 'no_more' || loaded >= (c.subCommentCount || 0)) more.remove();
-        else more.textContent = '继续展开（剩 ' + ((c.subCommentCount || 0) - loaded) + ' 条）';
-      }, function () {
-        more._busy = false;
-        more.textContent = '展开失败，点击重试';
-      });
-  });
-  body.appendChild(more);
+// （0.9.133 下沉）expandSubComments → commentkit.js（搬迁注见上方条目构建处）
+
+// 评论条目渲染出口（0.9.133 抽离 commentkit 后）：把管线状态注入给无状态 kit（原为 kit 直读全局）
+function cmtOpts() {
+  return { mode: commentState.kind, sourceId: commentState.sourceId, stype: commentState.stype };
 }
 
 function renderComments(list, append, subMap, hot) {
@@ -399,7 +282,7 @@ function renderComments(list, append, subMap, hot) {
   function push(c) {
     if (seen[c.commentId]) return;
     seen[c.commentId] = 1;
-    h.list.appendChild(commentItem(c, subMap, commentState.sourceId));
+    h.list.appendChild(commentItemOf(c, subMap, cmtOpts()));
   }
   // 热门评论置顶（网页版同款排序语义：hotComments + 最新流）
   if (!append && hot && hot.length) {
@@ -482,7 +365,7 @@ function insertLocalComment(c, isReply) {
   var list = h.list;
   var tip = list.querySelector('.acsv-drawer-tip');
   if (tip) tip.remove(); // 清掉“还没有评论…”空提示
-  var node = commentItem(c, null, commentState.sourceId);
+  var node = commentItemOf(c, null, cmtOpts());
   var divider = list.querySelector('.acsv-hot-divider');
   if (divider) divider.insertAdjacentElement('afterend', node);
   // 面板宿主的正文 pin 占列表首位：新评论插 pin 之后，不能盖住正文

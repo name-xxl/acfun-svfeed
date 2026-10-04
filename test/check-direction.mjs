@@ -39,11 +39,12 @@ const LEAF_SHARED = new Set(['immsg.js', 'imicons.js', 'ubbtext.js']);
 // 口径 B 用：特性域清单（0.9.117 定版；新增特性模块时同步。0.9.124 加 rowkit.js——视图层
 // 行卡 kit，与 followview/squareview 同层：它依赖 momentbar/comments 属特性层内互调，非反向；
 // 0.9.128 加 squarefeed.js（广场列表机械工厂，视图家族共享件）与 memberplaza.js（原生页
-// 入口/内嵌宿主）——同为特性层，与 rowkit/comments 的依赖属层内互调）
+// 入口/内嵌宿主）——同为特性层，与 rowkit/comments 的依赖属层内互调；0.9.133 加 commentkit.js
+//——评论条目渲染 kit，与 comments.js 同层（管线→kit 单向））
 const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 'momentbar.js',
   'followbadge.js', 'comments.js', 'imdrawer.js', 'imnative.js', 'mypage.js', 'zone.js',
   'searchview.js', 'playlayer.js', 'settingspanel.js', 'uppage.js', 'nav.js', 'rowkit.js',
-  'squareview.js', 'squarefeed.js', 'memberplaza.js']);
+  'squareview.js', 'squarefeed.js', 'memberplaza.js', 'commentkit.js']);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 
 // 在册项（0.9.119 起清空——data→ubb 随手下沉完成，方向卫生库存归零；新增项=需要一次裁决，

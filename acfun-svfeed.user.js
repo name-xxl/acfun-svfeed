@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.132
+// @version      0.9.133
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -2499,123 +2499,6 @@
     // 粉丝数（原生 up-card 次数据位；音柱/人形字形实测渲染核对）
   };
 
-  // src/imgload.js
-  var IMG_POLICY = {
-    // 网格封面（搜索/历史/收藏）：重试 + 终败暗字占位 + 淡入
-    grid: { retry: true, fade: true, ph: "封面加载失败" },
-    // 行缩略图（榜单/分区）：重试；尺寸小放不下字，终败静默留灰底
-    thumb: { retry: true },
-    // 头像（UP 卡/资料头）：失败回落默认头像；默认头像再失败则隐藏
-    avatar: { retry: true, fallback: CFG.api.defaultAvatar },
-    // 空间页投稿格：重试 + 淡入（.acsv-space-cell img 的 ld 约定；顺带修掉失败即
-    // 永久 opacity:0 隐身空卡的旧缺陷——旧代码只有 load 会加 ld，error 无人管）
-    space: { retry: true, fade: true }
-  };
-  var MEMO_MAX = 200;
-  var MEMO_TTL = 10 * 6e4;
-  var failMemo = /* @__PURE__ */ new Map();
-  function memoMark(url) {
-    failMemo.set(url, Date.now());
-    memoTrim(failMemo, MEMO_MAX);
-  }
-  function policyOf(name) {
-    if (typeof name !== "string") return name || {};
-    var p = IMG_POLICY[name];
-    if (p) return p;
-    if (false) console.warn("[acsv-img] 未知图片策略名：" + name + "（该图面退化为基础重试）");
-    return {};
-  }
-  function imgInto(host3, rawUrl, policy, cls) {
-    if (!host3) return null;
-    var pol = policyOf(policy);
-    var plan = coverAttempts(rawUrl);
-    if (!plan.length) return null;
-    var img = el("img");
-    img.alt = "";
-    img.loading = "lazy";
-    img.decoding = "async";
-    if (cls) img.className = cls;
-    host3.appendChild(img);
-    var primary = plan[0].url;
-    var fb = pol.fallback && coverUrl(pol.fallback) !== primary ? coverUrl(pol.fallback) : "";
-    var i = 0, timer3 = null, fbUsed = false;
-    var memo = memoState(failMemo, primary, Date.now(), MEMO_TTL);
-    if (memo === "dead") {
-      if (fb) {
-        plan = [{ url: fb, ref: "no-referrer", delay: 0 }];
-        fbUsed = true;
-      } else {
-        return terminal();
-      }
-    }
-    img.addEventListener("load", function() {
-      if (timer3) {
-        clearTimeout(timer3);
-        timer3 = null;
-      }
-      if (pol.fade) img.classList.add("ld");
-    });
-    img.addEventListener("error", function() {
-      if (!img.isConnected) return;
-      if (pol.retry !== false && i + 1 < plan.length) {
-        i++;
-        fire();
-        return;
-      }
-      if (fb && !fbUsed) {
-        fbUsed = true;
-        plan = [{ url: fb, ref: "no-referrer", delay: 0 }];
-        i = 0;
-        fire();
-        return;
-      }
-      terminal();
-    });
-    fire();
-    function fire() {
-      var a = plan[i];
-      img.referrerPolicy = a.ref;
-      if (a.delay) {
-        timer3 = setTimeout(function() {
-          timer3 = null;
-          if (img.isConnected) img.src = a.url;
-        }, a.delay);
-      } else {
-        img.src = a.url;
-      }
-    }
-    function terminal() {
-      if (memo !== "dead") memoMark(primary);
-      img.classList.add("acsv-imgfail");
-      img.style.display = "none";
-      if (pol.ph) host3.appendChild(el("div", "acsv-gph", pol.ph));
-      return img;
-    }
-  }
-  testHook("imgPolicy", function(name) {
-    return JSON.stringify(policyOf(name));
-  });
-  var obsByMargin = {};
-  function lazyObserve(el2, fn, rootMargin) {
-    var rm = rootMargin || "200px 0px";
-    var ob = obsByMargin[rm];
-    if (!ob) {
-      ob = obsByMargin[rm] = new IntersectionObserver(function(entries, self) {
-        entries.forEach(function(en) {
-          if (!en.isIntersecting) return;
-          self.unobserve(en.target);
-          var f = en.target.__acsvImgLoad;
-          if (f) {
-            en.target.__acsvImgLoad = null;
-            f();
-          }
-        });
-      }, { rootMargin: rm });
-    }
-    el2.__acsvImgLoad = fn;
-    ob.observe(el2);
-  }
-
   // src/immsg.js
   function msgContentType(m) {
     try {
@@ -3259,58 +3142,6 @@
     });
   }
 
-  // src/ubb.js
-  var IMG_CDN_OK = /^https?:\/\/([\w.-]+\.(aixifan\.com|acfun\.cn)|preview\.ndcsk\.com\/ksc2)\//;
-  function renderCommentHtml(content) {
-    var h = esc(content || "");
-    h = h.replace(/\[表情\]/g, function() {
-      return emotPlaceholderHtml("", "");
-    });
-    h = h.replace(/\[emot=acfun,(\d+)\/?\]/g, function(_, id) {
-      var hit = emotImgOf("acfun", id);
-      return hit ? hit.html : emotPlaceholderHtml("acfun", id);
-    });
-    h = h.replace(/\[emot=(\w+),(\d+)\/?\]/g, function(_, pkg, id) {
-      var hit = emotImgOf(pkg, id);
-      return hit ? hit.html : "[表情]";
-    });
-    h = h.replace(/\[img=[^\]]*\](https?:\/\/[^\["']+?)\[\/img\]/g, function(_, u) {
-      return IMG_CDN_OK.test(u) ? '<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">' : u;
-    });
-    h = h.replace(/\[img\](https?:\/\/[^\["']+?)\[\/img\]/g, function(_, u) {
-      return IMG_CDN_OK.test(u) ? '<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">' : u;
-    });
-    h = h.replace(/\[at uid=(\d+)\]@?(.*?)\[\/at\]/g, function(_, uid, name) {
-      return '<a class="ubb-at" href="' + CFG.api.userBase + uid + '" target="_blank" rel="noopener">@' + name + "</a>";
-    });
-    h = h.replace(/#([^#\s]{1,30}?)#/g, function(_, topic) {
-      return '<a class="ubb-topic" href="https://www.acfun.cn/search?keyword=' + encodeURIComponent(topic) + '" target="_blank" rel="noopener">#' + topic + "#</a>";
-    });
-    h = h.replace(/\b(?:([va])\/)?(ac\d{4,})\b/gi, function(_, prefix, id) {
-      var type = (prefix || "a").toLowerCase();
-      var display = prefix ? prefix + "/" + id : id;
-      return '<a class="ubb-ac" href="https://www.acfun.cn/' + type + "/" + id + '" target="_blank" rel="noopener">' + display + "</a>";
-    });
-    h = h.replace(/m\.acfun\.cn\/communityCircle\/moment\/(\d+)/g, function(_, id) {
-      return '<a class="ubb-ac" href="' + CFG.api.momentBase + id + '" target="_blank" rel="noopener">am' + id + "</a>";
-    });
-    h = h.replace(/\[ac=(\d+)(?:@(\w+))?\]([\s\S]*?)\[\/ac\]/gi, function(_, id, suffix, inner) {
-      var type = String(suffix || "").toLowerCase() === "video" ? "v" : "a";
-      return '<a class="ubb-ac" href="https://www.acfun.cn/' + type + "/ac" + id + '" target="_blank" rel="noopener">' + inner.replace(/<[^>]+>/g, "") + "</a>";
-    });
-    h = h.replace(/\[resource id=(\d+) type=(\d+)[^\]]*\]([\s\S]*?)\[\/resource\]/gi, function(_, id, type, inner) {
-      var base = type === "2" ? CFG.api.videoBase : CFG.api.articleBase;
-      return '<a class="ubb-res" href="' + base + id + '" target="_blank" rel="noopener">' + inner.replace(/<[^>]+>/g, "") + "</a>";
-    });
-    h = h.replace(/\[color=(#[0-9a-fA-F]{3,8})\]([\s\S]*?)\[\/color\]/g, function(_, cv, inner) {
-      return '<span style="color:' + cv + '">' + inner + "</span>";
-    });
-    return h;
-  }
-  function ubbQuoteHtml(author, raw) {
-    return esc("@" + (author || "") + "：") + renderCommentHtml(raw).replace(/<a\b[^>]*>/g, "<span>").replace(/<\/a>/g, "</span>");
-  }
-
   // src/imgview.js
   var imgview = null;
   function closeImageViewer() {
@@ -3403,6 +3234,123 @@
     box.appendChild(label);
     box.appendChild(x);
     return { box, label };
+  }
+
+  // src/imgload.js
+  var IMG_POLICY = {
+    // 网格封面（搜索/历史/收藏）：重试 + 终败暗字占位 + 淡入
+    grid: { retry: true, fade: true, ph: "封面加载失败" },
+    // 行缩略图（榜单/分区）：重试；尺寸小放不下字，终败静默留灰底
+    thumb: { retry: true },
+    // 头像（UP 卡/资料头）：失败回落默认头像；默认头像再失败则隐藏
+    avatar: { retry: true, fallback: CFG.api.defaultAvatar },
+    // 空间页投稿格：重试 + 淡入（.acsv-space-cell img 的 ld 约定；顺带修掉失败即
+    // 永久 opacity:0 隐身空卡的旧缺陷——旧代码只有 load 会加 ld，error 无人管）
+    space: { retry: true, fade: true }
+  };
+  var MEMO_MAX = 200;
+  var MEMO_TTL = 10 * 6e4;
+  var failMemo = /* @__PURE__ */ new Map();
+  function memoMark(url) {
+    failMemo.set(url, Date.now());
+    memoTrim(failMemo, MEMO_MAX);
+  }
+  function policyOf(name) {
+    if (typeof name !== "string") return name || {};
+    var p = IMG_POLICY[name];
+    if (p) return p;
+    if (false) console.warn("[acsv-img] 未知图片策略名：" + name + "（该图面退化为基础重试）");
+    return {};
+  }
+  function imgInto(host3, rawUrl, policy, cls) {
+    if (!host3) return null;
+    var pol = policyOf(policy);
+    var plan = coverAttempts(rawUrl);
+    if (!plan.length) return null;
+    var img = el("img");
+    img.alt = "";
+    img.loading = "lazy";
+    img.decoding = "async";
+    if (cls) img.className = cls;
+    host3.appendChild(img);
+    var primary = plan[0].url;
+    var fb = pol.fallback && coverUrl(pol.fallback) !== primary ? coverUrl(pol.fallback) : "";
+    var i = 0, timer3 = null, fbUsed = false;
+    var memo = memoState(failMemo, primary, Date.now(), MEMO_TTL);
+    if (memo === "dead") {
+      if (fb) {
+        plan = [{ url: fb, ref: "no-referrer", delay: 0 }];
+        fbUsed = true;
+      } else {
+        return terminal();
+      }
+    }
+    img.addEventListener("load", function() {
+      if (timer3) {
+        clearTimeout(timer3);
+        timer3 = null;
+      }
+      if (pol.fade) img.classList.add("ld");
+    });
+    img.addEventListener("error", function() {
+      if (!img.isConnected) return;
+      if (pol.retry !== false && i + 1 < plan.length) {
+        i++;
+        fire();
+        return;
+      }
+      if (fb && !fbUsed) {
+        fbUsed = true;
+        plan = [{ url: fb, ref: "no-referrer", delay: 0 }];
+        i = 0;
+        fire();
+        return;
+      }
+      terminal();
+    });
+    fire();
+    function fire() {
+      var a = plan[i];
+      img.referrerPolicy = a.ref;
+      if (a.delay) {
+        timer3 = setTimeout(function() {
+          timer3 = null;
+          if (img.isConnected) img.src = a.url;
+        }, a.delay);
+      } else {
+        img.src = a.url;
+      }
+    }
+    function terminal() {
+      if (memo !== "dead") memoMark(primary);
+      img.classList.add("acsv-imgfail");
+      img.style.display = "none";
+      if (pol.ph) host3.appendChild(el("div", "acsv-gph", pol.ph));
+      return img;
+    }
+  }
+  testHook("imgPolicy", function(name) {
+    return JSON.stringify(policyOf(name));
+  });
+  var obsByMargin = {};
+  function lazyObserve(el2, fn, rootMargin) {
+    var rm = rootMargin || "200px 0px";
+    var ob = obsByMargin[rm];
+    if (!ob) {
+      ob = obsByMargin[rm] = new IntersectionObserver(function(entries, self) {
+        entries.forEach(function(en) {
+          if (!en.isIntersecting) return;
+          self.unobserve(en.target);
+          var f = en.target.__acsvImgLoad;
+          if (f) {
+            en.target.__acsvImgLoad = null;
+            f();
+          }
+        });
+      }, { rootMargin: rm });
+    }
+    el2.__acsvImgLoad = fn;
+    ob.observe(el2);
   }
 
   // src/imsend.js
@@ -4448,6 +4396,187 @@
     return !!chatOpener;
   });
 
+  // src/ubb.js
+  var IMG_CDN_OK = /^https?:\/\/([\w.-]+\.(aixifan\.com|acfun\.cn)|preview\.ndcsk\.com\/ksc2)\//;
+  function renderCommentHtml(content) {
+    var h = esc(content || "");
+    h = h.replace(/\[表情\]/g, function() {
+      return emotPlaceholderHtml("", "");
+    });
+    h = h.replace(/\[emot=acfun,(\d+)\/?\]/g, function(_, id) {
+      var hit = emotImgOf("acfun", id);
+      return hit ? hit.html : emotPlaceholderHtml("acfun", id);
+    });
+    h = h.replace(/\[emot=(\w+),(\d+)\/?\]/g, function(_, pkg, id) {
+      var hit = emotImgOf(pkg, id);
+      return hit ? hit.html : "[表情]";
+    });
+    h = h.replace(/\[img=[^\]]*\](https?:\/\/[^\["']+?)\[\/img\]/g, function(_, u) {
+      return IMG_CDN_OK.test(u) ? '<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">' : u;
+    });
+    h = h.replace(/\[img\](https?:\/\/[^\["']+?)\[\/img\]/g, function(_, u) {
+      return IMG_CDN_OK.test(u) ? '<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">' : u;
+    });
+    h = h.replace(/\[at uid=(\d+)\]@?(.*?)\[\/at\]/g, function(_, uid, name) {
+      return '<a class="ubb-at" href="' + CFG.api.userBase + uid + '" target="_blank" rel="noopener">@' + name + "</a>";
+    });
+    h = h.replace(/#([^#\s]{1,30}?)#/g, function(_, topic) {
+      return '<a class="ubb-topic" href="https://www.acfun.cn/search?keyword=' + encodeURIComponent(topic) + '" target="_blank" rel="noopener">#' + topic + "#</a>";
+    });
+    h = h.replace(/\b(?:([va])\/)?(ac\d{4,})\b/gi, function(_, prefix, id) {
+      var type = (prefix || "a").toLowerCase();
+      var display = prefix ? prefix + "/" + id : id;
+      return '<a class="ubb-ac" href="https://www.acfun.cn/' + type + "/" + id + '" target="_blank" rel="noopener">' + display + "</a>";
+    });
+    h = h.replace(/m\.acfun\.cn\/communityCircle\/moment\/(\d+)/g, function(_, id) {
+      return '<a class="ubb-ac" href="' + CFG.api.momentBase + id + '" target="_blank" rel="noopener">am' + id + "</a>";
+    });
+    h = h.replace(/\[ac=(\d+)(?:@(\w+))?\]([\s\S]*?)\[\/ac\]/gi, function(_, id, suffix, inner) {
+      var type = String(suffix || "").toLowerCase() === "video" ? "v" : "a";
+      return '<a class="ubb-ac" href="https://www.acfun.cn/' + type + "/ac" + id + '" target="_blank" rel="noopener">' + inner.replace(/<[^>]+>/g, "") + "</a>";
+    });
+    h = h.replace(/\[resource id=(\d+) type=(\d+)[^\]]*\]([\s\S]*?)\[\/resource\]/gi, function(_, id, type, inner) {
+      var base = type === "2" ? CFG.api.videoBase : CFG.api.articleBase;
+      return '<a class="ubb-res" href="' + base + id + '" target="_blank" rel="noopener">' + inner.replace(/<[^>]+>/g, "") + "</a>";
+    });
+    h = h.replace(/\[color=(#[0-9a-fA-F]{3,8})\]([\s\S]*?)\[\/color\]/g, function(_, cv, inner) {
+      return '<span style="color:' + cv + '">' + inner + "</span>";
+    });
+    return h;
+  }
+  function ubbQuoteHtml(author, raw) {
+    return esc("@" + (author || "") + "：") + renderCommentHtml(raw).replace(/<a\b[^>]*>/g, "<span>").replace(/<\/a>/g, "</span>");
+  }
+
+  // src/commentkit.js
+  function normalizeSubs(subMap, cid) {
+    if (!subMap) return [];
+    var v = subMap[String(cid)] || subMap[cid];
+    if (!v) return [];
+    if (Array.isArray(v)) return v;
+    if (v.subComments) return v.subComments;
+    return [];
+  }
+  function glyph(codepoint) {
+    return el("i", "acsvg-glyph", codepoint);
+  }
+  function commentItemOf(c, subMap, opts) {
+    var item = el("div", "acsv-citem");
+    var homeUrl = c.userId ? CFG.api.userBase + c.userId : null;
+    var avLink = el("a", "acsv-avlink");
+    if (homeUrl) {
+      avLink.href = homeUrl;
+      avLink.target = "_blank";
+      avLink.title = "访问 " + (c.userName || "") + " 的空间";
+    }
+    var hu = c.headUrl;
+    if (Array.isArray(hu)) hu = hu[0] && hu[0].url || "";
+    else if (hu && typeof hu === "object") hu = hu.url || "";
+    imgInto(avLink, typeof hu === "string" && hu ? hu : CFG.api.defaultAvatar, "avatar", "av");
+    var body = el("div", "acsv-cbody");
+    var name = el("div", "acsv-cname");
+    if (homeUrl) {
+      var na = el("a", null, c.userName || "AcFun用户");
+      na.href = homeUrl;
+      na.target = "_blank";
+      name.appendChild(na);
+    } else {
+      name.appendChild(el("span", null, c.userName || "AcFun用户"));
+    }
+    if (c.isUp) name.appendChild(el("span", "up", "UP"));
+    body.appendChild(name);
+    var ctext = el("div", "acsv-ctext");
+    ctext.innerHTML = renderCommentHtml(c.content);
+    body.appendChild(ctext);
+    var meta = el("div", "acsv-cmeta");
+    meta.appendChild(el("span", null, c.postDate || ""));
+    var like = null, replyBtn = null;
+    var likeGlyph = function(on) {
+      return glyph(on ? GLYPHS.feedLikeFill : GLYPHS.feedLike);
+    };
+    if (opts.mode === "home") {
+      var on0 = !!(c.isLike || c.localLike);
+      like = el("span", "acsv-clike" + (on0 ? " on" : ""));
+      like._g = likeGlyph(on0);
+      like.appendChild(like._g);
+      var likeN = el("span", null, fmt((c.likeCount || 0) + (c.localLike ? 1 : 0)));
+      like.appendChild(likeN);
+      like.title = "点赞评论";
+      like._c = c;
+      like._n = likeN;
+      meta.appendChild(like);
+      replyBtn = el("span", "acsv-creplybtn");
+      replyBtn.appendChild(glyph(GLYPHS.feedComment));
+      replyBtn.appendChild(document.createTextNode("回复"));
+      replyBtn._target = { id: String(c.commentId), name: c.userName || "AcFun用户" };
+      meta.appendChild(replyBtn);
+      var fwdBtn = el("span", "acsv-cfwdbtn");
+      fwdBtn.appendChild(glyph(GLYPHS.feedRepost));
+      fwdBtn.appendChild(document.createTextNode("转发"));
+      fwdBtn.title = "转发这条评论到私信";
+      fwdBtn._target = { id: String(c.commentId), name: c.userName || "AcFun用户", content: c.content || "" };
+      meta.appendChild(fwdBtn);
+    } else {
+      like = el("span", "acsv-clike");
+      like.appendChild(likeGlyph(false));
+      like.appendChild(el("span", null, fmt(c.likeCount)));
+      meta.appendChild(like);
+    }
+    body.appendChild(meta);
+    var subs2 = normalizeSubs(subMap, c.commentId);
+    var subBox = null;
+    if (subs2.length) {
+      subBox = el("div", "acsv-csub");
+      subs2.forEach(function(s) {
+        subBox.appendChild(commentItemOf(s, null, opts));
+      });
+      body.appendChild(subBox);
+    }
+    if ((c.subCommentCount || 0) > subs2.length) {
+      expandSubComments(body, c, subBox, opts);
+    }
+    item.appendChild(avLink);
+    item.appendChild(body);
+    return item;
+  }
+  function expandSubComments(body, c, subBox, opts) {
+    var more = el("button", "acsv-cmore", "展开 " + c.subCommentCount + " 条回复");
+    var pcursor2 = "";
+    var loaded = subBox ? subBox.querySelectorAll(".acsv-citem").length : 0;
+    function appendSubs(arr) {
+      if (!arr.length) return;
+      if (!subBox) {
+        subBox = el("div", "acsv-csub");
+        body.insertBefore(subBox, more);
+      }
+      arr.forEach(function(s) {
+        subBox.appendChild(commentItemOf(s, null, opts));
+      });
+    }
+    more.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      if (more._busy) return;
+      more._busy = true;
+      more.textContent = "展开中…";
+      request(CFG.api.commentSub + "?sourceId=" + opts.sourceId + "&sourceType=" + opts.stype + "&rootCommentId=" + c.commentId + "&pcursor=" + pcursor2 + "&count=" + CFG.comments.subCount, "GET").then(function(j) {
+        more._busy = false;
+        if (!j || j.result !== 0) {
+          more.textContent = "展开失败，点击重试";
+          return;
+        }
+        appendSubs(j.subComments || []);
+        loaded += (j.subComments || []).length;
+        pcursor2 = j.pcursor;
+        if (!pcursor2 || pcursor2 === "no_more" || loaded >= (c.subCommentCount || 0)) more.remove();
+        else more.textContent = "继续展开（剩 " + ((c.subCommentCount || 0) - loaded) + " 条）";
+      }, function() {
+        more._busy = false;
+        more.textContent = "展开失败，点击重试";
+      });
+    });
+    body.appendChild(more);
+  }
+
   // src/comments.js
   var commentState = { sourceId: 0, stype: 5, shareUrl: "", page: 1, totalPage: 1, pcursor: "no_more", loading: false, replyTo: null, kind: "sv" };
   var host = null;
@@ -4567,96 +4696,6 @@
       renderCommentTip("评论加载失败，请重试");
     });
   }
-  function normalizeSubs(subMap, cid) {
-    if (!subMap) return [];
-    var v = subMap[String(cid)] || subMap[cid];
-    if (!v) return [];
-    if (Array.isArray(v)) return v;
-    if (v.subComments) return v.subComments;
-    return [];
-  }
-  function glyph(codepoint) {
-    return el("i", "acsvg-glyph", codepoint);
-  }
-  function commentItem(c, subMap, sourceId) {
-    var item = el("div", "acsv-citem");
-    var homeUrl = c.userId ? CFG.api.userBase + c.userId : null;
-    var avLink = el("a", "acsv-avlink");
-    if (homeUrl) {
-      avLink.href = homeUrl;
-      avLink.target = "_blank";
-      avLink.title = "访问 " + (c.userName || "") + " 的空间";
-    }
-    var hu = c.headUrl;
-    if (Array.isArray(hu)) hu = hu[0] && hu[0].url || "";
-    else if (hu && typeof hu === "object") hu = hu.url || "";
-    imgInto(avLink, typeof hu === "string" && hu ? hu : CFG.api.defaultAvatar, "avatar", "av");
-    var body = el("div", "acsv-cbody");
-    var name = el("div", "acsv-cname");
-    if (homeUrl) {
-      var na = el("a", null, c.userName || "AcFun用户");
-      na.href = homeUrl;
-      na.target = "_blank";
-      name.appendChild(na);
-    } else {
-      name.appendChild(el("span", null, c.userName || "AcFun用户"));
-    }
-    if (c.isUp) name.appendChild(el("span", "up", "UP"));
-    body.appendChild(name);
-    var ctext = el("div", "acsv-ctext");
-    ctext.innerHTML = renderCommentHtml(c.content);
-    body.appendChild(ctext);
-    var meta = el("div", "acsv-cmeta");
-    meta.appendChild(el("span", null, c.postDate || ""));
-    var like = null, replyBtn = null;
-    var likeGlyph = function(on) {
-      return glyph(on ? GLYPHS.feedLikeFill : GLYPHS.feedLike);
-    };
-    if (commentState.kind === "home") {
-      var on0 = !!(c.isLike || c.localLike);
-      like = el("span", "acsv-clike" + (on0 ? " on" : ""));
-      like._g = likeGlyph(on0);
-      like.appendChild(like._g);
-      var likeN = el("span", null, fmt((c.likeCount || 0) + (c.localLike ? 1 : 0)));
-      like.appendChild(likeN);
-      like.title = "点赞评论";
-      like._c = c;
-      like._n = likeN;
-      meta.appendChild(like);
-      replyBtn = el("span", "acsv-creplybtn");
-      replyBtn.appendChild(glyph(GLYPHS.feedComment));
-      replyBtn.appendChild(document.createTextNode("回复"));
-      replyBtn._target = { id: String(c.commentId), name: c.userName || "AcFun用户" };
-      meta.appendChild(replyBtn);
-      var fwdBtn = el("span", "acsv-cfwdbtn");
-      fwdBtn.appendChild(glyph(GLYPHS.feedRepost));
-      fwdBtn.appendChild(document.createTextNode("转发"));
-      fwdBtn.title = "转发这条评论到私信";
-      fwdBtn._target = { id: String(c.commentId), name: c.userName || "AcFun用户", content: c.content || "" };
-      meta.appendChild(fwdBtn);
-    } else {
-      like = el("span", "acsv-clike");
-      like.appendChild(likeGlyph(false));
-      like.appendChild(el("span", null, fmt(c.likeCount)));
-      meta.appendChild(like);
-    }
-    body.appendChild(meta);
-    var subs2 = normalizeSubs(subMap, c.commentId);
-    var subBox = null;
-    if (subs2.length) {
-      subBox = el("div", "acsv-csub");
-      subs2.forEach(function(s) {
-        subBox.appendChild(commentItem(s, null, sourceId));
-      });
-      body.appendChild(subBox);
-    }
-    if ((c.subCommentCount || 0) > subs2.length) {
-      expandSubComments(body, c, subBox);
-    }
-    item.appendChild(avLink);
-    item.appendChild(body);
-    return item;
-  }
   function toggleCommentLike(like) {
     var c = like._c;
     if (!c || c.likeBusy) return;
@@ -4717,42 +4756,8 @@
       }
     }
   }
-  function expandSubComments(body, c, subBox) {
-    var more = el("button", "acsv-cmore", "展开 " + c.subCommentCount + " 条回复");
-    var pcursor2 = "";
-    var loaded = subBox ? subBox.querySelectorAll(".acsv-citem").length : 0;
-    function appendSubs(arr) {
-      if (!arr.length) return;
-      if (!subBox) {
-        subBox = el("div", "acsv-csub");
-        body.insertBefore(subBox, more);
-      }
-      arr.forEach(function(s) {
-        subBox.appendChild(commentItem(s, null, commentState.sourceId));
-      });
-    }
-    more.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      if (more._busy) return;
-      more._busy = true;
-      more.textContent = "展开中…";
-      request(CFG.api.commentSub + "?sourceId=" + commentState.sourceId + "&sourceType=" + commentState.stype + "&rootCommentId=" + c.commentId + "&pcursor=" + pcursor2 + "&count=" + CFG.comments.subCount, "GET").then(function(j) {
-        more._busy = false;
-        if (!j || j.result !== 0) {
-          more.textContent = "展开失败，点击重试";
-          return;
-        }
-        appendSubs(j.subComments || []);
-        loaded += (j.subComments || []).length;
-        pcursor2 = j.pcursor;
-        if (!pcursor2 || pcursor2 === "no_more" || loaded >= (c.subCommentCount || 0)) more.remove();
-        else more.textContent = "继续展开（剩 " + ((c.subCommentCount || 0) - loaded) + " 条）";
-      }, function() {
-        more._busy = false;
-        more.textContent = "展开失败，点击重试";
-      });
-    });
-    body.appendChild(more);
+  function cmtOpts() {
+    return { mode: commentState.kind, sourceId: commentState.sourceId, stype: commentState.stype };
   }
   function renderComments(list, append, subMap, hot) {
     var h = curHost();
@@ -4774,7 +4779,7 @@
     function push(c) {
       if (seen[c.commentId]) return;
       seen[c.commentId] = 1;
-      h.list.appendChild(commentItem(c, subMap, commentState.sourceId));
+      h.list.appendChild(commentItemOf(c, subMap, cmtOpts()));
     }
     if (!append && hot && hot.length) {
       h.list.appendChild(el("div", "acsv-hot-head", "热门评论"));
@@ -4846,7 +4851,7 @@
     var list = h.list;
     var tip = list.querySelector(".acsv-drawer-tip");
     if (tip) tip.remove();
-    var node = commentItem(c, null, commentState.sourceId);
+    var node = commentItemOf(c, null, cmtOpts());
     var divider = list.querySelector(".acsv-hot-divider");
     if (divider) divider.insertAdjacentElement("afterend", node);
     else if (h.pin && h.pin.parentNode === list) list.insertBefore(node, h.pin.nextSibling);
@@ -9103,7 +9108,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.132" : "");
+    return normVer(true ? "0.9.133" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11655,7 +11660,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.132：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.133：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

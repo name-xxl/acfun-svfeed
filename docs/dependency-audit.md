@@ -83,3 +83,19 @@ feedstore.js → player.js → input.js → feedstore.js
 |---|---|---|
 | `slide→comments` | **已修（0.9.118）** | 接线自附：slide 只建空壳+注册句柄（`setCommentDrawer`）；comments 首次打开时自附关闭键/列表委托（标记打在抽屉对象上，重挂载各自绑）——边因「slide 不再 import」而死。评论列表委托分支的行为面在全仓本就零覆盖（harness 不 mock comment/list，既有缺口），自附执行由 play-deep 关闭键哨兵钉住（两处同一次调用） |
 | `data→ubb` | **已修（0.9.119）** | 随手下沉：`ubbImText`/`ubbPlain` 纯投影族独立为 `ubbtext.js`（零依赖），data/momentbar/comments 改道——契约层只碰纯逻辑；ubb.js 只留渲染侧 |
+
+## 七、0.9.133：评论条目 kit 抽离（模块拆分台账）
+
+- **由头**：评论观感追平（名字等级色/头像框/设备/楼层/回复前缀）动工前先盘定「评论渲染共几处」
+  ——全仓审计结论：**条目渲染仅一处**（comments.js `commentItem`，4 个内部调用点：楼中楼递归/
+  展开追加/首屏翻页/发送后乐观插入；抽屉、行内、详情面板三宿主全经它），内容卡（imcard
+  `cshareCard`）亦已单源；真正的耦合点是 kit 直读全局 `commentState`（kind 分叉 / sublist 的
+  sourceId·stype）与浅色皮肤并行调色板。
+- **拆法**（同 cards.js 0.9.109 / rowkit.js 0.9.124 纪律）：`commentkit.js` = `commentItemOf`（唯一
+  导出）+ `expandSubComments` + `normalizeSubs`/`glyph`（内部件不导出）；**无状态**——mode/
+  sourceId/stype 经 opts 注入（comments.js 侧 `cmtOpts()` 单源出口）。点击委托与 back-refs 契约
+  （`_c/_n/_target`）原样留在既有位置；边方向：comments → commentkit 单向（kit 只依赖基建
+  cfg/net/ui/imicons/imgload/ubb）。
+- **机器证明**：代码行多重集比对——缺失 10 行全为签名/全局读替换点（commentItem→commentItemOf、
+  commentState.kind→opts.mode、sourceId/stype→opts.*、两处调用点），多出 18 行全为 imports/新
+  签名/opts 替换/`cmtOpts`（逐行可控）；view-follow 68 / detail-open 38 断言原样全绿 = 零漂移。

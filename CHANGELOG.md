@@ -3,6 +3,22 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.133（2026-10-04）· 评论条目 kit 抽离（commentkit.js；观感追平的动工前置）
+
+- **由头**（用户问「评论区渲染卡片共有几处？能否抽离统一处理」）：全仓审计结论——**条目渲染
+  仅一处**（comments.js `commentItem`，4 个内部调用点；抽屉/行内/详情面板三宿主全经它；发送后
+  乐观插入同源），评论内容卡（imcard `cshareCard`）亦已单源；真正的耦合点是 kit 直读全局
+  `commentState`（交互态 kind 分叉 / sublist 的 sourceId·stype）与浅色皮肤并行调色板。
+- **拆法**（同 cards.js 0.9.109 / rowkit.js 0.9.124 纪律，逐字搬运零逻辑改动）：新
+  `commentkit.js` = `commentItemOf`（唯一导出）+ `expandSubComments` + `normalizeSubs`/`glyph`
+  （内部件不导出）；**无状态**——mode/sourceId/stype 经 opts 注入，comments.js 侧 `cmtOpts()`
+  单源出口；点击委托与 back-refs 契约（`_c/_n/_target`）原样留既有位置。comments.js 只留管线
+  （状态/宿主/输入条/委托/乐观插入/翻页）。
+- **机器证明**：代码行多重集比对——缺失 10 行全为签名/全局读替换点，多出 18 行全为 imports/
+  新签名/opts 替换/`cmtOpts`（逐行可控）；view-follow 68 / detail-open 38 断言原样全绿。
+  配套：README 模块表+依赖图（comments→commentkit 单向、commentkit→imicons/imgload/ubb）、
+  check-direction 特性清单、docs/dependency-audit.md §七 台账。
+
 ### 0.9.132（2026-10-04）· 撤除「动态广场」推广条（用户裁决：多余的设计）
 
 - **裁决**（用户实报「关注动态的『按am号查找动态，试试动态广场』的提示可以删了，多余的设计」）：
