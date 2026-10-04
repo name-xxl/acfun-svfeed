@@ -122,3 +122,39 @@ export function teardownVideo(v) {
 export function sweepSlideVideos(slide) {
   Array.prototype.forEach.call(slide.querySelectorAll('video'), teardownVideo);
 }
+
+// ---------- 外点收起（0.9.147 收口） ----------
+// 面板展开后点**面板外任意位置**即收起。两条硬规矩（都是实报病灶换来的）：
+//   ① **捕获相监听**：页面里大量 stopPropagation（控件条/弹幕输入框/
+//     评论操作键/rail 按键……都有），冒泡相会被吞 ⇒ 拿 capture 检。
+//   ② **监听常驻到面板拆除**（旧实现是"一次性 + 先摘监听再判内点" ⇒ 点一下面板内部
+//     就把监听吃掉，之后再点外面永远收不起来；且面板内点击不该算外点）。
+//   面板从 DOM 拆掉后下一次点击自清理（无全局监听残留）；被隐藏而未拆（如表情面板
+//   display:none）的面板保留单条监听，下次展开无需重装。
+//   panel 面板节点；keep 另外算"内部"的节点（触发按钮等，它有自己的 toggle语义）；
+//   onClose 收起动作，缺省 panel.remove()
+export function closeOnOutsideClick(panel, keep, onClose) {
+  var keeps = [];
+  if (Array.isArray(keep)) keeps = keep;
+  else if (keep) keeps = [keep];
+  function isInside(n) {
+    if (!n) return false;
+    if (panel.contains(n)) return true;
+    for (var i = 0; i < keeps.length; i++) {
+      if (keeps[i] && keeps[i].contains(n)) return true;
+    }
+    return false;
+  }
+  function onDoc(ev) {
+    if (!panel.isConnected) { document.removeEventListener('click', onDoc, true); return; } // 面板已拆：自清理
+    if (isInside(ev.target)) return; // 面板内部点击：不算外点（toggle 按钮也在 keep 里）
+    if (onClose) onClose();
+    else panel.remove();
+    // 监听不在此拆：被隐藏而未拆的面板（表情面板）要能反复生效；已拆面板在
+    // 下一次点击的自清理分支里注销（最多多占一次点击，无残留）。每面板只装一次（调用方一次性装）
+  }
+  setTimeout(function () {
+    if (!panel.isConnected) return;
+    document.addEventListener('click', onDoc, true);
+  }, 0);
+}

@@ -1359,6 +1359,20 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       var p2 = vRow.querySelector('.acsv-frow-cmts .acsv-emotpanel');
       return p2 && p2.style.display !== 'none' && p2.offsetParent !== null;
     }, 5000)));
+    // 外点收起（0.9.147 实报：表情面板原本无此逻辑）：点面板内部不收、点外部（行内正文）收
+    var emotPanel0 = vRow.querySelector('.acsv-frow-cmts .acsv-emotpanel');
+    if (emotPanel0 && emotPanel0.style.display !== 'none') {
+      emotPanel0.click(); // 面板内部
+      await wait(150);
+      rec('follow-emot-inside-keeps', emotPanel0.style.display !== 'none');
+      // 外点选**中性元素**（视图体：不会触发关闭行内区/开详情等其它收起路径，
+      // 保证只能靠"外点收起"本身生效；行正文当外点会误判为通过）
+      var outsideEl = q('.acsv-view-body') || document.body;
+      outsideEl.click();
+      rec('follow-emot-outside-close', !!(await waitFor(function () {
+        return emotPanel0.style.display === 'none';
+      }, 5000)));
+    }
     if (emotBtn) emotBtn.click(); // 再点收面板
     vActs[1].click(); // 收起
     // 图标码点（0.9.101 实报「投蕉图标用错」）：原生 member-feed 四件套

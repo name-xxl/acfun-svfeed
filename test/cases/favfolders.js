@@ -162,6 +162,20 @@
       return !q('.acsv-pickpop') && !!favBtn() && !favBtn().classList.contains('on');
     }, 8000)));
     rec('ff-remove-body', /^remove:resourceId=\d+&resourceType=9&delFolderIds=111$/.test(lastFav()), lastFav());
+    // 外点收起（0.9.147 实报）：**先点面板内部、再点外面也必须收**（旧实现一次性监听
+    // 被内部点击吃掉；且控件条等 stopPropagation 区域不能吞掉外点）
+    favBtn().click();
+    rec('ff-out-arm', !!(await waitFor(function () {
+      var pop = q('.acsv-pickpop');
+      return !!pop && pop.querySelectorAll('.acsv-pick-item').length === 2;
+    }, 8000)));
+    var insideHead = q('.acsv-pickpop .acsv-pick-head span');
+    if (insideHead) insideHead.click(); // 内部点击（标题行，不改选中）
+    await wait(200);
+    rec('ff-out-inside-keeps', !!q('.acsv-pickpop'));
+    var ctlBar = q('.acsv-controls');
+    if (ctlBar) ctlBar.click(); // stopPropagation 区域（控件条）
+    rec('ff-out-close', !!(await waitFor(function () { return !q('.acsv-pickpop'); }, 5000)));
     // 层内新建夹：新建 → 新夹出现并自动勾选 → 确定 → add 带上新夹
     favBtn().click();
     rec('ff-pop-new', !!(await waitFor(function () {

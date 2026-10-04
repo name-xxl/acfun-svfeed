@@ -4,7 +4,7 @@
 //（ensureIm/ensureConnected/getContacts/fetchCards/isLogined/sendCmtShare/sendMomentShare），
 // 核心完全不知道面板。纯搬迁零逻辑改动。
 import { CFG } from './cfg.js';
-import { el, toast, copyText } from './ui.js';
+import { el, toast, copyText, closeOnOutsideClick } from './ui.js';
 import { imgInto } from './imgload.js';
 import { testHook } from './dbg.js';
 import { ensureIm, ensureConnected, getContacts, fetchCards, isLogined, sendCmtShare, sendMomentShare, sendOnce } from './imsend.js';
@@ -127,14 +127,9 @@ export function openSharePanel(btn, item, opts) {
   wrap.appendChild(pop);
   placePop(pop, opts, btn); // 0.9.105：place 模式（行流左贴/面板右贴）rect 定位
 
-  setTimeout(function () {
-    document.addEventListener('click', function onDoc(ev) {
-      document.removeEventListener('click', onDoc);
-      if (!pop.isConnected) return;
-      if (pop.contains(ev.target) || btn.contains(ev.target)) return;
-      pop.remove();
-    });
-  }, 0);
+  // 外点收起（0.9.147 收口到 ui.closeOnOutsideClick：捕获相 + 常驻到拆除——
+  // 旧内联实现点一下面板内部就把一次性监听吃掉，之后外点收不起来）
+  closeOnOutsideClick(pop, [btn], function () { pop.remove(); });
 
   if (!isLogined()) {
     list.appendChild(el('div', 'acsv-share-tip', '私信需要先登录 AcFun 账号\n可先复制链接去站内分享'));

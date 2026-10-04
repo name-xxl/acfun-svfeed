@@ -21,7 +21,7 @@
 //     ⇒ 取 min 是为了"宽宿主（头像块）也算数"；左侧放不下 → 翻到宿主右侧，再不行 → 视口收边（8px）。
 // 分工：本件**零业务**——数据/校验/提交全由 opts 注入（load/check/create/confirm/done），
 // 关注分组语义在 grouppop.js、收藏夹在 favpop.js（0.9.143）。
-import { el } from './ui.js';
+import { el, closeOnOutsideClick } from './ui.js';
 
 var GAP = 6;      // 弹层与锚点的间距
 var PAD = 8;      // 弹层与视口边缘的最小内边距
@@ -91,15 +91,11 @@ function watchPlace(pop, btn) {
   window.addEventListener('resize', onWin);
 }
 
+// 外点收起：与分享面板/投蕉弹层/表情面板共用 ui.closeOnOutsideClick（0.9.147 收口）
+// —— 旧内联实现是"一次性监听 + 先摘监听再判内点 + 冒泡相"：点面板内部一下就把监听吃掉、
+// 之后外点永远收不起来（实报病灶）。
 function guardOutside(pop, btn) {
-  setTimeout(function () {
-    document.addEventListener('click', function onDoc(ev) {
-      document.removeEventListener('click', onDoc);
-      if (!pop.isConnected) return;
-      if (pop.contains(ev.target) || btn.contains(ev.target)) return;
-      pop.remove();
-    });
-  }, 0);
+  closeOnOutsideClick(pop, [btn], function () { pop.remove(); });
 }
 
 // 选项行（mode='single' 点选高亮 / 'multi' 前置勾选标记）

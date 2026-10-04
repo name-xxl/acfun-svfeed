@@ -1,4 +1,4 @@
-import { el, toast } from './ui.js';
+import { el, toast, closeOnOutsideClick } from './ui.js';
 import { VIDEO_ICONS } from './styles.js';
 
 // ---------- 投蕉数量弹层（0.9.104 自 rail 抽出共享） ----------
@@ -52,11 +52,7 @@ export function toggleBananaPop(btn, opts) {
   });
   if (getComputedStyle(host).position === 'static') host.style.position = 'relative'; // 弹层锚定宿主
   host.appendChild(pop);
-  setTimeout(function () {
-    document.addEventListener('click', function onDoc() {
-      document.removeEventListener('click', onDoc);
-      if (!pop.isConnected) return; // 宿主已销毁（切源/退出）时闭包自然释放，不留全局监听
-      pop.remove();
-    });
-  }, 0);
+  // 外点收起（0.9.147 收口）：捕获相 + 常驻到拆除；面板内点击不算外点
+  // （选数量本身会 pop.remove，旧实现"任意点击都关"已被合并）
+  closeOnOutsideClick(pop, [btn], function () { pop.remove(); });
 }

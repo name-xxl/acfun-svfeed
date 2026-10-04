@@ -3,7 +3,7 @@
 // 面板：分包 tab + 最近使用（localStorage 记录），插入走调用方注入的光标回调。
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { el } from './ui.js';
+import { el, closeOnOutsideClick } from './ui.js';
 
 // 表情包数据（复用动态广场 fetchEmoticonPacks/_applyEmoticons 思路）：
 // map[id]={url,big,name,pkg} 供 UBB 渲染；packs=[{name,items}] 供面板分包展示
@@ -284,6 +284,12 @@ export function mountEmotButton(btn, panel, textarea) {
     ev.stopPropagation();
     var show = panel.style.display !== 'flex';
     panel.style.display = show ? 'flex' : 'none';
+    // 外点收起（0.9.147 实报：表情面板原本没这逻辑）—— 每面板装一次即可，面板只隐不拆 ⇒
+    // 监听常驻生效；点面板内部/按钮本身都不算外点（toggle 语义不变）
+    if (!panel._outArmed) {
+      panel._outArmed = true;
+      closeOnOutsideClick(panel, [btn], function () { panel.style.display = 'none'; });
+    }
     function showPanel() { renderEmotPanel(panel, function (code) { insertAtCursor(textarea, code); }); }
     if (show && !built) {
       built = true;

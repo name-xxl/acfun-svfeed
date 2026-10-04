@@ -50,6 +50,16 @@ rec('play-no-arrows', !q('.acsv-slide[data-ovl="1"] .acsv-arrows'));
 var shBtn = q('.acsv-slide[data-ovl="1"] .acsv-rail-btn[title="私信分享给朋友"]');
 if (shBtn) shBtn.click();
 rec('play-share-pop', !!(await waitFor(function () { return !!q('.acsv-sharepop'); }, 6000)));
+// 外点收起（0.9.147）：先点面板内部、再点外面（控件条）必须收
+var shInside = q('.acsv-sharepop .acsv-share-tip') || q('.acsv-sharepop .acsv-share-list') || q('.acsv-sharepop');
+if (shInside) shInside.click();
+await wait(200);
+rec('play-share-inside-keeps', !!q('.acsv-sharepop'));
+var ctlBar2 = q('.acsv-controls');
+if (ctlBar2) ctlBar2.click();
+rec('play-share-outside-close', !!(await waitFor(function () { return !q('.acsv-sharepop'); }, 5000)));
+if (shBtn) shBtn.click(); // 重开（后续复制链接上报断言用）
+await waitFor(function () { return !!q('.acsv-sharepop'); }, 6000);
 var wl0 = (window.__WL_CALLS || []).length;
 var cpBtn = q('.acsv-sharepop .acsv-share-copy');
 if (cpBtn) cpBtn.click();

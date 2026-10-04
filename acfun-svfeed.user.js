@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.146
+// @version      0.9.147
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -719,6 +719,32 @@
   }
   function sweepSlideVideos(slide) {
     Array.prototype.forEach.call(slide.querySelectorAll("video"), teardownVideo);
+  }
+  function closeOnOutsideClick(panel2, keep, onClose) {
+    var keeps = [];
+    if (Array.isArray(keep)) keeps = keep;
+    else if (keep) keeps = [keep];
+    function isInside(n) {
+      if (!n) return false;
+      if (panel2.contains(n)) return true;
+      for (var i = 0; i < keeps.length; i++) {
+        if (keeps[i] && keeps[i].contains(n)) return true;
+      }
+      return false;
+    }
+    function onDoc(ev) {
+      if (!panel2.isConnected) {
+        document.removeEventListener("click", onDoc, true);
+        return;
+      }
+      if (isInside(ev.target)) return;
+      if (onClose) onClose();
+      else panel2.remove();
+    }
+    setTimeout(function() {
+      if (!panel2.isConnected) return;
+      document.addEventListener("click", onDoc, true);
+    }, 0);
   }
 
   // src/route.js
@@ -3219,6 +3245,12 @@
       ev.stopPropagation();
       var show = panel2.style.display !== "flex";
       panel2.style.display = show ? "flex" : "none";
+      if (!panel2._outArmed) {
+        panel2._outArmed = true;
+        closeOnOutsideClick(panel2, [btn], function() {
+          panel2.style.display = "none";
+        });
+      }
       function showPanel() {
         renderEmotPanel(panel2, function(code) {
           insertAtCursor(textarea, code);
@@ -4759,14 +4791,9 @@
     if (!opts.host) wrap.style.position = "relative";
     wrap.appendChild(pop);
     placePop(pop, opts, btn);
-    setTimeout(function() {
-      document.addEventListener("click", function onDoc(ev) {
-        document.removeEventListener("click", onDoc);
-        if (!pop.isConnected) return;
-        if (pop.contains(ev.target) || btn.contains(ev.target)) return;
-        pop.remove();
-      });
-    }, 0);
+    closeOnOutsideClick(pop, [btn], function() {
+      pop.remove();
+    });
     if (!isLogined()) {
       list.appendChild(el("div", "acsv-share-tip", "私信需要先登录 AcFun 账号\n可先复制链接去站内分享"));
       return;
@@ -7700,14 +7727,9 @@
     window.addEventListener("resize", onWin);
   }
   function guardOutside(pop, btn) {
-    setTimeout(function() {
-      document.addEventListener("click", function onDoc(ev) {
-        document.removeEventListener("click", onDoc);
-        if (!pop.isConnected) return;
-        if (pop.contains(ev.target) || btn.contains(ev.target)) return;
-        pop.remove();
-      });
-    }, 0);
+    closeOnOutsideClick(pop, [btn], function() {
+      pop.remove();
+    });
   }
   function pickItem(item, mode, isOn, onToggle) {
     var b = el("button", "acsv-pick-item" + (isOn ? " on" : ""));
@@ -8256,13 +8278,9 @@
     });
     if (getComputedStyle(host3).position === "static") host3.style.position = "relative";
     host3.appendChild(pop);
-    setTimeout(function() {
-      document.addEventListener("click", function onDoc() {
-        document.removeEventListener("click", onDoc);
-        if (!pop.isConnected) return;
-        pop.remove();
-      });
-    }, 0);
+    closeOnOutsideClick(pop, [btn], function() {
+      pop.remove();
+    });
   }
 
   // src/rail.js
@@ -9869,7 +9887,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.146" : "");
+    return normVer(true ? "0.9.147" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12408,7 +12426,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.146：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.147：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
