@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.131
+// @version      0.9.132
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -9103,7 +9103,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.131" : "");
+    return normVer(true ? "0.9.132" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11397,7 +11397,6 @@
   var SEL_MAIN_FEEDS = ".ac-member-main .ac-member-feeds";
   var AUTO_KEY = "acsvMpAutoEnter";
   var itemEl = null;
-  var promoEl = null;
   var mpRoot = null;
   var feed = null;
   var hiddenNative = [];
@@ -11468,7 +11467,6 @@
       onRow: addAmAnchor
     });
     if (itemEl) setActive2(true);
-    if (promoEl) promoEl.style.display = "none";
     return true;
   }
   function closePlaza() {
@@ -11486,7 +11484,6 @@
     });
     hiddenNative = [];
     setActive2(false);
-    if (promoEl && promoEl.isConnected) promoEl.style.display = "";
   }
   function refreshPlaza() {
     if (feed) feed.refresh();
@@ -11503,7 +11500,6 @@
     hiddenNative = [];
     pendingOpen = false;
     setActive2(false);
-    if (promoEl && promoEl.isConnected) promoEl.style.display = "";
   }
   function entryPlan() {
     if (mpRoot && mpRoot.isConnected) return "refresh";
@@ -11537,6 +11533,8 @@
     if (document.querySelector("[data-acsv-mnav]")) {
       var late = document.querySelector(".plaza-nav-item");
       if (late) late.remove();
+      var latePromo = document.querySelector(".plaza-promotion");
+      if (latePromo) latePromo.remove();
       return true;
     }
     var feedsNav = document.querySelector('.sub-nav-title a[href="/member/feeds"]') || document.querySelector('a[href="/member/feeds"]') || document.querySelector('.ac-member-navigation a[href*="/feeds"]');
@@ -11570,38 +11568,6 @@
     });
     return true;
   }
-  function tryBanner() {
-    if (!feedsPath()) return true;
-    if (document.querySelector("[data-acsv-mpromo]")) {
-      var late = document.querySelector(".plaza-promotion");
-      if (late) late.remove();
-      return true;
-    }
-    var header = document.querySelector(".ac-member-feeds-header");
-    if (!header) return false;
-    var oldPromo = document.querySelector(".plaza-promotion");
-    if (oldPromo) oldPromo.remove();
-    promoEl = document.createElement("div");
-    promoEl.setAttribute("data-acsv-mpromo", "1");
-    promoEl.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f5f5f5;margin:0 16px 16px;border-radius:4px;font-size:14px;color:#666";
-    var txt = document.createElement("span");
-    txt.textContent = "按am号查找动态，试试";
-    var strong = document.createElement("strong");
-    strong.style.color = "#ff4b76";
-    strong.textContent = "动态广场";
-    txt.appendChild(strong);
-    var btn = document.createElement("button");
-    btn.style.cssText = "background:#ff4b76;color:#fff;border:none;padding:4px 16px;border-radius:4px;cursor:pointer";
-    btn.textContent = "进入";
-    btn.addEventListener("click", function() {
-      onEntry();
-    });
-    promoEl.appendChild(txt);
-    promoEl.appendChild(btn);
-    if (mpRoot) promoEl.style.display = "none";
-    header.parentNode.insertBefore(promoEl, header.nextSibling);
-    return true;
-  }
   function tryAutoEnter() {
     if (!autoFlag()) return true;
     if (!feedsPath()) return true;
@@ -11613,10 +11579,9 @@
   }
   function attempt() {
     var navOk = tryInjectNav2();
-    var bannerOk = tryBanner();
     var autoOk = tryAutoEnter();
     if (pendingOpen && openPlaza()) pendingOpen = false;
-    return navOk && bannerOk && autoOk && !pendingOpen;
+    return navOk && autoOk && !pendingOpen;
   }
   function stopTimer() {
     if (timer2) {
@@ -11636,7 +11601,6 @@
   function healNeeded() {
     if (document.querySelector(".plaza-nav-item") || document.querySelector(".plaza-promotion")) return true;
     if (!document.querySelector("[data-acsv-mnav]")) return true;
-    if (!mpRoot && feedsPath() && document.querySelector(".ac-member-feeds-header") && !document.querySelector("[data-acsv-mpromo]")) return true;
     return false;
   }
   function guardHeal() {
@@ -11691,7 +11655,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.131：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.132：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

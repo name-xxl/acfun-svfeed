@@ -3,6 +3,17 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.132（2026-10-04）· 撤除「动态广场」推广条（用户裁决：多余的设计）
+
+- **裁决**（用户实报「关注动态的『按am号查找动态，试试动态广场』的提示可以删了，多余的设计」）：
+  /member/feeds 不再注入推广条——成员导航的「动态广场」入口已在同一屏，条幅纯属噪音。
+- **改动**：memberplaza 删除注入件 `tryBanner`/`promoEl` 及其全部引用（attempt/healNeeded/
+  openPlaza/closePlaza/dropStaleState）；旧 plaza 脚本的 `.plaza-promotion` 残留仍随接管清扫
+  （tryInjectNav 两处清扫点）；SPA 自愈相应收窄为入口看护。
+- **测试**：member-plaza 断言改版（28→26）：删 `mp-banner`/`mp-banner-back`/`mp-banner-heal`；
+  新增 `mp-no-banner`（不再注入）；`mp-takeover` 扩为"旧入口项 + 旧推广条均被清扫、无自有条幅"
+  （20→26）；步 7 改为入口重开（`mp-reopen`）。
+
 ### 0.9.131（2026-10-04）· 内嵌入口选中态改镜像原生（字体样式对齐）
 
 - **病灶**（用户实报「动态广场选中后的字体样式和原生不一致」）：入口选中态此前自绘

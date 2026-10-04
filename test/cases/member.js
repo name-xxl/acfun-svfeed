@@ -3,9 +3,9 @@
 // ——必须在**无壳**条件下验证：入口注入（走真实轮询，非 TEST 直驱）→ 点击就地展开（.acsv-mp
 // 出现 + 行卡渲染 + 原生节点隐藏 + #acsv-root 不存在=不跳全屏壳的机器证据）→ 浅色皮肤
 // （computed 色 #333 vs 深色皮肤的 #57a9f5）→ 无壳评论管线（列表+输入条）→ 无壳大图浮层 →
-// 再点=刷新重建（EXTRA 旗标证明真的重拉首页）→ 点原生「动态」链收回（不 reload）→ 推广条
-// 「进入」重开。夹具：MY_MOCK 的 feedSquare（广场动态2 带图，喂无壳大图断言）；mock 缝依赖
-// debug 构建。
+// 再点=刷新重建（EXTRA 旗标证明真的重拉首页）→ 点原生「动态」链收回（不 reload）→ 收回后再点
+// 入口重开（0.9.132：推广条按用户裁决撤除，重开唯入口径）。夹具：MY_MOCK 的 feedSquare
+//（广场动态2 带图，喂无壳大图断言）；mock 缝依赖 debug 构建。
 (function () {
   var C = window.__ACSV_CASES__ = window.__ACSV_CASES__ || {};
 
@@ -50,15 +50,12 @@
       var it = q('[data-acsv-mnav]'), fans = q('#mp-hd-fans');
       return !!(it && fans && fans.nextSibling === it);
     })());
-    rec('mp-banner', !!(await waitFor(function () {
-      var b = q('[data-acsv-mpromo]');
-      return b && /按am号查找动态/.test(b.textContent) && /进入/.test(b.textContent)
-        && b.previousSibling && b.previousSibling.id === 'mp-hd-header';
-    }, 5000)));
+    // 0.9.132 用户裁决：不再注入推广条（「多余的设计」——入口已在导航内）
+    rec('mp-no-banner', !q('[data-acsv-mpromo]'));
     rec('mp-no-shell', q('#acsv-root') === null); // 无壳前提成立（禁自动挂壳的机器证据）
 
-    // 1.5) 接管旧 plaza 脚本晚到的注入（0.9.129 真机加固：自愈观察器清扫——静态让位会让用户
-    // 点到已 sunset 的旧脚本）
+    // 1.5) 接管旧 plaza 脚本晚到的注入（0.9.129 真机加固；0.9.132 起旧推广条也随接管清扫）：
+    // 自愈观察器驱动——静态让位会让用户点到已 sunset 的旧脚本
     (function () {
       var fakeItem = document.createElement('a');
       fakeItem.className = 'ac-member-navigation-item ac-member-navigation-sub-item plaza-nav-item';
@@ -67,11 +64,10 @@
       var fakePromo = document.createElement('div');
       fakePromo.className = 'plaza-promotion';
       fakePromo.textContent = '旧推广条';
-      var own = q('[data-acsv-mpromo]');
-      own.parentNode.insertBefore(fakePromo, own.nextSibling);
+      q('#mp-hd-header').parentNode.insertBefore(fakePromo, q('#mp-hd-header').nextSibling);
     })();
     rec('mp-takeover', !!(await waitFor(function () {
-      return !q('.plaza-nav-item') && !q('.plaza-promotion')
+      return !q('.plaza-nav-item') && !q('.plaza-promotion') && !q('[data-acsv-mpromo]')
         && document.querySelectorAll('[data-acsv-mnav]').length === 1;
     }, 4000)));
 
@@ -149,10 +145,6 @@
       var it = q('[data-acsv-mnav]');
       return !!it && !it.classList.contains('ac-member-navigation-item-active');
     })());
-    rec('mp-banner-back', (function () {
-      var b = q('[data-acsv-mpromo]');
-      return !!b && b.style.display !== 'none';
-    })());
 
     // 6.2) 点击决策（0.9.130 真机实报修复）：**以宿主存在为准**（plaza 原语义，不看路径）——
     // feeds 子页（/following、/fans；真机实测容器是 following-panel/fans-panel，无
@@ -172,15 +164,11 @@
     await wait(50);
     rec('mp-plan-open', TEST.call('memberMp').plan() === 'open', TEST.call('memberMp').plan());
 
-    // 6.5) SPA 自愈：推广条被站点重画吞掉后由观察器补回（0.9.129）
-    q('[data-acsv-mpromo]').remove();
-    rec('mp-banner-heal', !!(await waitFor(function () {
-      return !!q('[data-acsv-mpromo]');
-    }, 4000)));
+    // 6.5) 已撤除（0.9.132）：推广条自愈随条幅一并删除（重开唯入口径，见步 7）
 
-    // 7) 推广条「进入」→ 重开（banner 点击路径）
-    q('[data-acsv-mpromo] button').click();
-    rec('mp-banner-open', !!(await waitFor(function () {
+    // 7) 收回后再点入口 → 重开（0.9.132 起重开路径唯入口径；推广条已撤）
+    q('[data-acsv-mnav]').click();
+    rec('mp-reopen', !!(await waitFor(function () {
       return q('.acsv-mp') && document.querySelectorAll('.acsv-mp .acsv-frow').length >= 4;
     }, 8000)));
   };

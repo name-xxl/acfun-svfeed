@@ -1,6 +1,7 @@
-// ---------- 原生 /member 页「动态广场」入口 + 内嵌广场（0.9.128；0.9.129 真机加固） ----------
-// 复刻 plaza navigation.js 的原生页形态：成员导航注入「动态广场」项 + /member/feeds 推广条，
-// 点击**就地展开**（原生页导航/头部保留、浅色皮肤）——不跳 svfeed 全屏壳（用户裁决）。
+// ---------- 原生 /member 页「动态广场」入口 + 内嵌广场（0.9.128；0.9.129/131/132 真机迭代） ----------
+// 复刻 plaza navigation.js 的原生页形态：成员导航注入「动态广场」项，点击**就地展开**（原生页
+// 导航/头部保留、浅色皮肤）——不跳 svfeed 全屏壳（用户裁决）。推广条于 **0.9.132 按用户裁决
+// 撤除**（"多余的设计"：入口已在导航内）；旧脚本的残留条幅随接管清扫。
 // 这是对 0.9.47「其他页不注入」决策的**限定反转**：只有 /member 路径参与，其余页面维持不注入。
 // auto_enter 沿用 plaza 语义：非 feeds 成员页点击 → GM 旗标 + 跳 /member/feeds 落地自动展开。
 // 列表机械走 squarefeed 单源（与 dock 广场页同一份代码、两种宿主/两种皮肤）。
@@ -18,7 +19,6 @@ var SEL_MAIN_FEEDS = '.ac-member-main .ac-member-feeds'; // plaza 原选择器�
 var AUTO_KEY = 'acsvMpAutoEnter'; // plaza moment_plaza_auto_enter 同款语义（键名换 svfeed 域）
 
 var itemEl = null;     // 注入的导航项
-var promoEl = null;    // 推广条
 var mpRoot = null;     // 内嵌根（展开态；null=未展开）
 var feed = null;       // squarefeed 实例
 var hiddenNative = []; // 展开时隐藏的原生子节点 [{el, display}]（收回即复原）
@@ -84,7 +84,6 @@ function openPlaza() {
     onRow: addAmAnchor
   });
   if (itemEl) setActive(true);
-  if (promoEl) promoEl.style.display = 'none';
   return true;
 }
 
@@ -98,7 +97,6 @@ function closePlaza() {
   hiddenNative.forEach(function (p) { p[0].style.display = p[1]; });
   hiddenNative = [];
   setActive(false);
-  if (promoEl && promoEl.isConnected) promoEl.style.display = '';
 }
 
 function refreshPlaza() { if (feed) feed.refresh(); }
@@ -113,7 +111,6 @@ function dropStaleState() {
   hiddenNative = [];
   pendingOpen = false;
   setActive(false);
-  if (promoEl && promoEl.isConnected) promoEl.style.display = '';
 }
 
 // 点击决策（纯读，onEntry 与 debug 钩子复用）——**以宿主存在为准**（plaza enterPlaza 原语义：
@@ -144,6 +141,8 @@ function tryInjectNav() {
   if (document.querySelector('[data-acsv-mnav]')) {
     var late = document.querySelector('.plaza-nav-item');
     if (late) late.remove();
+    var latePromo = document.querySelector('.plaza-promotion'); // 旧脚本晚到的条幅：一并清扫（0.9.132）
+    if (latePromo) latePromo.remove();
     return true;
   }
   var feedsNav = document.querySelector('.sub-nav-title a[href="/member/feeds"]')
@@ -175,38 +174,8 @@ function tryInjectNav() {
   return true;
 }
 
-// ---------- /member/feeds 推广条（plaza addPlazaPromotion 的逐样式复刻；0.9.129 接管） ----------
-function tryBanner() {
-  if (!feedsPath()) return true; // 仅 feeds 页（原版语义）
-  if (document.querySelector('[data-acsv-mpromo]')) {
-    var late = document.querySelector('.plaza-promotion'); // 旧脚本晚到的推广条：接管清扫
-    if (late) late.remove();
-    return true;
-  }
-  var header = document.querySelector('.ac-member-feeds-header');
-  if (!header) return false;
-  var oldPromo = document.querySelector('.plaza-promotion'); // 接管旧 plaza 的推广条
-  if (oldPromo) oldPromo.remove();
-  promoEl = document.createElement('div');
-  promoEl.setAttribute('data-acsv-mpromo', '1');
-  promoEl.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;'
-    + 'background:#f5f5f5;margin:0 16px 16px;border-radius:4px;font-size:14px;color:#666';
-  var txt = document.createElement('span');
-  txt.textContent = '按am号查找动态，试试';
-  var strong = document.createElement('strong');
-  strong.style.color = '#ff4b76';
-  strong.textContent = '动态广场';
-  txt.appendChild(strong);
-  var btn = document.createElement('button');
-  btn.style.cssText = 'background:#ff4b76;color:#fff;border:none;padding:4px 16px;border-radius:4px;cursor:pointer';
-  btn.textContent = '进入';
-  btn.addEventListener('click', function () { onEntry(); });
-  promoEl.appendChild(txt);
-  promoEl.appendChild(btn);
-  if (mpRoot) promoEl.style.display = 'none';
-  header.parentNode.insertBefore(promoEl, header.nextSibling);
-  return true;
-}
+// （0.9.132 撤除）/member/feeds 推广条注入——用户裁决「多余的设计」（入口已在同一屏导航内）；
+// 旧 plaza 脚本的 .plaza-promotion 残留仍在 tryInjectNav 的接管清扫里移除
 
 // ---------- auto_enter（plaza setupFeedsPage 的旗标分支） ----------
 function tryAutoEnter() {
@@ -216,13 +185,12 @@ function tryAutoEnter() {
   return false; // 宿主未就绪：继续轮询
 }
 
-// ---------- 轮询驱动（三件共用一拍：注入/推广条/自动展开） ----------
+// ---------- 轮询驱动（两件共用一拍：注入/自动展开） ----------
 function attempt() {
   var navOk = tryInjectNav();
-  var bannerOk = tryBanner();
   var autoOk = tryAutoEnter();
   if (pendingOpen && openPlaza()) pendingOpen = false;
-  return navOk && bannerOk && autoOk && !pendingOpen;
+  return navOk && autoOk && !pendingOpen;
 }
 function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
 function startTimer() {
@@ -233,17 +201,14 @@ function startTimer() {
   }, CFG.nav.retryMs);
 }
 
-// ---------- SPA 自愈（0.9.129 真机加固） ----------
-// 个人中心是 Vue Router SPA：路由切换重画导航/feeds 区——真机实测：SPA 跳走再回来，推广条
-// 被吞、展开态 DOM 成死节点。看护=body 级 childList 观察 + 300ms 防抖，仅当"该有的不在"或
-// 旧脚本晚到时补一拍 attempt()（幂等，自成即静默）；悬空展开态在补拍前顺手复位
+// ---------- SPA 自愈（0.9.129 真机加固；0.9.132 随推广条撤除收窄为入口看护） ----------
+// 个人中心是 Vue Router SPA：路由切换重画导航区——展开态 DOM 被吞会成死节点、入口可能被吞。
+// 看护=body 级 childList 观察 + 300ms 防抖，仅当"该有的不在"或旧脚本晚到时补一拍 attempt()
+//（幂等，自成即静默）；悬空展开态在补拍前顺手复位
 var healObserver = null, healTimer = null;
 function healNeeded() {
-  if (document.querySelector('.plaza-nav-item') || document.querySelector('.plaza-promotion')) return true; // 接管拍
+  if (document.querySelector('.plaza-nav-item') || document.querySelector('.plaza-promotion')) return true; // 旧脚本残留清扫拍
   if (!document.querySelector('[data-acsv-mnav]')) return true; // 入口被重画吞掉
-  // 展开态未开时，推广条也不该缺（header 就位才算数；展开期推广条本来就隐）
-  if (!mpRoot && feedsPath() && document.querySelector('.ac-member-feeds-header')
-      && !document.querySelector('[data-acsv-mpromo]')) return true;
   return false;
 }
 function guardHeal() {
