@@ -45,6 +45,28 @@ rec('play-date-published', (function () {
   return d ? JSON.stringify(d.textContent) + ' 期望=' + window.__ACSV_PUBLISH_DATE__ : 'no-date';
 })());
 rec('play-no-arrows', !q('.acsv-slide[data-ovl="1"] .acsv-arrows'));
+// 分享上报（0.9.145 实报：点分享不上报）：官方口径=面板里**选平台**那一刻发 CHOOSE_SHARE_PLATFORM（weblog CLICK 通道，与观看历史同一条）。
+// 层内条目已 resolve（上方日期/标题已从 douga/info 后归）⇒ videoId 就绪；断言只看参数形状（不硬编码 id）
+var shBtn = q('.acsv-slide[data-ovl="1"] .acsv-rail-btn[title="私信分享给朋友"]');
+if (shBtn) shBtn.click();
+rec('play-share-pop', !!(await waitFor(function () { return !!q('.acsv-sharepop'); }, 6000)));
+var wl0 = (window.__WL_CALLS || []).length;
+var cpBtn = q('.acsv-sharepop .acsv-share-copy');
+if (cpBtn) cpBtn.click();
+rec('play-share-report', (function () {
+  var calls = (window.__WL_CALLS || []).slice(wl0).filter(function (c) {
+    return c.payload && c.payload.action === 'CHOOSE_SHARE_PLATFORM';
+  });
+  if (calls.length !== 1) return false;
+  var p = calls[0].payload.params || {};
+  return calls[0].channel === 'CLICK' && p.to_platform === 'COPY_LINK' && p.share_type === 'link'
+    && p.resourceType === 'video' && p.cont_type === 'douga_atom' && p.content_type === 'douga_atom'
+    && p.ac_id === '488900' && p.parent_content_id === '488900'
+    && p.atom_id && p.atom_id === p.content_id && p.atom_id !== p.ac_id // atom_id ≠ ac_id（不拿 acId 冒充）
+    && p.content_episode === 1 && p.album_id === '0'
+    && p.req_id === 'req-mock' && p.group_id === 'grp-mock' && !!p.title;
+})(), JSON.stringify((window.__WL_CALLS || []).slice(wl0).map(function (c) { return c.payload; })));
+if (shBtn) shBtn.click(); // 同键再点=收面板（toggle）
 rec('play-source-kept', (function () { // 不 setSource：播放解析与内容源无关
   var b = q('.acsv-seg-btn.on');
   return !!b && b.textContent === '小视频';

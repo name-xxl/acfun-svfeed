@@ -8,6 +8,7 @@ import { el, toast, copyText } from './ui.js';
 import { imgInto } from './imgload.js';
 import { testHook } from './dbg.js';
 import { ensureIm, ensureConnected, getContacts, fetchCards, isLogined, sendCmtShare, sendMomentShare, sendOnce } from './imsend.js';
+import { reportShare } from './report.js'; // 分享上报（0.9.145）
 
 // 聊天打开出口（0.9.114）：分享发送后「捎句话」要进与好友的会话——由 imdrawer 模块求值期
 // 注册（openChat），本模块不再 import imdrawer（imshare↔imdrawer 互 import 环的一半，
@@ -109,6 +110,7 @@ export function openSharePanel(btn, item, opts) {
   var copyBtn = el('button', 'acsv-share-copy', '复制链接');
   copyBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
+    reportShare(item, 'COPY_LINK'); // 官方同形：选平台那一刻即记，与剪贴板成败无关
     copyText(item.shareUrl).then(function (ok) {
       toast(ok ? '已复制：' + item.shareUrl : '复制失败，请手动复制');
     });
@@ -213,6 +215,7 @@ function renderRows(pop, list, contacts, item, inst) {
               if (chatOpener) chatOpener(c.targetId); // 0.9.114：经注册缝（imdrawer 注册）
             });
             send.replaceWith(chatBtn);
+            reportShare(item, 'IM'); // 发送成功才记（失败不算分享）；'IM' 为自创枚举（见 report.js 头注）
             toast('已私信分享给 ' + (card.name || '好友'));
           }, function (err) {
             send.disabled = false;

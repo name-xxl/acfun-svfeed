@@ -3,6 +3,32 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.145（2026-10-05）· 分享上报（实报「点击分享不会上报」；官方口径真机对齐）
+
+- **病灶**（用户实报）：我们脚本的分享动作（rail/行流/详情面板 → 分享面板 → 复制链接 / 私信发送）
+  **完全不上报**，站方侧看不到任何分享行为。
+- **真机抓包定性**（2026-10-05 内置浏览器登录态 /v/ac26640967；页面内包 `sendBeacon` +
+  `weblog.sendImmediately`，fetch/XHR/beacon/Image 全网络留档）：
+  · 上报时机 = **分享面板里"选平台"那一刻**（点开面板本身不上报，一次选择一条）；
+  · 通道 = 与观看历史**同一条** weblog `CLICK` 事件（`sendImmediately('CLICK',{action:'CHOOSE_SHARE_PLATFORM',params})`
+    → misc2 批量），**没有专用分享端点**；
+  · 参数全量实测（复制链接/微博两采样）：`req_id`/`group_id`（impr 会话 id，与 reportLeave 同源）、
+    `atom_id`=videoId、`content_id`=videoId、`ac_id`=acId、`parent_content_id`=acId（**两个 id 空间，
+    atom_id ≠ ac_id，不许拿 acId 冒**）、`album_id:"0"`、`resourceType:"video"`、
+    `cont_type`=`content_type`=`"douga_atom"`、`content_episode:1`、`title`、`share_id`=登录 uid、
+    `share_type:"link"`、`to_platform`∈{`COPY_LINK`,`WEIBO`}（实测枚举）；
+  · **动态页 /moment/am\* 不加载 weblog SDK**（实测 hasWeblog=false）⇒ 官方动态分享无上报通道。
+- **修法**：`report.js` 新增 `buildShareParams`（**纯函数**，单测直采）+ `reportShare`（SDK 未就绪
+  隔 1s 短重试，同 reportLeave）；接缝=sharepanel **「复制链接」→ `COPY_LINK`**（官方同形；点即记，
+  与剪贴板成败无关）+ **私信发送成功 → `'IM'`**（**自创枚举**——官方没有"私信分享"路径，实测枚举里
+  没有它，登记在册、站方若给正式标签只改一处）。**非视频条目（动态/文章）不上报**：官方无此通道且
+  动态形状未实测 ⇒ 宁可空白不可编造。
+- **测试**：单测 227→231（`report-share.test.js`：官方同形字段逐项对齐 / to_platform 透传 /
+  非视频与缺平台一律 null / 缺 req-group id 不伪造）；play-deep 41→43（层内分享 → 面板 → 复制链接，
+  断言 `__WL_CALLS` 里恰一条 `CHOOSE_SHARE_PLATFORM` 且字段形状全对，含 `atom_id !== ac_id`）；
+  **摘修复反跑实证**：撤掉上报调用 ⇒ `play-share-report` 转红（`[]`）。lint 干净 + 46 场景全绿；
+  docs 新增 §4.8 在册。
+
 ### 0.9.144（2026-10-05）· 选择层定位重做（实报「弹出浮层的位置不是很合理」）
 
 - **病灶**（用户实报 + 截图：收藏夹层从收藏键往下长出视口、底部被裁）：定位只在**插入瞬间**算

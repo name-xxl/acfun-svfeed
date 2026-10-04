@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.144-debug
+// @version      0.9.145-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -4288,6 +4288,378 @@
     });
   }
 
+  // src/watchledger.js
+  var LEDGER_KEY = "acsvWatchLedger";
+  var LEDGER_CAP = 32;
+  function rawGet2() {
+    try {
+      if (typeof GM_getValue === "function") return GM_getValue(LEDGER_KEY);
+    } catch (e) {
+    }
+    try {
+      return localStorage.getItem(LEDGER_KEY);
+    } catch (e) {
+    }
+    return null;
+  }
+  function rawSet2(str) {
+    try {
+      if (typeof GM_setValue === "function") {
+        GM_setValue(LEDGER_KEY, str);
+        return;
+      }
+    } catch (e) {
+    }
+    try {
+      localStorage.setItem(LEDGER_KEY, str);
+    } catch (e) {
+    }
+  }
+  function reconcileLedger(raw, now, ttl) {
+    var out = { replay: [], keep: {} };
+    var obj = raw;
+    if (typeof raw === "string") {
+      try {
+        obj = JSON.parse(raw);
+      } catch (e2) {
+        return out;
+      }
+    }
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return out;
+    var limit = typeof ttl === "number" ? ttl : CFG.time.watchLedgerTtl;
+    var kept = [];
+    for (var k in obj) {
+      var e = obj[k];
+      if (!e || typeof e !== "object" || Array.isArray(e)) continue;
+      var maxSec = Number(e.maxSec), reported = Number(e.reportedSec), ts = Number(e.ts);
+      if (!isFinite(maxSec) || !isFinite(reported) || !isFinite(ts) || ts <= 0) continue;
+      if (now - ts > limit) continue;
+      if (maxSec <= reported) continue;
+      var parts = String(k).split(":");
+      var id = Number(parts[0]);
+      var videoId = parts.slice(1).join(":");
+      if (!isFinite(id) || id <= 0 || !videoId) continue;
+      var sec = Math.floor(maxSec);
+      if (sec < CFG.time.watchReportMin) continue;
+      out.replay.push({ id, videoId, sec });
+      out.keep[k] = { maxSec, reportedSec: reported, ts };
+      kept.push([ts, k]);
+    }
+    if (kept.length > LEDGER_CAP) {
+      kept.sort(function(a, b) {
+        return a[0] - b[0];
+      });
+      for (var i = 0; i < kept.length - LEDGER_CAP; i++) delete out.keep[kept[i][1]];
+    }
+    return out;
+  }
+  function buildHistoryParams(item, sec, reqId, groupId) {
+    return {
+      req_id: reqId,
+      group_id: groupId,
+      atom_id: String(item.videoId),
+      ac_id: String(item.id),
+      album_id: "0",
+      resourceTypeCode: 2,
+      playedSeconds: sec,
+      videoId: Number(item.videoId) || 0,
+      reportIdName: Number(item.id) || 0,
+      resourceType: "video",
+      bangumiItemId: null,
+      dougaId: Number(item.id) || 0
+    };
+  }
+  function buildHistoryEnvelope(cache2, item, sec, reqId, groupId, now) {
+    if (!cache2 || !cache2.url || !cache2.common || !cache2.tpl) return null;
+    var log = JSON.parse(JSON.stringify(cache2.tpl));
+    if (!log || !log.event_package || !log.event_package.task_event) return null;
+    var task = log.event_package.task_event;
+    if (!task.element_package) return null;
+    log.client_timestamp = typeof now === "number" ? now : Date.now();
+    log.client_increment_id = (Number(cache2.inc) || 0) + 1;
+    task.element_package.action = "CLIENT_BROWSE_HISTORY";
+    task.element_package.params = JSON.stringify(buildHistoryParams(item, sec, reqId, groupId));
+    return { url: cache2.url, body: JSON.stringify({ common: cache2.common, logs: [log] }) };
+  }
+  var ledgerMem = null;
+  function mem2() {
+    if (!ledgerMem) {
+      var raw = rawGet2();
+      ledgerMem = raw ? reconcileLedger(raw, Date.now()).keep : {};
+    }
+    return ledgerMem;
+  }
+  function flush() {
+    try {
+      rawSet2(JSON.stringify(ledgerMem));
+    } catch (e) {
+    }
+  }
+  function ledgerMax(key, sec, now) {
+    var m = mem2();
+    var e = m[key];
+    if (!e) e = m[key] = { maxSec: 0, reportedSec: 0, ts: 0 };
+    e.ts = now;
+    if (sec > e.maxSec) e.maxSec = sec;
+    flush();
+  }
+  function ledgerReported(key, sec, now) {
+    var m = mem2();
+    var e = m[key];
+    if (!e) e = m[key] = { maxSec: 0, reportedSec: 0, ts: 0 };
+    if (sec > e.maxSec) e.maxSec = sec;
+    e.reportedSec = sec;
+    e.ts = now;
+    flush();
+  }
+  function ledgerDelete(key) {
+    var m = mem2();
+    if (m[key]) {
+      delete m[key];
+      flush();
+    }
+  }
+  function ledgerSnapshot() {
+    return mem2();
+  }
+
+  // src/report.js
+  var watchSentAt = {};
+  function hostWeblog() {
+    var w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+    return w.weblog || null;
+  }
+  function reportLeave(session, video, via, sec, retryN) {
+    var item = session && session.item;
+    if (!item || !item.cap || !item.cap.watchReport || !item.videoId) return;
+    if (!video && typeof sec !== "number") return;
+    if (typeof sec !== "number") sec = Math.floor(video.currentTime || 0);
+    if (sec < CFG.time.watchReportMin) return;
+    var key = item.id + ":" + item.videoId;
+    if (watchSentAt[key] === sec) return;
+    try {
+      var wl = hostWeblog();
+      if (!wl || !wl.impr || !wl.sendImmediately) {
+        if (via !== "pagehide" && (retryN || 0) < 3) {
+          setTimeout(function() {
+            reportLeave(session, video, via, sec, (retryN || 0) + 1);
+          }, 1e3);
+        }
+        return;
+      }
+      wl.sendImmediately("CLICK", {
+        action: "CLIENT_BROWSE_HISTORY",
+        params: buildHistoryParams(
+          item,
+          sec,
+          wl.impr.getCurrentReqID ? wl.impr.getCurrentReqID() : void 0,
+          wl.impr.getCurrentGroupID ? wl.impr.getCurrentGroupID() : void 0
+        )
+      });
+      watchSentAt[key] = sec;
+      ledgerReported(key, sec, Date.now());
+      stat("report-watch");
+    } catch (e) {
+      stat("report-watch-err");
+    }
+  }
+  function pickTarget() {
+    var tf = watchTarget();
+    var wt = tf && tf();
+    if (wt && wt.session) return wt;
+    if (!scroller || FeedStore.current < 0) return null;
+    var s = slideAt(FeedStore.current);
+    return s && s._session ? { session: s._session, video: s._session.video } : null;
+  }
+  function reportLeaveCurrent(via) {
+    try {
+      var t = pickTarget();
+      if (t) reportLeave(t.session, t.video, via);
+    } catch (e) {
+    }
+  }
+  var beaconCache = null;
+  (function sniffBeacon() {
+    try {
+      var nb = navigator.sendBeacon;
+      if (typeof nb !== "function") return;
+      navigator.sendBeacon = function(url, body) {
+        try {
+          if (String(url).indexOf("/log/collect/misc2") >= 0) cacheEnvelope(url, body);
+        } catch (e) {
+        }
+        return nb.apply(navigator, arguments);
+      };
+    } catch (e) {
+    }
+  })();
+  function cacheEnvelope(url, body) {
+    var parse = function(txt) {
+      var env = JSON.parse(txt);
+      var common = env && env.common;
+      var logs = env && env.logs || [];
+      if (!common || !logs.length) return;
+      var tpl = null, inc = 0;
+      for (var i = 0; i < logs.length; i++) {
+        var l = logs[i];
+        var ep = l && l.event_package && l.event_package.task_event && l.event_package.task_event.element_package;
+        if (ep && ep.action) {
+          if (!tpl) tpl = l;
+          if (Number(l.client_increment_id) > inc) inc = Number(l.client_increment_id);
+        }
+      }
+      if (!tpl) return;
+      beaconCache = { url: String(url), common, tpl, inc };
+    };
+    if (typeof body === "string") {
+      try {
+        parse(body);
+      } catch (e) {
+      }
+      return;
+    }
+    if (body && typeof body.text === "function") {
+      body.text().then(function(t) {
+        try {
+          parse(t);
+        } catch (e) {
+        }
+      }, function() {
+      });
+    }
+  }
+  function sendHistoryBeacon(item, sec) {
+    var wl = hostWeblog();
+    var env = buildHistoryEnvelope(
+      beaconCache,
+      item,
+      sec,
+      wl && wl.impr && wl.impr.getCurrentReqID ? wl.impr.getCurrentReqID() : void 0,
+      wl && wl.impr && wl.impr.getCurrentGroupID ? wl.impr.getCurrentGroupID() : void 0,
+      Date.now()
+    );
+    if (!env) return false;
+    try {
+      if (!navigator.sendBeacon(env.url, env.body)) return false;
+    } catch (e) {
+      return false;
+    }
+    return true;
+  }
+  window.addEventListener("pagehide", function() {
+    try {
+      var t = pickTarget();
+      var item = t && t.session && t.session.item;
+      if (!item || !item.cap || !item.cap.watchReport || !item.videoId) return;
+      var sec = t.video ? Math.floor(t.video.currentTime || 0) : 0;
+      if (sec < CFG.time.watchReportMin) return;
+      var key = item.id + ":" + item.videoId;
+      if (watchSentAt[key] === sec) return;
+      if (sendHistoryBeacon(item, sec)) {
+        watchSentAt[key] = sec;
+        ledgerReported(key, sec, Date.now());
+        stat("report-watch-beacon");
+      } else {
+        reportLeave(t.session, t.video, "pagehide", sec);
+      }
+    } catch (e) {
+    }
+  });
+  document.addEventListener("visibilitychange", function() {
+    if (document.hidden) reportLeaveCurrent("hidden");
+  });
+  var lastMarkAt = {};
+  function markWatchProgress(session, video) {
+    var item = session && session.item;
+    if (!item || !item.cap || !item.cap.watchReport || !item.videoId || !video) return;
+    var sec = Math.floor(video.currentTime || 0);
+    if (sec < CFG.time.watchReportMin) return;
+    var key = item.id + ":" + item.videoId;
+    var now = Date.now();
+    if (now - (lastMarkAt[key] || 0) < CFG.time.watchLedgerFlush) return;
+    lastMarkAt[key] = now;
+    ledgerMax(key, sec, now);
+  }
+  var replayTries = 0;
+  function replayWatchLedger() {
+    try {
+      var wl = hostWeblog();
+      if (!wl || !wl.impr || !wl.sendImmediately) {
+        if (++replayTries <= 5) setTimeout(replayWatchLedger, 1e3);
+        return;
+      }
+      var rec = reconcileLedger(ledgerSnapshot(), Date.now());
+      for (var i = 0; i < rec.replay.length; i++) {
+        var r = rec.replay[i];
+        var item = { id: r.id, videoId: r.videoId, cap: { watchReport: true } };
+        var key = r.id + ":" + r.videoId;
+        wl.sendImmediately("CLICK", {
+          action: "CLIENT_BROWSE_HISTORY",
+          params: buildHistoryParams(
+            item,
+            r.sec,
+            wl.impr.getCurrentReqID ? wl.impr.getCurrentReqID() : void 0,
+            wl.impr.getCurrentGroupID ? wl.impr.getCurrentGroupID() : void 0
+          )
+        });
+        watchSentAt[key] = r.sec;
+        ledgerDelete(key);
+        stat("report-watch-replay");
+      }
+    } catch (e) {
+      stat("report-watch-err");
+    }
+  }
+  setTimeout(replayWatchLedger, 2e3);
+  function buildShareParams(item, toPlatform, reqId, groupId) {
+    var acId = item && item.id;
+    var vid = item && item.videoId;
+    if (!acId || !vid || !toPlatform) return null;
+    return {
+      req_id: reqId,
+      group_id: groupId,
+      atom_id: String(vid),
+      ac_id: String(acId),
+      album_id: "0",
+      resourceType: "video",
+      cont_type: "douga_atom",
+      content_type: "douga_atom",
+      content_id: String(vid),
+      parent_content_id: String(acId),
+      content_episode: 1,
+      title: String(item.title || ""),
+      share_id: selfUid(),
+      share_type: "link",
+      to_platform: toPlatform
+    };
+  }
+  function reportShare(item, toPlatform, retryN) {
+    try {
+      var wl = hostWeblog();
+      if (!wl || !wl.sendImmediately) {
+        if ((retryN || 0) < 3) {
+          setTimeout(function() {
+            reportShare(item, toPlatform, (retryN || 0) + 1);
+          }, 1e3);
+        }
+        return false;
+      }
+      var params = buildShareParams(
+        item,
+        toPlatform,
+        wl.impr && wl.impr.getCurrentReqID ? wl.impr.getCurrentReqID() : void 0,
+        wl.impr && wl.impr.getCurrentGroupID ? wl.impr.getCurrentGroupID() : void 0
+      );
+      if (!params) return false;
+      wl.sendImmediately("CLICK", { action: "CHOOSE_SHARE_PLATFORM", params });
+      stat("report-share");
+      return true;
+    } catch (e) {
+      stat("report-share-err");
+      return false;
+    }
+  }
+
   // src/sharepanel.js
   var chatOpener = null;
   function setChatOpener(fn) {
@@ -4370,6 +4742,7 @@
     var copyBtn = el("button", "acsv-share-copy", "复制链接");
     copyBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
+      reportShare(item, "COPY_LINK");
       copyText(item.shareUrl).then(function(ok) {
         toast(ok ? "已复制：" + item.shareUrl : "复制失败，请手动复制");
       });
@@ -4456,6 +4829,7 @@
               if (chatOpener) chatOpener(c.targetId);
             });
             send.replaceWith(chatBtn);
+            reportShare(item, "IM");
             toast("已私信分享给 " + (card.name || "好友"));
           }, function(err) {
             send.disabled = false;
@@ -6028,330 +6402,6 @@
       capped: FollowVideos.chainCapped
     };
   });
-
-  // src/watchledger.js
-  var LEDGER_KEY = "acsvWatchLedger";
-  var LEDGER_CAP = 32;
-  function rawGet2() {
-    try {
-      if (typeof GM_getValue === "function") return GM_getValue(LEDGER_KEY);
-    } catch (e) {
-    }
-    try {
-      return localStorage.getItem(LEDGER_KEY);
-    } catch (e) {
-    }
-    return null;
-  }
-  function rawSet2(str) {
-    try {
-      if (typeof GM_setValue === "function") {
-        GM_setValue(LEDGER_KEY, str);
-        return;
-      }
-    } catch (e) {
-    }
-    try {
-      localStorage.setItem(LEDGER_KEY, str);
-    } catch (e) {
-    }
-  }
-  function reconcileLedger(raw, now, ttl) {
-    var out = { replay: [], keep: {} };
-    var obj = raw;
-    if (typeof raw === "string") {
-      try {
-        obj = JSON.parse(raw);
-      } catch (e2) {
-        return out;
-      }
-    }
-    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return out;
-    var limit = typeof ttl === "number" ? ttl : CFG.time.watchLedgerTtl;
-    var kept = [];
-    for (var k in obj) {
-      var e = obj[k];
-      if (!e || typeof e !== "object" || Array.isArray(e)) continue;
-      var maxSec = Number(e.maxSec), reported = Number(e.reportedSec), ts = Number(e.ts);
-      if (!isFinite(maxSec) || !isFinite(reported) || !isFinite(ts) || ts <= 0) continue;
-      if (now - ts > limit) continue;
-      if (maxSec <= reported) continue;
-      var parts = String(k).split(":");
-      var id = Number(parts[0]);
-      var videoId = parts.slice(1).join(":");
-      if (!isFinite(id) || id <= 0 || !videoId) continue;
-      var sec = Math.floor(maxSec);
-      if (sec < CFG.time.watchReportMin) continue;
-      out.replay.push({ id, videoId, sec });
-      out.keep[k] = { maxSec, reportedSec: reported, ts };
-      kept.push([ts, k]);
-    }
-    if (kept.length > LEDGER_CAP) {
-      kept.sort(function(a, b) {
-        return a[0] - b[0];
-      });
-      for (var i = 0; i < kept.length - LEDGER_CAP; i++) delete out.keep[kept[i][1]];
-    }
-    return out;
-  }
-  function buildHistoryParams(item, sec, reqId, groupId) {
-    return {
-      req_id: reqId,
-      group_id: groupId,
-      atom_id: String(item.videoId),
-      ac_id: String(item.id),
-      album_id: "0",
-      resourceTypeCode: 2,
-      playedSeconds: sec,
-      videoId: Number(item.videoId) || 0,
-      reportIdName: Number(item.id) || 0,
-      resourceType: "video",
-      bangumiItemId: null,
-      dougaId: Number(item.id) || 0
-    };
-  }
-  function buildHistoryEnvelope(cache2, item, sec, reqId, groupId, now) {
-    if (!cache2 || !cache2.url || !cache2.common || !cache2.tpl) return null;
-    var log = JSON.parse(JSON.stringify(cache2.tpl));
-    if (!log || !log.event_package || !log.event_package.task_event) return null;
-    var task = log.event_package.task_event;
-    if (!task.element_package) return null;
-    log.client_timestamp = typeof now === "number" ? now : Date.now();
-    log.client_increment_id = (Number(cache2.inc) || 0) + 1;
-    task.element_package.action = "CLIENT_BROWSE_HISTORY";
-    task.element_package.params = JSON.stringify(buildHistoryParams(item, sec, reqId, groupId));
-    return { url: cache2.url, body: JSON.stringify({ common: cache2.common, logs: [log] }) };
-  }
-  var ledgerMem = null;
-  function mem2() {
-    if (!ledgerMem) {
-      var raw = rawGet2();
-      ledgerMem = raw ? reconcileLedger(raw, Date.now()).keep : {};
-    }
-    return ledgerMem;
-  }
-  function flush() {
-    try {
-      rawSet2(JSON.stringify(ledgerMem));
-    } catch (e) {
-    }
-  }
-  function ledgerMax(key, sec, now) {
-    var m = mem2();
-    var e = m[key];
-    if (!e) e = m[key] = { maxSec: 0, reportedSec: 0, ts: 0 };
-    e.ts = now;
-    if (sec > e.maxSec) e.maxSec = sec;
-    flush();
-  }
-  function ledgerReported(key, sec, now) {
-    var m = mem2();
-    var e = m[key];
-    if (!e) e = m[key] = { maxSec: 0, reportedSec: 0, ts: 0 };
-    if (sec > e.maxSec) e.maxSec = sec;
-    e.reportedSec = sec;
-    e.ts = now;
-    flush();
-  }
-  function ledgerDelete(key) {
-    var m = mem2();
-    if (m[key]) {
-      delete m[key];
-      flush();
-    }
-  }
-  function ledgerSnapshot() {
-    return mem2();
-  }
-
-  // src/report.js
-  var watchSentAt = {};
-  function hostWeblog() {
-    var w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
-    return w.weblog || null;
-  }
-  function reportLeave(session, video, via, sec, retryN) {
-    var item = session && session.item;
-    if (!item || !item.cap || !item.cap.watchReport || !item.videoId) return;
-    if (!video && typeof sec !== "number") return;
-    if (typeof sec !== "number") sec = Math.floor(video.currentTime || 0);
-    if (sec < CFG.time.watchReportMin) return;
-    var key = item.id + ":" + item.videoId;
-    if (watchSentAt[key] === sec) return;
-    try {
-      var wl = hostWeblog();
-      if (!wl || !wl.impr || !wl.sendImmediately) {
-        if (via !== "pagehide" && (retryN || 0) < 3) {
-          setTimeout(function() {
-            reportLeave(session, video, via, sec, (retryN || 0) + 1);
-          }, 1e3);
-        }
-        return;
-      }
-      wl.sendImmediately("CLICK", {
-        action: "CLIENT_BROWSE_HISTORY",
-        params: buildHistoryParams(
-          item,
-          sec,
-          wl.impr.getCurrentReqID ? wl.impr.getCurrentReqID() : void 0,
-          wl.impr.getCurrentGroupID ? wl.impr.getCurrentGroupID() : void 0
-        )
-      });
-      watchSentAt[key] = sec;
-      ledgerReported(key, sec, Date.now());
-      stat("report-watch");
-    } catch (e) {
-      stat("report-watch-err");
-    }
-  }
-  function pickTarget() {
-    var tf = watchTarget();
-    var wt = tf && tf();
-    if (wt && wt.session) return wt;
-    if (!scroller || FeedStore.current < 0) return null;
-    var s = slideAt(FeedStore.current);
-    return s && s._session ? { session: s._session, video: s._session.video } : null;
-  }
-  function reportLeaveCurrent(via) {
-    try {
-      var t = pickTarget();
-      if (t) reportLeave(t.session, t.video, via);
-    } catch (e) {
-    }
-  }
-  var beaconCache = null;
-  (function sniffBeacon() {
-    try {
-      var nb = navigator.sendBeacon;
-      if (typeof nb !== "function") return;
-      navigator.sendBeacon = function(url, body) {
-        try {
-          if (String(url).indexOf("/log/collect/misc2") >= 0) cacheEnvelope(url, body);
-        } catch (e) {
-        }
-        return nb.apply(navigator, arguments);
-      };
-    } catch (e) {
-    }
-  })();
-  function cacheEnvelope(url, body) {
-    var parse = function(txt) {
-      var env = JSON.parse(txt);
-      var common = env && env.common;
-      var logs = env && env.logs || [];
-      if (!common || !logs.length) return;
-      var tpl = null, inc = 0;
-      for (var i = 0; i < logs.length; i++) {
-        var l = logs[i];
-        var ep = l && l.event_package && l.event_package.task_event && l.event_package.task_event.element_package;
-        if (ep && ep.action) {
-          if (!tpl) tpl = l;
-          if (Number(l.client_increment_id) > inc) inc = Number(l.client_increment_id);
-        }
-      }
-      if (!tpl) return;
-      beaconCache = { url: String(url), common, tpl, inc };
-    };
-    if (typeof body === "string") {
-      try {
-        parse(body);
-      } catch (e) {
-      }
-      return;
-    }
-    if (body && typeof body.text === "function") {
-      body.text().then(function(t) {
-        try {
-          parse(t);
-        } catch (e) {
-        }
-      }, function() {
-      });
-    }
-  }
-  function sendHistoryBeacon(item, sec) {
-    var wl = hostWeblog();
-    var env = buildHistoryEnvelope(
-      beaconCache,
-      item,
-      sec,
-      wl && wl.impr && wl.impr.getCurrentReqID ? wl.impr.getCurrentReqID() : void 0,
-      wl && wl.impr && wl.impr.getCurrentGroupID ? wl.impr.getCurrentGroupID() : void 0,
-      Date.now()
-    );
-    if (!env) return false;
-    try {
-      if (!navigator.sendBeacon(env.url, env.body)) return false;
-    } catch (e) {
-      return false;
-    }
-    return true;
-  }
-  window.addEventListener("pagehide", function() {
-    try {
-      var t = pickTarget();
-      var item = t && t.session && t.session.item;
-      if (!item || !item.cap || !item.cap.watchReport || !item.videoId) return;
-      var sec = t.video ? Math.floor(t.video.currentTime || 0) : 0;
-      if (sec < CFG.time.watchReportMin) return;
-      var key = item.id + ":" + item.videoId;
-      if (watchSentAt[key] === sec) return;
-      if (sendHistoryBeacon(item, sec)) {
-        watchSentAt[key] = sec;
-        ledgerReported(key, sec, Date.now());
-        stat("report-watch-beacon");
-      } else {
-        reportLeave(t.session, t.video, "pagehide", sec);
-      }
-    } catch (e) {
-    }
-  });
-  document.addEventListener("visibilitychange", function() {
-    if (document.hidden) reportLeaveCurrent("hidden");
-  });
-  var lastMarkAt = {};
-  function markWatchProgress(session, video) {
-    var item = session && session.item;
-    if (!item || !item.cap || !item.cap.watchReport || !item.videoId || !video) return;
-    var sec = Math.floor(video.currentTime || 0);
-    if (sec < CFG.time.watchReportMin) return;
-    var key = item.id + ":" + item.videoId;
-    var now = Date.now();
-    if (now - (lastMarkAt[key] || 0) < CFG.time.watchLedgerFlush) return;
-    lastMarkAt[key] = now;
-    ledgerMax(key, sec, now);
-  }
-  var replayTries = 0;
-  function replayWatchLedger() {
-    try {
-      var wl = hostWeblog();
-      if (!wl || !wl.impr || !wl.sendImmediately) {
-        if (++replayTries <= 5) setTimeout(replayWatchLedger, 1e3);
-        return;
-      }
-      var rec = reconcileLedger(ledgerSnapshot(), Date.now());
-      for (var i = 0; i < rec.replay.length; i++) {
-        var r = rec.replay[i];
-        var item = { id: r.id, videoId: r.videoId, cap: { watchReport: true } };
-        var key = r.id + ":" + r.videoId;
-        wl.sendImmediately("CLICK", {
-          action: "CLIENT_BROWSE_HISTORY",
-          params: buildHistoryParams(
-            item,
-            r.sec,
-            wl.impr.getCurrentReqID ? wl.impr.getCurrentReqID() : void 0,
-            wl.impr.getCurrentGroupID ? wl.impr.getCurrentGroupID() : void 0
-          )
-        });
-        watchSentAt[key] = r.sec;
-        ledgerDelete(key);
-        stat("report-watch-replay");
-      }
-    } catch (e) {
-      stat("report-watch-err");
-    }
-  }
-  setTimeout(replayWatchLedger, 2e3);
 
   // src/prewarm.js
   var prewarmTimer = null;
@@ -9816,7 +9866,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.144" : "");
+    return normVer(true ? "0.9.145" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12355,7 +12405,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.144：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.145：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

@@ -435,6 +435,27 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
   expandSubComments 零改动复用。R3 至此列表/楼中楼/发评/删评全链闭合。
 - **未实测**：评论图片上传（广场有 4 步分片文档，svfeed 无带图评论需求，不吸收）。
 
+### 4.8 分享上报 CHOOSE_SHARE_PLATFORM（〔实测〕2026-10-05，内置浏览器登录态）
+
+**采集方式**：acfun.cn 视频页（/v/ac26640967）页面内包 `navigator.sendBeacon` + `weblog.sendImmediately`
+（全网络留档 fetch/XHR/beacon/Image 兼收）。
+
+- **上报时机**：分享面板里**选平台那一刻**才上报（点开面板本身不上报；一次选择一条）。
+- **通道**：与观看历史**同一条** weblog `CLICK` 事件 →
+  `weblog.sendImmediately('CLICK', {action:'CHOOSE_SHARE_PLATFORM', params:{…}})` →
+  misc2 批量落 `log-sdk.ksapisrv.com/rest/wd/common/log/collect/misc2`（**无专用分享端点**）。
+- **参数（复制链接 / 微博两采样，除 to_platform 逐字相同）**：
+  `req_id`/`group_id`=页面 impr 的 getCurrentReqID/getCurrentGroupID（形如 `<hex>_self_<hex>` / `&&&dgrs`）；
+  `atom_id`=videoId、`content_id`=videoId、`ac_id`=acId、`parent_content_id`=acId（**atom_id ≠ ac_id**，
+  是两个 id 空间，不许拿 acId 冒 atom_id）；`album_id:"0"`；`resourceType:"video"`；
+  `cont_type`=`content_type`=`"douga_atom"`；`content_episode:1`；`title`=稿件标题；
+  `share_id`=当前登录 uid；`share_type:"link"`（两采样恒定）；`to_platform` **实测枚举**：`COPY_LINK`、`WEIBO`。
+- **动态页无此通道**：`/moment/am*` **不加载 weblog SDK**（实测 `window.weblog===false`）⇒ 官方动态
+  分享没有上报；动态的形状亦未实测（故本项目对非视频条目不上报）。
+- **项目落地（0.9.145）**：`report.buildShareParams`（纯函数，单测直采）+ `reportShare`；
+  接缝=sharepanel「复制链接」→ `COPY_LINK`（官方同形）、私信发送成功 → `'IM'`
+  （**自创枚举，官方无"私信分享"路径**——登记在册，站方若给正式标签只改一处）。
+
 ## 5. 内容扩展路线定性（〔实测〕）
 
 - **大家都在看**：无独立 JSON 接口（v 页 performance 时间线无相关请求），服务端直出进 v 页 HTML（实测 40 个 /v/ac 链接）→ 唯一路线 DOM 解析（uppage.js 同款）；window.videoInfo 内嵌 douga/info 等价数据（含 mkey）但**无**相关视频数组

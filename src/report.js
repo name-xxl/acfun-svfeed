@@ -1,4 +1,5 @@
 import { CFG } from './cfg.js';
+import { selfUid } from './ui.js';
 import { stat } from './dbg.js';
 import { FeedStore } from './feedstore.js';
 import { scroller, slideAt, watchTarget } from './state.js';
@@ -219,3 +220,65 @@ function replayWatchLedger() {
   } catch (e) { stat('report-watch-err'); }
 }
 setTimeout(replayWatchLedger, 2000);
+
+// ---------- 分享上报 CHOOSE_SHARE_PLATFORM（0.9.145；真机抓包对齐） ----------
+// 用户实报「点击分享不会上报」。**官方口径实测**（2026-10-05 内置浏览器登录态 /v/ac26640967，
+// 全网络间谍：fetch/XHR/sendBeacon/Image 全部留档）：
+//   · 上报时机 = 分享面板里**选平台那一刻**（点开面板本身**不上报**，每个面板只发一条）；
+//   · 通道 = 与观看历史**同一条**：`weblog.sendImmediately('CLICK', {action, params})`
+//     → misc2 批量落 `log-sdk.ksapisrv.com/rest/wd/common/log/collect/misc2`（无专用分享端点）；
+//   · 动态页 /moment/am* **压根不加载 weblog SDK**（实测 hasWeblog=false）⇒ 官方动态分享无上报通道。
+// 参数实测全量（复制链接 / 微博 两次采样，除 to_platform 外逐字相同）：
+//   req_id/group_id = impr.getCurrentReqID/getCurrentGroupID（页面 impr 会话 id，reportLeave 同源）
+//   atom_id=videoId、content_id=videoId、ac_id=acId、parent_content_id=acId、album_id="0"、
+//   resourceType="video"、cont_type/content_type="douga_atom"、content_episode=1、title、
+//   share_id=当前登录 uid、share_type="link"（两采样恒定）、to_platform∈{COPY_LINK, WEIBO}（实测枚举）。
+// 本脚本落点：面板「复制链接」→ 'COPY_LINK'（官方同形）；私信发送成功 → 'IM'
+// **（'IM' 是自创枚举：官方无“私信分享”路径、实测枚举里没有它——登记在册，站方若给正式
+// 标签只改此一处）**。**非视频条目（动态/文章）不上报**：官方动态页无此通道、动态的
+// content_type 形状未实测 ⇒ 宁可空白不可编造（官方参数里 atom_id/ac_id 是两个不同 id，
+// 拿 acId 冒充 atom_id 就是假数据）。
+// 纯函数（单测直采）：非视频/未解析条目（无 videoId）回 null = 不上报
+export function buildShareParams(item, toPlatform, reqId, groupId) {
+  var acId = item && item.id;
+  var vid = item && item.videoId;
+  if (!acId || !vid || !toPlatform) return null;
+  return {
+    req_id: reqId,
+    group_id: groupId,
+    atom_id: String(vid),
+    ac_id: String(acId),
+    album_id: '0',
+    resourceType: 'video',
+    cont_type: 'douga_atom',
+    content_type: 'douga_atom',
+    content_id: String(vid),
+    parent_content_id: String(acId),
+    content_episode: 1,
+    title: String(item.title || ''),
+    share_id: selfUid(),
+    share_type: 'link',
+    to_platform: toPlatform
+  };
+}
+
+// 分享上报入口（面板「复制链接」/私信发送成功）。SDK 未就绪同 reportLeave：
+// 隔 1s 短重试（上限 3 次）；非视频条目直接返回 false（不重试，见上注）
+export function reportShare(item, toPlatform, retryN) {
+  try {
+    var wl = hostWeblog();
+    if (!wl || !wl.sendImmediately) {
+      if ((retryN || 0) < 3) {
+        setTimeout(function () { reportShare(item, toPlatform, (retryN || 0) + 1); }, 1000);
+      }
+      return false;
+    }
+    var params = buildShareParams(item, toPlatform,
+      wl.impr && wl.impr.getCurrentReqID ? wl.impr.getCurrentReqID() : undefined,
+      wl.impr && wl.impr.getCurrentGroupID ? wl.impr.getCurrentGroupID() : undefined);
+    if (!params) return false;
+    wl.sendImmediately('CLICK', { action: 'CHOOSE_SHARE_PLATFORM', params: params });
+    stat('report-share');
+    return true;
+  } catch (e) { stat('report-share-err'); return false; }
+}
