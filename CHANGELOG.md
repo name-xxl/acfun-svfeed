@@ -3,6 +3,19 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.110（2026-10-04）· 反向例外清收①：topbar 关注 seg 改 hooks 注入
+
+- **背景（架构评审）**：topbar→followstream 是全仓唯一"纯省事型"反向边（基建共享件直连
+  特性模块；0.9.99 起登记为例外）——非环、需求仅 2 动作 + 1 状态读、注入点（player.mount
+  的 buildTopbar hooks）现成。其余 5 条反向边均有结构原因（环/传参链），各归后续切片。
+- **修法**：player.mount 注入三键 onFollowVideos/onFollowAll/getFollowActive；topbar 删
+  followstream import——「行为全部经 hooks 注入」的模块契约就此为真。顺带补头注**单例
+  语义警告**（buildTopbar 只在首建接收 hooks，二次调用静默忽略 h 参数——防御性怪癖留痕，
+  防后来者误用）。撤销该边顺带断掉 views→topbar→followstream→feedstore→player→views
+  五节点传递环。
+- **测试**：check-deps 删 topbar→followstream 边；单测 193 + 42 场景全绿（view-follow 68 /
+  follow-videos 24 / badge-poll 18 断言覆盖 seg 显隐与切换行为面，零行为变化）。
+
 ### 0.9.109（2026-10-04）· 视图层拆件：卡面 kit 独立为 cards.js
 
 - **动机（架构评审）**：views.js 混住两职责——视图生命周期编排（current/origins/舞台/路由

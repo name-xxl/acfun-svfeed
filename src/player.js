@@ -8,7 +8,7 @@ import { getSource, setSource, resetHomePager, API } from './api.js';
 import { isOpenComments, closeComments, openComments, commentState, syncCommentVars } from './comments.js';
 import { onPlaying as dmOnPlaying, stopAll as dmStopAll } from './danmaku.js';
 import { UpVideos } from './uppage.js';
-import { FollowVideos } from './followstream.js';
+import { FollowVideos, enterVideos, enterAll } from './followstream.js';
 import { dbg, testHook } from './dbg.js';
 import { markWatchProgress, reportLeave, reportLeaveCurrent } from './report.js';
 import { prewarm, preconnectSeed } from './prewarm.js';
@@ -404,7 +404,12 @@ function mount() {
     onSource: switchSource,
     onDrawer: toggleImDrawer, // 开合（0.9.75）：二次点击关闭——旧 openDrawer 恒开，点第二遍像没反应
     onRelease: openReleaseNotes,
-    getSource: getSource
+    getSource: getSource,
+    // 关注 seg 三键（0.9.110，撤 topbar 直连 followstream 的例外）：动作两键 + 状态读一键；
+    // feedActive 是 feedctx 上下文句柄（本模块本就在多处写它，读经闭包转给顶栏）
+    onFollowVideos: enterVideos,
+    onFollowAll: enterAll,
+    getFollowActive: function () { return FollowVideos.feedActive; }
   });
 
   setScroller(el('div', 'acsv-scroller'));

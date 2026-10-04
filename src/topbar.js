@@ -1,15 +1,16 @@
 import { el, toast } from './ui.js';
 import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
-import { FollowVideos, enterVideos, enterAll } from './followstream.js';
 
 // ---------- 顶栏（0.9.72 抽离为共享组件，0.9.73 四界面复用） ----------
 // 结构（左中右）：[搜索框·居中常驻（抖音同款位置）] [右侧按钮组：源切换 seg | 关注 seg（0.9.99，仅关注语境可见）| 私信 | 更新 | 退出 ✕]。
 // 一份组件、按界面同步（syncTopbar(view, arg)，与 syncDock 对位）：竖刷态显示源切换；✕ 单一意义=退出脚本（0.9.74 用户裁决，普通界面的 Esc 另义回竖刷）；
 // 视图态隐源切换（CSS 规则）；搜索视图把关键词回填进同一个输入框（唯一输入框）。
-// 行为全部经 hooks 注入（onSearch/onExit/onSource/onDrawer/onRelease/getSource），组件不 import
-// player（避免循环依赖）；**例外登记（0.9.99）**：关注 seg 直接 import followstream——hooks 表
-// 是为防 topbar→player 环而生，followstream 与 topbar 无环（依赖单向，check-deps 在册）；
+// 行为全部经 hooks 注入（onSearch/onExit/onSource/onDrawer/onRelease/getSource +
+// 0.9.110 关注 seg 三键 onFollowVideos/onFollowAll/getFollowActive——此前该 seg 直连
+// followstream 的"省事例外"已撤，共享件不直连特性模块）；组件不 import player（避免循环依赖）。
+// **单例语义（防御性怪癖，改前必读）**：buildTopbar 只在首建接收 hooks（barEl 已存在即早退、
+// h 参数被忽略）——会话中途换 hooks 静默无效；要换行为走 setSearchHandler 式瞬态缝或 teardown 重建。
 // 右侧四件套类名保持不变——抽屉避让（.acsv-top 的 right 收窄，右组随容器贴边）
 // 与 harness 既有断言（.acsv-upd-dot/.acsv-upd-btn）都挂在它们上面。
 // 搜索提交可被挂载中的视图临时接管（setSearchHandler）：搜索视图接管后，「同词再回车」
@@ -89,16 +90,18 @@ export function buildTopbar(parent, h) {
   segEl.appendChild(segHome);
   tr.appendChild(segEl);
   // 关注语境 seg（0.9.99）：「视频 | 全部」双面切换——视频=关注视频流接管舞台
-  //（followstream.enterVideos），全部=关注视图（仿原生列表）。仅关注语境可见；类名与源
+  //（0.9.110 起经 onFollowVideos 注入出口，实现在 followstream.enterVideos），
+  // 全部=关注视图（仿原生列表）。仅关注语境可见；类名与源
   // 切换 .acsv-seg 刻意不同：.acsv-top--view 的隐藏规则只打 .acsv-seg，关注视图里本 seg
   // 必须保持可见——它是「视频」侧的确定性回路口（深链进出不依赖 Esc 链）。
-  // 直接 import followstream 不走 hooks：hooks 表为避免 topbar→player 循环而生，
-  // followstream 与 topbar 无环（依赖单向），不再多绕一层
+  // 三键由 player.mount 注入（0.9.110 撤"直连 followstream"例外——hooks 表本为防
+  // topbar→player 环而生；共享件不直连特性模块，防悄悄长回特性知识）
   fsegVideos = el('button', 'acsv-seg-btn', '视频');
   fsegVideos.title = '关注视频竖刷';
   fsegVideos.addEventListener('click', function (ev) {
     ev.stopPropagation();
-    enterVideos().then(function (ok) {
+    if (!hooks.onFollowVideos) return;
+    hooks.onFollowVideos().then(function (ok) {
       if (!ok) toast('关注视频加载失败');
       syncFollowSeg();
     });
@@ -107,7 +110,8 @@ export function buildTopbar(parent, h) {
   fsegAll.title = '关注动态列表';
   fsegAll.addEventListener('click', function (ev) {
     ev.stopPropagation();
-    enterAll();
+    if (!hooks.onFollowAll) return;
+    hooks.onFollowAll();
     syncFollowSeg();
   });
   fsegEl = el('div', 'acsv-seg acsv-seg-follow');
@@ -156,14 +160,15 @@ export function syncTopbarSeg() {
 // 合理），这个问「当前界面是否属关注语境」（严格）。高亮=全部侧按视图、视频侧按流活动
 export function syncFollowSeg(view) {
   if (!fsegEl) return;
-  var show = view === 'follow' || (view == null && FollowVideos.feedActive);
+  var active = !!(hooks.getFollowActive && hooks.getFollowActive()); // 流活动态（0.9.110 起经注入读）
+  var show = view === 'follow' || (view == null && active);
   fsegEl.style.display = show ? '' : 'none';
-  fsegVideos.classList.toggle('on', !view && FollowVideos.feedActive);
+  fsegVideos.classList.toggle('on', !view && active);
   fsegAll.classList.toggle('on', view === 'follow');
   // 源切换 seg（小视频/推荐）与关注 seg 在**舞台态互斥**（0.9.104 用户实报「关注页切到视频时
   // 冒出小视频/推荐栏」）：舞台正放关注流时换源=退出关注流，语义冲突——隐源 seg；退出关注流
   // 后复位（视图态仍归 CSS 的 .acsv-top--view 管，此处只补 inline 的舞台态）
-  if (segEl) segEl.style.display = (view == null && FollowVideos.feedActive) ? 'none' : '';
+  if (segEl) segEl.style.display = (view == null && active) ? 'none' : '';
 }
 
 // 按当前界面同步（views.syncRouteView 调）：视图态隐源切换（CSS）+ 深界面出「向左返回」；

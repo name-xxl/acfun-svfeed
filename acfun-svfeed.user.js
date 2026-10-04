@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.109
+// @version      0.9.110
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -8936,7 +8936,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.109" : "");
+    return normVer(true ? "0.9.110" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -9223,7 +9223,8 @@
     fsegVideos.title = "关注视频竖刷";
     fsegVideos.addEventListener("click", function(ev) {
       ev.stopPropagation();
-      enterVideos().then(function(ok) {
+      if (!hooks2.onFollowVideos) return;
+      hooks2.onFollowVideos().then(function(ok) {
         if (!ok) toast("关注视频加载失败");
         syncFollowSeg();
       });
@@ -9232,7 +9233,8 @@
     fsegAll.title = "关注动态列表";
     fsegAll.addEventListener("click", function(ev) {
       ev.stopPropagation();
-      enterAll();
+      if (!hooks2.onFollowAll) return;
+      hooks2.onFollowAll();
       syncFollowSeg();
     });
     fsegEl = el("div", "acsv-seg acsv-seg-follow");
@@ -9279,11 +9281,12 @@
   }
   function syncFollowSeg(view2) {
     if (!fsegEl) return;
-    var show = view2 === "follow" || view2 == null && FollowVideos.feedActive;
+    var active = !!(hooks2.getFollowActive && hooks2.getFollowActive());
+    var show = view2 === "follow" || view2 == null && active;
     fsegEl.style.display = show ? "" : "none";
-    fsegVideos.classList.toggle("on", !view2 && FollowVideos.feedActive);
+    fsegVideos.classList.toggle("on", !view2 && active);
     fsegAll.classList.toggle("on", view2 === "follow");
-    if (segEl) segEl.style.display = view2 == null && FollowVideos.feedActive ? "none" : "";
+    if (segEl) segEl.style.display = view2 == null && active ? "none" : "";
   }
   function syncTopbar(view2, arg, opts) {
     if (!barEl) return;
@@ -10420,7 +10423,14 @@
       onDrawer: toggleImDrawer,
       // 开合（0.9.75）：二次点击关闭——旧 openDrawer 恒开，点第二遍像没反应
       onRelease: openReleaseNotes,
-      getSource
+      getSource,
+      // 关注 seg 三键（0.9.110，撤 topbar 直连 followstream 的例外）：动作两键 + 状态读一键；
+      // feedActive 是 feedctx 上下文句柄（本模块本就在多处写它，读经闭包转给顶栏）
+      onFollowVideos: enterVideos,
+      onFollowAll: enterAll,
+      getFollowActive: function() {
+        return FollowVideos.feedActive;
+      }
     });
     setScroller(el("div", "acsv-scroller"));
     root.appendChild(scroller);
@@ -10670,7 +10680,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.109：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.110：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

@@ -410,7 +410,6 @@ flowchart LR
   sidebar --> viewreg & settingspanel
   followview --> comments & emoticon & imgload & imgview & imshare & momentapi & momentbar & sidebar & viewreg & cards & momentdetail
   followstream --> appapi & data & feedctx & feedstore & momentapi & sidebar
-  topbar --> followstream
   momentbar --> banpop & imicons & immsg & interact & styles & ubb & ui
   followbadge --> followstream & momentapi
   momentdetail --> comments & emoticon & imgload & imgview & imshare & momentbar & overlay & cards
