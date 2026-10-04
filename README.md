@@ -383,7 +383,6 @@ flowchart LR
   momentapi["momentapi.js（动态域读接口）"]
   followbadge["followbadge.js（关注未读徽标·轮询退避）"]
   data --> imgurl & ubb
-  route --> feedstore
   imgview --> overlay
   imgload --> imgurl
   topbar --> imicons

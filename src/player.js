@@ -2,7 +2,7 @@ import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
 import { el, fmtTime, ensureStyle } from './ui.js';
 import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot, stageVisible, isOvlSlide, OVL_IDX } from './state.js';
-import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync } from './route.js';
+import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync, setItemProvider } from './route.js';
 import { FeedStore } from './feedstore.js';
 import { getSource, setSource, resetHomePager, API } from './api.js';
 import { isOpenComments, closeComments, openComments, commentState, syncCommentVars } from './comments.js';
@@ -156,6 +156,9 @@ function videoStageVisible(video) {
 }
 // 钩子注入 attach.js（SESSION_HOOKS 依赖上层导航/侧栏/控制栏，不能反向 import）
 setSessionHooks(SESSION_HOOKS);
+// route 的"当前条"取件（0.9.113）：地址栏回写现读 FeedStore.items[idx]——经 provider 注入
+//（route 不能反向 import 本模块/流仓库）；触发时刻读语义由 route 侧注释钉着，勿改传参形态
+setItemProvider(function (idx) { return FeedStore.items[idx]; });
 
 // HealthMonitor（卡帧看门狗 v3）在 session.js：与会话同生命周期，dispose 即停，
 // 恢复阶梯经 hooks 回接 switchQuality/attachVideo。

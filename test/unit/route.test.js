@@ -4,22 +4,14 @@
 // 0.9.72 再加一手标记深链 #svfeed/v/<meowId>、#svfeed/a/<acId>：id 跨两张详情表
 // （小视频 meowId / 推荐 acId）语法同形无法分辨，故地址栏一律写标记形态；标记段
 // 优先于视图段但必须带数字段（#svfeed/v 裸字母仍算视图名，形状同 #svfeed/foo）。
-// route.js 静态 import 链拉到 player（顶层零副作用是架构不变量），Node 直采需垫 window
+// route.js 静态 import 链（0.9.113 起）：route → cfg → dbg（模块级读 window）——不再经
+// feedstore→player 的 comments/report 链，垫片只剩 dbg 所需两项。player 顶层零副作用的
+// 隐式链检验（旧链顺带承担）现由 followbadge 单测链继续；B6 拆 feedstore↔player 后需显式补回
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-// route 的 import 链经过 comments/report（模块级事件监听）——Node 无这些 API，垫 no-op
-globalThis.addEventListener = function () { };
-globalThis.removeEventListener = function () { };
-globalThis.document = {
-  addEventListener: function () { },
-  removeEventListener: function () { },
-  hidden: false,
-  querySelector: function () { return null; },
-  querySelectorAll: function () { return []; }
-};
 var { parseHash } = await import('../../src/route.js');
 
 test('深链形态：#svfeed 与 #svfeed/<数字> 激活且不产生视图段', () => {

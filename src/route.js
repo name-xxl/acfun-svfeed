@@ -1,6 +1,5 @@
 import { CFG } from './cfg.js';
 import { root } from './state.js';
-import { FeedStore } from './feedstore.js';
 
 // ---------- 路由 ----------
 // 全锚定（$）：#svfeedother 之类前缀粘连串不算竖刷路由（旧版无锚定的语法松散，0.9.62 顺修）
@@ -66,6 +65,14 @@ export function cancelHashSync() {
   hashPending = -1;
 }
 
+// "当前条"取件提供者（0.9.113）：写地址栏需要 { id, kind }——由 player 注入
+//（() => FeedStore.items[idx]），本模块不再 import feedstore（route→feedstore 边=
+// route→feedstore→player→route 环的一半，0.9.113 断）。**必须保持"触发时刻读"语义**：
+// 150ms 定时器里现读——切流/重置后 items 已清空 ⇒ 残留定时器静默不写（cancelHashSync
+// 之外的第二道守卫）；改成调用时传 item 会破坏该守卫，勿改。
+var itemProvider = null;
+export function setItemProvider(fn) { itemProvider = typeof fn === 'function' ? fn : null; }
+
 export function syncHash(idx) {
   if (!root) return;
   hashPending = idx;
@@ -76,7 +83,7 @@ export function syncHash(idx) {
     // 子视图打开期间不回写深链：replaceState 不触发 hashchange，会把 #svfeed/<view>
     // 无声踩掉（视图 DOM/浮层栈还在而地址已变，Esc 回写判定随之失效——0.9.62 场景实测踩实）
     if (parseRoute().view) return;
-    var it = FeedStore.items[hashPending];
+    var it = itemProvider && itemProvider(hashPending);
     if (!it) return;
     setAppliedMid(it.id); // 地址已指向它：路由意图与地址保持一致
     try {

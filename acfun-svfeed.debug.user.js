@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.112-debug
+// @version      0.9.113-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -674,6 +674,82 @@
   }
   function sweepSlideVideos(slide) {
     Array.prototype.forEach.call(slide.querySelectorAll("video"), teardownVideo);
+  }
+
+  // src/route.js
+  var routeRe = new RegExp("^" + CFG.hash + "(?:/(\\d+))?$");
+  var markRe = new RegExp("^" + CFG.hash + "/([va])/(\\d+)$");
+  var playRe = new RegExp("^" + CFG.hash + "/play/([va])/(\\d+)$");
+  var viewRe = new RegExp("^" + CFG.hash + "/([a-z]+)(?:/([^/]+))?$");
+  function decodeArg(s) {
+    try {
+      return decodeURIComponent(s);
+    } catch (e) {
+      return s;
+    }
+  }
+  function parseHash(h) {
+    h = String(h == null ? "" : h).replace(/^#\/?/, "");
+    var m = h.match(routeRe);
+    var k = m ? null : h.match(markRe);
+    var p = m || k ? null : h.match(playRe);
+    var v = m || k || p ? null : h.match(viewRe);
+    return {
+      active: !!(m || k || p || v),
+      mid: m && m[1] || k && k[2] || null,
+      src: k && (k[1] === "a" ? "home" : "sv") || p && (p[1] === "a" ? "home" : "sv") || null,
+      view: p ? "play" : v ? v[1] : null,
+      viewArg: p ? p[2] : v && v[2] ? decodeArg(v[2]) : null
+    };
+  }
+  function parseRoute() {
+    var r = parseHash(location.hash);
+    r.active = r.active || location.pathname === "/" + CFG.hash;
+    return r;
+  }
+  function isFeedRoute() {
+    return parseRoute().active;
+  }
+  var hashTimer = null;
+  var hashPending = -1;
+  var appliedMid = null;
+  function getAppliedMid() {
+    return appliedMid;
+  }
+  function setAppliedMid(m) {
+    appliedMid = m == null ? null : String(m);
+  }
+  function cancelHashSync() {
+    if (hashTimer) {
+      clearTimeout(hashTimer);
+      hashTimer = null;
+    }
+    hashPending = -1;
+  }
+  var itemProvider = null;
+  function setItemProvider(fn) {
+    itemProvider = typeof fn === "function" ? fn : null;
+  }
+  function syncHash(idx) {
+    if (!root) return;
+    hashPending = idx;
+    if (hashTimer) return;
+    hashTimer = setTimeout(function() {
+      hashTimer = null;
+      if (!root) return;
+      if (parseRoute().view) return;
+      var it = itemProvider && itemProvider(hashPending);
+      if (!it) return;
+      setAppliedMid(it.id);
+      try {
+        history.replaceState(
+          null,
+          "",
+          location.pathname + location.search + "#" + CFG.hash + "/" + (it.kind === "home" ? "a" : "v") + "/" + it.id
+        );
+      } catch (e) {
+      }
+    }, 150);
   }
 
   // src/net.js
@@ -2564,78 +2640,6 @@
       })
     };
   });
-
-  // src/route.js
-  var routeRe = new RegExp("^" + CFG.hash + "(?:/(\\d+))?$");
-  var markRe = new RegExp("^" + CFG.hash + "/([va])/(\\d+)$");
-  var playRe = new RegExp("^" + CFG.hash + "/play/([va])/(\\d+)$");
-  var viewRe = new RegExp("^" + CFG.hash + "/([a-z]+)(?:/([^/]+))?$");
-  function decodeArg(s) {
-    try {
-      return decodeURIComponent(s);
-    } catch (e) {
-      return s;
-    }
-  }
-  function parseHash(h) {
-    h = String(h == null ? "" : h).replace(/^#\/?/, "");
-    var m = h.match(routeRe);
-    var k = m ? null : h.match(markRe);
-    var p = m || k ? null : h.match(playRe);
-    var v = m || k || p ? null : h.match(viewRe);
-    return {
-      active: !!(m || k || p || v),
-      mid: m && m[1] || k && k[2] || null,
-      src: k && (k[1] === "a" ? "home" : "sv") || p && (p[1] === "a" ? "home" : "sv") || null,
-      view: p ? "play" : v ? v[1] : null,
-      viewArg: p ? p[2] : v && v[2] ? decodeArg(v[2]) : null
-    };
-  }
-  function parseRoute() {
-    var r = parseHash(location.hash);
-    r.active = r.active || location.pathname === "/" + CFG.hash;
-    return r;
-  }
-  function isFeedRoute() {
-    return parseRoute().active;
-  }
-  var hashTimer = null;
-  var hashPending = -1;
-  var appliedMid = null;
-  function getAppliedMid() {
-    return appliedMid;
-  }
-  function setAppliedMid(m) {
-    appliedMid = m == null ? null : String(m);
-  }
-  function cancelHashSync() {
-    if (hashTimer) {
-      clearTimeout(hashTimer);
-      hashTimer = null;
-    }
-    hashPending = -1;
-  }
-  function syncHash(idx) {
-    if (!root) return;
-    hashPending = idx;
-    if (hashTimer) return;
-    hashTimer = setTimeout(function() {
-      hashTimer = null;
-      if (!root) return;
-      if (parseRoute().view) return;
-      var it = FeedStore.items[hashPending];
-      if (!it) return;
-      setAppliedMid(it.id);
-      try {
-        history.replaceState(
-          null,
-          "",
-          location.pathname + location.search + "#" + CFG.hash + "/" + (it.kind === "home" ? "a" : "v") + "/" + it.id
-        );
-      } catch (e) {
-      }
-    }, 150);
-  }
 
   // src/imicons.js
   var ICON_SVGS = {
@@ -8784,7 +8788,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.112" : "");
+    return normVer(true ? "0.9.113" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -9873,6 +9877,9 @@
     return !!(video && video.offsetParent !== null);
   }
   setSessionHooks(SESSION_HOOKS);
+  setItemProvider(function(idx) {
+    return FeedStore.items[idx];
+  });
   function renderWindow() {
     if (!scroller) return;
     var cur = FeedStore.current;
@@ -10344,7 +10351,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.112：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.113：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

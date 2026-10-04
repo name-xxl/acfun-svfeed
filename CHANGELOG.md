@@ -3,6 +3,18 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.113（2026-10-04）· 反向例外清收④：route→feedstore 改 provider 注入
+
+- **背景**：syncHash（地址栏回写）读 FeedStore.items 取"当前条"{id,kind}——基建层（路由）
+  直连播放层（流仓库），并构成 route→feedstore→player→route 环。
+- **修法**：取件改 setItemProvider 注入（player 模块级注册 () => FeedStore.items[idx]，
+  同 setSessionHooks 惯例），route 删 feedstore import。**保持触发时刻读语义**（150ms
+  定时器里现读——切流/重置后 items 已清空 ⇒ 残留定时器静默不写，是 cancelHashSync 之外的
+  第二道守卫；改成调用时传 item 会破坏它，注释钉在 route 侧）。顺带断 route 环。
+  route.test 垫片收窄：链缩至 route→cfg→dbg（模块级读 window），只留 window/__ACSV_DEBUG__
+  两项；player 顶层零副作用的隐式链检验由 followbadge 单测继续承担（B6 落地后显式补回）。
+- **测试**：check-deps 删 route→feedstore 边；单测 193 + 42 场景全绿。
+
 ### 0.9.112（2026-10-04）· 反向例外清收③：sidebar→settingspanel 改 player 注入
 
 - **背景**：dock 齿轮直连 settingspanel（作者自定性"皮肤→皮肤"，可拆一条）。
