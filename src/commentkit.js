@@ -37,18 +37,21 @@ function replyPrefixHtml(c) {
   var n = c.replyToUserName || c.replyToName;
   var id = Number(c.replyTo) || 0;
   if (!n || !id) return '';
-  return '回复 <a class="acsv-creplyto" href="' + CFG.api.userBase + id
-    + '" target="_blank" rel="noopener">@' + esc(n) + '</a> : ';
+  return '<span class="acsv-cpre">回复 <a class="acsv-creplyto" href="' + CFG.api.userBase + id
+    + '" target="_blank" rel="noopener">@' + esc(n) + '</a> : </span>';
 }
 
 // 子评论 opts 派生（楼中楼上下文）：isSec 三处限定——回复前缀在、头像框/楼层不在
 function subOptsOf(opts) {
-  return { mode: opts.mode, sourceId: opts.sourceId, stype: opts.stype, isSec: true };
+  return { mode: opts.mode, sourceId: opts.sourceId, stype: opts.stype, form: opts.form, isSec: true };
 }
 
-// 条目构建单源。opts 注入（0.9.133，去全局读）：{ mode, sourceId, stype }——mode 是原
-// commentState.kind 的交互态分叉（'home' 才有赞/回复/转发三键），sourceId/stype 供楼中楼拉取
+// 条目构建单源。opts 注入（0.9.133，去全局读）：{ mode, sourceId, stype, form }——mode 是原
+// commentState.kind 的交互态分叉（'home' 才有赞/回复/转发三键），sourceId/stype 供楼中楼拉取；
+// form（0.9.135）：'native'=内嵌原生页语境（时间并入名字行「发表于 x」等原生版式，CSS 侧在
+// .acsv-mp 作用域），其余=脚本自有形态
 export function commentItemOf(c, subMap, opts) {
+  var nf = opts.form === 'native';
   var item = el('div', 'acsv-citem');
   // 头像 + 昵称可点击进入用户主页
   var homeUrl = c.userId ? CFG.api.userBase + c.userId : null;
@@ -77,13 +80,18 @@ export function commentItemOf(c, subMap, opts) {
   var ncss = nameColorCss(c.nameColor);
   if (ncss) nameChild.style.color = ncss;
   if (c.isUp) name.appendChild(el('span', 'up', 'UP'));
+  // 原生形态（0.9.135）：时间并入名字行「发表于 x」（工具行不再放日期——native 版式）
+  if (nf) {
+    name.appendChild(el('span', 'acsv-cpostday', '发表于'));
+    name.appendChild(el('span', 'acsv-cposttime', c.postDate || ''));
+  }
   body.appendChild(name);
   var ctext = el('div', 'acsv-ctext');
   // 前缀仅子评论（0.9.134「回复 @名 :」；根不拼）——内容先 esc 再 UBB 渲染（renderCommentHtml 内）
   ctext.innerHTML = (opts.isSec ? replyPrefixHtml(c) : '') + renderCommentHtml(c.content);
   body.appendChild(ctext);
   var meta = el('div', 'acsv-cmeta');
-  meta.appendChild(el('span', null, c.postDate || ''));
+  if (!nf) meta.appendChild(el('span', null, c.postDate || '')); // 原生形态：日期在名字行
   var like = null, replyBtn = null;
   // 点赞/回复/转发三键图标统一用动态页互动区同款 iconfont 字形（imicons.GLYPHS.feed*
   // 码点，字体抽屉内自注入）：点亮态切实心字形（feedLikeFill），颜色状态机由容器 color 驱动
@@ -167,7 +175,10 @@ export function commentItemOf(c, subMap, opts) {
 // 楼中楼展开：comment/sublist 分页拉取，就地追加渲染（网页版交互）
 // opts（0.9.133 注入）：{ mode, sourceId, stype }——sourceId/stype 原读全局 commentState 改注入
 function expandSubComments(body, c, subBox, opts) {
-  var more = el('button', 'acsv-cmore', '展开 ' + c.subCommentCount + ' 条回复');
+  // 文案（0.9.135）：内嵌原生形态用原生措辞「共 N 条回复, 点击查看」；脚本形态维持「展开 N 条回复」
+  var more = el('button', 'acsv-cmore', opts.form === 'native'
+    ? '共 ' + c.subCommentCount + ' 条回复, 点击查看'
+    : '展开 ' + c.subCommentCount + ' 条回复');
   var pcursor = '';
   var loaded = subBox ? subBox.querySelectorAll('.acsv-citem').length : 0;
   function appendSubs(arr) {

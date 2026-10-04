@@ -14,12 +14,14 @@
     // 定向桩（view-square 同款处置：走 __ACSV_MOCK_FORM__ 而非内置 __ACSV_MOCK__）
     window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
       'comment/list': function () {
+        // 0.9.135 原生形态版式断言用：postDate（并入名字行）、subCommentCount 3 > 已载 1（展开按钮
+        // 文案「共 3 条回复, 点击查看」）、子评论名字加粗/头像 30 的 CSS 语境
         return { result: 0, commentCount: 1, curPage: 1, totalPage: 1, pcursor: 'no_more',
           hotComments: [],
           rootComments: [
-            { commentId: 'mp1', userId: 41, userName: '广场评论员', headUrl: '', content: '内嵌原位评论', postDate: '1分钟前', likeCount: 0, isLike: false, subCommentCount: 0 }
+            { commentId: 'mp1', userId: 41, userName: '广场评论员', headUrl: '', content: '内嵌原位评论', postDate: '1分钟前', likeCount: 0, isLiked: false, subCommentCount: 3 }
           ],
-          subCommentsMap: {} };
+          subCommentsMap: { mp1: [{ commentId: 'mp1-1', userId: 42, userName: '楼中楼甲', headUrl: '', content: '楼中楼内容', postDate: '1分钟前', likeCount: 0, isLiked: false, replyToUserName: '广场评论员', replyTo: 41 }] } };
       },
       'moment/detail': function (body, url) {
         return { result: 0, moment: {
@@ -105,6 +107,34 @@
       var box = mRow.querySelector('.acsv-frow-cmts');
       return box && box.querySelector('.acsv-cinput') && /内嵌原位评论/.test(box.textContent);
     }, 8000)));
+    // 0.9.135 原生形态版式（内嵌语境专属）：时间并入名字行「发表于 x」、工具行无日期、
+    // 头像 computed 50px、楼中楼头像 30px+名字加粗、展开文案「共 N 条回复, 点击查看」
+    var mpBox = mRow.querySelector('.acsv-frow-cmts');
+    var mpRoot = mpBox && mpBox.querySelector('.acsv-citem');
+    function mpOwn(node, cls) {
+      for (var i2 = 0; node && i2 < node.children.length; i2++) if (node.children[i2].classList.contains(cls)) return node.children[i2];
+      return null;
+    }
+    var mpBody = mpOwn(mpRoot, 'acsv-cbody');
+    var mpName = mpOwn(mpBody, 'acsv-cname');
+    var mpMeta = mpOwn(mpBody, 'acsv-cmeta');
+    rec('mp-cmt-native-datetitle', !!(mpName && /发表于/.test(mpName.textContent) && /1分钟前/.test(mpName.textContent)
+      && mpMeta && !/1分钟前/.test(mpMeta.textContent)), mpName ? mpName.textContent.trim().slice(0, 24) : 'none');
+    rec('mp-cmt-native-av', (function () {
+      var av = mpRoot && mpRoot.querySelector('img.av');
+      return !!av && getComputedStyle(av).width === '50px';
+    })(), (function () { var av = mpRoot && mpRoot.querySelector('img.av'); return av ? getComputedStyle(av).width : 'none'; })());
+    rec('mp-cmt-native-more', (function () {
+      var b = mpBox && mpBox.querySelector('.acsv-cmore');
+      return !!b && /共 3 条回复, 点击查看/.test(b.textContent);
+    })(), (function () { var b = mpBox && mpBox.querySelector('.acsv-cmore'); return b ? b.textContent : 'none'; })());
+    rec('mp-cmt-native-sub', (function () {
+      var sub = mpBox && mpBox.querySelector('.acsv-csub .acsv-citem');
+      var subAv = sub && sub.querySelector('img.av');
+      var subName = sub && sub.querySelector('.acsv-cname a');
+      return !!sub && !!subAv && getComputedStyle(subAv).width === '30px'
+        && !!subName && getComputedStyle(subName).fontWeight === '700';
+    })());
     if (acts[1]) acts[1].click();
     await wait(250);
     rec('mp-cmts-close', !mRow.querySelector('.acsv-frow-cmts'));

@@ -1611,6 +1611,15 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       var like = rootMeta && rootMeta.querySelector('.acsv-clike');
       return !!like && like.classList.contains('on'); // isLiked:true → 已赞点亮（0.9.134 三读）
     })());
+    // 形态互斥钉（0.9.135）：脚本形态=日期在工具行、名字行无「发表于」、头像 36px（内嵌原生形态
+    // 才是 50px——两形态由 .acsv-mp 作用域与 form 注入分派，此处防串）
+    var rootNameRow = ownChild(rootBody, 'acsv-cname');
+    rec('square-cmt-form-svfeed', !!(rootNameRow && !/发表于/.test(rootNameRow.textContent)
+      && rootMeta && /1分钟前/.test(rootMeta.textContent)));
+    rec('square-cmt-av36', (function () {
+      var av = rootItem && rootItem.querySelector('img.av');
+      return !!av && getComputedStyle(av).width === '36px';
+    })());
     if (mActs[1]) mActs[1].click();
     rec('square-cmts-close', !!(await waitFor(function () {
       return !mRow.querySelector('.acsv-frow-cmts');
