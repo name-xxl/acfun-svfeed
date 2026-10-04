@@ -35,6 +35,7 @@ function pageWin() {
 function logInstaller(G) {
   if (G.__acsvImLog) return;
   G.__acsvImLog = [];
+  G.__acsvImLogDrop = 0; // 累计驱逐数（0.9.121）：水位判据按"累计写入数"记，见 tracerCrashAfter
   G.__acsvImErr = '';
   var ser = function (a) {
     if (a == null) return String(a);
@@ -62,7 +63,7 @@ function logInstaller(G) {
       if (line.indexOf('[im-sdk]') > -1 || line.indexOf('信息发送') > -1 || line.indexOf('reject:') > -1) {
         if (errJson) G.__acsvImErr = errJson;
         G.__acsvImLog.push(line.slice(0, 2000));
-        if (G.__acsvImLog.length > 60) G.__acsvImLog.shift();
+        if (G.__acsvImLog.length > 60) { G.__acsvImLog.shift(); G.__acsvImLogDrop++; }
       }
     } catch (e) { }
   };
@@ -114,13 +115,37 @@ function imLogVerdict(mark) {
   }
   return null;
 }
-function hadTracerCrash() {
-  var w = pageWin(), buf = [];
-  try { buf = w.__acsvImLog || []; } catch (e) { }
-  for (var i = 0; i < buf.length; i++) {
-    if (String(buf[i]).indexOf("reading 'context'") > -1) return true;
+// 日志状态读取（缓冲 + 累计驱逐数）：水位判据按"累计写入数"记——滚动缓冲 shift() 会让
+// 数组下标整体漂移，纯下标水位在驱逐后错位（0.9.121）
+function imLogState() {
+  try {
+    var w = pageWin();
+    return { lines: w.__acsvImLog || [], drop: Number(w.__acsvImLogDrop) || 0 };
+  } catch (e) { return { lines: [], drop: 0 }; }
+}
+function imLogTotal() { var s = imLogState(); return s.drop + s.lines.length; }
+
+// 崩溃水位判据（纯函数，导出供单测）：仅认"绝对序号 ≥ fromTotal"的行的崩溃指纹。
+// 绝对序号 = drop + 数组下标；fromTotal = 已修复水位（tracer 病治愈时推进的累计写入数）
+export function tracerCrashAfter(lines, drop, fromTotal) {
+  var d = Number(drop) || 0, from = Number(fromTotal) || 0;
+  var arr = lines || [];
+  for (var i = 0; i < arr.length; i++) {
+    if (d + i < from) continue;
+    if (String(arr[i]).indexOf("reading 'context'") > -1) return true;
   }
   return false;
+}
+
+// 已修复水位与判定（0.9.121 修）：此前从缓冲 0 号全量扫——已治愈的旧崩溃（滚动 60 行内
+// 可滞留很久）会让之后每次普通发送失败都被误诊成"需要重建单例"（无谓重建=断链重连）。
+// 现在只认水位之后的崩溃。**为什么不选"重建成功后清缓冲"**：清空会让同页在途 doSend 的
+// imLogVerdict(mark) 水位失配（buf.length < mark 恒 null）→ 该发送超时终局 →
+// withSendRecovery 重试 → 若原发送实际已成功 = 重复私信；水位+驱逐计数无此险
+var tracerFixedTotal = 0;
+function hadTracerCrash() {
+  var s = imLogState();
+  return tracerCrashAfter(s.lines, s.drop, tracerFixedTotal);
 }
 
 // ---------- weblog 兜底 ----------
@@ -460,7 +485,11 @@ function rebuildIm() {
     resetSingleton(Ctor);
     var inst = new Ctor({ dev: false });
     imPromise = Promise.resolve(inst);
-    return ensureConnected(inst).then(function () { return inst; });
+    return ensureConnected(inst).then(function () {
+      // 水位推进（0.9.121）：tracer 已随 ensureWeblogSync 修复——此前历史崩溃不再计入误诊
+      tracerFixedTotal = imLogTotal();
+      return inst;
+    });
   }, function (e) {
     if (imPromise === p) imPromise = null; // 加载失败弃槽，下次 ensureIm 可重试
     throw e;
@@ -470,7 +499,7 @@ function rebuildIm() {
 }
 
 // 发送 + 失败自动恢复重试一次（文本 doSend 与引用 sendQuote 共用）。按失败指纹分派：
-//   tracer 崩溃（weblog 缺失）→ 重建带病单例
+//   tracer 崩溃（weblog 缺失）→ 重建带病单例（只认已修复水位之后的崩溃，0.9.121——旧崩溃不再误诊）
 //   链路坏 → 重连
 //   sync-required（服务端 {syncOffset} 拒绝）→ 强制同步一轮
 // 恢复后仍失败才是真问题，原因走黑匣子。send(inst) 由调用方闭包打包「建消息+发送」

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.120-debug
+// @version      0.9.121-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -3267,6 +3267,7 @@
   function logInstaller(G) {
     if (G.__acsvImLog) return;
     G.__acsvImLog = [];
+    G.__acsvImLogDrop = 0;
     G.__acsvImErr = "";
     var ser = function(a) {
       if (a == null) return String(a);
@@ -3298,7 +3299,10 @@
         if (line.indexOf("[im-sdk]") > -1 || line.indexOf("信息发送") > -1 || line.indexOf("reject:") > -1) {
           if (errJson) G.__acsvImErr = errJson;
           G.__acsvImLog.push(line.slice(0, 2e3));
-          if (G.__acsvImLog.length > 60) G.__acsvImLog.shift();
+          if (G.__acsvImLog.length > 60) {
+            G.__acsvImLog.shift();
+            G.__acsvImLogDrop++;
+          }
         }
       } catch (e) {
       }
@@ -3370,16 +3374,31 @@
     }
     return null;
   }
-  function hadTracerCrash() {
-    var w = pageWin(), buf = [];
+  function imLogState() {
     try {
-      buf = w.__acsvImLog || [];
+      var w = pageWin();
+      return { lines: w.__acsvImLog || [], drop: Number(w.__acsvImLogDrop) || 0 };
     } catch (e) {
+      return { lines: [], drop: 0 };
     }
-    for (var i = 0; i < buf.length; i++) {
-      if (String(buf[i]).indexOf("reading 'context'") > -1) return true;
+  }
+  function imLogTotal() {
+    var s = imLogState();
+    return s.drop + s.lines.length;
+  }
+  function tracerCrashAfter(lines, drop, fromTotal) {
+    var d = Number(drop) || 0, from = Number(fromTotal) || 0;
+    var arr = lines || [];
+    for (var i = 0; i < arr.length; i++) {
+      if (d + i < from) continue;
+      if (String(arr[i]).indexOf("reading 'context'") > -1) return true;
     }
     return false;
+  }
+  var tracerFixedTotal = 0;
+  function hadTracerCrash() {
+    var s = imLogState();
+    return tracerCrashAfter(s.lines, s.drop, tracerFixedTotal);
   }
   function weblogInstaller(G) {
     function makeSpan(opts) {
@@ -3745,6 +3764,7 @@
       var inst = new Ctor({ dev: false });
       imPromise = Promise.resolve(inst);
       return ensureConnected(inst).then(function() {
+        tracerFixedTotal = imLogTotal();
         return inst;
       });
     }, function(e) {
@@ -8814,7 +8834,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.120" : "");
+    return normVer(true ? "0.9.121" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -10382,7 +10402,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.120：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.121：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
