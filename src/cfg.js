@@ -34,6 +34,12 @@ export var CFG = {
     token: 'https://id.app.acfun.cn/rest/web/token/get',
     interact: 'https://api.kuaishouzt.com/rest/zt/interact/',
     follow: 'https://www.acfun.cn/rest/pc-direct/relation/follow',
+    // ---- 关注分组（0.9.142；docs/api-research.md §2.2/§2.6 全生命周期真机实测在册） ----
+    // 组列表=GET（社区文档写 POST，实测为 GET）；组 CRUD 同组端点 action=4 建/5 删/6 改名；
+    // 组内成员/关注总表=getFollows（action=9 按组过滤 / 7 全部 / 8 粉丝；pcursor 是**偏移量**）
+    relationGroups: 'https://www.acfun.cn/rest/pc-direct/relation/getGroups',
+    relationGroup: 'https://www.acfun.cn/rest/pc-direct/relation/group',
+    relationFollows: 'https://www.acfun.cn/rest/pc-direct/relation/getFollows',
     emotion: 'https://m.acfun.cn/rest/mobile-direct/emotion/getUserEmotion',
     upPage: 'https://m.acfun.cn/upPage/',
     shareBase: 'https://m.acfun.cn/sv/?mid=',

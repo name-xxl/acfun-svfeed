@@ -157,12 +157,21 @@ https://www.acfun.cn/rest/pc-direct/feed/followDougaFeed?pcursor=<毫秒>&count=
 `GET https://www.acfun.cn/rest/pc-direct/relation/getGroups`
 （用户抓包 + 实测 result 0；社区文档写 POST，实为 GET）
 
+- **复验补记（0.9.142 实施前置，2026-10-04）**：groupList 首项是 **「未分组」= groupId `"0"`**
+  （普通项，实测 7 组含它、14 人）——不是"缺省值"；选它就是"移出所有分组"（action=3 传 0 实测可移回）。
+  组名与 id 全为**字符串**（数字回显也按字符串归一处）。
+
 ### 2.3 关注列表 getFollows
 
 `POST https://www.acfun.cn/rest/pc-direct/relation/getFollows`
 body：`action=7&page=1&count=20&groupId=-1`（-1=不分组；action=8 为粉丝列表）
 
 - 翻页：pcursor 为**偏移量**（实测 "20"），与 webPush 时间戳不同源
+- **复验补记（0.9.142）**：`page` 与 `pcursor` 并存但 **pcursor 优先**（实测 `pcursor=5&page=1` 回偏移
+  5 的窗口、`page=3&count=5` 回偏移 10 的窗口——两种都驱动，别混发）；**终值 `pcursor:"no_more"`**
+  （末页实测，与 dougaFeed 同族哨兵）；成员条目**自带 `groupId`/`groupName`**（归属可直接显，
+  不必按组反查）；头像读序 **`userImg`（字符串 URL）→ `userHeadImgInfo.thumbnailImageCdnUrl`**
+  （实测两字段同值）
 - 实测 totalCount=91，friendList 每页 20 条
 - 条目字段：userId / userName / signature / userHeadImgInfo / gender / fanCountShow / contributeCountShow / isFollowing / isFollowed / verifiedText / socialMedal 等
 
@@ -177,18 +186,32 @@ body：`action=7&page=1&count=20&groupId=-1`（-1=不分组；action=8 为粉丝
 
 - action=1 关注（可配 groupId=组id 直接入组）/ action=2 取消关注 / **action=3 给已关注用户重设分组**（toUserId+groupId+action=3，UI 文案"更改分组成功"）
 - 视频/文章页关注弹窗 = **单选下拉**（选项文本"组名(成员数)"），点确定按所选 groupId 提交；弹窗内**无建组入口**，官方文案"如需添加新的分组点这里>>"跳关注列表页（站点 chunk 实锤）
-- 脚本现行（interact.js setRealFollow）：toUserId + action 1/2 + **groupId 传空** → 全落"未分组"，无组选择
+- ~~脚本现行（interact.js setRealFollow）：toUserId + action 1/2 + **groupId 传空** → 全落"未分组"，无组选择~~
+  （**0.9.142 已改**：setRealFollow 退役，关注/取关/改分组收口 relationapi + grouppop 分组选择层——
+  未关注选组（默认未分组，可新建）/ 已关注改分组（action=3）+ 层内取消关注）
 
 ### 2.6 关注分组管理（2026-10-02 全生命周期真机实测，测试组已清理）
 
 - 组列表：`GET …/relation/getGroups` → groupList[]：{groupId, groupName, followingCount, followingCountShow}（实测 7 组）
 - **组 CRUD 同一端点**：`POST …/relation/group`，action 切换（关注列表页 chunk 实锤 + 真机）：
-  - **action=4 建组**：`action=4&groupName=<组名>` → result 0；**响应不带新 groupId**——须拿组名回查 getGroups 差集定位（实测坑）；组名限 `^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$`（**1~8 字符**，仅中英数下划线），保留名"特别关注/未分组"禁用（chunk 校验正则）
+  - **action=4 建组**：`action=4&groupName=<组名>` → result 0；组名限 `^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$`（**1~8 字符**，仅中英数下划线），保留名"特别关注/未分组"禁用（chunk 校验正则）
   - **action=5 删组**：`action=5&groupId=<组id>` → result 0；组内成员移至"未分组"（UI 确认文案）
   - **action=6 重命名**：`groupId=<组id>&action=6&groupName=<新名>`
+- **复验补记（0.9.142 实施前置，2026-10-04；闭环链建→移→改→删全走过，终态复原）**：
+  - **建组响应其实带回新 id**：`{result:0, groupId:"281985"}`——上文"须差集回查"的坑是**旧读法**；
+    实现口径=**优先取响应 groupId、差集仅兜底**（relationapi.createGroup 两形态都留着）
+  - **action=1（关注）对已关注用户不改归属**：实测把已关注用户以 `action=1&groupId=<新组>` 提交，
+    仍留在原组 ⇒ **改分组必须 action=3**（UI 侧分派写死，别用"重新关注"冒充移组）
+  - **action=3 传 groupId=0** = 移回「未分组」（真机：组从 14→13→14、临时组 1→0，全程 result 0）
+  - **followFeedV2 不吃 groupId 过滤**（2026-10-04 实测）：带 `groupId=273464` / `0` 与不带的
+    响应**同一列表、同游标**——参数被忽略；且 feed 条目的 `groupId` 字段是**埋点串**
+    （形如 `<hex>_1&-124&&dffaf`，每次请求都变）**不是关注分组** ⇒ **"按分组看关注流"没有服务端
+    能力**，分组只做**关系管理**（建/删/改名/移组/取关 + 组内成员列表），关注视图不做分组 chips
 - 按组过滤关注列表：getFollows **action=9** + `groupId=<组id>`（action=7 全部 / 8 粉丝的隐藏兄弟用法；实测组内 totalCount 与成员 userId 精确）
 - 实测闭环链：建组×2 → 关注入组1（action=9 过滤 total=1）→ action=3 移到组2（组1 归零、组2 total=1）→ 取关 → 删组×2，各步 result 0，终态组列表复原（7 组、无残留）
-- 对接现状：补全抓手 = 组下拉（getGroups）+ 建组（action=4）+ 移组（action=3）+ 组过滤（action=9）；官方弹窗不做建组，插件可自行做全
+- 对接现状：**0.9.142 已落地全闭环**——relationapi（读写收口）+ pickpop（通用选择层壳）+
+  grouppop（关注分组语义件）+ 我的页第三 tab「关注分组」；rail 关注角标改官方口径（点开=选择/
+  更改分组，含新建；已关注态附「取消关注」）。官方弹窗不做建组，插件自行做全 ✓
 
 ### 2.7 动态广场 feedSquare（〔实测转引〕2026-10-04，广场页吸收前置）
 

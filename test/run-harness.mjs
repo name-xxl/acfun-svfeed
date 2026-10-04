@@ -96,7 +96,9 @@ const HARNESS_CASES = [
   // 视口 1600×900：桌面几何（分享卡贴行左缘/贴面板右缘的裁决坐标需行侧留白 ≥310px）
   { name: 'follow-videos', viewport: { width: 1600, height: 900 } },
   // 0.9.97 关注未读徽标（webPush 桩驱动 poll 状态机：计数/回落/翻倍/进视图不打扰）
-  { name: 'badge-poll' }
+  { name: 'badge-poll' },
+  // 0.9.142 关注分组全闭环（我的页第三 tab 建/改名/删/移组/取关 + rail 分组选择层两态）
+  { name: 'follow-groups' }
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

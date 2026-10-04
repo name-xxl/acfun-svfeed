@@ -460,6 +460,93 @@ export function followVideoPageOf(j) {
   return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
 }
 
+// ---------- 关注分组契约（0.9.142；字段真机核对 2026-10-04，docs/api-research.md §2.2/§2.3/§2.6） ----------
+// 组列表规整：getGroups → groupList[] {groupId, groupName, followingCount(Show)} → [{id, name, count}]。
+// **真机要点**：id 一律字符串（接口回显即字符串，DOM dataset/比较同纪律）；**「未分组」是
+// groupId="0" 的普通项**（实测 7 组含它、14 人）——不是"缺省值"，选它=移出所有分组
+export function groupListOf(j) {
+  var raws = (j && j.groupList) || [];
+  var out = [];
+  raws.forEach(function (g) {
+    if (!g || g.groupId == null || g.groupId === '') return;
+    out.push({
+      id: String(g.groupId),
+      name: String(g.groupName == null ? '' : g.groupName),
+      count: g.followingCount != null ? Number(g.followingCount) || 0 : null
+    });
+  });
+  return out;
+}
+
+// 关注成员分页规整：getFollows（action=9 组内 / 7 全部）→ {items, nextCursor, total, noMore}。
+// **游标口径**：响应 pcursor 是**偏移量**（实测 "20"→"40"），与 followFeedV2 的毫秒时间戳不同源
+// ——勿跨域复用游标（relationapi 内独立收口）。条目自带 groupId/groupName（成员归属，
+// 管理页行上直接可显）；头像读序 userImg → userHeadImgInfo.thumbnailImageCdnUrl
+export function followListPageOf(j) {
+  var raws = (j && j.friendList) || [];
+  var items = [];
+  raws.forEach(function (u) {
+    if (!u || u.userId == null || u.userId === '') return;
+    items.push({
+      id: String(u.userId),
+      name: String(u.userName == null ? '' : u.userName),
+      head: userHeadOf(u),
+      sign: String(u.signature == null ? '' : u.signature),
+      fans: u.fanCountShow != null ? String(u.fanCountShow) : '',
+      contrib: u.contributeCountShow != null ? String(u.contributeCountShow) : '',
+      groupId: u.groupId != null ? String(u.groupId) : '',
+      groupName: String(u.groupName == null ? '' : u.groupName)
+    });
+  });
+  // 终值 'no_more'（真机实测：最后一页回 pcursor:"no_more"）与空页同判到底；偏移量游标仅在上限内递交
+  var next = j && j.pcursor != null ? String(j.pcursor) : '';
+  var noMore = !items.length || !next || next === 'no_more';
+  return {
+    items: items,
+    nextCursor: noMore ? '' : next,
+    total: j && j.totalCount != null ? Number(j.totalCount) || 0 : null,
+    noMore: noMore
+  };
+}
+
+function userHeadOf(u) {
+  if (u.userImg) return String(u.userImg);
+  var t = u.userHeadImgInfo && u.userHeadImgInfo.thumbnailImageCdnUrl;
+  return t ? String(t) : '';
+}
+
+// 建组后的新 id 定位（真机坑，§2.6）：action=4 建组响应**不带新 groupId**——须拿 before 的
+// id 集与 after 的组列表做差集。同名组本就存在（after 里有两项同名且都不是新 id）时返回 ''，
+// 调用方按"重名"提示（站点本身也拦重名，这里只是兜底）
+export function newGroupIdOf(beforeIds, afterList, name) {
+  var old = {};
+  (beforeIds || []).forEach(function (id) { old[String(id)] = 1; });
+  for (var i = 0; i < (afterList || []).length; i++) {
+    var g = afterList[i];
+    if (!old[g.id] && g.name === name) return g.id;
+  }
+  return '';
+}
+
+// 组名/夹名校验（站点 chunk 实锤正则 + 保留名；返回 '' = 通过，否则内联提示文案）。
+// 真机边界：组名 1~8 字、收藏夹名 1~40 字，均只许中英文/数字/下划线（**无空格连字符**）；
+// 组名另禁保留名「未分组/特别关注」（chunk 校验正则，§2.6）
+var GROUP_NAME_RE = /^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$/;
+var FOLDER_NAME_RE = /^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,40}$/;
+export function groupNameError(name) {
+  var s = String(name == null ? '' : name).trim();
+  if (!s) return '请输入分组名';
+  if (!GROUP_NAME_RE.test(s)) return '1~8 个字，仅限中英文、数字、下划线';
+  if (s === '未分组' || s === '特别关注') return '「' + s + '」是保留名，换一个';
+  return '';
+}
+export function folderNameError(name) {
+  var s = String(name == null ? '' : name).trim();
+  if (!s) return '请输入收藏夹名';
+  if (!FOLDER_NAME_RE.test(s)) return '1~40 个字，仅限中英文、数字、下划线';
+  return '';
+}
+
 // 广场流单页规整（0.9.125，§2.7 实测；0.9.126 收口 **24h 窗口**；0.9.127 出 **freshIds**）：
 // feedSquare 响应 → {items:[pi], nextCursor, noMore, freshIds}。窗口=广场的原味（plaza：翻到
 // 发布 >24h 即止）——超窗条目逐条剔除且**直接判到底**（首屏/翻页两态同此判据）；freshIds=

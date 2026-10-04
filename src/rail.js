@@ -3,7 +3,8 @@ import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
 import { el, elHtml, fmt, toast } from './ui.js';
 import { imgInto } from './imgload.js';
 import { FeedStore } from './feedstore.js';
-import { setRealLike, setRealFollow, setRealFavorite, giveBanana } from './interact.js';
+import { setRealLike, setRealFavorite, giveBanana } from './interact.js';
+import { openFollowGroupPop } from './grouppop.js'; // 关注角标→分组选择层（0.9.142）
 import { openSharePanel } from './sharepanel.js';
 import { toggleBananaPop } from './banpop.js';
 
@@ -84,17 +85,19 @@ function syncRailUp(rail, item) {
       ev.stopPropagation();
       var u = item.up;
       if (!u || !u.id) return;
-      var turnOn = !u.isFollowing;
-      withBusy(item, 'followBusy', function () {
-        fbEl.textContent = '…';
-        return setRealFollow(item, turnOn);
-      }, function (ok) {
-        var uu = item.up;
-        if (!uu) return;
-        if (ok) uu.isFollowing = turnOn;
-        else toast('关注失败（未登录？）');
-        if (fbEl.isConnected) followBtnState(fbEl, uu);
-        if (ok) toast(turnOn ? '已关注 @' + uu.name : '已取消关注 @' + uu.name);
+      // 0.9.142 官方口径：点关注角标=弹「选择分组 / 更改分组」层（含新建分组），提交走
+      // relationapi（action=1 带组 / action=3 改分组 / 2 取关）——旧的"单击直接关注/取关"
+      // toggle 退役（能力不减：已关注态层内给「取消关注」键）。失败/未登录提示在层内。
+      openFollowGroupPop(fbEl, {
+        uid: u.id,
+        name: u.name || '',
+        following: !!u.isFollowing,
+        done: function (res) {
+          var uu = item.up;
+          if (!uu) return;
+          uu.isFollowing = !res.unfollowed;
+          if (fbEl.isConnected) followBtnState(fbEl, uu);
+        }
       });
     });
   }

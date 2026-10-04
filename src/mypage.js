@@ -1,10 +1,13 @@
 import { CFG } from './cfg.js';
-import { el, selfUid, fmt } from './ui.js';
+import { el, selfUid, fmt, toast } from './ui.js';
 import { postForm } from './appapi.js';
-import { panelItem, meCardOf } from './data.js';
+import { panelItem, meCardOf, groupNameError } from './data.js';
 import { gridCardOf, moreBtn, skeletonRows } from './cards.js';
 import { registerView } from './viewreg.js';
 import { imgInto } from './imgload.js';
+import { getGroups, listFollows, createGroup, renameGroup, removeGroup, unfollowUser } from './relationapi.js';
+import { openFollowGroupPop } from './grouppop.js';
+import { openConfirmPop } from './pickpop.js';
 
 // ---------- 我的视图（0.9.62 起；0.9.69 抖音式个人主页改造）----------
 // 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（观看历史｜收藏夹）→ 3:4 封面网格。
@@ -195,6 +198,244 @@ function buildFav(panel) {
   }
 }
 
+// ---- 关注分组（0.9.142）：组 chips（全部/各分组）+ 建/改名/删 + 成员列表（移组/取关）----
+// 读链走 relationapi（getGroups / listFollows action=9 组内·7 全部）；**游标是偏移量**
+//（与 feed 域毫秒时间戳不同源，relationapi 内收口，别在这里另拼）。成员行自带 groupId/
+// groupName（真机实测 §2.3），"全部"视图里直接显归属标签。系统组（未分组 id="0"、保留名
+// "特别关注"）不给改名/删除（站方语义：未分组不可删）。**分组不动关注流内容**——服务端
+// followFeedV2 不吃 groupId（2026-10-04 实测参数被忽略），所以关注视图无分组 chips，
+// 分组只在这里做"关系管理"（建/删/改名/移组/取关）。
+function buildFollowGroups(panel) {
+  var chips = el('div', 'acsv-vchips');
+  var ops = el('div', 'acsv-gops');
+  var form = el('div', 'acsv-gform');
+  form.style.display = 'none';
+  var list = el('div', 'acsv-glist');
+  var btn = moreBtn(function () { load(); });
+  panel.appendChild(chips);
+  panel.appendChild(ops);
+  panel.appendChild(form);
+  panel.appendChild(list);
+  panel.appendChild(btn);
+
+  var groups = [];
+  var cur = '-1'; // '-1' = 全部（action=7）
+  var pcursor = '';
+  var seq = 0; // 在途回包令牌：换组/视图拆（isConnected）即丢弃
+  var loading = false;
+  var done = false;
+
+  function sysGroup(g) { return g.id === '0' || g.name === '特别关注'; }
+  function groupOf(id) {
+    for (var i = 0; i < groups.length; i++) if (groups[i].id === id) return groups[i];
+    return null;
+  }
+
+  function renderChips() {
+    chips.textContent = '';
+    var all = el('button', 'acsv-vchip' + (cur === '-1' ? ' on' : ''), '全部');
+    all.type = 'button';
+    all.addEventListener('click', function () { select('-1'); });
+    chips.appendChild(all);
+    groups.forEach(function (g) {
+      var c = el('button', 'acsv-vchip' + (cur === g.id ? ' on' : ''),
+        g.name + (g.count != null ? ' ' + g.count : ''));
+      c.type = 'button';
+      c.addEventListener('click', function () { select(g.id); });
+      chips.appendChild(c);
+    });
+    var add = el('button', 'acsv-vchip', '＋ 新建分组');
+    add.type = 'button';
+    add.addEventListener('click', function () { openForm('create'); });
+    chips.appendChild(add);
+    renderOps();
+  }
+
+  function renderOps() {
+    ops.textContent = '';
+    var g = groupOf(cur);
+    if (!g || sysGroup(g)) return;
+    var rn = el('button', 'acsv-vchip sm', '改名');
+    rn.type = 'button';
+    rn.addEventListener('click', function () { openForm('rename', g); });
+    var del = el('button', 'acsv-vchip sm acsv-gdanger', '删除分组');
+    del.type = 'button';
+    del.addEventListener('click', function () {
+      openConfirmPop(del, {
+        title: '删除分组',
+        text: '「' + g.name + '」里的成员会移到「未分组」，关注关系不变。',
+        okLabel: '删除',
+        run: function () { return removeGroup(g.id); },
+        done: function () { toast('已删除分组：' + g.name); refreshGroups('-1'); }
+      });
+    });
+    ops.appendChild(rn);
+    ops.appendChild(del);
+  }
+
+  // 建组/改名共用的内联表单（不弹层：管理页本来就是"编辑态"，原地输入最轻）
+  function openForm(mode, g) {
+    form.textContent = '';
+    form.style.display = '';
+    var input = el('input', 'acsv-ginput');
+    input.maxLength = 8;
+    input.placeholder = '分组名（1~8 字）';
+    if (mode === 'rename') input.value = g.name;
+    var ok = el('button', 'acsv-gok', mode === 'rename' ? '改名' : '新建');
+    ok.type = 'button';
+    var cancel = el('button', 'acsv-gcancel', '取消');
+    cancel.type = 'button';
+    var err = el('span', 'acsv-gerr');
+    var label = mode === 'rename' ? '改名' : '新建';
+    cancel.addEventListener('click', function () { form.style.display = 'none'; form.textContent = ''; });
+    ok.addEventListener('click', function () {
+      if (form._busy) return;
+      var name = (input.value || '').trim();
+      var msg = groupNameError(name);
+      if (msg) { err.textContent = msg; return; }
+      form._busy = true;
+      ok.textContent = '提交中…';
+      var req = mode === 'rename' ? renameGroup(g.id, name) : createGroup(name);
+      req.then(function (made) {
+        form._busy = false;
+        ok.textContent = label;
+        if (!made) { err.textContent = label + '失败（重名或未登录？）'; return; }
+        form.style.display = 'none';
+        form.textContent = '';
+        toast(mode === 'rename' ? '已改名：' + name : '已新建分组：' + name);
+        refreshGroups(mode === 'rename' ? undefined : String(made));
+      }, function () {
+        form._busy = false;
+        ok.textContent = label;
+        err.textContent = '操作失败（未登录？）';
+      });
+    });
+    form.appendChild(input);
+    form.appendChild(ok);
+    form.appendChild(cancel);
+    form.appendChild(err);
+    input.focus();
+  }
+
+  function select(id) {
+    cur = id;
+    pcursor = '';
+    seq++;
+    loading = false;
+    done = false;
+    list.textContent = '';
+    btn.style.display = '';
+    btn.disabled = false;
+    btn.textContent = '加载更多';
+    renderChips();
+    load();
+  }
+
+  // 组表刷新（建/改名/删/移组/取关后都要——计数要跟着动）：nextSel 给了就跳过去（新建/删组后）
+  function refreshGroups(nextSel) {
+    return getGroups().then(function (gs) {
+      if (!list.isConnected) return;
+      groups = gs;
+      if (nextSel !== undefined) { select(nextSel); return; }
+      if (cur !== '-1' && !groupOf(cur)) { select('-1'); return; } // 当前组没了（被删）
+      renderChips();
+    }, function () {
+      if (!list.isConnected) return;
+      chips.textContent = '';
+      ops.textContent = '';
+    });
+  }
+
+  function memberRow(u) {
+    var row = el('div', 'acsv-grow');
+    var a = el('a', 'acsv-grow-link');
+    a.href = CFG.api.userBase + u.id;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    imgInto(a, u.head || CFG.api.defaultAvatar, 'avatar', 'acsv-avatar acsv-grow-avatar');
+    row.appendChild(a);
+    var info = el('div', 'acsv-grow-info');
+    info.appendChild(el('div', 'acsv-grow-name', u.name));
+    var meta = el('div', 'acsv-grow-meta');
+    if (u.fans) meta.appendChild(el('span', null, '粉丝 ' + u.fans));
+    if (u.contrib) meta.appendChild(el('span', null, '投稿 ' + u.contrib));
+    if (cur === '-1' && u.groupName) meta.appendChild(el('span', 'acsv-grow-tag', u.groupName));
+    info.appendChild(meta);
+    row.appendChild(info);
+    var acts = el('div', 'acsv-grow-acts');
+    var move = el('button', 'acsv-vchip sm', '移组');
+    move.type = 'button';
+    move.addEventListener('click', function () {
+      openFollowGroupPop(move, {
+        uid: u.id, name: u.name, following: true, noExtra: true,
+        done: function (res) {
+          if (cur !== '-1' && String(res.groupId) !== String(cur)) {
+            row.remove(); // 组内视图：移走的成员即离席
+            if (!list.querySelector('.acsv-grow')) list.appendChild(el('div', 'acsv-vempty', '这个分组还没有成员'));
+          } else {
+            var tag = meta.querySelector('.acsv-grow-tag');
+            if (tag) tag.textContent = res.groupName || '';
+          }
+          refreshGroups();
+        }
+      });
+    });
+    var un = el('button', 'acsv-vchip sm', '取关');
+    un.type = 'button';
+    un.addEventListener('click', function () {
+      if (un._busy) return;
+      un._busy = true;
+      un.textContent = '…';
+      unfollowUser(u.id).then(function (ok) {
+        un._busy = false;
+        if (!ok) { un.textContent = '取关'; toast('操作失败（未登录？）'); return; }
+        toast('已取消关注 @' + u.name);
+        row.remove();
+        if (!list.querySelector('.acsv-grow')) list.appendChild(el('div', 'acsv-vempty', '还没有关注'));
+        refreshGroups();
+      });
+    });
+    acts.appendChild(move);
+    acts.appendChild(un);
+    row.appendChild(acts);
+    return row;
+  }
+
+  function load() {
+    if (loading || done) return;
+    loading = true;
+    var my = ++seq;
+    listFollows(cur === '-1' ? '' : cur, pcursor).then(function (page) {
+      if (my !== seq || !list.isConnected) return;
+      loading = false;
+      page.items.forEach(function (u) { list.appendChild(memberRow(u)); });
+      pcursor = page.nextCursor;
+      if (page.noMore || !page.items.length) {
+        done = true;
+        btn.style.display = 'none';
+      } else {
+        btn.disabled = false;
+        btn.textContent = '加载更多';
+      }
+      if (!list.querySelector('.acsv-grow')) {
+        list.appendChild(el('div', 'acsv-vempty', cur === '-1' ? '还没有关注' : '这个分组还没有成员'));
+      }
+    }, function () {
+      if (my !== seq || !list.isConnected) return;
+      loading = false;
+      btn.disabled = false;
+      btn.textContent = '加载失败，点击重试';
+    });
+  }
+
+  if (!selfUid()) {
+    list.appendChild(el('div', 'acsv-vempty', '登录后可管理关注分组'));
+    btn.style.display = 'none';
+    return;
+  }
+  refreshGroups('-1');
+}
+
 function buildMyView(body) {
   var wrap = el('div', 'acsv-mewrap');
   body.appendChild(wrap);
@@ -209,15 +450,20 @@ function buildMyView(body) {
   wrap.appendChild(tabRow);
   var panelHist = el('div', 'acsv-mepanel');
   var panelFav = el('div', 'acsv-mepanel');
+  var panelGroups = el('div', 'acsv-mepanel');
   panelHist.setAttribute('data-tab', 'hist');
   panelFav.setAttribute('data-tab', 'fav');
+  panelGroups.setAttribute('data-tab', 'groups');
   panelFav.style.display = 'none';
+  panelGroups.style.display = 'none';
   wrap.appendChild(panelHist);
   wrap.appendChild(panelFav);
+  wrap.appendChild(panelGroups);
 
   var panels = {
     hist: { el: panelHist, build: buildHistory, inited: false, name: '观看历史' },
-    fav: { el: panelFav, build: buildFav, inited: false, name: '收藏夹' }
+    fav: { el: panelFav, build: buildFav, inited: false, name: '收藏夹' },
+    groups: { el: panelGroups, build: buildFollowGroups, inited: false, name: '关注分组' }
   };
   Object.keys(panels).forEach(function (id) {
     var b = el('button', 'acsv-metab', panels[id].name);

@@ -38,15 +38,9 @@ export function setRealLike(item, on) {
   });
 }
 
-export function setRealFollow(item, on) {
-  var uid = item.up && item.up.id; // 作者契约唯一出口（0.9.82：原读 item.userId）
-  if (!uid) return Promise.resolve(false); // 无 uid 无从关注（rail 已按 up.id 决定是否出角标）
-  return postForm(CFG.api.follow,
-    'toUserId=' + uid + '&action=' + (on ? 1 : 2) + '&groupId='
-  ).then(function (j) {
-    return !!(j && j.result === 0);
-  }, function () { return false; });
-}
+// （0.9.142 退役）setRealFollow(item, on)：原实现 = toUserId + action 1/2 + **groupId 传空**
+//（关注全落"未分组"、无组选择）。关注/取关/改分组已收口到 relationapi.js + 分组选择层
+//（grouppop.js：关注角标点开=「选择分组/更改分组」，官方口径）。退役登记，勿再加回。
 
 // 收藏/取消收藏（home）
 export function setRealFavorite(item, on) {
