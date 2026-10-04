@@ -527,6 +527,28 @@ rec('hidden-jump-landed', !!(await waitFor(function () {
   var st = s.getBoundingClientRect().top, r = sl.getBoundingClientRect();
   return r.top <= st + 2 && r.top >= st - 2; // 目标那张恰好顶在舞台上缘
 }, 8000)), 'idx=' + hj + ' cur=' + (feed() ? feed().current : 'n/a'));
+// dock「推荐」回舞台不重拉（0.9.140 实报「看推荐栏视频→切榜单或其它→回推荐，视频被刷新」）：
+// 舞台本来就是当前源推荐流（player.feedStreamOn）且无列表上下文时，该入口只退出视图、原样接着看。
+// 钉三样结果不变式：缓冲条数/游标/当前条 id 都不许变（旧实现整批 resetStream+重拉=全变），
+// 外加**同一 slide DOM 节点**仍在（重拉必换新节点，比 id 更硬）
+var homeBuf = feed().items.length, homeCur = feed().current;
+var homeId = feed().items[homeCur] ? String(feed().items[homeCur].id) : '';
+var homeSlide = slide(homeCur);
+location.hash = 'svfeed/zone';
+await waitFor(function () { return !!q('.acsv-view') && q('.acsv-view').offsetParent !== null; }, 8000);
+var feedDock = q('.acsv-dock-item[data-view="feed"]');
+if (feedDock) feedDock.click();
+rec('home-return-stage', !!(await waitFor(function () {
+  return location.hash === '#svfeed' && !q('.acsv-view');
+}, 8000)), location.hash);
+rec('home-return-kept', (function () {
+  var f = feed();
+  return !!f && f.items.length === homeBuf && f.current === homeCur
+    && String((f.items[f.current] || {}).id) === homeId && slide(homeCur) === homeSlide;
+})(), 'items=' + feed().items.length + '/' + homeBuf + ' cur=' + feed().current + '/' + homeCur
++ ' id=' + (feed().items[feed().current] || {}).id + '/' + homeId
++ ' slide=' + (slide(homeCur) === homeSlide));
+rec('home-return-playing', !!(await waitFor(function () { return firstVideoReady(cur()); }, 15000)));
 // 两级进入的舞台记账（0.9.74 修）：榜单 → 搜索（深界面）→ Esc → Esc → 竖刷须恢复播放。
 // 旧实现每次 enterView 都重记 wasPlaying——第二级进入时舞台早已隐藏、当前条被暂停 ⇒
 // 覆盖成 false，回竖刷后不再起播（真机表现：返回后画面静止要手点一下）
@@ -1158,10 +1180,21 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
   C['view-follow'] = async function (h) {
     var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor, key = h.key,
       topbarInView = h.topbarInView, TEST = h.TEST;
-    // MY_MOCK（行流/写链桩）+ 评论列表桩（原位评论区断言用，形状同 detail-open）
+    // MY_MOCK（行流/写链桩）+ 评论列表桩（原位评论区断言用，形状同 detail-open）。
+    // 0.9.140：桩改**两页**且照真机形态给 `pcursor:'no_more'`（登录态抓包实测：pc-direct/
+    // comment/list 每页都回 no_more，38 页样本页 1 亦如此）——根评论翻页只认 page/totalPage
     window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
-      'comment/list': function () {
-        return { result: 0, commentCount: 3, curPage: 1, totalPage: 1, pcursor: 'no_more',
+      'comment/list': function (body, url) {
+        var page = Number((String(url).match(/[?&]page=(\d+)/) || [])[1] || 1);
+        if (page !== 1) {
+          return { result: 0, commentCount: 3, curPage: 2, totalPage: 2, pcursor: 'no_more',
+            hotComments: [],
+            rootComments: [
+              { commentId: 'c3', userId: 23, userName: '测试员丙', headUrl: '', content: '第二页评论', postDate: '3分钟前', likeCount: 0, isLike: false, subCommentCount: 0 }
+            ],
+            subCommentsMap: {} };
+        }
+        return { result: 0, commentCount: 3, curPage: 1, totalPage: 2, pcursor: 'no_more',
           hotComments: [],
           rootComments: [
             { commentId: 'c1', userId: 21, userName: '测试员甲', headUrl: '', content: '原位评论第一条', postDate: '1分钟前', likeCount: 2, isLike: false, subCommentCount: 0 },
@@ -1280,6 +1313,25 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     await wait(300);
     rec('follow-cmts-no-bubble', !q('.acsv-mdetail') && !!mRow.querySelector('.acsv-frow-cmts'),
       'panel=' + !!q('.acsv-mdetail') + ' cmts=' + !!mRow.querySelector('.acsv-frow-cmts'));
+    // 根评论翻页（0.9.140 实报「视频评论加载不全」的回归钉；同一 renderComments/触底判据服务
+    // 抽屉与行内两宿主）：旧判据 `page<totalPage && pcursor!=='no_more'` 拿恒真的 no_more 当闸门
+    // ⇒ 全站永远停在首页；这里按真机形态（pcursor 恒 no_more、page/totalPage 有效）钉
+    // 「按钮出现 → 点击追加第二页 → 到 totalPage 收口」
+    rec('follow-cmts-more-btn', !!(await waitFor(function () {
+      return !!mRow.querySelector('.acsv-frow-cmts .acsv-drawer-more');
+    }, 5000)));
+    var moreBtn = mRow.querySelector('.acsv-frow-cmts .acsv-drawer-more');
+    if (moreBtn) moreBtn.click();
+    rec('follow-cmts-page2', !!(await waitFor(function () {
+      return /第二页评论/.test((mRow.querySelector('.acsv-frow-cmts') || {}).textContent || '');
+    }, 5000)));
+    rec('follow-cmts-append', (function () {
+      var box = mRow.querySelector('.acsv-frow-cmts');
+      // append 不重渲染：第一页两条仍在 + 条目数=3
+      return !!box && /原位评论第一条/.test(box.textContent)
+        && box.querySelectorAll('.acsv-citem').length === 3;
+    })(), 'n=' + (mRow.querySelectorAll('.acsv-frow-cmts .acsv-citem') || []).length);
+    rec('follow-cmts-more-done', !mRow.querySelector('.acsv-frow-cmts .acsv-drawer-more')); // page=totalPage
     mActs[1].click(); // 收起
     // 视频行也原位展开评论（0.9.101）：stype=3（www 视频）+ sourceId=acId，不再进播放层
     var vActs = vRow.querySelectorAll('.acsv-fact');
@@ -1627,6 +1679,17 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     })(), 'n=' + cmtBox.querySelectorAll('.acsv-chr').length);
     // UP 标不渲染（0.9.137；真机核对：原生评论组件无 UP 标识——isUp:true 样本也不该出标）
     rec('square-cmt-no-up', !cmtBox.querySelector('.acsv-cname .up'));
+    // 日期不可拆单元（0.9.140 实报「子评论的时间换行在中间断开」）：发表于+时间裹在 .acsv-cdate
+    // 里作为名字行的一个 flex 项——要么整件留行内、要么整件换行，不许在「发表于」与时间之间断。
+    // 根/子同一构建件，两处都钉（子评论正是实报现场）
+    rec('square-cmt-dateatomic', (function () {
+      var dn = rootNameRow && rootNameRow.querySelector('.acsv-cdate');
+      var ds = subItem && subItem.querySelector('.acsv-cname .acsv-cdate');
+      return !!dn && /发表于/.test(dn.textContent) && /1分钟前/.test(dn.textContent)
+        && getComputedStyle(dn).whiteSpace === 'nowrap'
+        && !!ds && /发表于/.test(ds.textContent) && getComputedStyle(ds).whiteSpace === 'nowrap'
+        && ds.parentNode && /acsv-cname/.test(ds.parentNode.className); // 留在名字行内（非按钮区）
+    })());
     if (mActs[1]) mActs[1].click();
     rec('square-cmts-close', !!(await waitFor(function () {
       return !mRow.querySelector('.acsv-frow-cmts');

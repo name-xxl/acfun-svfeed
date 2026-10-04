@@ -330,8 +330,14 @@ function showLoadError(msg, retry) {
   scroller.appendChild(box);
 }
 
+// 舞台当前内容是否=「当前源推荐流」（0.9.140）：loadInitial 装载置真、深链置假。
+// 唯一消费方 goFeedHome——它决定 dock「推荐」入口是"回舞台接着看"还是"换流重拉"
+//（实报「看推荐栏视频→切榜单→回推荐，视频被刷新」的判据；卸载/播放层直达推迟首屏时为假）
+var feedStreamOn = false;
+
 // 首屏/切源共用的初始加载链：spinner 撤除、错误盒、渲染与吸附都在这一处收口
 function loadInitial() {
+  feedStreamOn = true; // 本链=当前源随机流（深链走 loadDeepLink，那里置假）
   FeedStore.ensureMore().then(function () {
     if (!scroller) return; // 加载期间已退出竖刷页
     if (!FeedStore.items.length) {
@@ -364,6 +370,7 @@ function resetStream() {
 // 永远打不开（旧行为：source=home 直接丢弃深链，重新随机一屏）。未命中出错误盒，
 // **绝不**静默回落随机流（旧行为：链接失效时用户只看到一屏随机内容，无从判断）
 function loadDeepLink(mid, src) {
+  feedStreamOn = false; // 舞台内容=链接那条，不是推荐流（0.9.140：dock「推荐」此时仍应换流重拉）
   setAppliedMid(mid); // 同步登记意图：toggle 紧随其后的 syncRouteFeed 不得重复处理
   cancelHashSync();   // 残留回写会拿旧 index 把地址踩成上一条的深链
   FeedStore.reset();  // gen++：作废旧流在途响应（旧源不得回填新库）
@@ -486,6 +493,7 @@ function maybeStartFeed() {
 function unmount() {
   if (!root) return;
   feedDeferred = false; // 播放层直达的推迟标志随挂载态失效（重进按地址重新裁决）
+  feedStreamOn = false; // 推荐流就位标志同理（0.9.140；重进由 mount 的加载分支重新裁决）
   cancelHashSync();   // 在途地址回写随退出作废（否则会把已退出的深链地址补写回来）
   setAppliedMid(null); // 深链意图随挂载态失效：重进时要按地址重新解析
   setChangeHandler(null); // 流仓库变更通知失效（0.9.115）：在途数据回流不得再触发重绘（重进由 mount 重注册）
@@ -548,14 +556,22 @@ function switchSource(s) {
 // 与 Esc 的分工：Esc 回舞台=**接着看**（不清上下文）；本入口=**去推荐**（显式重置）。
 export function goFeedHome() {
   if (!root) { location.hash = CFG.hash; return; }
-  FollowVideos.feedActive = false;
-  UpVideos.feedActive = false;
-  cancelHashSync();   // 残留回写会拿旧 index 把地址踩成上一条的深链（同 switchSource 纪律）
-  resetHomePager();
-  setAppliedMid(null);
-  resetStream();
-  FeedStore.reset();
-  loadInitial(); // 当前源随机流（loadInitial 自管 spinner，照 switchSource 不手动 append）
+  // 0.9.140（实报「看推荐栏视频→切榜单或其它→回推荐，视频被刷新」）：本入口**只在该换流时重置**。
+  // 舞台本来就是当前源推荐流（feedStreamOn）且无列表上下文时，「去推荐」与「回舞台」同一件事——
+  // 关掉视图/播放层、接着看当前条，不 resetStream/重拉。保留重置的三类形态：①列表上下文活动
+  //（0.9.107 两形态的共同判据——舞台带关注视频流/空间页列表时 feedActive 仍真）；②当前条来自
+  // 深链（feedStreamOn=false，「去推荐」=要推荐流）；③播放层直达推迟首屏（feedStreamOn 仍假、缓冲空）。
+  var keep = feedStreamOn && !FollowVideos.feedActive && !UpVideos.feedActive;
+  if (!keep) {
+    FollowVideos.feedActive = false;
+    UpVideos.feedActive = false;
+    cancelHashSync();   // 残留回写会拿旧 index 把地址踩成上一条的深链（同 switchSource 纪律）
+    resetHomePager();
+    setAppliedMid(null);
+    resetStream();
+    FeedStore.reset();
+    loadInitial(); // 当前源随机流（loadInitial 自管 spinner，照 switchSource 不手动 append）
+  }
   if (location.hash !== '#' + CFG.hash) location.hash = CFG.hash; // 视图/播放层退出走既有链
   else syncRouteView(); // hash 已是裸 #svfeed（如从视图 Esc 回来后）时 hashchange 不会来——
   // dock 高亮/关注 seg 显隐必须显式同步一次，否则停在旧态（0.9.107 首跑实锤两断言红）

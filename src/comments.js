@@ -25,7 +25,13 @@ import { commentItemOf } from './commentkit.js'; // 条目构建单源（0.9.133
 // UBB 渲染在 ubb.js、表情服务/面板在 emoticon.js（0.9.36 拆分，本文件回归抽屉编排）；
 // 评论条目构建/楼中楼展开于 0.9.133 下沉 commentkit.js（本文件只留管线：状态/宿主/输入条/
 // 点击委托/乐观插入/翻页——条目渲染一律经 commentItemOf(c, subMap, cmtOpts()) 单源出口）
-export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, pcursor: 'no_more', loading: false, replyTo: null, kind: 'sv' };
+// **翻页口径（0.9.140 实报「视频评论加载不全」修正）**：根评论分页**只认 page/totalPage**
+// （pc-direct/comment/list 实测——2026-10-04 内置浏览器登录态抓包：38 页 2221 条的样本，
+// **每一页都回 `pcursor:"no_more"`**，连页 1 也是；带 page=N 请求有效、页 38 有货、页 39 空壳）。
+// 旧实现把 `pcursor !== 'no_more'` 当附加闸门 ⇒ 恒假 ⇒ 「加载更多评论」按钮/触底翻页**永不触发**，
+// 全部视频都卡在首页（~40 根），正是实报现象。pcursor 只对 **comment/sublist（楼中楼）** 有意义，
+// 那条链在 commentkit.expandSubComments 里按 pcursor 翻，勿与根评论口径混用
+export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, loading: false, replyTo: null, kind: 'sv' };
 
 // 评论管线 DOM 宿主（0.9.96 动态详情面板）：null = 经典抽屉（commentDrawer）。管线全经
 // curHost() 取宿主——与 commentState 数据单例配对；claimDrawer('comments') 同槽互斥保证
@@ -165,7 +171,8 @@ function loadComments(sourceId, page, append) {
     var list = (j && j.rootComments) || [];
     commentState.page = (j && j.curPage) || page;
     commentState.totalPage = (j && j.totalPage) || 1;
-    commentState.pcursor = (j && j.pcursor) || 'no_more';
+    // 越界空页=到底（防"按钮点了没反应"式空转；正常到底由 page===totalPage 收口）
+    if (append && !list.length) commentState.totalPage = commentState.page;
     commentState.count = (j && j.commentCount != null) ? j.commentCount : list.length;
     renderComments(list, append, j && j.subCommentsMap, (j && j.hotComments) || []);
   }, function () {
@@ -291,7 +298,9 @@ function renderComments(list, append, subMap, hot) {
     h.list.appendChild(el('div', 'acsv-hot-divider', '最新评论'));
   }
   list.forEach(push);
-  if (commentState.page < commentState.totalPage && commentState.pcursor !== 'no_more') {
+  // 翻页判据：只认 page/totalPage（pc-direct 每页都回 pcursor='no_more'，拿它当闸门=恒不翻页，
+  // 见文件头「翻页口径」——0.9.140 实报修复）
+  if (commentState.page < commentState.totalPage) {
     var more = el('button', 'acsv-drawer-more', '加载更多评论');
     more.addEventListener('click', function () {
       more.remove();
@@ -421,8 +430,8 @@ function ensureCommentInput() {
     h.el.appendChild(inputBar);
     scrollFn = function () {
       var l = curHost().list;
-      if (commentState.loading || commentState.page >= commentState.totalPage
-        || commentState.pcursor === 'no_more') return;
+      // 触底续翻判据同按钮：只认 page/totalPage（0.9.140；pcursor 恒 no_more 见文件头）
+      if (commentState.loading || commentState.page >= commentState.totalPage) return;
       if (l.scrollTop + l.clientHeight >= l.scrollHeight - CFG.comments.scrollPad) {
         loadComments(commentState.sourceId, commentState.page + 1, true);
       }

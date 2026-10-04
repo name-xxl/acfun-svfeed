@@ -207,6 +207,10 @@ var RAW_CSS = ''
   // 换行不折字；发表于/时间件同理（日期统一并入名字行——白 7% 分割线在下方 .acsv-chr）
   + '.acsv-cmeta>*{white-space:nowrap}'
   + '.acsv-cpostday,.acsv-cposttime{font-size:12px;color:#7a7f8a;white-space:nowrap}'
+  // 日期不可拆单元（0.9.140 实报修复：「子评论的时间换行在中间断开」——名字行 flex-wrap 会在
+  // 「发表于」与时间之间断行）。inline-flex 自身是名字行的一个 flex 项：要么整件留在行内、
+  // 要么整件换行；内部 nowrap 双保险（长名字挤满行尾时的落位见 0.9.136 名字行 flex-wrap）
+  + '.acsv-cdate{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}'
   + '.acsv-citem>.acsv-chr{position:absolute;left:0;right:0;bottom:0;border:none;'
   + 'border-top:1px solid rgba(255,255,255,.07);margin:0}'
   + '.acsv-clike{display:inline-flex;align-items:center;gap:3px;color:#7a7f8a}'
@@ -222,6 +226,8 @@ var RAW_CSS = ''
   + '.acsv-csub .acsv-citem:first-child{margin-top:0}'
   + '.acsv-csub .acsv-citem img.av{width:30px;height:30px}'
   + '.acsv-csub .acsv-cname{margin-bottom:4px}'
+  // 楼中楼名字 700（0.9.135 原生量值）。`>span` 会命中 0.9.140 的 .acsv-cdate 包裹件——
+  // 700 不变地传给内层「发表于/时间」两件，与包裹前同观感（勿改成只命中名字，会掉字重）
   + '.acsv-csub .acsv-cname a,.acsv-csub .acsv-cname>span{font-weight:700}'
   + '.acsv-csub .acsv-ctext{margin-bottom:8px}'
   + '.acsv-csub .acsv-cmeta{margin-bottom:8px}'

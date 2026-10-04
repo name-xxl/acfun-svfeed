@@ -82,9 +82,13 @@ export function commentItemOf(c, subMap, opts) {
   // /a/ac48885762 19 条 + feeds 动态展开区）——A站 pc 评论组件三域均**不渲染任何 UP 标识**
   //（标题行只有 名字/发表于/时间），此前自加的标与原生不符
   // 日期并入名字行「发表于 x」（0.9.136 两形态统一，native 版式）：工具行不再放日期——
-  // 设备件上身后 meta 行过挤，窄容器（抽屉 380px）会逐字断行
-  name.appendChild(el('span', 'acsv-cpostday', '发表于'));
-  name.appendChild(el('span', 'acsv-cposttime', c.postDate || ''));
+  // 设备件上身后 meta 行过挤，窄容器（抽屉 380px）会逐字断行。0.9.140：两件裹进 .acsv-cdate
+  // 作**不可拆单元**（实报「子评论的时间换行在中间断开」：名字行 flex-wrap 会在「发表于」与
+  // 时间之间断行；包裹后要么整体留在名字行、要么整体换到下一行）
+  var cdate = el('span', 'acsv-cdate');
+  cdate.appendChild(el('span', 'acsv-cpostday', '发表于'));
+  cdate.appendChild(el('span', 'acsv-cposttime', c.postDate || ''));
+  name.appendChild(cdate);
   body.appendChild(name);
   var ctext = el('div', 'acsv-ctext');
   // 前缀仅子评论（0.9.134「回复 @名 :」；根不拼）——内容先 esc 再 UBB 渲染（renderCommentHtml 内）
