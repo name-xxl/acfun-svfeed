@@ -590,21 +590,32 @@ rec('zone-cache-no-refetch', (window.__ACSV_RANK_CALLS__ || 0) === zoneCalls,
   'before=' + zoneCalls + ' after=' + (window.__ACSV_RANK_CALLS__ || 0));
   };
   // ---- view-search ----
+  // 搜索 2.0（0.9.151）：三 JSON 端点（视频/UP主/文章）+ pCursor 真分页 + 类目 chips +
+  // UP 卡（关注/最近投稿）+ 文章行 + 搜索历史；0.9.72 的 SSR 首屏解析已退役（只做得到第一页）。
+  // mock：my-sample 三端点（sv/su/sa 分键计数）；本场景自加 relation/follow 与 getGroups
+  // （UP 卡关注走 relationapi；已关注点开分组层走 grouppop→getGroups）。
   C['view-search'] = async function (h) {
     var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
       waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
       feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
-// 搜索视图冒烟（0.9.72 抖音式）：顶栏搜索框（72px 居中常驻）提交 → 关键词进地址
-// （#svfeed/search/<kw>）→ 搜索页 SSR HTML（mock 回放真机片段）→ 结果网格卡；
-// 视图内换词走地址重建；空词只出引导态不发请求；点卡片回竖刷
-window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
-// 直挂缝（0.9.82 对象形态）：40742636 带 delay —— 搜索条目的作者首帧来自 SSR，
-// 回包（详情）后会被换成 douga/info 里的名字与头像，正好验"回包刷新 DOM"这条链路
+window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
+  'relation/follow': function (body) {
+    window.__ACSV_SEARCH_FOLLOW__ = String(body);
+    return { result: 0 };
+  },
+  'relation/getGroups': function () {
+    return { result: 0, groupList: [{ groupId: '0', groupName: '未分组', followingCount: 19 }] };
+  }
+});
+// 直挂缝（0.9.82 对象形态）：首条视频回包后作者/头像被详情覆写（对象带 delay 抓首帧态）；
+// 600001 供"UP 卡最近投稿点进播放层"用
 window.__ACSV_MOCK_DIRECT__ = {
-  '40742636': { id: 9, name: '测试UP', head: window.__ACSV_RESOLVE_AVATAR__, delay: 700 },
-  '41033414': 1
+  '500001': { id: 9, name: '测试UP', head: window.__ACSV_RESOLVE_AVATAR__, delay: 700 },
+  '600001': 1
 };
-window.__ACSV_SEARCH_CALLS__ = 0;
+window.__ACSV_SV_CALLS__ = 0;
+window.__ACSV_SU_CALLS__ = 0;
+window.__ACSV_SA_CALLS__ = 0;
 location.hash = 'svfeed';
 rec('topbar-72', !!(await waitFor(function () { return !!q('.acsv-top'); }, 8000))
   && q('.acsv-top').offsetHeight === 72, q('.acsv-top') ? 'h=' + q('.acsv-top').offsetHeight : 'no-bar');
@@ -619,96 +630,196 @@ rec('toast-below-topbar', (function () { // toast 落位引用 --acsv-top-h，�
   if (!b || !t) return false;
   return parseFloat(getComputedStyle(t).top) >= b.getBoundingClientRect().height;
 })());
-(function () { // 顶栏提交
+(function () { // 顶栏提交：地址写类目段（默认视频）
   var i = q('.acsv-top .acsv-sbox input');
   i.value = '测试词';
   i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 })();
 rec('search-url', !!(await waitFor(function () {
-  return location.hash === '#svfeed/search/' + encodeURIComponent('测试词');
+  return location.hash === '#svfeed/search/video/' + encodeURIComponent('测试词');
 }, 8000)), location.hash);
+rec('search-prefetch-3', !!(await waitFor(function () { // 换词并行预拉三类目各一发
+  return window.__ACSV_SV_CALLS__ === 1 && window.__ACSV_SU_CALLS__ === 1 && window.__ACSV_SA_CALLS__ === 1;
+}, 8000)), 'sv/su/sa=' + window.__ACSV_SV_CALLS__ + '/' + window.__ACSV_SU_CALLS__ + '/' + window.__ACSV_SA_CALLS__);
 rec('search-cards', !!(await waitFor(function () {
-  return document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3;
+  return document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 30;
 }, 8000)));
-rec('search-card-fields', (function () {
+rec('search-chips', (function () { // 三 chips + 计数来自各端点 totalNum（已加载即显数）
+  var cs = document.querySelectorAll('.acsv-schip');
+  if (cs.length !== 3) return false;
+  return cs[0].classList.contains('on')
+    && /视频 33/.test(cs[0].textContent) && /UP主 2/.test(cs[1].textContent) && /文章 2/.test(cs[2].textContent);
+})(), (function () {
+  var cs = document.querySelectorAll('.acsv-schip');
+  return cs.length + ':' + (cs[0] ? cs[0].textContent : '')
+    + '/' + (cs[1] ? cs[1].textContent : '') + '/' + (cs[2] ? cs[2].textContent : '');
+})());
+rec('search-card-fields', (function () { // 首卡：em 高亮剥标签 + 播放文案剥后缀 + 时长/作者/日期
   var c = q('.acsv-sgrid .acsv-scell');
   if (!c) return false;
-  return (c.querySelector('.acsv-gtitle') || {}).textContent === '热门小说推荐'
-    && /2037/.test((c.querySelector('.acsv-gviews') || {}).textContent || '')
-    && (c.querySelector('.acsv-gdur') || {}).textContent === '02:04'
-    && /^@晨澜每日分享/.test((c.querySelector('.acsv-gfoot') || {}).textContent || '');
+  return (c.querySelector('.acsv-gtitle') || {}).textContent === '搜索视频1'
+    && /1\.2万/.test((c.querySelector('.acsv-gviews') || {}).textContent || '')
+    && (c.querySelector('.acsv-gdur') || {}).textContent === '02:01'
+    && /^@搜索UP/.test((c.querySelector('.acsv-gfoot') || {}).textContent || '')
+    && /2026-01-02/.test((c.querySelector('.acsv-gfoot') || {}).textContent || '');
 })());
-rec('search-more-link', (function () {
-  var a = q('.acsv-smfoot');
-  return !!a && /search\?keyword=/.test(a.getAttribute('href') || '');
-})());
-// 卡面收口（0.9.83）：搜索卡同为 gridCardOf——作者走脚行、无 meta 行（该行已删，无生产者）
+// 卡面收口（0.9.83）：搜索卡同为 gridCardOf——作者走脚行、无 meta 行
 rec('search-card-composition', (function () {
   var c = q('.acsv-sgrid .acsv-scell');
   if (!c) return false;
   return !!c.querySelector('.acsv-gfoot') && !c.querySelector('.acsv-gmeta')
-    && (c.textContent.match(/晨澜每日分享/g) || []).length === 1;
+    && (c.textContent.match(/搜索UP/g) || []).length === 1;
 })());
 topbarInView('view'); // 0.9.73：搜索视图 = 共享顶栏（视图头 / 视图内胶囊都已删）
 rec('search-prefill', (function () { // 顶栏输入框是唯一输入框：提交后与地址关键词一致
   var i = q('.acsv-top .acsv-sbox input');
   return !!i && i.value === '测试词';
 })(), 'v=' + ((q('.acsv-top .acsv-sbox input') || {}).value));
-(function () { // 同词再回车：hash 不变不触发 hashchange——视图接管提交必须就地重跑
-  var i = q('.acsv-top .acsv-sbox input'); // （0.9.73 顶栏化后的新路径，旧视图内输入框同款语义）
+(function () { // 同词再回车：hash 不变不触发 hashchange——视图接管提交必须就地重跑（并刷新缓存）
+  var i = q('.acsv-top .acsv-sbox input');
   i.value = '测试词';
   i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 })();
 rec('search-sameword-rerun', !!(await waitFor(function () {
-  return window.__ACSV_SEARCH_CALLS__ === 2
-    && document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3
-    && location.hash === '#svfeed/search/' + encodeURIComponent('测试词');
-}, 8000)), 'calls=' + window.__ACSV_SEARCH_CALLS__);
-await wait(1200); // 等首屏落定（真机/手工流都在结果出齐后再换词）
-var sgrid0 = q('.acsv-view .acsv-sgrid'); // 重建指纹：视图重建后网格是新节点
-// （顶栏输入框是常驻单例，不能用"节点换新"证明重建——指纹必须挂在视图自有节点上）
-(function () { // 视图换词：顶栏 Enter 写地址 → hashchange → 按 arg 重建
-  var i = q('.acsv-top .acsv-sbox input');
-  i.value = '第二词';
-  i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  return window.__ACSV_SV_CALLS__ === 2 && window.__ACSV_SU_CALLS__ === 2 && window.__ACSV_SA_CALLS__ === 2
+    && document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 30;
+}, 8000)), 'calls=' + window.__ACSV_SV_CALLS__ + '/' + window.__ACSV_SU_CALLS__ + '/' + window.__ACSV_SA_CALLS__);
+// ---- 类目切换（UP主）：地址跟随 + 零请求（首屏已预拉进缓存）----
+var svAfterRerun = window.__ACSV_SV_CALLS__;
+(function () {
+  document.querySelectorAll('.acsv-schip')[1].click();
 })();
-rec('search-resubmit', !!(await waitFor(function () {
-  return location.hash === '#svfeed/search/' + encodeURIComponent('第二词')
-    && document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3;
+rec('search-kind-url', !!(await waitFor(function () {
+  return location.hash === '#svfeed/search/up/' + encodeURIComponent('测试词');
+}, 8000)), location.hash);
+rec('search-kind-nofetch', (function () {
+  return window.__ACSV_SV_CALLS__ === svAfterRerun && window.__ACSV_SU_CALLS__ === 2
+    && window.__ACSV_SA_CALLS__ === 2;
+})(), 'sv/su/sa=' + window.__ACSV_SV_CALLS__ + '/' + window.__ACSV_SU_CALLS__ + '/' + window.__ACSV_SA_CALLS__);
+rec('search-up-cards', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-supcard').length === 2;
 }, 8000)));
-rec('search-rebuilt', !!(await waitFor(function () { // 换词必须真重建（DOM 换新节点）：
-  var g = q('.acsv-view .acsv-sgrid');               // hashchange→重建要一拍，等价断言必须 waitFor
-  return !!g && g !== sgrid0;
-}, 8000)));
-rec('search-calls', window.__ACSV_SEARCH_CALLS__ === 3, 'calls=' + window.__ACSV_SEARCH_CALLS__
-  + ' hash=' + location.hash + ' cells=' + document.querySelectorAll('.acsv-sgrid .acsv-scell').length
-  + ' viewOpen=' + (!!q('.acsv-view') && q('.acsv-view').style.display !== 'none'));
+rec('search-up-fields', (function () { // 名字 em 剥标签 + 计数串直用 + 签名 + 最近投稿三连
+  var c = q('.acsv-supcard');
+  if (!c) return false;
+  var nm = c.querySelector('.acsv-supname');
+  var meta = c.querySelector('.acsv-supmeta');
+  var sig = c.querySelector('.acsv-supsig');
+  return !!nm && nm.textContent === '星际老男孩SCBOY'
+    && !!meta && /粉丝 1.4万/.test(meta.textContent) && /投稿 177/.test(meta.textContent)
+    && !!sig && /官方山头/.test(sig.textContent)
+    && c.querySelectorAll('.acsv-srec').length === 3
+    && (c.querySelector('.acsv-srectt') || {}).textContent === '最近投稿一';
+})(), (function () {
+  var c = q('.acsv-supcard');
+  return c ? (c.querySelector('.acsv-supname') || {}).textContent + ' | recs=' + c.querySelectorAll('.acsv-srec').length : 'no-card';
+})());
+rec('search-up-follow-two-states', (function () { // 未关注=红键＋关注；已关注=灰键已关注
+  var cs = document.querySelectorAll('.acsv-supcard .acsv-supfollow');
+  return cs.length === 2
+    && cs[0].textContent === '＋ 关注' && !cs[0].classList.contains('on')
+    && cs[1].textContent === '已关注' && cs[1].classList.contains('on');
+})(), (function () {
+  var cs = document.querySelectorAll('.acsv-supcard .acsv-supfollow');
+  return cs.length + ':' + (cs[0] ? cs[0].textContent : '') + '/' + (cs[1] ? cs[1].textContent : '');
+})());
+(function () { q('.acsv-supcard .acsv-supfollow').click(); })();
+rec('search-up-follow', !!(await waitFor(function () { // 一键关注走 relationapi（body 留档）
+  var b = q('.acsv-supcard .acsv-supfollow');
+  return !!b && b.textContent === '已关注' && /action=1/.test(window.__ACSV_SEARCH_FOLLOW__ || '');
+}, 8000)), 'body=' + window.__ACSV_SEARCH_FOLLOW__);
+(function () { // 已关注卡点键 → 分组选择层（grouppop 语义件；getGroups 已 mock）
+  var cs = document.querySelectorAll('.acsv-supcard .acsv-supfollow');
+  cs[1].click();
+})();
+rec('search-up-regroup-pop', !!(await waitFor(function () {
+  return !!q('.acsv-pickpop') && /更改分组/.test((q('.acsv-pickpop') || {}).textContent || '');
+}, 8000)), (q('.acsv-pickpop') || {}).textContent);
+(function () { // 层收起走层内「取消」（pickpop 无 Escape 层——Esc 是退视图，属于既有范式）
+  var c = q('.acsv-pickpop .acsv-pick-cancel');
+  if (c) c.click();
+})();
+rec('search-up-regroup-close', !q('.acsv-pickpop'));
+(function () { // 最近投稿小卡 → 播放层（openPanelItem 直达；直挂缝 600001）
+  q('.acsv-srec').click();
+})();
+rec('search-up-rec-play', !!(await waitFor(function () {
+  return /^#svfeed\/play\/a\/600001$/.test(location.hash) && !!q('.acsv-slide[data-ovl="1"]');
+}, 8000)), location.hash);
+key('Escape');
+rec('search-up-rec-back', !!(await waitFor(function () {
+  return /^#svfeed\/search\/up\//.test(location.hash) && TEST.call('view') === 'search';
+}, 8000)), location.hash);
+// ---- 文章类目：无封面文本行 + 点击新标签打开 ----
+(function () {
+  document.querySelectorAll('.acsv-schip')[2].click();
+})();
+rec('search-article-rows', !!(await waitFor(function () {
+  return location.hash === '#svfeed/search/article/' + encodeURIComponent('测试词')
+    && document.querySelectorAll('.acsv-sarow').length === 2;
+}, 8000)), location.hash);
+rec('search-article-fields', (function () {
+  var r = q('.acsv-sarow');
+  if (!r) return false;
+  var meta = r.querySelector('.acsv-sameta');
+  return (r.querySelector('.acsv-satt') || {}).textContent === '围棋已无挑战性：谷歌要让AlphaGo玩《星际争霸》'
+    && (r.querySelector('.acsv-sadecr') || {}).textContent === '素材来源于网络，侵权删除'
+    && /@寄昙说/.test(meta.textContent) && /阅读 20.3万/.test(meta.textContent)
+    && /评论 549/.test(meta.textContent) && /生活/.test(meta.textContent)
+    && /2016-11-05/.test(meta.textContent);
+})(), (function () {
+  var r = q('.acsv-sarow');
+  return r ? (r.querySelector('.acsv-satt') || {}).textContent : 'no-row';
+})());
+(function () { // 点文章行 → 新标签打开 /a/ac（window 桩接住）
+  window.__ACSV_OPEN__ = null;
+  var orig = window.open;
+  window.open = function (u) { window.__ACSV_OPEN__ = u; return null; };
+  q('.acsv-sarow').click();
+  window.open = orig;
+})();
+rec('search-article-open', /\/a\/ac3231907$/.test(window.__ACSV_OPEN__ || ''), 'u=' + window.__ACSV_OPEN__);
+// ---- 回视频类目 + 哨兵续页（只打当前类目；到底出「已显示全部 N 条」）----
+(function () {
+  document.querySelectorAll('.acsv-schip')[0].click();
+})();
+rec('search-back-video', !!(await waitFor(function () {
+  return location.hash === '#svfeed/search/video/' + encodeURIComponent('测试词')
+    && document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 30;
+}, 8000)), location.hash);
+rec('search-more', !!(await waitFor(function () {
+  var b = q('.acsv-view-body');
+  if (b) b.scrollTop = b.scrollHeight; // 滚到底触发哨兵
+  return document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 33;
+}, 12000)), 'sv=' + window.__ACSV_SV_CALLS__ + ' cells=' + document.querySelectorAll('.acsv-sgrid .acsv-scell').length);
+rec('search-end-line', /已显示全部 33 条/.test((q('.acsv-send') || {}).textContent || ''),
+  (q('.acsv-send') || {}).textContent);
+rec('search-more-only-current', window.__ACSV_SU_CALLS__ === 2 && window.__ACSV_SA_CALLS__ === 2,
+  'su/sa=' + window.__ACSV_SU_CALLS__ + '/' + window.__ACSV_SA_CALLS__);
 // 播放层（0.9.74）：点结果卡 → 就地播放；Esc 回搜索视图且**结果原样**（保活，不重拉）
 var sCell = q('.acsv-sgrid .acsv-scell');
 var srEl0 = q('.acsv-view');
-var srCalls = window.__ACSV_SEARCH_CALLS__;
+var srCalls = window.__ACSV_SV_CALLS__;
 if (sCell) sCell.click();
 // 紧轮询（10ms）抓"层内 slide 刚出现"那一刻的作者面快照：回包有 700ms delay，150ms 粒度的
-// waitFor 可能落在回包之后，那样"首帧作者来自 SSR"这个态就抓不住了
+// waitFor 可能落在回包之后，那样"首帧作者来自搜索 JSON"这个态就抓不住了
 var sFirst = null;
 for (var sw = 0; sw < 400 && !sFirst; sw++) {
   sFirst = q('.acsv-slide[data-ovl="1"]');
   if (!sFirst) await wait(10);
 }
-rec('search-item-overlay', /^#svfeed\/play\/a\/\d+$/.test(location.hash) && !!sFirst, location.hash);
-// 作者契约（0.9.82）：SSR 卡片里本来就带 UP 段（.video__main__user 的 /u/<uid> + user-avatar），
-// 解析器此前只抓名字文本把它们丢了。首帧即应为完整三件套（@名字 链接 + 头像 + 关注角标），
-// 且**零额外请求**（不发 getUserCardList——搜索条目的作者全在 SSR 里，这就是"其他地方都能
-// 正常获取"的真相）。用同步断言：这一态会被后面的回包覆写，不能拿等待式断言之
+rec('search-item-overlay', /^#svfeed\/play\/a\/500001$/.test(location.hash) && !!sFirst, location.hash);
+// 作者契约（0.9.82 语义，0.9.151 数据源换 JSON 后同承诺）：首帧即完整三件套（@名字 链接 +
+// 头像 + 关注按钮）且**零额外请求**（不发 getUserCardList——作者随搜索 JSON 一并给到）
 rec('search-item-author-firstframe', (function () {
   var s = q('.acsv-slide[data-ovl="1"]');
   if (!s) return false;
   var up = s.querySelector('.acsv-meta .acsv-up');
   var av = s.querySelector('.acsv-rail .acsv-avatar');
   var fb = s.querySelector('.acsv-rail .acsv-followbtn');
-  return !!up && up.tagName === 'A' && up.textContent === '@晨澜每日分享'
+  return !!up && up.tagName === 'A' && up.textContent === '@搜索UP'
     && /\/u\/73156935$/.test(up.getAttribute('href') || '')
-    && !!av && av.getAttribute('src') === window.__ACSV_PANEL_AVATAR__ // SSR 那张，非默认头像
+    && !!av && av.getAttribute('src') === window.__ACSV_PANEL_AVATAR__ // 搜索 JSON 那张，非默认头像
     && !!fb && fb.offsetParent !== null; // 可见性查 offsetParent（0.9.62 黑屏教训）
 })(), (function () {
   var s = q('.acsv-slide[data-ovl="1"]');
@@ -734,7 +845,7 @@ rec('search-item-author-refreshed', !!(await waitFor(function () {
 })());
 rec('search-item-overlay-kw', (function () { // 层内关键词保持（还没离开搜索上下文）
   var i = q('.acsv-top .acsv-sbox input');
-  return TEST.call('view') === 'play' && !!i && i.value === '第二词';
+  return TEST.call('view') === 'play' && !!i && i.value === '测试词';
 })(), 'v=' + JSON.stringify((q('.acsv-top .acsv-sbox input') || {}).value));
 key('Escape');
 rec('search-item-back', !!(await waitFor(function () {
@@ -743,33 +854,82 @@ rec('search-item-back', !!(await waitFor(function () {
 }, 8000)), location.hash);
 rec('search-item-keeps-kw', (function () { // 深钻不算离开搜索上下文：关键词保持
   var i = q('.acsv-top .acsv-sbox input');
-  return !!i && i.value === '第二词';
+  return !!i && i.value === '测试词';
 })(), 'v=' + ((q('.acsv-top .acsv-sbox input') || {}).value));
-rec('search-item-back-kept', document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3
-  && window.__ACSV_SEARCH_CALLS__ === srCalls,
-  'calls=' + window.__ACSV_SEARCH_CALLS__ + '/' + srCalls);
-(function () { // 顶栏空词提交：只开视图出引导态，不发请求
+rec('search-item-back-kept', document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 33
+  && window.__ACSV_SV_CALLS__ === srCalls,
+  'calls=' + window.__ACSV_SV_CALLS__ + '/' + srCalls);
+// ---- 失败重试：视频端点首拉 result 21 → 重试件；点击重试（mock 转成功）→ 结果出 ----
+(function () { // 换词（地址直达，跳过输入）：失败词
+  location.hash = 'svfeed/search/video/' + encodeURIComponent('失败词');
+})();
+rec('search-fail-retry', !!(await waitFor(function () {
+  var b = q('.acsv-sretry');
+  return !!b && b.offsetParent !== null;
+}, 8000)), (q('.acsv-sretry') || {}).textContent);
+window.__ACSV_SV_FAIL_OK__ = true;
+(function () { q('.acsv-sretry').click(); })();
+rec('search-retry-ok', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 30;
+}, 8000)));
+// ---- 空词 = 历史态（搜索过的词进 chips；点击即搜且零请求）----
+var svHist = window.__ACSV_SV_CALLS__, suHist = window.__ACSV_SU_CALLS__, saHist = window.__ACSV_SA_CALLS__;
+(function () { // 顶栏空词提交：只开视图出历史/引导态，不发请求
   var i = q('.acsv-top .acsv-sbox input');
   i.value = '';
   i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 })();
-rec('search-empty-nofetch', !!(await waitFor(function () {
-  return location.hash === '#svfeed/search'
-    && /输入关键词/.test((q('.acsv-sstate') || {}).textContent || '');
-}, 8000)) && window.__ACSV_SEARCH_CALLS__ === 3, 'calls=' + window.__ACSV_SEARCH_CALLS__);
+rec('search-empty-history', !!(await waitFor(function () {
+  return location.hash === '#svfeed/search' && document.querySelectorAll('.acsv-shchip').length >= 1;
+}, 8000)), location.hash);
+rec('search-history-word', (function () { // 记过的词按新在前：失败词 / 测试词
+  var cs = document.querySelectorAll('.acsv-shchip');
+  var tx = [];
+  cs.forEach(function (c) { tx.push(c.textContent); });
+  return tx.join(',') === '失败词,测试词';
+})(), (function () {
+  var tx = [];
+  document.querySelectorAll('.acsv-shchip').forEach(function (c) { tx.push(c.textContent); });
+  return tx.join(',');
+})());
+rec('search-history-nofetch', window.__ACSV_SV_CALLS__ === svHist
+  && window.__ACSV_SU_CALLS__ === suHist && window.__ACSV_SA_CALLS__ === saHist,
+  'sv/su/sa=' + window.__ACSV_SV_CALLS__ + '/' + window.__ACSV_SU_CALLS__ + '/' + window.__ACSV_SA_CALLS__
+  + ' vs ' + svHist + '/' + suHist + '/' + saHist); // 历史态与点历史 chip 全程零请求
+(function () { // 点历史 chip → 回该类目搜索（缓存尚在：零新请求）
+  q('.acsv-shchip').click();
+})();
+rec('search-history-click', !!(await waitFor(function () { // 缓存尚在：回类目搜索零请求
+  return location.hash === '#svfeed/search/video/' + encodeURIComponent('失败词')
+    && document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 30
+    && window.__ACSV_SV_CALLS__ === svHist;
+}, 8000)), location.hash + ' sv=' + window.__ACSV_SV_CALLS__);
+// 清空历史
+location.hash = 'svfeed/search';
+rec('search-history-ready', !!(await waitFor(function () {
+  return !!q('.acsv-shclr');
+}, 8000)));
+(function () { q('.acsv-shclr').click(); })();
+rec('search-history-clear', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-shchip').length === 0
+    && /输入关键词/.test(document.body.textContent || '');
+}, 8000)));
 // 离开搜索视图 → 默认提交还原（handler 生命周期）+ 地址深链回填（分享链接/刷新回放的落点）
 key('Escape');
 rec('search-esc-back', !!(await waitFor(function () {
   return /^#svfeed(\/(?:[va]\/)?\d+)?$/.test(location.hash)
     && q('.acsv-view') === null;
 }, 8000)), location.hash);
-location.hash = 'svfeed/search/' + encodeURIComponent('深链词');
-rec('search-deeplink-prefill', !!(await waitFor(function () {
+location.hash = 'svfeed/search/up/' + encodeURIComponent('深链词');
+rec('search-deeplink-kind', !!(await waitFor(function () { // 类目段深链：直接落 UP主 类目
   var i = q('.acsv-top .acsv-sbox input');
-  return q('.acsv-view').offsetParent !== null && !!i && i.value === '深链词'
-    && document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 3;
+  return q('.acsv-view') && q('.acsv-view').offsetParent !== null && !!i && i.value === '深链词'
+    && document.querySelectorAll('.acsv-supcard').length === 2;
 }, 8000)), 'v=' + ((q('.acsv-top .acsv-sbox input') || {}).value));
-rec('search-calls-final', window.__ACSV_SEARCH_CALLS__ === 4, 'calls=' + window.__ACSV_SEARCH_CALLS__);
+rec('search-calls-final', window.__ACSV_SV_CALLS__ === svHist + 1 && window.__ACSV_SU_CALLS__ === suHist + 1
+  && window.__ACSV_SA_CALLS__ === saHist + 1, // 深链词=新词：三端点各一发
+  'sv/su/sa=' + window.__ACSV_SV_CALLS__ + '/' + window.__ACSV_SU_CALLS__ + '/' + window.__ACSV_SA_CALLS__
+  + ' vs ' + (svHist + 1) + '/' + (suHist + 1) + '/' + (saHist + 1));
 rec('search-backbtn-shown', (function () { // 搜索结果页是深界面：来源不在 dock 上
   var b = q('.acsv-back-btn');
   return !!b && b.style.display !== 'none' && b.offsetParent !== null;

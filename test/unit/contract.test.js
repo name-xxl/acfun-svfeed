@@ -1,6 +1,6 @@
 // 条目契约的机器闸门（0.9.82 统一条目模型）：把 data.js 里"两种内容源规整成同一份字段
 // 契约"那句注释变成可执行断言。四条：
-//   ① 面板各来源（panelItem 各 kind / parseSearchItems）产出键 ⊆ ITEM_FIELDS.panel
+//   ① 面板各来源（panelItem 各 kind / searchVideoPageOf）产出键 ⊆ ITEM_FIELDS.panel
 //   ② 播放各来源（normalize / normalizeHome / playItemOf）产出键 ⊆ ITEM_FIELDS.play
 //   ③ 播放契约顶层不得出现 userName/userId/head/isFollowing——作者只有一个出口 up
 //   ④ up 形态固定四件套（id/name/img/isFollowing），来源私有的作者扩展字段不混进来
@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, parseSearchItems, playItemOf, normalize, normalizeHome, ITEM_FIELDS } =
+var { panelItem, searchVideoPageOf, playItemOf, normalize, normalizeHome, ITEM_FIELDS } =
   await import('../../src/data.js');
 
 // 已退役的扁平作者字段：出现在播放条目顶层即失败
@@ -54,13 +54,15 @@ var PANEL_CASES = {
     user: { userId: 9, userName: 'u', userHead: 'h', nameColor: 0 }
   }
 };
-var SEARCH_HTML = '<div class="search-video"><a href="/v/ac5"><img src="c.png"/>'
-  + '<span class="video__duration">01:00</span></a>'
-  + '<div class="video__main__title"><a href="/v/ac5">t</a></div>'
-  + '<div class="video__main__info"><div class="video__main__user"><a href="/u/3">'
-  + '<img class="user-avatar" src="a.png"/><span class="user-name">u</span></a></div>'
-  + '<span class="info__view-count">1次播放</span><span class="info__create-time">2026-01-01</span>'
-  + '</div></div>';
+// 搜索视频条目（0.9.151 起走 JSON 端点规整）：最小翻转样本覆盖规整器会填的每个字段分支
+var SEARCH_J = {
+  result: 0, totalNum: 1,
+  videoList: [{
+    contentId: 5, title: 't', emTitle: '<em>t</em>', coverUrl: 'c.png', playDuration: '01:00',
+    viewCountInfo: '1次播放', userName: 'u', userId: 3, userImg: 'a.png',
+    ctime: new Date(2026, 0, 1).getTime()
+  }]
+};
 
 function playCases() {
   return {
@@ -79,9 +81,9 @@ test('契约①：面板各来源产出键 ⊆ 面板契约白名单', () => {
     assert.ok(pi, 'panelItem(' + kind + ') 应产出条目');
     assert.deepEqual(outside(pi, ITEM_FIELDS.panel), [], kind + ' 出现契约外字段');
   });
-  var hits = parseSearchItems(SEARCH_HTML);
+  var hits = searchVideoPageOf(SEARCH_J).items;
   assert.equal(hits.length, 1);
-  assert.deepEqual(outside(hits[0], ITEM_FIELDS.panel), [], 'parseSearchItems 出现契约外字段');
+  assert.deepEqual(outside(hits[0], ITEM_FIELDS.panel), [], 'searchVideoPageOf 出现契约外字段');
 });
 
 test('契约②：播放各来源产出键 ⊆ 播放契约白名单', () => {

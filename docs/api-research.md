@@ -3,7 +3,7 @@
 > 目的：评估抖音式扩展功能（关注流 / 我的面板 / 相关推荐 / meta 富化等）的接口可得性，先于功能立项。
 > 方法：内置浏览器（带用户登录态）真机实测为主（2026-10-02）；社区文档 [zhuweitung/acfun-api-collect](https://github.com/zhuweitung/acfun-api-collect) 的 AcFunApi.md 作参数线索，以实测结果为准。
 > 验证等级：〔实测〕= 带登录态请求真实端点拿到 result 0 与数据；〔在用〕= 项目已上线；〔待打样〕= 端点存在但请求形状未定。
-> 结论先行：**关注流、关注列表、观看历史、用户搜索、收藏夹读写全链路（列表/详情/加藏/改夹/建夹/删夹）、关注分组管理（建组/入组/移组/删组/组过滤）、频道榜单 rank/channel 全部实测可用**；PC 分区已无列表翻页 API（可行路线=榜单 JSON + 分区页精选块 SSR）；无未定位端点。
+> 结论先行：**关注流、关注列表、观看历史、用户搜索、收藏夹读写全链路（列表/详情/加藏/改夹/建夹/删夹）、关注分组管理（建组/入组/移组/删组/组过滤）、频道榜单 rank/channel、站内搜索三端点（视频/UP主/文章 + pCursor 真分页）全部实测可用**；PC 分区已无列表翻页 API（可行路线=榜单 JSON + 分区页精选块 SSR）；无未定位端点。
 
 ## 1. 通道与鉴权（项目约定，本轮全部维持）
 
@@ -336,6 +336,8 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
 
 - 实测 "ac娘" → userList 30 条（含 userId/userName）
 - 可接"搜 UP 主 → 看 TA 最新投稿"链路（配合 uppage / getFollows）
+- **0.9.151 已接**（搜索 2.0「UP主」类目）：条目还带头像/签名/粉丝与投稿计数串、`isFollowing`、
+  以及**最近投稿 `dougaFeedList`（最多 3 条，可直接点播）**——完整形状见 §4.10
 
 ### 4.4 UP 信息（〔实测〕2026-10-02，榜单 UP 榜/未来 UP 面板用）
 
@@ -470,6 +472,42 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
   旧实现拿 `pcursor !== 'no_more'` 当附加闸门 ⇒ 恒假 ⇒ 「加载更多评论」永不出现、全站卡首页——
   **0.9.140 实报修复**（0.9.141 起按钮撤除改哨兵自动续页）。
 - `commentCount` **含楼中楼**（2221 = 根 + 子）——抽屉标题数比根评论条数大是站方口径，非缺陷。
+
+### 4.10 站内搜索三端点（〔实测〕2026-10-04，登录态内置浏览器；0.9.151 搜索 2.0 前置）
+
+**方法**：桌面浏览器直调 `/rest/pc-direct/search/{video,user,article}` 参数矩阵 + 原生搜索页
+（/search?keyword=星际）页面内包 XHR/fetch 记录器点「下一页」抓包。**0.9.72 只做了 SSR 首屏**
+（`?pageNo=` 无效）——本轮把「真分页」与另外两个类目补齐。
+
+- **三端点**（均为 GET + 网页 Cookie，`result:0`）：
+  `search/video?keyword=&pCursor=N` → `videoList[]`；`search/user?keyword=&pCursor=N` → `userList[]`；
+  `search/article?keyword=&pCursor=N` → `articleList[]`
+- **分页参数是 `pCursor`（页码，1 起）**：`page` / `pageNo` 全被忽略（两页回同一条，实测）。
+  证据=原生 pager 抓包：点「2」发出的 ajaxpipe 请求带 `pCursor=2&sortType=1&channelId=0`。
+  实测样本（星际）：视频 totalNum 600 / 20 页、UP主 63 / 3 页、文章 100 / 4 页
+- **外壳**：`{result, totalNum(总数), pageSize(30 固定), pageNum(**总页数**), requestId, host-name}`
+  ——`pageNum` 不是"当前页"，别拿它判到底；到底判 `totalNum` 或短页
+- **视频条目**（30/页）：`contentId`(=ac 号)/`videoId`/`title`/`emTitle`(高亮命中词)/
+  `coverUrl`/`playDuration`("02:41")/`viewCount`+`viewCountInfo`("11.4万次播放")/
+  `danmuCount`+`danmuCountInfo`("230条弹幕")/`commentCount`/`userName`/`userId`/`userImg`/
+  `ctime`(毫秒)/`channelId`/`itemType:2`/`decr`(简介)/`displayInfo`("11.4万次播放  2020-06-28")
+- **UP主条目**：`userId`/`userName`/`emTitle`/`userImg`/`signature`/`isFollowing`/
+  `fansCount`+`fansCountStr`("1.4万")/`contentCount`+`contentCountStr`/`pubDougaCount`/
+  `pubMeowCount`/`verifiedTypes`/`subTitle` + **`dougaFeedList[]` 最近投稿（最多 3 条）**：
+  `{videoId, contentId, caption, coverUrls[], playDuration, contributeTime("2022-06-01"), type}`
+- **文章条目**：`contentId`/`title`/`emTitle`/`decr`/`userId`/`userName`/`userImg`/
+  `viewCount`+`viewCountInfo`/`commentCount`+`commentCountInfo`/`channelName`/`ctime`/`itemType:3`
+  ——**无封面字段**（纯文本行卡）
+- **`emTitle` 的 `<em>` 高亮**：命中词被 `<em>…</em>` 包裹（如 `《<em>星际</em>穿越》`），
+  项目契约层一律剥成纯文本（网格卡不做局部高亮）
+- **无联想端点**：`search/suggest?keyword=` 回 result 21（参数形态不明）；原生搜索框**真实键盘
+  输入也零请求** ⇒ 联想不存在（替代品=本地搜索历史，0.9.151）
+- **原生页其它类目**：tab 实测 综合/视频99+/UP主63/文章99+/番剧/合辑45；**番剧（type=bgm）、
+  合辑、综合都走 ajaxpipe**（`/search?type=complex&keyword=&pCursor=N&sortType=1&channelId=0&
+  quickViewId=complex-list&ajaxpipe=1`，返回 HTML 片段）——本项目只吃上面三个 JSON，不跟
+- 项目落地（0.9.151 搜索 2.0）：三端点规整 `data.search{Video,User,Article}PageOf`、分页游标
+  `pCursor`、视图层三类目 chips/哨兵续页/UP 卡/文章行/搜索历史；SSR 解析（原 §4.3 后记的
+  parseSearchItems 路线）整体退役
 
 ## 5. 内容扩展路线定性（〔实测〕）
 

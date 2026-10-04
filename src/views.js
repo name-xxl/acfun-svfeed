@@ -29,8 +29,8 @@ import { syncTopbar } from './topbar.js';
 // scrollToIndex 依赖后循环消失）
 // 视图清单与 dock 元数据在 viewreg.js（registerView 的唯一真源；本模块只读 viewDef）。
 // 本模块只管编排：进出/保活/来源链；卡面 kit 已拆出（0.9.109 → cards.js，含点击出口注入缝）
-var current = null;     // 当前视图 { id, arg, def, el }
-var origins = [];       // 来源链：[{ view, arg, rec }]；rec 非空=被挂起的普通视图 DOM
+var current = null;     // 当前视图 { id, arg, kind, def, el }（kind=搜索类目等二段参数，0.9.151）
+var origins = [];       // 来源链：[{ view, arg, kind, rec }]；rec 非空=被挂起的普通视图 DOM
 var wasPlaying = false; // 切出时当前条是否在播（回来恢复播放，用户主动暂停态不打扰）
 
 export function currentView() { return current ? current.id : null; }
@@ -107,11 +107,19 @@ function closeView() {
   if (location.hash !== '#' + CFG.hash) location.hash = CFG.hash;
 }
 
+// 视图地址（0.9.151 抽 helper）：`#<hash>/<view>[/<kind>][/<arg>]`——搜索类目是 kind 段
+// （svfeed/search/up/<kw>），其余视图 kind 恒空、形态与旧一致
+function viewHashOf(view, arg, kind) {
+  var s = CFG.hash + '/' + view;
+  if (kind) s += '/' + kind;
+  if (arg != null && arg !== '') s += '/' + encodeURIComponent(arg);
+  return s;
+}
+
 // 深界面的返回动作（Esc 与顶栏「向左返回」共用）：回"打开它的那个界面"
 export function backFromOrigin() {
   var top = origins.length ? origins[origins.length - 1] : null;
-  var to = top && top.view ? CFG.hash + '/' + top.view
-    + (top.arg == null || top.arg === '' ? '' : '/' + encodeURIComponent(top.arg)) : CFG.hash;
+  var to = top && top.view ? viewHashOf(top.view, top.arg, top.kind) : CFG.hash;
   if (location.hash !== '#' + to) location.hash = to;
 }
 
@@ -121,16 +129,18 @@ export function backFromOrigin() {
 function holdOrigin(prev) {
   if (prev.def.suspend) { try { prev.def.suspend(); } catch (e) { } }
   prev.el.className = 'acsv-view-held'; // 换类名：q('.acsv-view') 是全局定位锚
-  origins.push({ view: prev.id, arg: prev.arg, rec: prev });
+  origins.push({ view: prev.id, arg: prev.arg, kind: prev.kind, rec: prev });
 }
 
-function enterView(id, arg) {
+function enterView(id, arg, kind) {
   var def = viewDef(id);
   if (!def || !root) return false;
   var top = origins.length ? origins[origins.length - 1] : null;
-  // 回来路径：目标＝来源链顶（深界面的来源）→ pop；顶着挂了 DOM 就原位复原（跳过 build）
+  // 回来路径：目标＝来源链顶（深界面的来源）→ pop；顶着挂了 DOM 就原位复原（跳过 build）。
+  // kind 参与比较（0.9.151）：搜索类目不同即不同屏，不能让"文章"顶替"视频"的来源层
   var back = !!(top && String(top.view || '') === String(id)
-    && String(top.arg || '') === String(arg || ''));
+    && String(top.arg || '') === String(arg || '')
+    && String(top.kind || '') === String(kind || ''));
   var rec = null;
   var replaced = false;
   if (back) {
@@ -169,9 +179,9 @@ function enterView(id, arg) {
   // 必须显式 'block'：CSS 里 .acsv-view 初始 display:none，'' 会回落到样式表值——
   // 0.9.62 黑屏 bug 根因（内容渲染了但容器不可见，harness 断言只查内联值被骗过）
   e.style.display = 'block';
-  current = { id: id, arg: arg, def: def, el: e };
+  current = { id: id, arg: arg, kind: kind, def: def, el: e };
   overlayOpen({ id: 'view', close: closeView }); // 非模态层：Esc=关闭
-  def.build(body, arg);
+  def.build(body, arg, kind);
   return true;
 }
 
@@ -189,9 +199,11 @@ export function syncRouteView() {
   var r = parseRoute();
   var def = viewDef(r.view);
   if (def) {
+    // kind 参与比较（0.9.151）：搜索类目切换（含浏览器前进/后退）要按新类目重建
     if (!current || current.id !== r.view
-      || String(current.arg || '') !== String(r.viewArg || '')) {
-      enterView(r.view, r.viewArg);
+      || String(current.arg || '') !== String(r.viewArg || '')
+      || String(current.kind || '') !== String(r.viewKind || '')) {
+      enterView(r.view, r.viewArg, r.viewKind);
     }
   } else if (current) {
     exitView(true);

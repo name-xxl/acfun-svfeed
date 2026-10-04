@@ -8,6 +8,11 @@
   //   PANEL_AVATAR  面板层自带：搜索页 SSR 的 img.user-avatar / 收藏 dougaList 的 userImg /
   //                 观看历史的 user.headUrl
   //   RESOLVE_AVATAR douga/info 回包的 user.headUrl
+  // url 取 keyword 参数（搜索 mock 三件套共用）
+  function sqkw(url) {
+    try { return decodeURIComponent((String(url).match(/keyword=([^&]*)/) || [])[1] || ''); }
+    catch (e) { return ''; }
+  }
   var PANEL_AVATAR = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
   var RESOLVE_AVATAR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
   window.__ACSV_PANEL_AVATAR__ = PANEL_AVATAR;
@@ -304,31 +309,76 @@
       window.__ACSV_RANK_CALLS__ = (window.__ACSV_RANK_CALLS__ || 0) + 1;
       return rankList(url);
     },
-    // 搜索页 SSR（0.9.72）：真机结构裁剪片段（未转义形态；真机 \" 转义形态由单测覆盖）。
-    // 命中计数供 harness 断言「空词不发请求」。
-    // 0.9.82：UP 段按真机形态补全 .video__main__user 包裹（a[href=/u/uid] > img.user-avatar
-    // + span.user-name）——解析器要在这里取 uid 与头像，缺了这层就只能拿到名字
-    'search?keyword=': function () {
-      window.__ACSV_SEARCH_CALLS__ = (window.__ACSV_SEARCH_CALLS__ || 0) + 1;
-      return [
-        '<div class="search-video">',
-        '<a href="/v/ac40742636"><img src="https://img.example/1.png?imageView2/1/w/160/h/90"/><span class="video__duration">02:04</span></a>',
-        '<div class="video__main__title"><a href="/v/ac40742636">热门小说推荐</a></div>',
-        '<div class="video__main__info"><div class="video__main__user"><a href="/u/73156935">'
-          + '<img class="user-avatar" src="' + PANEL_AVATAR + '"/><span class="user-name">晨澜每日分享</span></a></div>',
-        '<span class="info__view-count">2037次播放</span><span class="info__create-time">2023-02-24</span></div></div>',
-        '<div class="search-video">',
-        '<a href="/v/ac41033414"><img src="https://img.example/2.png"/><span class="video__duration">02:52</span></a>',
-        '<div class="video__main__title"><a href="/v/ac41033414">#小说推荐#宝藏小说</a></div>',
-        '<div class="video__main__info"><div class="video__main__user"><a href="/u/73156936">'
-          + '<img class="user-avatar" src="' + PANEL_AVATAR + '"/><span class="user-name">西瓜推文</span></a></div>',
-        '<span class="info__view-count">1459次播放</span><span class="info__create-time">2023-04-02</span></div></div>',
-        '<div class="search-video">',
-        '<a href="/v/ac41023197"><img src="https://img.example/3.png"/><span class="video__duration">03:05</span></a>',
-        '<div class="video__main__title"><a href="/v/ac41023197">一口气看完《苏沅念裴以桉》</a></div>',
-        '<div class="video__main__info"><span class="user-name">误为微物迁</span>',
-        '<span class="info__view-count">1029次播放</span><span class="info__create-time">2025-12-05</span></div></div>'
-      ].join('\n');
+    // 搜索三端点（0.9.151 搜索 2.0）：JSON mock，形状按真机实测裁剪（docs/api-research.md
+    // §4.10）。命中计数分键（sv/su/sa）供「换词预拉三个 / 切类目零请求 / 哨兵只续当前类目」
+    // 断言；kw='失败词' 时视频端点按开关回 result 21（重试钉用，首次失败、重试成功）。
+    // 视频：totalNum 33 = 首屏 30（未到底）+ 页2 3 条（到底）——分页与「已显示全部」都可钉。
+    '/search/video?': function (body, url) {
+      window.__ACSV_SV_CALLS__ = (window.__ACSV_SV_CALLS__ || 0) + 1;
+      var kw = sqkw(url);
+      if (kw === '失败词' && !window.__ACSV_SV_FAIL_OK__) return { result: 21, error_msg: '参数格式错误' };
+      var cur = Number((String(url).match(/pCursor=(\d+)/) || [])[1] || 1);
+      var total = 33;
+      var n = cur === 1 ? 30 : Math.max(0, total - 30);
+      var list = [];
+      for (var i = 0; i < n; i++) {
+        var k = (cur - 1) * 30 + i + 1;
+        list.push({
+          contentId: 500000 + k, videoId: 'vid' + k,
+          title: '搜索视频' + k, emTitle: '搜索<em>视频</em>' + k, // em 高亮：契约层应剥掉
+          coverUrl: 'https://img.example/s' + k + '.png',
+          playDuration: '02:0' + (k % 10),
+          viewCount: 12000 + k, viewCountInfo: '1.2万次播放',
+          userName: '搜索UP', userId: 73156935, userImg: PANEL_AVATAR,
+          ctime: new Date(2026, 0, 1).getTime() + k * 86400000
+        });
+      }
+      return { result: 0, totalNum: total, pageSize: 30, pageNum: 2, videoList: list };
+    },
+    // UP主：一条带最近投稿三连（含粉丝/投稿计数串），一条已关注、无投稿、无计数字段
+    '/search/user?': function () {
+      window.__ACSV_SU_CALLS__ = (window.__ACSV_SU_CALLS__ || 0) + 1;
+      return {
+        result: 0, totalNum: 2, pageSize: 30, pageNum: 1,
+        userList: [
+          {
+            userId: 14266286, userName: '星际老男孩SCBOY', emTitle: '<em>星际</em>老男孩SCBOY',
+            userImg: PANEL_AVATAR, fansCount: 14288, fansCountStr: '1.4万',
+            contentCount: 177, contentCountStr: '177',
+            signature: '这里是黄旭东与孙一峰的官方山头，大家一起谐起来！', isFollowing: false,
+            dougaFeedList: [
+              { videoId: 'a', contentId: '600001', caption: '最近投稿一', coverUrls: ['https://img.example/r1.png'], playDuration: '02:09', contributeTime: '2022-06-01' },
+              { videoId: 'b', contentId: '600002', caption: '最近投稿二', coverUrls: ['https://img.example/r2.png'], playDuration: '05:44', contributeTime: '2022-05-30' },
+              { videoId: 'c', contentId: '600003', caption: '最近投稿三', coverUrls: ['https://img.example/r3.png'], playDuration: '10:02', contributeTime: '2022-05-28' }
+            ]
+          },
+          {
+            userId: 2, userName: '无投稿UP', userImg: PANEL_AVATAR, fansCountStr: '302',
+            contentCountStr: '41', signature: '这个UP很懒', isFollowing: true
+          }
+        ]
+      };
+    },
+    // 文章：无封面文本条（标题/摘要/作者/阅读/评论/频道/日期全字段）
+    '/search/article?': function () {
+      window.__ACSV_SA_CALLS__ = (window.__ACSV_SA_CALLS__ || 0) + 1;
+      return {
+        result: 0, totalNum: 2, pageSize: 30, pageNum: 1,
+        articleList: [
+          {
+            contentId: 3231907, title: '围棋已无挑战性：谷歌要让AlphaGo玩《星际争霸》',
+            emTitle: '围棋已无挑战性：谷歌要让AlphaGo玩《<em>星际</em>争霸》',
+            decr: '素材来源于网络，侵权删除', userId: 3328282, userName: '寄昙说',
+            viewCountInfo: '20.3万', commentCountInfo: '549', channelName: '生活',
+            ctime: new Date(2016, 10, 5).getTime()
+          },
+          {
+            contentId: 3231908, title: '第二篇测试文章', emTitle: '第二篇测试文章', decr: '',
+            userId: 3, userName: '文章UP', viewCountInfo: '1.1万', commentCountInfo: '12',
+            channelName: '游戏', ctime: new Date(2021, 2, 17).getTime()
+          }
+        ]
+      };
     },
     // resolve 链两段（GET，经 request() 同样命中 mockHit）：面板条目点击回竖刷要跑通
     'douga/info': function (body, url) {

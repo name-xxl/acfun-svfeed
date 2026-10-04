@@ -98,9 +98,13 @@ export var CFG = {
     // 单条动态详情（0.9.127 广场新鲜度回填；plaza 同端点实测转引 §2.7）：pc-direct 带 Cookie
     // 读——列表（feedSquare 免登录）互动态恒 false，此端点才给真 isLike/isThrowBanana
     momentDetail: 'https://www.acfun.cn/rest/pc-direct/moment/detail',
-    // 站内搜索（0.9.72）：**非 JSON**——整页 SSR HTML（结果区 div.search-video），
-    // 走 net.requestText + data.parseSearchItems；?pageNo= 实测无效（两页同一结果集），只做首屏
-    search: 'https://www.acfun.cn/search',
+    // 站内搜索（0.9.151 三端点；真机实测 docs/api-research.md §4.10）：PC 搜索是 JSON——
+    // **pCursor 是页码游标**（`page`/`pageNo` 被忽略，点原生 pager 抓包坐实）、每页固定 30、
+    // 响应带 totalNum（总数）与 pageNum（**总页数**，不是当前页）；emTitle 携 <em> 高亮，
+    // 契约层剥成纯文本。0.9.72 的 SSR 整页解析（原 api.search + data.parseSearchItems）退役。
+    searchVideo: 'https://www.acfun.cn/rest/pc-direct/search/video',
+    searchUser: 'https://www.acfun.cn/rest/pc-direct/search/user',
+    searchArticle: 'https://www.acfun.cn/rest/pc-direct/search/article',
     // ---- 弹幕（www.acfun.cn 同域，网页 Cookie 鉴权） ----
     dmList: 'https://www.acfun.cn/rest/pc-direct/new-danmaku/list',
     dmAdd: 'https://www.acfun.cn/rest/pc-direct/new-danmaku/add',

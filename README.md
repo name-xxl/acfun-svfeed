@@ -47,7 +47,7 @@
 | 顶栏信封（私信）/ **I 键** | **私信抽屉**（信封点第二遍即关、I 键全界面开合，0.9.75）：列表（联系人/未读/相对时间/搜索）↔ 聊天（气泡/**时间分割线**/**作品卡片**（封面/计数/时长，点击跳视频；自己发出的 `标题+链接` 分享消息同样渲染为卡片）/发送/失败点击重试/已读上报/**消息引用**（hover 引用按钮 → 引用 chip，摘要条点击定位高亮）/**表情收发**/**图片消息**（即拍即发、点击看大图）；自己气泡深蓝灰不刺眼）两视图；与评论抽屉**同槽互斥**（state.js 槽位协调：开一方自动收回另一方）；**视图态也可开**（0.9.73：抽屉盖在视图上，正文/顶栏按同一套避让让位）；Esc 逐层关：更新弹窗 → 大图查看器 → 当前抽屉 → 当前视图 → 退出 |
 | 顶栏更新（信封旁） | **更新说明弹窗**：每次打开竖刷页自动检查一次新版本——更新后首次打开弹「vX 更新内容」（官方 release 渲染正文）；发现新版本首次弹「发现新版本」+ 说明 + [前往更新][忽略此版本]，此后仅 toast 轻提醒（红点亮至忽略或升级，忽略后该版本完全静默）；点按钮随时手动查看。数据取 GitHub 官方 `releases.atom`，拉取失败静默不打扰；Esc 关闭顺序：更新弹窗 → 大图查看器 → 抽屉 → 退出 |
 | 打开 message.acfun.cn 私信 | **原生私信页自动增强**（装脚本即生效）：「不支持查看此消息」占位原位替换为 10001 作品卡；脚本分享消息渲染为紧凑作品卡（限宽 228px、封面裁切，原文只留附言）；引用消息补灰色摘要条并把正文剥成纯回复（与抽屉同观感，不再双份摘要）；会话列表预览改写「[分享] 标题」 |
-| 顶栏搜索框（居中常驻，0.9.72；0.9.73 起四界面共用一个） | **搜 A 站视频**：Enter / 放大镜 → 搜索视图（`#svfeed/search/<关键词>`，可收藏/分享/刷新回放）——抖音式结果网格（封面左下播放数、右下时长，标题两行，底部 @UP·日期；点卡片进播放层就地播放（0.9.74：Esc/「向左返回」回来源）；**搜索视图里它就是唯一的输入框**（深链/换词时按地址回填，同词再回车就地重跑）；首屏结果外提供「去 A 站搜索页看全部」出口 |
+| 顶栏搜索框（居中常驻，0.9.72；0.9.73 起四界面共用一个） | **搜 A 站视频 / UP主 / 文章**（0.9.151 搜索 2.0）：Enter / 放大镜 → 搜索视图（`#svfeed/search/<类目>/<关键词>`，可收藏/分享/刷新回放）——类目 chips（视频/UP主/文章，计数即总数）+ **视频**抖音式结果网格（封面左下播放数、右下时长，标题两行，底部 @UP·日期；点卡片进播放层就地播放）、**UP主**卡（头像/粉丝/投稿/签名 + 最近投稿 3 条可直接点播 + 一键关注（已关注点开=分组选择层改分组/取关））、**文章**文本行（标题/摘要/作者/阅读/评论/频道/日期，点击新标签开原生页）；**滚动到底自动续页**（哨兵，同评论侧 0.9.141 口径），到底显示「已显示全部 N 条」；空词态出**最近搜索**（本地记 10 词，可点可清空）。**搜索视图里它就是唯一的输入框**（深链/换词时按地址回填，同词再回车就地重跑） |
 | 左栏「我的」 | **个人主页**（`#svfeed/my`）：资料头（头像/昵称/关注·粉丝·投稿/签名，来源 `auth_key`→uid + `getUserCardList`；未登录或接口失败不显示头部）→ Tab（观看历史｜收藏夹｜**关注分组**，切换不重拉）→ **4:3 封面网格**（A 站普通视频封面固定 4:3，历史项封面左下角「观看至 xx:xx」角标，收藏显示 UP 名/续看秒数）；点卡片进播放层就地播放（Esc/「向左返回」回本列表），「加载更多」翻页。**收藏夹 tab 0.9.143 管理化**：＋新建夹 / 改名·删除收藏夹（删除二次确认「一并移除」）/ 卡面 hover「移动·移除收藏」；**关注分组 tab（0.9.142）**：chips（全部 / 未分组 / 各组(N) / ＋新建分组）+ 组头改名·删除 + 成员列表（移组 / 取关，偏移量游标翻页） |
 | 左栏「榜单」 | **分区榜单**（`#svfeed/zone`，0.9.69 全量对齐原生 rank/list）：渠道/子频道/榜期 chips（全站日榜 100 条）→ 1600 上限居中 rlist 分栏行（视频卡+UP 卡 338，0.9.70 起宽屏不留大空白）；封面 160×90、标题单行、简介 3 行（`<br>` 折行）、**meta 贴封面底**（原生图标：播放/评论/发布于·频道），排名=48px 旋转 10° 水印贴卡右下；UP 卡扁平+左竖线（头像 90/名字/签名 3 行/投稿·粉丝万格式图标位）；点行进播放层就地播放，整卡 UP 主页新窗 |
 | 视图态顶栏（榜单/我的/搜索/播放层，0.9.73 四界面复用） | 与竖刷**同一套顶栏**：居中搜索框（搜索视图里它就是唯一输入框）+ 私信 / 更新 / ✕；源切换隐藏；**✕=退出脚本**（0.9.74 单一意义），搜索结果页与播放层在左缘多一个「向左返回」=回来源界面；私信 **I 键**四界面通用；抽屉开着时顶栏整体收窄到抽屉左缘（右组贴边、搜索框回剩余区中心，互不重叠） |
@@ -115,7 +115,7 @@
   | 入口 | 作者来源 | 名字 | uid | 头像 |
   |---|---|---|---|---|
   | 首页推荐流 / 小视频流 | 卡片自带 `user`（`normalize`/`normalizeHome` 直读） | ✓ | ✓ | ✓ |
-  | 站内搜索 | 搜索页 SSR 的 `.video__main__user`（`/u/<uid>` + `img.user-avatar`） | ✓ | ✓ | ✓ |
+  | 站内搜索 | `search/video` 条目自带 `userName/userId/userImg`（0.9.151 换 JSON；0.9.72–150 为 SSR 片段解析） | ✓ | ✓ | ✓ |
   | 我的·收藏 | `dougaList` 条目自带 `userName/userId/userImg`（docs §4.2 实测） | ✓ | ✓ | ✓ |
   | 分区榜单 | `rankList` 条目自带 `userName/userId/userImg` | ✓ | ✓ | ✓ |
   | 深链 → 小视频 | `meow/info` 回包 `user` | ✓ | ✓ | ✓ |
@@ -283,7 +283,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 |---|---|
 | `cfg.js` | 常量表（接口地址、APP 请求头/固定 mkey、timings、导航标签） |
 | `net.js` | `request(url, method, headers, body)`：GM_xmlhttpRequest 优先、XHR 回退 |
-| `data.js` | 双 normalize：meow（kind=sv）与 selection 卡片（kind=home）→ 同一字段契约；面板条目契约（panelItem 解析器表）与搜索 SSR 解析（parseSearchItems）；**作者契约 up（0.9.82 统一条目模型）**：`upOf` 定型 + `playItemOf` 面板→播放的桥（纯函数）+ `ITEM_FIELDS` 字段白名单；**时间文案（0.9.85）**：`fmtDate`（本地时区 YYYY-MM-DD，禁 UTC 口径）+ `fmtAgo`（三天内相对、更早带年份）+ `relTime`（榜单「发布于xx」，对齐原生原样保留） |
+| `data.js` | 双 normalize：meow（kind=sv）与 selection 卡片（kind=home）→ 同一字段契约；面板条目契约（panelItem 解析器表）与搜索三端点规整（0.9.151：searchVideoPageOf/searchUserPageOf/searchArticlePageOf，`<em>` 高亮剥离）；**作者契约 up（0.9.82 统一条目模型）**：`upOf` 定型 + `playItemOf` 面板→播放的桥（纯函数）+ `ITEM_FIELDS` 字段白名单；**时间文案（0.9.85）**：`fmtDate`（本地时区 YYYY-MM-DD，禁 UTC 口径）+ `fmtAgo`（三天内相对、更早带年份）+ `relTime`（榜单「发布于xx」，对齐原生原样保留） |
 | `api.js` | 接口封装 + 内容源状态（getSource/setSource）+ feed/refresh 按源分发（mock 桩收口在这） |
 | `appapi.js` | APP 家族接口层：selection feed（游标）、douga/playInfo 懒解析、投蕉/评论点赞、弹幕 list/add、api_st 令牌（播放档位策略已剥离到 quality.js）。**postForm（页面 fetch 表单通道）在本件，收藏/关注域已迁 favapi/relationapi 但仍经它发**（0.9.143 迁出登记在文件头） |
 | `quality.js` | 播放质量策略（零网络）：编码偏好过滤 HEVC/AVC、清晰度记忆选档；appapi 取档、它选档 |
@@ -332,7 +332,8 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `sidebar.js` | 左栏 dock（0.9.62；0.9.78 起条目从 viewreg 的 dock 元数据派生——此前是第二份人工清单，加视图要改两处）：「推荐」+ 各视图入口，当前视图高亮，窄屏隐藏，随 unmount 拆除 |
 | `viewreg.js` | 视图注册表（0.9.78，零依赖叶子）：`registerView`/`viewDef`/`dockEntries`——视图清单的唯一真源；dock 元数据（label/svg/order/group）随视图声明，sidebar 只读派生 |
 | `topbar.js` | 共享顶栏（0.9.72 抽离；0.9.73 四界面复用；0.9.74 ✕ 单一意义+向左返回）：搜索框（居中常驻；视图态按地址关键词回填，搜索视图经 setSearchHandler 挂载期接管提交、teardown 还原）+ 左缘「向左返回」（仅深界面，onBack hooks）+ 右侧按钮组（源切换/私信/更新/退出，行为 hooks 注入不反向 import player）；syncTopbar(view,arg,{deep})：**✕ 永远=退出脚本**（普通界面 Esc 另义），深界面出返回键 |
-| `searchview.js` | 搜索视图（0.9.72；0.9.73 并入共享顶栏；0.9.74 deep+suspend/resume）：搜索页 SSR HTML 区段解析（data.parseSearchItems）→ 抖音式结果网格卡；关键词唯一真源=地址栏，顶栏搜索框即其唯一输入框 |
+| `searchview.js` | 搜索视图（0.9.72 建；**0.9.151 搜索 2.0**）：三 JSON 端点（视频/UP主/文章，`pCursor` 真分页）→ 类目 chips + 视频网格卡 / UP 卡（最近投稿 + 一键关注→grouppop 改分组）/ 文章行；换词并行预拉三类目（模块级缓存跨重建存活），哨兵自动续页（0.9.141 口径）+「已显示全部 N 条」；空词态=搜索历史 chips（searchhist）。关键词与类目唯一真源=地址栏 `#svfeed/search/<kind>/<kw>`（route.viewKind + views 二段参数；旧单段形态挂载时规范化），顶栏搜索框即其唯一输入框（0.9.73 并入；0.9.74 deep+suspend/resume） |
+| `searchhist.js` | 搜索历史（0.9.151，**零依赖叶子**）：`histList`/`histAdd`/`histClear`（GM `acsvSearchHist`，JSON 数组、去重提前、上限 10；无 GM 内存降级；读每次问 GM 不缓存）。抽件动机=存储读写要能被单测直采，且搜索视图换词/重建高频触碰 |
 | `playlayer.js` | 播放层（0.9.74；0.9.82 面板→播放的桥下沉为 data.playItemOf 纯函数）：子视图 play（#svfeed/play/&lt;v\|a&gt;/&lt;id&gt;）就地播放——面板条目即时首帧（标题/封面/作者来自面板契约的 up：搜索与收藏来源带作者，历史来源不带、由回包补）/ 冷进入 API.deepLink 解析（不 setSource）/ 失败错误盒+重试；OVL_IDX 哨兵 + data-ovl 判据（attach.js 契约表在册）、键盘重定向 state.setVideoTarget |
 | `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf，缺省不渲染）+ Tab 惰性面板（hist/fav/groups 三档：观看历史=双 resourceTypes/pageNo 翻页；**收藏夹**=chips 切夹→dougaList 翻页，0.9.143 管理化（建/改名/删夹 + 卡面移动·移除）；**关注分组（0.9.142）**=组 chips + 建/改名/删组 + 成员列表（移组/取关），读 relationapi、偏移量游标）+ 4:3 封面网格卡；条目经 panelItem 契约规整、点击进播放层（0.9.74） |
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
@@ -429,6 +430,7 @@ flowchart LR
   momentapi["momentapi.js（动态域读接口）"]
   followbadge["followbadge.js（关注未读徽标·轮询退避）"]
   followseen["followseen.js（关注已读水位·零依赖叶子）"]
+  searchhist["searchhist.js（搜索历史·零依赖叶子）"]
   relationapi["relationapi.js（关注域读写·分组 CRUD）"]
   grouppop["grouppop.js（关注分组选择层·语义件）"]
   pickpop["pickpop.js（通用选择层·锚定弹层壳）"]
@@ -472,7 +474,7 @@ flowchart LR
   followbadge --> net & sidebar
   player --> followbadge
   settingspanel --> settings & overlay
-  searchview --> cards & topbar & viewreg
+  searchview --> cards & grouppop & imgload & relationapi & searchhist & topbar & viewreg
   input --> feedstore & overlay & pb & settings
   comments --> appapi & commentkit & emoticon & imicons & imgview & immsg & sharepanel & inputbar & overlay & ubbtext
   commentkit --> imicons & imgload & ubb

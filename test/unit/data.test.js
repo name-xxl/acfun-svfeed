@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf, momentPiOfRepost, momentExtraOf, squarePageOf, momentDetailStateOf, nameColorCss, frameUrlOf, groupListOf, followListPageOf, newGroupIdOf, groupNameError, folderNameError, folderListOf, folderIdOf } = await import('../../src/data.js');
+var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, searchVideoPageOf, searchUserPageOf, searchArticlePageOf, followVideoPageOf, momentPiOfRepost, momentExtraOf, squarePageOf, momentDetailStateOf, nameColorCss, frameUrlOf, groupListOf, followListPageOf, newGroupIdOf, groupNameError, folderNameError, folderListOf, folderIdOf } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -344,65 +344,118 @@ test('deepLinkOf：douga 形态不合格一律未命中（result≠0 / videoList
   assert.equal(deepLinkOf(null, undefined, '1'), null);
 });
 
-// ---------- parseSearchItems（0.9.72 搜索页 SSR HTML → 视频条目） ----------
-// fixture 按真机实测结构裁剪（2026-10-02 抓 www.acfun.cn/search）：只吃 .search-video 区段，
-// 文章区/UP 投稿等其它 /v/ac 链接不得混入
-test('parseSearchItems：区段收窄 + 字段落位（时长/播放/UP/日期/封面）+ acId 去重 + 坏段跳过', () => {
-  var html = [
-    '<div class="article__main">',
-    '<a href="/a/ac4414392" data-click-log=\'{"cont_type":"article","content_id":4414392,"title":"文章干扰条目"}\'>文章干扰条目</a>',
-    '</div>',
-    '<div class="search-video" data-exposure-log=\'{"content_id":40742636}\'>',
-    '<div class="cover"><a href="/v/ac40742636" target="_blank" data-click-log=\'{"cont_type":"douga","content_id":40742636,"title":"热门小说推荐"}\'>',
-    '<img src="https://tx-free-imgs.acfun.cn/newUpload/x_1.png?imageView2/1/w/160/h/90"/><span class="video__duration">02:04</span></a></div>',
-    '<div class="video__main"><div class="video__main__title"><a href="/v/ac40742636" target="_blank">热门小说推荐</a></div>',
-    '<div class="video__main__info"><div class="video__main__user"><a href="/u/73156935"><img class="user-avatar" src="a.png"/><span class="user-name">晨澜每日分享</span></a></div>',
-    '<span class="info__view-count">2037次播放</span><span class="info__danmaku-count">0条弹幕</span><span class="info__create-time">2023-02-24</span></div></div></div>',
-    '<div class="search-video" data-exposure-log=\'{"content_id":40742636}\'>',
-    '<a href="/v/ac40742636"><img src="d.png"/><span class="video__duration">01:00</span></a>',
-    '<div class="video__main__title"><a href="/v/ac40742636">重复条目</a></div></div>',
-    '<div class="search-video">',
-    '<a href="/v/ac99999"><img src="e.png"/></a>',
-    '<div class="video__main__title"><a href="/v/ac99999">   </a></div></div>',
-    '<div class="search-video">',
-    '<a href="/v/ac41033414"><img src="https://x/y.png?a=1&amp;b=2"/><span class="video__duration">16:55</span></a>',
-    '<div class="video__main__title"><a href="/v/ac41033414">标题带&amp;实体</a></div>',
-    '<div class="video__main__info"><span class="user-name">UP &amp; 名</span>',
-    '<span class="info__view-count">14.0万阅读</span><span class="info__create-time">2021-05-01</span></div></div>'
-  ].join('\n');
-  var items = parseSearchItems(html);
-  assert.equal(items.length, 2);
-  assert.deepEqual(items[0], {
-    acId: 40742636,
-    title: '热门小说推荐',
-    cover: 'https://tx-free-imgs.acfun.cn/newUpload/x_1.png?imageView2/1/w/160/h/90',
-    dur: '02:04',
-    views: '2037',
-    // UP 段收窄到 .video__main__user：uid 与头像一并取回（0.9.82）——此时才可能进播放层
-    // 就带 @名字 链接、头像与关注按钮；封面 <img> 与头像 <img> 同卡，收窄是硬要求
-    up: { id: 73156935, name: '晨澜每日分享', img: 'a.png', isFollowing: false },
-    dateText: '2023-02-24'
+// ---------- 搜索三端点规整（0.9.151）：真机样本形状（docs/api-research.md §4.10） ----------
+// 样本取自内置浏览器实测回包（2026-10-04，「星际」）：顶层 totalNum（总数）/pageSize 30/
+// pageNum（**总页数**）；emTitle 的 <em> 高亮由契约层一律剥成纯文本。
+test('searchVideoPageOf：emTitle 剥高亮 + 封面/时长/播放文案剥后缀/作者四件套/日期 + total', () => {
+  var j = {
+    result: 0, totalNum: 600, pageSize: 30, pageNum: 20,
+    videoList: [
+      {
+        contentId: 16485171, videoId: '13425768', title: '《星际穿越》', emTitle: '《<em>星际</em>穿越》',
+        coverUrl: 'https://tx-free-imgs.acfun.cn/o_x.jpeg?imageslim', playDuration: '02:41',
+        viewCount: 113511, viewCountInfo: '11.4万次播放', danmuCount: 230, commentCount: 283,
+        userName: '神龙士力架', userId: 1597840, userImg: 'https://tx-free-imgs.acfun.cn/u.jpg?imageslim',
+        ctime: new Date(2020, 5, 28, 13, 20, 30).getTime(), channelId: 206, itemType: 2
+      },
+      { contentId: 0, title: 'X 无 acId 应被跳过' }
+    ]
+  };
+  var pg = searchVideoPageOf(j);
+  assert.equal(pg.total, 600);
+  assert.equal(pg.items.length, 1);
+  assert.deepEqual(pg.items[0], {
+    acId: 16485171,
+    title: '《星际穿越》', // <em> 剥掉
+    cover: 'https://tx-free-imgs.acfun.cn/o_x.jpeg?imageslim',
+    dur: '02:41',
+    views: '11.4万', // 「次播放」后缀剥掉
+    up: { id: 1597840, name: '神龙士力架', img: 'https://tx-free-imgs.acfun.cn/u.jpg?imageslim', isFollowing: false },
+    dateText: '2020-06-28'
   });
-  assert.equal(items[1].acId, 41033414);
-  assert.equal(items[1].dur, '16:55');
-  assert.equal(items[1].views, '14.0万'); // 「阅读」后缀剥掉
-  // 变体页缺 .video__main__user 外层包裹：名字兜底回落到全段匹配，但 uid/头像不猜（为 null）
-  assert.deepEqual(items[1].up, { id: 0, name: 'UP & 名', img: '', isFollowing: false });
-  assert.equal(items[1].title, '标题带&实体');
-  assert.equal(items[1].cover, 'https://x/y.png?a=1&b=2');
 });
 
-test('parseSearchItems：真机转义形态（\\" 反转义）可解析；空/非 HTML/无结果退空数组', () => {
-  var esc = '<div class=\\"search-video\\"><a href=\\"/v/ac123\\"><img src=\\"c.png\\"/></a>'
-    + '<div class=\\"video__main__title\\"><a href=\\"/v/ac123\\">转义条目</a></div></div>';
-  var items = parseSearchItems(esc);
-  assert.equal(items.length, 1);
-  assert.equal(items[0].acId, 123);
-  assert.equal(items[0].title, '转义条目');
-  assert.equal(items[0].cover, 'c.png');
-  assert.deepEqual(parseSearchItems(''), []);
-  assert.deepEqual(parseSearchItems(null), []);
-  assert.deepEqual(parseSearchItems('<html><body>没有搜索结果</body></html>'), []);
+test('searchVideoPageOf：空/缺列表退空表（调用方出空态，不崩不伪造）', () => {
+  assert.deepEqual(searchVideoPageOf(null), { items: [], total: 0 });
+  assert.deepEqual(searchVideoPageOf({ result: 0, videoList: [] }), { items: [], total: 0 });
+});
+
+test('searchUserPageOf：计数串优先（fansCountStr/contentCountStr）+ 最近投稿 dougaFeedList 规整', () => {
+  var j = {
+    result: 0, totalNum: 63, pageSize: 30, pageNum: 3,
+    userList: [
+      {
+        userId: 14266286, userName: '星际老男孩SCBOY', emTitle: '<em>星际</em>老男孩SCBOY',
+        userImg: 'https://tx-free-imgs.acfun.cn/u2.jpg?imageslim',
+        fansCount: 14288, fansCountStr: '1.4万', contentCount: 177, contentCountStr: '177',
+        signature: '这里是黄旭东与孙一峰的官方山头，大家一起谐起来！',
+        isFollowing: false, verifiedTypes: [],
+        dougaFeedList: [
+          {
+            videoId: '28091169', contentId: '35099706', caption: '【星际老男孩】谐星语录之节奏的搬运工',
+            coverUrls: ['https://tx-free-imgs.acfun.cn/c1.jpeg?imageslim'], playDuration: '02:09',
+            contributeTime: '2022-06-01', type: 2
+          },
+          { videoId: 'x', caption: 'X 无 contentId 应被跳过' }
+        ]
+      },
+      // 无 userName 的条目：名字回落 emTitle 并剥标签；两个计数字段都缺 → 留空
+      { userId: 2, emTitle: '<em>星</em>探' }
+    ]
+  };
+  var pg = searchUserPageOf(j);
+  assert.equal(pg.total, 63);
+  assert.equal(pg.items.length, 2);
+  assert.deepEqual(pg.items[0], {
+    uid: 14266286,
+    name: '星际老男孩SCBOY',
+    avatar: 'https://tx-free-imgs.acfun.cn/u2.jpg?imageslim',
+    fans: '1.4万',
+    contrib: '177',
+    signature: '这里是黄旭东与孙一峰的官方山头，大家一起谐起来！',
+    following: false,
+    recents: [{
+      acId: 35099706,
+      title: '【星际老男孩】谐星语录之节奏的搬运工',
+      cover: 'https://tx-free-imgs.acfun.cn/c1.jpeg?imageslim',
+      dur: '02:09',
+      dateText: '2022-06-01'
+    }]
+  });
+  assert.equal(pg.items[1].name, '星探'); // emTitle 剥标签
+  assert.equal(pg.items[1].fans, '');
+  assert.deepEqual(pg.items[1].recents, []);
+});
+
+test('searchArticlePageOf：无封面文本条（标题剥高亮/摘要/阅读/评论/频道/日期）', () => {
+  var j = {
+    result: 0, totalNum: 100, pageSize: 30, pageNum: 4,
+    articleList: [
+      {
+        contentId: 3231907, title: '围棋已无挑战性：谷歌要让AlphaGo玩《星际争霸》',
+        emTitle: '围棋已无挑战性：谷歌要让AlphaGo玩《<em>星际</em>争霸》',
+        decr: '素材来源于网络，侵权删除', userId: 3328282, userName: '寄昙说',
+        viewCount: 203065, viewCountInfo: '20.3万', commentCount: 549, commentCountInfo: '549',
+        channelName: '生活', itemType: 3, ctime: new Date(2016, 10, 5, 22, 35, 58).getTime()
+      },
+      { contentId: 0, title: 'X 无 id 应被跳过' }
+    ]
+  };
+  var pg = searchArticlePageOf(j);
+  assert.equal(pg.total, 100);
+  assert.equal(pg.items.length, 1);
+  assert.deepEqual(pg.items[0], {
+    id: 3231907,
+    title: '围棋已无挑战性：谷歌要让AlphaGo玩《星际争霸》',
+    decr: '素材来源于网络，侵权删除',
+    uid: 3328282,
+    name: '寄昙说',
+    views: '20.3万',
+    comments: '549',
+    channel: '生活',
+    dateText: '2016-11-05'
+  });
+  assert.deepEqual(searchArticlePageOf(null), { items: [], total: 0 });
 });
 
 // ---------- 图片字段归一（0.9.76）：http 老条目在 https 页面会被混合内容拦成裂图 ----------
@@ -424,19 +477,6 @@ test('panelItem/meCardOf：封面与头像 http:// 与协议相对 // 一律升 
   assert.equal(card.avatar, 'https://imgs.aixifan.com/h.jpg');
   // 缺省不伪造：空字段仍是空串（渲染层判空不挂图）
   assert.equal(panelItem('history', { resourceType: 2, videoId: 1, resourceId: 2, title: 'T' }).cover, '');
-});
-
-test('parseSearchItems：data-src/data-original 懒加载形态优先于 src（src 可能是占位图）', () => {
-  var html = '<div class="search-video"><a href="/v/ac777">'
-    + '<img src="data:image/gif;base64,PLACEHOLDER" data-src="http://tx-free-imgs.acfun.cn/real.jpg"/></a>'
-    + '<div class="video__main__title"><a href="/v/ac777">懒加载条目</a></div></div>'
-    + '<div class="search-video"><a href="/v/ac778">'
-    + '<img data-original="https://tx-free-imgs.acfun.cn/real2.jpg" src="a.png"/></a>'
-    + '<div class="video__main__title"><a href="/v/ac778">data-original 条目</a></div></div>';
-  var items = parseSearchItems(html);
-  assert.equal(items.length, 2);
-  assert.equal(items[0].cover, 'https://tx-free-imgs.acfun.cn/real.jpg'); // 升 https + 不取占位图
-  assert.equal(items[1].cover, 'https://tx-free-imgs.acfun.cn/real2.jpg');
 });
 
 // ---------- panelItem: follow（0.9.91 关注流，形状实测 docs/api-research.md §2.1.1） ----------
