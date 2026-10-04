@@ -458,26 +458,47 @@ export function followVideoPageOf(j) {
   return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
 }
 
-// 广场流单页规整（0.9.125，§2.7 实测；0.9.126 收口 **24h 窗口**）：feedSquare 响应 →
-// {items:[pi], nextCursor, noMore}。窗口=广场的原味（plaza：翻到发布 >24h 即止）——超窗条目
-// 逐条剔除且**直接判到底**（首屏/翻页两态同此判据）；**result!==0 = 失败（throw）**——调用方
-// 区分「失败可重试」与「到底」，绝不许把失败当到底（「失败不置到底」不变量在传输面兑现）；
-// 终判 pcursor='no_more'。**纯函数**放契约层，单测直采（窗口判据用相对时间构造，Determinism 够）
+// 广场流单页规整（0.9.125，§2.7 实测；0.9.126 收口 **24h 窗口**；0.9.127 出 **freshIds**）：
+// feedSquare 响应 → {items:[pi], nextCursor, noMore, freshIds}。窗口=广场的原味（plaza：翻到
+// 发布 >24h 即止）——超窗条目逐条剔除且**直接判到底**（首屏/翻页两态同此判据）；freshIds=
+// 窗口内且发布 ≤3h 的 momentId（视图据此走 moment/detail 补互动态真值——免登录列表的
+// isLike/isThrowBanana 恒 false）；**result!==0 = 失败（throw）**——调用方区分「失败可重试」与
+// 「到底」，绝不许把失败当到底；终判 pcursor='no_more'。**纯函数**放契约层，单测直采
 export function squarePageOf(j) {
   if (!j || j.result !== 0) throw new Error('square-fail');
   var raws = Array.isArray(j.feedList) ? j.feedList : [];
-  var cutoff = Date.now() - CFG.view.square.windowMs;
+  var now = Date.now();
+  var cutoff = now - CFG.view.square.windowMs;
   var items = [];
+  var freshIds = [];
   var crossed = false;
   raws.forEach(function (raw) {
     var t = Number(raw && raw.createTime) || 0;
     if (t && t < cutoff) { crossed = true; return; } // 超 24h 窗口：剔除并标记边界
     var pi = squarePanelOf(raw);
-    if (pi) items.push(pi); // 契约层过滤（宁漏不错）
+    if (pi) {
+      items.push(pi); // 契约层过滤（宁漏不错）
+      if (t && now - t <= CFG.view.square.freshMs) freshIds.push(pi.momentId);
+    }
   });
   var next = j.pcursor != null ? String(j.pcursor) : '';
   var noMore = crossed || next === 'no_more' || !raws.length || !items.length;
-  return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
+  return { items: items, nextCursor: noMore ? '' : next, noMore: noMore, freshIds: freshIds };
+}
+
+// 单条动态详情状态（0.9.127，moment/detail 回填用；字段名 plaza 实测转引 §2.7）：只为
+// 「新鲜条目互动态回填」取五件——moment 对象上的 likeCount/commentCount/bananaCount 与
+// isLike/isThrowBanana（详情才带登录态）。失败/形状不合返回 null，调用方静默保持列表快照
+export function momentDetailStateOf(j) {
+  if (!j || j.result !== 0 || !j.moment) return null;
+  var mo = j.moment;
+  return {
+    liked: !!mo.isLike,
+    thrown: !!mo.isThrowBanana,
+    like: Number(mo.likeCount) || 0,
+    comment: Number(mo.commentCount) || 0,
+    banana: Number(mo.bananaCount) || 0
+  };
 }
 
 // 视图面板条目契约（0.9.62）：三种来源规整成同一份字段；返回 null = 不可渲染条目，

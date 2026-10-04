@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { followVideoPageOf, squarePageOf } from './data.js';
+import { followVideoPageOf, squarePageOf, momentDetailStateOf } from './data.js';
 
 // ---------- 动态域读接口（0.9.106 收口；0.9.107 徽标弃用 webPush 后 unreadCount 退役） ----------
 // 背景（用户三问之「接口统一管理了吗」）：端点此前已全在 cfg.js，但**请求编排**散在
@@ -24,6 +24,15 @@ export function listVideos(pcursor) {
 export function listSquare(pcursor) {
   return request(CFG.api.feedSquare + (pcursor ? '?pcursor=' + encodeURIComponent(pcursor) : ''), 'GET')
     .then(squarePageOf);
+}
+
+// 单条动态详情（0.9.127，广场新鲜度回填）：pc-direct 带 Cookie 读——isLike/isThrowBanana
+// 在此才为真值（免登录列表恒 false）。URL 逐字护 mock 缝（moment/detail）；Referer 按
+// plaza 实测形态给（同端点转引 §2.7）；规整走契约层 momentDetailStateOf（失败/形状不合→null）
+export function momentDetail(id) {
+  return request(CFG.api.momentDetail + '?momentId=' + encodeURIComponent(id), 'GET',
+    { Referer: 'https://www.acfun.cn/moment/am' + id })
+    .then(momentDetailStateOf);
 }
 
 export function momentPageUrl(id) {

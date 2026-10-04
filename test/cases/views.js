@@ -1518,7 +1518,7 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
   // 超窗（26h）→ 窗口即止；断言 dock 高亮/行卡契约/行内评论/触底续翻/24h 剔除/状态行/Esc
   C['view-square'] = async function (h) {
     var rec = h.rec, q = h.q, waitFor = h.waitFor, key = h.key,
-      topbarInView = h.topbarInView;
+      topbarInView = h.topbarInView, TEST = h.TEST;
     window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
       'comment/list': function () {
         return { result: 0, commentCount: 1, curPage: 1, totalPage: 1, pcursor: 'no_more',
@@ -1527,6 +1527,13 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
             { commentId: 'q1', userId: 31, userName: '广场评论员', headUrl: '', content: '广场原位评论', postDate: '1分钟前', likeCount: 0, isLike: false, subCommentCount: 0 }
           ],
           subCommentsMap: {} };
+      },
+      // S3 新鲜度回填桩：详情返回全亮互动态（列表恒 false → 回填后应点亮）
+      'moment/detail': function (body, url) {
+        return { result: 0, moment: {
+          momentId: (String(url).match(/momentId=(\d+)/) || [])[1],
+          likeCount: 9, commentCount: 4, bananaCount: 2, isLike: true, isThrowBanana: true
+        } };
       }
     });
     delete window.__ACSV_MOCK__; // 走定向桩（view-follow 同款处置）
@@ -1575,8 +1582,41 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       return document.querySelectorAll('.acsv-sqwrap .acsv-frow').length === 5;
     }, 8000)), 'n=' + document.querySelectorAll('.acsv-sqwrap .acsv-frow').length);
     rec('square-window-cut', !/广场动态7/.test(q('.acsv-sqwrap').textContent)); // 26h 超窗条目不在列表
-    rec('square-status-done', /已加载全部动态/.test(q('.acsv-fstatus').textContent),
-      q('.acsv-fstatus').textContent);
+    // 注意选择器：顶部发现态提示条复用 acsv-fstatus 骨架（class="acsv-fstatus acsv-sup"），
+    // 裸 .acsv-fstatus 首匹配会是它——底部状态行须 :not(.acsv-sup)
+    rec('square-status-done', /已加载全部动态/.test(q('.acsv-fstatus:not(.acsv-sup)').textContent),
+      q('.acsv-fstatus:not(.acsv-sup)').textContent);
+    // ---- S3（0.9.127）：新鲜度回填——≤3h 条目走 moment/detail（mock 全亮态）；>3h 保持快照 ----
+    rec('square-fresh-inject', !!(await waitFor(function () {
+      var like = null, ban = null;
+      [].forEach.call(mActs, function (b) { if (b._act === 'like') like = b; if (b._act === 'banana') ban = b; });
+      return like && like.classList.contains('on') && like._n.textContent === '9'
+        && ban && ban.classList.contains('thrown') && ban._n.textContent === '2';
+    }, 6000)), (function () {
+      var out = [];
+      [].forEach.call(mActs, function (b) { out.push(b._act + '=' + (b._n ? b._n.textContent : '') + (b.classList.contains('on') ? '+on' : '')); });
+      return out.join(' ');
+    })());
+    var oldRow = null;
+    for (var j = 0; j < rows.length; j++) if (/广场动态3/.test(rows[j].textContent)) oldRow = rows[j];
+    rec('square-fresh-skip-old', !!(oldRow && (function () { // 5h 不在新鲜窗：保持列表快照（like=6 未亮）
+      var like = null;
+      [].forEach.call(oldRow.querySelectorAll('.acsv-fact'), function (b) { if (b._act === 'like') like = b; });
+      return like && !like.classList.contains('on') && like._n.textContent === '6';
+    })()));
+    // ---- S3：发现态轮询（testHook 直调一 tick）+ 点击刷新整列重建 ----
+    window.__ACSV_SQUARE_EXTRA__ = true; // 首页多出一条「广场动态8」（模拟他人刚发）
+    TEST.call('squarePoll');
+    rec('square-up-hint', !!(await waitFor(function () {
+      var s = q('.acsv-sup');
+      return s && s.style.display !== 'none' && /发现 1 条新动态/.test(s.textContent);
+    }, 6000)), (q('.acsv-sup') || {}).textContent);
+    if (q('.acsv-sup')) q('.acsv-sup').click();
+    rec('square-refresh-rebuild', !!(await waitFor(function () {
+      return /广场动态8/.test(q('.acsv-sqwrap').textContent)
+        && (q('.acsv-sup') || {}).style.display === 'none';
+    }, 8000)));
+    window.__ACSV_SQUARE_EXTRA__ = false;
     // Esc 回竖刷（普通 dock 视图语义）
     key('Escape');
     rec('square-esc-to-feed', !!(await waitFor(function () {

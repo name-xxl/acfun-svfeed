@@ -236,7 +236,10 @@
         };
       }
       if (String(url).indexOf('pcursor=') === -1) {
-        return { result: 0, feedList: [sq(1, 1), sq(2, 2), sq(3, 5), sq(4, 20)], pcursor: '1790785548652:1790785548652' };
+        var p1s = [sq(1, 1), sq(2, 2), sq(3, 5), sq(4, 20)];
+        // 发现态轮询断言用（view-square S3）：置位后首页多出一条「刚发」的动态（momentId 更大）
+        if (window.__ACSV_SQUARE_EXTRA__) p1s.unshift(sq(8, 0.2));
+        return { result: 0, feedList: p1s, pcursor: '1790785548652:1790785548652' };
       }
       if (String(url).indexOf('1790785548652') > -1) {
         return { result: 0, feedList: [sq(6, 23), sq(7, 26)], pcursor: 'no_more' };

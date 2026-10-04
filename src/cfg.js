@@ -81,6 +81,9 @@ export var CFG = {
     // `时间戳:时间戳`）、终页 'no_more'、历史深度约 53h；服务端已过滤转发（1000 条样本全
     // type10）；**isLike/isThrowBanana 无登录态恒 false**（新鲜度刷新在视图层补偿）
     feedSquare: 'https://api-new.app.acfun.cn/rest/app/feed/feedSquare',
+    // 单条动态详情（0.9.127 广场新鲜度回填；plaza 同端点实测转引 §2.7）：pc-direct 带 Cookie
+    // 读——列表（feedSquare 免登录）互动态恒 false，此端点才给真 isLike/isThrowBanana
+    momentDetail: 'https://www.acfun.cn/rest/pc-direct/moment/detail',
     // 站内搜索（0.9.72）：**非 JSON**——整页 SSR HTML（结果区 div.search-video），
     // 走 net.requestText + data.parseSearchItems；?pageNo= 实测无效（两页同一结果集），只做首屏
     search: 'https://www.acfun.cn/search',

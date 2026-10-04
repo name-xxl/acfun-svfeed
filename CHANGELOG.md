@@ -3,6 +3,23 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.127（2026-10-04）· 广场吸收 S3：发现态轮询 + 新鲜度回填（广场原味收官）
+
+- **发现态轮询**（plaza background 语义收窄到**视图生命周期**）：仅在广场打开时运转（build
+  启 / teardown 停——不学 plaza 在任意 /member 页常驻）；骨架=followbadge 同款（固定 tick +
+  nextAt 闸门 + 代数丢弃 + hidden 短路），退避逐次翻倍（nextBadgeInterval 显式注入 square 档
+  ——退避序列单源）。diff=最大 momentId：有新 → 列表顶部提示条「↑发现 N 条新动态，点击刷新」
+  （首拉只建基准，防存量误报新）；点击=重拉第一页整列重建（plaza 原语义；代价=展开态丢弃在案）。
+- **新鲜度回填**：免登录列表 isLike/isThrowBanana 恒 false——契约层 squarePageOf 增 **freshIds**
+  （窗内且 ≤3h），视图走新端点 **momentapi.momentDetail**（pc-direct 带 Cookie，§2.7 转引）补
+  真值，`momentDetailStateOf` 纯函数取五件，patch 回 pi 并 `momentbar.syncRowBar` 同步互动栏；
+  失败/行已拆静默（保持列表快照）。正文方言不换（[ac=] 已由 ubb.js 单源渲染）。
+- **测试**：view-square +4 断言（fresh-inject 亮态回填 / skip-old 5h 不刷 / up-hint 发现 1 条 /
+  refresh-rebuild 重建含新条）；data.test 补 freshIds 两处与 momentDetailStateOf 用例；
+  my-sample 页1 支持 `__ACSV_SQUARE_EXTRA__` 注入新条；单测 208→209。
+- **真机抽验点（你侧）**：广场页放着等一轮（60s 后首查）——别人发新动态后顶部出现提示条、
+  点击刷新列表含新条；新鲜动态的赞/蕉从"不可信灰态"变真值。
+
 ### 0.9.126（2026-10-04）· 广场吸收 S2：广场视图本体（dock 第三格 + feedSquare 流）
 
 - **内容**：新 `src/squareview.js`（视图 id=square，dock「广场」order 15 group 0——排榜单

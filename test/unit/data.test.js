@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf, momentPiOfRepost, momentExtraOf, squarePageOf } = await import('../../src/data.js');
+var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf, momentPiOfRepost, momentExtraOf, squarePageOf, momentDetailStateOf } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -715,12 +715,13 @@ test('squarePageOf：单页规整——result!==0 抛错（失败≠到底）；
     feedList: [
       { resourceType: 10, createTime: Date.now(), moment: { momentId: '1', text: 'a' }, user: {} },
       { resourceType: 2, resourceId: 9 }, // 非动态：宁漏不错滤掉
-      { resourceType: 10, moment: { momentId: '2', text: 'b' }, user: {} }
+      { resourceType: 10, createTime: Date.now(), moment: { momentId: '2', text: 'b' }, user: {} }
     ]
   });
   assert.equal(page.items.length, 2);
   assert.equal(page.nextCursor, '1790824871458:1790824871458');
   assert.equal(page.noMore, false);
+  assert.deepEqual(page.freshIds, [1, 2]); // ≤3h 新鲜（createTime=Date.now()）——回填名单
   var end = squarePageOf({
     result: 0, pcursor: 'no_more',
     feedList: [{ resourceType: 10, moment: { momentId: '3', text: 'c' }, user: {} }]
@@ -742,6 +743,19 @@ test('squarePageOf：单页规整——result!==0 抛错（失败≠到底）；
   assert.equal(win.items[0].momentId, 11);
   assert.equal(win.noMore, true); // 超窗=边界即止（nextCursor 作废）
   assert.equal(win.nextCursor, '');
+  assert.deepEqual(win.freshIds, [11]); // 窗内且 ≤3h 才进回填名单
+});
+
+// ---------- momentDetailStateOf（0.9.127 新鲜度回填） ----------
+test('momentDetailStateOf：五件回填态；失败/形状不合→null（调用方静默保持快照）', () => {
+  var st = momentDetailStateOf({
+    result: 0,
+    moment: { likeCount: 9, commentCount: 4, bananaCount: 2, isLike: true, isThrowBanana: true }
+  });
+  assert.deepEqual(st, { liked: true, thrown: true, like: 9, comment: 4, banana: 2 });
+  assert.equal(momentDetailStateOf({ result: 1, moment: {} }), null); // 失败
+  assert.equal(momentDetailStateOf({ result: 0 }), null);            // 缺 moment
+  assert.equal(momentDetailStateOf(null), null);
 });
 
 // ---------- momentExtraOf（0.9.122 私信转发动态的 extra 载荷） ----------

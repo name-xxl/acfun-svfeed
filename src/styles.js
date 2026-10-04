@@ -1044,6 +1044,8 @@ var RAW_CSS = ''
   // 三态底部状态行（借鉴广场 load-more-status）；busy 态加点点动画的克制版=文字+降透明
   + '.acsv-fstatus{min-height:34px;padding:8px 2px;text-align:center;font-size:12px;color:#8a90a0;cursor:pointer}'
   + '.acsv-fstatus.busy{opacity:.7;cursor:default}'
+  // 广场发现态提示（0.9.127）：复用 fstatus 骨架 + accent 高亮（列表顶部，点击刷新）
+  + '.acsv-sup{color:var(--acsv-accent);font-weight:600}'
   // 回顶按钮（借鉴广场 back-top）：sticky 钉滚动流右下，超 backTopAt 由 JS 挂 .on 现身
   // 回顶按钮（0.9.105 图标语言统一）：视觉走 .acsv-tbtn（顶栏圆钮同族：36 圆/白 svg/hover 提亮），
   // 本类只保留定位（sticky 右下）与显隐（opacity + on）

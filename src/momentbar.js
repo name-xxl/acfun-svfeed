@@ -44,6 +44,17 @@ function syncBanana(btn, pi) {
   if (btn._n) btn._n.textContent = fmt(pi.banana);
 }
 
+// 互动栏外部同步（0.9.127）：行卡数据被后台回填（广场新鲜度刷新）后，按当前 pi 把赞/蕉/评论
+// 三处刷到最新——按 _act 找键复用内部同步件；行已拆/找不到键静默（调用方无需判存活性）
+export function syncRowBar(row, pi) {
+  if (!row) return;
+  [].forEach.call(row.querySelectorAll('.acsv-fact'), function (b) {
+    if (b._act === 'like') syncLike(b, pi);
+    else if (b._act === 'banana') syncBanana(b, pi);
+    else if (b._act === 'comment' && b._n) b._n.textContent = fmt(pi.comment);
+  });
+}
+
 function wireLike(btn, pi) {
   btn.addEventListener('click', function (ev) {
     ev.stopPropagation();
