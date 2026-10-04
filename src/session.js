@@ -11,7 +11,7 @@ import { getSetting } from './settings.js';
 // 3b 迁入：hls 实例所有权与错误恢复链；3c 迁入：HealthMonitor 状态化。
 // slide 侧只留 slide._session 单句柄，_recovering/_recoverPending/_resumeAt/_waitTimer/监视器
 // 等播放态由会话接管；player 经 hooks 回接 UI 与编排（控件条/弹幕/连播/降档），
-// 两个模块无循环 import（feedstore⇄player 的调用期解引用先例同款思路）。
+// 两个模块无循环 import（钩子回接；0.9.115 起全图无环，原 feedstore⇄player 先例已拆）。
 //
 // dispose 铁律（0.9.1 幽灵 video 教训）：video 拆除必须 removeAttribute('src')+load()，
 // 绝不用 src=''——空 src 会异步触发一次假 SRC_NOT_SUPPORTED error，被移除元素的

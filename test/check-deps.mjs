@@ -1,12 +1,18 @@
 /*
  * 依赖图校验（0.9.81）：README 的 mermaid 依赖图 ↔ src/*.js 真实静态 import。
- * 四条规则（对照 0.9.59「人工补 7 条缺失边」的教训定标——图是**精选图**：刻意省略到基础件的
+ * 五条规则（对照 0.9.59「人工补 7 条缺失边」的教训定标——图是**精选图**：刻意省略到基础件的
  * 大多数边，所以不能拿 import 全集去要求图）：
  *   ① 每个 src/*.js 必须出现在图里（节点或聚合节点 others 名单内）——新模块漏进图，报错；
  *   ② 图里每个节点文件必须真实存在——删模块忘改图，报错；
  *   ③ import 边只要**目标不是基础件**，就必须在图里——特征层的新依赖漏画，报错；
- *   ④ 图里有、import 没有的边——告警（概念性分组边，如 views→mypage，不做强判）。
+ *   ④ 图里有、import 没有的边——告警（概念性分组边，如 views→mypage，不做强判）；
+ *   ⑤ import 全集环检测（0.9.115 起）：任何静态环即红（对全部内部边、含基础件目标；
+ *      与 README 精选图无关）。**边界**：无环 ≠ 方向正确——无环的反向边（如 0.9.110 前的
+ *      topbar→followstream）不在本规则射程，方向规则留待后续；不得把本规则绿灯误读为
+ *      「依赖方向已被守护」。
  * 基础件（EXCLUDED_TARGETS）：图对它们只保留少量精选边（如 data→cfg），其余不要求。
+ * 环检测史（0.9.115 收官实证）：清边前全图 14 环全部穿经 feedstore→player，断该边后 0 环
+ * ——清单与对比留档 docs/dependency-audit.md。
  *
  *   node test/check-deps.mjs
  */
@@ -82,6 +88,25 @@ const extra = [...graphEdges].filter((e) => {
   const [a, b] = e.split(' -> ');
   return !imports.has(e) && !EXCLUDED_TARGETS.has(b); // 基础件的精选多边不算问题
 }).sort();
+
+// ⑤ import 全集环检测（0.9.115）：任何静态环即红——环是求值期 undefined/TDZ 事故温床；
+// 不设登记豁免（收官后全图 DAG，新环=架构腐化，先拆边再谈）
+const adj = new Map();
+for (const e of imports) {
+  const [a, b] = e.split(' -> ');
+  if (!adj.has(a)) adj.set(a, []);
+  adj.get(a).push(b);
+}
+const seen = new Set(), stack = [], inStack = new Set();
+function walk(n) {
+  seen.add(n); stack.push(n); inStack.add(n);
+  for (const m of (adj.get(n) || [])) {
+    if (inStack.has(m)) bad.push('import 环：' + stack.slice(stack.indexOf(m)).concat(m).join(' → '));
+    else if (!seen.has(m)) walk(m);
+  }
+  stack.pop(); inStack.delete(n);
+}
+for (const f of files) if (!seen.has(f)) walk(f);
 
 console.log('[check-deps] src ' + files.length + ' 个 / 图节点 ' + Object.keys(id2file).length
   + ' 个 + 聚合 ' + aggregated.size + ' 个 / 图边 ' + graphEdges.size + ' 条 / import 边 ' + imports.size + ' 条');

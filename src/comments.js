@@ -15,8 +15,8 @@ import { mountEmotButton, ensureEmotionMap, insertAtCursor } from './emoticon.js
 import { openImageViewer } from './imgview.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import { openSharePanel } from './imshare.js';
-// 经 imshare→imdrawer 回指本模块（syncCommentVars）成环：两侧都是函数、调用期才解引用，
-// 与 attach.js 记录的 feedstore↔player 循环同款先例，模块求值期无依赖
+// imdrawer→本模块（syncCommentVars）为单向回指（0.9.114 断 imshare→imdrawer 后不再成环）；
+// 本模块→imshare 侧均为函数、调用期才解引用，模块求值期无依赖
 
 
 // ---------- 评论抽屉 ----------

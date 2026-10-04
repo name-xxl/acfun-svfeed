@@ -1,7 +1,7 @@
 import { toast, sweepSlideVideos } from './ui.js';
 import { createSession } from './session.js';
 import { slideAt, isOvlSlide } from './state.js';
-import { FeedStore } from './feedstore.js'; // 仅调用期解引用（feedstore↔player 循环同款先例）
+import { FeedStore } from './feedstore.js'; // 仅调用期解引用（0.9.115 断 feedstore↔player 环后为普通单向边）
 import { reapplyQuality } from './quality.js';
 import { setSetting } from './settings.js';
 

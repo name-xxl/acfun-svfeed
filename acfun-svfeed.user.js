@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.114
+// @version      0.9.115
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -2605,6 +2605,10 @@
   function listContext() {
     return activeContext();
   }
+  var changeHandler = null;
+  function setChangeHandler(fn) {
+    changeHandler = typeof fn === "function" ? fn : null;
+  }
   var FeedStore = createFeedStore({
     api: {
       feed: function() {
@@ -2618,7 +2622,8 @@
       }
     },
     onChange: function() {
-      if (scroller) renderWindow();
+      if (changeHandler) changeHandler();
+      else stat("feed-changed-no-listener");
     },
     // 列表上下文二选一（0.9.99 +关注流）：空间页 UP 主列表 / 关注视频流，命中即按列表泵入，
     // 都不活动回落随机流（判据单源=listContext 导出）
@@ -8795,7 +8800,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.114" : "");
+    return normVer(true ? "0.9.115" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -10112,6 +10117,9 @@
     });
     setScroller(el("div", "acsv-scroller"));
     root.appendChild(scroller);
+    setChangeHandler(function() {
+      if (scroller) renderWindow();
+    });
     buildDrawer();
     syncCommentVars();
     root.appendChild(el("div", "acsv-toast"));
@@ -10164,6 +10172,7 @@
     feedDeferred = false;
     cancelHashSync();
     setAppliedMid(null);
+    setChangeHandler(null);
     if (io) {
       io.disconnect();
       io = null;
@@ -10358,7 +10367,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.114：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.115：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

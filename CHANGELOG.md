@@ -3,6 +3,23 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.115（2026-10-04）· 反向例外清收⑥（压轴）+ 收官：feedstore↔player 断环，整图 DAG
+
+- **背景**：feedstore（流仓库）的 env.onChange 直连 player.renderWindow——环检测实证它是
+  **全图 14 个 import 环的共同枢纽边**（逐条清单见 docs/dependency-audit.md）。
+- **修法**：变更通知改 setChangeHandler 注册缝（player.mount 注册 / unmount 注销，与挂载态
+  同生共死；`if (scroller)` 守卫连同 renderWindow 整体搬进注册方闭包）。转发保持触发时刻读；
+  三条触发线（fetchMore / pumpListContext×2）全部由 player 取流路径发起、晚于 mount——
+  注册前静默是死代码而非行为差异。新增 debug **金丝雀**`stat('feed-changed-no-listener')`：
+  该状态按论证不可达，可达=未来新触发线违反「无 mount 不取流」假设，第一发即在 acsv-stats。
+- **不变量保全**：新增 test/unit/purity.test.js——最小垫桩（0.9.115 实测集，非推测）下 Node
+  直载 player.js 不抛，显式补回两次断边后失去的「顶层零副作用」链式检验；route.test /
+  followbadge.test 头注按实况校准。
+- **收官**：check-deps 新增**规则⑤（任何 import 环即红）**，头注写明边界「无环 ≠ 方向正确」。
+  落地后首次全绿：**14 环 → 0 环（整图 DAG）**。审计报告留档 docs/dependency-audit.md。
+- **测试**：单测 193 + 1（purity）+ 42 场景全绿；连带注释校准 6 处（attach/comments/session/
+  followstream×2/feedstore——「循环先例」表述随环消亡按实况改写）。
+
 ### 0.9.114（2026-10-04）· 反向例外清收⑤：imshare↔imdrawer 互 import 环改注册缝
 
 - **背景**：imshare（ImSdk 基建）为分享完成后的「捎句话」直连 imdrawer.openChat——

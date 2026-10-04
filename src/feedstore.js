@@ -1,9 +1,7 @@
 import { CFG } from './cfg.js';
 import { API } from './api.js';
-import { scroller } from './state.js';
-import { renderWindow } from './player.js';
 import { activeContext } from './feedctx.js';
-import { dbg, testHook } from './dbg.js';
+import { dbg, stat, testHook } from './dbg.js';
 
 // ===
 // 5. 信息流数据仓库（纯数据 + 游标泵；UI 通过 env.onChange 得到通知）
@@ -130,16 +128,25 @@ export function listContext() {
   return activeContext();
 }
 
-// env 里引用的 scroller/renderWindow/UpVideos 都在调用期才解引用，
-// 与 player/uppage 的模块循环是安全的（求值期互不触碰对方绑定）。FollowVideos 同款：
-// followstream 运行期才触达 FeedStore（enterVideos），此处运行期才读它的 feedActive
+// 变更通知出口（0.9.115）：仓库数据变化 →「窗口重绘」由播放层注册（setChangeHandler；
+// mount 注册 / unmount 注销，与挂载态同生共死）——本模块不 import 播放层，feedstore↔player
+// 环就此断（原 env.onChange 的 `if (scroller) renderWindow()` 连同守卫整体搬到注册方闭包）。
+// 转发保持**触发时刻读**：changed() 现读注册值；三条触发线（fetchMore / pumpListContext×2）
+// 全部由 player 取流路径发起、晚于 mount 注册——注册前静默是死代码而非行为差异（已证）。
+// 金丝雀（debug）：该状态按论证不可达——可达=新触发线违反「无 mount 不取流」假设，第一发即见
+var changeHandler = null;
+export function setChangeHandler(fn) { changeHandler = typeof fn === 'function' ? fn : null; }
+
 export var FeedStore = createFeedStore({
   api: {
     feed: function () { return API.feed(); },
     info: function (id) { return API.info(id); },
     refreshItem: function (item) { return API.refreshItem(item); }
   },
-  onChange: function () { if (scroller) renderWindow(); },
+  onChange: function () {
+    if (changeHandler) changeHandler();
+    else stat('feed-changed-no-listener'); // 金丝雀（0.9.115）：不可达态；可达即见 acsv-stats
+  },
   // 列表上下文二选一（0.9.99 +关注流）：空间页 UP 主列表 / 关注视频流，命中即按列表泵入，
   // 都不活动回落随机流（判据单源=listContext 导出）
   getListContext: listContext

@@ -1,6 +1,6 @@
 // followbadge.js（关注未读徽标）单元测试：退避纯函数序列钉死（roadmap 4.3 验收「轮询退避
-// 单测」）。环境垫桩按 route.test.js 惯例——import 链经 sidebar（徽标出口）拉进
-// settingspanel/comments 等模块（模块级事件监听），Node 下垫 no-op
+// 单测」）。环境垫桩按 route.test.js 惯例（链上模块级事件监听/存储触点，Node 下垫 no-op）；
+// 0.9.115 断 feedstore↔player 后本链不再经过 player——其顶层零副作用由 purity.test 显式钉住
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 

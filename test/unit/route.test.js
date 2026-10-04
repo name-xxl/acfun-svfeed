@@ -6,7 +6,7 @@
 // 优先于视图段但必须带数字段（#svfeed/v 裸字母仍算视图名，形状同 #svfeed/foo）。
 // route.js 静态 import 链（0.9.113 起）：route → cfg → dbg（模块级读 window）——不再经
 // feedstore→player 的 comments/report 链，垫片只剩 dbg 所需两项。player 顶层零副作用的
-// 隐式链检验（旧链顺带承担）现由 followbadge 单测链继续；B6 拆 feedstore↔player 后需显式补回
+// 检验已由 purity.test 显式钉住（0.9.115）——本链与 followbadge 链都不再经过 player
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 

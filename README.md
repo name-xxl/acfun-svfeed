@@ -395,7 +395,6 @@ flowchart LR
   player --> api & attach & comments & feedstore & followstream & imdrawer & input & overlay & pb & release & settingspanel & sidebar & topbar & views
   feedstore --> api & feedctx
   momentapi --> cfg & data & net
-  feedstore --> player
   pb --> feedstore & settings
   ubb --> emoticon
   playlayer --> api & attach & cards & viewreg

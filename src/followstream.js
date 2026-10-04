@@ -2,7 +2,7 @@ import { CFG } from './cfg.js';
 import { AppAPI } from './appapi.js';
 import { playItemOf } from './data.js';
 import { setDockBadge } from './sidebar.js';
-import { FeedStore } from './feedstore.js'; // 仅 enterVideos 运行期触达（下方头注的循环先例）
+import { FeedStore } from './feedstore.js'; // 仅 enterVideos 运行期触达（0.9.115 断 feedstore↔player 后为普通单向边）
 import { createFeedContext, runChain, registerContext, activateContext } from './feedctx.js';
 import { listVideos } from './momentapi.js';
 import { testHook } from './dbg.js';
@@ -13,8 +13,8 @@ import { testHook } from './dbg.js';
 // feedstore.getListContext 命中 → pumpListContext 按列表顺序泵入；列表耗尽回落当前源随机流
 //（UpVideos 同款语义）。数据源 followDougaFeed（官方视频 tab，§2.1.2 实测：每页固定 10、
 // 终页 pcursor='no_more'、条目与 followFeedV2 视频条目同构）。
-// 依赖注意：import FeedStore 是**调用期才解引用**（feedstore→本模块取上下文，本模块只在
-// enterVideos 运行时触达 FeedStore——uppage↔feedstore 循环先例，求值期互不触碰对方绑定）。
+// 依赖注意：import FeedStore 仅 enterVideos 运行时触达（列表上下文经 feedctx 注册表交递，
+// 本模块与 feedstore 无静态环；0.9.115 断 feedstore↔player 后本边为普通单向——表述已校准）。
 
 // 核心字段由工厂生成（0.9.106；与 UpVideos 同源——8 字段+链机不再两套）
 export var FollowVideos = registerContext(createFeedContext({

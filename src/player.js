@@ -3,7 +3,7 @@ import { ICONS } from './styles.js';
 import { el, fmtTime, ensureStyle } from './ui.js';
 import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot, stageVisible, isOvlSlide, OVL_IDX } from './state.js';
 import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync, setItemProvider } from './route.js';
-import { FeedStore } from './feedstore.js';
+import { FeedStore, setChangeHandler } from './feedstore.js';
 import { getSource, setSource, resetHomePager, API } from './api.js';
 import { isOpenComments, closeComments, openComments, commentState, syncCommentVars } from './comments.js';
 import { onPlaying as dmOnPlaying, stopAll as dmStopAll } from './danmaku.js';
@@ -418,6 +418,9 @@ function mount() {
 
   setScroller(el('div', 'acsv-scroller'));
   root.appendChild(scroller);
+  // 流仓库变更 → 窗口重绘（0.9.115）：feedstore 不反向 import 本模块，经注册缝回接；scroller
+  // 守卫随件搬来（注册先于一切取流路径——首屏由 mount 尾部的 loadInitial 触发）；注销在 unmount
+  setChangeHandler(function () { if (scroller) renderWindow(); });
 
   buildDrawer();
   syncCommentVars(); // 首次打开抽屉前就写好 --acsv-dw（抽屉宽）/ --acsv-cscale
@@ -482,6 +485,7 @@ function unmount() {
   feedDeferred = false; // 播放层直达的推迟标志随挂载态失效（重进按地址重新裁决）
   cancelHashSync();   // 在途地址回写随退出作废（否则会把已退出的深链地址补写回来）
   setAppliedMid(null); // 深链意图随挂载态失效：重进时要按地址重新解析
+  setChangeHandler(null); // 流仓库变更通知失效（0.9.115）：在途数据回流不得再触发重绘（重进由 mount 重注册）
   if (io) { io.disconnect(); io = null; }
   teardownInputHandlers();
   cancelSeekHold();
