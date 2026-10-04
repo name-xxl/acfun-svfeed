@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · <特性名>（docs/preview 模板）</title>
+<!-- ============================================================
+     docs/preview/_template.html —— 静态 UI 预览起始稿（0.9.143 起）
+     用法：复制为 <特性名>.html → 改下面标了 [改] 的地方 → 双击打开让用户看形态。
+     纪律：单文件/无依赖/真实文案；关键状态（默认·悬停·选中·空态·错误态·窄宽）全摆出来；
+     1600×900 与 540 宽各过一眼。确认后才进 src/ 实现。
+     设计口径来源：src/styles.js（暗色皮肤）——量值抄它，别在这里另立一套。
+     ============================================================ -->
+<style>
+  :root{
+    --acsv-accent:#fd4c5d;          /* 主题色（cfg.accent 单源） */
+    --acsv-bg:#000;                  /* 页面底（#acsv-root 同款） */
+    --acsv-panel:rgba(22,22,27,.97); /* 弹层底（.acsv-pickpop 同款） */
+    --acsv-line:rgba(255,255,255,.09);
+    --acsv-t1:#fff;                  /* 主字 */
+    --acsv-t2:#cfd3da;               /* 次字（dock/按钮） */
+    --acsv-t3:#8a90a0;               /* 弱字（时间/空态） */
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
+  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .board .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
+  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:12px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  /* ---- 组件样例（照 src/styles.js 量值，正式稿按需增删） ---- */
+  .chip{border:none;border-radius:16px;padding:5px 14px;font-size:13px;font-family:inherit;
+    cursor:pointer;background:rgba(255,255,255,.1);color:var(--acsv-t2)}
+  .chip.sm{padding:4px 10px;font-size:12px}
+  .chip.on{background:var(--acsv-accent);color:#fff}
+  .chip.danger{color:#ff8a95}
+  .pop{width:260px;background:var(--acsv-panel);border:1px solid rgba(255,255,255,.12);border-radius:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:13px;overflow:hidden}
+  .pop .hd{display:flex;align-items:center;padding:10px 12px 8px;font-weight:600}
+  .pop .hd .x{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:22px;height:22px;
+    border-radius:50%;font-size:11px}
+  .pop .bd{padding:0 6px 6px}
+  .pop .it{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;color:var(--acsv-t2)}
+  .pop .it.on{color:#fff;background:rgba(253,76,93,.16)}
+  .pop .it .t{flex:none;width:14px;color:var(--acsv-accent)}
+  .pop .ft{display:flex;align-items:center;gap:8px;padding:8px 12px 12px}
+  .pop .ft .ok{margin-left:auto;border:none;border-radius:16px;padding:6px 16px;background:var(--acsv-accent);
+    color:#fff;font-size:13px}
+  .pop .ft .cc{border:none;border-radius:16px;padding:6px 14px;background:rgba(255,255,255,.12);color:var(--acsv-t2);font-size:13px}
+  .crow{display:flex;gap:10px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+  .crow .av{width:50px;height:50px;border-radius:50%;flex:none;background:rgba(255,255,255,.08)}
+  .crow .nm{font-size:12px;color:#9aa0ab;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .crow .tx{margin-top:8px;font-size:14px;line-height:1.6;color:#f0f1f3}
+  .crow .mt{margin-top:10px;font-size:12px;color:#7a7f8a;display:flex;gap:12px}
+  .mrow{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:1px solid rgba(255,255,255,.07)}
+  .mrow .av{width:50px;height:50px;border-radius:50%;flex:none;background:rgba(255,255,255,.08)}
+  .mrow .info{flex:1;min-width:0}
+  .mrow .nm{font-size:14px}
+  .mrow .meta{margin-top:5px;font-size:12px;color:var(--acsv-t3);display:flex;gap:12px}
+  .tag{padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.1);color:var(--acsv-t2);font-size:12px}
+  .empty{color:var(--acsv-t3);font-size:13px;padding:14px 2px}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>[改] 特性名 —— 静态预览（确认后才进 src 实现）</h1>
+  <p class="hint">
+    口径：暗色皮肤 / 1600×900 桌面 / 真实文案。每段上方标注状态名；窄宽另开 @media 段。
+    改版先改本稿，代码按本稿逐项对齐。
+  </p>
+
+  <!-- [改] 每段=一个状态；正式稿按特性增删段落 -->
+  <div class="sec">
+    <h2>① 选择层（默认态）<em>点开即此形态；未选中时「确定」禁用</em></h2>
+    <div class="pop" style="width:260px">
+      <div class="hd">[改] 选择分组 <button class="x">✕</button></div>
+      <div class="bd">
+        <div class="it on"><span class="t"></span><span>未分组 (14)</span></div>
+        <div class="it"><span class="t"></span><span>舞 (8)</span></div>
+        <div class="it"><span class="t"></span><span>回 (11)</span></div>
+      </div>
+      <div class="ft"><button class="cc">取消</button><button class="ok">确定</button></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>② 列表行 + 行内操作<em>两键 hover 显形 / 系统项不给删</em></h2>
+    <div class="mrow">
+      <div class="av"></div>
+      <div class="info">
+        <div class="nm">一只芸喵喵</div>
+        <div class="meta"><span>粉丝 1.6万</span><span>投稿 286</span><span class="tag">舞</span></div>
+      </div>
+      <div class="row">
+        <button class="chip sm">移组</button>
+        <button class="chip sm">取关</button>
+      </div>
+    </div>
+    <div class="empty">← 空态文案长这样（正文本样式）</div>
+  </div>
+
+  <div class="sec">
+    <h2>③ chips 行<em>选中 / 普通 / 危险动作</em></h2>
+    <div class="row">
+      <button class="chip on">全部</button>
+      <button class="chip">未分组 14</button>
+      <button class="chip">舞 8</button>
+      <button class="chip">＋ 新建分组</button>
+      <button class="chip sm danger">删除分组</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>④ 窄宽（540）<em>真实窄态请复制本段进 @media (max-width:539px) 后自测</em></h2>
+    <div style="width:540px;border:1px dashed rgba(255,255,255,.14);padding:12px">
+      <p class="hint" style="margin:0">
+        窄态检查项：长中文名不许逐字断行、按钮不许被挤出容器、弹层不许溢出视口。
+      </p>
+    </div>
+  </div>
+</div>
+</body>
+</html>
