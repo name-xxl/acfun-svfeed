@@ -64,3 +64,20 @@ feedstore.js → player.js → input.js → feedstore.js
   放宽断言的纪律）。
 - 连带注释已按实况校准：attach / comments / session / followstream×2 / feedstore / route.test /
   followbadge.test / topbar / cards / views 等处的「循环先例」与「例外登记」表述随环消亡改写。
+
+## 六、方向诊断（0.9.116–0.9.117 收尾）
+
+- **0.9.116**：三条同形边（input→comments / input→imdrawer / rail→comments）全部改注入/注册缝
+  ——剩余清单收敛为 2 条（下表）。
+- **V3 正式关闭**：方向卫生库存 = 5 条、全部无环、消法现成——**永远不值得一座门**。幸存者 =
+  `test/check-direction.mjs`（npm script `check-direction`）：每 Phase 顺手跑一次的**非门禁**
+  诊断，并列两条保守口径（正式分层 / 特性域），在册项带理由、未登记项报警、永远 exit 0。
+  头注原样留档本审计最值钱的认知——「规则的上游是口径，口径不定，候选集就不定」。
+- 诊断首跑（0.9.117）即校准一处口径：`topbar→imicons` 曾按 私信层 subgraph 归属被误报——
+  imicons/immsg 是 README 明示的零依赖解耦点（出身 placement），视同基础件（同
+  report→watchledger 的误报自纠：错的是归类，不是依赖）。校准后：在册 2 条、未登记 0 条。
+
+| 遗留项 | 状态 | 候选修法 |
+|---|---|---|
+| `slide→comments` | 缓裁 | ①接线自附（`setCommentDrawer` 手柄已有，slide 建空容器+注册句柄，commentListClick/closeComments 挪进 comments 自附）——边因"slide 不再 import"而死；②登记为刻意设计（抽屉是 slide 的宿主职责） |
+| `data→ubb` | 待随手下沉 | 先查 `ubbPlain` 与渲染路径是否共享正则常量：共享则连正则一起沉到纯文本投影小模块，`ubb.js` 反向 import 它（下行） |

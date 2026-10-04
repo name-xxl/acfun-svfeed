@@ -3,6 +3,18 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.117（2026-10-04）· 方向诊断 check-direction（V3 关闭后的幸存者）
+
+- **背景**：V3（@family + check-taxonomy 方向规则）经审计关闭——「规则的上游是口径，口径不定，
+  候选集就不定」；幸存者为每 Phase 顺手跑一次的**非门禁**诊断。
+- **内容**：test/check-direction.mjs 并列两条保守口径——A 正式分层（README 基建层 → 基建/接口
+  层之外）、B 特性域（非特性模块 → 特性模块）；在册项带理由、未登记项报警；永远 exit 0。
+  首跑即校准一处口径：`topbar→imicons` 曾被 A 误报——imicons 是 README 明示的零依赖解耦点
+  （居私信层 subgraph 系出身 placement），视同基础件（同 report→watchledger 的误报自纠）。
+  npm script `check-direction`；头注原样留档「口径」句与 V3 关闭缘由；遗留清单（slide→comments
+  缓裁 / data→ubb 待沉）入册 docs/dependency-audit.md 第六节。
+- **测试**：诊断首跑（校准后）=在册 2 条、未登记 0 条；未动源码，单测 194 + 42 场景回归全绿。
+
 ### 0.9.116（2026-10-04）· 方向卫生收尾：input×2 + rail 三边改注入/注册缝
 
 - **背景**：方向审计（v3 关闭时量化）剩下的 5 条候选里，三条同形「事件路由 → 打开动作」：
