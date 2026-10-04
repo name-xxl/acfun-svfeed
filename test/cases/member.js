@@ -135,6 +135,12 @@
       return !!sub && !!subAv && getComputedStyle(subAv).width === '30px'
         && !!subName && getComputedStyle(subName).fontWeight === '700';
     })());
+    // 条目间分割线（0.9.136）：根评论有（原生色 #e6e6e6）、楼中楼不画（native 同款）
+    rec('mp-cmt-native-sep', (function () {
+      var hr = mpBox && mpBox.querySelector('.acsv-citem > .acsv-chr');
+      return !!hr && getComputedStyle(hr).borderTopColor === 'rgb(230, 230, 230)'
+        && !(mpBox && mpBox.querySelector('.acsv-csub .acsv-chr'));
+    })());
     if (acts[1]) acts[1].click();
     await wait(250);
     rec('mp-cmts-close', !mRow.querySelector('.acsv-frow-cmts'));

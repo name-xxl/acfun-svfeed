@@ -1611,15 +1611,20 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       var like = rootMeta && rootMeta.querySelector('.acsv-clike');
       return !!like && like.classList.contains('on'); // isLiked:true → 已赞点亮（0.9.134 三读）
     })());
-    // 形态互斥钉（0.9.135）：脚本形态=日期在工具行、名字行无「发表于」、头像 36px（内嵌原生形态
-    // 才是 50px——两形态由 .acsv-mp 作用域与 form 注入分派，此处防串）
+    // 0.9.136 统一钉：日期在名字行「发表于 x」、工具行无日期（两形态同款——设备件上身后
+    // 窄容器 meta 行会逐字断行，故日期一律进名字行）；形态差异只剩头像尺寸与展开按钮措辞
     var rootNameRow = ownChild(rootBody, 'acsv-cname');
-    rec('square-cmt-form-svfeed', !!(rootNameRow && !/发表于/.test(rootNameRow.textContent)
-      && rootMeta && /1分钟前/.test(rootMeta.textContent)));
+    rec('square-cmt-datetitle', !!(rootNameRow && /发表于/.test(rootNameRow.textContent) && /1分钟前/.test(rootNameRow.textContent)
+      && rootMeta && !/1分钟前/.test(rootMeta.textContent)));
     rec('square-cmt-av36', (function () {
       var av = rootItem && rootItem.querySelector('img.av');
       return !!av && getComputedStyle(av).width === '36px';
     })());
+    // 条目间分割线（0.9.136）：根评论有、楼中楼不画（native 同款——sec hr 隐藏）
+    rec('square-cmt-sep', (function () {
+      var hrs = cmtBox.querySelectorAll('.acsv-chr');
+      return hrs.length === 1 && !(subItem && subItem.querySelector('.acsv-chr'));
+    })(), 'n=' + cmtBox.querySelectorAll('.acsv-chr').length);
     if (mActs[1]) mActs[1].click();
     rec('square-cmts-close', !!(await waitFor(function () {
       return !mRow.querySelector('.acsv-frow-cmts');

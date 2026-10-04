@@ -193,7 +193,7 @@ var RAW_CSS = ''
   + '.acsv-citem img.av{width:36px;height:36px;border-radius:50%;object-fit:cover;transition:transform .15s}'
   + '.acsv-avlink:hover img.av{transform:scale(1.08)}'
   + '.acsv-cbody{flex:1;min-width:0}'
-  + '.acsv-cname{font-size:13px;color:#9aa0ab;margin-bottom:4px;display:flex;align-items:center;gap:6px}'
+  + '.acsv-cname{font-size:13px;color:#9aa0ab;margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}'
   + '.acsv-cname a{color:#9aa0ab;text-decoration:none}'
   + '.acsv-cname a:hover{color:#e8eaed;text-decoration:underline}'
   + '.acsv-cname .up{background:#fd4c5d;color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600}'
@@ -201,7 +201,13 @@ var RAW_CSS = ''
   // 只开正文，昵称/时间/按钮保持不可选，避免误选
   + '.acsv-ctext{font-size:14px;line-height:1.6;word-break:break-word;white-space:pre-wrap;color:#f0f1f3;'
   + 'user-select:text;-webkit-user-select:text}'
-  + '.acsv-cmeta{font-size:12px;color:#7a7f8a;margin-top:6px;display:flex;gap:12px;align-items:center}'
+  + '.acsv-cmeta{font-size:12px;color:#7a7f8a;margin-top:6px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;row-gap:6px}'
+  // 0.9.136 防逐字断行（实报：设备件上身后窄容器里「回复/转发/来自」逐字堆叠）：元信息件整件
+  // 换行不折字；发表于/时间件同理（日期统一并入名字行——白 7% 分割线在下方 .acsv-chr）
+  + '.acsv-cmeta>*{white-space:nowrap}'
+  + '.acsv-cpostday,.acsv-cposttime{font-size:12px;color:#7a7f8a;white-space:nowrap}'
+  + '.acsv-citem>.acsv-chr{position:absolute;left:0;right:0;bottom:0;border:none;'
+  + 'border-top:1px solid rgba(255,255,255,.07);margin:0}'
   + '.acsv-clike{display:inline-flex;align-items:center;gap:3px;color:#7a7f8a}'
   // 原生形状走 mask（currentColor 染色），回退手绘 svg 走 fill:currentColor，状态色统一由容器 color 驱动
   // 评论操作三键图标统一 iconfont 字形（imicons.GLYPHS.feed*）：currentColor 跟随容器
@@ -1134,6 +1140,7 @@ var RAW_CSS = ''
   + '.acsv-mp .acsv-cavframe{left:-15px;top:-15px;width:80px;height:70px}'
   + '.acsv-mp .acsv-cname{font-size:12px;margin-bottom:8px;gap:4px}'
   + '.acsv-mp .acsv-cpostday,.acsv-mp .acsv-cposttime{font-size:12px;color:#999}'
+  + '.acsv-mp .acsv-citem>.acsv-chr{border-top-color:#e6e6e6}' // 原生分割线色（真机 .area-comment-top hr）
   + '.acsv-mp .acsv-ctext{margin-bottom:13px}'
   + '.acsv-mp .acsv-cmeta{margin-top:0;margin-bottom:17px}'
   + '.acsv-mp .acsv-cpre{color:#999}'

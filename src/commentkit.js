@@ -48,10 +48,9 @@ function subOptsOf(opts) {
 
 // 条目构建单源。opts 注入（0.9.133，去全局读）：{ mode, sourceId, stype, form }——mode 是原
 // commentState.kind 的交互态分叉（'home' 才有赞/回复/转发三键），sourceId/stype 供楼中楼拉取；
-// form（0.9.135）：'native'=内嵌原生页语境（时间并入名字行「发表于 x」等原生版式，CSS 侧在
-// .acsv-mp 作用域），其余=脚本自有形态
+// form（0.9.135）：'native'=内嵌原生页语境（尺寸版式走 .acsv-mp 作用域 CSS + 展开按钮原生措辞），
+// 其余=脚本自有形态——日期「发表于 x」自 0.9.136 起两形态统一
 export function commentItemOf(c, subMap, opts) {
-  var nf = opts.form === 'native';
   var item = el('div', 'acsv-citem');
   // 头像 + 昵称可点击进入用户主页
   var homeUrl = c.userId ? CFG.api.userBase + c.userId : null;
@@ -80,18 +79,16 @@ export function commentItemOf(c, subMap, opts) {
   var ncss = nameColorCss(c.nameColor);
   if (ncss) nameChild.style.color = ncss;
   if (c.isUp) name.appendChild(el('span', 'up', 'UP'));
-  // 原生形态（0.9.135）：时间并入名字行「发表于 x」（工具行不再放日期——native 版式）
-  if (nf) {
-    name.appendChild(el('span', 'acsv-cpostday', '发表于'));
-    name.appendChild(el('span', 'acsv-cposttime', c.postDate || ''));
-  }
+  // 日期并入名字行「发表于 x」（0.9.136 两形态统一，native 版式）：工具行不再放日期——
+  // 设备件上身后 meta 行过挤，窄容器（抽屉 380px）会逐字断行
+  name.appendChild(el('span', 'acsv-cpostday', '发表于'));
+  name.appendChild(el('span', 'acsv-cposttime', c.postDate || ''));
   body.appendChild(name);
   var ctext = el('div', 'acsv-ctext');
   // 前缀仅子评论（0.9.134「回复 @名 :」；根不拼）——内容先 esc 再 UBB 渲染（renderCommentHtml 内）
   ctext.innerHTML = (opts.isSec ? replyPrefixHtml(c) : '') + renderCommentHtml(c.content);
   body.appendChild(ctext);
   var meta = el('div', 'acsv-cmeta');
-  if (!nf) meta.appendChild(el('span', null, c.postDate || '')); // 原生形态：日期在名字行
   var like = null, replyBtn = null;
   // 点赞/回复/转发三键图标统一用动态页互动区同款 iconfont 字形（imicons.GLYPHS.feed*
   // 码点，字体抽屉内自注入）：点亮态切实心字形（feedLikeFill），颜色状态机由容器 color 驱动
@@ -167,6 +164,9 @@ export function commentItemOf(c, subMap, opts) {
   if (!opts.isSec && c.floor) {
     item.appendChild(el('span', 'acsv-cfloor', '#' + c.floor));
   }
+  // 条目间分割线（0.9.136）：仅根评论（native 同款——楼中楼不画）；皮肤定色（深色白 7% /
+  // 内嵌原生 #e6e6e6）；绝对定位贴条目底——item 是 flex 行，直接当子节点会成第三列
+  if (!opts.isSec) item.appendChild(el('hr', 'acsv-chr'));
   item.appendChild(avLink);
   item.appendChild(body);
   return item;
