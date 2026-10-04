@@ -10,8 +10,8 @@
 // 往下长出视口、底部被裁）。病灶两点——①place 只在**插入瞬间**算一次，那一刻内容还是
 // 「加载中…」（~110px）⇒ 判定"下方放得下"就向下，内容（7 组/多夹）到达后无人重算；
 // ②没有"按可用空间压高"的规则。修法（形态经 docs/preview/pickpop-position.html 确认）：
-//   · 定位数学抽成**纯函数 pickPlaceOf**（单测直采）；
-//   · **内容到达后重算**（渲染完成即重跑 place；ResizeObserver + window resize 兜底）；
+//   · 定位数学抽成纯函数（0.9.149 起统一收口 **popplace.anchorPlaceOf**，单测直采）；
+//   · **内容到达后重算**（渲染完成即重跑 place；守望由 popplace.watchPlace 统一给）；
 //   · 垂直：下方优先；下方可用 < MIN_BELOW(240) 且上方更宽裕 → 翻到锚点上方（底边贴锚点上缘）；
 //     高度上限=所选方向可用空间（再受 420 / 64vh 约束）——列表内部滚动、footer 常驻，永不越界；
 //   · 水平（0.9.146 实报重改）：**按头像/宿主列让位**——右缘 = min(宿主左缘, 锚点左缘) − 10px。
@@ -23,75 +23,22 @@
 // 分工：本件**零业务**——数据/校验/提交全由 opts 注入（load/check/create/confirm/done），
 // 关注分组语义在 grouppop.js、收藏夹在 favpop.js（0.9.143）。
 import { el, closeOnOutsideClick } from './ui.js';
+import { anchorPlaceOf, applyPlace, watchPlace } from './popplace.js';
 
-var GAP = 6;      // 弹层与锚点的间距
-var PAD = 8;      // 弹层与视口边缘的最小内边距
-var MIN_BELOW = 240; // 下方可用空间的"够用"阈值：低于它且上方更宽裕才翻上
-var GAP_H = 10;   // 水平让位间距（分享面板实测口径：宿主左缘往左 10px）
-
-// 定位纯函数（单测直采）：几何进 → 落位出，不碰 DOM。
-//   a    锚点 rect（视口坐标 {left,top,right,bottom}）
-//   host 宿主 rect {left,top,right} + 滚动偏移 {sl,st}（返回值为宿主内容坐标系；right 供水平翻侧兑底）
-//   vp   视口 {w,h}；popW/popH 弹层当前尺寸
-// 返回 {up, left, top, maxH}：up=是否翻上；maxH=生效高度上限（调用方写进 style.maxHeight）
-export function pickPlaceOf(a, host, vp, popW, popH) {
-  var below = vp.h - a.bottom - GAP - PAD;
-  var above = a.top - GAP - PAD;
-  var up = below < MIN_BELOW && above > below;
-  var avail = up ? above : below;
-  // 高度上限：所选方向可用空间 ∩ 既有视觉上限（420 / 64vh）；下限 120（空间极窄时尽力而为）
-  var maxH = Math.max(120, Math.min(avail, 420, vp.h * 0.64));
-  var h = Math.min(Math.max(popH, 0), maxH);
-  var top = up
-    ? a.top - GAP - h - host.top + host.st   // 翻上：底边贴锚点上缘 - GAP
-    : a.bottom + GAP - host.top + host.st;   // 向下：顶边贴锚点下缘 + GAP
-  // 水平（按头像/宿主列让位）：右缘 = min(宿主左缘, 锚点左缘) − GAP_H；
-  // 左侧放不下（让位后会出视口）→ 翻到宿主右侧（左缘 = max(宿主右缘, 锚右缘) + GAP_H）
-  var refLeft = Math.min(a.left, host.left);
-  var want = refLeft - GAP_H - popW;
-  if (want < PAD) want = Math.max(a.right, host.right) + GAP_H;
-  var left = want - host.left + host.sl;
-  var minL = PAD - host.left + host.sl;
-  var maxL = vp.w - PAD - host.left + host.sl - popW;
-  if (maxL < minL) maxL = minL;
-  if (left > maxL || left < minL) left = Math.max(minL, Math.min(maxL, left));
-  return { up: up, left: left, top: top, maxH: maxH };
-}
-
-// 落位（DOM 侧薄壳）：算出几何 → 写 style；内容到达/尺寸变化后重复调用即可（幂等）
+// 定位（0.9.149 收口 popplace）：本件只负责取 rect + 落位，几何决策全在 popplace.anchorPlaceOf
+// （纯函数、单测直采）；内容到达后重算与尺寸守望由 popplace.watchPlace 统一提供。
 function place(pop, btn) {
   var wrap = pop.parentNode;
   if (!wrap) return;
   if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
   var b = btn.getBoundingClientRect(), h = wrap.getBoundingClientRect();
-  var r = pickPlaceOf(
+  applyPlace(pop, anchorPlaceOf(
     { left: b.left, top: b.top, right: b.right, bottom: b.bottom },
     { left: h.left, top: h.top, right: h.right, sl: wrap.scrollLeft || 0, st: wrap.scrollTop || 0 },
     { w: window.innerWidth, h: window.innerHeight },
     pop.offsetWidth, pop.offsetHeight
-  );
-  pop.style.maxHeight = Math.round(r.maxH) + 'px';
-  pop.style.left = Math.round(r.left) + 'px';
-  pop.style.top = Math.round(r.top) + 'px';
+  ));
 }
-
-// 落位守望（0.9.144）：内容异步到达会改高 ⇒ 重算；自清理（pop 拆了就注销，无监听残留）
-function watchPlace(pop, btn) {
-  var ro = null;
-  if (typeof ResizeObserver === 'function') {
-    ro = new ResizeObserver(function () {
-      if (!pop.isConnected) { ro.disconnect(); return; }
-      place(pop, btn);
-    });
-    ro.observe(pop);
-  }
-  function onWin() {
-    if (!pop.isConnected) { window.removeEventListener('resize', onWin); if (ro) ro.disconnect(); return; }
-    place(pop, btn);
-  }
-  window.addEventListener('resize', onWin);
-}
-
 // 外点收起：与分享面板/投蕉弹层/表情面板共用 ui.closeOnOutsideClick（0.9.147 收口）
 // —— 旧内联实现是"一次性监听 + 先摘监听再判内点 + 冒泡相"：点面板内部一下就把监听吃掉、
 // 之后外点永远收不起来（实报病灶）。
@@ -305,7 +252,7 @@ export function openPickPop(btn, opts) {
 
   host.appendChild(pop);
   place(pop, btn);
-  watchPlace(pop, btn); // 后续尺寸变化（内容到达/新建刷新/窗口缩放）自会重算
+  watchPlace(pop, function () { place(pop, btn); }); // 内容到达/新建刷新/窗口缩放自会重算
   guardOutside(pop, btn);
   refresh('');
   return pop;
@@ -351,7 +298,7 @@ export function openConfirmPop(btn, opts) {
   cancel.addEventListener('click', function () { pop.remove(); });
   host.appendChild(pop);
   place(pop, btn);
-  watchPlace(pop, btn);
+  watchPlace(pop, function () { place(pop, btn); });
   guardOutside(pop, btn);
   return pop;
 }

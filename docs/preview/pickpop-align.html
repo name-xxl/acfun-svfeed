@@ -160,7 +160,7 @@
   </div>
 
   <div class="rules">
-    <b>规则小结（确认后改进 pickpop.pickPlaceOf，仅横向）</b>
+    <b>规则小结（确认后改进弹层定位，仅横向）</b><span style="font-size:11px;color:#8a90a0">实现位置：0.9.149 起统一收口 <code>popplace.anchorPlaceOf</code>（README 模块表）</span>
     <ul>
       <li><b>水平</b>：优先<b>让开宿主一列</b>——右缘 = <b>宿主（<code>btn.parentNode</code>）左缘 − 10px</b>（与分享面板同款；rail 上 宿主=操作栏列，
         所以即使锚是 20px 的关注角标也能让开整列）；左侧放不下（<code>宿主左缘 − 10 − 弹层宽 &lt; 8px</code>）→

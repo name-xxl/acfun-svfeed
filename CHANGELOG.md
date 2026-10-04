@@ -3,6 +3,29 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.149（2026-10-04）· 弹层定位统一（placePop 并入 popplace；两模型一实现）
+
+- **由头**：0.9.148 审计遗留项 ②「`sharepanel.placePop` 与 `pickpop.pickPlaceOf` 是同口径两实现
+  （常数已漂：间距 12/10、边距 4/8、下限 140/120）」→ 用户裁决「**统一**」（理念 3 单源收口）。
+- **修法**：新建**零依赖叶子 `src/popplace.js`**——**两套锚定模型、一份实现、一份常数**：
+  ① `anchorPlaceOf`（按钮旁选择层）：下方优先 → 下方可用 <240 且上方更宽裕则翻上 → 高度按所选方向
+  可用空间压高；水平**让开宿主一列**（右缘 = min(宿主左缘, 锚左缘) − 10），左不够翻宿主右侧；
+  ② `rowPlaceOf`（行·面板贴靠，0.9.105 裁决几何）：右缘贴行左缘 / 左缘贴面板右缘、**底对齐锚点底**、
+  锚上空间不足压缩自身（下限 140）；③ 共用 `applyPlace`/`watchPlace`（立即 + 首帧 rAF 校准 +
+  ResizeObserver 保活（`el._ro` 防 GC）+ window resize，拆掉自清理无残留）。常数集中一处
+  （GAP 6 / GAP_H 10 / PAD 8 / MIN_BELOW 240 / A_MIN_H 120 / ROW_GAP 12 / ROW_PAD 4 / ROW_MIN_H 140）。
+  **顺修**：原 `placePop` 把「视口坐标的 minL/maxL」与「内容坐标的 left」混比——统一为内容坐标
+  （实测场景 sl≈0 故行为不变，属正确性修正，注在 `rowPlaceOf` 头注）。pickpop 只留「取 rect + 落位」；
+  sharepanel 的 `placePop` 整体删除。
+- **测试**：单测 232→237——`test/unit/pickpop.test.js` 更名 **`popplace.test.js`**（原 6 条几何钉
+  原样搬入 + **新增 5 条 rowPlaceOf 钉**：贴行右缘−12/贴面板左缘+12/底对齐=锚点底/越界翻侧与收边到
+  视口缘/高度下限 140 + 顶边收口/宿主滚动下的底对齐内容坐标）。**harness 零改动通过**：view-follow 的
+  `follow-share-geometry`（行模型：右缘贴行左缘 ±16、底对齐 ±2）与 follow-groups 的 `fg-pop-geom`
+  （按钮模型：不压操作栏列 + 右缘=宿主左缘−10）原样全绿——**行为等价的最直接证据**。lint/check +
+  全量 46 场景 + 单测 237 全绿。
+- **README**：依赖图 +`popplace` 节点/两条边（pickpop→popplace、sharepanel→popplace）/**绿叶子名单
+  七个**；模块表 +`popplace` 行、pickpop 与 sharepanel 两行改指（原「两套定位」说明撤除）。
+
 ### 0.9.148（2026-10-04）· 0.9.139–147 复查处置（审计：死代码/理念/过时注释与文档）
 
 - **由头**（用户「审一下今天的一系列改动，看看有无死代码残留，以及违背项目理念的，以及更新过时

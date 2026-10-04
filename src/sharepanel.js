@@ -1,12 +1,13 @@
 // ---------- 私信分享面板（0.9.123 自 imshare.js 拆出：协议核心 ↔ 面板 UI 分居） ----------
-// openSharePanel 一族：锚定浮层（place 模式 rect 定位；**与 pickpop.pickPlaceOf 是两套定位**：
-// 本件锚行/面板底对齐、pickpop 锚按钮旁并让开宿主列，常数各异，见各自注释）/搜索过滤/联系人行/分享按钮
+// openSharePanel 一族：锚定浮层（place 模式走 **popplace.rowPlaceOf**——锚行/面板、**底对齐**；
+// 与选择层的 anchorPlaceOf 是同一模块里的两套模型，常数一处收口，0.9.149）/搜索过滤/联系人行/分享按钮
 // （分享上报 0.9.145 经 report.reportShare；外点收起 0.9.147 走 ui.closeOnOutsideClick）
 //（含「捎句话」注册缝 setChatOpener 与 im-open 页哨兵）。单向依赖 imsend 的出口
 //（ensureIm/ensureConnected/getContacts/fetchCards/isLogined/sendCmtShare/sendMomentShare），
 // 核心完全不知道面板。纯搬迁零逻辑改动。
 import { CFG } from './cfg.js';
 import { el, toast, copyText, closeOnOutsideClick } from './ui.js';
+import { rowPlaceOf, applyPlace, watchPlace } from './popplace.js';
 import { imgInto } from './imgload.js';
 import { testHook } from './dbg.js';
 import { ensureIm, ensureConnected, getContacts, fetchCards, isLogined, sendCmtShare, sendMomentShare, sendOnce } from './imsend.js';
@@ -26,56 +27,10 @@ export function setChatOpener(fn) { chatOpener = typeof fn === 'function' ? fn :
 //             overflow-y:auto 的滚动列表里，浮层挂里面会被水平裁剪
 //   popClass  位置修饰类（.acsv-sharepop-drawer：锚抽屉输入条上方）
 //   headText  面板标题文案，缺省「分享给朋友」
-// 分享卡锚定定位（0.9.105 用户裁决几何）：place={mode:'left-of'|'right-of', anchorEl, gap}——
-// rect 计算落宿主的**内容坐标系**（+scroll 偏移）→ 弹层随列表滚动天然跟随；**底部共用坐标**
-// （弹层底=锚点底，XHS/需求原话）。默认无 place 时保持 CSS right/bottom 偏移（rail/comments
-// 调用零改动）。内容异步填充（联系人列表）会改高：ResizeObserver 重贴（缺则一次性延时兜底）
-function placePop(pop, opts, btn) {
-  var place = opts && opts.place;
-  if (!place || !place.anchorEl) return;
-  var wrap = pop.parentNode;
-  if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
-  pop.classList.add('acsv-sharepop-anch');
-  var gap = place.gap != null ? place.gap : 12;
-  function leftAt(mode) {
-    var a = place.anchorEl.getBoundingClientRect();
-    var h = wrap.getBoundingClientRect();
-    var sl = wrap.scrollLeft || 0;
-    return mode === 'right-of'
-      ? a.right - h.left + sl + gap
-      : a.left - h.left + sl - pop.offsetWidth - gap;
-  }
-  function placeNow() {
-    if (!pop.isConnected || !place.anchorEl.isConnected) return;
-    var a = place.anchorEl.getBoundingClientRect();
-    var h = wrap.getBoundingClientRect();
-    // 高度自适应（0.9.105 拍板）：底对齐要求弹层完全落在锚点底之上——锚下可用空间不足时
-    // 压缩自身高度（列表内部滚动），否则 clamp 顶在宿主上缘、底部溢出（harness 实锤 +24px）
-    var avail = a.bottom - h.top + (wrap.scrollTop || 0) - 4;
-    if (pop.offsetHeight > avail) pop.style.maxHeight = Math.max(140, avail) + 'px';
-    var left = leftAt(place.mode);
-    // 空间不足兜底（0.9.105 登记）：主位溢出视口左/右缘时先**翻转**到对侧（保持与锚点相邻、
-    // 不遮卡片），对侧也放不下才 clamp 到可视内——harness 场景视口 1600 走主位，兜底只保底
-    var minL = h.left + 4, maxL = h.right - pop.offsetWidth - 4;
-    if (left < minL || left > maxL) {
-      var flip = leftAt(place.mode === 'left-of' ? 'right-of' : 'left-of');
-      left = (flip >= h.left && flip <= maxL) ? flip : Math.max(minL, Math.min(maxL, left));
-    }
-    var top = a.bottom - h.top + (wrap.scrollTop || 0) - pop.offsetHeight; // 底部共用坐标
-    pop.style.left = Math.max(0, left) + 'px';
-    pop.style.top = Math.max(4, top) + 'px';
-  }
-  placeNow();
-  requestAnimationFrame(placeNow); // 首帧布局（弹层宽高）校准
-  if (typeof ResizeObserver === 'function') {
-    // 引用必须保留（0.9.105 拍板：局部 observer 会被 GC → 停观察 → 内容异步填充后底对齐漂移）
-    pop._ro = new ResizeObserver(function () { requestAnimationFrame(placeNow); });
-    pop._ro.observe(pop);
-  } else {
-    setTimeout(placeNow, 350);
-  }
-}
-
+// 分享卡锚定定位（0.9.105 用户裁决几何；0.9.149 几何收口 popplace.rowPlaceOf）：
+// place={mode:'left-of'|'right-of', anchorEl, gap}——rect 计算落宿主的**内容坐标系**（+scroll 偏移）
+// → 弹层随列表滚动天然跟随；**底部共用坐标**（弹层底=锚点底，XHS/需求原话）。默认无 place 时
+// 保持 CSS right/bottom 偏移（rail/comments 调用零改动）
 export function openSharePanel(btn, item, opts) {
   opts = opts || {};
   var existed = document.querySelector('.acsv-sharepop');
@@ -127,7 +82,21 @@ export function openSharePanel(btn, item, opts) {
   var wrap = opts.host || btn.parentNode;
   if (!opts.host) wrap.style.position = 'relative'; // host 自带定位（抽屉根是 absolute），不许覆写
   wrap.appendChild(pop);
-  placePop(pop, opts, btn); // 0.9.105：place 模式（行流左贴/面板右贴）rect 定位
+  // 锚定模式（0.9.105 用户裁决几何；0.9.149 起几何收口 popplace.rowPlaceOf）：行流=右缘贴行左缘、
+  // 面板=左缘贴面板右缘，**底对齐**；内容异步到达改高 → watchPlace 重算
+  if (opts.place && opts.place.anchorEl) {
+    pop.classList.add('acsv-sharepop-anch');
+    watchPlace(pop, function () {
+      if (!pop.isConnected || !opts.place.anchorEl.isConnected) return;
+      var a = opts.place.anchorEl.getBoundingClientRect(), h = wrap.getBoundingClientRect();
+      applyPlace(pop, rowPlaceOf(
+        { left: a.left, top: a.top, right: a.right, bottom: a.bottom },
+        { left: h.left, top: h.top, right: h.right, sl: wrap.scrollLeft || 0, st: wrap.scrollTop || 0 },
+        { w: window.innerWidth, h: window.innerHeight },
+        pop.offsetWidth, pop.offsetHeight, opts.place.mode, opts.place.gap
+      ));
+    });
+  }
 
   // 外点收起（0.9.147 收口到 ui.closeOnOutsideClick：捕获相 + 常驻到拆除——
   // 旧内联实现点一下面板内部就把一次性监听吃掉，之后外点收不起来）

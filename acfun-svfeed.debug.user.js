@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.148-debug
+// @version      0.9.149-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -3359,6 +3359,86 @@
     return { box, label };
   }
 
+  // src/popplace.js
+  var GAP = 6;
+  var GAP_H = 10;
+  var PAD = 8;
+  var MIN_BELOW = 240;
+  var A_MIN_H = 120;
+  var ROW_GAP = 12;
+  var ROW_PAD = 4;
+  var ROW_MIN_H = 140;
+  function anchorPlaceOf(a, host3, vp, popW, popH) {
+    var below = vp.h - a.bottom - GAP - PAD;
+    var above = a.top - GAP - PAD;
+    var up = below < MIN_BELOW && above > below;
+    var avail = up ? above : below;
+    var maxH = Math.max(A_MIN_H, Math.min(avail, 420, vp.h * 0.64));
+    var h = Math.min(Math.max(popH, 0), maxH);
+    var top = up ? a.top - GAP - h - host3.top + host3.st : a.bottom + GAP - host3.top + host3.st;
+    var refLeft = Math.min(a.left, host3.left);
+    var want = refLeft - GAP_H - popW;
+    if (want < PAD) want = Math.max(a.right, host3.right) + GAP_H;
+    var left = want - host3.left + host3.sl;
+    var minL = PAD - host3.left + host3.sl;
+    var maxL = vp.w - PAD - host3.left + host3.sl - popW;
+    if (maxL < minL) maxL = minL;
+    if (left > maxL || left < minL) left = Math.max(minL, Math.min(maxL, left));
+    return { up, left, top, maxH };
+  }
+  function rowPlaceOf(a, host3, vp, popW, popH, mode, gap) {
+    var g = gap > 0 ? gap : ROW_GAP;
+    var leftOf = mode !== "right-of";
+    var maxH = Math.max(ROW_MIN_H, Math.min(a.bottom - host3.top + host3.st - ROW_PAD, 430, vp.h * 0.62));
+    function leftAt(isLeft) {
+      return isLeft ? a.left - host3.left + host3.sl - popW - g : a.right - host3.left + host3.sl + g;
+    }
+    var minL = ROW_PAD - host3.left + host3.sl;
+    var maxL = vp.w - ROW_PAD - host3.left + host3.sl - popW;
+    if (maxL < minL) maxL = minL;
+    var left = leftAt(leftOf);
+    var flipped = false;
+    if (left < minL || left > maxL) {
+      var flip = leftAt(!leftOf);
+      if (flip >= minL && flip <= maxL) {
+        left = flip;
+        flipped = true;
+      } else left = Math.max(minL, Math.min(maxL, left));
+    }
+    var top = a.bottom - host3.top + host3.st - Math.min(popH, maxH);
+    if (top < ROW_PAD) top = ROW_PAD;
+    return { left, top, maxH, flipped };
+  }
+  function applyPlace(el2, geo) {
+    el2.style.maxHeight = Math.round(geo.maxH) + "px";
+    el2.style.left = Math.round(geo.left) + "px";
+    el2.style.top = Math.round(geo.top) + "px";
+  }
+  function watchPlace(el2, doPlace) {
+    function again() {
+      if (el2.isConnected) doPlace();
+    }
+    doPlace();
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(again);
+    if (typeof ResizeObserver === "function") {
+      el2._ro = new ResizeObserver(function() {
+        requestAnimationFrame(again);
+      });
+      el2._ro.observe(el2);
+    } else {
+      setTimeout(again, 350);
+    }
+    function onWin() {
+      if (!el2.isConnected) {
+        window.removeEventListener("resize", onWin);
+        if (el2._ro) el2._ro.disconnect();
+        return;
+      }
+      doPlace();
+    }
+    window.addEventListener("resize", onWin);
+  }
+
   // src/imgload.js
   var IMG_POLICY = {
     // 网格封面（搜索/历史/收藏）：重试 + 终败暗字占位 + 淡入
@@ -4698,46 +4778,6 @@
   function setChatOpener(fn) {
     chatOpener = typeof fn === "function" ? fn : null;
   }
-  function placePop(pop, opts, btn) {
-    var place2 = opts && opts.place;
-    if (!place2 || !place2.anchorEl) return;
-    var wrap = pop.parentNode;
-    if (getComputedStyle(wrap).position === "static") wrap.style.position = "relative";
-    pop.classList.add("acsv-sharepop-anch");
-    var gap = place2.gap != null ? place2.gap : 12;
-    function leftAt(mode) {
-      var a = place2.anchorEl.getBoundingClientRect();
-      var h = wrap.getBoundingClientRect();
-      var sl = wrap.scrollLeft || 0;
-      return mode === "right-of" ? a.right - h.left + sl + gap : a.left - h.left + sl - pop.offsetWidth - gap;
-    }
-    function placeNow() {
-      if (!pop.isConnected || !place2.anchorEl.isConnected) return;
-      var a = place2.anchorEl.getBoundingClientRect();
-      var h = wrap.getBoundingClientRect();
-      var avail = a.bottom - h.top + (wrap.scrollTop || 0) - 4;
-      if (pop.offsetHeight > avail) pop.style.maxHeight = Math.max(140, avail) + "px";
-      var left = leftAt(place2.mode);
-      var minL = h.left + 4, maxL = h.right - pop.offsetWidth - 4;
-      if (left < minL || left > maxL) {
-        var flip = leftAt(place2.mode === "left-of" ? "right-of" : "left-of");
-        left = flip >= h.left && flip <= maxL ? flip : Math.max(minL, Math.min(maxL, left));
-      }
-      var top = a.bottom - h.top + (wrap.scrollTop || 0) - pop.offsetHeight;
-      pop.style.left = Math.max(0, left) + "px";
-      pop.style.top = Math.max(4, top) + "px";
-    }
-    placeNow();
-    requestAnimationFrame(placeNow);
-    if (typeof ResizeObserver === "function") {
-      pop._ro = new ResizeObserver(function() {
-        requestAnimationFrame(placeNow);
-      });
-      pop._ro.observe(pop);
-    } else {
-      setTimeout(placeNow, 350);
-    }
-  }
   function openSharePanel(btn, item, opts) {
     opts = opts || {};
     var existed = document.querySelector(".acsv-sharepop");
@@ -4789,7 +4829,22 @@
     var wrap = opts.host || btn.parentNode;
     if (!opts.host) wrap.style.position = "relative";
     wrap.appendChild(pop);
-    placePop(pop, opts, btn);
+    if (opts.place && opts.place.anchorEl) {
+      pop.classList.add("acsv-sharepop-anch");
+      watchPlace(pop, function() {
+        if (!pop.isConnected || !opts.place.anchorEl.isConnected) return;
+        var a = opts.place.anchorEl.getBoundingClientRect(), h = wrap.getBoundingClientRect();
+        applyPlace(pop, rowPlaceOf(
+          { left: a.left, top: a.top, right: a.right, bottom: a.bottom },
+          { left: h.left, top: h.top, right: h.right, sl: wrap.scrollLeft || 0, st: wrap.scrollTop || 0 },
+          { w: window.innerWidth, h: window.innerHeight },
+          pop.offsetWidth,
+          pop.offsetHeight,
+          opts.place.mode,
+          opts.place.gap
+        ));
+      });
+    }
     closeOnOutsideClick(pop, [btn], function() {
       pop.remove();
     });
@@ -7668,65 +7723,18 @@
   }
 
   // src/pickpop.js
-  var GAP = 6;
-  var PAD = 8;
-  var MIN_BELOW = 240;
-  var GAP_H = 10;
-  function pickPlaceOf(a, host3, vp, popW, popH) {
-    var below = vp.h - a.bottom - GAP - PAD;
-    var above = a.top - GAP - PAD;
-    var up = below < MIN_BELOW && above > below;
-    var avail = up ? above : below;
-    var maxH = Math.max(120, Math.min(avail, 420, vp.h * 0.64));
-    var h = Math.min(Math.max(popH, 0), maxH);
-    var top = up ? a.top - GAP - h - host3.top + host3.st : a.bottom + GAP - host3.top + host3.st;
-    var refLeft = Math.min(a.left, host3.left);
-    var want = refLeft - GAP_H - popW;
-    if (want < PAD) want = Math.max(a.right, host3.right) + GAP_H;
-    var left = want - host3.left + host3.sl;
-    var minL = PAD - host3.left + host3.sl;
-    var maxL = vp.w - PAD - host3.left + host3.sl - popW;
-    if (maxL < minL) maxL = minL;
-    if (left > maxL || left < minL) left = Math.max(minL, Math.min(maxL, left));
-    return { up, left, top, maxH };
-  }
   function place(pop, btn) {
     var wrap = pop.parentNode;
     if (!wrap) return;
     if (getComputedStyle(wrap).position === "static") wrap.style.position = "relative";
     var b = btn.getBoundingClientRect(), h = wrap.getBoundingClientRect();
-    var r = pickPlaceOf(
+    applyPlace(pop, anchorPlaceOf(
       { left: b.left, top: b.top, right: b.right, bottom: b.bottom },
       { left: h.left, top: h.top, right: h.right, sl: wrap.scrollLeft || 0, st: wrap.scrollTop || 0 },
       { w: window.innerWidth, h: window.innerHeight },
       pop.offsetWidth,
       pop.offsetHeight
-    );
-    pop.style.maxHeight = Math.round(r.maxH) + "px";
-    pop.style.left = Math.round(r.left) + "px";
-    pop.style.top = Math.round(r.top) + "px";
-  }
-  function watchPlace(pop, btn) {
-    var ro = null;
-    if (typeof ResizeObserver === "function") {
-      ro = new ResizeObserver(function() {
-        if (!pop.isConnected) {
-          ro.disconnect();
-          return;
-        }
-        place(pop, btn);
-      });
-      ro.observe(pop);
-    }
-    function onWin() {
-      if (!pop.isConnected) {
-        window.removeEventListener("resize", onWin);
-        if (ro) ro.disconnect();
-        return;
-      }
-      place(pop, btn);
-    }
-    window.addEventListener("resize", onWin);
+    ));
   }
   function guardOutside(pop, btn) {
     closeOnOutsideClick(pop, [btn], function() {
@@ -7961,7 +7969,9 @@
     });
     host3.appendChild(pop);
     place(pop, btn);
-    watchPlace(pop, btn);
+    watchPlace(pop, function() {
+      place(pop, btn);
+    });
     guardOutside(pop, btn);
     refresh("");
     return pop;
@@ -8012,7 +8022,9 @@
     });
     host3.appendChild(pop);
     place(pop, btn);
-    watchPlace(pop, btn);
+    watchPlace(pop, function() {
+      place(pop, btn);
+    });
     guardOutside(pop, btn);
     return pop;
   }
@@ -9898,7 +9910,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.148" : "");
+    return normVer(true ? "0.9.149" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12437,7 +12449,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.148：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.149：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
