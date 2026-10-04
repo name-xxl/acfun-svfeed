@@ -13,8 +13,9 @@
    - **手动**：新建脚本，把 `acfun-svfeed.user.js` 的内容整个粘贴进去保存（或把文件拖入浏览器安装）；
 3. 打开 **A 站首页**（`www.acfun.cn/`），顶部导航会出现「小视频」项；
    若站点改版导致首页导航没注入成功，首页右下角会出现红色「▶ AcFun 小视频」悬浮按钮作为兜底入口。
-   **入口只出现在首页**（0.9.47 起）：播放页、文章页等其他页面不注入、不弹胶囊；
-   但分享链接 `#svfeed`（含带 meowId 的回跳链接）在**任意页面**打开仍可进入竖刷页。
+   **入口只出现在首页**（0.9.47 起）：播放页、文章页等其他页面不注入、不弹胶囊——
+   **个人中心例外**（0.9.128 起）：`/member/*` 页会注入「动态广场」入口（在原页就地展开，
+   不跳竖刷壳，见「使用」表）；分享链接 `#svfeed`（含带 meowId 的回跳链接）在**任意页面**打开仍可进入竖刷页。
 
 > **更新检查授权提示（0.9.60 起）**：脚本会拉 GitHub 官方 `releases.atom` 做更新提示，
 > 首次触发时 Tampermonkey 可能弹 **`github.com` 跨域授权确认，请点允许**——拒绝/漏点只影响
@@ -25,6 +26,7 @@
 | 操作 | 效果 |
 |---|---|
 | 点击导航「小视频」/ 右下角悬浮按钮 | 打开竖刷页（地址变为 `www.acfun.cn/#svfeed`，可直接收藏） |
+| 点击个人中心「动态广场」（`/member/*` 页导航） | **就地展开**全站最新动态流（原生页导航/头部保留、浅色皮肤；24h 窗口 / 发现态提示条 / 行内评论齐备）；展开期再点=刷新，点原生「动态」链=收回；非 feeds 成员页点击会先跳到 `/member/feeds` 再自动展开 |
 | 切换视频时 | 地址栏自动变为 `#svfeed/v/<meowId>`（小视频源）或 `#svfeed/a/<acId>`（推荐源）——`v`/`a` 段是**来源标记**：两种源的 id 来自不同详情表，带标记才能粘贴出去零歧义（不产生历史记录）。刷新或直接打开带 id 的链接（含 0.9.72 前的裸数字老链接）可回到同一条视频，并自动切到该条所属的内容源 |
 | 鼠标滚轮 / ↑↓ / PgUp PgDn / J K / 右下角箭头 | 上一个 / 下一个视频（滚动吸附） |
 | ← / →（短按） | 快退 / 快进 5 秒 |
@@ -308,14 +310,16 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf，缺省不渲染）+ Tab 惰性面板（观看历史=双 resourceTypes/pageNo 翻页；收藏夹=chips 切夹→dougaList 翻页）+ 4:3 封面网格卡（普通视频封面口径）；条目经 panelItem 契约规整、点击进播放层（0.9.74） |
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
 | `followview.js` | 关注视图「全部」侧（0.9.100 原生骨架复刻；0.9.101 交互补课；0.9.102 收口）：单列无限流——**逐段复刻原生 /member/feeds 骨架与量取值**（扁平列表+灰带分隔、头像 50、名字 16px、60px 内容缩进、正文 14/21 pre-line+展开、九宫格 342/110/299/228、横条双灰块+title 600+时长 hover 浮层、互动行 48px/42/12px、图标四件套逐码点采样；量取日与暗色换算表在 styles 段头注）；互动行写链（乐观回滚；点赞文章只读；**投蕉**：动态=单蕉直投、视频/文章=视频页同款数量层 banpop.js「点第 N 根投 N」、已投锁定蕉黄 #ffb323；pi 级写路径单源=interact.likePi/throwBananaPi）；**评论键原位展开评论区**（全类型：动态 stype=4/视频 stype=3，comments 管线 host 化挂行内，开新关旧互斥）；**引用卡完全照原生**（@源UP 蓝链 + 内嵌完整源内容卡，复用 stripOf；三落点可点）；无限滚动五条借鉴广场 + **回顶按钮（0.9.105 顶栏同款圆钮+chevUp）**；**作者名蓝链**（与引用卡同源）；互动栏/分享出口走 **momentbar 共享件**（分享 place=右缘贴行左缘 12px、底部共用坐标）。视频行进播放层，动态行点详情面板，文章行外链；行卡构建件与行内评论控制器 0.9.124 下沉 rowkit（本文件只留视图壳/游标方言/落点策略） |
-| `squareview.js` | 广场视图（0.9.126，吸收「AcFun 动态广场」；0.9.127 发现态+新鲜度）：feedSquare 免登录全站动态流——首页不传游标、**24h 窗口**（契约层 squarePageOf 收口：超窗剔除+即止）、互动态恒 false 由 **≤3h 新鲜条目走 moment/detail 回填**（squarePageOf 出 freshIds → patch pi + momentbar.syncRowBar）；**发现态轮询仅在视图打开时运转**（followbadge 同款骨架+退避单源，diff=最大 momentId → 顶部提示条 → 点击重拉重建）；行卡/委托/行内评论全走 rowkit；dock order 15（榜单下面）；容器/骨架独立类名。IndexedDB 留存随之**丢弃**（plaza 审计：只写不读、无消费面） |
+| `squareview.js` | 广场视图（0.9.126，吸收「AcFun 动态广场」；0.9.127 发现态+新鲜度）：feedSquare 免登录全站动态流——首页不传游标、**24h 窗口**（契约层 squarePageOf 收口：超窗剔除+即止）、互动态恒 false 由 **≤3h 新鲜条目走 moment/detail 回填**（squarePageOf 出 freshIds → patch pi + momentbar.syncRowBar）；**发现态轮询仅在视图打开时运转**（followbadge 同款骨架+退避单源，diff=最大 momentId → 顶部提示条 → 点击重拉重建）；行卡/委托/行内评论全走 rowkit；dock order 15（榜单下面）；容器/骨架独立类名；0.9.128 列表机械（加载/五条不变量/发现态/新鲜度/骨架/回顶）抽 **squarefeed.js 工厂**——与原生页内嵌宿主共用同一份代码。IndexedDB 留存随之**丢弃**（plaza 审计：只写不读、无消费面） |
+| `squarefeed.js` | 广场流列表机械工厂（0.9.128 自 squareview.js 抽出，逐一搬运零逻辑改动）：加载/append-only 等五条不变量/24h 窗口消费/发现态轮询/新鲜度回填/骨架/三态状态行/触底翻页/回顶/debug 探针；宿主注入 root / scrollEl（元素或 window）/ backTopHost / onOpen（行落点）/ onRow（行后处理）。消费方：squareview（深色广场页）与 memberplaza（原生页内嵌浅色） |
+| `memberplaza.js` | 原生 /member 页「动态广场」入口 + 内嵌广场（0.9.128）：成员导航注入入口 + /member/feeds 推广条（plaza navigation.js 逐行复刻；非 feeds 成员页点击=GM 旗标 + 跳 feeds 落地自动展开=auto_enter 照搬）；点击**就地展开**（原生子节点隐藏、收回即复原；squarefeed 单源 + `.acsv-mp` 浅色皮肤；行点击不动作=原页语义、行右上 am 号锚、分享/评论/赞蕉/表情/图片全走 svfeed 单源）；0.9.47「其他页不注入」的**限定反转**（只 /member 路径）；旧 plaza 脚本并存时让位不双入口 |
 | `followstream.js` | 关注语境「视频」侧（0.9.99）：FollowVideos 列表上下文（UpVideos 通道先例）——followDougaFeed 后台分页链（§2.1.2：固定 10/页、终页 no_more）→ 深链 `svfeed/a/<acId>` 接管宿主竖刷舞台 → feedstore 泵按列表灌入（`ctx.info` 自带 home 家族 resolve，非 m3u8 直链绕 hls）；`isFollowContext()` 是顶栏 seg 显隐与徽标不点亮的单源判据；enterVideos 原地续看不重置缓冲 |
 
 | `feedctx.js` | 列表上下文工厂（0.9.106）：`createFeedContext`（8 核心字段+reset 单源，UpVideos/FollowVideos 同源生成）+ `runChain`（链式加载状态机单源：上限/间隔/done/failed/chainCapped 判定一处）+ **注册表单活互斥**（activateContext 清其余——空间页/关注视频流互踩修复） |
 | `momentapi.js` | 动态域读接口（0.9.106 收口；0.9.107 unreadCount 退役）：listMoments（followFeedV2）/listVideos（followDougaFeed，规整走契约层 followVideoPageOf）/listSquare（feedSquare 免登录广场流，首页不传游标；规整走契约层 squarePageOf，0.9.125）/momentDetail（单条详情，pc-direct 带 Cookie；广场新鲜度回填，0.9.127）/momentPageUrl；URL 形态逐字保持（mock 缝）；评论管线/写链不入（边界登记） || `momentdetail.js` | 动态详情面板（0.9.96 起；0.9.103 小红书式两栏；0.9.105 轮播+共存）：按内容型换布局——有 imgs（**图像权威=imgs**，0.9.105）两栏（左媒体黑底台 / 右 `.acsv-mdetail-side` 400）+**多图轮播**（track translate3d/60×60 箭头/底点/滚轮 preventDefault 逐格，XHS 实测 2026-10-04），无图/转发单栏 min(620px)；✕ 浮卡片外右上；正文 16/24；评论标题「共 N 条评论」（comments 管线 titleFmt）；互动栏（momentbar 共享件 skin=detail 四键）留内容底部；管线 host.el 两栏态指右栏（stype=4）；**不占 claimDrawer 槽**（私信抽屉共存+acsv-with-comments 左移避让，0.9.105）。**光 DOM 有意偏离 intake**（评论 CSS 单源，登记在模块头）；与评论抽屉共用 overlay 'comments' 层位 |
 | `momentbar.js` | 动态互动栏共享件（0.9.105）：行流卡与详情面板同键定义表（分享/评论/蕉/赞）+ 写链编排单源（乐观回滚/投蕉锁/动态单蕉/视频文章数量层），skin 分皮肤（尺寸/类名由 CSS 按根类作用域）；键出口经 opts 注入（行流=原位评论+place 分享；面板=滚动聚焦评论+右贴分享） |
 | `followbadge.js` | 关注未读徽标（0.9.97；**0.9.107 改时间水位线**）：徽标=自水位 `acsvFollowSeenAt`（GM，无 GM 内存降级）以来 followFeedV2 首屏 `createTime > 水位` 的新条数——旧 webPush followUpers 布尔是服务端长期不清标记（实测清不掉⇒固定数字复亮），已退役；**进关注语境期间 poll 自持推进水位**（看过即已读、离开不复亮）；退避真逐次翻倍 60s→10min 纯函数；hidden 短路/未登录静默；挂 player.mount/unmount |
-| `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷） |
+| `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；`/member/*` 页加原生页入口（0.9.128：ensureStyle + setRoot(document.body) + watchMemberNav——memberplaza，0.9.47 决策的限定反转）；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷） |
 | `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/other——boot 运行分流的唯一判据（判据与 uppage 的 `/u/\d+` 逐字一致，单测钉一致性） |
 | `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）；`onChange` 订阅让消费方零反向依赖地即时生效 |
 | `settingspanel.js` | 脚本页设置皮肤（0.9.89）：dock 齿轮 → `openSettings()` → overlay 栈（modal，Esc 白拿）；host + **Shadow DOM** 作用域样式（量取值与日期在文件头注释）；控件按 schema 表驱动（bool 开关 / select 下拉 / number 步进器）；原生页皮肤 Phase 6 是兄弟模块 |
@@ -382,6 +386,8 @@ flowchart LR
   settingspanel["settingspanel.js（脚本页设置皮肤·Shadow DOM）"]
   followview["followview.js（关注视图·仿原生单列无限流）"]
   squareview["squareview.js（广场视图·feedSquare 全站动态流）"]
+  squarefeed["squarefeed.js（广场列表机械工厂·两宿主共用）"]
+  memberplaza["memberplaza.js（原生 /member 页入口·内嵌广场）"]
   followstream["followstream.js（关注视频流·列表上下文+分页链）"]
   momentdetail["momentdetail.js（动态详情面板·小红书式两栏+评论区复用+写链）"]
   momentbar["momentbar.js（动态互动栏·两皮肤共享件）"]
@@ -409,12 +415,14 @@ flowchart LR
   imdrawer --> appapi & comments & emoticon & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
-  boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & squareview & zone
+  boot --> followview & imnative & memberplaza & mypage & pagekind & player & playlayer & searchview & squareview & zone
   views --> feedstore & overlay & sidebar & topbar & viewreg
   cards --> imgload & imgview & imicons & ubb
   sidebar --> viewreg
   followview --> cards & emoticon & momentapi & momentdetail & rowkit & sidebar & viewreg
-  squareview --> cards & emoticon & followbadge & momentapi & momentbar & momentdetail & rowkit & viewreg
+  squareview --> cards & momentdetail & rowkit & squarefeed & viewreg
+  squarefeed --> cards & emoticon & followbadge & momentapi & momentbar & rowkit
+  memberplaza --> rowkit & squarefeed
   rowkit --> cards & comments & imgload & imgview & momentbar & sharepanel
   followstream --> appapi & data & feedctx & feedstore & momentapi & sidebar
   momentbar --> banpop & data & imicons & immsg & interact & styles & ubbtext & ui

@@ -27,10 +27,15 @@
 <script src="cases/msg.js"></script>
 <script src="cases/boot.js"></script>
 <script src="cases/settings.js"></script>
+<script src="cases/member.js"></script><!-- 0.9.128 原生 /member 页内嵌广场（入口注入/就地展开/浅色皮肤/无壳浮层） -->
 <script>
   // ============ 场景预处理（须在 bundle 加载前：改 mock / 写 localStorage） ============
   var CASE = (location.search.match(/[?&]case=([\w-]+)/) || [])[1] || 'smoke';
   var RELEASE = /[?&]bundle=release/.test(location.search);
+  // 不自动挂壳的场景（0.9.128）：在**无壳**条件下验证原生页行为（boot 分流/入口注入/内嵌）。
+  // 该名单约束两处：run() 不等待 #acsv-root 挂载（无壳=场景前提，由场景体自证）；文末不强制
+  // hash='svfeed'（否则会把壳意外挂起来）
+  var NO_AUTOMOUNT = ['member-plaza'];
   // 官方 weblog 管道 stub：debug 构建 unsafeWindow===window，reportLeave 读 window.weblog。
   // 所有场景无条件 stub——非 home 场景 cap.watchReport=false 不会触达；调用记录供断言
   window.__WL_CALLS = [];
@@ -145,7 +150,9 @@
   // bundle 加载器同理改用绝对路径（见下方 script）
   var BOOT_PATH = {
     'boot-home': '/',             // 首页：全量初始化（样式先就位）
-    'boot-video': '/v/ac99999999' // 视频页：仅基础设施（全量 CSS 不得注入）
+    'boot-video': '/v/ac99999999', // 视频页：仅基础设施（全量 CSS 不得注入）
+    // 0.9.128 原生个人中心：/member/feeds 页面类型分流 + 无壳前提（配合下文 NO_AUTOMOUNT）
+    'member-plaza': '/member/feeds'
   };
   if (BOOT_PATH[CASE]) {
     try { history.replaceState(null, '', BOOT_PATH[CASE] + location.search + location.hash); } catch (e) { }
@@ -217,9 +224,12 @@
     }
 
     async function run() {
-      var root = await waitFor(function () { return document.getElementById('acsv-root'); }, 15000);
-      rec('mount', !!root);
-      if (!root) { finish(); return; }
+      if (NO_AUTOMOUNT.indexOf(CASE) === -1) {
+        var root = await waitFor(function () { return document.getElementById('acsv-root'); }, 15000);
+        rec('mount', !!root);
+        if (!root) { finish(); return; }
+      }
+      // NO_AUTOMOUNT 场景：不等待挂壳——无壳前提由场景体自证（member-plaza 的 mp-no-shell）
 
       // 场景分发（0.9.81）：各场景在 test/cases/*.js 注册（自本文件原样搬迁，只加参数前置）。
       // 公共件经 __ACSV_H 传入；未知场景名显式失败（check-cases.mjs 静态拦截 + 页内兜底），
@@ -245,9 +255,9 @@
       window.__HARNESS_RESULTS__.done = true;
     }
 
-    // 挂载由 hash 设置触发（模拟用户从导航点进来）
+    // 挂载由 hash 设置触发（模拟用户从导航点进来）；NO_AUTOMOUNT 场景例外（声明在文件头）
     setTimeout(function () {
-      if (!/^#\/?svfeed/.test(location.hash)) location.hash = 'svfeed';
+      if (NO_AUTOMOUNT.indexOf(CASE) === -1 && !/^#\/?svfeed/.test(location.hash)) location.hash = 'svfeed';
       setTimeout(run, 0);
     }, 300);
   })();

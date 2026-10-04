@@ -108,10 +108,11 @@ function rowBarOf(pi, row) {
   return momentBarOf(pi, {
     skin: 'row',
     onShare: function (btn) {
-      // 宿主=滚动视图体（absolute 坐标系含滚动偏移 → 弹层随列表滚动跟随）
+      // 宿主=滚动视图体（absolute 坐标系含滚动偏移 → 弹层随列表滚动跟随）；内嵌广场
+      //（memberplaza）无视图体：回落内嵌根 .acsv-mp（皮肤给了 position:relative）/ body
       openSharePanel(btn, momentShareItemOf(pi), {
         headText: '分享给朋友',
-        host: row.closest('.acsv-view-body'),
+        host: row.closest('.acsv-view-body') || row.closest('.acsv-mp') || document.body,
         place: { mode: 'left-of', anchorEl: row }
       });
     },

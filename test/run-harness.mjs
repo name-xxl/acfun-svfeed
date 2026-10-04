@@ -86,6 +86,10 @@ const HARNESS_CASES = [
   // 0.9.126 广场视图（吸收动态广场）：feedSquare 免登录流——dock 高亮/行卡契约/行内评论/
   // 触底续翻/24h 窗口剔除即止/状态行；夹具在 my-sample.js（mock 缝依赖 debug 构建）
   { name: 'view-square', viewport: { width: 1600, height: 900 } },
+  // 0.9.128 原生 /member 页内嵌广场：「动态广场」入口注入（真实轮询）+ 就地展开/收回 +
+  // 浅色皮肤 + 无壳浮层（评论/大图）——BOOT_PATH 改写 pathname 至 /member/feeds，且本场景
+  // 禁自动挂壳（harness.html NO_AUTOMOUNT：须在无 shell 前提下验证）；夹具在 cases/member.js
+  { name: 'member-plaza', viewport: { width: 1600, height: 900 } },
   // 0.9.96 动态详情面板（卡点击原地展开 + 评论区管线复用 stype=4 + 赞/评写链乐观回滚 + 表情面板落位）
   { name: 'detail-open', viewport: { width: 1600, height: 900 } },
   // 0.9.99 关注语境「视频」侧（顶栏 seg → FollowVideos 上下文 → 舞台深链接管 + 按列表泵入 + 全部回路）

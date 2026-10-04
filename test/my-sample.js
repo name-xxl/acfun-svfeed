@@ -226,17 +226,18 @@
     // 续页返回 `时间戳:时间戳` 游标；页2 含一条超 24h（26h）验证窗口剔除+即止；互动态恒 false
     // 照实测（免登录），createTime 绝对毫秒
     'feed/feedSquare': function (body, url) {
-      function sq(n, hours) {
+      function sq(n, hours, imgs) {
         return {
           resourceType: 10, createTime: Date.now() - hours * 3600 * 1000,
           likeCount: 3 + n, commentCount: 2 + n, bananaCount: 1 + n, shareCount: n,
           isLike: false, isThrowBanana: false,
-          moment: { momentId: String(5105000 + n), text: '广场动态' + n + ' [emot=acfun,1/]', imgs: [] },
+          moment: { momentId: String(5105000 + n), text: '广场动态' + n + ' [emot=acfun,1/]', imgs: imgs || [] },
           user: { userId: 3000 + n, userName: '广场UP' + n, userHead: PANEL_AVATAR, nameColor: 0 }
         };
       }
       if (String(url).indexOf('pcursor=') === -1) {
-        var p1s = [sq(1, 1), sq(2, 2), sq(3, 5), sq(4, 20)];
+        // 广场动态2 带图（0.9.128 member-plaza 场景）：无壳大图浮层断言的落点
+        var p1s = [sq(1, 1), sq(2, 2, [{ url: FOLLOW_COVER, expandedUrl: FOLLOW_COVER, originUrl: FOLLOW_COVER }]), sq(3, 5), sq(4, 20)];
         // 发现态轮询断言用（view-square S3）：置位后首页多出一条「刚发」的动态（momentId 更大）
         if (window.__ACSV_SQUARE_EXTRA__) p1s.unshift(sq(8, 0.2));
         return { result: 0, feedList: p1s, pcursor: '1790785548652:1790785548652' };

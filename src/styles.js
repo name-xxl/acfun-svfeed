@@ -1071,7 +1071,72 @@ var RAW_CSS = ''
   // 窄屏我的页：资料头纵向堆叠、网格列宽下限收窄（沿用同一 CFG.view.narrow 断点）
   + '@media (max-width:' + (CFG.view.narrow - 1) + 'px){.acsv-mecard{flex-direction:column;align-items:flex-start;'
   + 'gap:12px;padding:16px 2px 14px}.acsv-mecard-av{width:72px;height:72px}'
-  + '.acsv-megrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px 10px}}';
+  + '.acsv-megrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px 10px}}'
+  // ---- 原生页内嵌广场浅色皮肤（0.9.128，memberplaza 宿主作用域 .acsv-mp）----
+  // 同 DOM/同管线的**第二皮肤**（根类分派惯例，同 momentbar 的 skin）：色值抄 plaza css 里
+  // 真机验证过的原生值（#333 名/正文、#999 时间/计数、#f7f7f7 灰带/楼中楼底、#f0f0f0 图底、
+  // #409bef 原生蓝链 rgb(64,155,239)）；点亮态（赞红/蕉黄）沿用 svfeed 单源变量不重造。
+  // 深色浮层（分享面板/大图查看器/更新弹窗）不在射程——弹层性质，页内嵌不为它重做整套
+  + '.acsv-mp{position:relative;color:#333}'
+  + '.acsv-mp .acsv-frow{position:relative}'
+  + '.acsv-mp .acsv-frow + .acsv-frow{border-top:10px solid #f7f7f7}'
+  + '.acsv-mp .acsv-frow-av{background:#f0f0f0}'
+  + '.acsv-mp .acsv-frow-name{color:#333}'
+  + '.acsv-mp .acsv-frow-name:hover{color:var(--acsv-accent)}'
+  + '.acsv-mp .acsv-frow-time{color:#999}'
+  + '.acsv-mp .acsv-frow-text{color:#333}'
+  + '.acsv-mp .acsv-frow-img{background:#f0f0f0}'
+  + '.acsv-mp .acsv-frow-acts .acsv-fact{color:#999}'
+  + '.acsv-mp .acsv-frow-acts .acsv-fact:hover{color:var(--acsv-accent)}'
+  + '.acsv-mp .acsv-fstatus{color:#999}'
+  + '.acsv-mp .acsv-vempty{color:#999}'
+  + '.acsv-mp .acsv-sqskel{background:#f2f2f2}'
+  + '.acsv-mp .ubb-at,.acsv-mp .ubb-res,.acsv-mp .ubb-ac,.acsv-mp .ubb-topic{color:#409bef;text-decoration:none}'
+  + '.acsv-mp .ubb-at:hover,.acsv-mp .ubb-res:hover,.acsv-mp .ubb-ac:hover,.acsv-mp .ubb-topic:hover{text-decoration:underline}'
+  // 回顶钮：原生页固定右下（视图内的 sticky 定位不适用），浅色圆钮+阴影
+  + '.acsv-mp .acsv-fbacktop{position:fixed;right:24px;bottom:28px;margin:0;z-index:20}'
+  + '.acsv-mp .acsv-tbtn{background:#fff;color:#666;box-shadow:0 2px 10px rgba(0,0,0,.16)}'
+  + '.acsv-mp .acsv-tbtn:hover{background:#f5f5f5}'
+  + '.acsv-mp .acsv-tbtn svg{fill:#666}'
+  // 评论浅色（结构不变，只换色）
+  + '.acsv-mp .acsv-citem:hover{background:rgba(0,0,0,.03)}'
+  + '.acsv-mp .acsv-cname{color:#333}'
+  + '.acsv-mp .acsv-cname a{color:#333}'
+  + '.acsv-mp .acsv-cname a:hover{color:var(--acsv-accent);text-decoration:none}'
+  + '.acsv-mp .acsv-ctext{color:#333}'
+  + '.acsv-mp .acsv-cmeta{color:#999}'
+  + '.acsv-mp .acsv-clike{color:#999}'
+  + '.acsv-mp .acsv-clike:hover{color:#666}'
+  + '.acsv-mp .acsv-creplybtn,.acsv-mp .acsv-cfwdbtn{color:#999}'
+  + '.acsv-mp .acsv-creplybtn:hover,.acsv-mp .acsv-cfwdbtn:hover{color:var(--acsv-accent)}'
+  + '.acsv-mp .acsv-csub{background:#f7f7f7}'
+  + '.acsv-mp .acsv-cmore{color:#409bef}'
+  + '.acsv-mp .acsv-hot-divider{color:#999}'
+  + '.acsv-mp .acsv-cbody .ubb-at,.acsv-mp .acsv-cbody .ubb-res{color:#409bef}'
+  // 输入条/表情面板/回复 chip 浅色
+  + '.acsv-mp .acsv-cinput{border-top:1px solid #eee;background:#fff}'
+  + '.acsv-mp .acsv-cinput-text{background:#f5f5f5;color:#333}'
+  + '.acsv-mp .acsv-cinput-text:focus{background:#efefef}'
+  + '.acsv-mp .acsv-quotechip{background:#f5f5f5;color:#666}'
+  + '.acsv-mp .acsv-quotechip-x{color:#999}'
+  + '.acsv-mp .acsv-quotechip-x:hover{color:#333}'
+  + '.acsv-mp .acsv-emotpanel{background:#fff;border-top:1px solid #eee}'
+  + '.acsv-mp .acsv-emot-head{color:#999}'
+  + '.acsv-mp .acsv-emot-item:hover{background:rgba(0,0,0,.05)}'
+  + '.acsv-mp .acsv-emot-foot{background:#f7f7f7}'
+  + '.acsv-mp .acsv-emot-page{color:#999}'
+  + '.acsv-mp .acsv-emot-page:hover{background:rgba(0,0,0,.06);color:#333}'
+  + '.acsv-mp .acsv-emot-prev{background:#fff;border-color:#e5e5e5;box-shadow:0 8px 28px rgba(0,0,0,.16)}'
+  // 引用卡浅色（feedSquare 服务端已滤转发，防御性给色）
+  + '.acsv-mp .acsv-gquote{background:#f5f5f5}'
+  + '.acsv-mp .acsv-gquote-up{color:#999}'
+  + '.acsv-mp .acsv-gquote-upname{color:#409bef}'
+  + '.acsv-mp .acsv-gquote-textbody{color:#333}'
+  // am 号锚（plaza 原物，memberplaza 行后处理挂上）：行右上角
+  + '.acsv-mp-am{position:absolute;top:6px;right:0;font-size:12px;color:#bbb;text-decoration:none}'
+  + '.acsv-mp-am:hover{color:var(--acsv-accent)}'
+  // 注入件：成员导航「动态广场」项展开期 active 态（原生浅色）
+  + '.acsv-mnav-active{color:#ff4b76!important;font-weight:600}';
 
 // 主题色收敛：RAW_CSS 中的 #fd4c5d 全部替换为 CSS 变量，:root 上定义唯一来源
 // --acsv-dw-t（0.9.75 单源）：抽屉滑入/滑出与所有"让位"过渡共用同一时长——
