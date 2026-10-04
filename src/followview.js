@@ -19,6 +19,7 @@ import { followPanelOf, momentPiOfRepost } from './data.js';
 import { openPanelItem, setMomentOpener, skeletonRows } from './cards.js';
 import { ICONS } from './styles.js';
 import { listMoments } from './momentapi.js';
+import { markSeen } from './followseen.js'; // 首屏到达=已读（0.9.139；水位叶子件，勿在本模块自持水位）
 import { registerView } from './viewreg.js';
 import { setDockBadge } from './sidebar.js';
 import { openMomentDetail } from './momentdetail.js';
@@ -101,6 +102,9 @@ function buildFollowView(body) {
         // 到底判定：终值 'no_more'（与 followDougaFeed 同族语义）/ 空游标 / 空页 / 整页 0 新增
         if (next === 'no_more' || !next || !raws.length || (fresh === 0 && raws.length)) noMore = true;
         pcursor = next;
+        // 首屏到达=已读（0.9.139）：水位推进从"访问期内撞上轮询闸门"改为确定性钩子（短访不
+        // 再复亮）。**放在成功回包内**——拉失败时用户什么也没看到，不得吞掉新内容
+        if (firstPage) markSeen();
         armExpanders(list);
         if (firstPage && !list.children.length && noMore) {
           list.appendChild(el('div', 'acsv-vempty', '关注的 UP 还没有新动态'));

@@ -395,6 +395,7 @@ flowchart LR
   feedctx["feedctx.js（列表上下文工厂·单活互斥）"]
   momentapi["momentapi.js（动态域读接口）"]
   followbadge["followbadge.js（关注未读徽标·轮询退避）"]
+  followseen["followseen.js（关注已读水位·零依赖叶子）"]
   data --> imgurl & ubbtext
   imgview --> overlay
   imgload --> imgurl
@@ -420,14 +421,14 @@ flowchart LR
   views --> feedstore & overlay & sidebar & topbar & viewreg
   cards --> imgload & imgview & imicons & ubb
   sidebar --> viewreg
-  followview --> cards & emoticon & momentapi & momentdetail & rowkit & sidebar & viewreg
+  followview --> cards & emoticon & followseen & momentapi & momentdetail & rowkit & sidebar & viewreg
   squareview --> cards & momentdetail & rowkit & squarefeed & viewreg
   squarefeed --> cards & emoticon & followbadge & momentapi & momentbar & rowkit
   memberplaza --> rowkit & squarefeed
   rowkit --> cards & comments & imgload & imgview & momentbar & sharepanel
-  followstream --> appapi & data & feedctx & feedstore & momentapi & sidebar
+  followstream --> appapi & data & feedctx & feedstore & followseen & momentapi & sidebar
   momentbar --> banpop & data & imicons & immsg & interact & styles & ubbtext & ui
-  followbadge --> followstream & momentapi
+  followbadge --> followstream & followseen & momentapi
   momentdetail --> comments & emoticon & imgload & imgview & sharepanel & momentbar & overlay & cards
   followbadge --> net & sidebar
   player --> followbadge
@@ -442,12 +443,15 @@ flowchart LR
   zone --> appapi & cards & viewreg
 
   classDef leaf fill:#e8f5e9,stroke:#2e7d32;
-  class immsg,imicons,imgurl,pagekind,viewreg leaf;
+  class immsg,imicons,imgurl,pagekind,viewreg,followseen leaf;
 ```
 
-绿色五个节点是刻意的解耦点：`immsg.js`/`imicons.js`/`imgurl.js`/`pagekind.js`/`viewreg.js` 零 import，消费方各自引入
+绿色六个节点是刻意的解耦点：`immsg.js`/`imicons.js`/`imgurl.js`/`pagekind.js`/`viewreg.js` 零 import，消费方各自引入
 （`immsg` 现为 imdrawer/imnative/imsend 三方），私信格式与图片 URL 规则变更只改各自一处；
 `pagekind` 零依赖是为 boot 与单测都能直采（含 `location` 的 boot 不可单测，判据必须抽纯）；
+`followseen.js`（关注已读水位，0.9.139 抽出）零依赖是为两个关注语境入口（`followview` 首屏成功 /
+`followstream` 进视频侧）与徽标轮询（`followbadge`）共写**同一份**水位——水位若留在徽标域，
+followstream 引入它就会与既有的 `followbadge → followstream` 成环；
 图片加载面（懒加载/重试/降级）统一走 `imgload.js`——新图面加一行 `imgInto`，别再手拼
 `referrerPolicy`/`loading`（`uppage` 在 others 组内，同引 imgload）。
 0.9.41 起评论/私信的**输入栏（`inputbar.js`）与大图查看器（`imgview.js`）**同为共用件，

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.138-debug
+// @version      0.9.139-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -5839,6 +5839,33 @@
     ).then(momentDetailStateOf);
   }
 
+  // src/followseen.js
+  var SEEN_KEY = "acsvFollowSeenAt";
+  var memSeen = 0;
+  function seenAt() {
+    try {
+      if (typeof GM_getValue === "function") {
+        var v = Number(GM_getValue(SEEN_KEY, "0")) || 0;
+        if (v) return v;
+      }
+    } catch (e) {
+    }
+    return memSeen;
+  }
+  function setSeen(ts) {
+    memSeen = ts;
+    try {
+      if (typeof GM_setValue === "function") GM_setValue(SEEN_KEY, String(ts));
+    } catch (e) {
+    }
+  }
+  function ensureSeen() {
+    if (!seenAt()) setSeen(Date.now());
+  }
+  function markSeen() {
+    setSeen(Date.now());
+  }
+
   // src/followstream.js
   var FollowVideos = registerContext(createFeedContext({
     dockView: "follow",
@@ -5879,6 +5906,7 @@
     if (FollowVideos.feedActive) {
       var it = FeedStore.items[FeedStore.current] || FeedStore.items[0];
       if (it) {
+        markSeen();
         location.hash = CFG.hash + "/a/" + it.id;
         return Promise.resolve(true);
       }
@@ -5892,6 +5920,7 @@
         FollowVideos.done = true;
         return false;
       }
+      markSeen();
       FollowVideos.feedCursor = 1;
       FeedStore.resetForList();
       location.hash = CFG.hash + "/a/" + FollowVideos.items[0].id;
@@ -9161,7 +9190,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.138" : "");
+    return normVer(true ? "0.9.139" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -9882,28 +9911,6 @@
   });
 
   // src/followbadge.js
-  var SEEN_KEY = "acsvFollowSeenAt";
-  var memSeen = 0;
-  function seenAt() {
-    try {
-      if (typeof GM_getValue === "function") {
-        var v = Number(GM_getValue(SEEN_KEY, "0")) || 0;
-        if (v) return v;
-      }
-    } catch (e) {
-    }
-    return memSeen;
-  }
-  function setSeen(ts) {
-    memSeen = ts;
-    try {
-      if (typeof GM_setValue === "function") GM_setValue(SEEN_KEY, String(ts));
-    } catch (e) {
-    }
-  }
-  function ensureSeen() {
-    if (!seenAt()) setSeen(Date.now());
-  }
   var timer = null;
   var nextAt = 0;
   var interval = 0;
@@ -11715,7 +11722,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.138：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.139：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -12845,6 +12852,7 @@
         var next = j && j.pcursor != null ? String(j.pcursor) : "";
         if (next === "no_more" || !next || !raws.length || fresh === 0 && raws.length) noMore = true;
         pcursor2 = next;
+        if (firstPage) markSeen();
         armExpanders(list);
         if (firstPage && !list.children.length && noMore) {
           list.appendChild(el("div", "acsv-vempty", "关注的 UP 还没有新动态"));

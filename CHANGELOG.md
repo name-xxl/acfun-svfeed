@@ -3,6 +3,27 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.139（2026-10-04）· 关注红点短访复亮缺口（水位推进改确定性钩子）
+
+- **病灶**（用户问「你看一下关注页的红点提醒和消失逻辑」→ 通读 + harness 实测复现）：0.9.107 的
+  水位推进只挂在轮询里（`poll()` 见关注语境才 `setSeen(now)`），而"进关注语境"只做**视觉清零**
+  （followview.buildFollowView / followstream.enterVideos 的 `setDockBadge(0)`）。tick 5s 一跑但
+  受 nextAt 闸门约束（亮着时 60s）⇒ **访问短于剩余闸门**时水位原地不动，离开后下一拍把同一批
+  `createTime > 水位` 的条目原样数回来 = 复亮同一计数。0.9.107「固定数量未读反复出现」的**间歇版**
+  （取决于进出时机，真机体感"时好时坏"）；既有 badge-poll 场景覆盖不到——它全程手动驱动 poll，
+  等于假设"访问期内必有 in-view poll"。
+- **修法**：水位抽成叶子件 **followseen.js**（零依赖；水位若留在徽标域，followstream 引入它会与
+  既有的 `followbadge → followstream` 成环），推进改**确定性钩子**——"进语境且首屏真的到了"即
+  `markSeen()`：followview 首屏成功回包内（失败不写——用户没看到内容，不得吞掉）、followstream
+  进视频侧（已在流中立即写；全新进入待首屏有货）。poll 的 in-view 分支降级为**兜底**（吸收
+  停留期间新到的内容，保持基准节奏）。判定口径不变（徽标 = `createTime > 水位` 条数）。
+- **测试**：badge-poll 18→23 断言（**第 6 步=缺口回归钉**：水位压回过去 + 一条越水位可渲染样本行
+  → poll 亮 1 → 进视图 → **访问期内零 poll** 直接 Escape → 再 poll 必须不复亮；含"首屏真的到了"
+  与"进视图即写水位"两条前置断言）；follow-videos 24→25（`fv-badge-seen-on-enter`）；单测 211→214
+  （followseen 叶子：往返 / ensureSeen 幂等 / markSeen 推进）。**摘除修复反跑实证**：badge-poll
+  `badge-peek-no-relight` 转红 `text=1 disp=block`（原缺口原样）、`badge-peek-seen-on-load` 同红，
+  follow-videos `fv-badge-seen-on-enter` 转红。README 依赖图 +followseen 节点/三条边/绿叶子名单。
+
 ### 0.9.138（2026-10-04）· 评论版式全语境统一（三处宿主同一门原生形态；form 分派撤除）
 
 - **由头**（用户问「视频评论抽屉、动态评论展开、动态详情卡片的评论三处的布局渲染是分开来的

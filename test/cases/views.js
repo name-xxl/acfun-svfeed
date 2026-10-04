@@ -1910,11 +1910,14 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     await wait(400);
   };
 
-  // ---- 关注未读徽标（0.9.97 起；0.9.107 改时间水位线）----
+  // ---- 关注未读徽标（0.9.97 起；0.9.107 改时间水位线；0.9.139 水位改确定性钩子）----
   // 语义（0.9.107 实报「固定数量未读反复出现」修复）：徽标=**自水位 lastSeenAt 以来的新条数**
-  // （followFeedV2 首屏 createTime > 水位）；进关注语境期间 poll 自持推进水位（看过即已读）→
-  // 离开后不复亮；UP 再发新内容越过水位 → 亮真实新增。旧布尔计数（webPush followUpers，
-  // 服务端长期不清）已退役。场景用 testHook setSeen 控制水位（无 GM 环境走内存降级）
+  // （followFeedV2 首屏 createTime > 水位）；进关注语境=已读 → 离开后不复亮；UP 再发新内容
+  // 越过水位 → 亮真实新增。旧布尔计数（webPush followUpers，服务端长期不清）已退役。
+  // 0.9.139（短访缺口实锤修复）：水位推进从"访问期内撞上轮询闸门"改为确定性钩子（进语境且
+  // 首屏到了即 markSeen），本场景尾部第 6 步就是该缺口的回归钉——**访问期内零 poll** 直接
+  // 离开，断言不复亮（0.9.139 前跑：text=1 disp=block）。场景用 testHook setSeen 控制水位
+  //（无 GM 环境走内存降级）
   C['badge-poll'] = async function (h) {
     var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor, key = h.key, TEST = h.TEST;
     // harness 页无登录 cookie：设假 auth_key（selfUid 只读前缀数字段）
@@ -1997,6 +2000,40 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     }, 5000)), 'text=' + ((q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge') || {}).textContent));
     rec('badge-interval-reset-final', TEST.call('followbadge').interval === 60000,
       'interval=' + TEST.call('followbadge').interval);
+    // 6) **短访回归（0.9.139 缺口的正式钉）**：进视图首屏成功即推进水位——不再依赖访问期内
+    // 撞上轮询闸门。复现路径：水位压回过去 + 一条越水位的新视频行 → poll 亮 1 → 进视图
+    //（首屏到达即已读）→ **访问期内零 poll** 直接 Escape → 再 poll。0.9.139 前为「原样复亮
+    // 同一计数」（实测 text=1 disp=block=间歇性"固定未读反复出现"），现在必须 still none。
+    // 样本用可渲染契约条（视频行），顺带断言"首屏真的到了"——否则"已读"没有依据
+    var bEl = function () { return q('.acsv-dock-item[data-view="follow"] .acsv-dock-badge'); };
+    var t2 = Date.now();
+    TEST.call('followbadge').setSeen(t2 - 100000);
+    window.__FEED_LIST__ = [{
+      resourceType: 2, resourceId: 488777, caption: '短访回归样本',
+      coverUrl: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+      playDuration: '00:10', viewCount: 7, createTime: t2 - 50000, createTimeGroup: 1,
+      likeCount: 1, commentCount: 0, bananaCount: 0, shareCount: 0,
+      user: { userId: 9001, userName: '短访UP', userHead: '', isFollowing: true }
+    }];
+    await TEST.call('followbadge').poll();
+    rec('badge-peek-lit', !!(await waitFor(function () {
+      return bEl() && bEl().textContent === '1' && bEl().style.display === 'block';
+    }, 5000)));
+    location.hash = 'svfeed/follow';
+    rec('badge-peek-row', !!(await waitFor(function () {
+      return document.querySelectorAll('.acsv-mewrap .acsv-frow').length >= 1;
+    }, 8000)), 'n=' + document.querySelectorAll('.acsv-mewrap .acsv-frow').length);
+    rec('badge-peek-seen-on-load', TEST.call('followbadge').seen() > t2 - 50000,
+      'seen=' + TEST.call('followbadge').seen() + ' itemAt=' + (t2 - 50000));
+    rec('badge-peek-cleared', !!(await waitFor(function () {
+      return bEl() && bEl().style.display === 'none';
+    }, 5000)));
+    key('Escape');
+    await wait(400);
+    await TEST.call('followbadge').poll(); // 访问期内零 poll：水位只能来自"首屏到达"这一钩子
+    rec('badge-peek-no-relight', !!(await waitFor(function () {
+      return bEl() && bEl().style.display === 'none';
+    }, 5000)), 'text=' + (bEl() || {}).textContent + ' disp=' + (bEl() || { style: {} }).style.display);
   };
 
   // ---- follow-videos（0.9.99）：关注语境「视频」侧——顶栏 seg → FollowVideos 上下文 →
@@ -2014,11 +2051,17 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     // seg 语境可见、默认「全部」高亮
     var segAll = q('.acsv-seg-follow .acsv-seg-btn:nth-child(2)');
     rec('fv-seg-ctx', !!segAll && segAll.classList.contains('on'));
+    // 视频侧确定性水位（0.9.139）：进「视频」首屏有货即写水位。水位先压回过去，点完断言已
+    // 推进——本场景内轮询闸门为分钟级（挂载首查后 +60s），时钟不会替它推进，断言有效
+    var fvSeen0 = Date.now() - 100000;
+    TEST.call('followbadge').setSeen(fvSeen0);
     // 点「视频」→ 深链首条接管舞台（夹具页1 首条 = 488911）
     q('.acsv-seg-follow .acsv-seg-btn:nth-child(1)').click();
     rec('fv-deeplink', !!(await waitFor(function () {
       return location.hash === '#svfeed/a/488911';
     }, 10000)), location.hash);
+    rec('fv-badge-seen-on-enter', TEST.call('followbadge').seen() > fvSeen0,
+      'seen=' + TEST.call('followbadge').seen() + ' was=' + fvSeen0);
     // dock 高亮归属（0.9.105 实报修复）：舞台放关注流时高亮「关注」而非回落「推荐」
     rec('fv-dock-follow', (function () {
       var b = q('.acsv-dock-item[data-view="follow"]');

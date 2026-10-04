@@ -5,6 +5,7 @@ import { setDockBadge } from './sidebar.js';
 import { FeedStore } from './feedstore.js'; // 仅 enterVideos 运行期触达（0.9.115 断 feedstore↔player 后为普通单向边）
 import { createFeedContext, runChain, registerContext, activateContext } from './feedctx.js';
 import { listVideos } from './momentapi.js';
+import { markSeen } from './followseen.js'; // 进视频侧=已读（0.9.139；水位叶子件，import 方向勿反转）
 import { testHook } from './dbg.js';
 
 // ---------- 关注视频流（0.9.99）：FollowVideos 列表上下文 + followDougaFeed 分页链 ----------
@@ -73,6 +74,7 @@ export function enterVideos() {
   if (FollowVideos.feedActive) {
     var it = FeedStore.items[FeedStore.current] || FeedStore.items[0];
     if (it) {
+      markSeen(); // 已在流中=用户正看关注语境（0.9.139 确定性水位；此前只靠轮询闸门会短访复亮）
       location.hash = CFG.hash + '/a/' + it.id;
       return Promise.resolve(true);
     }
@@ -83,6 +85,7 @@ export function enterVideos() {
   return loadFollowPage('0').then(function (res) {
     var page = res.page; // 0.9.106：loadFollowPage 回 {loaded, page}（并入已在其内完成）
     if (!page.items.length) { FollowVideos.feedActive = false; FollowVideos.done = true; return false; }
+    markSeen(); // 首屏有货=已读（0.9.139；失败/空不写——用户没看到内容，不得吞掉）
     FollowVideos.feedCursor = 1; // 首条由深链置顶，从 1 起泵（items/pcursor 已并入）
     FeedStore.resetForList(); // 深链前清一次：上一源的缓冲与游标不得混进关注流
     location.hash = CFG.hash + '/a/' + FollowVideos.items[0].id;
