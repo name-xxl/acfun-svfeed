@@ -143,6 +143,24 @@
       return !!b && b.style.display !== 'none';
     })());
 
+    // 6.2) 点击决策（0.9.130 真机实报修复）：**以宿主存在为准**（plaza 原语义，不看路径）——
+    // feeds 子页（/following、/fans；真机实测容器是 following-panel/fans-panel，无
+    // .ac-member-feeds）必须走"跳转+自动展开"，而不是静默等宿主（旧路径前缀判断的病灶）
+    (function () {
+      window.__mpMain = q('.ac-member-main');
+      window.__mpMain.remove();
+    })();
+    history.replaceState(null, '', '/member/feeds' + location.search);
+    await wait(50);
+    rec('mp-plan-wait', TEST.call('memberMp').plan() === 'wait', TEST.call('memberMp').plan());
+    history.replaceState(null, '', '/member/feeds/following' + location.search);
+    await wait(50);
+    rec('mp-plan-redirect', TEST.call('memberMp').plan() === 'redirect', TEST.call('memberMp').plan());
+    history.replaceState(null, '', '/member/feeds' + location.search);
+    document.body.appendChild(window.__mpMain);
+    await wait(50);
+    rec('mp-plan-open', TEST.call('memberMp').plan() === 'open', TEST.call('memberMp').plan());
+
     // 6.5) SPA 自愈：推广条被站点重画吞掉后由观察器补回（0.9.129）
     q('[data-acsv-mpromo]').remove();
     rec('mp-banner-heal', !!(await waitFor(function () {

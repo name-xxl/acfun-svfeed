@@ -26,7 +26,10 @@ var timer = null, tries = 0, pendingOpen = false;
 var memAuto = false;   // 无 GM（harness/降级）时的内存旗标
 
 function memberPath() { return /^\/member(\/|$)/.test(location.pathname); }
-function feedsPath() { return /^\/member\/feeds(\/|$)/.test(location.pathname); }
+// 只认**主页面**（`/^\/member\/feeds\/?$/`）：子页（/member/feeds/following、/fans——真机实测容器是
+// following-panel/fans-panel，无 .ac-member-feeds 宿主）不算。此前用前缀匹配把子页误认作 feeds 页
+// → 在子页上走"等宿主"分支静默放弃 = 实报「点了没反应」（2026-10-04 真机复现）
+function feedsPath() { return /^\/member\/feeds\/?$/.test(location.pathname); }
 function hostEl() { return document.querySelector(SEL_MAIN_FEEDS); }
 function noop() { }
 
@@ -103,17 +106,26 @@ function dropStaleState() {
   if (promoEl && promoEl.isConnected) promoEl.style.display = '';
 }
 
+// 点击决策（纯读，onEntry 与 debug 钩子复用）——**以宿主存在为准**（plaza enterPlaza 原语义：
+// 不看路径）：宿主在场就地展开；feeds 主页面宿主未就绪（异步渲染中）→ 等；其余（含 feeds
+// 子页 /following、/fans 与其他个人中心页）→ 跳 /member/feeds 落地自动展开
+function entryPlan() {
+  if (mpRoot && mpRoot.isConnected) return 'refresh';
+  if (hostEl()) return 'open';
+  if (feedsPath()) return 'wait';
+  return 'redirect';
+}
+
 function onEntry() {
-  if (!feedsPath()) { // 非 feeds 成员页：plaza auto_enter 语义（旗标 + 跳转，落地自动展开）
-    setAutoFlag(true);
-    location.href = '/member/feeds';
-    return;
-  }
   // 悬空状态先清再开（0.9.129 真机加固）：Vue SPA 路由切换会重画 feeds 区把内嵌根吞掉——
   // 不清的话"再点入口"只会在死节点上刷新（表象=点击无反应）
   if (mpRoot && !mpRoot.isConnected) dropStaleState();
-  if (mpRoot) { refreshPlaza(); return; } // 已展开再点=刷新（plaza refreshPlaza 语义）
-  if (!openPlaza()) { pendingOpen = true; startTimer(); }
+  var plan = entryPlan();
+  if (plan === 'refresh') { refreshPlaza(); return; } // 已展开再点=刷新（plaza refreshPlaza 语义）
+  if (plan === 'open') { if (!openPlaza()) { pendingOpen = true; startTimer(); } return; }
+  if (plan === 'wait') { pendingOpen = true; startTimer(); return; } // feeds 页宿主未就绪：轮询补开
+  setAutoFlag(true); // plaza auto_enter 语义（旗标 + 跳转，落地自动展开）
+  location.href = '/member/feeds';
 }
 
 // ---------- 入口注入（plaza navigation.js 逐行复刻；0.9.129 接管语义） ----------
@@ -252,6 +264,7 @@ testHook('memberMp', function () {
     attempt: attempt,
     open: openPlaza,
     close: closePlaza,
+    plan: entryPlan,
     state: function () {
       return {
         nav: !!document.querySelector('[data-acsv-mnav]'),

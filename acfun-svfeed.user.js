@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.129
+// @version      0.9.130
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -9103,7 +9103,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.129" : "");
+    return normVer(true ? "0.9.130" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11409,7 +11409,7 @@
     return /^\/member(\/|$)/.test(location.pathname);
   }
   function feedsPath() {
-    return /^\/member\/feeds(\/|$)/.test(location.pathname);
+    return /^\/member\/feeds\/?$/.test(location.pathname);
   }
   function hostEl() {
     return document.querySelector(SEL_MAIN_FEEDS);
@@ -11498,21 +11498,33 @@
     if (itemEl && itemEl.isConnected) itemEl.classList.remove("acsv-mnav-active");
     if (promoEl && promoEl.isConnected) promoEl.style.display = "";
   }
+  function entryPlan() {
+    if (mpRoot && mpRoot.isConnected) return "refresh";
+    if (hostEl()) return "open";
+    if (feedsPath()) return "wait";
+    return "redirect";
+  }
   function onEntry() {
-    if (!feedsPath()) {
-      setAutoFlag(true);
-      location.href = "/member/feeds";
-      return;
-    }
     if (mpRoot && !mpRoot.isConnected) dropStaleState();
-    if (mpRoot) {
+    var plan = entryPlan();
+    if (plan === "refresh") {
       refreshPlaza();
       return;
     }
-    if (!openPlaza()) {
+    if (plan === "open") {
+      if (!openPlaza()) {
+        pendingOpen = true;
+        startTimer();
+      }
+      return;
+    }
+    if (plan === "wait") {
       pendingOpen = true;
       startTimer();
+      return;
     }
+    setAutoFlag(true);
+    location.href = "/member/feeds";
   }
   function tryInjectNav2() {
     if (document.querySelector("[data-acsv-mnav]")) {
@@ -11643,6 +11655,7 @@
       attempt,
       open: openPlaza,
       close: closePlaza,
+      plan: entryPlan,
       state: function() {
         return {
           nav: !!document.querySelector("[data-acsv-mnav]"),
@@ -11671,7 +11684,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.129：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.130：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

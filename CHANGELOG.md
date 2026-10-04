@@ -3,6 +3,20 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.130（2026-10-04）· 内嵌入口子页修复：feeds 子页点击不再静默无反应
+
+- **病灶**（用户实报「还是不行，点了没反应」；控制台线索定位到 `/member/feeds/following`）：
+  点击决策此前用 pathname 前缀判断（`/^\/member\/feeds(\/|$)/` 把 `/following`、`/fans` 子页
+  也算作 feeds 主页）→ 子页上 `openPlaza()` 找不到 `.ac-member-feeds` 宿主（真机实测子页容器
+  是 `following-panel`/`fans-panel`）→ 落入"轮询等宿主"分支 → 10s 后静默放弃 = 点击无反应。
+- **修法**：决策改回**以宿主存在为准**（plaza enterPlaza 原语义，不看路径）——`entryPlan()`
+  四态：refresh（已展开，再点=刷新）/ open（宿主在场，就地展开）/ wait（feeds 主页面宿主未
+  就绪，轮询补开）/ redirect（其余——含 feeds 子页与他人个人中心页——GM 旗标 + 跳
+  `/member/feeds` 落地自动展开）；`feedsPath()` 收紧为 `^\/member\/feeds\/?$`（推广条/SPA
+  自愈的 feeds 判据同步受益）。
+- **测试**：member-plaza +3 断言（23→26）：`mp-plan-wait`（主页面去宿主=等）/
+  `mp-plan-redirect`（子页路径去宿主=跳转）/`mp-plan-open`（复原=就地展开）。
+
 ### 0.9.129（2026-10-04）· 内嵌广场真机加固：SPA 自愈 / 悬空恢复 / 接管旧脚本
 
 - **背景**（真机复现取证）：用内置浏览器（带登录态）在真实 `www.acfun.cn/member/feeds` 上
