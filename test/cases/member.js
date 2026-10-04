@@ -57,6 +57,24 @@
     }, 5000)));
     rec('mp-no-shell', q('#acsv-root') === null); // 无壳前提成立（禁自动挂壳的机器证据）
 
+    // 1.5) 接管旧 plaza 脚本晚到的注入（0.9.129 真机加固：自愈观察器清扫——静态让位会让用户
+    // 点到已 sunset 的旧脚本）
+    (function () {
+      var fakeItem = document.createElement('a');
+      fakeItem.className = 'ac-member-navigation-item ac-member-navigation-sub-item plaza-nav-item';
+      fakeItem.textContent = '旧广场项';
+      q('[data-acsv-mnav]').parentNode.appendChild(fakeItem);
+      var fakePromo = document.createElement('div');
+      fakePromo.className = 'plaza-promotion';
+      fakePromo.textContent = '旧推广条';
+      var own = q('[data-acsv-mpromo]');
+      own.parentNode.insertBefore(fakePromo, own.nextSibling);
+    })();
+    rec('mp-takeover', !!(await waitFor(function () {
+      return !q('.plaza-nav-item') && !q('.plaza-promotion')
+        && document.querySelectorAll('[data-acsv-mnav]').length === 1;
+    }, 4000)));
+
     // 2) 点击导航项 → 就地展开（不跳全屏壳）
     q('[data-acsv-mnav]').click();
     rec('mp-open', !!(await waitFor(function () {
@@ -106,6 +124,15 @@
     window.__ACSV_SQUARE_EXTRA__ = false;
     rec('mp-nav-dedupe', document.querySelectorAll('[data-acsv-mnav]').length === 1);
 
+    // 5.5) 展开态被站点重画吞掉（Vue SPA 路由切换同型）：悬空状态先清再开——再点入口必须
+    // 重开，而不是在死节点上刷新（0.9.129 真机加固的回归钉）
+    q('.acsv-mp').remove(); // 模拟站点重渲染换掉内嵌根（mpRoot 悬空）
+    await wait(150);
+    q('[data-acsv-mnav]').click();
+    rec('mp-stale-recover', !!(await waitFor(function () {
+      return q('.acsv-mp') && document.querySelectorAll('.acsv-mp .acsv-frow').length >= 4;
+    }, 8000)), 'rows=' + document.querySelectorAll('.acsv-mp .acsv-frow').length);
+
     // 6) 点原生「动态」链 → 收回（不 reload：原生 DOM 复原 + 内嵌列表拆除）
     q('#mp-hd-feeds').click();
     rec('mp-close-restore', !!(await waitFor(function () {
@@ -115,6 +142,12 @@
       var b = q('[data-acsv-mpromo]');
       return !!b && b.style.display !== 'none';
     })());
+
+    // 6.5) SPA 自愈：推广条被站点重画吞掉后由观察器补回（0.9.129）
+    q('[data-acsv-mpromo]').remove();
+    rec('mp-banner-heal', !!(await waitFor(function () {
+      return !!q('[data-acsv-mpromo]');
+    }, 4000)));
 
     // 7) 推广条「进入」→ 重开（banner 点击路径）
     q('[data-acsv-mpromo] button').click();

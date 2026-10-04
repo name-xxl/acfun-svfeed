@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.128
+// @version      0.9.129
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -9103,7 +9103,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.128" : "");
+    return normVer(true ? "0.9.129" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11478,11 +11478,25 @@
       p[0].style.display = p[1];
     });
     hiddenNative = [];
-    if (itemEl) itemEl.classList.remove("acsv-mnav-active");
-    if (promoEl) promoEl.style.display = "";
+    if (itemEl && itemEl.isConnected) itemEl.classList.remove("acsv-mnav-active");
+    if (promoEl && promoEl.isConnected) promoEl.style.display = "";
   }
   function refreshPlaza() {
     if (feed) feed.refresh();
+  }
+  function dropStaleState() {
+    if (feed) {
+      feed.stop();
+      feed = null;
+    }
+    mpRoot = null;
+    hiddenNative.forEach(function(p) {
+      p[0].style.display = p[1];
+    });
+    hiddenNative = [];
+    pendingOpen = false;
+    if (itemEl && itemEl.isConnected) itemEl.classList.remove("acsv-mnav-active");
+    if (promoEl && promoEl.isConnected) promoEl.style.display = "";
   }
   function onEntry() {
     if (!feedsPath()) {
@@ -11490,6 +11504,7 @@
       location.href = "/member/feeds";
       return;
     }
+    if (mpRoot && !mpRoot.isConnected) dropStaleState();
     if (mpRoot) {
       refreshPlaza();
       return;
@@ -11500,9 +11515,17 @@
     }
   }
   function tryInjectNav2() {
-    if (document.querySelector("[data-acsv-mnav]") || document.querySelector(".plaza-nav-item")) return true;
+    if (document.querySelector("[data-acsv-mnav]")) {
+      var late = document.querySelector(".plaza-nav-item");
+      if (late) late.remove();
+      return true;
+    }
     var feedsNav = document.querySelector('.sub-nav-title a[href="/member/feeds"]') || document.querySelector('a[href="/member/feeds"]') || document.querySelector('.ac-member-navigation a[href*="/feeds"]');
     if (!feedsNav) return false;
+    var oldItem = document.querySelector(".plaza-nav-item");
+    if (oldItem) oldItem.remove();
+    var oldPromo = document.querySelector(".plaza-promotion");
+    if (oldPromo) oldPromo.remove();
     var link = feedsNav.tagName === "A" ? feedsNav : feedsNav.querySelector('a[href="/member/feeds"]');
     itemEl = el("a", "ac-member-navigation-item ac-member-navigation-sub-item acsv-mnav-item", "动态广场");
     itemEl.href = "#";
@@ -11530,9 +11553,15 @@
   }
   function tryBanner() {
     if (!feedsPath()) return true;
-    if (document.querySelector("[data-acsv-mpromo]") || document.querySelector(".plaza-promotion")) return true;
+    if (document.querySelector("[data-acsv-mpromo]")) {
+      var late = document.querySelector(".plaza-promotion");
+      if (late) late.remove();
+      return true;
+    }
     var header = document.querySelector(".ac-member-feeds-header");
     if (!header) return false;
+    var oldPromo = document.querySelector(".plaza-promotion");
+    if (oldPromo) oldPromo.remove();
     promoEl = document.createElement("div");
     promoEl.setAttribute("data-acsv-mpromo", "1");
     promoEl.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f5f5f5;margin:0 16px 16px;border-radius:4px;font-size:14px;color:#666";
@@ -11583,9 +11612,29 @@
       if (attempt() || ++tries >= CFG.nav.tries) stopTimer();
     }, CFG.nav.retryMs);
   }
+  var healObserver = null;
+  var healTimer = null;
+  function healNeeded() {
+    if (document.querySelector(".plaza-nav-item") || document.querySelector(".plaza-promotion")) return true;
+    if (!document.querySelector("[data-acsv-mnav]")) return true;
+    if (!mpRoot && feedsPath() && document.querySelector(".ac-member-feeds-header") && !document.querySelector("[data-acsv-mpromo]")) return true;
+    return false;
+  }
+  function guardHeal() {
+    if (healTimer) return;
+    healTimer = setTimeout(function() {
+      healTimer = null;
+      if (mpRoot && !mpRoot.isConnected) dropStaleState();
+      if (healNeeded()) attempt();
+    }, 300);
+  }
   function watchMemberNav() {
     if (!memberPath()) return;
     if (!document.querySelector(".acsv-toast")) document.body.appendChild(el("div", "acsv-toast"));
+    if (!healObserver) {
+      healObserver = new MutationObserver(guardHeal);
+      healObserver.observe(document.body, { childList: true, subtree: true });
+    }
     if (attempt()) return;
     startTimer();
   }
@@ -11622,7 +11671,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.128：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.129：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
