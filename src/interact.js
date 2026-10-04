@@ -42,10 +42,9 @@ export function setRealLike(item, on) {
 //（关注全落"未分组"、无组选择）。关注/取关/改分组已收口到 relationapi.js + 分组选择层
 //（grouppop.js：关注角标点开=「选择分组/更改分组」，官方口径）。退役登记，勿再加回。
 
-// 收藏/取消收藏（home）
-export function setRealFavorite(item, on) {
-  return AppAPI.setFavorite(item.id, on);
-}
+// （0.9.143 退役）setRealFavorite(item, on)：原实现 = AppAPI.setFavorite（落"第一个收藏夹"的快速
+// 收藏，0.9.30 起）。收藏改「弹层选夹」官方口径后，写链收口 favapi.js（三分支 add/updateFolder/
+// remove）+ favpop.js（选择层）；appapi 的 ensureFavFolder/默认夹缓存同批迁出退役。勿再加回。
 
 // 投蕉（home）：count 1~5
 export function giveBanana(item, count) {

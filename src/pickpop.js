@@ -102,16 +102,22 @@ export function openPickPop(btn, opts) {
   foot.appendChild(ok);
   pop.appendChild(foot);
 
-  var init = {}; // 初始勾选集快照（多选差集用）
-  var sel = {};  // 当前选中
+  // init=开场勾选集快照（多选差集基准）：**只在首渲染采一次**——层内新建的夹不在 init 里，
+  //   因此在"已收藏→差集移动"分支里天然算 added（0.9.143 实锤：若 refresh 也写 init，
+  //   新建夹会被吞成"本来就有"，update 差集漏发）。
+  // sel=当前选中：**每次渲染都按渲染态重建**——否则新建后 refresh 只改了渲染、sel 还是旧集，
+  //   界面勾了两个却只提交一个（0.9.143 首跑实锤）。
+  var init = {};
+  var sel = {};
+  var firstRender = true;
   var itemEls = [];
   function renderItems(items) {
     body.textContent = '';
     itemEls = [];
+    sel = {};
     if (!items.length) body.appendChild(el('div', 'acsv-pick-empty', opts.emptyText || '暂无可选项'));
     items.forEach(function (it) {
-      if (it.on) init[it.id] = 1;
-      if (it.on) sel[it.id] = 1;
+      if (it.on) { if (firstRender) init[it.id] = 1; sel[it.id] = 1; }
       var row = pickItem(it, multi ? 'multi' : 'single', !!it.on, function (b) {
         if (multi) {
           if (sel[it.id]) { delete sel[it.id]; b.classList.remove('on'); b.firstChild.textContent = ''; }
@@ -127,6 +133,7 @@ export function openPickPop(btn, opts) {
       itemEls.push(row);
       body.appendChild(row);
     });
+    firstRender = false;
     syncOk();
   }
   function selIds() { return Object.keys(sel); }
@@ -202,7 +209,7 @@ export function openPickPop(btn, opts) {
     opts.load().then(function (res) {
       if (my !== seq || !pop.isConnected) return;
       body.textContent = '';
-      if (pickId) { sel = {}; sel[String(pickId)] = 1; }
+      // 只改**渲染输入**（pickId 项标 on）；sel 由 renderItems 按渲染态重建——这里不许手改 sel
       var items = ((res && res.items) || []).map(function (it) {
         return pickId && String(it.id) === String(pickId)
           ? { id: it.id, name: it.name, count: it.count, on: true } : it;

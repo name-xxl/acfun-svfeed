@@ -3,8 +3,9 @@ import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
 import { el, elHtml, fmt, toast } from './ui.js';
 import { imgInto } from './imgload.js';
 import { FeedStore } from './feedstore.js';
-import { setRealLike, setRealFavorite, giveBanana } from './interact.js';
+import { setRealLike, giveBanana } from './interact.js';
 import { openFollowGroupPop } from './grouppop.js'; // 关注角标→分组选择层（0.9.142）
+import { openFavFolderPop } from './favpop.js'; // 收藏键→收藏夹选择层（0.9.143）
 import { openSharePanel } from './sharepanel.js';
 import { toggleBananaPop } from './banpop.js';
 
@@ -214,20 +215,21 @@ export function buildSideRail(slide, item, goTo) {
     };
   }
   if (item.cap.favorite) {
-    // 收藏
+    // 收藏（0.9.143 官方口径）：点开=「选择收藏夹」层（多选勾选 + 行内新建 + 已藏回显；确定按
+    // 三分支提交 add/updateFolder/remove，见 favpop）。旧的"单击直接落第一个夹"退役（0.9.30 起
+    // 的 ensureFavFolder 默认夹体系随之退场）——未收藏默认勾第一个夹，点开即确定≈原一步路径。
     var favUI = railBtn({ mask: VIDEO_ICONS.favorite, svg: ICONS.star }, fmt(item.fav), '收藏', function (b) {
-      var turnOn = !item.favorited;
       b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
-      withBusy(item, 'favBusy', function () {
-        return setRealFavorite(item, turnOn);
-      }, function (ok) {
-        if (ok) {
-          item.favorited = turnOn;
-          toast(turnOn ? '已加入收藏' : '已取消收藏');
-        } else {
-          toast('收藏失败（未登录？）');
+      openFavFolderPop(b, {
+        acId: item.id,
+        favorited: !!item.favorited,
+        done: function (res) {
+          var was = !!item.favorited;
+          item.favorited = !!res.favorited;
+          // 收藏数是"被收藏总数"：态翻转才动 1（同一夹重复勾选不叠加）
+          if (was !== item.favorited) item.fav = Math.max(0, (item.fav || 0) + (item.favorited ? 1 : -1));
+          if (slide._favSync) slide._favSync();
         }
-        b.classList.toggle('on', item.favorited);
       });
     });
     favUI.btn.classList.toggle('on', item.favorited);

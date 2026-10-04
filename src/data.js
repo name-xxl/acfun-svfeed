@@ -547,6 +547,31 @@ export function folderNameError(name) {
   return '';
 }
 
+// ---------- 收藏夹契约（0.9.143；字段真机核对 2026-10-04，docs/api-research.md §4.2） ----------
+// 夹列表规整：folder/list → dataList[] {folderId, name, resourceCount, inFolder} → [{id,name,count,inFolder}]。
+// **inFolder 只在请求带 resourceId 时才有意义**（收藏弹窗的勾选态数据源，§4.2 实测）；不带时恒缺省
+export function folderListOf(j) {
+  var raws = (j && (j.dataList || j.data)) || [];
+  var out = [];
+  raws.forEach(function (f) {
+    if (!f || f.folderId == null) return;
+    out.push({
+      id: String(f.folderId),
+      name: String(f.name == null ? '' : f.name),
+      count: f.resourceCount != null ? Number(f.resourceCount) || 0 : null,
+      inFolder: !!f.inFolder
+    });
+  });
+  return out;
+}
+
+// 建夹响应 → 新夹 id：真机形状 `{result:0, data:{folderId, name, resourceCount, …}}`（data 是夹 meta）。
+// 拿不到 data 的形态（纯 {result:0}）返回 ''——调用方回查夹列表兜底
+export function folderIdOf(j) {
+  var d = (j && j.data) || j || {};
+  return d.folderId != null && d.folderId !== '' ? String(d.folderId) : '';
+}
+
 // 广场流单页规整（0.9.125，§2.7 实测；0.9.126 收口 **24h 窗口**；0.9.127 出 **freshIds**）：
 // feedSquare 响应 → {items:[pi], nextCursor, noMore, freshIds}。窗口=广场的原味（plaza：翻到
 // 发布 >24h 即止）——超窗条目逐条剔除且**直接判到底**（首屏/翻页两态同此判据）；freshIds=

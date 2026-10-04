@@ -1,13 +1,15 @@
 import { CFG } from './cfg.js';
 import { el, selfUid, fmt, toast } from './ui.js';
 import { postForm } from './appapi.js';
-import { panelItem, meCardOf, groupNameError } from './data.js';
+import { panelItem, meCardOf, groupNameError, folderNameError } from './data.js';
 import { gridCardOf, moreBtn, skeletonRows } from './cards.js';
 import { registerView } from './viewreg.js';
 import { imgInto } from './imgload.js';
 import { getGroups, listFollows, createGroup, renameGroup, removeGroup, unfollowUser } from './relationapi.js';
 import { openFollowGroupPop } from './grouppop.js';
 import { openConfirmPop } from './pickpop.js';
+import { folderList, folderAdd, folderRename, folderDelete, favRemove } from './favapi.js';
+import { openFavFolderPop } from './favpop.js';
 
 // ---------- 我的视图（0.9.62 起；0.9.69 抖音式个人主页改造）----------
 // 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（观看历史｜收藏夹）→ 3:4 封面网格。
@@ -118,54 +120,191 @@ function buildHistory(panel) {
 }
 
 // ---- 收藏夹：夹 chips（列表之上）→ 单夹 dougaList 翻页 ----
+// ---- 收藏夹：夹 chips（列表之上）→ 单夹 dougaList 翻页；**0.9.143 管理化** ----
+// 管理面：＋新建夹 / 组头「改名·删除收藏夹」（删除二次确认——**连带移除仅存于该夹的收藏记录**，
+// 2026-10-04 隔离实测在册）+ 卡面 hover「移动 / 移除收藏」两键。读链走 favapi（folderList 带
+// inFolder 是选择层专用，本页只用夹表与 dougaList）；夹 id/名一律字符串。
+// 骨架沿用 0.9.77 的 moreBtn 回调驱动与 seq 令牌（换夹/删夹丢弃在途回包）。
 function buildFav(panel) {
   var chips = el('div', 'acsv-vchips');
+  var ops = el('div', 'acsv-gops');
+  var form = el('div', 'acsv-gform');
+  form.style.display = 'none';
+  panel.appendChild(chips);
+  panel.appendChild(ops);
+  panel.appendChild(form);
   var list = rowList(panel, 'fav');
-  // 0.9.77 修：旧实现 moreBtn(null) 仍被其内部 onClick(b) 调用——每次点击抛 TypeError 且
-  // 按钮卡死「加载中…」（load 收的是 null，无人复位）。改为经 moreBtn 回调统一驱动
   var btn = moreBtn(function () { load(); });
   panel.appendChild(btn);
+  var folders = [];
   var folderId = null, page = 0, seq = 0; // seq：换夹令牌，旧夹在途回包丢弃（0.9.77）
 
-  var gone = skeleton(list);
-  postForm(CFG.api.favFolderList, '').then(function (j) {
-    gone();
-    if (!list.isConnected) return;
-    var folders = (j && (j.dataList || j.data)) || [];
-    if (!folders.length) {
-      panel.insertBefore(el('div', 'acsv-vempty', '还没有收藏夹'), list);
-      btn.style.display = 'none';
-      return;
-    }
-    folders.forEach(function (f, i) {
-      var c = el('button', 'acsv-vchip' + (i === 0 ? ' on' : ''),
-        (f.name || '收藏夹') + (f.resourceCount != null ? ' ' + f.resourceCount : ''));
+  function curFolder() {
+    for (var i = 0; i < folders.length; i++) if (folders[i].id === folderId) return folders[i];
+    return null;
+  }
+
+  function renderChips() {
+    chips.textContent = '';
+    folders.forEach(function (f) {
+      var c = el('button', 'acsv-vchip' + (f.id === folderId ? ' on' : ''),
+        (f.name || '收藏夹') + (f.count != null ? ' ' + f.count : ''));
+      c.type = 'button';
       c.addEventListener('click', function () {
-        if (folderId === f.folderId) return;
-        Array.prototype.forEach.call(chips.children, function (x) { x.classList.remove('on'); });
-        c.classList.add('on');
-        folderId = f.folderId;
+        if (folderId === f.id) return;
+        folderId = f.id;
         page = 0;
         seq++; // 作废旧夹在途回包（慢网连点换夹：旧行不得追加进新夹列表）
-        list.innerHTML = '';
+        list.textContent = '';
         btn.style.display = '';
         btn.disabled = false;
         btn.textContent = '加载更多';
+        renderChips();
         load();
       });
       chips.appendChild(c);
-      if (i === 0) folderId = f.folderId; // 默认选中第一个夹
     });
-    // chips 插在**列表之前**（0.9.69 修：原先 insertBefore(chips, btn) 落在列表下方，
-    // 夹位选择器跑到视频行底下；真机几何实测 favRow0 y=833 < chips y=997 实锤）
-    panel.insertBefore(chips, list);
-    if (folderId) load();
-  }, function () {
-    gone();
-    if (!list.isConnected) return;
-    panel.insertBefore(el('div', 'acsv-vempty', '收藏夹加载失败'), list);
-    btn.style.display = 'none';
-  });
+    var add = el('button', 'acsv-vchip', '＋ 新建夹');
+    add.type = 'button';
+    add.addEventListener('click', function () { openForm('create'); });
+    chips.appendChild(add);
+    renderOps();
+  }
+
+  function renderOps() {
+    ops.textContent = '';
+    var f = curFolder();
+    if (!f) return;
+    var rn = el('button', 'acsv-vchip sm', '改名');
+    rn.type = 'button';
+    rn.addEventListener('click', function () { openForm('rename', f); });
+    var del = el('button', 'acsv-vchip sm acsv-gdanger', '删除收藏夹');
+    del.type = 'button';
+    del.addEventListener('click', function () {
+      openConfirmPop(del, {
+        title: '删除收藏夹',
+        text: '「' + f.name + '」及其中收藏会一并移除（视频本身不受影响，不可恢复）。',
+        okLabel: '删除',
+        run: function () { return folderDelete(f.id); },
+        done: function () { toast('已删除收藏夹：' + f.name); folderId = null; refreshFolders(); }
+      });
+    });
+    ops.appendChild(rn);
+    ops.appendChild(del);
+  }
+
+  // 建夹/改名共用内联表单（夹名正则与后端口径一致，见 data.folderNameError）
+  function openForm(mode, f) {
+    form.textContent = '';
+    form.style.display = '';
+    var input = el('input', 'acsv-ginput');
+    input.maxLength = 40;
+    input.placeholder = '收藏夹名（1~40 字）';
+    if (mode === 'rename') input.value = f.name;
+    var ok = el('button', 'acsv-gok', mode === 'rename' ? '改名' : '新建');
+    ok.type = 'button';
+    var cancel = el('button', 'acsv-gcancel', '取消');
+    cancel.type = 'button';
+    var err = el('span', 'acsv-gerr');
+    var label = mode === 'rename' ? '改名' : '新建';
+    cancel.addEventListener('click', function () { form.style.display = 'none'; form.textContent = ''; });
+    ok.addEventListener('click', function () {
+      if (form._busy) return;
+      var name = (input.value || '').trim();
+      var msg = folderNameError(name);
+      if (msg) { err.textContent = msg; return; }
+      form._busy = true;
+      ok.textContent = '提交中…';
+      var req = mode === 'rename' ? folderRename(f.id, name) : folderAdd(name);
+      req.then(function (made) {
+        form._busy = false;
+        ok.textContent = label;
+        if (!made) { err.textContent = label + '失败（重名或未登录？）'; return; }
+        form.style.display = 'none';
+        form.textContent = '';
+        toast(mode === 'rename' ? '已改名：' + name : '已新建收藏夹：' + name);
+        // 新建：选中新夹（id 来自响应 data.folderId）；改名：停在原夹
+        if (mode === 'create') folderId = String(made);
+        refreshFolders();
+      }, function () {
+        form._busy = false;
+        ok.textContent = label;
+        err.textContent = '操作失败（未登录？）';
+      });
+    });
+    form.appendChild(input);
+    form.appendChild(ok);
+    form.appendChild(cancel);
+    form.appendChild(err);
+    input.focus();
+  }
+
+  // 夹表刷新（建/改名/删/移动/移除后——计数与选中态都要跟着动）；当前夹没了回落第一个
+  function refreshFolders() {
+    return folderList().then(function (fs) {
+      if (!list.isConnected) return;
+      folders = fs;
+      if (!curFolder()) folderId = folders.length ? folders[0].id : null;
+      renderChips();
+      if (!folders.length) {
+        list.textContent = '';
+        list.appendChild(el('div', 'acsv-vempty', '还没有收藏夹'));
+        btn.style.display = 'none';
+        return;
+      }
+      page = 0;
+      seq++;
+      list.textContent = '';
+      btn.style.display = '';
+      btn.disabled = false;
+      btn.textContent = '加载更多';
+      load();
+    }, function () {
+      if (!list.isConnected) return;
+      list.textContent = '';
+      list.appendChild(el('div', 'acsv-vempty', '收藏夹加载失败'));
+      btn.style.display = 'none';
+    });
+  }
+
+  // 卡面 + hover 管理键（移动=调整收藏夹弹层；移除=二次确认）——wrapper 是网格项，卡面照常进
+  function favCell(pi) {
+    var box = el('div', 'acsv-favcell');
+    box.appendChild(gridCardOf(pi));
+    var acts = el('div', 'acsv-favacts');
+    var mv = el('button', 'acsv-vchip sm', '移动');
+    mv.type = 'button';
+    mv.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      openFavFolderPop(mv, {
+        acId: pi.acId, favorited: true, title: '调整收藏夹',
+        done: function (res) {
+          // 本夹被取消勾选（或整条移除）→ 该卡不再属于当前列表：摘除；否则原地留（夹计数刷新）
+          if (!res.ids.length || res.ids.indexOf(String(folderId)) < 0) box.remove();
+          refreshFolders();
+        }
+      });
+    });
+    var rm = el('button', 'acsv-vchip sm', '移除收藏');
+    rm.type = 'button';
+    rm.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      openConfirmPop(rm, {
+        title: '移除收藏',
+        text: '把「' + (pi.title || '这条视频') + '」从所有收藏夹移除？',
+        okLabel: '移除',
+        run: function () { return favRemove(pi.acId, [folderId]); },
+        done: function () { toast('已移除收藏'); box.remove(); refreshFolders(); }
+      });
+    });
+    acts.appendChild(mv);
+    acts.appendChild(rm);
+    box.appendChild(acts);
+    return box;
+  }
+
+  var gone = skeleton(list);
+  refreshFolders().then(gone);
 
   function load() {
     if (!folderId) { // 夹列表未到（按钮先于数据可见）：复位按钮，不发废请求
@@ -186,7 +325,7 @@ function buildFav(panel) {
           var pi = panelItem('fav', raw);
           if (pi) rows.push(pi);
         });
-        rows.forEach(function (pi) { list.appendChild(gridCardOf(pi)); });
+        rows.forEach(function (pi) { list.appendChild(favCell(pi)); });
         // total 对照判定到底（favoriteList 与 folder/info 的 resourceCount 自洽，§4.2 实测）
         if ((j && rows.length < CFG.view.pageSize) || !rows.length) btn.style.display = 'none';
         if (!rows.length && page === 1) list.appendChild(el('div', 'acsv-vempty', '这个夹还没有收藏'));

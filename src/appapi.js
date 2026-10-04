@@ -88,18 +88,9 @@ function intToHex(n) {
   return '#' + ('000000' + (n & 0xFFFFFF).toString(16)).slice(-6);
 }
 
-// 默认收藏夹：收藏必须落夹，快速收藏统一进第一个夹（对齐 acfunsdk 的 default_fid 做法）。
-// 会话内缓存 + 单飞（singleFlight）；无任何收藏夹时抛错（极罕见，需先在站内创建）
-var favFolderFlight = singleFlight(function () {
-  return postForm(CFG.api.favFolderList, '').then(function (j) {
-    var list = (j && (j.dataList || j.data)) || [];
-    if (list.length && list[0].folderId != null) return String(list[0].folderId);
-    throw new Error('no-fav-folder');
-  });
-});
-function ensureFavFolder() {
-  return favFolderFlight.get();
-}
+// （0.9.143 迁出退役）默认收藏夹体系（favFolderFlight/ensureFavFolder）与 setFavorite：收藏改
+// 「弹层选夹」（官方口径）后不再有"快速落第一个夹"路径，收藏写链整体收口 **favapi.js**
+//（三分支 add/updateFolder/remove + 夹 CRUD），操作面在 favpop.js（选择层）与 mypage（夹管理）。
 
 export var AppAPI = {
   // ---- 首页推荐流 ----
@@ -220,20 +211,9 @@ export var AppAPI = {
     return p;
   },
 
-  // ---- 收藏（PC 端收藏夹体系） ----
-  // 视频 resourceType=9（收藏体系专用枚举，acfunsdk 里显式做 2→9 映射），且必须
-  // 落进收藏夹（addFolderIds/delFolderIds）。此前调的 APP 端 /rest/app/favorite
-  // 不带收藏夹参数，服务端返回 result:0 但实际不入库——「提示成功却没收藏」的根源。
-  // 网页 Cookie 即可鉴权（同域 fetch，无需 api_st），协议与 AcFunHelper/acfunsdk 一致
-  setFavorite: function (acId, on) {
-    return ensureFavFolder().then(function (fid) {
-      return postForm(on ? CFG.api.favoriteAdd : CFG.api.favoriteRemove, on
-        ? 'resourceId=' + acId + '&resourceType=9&addFolderIds=' + fid
-        : 'resourceType=9&resourceId=' + acId + '&delFolderIds=' + fid);
-    }).then(function (j) {
-      return !!(j && j.result === 0);
-    }, function () { return false; });
-  },
+  // （0.9.143 退役）setFavorite：见上方迁出登记——收藏写链已整体收口 favapi.js（resourceType=9
+  // 与"必须落夹"两条协议原样保留在那里；APP 端不带夹参数"提示成功却没收藏"的教训也在册）
+
   // ---- 投蕉（PC 端点，网页 Cookie 即可） ----
   // 推荐模式互动统一走 web 通道（收藏/关注/点赞/投蕉）。resourceType=2 与 APP 端同义
   // （acfunsdk AcVideo 的 resource_type 即 2）；count 1~5

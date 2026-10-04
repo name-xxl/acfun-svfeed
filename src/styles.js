@@ -979,6 +979,16 @@ var RAW_CSS = ''
   + '.acsv-grow-meta{display:flex;align-items:center;gap:12px;margin-top:5px;font-size:12px;color:#8a90a0}'
   + '.acsv-grow-tag{padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.1);color:#cfd3da}'
   + '.acsv-grow-acts{display:flex;gap:8px;flex:none}'
+  // ---- 收藏夹管理（0.9.143，我的页收藏夹 tab）：卡面 hover 的「移动/移除收藏」两键 ----
+  // wrapper 是网格项（.acsv-megrid 的直接子级），卡面在其内照常拉伸；两键绝对定位贴封面右上，
+  // hover 才显形（桌面习惯；不遮封面主体）
+  + '.acsv-favcell{position:relative;min-width:0;display:flex;flex-direction:column}'
+  + '.acsv-favcell .acsv-gcell{flex:1}'
+  + '.acsv-favacts{position:absolute;right:6px;top:6px;display:flex;gap:6px;z-index:2;opacity:0;'
+  + 'transition:opacity .15s}'
+  + '.acsv-favcell:hover .acsv-favacts{opacity:1}'
+  + '.acsv-favacts .acsv-vchip{background:rgba(0,0,0,.62);color:#fff}'
+  + '.acsv-favacts .acsv-vchip:hover{background:rgba(0,0,0,.8)}'
   // 搜索视图（0.9.72 抖音式）：结果网格。0.9.73 起视图内的搜索胶囊（.acsv-vsrow）删除——
   // 共享顶栏的搜索框即本视图唯一输入框（syncTopbar 按地址关键词回填）；.acsv-sbox 基础
   // 胶囊样式保留为共享件（顶栏 .acsv-top .acsv-sbox 覆盖定位/宽度）。卡片复用我页

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf, momentPiOfRepost, momentExtraOf, squarePageOf, momentDetailStateOf, nameColorCss, frameUrlOf, groupListOf, followListPageOf, newGroupIdOf, groupNameError, folderNameError } = await import('../../src/data.js');
+var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, parseSearchItems, followVideoPageOf, momentPiOfRepost, momentExtraOf, squarePageOf, momentDetailStateOf, nameColorCss, frameUrlOf, groupListOf, followListPageOf, newGroupIdOf, groupNameError, folderNameError, folderListOf, folderIdOf } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -876,4 +876,23 @@ test('组名/夹名校验：字符集与长度（站点 chunk 正则）+ 保留�
   assert.equal(folderNameError('我的收藏夹'), '');
   assert.notEqual(folderNameError('a'.repeat(41)), ''); // 40 上限
   assert.equal(folderNameError('a'.repeat(40)), '');
+});
+
+// ---------- 收藏夹契约（0.9.143；样本形状为 2026-10-04 真机抓包） ----------
+test('folderListOf：夹表规整（id 字符串 / count / inFolder 勾选态）', () => {
+  var fs = folderListOf({ result: 0, dataList: [
+    { folderId: 25698647, name: '默认收藏夹', resourceCount: 7, inFolder: false },
+    { folderId: '73414454', name: 'AC', resourceCount: 10, inFolder: true },
+    { name: '无 id 丢弃' }
+  ]});
+  assert.equal(fs.length, 2);
+  assert.deepEqual(fs[0], { id: '25698647', name: '默认收藏夹', count: 7, inFolder: false });
+  assert.equal(fs[1].inFolder, true);
+  assert.deepEqual(folderListOf(null), []);
+});
+
+test('folderIdOf：建夹响应 data.folderId（真机形状）/ 缺 data 回空', () => {
+  assert.equal(folderIdOf({ result: 0, data: { folderId: '77466978', name: '临时验证夹', resourceCount: 0 } }), '77466978');
+  assert.equal(folderIdOf({ result: 0 }), '');
+  assert.equal(folderIdOf(null), '');
 });

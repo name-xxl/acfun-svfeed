@@ -317,7 +317,16 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
 - 建夹：`POST …/favorite/folder/add` body `name=<夹名>`——名称限 `^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,40}$`（中英数下划线，**无连字符/空格**，视频页 chunk 校验正则）→ data.folderId（data 形状同 folder/info 夹 meta）
 - 删夹：`POST …/favorite/folder/delete` body `folderId=<夹id>` → result 0（弹窗 chunk 未出现该端点——PC 删除入口不在收藏弹窗里；真机实测可用）
 - 实测闭环链：建夹→加藏（folder/list 勾选态翻转 inFolder=true、夹内 dougaList total=1）→updateFolder 移动→移除→删夹，各步 result 0，终态夹列表复原
-- 对接现状：脚本现行 add=resourceType 9 落第一个夹（appapi.js ensureFavFolder），缺口=夹选择器/建夹/移动——写侧端点已齐，可立项补全
+- **复验补记（0.9.143 实施前置，2026-10-04；两次隔离测试、终态逐项复原）**：
+  - **删夹会连带移除仅存于该夹的收藏记录**（隔离实测：未收藏靶 → 建夹→加藏（inFolder=true、n=1）→
+    删夹 ⇒ 该条收藏整体消失、不落任何夹）——UI 删除确认必须照此明示
+  - **收藏夹改名端点：`POST …/favorite/folder/update`** body `folderId=<id>&name=<新名>` → result 0 且名称落库
+    （探测实测：名字真改成带 x 后立即改回，库侧逐项复原）——此前"弹窗 chunk 未出现该端点"的空白在此补上；
+    另探两个候选（`folder/edit`、`folder/modify`）均 404，勿再试
+  - 建夹响应 `data` 即夹 meta（含 **folderId**）；`resource/add` 回包另带 `failFolderIdList`（夹上限失败列表，本项目未消费）
+- 对接现状：**0.9.143 已落地全闭环**——favapi（写链收口：三分支 add/updateFolder/remove + 夹 CRUD）+
+  favpop（选择层）+ rail 收藏键改弹层（未收藏默认勾第一个夹）+ 我的页夹管理（建/改名/删 +
+  卡面移动/移除）；旧的 ensureFavFolder（落第一个夹的快速收藏）随弹层口径退役
 
 ### 4.3 用户搜索（新发现）
 

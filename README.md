@@ -399,6 +399,8 @@ flowchart LR
   relationapi["relationapi.js（关注域读写·分组 CRUD）"]
   grouppop["grouppop.js（关注分组选择层·语义件）"]
   pickpop["pickpop.js（通用选择层·锚定弹层壳）"]
+  favapi["favapi.js（收藏域读写·夹 CRUD）"]
+  favpop["favpop.js（收藏夹选择层·语义件）"]
   data --> imgurl & ubbtext
   imgview --> overlay
   imgload --> imgurl
@@ -442,9 +444,11 @@ flowchart LR
   commentkit --> imicons & imgload & ubb
   interact --> appapi
   release --> overlay & settings
-  mypage --> appapi & cards & grouppop & imgload & pickpop & relationapi & viewreg
+  mypage --> appapi & cards & favapi & favpop & grouppop & imgload & pickpop & relationapi & viewreg
   relationapi --> appapi
   grouppop --> pickpop & relationapi
+  favapi --> appapi
+  favpop --> favapi & pickpop
   zone --> appapi & cards & viewreg
 
   classDef leaf fill:#e8f5e9,stroke:#2e7d32;

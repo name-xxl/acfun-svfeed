@@ -98,7 +98,9 @@ const HARNESS_CASES = [
   // 0.9.97 关注未读徽标（webPush 桩驱动 poll 状态机：计数/回落/翻倍/进视图不打扰）
   { name: 'badge-poll' },
   // 0.9.142 关注分组全闭环（我的页第三 tab 建/改名/删/移组/取关 + rail 分组选择层两态）
-  { name: 'follow-groups' }
+  { name: 'follow-groups' },
+  // 0.9.143 收藏夹全闭环（rail 选择层三分支 + 我的页建/改名/删夹与移动/移除）
+  { name: 'fav-folders' }
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

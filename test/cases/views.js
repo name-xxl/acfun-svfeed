@@ -191,7 +191,11 @@ rec('fav-chips-above', (function () {
   return chips.getBoundingClientRect().bottom <= first.getBoundingClientRect().top + 1;
 })());
 var fchips = q('.acsv-mepanel[data-tab="fav"] .acsv-vchips').children;
-var chip2 = fchips.length >= 2 ? fchips[fchips.length - 1] : null; // 夹二在收藏 chips 组末尾
+// 0.9.143 起 chips 末尾是「＋ 新建夹」——按**文案**取「夹二」（不再取末位 child）
+var chip2 = null;
+for (var fc = 0; fc < fchips.length; fc++) {
+  if (fchips[fc].textContent.indexOf('夹二') === 0) { chip2 = fchips[fc]; break; }
+}
 if (chip2) chip2.click();
 rec('fav-switch-rows', !!(await waitFor(function () {
   var cells = document.querySelectorAll('.acsv-vlist.fav .acsv-gcell');

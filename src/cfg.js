@@ -66,6 +66,14 @@ export var CFG = {
     favoriteRemove: 'https://www.acfun.cn/rest/pc-direct/favorite/resource/remove',
     favFolderList: 'https://www.acfun.cn/rest/pc-direct/favorite/folder/list',
     favDougaList: 'https://www.acfun.cn/rest/pc-direct/favorite/resource/dougaList',
+    // 收藏夹管理（0.9.143；docs/api-research.md §4.2 写侧全实测）：建夹（响应 data.folderId）/
+    // 删夹（**连带移除仅存于该夹的收藏记录**——2026-10-04 隔离实测）/ 改夹移动（add+del 差集）
+    favFolderAdd: 'https://www.acfun.cn/rest/pc-direct/favorite/folder/add',
+    favFolderDelete: 'https://www.acfun.cn/rest/pc-direct/favorite/folder/delete',
+    // 收藏夹改名（0.9.143 探到并真机验证：`folderId&name` → result 0 且名称落库，探测样本已复原
+    // ——docs §4.2 原"PC 删除入口不在弹窗里"同批未覆盖的缺口，此处补上）
+    favFolderUpdate: 'https://www.acfun.cn/rest/pc-direct/favorite/folder/update',
+    favResUpdate: 'https://www.acfun.cn/rest/pc-direct/favorite/resource/updateFolder',
     bananaPc: 'https://www.acfun.cn/rest/pc-direct/banana/throwBanana',
     // ---- 视图面板（0.9.62，契约见 docs/api-research.md §4/§6 实测） ----
     history: 'https://www.acfun.cn/rest/pc-direct/browse/history/list',
