@@ -3,6 +3,21 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.153（2026-10-04）· 动态正文可划选复制（实报「动态正文不支持拖动选择复制」）
+
+- **病灶**（用户实报）：`#acsv-root` 全局 `user-select:none`（竖刷页防误选手势），此前只给
+  **评论正文**开过例外——**动态正文三处全被锁死**：关注流/广场行卡 `.acsv-frow-text`、
+  动态详情面板 `.acsv-mdetail-text`、引用卡（转发源）`.acsv-gquote-textbody`。
+- **修法**：三处正文按评论正文先例开 `user-select:text`（只开正文——名字/时间/按键仍不可选，
+  防误选）；**顺修**行卡委托 `wireRowList`：**划选收尾的 click 不触发行默认**（否则拖选完
+  松手即把详情/播放打开）——与同函数内图片「划选收尾不弹大图」（`sel.isCollapsed` 判据，
+  commentListClick 先例）同一纪律。
+- **测试**：detail-open 38→**41 断言**——`detail-row-text-selectable`（行卡正文 computed
+  user-select=text）/ `detail-panel-text-selectable`（面板正文同）/ `detail-select-no-open`
+  （程序化划选后点行：面板**不**开且选区仍在；清选区后点击才开——下述既有 detail-panel-open
+  即该主路径）。**反跑实证**：撤 `user-select:text` + 撤划选守卫 ⇒ 前两条与第三条同时转红
+  （修前打印 `none` / `sel=0`）。lint/check + 全量 46 场景全绿。
+
 ### 0.9.152（2026-10-04）· UP 卡最近投稿行固定三列（实报「出现一张单独的大封面」）
 
 - **病灶**（用户实报，搜索 UP主 类目）：UP 卡下方「最近投稿」小卡行用了 `flex:1` ——

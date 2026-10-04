@@ -1987,6 +1987,30 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       if (cards[i].matches('.acsv-frow') && /无图动态/.test(cards[i].textContent)) { mCard = cards[i]; break; }
     }
     rec('detail-moment-card', !!mCard);
+    // 正文划选复制（0.9.153 实报「动态正文不支持鼠标拖动选择复制」）：正文 computed user-select
+    // 必须是 text（root 全局 none 之上的例外区，评论正文先例）；且**划选收尾不触发行默认**——
+    // 拖选完的 click 不许把详情面板打开（同「划选收尾不弹大图」判据），清选区后再点才开
+    rec('detail-row-text-selectable', (function () {
+      var t = mCard && mCard.querySelector('.acsv-frow-text');
+      return !!t && getComputedStyle(t).userSelect === 'text';
+    })(), (function () {
+      var t = mCard && mCard.querySelector('.acsv-frow-text');
+      return t ? getComputedStyle(t).userSelect : 'no-text';
+    })());
+    (function () {
+      var t = mCard && mCard.querySelector('.acsv-frow-text');
+      if (!t) return;
+      var r = document.createRange();
+      r.selectNodeContents(t);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+    })();
+    if (mCard) mCard.click();
+    await wait(250);
+    rec('detail-select-no-open', !q('.acsv-mdetail-panel')
+      && String(window.getSelection() || '').length > 0, 'sel=' + String(window.getSelection() || '').length);
+    if (window.getSelection()) window.getSelection().removeAllRanges(); // 清选区（下述点击走开面板主路径）
     if (mCard) mCard.click();
     rec('detail-panel-open', !!(await waitFor(function () {
       return !!q('.acsv-mdetail .acsv-mdetail-panel') && !!q('.acsv-mdetail-list .acsv-cpin');
@@ -1995,6 +2019,13 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     rec('detail-text-pin', !!(await waitFor(function () {
       return /无图动态/.test((q('.acsv-mdetail-list .acsv-cpin .acsv-mdetail-text') || {}).textContent || '');
     }, 8000)));
+    rec('detail-panel-text-selectable', (function () { // 面板正文同样可划选（同一例外区）
+      var t = q('.acsv-mdetail-list .acsv-cpin .acsv-mdetail-text');
+      return !!t && getComputedStyle(t).userSelect === 'text';
+    })(), (function () {
+      var t = q('.acsv-mdetail-list .acsv-cpin .acsv-mdetail-text');
+      return t ? getComputedStyle(t).userSelect : 'no-text';
+    })());
     // 评论区管线复用：stype=4 + sourceId=momentId（510005 = 夹具 fMoment(4)）+ 面板非抽屉
     rec('detail-comments-type', !!(await waitFor(function () {
       var c = TEST.call('comments');

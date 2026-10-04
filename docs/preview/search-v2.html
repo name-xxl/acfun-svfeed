@@ -72,6 +72,15 @@
   .hchip:hover{background:rgba(255,255,255,.16)}
   .hclr{border:none;background:none;color:var(--t3);font-size:12px;font-family:inherit;cursor:pointer;text-decoration:underline}
   .state{color:var(--t3);font-size:13px;padding:8px 2px}
+  /* 回到顶部按钮（复刻 .acsv-tbtn 视觉；定位示意 sticky 右下） */
+  .bt-demo{position:relative}
+  .bt-scroll{position:relative;display:flex;align-items:flex-end;justify-content:flex-end;height:150px;
+    border-radius:8px;background:rgba(255,255,255,.03);padding:0 6px 6px 0}
+  .bt-lines{position:absolute;left:12px;top:12px;font-size:12px;color:var(--t3)}
+  .bt-btn{width:36px;height:36px;border:none;border-radius:50%;background:rgba(255,255,255,.14);
+    display:grid;place-items:center;cursor:pointer;transition:transform .15s,background .15s}
+  .bt-btn:hover{transform:scale(1.08);background:rgba(255,255,255,.25)}
+  .bt-btn svg{width:22px;height:22px;fill:#fff}
   .end{color:var(--t3);font-size:12.5px;text-align:center;padding:18px 0 4px}
   .skel{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px 16px}
   .skel .sk{border-radius:10px;background:rgba(255,255,255,.06);height:169px;animation:pulse 1.2s ease-in-out infinite}
@@ -206,6 +215,27 @@
       <p class="cap" style="margin-top:14px">失败（回车重试）与空结果：</p>
       <div class="state">搜索失败（网络不可达），回车可重试</div>
       <div class="state">没有找到相关视频（换「UP主」或「文章」试试）</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑥ 回到顶部（拟增，待确认）<em>复用关注/广场视图同款圆钮：sticky 钉滚动流右下，滚过 300px 才现身</em></h2>
+    <div class="stage">
+      <div class="bt-demo">
+        <div class="bt-scroll">
+          <div class="bt-lines">（结果列表滚动区 —— 此处示意"已向下滚过多屏"的右下角）</div>
+          <button class="acsv-tbtn bt-btn" title="回到顶部">
+            <svg viewBox="0 0 24 24"><path d="M12 8l-6 6 1.4 1.4L12 10.8l4.6 4.6L18 14z"/></svg>
+          </button>
+        </div>
+      </div>
+      <p class="cap" style="margin-top:10px">
+        ① 顶部时**隐藏**（opacity 0、不可点）；滚过 <b>300px</b> 淡入（0.18s）；
+        ② 点击 → 滚动区平滑回顶；③ <b>三个类目共用同一个按钮</b>（它在视图层，不在类目里）；
+        ④ 评论抽屉打开时，视图正文右缘本就让位到抽屉左缘——按钮 sticky 在正文流里跟着让位；
+        ⑤ 形态=顶栏圆钮同族（36 圆 / 白 chevUp / hover 提亮），与关注视图、广场、原生内嵌广场既有回顶完全同款
+        （类名 0.9.154 由 `.acsv-fbacktop` 正名为共享的 `.acsv-backtop`）。
+      </p>
     </div>
   </div>
 

@@ -215,6 +215,10 @@ export function wireRowList(list, onOpen) {
       return;
     }
     if (ev.target.closest('a')) return; // 内链（@/资源/名字/文章条）自导航，不冒泡成行默认
+    // 划选收尾不触发行默认（0.9.153）：正文开了文字选择（拖动划选复制），drag 结束的 click
+    // 会把详情/播放打开——与上方图片「划选收尾不弹大图」同一判据（commentListClick 先例）
+    var selRow = window.getSelection ? window.getSelection() : null;
+    if (selRow && !selRow.isCollapsed) return;
     onOpen(pi);
   });
 }

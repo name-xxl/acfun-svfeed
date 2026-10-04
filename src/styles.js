@@ -733,7 +733,10 @@ var RAW_CSS = ''
   + '.acsv-mdetail-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px 20px 10px;'
   + 'scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}'
   // 正文 16/24 = XHS 实测（此前 14/22）
-  + '.acsv-mdetail-text{font-size:16px;line-height:24px;color:#e8eaee;word-break:break-word;white-space:pre-line}' // pre-line：保留手打换行（0.9.105 对齐行流/广场）
+  // 正文开文字选择（0.9.153 实报「动态正文不支持拖动选择复制」）：root 全局 user-select:none 之上
+  // 的例外区（评论正文先例），只开正文——名字/时间/按键保持不可选防误选
+  + '.acsv-mdetail-text{font-size:16px;line-height:24px;color:#e8eaee;word-break:break-word;white-space:pre-line;'
+  + 'user-select:text;-webkit-user-select:text}' // pre-line：保留手打换行（0.9.105 对齐行流/广场）
   // 正文表情/配图尺寸作用域（0.9.105：此前只在 .acsv-cbody 下有限制，行流/面板/引用卡内
   // 表情图以自然尺寸显示≈80px——实报「动态卡片不支持 ubb 解析吗」的真凶）；34/68 与评论同源
   + '.acsv-frow-text .ubb-emotion,.acsv-mdetail-text .ubb-emotion,.acsv-gquote-textbody .ubb-emotion'
@@ -1099,7 +1102,8 @@ var RAW_CSS = ''
   + '.acsv-gquote-text{min-width:0}'
   // 动态源正文：UBB 单源渲染（原生同款含表情图）；钳 3 行——原生不钳，长文引用会撑行，
   // 尺寸纪律取舍在册（行流正文亦 4 行钳高同族）
-  + '.acsv-gquote-textbody{font-size:14px;line-height:21px;color:#e8eaee;word-break:break-word;max-height:63px;overflow:hidden;white-space:pre-line}'
+  + '.acsv-gquote-textbody{font-size:14px;line-height:21px;color:#e8eaee;word-break:break-word;max-height:63px;overflow:hidden;white-space:pre-line;'
+  + 'user-select:text;-webkit-user-select:text}' // 引用卡/转发源正文同开划选（0.9.153）
   + '.acsv-gquote-img{margin-top:10px;max-width:299px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.06)}'
   + '.acsv-gquote-img img{max-width:299px;max-height:299px;display:block}'
   + '.acsv-gquote-on{cursor:pointer}'
@@ -1134,7 +1138,7 @@ var RAW_CSS = ''
   + '.acsv-frow-time{display:block;font-size:12px;line-height:12px;color:#8a90a0}'
   // 内容区（feed-content）：padding 6px 0 0 60px——正文/媒体/互动与名字左对齐，头像下不排文
   + '.acsv-frow-content{padding:6px 0 0 60px}'
-  + '.acsv-frow-text{margin-bottom:10px;font-size:14px;line-height:21px;color:#e8eaee;'
+  + '.acsv-frow-text{margin-bottom:10px;font-size:14px;line-height:21px;color:#e8eaee;user-select:text;-webkit-user-select:text;'
   + 'word-break:break-word;white-space:pre-line}' // 原生 pre-line：保留 UP 手打的换行
   // 钳高走 line-clamp（0.9.105 实报「一行显示一半」：max-height:84px 是像素级硬裁，遇内联大
   // 表情/图片撑高的行盒必切在半行——line-clamp 按行盒计数，图整张落在某行盒内不被腰斩）
