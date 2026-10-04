@@ -14,7 +14,7 @@
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { followPanelOf, momentPiOfRepost } from './data.js';
-import { ubbTextOf, openPanelItem, setMomentOpener, stripOf, momentCellOf, momentMediaOf, skeletonRows } from './views.js';
+import { ubbTextOf, openPanelItem, setMomentOpener, stripOf, momentCellOf, momentMediaOf, skeletonRows } from './cards.js';
 import { ICONS } from './styles.js';
 import { openSharePanel } from './imshare.js';
 import { momentBarOf, momentShareItemOf } from './momentbar.js';
@@ -87,8 +87,8 @@ function headOf(pi) {
   return head;
 }
 
-// 行流的两块媒体构建器（0.9.102 收口：strip 下沉 views.stripOf、格子上挂 views.momentCellOf，
-// 本模块只留**行流特有的布局决策**——九宫格 n1/n24 容器类；dispatch 走 views.momentMediaOf）
+// 行流的两块媒体构建器（0.9.102 收口：strip 下沉 cards.stripOf、格子上挂 cards.momentCellOf，
+// 本模块只留**行流特有的布局决策**——九宫格 n1/n24 容器类；dispatch 走 cards.momentMediaOf）
 // 九宫格（member-feed-moment-image 等价）：容器 342、图 110 方 margin 0 4 4 0；1 图容器
 // 299（图自适应 max299）；2/4 图容器 228。格上 cursor:pointer（原生同款），点击开大图
 function rowGrid(pi) {
@@ -171,7 +171,7 @@ function rowDefault(pi) {
 
 // ---------- 视图组装 ----------
 
-// 首屏骨架行（0.9.102 收口：计数/移除走 views.skeletonRows；类名仍独立 acsv-fskel）
+// 首屏骨架行（0.9.102 收口：计数/移除走 cards.skeletonRows；类名仍独立 acsv-fskel）
 function skeleton(listEl) {
   return skeletonRows(listEl, CFG.view.follow.skel, 'acsv-fskel');
 }
@@ -301,7 +301,7 @@ function buildFollowView(body) {
       }
       return;
     }
-    // 宫格图的大图查看由格子自挂（views.momentCellOf，含 stopPropagation）——委托不再接
+    // 宫格图的大图查看由格子自挂（cards.momentCellOf，含 stopPropagation）——委托不再接
     //（0.9.102 收口：此前两处各挂一份会双开）
     var pic = ev.target.closest('.ubb-imgc');
     if (pic) {
@@ -336,8 +336,8 @@ function buildFollowView(body) {
   load();
 }
 
-// 动态详情出口注册（0.9.101；0.9.102 载荷改 repost）：views.quoteBlockOf 点源动态卡时要开
-// momentdetail——views 不反向依赖本模块，走注入；pi 构造在 data.momentPiOfRepost（契约层）
+// 动态详情出口注册（0.9.101；0.9.102 载荷改 repost）：cards.quoteBlockOf 点源动态卡时要开
+// momentdetail——卡面 kit 不反向依赖本模块，走注入；pi 构造在 data.momentPiOfRepost（契约层）
 setMomentOpener(function (rp) { openMomentDetail(momentPiOfRepost(rp)); });
 
 // 左栏 dock 元数据随视图声明（0.9.78：sidebar 从注册表派生）。无 deep/无 volatile——

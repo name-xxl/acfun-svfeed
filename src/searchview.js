@@ -2,7 +2,7 @@ import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { requestText } from './net.js';
 import { parseSearchItems } from './data.js';
-import { gridCardOf } from './views.js';
+import { gridCardOf } from './cards.js';
 import { registerView } from './viewreg.js';
 import { setSearchHandler, focusSearch } from './topbar.js';
 

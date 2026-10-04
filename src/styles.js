@@ -875,7 +875,7 @@ var RAW_CSS = ''
   + '.acsv-gtitle{margin-top:8px;font-size:14px;line-height:20px;color:#fff;max-height:40px;overflow:hidden;flex:none}'
   + '.acsv-gcell:hover .acsv-gtitle{color:var(--acsv-accent)}'
   // .acsv-gmeta 于 0.9.83 删除：卡面收口后作者只走脚行（.acsv-gfoot）、进度只留封面角标，
-  // 该行没有生产者了（唯一消费者 views.gridCardOf 已移除）
+  // 该行没有生产者了（唯一消费者 cards.gridCardOf 已移除）
   // 首屏骨架（独立类名：绝不与行/卡计数选择器同构；成功/失败/空三路径都移除）
   + '.acsv-gskel{aspect-ratio:' + CFG.view.me.coverRatio + ';border-radius:10px;background-color:rgba(255,255,255,.05);'
   + 'background-image:linear-gradient(100deg,rgba(255,255,255,0) 40%,rgba(255,255,255,.07) 50%,rgba(255,255,255,0) 60%);'

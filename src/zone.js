@@ -3,7 +3,7 @@ import { el, singleFlight } from './ui.js';
 import { request } from './net.js';
 import { postForm } from './appapi.js';
 import { panelItem } from './data.js';
-import { rowOf, upCardOf } from './views.js';
+import { rowOf, upCardOf } from './cards.js';
 import { registerView } from './viewreg.js';
 
 // ---------- 分区榜单视图（0.9.62 建，0.9.66 对齐原生：子频道行 + UP 榜） ----------

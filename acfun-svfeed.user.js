@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.108
+// @version      0.9.109
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -8936,7 +8936,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.108" : "");
+    return normVer(true ? "0.9.109" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -9323,30 +9323,6 @@
   function currentView() {
     return current ? current.id : null;
   }
-  var itemOpener = null;
-  function setItemOpener(fn) {
-    itemOpener = typeof fn === "function" ? fn : null;
-  }
-  function openPanelItem(pi) {
-    if (itemOpener) itemOpener(pi);
-  }
-  var momentOpener = null;
-  function setMomentOpener(fn) {
-    momentOpener = typeof fn === "function" ? fn : null;
-  }
-  function skeletonRows(listEl, n, cls) {
-    var nodes = [];
-    for (var i = 0; i < n; i++) {
-      var d = el("div", cls);
-      nodes.push(d);
-      listEl.appendChild(d);
-    }
-    return function() {
-      nodes.forEach(function(d2) {
-        if (d2.parentNode) d2.parentNode.removeChild(d2);
-      });
-    };
-  }
   function originView() {
     if (!origins.length) return null;
     return origins[origins.length - 1].view || "feed";
@@ -9515,6 +9491,140 @@
       held: document.querySelectorAll(".acsv-view-held").length
     };
   });
+  testHook("view", function() {
+    return currentView();
+  });
+
+  // src/followbadge.js
+  var SEEN_KEY = "acsvFollowSeenAt";
+  var memSeen = 0;
+  function seenAt() {
+    try {
+      if (typeof GM_getValue === "function") {
+        var v = Number(GM_getValue(SEEN_KEY, "0")) || 0;
+        if (v) return v;
+      }
+    } catch (e) {
+    }
+    return memSeen;
+  }
+  function setSeen(ts) {
+    memSeen = ts;
+    try {
+      if (typeof GM_setValue === "function") GM_setValue(SEEN_KEY, String(ts));
+    } catch (e) {
+    }
+  }
+  function ensureSeen() {
+    if (!seenAt()) setSeen(Date.now());
+  }
+  var timer = null;
+  var nextAt = 0;
+  var interval = 0;
+  var gen = 0;
+  var mounted2 = false;
+  function nextBadgeInterval(prev, found, start, max) {
+    var s = start > 0 ? start : CFG.follow.pollStart;
+    var m = max > 0 ? max : CFG.follow.pollMax;
+    if (found) return s;
+    if (prev <= 0) return s;
+    return Math.min(prev * 2, m);
+  }
+  function inFollowView() {
+    return isFollowContext();
+  }
+  function applyBadge(n) {
+    if (inFollowView()) return;
+    setDockBadge("follow", n);
+  }
+  function poll() {
+    if (!selfUid()) return;
+    ensureSeen();
+    if (inFollowView()) {
+      setSeen(Date.now());
+      setDockBadge("follow", 0);
+      interval = CFG.follow.pollStart;
+      nextAt = Date.now() + interval;
+      return Promise.resolve();
+    }
+    var my = ++gen;
+    return listMoments("0").then(function(j) {
+      if (my !== gen || !mounted2) return;
+      var seen = seenAt();
+      var raws = j && j.feedList || [];
+      var n = 0;
+      raws.forEach(function(r) {
+        if (r && Number(r.createTime) > seen) n++;
+      });
+      applyBadge(n);
+      interval = nextBadgeInterval(interval, n > 0);
+      nextAt = Date.now() + interval;
+    }, function() {
+      if (my !== gen) return;
+      interval = nextBadgeInterval(interval, false);
+      nextAt = Date.now() + interval;
+    });
+  }
+  function tick() {
+    if (!mounted2 || document.hidden) return;
+    if (Date.now() < nextAt) return;
+    poll();
+  }
+  function startFollowBadge() {
+    if (mounted2) return;
+    mounted2 = true;
+    interval = 0;
+    nextAt = 0;
+    gen++;
+    timer = setInterval(tick, CFG.follow.tick);
+  }
+  function stopFollowBadge() {
+    mounted2 = false;
+    gen++;
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+    nextAt = 0;
+    interval = 0;
+    setDockBadge("follow", 0);
+  }
+  testHook("followbadge", function() {
+    return {
+      mounted: mounted2,
+      interval,
+      nextAt,
+      poll,
+      seen: seenAt,
+      setSeen
+    };
+  });
+
+  // src/cards.js
+  var itemOpener = null;
+  function setItemOpener(fn) {
+    itemOpener = typeof fn === "function" ? fn : null;
+  }
+  function openPanelItem(pi) {
+    if (itemOpener) itemOpener(pi);
+  }
+  var momentOpener = null;
+  function setMomentOpener(fn) {
+    momentOpener = typeof fn === "function" ? fn : null;
+  }
+  function skeletonRows(listEl, n, cls) {
+    var nodes = [];
+    for (var i = 0; i < n; i++) {
+      var d = el("div", cls);
+      nodes.push(d);
+      listEl.appendChild(d);
+    }
+    return function() {
+      nodes.forEach(function(d2) {
+        if (d2.parentNode) d2.parentNode.removeChild(d2);
+      });
+    };
+  }
   var META_GLYPH = {
     view: GLYPHS.rankView,
     comment: GLYPHS.rankComment,
@@ -9735,114 +9845,6 @@
     var m = Math.floor(sec / 60), s = Math.floor(sec % 60);
     return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
   }
-  testHook("view", function() {
-    return currentView();
-  });
-
-  // src/followbadge.js
-  var SEEN_KEY = "acsvFollowSeenAt";
-  var memSeen = 0;
-  function seenAt() {
-    try {
-      if (typeof GM_getValue === "function") {
-        var v = Number(GM_getValue(SEEN_KEY, "0")) || 0;
-        if (v) return v;
-      }
-    } catch (e) {
-    }
-    return memSeen;
-  }
-  function setSeen(ts) {
-    memSeen = ts;
-    try {
-      if (typeof GM_setValue === "function") GM_setValue(SEEN_KEY, String(ts));
-    } catch (e) {
-    }
-  }
-  function ensureSeen() {
-    if (!seenAt()) setSeen(Date.now());
-  }
-  var timer = null;
-  var nextAt = 0;
-  var interval = 0;
-  var gen = 0;
-  var mounted2 = false;
-  function nextBadgeInterval(prev, found, start, max) {
-    var s = start > 0 ? start : CFG.follow.pollStart;
-    var m = max > 0 ? max : CFG.follow.pollMax;
-    if (found) return s;
-    if (prev <= 0) return s;
-    return Math.min(prev * 2, m);
-  }
-  function inFollowView() {
-    return isFollowContext();
-  }
-  function applyBadge(n) {
-    if (inFollowView()) return;
-    setDockBadge("follow", n);
-  }
-  function poll() {
-    if (!selfUid()) return;
-    ensureSeen();
-    if (inFollowView()) {
-      setSeen(Date.now());
-      setDockBadge("follow", 0);
-      interval = CFG.follow.pollStart;
-      nextAt = Date.now() + interval;
-      return Promise.resolve();
-    }
-    var my = ++gen;
-    return listMoments("0").then(function(j) {
-      if (my !== gen || !mounted2) return;
-      var seen = seenAt();
-      var raws = j && j.feedList || [];
-      var n = 0;
-      raws.forEach(function(r) {
-        if (r && Number(r.createTime) > seen) n++;
-      });
-      applyBadge(n);
-      interval = nextBadgeInterval(interval, n > 0);
-      nextAt = Date.now() + interval;
-    }, function() {
-      if (my !== gen) return;
-      interval = nextBadgeInterval(interval, false);
-      nextAt = Date.now() + interval;
-    });
-  }
-  function tick() {
-    if (!mounted2 || document.hidden) return;
-    if (Date.now() < nextAt) return;
-    poll();
-  }
-  function startFollowBadge() {
-    if (mounted2) return;
-    mounted2 = true;
-    interval = 0;
-    nextAt = 0;
-    gen++;
-    timer = setInterval(tick, CFG.follow.tick);
-  }
-  function stopFollowBadge() {
-    mounted2 = false;
-    gen++;
-    if (timer) {
-      clearInterval(timer);
-      timer = null;
-    }
-    nextAt = 0;
-    interval = 0;
-    setDockBadge("follow", 0);
-  }
-  testHook("followbadge", function() {
-    return {
-      mounted: mounted2,
-      interval,
-      nextAt,
-      poll,
-      seen: seenAt,
-      setSeen
-    };
-  });
 
   // src/playlayer.js
   var pending2 = null;
@@ -10668,7 +10670,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.108：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.109：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

@@ -3,7 +3,7 @@ import { el } from './ui.js';
 import { parseRoute } from './route.js';
 import { API } from './api.js';
 import { playItemOf } from './data.js';
-import { setItemOpener } from './views.js';
+import { setItemOpener } from './cards.js';
 import { registerView } from './viewreg.js';
 import { setVideoTarget, setWatchTarget, OVL_IDX } from './state.js';
 import { buildSlide } from './slide.js';
@@ -123,4 +123,4 @@ registerView({
   deep: true, // 深界面：关闭/返回=回来源链顶（打开它的那个列表/搜索页）
   volatile: true // 握播放会话/定时器：离开即真拆，绝不挂起（隐藏容器里继续出声绝不允许）
 });
-setItemOpener(openPlayer); // 视图条目点击出口（views 不反向 import 本模块）
+setItemOpener(openPlayer); // 视图条目点击出口（卡面 kit 不反向 import 本模块）

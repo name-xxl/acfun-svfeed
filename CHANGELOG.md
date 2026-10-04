@@ -3,6 +3,24 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.109（2026-10-04）· 视图层拆件：卡面 kit 独立为 cards.js
+
+- **动机（架构评审）**：views.js 混住两职责——视图生命周期编排（current/origins/舞台/路由
+  同步）与卡面构建（rowOf/gridCardOf/…250+ 行）；mypage 等视图要 import「编排模块」来拿
+  一张卡，职责错配是视图层体感乱的根源。
+- **修法（机械搬迁零逻辑改动）**：卡面 kit 段 + skeletonRows + 点击出口注入缝
+  （setItemOpener/openPanelItem/setMomentOpener——kit 闭包直读注入缝，必须随件走，留在
+  views.js 会成 cards↔views 环）整体搬入新模块 cards.js；views.js 只留 5 个编排导出
+  （currentView/originView/backFromOrigin/syncRouteView/teardownViews），卡面符号零残留。
+  六消费方（mypage/zone/searchview/followview/momentdetail/playlayer）只改 import 路径；
+  类名/签名/testHook 一字符未动；长注释全量随迁（0.9.67/68 水印宿主契约、gridCardOf 事实
+  规格段、quoteBlockOf 原生实测值）。顺带订正两处过期注释（momentMediaOf「详情面板
+  gridMin=2」、momentCellOf「面板宫格共用」——详情面板 0.9.103 起自带轮播/大图挂法）与
+  搬迁引发的模块限定注释名（7 处 views.xxx → cards.xxx）。
+- **测试**：check-deps 图同步（cards 隐式节点 + 六入边 + 四出边，views 旧 kit 边移除）；
+  单测 193 + harness 全场景回归全绿（全部黑盒类名/几何断言照旧定位——红线"形状冻结"的
+  机器证据）。
+
 ### 0.9.108（2026-10-04）· 大图查看器层级修复
 
 - **病灶（用户实报「图片查看器层级在动态详情之下，会被动态详情覆盖」）**：大图查看器

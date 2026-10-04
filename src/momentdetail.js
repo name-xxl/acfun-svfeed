@@ -3,7 +3,7 @@ import { el, fmt } from './ui.js';
 import { root, releaseDrawer } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { imgInto } from './imgload.js';
-import { ubbTextOf, quoteBlockOf } from './views.js';
+import { ubbTextOf, quoteBlockOf } from './cards.js';
 import { ICONS } from './styles.js';
 import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
 import { openImageViewer } from './imgview.js';

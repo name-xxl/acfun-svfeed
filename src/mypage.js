@@ -2,7 +2,7 @@ import { CFG } from './cfg.js';
 import { el, selfUid, fmt } from './ui.js';
 import { postForm } from './appapi.js';
 import { panelItem, meCardOf } from './data.js';
-import { gridCardOf, moreBtn, skeletonRows } from './views.js';
+import { gridCardOf, moreBtn, skeletonRows } from './cards.js';
 import { registerView } from './viewreg.js';
 import { imgInto } from './imgload.js';
 
@@ -23,7 +23,7 @@ function rowList(parent, cls) {
   return list;
 }
 
-// 首屏骨架（0.9.102 收口：计数/移除走 views.skeletonRows；类名仍独立 acsv-gskel——
+// 首屏骨架（0.9.102 收口：计数/移除走 cards.skeletonRows；类名仍独立 acsv-gskel——
 // 绝不与行/卡计数选择器同构，0.9.66 同构元素污染计数断言是既有教训；成功/失败/空三条路径
 // 都必须调 remove，否则骨架常驻）
 function skeleton(listEl) {

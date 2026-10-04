@@ -296,7 +296,8 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `imicons.js` | 站点原生图标登记表（CDN SVG + 字形码点，双端共享） |
 | `release.js` | 更新提示（0.9.60）：官方 releases.atom 拉取/解析纯函数（cmpVersion/normVer/parseRelAtom/latestEntry/decideUpd）+ 说明弹窗单例 + 红点；正文直接用 GitHub 官方渲染 HTML（elHtml 信任契约）；每次 mount 检查一次（60s 节流）、失败静默、unmount 显式拆监听 |
 | `overlay.js` | 浮层栈（0.9.61）：Esc 显式分支链的收拢（overlayOpen/Close/Top/IsOpen/Teardown，close 回调注册方自带、先出栈再调+异常隔离）；modal 键语义单监听承载（release/imgview capture 自关退役）；栈=显式状态（0.9.22 精神延续） |
-| `views.js` | 子视图框架（0.9.62；0.9.74 来源保活）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（注册表自 0.9.78 独立为 viewreg.js）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、**深界面（def.deep）来源链 + 来源视图挂起保活**（非 volatile：换类名 acsv-view-held + visibility 挂起，回来原位复原；同屏换参替换链顶）、条目点击出口 setItemOpener（playlayer 注入，不再 import player）、面板 kit（rowOf/moreBtn/gridCardOf） |
+| `views.js` | 子视图框架（0.9.62；0.9.74 来源保活）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（注册表自 0.9.78 独立为 viewreg.js）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、**深界面（def.deep）来源链 + 来源视图挂起保活**（非 volatile：换类名 acsv-view-held + visibility 挂起，回来原位复原；同屏换参替换链顶）；卡面 kit 与点击出口注入缝自 0.9.109 拆出（→ cards.js，本模块只管编排） |
+| `cards.js` | 卡面 kit（0.9.109 自 views.js 拆出，逐字搬运零逻辑改动）：网格卡 gridCardOf / 行卡 rowOf / 资源横条 stripOf / 引用卡 quoteBlockOf / UP 卡 upCardOf / 计数行 statRowOf / 骨架 skeletonRows / 加载更多 moreBtn 单源；点击出口注入缝（setItemOpener/openPanelItem/setMomentOpener，注册方 playlayer/followview）——本模块不反向 import 播放层/详情面板。消费方：mypage/zone/searchview/followview/momentdetail/playlayer |
 | `sidebar.js` | 左栏 dock（0.9.62；0.9.78 起条目从 viewreg 的 dock 元数据派生——此前是第二份人工清单，加视图要改两处）：「推荐」+ 各视图入口，当前视图高亮，窄屏隐藏，随 unmount 拆除 |
 | `viewreg.js` | 视图注册表（0.9.78，零依赖叶子）：`registerView`/`viewDef`/`dockEntries`——视图清单的唯一真源；dock 元数据（label/svg/order/group）随视图声明，sidebar 只读派生 |
 | `topbar.js` | 共享顶栏（0.9.72 抽离；0.9.73 四界面复用；0.9.74 ✕ 单一意义+向左返回）：搜索框（居中常驻；视图态按地址关键词回填，搜索视图经 setSearchHandler 挂载期接管提交、teardown 还原）+ 左缘「向左返回」（仅深界面，onBack hooks）+ 右侧按钮组（源切换/私信/更新/退出，行为 hooks 注入不反向 import player）；syncTopbar(view,arg,{deep})：**✕ 永远=退出脚本**（普通界面 Esc 另义），深界面出返回键 |
@@ -398,30 +399,31 @@ flowchart LR
   feedstore --> player
   pb --> feedstore & settings
   ubb --> emoticon
-  playlayer --> api & attach & viewreg & views
+  playlayer --> api & attach & cards & viewreg
   imshare --> appapi & imdrawer & imgload & immsg
   imdrawer --> appapi & comments & emoticon & imcard & imgload & imgview & imicons & immsg & imshare & inputbar & overlay & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
   boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & zone
-  views --> feedstore & imgload & imgview & imicons & overlay & sidebar & topbar & ubb & viewreg
+  views --> feedstore & overlay & sidebar & topbar & viewreg
+  cards --> imgload & imgview & imicons & ubb
   sidebar --> viewreg & settingspanel
-  followview --> comments & emoticon & imgload & imgview & imshare & momentapi & momentbar & sidebar & viewreg & views & momentdetail
+  followview --> comments & emoticon & imgload & imgview & imshare & momentapi & momentbar & sidebar & viewreg & cards & momentdetail
   followstream --> appapi & data & feedctx & feedstore & momentapi & sidebar
   topbar --> followstream
   momentbar --> banpop & imicons & immsg & interact & styles & ubb & ui
   followbadge --> followstream & momentapi
-  momentdetail --> comments & emoticon & imgload & imgview & imshare & momentbar & overlay & views
+  momentdetail --> comments & emoticon & imgload & imgview & imshare & momentbar & overlay & cards
   followbadge --> net & sidebar
   player --> followbadge
   settingspanel --> settings & overlay
-  searchview --> topbar & viewreg & views
+  searchview --> cards & topbar & viewreg
   input --> comments & feedstore & imdrawer & overlay & pb & playlayer & settings & views
   comments --> appapi & emoticon & imgload & imgview & imicons & immsg & imshare & inputbar & overlay & ubb
   interact --> appapi
   release --> overlay & settings
-  mypage --> appapi & imgload & viewreg & views
-  zone --> appapi & viewreg & views
+  mypage --> appapi & cards & imgload & viewreg
+  zone --> appapi & cards & viewreg
 
   classDef leaf fill:#e8f5e9,stroke:#2e7d32;
   class immsg,imicons,imgurl,pagekind,viewreg leaf;
