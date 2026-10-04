@@ -4,13 +4,17 @@ import { el, elHtml, fmt, toast } from './ui.js';
 import { imgInto } from './imgload.js';
 import { FeedStore } from './feedstore.js';
 import { setRealLike, setRealFollow, setRealFavorite, giveBanana } from './interact.js';
-import { toggleItemComments } from './comments.js';
 import { openSharePanel } from './imshare.js';
 import { toggleBananaPop } from './banpop.js';
 
 // ---------- 右侧操作栏 + 上下翻页箭头 ----------
 // 从 buildSlide 抽出：头像/关注、点赞、评论、投蕉、收藏、分享。
 // 箭头翻页依赖上层导航（scrollToIndex 在 player.js），经 goTo 参数注入保持依赖单向。
+
+// 评论键出口（0.9.116）：本组件不 import 评论域——「展开/收起评论」动作由 player 模块求值期
+// 注册（setCommentsOpener；先例 cards.setItemOpener / imshare.setChatOpener）；未注册时点击 no-op
+var commentsOpener = null;
+export function setCommentsOpener(fn) { commentsOpener = typeof fn === 'function' ? fn : null; }
 
 // busy 守卫三件套：请求期间挡重复点击，完成/拒绝都复位（interact 层正常不 reject，
 // 这里兜住异常不让 busy 永久卡死）；done(ok) 收到布尔结果
@@ -182,9 +186,9 @@ export function buildSideRail(slide, item, goTo) {
     likeUI.btn.classList.toggle('on', on);
     likeUI.count.textContent = fmt(item.like); // 解析后回填真实点赞数
   };
-  // 评论（两模式都在右栏，sourceType 由 item.stype 分发）
+  // 评论（两模式都在右栏，sourceType 由 item.stype 分发；0.9.116 经注册缝）
   var cmtUI = railBtn({ img: SITE_ICONS.comment, svg: ICONS.comment }, fmt(item.comment), '展开/收起评论（C）', function () {
-    toggleItemComments(item);
+    if (commentsOpener) commentsOpener(item);
   });
   slide._cmtSync = function () { cmtUI.count.textContent = fmt(item.comment); };
   if (item.cap.banana) {

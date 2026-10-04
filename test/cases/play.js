@@ -126,6 +126,19 @@ rec('play-key-comments-close', !!(await waitFor(function () {
   var r = q('#acsv-root');
   return !!r && !r.classList.contains('acsv-with-comments');
 }, 6000)));
+// rail 评论键（0.9.116 收边后经注册缝 setCommentsOpener）：层内右栏评论按钮点击=开合
+//（哨兵：缝断则静默 no-op——这条链此前零覆盖；i 键/c 键有既有哨兵，rail 没有）
+var rbtn = q('.acsv-slide[data-ovl="1"] .acsv-rail-btn[title="展开/收起评论（C）"]');
+if (rbtn) rbtn.click();
+rec('play-rail-comments', !!(await waitFor(function () {
+  var r = q('#acsv-root'), d = q('.acsv-drawer');
+  return !!r && r.classList.contains('acsv-with-comments') && !!d && d.classList.contains('open');
+}, 6000)));
+if (rbtn) rbtn.click(); // 再点收起（toggle 语义）
+rec('play-rail-comments-close', !!(await waitFor(function () {
+  var r = q('#acsv-root');
+  return !!r && !r.classList.contains('acsv-with-comments');
+}, 6000)));
 key('Escape');
 rec('play-esc-back', !!(await waitFor(function () {
   return location.hash === '#svfeed' && q('.acsv-slide[data-ovl="1"]') === null;

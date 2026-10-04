@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.115-debug
+// @version      0.9.116-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -7282,6 +7282,10 @@
   }
 
   // src/rail.js
+  var commentsOpener = null;
+  function setCommentsOpener(fn) {
+    commentsOpener = typeof fn === "function" ? fn : null;
+  }
   function withBusy(item, key, send, done) {
     if (item[key]) return;
     item[key] = true;
@@ -7448,7 +7452,7 @@
       likeUI.count.textContent = fmt(item.like);
     };
     var cmtUI = railBtn({ img: SITE_ICONS.comment, svg: ICONS.comment }, fmt(item.comment), "展开/收起评论（C）", function() {
-      toggleItemComments(item);
+      if (commentsOpener) commentsOpener(item);
     });
     slide._cmtSync = function() {
       cmtUI.count.textContent = fmt(item.comment);
@@ -8801,7 +8805,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.115" : "");
+    return normVer(true ? "0.9.116" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -9642,7 +9646,7 @@
       }
       if (ev.target && /^(input|textarea|select)$/i.test(ev.target.tagName)) return;
       if (ev.key === "i" || ev.key === "I") {
-        if (!ev.repeat) toggleImDrawer();
+        if (!ev.repeat) api.toggleImDrawer();
         return;
       }
       var curView = api.getView();
@@ -9721,7 +9725,7 @@
         case "C": {
           if (ev.repeat) break;
           var itC = inPlay ? playItem : FeedStore.items[cur];
-          if (itC) toggleItemComments(itC);
+          if (itC) api.toggleComments(itC);
           break;
         }
       }
@@ -9893,6 +9897,7 @@
   setItemProvider(function(idx) {
     return FeedStore.items[idx];
   });
+  setCommentsOpener(toggleItemComments);
   function renderWindow() {
     if (!scroller) return;
     var cur = FeedStore.current;
@@ -10135,7 +10140,7 @@
     dbg("root-appended");
     releaseCheck();
     io = makeIO();
-    setupInputHandlers({ scrollToIndex, exitFeed, getView: currentView });
+    setupInputHandlers({ scrollToIndex, exitFeed, getView: currentView, toggleImDrawer, toggleComments: toggleItemComments });
     var route = parseRoute();
     if (route.mid) {
       loadDeepLink(route.mid, route.src);
@@ -10368,7 +10373,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.115：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.116：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

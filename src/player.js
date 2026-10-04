@@ -5,7 +5,7 @@ import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetD
 import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync, setItemProvider } from './route.js';
 import { FeedStore, setChangeHandler } from './feedstore.js';
 import { getSource, setSource, resetHomePager, API } from './api.js';
-import { isOpenComments, closeComments, openComments, commentState, syncCommentVars } from './comments.js';
+import { isOpenComments, closeComments, openComments, commentState, syncCommentVars, toggleItemComments } from './comments.js';
 import { onPlaying as dmOnPlaying, stopAll as dmStopAll } from './danmaku.js';
 import { UpVideos } from './uppage.js';
 import { FollowVideos, enterVideos, enterAll } from './followstream.js';
@@ -15,7 +15,7 @@ import { prewarm, preconnectSeed } from './prewarm.js';
 import { pb, playVideo, showSoundHint, resetForMount, cancelSeekHold, offCurrent } from './playback.js';
 import { attachVideo, switchQuality, setSessionHooks } from './attach.js';
 import { showControls, updateArrows } from './controls.js';
-import { onHomeResolved } from './rail.js';
+import { onHomeResolved, setCommentsOpener } from './rail.js';
 import { buildSlide, buildDrawer } from './slide.js';
 import { toggleImDrawer, mountBadge, teardownIm } from './imdrawer.js';
 import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
@@ -159,6 +159,9 @@ setSessionHooks(SESSION_HOOKS);
 // route 的"当前条"取件（0.9.113）：地址栏回写现读 FeedStore.items[idx]——经 provider 注入
 //（route 不能反向 import 本模块/流仓库）；触发时刻读语义由 route 侧注释钉着，勿改传参形态
 setItemProvider(function (idx) { return FeedStore.items[idx]; });
+// rail 评论键出口（0.9.116）：右栏组件不再 import 评论域——「展开/收起评论」动作接线在编排层
+//（先例 setItemProvider；input 的 c 键同动作走下方 setupInputHandlers 的 toggleComments）
+setCommentsOpener(toggleItemComments);
 
 // HealthMonitor（卡帧看门狗 v3）在 session.js：与会话同生命周期，dispose 即停，
 // 恢复阶梯经 hooks 回接 switchQuality/attachVideo。
@@ -439,7 +442,7 @@ function mount() {
 
   io = makeIO();
 
-  setupInputHandlers({ scrollToIndex: scrollToIndex, exitFeed: exitFeed, getView: currentView }); // getView（0.9.111）：视图门禁读经注入，input 不再 import views
+  setupInputHandlers({ scrollToIndex: scrollToIndex, exitFeed: exitFeed, getView: currentView, toggleImDrawer: toggleImDrawer, toggleComments: toggleItemComments }); // getView（0.9.111）/开合两键（0.9.116）：经注入，input 不再 import views/comments/imdrawer
 
   var route = parseRoute();
   if (route.mid) {

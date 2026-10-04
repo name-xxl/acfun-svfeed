@@ -3,6 +3,19 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.116（2026-10-04）· 方向卫生收尾：input×2 + rail 三边改注入/注册缝
+
+- **背景**：方向审计（v3 关闭时量化）剩下的 5 条候选里，三条同形「事件路由 → 打开动作」：
+  input→comments（键盘 c）、input→imdrawer（键盘 i）、rail→comments（右栏评论按钮）。
+- **修法**：input 的 api 注入面扩至五键（+toggleImDrawer/toggleComments，player.mount 注入）；
+  rail 出 setCommentsOpener 注册缝（player 模块求值期注册 toggleItemComments，先例
+  cards.setItemOpener）；两处均保留未注册 no-op 兜底。收边后方向清单剩 slide→comments
+  （缓裁：接线自附 vs 登记）与 data→ubb（随手下沉）两条。
+- **测试**：check-deps 删 input→comments、input→imdrawer 两条图边（rail 在 others 聚合名单、
+  本就免画）；既有哨兵复用证明注入未断——imview-i-login-guard（i 键打到抽屉模块）与
+  play-key-comments（c 键打层内条目）；rail 评论键零覆盖 → play-deep +2 断言
+  （play-rail-comments / play-rail-comments-close：点击开合并经缝）。单测 194 + 42 场景全绿。
+
 ### 0.9.115（2026-10-04）· 反向例外清收⑥（压轴）+ 收官：feedstore↔player 断环，整图 DAG
 
 - **背景**：feedstore（流仓库）的 env.onChange 直连 player.renderWindow——环检测实证它是
