@@ -1611,14 +1611,14 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       var like = rootMeta && rootMeta.querySelector('.acsv-clike');
       return !!like && like.classList.contains('on'); // isLiked:true → 已赞点亮（0.9.134 三读）
     })());
-    // 0.9.136 统一钉：日期在名字行「发表于 x」、工具行无日期（两形态同款——设备件上身后
-    // 窄容器 meta 行会逐字断行，故日期一律进名字行）；形态差异只剩头像尺寸与展开按钮措辞
+    // 0.9.138 统一钉：日期在名字行「发表于 x」、工具行无日期；版式全语境统一原生形态——
+    // 脚本页面（本条所在）头像也是 50px（界面上三处评论宿主同码，皮肤只差颜色）
     var rootNameRow = ownChild(rootBody, 'acsv-cname');
     rec('square-cmt-datetitle', !!(rootNameRow && /发表于/.test(rootNameRow.textContent) && /1分钟前/.test(rootNameRow.textContent)
       && rootMeta && !/1分钟前/.test(rootMeta.textContent)));
-    rec('square-cmt-av36', (function () {
+    rec('square-cmt-av50', (function () {
       var av = rootItem && rootItem.querySelector('img.av');
-      return !!av && getComputedStyle(av).width === '36px';
+      return !!av && getComputedStyle(av).width === '50px';
     })());
     // 条目间分割线（0.9.136）：根评论有、楼中楼不画（native 同款——sec hr 隐藏）
     rec('square-cmt-sep', (function () {

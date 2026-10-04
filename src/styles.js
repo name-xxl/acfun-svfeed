@@ -187,21 +187,22 @@ var RAW_CSS = ''
   + '.acsv-cinput-img:hover svg{fill:#fd4c5d}'
   + '.acsv-creplybtn,.acsv-cfwdbtn{cursor:pointer;color:#7a7f8a;font-size:12px;display:inline-flex;align-items:center;gap:3px}'
   + '.acsv-creplybtn:hover,.acsv-cfwdbtn:hover{color:#9fd0ff}'
-  + '.acsv-citem{position:relative;padding:10px 14px;display:flex;gap:10px;border-radius:10px;transition:background .15s}'
-  + '.acsv-citem:hover{background:rgba(255,255,255,.045)}'
+  // 评论版式（0.9.138 全语境统一「原生形态」——真机量值）：条目 18px 顶距、无内边距/圆角/hover
+  //（扁平列表 + .acsv-chr 分割线）、头像 50、内容缩进 30；皮肤只差颜色（深色基础值 / .acsv-mp 浅色）。
+  // 撤除登记：条目 hover 卡、头像悬停缩放在 0.9.138 随统一移除（原生形态无此交互）
+  + '.acsv-citem{position:relative;margin-top:18px;display:flex;gap:30px}'
   + '.acsv-avlink{position:relative;flex:none;display:block}'
-  + '.acsv-citem img.av{width:36px;height:36px;border-radius:50%;object-fit:cover;transition:transform .15s}'
-  + '.acsv-avlink:hover img.av{transform:scale(1.08)}'
+  + '.acsv-citem img.av{width:50px;height:50px;border-radius:50%;object-fit:cover}'
   + '.acsv-cbody{flex:1;min-width:0}'
-  + '.acsv-cname{font-size:13px;color:#9aa0ab;margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}'
+  + '.acsv-cname{font-size:12px;color:#9aa0ab;margin-bottom:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}'
   + '.acsv-cname a{color:#9aa0ab;text-decoration:none}'
   + '.acsv-cname a:hover{color:#e8eaed;text-decoration:underline}'
   // 评论名后「UP」标样式于 0.9.137 删除（真机核对：原生 pc 评论组件无 UP 标识——勿再自加）
   // 评论正文开文字选择（root 全局 user-select:none 之上的例外）：划选后原生右键即可复制；
   // 只开正文，昵称/时间/按钮保持不可选，避免误选
-  + '.acsv-ctext{font-size:14px;line-height:1.6;word-break:break-word;white-space:pre-wrap;color:#f0f1f3;'
+  + '.acsv-ctext{font-size:14px;line-height:1.6;word-break:break-word;white-space:pre-wrap;color:#f0f1f3;margin-bottom:13px;'
   + 'user-select:text;-webkit-user-select:text}'
-  + '.acsv-cmeta{font-size:12px;color:#7a7f8a;margin-top:6px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;row-gap:6px}'
+  + '.acsv-cmeta{font-size:12px;color:#7a7f8a;margin-top:0;margin-bottom:17px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;row-gap:6px}'
   // 0.9.136 防逐字断行（实报：设备件上身后窄容器里「回复/转发/来自」逐字堆叠）：元信息件整件
   // 换行不折字；发表于/时间件同理（日期统一并入名字行——白 7% 分割线在下方 .acsv-chr）
   + '.acsv-cmeta>*{white-space:nowrap}'
@@ -216,16 +217,21 @@ var RAW_CSS = ''
   // 0.9.55 的 13px 偏大）
   + '.acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-size:11px;'
   + 'display:inline-block;width:12px;height:12px;line-height:12px;text-align:center;color:currentColor}'
-  + '.acsv-csub{margin:8px 0 2px;padding:4px 12px;background:rgba(255,255,255,.05);border-radius:10px}'
-  + '.acsv-csub .acsv-citem{padding:8px 0}'
-  + '.acsv-csub .acsv-citem:hover{background:none}'
-  + '.acsv-csub .acsv-citem img.av{width:26px;height:26px}'
-  + '.acsv-cmore{font-size:12px;color:#9fd0ff;text-decoration:none;display:inline-block;background:none;'
-  + 'border:none;cursor:pointer;padding:0;font-family:inherit}'
+  + '.acsv-csub{margin:8px 0 16px 8px;padding:14px 12px 2px;background:rgba(255,255,255,.05);border-radius:0}'
+  + '.acsv-csub .acsv-citem{margin-top:15px;padding:0;gap:10px}'
+  + '.acsv-csub .acsv-citem:first-child{margin-top:0}'
+  + '.acsv-csub .acsv-citem img.av{width:30px;height:30px}'
+  + '.acsv-csub .acsv-cname{margin-bottom:4px}'
+  + '.acsv-csub .acsv-cname a,.acsv-csub .acsv-cname>span{font-weight:700}'
+  + '.acsv-csub .acsv-ctext{margin-bottom:8px}'
+  + '.acsv-csub .acsv-cmeta{margin-bottom:8px}'
+  + '.acsv-cmore{display:block;width:100%;padding:14px 0;text-align:center;font-size:13px;color:var(--acsv-accent);'
+  + 'background:none;border:none;cursor:pointer;font-family:inherit}'
   + '.acsv-cmore:hover{text-decoration:underline}'
   // 评论观感件（0.9.134；字段真机双源核对在册）：名字等级色=JS 内联（data.nameColorCss，无需
-  // CSS）；头像框几何=36px 头像等比（plaza 50px 配 80×70、-15 的 ×0.72）；回复前缀/设备/楼层件
-  + '.acsv-cavframe{position:absolute;left:-11px;top:-11px;width:58px;height:50px;max-width:none;pointer-events:none}'
+  // CSS）；头像框几何=头像 50 配 80×70/-15（plaza 原生复刻同值——0.9.138 全语境 50px 后同码）；
+  // 回复前缀/设备/楼层件
+  + '.acsv-cavframe{position:absolute;left:-15px;top:-15px;width:80px;height:70px;max-width:none;pointer-events:none}'
   + '.acsv-creplyto{color:#9fd0ff;text-decoration:none}'
   + '.acsv-creplyto:hover{text-decoration:underline}'
   + '.acsv-cfrom{display:inline-flex;align-items:center;gap:3px}'
@@ -1114,7 +1120,7 @@ var RAW_CSS = ''
   + '.acsv-mp .acsv-tbtn:hover{background:#f5f5f5}'
   + '.acsv-mp .acsv-tbtn svg{fill:#666}'
   // 评论浅色（结构不变，只换色）
-  + '.acsv-mp .acsv-citem:hover{background:rgba(0,0,0,.03)}'
+  // 评论浅色皮肤（0.9.138 版式全语境统一后本区仅剩颜色差异；hover 底/几何覆盖已随统一撤除）
   + '.acsv-mp .acsv-cname{color:#333}'
   + '.acsv-mp .acsv-cname a{color:#333}'
   + '.acsv-mp .acsv-cname a:hover{color:var(--acsv-accent);text-decoration:none}'
@@ -1125,34 +1131,16 @@ var RAW_CSS = ''
   + '.acsv-mp .acsv-creplybtn,.acsv-mp .acsv-cfwdbtn{color:#999}'
   + '.acsv-mp .acsv-creplybtn:hover,.acsv-mp .acsv-cfwdbtn:hover{color:var(--acsv-accent)}'
   + '.acsv-mp .acsv-csub{background:#f7f7f7}'
-  + '.acsv-mp .acsv-cmore{color:#409bef}'
   + '.acsv-mp .acsv-hot-divider{color:#999}'
   // 观感件浅色（0.9.134；头像框无肤色差异不做覆盖）
   + '.acsv-mp .acsv-creplyto{color:#409bef}'
   + '.acsv-mp .acsv-cfrom a:hover{color:#409bef}'
   + '.acsv-mp .acsv-cfloor{color:#999}'
-  // 原生形态版式（0.9.135，内嵌语境专属 .acsv-mp；量值=真机 /member/feeds 展开评论区实测 +
-  // plaza 原生复刻）：头像 50 / 条目 18px 顶距、无内边距圆角 hover / 名字 12px 且时间并入同一行
-  //（「发表于 x」）/ 楼中楼灰块 88 缩进·头像 30·名字加粗 / 展开按钮=居中主题色文字链
-  + '.acsv-mp .acsv-citem{margin-top:18px;padding:0;gap:30px;border-radius:0}'
-  + '.acsv-mp .acsv-citem:hover{background:none}'
-  + '.acsv-mp .acsv-citem img.av{width:50px;height:50px}'
-  + '.acsv-mp .acsv-cavframe{left:-15px;top:-15px;width:80px;height:70px}'
-  + '.acsv-mp .acsv-cname{font-size:12px;margin-bottom:8px;gap:4px}'
+  // 原生形态版式（0.9.138 全语境统一）：几何已上提为基础规则（.acsv-citem/.acsv-csub/… 处，
+  // 全宿主同码）——本块只留浅色差异（时间/前缀灰、分割线原生色）
   + '.acsv-mp .acsv-cpostday,.acsv-mp .acsv-cposttime{font-size:12px;color:#999}'
   + '.acsv-mp .acsv-citem>.acsv-chr{border-top-color:#e6e6e6}' // 原生分割线色（真机 .area-comment-top hr）
-  + '.acsv-mp .acsv-ctext{margin-bottom:13px}'
-  + '.acsv-mp .acsv-cmeta{margin-top:0;margin-bottom:17px}'
   + '.acsv-mp .acsv-cpre{color:#999}'
-  + '.acsv-mp .acsv-csub{margin:8px 0 16px 8px;padding:14px 12px 2px;background:#f7f7f7;border-radius:0}'
-  + '.acsv-mp .acsv-csub .acsv-citem{margin-top:15px;padding:0;gap:10px}'
-  + '.acsv-mp .acsv-csub .acsv-citem:first-child{margin-top:0}'
-  + '.acsv-mp .acsv-csub .acsv-citem img.av{width:30px;height:30px}'
-  + '.acsv-mp .acsv-csub .acsv-cname{font-size:12px;margin-bottom:4px}'
-  + '.acsv-mp .acsv-csub .acsv-cname a,.acsv-mp .acsv-csub .acsv-cname>span{font-weight:700}'
-  + '.acsv-mp .acsv-csub .acsv-citem .acsv-ctext{margin-bottom:8px}'
-  + '.acsv-mp .acsv-csub .acsv-citem .acsv-cmeta{margin-bottom:8px}'
-  + '.acsv-mp .acsv-cmore{display:block;width:100%;padding:14px 0;text-align:center;color:var(--acsv-accent);font-size:13px}'
   + '.acsv-mp .acsv-cbody .ubb-at,.acsv-mp .acsv-cbody .ubb-res{color:#409bef}'
   // 输入条/表情面板/回复 chip 浅色
   + '.acsv-mp .acsv-cinput{border-top:1px solid #eee;background:#fff}'

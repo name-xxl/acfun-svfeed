@@ -25,7 +25,7 @@ import { commentItemOf } from './commentkit.js'; // 条目构建单源（0.9.133
 // UBB 渲染在 ubb.js、表情服务/面板在 emoticon.js（0.9.36 拆分，本文件回归抽屉编排）；
 // 评论条目构建/楼中楼展开于 0.9.133 下沉 commentkit.js（本文件只留管线：状态/宿主/输入条/
 // 点击委托/乐观插入/翻页——条目渲染一律经 commentItemOf(c, subMap, cmtOpts()) 单源出口）
-export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, pcursor: 'no_more', loading: false, replyTo: null, kind: 'sv', form: 'svfeed' };
+export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, pcursor: 'no_more', loading: false, replyTo: null, kind: 'sv' };
 
 // 评论管线 DOM 宿主（0.9.96 动态详情面板）：null = 经典抽屉（commentDrawer）。管线全经
 // curHost() 取宿主——与 commentState 数据单例配对；claimDrawer('comments') 同槽互斥保证
@@ -88,7 +88,6 @@ export function openComments(sourceId, stype, shareUrl, kind) {
   if (root) syncCommentVars(); // isOpenComments 此时已为真：空间够则加避让根类，不够则纯覆盖
   commentState.stype = Number(stype) || 5;
   commentState.kind = kind === 'home' ? 'home' : 'sv';
-  commentState.form = 'svfeed'; // 抽屉=脚本自有形态（原生形态版式见 openCommentsHost 的宿主判据）
   commentState.shareUrl = shareUrl || (CFG.api.shareBase + sourceId);
   ensureCommentInput();
   // 小视频模式纯浏览：不提供任何评论交互
@@ -120,9 +119,6 @@ export function openCommentsHost(h, sourceId, stype, shareUrl, kind) {
   // 的显式收承担（反向已在此函数首行关闭抽屉）
   commentState.stype = Number(stype) || 5;
   commentState.kind = kind === 'home' ? 'home' : 'sv';
-  // 形态（0.9.135）：宿主挂在内嵌原生页根（memberplaza 的 .acsv-mp）→「原生形态」版式
-  //（时间并入名字行等）；脚本视图/详情面板走自有形态
-  commentState.form = (h.el && h.el.closest && h.el.closest('.acsv-mp')) ? 'native' : 'svfeed';
   commentState.shareUrl = shareUrl || '';
   ensureCommentInput();
   if (inputBar) inputBar.style.display = commentState.kind === 'home' ? 'flex' : 'none';
@@ -263,7 +259,7 @@ export function commentListClick(ev) {
 
 // 评论条目渲染出口（0.9.133 抽离 commentkit 后）：把管线状态注入给无状态 kit（原为 kit 直读全局）
 function cmtOpts() {
-  return { mode: commentState.kind, sourceId: commentState.sourceId, stype: commentState.stype, form: commentState.form };
+  return { mode: commentState.kind, sourceId: commentState.sourceId, stype: commentState.stype };
 }
 
 function renderComments(list, append, subMap, hot) {

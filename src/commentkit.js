@@ -43,13 +43,13 @@ function replyPrefixHtml(c) {
 
 // 子评论 opts 派生（楼中楼上下文）：isSec 三处限定——回复前缀在、头像框/楼层不在
 function subOptsOf(opts) {
-  return { mode: opts.mode, sourceId: opts.sourceId, stype: opts.stype, form: opts.form, isSec: true };
+  return { mode: opts.mode, sourceId: opts.sourceId, stype: opts.stype, isSec: true };
 }
 
-// 条目构建单源。opts 注入（0.9.133，去全局读）：{ mode, sourceId, stype, form }——mode 是原
-// commentState.kind 的交互态分叉（'home' 才有赞/回复/转发三键），sourceId/stype 供楼中楼拉取；
-// form（0.9.135）：'native'=内嵌原生页语境（尺寸版式走 .acsv-mp 作用域 CSS + 展开按钮原生措辞），
-// 其余=脚本自有形态——日期「发表于 x」自 0.9.136 起两形态统一
+// 条目构建单源。opts 注入（0.9.133，去全局读）：{ mode, sourceId, stype }——mode 是原
+// commentState.kind 的交互态分叉（'home' 才有赞/回复/转发三键），sourceId/stype 供楼中楼拉取。
+// 版式自 0.9.138 全语境统一「原生形态」（真机量值：50px 头像/条目 18px 顶距/楼中楼 30+700/
+// 「共 N 条回复, 点击查看」——几何在 styles 基础规则，皮肤只差颜色；0.9.135 的 form 分派已撤）
 export function commentItemOf(c, subMap, opts) {
   var item = el('div', 'acsv-citem');
   // 头像 + 昵称可点击进入用户主页
@@ -177,10 +177,8 @@ export function commentItemOf(c, subMap, opts) {
 // 楼中楼展开：comment/sublist 分页拉取，就地追加渲染（网页版交互）
 // opts（0.9.133 注入）：{ mode, sourceId, stype }——sourceId/stype 原读全局 commentState 改注入
 function expandSubComments(body, c, subBox, opts) {
-  // 文案（0.9.135）：内嵌原生形态用原生措辞「共 N 条回复, 点击查看」；脚本形态维持「展开 N 条回复」
-  var more = el('button', 'acsv-cmore', opts.form === 'native'
-    ? '共 ' + c.subCommentCount + ' 条回复, 点击查看'
-    : '展开 ' + c.subCommentCount + ' 条回复');
+  // 文案（0.9.138 全语境统一原生措辞）
+  var more = el('button', 'acsv-cmore', '共 ' + c.subCommentCount + ' 条回复, 点击查看');
   var pcursor = '';
   var loaded = subBox ? subBox.querySelectorAll('.acsv-citem').length : 0;
   function appendSubs(arr) {
