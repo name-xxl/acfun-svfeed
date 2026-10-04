@@ -1673,7 +1673,49 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       return vBan.classList.contains('thrown') && vBan._n.textContent === '8';
     }, 5000)), 'n=' + vBan._n.textContent);
     // 蕉黄 = A 站蕉色 #ffb323（与竖刷 rail .thrown 同源；0.9.104 实报「已投蕉的颜色是黄的」）
-    rec('follow-ban-yellow', getComputedStyle(vBan).color === 'rgb(255, 179, 35)',
+    // 名字三色体系（0.9.157 用户裁决）：默认白 / 等级 1 红 #fd4c5c / 等级 2 紫 #964cfd；
+// 蓝 #57a9f5 只给正文里的链接。夹具（my-sample）：i=0 红、i=1 紫、其余默认
+rec('follow-name-3colors', (function () {
+  var want = { '关注UP0': 'rgb(253, 76, 92)', '关注UP1': 'rgb(150, 76, 253)' };
+  var got = {};
+  var defOk = false;
+  [].forEach.call(document.querySelectorAll('.acsv-frows .acsv-frow'), function (r) {
+    var n = r.querySelector('.acsv-frow-name');
+    if (!n) return;
+    var t = (n.textContent || '').trim();
+    if (want[t]) got[t] = getComputedStyle(n).color;
+    else if (t === '关注UP3' && !defOk) defOk = getComputedStyle(n).color === 'rgb(255, 255, 255)';
+  });
+  return got['关注UP0'] === want['关注UP0'] && got['关注UP1'] === want['关注UP1'] && defOk;
+})(), (function () {
+  var out = [];
+  [].forEach.call(document.querySelectorAll('.acsv-frows .acsv-frow'), function (r) {
+    var n = r.querySelector('.acsv-frow-name');
+    if (n && /^关注UP[0-3]$/.test(n.textContent)) out.push(n.textContent + '=' + getComputedStyle(n).color);
+  });
+  return out.join(' ');
+})());
+rec('follow-text-link-color', (function () { // 正文内 @提及=链接蓝（此前无规则→浏览器默认色）
+  var a = q('.acsv-frows .acsv-frow-text a');
+  return !!a && getComputedStyle(a).color === 'rgb(87, 169, 245)';
+})(), (function () {
+  var a = q('.acsv-frows .acsv-frow-text a');
+  return a ? getComputedStyle(a).color + ' ' + a.textContent : 'no-link';
+})());
+rec('follow-quote-upname-level', (function () { // 引用卡 @源UP：夹具源UP乙=紫（跨卡片同码）
+  var rows = document.querySelectorAll('.acsv-frows .acsv-frow');
+  var hit = null;
+  [].forEach.call(rows, function (r) {
+    var n = r.querySelector('.acsv-gquote-upname');
+    if (n && /源UP乙/.test(n.textContent)) hit = n;
+  });
+  return !!hit && getComputedStyle(hit).color === 'rgb(150, 76, 253)';
+})(), (function () {
+  var n = null;
+  [].forEach.call(document.querySelectorAll('.acsv-gquote-upname'), function (x) { if (/源UP乙/.test(x.textContent)) n = x; });
+  return n ? getComputedStyle(n).color : 'no-node';
+})());
+rec('follow-ban-yellow', getComputedStyle(vBan).color === 'rgb(255, 179, 35)',
       getComputedStyle(vBan).color);
     rec('follow-ban-video-rt', /resourceType=2/.test(window.__ACSV_BAN_BODY__ || '')
       && /count=3/.test(window.__ACSV_BAN_BODY__ || ''), window.__ACSV_BAN_BODY__);
@@ -1915,7 +1957,25 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     var rootCtext = ownChild(rootBody, 'acsv-ctext');
     var rootMeta = ownChild(rootBody, 'acsv-cmeta');
     var subItem = cmtBox && cmtBox.querySelector('.acsv-csub .acsv-citem');
-    rec('square-cmt-namecolor', (function () {
+    rec('square-name-level', (function () { // 行名等级色（0.9.157 三色体系）：夹具 广场UP3=等级 1 红
+  var hit = null;
+  [].forEach.call(document.querySelectorAll('.acsv-frows .acsv-frow-name'), function (n) {
+    if (/广场UP3$/.test(n.textContent)) hit = n;
+  });
+  return !!hit && getComputedStyle(hit).color === 'rgb(253, 76, 92)';
+})(), (function () {
+  var hit = null;
+  [].forEach.call(document.querySelectorAll('.acsv-frows .acsv-frow-name'), function (n) { if (/广场UP3$/.test(n.textContent)) hit = n; });
+  return hit ? getComputedStyle(hit).color : 'no-node';
+})());
+rec('square-name-default-white', (function () { // 默认档=白（夹具 广场UP1 无等级色）
+  var hit = null;
+  [].forEach.call(document.querySelectorAll('.acsv-frows .acsv-frow-name'), function (n) {
+    if (/广场UP1$/.test(n.textContent)) hit = n;
+  });
+  return !!hit && getComputedStyle(hit).color === 'rgb(255, 255, 255)';
+})());
+rec('square-cmt-namecolor', (function () {
       var na = rootItem && rootItem.querySelector('.acsv-cname a');
       return !!na && getComputedStyle(na).color === 'rgb(150, 76, 253)'; // nameColor 2=紫 #964cfd
     })(), (function () { var na = rootItem && rootItem.querySelector('.acsv-cname a'); return na ? getComputedStyle(na).color : 'none'; })());
@@ -2093,6 +2153,13 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     rec('detail-panel-open', !!(await waitFor(function () {
       return !!q('.acsv-mdetail .acsv-mdetail-panel') && !!q('.acsv-mdetail-list .acsv-cpin');
     }, 8000)));
+    rec('detail-head-name-level', (function () { // 面板头名字与列表同色（0.9.157 名字三色体系：
+      var n = q('.acsv-mdetail-head .acsv-gmom-name'); // 夹具「无图动态」=关注UP4 等级 1 → 红；此前点开会变蓝）
+      return !!n && /关注UP4/.test(n.textContent) && getComputedStyle(n).color === 'rgb(253, 76, 92)';
+    })(), (function () {
+      var n = q('.acsv-mdetail-head .acsv-gmom-name');
+      return n ? getComputedStyle(n).color + ' ' + n.textContent : 'no-node';
+    })());
     // 正文 pin 在列表首位且评论区加载后仍在（管线 reset 重挂——防「清列表冲掉正文」哨兵）
     rec('detail-text-pin', !!(await waitFor(function () {
       return /无图动态/.test((q('.acsv-mdetail-list .acsv-cpin .acsv-mdetail-text') || {}).textContent || '');

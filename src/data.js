@@ -18,11 +18,16 @@ import { ubbPlain } from './ubbtext.js';
 // 同 0.9.80「皮肤差异不当重复消灭」）；下游（slide/rail/interact/回填）一律只读 item.up。
 // 此前搜索传 upName、收藏把作者塞进 sub、榜单传 up、播放契约又是扁平三件套——桥
 // playlayer.itemOfPanel 只认榜单那一种，其余入口进播放层就退化成 '未知用户'（0.9.82 病灶）。
-export function upOf(id, name, img, isFollowing) {
+// nameColor（0.9.157，可选第 5 参）：名字等级色 0/1/2（动态域三色体系：默认白/红/紫）。
+// **只在调用方显式传第 5 参时才挂键**（传 undefined 也挂 0）——play 侧各处沿用 4 参调用，
+// 播放契约④「up 固定四件套」不受影响；内联渲染统一走 nameColorCss（0=不加色）
+export function upOf(id, name, img, isFollowing, nameColor) {
   var n = String(name || '').trim();
   var i = Number(id) || 0;
   if (!n && !i) return null; // 无名无 id：作者未知（不伪造）
-  return { id: i, name: n, img: img || '', isFollowing: !!isFollowing };
+  var up = { id: i, name: n, img: img || '', isFollowing: !!isFollowing };
+  if (arguments.length >= 5) up.nameColor = Number(nameColor) || 0;
+  return up;
 }
 
 // 契约字段白名单（可执行契约，0.9.82）：test/unit/contract.test.js 断言各来源产出 ⊆ 本表
@@ -233,7 +238,8 @@ var PANEL_PARSERS = {
     var u = raw.user || {};
     // 作者：followFeedV2 的 user 形状是 **userHead**（不是 meow 的 headUrl，也不是 APP 家族的
     // headUrl——三套并存的又一例，只在本解析器里认一次）。进播放层/卡面都走同一份 up 契约
-    it.up = upOf(u.userId, u.userName, coverUrl(u.userHead), u.isFollowing);
+    // nameColor 透传（0.9.157 真机核对：followFeedV2 20/20、followDougaFeed 10/10 的 user 都带）
+    it.up = upOf(u.userId, u.userName, coverUrl(u.userHead), u.isFollowing, u.nameColor);
     it.dateText = fmtAgo(Number(raw.createTime));
     // 播放数只在视频/文章分支赋值；**动态不挂**——实测动态 viewCount 恒 0，「0 播放」不是
     // 信息是噪音（真数据复核截图发现；动态卡面只留三计数行）
@@ -306,7 +312,7 @@ var PANEL_PARSERS = {
         var rs = raw.repostSource;
         function rsUp(u) {
           u = u || {};
-          return upOf(u.userId, u.userName, coverUrl(u.userHead));
+          return upOf(u.userId, u.userName, coverUrl(u.userHead), false, u.nameColor); // 等级色同族透传（0.9.157）
         }
         if (rs && (rs.resourceType === 2 || rs.resourceType === 3)) {
           it.repost = {
@@ -368,9 +374,8 @@ var PANEL_PARSERS = {
   square: function (raw, it) {
     if (!raw || raw.resourceType !== 10) return false; // 端点语义即纯动态（过滤=宁漏不错兜底）
     var u = raw.user || raw.userInfo || {};
-    it.up = upOf(u.userId, u.userName, coverUrl(u.userHead), u.isFollowing);
-    // 行名等级色（0.9.134）：feedSquare 的 user 带 nameColor（plaza 真机代码在册；0/缺失不加色）
-    if (it.up) it.up.nameColor = Number(u.nameColor) || 0;
+    // 行名等级色（0.9.134；0.9.157 并入 upOf 第 5 参统一透传）：feedSquare 的 user 带 nameColor
+    it.up = upOf(u.userId, u.userName, coverUrl(u.userHead), u.isFollowing, u.nameColor);
     it.dateText = fmtAgo(Number(raw.createTime));
     it.ct = 'moment';
     var mo = raw.moment || {};

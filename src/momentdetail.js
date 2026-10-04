@@ -4,6 +4,7 @@ import { root, releaseDrawer } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { imgInto } from './imgload.js';
 import { ubbTextOf, quoteBlockOf } from './cards.js';
+import { nameColorCss } from './data.js'; // 名字等级色（0.9.157）
 import { ICONS } from './styles.js';
 import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
 import { openImageViewer } from './imgview.js';
@@ -150,6 +151,9 @@ export function openMomentDetail(pi) {
   head.appendChild(av);
   // 作者名=真链接（0.9.105 统一蓝链语言：与行流/引用卡 @源UP 同款；无 up.id 则不可点）
   var nameEl = el('a', 'acsv-gmom-name', pi.up && pi.up.name ? '@' + pi.up.name : '');
+  // 名字等级色（0.9.157 三色体系）：与列表/引用卡同源同码——点开不再由紫/红变白或蓝
+  var ncssM = nameColorCss(pi.up && pi.up.nameColor);
+  if (ncssM) nameEl.style.color = ncssM;
   if (pi.up && pi.up.id) {
     nameEl.href = CFG.api.userBase + pi.up.id;
     nameEl.target = '_blank';

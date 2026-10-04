@@ -4,6 +4,7 @@ import { imgInto } from './imgload.js';
 import { openImageViewer } from './imgview.js';
 import { GLYPHS } from './imicons.js';
 import { renderCommentHtml } from './ubb.js'; // 动态正文 UBB 单源（0.9.91）
+import { nameColorCss } from './data.js'; // 名字等级色（0.9.157 三色体系：默认白/等级红紫）
 
 // ---------- 卡面 kit（0.9.109 自 views.js 拆出：编排 / 卡面分家） ----------
 // 全项目卡面构建单源：网格卡（gridCardOf）/行卡（rowOf）/资源横条（stripOf）/引用卡
@@ -245,6 +246,9 @@ export function quoteBlockOf(repost) {
     name.target = '_blank';
     name.rel = 'noopener';
   }
+  // 名字等级色（0.9.157 三色体系）：与行卡/面板同源同码——等级红/紫内联覆盖默认白
+  var ncss = nameColorCss(repost.up && repost.up.nameColor);
+  if (ncss) name.style.color = ncss;
   // 名字是独立落点（源 UP 主页）：锚点自己导航，不冒泡成源卡点击/行默认
   name.addEventListener('click', function (ev) { ev.stopPropagation(); });
   up.appendChild(name);

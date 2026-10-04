@@ -172,7 +172,7 @@
       // 转发动态（0.9.98 实测关注流实存）：源条 resourceType=10，源正文/源首图都在源嵌套 moment 里
       else if (repost === 'moment') e.repostSource = {
         resourceType: 10, resourceId: 510091,
-        user: { userId: 9002, userName: '源UP乙', userHead: PANEL_AVATAR },
+        user: { userId: 9002, userName: '源UP乙', userHead: PANEL_AVATAR, nameColor: 2 }, // 紫名：引用卡 @源UP 等级色钉（0.9.157）
         // 源多图 2 张（0.9.107 实报样本形态：外层 5104362 → 源 5104327 imgs=2）
         moment: { momentId: 510091, text: '被转发的动态正文[emot=acfun,2/]带[at uid=9]@某人[/at]',
           imgs: [FOLLOW_COVER, FOLLOW_COVER].map(function (u) {
@@ -183,13 +183,17 @@
     }
     return e;
   }
+  // 名字三色体系夹具（0.9.157）：三条刻意给等级色，其余默认（不挂 nameColor → 默认色）——
+  // view-follow（行卡三色）/ detail-open（面板同色）共用；等级真机值 1=红 #fd4c5c / 2=紫 #964cfd
+  function setNC(e, nc) { e.user.nameColor = nc; return e; }
   var FOLLOW_P1 = [
     // 今天（group 1）：3 视频 + 3 动态 + 1 文章 + 1 条未观察类型（4 → 应被过滤）
-    fVideo(0, 1, '关注视频甲'), fMoment(1, 1, '动态正文带 UBB[at uid=1001]@关注UP1[/at]与表情[emot=acfun,1/]', true),
+    setNC(fVideo(0, 1, '关注视频甲'), 1), // 红名（等级 1）
+    setNC(fMoment(1, 1, '动态正文带 UBB[at uid=1001]@关注UP1[/at]与表情[emot=acfun,1/]', true), 2), // 紫名（等级 2）
     fArticle(2, 1, '关注文章甲'), fVideo(3, 1, '关注视频乙'),
     // 无图动态正文刻意写长：展开/收起的溢出探测夹具（0.9.99）——前缀「无图动态」是
     // detail-open 场景的定位锚，截断不得动它
-    fMoment(4, 1, '无图动态：只有文字的一条' + new Array(40).join('这条动态的正文刻意写得很长，用来验证展开按钮的溢出探测与钳高切换，'), false),
+    setNC(fMoment(4, 1, '无图动态：只有文字的一条' + new Array(40).join('这条动态的正文刻意写得很长，用来验证展开按钮的溢出探测与钳高切换，'), false), 1), // 红名：detail-open 钉「面板头与列表同色」
     fVideo(5, 1, '关注视频丙'), fMoment(6, 1, '另一条图文动态 #测试话题# ac488900', 'multi'),
     (function () { var e = fBase(7, 1, 4); e.resourceId = 488999; e.caption = '未观察类型应被过滤'; return e; })(),
     // 昨天（group 2）：2 视频 + 2 动态 + 2 文章
@@ -244,7 +248,8 @@
           likeCount: 3 + n, commentCount: 2 + n, bananaCount: 1 + n, shareCount: n,
           isLike: false, isThrowBanana: false,
           moment: { momentId: String(5105000 + n), text: '广场动态' + n + ' [emot=acfun,1/]', imgs: imgs || [] },
-          user: { userId: 3000 + n, userName: '广场UP' + n, userHead: PANEL_AVATAR, nameColor: 0 }
+          // 第 3 条给等级 1（红）：view-square（深色）与 member-plaza（浅色）两皮肤同值钉（0.9.157）
+          user: { userId: 3000 + n, userName: '广场UP' + n, userHead: PANEL_AVATAR, nameColor: n === 3 ? 1 : 0 }
         };
       }
       if (String(url).indexOf('pcursor=') === -1) {

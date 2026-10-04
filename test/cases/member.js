@@ -2,7 +2,7 @@
 // 页面=BOOT_PATH 改写的 /member/feeds + 本场景 opt-out 自动挂壳（harness.html NO_AUTOMOUNT）
 // ——必须在**无壳**条件下验证：入口注入（走真实轮询，非 TEST 直驱）→ 点击就地展开（.acsv-mp
 // 出现 + 行卡渲染 + 原生节点隐藏 + #acsv-root 不存在=不跳全屏壳的机器证据）→ 浅色皮肤
-// （computed 色 #333 vs 深色皮肤的 #57a9f5）→ 无壳评论管线（列表+输入条）→ 无壳大图浮层 →
+// （computed 色 #333 vs 深色皮肤的默认白；等级色两皮肤同值）→ 无壳评论管线（列表+输入条）→ 无壳大图浮层 →
 // 再点=刷新重建（EXTRA 旗标证明真的重拉首页）→ 点原生「动态」链收回（不 reload）→ 收回后再点
 // 入口重开（0.9.132：推广条按用户裁决撤除，重开唯入口径）。夹具：MY_MOCK 的 feedSquare
 //（广场动态2 带图，喂无壳大图断言）；mock 缝依赖 debug 构建。
@@ -87,11 +87,22 @@
       return !!it && it.classList.contains('ac-member-navigation-item-active')
         && it.classList.contains('router-link-exact-active');
     })());
-    // 浅色皮肤生效：行名 computed 色 = 原生 #333（深色皮肤是 #57a9f5）
+    // 浅色皮肤生效：行名默认 computed 色 = 原生 #333（深色皮肤默认是白；0.9.157 名字三色体系）
     rec('mp-skin-name', (function () {
       var n = q('.acsv-mp .acsv-frow-name');
       return !!n && getComputedStyle(n).color === 'rgb(51, 51, 51)';
     })(), (function () { var n = q('.acsv-mp .acsv-frow-name'); return n ? getComputedStyle(n).color : 'none'; })());
+    rec('mp-name-level', (function () { // 等级色在浅色页同样生效（夹具 广场UP3=等级 1 红 #fd4c5c）
+      var hit = null;
+      [].forEach.call(document.querySelectorAll('.acsv-mp .acsv-frow-name'), function (n) {
+        if (/广场UP3/.test(n.textContent)) hit = n;
+      });
+      return !!hit && getComputedStyle(hit).color === 'rgb(253, 76, 92)';
+    })(), (function () {
+      var hit = null;
+      [].forEach.call(document.querySelectorAll('.acsv-mp .acsv-frow-name'), function (n) { if (/广场UP3/.test(n.textContent)) hit = n; });
+      return hit ? getComputedStyle(hit).color : 'no-node';
+    })());
     // am 号锚（plaza 原物）
     rec('mp-amlink', (function () {
       var a = q('.acsv-mp-am');

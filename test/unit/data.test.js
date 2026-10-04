@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, searchVideoPageOf, searchUserPageOf, searchArticlePageOf, followVideoPageOf, momentPiOfRepost, momentExtraOf, squarePageOf, momentDetailStateOf, nameColorCss, frameUrlOf, groupListOf, followListPageOf, newGroupIdOf, groupNameError, folderNameError, folderListOf, folderIdOf } = await import('../../src/data.js');
+var { upOf, panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, searchVideoPageOf, searchUserPageOf, searchArticlePageOf, followVideoPageOf, momentPiOfRepost, momentExtraOf, squarePageOf, momentDetailStateOf, nameColorCss, frameUrlOf, groupListOf, followListPageOf, newGroupIdOf, groupNameError, folderNameError, folderListOf, folderIdOf } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -692,7 +692,8 @@ test('panelItem follow：转发源契约（ct/id/title/cover/up）；未知源�
   assert.deepEqual(v.repost, {
     ct: 'video', id: 488900, title: '被转发的视频标题', cover: 'https://tx-free-imgs.acfun.cn/视频封面.jpg',
     dur: '01:23', views: '1.2万',
-    up: { id: 42, name: '源UP', img: 'https://tx-free-imgs.acfun.cn/源头像.jpg', isFollowing: false }
+    // 0.9.157：等级色位随 upOf 第 5 参随族透传（源条 user 缺 nameColor → 挂 0；名字三色体系）
+    up: { id: 42, name: '源UP', img: 'https://tx-free-imgs.acfun.cn/源头像.jpg', isFollowing: false, nameColor: 0 }
   });
   var a = mom({ resourceType: 3, resourceId: 488700, articleTitle: '被转发的文章标题', coverUrl: 'https://tx-free-imgs.acfun.cn/文章封面.jpg' });
   assert.deepEqual(a.repost, {
@@ -750,6 +751,36 @@ test('panelItem square：feedSquare 条目——momentId 嵌在 moment 里、绝
   assert.equal(panelItem('square', { resourceType: 2, resourceId: 1 }), null);
   assert.equal(panelItem('square', { resourceType: 10, moment: { text: '无id' } }), null);
   assert.equal(panelItem('square', { resourceType: 10, moment: { momentId: '5' } }), null);
+});
+
+// ---------- 名字三色体系（0.9.157）：upOf 第 5 参 + 各源透传 ----------
+test('upOf：第 5 参才挂 nameColor（play 侧四处沿用 4 参调用——契约④四件套不受影响）', () => {
+  var four = upOf(7, '李四', 'h.png', true);
+  assert.equal('nameColor' in four, false, '4 参调用不得挂 nameColor');
+  assert.equal(upOf(7, '李四', 'h.png', true, 2).nameColor, 2);
+  assert.equal(upOf(7, '李四', 'h.png', true, undefined).nameColor, 0); // 显式传位（缺值）= 挂 0
+  assert.equal(upOf(7, '李四', 'h.png', true, '1').nameColor, 1); // 字符串也认（真机数字/串并存）
+  // 播放侧桥：始终重建四件套（等级色是面板/卡面语义，不进播放契约）
+  var item = playItemOf({ acId: 1, title: 't', up: { id: 5, name: 'u', img: 'i', isFollowing: false, nameColor: 2 } });
+  assert.deepEqual(Object.keys(item.up).sort(), ['id', 'img', 'isFollowing', 'name']);
+});
+
+test('panelItem follow：user.nameColor 透传（0.9.157 真机核对：followFeedV2 20/20、followDougaFeed 10/10 都带）', () => {
+  function fe(nc) {
+    var u = { userId: 9, userName: 'u', userHead: 'h', isFollowing: true };
+    if (nc !== undefined) u.nameColor = nc;
+    return { resourceType: 10, resourceId: 5100, createTime: Date.now() - 60000, user: u, moment: { momentId: 5100, text: 'x' } };
+  }
+  assert.equal(panelItem('follow', fe(1)).up.nameColor, 1);
+  assert.equal(panelItem('follow', fe(2)).up.nameColor, 2);
+  assert.equal(panelItem('follow', fe()).up.nameColor, 0); // 缺省挂 0（nameColorCss 不加色）
+  // 转发源（repostSource.user 同族）同样透传
+  var rp = { resourceType: 10, resourceId: 5200, createTime: Date.now() - 60000,
+    user: { userId: 1, userName: '转发者', userHead: 'h' },
+    moment: { momentId: 5200, text: '转发者正文' },
+    repostSource: { resourceType: 10, resourceId: 510091, user: { userId: 2, userName: '源UP', userHead: 'h', nameColor: 2 },
+      moment: { momentId: 510091, text: '源正文' } } };
+  assert.equal(panelItem('follow', rp).repost.up.nameColor, 2);
 });
 
 test('squarePageOf：单页规整——result!==0 抛错（失败≠到底）；no_more/空页兜底；非动态滤掉', () => {

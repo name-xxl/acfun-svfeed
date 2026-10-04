@@ -336,6 +336,10 @@ var RAW_CSS = ''
   // 这是注入宿主页的全局样式表，不能留无前缀选择器（防与站点样式互染）
   + '.acsv-cbody .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}'
   + '.acsv-cbody .ubb-imgc{display:block;max-width:min(240px,100%);max-height:220px;border-radius:8px;margin-top:6px;cursor:zoom-in}'
+  // 动态正文内链接（0.9.157 顺修）：行卡正文/详情面板正文/引用源正文此前**没有任何规则**
+  // → 落回浏览器默认链接色（黑底近乎不可见）。统一到链接蓝（"名字不再占蓝"后的分工）
+  + '.acsv-frow-text a,.acsv-mdetail-text a,.acsv-gquote-textbody a{color:#57a9f5;text-decoration:none}'
+  + '.acsv-frow-text a:hover,.acsv-mdetail-text a:hover,.acsv-gquote-textbody a:hover{text-decoration:underline}'
   + '.acsv-cbody .ubb-at,.acsv-cbody .ubb-res{color:#9fd0ff;text-decoration:none}'
   + '.acsv-cbody .ubb-at:hover,.acsv-cbody .ubb-res:hover{text-decoration:underline}'
   // 评论配图大图查看器：root 内全屏浮层，局部 z-index 盖过两抽屉(58，评论/私信共用同款规则)
@@ -727,7 +731,7 @@ var RAW_CSS = ''
   + 'border-bottom:1px solid rgba(255,255,255,.09)}'
   + '.acsv-mdetail-head .acsv-gmom-av{width:40px;height:40px}'
   + '.acsv-mdetail-head .acsv-gmom-av img{width:40px;height:40px}'
-  + '.acsv-mdetail-head .acsv-gmom-name{font-size:16px;color:#57a9f5;text-decoration:none}' // 链接蓝同源（0.9.105）
+  + '.acsv-mdetail-head .acsv-gmom-name{font-size:16px;color:#fff;text-decoration:none}' // 名字默认白（0.9.157；与列表同色，不再点开变蓝）
   + '.acsv-mdetail-head .acsv-gmom-name:hover{text-decoration:underline}'
   // 列表 = 管线宿主（正文 pin 在首、评论区衔接其后；输入条是 list 的兄弟节点不遮列表，底距收小）
   + '.acsv-mdetail-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px 20px 10px;'
@@ -1097,7 +1101,7 @@ var RAW_CSS = ''
   // + 源内容卡（视频/文章=与行内同款 .acsv-frow-strip；动态=UBB 正文+首图）
   + '.acsv-gquote{margin:10px 0 10px -10px;padding:10px;background:rgba(255,255,255,.06)}'
   + '.acsv-gquote-up{font-size:14px;line-height:22px;color:#8a90a0;margin-bottom:12px}'
-  + '.acsv-gquote-upname{color:#57a9f5;text-decoration:none}'
+  + '.acsv-gquote-upname{color:#fff;text-decoration:none}' // 名字默认白（0.9.157；等级色 JS 内联覆盖）
   + '.acsv-gquote-upname:hover{text-decoration:underline}'
   + '.acsv-gquote-text{min-width:0}'
   // 动态源正文：UBB 单源渲染（原生同款含表情图）；钳 3 行——原生不钳，长文引用会撑行，
@@ -1119,7 +1123,10 @@ var RAW_CSS = ''
   // 量取日 2026-10-03（站方 /member/feeds computed style + 样式表规则；复刻法=广场
   // renderer.js/css.js 的逐类名复刻路数）。结构/字号/间距/信息层级 1:1 照量取值；颜色
   // 暗色换算对照：#333→#e8eaee、#f8f8f8→rgba(255,255,255,.06)、#999→#8a90a0、
-  // hover/active 红→var(--acsv-accent)、原生蓝链 rgb(64,155,239)→#57a9f5。原生是**扁平
+  // hover/active 红→var(--acsv-accent)、原生蓝链 rgb(64,155,239)→#57a9f5。
+  // **0.9.157 颜色分工（用户裁决）**：名字=三色体系（默认白 / 等级 1 红 #fd4c5c / 等级 2 紫
+  // #964cfd，后两者 JS 内联 data.nameColorCss 覆盖）；蓝 #57a9f5 只给**正文里的链接**
+  //（@提及/资源链/话题）。原生是**扁平
   // 列表**（条目无底色无圆角），条目间 feed-separate 是 830×10 灰带——相邻行 border-top
   // 等价实现；列 870 居中。退役登记：ggroup/gkind/gart*/gmom 根与 flag/text/quoted 均于
   // 0.9.102 删除（上文各自登记）；.acsv-frow-strip 被引用卡内嵌源卡复用（原生同款 markup）
@@ -1133,7 +1140,7 @@ var RAW_CSS = ''
   + '.acsv-frow-av img{width:100%;height:100%;object-fit:cover;display:block}'
   + '.acsv-frow-info{min-width:0}'
   + '.acsv-frow-name{display:block;margin:5px 0 6px;max-width:380px;font-size:16px;line-height:18px;'
-  + 'color:#57a9f5;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' // 链接蓝：与引用卡 @源UP 同源（0.9.105 实报灰字不显眼）
+  + 'color:#fff;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' // 名字默认白（0.9.157 三色体系：等级红/紫内联覆盖；链接蓝只给正文链接）
   + '.acsv-frow-name:hover{text-decoration:underline}'
   + '.acsv-frow-time{display:block;font-size:12px;line-height:12px;color:#8a90a0}'
   // 内容区（feed-content）：padding 6px 0 0 60px——正文/媒体/互动与名字左对齐，头像下不排文
