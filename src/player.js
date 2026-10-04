@@ -19,6 +19,7 @@ import { onHomeResolved } from './rail.js';
 import { buildSlide, buildDrawer } from './slide.js';
 import { toggleImDrawer, mountBadge, teardownIm } from './imdrawer.js';
 import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
+import { openSettings } from './settingspanel.js';
 import { overlayTeardown } from './overlay.js';
 import { syncRouteView, teardownViews, currentView, backFromOrigin } from './views.js';
 import { buildDock, teardownDock, setFeedHomeHandler } from './sidebar.js';
@@ -423,7 +424,7 @@ function mount() {
   document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
   document.body.appendChild(root);
-  buildDock(root); // 左栏子视图入口：竖刷路由内常驻（unmount 随 teardownDock 拆）
+  buildDock(root, { onSettings: openSettings }); // 左栏子视图入口：竖刷路由内常驻（unmount 随 teardownDock 拆）；设置齿轮出口经 hooks 注入（0.9.112）
   setFeedHomeHandler(goFeedHome); // 推荐条目显式重置入口（0.9.107）
   startFollowBadge(); // 关注未读徽标轮询（0.9.97，4.3）：dock 常驻生命周期，unmount 停
   mountBadge(tb.imBtn, tb.imBtn.querySelector('.acsv-im-badge'));

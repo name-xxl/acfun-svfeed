@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.111
+// @version      0.9.112
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -6581,164 +6581,6 @@
     return out;
   }
 
-  // src/settingspanel.js
-  var SET_CSS = '.set{position:absolute;inset:0;z-index:62;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;animation:set-in .18s ease}@keyframes set-in{from{opacity:0}to{opacity:1}}.set-panel{width:min(400px,92vw);max-height:min(76vh,640px);display:flex;flex-direction:column;background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden;color:#fff;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}.set-head{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.09)}.set-title{font-size:15px;font-weight:600}.set-x{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}.set-x:hover{background:rgba(255,255,255,.22)}.set-body{flex:1 1 auto;min-height:64px;overflow-y:auto;padding:20px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}.set-group{font-size:12px;color:#8b909a;margin:0 0 6px}.set-group + .set-row:last-child{margin-bottom:0}.set-row{display:flex;align-items:center;gap:20px;min-height:18px;margin:0 0 20px}.set-row-main{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:2px}.set-label{font-size:14px;line-height:18px}.set-hint{font-size:12px;line-height:16px;color:#8b909a}.set-sw{flex:none;width:34px;height:18px;border:none;border-radius:22px;padding:0;cursor:pointer;background:rgb(158,158,158);position:relative;transition:background .15s}.set-sw.on{background:var(--acsv-accent)}.set-sw i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s}.set-sw.on i{transform:translateX(16px)}.set-sel{flex:none;position:relative}.set-sel-btn{min-width:88px;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;font:13px/1.4 inherit;text-align:center}.set-sel-btn:hover{background:rgba(255,255,255,.2)}.set-sel-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;min-width:120px;background:rgba(21,21,21,.92);border-radius:4px;padding:0;display:flex;flex-direction:column;box-shadow:0 8px 28px rgba(0,0,0,.45)}.set-sel-item{border:none;background:none;color:#fff;font:14px/36px inherit;cursor:pointer;padding:0 14px;text-align:left;white-space:nowrap}.set-sel-item:hover{background:rgba(255,255,255,.12)}.set-sel-item.on{color:var(--acsv-accent)}.set-num{flex:none;display:flex;align-items:center;gap:8px}.set-num-btn{width:26px;height:26px;border:1px solid rgba(255,255,255,.2);border-radius:3px;background:none;color:#fff;font:14px/1 inherit;cursor:pointer}.set-num-btn:hover:not(:disabled){background:rgba(255,255,255,.12)}.set-num-btn:disabled{opacity:.35;cursor:default}.set-num-val{min-width:56px;text-align:center;font-size:14px}.set-foot{flex:none;display:flex;gap:8px;justify-content:flex-end;padding:10px 16px 14px;border-top:1px solid rgba(255,255,255,.09)}.set-act{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;transition:background .15s}.set-act:hover{background:rgba(255,255,255,.2)}.set-act.primary{background:var(--acsv-accent)}';
-  var host2 = null;
-  var panel = null;
-  var offs = [];
-  function closeSettings() {
-    if (!panel) return;
-    var p = panel;
-    panel = null;
-    var h = host2;
-    host2 = null;
-    p.remove();
-    if (h) h.remove();
-    for (var i = 0; i < offs.length; i++) {
-      try {
-        offs[i]();
-      } catch (e) {
-      }
-    }
-    offs = [];
-    flushSettings();
-    overlayClose("settings");
-  }
-  function boolControl(item) {
-    var b = el("button", "set-sw");
-    b.title = item.label || item.key;
-    b.appendChild(el("i"));
-    var sync = function() {
-      b.classList.toggle("on", getSetting(item.key) === true);
-    };
-    b.addEventListener("click", function() {
-      setSetting(item.key, getSetting(item.key) !== true);
-    });
-    sync();
-    return { node: b, sync };
-  }
-  function selectControl(item) {
-    var wrap = el("span", "set-sel");
-    var btn = el("button", "set-sel-btn");
-    var menu = null;
-    var labelOf = function(v) {
-      for (var i = 0; i < item.options.length; i++) {
-        if (item.options[i].v === v) return item.options[i].t || item.options[i].v;
-      }
-      return v;
-    };
-    var closeMenu = function() {
-      if (menu) {
-        menu.remove();
-        menu = null;
-      }
-    };
-    var sync = function() {
-      closeMenu();
-      btn.textContent = labelOf(getSetting(item.key));
-    };
-    btn.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      if (menu) {
-        closeMenu();
-        return;
-      }
-      menu = el("div", "set-sel-menu");
-      item.options.forEach(function(o) {
-        var it = el("button", "set-sel-item" + (o.v === getSetting(item.key) ? " on" : ""), o.t || o.v);
-        it.addEventListener("click", function(ev2) {
-          ev2.stopPropagation();
-          setSetting(item.key, o.v);
-        });
-        menu.appendChild(it);
-      });
-      wrap.appendChild(menu);
-    });
-    wrap.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-    });
-    wrap.appendChild(btn);
-    sync();
-    return { node: wrap, sync };
-  }
-  function numControl(item) {
-    var wrap = el("span", "set-num");
-    var minus = el("button", "set-num-btn", "−");
-    var val = el("span", "set-num-val");
-    var plus = el("button", "set-num-btn", "+");
-    var sync = function() {
-      var v = getSetting(item.key);
-      val.textContent = v + " 秒";
-      minus.disabled = !(v > item.min);
-      plus.disabled = !(v < item.max);
-    };
-    minus.addEventListener("click", function() {
-      setSetting(item.key, getSetting(item.key) - item.step);
-    });
-    plus.addEventListener("click", function() {
-      setSetting(item.key, getSetting(item.key) + item.step);
-    });
-    sync();
-    wrap.appendChild(minus);
-    wrap.appendChild(val);
-    wrap.appendChild(plus);
-    return { node: wrap, sync };
-  }
-  var FACTORY = { bool: boolControl, select: selectControl, number: numControl };
-  function buildBody(body) {
-    var group = null;
-    panelItems().forEach(function(item) {
-      var f = FACTORY[item.type];
-      if (!f) return;
-      if (item.group !== group) {
-        group = item.group;
-        body.appendChild(el("div", "set-group", group));
-      }
-      var row = el("div", "set-row");
-      var main = el("div", "set-row-main");
-      main.appendChild(el("div", "set-label", item.label));
-      if (item.hint) main.appendChild(el("div", "set-hint", item.hint));
-      row.appendChild(main);
-      var c = f(item);
-      row.appendChild(c.node);
-      body.appendChild(row);
-      offs.push(onChange(item.key, c.sync));
-    });
-  }
-  function openSettings() {
-    closeSettings();
-    if (!root || panel) return;
-    host2 = el("div", "acsv-set-host");
-    var shadow = host2.attachShadow({ mode: "open" });
-    var style = document.createElement("style");
-    style.textContent = SET_CSS;
-    shadow.appendChild(style);
-    panel = el("div", "set");
-    var pnl = el("div", "set-panel");
-    var head = el("div", "set-head");
-    head.appendChild(el("div", "set-title", "设置"));
-    var x = el("button", "set-x", "✕");
-    x.title = "关闭";
-    x.addEventListener("click", closeSettings);
-    head.appendChild(x);
-    pnl.appendChild(head);
-    var body = el("div", "set-body");
-    buildBody(body);
-    pnl.appendChild(body);
-    var foot = el("div", "set-foot");
-    var done = el("button", "set-act primary", "完成");
-    done.addEventListener("click", closeSettings);
-    foot.appendChild(done);
-    pnl.appendChild(foot);
-    panel.appendChild(pnl);
-    panel.addEventListener("click", function(ev) {
-      if (ev.target === panel) closeSettings();
-    });
-    shadow.appendChild(panel);
-    root.appendChild(host2);
-    overlayOpen({ id: "settings", modal: true, close: closeSettings });
-  }
-
   // src/sidebar.js
   var dockEl = null;
   var feedHomeHandler = null;
@@ -6752,8 +6594,9 @@
     svg: '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.2 10.9-6.1 3.5c-.5.3-1.1-.1-1.1-.7V8.3c0-.6.6-1 1.1-.7l6.1 3.5c.5.3.5 1 0 1.3z"/></svg>'
   };
   var GEAR_SVG = '<svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87a.49.49 0 0 0 .12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.07.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>';
-  function buildDock(parent) {
+  function buildDock(parent, h) {
     if (dockEl) return;
+    var hooks3 = h || {};
     dockEl = el("div", "acsv-dock");
     var logo = el("div", "acsv-dock-logo");
     var img = el("img");
@@ -6785,7 +6628,7 @@
     gear.title = "设置";
     gear.innerHTML = GEAR_SVG + "<span>设置</span>";
     gear.addEventListener("click", function() {
-      openSettings();
+      if (hooks3.onSettings) hooks3.onSettings();
     });
     dockEl.appendChild(gear);
     syncDock(null);
@@ -8940,7 +8783,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.111" : "");
+    return normVer(true ? "0.9.112" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -9137,6 +8980,164 @@
   }
   function teardownRelease() {
     closeReleaseModal();
+  }
+
+  // src/settingspanel.js
+  var SET_CSS = '.set{position:absolute;inset:0;z-index:62;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;animation:set-in .18s ease}@keyframes set-in{from{opacity:0}to{opacity:1}}.set-panel{width:min(400px,92vw);max-height:min(76vh,640px);display:flex;flex-direction:column;background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden;color:#fff;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}.set-head{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.09)}.set-title{font-size:15px;font-weight:600}.set-x{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}.set-x:hover{background:rgba(255,255,255,.22)}.set-body{flex:1 1 auto;min-height:64px;overflow-y:auto;padding:20px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}.set-group{font-size:12px;color:#8b909a;margin:0 0 6px}.set-group + .set-row:last-child{margin-bottom:0}.set-row{display:flex;align-items:center;gap:20px;min-height:18px;margin:0 0 20px}.set-row-main{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:2px}.set-label{font-size:14px;line-height:18px}.set-hint{font-size:12px;line-height:16px;color:#8b909a}.set-sw{flex:none;width:34px;height:18px;border:none;border-radius:22px;padding:0;cursor:pointer;background:rgb(158,158,158);position:relative;transition:background .15s}.set-sw.on{background:var(--acsv-accent)}.set-sw i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s}.set-sw.on i{transform:translateX(16px)}.set-sel{flex:none;position:relative}.set-sel-btn{min-width:88px;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;font:13px/1.4 inherit;text-align:center}.set-sel-btn:hover{background:rgba(255,255,255,.2)}.set-sel-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;min-width:120px;background:rgba(21,21,21,.92);border-radius:4px;padding:0;display:flex;flex-direction:column;box-shadow:0 8px 28px rgba(0,0,0,.45)}.set-sel-item{border:none;background:none;color:#fff;font:14px/36px inherit;cursor:pointer;padding:0 14px;text-align:left;white-space:nowrap}.set-sel-item:hover{background:rgba(255,255,255,.12)}.set-sel-item.on{color:var(--acsv-accent)}.set-num{flex:none;display:flex;align-items:center;gap:8px}.set-num-btn{width:26px;height:26px;border:1px solid rgba(255,255,255,.2);border-radius:3px;background:none;color:#fff;font:14px/1 inherit;cursor:pointer}.set-num-btn:hover:not(:disabled){background:rgba(255,255,255,.12)}.set-num-btn:disabled{opacity:.35;cursor:default}.set-num-val{min-width:56px;text-align:center;font-size:14px}.set-foot{flex:none;display:flex;gap:8px;justify-content:flex-end;padding:10px 16px 14px;border-top:1px solid rgba(255,255,255,.09)}.set-act{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;transition:background .15s}.set-act:hover{background:rgba(255,255,255,.2)}.set-act.primary{background:var(--acsv-accent)}';
+  var host2 = null;
+  var panel = null;
+  var offs = [];
+  function closeSettings() {
+    if (!panel) return;
+    var p = panel;
+    panel = null;
+    var h = host2;
+    host2 = null;
+    p.remove();
+    if (h) h.remove();
+    for (var i = 0; i < offs.length; i++) {
+      try {
+        offs[i]();
+      } catch (e) {
+      }
+    }
+    offs = [];
+    flushSettings();
+    overlayClose("settings");
+  }
+  function boolControl(item) {
+    var b = el("button", "set-sw");
+    b.title = item.label || item.key;
+    b.appendChild(el("i"));
+    var sync = function() {
+      b.classList.toggle("on", getSetting(item.key) === true);
+    };
+    b.addEventListener("click", function() {
+      setSetting(item.key, getSetting(item.key) !== true);
+    });
+    sync();
+    return { node: b, sync };
+  }
+  function selectControl(item) {
+    var wrap = el("span", "set-sel");
+    var btn = el("button", "set-sel-btn");
+    var menu = null;
+    var labelOf = function(v) {
+      for (var i = 0; i < item.options.length; i++) {
+        if (item.options[i].v === v) return item.options[i].t || item.options[i].v;
+      }
+      return v;
+    };
+    var closeMenu = function() {
+      if (menu) {
+        menu.remove();
+        menu = null;
+      }
+    };
+    var sync = function() {
+      closeMenu();
+      btn.textContent = labelOf(getSetting(item.key));
+    };
+    btn.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      if (menu) {
+        closeMenu();
+        return;
+      }
+      menu = el("div", "set-sel-menu");
+      item.options.forEach(function(o) {
+        var it = el("button", "set-sel-item" + (o.v === getSetting(item.key) ? " on" : ""), o.t || o.v);
+        it.addEventListener("click", function(ev2) {
+          ev2.stopPropagation();
+          setSetting(item.key, o.v);
+        });
+        menu.appendChild(it);
+      });
+      wrap.appendChild(menu);
+    });
+    wrap.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+    });
+    wrap.appendChild(btn);
+    sync();
+    return { node: wrap, sync };
+  }
+  function numControl(item) {
+    var wrap = el("span", "set-num");
+    var minus = el("button", "set-num-btn", "−");
+    var val = el("span", "set-num-val");
+    var plus = el("button", "set-num-btn", "+");
+    var sync = function() {
+      var v = getSetting(item.key);
+      val.textContent = v + " 秒";
+      minus.disabled = !(v > item.min);
+      plus.disabled = !(v < item.max);
+    };
+    minus.addEventListener("click", function() {
+      setSetting(item.key, getSetting(item.key) - item.step);
+    });
+    plus.addEventListener("click", function() {
+      setSetting(item.key, getSetting(item.key) + item.step);
+    });
+    sync();
+    wrap.appendChild(minus);
+    wrap.appendChild(val);
+    wrap.appendChild(plus);
+    return { node: wrap, sync };
+  }
+  var FACTORY = { bool: boolControl, select: selectControl, number: numControl };
+  function buildBody(body) {
+    var group = null;
+    panelItems().forEach(function(item) {
+      var f = FACTORY[item.type];
+      if (!f) return;
+      if (item.group !== group) {
+        group = item.group;
+        body.appendChild(el("div", "set-group", group));
+      }
+      var row = el("div", "set-row");
+      var main = el("div", "set-row-main");
+      main.appendChild(el("div", "set-label", item.label));
+      if (item.hint) main.appendChild(el("div", "set-hint", item.hint));
+      row.appendChild(main);
+      var c = f(item);
+      row.appendChild(c.node);
+      body.appendChild(row);
+      offs.push(onChange(item.key, c.sync));
+    });
+  }
+  function openSettings() {
+    closeSettings();
+    if (!root || panel) return;
+    host2 = el("div", "acsv-set-host");
+    var shadow = host2.attachShadow({ mode: "open" });
+    var style = document.createElement("style");
+    style.textContent = SET_CSS;
+    shadow.appendChild(style);
+    panel = el("div", "set");
+    var pnl = el("div", "set-panel");
+    var head = el("div", "set-head");
+    head.appendChild(el("div", "set-title", "设置"));
+    var x = el("button", "set-x", "✕");
+    x.title = "关闭";
+    x.addEventListener("click", closeSettings);
+    head.appendChild(x);
+    pnl.appendChild(head);
+    var body = el("div", "set-body");
+    buildBody(body);
+    pnl.appendChild(body);
+    var foot = el("div", "set-foot");
+    var done = el("button", "set-act primary", "完成");
+    done.addEventListener("click", closeSettings);
+    foot.appendChild(done);
+    pnl.appendChild(foot);
+    panel.appendChild(pnl);
+    panel.addEventListener("click", function(ev) {
+      if (ev.target === panel) closeSettings();
+    });
+    shadow.appendChild(panel);
+    root.appendChild(host2);
+    overlayOpen({ id: "settings", modal: true, close: closeSettings });
   }
 
   // src/topbar.js
@@ -10103,7 +10104,7 @@
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     document.body.appendChild(root);
-    buildDock(root);
+    buildDock(root, { onSettings: openSettings });
     setFeedHomeHandler(goFeedHome);
     startFollowBadge();
     mountBadge(tb.imBtn, tb.imBtn.querySelector(".acsv-im-badge"));
@@ -10342,7 +10343,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.111：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.112：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

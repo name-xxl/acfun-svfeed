@@ -393,7 +393,7 @@ flowchart LR
   appapi --> imgurl
   session --> api & hls & settings
   attach --> feedstore & quality & session & settings
-  player --> api & attach & comments & feedstore & followstream & imdrawer & input & overlay & pb & release & sidebar & topbar & views
+  player --> api & attach & comments & feedstore & followstream & imdrawer & input & overlay & pb & release & settingspanel & sidebar & topbar & views
   feedstore --> api & feedctx
   momentapi --> cfg & data & net
   feedstore --> player
@@ -407,7 +407,7 @@ flowchart LR
   boot --> followview & imnative & mypage & pagekind & player & playlayer & searchview & zone
   views --> feedstore & overlay & sidebar & topbar & viewreg
   cards --> imgload & imgview & imicons & ubb
-  sidebar --> viewreg & settingspanel
+  sidebar --> viewreg
   followview --> comments & emoticon & imgload & imgview & imshare & momentapi & momentbar & sidebar & viewreg & cards & momentdetail
   followstream --> appapi & data & feedctx & feedstore & momentapi & sidebar
   momentbar --> banpop & imicons & immsg & interact & styles & ubb & ui

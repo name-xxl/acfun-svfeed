@@ -2,7 +2,6 @@ import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { parseRoute } from './route.js';
 import { dockEntries } from './viewreg.js';
-import { openSettings } from './settingspanel.js'; // 皮肤→皮肤（面板单例）：齿轮点击即开
 
 // ---------- 左栏导航（0.9.63 抖音式重设计）：全高贴左、图标+文字横排、当前项 pill ----------
 // player.mount 建、unmount 拆；<CFG.view.narrow 视口宽与全屏下 CSS 隐藏（styles.js）。
@@ -24,8 +23,9 @@ var FEED_ENTRY = {
 // 设置齿轮（0.9.89）：与 FEED_ENTRY.svg 同体例的内联 24×24 图标（dock 条目 fill:currentColor）
 var GEAR_SVG = '<svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87a.49.49 0 0 0 .12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.07.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>';
 
-export function buildDock(parent) {
+export function buildDock(parent, h) {
   if (dockEl) return;
+  var hooks = h || {}; // 0.9.112：设置齿轮出口经注入（本模块不再 import settingspanel）
   dockEl = el('div', 'acsv-dock');
   // 顶栏 logo 迁此常驻（0.9.64）：AcFun 图标 + 分隔，其后才是导航条目
   var logo = el('div', 'acsv-dock-logo');
@@ -51,12 +51,13 @@ export function buildDock(parent) {
     dockEl.appendChild(b);
   });
   parent.appendChild(dockEl);
-  // 设置入口（0.9.89，D3：宿主=脚本页 dock 齿轮）：底部钉住（margin-top:auto，dock 是 flex 列）。
+  // 设置入口（0.9.89，D3：宿主=脚本页 dock 齿轮；0.9.112 起 openSettings 经 hooks 注入）：
+  // 底部钉住（margin-top:auto，dock 是 flex 列）。
   // 复用 dock-item 样式但**不带 data-view**——syncDock 按 view 高亮，无 view 的条目天然不被选中
   var gear = el('button', 'acsv-dock-item acsv-dock-gear');
   gear.title = '设置';
   gear.innerHTML = GEAR_SVG + '<span>设置</span>';
-  gear.addEventListener('click', function () { openSettings(); });
+  gear.addEventListener('click', function () { if (hooks.onSettings) hooks.onSettings(); });
   dockEl.appendChild(gear);
   syncDock(null);
 }

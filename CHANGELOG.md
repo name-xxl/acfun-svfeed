@@ -3,6 +3,18 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.112（2026-10-04）· 反向例外清收③：sidebar→settingspanel 改 player 注入
+
+- **背景**：dock 齿轮直连 settingspanel（作者自定性"皮肤→皮肤"，可拆一条）。
+- **修法**：buildDock 增 hooks 形参（照 buildTopbar 形制），player.mount 注入
+  { onSettings: openSettings }；sidebar 删 import。接线点选 player 而非 boot 是硬约束：
+  本片撤掉 sidebar 的 import 后，settingspanel 若无人 import 会从模块图掉出（esbuild 只
+  打包可达模块、齿轮静默失效）——注入方必须同时成为该模块的可达来源，player.mount 即
+  壳的组装点（buildDock 就在 buildTopbar 下两行）。齿轮只存在于 player 建的 dock 里，
+  行为零变化。
+- **测试**：check-deps 改边（sidebar→settingspanel 删、player→settingspanel 增）；单测 193
+  + 42 场景全绿（settings-open/settings-migrate 断言覆盖齿轮入口面）。
+
 ### 0.9.111（2026-10-04）· 反向例外清收②：input 去 views/playlayer 反边（playItem 下沉 state）
 
 - **背景**：input（键盘件）直连 views（currentView 视图门禁）与 playlayer（currentItem 层内
