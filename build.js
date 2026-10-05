@@ -11,15 +11,18 @@ import fs from 'fs';
 
 var V = JSON.parse(fs.readFileSync('./package.json', 'utf8')).version;
 
-// 内嵌 hls.js（npm 依赖，构建时读取）：运行时零网络依赖。
+// 内嵌 hls.js（npm 依赖，构建时读取）：0.9.164 起以**字符串字面量**内嵌（window.__ACSV_HLS_SRC__），
+// 运行时首个 m3u8 挂载前才由 ensureHls new Function 编译执行——页面加载不再编译整份 ~1MB
+//（非竖刷页：原生页注入/动态/空间…这些用不到 hls 的会话照付全额编译，是低配机最大固定成本）。
+// 0.9.14 的「运行时零网络依赖」目标不变：CDN 逐源兜底仍在，串缺失/损坏时自动接管。
 // 缘起：jsdelivr/npmmirror 在部分用户网络均不可达（attach.cdnFail 实测），
 // CDN 兜底永远拉不到 hls.js，推荐流被迫走浏览器原生 HLS 管线。
-// UMD 产物在脚本 IIFE 内执行会挂到沙箱 globalThis → window.Hls，ensureHls 首检即命中
 var hlsInline = '';
 try {
   hlsInline = '\n// ==== vendored hls.js@' + (JSON.parse(fs.readFileSync('./node_modules/hls.js/package.json', 'utf8')).version)
-    + '（构建时内嵌，勿手改；npm i hls.js 后重新构建） ====\n'
-    + fs.readFileSync('node_modules/hls.js/dist/hls.min.js', 'utf8') + '\n';
+    + '（构建时内嵌为字符串，首次 ensureHls 再编译——勿手改；npm i hls.js 后重新构建） ====\n'
+    + 'window.__ACSV_HLS_SRC__ = ' + JSON.stringify(fs.readFileSync('node_modules/hls.js/dist/hls.min.js', 'utf8'))
+      .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029') + ';\n';
 } catch (e) {
   console.warn('[warn] 未找到 node_modules/hls.js/dist/hls.min.js，跳过内嵌（运行时走 CDN 兜底列表）');
 }
@@ -85,7 +88,7 @@ function buildOptions(debug, forWatch) {
     outfile: debug ? 'acfun-svfeed.debug.user.js' : 'acfun-svfeed.user.js',
     define: { __ACSV_DEBUG__: debug ? 'true' : 'false', __ACSV_VERSION__: JSON.stringify(V) },
     // esbuild 的 IIFE 外再包一层，让 'use strict' 指令与拆分前的单文件保持一致；
-    // 内嵌 hls.js 放在头注释之后、src IIFE 之外（UMD 自带封装，挂 window.Hls 供 ensureHls 首检）
+    // 内嵌 hls.js 字符串放在头注释之后、src IIFE 之外（ensureHls 首调时 new Function 编译，挂 window.Hls）
     banner: { js: userscriptHeader(debug) + hlsInline + '\n(function () {\n\'use strict\';' },
     footer: { js: '\n})();' },
     logLevel: 'warning',

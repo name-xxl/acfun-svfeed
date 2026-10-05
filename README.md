@@ -163,7 +163,9 @@
   isLike/isFavorite 初始状态。
 - 播放：`GET /rest/app/play/playInfo/cast?videoId=&resourceId=<ac号>&resourceType=2&mkey=` →
   streams[] 按清晰度降序（1080P60…360P，各 2 个 CDN），playUrls 为 http m3u8，
-  前缀直接换 https 可用（实测 200）；Chromium 需 hls.js——0.9.14 起构建期内嵌进产物（无 CDN 依赖、不吃页面 CSP），内嵌缺失时才逐源拉
+  前缀直接换 https 可用（实测 200）；Chromium 需 hls.js——0.9.14 起构建期内嵌进产物、
+  0.9.164 起以字符串字面量内嵌（首个 m3u8 挂载前才编译执行——非竖刷页不再支付这份
+  ~415KB 编译；无 CDN 依赖、不吃页面 CSP），内嵌缺失时才逐源拉
   CDN 文本 + Function 兜底（npmmirror 优先）；Safari 走原生 HLS。streams[] 不带编码字段，且每档是单变体 media playlist
   （无 #EXT-X-STREAM-INF 变体），编码维度只体现在 m3u8 文件名标记里（如 `h264_60`/`h264_6m`），
   脚本据此嗅探并支持按偏好过滤档位（`cfg.codec`）。

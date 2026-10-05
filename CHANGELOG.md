@@ -3,6 +3,27 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.164（2026-10-05）· hls.js 懒 eval：内嵌从「可执行代码」改「字符串字面量」，非竖刷页省 ~415KB 编译
+
+- **由头**：性能评估核实轮实锤——build.js 自 0.9.14 起把 hls.min.js 以可执行代码内嵌产物
+  banner，而 @run-at document-end + @match 全站 ⇒ 每个 AcFun 页面（原生页注入、动态、空间
+  ……这些根本用不到 hls 的会话）都在页面加载时白付整份 hls 的 JS 编译。**实测勘正**：
+  hls.min.js = 415,253 字节（评估口径「~1MB」是把整个产物 1,003,342 字节当成了 hls）——
+  但仍是产物内最大单件（约四成），低配机上最大的单笔固定编译成本。
+- **修法**：内嵌形态改为字符串字面量 `window.__ACSV_HLS_SRC__`（build.js 侧 JSON.stringify
+  + U+2028/2029 转义防 es2018 target 语法坑），页面加载只解析一个字符串常量；`ensureHls`
+  在 CDN 兜底链之前增设内嵌串路径——首个 m3u8 挂载前 `new Function(src)()` 一次性编译
+  （与既有 CDN 兜底同机制、同样不吃页面 CSP），打点 `stat('hls.lazyEval')` +
+  `set('hls.evalMs')`。串缺失（构建机没装 hls.js）或编译失败静默落 CDN 逐源链——0.9.14 的
+  「运行时零网络依赖」目标不变；Safari 原生 HLS 路径依旧零支付；内嵌串只试一次（evalTried），
+  失败定局不重试。
+- **测试**：hls.js 增 testHook('hls')；新 harness 场景 `hls-lazy` 五断言（页面加载后内嵌串
+  在场且 `window.Hls` 未定义 → 经钩子 ensureHls → `Hls.isSupported` 为真 + lazyEval 计数
+  在场；harness 全部 mock 播放走 cap.hls=false 直链缝、无人提前触发 ensureHls，断言稳定）；
+  反跑实证：build.js 恢复 eager 内联 ⇒ `hls-not-parsed-on-load` 转红。单测 249 + lint/check
+  + 全量 47 场景全绿。产物体积微涨（字符串转义开销 420,847/415,253 ≈ +1.3%），运行期编译
+  成本从「每页加载」挪到「首个 m3u8 挂载前一次性」。
+
 ### 0.9.163（2026-10-05）· imdrawer 收整：头注簇导览 + 两缝清收（图片换链→imsend、未读徽标→imbadge）
 
 - **由头**：接 data.js 拆件序列（0.9.159–162）后的第二目标。审计判定 imdrawer.js（1010 行）
