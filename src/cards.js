@@ -23,7 +23,12 @@ export function setItemOpener(fn) { itemOpener = typeof fn === 'function' ? fn :
 
 // 条目点击出口的转发（0.9.99）：followview 互动行与 rowOf/gridCardOf 同门进播放层——
 // 不直接 import playlayer（依赖方向维持本模块不反向依赖播放层），经注入的 opener 出
-export function openPanelItem(pi) { if (itemOpener) itemOpener(pi); }
+// ctx（0.9.173，可选第二参）：来源的**会话语境**（{kind:'list', items, idx, more} / {kind:'walk'}），
+// 原样转给播放层——层内 ↓ 按它决定"下一条从哪来"（来源视图最懂自家列表语义）。缺省=单条。
+// 可传函数形式（点击那刻求值，列表在会话中增长时拿到的是最新一份）
+export function openPanelItem(pi, ctx) {
+  if (itemOpener) itemOpener(pi, typeof ctx === 'function' ? ctx() : ctx);
+}
 
 // 动态详情出口（0.9.101；0.9.102 收口：载荷改为 **repost 对象**——pi 构造下沉
 // data.momentPiOfRepost，契约字段不再由 UI 层拼装）。同款注入，避免本模块→momentdetail
@@ -56,7 +61,7 @@ var META_GLYPH = {
   like: GLYPHS.feedLike, banana: GLYPHS.banana
 };
 
-export function rowOf(pi, rank) {
+export function rowOf(pi, rank, openCtx) { // openCtx：来源会话语境（0.9.173，可选）
   // 榜单条目走大卡+右侧 UP 卡（对齐原生 rlist 分栏）；历史/收藏维持小卡
   var row = el('div', 'acsv-vrow' + (pi.kind === 'rank' ? ' big' : ''));
   if (rank != null && pi.kind !== 'rank') {
@@ -91,7 +96,7 @@ export function rowOf(pi, rank) {
     main.appendChild(el('div', 'acsv-vrow-meta', bits.join(' · ')));
   }
   row.appendChild(main);
-  row.addEventListener('click', function () { if (itemOpener) itemOpener(pi); });
+  row.addEventListener('click', function () { openPanelItem(pi, openCtx); });
   return row;
 }
 
@@ -114,7 +119,7 @@ export function rowOf(pi, rank) {
 // 「石悦」/「@石悦」与「看到xx:xx」双份。现在作者只走脚行、进度只留角标，meta 行整体删除
 // 外链语义（0.9.91）：pi.href 有值 → 根元素换 <a target=_blank rel=noopener>（文章/动态的
 // 落点在站方页，进不了播放层——解析链只覆盖视频）；无 href → div + itemOpener（播放层直达）
-export function gridCardOf(pi) {
+export function gridCardOf(pi, openCtx) { // openCtx：来源会话语境（0.9.173，可选；函数形式支持列表增长）
   var cell = el(pi.href ? 'a' : 'div', 'acsv-gcell' + (pi.kind === 'search' ? ' acsv-scell' : ''));
   if (pi.href) {
     cell.href = pi.href;
@@ -149,7 +154,7 @@ export function gridCardOf(pi) {
     foot.appendChild(el('span', 'acsv-gtime', pi.dateText || ''));
     cell.appendChild(foot);
   }
-  if (!pi.href) cell.addEventListener('click', function () { if (itemOpener) itemOpener(pi); });
+  if (!pi.href) cell.addEventListener('click', function () { openPanelItem(pi, openCtx); });
   return cell;
 }
 

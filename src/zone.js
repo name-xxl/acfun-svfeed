@@ -113,9 +113,16 @@ function buildZoneView(body) {
       return;
     }
     // 原生 rlist__cards：每行=视频卡+作者卡左右分栏（rowOf 出视频卡含排名水印，upCardOf 出作者卡）
-    rows.forEach(function (r) {
+    rows.forEach(function (r, i) {
       var pair = el('div', 'acsv-rlist-row');
-      pair.appendChild(rowOf(r.pi, r.rank));
+      // 会话语境（0.9.173）：层内 ↓/↑ = 榜单行顺序（榜单=固定条数，走到最后一条停，不给 more）
+      pair.appendChild(rowOf(r.pi, r.rank, function () {
+        return {
+          kind: 'list',
+          items: rows.map(function (x) { return x.pi; }),
+          idx: i
+        };
+      }));
       pair.appendChild(upCardOf(r.pi));
       list.appendChild(pair);
     });

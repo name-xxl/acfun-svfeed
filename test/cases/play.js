@@ -44,7 +44,17 @@ rec('play-date-published', (function () {
   var d = q('.acsv-slide[data-ovl="1"] .acsv-meta .acsv-date');
   return d ? JSON.stringify(d.textContent) + ' 期望=' + window.__ACSV_PUBLISH_DATE__ : 'no-date';
 })());
-rec('play-no-arrows', !q('.acsv-slide[data-ovl="1"] .acsv-arrows'));
+// 层内右栏箭头（0.9.173 口径变更）：深链/刷新**无来源列表** ⇒ 会话=walk（相关池续命），
+// 箭头随会话建——▲ 首条隐藏、▼ 在（旧 0.9.74「层内一律不建箭头」已被用户裁决取代；
+// 「单条不出箭头」的新钉子移到 layer-list 的 ll-follow-single：动态里的视频卡片）
+rec('play-arrows-walk', (function () {
+  var s = q('.acsv-slide[data-ovl="1"]');
+  var up = s && s.querySelector('.acsv-arrow-up'), dn = s && s.querySelector('.acsv-arrow-down');
+  return !!up && !!dn && up.style.display === 'none' && dn.style.display !== 'none';
+})(), (function () {
+  var s = q('.acsv-slide[data-ovl="1"]');
+  return 'up=' + !!(s && s.querySelector('.acsv-arrow-up')) + ' dn=' + !!(s && s.querySelector('.acsv-arrow-down'));
+})());
 // 分享上报（0.9.145 实报：点分享不上报）：官方口径=面板里**选平台**那一刻发 CHOOSE_SHARE_PLATFORM（weblog CLICK 通道，与观看历史同一条）。
 // 层内条目已 resolve（上方日期/标题已从 douga/info 后归）⇒ videoId 就绪；断言只看参数形状（不硬编码 id）
 var shBtn = q('.acsv-slide[data-ovl="1"] .acsv-rail-btn[title="私信分享给朋友"]');

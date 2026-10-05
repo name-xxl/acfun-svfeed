@@ -29,22 +29,74 @@ import { testHook } from './dbg.js';
 //    controls.rebuildFwdNeighbor、rail 箭头（goTo 为空不建）、player.currentIdx（层开返回哨兵）；
 //    renderWindow/幽灵扫描都是 scroller 域内，天然隔离
 var pending = null; // 点击路径暂存的面板条目（{ acId, title, cover, up }）
+var pendingCtx = null; // 点击路径暂存的会话上下文（0.9.173，见 applyCtx）
 var slideRef = null; // 当前层内 slide（teardown 拆会话用；DOM 由框架拆）
 var bodyRef = null; // 层体（换条要往它挂新 slide）
 var curItem = null; // 层内当前条目（换条/游走的锚）
-var hist = [];      // 层内历史（↑ 回退；↓ 追加，回退后再 ↓ 截断重开）
-var hIdx = -1;
-var queue = [];     // seq 模式一次多出的候选（walk 模式恒空）
+var hist = [];      // 层内历史：**每格随身带会话快照** {item, sess}——↑ 回退时连列表下标一起
+var hIdx = -1;      // 还原（否则列表里 ↓↓ 再 ↑ 会把 idx 落在错格：harness ll-zone-back 首轮抓到）
+var queue = [];     // walk 会话里 seq 模式一次多出的候选（随机模式恒空）
 var stepping = false;
 
-export function openPlayer(pi) {
+// ---------- 层内会话（0.9.173）：↓「下一条从哪来」的单一真源 ----------
+//   single 单条（深链/刷新直达、动态里的视频卡片）：没有下一条——不出箭头、↓ 静默
+//   walk   相关池（**分区入口默认**，与设置 relSequential 组成二选一）：↓ 从相关池抽
+//          （随机；设置开=整批顺序队列），换批续命不封顶
+//   list   来源结果列表（搜索/榜单/我的/关注；分区设置开=网格顺序；层内点相关推荐行=那份
+//          10 条）：↓ 顺序步进；尾部先问 more()（能续拉的来源提供：分区/我的/关注），
+//          more 说没有（或没提供）= 停 + 「已经是最后一条」
+// ↑ 一律走 hist 历史回退（跨会话也成立：跳轨后 ↑ 能退回原列表原位）。
+// 上下文由**来源自己**在 openPanelItem(pi, ctx) 时给（视图最懂自家列表语义），层只管消费。
+var session = { kind: 'single', list: [], idx: -1, more: null };
+
+export function openPlayer(pi, ctx) {
   if (!pi || !pi.acId) return;
   pending = pi;
+  pendingCtx = ctx || null;
   location.hash = CFG.hash + '/play/a/' + pi.acId;
 }
 
+// 会话装配（层开/跳轨时调；放 swap 之前——新 slide 按新会话决定建不建箭头）。
+// **缺省=walk**（用户裁决「仅播放单条就只剩动态里的视频卡片」——深链/刷新这类无列表来源
+// 仍给相关池续命；单条只能由来源显式声明 {kind:'single'}）
+function applyCtx(ctx) {
+  if (ctx && ctx.kind === 'single') {
+    session = { kind: 'single', list: [], idx: -1, more: null };
+  } else if (ctx && ctx.kind === 'list' && ctx.items && ctx.items.length) {
+    session = { kind: 'list', list: ctx.items.slice(), idx: Number(ctx.idx) || 0, more: ctx.more || null };
+    if (session.idx < 0 || session.idx >= session.list.length) session.idx = 0;
+  } else {
+    session = { kind: 'walk', list: [], idx: -1, more: null };
+  }
+  queue = [];
+}
+
+// 右栏 ▲▼ 状态（列表中间=两枚都在；首条藏 ▲；不可续拉的末条藏 ▼——同竖刷首条语义）
+function syncArrows() {
+  if (!slideRef) return;
+  var up = slideRef.querySelector('.acsv-arrow-up');
+  var dn = slideRef.querySelector('.acsv-arrow-down');
+  if (up) {
+    var hasPrev = hIdx > 0;
+    up.style.display = hasPrev ? 'grid' : 'none';
+    up.disabled = !hasPrev;
+  }
+  if (dn) {
+    var hasNext = session.kind === 'walk' ? true
+      : session.kind === 'list' ? (session.idx + 1 < session.list.length || !!session.more)
+        : false;
+    dn.style.display = hasNext ? 'grid' : 'none';
+    dn.disabled = !hasNext;
+  }
+}
+
 function mountSlide(body, item) {
-  var slide = buildSlide(item, OVL_IDX, null); // goTo=null：层内不建上下翻页箭头
+  // 箭头（0.9.173）：非单条会话才建——single（深链/动态卡片）保持 0.9.74 的「层内无翻页箭头」
+  var goTo = session.kind === 'single' ? null : {
+    up: function () { playStep(-1); },
+    down: function () { playStep(1); }
+  };
+  var slide = buildSlide(item, OVL_IDX, goTo);
   slide.dataset.ovl = '1';
   body.appendChild(slide);
   slideRef = slide;
@@ -79,12 +131,20 @@ function swap(item) {
   return true;
 }
 
-// 落点=入历史（回退后再前进会截断旧前向分支）
-function jump(item) {
+// 会话快照（历史格随身存一份；list 数组共享引用、idx/more 值拷贝——列表增长不需回滚）
+function snapSession() {
+  return { kind: session.kind, list: session.list, idx: session.idx, more: session.more };
+}
+
+// 落点=入历史（回退后再前进会截断旧前向分支）。ctx 非空=**跳轨**：会话换成 ctx 描述的那份
+// 列表（层内点相关推荐行 = 换成那份 10 条；0.9.173）——先 applyCtx 再 swap，新 slide 按新会话建箭头
+function jump(item, ctx) {
+  if (ctx) applyCtx(ctx);
   if (!swap(item)) return false;
-  hist[hIdx + 1] = item;
+  hist[hIdx + 1] = { item: item, sess: snapSession() };
   hist.length = hIdx + 2;
   hIdx = hist.length - 1;
+  syncArrows();
   return true;
 }
 
@@ -92,8 +152,9 @@ function jump(item) {
 // 不碰历史；deep-link 冷进入与点击进入两条路都经这里）
 function enterLayer(body, item) {
   mountSlide(body, item);
-  hist = [item];
+  hist = [{ item: item, sess: snapSession() }];
   hIdx = 0;
+  syncArrows();
 }
 
 // 层内滑动切换（0.9.171，用户实报「playlayer 窗口无法滑动切换视频」）：滚轮/触摸板上下滑 =
@@ -129,17 +190,49 @@ function onTouchEnd(ev) {
 }
 
 // 键盘 ↓/↑ 入口（player 注入 input 的 api.playStep；ev.repeat 在 input 侧挡、在途互斥在此）。
-// 前向：seq 模式先吃队列；walk 模式每次向相关池要一批（batch 内部按 relSequential 分派，
-// 返回 1 条或整列），抽到就换、抽空（连续失败/池尽）给 toast 不静默
+// ↓ 按会话分派（single 静默 / list 顺序 / walk 相关池），↑ 一律历史回退
 export function playStep(delta) {
   if (!slideRef || !curItem || stepping) return false;
   if (delta < 0) {
     if (hIdx <= 0) { toast('已经是第一条'); return false; }
     hIdx--;
-    swap(hist[hIdx]);
+    var h = hist[hIdx];
+    // 会话随格还原（跨轨回退也能退回原列表原位——ll-btn-prev/ll-zone-back 钉这条）
+    session = { kind: h.sess.kind, list: h.sess.list, idx: h.sess.idx, more: h.sess.more };
+    queue = [];
+    swap(h.item);
+    syncArrows();
     return true;
   }
+  return stepNext();
+}
+
+function stepNext() {
+  if (session.kind === 'single') return false; // 单条来源：没有下一条（静默，同竖刷流尽语义）
+  if (session.kind === 'list') {
+    var i = session.idx + 1;
+    if (i < session.list.length) {
+      session.idx = i;
+      jump(playItemOf(session.list[i])); // 列表存面板条目，步进时过 playItemOf 归一
+      return true;
+    }
+    if (session.more) {
+      if (stepping) return false;
+      stepping = true;
+      session.more().then(function (added) {
+        stepping = false;
+        if (!slideRef) return;
+        if (added && added.length) { session.list = session.list.concat(added); stepNext(); }
+        else { toast('已经是最后一条'); syncArrows(); }
+      }, function () { stepping = false; toast('已经是最后一条'); syncArrows(); });
+      return true;
+    }
+    toast('已经是最后一条');
+    return false;
+  }
+  // walk（相关池；分区默认。seq 模式先吃队列，随机模式每次向池要一批）
   if (queue.length) { jump(queue.shift()); return true; }
+  if (stepping) return false;
   stepping = true;
   relatedBatch(curItem.id).then(function (items) {
     stepping = false;
@@ -154,7 +247,7 @@ export function playStep(delta) {
 // 层宿主注册（relatedapi mediator）：抽屉「相关推荐」行在层内点 = 层内换条（不拆界面）
 setLayerHost({
   active: function () { return !!slideRef; },
-  jump: jump
+  jump: jump // (item, ctx)：ctx 非空=跳轨（换成那份相关列表，0.9.173）
 });
 
 // 开层注册（0.9.172）：层外（竖刷舞台）点相关推荐行 = 以该视频开播放层——舞台原地保活
@@ -197,7 +290,10 @@ function buildPlayView(body, arg) {
   body.addEventListener('touchend', onTouchEnd, { passive: true });
   seed(id); // 游走泵播种：入口视频登记为已见（层内 ↓ 的链从这里开始，不回头）
   var st = pending;
+  var ctx = pendingCtx;
   pending = null;
+  pendingCtx = null;
+  applyCtx(ctx); // 会话（0.9.173）：点击路径带来源上下文；深链/刷新无 ctx=单条
   if (st && String(st.acId) === String(id)) {
     enterLayer(body, playItemOf(st)); // 即时首帧：面板已有标题封面与作者（up 契约），直链交会话解析链补
     return;
@@ -233,7 +329,9 @@ function teardownPlayView() {
   slideRef = null;
   setPlayItem(null); // 镜像随层拆（0.9.111）
   pending = null;
+  pendingCtx = null;
   bodyRef = null; curItem = null; hist = []; hIdx = -1; queue = []; stepping = false; // 层内游走态随层拆
+  session = { kind: 'single', list: [], idx: -1, more: null };
 }
 
 registerView({
@@ -251,7 +349,16 @@ testHook('playlayer', function () {
     id: curItem ? curItem.id : null,
     hist: hist.length,
     hIdx: hIdx,
-    queue: queue.length
+    queue: queue.length,
+    session: session.kind,
+    listLen: session.list.length,
+    listIdx: session.idx,
+    hasMore: !!session.more,
+    arrows: slideRef ? slideRef.querySelectorAll('.acsv-arrow').length : 0,
+    upShown: !!(slideRef && (slideRef.querySelector('.acsv-arrow-up') || {}).style
+      && slideRef.querySelector('.acsv-arrow-up').style.display !== 'none'),
+    downShown: !!(slideRef && (slideRef.querySelector('.acsv-arrow-down') || {}).style
+      && slideRef.querySelector('.acsv-arrow-down').style.display !== 'none')
   };
 });
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.172
+// @version      0.9.173
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -1796,6 +1796,15 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       "resourceType=2&resourceId=" + encodeURIComponent(rid)
     ).then(relatedPageOf);
   }
+  function panelItemOfDv(dv) {
+    var u = dv.user || {};
+    return {
+      acId: Number(idOf(dv)) || 0,
+      title: dv.title || dv.caption || "",
+      cover: coverUrl(dv.coverUrl || ""),
+      up: upOf(u.id, u.name, coverUrl(u.headUrl), u.isFollowing)
+    };
+  }
   function relatedItemOf(dv) {
     var item = homeItemOf(Number(idOf(dv)) || 0, dv.title || dv.caption || "", dv.coverUrl || "");
     var u = dv.user || {};
@@ -1875,18 +1884,18 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function layerActive() {
     return !!(layerHost && layerHost.active && layerHost.active());
   }
-  function layerJump(item) {
+  function layerJump(item, ctx) {
     if (!layerActive() || item == null) return false;
-    layerHost.jump(item);
+    layerHost.jump(item, ctx);
     return true;
   }
   var layerOpener = null;
   function setLayerOpener(fn) {
     layerOpener = typeof fn === "function" ? fn : null;
   }
-  function layerOpen(item) {
+  function layerOpen(item, ctx) {
     if (!layerOpener || item == null) return false;
-    return layerOpener(item) !== false;
+    return layerOpener(item, ctx) !== false;
   }
   testHook("rel", function() {
     return { seenCount: Object.keys(_seen).length, mode: getSetting("relSequential") ? "seq" : "walk" };
@@ -4396,8 +4405,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
     return w.weblog || null;
   }
-  function reportLeave(session, video, via, sec, retryN) {
-    var item = session && session.item;
+  function reportLeave(session2, video, via, sec, retryN) {
+    var item = session2 && session2.item;
     if (!item || !item.cap || !item.cap.watchReport || !item.videoId) return;
     if (!video && typeof sec !== "number") return;
     if (typeof sec !== "number") sec = Math.floor(video.currentTime || 0);
@@ -4409,7 +4418,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       if (!wl || !wl.impr || !wl.sendImmediately) {
         if (via !== "pagehide" && (retryN || 0) < 3) {
           setTimeout(function() {
-            reportLeave(session, video, via, sec, (retryN || 0) + 1);
+            reportLeave(session2, video, via, sec, (retryN || 0) + 1);
           }, 1e3);
         }
         return;
@@ -4536,8 +4545,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (document.hidden) reportLeaveCurrent("hidden");
   });
   var lastMarkAt = {};
-  function markWatchProgress(session, video) {
-    var item = session && session.item;
+  function markWatchProgress(session2, video) {
+    var item = session2 && session2.item;
     if (!item || !item.cap || !item.cap.watchReport || !item.videoId || !video) return;
     var sec = Math.floor(video.currentTime || 0);
     if (sec < CFG.time.watchReportMin) return;
@@ -5056,9 +5065,15 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     d.relList.addEventListener("click", function(ev) {
       var row = ev.target.closest(".acsv-relrow");
       if (!row || !row._dv) return;
+      var idx = 0;
+      for (var i = 0; i < cache.dvs.length; i++) if (cache.dvs[i] === row._dv) {
+        idx = i;
+        break;
+      }
+      var ctx = { kind: "list", items: cache.dvs.map(panelItemOfDv), idx };
       var item = relatedItemOf(row._dv);
-      if (layerJump(item)) return;
-      if (layerOpen(item)) return;
+      if (layerJump(item, ctx)) return;
+      if (layerOpen(item, ctx)) return;
       startChain(row._dv.dougaId, item);
     });
     return true;
@@ -7705,11 +7720,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       slide._session = null;
     }
     sweepSlideVideos(slide);
-    var session = createSession(slide, item, idx, HOOKS);
-    slide._session = session;
-    session.resumeAt = slide._resumeAt || 0;
+    var session2 = createSession(slide, item, idx, HOOKS);
+    slide._session = session2;
+    session2.resumeAt = slide._resumeAt || 0;
     slide._resumeAt = 0;
-    session.start();
+    session2.start();
   }
 
   // src/controls.js
@@ -8971,15 +8986,21 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var side = el("div", "acsv-side");
     if (goTo) {
       var arrows = el("div", "acsv-arrows");
+      var fnUp = typeof goTo === "function" ? function() {
+        goTo(FeedStore.current - 1);
+      } : goTo.up;
+      var fnDn = typeof goTo === "function" ? function() {
+        goTo(FeedStore.current + 1);
+      } : goTo.down;
       var upBtn = elHtml("button", "acsv-arrow acsv-arrow-up", ICONS.chevUp);
       upBtn.title = "上一个（↑）";
       upBtn.addEventListener("click", function() {
-        goTo(FeedStore.current - 1);
+        fnUp();
       });
       var downBtn = elHtml("button", "acsv-arrow acsv-arrow-down", ICONS.chevDn);
       downBtn.title = "下一个（↓）";
       downBtn.addEventListener("click", function() {
-        goTo(FeedStore.current + 1);
+        fnDn();
       });
       arrows.appendChild(upBtn);
       arrows.appendChild(downBtn);
@@ -10288,7 +10309,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.172" : "");
+    return normVer(true ? "0.9.173" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11419,8 +11440,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function setItemOpener(fn) {
     itemOpener = typeof fn === "function" ? fn : null;
   }
-  function openPanelItem(pi) {
-    if (itemOpener) itemOpener(pi);
+  function openPanelItem(pi, ctx) {
+    if (itemOpener) itemOpener(pi, typeof ctx === "function" ? ctx() : ctx);
   }
   var momentOpener = null;
   function setMomentOpener(fn) {
@@ -11446,7 +11467,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     like: GLYPHS.feedLike,
     banana: GLYPHS.banana
   };
-  function rowOf2(pi, rank) {
+  function rowOf2(pi, rank, openCtx) {
     var row = el("div", "acsv-vrow" + (pi.kind === "rank" ? " big" : ""));
     if (rank != null && pi.kind !== "rank") {
       row.appendChild(el("div", "acsv-vrow-rank" + (rank <= 3 ? " top" : ""), String(rank)));
@@ -11477,11 +11498,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }
     row.appendChild(main);
     row.addEventListener("click", function() {
-      if (itemOpener) itemOpener(pi);
+      openPanelItem(pi, openCtx);
     });
     return row;
   }
-  function gridCardOf(pi) {
+  function gridCardOf(pi, openCtx) {
     var cell = el(pi.href ? "a" : "div", "acsv-gcell" + (pi.kind === "search" ? " acsv-scell" : ""));
     if (pi.href) {
       cell.href = pi.href;
@@ -11510,7 +11531,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       cell.appendChild(foot);
     }
     if (!pi.href) cell.addEventListener("click", function() {
-      if (itemOpener) itemOpener(pi);
+      openPanelItem(pi, openCtx);
     });
     return cell;
   }
@@ -11664,6 +11685,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
 
   // src/playlayer.js
   var pending2 = null;
+  var pendingCtx = null;
   var slideRef = null;
   var bodyRef = null;
   var curItem = null;
@@ -11671,13 +11693,49 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var hIdx = -1;
   var queue = [];
   var stepping = false;
-  function openPlayer(pi) {
+  var session = { kind: "single", list: [], idx: -1, more: null };
+  function openPlayer(pi, ctx) {
     if (!pi || !pi.acId) return;
     pending2 = pi;
+    pendingCtx = ctx || null;
     location.hash = CFG.hash + "/play/a/" + pi.acId;
   }
+  function applyCtx(ctx) {
+    if (ctx && ctx.kind === "single") {
+      session = { kind: "single", list: [], idx: -1, more: null };
+    } else if (ctx && ctx.kind === "list" && ctx.items && ctx.items.length) {
+      session = { kind: "list", list: ctx.items.slice(), idx: Number(ctx.idx) || 0, more: ctx.more || null };
+      if (session.idx < 0 || session.idx >= session.list.length) session.idx = 0;
+    } else {
+      session = { kind: "walk", list: [], idx: -1, more: null };
+    }
+    queue = [];
+  }
+  function syncArrows() {
+    if (!slideRef) return;
+    var up = slideRef.querySelector(".acsv-arrow-up");
+    var dn = slideRef.querySelector(".acsv-arrow-down");
+    if (up) {
+      var hasPrev = hIdx > 0;
+      up.style.display = hasPrev ? "grid" : "none";
+      up.disabled = !hasPrev;
+    }
+    if (dn) {
+      var hasNext = session.kind === "walk" ? true : session.kind === "list" ? session.idx + 1 < session.list.length || !!session.more : false;
+      dn.style.display = hasNext ? "grid" : "none";
+      dn.disabled = !hasNext;
+    }
+  }
   function mountSlide(body, item) {
-    var slide = buildSlide(item, OVL_IDX, null);
+    var goTo = session.kind === "single" ? null : {
+      up: function() {
+        playStep(-1);
+      },
+      down: function() {
+        playStep(1);
+      }
+    };
+    var slide = buildSlide(item, OVL_IDX, goTo);
     slide.dataset.ovl = "1";
     body.appendChild(slide);
     slideRef = slide;
@@ -11705,17 +11763,23 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (isOpenComments()) openComments(item.id, item.stype, item.shareUrl, item.kind, item.title);
     return true;
   }
-  function jump(item) {
+  function snapSession() {
+    return { kind: session.kind, list: session.list, idx: session.idx, more: session.more };
+  }
+  function jump(item, ctx) {
+    if (ctx) applyCtx(ctx);
     if (!swap(item)) return false;
-    hist[hIdx + 1] = item;
+    hist[hIdx + 1] = { item, sess: snapSession() };
     hist.length = hIdx + 2;
     hIdx = hist.length - 1;
+    syncArrows();
     return true;
   }
   function enterLayer(body, item) {
     mountSlide(body, item);
-    hist = [item];
+    hist = [{ item, sess: snapSession() }];
     hIdx = 0;
+    syncArrows();
   }
   var gest = { acc: 0, at: 0, lock: 0, y0: 0, t0: 0 };
   function onWheel(ev) {
@@ -11752,13 +11816,52 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         return false;
       }
       hIdx--;
-      swap(hist[hIdx]);
+      var h = hist[hIdx];
+      session = { kind: h.sess.kind, list: h.sess.list, idx: h.sess.idx, more: h.sess.more };
+      queue = [];
+      swap(h.item);
+      syncArrows();
       return true;
+    }
+    return stepNext();
+  }
+  function stepNext() {
+    if (session.kind === "single") return false;
+    if (session.kind === "list") {
+      var i = session.idx + 1;
+      if (i < session.list.length) {
+        session.idx = i;
+        jump(playItemOf(session.list[i]));
+        return true;
+      }
+      if (session.more) {
+        if (stepping) return false;
+        stepping = true;
+        session.more().then(function(added) {
+          stepping = false;
+          if (!slideRef) return;
+          if (added && added.length) {
+            session.list = session.list.concat(added);
+            stepNext();
+          } else {
+            toast("已经是最后一条");
+            syncArrows();
+          }
+        }, function() {
+          stepping = false;
+          toast("已经是最后一条");
+          syncArrows();
+        });
+        return true;
+      }
+      toast("已经是最后一条");
+      return false;
     }
     if (queue.length) {
       jump(queue.shift());
       return true;
     }
+    if (stepping) return false;
     stepping = true;
     batch(curItem.id).then(function(items) {
       stepping = false;
@@ -11777,6 +11880,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       return !!slideRef;
     },
     jump
+    // (item, ctx)：ctx 非空=跳轨（换成那份相关列表，0.9.173）
   });
   setLayerOpener(function(item) {
     if (!item || !item.id) return false;
@@ -11819,7 +11923,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     body.addEventListener("touchend", onTouchEnd, { passive: true });
     seed(id);
     var st2 = pending2;
+    var ctx = pendingCtx;
     pending2 = null;
+    pendingCtx = null;
+    applyCtx(ctx);
     if (st2 && String(st2.acId) === String(id)) {
       enterLayer(body, playItemOf(st2));
       return;
@@ -11858,12 +11965,14 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     slideRef = null;
     setPlayItem(null);
     pending2 = null;
+    pendingCtx = null;
     bodyRef = null;
     curItem = null;
     hist = [];
     hIdx = -1;
     queue = [];
     stepping = false;
+    session = { kind: "single", list: [], idx: -1, more: null };
   }
   registerView({
     id: "play",
@@ -11880,7 +11989,14 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       id: curItem ? curItem.id : null,
       hist: hist.length,
       hIdx,
-      queue: queue.length
+      queue: queue.length,
+      session: session.kind,
+      listLen: session.list.length,
+      listIdx: session.idx,
+      hasMore: !!session.more,
+      arrows: slideRef ? slideRef.querySelectorAll(".acsv-arrow").length : 0,
+      upShown: !!(slideRef && (slideRef.querySelector(".acsv-arrow-up") || {}).style && slideRef.querySelector(".acsv-arrow-up").style.display !== "none"),
+      downShown: !!(slideRef && (slideRef.querySelector(".acsv-arrow-down") || {}).style && slideRef.querySelector(".acsv-arrow-down").style.display !== "none")
     };
   });
   setItemOpener(openPlayer);
@@ -11925,8 +12041,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     currentIdx: function() {
       return currentView() === "play" ? OVL_IDX : FeedStore.current;
     },
-    onResolved: function(session) {
-      onHomeResolved(session.slide, session.item);
+    onResolved: function(session2) {
+      onHomeResolved(session2.slide, session2.item);
     },
     // 会话驱动的起播（挂载/恢复链）：舞台被视图盖住时只挂不播——隐藏舞台起播＝幽灵音频
     // （视图态 `loadInitial` 晚到的实锤路径）；退出视图由 views.resumeCurrentVideo 恢复
@@ -11934,17 +12050,17 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       if (videoStageVisible(video)) playVideo(video);
     },
     // HealthMonitor 恢复阶梯的降档动作（session.js 经 hooks 回接）
-    qualitySwitch: function(session, qIdx) {
-      switchQuality(session.item, session.slide, qIdx);
+    qualitySwitch: function(session2, qIdx) {
+      switchQuality(session2.item, session2.slide, qIdx);
     },
     // 恢复链的重跑解析（mock/真实同路）与末端重挂
     refreshItem: function(item) {
       return FeedStore.refresh(item);
     },
-    reattach: function(session) {
-      attachVideo(session.slide, session.item, session.idx);
+    reattach: function(session2) {
+      attachVideo(session2.slide, session2.item, session2.idx);
     },
-    onAttachPlay: function(session, video) {
+    onAttachPlay: function(session2, video) {
       if (!videoStageVisible(video)) return;
       playVideo(video);
       if (!pb.soundOn && !pb.firstGestureSeen) {
@@ -11952,28 +12068,28 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         if (slide && !slide.querySelector(".acsv-hint")) showSoundHint(slide);
       }
     },
-    onPlaying: function(session, video) {
-      var slide = session.slide, item = session.item;
+    onPlaying: function(session2, video) {
+      var slide = session2.slide, item = session2.item;
       if (slide._ctlPlayBtn) slide._ctlPlayBtn.innerHTML = ICONS.pause;
       showControls(slide);
       onPlaying(slide, item, video);
     },
-    onPause: function(session, video) {
-      if (session.slide._ctlPlayBtn) session.slide._ctlPlayBtn.innerHTML = ICONS.play;
-      reportLeave(session, video, "pause");
+    onPause: function(session2, video) {
+      if (session2.slide._ctlPlayBtn) session2.slide._ctlPlayBtn.innerHTML = ICONS.play;
+      reportLeave(session2, video, "pause");
     },
-    onMeta: function(session, video) {
-      syncPanFit(session.slide);
-      if (session.slide._ctlTime) {
+    onMeta: function(session2, video) {
+      syncPanFit(session2.slide);
+      if (session2.slide._ctlTime) {
         var metaTxt = fmtTime(video.currentTime) + " / " + fmtTime(video.duration);
-        session.slide._ctlTime.textContent = metaTxt;
-        session.slide._lastTimeTxt = metaTxt;
+        session2.slide._ctlTime.textContent = metaTxt;
+        session2.slide._lastTimeTxt = metaTxt;
       }
     },
-    onTime: function(session, video) {
-      var slide = session.slide;
+    onTime: function(session2, video) {
+      var slide = session2.slide;
       if (!video.duration) return;
-      markWatchProgress(session, video);
+      markWatchProgress(session2, video);
       var trackEl = slide._ctlTrack;
       var draggingNow = !!trackEl && trackEl.dataset.drag === "1";
       var pct = video.currentTime / video.duration * 100 + "%";
@@ -11994,17 +12110,17 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       if (!moved && !talked) stat("ontime.skip");
     },
     // 播完也是一次"离开"：先报最终进度再连播滚动（后续 dispose 重复触发由同秒位去重拦截）
-    onEnded: function(session) {
-      reportLeave(session, session.video, "ended");
-      if (pb.autoplayNext && !isOvlSlide(session.slide) && session.idx === FeedStore.current) {
-        scrollToIndex(session.idx + 1);
+    onEnded: function(session2) {
+      reportLeave(session2, session2.video, "ended");
+      if (pb.autoplayNext && !isOvlSlide(session2.slide) && session2.idx === FeedStore.current) {
+        scrollToIndex(session2.idx + 1);
       }
     },
     // 兜底路径：滑出渲染窗口/换清晰度重挂/切源/关闭信息流才走 dispose（相邻划走只 pause
     // 不 dispose，那条路由 setActive 负责）；video 已拆但引用仍持有最终 currentTime
     // （见 session.js dispose），在此上报离开时刻的观看进度
-    onDisposed: function(session, video) {
-      reportLeave(session, video, "dispose");
+    onDisposed: function(session2, video) {
+      reportLeave(session2, video, "dispose");
     }
   };
   function videoStageVisible(video) {
@@ -13277,7 +13393,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.172：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.173：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -13769,6 +13885,29 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var btn = moreBtn(load);
     panel2.appendChild(btn);
     var pageNo = 0, seq = 0;
+    var allRows = [];
+    var moreWaiters = [];
+    var done = false;
+    function flushMore() {
+      var w = moreWaiters;
+      moreWaiters = [];
+      w.forEach(function(cb) {
+        cb();
+      });
+    }
+    function moreRows() {
+      if (done) return Promise.resolve(null);
+      return new Promise(function(resolve) {
+        var before = allRows.length;
+        moreWaiters.push(function() {
+          resolve(allRows.length > before ? allRows.slice(before) : null);
+        });
+        load();
+      });
+    }
+    function ctxOf(pi) {
+      return { kind: "list", items: allRows.slice(), idx: Math.max(0, allRows.indexOf(pi)), more: moreRows };
+    }
     function load() {
       var my = ++seq;
       var gone = skeleton(list);
@@ -13788,15 +13927,23 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         });
         pageNo++;
         rows.forEach(function(pi) {
-          list.appendChild(gridCardOf(pi));
+          allRows.push(pi);
+          list.appendChild(gridCardOf(pi, function() {
+            return ctxOf(pi);
+          }));
         });
-        if (raws.length < CFG.view.pageSize) btn.style.display = "none";
+        flushMore();
+        if (raws.length < CFG.view.pageSize) {
+          done = true;
+          btn.style.display = "none";
+        }
         if (!rows.length && pageNo === 1) list.appendChild(el("div", "acsv-vempty", "暂无观看记录"));
       }, function() {
         gone();
         if (my !== seq || !list.isConnected) return;
         btn.disabled = false;
         btn.textContent = "加载失败，点击重试";
+        flushMore();
       });
     }
     load();
@@ -13816,6 +13963,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     panel2.appendChild(list);
     panel2.appendChild(btn);
     var tabs = [];
+    var allRows = [];
+    var moreWaiters = [];
     var cur = o.allChip ? o.allId : null;
     var cursor = o.firstCursor || 0;
     var seq = 0;
@@ -13932,6 +14081,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       seq++;
       loading2 = false;
       done = false;
+      allRows = [];
       list.textContent = "";
       resetBtn();
       renderChips();
@@ -13984,6 +14134,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         loading2 = false;
         var added = 0;
         (p.rows || []).forEach(function(r) {
+          allRows.push(r);
           list.appendChild(o.renderRow(r, ctx));
           added++;
         });
@@ -13993,11 +14144,30 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           btn.style.display = "none";
         } else resetBtn();
         if (!added && !list.children.length) list.appendChild(el("div", "acsv-vempty", o.emptyText(cur)));
+        flushMore();
       }, function() {
         if (my !== seq || !list.isConnected) return;
         loading2 = false;
         btn.disabled = false;
         btn.textContent = o.loadFailText;
+        flushMore();
+      });
+    }
+    function flushMore() {
+      var w = moreWaiters;
+      moreWaiters = [];
+      w.forEach(function(cb) {
+        cb();
+      });
+    }
+    function moreRows() {
+      if (done) return Promise.resolve(null);
+      return new Promise(function(resolve) {
+        var before = allRows.length;
+        moreWaiters.push(function() {
+          resolve(allRows.length > before ? allRows.slice(before) : null);
+        });
+        load();
       });
     }
     var ctx = {
@@ -14005,6 +14175,15 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       refresh,
       sel: function() {
         return cur;
+      },
+      // 层内会话语境：本档已加载条目 + 续拉缝（收藏/历史=有下一页续拉；到底=null→层里停）
+      openCtxOf: function(pi) {
+        return {
+          kind: "list",
+          items: allRows.slice(),
+          idx: Math.max(0, allRows.indexOf(pi)),
+          more: moreRows
+        };
       }
     };
     return { refresh, select, list, chips, btn };
@@ -14014,7 +14193,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var sk = skeleton(list);
     function favCell(pi, ctx) {
       var box = el("div", "acsv-favcell");
-      box.appendChild(gridCardOf(pi));
+      box.appendChild(gridCardOf(pi, function() {
+        return ctx.openCtxOf(pi);
+      }));
       var acts = el("div", "acsv-favacts");
       var mv = el("button", "acsv-vchip sm", "移动");
       mv.type = "button";
@@ -14402,9 +14583,17 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         list.appendChild(el("div", "acsv-vempty", "该分区暂无榜单数据"));
         return;
       }
-      rows.forEach(function(r) {
+      rows.forEach(function(r, i) {
         var pair = el("div", "acsv-rlist-row");
-        pair.appendChild(rowOf2(r.pi, r.rank));
+        pair.appendChild(rowOf2(r.pi, r.rank, function() {
+          return {
+            kind: "list",
+            items: rows.map(function(x) {
+              return x.pi;
+            }),
+            idx: i
+          };
+        }));
         pair.appendChild(upCardOf(r.pi));
         list.appendChild(pair);
       });
@@ -14707,7 +14896,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     function emptyTextOf(k) {
       return k === "video" ? "没有找到相关视频（换「UP主」或「文章」试试）" : k === "up" ? "没有找到相关 UP 主" : "没有找到相关文章";
     }
-    function videoCellOf(it) {
+    function videoCellOf(it, idx) {
       return gridCardOf({
         acId: it.acId,
         title: it.title,
@@ -14717,6 +14906,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         views: it.views,
         up: it.up,
         dateText: it.dateText
+      }, function() {
+        var stv = c.kinds.video || {};
+        return { kind: "list", items: (stv.items || []).slice(), idx };
       });
     }
     function upCardOf2(u) {
@@ -14779,7 +14971,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       card.appendChild(hd);
       if (u.recents && u.recents.length) {
         var recs = el("div", "acsv-suprecs");
-        u.recents.forEach(function(r) {
+        u.recents.forEach(function(r, i) {
           var rc = el("div", "acsv-srec");
           var cov = el("div", "acsv-sreccov");
           imgInto(cov, r.cover, "cover", null);
@@ -14795,7 +14987,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
               cover: r.cover,
               kind: "search",
               up: upOf(u.uid, u.name, u.avatar, u.following)
-            });
+            }, { kind: "list", items: u.recents, idx: i });
           });
           recs.appendChild(rc);
         });
@@ -14874,8 +15066,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       hideSkel();
       setState("");
       res.className = "acsv-sres" + (curKind === "video" ? " acsv-sgrid" : "");
-      if (curKind === "video") st2.items.forEach(function(it) {
-        res.appendChild(videoCellOf(it));
+      if (curKind === "video") st2.items.forEach(function(it, i) {
+        res.appendChild(videoCellOf(it, i));
       });
       else if (curKind === "up") st2.items.forEach(function(u) {
         res.appendChild(upCardOf2(u));
@@ -15140,8 +15332,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (pi.ct === "moment") {
       closeInlineComments();
       openMomentDetail(pi);
-    } else if (pi.ct === "video") openPanelItem(pi);
-    else if (pi.href) window.open(pi.href, "_blank");
+    } else if (pi.ct === "video") {
+      openPanelItem(pi, { kind: "single" });
+    } else if (pi.href) window.open(pi.href, "_blank");
   }
   function skeleton2(listEl) {
     return skeletonRows(listEl, CFG.view.follow.skel, "acsv-fskel");
@@ -15413,10 +15606,42 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     ci.appendChild(cm);
     return ci;
   }
+  function piOfVm(vm) {
+    return { acId: vm.id, title: vm.title, cover: vm.cover, up: vm.up };
+  }
+  function ctxOfVm(vm) {
+    if (!getSetting("relSequential")) return { kind: "walk" };
+    return function() {
+      if (!st) return { kind: "walk" };
+      var items = st.rendered.map(piOfVm);
+      var idx = 0;
+      for (var i = 0; i < st.rendered.length; i++) if (st.rendered[i].id === vm.id) {
+        idx = i;
+        break;
+      }
+      return { kind: "list", items, idx, more: moreOfList() };
+    };
+  }
+  function moreOfList() {
+    return function() {
+      return new Promise(function(resolve) {
+        if (!st) {
+          resolve(null);
+          return;
+        }
+        var before = st.rendered.length;
+        st.waitMore = function() {
+          st.waitMore = null;
+          resolve(st.rendered.length > before ? st.rendered.slice(before).map(piOfVm) : null);
+        };
+        advance();
+      });
+    };
+  }
   function cardOf(vm, big) {
     var card = el("div", "acsv-jx-card" + (big ? " acsv-jx-big" : ""));
     card.addEventListener("click", function() {
-      openPanelItem({ acId: vm.id, title: vm.title, cover: vm.cover, up: vm.up });
+      openPanelItem(piOfVm(vm), ctxOfVm(vm));
     });
     var cv = el("div", "acsv-jx-cv");
     imgInto(cv, vm.cover, "thumb");
@@ -15484,6 +15709,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       big: false,
       normals: 0,
       buf: [],
+      rendered: [],
+      // 已渲染 vm 序列（渲染顺序；列表会话的条目源，0.9.173）
+      waitMore: null,
+      // 列表会话续拉的等待回调（drain 渲染完触发，0.9.173）
       chips,
       grid,
       tip,
@@ -15524,6 +15753,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     st.big = false;
     st.normals = 0;
     st.buf = [];
+    st.rendered = [];
+    st.waitMore = null;
     st.grid.innerHTML = "";
     st.tip.innerHTML = "";
     st.grid.appendChild(skeletonCards());
@@ -15591,34 +15822,43 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }
     fetchPage();
   }
+  function placeCard(vm, big) {
+    st.grid.appendChild(cardOf(vm, big));
+    st.rendered.push(vm);
+  }
+  function flushWaitMore() {
+    if (st && st.waitMore) st.waitMore();
+  }
   function drain() {
     if (!st) return;
     if (st.buf.length && !st.big) st.grid.innerHTML = "";
     if (st.done) {
       if (!st.big && st.buf.length) {
-        st.grid.appendChild(cardOf(st.buf.shift(), true));
+        placeCard(st.buf.shift(), true);
         st.big = true;
       }
       while (st.buf.length) {
-        st.grid.appendChild(cardOf(st.buf.shift(), false));
+        placeCard(st.buf.shift(), false);
         st.normals++;
       }
       if (!st.big && !st.normals) st.grid.innerHTML = "";
       if (!st.tip.textContent) {
         setTip(el("div", null, st.big || st.normals ? "— 已经到底啦 —" : "这个分区暂时没有可看的内容"));
       }
+      flushWaitMore();
       return;
     }
     if (!st.big && st.buf.length) {
-      st.grid.appendChild(cardOf(st.buf.shift(), true));
+      placeCard(st.buf.shift(), true);
       st.big = true;
     }
     var target = nextTarget(st.normals);
     while (st.normals < target && st.buf.length) {
-      st.grid.appendChild(cardOf(st.buf.shift(), false));
+      placeCard(st.buf.shift(), false);
       st.normals++;
     }
     setTip(null);
+    flushWaitMore();
     if (!st.done && !st.err && st.body.scrollHeight <= st.body.clientHeight + 4) advance();
   }
   function jingxuanTeardown() {
@@ -15637,6 +15877,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       skel: st.grid.querySelectorAll(".acsv-jx-skel").length,
       normals: st.normals,
       buf: st.buf.length,
+      rendered: st.rendered.length,
       cols: cols(),
       done: st.done,
       tip: st.tip.textContent

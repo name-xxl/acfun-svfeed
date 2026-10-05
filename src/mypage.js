@@ -111,6 +111,29 @@ function buildHistory(panel) {
   var btn = moreBtn(load);
   panel.appendChild(btn);
   var pageNo = 0, seq = 0; // seq：换页/重试令牌，旧回包丢弃（0.9.77，searchview 同款模式）
+  var allRows = [];      // 已加载面板条目（层内列表会话的条目源，0.9.173）
+  var moreWaiters = [];
+  var done = false;
+
+  // 层内语义（0.9.173）：↓/↑ = 历史列表顺序；尾部续拉下一页（到底=null → 层里停住提示）
+  function flushMore() {
+    var w = moreWaiters;
+    moreWaiters = [];
+    w.forEach(function (cb) { cb(); });
+  }
+  function moreRows() {
+    if (done) return Promise.resolve(null);
+    return new Promise(function (resolve) {
+      var before = allRows.length;
+      moreWaiters.push(function () {
+        resolve(allRows.length > before ? allRows.slice(before) : null);
+      });
+      load();
+    });
+  }
+  function ctxOf(pi) {
+    return { kind: 'list', items: allRows.slice(), idx: Math.max(0, allRows.indexOf(pi)), more: moreRows };
+  }
 
   function load() {
     var my = ++seq;
@@ -129,18 +152,23 @@ function buildHistory(panel) {
           if (pi) rows.push(pi);
         });
         pageNo++;
-        rows.forEach(function (pi) { list.appendChild(gridCardOf(pi)); });
+        rows.forEach(function (pi) {
+          allRows.push(pi);
+          list.appendChild(gridCardOf(pi, function () { return ctxOf(pi); }));
+        });
+        flushMore();
         // 到底判定按**原始条数**（非筛除后条数）：契约层会滤掉非视频条目（番剧/无 videoId），
         // 「有效行 < pageSize」在筛除后恒真会把还有下一页的列表误判成到底（0.9.77 实锤：
         // mock 首页 20 原始 → 18 有效，按有效数判到底则第二页 4 条永远拉不到）。
         // 判据用闭包 btn（恒在）：首屏 b 不存在，旧实现首屏到底仍显示「加载更多」
-        if (raws.length < CFG.view.pageSize) btn.style.display = 'none';
+        if (raws.length < CFG.view.pageSize) { done = true; btn.style.display = 'none'; }
         if (!rows.length && pageNo === 1) list.appendChild(el('div', 'acsv-vempty', '暂无观看记录'));
       }, function () {
         gone();
         if (my !== seq || !list.isConnected) return;
         btn.disabled = false;
         btn.textContent = '加载失败，点击重试';
+        flushMore(); // 失败也回话（续拉等待方收到 null → 层里停住提示）
       });
   }
   load();
@@ -181,6 +209,8 @@ function adminTab(panel, o) {
   panel.appendChild(btn);
 
   var tabs = [];
+  var allRows = [];      // 已加载面板条目（顺序；层内列表会话的条目源，0.9.173）
+  var moreWaiters = [];  // 续拉等待回调（本轮 load 落定后回话）
   var cur = o.allChip ? o.allId : null;
   var cursor = o.firstCursor || 0;
   var seq = 0; // 在途回包令牌：换档/视图拆（isConnected）即丢弃
@@ -282,6 +312,7 @@ function adminTab(panel, o) {
     seq++;
     loading = false;
     done = false;
+    allRows = [];
     list.textContent = '';
     resetBtn();
     renderChips();
@@ -330,22 +361,50 @@ function adminTab(panel, o) {
       if (my !== seq || !list.isConnected) return; // 过期/退出视图：在途回包丢弃
       loading = false;
       var added = 0;
-      (p.rows || []).forEach(function (r) { list.appendChild(o.renderRow(r, ctx)); added++; });
+      (p.rows || []).forEach(function (r) { allRows.push(r); list.appendChild(o.renderRow(r, ctx)); added++; });
       cursor = p.nextCursor;
       if (p.noMore) { done = true; btn.style.display = 'none'; } else resetBtn();
       if (!added && !list.children.length) list.appendChild(el('div', 'acsv-vempty', o.emptyText(cur)));
+      flushMore();
     }, function () {
       if (my !== seq || !list.isConnected) return;
       loading = false;
       btn.disabled = false;
       btn.textContent = o.loadFailText;
+      flushMore(); // 失败也回话（续拉等待方收到 null → 层里停住提示）
+    });
+  }
+
+  // 列表会话续拉（0.9.173）：走同一台 load 机器，回话=本轮新增条目（无新增/失败/到底=null）
+  function flushMore() {
+    var w = moreWaiters;
+    moreWaiters = [];
+    w.forEach(function (cb) { cb(); });
+  }
+  function moreRows() {
+    if (done) return Promise.resolve(null);
+    return new Promise(function (resolve) {
+      var before = allRows.length;
+      moreWaiters.push(function () {
+        resolve(allRows.length > before ? allRows.slice(before) : null);
+      });
+      load();
     });
   }
 
   var ctx = {
     list: list,
     refresh: refresh,
-    sel: function () { return cur; }
+    sel: function () { return cur; },
+    // 层内会话语境：本档已加载条目 + 续拉缝（收藏/历史=有下一页续拉；到底=null→层里停）
+    openCtxOf: function (pi) {
+      return {
+        kind: 'list',
+        items: allRows.slice(),
+        idx: Math.max(0, allRows.indexOf(pi)),
+        more: moreRows
+      };
+    }
   };
   return { refresh: refresh, select: select, list: list, chips: chips, btn: btn };
 }
@@ -362,7 +421,7 @@ function buildFav(panel) {
   // 卡面 + hover 管理键（移动=调整收藏夹弹层；移除=二次确认）——wrapper 是网格项，卡面照常进
   function favCell(pi, ctx) {
     var box = el('div', 'acsv-favcell');
-    box.appendChild(gridCardOf(pi));
+    box.appendChild(gridCardOf(pi, function () { return ctx.openCtxOf(pi); }));
     var acts = el('div', 'acsv-favacts');
     var mv = el('button', 'acsv-vchip sm', '移动');
     mv.type = 'button';

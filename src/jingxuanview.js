@@ -7,6 +7,7 @@ import { relatedItemOf } from './relatedapi.js';
 import { openPanelItem } from './cards.js';
 import { imgInto } from './imgload.js';
 import { GLYPHS } from './imicons.js';
+import { getSetting } from './settings.js'; // 分区二选一（0.9.173）：关=相关池随机 / 开=网格顺序
 import { testHook } from './dbg.js';
 
 // ---------- 分区页（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html ①②；0.9.171 改名+原生图标） ----------
@@ -112,11 +113,44 @@ function infoOf(vm, big) {
   return ci;
 }
 
+// vm → 面板条目（playlayer 即时首帧 + playItemOf 归一的契约形状）
+function piOfVm(vm) {
+  return { acId: vm.id, title: vm.title, cover: vm.cover, up: vm.up };
+}
+
+// 层内会话语境（0.9.173 用户裁决：分区保留「随机 / 列表顺序」二选一）：
+//   设置关（默认）= {kind:'walk'}——层内 ↓ 从相关池随机抽（抖音式刷不完，换批续命）
+//   设置开 = 列表会话：按网格渲染顺序步进，尾部续拉下一页（more 由本视图供）
+function ctxOfVm(vm) {
+  if (!getSetting('relSequential')) return { kind: 'walk' };
+  return function () {
+    if (!st) return { kind: 'walk' };
+    var items = st.rendered.map(piOfVm);
+    var idx = 0;
+    for (var i = 0; i < st.rendered.length; i++) if (st.rendered[i].id === vm.id) { idx = i; break; }
+    return { kind: 'list', items: items, idx: idx, more: moreOfList() };
+  };
+}
+
+// 列表会话的续拉：推进一拍渲染，把新增的 vm 转成面板条目交回（无新增=null → 层里提示到头）
+function moreOfList() {
+  return function () {
+    return new Promise(function (resolve) {
+      if (!st) { resolve(null); return; }
+      var before = st.rendered.length;
+      st.waitMore = function () {
+        st.waitMore = null;
+        resolve(st.rendered.length > before ? st.rendered.slice(before).map(piOfVm) : null);
+      };
+      advance();
+    });
+  };
+}
+
 function cardOf(vm, big) {
   var card = el('div', 'acsv-jx-card' + (big ? ' acsv-jx-big' : ''));
   card.addEventListener('click', function () {
-    // 面板条目契约（playlayer 即时首帧 + playItemOf 归一）：作者四件套来自卡片契约的 up
-    openPanelItem({ acId: vm.id, title: vm.title, cover: vm.cover, up: vm.up });
+    openPanelItem(piOfVm(vm), ctxOfVm(vm));
   });
   var cv = el('div', 'acsv-jx-cv');
   imgInto(cv, vm.cover, 'thumb');
@@ -187,6 +221,8 @@ function buildJingxuanView(body) {
     cursor: null,          // home 方言首芯片 ''；channel 方言首芯片 '0'——按 tab 取
     done: false, busy: false, err: false,
     big: false, normals: 0, buf: [],
+    rendered: [], // 已渲染 vm 序列（渲染顺序；列表会话的条目源，0.9.173）
+    waitMore: null, // 列表会话续拉的等待回调（drain 渲染完触发，0.9.173）
     chips: chips, grid: grid, tip: tip, body: body,
     onScroll: function () {
       if (body.scrollTop + body.clientHeight >= body.scrollHeight - CFG.view.jingxuan.scrollPad) advance();
@@ -218,6 +254,7 @@ function switchTab() {
   st.cursor = st.tab === 'all' ? '' : '0'; // home 方言首芯片 ''；channel 首芯片 '0'
   st.done = false; st.busy = false; st.err = false;
   st.big = false; st.normals = 0; st.buf = [];
+  st.rendered = []; st.waitMore = null;
   st.grid.innerHTML = '';
   st.tip.innerHTML = '';
   st.grid.appendChild(skeletonCards());
@@ -285,27 +322,40 @@ function advance() {
   fetchPage();
 }
 
+// 落一张卡并记入 rendered 序列（列表会话的条目源与渲染同序，0.9.173）
+function placeCard(vm, big) {
+  st.grid.appendChild(cardOf(vm, big));
+  st.rendered.push(vm);
+}
+
+// 列表会话续拉的等待回调（若在等：本拍渲染完即刻回话，交回新增条目）
+function flushWaitMore() {
+  if (st && st.waitMore) st.waitMore();
+}
+
 function drain() {
   if (!st) return;
   // 首批实卡落位前撤骨架（骨架也带 .acsv-jx-card/.acsv-jx-big 类——不清会与实卡并存）
   if (st.buf.length && !st.big) st.grid.innerHTML = '';
   if (st.done) {
     // 流尽：缓冲全放（尾行可不满——数据用尽）；大卡仍只挂首张
-    if (!st.big && st.buf.length) { st.grid.appendChild(cardOf(st.buf.shift(), true)); st.big = true; }
-    while (st.buf.length) { st.grid.appendChild(cardOf(st.buf.shift(), false)); st.normals++; }
+    if (!st.big && st.buf.length) { placeCard(st.buf.shift(), true); st.big = true; }
+    while (st.buf.length) { placeCard(st.buf.shift(), false); st.normals++; }
     if (!st.big && !st.normals) st.grid.innerHTML = ''; // 空分区：留空网格，不摆永久骨架
     if (!st.tip.textContent) {
       setTip(el('div', null, (st.big || st.normals) ? '— 已经到底啦 —' : '这个分区暂时没有可看的内容'));
     }
+    flushWaitMore();
     return;
   }
-  if (!st.big && st.buf.length) { st.grid.appendChild(cardOf(st.buf.shift(), true)); st.big = true; }
+  if (!st.big && st.buf.length) { placeCard(st.buf.shift(), true); st.big = true; }
   var target = nextTarget(st.normals);
   while (st.normals < target && st.buf.length) {
-    st.grid.appendChild(cardOf(st.buf.shift(), false));
+    placeCard(st.buf.shift(), false);
     st.normals++;
   }
   setTip(null);
+  flushWaitMore();
   // 渲染后滚动体仍没被铺满（首屏/窄窗/高视口）：按整行继续推进——每次推进都以整行为单位，
   // 不出现半空行（这就是「按行补齐」与「按视口补一批」的分野）
   if (!st.done && !st.err && st.body.scrollHeight <= st.body.clientHeight + 4) advance();
@@ -329,6 +379,7 @@ testHook('jingxuan', function () {
     skel: st.grid.querySelectorAll('.acsv-jx-skel').length,
     normals: st.normals,
     buf: st.buf.length,
+    rendered: st.rendered.length,
     cols: cols(),
     done: st.done,
     tip: st.tip.textContent

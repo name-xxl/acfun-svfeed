@@ -188,11 +188,15 @@ function buildSearchView(body, arg, kind) {
       : k === 'up' ? '没有找到相关 UP 主' : '没有找到相关文章';
   }
 
-  function videoCellOf(it) {
+  function videoCellOf(it, idx) { // idx：结果序号（会话步进锚，0.9.173）
     // 契约 → 网格卡（kind='search' 触发角标/脚行；无 href → 点击进播放层就地播放）
+    // 会话语境（0.9.173）：层内 ↓/↑ = 搜索结果顺序（搜索=固定结果集，走到最后一条停）
     return gridCardOf({
       acId: it.acId, title: it.title, cover: it.cover, kind: 'search',
       dur: it.dur, views: it.views, up: it.up, dateText: it.dateText
+    }, function () {
+      var stv = c.kinds.video || {}; // 状态按类目分仓（curKind=video），点击那刻取最新一份
+      return { kind: 'list', items: (stv.items || []).slice(), idx: idx };
     });
   }
 
@@ -249,7 +253,7 @@ function buildSearchView(body, arg, kind) {
     card.appendChild(hd);
     if (u.recents && u.recents.length) {
       var recs = el('div', 'acsv-suprecs');
-      u.recents.forEach(function (r) {
+      u.recents.forEach(function (r, i) {
         var rc = el('div', 'acsv-srec');
         var cov = el('div', 'acsv-sreccov');
         imgInto(cov, r.cover, 'cover', null);
@@ -259,10 +263,11 @@ function buildSearchView(body, arg, kind) {
         if (r.dateText) rc.appendChild(el('div', 'acsv-srectm', r.dateText));
         rc.title = r.title;
         rc.addEventListener('click', function () {
+          // 会话语境（0.9.173）：层内 ↓/↑ = 搜索结果顺序（搜索=固定结果集，走到最后一条停）
           openPanelItem({
             acId: r.acId, title: r.title, cover: r.cover, kind: 'search',
             up: upOf(u.uid, u.name, u.avatar, u.following)
-          });
+          }, { kind: 'list', items: u.recents, idx: i }); // 语境=该 UP 的最近作品序（到头停）
         });
         recs.appendChild(rc);
       });
@@ -343,7 +348,7 @@ function buildSearchView(body, arg, kind) {
     setState('');
     // 视频类目结果容器带 .acsv-sgrid（16:9 网格；类名只在视频类目上——UP/文章是卡片/文本流）
     res.className = 'acsv-sres' + (curKind === 'video' ? ' acsv-sgrid' : '');
-    if (curKind === 'video') st.items.forEach(function (it) { res.appendChild(videoCellOf(it)); });
+    if (curKind === 'video') st.items.forEach(function (it, i) { res.appendChild(videoCellOf(it, i)); });
     else if (curKind === 'up') st.items.forEach(function (u) { res.appendChild(upCardOf(u)); });
     else st.items.forEach(function (a) { res.appendChild(articleRowOf(a)); });
     if (st.done && st.total) end.textContent = '已显示全部 ' + st.total + ' 条';

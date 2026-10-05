@@ -33,8 +33,11 @@ function rowDefault(pi) {
   if (pi.ct === 'moment') {
     closeInlineComments(); // 面板接管评论区（claimDrawer 同槽，先关行内防两份宿主互踩）
     openMomentDetail(pi);
-  } else if (pi.ct === 'video') openPanelItem(pi);
-  else if (pi.href) window.open(pi.href, '_blank');
+  } else if (pi.ct === 'video') {
+    // 用户裁决（0.9.173）：「仅播放单条就只剩**动态里的视频卡片**」——动态语境的视频条目
+    // 显式声明单条会话（不出右栏箭头、↓ 无下一条）；其余来源一律带列表/游走上下文
+    openPanelItem(pi, { kind: 'single' });
+  } else if (pi.href) window.open(pi.href, '_blank');
 }
 
 // ---------- 视图组装 ----------

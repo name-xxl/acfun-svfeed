@@ -2,7 +2,7 @@ import { el, fmt } from './ui.js';
 import { commentDrawer } from './state.js';
 import { imgInto } from './imgload.js';
 import { GLYPHS } from './imicons.js';
-import { listRelated, relatedItemOf, startChain, layerJump, layerOpen } from './relatedapi.js';
+import { listRelated, relatedItemOf, panelItemOfDv, startChain, layerJump, layerOpen } from './relatedapi.js';
 import { testHook } from './dbg.js';
 
 // ---------- 评论抽屉「相关推荐」tab（0.9.167；形态=docs/preview/jingxuan.html ③④⑤） ----------
@@ -32,11 +32,16 @@ function wire() {
   d.relList.addEventListener('click', function (ev) {
     var row = ev.target.closest('.acsv-relrow');
     if (!row || !row._dv) return; // 锚位行/状态行无 _dv，不响应
-    // 三种落点（0.9.170/0.9.172）：播放层在场 = 层内换条；层外 = 开层（舞台/视图原地保活，
-    // Esc 回当前视频）；播放器未挂载才落到遗留的 startChain（拆视图/重置流的旧形态）
+    // 会话语境（0.9.173 用户裁决）：点相关行 = **换成这份列表**（抽屉里这 10 条，顺序走、
+    // 到头停）——层内 ↓/↑ 从此按它步进，不再在相关池里随机
+    var idx = 0;
+    for (var i = 0; i < cache.dvs.length; i++) if (cache.dvs[i] === row._dv) { idx = i; break; }
+    var ctx = { kind: 'list', items: cache.dvs.map(panelItemOfDv), idx: idx };
     var item = relatedItemOf(row._dv);
-    if (layerJump(item)) return;
-    if (layerOpen(item)) return;
+    // 三种落点（0.9.170/0.9.172）：播放层在场 = 层内换轨；层外 = 开层（舞台/视图原地保活，
+    // Esc 回当前视频）；播放器未挂载才落到遗留的 startChain（拆视图/重置流的旧形态）
+    if (layerJump(item, ctx)) return;
+    if (layerOpen(item, ctx)) return;
     startChain(row._dv.dougaId, item);
   });
   return true;

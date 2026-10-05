@@ -330,7 +330,12 @@ rec('item-overlay-playing', !!(await waitFor(function () {
 })());
 rec('item-feed-untouched', feed().items.length === bufBefore && feed().current === curBefore,
   'items=' + feed().items.length + '/' + bufBefore + ' cur=' + feed().current + '/' + curBefore);
-rec('item-no-arrows', !q('.acsv-slide[data-ovl="1"] .acsv-arrows'));
+// 层内右栏箭头（0.9.173 口径变更）：我的页网格进层 ⇒ 会话=列表（收藏/历史可续拉）——箭头在
+rec('item-arrows-list', (function () {
+  var pl = TEST.call('playlayer') || {};
+  var s = q('.acsv-slide[data-ovl="1"]');
+  return pl.session === 'list' && !!s && !!s.querySelector('.acsv-arrow-down');
+})(), JSON.stringify(TEST.call('playlayer')));
 rec('item-feed-paused', (function () {
   var vs = document.querySelectorAll('.acsv-scroller video');
   for (var i = 0; i < vs.length; i++) if (!vs[i].paused) return false;
@@ -507,7 +512,14 @@ rec('zone-play-playing', !!(await waitFor(function () {
 }, 20000)));
 rec('zone-play-feed-untouched', feed().items.length === zBuf && feed().current === zCur,
   'items=' + feed().items.length + '/' + zBuf + ' cur=' + feed().current + '/' + zCur);
-rec('zone-play-no-arrows', !q('.acsv-slide[data-ovl="1"] .acsv-arrows'));
+// 层内右栏箭头（0.9.173 口径变更）：榜单行进层 ⇒ 会话=列表（↓/↑=榜单行顺序）——箭头随会话
+// 建，首条 ▲ 隐藏、▼ 在；旧 0.9.74「层内一律不建箭头」被用户裁决取代（单条只留动态视频卡片）
+rec('zone-play-arrows-list', (function () {
+  var pl = TEST.call('playlayer') || {};
+  var s = q('.acsv-slide[data-ovl="1"]');
+  var up = s && s.querySelector('.acsv-arrow-up'), dn = s && s.querySelector('.acsv-arrow-down');
+  return pl.session === 'list' && !!up && !!dn && up.style.display === 'none' && dn.style.display !== 'none';
+})(), JSON.stringify(TEST.call('playlayer')));
 rec('zone-play-hash-stable', (function () { // 地址不被 syncHash 回写（视图形态守卫）
   return location.hash === '#svfeed/play/a/489500';
 })());

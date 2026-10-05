@@ -43,6 +43,18 @@ export function listRelated(rid) {
     'resourceType=2&resourceId=' + encodeURIComponent(rid)).then(relatedPageOf);
 }
 
+// dougaFeedView → **面板条目**（openPanelItem/层内会话列表用的契约形状；0.9.173 抽——抽屉行
+// 点击与「换成那份相关列表」的列表条目都从这里出；作者四件套与 relatedItemOf 同源字段）
+export function panelItemOfDv(dv) {
+  var u = dv.user || {};
+  return {
+    acId: Number(idOf(dv)) || 0,
+    title: dv.title || dv.caption || '',
+    cover: coverUrl(dv.coverUrl || ''),
+    up: upOf(u.id, u.name, coverUrl(u.headUrl), u.isFollowing)
+  };
+}
+
 // dougaFeedView → 播放契约条目。kind/stype/cap 全走 home 模板（homeItemOf）：相关推荐条目
 // 与 selection/feed 同族——resolve 链（douga/info+playInfo）、prewarm、slim、评论/互动键、
 // 深链回写全部零改动即工作；「新内容源」的差量只在取流（泵）与卡片富化（这里回填）。
@@ -146,9 +158,9 @@ export function startChain(acId, firstItem) {
 var layerHost = null;
 export function setLayerHost(h) { layerHost = h || null; }
 export function layerActive() { return !!(layerHost && layerHost.active && layerHost.active()); }
-export function layerJump(item) {
+export function layerJump(item, ctx) {
   if (!layerActive() || item == null) return false;
-  layerHost.jump(item);
+  layerHost.jump(item, ctx);
   return true;
 }
 
@@ -158,9 +170,9 @@ export function layerJump(item) {
 // playlayer 注册（本模块仍不 import 它）；未注册（播放器没挂载）返回 false，调用方走遗留兜底。
 var layerOpener = null;
 export function setLayerOpener(fn) { layerOpener = typeof fn === 'function' ? fn : null; }
-export function layerOpen(item) {
+export function layerOpen(item, ctx) {
   if (!layerOpener || item == null) return false;
-  return layerOpener(item) !== false;
+  return layerOpener(item, ctx) !== false;
 }
 
 // debug 构建测试钩子：harness 断言读泵态（release 死码消除）

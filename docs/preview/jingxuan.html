@@ -132,6 +132,17 @@
   .layer .playbtn{width:64px;height:64px;border-radius:50%;background:rgba(253,76,93,.9);display:flex;
     align-items:center;justify-content:center;color:#fff;font-size:22px}
 
+  /* ---- 层内右栏上下切换（0.9.173 新增；量值照抄 styles.js .acsv-arrows/.acsv-arrow：
+     40px 圆 / rgba(255,255,255,.12) / blur4 / 禁用 0.3 / 竖排 gap10） ---- */
+  .layrail{position:absolute;right:14px;bottom:96px;display:flex;flex-direction:column;gap:10px;z-index:3}
+  .rar{width:40px;height:40px;border:none;border-radius:50%;background:rgba(255,255,255,.12);cursor:pointer;
+    display:grid;place-items:center;backdrop-filter:blur(4px);color:#fff;font-size:13px;line-height:1}
+  .rar:hover{background:rgba(255,255,255,.25)}
+  .rar.dis{opacity:.3;cursor:default}
+  .rar.hid{visibility:hidden}
+  .laytip{position:absolute;left:50%;top:46%;transform:translateX(-50%);background:rgba(0,0,0,.72);
+    border-radius:8px;padding:8px 16px;font-size:13px;color:#fff;z-index:4}
+
   /* ---- 评论抽屉（骨架量值照抄 styles.js .acsv-drawer：380px 右滑/rgba(22,22,27,.96)/head 15px） ---- */
   .drawer{width:380px;height:470px;background:rgba(22,22,27,.96);border:1px solid var(--acsv-line);
     border-radius:2px;display:flex;flex-direction:column}
@@ -418,8 +429,13 @@
         <div class="gest">
           <b>↓ / 滚轮下滑 / 触摸上滑</b> 下一条 = 当前视频相关推荐随机抽一条（逐级游走）<br>
           <b>↑ / 滚轮上滑 / 触摸下滑</b> 回上一条（层内历史）<br>
-          <b>c</b> 评论抽屉 · 相关推荐行点选 = 层内换条<br>
-          空格 暂停 · ←→ 快进退 · f 全屏
+          <b>c</b> 评论抽屉 · 相关推荐行点选 = 换到那份相关列表<br>
+          空格 暂停 · ←→ 快进退 · f 全屏<br>
+          右栏 ▲▼ = 上一条/下一条（与 ↓/↑/滚轮/触摸同一动作）
+        </div>
+        <div class="layrail">
+          <button class="rar" title="上一个（↑）">▲</button>
+          <button class="rar" title="下一个（↓）">▼</button>
         </div>
       </div>
       <p class="hint" style="max-width:420px;line-height:2">
@@ -530,6 +546,59 @@
         换条后层内历史可 ↑ 逐步回退。<br>
         浮层来源不限于分区——榜单/搜索进层后，相关推荐行同样层内换条（旧行为=拆视图回舞台，观感割裂，一并收齐）。
       </p>
+    </div>
+
+    <h3 class="cf-head">层内 ↓/↑（含右栏 ▲▼）的会话语义（0.9.173）</h3>
+    <div class="row" style="align-items:flex-start;gap:26px;flex-wrap:wrap">
+      <table style="border-collapse:collapse;font-size:12px;color:var(--acsv-t2);min-width:560px">
+        <tr style="color:var(--acsv-t3);text-align:left">
+          <th style="padding:6px 12px 6px 0;font-weight:600">入口</th>
+          <th style="padding:6px 12px 6px 0;font-weight:600">↓ 的语义</th>
+          <th style="padding:6px 0;font-weight:600">走到头</th>
+        </tr>
+        <tr><td style="padding:5px 12px 5px 0">搜索</td><td style="padding:5px 12px 5px 0">结果列表顺序</td><td>停（提示 + ▼ 隐）</td></tr>
+        <tr><td style="padding:5px 12px 5px 0">榜单</td><td style="padding:5px 12px 5px 0">榜单行顺序</td><td>停（提示 + ▼ 隐）</td></tr>
+        <tr><td style="padding:5px 12px 5px 0">我的（投稿/收藏/历史）</td><td style="padding:5px 12px 5px 0">该列表顺序</td><td>有下一页续拉；无则停</td></tr>
+        <tr><td style="padding:5px 12px 5px 0">关注视频流</td><td style="padding:5px 12px 5px 0">条目顺序</td><td>有下一页续拉；无则停</td></tr>
+        <tr><td style="padding:5px 12px 5px 0"><b>分区</b>（默认）</td><td style="padding:5px 12px 5px 0"><b>相关池随机</b>（抖音式刷不完）</td><td>换批续命（不封顶）</td></tr>
+        <tr><td style="padding:5px 12px 5px 0"><b>分区</b>（设置开=按列表顺序）</td><td style="padding:5px 12px 5px 0">网格顺序</td><td>续拉下一页</td></tr>
+        <tr><td style="padding:5px 12px 5px 0">相关推荐行跳转（任意来源）</td><td style="padding:5px 12px 5px 0">那份 10 条列表顺序</td><td>停</td></tr>
+        <tr><td style="padding:5px 12px 5px 0">动态里的视频卡片</td><td style="padding:5px 12px 5px 0" colspan="2">单条：不出箭头、不可切</td></tr>
+      </table>
+    </div>
+    <h3 class="cf-head">右栏 ▲▼ 的三种状态</h3>
+    <div class="row" style="align-items:flex-start;gap:26px">
+      <div>
+        <div class="layer" style="width:300px;height:190px">
+          <span class="src" style="font-size:11px">列表中间（两侧都可走）</span>
+          <div class="layrail" style="bottom:40px">
+            <button class="rar" style="width:34px;height:34px">▲</button>
+            <button class="rar" style="width:34px;height:34px">▼</button>
+          </div>
+        </div>
+        <p class="thint">常态：两个圆钮都在（40px / 白 12% / 模糊 4px，量值同竖刷右栏）</p>
+      </div>
+      <div>
+        <div class="layer" style="width:300px;height:190px">
+          <span class="src" style="font-size:11px">第一条</span>
+          <div class="layrail" style="bottom:40px">
+            <button class="rar hid" style="width:34px;height:34px">▲</button>
+            <button class="rar" style="width:34px;height:34px">▼</button>
+          </div>
+        </div>
+        <p class="thint">▲ 隐藏（同竖刷首条语义；键盘/滚轮上滑给「已经是第一条」提示）</p>
+      </div>
+      <div>
+        <div class="layer" style="width:300px;height:190px">
+          <span class="src" style="font-size:11px">最后一条（不可续拉）</span>
+          <div class="layrail" style="bottom:40px">
+            <button class="rar" style="width:34px;height:34px">▲</button>
+            <button class="rar" style="width:34px;height:34px;opacity:.3">▼</button>
+          </div>
+          <div class="laytip" style="top:auto;bottom:14px;font-size:12px;padding:6px 12px">已经是最后一条</div>
+        </div>
+        <p class="thint">▼ 置灰（可续拉的来源如分区/我的：仍亮着，↓ 触发续拉）</p>
+      </div>
     </div>
   </div>
 
