@@ -1,7 +1,8 @@
 // ---------- 私信发送基建（0.9.123 自 imshare.js 拆出：协议核心 ↔ 分享面板 UI 分居） ----------
 // 本模块 = SDK 加载/注入/补丁（源码补丁 + Blob 执行 + tracer 手术 + 日志黑匣子/weblog 垫片）
 // + 连接与重连 + 发送核心（doSend/sendKernel/withSendRecovery/sendQuote/sendImage/
-// sendCmtShare/sendMomentShare）+ 图片字节管线（midground 令牌/blob LRU/下载队列/在飞去重）。
+// sendCmtShare/sendMomentShare）+ 图片管线（字节：midground 令牌/blob LRU/下载队列/在飞去重；
+// URL 换链 0.9.163 自 imdrawer 迁入：imageUrlOf ks://→官方直链/imageUriFromRaw/officialize）。
 // 分享面板 UI 在 sharepanel.js（单向依赖本模块出口）；拆分动机：协议核心获得独立可测面、
 // UI 改动不再碰发送可靠性。纯搬迁零逻辑改动（原 imshare.js 单文件 45.9K）。
 // ---------- 私信分享（抖音式分享面板） ----------
@@ -13,7 +14,7 @@
 
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
-import { cookieVal } from './ui.js';
+import { cookieVal, selfUid } from './ui.js';
 import { postForm } from './appapi.js';
 import { quoteWireText, QUOTE_EXTRA_KEY, CMT_EXTRA_KEY, MOMENT_EXTRA_KEY } from './immsg.js';
 
@@ -806,4 +807,76 @@ export function sendMomentShare(inst, targetId, payload, text) {
       } catch (e) { reject(e); }
     });
   });
+}
+
+
+// ---------- 图片 URL 换链管线（0.9.163 自 imdrawer.js 迁入：纯 URL/协议规则，与上方图片字节管线同族） ----------
+// ks:// 资源 → 官方 download 直链（message.acfun.cn，参数白名单官方形态，无 token）。
+// 零会话依赖三级兜底（重开会话后内核 decodeContent/file 配置都不保证就绪，首次能渲染
+// 重开挂车的前车之鉴）：uri 取 m.url → rawMsg.content 手解 proto 字段 1；URL 取内核换链
+// → 本地拼装（resourceId 从 ks:// 尾段、userId/did 取本端 Cookie）
+// inst=最近一次轮询的 IM 实例（抽屉侧 lastImInst 传入）——内核换链/config 读它，
+// 不再依赖抽屉模块态（0.9.163 私有签名随迁调整，机器比对在案）
+export function imageUrlOf(m, inst) {
+  var ks = '';
+  try { ks = (m && (m.url || (m.imageAttachment && m.imageAttachment.uri))) || ''; } catch (e0) { }
+  if (!ks) ks = imageUriFromRaw(m);
+  if (!ks) { console.warn('[acsv-im] 图片消息无 uri（decode 与 raw 均未恢复）'); return ''; }
+  if (!/^ks:\/\//.test(ks)) return officialize(ks);
+  try {
+    var k = inst && inst.kernel;
+    if (k && k.file && k.file.resourceUrlToHttpUrl) {
+      var u = officialize(k.file.resourceUrlToHttpUrl(ks, false, Number(m.width) || 0, Number(m.height) || 0));
+      if (u) return u;
+    }
+  } catch (e) { }
+  try {
+    // ks://<resourceId>[/<数字尾缀>]：官方页 DOM 实测形态（data-text="ks://xxx.jpg/1"），
+    // resourceId = 去掉 ks:// 后再剥尾缀的主段（官方 widget 同款 /\/\w+$/ 尾缀语义）
+    var rid = ks.slice(5).replace(/\/\w+$/, '');
+    if (!rid) { console.warn('[acsv-im] ks 资源串形态不识别:', ks.slice(0, 60)); return ''; }
+    var ver = '';
+    try {
+      var cfgk = inst && inst.kernel && inst.kernel.config;
+      ver = (cfgk && (cfgk.imsdkver || cfgk.sdkVersion)) || '';
+    } catch (e2) { }
+    return CFG.api.imDownloadBase + '/rest/v2/app/download?resourceId=' + encodeURIComponent(rid)
+      + '&userId=' + encodeURIComponent(selfUid())
+      + '&did=' + encodeURIComponent(cookieVal('_did') || '')
+      + '&kpn=ACFUN_APP&platform=H5' + (ver ? '&imsdkver=' + encodeURIComponent(ver) : '');
+  } catch (e3) { return ''; }
+}
+// Image proto 字段 1（uri, string）手解：tag 0x0A + varint 长度 + 字节（uri 为 ASCII）。
+// 内核 decodeContent 没跑（重开会话的缓存消息）时从这里恢复 uri
+function imageUriFromRaw(m) { // （私有，仅 imageUrlOf 兜底用）
+  try {
+    var buf = m && m.rawMsg && m.rawMsg.content;
+    if (!buf) return '';
+    var u8 = new Uint8Array(buf), i = 0;
+    if (u8[i++] !== 0x0a) return '';
+    var len = 0, shift = 0, b;
+    do { b = u8[i++]; len += (b & 0x7f) * Math.pow(2, shift); shift += 7; } while (b & 0x80);
+    if (!len || i + len > u8.length) return '';
+    var s = '';
+    for (var j = 0; j < len; j++) s += String.fromCharCode(u8[i + j]);
+    return (/^ks:\/\//.test(s) || /^https?:\/\//.test(s)) ? s : '';
+  } catch (e) { return ''; }
+}
+// 把 /rest/v2/app/download 产物改写成 message.acfun.cn 官方参数形态：剥 token 与 w/h
+//（sixinpic 域 401 的教训：acfun token 在该域不认，官方形态免 token），参数白名单对齐
+// 官方页抓包（resourceId/userId/did/kpn/imsdkver/platform）
+function officialize(httpUrl) {
+  try {
+    if (!httpUrl || !/^https?:\/\//.test(httpUrl)) return '';
+    var u = new URL(httpUrl);
+    var rid = u.searchParams.get('resourceId');
+    if (!rid) return '';
+    var q = ['resourceId', 'userId', 'did', 'kpn', 'imsdkver', 'platform']
+      .map(function (k) {
+        var v = u.searchParams.get(k);
+        return v == null ? null : k + '=' + encodeURIComponent(v);
+      })
+      .filter(Boolean).join('&');
+    return CFG.api.imDownloadBase + '/rest/v2/app/download?' + q;
+  } catch (e) { return ''; }
 }

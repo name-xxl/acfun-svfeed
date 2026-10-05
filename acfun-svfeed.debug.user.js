@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.162-debug
+// @version      0.9.163-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -3954,6 +3954,78 @@
         }
       });
     });
+  }
+  function imageUrlOf(m, inst) {
+    var ks = "";
+    try {
+      ks = m && (m.url || m.imageAttachment && m.imageAttachment.uri) || "";
+    } catch (e0) {
+    }
+    if (!ks) ks = imageUriFromRaw(m);
+    if (!ks) {
+      console.warn("[acsv-im] 图片消息无 uri（decode 与 raw 均未恢复）");
+      return "";
+    }
+    if (!/^ks:\/\//.test(ks)) return officialize(ks);
+    try {
+      var k = inst && inst.kernel;
+      if (k && k.file && k.file.resourceUrlToHttpUrl) {
+        var u = officialize(k.file.resourceUrlToHttpUrl(ks, false, Number(m.width) || 0, Number(m.height) || 0));
+        if (u) return u;
+      }
+    } catch (e) {
+    }
+    try {
+      var rid = ks.slice(5).replace(/\/\w+$/, "");
+      if (!rid) {
+        console.warn("[acsv-im] ks 资源串形态不识别:", ks.slice(0, 60));
+        return "";
+      }
+      var ver = "";
+      try {
+        var cfgk = inst && inst.kernel && inst.kernel.config;
+        ver = cfgk && (cfgk.imsdkver || cfgk.sdkVersion) || "";
+      } catch (e2) {
+      }
+      return CFG.api.imDownloadBase + "/rest/v2/app/download?resourceId=" + encodeURIComponent(rid) + "&userId=" + encodeURIComponent(selfUid()) + "&did=" + encodeURIComponent(cookieVal("_did") || "") + "&kpn=ACFUN_APP&platform=H5" + (ver ? "&imsdkver=" + encodeURIComponent(ver) : "");
+    } catch (e3) {
+      return "";
+    }
+  }
+  function imageUriFromRaw(m) {
+    try {
+      var buf = m && m.rawMsg && m.rawMsg.content;
+      if (!buf) return "";
+      var u8 = new Uint8Array(buf), i = 0;
+      if (u8[i++] !== 10) return "";
+      var len = 0, shift = 0, b;
+      do {
+        b = u8[i++];
+        len += (b & 127) * Math.pow(2, shift);
+        shift += 7;
+      } while (b & 128);
+      if (!len || i + len > u8.length) return "";
+      var s = "";
+      for (var j = 0; j < len; j++) s += String.fromCharCode(u8[i + j]);
+      return /^ks:\/\//.test(s) || /^https?:\/\//.test(s) ? s : "";
+    } catch (e) {
+      return "";
+    }
+  }
+  function officialize(httpUrl) {
+    try {
+      if (!httpUrl || !/^https?:\/\//.test(httpUrl)) return "";
+      var u = new URL(httpUrl);
+      var rid = u.searchParams.get("resourceId");
+      if (!rid) return "";
+      var q2 = ["resourceId", "userId", "did", "kpn", "imsdkver", "platform"].map(function(k) {
+        var v = u.searchParams.get(k);
+        return v == null ? null : k + "=" + encodeURIComponent(v);
+      }).filter(Boolean).join("&");
+      return CFG.api.imDownloadBase + "/rest/v2/app/download?" + q2;
+    } catch (e) {
+      return "";
+    }
   }
 
   // src/watchledger.js
@@ -8571,6 +8643,74 @@
     setCommentDrawer({ el: drawer2, title: dtitle, list: dlist });
   }
 
+  // src/imbadge.js
+  var badgeEl = null;
+  var mounted = false;
+  var badgeTimer = null;
+  var badgeDelayTimer = null;
+  function badgeText(n) {
+    return n > 99 ? "99+" : n > 0 ? String(n) : "";
+  }
+  function mountBadge(btn, badge) {
+    badgeEl = badge;
+    mounted = true;
+    var last = -1;
+    function tick2() {
+      if (!mounted) return;
+      if (!isLogined()) {
+        setBadge(0);
+        return;
+      }
+      ensureIm().then(function(inst) {
+        if (!mounted || !inst.connected) return;
+        var sum = 0;
+        try {
+          (inst.kernel.getSessions() || []).forEach(function(s) {
+            sum += Number(s.unreadCount) || 0;
+          });
+        } catch (e) {
+        }
+        setBadge(sum);
+      }, function() {
+      });
+    }
+    function setBadge(n) {
+      if (n === last) return;
+      last = n;
+      var txt = badgeText(n), show = n > 0 ? "" : "none";
+      if (badgeEl) {
+        badgeEl.textContent = txt;
+        badgeEl.style.display = show;
+      }
+    }
+    badgeTimer = setInterval(tick2, CFG.im.badgePoll);
+    badgeDelayTimer = setTimeout(function() {
+      if (!mounted) return;
+      tick2();
+      ensureIm().then(function(inst) {
+        try {
+          inst.on("unReadCountUpdate", function() {
+            if (mounted) tick2();
+          });
+        } catch (e) {
+        }
+      }, function() {
+      });
+    }, CFG.im.badgeDelay);
+  }
+  function stopBadge() {
+    mounted = false;
+    if (badgeDelayTimer) {
+      clearTimeout(badgeDelayTimer);
+      badgeDelayTimer = null;
+    }
+    if (badgeTimer) {
+      clearInterval(badgeTimer);
+      badgeTimer = null;
+    }
+    badgeEl = null;
+  }
+
   // src/imcard.js
   function hideCover(img, skin) {
     if (skin.coverHidden === "display") img.style.display = "none";
@@ -8734,8 +8874,6 @@
   var drawer = null;
   var view = "";
   var cards = {};
-  var badgeTimer = null;
-  var badgeDelayTimer = null;
   function makePoller(fn, gap) {
     var t = null;
     function stop() {
@@ -8763,11 +8901,6 @@
   }, CFG.im.drawerChatPoll);
   var chat = null;
   var lastImInst = null;
-  var badgeEl = null;
-  var mounted = false;
-  function badgeText(n) {
-    return n > 99 ? "99+" : n > 0 ? String(n) : "";
-  }
   function msgFrom(m) {
     try {
       if (m.fromUserId != null) return String(m.fromUserId);
@@ -9232,7 +9365,7 @@
   function appendImageBubble(m, mine) {
     if (!drawer) return;
     var w = Number(m.width) || 0, h = Number(m.height) || 0;
-    var src = imageUrlOf(m);
+    var src = imageUrlOf(m, lastImInst);
     var b = el("div", "acsv-im-imgbubble" + (mine ? " mine" : ""));
     if (src) {
       var img = document.createElement("img");
@@ -9272,78 +9405,6 @@
       b.textContent = "[图片]";
     }
     drawer.bubbles.appendChild(bubbleRow(b, mine, m));
-  }
-  function imageUrlOf(m) {
-    var ks = "";
-    try {
-      ks = m && (m.url || m.imageAttachment && m.imageAttachment.uri) || "";
-    } catch (e0) {
-    }
-    if (!ks) ks = imageUriFromRaw(m);
-    if (!ks) {
-      console.warn("[acsv-im] 图片消息无 uri（decode 与 raw 均未恢复）");
-      return "";
-    }
-    if (!/^ks:\/\//.test(ks)) return officialize(ks);
-    try {
-      var k = lastImInst && lastImInst.kernel;
-      if (k && k.file && k.file.resourceUrlToHttpUrl) {
-        var u = officialize(k.file.resourceUrlToHttpUrl(ks, false, Number(m.width) || 0, Number(m.height) || 0));
-        if (u) return u;
-      }
-    } catch (e) {
-    }
-    try {
-      var rid = ks.slice(5).replace(/\/\w+$/, "");
-      if (!rid) {
-        console.warn("[acsv-im] ks 资源串形态不识别:", ks.slice(0, 60));
-        return "";
-      }
-      var ver = "";
-      try {
-        var cfgk = lastImInst && lastImInst.kernel && lastImInst.kernel.config;
-        ver = cfgk && (cfgk.imsdkver || cfgk.sdkVersion) || "";
-      } catch (e2) {
-      }
-      return CFG.api.imDownloadBase + "/rest/v2/app/download?resourceId=" + encodeURIComponent(rid) + "&userId=" + encodeURIComponent(selfUid()) + "&did=" + encodeURIComponent(cookieVal("_did") || "") + "&kpn=ACFUN_APP&platform=H5" + (ver ? "&imsdkver=" + encodeURIComponent(ver) : "");
-    } catch (e3) {
-      return "";
-    }
-  }
-  function imageUriFromRaw(m) {
-    try {
-      var buf = m && m.rawMsg && m.rawMsg.content;
-      if (!buf) return "";
-      var u8 = new Uint8Array(buf), i = 0;
-      if (u8[i++] !== 10) return "";
-      var len = 0, shift = 0, b;
-      do {
-        b = u8[i++];
-        len += (b & 127) * Math.pow(2, shift);
-        shift += 7;
-      } while (b & 128);
-      if (!len || i + len > u8.length) return "";
-      var s = "";
-      for (var j = 0; j < len; j++) s += String.fromCharCode(u8[i + j]);
-      return /^ks:\/\//.test(s) || /^https?:\/\//.test(s) ? s : "";
-    } catch (e) {
-      return "";
-    }
-  }
-  function officialize(httpUrl) {
-    try {
-      if (!httpUrl || !/^https?:\/\//.test(httpUrl)) return "";
-      var u = new URL(httpUrl);
-      var rid = u.searchParams.get("resourceId");
-      if (!rid) return "";
-      var q2 = ["resourceId", "userId", "did", "kpn", "imsdkver", "platform"].map(function(k) {
-        var v = u.searchParams.get(k);
-        return v == null ? null : k + "=" + encodeURIComponent(v);
-      }).filter(Boolean).join("&");
-      return CFG.api.imDownloadBase + "/rest/v2/app/download?" + q2;
-    } catch (e) {
-      return "";
-    }
   }
   var SKIN = {
     tag: "div",
@@ -9707,16 +9768,8 @@
     syncCommentVars();
   }
   function teardownIm() {
-    mounted = false;
     imShutdown();
-    if (badgeDelayTimer) {
-      clearTimeout(badgeDelayTimer);
-      badgeDelayTimer = null;
-    }
-    if (badgeTimer) {
-      clearInterval(badgeTimer);
-      badgeTimer = null;
-    }
+    stopBadge();
     listPoll.stop();
     chatPoll.stop();
     releaseDrawer("im");
@@ -9726,54 +9779,6 @@
     cards = {};
     listSig = "";
     lastListRows = null;
-    badgeEl = null;
-  }
-  function mountBadge(btn, badge) {
-    badgeEl = badge;
-    mounted = true;
-    var last = -1;
-    function tick2() {
-      if (!mounted) return;
-      if (!isLogined()) {
-        setBadge(0);
-        return;
-      }
-      ensureIm().then(function(inst) {
-        if (!mounted || !inst.connected) return;
-        var sum = 0;
-        try {
-          (inst.kernel.getSessions() || []).forEach(function(s) {
-            sum += Number(s.unreadCount) || 0;
-          });
-        } catch (e) {
-        }
-        setBadge(sum);
-      }, function() {
-      });
-    }
-    function setBadge(n) {
-      if (n === last) return;
-      last = n;
-      var txt = badgeText(n), show = n > 0 ? "" : "none";
-      if (badgeEl) {
-        badgeEl.textContent = txt;
-        badgeEl.style.display = show;
-      }
-    }
-    badgeTimer = setInterval(tick2, CFG.im.badgePoll);
-    badgeDelayTimer = setTimeout(function() {
-      if (!mounted) return;
-      tick2();
-      ensureIm().then(function(inst) {
-        try {
-          inst.on("unReadCountUpdate", function() {
-            if (mounted) tick2();
-          });
-        } catch (e) {
-        }
-      }, function() {
-      });
-    }, CFG.im.badgeDelay);
   }
 
   // src/release.js
@@ -9842,7 +9847,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.162" : "");
+    return normVer(true ? "0.9.163" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12558,7 +12563,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.162：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.163：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

@@ -101,3 +101,15 @@ feedstore.js → player.js → input.js → feedstore.js
 - **机器证明**：代码行多重集比对——缺失 10 行全为签名/全局读替换点（commentItem→commentItemOf、
   commentState.kind→opts.mode、sourceId/stype→opts.*、两处调用点），多出 18 行全为 imports/新
   签名/opts 替换/`cmtOpts`（逐行可控）；view-follow 68 / detail-open 38 断言原样全绿 = 零漂移。
+
+## 0.9.163：imdrawer 两缝清收（拆件台账）
+
+- **由头**：全库架构审计判定 imdrawer.js（1010 行）「接近但未过界」——一句话「私信抽屉的
+  完整前端」仍成立，真正出戏的两段按用户裁决顺手拆走：图片 URL 换链协议（ks://→官方直链
+  三级兜底 + proto 手解 + 参数白名单，零 DOM）迁 **imsend.js**（与图片字节管线同族，导出
+  imageUrlOf 改 inst 传参替代直读抽屉模块态 lastImInst）；顶栏未读徽标（与抽屉零共享状态）
+  独立为 **imbadge.js**（仿 followbadge.js 先例，teardownIm 经 stopBadge 反向通知，方向
+  imbadge→imsend 单向）。
+- **结果**：imdrawer 1010→906 行、头注补簇导览（按段名 grep 即达）；player→imbadge、
+  imdrawer→imbadge（stopBadge）、imbadge→imsend 三边入图；check-direction FEATURE +imbadge。
+  纯搬迁，代码行多重集机器比对在案（签名调整仅 imageUrlOf 一处私有签名 + 头注）。

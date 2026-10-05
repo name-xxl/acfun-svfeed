@@ -1,13 +1,14 @@
 import { CFG } from './cfg.js';
-import { el, esc, toast, cookieVal, selfUid, ensureStyle } from './ui.js';
+import { el, esc, toast, selfUid, ensureStyle } from './ui.js'; // cookieVal 已随图片换链管线迁 imsend（0.9.163）
 import { root, claimDrawer, releaseDrawer, setRoot } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { testHook } from './dbg.js';
 import {
   ensureIm, ensureConnected, ensureTracer, linkOk, forceSync,
   doSend, sendQuote, sendImage, fetchImImageBlob, fetchCards, isLogined, imShutdown,
-  prewarmIm, peekImImageBlob
+  prewarmIm, peekImImageBlob, imageUrlOf
 } from './imsend.js';
+import { stopBadge } from './imbadge.js'; // 未读徽标件（0.9.163 自本模块拆出；teardown 经它收清）
 import { setChatOpener } from './sharepanel.js';
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap, emotify } from './emoticon.js';
@@ -28,11 +29,19 @@ import { AppAPI } from './appapi.js';
 // 数据面全部复用 imsend 已验证基础设施（补丁版 SDK / 连接 / 发送 / 头像）。
 // 收发确认零事件依赖：新消息靠轮询 kernel.getMessages 增量（WS 推送由 SDK 内核自动
 // 写入缓存，推送事件仅作即时上屏的加速路径）；已读走内核级 markSessionRead。
+//
+// 簇导览（0.9.163；自上而下，每段以 `// ----------` 横幅开头，grep 段名即达）：
+//   模块态+自停轮询（makePoller/listPoll/chatPoll）→ 消息对象内省 → DOM 骨架（ensureDrawerDom）
+//   → 视图切换（setPane/showList/showChat）→ 列表视图（refreshList/renderList）→ 聊天视图
+//   （loadChat/chatPollOnce/时间分割）→ 消息引用（setQuote/quoteStrip/bubbleRow）→ 气泡渲染
+//   分流（appendBubble：引用/图片/卡片/分享/文本）→ 发送乐观 UI（sendImageMsg/sendChat）→
+//   开关与生命周期（openDrawer/openChat/toggle/closeDrawer/teardownIm + 测试缝×4）。
+//   调用方向：生命周期→列表/聊天数据→气泡渲染→引用/发送，全簇单向向下；
+//   顶栏未读徽标在 imbadge.js、图片 URL 换链在 imsend.js（0.9.163 两缝外迁）。
 
 var drawer = null;          // { el, head, back, title, close, listView, search, listBody, chatView, bubbles, quoteChip:{box,label}, input, send }
 var view = '';              // '' | 'list' | 'chat'
 var cards = {};             // targetId -> {name, headUrl}（跨视图缓存）
-var badgeTimer = null, badgeDelayTimer = null;
 
 // 自停式轮询（0.9.35 收敛 stopX/startX 模板）：tick 内调 poll.stop() 即自拆
 function makePoller(fn, gap) {
@@ -53,9 +62,6 @@ var chatPoll = makePoller(function () {
 }, CFG.im.drawerChatPoll);
 var chat = null;            // { targetId, name, session, lastCount, seen, lastDivTs, quote, msgEls }
 var lastImInst = null;      // 最近一次轮询的 IM 实例：图片消息 ks:// 换链要用 kernel.file
-var badgeEl = null, mounted = false;
-
-function badgeText(n) { return n > 99 ? '99+' : (n > 0 ? String(n) : ''); }
 
 
 // ---------- 消息对象内省：方向/时间的降级提取（文本与卡片解析在 immsg.js 共享层） ----------
@@ -486,7 +492,7 @@ function appendBubble(m) {
 function appendImageBubble(m, mine) {
   if (!drawer) return;
   var w = Number(m.width) || 0, h = Number(m.height) || 0;
-  var src = imageUrlOf(m);
+  var src = imageUrlOf(m, lastImInst); // 换链管线 0.9.163 迁 imsend.js（inst 传参替代直读抽屉模块态）
   var b = el('div', 'acsv-im-imgbubble' + (mine ? ' mine' : ''));
   if (src) {
     var img = document.createElement('img');
@@ -529,73 +535,6 @@ function appendImageBubble(m, mine) {
 // 图片懒加载观察器（0.9.76 起共用 imgload.lazyObserve 单例实现——全项目只留一份 IO：
 // root 缺省=viewport，祖先滚动容器裁剪自动计入；抽屉关/拆无需重建；会话视图平移出裁剪舞台
 // 期间（transform + overflow:hidden）不交叉也就不触发）
-// ks:// 资源 → 官方 download 直链（message.acfun.cn，参数白名单官方形态，无 token）。
-// 零会话依赖三级兜底（重开会话后内核 decodeContent/file 配置都不保证就绪，首次能渲染
-// 重开挂车的前车之鉴）：uri 取 m.url → rawMsg.content 手解 proto 字段 1；URL 取内核换链
-// → 本地拼装（resourceId 从 ks:// 尾段、userId/did 取本端 Cookie）
-function imageUrlOf(m) {
-  var ks = '';
-  try { ks = (m && (m.url || (m.imageAttachment && m.imageAttachment.uri))) || ''; } catch (e0) { }
-  if (!ks) ks = imageUriFromRaw(m);
-  if (!ks) { console.warn('[acsv-im] 图片消息无 uri（decode 与 raw 均未恢复）'); return ''; }
-  if (!/^ks:\/\//.test(ks)) return officialize(ks);
-  try {
-    var k = lastImInst && lastImInst.kernel;
-    if (k && k.file && k.file.resourceUrlToHttpUrl) {
-      var u = officialize(k.file.resourceUrlToHttpUrl(ks, false, Number(m.width) || 0, Number(m.height) || 0));
-      if (u) return u;
-    }
-  } catch (e) { }
-  try {
-    // ks://<resourceId>[/<数字尾缀>]：官方页 DOM 实测形态（data-text="ks://xxx.jpg/1"），
-    // resourceId = 去掉 ks:// 后再剥尾缀的主段（官方 widget 同款 /\/\w+$/ 尾缀语义）
-    var rid = ks.slice(5).replace(/\/\w+$/, '');
-    if (!rid) { console.warn('[acsv-im] ks 资源串形态不识别:', ks.slice(0, 60)); return ''; }
-    var ver = '';
-    try {
-      var cfgk = lastImInst && lastImInst.kernel && lastImInst.kernel.config;
-      ver = (cfgk && (cfgk.imsdkver || cfgk.sdkVersion)) || '';
-    } catch (e2) { }
-    return CFG.api.imDownloadBase + '/rest/v2/app/download?resourceId=' + encodeURIComponent(rid)
-      + '&userId=' + encodeURIComponent(selfUid())
-      + '&did=' + encodeURIComponent(cookieVal('_did') || '')
-      + '&kpn=ACFUN_APP&platform=H5' + (ver ? '&imsdkver=' + encodeURIComponent(ver) : '');
-  } catch (e3) { return ''; }
-}
-// Image proto 字段 1（uri, string）手解：tag 0x0A + varint 长度 + 字节（uri 为 ASCII）。
-// 内核 decodeContent 没跑（重开会话的缓存消息）时从这里恢复 uri
-function imageUriFromRaw(m) {
-  try {
-    var buf = m && m.rawMsg && m.rawMsg.content;
-    if (!buf) return '';
-    var u8 = new Uint8Array(buf), i = 0;
-    if (u8[i++] !== 0x0a) return '';
-    var len = 0, shift = 0, b;
-    do { b = u8[i++]; len += (b & 0x7f) * Math.pow(2, shift); shift += 7; } while (b & 0x80);
-    if (!len || i + len > u8.length) return '';
-    var s = '';
-    for (var j = 0; j < len; j++) s += String.fromCharCode(u8[i + j]);
-    return (/^ks:\/\//.test(s) || /^https?:\/\//.test(s)) ? s : '';
-  } catch (e) { return ''; }
-}
-// 把 /rest/v2/app/download 产物改写成 message.acfun.cn 官方参数形态：剥 token 与 w/h
-//（sixinpic 域 401 的教训：acfun token 在该域不认，官方形态免 token），参数白名单对齐
-// 官方页抓包（resourceId/userId/did/kpn/imsdkver/platform）
-function officialize(httpUrl) {
-  try {
-    if (!httpUrl || !/^https?:\/\//.test(httpUrl)) return '';
-    var u = new URL(httpUrl);
-    var rid = u.searchParams.get('resourceId');
-    if (!rid) return '';
-    var q = ['resourceId', 'userId', 'did', 'kpn', 'imsdkver', 'platform']
-      .map(function (k) {
-        var v = u.searchParams.get(k);
-        return v == null ? null : k + '=' + encodeURIComponent(v);
-      })
-      .filter(Boolean).join('&');
-    return CFG.api.imDownloadBase + '/rest/v2/app/download?' + q;
-  } catch (e) { return ''; }
-}
 // 卡片皮肤（暗色抽屉，0.9.80）：装配逻辑在 imcard.js 共享层（与原生私信页同源），
 // 这里只声明命名与图标画法——布局/视觉仍在 styles.js 的 .acsv-im-* 规则里
 var SKIN = {
@@ -960,51 +899,13 @@ export function closeDrawer() {
   syncCommentVars(); // 根类归 syncCommentVars 统一收拾
 }
 // 整体拆除（退出竖刷时 unmount 调用）：停全部轮询并重置模块态。不清的话旧 aside 引用
-// 会让重进的 ensureDrawerDom 拒绝重建（抽屉打不开直到刷新），badgeTimer 还会继续拉 SDK
+// 会让重进的 ensureDrawerDom 拒绝重建（抽屉打不开直到刷新），徽标轮询还会继续拉 SDK
 export function teardownIm() {
-  mounted = false;
   imShutdown(); // 使在途连接轮询失效：孤儿 poll 不再 forceReconnect 动共享单例（0.9.34）
-  if (badgeDelayTimer) { clearTimeout(badgeDelayTimer); badgeDelayTimer = null; }
-  if (badgeTimer) { clearInterval(badgeTimer); badgeTimer = null; }
+  stopBadge(); // 徽标双 timer/门禁/元素引用清收（0.9.163 随 mountBadge 迁 imbadge）
   listPoll.stop();
   chatPoll.stop();
   releaseDrawer('im');
   drawer = null; view = ''; chat = null;
   cards = {}; listSig = ''; lastListRows = null;
-  badgeEl = null;
-}
-
-// 顶栏 + 收起浮条未读徽标：unReadCountUpdate 事件加速 + 慢轮询兜底（仅缓存读）。
-// mounted 门禁：teardown 后残留的 tick/延迟首查/推送监听全部失效（重进由 mountBadge 重新武装）
-export function mountBadge(btn, badge) {
-  badgeEl = badge;
-  mounted = true;
-  var last = -1;
-  function tick() {
-    if (!mounted) return;
-    if (!isLogined()) { setBadge(0); return; }
-    ensureIm().then(function (inst) {
-      if (!mounted || !inst.connected) return;
-      var sum = 0;
-      try {
-        (inst.kernel.getSessions() || []).forEach(function (s) { sum += Number(s.unreadCount) || 0; });
-      } catch (e) { }
-      setBadge(sum);
-    }, function () { });
-  }
-  function setBadge(n) {
-    if (n === last) return;
-    last = n;
-    var txt = badgeText(n), show = n > 0 ? '' : 'none';
-    if (badgeEl) { badgeEl.textContent = txt; badgeEl.style.display = show; }
-  }
-  badgeTimer = setInterval(tick, CFG.im.badgePoll);
-  // 首查延迟：避免页面一打开就为徽标拉起 SDK；SDK 就位后再挂推送事件加速
-  badgeDelayTimer = setTimeout(function () {
-    if (!mounted) return;
-    tick();
-    ensureIm().then(function (inst) {
-      try { inst.on('unReadCountUpdate', function () { if (mounted) tick(); }); } catch (e) { }
-    }, function () { });
-  }, CFG.im.badgeDelay);
 }

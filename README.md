@@ -319,9 +319,10 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `prewarm.js` | 预热：索引稳定 500ms 后预解析 cur+1/2、媒体域动态 preconnect（上限 6 + 静态种子） |
 | `dbg.js` | 调试埋点（仅 debug 构建存活）：stat 计数、testHook、`acsv-stats` localStorage 镜像 |
 | `nav.js` / `uppage.js` | 导航入口注入；UP 主空间页小视频标签 |
-| `imsend.js` | 私信发送基建（0.9.123 自 imshare.js 拆出，协议核心 ↔ 面板 UI 分居）：ImSdk 加载器（源码补丁 + Blob 执行 + tracer 手术 + 日志黑匣子）、连接/发送确认（轮询式恢复链）、内核直发（引用/图片/评论转发/动态转发 extra 通道，clientSeqId 对账）、图片字节拉取（midground 令牌 + LRU 缓存/并发限 3/在飞去重）。分享面板 UI 在 sharepanel.js（单向依赖本模块出口） |
+| `imsend.js` | 私信发送基建（0.9.123 自 imshare.js 拆出，协议核心 ↔ 面板 UI 分居）：ImSdk 加载器（源码补丁 + Blob 执行 + tracer 手术 + 日志黑匣子）、连接/发送确认（轮询式恢复链）、内核直发（引用/图片/评论转发/动态转发 extra 通道，clientSeqId 对账）、图片字节拉取（midground 令牌 + LRU 缓存/并发限 3/在飞去重）。分享面板 UI 在 sharepanel.js（单向依赖本模块出口）；**0.9.163 并入**图片 URL 换链管线（imageUrlOf：ks://→官方 download 直链 + imageUriFromRaw proto 手解 + officialize 参数白名单——纯协议规则，与字节管线同族） |
 | `sharepanel.js` | 私信分享面板（0.9.123 拆分）：锚定浮层（**place 定位走 popplace.rowPlaceOf**——锚行/面板、底对齐；0.9.149 收口，原 placePop 已删）/搜索过滤/联系人行/分享按钮与「捎句话」注册缝（setChatOpener + im-open 哨兵）；分享上报 0.9.145、外点收起 0.9.147；消费方 comments/followview/momentdetail/rail 只认 openSharePanel |
-| `imdrawer.js` | 私信抽屉（列表/聊天两视图、乐观气泡、未读徽标、消息引用双 wire、表情/图片收发渲染；卡片装配自 0.9.80 走 `imcard.js` 共享层——只留暗色皮肤声明）；分享消息卡片化（dougaCard 拉详情原位补全）；0.9.75：列表↔会话改「双向平移」（舞台 .acsv-im-stage 裁剪 + 两面板 .acsv-im-pane 叠加，状态类 .chat-on，时长走 --acsv-dw-t 单源）、`toggleImDrawer`（信封/ I 键开合，关闭分支先于登录门槛） |
+| `imdrawer.js` | 私信抽屉（列表/聊天两视图、乐观气泡、消息引用双 wire、表情/图片收发渲染；卡片装配自 0.9.80 走 `imcard.js` 共享层——只留暗色皮肤声明）；分享消息卡片化（dougaCard 拉详情原位补全）；0.9.75：列表↔会话改「双向平移」（舞台 .acsv-im-stage 裁剪 + 两面板 .acsv-im-pane 叠加，状态类 .chat-on，时长走 --acsv-dw-t 单源）、`toggleImDrawer`（信封/ I 键开合，关闭分支先于登录门槛）；**0.9.163 拆出**：未读徽标→imbadge.js、图片 URL 换链→imsend.js（imageUrlOf 改 inst 传参，抽屉不再持换链协议） |
+| `imbadge.js` | 私信未读徽标（0.9.163 自 imdrawer.js 拆出，仿 followbadge.js 先例）：顶栏+浮条未读数 = unReadCountUpdate 事件加速 + 慢轮询兜底（仅内核缓存读）；与抽屉 UI 零共享状态（只经 imsend.ensureIm 取会话缓存），teardownIm 经 stopBadge 反向通知拆除；mountBadge 由 player 挂载 |
 | `imnative.js` | 原生私信页增强（message.acfun.cn）：占位替换（10001 卡，unsafeWindow 读页面内核）+ 分享卡 + 引用消息渲染（去重加固）+ Shadow DOM 隔离（0.9.80：卡片装配与抽屉同源，只留浅色皮肤声明）+ **结构自检 canary**（0.9.120：启动 10s 盘点官方选择器命中，改版第一现场点名；清单=test/cases/msg.js im-native 契约断言同源） |
 | `imcard.js` | 私信卡片装配（0.9.80，两皮肤共用）：视频卡=封面+计数条+两行标题、评论卡=引用块+来源小条、**动态卡**=引用块+配图行+「查看动态」条（0.9.122，extra 被剥自动降级 wire 文本态）；共享"load 才放出/error 隐藏"时序、[img]/配图看图、dougaCard 原位 patch（信封双皮肤：抽屉暗色 `.acsv-im-*` / 原生页浅色 Shadow） |
 | `immsg.js` | 私信消息共享解析层（parseCard/parseShare 容忍式契约、引用解析 quoteOf/quoteExtraOf/isQuotable、评论转发 wire 组装与识别/拆分、extra 载荷 key 常量、预览映射/降级文案），双端渲染器各自消费 |
@@ -416,6 +417,7 @@ flowchart LR
 
   subgraph im["私信层"]
     imsend["imsend.js（ImSdk 基建·发送核心）"]
+    imbadge["imbadge.js（私信未读徽标·事件加速+慢轮询）"]
     sharepanel["sharepanel.js（分享面板 UI）"]
     imdrawer["imdrawer.js（抽屉）"]
     imnative["imnative.js（原生页增强）"]
@@ -456,7 +458,7 @@ flowchart LR
   appapi --> imgurl & timefmt
   session --> api & hls & settings
   attach --> feedstore & quality & session & settings
-  player --> api & attach & comments & feedstore & followstream & imdrawer & input & overlay & pb & release & settingspanel & sidebar & topbar & views
+  player --> api & attach & comments & feedstore & followstream & imbadge & imdrawer & input & overlay & pb & release & settingspanel & sidebar & topbar & views
   feedstore --> api & feedctx
   momentapi --> cfg & net & panelitem
   pb --> feedstore & settings
@@ -464,7 +466,8 @@ flowchart LR
   playlayer --> api & attach & cards & viewreg
   imsend --> appapi & immsg
   sharepanel --> imsend & imgload
-  imdrawer --> appapi & comments & emoticon & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & ubb
+  imbadge --> imsend
+  imdrawer --> appapi & comments & emoticon & imbadge & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
   boot --> followview & imnative & memberplaza & mypage & pagekind & player & playlayer & searchview & squareview & zone

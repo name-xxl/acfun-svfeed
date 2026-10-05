@@ -3,6 +3,28 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.163（2026-10-05）· imdrawer 收整：头注簇导览 + 两缝清收（图片换链→imsend、未读徽标→imbadge）
+
+- **由头**：接 data.js 拆件序列（0.9.159–162）后的第二目标。审计判定 imdrawer.js（1010 行）
+  「接近但未过界」——一句话「私信抽屉的完整前端」仍成立、依赖全绿，真正出戏的只有两段，
+  经用户裁决顺手拆走（再不拆就永远挂账）：**图片 URL 换链协议**（ks://→官方直链三级兜底 +
+  Image proto 手解 + officialize 参数白名单，63 行零 DOM，按 README「图片 URL 规则」归属语义
+  属 imsend 层）与 **mountBadge 未读徽标**（34 行，与抽屉 UI 零共享状态）。
+- **搬迁（机械逐字、逻辑行零改动）**：换链管线迁 `imsend.js`（与图片字节管线同族成完整
+  「图片管线」；导出 `imageUrlOf(m, inst)` 改 inst 传参替代直读抽屉模块态 lastImInst——
+  私有签名调整一处，机器比对在案；imageUriFromRaw/officialize 仍私有）；徽标独立
+  `imbadge.js`（仿 followbadge.js 先例：mountBadge 由 player 挂载、teardownIm 经导出的
+  stopBadge 反向通知拆除，方向 imbadge→imsend 单向不回抽屉）；imdrawer 头注补**簇导览**
+  （按段名 grep 即达，调用方向单向向下）。imdrawer 1010→906 行，player import 拆两行。
+- **测试**：单测 249→249（imdrawer/imbadge 无独立单测面，行为由 harness im-open/msg 场景
+  钉着——原样全绿即零漂移）；纯搬迁以代码行多重集机器比对替代反跑：imdrawer 摘除 112
+  非空行、103 行逐字见于 imbadge/imsend 新增，差异仅 9 行签名/注释调整（imageUrlOf 加
+  inst 参、lastImInst→inst×2、import 行×2、头注措辞×3、私有标注×1）。lint/check + 全量
+  46 场景全绿。
+- **治理**：check-direction FEATURE +imbadge；README 依赖图 +imbadge 节点 +3 边
+  （player→imbadge、imdrawer→imbadge、imbadge→imsend）；模块表 +imbadge 行、imdrawer/
+  imsend 行改写；docs/dependency-audit.md 补拆件台账。
+
 ### 0.9.162（2026-10-05）· data.js 终解：条目契约分家为 playitem.js + panelitem.js，「杂物抽屉」退役
 
 - **由头**：接 0.9.159/160/161 拆件序列的收官。data.js 经过三步瘦身（860→504 行）只剩

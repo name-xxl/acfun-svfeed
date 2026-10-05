@@ -17,7 +17,8 @@ import { attachVideo, switchQuality, setSessionHooks } from './attach.js';
 import { showControls, updateArrows } from './controls.js';
 import { onHomeResolved, setCommentsOpener } from './rail.js';
 import { buildSlide, buildDrawer } from './slide.js';
-import { toggleImDrawer, mountBadge, teardownIm } from './imdrawer.js';
+import { toggleImDrawer, teardownIm } from './imdrawer.js';
+import { mountBadge } from './imbadge.js'; // 未读徽标（0.9.163 自 imdrawer 拆出）
 import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
 import { openSettings } from './settingspanel.js';
 import { overlayTeardown } from './overlay.js';
