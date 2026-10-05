@@ -478,7 +478,10 @@ function mount() {
     // ✕ 单一意义（0.9.74 用户裁决）：退出脚本回首页——视图出口是 dock（常驻）+ Esc，
     // 深界面另有顶栏「向左返回」（onBack → 来源链顶）
     onExit: exitFeed,
-    onBack: backFromOrigin,
+    // 「向左返回」（0.9.176）：与 Esc 同源——播放层还有"级别"可弹时先弹级（列表播放器→回原
+    // 视频），单级才回来源。用户实报「点左上角返回键直接回分区、原视频没了」即此处绕过级别栈
+    // 「向左返回」（0.9.176）：与 Esc 同源——播放层还有"级别"可弹时先弹级（列表播放器→回原视频），单级才回来源。用户实报「点左上角返回键直接回分区、原视频没了」即此处绕过级别栈
+    onBack: function () { if (playEscape()) return; backFromOrigin(); },
     onSource: switchSource,
     onDrawer: toggleImDrawer, // 开合（0.9.75）：二次点击关闭——旧 openDrawer 恒开，点第二遍像没反应
     onRelease: openReleaseNotes,

@@ -3,6 +3,29 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.176（2026-10-06）· 顶栏「向左返回」接级别弹回 + 列表页签随层拆（用户实报两洞）
+
+- **由头**：用户追问「分区》视频》相关推荐列表》分区，为什么关闭列表还是不会回到视频」并补一句
+  **「我点的是左上角返回键」**——即 0.9.174 的级别栈只接了 Esc 链，顶栏「向左返回」仍直连
+  `backFromOrigin()`（一步回来源视图、整层拆掉），列表播放器一按就回分区。
+- **修法**：`player.js` 的 topbar 注入改包装——`onBack: function () { if (playEscape()) return;
+  backFromOrigin(); }`（与 Esc 第二级同源；单级时行为不变）。**一处改动零新依赖**（player 已同时
+  import views 与 playlayer）。
+- **测试**：`layer-list` 41→46 断言：新增 ③c 段——分区点卡 → c 开抽屉 → 相关推荐 → 点行（levels=2）
+  → **点 `.acsv-back-btn` ⇒ levels=1 且 id=入口视频**（弹回原视频而非回分区）→ 再点返回键才回来源
+  （view=jingxuan）。**反跑实证**：返回键还原成直连 backFromOrigin ⇒ `ll-path2-back-pop` 红
+  （层直接拆掉、levels=0——用户现象当场复现）。全链 build/lint/check/单测 258/52 场景全绿。
+- **同批第二洞（用户实报）**：「再次点击分区的视频时，展开抽屉会出现列表栏」——teardown 只解了
+  `listOnly`，**没收起「列表」页签**：`tabL` 的 display 与 `lcache` 留着，下次进层开抽屉就是上次
+  那份陈列表。修：teardownPlayView 先 `relDrawerHideList()`（收页签 + 清缓存 + 复位评论）再
+  `relDrawerListMode(false)`。
+- **测试（合计 46→48 断言）**：③c 段返回键弹级（见上）；③d 段**泄漏回归**——进列表播放器后退层，
+  再从分区点卡进层开抽屉，断言 `listShown===false && listOnly===false`（无陈列表）。**反跑实证**：
+  摘 teardown 的 relDrawerHideList ⇒ `ll-leak-no-listtab` 红（listShown=true、8 行陈列表在场）。
+- **清点**：能离开播放层的出口全数对齐级别栈——Esc ✓、顶栏向左返回 ✓（本次）、✕ 退出脚本=退出
+  整个脚本（语义如此，不动）、dock/浏览器前进后退=显式换界面（layer 是 deep 界面，其来源链由
+  route 层管；不进级别栈）。
+
 ### 0.9.175（2026-10-06）· 列表播放器封顶：只管自己那份列表，相关推荐入口收起（防无限套娃）
 
 - **由头**：用户裁决「第三个播放器只管自己的播放列表，相关推荐或者合辑分P不显示，防止用户无限开

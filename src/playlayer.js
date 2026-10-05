@@ -451,7 +451,11 @@ function teardownPlayView() {
   pendingCtx = null;
   bodyRef = null; curItem = null; hist = []; hIdx = -1; queue = []; stepping = false; // 层内游走态随层拆
   levels = []; // 级别栈随层拆（0.9.174）
-  relDrawerListMode(false); // 只留列表态随层拆（0.9.175）
+  // 抽屉「列表」页签随层拆：**必须先收页签再解 listOnly**（0.9.176 修实报「再次点分区视频，
+  // 展开抽屉还挂着列表栏」——退出层只解了 listOnly，tabL 的 display 与 lcache 留着，
+  // 下次进层开抽屉就是上次那份陈列表）
+  relDrawerHideList();
+  relDrawerListMode(false);
   session = { kind: 'single', list: [], rows: null, idx: -1, more: null };
 }
 

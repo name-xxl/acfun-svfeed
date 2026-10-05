@@ -173,6 +173,57 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       rec('ll-path-exit', !!(await waitFor(function () {
         return TEST.call('view') === 'jingxuan' && !(TEST.call('playlayer') || {}).active;
       }, 6000)), 'view=' + TEST.call('view'));
+
+      // ---- ③c 顶栏「向左返回」也必须先弹级（0.9.176：用户实报「点左上角返回键直接回分区」）----
+      var big4 = q('.acsv-jx-grid .acsv-jx-big');
+      if (big4) {
+        big4.click();
+        rec('ll-path2-l1', !!(await waitFor(function () {
+          var pl = TEST.call('playlayer') || {};
+          return pl.active && pl.levels === 1 ? pl : null;
+        }, 8000)), JSON.stringify(TEST.call('playlayer')));
+        var l1b = Number((TEST.call('playlayer') || {}).id);
+        key('c');
+        await waitFor(function () { return !!q('.acsv-drawer.open'); }, 6000);
+        var tabR3 = q('.acsv-dtab-rel');
+        if (tabR3) tabR3.click();
+        await waitFor(function () { var t = TEST.call('reldrawer'); return t && t.rows === 11; }, 8000);
+        var rowJ2 = q('.acsv-rellist .acsv-relrow:nth-child(2)');
+        if (rowJ2) rowJ2.click();
+        rec('ll-path2-l2', !!(await waitFor(function () {
+          var pl = TEST.call('playlayer') || {};
+          return pl.active && pl.levels === 2 ? pl : null;
+        }, 8000)), JSON.stringify(TEST.call('playlayer')));
+        var backBtn = q('.acsv-back-btn');
+        rec('ll-path2-backbtn-dom', !!backBtn);
+        if (backBtn) backBtn.click();
+        rec('ll-path2-back-pop', !!(await waitFor(function () {
+          var pl = TEST.call('playlayer') || {};
+          return pl.active && pl.levels === 1 && Number(pl.id) === l1b ? pl : null;
+        }, 8000)), 'l1=' + l1b + ' ' + JSON.stringify(TEST.call('playlayer')));
+        if (backBtn) backBtn.click(); // 单级：返回键这回才回来源
+        rec('ll-path2-back-origin', !!(await waitFor(function () {
+          return TEST.call('view') === 'jingxuan' && !(TEST.call('playlayer') || {}).active;
+        }, 6000)), 'view=' + TEST.call('view'));
+      }
+    }
+
+    // ---- ③d 列表页签不得泄漏到下次进层（0.9.176 用户实报「再次点分区视频，展开抽屉出现列表栏」）----
+    (function () { if (big4) big4.click(); })(); // 再进一层（此时上一轮列表播放器页签应已随层拆收起）
+    if (big4) {
+      rec('ll-leak-l1', !!(await waitFor(function () {
+        var pl = TEST.call('playlayer') || {};
+        return pl.active && pl.levels === 1 ? pl : null;
+      }, 8000)), JSON.stringify(TEST.call('playlayer')));
+      key('c');
+      rec('ll-leak-no-listtab', !!(await waitFor(function () {
+        var d = q('.acsv-drawer');
+        var t = TEST.call('reldrawer');
+        return !!d && d.classList.contains('open') && t && t.listShown === false && t.listOnly === false ? t : null;
+      }, 6000)), JSON.stringify(TEST.call('reldrawer')));
+      key('Escape');
+      key('Escape');
+      await waitFor(function () { return TEST.call('view') === 'jingxuan'; }, 6000);
     }
 
     // ---- ④ 动态里的视频卡片 = **单条**（用户裁决：仅此一例不出箭头、不可切）----
