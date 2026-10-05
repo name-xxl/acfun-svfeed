@@ -35,9 +35,9 @@ const HARNESS_CASES = [
   { name: 'smoke', serial: true, release: true },
   { name: 'homeswitch', serial: true  },
   { name: 'rel-drawer', serial: true  }, // 0.9.168 相关推荐 tab + 游走链（home 源）
-  { name: 'rel-layer', serial: true  }, // 0.9.170 播放层内游走（↓/↑）+ 抽屉行层内换条（home 源）
+  { name: 'rel-layer', serial: true  }, // 0.9.170/174 层内游走 + 相关行压列表播放器 + Esc 弹回原视频（home 源）
   { name: 'layer-list', serial: true  }, // 0.9.173 层内列表会话：榜单/搜索顺序步进 + 右栏 ▲▼ + 分区二选一
-  { name: 'jingxuan', serial: true  }, // 0.9.169 精选页：分区网格+自持游标+按行补齐+进播放层
+  { name: 'jingxuan', serial: true  }, // 0.9.169 分区页：分区网格+自持游标+按行补齐+进播放层
   { name: 'fastswipe', serial: true  },
   { name: 'feed-slim', serial: true  }, // 0.9.165 水位：远端置瘦 + slide 占位壳 + 划回重解析（40 条夹具）
   { name: 'resolvefail', serial: true, release: true },

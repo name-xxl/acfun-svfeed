@@ -64,7 +64,7 @@ window.addEventListener('resize', syncCommentVars);
 
 export function closeComments() {
   if (commentDrawer) commentDrawer.el.classList.remove('open');
-  relDrawerClose(); // 相关推荐 tab 复位到评论（0.9.167；面板宿主无 commentDrawer.relList，内部自防）
+  relDrawerClose(); // 非评论页签一律复位到评论（0.9.178 起含「列表」；面板宿主无 relList，内部自防）
   releaseDrawer('comments');
   overlayClose('comments'); // 已出栈（Esc 路径）时空转；显式关闭路径由此同步栈
   if (root) syncCommentVars(); // 根类统一由 syncCommentVars 收拾（覆盖模式下可能本就没加）
@@ -90,7 +90,7 @@ export function openComments(sourceId, stype, shareUrl, kind, title) {
   if (host) { var hPrev = host; host = null; try { hPrev.close(); } catch (e) { } }
   host = null; // 抽屉路径：管线宿主回到经典抽屉（面板路径见 openCommentsHost）
   // overlayOpen 必须先于 claimDrawer（0.9.64 顺序回归修复）：其内部幂等收旧层会调
-  // closeComments 清槽+摘避让根类——若槽先占后清，末尾 syncCommentVars 读到空槽会把
+  // closeComments 清槽+摘避让根类（其内 relDrawerClose 会把任何非评论页签复位到评论，0.9.178）——若槽先占后清，末尾 syncCommentVars 读到空槽会把
   // 根类摘掉（抽屉开着下滑切评论源 → 新视频按无抽屉渲染被覆盖，真机复现实锤）
   overlayOpen({ id: 'comments', close: closeComments }); // 非模态层：不拦导航键，Esc 接栈
   claimDrawer('comments', closeComments); // 占槽：私信抽屉开着则自动收回，再展开评论

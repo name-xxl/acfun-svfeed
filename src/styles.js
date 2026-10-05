@@ -164,7 +164,7 @@ var RAW_CSS = ''
   + '.acsv-drawer-list{flex:1;overflow-y:auto;padding:6px 0 14px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}'
   + '.acsv-drawer-list::-webkit-scrollbar{width:5px}'
   + '.acsv-drawer-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}'
-  // 评论抽屉双 tab（0.9.167 相关推荐；形态=docs/preview/jingxuan.html ③④）：tab 键在 head 内、
+  // 评论抽屉三 tab（0.9.167 相关推荐；0.9.174 加「列表」；形态=docs/preview/jingxuan.html ③④⑥）：tab 键在 head 内、
   // 激活=accent 下划线；锚位行（播放中）+ 推荐行（小封面+时长角标+两行标题+赞数/UP 名）
   + '.acsv-drawer-tabs{display:flex;align-items:center;gap:16px;min-width:0}'
   + '.acsv-dtab{border:none;background:none;padding:2px 2px 8px;font-size:14px;font-weight:600;'

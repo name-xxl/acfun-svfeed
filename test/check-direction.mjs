@@ -47,6 +47,9 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   'followbadge.js', 'imbadge.js', 'comments.js', 'imdrawer.js', 'imnative.js', 'mypage.js', 'zone.js',
   'searchview.js', 'playlayer.js', 'settingspanel.js', 'uppage.js', 'nav.js', 'rowkit.js',
   'squareview.js', 'squarefeed.js', 'memberplaza.js', 'commentkit.js', 'reldrawer.js',
+  // 0.9.169 登记：reldrawer（抽屉 tab 特性件，comments 两 seam 单向）/ jingxuanview（分区页视图，
+  // 消费 appapi/channelapi/cards/settings/imicons/relatedapi，无被依赖回边）。两者的方向复核
+  // 与新增边清单见 docs/dependency-audit.md「0.9.168–0.178」节
   'jingxuanview.js']);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 

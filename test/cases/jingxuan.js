@@ -1,4 +1,4 @@
-// test/cases/jingxuan.js —— harness 场景：精选页（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html ①②）
+// test/cases/jingxuan.js —— harness 场景：分区页（0.9.169 名「精选」，0.9.171 改口；0.9.170 网格改版）
 // mock：频道家族=test/my-sample.js（树含文章63/AC正义177 必剔样本；resourceList 每频道 30+10
 // 两块、块1 末条杂质、游标 "1,900100"→''）；「全部」tab=__ACSV_MOCK_HOME__（homeFeedFetch 直读，
 // 单页即尽）。源无关（视图自持游标，不动 home 泵）。

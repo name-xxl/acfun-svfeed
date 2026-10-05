@@ -60,7 +60,9 @@ export var set = __ACSV_DEBUG__
   ? function (k, v) { stats[k] = v; }
   : noop;
 
-// 模块 → harness 的测试钩子（如 feedstore 快照、后续的 forceStall 模拟缝）
+// 模块 → harness 的测试钩子（如 feedstore 快照、后续的 forceStall 模拟缝）。
+// release 构建 = noop 不注册；注意**回调体不参与死码消除**——esbuild 只折叠注册点，实参函数
+// 仍留在产物里（体积口径按此算，勿写成"死码消除"）
 export var testHook = __ACSV_DEBUG__
   ? function (name, fn) {
     if (window.__ACSV_TEST__) hooks[name] = fn;

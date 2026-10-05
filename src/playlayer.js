@@ -46,7 +46,7 @@ var queue = [];     // walk 会话里 seq 模式一次多出的候选（随机�
 var stepping = false;
 
 // ---------- 层内会话（0.9.173）：↓「下一条从哪来」的单一真源 ----------
-//   single 单条（深链/刷新直达、动态里的视频卡片）：没有下一条——不出箭头、↓ 静默
+//   single 单条（**只由来源显式声明**：动态里的视频卡片）：没有下一条——不出箭头、↓ 静默
 //   walk   相关池（**分区入口默认**，与设置 relSequential 组成二选一）：↓ 从相关池抽
 //          （随机；设置开=整批顺序队列），换批续命不封顶
 //   list   来源结果列表（搜索/榜单/我的/关注；分区设置开=网格顺序；层内点相关推荐行=那份
@@ -114,7 +114,8 @@ function syncArrows() {
 }
 
 function mountSlide(body, item, resumeAt) {
-  // 箭头（0.9.173）：非单条会话才建——single（深链/动态卡片）保持 0.9.74 的「层内无翻页箭头」
+  // 箭头（0.9.173）：非单条会话才建——single（动态卡片）保持 0.9.74 的「层内无翻页箭头」
+  //（深链/刷新无来源上下文 ⇒ 缺省 walk，箭头在，见 applyCtx 注释）
   var goTo = session.kind === 'single' ? null : {
     up: function () { playStep(-1); },
     down: function () { playStep(1); }
@@ -221,8 +222,8 @@ function pushLevel(item, ctx) {
 }
 
 // Esc 弹级（player 注入 input 的 api.playEscape）：级别 >1 才弹——弹回上级原视频并**恢复进度**；
-// 单级返回 false（交回视图层退出）。列表 tab 按上级会话重挂或收起（不再自动展开抽屉——
-// Esc 的第一下已经关抽屉，"关闭即回"的语义靠这一下）
+// 单级返回 false（交回视图层退出）。「列表」页签一律收起（0.9.177；上级虽是列表会话也不顶它
+// 出来——页签是第三播放器专属 UI），且不再自动展开抽屉（Esc 第一下已关抽屉，"关闭即回"靠它）
 export function playEscape() {
   if (!slideRef || levels.length <= 1) return false;
   saveLevel();
@@ -361,7 +362,8 @@ function stepNext() {
   return true;
 }
 
-// 层宿主注册（relatedapi mediator）：抽屉「相关推荐」行在层内点 = 层内换条（不拆界面）
+// 层宿主注册（relatedapi mediator）：抽屉「相关推荐」行在层内点 = **压新级别开列表播放器**
+//（0.9.174；原「层内换条」语义已被用户裁决推翻——关闭要能回原视频）
 setLayerHost({
   active: function () { return !!slideRef; },
   // 抽屉「相关推荐」行点击（层内）= **开列表播放器**（压新级别，0.9.174 用户裁决——关闭即回原视频）
@@ -413,7 +415,7 @@ function buildPlayView(body, arg) {
   var ctx = pendingCtx;
   pending = null;
   pendingCtx = null;
-  applyCtx(ctx); // 会话（0.9.173）：点击路径带来源上下文；深链/刷新无 ctx=单条
+  applyCtx(ctx); // 会话（0.9.173）：点击路径带来源上下文；深链/刷新无 ctx ⇒ 缺省 walk（相关池续命）
   if (st && String(st.acId) === String(id)) {
     enterLayer(body, playItemOf(st)); // 即时首帧：面板已有标题封面与作者（up 契约），直链交会话解析链补
     return;

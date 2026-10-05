@@ -113,3 +113,21 @@ feedstore.js → player.js → input.js → feedstore.js
 - **结果**：imdrawer 1010→911 行、头注补簇导览（按段名 grep 即达）；player→imbadge、
   imdrawer→imbadge（stopBadge）、imbadge→imsend 三边入图；check-direction FEATURE +imbadge。
   纯搬迁，代码行多重集机器比对在案（签名调整仅 imageUrlOf 一处私有签名 + 头注）。
+
+## 0.9.168–0.178：相关推荐域 + 分区页 + 播放层级栈（拆件台账）
+
+- **由头**：用户路线（「大家都在看」进评论抽屉 → 抖音精选式分区页 → 播放层出口对齐/层内会话 →
+  点相关行开「列表播放器」）连批落地，新增四件、层内状态机两次换代。
+- **新增模块与边**：`relatedapi.js`（相关推荐域，player/reldrawer/api/cards 消费）、
+  `reldrawer.js`（抽屉 tab 特性件，comments 两 seam + playlayer 三 seam）、`channelapi.js`
+  （频道域，jingxuanview 消费）、`jingxuanview.js`（分区页视图，cards/settings/imicons/relatedapi 消费）；
+  README 图同步 12 条边，`check-direction` FEATURE +reldrawer/jingxuanview（0.9.169 登记）。
+- **两次换代（方向纪律复核点）**：①播放层「会话三态」（single/walk/list，0.9.173）——上下文由
+  **来源视图**经 `openPanelItem(pi, ctx)` 传入（视图最懂自家列表语义，层只消费）；②「级别栈」
+  （0.9.174，封顶 2 级）——跳轨改压级，mediator 扩 `pickInLayer`/`playEscape` 两缝；依赖方向
+  全程单向（playlayer→reldrawer→relatedapi，无回边）。
+- **顺抓缺陷**：`appapi.resolve` 的非 m3u8 直链守卫位置错（在 applyQuality 前判空 urls，恒不触发；
+  0.9.174 修）；`openComments` 幂等收旧层导致换条页签复位（0.9.178 抽 `retargetComments` 分流）。
+- **待办**：合辑/分P 接口未实测（行形状与 push 入口已就位）；舞台游走链（startChain + related 源）
+  UI 不可达、仅剩兜底，整体删除待用户裁决；playlayer.js 已 496 行（视图壳/会话/级别栈/手势/抽屉缝），
+  拆件列为下批候选。

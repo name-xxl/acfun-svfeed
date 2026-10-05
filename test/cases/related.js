@@ -5,7 +5,8 @@
 //     → 切 tab → 点首行**开层**（0.9.172：舞台原地保活，不再 startChain 拆视图/重置流）
 //     → 层内 walk 抽一条（池内）→ 设置面板开 relSequential → 层内 ↓ 整批入队（queue>0）
 //     → Esc 退层：条目表与游标仍是原样（保活终局证据）
-//   rel-layer（0.9.170）：播放层内 ↓/↑/滚轮/触摸游走 + 抽屉行层内换条（不拆界面）
+//   rel-layer（0.9.170；0.9.174 扩）：播放层内 ↓/↑/滚轮/触摸游走 + 抽屉行点 = **压新级别开列表
+//   播放器**（levels=2、抽屉自动停「列表」tab、列表内跳转不压级）→ Esc 弹回原视频（进度续播）
 // 反跑：摘 slide.buildDrawer 的 tab 行 ⇒ rel-tab-ready 红；摘 relatedapi.batch 的换批/seq
 // 分支 ⇒ rel-seq-queue 红；摘 setLayerOpener 注册 ⇒ rel-row-opens-layer/rel-stage-kept 红
 // （落回 startChain ⇒ 舞台被重置）；摘层内游走缝合 ⇒ rel-layer-* 红。
@@ -111,9 +112,9 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
 
   // ---- rel-layer：播放层内游走（0.9.170） ----
   // 层内 ↓ = 当前视频相关池随机抽下一条（逐级递归）、↑ = 回上一条（层内历史）；抽屉「相关
-  // 推荐」行在层内点 = 层内换条（不拆界面）；Esc 关抽屉、再 Esc 退出层回舞台。
-  // 反跑：摘 input 的 api.playStep 注入 ⇒ rel-layer-step 红；摘 relatedapi.setLayerHost
-  // （layerActive 恒 false）⇒ rel-layer-jump 红（会走 startChain 拆视图）。
+  // 推荐」行在层内点 = 压新级别（列表播放器）；Esc 关抽屉 → 再 Esc 弹回原视频 → 再 Esc 退层回舞台。
+  // 反跑：摘 input 的 api.playStep 注入 ⇒ rel-layer-step 红；摘 setLayerHost 的 jump→pushLevel
+  // ⇒ rel-layer-jump/pop 红（退回同级换轨或开层）；摘 playEscape 注入 ⇒ rl-pop-parent 红。
   C['rel-layer'] = async function (h) {
     var rec = h.rec, q = h.q, waitFor = h.waitFor, key = h.key, TEST = h.TEST,
       firstVideoReady = h.firstVideoReady;

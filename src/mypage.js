@@ -105,6 +105,36 @@ function buildMeCard(slot) {
   }
 }
 
+// 列表会话机械（0.9.179 抽：历史 tab 与 adminTab 此前各写一份 moreWaiters/flush/more——单源收口）：
+// 层内「列表」会话续拉 = 攒等待回调 → load() 落定后回话（新增条目 / null=到底或失败）；
+// ctxOf(pi) 出 openPanelItem 第二参的会话语境（items 已加载序列 + 预载 idx + more 缝）
+function makeListCtx(rowsOf, loadFn, isDone) {
+  var waiters = [];
+  function flush() {
+    var w = waiters;
+    waiters = [];
+    w.forEach(function (cb) { cb(); });
+  }
+  function more() {
+    if (isDone()) return Promise.resolve(null);
+    return new Promise(function (resolve) {
+      var before = rowsOf().length;
+      waiters.push(function () {
+        resolve(rowsOf().length > before ? rowsOf().slice(before) : null);
+      });
+      loadFn();
+    });
+  }
+  return {
+    flush: flush,
+    more: more,
+    ctxOf: function (pi) {
+      var rows = rowsOf();
+      return { kind: 'list', items: rows.slice(), idx: Math.max(0, rows.indexOf(pi)), more: more };
+    }
+  };
+}
+
 // ---- 观看历史：pageNo 翻页，list.length < pageSize 即到底 ----
 function buildHistory(panel) {
   var list = rowList(panel, 'hist');
@@ -112,28 +142,9 @@ function buildHistory(panel) {
   panel.appendChild(btn);
   var pageNo = 0, seq = 0; // seq：换页/重试令牌，旧回包丢弃（0.9.77，searchview 同款模式）
   var allRows = [];      // 已加载面板条目（层内列表会话的条目源，0.9.173）
-  var moreWaiters = [];
   var done = false;
-
   // 层内语义（0.9.173）：↓/↑ = 历史列表顺序；尾部续拉下一页（到底=null → 层里停住提示）
-  function flushMore() {
-    var w = moreWaiters;
-    moreWaiters = [];
-    w.forEach(function (cb) { cb(); });
-  }
-  function moreRows() {
-    if (done) return Promise.resolve(null);
-    return new Promise(function (resolve) {
-      var before = allRows.length;
-      moreWaiters.push(function () {
-        resolve(allRows.length > before ? allRows.slice(before) : null);
-      });
-      load();
-    });
-  }
-  function ctxOf(pi) {
-    return { kind: 'list', items: allRows.slice(), idx: Math.max(0, allRows.indexOf(pi)), more: moreRows };
-  }
+  var lctx = makeListCtx(function () { return allRows; }, load, function () { return done; });
 
   function load() {
     var my = ++seq;
@@ -154,9 +165,9 @@ function buildHistory(panel) {
         pageNo++;
         rows.forEach(function (pi) {
           allRows.push(pi);
-          list.appendChild(gridCardOf(pi, function () { return ctxOf(pi); }));
+          list.appendChild(gridCardOf(pi, function () { return lctx.ctxOf(pi); }));
         });
-        flushMore();
+        lctx.flush();
         // 到底判定按**原始条数**（非筛除后条数）：契约层会滤掉非视频条目（番剧/无 videoId），
         // 「有效行 < pageSize」在筛除后恒真会把还有下一页的列表误判成到底（0.9.77 实锤：
         // mock 首页 20 原始 → 18 有效，按有效数判到底则第二页 4 条永远拉不到）。
@@ -168,7 +179,7 @@ function buildHistory(panel) {
         if (my !== seq || !list.isConnected) return;
         btn.disabled = false;
         btn.textContent = '加载失败，点击重试';
-        flushMore(); // 失败也回话（续拉等待方收到 null → 层里停住提示）
+        lctx.flush(); // 失败也回话（续拉等待方收到 null → 层里停住提示）
       });
   }
   load();
@@ -210,7 +221,6 @@ function adminTab(panel, o) {
 
   var tabs = [];
   var allRows = [];      // 已加载面板条目（顺序；层内列表会话的条目源，0.9.173）
-  var moreWaiters = [];  // 续拉等待回调（本轮 load 落定后回话）
   var cur = o.allChip ? o.allId : null;
   var cursor = o.firstCursor || 0;
   var seq = 0; // 在途回包令牌：换档/视图拆（isConnected）即丢弃
@@ -365,46 +375,26 @@ function adminTab(panel, o) {
       cursor = p.nextCursor;
       if (p.noMore) { done = true; btn.style.display = 'none'; } else resetBtn();
       if (!added && !list.children.length) list.appendChild(el('div', 'acsv-vempty', o.emptyText(cur)));
-      flushMore();
+      lctx.flush();
     }, function () {
       if (my !== seq || !list.isConnected) return;
       loading = false;
       btn.disabled = false;
       btn.textContent = o.loadFailText;
-      flushMore(); // 失败也回话（续拉等待方收到 null → 层里停住提示）
+      lctx.flush(); // 失败也回话（续拉等待方收到 null → 层里停住提示）
     });
   }
 
-  // 列表会话续拉（0.9.173）：走同一台 load 机器，回话=本轮新增条目（无新增/失败/到底=null）
-  function flushMore() {
-    var w = moreWaiters;
-    moreWaiters = [];
-    w.forEach(function (cb) { cb(); });
-  }
-  function moreRows() {
-    if (done) return Promise.resolve(null);
-    return new Promise(function (resolve) {
-      var before = allRows.length;
-      moreWaiters.push(function () {
-        resolve(allRows.length > before ? allRows.slice(before) : null);
-      });
-      load();
-    });
-  }
+  // 列表会话续拉（0.9.173；0.9.179 收口为 makeListCtx 单源）：走同一台 load 机器，
+  // 回话=本轮新增条目（无新增/失败/到底=null）
+  var lctx = makeListCtx(function () { return allRows; }, load, function () { return done; });
 
   var ctx = {
     list: list,
     refresh: refresh,
     sel: function () { return cur; },
     // 层内会话语境：本档已加载条目 + 续拉缝（收藏/历史=有下一页续拉；到底=null→层里停）
-    openCtxOf: function (pi) {
-      return {
-        kind: 'list',
-        items: allRows.slice(),
-        idx: Math.max(0, allRows.indexOf(pi)),
-        more: moreRows
-      };
-    }
+    openCtxOf: function (pi) { return lctx.ctxOf(pi); }
   };
   return { refresh: refresh, select: select, list: list, chips: chips, btn: btn };
 }

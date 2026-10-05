@@ -7,8 +7,9 @@ import { batch as relatedBatch } from './relatedapi.js';
 
 // ---------- API：站点接口（mock 桩统一在 API 层收口） ----------
 // 内容源：sv=小视频 meow（随机池重复拉+去重）；home=首页推荐 selection/feed（真 pcursor 游标）；
-// related=相关推荐随机游走（0.9.167，feed/related/general——**会话内覆盖态**，只由评论抽屉
-// 「相关推荐」行点击起步，不持久化；任何「回随机流」入口经 ensureBaseSource 归位）
+// related=相关推荐随机游走（0.9.167，feed/related/general——**会话内覆盖态**，只由遗留兜底
+// startChain 起步＝播放器未挂载时的相关行点击；0.9.172 起抽屉行改「层外开层/层内压级」，
+// 该源已准退役，不持久化；任何「回随机流」入口经 ensureBaseSource 归位）
 function mockData() { return window.__ACSV_MOCK__ || null; }
 function mockHome() { return window.__ACSV_MOCK_HOME__ || null; }
 

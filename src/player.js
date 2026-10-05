@@ -179,8 +179,8 @@ setItemProvider(function (idx) { return FeedStore.items[idx]; });
 //（先例 setItemProvider；input 的 c 键同动作走下方 setupInputHandlers 的 toggleComments）
 setCommentsOpener(toggleItemComments);
 
-// 相关推荐游走链起步器（0.9.167）：relatedapi 挂 mediator、player 注册——reldrawer 行点击 /
-// 精选页卡片点击经 relatedapi.startChain 到这里。**不走 hash→loadDeepLink**：那条链「源随链接
+// 相关推荐游走链起步器（0.9.167；**0.9.172 起只剩遗留兜底**）：relatedapi 挂 mediator、player 注册——
+// reldrawer 行点击现走「层内压级 / 层外开层」，只有播放器未挂载时才落到这里。**不走 hash→loadDeepLink**：那条链「源随链接
 // 走」会 setSource('home') 覆写游走态（loadDeepLink 语义在册）；本器镜像它的复位序列但保住
 // related 源。feedStreamOn 置假=dock「推荐」入口按「换流重拉」走（ensureBaseSource 归位基源）。
 // **先 teardownViews**：视图（精选页）开着时 route 层不回写深链（防踩视图路由，route.js 在册）

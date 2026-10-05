@@ -249,8 +249,8 @@ export function buildSideRail(slide, item, goTo) {
     });
   if (item.kind === 'home') slide._shareSync = function () { shareUI.count.textContent = fmt(item.share); };
   // 右侧功能区与上下翻页共用一个定位容器（箭头永远在功能区上方，不遮挡）。
-  // 箭头建不建由调用方定（0.9.173）：竖刷传函数、播放层传 {up,down}（有会话就建，
-  // 单条会话/深链仍传 null——层内没有可去的下一条时不摆死键）
+  // 箭头建不建由调用方定（0.9.173）：竖刷传函数、播放层传 {up,down}（非单条会话就建；
+  // 单条会话传 null——层内没有可去的下一条时不摆死键）
   var side = el('div', 'acsv-side');
   if (goTo) {
     var arrows = el('div', 'acsv-arrows');

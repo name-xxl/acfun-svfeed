@@ -35,6 +35,16 @@ export function fmtTime(s) {
   return (m < 10 ? '0' + m : m) + ':' + (sec < 10 ? '0' + sec : sec);
 }
 
+// ms → 时长文案（h:mm:ss / m:ss；0 或非法值给空串）。0.9.179 收口：此前 reldrawer 与
+// jingxuanview 各写一份 durText（单源收口违规），统一到这里
+export function fmtDurMs(ms) {
+  var s = Math.round((Number(ms) || 0) / 1000);
+  if (!s) return '';
+  var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+  return h ? h + ':' + p(m) + ':' + p(r) : m + ':' + p(r);
+}
+
 var toastTimer = null;
 export function toast(msg, ms) {
   if (!root) return;

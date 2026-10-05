@@ -139,8 +139,9 @@ export function batch(tipId) {
 // ---------- 起步缝（mediator，state.js 同款「读方零反向依赖」） ----------
 // 链条起步要动播放器的舞台复位机器（resetStream/renderWindow/setActive）与源切换——这些都在
 // player 域；本模块若 import player 即成环（player→comments→reldrawer→本模块）。故 player 在
-// 求值期注册起步器，reldrawer/精选页经 startChain 调用（未注册时静默 false：播放器没开着，
-// 行点击无从谈起）。**不走 hash→loadDeepLink** 的原因：那条链「源随链接走」会 setSource('home')
+// 求值期注册起步器。**现仅遗留兜底**：reldrawer 行点击的三落点前两级（压级/开层）都不走这里
+//（0.9.170 分区页改 openPanelItem、0.9.172 舞台行改 layerOpen、0.9.174 层内改压级）；
+// 只有「播放器未挂载」的路径才落到 startChain（未注册时静默 false）。**不走 hash→loadDeepLink** 的原因：那条链「源随链接走」会 setSource('home')
 // 把游走态覆写掉（player.js loadDeepLink 语义在册）——起步器镜像它的复位序列但保住 related。
 var chainStarter = null;
 export function setChainStarter(fn) { chainStarter = typeof fn === 'function' ? fn : null; }
@@ -152,8 +153,8 @@ export function startChain(acId, firstItem) {
 }
 
 // ---------- 播放层宿主缝（0.9.170，同款 mediator） ----------
-// 层内换条与舞台起步是**两种落点**：播放层（playlayer，浮层单条）在场时，抽屉行点击 =
-// 层内换条（不拆界面）；否则 = startChain 舞台游走。判定与动作都由 playlayer 注册进来
+// 抽屉行的落点分派（0.9.174 后为三种）：播放层在场 = **压新级别**（layerHost.jump→pushLevel）；
+// 层外 = 开层（layerOpen）；播放器未挂载才落 startChain 兜底。判定与动作都由 playlayer 注册进来
 // （active 读它的在层状态、jump 走它的换条机器）——reldrawer 照样只 import 本模块。
 var layerHost = null;
 export function setLayerHost(h) { layerHost = h || null; }

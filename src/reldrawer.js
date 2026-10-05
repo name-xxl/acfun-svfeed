@@ -1,4 +1,4 @@
-import { el, fmt } from './ui.js';
+import { el, fmt, fmtDurMs } from './ui.js';
 import { commentDrawer } from './state.js';
 import { imgInto } from './imgload.js';
 import { GLYPHS } from './imicons.js';
@@ -22,14 +22,6 @@ var cache = { rid: null, dvs: [], state: 'idle', title: '' }; // state: loading|
 // 「列表」tab 态（0.9.174）：rows=统一行数据（与播放器会话列表同序）、idx=当前播放项；hide 时清空
 var lcache = { rows: [], idx: 0, title: '' };
 
-// ms → m:ss / h:mm:ss（与 rail/controls 的 fmtTime 口径一致，迷你本地版免 import 重件）
-function durText(ms) {
-  var s = Math.round((Number(ms) || 0) / 1000);
-  var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
-  var p = function (n) { return n < 10 ? '0' + n : '' + n; };
-  return h ? h + ':' + p(m) + ':' + p(r) : m + ':' + p(r);
-}
-
 function wire() {
   var d = commentDrawer;
   if (!d || d._acsvRelWired) return !!d.relList;
@@ -45,8 +37,8 @@ function wire() {
   d.relList.addEventListener('click', function (ev) {
     var row = ev.target.closest('.acsv-relrow');
     if (!row || !row._dv) return; // 锚位行/状态行无 _dv，不响应
-    // 会话语境（0.9.173 用户裁决）：点相关行 = **换成这份列表**（抽屉里这 10 条，顺序走、
-    // 到头停）——层内 ↓/↑ 从此按它步进，不再在相关池里随机
+    // 会话语境：点相关行 = **压新级别开列表播放器**（0.9.174 用户裁决——原「层内换成这份列表」
+    // 会顶掉当前视频、被推翻）= 播抽屉里这 10 条（顺序、到头停），Esc 弹回原视频
     var idx = 0;
     for (var i = 0; i < cache.dvs.length; i++) if (cache.dvs[i] === row._dv) { idx = i; break; }
     // items=播放会话条目（面板条目）；rows=抽屉「列表」tab 的显示行（dur/like/up 全）——同序
@@ -57,7 +49,7 @@ function wire() {
       idx: idx
     };
     var item = relatedItemOf(row._dv);
-    // 三种落点（0.9.170/0.9.172）：播放层在场 = 层内换轨；层外 = 开层（舞台/视图原地保活，
+    // 三种落点（0.9.170/0.9.172/0.9.174）：播放层在场 = **压新级别**（列表播放器）；层外 = 开层（舞台/视图原地保活，
     // Esc 回当前视频）；播放器未挂载才落到遗留的 startChain（拆视图/重置流的旧形态）
     if (layerJump(item, ctx)) return;
     if (layerOpen(item, ctx)) return;
@@ -130,7 +122,7 @@ function dvRowOf(dv) {
     id: Number(dv.dougaId != null ? dv.dougaId : dv.contentId) || 0,
     title: dv.title || dv.caption || '',
     cover: dv.coverUrl || '',
-    dur: durText(dv.durationMillis),
+    dur: fmtDurMs(dv.durationMillis),
     like: dv.likeCount || 0,
     up: (dv.user && dv.user.name) || ''
   };
@@ -205,10 +197,11 @@ function render() {
 
 function rowOf(dv) {
   var row = el('div', 'acsv-relrow');
-  row._dv = dv; // 点击委托读取（relatedapi.startChain 的行数据源）
+  row._dv = dv; // 点击委托读取（三落点的行数据源：压级/开层/遗留 startChain 兜底）
   var cv = el('div', 'acsv-relcv');
   imgInto(cv, dv.coverUrl || '', 'thumb');
-  cv.appendChild(el('span', 'acsv-reldur', durText(dv.durationMillis)));
+  var durt = fmtDurMs(dv.durationMillis);
+  if (durt) cv.appendChild(el('span', 'acsv-reldur', durt)); // 无时长不挂空角标
   row.appendChild(cv);
   var rt = el('div', 'acsv-relrt');
   rt.appendChild(el('div', 'acsv-reltt', dv.title || dv.caption || ''));

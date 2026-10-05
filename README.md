@@ -35,7 +35,7 @@
 | 空格 | 播放 / 暂停 |
 | M / 控制栏喇叭 | 静音切换 |
 | F / 控制栏全屏按钮 | 全屏切换 |
-| Esc | 逐层出栈：大图查看器 → 当前抽屉 → 当前视图/深界面 → 退出竖刷页。视图态 Esc=回竖刷；深界面（搜索结果页/播放层）Esc=回来源界面（打开它的那个列表） |
+| Esc | 逐层出栈：大图查看器 → 当前抽屉 → **播放层级别（列表播放器→回原视频，0.9.174）** → 当前视图/深界面 → 退出竖刷页。视图态 Esc=回竖刷；深界面（搜索结果页/播放层）Esc=回来源界面（打开它的那个列表；播放层单级时才是回来源） |
 | 右上角 ✕ | **单一意义：退出脚本回首页**（0.9.74 起；普通界面的 Esc 另有语义，故两侧不再同义）——视图出口是常驻左栏 + Esc，深界面另在顶栏左缘出「向左返回」 |
 | 悬停画面底部 | 浮出播放控制栏：可拖动进度条（带时间气泡）、播放/暂停、时间、连播、倍速、静音、全屏；鼠标静止 2.5 秒自动淡出 |
 | 连播开关 | 开：播完自动下一条；关（默认）：单条循环 |
@@ -50,7 +50,7 @@
 | 顶栏搜索框（居中常驻，0.9.72；0.9.73 起四界面共用一个） | **搜 A 站视频 / UP主 / 文章**（0.9.151 搜索 2.0）：Enter / 放大镜 → 搜索视图（`#svfeed/search/<类目>/<关键词>`，可收藏/分享/刷新回放）——类目 chips（视频/UP主/文章，计数即总数）+ **视频**抖音式结果网格（封面左下播放数、右下时长，标题两行，底部 @UP·日期；点卡片进播放层就地播放）、**UP主**卡（头像/粉丝/投稿/签名 + 最近投稿 3 条可直接点播 + 一键关注（已关注点开=分组选择层改分组/取关））、**文章**文本行（标题/摘要/作者/阅读/评论/频道/日期，点击新标签开原生页）；**滚动到底自动续页**（哨兵，同评论侧 0.9.141 口径），到底显示「已显示全部 N 条」；空词态出**最近搜索**（本地记 10 词，可点可清空）。**搜索视图里它就是唯一的输入框**（深链/换词时按地址回填，同词再回车就地重跑）；**点空框出「历史记录」面板**（0.9.158 复用原生逻辑：focus 展开 / 鼠标移出或点面板外或 Esc 收起 / 点词即搜 / 「清除历史」；**与站方搜索框共享同一份历史**——原生搜的我们看得到、反之亦然；无历史不占位） |
 | 左栏「我的」 | **个人主页**（`#svfeed/my`）：资料头（头像/昵称/关注·粉丝·投稿/签名，来源 `auth_key`→uid + `getUserCardList`；未登录或接口失败不显示头部）→ Tab（观看历史｜收藏夹｜**关注分组**，切换不重拉）→ **4:3 封面网格**（A 站普通视频封面固定 4:3，历史项封面左下角「观看至 xx:xx」角标，收藏显示 UP 名/续看秒数）；点卡片进播放层就地播放（Esc/「向左返回」回本列表），「加载更多」翻页。**收藏夹 tab 0.9.143 管理化**：＋新建夹 / 改名·删除收藏夹（删除二次确认「一并移除」）/ 卡面 hover「移动·移除收藏」；**关注分组 tab（0.9.142）**：chips（全部 / 未分组 / 各组(N) / ＋新建分组）+ 组头改名·删除 + 成员列表（移组 / 取关，偏移量游标翻页） |
 | 左栏「榜单」 | **分区榜单**（`#svfeed/zone`，0.9.69 全量对齐原生 rank/list）：渠道/子频道/榜期 chips（全站日榜 100 条）→ 1600 上限居中 rlist 分栏行（视频卡+UP 卡 338，0.9.70 起宽屏不留大空白）；封面 160×90、标题单行、简介 3 行（`<br>` 折行）、**meta 贴封面底**（原生图标：播放/评论/发布于·频道），排名=48px 旋转 10° 水印贴卡右下；UP 卡扁平+左竖线（头像 90/名字/签名 3 行/投稿·粉丝万格式图标位）；点行进播放层就地播放，整卡 UP 主页新窗；滚过 300px 出右下**回顶钮**（0.9.155，与关注/广场/搜索同款共享件） |
-| 视图态顶栏（榜单/我的/搜索/播放层，0.9.73 四界面复用） | 与竖刷**同一套顶栏**：居中搜索框（搜索视图里它就是唯一输入框）+ 私信 / 更新 / ✕；源切换隐藏；**✕=退出脚本**（0.9.74 单一意义），搜索结果页与播放层在左缘多一个「向左返回」=回来源界面；私信 **I 键**四界面通用；抽屉开着时顶栏整体收窄到抽屉左缘（右组贴边、搜索框回剩余区中心，互不重叠） |
+| 视图态顶栏（榜单/我的/搜索/播放层，0.9.73 四界面复用） | 与竖刷**同一套顶栏**：居中搜索框（搜索视图里它就是唯一输入框）+ 私信 / 更新 / ✕；源切换隐藏；**✕=退出脚本**（0.9.74 单一意义），搜索结果页与播放层在左缘多一个「向左返回」=回来源界面（播放层自 0.9.176 起：还有级别可弹时先弹回原视频，单级才回来源）；私信 **I 键**四界面通用；抽屉开着时顶栏整体收窄到抽屉左缘（右组贴边、搜索框回剩余区中心，互不重叠） |
 
 ### 推荐模式（顶栏「小视频 | 推荐」切换，选择记忆）
 
@@ -348,7 +348,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `release.js` | 更新提示（0.9.60）：官方 releases.atom 拉取/解析纯函数（cmpVersion/normVer/parseRelAtom/latestEntry/decideUpd）+ 说明弹窗单例 + 红点；正文直接用 GitHub 官方渲染 HTML（elHtml 信任契约）；每次 mount 检查一次（60s 节流）、失败静默、unmount 显式拆监听 |
 | `overlay.js` | 浮层栈（0.9.61）：Esc 显式分支链的收拢（overlayOpen/Close/Top/IsOpen/Teardown，close 回调注册方自带、先出栈再调+异常隔离）；modal 键语义单监听承载（release/imgview capture 自关退役）；栈=显式状态（0.9.22 精神延续） |
 | `views.js` | 子视图框架（0.9.62；0.9.74 来源保活）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（注册表自 0.9.78 独立为 viewreg.js）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、**深界面（def.deep）来源链 + 来源视图挂起保活**（非 volatile：换类名 acsv-view-held + visibility 挂起，回来原位复原；同屏换参替换链顶）；卡面 kit 与点击出口注入缝自 0.9.109 拆出（→ cards.js，本模块只管编排） |
-| `cards.js` | 卡面 kit（0.9.109 自 views.js 拆出，逐字搬运零逻辑改动）：网格卡 gridCardOf / 行卡 rowOf / 资源横条 stripOf / 引用卡 quoteBlockOf / UP 卡 upCardOf / 计数行 statRowOf / 骨架 skeletonRows / 加载更多 moreBtn 单源；点击出口注入缝（setItemOpener/openPanelItem——**第二参=来源会话语境**（0.9.173），rowOf/gridCardOf 亦带可选 openCtx；setMomentOpener）——本模块不反向 import 播放层/详情面板。消费方：mypage/zone/searchview/followview/momentdetail/playlayer |
+| `cards.js` | 卡面 kit（0.9.109 自 views.js 拆出，逐字搬运零逻辑改动）：网格卡 gridCardOf / 行卡 rowOf / 资源横条 stripOf / 引用卡 quoteBlockOf / UP 卡 upCardOf / 计数行 statRowOf / 骨架 skeletonRows / 加载更多 moreBtn 单源；点击出口注入缝（setItemOpener/openPanelItem——**第二参=来源会话语境**（0.9.173），rowOf/gridCardOf 亦带可选 openCtx；setMomentOpener）——本模块不反向 import 播放层/详情面板。消费方：mypage/zone/searchview/followview/momentdetail/playlayer/jingxuanview |
 | `rowkit.js` | 动态行卡 kit（0.9.124 自 followview.js 拆出，逐字搬运零逻辑改动）：行卡（原生骨架四段）+ 九宫格/媒体分派 + 互动栏接线（momentbar）+ 行内评论控制器（宿主单例，teardown 归各视图）+ 列表级委托 wireRowList（落点经 onOpen 注入）；不 import 任何视图。消费方：followview 与 squareview（广场，0.9.126 起） ；**名字三色体系**（0.9.157：默认白 / 等级 1 红 / 等级 2 紫——`uplook.nameColorCss`（0.9.160 叶子出库）内联覆盖，与引用卡/详情面板同码；蓝只给正文链接） |
 | `sidebar.js` | 左栏 dock（0.9.62；0.9.78 起条目从 viewreg 的 dock 元数据派生——此前是第二份人工清单，加视图要改两处）：「推荐」+ 各视图入口（**顺序=order 升序**：分区/推荐/榜单/广场 ｜ 关注/我的——0.9.155 用户裁决「我的」与「关注」互换、我的沉底；0.9.170 分区（时名精选）order 5 置顶于推荐之上（**推荐也进统一排序**，order 10 与榜单同序按 id 兜底）；group 变处在 广场→关注 之间插分隔线），当前视图高亮，窄屏隐藏，随 unmount 拆除 |
 | `viewreg.js` | 视图注册表（0.9.78，零依赖叶子）：`registerView`/`viewDef`/`dockEntries`——视图清单的唯一真源；dock 元数据（label/svg/order/group）随视图声明，sidebar 只读派生 |
@@ -356,7 +356,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `searchfmt.js` | 站内搜索三端点回包规整（0.9.151 落户 data.js；**0.9.161 拆件出库**）：searchVideoPageOf/searchUserPageOf/searchArticlePageOf——`pCursor` 页码游标、`<em>` 高亮剥离、UP 卡 recents 规整；纯函数单测直采，唯一消费方 searchview（upOf 作者契约仍属 data） |
 | `searchview.js` | 搜索视图（0.9.72 建；**0.9.151 搜索 2.0**）：三 JSON 端点（视频/UP主/文章，`pCursor` 真分页；回包规整 searchfmt）→ 类目 chips + 视频网格卡 / UP 卡（最近投稿 + 一键关注→grouppop 改分组）/ 文章行；换词并行预拉三类目（模块级缓存跨重建存活），哨兵自动续页（0.9.141 口径）+「已显示全部 N 条」；空词态=搜索历史 chips（searchhist）。关键词与类目唯一真源=地址栏 `#svfeed/search/<kind>/<kw>`（route.viewKind + views 二段参数；旧单段形态挂载时规范化），顶栏搜索框即其唯一输入框（0.9.73 并入；0.9.74 deep+suspend/resume） |
 | `searchhist.js` | 搜索历史（0.9.151 建；**0.9.158 后端改复用站方 `localStorage['searchCache']`**——与原生搜索框面板共享同一份历史）：`histList`/`histAdd`/`histClear`；语义照站方组件源码（去重提前、**上限 8**、写入前剥 `<`/`>`——站方把词拼进 HTML 渲染）；清除=移除键（原生「清除历史」同款）；老 GM 键 `acsvSearchHist` 首次读一次性并入（去重/过上限/过过滤）后不再碰，**老键不删**；无 localStorage 走内存降级 |
-| `playlayer.js` | 播放层（0.9.74；0.9.82 面板→播放的桥下沉为 data.playItemOf 纯函数）：子视图 play（#svfeed/play/&lt;v\|a&gt;/&lt;id&gt;）就地播放——面板条目即时首帧（标题/封面/作者来自面板契约的 up：搜索与收藏来源带作者，历史来源不带、由回包补）/ 冷进入 API.deepLink 解析（不 setSource）/ 失败错误盒+重试；OVL_IDX 哨兵 + data-ovl 判据（attach.js 契约表在册）、键盘重定向 state.setVideoTarget；**层内会话**（0.9.170 起；0.9.171 加滚轮/触摸滑动切换——throttle 攒阈值 60px + 锁 500ms；0.9.173 会话语义化）：`playStep(±1)`（player 注入 input 的 api；右栏 ▲▼ 与滚轮/触摸同源）三态——`single` 单条（**缺省之外由来源显式声明**：动态里的视频卡片）：不出箭头、↓ 静默；`walk` 相关池（**缺省**：深链/刷新这类无列表来源 + 分区默认）：↓ 从相关池抽（随机；设置开=整批队列）；`list` 来源结果列表（搜索/榜单/我的/关注；分区设置开=网格顺序；层内点相关推荐行=那份 10 条）：↓ 顺序步进、尾部问 more()（分区/我的/关注可续拉）无则停+提示；↑ 一律历史回退（**历史格随身带会话快照 {item,sess}**——跨轨回退连列表下标一起还原）；**级别栈**（0.9.174 用户裁决；0.9.175 封顶）：点抽屉「相关推荐」行 = 压新级别（列表播放器：播那份列表、自动展开抽屉停在「列表」tab）而非顶掉当前视频——Esc 弹回上级原视频并经既有续播槽（slide._resumeAt→session.resumeAt）恢复进度；单级时 Esc 交回视图层退出（player 注入 input 的 api.playEscape，Esc 三级链：浮层→级别→视图；**顶栏「向左返回」同源**——0.9.176 起也先弹级再回来源）；**深度封顶 2 级**（MAX_LEVELS：列表播放器里不再有相关推荐入口——抽屉 listOnly，防无限套娃；超限压级被静默吞掉）；右栏箭头随会话建（list/walk 才建；首条藏 ▲、不可续拉的末条藏 ▼）；换条 swap（拆旧会话→挂新，抽屉开着随视频重开）；hash 不跟写（层地址=入口，Esc/刷新仍回入口）；testHook('playlayer') 暴露 {active,id,hist,hIdx,queue,session,listLen,listIdx,hasMore,arrows,upShown,downShown} |
+| `playlayer.js` | 播放层（0.9.74；0.9.82 面板→播放的桥下沉为 data.playItemOf 纯函数）：子视图 play（#svfeed/play/&lt;v\|a&gt;/&lt;id&gt;）就地播放——面板条目即时首帧（标题/封面/作者来自面板契约的 up：搜索与收藏来源带作者，历史来源不带、由回包补）/ 冷进入 API.deepLink 解析（不 setSource）/ 失败错误盒+重试；OVL_IDX 哨兵 + data-ovl 判据（attach.js 契约表在册）、键盘重定向 state.setVideoTarget；**层内会话**（0.9.170 起；0.9.171 加滚轮/触摸滑动切换——throttle 攒阈值 60px + 锁 500ms；0.9.173 会话语义化）：`playStep(±1)`（player 注入 input 的 api；右栏 ▲▼ 与滚轮/触摸同源）三态——`single` 单条（**缺省之外由来源显式声明**：动态里的视频卡片）：不出箭头、↓ 静默；`walk` 相关池（**缺省**：深链/刷新这类无列表来源 + 分区默认）：↓ 从相关池抽（随机；设置开=整批队列）；`list` 来源结果列表（搜索/榜单/我的；分区设置开=网格顺序；**关注视图的视频卡片=显式单条**）：↓ 顺序步进、尾部问 more()（分区/我的可续拉）无则停+提示；↑ 一律历史回退（**历史格随身带会话快照 {item,sess}**——跨轨回退连列表下标一起还原）；**级别栈**（0.9.174 用户裁决；0.9.175 封顶）：点抽屉「相关推荐」行 = 压新级别（列表播放器：播那份列表、自动展开抽屉停在「列表」tab）而非顶掉当前视频——Esc 弹回上级原视频并经既有续播槽（slide._resumeAt→session.resumeAt）恢复进度；单级时 Esc 交回视图层退出（player 注入 input 的 api.playEscape，Esc 三级链：浮层→级别→视图；**顶栏「向左返回」同源**——0.9.176 起也先弹级再回来源）；**深度封顶 2 级**（MAX_LEVELS：列表播放器里不再有相关推荐入口——抽屉 listOnly，防无限套娃；超限压级被静默吞掉）；右栏箭头随会话建（list/walk 才建；首条藏 ▲、不可续拉的末条藏 ▼）；换条 swap（拆旧会话→挂新；抽屉开着走 **comments.retargetComments**——只换源不重开浮层，页签原地保留，0.9.178）；hash 不跟写（层地址=入口，Esc/刷新仍回入口）；testHook('playlayer') 暴露 {active,id,hist,hIdx,queue,session,listLen,listIdx,hasMore,levels,parentId,curAt,parentAt,at,arrows,upShown,downShown}（release 构建下 testHook=noop 不注册，回调体仍随产物保留——措辞见 dbg.js） |
 | `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf（0.9.160 就地收编本文件），缺省不渲染）+ Tab 惰性面板（hist/fav/groups 三档：观看历史=双 resourceTypes/pageNo 翻页；**收藏夹**=chips 切夹→dougaList 翻页，0.9.143 管理化（建/改名/删夹 + 卡面移动·移除）；**关注分组（0.9.142）**=组 chips + 建/改名/删组 + 成员列表（移组/取关），读 relationapi、偏移量游标）+ 4:3 封面网格卡；条目经 panelItem 契约规整、点击进播放层（0.9.74） |
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
 | `followview.js` | 关注视图「全部」侧（0.9.100 原生骨架复刻；0.9.101 交互补课；0.9.102 收口）：单列无限流——**逐段复刻原生 /member/feeds 骨架与量取值**（扁平列表+灰带分隔、头像 50、名字 16px、60px 内容缩进、正文 14/21 pre-line+展开、九宫格 342/110/299/228、横条双灰块+title 600+时长 hover 浮层、互动行 48px/42/12px、图标四件套逐码点采样；量取日与暗色换算表在 styles 段头注）；互动行写链（乐观回滚；点赞文章只读；**投蕉**：动态=单蕉直投、视频/文章=视频页同款数量层 banpop.js「点第 N 根投 N」、已投锁定蕉黄 #ffb323；pi 级写路径单源=interact.likePi/throwBananaPi）；**评论键原位展开评论区**（全类型：动态 stype=4/视频 stype=3，comments 管线 host 化挂行内，开新关旧互斥）；**引用卡完全照原生**（@源UP 蓝链 + 内嵌完整源内容卡，复用 stripOf；三落点可点）；无限滚动五条借鉴广场 + **回顶按钮（0.9.105 顶栏同款圆钮+chevUp）**；**作者名蓝链**（与引用卡同源）；互动栏/分享出口走 **momentbar 共享件**（分享 place=右缘贴行左缘 12px、底部共用坐标）。视频行进播放层，动态行点详情面板，文章行外链；行卡构建件与行内评论控制器 0.9.124 下沉 rowkit（本文件只留视图壳/游标方言/落点策略） |
@@ -368,7 +368,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `feedctx.js` | 列表上下文工厂（0.9.106）：`createFeedContext`（8 核心字段+reset 单源，UpVideos/FollowVideos 同源生成）+ `runChain`（链式加载状态机单源：上限/间隔/done/failed/chainCapped 判定一处）+ **注册表单活互斥**（activateContext 清其余——空间页/关注视频流互踩修复） |
 | `followseen.js` | 关注已读水位（0.9.139，**零依赖叶子**）：`seenAt`/`setSeen`/`ensureSeen`/`markSeen`（GM `acsvFollowSeenAt`，无 GM 内存降级）。抽件动机=水位被三处共写（徽标轮询 + followview 首屏 + followstream 进视频侧）而 followbadge 已依赖 followstream，留在徽标域即环；实锤缺口=只靠 poll 写水位时"访问短于轮询闸门（≤60s）会在离开后复亮" |
 | `relationapi.js` | 关注域读写接口（0.9.142）：getGroups / listFollows（action=9 组内·7 全部；**偏移量游标**、终值 no_more）/ followUser·unfollowUser·regroup（action 1/2/3）/ createGroup（优先取响应 groupId、差集兜底）·removeGroup·renameGroup；写链走 appapi.postForm（页面 fetch 通道，风控友好）；URL 逐字护 mock 缝（docs §2.2/§2.5/§2.6） |
-| `relatedapi.js` | 相关推荐域件（0.9.168）：listRelated（feed/related/general POST 表单 resourceType=2&resourceId；免登录；URL 逐字护 mock 缝）/relatedPageOf（包裹层拆包纯函数）/relatedItemOf（dougaFeedView→play 契约，home 模板+计数富化）/随机游走泵 batch（tip=仓库末条；walk 随机抽 1 条逐级游走（默认）/seq 按列表顺序；自持 seen 防回头路；整批见尽换批 ≤3 次、兜底放宽允许重播）/startChain 起步缝（mediator——player 注册起步器，绕开 loadDeepLink 的「源随链接走」覆写）；**层宿主缝**（0.9.170，同款 mediator）：setLayerHost/layerActive/layerJump——playlayer 注册，reldrawer 行点击据此判「层内换条 vs 舞台起链」；**开层缝**（0.9.172）：setLayerOpener/layerOpen——层外行点击 = 以该视频开层（舞台原地保活），未注册落 startChain 兜底；两缝均透传会话语境 ctx、panelItemOfDv（dougaFeedView→面板条目=跳轨列表条目源；0.9.173）；不 import feedstore/player（环检测零豁免）。消费方：reldrawer/api（related 源取流）/player（起步器注册）/playlayer（层宿主注册） |
+| `relatedapi.js` | 相关推荐域件（0.9.168）：listRelated（feed/related/general POST 表单 resourceType=2&resourceId；免登录；URL 逐字护 mock 缝）/relatedPageOf（包裹层拆包纯函数）/relatedItemOf（dougaFeedView→play 契约，home 模板+计数富化）/随机游走泵 batch（tip=仓库末条；walk 随机抽 1 条逐级游走（默认）/seq 按列表顺序；自持 seen 防回头路；整批见尽换批 ≤3 次、兜底放宽允许重播）/startChain 起步缝（mediator——player 注册起步器，绕开 loadDeepLink 的「源随链接走」覆写）；**层宿主缝**（0.9.170，同款 mediator）：setLayerHost/layerActive/layerJump/**pickInLayer**（0.9.174）——playlayer 注册，reldrawer 据此判「层内压新级别 / 层外开层」，列表 tab 行点击走 pickInLayer（列表内跳转）；**开层缝**（0.9.172）：setLayerOpener/layerOpen——层外行点击 = 以该视频开层（舞台原地保活），未注册落 startChain 兜底；两缝均透传会话语境 ctx、panelItemOfDv（dougaFeedView→面板条目=跳轨列表条目源；0.9.173）；不 import feedstore/player（环检测零豁免）。消费方：reldrawer/api（related 源取流）/player（起步器注册）/playlayer（层宿主注册） |
 | `favapi.js` | 收藏域读写接口（0.9.143）：folderList（带 resourceId 得 inFolder 勾选态）/ folderAdd·folderRename·folderDelete / favList（dougaList 单夹列表，0.9.148 自视图收口）/ favAdd·favUpdate·favRemove（三分支，一律 resourceType=9）；原 appapi 的 ensureFavFolder 默认夹体系随之退役（docs §4.2） |
 | `popplace.js` | 弹层定位（0.9.149 统一收口，**零依赖叶子**）：**两套锚定模型一份实现**——`anchorPlaceOf`（按钮旁选择层：下方优先→翻上→按可用空间压高；水平**让开宿主一列**：右缘=min(宿主左缘,锚左缘)−10，左不够翻宿主右侧；0.9.144/0.9.146）/ `rowPlaceOf`（行·面板贴靠：右缘贴行左缘 / 左缘贴面板右缘、**底对齐**、超高压缩；0.9.105 裁决几何）+ 共用 `applyPlace`/`watchPlace`（首帧 rAF + ResizeObserver + window resize，自清理）。常数一处收口（此前两份实现已漂：间距 12/10、边距 4/8、下限 140/120）；纯函数单测直采（test/unit/popplace.test.js） |
 | `pickpop.js` | 通用「选择层」壳（0.9.142，零业务）：标题 + 单选/多选列表 + 内联新建 + 底键（确定/取消/附加动作）+ `openConfirmPop` 二次确认；**定位全权交 popplace.anchorPlaceOf**（本件只取 rect + 落位；0.9.149）；外点收起走 `ui.closeOnOutsideClick`（0.9.147）。消费方：grouppop/favpop |
@@ -386,7 +386,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 
 由 src 静态 `import` 生成，并与 `test/check-deps.mjs` 双向校验（CI 必过；改 import 后跑 `npm run check`）。两条「满连接」不画箭头以免糊成一团：
 `cfg.js` 被全部模块引用；`styles.js`/`ui.js`（CSS 与 `el`/`esc`/`toast` 工具）被几乎全部 UI 模块引用；
-`dbg.js` 仅调试构建存活（正式构建被 define 死码消除）。
+`dbg.js` 常驻（`stat`/`dbg` 生产在用）；其测试钩子注册在正式构建被 define 折叠为 noop——**回调体不剔除**（esbuild 只折叠注册点）。
 
 ```mermaid
 flowchart LR
@@ -462,7 +462,7 @@ flowchart LR
   searchfmt["searchfmt.js（搜索三端点回包规整）"]
   relationapi["relationapi.js（关注域读写·分组 CRUD）"]
   relatedapi["relatedapi.js（相关推荐域·传输+规整+游走泵）"]
-  reldrawer["reldrawer.js（评论抽屉·相关推荐 tab）"]
+  reldrawer["reldrawer.js（评论抽屉·相关推荐/列表 tab；列表播放器）"]
   channelapi["channelapi.js（频道域·分区树+分区流规整）"]
   jingxuanview["jingxuanview.js（分区页视图·抖音精选式分区网格）"]
   grouppop["grouppop.js（关注分组选择层·语义件）"]
@@ -556,7 +556,7 @@ followstream 引入它就会与既有的 `followbadge → followstream` 成环�
 
 `acfun-svfeed.debug.user.js` 与正式版出自同一源码，仅 `__ACSV_DEBUG__` 注入值不同：
 调试版在 `window.__dbg` 记录启动埋点（iife-start / cfg-ok / mount-enter / root-appended / toggle），
-正式构建中被死码消除，运行行为一致。改动只在 `src/` 里做，不要手改两个 `.user.js`（构建产物）。
+正式构建中该记录分支被死码消除（模块本身仍随产物——生产用的 `stat`/`dbg` 在其中），运行行为一致。改动只在 `src/` 里做，不要手改两个 `.user.js`（构建产物）。
 
 ## 本地开发预览
 

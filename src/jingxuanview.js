@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { el, fmt } from './ui.js';
+import { el, fmt, fmtDurMs } from './ui.js';
 import { registerView } from './viewreg.js';
 import { AppAPI } from './appapi.js';
 import { listChannels, listChannelFeed } from './channelapi.js';
@@ -31,14 +31,6 @@ import { testHook } from './dbg.js';
 
 var st = null; // 当前实例状态（视图单例存活：build 建 / teardown 拆）
 
-function durText(ms) {
-  var s = Math.round((Number(ms) || 0) / 1000);
-  if (!s) return ''; // home 卡不带时长：不摆空角标
-  var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
-  var p = function (n) { return n < 10 ? '0' + n : '' + n; };
-  return h ? h + ':' + p(m) + ':' + p(r) : m + ':' + p(r);
-}
-
 // 分区标签（大卡标签行）：dougaFeedView 的 tagList 形状未逐项实测（对象/字符串两说），
 // 防御性取 name/tagName；无 tagList 或为 home 卡时回落 channelInfo（0.9.170 新契约字段）
 function tagsOfDv(dv) {
@@ -66,7 +58,7 @@ function vmOfDv(dv) {
   var it = relatedItemOf(dv); // 复用相关域规整（home 契约模板 + 计数富化），up 已归一
   return {
     id: it.id, title: it.title, cover: it.cover,
-    like: it.like, dur: durText(dv.durationMillis), views: it.view,
+    like: it.like, dur: fmtDurMs(dv.durationMillis), views: it.view,
     tags: tagsOfDv(dv), up: it.up
   };
 }

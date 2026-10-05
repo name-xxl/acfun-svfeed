@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>UI 预览 · 分区页 v5（浮层播放 + 2×2 首卡 + 左栏挪位）</title>
+<title>UI 预览 · 分区页 v6（浮层播放 + 2×2 首卡 + 左栏挪位 + 列表播放器）</title>
 <!-- ============================================================
      docs/preview/jingxuan.html —— 分区页静态预览（展示名 0.9.171 用户裁决：精选→分区；
      视图 id/路由仍 jingxuan——文件名与 hash 不动）
@@ -10,8 +10,8 @@
      v5（2026-10-05 改版，用户裁决三连）：
        ① 点卡片出口对齐榜单/搜索/动态——走 playlayer 浮层（Esc 回分区原位），
           随机游走搬进层内：层内 ↓/PageDown = 当前视频相关池随机抽下一条（递归），
-          ↑ = 回上一条；评论抽屉「相关推荐」行在层内点 = 层内换条，不拆视图。
-          （舞台竖刷上的抽屉行起步照旧=startChain 舞台游走，两态并存。）
+          ↑ = 回上一条；评论抽屉「相关推荐」行在层内点 = **压新级别开列表播放器**（0.9.174，
+          Esc 弹回原视频；舞台上的抽屉行 = 开层保活，0.9.172——不再有舞台游走）。
        ② 左栏 dock：分区挪到「推荐」上面（分区 5 / 推荐 10 / 榜单 15 / 广场 16 ｜ 关注 20 / 我的 30），
           选中色保持现状（白 14% 底 + 加粗，非 accent 红）。
        ③ 首卡 = 网格内 2 列 × 2 行跨格（撤独立 hero 大卡区，全部 tab 与分区 tab 同一网格形态）；
@@ -224,7 +224,7 @@
 </head>
 <body>
 <div class="board">
-  <h1>分区页 v5（浮层播放 + 2×2 首卡 + 左栏挪位）—— 静态预览</h1>
+  <h1>分区页 v6（浮层播放 + 2×2 首卡 + 左栏挪位 + 列表播放器）—— 静态预览</h1>
   <p class="hint">
     v5 改版（用户裁决）：① 点卡片出口对齐榜单/搜索/动态——playlayer 浮层单条播放，Esc 回分区原位；
     随机游走搬进层内：层内 <b>↓</b> = 当前视频相关池随机抽下一条（逐级递归），<b>↑</b> = 回上一条；
@@ -251,7 +251,7 @@
         <div class="dk"><span class="ic"></span>我的</div>
       </div>
       <p class="hint" style="max-width:560px;line-height:2">
-        顺序：分区 → 推荐 → 榜单 → 广场 ｜ 关注 → 我的（order 重编：5 / 10 / 15 / 16 ｜ 20 / 30）。<br>
+        顺序：分区 → 推荐 → 榜单 → 广场 ｜ 关注 → 我的（order：分区 5 / 推荐 10 / 榜单 10（同序按 id 兜底）/ 广场 15 ｜ 关注 20 / 我的 30）。<br>
         「推荐」条目仍是裸竖刷路由（回竖刷并重置当前源），仅位置下移一格。<br>
         徽标/高亮机制不变；分区视图打开时高亮自己，播放层浮层打开时高亮指向来源=分区。<br>
         （展示名 0.9.171 改口；视图 id / hash 段仍 jingxuan，深链不动）
@@ -432,7 +432,7 @@
         <div class="gest">
           <b>↓ / 滚轮下滑 / 触摸上滑</b> 下一条 = 当前视频相关推荐随机抽一条（逐级游走）<br>
           <b>↑ / 滚轮上滑 / 触摸下滑</b> 回上一条（层内历史）<br>
-          <b>c</b> 评论抽屉 · 相关推荐行点选 = 换到那份相关列表<br>
+          <b>c</b> 评论抽屉 · 相关推荐行点选 = 开列表播放器（压级，见 ⑥）<br>
           空格 暂停 · ←→ 快进退 · f 全屏<br>
           右栏 ▲▼ = 上一条/下一条（与 ↓/↑/滚轮/触摸同一动作）
         </div>
@@ -506,7 +506,7 @@
 
   <!-- ⑤ 评论抽屉·相关推荐 tab -->
   <div class="sec">
-    <h2>⑤ 评论抽屉 · 相关推荐 tab<em>舞台竖刷上点行=起步舞台游走；播放层浮层内点行=层内换条（新）</em></h2>
+    <h2>⑤ 评论抽屉 · 相关推荐 tab<em>舞台点行=开层保活（0.9.172）；层内点行=压第 2 级开列表播放器（0.9.174）</em></h2>
     <div class="row" style="align-items:flex-start;gap:24px">
       <div class="drawer">
         <div class="dhd">
@@ -522,7 +522,7 @@
           </div>
           <div class="rel hov">
             <div class="cv" style="background:linear-gradient(135deg,#2b3a4a,#3a5a6a)"><span class="dur">0:10</span></div>
-            <div class="rt"><div class="tt">每个coser都会遇到的困难..（层内点这行=层内换条）</div>
+            <div class="rt"><div class="tt">每个coser都会遇到的困难..（层内点这行=压第 2 级列表播放器）</div>
               <div class="mm"><span>♥ 16</span><span>咖纳纳纳o</span></div></div>
           </div>
           <div class="rel">
@@ -541,18 +541,19 @@
               <div class="mm"><span>♥ 12</span><span>潇湘huya</span></div></div>
           </div>
         </div>
-        <div class="dnote">行点击两种归宿：<b>舞台竖刷</b>上=照旧起步随机游走（拆视图进舞台）；
-          <b>播放层浮层</b>内（分区/榜单/搜索来的都算）= 不换界面，直接层内换到该行视频。
+        <div class="dnote">行点击两种归宿：<b>舞台竖刷</b>上 = 开播放层（舞台显式暂停保活，Esc 回当前视频；0.9.172 前的"拆视图进舞台"已废）；
+          <b>播放层浮层</b>内（分区/榜单/搜索来的都算）= **压第 2 级开列表播放器**（0.9.174）。
           本列表随当前视频每步刷新，抽中已看过的自动重抽，整批看尽再拉一批。</div>
       </div>
       <p class="hint" style="max-width:420px;line-height:2">
-        层内换条语义与 ↓ 游走完全一致（同一泵、同 seen 集），只是落点从舞台换成层内：
-        换条后层内历史可 ↑ 逐步回退。<br>
-        浮层来源不限于分区——榜单/搜索进层后，相关推荐行同样层内换条（旧行为=拆视图回舞台，观感割裂，一并收齐）。
+        层内点行 = **开第三播放器**（列表播放器）：把那份 10 条按顺序播、自动展开抽屉停在「列表」页签；
+        **关闭（Esc/顶栏返回）= 弹回原来那条视频**（进度原地恢复）——旧实现（换成列表/直接顶掉当前视频）
+        已被用户裁决推翻（0.9.174）。<br>
+        来源不限于分区——榜单/搜索/我的进层后同款；套娃封顶 2 级（0.9.175）。
       </p>
     </div>
 
-    <h3 class="cf-head">层内 ↓/↑（含右栏 ▲▼）的会话语义（0.9.173）</h3>
+    <h3 class="cf-head">层内 ↓/↑（含右栏 ▲▼）的会话语义（0.9.173；级别栈见 0.9.174–177）</h3>
     <div class="row" style="align-items:flex-start;gap:26px;flex-wrap:wrap">
       <table style="border-collapse:collapse;font-size:12px;color:var(--acsv-t2);min-width:560px">
         <tr style="color:var(--acsv-t3);text-align:left">
@@ -563,10 +564,9 @@
         <tr><td style="padding:5px 12px 5px 0">搜索</td><td style="padding:5px 12px 5px 0">结果列表顺序</td><td>停（提示 + ▼ 隐）</td></tr>
         <tr><td style="padding:5px 12px 5px 0">榜单</td><td style="padding:5px 12px 5px 0">榜单行顺序</td><td>停（提示 + ▼ 隐）</td></tr>
         <tr><td style="padding:5px 12px 5px 0">我的（投稿/收藏/历史）</td><td style="padding:5px 12px 5px 0">该列表顺序</td><td>有下一页续拉；无则停</td></tr>
-        <tr><td style="padding:5px 12px 5px 0">关注视频流</td><td style="padding:5px 12px 5px 0">条目顺序</td><td>有下一页续拉；无则停</td></tr>
         <tr><td style="padding:5px 12px 5px 0"><b>分区</b>（默认）</td><td style="padding:5px 12px 5px 0"><b>相关池随机</b>（抖音式刷不完）</td><td>换批续命（不封顶）</td></tr>
         <tr><td style="padding:5px 12px 5px 0"><b>分区</b>（设置开=按列表顺序）</td><td style="padding:5px 12px 5px 0">网格顺序</td><td>续拉下一页</td></tr>
-        <tr><td style="padding:5px 12px 5px 0">相关推荐行跳转（任意来源）</td><td style="padding:5px 12px 5px 0">那份 10 条列表顺序</td><td>停</td></tr>
+        <tr><td style="padding:5px 12px 5px 0">相关推荐行跳转（任意来源）</td><td style="padding:5px 12px 5px 0">**压第 2 级**（列表播放器，自动停「列表」页签）</td><td>Esc/顶栏返回=弹回原视频（进度恢复）；封顶 2 级</td></tr>
         <tr><td style="padding:5px 12px 5px 0">动态里的视频卡片</td><td style="padding:5px 12px 5px 0" colspan="2">单条：不出箭头、不可切</td></tr>
       </table>
     </div>
@@ -655,7 +655,7 @@
           （进度原地恢复）→ 再 Esc = 退层回来源视图。<br>
           同一套也适用于合辑/分P（自带列表的视频）——本轮仅相关推荐（合辑接口未实测）；
           <b>列表播放器内不再有跳转入口（相关推荐页签收起）</b>，套娃深度封顶 2 级。<br>
-          右栏 ▲▼ / 滚轮 / ↑ 不参与弹级（列表首条 ↑ 仍提示"已经是第一条"，只留 Esc 弹回）。
+          右栏 ▲▼ / 滚轮 / ↑ 不参与弹级（列表首条 ↑ 仍提示"已经是第一条"）；弹回键 = Esc 与顶栏「向左返回」（0.9.176 同源），弹回时「列表」页签一律收起（0.9.177）。
         </p>
       </div>
     </div>
@@ -695,7 +695,7 @@
             <div class="set-row">
               <div class="set-row-main">
                 <div class="set-label">相关推荐按列表顺序续播</div>
-                <div class="set-hint">关闭（默认）：下一条在当前视频的相关推荐池里随机抽，逐级游走；开启：按展示列表顺序播，尽头自动接下一批。播放层浮层与舞台竖刷同一开关</div>
+                <div class="set-hint">关闭（默认）：下一条在当前视频的相关推荐池里随机抽，逐级游走；开启：按展示列表顺序播，尽头自动接下一批。播放层浮层内与（分区默认的）相关池随机同一开关；舞台游走链自 0.9.172 起仅剩遗留兜底，无入口</div>
               </div>
               <button class="set-sw"><i></i></button>
             </div>

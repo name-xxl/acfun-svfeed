@@ -268,7 +268,7 @@ await wait(500);
 rec('tab-keep-state', document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22
   && window.__ACSV_HIST_CALLS__ === histCalls, 'calls=' + window.__ACSV_HIST_CALLS__);
 // 播放层（0.9.74）：点首条历史 → 就地覆盖播放（旧契约「回竖刷 + 插队尾」已废止）。
-// 钉：地址是 play 形态、层内视频真的起播、竖刷缓冲/游标零改动、层内不建上下箭头
+// 钉：地址是 play 形态、层内视频真的起播、竖刷缓冲/游标零改动、层内箭头随会话（列表会话两枚，0.9.173 口径）
 var firstRow = q('.acsv-vlist.hist .acsv-gcell');
 var firstId = 488900;
 var myEl0 = q('.acsv-view');
@@ -335,6 +335,11 @@ rec('item-arrows-list', (function () {
   var pl = TEST.call('playlayer') || {};
   var s = q('.acsv-slide[data-ovl="1"]');
   return pl.session === 'list' && !!s && !!s.querySelector('.acsv-arrow-down');
+})(), JSON.stringify(TEST.call('playlayer')));
+// 列表会话的续拉缝（mypage makeListCtx.more，0.9.179 收口）：收藏/历史分页未到底 ⇒ hasMore 在场
+rec('item-list-more-wired', (function () {
+  var pl = TEST.call('playlayer') || {};
+  return pl.session === 'list' && pl.listLen >= 1 && pl.hasMore === true;
 })(), JSON.stringify(TEST.call('playlayer')));
 rec('item-feed-paused', (function () {
   var vs = document.querySelectorAll('.acsv-scroller video');
@@ -497,7 +502,7 @@ rec('zone-subs', !!(await waitFor(function () {
   return chips.length === 3 && chips[0].textContent === '全部' && chips[0].classList.contains('on');
 }, 8000)));
 // 播放层（0.9.74）：点榜单行 → 就地覆盖播放（不跳回竖刷、不插队尾）。钉：地址 play 形态、
-// 层内真起播（resolve 走 my mock）、竖刷零改动、层内无箭头、Esc 回榜单且原位复原
+// 层内真起播（resolve 走 my mock）、竖刷零改动、层内箭头随会话（列表会话两枚）、Esc 回榜单且原位复原
 var zoneEl0 = q('.acsv-view');
 var zBuf = feed().items.length, zCur = feed().current;
 var zrow = q('.acsv-rlist .acsv-vrow');

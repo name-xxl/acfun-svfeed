@@ -662,6 +662,15 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var m = Math.floor(s / 60), sec = s % 60;
     return (m < 10 ? "0" + m : m) + ":" + (sec < 10 ? "0" + sec : sec);
   }
+  function fmtDurMs(ms) {
+    var s = Math.round((Number(ms) || 0) / 1e3);
+    if (!s) return "";
+    var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), r = s % 60;
+    var p = function(n) {
+      return n < 10 ? "0" + n : "" + n;
+    };
+    return h ? h + ":" + p(m) + ":" + p(r) : m + ":" + p(r);
+  }
   var toastTimer = null;
   function toast(msg, ms) {
     if (!root) return;
@@ -5047,14 +5056,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   // src/reldrawer.js
   var cache = { rid: null, dvs: [], state: "idle", title: "" };
   var lcache = { rows: [], idx: 0, title: "" };
-  function durText(ms) {
-    var s = Math.round((Number(ms) || 0) / 1e3);
-    var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), r = s % 60;
-    var p = function(n) {
-      return n < 10 ? "0" + n : "" + n;
-    };
-    return h ? h + ":" + p(m) + ":" + p(r) : m + ":" + p(r);
-  }
   function wire() {
     var d = commentDrawer;
     if (!d || d._acsvRelWired) return !!d.relList;
@@ -5150,7 +5151,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       id: Number(dv.dougaId != null ? dv.dougaId : dv.contentId) || 0,
       title: dv.title || dv.caption || "",
       cover: dv.coverUrl || "",
-      dur: durText(dv.durationMillis),
+      dur: fmtDurMs(dv.durationMillis),
       like: dv.likeCount || 0,
       up: dv.user && dv.user.name || ""
     };
@@ -5227,7 +5228,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     row._dv = dv;
     var cv = el("div", "acsv-relcv");
     imgInto(cv, dv.coverUrl || "", "thumb");
-    cv.appendChild(el("span", "acsv-reldur", durText(dv.durationMillis)));
+    var durt = fmtDurMs(dv.durationMillis);
+    if (durt) cv.appendChild(el("span", "acsv-reldur", durt));
     row.appendChild(cv);
     var rt = el("div", "acsv-relrt");
     rt.appendChild(el("div", "acsv-reltt", dv.title || dv.caption || ""));
@@ -14128,34 +14130,46 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       host3.appendChild(s);
     }
   }
+  function makeListCtx(rowsOf, loadFn, isDone) {
+    var waiters = [];
+    function flush2() {
+      var w = waiters;
+      waiters = [];
+      w.forEach(function(cb) {
+        cb();
+      });
+    }
+    function more() {
+      if (isDone()) return Promise.resolve(null);
+      return new Promise(function(resolve) {
+        var before = rowsOf().length;
+        waiters.push(function() {
+          resolve(rowsOf().length > before ? rowsOf().slice(before) : null);
+        });
+        loadFn();
+      });
+    }
+    return {
+      flush: flush2,
+      more,
+      ctxOf: function(pi) {
+        var rows = rowsOf();
+        return { kind: "list", items: rows.slice(), idx: Math.max(0, rows.indexOf(pi)), more };
+      }
+    };
+  }
   function buildHistory(panel2) {
     var list = rowList(panel2, "hist");
     var btn = moreBtn(load);
     panel2.appendChild(btn);
     var pageNo = 0, seq = 0;
     var allRows = [];
-    var moreWaiters = [];
     var done = false;
-    function flushMore() {
-      var w = moreWaiters;
-      moreWaiters = [];
-      w.forEach(function(cb) {
-        cb();
-      });
-    }
-    function moreRows() {
-      if (done) return Promise.resolve(null);
-      return new Promise(function(resolve) {
-        var before = allRows.length;
-        moreWaiters.push(function() {
-          resolve(allRows.length > before ? allRows.slice(before) : null);
-        });
-        load();
-      });
-    }
-    function ctxOf(pi) {
-      return { kind: "list", items: allRows.slice(), idx: Math.max(0, allRows.indexOf(pi)), more: moreRows };
-    }
+    var lctx = makeListCtx(function() {
+      return allRows;
+    }, load, function() {
+      return done;
+    });
     function load() {
       var my = ++seq;
       var gone = skeleton(list);
@@ -14177,10 +14191,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         rows.forEach(function(pi) {
           allRows.push(pi);
           list.appendChild(gridCardOf(pi, function() {
-            return ctxOf(pi);
+            return lctx.ctxOf(pi);
           }));
         });
-        flushMore();
+        lctx.flush();
         if (raws.length < CFG.view.pageSize) {
           done = true;
           btn.style.display = "none";
@@ -14191,7 +14205,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         if (my !== seq || !list.isConnected) return;
         btn.disabled = false;
         btn.textContent = "加载失败，点击重试";
-        flushMore();
+        lctx.flush();
       });
     }
     load();
@@ -14212,7 +14226,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     panel2.appendChild(btn);
     var tabs = [];
     var allRows = [];
-    var moreWaiters = [];
     var cur = o.allChip ? o.allId : null;
     var cursor = o.firstCursor || 0;
     var seq = 0;
@@ -14392,32 +14405,20 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           btn.style.display = "none";
         } else resetBtn();
         if (!added && !list.children.length) list.appendChild(el("div", "acsv-vempty", o.emptyText(cur)));
-        flushMore();
+        lctx.flush();
       }, function() {
         if (my !== seq || !list.isConnected) return;
         loading2 = false;
         btn.disabled = false;
         btn.textContent = o.loadFailText;
-        flushMore();
+        lctx.flush();
       });
     }
-    function flushMore() {
-      var w = moreWaiters;
-      moreWaiters = [];
-      w.forEach(function(cb) {
-        cb();
-      });
-    }
-    function moreRows() {
-      if (done) return Promise.resolve(null);
-      return new Promise(function(resolve) {
-        var before = allRows.length;
-        moreWaiters.push(function() {
-          resolve(allRows.length > before ? allRows.slice(before) : null);
-        });
-        load();
-      });
-    }
+    var lctx = makeListCtx(function() {
+      return allRows;
+    }, load, function() {
+      return done;
+    });
     var ctx = {
       list,
       refresh,
@@ -14426,12 +14427,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       },
       // 层内会话语境：本档已加载条目 + 续拉缝（收藏/历史=有下一页续拉；到底=null→层里停）
       openCtxOf: function(pi) {
-        return {
-          kind: "list",
-          items: allRows.slice(),
-          idx: Math.max(0, allRows.indexOf(pi)),
-          more: moreRows
-        };
+        return lctx.ctxOf(pi);
       }
     };
     return { refresh, select, list, chips, btn };
@@ -15771,15 +15767,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
 
   // src/jingxuanview.js
   var st = null;
-  function durText2(ms) {
-    var s = Math.round((Number(ms) || 0) / 1e3);
-    if (!s) return "";
-    var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), r = s % 60;
-    var p = function(n) {
-      return n < 10 ? "0" + n : "" + n;
-    };
-    return h ? h + ":" + p(m) + ":" + p(r) : m + ":" + p(r);
-  }
   function tagsOfDv(dv) {
     var out = [];
     var list = dv.tagList || [];
@@ -15810,7 +15797,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       title: it.title,
       cover: it.cover,
       like: it.like,
-      dur: durText2(dv.durationMillis),
+      dur: fmtDurMs(dv.durationMillis),
       views: it.view,
       tags: tagsOfDv(dv),
       up: it.up
