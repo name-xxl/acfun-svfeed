@@ -2,7 +2,7 @@ import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { parseRoute } from './route.js';
 import { API } from './api.js';
-import { playItemOf } from './data.js';
+import { playItemOf } from './playitem.js';
 import { setItemOpener } from './cards.js';
 import { registerView } from './viewreg.js';
 import { setVideoTarget, setWatchTarget, setPlayItem, OVL_IDX } from './state.js';

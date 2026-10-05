@@ -15,7 +15,7 @@
 // 游标方言与落点策略（rowDefault）。
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
-import { followPanelOf, momentPiOfRepost } from './data.js';
+import { followPanelOf, momentPiOfRepost } from './panelitem.js';
 import { openPanelItem, setMomentOpener, skeletonRows } from './cards.js';
 import { ICONS } from './styles.js';
 import { listMoments } from './momentapi.js';

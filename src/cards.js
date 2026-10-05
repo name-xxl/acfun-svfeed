@@ -109,7 +109,7 @@ export function rowOf(pi, rank) {
 //   脚行 = **作者与时间的唯一落点**（@UP名 + 右槽时间）：四源都从这里出作者（历史条目的作者来自
 //     histories[].user，0.9.84 实测与该站 APP 家族同形状，不是"卡面没有"）；右槽 = 搜索的发布
 //     日期（SSR 原样）/ 收藏的稿件上传时刻（fmtDate，带年份）/ 历史的观看时间与关注流的条目时间
-//     （fmtAgo：三天内相对文案、更早带年份）——各源取数口径见 data.js 解析器与 docs 各节
+//     （fmtAgo：三天内相对文案、更早带年份）——各源取数口径见 panelitem.js 解析器与 docs 各节
 // 0.9.83 收口：作者与进度此前都在 meta 行（.acsv-gmeta）又各画了一遍——收藏卡出现
 // 「石悦」/「@石悦」与「看到xx:xx」双份。现在作者只走脚行、进度只留角标，meta 行整体删除
 // 外链语义（0.9.91）：pi.href 有值 → 根元素换 <a target=_blank rel=noopener>（文章/动态的
@@ -141,7 +141,7 @@ export function gridCardOf(pi) {
   //（0.9.93 起本函数只服务网格卡族：我的/搜索/关注流里的视频卡——内容型差异在各自卡型里表达）
   if (pi.meta && pi.meta.length) cell.appendChild(statRowOf(pi.meta));
   // 脚行：@UP名 + 右槽时间（抖音式；两字段皆空不挂节点）。右槽由契约层拼好（各源取数口径见
-  // data.js 解析器）；无作者又无时间（如历史缺 user 的降级条目）整行不挂
+  // panelitem.js 解析器）；无作者又无时间（如历史缺 user 的降级条目）整行不挂
   var upName = pi.up && pi.up.name ? pi.up.name : '';
   if (upName || pi.dateText) {
     var foot = el('div', 'acsv-gfoot');

@@ -1,7 +1,7 @@
 import { CFG } from './cfg.js';
 import { el, toast } from './ui.js';
 import { request } from './net.js';
-import { upOf } from './data.js';
+import { upOf } from './playitem.js';
 import { searchVideoPageOf, searchUserPageOf, searchArticlePageOf } from './searchfmt.js'; // 回包规整（0.9.161 出库）
 import { gridCardOf, openPanelItem, skeletonRows } from './cards.js';
 import { ICONS } from './styles.js'; // chevUp 回顶图标（与关注/广场同源）

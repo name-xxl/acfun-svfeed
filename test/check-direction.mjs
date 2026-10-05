@@ -26,7 +26,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
 
 // 口径 A 用：README 基建层（styles.js 等 16 件）+ 接口层（3 件）
-const INFRA = new Set(['cfg.js', 'net.js', 'data.js', 'state.js', 'route.js', 'imgview.js', 'inputbar.js',
+const INFRA = new Set(['cfg.js', 'net.js', 'playitem.js', 'panelitem.js', 'state.js', 'route.js', 'imgview.js', 'inputbar.js',
   'imgurl.js', 'pagekind.js', 'settings.js', 'viewreg.js', 'imgload.js', 'overlay.js', 'topbar.js',
   'ui.js', 'styles.js', 'dbg.js', 'timefmt.js', 'uplook.js', 'nameval.js']);
 const API = new Set(['api.js', 'appapi.js', 'quality.js']);

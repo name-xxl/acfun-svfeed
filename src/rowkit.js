@@ -20,7 +20,7 @@ import { releaseDrawer } from './state.js';
 // 开新行前必须**显式关旧行**：claimDrawer 同槽重入不互收（comments.js 注释在册），不关的话
 // 旧容器还挂着管线 DOM、commentState 却已指向新行——列表更新串台。
 // 0.9.101：视频行也原位展开（原生 member-feed 三类条目都是原地开评论；sv=5 是 meow，
-// www 视频=3——data.js normalizeHome 同值）；文章评论 stype 未实测，仍外链官方页
+// www 视频=3——playitem.js normalizeHome 同值）；文章评论 stype 未实测，仍外链官方页
 var openCmt = null; // { pi, box, list }
 
 export function closeInlineComments() {

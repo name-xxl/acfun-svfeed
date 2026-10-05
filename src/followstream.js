@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { AppAPI } from './appapi.js';
-import { playItemOf } from './data.js';
+import { playItemOf } from './playitem.js';
 import { setDockBadge } from './sidebar.js';
 import { FeedStore } from './feedstore.js'; // 仅 enterVideos 运行期触达（0.9.115 断 feedstore↔player 后为普通单向边）
 import { createFeedContext, runChain, registerContext, activateContext } from './feedctx.js';

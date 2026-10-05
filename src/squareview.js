@@ -6,7 +6,7 @@
 // 变量/发现态轮询/新鲜度回填/回顶/骨架）收口 **squarefeed 工厂**（0.9.128）——本文件只留
 // 视图外壳：dock 注册、行落点策略、unmount。内嵌宿主（memberplaza）与视图共用同一工厂。
 import { el } from './ui.js';
-import { momentPiOfRepost } from './data.js';
+import { momentPiOfRepost } from './panelitem.js';
 import { setMomentOpener } from './cards.js';
 import { registerView } from './viewreg.js';
 import { openMomentDetail } from './momentdetail.js';

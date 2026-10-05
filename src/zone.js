@@ -2,7 +2,7 @@ import { CFG } from './cfg.js';
 import { el, singleFlight } from './ui.js';
 import { request } from './net.js';
 import { postForm } from './appapi.js';
-import { panelItem } from './data.js';
+import { panelItem } from './panelitem.js';
 import { rowOf, upCardOf } from './cards.js';
 import { ICONS } from './styles.js'; // chevUp 回顶图标（与关注/广场/搜索同源）
 import { registerView } from './viewreg.js';

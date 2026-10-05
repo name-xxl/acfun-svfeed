@@ -228,8 +228,9 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
    静态预览一次对齐，比落地后反复改便宜得多。
 2. **真机先行，宁可空白不可编造**。接口与站点行为先用内置浏览器（带登录态）抓包/实测，
    结论入档 [`docs/api-research.md`](docs/api-research.md)；拿不准的标"未实测"，不写猜测性实现。
-3. **单源收口**。跨源条目契约规整在 `src/data.js`、域回包规整随各自 `*api.js`（momentapi/
-   relationapi/favapi…，0.9.159 域归域）、跨面 UI 件抽模块（rowkit/commentkit/pickpop…）。同一条规则只允许一个出口，
+3. **单源收口**。跨源条目契约规整在契约件 `src/playitem.js`（播放）/`src/panelitem.js`（面板，
+   0.9.162 data.js 终解）、域回包规整随各自 `*api.js`（momentapi/relationapi/favapi…，0.9.159
+   域归域）、跨面 UI 件抽模块（rowkit/commentkit/pickpop…）。同一条规则只允许一个出口，
    禁止第二份"看着一样"的实现（历史教训：同形副本必漂移）。
 4. **测试钉行为，不钉实现**。harness 断言钉"结果不变式"（同一 DOM 节点/请求 body/逐行几何），
    改共享件前 grep 全消费点；新钉要能通过**摘修复反跑**（临时还原病灶，断言必须转红）证明有效。
@@ -283,7 +284,8 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 |---|---|
 | `cfg.js` | 常量表（接口地址、APP 请求头/固定 mkey、timings、导航标签） |
 | `net.js` | `request(url, method, headers, body)`：GM_xmlhttpRequest 优先、XHR 回退 |
-| `data.js` | 双 normalize：meow（kind=sv）与 selection 卡片（kind=home）→ 同一字段契约；面板条目契约（panelItem 解析器表；0.9.151 搜索三端点规整已于 0.9.161 迁出为 searchfmt.js）；**作者契约 up（0.9.82 统一条目模型）**：`upOf` 定型 + `playItemOf` 面板→播放的桥（纯函数）+ `ITEM_FIELDS` 字段白名单；时间文案/观感映射/名字校验/meCardOf 已于 0.9.159–160 拆件迁出（域回包规整随 *api、通用叶 timefmt/uplook/nameval、资料卡随 mypage） |
+| `playitem.js` | 播放条目契约（0.9.162 自 data.js 终解拆出）：双 normalize——meow 小视频（kind=sv）与 selection 卡片（kind=home）→ 同一字段契约 + `ITEM_FIELDS` 字段白名单；**作者契约 up（0.9.82 统一条目模型）**：`upOf` 定型（0.9.157 起可选第 5 参 nameColor）+ `playItemOf` 面板→播放的桥（纯函数）+ `deepLinkOf` 深链判据 |
+| `panelitem.js` | 面板条目契约（0.9.162 自 data.js 终解拆出；原 0.9.62 落户）：panelItem 解析器表（history/fav/rank/follow/square 五源，表驱动）+ `followPanelOf`/`squarePanelOf` 派发 + `momentPiOfRepost` 转发源→详情面板 pi（0.9.102）+ `momentExtraOf` 私信转发 extra 载荷（0.9.122） |
 | `api.js` | 接口封装 + 内容源状态（getSource/setSource）+ feed/refresh 按源分发（mock 桩收口在这） |
 | `appapi.js` | APP 家族接口层：selection feed（游标）、douga/playInfo 懒解析、投蕉/评论点赞、弹幕 list/add、api_st 令牌（播放档位策略已剥离到 quality.js）。**postForm（页面 fetch 表单通道）在本件，收藏/关注域已迁 favapi/relationapi 但仍经它发**（0.9.143 迁出登记在文件头） |
 | `quality.js` | 播放质量策略（零网络）：编码偏好过滤 HEVC/AVC、清晰度记忆选档；appapi 取档、它选档 |
@@ -371,7 +373,8 @@ flowchart LR
   subgraph base["基建层"]
     cfg["cfg.js"]
     net["net.js"]
-    data["data.js"]
+    playitem["playitem.js（播放条目契约·sv/home 双 normalize+作者契约）"]
+    panelitem["panelitem.js（面板条目契约·五源解析器表+动态附件）"]
     state["state.js（UI 单例中介）"]
     route["route.js"]
     imgview["imgview.js（大图查看器）"]
@@ -442,7 +445,8 @@ flowchart LR
   popplace["popplace.js（弹层定位·两模型一实现·零依赖叶子）"]
   favapi["favapi.js（收藏域读写·夹 CRUD）"]
   favpop["favpop.js（收藏夹选择层·语义件）"]
-  data --> imgurl & timefmt & ubbtext
+  panelitem --> imgurl & playitem & timefmt & ubbtext
+  playitem --> imgurl
   imgview --> overlay
   imgload --> imgurl
   topbar --> imicons
@@ -454,7 +458,7 @@ flowchart LR
   attach --> feedstore & quality & session & settings
   player --> api & attach & comments & feedstore & followstream & imdrawer & input & overlay & pb & release & settingspanel & sidebar & topbar & views
   feedstore --> api & feedctx
-  momentapi --> cfg & data & net
+  momentapi --> cfg & net & panelitem
   pb --> feedstore & settings
   ubb --> emoticon
   playlayer --> api & attach & cards & viewreg
@@ -472,14 +476,14 @@ flowchart LR
   squarefeed --> cards & emoticon & followbadge & momentapi & momentbar & rowkit
   memberplaza --> rowkit & squarefeed
   rowkit --> cards & comments & imgload & imgview & momentbar & sharepanel & uplook
-  followstream --> appapi & data & feedctx & feedstore & followseen & momentapi & sidebar
-  momentbar --> banpop & data & imicons & immsg & interact & styles & ubbtext & ui
+  followstream --> appapi & feedctx & feedstore & followseen & momentapi & playitem & sidebar
+  momentbar --> banpop & imicons & immsg & interact & panelitem & styles & ubbtext & ui
   followbadge --> followstream & followseen & momentapi
   momentdetail --> comments & emoticon & imgload & imgview & sharepanel & momentbar & overlay & cards & uplook
   followbadge --> net & sidebar
   player --> followbadge
   settingspanel --> settings & overlay
-  searchfmt --> data & imgurl & timefmt
+  searchfmt --> imgurl & playitem & timefmt
   searchview --> cards & grouppop & imgload & relationapi & searchfmt & searchhist & topbar & viewreg
   topbar --> searchhist
   input --> feedstore & overlay & pb & settings

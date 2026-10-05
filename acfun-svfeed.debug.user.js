@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.161-debug
+// @version      0.9.162-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -955,69 +955,7 @@
     while (memo.size > max) memo.delete(memo.keys().next().value);
   }
 
-  // src/ubbtext.js
-  function ubbImText(content) {
-    var t = String(content || "");
-    t = t.replace(/\[img=[^\]]*\]https?:\/\/[^\["']+?\[\/img\]/g, "[图片]");
-    t = t.replace(/\[img\]https?:\/\/[^\["']+?\[\/img\]/g, "[图片]");
-    t = t.replace(/\[at uid=\d+\]@?(.*?)\[\/at\]/g, "@$1");
-    t = t.replace(/\[resource id=\d+ type=\d+[^\]]*\]([\s\S]*?)\[\/resource\]/gi, "$1");
-    t = t.replace(/\[color=#[0-9a-fA-F]{3,8}\]([\s\S]*?)\[\/color\]/g, "$1");
-    return t;
-  }
-  function ubbPlain(content) {
-    return String(content || "").replace(/\[img=[^\]]*\][\s\S]*?\[\/img\]/gi, " ").replace(/\[img\][\s\S]*?\[\/img\]/gi, " ").replace(/\[[^\[\]]{1,64}\]/g, " ").replace(/\s+/g, " ").trim();
-  }
-
-  // src/timefmt.js
-  function relTime(ms, now) {
-    var t = Number(ms) || 0;
-    if (!t) return "";
-    var n = Number(now) || Date.now();
-    var diff = n - t;
-    if (diff < 0 || isNaN(diff)) return "";
-    var dt = new Date(t), nd = new Date(n);
-    var hm = dt.getHours() + "时" + (dt.getMinutes() < 10 ? "0" : "") + dt.getMinutes() + "分";
-    var dayDiff = Math.round(
-      (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate()) - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 864e5
-    );
-    if (dayDiff <= 0) {
-      var min = Math.floor(diff / 6e4);
-      if (min < 60) return Math.max(1, min) + "分钟前";
-      return Math.floor(diff / 36e5) + "小时前";
-    }
-    if (dayDiff === 1) return "昨天" + hm;
-    if (dayDiff === 2) return "前天" + hm;
-    return dt.getMonth() + 1 + "月" + dt.getDate() + "日 " + hm;
-  }
-  function fmtDate(ms) {
-    var t = Number(ms) || 0;
-    if (!t) return "";
-    var d = new Date(t);
-    var p = function(n) {
-      return (n < 10 ? "0" : "") + n;
-    };
-    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
-  }
-  function fmtAgo(ms, now) {
-    var t = Number(ms) || 0;
-    if (!t) return "";
-    var n = Number(now) || Date.now();
-    var diff = n - t;
-    if (diff < 0 || isNaN(diff)) return "";
-    var dt = new Date(t), nd = new Date(n);
-    var dayDiff = Math.round(
-      (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate()) - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 864e5
-    );
-    return dayDiff <= 2 ? relTime(t, n) : fmtDate(t);
-  }
-  function fmtWan(n) {
-    var v = Number(n) || 0;
-    if (v < 1e4) return String(v);
-    return Math.round(v / 1e3) / 10 + "万";
-  }
-
-  // src/data.js
+  // src/playitem.js
   function upOf(id, name, img, isFollowing, nameColor) {
     var n = String(name || "").trim();
     var i = Number(id) || 0;
@@ -1124,241 +1062,14 @@
       localLike: false
     };
   }
-  var PANEL_PARSERS = {
-    history: function(raw, it) {
-      if (raw.resourceType !== 2 || !raw.videoId) return false;
-      it.acId = Number(raw.resourceId) || 0;
-      it.title = raw.title || raw.dougaVideoTitle || "";
-      it.cover = coverUrl(raw.cover);
-      it.progress = raw.playedSeconds > 0 ? Number(raw.playedSeconds) : null;
-      it.sub = raw.playedSecondsShow || "";
-      var u = raw.user || {};
-      it.up = upOf(u.id, u.name, coverUrl(u.headUrl), u.isFollowing);
-      it.dateText = fmtAgo(Number(raw.browseTime));
-      return true;
-    },
-    fav: function(raw, it) {
-      it.acId = Number(raw.contentId) || 0;
-      it.title = raw.contentTitle || "";
-      it.cover = coverUrl(raw.contentImg);
-      it.progress = raw.userPlayedSeconds > 0 ? Number(raw.userPlayedSeconds) : null;
-      it.up = upOf(raw.userId, raw.userName, coverUrl(raw.userImg), false);
-      it.dateText = fmtDate(Number(raw.contentCreateTime));
-      return true;
-    },
-    rank: function(raw, it) {
-      if (raw.contentType !== 2) return false;
-      it.acId = Number(raw.dougaId || raw.contentId) || 0;
-      it.title = raw.contentTitle || "";
-      it.cover = coverUrl(raw.videoCover);
-      it.desc = String(raw.contentDesc || "").replace(/<br\s*\/?\s*>/gi, "\n").trim();
-      var t = relTime(Number(raw.contributeTime) || 0);
-      var ch = raw.channelName || (raw.channel || {}).name || (raw.channel || {}).channelName || "";
-      it.meta = [
-        { k: "view", t: String(Number(raw.viewCount) || 0) },
-        { k: "comment", t: String(Number(raw.commentCount) || 0) },
-        { k: "time", t: (t ? "发布于" + t : "") + (ch ? (t ? " / " : "") + ch + "频道" : "") }
-      ];
-      it.up = raw.userName ? {
-        id: Number(raw.authorId || raw.userId) || 0,
-        name: raw.userName,
-        img: coverUrl(raw.userImg),
-        isFollowing: false,
-        // 榜单卡片不带关注态；进播放层后由 douga/info 的 user.isFollowing 回填
-        fans: Number(raw.fansCount) || 0,
-        contrib: Number(raw.contributionCount) || 0,
-        fansText: fmtWan(raw.fansCount),
-        contribText: fmtWan(raw.contributionCount),
-        sign: String(raw.userSignature || "").replace(/<br\s*\/?\s*>/gi, " ").trim()
-      } : null;
-      return true;
-    },
-    // 关注流（0.9.91）：一个来源三种内容，靠 ct 判别（cross-来源见 ITEM_FIELDS.panel 注释）。
-    // 端点与三类条目形状全部实测在册：docs/api-research.md §2.1.1（2026-10-03，内置浏览器登录态）
-    follow: function(raw, it) {
-      var u = raw.user || {};
-      it.up = upOf(u.userId, u.userName, coverUrl(u.userHead), u.isFollowing, u.nameColor);
-      it.dateText = fmtAgo(Number(raw.createTime));
-      switch (raw.resourceType) {
-        case 2:
-          if (!raw.resourceId) return false;
-          it.ct = "video";
-          it.acId = Number(raw.resourceId) || 0;
-          it.title = raw.caption || "";
-          it.cover = coverUrl(raw.coverUrl);
-          it.views = fmtWan(raw.viewCount);
-          it.share = Number(raw.shareCount) || 0;
-          it.dur = raw.playDuration || "";
-          it.like = Number(raw.likeCount) || 0;
-          it.comment = Number(raw.commentCount) || 0;
-          it.banana = Number(raw.bananaCount) || 0;
-          it.liked = !!raw.isLike;
-          it.thrown = !!raw.isThrowBanana;
-          return true;
-        case 3:
-          if (!raw.resourceId) return false;
-          it.ct = "article";
-          it.acId = Number(raw.resourceId) || 0;
-          it.title = raw.articleTitle || "";
-          it.cover = coverUrl(raw.coverUrl);
-          it.views = fmtWan(raw.viewCount);
-          it.share = Number(raw.shareCount) || 0;
-          it.like = Number(raw.likeCount) || 0;
-          it.comment = Number(raw.commentCount) || 0;
-          it.banana = Number(raw.bananaCount) || 0;
-          it.desc = String(raw.beginParagraph || raw.description || "").trim();
-          it.href = CFG.api.articleBase + it.acId;
-          return true;
-        case 10:
-          let rsUp = function(u2) {
-            u2 = u2 || {};
-            return upOf(u2.userId, u2.userName, coverUrl(u2.userHead), false, u2.nameColor);
-          };
-          if (!raw.resourceId) return false;
-          it.ct = "moment";
-          it.momentId = Number(raw.resourceId) || 0;
-          var mo2 = raw.moment || {};
-          it.text = mo2.text || raw.discoveryResourceFeedShowContent || "";
-          it.imgs = imgsOfMoment(mo2);
-          var rs = raw.repostSource;
-          if (rs && (rs.resourceType === 2 || rs.resourceType === 3)) {
-            it.repost = {
-              ct: rs.resourceType === 2 ? "video" : "article",
-              id: Number(rs.resourceId) || 0,
-              title: String(rs.caption || rs.articleTitle || ""),
-              cover: coverUrl(rs.coverUrl),
-              // 时长是展示串直用（同 follow 视频行）；播放数缺则不挂（不虚标 0）
-              dur: String(rs.playDuration || ""),
-              views: rs.viewCount != null ? fmtWan(rs.viewCount) : "",
-              up: rsUp(rs.user)
-            };
-          } else if (rs && rs.resourceType === 10 && rs.resourceId) {
-            var rsm = rs.moment || {};
-            var rsImgs = Array.isArray(rsm.imgs) ? rsm.imgs : [];
-            it.repost = {
-              ct: "moment",
-              id: Number(rs.resourceId) || 0,
-              title: ubbPlain(rsm.text || rs.discoveryResourceFeedShowContent || ""),
-              cover: coverUrl(rsImgs[0] && (rsImgs[0].url || rsImgs[0].originUrl) || rs.coverUrl),
-              // 源正文**原文**（UBB）：引用卡内嵌正文与详情面板都靠它渲染（ubbPlain 投影不可逆；
-              // 原生实测内嵌正文 UBB 已渲染出表情图——我们同走 ubb 单源）
-              text: rsm.text || rs.discoveryResourceFeedShowContent || "",
-              // 源多图（0.9.107 实报：外层 5104362 的源 5104327 列表载荷 imgs=2、引用卡只出
-              // 首图；另一 rs 源带 6 张）——与主动态同款映射，引用卡宫格与详情面板共用
-              imgs: imgsOfMoment(rsm),
-              up: rsUp(rs.user)
-            };
-          }
-          it.meta = [
-            { k: "like", t: String(Number(raw.likeCount) || 0) },
-            { k: "comment", t: String(Number(raw.commentCount) || 0) },
-            { k: "banana", t: String(Number(raw.bananaCount) || 0) }
-          ];
-          it.like = Number(raw.likeCount) || 0;
-          it.comment = Number(raw.commentCount) || 0;
-          it.banana = Number(raw.bananaCount) || 0;
-          it.share = Number(raw.shareCount) || 0;
-          it.liked = !!raw.isLike;
-          it.thrown = !!raw.isThrowBanana;
-          it.href = CFG.api.momentBase + it.momentId;
-          return true;
-        default:
-          return false;
-      }
-    },
-    // 动态广场（0.9.125，广场页数据源；实测依据 docs/api-research.md §2.7）：feedSquare 条目与
-    // followFeedV2 动态条目**不同构**——无 resourceId（momentId 嵌在 moment.momentId 字符串）、
-    // 无转发源（服务端已过滤，v3.3.0 起 1000 条样本 resourceType 全 10）、createTime 是**绝对
-    // 毫秒**；user/userInfo 两形状归一。互动态在条目顶层但免登录恒 false——解析层照收不虚改，
-    // 新鲜度刷新（≤3h 走 moment/detail）补偿在视图层
-    square: function(raw, it) {
-      if (!raw || raw.resourceType !== 10) return false;
-      var u = raw.user || raw.userInfo || {};
-      it.up = upOf(u.userId, u.userName, coverUrl(u.userHead), u.isFollowing, u.nameColor);
-      it.dateText = fmtAgo(Number(raw.createTime));
-      it.ct = "moment";
-      var mo2 = raw.moment || {};
-      it.momentId = Number(mo2.momentId) || 0;
-      it.text = mo2.text || "";
-      it.imgs = imgsOfMoment(mo2);
-      it.meta = [
-        { k: "like", t: String(Number(raw.likeCount) || 0) },
-        { k: "comment", t: String(Number(raw.commentCount) || 0) },
-        { k: "banana", t: String(Number(raw.bananaCount) || 0) }
-      ];
-      it.like = Number(raw.likeCount) || 0;
-      it.comment = Number(raw.commentCount) || 0;
-      it.banana = Number(raw.bananaCount) || 0;
-      it.share = Number(raw.shareCount) || 0;
-      it.liked = !!raw.isLike;
-      it.thrown = !!raw.isThrowBanana;
-      it.href = CFG.api.momentBase + it.momentId;
-      return true;
-    }
-  };
-  function imgsOfMoment(mo2) {
-    return (Array.isArray(mo2 && mo2.imgs) ? mo2.imgs : []).map(function(im) {
-      im = im || {};
-      return { url: coverUrl(im.url), big: coverUrl(im.expandedUrl || im.originUrl || im.url) };
-    }).filter(function(im) {
-      return im.url;
-    });
-  }
-  function followPanelOf(raw) {
-    return raw ? panelItem("follow", raw) : null;
-  }
-  function squarePanelOf(raw) {
-    return raw ? panelItem("square", raw) : null;
-  }
-  function momentPiOfRepost(rp) {
-    return {
-      ct: "moment",
-      kind: "follow",
-      momentId: rp.id,
-      text: rp.text || "",
-      href: CFG.api.momentBase + rp.id,
-      up: rp.up || null,
-      cover: rp.cover || "",
-      dateText: "",
-      // 源配图透传（0.9.107 实报：从引用卡点进详情"纯文字样式、实际有图"——hasMedia 看 imgs）
-      imgs: rp.imgs || [],
-      like: 0,
-      comment: 0,
-      banana: 0,
-      liked: false,
-      thrown: false
-    };
-  }
-  function momentExtraOf(pi) {
-    pi = pi || {};
-    var m = /\/moment\/am(\d+)/.exec(String(pi.href || ""));
-    return {
-      momentId: String(pi.momentId != null && pi.momentId !== "" ? pi.momentId : m ? m[1] : ""),
-      text: String(pi.text || ""),
-      imgs: (pi.imgs || []).slice(0, 9).map(function(im) {
-        im = im || {};
-        return { url: im.url || "", big: im.big || im.url || "" };
-      }).filter(function(im) {
-        return im.url;
-      }),
-      up: pi.up ? { id: pi.up.id || "", name: pi.up.name || "" } : null
-    };
-  }
-  function panelItem(kind2, raw) {
-    var p = PANEL_PARSERS[kind2];
-    if (!raw || !p) return null;
-    var it = { acId: 0, title: "", cover: "", progress: null, sub: "", up: null, kind: kind2 };
-    if (p(raw, it) === false) return null;
-    return (it.acId || it.momentId) && (it.title || it.text) ? it : null;
+  function homeItemOf(acId, title, cover) {
+    var c = coverUrl(cover);
+    return normalizeHome({ href: String(acId), title: title || "", img: c ? [c] : [] });
   }
   function playItemOf(pi) {
     var item = homeItemOf(pi.acId, pi.title, pi.cover);
     if (pi.up) item.up = upOf(pi.up.id, pi.up.name, pi.up.img, pi.up.isFollowing);
     return item;
-  }
-  function homeItemOf(acId, title, cover) {
-    var c = coverUrl(cover);
-    return normalizeHome({ href: String(acId), title: title || "", img: c ? [c] : [] });
   }
   function deepLinkOf(meow, douga, mid) {
     if (meow && meow.id && meow.urls && meow.urls.length) return { item: meow, source: "sv" };
@@ -1369,6 +1080,54 @@
       };
     }
     return null;
+  }
+
+  // src/timefmt.js
+  function relTime(ms, now) {
+    var t = Number(ms) || 0;
+    if (!t) return "";
+    var n = Number(now) || Date.now();
+    var diff = n - t;
+    if (diff < 0 || isNaN(diff)) return "";
+    var dt = new Date(t), nd = new Date(n);
+    var hm = dt.getHours() + "时" + (dt.getMinutes() < 10 ? "0" : "") + dt.getMinutes() + "分";
+    var dayDiff = Math.round(
+      (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate()) - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 864e5
+    );
+    if (dayDiff <= 0) {
+      var min = Math.floor(diff / 6e4);
+      if (min < 60) return Math.max(1, min) + "分钟前";
+      return Math.floor(diff / 36e5) + "小时前";
+    }
+    if (dayDiff === 1) return "昨天" + hm;
+    if (dayDiff === 2) return "前天" + hm;
+    return dt.getMonth() + 1 + "月" + dt.getDate() + "日 " + hm;
+  }
+  function fmtDate(ms) {
+    var t = Number(ms) || 0;
+    if (!t) return "";
+    var d = new Date(t);
+    var p = function(n) {
+      return (n < 10 ? "0" : "") + n;
+    };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  }
+  function fmtAgo(ms, now) {
+    var t = Number(ms) || 0;
+    if (!t) return "";
+    var n = Number(now) || Date.now();
+    var diff = n - t;
+    if (diff < 0 || isNaN(diff)) return "";
+    var dt = new Date(t), nd = new Date(n);
+    var dayDiff = Math.round(
+      (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate()) - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 864e5
+    );
+    return dayDiff <= 2 ? relTime(t, n) : fmtDate(t);
+  }
+  function fmtWan(n) {
+    var v = Number(n) || 0;
+    if (v < 1e4) return String(v);
+    return Math.round(v / 1e3) / 10 + "万";
   }
 
   // src/settings.js
@@ -2756,6 +2515,20 @@
     }, function() {
       return null;
     });
+  }
+
+  // src/ubbtext.js
+  function ubbImText(content) {
+    var t = String(content || "");
+    t = t.replace(/\[img=[^\]]*\]https?:\/\/[^\["']+?\[\/img\]/g, "[图片]");
+    t = t.replace(/\[img\]https?:\/\/[^\["']+?\[\/img\]/g, "[图片]");
+    t = t.replace(/\[at uid=\d+\]@?(.*?)\[\/at\]/g, "@$1");
+    t = t.replace(/\[resource id=\d+ type=\d+[^\]]*\]([\s\S]*?)\[\/resource\]/gi, "$1");
+    t = t.replace(/\[color=#[0-9a-fA-F]{3,8}\]([\s\S]*?)\[\/color\]/g, "$1");
+    return t;
+  }
+  function ubbPlain(content) {
+    return String(content || "").replace(/\[img=[^\]]*\][\s\S]*?\[\/img\]/gi, " ").replace(/\[img\][\s\S]*?\[\/img\]/gi, " ").replace(/\[[^\[\]]{1,64}\]/g, " ").replace(/\s+/g, " ").trim();
   }
 
   // src/emoticon.js
@@ -6156,6 +5929,235 @@
       dockEl.remove();
       dockEl = null;
     }
+  }
+
+  // src/panelitem.js
+  var PANEL_PARSERS = {
+    history: function(raw, it) {
+      if (raw.resourceType !== 2 || !raw.videoId) return false;
+      it.acId = Number(raw.resourceId) || 0;
+      it.title = raw.title || raw.dougaVideoTitle || "";
+      it.cover = coverUrl(raw.cover);
+      it.progress = raw.playedSeconds > 0 ? Number(raw.playedSeconds) : null;
+      it.sub = raw.playedSecondsShow || "";
+      var u = raw.user || {};
+      it.up = upOf(u.id, u.name, coverUrl(u.headUrl), u.isFollowing);
+      it.dateText = fmtAgo(Number(raw.browseTime));
+      return true;
+    },
+    fav: function(raw, it) {
+      it.acId = Number(raw.contentId) || 0;
+      it.title = raw.contentTitle || "";
+      it.cover = coverUrl(raw.contentImg);
+      it.progress = raw.userPlayedSeconds > 0 ? Number(raw.userPlayedSeconds) : null;
+      it.up = upOf(raw.userId, raw.userName, coverUrl(raw.userImg), false);
+      it.dateText = fmtDate(Number(raw.contentCreateTime));
+      return true;
+    },
+    rank: function(raw, it) {
+      if (raw.contentType !== 2) return false;
+      it.acId = Number(raw.dougaId || raw.contentId) || 0;
+      it.title = raw.contentTitle || "";
+      it.cover = coverUrl(raw.videoCover);
+      it.desc = String(raw.contentDesc || "").replace(/<br\s*\/?\s*>/gi, "\n").trim();
+      var t = relTime(Number(raw.contributeTime) || 0);
+      var ch = raw.channelName || (raw.channel || {}).name || (raw.channel || {}).channelName || "";
+      it.meta = [
+        { k: "view", t: String(Number(raw.viewCount) || 0) },
+        { k: "comment", t: String(Number(raw.commentCount) || 0) },
+        { k: "time", t: (t ? "发布于" + t : "") + (ch ? (t ? " / " : "") + ch + "频道" : "") }
+      ];
+      it.up = raw.userName ? {
+        id: Number(raw.authorId || raw.userId) || 0,
+        name: raw.userName,
+        img: coverUrl(raw.userImg),
+        isFollowing: false,
+        // 榜单卡片不带关注态；进播放层后由 douga/info 的 user.isFollowing 回填
+        fans: Number(raw.fansCount) || 0,
+        contrib: Number(raw.contributionCount) || 0,
+        fansText: fmtWan(raw.fansCount),
+        contribText: fmtWan(raw.contributionCount),
+        sign: String(raw.userSignature || "").replace(/<br\s*\/?\s*>/gi, " ").trim()
+      } : null;
+      return true;
+    },
+    // 关注流（0.9.91）：一个来源三种内容，靠 ct 判别（cross-来源见 ITEM_FIELDS.panel 注释）。
+    // 端点与三类条目形状全部实测在册：docs/api-research.md §2.1.1（2026-10-03，内置浏览器登录态）
+    follow: function(raw, it) {
+      var u = raw.user || {};
+      it.up = upOf(u.userId, u.userName, coverUrl(u.userHead), u.isFollowing, u.nameColor);
+      it.dateText = fmtAgo(Number(raw.createTime));
+      switch (raw.resourceType) {
+        case 2:
+          if (!raw.resourceId) return false;
+          it.ct = "video";
+          it.acId = Number(raw.resourceId) || 0;
+          it.title = raw.caption || "";
+          it.cover = coverUrl(raw.coverUrl);
+          it.views = fmtWan(raw.viewCount);
+          it.share = Number(raw.shareCount) || 0;
+          it.dur = raw.playDuration || "";
+          it.like = Number(raw.likeCount) || 0;
+          it.comment = Number(raw.commentCount) || 0;
+          it.banana = Number(raw.bananaCount) || 0;
+          it.liked = !!raw.isLike;
+          it.thrown = !!raw.isThrowBanana;
+          return true;
+        case 3:
+          if (!raw.resourceId) return false;
+          it.ct = "article";
+          it.acId = Number(raw.resourceId) || 0;
+          it.title = raw.articleTitle || "";
+          it.cover = coverUrl(raw.coverUrl);
+          it.views = fmtWan(raw.viewCount);
+          it.share = Number(raw.shareCount) || 0;
+          it.like = Number(raw.likeCount) || 0;
+          it.comment = Number(raw.commentCount) || 0;
+          it.banana = Number(raw.bananaCount) || 0;
+          it.desc = String(raw.beginParagraph || raw.description || "").trim();
+          it.href = CFG.api.articleBase + it.acId;
+          return true;
+        case 10:
+          let rsUp = function(u2) {
+            u2 = u2 || {};
+            return upOf(u2.userId, u2.userName, coverUrl(u2.userHead), false, u2.nameColor);
+          };
+          if (!raw.resourceId) return false;
+          it.ct = "moment";
+          it.momentId = Number(raw.resourceId) || 0;
+          var mo2 = raw.moment || {};
+          it.text = mo2.text || raw.discoveryResourceFeedShowContent || "";
+          it.imgs = imgsOfMoment(mo2);
+          var rs = raw.repostSource;
+          if (rs && (rs.resourceType === 2 || rs.resourceType === 3)) {
+            it.repost = {
+              ct: rs.resourceType === 2 ? "video" : "article",
+              id: Number(rs.resourceId) || 0,
+              title: String(rs.caption || rs.articleTitle || ""),
+              cover: coverUrl(rs.coverUrl),
+              // 时长是展示串直用（同 follow 视频行）；播放数缺则不挂（不虚标 0）
+              dur: String(rs.playDuration || ""),
+              views: rs.viewCount != null ? fmtWan(rs.viewCount) : "",
+              up: rsUp(rs.user)
+            };
+          } else if (rs && rs.resourceType === 10 && rs.resourceId) {
+            var rsm = rs.moment || {};
+            var rsImgs = Array.isArray(rsm.imgs) ? rsm.imgs : [];
+            it.repost = {
+              ct: "moment",
+              id: Number(rs.resourceId) || 0,
+              title: ubbPlain(rsm.text || rs.discoveryResourceFeedShowContent || ""),
+              cover: coverUrl(rsImgs[0] && (rsImgs[0].url || rsImgs[0].originUrl) || rs.coverUrl),
+              // 源正文**原文**（UBB）：引用卡内嵌正文与详情面板都靠它渲染（ubbPlain 投影不可逆；
+              // 原生实测内嵌正文 UBB 已渲染出表情图——我们同走 ubb 单源）
+              text: rsm.text || rs.discoveryResourceFeedShowContent || "",
+              // 源多图（0.9.107 实报：外层 5104362 的源 5104327 列表载荷 imgs=2、引用卡只出
+              // 首图；另一 rs 源带 6 张）——与主动态同款映射，引用卡宫格与详情面板共用
+              imgs: imgsOfMoment(rsm),
+              up: rsUp(rs.user)
+            };
+          }
+          it.meta = [
+            { k: "like", t: String(Number(raw.likeCount) || 0) },
+            { k: "comment", t: String(Number(raw.commentCount) || 0) },
+            { k: "banana", t: String(Number(raw.bananaCount) || 0) }
+          ];
+          it.like = Number(raw.likeCount) || 0;
+          it.comment = Number(raw.commentCount) || 0;
+          it.banana = Number(raw.bananaCount) || 0;
+          it.share = Number(raw.shareCount) || 0;
+          it.liked = !!raw.isLike;
+          it.thrown = !!raw.isThrowBanana;
+          it.href = CFG.api.momentBase + it.momentId;
+          return true;
+        default:
+          return false;
+      }
+    },
+    // 动态广场（0.9.125，广场页数据源；实测依据 docs/api-research.md §2.7）：feedSquare 条目与
+    // followFeedV2 动态条目**不同构**——无 resourceId（momentId 嵌在 moment.momentId 字符串）、
+    // 无转发源（服务端已过滤，v3.3.0 起 1000 条样本 resourceType 全 10）、createTime 是**绝对
+    // 毫秒**；user/userInfo 两形状归一。互动态在条目顶层但免登录恒 false——解析层照收不虚改，
+    // 新鲜度刷新（≤3h 走 moment/detail）补偿在视图层
+    square: function(raw, it) {
+      if (!raw || raw.resourceType !== 10) return false;
+      var u = raw.user || raw.userInfo || {};
+      it.up = upOf(u.userId, u.userName, coverUrl(u.userHead), u.isFollowing, u.nameColor);
+      it.dateText = fmtAgo(Number(raw.createTime));
+      it.ct = "moment";
+      var mo2 = raw.moment || {};
+      it.momentId = Number(mo2.momentId) || 0;
+      it.text = mo2.text || "";
+      it.imgs = imgsOfMoment(mo2);
+      it.meta = [
+        { k: "like", t: String(Number(raw.likeCount) || 0) },
+        { k: "comment", t: String(Number(raw.commentCount) || 0) },
+        { k: "banana", t: String(Number(raw.bananaCount) || 0) }
+      ];
+      it.like = Number(raw.likeCount) || 0;
+      it.comment = Number(raw.commentCount) || 0;
+      it.banana = Number(raw.bananaCount) || 0;
+      it.share = Number(raw.shareCount) || 0;
+      it.liked = !!raw.isLike;
+      it.thrown = !!raw.isThrowBanana;
+      it.href = CFG.api.momentBase + it.momentId;
+      return true;
+    }
+  };
+  function imgsOfMoment(mo2) {
+    return (Array.isArray(mo2 && mo2.imgs) ? mo2.imgs : []).map(function(im) {
+      im = im || {};
+      return { url: coverUrl(im.url), big: coverUrl(im.expandedUrl || im.originUrl || im.url) };
+    }).filter(function(im) {
+      return im.url;
+    });
+  }
+  function followPanelOf(raw) {
+    return raw ? panelItem("follow", raw) : null;
+  }
+  function squarePanelOf(raw) {
+    return raw ? panelItem("square", raw) : null;
+  }
+  function momentPiOfRepost(rp) {
+    return {
+      ct: "moment",
+      kind: "follow",
+      momentId: rp.id,
+      text: rp.text || "",
+      href: CFG.api.momentBase + rp.id,
+      up: rp.up || null,
+      cover: rp.cover || "",
+      dateText: "",
+      // 源配图透传（0.9.107 实报：从引用卡点进详情"纯文字样式、实际有图"——hasMedia 看 imgs）
+      imgs: rp.imgs || [],
+      like: 0,
+      comment: 0,
+      banana: 0,
+      liked: false,
+      thrown: false
+    };
+  }
+  function momentExtraOf(pi) {
+    pi = pi || {};
+    var m = /\/moment\/am(\d+)/.exec(String(pi.href || ""));
+    return {
+      momentId: String(pi.momentId != null && pi.momentId !== "" ? pi.momentId : m ? m[1] : ""),
+      text: String(pi.text || ""),
+      imgs: (pi.imgs || []).slice(0, 9).map(function(im) {
+        im = im || {};
+        return { url: im.url || "", big: im.big || im.url || "" };
+      }).filter(function(im) {
+        return im.url;
+      }),
+      up: pi.up ? { id: pi.up.id || "", name: pi.up.name || "" } : null
+    };
+  }
+  function panelItem(kind2, raw) {
+    var p = PANEL_PARSERS[kind2];
+    if (!raw || !p) return null;
+    var it = { acId: 0, title: "", cover: "", progress: null, sub: "", up: null, kind: kind2 };
+    if (p(raw, it) === false) return null;
+    return (it.acId || it.momentId) && (it.title || it.text) ? it : null;
   }
 
   // src/momentapi.js
@@ -9840,7 +9842,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.161" : "");
+    return normVer(true ? "0.9.162" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12556,7 +12558,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.161：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.162：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

@@ -36,7 +36,7 @@ function withBusy(item, key, send, done) {
 // item，但 @名字 与头像块都是构建期一次性写死的，于是 '未知用户' 从此常驻屏幕。
 
 // 左下作者行（快手式：作者行在最前，日期/播放数在后）。未知作者**不挂节点**——不渲染
-// 伪造的占位文案（旧实现在 data.js 写死 '未知用户'）。有 uid 用链接、否则纯文本
+// 伪造的占位文案（旧实现在播放契约里写死 '未知用户'，0.9.82 起契约层不伪造）。有 uid 用链接、否则纯文本
 export function syncMetaUp(meta, item) {
   if (!meta) return null;
   var node = meta.querySelector('.acsv-up');

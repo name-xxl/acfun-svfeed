@@ -5,7 +5,7 @@ import { likePi, throwBananaPi } from './interact.js';
 import { toggleBananaPop } from './banpop.js';
 import { ubbPlain } from './ubbtext.js';
 import { commentShareWire } from './immsg.js';
-import { momentExtraOf } from './data.js';
+import { momentExtraOf } from './panelitem.js';
 
 // ---------- 动态互动栏（0.9.105 自 followview/momentdetail 收口共享） ----------
 // 两个消费面（行流卡 / 详情面板）此前各一套：键集不同（面板缺分享）、尺寸不同（48/42/12px

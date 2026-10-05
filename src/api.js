@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { normalize, normalizeHome, deepLinkOf } from './data.js';
+import { normalize, normalizeHome, deepLinkOf } from './playitem.js';
 import { AppAPI } from './appapi.js';
 import { getSetting, setSetting } from './settings.js';
 

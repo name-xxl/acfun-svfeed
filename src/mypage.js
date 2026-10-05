@@ -1,7 +1,7 @@
 import { CFG } from './cfg.js';
 import { el, selfUid, fmt, toast } from './ui.js';
 import { postForm } from './appapi.js';
-import { panelItem } from './data.js';
+import { panelItem } from './panelitem.js';
 import { groupNameError, folderNameError } from './nameval.js';
 import { coverUrl } from './imgurl.js'; // meCardOf 头像归一（0.9.160 就地收编随迁）
 import { gridCardOf, moreBtn, skeletonRows } from './cards.js';

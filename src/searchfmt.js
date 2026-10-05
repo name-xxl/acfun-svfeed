@@ -1,7 +1,7 @@
 // ---------- 站内搜索三端点规整（0.9.151 落户 data.js；0.9.161 拆件出库） ----------
 // /rest/pc-direct/search/{video,user,article} 回包 → 条目，纯函数单测直采。唯一消费方
-// searchview；upOf（作者契约）仍属契约层 data.js。字段形状照真机样本裁剪（docs §4.10）。
-import { upOf } from './data.js';
+// searchview；upOf（作者契约）在播放契约件 playitem.js。字段形状照真机样本裁剪（docs §4.10）。
+import { upOf } from './playitem.js'; // 作者契约单源（0.9.162 data.js 终解）
 import { coverUrl } from './imgurl.js';
 import { fmtDate, fmtWan } from './timefmt.js';
 

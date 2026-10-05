@@ -22,8 +22,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
-const EXCLUDED_TARGETS = new Set(['cfg.js', 'net.js', 'data.js', 'state.js', 'route.js',
-  'ui.js', 'dbg.js', 'styles.js']); // 基础/工具件：图刻意只留少量精选边，不要求全画
+const EXCLUDED_TARGETS = new Set(['cfg.js', 'net.js', 'state.js', 'route.js',
+  'ui.js', 'dbg.js', 'styles.js', 'playitem.js', 'panelitem.js']); // 基础/工具件（含契约件，0.9.162 接替 data.js）：图刻意只留少量精选边，不要求全画
 
 // ---- 真实 import 边 + 模块清单 ----
 const files = fs.readdirSync(SRC).filter((f) => f.endsWith('.js'));

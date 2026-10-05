@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { squarePanelOf } from './data.js'; // 条目派发仍属契约层（squarePageOf 消费）；本域回包规整 0.9.159 域归域迁入本模块
+import { squarePanelOf } from './panelitem.js'; // 条目派发在面板契约件（0.9.162 data.js 终解）；本域回包规整 0.9.159 域归域迁入本模块
 
 // ---------- 动态域读接口（0.9.106 收口；0.9.107 徽标弃用 webPush 后 unreadCount 退役） ----------
 // 背景（用户三问之「接口统一管理了吗」）：端点此前已全在 cfg.js，但**请求编排**散在

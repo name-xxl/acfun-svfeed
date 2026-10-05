@@ -3,6 +3,31 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.162（2026-10-05）· data.js 终解：条目契约分家为 playitem.js + panelitem.js，「杂物抽屉」退役
+
+- **由头**：接 0.9.159/160/161 拆件序列的收官。data.js 经过三步瘦身（860→504 行）只剩
+  播放/面板两族条目契约——「data.js」这个名字已名不副实（它不再是数据层全家，只是契约），
+  按用户裁决终解：拆成两件**一句话说得清**的契约件，data.js 从依赖图删除。
+- **新件（机械搬迁、签名不变；逻辑行零改动）**：`playitem.js`（播放条目契约：sv/home 双
+  normalize + `ITEM_FIELDS` 白名单 + 作者契约 `upOf`（0.9.82/0.9.157 演进史头注随迁）+
+  `playItemOf` 桥 + `deepLinkOf` 深链判据）；`panelitem.js`（面板条目契约：panelItem 解析器表
+  五源 + `followPanelOf`/`squarePanelOf` 派发 + `momentPiOfRepost`/`momentExtraOf` 动态附件，
+  upOf 改自 playitem import——作者契约单源不挪）。12 个 src 消费方 import 改道（api/appapi/
+  playlayer/followstream/searchview/searchfmt→playitem；followview/squareview/mypage/zone/
+  momentbar/momentapi→panelitem）。
+- **测试**：单测 249→249——data.test.js（570 行）终解拆为 playitem.test.js（8 组）+
+  panelitem.test.js（26 组），用例逐字切片随迁（含 upOf nameColor/playItemOf 归 playitem、
+  panelItem 五源/momentPiOfRepost/momentExtraOf/图片归一归 panelitem）；contract.test.js 契约
+  白名单闸门改道两契约件（闸门语义不变）。纯搬迁以**代码行多重集机器比对**替代反跑：
+  data.js 488 非空行中 484 行逐字保留于两契约件，差异仅 4 行注释改写（分节头更名+
+  ITEM_FIELDS 注释交叉引用改指 panelitem.js）与 16 行新头注/import。lint/check + 全量
+  46 场景全绿。
+- **治理**：check-deps `EXCLUDED_TARGETS` 的 data.js → playitem/panelitem（契约件接替
+  「被广泛消费基础件」豁免待遇）；check-direction `INFRA` 名单同步；README 依赖图 data 节点
+  →两契约件节点+5 条边改道（momentapi/followstream/momentbar/searchfmt + panelitem 出边）；
+  模块表 data.js 行 → playitem/panelitem 两行；README「单源收口」条文与 AGENTS.md 规矩 3
+  终稿口径：**契约规整收口契约件（playitem/panelitem），域内回包规整随各自 \*api.js**。
+
 ### 0.9.161（2026-10-05）· data.js 拆件第三步：搜索三端点规整出库（searchfmt.js）
 
 - **由头**：接 0.9.159/160 拆件序列。搜索三端点规整（0.9.151 入驻）是搜索域专属的回包适配
