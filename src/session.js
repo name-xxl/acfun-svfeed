@@ -103,7 +103,8 @@ export function createSession(slide, item, idx, hooks) {
       // 0.9.12 起 MSE 可用一律优先 hls.js：Edge(Chromium) 154 也声称原生支持 HLS
       // （实测 attach.native），但其 Media Foundation HLS 管线后台往返后画面停摆
       // （音频正常、帧停，stall.frozen 实锤，720P/硬解均复现），且是黑盒——无缓冲
-      // 策略/错误恢复/观测面。仅 MSE 不可用（iOS Safari 类）或 exp.native 强制对照时交原生
+      // 策略/错误恢复/观测面。仅 MSE 不可用（iOS Safari 类）或 exp.native 强制对照时交原生；
+      // 0.9.180 起 hls.js 不可得也不再回落原生（见 _failNoHls）——冻结专项定案原生不可靠
       var noMse = !window.MediaSource && !window.WebKitMediaSource;
       if (nativeHls(video) && (noMse || CFG.exp.native)) {
         video.src = url;
@@ -113,7 +114,7 @@ export function createSession(slide, item, idx, hooks) {
       ensureHls().then(function (Hls) {
         if (self.state === 'disposed') return;
         if (!slide.isConnected || slide.querySelector('video') !== video) return; // 期间已换绑
-        if (!Hls || !Hls.isSupported()) { video.src = url; stat('attach.unsupported'); return; }
+        if (!Hls || !Hls.isSupported()) { self._failNoHls('attach.unsupported'); return; }
         self._destroyHls();
         var hls = new Hls(bufConfig());
         self._hls = hls;
@@ -136,9 +137,18 @@ export function createSession(slide, item, idx, hooks) {
           if (data && data.fatal) self.recover();
         });
       }, function () {
-        stat('attach.cdnFail'); // hls.js 脚本拉取失败（jsdelivr 不可达等）：赌一把原生解码
-        if (self.state !== 'disposed') video.src = url;
+        self._failNoHls('attach.cdnFail'); // hls.js 不可得（内嵌串编译被拒/CDN 全灭）
       });
+    },
+
+    // hls.js 不可得时的收口（0.9.180 封印）：v0.9.14 冻结专项已定案 Chromium 系原生 HLS
+    // 管线（Edge Media Foundation）最小化往返画面冻死——旧「赌一把原生解码」会把 Edge
+    // 静默打回该形态，故一律 error 态（「视频加载失败」+ 重试；重试/换条重开会重走全链）。
+    // 掉到这里的两个入口：ensureHls 拒绝（内嵌串编译被拒——如环境禁 eval——且 CDN 兜底全灭）
+    // 与 Hls.isSupported() 为假（无 MSE 且原生也不可用的极端环境，原生挂了也无从播起）
+    _failNoHls: function (key) {
+      stat(key);
+      if (this.state !== 'disposed') this.setState('error');
     },
 
     _destroyHls: function () {

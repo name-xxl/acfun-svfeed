@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.179-debug
+// @version      0.9.180-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -7118,6 +7118,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   // src/hls.js
   var loading = null;
   var evalTried = false;
+  var forceFail = false;
   function nativeHls(video) {
     try {
       return !!video.canPlayType("application/vnd.apple.mpegurl");
@@ -7126,6 +7127,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }
   }
   function ensureHls() {
+    if (forceFail) return Promise.reject(new Error("hls-test-fail"));
     if (window.Hls && window.Hls.isSupported) return Promise.resolve(window.Hls);
     if (loading) return loading;
     loading = new Promise(function(resolve, reject) {
@@ -7190,6 +7192,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       ensure: ensureHls,
       ready: function() {
         return !!(window.Hls && window.Hls.isSupported);
+      },
+      // 0.9.180：置位后 ensureHls 一律拒绝——钉「hls.js 不可得时 session 不落原生回落」
+      setFail: function(v) {
+        forceFail = !!v;
       }
     };
   });
@@ -7278,8 +7284,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           if (self.state === "disposed") return;
           if (!slide.isConnected || slide.querySelector("video") !== video) return;
           if (!Hls || !Hls.isSupported()) {
-            video.src = url;
-            stat("attach.unsupported");
+            self._failNoHls("attach.unsupported");
             return;
           }
           self._destroyHls();
@@ -7302,9 +7307,17 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
             if (data && data.fatal) self.recover();
           });
         }, function() {
-          stat("attach.cdnFail");
-          if (self.state !== "disposed") video.src = url;
+          self._failNoHls("attach.cdnFail");
         });
+      },
+      // hls.js 不可得时的收口（0.9.180 封印）：v0.9.14 冻结专项已定案 Chromium 系原生 HLS
+      // 管线（Edge Media Foundation）最小化往返画面冻死——旧「赌一把原生解码」会把 Edge
+      // 静默打回该形态，故一律 error 态（「视频加载失败」+ 重试；重试/换条重开会重走全链）。
+      // 掉到这里的两个入口：ensureHls 拒绝（内嵌串编译被拒——如环境禁 eval——且 CDN 兜底全灭）
+      // 与 Hls.isSupported() 为假（无 MSE 且原生也不可用的极端环境，原生挂了也无从播起）
+      _failNoHls: function(key) {
+        stat(key);
+        if (this.state !== "disposed") this.setState("error");
       },
       _destroyHls: function() {
         if (this._hls) {
@@ -10425,7 +10438,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.179" : "");
+    return normVer(true ? "0.9.180" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -13600,7 +13613,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.179：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.180：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

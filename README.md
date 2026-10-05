@@ -166,7 +166,8 @@
   前缀直接换 https 可用（实测 200）；Chromium 需 hls.js——0.9.14 起构建期内嵌进产物、
   0.9.164 起以字符串字面量内嵌（首个 m3u8 挂载前才编译执行——非竖刷页不再支付这份
   ~415KB 编译；无 CDN 依赖、不吃页面 CSP），内嵌缺失时才逐源拉
-  CDN 文本 + Function 兜底（npmmirror 优先）；Safari 走原生 HLS。streams[] 不带编码字段，且每档是单变体 media playlist
+  CDN 文本 + Function 兜底（npmmirror 优先）；两者全灭即落 error 态（**0.9.180 封原生回落**
+  ——冻结专项定案 Chromium 系原生 HLS 管线不可靠，不再「赌一把原生解码」）；Safari 走原生 HLS。streams[] 不带编码字段，且每档是单变体 media playlist
   （无 #EXT-X-STREAM-INF 变体），编码维度只体现在 m3u8 文件名标记里（如 `h264_60`/`h264_6m`），
   脚本据此嗅探并支持按偏好过滤档位（`cfg.codec`）。
 - 弹幕：全量 `POST www.acfun.cn/rest/pc-direct/new-danmaku/list`
@@ -209,6 +210,9 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 - `vis.framesBackMs`：回前台到首个真实帧的耗时。**反复 >2000ms = 真楔死**（看门狗该出手）；
   **反复 <1000ms 却仍判冻 = 监视器误判（脚本锅实锤）**；
 - `hls.levelCodec`：实际播放编码（avc/hevc + fps）——确认有无 HEVC 泄漏；
+- `attach.hls`/`attach.native`/`attach.cdnFail`：挂载管线归属——Chromium 系无 `exp.native` 时
+  出现 `attach.native` 即异常；`attach.cdnFail` 增长且落 error 态 = hls.js 不可得（0.9.180 起
+  不回落原生，坏情况表现为「视频加载失败」而非冻结）；
 - `stall.tailReattach`/`session.dispose` 增长 = 看门狗在自救。
 
 判定：`q30`/锁档有效 → 顶配解码负载（后续改默认档策略）；`noMonitor` 有效 → 看门狗动作致冻；
@@ -321,7 +325,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `imgview.js` | 配图大图查看器（评论/私信共用；root 单例浮层、Esc 模态） |
 | `inputbar.js` | 抽屉输入栏 builder（评论/私信共用：表情/图片按钮、自动增高、Enter/Esc；差异语义参数注入） |
 | `upload.js` | 评论图片上传四阶段（GM 通道二进制分片，失败统一落 null） |
-| `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；CDN 逐源文本+Function 仅兜底；Safari 原生 HLS 探测） |
+| `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；CDN 逐源文本+Function 仅兜底；0.9.180 起不可得=error 态，不回落原生；Safari 原生 HLS 探测） |
 | `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐） |
 | `danmaku.js` | 弹幕编排：列表拉取/缓存、开关记忆、绑定/解绑 slide、发送输入条 |
 | `player.js` | 播放器编排层：renderWindow 窗口扫描（0.9.165 起窗外 belt 格 slide 换等高占位壳、数据水位同拍）、setActive、顶栏源高亮同步、挂载/卸载、SESSION_HOOKS 注入、观看历史触发；0.9.79 播放层直达不预热竖刷（feedDeferred/maybeStartFeed） |

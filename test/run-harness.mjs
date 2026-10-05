@@ -67,6 +67,7 @@ const HARNESS_CASES = [
   { name: 'play-deep' }, // 0.9.74 播放层深链冒烟（直挂缝/坏形态/未命中错误盒/清晰度隔离，debug 构建）
   { name: 'play-cold' }, // 0.9.79 播放层直达不预热竖刷（冷启动 hash + MY_MOCK 桩，debug 构建）
   { name: 'hls-lazy' }, // 0.9.164 hls.js 懒 eval（加载后未定义 → ensureHls 编译内嵌串，debug 构建）
+  { name: 'hls-sealed' }, // 0.9.180 封原生回落：hls.js 不可得 → error 态（video 不得落 m3u8 直链；debug 构建）
   { name: 'im-native' }, // 0.9.80 原生私信页增强装配（造站结构 + douga/info 桩，debug 构建）
   // 0.9.73 顶栏四界面复用 + 抽屉避让推广：抽屉×视图的避让几何/降级/Esc 链（imOpenSmoke 缝）
   { name: 'view-im' },        // 宽视口：正文右缘收窄到抽屉左缘 + 顶栏右组让位 + Esc 链

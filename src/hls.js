@@ -9,6 +9,7 @@ import { stat, set, testHook } from './dbg.js';
 // 串缺失（构建机没装 hls.js）/损坏时静默落下方 CDN 逐源兜底（GM_xhr 文本 + Function 执行）。
 var loading = null;
 var evalTried = false; // 内嵌串只试一次：缺失/语法损坏不会自愈，失败即定局交给 CDN
+var forceFail = false; // 测试缝（仅 debug 经 testHook 置位）：模拟 hls.js 彻底不可得
 
 export function nativeHls(video) {
   try { return !!video.canPlayType('application/vnd.apple.mpegurl'); }
@@ -16,6 +17,7 @@ export function nativeHls(video) {
 }
 
 export function ensureHls() {
+  if (forceFail) return Promise.reject(new Error('hls-test-fail'));
   if (window.Hls && window.Hls.isSupported) return Promise.resolve(window.Hls);
   if (loading) return loading;
   loading = new Promise(function (resolve, reject) {
@@ -69,6 +71,8 @@ export function ensureHls() {
 testHook('hls', function () {
   return {
     ensure: ensureHls,
-    ready: function () { return !!(window.Hls && window.Hls.isSupported); }
+    ready: function () { return !!(window.Hls && window.Hls.isSupported); },
+    // 0.9.180：置位后 ensureHls 一律拒绝——钉「hls.js 不可得时 session 不落原生回落」
+    setFail: function (v) { forceFail = !!v; }
   };
 });

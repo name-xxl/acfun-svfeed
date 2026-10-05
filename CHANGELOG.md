@@ -3,6 +3,31 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.180（2026-10-06）· 封「hls.js 不可得 → 原生回落」——冻结专项防线补漏
+
+- **由头**：用户复现最小化往返冻结后裁决「直接封原生回落，如果没记错的话，冻结专项已经有结论，
+  原生不可靠」（远端 v0.9.14 release「最小化往返冻结专项」定案：Edge(Chromium) 原生 HLS 管线
+  （Media Foundation）后台往返后画面冻死、音频正常；hls.js 路径实测 8 轮零冻结）。
+- **病灶**：0.9.164 hls.js 改懒 eval 后，`ensureHls` 失败（内嵌串缺失/编译被拒——如环境禁 eval——
+  且 CDN 逐源兜底全灭）时，`session._attachSource` 的两处旧回落（`attach.cdnFail`/`attach.unsupported`）
+  把 m3u8 直接交 `video.src`「赌一把原生解码」——在 Edge 上即静默退回冻结专项定案的问题管线，
+  且全程无痕（编译错误被空 catch 吞掉、打点仅 debug 可见）。
+- **修法**：两处回落收口到新 `session._failNoHls(key)`——hls.js 不可得一律 **error 态**
+  （「视频加载失败」+ 重试；重试/换条重开会重走全链），**不再**把 m3u8 交给原生管线。原生 HLS
+  只剩两条显式合法路：无 MSE 环境（iOS Safari 类，本来走不了 hls.js）与 `exp.native` 强制对照
+  开关（仅 debug；README 归因表第 7 轮口径不变）。配套测试缝：`testHook('hls').setFail(v)`
+  （仅 debug）令 `ensureHls` 一律拒绝。
+- **测试**：新 harness 场景 `hls-sealed`（debug 构建）——playInfo 桩改吐同源 m3u8（resolve 链
+  的非 m3u8 守卫按 URL 放行 ⇒ `cap.hls` 保持 true；清 `__ACSV_MOCK_DIRECT__` 防被直挂缝接走）→
+  `setFail` 令 hls.js 不可得 → 播放层 home 条目深链挂载 ⇒ 5 断言：深链开层 / 落 error 态 /
+  **video 无 src**（m3u8 未落原生管线）/ 错误盒可见（offsetParent）/ `attach.cdnFail` 计数在场。
+  **反跑实证**：session 还原旧回落 ⇒ 三条转红，证据行 `src="…/nope-404.m3u8"`（m3u8 真被交给
+  `video.src`）。全链 build/lint/check/单测/全场景全绿。
+- **顺核**（本地，未改码）：产物内嵌串与 `node_modules/hls.js/dist/hls.min.js` 逐字一致
+  （415,250 字符）、`hls-lazy` 场景 8 断言全绿——懒加载链本身无病，本批只封其失败态的出路；
+  用户复现机读不到 `acsv-stats`（release 构建无打点，`acsv-exp` 为 null 已排除实验开关残留）
+  ⇒ 后续归因须换 debug 构建按「冻结归因实验」读数。
+
 ### 0.9.179（2026-10-06）· 删退役死代码：舞台游走链（startChain + related 内容源）
 
 - **由头**：用户裁决「把退役的死代码删了」（0.9.178 审计结论：该链 UI 不可达、仅剩兜底）；
