@@ -15,7 +15,7 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
   私有签名调整一处，机器比对在案；imageUriFromRaw/officialize 仍私有）；徽标独立
   `imbadge.js`（仿 followbadge.js 先例：mountBadge 由 player 挂载、teardownIm 经导出的
   stopBadge 反向通知拆除，方向 imbadge→imsend 单向不回抽屉）；imdrawer 头注补**簇导览**
-  （按段名 grep 即达，调用方向单向向下）。imdrawer 1010→906 行，player import 拆两行。
+  （按段名 grep 即达，调用方向单向向下）。imdrawer 1010→911 行，player import 拆两行。
 - **测试**：单测 249→249（imdrawer/imbadge 无独立单测面，行为由 harness im-open/msg 场景
   钉着——原样全绿即零漂移）；纯搬迁以代码行多重集机器比对替代反跑：imdrawer 摘除 112
   非空行、103 行逐字见于 imbadge/imsend 新增，差异仅 9 行签名/注释调整（imageUrlOf 加
