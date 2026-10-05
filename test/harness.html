@@ -139,6 +139,21 @@
   ((window.__ACSV_MOCK__ || {}).feed || []).forEach(function (r) {
     ((r.playInfo || {}).videoUrls || []).forEach(function (u) { if (u) u.url = TEST_WEBM; });
   });
+  if (CASE === 'feed-slim') {
+    // 长列表夹具（0.9.165 水位场景）：feed-sample（8 条）克隆到 40 条，meowId 偏移保唯一
+    //（克隆发生在上面 TEST_WEBM 改写之后 ⇒ 直链继承本地 webm）。sv mock 单发全量入库，
+    // 一次 fetchMore 即得长列表，无需分页驱动
+    var fsBase = (window.__ACSV_MOCK__ || {}).feed || [];
+    var fsGrown = [];
+    for (var gi = 0; gi < 5; gi++) {
+      fsBase.forEach(function (r) {
+        var cp = JSON.parse(JSON.stringify(r));
+        cp.meowId = Number(cp.meowId) + gi * 100000 + 600000;
+        fsGrown.push(cp);
+      });
+    }
+    if (window.__ACSV_MOCK__) window.__ACSV_MOCK__.feed = fsGrown;
+  }
   if (CASE === 'resolvefail') {
     try { delete window.__ACSV_MOCK_HOME__[0].mockUrl; } catch (e) { } // 解析必失败 → slide0 应落 error 态
   }

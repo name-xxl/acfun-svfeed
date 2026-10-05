@@ -49,6 +49,27 @@ function createFeedStore(env) {
       }, function () { return false; });
     },
 
+    // 水位置瘦（0.9.165）：cur 背后 slimBehindAt 条之外的已解析条目清掉媒体载荷
+    //（urls/qualities/_qualitiesAll/urlIdx），cap.lazyResolve 置真——划回时
+    // session.start → ensureResolved 走 refreshItem 重解析（sv=info 1 请求；home=resolve
+    // 2 请求，档位按 quality.js 全局偏好重选）。元数据（id/videoId/up/title/cover/计数/
+    // 日期）全保留：上报去重/评论键/侧栏渲染都靠它们。连刷长会话的条目内存从线性涨变
+    // O(水位)（0.9.15x 评估核实轮实锤：items 只增不减、每条挂 9 档 urls）。renderWindow
+    // 每拍调用；_resolveP 在途与已瘦（urls 空）幂等跳过
+    slim: function (cur) {
+      var lim = Math.min(cur - CFG.feed.slimBehindAt, this.items.length);
+      for (var i = 0; i < lim; i++) {
+        var it = this.items[i];
+        if (!it || it._resolveP || !(it.urls && it.urls.length)) continue;
+        it.urls = [];
+        if (it.qualities) it.qualities = [];
+        if ('_qualitiesAll' in it) it._qualitiesAll = null;
+        it.urlIdx = 0;
+        it.cap.lazyResolve = true;
+        stat('feed.slim');
+      }
+    },
+
     ensureMore: function () {
       var self = this;
       var ctx = env.getListContext();
@@ -162,6 +183,7 @@ testHook('feed', function () {
           id: it.id,
           kind: it.kind,
           hasUrls: !!(it.urls && it.urls.length),
+          lazy: !!it.cap.lazyResolve, // 水位场景断言用：置瘦即置真（0.9.165）
           resolving: !!it.resolving,
           qualities: it.qualities ? it.qualities.length : 0,
           qIdx: it.qIdx || 0, // 切档同步断言用：邻居条目是否跟随新偏好

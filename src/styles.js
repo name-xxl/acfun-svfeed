@@ -68,6 +68,7 @@ var RAW_CSS = ''
   + '.acsv-scroller::-webkit-scrollbar{display:none}'
   + '.acsv-slide{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;'
   + 'display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000}'
+  + '.acsv-slide-slot{height:100%}' /* 等高占位壳（0.9.165 水位）：换回时 offsetTop 全表不变 */
   + '.acsv-video{display:block;width:100%;height:100%;object-fit:contain;cursor:pointer;z-index:5}'
   + '.acsv-ambient{position:absolute;inset:-60px;z-index:0;background-size:cover;background-position:center;'
   + 'filter:blur(60px) brightness(.35) saturate(1.2);transform:scale(1.15)}'

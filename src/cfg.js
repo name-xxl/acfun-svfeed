@@ -119,7 +119,9 @@ export var CFG = {
     ghRelAtom: 'https://github.com/name-xxl/acfun-svfeed/releases.atom',
     releasePage: 'https://github.com/name-xxl/acfun-svfeed/releases/latest'
   },
-  feed: { bufferSize: 4 }, // 滚动缓冲：当前条之后保持的余量（条数）
+  // 滚动缓冲：当前条之后保持的余量（条数）；slimBehindAt=数据水位（背后 N 条外置瘦，0.9.165）；
+  // slideBelt=壳保留带（窗外 N 格 slide 换等高占位壳，0.9.165）
+  feed: { bufferSize: 4, slimBehindAt: 30, slideBelt: 6 },
   homeFeedCfg: { count: 10 },
   page: { size: 10 },
   up: { maxChainPages: 20 }, // 空间页自动链式加载页数上限（防几千条 UP 无感轰炸几百个请求）

@@ -35,6 +35,7 @@ const HARNESS_CASES = [
   { name: 'smoke', serial: true, release: true },
   { name: 'homeswitch', serial: true  },
   { name: 'fastswipe', serial: true  },
+  { name: 'feed-slim', serial: true  }, // 0.9.165 水位：远端置瘦 + slide 占位壳 + 划回重解析（40 条夹具）
   { name: 'resolvefail', serial: true, release: true },
   { name: 'prewarm', serial: true  },
   { name: 'stall-frozen', serial: true  },

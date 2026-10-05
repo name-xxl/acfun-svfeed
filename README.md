@@ -291,7 +291,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `api.js` | 接口封装 + 内容源状态（getSource/setSource）+ feed/refresh 按源分发（mock 桩收口在这） |
 | `appapi.js` | APP 家族接口层：selection feed（游标）、douga/playInfo 懒解析、投蕉/评论点赞、弹幕 list/add、api_st 令牌（播放档位策略已剥离到 quality.js）。**postForm（页面 fetch 表单通道）在本件，收藏/关注域已迁 favapi/relationapi 但仍经它发**（0.9.143 迁出登记在文件头） |
 | `quality.js` | 播放质量策略（零网络）：编码偏好过滤 HEVC/AVC、清晰度记忆选档；appapi 取档、它选档 |
-| `feedstore.js` | 信息流数据仓库（游标泵，空间页列表上下文按序泵入；home 条目允许空 urls 懒解析） |
+| `feedstore.js` | 信息流数据仓库（游标泵，空间页列表上下文按序泵入；home 条目允许空 urls 懒解析；0.9.165 水位 slim：cur 背后 N 条外置瘦 urls/qualities，划回经 ensureResolved 重解析） |
 | `route.js` | `#svfeed[/v|a/<id>]`、`#svfeed/play/<v|a>/<id>`（0.9.74 播放层：view=play + src 标记、**不填 mid**）路由解析、地址栏同步与深链意图（appliedMid/cancelHashSync） |
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`fmt`/`toast`/剪贴板/样式注入等工具 |
@@ -308,7 +308,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；CDN 逐源文本+Function 仅兜底；Safari 原生 HLS 探测） |
 | `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐） |
 | `danmaku.js` | 弹幕编排：列表拉取/缓存、开关记忆、绑定/解绑 slide、发送输入条 |
-| `player.js` | 播放器编排层：renderWindow 窗口扫描、setActive、顶栏源高亮同步、挂载/卸载、SESSION_HOOKS 注入、观看历史触发；0.9.79 播放层直达不预热竖刷（feedDeferred/maybeStartFeed） |
+| `player.js` | 播放器编排层：renderWindow 窗口扫描（0.9.165 起窗外 belt 格 slide 换等高占位壳、数据水位同拍）、setActive、顶栏源高亮同步、挂载/卸载、SESSION_HOOKS 注入、观看历史触发；0.9.79 播放层直达不预热竖刷（feedDeferred/maybeStartFeed） |
 | `session.js` | 播放会话：video 生命周期/懒解析等待/hls 实例与锁档/错误恢复链（换 CDN→重解析→重挂）/HealthMonitor（冻结/慢放检测与恢复阶梯），dispose 一次拆净 |
 | `attach.js` | 重挂统一入口 attachVideo + switchQuality；slide._xxx 与 dataset 投影的跨模块契约总表（唯一登记点） |
 | `playback.js` | 播放/声音原语与手势：播放/暂停/静音手势合并实现、_userPaused 暂停意图、幽灵音频清扫 |

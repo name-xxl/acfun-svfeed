@@ -3,6 +3,32 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.165（2026-10-05）· 内存水位：FeedStore 远端置瘦 + slide 等高占位壳——连刷长会话内存从线性涨变 O(水位)
+
+- **由头**：性能评估核实轮实锤（0.9.15x）：FeedStore.items/seen 只增不减（全文件无
+  splice/shift），连刷 500 条后每条还挂着最多 9 档 qualities/urls（api-research §「9 档直链」）
+  的媒体载荷，内存随会话线性涨；同轮盘点补一刀——renderWindow 对窗外 slide 只 dispose
+  会话/氛围背景，**slide 壳建后永不拆**（poster 位图 + 控件 DOM 随访问条数常驻）。Head 淘汰
+  不可行（索引位移破坏 dataset.idx/hash/滚动锚定），故走「置瘦不删位」。
+- **修法**：①数据层 `FeedStore.slim(cur)`（feedstore.js）：idx < cur−30（新 CFG
+  `feed.slimBehindAt=30`）的已解析条目清 urls/qualities/_qualitiesAll/urlIdx 并置
+  `cap.lazyResolve=true`——划回时 session.start → ensureResolved（api.js:32 在途复用链）
+  自动走 refreshItem 重解析（sv=info 1 请求；home=resolve 2 请求，档位按 quality.js 全局
+  偏好重选）；元数据（id/videoId/up/title/cover/计数/日期）全保留（上报去重/评论键/侧栏
+  渲染依赖）；`_resolveP` 在途与已瘦幂等跳过；renderWindow 每拍调用、stat('feed.slim')。
+  ②DOM 层占位壳（player.js renderWindow）：窗外 `feed.slideBelt=6` 格之外的 slide 换
+  **等高**空壳 `.acsv-slide-slot[data-idx=N]`（io.unobserve + replaceWith，stat('slide.slot')）
+  ——等高 ⇒ offsetTop 全表不变、零滚动补偿；class 异于 `.acsv-slide` ⇒ slideAt 查不到 ⇒
+  既有「目标在窗外先挪游标再渲染」路径（scrollToIndex:297-301）兜住跨壳跳转；重建路径
+  发现同 idx 壳则 replaceWith 原位换回（免 appendChild+全量重排）；resetStream 的
+  innerHTML 清场连壳一起清。
+- **测试**：新 harness 场景 `feed-slim` 六断言（harness.html 预处理把 sv mock 克隆 8→40 条、
+  meowId 偏移保唯一、单发全量入库；划到 35 ⇒ idx<cur−30 全部 hasUrls=false 且
+  feed.slim 计数一致 + `.acsv-slide` 收敛 ≤15 + 占位壳 ≥15；划回顶部 ⇒ item0 重解析
+  hasUrls=true）；反跑实证：slimBehindAt/slideBelt 停用（改 9999）⇒ 四组断言转红。
+  单测 249 + lint/check + 全量 48 场景全绿。快滑越过占位区与今日「未构建区域」同行为
+  （IO 链断 → cur 跳跃），非回归。
+
 ### 0.9.164（2026-10-05）· hls.js 懒 eval：内嵌从「可执行代码」改「字符串字面量」，非竖刷页省 ~415KB 编译
 
 - **由头**：性能评估核实轮实锤——build.js 自 0.9.14 起把 hls.min.js 以可执行代码内嵌产物

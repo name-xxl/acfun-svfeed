@@ -9,7 +9,7 @@ import { isOpenComments, closeComments, openComments, commentState, syncCommentV
 import { onPlaying as dmOnPlaying, stopAll as dmStopAll } from './danmaku.js';
 import { UpVideos } from './uppage.js';
 import { FollowVideos, enterVideos, enterAll } from './followstream.js';
-import { dbg, testHook } from './dbg.js';
+import { dbg, stat, testHook } from './dbg.js';
 import { markWatchProgress, reportLeave, reportLeaveCurrent } from './report.js';
 import { prewarm, preconnectSeed } from './prewarm.js';
 import { pb, playVideo, showSoundHint, resetForMount, cancelSeekHold, offCurrent } from './playback.js';
@@ -175,7 +175,9 @@ export function renderWindow() {
     var slide = slideAt(i);
     if (!slide) {
       slide = buildSlide(FeedStore.items[i], i, scrollToIndex);
-      scroller.appendChild(slide);
+      var slot = scroller.querySelector('.acsv-slide-slot[data-idx="' + i + '"]');
+      if (slot) slot.replaceWith(slide); // 占位壳原位换回：offsetTop 不动，免去全量重排（0.9.165）
+      else scroller.appendChild(slide);
       if (io) io.observe(slide);
     }
     if ((i === cur || i === cur + CFG.win.fwd) && !slide.querySelector('video')
@@ -189,16 +191,32 @@ export function renderWindow() {
     var idx = Number(s.dataset.idx);
     if (idx < cur - CFG.win.back || idx > cur + CFG.win.fwd) {
       if (s._session) { s._session.dispose(); s._session = null; }
+      if (idx < cur - CFG.feed.slideBelt || idx > cur + CFG.feed.slideBelt) {
+        // 占位壳（0.9.165 水位）：belt 之外的 slide 换等高空壳——poster 位图/控件 DOM
+        // 释放；等高 ⇒ offsetTop 全表不变，零滚动补偿；按 data-idx 划回原位重建。
+        // class 异于 .acsv-slide ⇒ slideAt 查不到 ⇒ 既有「目标在窗外先挪游标」路径兜住跳转
+        if (io) io.unobserve(s);
+        var slotEl = el('div', 'acsv-slide-slot');
+        slotEl.dataset.idx = idx;
+        s.replaceWith(slotEl);
+        stat('slide.slot');
+        return;
+      }
       if (idx < cur - CFG.win.back - 1 || idx > cur + CFG.win.fwd + 2) {
         var c = s.querySelector('.acsv-ambient');
         if (c) c.remove();
       }
     }
   });
-  // 按索引排序，保证滚动位置正确
-  var ordered = Array.prototype.slice.call(slides).sort(function (a, b) {
-    return Number(a.dataset.idx) - Number(b.dataset.idx);
-  });
+  FeedStore.slim(cur); // 数据水位与壳回收同拍（0.9.165）
+  // 按索引排序，保证滚动位置正确。0.9.165 起从 children 现取（含占位壳、滤掉无 idx 的
+  // 全局 spinner）——旧写法排序 sweep 前抓的 slides 快照，会把 sweep 已换成壳的 slide
+  // appendChild「复活」，壳与旧 slide 并存 ⇒ slideAt 永远命中无会话的旧壳（重建永不发生）
+  var ordered = Array.prototype.slice.call(scroller.children)
+    .filter(function (c) { return c.dataset && c.dataset.idx != null; })
+    .sort(function (a, b) {
+      return Number(a.dataset.idx) - Number(b.dataset.idx);
+    });
   if (scroller.children.length !== ordered.length ||
     Array.prototype.some.call(scroller.children, function (c, k) { return c !== ordered[k]; })) {
     ordered.forEach(function (s) { scroller.appendChild(s); });
