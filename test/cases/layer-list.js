@@ -127,6 +127,54 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       return TEST.call('view') === 'jingxuan' && !(TEST.call('playlayer') || {}).active;
     }, 6000)), 'view=' + TEST.call('view'));
 
+    // ---- ③b 用户路径端到端（0.9.174/175 复现口径）：分区点卡 → 相关行 → **压列表播放器**
+    //      → Esc 关抽屉 → Esc **弹回原视频** → Esc 才退层回分区 ----
+    var big3 = q('.acsv-jx-grid .acsv-jx-big');
+    rec('ll-path-card-dom', !!big3);
+    if (big3) {
+      var entryId = Number((TEST.call('jingxuan') || {}).rendered) ? 0 : 0; // 占位：实际取点击后 hook
+      big3.click();
+      rec('ll-path-l1', !!(await waitFor(function () {
+        var pl = TEST.call('playlayer') || {};
+        return pl.active && pl.levels === 1 ? pl : null;
+      }, 8000)), JSON.stringify(TEST.call('playlayer')));
+      var l1Id = Number((TEST.call('playlayer') || {}).id);
+      key('c'); // 开抽屉 → 相关推荐 tab（层内条目 kind=home）
+      rec('ll-path-drawer', !!(await waitFor(function () {
+        var d = q('.acsv-drawer');
+        var t = TEST.call('reldrawer');
+        return !!d && d.classList.contains('open') && t && t.relTabShown;
+      }, 6000)), JSON.stringify(TEST.call('reldrawer')));
+      var tabR2 = q('.acsv-dtab-rel');
+      if (tabR2) tabR2.click();
+      rec('ll-path-rel-ready', !!(await waitFor(function () {
+        var t = TEST.call('reldrawer');
+        return t && t.relOn && t.rows === 11 ? t : null;
+      }, 8000)), JSON.stringify(TEST.call('reldrawer')));
+      var rowJ = q('.acsv-rellist .acsv-relrow:nth-child(2)');
+      rec('ll-path-row-dom', !!rowJ);
+      if (rowJ) rowJ.click();
+      rec('ll-path-l2', !!(await waitFor(function () {
+        var pl = TEST.call('playlayer') || {};
+        var t = TEST.call('reldrawer') || {};
+        return pl.active && pl.levels === 2 && Number(pl.parentId) === l1Id && t.listOn ? pl : null;
+      }, 8000)), JSON.stringify(TEST.call('playlayer')) + ' ' + JSON.stringify(TEST.call('reldrawer')));
+      key('Escape'); // 关抽屉（列表播放器的抽屉是自动开的）
+      rec('ll-path-drawer-closed', !!(await waitFor(function () {
+        var d = q('.acsv-drawer');
+        return !!d && !d.classList.contains('open');
+      }, 4000)));
+      key('Escape'); // **弹回原视频**
+      rec('ll-path-back-video', !!(await waitFor(function () {
+        var pl = TEST.call('playlayer') || {};
+        return pl.active && pl.levels === 1 && Number(pl.id) === l1Id ? pl : null;
+      }, 8000)), 'l1=' + l1Id + ' ' + JSON.stringify(TEST.call('playlayer')));
+      key('Escape'); // 再 Esc 才退层回分区
+      rec('ll-path-exit', !!(await waitFor(function () {
+        return TEST.call('view') === 'jingxuan' && !(TEST.call('playlayer') || {}).active;
+      }, 6000)), 'view=' + TEST.call('view'));
+    }
+
     // ---- ④ 动态里的视频卡片 = **单条**（用户裁决：仅此一例不出箭头、不可切）----
     location.hash = '#svfeed/follow';
     var vrow = await waitFor(function () {
