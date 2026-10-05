@@ -6,17 +6,19 @@ import { listChannels, listChannelFeed } from './channelapi.js';
 import { relatedItemOf } from './relatedapi.js';
 import { openPanelItem } from './cards.js';
 import { imgInto } from './imgload.js';
+import { GLYPHS } from './imicons.js';
 import { testHook } from './dbg.js';
 
-// ---------- 精选页（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html ①②） ----------
-// 抖音精选式分区网格：chips（全部 + allChannels 视频分区树）+ 自适应卡片墙 + 触底续页。
-// 数据源（§6.7/§5 实测）：全部=selection/feed（AppAPI.homeFeedFetch **自持游标**——不动 home
-// 泵的模块游标，0.9.169 翻页器隔离）；分区=channel/secondLevel/resourceList（主频道过滤、
-// ~30/块、"{n},{n}" 游标、终页形态未测按空游标/空页收口）。
+// ---------- 分区页（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html ①②；0.9.171 改名+原生图标） ----------
+// 抖音精选式分区网格（展示名=「分区」，0.9.171 用户裁决改名；**视图 id/路由/文件名仍 jingxuan**
+// ——id 是深链与测试的稳定键，改名只动展示串）：chips（全部 + allChannels 视频分区树）+
+// 自适应卡片墙 + 触底续页。数据源（§6.7/§5 实测）：全部=selection/feed（AppAPI.homeFeedFetch
+// **自持游标**——不动 home 泵的模块游标，0.9.169 翻页器隔离）；分区=channel/secondLevel/
+// resourceList（主频道过滤、~30/块、"{n},{n}" 游标、终页形态未测按空游标/空页收口）。
 //
 // 卡片点击=openPanelItem（cards 注入缝 → playlayer.openPlayer）——与榜单/搜索/我的同一条出口：
-// 播放层浮层单条播放、Esc 回精选原位（视图保活）；层内 ↓/↑ 走相关游走（playlayer，0.9.170）。
-// 0.9.169 曾是 startChain（拆视图进竖屏游走），改播放层后与全站列表出口对齐。
+// 播放层浮层单条播放、Esc 回分区原位（视图保活）；层内 ↓/↑ 与滚轮上下滑走相关游走
+// （playlayer，0.9.170/0.9.171）。0.9.169 曾是 startChain（拆视图进竖屏游走），改播放层后对齐。
 //
 // 网格两条纪律（用户裁决）：
 //   ① 首卡 = 网格内 2 列 × 2 行跨格（.acsv-jx-big；撤旧 hero 大焦点区）——全部/分区 tab 同形态。
@@ -68,13 +70,23 @@ function vmOfDv(dv) {
   };
 }
 
+// 计数位（0.9.171）：原生 iconfont 字形 + 数字——播放=rankView（E164，selection/feed 卡的
+// extra 首位同字）、点赞=feedLike（E629，动态卡互动区同字）；类与用法照 cards.js 面板卡
+// （el('i','acsvg-glyph',码点)，字体在 styles @font-face 注入）
+function statOf(code, text) {
+  var s = el('span', 'acsv-jx-stat');
+  s.appendChild(el('i', 'acsvg-glyph', code));
+  s.appendChild(document.createTextNode(' ' + text));
+  return s;
+}
+
 // 大卡信息区 4 行（标题全卡通用；标签/UP 行数据缺失就不挂——space-between 摊余量）
 function infoOf(vm, big) {
   var ci = el('div', 'acsv-jx-ci');
   ci.appendChild(el('div', 'acsv-jx-ct', vm.title));
   if (!big) {
     var cm0 = el('div', 'acsv-jx-cm');
-    cm0.appendChild(el('span', null, '♥ ' + fmt(vm.like)));
+    cm0.appendChild(statOf(GLYPHS.feedLike, fmt(vm.like)));
     cm0.appendChild(el('span', null, (vm.up && vm.up.name) || ''));
     ci.appendChild(cm0);
     return ci;
@@ -93,8 +105,8 @@ function infoOf(vm, big) {
     ci.appendChild(up);
   }
   var cm = el('div', 'acsv-jx-cm');
-  cm.appendChild(el('span', null, '▶ ' + fmt(vm.views)));
-  cm.appendChild(el('span', null, '♥ ' + fmt(vm.like)));
+  cm.appendChild(statOf(GLYPHS.rankView, fmt(vm.views)));
+  cm.appendChild(statOf(GLYPHS.feedLike, fmt(vm.like)));
   cm.appendChild(el('span', null, vm.dur || ''));
   ci.appendChild(cm);
   return ci;
@@ -159,7 +171,7 @@ function skeletonCards() {
 function buildJingxuanView(body) {
   var wrap = el('div', 'acsv-jx-wrap');
   var hd = el('div', 'acsv-jx-hd');
-  hd.appendChild(el('span', 'acsv-jx-title', '精选'));
+  hd.appendChild(el('span', 'acsv-jx-title', '分区')); // 展示名 0.9.171 用户裁决：精选→分区（id/路由仍 jingxuan）
   hd.appendChild(el('span', 'acsv-jx-sub', '大家都在看 · 分区随便刷'));
   wrap.appendChild(hd);
   var chips = el('div', 'acsv-vchips'); // chips 复用 zone 的样式族（.acsv-vchip）
@@ -323,13 +335,13 @@ testHook('jingxuan', function () {
   };
 });
 
-// dock：order 5 = 左栏最顶（0.9.170 用户裁决：精选在推荐之上；推荐条目 order 10 见 sidebar）
+// dock：order 5 = 左栏最顶（0.9.170 用户裁决：分区在推荐之上；推荐条目 order 10 见 sidebar）
 registerView({
   id: 'jingxuan',
   build: buildJingxuanView,
   teardown: jingxuanTeardown,
   dock: {
-    label: '精选', order: 5, group: 0,
+    label: '分区', order: 5, group: 0, // 展示名（0.9.171 改名；id 仍 jingxuan）
     svg: '<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>'
   }
 });

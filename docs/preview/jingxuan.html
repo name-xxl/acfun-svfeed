@@ -2,15 +2,16 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>UI 预览 · 精选页 v5（浮层播放 + 2×2 首卡 + 左栏挪位）</title>
+<title>UI 预览 · 分区页 v5（浮层播放 + 2×2 首卡 + 左栏挪位）</title>
 <!-- ============================================================
-     docs/preview/jingxuan.html —— 精选页静态预览
+     docs/preview/jingxuan.html —— 分区页静态预览（展示名 0.9.171 用户裁决：精选→分区；
+     视图 id/路由仍 jingxuan——文件名与 hash 不动）
      v5（2026-10-05 改版，用户裁决三连）：
-       ① 点卡片出口对齐榜单/搜索/动态——走 playlayer 浮层（Esc 回精选原位），
+       ① 点卡片出口对齐榜单/搜索/动态——走 playlayer 浮层（Esc 回分区原位），
           随机游走搬进层内：层内 ↓/PageDown = 当前视频相关池随机抽下一条（递归），
           ↑ = 回上一条；评论抽屉「相关推荐」行在层内点 = 层内换条，不拆视图。
           （舞台竖刷上的抽屉行起步照旧=startChain 舞台游走，两态并存。）
-       ② 左栏 dock：精选挪到「推荐」上面（精选 5 / 推荐 10 / 榜单 15 / 广场 16 ｜ 关注 20 / 我的 30），
+       ② 左栏 dock：分区挪到「推荐」上面（分区 5 / 推荐 10 / 榜单 15 / 广场 16 ｜ 关注 20 / 我的 30），
           选中色保持现状（白 14% 底 + 加粗，非 accent 红）。
        ③ 首卡 = 网格内 2 列 × 2 行跨格（撤独立 hero 大卡区，全部 tab 与分区 tab 同一网格形态）；
           封面统一锁 16:9：不拉伸（object-fit:cover）、零裁切（大卡同，见 ① 贴合自检与两种落法对照）；
@@ -209,12 +210,12 @@
 </head>
 <body>
 <div class="board">
-  <h1>精选页 v5（浮层播放 + 2×2 首卡 + 左栏挪位）—— 静态预览</h1>
+  <h1>分区页 v5（浮层播放 + 2×2 首卡 + 左栏挪位）—— 静态预览</h1>
   <p class="hint">
-    v5 改版（用户裁决）：① 点卡片出口对齐榜单/搜索/动态——playlayer 浮层单条播放，Esc 回精选原位；
+    v5 改版（用户裁决）：① 点卡片出口对齐榜单/搜索/动态——playlayer 浮层单条播放，Esc 回分区原位；
     随机游走搬进层内：层内 <b>↓</b> = 当前视频相关池随机抽下一条（逐级递归），<b>↑</b> = 回上一条；
     评论抽屉「相关推荐」行在层内点 = 层内换条（不拆视图；舞台竖刷上的行点击照旧=舞台游走，两态并存）。
-    ② 左栏：精选挪到「推荐」上面。③ 首卡 = 网格内 2 列 × 2 行跨格（撤独立 hero 区），
+    ② 左栏：分区挪到「推荐」上面。③ 首卡 = 网格内 2 列 × 2 行跨格（撤独立 hero 区），
     封面统一 16:9 —— 不拉伸（object-fit:cover），普通卡与锁比大卡均<b>零裁切</b>（详见 ① 贴合自检）。
     ④ 拉取量按行补齐：首卡占 4 格（2×2）+ 每张 1 格，渲染到「整行填满」为止，底部不留空卡；
     不足一行的条目留在缓冲跨批续用（流尽时尾行例外）；全部/分区 tab 同规则。<br>
@@ -224,10 +225,10 @@
 
   <!-- ⓪ 左栏 dock 顺序 -->
   <div class="sec">
-    <h2>⓪ 左栏 dock 顺序（新）<em>精选置顶于推荐之上；其余相对顺序不动；高亮=当前在精选视图</em></h2>
+    <h2>⓪ 左栏 dock 顺序（新）<em>分区置顶于推荐之上；其余相对顺序不动；高亮=当前在分区视图</em></h2>
     <div class="row" style="align-items:flex-start;gap:24px">
       <div class="dock">
-        <div class="dk on"><span class="ic"></span>精选</div>
+        <div class="dk on"><span class="ic"></span>分区</div>
         <div class="dk"><span class="ic"></span>推荐</div>
         <div class="dk"><span class="ic"></span>榜单</div>
         <div class="dk"><span class="ic"></span>广场</div>
@@ -236,9 +237,10 @@
         <div class="dk"><span class="ic"></span>我的</div>
       </div>
       <p class="hint" style="max-width:560px;line-height:2">
-        顺序：精选 → 推荐 → 榜单 → 广场 ｜ 关注 → 我的（order 重编：5 / 10 / 15 / 16 ｜ 20 / 30）。<br>
+        顺序：分区 → 推荐 → 榜单 → 广场 ｜ 关注 → 我的（order 重编：5 / 10 / 15 / 16 ｜ 20 / 30）。<br>
         「推荐」条目仍是裸竖刷路由（回竖刷并重置当前源），仅位置下移一格。<br>
-        徽标/高亮机制不变；精选视图打开时高亮自己，播放层浮层打开时高亮指向来源=精选。
+        徽标/高亮机制不变；分区视图打开时高亮自己，播放层浮层打开时高亮指向来源=分区。<br>
+        （展示名 0.9.171 改口；视图 id / hash 段仍 jingxuan，深链不动）
       </p>
     </div>
   </div>
@@ -246,7 +248,7 @@
   <!-- ① 整页形态 -->
   <div class="sec">
     <h2>① 整页形态 · 默认态（「全部」tab，1600×900 取景）<em>首卡 2×2 跨格 + 卡片墙 + 触底续页；按行补齐渲染，底部不留空卡</em></h2>
-    <div class="jh-hd"><span class="t">精选</span><span class="sub">大家都在看 · 分区随便刷</span></div>
+    <div class="jh-hd"><span class="t">分区</span><span class="sub">大家都在看 · 分区随便刷</span></div>
     <div class="chiprow">
       <button class="chip on">全部</button>
       <button class="chip">动画</button>
@@ -336,6 +338,9 @@
           <div class="cm"><span class="up">青云zr</span><span>赞 402</span></div></div>
       </div>
     </div>
+    <p class="hint" style="margin:6px 0 0">计数位（0.9.171）：卡片 meta 的播放/点赞在生产用<b>原生 iconfont 字形</b>
+      （播放 = rankView 码点 E164、点赞 = feedLike 码点 E629，字体 acfun-frontend-next 由 styles 注入）；
+      本稿以 ▶/♥ 示意（单文件预览不挂字体）。大卡 meta = 播放 + 点赞 + 时长，普通卡 = 点赞 + UP 名。</p>
     <p class="hint" style="margin:8px 0 0">按行补齐示例：4 列网格下，首卡占 4 格（2×2），其余每张 1 格——渲染量取「整行倍数」，
       整页正好 4 个满行（4 + 12 = 16 格）。拉回的多余条目留在缓冲，滚到底再续下一整行，任何时刻底部都不落空位；
       仅当流已拉尽（「已经到底啦」）时尾行可能不满。真实实现列数随窗口自适应（2–5 列），补齐按实际列数计算。</p>
@@ -405,20 +410,20 @@
 
   <!-- ② 浮层播放（点卡片后） -->
   <div class="sec">
-    <h2>② 点卡片后的浮层播放（playlayer，与榜单/搜索/动态同出口）<em>单条全屏；↓=游走下一条 · ↑=回上一条 · Esc=回精选原位</em></h2>
+    <h2>② 点卡片后的浮层播放（playlayer，与榜单/搜索/动态同出口）<em>单条全屏；↓/滚轮下滑=游走下一条 · ↑/滚轮上滑=回上一条 · Esc=回分区原位</em></h2>
     <div class="row" style="align-items:flex-start;gap:24px">
       <div class="layer">
-        <span class="src">来源：精选 · Esc 返回精选（原位保活）</span>
+        <span class="src">来源：分区 · Esc 返回分区（原位保活）</span>
         <div class="mid"><div class="playbtn">▶</div></div>
         <div class="gest">
-          <b>↓</b> 下一条 = 当前视频相关推荐随机抽一条（逐级游走）<br>
-          <b>↑</b> 回上一条（层内历史）<br>
+          <b>↓ / 滚轮下滑 / 触摸上滑</b> 下一条 = 当前视频相关推荐随机抽一条（逐级游走）<br>
+          <b>↑ / 滚轮上滑 / 触摸下滑</b> 回上一条（层内历史）<br>
           <b>c</b> 评论抽屉 · 相关推荐行点选 = 层内换条<br>
           空格 暂停 · ←→ 快进退 · f 全屏
         </div>
       </div>
       <p class="hint" style="max-width:420px;line-height:2">
-        与旧版差异：不再拆视图进竖刷舞台——精选视图原样保活在底下，Esc 秒回原位（滚动位置不丢）。<br>
+        与旧版差异：不再拆视图进竖刷舞台——分区视图原样保活在底下，Esc 秒回原位（滚动位置不丢）。<br>
         随机游走语义不变：每步从「当前这条」的相关池（10 条）抽一条，防回头路、看尽换批；
         设置里「相关推荐按列表顺序续播」开启时，层内 ↓ 按列表 FIFO 走、尽头自动接批。<br>
         深链地址 <code>#svfeed/play/a/&lt;id&gt;</code> 与榜单出口一致。
@@ -517,13 +522,13 @@
           </div>
         </div>
         <div class="dnote">行点击两种归宿：<b>舞台竖刷</b>上=照旧起步随机游走（拆视图进舞台）；
-          <b>播放层浮层</b>内（精选/榜单/搜索来的都算）= 不换界面，直接层内换到该行视频。
+          <b>播放层浮层</b>内（分区/榜单/搜索来的都算）= 不换界面，直接层内换到该行视频。
           本列表随当前视频每步刷新，抽中已看过的自动重抽，整批看尽再拉一批。</div>
       </div>
       <p class="hint" style="max-width:420px;line-height:2">
         层内换条语义与 ↓ 游走完全一致（同一泵、同 seen 集），只是落点从舞台换成层内：
         换条后层内历史可 ↑ 逐步回退。<br>
-        浮层来源不限于精选——榜单/搜索进层后，相关推荐行同样层内换条（旧行为=拆视图回舞台，观感割裂，一并收齐）。
+        浮层来源不限于分区——榜单/搜索进层后，相关推荐行同样层内换条（旧行为=拆视图回舞台，观感割裂，一并收齐）。
       </p>
     </div>
   </div>
@@ -619,7 +624,7 @@
   <div class="sec">
     <h2>⑩ 窄宽（540）自检<em>chips 横滑 / 网格两列；首卡 2×2 = 通栏跨两行；抽屉窄档维持 380px</em></h2>
     <div class="n540">
-      <div class="jh-hd"><span class="t" style="font-size:18px">精选</span><span class="sub">大家都在看 · 分区随便刷</span></div>
+      <div class="jh-hd"><span class="t" style="font-size:18px">分区</span><span class="sub">大家都在看 · 分区随便刷</span></div>
       <div class="chiprow">
         <button class="chip on">全部</button><button class="chip">动画</button><button class="chip">音乐</button>
         <button class="chip">舞蹈·偶像</button><button class="chip">游戏</button><button class="chip">娱乐</button>

@@ -213,6 +213,8 @@ var RAW_CSS = ''
   + '.acsv-jx-ct{font-size:13px;line-height:1.45;color:#e8eaee;display:-webkit-box;-webkit-line-clamp:2;'
   + '-webkit-box-orient:vertical;overflow:hidden;word-break:break-all;min-height:12px}'
   + '.acsv-jx-cm{margin-top:6px;font-size:12px;color:#8a90a0;display:flex;gap:10px;justify-content:space-between}'
+  // 计数位（0.9.171）：原生 iconfont 字形 + 数字（码点/字体见 imicons GLYPHS 与 @font-face）
+  + '.acsv-jx-stat{display:inline-flex;align-items:center;gap:2px}'
   + '.acsv-jx-big{grid-column:span 2;grid-row:span 2}'
   + '.acsv-jx-big .acsv-jx-cv{flex:none}'
   + '.acsv-jx-big .acsv-jx-ci{flex:1;display:flex;flex-direction:column;justify-content:space-between;'

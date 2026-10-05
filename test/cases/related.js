@@ -138,6 +138,34 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       var pl = TEST.call('playlayer') || {};
       return pl.active && pl.hist === 2 && pl.hIdx === 1;
     }, 10000)), JSON.stringify(TEST.call('playlayer')));
+    // 滚轮/触摸滑 = 层内切换（0.9.171 用户实报「playlayer 窗口无法滑动切换视频」）——
+    // 手势汇入同一条泵 playStep；反向滚 = ↑ 回上一层历史（锁 500ms，故反向要等一拍）
+    var lbody = q('.acsv-vbody-play');
+    rec('rl-layer-body', !!lbody);
+    if (lbody) {
+      var idW = Number((TEST.call('playlayer') || {}).id);
+      lbody.dispatchEvent(new WheelEvent('wheel', { deltaY: 240, bubbles: true, cancelable: true }));
+      rec('rl-wheel-step', !!(await waitFor(function () {
+        var pl = TEST.call('playlayer') || {};
+        return pl.active && Number(pl.id) !== idW ? pl : null;
+      }, 8000)), JSON.stringify(TEST.call('playlayer')));
+      await h.wait(650);
+      lbody.dispatchEvent(new WheelEvent('wheel', { deltaY: -240, bubbles: true, cancelable: true }));
+      rec('rl-wheel-back', !!(await waitFor(function () {
+        var pl = TEST.call('playlayer') || {};
+        return pl.active && Number(pl.id) === idW ? pl : null;
+      }, 8000)), JSON.stringify(TEST.call('playlayer')));
+      // 触摸上滑 = 下一条（TouchEvent 合成；与滚轮同一条播放器换条路）
+      var idT = Number((TEST.call('playlayer') || {}).id);
+      var t1 = new Touch({ identifier: 7, target: lbody, clientX: 300, clientY: 600 });
+      lbody.dispatchEvent(new TouchEvent('touchstart', { touches: [t1], changedTouches: [t1], bubbles: true }));
+      var t2 = new Touch({ identifier: 7, target: lbody, clientX: 300, clientY: 420 });
+      lbody.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t2], bubbles: true }));
+      rec('rl-touch-step', !!(await waitFor(function () {
+        var pl = TEST.call('playlayer') || {};
+        return pl.active && Number(pl.id) !== idT ? pl : null;
+      }, 8000)), JSON.stringify(TEST.call('playlayer')));
+    }
     // 抽屉：c 开 → 相关推荐 tab 在场（层内条目 kind=home）且已就绪且 rid 跟随层内当前条
     key('c');
     rec('rl-drawer-open', !!(await waitFor(function () {

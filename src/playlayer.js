@@ -96,6 +96,38 @@ function enterLayer(body, item) {
   hIdx = 0;
 }
 
+// 层内滑动切换（0.9.171，用户实报「playlayer 窗口无法滑动切换视频」）：滚轮/触摸板上下滑 =
+// playStep(±1)。与竖刷的差异——竖刷靠原生 scroll-snap 翻条，层内只有一条 slide：手势自己攒
+// 阈值（细碎滚动先累计到 60px 再推一步，避免一次滑动连推多条）+ 500ms 锁防抖。抽屉等浮层是
+// root 级兄弟节点，在其上滚动不命中本监听（天然隔离）
+var gest = { acc: 0, at: 0, lock: 0, y0: 0, t0: 0 };
+function onWheel(ev) {
+  var now = Date.now();
+  if (now - gest.at > 400) gest.acc = 0; // 新一段滚动从头累计
+  gest.at = now;
+  gest.acc += ev.deltaY;
+  if (Math.abs(gest.acc) < 60 || now - gest.lock < 500) return;
+  var dir = gest.acc > 0 ? 1 : -1;
+  gest.acc = 0;
+  if (playStep(dir)) {
+    gest.lock = now;
+    if (ev.cancelable) ev.preventDefault(); // 层内无滚动语义：吞掉防橡皮筋
+  }
+}
+function onTouchStart(ev) {
+  var t = ev.touches && ev.touches[0];
+  gest.y0 = t ? t.clientY : 0;
+  gest.t0 = Date.now();
+}
+function onTouchEnd(ev) {
+  var t = ev.changedTouches && ev.changedTouches[0];
+  if (!t || !gest.y0) return;
+  var dy = gest.y0 - t.clientY; // 上滑（dy>0）=下一条
+  gest.y0 = 0;
+  if (Math.abs(dy) < 60 || Date.now() - gest.t0 > 800) return;
+  playStep(dy > 0 ? 1 : -1);
+}
+
 // 键盘 ↓/↑ 入口（player 注入 input 的 api.playStep；ev.repeat 在 input 侧挡、在途互斥在此）。
 // 前向：seq 模式先吃队列；walk 模式每次向相关池要一批（batch 内部按 relSequential 分派，
 // 返回 1 条或整列），抽到就换、抽空（连续失败/池尽）给 toast 不静默
@@ -151,6 +183,10 @@ function buildPlayView(body, arg) {
   if (!id) { buildErr(body, '播放链接不完整（缺少视频 id）'); return; }
   bodyRef = body;
   hist = []; hIdx = -1; queue = []; stepping = false;
+  gest.acc = 0; gest.at = 0; gest.lock = 0; gest.y0 = 0;
+  body.addEventListener('wheel', onWheel, { passive: false });
+  body.addEventListener('touchstart', onTouchStart, { passive: true });
+  body.addEventListener('touchend', onTouchEnd, { passive: true });
   seed(id); // 游走泵播种：入口视频登记为已见（层内 ↓ 的链从这里开始，不回头）
   var st = pending;
   pending = null;
@@ -180,6 +216,11 @@ function buildPlayView(body, arg) {
 function teardownPlayView() {
   setVideoTarget(null); // 撤键盘重定向：此后"当前视频"回到竖刷当前条
   setWatchTarget(null); // 撤上报重定向（0.9.86）：兜底上报回到竖刷当前条
+  if (bodyRef) { // 滑动手势随层拆（0.9.171）
+    bodyRef.removeEventListener('wheel', onWheel);
+    bodyRef.removeEventListener('touchstart', onTouchStart);
+    bodyRef.removeEventListener('touchend', onTouchEnd);
+  }
   if (slideRef && slideRef._session) { slideRef._session.dispose(); slideRef._session = null; }
   slideRef = null;
   setPlayItem(null); // 镜像随层拆（0.9.111）

@@ -24,10 +24,12 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
     rec('jx-view-open', !!v, JSON.stringify(TEST.call('jingxuan')));
     if (!v) return;
     // dock 高亮（views.syncRouteView 归属）
+    // 左栏展示名（0.9.171 用户裁决：精选→分区；id/路由仍 jingxuan）
     rec('jx-dock-on', !!(await waitFor(function () {
       var d = q('.acsv-dock-item.on');
-      return !!d && /精选/.test(d.textContent || '');
+      return !!d && d.dataset.view === 'jingxuan' && d.textContent === '分区';
     }, 4000)), (q('.acsv-dock-item.on') || {}).textContent || '');
+    rec('jx-title-name', (q('.acsv-jx-title') || {}).textContent === '分区');
     // chips：全部 + 树（剔除文章63/AC正义177 ⇒ 1+2=3）
     rec('jx-chips', !!(await waitFor(function () {
       var t = TEST.call('jingxuan');
@@ -43,6 +45,22 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
     }, 8000);
     rec('jx-all-big-grid', !!vAll, JSON.stringify(TEST.call('jingxuan')) + ' mhLen=' + mhLen);
     rec('jx-all-end-tip', !!(vAll && /到底/.test(vAll.tip)), (vAll || {}).tip || '');
+    // 计数位用原生 iconfont 字形（0.9.171）：大卡 meta=播放 E164 + 点赞 E629；普通卡=点赞 E629
+    rec('jx-native-icons', (function () {
+      var big = q('.acsv-jx-grid .acsv-jx-big');
+      var norm = q('.acsv-jx-grid .acsv-jx-card:not(.acsv-jx-big)');
+      if (!big || !norm) return false;
+      var bg = big.querySelectorAll('.acsv-jx-cm .acsvg-glyph');
+      var ng = norm.querySelectorAll('.acsv-jx-cm .acsvg-glyph');
+      return bg.length === 2 && bg[0].textContent === '' && bg[1].textContent === ''
+        && ng.length === 1 && ng[0].textContent === '';
+    })(), (function () {
+      var big = q('.acsv-jx-grid .acsv-jx-big');
+      if (!big) return 'no-big';
+      return Array.prototype.map.call(big.querySelectorAll('.acsv-jx-cm .acsvg-glyph'), function (g) {
+        return g.textContent.charCodeAt(0).toString(16);
+      }).join(',');
+    })());
     // 大卡四行信息区结构（0.9.170）：标题 + 分区标签（home 卡取契约 channelInfo）+ UP 行 + 数据行
     rec('jx-big-info-rows', (function () {
       var big = q('.acsv-jx-grid .acsv-jx-big');
