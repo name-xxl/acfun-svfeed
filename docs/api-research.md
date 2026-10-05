@@ -566,7 +566,12 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
 
 ## 5. 内容扩展路线定性（〔实测〕）
 
-- **大家都在看**：无独立 JSON 接口（v 页 performance 时间线无相关请求），服务端直出进 v 页 HTML（实测 40 个 /v/ac 链接）→ 唯一路线 DOM 解析（uppage.js 同款）；window.videoInfo 内嵌 douga/info 等价数据（含 mkey）但**无**相关视频数组
+- **大家都在看**：v 页自身无独立 JSON 请求（performance 时间线无相关请求），服务端直出进 v 页 HTML（实测 40 个 /v/ac 链接）→ DOM 解析（uppage.js 同款）；window.videoInfo 内嵌 douga/info 等价数据（含 mkey）但**无**相关视频数组
+  - **2026-10-05 破局（APP 家族，〔实测〕内置浏览器带登录态 + curl 免登录双验）**：`POST /rest/app/feed/related/general`，表单 `resourceType=2 & resourceId={稿件id}`（单参 / `videoId+resourceId` 对全 result 21，唯此组合过）→ `{result, feeds[], host-name, requestId}`，**无游标**：一发 10 条，重复调用换一批（推荐流刷新语义，可当「换一批」用）
+  - 条目=包裹层 `{dougaFeedView, expTag, type:2}`，正文 dougaFeedView 为**视频卡超集**：dougaId（=contentId，稿件号）/videoId（分 P）/coverUrl+coverUrls+coverImgInfo+coverCdnUrls/title+caption+description/durationMillis/videoList[]（P 分）/tagList[]/channel/全套计数+`*Show`/createTime（预格式化）+createTimeMillis/富 user（**主键 `id`**，douga/info 同款）
+  - **首条推荐不固定是 UP 本人视频**（2026-10-05 用户问句实测）：三源三 UP 各一发，首条全为异 UP；源视频 48892876 的 10 条推荐同 UP 数=0、共 9 个不同 UP；且同参两次调用回包全变——「第一条」连稳定都不保证
+  - **回包不含当前视频自身**（无需去重）；推荐**分区亲和**：动画源 10 条全动画系子频道；dougaId 以 10M 段老稿件为主
+  - 处置：评论抽屉「相关推荐」tab 数据源（docs/preview/jingxuan.html ③④⑤，免登录可用）；v 页 DOM 路线退役候选
 - **评论 sourceType**：1 与 3 等价（同视频同评论列表），现有 sourceId 用法不受影响
 
 ## 6. 分区与榜单（首页分区扩展向，〔实测〕2026-10-02）

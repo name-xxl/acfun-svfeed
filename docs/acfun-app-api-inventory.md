@@ -17,7 +17,7 @@
 | /rest/app/feed/followFeedV2 | GET | 关注流·全类型（svfeed §2.1 实测的是 **pc-direct 变体**，APP 域未测） |
 | /rest/app/feed/followDougaFeed | GET | 关注流·视频 tab（svfeed §2.1.2 实测的是 **pc-direct 变体**，APP 域未测） |
 | /rest/app/feed/profile | GET | 个人主页动态 |
-| /rest/app/feed/related/general | POST | 相关推荐（看完推荐）★ |
+| /rest/app/feed/related/general | POST | 相关推荐/看完推荐（**api-research §5 实测**：resourceType=2&resourceId 免登录；一发 10 条无游标、重复调用换一批；不含当前视频自身；首条非固定 UP 本人；分区亲和） |
 | /rest/app/feed/favorite/bangumi | GET | 追番列表 feed |
 | /rest/app/feed/hot/bangumi | GET | 热门番剧 feed |
 | /rest/app/meow/feedList | POST | 小视频信息流（svfeed 在用 **m 站 mobile-direct GET 变体** cfg.js:28，APP 域未测） |
