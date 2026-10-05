@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.160-debug
+// @version      0.9.161-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -1369,78 +1369,6 @@
       };
     }
     return null;
-  }
-  function stripEm(s) {
-    return String(s == null ? "" : s).replace(/<\/?em>/g, "");
-  }
-  function searchVideoPageOf(j) {
-    var items = [];
-    (j && j.videoList || []).forEach(function(raw) {
-      var acId = Number(raw && (raw.contentId != null ? raw.contentId : raw.id) || 0);
-      if (!acId) return;
-      items.push({
-        acId,
-        title: stripEm(raw.title || raw.emTitle).trim(),
-        cover: coverUrl(raw.coverUrl || ""),
-        // 无 coverUrl 的条目给空串，imgInto 走兜底图
-        dur: String(raw.playDuration || ""),
-        // 播放数只取数字部分（原生文本「11.4万次播放」/「2037次播放」——后缀随分区变，统一剥掉）
-        views: String(raw.viewCountInfo || raw.viewCount || "").replace(/(次播放|次观看|播放|阅读)$/, "").trim(),
-        up: upOf(raw.userId || 0, raw.userName || "", raw.userImg ? coverUrl(raw.userImg) : "", false),
-        dateText: fmtDate(raw.ctime)
-      });
-    });
-    return { items, total: Number(j && j.totalNum || 0) || 0 };
-  }
-  function searchUserPageOf(j) {
-    var items = [];
-    (j && j.userList || []).forEach(function(raw) {
-      var uid = Number(raw && (raw.userId != null ? raw.userId : raw.id) || 0);
-      if (!uid) return;
-      var recents = [];
-      (raw && raw.dougaFeedList || []).forEach(function(d) {
-        var acId = Number(d && d.contentId || 0);
-        if (!acId) return;
-        recents.push({
-          acId,
-          title: String(d && d.caption || ""),
-          cover: coverUrl((d && d.coverUrls || [])[0] || ""),
-          dur: String(d && d.playDuration || ""),
-          dateText: String(d && d.contributeTime || "")
-        });
-      });
-      items.push({
-        uid,
-        name: stripEm(raw.userName || raw.emTitle).trim(),
-        avatar: coverUrl(raw.userImg || ""),
-        // 计数优先用服务端已格式化串（fansCountStr「1.4万」/contentCountStr），缺则本地格式化
-        fans: raw.fansCountStr || (raw.fansCount != null ? fmtWan(raw.fansCount) : ""),
-        contrib: raw.contentCountStr || (raw.contentCount != null ? String(raw.contentCount) : ""),
-        signature: String(raw.signature || ""),
-        following: !!raw.isFollowing,
-        recents
-      });
-    });
-    return { items, total: Number(j && j.totalNum || 0) || 0 };
-  }
-  function searchArticlePageOf(j) {
-    var items = [];
-    (j && j.articleList || []).forEach(function(raw) {
-      var id = Number(raw && (raw.contentId != null ? raw.contentId : raw.id) || 0);
-      if (!id) return;
-      items.push({
-        id,
-        title: stripEm(raw.title || raw.emTitle).trim(),
-        decr: String(raw.decr || ""),
-        uid: Number(raw.userId || 0) || 0,
-        name: String(raw.userName || ""),
-        views: String(raw.viewCountInfo || "").trim(),
-        comments: String(raw.commentCountInfo || "").trim(),
-        channel: String(raw.channelName || ""),
-        dateText: fmtDate(raw.ctime)
-      });
-    });
-    return { items, total: Number(j && j.totalNum || 0) || 0 };
   }
 
   // src/settings.js
@@ -9912,7 +9840,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.160" : "");
+    return normVer(true ? "0.9.161" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12628,7 +12556,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.160：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.161：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -13828,6 +13756,80 @@
       svg: '<svg viewBox="0 0 24 24"><path d="M4 20V10h4v10H4zm6 0V4h4v16h-4zm6 0v-7h4v7h-4z"/></svg>'
     }
   });
+
+  // src/searchfmt.js
+  function stripEm(s) {
+    return String(s == null ? "" : s).replace(/<\/?em>/g, "");
+  }
+  function searchVideoPageOf(j) {
+    var items = [];
+    (j && j.videoList || []).forEach(function(raw) {
+      var acId = Number(raw && (raw.contentId != null ? raw.contentId : raw.id) || 0);
+      if (!acId) return;
+      items.push({
+        acId,
+        title: stripEm(raw.title || raw.emTitle).trim(),
+        cover: coverUrl(raw.coverUrl || ""),
+        // 无 coverUrl 的条目给空串，imgInto 走兜底图
+        dur: String(raw.playDuration || ""),
+        // 播放数只取数字部分（原生文本「11.4万次播放」/「2037次播放」——后缀随分区变，统一剥掉）
+        views: String(raw.viewCountInfo || raw.viewCount || "").replace(/(次播放|次观看|播放|阅读)$/, "").trim(),
+        up: upOf(raw.userId || 0, raw.userName || "", raw.userImg ? coverUrl(raw.userImg) : "", false),
+        dateText: fmtDate(raw.ctime)
+      });
+    });
+    return { items, total: Number(j && j.totalNum || 0) || 0 };
+  }
+  function searchUserPageOf(j) {
+    var items = [];
+    (j && j.userList || []).forEach(function(raw) {
+      var uid = Number(raw && (raw.userId != null ? raw.userId : raw.id) || 0);
+      if (!uid) return;
+      var recents = [];
+      (raw && raw.dougaFeedList || []).forEach(function(d) {
+        var acId = Number(d && d.contentId || 0);
+        if (!acId) return;
+        recents.push({
+          acId,
+          title: String(d && d.caption || ""),
+          cover: coverUrl((d && d.coverUrls || [])[0] || ""),
+          dur: String(d && d.playDuration || ""),
+          dateText: String(d && d.contributeTime || "")
+        });
+      });
+      items.push({
+        uid,
+        name: stripEm(raw.userName || raw.emTitle).trim(),
+        avatar: coverUrl(raw.userImg || ""),
+        // 计数优先用服务端已格式化串（fansCountStr「1.4万」/contentCountStr），缺则本地格式化
+        fans: raw.fansCountStr || (raw.fansCount != null ? fmtWan(raw.fansCount) : ""),
+        contrib: raw.contentCountStr || (raw.contentCount != null ? String(raw.contentCount) : ""),
+        signature: String(raw.signature || ""),
+        following: !!raw.isFollowing,
+        recents
+      });
+    });
+    return { items, total: Number(j && j.totalNum || 0) || 0 };
+  }
+  function searchArticlePageOf(j) {
+    var items = [];
+    (j && j.articleList || []).forEach(function(raw) {
+      var id = Number(raw && (raw.contentId != null ? raw.contentId : raw.id) || 0);
+      if (!id) return;
+      items.push({
+        id,
+        title: stripEm(raw.title || raw.emTitle).trim(),
+        decr: String(raw.decr || ""),
+        uid: Number(raw.userId || 0) || 0,
+        name: String(raw.userName || ""),
+        views: String(raw.viewCountInfo || "").trim(),
+        comments: String(raw.commentCountInfo || "").trim(),
+        channel: String(raw.channelName || ""),
+        dateText: fmtDate(raw.ctime)
+      });
+    });
+    return { items, total: Number(j && j.totalNum || 0) || 0 };
+  }
 
   // src/searchview.js
   var KIND_LABEL = { video: "视频", up: "UP主", article: "文章" };

@@ -12,8 +12,9 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, searchVideoPageOf, playItemOf, normalize, normalizeHome, ITEM_FIELDS } =
+var { panelItem, playItemOf, normalize, normalizeHome, ITEM_FIELDS } =
   await import('../../src/data.js');
+var { searchVideoPageOf } = await import('../../src/searchfmt.js'); // 搜索规整 0.9.161 出库
 
 // 已退役的扁平作者字段：出现在播放条目顶层即失败
 var RETIRED = ['userName', 'userId', 'head', 'isFollowing'];

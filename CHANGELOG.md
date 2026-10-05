@@ -3,6 +3,22 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.161（2026-10-05）· data.js 拆件第三步：搜索三端点规整出库（searchfmt.js）
+
+- **由头**：接 0.9.159/160 拆件序列。搜索三端点规整（0.9.151 入驻）是搜索域专属的回包适配
+  ——唯一消费方 searchview，继续留在契约件里只是历史惯性；出库后 data.js 收敛为纯
+  「条目契约」（播放/面板两族）。
+- **搬迁（机械逐字、签名不变）**：新件 `searchfmt.js` = stripEm(私) + searchVideoPageOf/
+  searchUserPageOf/searchArticlePageOf；出边 data（upOf 作者契约仍属契约层）、imgurl
+  （coverUrl）、timefmt（fmtDate/fmtWan）。消费方 `searchview.js` 三件改指 searchfmt；
+  `contract.test.js` 契约白名单闸门改道（searchVideoPageOf 产出键 ⊆ ITEM_FIELDS.panel 的
+  闸门语义不变，只是 import 换源）。data.js 564→504 行。
+- **测试**：单测 249→249——4 组搜索用例逐字迁新建 searchfmt.test.js，data.test.js 同步
+  摘除，总数守恒。纯搬迁以代码行多重集机器比对替代反跑：data.js 摘除 85 非空行全部逐字
+  见于新件，差异仅文件头/分节头注释与 import 行，逻辑行零改动。lint/check + 全量 46 场景全绿。
+- **治理**：README 依赖图 +1 节点 +4 边（searchfmt→data/imgurl/timefmt、searchview→
+  searchfmt）；模块表 +searchfmt 行、data.js/searchview 行同步。
+
 ### 0.9.160（2026-10-05）· data.js 拆件第二步：通用叶子出库（timefmt/uplook/nameval）+ meCardOf 就地收编
 
 - **由头**：接 0.9.159 拆件序列。审计四条「明显不属于 data」的内容出库：时间文案
