@@ -669,3 +669,4 @@ attach.switchQuality），迁移夹具按写入点原文构造。
 - 参数线索：[zhuweitung/acfun-api-collect](https://github.com/zhuweitung/acfun-api-collect) AcFunApi.md（getFollows 的 action=7 / history 双 resourceTypes / feed/webPush 路径均以其为线索、实测确认）
 - 用户提供抓包：relation/getGroups（GET）
 - 项目内存快照：test/feed-sample.js（meow feedList 字段）
+- APP 端点全量蓝图：docs/acfun-app-api-inventory.md（jadx 反编译〔转引〕；2026-10-05 域标注对齐——「svfeed 在用」凡未注明 APP 域者均指 pc-direct/mobile-direct 变体；feedSquareV3/queryMatch 已实测回填本文 §2.8/§4.11）
