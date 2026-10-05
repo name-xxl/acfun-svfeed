@@ -34,7 +34,9 @@ const API = new Set(['api.js', 'appapi.js', 'quality.js']);
 // 现居私信层 subgraph——那是出身 placement，不是专属域；它们被 topbar/cards/momentbar/comments
 // 等广泛消费，视同基础件。ubbtext（0.9.119 下沉的纯投影族）同为零依赖叶子。不校准则口径 A
 // 会持续误报「共享叶子被顶层消费」（同 report→watchledger 的误报自纠：错的是归类，不是依赖）。
-const LEAF_SHARED = new Set(['immsg.js', 'imicons.js', 'ubbtext.js']);
+// searchhist（0.9.158 共享化：读写站方 searchCache 的零依赖叶，topbar 聚焦面板与 searchview
+// 两方消费——0.9.160 诊断复跑发现该边漏登记，同 immsg/imicons 校准：错的是归类，不是依赖）
+const LEAF_SHARED = new Set(['immsg.js', 'imicons.js', 'ubbtext.js', 'searchhist.js']);
 
 // 口径 B 用：特性域清单（0.9.117 定版；新增特性模块时同步。0.9.124 加 rowkit.js——视图层
 // 行卡 kit，与 followview/squareview 同层：它依赖 momentbar/comments 属特性层内互调，非反向；

@@ -75,6 +75,8 @@ feedstore.js → player.js → input.js → feedstore.js
   `test/check-direction.mjs`（npm script `check-direction`）：每 Phase 顺手跑一次的**非门禁**
   诊断，并列两条保守口径（正式分层 / 特性域），在册项带理由、未登记项报警、永远 exit 0。
   头注原样留档本审计最值钱的认知——「规则的上游是口径，口径不定，候选集就不定」。
+- **0.9.160 诊断复跑**补一处漏登记：`topbar→searchhist`（0.9.158 引入该边时只跑了门禁 check、未复跑本诊断）——searchhist.js 是读写站方 searchCache 的**零依赖叶**、topbar（聚焦历史面板）与
+ searchview 两方消费，校准进 LEAF_SHARED（同 immsg/imicons：错的是归类，不是依赖）；未登记归零。
 - 诊断首跑（0.9.117）即校准一处口径：`topbar→imicons` 曾按 私信层 subgraph 归属被误报——
   imicons/immsg 是 README 明示的零依赖解耦点（出身 placement），视同基础件（同
   report→watchledger 的误报自纠：错的是归类，不是依赖）。校准后：在册 2 条、未登记 0 条。
