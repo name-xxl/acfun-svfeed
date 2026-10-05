@@ -3,6 +3,28 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.166（2026-10-05）· 小件合批：重试抖动 ±20% + onTime 同值跳过 + 会话请求计数（net/img 打点）
+
+- **由头**：性能评估核实轮通过的三条小项：①图片重试链固定间隔（0/600/1200ms）——多图
+  同时失败时重试齐发成同步请求尖峰；②onTime 每 tick 无条件写进度 DOM（player.js:119，
+  实测每拍都写 fill/handle/text 无上次值比对——时间文本 1Hz 才变，~3/4 tick 白写）；
+  ③「对服务器友好吗」缺数据面——stat 埋点有 prewarm/attach/stall 却没有请求计数。
+- **修法**：①`coverAttempts(raw, now, rnd)`（imgurl.js）：②③跳 delay 各乘
+  `(0.9+0.2×rnd())` 的 ±20% 随机；rnd 缺省恒 0.5（=×1.0，既有单测/夹具节奏确定性不变），
+  生产唯一调用点 imgload 传 Math.random；首跳恒 0 不抖。②player onTime：slide 上缓存
+  `_lastPct`/`_lastTimeTxt`，同值跳过 DOM 写（onMeta 同步缓存）；`ontime.skip` 只在
+  pct/文本双同值的整拍跳过时计数。③net.js request/requestText 入口 `stat('net.req')`、
+  countFail 包装 `stat('net.fail')`（含 mock 命中；gmRequest 直用方 upload/imsend 不计，
+  避免传输层双计）；imgload `stat('img.req'/'img.retry'/'img.fail'/'img.memoHit')`。
+  以上打点全走 dbg.stat——正式构建 noop 死码消除，零线上成本。
+- **测试**：单测 249→250（coverAttempts 抖动组：rnd=0/1 两端界 540/1080 与 660/1320 +
+  缺省精确 600/1200 + 首跳恒 0）；harness cover-fallback 尾补四断言（img.req≥7/
+  img.retry≥1/img.fail≥2/img.memoHit≥1——与场景既有 /__hits 网络面互证：memoHit 对应
+  二次进入死链零请求）；play-cold 尾补 ontime-skip-counted（同 currentTime 连发两次合成
+  timeupdate ⇒ 第二次整拍跳过）。反跑实证：撤抖动（rnd 恒 0.5）⇒ 两端界断言转红；撤
+  onTime 去重 ⇒ skip 计数不增转红；撤计数器 ⇒ img-stat/net 断言转红。lint/check + 全量
+  48 场景全绿。
+
 ### 0.9.165（2026-10-05）· 内存水位：FeedStore 远端置瘦 + slide 等高占位壳——连刷长会话内存从线性涨变 O(水位)
 
 - **由头**：性能评估核实轮实锤（0.9.15x）：FeedStore.items/seen 只增不减（全文件无

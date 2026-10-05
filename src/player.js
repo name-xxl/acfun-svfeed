@@ -114,7 +114,9 @@ var SESSION_HOOKS = {
   onMeta: function (session, video) {
     syncPanFit(session.slide); // 竖屏等满高可容的画面标记只平移，抽屉避让不白缩
     if (session.slide._ctlTime) {
-      session.slide._ctlTime.textContent = fmtTime(video.currentTime) + ' / ' + fmtTime(video.duration);
+      var metaTxt = fmtTime(video.currentTime) + ' / ' + fmtTime(video.duration);
+      session.slide._ctlTime.textContent = metaTxt;
+      session.slide._lastTimeTxt = metaTxt; // 与 onTime 的同值缓存对齐（0.9.166）
     }
   },
   onTime: function (session, video) {
@@ -124,13 +126,24 @@ var SESSION_HOOKS = {
     var trackEl = slide._ctlTrack;
     var draggingNow = !!trackEl && trackEl.dataset.drag === '1';
     var pct = (video.currentTime / video.duration * 100) + '%';
-    if (!draggingNow) {
-      if (slide._ctlFill) slide._ctlFill.style.width = pct;
-      if (slide._ctlHandle) slide._ctlHandle.style.left = pct;
+    var txt = fmtTime(video.currentTime) + ' / ' + fmtTime(video.duration);
+    // 同值跳过（0.9.166）：pct 每拍都在变（写了也看不出差别），时间文本 1Hz 才变——
+    // 文本去重省掉 ~3/4 tick 的 textContent 写。stat 只在 pct/文本双同值的整拍跳过时
+    // 计数（harness 断言用）；拖动态照旧不写进度条（_lastPct 照跟，松手即恢复真值）
+    var moved = slide._lastPct !== pct;
+    var talked = slide._lastTimeTxt !== txt;
+    if (moved) {
+      slide._lastPct = pct;
+      if (!draggingNow) {
+        if (slide._ctlFill) slide._ctlFill.style.width = pct;
+        if (slide._ctlHandle) slide._ctlHandle.style.left = pct;
+      }
     }
-    if (slide._ctlTime) {
-      slide._ctlTime.textContent = fmtTime(video.currentTime) + ' / ' + fmtTime(video.duration);
+    if (talked) {
+      slide._lastTimeTxt = txt;
+      if (slide._ctlTime) slide._ctlTime.textContent = txt;
     }
+    if (!moved && !talked) stat('ontime.skip');
   },
   // 播完也是一次"离开"：先报最终进度再连播滚动（后续 dispose 重复触发由同秒位去重拦截）
   onEnded: function (session) {

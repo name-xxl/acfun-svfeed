@@ -16,7 +16,7 @@
 // 的死链会永不过 TTL，与「过期给一次重试机会」的意图相反）
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
-import { testHook } from './dbg.js';
+import { stat, testHook } from './dbg.js';
 import { coverAttempts, coverUrl, memoState, memoTrim } from './imgurl.js';
 
 // 策略表：图面差异的单一真源。
@@ -61,7 +61,7 @@ export function policyOf(name) {
 export function imgInto(host, rawUrl, policy, cls) {
   if (!host) return null;
   var pol = policyOf(policy);
-  var plan = coverAttempts(rawUrl);
+  var plan = coverAttempts(rawUrl, Date.now(), Math.random); // 抖动：生产传 Math.random（0.9.166）
   if (!plan.length) return null;
   var img = el('img');
   img.alt = '';
@@ -76,6 +76,7 @@ export function imgInto(host, rawUrl, policy, cls) {
   // memo 同时是 terminal() 的「本次是否该记」判据：命中 'dead' 不回写，时间戳不续期
   var memo = memoState(failMemo, primary, Date.now(), MEMO_TTL);
   if (memo === 'dead') {
+    stat('img.memoHit');
     if (fb) {
       plan = [{ url: fb, ref: 'no-referrer', delay: 0 }];
       fbUsed = true; // 兜底已占位：出错后不再重回 fb 分支
@@ -91,7 +92,7 @@ export function imgInto(host, rawUrl, policy, cls) {
   img.addEventListener('error', function () {
     // 视图已拆（切换/重建）：不重试、不记死链——死链备忘只记真在屏上验过的
     if (!img.isConnected) return;
-    if (pol.retry !== false && i + 1 < plan.length) { i++; fire(); return; }
+    if (pol.retry !== false && i + 1 < plan.length) { i++; stat('img.retry'); fire(); return; }
     if (fb && !fbUsed) {
       fbUsed = true;
       plan = [{ url: fb, ref: 'no-referrer', delay: 0 }];
@@ -104,6 +105,7 @@ export function imgInto(host, rawUrl, policy, cls) {
   fire();
 
   function fire() {
+    stat('img.req');
     var a = plan[i];
     img.referrerPolicy = a.ref;
     if (a.delay) {
@@ -116,6 +118,7 @@ export function imgInto(host, rawUrl, policy, cls) {
     }
   }
   function terminal() {
+    stat('img.fail');
     if (memo !== 'dead') memoMark(primary); // 只记首次判死；命中备忘的渲染不回写（0.9.77）
     img.classList.add('acsv-imgfail');
     img.style.display = 'none';

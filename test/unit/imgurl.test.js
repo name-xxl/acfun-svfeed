@@ -68,6 +68,19 @@ test('coverAttempts：普通 URL 第二跳追加 acsv_r 破缓存；签名类 qu
   assert.equal(c[2].url, 'https://preview.ndcsk.com/ksc2/a.png?pkey=AA&imgId=BB&acsv_r=7&acsv_r3=7');
 });
 
+test('coverAttempts：重试抖动 ±20%（rnd 注入两端界；缺省恒 0.5=精确值，确定性不变）（0.9.166）', () => {
+  var a0 = coverAttempts('https://x/a.png', 1000, () => 0);
+  assert.equal(a0[1].delay, 540);
+  assert.equal(a0[2].delay, 1080);
+  var a1 = coverAttempts('https://x/a.png', 1000, () => 1);
+  assert.equal(a1[1].delay, 660);
+  assert.equal(a1[2].delay, 1320);
+  var d = coverAttempts('https://x/a.png', 1000);
+  assert.equal(d[1].delay, 600); // 缺省 roll=0.5 → ×1.0：既有断言与夹具节奏不受影响
+  assert.equal(d[2].delay, 1200);
+  assert.equal(d[0].delay, 0); // 首跳立即发，不抖
+});
+
 test('memoState：未记/命中/过期三分支；命中不续期、过期即清（0.9.77）', () => {
   var m = new Map();
   assert.equal(memoState(m, 'a.png', 1000, 60000), 'fresh');

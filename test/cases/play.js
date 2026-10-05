@@ -275,6 +275,16 @@ rec('cold-feed-loaded', !!(await waitFor(function () {
   return feed() && feed().items.length > 0;
 }, 15000)), 'items=' + (feed() ? feed().items.length : 'n/a'));
 rec('cold-feed-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+// onTime 同值跳过（0.9.166）：连发两次同 currentTime 的合成 timeupdate ⇒ 第二次 pct/文本
+// 双同值整拍跳过（stat 计数可证；真进度变化时 moved/talked 任一为真即照写，不吞真进度）
+var tv = document.querySelector('.acsv-scroller video');
+if (tv) {
+  tv.dispatchEvent(new Event('timeupdate'));
+  var skip0 = TEST.getStats()['ontime.skip'] || 0;
+  tv.dispatchEvent(new Event('timeupdate'));
+  rec('ontime-skip-counted', (TEST.getStats()['ontime.skip'] || 0) > skip0,
+    'skip=' + TEST.getStats()['ontime.skip']);
+}
   };
   // ---- watch-playlayer-pagehide ----
   C['watch-playlayer-pagehide'] = async function (h) {

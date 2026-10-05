@@ -32,21 +32,25 @@ var CI_QUERY = /[?&](imageMogr2|imageView2|x-oss-process)/i;
 //      （发 https://www.acfun.cn/ 原生同款 referer，兜住宿主防盗链把 no-referrer 拒掉的情况
 //      ——原生页面能看说明白名单在）。0.9.76 第三跳只换 referrer 不换 URL，与该理由自相矛盾
 //      （同一 URL 吃负缓存就连请求都发不出去），0.9.77 修
+// 0.9.166 重试抖动：②③的 delay 各乘 (0.9+0.2×rnd()) 的 ±20% 随机——多图同时失败时固定
+// 间隔会让重试齐发成同步请求尖峰，抖动把它们摊开。rnd 缺省恒 0.5（=×1.0，单测/夹具确定性
+// 不变），生产唯一调用点 imgload 传 Math.random。首跳恒 0（立即发，不抖）。
 // data:/blob:（测试夹具与本地 blob）只一跳：不重试也没意义，且 harness 断言要确定性。
 // 空/空白输入 → []（调用方据此不挂 img，与旧行为一致）
-export function coverAttempts(raw, now) {
+export function coverAttempts(raw, now, rnd) {
   var u = coverUrl(raw);
   if (!u) return [];
   if (/^(data|blob):/i.test(u)) return [{ url: u, ref: 'no-referrer', delay: 0 }];
   var t = Number(now) || Date.now();
+  var roll = typeof rnd === 'function' ? rnd : function () { return 0.5; };
   var out = [{ url: u, ref: 'no-referrer', delay: 0 }];
   var q = u.indexOf('?');
   var alt;
   if (CI_QUERY.test(u) && q > 0) alt = u.slice(0, q);
   else alt = u + (q > 0 ? '&' : '?') + 'acsv_r=' + t;
-  out.push({ url: alt, ref: 'no-referrer', delay: 600 });
+  out.push({ url: alt, ref: 'no-referrer', delay: Math.round(600 * (0.9 + 0.2 * roll())) });
   out.push({ url: alt + (alt.indexOf('?') >= 0 ? '&' : '?') + 'acsv_r3=' + t,
-    ref: 'strict-origin-when-cross-origin', delay: 1200 });
+    ref: 'strict-origin-when-cross-origin', delay: Math.round(1200 * (0.9 + 0.2 * roll())) });
   return out;
 }
 

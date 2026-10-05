@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.165
+// @version      0.9.166
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -878,41 +878,56 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       });
     });
   }
-  function request(url, method, headers, body) {
-    var mocked = mockHit(url, body);
-    if (mocked) return mocked;
-    method = method || "POST";
-    if (typeof GM_xmlhttpRequest === "function") {
-      return gmRequest({ method, url, headers, data: body, timeout: CFG.time.gm });
-    }
+  function countFail(p) {
     return new Promise(function(resolve, reject) {
-      var x = new XMLHttpRequest();
-      x.open(method, url);
-      x.withCredentials = true;
-      x.timeout = CFG.time.xhr;
-      if (headers) {
-        for (var k in headers) {
-          try {
-            x.setRequestHeader(k, headers[k]);
-          } catch (e) {
-          }
-        }
-      }
-      x.onload = function() {
-        try {
-          resolve(JSON.parse(x.responseText));
-        } catch (e) {
-          reject(e);
-        }
-      };
-      x.onerror = function() {
-        reject(new Error("network"));
-      };
-      x.ontimeout = function() {
-        reject(new Error("timeout"));
-      };
-      x.send(body || null);
+      p.then(resolve, function(e) {
+        stat("net.fail");
+        reject(e);
+      });
     });
+  }
+  function request(url, method, headers, body) {
+    stat("net.req");
+    var mocked = mockHit(url, body);
+    var p;
+    if (mocked) {
+      p = mocked;
+    } else {
+      method = method || "POST";
+      if (typeof GM_xmlhttpRequest === "function") {
+        p = gmRequest({ method, url, headers, data: body, timeout: CFG.time.gm });
+      } else {
+        p = new Promise(function(resolve, reject) {
+          var x = new XMLHttpRequest();
+          x.open(method, url);
+          x.withCredentials = true;
+          x.timeout = CFG.time.xhr;
+          if (headers) {
+            for (var k in headers) {
+              try {
+                x.setRequestHeader(k, headers[k]);
+              } catch (e) {
+              }
+            }
+          }
+          x.onload = function() {
+            try {
+              resolve(JSON.parse(x.responseText));
+            } catch (e) {
+              reject(e);
+            }
+          };
+          x.onerror = function() {
+            reject(new Error("network"));
+          };
+          x.ontimeout = function() {
+            reject(new Error("timeout"));
+          };
+          x.send(body || null);
+        });
+      }
+    }
+    return countFail(p);
   }
 
   // src/imgurl.js
@@ -927,21 +942,24 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return u;
   }
   var CI_QUERY = /[?&](imageMogr2|imageView2|x-oss-process)/i;
-  function coverAttempts(raw, now) {
+  function coverAttempts(raw, now, rnd) {
     var u = coverUrl(raw);
     if (!u) return [];
     if (/^(data|blob):/i.test(u)) return [{ url: u, ref: "no-referrer", delay: 0 }];
     var t = Number(now) || Date.now();
+    var roll = typeof rnd === "function" ? rnd : function() {
+      return 0.5;
+    };
     var out = [{ url: u, ref: "no-referrer", delay: 0 }];
     var q2 = u.indexOf("?");
     var alt;
     if (CI_QUERY.test(u) && q2 > 0) alt = u.slice(0, q2);
     else alt = u + (q2 > 0 ? "&" : "?") + "acsv_r=" + t;
-    out.push({ url: alt, ref: "no-referrer", delay: 600 });
+    out.push({ url: alt, ref: "no-referrer", delay: Math.round(600 * (0.9 + 0.2 * roll())) });
     out.push({
       url: alt + (alt.indexOf("?") >= 0 ? "&" : "?") + "acsv_r3=" + t,
       ref: "strict-origin-when-cross-origin",
-      delay: 1200
+      delay: Math.round(1200 * (0.9 + 0.2 * roll()))
     });
     return out;
   }
@@ -3046,7 +3064,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function imgInto(host3, rawUrl, policy, cls) {
     if (!host3) return null;
     var pol = policyOf(policy);
-    var plan = coverAttempts(rawUrl);
+    var plan = coverAttempts(rawUrl, Date.now(), Math.random);
     if (!plan.length) return null;
     var img = el("img");
     img.alt = "";
@@ -3059,6 +3077,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var i = 0, timer3 = null, fbUsed = false;
     var memo = memoState(failMemo, primary, Date.now(), MEMO_TTL);
     if (memo === "dead") {
+      stat("img.memoHit");
       if (fb) {
         plan = [{ url: fb, ref: "no-referrer", delay: 0 }];
         fbUsed = true;
@@ -3077,6 +3096,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       if (!img.isConnected) return;
       if (pol.retry !== false && i + 1 < plan.length) {
         i++;
+        stat("img.retry");
         fire();
         return;
       }
@@ -3091,6 +3111,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     });
     fire();
     function fire() {
+      stat("img.req");
       var a = plan[i];
       img.referrerPolicy = a.ref;
       if (a.delay) {
@@ -3103,6 +3124,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       }
     }
     function terminal() {
+      stat("img.fail");
       if (memo !== "dead") memoMark(primary);
       img.classList.add("acsv-imgfail");
       img.style.display = "none";
@@ -9890,7 +9912,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.165" : "");
+    return normVer(true ? "0.9.166" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11094,7 +11116,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     onMeta: function(session, video) {
       syncPanFit(session.slide);
       if (session.slide._ctlTime) {
-        session.slide._ctlTime.textContent = fmtTime(video.currentTime) + " / " + fmtTime(video.duration);
+        var metaTxt = fmtTime(video.currentTime) + " / " + fmtTime(video.duration);
+        session.slide._ctlTime.textContent = metaTxt;
+        session.slide._lastTimeTxt = metaTxt;
       }
     },
     onTime: function(session, video) {
@@ -11104,13 +11128,21 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       var trackEl = slide._ctlTrack;
       var draggingNow = !!trackEl && trackEl.dataset.drag === "1";
       var pct = video.currentTime / video.duration * 100 + "%";
-      if (!draggingNow) {
-        if (slide._ctlFill) slide._ctlFill.style.width = pct;
-        if (slide._ctlHandle) slide._ctlHandle.style.left = pct;
+      var txt = fmtTime(video.currentTime) + " / " + fmtTime(video.duration);
+      var moved = slide._lastPct !== pct;
+      var talked = slide._lastTimeTxt !== txt;
+      if (moved) {
+        slide._lastPct = pct;
+        if (!draggingNow) {
+          if (slide._ctlFill) slide._ctlFill.style.width = pct;
+          if (slide._ctlHandle) slide._ctlHandle.style.left = pct;
+        }
       }
-      if (slide._ctlTime) {
-        slide._ctlTime.textContent = fmtTime(video.currentTime) + " / " + fmtTime(video.duration);
+      if (talked) {
+        slide._lastTimeTxt = txt;
+        if (slide._ctlTime) slide._ctlTime.textContent = txt;
       }
+      if (!moved && !talked) stat("ontime.skip");
     },
     // 播完也是一次"离开"：先报最终进度再连播滚动（后续 dispose 重复触发由同秒位去重拦截）
     onEnded: function(session) {
@@ -12619,7 +12651,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.165：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.166：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

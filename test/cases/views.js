@@ -1215,6 +1215,14 @@ var uBogus = TEST.call('imgPolicy', 'grrid');
 console.warn = oWarn;
 rec('img-policy-unknown-warns', uBogus === '{}' && uWarns.length === 1 && /grrid/.test(uWarns[0]),
   uBogus + ' warns=' + uWarns.length);
+// 会话计数（0.9.166）：图片管线打点与 /__hits 网络面互证——req 覆盖首轮 3 卡（好 1 +
+// flaky 2 + 死链 3）与二次进入（好 1 + flaky 1，死链命中备忘零请求）；retry=flaky 换 URL、
+// fail=死链终败（两轮各一）、memoHit=二次进入命中备忘
+var imgSt = TEST.getStats();
+rec('img-stat-req', (imgSt['img.req'] || 0) >= 7, 'req=' + imgSt['img.req']);
+rec('img-stat-retry', (imgSt['img.retry'] || 0) >= 1, 'retry=' + imgSt['img.retry']);
+rec('img-stat-fail', (imgSt['img.fail'] || 0) >= 2, 'fail=' + imgSt['img.fail']);
+rec('img-stat-memohit', (imgSt['img.memoHit'] || 0) >= 1, 'memoHit=' + imgSt['img.memoHit']);
   };
   // ---- view-im ----
   C['view-im'] = async function (h) {

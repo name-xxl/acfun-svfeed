@@ -6,6 +6,11 @@
 //   二进制 data、okStatus 状态码门）——upload.js 二进制分片上传、uppage/imsend 拉文本等 GM-only
 //   场景统一走这里，勿再各自内联 GM_xmlhttpRequest 包装（0.9.35 收敛）
 import { CFG } from './cfg.js';
+import { stat } from './dbg.js';
+
+// 会话计数（0.9.166，debug 构建生效/正式死码消除）：领域通道 request/requestText 的
+// 请求数与失败数（含 mock 命中——它对调用方就是一次请求）。gmRequest 直用方（upload/
+// imsend）不计入，避免传输层与通道层双计
 
 // debug 测试缝（0.9.62）：视图面板请求在 harness 静态服务下真发必 404。__ACSV_MOCK_FORM__
 // 按 url 子串命中即返回（值可为函数 (body,url)=>响应），仅 debug 构建生效（正式产物死码
@@ -48,53 +53,72 @@ export function gmRequest(opts) {
   });
 }
 
-export function requestText(url) {
-  var mocked = mockHit(url);
-  if (mocked) return mocked.then(function (v) {
-    return typeof v === 'string' ? v : String((v && v.html) || '');
-  });
-  if (typeof GM_xmlhttpRequest === 'function') {
-    return gmRequest({ method: 'GET', url: url, timeout: CFG.time.gm, responseType: 'text', okStatus: true });
-  }
+// 失败计数统一出口（0.9.166）：成功直通，失败先 stat('net.fail') 再原样外抛
+function countFail(p) {
   return new Promise(function (resolve, reject) {
-    var x = new XMLHttpRequest();
-    x.open('GET', url);
-    x.withCredentials = true;
-    x.timeout = CFG.time.xhr;
-    x.onload = function () {
-      if (x.status < 200 || x.status >= 300) return reject(new Error('http-' + x.status));
-      resolve(x.responseText || '');
-    };
-    x.onerror = function () { reject(new Error('network')); };
-    x.ontimeout = function () { reject(new Error('timeout')); };
-    x.send(null);
+    p.then(resolve, function (e) { stat('net.fail'); reject(e); });
   });
 }
 
-export function request(url, method, headers, body) {
-  var mocked = mockHit(url, body);
-  if (mocked) return mocked;
-  method = method || 'POST';
-  if (typeof GM_xmlhttpRequest === 'function') {
-    return gmRequest({ method: method, url: url, headers: headers, data: body, timeout: CFG.time.gm });
+export function requestText(url) {
+  stat('net.req');
+  var mocked = mockHit(url);
+  var p;
+  if (mocked) {
+    p = mocked.then(function (v) {
+      return typeof v === 'string' ? v : String((v && v.html) || '');
+    });
+  } else if (typeof GM_xmlhttpRequest === 'function') {
+    p = gmRequest({ method: 'GET', url: url, timeout: CFG.time.gm, responseType: 'text', okStatus: true });
+  } else {
+    p = new Promise(function (resolve, reject) {
+      var x = new XMLHttpRequest();
+      x.open('GET', url);
+      x.withCredentials = true;
+      x.timeout = CFG.time.xhr;
+      x.onload = function () {
+        if (x.status < 200 || x.status >= 300) return reject(new Error('http-' + x.status));
+        resolve(x.responseText || '');
+      };
+      x.onerror = function () { reject(new Error('network')); };
+      x.ontimeout = function () { reject(new Error('timeout')); };
+      x.send(null);
+    });
   }
-  // 站点可能重写 window.fetch（A 站页面包装器对部分 URL 会抛错），回退用 XHR
-  return new Promise(function (resolve, reject) {
-    var x = new XMLHttpRequest();
-    x.open(method, url);
-    x.withCredentials = true;
-    x.timeout = CFG.time.xhr;
-    if (headers) {
-      for (var k in headers) {
-        try { x.setRequestHeader(k, headers[k]); } catch (e) { }
-      }
+  return countFail(p);
+}
+
+export function request(url, method, headers, body) {
+  stat('net.req');
+  var mocked = mockHit(url, body);
+  var p;
+  if (mocked) {
+    p = mocked;
+  } else {
+    method = method || 'POST';
+    if (typeof GM_xmlhttpRequest === 'function') {
+      p = gmRequest({ method: method, url: url, headers: headers, data: body, timeout: CFG.time.gm });
+    } else {
+      // 站点可能重写 window.fetch（A 站页面包装器对部分 URL 会抛错），回退用 XHR
+      p = new Promise(function (resolve, reject) {
+        var x = new XMLHttpRequest();
+        x.open(method, url);
+        x.withCredentials = true;
+        x.timeout = CFG.time.xhr;
+        if (headers) {
+          for (var k in headers) {
+            try { x.setRequestHeader(k, headers[k]); } catch (e) { }
+          }
+        }
+        x.onload = function () {
+          try { resolve(JSON.parse(x.responseText)); }
+          catch (e) { reject(e); }
+        };
+        x.onerror = function () { reject(new Error('network')); };
+        x.ontimeout = function () { reject(new Error('timeout')); };
+        x.send(body || null);
+      });
     }
-    x.onload = function () {
-      try { resolve(JSON.parse(x.responseText)); }
-      catch (e) { reject(e); }
-    };
-    x.onerror = function () { reject(new Error('network')); };
-    x.ontimeout = function () { reject(new Error('timeout')); };
-    x.send(body || null);
-  });
+  }
+  return countFail(p);
 }

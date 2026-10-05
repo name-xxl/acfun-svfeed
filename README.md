@@ -285,7 +285,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | 模块 | 职责 |
 |---|---|
 | `cfg.js` | 常量表（接口地址、APP 请求头/固定 mkey、timings、导航标签） |
-| `net.js` | `request(url, method, headers, body)`：GM_xmlhttpRequest 优先、XHR 回退 |
+| `net.js` | `request(url, method, headers, body)`：GM_xmlhttpRequest 优先、XHR 回退；0.9.166 会话计数 net.req/net.fail（debug 构建生效，领域通道口径、gmRequest 直用方不计） |
 | `playitem.js` | 播放条目契约（0.9.162 自 data.js 终解拆出）：双 normalize——meow 小视频（kind=sv）与 selection 卡片（kind=home）→ 同一字段契约 + `ITEM_FIELDS` 字段白名单；**作者契约 up（0.9.82 统一条目模型）**：`upOf` 定型（0.9.157 起可选第 5 参 nameColor）+ `playItemOf` 面板→播放的桥（纯函数）+ `deepLinkOf` 深链判据 |
 | `panelitem.js` | 面板条目契约（0.9.162 自 data.js 终解拆出；原 0.9.62 落户）：panelItem 解析器表（history/fav/rank/follow/square 五源，表驱动）+ `followPanelOf`/`squarePanelOf` 派发 + `momentPiOfRepost` 转发源→详情面板 pi（0.9.102）+ `momentExtraOf` 私信转发 extra 载荷（0.9.122） |
 | `api.js` | 接口封装 + 内容源状态（getSource/setSource）+ feed/refresh 按源分发（mock 桩收口在这） |
@@ -295,7 +295,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `route.js` | `#svfeed[/v|a/<id>]`、`#svfeed/play/<v|a>/<id>`（0.9.74 播放层：view=play + src 标记、**不填 mid**）路由解析、地址栏同步与深链意图（appliedMid/cancelHashSync） |
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`fmt`/`toast`/剪贴板/样式注入等工具 |
-| `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策（三跳两两换 URL）+ `memoState`/`memoTrim` 死链备忘纯判定（0.9.77：只读不续期）——URL 正确性只在这里定义 |
+| `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策（三跳两两换 URL；0.9.166 二三跳 ±20% 抖动，rnd 缺省 0.5 保确定性）+ `memoState`/`memoTrim` 死链备忘纯判定（0.9.77：只读不续期）——URL 正确性只在这里定义 |
 | `imgload.js` | 图片加载执行层（0.9.76；0.9.77 头注校准覆盖边界）：项目图片字段（封面/头像）统一入口——`IMG_POLICY` 策略表（grid/thumb/avatar/space）+ `imgInto(host,url,policy[,cls])`（懒加载/重试链/终败降级/淡入/死链备忘）+ `lazyObserve` 观察器单例（私信气泡共用）。有意在外的例外：鉴权 blob 管线（imsend）、UBB/表情 HTML、站点静态图标、大图查看器 |
 | `interact.js` | 真实点赞（api_st → interact 接口）+ 投蕉/Pi 级写链（AppAPI.throwBanana）；**关注→relationapi.js、收藏→favapi.js**（0.9.142/143 迁出，退役登记在文件头） |
 | `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3/4、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出）。0.9.96 管线 **host 化**：DOM 宿主显式化（默认=抽屉单例，动态详情面板灌入同款三元组），`openCommentsHost`/`closeCommentsHost` 为面板入口，输入条三件套随宿主迁移；0.9.133 条目构建/楼中楼展开**下沉 commentkit.js**（本文件只留管线：状态/宿主/输入条/委托/乐观插入/翻页） |
