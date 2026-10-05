@@ -35,7 +35,7 @@ export function upOf(id, name, img, isFollowing, nameColor) {
 // isFollowing 已退役），panel 侧作者同样只有 up（fav 原来的 sub 作者名已迁出）
 export var ITEM_FIELDS = {
   play: ['kind', 'stype', 'id', 'title', 'up', 'cover', 'urls', 'urlIdx', 'refreshed', 'cap',
-    'resolving', 'videoId', 'channel', 'qualities', 'qIdx', 'like', 'comment', 'view',
+    'resolving', 'videoId', 'channel', 'channelInfo', 'qualities', 'qIdx', 'like', 'comment', 'view',
     'banana', 'fav', 'share', 'danmakuCount', 'date', 'shareUrl', 'liked', 'favorited',
     'thrown', 'localLike'],
   panel: ['kind', 'acId', 'title', 'cover', 'dur', 'views', 'dateText', 'desc', 'progress',
@@ -109,6 +109,10 @@ export function normalizeHome(bc) {
     title: bc.title || '',
     up: upOf(user.userId, user.name, coverUrl(user.headUrl), user.isFollowing),
     cover: coverUrl(bc.img && bc.img[0]),
+    // 卡片自带的分区标签（0.9.170）：selection/feed 卡实测带 channelInfo（如「主机单机」）——
+    // 精选页大卡信息区的标签行用它；与 resolve 回填的 channel（对象）**不同形状**，故另立键，
+    // 不合并（channel 只在解析后才有、且是 {id,name,...}；这里永远是卡片自带的展示串）
+    channelInfo: bc.channelInfo || '',
     urls: [],
     urlIdx: 0,
     refreshed: false,

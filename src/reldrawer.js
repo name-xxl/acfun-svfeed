@@ -2,7 +2,7 @@ import { el, fmt } from './ui.js';
 import { commentDrawer } from './state.js';
 import { imgInto } from './imgload.js';
 import { GLYPHS } from './imicons.js';
-import { listRelated, relatedItemOf, startChain } from './relatedapi.js';
+import { listRelated, relatedItemOf, startChain, layerJump } from './relatedapi.js';
 import { testHook } from './dbg.js';
 
 // ---------- 评论抽屉「相关推荐」tab（0.9.167；形态=docs/preview/jingxuan.html ③④⑤） ----------
@@ -32,7 +32,11 @@ function wire() {
   d.relList.addEventListener('click', function (ev) {
     var row = ev.target.closest('.acsv-relrow');
     if (!row || !row._dv) return; // 锚位行/状态行无 _dv，不响应
-    startChain(row._dv.dougaId, relatedItemOf(row._dv));
+    // 两种落点（0.9.170）：播放层浮层在场 = 层内换条（不拆界面、Esc 仍回来源列表）；
+    // 否则 = 舞台游走起步（起点置顶 + 拆视图进竖刷）。层判定由 playlayer 注册进 relatedapi
+    var item = relatedItemOf(row._dv);
+    if (layerJump(item)) return;
+    startChain(row._dv.dougaId, item);
   });
   return true;
 }

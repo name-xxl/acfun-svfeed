@@ -4,8 +4,9 @@
 //   rel-drawer：home 流就绪 → c 键开抽屉 → tab 在场且 prefetch 就绪（rows=锚位1+池10）
 //     → 切 tab → 点首行起链（起点置顶+source=related+抽屉收起+hash 回写）
 //     → 游走推进（链尾锚换池）→ 设置面板开 relSequential → seq 整批入链（增量≥5 区分 walk 的 1 条/步）
+//   rel-layer（0.9.170）：播放层内 ↓/↑ 游走 + 抽屉行层内换条（不拆界面）
 // 反跑：摘 slide.buildDrawer 的 tab 行 ⇒ rel-tab-ready 红；摘 relatedapi.batch 的换批/seq
-// 分支 ⇒ rel-seq-batch 红；摘起步器注册 ⇒ rel-chain-start 红。
+// 分支 ⇒ rel-seq-batch 红；摘起步器注册 ⇒ rel-chain-start 红；摘层内游走缝合 ⇒ rel-layer-* 红。
 // mock 装配（views.js 同款文件作用域）：本场景跑在 home 源（HOME_CASES），sv 专用
 // __ACSV_MOCK__ 不在——评论与 resolve 链（链外条目 douga/info+playInfo）都走 net ⇒
 // 必须 FORM 指向 MY_MOCK
@@ -95,5 +96,88 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       return ((TEST.call('feed') || {}).items || []).length >= before + 5;
     }, 8000)), 'before=' + before + ' now=' + ((TEST.call('feed') || {}).items || []).length);
     rec('rel-seq-mode', (function () { var t = TEST.call('rel'); return !!t && t.mode === 'seq'; })(), JSON.stringify(TEST.call('rel')));
+  };
+
+  // ---- rel-layer：播放层内游走（0.9.170） ----
+  // 层内 ↓ = 当前视频相关池随机抽下一条（逐级递归）、↑ = 回上一条（层内历史）；抽屉「相关
+  // 推荐」行在层内点 = 层内换条（不拆界面）；Esc 关抽屉、再 Esc 退出层回舞台。
+  // 反跑：摘 input 的 api.playStep 注入 ⇒ rel-layer-step 红；摘 relatedapi.setLayerHost
+  // （layerActive 恒 false）⇒ rel-layer-jump 红（会走 startChain 拆视图）。
+  C['rel-layer'] = async function (h) {
+    var rec = h.rec, q = h.q, waitFor = h.waitFor, key = h.key, TEST = h.TEST,
+      firstVideoReady = h.firstVideoReady;
+    rec('rl-feed-ready', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+    var feed0 = TEST.call('feed') || {};
+    var rid = feed0.items && feed0.items[0] && Number(feed0.items[0].id);
+    rec('rl-home-item', !!rid && rid > 40000000, 'rid=' + rid);
+    if (!rid) return;
+    // 进播放层（深链形态=分享链接同路；层内条目 id=该 ac 号）
+    location.hash = 'svfeed/play/a/' + rid;
+    rec('rl-layer-open', !!(await waitFor(function () {
+      var pl = TEST.call('playlayer') || {};
+      return TEST.call('view') === 'play' && pl.active && Number(pl.id) === rid ? pl : null;
+    }, 10000)), JSON.stringify(TEST.call('playlayer')));
+    // ↓：相关池抽下一条（池 id 空间 700000+rid*10+k，见 my-sample 桩）
+    key('ArrowDown');
+    var pool = 700000 + rid * 10;
+    rec('rl-layer-step', !!(await waitFor(function () {
+      var pl = TEST.call('playlayer') || {};
+      if (!pl.active || pl.hist !== 2) return null;
+      var d = Number(pl.id) - pool;
+      return d >= 1 && d <= 10 ? pl : null;
+    }, 10000)), JSON.stringify(TEST.call('playlayer')) + ' pool=' + pool);
+    // ↑：回上一条（层内历史，不再打网络）
+    key('ArrowUp');
+    rec('rl-layer-back', !!(await waitFor(function () {
+      var pl = TEST.call('playlayer') || {};
+      return pl.active && Number(pl.id) === rid && pl.hIdx === 0;
+    }, 6000)), JSON.stringify(TEST.call('playlayer')));
+    // 再 ↓：前向重开（回退后的前向分支截断重建）
+    key('ArrowDown');
+    rec('rl-layer-fwd2', !!(await waitFor(function () {
+      var pl = TEST.call('playlayer') || {};
+      return pl.active && pl.hist === 2 && pl.hIdx === 1;
+    }, 10000)), JSON.stringify(TEST.call('playlayer')));
+    // 抽屉：c 开 → 相关推荐 tab 在场（层内条目 kind=home）且已就绪且 rid 跟随层内当前条
+    key('c');
+    rec('rl-drawer-open', !!(await waitFor(function () {
+      var d = q('.acsv-drawer');
+      return !!d && d.classList.contains('open');
+    }, 6000)));
+    var curId = (TEST.call('playlayer') || {}).id;
+    rec('rl-rel-ready', !!(await waitFor(function () {
+      var t = TEST.call('reldrawer');
+      return t && t.present && t.relTabShown && t.rid === String(curId) && t.state === 'ready' ? t : null;
+    }, 8000)), JSON.stringify(TEST.call('reldrawer')) + ' cur=' + curId);
+    var tabR = q('.acsv-dtab-rel');
+    if (tabR) tabR.click();
+    rec('rl-tab-on', !!(await waitFor(function () {
+      var t = TEST.call('reldrawer');
+      return t && t.relOn && t.rows === 11 && t.hasAnchor;
+    }, 4000)), JSON.stringify(TEST.call('reldrawer')));
+    // 点首行 = 层内换条：视图保持 play（不拆界面）、层锚换成该行、抽屉跟随新视频
+    var expectId = 700000 + Number(curId) * 10 + 1;
+    var row1 = q('.acsv-rellist .acsv-relrow:nth-child(2)');
+    rec('rl-row1-dom', !!row1);
+    if (row1) row1.click();
+    rec('rl-layer-jump', !!(await waitFor(function () {
+      var pl = TEST.call('playlayer') || {};
+      return TEST.call('view') === 'play' && pl.active && Number(pl.id) === expectId ? pl : null;
+    }, 8000)), 'expect=' + expectId + ' ' + JSON.stringify(TEST.call('playlayer')));
+    rec('rl-drawer-follow', !!(await waitFor(function () {
+      var t = TEST.call('reldrawer');
+      return t && t.rid === String(expectId);
+    }, 6000)), JSON.stringify(TEST.call('reldrawer')));
+    // Esc 关抽屉 → 再 Esc 退出层（深界面回来源=舞台）
+    key('Escape');
+    rec('rl-drawer-closed', !!(await waitFor(function () {
+      var d = q('.acsv-drawer');
+      return !!d && !d.classList.contains('open');
+    }, 4000)));
+    key('Escape');
+    rec('rl-layer-exit', !!(await waitFor(function () {
+      var pl = TEST.call('playlayer') || {};
+      return TEST.call('view') == null && !pl.active;
+    }, 6000)), 'view=' + TEST.call('view'));
   };
 })();

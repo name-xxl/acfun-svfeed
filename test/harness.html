@@ -83,7 +83,7 @@
 
   // 走 home mock 的场景（其余默认 sv；显式 ?src=home 保持人工预览语义）
   // 0.9.89 起源记忆收编进设置层：写新键 acsv.s.source（JSON 标量）
-  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1, 'watch-playlayer-pagehide': 1, 'watch-pagehide-beacon': 1, 'settings-open': 1, 'settings-migrate': 1, 'rel-drawer': 1 };
+  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1, 'watch-playlayer-pagehide': 1, 'watch-pagehide-beacon': 1, 'settings-open': 1, 'settings-migrate': 1, 'rel-drawer': 1, 'rel-layer': 1 };
   try {
     if (HOME_CASES[CASE] || /[?&]src=home/.test(location.search)) localStorage.setItem('acsv.s.source', '"home"');
     else localStorage.removeItem('acsv.s.source');

@@ -139,6 +139,19 @@ export function startChain(acId, firstItem) {
   return true;
 }
 
+// ---------- 播放层宿主缝（0.9.170，同款 mediator） ----------
+// 层内换条与舞台起步是**两种落点**：播放层（playlayer，浮层单条）在场时，抽屉行点击 =
+// 层内换条（不拆界面）；否则 = startChain 舞台游走。判定与动作都由 playlayer 注册进来
+// （active 读它的在层状态、jump 走它的换条机器）——reldrawer 照样只 import 本模块。
+var layerHost = null;
+export function setLayerHost(h) { layerHost = h || null; }
+export function layerActive() { return !!(layerHost && layerHost.active && layerHost.active()); }
+export function layerJump(item) {
+  if (!layerActive() || item == null) return false;
+  layerHost.jump(item);
+  return true;
+}
+
 // debug 构建测试钩子：harness 断言读泵态（release 死码消除）
 testHook('rel', function () {
   return { seenCount: Object.keys(_seen).length, mode: getSetting('relSequential') ? 'seq' : 'walk' };

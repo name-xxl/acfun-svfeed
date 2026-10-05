@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { el } from './ui.js';
+import { el, toast } from './ui.js';
 import { parseRoute } from './route.js';
 import { API } from './api.js';
 import { playItemOf } from './playitem.js';
@@ -8,6 +8,9 @@ import { registerView } from './viewreg.js';
 import { setVideoTarget, setWatchTarget, setPlayItem, OVL_IDX } from './state.js';
 import { buildSlide } from './slide.js';
 import { attachVideo } from './attach.js';
+import { batch as relatedBatch, seed, setLayerHost } from './relatedapi.js';
+import { isOpenComments, openComments } from './comments.js';
+import { testHook } from './dbg.js';
 
 // ---------- 播放层（0.9.74）：列表条目就地播放，不再插队尾 + 跳回竖刷 ----------
 // 契约与理由（详见 README 0.9.74）：
@@ -27,6 +30,12 @@ import { attachVideo } from './attach.js';
 //    renderWindow/幽灵扫描都是 scroller 域内，天然隔离
 var pending = null; // 点击路径暂存的面板条目（{ acId, title, cover, up }）
 var slideRef = null; // 当前层内 slide（teardown 拆会话用；DOM 由框架拆）
+var bodyRef = null; // 层体（换条要往它挂新 slide）
+var curItem = null; // 层内当前条目（换条/游走的锚）
+var hist = [];      // 层内历史（↑ 回退；↓ 追加，回退后再 ↓ 截断重开）
+var hIdx = -1;
+var queue = [];     // seq 模式一次多出的候选（walk 模式恒空）
+var stepping = false;
 
 export function openPlayer(pi) {
   if (!pi || !pi.acId) return;
@@ -39,6 +48,7 @@ function mountSlide(body, item) {
   slide.dataset.ovl = '1';
   body.appendChild(slide);
   slideRef = slide;
+  curItem = item;
   // 层内当前条目镜像（0.9.111 下沉 state）：input 的 c 键读 state.playItem，不再反向 import
   // 本模块（旧 itemRef/currentItem 已删——全仓唯一消费者是 input）
   setPlayItem(item);
@@ -55,6 +65,65 @@ function mountSlide(body, item) {
   });
   attachVideo(slide, item, OVL_IDX); // 懒解析/错误恢复/弹幕/互动栏/上报全走既有链路
 }
+
+// 层内换条（0.9.170）：拆旧 slide 会话 → 挂新。抽屉开着就跟着换视频（setActive 同款纪律：
+// 评论/相关推荐两个 tab 的宿主都要跟上新 id，title 供锚位行）；hash 不跟写——层地址=入口
+// 那条，Esc/刷新仍回入口（游走是层内临时态，不污染分享链接）
+function swap(item) {
+  if (!bodyRef || !item) return false;
+  if (slideRef && slideRef._session) { slideRef._session.dispose(); slideRef._session = null; }
+  if (slideRef && slideRef.parentNode) slideRef.parentNode.removeChild(slideRef);
+  slideRef = null;
+  mountSlide(bodyRef, item);
+  if (isOpenComments()) openComments(item.id, item.stype, item.shareUrl, item.kind, item.title);
+  return true;
+}
+
+// 落点=入历史（回退后再前进会截断旧前向分支）
+function jump(item) {
+  if (!swap(item)) return false;
+  hist[hIdx + 1] = item;
+  hist.length = hIdx + 2;
+  hIdx = hist.length - 1;
+  return true;
+}
+
+// 层开：挂首条并把它登记为历史第 0 条（↑ 要能回到**入口**那条——mountSlide 只管 DOM，
+// 不碰历史；deep-link 冷进入与点击进入两条路都经这里）
+function enterLayer(body, item) {
+  mountSlide(body, item);
+  hist = [item];
+  hIdx = 0;
+}
+
+// 键盘 ↓/↑ 入口（player 注入 input 的 api.playStep；ev.repeat 在 input 侧挡、在途互斥在此）。
+// 前向：seq 模式先吃队列；walk 模式每次向相关池要一批（batch 内部按 relSequential 分派，
+// 返回 1 条或整列），抽到就换、抽空（连续失败/池尽）给 toast 不静默
+export function playStep(delta) {
+  if (!slideRef || !curItem || stepping) return false;
+  if (delta < 0) {
+    if (hIdx <= 0) { toast('已经是第一条'); return false; }
+    hIdx--;
+    swap(hist[hIdx]);
+    return true;
+  }
+  if (queue.length) { jump(queue.shift()); return true; }
+  stepping = true;
+  relatedBatch(curItem.id).then(function (items) {
+    stepping = false;
+    if (!slideRef) return; // 期间层已拆
+    if (!items || !items.length) { toast('没有更多相关推荐'); return; }
+    queue = queue.concat(items.slice(1));
+    jump(items[0]);
+  });
+  return true;
+}
+
+// 层宿主注册（relatedapi mediator）：抽屉「相关推荐」行在层内点 = 层内换条（不拆界面）
+setLayerHost({
+  active: function () { return !!slideRef; },
+  jump: jump
+});
 
 // 错误盒 + 盒内重试（0.9.77 修）：重试键必须在盒内且点击时整盒撤除——.acsv-errbox 是
 // inset:0 的全幅遮罩（styles.js），旧实现把按钮挂盒外、点击只摘按钮，重载成功后错误盒
@@ -80,10 +149,13 @@ function buildPlayView(body, arg) {
   body.classList.add('acsv-vbody-play');
   var id = Number(arg) || 0;
   if (!id) { buildErr(body, '播放链接不完整（缺少视频 id）'); return; }
+  bodyRef = body;
+  hist = []; hIdx = -1; queue = []; stepping = false;
+  seed(id); // 游走泵播种：入口视频登记为已见（层内 ↓ 的链从这里开始，不回头）
   var st = pending;
   pending = null;
   if (st && String(st.acId) === String(id)) {
-    mountSlide(body, playItemOf(st)); // 即时首帧：面板已有标题封面与作者（up 契约），直链交会话解析链补
+    enterLayer(body, playItemOf(st)); // 即时首帧：面板已有标题封面与作者（up 契约），直链交会话解析链补
     return;
   }
   // 深链/刷新直达：先解析（拿标题/封面/来源），失败出错误盒 + 重试（绝不静默）。
@@ -95,7 +167,7 @@ function buildPlayView(body, arg) {
       if (!body.isConnected) return; // 期间已离开播放层
       spinner.remove();
       if (!hit) { buildErr(body, '视频加载失败', load); return; }
-      mountSlide(body, hit.item);
+      enterLayer(body, hit.item);
     }, function () {
       if (!body.isConnected) return;
       spinner.remove();
@@ -112,6 +184,7 @@ function teardownPlayView() {
   slideRef = null;
   setPlayItem(null); // 镜像随层拆（0.9.111）
   pending = null;
+  bodyRef = null; curItem = null; hist = []; hIdx = -1; queue = []; stepping = false; // 层内游走态随层拆
 }
 
 registerView({
@@ -121,4 +194,16 @@ registerView({
   deep: true, // 深界面：关闭/返回=回来源链顶（打开它的那个列表/搜索页）
   volatile: true // 握播放会话/定时器：离开即真拆，绝不挂起（隐藏容器里继续出声绝不允许）
 });
+
+// debug 构建测试钩子：harness 断言读层态与游走账（release 死码消除）
+testHook('playlayer', function () {
+  return {
+    active: !!slideRef,
+    id: curItem ? curItem.id : null,
+    hist: hist.length,
+    hIdx: hIdx,
+    queue: queue.length
+  };
+});
+
 setItemOpener(openPlayer); // 视图条目点击出口（卡面 kit 不反向 import 本模块）

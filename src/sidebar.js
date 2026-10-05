@@ -16,7 +16,7 @@ var dockEl = null;
 var feedHomeHandler = null; // player 注入（0.9.107）：推荐条目=回竖刷并重置为当前源随机流
 export function setFeedHomeHandler(fn) { feedHomeHandler = typeof fn === 'function' ? fn : null; }
 var FEED_ENTRY = {
-  id: 'feed', label: '推荐', group: 0,
+  id: 'feed', label: '推荐', order: 10, group: 0,
   svg: '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.2 10.9-6.1 3.5c-.5.3-1.1-.1-1.1-.7V8.3c0-.6.6-1 1.1-.7l6.1 3.5c.5.3.5 1 0 1.3z"/></svg>'
 };
 
@@ -36,7 +36,11 @@ export function buildDock(parent, h) {
   dockEl.appendChild(logo);
   dockEl.appendChild(el('div', 'acsv-dock-sep'));
   var prevGroup = null;
-  [FEED_ENTRY].concat(dockEntries()).forEach(function (e) {
+  // 0.9.170：推荐也参与统一排序（此前恒排队首）——精选页 order 5 置顶于推荐之上；
+  // 同 order 按 id 稳定兜底（推荐 10 与榜单 10 → feed 在前，与旧观感一致）
+  [FEED_ENTRY].concat(dockEntries()).sort(function (a, b) {
+    return (a.order || 0) - (b.order || 0) || (a.id < b.id ? -1 : 1);
+  }).forEach(function (e) {
     if (prevGroup !== null && e.group !== prevGroup) dockEl.appendChild(el('div', 'acsv-dock-sep'));
     prevGroup = e.group;
     var b = el('button', 'acsv-dock-item');

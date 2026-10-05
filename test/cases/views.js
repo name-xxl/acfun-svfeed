@@ -34,12 +34,13 @@ rec('view-open', !!(await waitFor(function () {
 }, 10000)));
 topbarInView('my'); // 0.9.73：共享顶栏在视图态复用（可见/层级/seg 隐藏/视图头已删/正文不钻栏下）
 rec('dock-highlight', !!(await waitFor(function () {
-  // 左栏顺序（0.9.155 用户裁决：「我的」「关注」互换——我的沉底）：dock 条目序须为
-  // 推荐/榜单/广场/关注/我的（group 变处在 广场→关注 之间插分隔线）；钉顺序防再度漂移
+  // 左栏顺序（0.9.155 用户裁决：「我的」「关注」互换——我的沉底；0.9.170：精选置顶于推荐
+  // 之上，推荐进统一排序 order 10 同序按 id 兜底）：dock 条目序须为
+  // 精选/推荐/榜单/广场/关注/我的（group 变处在 广场→关注 之间插分隔线）；钉顺序防再度漂移
   rec('dock-order-my-last', (function () {
     var seq = [].map.call(document.querySelectorAll('.acsv-dock-item[data-view]'),
       function (x) { return x.getAttribute('data-view'); });
-    return seq.join(',') === 'feed,zone,square,jingxuan,follow,my'; // 0.9.169 精选 order 16（广场 15 后）
+    return seq.join(',') === 'jingxuan,feed,zone,square,follow,my'; // 0.9.170 精选 order 5
   })(), (function () {
     return [].map.call(document.querySelectorAll('.acsv-dock-item[data-view]'),
       function (x) { return x.getAttribute('data-view'); }).join(',');

@@ -10,12 +10,13 @@ import { getSetting } from './settings.js';
 // ---------- 键盘/全屏/幽灵扫描：全局监听的注册与解除 ----------
 // 上层导航（scrollToIndex/exitFeed）、视图门禁读（getView）与两个开合动作（toggleImDrawer/
 // toggleComments）在 player.js，经 api 参数注入保持依赖单向（0.9.111/0.9.116 收编）；层内
-// 条目的读走 state.playItem 镜像——本模块不再 import 视图/评论/私信模块。
+// 条目的读走 state.playItem 镜像、层内游走走 api.playStep（0.9.170）——本模块不再 import
+// 视图/评论/私信模块。
 // 解除统一走 teardownInputHandlers（unmount 调用）。
 
 var keyHandler = null, keyUpHandler = null, fsChangeHandler = null, ghostIv = null;
 
-// api: { scrollToIndex, exitFeed, getView, toggleImDrawer, toggleComments }
+// api: { scrollToIndex, exitFeed, getView, toggleImDrawer, toggleComments, playStep }
 export function setupInputHandlers(api) {
   keyHandler = function (ev) {
     if (!isFeedRoute() || !root) return;
@@ -43,7 +44,8 @@ export function setupInputHandlers(api) {
     // 浮层栈（view 层在栈里，关=返回来源/竖刷）。放在 target 豁免之后——共享顶栏输入框（含搜索视图）聚焦时不受影响。
     // 播放层（0.9.74）例外：媒体键（空格/静音/快进快退/全屏）作用层内视频——currentVideo()
     // 已按 state.videoTarget 重定向；评论键 c 打层内条目（state.playItem，0.9.111 自
-    // playlayer 下沉）；导航（↑↓）照旧吞掉（层内没有竖刷邻居）
+    // playlayer 下沉）；**导航 ↓/↑ 打层内游走（0.9.170）**——层内没有竖刷邻居，↓=当前视频
+    // 相关池随机抽下一条（递归游走）、↑=回上一条（层内历史），动作在 playlayer（api.playStep）
     var curView = api.getView();
     var inPlay = curView === 'play';
     if (curView) {
@@ -53,10 +55,10 @@ export function setupInputHandlers(api) {
     var cur = FeedStore.current;
     switch (ev.key) {
       case 'ArrowDown': case 'PageDown': case 'j':
-        if (inPlay) { ev.preventDefault(); break; }
+        if (inPlay) { ev.preventDefault(); if (!ev.repeat && api.playStep) api.playStep(1); break; }
         ev.preventDefault(); api.scrollToIndex(cur + 1); break;
       case 'ArrowUp': case 'PageUp': case 'k':
-        if (inPlay) { ev.preventDefault(); break; }
+        if (inPlay) { ev.preventDefault(); if (!ev.repeat && api.playStep) api.playStep(-1); break; }
         ev.preventDefault(); api.scrollToIndex(Math.max(0, cur - 1)); break;
       case 'ArrowLeft':
         ev.preventDefault();

@@ -261,12 +261,10 @@ export var CFG = {
       scrollPad: 300,              // 无限滚动触底提前量（同 follow）
       backTopAt: 300               // 回顶按钮显隐阈值（同 follow）
     },
-    jingxuan: {                    // 精选页（0.9.169；形态=docs/preview/jingxuan.html ①②）
+    jingxuan: {                    // 精选页（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html ①②）
       scrollPad: 300,              // 无限滚动触底提前量（同 square）
-      skel: 8,                     // 首屏骨架卡数
-      gridMin: 250,                // 网格卡最小列宽（列数随容器自适应，不写死断点）
-      gridGap: 14,                 // 网格间距
-      heroSide: 2                  // 「全部」tab 首屏大卡右列的张数（抖音精选形态：2fr+右列）
+      gridMin: 250,                // 网格卡最小列宽（列数随容器自适应，不写死断点；与 styles.js 同值）
+      gridGap: 14                  // 网格间距（同上）；骨架/补齐数量按现场列数算，不收常量
     },
     periods: ['DAY', 'THREE_DAYS', 'WEEK'], // 榜期（原生：今日/三日/本周）
     periodNames: { DAY: '今日', THREE_DAYS: '三日', WEEK: '本周' },

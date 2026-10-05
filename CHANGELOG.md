@@ -3,6 +3,39 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.170（2026-10-06）· 精选页 v5：出口对齐播放层 + 层内游走 + 2×2 大卡 + 按行补齐 + 左栏挪位
+
+- **由头**：用户四连裁决（预览稿 v5，定稿前四轮往返）：①「精选这种带选择的场景，即看即走，
+  应该和榜单/搜索/动态一样用浮层」②「精选在左栏放在推荐上面」③「首张太大，占 2×2 卡片位置就好」
+  ④「不是不足一屏时下拉下一批填满，拉的数量要做到底部无空卡片」。核对后确认 ① 指的是**点击出口**：
+  榜单/搜索/动态点卡片走 playlayer（浮层单条、Esc 回来源原位），精选此前拆视图进舞台游走——两套观感。
+- **修法**：①**精选卡片点击改 openPanelItem**（cards 注入缝 → playlayer.openPlayer，与全站列表同一条
+  出口）；Esc 回精选原位（视图保活：held 复原、滚动位不丢）。②**层内游走**（playlayer）：键盘 ↓/PageDown/j
+  在层内不再吞掉，经 player 注入的 api.playStep 走 `playStep(±1)`——↓ = relatedapi.batch(当前条) 抽下一条
+  （walk=池内随机逐级递归，seq=吃队列）、↑ = 回上一条（层内历史 hist+hIdx；**入口条目**在 enterLayer 登记为
+  历史第 0 条，否则 ↑ 回不到入口——harness 首轮即抓到）；层开时 seed(入口 id) 播种 seen 防回头路；
+  hash 不跟写（层地址=入口，Esc/刷新仍回入口，不污染分享链接）。③**抽屉相关推荐行的两落点**：
+  relatedapi 新增层宿主 mediator（setLayerHost/layerActive/layerJump，playlayer 注册）——层在场 = 层内换条
+  （不拆界面，抽屉随新视频重开），否则 = startChain 舞台起链（旧语义不变）。④**左栏挪位**：精选 order 16→5
+  置顶；**推荐条目首次参与统一排序**（order 10，与榜单同序按 id 兜底）——sidebar 由「恒队首」改为合并排序。
+  ⑤**网格改版**：撤 hero 大焦点区，首卡改网格内 2×2 跨格（.acsv-jx-big；封面锁 16:9 ⇒ 与源图同比例、
+  cover 零裁切零拉伸，信息区恒 ≈164px 按 4 行排：标题 18px/分区标签/UP 行/数据行）；**按行补齐**渲染
+  （nextTarget=2(cols-2)+k·cols、cols 按现场列数算、多余留缓冲跨批续用、铺不满滚动体时按整行继续推进）；
+  网格 dense 流。⑥顺修自家缺陷：`st.cursor` 拉页后未写回（每次都用同一游标 → mock 反复回第一块、
+  永不终页；harness `jx-anim-end` 抓到）。⑦契约加 `channelInfo`（selection/feed 卡自带的分区展示串，
+  与 resolve 回填的 channel 对象形状不同故另立键）——大卡标签行数据源。
+- **测试**：单测 258 不变（新逻辑在视图/层内，纯函数 nextTarget 由 harness 钉）；harness 场景三改一新——
+  `jingxuan` 重写（20 断言：chips 剔除/全部 tab 大卡 1+全量/大卡四行结构/动画 tab **按行补齐不变式**
+  `(normals-base)%cols==0` + **末行带几何铺满**（大卡跨行计入覆盖、列间距算合法间隙）/逐行续放至终页/
+  点大卡进播放层/Esc 回精选保活）、新场景 `rel-layer`（17 断言：深链进层 → ↓ 池内抽条 → ↑ 回入口 →
+  再 ↓ 前向重开 → c 抽屉 rid 跟随 → 行点击层内换条（view 保持 play + 抽屉跟随新 id）→ Esc 关抽屉/退层）、
+  `view-my` dock 顺序改新序、频道桩补 tagList、`play-deep` 补层内 ↓/↑ 两条（旧口径「层内 ↓ 什么都不做」
+  被用户裁决取代——竖刷不被层内按键带动的本意由既有 play-key-nonav 继续钉住，45→47 断言）。
+  **反跑五连全红**：摘 input 的 playStep 注入 ⇒ rl-layer-step 红；
+  layerActive 恒 false ⇒ rl-layer-jump 红；nextTarget 退化 +10 ⇒ jx-anim-flush/geometry 红；卡片出口倒回
+  startChain ⇒ jx-card-layer 红；精选 order 倒回 16 ⇒ dock-order 红。
+  全链 build/lint/check（deps 234 边）/单测 258/51 场景全绿。
+
 ### 0.9.169（2026-10-05）· 精选页：抖音精选式分区网格（channel 家族首接线）
 
 - **由头**：用户裁决「把大家都在放进抖音精选式页」→ 分区流当日实测破局（api-research §6.7：

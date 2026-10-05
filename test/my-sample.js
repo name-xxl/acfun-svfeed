@@ -307,6 +307,8 @@
           dougaId: String(900000 + ch * 100 + k), caption: '频道' + ch + '视频' + k,
           coverUrl: FOLLOW_COVER, durationMillis: 61000 + k * 1000, likeCount: 10 + k,
           user: { name: '频道UP' + k },
+          // tagList 形状未逐项实测（0.9.170）：桩按 {name} 给，精选页大卡标签行按此渲染
+          tagList: [{ name: '动画' }, { name: '测试' }],
           channel: { id: ch, name: '频道' + ch, parentId: impure ? ch + 200 : ch, parentName: '父' + ch }
         };
       }

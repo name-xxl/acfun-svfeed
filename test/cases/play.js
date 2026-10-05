@@ -126,6 +126,19 @@ var curBeforeKey = feed().current;
 key('ArrowDown');
 await wait(300);
 rec('play-key-nonav', feed().current === curBeforeKey, 'cur=' + feed().current + '/' + curBeforeKey);
+// 层内游走（0.9.170）：导航键改打**层内锚**——↓ = 相关池抽下一条（竖刷仍一动不能动）、
+// ↑ = 回上一条（入口 488900）。旧口径「层内 ↓ 什么都不做」已被用户裁决取代；幽灵音频防线
+// 的本意（竖刷不被层内按键带动）由上面的 play-key-nonav 继续钉住
+rec('play-key-layer-step', !!(await waitFor(function () {
+  var pl = TEST.call('playlayer') || {};
+  return pl.active && Number(pl.id) !== 488900;
+}, 8000)), JSON.stringify(TEST.call('playlayer')));
+key('ArrowUp');
+rec('play-key-layer-back', !!(await waitFor(function () {
+  var pl = TEST.call('playlayer') || {};
+  var v = q('.acsv-slide[data-ovl="1"] video');
+  return pl.active && Number(pl.id) === 488900 && !!v && !v.paused;
+}, 20000)), JSON.stringify(TEST.call('playlayer')));
 var vk = q('.acsv-slide[data-ovl="1"] video');
 var m0 = vk && vk.muted;
 key('m');

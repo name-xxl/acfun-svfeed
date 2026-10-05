@@ -28,6 +28,7 @@ import { startFollowBadge, stopFollowBadge } from './followbadge.js';
 import { buildTopbar, teardownTopbar, syncTopbarSeg } from './topbar.js';
 import { setupInputHandlers, teardownInputHandlers } from './input.js';
 import { setChainStarter } from './relatedapi.js'; // 游走链起步缝注册（0.9.167，mediator 反向解耦）
+import { playStep } from './playlayer.js'; // 层内游走（0.9.170）：↓/↑ 经 input 注入，层动作在 playlayer
 
 // ---------- UI ----------
 var io = null;
@@ -512,7 +513,7 @@ function mount() {
 
   io = makeIO();
 
-  setupInputHandlers({ scrollToIndex: scrollToIndex, exitFeed: exitFeed, getView: currentView, toggleImDrawer: toggleImDrawer, toggleComments: toggleItemComments }); // getView（0.9.111）/开合两键（0.9.116）：经注入，input 不再 import views/comments/imdrawer
+  setupInputHandlers({ scrollToIndex: scrollToIndex, exitFeed: exitFeed, getView: currentView, toggleImDrawer: toggleImDrawer, toggleComments: toggleItemComments, playStep: playStep }); // getView（0.9.111）/开合两键（0.9.116）/层内游走（0.9.170）：经注入，input 不再 import views/comments/imdrawer/playlayer
 
   var route = parseRoute();
   if (route.mid) {
