@@ -110,6 +110,6 @@ feedstore.js → player.js → input.js → feedstore.js
   imageUrlOf 改 inst 传参替代直读抽屉模块态 lastImInst）；顶栏未读徽标（与抽屉零共享状态）
   独立为 **imbadge.js**（仿 followbadge.js 先例，teardownIm 经 stopBadge 反向通知，方向
   imbadge→imsend 单向）。
-- **结果**：imdrawer 1010→906 行、头注补簇导览（按段名 grep 即达）；player→imbadge、
+- **结果**：imdrawer 1010→911 行、头注补簇导览（按段名 grep 即达）；player→imbadge、
   imdrawer→imbadge（stopBadge）、imbadge→imsend 三边入图；check-direction FEATURE +imbadge。
   纯搬迁，代码行多重集机器比对在案（签名调整仅 imageUrlOf 一处私有签名 + 头注）。

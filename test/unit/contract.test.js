@@ -6,7 +6,7 @@
 //   ④ up 形态固定四件套（id/name/img/isFollowing），来源私有的作者扩展字段不混进来
 // ③ 是本次缺陷的防复发闸门：0.9.82 之前搜索传 upName、收藏把作者塞进 sub、榜单传 up、
 // 播放契约又是扁平三件套，桥 itemOfPanel 只认其中一种，其余入口进播放层就退化成 '未知用户'。
-// 字段**值**的真实性由 data.test.js 钉；这里只关心键集合，所以 fixture 可以最小化。
+// 字段**值**的真实性由 playitem.test.js/panelitem.test.js 钉；这里只关心键集合，所以 fixture 可以最小化。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -38,7 +38,7 @@ var PANEL_CASES = {
     userName: 'u', authorId: 1, userImg: 'y', fansCount: 1, contributionCount: 1, userSignature: 's'
   },
   // 关注流（0.9.91）：动态条目是最宽的一套字段（ct/momentId/text/href/meta 全带）——
-  // 契约白名单由它兜住；三类内容各自的取值落位由 data.test.js 钉。
+  // 契约白名单由它兜住；三类内容各自的取值落位由 playitem.test.js/panelitem.test.js 钉。
   // 0.9.98：moment.imgs（多图）与 rs10 转发也走 follow 解析器——白名单 'imgs' 由它兜住
   follow: {
     resourceType: 10, resourceId: 5, coverUrl: 'x', likeCount: 1, commentCount: 2, bananaCount: 3,

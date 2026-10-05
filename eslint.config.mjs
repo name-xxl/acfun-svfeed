@@ -48,7 +48,7 @@ export default [
         // 作者占位文案已禁（0.9.82 教训）：作者未知 = item.up 为 null，渲染层不挂作者行
         // ——旧实现把 '未知用户' 写死在 data.js 的两个 normalize 里，于是所有"卡面不带作者"
         // 的入口（搜索/收藏/历史进播放层）都顶着这个假名字，且解析回包后无人刷新 DOM。
-        // 作者契约与来源映射见 data.js 的 upOf/ITEM_FIELDS，闸门在 test/unit/contract.test.js
+        // 作者契约与来源映射见 playitem.js 的 upOf/ITEM_FIELDS，闸门在 test/unit/contract.test.js
         {
           selector: "Literal[value=/未知用户/]",
           message: '作者占位文案已禁（0.9.82）：作者未知就让 up 为 null，不要编造名字'

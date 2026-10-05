@@ -1,6 +1,6 @@
 // test/cases/settings.js —— harness 场景：设置面板（0.9.89 路线图 1.1/1.2）
 // 机制：host 挂 root + Shadow DOM（settingspanel.js），断言经 host.shadowRoot（msg.js 先例）。
-// 源：走 home（HOME_CASES）——只有 douga 条有 cap.danmaku/cap.hls（data.js:99），
+// 源：走 home（HOME_CASES）——只有 douga 条有 cap.danmaku/cap.hls（playitem.js:102），
 // 控制栏「弹」按钮与编码/缓冲菜单只在 home 条存在，这正是本场景要同步的对象。
 //   settings-open：点 dock 齿轮开面板（首个点 dock 的驱动——既有场景都直接写 hash）→ 五控件在场
 //     → 关「弹幕默认开启」→ 存储落盘 + 控制栏「弹」按钮即时同步 → Esc 关（栈空）→ 重开状态保持

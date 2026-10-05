@@ -37,8 +37,8 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
   upOf 改自 playitem import——作者契约单源不挪）。12 个 src 消费方 import 改道（api/appapi/
   playlayer/followstream/searchview/searchfmt→playitem；followview/squareview/mypage/zone/
   momentbar/momentapi→panelitem）。
-- **测试**：单测 249→249——data.test.js（570 行）终解拆为 playitem.test.js（8 组）+
-  panelitem.test.js（26 组），用例逐字切片随迁（含 upOf nameColor/playItemOf 归 playitem、
+- **测试**：单测 249→249——data.test.js（570 行）终解拆为 playitem.test.js（9 组）+
+  panelitem.test.js（25 组），用例逐字切片随迁（含 upOf nameColor/playItemOf 归 playitem、
   panelItem 五源/momentPiOfRepost/momentExtraOf/图片归一归 panelitem）；contract.test.js 契约
   白名单闸门改道两契约件（闸门语义不变）。纯搬迁以**代码行多重集机器比对**替代反跑：
   data.js 488 非空行中 484 行逐字保留于两契约件，差异仅 4 行注释改写（分节头更名+

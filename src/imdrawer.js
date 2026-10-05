@@ -796,7 +796,7 @@ function sendChat(text) {
   }, onFail);
 }
 
-// ---------- 开关与徽标 ----------
+// ---------- 开关与生命周期 ----------
 // 模拟缝（harness im-open 冒烟，0.9.49 quoteChip 回归教训）：绕过登录门槛直验「抽屉 DOM
 // 骨架可建可开」——quoteChip 必须是真实元素节点（工厂返回对象漏 .box 的同族回归在此拦截）
 // debug 测试钩子（0.9.105）：供 harness 驱动「面板×私信避让共存」断言——open 走 openDrawerCore
