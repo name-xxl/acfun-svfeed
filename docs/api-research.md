@@ -226,6 +226,21 @@ body：`action=7&page=1&count=20&groupId=-1`（-1=不分组；action=8 为粉丝
 - **互动态恒 false 的补偿**：plaza 对 ≤3h 新鲜条目后台走 `moment/detail` 刷新回填（S3 接入时补记该端点的本仓实测）；>3h 直接用列表快照（与 plaza 同款策略）
 - 规整落位：`data.squarePageOf`（契约层纯函数，`result!==0` 抛错=失败可重试）；传输在 `momentapi.listSquare`
 
+### 2.8 动态广场 V3：feedSquareV3（〔实测〕2026-10-05，内置浏览器带登录态，未接脚本）
+
+APP 端 Retrofit 定义 `@GET("/rest/app/feed/feedSquareV3") q0(pcursor, count, KanasConstants.dd)`（反编译见对话；第三参为混淆常量，**裸调不带它 `result:0` 正常回包 ⇒ 可选**）。
+
+- `GET https://api-new.app.acfun.cn/rest/app/feed/feedSquareV3` —— 免登录免 header 可调（裸导航即 `result:0`，与 V1 同域同款 GM 通道口径）
+- **`count` 生效**（1/5/50 精准回 1/5/50 条，未测上限）——V1 钉死 20 的差异点
+- **游标=单段毫秒时间戳**，语义「下一页第一条的 createTime」：回包 `pcursor` 喂回即正确翻页（无重叠、单调）；**不认 V1 的 `t:t` 冒号方言**——非法游标静默回落首页（`result:0` 返回最新页，不报错）。首页可不带参数；终页 `no_more` 形态未测（深度翻页未跑，历史深度未知）
+- 回包顶层：`result, feedList, pullCount, tagList, needStayTime, requestId, pcursor, host-name`；`tagList`≈广场顶部推荐话题位（`{tagId,tagName,groupId}`）；`needStayTime`=6000（客户端埋点口径）
+- 条目较 V1 新增：`groupId`（**请求级 uuid_页内序号**`&-124&&fsf`，非多图分组）、`coverUrl`（首图直链，V1 无）、`resourceId`（=数字版 momentId，V1 无）、`shareUrl`（`m.acfun.cn/communityCircle/moment/{id}`）、`tag[]`（内嵌话题数组 `{tagId,tagName,tagCountStr,tagResourceCount}`，样本一条挂 24 个）、`time`（服务端预格式化「N分钟前」）、`viewCount`/`stowCount`（新条目 0）、`isFavorite`、`createTimeGroup`（恒 1 语义未明）、`discoveryResourceFeedShowContent/ImageCount`、`tagResourceType`(3)、`userInfo`（**富用户**，douga/info §3 同款：fanCount/followingCount/contributeCount/signature/headCdnUrls/avatarFrame/socialMedal/gender/isFollowed…；顶层 `user` 仍是瘦版+`verifiedType(s)`）
+- `moment.imgInfos[]` 与 legacy `imgs[]` 并存：每图 `{width,height,size,type,animated, thumbnailImage/smallSharedImage/expandedImage/originImage（各带双 CDN cdnUrls）, thumbnailImageCdnUrl}`——比 V1 `{url,originUrl,w,h}` 多 webp 缩略/展开/原图分档
+- `momentType`：**1=纯文字**（imgInfos 空）、**2=图文**；`resourceType` 恒 10（无转发，同 V1）；`visibleForFans` 恒 false、`originResourceType` 恒 0
+- 未确证：带登录态回包 `isLike`/`isFavorite` 仍全 false（样本为发布 1~3 分钟的新条目，无法区分「没赞过」与「登录态没带上」；V1 的「无登录态恒 false」口径对 V3 是否同款留待遇到已赞条目时回填）
+
+**处置**：现有广场页继续走 V1（`momentapi.listSquare` URL 逐字护缝 + parser/规整/mock 全钉 V1），V3 增量（count 可控翻页省请求 / 内嵌 tag 省正则 / imgInfos 多档 CDN / 富 userInfo）不抵换契约成本，**记录在案不动**；未来若做话题筛选、广场提效或头像框再启用。
+
 ## 3. 详情与 meta 富化素材（douga/info，〔实测〕）
 
 `GET https://api-new.app.acfun.cn/rest/app/douga/info?product=ACFUN_APP&app_version=…&dougaId=…&mkey=…`（免登录，ac48820714 实测）
