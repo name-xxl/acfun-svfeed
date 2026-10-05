@@ -103,6 +103,14 @@ export var CFG = {
     // **无游标一发 10 条，重复调用换一批**（推荐流刷新语义）；回包不含当前视频自身；首条
     // 非固定 UP 本人视频；推荐分区亲和。URL 字面量逐字=harness mock 缝（'feed/related/general'）
     relatedGeneral: 'https://api-new.app.acfun.cn/rest/app/feed/related/general',
+    // ---- 频道家族（0.9.169 精选页分区流；实测 docs/api-research.md §6.7） ----
+    // allChannels 免登录出完整频道树（13 主频道；文章63 channelType=1 / AC正义177 非视频域剔除）；
+    // resourceList=分区视频流：channelId 主频道过滤实锤（杂质率~1/28，条目自带 channel 可本地
+    // 复核再滤）、count 无效钉死~30/块、pcursor "{n},{n}" 双值单调翻页、total 恒 10000 假封顶、
+    // **子频道参数被无视**（secondLevelChannelId/subChannelId 均不生效，只能主频道粒度）。
+    // URL 字面量逐字=harness mock 缝
+    channelAll: 'https://api-new.app.acfun.cn/rest/app/channel/allChannels',
+    channelResourceList: 'https://api-new.app.acfun.cn/rest/app/channel/secondLevel/resourceList',
     // 站内搜索（0.9.151 三端点；真机实测 docs/api-research.md §4.10）：PC 搜索是 JSON——
     // **pCursor 是页码游标**（`page`/`pageNo` 被忽略，点原生 pager 抓包坐实）、每页固定 30、
     // 响应带 totalNum（总数）与 pageNum（**总页数**，不是当前页）；emTitle 携 <em> 高亮，
@@ -252,6 +260,13 @@ export var CFG = {
       freshMs: 3 * 3600 * 1000,    // 新鲜窗口：≤3h 条目走 moment/detail 补互动态（S3）
       scrollPad: 300,              // 无限滚动触底提前量（同 follow）
       backTopAt: 300               // 回顶按钮显隐阈值（同 follow）
+    },
+    jingxuan: {                    // 精选页（0.9.169；形态=docs/preview/jingxuan.html ①②）
+      scrollPad: 300,              // 无限滚动触底提前量（同 square）
+      skel: 8,                     // 首屏骨架卡数
+      gridMin: 250,                // 网格卡最小列宽（列数随容器自适应，不写死断点）
+      gridGap: 14,                 // 网格间距
+      heroSide: 2                  // 「全部」tab 首屏大卡右列的张数（抖音精选形态：2fr+右列）
     },
     periods: ['DAY', 'THREE_DAYS', 'WEEK'], // 榜期（原生：今日/三日/本周）
     periodNames: { DAY: '今日', THREE_DAYS: '三日', WEEK: '本周' },

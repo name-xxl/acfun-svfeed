@@ -285,6 +285,43 @@
       }
       return { result: 0, feeds: dvs.map(function (dv) { return { dougaFeedView: dv, expTag: '', type: 2 }; }) };
     },
+    // 频道家族桩（0.9.169 jingxuan 场景；形状=§6.7 实测）：树含文章63(type1)/AC正义177
+    // 两员「必剔」样本钉 channelTreeOf 过滤；resourceList 每频道 40 条两块——块1（pcursor=0）
+    // 30 条且末条是**杂质**（channel.parentId 与请求不符，钉本地复核滤）、游标 "1,900100"；
+    // 块2 再 10 条、游标空串（终页形态未测按空收口——§6.7 在册）；其余游标=空页
+    'channel/allChannels': {
+      result: 0,
+      channels: [
+        { channelId: '1', name: '动画', channelType: 2, children: [{ channelId: '106', name: '动画综合' }] },
+        { channelId: '59', name: '游戏', channelType: 2, children: [] },
+        { channelId: '63', name: '文章', channelType: 1, children: [] },
+        { channelId: '177', name: 'AC正义', channelType: 2, children: [] }
+      ]
+    },
+    'channel/secondLevel/resourceList': function (body) {
+      var ch = Number((String(body).match(/channelId=(\d+)/) || [])[1] || 0);
+      var cur = decodeURIComponent((String(body).match(/pcursor=([^&]*)/) || [])[1] || '');
+      function item(k) {
+        var impure = k === 30; // 块1 末条=跨区杂质：channel.parentId 与请求频道不符
+        return {
+          dougaId: String(900000 + ch * 100 + k), caption: '频道' + ch + '视频' + k,
+          coverUrl: FOLLOW_COVER, durationMillis: 61000 + k * 1000, likeCount: 10 + k,
+          user: { name: '频道UP' + k },
+          channel: { id: ch, name: '频道' + ch, parentId: impure ? ch + 200 : ch, parentName: '父' + ch }
+        };
+      }
+      if (cur === '0' || cur === '') {
+        var b1 = [];
+        for (var k1 = 1; k1 <= 30; k1++) b1.push(item(k1));
+        return { result: 0, feed: b1, pcursor: '1,900100', total: 10000 };
+      }
+      if (cur === '1,900100') {
+        var b2 = [];
+        for (var k2 = 31; k2 <= 40; k2++) b2.push(item(k2));
+        return { result: 0, feed: b2, pcursor: '', total: 10000 };
+      }
+      return { result: 0, feed: [], pcursor: '', total: 10000 };
+    },
     // 评论列表桩（0.9.168 rel-drawer）：home 源场景开抽屉时 __ACSV_MOCK__ 不在（那是 sv
     // 专用缝），评论走 net.request ⇒ 必须有 FORM 桩兜住，否则 harness 里打真网
     'comment/list': function () {

@@ -3,6 +3,29 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.169（2026-10-05）· 精选页：抖音精选式分区网格（channel 家族首接线）
+
+- **由头**：用户裁决「把大家都在放进抖音精选式页」→ 分区流当日实测破局（api-research §6.7：
+  allChannels 免登录频道树 + channel/secondLevel/resourceList 分区视频流，channelId 主频道过滤
+  实锤、~30/块、\"{n},{n}\" 游标、子频道参数被无视）+ 预览稿 ①② 段确认（3cb56fd，v4）。
+- **修法**：①新域件 `channelapi.js`（§6.7 口径全在册：channelTreeOf 非视频域剔除表
+  NON_VIDEO={63 文章,177 AC正义}、channelPageOf 杂质按 channel.parentId 本地复核滤——宁漏不错；
+  终页形态未测按空游标/空页收口）。②**翻页器隔离**：appapi 抽 `homeFeedFetch(cur)` 单发
+  （请求形状/规整单源，mockHome 缝随迁；**不裁终页语义**——pcursor 空串在旧实现不是终页，
+  终页判定权留调用方），homeFeed 泵与精选页「全部」tab 各自持游标零互扰。③新视图
+  `jingxuanview.js`（dock order 16）：chips 复用 .acsv-vchip 族、首屏大焦点卡（仅「全部」tab）、
+  自适应网格、触底续页、骨架/空/失败三态；卡片点击=relatedapi.startChain 起游走链（与抽屉行
+  同缝）。④起步器补 **teardownViews**：视图开着时 route 层不回写深链（route.js 在册防踩语义）
+  ——不关视图游走链在背后空转；保活只对 deep 接口（playlayer），回精选=dock 再点。⑤styles 补
+  jx 段 + **补上 0.9.168 漏定义的 @keyframes acsv-pulse**（.acsv-relsk 引用悬空，动画静默失效）。
+- **测试**：单测 255→258（channelTreeOf 剔除/保序、channelPageOf 拆包/杂质滤/终页三形态/抛错）；
+  harness 新场景 `jingxuan`（17 断言；桩=频道树含必剔两员 + 每频道 30+10 两块、块1 末条杂质、
+  游标 \"1,900100\"→''）：chips 剔除断言 → 全部 tab 大卡 1+2/网格/触底到底 → 动画 tab 29 张
+  （30-杂质）→ 续块 39 → 终页 → 点首卡起链（900101 置顶+hash）→ 视图随深链路由拆除。
+  反跑实证：摘 NON_VIDEO 剔除表 ⇒ chips 断言红（4 枚含 AC正义）。全链 build/lint/check
+  （deps 226 边）/单测 258/50 场景全绿。调试修三处自家病灶：全部 tab 首批被「游标未前进」
+  守卫吞掉（home 方言 ''→'' 合法）、骨架卡未清抢走首卡点击、场景桩 pcursor 未解码。
+
 ### 0.9.168（2026-10-05）· 相关推荐进评论抽屉：tab + 随机游走泵（feed/related/general 首接线）
 
 - **由头**：拆包清单 ★1 `feed/related/general` 当日实测破局（api-research §5：POST 表单

@@ -181,12 +181,15 @@ setCommentsOpener(toggleItemComments);
 // 相关推荐游走链起步器（0.9.167）：relatedapi 挂 mediator、player 注册——reldrawer 行点击 /
 // 精选页卡片点击经 relatedapi.startChain 到这里。**不走 hash→loadDeepLink**：那条链「源随链接
 // 走」会 setSource('home') 覆写游走态（loadDeepLink 语义在册）；本器镜像它的复位序列但保住
-// related 源。feedStreamOn 置假=dock「推荐」入口按「换流重拉」走（ensureBaseSource 归位基源）
+// related 源。feedStreamOn 置假=dock「推荐」入口按「换流重拉」走（ensureBaseSource 归位基源）。
+// **先 teardownViews**：视图（精选页）开着时 route 层不回写深链（防踩视图路由，route.js 在册）
+// ——不关视图游走链就在背后空转；保活只对 deep 接口（playlayer），回视图=dock 再点
 setChainStarter(function (acId, firstItem) {
   if (!scroller) return false;
   feedStreamOn = false;
-  setAppliedMid(acId); // 地址意图先登记：setActive→syncHash 回写触发的 syncRouteFeed 幂等跳过
+  setAppliedMid(acId); // 地址意图先登记：显式 hash 写入触发的 syncRouteFeed 幂等跳过
   cancelHashSync();
+  teardownViews();
   setSource('related');
   updateSegUI();
   closeComments(); // 行点击起步=离开抽屉语境（switchSource 同款纪律）
@@ -200,6 +203,7 @@ setChainStarter(function (acId, firstItem) {
   FeedStore.current = 0;
   renderWindow();
   setActive(0); // ensureMore 链尾锚=起点：首拍即从起点的相关池抽下一条（游走开始）
+  location.hash = '#' + CFG.hash + '/a/' + acId; // 路由对齐（hashchange→syncRouteFeed 幂等跳过）
   return true;
 });
 

@@ -97,17 +97,37 @@ function intToHex(n) {
 export var AppAPI = {
   // ---- 首页推荐流 ----
   resetPager: function () { pcursor = ''; exhausted = false; },
-  homeFeed: function () {
-    if (exhausted) return Promise.resolve([]);
+  // 单发拉取（0.9.169 抽出）：请求形状/规整单源——homeFeed（模块游标泵）与精选页「全部」tab
+  //（jingxuan 自持游标）共用；**不动模块游标、不裁终页语义**（pcursor 空串在旧实现里不是
+  // 终页——下一轮打回首页、store seen 去重兜底；终页判定权留给调用方各自口径）。
+  // mockHome（harness）命中时一次性全量回包、第二发即空页（与 api.js feed 的 mockHome 短路
+  // 同语义，两入口各自成立）。返回 { items:[play 条目], pcursor, failed }
+  homeFeedFetch: function (cur) {
+    var mh = (typeof window !== 'undefined' && window.__ACSV_MOCK_HOME__) || null;
+    if (mh) {
+      if (cur) return Promise.resolve({ items: [], pcursor: '', failed: false });
+      return Promise.resolve({ items: mh.map(normalizeHome), pcursor: '', failed: false });
+    }
     return request(CFG.api.homeFeed + q('&appMode=0'), 'POST', homeHeaders(true),
-      'mkey=' + CFG.home.mkey + '&pcursor=' + pcursor + '&count=' + CFG.homeFeedCfg.count)
+      'mkey=' + CFG.home.mkey + '&pcursor=' + (cur || '') + '&count=' + CFG.homeFeedCfg.count)
       .then(function (j) {
-        if (!j || j.result !== 0) { exhausted = true; return []; }
-        pcursor = (j.pcursor === undefined || j.pcursor === null) ? '' : String(j.pcursor);
-        var list = cardsOf(j.body).map(normalizeHome);
-        if (!list.length) exhausted = true; // 空页防死循环
-        return list;
-      }, function () { return []; });
+        if (!j || j.result !== 0) return { items: [], pcursor: '', failed: true };
+        return {
+          items: cardsOf(j.body).map(normalizeHome),
+          pcursor: (j.pcursor === undefined || j.pcursor === null) ? '' : String(j.pcursor),
+          failed: false
+        };
+      }, function () { return { items: [], pcursor: '', failed: true }; });
+  },
+  homeFeed: function () {
+    var self = this;
+    if (exhausted) return Promise.resolve([]);
+    return self.homeFeedFetch(pcursor).then(function (r) {
+      if (r.failed) { exhausted = true; return []; }
+      pcursor = r.pcursor;
+      if (!r.items.length) exhausted = true; // 空页防死循环（旧口径逐字保持）
+      return r.items;
+    });
   },
 
   // ---- 详情 / 播放 ----

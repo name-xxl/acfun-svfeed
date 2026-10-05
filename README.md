@@ -314,6 +314,8 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3/4、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出）。0.9.96 管线 **host 化**：DOM 宿主显式化（默认=抽屉单例，动态详情面板灌入同款三元组），`openCommentsHost`/`closeCommentsHost` 为面板入口，输入条三件套随宿主迁移；0.9.133 条目构建/楼中楼展开**下沉 commentkit.js**（本文件只留管线：状态/宿主/输入条/委托/乐观插入/翻页） |
 | `commentkit.js` | 评论条目 kit（0.9.133 自 comments.js 拆出，逐字搬运零逻辑改动）：`commentItemOf` 条目构建**单源**（头像/名字/正文 UBB/meta/赞·回复·转发三键/楼中楼递归）+ `expandSubComments`「展开 N 条回复」分页件——**无状态**（mode/sourceId/stype 经 opts 注入，原直读全局 commentState 的三处已去）；点击行为归消费方委托（`_c/_n/_target` 契约原样保留）。消费方：comments.js 三宿主（抽屉/行内/详情面板）。全项目评论条目渲染只此一处（审计在册）；**0.9.134 观感五项在此落地**：名字等级色（nameColor 2紫/1红）、头像框**仅根评论**（thumbnailImageCdnUrl → cdnUrls[0].url）、设备「来自 x」、楼层**仅根评论**、楼中楼「回复 @名 :」前缀（replyToUserName↔replyToName 双读）；已赞态三读含 isLiked（真机字段实锤）；**0.9.138 版式全语境统一**（撤 0.9.135 的 form 分派）：抽屉/详情/广场页/关注页与内嵌原生页**同码**——50px 头像（框 80×70/-15）、条目 18px 顶距扁平无 hover、名字 12px、「发表于 x」入名字行、楼中楼 30+700、「共 N 条回复, 点击查看」；皮肤只差颜色（深色基础值 / `.acsv-mp` 浅色）；0.9.136 条目间分割线（仅根，白 7%/#e6e6e6）+ 元信息件整件换行防逐字断；**0.9.137 撤除「UP」标**（真机核对：原生 pc 评论组件在视频/文章/动态三域均无 UP 标识） |
 | `reldrawer.js` | 评论抽屉「相关推荐」tab（0.9.168；形态=docs/preview/jingxuan.html ③④⑤）：tab 显隐与切换（平级第二列表 relList，绝不复用评论 dlist——resetList 会清它、.acsv-citem DOM 被 view-follow/detail-open 断言钉死）/行渲染（锚位「播放中」+小封面时长+两行标题+赞数·UP 名，图片走 imgload）/骨架·空·失败三态/点击经 relatedapi.startChain 起游走链；comments.js 只挂两 seam（openComments 尾部 sync / closeComments 复位）；sv（小视频）条目隐藏 tab（端点只收视频稿件） |
+| `channelapi.js` | 频道域件（0.9.169；实测 docs §6.7）：listChannels（allChannels 免登录频道树）/channelTreeOf（**非视频域剔除**：文章63 channelType=1 + AC正义177，单源在模块头 NON_VIDEO 表）/listChannelFeed（secondLevel/resourceList：channelId 主频道过滤、~30/块、pcursor \"{n},{n}\" 页码方言、终页形态未测按空游标/空页收口）/channelPageOf（**杂质本地复核滤**——条目 channel.parentId 与请求频道不符即弃，宁漏不错）。条目转播放契约由消费方经 relatedItemOf。消费方：jingxuanview |
+| `jingxuanview.js` | 精选视图（0.9.169；形态=docs/preview/jingxuan.html ①②）：dock order 16（广场下面）——chips（全部+频道树，复用 .acsv-vchip 族）/首屏大焦点卡（仅「全部」tab，1 大+右列 2）/自适应网格（gridMin 250）/触底续页/骨架·空·失败三态。「全部」=selection/feed 经 **AppAPI.homeFeedFetch 自持游标**（0.9.169 翻页器隔离——不动 home 泵模块游标，请求形状/规整单源）；分区=channelapi。**卡片点击=relatedapi.startChain 起游走链**（与抽屉行同缝）；起步器先 teardownViews（视图开着时 route 层不回写深链——不关视图链在背后空转，route.js 在册） |
 | `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[at]/[resource]/[img]/[color] 逐一白名单放行；IM wire 文本投影（ubbImText）与引用块富正文（ubbQuoteHtml）单源 |
 | `emoticon.js` | 表情包服务 + 面板 + 输入栏表情按钮挂载（localStorage 缓存优先、最近使用、分包 tab） |
 | `imgview.js` | 配图大图查看器（评论/私信共用；root 单例浮层、Esc 模态） |
@@ -461,6 +463,8 @@ flowchart LR
   relationapi["relationapi.js（关注域读写·分组 CRUD）"]
   relatedapi["relatedapi.js（相关推荐域·传输+规整+游走泵）"]
   reldrawer["reldrawer.js（评论抽屉·相关推荐 tab）"]
+  channelapi["channelapi.js（频道域·分区树+分区流规整）"]
+  jingxuanview["jingxuanview.js（精选视图·抖音精选式分区网格）"]
   grouppop["grouppop.js（关注分组选择层·语义件）"]
   pickpop["pickpop.js（通用选择层·锚定弹层壳）"]
   popplace["popplace.js（弹层定位·两模型一实现·零依赖叶子）"]
@@ -472,6 +476,7 @@ flowchart LR
   imgload --> imgurl
   topbar --> imicons
   api --> appapi & relatedapi & settings
+  appapi --> playitem
   appapi --> quality
   quality --> settings
   appapi --> imgurl & timefmt
@@ -489,7 +494,7 @@ flowchart LR
   imdrawer --> appapi & comments & emoticon & imbadge & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
-  boot --> followview & imnative & memberplaza & mypage & pagekind & player & playlayer & searchview & squareview & zone
+  boot --> followview & imnative & jingxuanview & memberplaza & mypage & pagekind & player & playlayer & searchview & squareview & zone
   views --> feedstore & overlay & sidebar & topbar & viewreg
   cards --> imgload & imgview & imicons & ubb & uplook
   sidebar --> viewreg
@@ -517,6 +522,8 @@ flowchart LR
   relationapi --> appapi
   relatedapi --> imgurl & settings
   reldrawer --> imgload & imicons & relatedapi
+  channelapi --> cfg & net
+  jingxuanview --> appapi & channelapi & imgload & relatedapi & viewreg
   grouppop --> nameval & pickpop & relationapi
   pickpop --> popplace
   sharepanel --> popplace

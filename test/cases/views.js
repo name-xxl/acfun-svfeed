@@ -39,7 +39,7 @@ rec('dock-highlight', !!(await waitFor(function () {
   rec('dock-order-my-last', (function () {
     var seq = [].map.call(document.querySelectorAll('.acsv-dock-item[data-view]'),
       function (x) { return x.getAttribute('data-view'); });
-    return seq.join(',') === 'feed,zone,square,follow,my';
+    return seq.join(',') === 'feed,zone,square,jingxuan,follow,my'; // 0.9.169 精选 order 16（广场 15 后）
   })(), (function () {
     return [].map.call(document.querySelectorAll('.acsv-dock-item[data-view]'),
       function (x) { return x.getAttribute('data-view'); }).join(',');

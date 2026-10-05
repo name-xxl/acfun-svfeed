@@ -35,6 +35,7 @@ const HARNESS_CASES = [
   { name: 'smoke', serial: true, release: true },
   { name: 'homeswitch', serial: true  },
   { name: 'rel-drawer', serial: true  }, // 0.9.168 相关推荐 tab + 游走链（home 源）
+  { name: 'jingxuan', serial: true  }, // 0.9.169 精选页：分区网格+自持游标+起链
   { name: 'fastswipe', serial: true  },
   { name: 'feed-slim', serial: true  }, // 0.9.165 水位：远端置瘦 + slide 占位壳 + 划回重解析（40 条夹具）
   { name: 'resolvefail', serial: true, release: true },
