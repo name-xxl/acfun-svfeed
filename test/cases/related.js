@@ -223,6 +223,19 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       var t = TEST.call('reldrawer');
       return t && t.listShown && t.listOn && t.listRows === 10 && t.listIdx === 0 ? t : null;
     }, 6000)), JSON.stringify(TEST.call('reldrawer')));
+    // 列表播放器只留「评论 + 列表」（0.9.175 用户裁决：相关推荐入口收起，防无限套娃）
+    rec('rl-rel-tab-hidden', !!(await waitFor(function () {
+      var t = TEST.call('reldrawer');
+      return t && t.listOnly && t.relTabShown === false ? t : null;
+    }, 4000)), JSON.stringify(TEST.call('reldrawer')));
+    // 套娃上限：就算硬点（对被隐藏的相关列表派发合成点击）也不得再压级
+    (function () {
+      var r = q('.acsv-rellist .acsv-relrow:nth-child(2)');
+      if (r) r.click();
+    })();
+    await h.wait(600);
+    rec('rl-no-nest', (TEST.call('playlayer') || {}).levels === 2,
+      JSON.stringify(TEST.call('playlayer')));
     rec('rl-drawer-follow', !!(await waitFor(function () {
       var t = TEST.call('reldrawer');
       return t && t.rid === String(expectId);
@@ -295,6 +308,11 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       var t = TEST.call('reldrawer') || {};
       return t.listShown === false; // 弹回上级（非列表播放器）→ 「列表」tab 收起
     })(), JSON.stringify(TEST.call('reldrawer')));
+    // 回第 1 级：相关推荐入口按 kind 判定还原（listOnly 解除）
+    rec('rl-rel-tab-back', !!(await waitFor(function () {
+      var t = TEST.call('reldrawer');
+      return t && t.listOnly === false && t.relTabShown === true ? t : null;
+    }, 4000)), JSON.stringify(TEST.call('reldrawer')));
     // 再 Esc 退出层（单级 ⇒ 交回视图层，深界面回来源=舞台）
     key('Escape');
     rec('rl-layer-exit', !!(await waitFor(function () {

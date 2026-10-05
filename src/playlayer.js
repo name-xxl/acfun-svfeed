@@ -10,7 +10,7 @@ import { buildSlide } from './slide.js';
 import { attachVideo } from './attach.js';
 import { batch as relatedBatch, seed, setLayerHost, setLayerOpener } from './relatedapi.js';
 import { isOpenComments, openComments } from './comments.js';
-import { relDrawerShowList, relDrawerSyncList, relDrawerHideList } from './reldrawer.js'; // 列表播放器抽屉（0.9.174）
+import { relDrawerShowList, relDrawerSyncList, relDrawerHideList, relDrawerListMode } from './reldrawer.js'; // 列表播放器抽屉（0.9.174/175）
 import { testHook } from './dbg.js';
 
 // ---------- 播放层（0.9.74）：列表条目就地播放，不再插队尾 + 跳回竖刷 ----------
@@ -200,8 +200,12 @@ function loadLevel(lv) {
 
 // 压新级别 = 开「列表播放器」（0.9.174 用户裁决）：当前级别原样保活（暂停存档），新级别播
 // ctx 那份列表、锚在被点行；**自动展开抽屉并停在「列表」tab**（打开就看得见自己在那份列表里）
+// 套娃上限（0.9.175 用户裁决）：列表播放器**只播自己那份列表**，里面不再有相关推荐入口——
+// 深度封顶 2 级（第 1 级视频播放器 → 第 2 级列表播放器），第 2 级里再想压级直接拒（防无限套娃）
+var MAX_LEVELS = 2;
 function pushLevel(item, ctx) {
   if (!bodyRef || !item) return false;
+  if (levels.length >= MAX_LEVELS) return true; // 已到上限：静默吞掉（调用方按"已处理"看待）
   saveLevel();
   applyCtx(ctx);
   swap(item);
@@ -209,6 +213,7 @@ function pushLevel(item, ctx) {
   hIdx = 0;
   levels.push({ item: item, sess: snapSession(), hist: hist, hIdx: 0, queue: [], at: 0 });
   syncArrows();
+  relDrawerListMode(true); // 列表播放器：抽屉只留评论 + 列表（相关推荐入口收起，防套娃）
   openListDrawer();
   return true;
 }
@@ -224,6 +229,7 @@ export function playEscape() {
   loadLevel(up);
   swap(up.item, up.at); // 进度经 slide._resumeAt 槽恢复（方案一过渡；后续接官方历史断点续播）
   syncArrows();
+  relDrawerListMode(false); // 回第 1 级：相关推荐入口按 kind 判定还原
   if (up.sess && up.sess.kind === 'list' && up.sess.list.length) {
     relDrawerShowList(displayRowsOf(up.sess), up.sess.idx, (up.item && up.item.title) || '');
   } else {
@@ -445,6 +451,7 @@ function teardownPlayView() {
   pendingCtx = null;
   bodyRef = null; curItem = null; hist = []; hIdx = -1; queue = []; stepping = false; // 层内游走态随层拆
   levels = []; // 级别栈随层拆（0.9.174）
+  relDrawerListMode(false); // 只留列表态随层拆（0.9.175）
   session = { kind: 'single', list: [], rows: null, idx: -1, more: null };
 }
 

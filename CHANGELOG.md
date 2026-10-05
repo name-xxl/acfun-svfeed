@@ -3,6 +3,22 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.175（2026-10-06）· 列表播放器封顶：只管自己那份列表，相关推荐入口收起（防无限套娃）
+
+- **由头**：用户裁决「第三个播放器只管自己的播放列表，相关推荐或者合辑分P不显示，防止用户无限开
+  视频套娃，逻辑不好做」——0.9.174 的级别栈理论可无限压级（在第 2 级里再点相关推荐 → 第 3 级…）。
+- **修法**：①`MAX_LEVELS = 2`：`pushLevel` 超限即静默吞掉（按"已处理"返回，不落回开层兜底）。
+  ②`reldrawer` 新 seam `relDrawerListMode(on)`：列表播放器（级别≥2）里抽屉**只留评论 + 列表**——
+  相关推荐页签收起（正看着它则弹回列表页签），退出列表播放器按最近一次 kind 判定还原
+  （`_relByKind` 记住 relDrawerSync 的结论）；`relDrawerSync` 显隐判定叠加 listOnly 门。
+  ③接线：pushLevel 开（on）、playEscape 回第 1 级（off）、teardown（off）。
+- **测试**：`rel-layer` 31→34 断言——进列表播放器后 `listOnly && relTabShown===false`；
+  **套娃硬测**：对被隐藏的相关列表派发合成点击（display:none 元素仍可派发事件走委托）⇒ levels 仍
+  为 2；弹回第 1 级后 `listOnly===false && relTabShown===true` 还原。**反跑两连全红**：摘
+  relDrawerListMode(true) ⇒ rl-rel-tab-hidden 红；摘 MAX_LEVELS 上限 ⇒ 合成点击真压出第 3 级，
+  rl-pop-parent/rl-parent-resume-slot/rl-list-tab-hidden/rl-layer-exit 连带 4 条红。全链
+  build/lint/check/单测 258/52 场景全绿。预览 ⑥ 段同步（列表播放器只有评论+列表两个页签）。
+
 ### 0.9.174（2026-10-06）· 播放层「级别栈」：相关推荐行 = 开列表播放器，关闭即回原视频
 
 - **由头**：用户实报「太反直觉了——打开分区》视频》点击相关推荐》关闭相关推荐》分区，原来播放的视频也

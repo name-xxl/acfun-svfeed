@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.174
+// @version      0.9.175
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -5261,7 +5261,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (!d || !d.relList) return;
     wire();
     var isVideo = kind2 === "home";
-    d.tabR.style.display = isVideo ? "" : "none";
+    d._relByKind = isVideo;
+    d.tabR.style.display = isVideo && !d._listOnly ? "" : "none";
     if (!isVideo) {
       if (d.tabR.classList.contains("on")) showCmt();
       return;
@@ -5308,6 +5309,17 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     d.tabL.style.display = "none";
     if (d.tabL.classList.contains("on")) showCmt();
   }
+  function relDrawerListMode(on) {
+    var d = commentDrawer;
+    if (!d || !d.tabR) return;
+    d._listOnly = !!on;
+    if (on) {
+      if (d.tabR.classList.contains("on")) showList();
+      d.tabR.style.display = "none";
+    } else {
+      d.tabR.style.display = d._relByKind ? "" : "none";
+    }
+  }
   testHook("reldrawer", function() {
     var d = commentDrawer;
     if (!d || !d.relList) return { present: false };
@@ -5322,7 +5334,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       listShown: !!(d.tabL && d.tabL.style.display !== "none"),
       listOn: !!(d.tabL && d.tabL.classList.contains("on")),
       listRows: d.listList ? d.listList.querySelectorAll(".acsv-relrow").length : 0,
-      listIdx: lcache.idx
+      listIdx: lcache.idx,
+      listOnly: !!d._listOnly
     };
   });
 
@@ -10415,7 +10428,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.174" : "");
+    return normVer(true ? "0.9.175" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11931,8 +11944,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     hIdx = lv.hIdx;
     queue = lv.queue;
   }
+  var MAX_LEVELS = 2;
   function pushLevel(item, ctx) {
     if (!bodyRef || !item) return false;
+    if (levels.length >= MAX_LEVELS) return true;
     saveLevel();
     applyCtx(ctx);
     swap(item);
@@ -11940,6 +11955,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     hIdx = 0;
     levels.push({ item, sess: snapSession(), hist, hIdx: 0, queue: [], at: 0 });
     syncArrows();
+    relDrawerListMode(true);
     openListDrawer();
     return true;
   }
@@ -11951,6 +11967,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     loadLevel(up);
     swap(up.item, up.at);
     syncArrows();
+    relDrawerListMode(false);
     if (up.sess && up.sess.kind === "list" && up.sess.list.length) {
       relDrawerShowList(displayRowsOf(up.sess), up.sess.idx, up.item && up.item.title || "");
     } else {
@@ -12178,6 +12195,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     queue = [];
     stepping = false;
     levels = [];
+    relDrawerListMode(false);
     session = { kind: "single", list: [], rows: null, idx: -1, more: null };
   }
   registerView({
@@ -13607,7 +13625,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.174：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.175：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

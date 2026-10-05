@@ -245,7 +245,8 @@ export function relDrawerSync(rid, kind, title) {
   if (!d || !d.relList) return;
   wire();
   var isVideo = kind === 'home';
-  d.tabR.style.display = isVideo ? '' : 'none';
+  d._relByKind = isVideo; // kind 判定的结果记下来——列表播放器退出时要按它还原
+  d.tabR.style.display = (isVideo && !d._listOnly) ? '' : 'none';
   if (!isVideo) {
     if (d.tabR.classList.contains('on')) showCmt(); // 正看着相关列表、划到小视频：弹回评论 tab
     return;
@@ -305,6 +306,21 @@ export function relDrawerHideList() {
   if (d.tabL.classList.contains('on')) showCmt();
 }
 
+// seam ⑥（0.9.175）：列表播放器（级别≥2）里抽屉**只留评论 + 列表**——相关推荐 tab 收起
+//（防无限套娃：用户裁决「第三个播放器只管自己的播放列表，相关推荐不显示」）；
+// 退出列表播放器（弹回上级）时按最近的 kind 判定还原
+export function relDrawerListMode(on) {
+  var d = commentDrawer;
+  if (!d || !d.tabR) return;
+  d._listOnly = !!on;
+  if (on) {
+    if (d.tabR.classList.contains('on')) showList(); // 正看着相关推荐：弹回列表页签
+    d.tabR.style.display = 'none';
+  } else {
+    d.tabR.style.display = d._relByKind ? '' : 'none';
+  }
+}
+
 // debug 构建测试钩子：harness 断言读 tab/列表态（release 死码消除）
 testHook('reldrawer', function () {
   var d = commentDrawer;
@@ -320,6 +336,7 @@ testHook('reldrawer', function () {
     listShown: !!(d.tabL && d.tabL.style.display !== 'none'),
     listOn: !!(d.tabL && d.tabL.classList.contains('on')),
     listRows: d.listList ? d.listList.querySelectorAll('.acsv-relrow').length : 0,
-    listIdx: lcache.idx
+    listIdx: lcache.idx,
+    listOnly: !!d._listOnly
   };
 });
