@@ -28,6 +28,7 @@ function createFeedStore(env) {
         dbg('fetch:list=' + list.length);
         list.forEach(function (n) {
           // 懒解析源（home）urls 由进播放器时补齐，允许为空入库
+          //（0.9.165 起 sv 置瘦条目同样以空 urls 在库、cap.lazyResolve 置真，划回重解析）
           if (n.id && !self.seen[n.id] && (n.cap.lazyResolve || n.urls.length)) {
             self.seen[n.id] = 1;
             self.items.push(n);

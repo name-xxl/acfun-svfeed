@@ -12,7 +12,7 @@ import fs from 'fs';
 var V = JSON.parse(fs.readFileSync('./package.json', 'utf8')).version;
 
 // 内嵌 hls.js（npm 依赖，构建时读取）：0.9.164 起以**字符串字面量**内嵌（window.__ACSV_HLS_SRC__），
-// 运行时首个 m3u8 挂载前才由 ensureHls new Function 编译执行——页面加载不再编译整份 ~1MB
+// 运行时首个 m3u8 挂载前才由 ensureHls new Function 编译执行——页面加载不再编译整份 ~415KB
 //（非竖刷页：原生页注入/动态/空间…这些用不到 hls 的会话照付全额编译，是低配机最大固定成本）。
 // 0.9.14 的「运行时零网络依赖」目标不变：CDN 逐源兜底仍在，串缺失/损坏时自动接管。
 // 缘起：jsdelivr/npmmirror 在部分用户网络均不可达（attach.cdnFail 实测），

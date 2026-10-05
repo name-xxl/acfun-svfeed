@@ -25,9 +25,10 @@ export function resetHomePager() {
   if (curSource === 'home') AppAPI.resetPager();
 }
 
-// 懒解析统一入口：resolving 互斥 + 在途 Promise 复用。setActive 预热与 attachVideo
-// 挂载共用同一个 Promise——预热中途划到该条时，挂载侧直接等结果，不再出现
-// 「挂载撞上预热中」导致 slide 永远停在 loading 的竞态。
+// 懒解析统一入口：resolving 互斥 + 在途 Promise 复用。三个消费方共用——setActive 预热
+//（prewarm）、挂载链（session.start，共用同一个在途 Promise：预热中途划到该条时挂载侧
+// 直接等结果，不再出现「挂载撞上预热中」导致 slide 永远停在 loading 的竞态）、以及
+// 0.9.165 起置瘦条目划回的重解析（slim 置 cap.lazyResolve=true + 清 urls，本函数天然可重入）。
 // 走 refreshItem 分发：mock 拦截与真实解析（AppAPI.resolve）同路
 export function ensureResolved(item) {
   if (!item.cap.lazyResolve) return Promise.resolve(true);

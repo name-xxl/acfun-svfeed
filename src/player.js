@@ -253,7 +253,8 @@ function setActive(idx) {
   }
   // 暂停非当前视频，停掉其弹幕图层（滚动回来 playing 会自动重启）。
   // 0.9.37 收敛为窗口内扫描：video 只存在于渲染窗口的 slide 里，全量扫 scroller
-  // 会随会话长度线性放大（slide 元素常驻）；判定谓词与 sweepVideos 共用（0.9.38）；
+  // 会随会话长度线性放大（0.9.37 时 slide 元素常驻；0.9.165 起窗外已换占位壳，
+  // 全量口径收敛到 belt 带）；判定谓词与 sweepVideos 共用（0.9.38）；
   // 幽灵兜底仍由 playback.sweepVideos 负责
   for (var wi = Math.max(0, idx - CFG.win.back); wi <= idx + CFG.win.fwd && wi < FeedStore.items.length; wi++) {
     var ws = slideAt(wi);

@@ -286,8 +286,8 @@ export function buildControls(slide, idx, item) {
 
 export function updateArrows(slide) {
   if (!root) return;
-  // 当前 slide 的箭头即所见状态：传参免全量扫描（长会话 slide 常驻 scroller，
-  // querySelectorAll 随会话线性放大，0.9.37）；未传参回退全量（兜底路径）。
+  // 当前 slide 的箭头即所见状态：传参免全量扫描（长会话 querySelectorAll 随会话线性
+  // 放大，0.9.37；0.9.165 起窗外已换占位壳，全量口径收敛到 belt 带）；未传参回退全量（兜底路径）。
   // 显隐在每次激活时重估——离开画面的箭头带旧状态无妨，滑回即刷新
   var ups = slide ? slide.querySelectorAll('.acsv-arrow-up') : root.querySelectorAll('.acsv-arrow-up');
   Array.prototype.forEach.call(ups, function (up) {

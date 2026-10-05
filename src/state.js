@@ -26,7 +26,9 @@ export function releaseDrawer(id) {
 export function currentDrawer() { return drawerSlot; }
 export function resetDrawerSlot() { drawerSlot = null; } // 整流卸载时调用：防残留闭包吃掉 Esc
 
-// 按索引取 slide 元素；无 scroller 或不存在时返回 null
+// 按索引取 slide 元素；无 scroller 或不存在时返回 null。
+// 占位壳（.acsv-slide-slot，0.9.165 水位）class 异于 .acsv-slide ⇒ 对窗外条目返回
+// null——调用方按「目标不在场」走既有补建/挪游标路径（renderWindow/scrollToIndex）
 export function slideAt(idx) {
   return scroller && scroller.querySelector('.acsv-slide[data-idx="' + idx + '"]');
 }
