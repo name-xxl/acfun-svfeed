@@ -547,6 +547,23 @@ body：`pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2`（1=视频 2=番�
   老 GM 键一次性并入不删）；顶栏搜索框挂**聚焦历史面板**（focus 开 / mouseleave+外点+Esc 收 /
   点词即搜 / 清除历史）
 
+### 4.11 UP 主空间内搜索 / 用户资源检索 queryMatch（〔实测〕2026-10-05，内置浏览器带登录态 + curl 免登录双验；未接脚本）
+
+端点定位：**通用「用户资源检索」**（空间内搜索只是当前用途）；来源 `tv.acfun.core.module.upcontribution.search`（反编译〔转引〕），App 内原生实现（非 WebView）。全链路 jadx 逆向落地：文本搜路径 → 签名比对 → 包名定位 → UI 树倒查 → 常量反混淆（KanasConstants.q3=`"keyword"`，实测键名即 `keyword`）→ 端点验证。
+
+- `POST https://api-new.app.acfun.cn/rest/app/user/resource/queryMatch`，`Content-Type: application/x-www-form-urlencoded`，表单四参：
+  - `userId` UP 主 uid（必要）
+  - `keyword` 关键词；**空串 = 全量列举**该 UP 全部资源（实测某 UP `totalNum=524`）——即免登录版「UP 作品列表」
+  - `resourceType` **2=视频、3=文章**（枚举 1/4–12 全部 `result:21`「参数格式错误，请仔细阅读API文档。」；2 与 followDougaFeed 视频条目 resourceType 同值）
+  - `pcursor` **页码方言**：首页 `"0"`，响应回传下一页页码（`"1"`→`"2"`），终页 `"no_more"`；页长**固定 10**（无 count 参数）
+- **免登录**（curl 无 cookie `result:0` 正常命中）
+- 响应：`result, feed, pcursor, host-name, totalNum, requestId`——列表字段名 `feed`（UserSearchBaseResponse 形状）
+- **视频条目**（视频卡家族）：`dougaId`（字符串）、`title`、`coverUrl`+`coverCdnUrls`+`coverImgInfo`、`durationMillis`、`channel{name}`、`description`、`videoList[]`（P 分：`id/uploadTime/durationMillis/sizeType/visibleType/sourceStatus/fileName`…）、like/banana/comment/share/view/stow/danmaku/giftPeach 全套计数 + 各自 `*Show` 格式化串、`createTime` 为**预格式化「N分钟前」**（绝对毫秒在 `createTimeMillis`）、`status`(2)、`isLike/isFavorite/isThrowBanana/isDislike`、`superUbb`、`hasHotComment`、`belongToSpecifyArubamu`、`isRewardSupportted`、`shareUrl/picShareUrl`、富 `user`（fanCount/signature/headCdnUrls/avatarFrame/socialMedal/gender/isJoinUpCollege…，§3 douga/info 同款）
+- **文章条目**（另一套形状）：`resourceId`/`contentId`（数字）、标题在 `contentTitle`、`resourceType` 为**字符串枚举 `"CONTENT_ARTICLE"`**、`contentType`(3)、`channelName/channelId/channel`、封面在 `coverImgInfo/videoCover`（无顶层 coverUrl）、`tagList[]`、`fansCount/contributionCount/userSignature/userName/userImg`、`sourcePlatform`、计数只有 view/comment/banana（+`*Show`）、`shareUrl`（`m.acfun.cn/v/?ac=…`）
+- 双向印证：queryMatch 命中与 followDougaFeed（§2.1.2）条目同 UP 同视频逐字一致（48892876「我自愿给朽叶姐姐送餐」、48892134「每个coser都会遇到的困难..」）
+- 未确证：带登录态 `isLike/isFavorite` 回填（样本全 false，同 §2.8 口径）；result 错误码表（仅见 21=参数格式错误）
+- 处置：暂无消费方；未来做「UP 空间内搜索 / UP 作品全量列表」的现成底座（免登录、页码翻页、全量列举）
+
 ## 5. 内容扩展路线定性（〔实测〕）
 
 - **大家都在看**：无独立 JSON 接口（v 页 performance 时间线无相关请求），服务端直出进 v 页 HTML（实测 40 个 /v/ac 链接）→ 唯一路线 DOM 解析（uppage.js 同款）；window.videoInfo 内嵌 douga/info 等价数据（含 mkey）但**无**相关视频数组
