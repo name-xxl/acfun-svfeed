@@ -24,8 +24,8 @@
 | /rest/app/meow/momentList | POST | 小视频关联动态 |
 | /rest/app/meow/slideList | POST | 小视频滑动列表（竖刷候选）★ |
 | /rest/app/speedTheater | POST | 快剧场（短视频剧场） |
-| /rest/app/discovery/feed/resources | POST | 发现页资源流 |
-| /rest/app/discovery/feed/tags | POST | 发现页标签流 |
+| /rest/app/discovery/feed/resources | POST | 发现页资源流（免登录裸调通；channelId 被无视=推荐混排非分区流，§6.7 附记） |
+| /rest/app/discovery/feed/tags | POST | 发现页标签流（免登录裸调通） |
 | /rest/app/discovery/feed/tag/category/resources | POST | 发现页标签分类流 |
 | /rest/app/tag/feed | GET | 话题动态流 |
 | /rest/app/tag/getResourceFeed | GET | 话题资源流 |
@@ -125,7 +125,7 @@
 | /rest/app/articleChannel/home /recoNew | 文章区首页/推荐 |
 | /rest/app/contribute/checkPermission /createVideo /createDouga /deleteDouga /getCoverEditMaterial /getOriginalStatement | 视频投稿 |
 | /rest/app/manage/getDougaList /getVideoList /searchDanmaku | 稿件管理（含弹幕搜索！） |
-| /rest/app/channel/allChannels /secondLevel/pageModules /secondLevel/resourceList | 频道体系 |
+| /rest/app/channel/allChannels /secondLevel/pageModules /secondLevel/resourceList | 频道体系（**§6.7 实测**：allChannels 免登录出频道树；resourceList=分区视频流，channelId 主频道过滤实锤、count 无效钉死~30/块、pcursor "{n},{n}" 翻页零重叠；子频道过滤未通、pageModules 空） |
 | /rest/app/rank/hot /banana /channel /condition /getChannelList /youngStar | 排行榜 |
 | /rest/app/new-bangumi/detail /list /itemList /schedule /detail/center/banner /index | 番剧 |
 | /rest/app/new-bangumi/pay/afford /valuation /video /videoList | 番剧付费 |

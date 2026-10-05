@@ -618,12 +618,30 @@ body 实测（生活分区滚动加载抓包）：`cursor=<毫秒时间戳>_<文
 - **但频道 tab 的 feed 无法经 selection/feed 复现**：`tabId=channel_1` / `label=` / `appTabType=5&channelId=` / `cid=` / `channelId=` 全试——同参两次请求内容随机（推荐流噪声，无过滤迹象）；专用 `/rest/app/channel/feed` 不存在（返回非 JSON）。**定位真参数唯一路径 = 真机抓包 APP**（待打样）
 - **tag/feed**：`POST /rest/app/tag/feed`（mkey 免登录）result 0——是**话题广场**卡流（tag[]：tagId / tagName / tagCover / tagResourceCount / stowCount / summary / cardTitle，pcursor 时间戳游标），非按话题取视频；tagId 过滤参数无效
 - 附：selection/feed 从桌面浏览器直调需带全上述头集（缺 deviceType/udid/requestTime 组即 result 21「参数格式错误」）
+- **2026-10-05 破局**：分区流 = `POST /rest/app/channel/secondLevel/resourceList`（免登录，channelId 主频道过滤实锤）——上文「专用 feed 不存在 / 唯一路径=真机抓包」被 jadx 拆包+黑盒探测推翻，全契约见 §6.7
 
 ### 6.6 「左栏分区/榜单」可行底座
 
 - 榜单：rank/channel 全字段 JSON + 现有 resolve 链 → 可竖刷，最接近抖音式"榜单"
 - 分区：6.3 精选块做首屏 + 榜单续刷；或左栏只做榜单
 - 直播：不立项（仅开播提醒，形式待定）——直播 API 家族未探，followLiveUsers 本账号空列表无样本
+- 分区流（2026-10-05）：`channel/secondLevel/resourceList` 打通（§6.7）——「分区」从精块+榜单升级为全量可翻页流
+
+### 6.7 APP 频道家族：分区视频流打通（〔实测〕2026-10-05，内置浏览器带登录态 + curl 免登录双验，未接脚本）
+
+§6.5 的「真机抓包待打样」由拆包清单（acfun-app-api-inventory.md）+ 黑盒探测破局，未抓包。
+
+- `POST https://api-new.app.acfun.cn/rest/app/channel/allChannels`（**免登录**，无参）→ 完整频道树 `channels[]`：13 主频道 `{channelId, name, channelType, children[]（子频道 id:name 全量）}`——动画1 / 音乐58 / 舞蹈·偶像123 / 游戏59 / 娱乐60 / 生活201 / 科技70 / 影视68 / 体育69 / **番剧155** / 鱼塘125 / **文章63（channelType=1，文章域）** / AC正义177；比 §6.5 首页 tab 表多番剧/文章/AC正义
+- **`POST https://api-new.app.acfun.cn/rest/app/channel/secondLevel/resourceList`（免登录）＝分区视频流正主**：
+  - 表单：`channelId`（主频道 id，**必要**——缺省回 0 条）+ `pcursor`（首块 `"0"`）
+  - 回包 `{result, feed[], pcursor, total, host-name, requestId}`；`total` 恒 10000（假封顶值，不可当总数）
+  - **主频道过滤实锤**：channelId=1 全动画系子频道、channelId=59 游戏系；杂质率 ~1/28（混入「生活>生活日常」，疑跨区投稿主分区口径）；条目**自带 `channel{id,name,parentId,parentName}`** 可本地复核/兜底再滤
+  - **子频道不过滤**：`secondLevelChannelId` / `subChannelId` 均被无视（回全主频道分布）；`channel/secondLevel/pageModules` 裸调 `modules:[]` 空，子频道页模块路线未开
+  - **count 无效**：钉死 ~30 条/块（要 5 给 30）
+  - **翻页健康**：`pcursor` 形态 `"{num},{num}"` 双数值单调推进（第二列似稿件号递增），喂回即下一块，实测三页**零重叠**；终页形态未测
+  - 条目=视频卡家族：`dougaId/caption/coverUrl/durationMillis/videoList[]（P 分）/channel{...}/全套计数/富 user`——与 followDougaFeed/queryMatch 视频条目同族
+- **`discovery/feed/resources` + `discovery/feed/tags`**（POST，免登录裸调通）：发现页推荐混排流 + 标签流，条目同为视频卡（自带 channel 对象）；`pcursor` 形态 `TAIL;{ts};{num};`；**`channelId` 参数被无视**（带参回包与裸调逐字同游标）——不是分区流，可作「发现/混排」候选源另记
+- 处置：抖音精选式分区 chips 的数据源就绪——`allChannels` 出 chips、`resourceList` 出流；主频道级够精选页首版，子频道级过滤未通
 
 ## 7. 本地偏好存储真值与迁移（0.9.89 实测）
 
