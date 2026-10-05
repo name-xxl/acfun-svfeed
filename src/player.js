@@ -4,7 +4,7 @@ import { el, fmtTime, ensureStyle } from './ui.js';
 import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot, stageVisible, isOvlSlide, OVL_IDX } from './state.js';
 import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync, setItemProvider } from './route.js';
 import { FeedStore, setChangeHandler } from './feedstore.js';
-import { getSource, setSource, resetHomePager, API } from './api.js';
+import { getSource, setSource, resetHomePager, ensureBaseSource, API } from './api.js';
 import { isOpenComments, closeComments, openComments, commentState, syncCommentVars, toggleItemComments } from './comments.js';
 import { onPlaying as dmOnPlaying, stopAll as dmStopAll } from './danmaku.js';
 import { UpVideos } from './uppage.js';
@@ -27,6 +27,7 @@ import { buildDock, teardownDock, setFeedHomeHandler } from './sidebar.js';
 import { startFollowBadge, stopFollowBadge } from './followbadge.js';
 import { buildTopbar, teardownTopbar, syncTopbarSeg } from './topbar.js';
 import { setupInputHandlers, teardownInputHandlers } from './input.js';
+import { setChainStarter } from './relatedapi.js'; // 游走链起步缝注册（0.9.167，mediator 反向解耦）
 
 // ---------- UI ----------
 var io = null;
@@ -177,6 +178,31 @@ setItemProvider(function (idx) { return FeedStore.items[idx]; });
 //（先例 setItemProvider；input 的 c 键同动作走下方 setupInputHandlers 的 toggleComments）
 setCommentsOpener(toggleItemComments);
 
+// 相关推荐游走链起步器（0.9.167）：relatedapi 挂 mediator、player 注册——reldrawer 行点击 /
+// 精选页卡片点击经 relatedapi.startChain 到这里。**不走 hash→loadDeepLink**：那条链「源随链接
+// 走」会 setSource('home') 覆写游走态（loadDeepLink 语义在册）；本器镜像它的复位序列但保住
+// related 源。feedStreamOn 置假=dock「推荐」入口按「换流重拉」走（ensureBaseSource 归位基源）
+setChainStarter(function (acId, firstItem) {
+  if (!scroller) return false;
+  feedStreamOn = false;
+  setAppliedMid(acId); // 地址意图先登记：setActive→syncHash 回写触发的 syncRouteFeed 幂等跳过
+  cancelHashSync();
+  setSource('related');
+  updateSegUI();
+  closeComments(); // 行点击起步=离开抽屉语境（switchSource 同款纪律）
+  dmStopAll();
+  FollowVideos.feedActive = false; // 游走链与列表上下文互斥（同换源清上下文先例）
+  UpVideos.feedActive = false;
+  FeedStore.reset();
+  resetStream();
+  FeedStore.items.push(firstItem); // 起点置顶（契约条目由调用方经 relatedItemOf 预构）
+  FeedStore.seen[firstItem.id] = 1;
+  FeedStore.current = 0;
+  renderWindow();
+  setActive(0); // ensureMore 链尾锚=起点：首拍即从起点的相关池抽下一条（游走开始）
+  return true;
+});
+
 // HealthMonitor（卡帧看门狗 v3）在 session.js：与会话同生命周期，dispose 即停，
 // 恢复阶梯经 hooks 回接 switchQuality/attachVideo。
 
@@ -249,7 +275,7 @@ function setActive(idx) {
   updateArrows(slideAt(idx));
   if (isOpenComments()) {
     var itC = FeedStore.items[idx];
-    if (itC && commentState.sourceId !== itC.id) openComments(itC.id, itC.stype, itC.shareUrl, itC.kind);
+    if (itC && commentState.sourceId !== itC.id) openComments(itC.id, itC.stype, itC.shareUrl, itC.kind, itC.title);
   }
   // 暂停非当前视频，停掉其弹幕图层（滚动回来 playing 会自动重启）。
   // 0.9.37 收敛为窗口内扫描：video 只存在于渲染窗口的 slide 里，全量扫 scroller
@@ -495,6 +521,7 @@ function mount() {
     feedDeferred = true;
   } else {
     // 普通入口：按持久化内容源清空缓冲重新随机拉取（resetHomePager 让推荐源不吃上次会话的游标）
+    ensureBaseSource(); // 0.9.167：上次会话若停在游走态（related 不落盘，此处本就取持久化基源，防御性归位）
     resetHomePager();
     UpVideos.feedActive = false;
     FollowVideos.feedActive = false; // 0.9.99：普通入口同样退出关注视频流（seg 回隐）
@@ -514,6 +541,7 @@ function maybeStartFeed() {
   if (currentView()) return;
   feedDeferred = false;
   if (FeedStore.items.length) return;
+  ensureBaseSource(); // 0.9.167：同 mount 普通入口，游走态先归位再拉随机流
   resetHomePager();
   UpVideos.feedActive = false;
   FollowVideos.feedActive = false; // 0.9.99：同 mount 普通入口，退出关注视频流
@@ -598,6 +626,7 @@ export function goFeedHome() {
   if (!keep) {
     FollowVideos.feedActive = false;
     UpVideos.feedActive = false;
+    ensureBaseSource(); // 0.9.167：游走态（feedStreamOn=false 即命中换流分支）先归位基源
     cancelHashSync();   // 残留回写会拿旧 index 把地址踩成上一条的深链（同 switchSource 纪律）
     resetHomePager();
     setAppliedMid(null);

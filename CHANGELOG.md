@@ -3,6 +3,56 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.168（2026-10-05）· 相关推荐进评论抽屉：tab + 随机游走泵（feed/related/general 首接线）
+
+- **由头**：拆包清单 ★1 `feed/related/general` 当日实测破局（api-research §5：POST 表单
+  `resourceType=2&resourceId`、免登录、无游标一发 10 条、重复调用换一批、回包不含当前视频、
+  首条非固定 UP 本人、分区亲和）+ 用户裁决两连：①「大家都在看」并入评论抽屉做「相关推荐」
+  tab（跟着每个视频走=所有视频自动有此功能）；②竖刷「下一条」默认**随机游走**——在当前视频的
+  相关推荐池里随机抽一条、逐级走，不按列表顺序；设置面板给「按列表顺序续播」开关（relSequential，
+  默认关）。预览稿 docs/preview/jingxuan.html v4 先行确认（3cb56fd）。
+- **修法**：①新域件 `relatedapi.js`（传输+规整+泵一体，不 import feedstore/player——环检测
+  零豁免）：`relatedPageOf` 拆包裹层（{dougaFeedView,expTag,type}）、`relatedItemOf` 走 home
+  契约模板（resolve 链/prewarm/slim/深链回写全免费；计数富化+up 主键 id）、`batch(tipId)` 游走
+  泵（自持 seen 防回头路；整批见尽换批 ≤3 次；兜底放宽允许重播——断流比偶尔重播更伤）；随机性
+  只在 walk 模式抽 1 条，seq 模式按展示顺序全出（pickFresh 纯函数，rand 注入单测确定性）。
+  ②起步走 **player 注册的起步缝**（setChainStarter/startChain mediator）：不走 hash→loadDeepLink
+  ——那条链「源随链接走」会 setSource('home') 覆写游走态；起步器镜像其复位序列但保住 related，
+  且 related **不持久化**（settings source 只认 sv|home），mount 普通入口/maybeStartFeed/
+  goFeedHome 换流分支三处 `ensureBaseSource()` 归位。③取流锚：feedstore.fetchMore 把仓库末条
+  id 传给 `API.feed(tipId)`（仅 related 消费，签名加宽不改既有源行为）——walk 每步 1 条、
+  seq 整批 ≤10 条，节奏由 bufferSize=4 前瞻自然驱动。④评论抽屉双 tab：slide.buildDrawer 头部
+  插「评论 N | 相关推荐」tab 行（dtitle 仍是管线回写目标、dclose 原样），**平级第二列表**
+  relList（绝不复用 dlist——resetList 会清它、.acsv-citem DOM 被 view-follow 68/detail-open
+  38 断言钉死）；新 `reldrawer.js`（锚位「▶ 播放中」行+推荐行小封面/时长/两行标题/赞数·UP 名、
+  骨架/空/失败三态、sv 条目隐藏 tab、输入条显隐记忆隐藏前内联值不破小视频纯浏览）；comments.js
+  只挂两 seam（openComments 尾部 sync——换视频刷新候选池；closeComments 复位）。行点击=
+  startChain 起游走链。⑤设置 SCHEMA 加 relSequential（seekStep 后，开关索引不移），面板/存储/
+  校验全免费。⑥appapi.resolve 补非 m3u8 直链 cap.hls=false 守卫（followstream 同款先例——
+  游走条目 resolve 出 webm/mp4 直链时不再误入 hls.js 管线）。⑦topbar syncTopbarSeg 对
+  related 源两键全灭（seg 是 sv↔home 开关，游走进出不经 seg）。
+- **测试**：单测 250→255（relatedPageOf 拆包/抛错、pickFresh rand 两端界+seen 过滤+seq 保序、
+  relatedItemOf 契约白名单 ⊆ ITEM_FIELDS.play+字段映射+up=null 不编造）；harness 新场景
+  `rel-drawer`（22 断言，home 源 + my-sample 确定性池桩 700000+rid*10+k）：tab 就绪→切 tab
+  （rows=11=锚位+池）→点首行起链（起点置顶 kind=home lazy=true+hash `#svfeed/a/<id>`+
+  seenCount≥2+抽屉收起）→scrollTo 推进池内互异→设置面板开 relSequential→seq 整批入链
+  （增量≥5 区分 walk 的 1 条/步）；settings-open 用例 5→6 控件同步。反跑实证：摘 seq 分支
+  ⇒ rel-seq-batch 红（before=3 now=6 <5）；摘 tabR ⇒ 构建期 ReferenceError 红。全链
+  build/lint/check（deps 221 边含 5 条新边）/单测/49 场景全绿。
+- **边界**：仅评论抽屉宿主有 tab（面板/行内宿主形态不变）；fav/搜索/榜单等面板条目不经此链；
+  写链零新增（点赞/收藏仍走原 rail 键，resolve 链回填互动态）。
+
+### 0.9.167（2026-10-05）· 泄密门禁：两份接口侦察文档钉死仓外（check-no-leak 入 check 链）
+
+- **由头**：用户定调「不提供灰产滋生土壤」（A 站近年屡遭灰产攻击）。同日裁决
+  `docs/api-research.md` + `docs/acfun-app-api-inventory.md` 退公开仓改本地留档，但当时只靠
+  .gitignore + 文档头注记护缝——`git add -f` 硬塞或未来 ignore 被清，都能静默回仓，缺机器闸。
+- **修法**：新增 `test/check-no-leak.mjs` 挂进 `npm run check` 链尾（cases→release→deps→no-leak），
+  三断言任一破即 exit 1：①两文件不在 git 索引；②两文件被 .gitignore 覆盖；③两文件不在暂存区。
+  纯 git 元数据校验，脚本行为零改动，产物仅 @version 随批漂移。
+- **测试**：摘修复反跑 = `git add -f docs/api-research.md` ⇒ 门禁转红（索引断言抓住），
+  `git rm --cached` 还原 ⇒ 转绿；lint/build/check（含新门禁）+ npm test 全量场景全绿。
+
 ### 0.9.166（2026-10-05）· 小件合批：重试抖动 ±20% + onTime 同值跳过 + 会话请求计数（net/img 打点）
 
 - **由头**：性能评估核实轮通过的三条小项：①图片重试链固定间隔（0/600/1200ms）——多图

@@ -82,18 +82,33 @@ function onSlideTap(ev) {
 }
 
 // 评论抽屉骨架（挂载时构建一次；**只建空壳 + 注册句柄**——关闭键/列表委托由 comments.js
-// 首次打开时经 setCommentDrawer 句柄自附，0.9.118 接线自附；本模块不再 import 评论域）
+// 首次打开时经 setCommentDrawer 句柄自附，0.9.118 接线自附；本模块不再 import 评论域）。
+// 0.9.167：head 加「评论 | 相关推荐」双 tab（tab 行为在 reldrawer.js，经句柄自附——同
+// ensureDrawerWired 体例，本模块零评论域依赖）；dtitle 仍是评论管线的计数回写目标
+//（comments.js titleText 写 textContent，语义不变），包进「评论」tab 键内展示；
+// 相关推荐是**平级第二列表**（绝不复用 dlist——resetList 会清它、.acsv-citem DOM 被断言钉死）
 export function buildDrawer() {
   var drawer = el('aside', 'acsv-drawer');
   var dhead = el('div', 'acsv-drawer-head');
+  var dtabs = el('div', 'acsv-drawer-tabs');
+  var tabC = el('button', 'acsv-dtab on');
   var dtitle = el('span', null, '评论');
+  tabC.appendChild(dtitle);
+  tabC.title = '评论';
+  var tabR = el('button', 'acsv-dtab acsv-dtab-rel', '相关推荐');
+  tabR.style.display = 'none'; // sv（小视频）条目无相关推荐；openComments 按 kind 显形
+  dtabs.appendChild(tabC);
+  dtabs.appendChild(tabR);
   var dclose = el('button', 'acsv-drawer-close', '✕');
   dclose.title = '收起评论（Esc）';
-  dhead.appendChild(dtitle);
+  dhead.appendChild(dtabs);
   dhead.appendChild(dclose);
   var dlist = el('div', 'acsv-drawer-list');
+  var rlist = el('div', 'acsv-drawer-list acsv-rellist');
+  rlist.style.display = 'none';
   drawer.appendChild(dhead);
   drawer.appendChild(dlist);
+  drawer.appendChild(rlist);
   root.appendChild(drawer);
-  setCommentDrawer({ el: drawer, title: dtitle, list: dlist });
+  setCommentDrawer({ el: drawer, title: dtitle, list: dlist, relList: rlist, tabC: tabC, tabR: tabR });
 }

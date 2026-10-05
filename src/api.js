@@ -3,9 +3,12 @@ import { request } from './net.js';
 import { normalize, normalizeHome, deepLinkOf } from './playitem.js';
 import { AppAPI } from './appapi.js';
 import { getSetting, setSetting } from './settings.js';
+import { batch as relatedBatch } from './relatedapi.js';
 
 // ---------- API：站点接口（mock 桩统一在 API 层收口） ----------
-// 内容源：sv=小视频 meow（随机池重复拉+去重）；home=首页推荐 selection/feed（真 pcursor 游标）
+// 内容源：sv=小视频 meow（随机池重复拉+去重）；home=首页推荐 selection/feed（真 pcursor 游标）；
+// related=相关推荐随机游走（0.9.167，feed/related/general——**会话内覆盖态**，只由评论抽屉
+// 「相关推荐」行点击起步，不持久化；任何「回随机流」入口经 ensureBaseSource 归位）
 function mockData() { return window.__ACSV_MOCK__ || null; }
 function mockHome() { return window.__ACSV_MOCK_HOME__ || null; }
 
@@ -15,9 +18,18 @@ var curSource = getSetting('source');
 export function getSource() { return curSource; }
 
 export function setSource(s) {
-  curSource = s === 'home' ? 'home' : 'sv';
+  curSource = s === 'home' ? 'home' : (s === 'related' ? 'related' : 'sv');
   if (curSource === 'home') AppAPI.resetPager();
-  setSetting('source', curSource);
+  // related 不落盘：持久化层只认 sv|home（设置 schema 的 source options 同口径），
+  // 下次会话从持久化偏好起步；游走态的生命周期=本次竖刷会话
+  if (curSource !== 'related') setSetting('source', curSource);
+}
+
+// 覆盖源归位（0.9.167）：游走态是暂态，任何「重置为普通随机流」的入口（mount 普通入口 /
+// maybeStartFeed / goFeedHome 换流分支）先走这里——否则 curSource 停在 related、缓冲已清、
+// tip 为空，随机流永远拉不出第一批。归位目标=持久化偏好（'related' 从未写盘，读到的是基源）
+export function ensureBaseSource() {
+  if (curSource === 'related') setSource(getSetting('source') === 'home' ? 'home' : 'sv');
 }
 
 // 进入竖刷页时推荐源重新拉首屏（退出再进不吃旧游标）
@@ -47,7 +59,10 @@ export function ensureResolved(item) {
 }
 
 export var API = {
-  feed: function () {
+  // tipId（0.9.167）：仓库末条 id（feedstore.fetchMore 传入）——仅 related 源消费（游走锚：
+  // 下一批从「链尾那条」的相关池里取），其余源忽略该参数
+  feed: function (tipId) {
+    if (curSource === 'related') return relatedBatch(tipId);
     if (curSource === 'home') {
       var mh = mockHome();
       if (mh) return Promise.resolve(mh.map(normalizeHome));

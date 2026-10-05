@@ -45,6 +45,9 @@ export var SCHEMA = [
   { key: 'seekStep', type: 'number', def: CFG.time.seekStep, panel: true, group: '播放',
     label: '快进步长（秒）', min: 5, max: 30, step: 5,
     hint: '左右方向键的进退秒数' },
+  { key: 'relSequential', type: 'bool', def: false, panel: true, group: '播放',
+    label: '相关推荐按列表顺序续播',
+    hint: '关闭（默认）：下一条在当前视频的相关推荐里随机抽，逐级游走；开启：按列表顺序播，尽头自动接下一批' },
   // ---- 内部项（既有入口在控制栏/播放器，不上面板） ----
   { key: 'source', type: 'select', def: 'sv', legacy: CFG.lsSource,
     options: [{ v: 'sv' }, { v: 'home' }] },          // 源记忆（控制栏 seg 是入口）

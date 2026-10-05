@@ -264,6 +264,35 @@
       }
       return { result: 0, feedList: [], pcursor: 'no_more' };
     },
+    // 相关推荐（0.9.168 rel-drawer）：表单 resourceId → 该稿件的 10 条候选池（包裹层
+    // {dougaFeedView,expTag,type} 与真实回包同形）。id 空间 700000+rid*10+k（k=1..10）：
+    // 与 home 卡片池（48867xxx）不相交、跨 rid 池不相交（步长 10）⇒ 断言可精确预言。
+    // 全桩确定性（无随机）：walk 抽中谁由 Math.random 定，但候选集恒可枚举
+    'feed/related/general': function (body) {
+      var rid = Number((String(body).match(/resourceId=(\d+)/) || [])[1] || 0);
+      var dvs = [];
+      for (var k = 1; k <= 10; k++) {
+        dvs.push({
+          dougaId: String(700000 + rid * 10 + k), contentId: String(700000 + rid * 10 + k),
+          videoId: String(700000 + rid * 10 + k),
+          title: '相关推荐' + k + '（源' + rid + '）',
+          coverUrl: FOLLOW_COVER, durationMillis: 61000 + k * 1000,
+          likeCount: 100 + k, bananaCount: k, commentCount: k, viewCount: 1000 + k,
+          stowCount: k, shareCount: 0, danmakuCount: 0,
+          shareUrl: 'https://www.acfun.cn/v/ac' + (700000 + rid * 10 + k),
+          user: { id: 800000 + k, name: '相关UP' + k, headUrl: PANEL_AVATAR, isFollowing: false }
+        });
+      }
+      return { result: 0, feeds: dvs.map(function (dv) { return { dougaFeedView: dv, expTag: '', type: 2 }; }) };
+    },
+    // 评论列表桩（0.9.168 rel-drawer）：home 源场景开抽屉时 __ACSV_MOCK__ 不在（那是 sv
+    // 专用缝），评论走 net.request ⇒ 必须有 FORM 桩兜住，否则 harness 里打真网
+    'comment/list': function () {
+      return { result: 0, commentCount: 1, curPage: 1, totalPage: 1, hotComments: [],
+        rootComments: [{ commentId: 'm1', userId: 123, userName: '香蕉君', headUrl: '',
+          content: '这条视频太棒了（示例评论，仅 rel-drawer 场景显示）', postDate: '2026-09-01',
+          likeCount: 233, subCommentCount: 0 }] };
+    },
     // 行内写链桩（0.9.99 view-follow 的互动行断言；detail-open 会用同名桩覆盖出更全的一套）
     'token/get': function () { return { result: 0, 'acfun.midground.api_st': 'mock-st' }; },
     'interact/add': function () { return { result: window.__ACSV_LIKE_FAIL__ ? 0 : 1 }; },

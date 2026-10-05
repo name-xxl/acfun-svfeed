@@ -216,9 +216,11 @@ function topbarRefs() {
 // 源切换高亮（player.updateSegUI 调；自原 updateSegUI 迁入）
 export function syncTopbarSeg() {
   if (!segSv) return;
-  var home = typeof hooks.getSource === 'function' && hooks.getSource() === 'home';
-  segSv.classList.toggle('on', !home);
-  segHome.classList.toggle('on', home);
+  var src = typeof hooks.getSource === 'function' ? hooks.getSource() : null;
+  // related（0.9.167 游走态）不是 seg 的一极：两键全灭——顶栏 seg 是 sv↔home 开关，
+  // 游走链的进出走抽屉「相关推荐」行，不经 seg
+  segSv.classList.toggle('on', src !== 'home' && src !== 'related');
+  segHome.classList.toggle('on', src === 'home');
 }
 
 // 关注语境 seg 同步（syncTopbar 尾部调；enterVideos/enterAll 的点击出口也手动调一次——

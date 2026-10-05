@@ -2,7 +2,7 @@
 // 机制：host 挂 root + Shadow DOM（settingspanel.js），断言经 host.shadowRoot（msg.js 先例）。
 // 源：走 home（HOME_CASES）——只有 douga 条有 cap.danmaku/cap.hls（playitem.js:102），
 // 控制栏「弹」按钮与编码/缓冲菜单只在 home 条存在，这正是本场景要同步的对象。
-//   settings-open：点 dock 齿轮开面板（首个点 dock 的驱动——既有场景都直接写 hash）→ 五控件在场
+//   settings-open：点 dock 齿轮开面板（首个点 dock 的驱动——既有场景都直接写 hash）→ 六控件在场
 //     → 关「弹幕默认开启」→ 存储落盘 + 控制栏「弹」按钮即时同步 → Esc 关（栈空）→ 重开状态保持
 //   settings-migrate：bundle 前只预置老键（harness.html）→ 面板读出老键值（收养）+ 新键生成 + 老键未删
 // 0.9.81 起本目录只放场景体；新增场景记得同步 run-harness.mjs 的 HARNESS_CASES
@@ -37,10 +37,10 @@
     var sh = shadowOf(host);
     rec('set-shadow-root', !!sh);
     if (!sh) return;
-    // 表驱动：五张卡（label 顺序 = schema 顺序：通用组 1 + 播放组 4）
+    // 表驱动：六张卡（label 顺序 = schema 顺序：通用组 1 + 播放组 5；0.9.168 增 relSequential）
     var labels = labelTexts(sh);
-    rec('set-row-count', sh.querySelectorAll('.set-row').length === 5, 'rows=' + labels.join('/'));
-    rec('set-labels', labels.join('|') === '自动检查更新|弹幕默认开启|编码偏好|缓冲档位|快进步长（秒）', labels.join('|'));
+    rec('set-row-count', sh.querySelectorAll('.set-row').length === 6, 'rows=' + labels.join('/'));
+    rec('set-labels', labels.join('|') === '自动检查更新|弹幕默认开启|编码偏好|缓冲档位|快进步长（秒）|相关推荐按列表顺序续播', labels.join('|'));
     // 面板必须真渲染（offsetParent 真值法：0.9.62 黑屏教训）
     var pnl = sh.querySelector('.set-panel');
     rec('set-panel-visible', !!(pnl && pnl.offsetParent !== null));

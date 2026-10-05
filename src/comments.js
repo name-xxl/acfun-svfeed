@@ -15,6 +15,7 @@ import { openImageViewer } from './imgview.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import { openSharePanel } from './sharepanel.js';
 import { commentItemOf } from './commentkit.js'; // 条目构建单源（0.9.133 自本文件下沉）
+import { relDrawerSync, relDrawerClose } from './reldrawer.js'; // 相关推荐 tab 两 seam（0.9.167）
 // imdrawer→本模块（syncCommentVars）为单向回指（0.9.114 断 imshare→imdrawer 后不再成环）；
 // 本模块→sharepanel（原 imshare 面板族）侧均为函数、调用期才解引用，模块求值期无依赖
 
@@ -63,6 +64,7 @@ window.addEventListener('resize', syncCommentVars);
 
 export function closeComments() {
   if (commentDrawer) commentDrawer.el.classList.remove('open');
+  relDrawerClose(); // 相关推荐 tab 复位到评论（0.9.167；面板宿主无 commentDrawer.relList，内部自防）
   releaseDrawer('comments');
   overlayClose('comments'); // 已出栈（Esc 路径）时空转；显式关闭路径由此同步栈
   if (root) syncCommentVars(); // 根类统一由 syncCommentVars 收拾（覆盖模式下可能本就没加）
@@ -80,7 +82,7 @@ function ensureDrawerWired() {
   if (d.list) d.list.addEventListener('click', commentListClick);
 }
 
-export function openComments(sourceId, stype, shareUrl, kind) {
+export function openComments(sourceId, stype, shareUrl, kind, title) {
   if (!commentDrawer || !sourceId) return;
   ensureDrawerWired(); // 0.9.118：首次打开时自附关闭键/列表委托（边 slide→comments 已收）
   // 面板/行内宿主先显式收（0.9.105：面板不再占抽屉槽，互斥改**双向显式收**——私有信抽屉
@@ -100,6 +102,9 @@ export function openComments(sourceId, stype, shareUrl, kind) {
   ensureCommentInput();
   // 小视频模式纯浏览：不提供任何评论交互
   if (inputBar) inputBar.style.display = commentState.kind === 'home' ? 'flex' : 'none';
+  // 相关推荐 tab（0.9.167）：按 kind 显形 tab、换视频刷新候选池；title 供锚位行「播放中」
+  //（title 由调用方带出——setActive/toggleItemComments 手里都有 item，openComments 签名加宽）
+  relDrawerSync(sourceId, commentState.kind, title || '');
   if (commentState.sourceId !== sourceId) {
     setReply(null); // 换视频清掉未发送的回复目标
     loadComments(sourceId, 1, false);
@@ -111,7 +116,7 @@ export function openComments(sourceId, stype, shareUrl, kind) {
 // 右栏按钮与 C 键共用：同一条目开着就收起，否则展开该条目的评论
 export function toggleItemComments(item) {
   if (isOpenComments() && commentState.sourceId === item.id) closeComments();
-  else openComments(item.id, item.stype, item.shareUrl, item.kind);
+  else openComments(item.id, item.stype, item.shareUrl, item.kind, item.title);
 }
 
 // 在自定义宿主里跑评论管线（0.9.96 动态详情面板）：h = { el, title, list, close, pin?, titleFmt? }。

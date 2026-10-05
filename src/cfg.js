@@ -98,6 +98,11 @@ export var CFG = {
     // 单条动态详情（0.9.127 广场新鲜度回填；plaza 同端点实测转引 §2.7）：pc-direct 带 Cookie
     // 读——列表（feedSquare 免登录）互动态恒 false，此端点才给真 isLike/isThrowBanana
     momentDetail: 'https://www.acfun.cn/rest/pc-direct/moment/detail',
+    // 相关推荐（0.9.167，评论抽屉「相关推荐」tab + 随机游走泵数据源；实测 docs/api-research.md
+    // §5）：api-new APP 域、**免登录免 header**；表单 resourceType=2&resourceId={稿件id}；
+    // **无游标一发 10 条，重复调用换一批**（推荐流刷新语义）；回包不含当前视频自身；首条
+    // 非固定 UP 本人视频；推荐分区亲和。URL 字面量逐字=harness mock 缝（'feed/related/general'）
+    relatedGeneral: 'https://api-new.app.acfun.cn/rest/app/feed/related/general',
     // 站内搜索（0.9.151 三端点；真机实测 docs/api-research.md §4.10）：PC 搜索是 JSON——
     // **pCursor 是页码游标**（`page`/`pageNo` 被忽略，点原生 pager 抓包坐实）、每页固定 30、
     // 响应带 totalNum（总数）与 pageNum（**总页数**，不是当前页）；emTitle 携 <em> 高亮，
