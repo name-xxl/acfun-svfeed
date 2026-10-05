@@ -33,10 +33,12 @@ export function dbgInit() {
   // 二重保险：unsafeWindow 属性赋值在部分 TM/浏览器组合下不跨 world（实测 0.9.8 失灵），
   // 再把 stats/启动埋点镜像进 localStorage（同源两 world 共享同步读写，页面控制台必可读）。
   // 读取：JSON.parse(localStorage.getItem('acsv-stats'))，1s 内刷新
+  // ver（0.9.182）：构建期版本号随身——「装的到底是哪一版」从此随读数自证（此前两轮靠追问）
   setInterval(function () {
     try {
       localStorage.setItem('acsv-stats', JSON.stringify({
         t: Date.now(),
+        ver: (typeof __ACSV_VERSION__ !== 'undefined' ? __ACSV_VERSION__ : ''),
         stats: stats,
         dbg: (W.__dbg || []).slice(-60)
       }));

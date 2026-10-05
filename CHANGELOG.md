@@ -3,6 +3,26 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.182（2026-10-06）· hls 装载第三层：Blob 脚本（页面 world）——实机「秒拒」形态补缺
+
+- **由头**：0.9.181 交付后用户真机复测仍「视频加载失败」；新读数形态变化——`hls.evalMs` 9→1
+  （构造期即失败，「秒拒」），即 0.9.181 的「同 realm 取数」只治「编译了取不回」，治不了
+  「根本不让编译」。**处置**：已推的 22 个提交整体撤回（远端 main 退回 `8616427`＝v0.9.166
+  发布点、CI 取消、未发任何 release），修复验证过再推。
+- **修法**：装载补第三层 `loadViaBlob`——内嵌串 / CDN 文本先走 eval 收编（0.9.181 原样），
+  拿不到类时改以 **Blob URL + `<script>` 注入**执行：脚本在**页面 world** 跑，绕开 TM 沙箱对
+  Function/全局语义的干扰；onload 后经 `pageWin()`（unsafeWindow，0.9.30 同款跨 world 读法）
+  读回类；超时/onerror/读空按失败下沉 CDN。与 IM SDK 装载同机制（0.9.41 起该机制在本环境
+  实证可用；依赖页面 script-src 含 blob:，A 站满足）。分层落点全部打点（evalOk/evalNoClass/
+  evalNoMse/blobOk/blobNoClass/blobErr/blobTimeout/blobNoUrl + evalErr 异常摘要）。
+- **顺手补仪器**：stats 镜像带 `ver`（构建期 `__ACSV_VERSION__`）——「装的到底是哪一版」从此
+  随读数自证（0.9.180/181 两轮靠追问才确认）。
+- **测试**：新场景 `hls-blob`（`setEvalOff` 缝模拟实机 eval 失效）——blob 层装载成功 /
+  blobOk 计数在场 / **未下沉 CDN**（cdnIdx 缺席）；**反跑实证**：摘 blob 层 ⇒ 后两条转红
+  （`cdnIdx=0`，CDN 层接走）。hls-lazy / hls-probe / hls-sealed 照旧全绿；全链 build/lint/
+  check/单测/全场景全绿。真机验收口径：装 debug 版开推荐视频应能播；读数看 `ver` +
+  `hls.blobOk`/`attach.hls`。
+
 ### 0.9.181（2026-10-06）· hls.js 装载取数修 world/UMD 双坑——「视频加载失败」定因
 
 - **由头**：0.9.180 封印原生回落后用户实报「新版本视频加载失败」；按 README「冻结归因实验」

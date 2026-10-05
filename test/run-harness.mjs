@@ -69,6 +69,7 @@ const HARNESS_CASES = [
   { name: 'hls-lazy' }, // 0.9.164 hls.js 懒 eval（加载后未定义 → ensureHls 编译内嵌串，debug 构建）
   { name: 'hls-sealed' }, // 0.9.180 封原生回落：hls.js 不可得 → error 态（video 不得落 m3u8 直链；debug 构建）
   { name: 'hls-probe' }, // 0.9.181 装载取数修 world/UMD 双坑：敌意 AMD/CJS 标识符下仍须取回类（debug 构建）
+  { name: 'hls-blob' }, // 0.9.182 装载第三层：eval 秒拒 → Blob 脚本（页面 world）顶上且不下沉 CDN（debug 构建）
   { name: 'im-native' }, // 0.9.80 原生私信页增强装配（造站结构 + douga/info 桩，debug 构建）
   // 0.9.73 顶栏四界面复用 + 抽屉避让推广：抽屉×视图的避让几何/降级/Esc 链（imOpenSmoke 缝）
   { name: 'view-im' },        // 宽视口：正文右缘收窄到抽屉左缘 + 顶栏右组让位 + Esc 链

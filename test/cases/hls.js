@@ -10,10 +10,13 @@
 //   hls-probe（0.9.181）：页面存在敌意 AMD define 与 CJS module/exports（rollup UMD 的
 //   注册逃逸口，真机读数实锤的故障类）→ ensureHls 仍须装载成功、define 不被调用、页面
 //   module.exports 不被改写
+//   hls-blob（0.9.182）：setEvalOff 缝模拟实机「eval 秒拒」（evalMs 9→1 形态）→ 装载须
+//   由 Blob 脚本层（页面 world 注入）顶上：成功 + blobOk 在场 + 未下沉 CDN
 // 反跑：build.js 恢复 eager 拼代码 ⇒ hls-not-parsed-on-load 转红（脚本求值即定义 window.Hls）；
 // session 还原旧回落（video.src = url）⇒ hls-sealed-no-native 转红（video 拿到 m3u8 直链）；
 // hls.js 还原旧取数（裸 new Function(src)() + window.Hls 直读）⇒ hls-probe-no-amd /
-// hls-probe-loaded 转红（UMD 走 define 注册、不落全局）
+// hls-probe-loaded 转红（UMD 走 define 注册、不落全局）；摘 blob 层 ⇒ hls-blob-counted /
+// hls-blob-no-cdn 转红（网络在时 CDN 接走、离线全红）
 (function () {
   var C = window.__ACSV_CASES__ = window.__ACSV_CASES__ || {};
   C['hls-lazy'] = async function (h) {
@@ -75,5 +78,19 @@
     rec('hls-probe-loaded', done === true && hook.ready(), 'done=' + done);
     rec('hls-probe-no-amd', window.__amdCalled === false);
     rec('hls-probe-no-cjs', typeof window.module.exports === 'object', 'cjs=' + typeof window.module.exports);
+  };
+  C['hls-blob'] = async function (h) {
+    var rec = h.rec, waitFor = h.waitFor, TEST = h.TEST;
+    // 模拟实机形态：eval 层拿不回类（0.9.181 前读数 evalMs 9「编译了取不回」；
+    // 0.9.182 读数 evalMs 1「秒拒」）→ 装载必须由 blob 层（页面 world 注入）顶上
+    TEST.call('hls').setEvalOff(true);
+    var hook = TEST.call('hls');
+    var done = false;
+    hook.ensure().then(function () { done = true; }, function () { done = 'reject'; });
+    await waitFor(function () { return done !== false; }, 8000);
+    var st = TEST.getStats();
+    rec('hls-blob-loaded', done === true && hook.ready(), 'done=' + done);
+    rec('hls-blob-counted', (st['hls.blobOk'] || 0) >= 1);
+    rec('hls-blob-no-cdn', st['hls.cdnIdx'] === undefined, 'cdnIdx=' + st['hls.cdnIdx']);
   };
 })();

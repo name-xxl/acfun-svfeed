@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.181-debug
+// @version      0.9.182-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,6 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
+          ver: true ? "0.9.182" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -7119,7 +7120,23 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var loading = null;
   var evalTried = false;
   var forceFail = false;
+  var evalOff = false;
   var GRAB = '\n;return (typeof Hls === "function" && Hls) || (typeof globalThis !== "undefined" && globalThis.Hls) || (typeof module === "object" && module && typeof module.exports === "function" && module.exports) || (typeof exports === "object" && exports && typeof exports.Hls === "function" && exports.Hls) || null;';
+  function pageWin2() {
+    return typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+  }
+  function probeHls() {
+    var cands = [pageWin2(), window];
+    for (var i = 0; i < cands.length; i++) {
+      var G = null;
+      try {
+        G = cands[i] && cands[i].Hls;
+      } catch (e) {
+      }
+      if (G && typeof G.isSupported === "function" && G.isSupported()) return G;
+    }
+    return null;
+  }
   function evalHlsSource(src) {
     var Got = null;
     try {
@@ -7133,9 +7150,60 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         window.Hls = Got;
       } catch (e) {
       }
+      stat("hls.evalOk");
       return Got;
     }
+    stat(Got ? "hls.evalNoMse" : "hls.evalNoClass");
     return null;
+  }
+  function loadViaBlob(src) {
+    return new Promise(function(resolve) {
+      var url;
+      try {
+        url = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
+      } catch (e) {
+        stat("hls.blobNoUrl");
+        return resolve(null);
+      }
+      var s = document.createElement("script");
+      var done = false;
+      var timer3 = setTimeout(function() {
+        fin(null, "hls.blobTimeout");
+      }, CFG.time.gm);
+      function fin(G, failKey) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer3);
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+        }
+        try {
+          s.remove();
+        } catch (e) {
+        }
+        if (G) {
+          try {
+            window.Hls = G;
+          } catch (e) {
+          }
+          stat("hls.blobOk");
+          resolve(G);
+        } else {
+          stat(failKey || "hls.blobErr");
+          resolve(null);
+        }
+      }
+      s.onload = function() {
+        var G = probeHls();
+        fin(G, G ? null : "hls.blobNoClass");
+      };
+      s.onerror = function() {
+        fin(null, "hls.blobErr");
+      };
+      s.src = url;
+      (document.head || document.documentElement).appendChild(s);
+    });
   }
   function nativeHls(video) {
     try {
@@ -7149,52 +7217,65 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (window.Hls && window.Hls.isSupported) return Promise.resolve(window.Hls);
     if (loading) return loading;
     loading = new Promise(function(resolve, reject) {
+      function cdnChain() {
+        var urls = CFG.api.hlsCdns;
+        var i = 0;
+        function ok() {
+          if (window.Hls && window.Hls.isSupported) {
+            set("hls.cdnIdx", i - 1);
+            resolve(window.Hls);
+          } else reject(new Error("hls-load-failed"));
+        }
+        function next() {
+          if (i >= urls.length) return reject(new Error("hls-network"));
+          var url = urls[i++];
+          if (typeof GM_xmlhttpRequest === "function") {
+            GM_xmlhttpRequest({
+              method: "GET",
+              url,
+              timeout: CFG.time.gm,
+              onload: function(r) {
+                var Got2 = evalHlsSource(r.responseText);
+                if (Got2) {
+                  set("hls.cdnIdx", i - 1);
+                  resolve(Got2);
+                  return;
+                }
+                loadViaBlob(r.responseText).then(function(G2) {
+                  if (G2) {
+                    set("hls.cdnIdx", i - 1);
+                    resolve(G2);
+                  } else next();
+                });
+              },
+              onerror: next,
+              ontimeout: next
+            });
+          } else {
+            var s = document.createElement("script");
+            s.src = url;
+            s.onload = ok;
+            s.onerror = next;
+            (document.head || document.documentElement).appendChild(s);
+          }
+        }
+        next();
+      }
+      var src = null;
       if (!evalTried) {
         evalTried = true;
-        var src = window.__ACSV_HLS_SRC__;
-        if (src) {
-          var t0 = Date.now();
-          var Got = evalHlsSource(src);
-          stat("hls.lazyEval");
-          set("hls.evalMs", Date.now() - t0);
-          if (Got) return resolve(Got);
-        }
+        src = window.__ACSV_HLS_SRC__;
       }
-      var urls = CFG.api.hlsCdns;
-      var i = 0;
-      function ok() {
-        if (window.Hls && window.Hls.isSupported) {
-          set("hls.cdnIdx", i - 1);
-          resolve(window.Hls);
-        } else reject(new Error("hls-load-failed"));
-      }
-      function next() {
-        if (i >= urls.length) return reject(new Error("hls-network"));
-        var url = urls[i++];
-        if (typeof GM_xmlhttpRequest === "function") {
-          GM_xmlhttpRequest({
-            method: "GET",
-            url,
-            timeout: CFG.time.gm,
-            onload: function(r) {
-              var Got2 = evalHlsSource(r.responseText);
-              if (Got2) {
-                set("hls.cdnIdx", i - 1);
-                resolve(Got2);
-              } else next();
-            },
-            onerror: next,
-            ontimeout: next
-          });
-        } else {
-          var s = document.createElement("script");
-          s.src = url;
-          s.onload = ok;
-          s.onerror = next;
-          (document.head || document.documentElement).appendChild(s);
-        }
-      }
-      next();
+      if (!src) return cdnChain();
+      var t0 = Date.now();
+      var Got = evalOff ? null : evalHlsSource(src);
+      stat("hls.lazyEval");
+      set("hls.evalMs", Date.now() - t0);
+      if (Got) return resolve(Got);
+      loadViaBlob(src).then(function(G2) {
+        if (G2) resolve(G2);
+        else cdnChain();
+      });
     }).catch(function(e) {
       loading = null;
       throw e;
@@ -7210,6 +7291,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       // 0.9.180：置位后 ensureHls 一律拒绝——钉「hls.js 不可得时 session 不落原生回落」
       setFail: function(v) {
         forceFail = !!v;
+      },
+      // 0.9.182：跳过 eval 层——钉「eval 拿不回类时 blob 层顶上」（实机秒拒形态的确定性复现）
+      setEvalOff: function(v) {
+        evalOff = !!v;
       }
     };
   });
@@ -10452,7 +10537,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.181" : "");
+    return normVer(true ? "0.9.182" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -13627,7 +13712,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.181：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.182：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
