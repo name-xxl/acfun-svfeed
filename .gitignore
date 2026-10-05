@@ -8,3 +8,6 @@ backup/
 *.log
 Thumbs.db
 .DS_Store
+# API 侦察留档（2026-10-05 起本地留档，不入公开仓）
+docs/api-research.md
+docs/acfun-app-api-inventory.md
