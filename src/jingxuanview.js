@@ -19,7 +19,7 @@ import { testHook } from './dbg.js';
 //
 // 卡片点击=openPanelItem（cards 注入缝 → playlayer.openPlayer）——与榜单/搜索/我的同一条出口：
 // 播放层浮层单条播放、Esc 回分区原位（视图保活）；层内 ↓/↑ 与滚轮上下滑走相关游走
-// （playlayer，0.9.170/0.9.171）。0.9.169 曾是 startChain（拆视图进竖屏游走），改播放层后对齐。
+// （playlayer，0.9.170/0.9.171）。0.9.169 曾走 startChain 拆视图进竖屏游走——该链 0.9.179 已删。
 //
 // 网格两条纪律（用户裁决）：
 //   ① 首卡 = 网格内 2 列 × 2 行跨格（.acsv-jx-big；撤旧 hero 大焦点区）——全部/分区 tab 同形态。

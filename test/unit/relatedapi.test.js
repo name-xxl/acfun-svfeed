@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { relatedPageOf, pickFresh, relatedItemOf, seed, resetPump } = await import('../../src/relatedapi.js');
+var { relatedPageOf, pickFresh, relatedItemOf, seed } = await import('../../src/relatedapi.js');
 var { ITEM_FIELDS } = await import('../../src/playitem.js');
 
 function dv(id, title) {
@@ -66,9 +66,9 @@ test('relatedItemOf：契约白名单 ⊆ ITEM_FIELDS.play + 字段映射（up �
   assert.equal(relatedItemOf({ dougaId: '5', title: 'x', user: {} }).up, null);
 });
 
-test('seed/resetPump：seen 表重置与起点登记（纯状态，网络零触达）', () => {
+test('seed：seen 表重置与起点登记（纯状态，网络零触达）', () => {
+  // 0.9.179 起 resetPump 随舞台游走链删除（零消费）——seed 自身即"重置 + 登记起点"
   seed('48892876');
   seed(null); // 空起点：只重置
-  resetPump();
   assert.ok(true);
 });

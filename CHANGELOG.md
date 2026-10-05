@@ -3,6 +3,30 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.179（2026-10-06）· 删退役死代码：舞台游走链（startChain + related 内容源）
+
+- **由头**：用户裁决「把退役的死代码删了」（0.9.178 审计结论：该链 UI 不可达、仅剩兜底）；
+  拆件（playlayer 496 行）按用户口径「先不拆，下一批改动再一起拆」本批不动。
+- **退役判据**：三个出口相继改道后无人可达——0.9.170 分区页卡片改 `openPanelItem`、0.9.172 舞台上
+  的抽屉行改 `layerOpen`（开层保活）、0.9.174 层内行改 `pushLevel`（压级）；`startChain` 只剩
+  「播放器未挂载」兜底，而 boot 恒加载 playlayer ⇒ 理论不可达。层内的「随机游走 / 列表顺序」二选一
+  **不走这条链**（用 `batch`/`seed`），故删除对在线行为零影响。
+- **删除清单**：`relatedapi.js`：setChainStarter/startChain/resetPump（零消费）；`player.js`：
+  setChainStarter 注册整块（含注释，1177 字节）+ 三处 ensureBaseSource 调用；`api.js`：
+  `import { batch as relatedBatch }`、setSource 的 related 分支、ensureBaseSource 定义、
+  feed(tipId)→feed() 分派；`feedstore.js`：fetchMore 的 tipId 计算与传参；`topbar.js`：seg 的
+  `src !== 'related'` 特判；`reldrawer.js`：第三落点 startChain 与 import（行点击收敛为两落点：
+  层内压级 / 层外开层；播放器不可用时静默）。保留 `batch`/`seed`/`pickFresh`/`relatedPageOf`/
+  `relatedItemOf`/`panelItemOfDv`/三缝/cfg 端点/设置项 relSequential。
+- **证据**：零引用证明——`grep -rn "startChain\|setChainStarter\|resetPump\|relatedBatch\|tipId\|
+  ensureBaseSource" src/` 仅剩历史注释（无代码命中）；**图边 237→235**（api→relatedapi、
+  player→relatedapi 两条随删消失，check-deps 绿）；入口行为仍被场景钉住（`rel-drawer` 的
+  `rel-row-opens-layer`/`rel-stage-kept` = 舞台行开层保活；`layer-list`/`rel-layer` 压级/弹回全量）。
+  全链 build/lint/check/单测 258/**52 场景全绿**（断言数与删除前一致）。
+- **顺记**：0.9.167 泄密门禁批状态核实——**早已随 0.9.168 混批入库**（check-no-leak.mjs + CHANGELOG
+  节 + check 链第三位；`npm run check` 尾行「两份接口侦察文档确认在仓外」在案），本次无需动作；
+  附记 0aef955（审计清收批：单源收口两处 + 过时注释/文档全量勘正）。
+
 ### 0.9.178（2026-10-06）· 抽屉页签：开默认评论（不记忆）+ 换条不切页签（用户实报两条）
 
 - **由头**：用户实报两条——①「视频展开抽屉应该是默认打开评论，而不是记忆上次」（实测重开落在

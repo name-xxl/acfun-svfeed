@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.178-debug
+// @version      0.9.179-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -1780,138 +1780,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }
   };
 
-  // src/relatedapi.js
-  var FORM_TYPE = { "Content-Type": "application/x-www-form-urlencoded" };
-  function relatedPageOf(j) {
-    if (!j || j.result !== 0) throw new Error("related-" + (j && j.result || "null"));
-    var out = [];
-    var feeds = j && j.feeds || [];
-    for (var i = 0; i < feeds.length; i++) {
-      var dv = feeds[i] && feeds[i].dougaFeedView;
-      if (dv && idOf(dv) != null) out.push(dv);
-    }
-    return out;
-  }
-  function idOf(dv) {
-    return dv.dougaId != null ? dv.dougaId : dv.contentId != null ? dv.contentId : null;
-  }
-  function listRelated(rid) {
-    return request(
-      CFG.api.relatedGeneral,
-      "POST",
-      FORM_TYPE,
-      "resourceType=2&resourceId=" + encodeURIComponent(rid)
-    ).then(relatedPageOf);
-  }
-  function panelItemOfDv(dv) {
-    var u = dv.user || {};
-    return {
-      acId: Number(idOf(dv)) || 0,
-      title: dv.title || dv.caption || "",
-      cover: coverUrl(dv.coverUrl || ""),
-      up: upOf(u.id, u.name, coverUrl(u.headUrl), u.isFollowing)
-    };
-  }
-  function relatedItemOf(dv) {
-    var item = homeItemOf(Number(idOf(dv)) || 0, dv.title || dv.caption || "", dv.coverUrl || "");
-    var u = dv.user || {};
-    item.up = upOf(u.id, u.name, coverUrl(u.headUrl), u.isFollowing);
-    item.like = dv.likeCount || 0;
-    item.banana = dv.bananaCount || 0;
-    item.comment = dv.commentCount || 0;
-    item.view = dv.viewCount || 0;
-    item.fav = dv.stowCount || 0;
-    item.share = dv.shareCount || 0;
-    item.danmakuCount = dv.danmakuCount || 0;
-    if (dv.shareUrl) item.shareUrl = dv.shareUrl;
-    return item;
-  }
-  var _seen = {};
-  var MAX_REFETCH = 3;
-  function seed(id) {
-    _seen = {};
-    if (id != null && id !== "") _seen[String(id)] = 1;
-    stat("rel.seed");
-  }
-  function pickFresh(dvs, seen, mode, rand) {
-    var fresh = [];
-    for (var i = 0; i < dvs.length; i++) {
-      if (!seen[String(idOf(dvs[i]))]) fresh.push(dvs[i]);
-    }
-    if (!fresh.length) return [];
-    if (mode !== "seq") {
-      var r = typeof rand === "function" ? rand : Math.random;
-      var k = Math.floor(r() * fresh.length) % fresh.length;
-      return [fresh[k]];
-    }
-    return fresh;
-  }
-  function batch(tipId) {
-    var tip = tipId != null ? String(tipId) : "";
-    if (!tip) return Promise.resolve([]);
-    var tries2 = 0;
-    var mode = getSetting("relSequential") ? "seq" : "walk";
-    function attempt2() {
-      tries2++;
-      return listRelated(tip).then(function(dvs) {
-        var picked = pickFresh(dvs, _seen, mode);
-        if (!picked.length) {
-          if (tries2 < MAX_REFETCH) return attempt2();
-          picked = pickFresh(dvs, {}, mode);
-          stat("rel.replay");
-        }
-        var out = [];
-        for (var i = 0; i < picked.length; i++) {
-          _seen[String(idOf(picked[i]))] = 1;
-          out.push(relatedItemOf(picked[i]));
-        }
-        stat("rel.batch");
-        return out;
-      }, function() {
-        stat("rel.fail");
-        return [];
-      });
-    }
-    return attempt2();
-  }
-  var chainStarter = null;
-  function setChainStarter(fn) {
-    chainStarter = typeof fn === "function" ? fn : null;
-  }
-  function startChain(acId, firstItem) {
-    if (!chainStarter || firstItem == null) return false;
-    seed(acId);
-    chainStarter(Number(acId) || 0, firstItem);
-    return true;
-  }
-  var layerHost = null;
-  function setLayerHost(h) {
-    layerHost = h || null;
-  }
-  function layerActive() {
-    return !!(layerHost && layerHost.active && layerHost.active());
-  }
-  function layerJump(item, ctx) {
-    if (!layerActive() || item == null) return false;
-    layerHost.jump(item, ctx);
-    return true;
-  }
-  function pickInLayer(idx) {
-    if (!layerActive() || !layerHost.pick) return false;
-    return layerHost.pick(Number(idx) || 0) !== false;
-  }
-  var layerOpener = null;
-  function setLayerOpener(fn) {
-    layerOpener = typeof fn === "function" ? fn : null;
-  }
-  function layerOpen(item, ctx) {
-    if (!layerOpener || item == null) return false;
-    return layerOpener(item, ctx) !== false;
-  }
-  testHook("rel", function() {
-    return { seenCount: Object.keys(_seen).length, mode: getSetting("relSequential") ? "seq" : "walk" };
-  });
-
   // src/api.js
   function mockData() {
     return window.__ACSV_MOCK__ || null;
@@ -1924,12 +1792,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return curSource;
   }
   function setSource(s) {
-    curSource = s === "home" ? "home" : s === "related" ? "related" : "sv";
+    curSource = s === "home" ? "home" : "sv";
     if (curSource === "home") AppAPI.resetPager();
-    if (curSource !== "related") setSetting("source", curSource);
-  }
-  function ensureBaseSource() {
-    if (curSource === "related") setSource(getSetting("source") === "home" ? "home" : "sv");
+    setSetting("source", curSource);
   }
   function resetHomePager() {
     if (curSource === "home") AppAPI.resetPager();
@@ -1956,10 +1821,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return p;
   }
   var API = {
-    // tipId（0.9.167）：仓库末条 id（feedstore.fetchMore 传入）——仅 related 源消费（游走锚：
-    // 下一批从「链尾那条」的相关池里取），其余源忽略该参数
-    feed: function(tipId) {
-      if (curSource === "related") return batch(tipId);
+    feed: function() {
       if (curSource === "home") {
         var mh = mockHome();
         if (mh) return Promise.resolve(mh.map(normalizeHome));
@@ -2161,8 +2023,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         if (self.loading) return Promise.resolve();
         self.loading = true;
         var gen2 = self.gen;
-        var tipId = self.items.length ? self.items[self.items.length - 1].id : null;
-        return env.api.feed(tipId).then(function(list) {
+        return env.api.feed().then(function(list) {
           if (gen2 !== self.gen) return;
           self.loading = false;
           dbg("fetch:list=" + list.length);
@@ -2291,8 +2152,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   }
   var FeedStore = createFeedStore({
     api: {
-      feed: function(tipId) {
-        return API.feed(tipId);
+      feed: function() {
+        return API.feed();
       },
       info: function(id) {
         return API.info(id);
@@ -5053,6 +4914,128 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     body.appendChild(more);
   }
 
+  // src/relatedapi.js
+  var FORM_TYPE = { "Content-Type": "application/x-www-form-urlencoded" };
+  function relatedPageOf(j) {
+    if (!j || j.result !== 0) throw new Error("related-" + (j && j.result || "null"));
+    var out = [];
+    var feeds = j && j.feeds || [];
+    for (var i = 0; i < feeds.length; i++) {
+      var dv = feeds[i] && feeds[i].dougaFeedView;
+      if (dv && idOf(dv) != null) out.push(dv);
+    }
+    return out;
+  }
+  function idOf(dv) {
+    return dv.dougaId != null ? dv.dougaId : dv.contentId != null ? dv.contentId : null;
+  }
+  function listRelated(rid) {
+    return request(
+      CFG.api.relatedGeneral,
+      "POST",
+      FORM_TYPE,
+      "resourceType=2&resourceId=" + encodeURIComponent(rid)
+    ).then(relatedPageOf);
+  }
+  function panelItemOfDv(dv) {
+    var u = dv.user || {};
+    return {
+      acId: Number(idOf(dv)) || 0,
+      title: dv.title || dv.caption || "",
+      cover: coverUrl(dv.coverUrl || ""),
+      up: upOf(u.id, u.name, coverUrl(u.headUrl), u.isFollowing)
+    };
+  }
+  function relatedItemOf(dv) {
+    var item = homeItemOf(Number(idOf(dv)) || 0, dv.title || dv.caption || "", dv.coverUrl || "");
+    var u = dv.user || {};
+    item.up = upOf(u.id, u.name, coverUrl(u.headUrl), u.isFollowing);
+    item.like = dv.likeCount || 0;
+    item.banana = dv.bananaCount || 0;
+    item.comment = dv.commentCount || 0;
+    item.view = dv.viewCount || 0;
+    item.fav = dv.stowCount || 0;
+    item.share = dv.shareCount || 0;
+    item.danmakuCount = dv.danmakuCount || 0;
+    if (dv.shareUrl) item.shareUrl = dv.shareUrl;
+    return item;
+  }
+  var _seen = {};
+  var MAX_REFETCH = 3;
+  function seed(id) {
+    _seen = {};
+    if (id != null && id !== "") _seen[String(id)] = 1;
+    stat("rel.seed");
+  }
+  function pickFresh(dvs, seen, mode, rand) {
+    var fresh = [];
+    for (var i = 0; i < dvs.length; i++) {
+      if (!seen[String(idOf(dvs[i]))]) fresh.push(dvs[i]);
+    }
+    if (!fresh.length) return [];
+    if (mode !== "seq") {
+      var r = typeof rand === "function" ? rand : Math.random;
+      var k = Math.floor(r() * fresh.length) % fresh.length;
+      return [fresh[k]];
+    }
+    return fresh;
+  }
+  function batch(tipId) {
+    var tip = tipId != null ? String(tipId) : "";
+    if (!tip) return Promise.resolve([]);
+    var tries2 = 0;
+    var mode = getSetting("relSequential") ? "seq" : "walk";
+    function attempt2() {
+      tries2++;
+      return listRelated(tip).then(function(dvs) {
+        var picked = pickFresh(dvs, _seen, mode);
+        if (!picked.length) {
+          if (tries2 < MAX_REFETCH) return attempt2();
+          picked = pickFresh(dvs, {}, mode);
+          stat("rel.replay");
+        }
+        var out = [];
+        for (var i = 0; i < picked.length; i++) {
+          _seen[String(idOf(picked[i]))] = 1;
+          out.push(relatedItemOf(picked[i]));
+        }
+        stat("rel.batch");
+        return out;
+      }, function() {
+        stat("rel.fail");
+        return [];
+      });
+    }
+    return attempt2();
+  }
+  var layerHost = null;
+  function setLayerHost(h) {
+    layerHost = h || null;
+  }
+  function layerActive() {
+    return !!(layerHost && layerHost.active && layerHost.active());
+  }
+  function layerJump(item, ctx) {
+    if (!layerActive() || item == null) return false;
+    layerHost.jump(item, ctx);
+    return true;
+  }
+  function pickInLayer(idx) {
+    if (!layerActive() || !layerHost.pick) return false;
+    return layerHost.pick(Number(idx) || 0) !== false;
+  }
+  var layerOpener = null;
+  function setLayerOpener(fn) {
+    layerOpener = typeof fn === "function" ? fn : null;
+  }
+  function layerOpen(item, ctx) {
+    if (!layerOpener || item == null) return false;
+    return layerOpener(item, ctx) !== false;
+  }
+  testHook("rel", function() {
+    return { seenCount: Object.keys(_seen).length, mode: getSetting("relSequential") ? "seq" : "walk" };
+  });
+
   // src/reldrawer.js
   var cache = { rid: null, dvs: [], state: "idle", title: "" };
   var lcache = { rows: [], idx: 0, title: "" };
@@ -5090,8 +5073,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       };
       var item = relatedItemOf(row._dv);
       if (layerJump(item, ctx)) return;
-      if (layerOpen(item, ctx)) return;
-      startChain(row._dv.dougaId, item);
+      layerOpen(item, ctx);
     });
     return true;
   }
@@ -10443,7 +10425,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.178" : "");
+    return normVer(true ? "0.9.179" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11106,7 +11088,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function syncTopbarSeg() {
     if (!segSv) return;
     var src = typeof hooks2.getSource === "function" ? hooks2.getSource() : null;
-    segSv.classList.toggle("on", src !== "home" && src !== "related");
+    segSv.classList.toggle("on", src !== "home");
     segHome.classList.toggle("on", src === "home");
   }
   function syncFollowSeg(view2) {
@@ -12375,28 +12357,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return FeedStore.items[idx];
   });
   setCommentsOpener(toggleItemComments);
-  setChainStarter(function(acId, firstItem) {
-    if (!scroller) return false;
-    feedStreamOn = false;
-    setAppliedMid(acId);
-    cancelHashSync();
-    teardownViews();
-    setSource("related");
-    updateSegUI();
-    closeComments();
-    stopAll();
-    FollowVideos.feedActive = false;
-    UpVideos.feedActive = false;
-    FeedStore.reset();
-    resetStream();
-    FeedStore.items.push(firstItem);
-    FeedStore.seen[firstItem.id] = 1;
-    FeedStore.current = 0;
-    renderWindow();
-    setActive(0);
-    location.hash = "#" + CFG.hash + "/a/" + acId;
-    return true;
-  });
   function renderWindow() {
     if (!scroller) return;
     var cur = FeedStore.current;
@@ -12668,7 +12628,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     } else if (route.view === "play") {
       feedDeferred = true;
     } else {
-      ensureBaseSource();
       resetHomePager();
       UpVideos.feedActive = false;
       FollowVideos.feedActive = false;
@@ -12687,7 +12646,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (currentView()) return;
     feedDeferred = false;
     if (FeedStore.items.length) return;
-    ensureBaseSource();
     resetHomePager();
     UpVideos.feedActive = false;
     FollowVideos.feedActive = false;
@@ -12765,7 +12723,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (!keep) {
       FollowVideos.feedActive = false;
       UpVideos.feedActive = false;
-      ensureBaseSource();
       cancelHashSync();
       resetHomePager();
       setAppliedMid(null);
@@ -13643,7 +13600,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.178：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.179：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

@@ -24,8 +24,7 @@ function createFeedStore(env) {
       var gen = self.gen;
       // 末条 id 作取流锚传给源（0.9.167）：仅 related 游走泵消费（下一批=链尾的相关池），
       // sv/home 忽略该参数——签名加宽不改既有源行为
-      var tipId = self.items.length ? self.items[self.items.length - 1].id : null;
-      return env.api.feed(tipId).then(function (list) {
+      return env.api.feed().then(function (list) {
         if (gen !== self.gen) return; // 期间已 reset：不得回填新源，也不得碰新请求的 loading
         self.loading = false;
         dbg('fetch:list=' + list.length);
@@ -164,7 +163,7 @@ export function setChangeHandler(fn) { changeHandler = typeof fn === 'function' 
 
 export var FeedStore = createFeedStore({
   api: {
-    feed: function (tipId) { return API.feed(tipId); },
+    feed: function () { return API.feed(); },
     info: function (id) { return API.info(id); },
     refreshItem: function (item) { return API.refreshItem(item); }
   },

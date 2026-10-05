@@ -128,6 +128,8 @@ feedstore.js → player.js → input.js → feedstore.js
   全程单向（playlayer→reldrawer→relatedapi，无回边）。
 - **顺抓缺陷**：`appapi.resolve` 的非 m3u8 直链守卫位置错（在 applyQuality 前判空 urls，恒不触发；
   0.9.174 修）；`openComments` 幂等收旧层导致换条页签复位（0.9.178 抽 `retargetComments` 分流）。
-- **待办**：合辑/分P 接口未实测（行形状与 push 入口已就位）；舞台游走链（startChain + related 源）
-  UI 不可达、仅剩兜底，整体删除待用户裁决；playlayer.js 已 496 行（视图壳/会话/级别栈/手势/抽屉缝），
-  拆件列为下批候选。
+- **待办**：合辑/分P 接口未实测（行形状与 push 入口已就位）；playlayer.js 已 496 行（视图壳/会话/
+  级别栈/手势/抽屉缝），拆件列为下批候选（用户裁决「先不拆，下一批一起」）。
+- **0.9.179 已删**：舞台游走链（startChain/setChainStarter/resetPump + api 的 related 内容源 +
+  feedstore 的 tip 透传 + topbar 的 related seg 特判）——三出口改道后 UI 不可达、仅剩「播放器未挂载」
+  兜底；删除后图边 237→235（api→relatedapi、player→relatedapi 两条随之消失）。

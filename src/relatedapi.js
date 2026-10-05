@@ -9,8 +9,9 @@ import { stat, testHook } from './dbg.js';
 // 端点 feed/related/general（2026-10-05 内置浏览器 + curl 免登录双验，docs/api-research.md §5）：
 // 表单 resourceType=2&resourceId={稿件id}；**无游标一发 10 条，重复调用换一批**（推荐流刷新
 // 语义）；回包**不含当前视频自身**（锚位无需去重）；首条**非固定 UP 本人**视频；推荐分区亲和。
-// 本模块是「related」内容源的域件：规整随域走（AGENTS.md 单源收口），泵是本域的取流行为——
-// 不 import feedstore/player（环检测零豁免）：tip 由 fetchMore 调用方传入，防回头路靠自持 seen。
+// 本模块是**播放层会话的域件**（0.9.179 起不再承载「related 内容源」——那套 startChain/竖刷游走
+// 已退役删除）：规整随域走（AGENTS.md 单源收口），泵是本域的取流行为——不 import feedstore/player
+// （环检测零豁免）：tip 由调用方传入（层内步进传当前条），防回头路靠自持 seen。
 //
 // 续播两态（设置 relSequential，见 settings.js SCHEMA）：
 //   walk（默认）随机游走——本批只出 1 条（fetchMore 的节奏=每次滚动补 1 条），下一条再以它
@@ -86,8 +87,6 @@ export function seed(id) {
   stat('rel.seed');
 }
 
-export function resetPump() { _seen = {}; }
-
 // 纯函数：从原始卡列表里挑本批要出池的卡。walk 抽 1 条（rand 注入=单测确定性）；seq 按展示
 // 顺序全出。seen 命中的先滤掉——调用方（batch）保证「全滤空则换批重拉」
 export function pickFresh(dvs, seen, mode, rand) {
@@ -104,7 +103,7 @@ export function pickFresh(dvs, seen, mode, rand) {
   return fresh;
 }
 
-// 取一批播放条目。tipId=游走锚（fetchMore 传入的「仓库末条 id」）：游走链是预建路径——
+// 取一批播放条目（0.9.179 起唯一消费方=播放层 playStep）。tipId=游走锚（层内传「当前条 id」）：
 // 每次取流都从链尾的池子里抽，用户沿链下滑即在图上游走。失败/空批静默回 []（fetchMore
 // 的 loading 互斥与 gen 作废由仓库层管，本层不重试网络错误——下一拍 ensureMore 会再来）
 export function batch(tipId) {
@@ -136,25 +135,9 @@ export function batch(tipId) {
   return attempt();
 }
 
-// ---------- 起步缝（mediator，state.js 同款「读方零反向依赖」） ----------
-// 链条起步要动播放器的舞台复位机器（resetStream/renderWindow/setActive）与源切换——这些都在
-// player 域；本模块若 import player 即成环（player→comments→reldrawer→本模块）。故 player 在
-// 求值期注册起步器。**现仅遗留兜底**：reldrawer 行点击的三落点前两级（压级/开层）都不走这里
-//（0.9.170 分区页改 openPanelItem、0.9.172 舞台行改 layerOpen、0.9.174 层内改压级）；
-// 只有「播放器未挂载」的路径才落到 startChain（未注册时静默 false）。**不走 hash→loadDeepLink** 的原因：那条链「源随链接走」会 setSource('home')
-// 把游走态覆写掉（player.js loadDeepLink 语义在册）——起步器镜像它的复位序列但保住 related。
-var chainStarter = null;
-export function setChainStarter(fn) { chainStarter = typeof fn === 'function' ? fn : null; }
-export function startChain(acId, firstItem) {
-  if (!chainStarter || firstItem == null) return false;
-  seed(acId);
-  chainStarter(Number(acId) || 0, firstItem);
-  return true;
-}
-
 // ---------- 播放层宿主缝（0.9.170，同款 mediator） ----------
-// 抽屉行的落点分派（0.9.174 后为三种）：播放层在场 = **压新级别**（layerHost.jump→pushLevel）；
-// 层外 = 开层（layerOpen）；播放器未挂载才落 startChain 兜底。判定与动作都由 playlayer 注册进来
+// 抽屉行的落点分派（两落点）：播放层在场 = **压新级别**（layerHost.jump→pushLevel）；层外 = 开层
+//（layerOpen）。判定与动作都由 playlayer 注册进来（0.9.179 起删除原 startChain 舞台游走兜底——
 // （active 读它的在层状态、jump 走它的换条机器）——reldrawer 照样只 import 本模块。
 var layerHost = null;
 export function setLayerHost(h) { layerHost = h || null; }

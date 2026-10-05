@@ -2,7 +2,7 @@ import { el, fmt, fmtDurMs } from './ui.js';
 import { commentDrawer } from './state.js';
 import { imgInto } from './imgload.js';
 import { GLYPHS } from './imicons.js';
-import { listRelated, relatedItemOf, panelItemOfDv, startChain, layerJump, layerOpen, pickInLayer } from './relatedapi.js';
+import { listRelated, relatedItemOf, panelItemOfDv, layerJump, layerOpen, pickInLayer } from './relatedapi.js';
 import { testHook } from './dbg.js';
 
 // ---------- 评论抽屉「相关推荐」tab（0.9.167；形态=docs/preview/jingxuan.html ③④⑤） ----------
@@ -10,8 +10,8 @@ import { testHook } from './dbg.js';
 // resetList 会清它、.acsv-citem DOM 被 view-follow/detail-open 断言钉死）；本模块经句柄自附
 // 行为（ensureDrawerWired 同体例），comments.js 只挂两个 seam：openComments 尾部 sync、
 // closeComments 里 close。数据源 relatedapi（feed/related/general，§5 实测）。
-// 行点击三落点（0.9.170/0.9.172/0.9.173）：层内 layerJump（0.9.174 起=**压新级别**，见 playlayer
-// 级别栈）、层外 layerOpen 开层、播放器未挂载才落 startChain 兜底。
+// 行点击两落点（0.9.170/0.9.172/0.9.173）：层内 layerJump（0.9.174 起=**压新级别**，见 playlayer
+// 级别栈）、层外 layerOpen 开层（0.9.179 删原 startChain 兜底）。
 // 锚位行「▶ 播放中」= 当前视频本身（非推荐；回包实测不含当前视频，无重复风险）。
 //
 // 第三 tab「列表」（0.9.174）：列表播放器（相关推荐/合辑/分P）里展示**当前正在播的那份列表**——
@@ -49,11 +49,11 @@ function wire() {
       idx: idx
     };
     var item = relatedItemOf(row._dv);
-    // 三种落点（0.9.170/0.9.172/0.9.174）：播放层在场 = **压新级别**（列表播放器）；层外 = 开层（舞台/视图原地保活，
-    // Esc 回当前视频）；播放器未挂载才落到遗留的 startChain（拆视图/重置流的旧形态）
+    // 两落点（0.9.170/0.9.172/0.9.174；0.9.179 删原 startChain 兜底）：播放层在场 = **压新级别**
+    //（列表播放器）；层外 = 开层（舞台/视图原地保活，Esc 回当前视频）。播放器不可用时静默
+    //（boot 恒加载 playlayer，理论不可达）
     if (layerJump(item, ctx)) return;
-    if (layerOpen(item, ctx)) return;
-    startChain(row._dv.dougaId, item);
+    layerOpen(item, ctx);
   });
   return true;
 }
@@ -197,7 +197,7 @@ function render() {
 
 function rowOf(dv) {
   var row = el('div', 'acsv-relrow');
-  row._dv = dv; // 点击委托读取（三落点的行数据源：压级/开层/遗留 startChain 兜底）
+  row._dv = dv; // 点击委托读取（两落点的行数据源：层内压级 / 层外开层）
   var cv = el('div', 'acsv-relcv');
   imgInto(cv, dv.coverUrl || '', 'thumb');
   var durt = fmtDurMs(dv.durationMillis);

@@ -219,7 +219,7 @@ export function syncTopbarSeg() {
   var src = typeof hooks.getSource === 'function' ? hooks.getSource() : null;
   // related（0.9.167 游走态）不是 seg 的一极：两键全灭——顶栏 seg 是 sv↔home 开关，
   // 游走链的进出走抽屉「相关推荐」行，不经 seg
-  segSv.classList.toggle('on', src !== 'home' && src !== 'related');
+  segSv.classList.toggle('on', src !== 'home');
   segHome.classList.toggle('on', src === 'home');
 }
 
