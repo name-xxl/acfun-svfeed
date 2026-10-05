@@ -8,7 +8,7 @@ import { registerView } from './viewreg.js';
 import { setVideoTarget, setWatchTarget, setPlayItem, OVL_IDX } from './state.js';
 import { buildSlide } from './slide.js';
 import { attachVideo } from './attach.js';
-import { batch as relatedBatch, seed, setLayerHost } from './relatedapi.js';
+import { batch as relatedBatch, seed, setLayerHost, setLayerOpener } from './relatedapi.js';
 import { isOpenComments, openComments } from './comments.js';
 import { testHook } from './dbg.js';
 
@@ -155,6 +155,14 @@ export function playStep(delta) {
 setLayerHost({
   active: function () { return !!slideRef; },
   jump: jump
+});
+
+// 开层注册（0.9.172）：层外（竖刷舞台）点相关推荐行 = 以该视频开播放层——舞台原地保活
+// （stageHide 暂停当前条），Esc 回当前视频；不再走 startChain（拆视图/重置流，实报「窗口没了」）
+setLayerOpener(function (item) {
+  if (!item || !item.id) return false;
+  openPlayer({ acId: item.id, title: item.title, cover: item.cover, up: item.up });
+  return true;
 });
 
 // 错误盒 + 盒内重试（0.9.77 修）：重试键必须在盒内且点击时整盒撤除——.acsv-errbox 是

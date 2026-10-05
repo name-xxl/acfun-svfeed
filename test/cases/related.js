@@ -2,11 +2,13 @@
 // 源：home（HOME_CASES 登记）——tab 只对视频条目（kind==='home'）显形；桩=test/my-sample.js
 // 的 'feed/related/general'（确定性池：700000+rid*10+k，跨池不相交 ⇒ 断言可精确预言）。
 //   rel-drawer：home 流就绪 → c 键开抽屉 → tab 在场且 prefetch 就绪（rows=锚位1+池10）
-//     → 切 tab → 点首行起链（起点置顶+source=related+抽屉收起+hash 回写）
-//     → 游走推进（链尾锚换池）→ 设置面板开 relSequential → seq 整批入链（增量≥5 区分 walk 的 1 条/步）
-//   rel-layer（0.9.170）：播放层内 ↓/↑ 游走 + 抽屉行层内换条（不拆界面）
+//     → 切 tab → 点首行**开层**（0.9.172：舞台原地保活，不再 startChain 拆视图/重置流）
+//     → 层内 walk 抽一条（池内）→ 设置面板开 relSequential → 层内 ↓ 整批入队（queue>0）
+//     → Esc 退层：条目表与游标仍是原样（保活终局证据）
+//   rel-layer（0.9.170）：播放层内 ↓/↑/滚轮/触摸游走 + 抽屉行层内换条（不拆界面）
 // 反跑：摘 slide.buildDrawer 的 tab 行 ⇒ rel-tab-ready 红；摘 relatedapi.batch 的换批/seq
-// 分支 ⇒ rel-seq-batch 红；摘起步器注册 ⇒ rel-chain-start 红；摘层内游走缝合 ⇒ rel-layer-* 红。
+// 分支 ⇒ rel-seq-queue 红；摘 setLayerOpener 注册 ⇒ rel-row-opens-layer/rel-stage-kept 红
+// （落回 startChain ⇒ 舞台被重置）；摘层内游走缝合 ⇒ rel-layer-* 红。
 // mock 装配（views.js 同款文件作用域）：本场景跑在 home 源（HOME_CASES），sv 专用
 // __ACSV_MOCK__ 不在——评论与 resolve 链（链外条目 douga/info+playInfo）都走 net ⇒
 // 必须 FORM 指向 MY_MOCK
@@ -47,38 +49,39 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
     rec('rel-tab-on', !!rd2, JSON.stringify(TEST.call('reldrawer')));
     rec('rel-rows', !!rd2 && rd2.rows === 11, 'rows=' + (rd2 || {}).rows); // 锚位 1 + 池 10
     rec('rel-anchor', !!rd2 && !!rd2.hasAnchor);
-    // 点首行（锚位后第一条 = 池 k=1）→ 起步：起点置顶 + 源切换 + 抽屉收起 + hash 回写
+    // 点首行（锚位后第一条 = 池 k=1）→ **开层**（0.9.172 用户实报「原窗口直接没了」的修正）：
+    // 以该视频开播放层，舞台原地保活（items/current 一动不能动），抽屉随浮层栈收起；
+    // 不再 startChain（旧形态=重置整条流 + 拆视图，回不去当前视频）
     var expectId = 700000 + Number(rid) * 10 + 1;
+    var stageLen = ((TEST.call('feed') || {}).items || []).length;
+    var stageCur = (TEST.call('feed') || {}).current;
     var row1 = q('.acsv-rellist .acsv-relrow:nth-child(2)');
     rec('rel-row1-dom', !!row1);
     if (row1) row1.click();
-    rec('rel-chain-start', !!(await waitFor(function () {
+    rec('rel-row-opens-layer', !!(await waitFor(function () {
+      var pl = TEST.call('playlayer') || {};
+      return TEST.call('view') === 'play' && pl.active && Number(pl.id) === expectId ? pl : null;
+    }, 8000)), 'expect=' + expectId + ' ' + JSON.stringify(TEST.call('playlayer')));
+    rec('rel-stage-kept', (function () { // 舞台保活：条目表与游标零变化（层不动竖刷）
       var f = TEST.call('feed') || {};
-      var it = f.items && f.items[0];
-      return !!it && Number(it.id) === expectId && it.kind === 'home' && it.lazy === true;
-    }, 8000)), 'expect=' + expectId);
-    rec('rel-hash', !!(await waitFor(function () {
-      return location.hash === '#svfeed/a/' + expectId;
-    }, 5000)), location.hash);
-    rec('rel-seen-grow', !!(await waitFor(function () {
-      var t = TEST.call('rel');
-      return t && t.seenCount >= 2 && t.mode === 'walk'; // seed(起点) + 首批游走 1 条
-    }, 4000)), JSON.stringify(TEST.call('rel')));
+      return (f.items || []).length === stageLen && f.current === stageCur;
+    })(), 'len=' + ((TEST.call('feed') || {}).items || []).length + '/' + stageLen + ' cur=' + (TEST.call('feed') || {}).current + '/' + stageCur);
     rec('rel-drawer-closed', !!(await waitFor(function () {
       var d = q('.acsv-drawer');
       return !!d && !d.classList.contains('open');
     }, 4000)));
-    // 游走推进：滚到下一条 → 新链尾的池子续 1 条（walk 节奏：每步 +1）；池内互异
-    TEST.call('scrollTo', 1);
-    rec('rel-walk-step', !!(await waitFor(function () {
-      var f = TEST.call('feed') || {};
-      var its = f.items || [];
-      if (its.length < 3) return false;
-      var ids = its.map(function (x) { return Number(x.id); });
-      var uniq = ids.slice(0, 3).every(function (v, i, a) { return a.indexOf(v) === i; });
-      return uniq && its.slice(1).every(function (x) { return x.kind === 'home'; });
-    }, 8000)), 'len=' + ((TEST.call('feed') || {}).items || []).length);
-    // seq 模式：设置面板第 3 个开关（bool 项序：updCheck/dmDefault/relSequential）→ 整批入链
+    // 层内游走（walk）：↓ 抽池内下一条（池 id 空间 700000+expectId*10+k）；已见集增长
+    key('ArrowDown');
+    rec('rel-layer-walk', !!(await waitFor(function () {
+      var pl = TEST.call('playlayer') || {};
+      var d = Number(pl.id) - (700000 + expectId * 10);
+      return pl.active && pl.hist === 2 && d >= 1 && d <= 10 ? pl : null;
+    }, 8000)), JSON.stringify(TEST.call('playlayer')));
+    rec('rel-seen-grow', !!(await waitFor(function () {
+      var t = TEST.call('rel');
+      return t && t.seenCount >= 2 && t.mode === 'walk'; // seed(入口) + 游走一条
+    }, 4000)), JSON.stringify(TEST.call('rel')));
+    // seq 模式：设置面板第 3 个开关（bool 项序：updCheck/dmDefault/relSequential）→ 层内 ↓ 整批入队
     var gear = q('.acsv-dock-gear');
     if (gear) gear.click();
     var host = await waitFor(function () { return q('.acsv-set-host'); }, 5000);
@@ -90,12 +93,20 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
     rec('rel-set-sw-on', !!(sw && sw.classList.contains('on')));
     key('Escape');
     rec('rel-set-closed', !!(await waitFor(function () { return !q('.acsv-set-host'); }, 4000)));
-    var before = ((TEST.call('feed') || {}).items || []).length;
-    TEST.call('scrollTo', before - 1); // current >= len-bufferSize ⇒ fetchMore（seq 批量出池）
-    rec('rel-seq-batch', !!(await waitFor(function () {
-      return ((TEST.call('feed') || {}).items || []).length >= before + 5;
-    }, 8000)), 'before=' + before + ' now=' + ((TEST.call('feed') || {}).items || []).length);
+    var walkId = (TEST.call('playlayer') || {}).id;
+    key('ArrowDown');
+    rec('rel-seq-queue', !!(await waitFor(function () {
+      var pl = TEST.call('playlayer') || {};
+      return pl.active && Number(pl.id) !== Number(walkId) && pl.queue >= 1 ? pl : null; // 整批入队（queue>0）
+    }, 8000)), 'walkId=' + walkId + ' ' + JSON.stringify(TEST.call('playlayer')));
     rec('rel-seq-mode', (function () { var t = TEST.call('rel'); return !!t && t.mode === 'seq'; })(), JSON.stringify(TEST.call('rel')));
+    // Esc 退出层 → 回竖刷舞台：仍是原条目表与游标（保活的终局证据）
+    key('Escape');
+    rec('rel-exit-stage', !!(await waitFor(function () {
+      var f = TEST.call('feed') || {};
+      var pl = TEST.call('playlayer') || {};
+      return TEST.call('view') == null && !pl.active && (f.items || []).length === stageLen && f.current === stageCur;
+    }, 8000)), 'view=' + TEST.call('view') + ' len=' + ((TEST.call('feed') || {}).items || []).length + '/' + stageLen);
   };
 
   // ---- rel-layer：播放层内游走（0.9.170） ----

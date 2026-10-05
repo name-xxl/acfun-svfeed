@@ -152,6 +152,17 @@ export function layerJump(item) {
   return true;
 }
 
+// 开层缝（0.9.172，同款 mediator）：**层外**点相关推荐行的落点——把该视频交给播放层
+// （openPlayer），舞台/视图原地保活（Esc 回当前视频）。0.9.167 以来这条路径走的是 startChain
+// （重置整条流 + 拆视图），用户实报「原窗口直接没了」——改为开层后「点开即走、退出即回」。
+// playlayer 注册（本模块仍不 import 它）；未注册（播放器没挂载）返回 false，调用方走遗留兜底。
+var layerOpener = null;
+export function setLayerOpener(fn) { layerOpener = typeof fn === 'function' ? fn : null; }
+export function layerOpen(item) {
+  if (!layerOpener || item == null) return false;
+  return layerOpener(item) !== false;
+}
+
 // debug 构建测试钩子：harness 断言读泵态（release 死码消除）
 testHook('rel', function () {
   return { seenCount: Object.keys(_seen).length, mode: getSetting('relSequential') ? 'seq' : 'walk' };

@@ -3,6 +3,25 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.172（2026-10-06）· 相关推荐行点击改「开层」：舞台原地保活，退出回当前视频
+
+- **由头**：用户实报「可是现在不保活啊。在分区中点击相关推荐视频，原窗口直接没了。在推荐、榜单、
+  动态或者其它场景都是这样」——0.9.167 以来，抽屉「相关推荐」行的点击出口是 relatedapi.startChain
+  （起点置顶 + setSource('related') + **FeedStore.reset + resetStream + teardownViews**）：整条流被
+  换掉、视图被拆，回不去当前视频。0.9.170 只修了「层内」那一半（layerJump），层外（竖刷舞台上）
+  这条仍是旧形态。
+- **修法**：relatedapi 新增**开层缝**（setLayerOpener/layerOpen，同款 mediator——本模块不 import
+  playlayer），playlayer 注册为 openPlayer（面板条目契约 {acId,title,cover,up}）；reldrawer 行点击
+  三落点：层内 = layerJump 换条 → 层外 = layerOpen **开层**（舞台 stageHide 暂停在原条、视图若在
+  则照常挂起保活、抽屉随浮层栈收起）→ 播放器未挂载才落 startChain 兜底。层内 ↓/↑/滚轮沿同一条
+  游走泵（换条后链从新条目继续），Esc 退出层回竖刷当前视频原位（views.exitView 的 restore 语义）。
+- **测试**：harness `rel-drawer` 重写行点击后的断言段（22→23）：点首行 → `rel-row-opens-layer`
+  （view=play + 层锚=池 k=1）→ `rel-stage-kept`（**条目表与游标零变化**——保活的直接证据）→
+  抽屉收起 → 层内 walk 抽池内下一条 + seen 增长 → 开 relSequential 后 ↓ 整批入队
+  （`rel-seq-queue`，queue>0）→ Esc 退层：条目表/游标仍是原样（`rel-exit-stage` 终局证据）。
+  **反跑实证**：摘 setLayerOpener 注册 ⇒ 落回 startChain，5 条断言全红且舞台条目表当场被重置
+  （len=3/8，正是用户报的「原窗口直接没了」）。全链 build/lint/check/单测 258/51 场景全绿。
+
 ### 0.9.171（2026-10-06）· 分区页收尾三件：层内滑动切换 + 卡片原生图标 + 改名「分区」
 
 - **由头**：用户真机看 0.9.170 后的三条反馈——①「精选点开的 playlayer 窗口怎么无法滑动切换视频」
