@@ -172,6 +172,8 @@ var RAW_CSS = ''
   + 'position:relative;top:9px;margin-bottom:-9px;white-space:nowrap}'
   + '.acsv-dtab:hover{color:#cfd3da}'
   + '.acsv-dtab.on{color:#fd4c5d;border-bottom-color:#fd4c5d}'
+  // 「列表」tab（0.9.174）：当前播放项高亮（描边 + 淡红底，与 rel 行族同源）
+  + '.acsv-listlist .acsv-relrow.acsv-lcur{background:rgba(253,76,93,.10);box-shadow:inset 0 0 0 1px rgba(253,76,93,.45)}'
   + '.acsv-relrow{display:flex;gap:10px;padding:8px 12px;cursor:pointer}'
   + '.acsv-relrow:hover{background:rgba(255,255,255,.06)}'
   + '.acsv-relcv{width:116px;height:65px;border-radius:6px;flex:none;position:relative;'

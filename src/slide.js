@@ -97,8 +97,13 @@ export function buildDrawer() {
   tabC.title = '评论';
   var tabR = el('button', 'acsv-dtab acsv-dtab-rel', '相关推荐');
   tabR.style.display = 'none'; // sv（小视频）条目无相关推荐；openComments 按 kind 显形
+  // 「列表」tab（0.9.174）：列表播放器（相关推荐/合辑/分P 这类自带列表的视频）里显形，
+  // 展示**当前正在播的那份列表**；由 playlayer 经 reldrawer 的 seam 控制显隐与内容
+  var tabL = el('button', 'acsv-dtab acsv-dtab-list', '列表');
+  tabL.style.display = 'none';
   dtabs.appendChild(tabC);
   dtabs.appendChild(tabR);
+  dtabs.appendChild(tabL);
   var dclose = el('button', 'acsv-drawer-close', '✕');
   dclose.title = '收起评论（Esc）';
   dhead.appendChild(dtabs);
@@ -106,9 +111,12 @@ export function buildDrawer() {
   var dlist = el('div', 'acsv-drawer-list');
   var rlist = el('div', 'acsv-drawer-list acsv-rellist');
   rlist.style.display = 'none';
+  var llist = el('div', 'acsv-drawer-list acsv-listlist'); // 第三平级容器（同 relList 不复用纪律）
+  llist.style.display = 'none';
   drawer.appendChild(dhead);
   drawer.appendChild(dlist);
   drawer.appendChild(rlist);
+  drawer.appendChild(llist);
   root.appendChild(drawer);
-  setCommentDrawer({ el: drawer, title: dtitle, list: dlist, relList: rlist, tabC: tabC, tabR: tabR });
+  setCommentDrawer({ el: drawer, title: dtitle, list: dlist, relList: rlist, listList: llist, tabC: tabC, tabR: tabR, tabL: tabL });
 }

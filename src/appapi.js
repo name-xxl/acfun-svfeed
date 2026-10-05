@@ -203,10 +203,13 @@ export var AppAPI = {
     return self.playInfo(item.videoId, item.id).then(function (qualities) {
       if (!qualities.length) return false;
         item.qualities = qualities;
-        // 非 m3u8 直链（harness webm 直挂/未来 mp4 直链源）绕开 hls.js 管线——与
-        // followstream.FollowVideos.info 同款守卫（api.js 直挂缝同判）；真 m3u8 回包零变化
-        if (item.urls.length && !/\.m3u8/i.test(item.urls[0])) item.cap.hls = false;
         applyQuality(item); // 播放策略（编码偏好/清晰度记忆）在 quality.js，接口层只管取数
+        // 非 m3u8 直链（harness webm 直挂/未来 mp4 直链源）绕开 hls.js 管线——与
+        // followstream.FollowVideos.info 同款守卫（api.js 直挂缝同判）；真 m3u8 回包零变化。
+        // **必须在 applyQuality 之后判**（0.9.174 修）：urls 是 applyQuality 从 qualities 里
+        // 选出来的，提前判时 item.urls 还是空数组 ⇒ 守卫恒不触发；池条目（无 mock 分支兜底）
+        // 因此把 webm 喂进 hls.js/MSE，重挂即 error（rel-layer 弹回原视频时实锤）
+        if (item.urls.length && !/\.m3u8/i.test(item.urls[0])) item.cap.hls = false;
         return item.urls.length > 0;
       });
     });

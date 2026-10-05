@@ -49,7 +49,15 @@ export function setupInputHandlers(api) {
     var curView = api.getView();
     var inPlay = curView === 'play';
     if (curView) {
-      if (ev.key === 'Escape' && overlayTop()) { overlayClose(overlayTop().id); return; }
+      if (ev.key === 'Escape') {
+        // Esc 三级链（0.9.174）：① 浮层（抽屉/大图…）先关；② 播放层还有"级别"可弹就先弹级
+        //（列表播放器→回原视频；单级时 playEscape 返回 false）；③ 最后才关视图层=退出回来源
+        var vTop = overlayTop();
+        if (vTop && vTop.id !== 'view') { overlayClose(vTop.id); return; }
+        if (inPlay && api.playEscape && api.playEscape()) return;
+        if (vTop) overlayClose(vTop.id);
+        return;
+      }
       if (!inPlay) return;
     }
     var cur = FeedStore.current;

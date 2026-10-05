@@ -3,6 +3,36 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.174（2026-10-06）· 播放层「级别栈」：相关推荐行 = 开列表播放器，关闭即回原视频
+
+- **由头**：用户实报「太反直觉了——打开分区》视频》点击相关推荐》关闭相关推荐》分区，原来播放的视频也
+  没有了」：0.9.173 的「点相关行=同级别换轨」把当前视频顶掉了，Esc 又直退来源。用户裁决：这类
+  自带列表的视频（相关推荐；未来合辑/分P）该**开第三个播放器**——关闭它回原来那条视频；打开它时
+  **默认展开抽屉展示当前列表**。三问定案：①抽屉新增第三 tab「列表」；②只留 Esc 弹回；③进度先做
+  级别内恢复过渡（后续接官方观看历史做全局断点续播）。
+- **修法**：①**级别栈**（playlayer）：单级状态收进 `levels=[{item,sess,hist,hIdx,queue,at}]`，栈顶
+  即当前播放器；`pushLevel`（抽屉相关行）= 存档当前级（含播放秒数）→ 压新级（会话=那份 10 条）→
+  挂新 slide → **自动开抽屉+切「列表」tab**；`playEscape`（级别>1 才弹）= 存档 → 弹 → 还原上级
+  会话/历史 → 挂回上级视频并经**既有续播槽**（`slide._resumeAt` → attachVideo 转 `session.resumeAt`，
+  playing 后 seek；不自造第二套 seek）恢复进度。②**Esc 三级链**（input.js + player 注入
+  `api.playEscape`）：浮层（抽屉等，非 view 层）→ 播放层级别 → 视图层退出。③**抽屉第三 tab**
+  （slide.buildDrawer 加 tabL + 第三平级容器 listList；reldrawer 三态 showTab + 列表行渲染 +
+  三 seam `relDrawerShowList/SyncList/HideList`；行点击=**列表内跳转**（relatedapi.pickInLayer →
+  playlayer.pickInLevel，同级别换条不压级）。行形状统一 `{id,title,cover,dur,like,up}`（本轮=相关
+  推荐由 cache.dvs 供；合辑/分P 未来同形）。④顺手修正：推荐 tab 尾部文案改口（旧文"下一条随机抽"
+  与 0.9.173 语义不符）。
+- **顺抓真缺陷（非本批新代码）**：`appapi.resolve` 的「非 m3u8 直链守卫」站在 `applyQuality` **之前**
+  ——那一刻 `item.urls` 还是空数组，守卫恒不触发（0.9.168 埋的位置错；舞台路径被 api.js 的 mock 分支
+  掩盖，池条目才露馅：webm 被喂进 hls.js/MSE，重挂即 error）。修：守卫移到 `applyQuality` 之后。
+- **测试**：`rel-layer` 21→31 断言：点相关行 → levels=2/parentId=锚（**压级**）→ 抽屉自动停「列表」
+  tab（listShown/listOn/listRows=10/listIdx=0）→ 点列表第 3 行 = 列表内跳转（levels 不变、listIdx=2）
+  → Esc 关抽屉 → 再 Esc **弹回上级**（id=锚 + 列表 tab 收起）→ 续播槽转交=5（harness 池条目直链被
+  https 升级打不通，故断言槽位转交+直挂不变式；真机复验 seek 落地）→ 再 Esc 退层。**反跑三连全红**：
+  退回同级换轨 ⇒ 6 条红；摘 playEscape 注入 ⇒ rl-pop-parent 等 5 条红；摘直挂守卫 ⇒ rl-parent-direct
+  红（hls=true + MSE blob 实锤）。全链 build/lint/check（deps 236 边）/单测 258/52 场景全绿。
+- **遗留**：合辑/分P 未接（接口未实测，行形状与 push 入口已就位）；全局断点续播（官方历史进度）
+  留待后续批。
+
 ### 0.9.173（2026-10-06）· 层内会话化：搜索/榜单按结果列表浏览 + 右栏 ▲▼ + 分区二选一
 
 - **由头**：用户裁决「搜索、榜单界面的 playlayer 做支持按结果列表滑动浏览吧，还有加上右栏上下切换

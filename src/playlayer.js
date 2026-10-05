@@ -10,6 +10,7 @@ import { buildSlide } from './slide.js';
 import { attachVideo } from './attach.js';
 import { batch as relatedBatch, seed, setLayerHost, setLayerOpener } from './relatedapi.js';
 import { isOpenComments, openComments } from './comments.js';
+import { relDrawerShowList, relDrawerSyncList, relDrawerHideList } from './reldrawer.js'; // 列表播放器抽屉（0.9.174）
 import { testHook } from './dbg.js';
 
 // ---------- 播放层（0.9.74）：列表条目就地播放，不再插队尾 + 跳回竖刷 ----------
@@ -35,6 +36,12 @@ var bodyRef = null; // 层体（换条要往它挂新 slide）
 var curItem = null; // 层内当前条目（换条/游走的锚）
 var hist = [];      // 层内历史：**每格随身带会话快照** {item, sess}——↑ 回退时连列表下标一起
 var hIdx = -1;      // 还原（否则列表里 ↓↓ 再 ↑ 会把 idx 落在错格：harness ll-zone-back 首轮抓到）
+// ---------- 级别栈（0.9.174）：一个窗口、多层"播放器实例" ----------
+// 用户裁决：点抽屉「相关推荐」行 = **开第三个播放器**（列表播放器）而不是把当前视频顶掉——
+// 压一级新级别（会话=那份列表），关闭（Esc）= 弹回**原来那条视频**（进度原地恢复）。
+// 每级 = { item, sess, hist, hIdx, queue, at }；模型变量（hist/session/curItem…）恒描述**栈顶**，
+// 压/弹前 saveLevel() 存档、弹后 loadLevel() 还原。
+var levels = [];
 var queue = [];     // walk 会话里 seq 模式一次多出的候选（随机模式恒空）
 var stepping = false;
 
@@ -47,7 +54,7 @@ var stepping = false;
 //          more 说没有（或没提供）= 停 + 「已经是最后一条」
 // ↑ 一律走 hist 历史回退（跨会话也成立：跳轨后 ↑ 能退回原列表原位）。
 // 上下文由**来源自己**在 openPanelItem(pi, ctx) 时给（视图最懂自家列表语义），层只管消费。
-var session = { kind: 'single', list: [], idx: -1, more: null };
+var session = { kind: 'single', list: [], rows: null, idx: -1, more: null };
 
 export function openPlayer(pi, ctx) {
   if (!pi || !pi.acId) return;
@@ -61,14 +68,30 @@ export function openPlayer(pi, ctx) {
 // 仍给相关池续命；单条只能由来源显式声明 {kind:'single'}）
 function applyCtx(ctx) {
   if (ctx && ctx.kind === 'single') {
-    session = { kind: 'single', list: [], idx: -1, more: null };
+    session = { kind: 'single', list: [], rows: null, idx: -1, more: null };
   } else if (ctx && ctx.kind === 'list' && ctx.items && ctx.items.length) {
-    session = { kind: 'list', list: ctx.items.slice(), idx: Number(ctx.idx) || 0, more: ctx.more || null };
+    session = {
+      kind: 'list', list: ctx.items.slice(), rows: ctx.rows || null,
+      idx: Number(ctx.idx) || 0, more: ctx.more || null
+    };
     if (session.idx < 0 || session.idx >= session.list.length) session.idx = 0;
   } else {
-    session = { kind: 'walk', list: [], idx: -1, more: null };
+    session = { kind: 'walk', list: [], rows: null, idx: -1, more: null };
   }
   queue = [];
+}
+
+// 列表显示行（抽屉「列表」tab 用）：来源给了 rows 就用它（字段更全：dur/like），否则从
+// 面板条目降级投影（cover/title/up 总有，其余缺省）——与 list 同序同长，索引即播放项
+function displayRowsOf(sess) {
+  if (sess.rows && sess.rows.length === sess.list.length) return sess.rows;
+  return sess.list.map(function (pi) {
+    return {
+      id: pi.acId, title: pi.title || '', cover: pi.cover || '',
+      dur: pi.dur || '', like: pi.like || 0,
+      up: (pi.up && pi.up.name) || pi.upName || ''
+    };
+  });
 }
 
 // 右栏 ▲▼ 状态（列表中间=两枚都在；首条藏 ▲；不可续拉的末条藏 ▼——同竖刷首条语义）
@@ -90,13 +113,16 @@ function syncArrows() {
   }
 }
 
-function mountSlide(body, item) {
+function mountSlide(body, item, resumeAt) {
   // 箭头（0.9.173）：非单条会话才建——single（深链/动态卡片）保持 0.9.74 的「层内无翻页箭头」
   var goTo = session.kind === 'single' ? null : {
     up: function () { playStep(-1); },
     down: function () { playStep(1); }
   };
   var slide = buildSlide(item, OVL_IDX, goTo);
+  // 进度续播槽（0.9.174 弹回上级）：attachVideo 会把 slide._resumeAt 转入 session.resumeAt，
+  // playing 后 seek 回去——复用既有槽位，不自造第二套 seek（attach.js 契约表在册）
+  if (resumeAt > 1) slide._resumeAt = resumeAt;
   slide.dataset.ovl = '1';
   body.appendChild(slide);
   slideRef = slide;
@@ -121,32 +147,114 @@ function mountSlide(body, item) {
 // 层内换条（0.9.170）：拆旧 slide 会话 → 挂新。抽屉开着就跟着换视频（setActive 同款纪律：
 // 评论/相关推荐两个 tab 的宿主都要跟上新 id，title 供锚位行）；hash 不跟写——层地址=入口
 // 那条，Esc/刷新仍回入口（游走是层内临时态，不污染分享链接）
-function swap(item) {
+function swap(item, resumeAt) {
   if (!bodyRef || !item) return false;
   if (slideRef && slideRef._session) { slideRef._session.dispose(); slideRef._session = null; }
   if (slideRef && slideRef.parentNode) slideRef.parentNode.removeChild(slideRef);
   slideRef = null;
-  mountSlide(bodyRef, item);
+  mountSlide(bodyRef, item, resumeAt);
   if (isOpenComments()) openComments(item.id, item.stype, item.shareUrl, item.kind, item.title);
   return true;
 }
 
 // 会话快照（历史格随身存一份；list 数组共享引用、idx/more 值拷贝——列表增长不需回滚）
 function snapSession() {
-  return { kind: session.kind, list: session.list, idx: session.idx, more: session.more };
+  return { kind: session.kind, list: session.list, rows: session.rows, idx: session.idx, more: session.more };
 }
 
-// 落点=入历史（回退后再前进会截断旧前向分支）。ctx 非空=**跳轨**：会话换成 ctx 描述的那份
-// 列表（层内点相关推荐行 = 换成那份 10 条；0.9.173）——先 applyCtx 再 swap，新 slide 按新会话建箭头
-function jump(item, ctx) {
-  if (ctx) applyCtx(ctx);
+// 落点=入历史（回退后再前进会截断旧前向分支）——**级别内**换条（↓/↑/列表内跳转都走这）
+function jump(item) {
   if (!swap(item)) return false;
   hist[hIdx + 1] = { item: item, sess: snapSession() };
   hist.length = hIdx + 2;
   hIdx = hist.length - 1;
   syncArrows();
+  syncListTab();
   return true;
 }
+
+// 当前播放位置（秒；<1s 不记——首帧误差不值得存）
+function curTime() {
+  var v = slideRef && slideRef.querySelector('video');
+  return v && v.currentTime > 1 ? v.currentTime : 0;
+}
+function stackTop() { return levels.length ? levels[levels.length - 1] : null; }
+// 把**栈顶工作态**写回级别（压/弹前调；级别内的 hist/session 变更都在这里落档）
+function saveLevel() {
+  var lv = stackTop();
+  if (!lv) return;
+  lv.item = curItem || lv.item;
+  lv.sess = snapSession();
+  lv.hist = hist;
+  lv.hIdx = hIdx;
+  lv.queue = queue;
+  lv.at = curTime();
+}
+// 从级别恢复工作态（弹回上级时调）
+function loadLevel(lv) {
+  session = { kind: lv.sess.kind, list: lv.sess.list, rows: lv.sess.rows || null, idx: lv.sess.idx, more: lv.sess.more };
+  hist = lv.hist;
+  hIdx = lv.hIdx;
+  queue = lv.queue;
+}
+
+// 压新级别 = 开「列表播放器」（0.9.174 用户裁决）：当前级别原样保活（暂停存档），新级别播
+// ctx 那份列表、锚在被点行；**自动展开抽屉并停在「列表」tab**（打开就看得见自己在那份列表里）
+function pushLevel(item, ctx) {
+  if (!bodyRef || !item) return false;
+  saveLevel();
+  applyCtx(ctx);
+  swap(item);
+  hist = [{ item: item, sess: snapSession() }];
+  hIdx = 0;
+  levels.push({ item: item, sess: snapSession(), hist: hist, hIdx: 0, queue: [], at: 0 });
+  syncArrows();
+  openListDrawer();
+  return true;
+}
+
+// Esc 弹级（player 注入 input 的 api.playEscape）：级别 >1 才弹——弹回上级原视频并**恢复进度**；
+// 单级返回 false（交回视图层退出）。列表 tab 按上级会话重挂或收起（不再自动展开抽屉——
+// Esc 的第一下已经关抽屉，"关闭即回"的语义靠这一下）
+export function playEscape() {
+  if (!slideRef || levels.length <= 1) return false;
+  saveLevel();
+  levels.pop();
+  var up = stackTop();
+  loadLevel(up);
+  swap(up.item, up.at); // 进度经 slide._resumeAt 槽恢复（方案一过渡；后续接官方历史断点续播）
+  syncArrows();
+  if (up.sess && up.sess.kind === 'list' && up.sess.list.length) {
+    relDrawerShowList(displayRowsOf(up.sess), up.sess.idx, (up.item && up.item.title) || '');
+  } else {
+    relDrawerHideList();
+  }
+  return true;
+}
+
+// 列表内跳转（抽屉「列表」tab 行点击；relatedapi.pickInLayer → 这里）：同一级别、同一列表，
+// 只挪锚点播该条——不压级、不换列表
+function pickInLevel(idx) {
+  if (session.kind !== 'list' || !session.list.length) return false;
+  if (idx < 0 || idx >= session.list.length) return false;
+  session.idx = idx;
+  return jump(playItemOf(session.list[idx]));
+}
+
+// 抽屉「列表」tab 跟随（层内步进/跳转后调）：tab 未激活时不抢（relDrawerSyncList 内判）
+function syncListTab() {
+  if (session.kind === 'list' && session.list.length) relDrawerSyncList(session.idx);
+}
+
+// 列表播放器打开：自动展开抽屉（未开则开）并停在「列表」tab
+function openListDrawer() {
+  if (!curItem) return;
+  if (!isOpenComments()) {
+    openComments(curItem.id, curItem.stype, curItem.shareUrl, curItem.kind, curItem.title);
+  }
+  relDrawerShowList(displayRowsOf(session), session.idx, curItem.title || '');
+}
+
 
 // 层开：挂首条并把它登记为历史第 0 条（↑ 要能回到**入口**那条——mountSlide 只管 DOM，
 // 不碰历史；deep-link 冷进入与点击进入两条路都经这里）
@@ -154,6 +262,7 @@ function enterLayer(body, item) {
   mountSlide(body, item);
   hist = [{ item: item, sess: snapSession() }];
   hIdx = 0;
+  levels = [{ item: item, sess: snapSession(), hist: hist, hIdx: 0, queue: [], at: 0 }]; // 级别栈底（第 1 级）
   syncArrows();
 }
 
@@ -198,7 +307,8 @@ export function playStep(delta) {
     hIdx--;
     var h = hist[hIdx];
     // 会话随格还原（跨轨回退也能退回原列表原位——ll-btn-prev/ll-zone-back 钉这条）
-    session = { kind: h.sess.kind, list: h.sess.list, idx: h.sess.idx, more: h.sess.more };
+    session = { kind: h.sess.kind, list: h.sess.list, rows: h.sess.rows || null, idx: h.sess.idx, more: h.sess.more };
+    syncListTab(); // 列表播放器里 ↑/↓ 换条 → 抽屉「列表」tab 当前项跟随（tab 未激活时不抢）
     queue = [];
     swap(h.item);
     syncArrows();
@@ -247,7 +357,10 @@ function stepNext() {
 // 层宿主注册（relatedapi mediator）：抽屉「相关推荐」行在层内点 = 层内换条（不拆界面）
 setLayerHost({
   active: function () { return !!slideRef; },
-  jump: jump // (item, ctx)：ctx 非空=跳轨（换成那份相关列表，0.9.173）
+  // 抽屉「相关推荐」行点击（层内）= **开列表播放器**（压新级别，0.9.174 用户裁决——关闭即回原视频）
+  jump: function (item, ctx) { return pushLevel(item, ctx || { kind: 'walk' }); },
+  // 抽屉「列表」tab 行点击 = 列表内跳转（同级别换条）
+  pick: pickInLevel
 });
 
 // 开层注册（0.9.172）：层外（竖刷舞台）点相关推荐行 = 以该视频开播放层——舞台原地保活
@@ -331,7 +444,8 @@ function teardownPlayView() {
   pending = null;
   pendingCtx = null;
   bodyRef = null; curItem = null; hist = []; hIdx = -1; queue = []; stepping = false; // 层内游走态随层拆
-  session = { kind: 'single', list: [], idx: -1, more: null };
+  levels = []; // 级别栈随层拆（0.9.174）
+  session = { kind: 'single', list: [], rows: null, idx: -1, more: null };
 }
 
 registerView({
@@ -354,6 +468,11 @@ testHook('playlayer', function () {
     listLen: session.list.length,
     listIdx: session.idx,
     hasMore: !!session.more,
+    levels: levels.length,
+    parentId: levels.length > 1 ? (levels[levels.length - 2].item || {}).id || null : null,
+    curAt: stackTop() ? Math.round(stackTop().at || 0) : 0,
+    parentAt: levels.length > 1 ? Math.round(levels[levels.length - 2].at || 0) : 0,
+    at: (function () { var v = slideRef && slideRef.querySelector('video'); return v ? Math.round(v.currentTime) : 0; })(),
     arrows: slideRef ? slideRef.querySelectorAll('.acsv-arrow').length : 0,
     upShown: !!(slideRef && (slideRef.querySelector('.acsv-arrow-up') || {}).style
       && slideRef.querySelector('.acsv-arrow-up').style.display !== 'none'),

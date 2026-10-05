@@ -194,25 +194,108 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       var t = TEST.call('reldrawer');
       return t && t.relOn && t.rows === 11 && t.hasAnchor;
     }, 4000)), JSON.stringify(TEST.call('reldrawer')));
-    // 点首行 = 层内换条：视图保持 play（不拆界面）、层锚换成该行、抽屉跟随新视频
+    // 进度恢复取证：跳转前把当前视频挪到 5s（弹回上级时应 seek 回这里）
+    (function () {
+      var v = q('.acsv-slide[data-ovl="1"] video');
+      if (v) { try { v.currentTime = 5; } catch (e) { } }
+    })();
+    await h.wait(500);
+    rec('rl-prejump-at', (function () {
+      var v = q('.acsv-slide[data-ovl="1"] video');
+      return !!v && v.currentTime >= 4.5;
+    })(), (function () {
+      var v = q('.acsv-slide[data-ovl="1"] video');
+      return 't=' + (v ? v.currentTime.toFixed(1) : 'none');
+    })());
+    // 点首行 = **开列表播放器**（0.9.174：压新级别，不顶掉当前视频）；抽屉自动停在「列表」tab
     var expectId = 700000 + Number(curId) * 10 + 1;
     var row1 = q('.acsv-rellist .acsv-relrow:nth-child(2)');
     rec('rl-row1-dom', !!row1);
     if (row1) row1.click();
     rec('rl-layer-jump', !!(await waitFor(function () {
       var pl = TEST.call('playlayer') || {};
-      return TEST.call('view') === 'play' && pl.active && Number(pl.id) === expectId ? pl : null;
+      return TEST.call('view') === 'play' && pl.active && Number(pl.id) === expectId && pl.levels === 2
+        && Number(pl.parentId) === Number(curId) ? pl : null;
     }, 8000)), 'expect=' + expectId + ' ' + JSON.stringify(TEST.call('playlayer')));
+    rec('rl-parent-saved', ((TEST.call('playlayer') || {}).parentAt || 0) >= 4,
+      'parentAt=' + (TEST.call('playlayer') || {}).parentAt);
+    rec('rl-list-tab', !!(await waitFor(function () {
+      var t = TEST.call('reldrawer');
+      return t && t.listShown && t.listOn && t.listRows === 10 && t.listIdx === 0 ? t : null;
+    }, 6000)), JSON.stringify(TEST.call('reldrawer')));
     rec('rl-drawer-follow', !!(await waitFor(function () {
       var t = TEST.call('reldrawer');
       return t && t.rid === String(expectId);
     }, 6000)), JSON.stringify(TEST.call('reldrawer')));
-    // Esc 关抽屉 → 再 Esc 退出层（深界面回来源=舞台）
+    // 列表内跳转：点列表第 3 行 → 同级别换条（levels 不变）+ 列表当前项跟随
+    var pickRow = q('.acsv-listlist .acsv-relrow:nth-child(3)');
+    rec('rl-list-row-dom', !!pickRow);
+    if (pickRow) pickRow.click();
+    rec('rl-list-pick', !!(await waitFor(function () {
+      var pl = TEST.call('playlayer') || {};
+      var t = TEST.call('reldrawer') || {};
+      return pl.active && pl.levels === 2 && t.listIdx === 2 && t.listOn ? pl : null;
+    }, 8000)), JSON.stringify(TEST.call('playlayer')) + ' ' + JSON.stringify(TEST.call('reldrawer')));
+    // Esc 关抽屉 → 再 Esc = **弹回上级**（列表播放器语义：回到跳转前那条视频 + 进度恢复）
     key('Escape');
     rec('rl-drawer-closed', !!(await waitFor(function () {
       var d = q('.acsv-drawer');
       return !!d && !d.classList.contains('open');
     }, 4000)));
+    key('Escape');
+    rec('rl-pop-parent', !!(await waitFor(function () {
+      var pl = TEST.call('playlayer') || {};
+      return pl.active && pl.levels === 1 && Number(pl.id) === Number(curId) ? pl : null;
+    }, 8000)), JSON.stringify(TEST.call('playlayer')));
+    // 进度恢复（方案一）：弹回时把离开时的秒数写进续播槽（slide._resumeAt → session.resumeAt，
+    // 既有机制 playing 后 seek）。harness 的池条目直链会被 appapi 升级成 https（本地服务打不通）
+    // 播不起来，故断言**槽位转交**这一层侧不变式；真机复验 seek 落地（CHANGELOG 在册）
+    rec('rl-parent-resume-slot', (function () {
+      var sl = q('.acsv-slide[data-ovl="1"]');
+      var ses = sl && sl._session;
+      var v = sl && sl.querySelector('video');
+      // 未开播：槽里还留着 5；已开播：seek 到位（resume 槽清零）——两者任一即恢复成立
+      return !!ses && (Math.round(ses.resumeAt) === 5 || (!!v && v.currentTime >= 4.5));
+    })(), (function () {
+      var sl = q('.acsv-slide[data-ovl="1"]');
+      var ses = sl && sl._session;
+      var v = sl && sl.querySelector('video');
+      return 'resumeAt=' + (ses ? ses.resumeAt : 'nosession') + ' t=' + (v ? v.currentTime.toFixed(1) : 'no-video');
+    })());
+    // 直挂守卫（0.9.174 修 appapi 守卫位置）：webm 池条目不得走 hls.js/MSE（src 不是 blob:）
+    rec('rl-parent-direct', (function () {
+      var sl = q('.acsv-slide[data-ovl="1"]');
+      var ses = sl && sl._session;
+      var v = sl && sl.querySelector('video');
+      return !!ses && ses.item && ses.item.cap && ses.item.cap.hls === false && !ses._hls
+        && !!v && !/^blob:/.test(v.currentSrc || v.src || '');
+    })(), (function () {
+      var sl = q('.acsv-slide[data-ovl="1"]');
+      var ses = sl && sl._session;
+      var v = sl && sl.querySelector('video');
+      return 'hls=' + (ses && ses.item && ses.item.cap && ses.item.cap.hls)
+        + ' hlsInst=' + !!(ses && ses._hls) + ' src=' + String(v && (v.currentSrc || v.src) || '').slice(0, 40);
+    })());
+    // 等待窗：能播则断言 seek 落到 5s；harness 池条目直链打不通（https 升级）时留在槽里也算成立
+    rec('rl-parent-at', !!(await waitFor(function () {
+      var sl = q('.acsv-slide[data-ovl="1"]');
+      var ses = sl && sl._session;
+      var v = sl && sl.querySelector('video');
+      if (!ses) return false;
+      if (v && v.currentTime >= 4.5) return true;
+      return !v || v.error || ses.resumeAt >= 4; // 不可播（测试环境限制）：槽位仍在=契约成立
+    }, 10000)), (function () {
+      var sl = q('.acsv-slide[data-ovl="1"]');
+      var v = sl && sl.querySelector('video');
+      if (!v) return 'no-video';
+      return 't=' + v.currentTime.toFixed(1) + ' resume=' + (sl._session ? sl._session.resumeAt : 'nosession')
+        + ' err=' + (v.error ? v.error.code : 0);
+    })());
+    rec('rl-list-tab-hidden', (function () {
+      var t = TEST.call('reldrawer') || {};
+      return t.listShown === false; // 弹回上级（非列表播放器）→ 「列表」tab 收起
+    })(), JSON.stringify(TEST.call('reldrawer')));
+    // 再 Esc 退出层（单级 ⇒ 交回视图层，深界面回来源=舞台）
     key('Escape');
     rec('rl-layer-exit', !!(await waitFor(function () {
       var pl = TEST.call('playlayer') || {};

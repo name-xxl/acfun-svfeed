@@ -163,6 +163,12 @@ export function layerJump(item, ctx) {
   layerHost.jump(item, ctx);
   return true;
 }
+// 列表内跳转（0.9.174）：抽屉「列表」tab 的行点击——在当前播放列表里换到第 idx 条（不新开
+// 级别、不换列表）；层不在场返回 false
+export function pickInLayer(idx) {
+  if (!layerActive() || !layerHost.pick) return false;
+  return layerHost.pick(Number(idx) || 0) !== false;
+}
 
 // 开层缝（0.9.172，同款 mediator）：**层外**点相关推荐行的落点——把该视频交给播放层
 // （openPlayer），舞台/视图原地保活（Esc 回当前视频）。0.9.167 以来这条路径走的是 startChain

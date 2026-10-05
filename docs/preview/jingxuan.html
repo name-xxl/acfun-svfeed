@@ -6,6 +6,7 @@
 <!-- ============================================================
      docs/preview/jingxuan.html —— 分区页静态预览（展示名 0.9.171 用户裁决：精选→分区；
      视图 id/路由仍 jingxuan——文件名与 hash 不动）
+     v6（2026-10-06 增补：抽屉第三 tab「列表」+ 列表播放器级别栈；见 ⑥）
      v5（2026-10-05 改版，用户裁决三连）：
        ① 点卡片出口对齐榜单/搜索/动态——走 playlayer 浮层（Esc 回分区原位），
           随机游走搬进层内：层内 ↓/PageDown = 当前视频相关池随机抽下一条（递归），
@@ -177,6 +178,8 @@
   .rel.playing .cv{display:flex;align-items:center;justify-content:center;background:rgba(253,76,93,.14);
     color:var(--acsv-accent);font-size:13px}
   .rel .sk{background:rgba(255,255,255,.06);border-radius:6px}
+  /* 「列表」tab 当前播放项（0.9.174）：描边 + 封面角标（复用 .rel.playing 的封面样式） */
+  .rel.lcur{background:rgba(253,76,93,.10);outline:1px solid rgba(253,76,93,.45);outline-offset:-1px}
   .dnote{padding:8px 14px 12px;font-size:12px;color:var(--acsv-t3);border-top:1px solid rgba(255,255,255,.06);line-height:1.7}
 
   /* ---- 设置面板（量值照抄 settingspanel.js：400px/blur/radius14，开关 34×18 药丸 旋钮 14px） ---- */
@@ -483,6 +486,7 @@
       <div class="dhd">
         <span class="dtab on">评论 12</span>
         <span class="dtab">相关推荐</span>
+        <span class="dtab">列表</span>
         <button class="dclose">✕</button>
       </div>
       <div class="dlist">
@@ -604,7 +608,58 @@
 
   <!-- ⑥ 相关推荐 tab 三小态 -->
   <div class="sec">
-    <h2>⑥ 相关推荐 · 骨架 / 空态 / 错误态<em>拉流中逐行骨架；空与失败都给出口</em></h2>
+    <h2>⑥ 评论抽屉 · 「列表」tab（新，0.9.174）= 列表播放器<em>点相关推荐行 → 开列表播放器（自动展开抽屉、停在本 tab）；Esc 弹回原视频</em></h2>
+    <div class="row" style="align-items:flex-start;gap:24px">
+      <div class="drawer">
+        <div class="dhd">
+          <span class="dtab">评论 12</span>
+          <span class="dtab">相关推荐</span>
+          <span class="dtab on">列表</span>
+          <button class="dclose">✕</button>
+        </div>
+        <div class="dlist">
+          <div class="rel lcur">
+            <div class="cv">▶ 播放中</div>
+            <div class="rt"><div class="tt">每个coser都会遇到的困难..（当前播放项：角标高亮 + 描边）</div>
+              <div class="mm"><span>♥ 16</span><span>咖纳纳纳o</span></div></div>
+          </div>
+          <div class="rel">
+            <div class="cv" style="background:linear-gradient(135deg,#4a3b22,#8a6a2a)"><span class="dur">4:16</span></div>
+            <div class="rt"><div class="tt">琵琶曲·AC娘VS高坂桐乃？</div>
+              <div class="mm"><span>♥ 47</span><span>紫嘉儿~</span></div></div>
+          </div>
+          <div class="rel">
+            <div class="cv" style="background:linear-gradient(135deg,#22432e,#2e6a45)"><span class="dur">5:02</span></div>
+            <div class="rt"><div class="tt">【付小远】眼泪若嫌多就删掉吧（翻唱）</div>
+              <div class="mm"><span>♥ 89</span><span>付小远brenda</span></div></div>
+          </div>
+          <div class="rel">
+            <div class="cv" style="background:linear-gradient(135deg,#40222a,#6a3540)"><span class="dur">1:58</span></div>
+            <div class="rt"><div class="tt">无解的眼神 心像海底针～</div>
+              <div class="mm"><span>♥ 12</span><span>潇湘huya</span></div></div>
+          </div>
+          <div class="rel">
+            <div class="cv" style="background:linear-gradient(135deg,#2a2a40,#44446a)"><span class="dur">12:09</span></div>
+            <div class="rt"><div class="tt">什么活动还要真珠总监亲自营业！？</div>
+              <div class="mm"><span>♥ 210</span><span>咖纳纳纳o</span></div></div>
+          </div>
+        </div>
+        <div class="dnote">列表 = <b>当前正在播放的那份列表</b>（相关推荐 10 条；合辑 / 分P 未来同形接入）：
+          当前项标「▶ 播放中」；点行 = <b>列表内跳转</b>（不新开层）；走到最后一条停并提示。
+          「相关推荐」tab 仍是"当前这条视频的推荐"（继续跳转的入口），两者并存。</div>
+      </div>
+      <div style="max-width:420px">
+        <p class="hint" style="line-height:2;margin:0">
+          <b>级别栈（0.9.174）</b>：分区/榜单/搜索/我的 →视频 = 第 1 级；点「相关推荐」行 = <b>压第 2 级</b>
+          （列表播放器，自动展开抽屉停在「列表」tab）；<b>Esc</b> = 关抽屉 → 再 Esc = <b>弹回第 1 级原视频</b>
+          （进度原地恢复）→ 再 Esc = 退层回来源视图。<br>
+          同一套也适用于合辑/分P（自带列表的视频）——本轮仅相关推荐（合辑接口未实测）。<br>
+          右栏 ▲▼ / 滚轮 / ↑ 不参与弹级（列表首条 ↑ 仍提示"已经是第一条"，只留 Esc 弹回）。
+        </p>
+      </div>
+    </div>
+
+    <h2>⑦ 相关推荐 · 骨架 / 空态 / 错误态<em>拉流中逐行骨架；空与失败都给出口</em></h2>
     <div class="drawer">
       <div class="dhd">
         <span class="dtab">评论 12</span>
@@ -629,7 +684,7 @@
 
   <!-- ⑦ 设置面板·续播方式 -->
   <div class="sec">
-    <h2>⑦ 设置面板 · 相关推荐续播方式<em>默认关=随机游走；开启=按列表顺序；层内 ↓ 与舞台游走同一开关</em></h2>
+    <h2>⑧ 设置面板 · 相关推荐续播方式<em>默认关=随机游走；开启=按列表顺序；层内 ↓ 与舞台游走同一开关</em></h2>
     <div class="row" style="align-items:stretch;gap:20px">
       <div class="setov" style="width:440px;height:230px">
         <div class="set"><div class="setp">
@@ -666,7 +721,7 @@
 
   <!-- ⑧ 骨架 -->
   <div class="sec">
-    <h2>⑧ 加载骨架<em>切分区/首屏拉流时；首枚骨架同 2×2 跨格，骨架量同样按行补齐（4 + 8 = 3 满行）</em></h2>
+    <h2>⑨ 加载骨架<em>切分区/首屏拉流时；首枚骨架同 2×2 跨格，骨架量同样按行补齐（4 + 8 = 3 满行）</em></h2>
     <div class="grid" style="max-width:980px">
       <div class="card sk big"><div class="cv"></div><div class="l1"></div><div class="l2"></div></div>
       <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
@@ -682,7 +737,7 @@
 
   <!-- ⑨ 错误态 / 空态 -->
   <div class="sec">
-    <h2>⑨ 错误态与空态<em>整页拉流失败给重试；空态只在分区流真空时出现</em></h2>
+    <h2>⑩ 错误态与空态<em>整页拉流失败给重试；空态只在分区流真空时出现</em></h2>
     <div style="max-width:980px">
       <div class="fail">加载失败 · 网络或服务不可用<br><button class="chip">重试</button></div>
       <div class="fail" style="border-top:1px dashed rgba(255,255,255,.1)">这个分区暂时没有可看的内容<br><button class="chip">看看别的分区</button></div>
@@ -691,7 +746,7 @@
 
   <!-- ⑩ 窄宽 540 -->
   <div class="sec">
-    <h2>⑩ 窄宽（540）自检<em>chips 横滑 / 网格两列；首卡 2×2 = 通栏跨两行；抽屉窄档维持 380px</em></h2>
+    <h2>⑪ 窄宽（540）自检<em>chips 横滑 / 网格两列；首卡 2×2 = 通栏跨两行；抽屉窄档维持 380px</em></h2>
     <div class="n540">
       <div class="jh-hd"><span class="t" style="font-size:18px">分区</span><span class="sub">大家都在看 · 分区随便刷</span></div>
       <div class="chiprow">
