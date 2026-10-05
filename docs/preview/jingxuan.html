@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 精选页（抖音精选式网格 + 大家都在看）</title>
+<!-- ============================================================
+     docs/preview/jingxuan.html —— 精选页静态预览（2026-10-05 首稿）
+     对应计划：抖音精选式网格页装「大家都在看」+ 分区流（api-research §6.7 已实测）
+     数据口径：chips=channel/allChannels（13 主频道去文章/AC正义）；
+       全部 tab=selection/feed（在用）；分区 tab=channel/secondLevel/resourceList（免登录，~30/块）；
+       大家都在看=feed/related/general（待实测，兜底 v 页 DOM 解析）
+     交互假设：点卡片进竖刷——来源列表保序播完，尽处自动接相关流续命
+     纪律：单文件/无依赖/真实文案；确认后才进 src 实现
+     ============================================================ -->
+<style>
+  :root{
+    --acsv-accent:#fd4c5d;
+    --acsv-bg:#000;
+    --acsv-panel:rgba(22,22,27,.97);
+    --acsv-line:rgba(255,255,255,.09);
+    --acsv-t1:#fff;
+    --acsv-t2:#cfd3da;
+    --acsv-t3:#8a90a0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
+  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .board .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
+  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:12px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+  /* ---- 页头 + 分区 chips（allChannels 实测树；文章/AC正义不入视频墙） ---- */
+  .jh-hd{display:flex;align-items:baseline;gap:14px;margin-bottom:12px}
+  .jh-hd .t{font-size:22px;font-weight:700}
+  .jh-hd .sub{font-size:12px;color:var(--acsv-t3)}
+  .chiprow{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  .chiprow::-webkit-scrollbar{display:none}
+  .chip{border:none;border-radius:16px;padding:5px 16px;font-size:13px;font-family:inherit;flex:none;
+    cursor:pointer;background:rgba(255,255,255,.1);color:var(--acsv-t2)}
+  .chip:hover,.chip.hov{background:rgba(255,255,255,.18);color:#fff}
+  .chip.on{background:var(--acsv-accent);color:#fff}
+
+  /* ---- 视频卡（尺寸统一；大卡=型变体） ---- */
+  .card{background:rgba(255,255,255,.04);border:1px solid transparent;border-radius:10px;overflow:hidden;cursor:pointer}
+  .card:hover,.card.hov{border-color:rgba(253,76,93,.55);background:rgba(255,255,255,.07)}
+  .cv{position:relative;aspect-ratio:16/9;background:linear-gradient(135deg,#2b2f4a,#4a2b3a)}
+  .cv .dur{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.72);border-radius:4px;
+    padding:1px 6px;font-size:12px;color:#fff}
+  .cv .pv{position:absolute;left:8px;bottom:6px;font-size:12px;color:rgba(255,255,255,.88);display:flex;gap:3px;align-items:center}
+  .cv .chtag{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.55);border-radius:4px;
+    padding:1px 7px;font-size:11px;color:rgba(255,255,255,.85)}
+  .ci{padding:8px 10px 10px}
+  .ct{font-size:13px;line-height:1.45;color:#e8eaee;display:-webkit-box;-webkit-line-clamp:2;
+    -webkit-box-orient:vertical;overflow:hidden}
+  .cm{margin-top:6px;font-size:12px;color:var(--acsv-t3);display:flex;gap:10px;align-items:center}
+  .cm .up{color:#9aa0ab;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ---- 评论抽屉（骨架量值照抄 styles.js .acsv-drawer：380px 右滑/rgba(22,22,27,.96)/head 15px） ---- */
+  .drawer{width:380px;height:470px;background:rgba(22,22,27,.96);border:1px solid var(--acsv-line);
+    border-radius:2px;display:flex;flex-direction:column}
+  .dhd{display:flex;align-items:center;gap:16px;padding:11px 14px;border-bottom:1px solid var(--acsv-line);flex:none}
+  .dtab{font-size:14px;font-weight:600;color:var(--acsv-t3);cursor:pointer;padding:2px 2px 8px;
+    border-bottom:2px solid transparent;position:relative;top:9px;margin-bottom:-9px}
+  .dtab.on{color:var(--acsv-accent);border-bottom-color:var(--acsv-accent)}
+  .dtab:hover{color:var(--acsv-t2)}
+  .dclose{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:30px;height:30px;
+    border-radius:50%;cursor:pointer;font-size:13px;line-height:1}
+  .dclose:hover{background:rgba(255,255,255,.22)}
+  .dlist{flex:1;overflow-y:auto;padding:6px 0}
+  .din{border-top:1px solid var(--acsv-line);padding:10px 14px;flex:none}
+  .din .fake{height:34px;border-radius:17px;background:rgba(255,255,255,.08);display:flex;align-items:center;
+    padding:0 14px;font-size:12px;color:var(--acsv-t3)}
+  /* 评论 tab 示意行（现状简化，正式实现走 commentkit 单源） */
+  .cmt{display:flex;gap:8px;padding:9px 14px}
+  .cmt .av{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.08);flex:none}
+  .cmt .nm{font-size:12px;color:#9aa0ab}
+  .cmt .tx{font-size:13px;color:#f0f1f3;margin-top:2px;line-height:1.5}
+  .cmt .mt{margin-top:5px;font-size:11px;color:var(--acsv-t3);display:flex;gap:10px}
+  /* 相关推荐行（抖音式：小封面+两行标题+赞数+UP 名） */
+  .rel{display:flex;gap:10px;padding:8px 12px;cursor:pointer}
+  .rel:hover,.rel.hov{background:rgba(255,255,255,.06)}
+  .rel .cv{width:116px;height:65px;border-radius:6px;flex:none;position:relative}
+  .rel .dur{position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.72);border-radius:3px;
+    padding:0 5px;font-size:11px;color:#fff}
+  .rel .rt{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;padding:2px 0}
+  .rel .tt{font-size:13px;line-height:1.4;color:#e8eaee;display:-webkit-box;-webkit-line-clamp:2;
+    -webkit-box-orient:vertical;overflow:hidden}
+  .rel .mm{font-size:11px;color:var(--acsv-t3);display:flex;justify-content:space-between;gap:8px}
+  .rel.playing .cv{display:flex;align-items:center;justify-content:center;background:rgba(253,76,93,.14);
+    color:var(--acsv-accent);font-size:13px}
+  .rel .sk{background:rgba(255,255,255,.06);border-radius:6px}
+  .dnote{padding:8px 14px 12px;font-size:12px;color:var(--acsv-t3);border-top:1px solid rgba(255,255,255,.06)}
+
+  /* ---- 设置面板（量值照抄 settingspanel.js：400px/blur/radius14，开关 34×18 药丸 旋钮 14px） ---- */
+  .setov{position:relative;border:1px dashed rgba(255,255,255,.14);overflow:hidden}
+  .setov .set{position:absolute;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center}
+  .setp{width:400px;background:rgba(22,22,27,.97);border:1px solid rgba(255,255,255,.1);border-radius:14px;
+    box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden}
+  .setp .hd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--acsv-line)}
+  .setp .ti{font-size:15px;font-weight:600}
+  .setp .x{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:28px;height:28px;
+    border-radius:50%;cursor:pointer;font-size:12px;line-height:1}
+  .setp .x:hover{background:rgba(255,255,255,.22)}
+  .setp .bd{padding:20px}
+  .set-group{font-size:12px;color:#8b909a;margin:0 0 6px}
+  .set-row{display:flex;align-items:center;gap:20px;min-height:18px}
+  .set-row-main{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:2px}
+  .set-label{font-size:14px;line-height:18px}
+  .set-hint{font-size:12px;line-height:16px;color:#8b909a}
+  .set-sw{flex:none;width:34px;height:18px;border:none;border-radius:22px;padding:0;cursor:pointer;
+    background:rgb(158,158,158);position:relative;transition:background .15s}
+  .set-sw.on{background:var(--acsv-accent)}
+  .set-sw i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;
+    transition:transform .15s}
+  .set-sw.on i{transform:translateX(16px)}
+
+  /* ---- 首屏：大焦点卡 + 右列（抖音精选形态） ---- */
+  .hero{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+  .hero .big .cv{aspect-ratio:16/8.2}
+  .hero .big .ct{font-size:17px;font-weight:600;line-height:1.5}
+  .hero .big .ci{padding:12px 14px 14px}
+  .hero .side{display:grid;grid-template-rows:1fr 1fr;gap:14px}
+  .hero .side .card{display:flex;flex-direction:column}
+  .hero .side .cv{flex:1;aspect-ratio:auto;min-height:0}
+
+  /* ---- 卡片墙 ---- */
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .sentinel{padding:18px 0;text-align:center;font-size:13px;color:var(--acsv-t3)}
+
+  /* ---- 大家都在看呼出面 ---- */
+  .panel{background:var(--acsv-panel);border:1px solid rgba(255,255,255,.12);border-radius:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);overflow:hidden}
+  .panel .hd{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;font-weight:600;font-size:15px}
+  .panel .hd .x{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:24px;height:24px;
+    border-radius:50%;font-size:11px;cursor:pointer}
+  .ctx{display:flex;gap:10px;align-items:center;margin:0 14px 10px;padding:8px 10px;border-radius:8px;
+    background:rgba(255,255,255,.05);font-size:12px;color:var(--acsv-t2)}
+  .ctx .cv{width:86px;flex:none;aspect-ratio:16/9;border-radius:6px}
+  .ctx .t{color:#e8eaee;font-size:13px}
+  .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px 8px}
+  .pgrid .ct{font-size:12px}
+  .pft{padding:10px 14px 14px;font-size:12px;color:var(--acsv-t3);line-height:1.7}
+
+  /* ---- 骨架 / 错误 / 空态 ---- */
+  .sk .cv,.sk .l1,.sk .l2{background:rgba(255,255,255,.06);border-radius:6px}
+  .sk .l1{height:13px;margin:10px 10px 0;width:88%}
+  .sk .l2{height:11px;margin:8px 10px 12px;width:52%}
+  .fail{padding:34px 0;text-align:center;color:var(--acsv-t3);font-size:13px}
+  .fail .chip{margin-top:12px}
+
+  /* ---- 窄宽 540：2 列 + chips 横滑 ---- */
+  .n540{width:540px;border:1px dashed rgba(255,255,255,.14);padding:12px}
+  .n540 .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .n540 .hero{grid-template-columns:1fr}
+  .n540 .hero .side{grid-template-rows:none;grid-template-columns:1fr 1fr}
+  .n540 .hero .side .cv{aspect-ratio:16/9;flex:none}
+  .n540 .pgrid{grid-template-columns:repeat(2,1fr)}
+  @media (max-width:600px){
+    .board{padding:16px 10px 60px}
+    .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+    .hero{grid-template-columns:1fr}
+    .hero .side{grid-template-rows:none;grid-template-columns:1fr 1fr}
+    .hero .side .cv{aspect-ratio:16/9;flex:none}
+    .pgrid{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>精选页（抖音精选式网格 + 大家都在看）—— 静态预览</h1>
+  <p class="hint">
+    口径：暗色皮肤 / 真实文案（取自 §6.7 实测条目）/ 1600×900 桌面与 540 窄宽双自检。
+    数据源已实测：分区 chips = channel/allChannels；分区流 = channel/secondLevel/resourceList（主频道过滤、~30/块）；
+    「全部」tab = selection/feed；相关推荐 = related/general（待实测，兜底 DOM 解析）。<br>
+    交互方案（v3 用户裁决）：「大家都在看」并入评论抽屉，新增「相关推荐」tab——抽屉跟着每个视频走，
+    所有视频自动获得此功能；从精选/相关推荐进入后，竖刷「下一条」= 在当前视频的相关推荐池（10 条）里
+    随机取一条，逐级随机游走，不按列表顺序；抽中已播过的重抽，整批看尽自动再拉一批。
+    dock 另增「精选」页消费分区流（①②段）。续播方式提供设置开关（⑥ 段）：默认随机游走，可切按列表顺序。
+    改版先改本稿，确认后才进 src 实现。
+  </p>
+
+  <!-- ① 整页形态 -->
+  <div class="sec">
+    <h2>① 整页形态 · 默认态（「全部」tab，1600×900 取景）<em>大焦点卡 + 右列 + 卡片墙 + 续页哨兵</em></h2>
+    <div class="jh-hd"><span class="t">精选</span><span class="sub">大家都在看 · 分区随便刷</span></div>
+    <div class="chiprow">
+      <button class="chip on">全部</button>
+      <button class="chip">动画</button>
+      <button class="chip">音乐</button>
+      <button class="chip">舞蹈·偶像</button>
+      <button class="chip">游戏</button>
+      <button class="chip">娱乐</button>
+      <button class="chip">生活</button>
+      <button class="chip">科技</button>
+      <button class="chip">影视</button>
+      <button class="chip">体育</button>
+      <button class="chip">番剧</button>
+      <button class="chip">鱼塘</button>
+    </div>
+    <div style="margin-top:14px">
+      <div class="hero">
+        <div class="card big">
+          <div class="cv" style="background:linear-gradient(120deg,#3a2c52,#7a3550 60%,#c05a4a)">
+            <span class="chtag">动画 &gt; COSPLAY·声优</span>
+            <span class="dur">7:25</span>
+            <span class="pv">▶ 467</span>
+          </div>
+          <div class="ci">
+            <div class="ct">我自愿给朽叶姐姐送餐</div>
+            <div class="cm"><span class="up">咖纳纳纳o</span><span>赞 16</span><span>投蕉 50</span></div>
+          </div>
+        </div>
+        <div class="side">
+          <div class="card">
+            <div class="cv" style="background:linear-gradient(120deg,#24424a,#2b6152)">
+              <span class="chtag">游戏 &gt; 主机单机</span>
+              <span class="dur">7:25</span>
+              <span class="pv">▶ 1.2万</span>
+            </div>
+            <div class="ci"><div class="ct">控制共振</div>
+              <div class="cm"><span class="up">潇湘huya</span><span>赞 318</span></div></div>
+          </div>
+          <div class="card">
+            <div class="cv" style="background:linear-gradient(120deg,#4a3b22,#8a6a2a)">
+              <span class="chtag">动画 &gt; 虚拟偶像</span>
+              <span class="dur">4:16</span>
+              <span class="pv">▶ 856</span>
+            </div>
+            <div class="ci"><div class="ct">琵琶曲·AC娘VS高坂桐乃？</div>
+              <div class="cm"><span class="up">紫嘉儿~</span><span>赞 47</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid" style="margin-top:14px">
+        <div class="card">
+          <div class="cv" style="background:linear-gradient(135deg,#2b3a4a,#3a5a6a)"><span class="dur">0:10</span><span class="pv">▶ 2.3万</span></div>
+          <div class="ci"><div class="ct">每个coser都会遇到的困难..</div>
+            <div class="cm"><span class="up">咖纳纳纳o</span><span>赞 16</span></div></div>
+        </div>
+        <div class="card">
+          <div class="cv" style="background:linear-gradient(135deg,#4a2b4a,#6a3a5a)"><span class="dur">3:41</span><span class="pv">▶ 987</span></div>
+          <div class="ci"><div class="ct">红昭愿</div>
+            <div class="cm"><span class="up">一只芸喵喵</span><span>赞 21</span></div></div>
+        </div>
+        <div class="card">
+          <div class="cv" style="background:linear-gradient(135deg,#22432e,#2e6a45)"><span class="dur">5:02</span><span class="pv">▶ 1.1万</span></div>
+          <div class="ci"><div class="ct">【付小远】眼泪若嫌多就删掉吧（翻唱）</div>
+            <div class="cm"><span class="up">付小远brenda</span><span>赞 89</span></div></div>
+        </div>
+        <div class="card">
+          <div class="cv" style="background:linear-gradient(135deg,#40222a,#6a3540)"><span class="dur">1:58</span><span class="pv">▶ 654</span></div>
+          <div class="ci"><div class="ct">无解的眼神 心像海底针～</div>
+            <div class="cm"><span class="up">潇湘huya</span><span>赞 12</span></div></div>
+        </div>
+        <div class="card">
+          <div class="cv" style="background:linear-gradient(135deg,#2a2a40,#44446a)"><span class="dur">12:09</span><span class="pv">▶ 3.4万</span></div>
+          <div class="ci"><div class="ct">什么活动还要真珠总监亲自营业！？</div>
+            <div class="cm"><span class="up">咖纳纳纳o</span><span>赞 210</span></div></div>
+        </div>
+        <div class="card">
+          <div class="cv" style="background:linear-gradient(135deg,#3c3a24,#6a6636)"><span class="dur">8:47</span><span class="pv">▶ 720</span></div>
+          <div class="ci"><div class="ct">【普通话考级真题示范】一篇读完舌头打结</div>
+            <div class="cm"><span class="up">青云zr</span><span>赞 33</span></div></div>
+        </div>
+        <div class="card">
+          <div class="cv" style="background:linear-gradient(135deg,#242e3c,#2e4a5c)"><span class="dur">2:26</span><span class="pv">▶ 4.8万</span></div>
+          <div class="ci"><div class="ct">【4K修复】2008年奥运开幕式片段，弹幕全是回忆</div>
+            <div class="cm"><span class="up">一只芸喵喵</span><span>赞 1024</span></div></div>
+        </div>
+        <div class="card">
+          <div class="cv" style="background:linear-gradient(135deg,#33222e,#55304a)"><span class="dur">6:33</span><span class="pv">▶ 158</span></div>
+          <div class="ci"><div class="ct">阳台种菜三个月，终于吃上了一口（vlog）</div>
+            <div class="cm"><span class="up">付小远brenda</span><span>赞 9</span></div></div>
+        </div>
+      </div>
+      <div class="sentinel">— 上滑加载更多 —</div>
+    </div>
+  </div>
+
+  <!-- ② 悬停/选中 -->
+  <div class="sec">
+    <h2>② 悬停与选中<em>卡片悬停=描边提亮；chips 悬停/选中；单卡放大展示</em></h2>
+    <div class="row" style="align-items:flex-start;gap:24px">
+      <div class="card hov" style="width:300px">
+        <div class="cv" style="background:linear-gradient(135deg,#2b3a4a,#3a5a6a)"><span class="dur">0:10</span><span class="pv">▶ 2.3万</span></div>
+        <div class="ci"><div class="ct">每个coser都会遇到的困难..（悬停态：描边 accent + 底色提亮）</div>
+          <div class="cm"><span class="up">咖纳纳纳o</span><span>赞 16</span></div></div>
+      </div>
+      <div>
+        <div class="chiprow" style="max-width:520px">
+          <button class="chip">全部</button>
+          <button class="chip on">游戏</button>
+          <button class="chip hov">生活</button>
+          <button class="chip">影视</button>
+        </div>
+        <p class="hint" style="margin-top:10px">chips 选中=accent 实底；悬停=白 18% 底。切分区即换流（resourceList），
+          chips 行横向滚动不换行。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 评论抽屉·评论 tab -->
+  <div class="sec">
+    <h2>③ 评论抽屉 · 评论 tab（现状，新增 tab 行）<em>抽屉骨架量值照抄 styles.js；评论条目正式实现走 commentkit 单源，此处简化示意</em></h2>
+    <div class="drawer">
+      <div class="dhd">
+        <span class="dtab on">评论 12</span>
+        <span class="dtab">相关推荐</span>
+        <button class="dclose">✕</button>
+      </div>
+      <div class="dlist">
+        <div class="cmt"><div class="av"></div><div><div class="nm">香蕉君</div>
+          <div class="tx">这条视频太棒了，已三连</div>
+          <div class="mt"><span>3楼 · 2026-09-01</span><span>赞 233</span><span>回复</span></div></div></div>
+        <div class="cmt"><div class="av"></div><div><div class="nm">一只芸喵喵</div>
+          <div class="tx">BGM 求个曲名，蹲一个回复</div>
+          <div class="mt"><span>2楼 · 2026-09-01</span><span>赞 12</span><span>回复</span></div></div></div>
+        <div class="cmt"><div class="av"></div><div><div class="nm">青云zr</div>
+          <div class="tx">前排围观，UP 剪辑越来越熟了</div>
+          <div class="mt"><span>1楼 · 2026-08-31</span><span>赞 5</span><span>回复</span></div></div></div>
+      </div>
+      <div class="din"><div class="fake">发一条友好的评论吧…</div></div>
+    </div>
+  </div>
+
+  <!-- ④ 评论抽屉·相关推荐 tab -->
+  <div class="sec">
+    <h2>④ 评论抽屉 · 相关推荐 tab（新栏目，主形态）<em>首行=正在播放（抖音式）；点行起步随机游走（下一条=池内随机抽）；行 hover 提亮</em></h2>
+    <div class="drawer">
+      <div class="dhd">
+        <span class="dtab">评论 12</span>
+        <span class="dtab on">相关推荐</span>
+        <button class="dclose">✕</button>
+      </div>
+      <div class="dlist">
+        <div class="rel playing">
+          <div class="cv">▶ 播放中</div>
+          <div class="rt"><div class="tt">我自愿给朽叶姐姐送餐</div>
+            <div class="mm"><span>▶ 467</span><span>咖纳纳纳o</span></div></div>
+        </div>
+        <div class="rel hov">
+          <div class="cv" style="background:linear-gradient(135deg,#2b3a4a,#3a5a6a)"><span class="dur">0:10</span></div>
+          <div class="rt"><div class="tt">每个coser都会遇到的困难..（悬停态示意）</div>
+            <div class="mm"><span>♥ 16</span><span>咖纳纳纳o</span></div></div>
+        </div>
+        <div class="rel">
+          <div class="cv" style="background:linear-gradient(135deg,#4a3b22,#8a6a2a)"><span class="dur">4:16</span></div>
+          <div class="rt"><div class="tt">琵琶曲·AC娘VS高坂桐乃？</div>
+            <div class="mm"><span>♥ 47</span><span>紫嘉儿~</span></div></div>
+        </div>
+        <div class="rel">
+          <div class="cv" style="background:linear-gradient(135deg,#22432e,#2e6a45)"><span class="dur">5:02</span></div>
+          <div class="rt"><div class="tt">【付小远】眼泪若嫌多就删掉吧（翻唱）</div>
+            <div class="mm"><span>♥ 89</span><span>付小远brenda</span></div></div>
+        </div>
+        <div class="rel">
+          <div class="cv" style="background:linear-gradient(135deg,#40222a,#6a3540)"><span class="dur">1:58</span></div>
+          <div class="rt"><div class="tt">无解的眼神 心像海底针～</div>
+            <div class="mm"><span>♥ 12</span><span>潇湘huya</span></div></div>
+        </div>
+        <div class="rel">
+          <div class="cv" style="background:linear-gradient(135deg,#2a2a40,#44446a)"><span class="dur">12:09</span></div>
+          <div class="rt"><div class="tt">什么活动还要真珠总监亲自营业！？</div>
+            <div class="mm"><span>♥ 210</span><span>咖纳纳纳o</span></div></div>
+        </div>
+      </div>
+      <div class="dnote">下一条 = 从当前视频的相关推荐随机抽一条，逐级游走、不按列表顺序；本列表仅作候选池展示，随当前视频每步刷新。抽中已看过的自动重抽，整批看尽再拉一批（设置里可切「按列表顺序」续播，见 ⑥）。</div>
+    </div>
+  </div>
+
+  <!-- ⑤ 相关推荐 tab 三小态 -->
+  <div class="sec">
+    <h2>⑤ 相关推荐 · 骨架 / 空态 / 错误态<em>拉流中逐行骨架；空与失败都给出口</em></h2>
+    <div class="drawer">
+      <div class="dhd">
+        <span class="dtab">评论 12</span>
+        <span class="dtab on">相关推荐</span>
+        <button class="dclose">✕</button>
+      </div>
+      <div class="dlist">
+        <div class="rel"><div class="cv sk"></div>
+          <div class="rt"><div class="tt sk" style="height:13px;width:90%"></div>
+            <div class="mm sk" style="height:10px;width:52%"></div></div></div>
+        <div class="rel"><div class="cv sk"></div>
+          <div class="rt"><div class="tt sk" style="height:13px;width:82%"></div>
+            <div class="mm sk" style="height:10px;width:44%"></div></div></div>
+        <div style="padding:16px 14px;font-size:13px;color:var(--acsv-t3);border-top:1px dashed rgba(255,255,255,.1)">
+          ↑ 骨架：拉流中逐行占位</div>
+        <div style="padding:14px;font-size:13px;color:var(--acsv-t3)">这个视频暂时没有相关推荐</div>
+        <div style="padding:14px;font-size:13px;color:var(--acsv-t3);border-top:1px dashed rgba(255,255,255,.1)">
+          加载失败 · 网络或服务不可用<br><button class="chip" style="margin-top:10px">重试</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ 设置面板·续播方式 -->
+  <div class="sec">
+    <h2>⑥ 设置面板 · 相关推荐续播方式<em>默认关=随机游走；开启=按列表顺序；面板量值照抄 settingspanel.js</em></h2>
+    <div class="row" style="align-items:stretch;gap:20px">
+      <div class="setov" style="width:440px;height:230px">
+        <div class="set"><div class="setp">
+          <div class="hd"><span class="ti">设置</span><button class="x">✕</button></div>
+          <div class="bd">
+            <div class="set-group">竖刷</div>
+            <div class="set-row">
+              <div class="set-row-main">
+                <div class="set-label">相关推荐按列表顺序续播</div>
+                <div class="set-hint">关闭（默认）：下一条在当前视频的相关推荐池里随机抽，逐级游走；开启：按展示列表顺序播，尽头自动接下一批</div>
+              </div>
+              <button class="set-sw"><i></i></button>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <div class="setov" style="width:440px;height:230px">
+        <div class="set"><div class="setp">
+          <div class="hd"><span class="ti">设置</span><button class="x">✕</button></div>
+          <div class="bd">
+            <div class="set-group">竖刷</div>
+            <div class="set-row">
+              <div class="set-row-main">
+                <div class="set-label">相关推荐按列表顺序续播（开启态）</div>
+                <div class="set-hint">开启后新链条按列表顺序走；改动即时生效，写入走设置层防抖</div>
+              </div>
+              <button class="set-sw on"><i></i></button>
+            </div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑦ 骨架 -->
+  <div class="sec">
+    <h2>⑦ 加载骨架<em>切分区/首屏拉流时</em></h2>
+    <div class="grid" style="max-width:980px">
+      <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
+      <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
+      <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
+      <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
+    </div>
+  </div>
+
+  <!-- ⑧ 错误态 / 空态 -->
+  <div class="sec">
+    <h2>⑧ 错误态与空态<em>整页拉流失败给重试；空态只在分区流真空时出现</em></h2>
+    <div style="max-width:980px">
+      <div class="fail">加载失败 · 网络或服务不可用<br><button class="chip">重试</button></div>
+      <div class="fail" style="border-top:1px dashed rgba(255,255,255,.1)">这个分区暂时没有可看的内容<br><button class="chip">看看别的分区</button></div>
+    </div>
+  </div>
+
+  <!-- ⑨ 窄宽 540 -->
+  <div class="sec">
+    <h2>⑨ 窄宽（540）自检<em>chips 横滑 / 大卡落进流 / 网格两列；抽屉窄档维持 380px（540 容器可容纳），再窄才考虑全宽</em></h2>
+    <div class="n540">
+      <div class="jh-hd"><span class="t" style="font-size:18px">精选</span><span class="sub">大家都在看 · 分区随便刷</span></div>
+      <div class="chiprow">
+        <button class="chip on">全部</button><button class="chip">动画</button><button class="chip">音乐</button>
+        <button class="chip">舞蹈·偶像</button><button class="chip">游戏</button><button class="chip">娱乐</button>
+        <button class="chip">生活</button>
+      </div>
+      <div class="hero" style="margin-top:12px">
+        <div class="card big">
+          <div class="cv" style="background:linear-gradient(120deg,#3a2c52,#7a3550)"><span class="dur">7:25</span><span class="pv">▶ 467</span></div>
+          <div class="ci"><div class="ct" style="font-size:15px">我自愿给朽叶姐姐送餐</div>
+            <div class="cm"><span class="up">咖纳纳纳o</span><span>赞 16</span></div></div>
+        </div>
+        <div class="side">
+          <div class="card">
+            <div class="cv" style="background:linear-gradient(120deg,#24424a,#2b6152)"><span class="dur">7:25</span></div>
+            <div class="ci"><div class="ct">控制共振</div></div>
+          </div>
+          <div class="card">
+            <div class="cv" style="background:linear-gradient(120deg,#4a3b22,#8a6a2a)"><span class="dur">4:16</span></div>
+            <div class="ci"><div class="ct">琵琶曲·AC娘VS高坂桐乃？</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid" style="margin-top:10px">
+        <div class="card">
+          <div class="cv" style="background:linear-gradient(135deg,#2b3a4a,#3a5a6a)"><span class="dur">0:10</span></div>
+          <div class="ci"><div class="ct">每个coser都会遇到的困难..窄宽长标题截断检查用占位文案足够长以验证两行截断省略号是否正常生效不错行</div>
+            <div class="cm"><span class="up">咖纳纳纳o</span></div></div>
+        </div>
+        <div class="card">
+          <div class="cv" style="background:linear-gradient(135deg,#4a2b4a,#6a3a5a)"><span class="dur">3:41</span></div>
+          <div class="ci"><div class="ct">红昭愿</div>
+            <div class="cm"><span class="up">一只芸喵喵</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
