@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.180
+// @version      0.9.181
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -7118,6 +7118,24 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var loading = null;
   var evalTried = false;
   var forceFail = false;
+  var GRAB = '\n;return (typeof Hls === "function" && Hls) || (typeof globalThis !== "undefined" && globalThis.Hls) || (typeof module === "object" && module && typeof module.exports === "function" && module.exports) || (typeof exports === "object" && exports && typeof exports.Hls === "function" && exports.Hls) || null;';
+  function evalHlsSource(src) {
+    var Got = null;
+    try {
+      Got = new Function("(function (define, module, exports) {\n" + src + GRAB + "\n})(void 0, void 0, void 0);")();
+    } catch (e) {
+      set("hls.evalErr", String(e && e.message || e).slice(0, 140));
+    }
+    if (!Got && window.Hls && window.Hls.isSupported) Got = window.Hls;
+    if (Got && Got.isSupported) {
+      try {
+        window.Hls = Got;
+      } catch (e) {
+      }
+      return Got;
+    }
+    return null;
+  }
   function nativeHls(video) {
     try {
       return !!video.canPlayType("application/vnd.apple.mpegurl");
@@ -7135,13 +7153,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         var src = window.__ACSV_HLS_SRC__;
         if (src) {
           var t0 = Date.now();
-          try {
-            new Function(src)();
-          } catch (e) {
-          }
+          var Got = evalHlsSource(src);
           stat("hls.lazyEval");
           set("hls.evalMs", Date.now() - t0);
-          if (window.Hls && window.Hls.isSupported) return resolve(window.Hls);
+          if (Got) return resolve(Got);
         }
       }
       var urls = CFG.api.hlsCdns;
@@ -7161,12 +7176,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
             url,
             timeout: CFG.time.gm,
             onload: function(r) {
-              try {
-                new Function(r.responseText)();
-                ok();
-              } catch (e) {
-                next();
-              }
+              var Got2 = evalHlsSource(r.responseText);
+              if (Got2) {
+                set("hls.cdnIdx", i - 1);
+                resolve(Got2);
+              } else next();
             },
             onerror: next,
             ontimeout: next
@@ -10437,7 +10451,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.180" : "");
+    return normVer(true ? "0.9.181" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -13612,7 +13626,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.180：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.181：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

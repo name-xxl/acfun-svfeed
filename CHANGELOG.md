@@ -3,6 +3,30 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.181（2026-10-06）· hls.js 装载取数修 world/UMD 双坑——「视频加载失败」定因
+
+- **由头**：0.9.180 封印原生回落后用户实报「新版本视频加载失败」；按 README「冻结归因实验」
+  让用户换 debug 版读数定因（`hls.lazyEval:1`、`hls.evalMs:9`、`attach.cdnFail:2`、
+  `session.dispose:8`；小视频直链不经此路径故正常——范围完全对上）。
+- **病灶**：`evalMs=9` 是真实解析耗时（CSP 秒拒是 0ms 级）——**编译执行了，但类取不回来**。
+  即 0.9.164 hls 改懒 eval 起，TM 实机装载一直静默失败：旧版回落原生 HLS 管线「看似能播」
+  （这正是用户冻结复现的真身——原生管线最小化往返冻死），0.9.180 封印后暴露为错误态。
+  两个叠加的坑：①**world 分裂**——TM 隔离沙箱下 `new Function` 的全局落点与脚本 `window`
+  未必同一对象（0.9.30「window.ImSdk 恒 undefined」同款），编译完回头读 `window.Hls` 落空；
+  ②**UMD 逃逸**——hls.js 的 rollup UMD 在页面存在 CJS `module/exports` 或 AMD `define` 时走
+  注册分支（`module.exports=i()` / `define(i)`）不落全局（反跑实证：三标识符齐备时
+  `module.exports` 变 function、全局无 Hls）。
+- **修法**：`hls.js` 新 `evalHlsSource()`——编译体包一层 wrapper，形参把 define/module/exports
+  遮成 undefined（UMD 必走 `globalThis.Hls=` 分支）；取数尾拼进同一段被编译源码用 return 取回
+  类（**同一 realm 内取回**，绕开 world 读），另 globalThis/module/exports 三臂兜底；取回后
+  回填 `window.Hls`（脚本 world 快路径命中）；内嵌串与 CDN 文本两条路同走此函数；异常摘要
+  记入 `hls.evalErr`（debug 打点）。
+- **测试**：新场景 `hls-probe`（页面预置敌意 AMD define + CJS module/exports）——装载成功 /
+  `define` 未被调用 / `module.exports` 未被改写；**反跑实证**：还原旧取数（裸 `new Function` +
+  window 直读）⇒ 两条转红（`done=reject`、`cjs=function`）。`hls-lazy`/`hls-sealed` 照旧全绿；
+  全链 build/lint/check/单测/全场景全绿。**真机验收口径**：装 debug 版开推荐视频，stats 应见
+  `attach.hls` 增长、`attach.cdnFail` 不再增长、`hls.evalErr` 无值。
+
 ### 0.9.180（2026-10-06）· 封「hls.js 不可得 → 原生回落」——冻结专项防线补漏
 
 - **由头**：用户复现最小化往返冻结后裁决「直接封原生回落，如果没记错的话，冻结专项已经有结论，

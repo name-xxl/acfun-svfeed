@@ -1,4 +1,5 @@
-// test/cases/hls.js —— harness 场景：hls.js 懒 eval（0.9.164）与封原生回落（0.9.180）
+// test/cases/hls.js —— harness 场景：hls.js 懒 eval（0.9.164）、封原生回落（0.9.180）、
+// 装载取数修 world/UMD 双坑（0.9.181）
 // 机制：build.js 把 hls.min.js 内嵌为字符串常量 window.__ACSV_HLS_SRC__（banner 段），
 // 页面加载不再编译整份 hls——ensureHls 首调才 new Function 编译执行。harness 全部 mock
 // 播放走 cap.hls=false 直链（api.js 直挂缝），无人提前触发 ensureHls ⇒ 「加载后未定义」可断言。
@@ -6,8 +7,13 @@
 //   hls-sealed（0.9.180）：playInfo 桩改吐 m3u8（appapi.resolve 的非 m3u8 守卫放行 ⇒ cap.hls
 //   保持 true）→ setFail 缝令 ensureHls 拒绝 → 播放层 home 条目深链挂载 ⇒ 断言：落 error 态、
 //   video 无 src（m3u8 未落原生管线）、错误盒可见、attach.cdnFail 计数在场
+//   hls-probe（0.9.181）：页面存在敌意 AMD define 与 CJS module/exports（rollup UMD 的
+//   注册逃逸口，真机读数实锤的故障类）→ ensureHls 仍须装载成功、define 不被调用、页面
+//   module.exports 不被改写
 // 反跑：build.js 恢复 eager 拼代码 ⇒ hls-not-parsed-on-load 转红（脚本求值即定义 window.Hls）；
-// session 还原旧回落（video.src = url）⇒ hls-sealed-no-native 转红（video 拿到 m3u8 直链）
+// session 还原旧回落（video.src = url）⇒ hls-sealed-no-native 转红（video 拿到 m3u8 直链）；
+// hls.js 还原旧取数（裸 new Function(src)() + window.Hls 直读）⇒ hls-probe-no-amd /
+// hls-probe-loaded 转红（UMD 走 define 注册、不落全局）
 (function () {
   var C = window.__ACSV_CASES__ = window.__ACSV_CASES__ || {};
   C['hls-lazy'] = async function (h) {
@@ -51,5 +57,23 @@
       return !!eb && eb.offsetParent !== null; // 可见性查 offsetParent（0.9.62 黑屏教训）
     })());
     rec('hls-sealed-stat', (TEST.getStats()['attach.cdnFail'] || 0) >= 1);
+  };
+  C['hls-probe'] = async function (h) {
+    var rec = h.rec, waitFor = h.waitFor, TEST = h.TEST;
+    // 敌意 UMD 逃逸口（真实 web 隐患；也是「执行成功却窗口读不到」的确定性复现——真机
+    // 读数 hls.lazyEval=1/evalMs=9 却无 window.Hls 即此形态）：AMD define 在场时 rollup
+    // UMD 会 define(i) 注册而不落全局；CJS module/exports 同理
+    window.__amdCalled = false;
+    window.define = function () { window.__amdCalled = true; };
+    window.define.amd = {};
+    window.module = { exports: {} };
+    window.exports = {};
+    var hook = TEST.call('hls');
+    var done = false;
+    hook.ensure().then(function () { done = true; }, function () { done = 'reject'; });
+    await waitFor(function () { return done !== false; }, 8000);
+    rec('hls-probe-loaded', done === true && hook.ready(), 'done=' + done);
+    rec('hls-probe-no-amd', window.__amdCalled === false);
+    rec('hls-probe-no-cjs', typeof window.module.exports === 'object', 'cjs=' + typeof window.module.exports);
   };
 })();
