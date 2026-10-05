@@ -11,7 +11,7 @@
 //     没有便宜端点反查"某用户在哪组"——管理页行上的归属标签来自 getFollows 自带的 groupName。
 import { openPickPop } from './pickpop.js';
 import { getGroups, createGroup, followUser, unfollowUser, regroup } from './relationapi.js';
-import { groupNameError } from './data.js';
+import { groupNameError } from './nameval.js';
 import { toast } from './ui.js';
 
 // 关注/改分组选择层。opts：{ uid, name, following, noExtra, done(res) }

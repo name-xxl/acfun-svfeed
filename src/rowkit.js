@@ -8,7 +8,7 @@
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { ubbTextOf, stripOf, momentCellOf, momentMediaOf } from './cards.js';
-import { nameColorCss } from './data.js'; // 行名等级色（0.9.134；字段真机在册）
+import { nameColorCss } from './uplook.js'; // 行名等级色（0.9.134；字段真机在册；0.9.160 叶子出库）
 import { openSharePanel } from './sharepanel.js';
 import { momentBarOf, momentShareItemOf } from './momentbar.js';
 import { imgInto } from './imgload.js';

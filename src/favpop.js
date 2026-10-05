@@ -9,7 +9,7 @@
 // 勾选态来自 folder/list 带 resourceId 的 inFolder（真机实测）；夹名/夹 id 一律字符串。
 import { openPickPop } from './pickpop.js';
 import { folderList, folderAdd, favAdd, favUpdate, favRemove } from './favapi.js';
-import { folderNameError } from './data.js';
+import { folderNameError } from './nameval.js';
 import { toast } from './ui.js';
 
 // opts：{ acId, favorited, title?, done(res) }——done 回传 **{ favorited:bool, ids:[] }**

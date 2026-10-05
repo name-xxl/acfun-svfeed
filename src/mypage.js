@@ -1,7 +1,9 @@
 import { CFG } from './cfg.js';
 import { el, selfUid, fmt, toast } from './ui.js';
 import { postForm } from './appapi.js';
-import { panelItem, meCardOf, groupNameError, folderNameError } from './data.js';
+import { panelItem } from './data.js';
+import { groupNameError, folderNameError } from './nameval.js';
+import { coverUrl } from './imgurl.js'; // meCardOf 头像归一（0.9.160 就地收编随迁）
 import { gridCardOf, moreBtn, skeletonRows } from './cards.js';
 import { registerView } from './viewreg.js';
 import { imgInto } from './imgload.js';
@@ -21,6 +23,31 @@ import { openFavFolderPop } from './favpop.js';
 // 缓存：资料头模块级缓存（CFG.view.me.cardTtl）——views.js 的**新建** enter 会重建 DOM
 // （0.9.74 来源复原路径不重建），不缓存的话每次新建都打一次接口；失败不写缓存（下次重试）。
 var meCache = null; // { at, card }
+
+// ---------- 个人资料卡契约（0.9.69；0.9.160 自 data.js 就地收编：唯一消费方随域走） ----------
+// getUserCardList 回包 → 我的页头部字段。字段全部来自实测登记端点（docs/api-research.md §4.4：
+// headUrl/name/signature/contentCount/following/followed），**缺省一律 null**——渲染层判空隐藏，
+// 不伪造未实测的数据。following/followed → 关注/粉丝 的语义待真机核对（站点口径若不同只改
+// 这里的映射，渲染层零分支）；uid 过滤失败时退第一条（回包里只有一条时同款）。
+// export 仅为单测直采（纯函数，不触 DOM）——消费面仍限本模块
+export function meCardOf(j, uid) {
+  var users = (j && j.result === 0 && j.users) || [];
+  var u = null;
+  for (var i = 0; i < users.length; i++) {
+    if (String(users[i] && users[i].id) === String(uid)) { u = users[i]; break; }
+  }
+  u = u || users[0];
+  if (!u || !u.id) return null;
+  return {
+    uid: Number(u.id) || 0,
+    name: u.name || '',
+    avatar: coverUrl(u.headUrl),
+    sign: String(u.signature || '').replace(/<br\s*\/?\s*>/gi, ' ').trim(),
+    contrib: u.contentCount != null ? Number(u.contentCount) || 0 : null,
+    follow: u.following != null ? Number(u.following) || 0 : null,
+    fans: u.followed != null ? Number(u.followed) || 0 : null
+  };
+}
 
 function rowList(parent, cls) {
   var list = el('div', 'acsv-vlist acsv-megrid ' + cls);

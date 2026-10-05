@@ -6,13 +6,14 @@
 // 作者契约（0.9.82）：所有来源的作者只有一个出口 up{id,name,img,isFollowing}|null
 // （字段白名单与"禁止回流扁平旧名"的闸门在 contract.test.js）
 // 域回包规整用例（followVideoPageOf/squarePageOf/momentDetailStateOf/groupListOf/
-// followListPageOf/newGroupIdOf/folderListOf/folderIdOf）0.9.159 起随函数迁至各 *api.test.js
+// followListPageOf/newGroupIdOf/folderListOf/folderIdOf）0.9.159 起随函数迁至各 *api.test.js；
+// 时间文案/观感映射/名字校验/meCardOf 用例 0.9.160 起迁至 timefmt/uplook/nameval/mypage.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { upOf, panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, searchVideoPageOf, searchUserPageOf, searchArticlePageOf, momentPiOfRepost, momentExtraOf, nameColorCss, frameUrlOf, groupNameError, folderNameError } = await import('../../src/data.js');
+var { upOf, panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, searchVideoPageOf, searchUserPageOf, searchArticlePageOf, momentPiOfRepost, momentExtraOf } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -149,117 +150,10 @@ test('panelItem rank：无时间/无频道时 meta 判空拼装（不留「发�
   assert.match(pi3.meta[2].t, /^发布于(1分钟前|昨天\d{1,2}时\d{2}分)$/); // 无频道：无尾随斜杠
 });
 
-// ---------- relTime（0.9.69 原生四档；注入 now → 日历边界确定性） ----------
-test('relTime：今天/昨天/前天/更早四档原生文案（H 不补零、MM 补零）', () => {
-  var now = new Date(2026, 9, 2, 18, 43, 0).getTime(); // 2026-10-02 18:43 本地
-  var at = (y, mo, d, h, mi, s) => new Date(y, mo, d, h, mi, s || 0).getTime();
-  assert.equal(relTime(at(2026, 9, 2, 15, 43), now), '3小时前');
-  assert.equal(relTime(at(2026, 9, 2, 18, 13), now), '30分钟前');
-  assert.equal(relTime(at(2026, 9, 2, 18, 42, 30), now), '1分钟前'); // <1 分钟收 1 分钟
-  assert.equal(relTime(at(2026, 9, 2, 9, 0), now), '9小时前');
-  assert.equal(relTime(at(2026, 9, 1, 20, 36), now), '昨天20时36分');
-  assert.equal(relTime(at(2026, 9, 1, 8, 0), now), '昨天8时00分'); // MM 补零
-  assert.equal(relTime(at(2026, 9, 0, 16, 18), now), '前天16时18分'); // day=0 → 9-30
-  assert.equal(relTime(at(2026, 8, 28, 18, 54), now), '9月28日 18时54分');
-});
-
-test('relTime：日历边界（跨零点/跨月/跨年按日期而非 24h 差）', () => {
-  var at = (y, mo, d, h, mi) => new Date(y, mo, d, h, mi, 0).getTime();
-  // 昨天 23:50 看今天 00:10：仅 20 分钟前，但按日历算「昨天」
-  assert.equal(relTime(at(2026, 9, 1, 23, 50), at(2026, 9, 2, 0, 10)), '昨天23时50分');
-  assert.equal(relTime(at(2026, 8, 30, 12, 0), at(2026, 9, 1, 12, 0)), '昨天12时00分'); // 跨月
-  assert.equal(relTime(at(2025, 11, 31, 23, 30), at(2026, 0, 1, 1, 0)), '昨天23时30分'); // 跨年
-  assert.equal(relTime(at(2026, 0, 30, 9, 5), at(2026, 1, 1, 9, 5)), '前天9时05分'); // 跨月前天
-});
-
-test('relTime：脏输入/未来时间降级空串', () => {
-  var now = new Date(2026, 9, 2, 18, 43, 0).getTime();
-  assert.equal(relTime(0, now), '');
-  assert.equal(relTime(null, now), '');
-  assert.equal(relTime('abc', now), '');
-  assert.equal(relTime(now + 999999, now), '');
-});
-
-// ---------- fmtDate / fmtAgo（0.9.85：本地时区日期 + 带年份判定的时间文案） ----------
-// 时区不可注入（Date 的本地时区在进程里固定），所以断言用**本地分量**构造期望值：
-// `new Date(2026, 9, 2, 1, 25)` 在任务时区下就是本地 2026-10-02 01:25，任何时区都成立
-test('fmtDate：本地时区 YYYY-MM-DD（补零），不是 UTC 口径；脏值空串', () => {
-  var ms = new Date(2026, 9, 2, 1, 25, 0).getTime(); // 本地 2026-10-02 01:25
-  assert.equal(fmtDate(ms), '2026-10-02');
-  assert.equal(fmtDate(new Date(2026, 0, 5, 9, 5, 0).getTime()), '2026-01-05'); // 月份/日补零
-  // UTC 口径在这一刻会落到前一天（UTC+8 下 01:25 本地 = 前一日 17:25 UTC）——fmtDate 必须跟本地走
-  var utc = new Date(ms).toISOString().slice(0, 10);
-  if (utc !== '2026-10-02') assert.notEqual(fmtDate(ms), utc);
-  assert.equal(fmtDate(0), '');
-  assert.equal(fmtDate('abc'), '');
-  assert.equal(fmtDate(null), '');
-});
-
-test('fmtAgo：今天/昨天/前天走相对文案，更早退回带年份日期；脏输入/未来空串', () => {
-  var now = new Date(2026, 9, 3, 12, 0, 0).getTime(); // 本地 2026-10-03 12:00
-  assert.equal(fmtAgo(new Date(2026, 9, 3, 11, 30, 0).getTime(), now), '30分钟前');
-  assert.equal(fmtAgo(new Date(2026, 9, 3, 6, 0, 0).getTime(), now), '6小时前');
-  assert.equal(fmtAgo(new Date(2026, 9, 2, 20, 36, 0).getTime(), now), '昨天20时36分');
-  assert.equal(fmtAgo(new Date(2026, 9, 1, 14, 2, 0).getTime(), now), '前天14时02分');
-  assert.equal(fmtAgo(new Date(2026, 8, 26, 21, 39, 0).getTime(), now), '2026-09-26'); // 更早 → 带年
-  assert.equal(fmtAgo(new Date(2025, 2, 5, 10, 0, 0).getTime(), now), '2025-03-05');   // 跨年同样带年
-  assert.equal(fmtAgo(0, now), '');
-  assert.equal(fmtAgo('abc', now), '');
-  assert.equal(fmtAgo(now + 86400000, now), ''); // 未来（时钟偏差）不输出假文案
-});
-
-// ---------- fmtWan（0.9.69 UP 数据位；原生实测 33235→3.3万 / 29978→3万 / 6062 原样） ----------
-test('fmtWan：<1万原样、≥1万一位小数「万」去尾随 .0、脏输入 0', () => {
-  assert.equal(fmtWan(9999), '9999');
-  assert.equal(fmtWan(6062), '6062');
-  assert.equal(fmtWan(10000), '1万');
-  assert.equal(fmtWan(10499), '1万');
-  assert.equal(fmtWan(29978), '3万');
-  assert.equal(fmtWan(33235), '3.3万');
-  assert.equal(fmtWan(469000), '46.9万');
-  assert.equal(fmtWan(0), '0');
-  assert.equal(fmtWan(null), '0');
-  assert.equal(fmtWan(NaN), '0');
-});
-
 test('panelItem：未知 kind 与缺 acId/标题一律 null', () => {
   assert.equal(panelItem('other', { a: 1 }), null);
   assert.equal(panelItem('fav', { contentId: 0, contentTitle: 't' }), null);
   assert.equal(panelItem('fav', { contentId: 5, contentTitle: '' }), null);
-});
-
-// ---------- meCardOf（0.9.69 我的页头部契约） ----------
-test('meCardOf：按 uid 取条目，字段逐个落位（含签名 <br> 折空格）', () => {
-  var j = { result: 0, users: [
-    { id: 7, name: '别人', headUrl: 'x' },
-    { id: 42, name: '我', headUrl: 'https://img.example/a.jpg', signature: '第一行<br/>第二行',
-      contentCount: 12, following: 34, followed: 56 }
-  ] };
-  var me = meCardOf(j, '42');
-  assert.equal(me.uid, 42);
-  assert.equal(me.name, '我');
-  assert.equal(me.avatar, 'https://img.example/a.jpg');
-  assert.equal(me.sign, '第一行 第二行');
-  assert.equal(me.contrib, 12);
-  assert.equal(me.follow, 34);
-  assert.equal(me.fans, 56);
-});
-
-test('meCardOf：缺省字段一律 null（不伪造），uid 不在回包时退第一条', () => {
-  var me = meCardOf({ result: 0, users: [{ id: 9, name: '只有名字' }] }, '42');
-  assert.equal(me.uid, 9);
-  assert.equal(me.contrib, null);
-  assert.equal(me.follow, null);
-  assert.equal(me.fans, null);
-  assert.equal(me.sign, '');
-  assert.equal(me.avatar, '');
-});
-
-test('meCardOf：失败/空回包/无 users 一律 null（调用方据此不渲染头部）', () => {
-  assert.equal(meCardOf({ result: 1 }, '42'), null);
-  assert.equal(meCardOf({ result: 0, users: [] }, '42'), null);
-  assert.equal(meCardOf(null, '42'), null);
-  assert.equal(meCardOf({ result: 0, users: [{ name: '无id' }] }, '42'), null);
 });
 
 // ---------- 作者契约（0.9.82）：两个 normalize 与面板→播放的桥 ----------
@@ -461,7 +355,8 @@ test('searchArticlePageOf：无封面文本条（标题剥高亮/摘要/阅读/�
 });
 
 // ---------- 图片字段归一（0.9.76）：http 老条目在 https 页面会被混合内容拦成裂图 ----------
-test('panelItem/meCardOf：封面与头像 http:// 与协议相对 // 一律升 https', () => {
+// （meCardOf 头像升级半边用例 0.9.160 随函数迁 mypage.test.js）
+test('panelItem：封面 http:// 与协议相对 // 一律升 https', () => {
   var h = panelItem('history', {
     resourceType: 2, videoId: 1, resourceId: 2, title: 'T',
     cover: 'http://tx-free-imgs.acfun.cn/a.jpg'
@@ -475,8 +370,6 @@ test('panelItem/meCardOf：封面与头像 http:// 与协议相对 // 一律升 
   });
   assert.equal(r.cover, 'https://x/y.jpg');
   assert.equal(r.up.img, 'https://imgs.aixifan.com/u.jpg');
-  var card = meCardOf({ result: 0, users: [{ id: 7, name: 'U', headUrl: 'http://imgs.aixifan.com/h.jpg' }] }, '7');
-  assert.equal(card.avatar, 'https://imgs.aixifan.com/h.jpg');
   // 缺省不伪造：空字段仍是空串（渲染层判空不挂图）
   assert.equal(panelItem('history', { resourceType: 2, videoId: 1, resourceId: 2, title: 'T' }).cover, '');
 });
@@ -763,23 +656,6 @@ test('panelItem follow：user.nameColor 透传（0.9.157 真机核对：followFe
   assert.equal(panelItem('follow', rp).repost.up.nameColor, 2);
 });
 
-// ---------- 评论观感纯函数（0.9.134；字段名真机双源核对在册） ----------
-test('nameColorCss：2=紫/1=红/0与缺失=不加色（字符串也认）', () => {
-  assert.equal(nameColorCss(2), '#964cfd');
-  assert.equal(nameColorCss(1), '#fd4c5c');
-  assert.equal(nameColorCss(0), '');
-  assert.equal(nameColorCss(undefined), '');
-  assert.equal(nameColorCss('2'), '#964cfd');
-});
-test('frameUrlOf：thumbnailImageCdnUrl 优先、回退 thumbnailImage.cdnUrls[0].url；空/缺形→空串', () => {
-  assert.equal(frameUrlOf({ avatarFrameImgInfo: { thumbnailImageCdnUrl: 'a.png' } }), 'a.png');
-  assert.equal(frameUrlOf({ avatarFrameImgInfo: { thumbnailImage: { cdnUrls: [{ url: 'b.png' }] } } }), 'b.png');
-  assert.equal(frameUrlOf({ avatarFrameImgInfo: { thumbnailImageCdnUrl: '', thumbnailImage: { cdnUrls: [{ url: 'b.png' }] } } }), 'b.png');
-  assert.equal(frameUrlOf({ avatarFrameImgInfo: {} }), '');
-  assert.equal(frameUrlOf({}), '');
-  assert.equal(frameUrlOf(null), '');
-});
-
 // ---------- momentExtraOf（0.9.122 私信转发动态的 extra 载荷） ----------
 test('momentExtraOf：momentId 优先 pi.momentId；图归一（big 回退 url、无 url 丢）限 9；up 只收 id/name', () => {
   var p = momentExtraOf({
@@ -807,18 +683,4 @@ test('momentExtraOf：momentId 缺省从 href 反推；超 9 图截断；脏输�
   assert.equal(momentExtraOf({}).text, '');
 });
 
-test('组名/夹名校验：字符集与长度（站点 chunk 正则）+ 保留名', () => {
-  assert.equal(groupNameError('舞'), '');
-  assert.equal(groupNameError('abc_123'), '');
-  assert.equal(groupNameError('一二三四五六七八'), '');   // 8 字上限
-  assert.notEqual(groupNameError('一二三四五六七八九'), ''); // 9 字
-  assert.notEqual(groupNameError('bad name'), '');  // 空格不许
-  assert.notEqual(groupNameError('bad-name'), ''); // 连字符不许
-  assert.notEqual(groupNameError(''), '');          // 空
-  assert.notEqual(groupNameError('未分组'), '');     // 保留名
-  assert.notEqual(groupNameError('特别关注'), '');
-  assert.equal(folderNameError('我的收藏夹'), '');
-  assert.notEqual(folderNameError('a'.repeat(41)), ''); // 40 上限
-  assert.equal(folderNameError('a'.repeat(40)), '');
-});
 

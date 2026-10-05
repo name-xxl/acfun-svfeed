@@ -14,7 +14,7 @@ import { el, esc, fmt } from './ui.js';
 import { GLYPHS } from './imicons.js';
 import { imgInto } from './imgload.js';
 import { renderCommentHtml } from './ubb.js';
-import { nameColorCss, frameUrlOf } from './data.js'; // 观感纯函数（0.9.134；字段真机核对在册）
+import { nameColorCss, frameUrlOf } from './uplook.js'; // 观感纯函数（0.9.134；字段真机核对在册；0.9.160 叶子出库）
 
 // 楼中楼数组规整（subCommentsMap 三形态：数组 / {subComments} / 缺）
 function normalizeSubs(subMap, cid) {

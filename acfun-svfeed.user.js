@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.159
+// @version      0.9.160
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -971,6 +971,54 @@
     return String(content || "").replace(/\[img=[^\]]*\][\s\S]*?\[\/img\]/gi, " ").replace(/\[img\][\s\S]*?\[\/img\]/gi, " ").replace(/\[[^\[\]]{1,64}\]/g, " ").replace(/\s+/g, " ").trim();
   }
 
+  // src/timefmt.js
+  function relTime(ms, now) {
+    var t = Number(ms) || 0;
+    if (!t) return "";
+    var n = Number(now) || Date.now();
+    var diff = n - t;
+    if (diff < 0 || isNaN(diff)) return "";
+    var dt = new Date(t), nd = new Date(n);
+    var hm = dt.getHours() + "时" + (dt.getMinutes() < 10 ? "0" : "") + dt.getMinutes() + "分";
+    var dayDiff = Math.round(
+      (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate()) - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 864e5
+    );
+    if (dayDiff <= 0) {
+      var min = Math.floor(diff / 6e4);
+      if (min < 60) return Math.max(1, min) + "分钟前";
+      return Math.floor(diff / 36e5) + "小时前";
+    }
+    if (dayDiff === 1) return "昨天" + hm;
+    if (dayDiff === 2) return "前天" + hm;
+    return dt.getMonth() + 1 + "月" + dt.getDate() + "日 " + hm;
+  }
+  function fmtDate(ms) {
+    var t = Number(ms) || 0;
+    if (!t) return "";
+    var d = new Date(t);
+    var p = function(n) {
+      return (n < 10 ? "0" : "") + n;
+    };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  }
+  function fmtAgo(ms, now) {
+    var t = Number(ms) || 0;
+    if (!t) return "";
+    var n = Number(now) || Date.now();
+    var diff = n - t;
+    if (diff < 0 || isNaN(diff)) return "";
+    var dt = new Date(t), nd = new Date(n);
+    var dayDiff = Math.round(
+      (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate()) - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 864e5
+    );
+    return dayDiff <= 2 ? relTime(t, n) : fmtDate(t);
+  }
+  function fmtWan(n) {
+    var v = Number(n) || 0;
+    if (v < 1e4) return String(v);
+    return Math.round(v / 1e3) / 10 + "万";
+  }
+
   // src/data.js
   function upOf(id, name, img, isFollowing, nameColor) {
     var n = String(name || "").trim();
@@ -1298,32 +1346,6 @@
       up: pi.up ? { id: pi.up.id || "", name: pi.up.name || "" } : null
     };
   }
-  var GROUP_NAME_RE = /^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$/;
-  var FOLDER_NAME_RE = /^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,40}$/;
-  function groupNameError(name) {
-    var s = String(name == null ? "" : name).trim();
-    if (!s) return "请输入分组名";
-    if (!GROUP_NAME_RE.test(s)) return "1~8 个字，仅限中英文、数字、下划线";
-    if (s === "未分组" || s === "特别关注") return "「" + s + "」是保留名，换一个";
-    return "";
-  }
-  function folderNameError(name) {
-    var s = String(name == null ? "" : name).trim();
-    if (!s) return "请输入收藏夹名";
-    if (!FOLDER_NAME_RE.test(s)) return "1~40 个字，仅限中英文、数字、下划线";
-    return "";
-  }
-  function nameColorCss(v) {
-    var n = Number(v) || 0;
-    return n === 2 ? "#964cfd" : n === 1 ? "#fd4c5c" : "";
-  }
-  function frameUrlOf(c) {
-    if (!c || !c.avatarFrameImgInfo) return "";
-    var f = c.avatarFrameImgInfo;
-    if (f.thumbnailImageCdnUrl) return f.thumbnailImageCdnUrl;
-    var u = f.thumbnailImage && f.thumbnailImage.cdnUrls && f.thumbnailImage.cdnUrls[0];
-    return u && u.url || "";
-  }
   function panelItem(kind2, raw) {
     var p = PANEL_PARSERS[kind2];
     if (!raw || !p) return null;
@@ -1335,27 +1357,6 @@
     var item = homeItemOf(pi.acId, pi.title, pi.cover);
     if (pi.up) item.up = upOf(pi.up.id, pi.up.name, pi.up.img, pi.up.isFollowing);
     return item;
-  }
-  function meCardOf(j, uid) {
-    var users = j && j.result === 0 && j.users || [];
-    var u = null;
-    for (var i = 0; i < users.length; i++) {
-      if (String(users[i] && users[i].id) === String(uid)) {
-        u = users[i];
-        break;
-      }
-    }
-    u = u || users[0];
-    if (!u || !u.id) return null;
-    return {
-      uid: Number(u.id) || 0,
-      name: u.name || "",
-      avatar: coverUrl(u.headUrl),
-      sign: String(u.signature || "").replace(/<br\s*\/?\s*>/gi, " ").trim(),
-      contrib: u.contentCount != null ? Number(u.contentCount) || 0 : null,
-      follow: u.following != null ? Number(u.following) || 0 : null,
-      fans: u.followed != null ? Number(u.followed) || 0 : null
-    };
   }
   function homeItemOf(acId, title, cover) {
     var c = coverUrl(cover);
@@ -1370,52 +1371,6 @@
       };
     }
     return null;
-  }
-  function relTime(ms, now) {
-    var t = Number(ms) || 0;
-    if (!t) return "";
-    var n = Number(now) || Date.now();
-    var diff = n - t;
-    if (diff < 0 || isNaN(diff)) return "";
-    var dt = new Date(t), nd = new Date(n);
-    var hm = dt.getHours() + "时" + (dt.getMinutes() < 10 ? "0" : "") + dt.getMinutes() + "分";
-    var dayDiff = Math.round(
-      (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate()) - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 864e5
-    );
-    if (dayDiff <= 0) {
-      var min = Math.floor(diff / 6e4);
-      if (min < 60) return Math.max(1, min) + "分钟前";
-      return Math.floor(diff / 36e5) + "小时前";
-    }
-    if (dayDiff === 1) return "昨天" + hm;
-    if (dayDiff === 2) return "前天" + hm;
-    return dt.getMonth() + 1 + "月" + dt.getDate() + "日 " + hm;
-  }
-  function fmtDate(ms) {
-    var t = Number(ms) || 0;
-    if (!t) return "";
-    var d = new Date(t);
-    var p = function(n) {
-      return (n < 10 ? "0" : "") + n;
-    };
-    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
-  }
-  function fmtAgo(ms, now) {
-    var t = Number(ms) || 0;
-    if (!t) return "";
-    var n = Number(now) || Date.now();
-    var diff = n - t;
-    if (diff < 0 || isNaN(diff)) return "";
-    var dt = new Date(t), nd = new Date(n);
-    var dayDiff = Math.round(
-      (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate()) - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 864e5
-    );
-    return dayDiff <= 2 ? relTime(t, n) : fmtDate(t);
-  }
-  function fmtWan(n) {
-    var v = Number(n) || 0;
-    if (v < 1e4) return String(v);
-    return Math.round(v / 1e3) / 10 + "万";
   }
   function stripEm(s) {
     return String(s == null ? "" : s).replace(/<\/?em>/g, "");
@@ -4896,6 +4851,19 @@
     return esc("@" + (author || "") + "：") + renderCommentHtml(raw).replace(/<a\b[^>]*>/g, "<span>").replace(/<\/a>/g, "</span>");
   }
 
+  // src/uplook.js
+  function nameColorCss(v) {
+    var n = Number(v) || 0;
+    return n === 2 ? "#964cfd" : n === 1 ? "#fd4c5c" : "";
+  }
+  function frameUrlOf(c) {
+    if (!c || !c.avatarFrameImgInfo) return "";
+    var f = c.avatarFrameImgInfo;
+    if (f.thumbnailImageCdnUrl) return f.thumbnailImageCdnUrl;
+    var u = f.thumbnailImage && f.thumbnailImage.cdnUrls && f.thumbnailImage.cdnUrls[0];
+    return u && u.url || "";
+  }
+
   // src/commentkit.js
   function normalizeSubs(subMap, cid) {
     if (!subMap) return [];
@@ -8082,6 +8050,23 @@
     ).then(ok0);
   }
 
+  // src/nameval.js
+  var GROUP_NAME_RE = /^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$/;
+  var FOLDER_NAME_RE = /^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,40}$/;
+  function groupNameError(name) {
+    var s = String(name == null ? "" : name).trim();
+    if (!s) return "请输入分组名";
+    if (!GROUP_NAME_RE.test(s)) return "1~8 个字，仅限中英文、数字、下划线";
+    if (s === "未分组" || s === "特别关注") return "「" + s + "」是保留名，换一个";
+    return "";
+  }
+  function folderNameError(name) {
+    var s = String(name == null ? "" : name).trim();
+    if (!s) return "请输入收藏夹名";
+    if (!FOLDER_NAME_RE.test(s)) return "1~40 个字，仅限中英文、数字、下划线";
+    return "";
+  }
+
   // src/grouppop.js
   function openFollowGroupPop(btn, opts) {
     var following = !!opts.following;
@@ -9926,7 +9911,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.159" : "");
+    return normVer(true ? "0.9.160" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12642,7 +12627,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.159：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.160：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -13058,6 +13043,27 @@
 
   // src/mypage.js
   var meCache = null;
+  function meCardOf(j, uid) {
+    var users = j && j.result === 0 && j.users || [];
+    var u = null;
+    for (var i = 0; i < users.length; i++) {
+      if (String(users[i] && users[i].id) === String(uid)) {
+        u = users[i];
+        break;
+      }
+    }
+    u = u || users[0];
+    if (!u || !u.id) return null;
+    return {
+      uid: Number(u.id) || 0,
+      name: u.name || "",
+      avatar: coverUrl(u.headUrl),
+      sign: String(u.signature || "").replace(/<br\s*\/?\s*>/gi, " ").trim(),
+      contrib: u.contentCount != null ? Number(u.contentCount) || 0 : null,
+      follow: u.following != null ? Number(u.following) || 0 : null,
+      fans: u.followed != null ? Number(u.followed) || 0 : null
+    };
+  }
   function rowList(parent, cls) {
     var list = el("div", "acsv-vlist acsv-megrid " + cls);
     parent.appendChild(list);

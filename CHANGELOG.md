@@ -3,6 +3,25 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.160（2026-10-05）· data.js 拆件第二步：通用叶子出库（timefmt/uplook/nameval）+ meCardOf 就地收编
+
+- **由头**：接 0.9.159 拆件序列。审计四条「明显不属于 data」的内容出库：时间文案
+  （relTime/fmtDate/fmtAgo/fmtWan）是零依赖格式化叶；观感映射（nameColorCss 硬编码 CSS
+  色值/frameUrlOf 头像框 URL）是 UI 词汇进了数据层，消费方全是渲染件；组名/夹名校验
+  （带中文提示文案）是表单语义件助手；meCardOf 是我的页专属回包适配，唯一消费方就是 mypage。
+- **新件（零依赖叶，逐字搬迁、签名不变）**：`timefmt.js`（relTime/fmtDate/fmtAgo/fmtWan，
+  data.js 解析器与 appapi 共同消费）；`uplook.js`（nameColorCss/frameUrlOf，消费方
+  cards/rowkit/momentdetail/commentkit）；`nameval.js`（groupNameError/folderNameError +
+  两正则，消费方 grouppop/favpop/mypage）。`meCardOf` 就地收编进 `mypage.js`（export 仅为
+  单测直采，消费面仍限本模块；补 coverUrl import 随迁）。data.js 710→564 行，改 import
+  timefmt 四件；`data.js` 不再是「什么都收」的入口。
+- **测试**：单测 248→249——timefmt（6 组）/uplook（2）/nameval（1）用例逐字随迁；meCardOf
+  4 组迁新建 mypage.test.js（Node 直载经 purity 同款六件垫桩，一次通过）；原
+  panelItem/meCardOf 混合的图片升级用例一拆二（各自随函数归位）。lint/check + 全量 46 场景全绿。
+- **治理**：check-direction INFRA 名单 +3（零出边叶）；README 依赖图 +3 节点 +9 边
+  （data→timefmt、appapi→timefmt、四渲染件→uplook、grouppop/favpop/mypage→nameval）
+  +3 绿叶标注、散文段「绿色七个」→「十个」；模块表 +3 行、data.js/rowkit/mypage 行同步。
+
 ### 0.9.159（2026-10-05）· data.js 拆件第一步：域回包规整归域（relationapi/favapi/momentapi 收编）
 
 - **由头**：全库架构审计判定 `data.js`（860 行）为「杂物抽屉」——8 个低耦合簇物理拼接、

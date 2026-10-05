@@ -4,7 +4,7 @@ import { root, releaseDrawer } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { imgInto } from './imgload.js';
 import { ubbTextOf, quoteBlockOf } from './cards.js';
-import { nameColorCss } from './data.js'; // 名字等级色（0.9.157）
+import { nameColorCss } from './uplook.js'; // 名字等级色（0.9.157；0.9.160 叶子出库）
 import { ICONS } from './styles.js';
 import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
 import { openImageViewer } from './imgview.js';

@@ -1,7 +1,8 @@
 import { CFG } from './cfg.js';
 import { request, mockHit } from './net.js';
 import { singleFlight } from './ui.js';
-import { normalizeHome, fmtDate } from './data.js';
+import { normalizeHome } from './data.js';
+import { fmtDate } from './timefmt.js';
 import { coverUrl } from './imgurl.js';
 import { applyQuality } from './quality.js';
 

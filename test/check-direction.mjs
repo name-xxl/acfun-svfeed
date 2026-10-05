@@ -28,7 +28,7 @@ const SRC = path.join(ROOT, 'src');
 // 口径 A 用：README 基建层（styles.js 等 16 件）+ 接口层（3 件）
 const INFRA = new Set(['cfg.js', 'net.js', 'data.js', 'state.js', 'route.js', 'imgview.js', 'inputbar.js',
   'imgurl.js', 'pagekind.js', 'settings.js', 'viewreg.js', 'imgload.js', 'overlay.js', 'topbar.js',
-  'ui.js', 'styles.js', 'dbg.js']);
+  'ui.js', 'styles.js', 'dbg.js', 'timefmt.js', 'uplook.js', 'nameval.js']);
 const API = new Set(['api.js', 'appapi.js', 'quality.js']);
 // 校准（0.9.117 首跑即立；0.9.119 扩一项）：README 明示的五件零依赖解耦点里，immsg/imicons
 // 现居私信层 subgraph——那是出身 placement，不是专属域；它们被 topbar/cards/momentbar/comments

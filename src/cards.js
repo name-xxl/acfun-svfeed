@@ -4,7 +4,7 @@ import { imgInto } from './imgload.js';
 import { openImageViewer } from './imgview.js';
 import { GLYPHS } from './imicons.js';
 import { renderCommentHtml } from './ubb.js'; // 动态正文 UBB 单源（0.9.91）
-import { nameColorCss } from './data.js'; // 名字等级色（0.9.157 三色体系：默认白/等级红紫）
+import { nameColorCss } from './uplook.js'; // 名字等级色（0.9.157 三色体系：默认白/等级红紫；0.9.160 叶子出库）
 
 // ---------- 卡面 kit（0.9.109 自 views.js 拆出：编排 / 卡面分家） ----------
 // 全项目卡面构建单源：网格卡（gridCardOf）/行卡（rowOf）/资源横条（stripOf）/引用卡

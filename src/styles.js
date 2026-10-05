@@ -249,7 +249,7 @@ var RAW_CSS = ''
   + '.acsv-cmore{display:block;width:100%;padding:14px 0;text-align:center;font-size:13px;color:var(--acsv-accent);'
   + 'background:none;border:none;cursor:pointer;font-family:inherit}'
   + '.acsv-cmore:hover{text-decoration:underline}'
-  // 评论观感件（0.9.134；字段真机双源核对在册）：名字等级色=JS 内联（data.nameColorCss，无需
+  // 评论观感件（0.9.134；字段真机双源核对在册）：名字等级色=JS 内联（uplook.nameColorCss，无需
   // CSS）；头像框几何=头像 50 配 80×70/-15（plaza 原生复刻同值——0.9.138 全语境 50px 后同码）；
   // 回复前缀/设备/楼层件
   + '.acsv-cavframe{position:absolute;left:-15px;top:-15px;width:80px;height:70px;max-width:none;pointer-events:none}'
@@ -1140,7 +1140,7 @@ var RAW_CSS = ''
   // 暗色换算对照：#333→#e8eaee、#f8f8f8→rgba(255,255,255,.06)、#999→#8a90a0、
   // hover/active 红→var(--acsv-accent)、原生蓝链 rgb(64,155,239)→#57a9f5。
   // **0.9.157 颜色分工（用户裁决）**：名字=三色体系（默认白 / 等级 1 红 #fd4c5c / 等级 2 紫
-  // #964cfd，后两者 JS 内联 data.nameColorCss 覆盖）；蓝 #57a9f5 只给**正文里的链接**
+  // #964cfd，后两者 JS 内联 uplook.nameColorCss 覆盖）；蓝 #57a9f5 只给**正文里的链接**
   //（@提及/资源链/话题）。原生是**扁平
   // 列表**（条目无底色无圆角），条目间 feed-separate 是 830×10 灰带——相邻行 border-top
   // 等价实现；列 870 居中。退役登记：ggroup/gkind/gart*/gmom 根与 flag/text/quoted 均于
