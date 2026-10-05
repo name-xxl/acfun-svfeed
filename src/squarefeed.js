@@ -2,7 +2,7 @@
 // 消费方两处：squareview（svfeed 深色广场页，滚动源=.acsv-view-body）与 memberplaza
 // （原生 /member/feeds 内嵌浅色皮肤，滚动源=window）。抽取纪律=逐一搬运零逻辑改动（同
 // rowkit 0.9.124 红线）：五条不变量（append-only/失败不置到底/三态状态行/整页 0 新增判到底/
-// 代数丢弃）、24h 窗口（契约层 squarePageOf 收口：只出发布 ≤24h 且超窗即终页）、发现态轮询
+// 代数丢弃）、24h 窗口（squarePageOf 收口，0.9.159 起在 momentapi：只出发布 ≤24h 且超窗即终页）、发现态轮询
 //（生命周期=实例存活期，plaza 常驻语义的收窄在案）、新鲜度回填（momentDetail+syncRowBar）
 // 全部原样；view-square 场景全绿=零漂移机器证据。
 // 宿主注入：root（sup/列表/状态行落点）/ scrollEl（元素或 window）/ backTopHost（默认 root）/
@@ -65,7 +65,7 @@ export function createSquareFeed(opts) {
     var my = ++seq;
     var sk = firstPage ? skeleton() : null;
     if (!firstPage) setStatus('加载中…', true);
-    listSquare(pcursor) // 传输收口 momentapi；规整/24h 窗口/失败可辨收口契约层 squarePageOf
+    listSquare(pcursor) // 传输/规整/24h 窗口/失败可辨收口 momentapi（squarePageOf，0.9.159 域归域）
       .then(function (page) {
         if (sk) sk();
         if (my !== seq || !list.isConnected) return; // 实例已停/拆：在途回包丢弃

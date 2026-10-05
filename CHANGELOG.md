@@ -3,6 +3,26 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.159（2026-10-05）· data.js 拆件第一步：域回包规整归域（relationapi/favapi/momentapi 收编）
+
+- **由头**：全库架构审计判定 `data.js`（860 行）为「杂物抽屉」——8 个低耦合簇物理拼接、
+  簇间仅 5 条单向边无环；膨胀根因是「契约规整收口 data.js」条文让每个新数据源都往里堆。
+  经用户裁决全拆解散（终解于后续版本），本片先走消费面零波及的一步：**域回包规整随域走**
+  ——分组/收藏/动态流的回包形状只有各自 api 域消费，规整函数迁入对应 `*api.js`。
+- **搬迁（机械逐字、导出签名不变）**：`relationapi.js` += groupListOf/followListPageOf/
+  newGroupIdOf/userHeadOf(私)；`favapi.js` += folderListOf/folderIdOf；`momentapi.js` +=
+  followVideoPageOf/squarePageOf/momentDetailStateOf（squarePageOf 消费的条目派发
+  squarePanelOf 仍属契约层，momentapi→data 边保持）。**全库消费方 import 零改动**——这三个
+  api 模块本就是唯一消费方；`data.js` 860→710 行。注释口径随迁（followstream/squarefeed/
+  squareview 的「契约层 squarePageOf」提法改指 momentapi）。
+- **测试**：单测 248→248——随函数新建 relationapi/favapi/momentapi.test.js（9 组用例逐字
+  随迁），data.test.js 同步摘除，总数守恒。纯搬迁无反跑概念，以**代码行多重集机器比对**
+  替代（0.9.133 同款口径）：data.js 摘除 141 非空行、137 行逐字见于三 api 新增，差异仅
+  4 行注释措辞（「放契约层」→「收口本模块」+ 两条分节头）与 import/分节头新增，逻辑行
+  零改动。lint/check + 全量 46 场景全绿。
+- **文档**：README（单源收口条文改双口径「跨源条目契约规整在 data.js、域回包规整随各自
+  *api.js」；momentapi/squareview 模块行同步）。
+
 ### 0.9.158（2026-10-05）· 搜索历史复用原生（聚焦面板 UI + 共享 searchCache 存储）
 
 - **由头**：用户问「A 站首页原生的搜索框聚焦出现的历史记录面板逻辑，我们能不能拿来复用」→

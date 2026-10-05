@@ -1,6 +1,7 @@
 // ---------- 收藏域读写接口（0.9.143）：夹列表（含勾选态）+ 夹 CRUD + 收藏三写 ----------
-// 端点/参数来自 docs/api-research.md §4.2（读侧 + 写侧全生命周期真机实测）；本模块=编排 + 落点，
-// 规整走契约层 data.js 纯函数（folderListOf/folderIdOf）；URL 形态与实测逐字一致（mock 缝）。
+// 端点/参数来自 docs/api-research.md §4.2（读侧 + 写侧全生命周期真机实测）；本模块=编排 + 落点
+// + 回包规整（folderListOf/folderIdOf，0.9.159 自 data.js 域归域迁入——域回包形状只有本域消费，
+// 规整随域走）；URL 形态与实测逐字一致（mock 缝）。
 //
 // **真机补验（2026-10-04 内置浏览器登录态，自建临时夹闭环、终态逐项复原）**：
 //   ① 建夹响应带回新 id：`{result:0, data:{folderId:"77466978", name, resourceCount:0, inFolder:false}}`
@@ -17,9 +18,34 @@
 // 一并退役）。收藏写链唯一入口 = 本模块。
 import { CFG } from './cfg.js';
 import { postForm } from './appapi.js';
-import { folderListOf, folderIdOf } from './data.js';
 
 function ok0(j) { return !!(j && j.result === 0); }
+
+// ---------- 回包规整（0.9.159 自 data.js 域归域迁入；字段真机核对 2026-10-04，docs/api-research.md §4.2） ----------
+
+// 夹列表规整：folder/list → dataList[] {folderId, name, resourceCount, inFolder} → [{id,name,count,inFolder}]。
+// **inFolder 只在请求带 resourceId 时才有意义**（收藏弹窗的勾选态数据源，§4.2 实测）；不带时恒缺省
+export function folderListOf(j) {
+  var raws = (j && (j.dataList || j.data)) || [];
+  var out = [];
+  raws.forEach(function (f) {
+    if (!f || f.folderId == null) return;
+    out.push({
+      id: String(f.folderId),
+      name: String(f.name == null ? '' : f.name),
+      count: f.resourceCount != null ? Number(f.resourceCount) || 0 : null,
+      inFolder: !!f.inFolder
+    });
+  });
+  return out;
+}
+
+// 建夹响应 → 新夹 id：真机形状 `{result:0, data:{folderId, name, resourceCount, …}}`（data 是夹 meta）。
+// 拿不到 data 的形态（纯 {result:0}）返回 ''——调用方回查夹列表兜底
+export function folderIdOf(j) {
+  var d = (j && j.data) || j || {};
+  return d.folderId != null && d.folderId !== '' ? String(d.folderId) : '';
+}
 
 // 夹列表：带 resourceId 时每项带 inFolder（收藏选择层的勾选态）；失败 throw（调用方出错误态）
 export function folderList(resourceId) {

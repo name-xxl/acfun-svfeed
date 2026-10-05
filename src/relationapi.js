@@ -1,6 +1,7 @@
 // ---------- 关注域读写接口（0.9.142）：关注/取关/改分组 + 分组 CRUD + 组内成员读 ----------
-// 端点/参数来自 docs/api-research.md §2.2/§2.5/§2.6（全生命周期真机实测），本模块=编排 + 落点；
-// 规整一律走契约层 data.js 纯函数（groupListOf/followListPageOf/newGroupIdOf），本文件不手搓字段。
+// 端点/参数来自 docs/api-research.md §2.2/§2.5/§2.6（全生命周期真机实测），本模块=编排 + 落点
+// + 回包规整（groupListOf/followListPageOf/newGroupIdOf，0.9.159 自 data.js 域归域迁入——
+// 域回包形状只有本域消费，规整随域走）。
 //
 // **真机补验（2026-10-04 内置浏览器登录态，测试组建/移/改名/删全链闭环、终态复原）**：
 //   ① 建组（action=4）响应**其实带回新 id**：`{result:0, groupId:"281985"}`——docs §2.6 记的
@@ -19,9 +20,10 @@
 import { CFG } from './cfg.js';
 import { postForm } from './appapi.js';
 import { request } from './net.js';
-import { groupListOf, followListPageOf, newGroupIdOf } from './data.js';
 
 function ok0(j) { return !!(j && j.result === 0); }
+
+// ---------- 回包规整（0.9.159 自 data.js 域归域迁入；字段真机核对 2026-10-04，docs/api-research.md §2.2/§2.3/§2.6） ----------
 
 // 组列表（GET）：→ [{id, name, count}]，含「未分组」(id "0")
 export function getGroups() {
@@ -36,6 +38,74 @@ export function listFollows(groupId, pcursor) {
     'action=' + act + '&page=1&count=' + CFG.view.pageSize + '&groupId=' + gid
     + (pcursor ? '&pcursor=' + encodeURIComponent(pcursor) : ''))
     .then(followListPageOf);
+}
+
+// 组列表规整：getGroups → groupList[] {groupId, groupName, followingCount(Show)} → [{id, name, count}]。
+// **真机要点**：id 一律字符串（接口回显即字符串，DOM dataset/比较同纪律）；**「未分组」是
+// groupId="0" 的普通项**（实测 7 组含它、14 人）——不是"缺省值"，选它=移出所有分组
+export function groupListOf(j) {
+  var raws = (j && j.groupList) || [];
+  var out = [];
+  raws.forEach(function (g) {
+    if (!g || g.groupId == null || g.groupId === '') return;
+    out.push({
+      id: String(g.groupId),
+      name: String(g.groupName == null ? '' : g.groupName),
+      count: g.followingCount != null ? Number(g.followingCount) || 0 : null
+    });
+  });
+  return out;
+}
+
+// 关注成员分页规整：getFollows（action=9 组内 / 7 全部）→ {items, nextCursor, total, noMore}。
+// **游标口径**：响应 pcursor 是**偏移量**（实测 "20"→"40"），与 followFeedV2 的毫秒时间戳不同源
+// ——勿跨域复用游标（relationapi 内独立收口）。条目自带 groupId/groupName（成员归属，
+// 管理页行上直接可显）；头像读序 userImg → userHeadImgInfo.thumbnailImageCdnUrl
+export function followListPageOf(j) {
+  var raws = (j && j.friendList) || [];
+  var items = [];
+  raws.forEach(function (u) {
+    if (!u || u.userId == null || u.userId === '') return;
+    items.push({
+      id: String(u.userId),
+      name: String(u.userName == null ? '' : u.userName),
+      head: userHeadOf(u),
+      sign: String(u.signature == null ? '' : u.signature),
+      fans: u.fanCountShow != null ? String(u.fanCountShow) : '',
+      contrib: u.contributeCountShow != null ? String(u.contributeCountShow) : '',
+      groupId: u.groupId != null ? String(u.groupId) : '',
+      groupName: String(u.groupName == null ? '' : u.groupName)
+    });
+  });
+  // 终值 'no_more'（真机实测：最后一页回 pcursor:"no_more"）与空页同判到底；偏移量游标仅在上限内递交
+  var next = j && j.pcursor != null ? String(j.pcursor) : '';
+  var noMore = !items.length || !next || next === 'no_more';
+  return {
+    items: items,
+    nextCursor: noMore ? '' : next,
+    total: j && j.totalCount != null ? Number(j.totalCount) || 0 : null,
+    noMore: noMore
+  };
+}
+
+function userHeadOf(u) {
+  if (u.userImg) return String(u.userImg);
+  var t = u.userHeadImgInfo && u.userHeadImgInfo.thumbnailImageCdnUrl;
+  return t ? String(t) : '';
+}
+
+// 建组后的新 id 定位（**兜底路径**：响应无 groupId 的旧形态）——拿 before 的 id 集与 after
+// 的组列表做差集。**真机复验（2026-10-04）：现形态响应带 `{result:0, groupId}`，
+// relationapi.createGroup 优先取响应 id、本函数仅作兜底**（旧记载"必须差集"已订正）。
+// 同名组本就存在（after 里有两项同名且都不是新 id）时返回 ''，调用方按"重名"提示
+export function newGroupIdOf(beforeIds, afterList, name) {
+  var old = {};
+  (beforeIds || []).forEach(function (id) { old[String(id)] = 1; });
+  for (var i = 0; i < (afterList || []).length; i++) {
+    var g = afterList[i];
+    if (!old[g.id] && g.name === name) return g.id;
+  }
+  return '';
 }
 
 // 关注（action=1）：groupId 空 = 未分组；带组 id 直接入组。**对已关注用户不改归属**（真机②）

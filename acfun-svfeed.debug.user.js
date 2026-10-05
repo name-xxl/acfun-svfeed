@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.158-debug
+// @version      0.9.159-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -1296,71 +1296,6 @@
       up: pi.up ? { id: pi.up.id || "", name: pi.up.name || "" } : null
     };
   }
-  function followVideoPageOf(j) {
-    var raws = j && j.feedList || [];
-    var items = raws.filter(function(r) {
-      return r && r.resourceType === 2 && r.resourceId;
-    }).map(function(r) {
-      return { id: Number(r.resourceId) };
-    });
-    var next = j && j.pcursor != null ? String(j.pcursor) : "";
-    var noMore = next === "no_more" || !raws.length || !items.length;
-    return { items, nextCursor: noMore ? "" : next, noMore };
-  }
-  function groupListOf(j) {
-    var raws = j && j.groupList || [];
-    var out = [];
-    raws.forEach(function(g) {
-      if (!g || g.groupId == null || g.groupId === "") return;
-      out.push({
-        id: String(g.groupId),
-        name: String(g.groupName == null ? "" : g.groupName),
-        count: g.followingCount != null ? Number(g.followingCount) || 0 : null
-      });
-    });
-    return out;
-  }
-  function followListPageOf(j) {
-    var raws = j && j.friendList || [];
-    var items = [];
-    raws.forEach(function(u) {
-      if (!u || u.userId == null || u.userId === "") return;
-      items.push({
-        id: String(u.userId),
-        name: String(u.userName == null ? "" : u.userName),
-        head: userHeadOf(u),
-        sign: String(u.signature == null ? "" : u.signature),
-        fans: u.fanCountShow != null ? String(u.fanCountShow) : "",
-        contrib: u.contributeCountShow != null ? String(u.contributeCountShow) : "",
-        groupId: u.groupId != null ? String(u.groupId) : "",
-        groupName: String(u.groupName == null ? "" : u.groupName)
-      });
-    });
-    var next = j && j.pcursor != null ? String(j.pcursor) : "";
-    var noMore = !items.length || !next || next === "no_more";
-    return {
-      items,
-      nextCursor: noMore ? "" : next,
-      total: j && j.totalCount != null ? Number(j.totalCount) || 0 : null,
-      noMore
-    };
-  }
-  function userHeadOf(u) {
-    if (u.userImg) return String(u.userImg);
-    var t = u.userHeadImgInfo && u.userHeadImgInfo.thumbnailImageCdnUrl;
-    return t ? String(t) : "";
-  }
-  function newGroupIdOf(beforeIds, afterList, name) {
-    var old = {};
-    (beforeIds || []).forEach(function(id) {
-      old[String(id)] = 1;
-    });
-    for (var i = 0; i < (afterList || []).length; i++) {
-      var g = afterList[i];
-      if (!old[g.id] && g.name === name) return g.id;
-    }
-    return "";
-  }
   var GROUP_NAME_RE = /^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$/;
   var FOLDER_NAME_RE = /^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,40}$/;
   function groupNameError(name) {
@@ -1375,59 +1310,6 @@
     if (!s) return "请输入收藏夹名";
     if (!FOLDER_NAME_RE.test(s)) return "1~40 个字，仅限中英文、数字、下划线";
     return "";
-  }
-  function folderListOf(j) {
-    var raws = j && (j.dataList || j.data) || [];
-    var out = [];
-    raws.forEach(function(f) {
-      if (!f || f.folderId == null) return;
-      out.push({
-        id: String(f.folderId),
-        name: String(f.name == null ? "" : f.name),
-        count: f.resourceCount != null ? Number(f.resourceCount) || 0 : null,
-        inFolder: !!f.inFolder
-      });
-    });
-    return out;
-  }
-  function folderIdOf(j) {
-    var d = j && j.data || j || {};
-    return d.folderId != null && d.folderId !== "" ? String(d.folderId) : "";
-  }
-  function squarePageOf(j) {
-    if (!j || j.result !== 0) throw new Error("square-fail");
-    var raws = Array.isArray(j.feedList) ? j.feedList : [];
-    var now = Date.now();
-    var cutoff = now - CFG.view.square.windowMs;
-    var items = [];
-    var freshIds = [];
-    var crossed = false;
-    raws.forEach(function(raw) {
-      var t = Number(raw && raw.createTime) || 0;
-      if (t && t < cutoff) {
-        crossed = true;
-        return;
-      }
-      var pi = squarePanelOf(raw);
-      if (pi) {
-        items.push(pi);
-        if (t && now - t <= CFG.view.square.freshMs) freshIds.push(pi.momentId);
-      }
-    });
-    var next = j.pcursor != null ? String(j.pcursor) : "";
-    var noMore = crossed || next === "no_more" || !raws.length || !items.length;
-    return { items, nextCursor: noMore ? "" : next, noMore, freshIds };
-  }
-  function momentDetailStateOf(j) {
-    if (!j || j.result !== 0 || !j.moment) return null;
-    var mo2 = j.moment;
-    return {
-      liked: !!mo2.isLike,
-      thrown: !!mo2.isThrowBanana,
-      like: Number(mo2.likeCount) || 0,
-      comment: Number(mo2.commentCount) || 0,
-      banana: Number(mo2.bananaCount) || 0
-    };
   }
   function nameColorCss(v) {
     var n = Number(v) || 0;
@@ -6397,6 +6279,52 @@
       { Referer: "https://www.acfun.cn/moment/am" + id }
     ).then(momentDetailStateOf);
   }
+  function followVideoPageOf(j) {
+    var raws = j && j.feedList || [];
+    var items = raws.filter(function(r) {
+      return r && r.resourceType === 2 && r.resourceId;
+    }).map(function(r) {
+      return { id: Number(r.resourceId) };
+    });
+    var next = j && j.pcursor != null ? String(j.pcursor) : "";
+    var noMore = next === "no_more" || !raws.length || !items.length;
+    return { items, nextCursor: noMore ? "" : next, noMore };
+  }
+  function squarePageOf(j) {
+    if (!j || j.result !== 0) throw new Error("square-fail");
+    var raws = Array.isArray(j.feedList) ? j.feedList : [];
+    var now = Date.now();
+    var cutoff = now - CFG.view.square.windowMs;
+    var items = [];
+    var freshIds = [];
+    var crossed = false;
+    raws.forEach(function(raw) {
+      var t = Number(raw && raw.createTime) || 0;
+      if (t && t < cutoff) {
+        crossed = true;
+        return;
+      }
+      var pi = squarePanelOf(raw);
+      if (pi) {
+        items.push(pi);
+        if (t && now - t <= CFG.view.square.freshMs) freshIds.push(pi.momentId);
+      }
+    });
+    var next = j.pcursor != null ? String(j.pcursor) : "";
+    var noMore = crossed || next === "no_more" || !raws.length || !items.length;
+    return { items, nextCursor: noMore ? "" : next, noMore, freshIds };
+  }
+  function momentDetailStateOf(j) {
+    if (!j || j.result !== 0 || !j.moment) return null;
+    var mo2 = j.moment;
+    return {
+      liked: !!mo2.isLike,
+      thrown: !!mo2.isThrowBanana,
+      like: Number(mo2.likeCount) || 0,
+      comment: Number(mo2.commentCount) || 0,
+      banana: Number(mo2.bananaCount) || 0
+    };
+  }
 
   // src/followseen.js
   var SEEN_KEY = "acsvFollowSeenAt";
@@ -8061,6 +7989,60 @@
       "action=" + act + "&page=1&count=" + CFG.view.pageSize + "&groupId=" + gid + (pcursor2 ? "&pcursor=" + encodeURIComponent(pcursor2) : "")
     ).then(followListPageOf);
   }
+  function groupListOf(j) {
+    var raws = j && j.groupList || [];
+    var out = [];
+    raws.forEach(function(g) {
+      if (!g || g.groupId == null || g.groupId === "") return;
+      out.push({
+        id: String(g.groupId),
+        name: String(g.groupName == null ? "" : g.groupName),
+        count: g.followingCount != null ? Number(g.followingCount) || 0 : null
+      });
+    });
+    return out;
+  }
+  function followListPageOf(j) {
+    var raws = j && j.friendList || [];
+    var items = [];
+    raws.forEach(function(u) {
+      if (!u || u.userId == null || u.userId === "") return;
+      items.push({
+        id: String(u.userId),
+        name: String(u.userName == null ? "" : u.userName),
+        head: userHeadOf(u),
+        sign: String(u.signature == null ? "" : u.signature),
+        fans: u.fanCountShow != null ? String(u.fanCountShow) : "",
+        contrib: u.contributeCountShow != null ? String(u.contributeCountShow) : "",
+        groupId: u.groupId != null ? String(u.groupId) : "",
+        groupName: String(u.groupName == null ? "" : u.groupName)
+      });
+    });
+    var next = j && j.pcursor != null ? String(j.pcursor) : "";
+    var noMore = !items.length || !next || next === "no_more";
+    return {
+      items,
+      nextCursor: noMore ? "" : next,
+      total: j && j.totalCount != null ? Number(j.totalCount) || 0 : null,
+      noMore
+    };
+  }
+  function userHeadOf(u) {
+    if (u.userImg) return String(u.userImg);
+    var t = u.userHeadImgInfo && u.userHeadImgInfo.thumbnailImageCdnUrl;
+    return t ? String(t) : "";
+  }
+  function newGroupIdOf(beforeIds, afterList, name) {
+    var old = {};
+    (beforeIds || []).forEach(function(id) {
+      old[String(id)] = 1;
+    });
+    for (var i = 0; i < (afterList || []).length; i++) {
+      var g = afterList[i];
+      if (!old[g.id] && g.name === name) return g.id;
+    }
+    return "";
+  }
   function followUser(uid, groupId) {
     return postForm(
       CFG.api.follow,
@@ -8165,6 +8147,24 @@
   // src/favapi.js
   function ok02(j) {
     return !!(j && j.result === 0);
+  }
+  function folderListOf(j) {
+    var raws = j && (j.dataList || j.data) || [];
+    var out = [];
+    raws.forEach(function(f) {
+      if (!f || f.folderId == null) return;
+      out.push({
+        id: String(f.folderId),
+        name: String(f.name == null ? "" : f.name),
+        count: f.resourceCount != null ? Number(f.resourceCount) || 0 : null,
+        inFolder: !!f.inFolder
+      });
+    });
+    return out;
+  }
+  function folderIdOf(j) {
+    var d = j && j.data || j || {};
+    return d.folderId != null && d.folderId !== "" ? String(d.folderId) : "";
   }
   function folderList(resourceId) {
     return postForm(CFG.api.favFolderList, resourceId ? "resourceId=" + resourceId : "").then(function(j) {
@@ -9927,7 +9927,7 @@
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.158" : "");
+    return normVer(true ? "0.9.159" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12643,7 +12643,7 @@
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.158：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.159：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

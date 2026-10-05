@@ -5,12 +5,14 @@
 // deepLinkOf（0.9.72）= 地址栏深链的 id 空间判据（meow 详情 / douga 详情二选一）。
 // 作者契约（0.9.82）：所有来源的作者只有一个出口 up{id,name,img,isFollowing}|null
 // （字段白名单与"禁止回流扁平旧名"的闸门在 contract.test.js）
+// 域回包规整用例（followVideoPageOf/squarePageOf/momentDetailStateOf/groupListOf/
+// followListPageOf/newGroupIdOf/folderListOf/folderIdOf）0.9.159 起随函数迁至各 *api.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { upOf, panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, searchVideoPageOf, searchUserPageOf, searchArticlePageOf, followVideoPageOf, momentPiOfRepost, momentExtraOf, squarePageOf, momentDetailStateOf, nameColorCss, frameUrlOf, groupListOf, followListPageOf, newGroupIdOf, groupNameError, folderNameError, folderListOf, folderIdOf } = await import('../../src/data.js');
+var { upOf, panelItem, homeItemOf, playItemOf, normalize, normalizeHome, deepLinkOf, relTime, fmtDate, fmtAgo, fmtWan, meCardOf, searchVideoPageOf, searchUserPageOf, searchArticlePageOf, momentPiOfRepost, momentExtraOf, nameColorCss, frameUrlOf, groupNameError, folderNameError } = await import('../../src/data.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -530,28 +532,6 @@ test('panelItem follow：互动行数值态（0.9.99）——三族 share + 视�
   assert.equal(m.share, 5);
 });
 
-test('followVideoPageOf（0.9.99 §2.1.2）：单页规整——只收 type2、终判 no_more、空页兜底', () => {
-  var page = followVideoPageOf({
-    feedList: [
-      { resourceType: 2, resourceId: 48888718 },
-      { resourceType: 10, resourceId: 5104409 }, // 非视频：宁漏不错滤掉
-      { resourceType: 2, resourceId: 0 },        // 缺 id：丢弃
-      { resourceType: 2, resourceId: 48890001 }
-    ],
-    pcursor: '1790824871458'
-  });
-  assert.deepEqual(page.items, [{ id: 48888718 }, { id: 48890001 }]);
-  assert.equal(page.nextCursor, '1790824871458');
-  assert.equal(page.noMore, false);
-  // 实测终值（极老游标回 1 条 + no_more）
-  var end = followVideoPageOf({ feedList: [{ resourceType: 2, resourceId: 4424929 }], pcursor: 'no_more' });
-  assert.equal(end.noMore, true);
-  assert.equal(end.nextCursor, '');
-  // 空壳/空页兜底同判
-  assert.equal(followVideoPageOf({ feedList: [] }).noMore, true);
-  assert.equal(followVideoPageOf(null).noMore, true);
-});
-
 test('panelItem follow：文章条目——articleTitle + 外链落点 articleBase', () => {
   var pi = panelItem('follow', {
     resourceType: 3, resourceId: 48868671, articleTitle: '天涯此时共明月 DD歌回唱团圆',
@@ -783,55 +763,6 @@ test('panelItem follow：user.nameColor 透传（0.9.157 真机核对：followFe
   assert.equal(panelItem('follow', rp).repost.up.nameColor, 2);
 });
 
-test('squarePageOf：单页规整——result!==0 抛错（失败≠到底）；no_more/空页兜底；非动态滤掉', () => {
-  var page = squarePageOf({
-    result: 0, pcursor: '1790824871458:1790824871458',
-    feedList: [
-      { resourceType: 10, createTime: Date.now(), moment: { momentId: '1', text: 'a' }, user: {} },
-      { resourceType: 2, resourceId: 9 }, // 非动态：宁漏不错滤掉
-      { resourceType: 10, createTime: Date.now(), moment: { momentId: '2', text: 'b' }, user: {} }
-    ]
-  });
-  assert.equal(page.items.length, 2);
-  assert.equal(page.nextCursor, '1790824871458:1790824871458');
-  assert.equal(page.noMore, false);
-  assert.deepEqual(page.freshIds, [1, 2]); // ≤3h 新鲜（createTime=Date.now()）——回填名单
-  var end = squarePageOf({
-    result: 0, pcursor: 'no_more',
-    feedList: [{ resourceType: 10, moment: { momentId: '3', text: 'c' }, user: {} }]
-  });
-  assert.equal(end.noMore, true);
-  assert.equal(end.nextCursor, '');
-  assert.throws(() => squarePageOf({ result: 1 }), /square-fail/); // 失败必须可辨（重试出口）
-  assert.throws(() => squarePageOf(null), /square-fail/);
-  assert.equal(squarePageOf({ result: 0, feedList: [] }).noMore, true);
-  // 24h 窗口（0.9.126 收口）：超窗条目剔除且直接判到底（广场「翻到 >24h 即止」的契约面）
-  var win = squarePageOf({
-    result: 0, pcursor: 'a:b',
-    feedList: [
-      { resourceType: 10, createTime: Date.now() - 3600 * 1000, moment: { momentId: '11', text: '窗内' }, user: {} },
-      { resourceType: 10, createTime: Date.now() - 25 * 3600 * 1000, moment: { momentId: '12', text: '超窗' }, user: {} }
-    ]
-  });
-  assert.equal(win.items.length, 1);
-  assert.equal(win.items[0].momentId, 11);
-  assert.equal(win.noMore, true); // 超窗=边界即止（nextCursor 作废）
-  assert.equal(win.nextCursor, '');
-  assert.deepEqual(win.freshIds, [11]); // 窗内且 ≤3h 才进回填名单
-});
-
-// ---------- momentDetailStateOf（0.9.127 新鲜度回填） ----------
-test('momentDetailStateOf：五件回填态；失败/形状不合→null（调用方静默保持快照）', () => {
-  var st = momentDetailStateOf({
-    result: 0,
-    moment: { likeCount: 9, commentCount: 4, bananaCount: 2, isLike: true, isThrowBanana: true }
-  });
-  assert.deepEqual(st, { liked: true, thrown: true, like: 9, comment: 4, banana: 2 });
-  assert.equal(momentDetailStateOf({ result: 1, moment: {} }), null); // 失败
-  assert.equal(momentDetailStateOf({ result: 0 }), null);            // 缺 moment
-  assert.equal(momentDetailStateOf(null), null);
-});
-
 // ---------- 评论观感纯函数（0.9.134；字段名真机双源核对在册） ----------
 test('nameColorCss：2=紫/1=红/0与缺失=不加色（字符串也认）', () => {
   assert.equal(nameColorCss(2), '#964cfd');
@@ -876,64 +807,6 @@ test('momentExtraOf：momentId 缺省从 href 反推；超 9 图截断；脏输�
   assert.equal(momentExtraOf({}).text, '');
 });
 
-// ---------- 关注分组契约（0.9.142；字段样本为 2026-10-04 真机抓包） ----------
-test('groupListOf：真机形状 {groupId,groupName,followingCount} → {id,name,count}；id 字符串、「未分组」= id "0"', () => {
-  var gs = groupListOf({
-    result: 0,
-    groupList: [
-      { groupId: '0', groupName: '未分组', followingCount: 14, followingCountShow: '14' },
-      { groupId: 273464, groupName: '舞', followingCount: 8, followingCountShow: '8' },
-      { groupId: '', groupName: '脏项', followingCount: 1 }, // 无 id 丢弃
-      { groupId: '9', groupName: '无计数', followingCount: null }
-    ]
-  });
-  assert.equal(gs.length, 3);
-  assert.deepEqual(gs[0], { id: '0', name: '未分组', count: 14 });
-  assert.equal(gs[1].id, '273464'); // 数字回显也归一成字符串
-  assert.equal(gs[2].count, null);  // 缺计数不编 0
-  assert.deepEqual(groupListOf(null), []);
-});
-
-test('followListPageOf：成员字段落位（头像读序 userImg → userHeadImgInfo）+ 自带分组归属', () => {
-  var p = followListPageOf({
-    result: 0, pcursor: '20', totalCount: 91,
-    friendList: [
-      { userId: '12229455', userName: '一只芸喵喵', userImg: 'https://x/a.jpg',
-        signature: '签名', fanCountShow: '1.6万', contributeCountShow: '286',
-        groupId: '273464', groupName: '舞' },
-      { userId: '2', userName: '乙', userHeadImgInfo: { thumbnailImageCdnUrl: 'https://x/b.jpg' } },
-      { userName: '无 id 丢弃' }
-    ]
-  });
-  assert.equal(p.items.length, 2);
-  assert.equal(p.items[0].id, '12229455');
-  assert.equal(p.items[0].head, 'https://x/a.jpg');
-  assert.equal(p.items[0].fans, '1.6万');
-  assert.equal(p.items[0].groupId, '273464');
-  assert.equal(p.items[0].groupName, '舞');
-  assert.equal(p.items[1].head, 'https://x/b.jpg'); // 回落对象形状
-  assert.equal(p.nextCursor, '20');
-  assert.equal(p.total, 91);
-  assert.equal(p.noMore, false);
-});
-
-test('followListPageOf：终值 pcursor="no_more" 与空页判到底（真机末页形态）', () => {
-  var last = followListPageOf({ result: 0, pcursor: 'no_more', totalCount: 14, friendList: [{ userId: '1' }] });
-  assert.equal(last.noMore, true);
-  assert.equal(last.nextCursor, ''); // 终值不递交（防把 no_more 当偏移量发回去）
-  var empty = followListPageOf({ result: 0, pcursor: '40', friendList: [] });
-  assert.equal(empty.noMore, true);
-});
-
-test('newGroupIdOf：差集定位新组；同名已存在则返回空（建组响应不带 id 时的兜底）', () => {
-  var before = ['0', '273464'];
-  var after = [{ id: '0', name: '未分组' }, { id: '281985', name: '临时验证组' }, { id: '273464', name: '舞' }];
-  assert.equal(newGroupIdOf(before, after, '临时验证组'), '281985');
-  assert.equal(newGroupIdOf(before, after, '不存在'), '');
-  // 同名组本就存在（两项同名、都不是新 id）→ 空（调用方按重名提示）
-  assert.equal(newGroupIdOf(['0', '5'], [{ id: '5', name: '同名' }], '同名'), '');
-});
-
 test('组名/夹名校验：字符集与长度（站点 chunk 正则）+ 保留名', () => {
   assert.equal(groupNameError('舞'), '');
   assert.equal(groupNameError('abc_123'), '');
@@ -949,21 +822,3 @@ test('组名/夹名校验：字符集与长度（站点 chunk 正则）+ 保留�
   assert.equal(folderNameError('a'.repeat(40)), '');
 });
 
-// ---------- 收藏夹契约（0.9.143；样本形状为 2026-10-04 真机抓包） ----------
-test('folderListOf：夹表规整（id 字符串 / count / inFolder 勾选态）', () => {
-  var fs = folderListOf({ result: 0, dataList: [
-    { folderId: 25698647, name: '默认收藏夹', resourceCount: 7, inFolder: false },
-    { folderId: '73414454', name: 'AC', resourceCount: 10, inFolder: true },
-    { name: '无 id 丢弃' }
-  ]});
-  assert.equal(fs.length, 2);
-  assert.deepEqual(fs[0], { id: '25698647', name: '默认收藏夹', count: 7, inFolder: false });
-  assert.equal(fs[1].inFolder, true);
-  assert.deepEqual(folderListOf(null), []);
-});
-
-test('folderIdOf：建夹响应 data.folderId（真机形状）/ 缺 data 回空', () => {
-  assert.equal(folderIdOf({ result: 0, data: { folderId: '77466978', name: '临时验证夹', resourceCount: 0 } }), '77466978');
-  assert.equal(folderIdOf({ result: 0 }), '');
-  assert.equal(folderIdOf(null), '');
-});

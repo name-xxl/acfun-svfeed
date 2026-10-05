@@ -36,8 +36,8 @@ FollowVideos.info = function (id) {
   });
 };
 
-// 单页拉取：传输收口在 momentapi（URL 逐字保持以护 mock 缝），规整逻辑在契约层纯函数
-// followVideoPageOf（单测直采）——本函数做「ctx 状态并入」并回 {loaded, page}（page=规整
+// 单页拉取：传输收口在 momentapi（URL 逐字保持以护 mock 缝），规整逻辑收口其模块纯函数
+// followVideoPageOf（0.9.159 域归域，单测直采）——本函数做「ctx 状态并入」并回 {loaded, page}（page=规整
 // 后的原始页，enterVideos 首屏读它；runChain 只读 loaded——两消费面各取所需）
 export function loadFollowPage(cur) {
   return listVideos(cur).then(function (page) {
