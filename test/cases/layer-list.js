@@ -201,6 +201,13 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
           var pl = TEST.call('playlayer') || {};
           return pl.active && pl.levels === 1 && Number(pl.id) === l1b ? pl : null;
         }, 8000)), 'l1=' + l1b + ' ' + JSON.stringify(TEST.call('playlayer')));
+        // 弹回时抽屉仍开着（用户就是在这个状态下点返回键的）：「列表」页签必须已经收起
+        //（0.9.177 实报「点返回键回原视频，抽屉里还是列表」——上级是列表会话时旧逻辑会再亮它）
+        rec('ll-path2-pop-no-list', !!(await waitFor(function () {
+          var d = q('.acsv-drawer');
+          var t = TEST.call('reldrawer');
+          return !!d && d.classList.contains('open') && t && t.listShown === false && t.listOnly === false ? t : null;
+        }, 4000)), JSON.stringify(TEST.call('reldrawer')));
         if (backBtn) backBtn.click(); // 单级：返回键这回才回来源
         rec('ll-path2-back-origin', !!(await waitFor(function () {
           return TEST.call('view') === 'jingxuan' && !(TEST.call('playlayer') || {}).active;

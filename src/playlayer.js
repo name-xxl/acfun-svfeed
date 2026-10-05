@@ -229,12 +229,11 @@ export function playEscape() {
   loadLevel(up);
   swap(up.item, up.at); // 进度经 slide._resumeAt 槽恢复（方案一过渡；后续接官方历史断点续播）
   syncArrows();
-  relDrawerListMode(false); // 回第 1 级：相关推荐入口按 kind 判定还原
-  if (up.sess && up.sess.kind === 'list' && up.sess.list.length) {
-    relDrawerShowList(displayRowsOf(up.sess), up.sess.idx, (up.item && up.item.title) || '');
-  } else {
-    relDrawerHideList();
-  }
+  // 回第 1 级①：「列表」页签**一律收起**（0.9.177 用户实报「点返回键回原视频，抽屉里还是列表」）
+  // ——列表页签是**第三播放器专属 UI**（用户裁决口径）；上级虽是列表会话（榜单/搜索/我的/分区
+  // 列表模式）也不该顶它出来，第 1 级的抽屉只该是 评论 + 相关推荐
+  relDrawerHideList();
+  relDrawerListMode(false); // ②：相关推荐入口按 kind 判定还原
   return true;
 }
 
