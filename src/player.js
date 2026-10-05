@@ -5,7 +5,7 @@ import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetD
 import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync, setItemProvider } from './route.js';
 import { FeedStore, setChangeHandler } from './feedstore.js';
 import { getSource, setSource, resetHomePager, ensureBaseSource, API } from './api.js';
-import { isOpenComments, closeComments, openComments, commentState, syncCommentVars, toggleItemComments } from './comments.js';
+import { isOpenComments, closeComments, retargetComments, commentState, syncCommentVars, toggleItemComments } from './comments.js';
 import { onPlaying as dmOnPlaying, stopAll as dmStopAll } from './danmaku.js';
 import { UpVideos } from './uppage.js';
 import { FollowVideos, enterVideos, enterAll } from './followstream.js';
@@ -280,7 +280,8 @@ function setActive(idx) {
   updateArrows(slideAt(idx));
   if (isOpenComments()) {
     var itC = FeedStore.items[idx];
-    if (itC && commentState.sourceId !== itC.id) openComments(itC.id, itC.stype, itC.shareUrl, itC.kind, itC.title);
+    // 换条重定向（0.9.178）：不重开浮层——否则每滑一条都把抽屉页签打回评论（层内同款实报）
+    if (itC && commentState.sourceId !== itC.id) retargetComments(itC.id, itC.stype, itC.shareUrl, itC.kind, itC.title);
   }
   // 暂停非当前视频，停掉其弹幕图层（滚动回来 playing 会自动重启）。
   // 0.9.37 收敛为窗口内扫描：video 只存在于渲染窗口的 slide 里，全量扫 scroller

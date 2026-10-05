@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.177
+// @version      0.9.178
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -5283,7 +5283,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function relDrawerClose() {
     var d = commentDrawer;
     if (!d || !d.relList) return;
-    if (d.tabR.classList.contains("on")) showCmt();
+    if (d.tabR && d.tabR.classList.contains("on") || d.tabL && d.tabL.classList.contains("on")) showCmt();
   }
   function relDrawerShowList(rows, idx, title) {
     var d = commentDrawer;
@@ -5389,6 +5389,18 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     claimDrawer("comments", closeComments);
     commentDrawer.el.classList.add("open");
     if (root) syncCommentVars();
+    applyDrawerContent(sourceId, stype, shareUrl, kind2, title);
+  }
+  function retargetComments(sourceId, stype, shareUrl, kind2, title) {
+    if (!commentDrawer || !commentDrawer.el.classList.contains("open")) {
+      openComments(sourceId, stype, shareUrl, kind2, title);
+      return;
+    }
+    if (!sourceId) return;
+    ensureDrawerWired();
+    applyDrawerContent(sourceId, stype, shareUrl, kind2, title);
+  }
+  function applyDrawerContent(sourceId, stype, shareUrl, kind2, title) {
     commentState.stype = Number(stype) || 5;
     commentState.kind = kind2 === "home" ? "home" : "sv";
     commentState.shareUrl = shareUrl || CFG.api.shareBase + sourceId;
@@ -10428,7 +10440,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.177" : "");
+    return normVer(true ? "0.9.178" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11906,7 +11918,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (slideRef && slideRef.parentNode) slideRef.parentNode.removeChild(slideRef);
     slideRef = null;
     mountSlide(bodyRef, item, resumeAt);
-    if (isOpenComments()) openComments(item.id, item.stype, item.shareUrl, item.kind, item.title);
+    if (isOpenComments()) retargetComments(item.id, item.stype, item.shareUrl, item.kind, item.title);
     return true;
   }
   function snapSession() {
@@ -12445,7 +12457,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     updateArrows(slideAt(idx));
     if (isOpenComments()) {
       var itC = FeedStore.items[idx];
-      if (itC && commentState.sourceId !== itC.id) openComments(itC.id, itC.stype, itC.shareUrl, itC.kind, itC.title);
+      if (itC && commentState.sourceId !== itC.id) retargetComments(itC.id, itC.stype, itC.shareUrl, itC.kind, itC.title);
     }
     for (var wi = Math.max(0, idx - CFG.win.back); wi <= idx + CFG.win.fwd && wi < FeedStore.items.length; wi++) {
       var ws = slideAt(wi);
@@ -13628,7 +13640,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.177：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.178：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

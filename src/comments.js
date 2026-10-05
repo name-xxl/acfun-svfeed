@@ -96,6 +96,24 @@ export function openComments(sourceId, stype, shareUrl, kind, title) {
   claimDrawer('comments', closeComments); // 占槽：私信抽屉开着则自动收回，再展开评论
   commentDrawer.el.classList.add('open');
   if (root) syncCommentVars(); // isOpenComments 此时已为真：空间够则加避让根类，不够则纯覆盖
+  applyDrawerContent(sourceId, stype, shareUrl, kind, title);
+}
+
+// 抽屉内容重定向（0.9.178 抽；**不碰浮层栈/槽位**）：换视频时抽屉跟着换源，但**不重开浮层**——
+// 旧实现每步都走 openComments，overlayOpen 幂等收旧层 ⇒ closeComments ⇒ relDrawerClose 把
+// 页签复位回评论（用户实报「点相关推荐往下刷，页签被切回评论」）。抽屉已开时改走本缝。
+export function retargetComments(sourceId, stype, shareUrl, kind, title) {
+  if (!commentDrawer || !commentDrawer.el.classList.contains('open')) {
+    openComments(sourceId, stype, shareUrl, kind, title); // 没开就当普通打开（含浮层登记）
+    return;
+  }
+  if (!sourceId) return;
+  ensureDrawerWired();
+  applyDrawerContent(sourceId, stype, shareUrl, kind, title);
+}
+
+// 抽屉内容装配（openComments 与 retargetComments 共用；调用前须保证抽屉已 open、槽已占）
+function applyDrawerContent(sourceId, stype, shareUrl, kind, title) {
   commentState.stype = Number(stype) || 5;
   commentState.kind = kind === 'home' ? 'home' : 'sv';
   commentState.shareUrl = shareUrl || (CFG.api.shareBase + sourceId);

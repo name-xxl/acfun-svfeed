@@ -9,7 +9,7 @@ import { setVideoTarget, setWatchTarget, setPlayItem, OVL_IDX } from './state.js
 import { buildSlide } from './slide.js';
 import { attachVideo } from './attach.js';
 import { batch as relatedBatch, seed, setLayerHost, setLayerOpener } from './relatedapi.js';
-import { isOpenComments, openComments } from './comments.js';
+import { isOpenComments, openComments, retargetComments } from './comments.js';
 import { relDrawerShowList, relDrawerSyncList, relDrawerHideList, relDrawerListMode } from './reldrawer.js'; // 列表播放器抽屉（0.9.174/175）
 import { testHook } from './dbg.js';
 
@@ -153,7 +153,9 @@ function swap(item, resumeAt) {
   if (slideRef && slideRef.parentNode) slideRef.parentNode.removeChild(slideRef);
   slideRef = null;
   mountSlide(bodyRef, item, resumeAt);
-  if (isOpenComments()) openComments(item.id, item.stype, item.shareUrl, item.kind, item.title);
+  // 抽屉跟着换条：走**重定向缝**（不重开浮层——重开会触发 closeComments ⇒ 页签被打回评论，
+  // 用户实报「点相关推荐往下刷，页签切回评论」；0.9.178）
+  if (isOpenComments()) retargetComments(item.id, item.stype, item.shareUrl, item.kind, item.title);
   return true;
 }
 

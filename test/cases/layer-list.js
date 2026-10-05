@@ -233,6 +233,69 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       await waitFor(function () { return TEST.call('view') === 'jingxuan'; }, 6000);
     }
 
+    // ---- ③e 抽屉默认停在「评论」+ 页签跟随（0.9.178 用户实报两条）----
+    // ①「展开抽屉应默认打开评论，不记忆上次」：进列表播放器（列表页签自动激活）→ 关抽屉 → 重开，
+    //    必须回评论（列表页签仍在场——那是第三播放器的 UI——但不得激活）
+    (function () { if (big4) big4.click(); })();
+    if (big4) {
+      rec('ll-def-l1', !!(await waitFor(function () {
+        var pl = TEST.call('playlayer') || {};
+        return pl.active && pl.levels === 1 ? pl : null;
+      }, 8000)), JSON.stringify(TEST.call('playlayer')));
+      var l1c = Number((TEST.call('playlayer') || {}).id);
+      key('c');
+      await waitFor(function () { return !!q('.acsv-drawer.open'); }, 6000);
+      var tabR5 = q('.acsv-dtab-rel');
+      if (tabR5) tabR5.click();
+      await waitFor(function () { var t = TEST.call('reldrawer'); return t && t.rows === 11; }, 8000);
+      var rowJ3 = q('.acsv-rellist .acsv-relrow:nth-child(2)');
+      if (rowJ3) rowJ3.click();
+      rec('ll-def-l2-liston', !!(await waitFor(function () {
+        var pl = TEST.call('playlayer') || {};
+        var t = TEST.call('reldrawer') || {};
+        return pl.active && pl.levels === 2 && t.listOn ? pl : null;
+      }, 8000)), JSON.stringify(TEST.call('reldrawer')) + ' ' + JSON.stringify(TEST.call('playlayer')));
+      key('Escape'); // 关抽屉（此刻列表页签是激活的）
+      await waitFor(function () { var d = q('.acsv-drawer'); return !!d && !d.classList.contains('open'); }, 4000);
+      key('c'); // 重开：不得记忆上次页签
+      await waitFor(function () { return !!q('.acsv-drawer.open'); }, 6000);
+      rec('ll-def-open-cmt', (function () {
+        var t = TEST.call('reldrawer') || {};
+        var tabC = q('.acsv-dtab'); // 文档序第一个 = 评论页签
+        return !!tabC && tabC.classList.contains('on') && t.relOn === false && t.listOn === false && t.listShown === true;
+      })(), JSON.stringify(TEST.call('reldrawer')));
+      key('Escape'); // 收抽屉，继续 ② 路径
+      key('Escape'); // 弹回第 1 级
+      await waitFor(function () {
+        var pl = TEST.call('playlayer') || {};
+        return pl.active && pl.levels === 1;
+      }, 8000);
+      key('c');
+      await waitFor(function () { return !!q('.acsv-drawer.open'); }, 6000);
+      // ②「点相关推荐后往下刷要跟着当前栏目」：抽屉开着停在相关推荐，↓ 换条后仍在该页签、且列的是新视频的
+      var tabR4 = q('.acsv-dtab-rel');
+      if (tabR4) tabR4.click();
+      rec('ll-follow-rel-on', !!(await waitFor(function () {
+        var t = TEST.call('reldrawer');
+        return t && t.relOn && t.rows === 11 ? t : null;
+      }, 8000)), JSON.stringify(TEST.call('reldrawer')));
+      key('ArrowDown');
+      rec('ll-follow-next', !!(await waitFor(function () {
+        var pl = TEST.call('playlayer') || {};
+        return pl.active && Number(pl.id) !== l1c ? pl : null;
+      }, 8000)), JSON.stringify(TEST.call('playlayer')));
+      rec('ll-follow-keep-tab', !!(await waitFor(function () {
+        var d = q('.acsv-drawer');
+        var t = TEST.call('reldrawer');
+        var pl = TEST.call('playlayer') || {};
+        // 抽屉仍开、仍停在相关推荐、且已切到**新视频**的那份（rid 跟随）
+        return !!d && d.classList.contains('open') && t && t.relOn && t.relTabShown && t.rid === String(pl.id) ? t : null;
+      }, 8000)), JSON.stringify(TEST.call('reldrawer')) + ' ' + JSON.stringify(TEST.call('playlayer')));
+      key('Escape');
+      key('Escape');
+      await waitFor(function () { return TEST.call('view') === 'jingxuan'; }, 6000);
+    }
+
     // ---- ④ 动态里的视频卡片 = **单条**（用户裁决：仅此一例不出箭头、不可切）----
     location.hash = '#svfeed/follow';
     var vrow = await waitFor(function () {

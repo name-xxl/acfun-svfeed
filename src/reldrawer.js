@@ -265,12 +265,13 @@ export function relDrawerSync(rid, kind, title) {
   }
 }
 
-// seam ②：comments.closeComments 调——tab 复位到评论（下次打开从评论区起步）；缓存保留
+// seam ②：comments.closeComments 调——**任何非评论页签都复位到评论**（下次打开从评论区起步，
+// 不记忆上次；0.9.178 修：旧实现只查 tabR，列表页签被"记住"，重开直接落在列表）；缓存保留
 //（同视频重开抽屉零等待）
 export function relDrawerClose() {
   var d = commentDrawer;
   if (!d || !d.relList) return;
-  if (d.tabR.classList.contains('on')) showCmt();
+  if ((d.tabR && d.tabR.classList.contains('on')) || (d.tabL && d.tabL.classList.contains('on'))) showCmt();
 }
 
 // seam ③（0.9.174）：列表播放器打开/换条时调——显形「列表」tab 并展示当前列表（抽屉本身的
