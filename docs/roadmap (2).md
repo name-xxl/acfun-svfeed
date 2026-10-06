@@ -374,5 +374,7 @@ feed/webPush 目前只有**视频条目**的字段实测。待测清单：
 
 用户裁决「架构减债 + 体验打磨」两轨（0.9.184–0.9.187 起）：错误盒单源（errbox.js）、playlayer 拆件
 （playgest.js）、闪动时长单源、轮询可见性门、可访问性最小集（aria-label/role=dialog）、方向诊断升
-棘轮。遗产（暂缓）：A4 契约面 tsc 试点、E3 分页失败可见反馈、E5 移动端入口（需先出预览）、
-singleColumn 接线。详见 CHANGELOG 各版与 `docs/dependency-audit.md`。
+棘轮。**遗产处置**：A4 契约面 tsc 试点（待定·引新依赖）；E3 分页失败可见反馈（核实：
+searchview/reldrawer 已有「加载失败，点击重试」，前提基本不成立，无独立项）；E5 移动端入口——
+**用户裁决不做**（移动端装脚本可能性小，2026-10-06）；singleColumn 单列精选流接线（已实测 + 预览
+稿在仓，待接线）。详见 CHANGELOG 各版与 `docs/dependency-audit.md`。
