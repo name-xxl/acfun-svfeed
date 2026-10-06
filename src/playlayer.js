@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { el, toast } from './ui.js';
+import { toast, spinner } from './ui.js';
 import { errBox } from './errbox.js';
 import { bindLayerGestures } from './playgest.js'; // 层内滑动手势（0.9.184 自本模块拆出）
 import { parseRoute } from './route.js';
@@ -379,17 +379,17 @@ function buildPlayView(body, arg) {
   }
   // 深链/刷新直达：先解析（拿标题/封面/来源），失败出错误盒 + 重试（绝不静默）。
   // load() 自带转圈进出：每次重跑先挂 spinner、结束时撤（成功/失败都不留）
-  var spinner = el('div', 'acsv-spinner');
+  var sp = spinner();
   function load() {
-    body.appendChild(spinner);
+    body.appendChild(sp);
     API.deepLink(id, parseRoute().src).then(function (hit) {
       if (!body.isConnected) return; // 期间已离开播放层
-      spinner.remove();
+      sp.remove();
       if (!hit) { errBox(body, '视频加载失败', load); return; }
       enterLayer(body, hit.item);
     }, function () {
       if (!body.isConnected) return;
-      spinner.remove();
+      sp.remove();
       errBox(body, '视频加载失败（网络不可达）', load);
     });
   }

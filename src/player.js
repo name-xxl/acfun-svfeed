@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
-import { el, fmtTime, ensureStyle } from './ui.js';
+import { el, fmtTime, ensureStyle, spinner } from './ui.js';
 import { errBox } from './errbox.js';
 import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot, stageVisible, isOvlSlide, OVL_IDX } from './state.js';
 import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync, setItemProvider } from './route.js';
@@ -364,7 +364,7 @@ function showLoadError(msg, retry) {
   errBox(scroller, msg, function () {
     FeedStore.reset(); // 统一走 reset，不绕过封装直接改 seen/items
     if (!scroller) return;
-    scroller.appendChild(el('div', 'acsv-spinner'));
+    scroller.appendChild(spinner());
     retry();
   });
 }
@@ -414,7 +414,7 @@ function loadDeepLink(mid, src) {
   cancelHashSync();   // 残留回写会拿旧 index 把地址踩成上一条的深链
   FeedStore.reset();  // gen++：作废旧流在途响应（旧源不得回填新库）
   resetStream();
-  if (scroller) scroller.appendChild(el('div', 'acsv-spinner'));
+  if (scroller) scroller.appendChild(spinner());
   API.deepLink(mid, src).then(function (hit) {
     if (!scroller) return; // 加载期间已退出竖刷页
     if (!hit) {
@@ -478,7 +478,7 @@ function mount() {
   syncCommentVars(); // 首次打开抽屉前就写好 --acsv-dw（抽屉宽）/ --acsv-cscale
   root.appendChild(el('div', 'acsv-toast'));
 
-  scroller.appendChild(el('div', 'acsv-spinner'));
+  scroller.appendChild(spinner());
   document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
   document.body.appendChild(root);
@@ -528,7 +528,7 @@ function maybeStartFeed() {
   FollowVideos.feedActive = false; // 0.9.99：同 mount 普通入口，退出关注视频流
   setAppliedMid(null);
   FeedStore.reset();
-  scroller.appendChild(el('div', 'acsv-spinner'));
+  scroller.appendChild(spinner());
   loadInitial();
 }
 

@@ -3,6 +3,20 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.191（2026-10-06）· 架构减债：spinner 单源（ui.spinner()，7 处裸建收口）
+
+- **由头**：架构减债轨道。审计发现 `el('div','acsv-spinner')` 在 **7 处**裸建（`player.js`×4 /
+  `playlayer.js` / `slide.js` / `comments.js`），语义统一（仅「挂/撤转圈」，无宿主差异）= 第二份
+  看着一样的实现。
+- **修法**：`ui.spinner(inline)` 收口（同 errbox 范式）。`inline=true` 是评论列表内的**静态内联变体**
+  ——`.acsv-spinner` 默认 `position:absolute` 靠 slide 的 `data-state` 显隐，列表内需复位为 `static`
+  + 自适应上下留白。`playlayer`/`slide` 内原同名局部变量 `spinner` 改名 `sp`（避免遮蔽导入）。
+- **测试**：build/lint/check（含 tsc）/单测 260/全场景 55 全绿。**纯重构零行为变化**——既有转圈相关
+  断言（`spinner-recover` 6 / `play-deep` / `deeplink-*` / `hls-*` / `play-cold`）原样全绿；`grep`
+  实证裸建收敛为 `ui.js` 一处、调用点 7 处全走 `spinner()`。
+- **顺记（发现，非本批引入）**：连跑期间 harness 有一次单场景偶发失败，随后 3 连跑 + 完整 `npm test`
+  全绿。本批是纯「元素创建路径」重构、不涉时序，判为既有抖动，未定位到具体场景，留观。
+
 ### 0.9.190（2026-10-06）· 修：评论头像框左侧被裁（评论行内边距 + 抽屉 380→412）
 
 - **由头**：用户实报「显示头像框后，头像框左边会被遮挡一部分」，怀疑抽屉太窄。

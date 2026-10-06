@@ -1,5 +1,5 @@
 import { ICONS } from './styles.js';
-import { el, elHtml, fmt, a11y } from './ui.js';
+import { el, elHtml, fmt, a11y, spinner } from './ui.js';
 import { root, setCommentDrawer, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { togglePlayGesture } from './playback.js';
@@ -22,7 +22,7 @@ export function buildSlide(item, idx, goTo) {
     slide.appendChild(amb);
   }
 
-  var spinner = el('div', 'acsv-spinner');
+  var sp = spinner();
   var playicon = elHtml('div', 'acsv-playicon', ICONS.play);
   var errbox = el('div', 'acsv-errbox');
   errbox.appendChild(el('p', null, '视频加载失败'));
@@ -34,7 +34,7 @@ export function buildSlide(item, idx, goTo) {
     attachVideo(slide, item, idx);
   });
   errbox.appendChild(retry);
-  slide.appendChild(spinner);
+  slide.appendChild(sp);
   slide.appendChild(playicon);
   slide.appendChild(errbox);
 

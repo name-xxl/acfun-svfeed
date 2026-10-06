@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { el, fmt, toast } from './ui.js';
+import { el, fmt, toast, spinner } from './ui.js';
 import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
 import { commentShareWire } from './immsg.js';
@@ -183,8 +183,7 @@ function loadComments(sourceId, page, append) {
   var reqId = sourceId; // 换视频后旧响应一律丢弃，防止评论串台/分页游标被污染
   if (!append) {
     resetList(h);
-    h.list.appendChild(el('div', 'acsv-spinner',
-      null)).style.cssText = 'position:static;margin:40px auto;display:block';
+    h.list.appendChild(spinner(true));
   }
   var p = window.__ACSV_MOCK__ ? Promise.resolve(mockComments()) :
     request(CFG.api.comment + sourceId + '&sourceType=' + commentState.stype + '&page=' + page +

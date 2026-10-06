@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.190
+// @version      0.9.191
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.190" : "",
+          ver: true ? "0.9.191" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -780,6 +780,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     e.title = label;
     e.setAttribute("aria-label", label);
     return e;
+  }
+  function spinner(inline) {
+    var s = el("div", "acsv-spinner");
+    if (inline) s.style.cssText = "position:static;margin:40px auto;display:block";
+    return s;
   }
   function closeOnOutsideClick(panel2, keep, onClose) {
     var keeps = [];
@@ -5472,11 +5477,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var reqId = sourceId;
     if (!append) {
       resetList(h);
-      h.list.appendChild(el(
-        "div",
-        "acsv-spinner",
-        null
-      )).style.cssText = "position:static;margin:40px auto;display:block";
+      h.list.appendChild(spinner(true));
     }
     var p = window.__ACSV_MOCK__ ? Promise.resolve(mockComments()) : request(CFG.api.comment + sourceId + "&sourceType=" + commentState.stype + "&page=" + page + "&pivotCommentId=0&newPivotCommentId=&showHotComments=1", "GET");
     Promise.all([p, ensureEmotionMap()]).then(function(res) {
@@ -9309,7 +9310,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       amb.style.backgroundImage = 'url("' + item.cover + '")';
       slide.appendChild(amb);
     }
-    var spinner = el("div", "acsv-spinner");
+    var sp = spinner();
     var playicon = elHtml("div", "acsv-playicon", ICONS.play);
     var errbox = el("div", "acsv-errbox");
     errbox.appendChild(el("p", null, "视频加载失败"));
@@ -9322,7 +9323,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       attachVideo(slide, item, idx);
     });
     errbox.appendChild(retry);
-    slide.appendChild(spinner);
+    slide.appendChild(sp);
     slide.appendChild(playicon);
     slide.appendChild(errbox);
     slide.appendChild(buildControls(slide, idx, item));
@@ -10601,7 +10602,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.190" : "");
+    return normVer(true ? "0.9.191" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12331,12 +12332,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       enterLayer(body, playItemOf(st2));
       return;
     }
-    var spinner = el("div", "acsv-spinner");
+    var sp = spinner();
     function load() {
-      body.appendChild(spinner);
+      body.appendChild(sp);
       API.deepLink(id, parseRoute().src).then(function(hit) {
         if (!body.isConnected) return;
-        spinner.remove();
+        sp.remove();
         if (!hit) {
           errBox(body, "视频加载失败", load);
           return;
@@ -12344,7 +12345,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         enterLayer(body, hit.item);
       }, function() {
         if (!body.isConnected) return;
-        spinner.remove();
+        sp.remove();
         errBox(body, "视频加载失败（网络不可达）", load);
       });
     }
@@ -12691,7 +12692,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     errBox(scroller, msg, function() {
       FeedStore.reset();
       if (!scroller) return;
-      scroller.appendChild(el("div", "acsv-spinner"));
+      scroller.appendChild(spinner());
       retry();
     });
   }
@@ -12730,7 +12731,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     cancelHashSync();
     FeedStore.reset();
     resetStream();
-    if (scroller) scroller.appendChild(el("div", "acsv-spinner"));
+    if (scroller) scroller.appendChild(spinner());
     API.deepLink(mid, src).then(function(hit) {
       if (!scroller) return;
       if (!hit) {
@@ -12792,7 +12793,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     buildDrawer();
     syncCommentVars();
     root.appendChild(el("div", "acsv-toast"));
-    scroller.appendChild(el("div", "acsv-spinner"));
+    scroller.appendChild(spinner());
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     document.body.appendChild(root);
@@ -12833,7 +12834,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     FollowVideos.feedActive = false;
     setAppliedMid(null);
     FeedStore.reset();
-    scroller.appendChild(el("div", "acsv-spinner"));
+    scroller.appendChild(spinner());
     loadInitial();
   }
   function unmount() {
@@ -13782,7 +13783,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.190：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.191：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

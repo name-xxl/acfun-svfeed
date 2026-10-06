@@ -142,6 +142,15 @@ export function a11y(e, label) {
   return e;
 }
 
+// 转圈（0.9.192 单源收口）：el('div','acsv-spinner') 曾在 7 处裸建（player×4/playlayer/slide/
+// comments），语义统一（仅"挂/撤转圈"，无宿主差异）。inline=true → 静态内联变体：评论列表里的
+// 居中转圈（.acsv-spinner 默认 position:absolute 靠 slide 的 data-state 显隐，列表内需复位）。
+export function spinner(inline) {
+  var s = el('div', 'acsv-spinner');
+  if (inline) s.style.cssText = 'position:static;margin:40px auto;display:block';
+  return s;
+}
+
 // ---------- 外点收起（0.9.147 收口） ----------
 // 面板展开后点**面板外任意位置**即收起。两条硬规矩（都是实报病灶换来的）：
 //   ① **捕获相监听**：页面里大量 stopPropagation（控件条/弹幕输入框/
