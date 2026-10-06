@@ -34,7 +34,11 @@ import { relDrawerSync, relDrawerClose } from './reldrawer.js'; // 相关推荐 
 // 那条链在 commentkit.expandSubComments 里按 pcursor 翻，勿与根评论口径混用。
 // **翻页触发（0.9.141 实报改）**：按钮撤除，改「哨兵 + IntersectionObserver」自动续页（三宿主
 // 通用，机制与缘由见下方 armMoreSentinel 块注）
-export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, loading: false, replyTo: null, kind: 'sv' };
+// loadedSourceId：**首屏成功**的源 id 账本（0.9.193）——applyDrawerContent 的重开判据用它，
+//  修「失败后 tip 节点占了 !children.length 的坑 ⇒ 同一视频重开不重拉」
+// failPage：追加失败停在的页号（0=无）。>0 时 canLoadMore() 判假——防触底哨兵在视口内
+//  反复自动重试成请求风暴；点尾行「重试」清闸
+export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, loading: false, replyTo: null, kind: 'sv', loadedSourceId: 0, failPage: 0 };
 
 // 评论管线 DOM 宿主（0.9.96 动态详情面板）：null = 经典抽屉（commentDrawer）。管线全经
 // curHost() 取宿主——与 commentState 数据单例配对；claimDrawer('comments') 同槽互斥保证
@@ -126,7 +130,9 @@ function applyDrawerContent(sourceId, stype, shareUrl, kind, title) {
   if (commentState.sourceId !== sourceId) {
     setReply(null); // 换视频清掉未发送的回复目标
     loadComments(sourceId, 1, false);
-  } else if (!commentDrawer.list.children.length) {
+  } else if (commentState.loadedSourceId !== sourceId) {
+    // 首屏未曾成功（失败态/tip 占位）→ 重开时重拉（0.9.193；旧判据 !list.children.length 被
+    // tip 节点占了坑，同视频重开不重拉，用户只能切走再切回）
     loadComments(sourceId, 1, false);
   }
 }
@@ -182,8 +188,12 @@ function loadComments(sourceId, page, append) {
   commentState.sourceId = sourceId;
   var reqId = sourceId; // 换视频后旧响应一律丢弃，防止评论串台/分页游标被污染
   if (!append) {
-    resetList(h);
+    commentState.failPage = 0;
+    resetList(h); // 首屏/换源：清空整个列表（含任何尾行）
     h.list.appendChild(spinner(true));
+  } else {
+    clearMoreRow(h);                        // 重试/续拉前先摘旧尾行
+    h.list.appendChild(moreRow('loading')); // 触底在途指示（0.9.193）
   }
   var p = window.__ACSV_MOCK__ ? Promise.resolve(mockComments()) :
     request(CFG.api.comment + sourceId + '&sourceType=' + commentState.stype + '&page=' + page +
@@ -192,17 +202,29 @@ function loadComments(sourceId, page, append) {
     if (reqId !== commentState.sourceId) return; // 响应返回前已切到其他视频
     var j = res[0];
     commentState.loading = false;
+    commentState.failPage = 0;
     var list = (j && j.rootComments) || [];
     commentState.page = (j && j.curPage) || page;
     commentState.totalPage = (j && j.totalPage) || 1;
     // 越界空页=到底（防"按钮点了没反应"式空转；正常到底由 page===totalPage 收口）
     if (append && !list.length) commentState.totalPage = commentState.page;
     commentState.count = (j && j.commentCount != null) ? j.commentCount : list.length;
+    if (!append) commentState.loadedSourceId = sourceId; // 首屏成功：落账本（重开判据用）
     renderComments(list, append, j && j.subCommentsMap, (j && j.hotComments) || []);
   }, function () {
     if (reqId !== commentState.sourceId) return;
     commentState.loading = false;
-    renderCommentTip('评论加载失败，请重试');
+    if (append) {
+      // 追加失败（0.9.193 病灶修复）：**不动已渲染列表**，末尾挂可点重试行。
+      // 旧实现不分 append/首屏一律 renderCommentTip ⇒ 清空整列表 + 不可点的「请重试」，
+      // 一次翻页抖动就毁掉整段已读评论。
+      commentState.failPage = page; // 闸门：哨兵不再自动续拉，等用户点重试
+      clearMoreRow(h);
+      h.list.appendChild(moreRow('fail', sourceId, page));
+    } else {
+      commentState.loadedSourceId = 0; // 首屏未成：账本归零 ⇒ 重开能重拉
+      renderCommentTip(h, '评论加载失败', function () { loadComments(sourceId, 1, false); });
+    }
   });
 }
 
@@ -304,11 +326,15 @@ function cmtOpts() {
 //（含 overflow 裁剪与 transform 位移），无需按宿主换挂，也不再有可残留的按钮。
 // 每次渲染后重挂到末尾（新条目要在它之上），并**重新 observe 一次**：IO 只在交叉状态"变化"
 // 时回调，短路页（一页装不满视口）重挂后状态未变不会再回调，重 observe 的初始投递负责续翻
-// ——canLoadMore 闸门（loading/page<totalPage）保证收敛，到底即静默停。
+// ——canLoadMore 闸门（loading/failPage/page<totalPage）保证收敛，到底即停并出**到底尾行**
+// （0.9.193：旧口径"到底静默停"→ 改出「没有更多评论了」，消除"到底了/卡住了"的歧义）。
 var moreSentinel = null, moreIO = null;
 
 function canLoadMore() {
-  return !commentState.loading && commentState.page < commentState.totalPage && !!curHost();
+  // failPage 闸门（0.9.193）：追加失败后禁止哨兵自动续拉（重试行在列表末尾、往往仍在
+  // 视口内，不禁会反复自动重试成请求风暴）；点尾行「重试」清闸
+  return !commentState.loading && !commentState.failPage
+    && commentState.page < commentState.totalPage && !!curHost();
 }
 
 function onSentinel(es) {
@@ -335,6 +361,7 @@ function renderComments(list, append, subMap, hot) {
   var h = curHost();
   if (!h) return;
   if (!append) resetList(h);
+  else clearMoreRow(h); // 追加成功：先摘掉在途的 loading 尾行（0.9.193）
   h.title.textContent = titleText(h, commentState.count);
   if (!list.length && !append) {
     var empty = el('div', 'acsv-drawer-tip', '还没有评论，去原页抢沙发 →');
@@ -360,14 +387,58 @@ function renderComments(list, append, subMap, hot) {
     h.list.appendChild(el('div', 'acsv-hot-divider', '最新评论'));
   }
   list.forEach(push);
+  // 到底提示（0.9.193）：无更多可拉时给一行，消除「到底了还是卡住了」的歧义；
+  // 追加失败时由尾行「重试」代表当前状态，不重复出到底行
+  if (!commentState.failPage && commentState.page >= commentState.totalPage) {
+    h.list.appendChild(moreRow('end'));
+  }
   armMoreSentinel(h); // 列表末尾挂触底哨兵（有下一页才有效；0.9.141 取代「加载更多评论」按钮）
 }
 
-function renderCommentTip(text) {
-  var h = curHost();
+function renderCommentTip(h, text, onRetry) {
   if (!h) return;
   resetList(h);
-  h.list.appendChild(el('div', 'acsv-drawer-tip', text));
+  var tip = el('div', 'acsv-drawer-tip', text);
+  if (onRetry) {
+    var rt = el('a', 'acsv-ctail-rt', '重试');
+    rt.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      tip.remove();
+      onRetry();
+    });
+    tip.appendChild(rt);
+  }
+  h.list.appendChild(tip);
+}
+
+// 列表尾行三态（0.9.193）：loading 触底在途 / fail 追加失败可重试 / end 已到底。
+// 复用 .acsv-drawer-tip 家族（新紧凑样式 .acsv-ctail）；重试点击直绑（行每次重建，无需委托）
+function clearMoreRow(h) {
+  if (!h) return;
+  var r = h.list.querySelector('.acsv-ctail');
+  if (r) r.remove();
+}
+function moreRow(kind, sourceId, page) {
+  var row = el('div', 'acsv-ctail');
+  if (kind === 'loading') {
+    row.appendChild(el('span', 'acsv-ctail-sp'));
+    row.appendChild(el('span', null, '加载中…'));
+  } else if (kind === 'fail') {
+    row.appendChild(el('span', null, '评论加载失败'));
+    var rt = el('a', 'acsv-ctail-rt', '重试');
+    rt.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var h = curHost();
+      if (!h) return;
+      commentState.failPage = 0; // 清闸
+      clearMoreRow(h);
+      loadComments(sourceId, page, true);
+    });
+    row.appendChild(rt);
+  } else {
+    row.appendChild(el('span', null, '没有更多评论了'));
+  }
+  return row;
 }
 
 // ---- 评论输入条（复用动态广场 editor/postComment 模块思路）----

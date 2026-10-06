@@ -3,6 +3,36 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.193（2026-10-06）· 修：评论追加失败会清空整列表（失败分道 + 可重试 + 到底/加载尾行）
+
+- **由头**：本轮体检（架构/体验/理念三路探查 + 自查）发现的高危项；用户过目预览
+  `docs/preview/comment-drawer-states.html` 后确认。
+- **病灶（已核实）**：`comments.js` 的 `loadComments` 失败回调**不分 append/首屏**一律
+  `renderCommentTip`，而它先 `resetList` **清空已加载的全部评论**、只留一句**不可点击**的
+  「评论加载失败，请重试」；且 `applyDrawerContent` 的重开判据 `!list.children.length` 被 tip
+  节点占了坑 ⇒ **同一视频重开也不重拉**（只能切走再切回）。一次翻页网络抖动即毁掉整段已读评论，
+  且用户无路可走。
+- **修法**：
+  ① **失败分道**：追加失败**不动已渲染列表**、末尾挂**可点**重试行（重试只续拉该页）；首屏失败
+     给整块**可点**重试。
+  ② **加载账本**：新增 `commentState.loadedSourceId`（首屏成功后落值），`applyDrawerContent`
+     改判据 ⇒ 失败后同视频重开能重拉。
+  ③ **失败闸门**：新增 `commentState.failPage`，>0 时 `canLoadMore()` 判假——重试行往往仍在视口
+     内，不禁会反复自动重试成请求风暴；点重试清闸。
+  ④ **尾行三态**（新 `.acsv-ctail`，复用既有 `acsv-spin` 关键帧）：触底**加载中** / **加载失败+重试**
+     / **没有更多评论了**（旧口径「到底静默停」→ 出到底行，消除「到底了还是卡住了」的歧义）。
+  三宿主（抽屉/行内/详情）共用管线，一并生效；楼中楼不受影响。
+- **顺核·层叠**：尾行不会被评论输入框遮挡——输入栏 `.acsv-cinput{flex:none}` 是挂在抽屉上的
+  **flex 兄弟节点、在流内**（非覆盖层），列表滚动区底=输入栏顶。Playwright 实测：`listBottom`
+  2241 === `inputTop` 2241，尾行底 2227（留 14px）。唯一覆盖列表底部的是**表情面板**
+  （`.acsv-emotpanel{position:absolute;bottom:57px}`，既有行为，仅"正在挑表情"时临时）。
+- **测试**：build/lint/check（含 tsc）/单测 260/全场景 **56**（+新场景 `comment-fail` 9 断言；
+  view-follow 78→79 补「到底尾行」）全绿。**反跑实证**：还原旧行为（追加失败即 `renderCommentTip`
+  清列表）⇒ `cf-append-fail-keeps-list` 由 `items=2` 变 **`items=0`** 转红（连同 cf-first-page/
+  cf-retry-ok/cf-end-tail 共 4 条红）；还原 ⇒ 全绿。失败桩手法=`comment/list` page>1 返回
+  **rejected Promise**（`net.mockHit` 的 `Promise.resolve` 会把它变 rejected，mock 缝里唯一能造
+  请求失败的方式）。
+
 ### 0.9.192（2026-10-06）· 架构减债：契约面类型检查扩面（route / state / viewreg）
 
 - **由头**：架构减债轨道，接 0.9.188 的 tsc 试点。选定三件 = 被广泛消费 × 契约强 × 纯逻辑：

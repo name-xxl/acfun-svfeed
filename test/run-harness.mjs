@@ -92,6 +92,9 @@ const HARNESS_CASES = [
   // 0.9.91 关注视图（followFeedV2 混合流；0.9.99 重构为仿原生单列无限流：三类行判别位 +
   // 行内写链乐观两向 + 展开/收起 + 滚动触底翻页/状态行；mock 缝依赖 debug 构建，夹具在 my-sample.js）
   { name: 'view-follow', viewport: { width: 1600, height: 900 } },
+  // 0.9.193 评论追加失败健壮性：追加失败**不清列表** + 末尾可点重试 + 到底尾行（rejected promise
+  // 造请求失败；定向桩 comment/list，debug 构建）
+  { name: 'comment-fail', viewport: { width: 1600, height: 900 } },
   // 0.9.126 广场视图（吸收动态广场）：feedSquare 免登录流——dock 高亮/行卡契约/行内评论/
   // 触底续翻/24h 窗口剔除即止/状态行；夹具在 my-sample.js（mock 缝依赖 debug 构建）
   { name: 'view-square', viewport: { width: 1600, height: 900 } },

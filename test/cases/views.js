@@ -1696,6 +1696,15 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     await wait(400); // 到底（page=totalPage）后不再续翻：等一拍条数不变
     rec('follow-cmts-stop', mRow.querySelectorAll('.acsv-frow-cmts .acsv-citem').length === 3,
       'n=' + mRow.querySelectorAll('.acsv-frow-cmts .acsv-citem').length);
+    // 到底尾行（0.9.193）：旧口径「到底静默停」→ 现出「没有更多评论了」，消除「到底了/卡住了」歧义
+    rec('follow-cmts-end-tail', (function () {
+      var box = mRow.querySelector('.acsv-frow-cmts');
+      var t = box && box.querySelector('.acsv-ctail');
+      return !!t && /没有更多评论了/.test(t.textContent) && !t.querySelector('.acsv-ctail-rt');
+    })(), (function () {
+      var t = mRow.querySelector('.acsv-frow-cmts .acsv-ctail');
+      return t ? t.textContent : 'none';
+    })());
     mActs[1].click(); // 收起
     // 视频行也原位展开评论（0.9.101）：stype=3（www 视频）+ sourceId=acId，不再进播放层
     var vActs = vRow.querySelectorAll('.acsv-fact');
@@ -2692,5 +2701,88 @@ rec('square-cmt-namecolor', (function () {
     }, 8000)), location.hash);
     key('Escape');
     await wait(400);
+  };
+  // ---- comment-fail（0.9.193）：评论追加失败**不清列表** + 可重试 + 到底尾行 ----
+  // 病灶（旧实现）：loadComments 的失败回调**不分 append/首屏**一律 renderCommentTip ⇒ resetList
+  // 清空已加载的全部评论、只留一句不可点的「请重试」，一次翻页抖动就毁掉整段已读评论；且
+  // applyDrawerContent 的重开判据被 tip 节点占坑 ⇒ 同视频重开不重拉。本场景钉修复后三件事：
+  //   ① 追加失败**不清列表**（第一页两条仍在）；② 末尾出**可点**重试行；③ 点重试（放开桩后）续上
+  //      + 出「没有更多评论了」到底尾行。
+  // 失败桩手法：page>1 返回 **rejected Promise**——net.mockHit 的 `Promise.resolve(v)` 会把它变
+  // rejected ⇒ 走 loadComments 的失败分支（mock 缝里唯一能造请求失败的方式）。
+  C['comment-fail'] = async function (h) {
+    var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor;
+    var failP2 = { v: true };
+    window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
+      'comment/list': function (body, url) {
+        var page = Number((String(url).match(/[?&]page=(\d+)/) || [])[1] || 1);
+        if (page > 1) {
+          if (failP2.v) return Promise.reject(new Error('boom')); // 追加失败桩
+          return { result: 0, commentCount: 3, curPage: 2, totalPage: 2, pcursor: 'no_more', hotComments: [],
+            rootComments: [{ commentId: 'f3', userId: 33, userName: '丙', headUrl: '', content: '重试成功后的第二页', postDate: '1分钟前', likeCount: 0, isLike: false, subCommentCount: 0 }],
+            subCommentsMap: {} };
+        }
+        return { result: 0, commentCount: 3, curPage: 1, totalPage: 2, pcursor: 'no_more', hotComments: [],
+          rootComments: [
+            { commentId: 'f1', userId: 31, userName: '甲', headUrl: '', content: '第一页第一条', postDate: '1分钟前', likeCount: 0, isLike: false, subCommentCount: 0 },
+            { commentId: 'f2', userId: 32, userName: '乙', headUrl: '', content: '第一页第二条', postDate: '2分钟前', likeCount: 0, isLike: false, subCommentCount: 0 }
+          ],
+          subCommentsMap: {} };
+      }
+    });
+    delete window.__ACSV_MOCK__; // 走定向桩（view-follow 同款处置）
+    location.hash = 'svfeed/follow';
+    rec('cf-open', !!(await waitFor(function () {
+      var v = q('.acsv-view');
+      return v && v.offsetParent !== null;
+    }, 10000)));
+    var mRow = null;
+    await waitFor(function () {
+      var rows = document.querySelectorAll('.acsv-mewrap .acsv-frow');
+      for (var i = 0; i < rows.length; i++) {
+        if (/动态正文带 UBB/.test(rows[i].textContent)) { mRow = rows[i]; return true; }
+      }
+      return false;
+    }, 8000);
+    rec('cf-row', !!mRow);
+    var acts = mRow ? mRow.querySelectorAll('.acsv-fact') : [];
+    if (acts[1]) acts[1].click(); // 评论键 → 行内展开
+    rec('cf-first-page', !!(await waitFor(function () {
+      var box = mRow && mRow.querySelector('.acsv-frow-cmts');
+      return box && box.querySelectorAll('.acsv-citem').length === 2;
+    }, 8000)), 'n=' + (mRow && mRow.querySelectorAll('.acsv-frow-cmts .acsv-citem').length));
+    // 推哨兵进视口 → 触发续页（行内宿主自己不是滚动容器，滚动的是视图体）
+    var sen = mRow && mRow.querySelector('.acsv-frow-cmts .acsv-cmore-sentinel');
+    if (sen && sen.scrollIntoView) sen.scrollIntoView({ block: 'center' });
+    rec('cf-append-fail-keeps-list', !!(await waitFor(function () {
+      var box = mRow && mRow.querySelector('.acsv-frow-cmts');
+      var tail = box && box.querySelector('.acsv-ctail');
+      return !!box && box.querySelectorAll('.acsv-citem').length === 2 // 已渲染两条**仍在**
+        && !!tail && /评论加载失败/.test(tail.textContent) && !!tail.querySelector('.acsv-ctail-rt');
+    }, 8000)), (function () {
+      var box = mRow && mRow.querySelector('.acsv-frow-cmts');
+      var t = box && box.querySelector('.acsv-ctail');
+      return 'items=' + (box ? box.querySelectorAll('.acsv-citem').length : 'na')
+        + ' tail=' + (t ? t.textContent : 'none');
+    })());
+    // 点重试（放开桩）→ 第二页续上 + 失败尾行消失 + 出到底尾行
+    failP2.v = false;
+    var rt = mRow && mRow.querySelector('.acsv-frow-cmts .acsv-ctail-rt');
+    if (rt) rt.click();
+    rec('cf-retry-ok', !!(await waitFor(function () {
+      var box = mRow && mRow.querySelector('.acsv-frow-cmts');
+      return !!box && box.querySelectorAll('.acsv-citem').length === 3
+        && /重试成功后的第二页/.test(box.textContent);
+    }, 8000)), 'n=' + (mRow && mRow.querySelectorAll('.acsv-frow-cmts .acsv-citem').length));
+    rec('cf-end-tail', (function () {
+      var box = mRow && mRow.querySelector('.acsv-frow-cmts');
+      var tail = box && box.querySelector('.acsv-ctail');
+      return !!tail && /没有更多评论了/.test(tail.textContent) && !tail.querySelector('.acsv-ctail-rt');
+    })(), (function () {
+      var t = mRow && mRow.querySelector('.acsv-frow-cmts .acsv-ctail');
+      return t ? t.textContent : 'none';
+    })());
+    if (acts[1]) acts[1].click(); // 收起，防污染
+    await wait(200);
   };
 })();

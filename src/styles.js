@@ -349,6 +349,14 @@ var RAW_CSS = ''
   // 把新条目接在它之后），且行内/面板宿主没有可挂的滚动容器——翻页全权交给上面的哨兵。
   // 退役登记在册，勿再加回
   + '.acsv-drawer-tip{padding:46px 0;text-align:center;color:#888;font-size:13px}'
+  // 评论列表尾行（0.9.193）：触底加载中 / 加载失败可重试 / 已到底——列表末尾三态专用。
+  // 复用既有 acsv-spin 关键帧（.acsv-spinner 同款）；左右 16 与评论行同基准（0.9.190）。
+  // 三宿主（抽屉/行内/详情）共用，色值取中性灰（light 皮肤下原生内嵌评论区同样可读）
+  + '.acsv-ctail{padding:18px 16px;text-align:center;color:#7a8394;font-size:12px}'
+  + '.acsv-ctail-sp{display:inline-block;width:14px;height:14px;border:2px solid rgba(128,128,128,.35);'
+  + 'border-top-color:#cfd3da;border-radius:50%;animation:acsv-spin .8s linear infinite;vertical-align:-2px;margin-right:6px}'
+  + '.acsv-ctail-rt{color:var(--acsv-accent);cursor:pointer;text-decoration:none;margin-left:8px}'
+  + '.acsv-ctail-rt:hover{text-decoration:underline}'
   + '.acsv-hint{position:absolute;bottom:140px;left:50%;transform:translateX(-50%);z-index:40;display:flex;'
   + 'align-items:center;gap:10px;padding:8px 10px 8px 16px;background:rgba(0,0,0,.72);border-radius:999px;'
   + 'font-size:13px;white-space:nowrap;animation:acsv-fadein .3s ease}'
