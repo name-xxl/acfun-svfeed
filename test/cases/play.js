@@ -295,6 +295,30 @@ rec('pip-btn', (function () {
   var b = q('.acsv-slide[data-ovl="1"] .acsv-cpip');
   return b ? ('aria=' + b.getAttribute('aria-label') + ' disp=' + (b.style.display || 'inline') + ' enabled=' + document.pictureInPictureEnabled) : 'none';
 })());
+// 0.9.200 进度条悬停缩略图：harness 无 sprite 桩（请求必失败）→ 必须**优雅降级**：气泡仍出时间、
+// 且不出现缩略图块（绝不能因为拿不到雪碧图就没提示）。真机上的缩略图裁切由解析器单测钉。
+(function () {
+  var t = q('.acsv-slide[data-ovl="1"] .acsv-track');
+  if (t) {
+    var r = t.getBoundingClientRect();
+    t.dispatchEvent(new PointerEvent('pointermove', { clientY: r.top + r.height / 2, clientX: r.left + r.width * 0.5, bubbles: true }));
+  }
+})();
+rec('track-hover-time-only', (function () {
+  var b = q('.acsv-slide[data-ovl="1"] .acsv-bubble');
+  var th = q('.acsv-slide[data-ovl="1"] .acsv-bubthumb');
+  var tm = b && b.querySelector('.acsv-bubtime');
+  return !!b && b.classList.contains('show') && !!tm && /\d/.test(tm.textContent || '')
+    && !!th && th.style.display === 'none';
+})(), (function () {
+  var tm = q('.acsv-slide[data-ovl="1"] .acsv-bubtime');
+  var th = q('.acsv-slide[data-ovl="1"] .acsv-bubthumb');
+  return 'time=' + (tm ? tm.textContent : 'none') + ' thumb=' + (th ? th.style.display : 'none');
+})());
+(function () { // 收气泡，防污染后续
+  var t = q('.acsv-slide[data-ovl="1"] .acsv-track');
+  if (t) t.dispatchEvent(new PointerEvent('pointerleave', { bubbles: true }));
+})();
 key('c');
 rec('play-key-comments-close', !!(await waitFor(function () {
   var r = q('#acsv-root');

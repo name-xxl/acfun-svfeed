@@ -97,6 +97,44 @@ function intToHex(n) {
 // 「弹层选夹」（官方口径）后不再有"快速落第一个夹"路径，收藏写链整体收口 **favapi.js**
 //（三分支 add/updateFolder/remove + 夹 CRUD），操作面在 favpop.js（选择层）与 mypage（夹管理）。
 
+// ---------- 进度条悬停缩略图（0.9.200） ----------
+// 雪碧图 WEBVTT 解析（纯函数，单测直采）：A 站 spriteVtt 回包是标准 WEBVTT，每条 cue 的载荷是
+// `图片URL#xywh=x,y,w,h`；时间戳形如 `HH:MM:SS.mmm` **秒后用冒号再毫秒**（非标准 VTT 的 `.`），
+// 两种都兼容。同一条 cue 的 URL 去掉 `#xywh` 后即整张雪碧图（带 sign/t/us 防盗链参数，原样保留）。
+export function parseSpriteVtt(text) {
+  var out = [];
+  var lines = String(text || '').split(/\r?\n/);
+  var re = /^(\d{1,2}):(\d{2}):(\d{1,2})[.:](\d{1,3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{1,2})[.:](\d{1,3})/;
+  for (var i = 0; i < lines.length; i++) {
+    var m = re.exec(lines[i].trim());
+    if (!m) continue;
+    var at = (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / 1000;
+    var url = (lines[i + 1] || '').trim();
+    if (!url) continue;
+    var hash = url.indexOf('#');
+    var xy = /#xywh=(\d+),(\d+),(\d+),(\d+)/.exec(url);
+    out.push({
+      at: at,
+      url: hash >= 0 ? url.slice(0, hash) : url,
+      x: xy ? Number(xy[1]) : 0,
+      y: xy ? Number(xy[2]) : 0,
+      w: xy ? Number(xy[3]) : 160,
+      h: xy ? Number(xy[4]) : 96
+    });
+  }
+  return out;
+}
+
+// 取某秒对应的缩略图 cue（cues 按 at 升序；线性扫足够——单条视频几百条，且只在 hover 时调）
+export function spriteCueAt(cues, sec) {
+  if (!cues || !cues.length) return null;
+  var hit = cues[0];
+  for (var i = 0; i < cues.length; i++) {
+    if (cues[i].at <= sec) hit = cues[i]; else break;
+  }
+  return hit;
+}
+
 export var AppAPI = {
   // ---- 首页推荐流 ----
   resetPager: function () { pcursor = ''; exhausted = false; },
@@ -322,6 +360,24 @@ export var AppAPI = {
       return list;
     });
   },
+  // 进度条悬停缩略图（0.9.200）：免登录；失败静默返回 []（调用方降级为"只有时间"）。
+  // 带微缓存：同 videoId 只打一次（跨条/重挂都命中）
+  spriteCache: {},
+  spriteVtt: function (videoId, acId) {
+    var self = this;
+    var key = String(videoId || '');
+    if (!key) return Promise.resolve([]);
+    if (self.spriteCache[key]) return self.spriteCache[key];
+    var p = request(CFG.api.spriteVtt + q(''), 'POST', homeHeaders(false),
+      'videoId=' + key + '&resourceId=' + acId + '&resourceType=2&mkey=' + CFG.home.mkey)
+      .then(function (j) {
+        if (!j || j.result !== 0 || !j.spriteVtt) { delete self.spriteCache[key]; return []; }
+        return parseSpriteVtt(j.spriteVtt);
+      }, function () { delete self.spriteCache[key]; return []; });
+    self.spriteCache[key] = p;
+    return p;
+  },
+
   danmakuAdd: function (item, text, positionMs) {
     var ch = item.channel || {};
     return postForm(CFG.api.dmAdd,

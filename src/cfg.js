@@ -66,6 +66,9 @@ export var CFG = {
     homeFeed: 'https://api-new.app.acfun.cn/rest/app/selection/feed/singleColumn',
     dougaInfo: 'https://api-new.app.acfun.cn/rest/app/douga/info',
     playInfo: 'https://api-new.app.acfun.cn/rest/app/play/playInfo/cast',
+    // 进度条悬停缩略图（0.9.200）：免登录（§10.4 实测），POST videoId&resourceId&resourceType=2
+    // → `spriteVtt` = WEBVTT 文本（每 cue 载荷 `图URL#xywh=x,y,w,h`，瓦片 160×96，带 sign/t/us 防盗链）
+    spriteVtt: 'https://api-new.app.acfun.cn/rest/app/play/playInfo/spriteVtt',
     // ---- 收藏（www.acfun.cn PC 端收藏夹体系，网页 Cookie 鉴权） ----
     favoriteAdd: 'https://www.acfun.cn/rest/pc-direct/favorite/resource/add',
     favoriteRemove: 'https://www.acfun.cn/rest/pc-direct/favorite/resource/remove',

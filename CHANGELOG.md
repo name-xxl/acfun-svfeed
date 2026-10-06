@@ -3,6 +3,23 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.200（2026-10-07）· 播放器打磨（七）：进度条悬停缩略图（spriteVtt）
+
+- **由头**：用户点选（预览稿 ④）。此前气泡**只有时间**。
+- **真机取证**（2026-10-07，匿名直连即可）：`POST play/playInfo/spriteVtt`（§10.4 记免登录）→ `spriteVtt`
+  是 **WEBVTT**（样本 49k 文本）；每条 cue 载荷 `图URL#xywh=x,y,w,h`，瓦片 **160×96**，URL 带 sign/t/us
+  防盗链参数；**时间戳形如 `HH:MM:SS.mmm`——秒后用冒号再接毫秒**（非标准 VTT 的 `.`），且**秒可一位**
+  （`00:01:2.500`）——两条都已兼容并写进单测。
+- **修法**：`cfg.api.spriteVtt` + `appapi.spriteVtt(videoId, acId)`（**微缓存**：同 videoId 只打一次；
+  失败静默返回 `[]`）+ 纯函数 `parseSpriteVtt`/`spriteCueAt`（单测直采）；控制栏气泡加
+  `.acsv-bubthumb`（**CSS background 裁显示**，不走 imgload——它非"封面字段"语义）与 `.acsv-bubtime`，
+  悬停 `pointermove` 时懒拉一次并按当前秒取 cue 摆位。
+- **优雅降级**：拿不到雪碧图（或没数据）时缩略图整块 `display:none`，气泡回落为「只有时间」——
+  绝不因为预览图失败就连时间提示都没有。
+- **测试**：build/lint/check（含 tsc）/单测 **265**（+3：新 `spritevtt.test.js` 解析 / 脏输入 / 取 cue）/
+  全场景 56 全绿。play-deep 59→60 断言：`track-hover-time-only`（harness 无 sprite 桩 ⇒ 必须只出时间、
+  不出缩略图块）。注：真机缩略图的**裁切正确性**由解析器单测钉（harness 侧无 sprite 数据）。
+
 ### 0.9.199（2026-10-07）· 播放器打磨（六）：画中画 PiP（换条/退出自动关）
 
 - **由头**：用户裁决「画中画＝换条/退出时自动关」（预览稿内已记）。

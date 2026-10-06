@@ -6,6 +6,7 @@ import { FeedStore } from './feedstore.js';
 import { pb, togglePlayGesture, toggleMuteGesture, applyLoop, setVolume, isMuted } from './playback.js';
 import { dmEnabled, setDmEnabled, onPlaying as dmOnPlaying, createDmBox as dmCreateBox } from './danmaku.js';
 import { switchQuality, attachVideo } from './attach.js';
+import { AppAPI, spriteCueAt } from './appapi.js'; // 悬停缩略图（0.9.200）
 import { getSetting, setSetting, onChange } from './settings.js';
 
 // ---------- 播放控制栏 ----------
@@ -41,12 +42,36 @@ export function buildControls(slide, idx, item) {
   var fill = el('div', 'acsv-track-fill');
   var handle = el('div', 'acsv-track-handle');
   var bubble = el('div', 'acsv-bubble');
+  var bthumb = el('div', 'acsv-bubthumb'); // 悬停缩略图（0.9.200；无数据时不占位）
+  var btime = el('div', 'acsv-bubtime');
+  bubble.appendChild(bthumb);
+  bubble.appendChild(btime);
   track.appendChild(fill);
   track.appendChild(handle);
   track.appendChild(bubble);
 
   var dragging = false;
   function videoOf() { return slide.querySelector('video'); }
+  // 缩略图懒拉（0.9.200）：首次悬停才取，失败静默（整块不显示，气泡回落为"只有时间"）
+  function ensureSprite() {
+    if (!item || item._sprite || item._spriteBusy || !item.videoId) return;
+    item._spriteBusy = true;
+    AppAPI.spriteVtt(item.videoId, item.id).then(function (cues) {
+      item._spriteBusy = false;
+      item._sprite = cues || [];
+    }, function () { item._spriteBusy = false; });
+  }
+  function showThumb(sec) {
+    var cues = item && item._sprite;
+    var c = cues && cues.length ? spriteCueAt(cues, sec) : null;
+    if (!c) { bthumb.style.display = 'none'; bubble.classList.remove('has-thumb'); return; }
+    bthumb.style.display = 'block';
+    bubble.classList.add('has-thumb');
+    bthumb.style.width = c.w + 'px';
+    bthumb.style.height = c.h + 'px';
+    bthumb.style.backgroundImage = 'url("' + c.url + '")';
+    bthumb.style.backgroundPosition = (-c.x) + 'px ' + (-c.y) + 'px';
+  }
   function ratioAt(ev) {
     var r = track.getBoundingClientRect();
     return Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
@@ -57,7 +82,11 @@ export function buildControls(slide, idx, item) {
       handle.style.left = ratio * 100 + '%';
     }
     var v = videoOf();
-    if (v && v.duration) bubble.textContent = fmtTime(ratio * v.duration);
+    if (v && v.duration) {
+      var sec = ratio * v.duration;
+      btime.textContent = fmtTime(sec);
+      showThumb(sec);
+    }
     bubble.style.left = ratio * 100 + '%';
     bubble.classList.add('show');
   }
@@ -69,6 +98,7 @@ export function buildControls(slide, idx, item) {
     ev.preventDefault();
   });
   track.addEventListener('pointermove', function (ev) {
+    ensureSprite(); // 悬停即预取缩略图数据（懒拉一次，失败静默）
     preview(ratioAt(ev), dragging);
   });
   track.addEventListener('pointerleave', function () {
