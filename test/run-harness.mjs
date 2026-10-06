@@ -324,7 +324,12 @@ async function runOne(c) {
 // （现象：某个页面的子资源拉取偶发卡住），与并发度、与本批改动无关。
 // 处置：不再按 CI 分流（全平台同池并发），改为**驱动层失败自动重试一次**（见 runOne）。
 const ALL_PARALLEL = !process.env.HARNESS_SERIAL;
-var CONC = Math.max(1, Number(process.env.HARNESS_CONC) || Math.min(6, Math.max(2, Math.floor(os.cpus().length / 4))));
+// CI 恒串行（0.9.209 实测）：GitHub 跑机上"某页子资源偶发拉不动"的根子是**争抢**——
+// 现象是驱动层 page.goto 超时、断言零失败、重试常能救回（重试仍失败的并发窗口约 1 分钟），
+// 且 2026-10-05 那次失败（本批之前）就是同一形态。核数少 + 每页 1.1MB 产物 + 视频解码叠在
+// 2~4 核上，并发页越多越容易撞上。故 CI 一律 CONC=1（串行），本地保持同池并发的提速。
+var CONC = Math.max(1, Number(process.env.HARNESS_CONC)
+  || (process.env.CI ? 1 : Math.min(6, Math.max(2, Math.floor(os.cpus().length / 4)))));
 var serialCases = ALL_PARALLEL ? [] : CASES.filter(function (c) { return c.serial; });
 var parCases = ALL_PARALLEL ? CASES : CASES.filter(function (c) { return !c.serial; });
 for (var i = 0; i < serialCases.length; i++) await runOne(serialCases[i]);
