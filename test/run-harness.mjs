@@ -258,18 +258,15 @@ while (!port || BLOCKED_PORTS.has(port)) {
 console.log('[info] 静态服务 http://127.0.0.1:' + port + '（docroot=' + ROOT + '）');
 
 var browser = await launch();
-var failed = 0, ran = 0;
+var failed = 0, ran = 0, retried = 0;
 
-async function runOne(c) {
-  var skip = HEADLESS_SKIP.filter(function (s) { return s.name === c.name; })[0];
-  if (skip) { console.log('SKIP ' + c.name + ' — ' + skip.reason); return; }
+// 单次尝试的结局：'pass' | 'assert'（断言红，**不重试**）| 'driver'（驱动层失败，可重试一次）
+async function runOnce(c) {
   var t0 = Date.now();
-
   var page = await browser.newPage(c.viewport ? { viewport: c.viewport } : undefined);
   try {
-    // 导航超时 30s（Playwright 默认）→ 60s：CI 实测偶发（2026-10-06 发布 v0.9.208 时
-    // play-cold 报 page.goto 30s 超时、断言一条没错，重跑即绿）——冷启动叠加同池并发时，
-    // 1.1MB 的 debug 产物按 ?v= 破缓存逐页重取，慢跑机上 30s 余量不够。只放宽等待，不放宽断言。
+    // 导航超时 60s（Playwright 默认 30s）：给"页面子资源偶发卡住"留余量；再叠 runOne 的驱动层重试。
+    // 两处都只放宽等待/重试驱动，**不放宽任何断言**。
     await page.goto('http://127.0.0.1:' + port + c.url, { waitUntil: 'load', timeout: 60000 });
     await page.waitForFunction(
       function (k) { return window[k] && window[k].done === true; },
@@ -279,23 +276,37 @@ async function runOne(c) {
       { timeout: 120000, polling: 100 }
     );
     var res = await page.evaluate(function (k) { return window[k]; }, c.key);
-    ran++;
     var bad = res.results.filter(function (r) { return !r.pass; });
     var dt = ((Date.now() - t0) / 1000).toFixed(1) + 's';
     if (bad.length) {
-      failed++;
       console.log('FAIL ' + c.name + '  (' + (res.results.length - bad.length) + '/' + res.results.length + ' 断言通过, ' + dt + ')');
       bad.forEach(function (r) { console.log('     ✗ ' + r.name + (r.info ? '  (' + r.info + ')' : '')); });
-    } else {
-      console.log('PASS ' + c.name + '  (' + res.results.length + ' 断言, ' + dt + ')');
+      return 'assert';
     }
+    console.log('PASS ' + c.name + '  (' + res.results.length + ' 断言, ' + dt + ')');
+    return 'pass';
   } catch (e) {
-    failed++;
-    ran++;
-    console.log('FAIL ' + c.name + '  (驱动层：' + e.message.split('\n')[0] + ', ' + ((Date.now() - t0) / 1000).toFixed(1) + 's)');
+    console.log('FAIL ' + c.name + '  (驱动层：' + e.message.split(/\r?\n/)[0] + ', ' + ((Date.now() - t0) / 1000).toFixed(1) + 's)');
+    return 'driver';
   } finally {
     await page.close();
   }
+}
+
+async function runOne(c) {
+  var skip = HEADLESS_SKIP.filter(function (s) { return s.name === c.name; })[0];
+  if (skip) { console.log('SKIP ' + c.name + ' — ' + skip.reason); return; }
+  var r = await runOnce(c);
+  if (r === 'driver') {
+    // 驱动层失败＝环境级偶发（页面子资源卡住，见下方归因更正）——重试一次；
+    // 断言失败（'assert'）绝不重试，不拿重试掩盖真回归
+    retried++;
+    console.log('RETRY ' + c.name + '（驱动层失败，重试一次）');
+    r = await runOnce(c);
+  }
+  ran++;
+  if (r === 'pass') return;
+  failed++;
 }
 
 // 并发策略（0.9.203 改）：**全部场景一个池**跑，默认并发按 CPU 数取。
@@ -306,19 +317,19 @@ async function runOne(c) {
 // serial 标记**保留**（它记录了哪些场景曾被判定敏感）：`HARNESS_SERIAL=1` 恢复老口径独占分组，
 // 怀疑某场景假红时用它做对照诊断。
 // 并发度：`HARNESS_CONC` 覆盖；默认 min(6, max(2, 核数/4))——核少时自动退回 2，不吃满低配机。
-// CI 口径（0.9.209 实测定标）：GitHub 跑机（2 核）在**同池并发**下会偶发 page.goto 卡死——
-// 2026-10-06 发布 v0.9.208 那两个 push 各栽 1~2 个场景（play-cold / deeplink-sv / deeplink-bare），
-// **断言零失败、只有驱动层导航超时**，把超时从 30s 抬到 60s 也没救（卡的是页面加载本身）。
-// 而它在 0.9.203 之前用「串行组独占 + 并行组两两」的口径一直是稳的 ⇒ **CI 恒回老口径**，
-// 本地（20 核）保持同池并发的 37s 提速。要临时本地对照老口径用 HARNESS_SERIAL=1。
-const ALL_PARALLEL = !process.env.HARNESS_SERIAL && !process.env.CI;
+// **归因更正（2026-10-06 晚，发布 v0.9.208 时）**：CI 连栽三次（play-cold / deeplink-sv / deeplink-bare
+// 的 page.goto 超时，**断言零失败**），一度以为是同池并发所致并让 CI 回退独占分组——**已证伪**：
+// ① 回退后那次 CI 照栽同一个 play-cold；② 翻历史，2026-10-05 那次失败的 CI（本批之前、并发改动之前）
+// 栽的是**同样这三个场景、同样只有驱动层超时**，当时重跑即过。⇒ 这是**既有的环境级偶发**
+// （现象：某个页面的子资源拉取偶发卡住），与并发度、与本批改动无关。
+// 处置：不再按 CI 分流（全平台同池并发），改为**驱动层失败自动重试一次**（见 runOne）。
+const ALL_PARALLEL = !process.env.HARNESS_SERIAL;
 var CONC = Math.max(1, Number(process.env.HARNESS_CONC) || Math.min(6, Math.max(2, Math.floor(os.cpus().length / 4))));
 var serialCases = ALL_PARALLEL ? [] : CASES.filter(function (c) { return c.serial; });
 var parCases = ALL_PARALLEL ? CASES : CASES.filter(function (c) { return !c.serial; });
 for (var i = 0; i < serialCases.length; i++) await runOne(serialCases[i]);
 if (parCases.length) {
-  console.log('[info] 并发 ' + CONC + '（' + (ALL_PARALLEL ? '全场景同池' : '时序敏感场景串行独占')
-    + (process.env.CI ? ' | CI 口径' : '') + '）');
+  console.log('[info] 并发 ' + CONC + '（' + (ALL_PARALLEL ? '全场景同池' : '时序敏感场景串行独占') + '）');
   var pIdx = 0;
   await Promise.all(Array.from({ length: CONC }, async function () {
     while (pIdx < parCases.length) {
@@ -330,5 +341,5 @@ if (parCases.length) {
 
 await browser.close();
 server.close();
-console.log('—— ' + ran + ' 个场景，失败 ' + failed + ' ——');
+console.log('—— ' + ran + ' 个场景，失败 ' + failed + (retried ? ('（' + retried + ' 个驱动层偶发已重试）') : '') + ' ——');
 process.exit(failed ? 1 : 0);
