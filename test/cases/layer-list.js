@@ -8,7 +8,10 @@
 //   /search/video（acId 500000+k）、selection/feed（__ACSV_MOCK_HOME__ 8 条）、
 //   feed/related/general（池 700000+rid*10+k）——全在 my-sample/home-sample 里。
 // 反跑：摘 playlayer 的 list 分派（走回 walk）⇒ ll-zone-step 红；摘 ctxOfVm 的 readSetting
-// 分支 ⇒ ll-jx-list 红；摘 syncArrows ⇒ ll-zone-end/ll-up-hidden-first 红。
+// 分支 ⇒ ll-jx-list 红；摘 syncArrows ⇒ ll-zone-end/ll-up-hidden-first 红；
+// ⑤连播进层（0.9.183）：摘 player.js onEnded 的层内 playStep 分支 ⇒ ll-autonext 红；
+// 摘 controls 开关遍历的根级扩面/applyLoop ⇒ ll-auto-loop-off/ll-auto-loop-on 红；
+// 摘 state.ovlNoNext 注册或 playback.applyLoop 的 single 豁免 ⇒ ll-single-loop-always 红。
 window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
 
 (function () {
@@ -320,9 +323,65 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       var p = TEST.call('playlayer') || {};
       return p.active && Number(p.id) === idS;
     })(), 'id=' + (TEST.call('playlayer') || {}).id + '/' + idS);
+    // 单条会话的连播语义（0.9.183）：没有下一条 → 连播开着也只循环（loop 恒 true、ended 不前进）
+    var autoBtnS = q('.acsv-slide[data-ovl="1"] .acsv-cauto');
+    rec('ll-single-autobtn-dom', !!autoBtnS);
+    if (autoBtnS) autoBtnS.click();
+    rec('ll-single-loop-always', !!(await waitFor(function () {
+      var v = q('.acsv-slide[data-ovl="1"] video');
+      return v && v.loop === true ? v : null;
+    }, 8000)), 'loop=' + ((q('.acsv-slide[data-ovl="1"] video') || {}).loop));
+    var vS = await waitFor(function () { return q('.acsv-slide[data-ovl="1"] video'); }, 8000);
+    if (vS) vS.dispatchEvent(new Event('ended'));
+    await wait(400);
+    rec('ll-single-ended-noop', (function () {
+      var p = TEST.call('playlayer') || {};
+      return p.active && Number(p.id) === idS;
+    })(), 'id=' + (TEST.call('playlayer') || {}).id);
+    if (autoBtnS) autoBtnS.click(); // 还原开关，免影响后续块
     key('Escape');
     rec('ll-follow-exit', !!(await waitFor(function () {
       return TEST.call('view') === 'follow' && !(TEST.call('playlayer') || {}).active;
+    }, 6000)), 'view=' + TEST.call('view'));
+
+    // ---- ⑤ 连播进层（0.9.183）：连播开关旧实现只接竖刷——层内（非推荐板块）播完必须自动下一条 ----
+    location.hash = '#svfeed/zone';
+    rec('ll-auto-rows', !!(await waitFor(function () {
+      return document.querySelectorAll('.acsv-rlist-row .acsv-vrow').length >= 4;
+    }, 10000)), 'rows=' + document.querySelectorAll('.acsv-rlist-row .acsv-vrow').length);
+    var rowsA = document.querySelectorAll('.acsv-rlist-row .acsv-vrow');
+    if (!rowsA.length) return;
+    rowsA[0].click();
+    rec('ll-auto-list', !!(await waitFor(function () {
+      var p = TEST.call('playlayer') || {};
+      return p.active && p.session === 'list' && Number(p.id) === 489500 ? p : null;
+    }, 8000)), JSON.stringify(TEST.call('playlayer')));
+    // 连播开启：层内视频 loop 关（有下一条可连；旧实现只扫 scroller，层内 loop 不随开关走）。
+    // 换条后新视频要等解析回包才 _attach——一律 waitFor 落地再断言
+    var autoBtnA = q('.acsv-slide[data-ovl="1"] .acsv-cauto');
+    rec('ll-auto-btn-dom', !!autoBtnA);
+    if (autoBtnA) autoBtnA.click();
+    rec('ll-auto-loop-off', !!(await waitFor(function () {
+      var v = q('.acsv-slide[data-ovl="1"] video');
+      return v && v.loop === false ? v : null;
+    }, 8000)), 'loop=' + ((q('.acsv-slide[data-ovl="1"] video') || {}).loop));
+    // 播完（ended 事件）→ 自动下一条 = list 顺序 489501，与手动 ↓ 同路分派
+    var vA = q('.acsv-slide[data-ovl="1"] video');
+    if (vA) vA.dispatchEvent(new Event('ended'));
+    rec('ll-autonext', !!(await waitFor(function () {
+      var p = TEST.call('playlayer') || {};
+      return p.active && p.listIdx === 1 && Number(p.id) === 489501 ? p : null;
+    }, 8000)), JSON.stringify(TEST.call('playlayer')));
+    // 关掉连播：换条后新视频 loop 开（开关遍历覆盖层内视频——旧实现只扫 scroller 会漂）
+    var autoBtnB = q('.acsv-slide[data-ovl="1"] .acsv-cauto');
+    if (autoBtnB) autoBtnB.click();
+    rec('ll-auto-loop-on', !!(await waitFor(function () {
+      var v = q('.acsv-slide[data-ovl="1"] video');
+      return v && v.loop === true ? v : null;
+    }, 8000)), 'loop=' + ((q('.acsv-slide[data-ovl="1"] video') || {}).loop));
+    key('Escape');
+    rec('ll-auto-exit', !!(await waitFor(function () {
+      return TEST.call('view') === 'zone' && !(TEST.call('playlayer') || {}).active;
     }, 6000)), 'view=' + TEST.call('view'));
   };
 })();

@@ -73,7 +73,7 @@ export function createSession(slide, item, idx, hooks) {
       sweepSlideVideos(slide);
       var video = document.createElement('video');
       video.className = 'acsv-video';
-      hooks.initVideo(video); // muted/loop/playbackRate 由 player 全局状态决定
+      hooks.initVideo(this, video); // muted/loop/playbackRate 由 player 全局状态决定（loop 落点=playback.applyLoop）
       video.playsInline = true;
       video.setAttribute('playsinline', '');
       video.preload = 'auto';

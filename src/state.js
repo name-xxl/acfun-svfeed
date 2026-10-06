@@ -62,6 +62,13 @@ export function watchTarget() { return watchTargetFn; }
 export var playItem = null;
 export function setPlayItem(it) { playItem = it; }
 
+// 播放层「当前会话没有下一条」（single 单条来源，如动态视频卡片）——判据本体是 playlayer
+// 私有会话状态，经注册注入（同 playItem 中介先例，playlayer 模块装载时登记一次）；消费方
+// 是 playback.applyLoop 的 loop 落点（player/controls 共用），零新模块边
+var ovlNoNextFn = null;
+export function setOvlNoNext(fn) { ovlNoNextFn = typeof fn === 'function' ? fn : null; }
+export function ovlNoNext() { return !!(ovlNoNextFn && ovlNoNextFn()); }
+
 // ---------- 播放层哨兵（0.9.78 契约函数化） ----------
 // 播放层（playlayer）的 slide 不在竖刷流里，而且它的 idx 是哨兵：唯一判据是 dataset.ovl==='1'
 // （playlayer 写、判据函数在此读出）。0.9.74 起这条约束只活在注释里——0.9.77 评审实锤

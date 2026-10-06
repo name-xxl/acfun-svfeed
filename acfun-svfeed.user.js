@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.182
+// @version      0.9.183
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.182" : "",
+          ver: true ? "0.9.183" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -633,6 +633,13 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var playItem = null;
   function setPlayItem(it) {
     playItem = it;
+  }
+  var ovlNoNextFn = null;
+  function setOvlNoNext(fn) {
+    ovlNoNextFn = typeof fn === "function" ? fn : null;
+  }
+  function ovlNoNext() {
+    return !!(ovlNoNextFn && ovlNoNextFn());
   }
   var OVL_IDX = -1;
   function isOvlSlide(el2) {
@@ -6990,6 +6997,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     // 静音提示只弹一次
     soundHintDismissed: false
   };
+  function applyLoop(slide, video) {
+    video.loop = !pb.autoplayNext || isOvlSlide(slide) && ovlNoNext();
+  }
   function resetForMount() {
     pb.firstGestureSeen = false;
     pb.soundHintShown = false;
@@ -7349,7 +7359,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         sweepSlideVideos(slide);
         var video = document.createElement("video");
         video.className = "acsv-video";
-        hooks3.initVideo(video);
+        hooks3.initVideo(this, video);
         video.playsInline = true;
         video.setAttribute("playsinline", "");
         video.preload = "auto";
@@ -8044,10 +8054,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       ev.stopPropagation();
       pb.autoplayNext = !pb.autoplayNext;
       autoBtn.classList.toggle("on", pb.autoplayNext);
-      if (scroller) {
-        var vs = scroller.querySelectorAll("video");
+      if (root) {
+        var vs = root.querySelectorAll("video");
         Array.prototype.forEach.call(vs, function(v) {
-          v.loop = !pb.autoplayNext;
+          var sl = v.closest(".acsv-slide");
+          if (sl) applyLoop(sl, v);
         });
       }
       toast(pb.autoplayNext ? "连播已开启：播完自动下一条" : "连播已关闭：单条循环播放");
@@ -10536,7 +10547,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.182" : "");
+    return normVer(true ? "0.9.183" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11928,6 +11939,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var queue = [];
   var stepping = false;
   var session = { kind: "single", list: [], rows: null, idx: -1, more: null };
+  setOvlNoNext(function() {
+    return session.kind === "single";
+  });
   function openPlayer(pi, ctx) {
     if (!pi || !pi.acId) return;
     pending2 = pi;
@@ -12369,9 +12383,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }, 150);
   });
   var SESSION_HOOKS = {
-    initVideo: function(video) {
+    initVideo: function(session2, video) {
       video.muted = !pb.soundOn;
-      video.loop = !pb.autoplayNext;
+      applyLoop(session2.slide, video);
       video.playbackRate = pb.seekHold.active ? 2 : pb.playRate;
     },
     // 播放层开着时"当前条"是层内那条（哨兵 idx）：session 的自动起播判定按它比对
@@ -12449,7 +12463,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     // 播完也是一次"离开"：先报最终进度再连播滚动（后续 dispose 重复触发由同秒位去重拦截）
     onEnded: function(session2) {
       reportLeave(session2, session2.video, "ended");
-      if (pb.autoplayNext && !isOvlSlide(session2.slide) && session2.idx === FeedStore.current) {
+      if (!pb.autoplayNext) return;
+      if (isOvlSlide(session2.slide)) {
+        playStep(1);
+        return;
+      }
+      if (session2.idx === FeedStore.current) {
         scrollToIndex(session2.idx + 1);
       }
     },
@@ -13711,7 +13730,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.182：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.183：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

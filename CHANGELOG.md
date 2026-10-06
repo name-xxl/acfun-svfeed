@@ -3,6 +3,26 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.183（2026-10-06）· 连播进层：非推荐板块（播放层）播完自动下一条
+
+- **由头**：用户实报「连播对非推荐板块不生效」。定因：连播的唯一自动出口在 player.js
+  `onEnded`，其中 `!isOvlSlide(session.slide)` 豁免把播放层会话全部挡在门外——这是 0.9.78
+  的写法，当时层内确实没有"下一条"；0.9.170–174 层内已有 walk/list 会话（相关池/来源
+  列表，`stepNext` 与手动 ↓ 同路），连播却没接过去。推荐板块=主竖刷不经过播放层故正常，
+  其余板块（分区/广场/搜索/榜单/收藏/空间/动态卡片）全走播放层 ⇒ 开关在层内是 no-op。
+  连带发现开关切换只扫 `scroller` 里的 video，层内视频 loop 不随开关走（漂移）。
+- **修法**：① `onEnded` 层内分支接 `playStep(1)`（walk/list 自动下一条；single 由 loop
+  兜底不会走到）；② loop 落点收单源 `playback.applyLoop`——attach（`hooks.initVideo`
+  改传 session）与开关切换两处共用；③ 开关遍历扩到全舞台（root）：层内 slide 挂在视图
+  体下不在 scroller 里；④ 层内 **single 会话（动态视频卡片）没有下一条 → 连播开着也只
+  循环**（"没有下一条可连时回落单条循环"），谓词经 state.js `setOvlNoNext` 注入
+  （playItem 同型中介：playlayer→slide→controls 有环，消费方零新模块边）。
+- **测试**：layer-list 新增 ⑤ 连播进层块 + ④ 单条连播语义（共 6 条新断言：
+  ll-single-loop-always/ll-single-ended-noop/ll-auto-loop-off/ll-autonext/ll-auto-loop-on
+  等）——**反跑实证**：摘 onEnded 层内分支 ⇒ ll-autonext 红；摘开关根级遍历 ⇒
+  ll-auto-loop-off 红；摘 applyLoop 的 single 豁免 ⇒ ll-single-loop-always 红。
+  全链 build/lint/check/单测 258/全场景 55 绿。
+
 ### 0.9.182（2026-10-06）· hls 装载第三层：Blob 脚本（页面 world）——实机「秒拒」形态补缺
 
 - **由头**：0.9.181 交付后用户真机复测仍「视频加载失败」；新读数形态变化——`hls.evalMs` 9→1

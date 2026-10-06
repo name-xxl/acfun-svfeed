@@ -5,7 +5,7 @@ import { API } from './api.js';
 import { playItemOf } from './playitem.js';
 import { setItemOpener } from './cards.js';
 import { registerView } from './viewreg.js';
-import { setVideoTarget, setWatchTarget, setPlayItem, OVL_IDX } from './state.js';
+import { setVideoTarget, setWatchTarget, setPlayItem, setOvlNoNext, OVL_IDX } from './state.js';
 import { buildSlide } from './slide.js';
 import { attachVideo } from './attach.js';
 import { batch as relatedBatch, seed, setLayerHost, setLayerOpener } from './relatedapi.js';
@@ -55,6 +55,9 @@ var stepping = false;
 // ↑ 一律走 hist 历史回退（跨会话也成立：跳轨后 ↑ 能退回原列表原位）。
 // 上下文由**来源自己**在 openPanelItem(pi, ctx) 时给（视图最懂自家列表语义），层只管消费。
 var session = { kind: 'single', list: [], rows: null, idx: -1, more: null };
+// 「当前会话没有下一条」中介注册（0.9.183）：playback.applyLoop 的 loop 落点读它（single
+// 恒循环）——判据是本会话私有状态，经 state 注入（playItem 同型先例），消费方零新模块边
+setOvlNoNext(function () { return session.kind === 'single'; });
 
 export function openPlayer(pi, ctx) {
   if (!pi || !pi.acId) return;

@@ -1,6 +1,6 @@
 import { ICONS } from './styles.js';
 import { el } from './ui.js';
-import { root, scroller, slideAt, videoTarget } from './state.js';
+import { root, scroller, slideAt, videoTarget, isOvlSlide, ovlNoNext } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { getSetting, setSetting } from './settings.js';
 
@@ -16,6 +16,14 @@ export var pb = {
   soundHintShown: false, // 静音提示只弹一次
   soundHintDismissed: false
 };
+
+// 连播 loop 落点单源（0.9.183）：attach（session._attach 经 hooks.initVideo）与连播开关
+// 切换（controls）两处共用。层内 single 会话没有下一条——连播开着也只循环（语义=没有
+// 下一条可连时回落单条循环）；其余（竖刷任意条 / 层内 walk、list）统一 !pb.autoplayNext。
+// 旧切换只扫 scroller 里的 video，层内 slide 不在其中 → 层内 loop 不随开关走（漂移）
+export function applyLoop(slide, video) {
+  video.loop = !pb.autoplayNext || (isOvlSlide(slide) && ovlNoNext());
+}
 
 // mount 时复位会话内手势/提示状态；静音偏好从设置层取（0.9.89 收编：老键 acsv-sound-on 首读收养）
 export function resetForMount() {

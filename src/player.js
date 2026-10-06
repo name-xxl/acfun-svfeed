@@ -12,7 +12,7 @@ import { FollowVideos, enterVideos, enterAll } from './followstream.js';
 import { dbg, stat, testHook } from './dbg.js';
 import { markWatchProgress, reportLeave, reportLeaveCurrent } from './report.js';
 import { prewarm, preconnectSeed } from './prewarm.js';
-import { pb, playVideo, showSoundHint, resetForMount, cancelSeekHold, offCurrent } from './playback.js';
+import { pb, playVideo, showSoundHint, resetForMount, cancelSeekHold, offCurrent, applyLoop } from './playback.js';
 import { attachVideo, switchQuality, setSessionHooks } from './attach.js';
 import { showControls, updateArrows } from './controls.js';
 import { onHomeResolved, setCommentsOpener } from './rail.js';
@@ -73,9 +73,9 @@ window.addEventListener('resize', function () {
 
 // 会话回接钩子：控件条/弹幕/连播/观看上报/挂源。播放态归 session.js，UI 编排留在这里
 var SESSION_HOOKS = {
-  initVideo: function (video) {
+  initVideo: function (session, video) {
     video.muted = !pb.soundOn;
-    video.loop = !pb.autoplayNext;
+    applyLoop(session.slide, video); // loop 落点单源（0.9.183，playback.applyLoop）
     video.playbackRate = pb.seekHold.active ? 2 : pb.playRate;
   },
   // 播放层开着时"当前条"是层内那条（哨兵 idx）：session 的自动起播判定按它比对
@@ -149,10 +149,18 @@ var SESSION_HOOKS = {
   // 播完也是一次"离开"：先报最终进度再连播滚动（后续 dispose 重复触发由同秒位去重拦截）
   onEnded: function (session) {
     reportLeave(session, session.video, 'ended');
-    // 连播判定：显式排除播放层（0.9.78 结构化）——层内没有"下一条"，层内会话也不该
-    // 动竖刷游标；旧写法只靠"哨兵 -1 撞不上 current"的巧合正确（改成 hooks.currentIdx()
-    // 会变成 -1===-1 成立 → scrollToIndex(0)，把竖刷滚到第 0 条——0.9.77 评审点名的陷阱）
-    if (pb.autoplayNext && !isOvlSlide(session.slide) && session.idx === FeedStore.current) {
+    if (!pb.autoplayNext) return; // 关=单条循环（loop=true，ended 事件根本不会到这）
+    if (isOvlSlide(session.slide)) {
+      // 连播进层（0.9.183）：0.9.78 的层内豁免写在 walk/list 会话出现之前——那时层内确实
+      // 没有"下一条"；如今层内有（相关池/来源列表），接 playStep 与手动 ↓ 同路分派；
+      // single 会话由 applyLoop 恒 loop 兜底，不会走到这
+      playStep(1);
+      return;
+    }
+    // 竖刷连播：显式排除已在上面的层内分支处理（0.9.78 结构化）——旧写法只靠"哨兵 -1
+    // 撞不上 current"的巧合正确（改成 hooks.currentIdx() 会变成 -1===-1 成立 →
+    // scrollToIndex(0)，把竖刷滚到第 0 条——0.9.77 评审点名的陷阱）
+    if (session.idx === FeedStore.current) {
       scrollToIndex(session.idx + 1);
     }
   },

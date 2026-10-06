@@ -3,7 +3,7 @@ import { ICONS } from './styles.js';
 import { el, elHtml, toast, fmtTime, toggleFullscreen } from './ui.js';
 import { root, scroller, slideAt, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js';
-import { pb, togglePlayGesture, toggleMuteGesture } from './playback.js';
+import { pb, togglePlayGesture, toggleMuteGesture, applyLoop } from './playback.js';
 import { dmEnabled, setDmEnabled, onPlaying as dmOnPlaying, createDmBox as dmCreateBox } from './danmaku.js';
 import { switchQuality, attachVideo } from './attach.js';
 import { getSetting, setSetting, onChange } from './settings.js';
@@ -110,9 +110,15 @@ export function buildControls(slide, idx, item) {
     ev.stopPropagation();
     pb.autoplayNext = !pb.autoplayNext;
     autoBtn.classList.toggle('on', pb.autoplayNext);
-    if (scroller) {
-      var vs = scroller.querySelectorAll('video');
-      Array.prototype.forEach.call(vs, function (v) { v.loop = !pb.autoplayNext; });
+    if (root) {
+      // 全舞台遍历（0.9.183）：层内 slide 挂在视图体下、不在 scroller 里——旧写法只扫
+      // scroller，层内视频 loop 不随开关切换（漂移）；统一走 applyLoop（层内 single
+      // 会话恒循环，不受开关影响）
+      var vs = root.querySelectorAll('video');
+      Array.prototype.forEach.call(vs, function (v) {
+        var sl = v.closest('.acsv-slide');
+        if (sl) applyLoop(sl, v);
+      });
     }
     toast(pb.autoplayNext ? '连播已开启：播完自动下一条' : '连播已关闭：单条循环播放');
   });
