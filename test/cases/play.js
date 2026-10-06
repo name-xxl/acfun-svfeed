@@ -229,6 +229,24 @@ rec('play-rate-3x', !!(await waitFor(function () {
   return m ? m.textContent : 'no-menu';
 })());
 if (rateBtn) rateBtn.click(); // 收起菜单，防污染后续
+// 0.9.195 底栏原生图标：播放键/弹幕键 = CSS mask（A 站播放器内联 SVG data URI，非内置自绘）；
+// 空格切换播放态 → mask 形状随之换（播放三角 ↔ 暂停双竖条）
+function ctlMaskU(sel) {
+  var mk = q('.acsv-slide[data-ovl="1"] ' + sel + ' .acsvg-icon-mask');
+  return mk ? (mk.style.getPropertyValue('--acsvg-icon') || '') : '';
+}
+rec('play-icon-native-mask', /data:image\/svg\+xml/.test(ctlMaskU('.acsv-cplay')),
+  ctlMaskU('.acsv-cplay').slice(0, 46));
+rec('dm-icon-native-mask', /data:image\/svg\+xml/.test(ctlMaskU('.acsv-cdm')),
+  ctlMaskU('.acsv-cdm').slice(0, 46));
+var uBefore = ctlMaskU('.acsv-cplay');
+var pb0 = q('.acsv-slide[data-ovl="1"] .acsv-cplay');
+if (pb0) pb0.click(); // 直接点播放键：抽屉开着时焦点在评论输入框，Space 会被输入框吃掉
+rec('play-icon-swaps', !!(await waitFor(function () {
+  var u = ctlMaskU('.acsv-cplay');
+  return u && u !== uBefore;
+}, 4000)), 'before=' + uBefore.slice(0, 30) + ' after=' + ctlMaskU('.acsv-cplay').slice(0, 30));
+if (pb0) pb0.click(); // 切回，防污染后续
 key('c');
 rec('play-key-comments-close', !!(await waitFor(function () {
   var r = q('#acsv-root');

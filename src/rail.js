@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
-import { el, elHtml, fmt, toast, a11y } from './ui.js';
+import { el, elHtml, fmt, toast, a11y, mountIcon } from './ui.js';
 import { imgInto } from './imgload.js';
 import { FeedStore } from './feedstore.js';
 import { setRealLike, giveBanana } from './interact.js';
@@ -130,25 +130,15 @@ export function buildSideRail(slide, item, goTo) {
     wrap.style.marginBottom = '25px';
     var b = el('button', 'acsv-rail-btn');
     a11y(b, title);
-    var imgEl = null, imgOn = null, imgOff = null;
     if (icon && icon.mask) {
-      // 原生图标只借形状（CSS mask 遮罩），颜色由背景色控制：白 → .on A 站红 → .thrown 蕉黄
-      var mk = el('span', 'acsvg-icon-mask');
-      mk.style.setProperty('--acsvg-icon', 'url("' + icon.mask + '")');
-      var probe = new Image();
-      probe.onerror = function () { mk.remove(); b.innerHTML = icon.svg || ''; }; // CDN hash 变化时回退
-      probe.src = icon.mask;
-      b.appendChild(mk);
+      mountIcon(b, icon); // mask 三态收口（0.9.195，与底栏共用 ui.mountIcon）
     } else if (icon && icon.img) {
-      imgEl = el('img', 'acsv-icon-img');
-      imgEl.alt = '';
-      imgOff = icon.img;
-      imgOn = icon.imgOn || null;
-      imgEl.addEventListener('error', function () {
-        b.innerHTML = icon.svg || '';
-      });
-      imgEl.src = icon.img;
-      b.appendChild(imgEl);
+      // 小视频站原生 PNG（本文件在 eslint 图片白名单内）
+      var im = el('img', 'acsv-icon-img');
+      im.alt = '';
+      im.addEventListener('error', function () { b.innerHTML = (icon && icon.svg) || ''; });
+      im.src = icon.img;
+      b.appendChild(im);
     } else {
       b.innerHTML = icon;
     }
@@ -156,7 +146,7 @@ export function buildSideRail(slide, item, goTo) {
     var c = el('div', 'acsv-count', count);
     wrap.appendChild(b); wrap.appendChild(c);
     rail.appendChild(wrap);
-    return { btn: b, count: c, imgEl: imgEl, imgOn: imgOn, imgOff: imgOff };
+    return { btn: b, count: c };
   }
   // 原生图标形状 + CSS 换色：home 用视频页原生点赞/收藏/投蕉图标，
   // sv 点赞用小视频站原生心形 PNG；svg 字段为 CDN 失效时的回退

@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
-import { ICONS } from './styles.js';
-import { el, fmtTime, ensureStyle, spinner } from './ui.js';
+import { PLAYER_ICONS } from './styles.js';
+import { el, fmtTime, ensureStyle, spinner, setBtnIcon } from './ui.js';
 import { errBox } from './errbox.js';
 import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot, stageVisible, isOvlSlide, OVL_IDX } from './state.js';
 import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync, setItemProvider } from './route.js';
@@ -100,14 +100,14 @@ var SESSION_HOOKS = {
   },
   onPlaying: function (session, video) {
     var slide = session.slide, item = session.item;
-    if (slide._ctlPlayBtn) slide._ctlPlayBtn.innerHTML = ICONS.pause;
+    if (slide._ctlPlayBtn) setBtnIcon(slide._ctlPlayBtn, PLAYER_ICONS.pause);
     showControls(slide);
     dmOnPlaying(slide, item, video);
     // 10s 首报定时器已删（0.9.87）：其"关页送不出"的兜底职责由 pause 即报（0.9.86 官方
     // 对齐）+ pagehide 直发（官方同款 sendBeacon，0.9.87 实测）接管，进度检查点不再依赖墙钟
   },
   onPause: function (session, video) {
-    if (session.slide._ctlPlayBtn) session.slide._ctlPlayBtn.innerHTML = ICONS.play;
+    if (session.slide._ctlPlayBtn) setBtnIcon(session.slide._ctlPlayBtn, PLAYER_ICONS.play);
     // 官方对齐（0.9.86 实测）：官方 video 页暂停即报当前位（CLIENT_BROWSE_HISTORY，
     // playedSeconds=当前秒）。暂停是自然检查点——长停留/切标签后的进度不再只停在 10s 首报。
     // dispose 链先 pause 后 dispose 的同值近邻双报由同秒位去重兜住，无需另设门槛

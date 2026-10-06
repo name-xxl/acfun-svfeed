@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 播放器底栏与打磨（原生图标 / 两级全屏 / 音量 / PiP / 进度预览 / 简介 / 弹幕设置）</title>
+<!-- ============================================================
+     docs/preview/player-bottombar.html —— 播放器打磨总预览（2026-10-06）
+     数据/素材来源（全部真机实测，2026-10-06，内置浏览器带登录态；入档 docs/api-research.md §10.11）：
+       · 底栏图标 = 原生播放器**内联 SVG data URI**（.btn-play / .volume-icon / .btn-loop /
+         .control-btn.setting / .btn-next-part）——下面内嵌的就是从 A 站播放器取的原件
+         （已去 <title>/<desc>/注释，避免乱码 tooltip；本预览按 mask 令其取当前色）。
+       · 高级弹幕：pollByPosition + enableAdvanced=true 登录态可拿（399/602 条 danmakuType=1）；
+         模型字段见 §10.11；另有文本形态 advancedDanmakuBody 可作一期降级。
+     形态待定项（本稿摆出供选）：简介展开两案 / 两级全屏入口与退出 / 音量滑杆形态 / 弹幕面板内容。
+     纪律：单文件/无依赖；量值抄 src/styles.js；确认后才进 src；改版先改本稿。
+     自检：1600×900 与 540 宽各过一眼。
+     ============================================================ -->
+<style>
+  :root{--acsv-accent:#fd4c5d;--acsv-bg:#000;--acsv-panel:rgba(22,22,27,.96);--acsv-line:rgba(255,255,255,.09);
+    --acsv-t1:#fff;--acsv-t2:#cfd3da;--acsv-t3:#8a90a0}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 90px}
+  h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .hint{color:var(--acsv-t3);font-size:12px;line-height:1.85;margin-bottom:20px}
+  .hint b{color:var(--acsv-t2)}
+  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .sec>p.d{color:var(--acsv-t3);font-size:12px;line-height:1.7;margin:6px 0 14px}
+  code{background:rgba(255,255,255,.08);border-radius:4px;padding:0 5px;font-size:12px;color:#e8eaee;font-family:Consolas,Menlo,monospace}
+  .dual{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+  .badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;margin-left:8px;
+    border:1px solid rgba(255,255,255,.25);color:var(--acsv-t2)}
+  .badge.ok{color:#7ee08a;border-color:rgba(126,224,138,.5)}
+  .badge.warn{color:#ffcf7a;border-color:rgba(255,207,122,.5)}
+
+  /* ---- 播放器底栏（照 src/styles.js：.acsv-controls / .acsv-ctl-row / .acsv-cbtn） ---- */
+  .mini{width:640px;max-width:100%}
+  .mini.wide{width:820px}
+  .rowm{gap:8px}
+  .stage{position:relative;height:360px;border-radius:10px;overflow:hidden;border:1px solid var(--acsv-line);
+    background:linear-gradient(135deg,#243044,#43263a)}
+  .railm{position:absolute;right:14px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:18px;align-items:center}
+  .railm span{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center;font-size:14px}
+  .info{position:absolute;left:16px;right:120px;bottom:96px;color:#fff}
+  .info .t{font-size:17px;font-weight:600;line-height:1.35}
+  .info .m{font-size:12px;color:#cfd3da;margin-top:4px}
+  .ctrl{position:absolute;left:0;right:0;bottom:0;padding:6px 14px 10px;
+    background:linear-gradient(transparent,rgba(0,0,0,.72))}
+  .trackm{position:relative;height:4px;border-radius:2px;background:rgba(255,255,255,.22);margin:0 2px 12px}
+  .trackm i{position:absolute;left:0;top:0;bottom:0;width:38%;border-radius:2px;background:#fd4c5d}
+  .trackm .buf{position:absolute;left:0;top:0;bottom:0;width:62%;border-radius:2px;background:rgba(255,255,255,.3)}
+  .trackm .kn{position:absolute;left:38%;top:-4px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#fd4c5d}
+  .rowm{display:flex;align-items:center;gap:12px}
+  .tm{font-size:12px;color:#cfd3da;font-variant-numeric:tabular-nums}
+  .spacer{flex:1}
+  .b{min-width:34px;height:34px;padding:0 10px;border-radius:8px;background:none;border:none;cursor:pointer;
+    color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-family:inherit;
+    white-space:nowrap}
+  .b:hover{background:rgba(255,255,255,.12)}
+  .b.on{color:var(--acsv-accent)}
+  /* 原生图标统一 mask 取色（白色原件 → 当前色） */
+  .ic{width:18px;height:18px;display:inline-block;background-color:currentColor;
+    -webkit-mask:var(--u) center/contain no-repeat;mask:var(--u) center/contain no-repeat}
+  .ic.big{width:20px;height:20px}
+  /* 音量滑杆（**竖条**：hover 音量键向上展开；更贴 A 站原生） */
+  .volwrap{position:relative;display:inline-flex;align-items:center}
+  .volslide{position:absolute;bottom:38px;left:50%;transform:translateX(-50%);width:36px;padding:10px 0 8px;
+    background:var(--acsv-panel);border:1px solid rgba(255,255,255,.14);border-radius:8px;
+    display:flex;flex-direction:column;align-items:center}
+  .volslide .track{width:4px;height:84px;border-radius:2px;background:rgba(255,255,255,.24);position:relative;margin-top:2px}
+  .volslide .track i{position:absolute;left:0;right:0;bottom:0;height:55%;border-radius:2px;background:var(--acsv-accent)}
+  .volslide .track b{position:absolute;left:-4px;bottom:55%;width:12px;height:12px;margin-bottom:-6px;border-radius:50%;background:#fff}
+  .volslide .n{font-size:11px;color:var(--acsv-t2);margin-top:6px;font-variant-numeric:tabular-nums}
+  /* 进度条悬停气泡（时间+缩略图） */
+  .bub{position:absolute;bottom:20px;left:38%;transform:translateX(-50%);background:rgba(0,0,0,.9);
+    border-radius:8px;padding:6px;text-align:center;pointer-events:none}
+  .bub .th{width:120px;height:68px;border-radius:5px;background:linear-gradient(135deg,#3a4a6b,#6b3a4a);display:grid;place-items:center;font-size:11px;color:#9aa0ab}
+  .bub .tt{font-size:11px;color:#e8eaee;margin-top:4px}
+
+  /* ---- 两级全屏（示意浏览器窗口） ---- */
+  .win{width:520px;max-width:100%;border:1px solid #3a3f4b;border-radius:10px;overflow:hidden;background:#1b1e26}
+  .chrome{display:flex;align-items:center;gap:8px;padding:7px 10px;background:#2a2f3a;font-size:11px;color:#aeb4c0}
+  .chrome .dots{display:flex;gap:5px}
+  .chrome .dots i{width:9px;height:9px;border-radius:50%;background:#4a5160;display:block}
+  .chrome .addr{flex:1;background:#1b1e26;border-radius:5px;padding:3px 8px;font-size:11px}
+  .chrome.full{background:#12151b;color:#6b7080}
+  .view{position:relative;height:250px;background:linear-gradient(135deg,#243044,#43263a)}
+  .view .railmini{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.14)}
+  .view .dockmini{position:absolute;left:0;top:0;bottom:0;width:52px;background:rgba(0,0,0,.55)}
+  .view.clean .railmini,.view.clean .dockmini{display:none}
+  .cap{font-size:12px;color:var(--acsv-t3);margin-top:8px;line-height:1.7;max-width:520px}
+
+  /* ---- 简介展开 ---- */
+  .cardm{width:412px;background:var(--acsv-panel);border:1px solid var(--acsv-line);border-radius:10px;padding:14px 16px}
+  .cardm .up{font-size:12px;color:#9aa0ab;margin-bottom:6px}
+  .cardm .ttl{font-size:15px;font-weight:600;line-height:1.4}
+  .cardm .clamp{font-size:13px;color:#cfd3da;line-height:1.65;margin-top:8px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .cardm .more{font-size:12px;color:var(--acsv-accent);margin-top:6px;cursor:pointer}
+  .pm{width:412px;max-height:230px;background:var(--acsv-panel);border:1px solid rgba(255,255,255,.14);
+    border-radius:12px;padding:16px 18px;box-shadow:0 12px 34px rgba(0,0,0,.5)}
+  .pm h4{font-size:14px;margin-bottom:8px}
+  .pm .txt{font-size:13px;color:#cfd3da;line-height:1.75;max-height:150px;overflow-y:auto;white-space:pre-line}
+
+  /* ---- 弹幕设置面板（照 A 站原生：两 tab） ---- */
+  .dmpanel{width:316px;background:var(--acsv-panel);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:0 0 10px;font-size:13px;overflow:hidden}
+  .dmpanel .tabs2{display:flex;gap:18px;padding:11px 14px 8px;border-bottom:1px solid var(--acsv-line);font-size:13px;color:var(--acsv-t2)}
+  .dmpanel .tabs2 span{cursor:pointer;padding-bottom:6px;border-bottom:2px solid transparent}
+  .dmpanel .tabs2 span.on{color:#fff;border-bottom-color:var(--acsv-accent)}
+  .dmpanel .blk{font-size:12px;color:var(--acsv-t3);padding:10px 14px 2px}
+  .dmpanel .r{display:flex;align-items:center;gap:10px;margin:9px 14px;font-size:12px;color:var(--acsv-t2)}
+  .dmpanel .r label{flex:1;color:var(--acsv-t2)}
+  .dmpanel .r .lb{width:58px;color:var(--acsv-t2);flex:none;font-size:12px}
+  .dmpanel .r .v{width:38px;text-align:right;color:var(--acsv-t3);font-variant-numeric:tabular-nums}
+  .dmpanel .r .bar{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.24);position:relative}
+  .dmpanel .r .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--acsv-accent)}
+  .dmpanel .r .bar b{position:absolute;top:-5px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#fff}
+  .dmpanel .cb{width:16px;height:16px;border-radius:4px;border:1px solid rgba(255,255,255,.3);flex:none;position:relative}
+  .dmpanel .cb.on{background:var(--acsv-accent);border-color:var(--acsv-accent)}
+  .dmpanel .cb.on::after{content:"";position:absolute;left:5px;top:1px;width:4px;height:9px;border:2px solid #fff;border-top:none;border-left:none;transform:rotate(45deg)}
+  .dmpanel .opt{display:flex;gap:0;border:1px solid rgba(255,255,255,.22);border-radius:6px;overflow:hidden}
+  .dmpanel .opt span{padding:3px 10px;font-size:12px;color:var(--acsv-t2);border-right:1px solid rgba(255,255,255,.16)}
+  .dmpanel .opt span:last-child{border-right:none}
+  .dmpanel .opt span.on{background:var(--acsv-accent);color:#fff}
+  .dmpanel .tags{display:flex;flex-wrap:wrap;gap:6px;margin:0 14px}
+  .dmpanel .tags span{border:1px solid rgba(255,255,255,.22);border-radius:6px;padding:3px 9px;font-size:12px;color:var(--acsv-t2)}
+  .dmpanel .tags span.on{background:var(--acsv-accent);border-color:var(--acsv-accent);color:#fff}
+  .dmpanel .sel{border:1px solid rgba(255,255,255,.22);border-radius:6px;padding:3px 9px;font-size:12px;color:var(--acsv-t2)}
+  .dmpanel .add{margin-left:auto;border:1px solid rgba(255,255,255,.28);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--acsv-accent)}
+  .dmpanel .ftab{width:100%;border-collapse:collapse;font-size:12px;color:var(--acsv-t3)}
+  .dmpanel .ftab th{font-weight:400;text-align:left;padding:5px 8px;border-bottom:1px solid var(--acsv-line);color:var(--acsv-t3)}
+  .dmpanel .ftab td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--acsv-t2)}
+  .dmpanel .reset{color:var(--acsv-t3);font-size:12px;text-decoration:underline;cursor:pointer}
+  .entryic{display:inline-flex;align-items:center;gap:8px;margin-right:14px;font-size:12px;color:var(--acsv-t3)}
+
+
+
+  /* 原生图标：A 站播放器原件（data URI 由页面直接抓取落盘，见 §10.11/§10.12） */
+  .ic-play{--u:url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMThweCIgaGVpZ2h0PSIxOHB4IiB2aWV3Qm94PSIwIDAgMTggMTgiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8IS0tIEdlbmVyYXRvcjogU2tldGNoIDUyLjUgKDY3NDY5KSAtIGh0dHA6Ly93d3cuYm9oZW1pYW5jb2RpbmcuY29tL3NrZXRjaCAtLT4KICAgIDx0aXRsZT5iZnFfenQ8L3RpdGxlPgogICAgPGRlc2M+Q3JlYXRlZCB3aXRoIFNrZXRjaC48L2Rlc2M+CiAgICA8ZyBpZD0iYmZxX3p0IiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8Zz4KICAgICAgICAgICAgPHJlY3QgaWQ9IlJlY3RhbmdsZS04IiBmaWxsLXJ1bGU9Im5vbnplcm8iIHg9IjAiIHk9IjAiIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCI+PC9yZWN0PgogICAgICAgICAgICA8cmVjdCBpZD0i55+p5b2iIiBmaWxsPSIjRUFFQUVBIiB4PSIzIiB5PSIxIiB3aWR0aD0iMyIgaGVpZ2h0PSIxNiIgcng9IjEuNSI+PC9yZWN0PgogICAgICAgICAgICA8cmVjdCBpZD0i55+p5b2iLWNvcHktMzYiIGZpbGw9IiNFQUVBRUEiIHg9IjEyIiB5PSIxIiB3aWR0aD0iMyIgaGVpZ2h0PSIxNiIgcng9IjEuNSI+PC9yZWN0PgogICAgICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+")}
+  .ic-vol{--u:url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iODhweCIgaGVpZ2h0PSI4MHB4IiB2aWV3Qm94PSIwIDAgODggODAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8IS0tIEdlbmVyYXRvcjogU2tldGNoIDUyLjUgKDY3NDY5KSAtIGh0dHA6Ly93d3cuYm9oZW1pYW5jb2RpbmcuY29tL3NrZXRjaCAtLT4KICAgIDx0aXRsZT5iZnFfeWxfc208L3RpdGxlPgogICAgPGRlc2M+Q3JlYXRlZCB3aXRoIFNrZXRjaC48L2Rlc2M+CiAgICA8ZyBpZD0iYmZxX3lsX3NtIiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8ZyBpZD0iYmZxX3lsLXNtIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4LjAwMDAwMCwgNC4wMDAwMDApIiBmaWxsLXJ1bGU9Im5vbnplcm8iPgogICAgICAgICAgICA8cmVjdCBpZD0iUmVjdGFuZ2xlLTE5IiB4PSIwIiB5PSIwIiB3aWR0aD0iNzIiIGhlaWdodD0iNzIiPjwvcmVjdD4KICAgICAgICAgICAgPHBhdGggZD0iTTUyLjE1ODAxNDEsNjAgQzYxLjMyNTAxMDksNTYuODkwMzkxNSA2OCw0Ny4zMzM2NTQgNjgsMzYuMDI2NDQwMyBDNjgsMjQuNjU0MzU4OCA2MS4yNDgyMDQ1LDE1LjA1Mjg5NTcgNTIsMTIiIGlkPSJPdmFsLTMiIHN0cm9rZS1vcGFjaXR5PSIwLjYiIHN0cm9rZT0iI0ZGRkZGRiIgc3Ryb2tlLXdpZHRoPSI2LjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PC9wYXRoPgogICAgICAgICAgICA8cGF0aCBkPSJNNTIuMDI3NjUyNSw0NCBDNTMuNjMxODc2OSw0Mi45NjM0NjM4IDU0LjgsMzkuNzc3ODg0NyA1NC44LDM2LjAwODgxMzQgQzU0LjgsMzIuMjE4MTE5NiA1My42MTg0MzU4LDI5LjAxNzYzMTkgNTIsMjgiIGlkPSJPdmFsLTMtQ29weSIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utd2lkdGg9IjYuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48L3BhdGg+CiAgICAgICAgICAgIDxwYXRoIGQ9Ik0yMC40OTIyOTA3LDIwIEMyMC43NDI5ODcyLDE5LjU0MjU1NTEgMjEuMDgzNzIyNCwxOS4xMzMwMjIxIDIxLjUwMTIxOTgsMTguNzk5MDI0MiBMMzMuNTAxMjE5OCw5LjE5OTAyNDE1IEMzNS4yMjYyNjc2LDcuODE4OTg1OTYgMzcuNzQzNDM3LDguMDk4NjcxNDYgMzkuMTIzNDc1Miw5LjgyMzcxOTIgQzM5LjY5MDg3NywxMC41MzI5NzE0IDQwLDExLjQxNDIxMzQgNDAsMTIuMzIyNDk5NCBMNDAsNTkuNjc3NTAwNiBDNDAsNjEuODg2NjM5NiAzOC4yMDkxMzksNjMuNjc3NTAwNiAzNiw2My42Nzc1MDA2IEMzNS4wOTE3MTQsNjMuNjc3NTAwNiAzNC4yMTA0NzIsNjMuMzY4Mzc3NiAzMy41MDEyMTk4LDYyLjgwMDk3NTggTDIxLjUwMTIxOTgsNTMuMjAwOTc1OCBDMjEuMDgzNzIyNCw1Mi44NjY5Nzc5IDIwLjc0Mjk4NzIsNTIuNDU3NDQ0OSAyMC40OTIyOTA3LDUyIEwxMiw1MiBDNy41ODE3MjIsNTIgNCw0OC40MTgyNzggNCw0NCBMNCwyOCBDNCwyMy41ODE3MjIgNy41ODE3MjIsMjAgMTIsMjAgTDIwLjQ5MjI5MDcsMjAgWiIgaWQ9IkNvbWJpbmVkLVNoYXBlIiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48L3BhdGg+CiAgICAgICAgPC9nPgogICAgPC9nPgo8L3N2Zz4=")}
+  .ic-gear{--u:url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMjJweCIgaGVpZ2h0PSIyMHB4IiB2aWV3Qm94PSIwIDAgMjIgMjAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8IS0tIEdlbmVyYXRvcjogU2tldGNoIDUyLjUgKDY3NDY5KSAtIGh0dHA6Ly93d3cuYm9oZW1pYW5jb2RpbmcuY29tL3NrZXRjaCAtLT4KICAgIDx0aXRsZT5iZnFfc3o8L3RpdGxlPgogICAgPGRlc2M+Q3JlYXRlZCB3aXRoIFNrZXRjaC48L2Rlc2M+CiAgICA8ZyBpZD0iYmZxX3N6IiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyLjAwMDAwMCwgMS4wMDAwMDApIiBmaWxsLXJ1bGU9Im5vbnplcm8iPgogICAgICAgICAgICA8cmVjdCBpZD0iUmVjdGFuZ2xlLTkiIHg9IjAiIHk9IjAiIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCI+PC9yZWN0PgogICAgICAgICAgICA8cGF0aCBkPSJNMi4yNTQxMzg4NiwxMC44NzU2ODk4IEwwLjgzNTYwMTAxMywxMC42MzkyNjY4IEMwLjM1MzQxMzA0MiwxMC41NTg5MDIyIC02LjIwMzg5NTY5ZS0xMCwxMC4xNDE3MTIxIC02LjIwMzg5NjI5ZS0xMCw5LjY1Mjg3MjkyIEwtNi4yMDM4ODQwN2UtMTAsOC4zNDcxMjcxIEMtNi4yMDM4ODQ2N2UtMTAsNy44NTgyODc5NSAwLjM1MzQxMzA0Miw3LjQ0MTA5Nzg0IDAuODM1NjAxMDEyLDcuMzYwNzMzMTggTDIuMjU0MTM4ODYsNy4xMjQzMTAyIEMyLjU3NTE3Mjg2LDUuOTY3MjIzNjggMy4xODU5MjE5LDQuOTMwNjQxODYgNC4wMDMzNjA3OSw0LjA5NzU4OTk1IEwzLjQ5ODE1Mzc4LDIuNzQ5MDU2NDkgQzMuMzI2NjU3NjMsMi4yOTEyODcxMyAzLjUxMTI0ODM0LDEuNzc2NjI3NCAzLjkzNDU5NTQ3LDEuNTMyMjA3ODMgTDUuMDY1NDA0NTIsMC44NzkzMzQ5MTcgQzUuNDg4NzUxNjQsMC42MzQ5MTUzNDEgNi4wMjY3NTU0LDAuNzMyMzg0OTU5IDYuMzM3NDQ3MjIsMS4xMDk3ODk2NiBMNy4yNTE1MjI3OCwyLjIyMDEzODg1IEM3LjgxMDM5OTEzLDIuMDc2NDI4ODUgOC4zOTYyNzQxMSwyIDksMiBDOS41OTgxMTQ0OSwyIDEwLjE4NDU3MTEsMi4wNzU0OTA0MiAxMC43NDgyNDY0LDIuMjIwNDE5MTcgTDExLjY2MjU1MjgsMS4xMDk3ODk2NiBDMTEuOTczMjQ0NiwwLjczMjM4NDk1NCAxMi41MTEyNDgzLDAuNjM0OTE1MzM2IDEyLjkzNDU5NTUsMC44NzkzMzQ5MTIgTDE0LjA2NTQwNDUsMS41MzIyMDc4MiBDMTQuNDg4NzUxNiwxLjc3NjYyNzQgMTQuNjczMzQyNCwyLjI5MTI4NzEzIDE0LjUwMTg0NjIsMi43NDkwNTY0OSBMMTMuOTk2NjM5Nyw0LjA5NzU4ODY1IEMxNC44MjQzMTgzLDQuOTQxMDUxNzYgMTUuNDI4MjU0Niw1Ljk4MTA0NTUyIDE1Ljc0NTU4MzIsNy4xMjQyNjM4NyBMMTcuMTY0Mzk5LDcuMzYwNzMzMTggQzE3LjY0NjU4Nyw3LjQ0MTA5Nzg0IDE4LDcuODU4Mjg3OTUgMTgsOC4zNDcxMjcxIEwxOCw5LjY1Mjg3MjkyIEMxOCwxMC4xNDE3MTIxIDE3LjY0NjU4NywxMC41NTg5MDIyIDE3LjE2NDM5OSwxMC42MzkyNjY4IEwxNS43NDU4NjExLDEwLjg3NTY4OTggQzE1LjQyNDgyNzEsMTIuMDMyNzc2MyAxNC44MTQwNzgxLDEzLjA2OTM1ODIgMTMuOTk2NjM5MiwxMy45MDI0MTAxIEwxNC41MDE4NDYyLDE1LjI1MDk0MzUgQzE0LjY3MzM0MjQsMTUuNzA4NzEyOSAxNC40ODg3NTE2LDE2LjIyMzM3MjYgMTQuMDY1NDA0NSwxNi40Njc3OTIyIEwxMi45MzQ1OTU1LDE3LjEyMDY2NTEgQzEyLjUxMTI0ODMsMTcuMzY1MDg0NyAxMS45NzMyNDQ2LDE3LjI2NzYxNTEgMTEuNjYyNTUyOCwxNi44OTAyMTA0IEwxMC43NDg0NzcyLDE1Ljc3OTg2MTIgQzEwLjE4OTYwMDksMTUuOTIzNTcxMSA5LjYwMzcyNTg5LDE2IDksMTYgQzguMzk2Mjc0MTEsMTYgNy44MTAzOTkxMywxNS45MjM1NzExIDcuMjUxNTIyNzksMTUuNzc5ODYxMiBMNi4zMzc0NDcyMiwxNi44OTAyMTAzIEM2LjAyNjc1NTQsMTcuMjY3NjE1IDUuNDg4NzUxNjQsMTcuMzY1MDg0NyA1LjA2NTQwNDUyLDE3LjEyMDY2NTEgTDMuOTM0NTk1NDcsMTYuNDY3NzkyMiBDMy41MTEyNDgzNCwxNi4yMjMzNzI2IDMuMzI2NjU3NjMsMTUuNzA4NzEyOSAzLjQ5ODE1Mzc4LDE1LjI1MDk0MzUgTDQuMDAzMzYwNzksMTMuOTAyNDEwMSBDMy4xODU5MjE5LDEzLjA2OTM1ODEgMi41NzUxNzI4NiwxMi4wMzI3NzYzIDIuMjU0MTM4ODYsMTAuODc1Njg5OCBaIE05LDE0IEMxMS43NjE0MjM3LDE0IDE0LDExLjc2MTQyMzcgMTQsOSBDMTQsOC41ODgxOTgzNyAxMy45NTA0Mjc4LDguMTgzNzM0ODMgMTMuODUzNDEwOCw3Ljc5MjMwNDg4IEMxMy42MzExNTM3LDYuODk1NTc0ODIgMTMuMTYyNjI2MSw2LjA4MDc2MTY3IDEyLjUwNTIwOTQsNS40MzQzOTc1MiBDMTEuNTc1NTY1LDQuNTIwMzgyNDkgMTAuMzMwMTQzMyw0IDksNCBDNi4yMzg1NzYyNSw0IDQsNi4yMzg1NzYyNSA0LDkgQzQsMTEuNzYxNDIzNyA2LjIzODU3NjI1LDE0IDksMTQgWiIgaWQ9IkNvbWJpbmVkLVNoYXBlIiBmaWxsPSIjRkZGRkZGIj48L3BhdGg+CiAgICAgICAgICAgIDxjaXJjbGUgaWQ9Ik92YWwtNCIgZmlsbD0iI0ZGRkZGRiIgY3g9IjkiIGN5PSI5IiByPSIyIj48L2NpcmNsZT4KICAgICAgICA8L2c+CiAgICA8L2c+Cjwvc3ZnPg==")}
+  .ic-dm{--u:url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMTJweCIgaGVpZ2h0PSIxMnB4IiB2aWV3Qm94PSIwIDAgMTIgMTIiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8IS0tIEdlbmVyYXRvcjogU2tldGNoIDUyLjUgKDY3NDY5KSAtIGh0dHA6Ly93d3cuYm9oZW1pYW5jb2RpbmcuY29tL3NrZXRjaCAtLT4KICAgIDx0aXRsZT7lvLk8L3RpdGxlPgogICAgPGRlc2M+Q3JlYXRlZCB3aXRoIFNrZXRjaC48L2Rlc2M+CiAgICA8ZyBpZD0i5by5IiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8cGF0aCBkPSJNNS41MjgyODEyNSwwLjQ4MDQ2ODc1IEw2LjIzMTQwNjI1LDAgQzYuNjE0MjIwNjYsMC40Mjk2ODk2NDggNy4wMDg3NDc5NywwLjkzMzU5MDg1OSA3LjQxNSwxLjUxMTcxODc1IEw2LjcxNzczNDM3LDEuOTgwNDY4NzUgTDguNDIyODEyNSwxLjk4MDQ2ODc1IEM4Ljg0ODU5NTg4LDEuMzAwNzc3ODUgOS4yMzkyMTY5NywwLjY0MDYyODIwMyA5LjU5NDY4NzUsMCBMMTAuNDYxODc1LDAuNTAzOTA2MjUgQzEwLjE0MTU2MDksMC45NzI2NTg1OTQgOS43OTU4NjEyMywxLjQ2NDg0MTE3IDkuNDI0NzY1NjIsMS45ODA0Njg3NSBMMTEuMjU4NzUsMS45ODA0Njg3NSBMMTEuMjU4NzUsNy41NTg1OTM3NSBMMTAuNDM4NDM3NSw3LjU1ODU5Mzc1IEwxMC40Mzg0Mzc1LDcuMTQ4NDM3NSBMOC40NDYyNSw3LjE0ODQzNzUgTDguNDQ2MjUsOC41ODk4NDM3NSBMMTEuODQ0Njg3NSw4LjU4OTg0Mzc1IEwxMS44NDQ2ODc1LDkuMzc1IEw4LjQ0NjI1LDkuMzc1IEw4LjQ0NjI1LDExLjU3ODEyNSBMNy42MDI1LDExLjU3ODEyNSBMNy42MDI1LDkuMzc1IEw0LjE0NTQ2ODc1LDkuMzc1IEw0LjE0NTQ2ODc1LDguNTg5ODQzNzUgTDcuNjAyNSw4LjU4OTg0Mzc1IEw3LjYwMjUsNy4xNDg0Mzc1IEw1LjYxMDMxMjUsNy4xNDg0Mzc1IEw1LjYxMDMxMjUsNy41NTg1OTM3NSBMNC43OSw3LjU1ODU5Mzc1IEw0Ljc5LDEuOTgwNDY4NzUgTDYuNTc3MTA5MzcsMS45ODA0Njg3NSBDNi4yNzI0MjAzNSwxLjQ4MDQ2NjI1IDUuOTIyODE0NDcsMC45ODA0NzEyNSA1LjUyODI4MTI1LDAuNDgwNDY4NzUgWiBNMC4yOSwwLjY5MTQwNjI1IEwzLjY4ODQzNzUsMC42OTE0MDYyNSBMMy42ODg0Mzc1LDQuNjUyMzQzNzUgTDIuODY4MTI1LDQuNjUyMzQzNzUgTDIuODY4MTI1LDQuMjUzOTA2MjUgTDEuNTU1NjI1LDQuMjUzOTA2MjUgTDEuMzY4MTI1LDYuMjY5NTMxMjUgTDMuNjY1LDYuMjY5NTMxMjUgQzMuNjQ5Mzc0OTIsNy4zODY3MjQzNCAzLjYxODEyNTIzLDguNDg0MzY5NjEgMy41NzEyNSw5LjU2MjUgQzMuNTE2NTYyMjMsMTAuNzQyMTkzNCAyLjk4OTIyMzc1LDExLjMzMjAzMTIgMS45ODkyMTg3NSwxMS4zMzIwMzEyIEMxLjcxNTc3OTg4LDExLjMzMjAzMTIgMS4yMjc1MDM1MiwxMS4zMjQyMTg4IDAuNTI0Mzc1LDExLjMwODU5MzggQzAuNDc3NDk5NzY2LDExLjAxMTcxNzMgMC40MTEwOTQxOCwxMC43MDMxMjY2IDAuMzI1MTU2MjUsMTAuMzgyODEyNSBDMS4wNDM5MDk4NCwxMC40Mzc1MDAzIDEuNTQ3ODExMDUsMTAuNDY0ODQzOCAxLjgzNjg3NSwxMC40NjQ4NDM4IEMyLjM5MTU2NTI3LDEwLjQ2NDg0MzggMi42ODA2MjQ4OCwxMC4xNDQ1MzQ1IDIuNzA0MDYyNSw5LjUwMzkwNjI1IEMyLjc1MDkzNzczLDguNjM2NzE0NDEgMi43ODIxODc0Miw3LjgyNDIyMjU0IDIuNzk3ODEyNSw3LjA2NjQwNjI1IEwwLjQ2NTc4MTI1LDcuMDY2NDA2MjUgTDAuODA1NjI1LDMuNDU3MDMxMjUgTDIuODY4MTI1LDMuNDU3MDMxMjUgTDIuODY4MTI1LDEuNDg4MjgxMjUgTDAuMjksMS40ODgyODEyNSBMMC4yOSwwLjY5MTQwNjI1IFogTTguNDQ2MjUsNi4zNjMyODEyNSBMMTAuNDM4NDM3NSw2LjM2MzI4MTI1IEwxMC40Mzg0Mzc1LDQuOTQ1MzEyNSBMOC40NDYyNSw0Ljk0NTMxMjUgTDguNDQ2MjUsNi4zNjMyODEyNSBaIE01LjYxMDMxMjUsMi43NjU2MjUgTDUuNjEwMzEyNSw0LjE4MzU5Mzc1IEw3LjYwMjUsNC4xODM1OTM3NSBMNy42MDI1LDIuNzY1NjI1IEw1LjYxMDMxMjUsMi43NjU2MjUgWiBNMTAuNDM4NDM3NSwyLjc2NTYyNSBMOC40NDYyNSwyLjc2NTYyNSBMOC40NDYyNSw0LjE4MzU5Mzc1IEwxMC40Mzg0Mzc1LDQuMTgzNTkzNzUgTDEwLjQzODQzNzUsMi43NjU2MjUgWiBNNS42MTAzMTI1LDYuMzYzMjgxMjUgTDcuNjAyNSw2LjM2MzI4MTI1IEw3LjYwMjUsNC45NDUzMTI1IEw1LjYxMDMxMjUsNC45NDUzMTI1IEw1LjYxMDMxMjUsNi4zNjMyODEyNSBaIiBmaWxsPSIjRkZGRkZGIj48L3BhdGg+CiAgICA8L2c+Cjwvc3ZnPg==")}
+  .ic-dmset{--u:url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMThweCIgaGVpZ2h0PSIxOHB4IiB2aWV3Qm94PSIwIDAgMTggMTgiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8IS0tIEdlbmVyYXRvcjogU2tldGNoIDUyLjUgKDY3NDY5KSAtIGh0dHA6Ly93d3cuYm9oZW1pYW5jb2RpbmcuY29tL3NrZXRjaCAtLT4KICAgIDx0aXRsZT5iZnFfZG1zejwvdGl0bGU+CiAgICA8ZGVzYz5DcmVhdGVkIHdpdGggU2tldGNoLjwvZGVzYz4KICAgIDxnIGlkPSJiZnFfZG1zeiIgc3Ryb2tlPSJub25lIiBzdHJva2Utd2lkdGg9IjEiIGZpbGw9Im5vbmUiIGZpbGwtcnVsZT0iZXZlbm9kZCI+CiAgICAgICAgPGcgZmlsbC1ydWxlPSJub256ZXJvIj4KICAgICAgICAgICAgPHJlY3QgaWQ9IlJlY3RhbmdsZS0zIiB4PSIwIiB5PSIwIiB3aWR0aD0iMTgiIGhlaWdodD0iMTgiPjwvcmVjdD4KICAgICAgICAgICAgPHBhdGggZD0iTTEyLDYgTDEzLDYgQzEzLjU1MjI4NDcsNiAxNCw2LjQ0NzcxNTI1IDE0LDcgQzE0LDcuNTUyMjg0NzUgMTMuNTUyMjg0Nyw4IDEzLDggTDEyLDggQzExLjQ0NzcxNTMsOCAxMSw3LjU1MjI4NDc1IDExLDcgQzExLDYuNDQ3NzE1MjUgMTEuNDQ3NzE1Myw2IDEyLDYgWiBNNSwxMCBMNywxMCBDNy41NTIyODQ3NSwxMCA4LDEwLjQ0NzcxNTMgOCwxMSBDOCwxMS41NTIyODQ3IDcuNTUyMjg0NzUsMTIgNywxMiBMNSwxMiBDNC40NDc3MTUyNSwxMiA0LDExLjU1MjI4NDcgNCwxMSBDNCwxMC40NDc3MTUzIDQuNDQ3NzE1MjUsMTAgNSwxMCBaIE01LDYgTDksNiBDOS41NTIyODQ3NSw2IDEwLDYuNDQ3NzE1MjUgMTAsNyBDMTAsNy41NTIyODQ3NSA5LjU1MjI4NDc1LDggOSw4IEw1LDggQzQuNDQ3NzE1MjUsOCA0LDcuNTUyMjg0NzUgNCw3IEM0LDYuNDQ3NzE1MjUgNC40NDc3MTUyNSw2IDUsNiBaIE03LDE1IEM3LjU1MjI4NDc1LDE1IDgsMTUuNDQ3NzE1MyA4LDE2IEM4LDE2LjU1MjI4NDcgNy41NTIyODQ3NSwxNyA3LDE3IEwzLDE3IEMxLjQ1MzYwMjcsMTcgMCwxNS41NDYzOTczIDAsMTQgTDAsNCBDMCwyLjQ1MzYwMjcgMS40NTM2MDI3LDEgMywxIEwxNSwxIEMxNi41NDYzOTczLDEgMTgsMi40NTM2MDI3IDE4LDQgTDE4LDggQzE4LDguNTUyMjg0NzUgMTcuNTUyMjg0Nyw5IDE3LDkgQzE2LjQ0NzcxNTMsOSAxNiw4LjU1MjI4NDc1IDE2LDggTDE2LDQgQzE2LDMuNTU4MTcyMiAxNS40NDE4Mjc4LDMgMTUsMyBMMywzIEMyLjU1ODE3MjIsMyAyLDMuNTU4MTcyMiAyLDQgTDIsMTQgQzIsMTQuNDQxODI3OCAyLjU1ODE3MjIsMTUgMywxNSBMNywxNSBaIE0xMC45NTY5MTkyLDE2LjQwNDc0NTIgQzEwLjU4NTA2NzgsMTYuMDExNjM5MyAxMC4zMDMzNzc2LDE1LjUzMjM2MDcgMTAuMTQ0OTM5MywxNSBMMTAsMTUgQzkuNDQ3NzE1MjUsMTUgOSwxNC41NTIyODQ3IDksMTQgQzksMTMuNDQ3NzE1MyA5LjQ0NzcxNTI1LDEzIDEwLDEzIEwxMC4xNDQ5MzkzLDEzIEMxMC4zMDMzNzc2LDEyLjQ2NzYzOTMgMTAuNTg1MDY3OCwxMS45ODgzNjA3IDEwLjk1NjkxOTIsMTEuNTk1MjU0OCBMMTAuODgzOTc0NiwxMS40Njg5MTExIEMxMC42MDc4MzIyLDEwLjk5MDYxODUgMTAuNzcxNzA3NCwxMC4zNzkwMjgxIDExLjI1LDEwLjEwMjg4NTcgQzExLjcyODI5MjYsOS44MjY3NDMzMSAxMi4zMzk4ODMsOS45OTA2MTg0NiAxMi42MTYwMjU0LDEwLjQ2ODkxMTEgTDEyLjY4ODU1OTIsMTAuNTk0NTQzMyBDMTIuOTQ4OTgwNiwxMC41MzI3MjI1IDEzLjIyMDY2ODksMTAuNSAxMy41LDEwLjUgQzEzLjc3OTMzMTEsMTAuNSAxNC4wNTEwMTk0LDEwLjUzMjcyMjUgMTQuMzExNDQwOCwxMC41OTQ1NDMzIEwxNC4zODM5NzQ2LDEwLjQ2ODkxMTEgQzE0LjY2MDExNyw5Ljk5MDYxODQ2IDE1LjI3MTcwNzQsOS44MjY3NDMzMSAxNS43NSwxMC4xMDI4ODU3IEMxNi4yMjgyOTI2LDEwLjM3OTAyODEgMTYuMzkyMTY3OCwxMC45OTA2MTg1IDE2LjExNjAyNTQsMTEuNDY4OTExMSBMMTYuMDQzMDgwOCwxMS41OTUyNTQ4IEMxNi40MTQ5MzIyLDExLjk4ODM2MDcgMTYuNjk2NjIyNCwxMi40Njc2MzkzIDE2Ljg1NTA2MDcsMTMgTDE3LDEzIEMxNy41NTIyODQ3LDEzIDE4LDEzLjQ0NzcxNTMgMTgsMTQgQzE4LDE0LjU1MjI4NDcgMTcuNTUyMjg0NywxNSAxNywxNSBMMTYuODU1MDYwNywxNSBDMTYuNjk2NjIyNCwxNS41MzIzNjA3IDE2LjQxNDkzMjIsMTYuMDExNjM5MyAxNi4wNDMwODA4LDE2LjQwNDc0NTIgTDE2LjExNjAyNTQsMTYuNTMxMDg4OSBDMTYuMzkyMTY3OCwxNy4wMDkzODE1IDE2LjIyODI5MjYsMTcuNjIwOTcxOSAxNS43NSwxNy44OTcxMTQzIEMxNS4yNzE3MDc0LDE4LjE3MzI1NjcgMTQuNjYwMTE3LDE4LjAwOTM4MTUgMTQuMzgzOTc0NiwxNy41MzEwODg5IEwxNC4zMTE0NDA4LDE3LjQwNTQ1NjcgQzE0LjA1MTAxOTQsMTcuNDY3Mjc3NSAxMy43NzkzMzExLDE3LjUgMTMuNSwxNy41IEMxMy4yMjA2Njg5LDE3LjUgMTIuOTQ4OTgwNiwxNy40NjcyNzc1IDEyLjY4ODU1OTIsMTcuNDA1NDU2NyBMMTIuNjE2MDI1NCwxNy41MzEwODg5IEMxMi4zMzk4ODMsMTguMDA5MzgxNSAxMS43MjgyOTI2LDE4LjE3MzI1NjcgMTEuMjUsMTcuODk3MTE0MyBDMTAuNzcxNzA3NCwxNy42MjA5NzE5IDEwLjYwNzgzMjIsMTcuMDA5MzgxNSAxMC44ODM5NzQ2LDE2LjUzMTA4ODkgTDEwLjk1NjkxOTIsMTYuNDA0NzQ1MiBaIE0xMy41LDE1LjUgQzE0LjMyODQyNzEsMTUuNSAxNSwxNC44Mjg0MjcxIDE1LDE0IEMxNSwxMy4xNzE1NzI5IDE0LjMyODQyNzEsMTIuNSAxMy41LDEyLjUgQzEyLjY3MTU3MjksMTIuNSAxMiwxMy4xNzE1NzI5IDEyLDE0IEMxMiwxNC44Mjg0MjcxIDEyLjY3MTU3MjksMTUuNSAxMy41LDE1LjUgWiIgaWQ9IuWQiOW5tuW9oueKtiIgZmlsbD0iIzk5OTk5OSI+PC9wYXRoPgogICAgICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+")}
+  .ic-zt{--u:url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMjBweCIgaGVpZ2h0PSIyMHB4IiB2aWV3Qm94PSIwIDAgMjAgMjAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+YmZxX3NyX3p0PC90aXRsZT4KICAgIDxnIGlkPSJiZnFfc3JfenQiIHN0cm9rZT0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPgogICAgICAgIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEuMDAwMDAwLCAxLjAwMDAwMCkiPgogICAgICAgICAgICA8cmVjdCBpZD0i55+p5b2iIiBmaWxsLXJ1bGU9Im5vbnplcm8iIHg9IjAiIHk9IjAiIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCI+PC9yZWN0PgogICAgICAgICAgICA8cmVjdCBpZD0i55+p5b2iIiBzdHJva2U9IiM5OTk5OTkiIHN0cm9rZS13aWR0aD0iMS41IiB4PSIxLjc1IiB5PSIxLjc1IiB3aWR0aD0iMTQuNSIgaGVpZ2h0PSIxNC41IiByeD0iNCI+PC9yZWN0PgogICAgICAgICAgICA8cGF0aCBkPSJNNC43NSwxMiBMMTMuMjUsMTIgQzEzLjY2NDIxMzYsMTIgMTQsMTIuMzM1Nzg2NCAxNCwxMi43NSBDMTQsMTMuMTY0MjEzNiAxMy42NjQyMTM2LDEzLjUgMTMuMjUsMTMuNSBMNC43NSwxMy41IEM0LjMzNTc4NjQ0LDEzLjUgNCwxMy4xNjQyMTM2IDQsMTIuNzUgQzQsMTIuMzM1Nzg2NCA0LjMzNTc4NjQ0LDEyIDQuNzUsMTIgWiIgaWQ9IlJlY3RhbmdsZS0yOSIgZmlsbD0iIzk5OTk5OSIgZmlsbC1ydWxlPSJub256ZXJvIj48L3BhdGg+CiAgICAgICAgICAgIDxnIGlkPSLliIbnu4QtMyIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNi4wMDAwMDAsIDUuMDAwMDAwKSIgZmlsbC1ydWxlPSJub256ZXJvIj4KICAgICAgICAgICAgICAgIDxwYXRoIGQ9Ik0wLjc1LDQgTDUuMjUsNCBDNS42NjQyMTM1Niw0IDYsNC4zMzU3ODY0NCA2LDQuNzUgQzYsNS4xNjQyMTM1NiA1LjY2NDIxMzU2LDUuNSA1LjI1LDUuNSBMMC43NSw1LjUgQzAuMzM1Nzg2NDM4LDUuNSA1LjA3MjY1MzEzZS0xNyw1LjE2NDIxMzU2IDAsNC43NSBDLTUuMDcyNjUzMTNlLTE3LDQuMzM1Nzg2NDQgMC4zMzU3ODY0MzgsNCAwLjc1LDQgWiIgaWQ9IlJlY3RhbmdsZS0yOSIgZmlsbD0iIzk5OTk5OSI+PC9wYXRoPgogICAgICAgICAgICAgICAgPHBvbHlsaW5lIGlkPSLot6/lvoQtMiIgc3Ryb2tlPSIjOTk5OTk5IiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBwb2ludHM9IjAgNiAzIDAgNiA2Ij48L3BvbHlsaW5lPgogICAgICAgICAgICA8L2c+CiAgICAgICAgPC9nPgogICAgPC9nPgo8L3N2Zz4=")}
+  .ic-gj{--u:url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMjBweCIgaGVpZ2h0PSIyMHB4IiB2aWV3Qm94PSIwIDAgMjAgMjAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+YmZxX3NyX2dqZG08L3RpdGxlPgogICAgPGcgaWQ9ImJmcV9zcl9namRtIiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxLjAwMDAwMCwgMS4wMDAwMDApIj4KICAgICAgICAgICAgPHJlY3QgaWQ9IuefqeW9oiIgeD0iMCIgeT0iMCIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4Ij48L3JlY3Q+CiAgICAgICAgICAgIDxwYXRoIGQ9Ik0xNi41ODcwMjMxLDExLjA1MDg5NjQgTDE1LjM5NTkxMzMsMTUuNTE1MzI1MyBDMTUuMTYyNDQ0OCwxNi4zOTA4MzIxIDE0LjM2OTU0NDgsMTcgMTMuNDYzNDQzNCwxNyBMNC41MzY1NTY2MywxNyBDMy42MzA0NTUyMywxNyAyLjgzNzU1NTIzLDE2LjM5MDgzMjEgMi42MDQwODY3NSwxNS41MTUzMjUzIEwxLjQxMzUwNDY2LDExLjA1MTM0NDMgQzEuOTE2MjUxODksMTEuNDc3OTI1MiAyLjUyNTc5NTYxLDExLjc4MjQ3ODkgMy4xOTYzNzkwNSwxMS45MTkyNDg3IEw0LjA1MzQzOTE2LDE1LjEyODgzMTMgQzQuMTA0NTEwMzksMTUuMzIwMzQ4NCA0LjI2MjY2MDMxLDE1LjQ2MDg4NjYgNC40NTMxNTQwOCwxNS40OTMwMjg3IEw0LjUzNjU1NjYzLDE1LjUgTDEzLjQ2MzQ0MzQsMTUuNSBDMTMuNjYxNjUzMSwxNS41IDEzLjgzODE5NTMsMTUuMzgzNDAxNSAxMy45MTgzMzUyLDE1LjIwNzYyMTUgTDEzLjk0NjU2MDgsMTUuMTI4ODMxMyBMMTQuODAxNjA1NywxMS45MTk2NTkyIEMxNS40NzMyMTc5LDExLjc4MzA0MTEgMTYuMDgzNjcxMiwxMS40NzgxMzkzIDE2LjU4NzAyMzEsMTEuMDUwODk2NCBaIE05Ljc1MDEwMDM5LDExLjk0NDEwNjkgTDkuNzUsMTQgQzkuNzUsMTQuNDE0MjEzNiA5LjQxNDIxMzU2LDE0Ljc1IDksMTQuNzUgQzguNTg1Nzg2NDQsMTQuNzUgOC4yNSwxNC40MTQyMTM2IDguMjUsMTQgTDguMjQ4ODgwOTYsMTEuOTQzOTU2MyBDOC40OTM4ODEzOCwxMS45ODA4NjY5IDguNzQ0NzA2MywxMiA5LDEyIEM5LjI1NDk0Njg0LDEyIDkuNTA1NDM3MDIsMTEuOTgwOTE4OCA5Ljc1MDEwMDM5LDExLjk0NDEwNjkgWiBNNi4zNDY3ODQ0NywxMS4yMzg3NTk5IEw2LjU1ODI3MzE4LDExLjM2NDI3OCBMNi41NTgyNzMxOCwxMS4zNjQyNzggTDYuNTY4NzM0NjgsMTEuNDA3Nzg1MSBMNi45MTY2Njc0MywxMy44ODM0NTUzIEM2Ljk3NDMxNDgxLDE0LjI5MzYzNzcgNi42ODg1Mjg2NywxNC42NzI4ODg4IDYuMjc4MzQ2MiwxNC43MzA1MzYxIEM1Ljg2ODE2Mzc0LDE0Ljc4ODE4MzUgNS40ODg5MTI3MSwxNC41MDIzOTc0IDUuNDMxMjY1MzIsMTQuMDkyMjE0OSBMNS4xMTUyMzg4NiwxMS44NDI0MzY4IEM1LjU2MzQwMTUsMTEuNzEyNTM5NCA1Ljk3ODk3OTExLDExLjUwNjMxNyA2LjM0Njc4NDQ3LDExLjIzODc1OTkgWiBNMTEuNjUyMDk5MywxMS4yMzg3NzI4IEMxMi4wMjA1MjgzLDExLjUwNjMyMjYgMTIuNDM2MzgxMiwxMS43MTI1NDE5IDEyLjg4NDY2NTIsMTEuODQyNDM3OSBMMTIuNTY4NzM0NywxNC4wOTIyMTQ5IEMxMi41MTEwODczLDE0LjUwMjM5NzQgMTIuMTMxODM2MywxNC43ODgxODM1IDExLjcyMTY1MzgsMTQuNzMwNTM2MSBDMTEuMzQ1NjUzMiwxNC42Nzc2OTI3IDExLjA3NDE4MDEsMTQuMzU0NjEyOSAxMS4wNzU5NDAyLDEzLjk4NTE4ODMgTDExLjA4MzMzMjYsMTMuODgzNDU1MyBMMTEuNDMxMjY1MywxMS40MDc3ODUxIEwxMS40NDEyMzg5LDExLjM2MzExODggTDExLjY1MjA5OTMsMTEuMjM4NzcyOCBaIiBpZD0i5b2i54q2IiBmaWxsPSIjOTk5OTk5IiBmaWxsLXJ1bGU9Im5vbnplcm8iPjwvcGF0aD4KICAgICAgICAgICAgPHBhdGggZD0iTTksNi42NjEzMzgxNWUtMTQgQzExLjg5Nzk0NjEsNi42NjEzMzgxNWUtMTQgMTQuMzg0NTg5NSwxLjc2MDk5NTg4IDE1LjQ0ODIwMTEsNC4yNzEyNTg0NSBDMTYuOTQxMjk4NCw0Ljg1MDE2ODY2IDE4LDYuMzAxNDQ3ODMgMTgsOCBDMTgsMTAuMjA5MTM5IDE2LjIwOTEzOSwxMiAxNCwxMiBDMTMuMTIyNzYyMSwxMiAxMi4zMTE0ODAyLDExLjcxNzYwOTIgMTEuNjUyMDk5MywxMS4yMzg3NzI4IEMxMC44ODQyNDk3LDExLjcyMTEwMzUgOS45NzQ2OTQ3LDEyIDksMTIgQzguMDI1MzA1MywxMiA3LjExNTc1MDM1LDExLjcyMTEwMzUgNi4zNDY3ODQ0NywxMS4yMzg3NTk5IEM1LjY4ODUxOTg1LDExLjcxNzYwOTIgNC44NzcyMzc4OCwxMiA0LDEyIEMxLjc5MDg2MSwxMiAwLDEwLjIwOTEzOSAwLDggQzAsNi4zMDE0NDc4MyAxLjA1ODcwMTYyLDQuODUwMTY4NjYgMi41NTIyMTc1Myw0LjI3MDA0OTg0IEMzLjYxNTQxMDUsMS43NjA5OTU4OCA2LjEwMjA1Mzk0LDYuNjYxMzM4MTVlLTE0IDksNi42NjEzMzgxNWUtMTQgWiBNOSwxLjUgQzYuODUwMjUyMjQsMS41IDQuOTI5OTM1OSwyLjc0NDQ1Mjg1IDQuMDI5MTg1NzQsNC42NDE4MTQ3IEwzLjkzMzMzODI4LDQuODU1Mjg5NSBMMy42ODYwNzQzNCw1LjQzODgxMzQ3IEwzLjA5NTMyMzM5LDUuNjY4Mjc1ODcgQzIuMTQxNTkwODMsNi4wMzg3MjkzOCAxLjUsNi45NTkzMzQxIDEuNSw4IEMxLjUsOS4zODA3MTE4NyAyLjYxOTI4ODEzLDEwLjUgNCwxMC41IEM0LjQ2OTAzMDcxLDEwLjUgNC45MTU0Njk2OCwxMC4zNzE4NDIzIDUuMzAyMzQ0MDQsMTAuMTM0MjMyNyBMNS40NjQzOTI3MywxMC4wMjU3NTM0IEw2LjI4NDYxNDAyLDkuNDI5MDkwMTEgTDcuMTQzODQ5MzksOS45NjgwNTYzOSBDNy42OTU1ODM3NiwxMC4zMTQxMzg4IDguMzMyMjEyNTgsMTAuNSA5LDEwLjUgQzkuNTg0MjY1MTgsMTAuNSAxMC4xNDQ0ODA4LDEwLjM1NzcyNjIgMTAuNjQzOTc0NSwxMC4wOTA2MzgzIEwxMC44NTQyMTg2LDkuOTY4NTgxMzIgTDExLjcxMjk0NDQsOS40MjkxNjU5OCBMMTIuNTMzNDk3OCwxMC4wMjUwNDQ0IEMxMi45NTY5MzA4LDEwLjMzMjUzNzYgMTMuNDYzODYzNywxMC41IDE0LDEwLjUgQzE1LjM4MDcxMTksMTAuNSAxNi41LDkuMzgwNzExODcgMTYuNSw4IEMxNi41LDcuMDIwNjM3MjkgMTUuOTMxODIwNSw2LjE0Nzg1NDk4IDE1LjA3MDc2MDQsNS43NDA2MjY4MiBMMTQuOTA1OTQ2Nyw1LjY2OTgxNDkgTDE0LjMxNDUyODMsNS40NDA1MDc1NiBMMTQuMDY3MDYxOSw0Ljg1NjQ1NDQ5IEMxMy4yMTIwMzE1LDIuODM4NDcwODUgMTEuMjI5NTE3NCwxLjUgOSwxLjUgWiIgaWQ9IuW9oueKtue7k+WQiCIgZmlsbD0iIzk5OTk5OSIgZmlsbC1ydWxlPSJub256ZXJvIj48L3BhdGg+CiAgICAgICAgICAgIDxjaXJjbGUgaWQ9IuakreWchuW9oiIgZmlsbD0iIzk5OTk5OSIgY3g9IjciIGN5PSI1IiByPSIxIj48L2NpcmNsZT4KICAgICAgICAgICAgPGNpcmNsZSBpZD0i5qSt5ZyG5b2i5aSH5Lu9LTgiIGZpbGw9IiM5OTk5OTkiIGN4PSIxMiIgY3k9IjciIHI9IjEiPjwvY2lyY2xlPgogICAgICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+")}
+</style>
+</head>
+<body class="board">
+  <h1>播放器底栏与打磨 · 总预览</h1>
+  <p class="hint" style="color:#7ee08a"><b>已裁决（2026-10-07）</b>：简介展开＝案 A（标题下方内联 clamp + 展开）｜画中画＝换条/退出时自动关 PiP｜弹幕设置＝照原生两 tab 全做。音量滑杆＝竖条。</p>
+  <p class="hint">
+    底栏图标**已换成 A 站播放器原件**（下列 SVG 就是从播放器 DOM 取的 data URI，去掉了乱码 title；统一以 mask 取当前色）。
+    本稿同时摆出待你裁决的形态：<b>两级全屏</b>（网页全屏=隐自身 UI、视频铺满浏览器窗口；窗口全屏=再叠 OS 全屏）、
+    <b>音量滑杆</b>、<b>画中画 PiP</b>、<b>进度条悬停缩略图</b>（spriteVtt）、<b>简介展开两案</b>、<b>弹幕设置面板</b>。
+  </p>
+
+  <div class="sec">
+    <h2>① 底栏（原生图标）<span class="badge ok">图标=播放器原件</span></h2>
+    <p class="d">左：现状（内置自绘 SVG）｜右：换原生。原生原件为白色填充，我们用 <code>mask</code> 取色：常态白、激活 <code>--acsv-accent</code>，
+      与右侧栏 rail 同机制（CDN/解码失败回退内置 SVG）。新增键：<b>音量滑杆</b>（hover 展开）、<b>PiP</b>、<b>网页全屏</b>、<b>窗口全屏</b>。</p>
+    <div class="dual">
+      <div class="mini">
+        <div class="badge" style="margin-bottom:8px">现状（自绘）</div>
+        <div class="stage">
+          <div class="railm"><span>♡</span><span>💬</span><span>🍌</span><span>★</span><span>↗</span></div>
+          <div class="info"><div class="t">极限竞速地平线 6：0.01 秒绝杀！</div><div class="m">@子弹哥 · 2025-11-22</div></div>
+          <div class="ctrl">
+            <div class="trackm"><span class="buf"></span><i></i><span class="kn"></span></div>
+            <div class="rowm">
+              <button class="b">▶</button><span class="tm">01:12 / 03:05</span><span class="spacer"></span>
+              <button class="b">弹</button><button class="b">1080P</button><button class="b">编码</button><button class="b">缓冲</button>
+              <button class="b"><span style="width:6px;height:6px;border-radius:50%;background:#fd4c5d;display:inline-block"></span>连播</button>
+              <button class="b">倍速 1.0x</button><button class="b">🔊</button><button class="b">⛶</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mini wide">
+        <div class="badge ok" style="margin-bottom:8px">改为原生 + 新增键</div>
+        <div class="stage">
+          <div class="railm"><span>♡</span><span>💬</span><span>🍌</span><span>★</span><span>↗</span></div>
+          <div class="info"><div class="t">极限竞速地平线 6：0.01 秒绝杀！</div><div class="m">@子弹哥 · 2025-11-22</div></div>
+          <div class="ctrl">
+            <div class="trackm"><span class="buf"></span><i></i><span class="kn"></span></div>
+            <div class="rowm">
+              <button class="b"><i class="ic ic-play"></i></button>
+              <span class="tm">01:12 / 03:05</span><span class="spacer"></span>
+              <button class="b on"><i class="ic ic-dm"></i></button><button class="b">1080P</button><button class="b">编码</button><button class="b">缓冲</button>
+              <button class="b on"><i class="ic" style="--u:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 22 20%22><path fill=%22%23fff%22 d=%22M2.25,10.88 L0.84,10.64 A0.35,0.35 0 0 1 0,10.3 L0,8.35 A0.35,0.35 0 0 1 0.84,7.36 L2.25,7.12 A7.5,7.5 0 0 1 4,4.1 L3.5,2.75 A0.5,0.5 0 0 1 3.93,1.53 L5.07,0.88 A0.5,0.5 0 0 1 6.34,1.11 L7.25,2.22 A7.4,7.4 0 0 1 9,2 A7.4,7.4 0 0 1 10.75,2.22 L11.66,1.11 A0.5,0.5 0 0 1 12.93,0.88 L14.07,1.53 A0.5,0.5 0 0 1 14.5,2.75 L14,4.1 A7.5,7.5 0 0 1 15.75,7.12 L17.16,7.36 A0.35,0.35 0 0 1 18,8.35 L18,10.3 A0.35,0.35 0 0 1 17.16,10.64 L15.75,10.88 A7.5,7.5 0 0 1 14,13.9 L14.5,15.25 A0.5,0.5 0 0 1 14.07,16.47 L12.93,17.12 A0.5,0.5 0 0 1 11.66,16.89 L10.75,15.78 A7.4,7.4 0 0 1 9,16 A7.4,7.4 0 0 1 7.25,15.78 L6.34,16.89 A0.5,0.5 0 0 1 5.07,17.12 L3.93,16.47 A0.5,0.5 0 0 1 3.5,15.25 L4,13.9 A7.5,7.5 0 0 1 2.25,10.88 Z M9,14 A5,5 0 1 0 9,4 A5,5 0 0 0 9,14 Z%22/><circle fill=%22%23fff%22 cx=%229%22 cy=%229%22 r=%222%22/></svg>')"></i>设置</button>
+              <button class="b"><span style="width:6px;height:6px;border-radius:50%;background:#fd4c5d;display:inline-block"></span>连播</button>
+              <button class="b">倍速 1.0x</button>
+              <span class="volwrap">
+                <button class="b"><i class="ic ic-vol"></i></button>
+                <div class="volslide"><div class="track"><i></i><b></b></div><span class="n">55</span></div>
+              </span>
+              <button class="b" title="画中画"><i class="ic" style="--u:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22none%22 stroke=%22%23fff%22 stroke-width=%222%22 d=%22M3,4 h18 v16 h-18 z%22/><rect fill=%22%23fff%22 x=%2212%22 y=%2212%22 width=%227%22 height=%226%22/></svg>')"></i></button>
+              <button class="b" title="网页全屏"><i class="ic" style="--u:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22none%22 stroke=%22%23fff%22 stroke-width=%222%22 d=%22M3,4 h18 v16 h-18 z%22/></svg>')"></i></button>
+              <button class="b" title="窗口全屏"><i class="ic" style="--u:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22none%22 stroke=%22%23fff%22 stroke-width=%222%22 d=%22M4,9 v-5 h5 M20,9 v-5 h-5 M4,15 v5 h5 M20,15 v5 h-5%22/></svg>')"></i></button>
+            </div>
+          </div>
+        </div>
+        <p class="cap">
+          音量键 hover 展开滑杆（拖动改 <code>pb.volume</code>；拖到 0 图标切"静音 X"并与 <code>soundOn</code> 语义对齐）。
+          PiP / 网页全屏 / 窗口全屏 三枚新键置于右端。**倍速/清晰度/编码/缓冲仍是文字**——A 站播放器这几项本就以文字/下拉呈现（原样对齐，不硬塞图标）。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>② 两级全屏<em>网页全屏=视频铺满浏览器窗口（隐自身 UI）；窗口全屏=再叠 OS 全屏</em></h2>
+    <p class="d">左：常态（左栏 dock + 右栏 + 信息区都在，视频居中）。中：<b>网页全屏</b>——隐藏 dock/顶栏/右栏/信息区/抽屉，视频铺满窗口，<b>浏览器 chrome 保留</b>。右：<b>窗口全屏</b>——再进 OS 全屏，连浏览器 chrome 也消失。</p>
+    <div class="dual">
+      <div><div class="win"><div class="chrome"><span class="dots"><i></i><i></i><i></i></span><span class="addr">www.acfun.cn/#svfeed</span></div>
+        <div class="view"><span class="dockmini"></span><span class="railmini"></span></div></div>
+        <p class="cap">常态：dock + 右栏 + 信息区</p></div>
+      <div><div class="win"><div class="chrome"><span class="dots"><i></i><i></i><i></i></span><span class="addr">www.acfun.cn/#svfeed</span></div>
+        <div class="view clean"></div></div>
+        <p class="cap">网页全屏：自身 UI 全隐、视频铺满；Esc/再点逐级退</p></div>
+      <div><div class="win"><div class="chrome full"><span class="dots"><i></i><i></i><i></i></span><span class="addr">— 已进入 OS 全屏（浏览器 UI 消失）—</span></div>
+        <div class="view clean"></div></div>
+        <p class="cap">窗口全屏：网页全屏 + <code>requestFullscreen(root)</code></p></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>③ 画中画 PiP<em>需先定语义</em></h2>
+    <p class="d">底栏一键 → <code>video.requestPictureInPicture()</code>，切去别的标签/视图也能继续看。**但换条/退出会 dispose video（PiP 必被拆）**，两种语义供选：
+      ①「自动关 PiP」（换条即退，最简）；②「拦切换」（PiP 开着时不响应 ↓/换条，先问用户）。我建议 ①（不打断既有连播/游走语义）。</p>
+  </div>
+
+  <div class="sec">
+    <h2>④ 进度条悬停缩略图<em>spriteVtt，免登录已实测</em></h2>
+    <p class="d">气泡从"只有时间"升级为"缩略图 + 时间"（下例）。懒拉 + 单条缓存；<b>拉取失败静默降级为只有时间</b>（绝不因预览图卡住进度条）。右侧同时叠一条 <b>已缓冲进度</b>（浅色，现状只有单色播放进度）。</p>
+    <div class="dual">
+      <div class="mini">
+        <div class="stage" style="height:200px">
+          <div class="ctrl">
+            <div class="bub"><div class="th">雪碧图 120×68</div><div class="tt">01:52 / 03:05</div></div>
+            <div class="trackm"><span class="buf"></span><i style="width:60%"></i><span class="kn" style="left:60%"></span></div>
+            <div class="rowm"><span class="tm">悬停进度条 → 出预览</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑤ 简介展开<em>两案供选</em></h2>
+    <p class="d">数据已打通（0.9.194：<code>resolve</code> 读 <code>description</code> → 折行 → <code>item.desc</code>）。竖刷是全屏单条，内联展开会吃画面——故并列两案：</p>
+    <div class="dual">
+      <div>
+        <div class="badge warn" style="margin-bottom:8px">案 A · 标题下方内联（2 行 clamp + 展开）</div>
+        <div class="cardm">
+          <div class="up">@子弹哥 · 2025-11-22 · 12.3万次播放</div>
+          <div class="ttl">极限竞速地平线 6：0.01 秒绝杀！GMC 反超宝马 X6M 越野赛</div>
+          <div class="clamp">本场赛事全程回顾。开头三分钟是热身圈，关键翻盘在 02:41 —— 注意看 GMC 在外弯的刹车点…</div>
+          <div class="more">展开简介 ▾</div>
+        </div>
+        <p class="cap">优点：一眼可见有简介、零跳转。缺点：展开后信息区变高，会压画面（需限高 + 内部滚动）。</p>
+      </div>
+      <div>
+        <div class="badge warn" style="margin-bottom:8px">案 B · 点标题/作者行 → overlay 面板</div>
+        <div class="pm">
+          <h4>极限竞速地平线 6：0.01 秒绝杀！</h4>
+          <div class="txt">本场赛事全程回顾。开头三分钟是热身圈，关键翻盘在 02:41 —— 注意看 GMC 在外弯的刹车点与出弯油门。
+完整简介支持换行（<code>&lt;br/&gt;</code> 折叠后保留），足够长时面板内滚动。
+@子弹哥 · 2025-11-22 · 12.3万次播放</div>
+        </div>
+        <p class="cap">优点：画面零侵占（复用既有浮层栈，Esc 白拿）。缺点：多点一下才看得到。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑥ 弹幕设置<em>照 A 站原生：入口图标 + 两 tab 面板（真机取件 2026-10-06）</em></h2>
+    <p class="d">
+      我上一稿的面板是**自编的，作废**。原生入口是 <code>.control-btn.danmaku-setting</code>（播放器右上「在线 N」旁的齿轮气泡，<b>18×18</b>，下图左一原件）；
+      面板是<b>两个 tab</b>：<b>弹幕设置</b> 与 <b>屏蔽设置</b>。下面按真机 dump 的原生地复刻（含默认值）。
+      <br>另：原生<b>屏蔽设置里确有「高级弹幕」类别</b>——我上一稿说"屏蔽词不做"是错的，已改口。
+    </p>
+    <p class="d" style="margin-bottom:10px">
+      <span class="entryic"><i class="ic ic-dmset"></i>弹幕设置</span>
+      <span class="entryic"><i class="ic ic-zt"></i>弹幕角色</span>
+      <span class="entryic"><i class="ic ic-gj"></i>高级弹幕</span>
+    </p>
+    <div class="dual">
+      <div class="dmpanel">
+        <div class="tabs2"><span class="on">弹幕设置</span><span>屏蔽设置</span></div>
+        <div class="r"><label>防挡字幕</label><span class="cb"></span></div>
+        <div class="r"><label>合并重复弹幕</label><span class="cb on"></span></div>
+        <div class="r"><span class="lb">显示区域</span><div class="bar"><i style="width:75%"></i><b style="left:75%"></b></div><span class="v">75%</span></div>
+        <div class="r"><label>不重叠</label><span class="cb"></span></div>
+        <div class="r"><span class="lb">不透明度</span><div class="bar"><i style="width:100%"></i><b style="left:100%"></b></div><span class="v">100%</span></div>
+        <div class="r"><span class="lb">字体大小</span><span class="opt"><span>小</span><span class="on">适中</span><span>大</span></span></div>
+        <div class="r"><span class="lb">弹幕速度</span><span class="opt"><span>慢</span><span class="on">适中</span><span>快</span></span></div>
+        <div class="r"><span class="reset">恢复默认设置</span></div>
+      </div>
+      <div class="dmpanel">
+        <div class="tabs2"><span>弹幕设置</span><span class="on">屏蔽设置</span></div>
+        <div class="blk">按类型屏蔽</div>
+        <div class="tags"><span>顶部弹幕</span><span>底部弹幕</span><span>滚动弹幕</span><span>彩色弹幕</span><span>角色弹幕</span><span class="on">高级弹幕</span></div>
+        <div class="blk">过滤弹幕</div>
+        <div class="r"><span class="sel">用户id ▾</span><span class="add">添加</span></div>
+        <table class="ftab"><tr><th>启用</th><th>过滤类型</th><th>条件</th><th>删除</th></tr>
+          <tr><td>☑</td><td>用户id</td><td>123456</td><td>✕</td></tr></table>
+      </div>
+    </div>
+    <p class="d" style="margin-top:12px">
+      落地口径：① 入口照原生（图标 + 位置：播放器右上「在线 N」旁）；② 两个 tab 与条目照原生复刻。
+      ③ 我们渲染层现状——速度/字号/区域占比硬编码在 <code>dmcanvas.js</code>（<code>0.72/0.6</code>、字号基准 <code>810</code>），
+      <b>无透明度、无按类型屏蔽、无过滤弹幕</b>；故本批要把「不透明度 / 字体大小 / 弹幕速度 / 显示区域 / 防挡字幕 / 合并重复」做成设置项，
+      按类型屏蔽（含高级弹幕）落到渲染过滤，过滤弹幕（用户id/关键字）需本地列表 + 存储。
+      <b>设置须在批处理/进入时读一次，不进每帧绘制路径。</b>
+    </p>
+  </div>
+
+  <div class="sec">
+    <h2>⑦ 540 窄宽自检<em>底栏窄宽下换行/收纳</em></h2>
+    <p class="d">竖刷是移动式布局，窄宽下底栏需收纳：文字项（编码/缓冲/连播/倍速）收进「设置」齿轮，只留图标键（播放/音量/PiP/网页全屏/窗口全屏/设置）。</p>
+    <div class="dual">
+      <div class="mini" style="width:340px">
+        <div class="stage" style="height:250px">
+          <div class="ctrl">
+            <div class="trackm"><i style="width:38%"></i></div>
+            <div class="rowm">
+              <button class="b"><i class="ic ic-play"></i></button>
+              <span class="tm">01:12</span><span class="spacer"></span>
+              <button class="b">弹</button>
+              <button class="b"><i class="ic ic-gear"></i></button>
+              <button class="b" title="画中画"><i class="ic" style="--u:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22none%22 stroke=%22%23fff%22 stroke-width=%222%22 d=%22M3,4 h18 v16 h-18 z%22/><rect fill=%22%23fff%22 x=%2212%22 y=%2212%22 width=%227%22 height=%226%22/></svg>')"></i></button>
+              <button class="b" title="网页全屏"><i class="ic" style="--u:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22none%22 stroke=%22%23fff%22 stroke-width=%222%22 d=%22M3,4 h18 v16 h-18 z%22/></svg>')"></i></button>
+              <button class="b" title="设置"><i class="ic ic-gear"></i></button>
+            </div>
+          </div>
+        </div>
+        <p class="cap">窄宽（&lt;720）：文字项收进设置，只留图标键。</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

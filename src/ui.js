@@ -151,6 +151,37 @@ export function spinner(inline) {
   return s;
 }
 
+// 原生图标挂载（mask 分支；0.9.195 自 rail.js 抽出，右栏与底栏共用）：icon = { mask, svg }
+// 只借形状（--acsvg-icon），颜色由元素自身 color 控；加载失败回退 icon.svg（内置自绘）。
+// 句柄挂 btn._icon，运行时可经 setBtnIcon 切换状态图标（播放/暂停）。
+// 注：rail 的 `<img>` 分支（小视频站 PNG）仍留在 rail.js——那条属图片禁令白名单内的图面，
+// 底栏不需要它，故不收口到本件（避免把 ui.js 拉进图片白名单）。
+export function mountIcon(btn, icon) {
+  var handle = { el: null, setMask: null };
+  if (icon && icon.mask) {
+    var mk = el('span', 'acsvg-icon-mask');
+    var setMask = function (u) { mk.style.setProperty('--acsvg-icon', 'url("' + u + '")'); };
+    setMask(icon.mask);
+    var probe = new Image();
+    probe.onerror = function () { mk.remove(); btn.innerHTML = icon.svg || ''; }; // 资源失效回退内置 SVG
+    probe.src = icon.mask;
+    btn.appendChild(mk);
+    handle.el = mk;
+    handle.setMask = setMask;
+  } else {
+    btn.innerHTML = icon == null ? '' : (icon.svg || icon);
+  }
+  btn._icon = handle;
+  return handle;
+}
+
+// 运行时切换按钮图标（播放/暂停等）：优先走 mask 句柄（只换形状、保住颜色策略），否则回退换 SVG
+export function setBtnIcon(btn, icon) {
+  var h = btn && btn._icon;
+  if (h && h.setMask && icon && icon.mask) { h.setMask(icon.mask); return; }
+  if (btn) btn.innerHTML = (icon && icon.svg) || icon || '';
+}
+
 // ---------- 外点收起（0.9.147 收口） ----------
 // 面板展开后点**面板外任意位置**即收起。两条硬规矩（都是实报病灶换来的）：
 //   ① **捕获相监听**：页面里大量 stopPropagation（控件条/弹幕输入框/

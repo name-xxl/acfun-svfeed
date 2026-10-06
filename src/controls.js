@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
-import { ICONS } from './styles.js';
-import { el, elHtml, toast, fmtTime, toggleFullscreen, a11y } from './ui.js';
+import { ICONS, PLAYER_ICONS } from './styles.js';
+import { el, elHtml, toast, fmtTime, toggleFullscreen, a11y, mountIcon } from './ui.js';
 import { root, scroller, slideAt, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { pb, togglePlayGesture, toggleMuteGesture, applyLoop } from './playback.js';
@@ -92,7 +92,8 @@ export function buildControls(slide, idx, item) {
 
   var row = el('div', 'acsv-ctl-row');
 
-  var playBtn = elHtml('button', 'acsv-cbtn acsv-cplay', ICONS.pause);
+  var playBtn = el('button', 'acsv-cbtn acsv-cplay');
+  mountIcon(playBtn, PLAYER_ICONS.pause); // 0.9.195：原生播放器图标（初始=播放中→暂停双竖条）
   a11y(playBtn, '播放/暂停（空格）');
   playBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
@@ -183,7 +184,8 @@ export function buildControls(slide, idx, item) {
 
   var dmBtn = null, dmBox = null, qWrap = null, qBtn = null, qMenu = null, codecWrap = null, bufWrap = null;
   if (item && item.cap.danmaku) {
-    dmBtn = el('button', 'acsv-cbtn acsv-cdm' + (dmEnabled() ? ' on' : ''), '弹');
+    dmBtn = el('button', 'acsv-cbtn acsv-cdm' + (dmEnabled() ? ' on' : ''));
+    mountIcon(dmBtn, PLAYER_ICONS.danmaku); // 0.9.195：原生「弹」字形（开关态靠 .on 着色，与原生同款）
     a11y(dmBtn, '弹幕开关');
     dmBtn.addEventListener('click', function (ev) {
       ev.stopPropagation();

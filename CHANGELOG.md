@@ -3,6 +3,30 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.195（2026-10-07）· 播放器打磨（二）：底栏改用 A 站原生图标（含状态切换）
+
+- **由头**：用户裁决「底栏图标优先用原生的」（对齐 README 早已成文的「优先原生、内置 SVG 仅作回退」——
+  底栏此前是**唯一仍全用自绘 SVG/文字**的操作区）。预览稿 `docs/preview/player-bottombar.html` 经确认
+  （同时裁决：简介展开=案 A、画中画=换条自动关、弹幕设置=照原生两 tab 全做、音量滑杆=竖条）。
+- **真机取材**：A 站播放器控件图标是**内联 SVG data URI**（无外链）；用内置浏览器从 www 视频页
+  直接抓取并**程序化落盘写入源码**（不经手抄——手抄 base64 前两轮已翻车两次）。
+  本轮取到：**播放三角（`bfq_bf`）/ 暂停双竖条 / 「弹」字形**。音量与弹幕开关的原生件**不随状态换图**
+  （靠类名着色），故只取单枚。
+- **机制收口**：mask 装载自 `rail.js` 的 `railBtn` 内联段**抽出为 `ui.mountIcon(btn, icon)`**
+  （右栏/底栏共用同一套「CSS mask 借形状、颜色由 color 控、失败回退内置 SVG」）；新增
+  `ui.setBtnIcon(btn, icon)` 供运行时换状态图标（只换 `--acsvg-icon`，保住颜色策略）。
+  **注意**：`rail` 的 `<img>` 分支（小视频站 PNG）**留在 rail.js**——那条属图片禁令白名单内的图面，
+  底栏不需要，故不收口到 ui.js（避免把 ui.js 拉进图片白名单）。
+- **落点**：`styles.js` 新增 `PLAYER_ICONS`（play/pause/danmaku，各带 `svg` 回退）；
+  `controls.js` 的播放键与弹幕键改走 `mountIcon`；`player.js` 的播放/暂停切换改走 `setBtnIcon`。
+  **踩坑留档**：`PLAYER_ICONS` 引用 `ICONS`，**必须在 `ICONS` 定义之后**声明（首版插在其前 →
+  全场景崩在 `reading 'play'`；已挪到图标表之后）。
+- **测试**：build/lint/check（含 tsc）/单测 262/全场景 **56** 全绿。play-deep 51→55 断言：新增
+  `play-icon-native-mask` / `dm-icon-native-mask`（mask 是 `data:image/svg+xml` 原生件，非自绘）与
+  `play-icon-swaps`（点播放键 → mask 形状随播放态更换）。**反跑实证**：还原旧 `elHtml(..., ICONS.pause)`
+  ⇒ 三条全红（`before="" after=""`）；还原 ⇒ 全绿。
+  另注：该场景**不能用 Space 驱动**——抽屉开着时焦点在评论输入框，Space 被输入框吃掉（改用点击播放键）。
+
 ### 0.9.194（2026-10-06）· 播放器打磨（一）：简介数据打通 + 三倍速 + 分区加载提示 + mode 6 修正
 
 - **简介打通**（数据层；展示 UI 待预览确认后另批）：`douga/info` 顶层 `description` 就是视频简介

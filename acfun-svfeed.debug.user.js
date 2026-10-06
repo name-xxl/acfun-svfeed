@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.194-debug
+// @version      0.9.195-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.194" : "",
+          ver: true ? "0.9.195" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -588,6 +588,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     banana: "https://ali-imgs.acfun.cn/kos/nlav10360/static/newVideo/widget/bread/img/icon_banana.d21040881e9721eb1fc8.svg",
     bananaOn: "https://ali-imgs.acfun.cn/kos/nlav10360/static/newVideo/widget/bread/img/icon_banana_hover.31b7f8940e072833fa9c.svg"
   };
+  var PLAYER_ICONS = {
+    play: { mask: "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMThweCIgaGVpZ2h0PSIxOHB4IiB2aWV3Qm94PSIwIDAgMTggMTgiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8IS0tIEdlbmVyYXRvcjogU2tldGNoIDUyLjUgKDY3NDY5KSAtIGh0dHA6Ly93d3cuYm9oZW1pYW5jb2RpbmcuY29tL3NrZXRjaCAtLT4KICAgIDx0aXRsZT5iZnFfenQ8L3RpdGxlPgogICAgPGRlc2M+Q3JlYXRlZCB3aXRoIFNrZXRjaC48L2Rlc2M+CiAgICA8ZyBpZD0iYmZxX3p0IiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8Zz4KICAgICAgICAgICAgPHJlY3QgaWQ9IlJlY3RhbmdsZS04IiBmaWxsLXJ1bGU9Im5vbnplcm8iIHg9IjAiIHk9IjAiIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCI+PC9yZWN0PgogICAgICAgICAgICA8cmVjdCBpZD0i55+p5b2iIiBmaWxsPSIjRUFFQUVBIiB4PSIzIiB5PSIxIiB3aWR0aD0iMyIgaGVpZ2h0PSIxNiIgcng9IjEuNSI+PC9yZWN0PgogICAgICAgICAgICA8cmVjdCBpZD0i55+p5b2iLWNvcHktMzYiIGZpbGw9IiNFQUVBRUEiIHg9IjEyIiB5PSIxIiB3aWR0aD0iMyIgaGVpZ2h0PSIxNiIgcng9IjEuNSI+PC9yZWN0PgogICAgICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+", svg: ICONS.play },
+    pause: { mask: "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMThweCIgaGVpZ2h0PSIxOHB4IiB2aWV3Qm94PSIwIDAgMTggMTgiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8IS0tIEdlbmVyYXRvcjogU2tldGNoIDUyLjUgKDY3NDY5KSAtIGh0dHA6Ly93d3cuYm9oZW1pYW5jb2RpbmcuY29tL3NrZXRjaCAtLT4KICAgIDx0aXRsZT5iZnFfYmY8L3RpdGxlPgogICAgPGRlc2M+Q3JlYXRlZCB3aXRoIFNrZXRjaC48L2Rlc2M+CiAgICA8ZyBpZD0iYmZxX2JmIiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8ZyBmaWxsLXJ1bGU9Im5vbnplcm8iPgogICAgICAgICAgICA8cmVjdCBpZD0iUmVjdGFuZ2xlLTgiIHg9IjAiIHk9IjAiIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCI+PC9yZWN0PgogICAgICAgICAgICA8cGF0aCBkPSJNMTAuMzA5MjgyOCwyLjE5MDEyMDM1IEwxNi43Nzg2MDE2LDEzLjc2ODM0MjQgQzE3LjE4MjY4NDksMTQuNDkxNTM1NSAxNi45MjM5OTU0LDE1LjQwNTM3MzUgMTYuMjAwODAyNCwxNS44MDk0NTY4IEMxNS45NzcxODY3LDE1LjkzNDQwMTkgMTUuNzI1Mjk5NSwxNiAxNS40NjkxNDQ4LDE2IEwyLjUzMDUwNzE2LDE2IEMxLjcwMjA4MDA0LDE2IDEuMDMwNTA3MTYsMTUuMzI4NDI3MSAxLjAzMDUwNzE2LDE0LjUgQzEuMDMwNTA3MTYsMTQuMjQzODQ1MyAxLjA5NjEwNTMxLDEzLjk5MTk1ODEgMS4yMjEwNTAzMywxMy43NjgzNDI0IEw3LjY5MDM2OTE0LDIuMTkwMTIwMzUgQzguMDk0NDUyNDUsMS40NjY5MjczIDkuMDA4MjkwNSwxLjIwODIzNzc2IDkuNzMxNDgzNTQsMS42MTIzMjEwNyBDOS45NzM4NDI3MiwxLjc0NzczOSAxMC4xNzM4NjQ5LDEuOTQ3NzYxMTYgMTAuMzA5MjgyOCwyLjE5MDEyMDM1IFoiIGlkPSJQb2x5Z29uIiBmaWxsPSIjRkZGRkZGIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5LjAwMDAwMCwgOS4wMDAwMDApIHJvdGF0ZSg5MC4wMDAwMDApIHRyYW5zbGF0ZSgtOS4wMDAwMDAsIC05LjAwMDAwMCkgIj48L3BhdGg+CiAgICAgICAgPC9nPgogICAgPC9nPgo8L3N2Zz4=", svg: ICONS.pause },
+    danmaku: { mask: "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMTJweCIgaGVpZ2h0PSIxMnB4IiB2aWV3Qm94PSIwIDAgMTIgMTIiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8IS0tIEdlbmVyYXRvcjogU2tldGNoIDUyLjUgKDY3NDY5KSAtIGh0dHA6Ly93d3cuYm9oZW1pYW5jb2RpbmcuY29tL3NrZXRjaCAtLT4KICAgIDx0aXRsZT7lvLk8L3RpdGxlPgogICAgPGRlc2M+Q3JlYXRlZCB3aXRoIFNrZXRjaC48L2Rlc2M+CiAgICA8ZyBpZD0i5by5IiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8cGF0aCBkPSJNNS41MjgyODEyNSwwLjQ4MDQ2ODc1IEw2LjIzMTQwNjI1LDAgQzYuNjE0MjIwNjYsMC40Mjk2ODk2NDggNy4wMDg3NDc5NywwLjkzMzU5MDg1OSA3LjQxNSwxLjUxMTcxODc1IEw2LjcxNzczNDM3LDEuOTgwNDY4NzUgTDguNDIyODEyNSwxLjk4MDQ2ODc1IEM4Ljg0ODU5NTg4LDEuMzAwNzc3ODUgOS4yMzkyMTY5NywwLjY0MDYyODIwMyA5LjU5NDY4NzUsMCBMMTAuNDYxODc1LDAuNTAzOTA2MjUgQzEwLjE0MTU2MDksMC45NzI2NTg1OTQgOS43OTU4NjEyMywxLjQ2NDg0MTE3IDkuNDI0NzY1NjIsMS45ODA0Njg3NSBMMTEuMjU4NzUsMS45ODA0Njg3NSBMMTEuMjU4NzUsNy41NTg1OTM3NSBMMTAuNDM4NDM3NSw3LjU1ODU5Mzc1IEwxMC40Mzg0Mzc1LDcuMTQ4NDM3NSBMOC40NDYyNSw3LjE0ODQzNzUgTDguNDQ2MjUsOC41ODk4NDM3NSBMMTEuODQ0Njg3NSw4LjU4OTg0Mzc1IEwxMS44NDQ2ODc1LDkuMzc1IEw4LjQ0NjI1LDkuMzc1IEw4LjQ0NjI1LDExLjU3ODEyNSBMNy42MDI1LDExLjU3ODEyNSBMNy42MDI1LDkuMzc1IEw0LjE0NTQ2ODc1LDkuMzc1IEw0LjE0NTQ2ODc1LDguNTg5ODQzNzUgTDcuNjAyNSw4LjU4OTg0Mzc1IEw3LjYwMjUsNy4xNDg0Mzc1IEw1LjYxMDMxMjUsNy4xNDg0Mzc1IEw1LjYxMDMxMjUsNy41NTg1OTM3NSBMNC43OSw3LjU1ODU5Mzc1IEw0Ljc5LDEuOTgwNDY4NzUgTDYuNTc3MTA5MzcsMS45ODA0Njg3NSBDNi4yNzI0MjAzNSwxLjQ4MDQ2NjI1IDUuOTIyODE0NDcsMC45ODA0NzEyNSA1LjUyODI4MTI1LDAuNDgwNDY4NzUgWiBNMC4yOSwwLjY5MTQwNjI1IEwzLjY4ODQzNzUsMC42OTE0MDYyNSBMMy42ODg0Mzc1LDQuNjUyMzQzNzUgTDIuODY4MTI1LDQuNjUyMzQzNzUgTDIuODY4MTI1LDQuMjUzOTA2MjUgTDEuNTU1NjI1LDQuMjUzOTA2MjUgTDEuMzY4MTI1LDYuMjY5NTMxMjUgTDMuNjY1LDYuMjY5NTMxMjUgQzMuNjQ5Mzc0OTIsNy4zODY3MjQzNCAzLjYxODEyNTIzLDguNDg0MzY5NjEgMy41NzEyNSw5LjU2MjUgQzMuNTE2NTYyMjMsMTAuNzQyMTkzNCAyLjk4OTIyMzc1LDExLjMzMjAzMTIgMS45ODkyMTg3NSwxMS4zMzIwMzEyIEMxLjcxNTc3OTg4LDExLjMzMjAzMTIgMS4yMjc1MDM1MiwxMS4zMjQyMTg4IDAuNTI0Mzc1LDExLjMwODU5MzggQzAuNDc3NDk5NzY2LDExLjAxMTcxNzMgMC40MTEwOTQxOCwxMC43MDMxMjY2IDAuMzI1MTU2MjUsMTAuMzgyODEyNSBDMS4wNDM5MDk4NCwxMC40Mzc1MDAzIDEuNTQ3ODExMDUsMTAuNDY0ODQzOCAxLjgzNjg3NSwxMC40NjQ4NDM4IEMyLjM5MTU2NTI3LDEwLjQ2NDg0MzggMi42ODA2MjQ4OCwxMC4xNDQ1MzQ1IDIuNzA0MDYyNSw5LjUwMzkwNjI1IEMyLjc1MDkzNzczLDguNjM2NzE0NDEgMi43ODIxODc0Miw3LjgyNDIyMjU0IDIuNzk3ODEyNSw3LjA2NjQwNjI1IEwwLjQ2NTc4MTI1LDcuMDY2NDA2MjUgTDAuODA1NjI1LDMuNDU3MDMxMjUgTDIuODY4MTI1LDMuNDU3MDMxMjUgTDIuODY4MTI1LDEuNDg4MjgxMjUgTDAuMjksMS40ODgyODEyNSBMMC4yOSwwLjY5MTQwNjI1IFogTTguNDQ2MjUsNi4zNjMyODEyNSBMMTAuNDM4NDM3NSw2LjM2MzI4MTI1IEwxMC40Mzg0Mzc1LDQuOTQ1MzEyNSBMOC40NDYyNSw0Ljk0NTMxMjUgTDguNDQ2MjUsNi4zNjMyODEyNSBaIE01LjYxMDMxMjUsMi43NjU2MjUgTDUuNjEwMzEyNSw0LjE4MzU5Mzc1IEw3LjYwMjUsNC4xODM1OTM3NSBMNy42MDI1LDIuNzY1NjI1IEw1LjYxMDMxMjUsMi43NjU2MjUgWiBNMTAuNDM4NDM3NSwyLjc2NTYyNSBMOC40NDYyNSwyLjc2NTYyNSBMOC40NDYyNSw0LjE4MzU5Mzc1IEwxMC40Mzg0Mzc1LDQuMTgzNTkzNzUgTDEwLjQzODQzNzUsMi43NjU2MjUgWiBNNS42MTAzMTI1LDYuMzYzMjgxMjUgTDcuNjAyNSw2LjM2MzI4MTI1IEw3LjYwMjUsNC45NDUzMTI1IEw1LjYxMDMxMjUsNC45NDUzMTI1IEw1LjYxMDMxMjUsNi4zNjMyODEyNSBaIiBmaWxsPSIjRkZGRkZGIj48L3BhdGg+CiAgICA8L2c+Cjwvc3ZnPg==", svg: "弹" }
+  };
 
   // src/state.js
   var root = null;
@@ -783,6 +788,37 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var s = el("div", "acsv-spinner");
     if (inline) s.style.cssText = "position:static;margin:40px auto;display:block";
     return s;
+  }
+  function mountIcon(btn, icon) {
+    var handle = { el: null, setMask: null };
+    if (icon && icon.mask) {
+      var mk = el("span", "acsvg-icon-mask");
+      var setMask = function(u) {
+        mk.style.setProperty("--acsvg-icon", 'url("' + u + '")');
+      };
+      setMask(icon.mask);
+      var probe = new Image();
+      probe.onerror = function() {
+        mk.remove();
+        btn.innerHTML = icon.svg || "";
+      };
+      probe.src = icon.mask;
+      btn.appendChild(mk);
+      handle.el = mk;
+      handle.setMask = setMask;
+    } else {
+      btn.innerHTML = icon == null ? "" : icon.svg || icon;
+    }
+    btn._icon = handle;
+    return handle;
+  }
+  function setBtnIcon(btn, icon) {
+    var h = btn && btn._icon;
+    if (h && h.setMask && icon && icon.mask) {
+      h.setMask(icon.mask);
+      return;
+    }
+    if (btn) btn.innerHTML = icon && icon.svg || icon || "";
   }
   function closeOnOutsideClick(panel2, keep, onClose) {
     var keeps = [];
@@ -8152,7 +8188,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       bubble.classList.remove("show");
     });
     var row = el("div", "acsv-ctl-row");
-    var playBtn = elHtml("button", "acsv-cbtn acsv-cplay", ICONS.pause);
+    var playBtn = el("button", "acsv-cbtn acsv-cplay");
+    mountIcon(playBtn, PLAYER_ICONS.pause);
     a11y(playBtn, "播放/暂停（空格）");
     playBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
@@ -8238,7 +8275,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }
     var dmBtn = null, dmBox = null, qWrap = null, qBtn = null, qMenu = null, codecWrap = null, bufWrap = null;
     if (item && item.cap.danmaku) {
-      dmBtn = el("button", "acsv-cbtn acsv-cdm" + (dmEnabled() ? " on" : ""), "弹");
+      dmBtn = el("button", "acsv-cbtn acsv-cdm" + (dmEnabled() ? " on" : ""));
+      mountIcon(dmBtn, PLAYER_ICONS.danmaku);
       a11y(dmBtn, "弹幕开关");
       dmBtn.addEventListener("click", function(ev) {
         ev.stopPropagation();
@@ -9207,27 +9245,16 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       wrap.style.marginBottom = "25px";
       var b = el("button", "acsv-rail-btn");
       a11y(b, title);
-      var imgEl = null, imgOn = null, imgOff = null;
       if (icon && icon.mask) {
-        var mk = el("span", "acsvg-icon-mask");
-        mk.style.setProperty("--acsvg-icon", 'url("' + icon.mask + '")');
-        var probe = new Image();
-        probe.onerror = function() {
-          mk.remove();
-          b.innerHTML = icon.svg || "";
-        };
-        probe.src = icon.mask;
-        b.appendChild(mk);
+        mountIcon(b, icon);
       } else if (icon && icon.img) {
-        imgEl = el("img", "acsv-icon-img");
-        imgEl.alt = "";
-        imgOff = icon.img;
-        imgOn = icon.imgOn || null;
-        imgEl.addEventListener("error", function() {
-          b.innerHTML = icon.svg || "";
+        var im = el("img", "acsv-icon-img");
+        im.alt = "";
+        im.addEventListener("error", function() {
+          b.innerHTML = icon && icon.svg || "";
         });
-        imgEl.src = icon.img;
-        b.appendChild(imgEl);
+        im.src = icon.img;
+        b.appendChild(im);
       } else {
         b.innerHTML = icon;
       }
@@ -9239,7 +9266,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       wrap.appendChild(b);
       wrap.appendChild(c);
       rail.appendChild(wrap);
-      return { btn: b, count: c, imgEl, imgOn, imgOff };
+      return { btn: b, count: c };
     }
     var likeUI = railBtn({ mask: item.kind === "home" ? VIDEO_ICONS.like : SITE_ICONS.heart, svg: ICONS.heart }, fmt(item.like), "点赞", function(b) {
       var turnOn = !item.localLike;
@@ -10671,7 +10698,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.194" : "");
+    return normVer(true ? "0.9.195" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12550,12 +12577,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     },
     onPlaying: function(session2, video) {
       var slide = session2.slide, item = session2.item;
-      if (slide._ctlPlayBtn) slide._ctlPlayBtn.innerHTML = ICONS.pause;
+      if (slide._ctlPlayBtn) setBtnIcon(slide._ctlPlayBtn, PLAYER_ICONS.pause);
       showControls(slide);
       onPlaying(slide, item, video);
     },
     onPause: function(session2, video) {
-      if (session2.slide._ctlPlayBtn) session2.slide._ctlPlayBtn.innerHTML = ICONS.play;
+      if (session2.slide._ctlPlayBtn) setBtnIcon(session2.slide._ctlPlayBtn, PLAYER_ICONS.play);
       reportLeave(session2, video, "pause");
     },
     onMeta: function(session2, video) {
@@ -13852,7 +13879,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.194：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.195：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
