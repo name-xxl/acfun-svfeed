@@ -66,6 +66,11 @@ var RAW_CSS = ''
   + '.acsv-tbtn:hover{transform:scale(1.08);background:rgba(255,255,255,.25)}'
   + '.acsv-scroller{height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;overscroll-behavior:contain;scrollbar-width:none}'
   + '.acsv-scroller::-webkit-scrollbar{display:none}'
+  // 站点滚动条锁（0.9.207）：我们的覆盖层是 position:fixed;inset:0，对的是 **ICB——不含滚动条**，
+  // 所以只要站点自己还留着经典滚动条，右侧就恒有一条缝（实测首页 innerWidth 1280 / clientWidth 1265，
+  // 网页全屏时黑底上极扎眼）。**必须用 !important 的样式表规则**：只写内联样式的话，站点 SPA 一次
+  // style.overflow 回写就把它顶掉（0.9.195 起 player.js 的内联锁就是这么失的效）。挂载期加类、卸载摘类。
+  + 'html.acsv-scroll-lock{overflow:hidden!important}'
   + '.acsv-slide{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;'
   + 'display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000}'
   + '.acsv-slide-slot{height:100%}' /* 等高占位壳（0.9.165 水位）：换回时 offsetTop 全表不变 */

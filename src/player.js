@@ -482,6 +482,8 @@ function mount() {
   scroller.appendChild(spinner());
   document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
+  // 类锁（0.9.207）：内联样式压不住站点 SPA 的回写，!important 的样式表规则才守得住（见 styles.js 注释）
+  document.documentElement.classList.add('acsv-scroll-lock');
   document.body.appendChild(root);
   buildDock(root, { onSettings: openSettings }); // 左栏子视图入口：竖刷路由内常驻（unmount 随 teardownDock 拆）；设置齿轮出口经 hooks 注入（0.9.112）
   setFeedHomeHandler(goFeedHome); // 推荐条目显式重置入口（0.9.107）
@@ -565,6 +567,7 @@ function unmount() {
   setRoot(null); setScroller(null); setCommentDrawer(null);
   document.documentElement.style.overflow = '';
   document.body.style.overflow = '';
+  document.documentElement.classList.remove('acsv-scroll-lock');
 }
 
 function updateSegUI() {

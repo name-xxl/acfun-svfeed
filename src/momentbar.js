@@ -96,6 +96,7 @@ function wireBanana(btn, pi) {
     }
     // 视频/文章：视频页同款数量层（点第 N 根投 N；文章 resourceType=3 未实测标注在 interact）
     toggleBananaPop(btn, {
+      anchorBtn: true, // 动作条横贯整卡 ⇒ 弹层必须按按钮矩形锚（0.9.207），否则飞到最右端
       send: function (n) { return throwBananaPi(pi, n); },
       applied: function (n) { pi.banana += n; pi.thrown = true; syncBanana(btn, pi); }
     });

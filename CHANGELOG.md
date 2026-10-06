@@ -3,6 +3,33 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.207（2026-10-07）· 实机两处：网页全屏右侧缝隙（站点滚动条）+ 五蕉弹窗飞到卡最右端
+
+- **① 网页全屏最右侧有空隙（用户实机截图）**：病灶是**站点自身的经典滚动条**。
+  实测 A 站首页：`innerWidth = 1280` 而 `documentElement.clientWidth = 1265`（15px 滚动条，页面确实可滚），
+  而我们的覆盖层是 `position:fixed; inset:0`——它按 **ICB（不含滚动条）** 定尺，于是右侧恒定留一条
+  滚动条宽的缝，网页全屏黑底上极扎眼（用户截图里右侧那条就是它；探针实测 `w=1265 right=1265`）。
+  **更深一层**：`player.js` 自 0.9.195 起就在挂载时写 `documentElement.style.overflow='hidden'`——但那只是
+  **内联**样式，站点 SPA 一次回写就被顶掉（内联压不过内联）。故本批改为 **`!important` 的样式表类锁**：
+  `html.acsv-scroll-lock{overflow:hidden!important}` + 挂载加类 / 卸载摘类（单源，成对）。
+  真机实测锁生效即归零（1265→1280，且可还原；站点自身行内值不动）。
+- **② 关注页投蕉弹窗偏移到最右边（用户实机截图）**：`toggleBananaPop` 把弹层挂在 `btn.parentNode` 上，
+  而**宿主宽度随消费面而异**——竖刷右栏是紧贴按钮的小壳（CSS 的 `right:62` 本就是"离宿主右缘 62"），
+  关注行的动作条却是横贯整卡的宽条，同一个 `right:0` 在后者把弹层顶到卡片最右端。
+  修法：消费面声明 `anchorBtn: true`，弹层按**矩形**锚——右缘＝按钮右缘（纵向仍由各自 CSS 管：
+  行内抬到按钮上方、右栏与按钮齐平）。momentbar 的视频/文章行与详情动作条同源，一处声明两处受益。
+- **测试**：build/lint/check（含 tsc）/单测 278 / **全场景 56 全绿**。smoke 12→**15** 断言
+  （`webfs-fills-viewport`：根/滚动区/幻灯片三者铺满视口；`webfs-locks-page-scroll`：类在 **且计算样式
+  overflowY=hidden**；`webfs-lock-kept-after-exit`：影院退出不解锁；`scroll-lock-released`：根拆除即解锁），
+  并给 harness 页临时挂一条撑高假内容来模拟站点滚动条。view-follow 79→**80**（`follow-ban-pop-anchored`：
+  弹层右缘对齐投蕉键 ±1px 且底边在按钮上方）。
+- **反跑证据**：① 撤掉加类 → `webfs-locks-page-scroll` / `webfs-lock-kept-after-exit` 同红；
+  ② 撤掉 `anchorBtn` → `follow-ban-pop-anchored` 转红，读数正是病灶本身
+  （`pop.right=1294 btn.right=723 | row.right=1314`——弹层贴着卡片最右端，离按钮 570px）。恢复即绿。
+- **如实说明**：无头 Chromium 用**覆盖式滚动条**（不占布局宽），所以①的"宽度"那条在 harness 里是恒真兜底，
+  真正钉住的是"类 + 计算样式"与真机读数（1265→1280）；这种"站点滚动条挤窄覆盖层"的毛病 harness 复现不出来。
+  已把该结论入档 `docs/api-research.md` §10.15（本地留档）。
+
 ### 0.9.206（2026-10-07）· 实机两处：底栏「弹」开关回退文本键 + 弹幕设置面板改锚按钮
 
 - **由头**：用户实机截图（竖刷页）两点——① 「底栏弹幕开关样式可以改回原来的」；② 「清晰度和弹幕设置展开后位置没对齐按钮」。

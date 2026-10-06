@@ -53,6 +53,14 @@ export function toggleBananaPop(btn, opts) {
   });
   if (getComputedStyle(host).position === 'static') host.style.position = 'relative'; // 弹层锚定宿主
   host.appendChild(pop);
+  // 锚到**触发按钮**（0.9.207 实机修「五蕉弹窗偏移到最右边」）：宿主（btn.parentNode）宽度随消费面而异
+  // ——竖刷右栏是紧贴按钮的小壳（CSS 的 right:62 就是"离宿主右缘 62"），关注行的动作条却是横贯整卡的
+  // 宽条，同一个 right:0 在后者把弹层顶到卡片最右端，离按钮几百像素。声明 anchorBtn 的消费面改按
+  // 矩形算：弹层右缘＝按钮右缘（纵向仍由各自 CSS 管——行内抬到按钮上方、右栏与按钮齐平）。
+  if (opts.anchorBtn) {
+    var hl = host.getBoundingClientRect(), bl = btn.getBoundingClientRect();
+    pop.style.right = Math.round(hl.right - bl.right) + 'px';
+  }
   // 外点收起（0.9.147 收口）：捕获相 + 常驻到拆除；面板内点击不算外点
   // （选数量本身会 pop.remove，旧实现"任意点击都关"已被合并）
   closeOnOutsideClick(pop, [btn], function () { pop.remove(); });

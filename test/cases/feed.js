@@ -25,6 +25,11 @@ rec('a11y-topbar-upd', !!tbUpd && tbUpd.getAttribute('aria-label') === '更新�
 // 0.9.197 两级全屏：网页全屏＝隐自身 UI（dock/顶栏/右栏/信息区都在 CSS 里收口到根类）；
 // 可见性用 offsetParent（display:none 时为 null）。窗口全屏走 Fullscreen API，无头环境下
 // 无用户激活、requestFullscreen 不可靠，故只钉影院态与退出路径。
+// 模拟站点自身的经典滚动条（实机 A 站首页 innerWidth 1280 / clientWidth 1265）：覆盖层
+// position:fixed;inset:0 对的是 ICB（不含滚动条）⇒ 不解锁就永远右侧留一条缝。先撑高再进影院
+var tallStub = document.createElement('div');
+tallStub.style.cssText = 'width:1px;height:3000px';
+document.body.appendChild(tallStub);
 rec('webfs-hides-ui', (function () {
   var r = document.getElementById('acsv-root'), b = q('.acsv-cwebfs');
   if (!r || !b) return false;
@@ -40,6 +45,48 @@ rec('webfs-hides-ui', (function () {
   var sc = q('.acsv-scroller');
   return 'scrollerMarginLeft=' + (sc ? getComputedStyle(sc).marginLeft : 'none');
 })());
+// 影院态必须**铺满视口**（0.9.207 实报「网页全屏最右侧有空隙」）：根/滚动区/幻灯片三者都
+// 右缘贴到 innerWidth、左缘 0——任一处留边都会在黑底上露成"空隙"
+rec('webfs-fills-viewport', (function () {
+  var r = document.getElementById('acsv-root');
+  var sc = q('.acsv-scroller'), sl = q('.acsv-slide');
+  if (!r || !sc || !sl) return false;
+  var rr = r.getBoundingClientRect(), sr = sc.getBoundingClientRect(), lr = sl.getBoundingClientRect();
+  var W = window.innerWidth, H = window.innerHeight;
+  return Math.abs(rr.left) <= 1 && Math.abs(rr.width - W) <= 1 && Math.abs(rr.height - H) <= 1
+    && Math.abs(sr.left) <= 1 && Math.abs(sr.right - W) <= 1
+    && Math.abs(lr.left) <= 1 && Math.abs(lr.right - W) <= 1;
+})(), (function () {
+  var r = document.getElementById('acsv-root'), sc = q('.acsv-scroller'), sl = q('.acsv-slide');
+  if (!r || !sc || !sl) return 'missing';
+  var rr = r.getBoundingClientRect(), sr = sc.getBoundingClientRect(), lr = sl.getBoundingClientRect();
+  return 'win=' + window.innerWidth + 'x' + window.innerHeight
+    + ' | root=' + Math.round(rr.left) + '..' + Math.round(rr.right)
+    + ' w=' + Math.round(rr.width) + ' h=' + Math.round(rr.height)
+    + ' | scroller=' + Math.round(sr.left) + '..' + Math.round(sr.right)
+    + ' | slide=' + Math.round(lr.left) + '..' + Math.round(lr.right);
+})());
+// 影院态下**站点滚动条必须被锁掉**：页面有滚动条时覆盖层仍须铺满（锁前 1265 / 锁后 1280 实测）
+rec('webfs-locks-page-scroll', (function () {
+  var de = document.documentElement;
+  var r = document.getElementById('acsv-root');
+  if (!r) return false;
+  var rr = r.getBoundingClientRect();
+  // 注：无头 Chromium 用**覆盖式滚动条**（不占布局宽），所以这里宽度那条在无头下是恒真兜底，
+  // 真正钉住的是「类在 + 计算样式 overflowY=hidden」——后者是锁生效的实效判据（真机 1265→1280）
+  return de.classList.contains('acsv-scroll-lock')
+    && getComputedStyle(de).overflowY === 'hidden'
+    && Math.abs(rr.width - window.innerWidth) <= 1;
+})(), (function () {
+  var de = document.documentElement;
+  var r = document.getElementById('acsv-root');
+  return 'lockClass=' + de.classList.contains('acsv-scroll-lock')
+    + ' overflowY=' + getComputedStyle(de).overflowY
+    + ' | rootW=' + (r ? Math.round(r.getBoundingClientRect().width) : 'none')
+    + ' innerW=' + window.innerWidth + ' clientW=' + de.clientWidth
+    + ' pageScroll=' + (de.scrollHeight > de.clientHeight);
+})());
+if (tallStub.parentNode) tallStub.remove();
 rec('webfs-esc-exits', (function () {
   var r = document.getElementById('acsv-root');
   key('Escape'); // 影院态下 Esc 只退影院（顶栏已隐，不许直接退脚本）
@@ -47,8 +94,14 @@ rec('webfs-esc-exits', (function () {
   return !r.classList.contains('acsv-cinema') && dock && dock.offsetParent !== null
     && !!r; // 根仍在：没被 Esc 误退
 })());
+// 影院退出**不解锁**（我们的 UI 还挂着，覆盖层仍须铺满）——解锁点只在根拆除时
+rec('webfs-lock-kept-after-exit', document.documentElement.classList.contains('acsv-scroll-lock'),
+  'lockClass=' + document.documentElement.classList.contains('acsv-scroll-lock'));
 key('Escape');
 rec('esc-exits', !!(await waitFor(function () { return !document.getElementById('acsv-root'); }, 5000)));
+// 根拆除＝解锁：把 html 还给站点（否则站页再也滚不动）
+rec('scroll-lock-released', !document.documentElement.classList.contains('acsv-scroll-lock'),
+  'lockClass=' + document.documentElement.classList.contains('acsv-scroll-lock'));
   };
   // ---- homeswitch ----
   C['homeswitch'] = async function (h) {

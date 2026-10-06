@@ -1766,6 +1766,21 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     rec('follow-ban-pop', !!(await waitFor(function () {
       return vRow.querySelectorAll('.acsv-banpop button').length === 5;
     }, 5000)), 'n=' + vRow.querySelectorAll('.acsv-banpop button').length);
+    // 弹层锚在**触发键**上（0.9.207 实机报「五蕉弹窗偏移到最右边」）：关注行动作条横贯整卡，
+    // 写死 right:0 会把弹层顶到卡片最右端——须右缘对齐按钮、底边在按钮上方
+    rec('follow-ban-pop-anchored', (function () {
+      var pop = vRow.querySelector('.acsv-banpop');
+      if (!pop || !vBan) return false;
+      var pr = pop.getBoundingClientRect(), br = vBan.getBoundingClientRect();
+      return Math.abs(pr.right - br.right) <= 1 && pr.bottom <= br.top + 1;
+    })(), (function () {
+      var pop = vRow.querySelector('.acsv-banpop');
+      if (!pop || !vBan) return 'no-pop';
+      var pr = pop.getBoundingClientRect(), br = vBan.getBoundingClientRect();
+      return 'pop.right=' + Math.round(pr.right) + ' btn.right=' + Math.round(br.right)
+        + ' | pop.bottom=' + Math.round(pr.bottom) + ' btn.top=' + Math.round(br.top)
+        + ' | row.right=' + Math.round(vRow.getBoundingClientRect().right);
+    })());
     var popBtns = vRow.querySelectorAll('.acsv-banpop button');
     if (popBtns[2]) popBtns[2].dispatchEvent(new MouseEvent('mouseenter'));
     rec('follow-ban-hover', (function () {
