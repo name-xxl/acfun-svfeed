@@ -128,6 +128,9 @@ export var CFG = {
     searchArticle: 'https://www.acfun.cn/rest/pc-direct/search/article',
     // ---- 弹幕（www.acfun.cn 同域，网页 Cookie 鉴权） ----
     dmList: 'https://www.acfun.cn/rest/pc-direct/new-danmaku/list',
+    // 高级弹幕**只**从这条增量接口取（0.9.204 真机实证：list 链路即便带 enableAdvanced=true
+    // 也一条高级弹幕都不返回，见 docs/api-research.md §10.13）
+    dmPollPos: 'https://www.acfun.cn/rest/pc-direct/new-danmaku/pollByPosition',
     dmAdd: 'https://www.acfun.cn/rest/pc-direct/new-danmaku/add',
     // hls.js 分发源（按序尝试）：jsdelivr 大陆常不可达（0.9.12 实测连续拉取失败），
     // npmmirror（阿里）优先；两源同版本，拉取文本后 Function 执行，无签名校验需求

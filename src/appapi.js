@@ -5,6 +5,7 @@ import { normalizeHome, foldBr } from './playitem.js';
 import { fmtDate } from './timefmt.js';
 import { coverUrl } from './imgurl.js';
 import { applyQuality } from './quality.js';
+import { parseAdvanced } from './advdm.js';
 
 // ---------- APP 家族接口层 ----------
 // 读接口走 api-new.app.acfun.cn（与 acfunchina.com 同后端），固定 mkey 免登录：
@@ -343,7 +344,8 @@ export var AppAPI = {
               at: Number(m.position) || 0,
               mode: Number(m.mode) || 1,
               color: intToHex(m.color),
-              size: Number(m.size) || 25
+              size: Number(m.size) || 25,
+              roleId: Number(m.roleId) || 0 // 角色弹幕判据（0.9.204；两条链路都带该字段）
             });
           });
           var next = j.pcursor;
@@ -359,6 +361,38 @@ export var AppAPI = {
       list.sort(function (a, b) { return a.at - b.at; });
       return list;
     });
+  },
+  // 高级弹幕取池（0.9.204）：**只能走 pollByPosition**——list 链路即使带 enableAdvanced=true
+  // 也一条高级弹幕都不返回（真机实证 §10.13，100 条 danmakuType 全 0）。
+  // 窗口是**左闭右开的毫秒区间**，跟播放头增量拉（原稿 1912s ÷ 20s = 96 个窗口，全量扫不可接受）。
+  // 返回该窗口内的高级条目（按出现时刻升序）；失败静默空数组（调用方不因此中断经典弹幕）。
+  danmakuAdvanced: function (videoId, fromMs, toMs) {
+    var from = Math.max(0, Math.round(fromMs || 0));
+    var to = Math.max(from + 1, Math.round(toMs || 0));
+    return postForm(CFG.api.dmPollPos,
+      'resourceId=' + videoId + '&resourceType=9&enableAdvanced=true'
+      + '&positionFromInclude=' + from + '&positionToExclude=' + to)
+      .then(function (j) {
+        if (!j || j.result !== 0) return [];
+        var seen = {}, out = [];
+        (j.danmakus || []).forEach(function (m) {
+          if (Number(m.danmakuType) !== 1) return; // 只有 danmakuType=1 是高级弹幕
+          var adv = parseAdvanced(m.advancedDanmakuExtData);
+          if (!adv || !adv.frames.length) return;  // 坏 JSON / 无帧：不画（也不占经典弹幕的坑）
+          if (adv.contentType !== 0) return;       // 图片弹幕（Base64）两侧画布都未实现，不静默画错
+          var id = String(m.danmakuId || '');
+          if (seen[id]) return;
+          seen[id] = 1;
+          out.push({
+            id: id,
+            // 出现时刻 = position（真机 399/399 条 ext.startTime 与 position 逐条相等，见 §10.13）
+            at: Math.max(0, Number(m.position) || 0),
+            adv: adv
+          });
+        });
+        out.sort(function (a, b) { return a.at - b.at; });
+        return out;
+      }, function () { return []; });
   },
   // 进度条悬停缩略图（0.9.200）：免登录；失败静默返回 []（调用方降级为"只有时间"）。
   // 带微缓存：同 videoId 只打一次（跨条/重挂都命中）

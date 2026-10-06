@@ -479,7 +479,9 @@ function buildDmPanel(slide) {
     setSetting('dmBlock', parts.join(' '));
     apply();
   }
-  [['top', '顶部弹幕'], ['bottom', '底部弹幕'], ['scroll', '滚动弹幕'], ['color', '彩色弹幕']].forEach(function (p) {
+  // 六类与原生一致（§10.12）；判据字段：mode / color / roleId / adv（0.9.204 补齐后两类）
+  [['top', '顶部弹幕'], ['bottom', '底部弹幕'], ['scroll', '滚动弹幕'], ['color', '彩色弹幕'],
+    ['role', '角色弹幕'], ['advanced', '高级弹幕']].forEach(function (p) {
     var t = el('span', 'acsv-dmptag', p[1]);
     t.classList.toggle('on', blockHas(p[0]));
     t.addEventListener('click', function (ev) {
@@ -498,8 +500,6 @@ function buildDmPanel(slide) {
   fi.addEventListener('click', function (ev) { ev.stopPropagation(); });
   fi.addEventListener('input', function () { setSetting('dmFilter', fi.value); apply(); });
   bodyBlk.appendChild(fi);
-  bodyBlk.appendChild(el('div', 'acsv-dmpnote',
-    '角色弹幕 / 高级弹幕 的屏蔽待高级弹幕渲染批次（需 danmakuStyle/danmakuType 字段）'));
   box.appendChild(bodyBlk);
 
   // tab 切换

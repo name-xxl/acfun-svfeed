@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.203
+// @version      0.9.204
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.203" : "",
+          ver: true ? "0.9.204" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -225,6 +225,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       searchArticle: "https://www.acfun.cn/rest/pc-direct/search/article",
       // ---- 弹幕（www.acfun.cn 同域，网页 Cookie 鉴权） ----
       dmList: "https://www.acfun.cn/rest/pc-direct/new-danmaku/list",
+      // 高级弹幕**只**从这条增量接口取（0.9.204 真机实证：list 链路即便带 enableAdvanced=true
+      // 也一条高级弹幕都不返回，见 docs/api-research.md §10.13）
+      dmPollPos: "https://www.acfun.cn/rest/pc-direct/new-danmaku/pollByPosition",
       dmAdd: "https://www.acfun.cn/rest/pc-direct/new-danmaku/add",
       // hls.js 分发源（按序尝试）：jsdelivr 大陆常不可达（0.9.12 实测连续拉取失败），
       // npmmirror（阿里）优先；两源同版本，拉取文本后 Function 执行，无签名校验需求
@@ -1650,6 +1653,197 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return true;
   }
 
+  // src/advdm.js
+  var DEFAULT_ANCHOR = 4;
+  var DEF_DUR = 5e3;
+  var DEF_SIZE = 25;
+  var DEF_COLOR = "#ffffff";
+  var DEF_FONT = "SimHei";
+  function num(v, def) {
+    var n = Number(v);
+    return isFinite(n) ? n : def;
+  }
+  function normTiming(fn) {
+    var s = String(fn == null ? "" : fn).trim();
+    if (!s) return "linear";
+    if (s === "linear" || s === "ease" || s === "ease-in" || s === "ease-out" || s === "ease-in-out") return s;
+    if (/^cubic-bezier\(\s*[\d.+-]+\s*,\s*[\d.+-]+\s*,\s*[\d.+-]+\s*,\s*[\d.+-]+\s*\)$/.test(s)) return s;
+    return "linear";
+  }
+  function cubicBezierXY(t, p1, p2) {
+    var mt = 1 - t;
+    return 3 * mt * mt * t * p1 + 3 * mt * t * t * p2 + t * t * t;
+  }
+  function cubicBezierDX(t, p1, p2) {
+    var mt = 1 - t;
+    return 3 * mt * mt * p1 + 6 * mt * t * (p2 - p1) + 3 * t * t * (1 - p2);
+  }
+  function easeProgress(t, fn) {
+    var name = normTiming(fn);
+    if (name.indexOf("cubic-bezier") === 0) {
+      var m = /^cubic-bezier\(\s*([\d.+-]+)\s*,\s*([\d.+-]+)\s*,\s*([\d.+-]+)\s*,\s*([\d.+-]+)\s*\)$/.exec(name);
+      if (!m) return t;
+      var x1 = parseFloat(m[1]), y1 = parseFloat(m[2]), x2 = parseFloat(m[3]), y2 = parseFloat(m[4]);
+      var u = t, ok = false, i, dx, d, un;
+      for (i = 0; i < 8; i++) {
+        dx = cubicBezierXY(u, x1, x2) - t;
+        if (Math.abs(dx) < 1e-6) {
+          ok = true;
+          break;
+        }
+        d = cubicBezierDX(u, x1, x2);
+        if (Math.abs(d) < 1e-6) break;
+        un = u - dx / d;
+        if (un < 0 || un > 1) break;
+        u = un;
+      }
+      if (!ok) {
+        var lo = 0, hi = 1;
+        for (i = 0; i < 32; i++) {
+          u = (lo + hi) / 2;
+          if (cubicBezierXY(u, x1, x2) < t) lo = u;
+          else hi = u;
+        }
+      }
+      return cubicBezierXY(u, y1, y2);
+    }
+    switch (name) {
+      case "ease-in":
+        return t * t;
+      case "ease-out":
+        return t * (2 - t);
+      case "ease-in-out":
+        return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      default:
+        return t;
+    }
+  }
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+  function pos3(o) {
+    return { x: num(o && o.x, 0), y: num(o && o.y, 0), z: num(o && o.z, 0) };
+  }
+  function scale3(o) {
+    var p = pos3(o);
+    return { x: p.x === 0 ? 1 : p.x, y: p.y === 0 ? 1 : p.y, z: p.z === 0 ? 1 : p.z };
+  }
+  function rot3(o) {
+    return pos3(o);
+  }
+  function normFrame(f) {
+    if (!f) return null;
+    var from = f.from || f.to || {}, to = f.to || f.from || {};
+    return {
+      from: { pos: pos3(from.pos), scale: scale3(from.scale), rotate: rot3(from.rotate) },
+      to: { pos: pos3(to.pos), scale: scale3(to.scale), rotate: rot3(to.rotate) },
+      timingFunction: normTiming(f.timingFunction),
+      staticTime: Math.max(0, num(f.staticTime, 0)),
+      moveTime: Math.max(0, num(f.moveTime, 0))
+    };
+  }
+  function parseAdvanced(ext) {
+    var o = ext;
+    if (typeof ext === "string") {
+      try {
+        o = JSON.parse(ext);
+      } catch (e) {
+        return null;
+      }
+    }
+    if (!o || typeof o !== "object") return null;
+    var content = o.content == null ? "" : String(o.content);
+    if (!content) return null;
+    var ws = o.wordStyle || {};
+    var frames = [];
+    (o.animationFrames || []).forEach(function(f) {
+      var nf = normFrame(f);
+      if (nf) frames.push(nf);
+    });
+    return {
+      id: String(o.id || ""),
+      content,
+      // contentType：真机 399 条全 0（文本）。1=Base64 图片弹幕——两画布都未实现，标出不画（不静默画错）
+      contentType: num(o.contentType, 0),
+      anchor: Math.max(0, Math.min(8, Math.round(num(o.anchor, DEFAULT_ANCHOR)))),
+      zIndex: num(o.zIndex, 50),
+      duration: Math.max(200, num(o.durationTime, DEF_DUR)),
+      wordStyle: {
+        font: String(ws.font || DEF_FONT),
+        size: Math.max(8, num(ws.size, DEF_SIZE)),
+        bold: !!ws.bold,
+        stroke: ws.stroke !== false,
+        color: String(ws.color || DEF_COLOR),
+        shadow: ws.shadow || null
+      },
+      scale: scale3(o.scale),
+      rotate: rot3(o.rotate),
+      frames,
+      startTimeNow: !!o.startTimeNow
+    };
+  }
+  function interpolateModel(model, elapsedMs) {
+    if (!model || elapsedMs < 0) return null;
+    var frames = model.frames || [];
+    if (!frames.length) return null;
+    var acc = 0;
+    for (var i = 0; i < frames.length; i++) {
+      var f = frames[i];
+      var mt = f.moveTime || 0;
+      if (elapsedMs < acc + mt || mt <= 0) {
+        var p = mt > 0 ? Math.max(0, Math.min(1, (elapsedMs - acc) / mt)) : 1;
+        var e = easeProgress(p, f.timingFunction);
+        return {
+          x: lerp(f.from.pos.x, f.to.pos.x, e),
+          y: lerp(f.from.pos.y, f.to.pos.y, e),
+          scaleX: lerp(f.from.scale.x, f.to.scale.x, e),
+          scaleY: lerp(f.from.scale.y, f.to.scale.y, e),
+          rotateX: lerp(f.from.rotate.x, f.to.rotate.x, e),
+          rotateY: lerp(f.from.rotate.y, f.to.rotate.y, e),
+          rotateZ: lerp(f.from.rotate.z, f.to.rotate.z, e)
+        };
+      }
+      acc += mt;
+    }
+    return null;
+  }
+  function drawModel(ctx, model, frame, cw, ch, sizeScale) {
+    var ws = model.wordStyle || {};
+    var k = num(sizeScale, 1) || 1;
+    var size = (ws.size || DEF_SIZE) * k;
+    var lines = String(model.content || "").split("\n");
+    var lineHeight = size;
+    var blockH = lines.length * lineHeight;
+    var x = frame.x / 100 * cw;
+    var y = frame.y / 100 * ch;
+    var anchor = model.anchor == null ? DEFAULT_ANCHOR : model.anchor;
+    var col = anchor % 3, row = Math.floor(anchor / 3);
+    ctx.save();
+    ctx.font = (ws.bold ? "bold " : "") + size + "px " + ws.font;
+    ctx.translate(x, y);
+    ctx.scale(frame.scaleX, frame.scaleY);
+    if (frame.rotateZ) ctx.rotate(frame.rotateZ * Math.PI / 180);
+    ctx.textAlign = col === 0 ? "left" : col === 1 ? "center" : "right";
+    ctx.textBaseline = "middle";
+    var yStart = row === 0 ? 0 : row === 1 ? -blockH / 2 : -blockH;
+    var i;
+    if (ws.stroke !== false) {
+      ctx.lineJoin = "round";
+      ctx.lineWidth = Math.max(1, size / 12);
+      ctx.strokeStyle = "#000000";
+      for (i = 0; i < lines.length; i++) ctx.strokeText(lines[i], 0, yStart + (i + 0.5) * lineHeight);
+    }
+    if (ws.shadow) {
+      ctx.shadowColor = ws.shadow.color || "#000000";
+      ctx.shadowBlur = num(ws.shadow.blur, 0);
+      ctx.shadowOffsetX = num(ws.shadow.x, 0);
+      ctx.shadowOffsetY = num(ws.shadow.y, 0);
+    }
+    ctx.fillStyle = ws.color || DEF_COLOR;
+    for (i = 0; i < lines.length; i++) ctx.fillText(lines[i], 0, yStart + (i + 0.5) * lineHeight);
+    ctx.restore();
+  }
+
   // src/appapi.js
   var pcursor = "";
   var exhausted = false;
@@ -1960,7 +2154,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
               at: Number(m.position) || 0,
               mode: Number(m.mode) || 1,
               color: intToHex(m.color),
-              size: Number(m.size) || 25
+              size: Number(m.size) || 25,
+              roleId: Number(m.roleId) || 0
+              // 角色弹幕判据（0.9.204；两条链路都带该字段）
             });
           });
           var next = j.pcursor;
@@ -1975,6 +2171,42 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           return a.at - b.at;
         });
         return list;
+      });
+    },
+    // 高级弹幕取池（0.9.204）：**只能走 pollByPosition**——list 链路即使带 enableAdvanced=true
+    // 也一条高级弹幕都不返回（真机实证 §10.13，100 条 danmakuType 全 0）。
+    // 窗口是**左闭右开的毫秒区间**，跟播放头增量拉（原稿 1912s ÷ 20s = 96 个窗口，全量扫不可接受）。
+    // 返回该窗口内的高级条目（按出现时刻升序）；失败静默空数组（调用方不因此中断经典弹幕）。
+    danmakuAdvanced: function(videoId, fromMs, toMs) {
+      var from = Math.max(0, Math.round(fromMs || 0));
+      var to = Math.max(from + 1, Math.round(toMs || 0));
+      return postForm(
+        CFG.api.dmPollPos,
+        "resourceId=" + videoId + "&resourceType=9&enableAdvanced=true&positionFromInclude=" + from + "&positionToExclude=" + to
+      ).then(function(j) {
+        if (!j || j.result !== 0) return [];
+        var seen = {}, out = [];
+        (j.danmakus || []).forEach(function(m) {
+          if (Number(m.danmakuType) !== 1) return;
+          var adv = parseAdvanced(m.advancedDanmakuExtData);
+          if (!adv || !adv.frames.length) return;
+          if (adv.contentType !== 0) return;
+          var id = String(m.danmakuId || "");
+          if (seen[id]) return;
+          seen[id] = 1;
+          out.push({
+            id,
+            // 出现时刻 = position（真机 399/399 条 ext.startTime 与 position 逐条相等，见 §10.13）
+            at: Math.max(0, Number(m.position) || 0),
+            adv
+          });
+        });
+        out.sort(function(a, b) {
+          return a.at - b.at;
+        });
+        return out;
+      }, function() {
+        return [];
       });
     },
     // 进度条悬停缩略图（0.9.200）：免登录；失败静默返回 []（调用方降级为"只有时间"）。
@@ -6029,7 +6261,14 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     curSubtitle = !!getSetting("dmSubtitle");
     curMerge = !!getSetting("dmMerge");
     var blk = String(getSetting("dmBlock") || "");
-    curBlock = { top: /\btop\b/.test(blk), bottom: /\bbottom\b/.test(blk), scroll: /\bscroll\b/.test(blk), color: /\bcolor\b/.test(blk) };
+    curBlock = {
+      top: /\btop\b/.test(blk),
+      bottom: /\bbottom\b/.test(blk),
+      scroll: /\bscroll\b/.test(blk),
+      color: /\bcolor\b/.test(blk),
+      role: /\brole\b/.test(blk),
+      advanced: /\badvanced\b/.test(blk)
+    };
     curFilter = String(getSetting("dmFilter") || "").split(/[\n,]/).map(function(x) {
       return x.trim();
     }).filter(Boolean);
@@ -6042,6 +6281,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         if (block.bottom && it.mode === 4) return false;
         if (block.scroll && (it.mode === 1 || it.mode === 6)) return false;
         if (block.color && it.color && String(it.color).toLowerCase() !== "#ffffff") return false;
+        if (block.role && Number(it.roleId) > 0) return false;
+        if (block.advanced && it.adv) return false;
       }
       if (keywords && keywords.length) {
         for (var i = 0; i < keywords.length; i++) if (String(it.text || "").indexOf(keywords[i]) >= 0) return false;
@@ -6073,6 +6314,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var raf = 0, running = false, lastAlign = 0;
     var cssW = 0, cssH = 0, dpr = 1;
     var lastRaw = [];
+    var advRaw = [];
+    var advItems = [], advHead = 0, lastAdvT = -1;
     var laneH = 30, lastW = 0;
     var head = 0, lastT = -1;
     var devK = 1;
@@ -6203,6 +6446,45 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       }
       lastW = cssW;
     }
+    function applyAdvFilter() {
+      advItems = [];
+      advHead = 0;
+      lastAdvT = -1;
+      if (curBlock.advanced) return;
+      for (var i = 0; i < advRaw.length; i++) {
+        var it = advRaw[i];
+        if (!it || !it.adv || !it.adv.frames || !it.adv.frames.length) continue;
+        if (curBlock.role && Number(it.roleId) > 0) continue;
+        advItems.push(it);
+      }
+      advItems.sort(function(a, b) {
+        return a.at - b.at;
+      });
+    }
+    function paintAdvanced(t, alpha) {
+      if (!advItems.length || cssW < 10) return 0;
+      if (t < lastAdvT) advHead = 0;
+      lastAdvT = t;
+      while (advHead < advItems.length && t > advItems[advHead].at + advItems[advHead].adv.duration) advHead++;
+      var visList = [], k;
+      for (k = advHead; k < advItems.length; k++) {
+        var av = advItems[k];
+        if (av.at > t) break;
+        if (t > av.at + av.adv.duration) continue;
+        var fr = interpolateModel(av.adv, t - av.at);
+        if (fr) visList.push({ adv: av.adv, fr });
+      }
+      if (!visList.length) return 0;
+      visList.sort(function(a, b) {
+        return a.adv.zIndex - b.adv.zIndex;
+      });
+      var prevAlpha = ctx.globalAlpha;
+      for (k = 0; k < visList.length; k++) {
+        drawModel(ctx, visList[k].adv, visList[k].fr, cssW, cssH, curSizeScale);
+      }
+      ctx.globalAlpha = prevAlpha;
+      return visList.length;
+    }
     function paint() {
       var t0 = 0, vis = 0;
       if (false) t0 = performance.now();
@@ -6251,6 +6533,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           vis++;
         }
       }
+      vis += paintAdvanced(video.currentTime * 1e3, curAlpha);
       ctx.globalAlpha = 1;
       if (false) {
         stat("dm.frame");
@@ -6260,6 +6543,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           set("dm.paintMs", +(dmMs / dmFc).toFixed(2));
           set("dm.visible", Math.round(dmVisSum / dmFc));
           set("dm.sprites", sprN);
+          set("dm.adv", advItems.length);
           dmFc = 0;
           dmMs = 0;
           dmVisSum = 0;
@@ -6298,10 +6582,29 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         lastT = -1;
         sprQueue = [];
         sprN = 0;
+        applyAdvFilter();
         if (running) {
           assignLanes();
           if (video.paused) paint();
         }
+      },
+      // 高级弹幕增量喂入（0.9.204）：窗口拉取会让同一条跨窗重复，按 id 去重后并入（保持 at 升序）
+      addAdvanced: function(list) {
+        var seen = {}, i;
+        for (i = 0; i < advRaw.length; i++) seen[String(advRaw[i].id)] = 1;
+        var added = 0;
+        for (i = 0; i < (list || []).length; i++) {
+          var it = list[i];
+          if (!it || !it.adv) continue;
+          if (!it.adv.frames || !it.adv.frames.length) continue;
+          if (seen[String(it.id)]) continue;
+          seen[String(it.id)] = 1;
+          advRaw.push(it);
+          added++;
+        }
+        if (added) applyAdvFilter();
+        if (added && running && video.paused) paint();
+        return added;
       },
       // 发送成功后的本地回显：按 at 有序插入（时间窗扫描依赖升序不变量，通常就落在队尾）
       addLocal: function(it) {
@@ -6312,6 +6615,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           assignLanes();
           if (video.paused) paint();
         }
+      },
+      // 图层是否在绘制（取池泵据此暂停拉数据：弹幕关掉/图层停了就不该继续打请求）
+      isRunning: function() {
+        return running;
       },
       start: function() {
         if (running) return;
@@ -6364,7 +6671,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         }
       });
       layers = [];
-    }
+    },
+    // harness 直采：让"真机形状的 ext JSON → 模型"这条解析链在浏览器里也被跑一遍（不只是单测）
+    parseAdvExt: parseAdvanced
   };
   testHook("dmcanvas", function() {
     return DmCanvas;
@@ -6405,15 +6714,66 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var layer = slide._dmLayer;
     if (!enabled) {
       layer.stop();
+      stopAdvPump(layer);
       return;
     }
     layer.start();
     fetchList(item.videoId).then(function(list) {
       layer.setItems(list);
     });
+    startAdvPump(layer, item, video);
   }
   function stopAll() {
     DmCanvas.stopAll();
+    stopAdvPump(null);
+  }
+  var ADV_WIN = 2e4;
+  var ADV_PREFETCH = 5e3;
+  var ADV_MAX_WIN = 200;
+  var pumps = [];
+  function findPump(layer) {
+    for (var i = 0; i < pumps.length; i++) if (pumps[i].layer === layer) return pumps[i];
+    return null;
+  }
+  function stopAdvPump(layer) {
+    pumps = pumps.filter(function(p) {
+      if (layer && p.layer !== layer) return true;
+      clearInterval(p.timer);
+      return false;
+    });
+  }
+  function startAdvPump(layer, item, video) {
+    stopAdvPump(layer);
+    var st2 = { layer, timer: 0, start: -1, end: -1, inflight: false, wins: 0 };
+    pumps.push(st2);
+    function pull(from) {
+      if (st2.inflight || st2.wins >= ADV_MAX_WIN) return;
+      st2.inflight = true;
+      st2.wins++;
+      AppAPI.danmakuAdvanced(item.videoId, from, from + ADV_WIN).then(function(list) {
+        st2.inflight = false;
+        if (!findPump(st2.layer)) return;
+        st2.start = from;
+        st2.end = from + ADV_WIN;
+        st2.layer.addAdvanced(list);
+      }, function() {
+        st2.inflight = false;
+      });
+    }
+    st2.timer = setInterval(function() {
+      if (!findPump(st2.layer)) {
+        clearInterval(st2.timer);
+        return;
+      }
+      if (!st2.layer.isRunning || !st2.layer.isRunning()) return;
+      if (video.paused || video.ended) return;
+      var t = video.currentTime * 1e3;
+      if (st2.start < 0 || t < st2.start || t >= st2.end) {
+        pull(Math.floor(t / ADV_WIN) * ADV_WIN);
+        return;
+      }
+      if (t >= st2.end - ADV_PREFETCH) pull(st2.end);
+    }, 1500);
   }
   function createDmBox(item, videoOf) {
     var box = el("div", "acsv-dmbox");
@@ -8881,7 +9241,14 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         setSetting("dmBlock", parts.join(" "));
         apply();
       }
-      [["top", "顶部弹幕"], ["bottom", "底部弹幕"], ["scroll", "滚动弹幕"], ["color", "彩色弹幕"]].forEach(function(p) {
+      [
+        ["top", "顶部弹幕"],
+        ["bottom", "底部弹幕"],
+        ["scroll", "滚动弹幕"],
+        ["color", "彩色弹幕"],
+        ["role", "角色弹幕"],
+        ["advanced", "高级弹幕"]
+      ].forEach(function(p) {
         var t = el("span", "acsv-dmptag", p[1]);
         t.classList.toggle("on", blockHas(p[0]));
         t.addEventListener("click", function(ev) {
@@ -8905,11 +9272,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         apply();
       });
       bodyBlk.appendChild(fi);
-      bodyBlk.appendChild(el(
-        "div",
-        "acsv-dmpnote",
-        "角色弹幕 / 高级弹幕 的屏蔽待高级弹幕渲染批次（需 danmakuStyle/danmakuType 字段）"
-      ));
       box.appendChild(bodyBlk);
       function showTab2(which) {
         var isSet = which === "set";
@@ -11346,7 +11708,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.203" : "");
+    return normVer(true ? "0.9.204" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -14544,7 +14906,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.203：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.204：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -15023,10 +15385,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       box.appendChild(info);
       slot.appendChild(box);
     }
-    function addStat(host3, num, label) {
-      if (num == null) return;
+    function addStat(host3, num2, label) {
+      if (num2 == null) return;
       var s = el("div", "acsv-mecard-stat");
-      s.appendChild(el("b", "", fmt(num)));
+      s.appendChild(el("b", "", fmt(num2)));
       s.appendChild(document.createTextNode(label));
       host3.appendChild(s);
     }

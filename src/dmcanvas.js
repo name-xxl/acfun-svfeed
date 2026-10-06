@@ -1,15 +1,16 @@
 import { CFG } from './cfg.js';
 import { getSetting } from './settings.js';
 import { stat, set, testHook } from './dbg.js';
+import { interpolateModel, drawModel, parseAdvanced } from './advdm.js';
 
 // ---------- Canvas 弹幕渲染层 ----------
 // 移植 AcFun-Danmaku-Sender 的本地弹幕画布思路（src/71-canvas-preview.js）：
 // 无状态重绘——rVFC 每帧读 video.currentTime 反推所有弹幕位置，
 // 暂停/seek/倍速天然正确，零播放器事件监听。
 // 经典弹幕映射成"单帧模型"：mode 1=滚动 / 6=逆向滚动（同为滚动族，绘制方向相反）/ 4=底部 /
-// 5=顶部（其余未知 mode 兜底滚动）。**注意**：高级弹幕（`danmakuType===1` 的
-// `advancedDanmakuExtData`：定位/缩放/旋转/时序）本画布**尚未支持**——高弹三核
-// easeProgress/interpolateModel/drawModel 未随骨架一并移植（见 0.9.194 计划批次）。
+// 5=顶部（其余未知 mode 兜底滚动）。**高级弹幕**（`danmakuType===1` 的 `advancedDanmakuExtData`：
+// 定位/缩放/旋转/时序）走**另一条通道**（0.9.204）：不进轨道分配与位图缓存，由 addAdvanced() 喂入、
+// 在 paint() 里按 pos 百分比 + 帧插值绝对定位绘制（advdm.js 三核）。
 // 0.9.4 绘制内层优化（架构不变）：
 //   1) 文本位图缓存：每条弹幕首次绘制渲染一次离屏位图（含描边），之后每帧 drawImage，
 //      免去逐帧 strokeText+fillText 的字形光栅化；过期释放 + FIFO 上限 300 条兜底；
@@ -45,13 +46,15 @@ function readSettings() {
   curMerge = !!getSetting('dmMerge');
   // 屏蔽设置（0.9.202）：按类型（top/bottom/scroll/color）+ 关键词列表（逗号/换行分隔）
   var blk = String(getSetting('dmBlock') || '');
-  curBlock = { top: /\btop\b/.test(blk), bottom: /\bbottom\b/.test(blk), scroll: /\bscroll\b/.test(blk), color: /\bcolor\b/.test(blk) };
+  curBlock = { top: /\btop\b/.test(blk), bottom: /\bbottom\b/.test(blk), scroll: /\bscroll\b/.test(blk),
+    color: /\bcolor\b/.test(blk), role: /\brole\b/.test(blk), advanced: /\badvanced\b/.test(blk) };
   curFilter = String(getSetting('dmFilter') || '').split(/[\n,]/)
     .map(function (x) { return x.trim(); }).filter(Boolean);
 }
 
-// 按类型/关键词屏蔽（0.9.202，纯函数单测直采）。**注**：角色弹幕/高级弹幕两类尚无字段可判
-//（danmakuStyle/danmakuType 未接，见批次 10），故这里只覆盖有据可依的四类。
+// 按类型/关键词屏蔽（0.9.204，纯函数单测直采）：六类全部有字段可依——
+// top/bottom/scroll 看 mode、color 看是否非白、role 看 roleId>0（两条链路都带该字段）、
+// advanced 看 adv（高级弹幕条目，由另一通道渲染，这里只供单测与经典条目共用判据）。
 export function filterDanmaku(list, block, keywords) {
   return (list || []).filter(function (it) {
     if (!it) return false;
@@ -60,6 +63,8 @@ export function filterDanmaku(list, block, keywords) {
       if (block.bottom && it.mode === 4) return false;
       if (block.scroll && (it.mode === 1 || it.mode === 6)) return false;
       if (block.color && it.color && String(it.color).toLowerCase() !== '#ffffff') return false;
+      if (block.role && Number(it.roleId) > 0) return false;
+      if (block.advanced && it.adv) return false;
     }
     if (keywords && keywords.length) {
       for (var i = 0; i < keywords.length; i++) if (String(it.text || '').indexOf(keywords[i]) >= 0) return false;
@@ -97,6 +102,8 @@ function createLayer(slide, video) {
   var raf = 0, running = false, lastAlign = 0;
   var cssW = 0, cssH = 0, dpr = 1;
   var lastRaw = [];  // 最近一次 setItems 的原始入参：设置变更后 refresh() 重排用（0.9.202）
+  var advRaw = [];   // 最近一次 addAdvanced 的原始入参（同上，供 refresh 重筛）
+  var advItems = [], advHead = 0, lastAdvT = -1; // 高级弹幕（按 at 升序；自己一条过期指针）
   var laneH = 30, lastW = 0;
   var head = 0, lastT = -1;  // 活动窗口：head=首个未过期项下标
   var devK = 1;              // 视觉缩放×dpr：位图按此分辨率渲染，上屏 1:1 不重采样
@@ -230,10 +237,51 @@ function createLayer(slide, video) {
     lastW = cssW;
   }
 
+  // 高级弹幕（0.9.204）：绝对定位 + 帧插值，**不进轨道分配/位图缓存**（它们是"绝对坐标的少数派"，
+  // 走轨道反而全错）。屏蔽（「高级弹幕」整类 / 「角色弹幕」）在此筛，改设置由 refresh() 重筛。
+  function applyAdvFilter() {
+    advItems = [];
+    advHead = 0;
+    lastAdvT = -1;
+    if (curBlock.advanced) return; // 整类屏蔽
+    for (var i = 0; i < advRaw.length; i++) {
+      var it = advRaw[i];
+      if (!it || !it.adv || !it.adv.frames || !it.adv.frames.length) continue;
+      if (curBlock.role && Number(it.roleId) > 0) continue;
+      advItems.push(it);
+    }
+    advItems.sort(function (a, b) { return a.at - b.at; });
+  }
+
+  // 绘制可见的高级弹幕：时长取 model.duration（真机＝各帧 moveTime 之和），进度 = 相对出现时刻；
+  // 次序按 zIndex 升序（同一时刻可见条数很少，逐帧小排序可接受）。字号随「字体大小」设置缩放。
+  function paintAdvanced(t, alpha) {
+    if (!advItems.length || cssW < 10) return 0;
+    if (t < lastAdvT) advHead = 0; // 向后 seek：过期指针作废
+    lastAdvT = t;
+    while (advHead < advItems.length && t > advItems[advHead].at + advItems[advHead].adv.duration) advHead++;
+    var visList = [], k;
+    for (k = advHead; k < advItems.length; k++) {
+      var av = advItems[k];
+      if (av.at > t) break;
+      if (t > av.at + av.adv.duration) continue;
+      var fr = interpolateModel(av.adv, t - av.at);
+      if (fr) visList.push({ adv: av.adv, fr: fr });
+    }
+    if (!visList.length) return 0;
+    visList.sort(function (a, b) { return a.adv.zIndex - b.adv.zIndex; });
+    var prevAlpha = ctx.globalAlpha;
+    for (k = 0; k < visList.length; k++) {
+      // 帧内 scale 与设置字号缩放相乘：帧变换在 drawModel 内部做，字号倍率单独传入
+      drawModel(ctx, visList[k].adv, visList[k].fr, cssW, cssH, curSizeScale);
+    }
+    ctx.globalAlpha = prevAlpha;
+    return visList.length;
+  }
+
   function paint() {
     var t0 = 0, vis = 0;
-    if (__ACSV_DEBUG__) t0 = performance.now();
-    // 几何对齐限频：布局读取没必要每帧做（250ms 内的缩放/尺寸变化下一帧补齐，无感）
+    if (__ACSV_DEBUG__) t0 = performance.now();    // 几何对齐限频：布局读取没必要每帧做（250ms 内的缩放/尺寸变化下一帧补齐，无感）
     var now = Date.now();
     if (now - lastAlign > 250) {
       lastAlign = now;
@@ -243,8 +291,7 @@ function createLayer(slide, video) {
     ctx.clearRect(0, 0, cssW, cssH);
     ctx.globalAlpha = curAlpha; // 不透明度（0.9.201；读缓存值，不逐帧读设置）
     if (items.length && cssW >= 10) {
-      var t = video.currentTime * 1000;
-      // 向后 seek 会让过期前缀判定失效：指针归零，本帧多扫一点，之后恢复窗口扫描
+      var t = video.currentTime * 1000;      // 向后 seek 会让过期前缀判定失效：指针归零，本帧多扫一点，之后恢复窗口扫描
       if (t < lastT) head = 0;
       lastT = t;
       // 前推 head 跳过过期前缀，顺带释放位图；_dur 未量出（NaN）时不动，等重排后自愈
@@ -276,6 +323,9 @@ function createLayer(slide, video) {
         vis++;
       }
     }
+    // 高级弹幕画在经典弹幕之上（原生也是绝对坐标层压同屏文本），且不受「显示区域」约束——
+    // 它们的落点由 pos 百分比自己决定，用轨道口径去裁反而会凭空抹掉（0.9.204 有意如此）
+    vis += paintAdvanced(video.currentTime * 1000, curAlpha);
     ctx.globalAlpha = 1; // 复位（位图缓存/后续绘制不受影响）
     if (__ACSV_DEBUG__) {
       stat('dm.frame');
@@ -285,6 +335,7 @@ function createLayer(slide, video) {
         set('dm.paintMs', +(dmMs / dmFc).toFixed(2));
         set('dm.visible', Math.round(dmVisSum / dmFc));
         set('dm.sprites', sprN);
+        set('dm.adv', advItems.length);
         dmFc = 0; dmMs = 0; dmVisSum = 0;
       }
     }
@@ -317,10 +368,31 @@ function createLayer(slide, video) {
       items = filterDanmaku(items, curBlock, curFilter); // 屏蔽设置（0.9.202）
       head = 0; lastT = -1;      // 新数组：窗口指针作废
       sprQueue = []; sprN = 0;   // 旧条目连同位图一起交给 GC
+      applyAdvFilter();
       if (running) {
         assignLanes();
         if (video.paused) paint(); // 暂停中 rVFC 不触发，主动画一帧让弹幕立即可见
       }
+    },
+    // 高级弹幕增量喂入（0.9.204）：窗口拉取会让同一条跨窗重复，按 id 去重后并入（保持 at 升序）
+    addAdvanced: function (list) {
+      var seen = {}, i;
+      for (i = 0; i < advRaw.length; i++) seen[String(advRaw[i].id)] = 1;
+      var added = 0;
+      for (i = 0; i < (list || []).length; i++) {
+        var it = list[i];
+        if (!it || !it.adv) continue;
+        // 无帧模型一律不收（不静默画错）：调用方（appapi 映射层）已筛，这里再守一道——
+        // 图层是渲染边界的最后一关，不能依赖上游的勤勉
+        if (!it.adv.frames || !it.adv.frames.length) continue;
+        if (seen[String(it.id)]) continue;
+        seen[String(it.id)] = 1;
+        advRaw.push(it);
+        added++;
+      }
+      if (added) applyAdvFilter();
+      if (added && running && video.paused) paint(); // 暂停中也能立刻看到（rVFC 不出帧）
+      return added;
     },
     // 发送成功后的本地回显：按 at 有序插入（时间窗扫描依赖升序不变量，通常就落在队尾）
     addLocal: function (it) {      var j = items.length;
@@ -331,6 +403,8 @@ function createLayer(slide, video) {
         if (video.paused) paint();
       }
     },
+    // 图层是否在绘制（取池泵据此暂停拉数据：弹幕关掉/图层停了就不该继续打请求）
+    isRunning: function () { return running; },
     start: function () {
       if (running) return;
       running = true;
@@ -375,7 +449,9 @@ export var DmCanvas = {
   stopAll: function () {
     layers.forEach(function (l) { try { l.stop(); } catch (e) { } });
     layers = [];
-  }
+  },
+  // harness 直采：让"真机形状的 ext JSON → 模型"这条解析链在浏览器里也被跑一遍（不只是单测）
+  parseAdvExt: parseAdvanced
 };
 
 // harness 模拟缝：绕过弹幕接口直接驱动图层做绘制冒烟（正式构建 testHook 为 noop）

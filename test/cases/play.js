@@ -285,6 +285,9 @@ var dmBodies = dmp ? dmp.querySelectorAll('.acsv-dmpbody') : [];
 rec('dmpanel-tab-switch', !!(dmBodies[0] && dmBodies[1]
   && dmBodies[0].style.display === 'none' && dmBodies[1].style.display === ''),
   dmBodies[0] ? 'set="' + dmBodies[0].style.display + '" blk="' + dmBodies[1].style.display + '"' : 'none');
+// 屏蔽 tab 六类标签（照原生，0.9.204 补齐角色/高级）+ 关键词输入
+rec('dmpanel-block-tags', !!(dmp && dmp.querySelectorAll('.acsv-dmptag').length === 6),
+  dmp ? 'tags=' + dmp.querySelectorAll('.acsv-dmptag').length : 'none');
 var dmFi = dmp && dmp.querySelector('.acsv-dmpfilter');
 if (dmFi) { dmFi.value = '剧透'; dmFi.dispatchEvent(new Event('input', { bubbles: true })); }
 rec('dmpanel-filter-persist', !!(await waitFor(function () {

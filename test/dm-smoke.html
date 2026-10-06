@@ -32,6 +32,18 @@
   }
   setInterval(flush, 300);
 
+  // 指定**归一化坐标**上的不透明像素（0–1；几何断言用：高级弹幕的绝对落点靠它钉）
+  function opaqueAt(xf, yf) {
+    var cv = document.querySelector('.acsv-dmcanvas');
+    if (!cv) return -1;
+    try {
+      var d = cv.getContext('2d').getImageData(
+        Math.min(cv.width - 1, Math.round(xf * cv.width)),
+        Math.min(cv.height - 1, Math.round(yf * cv.height)), 1, 1).data;
+      return d[3] > 0 ? 1 : 0;
+    } catch (e) { return -1; }
+  }
+
   function sampleAlpha() {
     var cv = document.querySelector('.acsv-dmcanvas');
     if (!cv) return -1;
@@ -145,6 +157,43 @@
     v.__pump(5);
     var px6 = sampleAlpha();
     rec('乱序时间点绘制命中', px6 > 0, px6);
+
+    // ============ 高级弹幕（0.9.204）：绝对定位 + 帧插值，独立于轨道/位图缓存 ============
+    // ext 形状照真机样本（§10.13：contentType 0 / anchor 九宫格 / pos 为 0–100 百分比 /
+    // durationTime = 各帧 moveTime 之和 / timingFunction linear）
+    layer.setItems([]); // 清空经典弹幕，像素判定不被污染
+    var ext = JSON.stringify({
+      id: 'adv1', content: '█', contentType: 0, startTime: 0, durationTime: 10000, anchor: 0,
+      wordStyle: { font: 'SimHei', size: 60, bold: true, stroke: false, color: '#00ff00' },
+      scale: { x: 1, y: 1, z: 1 }, rotate: { x: 0, y: 0, z: 0 }, zIndex: 50,
+      animationFrames: [{ from: { pos: { x: 0, y: 0 } }, to: { pos: { x: 0, y: 0 } },
+        timingFunction: 'linear', staticTime: 0, moveTime: 10000 }]
+    });
+    var advModel = Dm.parseAdvExt && Dm.parseAdvExt(ext);
+    rec('高级弹幕 ext 解析（浏览器内走真实解析链）', !!advModel && advModel.frames.length === 1,
+      advModel ? 'anchor=' + advModel.anchor + ' dur=' + advModel.duration : 'null');
+    v.currentTime = 5; v.paused = false;
+    var added = layer.addAdvanced([{ id: 'adv1', at: 0, roleId: 0, adv: advModel }]);
+    rec('addAdvanced 收录', added === 1, added);
+    rec('addAdvanced 幂等（同 id 重复喂入不重复计）',
+      layer.addAdvanced([{ id: 'adv1', at: 0, roleId: 0, adv: advModel }]) === 0);
+    v.__pump(70); // 埋点每 60 帧结算一次
+    var stA = window.__ACSV_TEST__.getStats();
+    rec('dm.adv 埋点=1', stA['dm.adv'] === 1, stA['dm.adv']);
+    // 锚点 0（左上）+ pos(0,0)：字符必须落在左上角，右下角必须是空的（绝对定位没跑偏）
+    rec('高级弹幕落在锚点位置（左上不透明）', opaqueAt(0.02, 0.04) === 1, opaqueAt(0.02, 0.04));
+    rec('高级弹幕未撒满画面（右下透明）', opaqueAt(0.85, 0.85) === 0, opaqueAt(0.85, 0.85));
+    // 越过 durationTime（10s）：不再绘制
+    v.currentTime = 12;
+    v.__pump(3);
+    rec('过期后不再绘制', opaqueAt(0.02, 0.04) === 0, opaqueAt(0.02, 0.04));
+    // 向后 seek 回窗口内：advHead 重置后必须重现
+    v.currentTime = 1;
+    v.__pump(3);
+    rec('seek 回退后重现（advHead 归零）', opaqueAt(0.02, 0.04) === 1, opaqueAt(0.02, 0.04));
+    // 无帧模型（真机残包）/ 坏 JSON：一律不收（不静默画错）
+    rec('坏 JSON → null', Dm.parseAdvExt('{oops') === null);
+    rec('无帧模型被拒收', layer.addAdvanced([{ id: 'adv2', at: 0, adv: { frames: [], content: 'x', duration: 100, wordScale: 1 } }]) === 0);
 
     layer.destroy();
     rec('destroy 后无画布残留', !document.querySelector('.acsv-dmcanvas'), '');
