@@ -278,4 +278,5 @@ export function onHomeResolved(slide, item) {
   syncMetaUp(slide.querySelector('.acsv-meta'), item);
   var ds = slide.querySelector('.acsv-meta .acsv-date');
   if (ds) ds.textContent = item.date || '';
+  if (slide._descSync) slide._descSync(); // 简介（0.9.196）：回包后 item.desc 才到，同批重刷
 }

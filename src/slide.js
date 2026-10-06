@@ -11,6 +11,27 @@ import { buildSideRail, syncMetaUp } from './rail.js';
 // buildSlide 把控制栏（controls.js）、右侧栏（rail.js）、信息区拼成一个 slide；
 // 箭头翻页依赖上层导航，经 goTo 参数透传给 buildSideRail（renderWindow 注入）。
 
+// ---------- 简介渲染（0.9.196 案 A）：标题下方内联，2 行 clamp + 「展开简介」 ----------
+// 幂等：同文不重绘（保住展开态）；解析回包把 desc 从无到有时经 _descSync 重刷。
+// 展开后限高可滚（竖刷是全屏单条，不能让简介吃掉画面）。
+function syncDesc(box, item) {
+  var txt = (item && item.desc) || '';
+  if (!txt) { box.style.display = 'none'; box.textContent = ''; return; }
+  box.style.display = '';
+  if (box.dataset.txt === txt) return;
+  box.dataset.txt = txt;
+  box.textContent = '';
+  box.classList.remove('open');
+  box.appendChild(el('p', 'acsv-desc', txt));
+  var more = el('a', 'acsv-descm', '展开简介 ▾');
+  more.addEventListener('click', function (ev) {
+    ev.stopPropagation(); // 别冒泡成 slide 点按（会切播放/暂停）
+    var on = box.classList.toggle('open');
+    more.textContent = on ? '收起简介 ▴' : '展开简介 ▾';
+  });
+  box.appendChild(more);
+}
+
 export function buildSlide(item, idx, goTo) {
   var slide = el('section', 'acsv-slide');
   slide.dataset.idx = idx;
@@ -59,6 +80,12 @@ export function buildSlide(item, idx, goTo) {
   }
   info.appendChild(meta);
   info.appendChild(el('p', 'acsv-title', item.title));
+  // 简介（0.9.196，用户裁决「案 A」）：数据要等 douga/info 回包（appapi.resolve 写 item.desc），
+  // 故容器先建、由 _descSync 在解析完成后填充（onHomeResolved 统一驱动）；无简介则整块不显示。
+  var descWrap = el('div', 'acsv-descwrap');
+  slide._descSync = function () { syncDesc(descWrap, item); };
+  syncDesc(descWrap, item); // 构建期若已有（预热抢跑）先绘一次
+  info.appendChild(descWrap);
   slide.appendChild(info);
 
   slide.addEventListener('mousemove', function () { showControls(slide); });
