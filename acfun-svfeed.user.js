@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.183
+// @version      0.9.184
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.183" : "",
+          ver: true ? "0.9.184" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -793,6 +793,23 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       if (!panel2.isConnected) return;
       document.addEventListener("click", onDoc, true);
     }, 0);
+  }
+
+  // src/errbox.js
+  function errBox(host3, msg, onRetry) {
+    var box = el("div", "acsv-errbox");
+    box.style.display = "grid";
+    box.appendChild(el("p", null, msg));
+    if (onRetry) {
+      var b = el("button", "acsv-retry", "重试");
+      b.addEventListener("click", function() {
+        box.remove();
+        onRetry();
+      });
+      box.appendChild(b);
+    }
+    host3.appendChild(box);
+    return box;
   }
 
   // src/route.js
@@ -10547,7 +10564,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.183" : "");
+    return normVer(true ? "0.9.184" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11679,6 +11696,59 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }
   }
 
+  // src/playgest.js
+  var gest = { acc: 0, at: 0, lock: 0, y0: 0, t0: 0 };
+  function onWheel(step, ev) {
+    var now = Date.now();
+    if (now - gest.at > 400) gest.acc = 0;
+    gest.at = now;
+    gest.acc += ev.deltaY;
+    if (Math.abs(gest.acc) < 60 || now - gest.lock < 500) return;
+    var dir = gest.acc > 0 ? 1 : -1;
+    gest.acc = 0;
+    if (step(dir)) {
+      gest.lock = now;
+      if (ev.cancelable) ev.preventDefault();
+    }
+  }
+  function onTouchStart(ev) {
+    var t = ev.touches && ev.touches[0];
+    gest.y0 = t ? t.clientY : 0;
+    gest.t0 = Date.now();
+  }
+  function onTouchEnd(step, ev) {
+    var t = ev.changedTouches && ev.changedTouches[0];
+    if (!t || !gest.y0) return;
+    var dy = gest.y0 - t.clientY;
+    gest.y0 = 0;
+    if (Math.abs(dy) < 60 || Date.now() - gest.t0 > 800) return;
+    step(dy > 0 ? 1 : -1);
+  }
+  function bindLayerGestures(body, step) {
+    gest.acc = 0;
+    gest.at = 0;
+    gest.lock = 0;
+    gest.y0 = 0;
+    gest.t0 = 0;
+    var wheel = function(ev) {
+      onWheel(step, ev);
+    };
+    var touchStart = function(ev) {
+      onTouchStart(ev);
+    };
+    var touchEnd = function(ev) {
+      onTouchEnd(step, ev);
+    };
+    body.addEventListener("wheel", wheel, { passive: false });
+    body.addEventListener("touchstart", touchStart, { passive: true });
+    body.addEventListener("touchend", touchEnd, { passive: true });
+    return function unbind() {
+      body.removeEventListener("wheel", wheel);
+      body.removeEventListener("touchstart", touchStart);
+      body.removeEventListener("touchend", touchEnd);
+    };
+  }
+
   // src/cards.js
   var itemOpener = null;
   function setItemOpener(fn) {
@@ -11938,6 +12008,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var levels = [];
   var queue = [];
   var stepping = false;
+  var unbindGest = null;
   var session = { kind: "single", list: [], rows: null, idx: -1, more: null };
   setOvlNoNext(function() {
     return session.kind === "single";
@@ -12116,33 +12187,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     levels = [{ item, sess: snapSession(), hist, hIdx: 0, queue: [], at: 0 }];
     syncArrows();
   }
-  var gest = { acc: 0, at: 0, lock: 0, y0: 0, t0: 0 };
-  function onWheel(ev) {
-    var now = Date.now();
-    if (now - gest.at > 400) gest.acc = 0;
-    gest.at = now;
-    gest.acc += ev.deltaY;
-    if (Math.abs(gest.acc) < 60 || now - gest.lock < 500) return;
-    var dir = gest.acc > 0 ? 1 : -1;
-    gest.acc = 0;
-    if (playStep(dir)) {
-      gest.lock = now;
-      if (ev.cancelable) ev.preventDefault();
-    }
-  }
-  function onTouchStart(ev) {
-    var t = ev.touches && ev.touches[0];
-    gest.y0 = t ? t.clientY : 0;
-    gest.t0 = Date.now();
-  }
-  function onTouchEnd(ev) {
-    var t = ev.changedTouches && ev.changedTouches[0];
-    if (!t || !gest.y0) return;
-    var dy = gest.y0 - t.clientY;
-    gest.y0 = 0;
-    if (Math.abs(dy) < 60 || Date.now() - gest.t0 > 800) return;
-    playStep(dy > 0 ? 1 : -1);
-  }
   function playStep(delta) {
     if (!slideRef || !curItem || stepping) return false;
     if (delta < 0) {
@@ -12227,26 +12271,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     openPlayer({ acId: item.id, title: item.title, cover: item.cover, up: item.up });
     return true;
   });
-  function buildErr(body, msg, onRetry) {
-    var box = el("div", "acsv-errbox");
-    box.style.display = "grid";
-    box.appendChild(el("p", null, msg));
-    if (onRetry) {
-      var b = el("button", "acsv-retry", "重试");
-      b.addEventListener("click", function() {
-        box.remove();
-        onRetry();
-      });
-      box.appendChild(b);
-    }
-    body.appendChild(box);
-    return box;
-  }
   function buildPlayView(body, arg) {
     body.classList.add("acsv-vbody-play");
     var id = Number(arg) || 0;
     if (!id) {
-      buildErr(body, "播放链接不完整（缺少视频 id）");
+      errBox(body, "播放链接不完整（缺少视频 id）");
       return;
     }
     bodyRef = body;
@@ -12254,13 +12283,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     hIdx = -1;
     queue = [];
     stepping = false;
-    gest.acc = 0;
-    gest.at = 0;
-    gest.lock = 0;
-    gest.y0 = 0;
-    body.addEventListener("wheel", onWheel, { passive: false });
-    body.addEventListener("touchstart", onTouchStart, { passive: true });
-    body.addEventListener("touchend", onTouchEnd, { passive: true });
+    unbindGest = bindLayerGestures(body, playStep);
     seed(id);
     var st2 = pending2;
     var ctx = pendingCtx;
@@ -12278,14 +12301,14 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         if (!body.isConnected) return;
         spinner.remove();
         if (!hit) {
-          buildErr(body, "视频加载失败", load);
+          errBox(body, "视频加载失败", load);
           return;
         }
         enterLayer(body, hit.item);
       }, function() {
         if (!body.isConnected) return;
         spinner.remove();
-        buildErr(body, "视频加载失败（网络不可达）", load);
+        errBox(body, "视频加载失败（网络不可达）", load);
       });
     }
     load();
@@ -12293,10 +12316,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function teardownPlayView() {
     setVideoTarget(null);
     setWatchTarget(null);
-    if (bodyRef) {
-      bodyRef.removeEventListener("wheel", onWheel);
-      bodyRef.removeEventListener("touchstart", onTouchStart);
-      bodyRef.removeEventListener("touchend", onTouchEnd);
+    if (unbindGest) {
+      unbindGest();
+      unbindGest = null;
     }
     if (slideRef && slideRef._session) {
       slideRef._session.dispose();
@@ -12629,19 +12651,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function showLoadError(msg, retry) {
     if (!scroller) return;
     clearSpinner();
-    var box = el("div", "acsv-errbox");
-    box.style.display = "grid";
-    box.appendChild(el("p", null, msg));
-    var b = el("button", "acsv-retry", "重试");
-    b.addEventListener("click", function() {
-      box.remove();
+    errBox(scroller, msg, function() {
       FeedStore.reset();
       if (!scroller) return;
       scroller.appendChild(el("div", "acsv-spinner"));
       retry();
     });
-    box.appendChild(b);
-    scroller.appendChild(box);
   }
   var feedStreamOn = false;
   function loadInitial() {
@@ -13730,7 +13745,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.183：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.184：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

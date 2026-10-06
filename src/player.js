@@ -1,6 +1,7 @@
 import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
 import { el, fmtTime, ensureStyle } from './ui.js';
+import { errBox } from './errbox.js';
 import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot, stageVisible, isOvlSlide, OVL_IDX } from './state.js';
 import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync, setItemProvider } from './route.js';
 import { FeedStore, setChangeHandler } from './feedstore.js';
@@ -355,23 +356,17 @@ function clearSpinner() {
   if (sp) sp.remove();
 }
 
-// 首屏/切源/深链加载失败的统一错误盒：重试重跑传入的加载链，可反复重试直到成功
+// 首屏/切源/深链加载失败的统一错误盒（盒体单源见 errbox.js）：重试重跑传入的加载链，
+// 可反复重试直到成功
 function showLoadError(msg, retry) {
   if (!scroller) return;
   clearSpinner(); // 错误盒与转圈不并存
-  var box = el('div', 'acsv-errbox');
-  box.style.display = 'grid';
-  box.appendChild(el('p', null, msg));
-  var b = el('button', 'acsv-retry', '重试');
-  b.addEventListener('click', function () {
-    box.remove();
+  errBox(scroller, msg, function () {
     FeedStore.reset(); // 统一走 reset，不绕过封装直接改 seen/items
     if (!scroller) return;
     scroller.appendChild(el('div', 'acsv-spinner'));
     retry();
   });
-  box.appendChild(b);
-  scroller.appendChild(box);
 }
 
 // 舞台当前内容是否=「当前源推荐流」（0.9.140）：loadInitial 装载置真、深链置假。

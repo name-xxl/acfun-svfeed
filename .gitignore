@@ -11,3 +11,5 @@ Thumbs.db
 # API 侦察留档（2026-10-05 起本地留档，不入公开仓）
 docs/api-research.md
 docs/acfun-app-api-inventory.md
+# jadx 反编译产物（2026-10-06，491MB，含接口定义与站点逻辑——严禁入库）
+docs/acfun/

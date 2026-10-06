@@ -356,6 +356,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `imicons.js` | 站点原生图标登记表（CDN SVG + 字形码点，双端共享） |
 | `release.js` | 更新提示（0.9.60）：官方 releases.atom 拉取/解析纯函数（cmpVersion/normVer/parseRelAtom/latestEntry/decideUpd）+ 说明弹窗单例 + 红点；正文直接用 GitHub 官方渲染 HTML（elHtml 信任契约）；每次 mount 检查一次（60s 节流）、失败静默、unmount 显式拆监听 |
 | `overlay.js` | 浮层栈（0.9.61）：Esc 显式分支链的收拢（overlayOpen/Close/Top/IsOpen/Teardown，close 回调注册方自带、先出栈再调+异常隔离）；modal 键语义单监听承载（release/imgview capture 自关退役）；栈=显式状态（0.9.22 精神延续） |
+| `errbox.js` | 错误盒单源（0.9.184）：`errBox(host,msg,onRetry)`——文案 + 可选重试键、「点击先撤盒再重跑」出口纪律一处收口。收编 player.showLoadError（竖刷首屏/切源/深链）与 playlayer.buildErr（层内深链/网络）两份近乎同构的 `.acsv-errbox`；宿主差异（player 重试前 `FeedStore.reset()`+重挂 spinner）经 onRetry 回调注入，盒体不反向 import 宿主。**边界**：slide.js 的 `.acsv-errbox` 是构建期常驻、由 CSS `data-state` 驱动的结构件（重试走 stopPropagation+重挂，不撤盒），生命周期不同，有意不并入 |
 | `views.js` | 子视图框架（0.9.62；0.9.74 来源保活）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（注册表自 0.9.78 独立为 viewreg.js）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、**深界面（def.deep）来源链 + 来源视图挂起保活**（非 volatile：换类名 acsv-view-held + visibility 挂起，回来原位复原；同屏换参替换链顶）；卡面 kit 与点击出口注入缝自 0.9.109 拆出（→ cards.js，本模块只管编排） |
 | `cards.js` | 卡面 kit（0.9.109 自 views.js 拆出，逐字搬运零逻辑改动）：网格卡 gridCardOf / 行卡 rowOf / 资源横条 stripOf / 引用卡 quoteBlockOf / UP 卡 upCardOf / 计数行 statRowOf / 骨架 skeletonRows / 加载更多 moreBtn 单源；点击出口注入缝（setItemOpener/openPanelItem——**第二参=来源会话语境**（0.9.173），rowOf/gridCardOf 亦带可选 openCtx；setMomentOpener）——本模块不反向 import 播放层/详情面板。消费方：mypage/zone/searchview/followview/momentdetail/playlayer/jingxuanview |
 | `rowkit.js` | 动态行卡 kit（0.9.124 自 followview.js 拆出，逐字搬运零逻辑改动）：行卡（原生骨架四段）+ 九宫格/媒体分派 + 互动栏接线（momentbar）+ 行内评论控制器（宿主单例，teardown 归各视图）+ 列表级委托 wireRowList（落点经 onOpen 注入）；不 import 任何视图。消费方：followview 与 squareview（广场，0.9.126 起） ；**名字三色体系**（0.9.157：默认白 / 等级 1 红 / 等级 2 紫——`uplook.nameColorCss`（0.9.160 叶子出库）内联覆盖，与引用卡/详情面板同码；蓝只给正文链接） |
@@ -366,6 +367,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `searchview.js` | 搜索视图（0.9.72 建；**0.9.151 搜索 2.0**）：三 JSON 端点（视频/UP主/文章，`pCursor` 真分页；回包规整 searchfmt）→ 类目 chips + 视频网格卡 / UP 卡（最近投稿 + 一键关注→grouppop 改分组）/ 文章行；换词并行预拉三类目（模块级缓存跨重建存活），哨兵自动续页（0.9.141 口径）+「已显示全部 N 条」；空词态=搜索历史 chips（searchhist）。关键词与类目唯一真源=地址栏 `#svfeed/search/<kind>/<kw>`（route.viewKind + views 二段参数；旧单段形态挂载时规范化），顶栏搜索框即其唯一输入框（0.9.73 并入；0.9.74 deep+suspend/resume） |
 | `searchhist.js` | 搜索历史（0.9.151 建；**0.9.158 后端改复用站方 `localStorage['searchCache']`**——与原生搜索框面板共享同一份历史）：`histList`/`histAdd`/`histClear`；语义照站方组件源码（去重提前、**上限 8**、写入前剥 `<`/`>`——站方把词拼进 HTML 渲染）；清除=移除键（原生「清除历史」同款）；老 GM 键 `acsvSearchHist` 首次读一次性并入（去重/过上限/过过滤）后不再碰，**老键不删**；无 localStorage 走内存降级 |
 | `playlayer.js` | 播放层（0.9.74；0.9.82 面板→播放的桥下沉为 data.playItemOf 纯函数）：子视图 play（#svfeed/play/&lt;v\|a&gt;/&lt;id&gt;）就地播放——面板条目即时首帧（标题/封面/作者来自面板契约的 up：搜索与收藏来源带作者，历史来源不带、由回包补）/ 冷进入 API.deepLink 解析（不 setSource）/ 失败错误盒+重试；OVL_IDX 哨兵 + data-ovl 判据（attach.js 契约表在册）、键盘重定向 state.setVideoTarget；**层内会话**（0.9.170 起；0.9.171 加滚轮/触摸滑动切换——throttle 攒阈值 60px + 锁 500ms；0.9.173 会话语义化）：`playStep(±1)`（player 注入 input 的 api；右栏 ▲▼ 与滚轮/触摸同源）三态——`single` 单条（**缺省之外由来源显式声明**：动态里的视频卡片）：不出箭头、↓ 静默；`walk` 相关池（**缺省**：深链/刷新这类无列表来源 + 分区默认）：↓ 从相关池抽（随机；设置开=整批队列）；`list` 来源结果列表（搜索/榜单/我的；分区设置开=网格顺序；**关注视图的视频卡片=显式单条**）：↓ 顺序步进、尾部问 more()（分区/我的可续拉）无则停+提示；↑ 一律历史回退（**历史格随身带会话快照 {item,sess}**——跨轨回退连列表下标一起还原）；**级别栈**（0.9.174 用户裁决；0.9.175 封顶）：点抽屉「相关推荐」行 = 压新级别（列表播放器：播那份列表、自动展开抽屉停在「列表」tab）而非顶掉当前视频——Esc 弹回上级原视频并经既有续播槽（slide._resumeAt→session.resumeAt）恢复进度；单级时 Esc 交回视图层退出（player 注入 input 的 api.playEscape，Esc 三级链：浮层→级别→视图；**顶栏「向左返回」同源**——0.9.176 起也先弹级再回来源）；**深度封顶 2 级**（MAX_LEVELS：列表播放器里不再有相关推荐入口——抽屉 listOnly，防无限套娃；超限压级被静默吞掉）；右栏箭头随会话建（list/walk 才建；首条藏 ▲、不可续拉的末条藏 ▼）；换条 swap（拆旧会话→挂新；抽屉开着走 **comments.retargetComments**——只换源不重开浮层，页签原地保留，0.9.178）；hash 不跟写（层地址=入口，Esc/刷新仍回入口）；testHook('playlayer') 暴露 {active,id,hist,hIdx,queue,session,listLen,listIdx,hasMore,levels,parentId,curAt,parentAt,at,arrows,upShown,downShown}（release 构建下 testHook=noop 不注册，回调体仍随产物保留——措辞见 dbg.js） |
+| `playgest.js` | 层内滑动手势（0.9.184 自 playlayer.js 拆出，逐字搬运）：`bindLayerGestures(body, step)` 绑定滚轮/触摸上下滑（攒阈值 60px + 锁 500ms 防一次滑动连推多条），返回解绑函数随层拆；`step` 由宿主注入（playlayer.playStep）——真翻了一条才吞滚轮（防橡皮筋）。零依赖叶子；视图壳/会话/级别栈/手势四缝之一 |
 | `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf（0.9.160 就地收编本文件），缺省不渲染）+ Tab 惰性面板（hist/fav/groups 三档：观看历史=双 resourceTypes/pageNo 翻页；**收藏夹**=chips 切夹→dougaList 翻页，0.9.143 管理化（建/改名/删夹 + 卡面移动·移除）；**关注分组（0.9.142）**=组 chips + 建/改名/删组 + 成员列表（移组/取关），读 relationapi、偏移量游标）+ 4:3 封面网格卡；条目经 panelItem 契约规整、点击进播放层（0.9.74） |
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
 | `followview.js` | 关注视图「全部」侧（0.9.100 原生骨架复刻；0.9.101 交互补课；0.9.102 收口）：单列无限流——**逐段复刻原生 /member/feeds 骨架与量取值**（扁平列表+灰带分隔、头像 50、名字 16px、60px 内容缩进、正文 14/21 pre-line+展开、九宫格 342/110/299/228、横条双灰块+title 600+时长 hover 浮层、互动行 48px/42/12px、图标四件套逐码点采样；量取日与暗色换算表在 styles 段头注）；互动行写链（乐观回滚；点赞文章只读；**投蕉**：动态=单蕉直投、视频/文章=视频页同款数量层 banpop.js「点第 N 根投 N」、已投锁定蕉黄 #ffb323；pi 级写路径单源=interact.likePi/throwBananaPi）；**评论键原位展开评论区**（全类型：动态 stype=4/视频 stype=3，comments 管线 host 化挂行内，开新关旧互斥）；**引用卡完全照原生**（@源UP 蓝链 + 内嵌完整源内容卡，复用 stripOf；三落点可点）；无限滚动五条借鉴广场 + **回顶按钮（0.9.105 顶栏同款圆钮+chevUp）**；**作者名蓝链**（与引用卡同源）；互动栏/分享出口走 **momentbar 共享件**（分享 place=右缘贴行左缘 12px、底部共用坐标）。视频行进播放层，动态行点详情面板，文章行外链；行卡构建件与行内评论控制器 0.9.124 下沉 rowkit（本文件只留视图壳/游标方言/落点策略） |
@@ -419,6 +421,7 @@ flowchart LR
     overlay["overlay.js（浮层栈）"]
     topbar["topbar.js（共享顶栏）"]
     ui["ui.js（el/esc/toast 工具）"]
+    errbox["errbox.js（错误盒单源·浮出盒）"]
     styles["styles.js（CSS 常量）"]
     dbg["dbg.js（调试埋点）"]
   end
@@ -440,6 +443,7 @@ flowchart LR
     ubbtext["ubbtext.js（UBB 纯文本投影·零依赖）"]
     emoticon["emoticon.js（表情）"]
     playlayer["playlayer.js（播放层·子视图 play）"]
+    playgest["playgest.js（层内滑动手势·0.9.184 拆）"]
     others["controls · slide · rail · banpop · input · prewarm · danmaku · dmcanvas · interact · report · watchledger · uppage · nav · upload · release"]
   end
 
@@ -491,12 +495,12 @@ flowchart LR
   appapi --> imgurl & timefmt
   session --> api & hls & settings
   attach --> feedstore & quality & session & settings
-  player --> api & attach & comments & feedstore & followstream & imbadge & imdrawer & input & overlay & pb & playlayer & release & settingspanel & sidebar & topbar & views
+  player --> api & attach & comments & errbox & feedstore & followstream & imbadge & imdrawer & input & overlay & pb & playlayer & release & settingspanel & sidebar & topbar & views
   feedstore --> api & feedctx
   momentapi --> cfg & net & panelitem
   pb --> feedstore & settings
   ubb --> emoticon
-  playlayer --> api & attach & cards & comments & reldrawer & relatedapi & viewreg
+  playlayer --> api & attach & cards & comments & errbox & playgest & reldrawer & relatedapi & viewreg
   imsend --> appapi & immsg
   sharepanel --> imsend & imgload
   imbadge --> imsend

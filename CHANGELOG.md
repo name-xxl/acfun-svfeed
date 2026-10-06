@@ -3,6 +3,29 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.184（2026-10-06）· 架构减债：错误盒单源（errbox.js）+ playlayer 拆件（playgest.js）
+
+- **由头**：用户裁决「架构减债 + 体验打磨」两轨；本批为架构减债第一刀——收口一处真实重复 + playlayer
+  拆件（该拆件曾因「先不拆，下一批改动再一起拆」挂起于 0.9.178 审计，本批既有改动即"下一批"）。
+- **病灶（重复）**：`player.js` 的 `showLoadError` 与 `playlayer.js` 的 `buildErr` 各建一份
+  `.acsv-errbox`——同 class、同「文案 + 可选重试键」形态、同「点击先撤盒再重跑」出口纪律 = 第二份
+  看着一样的实现，违「单源收口」硬规矩。
+- **修法①（错误盒）**：抽 `src/errbox.js`（`errBox(host,msg,onRetry)` 唯一导出）收口盒体与重试键；
+  宿主差异（player 重试前 `FeedStore.reset()` + 重挂 spinner、层内直接重跑 load）经 onRetry 回调注入
+  ——盒体**不反向 import 任何宿主**（依赖方向：宿主 → errbox）。**边界**：`slide.js:27` 另有一只
+  `.acsv-errbox`，是构建期常驻、由 `.acsv-slide[data-state=error]` 驱动显隐、重试走 stopPropagation
+  + 重挂 attachVideo（不撤盒）的**结构件**，生命周期不同，有意不并入（同 imgload 白名单例外登记法）。
+- **修法②（拆件）**：playlayer.js 的层内滑动手势（`onWheel`/`onTouchStart`/`onTouchEnd` + gest 累计态）
+  迁 `src/playgest.js`——`bindLayerGestures(body, step)` 绑定滚轮/触摸上下滑并返回解绑函数（随层拆）；
+  `step` 由宿主注入（`playlayer.playStep`）。playlayer 501→451 行。
+- **图的同步**：README mermaid +errbox 节点（基建层）/ +playgest 节点（播放层）+ 三条边（player→errbox、
+  playlayer→errbox、playlayer→playgest）；`check-direction.mjs` INFRA +errbox.js（基建件归类，同 ui.js）。
+- **测试**：build/lint/check（图 238 边）/单测 258/全场景 55/direction 全绿。错误盒为**纯结构收口，DOM
+  形态不变**——既有断言（play-deep 47 / deeplink-miss miss-errbox·miss-retry / hls-sealed 错误盒可见 /
+  hls ovl errbox）原样全绿 = 零行为漂移；`grep -l acsv-errbox src/` 实证构建点收敛为 errbox.js +
+  slide.js（后者登记为结构件例外）。手势搬迁做**代码行多重集比对**：旧/新各 27 行，唯一差异为两处签名
+  注入 `step` 参数（同 0.9.163 imageUrlOf 签名调整先例）；layer-list 65 断言原样全绿。
+
 ### 0.9.183（2026-10-06）· 连播进层：非推荐板块（播放层）播完自动下一条
 
 - **由头**：用户实报「连播对非推荐板块不生效」。定因：连播的唯一自动出口在 player.js
