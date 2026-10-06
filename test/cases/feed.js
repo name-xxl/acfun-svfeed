@@ -30,9 +30,15 @@ rec('webfs-hides-ui', (function () {
   if (!r || !b) return false;
   b.click();
   var dock = q('.acsv-dock'), top = q('.acsv-top'), side = q('.acsv-side');
+  // 影院态左栏已隐 ⇒ 滚动区让位边距必须归零，否则左侧留黑（0.9.202 实报「网页全屏没铺满」）
+  var sc = q('.acsv-scroller');
+  var marginZero = sc && getComputedStyle(sc).marginLeft === '0px';
   return r.classList.contains('acsv-cinema') && b.classList.contains('on')
     && dock && dock.offsetParent === null && top && top.offsetParent === null
-    && side && side.offsetParent === null;
+    && side && side.offsetParent === null && marginZero;
+})(), (function () {
+  var sc = q('.acsv-scroller');
+  return 'scrollerMarginLeft=' + (sc ? getComputedStyle(sc).marginLeft : 'none');
 })());
 rec('webfs-esc-exits', (function () {
   var r = document.getElementById('acsv-root');

@@ -60,19 +60,22 @@ export var SCHEMA = [
   // 面板是**表驱动**——加进 SCHEMA 即在设置面板「弹幕」分组下出现（两皮肤同源，不另造弹窗）。
   // **放 SCHEMA 末尾**：分组渲染按连续同名分组，插在中间会把「播放」组劈成两段。
   // dmcanvas 在**轨道重排时读一次**（不逐帧读，否则掉帧）；改设置后下一条/重排生效。
-  { key: 'dmAlpha', type: 'select', def: '100', panel: true, group: '弹幕', label: '不透明度',
+  { key: 'dmAlpha', type: 'select', def: '100', panel: false, group: '弹幕', label: '不透明度',
     options: [{ v: '100', t: '100%' }, { v: '80', t: '80%' }, { v: '60', t: '60%' }, { v: '40', t: '40%' }, { v: '20', t: '20%' }] },
-  { key: 'dmSize', type: 'select', def: '1', panel: true, group: '弹幕', label: '字体大小',
+  { key: 'dmSize', type: 'select', def: '1', panel: false, group: '弹幕', label: '字体大小',
     options: [{ v: '0.85', t: '小' }, { v: '1', t: '适中' }, { v: '1.2', t: '大' }, { v: '1.4', t: '特大' }] },
   // 速度存的是**时长倍率**：越大越慢（与原生「慢/适中/快」文案对齐）
-  { key: 'dmSpeed', type: 'select', def: '1', panel: true, group: '弹幕', label: '弹幕速度',
+  { key: 'dmSpeed', type: 'select', def: '1', panel: false, group: '弹幕', label: '弹幕速度',
     options: [{ v: '1.4', t: '慢' }, { v: '1', t: '适中' }, { v: '0.75', t: '快' }] },
-  { key: 'dmArea', type: 'select', def: '0.72', panel: true, group: '弹幕', label: '显示区域',
-    options: [{ v: '0.35', t: '1/4 屏' }, { v: '0.55', t: '半屏' }, { v: '0.72', t: '默认' }, { v: '1', t: '全屏' }] },
-  { key: 'dmSubtitle', type: 'bool', def: false, panel: true, group: '弹幕', label: '防挡字幕',
+  { key: 'dmArea', type: 'text', def: '72', panel: false, group: '弹幕', label: '显示区域' },
+  { key: 'dmSubtitle', type: 'bool', def: false, panel: false, group: '弹幕', label: '防挡字幕',
     hint: '底部留出一条字幕带，滚动弹幕不占用' },
-  { key: 'dmMerge', type: 'bool', def: true, panel: true, group: '弹幕', label: '合并重复弹幕',
-    hint: '同一段时间内内容相同的弹幕只显示一条' }
+  { key: 'dmMerge', type: 'bool', def: true, panel: false, group: '弹幕', label: '合并重复弹幕',
+    hint: '同一段时间内内容相同的弹幕只显示一条' },
+  // 屏蔽设置（0.9.202）：类型用空格分隔的名单（top/bottom/scroll/color；角色/高级待批次 10 有字段后再接）；
+  // 过滤弹幕＝关键词列表（逗号/换行分隔）。两者都只从底栏面板改，故 panel:false
+  { key: 'dmBlock', type: 'text', def: '', panel: false, group: '弹幕', label: '按类型屏蔽' },
+  { key: 'dmFilter', type: 'text', def: '', panel: false, group: '弹幕', label: '过滤弹幕关键词' }
 ];
 
 var STORE_PREFIX = 'acsv.s.'; // 逐键命名空间（路线图 1.1）

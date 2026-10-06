@@ -237,8 +237,82 @@ function ctlMaskU(sel) {
 }
 rec('play-icon-native-mask', /data:image\/svg\+xml/.test(ctlMaskU('.acsv-cplay')),
   ctlMaskU('.acsv-cplay').slice(0, 46));
+// 底栏原生图标的**尺寸**：不能沿用右栏 .acsvg-icon-mask 的 40×40（0.9.202 实报「尺寸不对」）
+rec('ctl-icon-size', (function () {
+  var mk = q('.acsv-slide[data-ovl="1"] .acsv-cplay .acsvg-icon-mask');
+  if (!mk) return false;
+  var r = mk.getBoundingClientRect();
+  return Math.round(r.width) === 20 && Math.round(r.height) === 20;
+})(), (function () {
+  var mk = q('.acsv-slide[data-ovl="1"] .acsv-cplay .acsvg-icon-mask');
+  if (!mk) return 'none';
+  var r = mk.getBoundingClientRect();
+  return Math.round(r.width) + 'x' + Math.round(r.height);
+})());
 rec('dm-icon-native-mask', /data:image\/svg\+xml/.test(ctlMaskU('.acsv-cdm')),
   ctlMaskU('.acsv-cdm').slice(0, 46));
+// 0.9.202 弹幕设置 = 底栏弹层（用户裁决：不做进设置面板）：齿轮开面板 → 两 tab → 开关/滑杆即时重排 →
+// 恢复默认必须**原地重绘**（若替换面板节点，齿轮闭包指向游离节点，从此关不掉——本组钉这条）
+var dmpBtn = q('.acsv-slide[data-ovl="1"] .acsv-cdmset');
+var dmp = q('.acsv-slide[data-ovl="1"] .acsv-dmpanel');
+rec('dmpanel-btn', !!dmpBtn);
+rec('dmpanel-closed-default', !!(dmp && dmp.style.display === 'none'));
+rec('dmpanel-icon-native', (function () {
+  var mk = dmpBtn && dmpBtn.querySelector('.acsvg-icon-mask');
+  return !!(mk && /data:image\/svg\+xml/.test(mk.style.getPropertyValue('--acsvg-icon') || ''));
+})(), (function () {
+  var mk = dmpBtn && dmpBtn.querySelector('.acsvg-icon-mask');
+  return mk ? (mk.style.getPropertyValue('--acsvg-icon') || '').slice(0, 40) : 'no-mask';
+})());
+if (dmpBtn) dmpBtn.click();
+rec('dmpanel-opens', !!(dmp && dmp.style.display === '' && dmp.querySelector('.acsv-dmpbody')),
+  dmp ? 'display="' + dmp.style.display + '"' : 'no-panel');
+rec('dmpanel-tabs', !!(dmp && dmp.querySelectorAll('.acsv-dmptabs span').length === 2),
+  dmp ? dmp.querySelector('.acsv-dmptabs').textContent : 'none');
+// 「弹幕设置」tab：防挡字幕 / 合并重复弹幕 两个开关 + 显示区域 / 不透明度 / 字体大小 / 弹幕速度 四条滑杆
+rec('dmpanel-rows', !!(dmp && dmp.querySelectorAll('.acsv-dmprow').length === 6),
+  dmp ? 'rows=' + dmp.querySelectorAll('.acsv-dmprow').length : 'none');
+var dmSw0 = dmp && dmp.querySelectorAll('.acsv-dmpsw')[0];
+if (dmSw0) dmSw0.click();
+rec('dmpanel-sw-on', !!(dmSw0 && dmSw0.classList.contains('on')));
+rec('dmpanel-sw-persist', !!(await waitFor(function () {
+  return window.localStorage.getItem('acsv.s.dmSubtitle') === 'true';
+}, 3000)), 'raw=' + window.localStorage.getItem('acsv.s.dmSubtitle'));
+// 屏蔽设置 tab：关键词过滤即时写设置
+var dmTabBlk = dmp && dmp.querySelectorAll('.acsv-dmptabs span')[1];
+if (dmTabBlk) dmTabBlk.click();
+var dmBodies = dmp ? dmp.querySelectorAll('.acsv-dmpbody') : [];
+rec('dmpanel-tab-switch', !!(dmBodies[0] && dmBodies[1]
+  && dmBodies[0].style.display === 'none' && dmBodies[1].style.display === ''),
+  dmBodies[0] ? 'set="' + dmBodies[0].style.display + '" blk="' + dmBodies[1].style.display + '"' : 'none');
+var dmFi = dmp && dmp.querySelector('.acsv-dmpfilter');
+if (dmFi) { dmFi.value = '剧透'; dmFi.dispatchEvent(new Event('input', { bubbles: true })); }
+rec('dmpanel-filter-persist', !!(await waitFor(function () {
+  return window.localStorage.getItem('acsv.s.dmFilter') === '"剧透"';
+}, 3000)), 'raw=' + window.localStorage.getItem('acsv.s.dmFilter'));
+// 恢复默认：面板**同一颗节点**（不被 replaceChild 换掉）+ 开关回位 + 关键词清空
+var dmReset = dmp && dmp.querySelector('.acsv-dmpreset');
+if (dmReset) dmReset.click();
+rec('dmpanel-reset-samenode', !!(dmp && q('.acsv-slide[data-ovl="1"] .acsv-dmpanel') === dmp),
+  'sameNode=' + (!!(dmp && q('.acsv-slide[data-ovl="1"] .acsv-dmpanel') === dmp)));
+rec('dmpanel-reset-sw-off', (function () {
+  var s = dmp && dmp.querySelector('.acsv-dmpsw');
+  return !!(s && !s.classList.contains('on'));
+})(), (function () {
+  var s = dmp && dmp.querySelector('.acsv-dmpsw');
+  return s ? s.className : 'none';
+})());
+rec('dmpanel-reset-clears-filter', !!(await waitFor(function () {
+  return window.localStorage.getItem('acsv.s.dmFilter') === '""';
+}, 3000)), 'raw=' + window.localStorage.getItem('acsv.s.dmFilter'));
+if (dmpBtn) dmpBtn.click(); // 再点齿轮收起：能收起即证明闭包还指着活节点
+rec('dmpanel-closes', !!(await waitFor(function () {
+  var d = q('.acsv-slide[data-ovl="1"] .acsv-dmpanel');
+  return !!(d && d.style.display === 'none');
+}, 2000)), (function () {
+  var d = q('.acsv-slide[data-ovl="1"] .acsv-dmpanel');
+  return d ? 'display="' + d.style.display + '"' : 'no-panel';
+})());
 var uBefore = ctlMaskU('.acsv-cplay');
 var pb0 = q('.acsv-slide[data-ovl="1"] .acsv-cplay');
 if (pb0) pb0.click(); // 直接点播放键：抽屉开着时焦点在评论输入框，Space 会被输入框吃掉

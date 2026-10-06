@@ -31,6 +31,7 @@ export function normMode(m) {
 // 弹幕设置缓存（0.9.201）：**只在轨道重排时读一次**（不得进逐帧绘制路径，否则掉帧）。
 // 值来自 settings 的「弹幕」分组（照原生 tab 条目，§10.12）。
 var curAlpha = 1, curSizeScale = 1, curSpeed = 1, curArea = 0.72, curSubtitle = false, curMerge = true;
+var curBlock = {}, curFilter = [];
 function readSettings() {
   var a = Number(getSetting('dmAlpha'));
   curAlpha = (a > 0 && a <= 100) ? a / 100 : 1;
@@ -38,10 +39,33 @@ function readSettings() {
   curSizeScale = sz > 0 ? sz : 1;
   var sp = Number(getSetting('dmSpeed'));
   curSpeed = sp > 0 ? sp : 1;
-  var ar = Number(getSetting('dmArea'));
+  var ar = Number(getSetting('dmArea')) / 100; // 面板存百分比（30~100），内部用 0~1 占比
   curArea = (ar > 0 && ar <= 1) ? ar : 0.72;
   curSubtitle = !!getSetting('dmSubtitle');
   curMerge = !!getSetting('dmMerge');
+  // 屏蔽设置（0.9.202）：按类型（top/bottom/scroll/color）+ 关键词列表（逗号/换行分隔）
+  var blk = String(getSetting('dmBlock') || '');
+  curBlock = { top: /\btop\b/.test(blk), bottom: /\bbottom\b/.test(blk), scroll: /\bscroll\b/.test(blk), color: /\bcolor\b/.test(blk) };
+  curFilter = String(getSetting('dmFilter') || '').split(/[\n,]/)
+    .map(function (x) { return x.trim(); }).filter(Boolean);
+}
+
+// 按类型/关键词屏蔽（0.9.202，纯函数单测直采）。**注**：角色弹幕/高级弹幕两类尚无字段可判
+//（danmakuStyle/danmakuType 未接，见批次 10），故这里只覆盖有据可依的四类。
+export function filterDanmaku(list, block, keywords) {
+  return (list || []).filter(function (it) {
+    if (!it) return false;
+    if (block) {
+      if (block.top && it.mode === 5) return false;
+      if (block.bottom && it.mode === 4) return false;
+      if (block.scroll && (it.mode === 1 || it.mode === 6)) return false;
+      if (block.color && it.color && String(it.color).toLowerCase() !== '#ffffff') return false;
+    }
+    if (keywords && keywords.length) {
+      for (var i = 0; i < keywords.length; i++) if (String(it.text || '').indexOf(keywords[i]) >= 0) return false;
+    }
+    return true;
+  });
 }
 
 // 合并重复弹幕（0.9.201，纯函数单测直采）：按 at 升序，同文本在 winMs 窗口内只留第一条。
@@ -72,6 +96,7 @@ function createLayer(slide, video) {
                    //  _mk(量宽键), _bmp/_bk/_lw/_lh(位图缓存)}，按 at 升序
   var raf = 0, running = false, lastAlign = 0;
   var cssW = 0, cssH = 0, dpr = 1;
+  var lastRaw = [];  // 最近一次 setItems 的原始入参：设置变更后 refresh() 重排用（0.9.202）
   var laneH = 30, lastW = 0;
   var head = 0, lastT = -1;  // 活动窗口：head=首个未过期项下标
   var devK = 1;              // 视觉缩放×dpr：位图按此分辨率渲染，上屏 1:1 不重采样
@@ -280,14 +305,16 @@ function createLayer(slide, video) {
     schedule();
   }
 
-  return {
+  var api = {
     setItems: function (list) {
-      readSettings();
+      readSettings(); // 每次换条/改设置都重读一次（不进每帧绘制路径）
+      lastRaw = list || [];
       items = (list || []).filter(function (m) { return m && m.text; });
       if (curMerge && items.length > 1) { // 合并重复弹幕（0.9.201）：先按 at 升序再同文本去重
         items.sort(function (a, b) { return a.at - b.at; });
         items = mergeDanmaku(items);
       }
+      items = filterDanmaku(items, curBlock, curFilter); // 屏蔽设置（0.9.202）
       head = 0; lastT = -1;      // 新数组：窗口指针作废
       sprQueue = []; sprN = 0;   // 旧条目连同位图一起交给 GC
       if (running) {
@@ -296,8 +323,7 @@ function createLayer(slide, video) {
       }
     },
     // 发送成功后的本地回显：按 at 有序插入（时间窗扫描依赖升序不变量，通常就落在队尾）
-    addLocal: function (it) {
-      var j = items.length;
+    addLocal: function (it) {      var j = items.length;
       while (j > 0 && items[j - 1].at > it.at) j--;
       items.splice(j, 0, it);
       if (running) {
@@ -331,6 +357,10 @@ function createLayer(slide, video) {
       if (at >= 0) layers.splice(at, 1);
     }
   };
+  // 设置变更后即时重排（0.9.202）：用最近一次入参重跑（重读设置 → 合并/屏蔽/轨道/字号全刷新）。
+  // 「弹幕设置」面板改任何一项都调它；挂在对象上而非字面量里（字面量内引用不到同级属性）
+  api.refresh = function () { api.setItems(lastRaw); };
+  return api;
 }
 
 // 当前窗口内所有存活图层（切 slide / 退出竖刷页时统一停）
