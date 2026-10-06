@@ -37,10 +37,10 @@
     var sh = shadowOf(host);
     rec('set-shadow-root', !!sh);
     if (!sh) return;
-    // 表驱动：六张卡（label 顺序 = schema 顺序：通用组 1 + 播放组 5；0.9.168 增 relSequential）
+    // 表驱动：12 张卡（label 顺序 = schema 顺序：通用组 1 + 播放组 5 + 弹幕组 6；0.9.201 增弹幕组）
     var labels = labelTexts(sh);
-    rec('set-row-count', sh.querySelectorAll('.set-row').length === 6, 'rows=' + labels.join('/'));
-    rec('set-labels', labels.join('|') === '自动检查更新|弹幕默认开启|编码偏好|缓冲档位|快进步长（秒）|相关推荐按列表顺序续播', labels.join('|'));
+    rec('set-row-count', sh.querySelectorAll('.set-row').length === 12, 'rows=' + labels.join('/'));
+    rec('set-labels', labels.join('|') === '自动检查更新|弹幕默认开启|编码偏好|缓冲档位|快进步长（秒）|相关推荐按列表顺序续播|不透明度|字体大小|弹幕速度|显示区域|防挡字幕|合并重复弹幕', labels.join('|'));
     // 面板必须真渲染（offsetParent 真值法：0.9.62 黑屏教训）
     var pnl = sh.querySelector('.set-panel');
     rec('set-panel-visible', !!(pnl && pnl.offsetParent !== null));

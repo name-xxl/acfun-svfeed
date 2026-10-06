@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.200-debug
+// @version      0.9.201-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.200" : "",
+          ver: true ? "0.9.201" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -1379,8 +1379,67 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     // 源记忆（控制栏 seg 是入口）
     { key: "quality", type: "text", def: "", legacy: CFG.lsQuality },
     // 清晰度 label（动态值，见 §7 实测）
-    { key: "sound", type: "bool", def: false, legacy: CFG.lsSound }
+    { key: "sound", type: "bool", def: false, legacy: CFG.lsSound },
     // 静音记忆（播放器手势是入口）
+    // ---- 弹幕设置（0.9.201）：照 A 站原生「弹幕设置」tab 的条目（§10.12 真机 dump）。
+    // 面板是**表驱动**——加进 SCHEMA 即在设置面板「弹幕」分组下出现（两皮肤同源，不另造弹窗）。
+    // **放 SCHEMA 末尾**：分组渲染按连续同名分组，插在中间会把「播放」组劈成两段。
+    // dmcanvas 在**轨道重排时读一次**（不逐帧读，否则掉帧）；改设置后下一条/重排生效。
+    {
+      key: "dmAlpha",
+      type: "select",
+      def: "100",
+      panel: true,
+      group: "弹幕",
+      label: "不透明度",
+      options: [{ v: "100", t: "100%" }, { v: "80", t: "80%" }, { v: "60", t: "60%" }, { v: "40", t: "40%" }, { v: "20", t: "20%" }]
+    },
+    {
+      key: "dmSize",
+      type: "select",
+      def: "1",
+      panel: true,
+      group: "弹幕",
+      label: "字体大小",
+      options: [{ v: "0.85", t: "小" }, { v: "1", t: "适中" }, { v: "1.2", t: "大" }, { v: "1.4", t: "特大" }]
+    },
+    // 速度存的是**时长倍率**：越大越慢（与原生「慢/适中/快」文案对齐）
+    {
+      key: "dmSpeed",
+      type: "select",
+      def: "1",
+      panel: true,
+      group: "弹幕",
+      label: "弹幕速度",
+      options: [{ v: "1.4", t: "慢" }, { v: "1", t: "适中" }, { v: "0.75", t: "快" }]
+    },
+    {
+      key: "dmArea",
+      type: "select",
+      def: "0.72",
+      panel: true,
+      group: "弹幕",
+      label: "显示区域",
+      options: [{ v: "0.35", t: "1/4 屏" }, { v: "0.55", t: "半屏" }, { v: "0.72", t: "默认" }, { v: "1", t: "全屏" }]
+    },
+    {
+      key: "dmSubtitle",
+      type: "bool",
+      def: false,
+      panel: true,
+      group: "弹幕",
+      label: "防挡字幕",
+      hint: "底部留出一条字幕带，滚动弹幕不占用"
+    },
+    {
+      key: "dmMerge",
+      type: "bool",
+      def: true,
+      panel: true,
+      group: "弹幕",
+      label: "合并重复弹幕",
+      hint: "同一段时间内内容相同的弹幕只显示一条"
+    }
   ];
   var STORE_PREFIX = "acsv.s.";
   function storeKey(key) {
@@ -5954,6 +6013,39 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function normMode(m) {
     return m === 4 || m === 5 || m === 6 ? m : 1;
   }
+  var curAlpha = 1;
+  var curSizeScale = 1;
+  var curSpeed = 1;
+  var curArea = 0.72;
+  var curSubtitle = false;
+  var curMerge = true;
+  function readSettings() {
+    var a = Number(getSetting("dmAlpha"));
+    curAlpha = a > 0 && a <= 100 ? a / 100 : 1;
+    var sz = Number(getSetting("dmSize"));
+    curSizeScale = sz > 0 ? sz : 1;
+    var sp = Number(getSetting("dmSpeed"));
+    curSpeed = sp > 0 ? sp : 1;
+    var ar = Number(getSetting("dmArea"));
+    curArea = ar > 0 && ar <= 1 ? ar : 0.72;
+    curSubtitle = !!getSetting("dmSubtitle");
+    curMerge = !!getSetting("dmMerge");
+  }
+  function mergeDanmaku(list, winMs) {
+    var win = Number(winMs) > 0 ? Number(winMs) : 1500;
+    var lastByText = {};
+    var out = [];
+    for (var i = 0; i < (list || []).length; i++) {
+      var it = list[i];
+      if (!it) continue;
+      var k = String(it.text || "");
+      var prev = lastByText[k];
+      if (prev != null && it.at - prev < win) continue;
+      lastByText[k] = it.at;
+      out.push(it);
+    }
+    return out;
+  }
   function createLayer(slide, video) {
     var canvas = document.createElement("canvas");
     canvas.className = "acsv-dmcanvas";
@@ -6000,7 +6092,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
     }
     function fontPxOf(size) {
-      return Math.max(12, Math.min(80, Math.round(size * cssH / 810)));
+      return Math.max(12, Math.min(80, Math.round(size * curSizeScale * cssH / 810)));
     }
     function measure(it) {
       var px = fontPxOf(it.size);
@@ -6046,17 +6138,19 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       }
     }
     function assignLanes() {
+      readSettings();
       if (cssW < 10 || cssH < 10 || !items.length) return;
       var i, it;
       var maxPx = 0;
       for (i = 0; i < items.length; i++) {
         measure(items[i]);
         if (items[i]._px > maxPx) maxPx = items[i]._px;
-        items[i]._dur = items[i].mode === 1 || items[i].mode === 6 ? (cssW + items[i]._w) / cssW * CFG.danmaku.scrollSec * 1e3 : CFG.danmaku.staySec * 1e3;
+        items[i]._dur = items[i].mode === 1 || items[i].mode === 6 ? (cssW + items[i]._w) / cssW * CFG.danmaku.scrollSec * curSpeed * 1e3 : CFG.danmaku.staySec * 1e3;
       }
       laneH = Math.max(28, Math.round(maxPx * 1.4));
-      var scrollLanes = Math.max(1, Math.floor(cssH * 0.72 / laneH));
-      var sideLanes = Math.max(1, Math.floor(cssH * 0.6 / laneH));
+      var scrollArea = curSubtitle ? Math.max(0.1, curArea - 0.18) : curArea;
+      var scrollLanes = Math.max(1, Math.floor(cssH * scrollArea / laneH));
+      var sideLanes = Math.max(1, Math.floor(cssH * Math.min(curArea, 0.6) / laneH));
       var busy = {};
       items.sort(function(a, b) {
         return a.at - b.at;
@@ -6100,6 +6194,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         if (Math.abs(cssW - lastW) > 60) assignLanes();
       }
       ctx.clearRect(0, 0, cssW, cssH);
+      ctx.globalAlpha = curAlpha;
       if (items.length && cssW >= 10) {
         var t = video.currentTime * 1e3;
         if (t < lastT) head = 0;
@@ -6137,6 +6232,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           vis++;
         }
       }
+      ctx.globalAlpha = 1;
       if (true) {
         stat("dm.frame");
         dmMs += performance.now() - t0;
@@ -6167,9 +6263,16 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }
     return {
       setItems: function(list) {
+        readSettings();
         items = (list || []).filter(function(m) {
           return m && m.text;
         });
+        if (curMerge && items.length > 1) {
+          items.sort(function(a, b) {
+            return a.at - b.at;
+          });
+          items = mergeDanmaku(items);
+        }
         head = 0;
         lastT = -1;
         sprQueue = [];
@@ -10981,7 +11084,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.200" : "");
+    return normVer(true ? "0.9.201" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -14179,7 +14282,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.200：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.201：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

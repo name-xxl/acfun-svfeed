@@ -1,4 +1,5 @@
 import { CFG } from './cfg.js';
+import { getSetting } from './settings.js';
 import { stat, set, testHook } from './dbg.js';
 
 // ---------- Canvas 弹幕渲染层 ----------
@@ -25,6 +26,40 @@ var dmFc = 0, dmMs = 0, dmVisSum = 0;
 // （danmakuType=1 的编码如 7）不在本映射内——画布尚未支持（见头注）。
 export function normMode(m) {
   return (m === 4 || m === 5 || m === 6) ? m : 1;
+}
+
+// 弹幕设置缓存（0.9.201）：**只在轨道重排时读一次**（不得进逐帧绘制路径，否则掉帧）。
+// 值来自 settings 的「弹幕」分组（照原生 tab 条目，§10.12）。
+var curAlpha = 1, curSizeScale = 1, curSpeed = 1, curArea = 0.72, curSubtitle = false, curMerge = true;
+function readSettings() {
+  var a = Number(getSetting('dmAlpha'));
+  curAlpha = (a > 0 && a <= 100) ? a / 100 : 1;
+  var sz = Number(getSetting('dmSize'));
+  curSizeScale = sz > 0 ? sz : 1;
+  var sp = Number(getSetting('dmSpeed'));
+  curSpeed = sp > 0 ? sp : 1;
+  var ar = Number(getSetting('dmArea'));
+  curArea = (ar > 0 && ar <= 1) ? ar : 0.72;
+  curSubtitle = !!getSetting('dmSubtitle');
+  curMerge = !!getSetting('dmMerge');
+}
+
+// 合并重复弹幕（0.9.201，纯函数单测直采）：按 at 升序，同文本在 winMs 窗口内只留第一条。
+// 前提：入参已按 at 升序（assignLanes 里就排好序，这里保持顺序稳定）
+export function mergeDanmaku(list, winMs) {
+  var win = Number(winMs) > 0 ? Number(winMs) : 1500;
+  var lastByText = {};
+  var out = [];
+  for (var i = 0; i < (list || []).length; i++) {
+    var it = list[i];
+    if (!it) continue;
+    var k = String(it.text || '');
+    var prev = lastByText[k];
+    if (prev != null && it.at - prev < win) continue; // 窗口内重复：丢
+    lastByText[k] = it.at;
+    out.push(it);
+  }
+  return out;
 }
 
 function createLayer(slide, video) {
@@ -80,7 +115,7 @@ function createLayer(slide, video) {
   }
 
   function fontPxOf(size) {
-    return Math.max(12, Math.min(80, Math.round(size * cssH / 810)));
+    return Math.max(12, Math.min(80, Math.round(size * curSizeScale * cssH / 810))); // 字号倍率随设置（0.9.201）
   }
 
   function measure(it) {
@@ -127,7 +162,8 @@ function createLayer(slide, video) {
   // 轨道分配：按出现时间排序，滚动轨要求上一条"尾部完全进入"才能复用，
   // 全满时塞进最早空出的轨；顶部/底部按停留时间占行。
   // mode 归一在顶层 normMode()（0.9.194）。
-function assignLanes() {
+  function assignLanes() {
+    readSettings(); // 设置只在轨道重排时读一次（0.9.201；不进逐帧路径）
     if (cssW < 10 || cssH < 10 || !items.length) return;
     var i, it;
     var maxPx = 0;
@@ -135,12 +171,14 @@ function assignLanes() {
       measure(items[i]);
       if (items[i]._px > maxPx) maxPx = items[i]._px;
       items[i]._dur = (items[i].mode === 1 || items[i].mode === 6)
-        ? (cssW + items[i]._w) / cssW * CFG.danmaku.scrollSec * 1000
+        ? (cssW + items[i]._w) / cssW * CFG.danmaku.scrollSec * curSpeed * 1000
         : CFG.danmaku.staySec * 1000;
     }
     laneH = Math.max(28, Math.round(maxPx * 1.4));
-    var scrollLanes = Math.max(1, Math.floor(cssH * 0.72 / laneH));
-    var sideLanes = Math.max(1, Math.floor(cssH * 0.6 / laneH));
+    // 显示区域（0.9.201）：滚动轨占 curArea；**防挡字幕**再让出底部一条字幕带（约 18% 屏高）
+    var scrollArea = curSubtitle ? Math.max(0.1, curArea - 0.18) : curArea;
+    var scrollLanes = Math.max(1, Math.floor(cssH * scrollArea / laneH));
+    var sideLanes = Math.max(1, Math.floor(cssH * Math.min(curArea, 0.6) / laneH));
     var busy = {};
     items.sort(function (a, b) { return a.at - b.at; });
     for (i = 0; i < items.length; i++) {
@@ -178,6 +216,7 @@ function assignLanes() {
       if (Math.abs(cssW - lastW) > 60) assignLanes(); // 窗口尺寸变化重排轨道
     }
     ctx.clearRect(0, 0, cssW, cssH);
+    ctx.globalAlpha = curAlpha; // 不透明度（0.9.201；读缓存值，不逐帧读设置）
     if (items.length && cssW >= 10) {
       var t = video.currentTime * 1000;
       // 向后 seek 会让过期前缀判定失效：指针归零，本帧多扫一点，之后恢复窗口扫描
@@ -212,6 +251,7 @@ function assignLanes() {
         vis++;
       }
     }
+    ctx.globalAlpha = 1; // 复位（位图缓存/后续绘制不受影响）
     if (__ACSV_DEBUG__) {
       stat('dm.frame');
       dmMs += performance.now() - t0;
@@ -242,7 +282,12 @@ function assignLanes() {
 
   return {
     setItems: function (list) {
+      readSettings();
       items = (list || []).filter(function (m) { return m && m.text; });
+      if (curMerge && items.length > 1) { // 合并重复弹幕（0.9.201）：先按 at 升序再同文本去重
+        items.sort(function (a, b) { return a.at - b.at; });
+        items = mergeDanmaku(items);
+      }
       head = 0; lastT = -1;      // 新数组：窗口指针作废
       sprQueue = []; sprN = 0;   // 旧条目连同位图一起交给 GC
       if (running) {
