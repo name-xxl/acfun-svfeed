@@ -267,7 +267,10 @@ async function runOne(c) {
 
   var page = await browser.newPage(c.viewport ? { viewport: c.viewport } : undefined);
   try {
-    await page.goto('http://127.0.0.1:' + port + c.url, { waitUntil: 'load' });
+    // 导航超时 30s（Playwright 默认）→ 60s：CI 实测偶发（2026-10-06 发布 v0.9.208 时
+    // play-cold 报 page.goto 30s 超时、断言一条没错，重跑即绿）——冷启动叠加同池并发时，
+    // 1.1MB 的 debug 产物按 ?v= 破缓存逐页重取，慢跑机上 30s 余量不够。只放宽等待，不放宽断言。
+    await page.goto('http://127.0.0.1:' + port + c.url, { waitUntil: 'load', timeout: 60000 });
     await page.waitForFunction(
       function (k) { return window[k] && window[k].done === true; },
       c.key,
