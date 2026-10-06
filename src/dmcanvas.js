@@ -24,9 +24,23 @@ var dmFc = 0, dmMs = 0, dmVisSum = 0;
 
 // mode 归一（0.9.194 抽出为顶层纯函数，供单测直采）：4=底部 / 5=顶部 / 6=逆向滚动 保留，
 // 其余兜底滚动 1。真机取样实证 mode 6 存在（此前被错画成普通滚动）；高级弹幕
-// （danmakuType=1 的编码如 7）不在本映射内——画布尚未支持（见头注）。
+// （danmakuType=1）走另一条通道，不在本映射内。
 export function normMode(m) {
   return (m === 4 || m === 5 || m === 6) ? m : 1;
+}
+
+// 16:9 适配（0.9.205 真机改口径，纯函数供单测直采）：在 w×h 的播放器区域里取
+// **居中、恰好装下的 16:9 矩形**（相对区域左上角的偏移 + 尺寸）。容器比 16:9 更宽 → 左右留边；
+// 更高 → 上下留边。这是原生弹幕的坐标空间（§10.14：`.danmaku-screen` 恒 16:9，与稿件比例无关）。
+export function fit169(w, h) {
+  var k = 16 / 9;
+  if (!(w > 0) || !(h > 0)) return { x: 0, y: 0, w: 0, h: 0 };
+  if (w / h > k) {
+    var nw = h * k;
+    return { x: (w - nw) / 2, y: 0, w: nw, h: h };
+  }
+  var nh = w / k;
+  return { x: 0, y: (h - nh) / 2, w: w, h: nh };
 }
 
 // 弹幕设置缓存（0.9.201）：**只在轨道重排时读一次**（不得进逐帧绘制路径，否则掉帧）。
@@ -120,16 +134,14 @@ function createLayer(slide, video) {
     var scale = sr.width && slide.offsetWidth ? sr.width / slide.offsetWidth : 1;
     var x = vr.left - sr.left, y = vr.top - sr.top;
     var w = vr.width, h = vr.height;
-    // video 是 object-fit:contain：对齐实际画面区域（剔除黑边），弹幕随画面同步缩放
-    var vw = video.videoWidth, vh = video.videoHeight;
-    if (vw && vh && w > 8 && h > 8) {
-      var s = Math.min(w / vw, h / vh);
-      var pw = vw * s, ph = vh * s;
-      x += (w - pw) / 2;
-      y += (h - ph) / 2;
-      w = pw;
-      h = ph;
-    }
+    // 弹幕画布 = 播放器区域内居中、恰好装下的 **16:9 区**（0.9.205 真机改口径，此前是画面矩形）。
+    // 实证（§10.14）：原生 `.danmaku-screen` 与 `<video>` 元素框在任意视口形状下恒为 16:9
+    // （1780×900/1000×1400/1600×500 → 1226×690/680×383，稿件是 9:16 竖屏），弹幕**压在左右黑边上**；
+    // 即坐标系是「播放器那块 16:9 区」，与稿件比例无关。按画面矩形画的话，竖屏稿上弹幕被挤进窄列、
+    // 字号相对宽度大三倍、超长弹幕比屏还宽（见 CHANGELOG 0.9.204 附的几何表）。
+    // **对 16:9 稿两种口径逐像素等价**：元素框本身 16:9 时 fit 就是原框，画面矩形也等于原框。
+    var f = fit169(w, h);
+    x += f.x; y += f.y; w = f.w; h = f.h;
     x /= scale; y /= scale; w /= scale; h /= scale;
     cssW = Math.round(w);
     cssH = Math.round(h);

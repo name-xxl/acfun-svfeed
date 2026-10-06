@@ -337,7 +337,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `inputbar.js` | 抽屉输入栏 builder（评论/私信共用：表情/图片按钮、自动增高、Enter/Esc；差异语义参数注入） |
 | `upload.js` | 评论图片上传四阶段（GM 通道二进制分片，失败统一落 null） |
 | `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；0.9.180 起不可得=error 态，不回落原生；0.9.181 起「同 realm 返回式取数」+ UMD 分支遮罩；0.9.182 起 eval 拿不回再落 Blob 脚本层（页面 world，IM SDK 同款）；CDN 逐源兜底；Safari 原生 HLS 探测） |
-| `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐；0.9.204 起另一条通道画高级弹幕——绝对定位不进轨道/位图缓存） |
+| `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐；画布取**播放器区域内居中的 16:9 区**，与稿件比例无关——原生同口径（0.9.205）；0.9.204 起另一条通道画高级弹幕——绝对定位不进轨道/位图缓存） |
 | `advdm.js` | 高级弹幕模型核·零依赖纯函数（0.9.204）：`parseAdvanced`（ext JSON → 模型）/`easeProgress`（CSS 关键字 + cubic-bezier 牛顿迭代+二分兜底，非法值回落 linear）/`interpolateModel`（多段帧插值）/`drawModel`（九宫格锚点/多行/描边/影子）。真机口径见 docs/api-research.md §10.13（本地留档） |
 | `danmaku.js` | 弹幕编排：列表拉取/缓存、开关记忆、绑定/解绑 slide、发送输入条；**高级弹幕取池**（0.9.204：pollByPosition 跟播放头 20s 窗口增量拉——list 链路一条高级弹幕都不返回） |
 | `player.js` | 播放器编排层：renderWindow 窗口扫描（0.9.165 起窗外 belt 格 slide 换等高占位壳、数据水位同拍）、setActive、顶栏源高亮同步、挂载/卸载、SESSION_HOOKS 注入、观看历史触发；0.9.79 播放层直达不预热竖刷（feedDeferred/maybeStartFeed） |

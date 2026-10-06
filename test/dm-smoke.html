@@ -61,8 +61,10 @@
     var v = {
       paused: false,
       currentTime: 0,
+      // 播放器区域矩形可改（0.9.205 画布口径断言要换区域形状：16:9 / 方框 / 竖屏）
+      __rect: { left: 0, top: 0, width: 640, height: 360 },
       getBoundingClientRect: function () {
-        return { left: 0, top: 0, width: 640, height: 360 };
+        return v.__rect;
       },
       requestVideoFrameCallback: function (cb) { cbs.push(cb); return cbs.length; },
       cancelVideoFrameCallback: function () { },
@@ -95,13 +97,27 @@
       if (Date.now() - t0 > 15000) { rec('env', false, 'bundle 未就绪'); window.__DM_RESULTS__.done = true; return; }
       return setTimeout(boot, 100);
     }
-    try { run(); } catch (e) {
+    try {
+      var pr = run();
+      if (pr && pr.then) pr.catch(function (e) {
+        rec('执行异常', false, e && e.message);
+        window.__DM_RESULTS__.done = true;
+      });
+    } catch (e) {
       rec('执行异常', false, e && e.message);
       window.__DM_RESULTS__.done = true;
     }
   })();
 
-  function run() {
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function cvGeom() { // 画布几何（CSS 像素）：口径断言直接量它
+    var cv = document.querySelector('.acsv-dmcanvas');
+    if (!cv) return null;
+    return { w: Math.round(parseFloat(cv.style.width)), h: Math.round(parseFloat(cv.style.height)),
+      left: Math.round(parseFloat(cv.style.left)), top: Math.round(parseFloat(cv.style.top)) };
+  }
+
+  async function run() {
     var Dm = window.__ACSV_TEST__.call('dmcanvas');
     if (!Dm || !Dm.create) { rec('模拟缝', false, 'dmcanvas hook 缺失'); window.__DM_RESULTS__.done = true; return; }
     rec('模拟缝', true);
@@ -194,6 +210,36 @@
     // 无帧模型（真机残包）/ 坏 JSON：一律不收（不静默画错）
     rec('坏 JSON → null', Dm.parseAdvExt('{oops') === null);
     rec('无帧模型被拒收', layer.addAdvanced([{ id: 'adv2', at: 0, adv: { frames: [], content: 'x', duration: 100, wordScale: 1 } }]) === 0);
+
+    // ============ 画布口径（0.9.205）：一律取播放器区域里居中的 16:9 区 ============
+    // 真机实证（§10.14）：原生 .danmaku-screen 与 <video> 框在任意视口形状下恒 16:9（含 9:16 竖屏稿），
+    // 弹幕压在左右黑边上——坐标系是播放器那块 16:9 区，与稿件比例无关。
+    // （align 有 250ms 限频，故每改一次区域要等过限频再泵帧）
+    v.currentTime = 5; v.paused = false;
+    v.__rect = { left: 0, top: 0, width: 640, height: 360 };
+    v.videoWidth = 720; v.videoHeight = 1280; // 竖屏稿：按画面矩形口径会被挤成 202×360 的窄列
+    await sleep(320); v.__pump(2);
+    rec('竖屏稿画布=整块 16:9 播放器区（非画面窄列）',
+      !!cvGeom() && cvGeom().w === 640 && cvGeom().h === 360 && cvGeom().left === 0 && cvGeom().top === 0,
+      JSON.stringify(cvGeom()));
+    // 非 16:9 区域（640×640 方框）：居中取 16:9，上下各留 140
+    v.__rect = { left: 0, top: 0, width: 640, height: 640 };
+    await sleep(320); v.__pump(2);
+    rec('方框区域取居中 16:9（上下留边 140）',
+      !!cvGeom() && cvGeom().w === 640 && cvGeom().h === 360 && cvGeom().top === 140,
+      JSON.stringify(cvGeom()));
+    // 21:9 超宽区域：按高度定，左右留边
+    v.__rect = { left: 0, top: 0, width: 2100, height: 900 };
+    await sleep(320); v.__pump(2);
+    rec('超宽区域取 16:9（左右留边 250）',
+      !!cvGeom() && Math.abs(cvGeom().w - 1600) <= 1 && cvGeom().h === 900 && Math.abs(cvGeom().left - 250) <= 1,
+      JSON.stringify(cvGeom()));
+    // 回到 16:9 区域：与原框逐像素对齐（对 16:9 稿零视觉变化）
+    v.__rect = { left: 0, top: 0, width: 640, height: 360 };
+    await sleep(320); v.__pump(2);
+    rec('16:9 区域零偏移（口径对 16:9 稿等价）',
+      !!cvGeom() && cvGeom().w === 640 && cvGeom().h === 360 && cvGeom().left === 0 && cvGeom().top === 0,
+      JSON.stringify(cvGeom()));
 
     layer.destroy();
     rec('destroy 后无画布残留', !document.querySelector('.acsv-dmcanvas'), '');

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 弹幕画布口径改 16:9（docs/preview）</title>
+<!-- ============================================================
+     docs/preview/danmaku-canvas-169.html —— 0.9.205 弹幕画布口径改版静态预览
+     形态改动（用户实机指令 + 原生实证）：弹幕画布从「视频画面矩形」改为「播放器区域里居中的 16:9 区」。
+     真机依据（§10.14，截图 ac48872714）：原生 .danmaku-screen 与 <video> 元素框在
+       1780×900 / 1000×1400 / 1600×500 三种视口下恒为 16:9（1226×690 / 680×383 / 680×383），
+       而该稿画面是 9:16（1080×1922）——弹幕压在左右黑边上 ⇒ 坐标系是「播放器那块 16:9 区」。
+     本稿只画形态：① 三档稿件比例「改前 vs 改后」的弹幕覆盖范围 ② 非 16:9 播放器区域的居中留边
+       ③ 几何数字对照表。量值抄 src/dmcanvas.js 现行公式（fontPxOf 基准 810 / scrollSec 8 / 显示区域 72%）。
+     自检：1600 宽带（见④窄态段）与 540 宽各过一眼。
+     ============================================================ -->
+<style>
+  :root{
+    --acsv-accent:#fd4c5d;
+    --acsv-bg:#000;
+    --acsv-panel:rgba(22,22,27,.97);
+    --acsv-line:rgba(255,255,255,.09);
+    --acsv-t1:#fff;
+    --acsv-t2:#cfd3da;
+    --acsv-t3:#8a90a0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
+  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .board .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.9}
+  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:12px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .row{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
+  .col{flex:1 1 460px;min-width:380px}
+  .col>h3{font-size:12px;color:var(--acsv-t3);font-weight:400;margin:0 0 6px}
+  .col>h3 b{color:var(--acsv-t2);font-weight:600}
+
+  /* 播放器 mock：整块 = 播放器区域（video 元素框） */
+  .player{position:relative;width:100%;height:0;padding-top:56.25%;background:#0b0b0d;border-radius:6px;overflow:hidden}
+  /* 注意：**不能**给子元素统一 inset:0**——弹幕胶囊只有 left/top，right/bottom 若被置 0
+     会变成「左右都定死」而被拉满宽（0.9.205 预览稿自检时踩到） */
+  .player>*{position:absolute}
+  .dm{right:auto;bottom:auto}
+  /* 画面（object-fit:contain 的实际画面矩形） */
+  .pic{background:linear-gradient(135deg,#1d2b3a,#2f4a63)}
+  .pic::after{content:attr(data-label);position:absolute;left:8px;bottom:6px;color:rgba(255,255,255,.55);font-size:11px}
+  /* 画布覆盖区：虚线标出弹幕可飞范围 */
+  .canvas-area{outline:1px dashed rgba(253,76,93,.85);outline-offset:-1px;pointer-events:none}
+  .canvas-area::after{content:attr(data-tag);position:absolute;right:6px;top:5px;font-size:10px;color:var(--acsv-accent);
+    background:rgba(0,0,0,.6);padding:1px 5px;border-radius:4px}
+  /* 弹幕胶囊 */
+  .dm{position:absolute;font-size:11px;line-height:1;padding:3px 6px;border-radius:8px;white-space:nowrap;
+    background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.28);color:#fff}
+  .dm.over-bar{border-color:rgba(253,76,93,.9);color:#ffd7db}
+
+  table{border-collapse:collapse;font-size:12px;margin-top:4px}
+  th,td{border:1px solid var(--acsv-line);padding:6px 10px;text-align:left;color:var(--acsv-t2)}
+  th{color:var(--acsv-t3);font-weight:500;background:rgba(255,255,255,.03)}
+  td.num{font-variant-numeric:tabular-nums}
+  td.bad{color:#ff8a95}
+  td.good{color:#7ee2a8}
+  .note{color:var(--acsv-t3);font-size:12px;line-height:1.9;margin-top:10px}
+  .note b{color:var(--acsv-t2)}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>弹幕画布口径：改为「播放器区域里居中的 16:9 区」</h1>
+  <div class="hint">
+    原口径 = 视频<strong>画面矩形</strong>（object-fit:contain 剔除黑边）；新口径 = 播放器区域里<strong>居中的 16:9 区</strong>。<br>
+    原生实证：A 站 <code>.danmaku-screen</code> 与 <code>&lt;video&gt;</code> 元素框在 1780×900 / 1000×1400 / 1600×500 三种视口下<strong>恒为 16:9</strong>，
+    而实测稿件是 9:16（1080×1922）——弹幕压在左右黑边上。即坐标系是「播放器那块 16:9 区」，与稿件比例无关。
+  </div>
+
+  <div class="sec">
+    <h2>① 竖屏稿（720×1280）在 16:9 播放器里<em>这是本次唯一形态变化的场景</em></h2>
+    <div class="row">
+      <div class="col">
+        <h3><b>改前</b>：画布 = 画面矩形（506×900 窄列）——弹幕被挤进窄列，字号相对宽度大三倍、超长弹幕比屏还宽</h3>
+        <div class="player">
+          <div class="pic" style="left:34.4%;top:0;width:31.6%;height:100%" data-label="画面 506×900"></div>
+          <div class="canvas-area" style="left:34.4%;top:0;width:31.6%;height:100%" data-tag="画布"></div>
+          <div class="dm" style="left:35%;top:6%">6666</div>
+          <div class="dm" style="left:35%;top:16%;font-size:15px">前方高能预警啊兄弟们</div>
+          <div class="dm" style="left:63%;top:26%;opacity:.5">这条还没飞完…</div>
+        </div>
+      </div>
+      <div class="col">
+        <h3><b>改后</b>：画布 = 16:9 播放器区（1600×900）——弹幕铺满整块，压在左右黑边上（与原生一致）</h3>
+        <div class="player">
+          <div class="pic" style="left:34.4%;top:0;width:31.6%;height:100%" data-label="画面 506×900"></div>
+          <div class="canvas-area" style="left:0;top:0;width:100%;height:100%" data-tag="画布 1600×900"></div>
+          <div class="dm over-bar" style="left:2%;top:6%">6666</div>
+          <div class="dm over-bar" style="left:76%;top:14%">123321 ×8</div>
+          <div class="dm" style="left:36%;top:24%">前方高能预警啊兄弟们</div>
+          <div class="dm" style="left:12%;top:34%">自动签到弹幕~ ×2</div>
+          <div class="dm over-bar" style="left:84%;top:44%">巫小萤冲鸭</div>
+        </div>
+      </div>
+    </div>
+    <div class="note">
+      原生气质一致：弹幕在<strong>黑色侧边</strong>上照飞（红框胶囊＝落在黑边上的那几条，对应你截图里的
+      <code>123321 ×8</code> / <code>自动签到弹幕~ ×2</code> / <code>6666</code>）。
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>② 16:9 稿（1280×720）<em>两种口径逐像素等价——零视觉变化</em></h2>
+    <div class="row">
+      <div class="col">
+        <h3><b>改前 = 改后</b>：画面矩形本身就是 1600×900，16:9 区也是 1600×900</h3>
+        <div class="player">
+          <div class="pic" style="left:0;top:0;width:100%;height:100%" data-label="画面 1600×900"></div>
+          <div class="canvas-area" style="left:0;top:0;width:100%;height:100%" data-tag="画布（两边重合）"></div>
+          <div class="dm" style="left:4%;top:8%">这条是普通滚动弹幕</div>
+          <div class="dm" style="left:52%;top:18%">顶部弹幕</div>
+          <div class="dm" style="left:6%;top:86%">底部弹幕</div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>4:3 稿（720×540）在 16:9 播放器里 <b>改后</b></h3>
+        <div class="player">
+          <div class="pic" style="left:12.5%;top:0;width:75%;height:100%" data-label="画面 1200×900"></div>
+          <div class="canvas-area" style="left:0;top:0;width:100%;height:100%" data-tag="画布 1600×900"></div>
+          <div class="dm over-bar" style="left:1%;top:10%">左边黑边上的弹幕</div>
+          <div class="dm" style="left:30%;top:22%">画面里的弹幕</div>
+          <div class="dm over-bar" style="left:82%;top:34%">右边黑边上的</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>③ 播放器区域本身不是 16:9 时<em>画布居中取 16:9，多出来的地方留边</em></h2>
+    <div class="row">
+      <div class="col">
+        <h3>超宽窗口（21:9 区域 2100×900）→ 画布 1600×900，左右各留 250</h3>
+        <div class="player" style="padding-top:42.86%">
+          <div class="canvas-area" style="left:11.9%;top:0;width:76.2%;height:100%" data-tag="画布 1600×900"></div>
+          <div class="dm" style="left:14%;top:30%">弹幕只在这块 16:9 里飞</div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>竖屏窗口（9:16 区域 540×960）→ 画布 540×304，上下各留 328</h3>
+        <div style="max-width:300px">
+          <div class="player" style="padding-top:177.8%">
+            <div class="canvas-area" style="left:0;top:34.2%;width:100%;height:31.6%" data-tag="画布 540×304"></div>
+            <div class="dm" style="left:14%;top:42%">窄窗里也是 16:9 区</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note">原生在 1000×1400 竖窗口里同样是 680×383 的 16:9 框（不是铺满窗口），故这里也是取居中 16:9。</div>
+  </div>
+
+  <div class="sec">
+    <h2>④ 几何数字对照<em>按 src/dmcanvas.js 现行公式算（fontPxOf 基准 810 / scrollSec 8 / 显示区域 72%）</em></h2>
+    <table>
+      <tr><th>稿件（播放器 1600×900）</th><th>改前画布</th><th>改后画布</th><th>字号占比（宽）</th><th>20 字弹幕占宽</th><th>该弹幕存活</th><th>滚动轨数</th></tr>
+      <tr><td>16:9 1280×720</td><td class="num">1600×900</td><td class="num">1600×900</td>
+        <td class="num">1.8% → 1.8%</td><td class="num">35% → 35%</td><td class="num">10.8s → 10.8s</td><td class="num">16 → 16</td></tr>
+      <tr><td>竖屏 720×1280</td><td class="num bad">506×900</td><td class="num good">1600×900</td>
+        <td class="num">5.5% → <span style="color:#7ee2a8">1.8%</span></td>
+        <td class="num bad">111% → <span style="color:#7ee2a8">35%</span></td>
+        <td class="num bad">16.9s → <span style="color:#7ee2a8">10.8s</span></td><td class="num">16 → 16</td></tr>
+      <tr><td>竖屏 540×960</td><td class="num bad">506×900</td><td class="num good">1600×900</td>
+        <td class="num">5.5% → <span style="color:#7ee2a8">1.8%</span></td>
+        <td class="num bad">111% → <span style="color:#7ee2a8">35%</span></td>
+        <td class="num bad">16.9s → <span style="color:#7ee2a8">10.8s</span></td><td class="num">16 → 16</td></tr>
+      <tr><td>异形 720×900</td><td class="num">720×900</td><td class="num good">1600×900</td>
+        <td class="num">3.9% → 1.8%</td><td class="num">78% → 35%</td><td class="num">14.2s → 10.8s</td><td class="num">16 → 16</td></tr>
+    </table>
+    <div class="note">
+      <b>一句话</b>：改后弹幕观感<strong>与稿件比例无关</strong>（字号、速度、占轨时长全与 16:9 稿一致），这正是原生行为；
+      改前竖屏稿上「字大、挤、赖着不走」的根因同时被消掉。<b>16:9 稿两列数字完全相同</b>＝零回归。
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑤ 窄宽（540）自检<em>真实窄态请复制进 @media (max-width:539px) 后自测</em></h2>
+    <div style="width:540px;border:1px dashed rgba(255,255,255,.14);padding:12px">
+      <div class="player" style="padding-top:177.8%">
+        <div class="pic" style="left:0;top:34.2%;width:100%;height:31.6%" data-label="9:16 稿件画面"></div>
+        <div class="canvas-area" style="left:0;top:34.2%;width:100%;height:31.6%" data-tag="画布 540×304"></div>
+        <div class="dm" style="left:6%;top:40%;font-size:10px">窄屏里弹幕区同样按 16:9 取</div>
+      </div>
+      <div class="note" style="margin-top:8px">540 宽、稿件 9:16 → 播放器区域 540×960，画布取 540×304（上下各留 328），与原生在竖窗口里的处置一致。</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑥ 不受影响的部分<em>本批只动画布矩形</em></h2>
+    <div class="note">
+      轨道分配与字号公式（按画布高 810 基准）不动；「显示区域 / 防挡字幕 / 不透明度 / 合并重复 / 按类型屏蔽」
+      语义不动；高级弹幕的 pos 百分比<strong>跟着画布走</strong>——改后与原生同一空间（更高保真），
+      16:9 稿上位置逐像素不变。评论抽屉避让（<code>data-panfit</code> 平移）仍让画布跟手。
+    </div>
+  </div>
+</div>
+</body>
+</html>

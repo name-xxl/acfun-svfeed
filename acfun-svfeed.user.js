@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.204
+// @version      0.9.205
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.204" : "",
+          ver: true ? "0.9.205" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -6241,6 +6241,16 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function normMode(m) {
     return m === 4 || m === 5 || m === 6 ? m : 1;
   }
+  function fit169(w, h) {
+    var k = 16 / 9;
+    if (!(w > 0) || !(h > 0)) return { x: 0, y: 0, w: 0, h: 0 };
+    if (w / h > k) {
+      var nw = h * k;
+      return { x: (w - nw) / 2, y: 0, w: nw, h };
+    }
+    var nh = w / k;
+    return { x: 0, y: (h - nh) / 2, w, h: nh };
+  }
   var curAlpha = 1;
   var curSizeScale = 1;
   var curSpeed = 1;
@@ -6327,15 +6337,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       var scale = sr.width && slide.offsetWidth ? sr.width / slide.offsetWidth : 1;
       var x = vr.left - sr.left, y = vr.top - sr.top;
       var w = vr.width, h = vr.height;
-      var vw = video.videoWidth, vh = video.videoHeight;
-      if (vw && vh && w > 8 && h > 8) {
-        var s = Math.min(w / vw, h / vh);
-        var pw = vw * s, ph = vh * s;
-        x += (w - pw) / 2;
-        y += (h - ph) / 2;
-        w = pw;
-        h = ph;
-      }
+      var f = fit169(w, h);
+      x += f.x;
+      y += f.y;
+      w = f.w;
+      h = f.h;
       x /= scale;
       y /= scale;
       w /= scale;
@@ -11708,7 +11714,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.204" : "");
+    return normVer(true ? "0.9.205" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -14906,7 +14912,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.204：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.205：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
