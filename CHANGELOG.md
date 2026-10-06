@@ -3,6 +3,23 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.185（2026-10-06）· 体验打磨：闪动时长单源 + 私信轮询可见性门
+
+- **由头**：体验打磨轨起步。审计口径「反馈时值散落硬编码」——**结论基本失真**：`ui.toast` 早已
+  默认 `CFG.time.toast`（1800），全仓无散落 toast 硬编码（评估把 imdrawer 的引用高亮闪动误读成
+  toast）。逐点核后真正的问题只剩一处跨文件耦合 + 一处缺约定。
+- **修法①（闪动时长单源）**：`imdrawer` 清 `.acsv-im-flash` 的 `1300` 与 `styles` 的 `1.2s` 动画
+  分处两地硬编码——改一处忘另一处即描边残留或闪动被截断。收口 `CFG.im.flashMs=1200`：styles 动画
+  与 imdrawer 清类（=本值+100ms 余量）**同源**。
+- **修法②（轮询可见性门）**：后台标签不打扰——`imbadge.tick` 与 `imdrawer` 的 `listPoll`/`chatPoll`
+  补 `if (document.hidden) return;`，与既有 followbadge/squarefeed/session/report 约定一致。
+  **有意不门**：memberplaza 的 nav 注入定时器是有界重试（≤tries×retryMs）；input 的幽灵视频扫描
+  后台仍要跑（hidden 标签页照出声音，需停非当前条）。
+- **测试**：build/lint/check（图 238 边）/单测 258/全场景 55 全绿（badge-poll 23 / view-im 29
+  原样）。**如实记录**：E2 的门禁与既有约定同款——那些门禁（followbadge/squarefeed）在仓内本就
+  未单钉（followbadge 只暴露 poll，tick 的门禁无红绿断言），本批**不新增空心断言**，只保证既有
+  场景零回归。
+
 ### 0.9.184（2026-10-06）· 架构减债：错误盒单源（errbox.js）+ playlayer 拆件（playgest.js）
 
 - **由头**：用户裁决「架构减债 + 体验打磨」两轨；本批为架构减债第一刀——收口一处真实重复 + playlayer

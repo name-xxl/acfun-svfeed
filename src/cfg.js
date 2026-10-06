@@ -331,7 +331,8 @@ export var CFG = {
     drawerChatPoll: 1500, // 聊天视图新消息增量间隔（打开期间；推送进缓存后由它上屏）
     dayDivGap: 300000,    // 聊天时间分割线间隔：与上一条消息相隔超过该值插入时间分割（5 分钟）
     badgePoll: 5000,      // 顶栏未读徽标刷新间隔（仅缓存读）
-    badgeDelay: 15000     // 徽标首次探测延迟：避免页面一打开就拉起 SDK
+    badgeDelay: 15000,    // 徽标首次探测延迟：避免页面一打开就拉起 SDK
+    flashMs: 1200         // 引用定位高亮闪动时长（与 styles 的 acsv-im-flash 动画同源；JS 清类=本值+余量）
   },
   upload: {
     endpoint: 'https://upload.kuaishouzt.com', // 评论图片分片上传图床

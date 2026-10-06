@@ -619,7 +619,7 @@ var RAW_CSS = ''
   + '.acsv-quotechip-x:hover{color:#fff}'
   // 引用定位高亮：主题红描边渐隐（加在被定位的消息主元素上，动画完移除类）
   + '@keyframes acsv-im-flash{0%{box-shadow:0 0 0 2px var(--acsv-accent)}100%{box-shadow:0 0 0 2px transparent}}'
-  + '.acsv-im-flash{animation:acsv-im-flash 1.2s ease}'
+  + '.acsv-im-flash{animation:acsv-im-flash ' + CFG.im.flashMs + 'ms ease}'
   // 输入栏 DOM/样式收敛在 inputbar.buildInputBar（.acsv-cinput*，评论/私信共用），
   // IM 侧旧 .acsv-im-inputbar/-input/-send/-emot/-imgbtn 已退役（0.9.41）
   // 图片气泡：去文本气泡底色，窄边框衬暗底图片；行包裹器内 margin 归零（同文本气泡约定）。

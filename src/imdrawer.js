@@ -51,10 +51,12 @@ function makePoller(fn, gap) {
 }
 var listPoll = makePoller(function () {
   if (view !== 'list') return listPoll.stop();
+  if (document.hidden) return; // 后台标签不打扰（同 followbadge/squarefeed 约定）
   refreshList();
 }, CFG.im.drawerListPoll);
 var chatPoll = makePoller(function () {
   if (!chat) return chatPoll.stop();
+  if (document.hidden) return; // 后台标签不打扰（同 followbadge/squarefeed 约定）
   ensureIm().then(function (inst) {
     if (!inst.connected) return;
     chatPollOnce(inst, false);
@@ -434,7 +436,9 @@ function locateMessage(seqId) {
   t.classList.remove('acsv-im-flash');
   void t.offsetWidth; // 强制 reflow：连续点击同一条也能重触发 CSS 动画
   t.classList.add('acsv-im-flash');
-  setTimeout(function () { t.classList.remove('acsv-im-flash'); }, 1300);
+  // 清类时值 = 动画时长(CFG.im.flashMs) + 余量——与 styles 的 acsv-im-flash 动画**同源**
+  // （此前 1300 与 CSS 1.2s 分处两地硬编码，改一处忘另一处即残留描边/闪动被截断）
+  setTimeout(function () { t.classList.remove('acsv-im-flash'); }, CFG.im.flashMs + 100);
 }
 // 行包裹器：气泡/卡片 + hover 引用按钮同行（mine 行反序让按钮贴右缘）。引用范围按通道
 // 裁决：extra 通道（默认）文本/卡片/图片/引用都能引（0.9.41 起 isQuotable 含图片），

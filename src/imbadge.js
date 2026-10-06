@@ -18,6 +18,7 @@ export function mountBadge(btn, badge) {
   var last = -1;
   function tick() {
     if (!mounted) return;
+    if (document.hidden) return; // 后台标签不打扰（同 followbadge/squarefeed 约定）
     if (!isLogined()) { setBadge(0); return; }
     ensureIm().then(function (inst) {
       if (!mounted || !inst.connected) return;
