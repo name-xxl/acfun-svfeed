@@ -249,14 +249,25 @@ rec('ctl-icon-size', (function () {
   var r = mk.getBoundingClientRect();
   return Math.round(r.width) + 'x' + Math.round(r.height);
 })());
-rec('dm-icon-native-mask', /data:image\/svg\+xml/.test(ctlMaskU('.acsv-cdm')),
-  ctlMaskU('.acsv-cdm').slice(0, 46));
+// 0.9.206 回退：底栏「弹」开关恢复为文本键（原生 12×12 字形缩到底栏 20px 后发糊、且与旁边
+// 文字键（编码/缓冲/连播/倍速）不同族）——按钮文字是「弹」且**不带** mask 图标
+var dmBtnEl = q('.acsv-slide[data-ovl="1"] .acsv-cdm');
+rec('dm-btn-text', !!dmBtnEl && dmBtnEl.textContent === '弹'
+  && !dmBtnEl.querySelector('.acsvg-icon-mask'), dmBtnEl ? JSON.stringify(dmBtnEl.textContent) : 'no-btn');
 // 0.9.202 弹幕设置 = 底栏弹层（用户裁决：不做进设置面板）：齿轮开面板 → 两 tab → 开关/滑杆即时重排 →
 // 恢复默认必须**原地重绘**（若替换面板节点，齿轮闭包指向游离节点，从此关不掉——本组钉这条）
 var dmpBtn = q('.acsv-slide[data-ovl="1"] .acsv-cdmset');
 var dmp = q('.acsv-slide[data-ovl="1"] .acsv-dmpanel');
 rec('dmpanel-btn', !!dmpBtn);
 rec('dmpanel-closed-default', !!(dmp && dmp.style.display === 'none'));
+// 弹层锚定（0.9.206 实机修）：右缘必须对齐触发按钮、下缘在按钮上方 12px（此前挂 slide 贴窗口边）
+function alignInfo(btn, box, gap) {
+  if (!btn || !box) return 'no-box';
+  var b = btn.getBoundingClientRect(), m = box.getBoundingClientRect();
+  return 'btn.right=' + Math.round(b.right) + ' box.right=' + Math.round(m.right)
+    + ' | btn.top=' + Math.round(b.top) + ' box.bottom=' + Math.round(m.bottom)
+    + ' gap=' + Math.round(b.top - m.bottom) + '(want ' + gap + ')';
+}
 rec('dmpanel-icon-native', (function () {
   var mk = dmpBtn && dmpBtn.querySelector('.acsvg-icon-mask');
   return !!(mk && /data:image\/svg\+xml/.test(mk.style.getPropertyValue('--acsvg-icon') || ''));
@@ -272,6 +283,12 @@ rec('dmpanel-tabs', !!(dmp && dmp.querySelectorAll('.acsv-dmptabs span').length 
 // 「弹幕设置」tab：防挡字幕 / 合并重复弹幕 两个开关 + 显示区域 / 不透明度 / 字体大小 / 弹幕速度 四条滑杆
 rec('dmpanel-rows', !!(dmp && dmp.querySelectorAll('.acsv-dmprow').length === 6),
   dmp ? 'rows=' + dmp.querySelectorAll('.acsv-dmprow').length : 'none');
+// 面板右缘＝设置键右缘；面板下缘＝设置键上缘 - 12
+rec('dmpanel-anchored-to-btn', (function () {
+  if (!dmpBtn || !dmp) return false;
+  var b = dmpBtn.getBoundingClientRect(), m = dmp.getBoundingClientRect();
+  return Math.abs(m.right - b.right) <= 1 && Math.abs((b.top - m.bottom) - 12) <= 1;
+})(), alignInfo(dmpBtn, dmp, 12));
 var dmSw0 = dmp && dmp.querySelectorAll('.acsv-dmpsw')[0];
 if (dmSw0) dmSw0.click();
 rec('dmpanel-sw-on', !!(dmSw0 && dmSw0.classList.contains('on')));
@@ -316,6 +333,16 @@ rec('dmpanel-closes', !!(await waitFor(function () {
   var d = q('.acsv-slide[data-ovl="1"] .acsv-dmpanel');
   return d ? 'display="' + d.style.display + '"' : 'no-panel';
 })());
+// 清晰度菜单同款锚定（**放最后**：点清晰度键＝面板外点击，会先把弹幕面板收掉）
+var qBtnEl = q('.acsv-slide[data-ovl="1"] .acsv-cq');
+if (qBtnEl) qBtnEl.click();
+var qMenuEl = q('.acsv-slide[data-ovl="1"] .acsv-qmenu');
+rec('qmenu-anchored-to-btn', (function () {
+  if (!qBtnEl || !qMenuEl) return false;
+  var b = qBtnEl.getBoundingClientRect(), m = qMenuEl.getBoundingClientRect();
+  return Math.abs(m.right - b.right) <= 1 && Math.abs((b.top - m.bottom) - 12) <= 1;
+})(), alignInfo(qBtnEl, qMenuEl, 12));
+if (qBtnEl) qBtnEl.click(); // 收起
 var uBefore = ctlMaskU('.acsv-cplay');
 var pb0 = q('.acsv-slide[data-ovl="1"] .acsv-cplay');
 if (pb0) pb0.click(); // 直接点播放键：抽屉开着时焦点在评论输入框，Space 会被输入框吃掉

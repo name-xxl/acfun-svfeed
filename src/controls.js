@@ -239,10 +239,11 @@ export function buildControls(slide, idx, item) {
     } catch (e) { }
   }
 
-  var dmBtn = null, dmBox = null, dmSetBtn = null, qWrap = null, qBtn = null, qMenu = null, codecWrap = null, bufWrap = null;
+  var dmBtn = null, dmBox = null, dmSetBtn = null, dmWrap = null, qWrap = null, qBtn = null, qMenu = null, codecWrap = null, bufWrap = null;
   if (item && item.cap.danmaku) {
-    dmBtn = el('button', 'acsv-cbtn acsv-cdm' + (dmEnabled() ? ' on' : ''));
-    mountIcon(dmBtn, PLAYER_ICONS.danmaku); // 0.9.195：原生「弹」字形（开关态靠 .on 着色，与原生同款）
+    // 0.9.206：**回退成文本「弹」**（0.9.195 换成的原生 12×12 字形在底栏缩放后发糊、且与旁边
+    // 文字键（编码/缓冲/连播/倍速）不同族——用户实机裁决改回原来的）。开关态仍走 .on 着色 + 关闭降透明
+    dmBtn = el('button', 'acsv-cbtn acsv-cdm' + (dmEnabled() ? ' on' : ''), '弹');
     a11y(dmBtn, '弹幕开关');
     dmBtn.addEventListener('click', function (ev) {
       ev.stopPropagation();
@@ -260,9 +261,15 @@ export function buildControls(slide, idx, item) {
     dmSetBtn = elHtml('button', 'acsv-cbtn acsv-cdmset');
     mountIcon(dmSetBtn, PLAYER_ICONS.dmset); // 原生「弹幕设置」齿轮气泡图标
     a11y(dmSetBtn, '弹幕设置');
+    // 面板锚在**设置键自己**身上（0.9.206 实机修）：此前挂 slide 用 right:14px 定位，展开后
+    // 右缘贴的是窗口边而不是按钮，看着"没对齐按钮"。改法与清晰度菜单同构——包一层 .acsv-dmwrap，
+    // 面板 right:0 / bottom:calc(100%+12px)，右缘与下缘都由按钮定。
+    var dmWrap = el('span', 'acsv-dmwrap');
     var dmPanel = buildDmPanel(slide);
     dmPanel.style.display = 'none';
-    slide.appendChild(dmPanel);
+    dmWrap.appendChild(dmSetBtn);
+    dmWrap.appendChild(dmPanel);
+    slide.appendChild(dmWrap);
     dmSetBtn.addEventListener('click', function (ev) {
       ev.stopPropagation();
       var on = dmPanel.style.display === 'none';
@@ -346,7 +353,7 @@ export function buildControls(slide, idx, item) {
   row.appendChild(spacer);
   if (dmBtn) row.appendChild(dmBtn);
   if (dmBox) row.appendChild(dmBox);
-  if (dmSetBtn) row.appendChild(dmSetBtn);
+  if (dmWrap) row.appendChild(dmWrap);
   if (qWrap) row.appendChild(qWrap);
   if (codecWrap) row.appendChild(codecWrap);
   if (bufWrap) row.appendChild(bufWrap);

@@ -132,7 +132,10 @@ var RAW_CSS = ''
   + '.volnum{font-size:11px;color:#cfd3da;margin-top:6px;font-variant-numeric:tabular-nums}'
   + '.acsv-cmute.mute{color:rgba(255,255,255,.6)}'
   // ---- 弹幕设置面板（0.9.202）：底栏「弹幕设置」键点开的展开面板，挂 slide（不随控制栏闲置隐藏） ----
-  + '.acsv-dmpanel{position:absolute;right:14px;bottom:52px;width:300px;z-index:32;background:rgba(22,22,27,.98);'
+  // 弹幕设置键的容器（0.9.206）：面板改锚在**按钮**上——与 .acsv-qwrap/.acsv-qmenu 同构，
+  // 面板右缘＝按钮右缘、下缘＝按钮上缘-12。此前面板挂 slide 用 right:14px，贴的是窗口边
+  + '.acsv-dmwrap{position:relative;display:flex}'
+  + '.acsv-dmpanel{position:absolute;right:0;bottom:calc(100% + 12px);width:300px;z-index:32;background:rgba(22,22,27,.98);'
   + 'border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:0 0 10px;font-size:13px;box-shadow:0 12px 34px rgba(0,0,0,.6)}'
   + '.acsv-dmptabs{display:flex;gap:18px;padding:11px 14px 8px;border-bottom:1px solid rgba(255,255,255,.09);color:#cfd3da;font-size:13px}'
   + '.acsv-dmptabs span{cursor:pointer;padding-bottom:6px;border-bottom:2px solid transparent}'
