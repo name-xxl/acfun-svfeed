@@ -282,6 +282,19 @@ rec('vol-zero-mutes', (function () {
 })(), (function () { var v = ovlVideo(); var b = q('.acsv-slide[data-ovl="1"] .acsv-cmute'); return (v ? 'muted=' + v.muted : 'no-video') + ' cls=' + (b ? b.className : 'none'); })());
 dragTo(1); // 复位到满音量（含取消静音），防污染后续
 (function () { var s = q('.acsv-slide[data-ovl="1"] .acsv-volslide'); if (s) s.style.display = ''; })();
+// 0.9.200 画中画：底栏有 PiP 键，且**支持门控**正确（pictureInPictureEnabled=false 时不显示）。
+// 真实进出 PiP 需要用户激活 + 系统合成器，无头环境不可靠，故只钉按钮与门控
+rec('pip-btn', (function () {
+  var b = q('.acsv-slide[data-ovl="1"] .acsv-cpip');
+  if (!b) return false;
+  var supported = typeof document.pictureInPictureEnabled === 'boolean' ? document.pictureInPictureEnabled : true;
+  var ariaOk = b.getAttribute('aria-label') === '画中画（切到别的标签也能继续看）';
+  var visOk = supported ? b.style.display !== 'none' : b.style.display === 'none';
+  return ariaOk && visOk;
+})(), (function () {
+  var b = q('.acsv-slide[data-ovl="1"] .acsv-cpip');
+  return b ? ('aria=' + b.getAttribute('aria-label') + ' disp=' + (b.style.display || 'inline') + ' enabled=' + document.pictureInPictureEnabled) : 'none';
+})());
 key('c');
 rec('play-key-comments-close', !!(await waitFor(function () {
   var r = q('#acsv-root');

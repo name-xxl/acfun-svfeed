@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { toast, toggleFullLadder, isCinema, setCinema } from './ui.js';
-import { refreshFullBtns } from './controls.js';
+import { refreshFullBtns, refreshPipBtn } from './controls.js';
 import { root, scroller, slideAt, playItem } from './state.js';
 import { isFeedRoute } from './route.js';
 import { FeedStore } from './feedstore.js';
@@ -15,7 +15,7 @@ import { getSetting } from './settings.js';
 // 视图/评论/私信模块。
 // 解除统一走 teardownInputHandlers（unmount 调用）。
 
-var keyHandler = null, keyUpHandler = null, fsChangeHandler = null, ghostIv = null;
+var keyHandler = null, keyUpHandler = null, fsChangeHandler = null, ghostIv = null, pipChangeHandler = null;
 
 // api: { scrollToIndex, exitFeed, getView, toggleImDrawer, toggleComments, playStep }
 export function setupInputHandlers(api) {
@@ -154,6 +154,11 @@ export function setupInputHandlers(api) {
     if (slide) scroller.scrollTop = slide.offsetTop;
   };
   document.addEventListener('fullscreenchange', fsChangeHandler);
+  // 画中画态同步（0.9.200）：进/出 PiP 都刷按钮激活态。**换条/退出自动关**由浏览器负责
+  //（切换会 dispose video，元素一移除 PiP 即退），这里不需要拦切换
+  pipChangeHandler = function () { refreshPipBtn(); };
+  document.addEventListener('enterpictureinpicture', pipChangeHandler);
+  document.addEventListener('leavepictureinpicture', pipChangeHandler);
   // 幽灵音频守护：定期扫描，非当前 slide 的视频一律暂停。
   // 只是兜底（setActive/pause 钩子已覆盖绝大多数场景），低频即可
   ghostIv = setInterval(sweepVideos, CFG.time.ghostIv);
@@ -168,5 +173,10 @@ export function teardownInputHandlers() {
   if (keyHandler) { window.removeEventListener('keydown', keyHandler); keyHandler = null; }
   if (keyUpHandler) { window.removeEventListener('keyup', keyUpHandler); keyUpHandler = null; }
   if (fsChangeHandler) { document.removeEventListener('fullscreenchange', fsChangeHandler); fsChangeHandler = null; }
+  if (pipChangeHandler) {
+    document.removeEventListener('enterpictureinpicture', pipChangeHandler);
+    document.removeEventListener('leavepictureinpicture', pipChangeHandler);
+    pipChangeHandler = null;
+  }
   if (ghostIv) { clearInterval(ghostIv); ghostIv = null; }
 }

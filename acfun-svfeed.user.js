@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.198
+// @version      0.9.199
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.198" : "",
+          ver: true ? "0.9.199" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -567,6 +567,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     // 两级全屏键（0.9.197）：网页全屏=方框（铺满窗口）；窗口全屏=四角外扩（铺满屏幕）
     webFs: '<svg viewBox="0 0 24 24"><path d="M3 5h18v14H3V5zm2 2v10h14V7H5z"/></svg>',
     winFs: '<svg viewBox="0 0 24 24"><path d="M4 9V4h5v2H6v3H4zm11-5h5v5h-2V6h-3V4zM4 15h2v3h3v2H4v-5zm14 0h2v5h-5v-2h3v-3z"/></svg>',
+    // 画中画（0.9.200）：外框 + 右下小窗
+    pip: '<svg viewBox="0 0 24 24"><path d="M3 5h18v14H3V5zm2 2v10h14V7H5z"/><path d="M12.5 12.5h6v5h-6v-5z"/></svg>',
     volOn: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>',
     volOff: '<svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>',
     fs: '<svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>',
@@ -8313,6 +8315,15 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     });
     volWrap.appendChild(muteBtn);
     volWrap.appendChild(buildVolSlide());
+    var pipBtn = elHtml("button", "acsv-cbtn acsv-cpip", ICONS.pip);
+    a11y(pipBtn, "画中画（切到别的标签也能继续看）");
+    if (typeof document.pictureInPictureEnabled === "boolean" && !document.pictureInPictureEnabled) {
+      pipBtn.style.display = "none";
+    }
+    pipBtn.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      togglePip(videoOf());
+    });
     var webBtn = elHtml("button", "acsv-cbtn acsv-cwebfs", ICONS.webFs);
     a11y(webBtn, "网页全屏（铺满浏览器窗口）");
     webBtn.addEventListener("click", function(ev) {
@@ -8445,6 +8456,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     row.appendChild(autoBtn);
     row.appendChild(rateWrap);
     row.appendChild(volWrap);
+    row.appendChild(pipBtn);
     row.appendChild(webBtn);
     row.appendChild(winBtn);
     box.appendChild(track);
@@ -8497,6 +8509,26 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       ev.stopPropagation();
     });
     return box;
+  }
+  function togglePip(video) {
+    if (!document.pictureInPictureEnabled || !video || !video.requestPictureInPicture) return;
+    if (document.pictureInPictureElement) {
+      document.exitPictureInPicture();
+      return;
+    }
+    try {
+      var p = video.requestPictureInPicture();
+      if (p && p.catch) p.catch(function() {
+      });
+    } catch (e) {
+    }
+  }
+  function refreshPipBtn() {
+    if (!root) return;
+    var on = !!document.pictureInPictureElement;
+    Array.prototype.forEach.call(root.querySelectorAll(".acsv-cpip"), function(b) {
+      b.classList.toggle("on", on);
+    });
   }
   function refreshFullBtns() {
     if (!root) return;
@@ -10853,7 +10885,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.198" : "");
+    return normVer(true ? "0.9.199" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11834,6 +11866,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var keyUpHandler = null;
   var fsChangeHandler = null;
   var ghostIv = null;
+  var pipChangeHandler = null;
   function setupInputHandlers(api) {
     keyHandler = function(ev) {
       if (!isFeedRoute() || !root) return;
@@ -11969,6 +12002,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       if (slide) scroller.scrollTop = slide.offsetTop;
     };
     document.addEventListener("fullscreenchange", fsChangeHandler);
+    pipChangeHandler = function() {
+      refreshPipBtn();
+    };
+    document.addEventListener("enterpictureinpicture", pipChangeHandler);
+    document.addEventListener("leavepictureinpicture", pipChangeHandler);
     ghostIv = setInterval(sweepVideos, CFG.time.ghostIv);
   }
   function teardownInputHandlers() {
@@ -11983,6 +12021,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (fsChangeHandler) {
       document.removeEventListener("fullscreenchange", fsChangeHandler);
       fsChangeHandler = null;
+    }
+    if (pipChangeHandler) {
+      document.removeEventListener("enterpictureinpicture", pipChangeHandler);
+      document.removeEventListener("leavepictureinpicture", pipChangeHandler);
+      pipChangeHandler = null;
     }
     if (ghostIv) {
       clearInterval(ghostIv);
@@ -14040,7 +14083,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.198：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.199：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

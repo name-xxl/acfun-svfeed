@@ -3,6 +3,18 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.199（2026-10-07）· 播放器打磨（六）：画中画 PiP（换条/退出自动关）
+
+- **由头**：用户裁决「画中画＝换条/退出时自动关」（预览稿内已记）。
+- **修法**：底栏加 PiP 键（`ICONS.pip` 自绘）；`togglePip(video)` 进/出 PiP，失败静默（无用户手势或能力不足时
+  浏览器会 reject）；激活态由 `enterpictureinpicture`/`leavepictureinpicture` 事件同步
+  （`controls.refreshPipBtn`，监听在 `input.js` 挂载并在 teardown 摘除）。**不拦换条**——切换会 dispose video，
+  元素一移除浏览器自会退出 PiP（这正是"自动关"语义的天然实现，无需额外拦截）。**支持门控**：
+  `document.pictureInPictureEnabled === false` 时按钮不显示。
+- **测试**：build/lint/check（含 tsc）/单测 262/全场景 56 全绿。play-deep 58→59 断言：`pip-btn`
+  （按钮在 + `aria-label` 正确 + 可见性随 `pictureInPictureEnabled` 门控）。
+  注：真实进出 PiP 需要用户激活与系统合成器，**无头环境不可靠**，故不钉真实进出。
+
 ### 0.9.198（2026-10-07）· 播放器打磨（五）：音量竖条滑杆（真音量 + 与静音两态联动）
 
 - **由头**：用户裁决「音量滑杆做成竖的」（预览稿内已记）。

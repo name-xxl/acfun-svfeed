@@ -155,6 +155,18 @@ export function buildControls(slide, idx, item) {
   volWrap.appendChild(muteBtn);
   volWrap.appendChild(buildVolSlide());
 
+  // 画中画（0.9.200 用户裁决）：**换条/退出自动关**（不拦切换——切换会 dispose video，浏览器自会退出 PiP）；
+  // 不支持的环境（pictureInPictureEnabled=false）按钮不显示
+  var pipBtn = elHtml('button', 'acsv-cbtn acsv-cpip', ICONS.pip);
+  a11y(pipBtn, '画中画（切到别的标签也能继续看）');
+  if (typeof document.pictureInPictureEnabled === 'boolean' && !document.pictureInPictureEnabled) {
+    pipBtn.style.display = 'none';
+  }
+  pipBtn.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    togglePip(videoOf());
+  });
+
   // 两级全屏（0.9.197 用户裁决）：网页全屏＝隐自身 UI、画面铺满浏览器窗口；窗口全屏＝再进 OS 全屏。
   // F 键走同一梯子（常态→网页全屏→窗口全屏→常态，见 ui.toggleFullLadder）
   var webBtn = elHtml('button', 'acsv-cbtn acsv-cwebfs', ICONS.webFs);
@@ -292,6 +304,7 @@ export function buildControls(slide, idx, item) {
   row.appendChild(autoBtn);
   row.appendChild(rateWrap);
   row.appendChild(volWrap);
+  row.appendChild(pipBtn);
   row.appendChild(webBtn);
   row.appendChild(winBtn);
 
@@ -334,6 +347,24 @@ function buildVolSlide() {
   track.addEventListener('pointercancel', function () { dragging = false; });
   box.addEventListener('click', function (ev) { ev.stopPropagation(); }); // 别冒泡成 slide 点按
   return box;
+}
+
+// 画中画开关（0.9.200）：进/出 PiP。失败静默（用户手势缺失/能力不足时浏览器会 reject），
+// 按钮态一律由 enter/leavepictureinpicture 事件同步（见 input.js 的监听）
+function togglePip(video) {
+  if (!document.pictureInPictureEnabled || !video || !video.requestPictureInPicture) return;
+  if (document.pictureInPictureElement) { document.exitPictureInPicture(); return; }
+  try {
+    var p = video.requestPictureInPicture();
+    if (p && p.catch) p.catch(function () { });
+  } catch (e) { }
+}
+
+// PiP 激活态同步（跨 slide 全量扫）
+export function refreshPipBtn() {
+  if (!root) return;
+  var on = !!document.pictureInPictureElement;
+  Array.prototype.forEach.call(root.querySelectorAll('.acsv-cpip'), function (b) { b.classList.toggle('on', on); });
 }
 
 // 全屏两键的激活态同步（跨 slide 全量扫，同 playback.refreshMuteIcons 体例）
