@@ -3,6 +3,23 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.186（2026-10-06）· 体验打磨：可访问性最小集（aria-label / 对话框语义）
+
+- **由头**：体验打磨轨。审计「全程无 ARIA/role、抽屉浮层无对话框语义」。**为守硬规矩①**，本批只做
+  **不可见**的无障碍属性——`title` 文本气泡属可见变化（悬停提示），另走预览，不在本批。
+- **修法**：`ui.a11y(el, label)` 收口「title + aria-label 同源一处设定」（本项目按钮普遍已有 title
+  作悬停提示；aria-label 让屏幕阅读器读同一标签，防两者漂移）。落点：
+  - 顶栏图标按钮（返回/搜索/私信/更新/退出）；播放控制键（播放/连播/静音/全屏/弹幕/清晰度/倍速）；
+    右栏操作键（赞/评/蕉/藏/享/关注/上下箭头）。
+  - 评论抽屉（`slide.buildDrawer`）与私信抽屉（`imdrawer`）加 `role="dialog"` + `aria-modal="true"`
+    + `aria-label`（纯属性，不改 DOM 形态/视觉/交互）。
+  - `a11y` 只动无障碍属性，**不新增可见提示**（既有 title 原样保留——play.js 的 `[title="…"]` 选择器不受影响）。
+- **测试**：build/lint/check（图 238 边）/单测 258/全场景 55 全绿。新增 5 断言：feed.smoke
+  `a11y-topbar-im`/`a11y-topbar-upd`、play.js `play-a11y-drawer-dialog`/`play-a11y-ctl-label`、
+  views.js `imview-a11y-dialog`（view-im / view-im-narrow 各一）。**摘修复反跑实证**：令 `a11y` 不设
+  aria-label ⇒ 恰好这 5 条转红（smoke 7/9、play-deep 48/49、view-im 29/30）；`play-a11y-drawer-dialog`
+  走直设属性、不受影响——反证了「a11y 收口」与「抽屉直设」两条路径各自成立。
+
 ### 0.9.185（2026-10-06）· 体验打磨：闪动时长单源 + 私信轮询可见性门
 
 - **由头**：体验打磨轨起步。审计口径「反馈时值散落硬编码」——**结论基本失真**：`ui.toast` 早已

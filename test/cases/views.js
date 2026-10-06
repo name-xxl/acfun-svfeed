@@ -1262,6 +1262,12 @@ topbarInView('imview');
 var imvSmoke = TEST.call('imOpenSmoke');
 rec('imview-drawer-open', !!(imvSmoke && imvSmoke.open && imvSmoke.drawerConnected && imvSmoke.withComments),
   JSON.stringify(imvSmoke || {}));
+// 0.9.186 可访问性：私信抽屉=模态对话框语义 + 关闭键 aria-label（与 title 同源）
+rec('imview-a11y-dialog', (function () {
+  var d = q('.acsv-msgdrawer'), c = q('.acsv-im-close');
+  return !!d && d.getAttribute('role') === 'dialog' && d.getAttribute('aria-modal') === 'true'
+    && !!c && c.getAttribute('aria-label') === '关闭';
+})());
 await wait(500); // 越过 .28s 抽屉滑入/正文收窄过渡
 rec('imview-body-geometry', (function () {
   var b = q('.acsv-view-body'), d = q('.acsv-msgdrawer');
@@ -1400,6 +1406,12 @@ topbarInView('imview');
 var imvSmoke = TEST.call('imOpenSmoke');
 rec('imview-drawer-open', !!(imvSmoke && imvSmoke.open && imvSmoke.drawerConnected && imvSmoke.withComments),
   JSON.stringify(imvSmoke || {}));
+// 0.9.186 可访问性：私信抽屉=模态对话框语义 + 关闭键 aria-label（与 title 同源）
+rec('imview-a11y-dialog', (function () {
+  var d = q('.acsv-msgdrawer'), c = q('.acsv-im-close');
+  return !!d && d.getAttribute('role') === 'dialog' && d.getAttribute('aria-modal') === 'true'
+    && !!c && c.getAttribute('aria-label') === '关闭';
+})());
 await wait(500); // 越过 .28s 抽屉滑入/正文收窄过渡
 rec('imview-body-geometry', (function () {
   var b = q('.acsv-view-body'), d = q('.acsv-msgdrawer');

@@ -18,6 +18,10 @@ await wait(1500);
 var vids = document.querySelectorAll('#acsv-root video');
 // 窗口 [cur-1, cur+1]：cur/cur+1 挂新 video，cur-1 保留旧 video（已暂停）→ 上限 3
 rec('videos-capped', vids.length <= 3, 'count=' + vids.length);
+// 0.9.186 可访问性：顶栏图标按钮 aria-label（与 title 同源）——摘属性即转红
+var tbIm = q('.acsv-im-btn'), tbUpd = q('.acsv-upd-btn');
+rec('a11y-topbar-im', !!tbIm && tbIm.getAttribute('aria-label') === '私信');
+rec('a11y-topbar-upd', !!tbUpd && tbUpd.getAttribute('aria-label') === '更新说明');
 key('Escape');
 rec('esc-exits', !!(await waitFor(function () { return !document.getElementById('acsv-root'); }, 5000)));
   };

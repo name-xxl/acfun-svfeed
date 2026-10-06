@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { el, esc, toast, selfUid, ensureStyle } from './ui.js'; // cookieVal 已随图片换链管线迁 imsend（0.9.163）
+import { el, esc, toast, selfUid, ensureStyle, a11y } from './ui.js'; // cookieVal 已随图片换链管线迁 imsend（0.9.163）
 import { root, claimDrawer, releaseDrawer, setRoot } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { testHook } from './dbg.js';
@@ -107,14 +107,18 @@ function imTextHtml(s) { return emotify(linkify(s)); }
 function ensureDrawerDom() {
   if (drawer || !root) return;
   var d = el('aside', 'acsv-msgdrawer');
+  // 无障碍（0.9.186）：抽屉=模态对话框语义（纯属性，不改形态/视觉）
+  d.setAttribute('role', 'dialog');
+  d.setAttribute('aria-modal', 'true');
+  d.setAttribute('aria-label', '私信');
 
   // 头部：列表标题 / 聊天返回条 复用同一容器
   var head = el('div', 'acsv-im-head');
   var back = el('button', 'acsv-im-back', '‹');
-  back.title = '返回消息列表';
+  a11y(back, '返回消息列表');
   var title = el('span', 'acsv-im-title', '私信');
   var close = el('button', 'acsv-im-close', '✕');
-  close.title = '关闭';
+  a11y(close, '关闭');
   close.addEventListener('click', function (ev) { ev.stopPropagation(); closeDrawer(); });
   back.addEventListener('click', function (ev) {
     ev.stopPropagation();

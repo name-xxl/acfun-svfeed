@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { ICONS } from './styles.js';
-import { el, elHtml, toast, fmtTime, toggleFullscreen } from './ui.js';
+import { el, elHtml, toast, fmtTime, toggleFullscreen, a11y } from './ui.js';
 import { root, scroller, slideAt, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { pb, togglePlayGesture, toggleMuteGesture, applyLoop } from './playback.js';
@@ -93,7 +93,7 @@ export function buildControls(slide, idx, item) {
   var row = el('div', 'acsv-ctl-row');
 
   var playBtn = elHtml('button', 'acsv-cbtn acsv-cplay', ICONS.pause);
-  playBtn.title = '播放/暂停（空格）';
+  a11y(playBtn, '播放/暂停（空格）');
   playBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
     togglePlayGesture(videoOf());
@@ -104,7 +104,7 @@ export function buildControls(slide, idx, item) {
   spacer.style.flex = '1';
 
   var autoBtn = elHtml('button', 'acsv-cbtn acsv-cauto', '<span class="acsv-dot"></span>连播');
-  autoBtn.title = '播完自动播放下一条（关闭则单条循环）';
+  a11y(autoBtn, '播完自动播放下一条（关闭则单条循环）');
   autoBtn.classList.toggle('on', pb.autoplayNext);
   autoBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
@@ -143,14 +143,14 @@ export function buildControls(slide, idx, item) {
   );
 
   var muteBtn = elHtml('button', 'acsv-cbtn acsv-cmute', pb.soundOn ? ICONS.volOn : ICONS.volOff);
-  muteBtn.title = '静音开关（M）';
+  a11y(muteBtn, '静音开关（M）');
   muteBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
     toggleMuteGesture(videoOf());
   });
 
   var fsBtn = elHtml('button', 'acsv-cbtn acsv-cfs', ICONS.fs);
-  fsBtn.title = '全屏（F）';
+  a11y(fsBtn, '全屏（F）');
   fsBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
     toggleFullscreen();
@@ -184,7 +184,7 @@ export function buildControls(slide, idx, item) {
   var dmBtn = null, dmBox = null, qWrap = null, qBtn = null, qMenu = null, codecWrap = null, bufWrap = null;
   if (item && item.cap.danmaku) {
     dmBtn = el('button', 'acsv-cbtn acsv-cdm' + (dmEnabled() ? ' on' : ''), '弹');
-    dmBtn.title = '弹幕开关';
+    a11y(dmBtn, '弹幕开关');
     dmBtn.addEventListener('click', function (ev) {
       ev.stopPropagation();
       // 只翻开关：按钮态与图层起停统一走 onChange('dmDefault') → applyDmState（单源，
@@ -200,7 +200,7 @@ export function buildControls(slide, idx, item) {
   if (item && item.cap.quality) {
     qWrap = el('span', 'acsv-qwrap');
     qBtn = el('button', 'acsv-cbtn acsv-cq', item.qualities ? item.qualities[item.qIdx].label : '自动');
-    qBtn.title = '清晰度';
+    a11y(qBtn, '清晰度');
     qMenu = el('div', 'acsv-qmenu');
     qBtn.addEventListener('click', function (ev) {
       ev.stopPropagation();
@@ -320,7 +320,8 @@ function buildMenu(title, getEntries, onPick, tip) {
   var btn = el('button', 'acsv-cbtn acsv-cq');
   var labelText = function () { return typeof title === 'function' ? title() : title; };
   btn.textContent = labelText();
-  btn.title = tip || (typeof title === 'function' ? '' : title);
+  var menuLbl = tip || (typeof title === 'function' ? '' : title);
+  if (menuLbl) a11y(btn, menuLbl);
   var menu = el('div', 'acsv-qmenu');
   btn.addEventListener('click', function (ev) {
     ev.stopPropagation();

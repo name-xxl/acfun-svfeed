@@ -189,6 +189,17 @@ rec('play-comments-reopen', !!(await waitFor(function () {
   var r = q('#acsv-root');
   return !!r && r.classList.contains('acsv-with-comments');
 }, 6000)));
+// 0.9.186 可访问性：评论抽屉=模态对话框语义（role/aria-modal）+ 播放控制键 aria-label
+//（与 title 同源）——摘 src/ui.js a11y 或摘对应属性即转红
+rec('play-a11y-drawer-dialog', (function () {
+  var d = q('.acsv-drawer');
+  return !!d && d.getAttribute('role') === 'dialog' && d.getAttribute('aria-modal') === 'true'
+    && d.getAttribute('aria-label') === '评论';
+})());
+rec('play-a11y-ctl-label', (function () {
+  var pl = q('.acsv-cplay');
+  return !!pl && pl.getAttribute('aria-label') === '播放/暂停（空格）';
+})());
 key('c');
 rec('play-key-comments-close', !!(await waitFor(function () {
   var r = q('#acsv-root');

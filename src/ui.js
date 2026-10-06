@@ -133,6 +133,15 @@ export function sweepSlideVideos(slide) {
   Array.prototype.forEach.call(slide.querySelectorAll('video'), teardownVideo);
 }
 
+// 可访问性（0.9.186）：图标/无文字控件补 aria-label——与 title 同源一处设定，防两者漂移
+// （本项目按钮普遍已有 title 作悬停提示；aria-label 让屏幕阅读器也能读同一个标签）。
+// 只改无障碍属性、不改 DOM 形态与视觉（title 气泡是既有约定，本函数不新增可见提示）。
+export function a11y(e, label) {
+  e.title = label;
+  e.setAttribute('aria-label', label);
+  return e;
+}
+
 // ---------- 外点收起（0.9.147 收口） ----------
 // 面板展开后点**面板外任意位置**即收起。两条硬规矩（都是实报病灶换来的）：
 //   ① **捕获相监听**：页面里大量 stopPropagation（控件条/弹幕输入框/

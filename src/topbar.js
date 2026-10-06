@@ -1,4 +1,4 @@
-import { el, toast, closeOnOutsideClick } from './ui.js';
+import { el, toast, closeOnOutsideClick, a11y } from './ui.js';
 import { histList, histClear } from './searchhist.js'; // 搜索历史=站方 searchCache（0.9.158 读写复用）
 import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
@@ -85,7 +85,7 @@ export function buildTopbar(parent, h) {
   // 左缘「向左返回」（0.9.74）：仅深界面（搜索结果页/播放层）显示——它们的来源不在 dock 上，
   // 必须有返回出口；样式与右组同款（.acsv-tbtn），DOM 在首位（顶栏左缘=左栏右缘，紧贴侧栏）
   backBtn = el('button', 'acsv-tbtn acsv-back-btn');
-  backBtn.title = '返回';
+  a11y(backBtn, '返回');
   backBtn.innerHTML = ICONS.chevLt;
   backBtn.style.display = 'none';
   backBtn.addEventListener('click', function (ev) { ev.stopPropagation(); if (hooks.onBack) hooks.onBack(); });
@@ -112,7 +112,7 @@ export function buildTopbar(parent, h) {
   searchInput.addEventListener('click', function () { openSearchPop(); });
 
   var sBtn = el('button', 'acsv-sbtn');
-  sBtn.title = '搜索';
+  a11y(sBtn, '搜索');
   sBtn.appendChild(el('i', 'acsvg-glyph', GLYPHS.search));
   sBtn.addEventListener('click', function (ev) { ev.stopPropagation(); submitSearch(); });
   pill.appendChild(searchInput);
@@ -189,12 +189,12 @@ export function buildTopbar(parent, h) {
   fsegEl.style.display = 'none';
   tr.appendChild(fsegEl);
   var imBtn = el('button', 'acsv-tbtn acsv-im-btn');
-  imBtn.title = '私信';
+  a11y(imBtn, '私信');
   imBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg><span class="acsv-im-badge" style="display:none"></span>';
   imBtn.addEventListener('click', function (ev) { ev.stopPropagation(); if (hooks.onDrawer) hooks.onDrawer(); });
   tr.appendChild(imBtn);
   var updBtn = el('button', 'acsv-tbtn acsv-upd-btn');
-  updBtn.title = '更新说明';
+  a11y(updBtn, '更新说明');
   updBtn.innerHTML = ICONS.upd + '<span class="acsv-upd-dot" style="display:none"></span>';
   updBtn.addEventListener('click', function (ev) { ev.stopPropagation(); if (hooks.onRelease) hooks.onRelease(); });
   tr.appendChild(updBtn);
@@ -253,7 +253,7 @@ export function syncTopbar(view, arg, opts) {
   if (!barEl) return;
   barEl.classList.toggle('acsv-top--view', !!view);
   if (backBtn) backBtn.style.display = opts && opts.deep ? '' : 'none';
-  if (xBtn) xBtn.title = view ? '退出' : '退出（Esc）';
+  if (xBtn) a11y(xBtn, view ? '退出' : '退出（Esc）'); // title=aria-label 同源（0.9.186）
   var ctx = !!(opts && opts.searchCtx);
   if (view === 'search' && searchInput) searchInput.value = arg == null ? '' : String(arg);
   else if (!ctx && searchCtxPrev && searchInput) searchInput.value = '';

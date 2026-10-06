@@ -1,5 +1,5 @@
 import { ICONS } from './styles.js';
-import { el, elHtml, fmt } from './ui.js';
+import { el, elHtml, fmt, a11y } from './ui.js';
 import { root, setCommentDrawer, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { togglePlayGesture } from './playback.js';
@@ -89,6 +89,10 @@ function onSlideTap(ev) {
 // 相关推荐是**平级第二列表**（绝不复用 dlist——resetList 会清它、.acsv-citem DOM 被断言钉死）
 export function buildDrawer() {
   var drawer = el('aside', 'acsv-drawer');
+  // 无障碍（0.9.186）：抽屉=模态对话框语义（纯属性，不改形态/视觉）
+  drawer.setAttribute('role', 'dialog');
+  drawer.setAttribute('aria-modal', 'true');
+  drawer.setAttribute('aria-label', '评论');
   var dhead = el('div', 'acsv-drawer-head');
   var dtabs = el('div', 'acsv-drawer-tabs');
   var tabC = el('button', 'acsv-dtab on');
@@ -105,7 +109,7 @@ export function buildDrawer() {
   dtabs.appendChild(tabR);
   dtabs.appendChild(tabL);
   var dclose = el('button', 'acsv-drawer-close', '✕');
-  dclose.title = '收起评论（Esc）';
+  a11y(dclose, '收起评论（Esc）');
   dhead.appendChild(dtabs);
   dhead.appendChild(dclose);
   var dlist = el('div', 'acsv-drawer-list');

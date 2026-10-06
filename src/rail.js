@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
-import { el, elHtml, fmt, toast } from './ui.js';
+import { el, elHtml, fmt, toast, a11y } from './ui.js';
 import { imgInto } from './imgload.js';
 import { FeedStore } from './feedstore.js';
 import { setRealLike, giveBanana } from './interact.js';
@@ -60,7 +60,7 @@ export function syncMetaUp(meta, item) {
 function followBtnState(fb, up) {
   fb.textContent = up.isFollowing ? '✓' : '+';
   fb.classList.toggle('on', !!up.isFollowing);
-  fb.title = up.isFollowing ? '点击选择/更改分组' : '点击关注（可选分组）'; // 0.9.142 起点开=分组层
+  a11y(fb, up.isFollowing ? '点击选择/更改分组' : '点击关注（可选分组）'); // 0.9.142 起点开=分组层
 }
 
 // 右侧栏头像 + 关注角标（角标挂在头像下沿，故两者同块）。挂块判据=有头像或有 uid（与原
@@ -129,7 +129,7 @@ export function buildSideRail(slide, item, goTo) {
     var wrap = el('div');
     wrap.style.marginBottom = '25px';
     var b = el('button', 'acsv-rail-btn');
-    b.title = title;
+    a11y(b, title);
     var imgEl = null, imgOn = null, imgOff = null;
     if (icon && icon.mask) {
       // 原生图标只借形状（CSS mask 遮罩），颜色由背景色控制：白 → .on A 站红 → .thrown 蕉黄
@@ -211,7 +211,7 @@ export function buildSideRail(slide, item, goTo) {
     slide._banSync = function () {
       banUI.count.textContent = fmt(item.banana);
       banUI.btn.classList.toggle('thrown', item.thrown); // 投过锁定蕉黄
-      banUI.btn.title = item.thrown ? '今日已投过蕉啦' : '投蕉';
+      a11y(banUI.btn, item.thrown ? '今日已投过蕉啦' : '投蕉');
     };
   }
   if (item.cap.favorite) {
@@ -259,10 +259,10 @@ export function buildSideRail(slide, item, goTo) {
     var fnUp = typeof goTo === 'function' ? function () { goTo(FeedStore.current - 1); } : goTo.up;
     var fnDn = typeof goTo === 'function' ? function () { goTo(FeedStore.current + 1); } : goTo.down;
     var upBtn = elHtml('button', 'acsv-arrow acsv-arrow-up', ICONS.chevUp);
-    upBtn.title = '上一个（↑）';
+    a11y(upBtn, '上一个（↑）');
     upBtn.addEventListener('click', function () { fnUp(); });
     var downBtn = elHtml('button', 'acsv-arrow acsv-arrow-down', ICONS.chevDn);
-    downBtn.title = '下一个（↓）';
+    a11y(downBtn, '下一个（↓）');
     downBtn.addEventListener('click', function () { fnDn(); });
     arrows.appendChild(upBtn);
     arrows.appendChild(downBtn);

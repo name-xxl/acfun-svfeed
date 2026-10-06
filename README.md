@@ -316,7 +316,7 @@ npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景�
 | `feedstore.js` | 信息流数据仓库（游标泵，空间页列表上下文按序泵入；home 条目允许空 urls 懒解析；0.9.165 水位 slim：cur 背后 N 条外置瘦 urls/qualities，划回经 ensureResolved 重解析） |
 | `route.js` | `#svfeed[/v|a/<id>]`、`#svfeed/play/<v|a>/<id>`（0.9.74 播放层：view=play + src 标记、**不填 mid**）路由解析、地址栏同步与深链意图（appliedMid/cancelHashSync） |
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
-| `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`fmt`/`toast`/剪贴板/样式注入等工具 |
+| `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`fmt`/`toast`/`a11y`（title+aria-label 同源）/剪贴板/样式注入等工具 |
 | `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策（三跳两两换 URL；0.9.166 二三跳 ±20% 抖动，rnd 缺省 0.5 保确定性）+ `memoState`/`memoTrim` 死链备忘纯判定（0.9.77：只读不续期）——URL 正确性只在这里定义 |
 | `imgload.js` | 图片加载执行层（0.9.76；0.9.77 头注校准覆盖边界）：项目图片字段（封面/头像）统一入口——`IMG_POLICY` 策略表（grid/thumb/avatar/space）+ `imgInto(host,url,policy[,cls])`（懒加载/重试链/终败降级/淡入/死链备忘）+ `lazyObserve` 观察器单例（私信气泡共用）。有意在外的例外：鉴权 blob 管线（imsend）、UBB/表情 HTML、站点静态图标、大图查看器 |
 | `interact.js` | 真实点赞（api_st → interact 接口）+ 投蕉/Pi 级写链（AppAPI.throwBanana）；**关注→relationapi.js、收藏→favapi.js**（0.9.142/143 迁出，退役登记在文件头） |

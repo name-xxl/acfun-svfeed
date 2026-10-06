@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.185
+// @version      0.9.186
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.185" : "",
+          ver: true ? "0.9.186" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -769,6 +769,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   }
   function sweepSlideVideos(slide) {
     Array.prototype.forEach.call(slide.querySelectorAll("video"), teardownVideo);
+  }
+  function a11y(e, label) {
+    e.title = label;
+    e.setAttribute("aria-label", label);
+    return e;
   }
   function closeOnOutsideClick(panel2, keep, onClose) {
     var keeps = [];
@@ -8058,7 +8063,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     });
     var row = el("div", "acsv-ctl-row");
     var playBtn = elHtml("button", "acsv-cbtn acsv-cplay", ICONS.pause);
-    playBtn.title = "播放/暂停（空格）";
+    a11y(playBtn, "播放/暂停（空格）");
     playBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
       togglePlayGesture(videoOf());
@@ -8067,7 +8072,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var spacer = el("span");
     spacer.style.flex = "1";
     var autoBtn = elHtml("button", "acsv-cbtn acsv-cauto", '<span class="acsv-dot"></span>连播');
-    autoBtn.title = "播完自动播放下一条（关闭则单条循环）";
+    a11y(autoBtn, "播完自动播放下一条（关闭则单条循环）");
     autoBtn.classList.toggle("on", pb.autoplayNext);
     autoBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
@@ -8104,13 +8109,13 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       "切换播放速度"
     );
     var muteBtn = elHtml("button", "acsv-cbtn acsv-cmute", pb.soundOn ? ICONS.volOn : ICONS.volOff);
-    muteBtn.title = "静音开关（M）";
+    a11y(muteBtn, "静音开关（M）");
     muteBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
       toggleMuteGesture(videoOf());
     });
     var fsBtn = elHtml("button", "acsv-cbtn acsv-cfs", ICONS.fs);
-    fsBtn.title = "全屏（F）";
+    a11y(fsBtn, "全屏（F）");
     fsBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
       toggleFullscreen();
@@ -8144,7 +8149,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var dmBtn = null, dmBox = null, qWrap = null, qBtn = null, qMenu = null, codecWrap = null, bufWrap = null;
     if (item && item.cap.danmaku) {
       dmBtn = el("button", "acsv-cbtn acsv-cdm" + (dmEnabled() ? " on" : ""), "弹");
-      dmBtn.title = "弹幕开关";
+      a11y(dmBtn, "弹幕开关");
       dmBtn.addEventListener("click", function(ev) {
         ev.stopPropagation();
         setDmEnabled(!dmEnabled());
@@ -8156,7 +8161,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (item && item.cap.quality) {
       qWrap = el("span", "acsv-qwrap");
       qBtn = el("button", "acsv-cbtn acsv-cq", item.qualities ? item.qualities[item.qIdx].label : "自动");
-      qBtn.title = "清晰度";
+      a11y(qBtn, "清晰度");
       qMenu = el("div", "acsv-qmenu");
       qBtn.addEventListener("click", function(ev) {
         ev.stopPropagation();
@@ -8268,7 +8273,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       return typeof title === "function" ? title() : title;
     };
     btn.textContent = labelText();
-    btn.title = tip || (typeof title === "function" ? "" : title);
+    var menuLbl = tip || (typeof title === "function" ? "" : title);
+    if (menuLbl) a11y(btn, menuLbl);
     var menu = el("div", "acsv-qmenu");
     btn.addEventListener("click", function(ev) {
       ev.stopPropagation();
@@ -9052,7 +9058,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function followBtnState(fb, up) {
     fb.textContent = up.isFollowing ? "✓" : "+";
     fb.classList.toggle("on", !!up.isFollowing);
-    fb.title = up.isFollowing ? "点击选择/更改分组" : "点击关注（可选分组）";
+    a11y(fb, up.isFollowing ? "点击选择/更改分组" : "点击关注（可选分组）");
   }
   function syncRailUp(rail, item) {
     var up = item.up;
@@ -9110,7 +9116,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       var wrap = el("div");
       wrap.style.marginBottom = "25px";
       var b = el("button", "acsv-rail-btn");
-      b.title = title;
+      a11y(b, title);
       var imgEl = null, imgOn = null, imgOff = null;
       if (icon && icon.mask) {
         var mk = el("span", "acsvg-icon-mask");
@@ -9201,7 +9207,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       slide._banSync = function() {
         banUI.count.textContent = fmt(item.banana);
         banUI.btn.classList.toggle("thrown", item.thrown);
-        banUI.btn.title = item.thrown ? "今日已投过蕉啦" : "投蕉";
+        a11y(banUI.btn, item.thrown ? "今日已投过蕉啦" : "投蕉");
       };
     }
     if (item.cap.favorite) {
@@ -9244,12 +9250,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         goTo(FeedStore.current + 1);
       } : goTo.down;
       var upBtn = elHtml("button", "acsv-arrow acsv-arrow-up", ICONS.chevUp);
-      upBtn.title = "上一个（↑）";
+      a11y(upBtn, "上一个（↑）");
       upBtn.addEventListener("click", function() {
         fnUp();
       });
       var downBtn = elHtml("button", "acsv-arrow acsv-arrow-down", ICONS.chevDn);
-      downBtn.title = "下一个（↓）";
+      a11y(downBtn, "下一个（↓）");
       downBtn.addEventListener("click", function() {
         fnDn();
       });
@@ -9332,6 +9338,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   }
   function buildDrawer() {
     var drawer2 = el("aside", "acsv-drawer");
+    drawer2.setAttribute("role", "dialog");
+    drawer2.setAttribute("aria-modal", "true");
+    drawer2.setAttribute("aria-label", "评论");
     var dhead = el("div", "acsv-drawer-head");
     var dtabs = el("div", "acsv-drawer-tabs");
     var tabC = el("button", "acsv-dtab on");
@@ -9346,7 +9355,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     dtabs.appendChild(tabR);
     dtabs.appendChild(tabL);
     var dclose = el("button", "acsv-drawer-close", "✕");
-    dclose.title = "收起评论（Esc）";
+    a11y(dclose, "收起评论（Esc）");
     dhead.appendChild(dtabs);
     dhead.appendChild(dclose);
     var dlist = el("div", "acsv-drawer-list");
@@ -9663,12 +9672,15 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function ensureDrawerDom() {
     if (drawer || !root) return;
     var d = el("aside", "acsv-msgdrawer");
+    d.setAttribute("role", "dialog");
+    d.setAttribute("aria-modal", "true");
+    d.setAttribute("aria-label", "私信");
     var head = el("div", "acsv-im-head");
     var back = el("button", "acsv-im-back", "‹");
-    back.title = "返回消息列表";
+    a11y(back, "返回消息列表");
     var title = el("span", "acsv-im-title", "私信");
     var close = el("button", "acsv-im-close", "✕");
-    close.title = "关闭";
+    a11y(close, "关闭");
     close.addEventListener("click", function(ev) {
       ev.stopPropagation();
       closeDrawer();
@@ -10569,7 +10581,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.185" : "");
+    return normVer(true ? "0.9.186" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -11091,7 +11103,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     hooks2 = h || {};
     barEl = el("div", "acsv-top");
     backBtn = el("button", "acsv-tbtn acsv-back-btn");
-    backBtn.title = "返回";
+    a11y(backBtn, "返回");
     backBtn.innerHTML = ICONS.chevLt;
     backBtn.style.display = "none";
     backBtn.addEventListener("click", function(ev) {
@@ -11123,7 +11135,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       openSearchPop();
     });
     var sBtn = el("button", "acsv-sbtn");
-    sBtn.title = "搜索";
+    a11y(sBtn, "搜索");
     sBtn.appendChild(el("i", "acsvg-glyph", GLYPHS.search));
     sBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
@@ -11199,7 +11211,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     fsegEl.style.display = "none";
     tr.appendChild(fsegEl);
     var imBtn = el("button", "acsv-tbtn acsv-im-btn");
-    imBtn.title = "私信";
+    a11y(imBtn, "私信");
     imBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg><span class="acsv-im-badge" style="display:none"></span>';
     imBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
@@ -11207,7 +11219,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     });
     tr.appendChild(imBtn);
     var updBtn = el("button", "acsv-tbtn acsv-upd-btn");
-    updBtn.title = "更新说明";
+    a11y(updBtn, "更新说明");
     updBtn.innerHTML = ICONS.upd + '<span class="acsv-upd-dot" style="display:none"></span>';
     updBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
@@ -11248,7 +11260,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (!barEl) return;
     barEl.classList.toggle("acsv-top--view", !!view2);
     if (backBtn) backBtn.style.display = opts && opts.deep ? "" : "none";
-    if (xBtn) xBtn.title = view2 ? "退出" : "退出（Esc）";
+    if (xBtn) a11y(xBtn, view2 ? "退出" : "退出（Esc）");
     var ctx = !!(opts && opts.searchCtx);
     if (view2 === "search" && searchInput) searchInput.value = arg == null ? "" : String(arg);
     else if (!ctx && searchCtxPrev && searchInput) searchInput.value = "";
@@ -13750,7 +13762,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.185：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.186：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
