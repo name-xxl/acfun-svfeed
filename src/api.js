@@ -5,7 +5,7 @@ import { AppAPI } from './appapi.js';
 import { getSetting, setSetting } from './settings.js';
 
 // ---------- API：站点接口（mock 桩统一在 API 层收口） ----------
-// 内容源：sv=小视频 meow（随机池重复拉+去重）；home=首页推荐 selection/feed（真 pcursor 游标）。
+// 内容源：sv=小视频 meow（随机池重复拉+去重）；home=推荐流 selection/feed/singleColumn（真 pcursor 游标）。
 // 0.9.179 删「related 内容源」（0.9.167 的舞台游走链）——相关推荐的在线消费面已全部收在播放层
 // 会话（relatedapi.batch/seed），竖刷只剩 sv|home 双源
 function mockData() { return window.__ACSV_MOCK__ || null; }

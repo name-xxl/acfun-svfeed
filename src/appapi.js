@@ -11,8 +11,8 @@ import { applyQuality } from './quality.js';
 // 首页推荐流/详情/播放直链（弹幕列表走 www.acfun.cn PC 端）。写操作端点全在
 // www.acfun.cn PC 端或 interact API（点赞/投蕉/评论/弹幕；收藏/关注域已迁 favapi/relationapi，
 // 但仍经本件 postForm 发），postForm
-// 请求通道（页面 fetch + Cookie，风控友好）收口在本文件。selection/feed 必须带
-// appVersion 头，douga/playInfo 不带（对齐 A 站客户端行为）。
+// 请求通道（页面 fetch + Cookie，风控友好）收口在本文件。推荐流（singleColumn，原 selection/feed）
+// 必须带 appVersion 头，douga/playInfo 不带（对齐 A 站客户端行为）。
 
 var pcursor = '';
 var exhausted = false;
@@ -71,10 +71,13 @@ export function postForm(url, body) {
   }).then(function (r) { return r.json(); });
 }
 
-// selection/feed 聚合块 → 视频卡片（轮播图与非视频卡丢弃）
-function cardsOf(body) {
+// 推荐流聚合块 → 视频卡片（轮播图 carousels 与非视频卡丢弃）。单列精选 singleColumn 与旧
+// selection/feed **同形**（body[{schema,bodyContents[]}]），故本函数两条源通用（0.9.189 换源未改）。
+// 导出供单测直采（feed-blocks.test.js）。
+export function cardsOf(body) {
+  if (!Array.isArray(body)) return []; // 加固（0.9.189）：result=0 但 body 非数组时不抛（返回空页）
   var out = [];
-  (body || []).forEach(function (block) {
+  body.forEach(function (block) {
     if (!block || block.schema === 'carousels') return;
     (block.bodyContents || []).forEach(function (bc) {
       if (bc && bc.href && bc.resourceType === 2) out.push(bc);

@@ -13,7 +13,8 @@ import { testHook } from './dbg.js';
 // ---------- 分区页（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html ①②；0.9.171 改名+原生图标） ----------
 // 抖音精选式分区网格（展示名=「分区」，0.9.171 用户裁决改名；**视图 id/路由/文件名仍 jingxuan**
 // ——id 是深链与测试的稳定键，改名只动展示串）：chips（全部 + allChannels 视频分区树）+
-// 自适应卡片墙 + 触底续页。数据源（§6.7/§5 实测）：全部=selection/feed（AppAPI.homeFeedFetch
+// 自适应卡片墙 + 触底续页。数据源（§6.7/§5 实测）：全部=推荐流（AppAPI.homeFeedFetch，0.9.189 起
+// 即单列精选 selection/feed/singleColumn——与本视图**共用同一份 fetch**，换源随之生效；
 // **自持游标**——不动 home 泵的模块游标，0.9.169 翻页器隔离）；分区=channel/secondLevel/
 // resourceList（主频道过滤、~30/块、"{n},{n}" 游标、终页形态未测按空游标/空页收口）。
 //

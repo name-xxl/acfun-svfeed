@@ -2,7 +2,7 @@
 
 在 **www.acfun.cn（PC 网页端）** 加入「小视频」入口，打开全屏抖音式竖滑信息流。
 支持**双内容源**（竖刷页顶栏切换）：**小视频**（meow 接口，竖版短视频）与 **推荐**
-（APP 首页推荐流，普通视频投稿，带弹幕/清晰度切换/收藏/投蕉），浏览与播放均**无需登录**。
+（APP 单列精选流 singleColumn，普通视频投稿，带弹幕/清晰度切换/收藏/投蕉），浏览与播放均**无需登录**。
 
 ## 安装
 
@@ -54,11 +54,11 @@
 
 ### 推荐模式（顶栏「小视频 | 推荐」切换，选择记忆）
 
-数据来自 APP 首页推荐流（免登录），内容为普通视频投稿，交互对齐 APP：
+数据来自 APP 单列精选流（singleColumn，免登录；0.9.189 换源——原首页推荐 selection/feed 退役，**形态不变**），内容为普通视频投稿，交互对齐 APP：
 
 | 操作 | 效果 |
 |---|---|
-| 顶栏「推荐」 | 切到 APP 首页推荐流（立即重置数据流并回到第一条；当前源在顶栏 seg 高亮，左栏 logo 常驻不随源变——0.9.64） |
+| 顶栏「推荐」 | 切到 APP 单列精选流（立即重置数据流并回到第一条；当前源在顶栏 seg 高亮，左栏 logo 常驻不随源变——0.9.64） |
 | 右侧栏 | 点赞 / 评论 / **投蕉**（弹数量层：默认全灰，悬停第 N 根时 1~N 一起点亮，点第 N 根投 N；**投过即锁定变色**，状态由 `douga/info` 的 `isThrowBanana` 回填，A 站投蕉不可取消）/ **收藏**（点开=「选择收藏夹」弹层：多选勾选 + 行内新建，未收藏默认勾第一个夹；0.9.143）/ 分享；赞/藏/蕉图标取视频页原生资源（CSS mask 换色，CDN 失败回退内置 SVG），评论/分享取小视频站原生 PNG（见下「操作栏图标」节） |
 | 控制栏「弹」 | 弹幕开关（记忆状态）；Canvas 渲染，滚动/顶部/底部弹幕 + 轨道防重叠，暂停/seek/倍速自动正确 |
 | 控制栏「发弹」 | 常驻内嵌胶囊输入框（Enter 发送、Esc 失焦，不折叠），发送到当前进度（网页 Cookie 鉴权需登录），成功后本地即时回显 |
@@ -114,7 +114,7 @@
 
   | 入口 | 作者来源 | 名字 | uid | 头像 |
   |---|---|---|---|---|
-  | 首页推荐流 / 小视频流 | 卡片自带 `user`（`normalize`/`normalizeHome` 直读） | ✓ | ✓ | ✓ |
+  | 推荐流（singleColumn） / 小视频流 | 卡片自带 `user`（`normalize`/`normalizeHome` 直读） | ✓ | ✓ | ✓ |
   | 站内搜索 | `search/video` 条目自带 `userName/userId/userImg`（0.9.151 换 JSON；0.9.72–150 为 SSR 片段解析） | ✓ | ✓ | ✓ |
   | 我的·收藏 | `dougaList` 条目自带 `userName/userId/userImg`（docs §4.2 实测） | ✓ | ✓ | ✓ |
   | 分区榜单 | `rankList` 条目自带 `userName/userId/userImg` | ✓ | ✓ | ✓ |
@@ -153,11 +153,13 @@
 
 ### 推荐模式接口（api-new.app.acfun.cn，与 acfunchina.com 同后端互通）
 
-- 首页流：`POST /rest/app/selection/feed?product=ACFUN_APP&app_version=6.31.1.1026&appMode=0`，
+- 推荐流（0.9.189 换源为单列精选）：`POST /rest/app/selection/feed/singleColumn?product=ACFUN_APP&app_version=6.31.1.1026&appMode=0`，
   body `mkey=<固定token>&pcursor=<游标>&count=10`；**必须带 APP 请求头**
   （acPlatform=ANDROID_PHONE、appVersion、productId=2000、udid、requestTime 等，UA 用
-  `acvideo core/...` 设备格式），缺了报 result 21；selection/feed 必须带 appVersion 头，
-  douga/playInfo 不带。mkey 是客户端硬编码 token，免登录免签名。
+  `acvideo core/...` 设备格式），缺了报 result 21；本接口必须带 appVersion 头，
+  douga/playInfo 不带。mkey 是客户端硬编码 token，免登录免签名。回包 `body[{schema,bodyContents[]}]`
+  聚合块（`carousels` 轮播块丢弃、取 `resourceType=2` 视频卡），item 与旧 `selection/feed` **同构**
+  ⇒ 解析层零改动；`pcursor` 逐块数字自增。
 - 详情：`GET /rest/app/douga/info?dougaId=<ac号>&mkey=` → `videoList[].id` 即 videoId，
   附 channel（发弹幕的 subChannelId/Name 取 channel.parentId/parentName）、全套计数、
   isLike/isFavorite 初始状态。
@@ -326,7 +328,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `commentkit.js` | 评论条目 kit（0.9.133 自 comments.js 拆出，逐字搬运零逻辑改动）：`commentItemOf` 条目构建**单源**（头像/名字/正文 UBB/meta/赞·回复·转发三键/楼中楼递归）+ `expandSubComments`「展开 N 条回复」分页件——**无状态**（mode/sourceId/stype 经 opts 注入，原直读全局 commentState 的三处已去）；点击行为归消费方委托（`_c/_n/_target` 契约原样保留）。消费方：comments.js 三宿主（抽屉/行内/详情面板）。全项目评论条目渲染只此一处（审计在册）；**0.9.134 观感五项在此落地**：名字等级色（nameColor 2紫/1红）、头像框**仅根评论**（thumbnailImageCdnUrl → cdnUrls[0].url）、设备「来自 x」、楼层**仅根评论**、楼中楼「回复 @名 :」前缀（replyToUserName↔replyToName 双读）；已赞态三读含 isLiked（真机字段实锤）；**0.9.138 版式全语境统一**（撤 0.9.135 的 form 分派）：抽屉/详情/广场页/关注页与内嵌原生页**同码**——50px 头像（框 80×70/-15）、条目 18px 顶距扁平无 hover、名字 12px、「发表于 x」入名字行、楼中楼 30+700、「共 N 条回复, 点击查看」；皮肤只差颜色（深色基础值 / `.acsv-mp` 浅色）；0.9.136 条目间分割线（仅根，白 7%/#e6e6e6）+ 元信息件整件换行防逐字断；**0.9.137 撤除「UP」标**（真机核对：原生 pc 评论组件在视频/文章/动态三域均无 UP 标识） |
 | `reldrawer.js` | 评论抽屉「相关推荐」tab（0.9.168；形态=docs/preview/jingxuan.html ③④⑤）：tab 显隐与切换（平级第二列表 relList，绝不复用评论 dlist——resetList 会清它、.acsv-citem DOM 被 view-follow/detail-open 断言钉死）/行渲染（锚位「播放中」+小封面时长+两行标题+赞数·UP 名，图片走 imgload）/骨架·空·失败三态/**第三 tab「列表」**（0.9.174）：列表播放器里展示当前播放列表（当前项「▶ 播放中」高亮、点行=列表内跳转 via relatedapi.pickInLayer），seam=relDrawerShowList/relDrawerSyncList/relDrawerHideList/relDrawerListMode（列表播放器里收起相关推荐页签，0.9.175）；**行点击两落点**（0.9.170/0.9.172；0.9.179 删原 startChain 兜底）：播放层在场 = relatedapi.layerJump **压新级别**（列表播放器，不拆界面）；层外 = relatedapi.layerOpen **开层**（舞台/视图原地保活、Esc 回当前视频——0.9.167 的 startChain 会重置整条流+拆视图，实报「原窗口直接没了」后改此）；comments.js 只挂两 seam（openComments 尾部 sync / closeComments 复位）；sv（小视频）条目隐藏 tab（端点只收视频稿件） |
 | `channelapi.js` | 频道域件（0.9.169；实测 docs §6.7）：listChannels（allChannels 免登录频道树）/channelTreeOf（**非视频域剔除**：文章63 channelType=1 + AC正义177，单源在模块头 NON_VIDEO 表）/listChannelFeed（secondLevel/resourceList：channelId 主频道过滤、~30/块、pcursor \"{n},{n}\" 页码方言、终页形态未测按空游标/空页收口）/channelPageOf（**杂质本地复核滤**——条目 channel.parentId 与请求频道不符即弃，宁漏不错）。条目转播放契约由消费方经 relatedItemOf。消费方：jingxuanview |
-| `jingxuanview.js` | 分区页视图（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html v5；**0.9.171 展示名「精选」→「分区」**——id/路由/文件名仍 jingxuan，展示串改口）：dock order 5（**左栏最顶，推荐之上**）——chips（全部+频道树，复用 .acsv-vchip 族）/自适应网格（gridMin 250）/触底续页/骨架·空·失败三态。「全部」=selection/feed 经 **AppAPI.homeFeedFetch 自持游标**（0.9.169 翻页器隔离——不动 home 泵模块游标，请求形状/规整单源）；分区=channelapi。**0.9.170 三条裁决**：①首卡=网格内 2×2 跨格大卡（.acsv-jx-big，撤旧 hero 大焦点区；封面锁 16:9 ⇒ cover 零裁切零拉伸；信息区恒 ≈164px 按 4 行排=标题 18px/分区标签/UP 行/数据行）；②**按行补齐**：渲染量取整行倍数（nextTarget=2(cols-2)+k·cols，cols 按现场列数算 2–5 列自适应，底部不留空卡；不足则拉页，流尽时尾行例外；铺不满滚动体时按整行继续推进）；③**卡片点击=openPanelItem 走播放层**（与榜单/搜索/我的同出口：浮层单条 + Esc 回分区原位保活；层内 ↓/↑ 与**滚轮/触摸上下滑**（0.9.171）走 relatedapi 游走，不再拆视图起舞台链）；④卡片计数位用**原生 iconfont 字形**（播放=rankView E164、点赞=feedLike E629，类 .acsvg-glyph 同 cards.js 面板卡），不再用文本示意符 |
+| `jingxuanview.js` | 分区页视图（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html v5；**0.9.171 展示名「精选」→「分区」**——id/路由/文件名仍 jingxuan，展示串改口）：dock order 5（**左栏最顶，推荐之上**）——chips（全部+频道树，复用 .acsv-vchip 族）/自适应网格（gridMin 250）/触底续页/骨架·空·失败三态。「全部」=推荐流（0.9.189 起 singleColumn）经 **AppAPI.homeFeedFetch 自持游标**（0.9.169 翻页器隔离——不动 home 泵模块游标，请求形状/规整单源）；分区=channelapi。**0.9.170 三条裁决**：①首卡=网格内 2×2 跨格大卡（.acsv-jx-big，撤旧 hero 大焦点区；封面锁 16:9 ⇒ cover 零裁切零拉伸；信息区恒 ≈164px 按 4 行排=标题 18px/分区标签/UP 行/数据行）；②**按行补齐**：渲染量取整行倍数（nextTarget=2(cols-2)+k·cols，cols 按现场列数算 2–5 列自适应，底部不留空卡；不足则拉页，流尽时尾行例外；铺不满滚动体时按整行继续推进）；③**卡片点击=openPanelItem 走播放层**（与榜单/搜索/我的同出口：浮层单条 + Esc 回分区原位保活；层内 ↓/↑ 与**滚轮/触摸上下滑**（0.9.171）走 relatedapi 游走，不再拆视图起舞台链）；④卡片计数位用**原生 iconfont 字形**（播放=rankView E164、点赞=feedLike E629，类 .acsvg-glyph 同 cards.js 面板卡），不再用文本示意符 |
 | `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[at]/[resource]/[img]/[color] 逐一白名单放行；IM wire 文本投影（ubbImText）与引用块富正文（ubbQuoteHtml）单源 |
 | `emoticon.js` | 表情包服务 + 面板 + 输入栏表情按钮挂载（localStorage 缓存优先、最近使用、分包 tab） |
 | `imgview.js` | 配图大图查看器（评论/私信共用；root 单例浮层、Esc 模态） |
@@ -582,7 +584,7 @@ node -e "…任意静态服务器…"   # 或 npx serve
 ```
 
 `test/harness.html` 使用 `test/feed-sample.js`（真实 meow 快照）、`test/home-sample.js`
-（真实 selection/feed 卡片快照 + 本地测试视频）与 `test/my-sample.js`（视图接口快照）+ 
+（真实推荐卡快照 + 本地测试视频；0.9.189 换源后仍是同构卡、夹具不动）与 `test/my-sample.js`（视图接口快照）+ 
 `test/state-spy.js`（状态观察钩子）做 mock，可以在不装 Tampermonkey 的情况下调试
 界面与交互逻辑；加 `?src=home` 直接进入推荐模式。场景体在 `test/cases/*.js`（0.9.81 起，
 按域拆分），页内只做分发。

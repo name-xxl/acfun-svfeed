@@ -3,6 +3,25 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.189（2026-10-06）· 换源：竖刷「推荐」源 selection/feed → 单列精选 singleColumn
+
+- **由头**：用户裁决「用 singleColumn 替代现有推荐源」——**形态不变（仍全屏竖刷），只换数据源**。
+  因不涉界面/版式，按硬规矩①**无需先出预览**（纯数据源替换）。
+- **真机先行（2026-10-06 curl，同 APP 头；入档 docs/api-research.md §10.2）**：`POST
+  rest/app/selection/feed/singleColumn` 免登录，`pcursor=` 首屏回
+  `body:[{schema:"monkey_mountain",bodyContents:[…9 条]}]`、`pcursor:"2"`——**首屏即可含视频块**
+  （非纯轮播），9 条里 8 条 `resourceType=2`；item 键
+  `title/href/img[]/user{name,headUrl,userId}/visit{views,bananas,comments,danmakus}/channelInfo/duration…`
+  与 selection/feed **同构** ⇒ 解析层可原样直吃。
+- **修法**：`CFG.api.homeFeed` 改指 `/rest/app/selection/feed/singleColumn`，**解析层零改动**
+  （`appapi.cardsOf` 的「carousels 丢弃 + resourceType=2 过滤」两源通用；`normalizeHome` 直吃）。
+  **共用面**：分区页「全部」tab 经同一 `homeFeedFetch`，随换源一并生效（同源单源）。顺手加固
+  `cardsOf`：body 非数组时返回空页（原实现会抛）。
+- **测试**：build/lint/check（含 tsc）/单测 **260**（+2：新 `test/unit/feed-blocks.test.js` 钉聚合块解析）
+  /全场景 55 全绿。**反跑实证**：摘 `cardsOf` 的 carousels 丢弃 ⇒ 新单测转红；还原 ⇒ 绿。
+- **注**：harness 走 `__ACSV_MOCK_HOME__` 短路，**不覆盖真实端点解析**——本批端点证据=真机 curl
+  复验 + 入档（api-research §10.2），非 harness。
+
 ### 0.9.188（2026-10-06）· 架构减债：契约面类型检查试点（tsc --checkJs）
 
 - **由头**：用户裁定 A4 可做。项目全 JS，契约（playitem/panelitem 的条目形状）只靠注释 + eslint +

@@ -10,7 +10,7 @@ export var CFG = {
   // 但写入点已全部改走 settings.setSetting（`acsv.s.<key>`）。老键只在 settings 首读时
   // 被养一次（值不丢、键不删——回滚友好），此后不再读写。键名/值形态见 docs/api-research.md §7
   lsSound: 'acsv-sound-on',     // 静音记忆（关态写空串，不是删键）
-  lsSource: 'acsv-source',      // 内容源记忆：sv=小视频 home=首页推荐
+  lsSource: 'acsv-source',      // 内容源记忆：sv=小视频 home=推荐（单列精选）
   lsDm: 'acsv-dm-on',           // 弹幕开关记忆
   lsQuality: 'acsv-quality',    // 清晰度记忆（推荐模式，存 qualityLabel）
   lsCodec: 'acsv-codec',        // 编码偏好记忆（推荐模式）：auto|avc|hevc
@@ -58,7 +58,12 @@ export var CFG = {
     defaultAvatar: 'https://imgs.aixifan.com/style/image/defaultAvatar.jpg',
     logoSvg: 'https://ali-imgs.acfun.cn/kos/nlav10360/static/common/widget/header/img/acfunlogo.11a9841251f31e1a3316.svg',
     // ---- APP 家族接口（api-new.app.acfun.cn，免登录读 + 域 Cookie 写） ----
-    homeFeed: 'https://api-new.app.acfun.cn/rest/app/selection/feed',
+    // 推荐源（0.9.189 换源）：单列精选流 **selection/feed/singleColumn**（§10.2；2026-10-06 真机复验：
+    // 首屏即 monkey_mountain 块、9 条/8 视频，pcursor="2" 逐块自增；item 字段
+    // title/href/img[]/user/visit{views,bananas,comments,danmakus}/channelInfo/duration 与
+    // selection/feed **同构** ⇒ appapi.cardsOf/normalizeHome 原样直吃、零解析改动）。
+    // 原 selection/feed（多块聚合含轮播）退役——**形态不变**（竖刷/分区页「全部」网格），只换数据源。
+    homeFeed: 'https://api-new.app.acfun.cn/rest/app/selection/feed/singleColumn',
     dougaInfo: 'https://api-new.app.acfun.cn/rest/app/douga/info',
     playInfo: 'https://api-new.app.acfun.cn/rest/app/play/playInfo/cast',
     // ---- 收藏（www.acfun.cn PC 端收藏夹体系，网页 Cookie 鉴权） ----
