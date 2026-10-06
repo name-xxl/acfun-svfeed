@@ -1,15 +1,21 @@
+// @ts-check
 // ---------- 共享 UI 单例状态 ----------
 // root/scroller 由 player 挂载/卸载时赋值，commentDrawer 由 slide.js 建抽屉骨架时赋值
 // （player 卸载时置空）；comments/ui 只读。0.9.57 起原生私信页 boot 也 setRoot(document.body)
 // （imgview 挂载点，原生页无 player）。
 // 单独成模块是为了让只读方不必反向 import player（避免无谓的循环依赖）。
-export var root = null;
-export var scroller = null;
-export var commentDrawer = null;
+/**
+ * 评论抽屉骨架（slide.buildDrawer 建后 setCommentDrawer）——只登记消费方用到的字段。
+ * @typedef {{ el:HTMLElement, title:HTMLElement, list:HTMLElement, relList?:HTMLElement,
+ *   listList?:HTMLElement, tabC?:HTMLElement, tabR?:HTMLElement, tabL?:HTMLElement }} CommentDrawer
+ */
+/** @type {HTMLElement|null} */ export var root = null;
+/** @type {HTMLElement|null} */ export var scroller = null;
+/** @type {CommentDrawer|null} */ export var commentDrawer = null;
 
-export function setRoot(v) { root = v; }
-export function setScroller(v) { scroller = v; }
-export function setCommentDrawer(v) { commentDrawer = v; }
+/** @param {HTMLElement|null} v */ export function setRoot(v) { root = v; }
+/** @param {HTMLElement|null} v */ export function setScroller(v) { scroller = v; }
+/** @param {CommentDrawer|null} v */ export function setCommentDrawer(v) { commentDrawer = v; }
 
 // ---------- 抽屉槽位协调 ----------
 // 右侧抽屉（评论/私信）同一时刻只开一个：open 前 claim 占槽（自动收回已占槽的另一个），

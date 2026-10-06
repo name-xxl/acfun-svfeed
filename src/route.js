@@ -1,5 +1,12 @@
+// @ts-check
 import { CFG } from './cfg.js';
 import { root } from './state.js';
+
+/**
+ * 路由解析结果（契约面 tsc 校验）：view/viewArg/viewKind 三者同源，src 只对深链/播放层有值。
+ * @typedef {{ active:boolean, mid:string|null, src:string|null, view:string|null,
+ *   viewArg:string|null, viewKind:string|null }} Route
+ */
 
 // ---------- 路由 ----------
 // 全锚定（$）：#svfeedother 之类前缀粘连串不算竖刷路由（旧版无锚定的语法松散，0.9.62 顺修）
@@ -27,6 +34,7 @@ function decodeArg(s) {
 // 播放层自解析（playlayer），不经 mount 的深链置顶路径，竖刷缓冲/源记忆都不动。
 // viewKind（0.9.151）只有搜索类目形态带值（'video'|'up'|'article'），其余一律 null——
 // 视图层把 null 当"默认类目"，按值比较（canonical 由 searchview 自持）
+/** @param {string} h @returns {Route} */
 export function parseHash(h) {
   h = String(h == null ? '' : h).replace(/^#\/?/, '');
   var m = h.match(routeRe);
@@ -44,6 +52,7 @@ export function parseHash(h) {
   };
 }
 
+/** @returns {Route} */
 export function parseRoute() {
   var r = parseHash(location.hash);
   r.active = r.active || location.pathname === '/' + CFG.hash;
@@ -63,6 +72,7 @@ var hashTimer = null, hashPending = -1;
 // 它就是 hash↔feed 的同步状态，故与 syncHash 同处本模块；player.syncRouteFeed 读它做幂等判断
 var appliedMid = null;
 export function getAppliedMid() { return appliedMid; }
+/** @param {string|number|null} m */
 export function setAppliedMid(m) { appliedMid = m == null ? null : String(m); }
 
 // 撤掉在途的地址回写。切流/深链重置前必须调：残留定时器会拿旧 index 去读重置后的新 items，

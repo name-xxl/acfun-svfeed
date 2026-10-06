@@ -3,6 +3,22 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.192（2026-10-06）· 架构减债：契约面类型检查扩面（route / state / viewreg）
+
+- **由头**：架构减债轨道，接 0.9.188 的 tsc 试点。选定三件 = 被广泛消费 × 契约强 × 纯逻辑：
+  `route.js`（`parseHash/parseRoute` 的返回形状被 views/player/playlayer 等消费）、`state.js`
+  （21 消费者，中介 API）、`viewreg.js`（`registerView` 的视图定义=真契约）。
+- **修法**：三件加 `// @ts-check` + JSDoc 契约：
+  - `route.js`：`@typedef Route {active,mid,src,view,viewArg,viewKind}` + `parseHash/parseRoute @returns {Route}`；
+  - `viewreg.js`：`@typedef ViewDef {id, build(必填), teardown?, resume?, suspend?, deep?, volatile?, dock?}`
+    + `ViewDock`/`DockEntry` + `registry` 标 `Record<string,ViewDef>`；
+  - `state.js`：`root/scroller` 标 `HTMLElement|null`、`commentDrawer` 标新 `CommentDrawer` typedef。
+  均只加类型注解，**零运行时代码改动**。
+- **测试**：build/lint/check（含 tsc）/单测 260/全场景 55 全绿。**反跑实证 ×2**：`route` 读不存在
+  字段 ⇒ `TS2339 Property 'nopeField' does not exist on type 'Route'`；`viewreg` 注册缺 `build` 的
+  定义 ⇒ `TS2741 Property 'build' is missing ... in type 'ViewDef'`；还原 ⇒ exit 0。
+- **渐进扩面**：消费端（cards/rail/slide 等）仍暂未覆盖，按需后续加注解。
+
 ### 0.9.191（2026-10-06）· 架构减债：spinner 单源（ui.spinner()，7 处裸建收口）
 
 - **由头**：架构减债轨道。审计发现 `el('div','acsv-spinner')` 在 **7 处**裸建（`player.js`×4 /
