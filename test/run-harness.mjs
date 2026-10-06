@@ -306,13 +306,19 @@ async function runOne(c) {
 // serial 标记**保留**（它记录了哪些场景曾被判定敏感）：`HARNESS_SERIAL=1` 恢复老口径独占分组，
 // 怀疑某场景假红时用它做对照诊断。
 // 并发度：`HARNESS_CONC` 覆盖；默认 min(6, max(2, 核数/4))——核少时自动退回 2，不吃满低配机。
-const ALL_PARALLEL = !process.env.HARNESS_SERIAL;
+// CI 口径（0.9.209 实测定标）：GitHub 跑机（2 核）在**同池并发**下会偶发 page.goto 卡死——
+// 2026-10-06 发布 v0.9.208 那两个 push 各栽 1~2 个场景（play-cold / deeplink-sv / deeplink-bare），
+// **断言零失败、只有驱动层导航超时**，把超时从 30s 抬到 60s 也没救（卡的是页面加载本身）。
+// 而它在 0.9.203 之前用「串行组独占 + 并行组两两」的口径一直是稳的 ⇒ **CI 恒回老口径**，
+// 本地（20 核）保持同池并发的 37s 提速。要临时本地对照老口径用 HARNESS_SERIAL=1。
+const ALL_PARALLEL = !process.env.HARNESS_SERIAL && !process.env.CI;
 var CONC = Math.max(1, Number(process.env.HARNESS_CONC) || Math.min(6, Math.max(2, Math.floor(os.cpus().length / 4))));
 var serialCases = ALL_PARALLEL ? [] : CASES.filter(function (c) { return c.serial; });
 var parCases = ALL_PARALLEL ? CASES : CASES.filter(function (c) { return !c.serial; });
 for (var i = 0; i < serialCases.length; i++) await runOne(serialCases[i]);
 if (parCases.length) {
-  console.log('[info] 并发 ' + CONC + '（' + (ALL_PARALLEL ? '全场景同池' : '时序敏感场景串行独占') + '）');
+  console.log('[info] 并发 ' + CONC + '（' + (ALL_PARALLEL ? '全场景同池' : '时序敏感场景串行独占')
+    + (process.env.CI ? ' | CI 口径' : '') + '）');
   var pIdx = 0;
   await Promise.all(Array.from({ length: CONC }, async function () {
     while (pIdx < parCases.length) {
