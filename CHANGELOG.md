@@ -3,6 +3,24 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.197（2026-10-07）· 播放器打磨（四）：两级全屏（网页全屏 / 窗口全屏）+ 测试提速设施
+
+- **由头**：用户裁决两级全屏语义——**网页全屏＝视频铺满浏览器窗口**（隐自身 UI）、**窗口全屏＝铺满整个屏幕**
+  （再叠 OS 全屏）；预览稿 `player-bottombar.html` 内已记裁决。
+- **修法**：根类 `.acsv-cinema` 承载影院态（CSS 一处收口：隐 dock/顶栏/右栏/信息区；**抽屉不隐**——那是
+  用户主动开的浮层）；`ui` 增 `toggleWebFull`/`toggleWindowFull`/`toggleFullLadder` 三件；底栏把原「全屏」
+  一枚**拆成网页全屏 + 窗口全屏**两枚（新图标 `ICONS.webFs`/`winFs`，自绘——A 站播放器控制栏未定位到全屏键）；
+  **F 键走三级梯子**（常态→网页全屏→窗口全屏→常态）；**Esc 在影院态先退影院**（顶栏已隐，Esc 是主出口，
+  不许直接退脚本）；`controls.refreshFullBtns` 同步两键激活态（跨 slide 全量扫，同 `refreshMuteIcons` 体例），
+  由点击/`fullscreenchange`/按键三处驱动。
+- **测试提速（用户实报「测试慢耽误进度」）**：实测全量 56 场景 **≈2m15s**，且**并发 2 与 3 无差**
+  （CPU 受限，提并发只增解码争抢、白担假红风险）⇒ 并发度改为环境变量 `HARNESS_CONC`（默认仍 2）；
+  新增 `npm run case`（即 run-harness，配 ONLY 用）。迭代期**定向跑**单场景 **1.5～9.5s**，全量只在提交前跑一次。
+- **测试**：build/lint/check（含 tsc）/单测 262/全场景 56 全绿。smoke 9→11 断言：`webfs-hides-ui`
+  （点网页全屏 ⇒ 根带 `.acsv-cinema`、且 dock/顶栏/侧栏 `offsetParent` 为 null）＋ `webfs-esc-exits`
+  （Esc 只退影院、不误退脚本）。**反跑实证**：把 `.acsv-dock` 从隐藏名单摘掉 ⇒ `webfs-hides-ui` 转红；还原 ⇒ 绿。
+  注：窗口全屏走 Fullscreen API，**无头环境无用户激活、`requestFullscreen` 不可靠**，故只钉影院态与退出路径。
+
 ### 0.9.196（2026-10-07）· 播放器打磨（三）：简介 UI（案 A：标题下内联 + 展开）
 
 - **由头**：用户裁决「简介展开＝案 A」（预览稿 `player-bottombar.html` 内已记裁决）。数据层 0.9.194 已打通

@@ -22,6 +22,25 @@ rec('videos-capped', vids.length <= 3, 'count=' + vids.length);
 var tbIm = q('.acsv-im-btn'), tbUpd = q('.acsv-upd-btn');
 rec('a11y-topbar-im', !!tbIm && tbIm.getAttribute('aria-label') === '私信');
 rec('a11y-topbar-upd', !!tbUpd && tbUpd.getAttribute('aria-label') === '更新说明');
+// 0.9.197 两级全屏：网页全屏＝隐自身 UI（dock/顶栏/右栏/信息区都在 CSS 里收口到根类）；
+// 可见性用 offsetParent（display:none 时为 null）。窗口全屏走 Fullscreen API，无头环境下
+// 无用户激活、requestFullscreen 不可靠，故只钉影院态与退出路径。
+rec('webfs-hides-ui', (function () {
+  var r = document.getElementById('acsv-root'), b = q('.acsv-cwebfs');
+  if (!r || !b) return false;
+  b.click();
+  var dock = q('.acsv-dock'), top = q('.acsv-top'), side = q('.acsv-side');
+  return r.classList.contains('acsv-cinema') && b.classList.contains('on')
+    && dock && dock.offsetParent === null && top && top.offsetParent === null
+    && side && side.offsetParent === null;
+})());
+rec('webfs-esc-exits', (function () {
+  var r = document.getElementById('acsv-root');
+  key('Escape'); // 影院态下 Esc 只退影院（顶栏已隐，不许直接退脚本）
+  var dock = q('.acsv-dock');
+  return !r.classList.contains('acsv-cinema') && dock && dock.offsetParent !== null
+    && !!r; // 根仍在：没被 Esc 误退
+})());
 key('Escape');
 rec('esc-exits', !!(await waitFor(function () { return !document.getElementById('acsv-root'); }, 5000)));
   };

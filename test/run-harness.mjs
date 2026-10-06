@@ -291,15 +291,18 @@ async function runOne(c) {
   }
 }
 
-// 串行组先独占跑完（时序敏感：帧间隔/冻结窗口在解码争抢下会假红），再跑并行组（并发 2，夹具
-// 计数已按 pid 隔离）。并发只影响耗时，不影响断言结果——验收要求连跑多次零失败（0.9.81）
+// 串行组先独占跑完（时序敏感：帧间隔/冻结窗口在解码争抢下会假红），再跑并行组（夹具
+// 计数已按 pid 隔离）。并发只影响耗时，不影响断言结果——验收要求连跑多次零失败（0.9.81）。
+// 并发度（0.9.197）：`HARNESS_CONC` 可调、默认 2。**实测**：本机 CPU 受限，并发 3（2m13s）与 2（2m18s）
+// 基本无差——提并发只增解码争抢、白担假红风险，故默认维持 2；要试再经环境变量调高。
+var CONC = Math.max(1, Number(process.env.HARNESS_CONC) || 2);
 var serialCases = CASES.filter(function (c) { return c.serial; });
 var parCases = CASES.filter(function (c) { return !c.serial; });
 for (var i = 0; i < serialCases.length; i++) await runOne(serialCases[i]);
 if (parCases.length) {
-  console.log('[info] 并行组 ' + parCases.length + ' 个场景 × 并发 2（时序敏感场景已串行独占）');
+  console.log('[info] 并行组 ' + parCases.length + ' 个场景 × 并发 ' + CONC + '（时序敏感场景已串行独占）');
   var pIdx = 0;
-  await Promise.all([0, 1].map(async function () {
+  await Promise.all(Array.from({ length: CONC }, async function () {
     while (pIdx < parCases.length) {
       var c = parCases[pIdx++];
       await runOne(c);

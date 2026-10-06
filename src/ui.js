@@ -74,6 +74,27 @@ export function copyText(text) {
   });
 }
 
+// 两级全屏（0.9.197 用户裁决）：**网页全屏**＝隐自身 UI（dock/顶栏/右栏/信息区，CSS 收口在
+// #acsv-root.acsv-cinema）、画面铺满浏览器窗口；**窗口全屏**＝在影院态上再进 OS 全屏。
+// 状态落在 root 的类上（和抽屉避让一样由根类统一裁决），不占模块状态。
+export function isCinema() { return !!(root && root.classList.contains('acsv-cinema')); }
+export function setCinema(on) {
+  if (root) root.classList.toggle('acsv-cinema', !!on);
+  return isCinema();
+}
+export function toggleWebFull() { return setCinema(!isCinema()); }
+export function toggleWindowFull() {
+  if (document.fullscreenElement) { document.exitFullscreen(); return; } // 已全屏：先退
+  setCinema(true); // 窗口全屏以影院态为前提（原生同款：全屏时也没有站内 UI）
+  if (root && root.requestFullscreen) root.requestFullscreen();
+}
+// F 键三级梯子：常态 → 网页全屏 → 窗口全屏 → 常态
+export function toggleFullLadder() {
+  if (document.fullscreenElement) { document.exitFullscreen(); setCinema(false); return; }
+  if (!isCinema()) { setCinema(true); return; }
+  if (root && root.requestFullscreen) root.requestFullscreen();
+}
+
 // 全屏开关：root 容器整体进出（控制栏按钮与 F 键共用）
 export function toggleFullscreen() {
   if (document.fullscreenElement) document.exitFullscreen();

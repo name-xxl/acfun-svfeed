@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
-import { toast, toggleFullscreen } from './ui.js';
+import { toast, toggleFullLadder, isCinema, setCinema } from './ui.js';
+import { refreshFullBtns } from './controls.js';
 import { root, scroller, slideAt, playItem } from './state.js';
 import { isFeedRoute } from './route.js';
 import { FeedStore } from './feedstore.js';
@@ -101,13 +102,16 @@ export function setupInputHandlers(api) {
         break;
       case 'f': case 'F':
         if (ev.repeat) break;
-        toggleFullscreen();
+        toggleFullLadder(); // 0.9.197 三级梯子：常态→网页全屏→窗口全屏→常态
+        refreshFullBtns();
         break;
       case 'Escape': {
         // 浮层栈顶（更新弹窗→大图→抽屉，按打开序）：关栈顶；栈空退出竖刷页。
         // 0.9.61 起显式分支链收拢为栈——新增浮层不再改这里
         var ov = overlayTop();
         if (ov) overlayClose(ov.id);
+        // 影院态（0.9.197）先退：顶栏/左栏都隐了，Esc 是主出口（不直接退出脚本）
+        else if (isCinema()) { setCinema(false); refreshFullBtns(); }
         else api.exitFeed();
         break;
       }
@@ -144,6 +148,7 @@ export function setupInputHandlers(api) {
   // 全屏切换时视口高度变化会让 mandatory snap 重新吸附到相邻 slide，
   // 在吸附发生前把 scrollTop 强制回正到当前条
   fsChangeHandler = function () {
+    refreshFullBtns(); // 窗口全屏态同步两枚按钮的激活态（0.9.197）
     if (!scroller) return;
     var slide = slideAt(FeedStore.current);
     if (slide) scroller.scrollTop = slide.offsetTop;

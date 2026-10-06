@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { ICONS, PLAYER_ICONS } from './styles.js';
-import { el, elHtml, toast, fmtTime, toggleFullscreen, a11y, mountIcon } from './ui.js';
+import { el, elHtml, toast, fmtTime, isCinema, toggleWebFull, toggleWindowFull, a11y, mountIcon } from './ui.js';
 import { root, scroller, slideAt, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { pb, togglePlayGesture, toggleMuteGesture, applyLoop } from './playback.js';
@@ -150,11 +150,21 @@ export function buildControls(slide, idx, item) {
     toggleMuteGesture(videoOf());
   });
 
-  var fsBtn = elHtml('button', 'acsv-cbtn acsv-cfs', ICONS.fs);
-  a11y(fsBtn, '全屏（F）');
-  fsBtn.addEventListener('click', function (ev) {
+  // 两级全屏（0.9.197 用户裁决）：网页全屏＝隐自身 UI、画面铺满浏览器窗口；窗口全屏＝再进 OS 全屏。
+  // F 键走同一梯子（常态→网页全屏→窗口全屏→常态，见 ui.toggleFullLadder）
+  var webBtn = elHtml('button', 'acsv-cbtn acsv-cwebfs', ICONS.webFs);
+  a11y(webBtn, '网页全屏（铺满浏览器窗口）');
+  webBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
-    toggleFullscreen();
+    toggleWebFull();
+    refreshFullBtns();
+  });
+  var winBtn = elHtml('button', 'acsv-cbtn acsv-winfs', ICONS.winFs);
+  a11y(winBtn, '窗口全屏（铺满整个屏幕）');
+  winBtn.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    toggleWindowFull();
+    refreshFullBtns();
   });
 
   // ---- 能力型控件：弹幕开关/发送框（cap.danmaku）、清晰度（cap.quality） ----
@@ -277,7 +287,8 @@ export function buildControls(slide, idx, item) {
   row.appendChild(autoBtn);
   row.appendChild(rateWrap);
   row.appendChild(muteBtn);
-  row.appendChild(fsBtn);
+  row.appendChild(webBtn);
+  row.appendChild(winBtn);
 
   box.appendChild(track);
   box.appendChild(row);
@@ -292,8 +303,15 @@ export function buildControls(slide, idx, item) {
   return box;
 }
 
-export function updateArrows(slide) {
+// 全屏两键的激活态同步（跨 slide 全量扫，同 playback.refreshMuteIcons 体例）
+export function refreshFullBtns() {
   if (!root) return;
+  var cinema = isCinema(), fs = !!document.fullscreenElement;
+  Array.prototype.forEach.call(root.querySelectorAll('.acsv-cwebfs'), function (b) { b.classList.toggle('on', cinema); });
+  Array.prototype.forEach.call(root.querySelectorAll('.acsv-winfs'), function (b) { b.classList.toggle('on', fs); });
+}
+
+export function updateArrows(slide) {  if (!root) return;
   // 当前 slide 的箭头即所见状态：传参免全量扫描（长会话 querySelectorAll 随会话线性
   // 放大，0.9.37；0.9.165 起窗外已换占位壳，全量口径收敛到 belt 带）；未传参回退全量（兜底路径）。
   // 显隐在每次激活时重估——离开画面的箭头带旧状态无妨，滑回即刷新
