@@ -276,8 +276,9 @@ npm run build        # 产出 acfun-svfeed.user.js + acfun-svfeed.debug.user.js
 npm run watch        # 监听 src/ 变更自动重建
 npm test             # 静态一致性校验 + 单测 + 无头 harness 全场景（需先 npx playwright install chromium，
                      #   没装时本机自动回退系统 Edge）
-npm run check        # 仅三项静态校验（CI 在 build 后跑）：场景登记双向对齐 / 版本号-产物-CHANGELOG
-                     #   三者一致 / 依赖图不缺边
+npm run check        # 仅静态校验（CI 在 build 后跑）：场景登记双向对齐 / 版本号-产物-CHANGELOG
+                     #   三者一致 / 依赖图不缺边（含整图环检测）/ 接口侦察文档不入公开仓 /
+                     #   方向卫生棘轮（未登记反向边即红，0.9.187 起）
 ```
 
 测试设施（0.9.81 工程化）：

@@ -133,3 +133,16 @@ feedstore.js → player.js → input.js → feedstore.js
 - **0.9.179 已删**：舞台游走链（startChain/setChainStarter/resetPump + api 的 related 内容源 +
   feedstore 的 tip 透传 + topbar 的 related seg 特判）——三出口改道后 UI 不可达、仅剩「播放器未挂载」
   兜底；删除后图边 237→235（api→relatedapi、player→relatedapi 两条随之消失）。
+
+## 0.9.187：方向诊断升棘轮（`check-direction` 未登记即红）
+
+- **现状回顾**：第四节边界声明把「层声明 + 在册例外」的方向规则列为暂缓项；第六节 V3 关闭时判
+  「永远不值得一座门」，幸存者为**永远 exit 0 的非门禁** `check-direction`。0.9.160 诊断复跑
+  校准 `topbar→searchhist` 后，在册 `KNOWN=[]` 清零、两口径均 0 条。
+- **改动**：`check-direction.mjs` 由「非门禁」升为**棘轮**——**未登记项 >0 即 `process.exit(1)`**；
+  在册项仍带理由放行。`package.json` 的 `check` 链末追加该脚本（进 CI）。**不改判罚口径**（两条
+  保守口径原样）——棘轮只对「未登记」判红，不重开"层定义"之争。
+- **为何此刻零成本**：在册清零 + 当前 0 条 ⇒ 开棘轮不改变现有绿灯结果，纯防回归：将来任何新反向
+  边 = 需要一次裁决（修边 / 加设缝 / 登记入册），不再默默放过（V3 关闭时"不得把规则⑤绿灯误读为
+  方向已守护"的缺口由此补上）。
+- **附带**：0.9.184/185/186 的架构减债（errbox/playgest 拆件、a11y）均过本棘轮（0 未登记）。

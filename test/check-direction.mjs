@@ -1,13 +1,17 @@
 /*
- * 方向诊断（0.9.117；V3「架构税」关闭后的幸存者）——**非门禁**：每 Phase 顺手跑一次，
- * 看「方向卫生」有没有新增侵蚀；永远 exit 0（清单小且可数，不值得一座门；"环"的门已由
- * check-deps 规则⑤承担，本诊断管的恰是规则⑤射程外的**无环反向边**）。
+ * 方向诊断（0.9.117；0.9.187 由「永远 exit 0 的非门禁」升为**棘轮**）——看「方向卫生」有没有
+ * 新增侵蚀：**未登记项 >0 即红**（在册项带理由放行）。它管的恰是 check-deps 规则⑤射程外的
+ * **无环反向边**（"环"的门已由 check-deps 承担）。
+ *
+ * 为什么从"非门禁"改成"棘轮"：0.9.119 起在册清单已清零（KNOWN=[]）、两口径当前均 0 条——
+ * 此刻开棘轮**零成本、纯防回归**：将来任何新反向边冒出来 = 需要一次裁决（修边 / 加设缝 /
+ * 登记入册），不该默默放过。仍**不改判罚口径**（下面两条保守口径原样），只把"报警"升级为"红"。
  *
  * 口径（本文档最值钱的认知，原样留档）：
  *   「规则的上游是口径，口径不定，候选集就不定。」
  * —— v3（@family 声明 + check-taxonomy 方向规则）被关闭的原因不是规则难写，而是「层」没有
- * 唯一定义：同一张图按 README subgraph 分层与按「特性域」分层，候选集不同；规则先于口径
- * 定，报出来是一堆歧义。故本诊断并列两条保守口径、人工看结果，不设自动判罚。
+ * 唯一定义：同一张图按 README subgraph 分层与按「特性域」分层，候选集不同。故本诊断并列两条
+ * 保守口径、人工看结果。棘轮只对**未登记**项判红，不重开"层定义"之争。
  *
  * 口径 A（正式分层）：README 基建层成员 → 基建层/接口层之外的 import 边。
  * 口径 B（特性域）：非特性模块 → 特性模块的边（特性集见下方清单，可增改；
@@ -89,12 +93,14 @@ function report(hits) {
   }
 }
 
-console.log('[check-direction] 方向诊断（非门禁）');
+console.log('[check-direction] 方向诊断（棘轮）');
 console.log('口径 A · 基建层 → 基建/接口层之外：' + hitsA.length + ' 条');
 report(hitsA);
 console.log('口径 B · 非特性 → 特性模块：' + hitsB.length + ' 条');
 report(hitsB);
-console.log(unregistered === 0
-  ? '[check-direction] 在册 ' + KNOWN.length + ' 条，未登记 0 条——方向卫生无新增侵蚀'
-  : '[check-direction] 在册 ' + KNOWN.length + ' 条，未登记 ' + unregistered + ' 条（见上方 ⚠）');
-// 非门禁：永远 exit 0；要用它做门，先想清楚口径（见头注）
+if (unregistered) {
+  console.log('[check-direction] 在册 ' + KNOWN.length + ' 条，未登记 ' + unregistered
+    + ' 条——请裁决（修边 / 加设缝 / 登记入册）并同步 docs/dependency-audit.md');
+  process.exit(1); // 棘轮（0.9.187）：未登记即红；在册项带理由放行
+}
+console.log('[check-direction] 在册 ' + KNOWN.length + ' 条，未登记 0 条——方向卫生无新增侵蚀');
