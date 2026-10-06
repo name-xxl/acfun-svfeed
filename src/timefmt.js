@@ -1,3 +1,4 @@
+// @ts-check
 // ---------- 时间/计数文案（0.9.160 自 data.js 叶子出库；原 0.9.69/0.9.85 落户） ----------
 // 零依赖纯函数：now 可注入 → 日历判定离线单测。被契约件（panelitem/playitem）各解析器、appapi（fmtDate）
 // 共同消费。与 ui.js 的 fmt（计数千分位）分工：这里只管「时间文案与万格式」。
@@ -16,8 +17,8 @@ export function relTime(ms, now) {
   var dt = new Date(t), nd = new Date(n);
   var hm = dt.getHours() + '时' + (dt.getMinutes() < 10 ? '0' : '') + dt.getMinutes() + '分';
   var dayDiff = Math.round(
-    (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate())
-      - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 86400000);
+    (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate()).getTime()
+      - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime()) / 86400000);
   if (dayDiff <= 0) {
     var min = Math.floor(diff / 60000);
     if (min < 60) return Math.max(1, min) + '分钟前';
@@ -52,8 +53,8 @@ export function fmtAgo(ms, now) {
   if (diff < 0 || isNaN(diff)) return '';
   var dt = new Date(t), nd = new Date(n);
   var dayDiff = Math.round(
-    (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate())
-      - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 86400000);
+    (new Date(nd.getFullYear(), nd.getMonth(), nd.getDate()).getTime()
+      - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime()) / 86400000);
   return dayDiff <= 2 ? relTime(t, n) : fmtDate(t);
 }
 

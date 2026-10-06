@@ -1,3 +1,4 @@
+// @ts-check
 // ---------- 作者观感映射（0.9.160 自 data.js 叶子出库） ----------
 // 零依赖纯函数：nameColorCss（名字等级色→内联 CSS 色值）/ frameUrlOf（头像框→URL）。
 // 消费方全是渲染件（cards/rowkit/momentdetail/commentkit）——UI 词汇不进契约层；

@@ -1,0 +1,19 @@
+{
+  // 契约面类型检查（0.9.188）：项目全是 JS，不改造、不写 .ts——只用 tsc 读 JSDoc 查类型。
+  // checkJs:false + 逐文件 `// @ts-check` 选择性开启：只检查被标注的纯逻辑/契约件（渐进扩面），
+  // 未标注文件仅被解析取类型、其内部错误不报。strict 关（存量代码无注解，先把契约面钉住即可）。
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["src/**/*.js"]
+}

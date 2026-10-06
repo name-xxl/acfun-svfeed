@@ -1,6 +1,6 @@
 {
   "name": "acfun-svfeed",
-  "version": "0.9.187",
+  "version": "0.9.188",
   "description": "AcFun PC 站抖音式竖滑页油猴脚本：小视频(meow) + APP 首页推荐双源，弹幕/清晰度/收藏投蕉（源码在 src/，构建产物为单文件 .user.js）",
   "type": "module",
   "scripts": {
@@ -8,17 +8,19 @@
     "watch": "node build.js --watch",
     "release": "npm version patch && node build.js",
     "test": "npm run check && npm run test:unit && node test/run-harness.mjs",
-    "check": "node test/check-cases.mjs && node test/check-release.mjs && node test/check-deps.mjs && node test/check-no-leak.mjs && node test/check-direction.mjs",
+    "check": "node test/check-cases.mjs && node test/check-release.mjs && node test/check-deps.mjs && node test/check-no-leak.mjs && node test/check-direction.mjs && tsc -p jsconfig.json",
     "check-direction": "node test/check-direction.mjs",
     "test:unit": "node --test test/unit/",
     "test:harness": "node test/run-harness.mjs",
+    "typecheck": "tsc -p jsconfig.json",
     "lint": "eslint src build.js test/unit"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
     "eslint": "^9.39.5",
     "globals": "^16.5.0",
-    "playwright": "^1.49.0"
+    "playwright": "^1.49.0",
+    "typescript": "^7.0.2"
   },
   "author": "name-xxl",
   "license": "MIT",

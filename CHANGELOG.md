@@ -3,6 +3,24 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.188（2026-10-06）· 架构减债：契约面类型检查试点（tsc --checkJs）
+
+- **由头**：用户裁定 A4 可做。项目全 JS，契约（playitem/panelitem 的条目形状）只靠注释 + eslint +
+  单测守，**没有机器类型检查**；字段名漂移（"自产拼写"痛点）只能靠人眼或单测偶然覆盖。
+- **修法**：**不改造项目、不写 .ts**——引入 `typescript`（devDep）+ `jsconfig.json`，用
+  `checkJs:false` + 逐文件 `// @ts-check` **选择性开启**（只查被标注的纯逻辑/契约件，未标注文件仅
+  被解析取类型、其内部错误不报）。试点首批：`playitem`（含 `Up`/`PlayItem` typedef + `@returns`）、
+  `panelitem`、`imgurl`、`timefmt`、`uplook`、`nameval`、`pagekind`。`check` 链末追加
+  `tsc -p jsconfig.json`（进 CI；CI 的 `npm ci` 会装 typescript，工作流无需改）；新增 `typecheck`。
+- **tsc 当场抓到的两处真问题**（非笔误）：
+  ① `timefmt` 的 `Date - Date` 算术（TS 不允许，需显式 `.getTime()`）——行为不变，改显式；
+  ② `sv` 归一条目**不含** home 懒解析专属字段（resolving/videoId/channel/qualities/qIdx）——typedef
+  据此把这 5 项标可选并注明「只 home 有」（契约事实，此前只存在于注释里的隐性约定）。
+- **测试**：build/lint/check（含 tsc 步）/单测 258/全场景 55 全绿；timefmt 边界单测原样（`getTime`
+  改写数值等价）。**反跑实证**：在 `playitem` 读一个不存在的字段 ⇒ `TS2339: Property 'nopeField'
+  does not exist on type 'PlayItem'`、exit 1；还原 ⇒ exit 0——正是"字段名漂移"的机器防线。
+- **渐进扩面**：后续新模块/契约件按需加 `// @ts-check` 并补 JSDoc；消费端（cards/rail/slide 等）暂未覆盖。
+
 ### 0.9.187（2026-10-06）· 架构减债：方向诊断升棘轮（check-direction 未登记即红）
 
 - **由头**：架构减债轨。`check-direction` 自 0.9.117 起是「永远 exit 0 的非门禁」（V3 关闭时的

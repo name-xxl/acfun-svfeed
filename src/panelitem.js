@@ -1,3 +1,4 @@
+// @ts-check
 import { CFG } from './cfg.js';
 import { coverUrl } from './imgurl.js';
 import { ubbPlain } from './ubbtext.js';

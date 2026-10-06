@@ -1,5 +1,23 @@
+// @ts-check
 import { CFG } from './cfg.js';
 import { coverUrl } from './imgurl.js';
+
+/**
+ * 作者四件套（0.9.82 契约）：缺失即 null（不编造占位文案）。nameColor 仅在调用方显式传第 5 参时挂。
+ * @typedef {{ id:number, name:string, img:string, isFollowing:boolean, nameColor?:number }} Up
+ */
+/**
+ * 播放条目契约（本文件的产出形状；字段白名单见 ITEM_FIELDS.play）。
+ * 可选键（?）为**部分来源/部分阶段**才有：resolving/videoId/qualities/qIdx 仅 home 懒解析态
+ * ——sv（meow 直链）无这组键（tsc 校验实证：normalize 的产出缺它们，不是笔误而是契约事实）；
+ * channel/channelInfo 两种来源方言不同形状故 key 分离。
+ * @typedef {{ kind:string, stype:number, id:number, title:string, up:Up|null, cover:string,
+ *   urls:string[], urlIdx:number, refreshed:boolean, cap:Record<string,boolean>,
+ *   resolving?:boolean, videoId?:string, channel?:any, channelInfo?:string, qualities?:any, qIdx?:number,
+ *   like:number, comment:number, view:number, banana:number, fav:number, share:number,
+ *   danmakuCount:number, date:string, shareUrl:string, liked:boolean, favorited:boolean,
+ *   thrown:boolean, localLike:boolean }} PlayItem
+ */
 
 // ---------- 播放条目契约（0.9.162 自 data.js 终解拆出：两种内容源规整成同一份字段） ----------
 // feedstore/player/comments 只认这套字段：
@@ -21,6 +39,7 @@ import { coverUrl } from './imgurl.js';
 // nameColor（0.9.157，可选第 5 参）：名字等级色 0/1/2（动态域三色体系：默认白/红/紫）。
 // **只在调用方显式传第 5 参时才挂键**（传 undefined 也挂 0）——play 侧各处沿用 4 参调用，
 // 播放契约④「up 固定四件套」不受影响；内联渲染统一走 nameColorCss（0=不加色）
+/** @returns {Up|null} */
 export function upOf(id, name, img, isFollowing, nameColor) {
   var n = String(name || '').trim();
   var i = Number(id) || 0;
@@ -54,6 +73,7 @@ export var ITEM_FIELDS = {
     'like', 'comment', 'banana', 'liked', 'thrown']
 };
 
+/** @returns {PlayItem} */
 export function normalize(raw) {
   var play = raw.playInfo || {};
   var urls = (play.videoUrls || []).map(function (u) { return u && u.url; })
@@ -99,6 +119,7 @@ export function normalize(raw) {
 }
 
 // selection/feed 的视频卡片（resourceType=2）→ 契约字段；urls/qualities 待 resolve
+/** @returns {PlayItem} */
 export function normalizeHome(bc) {
   var user = bc.user || {};
   var visit = bc.visit || {};
@@ -146,6 +167,7 @@ export function normalizeHome(bc) {
 // 面板条目 → 竖刷 home 契约 item（懒解析：进播放器后 resolve 链回填直链与全量计数）。
 // user 留空 → up 为 null（0.9.82：作者未知就是 null，不再编造 '未知用户' 占位；
 // 回包后由 appapi.resolve 回填 + onHomeResolved 刷渲染）
+/** @returns {PlayItem} */
 export function homeItemOf(acId, title, cover) {
   var c = coverUrl(cover);
   return normalizeHome({ href: String(acId), title: title || '', img: c ? [c] : [] });
@@ -155,6 +177,7 @@ export function homeItemOf(acId, title, cover) {
 // playlayer.js——要 DOM 依赖、不是纯函数，既进不了 node --test，也只认榜单的 up（本次病灶）。
 // 作者只做四件套归一：榜单的作者卡扩展字段（fans/sign…）不带进播放层；缺作者则留 null，
 // 等 resolve 链回填（appapi.resolve 写 item.up）。
+/** @returns {PlayItem} */
 export function playItemOf(pi) {
   var item = homeItemOf(pi.acId, pi.title, pi.cover);
   if (pi.up) item.up = upOf(pi.up.id, pi.up.name, pi.up.img, pi.up.isFollowing);
@@ -168,6 +191,7 @@ export function playItemOf(pi) {
 // douga 必须 result=0 且 videoList 非空（否则后续 playInfo 必空——appapi.resolve 同款判据）。
 // home 条目直链留空交懒解析链补（home 卡片本就 urls:[]，cap.lazyResolve 已在契约里）；
 // id 取请求用的 acId 本身（douga/info 回包不带 dougaId，且 resolve 要用它回查）
+/** @returns {{ item: PlayItem, source: string }|null} */
 export function deepLinkOf(meow, douga, mid) {
   if (meow && meow.id && meow.urls && meow.urls.length) return { item: meow, source: 'sv' };
   if (douga && douga.result === 0 && (douga.videoList || []).length) {
