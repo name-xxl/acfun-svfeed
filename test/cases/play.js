@@ -254,6 +254,32 @@ rec('ctl-icon-size', (function () {
 var dmBtnEl = q('.acsv-slide[data-ovl="1"] .acsv-cdm');
 rec('dm-btn-text', !!dmBtnEl && dmBtnEl.textContent === '弹'
   && !dmBtnEl.querySelector('.acsvg-icon-mask'), dmBtnEl ? JSON.stringify(dmBtnEl.textContent) : 'no-btn');
+// 播放层的网页全屏必须铺满（0.9.208 实报「playlayer 的网页全屏没修复」）：舞台 .acsv-vbody-play
+// 平时让开 dock（left:168），影院态若不同步归零，左侧就留 168px 死区、画面挤在剩余区域里。
+// 判据取**布局**而非视觉矩形：抽屉开着时画面会被 scale+translate 避让（设计内行为，实测 868 宽），
+// 那不该算作"没铺满"——故视频只钉「布局宽 == 舞台宽」，舞台/幻灯片钉视觉矩形。
+(function () {
+  var wf = q('.acsv-cwebfs');
+  if (!wf) { rec('playlayer-webfs-fills', false, 'no-btn'); return; }
+  wf.click(); // 进网页全屏（再点一次退出，不动 Esc——播放层里 Esc 还要退层，避免污染后续）
+  var stage = q('.acsv-vbody-play');
+  var slide = stage && stage.querySelector('.acsv-slide'); // 必须取舞台内的：文档里还有别的隐藏 slide
+  var v = slide && slide.querySelector('video');
+  var W = window.innerWidth;
+  function L(el) { return el ? el.getBoundingClientRect().left : null; }
+  function R(el) { return el ? el.getBoundingClientRect().right : null; }
+  var ok = stage && slide
+    && Math.abs(L(stage)) <= 1 && Math.abs(R(stage) - W) <= 1
+    && Math.abs(L(slide)) <= 1 && Math.abs(R(slide) - W) <= 1
+    && (!v || Math.abs(parseFloat(getComputedStyle(v).width) - W) <= 1);
+  rec('playlayer-webfs-fills', ok,
+    'win=' + W + ' | stage=' + (stage ? Math.round(L(stage)) + '..' + Math.round(R(stage)) : 'none')
+    + ' | slide=' + (slide ? Math.round(L(slide)) + '..' + Math.round(R(slide)) : 'none')
+    + ' | videoLayoutW=' + (v ? getComputedStyle(v).width : 'none')
+    + ' | videoRect=' + (v ? Math.round(L(v)) + '..' + Math.round(R(v)) : 'none')
+    + ' | drawerOpen=' + document.getElementById('acsv-root').classList.contains('acsv-with-comments'));
+  wf.click(); // 退回常态
+}());
 // 0.9.202 弹幕设置 = 底栏弹层（用户裁决：不做进设置面板）：齿轮开面板 → 两 tab → 开关/滑杆即时重排 →
 // 恢复默认必须**原地重绘**（若替换面板节点，齿轮闭包指向游离节点，从此关不掉——本组钉这条）
 var dmpBtn = q('.acsv-slide[data-ovl="1"] .acsv-cdmset');

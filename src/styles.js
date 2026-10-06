@@ -955,6 +955,10 @@ var RAW_CSS = ''
   + '#acsv-root:fullscreen .acsv-scroller{margin-left:0}'
   // 影院态（0.9.202）：左栏已隐，让位边距必须同步归零，否则左侧留一条黑（实报「网页全屏没铺满」）
   + '#acsv-root.acsv-cinema .acsv-scroller{margin-left:0}'
+  // 同一个坑的第二处（0.9.208 实报「playlayer 的网页全屏没修复」）：**播放层舞台**把左缘让开 dock
+  // （.acsv-vbody-play{left:dockW}），而影院态此前只归零了竖刷流的 scroller——于是播放层在网页全屏下
+  // 左侧仍留 168px 死区、画面被挤在剩余区域里（`:fullscreen` 那次归零只覆盖 OS 全屏，不覆盖网页全屏）
+  + '#acsv-root.acsv-cinema .acsv-vbody-play{left:0}'
   + '.acsv-view{position:absolute;inset:0;z-index:55;display:none;background:#16161b;overflow:hidden}'
   // 来源视图保活（0.9.74）：被深界面盖住期间挂起。类名整只换掉——.acsv-view 是全项目与
   // harness 的「当前视图」定位锚，留两个同构节点会污染既有断言；用 visibility 不用
