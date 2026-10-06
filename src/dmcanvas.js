@@ -5,7 +5,10 @@ import { stat, set, testHook } from './dbg.js';
 // 移植 AcFun-Danmaku-Sender 的本地弹幕画布思路（src/71-canvas-preview.js）：
 // 无状态重绘——rVFC 每帧读 video.currentTime 反推所有弹幕位置，
 // 暂停/seek/倍速天然正确，零播放器事件监听。
-// 经典弹幕映射成"单帧模型"：mode 1=滚动(轨道分配) / 4=底部 / 5=顶部（未知兜底滚动）。
+// 经典弹幕映射成"单帧模型"：mode 1=滚动 / 6=逆向滚动（同为滚动族，绘制方向相反）/ 4=底部 /
+// 5=顶部（其余未知 mode 兜底滚动）。**注意**：高级弹幕（`danmakuType===1` 的
+// `advancedDanmakuExtData`：定位/缩放/旋转/时序）本画布**尚未支持**——高弹三核
+// easeProgress/interpolateModel/drawModel 未随骨架一并移植（见 0.9.194 计划批次）。
 // 0.9.4 绘制内层优化（架构不变）：
 //   1) 文本位图缓存：每条弹幕首次绘制渲染一次离屏位图（含描边），之后每帧 drawImage，
 //      免去逐帧 strokeText+fillText 的字形光栅化；过期释放 + FIFO 上限 300 条兜底；
@@ -16,6 +19,13 @@ import { stat, set, testHook } from './dbg.js';
 // 调试构建的绘制埋点：每 60 帧结算平均 paint 耗时/可见条数
 // （正式构建 __ACSV_DEBUG__ 为 false，分支为空转，与 session.js 的模拟缝同一模式）
 var dmFc = 0, dmMs = 0, dmVisSum = 0;
+
+// mode 归一（0.9.194 抽出为顶层纯函数，供单测直采）：4=底部 / 5=顶部 / 6=逆向滚动 保留，
+// 其余兜底滚动 1。真机取样实证 mode 6 存在（此前被错画成普通滚动）；高级弹幕
+// （danmakuType=1 的编码如 7）不在本映射内——画布尚未支持（见头注）。
+export function normMode(m) {
+  return (m === 4 || m === 5 || m === 6) ? m : 1;
+}
 
 function createLayer(slide, video) {
   var canvas = document.createElement('canvas');
@@ -116,14 +126,15 @@ function createLayer(slide, video) {
 
   // 轨道分配：按出现时间排序，滚动轨要求上一条"尾部完全进入"才能复用，
   // 全满时塞进最早空出的轨；顶部/底部按停留时间占行。
-  function assignLanes() {
+  // mode 归一在顶层 normMode()（0.9.194）。
+function assignLanes() {
     if (cssW < 10 || cssH < 10 || !items.length) return;
     var i, it;
     var maxPx = 0;
     for (i = 0; i < items.length; i++) {
       measure(items[i]);
       if (items[i]._px > maxPx) maxPx = items[i]._px;
-      items[i]._dur = items[i].mode === 1
+      items[i]._dur = (items[i].mode === 1 || items[i].mode === 6)
         ? (cssW + items[i]._w) / cssW * CFG.danmaku.scrollSec * 1000
         : CFG.danmaku.staySec * 1000;
     }
@@ -134,10 +145,10 @@ function createLayer(slide, video) {
     items.sort(function (a, b) { return a.at - b.at; });
     for (i = 0; i < items.length; i++) {
       it = items[i];
-      var mode = it.mode === 4 || it.mode === 5 ? it.mode : 1;
+      var mode = normMode(it.mode);
       it.mode = mode;
       var arr = busy[mode] || (busy[mode] = []);
-      var limit = mode === 1 ? scrollLanes : sideLanes;
+      var limit = (mode === 1 || mode === 6) ? scrollLanes : sideLanes;
       var pick = -1, minAt = Infinity, minIdx = 0;
       for (var l = 0; l < limit; l++) {
         var freeAt = arr[l] || 0;
@@ -146,7 +157,7 @@ function createLayer(slide, video) {
       }
       if (pick < 0) pick = minIdx;
       it._lane = pick;
-      if (mode === 1) {
+      if (mode === 1 || mode === 6) {
         var speed = (cssW + it._w) / it._dur; // px/ms
         arr[pick] = it.at + it._w / speed;
       } else {
@@ -188,6 +199,9 @@ function createLayer(slide, video) {
           x = cssW / 2; y = laneH * (it._lane + 0.9);
         } else if (it.mode === 4) {   // 底部
           x = cssW / 2; y = cssH - laneH * (it._lane + 0.5);
+        } else if (it.mode === 6) {   // 逆向滚动：左缘外 → 右缘外（0.9.194）
+          x = -it._w / 2 + p * (cssW + it._w);
+          y = laneH * (it._lane + 1);
         } else {                      // 滚动：右缘外 → 左缘外，匀速
           x = cssW + it._w / 2 - p * (cssW + it._w);
           y = laneH * (it._lane + 1);

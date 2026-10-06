@@ -312,6 +312,9 @@ function advance() {
   var needBig = st.big ? 0 : 1;
   var need = nextTarget(st.normals) - st.normals + needBig;
   if (st.buf.length >= need || st.done) { drain(); return; }
+  // 触底续页的「加载中…」尾行（0.9.194）：旧实现续页在途零提示（只有到底/失败有 tip），
+  // 用户分不清"到底了"还是"卡住了"。成功由 drain 的 setTip(null) 收、失败由 failTip 顶替。
+  if (!st.tip.textContent) setTip(el('div', null, '加载中…'));
   fetchPage();
 }
 
@@ -331,13 +334,13 @@ function drain() {
   // 首批实卡落位前撤骨架（骨架也带 .acsv-jx-card/.acsv-jx-big 类——不清会与实卡并存）
   if (st.buf.length && !st.big) st.grid.innerHTML = '';
   if (st.done) {
-    // 流尽：缓冲全放（尾行可不满——数据用尽）；大卡仍只挂首张
+    // 流尽：缓冲全放（尾行可不满——数据用尽）；大卡仍只挂首张。
+    // 结束提示**无条件写**（0.9.194）：续页在途会先落一行「加载中…」，此处必须顶替它
+    // （旧写法 `if (!st.tip.textContent)` 的守卫会让「加载中…」把「已经到底啦」挡掉）
     if (!st.big && st.buf.length) { placeCard(st.buf.shift(), true); st.big = true; }
     while (st.buf.length) { placeCard(st.buf.shift(), false); st.normals++; }
     if (!st.big && !st.normals) st.grid.innerHTML = ''; // 空分区：留空网格，不摆永久骨架
-    if (!st.tip.textContent) {
-      setTip(el('div', null, (st.big || st.normals) ? '— 已经到底啦 —' : '这个分区暂时没有可看的内容'));
-    }
+    setTip(el('div', null, (st.big || st.normals) ? '— 已经到底啦 —' : '这个分区暂时没有可看的内容'));
     flushWaitMore();
     return;
   }

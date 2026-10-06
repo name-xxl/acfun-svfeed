@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { normalize, normalizeHome, deepLinkOf } from './playitem.js';
+import { normalize, normalizeHome, deepLinkOf, foldBr } from './playitem.js';
 import { AppAPI } from './appapi.js';
 import { getSetting, setSetting } from './settings.js';
 
@@ -134,6 +134,7 @@ export var API = {
             item.fav = 12;
             item.share = 34;
             item.date = raw.date || '2026-09-26'; // 同上：日期也由调用方按目标口径给
+            item.desc = foldBr(raw.description); // 简介同 resolve 口径（0.9.194：本缝镜像 resolve 的 up/date）
             return !!mu;
           };
           if (raw.delay) {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.193
+// @version      0.9.194
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.193" : "",
+          ver: true ? "0.9.194" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -466,8 +466,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       recentMax: 12
       // 最近使用表情保留数
     },
-    rate: [0.5, 1, 1.5, 2],
-    // 倍速循环档位
+    rate: [0.5, 1, 1.5, 2, 3],
+    // 倍速循环档位（0.9.194 加 3x；菜单/文案由本表驱动，无第二处名单）
     win: { back: 1, fwd: 1 },
     // 渲染窗口：当前条向上 back/向下 fwd 张挂视频；slide DOM 与氛围背景在窗外更远一/两格回收
     // 关注未读徽标轮询（0.9.97，4.3）：60s 起步逐次翻倍封顶 10min，发现新内容即刻回落基准
@@ -1049,6 +1049,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   }
 
   // src/playitem.js
+  function foldBr(s, rep) {
+    return String(s == null ? "" : s).replace(/<br\s*\/?\s*>/gi, rep == null ? "\n" : rep).trim();
+  }
   function upOf(id, name, img, isFollowing, nameColor) {
     var n = String(name || "").trim();
     var i = Number(id) || 0;
@@ -1684,6 +1687,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         if (d.stowCount != null) item.fav = d.stowCount;
         if (d.shareCount != null) item.share = d.shareCount;
         item.date = fmtDate(Number(d.createTimeMillis));
+        item.desc = foldBr(d.description);
         var u = d.user || {};
         if (u.id || u.name || u.headUrl) {
           item.up = item.up || { id: 0, name: "", img: "", isFollowing: false };
@@ -1951,6 +1955,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
               item.fav = 12;
               item.share = 34;
               item.date = raw.date || "2026-09-26";
+              item.desc = foldBr(raw.description);
               return !!mu;
             };
             if (raw.delay) {
@@ -2231,7 +2236,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           qualities: it.qualities ? it.qualities.length : 0,
           qIdx: it.qIdx || 0,
           // 切档同步断言用：邻居条目是否跟随新偏好
-          qLabel: it.qualities && it.qualities[it.qIdx] ? it.qualities[it.qIdx].label : null
+          qLabel: it.qualities && it.qualities[it.qIdx] ? it.qualities[it.qIdx].label : null,
+          desc: it.desc || ""
+          // 简介（0.9.194）：resolve 从 douga/info description 折叠而来
         };
       })
     };
@@ -5812,6 +5819,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   });
 
   // src/dmcanvas.js
+  function normMode(m) {
+    return m === 4 || m === 5 || m === 6 ? m : 1;
+  }
   function createLayer(slide, video) {
     var canvas = document.createElement("canvas");
     canvas.className = "acsv-dmcanvas";
@@ -5910,7 +5920,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       for (i = 0; i < items.length; i++) {
         measure(items[i]);
         if (items[i]._px > maxPx) maxPx = items[i]._px;
-        items[i]._dur = items[i].mode === 1 ? (cssW + items[i]._w) / cssW * CFG.danmaku.scrollSec * 1e3 : CFG.danmaku.staySec * 1e3;
+        items[i]._dur = items[i].mode === 1 || items[i].mode === 6 ? (cssW + items[i]._w) / cssW * CFG.danmaku.scrollSec * 1e3 : CFG.danmaku.staySec * 1e3;
       }
       laneH = Math.max(28, Math.round(maxPx * 1.4));
       var scrollLanes = Math.max(1, Math.floor(cssH * 0.72 / laneH));
@@ -5921,10 +5931,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       });
       for (i = 0; i < items.length; i++) {
         it = items[i];
-        var mode = it.mode === 4 || it.mode === 5 ? it.mode : 1;
+        var mode = normMode(it.mode);
         it.mode = mode;
         var arr = busy[mode] || (busy[mode] = []);
-        var limit = mode === 1 ? scrollLanes : sideLanes;
+        var limit = mode === 1 || mode === 6 ? scrollLanes : sideLanes;
         var pick = -1, minAt = Infinity, minIdx = 0;
         for (var l = 0; l < limit; l++) {
           var freeAt = arr[l] || 0;
@@ -5939,7 +5949,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         }
         if (pick < 0) pick = minIdx;
         it._lane = pick;
-        if (mode === 1) {
+        if (mode === 1 || mode === 6) {
           var speed = (cssW + it._w) / it._dur;
           arr[pick] = it.at + it._w / speed;
         } else {
@@ -5982,6 +5992,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           } else if (it.mode === 4) {
             x = cssW / 2;
             y = cssH - laneH * (it._lane + 0.5);
+          } else if (it.mode === 6) {
+            x = -it._w / 2 + p * (cssW + it._w);
+            y = laneH * (it._lane + 1);
           } else {
             x = cssW + it._w / 2 - p * (cssW + it._w);
             y = laneH * (it._lane + 1);
@@ -6670,7 +6683,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       it.acId = Number(raw.dougaId || raw.contentId) || 0;
       it.title = raw.contentTitle || "";
       it.cover = coverUrl(raw.videoCover);
-      it.desc = String(raw.contentDesc || "").replace(/<br\s*\/?\s*>/gi, "\n").trim();
+      it.desc = foldBr(raw.contentDesc);
       var t = relTime(Number(raw.contributeTime) || 0);
       var ch = raw.channelName || (raw.channel || {}).name || (raw.channel || {}).channelName || "";
       it.meta = [
@@ -6688,7 +6701,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         contrib: Number(raw.contributionCount) || 0,
         fansText: fmtWan(raw.fansCount),
         contribText: fmtWan(raw.contributionCount),
-        sign: String(raw.userSignature || "").replace(/<br\s*\/?\s*>/gi, " ").trim()
+        sign: foldBr(raw.userSignature, " ")
       } : null;
       return true;
     },
@@ -10657,7 +10670,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.193" : "");
+    return normVer(true ? "0.9.194" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -13838,7 +13851,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.193：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.194：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -16250,6 +16263,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       drain();
       return;
     }
+    if (!st.tip.textContent) setTip(el("div", null, "加载中…"));
     fetchPage();
   }
   function placeCard(vm, big) {
@@ -16272,9 +16286,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         st.normals++;
       }
       if (!st.big && !st.normals) st.grid.innerHTML = "";
-      if (!st.tip.textContent) {
-        setTip(el("div", null, st.big || st.normals ? "— 已经到底啦 —" : "这个分区暂时没有可看的内容"));
-      }
+      setTip(el("div", null, st.big || st.normals ? "— 已经到底啦 —" : "这个分区暂时没有可看的内容"));
       flushWaitMore();
       return;
     }

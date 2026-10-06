@@ -9,6 +9,7 @@ window.__ACSV_MOCK_HOME__ = [
    "https://tx-free-imgs.acfun.cn/newUpload/11602352_36f126479072481b9dd82c3ea4d19f3b.jpeg?imageMogr2/auto-orient/format/webp/quality/80!/ignore-error/1"
   ],
   "href": "48867212",
+  "description": "第一行简介<br/>第二行简介",
   "resourceType": 2,
   "expTag": "8889_sfd",
   "user": {

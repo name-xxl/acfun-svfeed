@@ -6,7 +6,19 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { upOf, playItemOf, normalize, normalizeHome, homeItemOf, deepLinkOf } = await import('../../src/playitem.js');
+var { upOf, playItemOf, normalize, normalizeHome, homeItemOf, deepLinkOf, foldBr } = await import('../../src/playitem.js');
+
+// ---------- <br> 折叠单源（0.9.194，原 panelitem 内联两处的收口） ----------
+test('foldBr：<br>/<br/>/<br /> 折行、去首尾空白；缺省换行、可传替换串；脏输入空串', () => {
+  assert.equal(foldBr('甲<br>乙'), '甲\n乙');
+  assert.equal(foldBr('甲<BR/>乙'), '甲\n乙');       // 大小写与自闭合
+  assert.equal(foldBr(' 甲<br />乙 '), '甲\n乙');     // 首尾 trim
+  assert.equal(foldBr('甲<br>乙', ' '), '甲 乙');     // 单行场景（作者签名）
+  assert.equal(foldBr('甲\n乙'), '甲\n乙');           // 无 br 原样（换行不被吞）
+  assert.equal(foldBr(null), '');
+  assert.equal(foldBr(undefined), '');
+  assert.equal(foldBr(0), '0');                       // 数字按字符串
+});
 
 // ---------- 作者契约（0.9.82）：两个 normalize 与面板→播放的桥 ----------
 test('normalize/normalizeHome：作者落 up 三件套；user 缺失或无名无 id → up 为 null', () => {

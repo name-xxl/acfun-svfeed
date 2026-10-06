@@ -30,6 +30,14 @@ if (CASE === 'deeplink-miss') {
     return f && f.items[0] && String(f.items[0].id) === DEEP_WANT;
   }, 15000)), 'want=' + DEEP_WANT);
   rec('deep-plays', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+  // 简介打通（0.9.194）：douga/info 顶层 description（HTML 含 <br/>）经 foldBr 折行落 item.desc
+  //（数据来自本就在发的同一发回包；此前只取了 videoList/计数，没读 description）。仅 ac 深链有桩。
+  if (CASE === 'deeplink-ac') {
+    rec('deep-desc-folded', !!(await waitFor(function () {
+      var f = feed();
+      return f && f.items[0] && f.items[0].desc === '第一行简介\n第二行简介';
+    }, 8000)), 'desc=' + JSON.stringify((feed().items[0] || {}).desc));
+  }
   // 源随链接走：a → 推荐 / v → 小视频（deeplink-switch 的源记忆故意留 home，必须被压过）
   rec('deep-source', segOn() === (CASE === 'deeplink-ac' ? '推荐' : '小视频'), 'seg=' + segOn());
   // 地址栏被回写成**标记形态**：以后复制出去的链接零探测零歧义
@@ -99,6 +107,14 @@ if (CASE === 'deeplink-miss') {
     return f && f.items[0] && String(f.items[0].id) === DEEP_WANT;
   }, 15000)), 'want=' + DEEP_WANT);
   rec('deep-plays', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+  // 简介打通（0.9.194）：douga/info 顶层 description（HTML 含 <br/>）经 foldBr 折行落 item.desc
+  //（数据来自本就在发的同一发回包；此前只取了 videoList/计数，没读 description）。仅 ac 深链有桩。
+  if (CASE === 'deeplink-ac') {
+    rec('deep-desc-folded', !!(await waitFor(function () {
+      var f = feed();
+      return f && f.items[0] && f.items[0].desc === '第一行简介\n第二行简介';
+    }, 8000)), 'desc=' + JSON.stringify((feed().items[0] || {}).desc));
+  }
   // 源随链接走：a → 推荐 / v → 小视频（deeplink-switch 的源记忆故意留 home，必须被压过）
   rec('deep-source', segOn() === (CASE === 'deeplink-ac' ? '推荐' : '小视频'), 'seg=' + segOn());
   // 地址栏被回写成**标记形态**：以后复制出去的链接零探测零歧义
@@ -168,6 +184,14 @@ if (CASE === 'deeplink-miss') {
     return f && f.items[0] && String(f.items[0].id) === DEEP_WANT;
   }, 15000)), 'want=' + DEEP_WANT);
   rec('deep-plays', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+  // 简介打通（0.9.194）：douga/info 顶层 description（HTML 含 <br/>）经 foldBr 折行落 item.desc
+  //（数据来自本就在发的同一发回包；此前只取了 videoList/计数，没读 description）。仅 ac 深链有桩。
+  if (CASE === 'deeplink-ac') {
+    rec('deep-desc-folded', !!(await waitFor(function () {
+      var f = feed();
+      return f && f.items[0] && f.items[0].desc === '第一行简介\n第二行简介';
+    }, 8000)), 'desc=' + JSON.stringify((feed().items[0] || {}).desc));
+  }
   // 源随链接走：a → 推荐 / v → 小视频（deeplink-switch 的源记忆故意留 home，必须被压过）
   rec('deep-source', segOn() === (CASE === 'deeplink-ac' ? '推荐' : '小视频'), 'seg=' + segOn());
   // 地址栏被回写成**标记形态**：以后复制出去的链接零探测零歧义
@@ -237,6 +261,14 @@ if (CASE === 'deeplink-miss') {
     return f && f.items[0] && String(f.items[0].id) === DEEP_WANT;
   }, 15000)), 'want=' + DEEP_WANT);
   rec('deep-plays', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+  // 简介打通（0.9.194）：douga/info 顶层 description（HTML 含 <br/>）经 foldBr 折行落 item.desc
+  //（数据来自本就在发的同一发回包；此前只取了 videoList/计数，没读 description）。仅 ac 深链有桩。
+  if (CASE === 'deeplink-ac') {
+    rec('deep-desc-folded', !!(await waitFor(function () {
+      var f = feed();
+      return f && f.items[0] && f.items[0].desc === '第一行简介\n第二行简介';
+    }, 8000)), 'desc=' + JSON.stringify((feed().items[0] || {}).desc));
+  }
   // 源随链接走：a → 推荐 / v → 小视频（deeplink-switch 的源记忆故意留 home，必须被压过）
   rec('deep-source', segOn() === (CASE === 'deeplink-ac' ? '推荐' : '小视频'), 'seg=' + segOn());
   // 地址栏被回写成**标记形态**：以后复制出去的链接零探测零歧义
@@ -306,6 +338,14 @@ if (CASE === 'deeplink-miss') {
     return f && f.items[0] && String(f.items[0].id) === DEEP_WANT;
   }, 15000)), 'want=' + DEEP_WANT);
   rec('deep-plays', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+  // 简介打通（0.9.194）：douga/info 顶层 description（HTML 含 <br/>）经 foldBr 折行落 item.desc
+  //（数据来自本就在发的同一发回包；此前只取了 videoList/计数，没读 description）。仅 ac 深链有桩。
+  if (CASE === 'deeplink-ac') {
+    rec('deep-desc-folded', !!(await waitFor(function () {
+      var f = feed();
+      return f && f.items[0] && f.items[0].desc === '第一行简介\n第二行简介';
+    }, 8000)), 'desc=' + JSON.stringify((feed().items[0] || {}).desc));
+  }
   // 源随链接走：a → 推荐 / v → 小视频（deeplink-switch 的源记忆故意留 home，必须被压过）
   rec('deep-source', segOn() === (CASE === 'deeplink-ac' ? '推荐' : '小视频'), 'seg=' + segOn());
   // 地址栏被回写成**标记形态**：以后复制出去的链接零探测零歧义

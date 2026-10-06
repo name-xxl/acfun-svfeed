@@ -218,6 +218,17 @@ rec('play-a11y-ctl-label', (function () {
   var pl = q('.acsv-cplay');
   return !!pl && pl.getAttribute('aria-label') === '播放/暂停（空格）';
 })());
+// 倍速档位（0.9.194 加 3x）：菜单由 CFG.rate 驱动，展开应见 3.0x（a11y 的 title 可定位倍速键）
+var rateBtn = q('.acsv-slide[data-ovl="1"] .acsv-cbtn[title="切换播放速度"]');
+if (rateBtn) rateBtn.click();
+rec('play-rate-3x', !!(await waitFor(function () {
+  var m = q('.acsv-slide[data-ovl="1"] .acsv-qmenu');
+  return !!m && /3\.0x/.test(m.textContent);
+}, 4000)), (function () {
+  var m = q('.acsv-slide[data-ovl="1"] .acsv-qmenu');
+  return m ? m.textContent : 'no-menu';
+})());
+if (rateBtn) rateBtn.click(); // 收起菜单，防污染后续
 key('c');
 rec('play-key-comments-close', !!(await waitFor(function () {
   var r = q('#acsv-root');

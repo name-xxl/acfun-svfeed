@@ -16,7 +16,7 @@ import { coverUrl } from './imgurl.js';
  *   resolving?:boolean, videoId?:string, channel?:any, channelInfo?:string, qualities?:any, qIdx?:number,
  *   like:number, comment:number, view:number, banana:number, fav:number, share:number,
  *   danmakuCount:number, date:string, shareUrl:string, liked:boolean, favorited:boolean,
- *   thrown:boolean, localLike:boolean }} PlayItem
+ *   thrown:boolean, localLike:boolean, desc?:string }} PlayItem
  */
 
 // ---------- 播放条目契约（0.9.162 自 data.js 终解拆出：两种内容源规整成同一份字段） ----------
@@ -39,9 +39,16 @@ import { coverUrl } from './imgurl.js';
 // nameColor（0.9.157，可选第 5 参）：名字等级色 0/1/2（动态域三色体系：默认白/红/紫）。
 // **只在调用方显式传第 5 参时才挂键**（传 undefined 也挂 0）——play 侧各处沿用 4 参调用，
 // 播放契约④「up 固定四件套」不受影响；内联渲染统一走 nameColorCss（0=不加色）
+/**
+ * A 站简介/签名类 HTML 文本的 <br> 折行（0.9.64 榜单卡先例；0.9.194 抽公用单源，说明/签名两处共用）。
+ * @param {any} s @param {string} [rep] 替换串（缺省换行；签名等单行场景传空格） @returns {string}
+ */
+export function foldBr(s, rep) {
+  return String(s == null ? '' : s).replace(/<br\s*\/?\s*>/gi, rep == null ? '\n' : rep).trim();
+}
+
 /** @returns {Up|null} */
-export function upOf(id, name, img, isFollowing, nameColor) {
-  var n = String(name || '').trim();
+export function upOf(id, name, img, isFollowing, nameColor) {  var n = String(name || '').trim();
   var i = Number(id) || 0;
   if (!n && !i) return null; // 无名无 id：作者未知（不伪造）
   var up = { id: i, name: n, img: img || '', isFollowing: !!isFollowing };
@@ -56,7 +63,7 @@ export var ITEM_FIELDS = {
   play: ['kind', 'stype', 'id', 'title', 'up', 'cover', 'urls', 'urlIdx', 'refreshed', 'cap',
     'resolving', 'videoId', 'channel', 'channelInfo', 'qualities', 'qIdx', 'like', 'comment', 'view',
     'banana', 'fav', 'share', 'danmakuCount', 'date', 'shareUrl', 'liked', 'favorited',
-    'thrown', 'localLike'],
+    'thrown', 'localLike', 'desc'],
   panel: ['kind', 'acId', 'title', 'cover', 'dur', 'views', 'dateText', 'desc', 'progress',
     'sub', 'meta', 'up',
     // 关注流（0.9.91）：content type 判别子与动态卡字段。ct 与 kind 正交——kind 在契约里是

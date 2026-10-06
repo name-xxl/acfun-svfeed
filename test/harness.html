@@ -128,7 +128,9 @@
           if (id !== '48867212') return { result: 1 };
           return {
             result: 0, videoList: [{ id: 'mock-douga-' + id }],
-            title: '深链推荐视频', coverUrl: 'https://i.example/deep.jpg'
+            title: '深链推荐视频', coverUrl: 'https://i.example/deep.jpg',
+            // 简介（0.9.194）：douga/info 顶层 description（HTML，含 <br/>）→ 契约 item.desc 折叠
+            description: '第一行简介<br/>第二行简介'
           };
         }
       };

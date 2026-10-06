@@ -3,7 +3,7 @@ import { CFG } from './cfg.js';
 import { coverUrl } from './imgurl.js';
 import { ubbPlain } from './ubbtext.js';
 import { fmtAgo, fmtDate, fmtWan, relTime } from './timefmt.js';
-import { upOf } from './playitem.js'; // 作者契约单源（0.9.162 data.js 终解后，up 定型在播放契约件）
+import { upOf, foldBr } from './playitem.js'; // 作者契约 + <br> 折叠单源（0.9.162 data.js 终解后，up 定型在播放契约件）
 
 // ---------- 面板条目契约（0.9.162 自 data.js 终解拆出；原 0.9.62 落户） ----------
 // 五类面板源（history/fav/rank/follow/square）的条目规整表 + 派发入口 + 动态附件
@@ -77,7 +77,7 @@ var PANEL_PARSERS = {
     it.cover = coverUrl(raw.videoCover);
     // 简介：官方是 HTML，<br> 折行（0.9.69 原生同款——原生 description 保留 br 折行；
     // 渲染层 white-space:pre-line，超过 3 行由 CSS 裁）
-    it.desc = String(raw.contentDesc || '').replace(/<br\s*\/?\s*>/gi, '\n').trim();
+    it.desc = foldBr(raw.contentDesc);
     // meta 三段结构化（0.9.69 对齐原生 video-card extra：图标+播放数、图标+评论数、
     // 图标+「发布于xx / 频道」——原生无「播放/评论」字样，图标代义）。文案契约层拼好，
     // rowOf 只按 k 出字形；判空拼装：无时间不留「发布于」孤字、无频道不留悬空斜杠。
@@ -102,7 +102,7 @@ var PANEL_PARSERS = {
       contrib: Number(raw.contributionCount) || 0,
       fansText: fmtWan(raw.fansCount),
       contribText: fmtWan(raw.contributionCount),
-      sign: String(raw.userSignature || '').replace(/<br\s*\/?\s*>/gi, ' ').trim()
+      sign: foldBr(raw.userSignature, ' '),
     } : null;
     return true;
   },

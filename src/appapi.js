@@ -1,7 +1,7 @@
 import { CFG } from './cfg.js';
 import { request, mockHit } from './net.js';
 import { singleFlight } from './ui.js';
-import { normalizeHome } from './playitem.js';
+import { normalizeHome, foldBr } from './playitem.js';
 import { fmtDate } from './timefmt.js';
 import { coverUrl } from './imgurl.js';
 import { applyQuality } from './quality.js';
@@ -189,6 +189,10 @@ export var AppAPI = {
       // **不用 videoList[0].uploadTime**：实测那是"上传时刻"，比站方展示的发布时刻早
       // （三例差 12 秒 / 19.5 小时 / 5.16 天），拿它显示会与站方页面矛盾（见 docs §3）
       item.date = fmtDate(Number(d.createTimeMillis));
+      // 简介（0.9.194）：douga/info 顶层 `description` 就是视频简介（HTML，含 <br/>；§3 实测）。
+      // 本发回包**一直在取**，只是此前没读——折叠走契约件 foldBr（与榜单卡同口径，单源）。
+      // 空串/缺失 → ''（渲染层据此不占位）
+      item.desc = foldBr(d.description);
       // 作者回填（0.9.82）：写进契约唯一出口 item.up——此前写扁平 item.userName/userId/
       // isFollowing，而渲染面是构建期写死的，回填等于只写数据不刷屏。up 为 null（深链冷
       // 进入这类连卡片都没有的来源）时就地建一个，名字/id/头像由这里能拿到的部分补

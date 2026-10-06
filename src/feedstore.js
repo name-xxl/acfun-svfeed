@@ -190,7 +190,8 @@ testHook('feed', function () {
           resolving: !!it.resolving,
           qualities: it.qualities ? it.qualities.length : 0,
           qIdx: it.qIdx || 0, // 切档同步断言用：邻居条目是否跟随新偏好
-          qLabel: it.qualities && it.qualities[it.qIdx] ? it.qualities[it.qIdx].label : null
+          qLabel: it.qualities && it.qualities[it.qIdx] ? it.qualities[it.qIdx].label : null,
+          desc: it.desc || '' // 简介（0.9.194）：resolve 从 douga/info description 折叠而来
         };
       })
   };
