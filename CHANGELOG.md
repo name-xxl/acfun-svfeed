@@ -3,6 +3,29 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.190（2026-10-06）· 修：评论头像框左侧被裁（评论行内边距 + 抽屉 380→412）
+
+- **由头**：用户实报「显示头像框后，头像框左边会被遮挡一部分」，怀疑抽屉太窄。
+- **定位（src/styles.js 量值核实）**：**与抽屉宽度无关**。头像是 50×50；头像框 `.acsv-cavframe` 是
+  80×70 覆盖层、偏移 `(−15,−15)`（plaza 原生复刻值），**向左溢出 15px**；评论行 `.acsv-citem` 自身
+  无左右内边距、`.acsv-drawer-list` 水平内边距 0 且是滚动容器（另一轴按规范被钳成 auto）⇒ 左 15px
+  被裁。对照：同抽屉「相关推荐/列表」行自带 `padding:8px 12px` 故不裁；内联语境（`.acsv-frows`）
+  宿主同样无内边距 ⇒ 一并裁。
+- **修法**（用户裁决「评论行左右 16 + 抽屉加宽 32」；预览稿 `docs/preview/comment-avatar-frame-clip.html`
+  经用户确认）：
+  ① `.acsv-citem` 加 `padding:0 16px`（16 ≥ 溢出量 15；全语境统一修——抽屉/广场/关注/详情内联）；
+  子评论 `.acsv-csub .acsv-citem{padding:0}` 保持不缩进（头像 30px、无框、原生亦不缩进）。
+  ② `.acsv-relrow` 12→16，与评论行同基准（消 4px 缩进差）。
+  ③ `CFG.comments.drawerW` **380→412**——正好补回左右各 16，**正文可用宽不变**（≈300px），不因
+  修复变挤；同步两个派生阈值 `avoidW` 1140→**1170**、`avoidTopW` 1012→**1050**（各 +32，推导注释
+  同步）；CSS 回退值 `var(--acsv-dw,380px)` 共 10 处同步 412（仅回退语义，JS 恒写实值）。
+- **影响面**：私信抽屉 `.acsv-msgdrawer` 共用 `--acsv-dw`，一并加宽 32（同源，已声明）。
+- **测试**：build/lint/check（含 tsc）/单测 260/全场景 55 全绿。play-deep 49→51 断言：新增
+  `play-cmt-pad15`（评论行 padding-left ≥15）+ `play-cavframe-not-clipped`（框左缘不越行左缘；
+  `comments.mockComments` 的 m1 加头像框，给 harness 一条能验「框不被裁」的真实路径）。
+  **反跑实证**：摘 `.acsv-citem` 的 padding ⇒ 两条转红（`padL=0px`；`frameL=854 itemL=869`
+  ——正是"框左缘越过行左缘 15px"的病身）；还原 ⇒ 全绿。
+
 ### 0.9.189（2026-10-06）· 换源：竖刷「推荐」源 selection/feed → 单列精选 singleColumn
 
 - **由头**：用户裁决「用 singleColumn 替代现有推荐源」——**形态不变（仍全屏竖刷），只换数据源**。

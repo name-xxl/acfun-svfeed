@@ -492,7 +492,11 @@ function mockComments() {
   return {
     commentCount: 4, curPage: 1, totalPage: 1, // pcursor 已退役（0.9.140：根评论翻页只认 page/totalPage）
     rootComments: [
-      { commentId: 'm1', userId: 123, userName: '香蕉君', headUrl: '', content: '这条视频太棒了（示例评论，仅本地预览显示）', postDate: '2026-09-01', likeCount: 233, isUp: false, subCommentCount: 1 },
+      // m1 带**头像框**（0.9.190）：给 harness 一条能验「框不被裁」的真实路径——缩略图走
+      // frameUrlOf（avatarFrameImgInfo.thumbnailImageCdnUrl）；1×1 透明 GIF，仅要几何不要像素
+      { commentId: 'm1', userId: 123, userName: '香蕉君', headUrl: '',
+        avatarFrameImgInfo: { thumbnailImageCdnUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' },
+        content: '这条视频太棒了（示例评论，仅本地预览显示）', postDate: '2026-09-01', likeCount: 233, isUp: false, subCommentCount: 1 },
       { commentId: 'm2', userId: 456, userName: 'UP主本人', headUrl: '', content: '感谢收看！', postDate: '2026-09-02', likeCount: 66, isUp: true, subCommentCount: 0 },
       { commentId: 'm3', userId: 777, userName: '富文本示例', headUrl: '', content: '[color=#4f81bd]这条评论用 [color] 标签着了色，\n换行也保留；正文现在可以划选后右键复制。[/color]\n这段是着色范围外的普通文字。', postDate: '2026-09-03', likeCount: 12, isUp: false, subCommentCount: 0 },
       { commentId: 'm4', userId: 888, userName: '配图示例', headUrl: '', content: '带配图的评论，点击图片可看大图：\n[img=图片]https://cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/ac2/1.gif[/img]', postDate: '2026-09-04', likeCount: 5, isUp: false, subCommentCount: 0 }

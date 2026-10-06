@@ -189,6 +189,24 @@ rec('play-comments-reopen', !!(await waitFor(function () {
   var r = q('#acsv-root');
   return !!r && r.classList.contains('acsv-with-comments');
 }, 6000)));
+// 0.9.190 头像框不裁：评论行左右内边距 ≥15（框 80×70 偏移 −15 的左溢出量）；有框的评论其
+// 框左缘不得越过行左缘。摘 .acsv-citem 的 padding ⇒ 两条转红（lint/反跑口径见 CHANGELOG）
+rec('play-cmt-pad15', !!(await waitFor(function () {
+  var it = q('.acsv-drawer-list .acsv-citem');
+  return it && Math.round(parseFloat(getComputedStyle(it).paddingLeft)) >= 15;
+}, 6000)), (function () {
+  var it = q('.acsv-drawer-list .acsv-citem');
+  return it ? 'padL=' + getComputedStyle(it).paddingLeft : 'no-citem';
+})());
+rec('play-cavframe-not-clipped', !!(await waitFor(function () {
+  var it = q('.acsv-drawer-list .acsv-citem'), fr = q('.acsv-drawer-list .acsv-cavframe');
+  if (!it || !fr) return false;
+  return fr.getBoundingClientRect().left >= it.getBoundingClientRect().left - 0.5;
+}, 6000)), (function () {
+  var it = q('.acsv-drawer-list .acsv-citem'), fr = q('.acsv-drawer-list .acsv-cavframe');
+  if (!fr) return 'skip:no-frame';
+  return 'frameL=' + Math.round(fr.getBoundingClientRect().left) + ' itemL=' + Math.round(it.getBoundingClientRect().left);
+})());
 // 0.9.186 可访问性：评论抽屉=模态对话框语义（role/aria-modal）+ 播放控制键 aria-label
 //（与 title 同源）——摘 src/ui.js a11y 或摘对应属性即转红
 rec('play-a11y-drawer-dialog', (function () {
