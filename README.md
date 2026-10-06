@@ -288,8 +288,10 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 - `test/cases/*.js`——harness 场景体（**16 个文件**按域拆分：feed/stall/views/play/deeplink/upd/msg/boot/settings/member/relation/favfolders/hls/jingxuan/layer-list/related），
   `test/harness.html` 只留公共件与分发器（~200 行）；场景里加断言改 cases 文件，新增场景记得
   同步 `run-harness.mjs` 的 HARNESS_CASES（双向漏登记由 `test/check-cases.mjs` 拦截）。
-- `test/run-harness.mjs`——无头驱动：标 `serial: true` 的场景（时序判定敏感的帧间隔/冻结窗口类）
-  串行独占，其余两两并发（夹具计数按 `pid` 隔离）；`ONLY` 传未知名会直接报错退出。
+- `test/run-harness.mjs`——无头驱动：**全部场景同池并发**（0.9.203 起；默认 min(6, 核数/4)，
+  `HARNESS_CONC` 可覆盖；夹具计数按 `pid` 隔离），本机 20 核实测全场景约 **37s**（此前串行独占口径 2m11s）。
+  标 `serial: true` 的场景记录的是「曾被判定时序敏感」的老名单，现用 `HARNESS_SERIAL=1` 恢复独占分组做对照诊断；
+  `ONLY` 传未知名会直接报错退出，每行打印该场景耗时。
 - 依赖图、CHANGELOG、产物版本三者与代码的一致性由 `test/check-*.mjs` 静态保证（CI 必过）。
 
 #### 发布（Release）

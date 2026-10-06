@@ -13,6 +13,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
@@ -262,6 +263,7 @@ var failed = 0, ran = 0;
 async function runOne(c) {
   var skip = HEADLESS_SKIP.filter(function (s) { return s.name === c.name; })[0];
   if (skip) { console.log('SKIP ' + c.name + ' — ' + skip.reason); return; }
+  var t0 = Date.now();
 
   var page = await browser.newPage(c.viewport ? { viewport: c.viewport } : undefined);
   try {
@@ -270,37 +272,44 @@ async function runOne(c) {
       function (k) { return window[k] && window[k].done === true; },
       c.key,
       // 场景内部等窗均为有界等待，120s 足够；超时多半是场景脚本抛错（TEST 依赖与 bundle 不匹配）
-      { timeout: 120000, polling: 500 }
+      // 轮询 100ms（原 500ms）：done 置位后平均多等 250ms，56 个场景累计十几秒的纯空转
+      { timeout: 120000, polling: 100 }
     );
     var res = await page.evaluate(function (k) { return window[k]; }, c.key);
     ran++;
     var bad = res.results.filter(function (r) { return !r.pass; });
+    var dt = ((Date.now() - t0) / 1000).toFixed(1) + 's';
     if (bad.length) {
       failed++;
-      console.log('FAIL ' + c.name + '  (' + (res.results.length - bad.length) + '/' + res.results.length + ' 断言通过)');
+      console.log('FAIL ' + c.name + '  (' + (res.results.length - bad.length) + '/' + res.results.length + ' 断言通过, ' + dt + ')');
       bad.forEach(function (r) { console.log('     ✗ ' + r.name + (r.info ? '  (' + r.info + ')' : '')); });
     } else {
-      console.log('PASS ' + c.name + '  (' + res.results.length + ' 断言)');
+      console.log('PASS ' + c.name + '  (' + res.results.length + ' 断言, ' + dt + ')');
     }
   } catch (e) {
     failed++;
     ran++;
-    console.log('FAIL ' + c.name + '  (驱动层：' + e.message.split('\n')[0] + ')');
+    console.log('FAIL ' + c.name + '  (驱动层：' + e.message.split('\n')[0] + ', ' + ((Date.now() - t0) / 1000).toFixed(1) + 's)');
   } finally {
     await page.close();
   }
 }
 
-// 串行组先独占跑完（时序敏感：帧间隔/冻结窗口在解码争抢下会假红），再跑并行组（夹具
-// 计数已按 pid 隔离）。并发只影响耗时，不影响断言结果——验收要求连跑多次零失败（0.9.81）。
-// 并发度（0.9.197）：`HARNESS_CONC` 可调、默认 2。**实测**：本机 CPU 受限，并发 3（2m13s）与 2（2m18s）
-// 基本无差——提并发只增解码争抢、白担假红风险，故默认维持 2；要试再经环境变量调高。
-var CONC = Math.max(1, Number(process.env.HARNESS_CONC) || 2);
-var serialCases = CASES.filter(function (c) { return c.serial; });
-var parCases = CASES.filter(function (c) { return !c.serial; });
+// 并发策略（0.9.203 改）：**全部场景一个池**跑，默认并发按 CPU 数取。
+// 0.9.81 曾按 serial 标记把「时序敏感」场景编组串行独占（帧间隔/冻结窗口/冻结计数在解码争抢下会假红）——
+// 0.9.203 实测该顾虑在本机（20 核）不成立：全场景同池并发 4 **连跑 8 次 56/56 全绿**（43s/轮），
+// 并发 6 → 32s/轮亦绿。原串行组 33 个场景独自吃掉了 2m11s 的大头，而其中 watch-report(18s)/
+// stall-healthy(11s)/upd-open(7s) 本就是在等墙钟窗口，串行独占只是白等。
+// serial 标记**保留**（它记录了哪些场景曾被判定敏感）：`HARNESS_SERIAL=1` 恢复老口径独占分组，
+// 怀疑某场景假红时用它做对照诊断。
+// 并发度：`HARNESS_CONC` 覆盖；默认 min(6, max(2, 核数/4))——核少时自动退回 2，不吃满低配机。
+const ALL_PARALLEL = !process.env.HARNESS_SERIAL;
+var CONC = Math.max(1, Number(process.env.HARNESS_CONC) || Math.min(6, Math.max(2, Math.floor(os.cpus().length / 4))));
+var serialCases = ALL_PARALLEL ? [] : CASES.filter(function (c) { return c.serial; });
+var parCases = ALL_PARALLEL ? CASES : CASES.filter(function (c) { return !c.serial; });
 for (var i = 0; i < serialCases.length; i++) await runOne(serialCases[i]);
 if (parCases.length) {
-  console.log('[info] 并行组 ' + parCases.length + ' 个场景 × 并发 ' + CONC + '（时序敏感场景已串行独占）');
+  console.log('[info] 并发 ' + CONC + '（' + (ALL_PARALLEL ? '全场景同池' : '时序敏感场景串行独占') + '）');
   var pIdx = 0;
   await Promise.all(Array.from({ length: CONC }, async function () {
     while (pIdx < parCases.length) {
