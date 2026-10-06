@@ -9,6 +9,7 @@ import { getSetting, setSetting } from './settings.js';
 // 划动/键盘/控制栏/hooks 都读写它，跨模块传值不再依赖 player.js 闭包
 export var pb = {
   soundOn: false,        // 当前是否出声（localStorage 恢复，mount 时 resetForMount 刷新）
+  volume: 1,             // 音量真值 0~1（0.9.199；0 即静音，与 soundOn 联动）
   firstGestureSeen: false, // 是否已发生过用户手势（浏览器自动播放策略：首次交互才能出声）
   autoplayNext: false,   // 连播开关（关闭=单条循环）
   playRate: 1,           // 全局倍速
@@ -30,7 +31,33 @@ export function resetForMount() {
   pb.firstGestureSeen = false;
   pb.soundHintShown = false;
   pb.soundOn = getSetting('sound');
+  var v = Number(getSetting('vol'));
+  pb.volume = (v >= 0 && v <= 1) ? v : 1;
+  if (pb.volume === 0) pb.soundOn = false; // 音量为 0 即静音（两态联动，避免"开着声却没声"）
 }
+
+// 音量（0.9.199）：0~1 真值 + 与静音态的联动；控制栏竖条滑杆/静音键共用。
+// 拖起来（>0）= 取消静音；拖到底（0）= 静音。落盘走设置层（防抖），跨会话记住。
+export function setVolume(v) {
+  v = Math.min(1, Math.max(0, Number(v) || 0));
+  pb.volume = v;
+  setSetting('vol', v);
+  pb.soundOn = v > 0;
+  applyVolume();
+  refreshMuteIcons();
+}
+
+// 把当前音量/静音态落到所有 video（新建的由 player.initVideo 同步）
+export function applyVolume() {
+  if (!root) return;
+  Array.prototype.forEach.call(root.querySelectorAll('video'), function (v) {
+    v.volume = pb.volume;
+    v.muted = !pb.soundOn || pb.volume === 0;
+  });
+}
+
+// 当前是否"静音"（声音关 或 音量为 0）——图标与滑杆态的单一判据
+export function isMuted() { return !pb.soundOn || pb.volume === 0; }
 
 // 退出信息流时复位长按快进：恢复原速，否则倍速残留到下次进入
 export function cancelSeekHold() {
@@ -78,7 +105,8 @@ export function playVideo(video) {
 export function enableSound(video) {
   setSetting('sound', true);
   pb.soundOn = true;
-  if (video) { video.muted = false; video.volume = 1; playVideo(video); }
+  if (pb.volume === 0) { pb.volume = 1; setSetting('vol', 1); } // 音量被拖到 0 后开声：回到满音量
+  if (video) { video.muted = false; video.volume = pb.volume; playVideo(video); }
   refreshMuteIcons();
 }
 
@@ -156,8 +184,17 @@ export function showSoundHint(slide) {
 
 export function refreshMuteIcons() {
   if (!root) return;
-  var bs = root.querySelectorAll('.acsv-cmute');
-  Array.prototype.forEach.call(bs, function (b) {
-    b.innerHTML = pb.soundOn ? ICONS.volOn : ICONS.volOff;
+  var muted = isMuted();
+  Array.prototype.forEach.call(root.querySelectorAll('.acsv-cmute'), function (b) {
+    b.innerHTML = muted ? ICONS.volOff : ICONS.volOn;
+    b.classList.toggle('mute', muted); // 0.9.199：静音态可断言/可着色
+  });
+  // 竖条滑杆同步（0.9.199）：填充高、手柄位、数字——同一判据 pb.volume
+  var pct = Math.round(pb.volume * 100);
+  Array.prototype.forEach.call(root.querySelectorAll('.acsv-volslide'), function (s) {
+    var fill = s.querySelector('.voltrack i'), hd = s.querySelector('.voltrack b'), n = s.querySelector('.volnum');
+    if (fill) fill.style.height = pct + '%';
+    if (hd) { hd.style.bottom = pct + '%'; hd.style.display = pct > 0 ? '' : 'none'; }
+    if (n) n.textContent = String(pct);
   });
 }

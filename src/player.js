@@ -75,7 +75,8 @@ window.addEventListener('resize', function () {
 // 会话回接钩子：控件条/弹幕/连播/观看上报/挂源。播放态归 session.js，UI 编排留在这里
 var SESSION_HOOKS = {
   initVideo: function (session, video) {
-    video.muted = !pb.soundOn;
+    video.volume = pb.volume;                          // 0.9.199 音量真值（0 = 静音态）
+    video.muted = !pb.soundOn || pb.volume === 0;
     applyLoop(session.slide, video); // loop 落点单源（0.9.183，playback.applyLoop）
     video.playbackRate = pb.seekHold.active ? 2 : pb.playRate;
   },

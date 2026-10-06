@@ -33,6 +33,9 @@ export var SCHEMA = [
     label: '自动检查更新', hint: '关掉后不再自动拉取 release 说明（顶栏「更新」仍可手动看）' },
   { key: 'dmDefault', type: 'bool', def: true, panel: true, group: '播放',
     label: '弹幕默认开启', legacy: CFG.lsDm, hint: '立即生效' },
+  // 音量真值（0.9.199）：0~1；0 即静音（与 soundOn 联动）。控制栏竖条滑杆是它的唯一入口，
+  // 故不进设置面板（panel:false）——面板里做 0~1 的步进器没有意义
+  { key: 'vol', type: 'number', def: 1, min: 0, max: 1, panel: false, group: '播放', label: '音量' },
   { key: 'codec', type: 'select', def: CFG.codec.def, panel: true, group: '播放',
     label: '编码偏好', legacy: CFG.lsCodec, hint: '下次播放生效',
     // 选项文案与控制栏「编码」菜单同源（controls.js 同表），不另抄一份

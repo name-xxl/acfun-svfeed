@@ -3,7 +3,7 @@ import { ICONS, PLAYER_ICONS } from './styles.js';
 import { el, elHtml, toast, fmtTime, isCinema, toggleWebFull, toggleWindowFull, a11y, mountIcon } from './ui.js';
 import { root, scroller, slideAt, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js';
-import { pb, togglePlayGesture, toggleMuteGesture, applyLoop } from './playback.js';
+import { pb, togglePlayGesture, toggleMuteGesture, applyLoop, setVolume, isMuted } from './playback.js';
 import { dmEnabled, setDmEnabled, onPlaying as dmOnPlaying, createDmBox as dmCreateBox } from './danmaku.js';
 import { switchQuality, attachVideo } from './attach.js';
 import { getSetting, setSetting, onChange } from './settings.js';
@@ -143,12 +143,17 @@ export function buildControls(slide, idx, item) {
     '切换播放速度'
   );
 
-  var muteBtn = elHtml('button', 'acsv-cbtn acsv-cmute', pb.soundOn ? ICONS.volOn : ICONS.volOff);
-  a11y(muteBtn, '静音开关（M）');
+  // 音量（0.9.199 用户裁决「滑杆做成竖的」）：静音键 + hover 展开的**竖条**滑杆；
+  // 竖轨自下而上＝声音变大，拖到底=0＝静音（与静音键两态联动，判据 playback.isMuted）
+  var volWrap = el('span', 'acsv-volwrap');
+  var muteBtn = elHtml('button', 'acsv-cbtn acsv-cmute', isMuted() ? ICONS.volOff : ICONS.volOn);
+  a11y(muteBtn, '静音开关（M）· 悬停调节音量');
   muteBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
     toggleMuteGesture(videoOf());
   });
+  volWrap.appendChild(muteBtn);
+  volWrap.appendChild(buildVolSlide());
 
   // 两级全屏（0.9.197 用户裁决）：网页全屏＝隐自身 UI、画面铺满浏览器窗口；窗口全屏＝再进 OS 全屏。
   // F 键走同一梯子（常态→网页全屏→窗口全屏→常态，见 ui.toggleFullLadder）
@@ -286,7 +291,7 @@ export function buildControls(slide, idx, item) {
   if (bufWrap) row.appendChild(bufWrap);
   row.appendChild(autoBtn);
   row.appendChild(rateWrap);
-  row.appendChild(muteBtn);
+  row.appendChild(volWrap);
   row.appendChild(webBtn);
   row.appendChild(winBtn);
 
@@ -300,6 +305,34 @@ export function buildControls(slide, idx, item) {
   slide._ctlFill = fill;
   slide._ctlHandle = handle;
   slide._ctlTrack = track; // timeupdate 每帧要用，避免高频 querySelector
+  return box;
+}
+
+// 竖条音量滑杆（0.9.199）：hover 展开（CSS 控显隐）；拖动改 pb.volume（0 即静音，两态联动）。
+// 竖轨自下而上＝声音变大（原生同款语义）。指针捕获让拖出轨道也能继续调。
+function buildVolSlide() {
+  var box = el('div', 'acsv-volslide');
+  var track = el('div', 'voltrack');
+  track.appendChild(el('i'));
+  track.appendChild(el('b'));
+  box.appendChild(track);
+  box.appendChild(el('span', 'volnum', String(Math.round(pb.volume * 100))));
+  function ratioAt(ev) {
+    var r = track.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (r.bottom - ev.clientY) / r.height));
+  }
+  var dragging = false;
+  track.addEventListener('pointerdown', function (ev) {
+    dragging = true;
+    try { track.setPointerCapture(ev.pointerId); } catch (e) { }
+    setVolume(ratioAt(ev));
+    ev.preventDefault();
+    ev.stopPropagation();
+  });
+  track.addEventListener('pointermove', function (ev) { if (dragging) setVolume(ratioAt(ev)); });
+  track.addEventListener('pointerup', function () { dragging = false; });
+  track.addEventListener('pointercancel', function () { dragging = false; });
+  box.addEventListener('click', function (ev) { ev.stopPropagation(); }); // 别冒泡成 slide 点按
   return box;
 }
 

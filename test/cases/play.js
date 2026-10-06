@@ -247,6 +247,41 @@ rec('play-icon-swaps', !!(await waitFor(function () {
   return u && u !== uBefore;
 }, 4000)), 'before=' + uBefore.slice(0, 30) + ' after=' + ctlMaskU('.acsv-cplay').slice(0, 30));
 if (pb0) pb0.click(); // 切回，防污染后续
+// 0.9.199 音量竖条：结构（高远大于宽）+ 拖动改音量（自下而上）+ 拖到底=静音（与静音键两态联动）。
+// 滑杆平时 display:none（hover 展开），无头下不便 hover —— 测试期强制展开再量。
+(function () {
+  var s = q('.acsv-slide[data-ovl="1"] .acsv-volslide');
+  if (s) s.style.display = 'flex';
+})();
+function volTrack() { return q('.acsv-slide[data-ovl="1"] .acsv-volslide .voltrack'); }
+function ovlVideo() { return q('.acsv-slide[data-ovl="1"] video'); }
+function dragTo(ratio) { // ratio: 0=底 1=顶
+  var t = volTrack();
+  if (!t) return false;
+  var r = t.getBoundingClientRect();
+  var y = r.bottom - r.height * ratio;
+  t.dispatchEvent(new PointerEvent('pointerdown', { clientY: y, clientX: r.left + 2, bubbles: true }));
+  t.dispatchEvent(new PointerEvent('pointerup', { clientY: y, clientX: r.left + 2, bubbles: true }));
+  return true;
+}
+rec('vol-slider-vertical', (function () {
+  var t = volTrack();
+  if (!t) return false;
+  var r = t.getBoundingClientRect();
+  return r.height > r.width * 4;
+})(), (function () { var t = volTrack(); if (!t) return 'none'; var r = t.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height); })());
+dragTo(0.5);
+rec('vol-drag-mid', (function () {
+  var v = ovlVideo();
+  return !!v && Math.abs(v.volume - 0.5) < 0.12 && v.muted === false;
+})(), (function () { var v = ovlVideo(); return v ? 'vol=' + v.volume.toFixed(2) + ' muted=' + v.muted : 'no-video'; })());
+dragTo(0);
+rec('vol-zero-mutes', (function () {
+  var v = ovlVideo(), b = q('.acsv-slide[data-ovl="1"] .acsv-cmute');
+  return !!v && v.muted === true && !!b && b.classList.contains('mute');
+})(), (function () { var v = ovlVideo(); var b = q('.acsv-slide[data-ovl="1"] .acsv-cmute'); return (v ? 'muted=' + v.muted : 'no-video') + ' cls=' + (b ? b.className : 'none'); })());
+dragTo(1); // 复位到满音量（含取消静音），防污染后续
+(function () { var s = q('.acsv-slide[data-ovl="1"] .acsv-volslide'); if (s) s.style.display = ''; })();
 key('c');
 rec('play-key-comments-close', !!(await waitFor(function () {
   var r = q('#acsv-root');
