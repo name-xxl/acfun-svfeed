@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.212-debug
+// @version      0.9.213-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.212" : "",
+          ver: true ? "0.9.213" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -239,8 +239,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       releasePage: "https://github.com/name-xxl/acfun-svfeed/releases/latest"
     },
     // 滚动缓冲：当前条之后保持的余量（条数）；slimBehindAt=数据水位（背后 N 条外置瘦，0.9.165）；
-    // slideBelt=壳保留带（窗外 N 格 slide 换等高占位壳，0.9.165）
-    feed: { bufferSize: 4, slimBehindAt: 30, slideBelt: 6 },
+    // deepSlimAt=深带水位（背后 N 条外再清 desc 重字段——契约面字段保留，向上回滚简介区按
+    // 「无简介条目」既有形态渲染，0.9.213）；slideBelt=壳保留带（窗外 N 格 slide 换等高占位壳，0.9.165）
+    feed: { bufferSize: 4, slimBehindAt: 30, deepSlimAt: 120, slideBelt: 6 },
     homeFeedCfg: { count: 10 },
     page: { size: 10 },
     up: { maxChainPages: 20 },
@@ -2533,11 +2534,23 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       // 日期）全保留：上报去重/评论键/侧栏渲染都靠它们。连刷长会话的条目内存从线性涨变
       // O(水位)（0.9.15x 评估核实轮实锤：items 只增不减、每条挂 9 档 urls）。renderWindow
       // 每拍调用；_resolveP 在途与已瘦（urls 空）幂等跳过
+      //
+      // 深带二级水位（0.9.213 批⑨）：cur 背后 deepSlimAt 条之外再清 desc 重字段（唯一的长
+      // 文本载荷；其余契约面字段 id/title/cover/up/计数全保留——向上回滚 slide 重建不残缺，
+      // 跨深带回滚后简介区按「无简介条目」既有形态渲染）。seen{} 去重表**有意不动**（清了
+      // 会让随机流重复条目 re-introduce）；items 数组**绝不删元素**（data-idx/offsetTop 是
+      // 滚动定位的承重墙）。深带 ⊆ 一级带（deepSlimAt > slimBehindAt），先清载荷再清 desc
       slim: function(cur) {
         var lim = Math.min(cur - CFG.feed.slimBehindAt, this.items.length);
+        var deepLim = Math.min(cur - CFG.feed.deepSlimAt, lim);
         for (var i = 0; i < lim; i++) {
           var it = this.items[i];
-          if (!it || it._resolveP || !(it.urls && it.urls.length)) continue;
+          if (!it || it._resolveP) continue;
+          if (i < deepLim && it.desc) {
+            delete it.desc;
+            stat("feed.deepSlim");
+          }
+          if (!(it.urls && it.urls.length)) continue;
           it.urls = [];
           if (it.qualities) it.qualities = [];
           if ("_qualitiesAll" in it) it._qualitiesAll = null;
@@ -11769,7 +11782,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.212" : "");
+    return normVer(true ? "0.9.213" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -15036,7 +15049,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.212：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.213：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

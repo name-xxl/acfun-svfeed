@@ -59,11 +59,23 @@ function createFeedStore(env) {
     // 日期）全保留：上报去重/评论键/侧栏渲染都靠它们。连刷长会话的条目内存从线性涨变
     // O(水位)（0.9.15x 评估核实轮实锤：items 只增不减、每条挂 9 档 urls）。renderWindow
     // 每拍调用；_resolveP 在途与已瘦（urls 空）幂等跳过
+    //
+    // 深带二级水位（0.9.213 批⑨）：cur 背后 deepSlimAt 条之外再清 desc 重字段（唯一的长
+    // 文本载荷；其余契约面字段 id/title/cover/up/计数全保留——向上回滚 slide 重建不残缺，
+    // 跨深带回滚后简介区按「无简介条目」既有形态渲染）。seen{} 去重表**有意不动**（清了
+    // 会让随机流重复条目 re-introduce）；items 数组**绝不删元素**（data-idx/offsetTop 是
+    // 滚动定位的承重墙）。深带 ⊆ 一级带（deepSlimAt > slimBehindAt），先清载荷再清 desc
     slim: function (cur) {
       var lim = Math.min(cur - CFG.feed.slimBehindAt, this.items.length);
+      var deepLim = Math.min(cur - CFG.feed.deepSlimAt, lim);
       for (var i = 0; i < lim; i++) {
         var it = this.items[i];
-        if (!it || it._resolveP || !(it.urls && it.urls.length)) continue;
+        if (!it || it._resolveP) continue;
+        if (i < deepLim && it.desc) {
+          delete it.desc; // 深带：简介区文本不再保留（重建后按无简介形态渲染）
+          stat('feed.deepSlim');
+        }
+        if (!(it.urls && it.urls.length)) continue;
         it.urls = [];
         if (it.qualities) it.qualities = [];
         if ('_qualitiesAll' in it) it._qualitiesAll = null;

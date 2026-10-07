@@ -202,5 +202,7 @@ var back = TEST.call('feed');
 rec('slim-reresolve-on-return', !!(back.items[0] && back.items[0].hasUrls),
   'cur=' + cur() + ' it0=' + JSON.stringify(back.items[0])
   + ' 0to5=' + back.items.slice(0, 6).map(function (x) { return x.hasUrls ? 1 : 0; }).join(''));
+// 深带两级水位（0.9.213 批⑨）的带边界/不误伤不变式由 feedstore-slim.test.js 直采钉死
+//（sv 条目全链路不产 desc，本场景无判据——探针前提不成立，勿在此加 desc 断言）。
   };
 })();

@@ -144,8 +144,9 @@ export var CFG = {
     releasePage: 'https://github.com/name-xxl/acfun-svfeed/releases/latest'
   },
   // 滚动缓冲：当前条之后保持的余量（条数）；slimBehindAt=数据水位（背后 N 条外置瘦，0.9.165）；
-  // slideBelt=壳保留带（窗外 N 格 slide 换等高占位壳，0.9.165）
-  feed: { bufferSize: 4, slimBehindAt: 30, slideBelt: 6 },
+  // deepSlimAt=深带水位（背后 N 条外再清 desc 重字段——契约面字段保留，向上回滚简介区按
+  // 「无简介条目」既有形态渲染，0.9.213）；slideBelt=壳保留带（窗外 N 格 slide 换等高占位壳，0.9.165）
+  feed: { bufferSize: 4, slimBehindAt: 30, deepSlimAt: 120, slideBelt: 6 },
   homeFeedCfg: { count: 10 },
   page: { size: 10 },
   up: { maxChainPages: 20 }, // 空间页自动链式加载页数上限（防几千条 UP 无感轰炸几百个请求）
