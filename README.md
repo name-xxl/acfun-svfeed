@@ -372,7 +372,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `release.js` | 更新提示（0.9.60）：官方 releases.atom 拉取/解析纯函数（cmpVersion/normVer/parseRelAtom/latestEntry/decideUpd）+ 说明弹窗单例 + 红点；正文直接用 GitHub 官方渲染 HTML（elHtml 信任契约）；每次 mount 检查一次（60s 节流）、失败静默、unmount 显式拆监听 |
 | `overlay.js` | 浮层栈（0.9.61）：Esc 显式分支链的收拢（overlayOpen/Close/Top/IsOpen/Teardown，close 回调注册方自带、先出栈再调+异常隔离）；modal 键语义单监听承载（release/imgview capture 自关退役）；栈=显式状态（0.9.22 精神延续） |
 | `errbox.js` | 错误盒单源（0.9.184）：`errBox(host,msg,onRetry)`——文案 + 可选重试键、「点击先撤盒再重跑」出口纪律一处收口。收编 player.showLoadError（竖刷首屏/切源/深链）与 playlayer.buildErr（层内深链/网络）两份近乎同构的 `.acsv-errbox`；宿主差异（player 重试前 `FeedStore.reset()`+重挂 spinner）经 onRetry 回调注入，盒体不反向 import 宿主。**边界**：slide.js 的 `.acsv-errbox` 是构建期常驻、由 CSS `data-state` 驱动的结构件（重试走 stopPropagation+重挂，不撤盒），生命周期不同，有意不并入 |
-| `ubbtext.js` | UBB 纯文本投影族（0.9.119 自 data.js 下沉；**零依赖叶子**）：`ubbImText`/`ubbPlain`——把 UBB 方言投影成纯文本（私信/预览/分享摘要用），**契约层与预览层只碰纯逻辑**；渲染侧（表情/图片/@/引用）留在 `ubb.js`。消费方：panelitem（面板摘要）、momentbar（互动栏预览）、comments、immsg 族 |
+| `toastmsg.js` | 用户提示话术单源（0.9.212 批⑧）：重复话术与同构拼装收此一处（errNotLogin/errBanana/errImLogin/errImgTooBig/errSend/errLong）——改话术只动这里；长驻时长口径 = CFG.time.toastLong（原 imdrawer 两处裸 8000）。**边界**：出口仍是 ui.toast（原语/样式不动）；一次性、上下文强耦合的提示（「清晰度：1080P」等状态回显）有意不进来——映射表化是负价值；文案内容不改，只收出口 || `ubbtext.js` | UBB 纯文本投影族（0.9.119 自 data.js 下沉；**零依赖叶子**）：`ubbImText`/`ubbPlain`——把 UBB 方言投影成纯文本（私信/预览/分享摘要用），**契约层与预览层只碰纯逻辑**；渲染侧（表情/图片/@/引用）留在 `ubb.js`。消费方：panelitem（面板摘要）、momentbar（互动栏预览）、comments、immsg 族 |
 | `views.js` | 子视图框架（0.9.62；0.9.74 来源保活）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（注册表自 0.9.78 独立为 viewreg.js）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、**深界面（def.deep）来源链 + 来源视图挂起保活**（非 volatile：换类名 acsv-view-held + visibility 挂起，回来原位复原；同屏换参替换链顶）；卡面 kit 与点击出口注入缝自 0.9.109 拆出（→ cards.js，本模块只管编排） |
 | `cards.js` | 卡面 kit（0.9.109 自 views.js 拆出，逐字搬运零逻辑改动）：网格卡 gridCardOf / 行卡 rowOf / 资源横条 stripOf / 引用卡 quoteBlockOf / UP 卡 upCardOf / 计数行 statRowOf / 骨架 skeletonRows / 加载更多 moreBtn 单源；点击出口注入缝（setItemOpener/openPanelItem——**第二参=来源会话语境**（0.9.173），rowOf/gridCardOf 亦带可选 openCtx；setMomentOpener）——本模块不反向 import 播放层/详情面板。消费方：mypage/zone/searchview/followview/momentdetail/playlayer/jingxuanview |
 | `rowkit.js` | 动态行卡 kit（0.9.124 自 followview.js 拆出，逐字搬运零逻辑改动）：行卡（原生骨架四段）+ 九宫格/媒体分派 + 互动栏接线（momentbar）+ 行内评论控制器（宿主单例，teardown 归各视图）+ 列表级委托 wireRowList（落点经 onOpen 注入）；不 import 任何视图。消费方：followview 与 squareview（广场，0.9.126 起） ；**名字三色体系**（0.9.157：默认白 / 等级 1 红 / 等级 2 紫——`uplook.nameColorCss`（0.9.160 叶子出库）内联覆盖，与引用卡/详情面板同码；蓝只给正文链接） |
@@ -439,6 +439,7 @@ flowchart LR
     overlay["overlay.js（浮层栈）"]
     topbar["topbar.js（共享顶栏）"]
     ui["ui.js（el/esc/toast 工具）"]
+    toastmsg["toastmsg.js（用户提示话术单源·0.9.212）"]
     errbox["errbox.js（错误盒单源·浮出盒）"]
     styles["styles.js（CSS 常量）"]
     dbg["dbg.js（调试埋点）"]
@@ -526,7 +527,7 @@ flowchart LR
   imsend --> appapi & immsg
   sharepanel --> imsend & imgload
   imbadge --> imsend
-  imdrawer --> appapi & comments & emoticon & imbadge & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & ubb
+  imdrawer --> appapi & comments & emoticon & imbadge & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & toastmsg & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
   boot --> followview & imnative & jingxuanview & memberplaza & mypage & pagekind & player & playlayer & searchview & squareview & zone
@@ -539,7 +540,7 @@ flowchart LR
   memberplaza --> rowkit & squarefeed
   rowkit --> cards & comments & imgload & imgview & momentbar & sharepanel & uplook
   followstream --> appapi & feedctx & feedstore & followseen & momentapi & playitem & sidebar
-  momentbar --> banpop & imicons & immsg & interact & panelitem & styles & ubbtext & ui
+  momentbar --> banpop & imicons & immsg & interact & panelitem & styles & toastmsg & ubbtext & ui
   followbadge --> followstream & followseen & momentapi
   momentdetail --> comments & emoticon & imgload & imgview & sharepanel & momentbar & overlay & cards & uplook
   followbadge --> net & sidebar
@@ -549,14 +550,16 @@ flowchart LR
   searchview --> cards & grouppop & imgload & relationapi & searchfmt & searchhist & topbar & viewreg
   topbar --> searchhist
   input --> feedstore & overlay & pb & settings
-  comments --> appapi & commentkit & emoticon & imicons & imgview & immsg & reldrawer & sharepanel & inputbar & overlay & ubbtext
+  comments --> appapi & commentkit & emoticon & imicons & imgview & immsg & reldrawer & sharepanel & inputbar & overlay & toastmsg & ubbtext
   commentkit --> imicons & imgload & ubb & uplook
   interact --> appapi
   release --> overlay & settings
-  mypage --> appapi & cards & favapi & favpop & grouppop & imgload & imgurl & nameval & pickpop & relationapi & viewreg
+  mypage --> appapi & cards & favapi & favpop & grouppop & imgload & imgurl & nameval & pickpop & relationapi & toastmsg & viewreg
   relationapi --> appapi
   relatedapi --> imgurl & settings
   reldrawer --> imgload & imicons & relatedapi
+  danmaku --> toastmsg
+  banpop --> toastmsg
   channelapi --> cfg & net
   jingxuanview --> appapi & cards & channelapi & imicons & imgload & relatedapi & settings & viewreg
   grouppop --> nameval & pickpop & relationapi

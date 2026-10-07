@@ -1,6 +1,7 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { el, fmt, toast, spinner } from './ui.js';
+import { errNotLogin, errSend, errImgTooBig } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
 import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
 import { commentShareWire } from './immsg.js';
@@ -262,7 +263,7 @@ function toggleCommentLike(like) {
       // 恢复切换前状态的字形（on 是本次切换的目标态，故与乐观分支取值相反）
       like._g.textContent = on ? GLYPHS.feedLike : GLYPHS.feedLikeFill;
       like._n.textContent = fmt(c.likeCount || 0);
-      toast('操作失败（未登录？）');
+      errNotLogin();
     });
 }
 
@@ -488,7 +489,7 @@ function sendCurrent() {
       inputBar._busy = false;
       send.textContent = '发送';
       if (!r || !r.ok) {
-        toast('发送失败' + (r && r.msg ? '：' + r.msg : '（未登录？）'));
+        errSend('', r);
         return;
       }
       toast(replyTo ? '回复成功' : '评论成功');
@@ -534,7 +535,7 @@ function ensureCommentInput() {
       img: {
         title: '插入图片',
         onFile: function (f) {
-          if (f.size > CFG.comments.imgMax) { toast('图片不能超过 ' + Math.round(CFG.comments.imgMax / 1024 / 1024) + 'MB'); return; }
+          if (f.size > CFG.comments.imgMax) { errImgTooBig(Math.round(CFG.comments.imgMax / 1024 / 1024)); return; }
           bar.imgBtn.textContent = '上传中';
           uploadImage(f).then(function (url) {
             bar.imgBtn.innerHTML = ICONS.image;

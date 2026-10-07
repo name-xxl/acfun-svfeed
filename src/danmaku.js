@@ -1,6 +1,7 @@
 import { AppAPI } from './appapi.js';
 import { DmCanvas } from './dmcanvas.js';
 import { el, toast } from './ui.js';
+import { errSend } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
 import { getSetting, setSetting, onChange } from './settings.js';
 
 // ---------- 弹幕编排：拉取/缓存/开关/发送/输入框 ----------
@@ -121,7 +122,7 @@ export function createDmBox(item, videoOf) {
     AppAPI.danmakuAdd(item, text, at).then(function (r) {
       sending = false;
       if (!r || !r.ok) {
-        toast('弹幕发送失败' + (r && r.msg ? '：' + r.msg : '（未登录？）'));
+        errSend('弹幕', r);
         return;
       }
       toast('弹幕已发送');

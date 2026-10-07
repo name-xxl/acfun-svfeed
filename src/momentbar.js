@@ -6,6 +6,7 @@ import { toggleBananaPop } from './banpop.js';
 import { ubbPlain } from './ubbtext.js';
 import { commentShareWire } from './immsg.js';
 import { momentExtraOf } from './panelitem.js';
+import { errNotLogin } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
 
 // ---------- 动态互动栏（0.9.105 自 followview/momentdetail 收口共享） ----------
 // 两个消费面（行流卡 / 详情面板）此前各一套：键集不同（面板缺分享）、尺寸不同（48/42/12px
@@ -71,7 +72,7 @@ function wireLike(btn, pi) {
       pi.liked = !on; // 失败回滚（乐观值全退，rail 同款）
       pi.like += on ? -1 : 1;
       syncLike(btn, pi);
-      toast('操作失败（未登录？）');
+      errNotLogin();
     });
   });
 }

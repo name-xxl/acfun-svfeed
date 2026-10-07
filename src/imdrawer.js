@@ -24,6 +24,7 @@ import {
 } from './immsg.js';
 import { ICON_SVGS } from './imicons.js';
 import { AppAPI } from './appapi.js';
+import { errImLogin, errImgTooBig, errLong } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
 
 // ---------- 私信抽屉（抖音式：列表 + 聊天两视图） ----------
 // 数据面全部复用 imsend 已验证基础设施（补丁版 SDK / 连接 / 发送 / 头像）。
@@ -682,7 +683,7 @@ function sendImageMsg(file) {
   var targetId = chat && chat.targetId;
   if (!targetId) return;
   if (file.size > CFG.im.imgMax) {
-    toast('图片不能超过 ' + Math.round(CFG.im.imgMax / 1024 / 1024) + 'MB');
+    errImgTooBig(Math.round(CFG.im.imgMax / 1024 / 1024));
     return;
   }
   var localUrl = '';
@@ -721,7 +722,7 @@ function sendImageMsg(file) {
           sendImageMsg(file);
         });
       }
-      toast('图片发送失败：' + String((err && err.message) || '').slice(0, 120), 8000);
+      errLong('图片发送失败：' + String((err && err.message) || '').slice(0, 120));
     }
     ensureIm().then(function (inst) {
       return ensureConnected(inst).then(function () {
@@ -777,7 +778,7 @@ function sendChat(text) {
       });
     }
     // 消息确实没发出去：无论是否已切会话都提示（切会话场景不碰 DOM，只告知）
-    toast('发送失败：' + String((err && err.message) || '').slice(0, 120), 8000);
+    errLong('发送失败：' + String((err && err.message) || '').slice(0, 120));
   }
   ensureIm().then(function (inst) {
     return ensureConnected(inst).then(function () {
@@ -870,14 +871,14 @@ function openDrawerCore() {
   syncCommentVars(); // 复用评论抽屉的避让（视频平移缩放；0.9.73 起视图正文右缘收窄，见 styles.js）
 }
 export function openDrawer() {
-  if (!isLogined()) { toast('私信需要先登录 AcFun 账号'); return; }
+  if (!isLogined()) { errImLogin(); return; }
   ensureDrawerDom();
   prewarmIm(); // 首图提前换好 midground 令牌，进会话不等 token 往返
   openDrawerCore();
   showList();
 }
 export function openChat(targetId) {
-  if (!isLogined()) { toast('私信需要先登录 AcFun 账号'); return; }
+  if (!isLogined()) { errImLogin(); return; }
   ensureDrawerDom();
   prewarmIm(); // 同 openDrawer：分享面板直达会话也不等 token 往返
   openDrawerCore();

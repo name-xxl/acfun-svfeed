@@ -1,4 +1,5 @@
 import { el, toast, closeOnOutsideClick } from './ui.js';
+import { errBanana } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
 import { VIDEO_ICONS } from './styles.js';
 
 // ---------- 投蕉数量弹层（0.9.104 自 rail 抽出共享） ----------
@@ -38,10 +39,10 @@ export function toggleBananaPop(btn, opts) {
           if (opts.applied) opts.applied(n);
           toast('投出 ' + n + ' 根香蕉');
         } else {
-          toast('投蕉失败（未登录或今日已投完？）');
+          errBanana();
         }
       }, function () {
-        toast('投蕉失败（未登录或今日已投完？）');
+        errBanana();
       });
     });
     opts5.push(ob);

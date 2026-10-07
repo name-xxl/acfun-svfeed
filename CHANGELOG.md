@@ -3,7 +3,20 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
-### 0.9.211（2026-10-07）· 批⑦：视图态 pi 投影收编 panelitem（viewPiOf 单源）
+### 0.9.212（2026-10-07）· 批⑧：用户提示话术单源（toastmsg）+ 长驻时长收口
+
+- **由头**：0.9.209 工程评估第⑧条——toast 出口虽单源（ui.toast），但「什么错弹什么话」
+  散落各域：同串多处（『操作失败（未登录？）』×3、『投蕉失败（未登录或今日已投完？）』×2、
+  『私信需要先登录 AcFun 账号』×2）、同构拼装两处（『发送失败：msg/（未登录？）』评论与
+  弹幕各写一遍）、长驻时长裸数字（imdrawer 两处 8000，其余恒默认 1800）。
+- **修法**：新基建件 `src/toastmsg.js`（依赖 ui+cfg，零 DOM）——errNotLogin/errBanana/
+  errImLogin/errImgTooBig/errSend/errLong 六个出口，六域 11 处替换（comments/banpop/
+  danmaku/momentbar/mypage/imdrawer）；长驻口径收 `CFG.time.toastLong=8000`（cfg=
+  常量唯一来源惯例，时长不另设第二真相源）。**纪律**：文案内容零改动、只收出口；一次性
+  上下文强耦合的提示（状态回显类）有意不进来——判定口径「同串或同构 ≥2 处才收编」。
+- **测试**：build/lint/check（check-deps 补 toastmsg 节点+6 条消费边）/单测 293/harness
+  56 场景全绿——comment-fail 场景钉的失败提示文案不动即绿=话术零变化。
+
 
 - **由头**：0.9.209 工程评估第⑦条——searchview（视频卡 + UP 卡最近作品两处）与
   jingxuanview（piOfVm）各自手拼面板 pi（kind 手盖章、acId 无守卫、字段面靠约定），
@@ -21,6 +34,8 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 - **测试**：contract.test.js 增契约⑤（投影行为 + 产出键 ⊆ ITEM_FIELDS.panel 白名单），
   单测 292→293；harness 56 场景全绿（view-search/jingxuan 相关断言不动即绿=行为零变化）。
   README panelitem 行同步。
+
+### 0.9.211（2026-10-07）· 批⑦：视图态 pi 投影收编 panelitem（viewPiOf 单源）
 
 ### 0.9.210（2026-10-07）· playlayer 拆件收尾（playstate/levelstack）+ 两处编排重复收口
 

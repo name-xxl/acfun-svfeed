@@ -12,6 +12,7 @@ import { openFollowGroupPop } from './grouppop.js';
 import { openConfirmPop } from './pickpop.js';
 import { folderList, folderAdd, folderRename, folderDelete, favRemove, favList } from './favapi.js';
 import { openFavFolderPop } from './favpop.js';
+import { errNotLogin } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
 
 // ---------- 我的视图（0.9.62 起；0.9.69 抖音式个人主页改造）----------
 // 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（观看历史｜收藏夹｜**关注分组**，0.9.142 加第三个）→ 4:3 封面网格。
@@ -549,7 +550,7 @@ function buildFollowGroups(panel) {
       un.textContent = '…';
       unfollowUser(u.id).then(function (ok) {
         un._busy = false;
-        if (!ok) { un.textContent = '取关'; toast('操作失败（未登录？）'); return; }
+        if (!ok) { un.textContent = '取关'; errNotLogin(); return; }
         toast('已取消关注 @' + u.name);
         row.remove();
         if (!ctx.list.querySelector('.acsv-grow')) ctx.list.appendChild(el('div', 'acsv-vempty', '还没有关注'));

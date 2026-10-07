@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.211-debug
+// @version      0.9.212-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.211" : "",
+          ver: true ? "0.9.212" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -314,6 +314,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       // 长按右键进入 2x 的阈值
       toast: 1800,
       // toast 停留
+      toastLong: 8e3,
+      // toast 长驻（失败+动态归因详情——0.9.212 自 imdrawer 两处裸数字收口）
       xhr: 15e3,
       // XHR 超时
       gm: 2e4,
@@ -2664,6 +2666,26 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       })
     };
   });
+
+  // src/toastmsg.js
+  function errNotLogin() {
+    toast("操作失败（未登录？）");
+  }
+  function errBanana() {
+    toast("投蕉失败（未登录或今日已投完？）");
+  }
+  function errImLogin() {
+    toast("私信需要先登录 AcFun 账号");
+  }
+  function errImgTooBig(mb) {
+    toast("图片不能超过 " + mb + "MB");
+  }
+  function errSend(what, r) {
+    toast(what + "发送失败" + (r && r.msg ? "：" + r.msg : "（未登录？）"));
+  }
+  function errLong(msg) {
+    toast(msg, CFG.time.toastLong);
+  }
 
   // src/imicons.js
   var ICON_SVGS = {
@@ -5960,7 +5982,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       like.classList.toggle("on", !on);
       like._g.textContent = on ? GLYPHS.feedLike : GLYPHS.feedLikeFill;
       like._n.textContent = fmt(c.likeCount || 0);
-      toast("操作失败（未登录？）");
+      errNotLogin();
     });
   }
   function commentListClick(ev) {
@@ -6134,7 +6156,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       inputBar._busy = false;
       send.textContent = "发送";
       if (!r || !r.ok) {
-        toast("发送失败" + (r && r.msg ? "：" + r.msg : "（未登录？）"));
+        errSend("", r);
         return;
       }
       toast(replyTo ? "回复成功" : "评论成功");
@@ -6173,7 +6195,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           title: "插入图片",
           onFile: function(f) {
             if (f.size > CFG.comments.imgMax) {
-              toast("图片不能超过 " + Math.round(CFG.comments.imgMax / 1024 / 1024) + "MB");
+              errImgTooBig(Math.round(CFG.comments.imgMax / 1024 / 1024));
               return;
             }
             bar.imgBtn.textContent = "上传中";
@@ -6813,7 +6835,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       AppAPI.danmakuAdd(item, text, at).then(function(r) {
         sending = false;
         if (!r || !r.ok) {
-          toast("弹幕发送失败" + (r && r.msg ? "：" + r.msg : "（未登录？）"));
+          errSend("弹幕", r);
           return;
         }
         toast("弹幕已发送");
@@ -10135,10 +10157,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
             if (opts.applied) opts.applied(n2);
             toast("投出 " + n2 + " 根香蕉");
           } else {
-            toast("投蕉失败（未登录或今日已投完？）");
+            errBanana();
           }
         }, function() {
-          toast("投蕉失败（未登录或今日已投完？）");
+          errBanana();
         });
       });
       opts5.push(ob);
@@ -11442,7 +11464,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var targetId = chat && chat.targetId;
     if (!targetId) return;
     if (file.size > CFG.im.imgMax) {
-      toast("图片不能超过 " + Math.round(CFG.im.imgMax / 1024 / 1024) + "MB");
+      errImgTooBig(Math.round(CFG.im.imgMax / 1024 / 1024));
       return;
     }
     var localUrl = "";
@@ -11491,7 +11513,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
             sendImageMsg(file);
           });
         }
-        toast("图片发送失败：" + String(err && err.message || "").slice(0, 120), 8e3);
+        errLong("图片发送失败：" + String(err && err.message || "").slice(0, 120));
       }
       ensureIm().then(function(inst) {
         return ensureConnected(inst).then(function() {
@@ -11549,7 +11571,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           drawer.input.focus();
         });
       }
-      toast("发送失败：" + String(err && err.message || "").slice(0, 120), 8e3);
+      errLong("发送失败：" + String(err && err.message || "").slice(0, 120));
     }
     ensureIm().then(function(inst) {
       return ensureConnected(inst).then(function() {
@@ -11629,7 +11651,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   }
   function openDrawer() {
     if (!isLogined()) {
-      toast("私信需要先登录 AcFun 账号");
+      errImLogin();
       return;
     }
     ensureDrawerDom();
@@ -11639,7 +11661,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   }
   function openChat(targetId) {
     if (!isLogined()) {
-      toast("私信需要先登录 AcFun 账号");
+      errImLogin();
       return;
     }
     ensureDrawerDom();
@@ -11747,7 +11769,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.211" : "");
+    return normVer(true ? "0.9.212" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -14303,7 +14325,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         pi.liked = !on;
         pi.like += on ? -1 : 1;
         syncLike(btn, pi);
-        toast("操作失败（未登录？）");
+        errNotLogin();
       });
     });
   }
@@ -15014,7 +15036,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.211：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.212：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -15963,7 +15985,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           un._busy = false;
           if (!ok) {
             un.textContent = "取关";
-            toast("操作失败（未登录？）");
+            errNotLogin();
             return;
           }
           toast("已取消关注 @" + u.name);

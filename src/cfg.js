@@ -198,6 +198,7 @@ export var CFG = {
     ctlIdle: 2500,      // 控制栏闲置隐藏
     hold: 350,          // 长按右键进入 2x 的阈值
     toast: 1800,        // toast 停留
+    toastLong: 8000,    // toast 长驻（失败+动态归因详情——0.9.212 自 imdrawer 两处裸数字收口）
     xhr: 15000,         // XHR 超时
     gm: 20000,          // GM 请求超时
     chainGap: 30,       // 空间页链式加载间隔
