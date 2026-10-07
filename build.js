@@ -12,19 +12,24 @@ import fs from 'fs';
 var V = JSON.parse(fs.readFileSync('./package.json', 'utf8')).version;
 
 // 内嵌 hls.js（npm 依赖，构建时读取）：0.9.164 起以**字符串字面量**内嵌（window.__ACSV_HLS_SRC__），
-// 运行时首个 m3u8 挂载前才由 ensureHls new Function 编译执行——页面加载不再编译整份 ~415KB
+// 运行时首个 m3u8 挂载前才由 ensureHls new Function 编译执行——页面加载不再编译整份库
 //（非竖刷页：原生页注入/动态/空间…这些用不到 hls 的会话照付全额编译，是低配机最大固定成本）。
 // 0.9.14 的「运行时零网络依赖」目标不变：CDN 逐源兜底仍在，串缺失/损坏时自动接管。
 // 缘起：jsdelivr/npmmirror 在部分用户网络均不可达（attach.cdnFail 实测），
 // CDN 兜底永远拉不到 hls.js，推荐流被迫走浏览器原生 HLS 管线。
+// 0.9.209 起**内嵌 light 版**（hls.light.min.js，296KB vs 完整版 415KB）：light 砍掉备用音轨/
+// 字幕轨/EME(DRM)，本脚本全用不到；ABR 与手动档位（levels/currentLevel）属核心不受影响，
+// 且 session.js 恒锁最高档禁 ABR。用到的 API 面经 grep 全量核对（0.9.209 批⑤）。
+// 字幕边界：light 不含 hls.js 内嵌字幕轨族；未来字幕方向=AI ASR 实时字幕（用户 2026-10-07
+// 预告）——取视频音频流（Web Audio）走语音识别，不经 hls 字幕轨，light 不受影响。
 var hlsInline = '';
 try {
   hlsInline = '\n// ==== vendored hls.js@' + (JSON.parse(fs.readFileSync('./node_modules/hls.js/package.json', 'utf8')).version)
-    + '（构建时内嵌为字符串，首次 ensureHls 再编译——勿手改；npm i hls.js 后重新构建） ====\n'
-    + 'window.__ACSV_HLS_SRC__ = ' + JSON.stringify(fs.readFileSync('node_modules/hls.js/dist/hls.min.js', 'utf8'))
+    + '（light 版，构建时内嵌为字符串，首次 ensureHls 再编译——勿手改；npm i hls.js 后重新构建） ====\n'
+    + 'window.__ACSV_HLS_SRC__ = ' + JSON.stringify(fs.readFileSync('node_modules/hls.js/dist/hls.light.min.js', 'utf8'))
       .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029') + ';\n';
 } catch (e) {
-  console.warn('[warn] 未找到 node_modules/hls.js/dist/hls.min.js，跳过内嵌（运行时走 CDN 兜底列表）');
+  console.warn('[warn] 未找到 node_modules/hls.js/dist/hls.light.min.js，跳过内嵌（运行时走 CDN 兜底列表）');
 }
 
 function userscriptHeader(debug) {

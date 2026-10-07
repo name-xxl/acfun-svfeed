@@ -22,7 +22,7 @@
   C['hls-lazy'] = async function (h) {
     var rec = h.rec;
     var srcLen = (window.__ACSV_HLS_SRC__ || '').length;
-    rec('hls-src-embedded', srcLen > 300000, 'len=' + srcLen); // hls.min.js 实测 415,253 字节（转义后 ~421K）
+    rec('hls-src-embedded', srcLen > 250000, 'len=' + srcLen); // 0.9.209 起内嵌 light 版（296,762 字节；旧完整版 415,253）
     rec('hls-not-parsed-on-load', !(window.Hls && window.Hls.isSupported));
     var hook = window.__ACSV_TEST__.call('hls');
     rec('hls-hook-idle', !!hook && !hook.ready());

@@ -3,6 +3,23 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.209（2026-10-07）· 工程减债两则：内嵌 hls.js 换 light 版 + postForm 失败口径对齐 net 层
+
+- **⑤ 内嵌 hls.js 换 light 版**：build.js 内嵌源 `hls.min.js`（415KB）→ `hls.light.min.js`（297KB），
+  双产物各减 ~118KB。light 砍掉的是备用音轨/字幕轨/EME(DRM)——本脚本用到的 API 面
+  （`isSupported/attachMedia/loadSource/on/levels/currentLevel/levelCodec/recoverMediaError/destroy`
+  + 缓冲配置族）经 grep 全量核对全在 light 核心射程；ABR 与手动档位不受影响，且 session.js
+  本就恒锁最高档禁 ABR。字幕边界已记注释：未来字幕方向=AI ASR 实时字幕（走音频流自识别，
+  不经 hls 字幕轨），light 不受影响。随动：hls-lazy 场景 `hls-src-embedded` 断言阈值
+  300000→250000（原值是「内嵌串在场非空壳」下限，light 296,762 过旧线 1 千余，按新实况收口）。
+- **⑥ postForm 失败口径对齐 net 层**：appapi.postForm 此前不查 HTTP 状态码——非 200 的
+  HTML 错误页死在 `r.json()` 抛 SyntaxError，归因不明；且绕过 `net.js countFail`，
+  `stat('net.fail')` 会话失败计数不罩这条通道。修法：非 2xx 抛 `Error('http-<status>')`，
+  全链失败（网络/状态/解析）计入 `net.fail`；mock 命中不计（对齐 request 语义）。
+  全消费点（favapi/relationapi/interact/imsend/mypage/zone + appapi 域内）grep 核对：
+  均为 `.then(j=>…)` 两参式，错误形态收窄兼容。
+- **测试**：build/lint/check（含 tsc）/单测 / 全场景 harness 全绿（跑数见提交信息）。
+
 ### 0.9.208（2026-10-07）· 播放层的网页全屏也要铺满（0.9.202 那次只修了竖刷流）
 
 - **由头**：用户实机「playlayer 的网页全屏没修复」+ 截图（`#svfeed/play/a/...`）。

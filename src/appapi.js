@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
 import { request, mockHit } from './net.js';
+import { stat } from './dbg.js';
 import { singleFlight } from './ui.js';
 import { normalizeHome, foldBr } from './playitem.js';
 import { fmtDate } from './timefmt.js';
@@ -60,7 +61,10 @@ function q(extra) {
 // 同域（www.acfun.cn）表单 POST 走原生 fetch：携带完整 Cookie/Referer/Sec-Fetch 指纹。
 // 写操作（发弹幕/发评论）若经 GM_xmlhttpRequest 桥接会被风控判定为不可信设备
 // （返回「需要开启账号保护才能扫描二维码登录」），必须与动态广场一样用页面内 fetch。
-// 全项目的表单 POST 统一走这里（token/interact/follow 等写接口同语义），勿再内联 fetch
+// 全项目的表单 POST 统一走这里（token/interact/follow 等写接口同语义），勿再内联 fetch。
+// 失败口径对齐 net.js countFail（0.9.209 批⑥）：非 2xx 抛 http-<status>（此前非 200 的
+// HTML 错误页死在 r.json() 的 SyntaxError，归因不明），全链失败计入 stat('net.fail')；
+// mock 命中不计（对齐 request 的 mock 语义——它对调用方就是一次成功请求）
 export function postForm(url, body) {
   var mocked = mockHit(url, body);
   if (mocked) return mocked;
@@ -69,7 +73,13 @@ export function postForm(url, body) {
     credentials: 'include',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body
-  }).then(function (r) { return r.json(); });
+  }).then(function (r) {
+    if (r.status < 200 || r.status >= 300) throw new Error('http-' + r.status);
+    return r.json();
+  }).catch(function (e) {
+    stat('net.fail');
+    throw e;
+  });
 }
 
 // 推荐流聚合块 → 视频卡片（轮播图 carousels 与非视频卡丢弃）。单列精选 singleColumn 与旧
