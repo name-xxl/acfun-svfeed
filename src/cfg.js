@@ -197,6 +197,7 @@ export var CFG = {
   },
   time: {
     ctlIdle: 2500,      // 控制栏闲置隐藏
+    volHide: 350,       // 音量滑杆 hover 断开后延时关闭（跨过静音键→滑杆间的定位死区）
     hold: 350,          // 长按右键进入 2x 的阈值
     toast: 1800,        // toast 停留
     toastLong: 8000,    // toast 长驻（失败+动态归因详情——0.9.212 自 imdrawer 两处裸数字收口）

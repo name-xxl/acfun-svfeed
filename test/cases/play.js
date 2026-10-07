@@ -378,7 +378,7 @@ rec('play-icon-swaps', !!(await waitFor(function () {
 }, 4000)), 'before=' + uBefore.slice(0, 30) + ' after=' + ctlMaskU('.acsv-cplay').slice(0, 30));
 if (pb0) pb0.click(); // 切回，防污染后续
 // 0.9.199 音量竖条：结构（高远大于宽）+ 拖动改音量（自下而上）+ 拖到底=静音（与静音键两态联动）。
-// 滑杆平时 display:none（hover 展开），无头下不便 hover —— 测试期强制展开再量。
+// 滑杆平时 display:none（0.9.215 起 JS 悬停展开），无头下不便 hover —— 测试期强制展开再量。
 (function () {
   var s = q('.acsv-slide[data-ovl="1"] .acsv-volslide');
   if (s) s.style.display = 'flex';
@@ -412,6 +412,56 @@ rec('vol-zero-mutes', (function () {
 })(), (function () { var v = ovlVideo(); var b = q('.acsv-slide[data-ovl="1"] .acsv-cmute'); return (v ? 'muted=' + v.muted : 'no-video') + ' cls=' + (b ? b.className : 'none'); })());
 dragTo(1); // 复位到满音量（含取消静音），防污染后续
 (function () { var s = q('.acsv-slide[data-ovl="1"] .acsv-volslide'); if (s) s.style.display = ''; })();
+// 0.9.215 音量条显隐收归 JS（用户实报「音量调不好、不常驻」）：enter 即开 / leave 延时
+// volHide(350) 才关（键→杆 6px 死区在延时窗内穿过）/ 开期间控制栏闲置保活（showControls 认
+// slide._volOpen）。钉三不变式：开 → 越过 ctlIdle(2500) 栏不隐 → leave 后先仍在、后才收
+var volWrapEl = q('.acsv-slide[data-ovl="1"] .acsv-volwrap');
+var ovlSlideEl = q('.acsv-slide[data-ovl="1"]');
+volWrapEl.dispatchEvent(new PointerEvent('pointerenter'));
+rec('vol-open-on-enter', (function () {
+  var s = q('.acsv-slide[data-ovl="1"] .acsv-volslide');
+  return !!s && s.style.display === 'flex';
+})(), (function () { var s = q('.acsv-slide[data-ovl="1"] .acsv-volslide'); return s ? 'disp=' + (s.style.display || 'css') : 'no-slide'; })());
+await wait(2700); // 越过 ctlIdle(2500) 且全程无 mousemove
+rec('vol-open-keeps-controls', (function () {
+  var v = ovlVideo(), s = q('.acsv-slide[data-ovl="1"] .acsv-volslide');
+  // 视频须在播（否则闲置隐藏本就不触发，断言无意义）；栏与滑杆都必须还在
+  return !!v && !v.paused && ovlSlideEl.dataset.ctl === '1' && !!s && s.style.display === 'flex';
+})(), (function () {
+  var v = ovlVideo();
+  return 'paused=' + (v && v.paused) + ' ctl=' + JSON.stringify(ovlSlideEl.dataset.ctl);
+})());
+volWrapEl.dispatchEvent(new PointerEvent('pointerleave'));
+await wait(150); // 延时窗内：必须仍在（死区穿越靠这口气）
+rec('vol-hide-delayed', (function () {
+  var s = q('.acsv-slide[data-ovl="1"] .acsv-volslide');
+  return !!s && s.style.display === 'flex';
+})(), (function () { var s = q('.acsv-slide[data-ovl="1"] .acsv-volslide'); return s ? 'disp=' + (s.style.display || 'css') : 'no-slide'; })());
+rec('vol-hidden-after-delay', !!(await waitFor(function () {
+  var s = q('.acsv-slide[data-ovl="1"] .acsv-volslide');
+  return s && s.style.display !== 'flex';
+}, 1500)), (function () { var s = q('.acsv-slide[data-ovl="1"] .acsv-volslide'); return s ? 'disp=' + (s.style.display || 'css') : 'no-slide'; })());
+// 0.9.215 悬停滚轮调音量：±5%/格；preventDefault+stopPropagation 双拦层内翻条手势
+// （playgest 的 wheel 绑在层体上）——断言事件被吞 + 视频节点没被换掉（翻条会换节点）
+var volVideoBefore = ovlVideo();
+var wheelDown = new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true });
+volWrapEl.dispatchEvent(wheelDown);
+rec('vol-wheel-down', (function () {
+  var v = ovlVideo();
+  return !!v && Math.abs(v.volume - 0.95) < 0.01 && wheelDown.defaultPrevented === true && v === volVideoBefore;
+})(), (function () { var v = ovlVideo(); return (v ? 'vol=' + v.volume.toFixed(3) : 'no-video') + ' prevented=' + wheelDown.defaultPrevented + ' sameNode=' + (v === volVideoBefore); })());
+var wheelUp = new WheelEvent('wheel', { deltaY: -120, bubbles: true, cancelable: true });
+volWrapEl.dispatchEvent(wheelUp);
+rec('vol-wheel-up', (function () {
+  var v = ovlVideo();
+  return !!v && Math.abs(v.volume - 1) < 0.01 && wheelUp.defaultPrevented === true;
+})(), (function () { var v = ovlVideo(); return v ? 'vol=' + v.volume.toFixed(3) : 'no-video'; })());
+// 滚轮也经 volOpen 开了滑杆：收掉防污染后续
+volWrapEl.dispatchEvent(new PointerEvent('pointerleave'));
+await waitFor(function () {
+  var s = q('.acsv-slide[data-ovl="1"] .acsv-volslide');
+  return s && s.style.display !== 'flex';
+}, 1500);
 // 0.9.200 画中画：底栏有 PiP 键，且**支持门控**正确（pictureInPictureEnabled=false 时不显示）。
 // 真实进出 PiP 需要用户激活 + 系统合成器，无头环境不可靠，故只钉按钮与门控
 rec('pip-btn', (function () {

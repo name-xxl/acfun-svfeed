@@ -20,6 +20,7 @@ import { setSetting } from './settings.js';
 //   _ctlTimer/_ctlTime/_ctlPlayBtn/_ctlFill/_ctlHandle/_ctlTrack/_qBtn
 //                控制栏元素引用 写: controls.js(buildControls/showControls) 读: controls、player(SESSION_HOOKS);
 //                _qBtn 的档位文本另由 attach(switchQuality)/rail(onHomeResolved) 写 textContent
+//   _volOpen     音量滑杆开着  写: controls.js(volOpen/volScheduleHide，0.9.215) 读: showControls（开着则闲置保活）
 //   _dmLayer     弹幕图层    写/读: danmaku.js(onPlaying 建/本地弹幕);stop: controls(开关)/player(窗口扫描);session.js dispose 销毁
 //   （_watchTimer 首报兜底定时器已删：0.9.87 起 pause 即报 + pagehide 直发接管其职责）
 //   _likeSync/_favSync/_banSync/_cmtSync/_shareSync/_followSync

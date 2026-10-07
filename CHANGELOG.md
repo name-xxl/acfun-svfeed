@@ -3,6 +3,31 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.215（2026-10-07）· 音量条显隐修复（延时关闭+悬停保活）+ 悬停滚轮调音量
+
+- **由头**：用户实报「音量调不好调节，好像不会常驻」。复核代码实证三病灶：① 滑杆显隐是
+  纯 CSS `:hover`（`display:none↔flex` 瞬切零缓冲），且滑杆 `bottom:38px` 与静音键（高
+  32px）之间有 **6px hover 死区**——鼠标从键上够滑杆必断 hover，滑杆当场消失；② 控制栏
+  闲置 2500ms 隐藏只认 mousemove，静止悬停音量区 2.5s 整条栏连滑杆一起 `visibility:hidden`；
+  ③ 调节通道单一：唯一入口是 hover 出一条 4px 宽竖轨，无滚轮/键盘备用通道。
+- **修法**（纯行为修正，滑杆视觉形态零变化）：
+  - **显隐收归 JS**（styles 删 `:hover` 展开行，显隐单源）：volwrap `pointerenter` 即开、
+    `pointerleave` 延时 `CFG.time.volHide`(350ms) 才关——6px 死区在延时窗内穿过、进入滑杆
+    即重新 enter 取消关闭；
+  - **悬停保活**：开/关置 `slide._volOpen`（attach 契约表已登记），`showControls` 闲置回调
+    见 `_volOpen` 则重排计时而非隐藏（与弹幕设置面板「不随闲置隐藏」先例同口径）；volOpen
+    顺带 showControls，悬停音量区本身算活跃；
+  - **悬停滚轮调音量**：滚轮一格 ±5%，走 `setVolume`（填充/手柄/数字/静音图标自动联动）；
+    `preventDefault+stopPropagation` 双拦 playgest 层内翻条 wheel 手势，不拦会边调边翻条。
+- **有意不做**：键盘 ↑↓ 调音量（用户未选）；滑杆尺寸/位置零改动；设置面板仍不加音量入口
+  （0.9.198 裁决 `panel:false` 维持）。
+- **测试**：play-deep 增 6 钉子——enter 即开 / 开期间越过 ctlIdle(2500) 无 mousemove 栏不隐
+  （要求视频在播，否则断言无意义）/ leave 后 150ms 仍在 / 过后收掉 / 滚轮下一格 1→0.95 且
+  事件被吞且视频节点未换（未翻条）/ 滚轮上一格回 1。harness 56 场景全绿（play-deep 85 断言）。
+  **反跑证据**：`git checkout -- src` 还原病灶重建 → 5 钉转红（vol-open-on-enter/
+  vol-open-keeps-controls[ctl=""]/vol-hide-delayed/vol-wheel-down/vol-wheel-up）；
+  vol-hidden-after-delay 病灶下假绿属串联断言的正常伴随（滑杆从未开过）。
+
 ### 0.9.214（2026-10-07）· 审计修复：↑ 在途误弹「已经是第一条」+ 文档收口
 
 - **由头**：提交前子代理审计（299443e..HEAD 全区间逐函数比对）发现的唯一行为偏差：0.9.210

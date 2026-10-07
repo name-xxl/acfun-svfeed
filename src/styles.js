@@ -124,13 +124,14 @@ var RAW_CSS = ''
   + '.acsv-descm{display:inline-block;margin-top:3px;font-size:12px;color:#cfd3da;opacity:.85;cursor:pointer;'
   + 'text-decoration:none;text-shadow:0 1px 3px rgba(0,0,0,.6)}'
   + '.acsv-descm:hover{opacity:1;text-decoration:underline}'
-  // 音量：静音键 + hover 展开的**竖条**滑杆（0.9.199 用户裁决「做成竖的」）。
-  // 竖轨自下而上＝声音变大；填充/手柄/数字由 playback.refreshMuteIcons 按 pb.volume 同步
+  // 音量：静音键 + 悬停展开的**竖条**滑杆（0.9.199 用户裁决「做成竖的」）。
+  // 竖轨自下而上＝声音变大；填充/手柄/数字由 playback.refreshMuteIcons 按 pb.volume 同步。
+  // 显隐 0.9.215 起收归 JS（controls 的 pointerenter/leave + 延时关闭）：纯 CSS :hover 在
+  // 静音键（高 32px）与滑杆（bottom:38px）之间有 6px 死区，上够滑杆必断 hover 瞬隐
   + '.acsv-volwrap{position:relative;display:inline-flex;align-items:center}'
   + '.acsv-volslide{position:absolute;bottom:38px;left:50%;transform:translateX(-50%);width:36px;padding:10px 0 8px;'
   + 'background:rgba(22,22,27,.96);border:1px solid rgba(255,255,255,.14);border-radius:8px;z-index:9;'
   + 'display:none;flex-direction:column;align-items:center}'
-  + '.acsv-volwrap:hover .acsv-volslide{display:flex}'
   + '.voltrack{width:4px;height:84px;border-radius:2px;background:rgba(255,255,255,.24);position:relative;cursor:pointer}'
   + '.voltrack i{position:absolute;left:0;right:0;bottom:0;border-radius:2px;background:var(--acsv-accent)}'
   + '.voltrack b{position:absolute;left:-4px;width:12px;height:12px;margin-bottom:-6px;border-radius:50%;background:#fff}'

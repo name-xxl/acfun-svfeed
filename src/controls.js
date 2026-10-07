@@ -30,6 +30,9 @@ export function showControls(slide) {
   if (slide.dataset.ctl !== '1') slide.dataset.ctl = '1'; // mousemove 高频：避免重复写 DOM 属性
   clearTimeout(slide._ctlTimer);
   slide._ctlTimer = setTimeout(function () {
+    // 音量滑杆开着（悬停/拖动/滚轮调节中）：保活重排，不随闲置隐藏——否则静止 2.5s
+    // 整条栏连滑杆一起消失（0.9.215 用户实报「音量条不常驻」）
+    if (slide._volOpen) { showControls(slide); return; }
     var v = slide.querySelector('video');
     if (v && !v.paused) slide.dataset.ctl = '';
   }, CFG.time.ctlIdle);
@@ -173,8 +176,11 @@ export function buildControls(slide, idx, item) {
     '切换播放速度'
   );
 
-  // 音量（0.9.199 用户裁决「滑杆做成竖的」）：静音键 + hover 展开的**竖条**滑杆；
-  // 竖轨自下而上＝声音变大，拖到底=0＝静音（与静音键两态联动，判据 playback.isMuted）
+  // 音量（0.9.199 用户裁决「滑杆做成竖的」）：静音键 + 悬停展开的**竖条**滑杆；
+  // 竖轨自下而上＝声音变大，拖到底=0＝静音（与静音键两态联动，判据 playback.isMuted）。
+  // 0.9.215 显隐收归 JS（原纯 CSS :hover）：静音键（高 32px）与滑杆（bottom:38px）间有 6px
+  // 死区，上够滑杆必断 hover、display 瞬切无缓冲——现 enter 即开、leave 延时 volHide 才关
+  // （死区在延时窗内穿过即重新 enter 取消关闭），开期间置 slide._volOpen 让控制栏保活
   var volWrap = el('span', 'acsv-volwrap');
   var muteBtn = elHtml('button', 'acsv-cbtn acsv-cmute', isMuted() ? ICONS.volOff : ICONS.volOn);
   a11y(muteBtn, '静音开关（M）· 悬停调节音量');
@@ -182,8 +188,35 @@ export function buildControls(slide, idx, item) {
     ev.stopPropagation();
     toggleMuteGesture(videoOf());
   });
+  var volSlide = buildVolSlide();
   volWrap.appendChild(muteBtn);
-  volWrap.appendChild(buildVolSlide());
+  volWrap.appendChild(volSlide);
+  var volHideTimer = null;
+  function volOpen() {
+    clearTimeout(volHideTimer);
+    volHideTimer = null;
+    if (volSlide.style.display !== 'flex') volSlide.style.display = 'flex';
+    slide._volOpen = true;
+    showControls(slide); // 悬停音量区也算活跃：唤醒/保活控制栏
+  }
+  function volScheduleHide() {
+    clearTimeout(volHideTimer);
+    volHideTimer = setTimeout(function () {
+      volHideTimer = null;
+      volSlide.style.display = '';
+      slide._volOpen = false;
+    }, CFG.time.volHide);
+  }
+  volWrap.addEventListener('pointerenter', volOpen);
+  volWrap.addEventListener('pointerleave', volScheduleHide);
+  // 悬停滚轮直调音量（±5%/格）：preventDefault+stopPropagation 双拦——playgest 的层内翻条
+  // wheel 手势绑在层体上，不拦会边调音量边翻条
+  volWrap.addEventListener('wheel', function (ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    volOpen();
+    setVolume(pb.volume + (ev.deltaY < 0 ? 0.05 : -0.05));
+  }, { passive: false });
 
   // 画中画（0.9.200 用户裁决）：**换条/退出自动关**（不拦切换——切换会 dispose video，浏览器自会退出 PiP）；
   // 不支持的环境（pictureInPictureEnabled=false）按钮不显示
@@ -530,7 +563,8 @@ function refreshDmPanel(box) {
   if (box && box.__fill) box.__fill();
 }
 
-// 竖条音量滑杆（0.9.199）：hover 展开（CSS 控显隐）；拖动改 pb.volume（0 即静音，两态联动）。
+// 竖条音量滑杆（0.9.199）：显隐由组装处 JS 管（pointerenter/leave + 延时关闭，0.9.215 自
+// 纯 CSS hover 收归）；拖动改 pb.volume（0 即静音，两态联动）。
 // 竖轨自下而上＝声音变大（原生同款语义）。指针捕获让拖出轨道也能继续调。
 function buildVolSlide() {
   var box = el('div', 'acsv-volslide');
