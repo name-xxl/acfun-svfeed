@@ -3,6 +3,20 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.214（2026-10-07）· 审计修复：↑ 在途误弹「已经是第一条」+ 文档收口
+
+- **由头**：提交前子代理审计（299443e..HEAD 全区间逐函数比对）发现的唯一行为偏差：0.9.210
+  拆件初版把「已经是第一条」toast 判定留在壳层（`!ok && delta<0`），而旧实现的 stepping
+  在途挡在 toast **之前**——more()/相关池请求在途窗口内按 ↑（或上滑手势）会误弹
+  「已经是第一条」（既非第一条、文案也误导）。触发窗口窄，单测未覆盖该组合故全绿漏网。
+- **修法**：提示收回 levelstack 核内（`histBack` 失败时经 io.toast 出；stepping 挡仍在其前），
+  playlayer 壳层不再判 toast——与旧实现逐字同序。
+- **文档收口**（同批）：CHANGELOG 0.9.211 节体错位修复 + 两处计数订正（toastmsg 实为 13 处、
+  detachSession 实为 8 处）；README 表格行合并修复 + playlayer 行随拆件改口；dependency-audit
+  拆件待办销账 + 补 0.9.210 小节；roadmap 追记 v1.6 区间（0.9.209–0.9.214）。
+- **测试**：levelstack.test 增「↑ 在途静默」钉子（在途 ↑ 无 toast、在途结束后到入口才提示），
+  单测 296→297；harness 56 场景全绿。**反跑证据**：摘除核内 io.toast（入口失败改回裸 return false）→「↑ 到入口出提示」与「在途结束后到入口才提示」两钉子转红。
+
 ### 0.9.213（2026-10-07）· 批⑨：feedstore 深带两级水位（desc 重字段保守瘦身）
 
 - **由头**：0.9.209 工程评估第⑨条（上次效率批被否后的保守重设计）。现状：slim 只清媒体
@@ -27,13 +41,14 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
   『私信需要先登录 AcFun 账号』×2）、同构拼装两处（『发送失败：msg/（未登录？）』评论与
   弹幕各写一遍）、长驻时长裸数字（imdrawer 两处 8000，其余恒默认 1800）。
 - **修法**：新基建件 `src/toastmsg.js`（依赖 ui+cfg，零 DOM）——errNotLogin/errBanana/
-  errImLogin/errImgTooBig/errSend/errLong 六个出口，六域 11 处替换（comments/banpop/
+  errImLogin/errImgTooBig/errSend/errLong 六个出口，六域 13 处替换（comments/banpop/
   danmaku/momentbar/mypage/imdrawer）；长驻口径收 `CFG.time.toastLong=8000`（cfg=
   常量唯一来源惯例，时长不另设第二真相源）。**纪律**：文案内容零改动、只收出口；一次性
   上下文强耦合的提示（状态回显类）有意不进来——判定口径「同串或同构 ≥2 处才收编」。
 - **测试**：build/lint/check（check-deps 补 toastmsg 节点+6 条消费边）/单测 293/harness
   56 场景全绿——comment-fail 场景钉的失败提示文案不动即绿=话术零变化。
 
+### 0.9.211（2026-10-07）· 批⑦：视图态 pi 投影收编 panelitem（viewPiOf 单源）
 
 - **由头**：0.9.209 工程评估第⑦条——searchview（视频卡 + UP 卡最近作品两处）与
   jingxuanview（piOfVm）各自手拼面板 pi（kind 手盖章、acId 无守卫、字段面靠约定），
@@ -52,8 +67,6 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
   单测 292→293；harness 56 场景全绿（view-search/jingxuan 相关断言不动即绿=行为零变化）。
   README panelitem 行同步。
 
-### 0.9.211（2026-10-07）· 批⑦：视图态 pi 投影收编 panelitem（viewPiOf 单源）
-
 ### 0.9.210（2026-10-07）· playlayer 拆件收尾（playstate/levelstack）+ 两处编排重复收口
 
 - **由头**：dependency-audit 在册候选「playlayer 拆件（先不拆，下一批一起）」到期；0.9.184
@@ -66,7 +79,7 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
     分派、↑ 历史回退）/walk 队列，自 playlayer 平移；环境触面（swap slide/箭头/页签/toast/
     curTime/**relatedBatch**）经 `setLevelIO` 注入——不新增对 relatedapi 的静态边；
   - playlayer.js 452→**318 行**，只剩视图壳（DOM 挂载/抽屉联动/深链解析/生命周期）。
-- **编排重复收口**：① 会话拆装三行散落 7 处收成 `attach.detachSession(slide)`（player 3 处/
+- **编排重复收口**：① 会话拆装三行散落 8 处收成 `attach.detachSession(slide)`（player 3 处/
   playlayer 2 处/attach 2 处/controls 1 处，契约表同步登记）；② 换条评论跟随两处同型判定
   收成 `comments.followComments(item)`（player setActive/playlayer swap）——同源跳过取竖刷
   侧判据，层内 ↑ 回退撞同源的窄路径差异已在注释记账。

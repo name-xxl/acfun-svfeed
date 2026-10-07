@@ -112,12 +112,14 @@ export function pickInLevel(idx) {
 }
 
 // 键盘 ↓/↑ 步进核（在途互斥/复按挡板与 slideRef 守卫在 playlayer 入口）。
-// ↓ 按会话分派（single 静默 / list 顺序 / walk 相关池），↑ 一律历史回退
+// ↓ 按会话分派（single 静默 / list 顺序 / walk 相关池），↑ 一律历史回退。
+// 「已经是第一条」toast 在核内出（0.9.214 修：旧实现 stepping 挡在 toast 之前——↑ 在途
+// 静默返回；拆件初版把 toast 判定留在壳层 `!ok && delta<0`，在途窗口误弹，审计 P1 复原）
 export function step(delta) {
-  if (stepping) return false;
+  if (stepping) return false; // 在途：静默 false（含 ↑——不弹「已经是第一条」）
   if (delta < 0) {
     var h = histBack(H);
-    if (!h) return false; // 已到入口：「已经是第一条」由 playlayer 出（含 DOM 守卫语境）
+    if (!h) { io.toast('已经是第一条'); return false; } // 已到入口
     // 会话随格还原（跨轨回退也能退回原列表原位——ll-btn-prev/ll-zone-back 钉这条）
     session = sessionFromSnap(h.sess);
     io.syncListTab(); // 列表播放器里 ↑/↓ 换条 → 抽屉「列表」tab 当前项跟随（tab 未激活时不抢）

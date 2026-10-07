@@ -128,11 +128,26 @@ feedstore.js → player.js → input.js → feedstore.js
   全程单向（playlayer→reldrawer→relatedapi，无回边）。
 - **顺抓缺陷**：`appapi.resolve` 的非 m3u8 直链守卫位置错（在 applyQuality 前判空 urls，恒不触发；
   0.9.174 修）；`openComments` 幂等收旧层导致换条页签复位（0.9.178 抽 `retargetComments` 分流）。
-- **待办**：合辑/分P 接口未实测（行形状与 push 入口已就位）；playlayer.js 已 496 行（视图壳/会话/
-  级别栈/手势/抽屉缝），拆件列为下批候选（用户裁决「先不拆，下一批一起」）。
+- **待办**：合辑/分P 接口未实测（行形状与 push 入口已就位）；~~playlayer.js 已 496 行（视图壳/会话/
+  级别栈/手势/抽屉缝），拆件列为下批候选（用户裁决「先不拆，下一批一起」）~~
+  **已销账（0.9.210 拆件出货，见下节）**。
 - **0.9.179 已删**：舞台游走链（startChain/setChainStarter/resetPump + api 的 related 内容源 +
   feedstore 的 tip 透传 + topbar 的 related seg 特判）——三出口改道后 UI 不可达、仅剩「播放器未挂载」
   兜底；删除后图边 237→235（api→relatedapi、player→relatedapi 两条随之消失）。
+
+## 0.9.210：playlayer 拆件收尾（四缝补完）+ 编排重复收口
+
+- **拆件**：会话模型 → `playstate.js`（**零依赖新叶子**，三态装配/快照/层内历史，node 直测）；
+  级别栈/步进核 → `levelstack.js`（工作态单源，环境触面经 `setLevelIO` 注入——`relatedBatch`
+  走注入不 import relatedapi，**未新增特性域→接口域静态边**，check-direction 口径 B 仍 0 条）；
+  playlayer.js 452→318 行只剩视图壳。至此 0.9.184 提出的「视图壳/会话/级别栈/手势」四缝全部拆净。
+- **编排重复收口**：`attach.detachSession`（拆会话三行 8 处单源，契约表同步登记）；
+  `comments.followComments`（换条评论跟随 2 处单源——同源跳过取竖刷判据，层内 ↑ 回退撞同源
+  的窄路径差异已在 comments.js 注释记账，0.9.214 再把「已经是第一条」提示收回 levelstack 核内，
+  复原旧实现 stepping 挡在 toast 前的语义）。
+- 图：补 playstate/levelstack 独立节点（playstate 入零依赖叶子名单）+ toastmsg（0.9.212）
+  ——给 others 聚合成员（danmaku）首画独立边会触发其全部 import 边入图校验（补了
+  danmaku→appapi/settings、player→danmaku 三条，见 ccc1d3f）。
 
 ## 0.9.187：方向诊断升棘轮（`check-direction` 未登记即红）
 

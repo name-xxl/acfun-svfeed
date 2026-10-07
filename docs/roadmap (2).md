@@ -6,6 +6,7 @@
 > v1.3 修订：嗅探时序按 2026-10-03 实测修订——官方 SDK 为静态脚本、启动批 flush 早于 document-end，原「document-start 时序铁律」废弃（数据与承诺影响面见 api-research §4.6）。
 > v1.4 修订：D1 修订（关注语境「视频」侧允许借宿主竖刷舞台做纯视频子流，混合「全部」仍是列表——用户裁决）；增补批次 0.9.93–0.9.99 入档。
 > v1.5 修订（2026-10-07）：追记 0.9.183–0.9.208 实况（换源到单列精选 / 连播进层 / 播放器打磨十二批 / 弹幕体系含高级弹幕渲染 / harness 全场景同池提速）；§3.1 高弹回收清单按 0.9.204 实况标注进度。
+> v1.6 追记（2026-10-07）：0.9.209–0.9.213 工程减债批（hls light 内嵌 / postForm 口径对齐 / **playlayer 拆件四缝补完** playstate+levelstack / viewPiOf·toastmsg·detachSession·followComments 四处单源收口 / feedstore 深带两级水位）；0.9.214 审计修复（↑ 在途误弹 toast）。无用户可见功能变化，全部纯工程向。
 > 本文件是项目的战略层文档；具体实现以代码、单测、`docs/api-research.md` 为准。
 
 ---
@@ -408,3 +409,17 @@ feed/webPush 目前只有**视频条目**的字段实测。待测清单：
 searchview/reldrawer 已有「加载失败，点击重试」，前提基本不成立，无独立项）；E5 移动端入口——
 **用户裁决不做**（移动端装脚本可能性小，2026-10-06）；singleColumn 单列精选流接线（已实测 + 预览
 稿在仓，待接线）。详见 CHANGELOG 各版与 `docs/dependency-audit.md`。
+
+### 减债批 0.9.209–0.9.214（2026-10-07，一次性五块出货）
+
+- **⑤⑥（0.9.209）**：内嵌 hls.js 换 **light 版**（415→297KB/产物，API 面全量核对；字幕边界=未来
+  AI ASR 实时字幕走音频流自识别，不经 hls 字幕轨）；postForm 失败口径对齐 net 层（非 2xx 抛
+  http-<status> + 计 net.fail）。
+- **拆件（0.9.210）**：playlayer 四缝补完——playstate.js（零依赖叶子）+ levelstack.js（setLevelIO
+  注入，不新增对 relatedapi 的静态边）；detachSession（8 处）/followComments（2 处）单源收口。
+- **⑦⑧⑨（0.9.211–0.9.213）**：viewPiOf 视图态 pi 投影收编 panelitem（uppage 误报不收、searchfmt
+  属域内规整不迁）；toastmsg 话术单源（13 处，文案零改动）+ CFG.time.toastLong；feedstore 深带
+  两级水位（deepSlimAt=120 外清 desc，契约面/seen/items 有意不动）。
+- **0.9.214**：子代理审计修复——↑ 在途（stepping）误弹「已经是第一条」（拆件初版把 toast 判定留在
+  壳层，收回 levelstack 核内复原旧语义；单测钉死）。遗留：A4 契约面 tsc 试点仍待定；「单测 260+」
+  口径不变。

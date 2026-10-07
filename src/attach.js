@@ -55,8 +55,9 @@ var HOOKS = null;
 export function setSessionHooks(h) { HOOKS = h; }
 
 // 会话拆装原语（0.9.209 批②收口）：旧会话一次拆净（video/看门狗/弹幕层/定时器）的统一出口。
-// 此前三行写法散落 7 处（player renderWindow/resetStream/unmount、playlayer swap/teardown、
-// attach attachVideo/syncFwdQuality）；换条立即重挂的调用方拆完接 attachVideo 即可
+// 此前三行写法散落 8 处（player renderWindow/resetStream/unmount、playlayer swap/teardown、
+// attach attachVideo/syncFwdQuality、controls rebuildFwdNeighbor）；换条立即重挂的调用方拆完接
+// attachVideo 即可
 export function detachSession(slide) {
   if (slide && slide._session) { slide._session.dispose(); slide._session = null; }
 }

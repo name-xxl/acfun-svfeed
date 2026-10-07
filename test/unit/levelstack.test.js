@@ -86,8 +86,26 @@ test('jump（经 pickInLevel）：落点入历史 + canBack 翻真；↑ 回退�
   assert.ok(LS.step(-1));
   assert.equal(LS.currentSession().idx, 0);
   assert.equal(io.rec.swaps[1].item.acId, 1);
-  // ↑ 到入口再 ↑：核返回 false（toast 由 playlayer 出）
+  // ↑ 到入口再 ↑：核 false 并经 io.toast 出「已经是第一条」（0.9.214 收回核内）
   assert.equal(LS.step(-1), false);
+  assert.deepEqual(io.rec.toasts, ['已经是第一条']);
+});
+
+test('step(↑) 在途静默：stepping 挡在 toast 前（0.9.214 审计修复钉子）', async () => {
+  var io = fresh();
+  LS.applyCtx(null); // walk
+  LS.enterLayer(pj(1));
+  assert.ok(LS.step(1)); // 向池要一批 → stepping=true 挂在 relatedBatch 在途
+  assert.ok(LS.isStepping());
+  // 在途按 ↑：静默 false、不弹「已经是第一条」（旧实现语义；拆件初版曾误弹）
+  assert.equal(LS.step(-1), false);
+  assert.deepEqual(io.rec.toasts, []);
+  io.resolveBatch([pi(2)]);
+  await new Promise(function (r) { setTimeout(r, 0); });
+  // 在途结束后 ↑ 到入口：正常出提示
+  assert.ok(LS.step(-1)); // 回退到入口
+  assert.equal(LS.step(-1), false);
+  assert.deepEqual(io.rec.toasts, ['已经是第一条']);
 });
 
 test('stepNext list：顺序步进过 playItemOf；尾部问 more()——有货续拉、无货停+提示', async () => {

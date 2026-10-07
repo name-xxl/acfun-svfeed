@@ -161,12 +161,11 @@ function swap(item, resumeAt) {
 }
 
 // 键盘 ↓/↑ 入口（player 注入 input 的 api.playStep；ev.repeat 在 input 侧挡）。工作态在
-// levelstack：在途互斥与会话分派都在核里，这里只守 DOM 侧前提（slide 在场、条目已锚）
+// levelstack：在途互斥、会话分派与「已经是第一条」提示都在核里（0.9.214 收回核内——旧实现
+// stepping 挡在 toast 前即 ↑ 在途静默，壳层判 `!ok` 会误弹），这里只守 DOM 侧前提
 export function playStep(delta) {
   if (!slideRef || !curItemOf()) return false;
-  var ok = levelStep(delta);
-  if (!ok && delta < 0) toast('已经是第一条');
-  return ok;
+  return levelStep(delta);
 }
 
 // Esc 弹级（player 注入 input 的 api.playEscape）：级别 >1 才弹——弹回上级原视频并**恢复进度**
