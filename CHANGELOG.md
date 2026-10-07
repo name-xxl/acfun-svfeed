@@ -3,6 +3,25 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.211（2026-10-07）· 批⑦：视图态 pi 投影收编 panelitem（viewPiOf 单源）
+
+- **由头**：0.9.209 工程评估第⑦条——searchview（视频卡 + UP 卡最近作品两处）与
+  jingxuanview（piOfVm）各自手拼面板 pi（kind 手盖章、acId 无守卫、字段面靠约定），
+  与「单源收口」理念有张力。
+- **核对后的实际收编面**（评估结论两处修正）：① uppage.js 的 `{id,cover}` 是**网格中间态**
+  （进信息流走 api normalize，不是面板条目）——误报，不收；② searchfmt 是搜索域的
+  **域内回包规整**归属地（0.9.159 域归域决策），不迁——真正缺的是「域条目→面板 pi」最后
+  一步投影的单源。修法：panelitem 新增 `viewPiOf(src, kind, upOverride)`——acId 守卫
+  （只查 id，标题守卫留在域件：搜索标题剥高亮后合法为空）、kind 盖章（传了才落键，
+  jingxuan 旧形无 kind 键保持同形）、up 覆盖（搜索 UP 卡最近作品作者取该 UP）、
+  id 双容差（vm 的 id 字段名，同 rank 解析器 dougaId||contentId 先例）、可选字段
+  （dur/views/dateText）真值落键（渲染层全真值守卫，缺键与空串同形）。
+  三个消费点（searchview×2 / jingxuanview×1）改走契约件；followstream 空壳条目核对：本就
+  走 playItemOf（播放契约件入口），不属自产，不动。
+- **测试**：contract.test.js 增契约⑤（投影行为 + 产出键 ⊆ ITEM_FIELDS.panel 白名单），
+  单测 292→293；harness 56 场景全绿（view-search/jingxuan 相关断言不动即绿=行为零变化）。
+  README panelitem 行同步。
+
 ### 0.9.210（2026-10-07）· playlayer 拆件收尾（playstate/levelstack）+ 两处编排重复收口
 
 - **由头**：dependency-audit 在册候选「playlayer 拆件（先不拆，下一批一起）」到期；0.9.184

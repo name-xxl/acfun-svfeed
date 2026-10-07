@@ -1,9 +1,10 @@
 // 条目契约的机器闸门（0.9.82 统一条目模型）：把 data.js 里"两种内容源规整成同一份字段
-// 契约"那句注释变成可执行断言。四条：
-//   ① 面板各来源（panelItem 各 kind / searchVideoPageOf）产出键 ⊆ ITEM_FIELDS.panel
+// 契约"那句注释变成可执行断言。五条：
+//   ① 面板各来源（panelItem 各 kind / searchVideoPageOf / viewPiOf）产出键 ⊆ ITEM_FIELDS.panel
 //   ② 播放各来源（normalize / normalizeHome / playItemOf）产出键 ⊆ ITEM_FIELDS.play
 //   ③ 播放契约顶层不得出现 userName/userId/head/isFollowing——作者只有一个出口 up
 //   ④ up 形态固定四件套（id/name/img/isFollowing），来源私有的作者扩展字段不混进来
+//   ⑤ viewPiOf 投影行为（0.9.211 批⑦收编）：守卫/kind 盖章/up 覆盖/id 容差/可选键真值落键
 // ③ 是本次缺陷的防复发闸门：0.9.82 之前搜索传 upName、收藏把作者塞进 sub、榜单传 up、
 // 播放契约又是扁平三件套，桥 itemOfPanel 只认其中一种，其余入口进播放层就退化成 '未知用户'。
 // 字段**值**的真实性由 playitem.test.js/panelitem.test.js 钉；这里只关心键集合，所以 fixture 可以最小化。
@@ -14,7 +15,7 @@ globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
 var { playItemOf, normalize, normalizeHome, ITEM_FIELDS } =
   await import('../../src/playitem.js');
-var { panelItem } = await import('../../src/panelitem.js'); // 面板契约件（0.9.162 data.js 终解）
+var { panelItem, viewPiOf } = await import('../../src/panelitem.js'); // 面板契约件（0.9.162 data.js 终解；0.9.211 视图态投影）
 var { searchVideoPageOf } = await import('../../src/searchfmt.js'); // 搜索规整 0.9.161 出库
 
 // 已退役的扁平作者字段：出现在播放条目顶层即失败
@@ -86,6 +87,11 @@ test('契约①：面板各来源产出键 ⊆ 面板契约白名单', () => {
   var hits = searchVideoPageOf(SEARCH_J).items;
   assert.equal(hits.length, 1);
   assert.deepEqual(outside(hits[0], ITEM_FIELDS.panel), [], 'searchVideoPageOf 出现契约外字段');
+  // 视图态投影（0.9.211 收编：searchview/jingxuanview 的 pi 构造单源）：产出键同样 ⊆ 白名单
+  assert.deepEqual(outside(viewPiOf({ acId: 1, title: 't', cover: 'c', up: null, kind: 'search', dur: '01:00', views: '1', dateText: 'd' }, 'search'),
+    ITEM_FIELDS.panel), [], 'viewPiOf 出现契约外字段');
+  assert.deepEqual(outside(viewPiOf({ id: 2, title: 't', cover: '', up: { id: 2, name: 'u' } }),
+    ITEM_FIELDS.panel), [], 'viewPiOf(vm 形) 出现契约外字段');
 });
 
 test('契约②：播放各来源产出键 ⊆ 播放契约白名单', () => {
@@ -117,4 +123,27 @@ test('契约④：up 形态固定四件套，来源私有的作者扩展字段�
   var rank = panelItem('rank', PANEL_CASES.rank);
   assert.equal(rank.up.fans, 1);
   assert.equal(rank.up.sign, 's');
+});
+
+// 视图态投影 viewPiOf（0.9.211 批⑦）：投影行为钉死——身份守卫/kind 盖章/up 覆盖/id 容差/
+// 可选字段真值落键（缺键与空串在渲染层同形，但白名单闸门要键集合确定性）
+test('契约⑤：viewPiOf 投影——守卫、盖章、覆盖、可选键', () => {
+  // 无 acId（含 id 容差双空）→ null
+  assert.equal(viewPiOf({ title: 't' }), null);
+  assert.equal(viewPiOf(null), null);
+  assert.equal(viewPiOf({ acId: 0, id: 0, title: 't' }), null);
+  // id 字段容差（分区 vm 形）：id 落到 acId
+  assert.equal(viewPiOf({ id: 7, title: 't' }).acId, 7);
+  // kind 盖章：传了才落键（jingxuan 旧形无 kind 键，保持同形）
+  assert.equal(viewPiOf({ acId: 1, title: 't' }).kind, undefined);
+  assert.equal('kind' in viewPiOf({ acId: 1, title: 't' }), false);
+  assert.equal(viewPiOf({ acId: 1, title: 't' }, 'search').kind, 'search');
+  // up 覆盖：第三参在场即用（搜索 UP 卡最近作品）；undefined 透传源 up
+  assert.equal(viewPiOf({ acId: 1, title: 't', up: null }, 'search', { id: 9, name: 'u' }).up.id, 9);
+  assert.equal(viewPiOf({ acId: 1, title: 't', up: { id: 3, name: 'x' } }).up.id, 3);
+  // 可选字段真值落键：空串/缺省不落键
+  var bare = viewPiOf({ acId: 1, title: 't', dur: '', views: '', dateText: '' });
+  assert.deepEqual(Object.keys(bare).sort(), ['acId', 'cover', 'title', 'up']);
+  var full = viewPiOf({ acId: 1, title: 't', dur: '01:00', views: '1万', dateText: 'd' });
+  assert.deepEqual(Object.keys(full).sort(), ['acId', 'cover', 'dateText', 'dur', 'title', 'up', 'views']);
 });

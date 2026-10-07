@@ -5,6 +5,7 @@ import { AppAPI } from './appapi.js';
 import { listChannels, listChannelFeed } from './channelapi.js';
 import { relatedItemOf } from './relatedapi.js';
 import { openPanelItem } from './cards.js';
+import { viewPiOf } from './panelitem.js'; // vm→面板 pi 投影（0.9.211 批⑦收编）
 import { imgInto } from './imgload.js';
 import { GLYPHS } from './imicons.js';
 import { getSetting } from './settings.js'; // 分区二选一（0.9.173）：关=相关池随机 / 开=网格顺序
@@ -106,9 +107,10 @@ function infoOf(vm, big) {
   return ci;
 }
 
-// vm → 面板条目（playlayer 即时首帧 + playItemOf 归一的契约形状）
+// vm → 面板条目（playlayer 即时首帧 + playItemOf 归一的契约形状）——投影/守卫单源收
+// panelitem.viewPiOf（0.9.211 批⑦；vm 的 id 字段名由其双容差吸收）
 function piOfVm(vm) {
-  return { acId: vm.id, title: vm.title, cover: vm.cover, up: vm.up };
+  return viewPiOf(vm);
 }
 
 // 层内会话语境（0.9.173 用户裁决：分区保留「随机 / 列表顺序」二选一）：

@@ -326,6 +326,33 @@ export function momentExtraOf(pi) {
   };
 }
 
+// ---------- 视图态 pi 投影（0.9.211 批⑦收编） ----------
+// 搜索/分区条目在各自域件（searchfmt/channelapi）已按面板形状规整——不走 PANEL_PARSERS
+//（那表吃原始 API 回包）；这里收的是「域条目 → 面板 pi（openPanelItem/gridCardOf 入口）」
+// 最后一步投影 + 身份守卫。此前散在三个视图各写各的（kind 手盖章、acId 无守卫），形状
+// 漂移只能靠约定兜底（0.9.209 工程评估第⑦条）。
+// 守卫口径：只查 acId（标题守卫在域件——搜索标题剥高亮后合法为空，卡面照渲染与旧形一致）；
+// id 字段双容差（acId 优先、回退 id——分区视图模型 vm 用 id 字段名，同 rank 解析器的
+// dougaId||contentId 先例）；可选字段（dur/views/dateText）只在源上真值时落键——渲染层全
+// 真值守卫，缺键与空串同形；up 覆盖：搜索 UP 卡的最近作品作者取该 UP（recents 条目自身
+// 不带 up），传 undefined 则透传。返回 null = 无效条目，调用方过滤。
+export function viewPiOf(src, kind, upOverride) {
+  src = src || {};
+  var acId = Number((src.acId != null ? src.acId : src.id)) || 0;
+  if (!acId) return null;
+  var it = {
+    acId: acId,
+    title: String(src.title || ''),
+    cover: src.cover || '',
+    up: upOverride !== undefined ? upOverride : (src.up || null)
+  };
+  if (kind) it.kind = kind;
+  if (src.dur) it.dur = src.dur;
+  if (src.views) it.views = src.views;
+  if (src.dateText) it.dateText = src.dateText;
+  return it;
+}
+
 // 视图面板条目契约（0.9.62）：三种来源规整成同一份字段；返回 null = 不可渲染条目，
 // 调用方过滤（没有可解析的入口，进播放层/外链必失败）。
 // 身份判据（0.9.91 放宽）：`(acId || momentId) && (title || text)`——动态条目既没有 acId

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.210
+// @version      0.9.211
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.210" : "",
+          ver: true ? "0.9.211" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -7511,6 +7511,22 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       up: pi.up ? { id: pi.up.id || "", name: pi.up.name || "" } : null
     };
   }
+  function viewPiOf(src, kind2, upOverride) {
+    src = src || {};
+    var acId = Number(src.acId != null ? src.acId : src.id) || 0;
+    if (!acId) return null;
+    var it = {
+      acId,
+      title: String(src.title || ""),
+      cover: src.cover || "",
+      up: upOverride !== void 0 ? upOverride : src.up || null
+    };
+    if (kind2) it.kind = kind2;
+    if (src.dur) it.dur = src.dur;
+    if (src.views) it.views = src.views;
+    if (src.dateText) it.dateText = src.dateText;
+    return it;
+  }
   function panelItem(kind2, raw) {
     var p = PANEL_PARSERS[kind2];
     if (!raw || !p) return null;
@@ -11730,7 +11746,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.210" : "");
+    return normVer(true ? "0.9.211" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -14997,7 +15013,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.210：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.211：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -16495,16 +16511,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       return k === "video" ? "没有找到相关视频（换「UP主」或「文章」试试）" : k === "up" ? "没有找到相关 UP 主" : "没有找到相关文章";
     }
     function videoCellOf(it, idx) {
-      return gridCardOf({
-        acId: it.acId,
-        title: it.title,
-        cover: it.cover,
-        kind: "search",
-        dur: it.dur,
-        views: it.views,
-        up: it.up,
-        dateText: it.dateText
-      }, function() {
+      return gridCardOf(viewPiOf(it, "search"), function() {
         var stv = c.kinds.video || {};
         return { kind: "list", items: (stv.items || []).slice(), idx };
       });
@@ -16579,13 +16586,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           if (r.dateText) rc.appendChild(el("div", "acsv-srectm", r.dateText));
           rc.title = r.title;
           rc.addEventListener("click", function() {
-            openPanelItem({
-              acId: r.acId,
-              title: r.title,
-              cover: r.cover,
-              kind: "search",
-              up: upOf(u.uid, u.name, u.avatar, u.following)
-            }, { kind: "list", items: u.recents, idx: i });
+            openPanelItem(
+              viewPiOf(r, "search", upOf(u.uid, u.name, u.avatar, u.following)),
+              { kind: "list", items: u.recents, idx: i }
+            );
           });
           recs.appendChild(rc);
         });
@@ -17196,7 +17200,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return ci;
   }
   function piOfVm(vm) {
-    return { acId: vm.id, title: vm.title, cover: vm.cover, up: vm.up };
+    return viewPiOf(vm);
   }
   function ctxOfVm(vm) {
     if (!getSetting("relSequential")) return { kind: "walk" };

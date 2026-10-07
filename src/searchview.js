@@ -3,6 +3,7 @@ import { el, toast } from './ui.js';
 import { request } from './net.js';
 import { upOf } from './playitem.js';
 import { searchVideoPageOf, searchUserPageOf, searchArticlePageOf } from './searchfmt.js'; // 回包规整（0.9.161 出库）
+import { viewPiOf } from './panelitem.js'; // 域条目→面板 pi 投影（0.9.211 批⑦收编）
 import { gridCardOf, openPanelItem, skeletonRows } from './cards.js';
 import { ICONS } from './styles.js'; // chevUp 回顶图标（与关注/广场同源）
 import { imgInto } from './imgload.js';
@@ -191,10 +192,8 @@ function buildSearchView(body, arg, kind) {
   function videoCellOf(it, idx) { // idx：结果序号（会话步进锚，0.9.173）
     // 契约 → 网格卡（kind='search' 触发角标/脚行；无 href → 点击进播放层就地播放）
     // 会话语境（0.9.173）：层内 ↓/↑ = 搜索结果顺序（搜索=固定结果集，走到最后一条停）
-    return gridCardOf({
-      acId: it.acId, title: it.title, cover: it.cover, kind: 'search',
-      dur: it.dur, views: it.views, up: it.up, dateText: it.dateText
-    }, function () {
+    // pi 投影走 panelitem.viewPiOf（0.9.211 收编：kind 盖章+身份守卫单源）
+    return gridCardOf(viewPiOf(it, 'search'), function () {
       var stv = c.kinds.video || {}; // 状态按类目分仓（curKind=video），点击那刻取最新一份
       return { kind: 'list', items: (stv.items || []).slice(), idx: idx };
     });
@@ -264,10 +263,9 @@ function buildSearchView(body, arg, kind) {
         rc.title = r.title;
         rc.addEventListener('click', function () {
           // 会话语境（0.9.173）：层内 ↓/↑ = 搜索结果顺序（搜索=固定结果集，走到最后一条停）
-          openPanelItem({
-            acId: r.acId, title: r.title, cover: r.cover, kind: 'search',
-            up: upOf(u.uid, u.name, u.avatar, u.following)
-          }, { kind: 'list', items: u.recents, idx: i }); // 语境=该 UP 的最近作品序（到头停）
+          // 作者覆盖为该 UP（recents 条目不带 up）——viewPiOf 第三参（0.9.211 收编）
+          openPanelItem(viewPiOf(r, 'search', upOf(u.uid, u.name, u.avatar, u.following)),
+            { kind: 'list', items: u.recents, idx: i }); // 语境=该 UP 的最近作品序（到头停）
         });
         recs.appendChild(rc);
       });
