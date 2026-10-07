@@ -10,7 +10,11 @@ import { setSetting } from './settings.js';
 // 曾散落在各文件的闭包里，现集中列出（读/写方），新增字段先来此处登记：
 //
 // slide（.acsv-slide 元素）：
-//   _session     会话句柄    写: attach.js(attachVideo 赋值);dispose+置 null: player(renderWindow/unmount/switchSource)、controls(rebuildFwdNeighbor)、playlayer(teardownPlayView)、attach(syncFwdQuality) 读: report.js(离开上报)
+//   _session     会话句柄    写: attach.js(attachVideo 赋值);dispose+置 null: 一律经本件
+//                            detachSession（0.9.209 收口；调用方 player renderWindow/
+//                            resetStream/unmount、playlayer swap/teardown、attach
+//                            attachVideo/syncFwdQuality、controls rebuildFwdNeighbor）
+//                            读: report.js(离开上报)
 //   _resumeAt    续播秒位    写: attach.js(switchQuality/syncFwdQuality)/controls(编码·缓冲菜单)/session(恢复链末级重挂) 读: attachVideo→session.resumeAt
 //   _userPaused  用户暂停意图 写: playback.js(暂停置 1/playVideo 清 0) 读: player(setActive)、session.js(自动续播判定)
 //   _ctlTimer/_ctlTime/_ctlPlayBtn/_ctlFill/_ctlHandle/_ctlTrack/_qBtn
@@ -49,6 +53,13 @@ import { setSetting } from './settings.js';
 // 不能被本模块反向 import——与 session.js 的 createSession hooks 同一风格）
 var HOOKS = null;
 export function setSessionHooks(h) { HOOKS = h; }
+
+// 会话拆装原语（0.9.209 批②收口）：旧会话一次拆净（video/看门狗/弹幕层/定时器）的统一出口。
+// 此前三行写法散落 7 处（player renderWindow/resetStream/unmount、playlayer swap/teardown、
+// attach attachVideo/syncFwdQuality）；换条立即重挂的调用方拆完接 attachVideo 即可
+export function detachSession(slide) {
+  if (slide && slide._session) { slide._session.dispose(); slide._session = null; }
+}
 
 // 清晰度切换：保留进度重挂（slide._resumeAt 在 playing 后 seek 回去）
 // manual=true 表示用户在菜单手选：此后看门狗不再对该条目自动降档，且把新偏好同步到前向邻居
@@ -96,8 +107,7 @@ function syncFwdQuality(slide) {
     if (!fwd || !it || !it.qualities || !fwd._session) return; // 解析在途时 reapply 未生效，等 resolve 现读新偏好
     var fv = fwd.querySelector('video');
     if (fv && fv.currentTime > 1) fwd._resumeAt = fv.currentTime; // 预挂条可能被回看过（滑回场景）
-    fwd._session.dispose();
-    fwd._session = null;
+    detachSession(fwd);
     attachVideo(fwd, it, idx + 1);
   } catch (e) { }
 }
@@ -105,7 +115,7 @@ function syncFwdQuality(slide) {
 // 重挂统一入口：旧会话一次拆净（video/看门狗/弹幕层/定时器），新会话接管。
 // 进度续播槽 slide._resumeAt 语义不变：switchQuality/编码缓冲菜单/恢复链末级重挂写入，这里转入新会话
 export function attachVideo(slide, item, idx) {
-  if (slide._session) { slide._session.dispose(); slide._session = null; }
+  detachSession(slide);
   // 防御强拆残留 video（幽灵防护；正常应已被旧会话 dispose 拆除）。
   // 不能用 src=''：空 src 会异步触发 SRC_NOT_SUPPORTED error 驱动恢复链（0.9.1 根因）
   sweepSlideVideos(slide);

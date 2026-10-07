@@ -5,7 +5,7 @@ import { root, scroller, slideAt, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { pb, togglePlayGesture, toggleMuteGesture, applyLoop, setVolume, isMuted } from './playback.js';
 import { dmEnabled, setDmEnabled, onPlaying as dmOnPlaying, createDmBox as dmCreateBox } from './danmaku.js';
-import { switchQuality, attachVideo } from './attach.js';
+import { switchQuality, attachVideo, detachSession } from './attach.js';
 import { AppAPI, spriteCueAt } from './appapi.js'; // 悬停缩略图（0.9.200）
 import { getSetting, setSetting, onChange } from './settings.js';
 
@@ -233,8 +233,7 @@ export function buildControls(slide, idx, item) {
       var it = fwd && FeedStore.items[idx + 1];
       if (!fwd || !it || !fwd._session || !it.cap || !it.cap.hls) return;
       if (dropCache) { it.urls = []; it.qualities = null; it.refreshed = false; }
-      fwd._session.dispose();
-      fwd._session = null;
+      detachSession(fwd);
       attachVideo(fwd, it, idx + 1); // 直接重预挂；不经 renderWindow（避免 player↔controls 循环依赖）
     } catch (e) { }
   }

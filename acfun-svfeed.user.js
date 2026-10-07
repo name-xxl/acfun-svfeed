@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.209
+// @version      0.9.210
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.209" : "",
+          ver: true ? "0.9.210" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -2438,7 +2438,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     ctx.chainBusy = true;
     ctx.chainCapped = false;
     var pages = 0;
-    (function step() {
+    (function step2() {
       if (!ctx.chainBusy || ctx.done || pages >= o.maxPages) {
         ctx.chainCapped = !ctx.done && pages >= o.maxPages;
         ctx.chainBusy = false;
@@ -2453,7 +2453,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           if (o.onDone) o.onDone();
           return;
         }
-        setTimeout(step, CFG.time.chainGap);
+        setTimeout(step2, CFG.time.chainGap);
       }, function() {
         ctx.failed = true;
         ctx.chainBusy = false;
@@ -2563,7 +2563,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         var self = this;
         if (!ctx || self.pumpBusy) return;
         self.pumpBusy = true;
-        (function step() {
+        (function step2() {
           if (env.getListContext() !== ctx) {
             self.pumpBusy = false;
             return;
@@ -3042,7 +3042,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function uploadChunks(token, file) {
     var endpoint = CFG.upload.endpoint;
     var total = file.size;
-    function step(i) {
+    function step2(i) {
       if (i * CFG.upload.chunk >= total) return Promise.resolve();
       var start = i * CFG.upload.chunk;
       var end = Math.min(start + CFG.upload.chunk, total);
@@ -3056,10 +3056,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         timeout: CFG.upload.chunkT
       }).then(function(d) {
         if (!d || d.result !== 1) throw new Error("chunk-" + i);
-        return step(i + 1);
+        return step2(i + 1);
       });
     }
-    return step(0);
+    return step2(0);
   }
   function uploadComplete(token, chunks) {
     return gmPostJson({
@@ -5872,6 +5872,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       loadComments(sourceId, 1, false);
     }
   }
+  function followComments(item) {
+    if (!item || !item.id || !isOpenComments()) return;
+    if (commentState.sourceId === item.id) return;
+    retargetComments(item.id, item.stype, item.shareUrl, item.kind, item.title);
+  }
   function toggleItemComments(item) {
     if (isOpenComments() && commentState.sourceId === item.id) closeComments();
     else openComments(item.id, item.stype, item.shareUrl, item.kind, item.title);
@@ -7033,7 +7038,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function ensureHotCounts() {
     if (UpVideos.hotFetching) return;
     UpVideos.hotFetching = true;
-    (function step() {
+    (function step2() {
       if (!UpVideos.hotFetching) return;
       var todo = UpVideos.items.filter(function(it) {
         return UpVideos.counts[it.id] === void 0;
@@ -7054,7 +7059,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         UpVideos.countsFetched = Object.keys(UpVideos.counts).length;
         if (UpVideos.sortBy === "hotest") renderUpPage();
         renderUpProgress();
-        setTimeout(step, CFG.time.hotGap);
+        setTimeout(step2, CFG.time.hotGap);
       });
     })();
   }
@@ -8688,6 +8693,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function setSessionHooks(h) {
     HOOKS = h;
   }
+  function detachSession(slide) {
+    if (slide && slide._session) {
+      slide._session.dispose();
+      slide._session = null;
+    }
+  }
   function switchQuality(item, slide, qIdx, manual) {
     var video = slide.querySelector("video");
     if (!video || !item.qualities || !item.qualities[qIdx]) {
@@ -8720,17 +8731,13 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       if (!fwd || !it || !it.qualities || !fwd._session) return;
       var fv = fwd.querySelector("video");
       if (fv && fv.currentTime > 1) fwd._resumeAt = fv.currentTime;
-      fwd._session.dispose();
-      fwd._session = null;
+      detachSession(fwd);
       attachVideo(fwd, it, idx + 1);
     } catch (e) {
     }
   }
   function attachVideo(slide, item, idx) {
-    if (slide._session) {
-      slide._session.dispose();
-      slide._session = null;
-    }
+    detachSession(slide);
     sweepSlideVideos(slide);
     var session2 = createSession(slide, item, idx, HOOKS);
     slide._session = session2;
@@ -8952,8 +8959,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           it.qualities = null;
           it.refreshed = false;
         }
-        fwd._session.dispose();
-        fwd._session = null;
+        detachSession(fwd);
         attachVideo(fwd, it, idx2 + 1);
       } catch (e) {
       }
@@ -11724,7 +11730,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.209" : "");
+    return normVer(true ? "0.9.210" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12874,7 +12880,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
 
   // src/playgest.js
   var gest = { acc: 0, at: 0, lock: 0, y0: 0, t0: 0 };
-  function onWheel(step, ev) {
+  function onWheel(step2, ev) {
     var now = Date.now();
     if (now - gest.at > 400) gest.acc = 0;
     gest.at = now;
@@ -12882,7 +12888,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (Math.abs(gest.acc) < 60 || now - gest.lock < 500) return;
     var dir = gest.acc > 0 ? 1 : -1;
     gest.acc = 0;
-    if (step(dir)) {
+    if (step2(dir)) {
       gest.lock = now;
       if (ev.cancelable) ev.preventDefault();
     }
@@ -12892,28 +12898,28 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     gest.y0 = t ? t.clientY : 0;
     gest.t0 = Date.now();
   }
-  function onTouchEnd(step, ev) {
+  function onTouchEnd(step2, ev) {
     var t = ev.changedTouches && ev.changedTouches[0];
     if (!t || !gest.y0) return;
     var dy = gest.y0 - t.clientY;
     gest.y0 = 0;
     if (Math.abs(dy) < 60 || Date.now() - gest.t0 > 800) return;
-    step(dy > 0 ? 1 : -1);
+    step2(dy > 0 ? 1 : -1);
   }
-  function bindLayerGestures(body, step) {
+  function bindLayerGestures(body, step2) {
     gest.acc = 0;
     gest.at = 0;
     gest.lock = 0;
     gest.y0 = 0;
     gest.t0 = 0;
     var wheel = function(ev) {
-      onWheel(step, ev);
+      onWheel(step2, ev);
     };
     var touchStart = function(ev) {
       onTouchStart(ev);
     };
     var touchEnd = function(ev) {
-      onTouchEnd(step, ev);
+      onTouchEnd(step2, ev);
     };
     body.addEventListener("wheel", wheel, { passive: false });
     body.addEventListener("touchstart", touchStart, { passive: true });
@@ -13173,44 +13179,234 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
   }
 
-  // src/playlayer.js
-  var pending2 = null;
-  var pendingCtx = null;
-  var slideRef = null;
-  var bodyRef = null;
-  var curItem = null;
-  var hist = [];
-  var hIdx = -1;
-  var levels = [];
-  var queue = [];
-  var stepping = false;
-  var unbindGest = null;
-  var session = { kind: "single", list: [], rows: null, idx: -1, more: null };
-  setOvlNoNext(function() {
-    return session.kind === "single";
-  });
-  function openPlayer(pi, ctx) {
-    if (!pi || !pi.acId) return;
-    pending2 = pi;
-    pendingCtx = ctx || null;
-    location.hash = CFG.hash + "/play/a/" + pi.acId;
+  // src/playstate.js
+  function freshSession() {
+    return { kind: "single", list: [], rows: null, idx: -1, more: null };
   }
-  function applyCtx(ctx) {
-    if (ctx && ctx.kind === "single") {
-      session = { kind: "single", list: [], rows: null, idx: -1, more: null };
-    } else if (ctx && ctx.kind === "list" && ctx.items && ctx.items.length) {
-      session = {
+  function sessionFromCtx(ctx) {
+    if (ctx && ctx.kind === "single") return freshSession();
+    if (ctx && ctx.kind === "list" && ctx.items && ctx.items.length) {
+      var s = {
         kind: "list",
         list: ctx.items.slice(),
         rows: ctx.rows || null,
         idx: Number(ctx.idx) || 0,
         more: ctx.more || null
       };
-      if (session.idx < 0 || session.idx >= session.list.length) session.idx = 0;
-    } else {
-      session = { kind: "walk", list: [], rows: null, idx: -1, more: null };
+      if (s.idx < 0 || s.idx >= s.list.length) s.idx = 0;
+      return s;
     }
+    return { kind: "walk", list: [], rows: null, idx: -1, more: null };
+  }
+  function snapSession(s) {
+    return { kind: s.kind, list: s.list, rows: s.rows, idx: s.idx, more: s.more };
+  }
+  function sessionFromSnap(s) {
+    return { kind: s.kind, list: s.list, rows: s.rows || null, idx: s.idx, more: s.more };
+  }
+  function createHist() {
+    return { hist: [], hIdx: -1 };
+  }
+  function histJump(h, entry) {
+    h.hist[h.hIdx + 1] = entry;
+    h.hist.length = h.hIdx + 2;
+    h.hIdx = h.hist.length - 1;
+  }
+  function histReset(h, entry) {
+    h.hist = entry ? [entry] : [];
+    h.hIdx = entry ? 0 : -1;
+  }
+  function histBack(h) {
+    if (h.hIdx <= 0) return null;
+    h.hIdx--;
+    return h.hist[h.hIdx];
+  }
+
+  // src/levelstack.js
+  var io = null;
+  function setLevelIO(x) {
+    io = x;
+  }
+  var session = freshSession();
+  var H = createHist();
+  var levels = [];
+  var queue = [];
+  var stepping = false;
+  var curItem = null;
+  var MAX_LEVELS = 2;
+  function currentSession() {
+    return session;
+  }
+  function isSingle() {
+    return session.kind === "single";
+  }
+  function curItemOf() {
+    return curItem;
+  }
+  function setCurItem(item) {
+    curItem = item;
+  }
+  function canBack() {
+    return H.hIdx > 0;
+  }
+  function applyCtx(ctx) {
+    session = sessionFromCtx(ctx);
     queue = [];
+  }
+  function enterLayer(item) {
+    curItem = item;
+    histReset(H, { item, sess: snapSession(session) });
+    levels = [{ item, sess: snapSession(session), hist: H.hist, hIdx: 0, queue: [], at: 0 }];
+    io.syncArrows();
+  }
+  function jump(item) {
+    if (!io.swap(item)) return false;
+    histJump(H, { item, sess: snapSession(session) });
+    io.syncArrows();
+    io.syncListTab();
+    return true;
+  }
+  function stackTop() {
+    return levels.length ? levels[levels.length - 1] : null;
+  }
+  function saveLevel() {
+    var lv = stackTop();
+    if (!lv) return;
+    lv.item = curItem || lv.item;
+    lv.sess = snapSession(session);
+    lv.hist = H.hist;
+    lv.hIdx = H.hIdx;
+    lv.queue = queue;
+    lv.at = io.curTime();
+  }
+  function pushLevel(item, ctx) {
+    if (levels.length >= MAX_LEVELS) return true;
+    saveLevel();
+    applyCtx(ctx);
+    if (!io.swap(item)) return false;
+    histReset(H, { item, sess: snapSession(session) });
+    levels.push({ item, sess: snapSession(session), hist: H.hist, hIdx: 0, queue: [], at: 0 });
+    io.syncArrows();
+    io.listMode(true);
+    io.openListDrawer();
+    return true;
+  }
+  function escape() {
+    if (levels.length <= 1) return null;
+    saveLevel();
+    levels.pop();
+    var up = stackTop();
+    session = sessionFromSnap(up.sess);
+    H.hist = up.hist;
+    H.hIdx = up.hIdx;
+    queue = up.queue;
+    return { item: up.item, at: up.at };
+  }
+  function pickInLevel(idx) {
+    if (session.kind !== "list" || !session.list.length) return false;
+    if (idx < 0 || idx >= session.list.length) return false;
+    session.idx = idx;
+    return jump(playItemOf(session.list[idx]));
+  }
+  function step(delta) {
+    if (stepping) return false;
+    if (delta < 0) {
+      var h = histBack(H);
+      if (!h) return false;
+      session = sessionFromSnap(h.sess);
+      io.syncListTab();
+      queue = [];
+      var ok = io.swap(h.item);
+      io.syncArrows();
+      return ok;
+    }
+    return stepNext();
+  }
+  function stepNext() {
+    if (session.kind === "single") return false;
+    if (session.kind === "list") {
+      var i = session.idx + 1;
+      if (i < session.list.length) {
+        session.idx = i;
+        jump(playItemOf(session.list[i]));
+        return true;
+      }
+      if (session.more) {
+        if (stepping) return false;
+        stepping = true;
+        session.more().then(function(added) {
+          stepping = false;
+          if (!io.alive()) return;
+          if (added && added.length) {
+            session.list = session.list.concat(added);
+            stepNext();
+          } else {
+            io.toast("已经是最后一条");
+            io.syncArrows();
+          }
+        }, function() {
+          stepping = false;
+          io.toast("已经是最后一条");
+          io.syncArrows();
+        });
+        return true;
+      }
+      io.toast("已经是最后一条");
+      return false;
+    }
+    if (queue.length) {
+      jump(queue.shift());
+      return true;
+    }
+    if (stepping) return false;
+    stepping = true;
+    io.relatedBatch(curItem.id).then(function(items) {
+      stepping = false;
+      if (!io.alive()) return;
+      if (!items || !items.length) {
+        io.toast("没有更多相关推荐");
+        return;
+      }
+      queue = queue.concat(items.slice(1));
+      jump(items[0]);
+    });
+    return true;
+  }
+  function resetAll() {
+    session = freshSession();
+    H = createHist();
+    levels = [];
+    queue = [];
+    stepping = false;
+    curItem = null;
+  }
+  function debugState() {
+    return {
+      session: session.kind,
+      listLen: session.list.length,
+      listIdx: session.idx,
+      hasMore: !!session.more,
+      hist: H.hist.length,
+      hIdx: H.hIdx,
+      queue: queue.length,
+      levels: levels.length,
+      parentId: levels.length > 1 ? (levels[levels.length - 2].item || {}).id || null : null,
+      curAt: stackTop() ? Math.round(stackTop().at || 0) : 0,
+      parentAt: levels.length > 1 ? Math.round(levels[levels.length - 2].at || 0) : 0
+    };
+  }
+
+  // src/playlayer.js
+  var pending2 = null;
+  var pendingCtx = null;
+  var slideRef = null;
+  var bodyRef = null;
+  var unbindGest = null;
+  function openPlayer(pi, ctx) {
+    if (!pi || !pi.acId) return;
+    pending2 = pi;
+    pendingCtx = ctx || null;
+    location.hash = CFG.hash + "/play/a/" + pi.acId;
   }
   function displayRowsOf(sess) {
     if (sess.rows && sess.rows.length === sess.list.length) return sess.rows;
@@ -13230,18 +13426,44 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var up = slideRef.querySelector(".acsv-arrow-up");
     var dn = slideRef.querySelector(".acsv-arrow-down");
     if (up) {
-      var hasPrev = hIdx > 0;
+      var hasPrev = canBack();
       up.style.display = hasPrev ? "grid" : "none";
       up.disabled = !hasPrev;
     }
     if (dn) {
-      var hasNext = session.kind === "walk" ? true : session.kind === "list" ? session.idx + 1 < session.list.length || !!session.more : false;
+      var s = currentSession();
+      var hasNext = s.kind === "walk" ? true : s.kind === "list" ? s.idx + 1 < s.list.length || !!s.more : false;
       dn.style.display = hasNext ? "grid" : "none";
       dn.disabled = !hasNext;
     }
   }
+  function syncListTab() {
+    var s = currentSession();
+    if (s.kind === "list" && s.list.length) relDrawerSyncList(s.idx);
+  }
+  function curTime() {
+    var v = slideRef && slideRef.querySelector("video");
+    return v && v.currentTime > 1 ? v.currentTime : 0;
+  }
+  setLevelIO({
+    swap,
+    alive: function() {
+      return !!slideRef;
+    },
+    curTime,
+    toast: function(msg) {
+      toast(msg);
+    },
+    syncArrows,
+    syncListTab,
+    listMode: relDrawerListMode,
+    hideList: relDrawerHideList,
+    openListDrawer,
+    relatedBatch: batch
+  });
+  setOvlNoNext(isSingle);
   function mountSlide(body, item, resumeAt) {
-    var goTo = session.kind === "single" ? null : {
+    var goTo = isSingle() ? null : {
       up: function() {
         playStep(-1);
       },
@@ -13254,8 +13476,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     slide.dataset.ovl = "1";
     body.appendChild(slide);
     slideRef = slide;
-    curItem = item;
     setPlayItem(item);
+    setCurItem(item);
     setVideoTarget(function() {
       var v = slideRef && slideRef.querySelector("video");
       return v || null;
@@ -13268,168 +13490,41 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   }
   function swap(item, resumeAt) {
     if (!bodyRef || !item) return false;
-    if (slideRef && slideRef._session) {
-      slideRef._session.dispose();
-      slideRef._session = null;
-    }
+    detachSession(slideRef);
     if (slideRef && slideRef.parentNode) slideRef.parentNode.removeChild(slideRef);
     slideRef = null;
     mountSlide(bodyRef, item, resumeAt);
-    if (isOpenComments()) retargetComments(item.id, item.stype, item.shareUrl, item.kind, item.title);
+    followComments(item);
     return true;
   }
-  function snapSession() {
-    return { kind: session.kind, list: session.list, rows: session.rows, idx: session.idx, more: session.more };
-  }
-  function jump(item) {
-    if (!swap(item)) return false;
-    hist[hIdx + 1] = { item, sess: snapSession() };
-    hist.length = hIdx + 2;
-    hIdx = hist.length - 1;
-    syncArrows();
-    syncListTab();
-    return true;
-  }
-  function curTime() {
-    var v = slideRef && slideRef.querySelector("video");
-    return v && v.currentTime > 1 ? v.currentTime : 0;
-  }
-  function stackTop() {
-    return levels.length ? levels[levels.length - 1] : null;
-  }
-  function saveLevel() {
-    var lv = stackTop();
-    if (!lv) return;
-    lv.item = curItem || lv.item;
-    lv.sess = snapSession();
-    lv.hist = hist;
-    lv.hIdx = hIdx;
-    lv.queue = queue;
-    lv.at = curTime();
-  }
-  function loadLevel(lv) {
-    session = { kind: lv.sess.kind, list: lv.sess.list, rows: lv.sess.rows || null, idx: lv.sess.idx, more: lv.sess.more };
-    hist = lv.hist;
-    hIdx = lv.hIdx;
-    queue = lv.queue;
-  }
-  var MAX_LEVELS = 2;
-  function pushLevel(item, ctx) {
-    if (!bodyRef || !item) return false;
-    if (levels.length >= MAX_LEVELS) return true;
-    saveLevel();
-    applyCtx(ctx);
-    swap(item);
-    hist = [{ item, sess: snapSession() }];
-    hIdx = 0;
-    levels.push({ item, sess: snapSession(), hist, hIdx: 0, queue: [], at: 0 });
-    syncArrows();
-    relDrawerListMode(true);
-    openListDrawer();
-    return true;
+  function playStep(delta) {
+    if (!slideRef || !curItemOf()) return false;
+    var ok = step(delta);
+    if (!ok && delta < 0) toast("已经是第一条");
+    return ok;
   }
   function playEscape() {
-    if (!slideRef || levels.length <= 1) return false;
-    saveLevel();
-    levels.pop();
-    var up = stackTop();
-    loadLevel(up);
+    if (!slideRef) return false;
+    var up = escape();
+    if (!up) return false;
     swap(up.item, up.at);
     syncArrows();
     relDrawerHideList();
     relDrawerListMode(false);
     return true;
   }
-  function pickInLevel(idx) {
-    if (session.kind !== "list" || !session.list.length) return false;
-    if (idx < 0 || idx >= session.list.length) return false;
-    session.idx = idx;
-    return jump(playItemOf(session.list[idx]));
-  }
-  function syncListTab() {
-    if (session.kind === "list" && session.list.length) relDrawerSyncList(session.idx);
-  }
   function openListDrawer() {
-    if (!curItem) return;
+    var ci = curItemOf();
+    if (!ci) return;
     if (!isOpenComments()) {
-      openComments(curItem.id, curItem.stype, curItem.shareUrl, curItem.kind, curItem.title);
+      openComments(ci.id, ci.stype, ci.shareUrl, ci.kind, ci.title);
     }
-    relDrawerShowList(displayRowsOf(session), session.idx, curItem.title || "");
+    var s = currentSession();
+    relDrawerShowList(displayRowsOf(s), s.idx, ci.title || "");
   }
-  function enterLayer(body, item) {
-    mountSlide(body, item);
-    hist = [{ item, sess: snapSession() }];
-    hIdx = 0;
-    levels = [{ item, sess: snapSession(), hist, hIdx: 0, queue: [], at: 0 }];
-    syncArrows();
-  }
-  function playStep(delta) {
-    if (!slideRef || !curItem || stepping) return false;
-    if (delta < 0) {
-      if (hIdx <= 0) {
-        toast("已经是第一条");
-        return false;
-      }
-      hIdx--;
-      var h = hist[hIdx];
-      session = { kind: h.sess.kind, list: h.sess.list, rows: h.sess.rows || null, idx: h.sess.idx, more: h.sess.more };
-      syncListTab();
-      queue = [];
-      swap(h.item);
-      syncArrows();
-      return true;
-    }
-    return stepNext();
-  }
-  function stepNext() {
-    if (session.kind === "single") return false;
-    if (session.kind === "list") {
-      var i = session.idx + 1;
-      if (i < session.list.length) {
-        session.idx = i;
-        jump(playItemOf(session.list[i]));
-        return true;
-      }
-      if (session.more) {
-        if (stepping) return false;
-        stepping = true;
-        session.more().then(function(added) {
-          stepping = false;
-          if (!slideRef) return;
-          if (added && added.length) {
-            session.list = session.list.concat(added);
-            stepNext();
-          } else {
-            toast("已经是最后一条");
-            syncArrows();
-          }
-        }, function() {
-          stepping = false;
-          toast("已经是最后一条");
-          syncArrows();
-        });
-        return true;
-      }
-      toast("已经是最后一条");
-      return false;
-    }
-    if (queue.length) {
-      jump(queue.shift());
-      return true;
-    }
-    if (stepping) return false;
-    stepping = true;
-    batch(curItem.id).then(function(items) {
-      stepping = false;
-      if (!slideRef) return;
-      if (!items || !items.length) {
-        toast("没有更多相关推荐");
-        return;
-      }
-      queue = queue.concat(items.slice(1));
-      jump(items[0]);
-    });
-    return true;
+  function enterLayer2(item) {
+    mountSlide(bodyRef, item);
+    enterLayer(item);
   }
   setLayerHost({
     active: function() {
@@ -13437,6 +13532,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     },
     // 抽屉「相关推荐」行点击（层内）= **开列表播放器**（压新级别，0.9.174 用户裁决——关闭即回原视频）
     jump: function(item, ctx) {
+      if (!bodyRef || !item) return false;
       return pushLevel(item, ctx || { kind: "walk" });
     },
     // 抽屉「列表」tab 行点击 = 列表内跳转（同级别换条）
@@ -13455,10 +13551,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       return;
     }
     bodyRef = body;
-    hist = [];
-    hIdx = -1;
-    queue = [];
-    stepping = false;
+    resetAll();
     unbindGest = bindLayerGestures(body, playStep);
     seed(id);
     var st2 = pending2;
@@ -13467,7 +13560,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     pendingCtx = null;
     applyCtx(ctx);
     if (st2 && String(st2.acId) === String(id)) {
-      enterLayer(body, playItemOf(st2));
+      enterLayer2(playItemOf(st2));
       return;
     }
     var sp = spinner();
@@ -13480,7 +13573,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           errBox(body, "视频加载失败", load);
           return;
         }
-        enterLayer(body, hit.item);
+        enterLayer2(hit.item);
       }, function() {
         if (!body.isConnected) return;
         sp.remove();
@@ -13496,24 +13589,15 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       unbindGest();
       unbindGest = null;
     }
-    if (slideRef && slideRef._session) {
-      slideRef._session.dispose();
-      slideRef._session = null;
-    }
+    detachSession(slideRef);
     slideRef = null;
     setPlayItem(null);
     pending2 = null;
     pendingCtx = null;
     bodyRef = null;
-    curItem = null;
-    hist = [];
-    hIdx = -1;
-    queue = [];
-    stepping = false;
-    levels = [];
     relDrawerHideList();
     relDrawerListMode(false);
-    session = { kind: "single", list: [], rows: null, idx: -1, more: null };
+    resetAll();
   }
   registerView({
     id: "play",
@@ -13525,24 +13609,23 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     // 握播放会话/定时器：离开即真拆，绝不挂起（隐藏容器里继续出声绝不允许）
   });
   testHook("playlayer", function() {
+    var ls2 = debugState();
+    var v = slideRef && slideRef.querySelector("video");
     return {
       active: !!slideRef,
-      id: curItem ? curItem.id : null,
-      hist: hist.length,
-      hIdx,
-      queue: queue.length,
-      session: session.kind,
-      listLen: session.list.length,
-      listIdx: session.idx,
-      hasMore: !!session.more,
-      levels: levels.length,
-      parentId: levels.length > 1 ? (levels[levels.length - 2].item || {}).id || null : null,
-      curAt: stackTop() ? Math.round(stackTop().at || 0) : 0,
-      parentAt: levels.length > 1 ? Math.round(levels[levels.length - 2].at || 0) : 0,
-      at: (function() {
-        var v = slideRef && slideRef.querySelector("video");
-        return v ? Math.round(v.currentTime) : 0;
-      })(),
+      id: curItemOf() ? curItemOf().id : null,
+      hist: ls2.hist,
+      hIdx: ls2.hIdx,
+      queue: ls2.queue,
+      session: ls2.session,
+      listLen: ls2.listLen,
+      listIdx: ls2.listIdx,
+      hasMore: ls2.hasMore,
+      levels: ls2.levels,
+      parentId: ls2.parentId,
+      curAt: ls2.curAt,
+      parentAt: ls2.parentAt,
+      at: v ? Math.round(v.currentTime) : 0,
       arrows: slideRef ? slideRef.querySelectorAll(".acsv-arrow").length : 0,
       upShown: !!(slideRef && (slideRef.querySelector(".acsv-arrow-up") || {}).style && slideRef.querySelector(".acsv-arrow-up").style.display !== "none"),
       downShown: !!(slideRef && (slideRef.querySelector(".acsv-arrow-down") || {}).style && slideRef.querySelector(".acsv-arrow-down").style.display !== "none")
@@ -13551,7 +13634,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   setItemOpener(openPlayer);
 
   // src/player.js
-  var io = null;
+  var io2 = null;
   function makeIO() {
     return new IntersectionObserver(function(entries) {
       entries.forEach(function(en) {
@@ -13697,7 +13780,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         var slot = scroller.querySelector('.acsv-slide-slot[data-idx="' + i + '"]');
         if (slot) slot.replaceWith(slide);
         else scroller.appendChild(slide);
-        if (io) io.observe(slide);
+        if (io2) io2.observe(slide);
       }
       if ((i === cur || i === cur + CFG.win.fwd) && !slide.querySelector("video") && slide.dataset.state !== "error") {
         attachVideo(slide, FeedStore.items[i], i);
@@ -13707,12 +13790,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     Array.prototype.forEach.call(slides, function(s) {
       var idx = Number(s.dataset.idx);
       if (idx < cur - CFG.win.back || idx > cur + CFG.win.fwd) {
-        if (s._session) {
-          s._session.dispose();
-          s._session = null;
-        }
+        detachSession(s);
         if (idx < cur - CFG.feed.slideBelt || idx > cur + CFG.feed.slideBelt) {
-          if (io) io.unobserve(s);
+          if (io2) io2.unobserve(s);
           var slotEl = el("div", "acsv-slide-slot");
           slotEl.dataset.idx = idx;
           s.replaceWith(slotEl);
@@ -13747,10 +13827,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     FeedStore.ensureMore().then(renderWindow);
     prewarm(idx);
     updateArrows(slideAt(idx));
-    if (isOpenComments()) {
-      var itC = FeedStore.items[idx];
-      if (itC && commentState.sourceId !== itC.id) retargetComments(itC.id, itC.stype, itC.shareUrl, itC.kind, itC.title);
-    }
+    followComments(FeedStore.items[idx]);
     for (var wi = Math.max(0, idx - CFG.win.back); wi <= idx + CFG.win.fwd && wi < FeedStore.items.length; wi++) {
       var ws = slideAt(wi);
       if (!ws || !offCurrent(ws)) continue;
@@ -13854,15 +13931,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function resetStream() {
     if (!scroller) return;
     Array.prototype.forEach.call(scroller.querySelectorAll(".acsv-slide"), function(sl) {
-      if (sl._session) {
-        sl._session.dispose();
-        sl._session = null;
-      }
+      detachSession(sl);
     });
     scroller.innerHTML = "";
     scroller.scrollTop = 0;
-    if (io) io.disconnect();
-    io = makeIO();
+    if (io2) io2.disconnect();
+    io2 = makeIO();
   }
   function loadDeepLink(mid, src) {
     feedStreamOn = false;
@@ -13943,7 +14017,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     mountBadge(tb.imBtn, tb.imBtn.querySelector(".acsv-im-badge"));
     dbg("root-appended");
     releaseCheck();
-    io = makeIO();
+    io2 = makeIO();
     setupInputHandlers({ scrollToIndex, exitFeed, getView: currentView, toggleImDrawer, toggleComments: toggleItemComments, playStep, playEscape });
     var route = parseRoute();
     if (route.mid) {
@@ -13984,9 +14058,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     cancelHashSync();
     setAppliedMid(null);
     setChangeHandler(null);
-    if (io) {
-      io.disconnect();
-      io = null;
+    if (io2) {
+      io2.disconnect();
+      io2 = null;
     }
     teardownInputHandlers();
     cancelSeekHold();
@@ -14000,10 +14074,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     teardownViews();
     overlayTeardown();
     Array.prototype.forEach.call(root.querySelectorAll(".acsv-slide"), function(s) {
-      if (s._session) {
-        s._session.dispose();
-        s._session = null;
-      }
+      detachSession(s);
     });
     var vs = root.querySelectorAll("video");
     Array.prototype.forEach.call(vs, function(v) {
@@ -14926,7 +14997,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.209：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.210：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

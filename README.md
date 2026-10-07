@@ -384,6 +384,8 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `searchhist.js` | 搜索历史（0.9.151 建；**0.9.158 后端改复用站方 `localStorage['searchCache']`**——与原生搜索框面板共享同一份历史）：`histList`/`histAdd`/`histClear`；语义照站方组件源码（去重提前、**上限 8**、写入前剥 `<`/`>`——站方把词拼进 HTML 渲染）；清除=移除键（原生「清除历史」同款）；老 GM 键 `acsvSearchHist` 首次读一次性并入（去重/过上限/过过滤）后不再碰，**老键不删**；无 localStorage 走内存降级 |
 | `playlayer.js` | 播放层（0.9.74；0.9.82 面板→播放的桥下沉为 data.playItemOf 纯函数）：子视图 play（#svfeed/play/&lt;v\|a&gt;/&lt;id&gt;）就地播放——面板条目即时首帧（标题/封面/作者来自面板契约的 up：搜索与收藏来源带作者，历史来源不带、由回包补）/ 冷进入 API.deepLink 解析（不 setSource）/ 失败错误盒+重试；OVL_IDX 哨兵 + data-ovl 判据（attach.js 契约表在册）、键盘重定向 state.setVideoTarget；**层内会话**（0.9.170 起；0.9.171 加滚轮/触摸滑动切换——throttle 攒阈值 60px + 锁 500ms；0.9.173 会话语义化）：`playStep(±1)`（player 注入 input 的 api；右栏 ▲▼ 与滚轮/触摸同源）三态——`single` 单条（**缺省之外由来源显式声明**：动态里的视频卡片）：不出箭头、↓ 静默；`walk` 相关池（**缺省**：深链/刷新这类无列表来源 + 分区默认）：↓ 从相关池抽（随机；设置开=整批队列）；`list` 来源结果列表（搜索/榜单/我的；分区设置开=网格顺序；**关注视图的视频卡片=显式单条**）：↓ 顺序步进、尾部问 more()（分区/我的可续拉）无则停+提示；↑ 一律历史回退（**历史格随身带会话快照 {item,sess}**——跨轨回退连列表下标一起还原）；**级别栈**（0.9.174 用户裁决；0.9.175 封顶）：点抽屉「相关推荐」行 = 压新级别（列表播放器：播那份列表、自动展开抽屉停在「列表」tab）而非顶掉当前视频——Esc 弹回上级原视频并经既有续播槽（slide._resumeAt→session.resumeAt）恢复进度；单级时 Esc 交回视图层退出（player 注入 input 的 api.playEscape，Esc 三级链：浮层→级别→视图；**顶栏「向左返回」同源**——0.9.176 起也先弹级再回来源）；**深度封顶 2 级**（MAX_LEVELS：列表播放器里不再有相关推荐入口——抽屉 listOnly，防无限套娃；超限压级被静默吞掉）；右栏箭头随会话建（list/walk 才建；首条藏 ▲、不可续拉的末条藏 ▼）；换条 swap（拆旧会话→挂新；抽屉开着走 **comments.retargetComments**——只换源不重开浮层，页签原地保留，0.9.178）；hash 不跟写（层地址=入口，Esc/刷新仍回入口）；testHook('playlayer') 暴露 {active,id,hist,hIdx,queue,session,listLen,listIdx,hasMore,levels,parentId,curAt,parentAt,at,arrows,upShown,downShown}（release 构建下 testHook=noop 不注册，回调体仍随产物保留——措辞见 dbg.js） |
 | `playgest.js` | 层内滑动手势（0.9.184 自 playlayer.js 拆出，逐字搬运）：`bindLayerGestures(body, step)` 绑定滚轮/触摸上下滑（攒阈值 60px + 锁 500ms 防一次滑动连推多条），返回解绑函数随层拆；`step` 由宿主注入（playlayer.playStep）——真翻了一条才吞滚轮（防橡皮筋）。零依赖叶子；视图壳/会话/级别栈/手势四缝之一 |
+| `playstate.js` | 播放层会话模型（0.9.209 自 playlayer.js 拆出，逐字搬运）：三态会话装配（freshSession/sessionFromCtx——**缺省=walk**，single 只由来源显式声明、list 有 idx 钳位）+ 快照/还原（snapSession/sessionFromSnap，list 共享数组引用、idx/more 值拷贝）+ 层内历史（createHist/histJump/histReset/histBack，历史格随身带会话快照 {item,sess}——↑ 回退连列表下标一起还原）。纯状态零依赖叶子，node 单测直采 |
+| `levelstack.js` | 级别栈/步进核（0.9.209 自 playlayer.js 拆出）：工作态（会话/历史/levels/queue/stepping）收此单源——`applyCtx`/`enterLayer`（历史第 0 条+栈底）/`pushLevel`（压级存档 saveLevel+自动列表抽屉，封顶 MAX_LEVELS=2 静默吞）/`escape`（弹级还原上级工作态，返回 {item,at} 交续播槽）/`pickInLevel`（列表内跳）/`step`（↓ 按三态会话分派、↑ 一律历史回退）/`resetAll`/`debugState`（testHook 取数）。环境触面（swap slide/箭头/页签/toast/curTime/relatedBatch）经 `setLevelIO` 注入——纯态可 node 直测；只 import playstate/playitem，**不新增对 relatedapi 的静态边**。消费方：playlayer（唯一） |
 | `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf（0.9.160 就地收编本文件），缺省不渲染）+ Tab 惰性面板（hist/fav/groups 三档：观看历史=双 resourceTypes/pageNo 翻页；**收藏夹**=chips 切夹→dougaList 翻页，0.9.143 管理化（建/改名/删夹 + 卡面移动·移除）；**关注分组（0.9.142）**=组 chips + 建/改名/删组 + 成员列表（移组/取关），读 relationapi、偏移量游标）+ 4:3 封面网格卡；条目经 panelItem 契约规整、点击进播放层（0.9.74） |
 | `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
 | `followview.js` | 关注视图「全部」侧（0.9.100 原生骨架复刻；0.9.101 交互补课；0.9.102 收口）：单列无限流——**逐段复刻原生 /member/feeds 骨架与量取值**（扁平列表+灰带分隔、头像 50、名字 16px、60px 内容缩进、正文 14/21 pre-line+展开、九宫格 342/110/299/228、横条双灰块+title 600+时长 hover 浮层、互动行 48px/42/12px、图标四件套逐码点采样；量取日与暗色换算表在 styles 段头注）；互动行写链（乐观回滚；点赞文章只读；**投蕉**：动态=单蕉直投、视频/文章=视频页同款数量层 banpop.js「点第 N 根投 N」、已投锁定蕉黄 #ffb323；pi 级写路径单源=interact.likePi/throwBananaPi）；**评论键原位展开评论区**（全类型：动态 stype=4/视频 stype=3，comments 管线 host 化挂行内，开新关旧互斥）；**引用卡完全照原生**（@源UP 蓝链 + 内嵌完整源内容卡，复用 stripOf；三落点可点）；无限滚动五条借鉴广场 + **回顶按钮（0.9.105 顶栏同款圆钮+chevUp）**；**作者名蓝链**（与引用卡同源）；互动栏/分享出口走 **momentbar 共享件**（分享 place=右缘贴行左缘 12px、底部共用坐标）。视频行进播放层，动态行点详情面板，文章行外链；行卡构建件与行内评论控制器 0.9.124 下沉 rowkit（本文件只留视图壳/游标方言/落点策略） |
@@ -460,6 +462,8 @@ flowchart LR
     emoticon["emoticon.js（表情）"]
     playlayer["playlayer.js（播放层·子视图 play）"]
     playgest["playgest.js（层内滑动手势·0.9.184 拆）"]
+    playstate["playstate.js（播放层会话模型·0.9.209 拆·零依赖）"]
+    levelstack["levelstack.js（级别栈/步进核·0.9.209 拆）"]
     others["controls · slide · rail · banpop · input · prewarm · danmaku · dmcanvas · interact · report · watchledger · uppage · nav · upload · release"]
     advdm["advdm.js（高级弹幕模型核·零依赖：解析/缓动/插值/绘制）"]
   end
@@ -517,7 +521,8 @@ flowchart LR
   momentapi --> cfg & net & panelitem
   pb --> feedstore & settings
   ubb --> emoticon
-  playlayer --> api & attach & cards & comments & errbox & playgest & reldrawer & relatedapi & viewreg
+  playlayer --> api & attach & cards & comments & errbox & levelstack & playgest & reldrawer & relatedapi & viewreg
+  levelstack --> playstate & playitem
   imsend --> appapi & immsg
   sharepanel --> imsend & imgload
   imbadge --> imsend
@@ -562,10 +567,10 @@ flowchart LR
   zone --> appapi & cards & viewreg
 
   classDef leaf fill:#e8f5e9,stroke:#2e7d32;
-  class immsg,imicons,imgurl,pagekind,viewreg,followseen,popplace,timefmt,uplook,nameval leaf;
+  class immsg,imicons,imgurl,pagekind,viewreg,followseen,popplace,timefmt,uplook,nameval,playstate leaf;
 ```
 
-绿色十个节点是刻意的解耦点：`immsg.js`/`imicons.js`/`imgurl.js`/`pagekind.js`/`viewreg.js` 零 import，消费方各自引入
+绿色十一个节点是刻意的解耦点：`immsg.js`/`imicons.js`/`imgurl.js`/`pagekind.js`/`viewreg.js` 零 import，消费方各自引入
 （`immsg` 现为 imdrawer/imnative/imsend/imcard/comments/momentbar 六方），私信格式与图片 URL 规则变更只改各自一处；
 `pagekind` 零依赖是为 boot 与单测都能直采（含 `location` 的 boot 不可单测，判据必须抽纯）；
 `followseen.js`（关注已读水位，0.9.139 抽出）零依赖是为两个关注语境入口（`followview` 首屏成功 /
@@ -574,6 +579,9 @@ followstream 引入它就会与既有的 `followbadge → followstream` 成环�
 `timefmt.js`/`uplook.js`/`nameval.js`（0.9.160 自 data.js 叶子出库）零依赖是为契约层解析器、
 渲染件（cards/rowkit/momentdetail/commentkit）与表单语义件（grouppop/favpop）都能直采同一份
 纯函数——文案/取色/校验改一处，离线单测不拉视图依赖图；
+`playstate.js`（0.9.209 自 playlayer.js 拆出）零依赖是为会话装配/快照/历史回退可 node 直测
+（消费方 levelstack.js 同批拆出、经 setLevelIO 注入环境触面，`relatedBatch` 走注入不 import
+relatedapi——拆件不新增特性域对接口域的静态边）。
 图片加载面（懒加载/重试/降级）统一走 `imgload.js`——新图面加一行 `imgInto`，别再手拼
 `referrerPolicy`/`loading`（`uppage` 在 others 组内，同引 imgload）。
 0.9.41 起评论/私信的**输入栏（`inputbar.js`）与大图查看器（`imgview.js`）**同为共用件，

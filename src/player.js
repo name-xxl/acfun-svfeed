@@ -6,7 +6,7 @@ import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetD
 import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync, setItemProvider } from './route.js';
 import { FeedStore, setChangeHandler } from './feedstore.js';
 import { getSource, setSource, resetHomePager, API } from './api.js';
-import { isOpenComments, closeComments, retargetComments, commentState, syncCommentVars, toggleItemComments } from './comments.js';
+import { closeComments, followComments, syncCommentVars, toggleItemComments } from './comments.js';
 import { onPlaying as dmOnPlaying, stopAll as dmStopAll } from './danmaku.js';
 import { UpVideos } from './uppage.js';
 import { FollowVideos, enterVideos, enterAll } from './followstream.js';
@@ -14,7 +14,7 @@ import { dbg, stat, testHook } from './dbg.js';
 import { markWatchProgress, reportLeave, reportLeaveCurrent } from './report.js';
 import { prewarm, preconnectSeed } from './prewarm.js';
 import { pb, playVideo, showSoundHint, resetForMount, cancelSeekHold, offCurrent, applyLoop } from './playback.js';
-import { attachVideo, switchQuality, setSessionHooks } from './attach.js';
+import { attachVideo, switchQuality, setSessionHooks, detachSession } from './attach.js';
 import { showControls, updateArrows } from './controls.js';
 import { onHomeResolved, setCommentsOpener } from './rail.js';
 import { buildSlide, buildDrawer } from './slide.js';
@@ -215,7 +215,7 @@ export function renderWindow() {
   Array.prototype.forEach.call(slides, function (s) {
     var idx = Number(s.dataset.idx);
     if (idx < cur - CFG.win.back || idx > cur + CFG.win.fwd) {
-      if (s._session) { s._session.dispose(); s._session = null; }
+      detachSession(s);
       if (idx < cur - CFG.feed.slideBelt || idx > cur + CFG.feed.slideBelt) {
         // 占位壳（0.9.165 水位）：belt 之外的 slide 换等高空壳——poster 位图/控件 DOM
         // 释放；等高 ⇒ offsetTop 全表不变，零滚动补偿；按 data-idx 划回原位重建。
@@ -259,11 +259,9 @@ function setActive(idx) {
   FeedStore.ensureMore().then(renderWindow);
   prewarm(idx);
   updateArrows(slideAt(idx));
-  if (isOpenComments()) {
-    var itC = FeedStore.items[idx];
-    // 换条重定向（0.9.178）：不重开浮层——否则每滑一条都把抽屉页签打回评论（层内同款实报）
-    if (itC && commentState.sourceId !== itC.id) retargetComments(itC.id, itC.stype, itC.shareUrl, itC.kind, itC.title);
-  }
+  // 换条重定向（0.9.178）：不重开浮层——否则每滑一条都把抽屉页签打回评论（层内同款实报）。
+  // 出口收口 comments.followComments（0.9.209 批②；判开+同源跳过都在盒内）
+  followComments(FeedStore.items[idx]);
   // 暂停非当前视频，停掉其弹幕图层（滚动回来 playing 会自动重启）。
   // 0.9.37 收敛为窗口内扫描：video 只存在于渲染窗口的 slide 里，全量扫 scroller
   // 会随会话长度线性放大（0.9.37 时 slide 元素常驻；0.9.165 起窗外已换占位壳，
@@ -396,7 +394,7 @@ function loadInitial() {
 function resetStream() {
   if (!scroller) return;
   Array.prototype.forEach.call(scroller.querySelectorAll('.acsv-slide'), function (sl) {
-    if (sl._session) { sl._session.dispose(); sl._session = null; }
+    detachSession(sl);
   });
   scroller.innerHTML = '';
   scroller.scrollTop = 0;
@@ -559,7 +557,7 @@ function unmount() {
 
   // 会话整批拆除（video/hls/看门狗/弹幕层/定时器一次拆净）
   Array.prototype.forEach.call(root.querySelectorAll('.acsv-slide'), function (s) {
-    if (s._session) { s._session.dispose(); s._session = null; }
+    detachSession(s);
   });
   var vs = root.querySelectorAll('video');
   Array.prototype.forEach.call(vs, function (v) { v.pause(); v.removeAttribute('src'); v.load(); });

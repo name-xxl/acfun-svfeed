@@ -137,6 +137,17 @@ function applyDrawerContent(sourceId, stype, shareUrl, kind, title) {
   }
 }
 
+// 换条评论跟随（0.9.209 批②收口）：竖刷 setActive 与播放层 swap 同型的「抽屉开着就跟到
+// 新视频」出口——判开、同源跳过、重定向三步收此单源（此前两处各写各的判定）。重定向走
+// retarget 缝不重开浮层（0.9.178 纪律：重开会触发 closeComments ⇒ 页签被打回评论）。
+// 注：同源跳过取竖刷侧判据（sourceId 相同即返回）；层内 swap 恒为新条目，旧层内无判据的
+// 路径仅在 ↑ 历史回退撞同源时可达，其「首屏失败重拉」补拉由重开抽屉路径承担（0.9.193 口径）
+export function followComments(item) {
+  if (!item || !item.id || !isOpenComments()) return;
+  if (commentState.sourceId === item.id) return;
+  retargetComments(item.id, item.stype, item.shareUrl, item.kind, item.title);
+}
+
 // 右栏按钮与 C 键共用：同一条目开着就收起，否则展开该条目的评论
 export function toggleItemComments(item) {
   if (isOpenComments() && commentState.sourceId === item.id) closeComments();

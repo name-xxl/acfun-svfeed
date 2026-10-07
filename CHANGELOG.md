@@ -3,6 +3,28 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.210（2026-10-07）· playlayer 拆件收尾（playstate/levelstack）+ 两处编排重复收口
+
+- **由头**：dependency-audit 在册候选「playlayer 拆件（先不拆，下一批一起）」到期；0.9.184
+  已拆四缝之一（手势→playgest），本批拆完剩下两缝，顺带收口 player/playlayer 编排层的
+  重复片段。
+- **拆件**（纯重构，行为零变化）：
+  - `src/playstate.js`（**零依赖新叶子**）：三态会话装配（缺省=walk/single 显式/list 钳位）+
+    快照还原 + 层内历史（历史格随身带会话快照），自 playlayer 逐字平移；
+  - `src/levelstack.js`：级别栈（saveLevel/pushLevel 封顶 2/escape 弹级）/步进核（↓ 按三态
+    分派、↑ 历史回退）/walk 队列，自 playlayer 平移；环境触面（swap slide/箭头/页签/toast/
+    curTime/**relatedBatch**）经 `setLevelIO` 注入——不新增对 relatedapi 的静态边；
+  - playlayer.js 452→**318 行**，只剩视图壳（DOM 挂载/抽屉联动/深链解析/生命周期）。
+- **编排重复收口**：① 会话拆装三行散落 7 处收成 `attach.detachSession(slide)`（player 3 处/
+  playlayer 2 处/attach 2 处/controls 1 处，契约表同步登记）；② 换条评论跟随两处同型判定
+  收成 `comments.followComments(item)`（player setActive/playlayer swap）——同源跳过取竖刷
+  侧判据，层内 ↑ 回退撞同源的窄路径差异已在注释记账。
+- **测试**：新增 playstate.test（6 断言组）+ levelstack.test（8 断言组，假桩 io 直测压级/
+  弹级/回退/三态分派/封顶/队列），node 直测从 0 到场；harness 56 场景全绿（ll-* 级别栈
+  行为钉死不动）。**反跑证据**：摘除 enterLayer 的 curItem 锚定 → levelstack walk 用例转红
+  （batchCalls [undefined]），恢复复绿。README 依赖图补两节点（playstate 入零依赖叶子名单）。
+- 单测 278→292（+14 断言）。
+
 ### 0.9.209（2026-10-07）· 工程减债两则：内嵌 hls.js 换 light 版 + postForm 失败口径对齐 net 层
 
 - **⑤ 内嵌 hls.js 换 light 版**：build.js 内嵌源 `hls.min.js`（415KB）→ `hls.light.min.js`（297KB），
