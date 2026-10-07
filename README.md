@@ -517,7 +517,7 @@ flowchart LR
   appapi --> imgurl & timefmt
   session --> api & hls & settings
   attach --> feedstore & quality & session & settings
-  player --> api & attach & comments & errbox & feedstore & followstream & imbadge & imdrawer & input & overlay & pb & playlayer & release & settingspanel & sidebar & topbar & views
+  player --> api & attach & comments & danmaku & errbox & feedstore & followstream & imbadge & imdrawer & input & overlay & pb & playlayer & release & settingspanel & sidebar & topbar & views
   feedstore --> api & feedctx
   momentapi --> cfg & net & panelitem
   pb --> feedstore & settings
@@ -558,7 +558,7 @@ flowchart LR
   relationapi --> appapi
   relatedapi --> imgurl & settings
   reldrawer --> imgload & imicons & relatedapi
-  danmaku --> toastmsg
+  danmaku --> appapi & settings & toastmsg
   banpop --> toastmsg
   channelapi --> cfg & net
   jingxuanview --> appapi & cards & channelapi & imicons & imgload & relatedapi & settings & viewreg
