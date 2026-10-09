@@ -1,7 +1,9 @@
-// ---------- 评论图片上传（0.9.38 自 appapi.js 迁出：接口层不再背上传管线） ----------
-// 四阶段：getToken → 分片（顺序逐一）→ complete → 换签名 URL（长期地址由 comment/add 服务端改写）。
-// 需 GM_xmlhttpRequest（二进制分片）；各阶段独立成 Promise 小函数，任何一步失败
-// 由 uploadImage 统一落为 null
+// ---------- 图片上传（0.9.38 自 appapi.js 迁出：接口层不再背上传管线） ----------
+// 四阶段：getToken → 分片（顺序逐一）→ complete → 换签名 URL（长期地址由服务端改写）。
+// 需 GM_xmlhttpRequest（二进制分片）；各阶段独立成 Promise 小函数，任何一步失败落为 null。
+// 0.9.220：`bizFlag` **提为参数**（此前写死 web-comment-text）——动态发布要用同一个图床，但
+// bizFlag 能否复用 web-comment-text **未实测**（docs §11.5：脚本走的是 rest/app 那条 getToken 路）；
+// 默认值不变 ⇒ 评论链零扰动。另加**多图编排** uploadImages（九宫格：串行、逐张独立成败、不中断）
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
 
@@ -58,11 +60,11 @@ function uploadComplete(token, chunks) {
   });
 }
 
-function uploadGetUrl(token) {
+function uploadGetUrl(token, bizFlag) {
   return gmPostJson({
     url: CFG.upload.urlAfterUpload,
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    data: 'token=' + encodeURIComponent(token) + '&bizFlag=web-comment-text',
+    data: 'token=' + encodeURIComponent(token) + '&bizFlag=' + encodeURIComponent(bizFlag || CFG.upload.bizFlag),
     timeout: CFG.upload.urlT
   }).then(function (d) {
     if (!(d && d.result === 0 && d.url)) throw new Error('no-url');
@@ -73,8 +75,10 @@ function uploadGetUrl(token) {
   });
 }
 
-// 发评论配图入口：成功返回 getUrlAfterUpload 的完整签名 URL，失败一律 null（调用方 toast 提示）
-export function uploadImage(file) {
+// 单图入口：成功返回 getUrlAfterUpload 的完整签名 URL，失败一律 null（调用方 toast 提示）
+// opts.bizFlag 缺省＝评论链原值（cfg.upload.bizFlag）
+export function uploadImage(file, opts) {
+  var bizFlag = (opts && opts.bizFlag) || CFG.upload.bizFlag;
   var chunks = Math.max(1, Math.ceil(file.size / CFG.upload.chunk));
   return uploadGetToken(file)
     .then(function (token) {
@@ -83,6 +87,19 @@ export function uploadImage(file) {
     .then(function (token) {
       return uploadComplete(token, chunks).then(function () { return token; });
     })
-    .then(uploadGetUrl)
+    .then(function (token) { return uploadGetUrl(token, bizFlag); })
     .then(function (url) { return url || null; }, function () { return null; });
+}
+
+// 多图编排（0.9.220，动态九宫格用）：**串行**上传（并发会撞图床限流/风控），逐张独立成败——
+// 任一张失败不中断其余（返回数组里该项为 null，调用方据此提示"N 张上传失败"并允许重试单张）。
+// 顺序保证与入参一致（append-only 的九宫格预览靠它）。
+export function uploadImages(files, opts) {
+  var out = [];
+  var list = [].slice.call(files || []);
+  return list.reduce(function (chain, f) {
+    return chain.then(function () {
+      return uploadImage(f, opts).then(function (url) { out.push(url); }, function () { out.push(null); });
+    });
+  }, Promise.resolve()).then(function () { return out; });
 }

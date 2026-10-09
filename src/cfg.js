@@ -110,6 +110,12 @@ export var CFG = {
     // 显示什么）；条目形状与 followFeedV2 **同构** ⇒ 规整复用 panelitem.followPanelOf（省一份解析器）。
     // URL 字面量逐字=harness mock 缝（'feed/profile'）
     feedProfile: 'https://api-new.app.acfun.cn/rest/app/feed/profile',
+    // 动态发布/删除（0.9.220）：APP 域、**只认网页 Cookie**、服务端不校验签名（docs §11 全链实测；
+    // 与 api-ipv6 同后端，本仓统一 api-new）。body 单字段 `params`=URL 编码 JSON，**必须 form 编码**
+    //（缺 Content-Type 直接 result 21）；content 1–233；错误码 0/21/-401/140000/140002。
+    // URL 字面量逐字=harness mock 缝（'moment/add' / 'moment/delete'）
+    momentAdd: 'https://api-new.app.acfun.cn/rest/app/moment/add',
+    momentDelete: 'https://api-new.app.acfun.cn/rest/app/moment/delete',
     // 单条动态详情（0.9.127 广场新鲜度回填；plaza 同端点实测转引 §2.7）：pc-direct 带 Cookie
     // 读——列表（feedSquare 免登录）互动态恒 false，此端点才给真 isLike/isThrowBanana
     momentDetail: 'https://www.acfun.cn/rest/pc-direct/moment/detail',
@@ -374,6 +380,8 @@ export var CFG = {
     endpoint: 'https://upload.kuaishouzt.com', // 评论图片分片上传图床
     tokenUrl: 'https://www.acfun.cn/rest/pc-direct/image/upload/getToken',
     urlAfterUpload: 'https://www.acfun.cn/rest/pc-direct/image/upload/getUrlAfterUpload',
+    // getUrlAfterUpload 的 bizFlag（0.9.220 提为常量：此前写死在 upload.js；动态发布或需另值，未实测）
+    bizFlag: 'web-comment-text',
     chunk: 1 << 20,   // 分片大小（1MB）
     tokenT: 15000,    // getToken 超时
     chunkT: 60000,    // 单分片超时（二进制大，放宽）

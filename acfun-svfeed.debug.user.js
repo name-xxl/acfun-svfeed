@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.219-debug
+// @version      0.9.220-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.219-debug" : "",
+          ver: true ? "0.9.220-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -205,6 +205,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       // 显示什么）；条目形状与 followFeedV2 **同构** ⇒ 规整复用 panelitem.followPanelOf（省一份解析器）。
       // URL 字面量逐字=harness mock 缝（'feed/profile'）
       feedProfile: "https://api-new.app.acfun.cn/rest/app/feed/profile",
+      // 动态发布/删除（0.9.220）：APP 域、**只认网页 Cookie**、服务端不校验签名（docs §11 全链实测；
+      // 与 api-ipv6 同后端，本仓统一 api-new）。body 单字段 `params`=URL 编码 JSON，**必须 form 编码**
+      //（缺 Content-Type 直接 result 21）；content 1–233；错误码 0/21/-401/140000/140002。
+      // URL 字面量逐字=harness mock 缝（'moment/add' / 'moment/delete'）
+      momentAdd: "https://api-new.app.acfun.cn/rest/app/moment/add",
+      momentDelete: "https://api-new.app.acfun.cn/rest/app/moment/delete",
       // 单条动态详情（0.9.127 广场新鲜度回填；plaza 同端点实测转引 §2.7）：pc-direct 带 Cookie
       // 读——列表（feedSquare 免登录）互动态恒 false，此端点才给真 isLike/isThrowBanana
       momentDetail: "https://www.acfun.cn/rest/pc-direct/moment/detail",
@@ -571,6 +577,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       // 评论图片分片上传图床
       tokenUrl: "https://www.acfun.cn/rest/pc-direct/image/upload/getToken",
       urlAfterUpload: "https://www.acfun.cn/rest/pc-direct/image/upload/getUrlAfterUpload",
+      // getUrlAfterUpload 的 bizFlag（0.9.220 提为常量：此前写死在 upload.js；动态发布或需另值，未实测）
+      bizFlag: "web-comment-text",
       chunk: 1 << 20,
       // 分片大小（1MB）
       tokenT: 15e3,
@@ -3133,18 +3141,19 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       if (!d || d.result !== 1) throw new Error("complete");
     });
   }
-  function uploadGetUrl(token) {
+  function uploadGetUrl(token, bizFlag) {
     return gmPostJson({
       url: CFG.upload.urlAfterUpload,
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      data: "token=" + encodeURIComponent(token) + "&bizFlag=web-comment-text",
+      data: "token=" + encodeURIComponent(token) + "&bizFlag=" + encodeURIComponent(bizFlag || CFG.upload.bizFlag),
       timeout: CFG.upload.urlT
     }).then(function(d) {
       if (!(d && d.result === 0 && d.url)) throw new Error("no-url");
       return d.url;
     });
   }
-  function uploadImage(file) {
+  function uploadImage(file, opts) {
+    var bizFlag = opts && opts.bizFlag || CFG.upload.bizFlag;
     var chunks = Math.max(1, Math.ceil(file.size / CFG.upload.chunk));
     return uploadGetToken(file).then(function(token) {
       return uploadChunks(token, file).then(function() {
@@ -3154,7 +3163,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       return uploadComplete(token, chunks).then(function() {
         return token;
       });
-    }).then(uploadGetUrl).then(function(url) {
+    }).then(function(token) {
+      return uploadGetUrl(token, bizFlag);
+    }).then(function(url) {
       return url || null;
     }, function() {
       return null;
@@ -11947,7 +11958,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.219-debug" : "");
+    return normVer(true ? "0.9.220-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -15528,7 +15539,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.219-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.220-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

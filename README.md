@@ -407,6 +407,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `grouppop.js` | 关注分组选择层语义件（0.9.142）：未关注=「选择分组」（默认勾未分组≈原一键，可新建）；已关注=「更改分组」（**不预选**防误移 + 层内「取消关注」）；改分组必须 action=3（实测 action=1 对已关注用户不改归属）。消费方：rail 关注角标 + 我的页成员行「移组」 |
 | `favpop.js` | 收藏夹选择层语义件（0.9.143）：多选勾选 + 行内新建 + **三分支提交**（未收藏=add（默认勾第一个夹）/ 有改动=updateFolder 差集 / 全取消=remove）；`done(res)` 回 `{ favorited, ids }`（0.9.148 实锤：缺 ids 时我的页「移动」会抛且卡不摘除） |
 | `momentapi.js` | 动态域读接口（0.9.106 收口；0.9.107 unreadCount 退役）：listMoments（followFeedV2）/listVideos（followDougaFeed，规整走本域 followVideoPageOf）/listSquare（feedSquare 免登录广场流，首页不传游标；规整走本域 squarePageOf，0.9.125）/**listProfile（0.9.218：feed/profile UP 个人主页动态流——免登录、任意 uid、三合一混排，规整走本域 profilePageOf：**无 24h 窗口**，条目复用契约层 follow 解析器）**/momentDetail（单条详情，pc-direct 带 Cookie；广场新鲜度回填，0.9.127）/momentPageUrl；URL 形态逐字保持（mock 缝）；评论管线/写链不入（边界登记） || `momentdetail.js` | 动态详情面板（0.9.96 起；0.9.103 小红书式两栏；0.9.105 轮播+共存）：按内容型换布局——有 imgs（**图像权威=imgs**，0.9.105）两栏（左媒体黑底台 / 右 `.acsv-mdetail-side` 400）+**多图轮播**（track translate3d/60×60 箭头/底点/滚轮 preventDefault 逐格，XHS 实测 2026-10-04），无图/转发单栏 min(620px)；✕ 浮卡片外右上；正文 16/24；评论标题「共 N 条评论」（comments 管线 titleFmt）；互动栏（momentbar 共享件 skin=detail 四键）留内容底部；管线 host.el 两栏态指右栏（stype=4）；**不占 claimDrawer 槽**（私信抽屉共存+acsv-with-comments 左移避让，0.9.105）。**光 DOM 有意偏离 intake**（评论 CSS 单源，登记在模块头）；与评论抽屉共用 overlay 'comments' 层位 |
+| `momentpost.js` | 动态发布域（0.9.220 数据面）：`momentParams(content, opts)`＝组 params JSON（content/imgs/shareResourceType/visibleForFans + 转发族 repost*：动态=repostMomentId、视频/文章=repostResourceType+repostResourceId）/ `momentCharCount`（**原始长度**口径，服务端 140000 为准）/ `dimsOf`（写侧自量尺寸）/ `postResultOf`（错误码 0/21/-401/140000/140002 → 话术键）/ `addMoment`+`deleteMoment`（走 `net.request`：真机＝GM 通道且命中 harness mock 缝）。契约 docs §11；**未实测项**：bizFlag 复用、转发字段必填组合、风控 |
 | `momentbar.js` | 动态互动栏共享件（0.9.105）：行流卡与详情面板同键定义表（分享/评论/蕉/赞）+ 写链编排单源（乐观回滚/投蕉锁/动态单蕉/视频文章数量层），skin 分皮肤（尺寸/类名由 CSS 按根类作用域）；键出口经 opts 注入（行流=原位评论+place 分享；面板=滚动聚焦评论+右贴分享） |
 | `followbadge.js` | 关注未读徽标（0.9.97；0.9.107 时间水位线；**0.9.139 水位抽件 followseen**）：徽标=自水位（GM）以来 followFeedV2 首屏 `createTime > 水位` 的新条数——旧 webPush followUpers 布尔是服务端长期不清标记（实测清不掉⇒固定数字复亮），已退役；**正式推进点=各入口首屏到达时 `followseen.markSeen`**（followview 首屏成功 / followstream 进视频侧），poll 的 in-view 分支退化为兜底（吸收停留期新内容）；退避真逐次翻倍 60s→10min 纯函数；hidden 短路/未登录静默；挂 player.mount/unmount |
 | `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；`/member/*` 页加原生页入口（0.9.128：ensureStyle + setRoot(document.body) + watchMemberNav——memberplaza，0.9.47 决策的限定反转）；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷） |
@@ -495,6 +496,7 @@ flowchart LR
   momentbar["momentbar.js（动态互动栏·两皮肤共享件）"]
   feedctx["feedctx.js（列表上下文工厂·单活互斥）"]
   momentapi["momentapi.js（动态域读接口）"]
+  momentpost["momentpost.js（动态发布域·params 组装+提交）"]
   spacetab["spacetab.js（空间页标签栏注入件·两标签共用+自愈）"]
   spacemoments["spacemoments.js（空间页动态标签·feed/profile 混排流）"]
   uppage["uppage.js（空间页小视频区块·m 站 pagelet 抓取）"]
@@ -527,6 +529,7 @@ flowchart LR
   player --> api & attach & comments & danmaku & errbox & feedstore & followstream & imbadge & imdrawer & input & overlay & pb & playlayer & release & settingspanel & sidebar & topbar & uppage & views
   feedstore --> api & feedctx
   momentapi --> cfg & net & panelitem
+  momentpost --> cfg & net
   pb --> feedstore & settings
   ubb --> emoticon
   playlayer --> api & attach & cards & comments & errbox & levelstack & playgest & reldrawer & relatedapi & viewreg
