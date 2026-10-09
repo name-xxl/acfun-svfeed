@@ -68,7 +68,7 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 归类纠正后不再误报。同批：momenteditor（编辑器）/ pubentry（原生入口注入）
   // 0.9.224 登记：pubfab（发布常驻浮标共用件，消费 momenteditor/ui）——与 composermirror 同类的
   // 特性层 UI 件（此前 pubentry 也归在特性层）
-  'momenteditor.js', 'pubentry.js', 'momentpost.js', 'pubfab.js',
+  'momenteditor.js', 'momentpost.js', 'pubfab.js',
   // momentpost 同批归类（0.9.223）：动态**发布域**，与同在 FEATURE 里的 momentapi（读域）同类；
   // 它新 import tokenedit（字数口径要认令牌）后按实归类即可，非登记例外
   ]);

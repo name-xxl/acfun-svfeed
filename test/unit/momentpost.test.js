@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { momentParams, momentCharCount, MOMENT_MAX, postResultOf } = await import('../../src/momentpost.js');
+globalThis.location = { href: 'https://www.acfun.cn/', pathname: '/' };
+var { momentParams, momentCharCount, MOMENT_MAX, postResultOf, publishRequest } = await import('../../src/momentpost.js');
 
 test('momentParams：纯文字默认形态——四字段齐、shareResourceType 恒 0、imgs 空数组', () => {
   var p = JSON.parse(momentParams('你好'));
@@ -68,4 +69,15 @@ test('postResultOf：成功取 momentId；失败按码分档（notlogin/param/co
   // 140011＝发帖频率限制（2026-10-10 真机实拍：首发成功、紧接着第二条被拒）
   assert.equal(postResultOf({ result: 140011, error_msg: '操作太频繁了，请稍后再试' }).kind, 'ratelimit');
   assert.equal(postResultOf(null).ok, false);
+});
+
+test('publishRequest：**必须带 APP 设备头集**（GM 通道无 Referer ⇒ 头集是过网关的通行证）', () => {
+  var r = publishRequest('你好', { imgs: [], visibleForFans: false });
+  assert.match(r.url, /\/rest\/app\/moment\/add\?product=ACFUN_APP&app_version=/);
+  // 2026-10-10 真机：只发 Content-Type 会被网关拒成 result 708「无效的请求」
+  ['acPlatform', 'deviceType', 'net', 'productId', 'udid', 'resolution', 'market', 'requestTime']
+    .forEach((k) => assert.ok(r.headers[k], '缺设备头 ' + k));
+  assert.equal(r.headers['Content-Type'], 'application/x-www-form-urlencoded');
+  assert.equal(r.body.slice(0, 7), 'params=');
+  assert.equal(JSON.parse(decodeURIComponent(r.body.slice(7))).content, '你好');
 });

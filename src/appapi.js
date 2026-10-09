@@ -34,6 +34,11 @@ export function ensureApiSt(force) {
 // 设备指纹会话内固定：每请求随机 udid 是风控典型特征，一个会话应像同一台设备
 var UDID = 'acsv-' + Math.random().toString(36).slice(2) + Date.now();
 
+// 设备头集（0.9.225 导出）：APP 域**发布链**也要它——2026-10-10 真机定位：
+// 网关认「Referer **或** APP 头集」二者其一；GM 通道没有 Referer ⇒ 必须带头集（否则 result 708「无效的请求」）。
+// 只导出 homeHeaders 本身（不另造一份"看着一样"的头）
+export function appDeviceHeaders(withAppVer) { return homeHeaders(withAppVer !== false); }
+
 function homeHeaders(withAppVer) {
   var d = new Date();
   function p(n) { return n < 10 ? '0' + n : '' + n; }

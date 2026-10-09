@@ -14,6 +14,7 @@ import { el, ensureStyle } from './ui.js';
 import { testHook } from './dbg.js';
 import { createSquareFeed } from './squarefeed.js';
 import { closeInlineComments } from './rowkit.js';
+import { mountPubFab } from './pubfab.js'; // 内嵌广场内的发布浮标（0.9.225）
 
 var SEL_MAIN_FEEDS = '.ac-member-main .ac-member-feeds'; // plaza 原选择器（真机验证在册）
 var AUTO_KEY = 'acsvMpAutoEnter'; // plaza moment_plaza_auto_enter 同款语义（键名换 svfeed 域）
@@ -78,6 +79,9 @@ function openPlaza() {
     n.style.display = 'none';
   });
   box.appendChild(mpRoot);
+  // 发布浮标（0.9.225 用户口径「原生页只需要在动态广场出现」）：**随内嵌广场开、随它收**——
+  // 挂 mpRoot 内（浅色语境），广场一关就跟着消失；不再常驻原生页（0.9.224 那版是 body 级常驻，已撤）
+  mountPubFab(mpRoot, { light: true, editorOpts: { onDone: function () { if (feed) feed.refresh(); } } });
   feed = createSquareFeed({
     root: mpRoot,
     scrollEl: window,   // 原生页整页滚动（plaza controller 同款 window 滚动语义）
@@ -91,6 +95,7 @@ function openPlaza() {
 
 function closePlaza() {
   if (!mpRoot) return;
+  // 浮标随广场容器一起拆（它在 mpRoot 内，root.remove() 即带走；这里不做冗余清理）
   var root = mpRoot;
   mpRoot = null;
   if (feed) { feed.stop(); feed = null; }

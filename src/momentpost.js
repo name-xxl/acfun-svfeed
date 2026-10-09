@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
+import { appDeviceHeaders } from './appapi.js'; // 设备头集单源（0.9.225）
 import { tokenRanges } from './tokenedit.js'; // 字数口径要认令牌（0.9.223）
 
 // ---------- 动态发布域（0.9.220） ----------
@@ -77,20 +78,30 @@ export function postResultOf(j) {
   var kind = r === -401 ? 'notlogin'
     : (r === 21 ? 'param'
       : (r === 140000 ? 'content'
-        : (r === 140011 ? 'ratelimit' : 'other')));
+        : (r === 140011 ? 'ratelimit'
+          : (r === 708 ? 'gateway' : 'other'))));
   return { ok: false, code: r, kind: kind, msg: (j && (j.error_msg || j.errorMsg)) || '' };
+}
+
+// 请求形状（**纯函数**，单测直采）：url / headers / body 三件全给出来，防"改着改着把通行证丢了"。
+// **必须带 APP 设备头集**（2026-10-10 真机：「Referer 或 APP 头集」二者其一；GM 通道无 Referer
+// ⇒ 只发 Content-Type 会被网关拒成 result 708「无效的请求」——这正是用户实报的那个报错）。
+export function publishRequest(content, opts) {
+  return {
+    url: CFG.api.momentAdd + query(),
+    headers: appDeviceHeaders(),
+    body: 'params=' + encodeURIComponent(momentParams(content, opts))
+  };
 }
 
 // 发布（写链）。opts: { imgs, visibleForFans, repost }
 export function addMoment(content, opts) {
-  var body = 'params=' + encodeURIComponent(momentParams(content, opts));
-  return request(CFG.api.momentAdd + query(), 'POST',
-    { 'Content-Type': 'application/x-www-form-urlencoded' }, body).then(postResultOf);
+  var r = publishRequest(content, opts);
+  return request(r.url, 'POST', r.headers, r.body).then(postResultOf);
 }
 
-// 删除（误发/试错后的兜底；同域同族，form 单字段 momentId）
+// 删除（误发/试错后的兜底；同域同族，form 单字段 momentId；同样要头集）
 export function deleteMoment(momentId) {
   return request(CFG.api.momentDelete + query(), 'POST',
-    { 'Content-Type': 'application/x-www-form-urlencoded' },
-    'momentId=' + encodeURIComponent(momentId)).then(postResultOf);
+    appDeviceHeaders(), 'momentId=' + encodeURIComponent(momentId)).then(postResultOf);
 }

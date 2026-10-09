@@ -4,7 +4,6 @@ import { toggle } from './player.js';
 import { watchNav } from './nav.js';
 import { tryInjectSpace } from './uppage.js';
 import { tryInjectSpaceMoments } from './spacemoments.js'; // 空间页「动态」标签（0.9.218）
-import { initNativePubFab } from './pubentry.js'; // 原生个人中心发布浮标（0.9.224）
 import { watchMemberNav } from './memberplaza.js';
 import { bootNativeIm } from './imnative.js';
 import { setRoot } from './state.js';
@@ -62,6 +61,5 @@ if (kind === 'native') {
     ensureStyle();
     setRoot(document.body);
     watchMemberNav();
-    initNativePubFab(); // 发布常驻浮标（0.9.224；与「动态广场」入口同页共存）
   }
 }

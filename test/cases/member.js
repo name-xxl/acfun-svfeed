@@ -79,6 +79,15 @@
       return q('.acsv-mp') && document.querySelectorAll('.acsv-mp .acsv-frow').length === 4;
     }, 8000)), 'rows=' + document.querySelectorAll('.acsv-mp .acsv-frow').length);
     rec('mp-native-hidden', q('#mp-hd-native').style.display === 'none');
+    // 发布浮标（0.9.225 用户口径「原生页只需要在动态广场出现」）：**只在广场里**，随广场开；
+    // 位置与浅色回顶同列（right 对齐、浮标在上）
+    rec('mp-pubfab-in-plaza', !!q('.acsv-mp .acsv-pubfab'));
+    rec('mp-pubfab-light', (function () {
+      var f = q('.acsv-pubfab');
+      if (!f) return false;
+      var cs = getComputedStyle(f);
+      return cs.position === 'fixed' && Math.round(parseFloat(cs.right)) === 24;
+    })(), (function () { var f = q('.acsv-pubfab'); return f ? getComputedStyle(f).right : 'none'; })());
     rec('mp-still-no-shell', q('#acsv-root') === null);
     // 入口选中态=镜像原生 active 类名（0.9.131 实报「选中后字体样式和原生不一致」修复：
     // 自绘 #ff4b76/600 撤除，样式交站点样式表接管）
@@ -195,6 +204,8 @@
       var it = q('[data-acsv-mnav]');
       return !!it && !it.classList.contains('ac-member-navigation-item-active');
     })());
+    // 广场收了 ⇒ 发布浮标必须跟着走（它挂在广场容器内，不常驻原生页）
+    rec('mp-pubfab-gone', !q('.acsv-pubfab'));
 
     // 6.2) 点击决策（0.9.130 真机实报修复）：**以宿主存在为准**（plaza 原语义，不看路径）——
     // feeds 子页（/following、/fans；真机实测容器是 following-panel/fans-panel，无

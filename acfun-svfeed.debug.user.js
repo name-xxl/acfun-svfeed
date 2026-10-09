@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.224-debug
+// @version      0.9.225-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.224-debug" : "",
+          ver: true ? "0.9.225-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -1898,6 +1898,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return apiStFlight.get();
   }
   var UDID = "acsv-" + Math.random().toString(36).slice(2) + Date.now();
+  function appDeviceHeaders(withAppVer) {
+    return homeHeaders(withAppVer !== false);
+  }
   function homeHeaders(withAppVer) {
     var d = /* @__PURE__ */ new Date();
     function p(n) {
@@ -5207,17 +5210,19 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       var mid = j && j.moment && j.moment.momentId || j && j.momentId || 0;
       return { ok: true, momentId: Number(mid) || 0 };
     }
-    var kind2 = r === -401 ? "notlogin" : r === 21 ? "param" : r === 14e4 ? "content" : r === 140011 ? "ratelimit" : "other";
+    var kind2 = r === -401 ? "notlogin" : r === 21 ? "param" : r === 14e4 ? "content" : r === 140011 ? "ratelimit" : r === 708 ? "gateway" : "other";
     return { ok: false, code: r, kind: kind2, msg: j && (j.error_msg || j.errorMsg) || "" };
   }
+  function publishRequest(content, opts) {
+    return {
+      url: CFG.api.momentAdd + query(),
+      headers: appDeviceHeaders(),
+      body: "params=" + encodeURIComponent(momentParams(content, opts))
+    };
+  }
   function addMoment(content, opts) {
-    var body = "params=" + encodeURIComponent(momentParams(content, opts));
-    return request(
-      CFG.api.momentAdd + query(),
-      "POST",
-      { "Content-Type": "application/x-www-form-urlencoded" },
-      body
-    ).then(postResultOf);
+    var r = publishRequest(content, opts);
+    return request(r.url, "POST", r.headers, r.body).then(postResultOf);
   }
 
   // src/panelitem.js
@@ -5784,6 +5789,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         }
         if (r.kind === "ratelimit") {
           fail("发得太快了，稍等一会儿再试（服务端限流）");
+          return;
+        }
+        if (r.kind === "gateway") {
+          fail("请求被网关拒绝（无效的请求）——通常是请求头不全，请回报这一条");
           return;
         }
         fail("发布失败：" + (r.msg || "错误码 " + r.code));
@@ -12731,7 +12740,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.224-debug" : "");
+    return normVer(true ? "0.9.225-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -15745,6 +15754,28 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     };
   }
 
+  // src/pubfab.js
+  function mountPubFab(host4, opts) {
+    opts = opts || {};
+    if (!host4) return null;
+    if (host4.querySelector && host4.querySelector(".acsv-pubfab")) return null;
+    var btn = el("button", "acsv-pubfab" + (opts.light ? " acsv-pubfab-light" : ""), "✎");
+    btn.type = "button";
+    btn.title = "发动态";
+    btn.setAttribute("data-acsv-pubfab", "1");
+    btn.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      openMomentEditor(opts.editorOpts || {});
+    });
+    host4.appendChild(btn);
+    return {
+      el: btn,
+      remove: function() {
+        if (btn.parentNode) btn.parentNode.removeChild(btn);
+      }
+    };
+  }
+
   // src/memberplaza.js
   var SEL_MAIN_FEEDS = ".ac-member-main .ac-member-feeds";
   var AUTO_KEY = "acsvMpAutoEnter";
@@ -15809,6 +15840,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       n.style.display = "none";
     });
     box.appendChild(mpRoot);
+    mountPubFab(mpRoot, { light: true, editorOpts: { onDone: function() {
+      if (feed) feed.refresh();
+    } } });
     feed = createSquareFeed({
       root: mpRoot,
       scrollEl: window,
@@ -16065,33 +16099,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     })();
   }
 
-  // src/pubfab.js
-  function mountPubFab(host4, opts) {
-    opts = opts || {};
-    if (!host4) return null;
-    if (host4.querySelector && host4.querySelector(".acsv-pubfab")) return null;
-    var btn = el("button", "acsv-pubfab" + (opts.light ? " acsv-pubfab-light" : ""), "✎");
-    btn.type = "button";
-    btn.title = "发动态";
-    btn.setAttribute("data-acsv-pubfab", "1");
-    btn.addEventListener("click", function(ev) {
-      ev.stopPropagation();
-      openMomentEditor(opts.editorOpts || {});
-    });
-    host4.appendChild(btn);
-    return {
-      el: btn,
-      remove: function() {
-        if (btn.parentNode) btn.parentNode.removeChild(btn);
-      }
-    };
-  }
-
-  // src/pubentry.js
-  function initNativePubFab() {
-    mountPubFab(document.body, { light: true });
-  }
-
   // src/imnative.js
   var UNSUPPORTED = "不支持查看此消息，请前往最新版客户端查看。";
   testHook("nativeChatEnhance", function() {
@@ -16105,7 +16112,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.224-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.225-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -18478,7 +18485,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       ensureStyle();
       setRoot(document.body);
       watchMemberNav();
-      initNativePubFab();
     }
   }
   var ivSt;

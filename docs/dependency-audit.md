@@ -162,6 +162,17 @@ feedstore.js → player.js → input.js → feedstore.js
   方向已守护"的缺口由此补上）。
 - **附带**：0.9.184/185/186 的架构减债（errbox/playgest 拆件、a11y）均过本棘轮（0 未登记）。
 
+## 0.9.225：发布头集修复 + 原生页浮标收窄（pubentry 退场）
+
+- **删件**：`pubentry.js`（0.9.224 引入）——原生页浮标不再 body 级常驻，改由 `memberplaza.openPlaza`
+  在自己的容器里 `mountPubFab(mpRoot, {light:true})`（随广场开/收）。故 `boot → pubentry` 边退场。
+- **新增边**：`memberplaza → pubfab`；`momentpost → appapi`（**发布链要用设备头集**，见下）。
+- **为什么 `momentpost → appapi` 是**特性→接口**的正常向**：`appapi` 在方向诊断的 API 集里，
+  接口层被特性层消费属常规向下；真正的教训是**不要另造第二份头集**（头集单源在 appapi.homeHeaders）。
+- **通道差异的教训（写进 CHANGELOG 与 §11）**：0.9.223 用「APP 域同源页面 fetch」验证发布**成功**，
+  但那条路径自带 **Referer**；脚本的 GM 通道没有 Referer ⇒ 缺 APP 头集时被网关拒成 `result 708`
+  「无效的请求」。**同源锚点验证会掩盖"缺头"类问题**——通道差异必须单独验。
+
 ## 0.9.224：发布入口统一为常驻浮标（pubfab）台账
 
 - **新增件**：`pubfab.js`（消费 momenteditor/ui）；`pubentry.js` 由「导航项注入 + 哨兵 + MO 自愈」**收窄**为
