@@ -3,6 +3,29 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.217（2026-10-09）· 播放层 hls 条目不自动播修复——起播判定补「可播时」兜底
+
+- **病灶**（用户真机实报「分区点进视频不会自动播放」；真机读数 + 源码链实证）：层内起播只有
+  `session._attach` 末尾这一拍（`hooks.onAttachPlay`），而它**同步执行于 `_attachSource`
+  之后**——直链条目此刻 src 已同步落好、`play()` 有效；但 **hls 条目走 `ensureHls().then`
+  异步挂源**，这一拍执行时 video 尚无任何源，`play()` 被拒（NotSupportedError），而
+  `MANIFEST_PARSED` 回调**只锁最高档、不补起播** ⇒ **hls 条目在播放层里永不自动播**。
+  真机读数完全吻合：`readyState=4`（数据就绪）/ `paused=true` / `data-state` 停在 `loading`；
+  而起播三条件（`idx===currentIdx()` 哨兵对齐、`!_userPaused`、舞台可见）**事后读全部成立**
+  ——即「判定那一刻无效，之后再无重试」。竖刷页幸免：起播走 `setActive`（`loadInitial` 显式
+  调用 + IO 随可见变化触发，天然重试）。
+  测试盲区：harness 全部 mock 走 webm 直链（`cap.hls=false`），**无 m3u8 夹具** ⇒ 这条路径
+  从来没有断言覆盖，故长期未发现。
+- **修法**（纯行为修正，视觉形态零变化）：`_attach` 补一次**「真正可播时」的起播判定**——
+  监听一次性 `canplay`，条件与首拍同款（`idx===currentIdx() && !_userPaused`），并以
+  `!video.paused` 前置（已在播则完全 no-op，直链路径零扰动）；`hooks.play` 自带的「舞台
+  不可见不起播」幽灵音频防线原样保留。
+- **测试与验收**：harness 57 场景全绿（直链路径行为不变＝不误伤证据）。**该 bug 无法在
+  harness 钉住**——缺 hls 真流夹具（webm 套 hls.js 死在解析上，0.9.74 已踩），故以**真机
+  读数**为验证口径。**2026-10-09 真机验收通过**：同一条分区视频由修复前的
+  「`state: loading` / `paused: true` / `readyState: 4`」变为「`state: ready` /
+  `paused: false` / `readyState: 4`」——「数据就绪却永不播」的卡死消除，条目正常起播。
+
 ### 0.9.216（2026-10-09）· 切换停留半屏修复——近跳归队瞬时落位 + settle 延长 + 键盘 repeat 守卫（issue #1）
 
 - **病灶**（issue #1「视频之间切换回出现滚动到一半停留」；0.9.216 探针实测链）：近跳旧走

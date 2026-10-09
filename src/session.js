@@ -69,6 +69,7 @@ export function createSession(slide, item, idx, hooks) {
     },
 
     _attach: function () {
+      var self = this;
       // 防御性清扫：slide 内残留的一切旧 video（幽灵防护；正常应已被上一会话 dispose）
       sweepSlideVideos(slide);
       var video = document.createElement('video');
@@ -87,6 +88,21 @@ export function createSession(slide, item, idx, hooks) {
       // exp.noMonitor（仅 debug）：跳过看门狗——归因实验用，排除顶针/rME/降档动作本身致冻
       this.monitor = CFG.exp.noMonitor ? null : installHealthMonitor(this);
       if (this.idx === hooks.currentIdx() && !slide._userPaused) hooks.onAttachPlay(this, video);
+      // hls 异步挂源的起播兜底（0.9.217）：上一拍对直链同步有效（85 行 _attachSource 同步落
+      // src），但 hls 走 ensureHls().then **异步**挂源——这一拍执行时 video 尚无源，play() 被
+      // 拒（NotSupportedError），而 MANIFEST_PARSED 回调只锁最高档、**不补起播** ⇒ hls 条目
+      // 在播放层里永不自动播。竖刷页幸免：它的起播走 setActive（loadInitial 显式调 + IO 随
+      // 每次可见变化触发，天然重试）；**层内只有 onAttachPlay 这一拍**，错过即永久 loading。
+      // 真机读数吻合：readyState=4 数据就绪 / paused=true / data-state 停在 loading。
+      // 补一次「真正可播时」的判定，条件与上面同款；已在播则完全 no-op（不打扰直链路径）
+      (function () {
+        var once = function () {
+          video.removeEventListener('canplay', once);
+          if (self.state === 'disposed' || !video.paused) return;
+          if (self.idx === hooks.currentIdx() && !slide._userPaused) hooks.play(video);
+        };
+        video.addEventListener('canplay', once);
+      })();
     },
 
     // 按内容源挂播放源：sv=mp4 直链；home=m3u8（Safari 原生，其余走 hls.js）
