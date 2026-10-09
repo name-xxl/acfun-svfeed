@@ -103,6 +103,18 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       var p = TEST.call('playlayer') || {};
       return p.active && p.session === 'walk' ? p : null;
     }, 8000)), JSON.stringify(TEST.call('playlayer')));
+    // 点卡片进入的**首条**必须真起播（0.9.216 补盲区）：用户实报「分区点进视频不会自动
+    // 播放」——旧断言 ll-jx-walk 只钉「层开了、是 walk 会话」，不钉「首条播没播」。起播走
+    // session.onAttachPlay，条件 idx===currentIdx()（层内=哨兵 OVL_IDX，current 在
+    // views.enterView 里先于 build 赋值 ⇒ 成立）&&!_userPaused&&舞台可见；分区条目懒解析，
+    // 故给足解析+挂载时间
+    rec('ll-jx-walk-plays', !!(await waitFor(function () {
+      var v = q('.acsv-slide[data-ovl="1"] video');
+      return v && v.readyState >= 2 && !v.paused;
+    }, 12000)), (function () {
+      var v = q('.acsv-slide[data-ovl="1"] video');
+      return v ? 'paused=' + v.paused + ' rs=' + v.readyState + ' muted=' + v.muted : 'no-video';
+    })());
     key('Escape');
     await waitFor(function () { return TEST.call('view') === 'jingxuan'; }, 6000);
     // 开设置（第 3 个布尔开关 = relSequential）→ 再点卡片 = 列表会话（网格顺序 + 可续拉）
@@ -127,6 +139,16 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       var p = TEST.call('playlayer') || {};
       return p.active && p.listIdx === 1 && Number(p.id) !== 900101;
     }, 8000)), JSON.stringify(TEST.call('playlayer')));
+    // 层内往下切必须自动起播（0.9.216 补盲区）：旧断言只钉游标走到下一条，不钉「下一条
+    // 真的播起来了」——起播走 session.onAttachPlay 而非 setActive（层内没有 setActive 路径），
+    // 判定条件 idx===currentIdx()（层内=哨兵 OVL_IDX）&& !_userPaused && 舞台可见
+    rec('ll-jx-step-plays', !!(await waitFor(function () {
+      var v = q('.acsv-slide[data-ovl="1"] video');
+      return v && v.readyState >= 2 && !v.paused;
+    }, 8000)), (function () {
+      var v = q('.acsv-slide[data-ovl="1"] video');
+      return v ? 'paused=' + v.paused + ' rs=' + v.readyState + ' dur=' + Math.round(v.duration || 0) : 'no-video';
+    })());
     key('Escape');
     rec('ll-jx-exit', !!(await waitFor(function () {
       return TEST.call('view') === 'jingxuan' && !(TEST.call('playlayer') || {}).active;
