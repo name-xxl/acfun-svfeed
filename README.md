@@ -536,7 +536,7 @@ flowchart LR
   player --> api & attach & comments & danmaku & errbox & feedstore & followstream & imbadge & imdrawer & input & overlay & pb & playlayer & release & settingspanel & sidebar & topbar & uppage & views
   feedstore --> api & feedctx
   momentapi --> cfg & net & panelitem
-  momentpost --> cfg & net
+  momentpost --> cfg & net & tokenedit
   momenteditor --> cards & cfg & composermirror & dbg & emoticon & imgload & inputbar & momentapi & momentpost & overlay & toastmsg & ui & upload
   pubentry --> momenteditor & ui
   sharepanel --> momenteditor

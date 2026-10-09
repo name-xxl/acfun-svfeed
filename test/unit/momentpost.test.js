@@ -45,8 +45,11 @@ test('momentCharCount：口径＝原始长度（码元），233 边界与服务�
   assert.equal(momentCharCount('一'), 1);
   assert.equal(momentCharCount('a'.repeat(MOMENT_MAX)), MOMENT_MAX);
   assert.equal(momentCharCount('a'.repeat(MOMENT_MAX + 1)), MOMENT_MAX + 1);
-  // 表情令牌按**原文长度**计（从严；服务端是否按 1 计＝docs §11.5 未实测项）
-  assert.equal(momentCharCount('[emot=acfun,123/]'), 17);
+  // 表情令牌**整块计 1 字**（真机 2026-10-10 旁证：raw 240 含一个令牌被服务端接受 ⇒ 成本 ≤10 字）
+  assert.equal(momentCharCount('[emot=acfun,123/]'), 1);
+  assert.equal(momentCharCount('a[emot=acfun,123/]b'), 3);
+  assert.equal(momentCharCount('[img=图片]https://i/x.jpg[/img]'), 1);
+  assert.equal(momentCharCount('图[img=图片]https://i/x.jpg[/img]后'), 3);
   // 代理对（emoji）按码元计 2——与 String.length 同口径，服务端按什么计同样待真机
   assert.equal(momentCharCount('😀'), 2);
   assert.equal(momentCharCount(null), 0);
@@ -62,5 +65,7 @@ test('postResultOf：成功取 momentId；失败按码分档（notlogin/param/co
   assert.equal(postResultOf({ result: 21, error_msg: '参数格式错误，请仔细阅读API文档。' }).kind, 'param');
   assert.equal(postResultOf({ result: 140000, error_msg: '内容长度必须为1-233' }).kind, 'content');
   assert.equal(postResultOf({ result: 140002 }).kind, 'other');
+  // 140011＝发帖频率限制（2026-10-10 真机实拍：首发成功、紧接着第二条被拒）
+  assert.equal(postResultOf({ result: 140011, error_msg: '操作太频繁了，请稍后再试' }).kind, 'ratelimit');
   assert.equal(postResultOf(null).ok, false);
 });

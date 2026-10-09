@@ -237,6 +237,7 @@ export function openMomentEditor(opts) {
       if (r.kind === 'notlogin') { fail(errNotLogin()); return; }
       if (r.kind === 'content') { fail('内容太长了（限 ' + MOMENT_MAX + ' 字）'); return; }
       if (r.kind === 'param') { fail('发布失败：参数不被接受（可能被服务端风控拦下）'); return; }
+      if (r.kind === 'ratelimit') { fail('发得太快了，稍等一会儿再试（服务端限流）'); return; }
       fail('发布失败：' + (r.msg || ('错误码 ' + r.code)));
     }, function (e) {
       // 网络/超时：**结果未知** ⇒ 先查后补（曾发出去就不让用户重发）

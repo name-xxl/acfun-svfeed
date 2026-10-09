@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.222-debug
+// @version      0.9.223-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.222-debug" : "",
+          ver: true ? "0.9.223-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -5181,7 +5181,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return JSON.stringify(p);
   }
   function momentCharCount(text) {
-    return String(text == null ? "" : text).length;
+    var v = String(text == null ? "" : text);
+    var n = v.length;
+    tokenRanges(v).forEach(function(r) {
+      n -= r[1] - r[0] - 1;
+    });
+    return n;
   }
   var MOMENT_MAX = 233;
   function dimsOf(url) {
@@ -5202,7 +5207,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       var mid = j && j.moment && j.moment.momentId || j && j.momentId || 0;
       return { ok: true, momentId: Number(mid) || 0 };
     }
-    var kind2 = r === -401 ? "notlogin" : r === 21 ? "param" : r === 14e4 ? "content" : "other";
+    var kind2 = r === -401 ? "notlogin" : r === 21 ? "param" : r === 14e4 ? "content" : r === 140011 ? "ratelimit" : "other";
     return { ok: false, code: r, kind: kind2, msg: j && (j.error_msg || j.errorMsg) || "" };
   }
   function addMoment(content, opts) {
@@ -5775,6 +5780,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         }
         if (r.kind === "param") {
           fail("发布失败：参数不被接受（可能被服务端风控拦下）");
+          return;
+        }
+        if (r.kind === "ratelimit") {
+          fail("发得太快了，稍等一会儿再试（服务端限流）");
           return;
         }
         fail("发布失败：" + (r.msg || "错误码 " + r.code));
@@ -12722,7 +12731,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.222-debug" : "");
+    return normVer(true ? "0.9.223-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -16125,7 +16134,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.222-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.223-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

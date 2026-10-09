@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
+import { tokenRanges } from './tokenedit.js'; // 字数口径要认令牌（0.9.223）
 
 // ---------- 动态发布域（0.9.220） ----------
 // 契约全链实测在 docs/api-research.md §11：端点 APP 域、**只认网页 Cookie**、服务端**不校验**
@@ -41,11 +42,15 @@ export function momentParams(content, opts) {
   return JSON.stringify(p);
 }
 
-// 字数口径（**客户端预检**；真值以服务端 140000 为准）。当前取值＝**原始长度**（码元数，UBB 令牌
-// 按原文长度计）。未定项（docs §11.5）：`[emot=acfun,123/]` 这类令牌服务端按 1 计还是按串长计，
-// 两假设均未实测——先取**从严**的原始长度（宁可少打几个字，也不要服务端弹错）。真机定论后一行可换。
+// 字数口径（**客户端预检**；真值以服务端 140000 为准）：**UBB 令牌按 1 字计**（其余按码元）。
+// 真机依据（2026-10-10）：发一条 raw 240、含一个 17 字令牌的内容 → 服务端**接受**（result 0）
+// ⇒ 令牌的实际成本 ≤ 10 字（若按原长，240 > 233 必被 140000 拒），故取 **1**（与计划原口径一致；
+// 万一真值略大于 1，客户端只是少拦一档，服务端 140000 会兜住并给可读话术，不会脏数据）。
 export function momentCharCount(text) {
-  return String(text == null ? '' : text).length;
+  var v = String(text == null ? '' : text);
+  var n = v.length;
+  tokenRanges(v).forEach(function (r) { n -= (r[1] - r[0]) - 1; }); // 每个令牌整块算 1 字
+  return n;
 }
 
 export var MOMENT_MAX = 233; // 服务端约束（实测 140000「内容长度必须为1-233」）
@@ -68,7 +73,11 @@ export function postResultOf(j) {
     var mid = (j && j.moment && j.moment.momentId) || (j && j.momentId) || 0;
     return { ok: true, momentId: Number(mid) || 0 };
   }
-  var kind = r === -401 ? 'notlogin' : (r === 21 ? 'param' : (r === 140000 ? 'content' : 'other'));
+  // 140011＝发帖频率限制（2026-10-10 真机实拍：首发成功、紧接着的第二条即被拒「操作太频繁了，请稍后再试」）
+  var kind = r === -401 ? 'notlogin'
+    : (r === 21 ? 'param'
+      : (r === 140000 ? 'content'
+        : (r === 140011 ? 'ratelimit' : 'other')));
   return { ok: false, code: r, kind: kind, msg: (j && (j.error_msg || j.errorMsg)) || '' };
 }
 
