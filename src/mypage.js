@@ -5,6 +5,7 @@ import { panelItem } from './panelitem.js';
 import { createSquareFeed } from './squarefeed.js'; // 列表机械（0.9.218 我的页动态复用广场工厂）
 import { listProfile } from './momentapi.js';       // 个人主页动态流（三合一混排）
 import { openRowDefault } from './rowkit.js';       // 行落点单源（动态→详情面板）
+import { openMomentEditor } from './momenteditor.js'; // 发布入口（0.9.222）
 import { groupNameError, folderNameError } from './nameval.js';
 import { coverUrl } from './imgurl.js'; // meCardOf 头像归一（0.9.160 就地收编随迁）
 import { gridCardOf, skeletonRows } from './cards.js';
@@ -680,6 +681,14 @@ function buildMyView(body) {
   // 首次激活才 build（惰性），进入视图默认落「动态」（0.9.218 裁决：动态排第 1）
   var tabRow = el('div', 'acsv-metabs');
   wrap.appendChild(tabRow);
+  // 发布入口（0.9.222）：排 tab 行右侧（.acsv-metabs 是 flex ⇒ margin-left:auto 右贴）。
+  // 不改 panels/`.acsv-metab` 集合——tab 数与首键被 harness 的 moments-tab-first 钉着
+  var pubBtn = el('button', 'acsv-me-entry acsv-me-card-entry', '✎ 发动态');
+  pubBtn.type = 'button';
+  pubBtn.addEventListener('click', function () {
+    openMomentEditor({ onDone: function () { if (meFeed) meFeed.refresh(); } }); // 发完刷新「动态」档
+  });
+  tabRow.appendChild(pubBtn);
   var panelMom = el('div', 'acsv-mepanel');
   var panelHist = el('div', 'acsv-mepanel');
   var panelFav = el('div', 'acsv-mepanel');

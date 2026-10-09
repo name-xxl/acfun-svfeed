@@ -162,6 +162,24 @@ feedstore.js → player.js → input.js → feedstore.js
   方向已守护"的缺口由此补上）。
 - **附带**：0.9.184/185/186 的架构减债（errbox/playgest 拆件、a11y）均过本棘轮（0 未登记）。
 
+## 0.9.222：发动态编辑器 + 三处入口 + 分享面板转发项台账
+
+- **新增两件**：`momenteditor.js`（编辑器，三处入口共用出口，消费 inputbar/composermirror/momentpost/
+  cards/overlay/imgload/momentapi/upload/toastmsg/emoticon/dbg/ui/cfg）、`pubentry.js`（原生 /member/feeds
+  入口注入，消费 momenteditor/ui）。
+- **新增边**：`mypage → momenteditor`、`squareview → momenteditor`、`boot → pubentry`、
+  `sharepanel → momenteditor`（**唯一一条入 KNOWN 的**，见下）。
+- **在册 1 条（KNOWN=[] 自 0.9.119 以来首次破例）**：`sharepanel.js -> momenteditor.js`。
+  **裁决过程（记下来免得下次重走）**：先按「分类纠正」把 sharepanel 计入 FEATURE，棘轮立刻连锁浮出
+  `rail.js -> sharepanel.js`；把 rail 也计入 FEATURE，又浮出 `slide.js -> rail.js`……⇒ 判定这是
+  **既有分类债**（sharepanel/rail/slide 谁属特性层从未定过；它们此前 import 的目标都不在 FEATURE 集内，
+  所以一直没报），**不该在一个功能批里连环重分类**。故撤回 sharepanel/rail 的归类改动，只把本批
+  **新引入的那一条边**登记放行，债务留待专项分类纠正（届时 slide/rail/sharepanel 一起定，一次收敛）。
+- **顺带**：`momenteditor` 收尾收成单出口 `teardown()`（初版 close/done 各写一遍，且都漏删 `#acsv-me-root`
+  ⇒ 反复开会累积空壳）。
+- **harness**：新场景 `moment-publish`（20 断言）钉「入口→壳→组参→提交」全链与 params body 形状；
+  调试钩子 `momentRepostOf`/`momentEdit`（debug 专用，正式构建死码消除）。
+
 ## 0.9.221：输入框镜像层（composermirror）+ 令牌原子编辑（tokenedit）台账
 
 - **新增两件**：`tokenedit.js`（令牌区间扫描/镜像 HTML/事件绑定；只依赖 `ui`）、

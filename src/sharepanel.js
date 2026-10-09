@@ -11,6 +11,7 @@ import { rowPlaceOf, applyPlace, watchPlace } from './popplace.js';
 import { imgInto } from './imgload.js';
 import { testHook } from './dbg.js';
 import { ensureIm, ensureConnected, getContacts, fetchCards, isLogined, sendCmtShare, sendMomentShare, sendOnce } from './imsend.js';
+import { openMomentEditor, repostOf } from './momenteditor.js'; // 转发到动态（0.9.222）
 import { reportShare } from './report.js'; // 分享上报（0.9.145）
 
 // 聊天打开出口（0.9.114）：分享发送后「捎句话」要进与好友的会话——由 imdrawer 模块求值期
@@ -72,6 +73,19 @@ export function openSharePanel(btn, item, opts) {
       toast(ok ? '已复制：' + item.shareUrl : '复制失败，请手动复制');
     });
   });
+  // 转发到动态（0.9.222）：只在**拿得到源 pi** 时出（行卡/详情面板两处传 opts.pi）——
+  // 引用块要源 UP/正文/配图，只有 pi 给得全；拿不到就不出这个键（宁缺勿编）
+  var fwdPi = opts.pi;
+  var fwdRepost = fwdPi ? repostOf(fwdPi) : null;
+  if (fwdRepost) {
+    var fwd = el('button', 'acsv-share-fwd', '转发到动态');
+    fwd.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      pop.remove();
+      openMomentEditor({ repost: fwdRepost, onDone: opts.onPosted });
+    });
+    foot.appendChild(fwd);
+  }
   var centerLink = el('a', 'acsv-share-center', '消息中心');
   centerLink.href = 'https://message.acfun.cn/im';
   centerLink.target = '_blank';

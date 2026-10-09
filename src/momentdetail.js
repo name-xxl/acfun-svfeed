@@ -191,6 +191,7 @@ export function openMomentDetail(pi) {
     onShare: function (btn) {
       openSharePanel(btn, momentShareItemOf(pi), {
         headText: '分享给朋友',
+        pi: pi, // 0.9.222：给分享面板「转发到动态」用
         host: backdrop,
         place: { mode: 'right-of', anchorEl: panel }
       });

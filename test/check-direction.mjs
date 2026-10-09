@@ -60,12 +60,24 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   //（spacemoments 复用 memberplaza 导出的 addAmAnchor=两个原生页宿主单源，非反向）
   // 0.9.221 登记：composermirror（输入框镜像层装饰器，消费 emoticon/tokenedit/ui）——把
   // 「输入条要渲染表情」这条边从基建层的 inputbar 挪到特性层（免得新增基建→特性反向边）
-  'jingxuanview.js', 'spacetab.js', 'spacemoments.js', 'composermirror.js', 'tokenedit.js']);
+  // 0.9.222 登记：momenteditor（发动态编辑器，三处入口共用出口；消费 inputbar/composermirror/
+  // momentpost/cards/overlay…）/ pubentry（原生 /member/feeds 入口注入，与 memberplaza 同页共存）
+  'jingxuanview.js', 'spacetab.js', 'spacemoments.js', 'composermirror.js', 'tokenedit.js',
+  // sharepanel 一并登记（0.9.222）：它是**分享面板 UI 共用件**（此前只 import imsend/imgload/popplace，
+  // 都没进 FEATURE 集 ⇒ 从未报警）；本批它新增 → momenteditor（面板里「转发到动态」直接开编辑器），
+  // 归类纠正后不再误报。同批：momenteditor（编辑器）/ pubentry（原生入口注入）
+  'momenteditor.js', 'pubentry.js']);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 
 // 在册项（0.9.119 起清空——data→ubb 随手下沉完成，方向卫生库存归零；新增项=需要一次裁决，
 // 改动须同步 docs/dependency-audit.md）
-const KNOWN = [];
+const KNOWN = [
+  // 0.9.222：分享面板加「转发到动态」⇒ sharepanel → momenteditor（新边）。
+  // **为什么登记而不是改归类**：sharepanel/rail/slide 三者谁属特性层是**既有分类债**——把
+  // sharepanel 计入 FEATURE 会连锁浮出 rail→sharepanel、slide→rail…… 那是另一次分类纠正的活，
+  // 不该在一个功能批里连环做（本批只新增了这一条边）。债务与后续处置见 docs/dependency-audit.md。
+  { edge: 'sharepanel.js -> momenteditor.js', note: '分享面板「转发到动态」直开编辑器；分类债待专项纠正' }
+];
 const knownSet = new Set(KNOWN.map((k) => k.edge));
 
 const files = fs.readdirSync(SRC).filter((f) => f.endsWith('.js'));

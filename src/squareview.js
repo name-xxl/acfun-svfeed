@@ -12,6 +12,7 @@ import { registerView } from './viewreg.js';
 import { openMomentDetail } from './momentdetail.js';
 import { closeInlineComments, openRowDefault } from './rowkit.js';
 import { createSquareFeed } from './squarefeed.js';
+import { openMomentEditor } from './momenteditor.js'; // 发布入口（0.9.222）
 import { testHook } from './dbg.js';
 
 // 行落点：视图内默认策略已下沉 rowkit.openRowDefault（0.9.218 单源——与「我的」页动态共用同一份：
@@ -20,6 +21,15 @@ import { testHook } from './dbg.js';
 var feed = null; // 当前实例（视图单例存活：build 建 / teardown 停）
 
 function buildSquareView(body) {
+  // 发布入口（0.9.222）：列表上方一条右贴工具条（本视图此前没有工具位；挂 body 下、随列表滚动）
+  var tools = el('div', 'acsv-sq-tools');
+  var pubBtn = el('button', 'acsv-me-entry', '✎ 发动态');
+  pubBtn.type = 'button';
+  pubBtn.addEventListener('click', function () {
+    openMomentEditor({ onDone: function () { if (feed) feed.refresh(); } }); // 发完刷新广场流
+  });
+  tools.appendChild(pubBtn);
+  body.appendChild(tools);
   var wrap = el('div', 'acsv-sqwrap');
   body.appendChild(wrap);
   feed = createSquareFeed({

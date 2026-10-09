@@ -117,6 +117,7 @@ function rowBarOf(pi, row) {
       //（memberplaza）无视图体：回落内嵌根 .acsv-mp（皮肤给了 position:relative）/ body
       openSharePanel(btn, momentShareItemOf(pi), {
         headText: '分享给朋友',
+        pi: pi, // 0.9.222：给分享面板「转发到动态」用（引用块要源 UP/正文/配图）
         host: row.closest('.acsv-view-body') || row.closest('.acsv-mp') || document.body,
         place: { mode: 'left-of', anchorEl: row }
       });
