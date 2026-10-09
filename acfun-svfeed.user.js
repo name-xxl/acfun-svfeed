@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.227
+// @version      0.9.228
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.227" : "",
+          ver: true ? "0.9.228" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -12742,7 +12742,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.227" : "");
+    return normVer(true ? "0.9.228" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -15643,6 +15643,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           var row = feedRowOf(pi);
           if (onRow) onRow(row, pi);
           list.appendChild(row);
+          armBackfill(row);
         });
         noMore = page.noMore || fresh === 0 && page.items.length > 0;
         pcursor2 = page.nextCursor;
@@ -15662,34 +15663,62 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       });
     }
     wireRowList(list, onOpen);
-    function refreshOne(mid) {
-      momentDetail(mid).then(function(st2) {
-        if (!st2) return;
-        var rows = list.querySelectorAll(".acsv-frow");
-        for (var i = 0; i < rows.length; i++) {
-          var pi = rows[i]._pi;
-          if (pi && pi.momentId === mid) {
-            pi.liked = st2.liked;
-            pi.thrown = st2.thrown;
-            pi.like = st2.like;
-            pi.banana = st2.banana;
-            pi.comment = st2.comment;
-            syncRowBar(rows[i], pi);
-            if (st2.text && st2.text !== pi.text) {
-              pi.text = st2.text;
-              var t = rows[i].querySelector(".acsv-frow-text");
-              if (t) {
-                t.innerHTML = renderCommentHtml(st2.text);
-                t.classList.add("clamp");
-                t._armed = false;
-                armExpanders(list);
-              }
-            }
-            return;
+    var bfQueue = Promise.resolve();
+    var bfIO = null;
+    if (typeof IntersectionObserver === "function") {
+      bfIO = new IntersectionObserver(function(entries) {
+        for (var i = 0; i < entries.length; i++) {
+          var en = entries[i];
+          if (!en.isIntersecting) continue;
+          var row = en.target;
+          bfIO.unobserve(row);
+          var pi = row._pi;
+          if (!pi || !pi.momentId || row._bf) continue;
+          row._bf = true;
+          bfQueue = bfQueue.then(function() {
+            if (!row.isConnected || !list.isConnected) return;
+            return backfillRow(row, pi.momentId);
+          });
+        }
+      }, { root: opts.scrollEl === window ? null : opts.scrollEl, rootMargin: "200px" });
+    }
+    function armBackfill(row) {
+      if (bfIO) bfIO.observe(row);
+    }
+    function backfillRow(row, mid) {
+      return momentDetail(mid).then(function(st2) {
+        if (!st2 || !row.isConnected) return;
+        var pi = row._pi;
+        if (!pi) return;
+        pi.liked = st2.liked;
+        pi.thrown = st2.thrown;
+        pi.like = st2.like;
+        pi.banana = st2.banana;
+        pi.comment = st2.comment;
+        syncRowBar(row, pi);
+        if (st2.text && st2.text !== pi.text) {
+          pi.text = st2.text;
+          var t = row.querySelector(".acsv-frow-text");
+          if (t) {
+            t.innerHTML = renderCommentHtml(st2.text);
+            t.classList.add("clamp");
+            t._armed = false;
+            armExpanders(list);
           }
         }
       }, function() {
       });
+    }
+    function refreshOne(mid) {
+      var rows = list.querySelectorAll(".acsv-frow");
+      for (var i = 0; i < rows.length; i++) {
+        var pi = rows[i]._pi;
+        if (pi && pi.momentId === mid) {
+          rows[i]._bf = true;
+          backfillRow(rows[i], mid);
+          return;
+        }
+      }
     }
     var pollTimer = null, pollClock = 0, pollInterval = 0, pollGen = 0;
     function pollTick() {
@@ -15750,6 +15779,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return {
       stop: function() {
         stopPoll();
+        if (bfIO) {
+          bfIO.disconnect();
+          bfIO = null;
+        }
         tail2.stop();
       },
       refresh,
@@ -16124,7 +16157,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.227：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.228：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

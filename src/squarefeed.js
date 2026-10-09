@@ -93,6 +93,7 @@ export function createSquareFeed(opts) {
           var row = feedRowOf(pi);
           if (onRow) onRow(row, pi); // 行后处理（内嵌宿主补 am 锚；视图不传）
           list.appendChild(row);
+          armBackfill(row); // 视口渐进回填的观察挂点（0.9.228）
         });
         // 到底判定：契约层已把「no_more/空页/超 24h 窗口」收口进 page.noMore；此处只补
         // 「整页 0 新增」安全阀（去重后无新增=后端游标未推进）
@@ -117,40 +118,76 @@ export function createSquareFeed(opts) {
 
   wireRowList(list, onOpen); // 列表级委托（rowkit 共享；落点=宿主注入）
 
+  // ---------- 视口渐进回填（0.9.228） ----------
+  // 触发从"发布时间 ≤3h"换成"**进入视口**"：谁被滚到谁补（不论新旧），**一套规则覆盖四个宿主**
+  // （广场视图 / 我的页动态档 / 空间页动态标签 / 原生内嵌广场——都走本工厂）。
+  // 纪律（缺一条就会变成"滚一下打一片"）：① 每行只补一次（`row._bf`）；② **串行队列**（并发 1）；
+  // ③ 失败静默且不重试；④ 停用即断（stop 里 disconnect）。提前 200px 预取，滚到手时已补好。
+  var bfQueue = Promise.resolve();
+  var bfIO = null;
+  if (typeof IntersectionObserver === 'function') {
+    bfIO = new IntersectionObserver(function (entries) {
+      for (var i = 0; i < entries.length; i++) {
+        var en = entries[i];
+        if (!en.isIntersecting) continue;
+        var row = en.target;
+        bfIO.unobserve(row); // 只观察一次：进过视口就不再管（滚回去不重补）
+        var pi = row._pi;
+        if (!pi || !pi.momentId || row._bf) continue;
+        row._bf = true;
+        bfQueue = bfQueue.then(function () { // 串行：一个个来（并发 1）
+          if (!row.isConnected || !list.isConnected) return;
+          return backfillRow(row, pi.momentId);
+        });
+      }
+    }, { root: opts.scrollEl === window ? null : opts.scrollEl, rootMargin: '200px' }); // window 滚动用视口当 root
+  }
+  function armBackfill(row) { if (bfIO) bfIO.observe(row); }
+
   // ---------- 新鲜度回填（0.9.127；plaza _refreshOneMoment 的收窄版） ----------
   // 免登录列表的 isLike/isThrowBanana 恒 false；≤3h 新鲜条目走 moment/detail 补真值（携带
   // 登录态），patch 回 pi 并同步互动栏。**0.9.227 起正文也换**：列表端点（feedSquare/feed/profile）
   // 的 moment.text 是**明文**（表情被服务端剥掉），只有详情端点带 UBB 原文 ⇒ 这次回填是"列表里
   // 看得见表情"的唯一来源，且**零额外请求**（本来就在拉这一发，此前把 text 丢掉了）。
   // 失败/行已拆静默（保持列表快照，与 plaza 后台静默纪律一致）
-  function refreshOne(mid) {
-    momentDetail(mid).then(function (st) {
-      if (!st) return;
-      var rows = list.querySelectorAll('.acsv-frow');
-      for (var i = 0; i < rows.length; i++) {
-        var pi = rows[i]._pi;
-        if (pi && pi.momentId === mid) {
-          pi.liked = st.liked;
-          pi.thrown = st.thrown;
-          pi.like = st.like;
-          pi.banana = st.banana;
-          pi.comment = st.comment;
-          syncRowBar(rows[i], pi);
-          // 正文替换（仅当详情给的与列表不同——列表是明文、详情带令牌）
-          if (st.text && st.text !== pi.text) {
-            pi.text = st.text;
-            var t = rows[i].querySelector('.acsv-frow-text');
-            if (t) {
-              t.innerHTML = renderCommentHtml(st.text);
-              t.classList.add('clamp');
-              t._armed = false;   // 内容变了：清掉"已量过"标记，让 armExpanders 重新判要不要挂「展开」
-              armExpanders(list);
-            }
-          }
-          return;
+  // 行级回填（0.9.228 抽出）：拉一次详情 → patch 互动态五件 + **正文**（详情才有 UBB）→ 重绘该行。
+  // 失败静默（保持列表快照）且不重试。
+  function backfillRow(row, mid) {
+    return momentDetail(mid).then(function (st) {
+      if (!st || !row.isConnected) return;
+      var pi = row._pi;
+      if (!pi) return;
+      pi.liked = st.liked;
+      pi.thrown = st.thrown;
+      pi.like = st.like;
+      pi.banana = st.banana;
+      pi.comment = st.comment;
+      syncRowBar(row, pi);
+      // 正文替换（仅当详情给的与列表不同——APP 域列表是明文、详情带令牌）
+      if (st.text && st.text !== pi.text) {
+        pi.text = st.text;
+        var t = row.querySelector('.acsv-frow-text');
+        if (t) {
+          t.innerHTML = renderCommentHtml(st.text);
+          t.classList.add('clamp');
+          t._armed = false; // 内容变了：清"已量过"标记，让 armExpanders 重判要不要挂「展开」
+          armExpanders(list);
         }
       }
     }, function () { });
+  }
+
+  // 3h 新鲜度路径（保留到下一批退役）：按 momentId 找行 → 行级回填（打 `_bf` 标，视口那路不重复拉）
+  function refreshOne(mid) {
+    var rows = list.querySelectorAll('.acsv-frow');
+    for (var i = 0; i < rows.length; i++) {
+      var pi = rows[i]._pi;
+      if (pi && pi.momentId === mid) {
+        rows[i]._bf = true;
+        backfillRow(rows[i], mid);
+        return;
+      }
+    }
   }
 
   // ---------- 发现态轮询（0.9.127；plaza background 语义收窄到实例生命周期） ----------
@@ -219,6 +256,7 @@ export function createSquareFeed(opts) {
   return {
     stop: function () {
       stopPoll();
+      if (bfIO) { bfIO.disconnect(); bfIO = null; } // 停用即断（视口回填观察器）
       tail.stop(); // 解绑滚动（window 滚动必须显式解绑）
     },
     refresh: refresh,
