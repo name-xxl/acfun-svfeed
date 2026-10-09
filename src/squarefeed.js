@@ -18,7 +18,7 @@
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { skeletonRows } from './cards.js';
-import { ICONS } from './styles.js';
+import { createListTail } from './listtail.js'; // 尾部件单源（0.9.219：状态行+回顶+触底双方言）
 import { listSquare, momentDetail } from './momentapi.js';
 import { ensureEmotionMap, refillEmoticons } from './emoticon.js';
 import { nextBadgeInterval } from './followbadge.js'; // 退避序列单源（纯函数，单测在册）
@@ -29,7 +29,6 @@ function noop() { }
 
 export function createSquareFeed(opts) {
   var root = opts.root;
-  var winScroll = opts.scrollEl === window; // 滚动源方言：window（原生页内嵌）/ 元素（视图体）
   var onOpen = opts.onOpen || noop;
   var onRow = opts.onRow;
   var fetchPage = opts.fetchPage || listSquare; // 取数可注入（默认广场流）
@@ -44,14 +43,18 @@ export function createSquareFeed(opts) {
   root.appendChild(upStatus);
   var list = el('div', 'acsv-frows'); // 行容器沿用通用类（外层容器/骨架才是广场独立类名）
   root.appendChild(list);
-  // 三态状态行（与 followview 同款视觉；**点击重试显式接线**——广场首屏失败列表为空，
-  // 没有滚动可依时点击是唯一出口）
-  var status = el('div', 'acsv-fstatus');
-  root.appendChild(status);
-  var backTop = el('button', 'acsv-tbtn acsv-backtop');
-  backTop.innerHTML = ICONS.chevUp;
-  backTop.title = '回到顶部';
-  (opts.backTopHost || root).appendChild(backTop);
+  // 尾部件（0.9.219 收口 listtail）：三态状态行 + 回顶 + 触底监听（元素/window 两方言）。
+  // 状态行**点击重试显式接线**——广场首屏失败列表为空，没有滚动可依时点击是唯一出口；
+  // 触底回调 load 在 loading/noMore 下自 No-op
+  var tail = createListTail({
+    root: root,
+    scrollEl: opts.scrollEl,
+    backTopHost: opts.backTopHost,
+    pad: view.scrollPad,
+    backTopAt: view.backTopAt,
+    onBottom: load,
+    onRetry: load
+  });
 
   var pcursor = '';   // 广场游标：首页**不传**（免登录实测惯例）；续翻用响应的 `时间戳:时间戳`
   var seq = 0;        // 在途回包令牌：实例停用/重建时旧回包丢弃
@@ -65,10 +68,7 @@ export function createSquareFeed(opts) {
     return skeletonRows(list, view.skel, 'acsv-sqskel');
   }
 
-  function setStatus(text, busy) {
-    status.textContent = text || '';
-    status.classList.toggle('busy', !!busy);
-  }
+  var setStatus = tail.setStatus;
 
   function load() {
     if (loading || noMore) return;
@@ -195,27 +195,6 @@ export function createSquareFeed(opts) {
   }
   upStatus.addEventListener('click', refresh);
 
-  // 无限滚动（滚动源两方言）与回顶：window（原生页整页滚动，plaza controller 同款）或
-  // 元素（视图体）。取值统一后按同一阈值触发/显隐
-  function scrollTop() {
-    return winScroll ? (window.pageYOffset || document.documentElement.scrollTop || 0) : opts.scrollEl.scrollTop;
-  }
-  function onScroll() {
-    if (winScroll) {
-      if (scrollTop() + window.innerHeight >= document.documentElement.scrollHeight - view.scrollPad) load();
-    } else if (opts.scrollEl.scrollTop + opts.scrollEl.clientHeight
-        >= opts.scrollEl.scrollHeight - view.scrollPad) {
-      load();
-    }
-    backTop.classList.toggle('on', scrollTop() > view.backTopAt);
-  }
-  opts.scrollEl.addEventListener('scroll', onScroll, { passive: true });
-  backTop.addEventListener('click', function () {
-    if (winScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
-    else opts.scrollEl.scrollTo({ top: 0, behavior: 'smooth' });
-  });
-  status.addEventListener('click', function () { load(); }); // 失败重试出口（loading/noMore 下 load 自 No-op）
-
   // 表情 map 预热 + 占位回填（与 followview 同款）：列表渲染不等 map，先出占位灰字
   ensureEmotionMap().then(function () {
     if (list.isConnected) refillEmoticons(list);
@@ -226,7 +205,7 @@ export function createSquareFeed(opts) {
   return {
     stop: function () {
       stopPoll();
-      opts.scrollEl.removeEventListener('scroll', onScroll);
+      tail.stop(); // 解绑滚动（window 滚动必须显式解绑）
     },
     refresh: refresh,
     // debug 探针（0.9.127）：harness 直调一次轮询（真实间隔 60s 起步，场景等不起）

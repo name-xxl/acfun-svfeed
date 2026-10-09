@@ -183,12 +183,21 @@ rec('no-overflow', (function () {
   var b = q('.acsv-view-body');
   return !!b && b.scrollWidth <= b.clientWidth + 1;
 })());
-var histMore = q('.acsv-mepanel[data-tab="hist"] .acsv-vmore');
-rec('hist-more-visible', !!histMore && histMore.style.display !== 'none');
-if (histMore) histMore.click();
+// 0.9.219：我的页三档改 listtail 自动触底（「加载更多」按钮退役）——续页靠滚到底触发，
+// 到底改由状态行表达（此前是按钮文案）；回顶按钮也在本批挂上
+rec('hist-morebtn-retired', q('.acsv-mepanel[data-tab="hist"] .acsv-vmore') === null);
+rec('hist-status-idle', (q('.acsv-mepanel[data-tab="hist"] .acsv-fstatus') || {}).textContent === '',
+  (q('.acsv-mepanel[data-tab="hist"] .acsv-fstatus') || {}).textContent);
+var myScroll = q('.acsv-view-body');
+myScroll.scrollTop = myScroll.scrollHeight;
+myScroll.dispatchEvent(new Event('scroll'));
 rec('hist-page2', !!(await waitFor(function () {
   return document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22;
-}, 8000)));
+}, 8000)), 'n=' + document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length
+  + ' calls=' + window.__ACSV_HIST_CALLS__);
+rec('hist-status-done', (q('.acsv-mepanel[data-tab="hist"] .acsv-fstatus') || {}).textContent === '已加载全部',
+  (q('.acsv-mepanel[data-tab="hist"] .acsv-fstatus') || {}).textContent);
+rec('hist-backtop-shown', !!q('.acsv-mepanel[data-tab="hist"] .acsv-backtop.on'));
 // Tab 惰性：未激活的收藏夹不拉接口（0 卡）→ 点击后才建面板
 rec('fav-tab-lazy', document.querySelectorAll('.acsv-vlist.fav .acsv-gcell').length === 0);
 var tabFav = q('.acsv-metab[data-tab="fav"]');

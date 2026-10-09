@@ -1,6 +1,7 @@
 import { CFG } from './cfg.js';
 import { el, fmt, fmtDurMs } from './ui.js';
 import { registerView } from './viewreg.js';
+import { createListTail } from './listtail.js'; // 尾部件（0.9.219：触底+回顶）
 import { AppAPI } from './appapi.js';
 import { listChannels, listChannelFeed } from './channelapi.js';
 import { relatedItemOf } from './relatedapi.js';
@@ -218,12 +219,14 @@ function buildJingxuanView(body) {
     big: false, normals: 0, buf: [],
     rendered: [], // 已渲染 vm 序列（渲染顺序；列表会话的条目源，0.9.173）
     waitMore: null, // 列表会话续拉的等待回调（drain 渲染完触发，0.9.173）
-    chips: chips, grid: grid, tip: tip, body: body,
-    onScroll: function () {
-      if (body.scrollTop + body.clientHeight >= body.scrollHeight - CFG.view.jingxuan.scrollPad) advance();
-    }
+    chips: chips, grid: grid, tip: tip, body: body
   };
-  body.addEventListener('scroll', st.onScroll, { passive: true });
+  // 尾部件（0.9.219 统一）：触底续拉（onBottom=本视图的 advance，**按行补齐方言保留**）+ **回顶**
+  //（本视图此前没有回顶——长分区滚到中段回不去）。状态行不借（自有三态 tip 件）
+  st.tail = createListTail({
+    root: body, scrollEl: body, pad: CFG.view.jingxuan.scrollPad,
+    backTopAt: CFG.view.jingxuan.backTopAt, status: false, onBottom: advance
+  });
 
   function mkChip(label, id, on) {
     var c = el('button', 'acsv-vchip' + (on ? ' on' : ''), label);
@@ -361,7 +364,7 @@ function drain() {
 
 function jingxuanTeardown() {
   if (!st) return;
-  st.body.removeEventListener('scroll', st.onScroll);
+  st.tail.stop(); // 尾部件解绑（触底+回顶）
   st = null;
 }
 

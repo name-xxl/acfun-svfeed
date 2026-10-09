@@ -4,7 +4,7 @@ import { request } from './net.js';
 import { postForm } from './appapi.js';
 import { panelItem } from './panelitem.js';
 import { rowOf, upCardOf } from './cards.js';
-import { ICONS } from './styles.js'; // chevUp 回顶图标（与关注/广场/搜索同源）
+import { createListTail } from './listtail.js'; // 尾部件（0.9.219：只借回顶） // chevUp 回顶图标（与关注/广场/搜索同源）
 import { registerView } from './viewreg.js';
 
 // ---------- 分区榜单视图（0.9.62 建，0.9.66 对齐原生：子频道行 + UP 榜） ----------
@@ -68,17 +68,10 @@ function buildZoneView(body) {
   var list = el('div', 'acsv-rlist');
   wrap.appendChild(list);
   body.appendChild(wrap);
-  // 回顶（0.9.155；共享件 .acsv-backtop——关注/广场/搜索同款）：sticky 钉滚动流右下，超
-  // zoneBackTopAt 淡入。榜单是单发 100 条的长列表（原生同款），滚到中段想回顶得拖很久
-  var backTop = el('button', 'acsv-tbtn acsv-backtop');
-  backTop.innerHTML = ICONS.chevUp;
-  backTop.title = '回到顶部';
-  body.appendChild(backTop); // 内容之后（sticky 基准）；本视图渲染只动 wrap 内部，不会把它挤走
-  body.addEventListener('scroll', function () {
-    backTop.classList.toggle('on', body.scrollTop > CFG.view.zoneBackTopAt);
-  }, { passive: true });
-  backTop.addEventListener('click', function () {
-    body.scrollTo({ top: 0, behavior: 'smooth' });
+  // 回顶（0.9.155；0.9.219 换 listtail 共享件）：榜单是单发 100 条长列表（原生同款），滚到中段
+  // 想回顶得拖很久。本视图无触底翻页 ⇒ 不传 onBottom；也不要状态行（自有三态占位件）⇒ status:false
+  createListTail({
+    root: body, scrollEl: body, backTopAt: CFG.view.zoneBackTopAt, status: false
   });
 
   var curZone = CFG.view.zones[0];

@@ -5,7 +5,7 @@ import { upOf } from './playitem.js';
 import { searchVideoPageOf, searchUserPageOf, searchArticlePageOf } from './searchfmt.js'; // 回包规整（0.9.161 出库）
 import { viewPiOf } from './panelitem.js'; // 域条目→面板 pi 投影（0.9.211 批⑦收编）
 import { gridCardOf, openPanelItem, skeletonRows } from './cards.js';
-import { ICONS } from './styles.js'; // chevUp 回顶图标（与关注/广场同源）
+import { createListTail } from './listtail.js'; // 尾部件（0.9.219：只借回顶）
 import { imgInto } from './imgload.js';
 import { registerView } from './viewreg.js';
 import { setSearchHandler, focusSearch } from './topbar.js';
@@ -82,9 +82,14 @@ function buildSearchView(body, arg, kind) {
   // 回顶（0.9.154；关注/广场/原生内嵌广场同款共享件 .acsv-backtop）：sticky 钉滚动流右下，
   // 超 backTopAt 淡入；**三个类目共用一个**（按钮在视图层、不在类目里）；评论抽屉打开时
   // 正文右缘本就让位到抽屉左缘，它 sticky 在正文流里跟着让位
-  var backTop = el('button', 'acsv-tbtn acsv-backtop');
-  backTop.innerHTML = ICONS.chevUp;
-  backTop.title = '回到顶部';
+  // 回顶（0.9.219 换 listtail 共享件）：三个类目共用一个，**须挂在内容之后**（sticky 定位基准，
+  // 渲染后还要重挂见下方 356 行处）⇒ backTopHost:false 自摆位。本视图翻页走 IO 哨兵（有意保留）
+  // ⇒ 不传 onBottom、也不要状态行
+  var tail = createListTail({
+    root: body, scrollEl: body, backTopAt: CFG.view.search.backTopAt,
+    status: false, backTopHost: false
+  });
+  var backTop = tail.backTop;
   body.appendChild(chips);
   body.appendChild(state);
   body.appendChild(res);
@@ -92,12 +97,6 @@ function buildSearchView(body, arg, kind) {
   body.appendChild(sentinel);
   body.appendChild(backTop); // 须在内容之后（sticky 的定位基准）
   sentinel.style.display = 'none';
-  body.addEventListener('scroll', function () {
-    backTop.classList.toggle('on', body.scrollTop > CFG.view.search.backTopAt);
-  }, { passive: true });
-  backTop.addEventListener('click', function () {
-    body.scrollTo({ top: 0, behavior: 'smooth' });
-  });
 
   // 共享历史被外部清空（顶栏面板「清除历史」）→ 空词态重画 chips（0.9.158；非空词态无历史件，免画）
   if (!histListener) {

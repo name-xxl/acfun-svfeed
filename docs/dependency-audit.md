@@ -162,6 +162,30 @@ feedstore.js → player.js → input.js → feedstore.js
   方向已守护"的缺口由此补上）。
 - **附带**：0.9.184/185/186 的架构减债（errbox/playgest 拆件、a11y）均过本棘轮（0 未登记）。
 
+## 0.9.219：列表尾部件抽离（listtail）台账
+
+- **新增模块**：`src/listtail.js`——收口**尾部三样**（触底监听双方言 / 三态状态行 / 回顶按钮），
+  只依赖 `ui`+`styles`（基建），**不 import 任何特性件**（check-direction 两口径均无新增侵蚀）。
+- **收口了什么（按「同一件事被实现了几遍」清点）**：
+
+  | 件 | 收口前 | 收口后 |
+  |---|---|---|
+  | 触底监听 | 5 份（squarefeed / followview / jingxuanview / searchview(IO) / comments(IO)） | squarefeed/followview/jingxuanview 归一；**searchview 与 comments 的 IO 哨兵有意保留**（非滚动宿主也成立，0.9.141 起范式） |
+  | 回顶按钮 | 4 份（squarefeed / followview / zone / searchview） | 归一 + jingxuanview **补上**（此前无） |
+  | 三态状态行 | 2 份逐字重复（squarefeed / followview） | 1 份 |
+  | 「加载更多」按钮 | moreBtn（仅 mypage 三档消费） | 退役（最后消费方改自动触底） |
+
+- **有意不收口（写下来防下次误读为漏收）**：各页**翻页范式**保留——广场/关注=时间戳游标、我的页
+  历史/收藏=pageNo、分组=偏移量、搜索=页码+IO 哨兵、分区=自持游标+按行补齐、空间页小视频=后台链+页码条。
+  统一的是**尾部呈现与触发件**，不是翻页协议。
+- **新增边**：`listtail → styles & ui`；`squarefeed / followview / mypage / zone / searchview /
+  jingxuanview → listtail`（全为特性层→基建层，零反向）。
+- **零漂移证据**：squarefeed / followview 换件后 `view-square`、`member-plaza`、`space-moments`、
+  `view-follow` 场景**断言未改**全绿；我的页三档改自动触底是**有意的行为变更**，断言按新口径重写
+  并做摘修复反跑（摘 `onBottom` → 四条转红，还原即绿）。
+- **顺带修**：`followview` 的状态行此前注释写「点击=手动重试」却**未接线**（首屏失败时没有可依的
+  滚动，点击是唯一出口）——接入本件后自动接上。
+
 ## 0.9.218：动态浏览（空间页注入 + 我的页双宿主）拆件台账
 
 - **新增两个模块**：`spacetab.js`（空间页内容标签栏注入共享件：标签卡 + 面板 + 手动切换 +

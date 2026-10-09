@@ -8,9 +8,11 @@ import { nameColorCss } from './uplook.js'; // 名字等级色（0.9.157 三色�
 
 // ---------- 卡面 kit（0.9.109 自 views.js 拆出：编排 / 卡面分家） ----------
 // 全项目卡面构建单源：网格卡（gridCardOf）/行卡（rowOf）/资源横条（stripOf）/引用卡
-// （quoteBlockOf）/UP 卡（upCardOf）/计数行（statRowOf）/骨架（skeletonRows）/加载更多
-// （moreBtn）。消费方：mypage、zone、searchview、followview、momentdetail；playlayer 经
-// 注入缝（setItemOpener）注册条目出口。
+// （quoteBlockOf）/UP 卡（upCardOf）/计数行（statRowOf）/骨架（skeletonRows）。消费方：
+// mypage、zone、searchview、followview、momentdetail；playlayer 经注入缝（setItemOpener）
+// 注册条目出口。
+// 0.9.219：`moreBtn`（「加载更多」按钮）**退役**——最后一个消费方（我的页 历史/收藏/分组）已改
+// listtail 自动触底（该按钮范式与全站其余页不一致，见 listtail.js 头注）。
 // 拆出纪律（0.9.109）：逐字搬运零逻辑改动——类名与 DOM 形状被 harness 断言钉着
 //（0.9.67/68 水印 offsetParent 契约等，见 rowOf/gridCardOf 段头注），共享导出的形状
 // 改动必须 grep 全消费点。依赖：本模块不 import views.js（编排不反向依赖卡面）、不反向
@@ -331,18 +333,6 @@ export function upCardOf(pi) {
   a.appendChild(info);
   card.appendChild(a);
   return card;
-}
-
-export function moreBtn(onClick) {
-  var b = el('button', 'acsv-vmore', '加载更多');
-  b.addEventListener('click', function () {
-    if (b.disabled) return;
-    b.disabled = true;
-    b.textContent = '加载中…';
-    // 防误传 null（0.9.77：收藏夹曾把回调传 null，点击抛 TypeError 且按钮卡死「加载中…」）
-    if (typeof onClick === 'function') onClick(b);
-  });
-  return b;
 }
 
 function fmtDur(sec) {

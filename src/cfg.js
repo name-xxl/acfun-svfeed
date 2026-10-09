@@ -241,6 +241,9 @@ export var CFG = {
     me: {                 // 我的页（0.9.69 抖音式个人主页）
       gridMin: 280,       // 网格卡最小列宽（列数随容器宽自适应，不写死断点；1920 下 5 列）
       gridGap: 16,        // 网格间距
+      // 尾部加载（0.9.219 统一）：四档（动态/历史/收藏夹/关注分组）全部走 listtail 自动触底
+      scrollPad: 300,     // 触底提前量（同 follow/square）
+      backTopAt: 300,     // 回顶按钮显隐阈值（同 follow/square）
       // 封面比例=4:3：A 站**普通视频封面固定 4:3**（只有小视频是 3:4）——历史/收藏条目
       // 经契约层过滤后全是普通视频（panelItem 只收 resourceType=2+videoId），套 3:4 会把
       // 封面左右各裁掉一大块（连标题字都被切）。将来若混入小视频条目需按 kind 分档
@@ -294,6 +297,7 @@ export var CFG = {
     },
     jingxuan: {                    // 精选页（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html ①②）
       scrollPad: 300,              // 无限滚动触底提前量（同 square）
+      backTopAt: 300,              // 回顶按钮显隐阈值（0.9.219 补：本页此前没有回顶）
       gridMin: 250,                // 网格卡最小列宽（列数随容器自适应，不写死断点；与 styles.js 同值）
       gridGap: 14                  // 网格间距（同上）；骨架/补齐数量按现场列数算，不收常量
     },

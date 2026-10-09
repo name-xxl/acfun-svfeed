@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.218
+// @version      0.9.219
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.218" : "",
+          ver: true ? "0.9.219" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -380,6 +380,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         // 网格卡最小列宽（列数随容器宽自适应，不写死断点；1920 下 5 列）
         gridGap: 16,
         // 网格间距
+        // 尾部加载（0.9.219 统一）：四档（动态/历史/收藏夹/关注分组）全部走 listtail 自动触底
+        scrollPad: 300,
+        // 触底提前量（同 follow/square）
+        backTopAt: 300,
+        // 回顶按钮显隐阈值（同 follow/square）
         // 封面比例=4:3：A 站**普通视频封面固定 4:3**（只有小视频是 3:4）——历史/收藏条目
         // 经契约层过滤后全是普通视频（panelItem 只收 resourceType=2+videoId），套 3:4 会把
         // 封面左右各裁掉一大块（连标题字都被切）。将来若混入小视频条目需按 kind 分档
@@ -455,6 +460,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         // 精选页（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html ①②）
         scrollPad: 300,
         // 无限滚动触底提前量（同 square）
+        backTopAt: 300,
+        // 回顶按钮显隐阈值（0.9.219 补：本页此前没有回顶）
         gridMin: 250,
         // 网格卡最小列宽（列数随容器自适应，不写死断点；与 styles.js 同值）
         gridGap: 14
@@ -11939,7 +11946,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.218" : "");
+    return normVer(true ? "0.9.219" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -13378,16 +13385,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     card.appendChild(a);
     return card;
   }
-  function moreBtn(onClick) {
-    var b = el("button", "acsv-vmore", "加载更多");
-    b.addEventListener("click", function() {
-      if (b.disabled) return;
-      b.disabled = true;
-      b.textContent = "加载中…";
-      if (typeof onClick === "function") onClick(b);
-    });
-    return b;
-  }
   function fmtDur2(sec) {
     sec = Math.max(0, Number(sec) || 0);
     var m = Math.floor(sec / 60), s = Math.floor(sec % 60);
@@ -14477,6 +14474,56 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }, CFG.time.navWait);
   }
 
+  // src/listtail.js
+  function scrollTopOf(scrollEl) {
+    return scrollEl === window ? window.pageYOffset || document.documentElement.scrollTop || 0 : scrollEl.scrollTop;
+  }
+  function atBottom(scrollEl, pad) {
+    if (scrollEl === window) {
+      return scrollTopOf(scrollEl) + window.innerHeight >= document.documentElement.scrollHeight - pad;
+    }
+    return scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - pad;
+  }
+  function createListTail(opts) {
+    var root2 = opts.root;
+    var scrollEl = opts.scrollEl;
+    var pad = opts.pad;
+    var backTopAt = opts.backTopAt;
+    var status = opts.status === false ? null : el("div", "acsv-fstatus");
+    if (status) (opts.statusHost || root2).appendChild(status);
+    var backTop = el("button", "acsv-tbtn acsv-backtop");
+    backTop.innerHTML = ICONS.chevUp;
+    backTop.title = "回到顶部";
+    if (opts.backTopHost !== false) (opts.backTopHost || root2).appendChild(backTop);
+    function onScroll() {
+      if (opts.onBottom && atBottom(scrollEl, pad)) opts.onBottom();
+      backTop.classList.toggle("on", scrollTopOf(scrollEl) > backTopAt);
+    }
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    backTop.addEventListener("click", function() {
+      if (scrollEl === window) window.scrollTo({ top: 0, behavior: "smooth" });
+      else scrollEl.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    if (opts.onRetry && status) {
+      status.addEventListener("click", function() {
+        opts.onRetry();
+      });
+    }
+    return {
+      status,
+      backTop,
+      // 三态状态行文案（'' 清空；busy=加载中态：降透明且不可点）；无状态行的宿主为 No-op
+      setStatus: function(text, busy) {
+        if (!status) return;
+        status.textContent = text || "";
+        status.classList.toggle("busy", !!busy);
+      },
+      stop: function() {
+        scrollEl.removeEventListener("scroll", onScroll);
+      }
+    };
+  }
+
   // src/momentbar.js
   function momentShareItemOf(pi) {
     var text = pi.ct === "moment" ? ubbPlain(pi.text) : pi.title || "";
@@ -14983,7 +15030,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   }
   function createSquareFeed(opts) {
     var root2 = opts.root;
-    var winScroll = opts.scrollEl === window;
     var onOpen = opts.onOpen || noop2;
     var onRow = opts.onRow;
     var fetchPage2 = opts.fetchPage || listSquare;
@@ -14995,12 +15041,15 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     root2.appendChild(upStatus);
     var list = el("div", "acsv-frows");
     root2.appendChild(list);
-    var status = el("div", "acsv-fstatus");
-    root2.appendChild(status);
-    var backTop = el("button", "acsv-tbtn acsv-backtop");
-    backTop.innerHTML = ICONS.chevUp;
-    backTop.title = "回到顶部";
-    (opts.backTopHost || root2).appendChild(backTop);
+    var tail2 = createListTail({
+      root: root2,
+      scrollEl: opts.scrollEl,
+      backTopHost: opts.backTopHost,
+      pad: view2.scrollPad,
+      backTopAt: view2.backTopAt,
+      onBottom: load,
+      onRetry: load
+    });
     var pcursor2 = "";
     var seq = 0;
     var loading2 = false;
@@ -15011,10 +15060,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     function skeleton3() {
       return skeletonRows(list, view2.skel, "acsv-sqskel");
     }
-    function setStatus(text, busy) {
-      status.textContent = text || "";
-      status.classList.toggle("busy", !!busy);
-    }
+    var setStatus = tail2.setStatus;
     function load() {
       if (loading2 || noMore) return;
       loading2 = true;
@@ -15124,25 +15170,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       load();
     }
     upStatus.addEventListener("click", refresh);
-    function scrollTop() {
-      return winScroll ? window.pageYOffset || document.documentElement.scrollTop || 0 : opts.scrollEl.scrollTop;
-    }
-    function onScroll() {
-      if (winScroll) {
-        if (scrollTop() + window.innerHeight >= document.documentElement.scrollHeight - view2.scrollPad) load();
-      } else if (opts.scrollEl.scrollTop + opts.scrollEl.clientHeight >= opts.scrollEl.scrollHeight - view2.scrollPad) {
-        load();
-      }
-      backTop.classList.toggle("on", scrollTop() > view2.backTopAt);
-    }
-    opts.scrollEl.addEventListener("scroll", onScroll, { passive: true });
-    backTop.addEventListener("click", function() {
-      if (winScroll) window.scrollTo({ top: 0, behavior: "smooth" });
-      else opts.scrollEl.scrollTo({ top: 0, behavior: "smooth" });
-    });
-    status.addEventListener("click", function() {
-      load();
-    });
     ensureEmotionMap().then(function() {
       if (list.isConnected) refillEmoticons(list);
     }, function() {
@@ -15151,7 +15178,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return {
       stop: function() {
         stopPoll();
-        opts.scrollEl.removeEventListener("scroll", onScroll);
+        tail2.stop();
       },
       refresh,
       // debug 探针（0.9.127）：harness 直调一次轮询（真实间隔 60s 起步，场景等不起）
@@ -15500,7 +15527,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.218：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.219：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -16015,10 +16042,17 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       }
     };
   }
-  function buildHistory(panel2) {
+  function buildHistory(panel2, scroller2) {
     var list = rowList(panel2, "hist");
-    var btn = moreBtn(load);
-    panel2.appendChild(btn);
+    var tail2 = createListTail({
+      root: panel2,
+      scrollEl: scroller2 || panel2,
+      pad: CFG.view.me.scrollPad,
+      backTopAt: CFG.view.me.backTopAt,
+      onBottom: load,
+      onRetry: load
+    });
+    var setStatus = tail2.setStatus;
     var pageNo = 0, seq = 0;
     var allRows = [];
     var done = false;
@@ -16028,16 +16062,16 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       return done;
     });
     function load() {
+      if (done) return;
       var my = ++seq;
       var gone = skeleton(list);
+      if (pageNo) setStatus("加载中…", true);
       postForm(
         CFG.api.history,
         "pageNo=" + (pageNo + 1) + "&pageSize=" + CFG.view.pageSize + "&resourceTypes=1&resourceTypes=2"
       ).then(function(j) {
         gone();
         if (my !== seq || !list.isConnected) return;
-        btn.disabled = false;
-        btn.textContent = "加载更多";
         var raws = j && j.histories || [];
         var rows = [];
         raws.forEach(function(raw) {
@@ -16052,16 +16086,13 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           }));
         });
         lctx.flush();
-        if (raws.length < CFG.view.pageSize) {
-          done = true;
-          btn.style.display = "none";
-        }
+        done = raws.length < CFG.view.pageSize;
+        setStatus(done ? "已加载全部" : "");
         if (!rows.length && pageNo === 1) list.appendChild(el("div", "acsv-vempty", "暂无观看记录"));
       }, function() {
         gone();
         if (my !== seq || !list.isConnected) return;
-        btn.disabled = false;
-        btn.textContent = "加载失败，点击重试";
+        setStatus(list.children.length ? "加载失败，滚动重试" : "加载失败，点击重试");
         lctx.flush();
       });
     }
@@ -16073,14 +16104,19 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var form = el("div", "acsv-gform");
     form.style.display = "none";
     var list = o.list;
-    var btn = moreBtn(function() {
-      load();
-    });
     panel2.appendChild(chips);
     panel2.appendChild(ops);
     panel2.appendChild(form);
     panel2.appendChild(list);
-    panel2.appendChild(btn);
+    var tail2 = createListTail({
+      root: panel2,
+      scrollEl: o.scrollEl || panel2,
+      pad: CFG.view.me.scrollPad,
+      backTopAt: CFG.view.me.backTopAt,
+      onBottom: load,
+      onRetry: load
+    });
+    var setStatus = tail2.setStatus;
     var tabs = [];
     var allRows = [];
     var cur = o.allChip ? o.allId : null;
@@ -16094,9 +16130,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       return null;
     }
     function resetBtn() {
-      btn.style.display = "";
-      btn.disabled = false;
-      btn.textContent = "加载更多";
+      setStatus("");
     }
     function renderChips() {
       chips.textContent = "";
@@ -16218,7 +16252,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           ops.textContent = "";
           list.textContent = "";
           list.appendChild(el("div", "acsv-vempty", o.emptyTabsText));
-          btn.style.display = "none";
+          setStatus("");
           return;
         }
         var curValid = o.allChip ? cur === o.allId || !!tabOf(cur) : !!tabOf(cur);
@@ -16236,17 +16270,18 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         if (list.children.length) return;
         list.textContent = "";
         list.appendChild(el("div", "acsv-vempty", o.tabsFailText));
-        btn.style.display = "none";
+        setStatus("");
       });
     }
     function load() {
       if (loading2 || done) return;
       if (cur == null) {
-        resetBtn();
+        setStatus("");
         return;
       }
       loading2 = true;
       var my = ++seq;
+      if (allRows.length) setStatus("加载中…", true);
       o.loadPage(cur, cursor).then(function(p) {
         if (my !== seq || !list.isConnected) return;
         loading2 = false;
@@ -16257,17 +16292,14 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           added++;
         });
         cursor = p.nextCursor;
-        if (p.noMore) {
-          done = true;
-          btn.style.display = "none";
-        } else resetBtn();
+        done = !!p.noMore;
+        setStatus(done ? o.doneText || "已加载全部" : "");
         if (!added && !list.children.length) list.appendChild(el("div", "acsv-vempty", o.emptyText(cur)));
         lctx.flush();
       }, function() {
         if (my !== seq || !list.isConnected) return;
         loading2 = false;
-        btn.disabled = false;
-        btn.textContent = o.loadFailText;
+        setStatus(list.children.length ? "加载失败，滚动重试" : o.loadFailText);
         lctx.flush();
       });
     }
@@ -16287,9 +16319,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         return lctx.ctxOf(pi);
       }
     };
-    return { refresh, select, list, chips, btn };
+    return { refresh, select, list, chips, tail: tail2 };
   }
-  function buildFav(panel2) {
+  function buildFav(panel2, scroller2) {
     var list = rowList(panel2, "fav");
     var sk = skeleton(list);
     function favCell(pi, ctx) {
@@ -16337,6 +16369,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }
     var tab = adminTab(panel2, {
       list,
+      scrollEl: scroller2,
+      // 尾部件（0.9.219）：触底/回顶挂视图体
       allChip: null,
       // 收藏夹无「全部」档
       addLabel: "＋ 新建夹",
@@ -16400,7 +16434,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     });
     tab.refresh().then(sk);
   }
-  function buildFollowGroups(panel2) {
+  function buildFollowGroups(panel2, scroller2) {
     var list = el("div", "acsv-glist");
     function memberRow(u, ctx) {
       var row = el("div", "acsv-grow");
@@ -16470,6 +16504,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }
     var tab = adminTab(panel2, {
       list,
+      scrollEl: scroller2,
+      // 尾部件（0.9.219）：触底/回顶挂视图体
       allChip: "全部",
       allId: "-1",
       addLabel: "＋ 新建分组",
@@ -16531,7 +16567,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         };
       }
     });
-    tab.refresh();
+    var sk = skeleton(list);
+    tab.refresh().then(sk, sk);
   }
   var meFeed = null;
   function buildMoments(panel2, scroller2) {
@@ -16676,15 +16713,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var list = el("div", "acsv-rlist");
     wrap.appendChild(list);
     body.appendChild(wrap);
-    var backTop = el("button", "acsv-tbtn acsv-backtop");
-    backTop.innerHTML = ICONS.chevUp;
-    backTop.title = "回到顶部";
-    body.appendChild(backTop);
-    body.addEventListener("scroll", function() {
-      backTop.classList.toggle("on", body.scrollTop > CFG.view.zoneBackTopAt);
-    }, { passive: true });
-    backTop.addEventListener("click", function() {
-      body.scrollTo({ top: 0, behavior: "smooth" });
+    createListTail({
+      root: body,
+      scrollEl: body,
+      backTopAt: CFG.view.zoneBackTopAt,
+      status: false
     });
     var curZone = CFG.view.zones[0];
     var curSub = null;
@@ -16920,9 +16953,14 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var res = el("div", "acsv-sres");
     var end = el("div", "acsv-send");
     var sentinel = el("div", "acsv-cmore-sentinel");
-    var backTop = el("button", "acsv-tbtn acsv-backtop");
-    backTop.innerHTML = ICONS.chevUp;
-    backTop.title = "回到顶部";
+    var tail2 = createListTail({
+      root: body,
+      scrollEl: body,
+      backTopAt: CFG.view.search.backTopAt,
+      status: false,
+      backTopHost: false
+    });
+    var backTop = tail2.backTop;
     body.appendChild(chips);
     body.appendChild(state);
     body.appendChild(res);
@@ -16930,12 +16968,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     body.appendChild(sentinel);
     body.appendChild(backTop);
     sentinel.style.display = "none";
-    body.addEventListener("scroll", function() {
-      backTop.classList.toggle("on", body.scrollTop > CFG.view.search.backTopAt);
-    }, { passive: true });
-    backTop.addEventListener("click", function() {
-      body.scrollTo({ top: 0, behavior: "smooth" });
-    });
     if (!histListener) {
       histListener = function() {
         if (!String(arg || "").trim() && res.isConnected) render2();
@@ -17279,28 +17311,29 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function skeleton2(listEl) {
     return skeletonRows(listEl, CFG.view.follow.skel, "acsv-fskel");
   }
+  var tail = null;
   function buildFollowView(body) {
     setDockBadge("follow", 0);
     var wrap = el("div", "acsv-mewrap");
     body.appendChild(wrap);
     var list = el("div", "acsv-frows");
     wrap.appendChild(list);
-    var status = el("div", "acsv-fstatus");
-    wrap.appendChild(status);
-    var backTop = el("button", "acsv-tbtn acsv-backtop");
-    backTop.innerHTML = ICONS.chevUp;
-    backTop.title = "回到顶部";
-    body.appendChild(backTop);
+    tail = createListTail({
+      root: wrap,
+      scrollEl: body,
+      backTopHost: body,
+      pad: CFG.view.follow.scrollPad,
+      backTopAt: CFG.view.follow.backTopAt,
+      onBottom: load,
+      onRetry: load
+    });
     var pcursor2 = "0";
     var seq = 0;
     var loading2 = false;
     var noMore = false;
     var firstPage = true;
     var seenKeys = null;
-    function setStatus(text, busy) {
-      status.textContent = text || "";
-      status.classList.toggle("busy", !!busy);
-    }
+    var setStatus = tail.setStatus;
     function load() {
       if (loading2 || noMore) return;
       loading2 = true;
@@ -17345,14 +17378,14 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       if (list.isConnected) refillEmoticons(list);
     }, function() {
     });
-    body.addEventListener("scroll", function() {
-      if (body.scrollTop + body.clientHeight >= body.scrollHeight - CFG.view.follow.scrollPad) load();
-      backTop.classList.toggle("on", body.scrollTop > CFG.view.follow.backTopAt);
-    }, { passive: true });
-    backTop.addEventListener("click", function() {
-      body.scrollTo({ top: 0, behavior: "smooth" });
-    });
     load();
+  }
+  function followTeardown() {
+    if (tail) {
+      tail.stop();
+      tail = null;
+    }
+    closeInlineComments();
   }
   setMomentOpener(function(rp) {
     openMomentDetail(momentPiOfRepost(rp));
@@ -17360,7 +17393,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   registerView({
     id: "follow",
     build: buildFollowView,
-    teardown: closeInlineComments,
+    teardown: followTeardown,
     dock: {
       label: "关注",
       order: 20,
@@ -17641,12 +17674,16 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       chips,
       grid,
       tip,
-      body,
-      onScroll: function() {
-        if (body.scrollTop + body.clientHeight >= body.scrollHeight - CFG.view.jingxuan.scrollPad) advance();
-      }
+      body
     };
-    body.addEventListener("scroll", st.onScroll, { passive: true });
+    st.tail = createListTail({
+      root: body,
+      scrollEl: body,
+      pad: CFG.view.jingxuan.scrollPad,
+      backTopAt: CFG.view.jingxuan.backTopAt,
+      status: false,
+      onBottom: advance
+    });
     function mkChip(label, id, on) {
       var c = el("button", "acsv-vchip" + (on ? " on" : ""), label);
       c.addEventListener("click", function() {
@@ -17787,7 +17824,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   }
   function jingxuanTeardown() {
     if (!st) return;
-    st.body.removeEventListener("scroll", st.onScroll);
+    st.tail.stop();
     st = null;
   }
   testHook("jingxuan", function() {

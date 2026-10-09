@@ -17,7 +17,7 @@ import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { followPanelOf, momentPiOfRepost } from './panelitem.js';
 import { openPanelItem, setMomentOpener, skeletonRows } from './cards.js';
-import { ICONS } from './styles.js';
+import { createListTail } from './listtail.js'; // 尾部件单源（0.9.219）
 import { listMoments } from './momentapi.js';
 import { markSeen } from './followseen.js'; // 首屏到达=已读（0.9.139；水位叶子件，勿在本模块自持水位）
 import { registerView } from './viewreg.js';
@@ -47,22 +47,26 @@ function skeleton(listEl) {
   return skeletonRows(listEl, CFG.view.follow.skel, 'acsv-fskel');
 }
 
+var tail = null; // 尾部件实例（视图单例：build 建 / teardown 停）
+
 function buildFollowView(body) {
   setDockBadge('follow', 0); // 进关注语境即清（0.9.97；视频侧的清零在 followstream.enterVideos）
   var wrap = el('div', 'acsv-mewrap');
   body.appendChild(wrap);
   var list = el('div', 'acsv-frows');
   wrap.appendChild(list);
-  // 三态底部状态行（借鉴广场 load-more-status）：加载中… / 加载失败，滚动重试 / 已加载全部
-  // 动态；点击=手动重试（首屏失败列表为空没有滚动可依，点击是唯一重试出口）
-  var status = el('div', 'acsv-fstatus');
-  wrap.appendChild(status);
-  // 回顶（借鉴广场 back-top；0.9.105 图标语言统一）：顶栏同款圆钮 .acsv-tbtn + chevUp SVG，
-  // sticky 钉在滚动流右下，超 backTopAt 才现身（.on）
-  var backTop = el('button', 'acsv-tbtn acsv-backtop');
-  backTop.innerHTML = ICONS.chevUp;
-  backTop.title = '回到顶部';
-  body.appendChild(backTop);
+  // 尾部件（0.9.219 收口 listtail）：三态状态行 + 回顶 + 触底监听（元素方言）。
+  // **顺带修**：此前状态行注释写着「点击=手动重试（首屏失败列表为空，点击是唯一出口）」却没接线，
+  // 接入本件后自动接上
+  tail = createListTail({
+    root: wrap,
+    scrollEl: body,
+    backTopHost: body,
+    pad: CFG.view.follow.scrollPad,
+    backTopAt: CFG.view.follow.backTopAt,
+    onBottom: load,
+    onRetry: load
+  });
 
   var pcursor = '0';    // 首页游标（毫秒时间戳由响应回填；空/缺=no_more → 到底）
   var seq = 0;          // 在途回包令牌：视图已拆（闭包死）或重建时旧回包丢弃
@@ -71,10 +75,7 @@ function buildFollowView(body) {
   var firstPage = true;
   var seenKeys = null;  // 去重键集（momentId||acId）：整页 0 新增 → 判到底（广场安全阀）
 
-  function setStatus(text, busy) {
-    status.textContent = text || '';
-    status.classList.toggle('busy', !!busy);
-  }
+  var setStatus = tail.setStatus;
 
   function load() {
     if (loading || noMore) return;
@@ -133,16 +134,14 @@ function buildFollowView(body) {
   }, function () { });
 
   // 无限滚动：挂在**实际滚动容器**（.acsv-view-body 即本 body）——非 window（与广场的
-  // 差异点，广场列表直接活在页面流里）；触底提前量 300px（CFG.view.follow.scrollPad）
-  body.addEventListener('scroll', function () {
-    if (body.scrollTop + body.clientHeight >= body.scrollHeight - CFG.view.follow.scrollPad) load();
-    backTop.classList.toggle('on', body.scrollTop > CFG.view.follow.backTopAt);
-  }, { passive: true });
-  backTop.addEventListener('click', function () {
-    body.scrollTo({ top: 0, behavior: 'smooth' });
-  });
-
+  // 差异点，广场列表直接活在页面流里）；触底提前量/回顶阈值由 listtail 按 cfg 档位驱动
   load();
+}
+
+// 视图卸载：停尾部件（解绑滚动）+ 行内评论区宿主复位
+function followTeardown() {
+  if (tail) { tail.stop(); tail = null; }
+  closeInlineComments();
 }
 
 // 动态详情出口注册（0.9.101；0.9.102 载荷改 repost）：cards.quoteBlockOf 点源动态卡时要开
@@ -154,7 +153,7 @@ setMomentOpener(function (rp) { openMomentDetail(momentPiOfRepost(rp)); });
 // teardown：离开视图把行内评论区宿主复位（容器随 DOM 拆，残留 host 引用会读到死节点）
 registerView({
   id: 'follow', build: buildFollowView,
-  teardown: closeInlineComments,
+  teardown: followTeardown,
   dock: {
     label: '关注', order: 20, group: 1, // 0.9.155 用户裁决：与「我的」互换（我的沉底）
     svg: '<svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>'
