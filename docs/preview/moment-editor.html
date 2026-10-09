@@ -40,8 +40,9 @@
     border-radius:50%;font-size:12px;cursor:pointer}
   .ed-hd .x:hover{background:rgba(255,255,255,.2)}
   .ed-bd{padding:0 16px 4px}
-  /* 引用块（仅转发）：同行卡引用卡体例（左出血 -10 / 底纹 / @源UP / 正文钳 3 行 / 源图） */
-  .gquote{margin:0 0 12px -10px;padding:10px;background:var(--sub);border-radius:4px}
+  /* 引用块（仅转发）：视觉沿用行卡引用卡（底纹 / @源UP / 正文钳 3 行 / 源图），但**取消左出血**——
+     行卡那套的 -10px 出血是配 20px 行外边距用的，搬进 560 宽模态只剩 6px，会变成"挨着左边框"（同用户实报的观感） */
+  .gquote{margin:0 0 12px;padding:10px 12px;background:var(--sub);border-radius:4px}
   .gquote-up{font-size:14px;line-height:22px;color:var(--t3);margin-bottom:8px}
   .gquote-upname{color:#fff;text-decoration:none}
   .gquote-text{font-size:14px;line-height:21px;color:#e8eaee;max-height:63px;overflow:hidden;white-space:pre-line}
@@ -61,8 +62,9 @@
   .thumb.add{background:rgba(255,255,255,.06);border:1px dashed rgba(255,255,255,.22);
     color:var(--t3);font-size:22px;line-height:86px;text-align:center;cursor:pointer}
   .thumb .prog{position:absolute;inset:auto 0 0 0;height:3px;background:var(--accent);width:64%}
-  /* 工具行：表情键 / 图片键 / 可见范围 / 字数 */
-  .ed-tools{display:flex;align-items:center;gap:14px;padding:6px 0 12px;border-top:1px solid var(--line)}
+  /* 工具行：表情键 / 图片键 / 可见范围 / 字数。**左右 16px 与标题/输入区/脚行同栏距**——
+     首版写成 padding:6px 0 12px（左右为 0），「☺ 表情」与「0/233」直接贴住面板边框（用户实报） */
+  .ed-tools{display:flex;align-items:center;gap:14px;padding:6px 16px 12px;border-top:1px solid var(--line)}
   .tbtn{border:none;background:none;color:var(--t2);font-size:13px;cursor:pointer;padding:6px 0;font-family:inherit}
   .tbtn:hover{color:var(--accent)}
   .tbtn.on{color:var(--accent)}
@@ -75,12 +77,12 @@
   .count.over{color:var(--accent);font-weight:600}
   /* 表情面板（展开态）：贴输入区下方、面板内滚动 */
   .emot{border-top:1px solid var(--line);background:rgba(0,0,0,.25)}
-  .emot .head{display:flex;gap:10px;padding:8px 14px 4px;font-size:12px;color:var(--t3);overflow-x:auto}
+  .emot .head{display:flex;gap:10px;padding:8px 16px 4px;font-size:12px;color:var(--t3);overflow-x:auto}
   .emot .head b{color:#fff;font-weight:600}
-  .emot .grid{display:flex;flex-wrap:wrap;gap:6px;padding:6px 14px;max-height:150px;overflow-y:auto}
+  .emot .grid{display:flex;flex-wrap:wrap;gap:6px;padding:6px 16px;max-height:150px;overflow-y:auto}
   .emot .item{width:34px;height:34px;border-radius:4px;background:linear-gradient(135deg,#3a3f52,#232634);cursor:pointer}
   .emot .item:hover{background:rgba(255,255,255,.16)}
-  .emot .foot{display:flex;align-items:center;gap:6px;padding:6px 14px 10px;font-size:12px;color:var(--t3)}
+  .emot .foot{display:flex;align-items:center;gap:6px;padding:6px 16px 10px;font-size:12px;color:var(--t3)}
   .emot .page{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:var(--t2);border-radius:4px;
     padding:3px 10px;font-size:12px;cursor:pointer;font-family:inherit}
   /* 脚行 */
@@ -108,6 +110,41 @@
   .narrow .vis{margin-left:0}
   .narrow .count{margin-left:auto}
   @media (max-width:600px){ .board{padding:18px 12px 60px} }
+  /* ---- 输入框内表情渲染：镜像层对照（§⑧） ---- */
+  .mir{position:relative;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:#101014;
+    padding:10px 12px;font-size:14px;line-height:21px;min-height:64px;overflow:hidden}
+  .mir .tok{color:#8a90a0;background:rgba(255,255,255,.06);border-radius:3px;padding:0 2px}
+  .mir .em1{display:inline-block;height:1em;vertical-align:-.18em;border-radius:3px;
+    background:linear-gradient(135deg,#3a3f52,#232634)}
+  .mir .em34{display:inline-block;height:34px;vertical-align:-7px;border-radius:4px;
+    background:linear-gradient(135deg,#3a3f52,#232634)}
+  .mir .caret{display:inline-block;width:1px;height:17px;background:#fd4c5d;vertical-align:-3px}
+  .mir34{line-height:34px}          /* C 版：两侧行高一起抬 */
+  .tagline{font-size:12px;color:var(--t3);margin:8px 0 4px}
+  .tagline b{color:var(--t2)}
+  table.geo{border-collapse:collapse;font-size:12px;color:var(--t2);margin-top:8px}
+  table.geo th,table.geo td{border:1px solid rgba(255,255,255,.12);padding:5px 10px;text-align:left}
+  table.geo th{color:var(--t3);font-weight:400}
+  /* ---- §⑨ 交互小样：真 textarea + 镜像层（非实现，只为试手感） ---- */
+  .demo{position:relative;width:520px}
+  .demo .lay{font:inherit;font-size:14px;line-height:21px;letter-spacing:0;word-break:break-word;
+    white-space:pre-wrap;padding:10px 12px;min-height:64px;border:1px solid rgba(255,255,255,.16);
+    border-radius:8px;background:#101014;margin:0}
+  .demo .mirror{pointer-events:none;color:#e8eaee;overflow:hidden}
+  .demo .mirror .em{display:inline-block;height:1em;vertical-align:-.18em;border-radius:3px;
+    background:linear-gradient(135deg,#3a3f52,#232634)}
+  .demo .mirror .bad{color:#ff8a95;text-decoration:underline wavy #ff8a95}
+  .demo textarea{position:absolute;inset:0;color:transparent;caret-color:#fd4c5d;background:transparent;
+    resize:none;outline:none;border-color:transparent;overflow:hidden}
+  .demo textarea::selection{background:rgba(87,169,245,.45)}
+  .demohint{font-size:12px;color:var(--t3);line-height:1.9;margin:6px 0 0}
+  .demohint b{color:var(--t2)}
+  .kbd{display:inline-block;border:1px solid rgba(255,255,255,.22);border-radius:4px;padding:0 5px;
+    font-size:11px;color:var(--t2);background:rgba(255,255,255,.05)}
+  .demostat{font-size:12px;color:var(--t3);margin-top:6px}
+  .demostat b{color:#2ecc71}
+  
+  
 </style>
 </head>
 <body>
@@ -350,6 +387,73 @@
     </div>
   </div>
 
+  <!-- ============ ⑧ 输入框内表情渲染 ============ -->
+  <div class="sec">
+    <h2>⑧ 输入框内的表情渲染<em>三处输入框共用同一件（inputbar.js）⇒ 改一处三处生效</em></h2>
+    <p class="note">
+      现状：输入框是 <code>textarea</code>，点表情插入的是**令牌原文** <code>[emot=acfun,123/]</code>（左下图），
+      所以写的时候看到的是一串代码。目标：**写的时候就看见图**。做法＝**镜像层**——textarea 设
+      <code>color:transparent</code> + 只留光标色，下层叠一个**同度量**的渲染层把令牌换成图，textarea 滚动时同步位移。
+      <b>输入法（中文 IME）、选区、撤销、Enter/Shift+Enter、maxLength 全部保持原生</b>——这正是 contenteditable 最容易坏的地方；
+      且**提交内容不变**（仍是令牌文本），服务端契约与字数口径零改动。
+    </p>
+    <p class="note">
+      <b>代价/坑（诚实列）</b>：① 两侧度量必须逐项对齐（字号/行高/内边距/宽度/断行规则），差 1px 就露"字影"；
+      ② 超 4 行滚动要同步；③ 图未加载先出 <code>[表情]</code> 占位、加载后回填（两个件都已有）；
+      ④ 光标落在令牌"内部"时对着的是图片中间（不可分令牌）——可接受；⑤ **下面这个真张力**。
+    </p>
+
+    <div class="stage" style="gap:18px">
+      <div style="width:420px">
+        <div class="tagline">A · 现在（令牌原文）</div>
+        <div class="mir">今天终于把十年的老番补完了 <span class="tok">[emot=acfun,123/]</span> #补番打卡#<span class="caret"></span></div>
+      </div>
+      <div style="width:420px">
+        <div class="tagline"><b>B · 镜像层 · 表情 1em（推荐）</b>——不撑行高 ⇒ 绝不漂移</div>
+        <div class="mir">今天终于把十年的老番补完了 <span class="em1"></span> #补番打卡#<span class="caret"></span></div>
+        <div class="tagline">行高 21px 不变；表情视觉 14px（比发出后的小一圈）</div>
+      </div>
+      <div style="width:420px">
+        <div class="tagline">C · 镜像层 · 表情 34px（所见即所得）——**两侧行高须一起抬**</div>
+        <div class="mir mir34">今天终于把十年的老番补完了 <span class="em34"></span> #补番打卡#<span class="caret"></span></div>
+        <div class="tagline">行高要抬到 34px，整个输入框变高、每行都变松</div>
+      </div>
+    </div>
+
+    <table class="geo">
+      <tr><th>口径</th><th>表情尺寸</th><th>行高</th><th>光标漂移风险</th><th>所见＝所得</th></tr>
+      <tr><td>A 令牌原文（现状）</td><td>—（一串字符）</td><td>21px</td><td>无</td><td>否</td></tr>
+      <tr><td><b>B 镜像 1em</b></td><td>14px（随字号）</td><td>21px（不变）</td><td><b>无</b>（图矮于行框）</td><td>否（发出去更大）</td></tr>
+      <tr><td>C 镜像 34px</td><td>34px（与气泡同档）</td><td>34px（两侧一起抬）</td><td>无（但行高变了）</td><td><b>是</b></td></tr>
+    </table>
+    <p class="note">
+      **为什么图会撑行高**：行框高度 = max(行高, 行内最高元素)。14px 字号配 34px 的图 ⇒ 那一行行框变 34px+，
+      而 textarea 的行高是你设死的 21px —— 两侧每行差 13px，**第三行起光标就偏出去**。
+      所以要么图压到 1em（B，不撑行高、绝不漂移），要么**两侧行高一起抬到 34px**（C，所见即所得但更笨重）。
+      我的建议是 **B**：输入期稳定优先，且"发出去长什么样"在气泡里本来就看得到；若你要完全所见即所得就选 C。
+    </p>
+  </div>
+
+  <!-- ============ ⑨ 交互小样（可试） ============ -->
+  <div class="sec">
+    <h2>⑨ 交互小样 · 可试<em>非实现，只为让你摸"退格/拖选/方向键"的手感</em></h2>
+    <p class="note">
+      这是**真 textarea + 真镜像层**（textarea 文字透明、只留光标；下层把令牌画成图），并在上面加了
+      **令牌原子化**处理：删除时整块删、拖选时吸附成整块。你按下面三步试，手感合适我再按这套实现。
+    </p>
+    <div class="demo">
+      <div class="lay mirror" id="dMirror"></div>
+      <textarea class="lay" id="dTa" spellcheck="false"></textarea>
+    </div>
+    <p class="demohint">
+      <b>试三件</b>：① 把光标点到表情<b>中间</b>按 <span class="kbd">退格</span> —— 应该整块消失，而不是剩下
+      <code>[emot=acfun,</code> 这样的碎片；
+      ② 从表情<b>右边往左拖</b>半个身位 —— 选区应<b>吸附成整块</b>（松手后删除也是整块走）；
+      ③ 按 <span class="kbd">←</span>/<span class="kbd">→</span> —— 光标应<b>整块跳过</b>表情，不进入令牌内部。
+    </p>
+    <p class="demostat" id="dStat">当前：<b>0</b> 个表情；令牌碎裂计数 <b>0</b>（碎裂即这套逻辑失效）</p>
+  </div>
+
   <!-- ============ 附：口径与风险 ============ -->
   <div class="sec">
     <h2>附：口径与风险（按此画，待你确认）</h2>
@@ -366,5 +470,91 @@
     </p>
   </div>
 </div>
+<script>
+// §⑨ 交互小样（非实现）：令牌原子化的最小可用验证
+(function () {
+  var ta = document.getElementById('dTa');
+  var mir = document.getElementById('dMirror');
+  var stat = document.getElementById('dStat');
+  var TOK = /\[emot=[a-z0-9]+,[^\/\]]+\/\]/g;   // 我们只插这一种形态
+  var broken = 0;
+  ta.value = '今天终于把十年的老番补完了 [emot=acfun,123/] #补番打卡#';
+
+  function tokenRanges(v) {
+    var out = [], m;
+    TOK.lastIndex = 0;
+    while ((m = TOK.exec(v))) out.push([m.index, m.index + m[0].length]);
+    return out;
+  }
+  function rangeAt(v, pos) {          // 光标落在哪个令牌内部（含紧贴右端）
+    var r = tokenRanges(v);
+    for (var i = 0; i < r.length; i++) if (pos > r[i][0] && pos <= r[i][1]) return r[i];
+    return null;
+  }
+  function render() {
+    var v = ta.value, out = '', i = 0;
+    tokenRanges(v).forEach(function (r) {
+      out += esc(v.slice(i, r[0])) + '<span class="em"></span>';
+      i = r[1];
+    });
+    out += esc(v.slice(i));
+    mir.innerHTML = out + '<br>';
+    mir.scrollTop = ta.scrollTop;
+    // 碎裂计数：出现半个令牌形态（有 [emot= 但不成对）即判失效
+    var half = /\[emot=[^\]]*$/.test(v) || /\[emot=[a-z0-9]+,[^\/\]]+$/.test(v);
+    if (half) broken++;
+    stat.innerHTML = '当前：<b>' + tokenRanges(v).length + '</b> 个表情；令牌碎裂计数 <b>'
+      + broken + '</b>' + (broken ? '（⚠ 已碎裂）' : '（正常）');
+  }
+  function esc(t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function snapSel() {                // 选区吸附到令牌边界
+    var v = ta.value, a = ta.selectionStart, b = ta.selectionEnd;
+    var na = a, nb = b, r;
+    r = rangeAt(v, a);
+    // 光标（collapsed）→ 吸附到令牌**右端**（不许停在令牌内部）；选区起点 → 吸附到令牌**左端**
+    //（这样从令牌中间往右拖，整块都会被选进来；此前写成一律吸右端，会把令牌反排除在外）
+    if (r) na = (a === b) ? r[1] : r[0];
+    r = rangeAt(v, b);
+    if (r) nb = r[1];
+    if (na !== a || nb !== b) { try { ta.setSelectionRange(na, nb); } catch (e) { } }
+  }
+  ta.addEventListener('input', render);
+  ta.addEventListener('keydown', function (ev) {
+    if (ev.isComposing || ev.keyCode === 229) return;   // 中文输入法组合期一律不拦
+    var v = ta.value, a = ta.selectionStart, b = ta.selectionEnd;
+    if (ev.key === 'Backspace' && a === b) {
+      var r = rangeAt(v, a);
+      if (r) {                                          // 整块删（走原生编辑路径，保撤销栈）
+        ta.setSelectionRange(r[0], r[1]);
+        document.execCommand('delete');
+        ev.preventDefault();
+        render();
+        return;
+      }
+    } else if (ev.key === 'Delete' && a === b) {
+      var r2 = rangeAt(v, b + 1);
+      if (r2 && a >= r2[0] && a < r2[1]) {
+        ta.setSelectionRange(r2[0], r2[1]);
+        document.execCommand('delete');
+        ev.preventDefault();
+        render();
+        return;
+      }
+    } else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
+      var rr = rangeAt(v, ev.key === 'ArrowLeft' ? a : a + 1);
+      if (rr) {                                         // 方向键整块跳过
+        ev.preventDefault();
+        var to = ev.key === 'ArrowLeft' ? rr[0] : rr[1];
+        ta.setSelectionRange(to, to);
+        return;
+      }
+    }
+  });
+  document.addEventListener('selectionchange', function () {
+    if (document.activeElement === ta) { snapSel(); }
+  });
+  render();
+})();
+</script>
 </body>
 </html>

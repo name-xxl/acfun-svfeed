@@ -275,6 +275,8 @@ export function insertAtCursor(inp, code) {
   inp.value = inp.value.slice(0, pos) + code + inp.value.slice(pos);
   inp.focus();
   try { inp.setSelectionRange(pos + code.length, pos + code.length); } catch (e) { }
+  // 程序化写入也要通知监听方（0.9.221）：镜像层与自动增高都挂在 input 上，不发事件就「改了但没重画」
+  try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch (e2) { }
 }
 // 按钮点击 toggle 面板显隐（**外点收起 0.9.147**：closeOnOutsideClick，面板只隐不拆、每面板装一次）；
 // 首次打开懒加载表情数据再渲染，失败后重开顺带重试。

@@ -58,7 +58,9 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // spacemoments（空间页「动态」标签特性件，消费 spacetab/squarefeed/momentapi/memberplaza/cfg/ui）。
   // 二者与 rowkit 同属特性层 shared kit + 视图件，与 uppage/memberplaza 的依赖属层内互调
   //（spacemoments 复用 memberplaza 导出的 addAmAnchor=两个原生页宿主单源，非反向）
-  'jingxuanview.js', 'spacetab.js', 'spacemoments.js']);
+  // 0.9.221 登记：composermirror（输入框镜像层装饰器，消费 emoticon/tokenedit/ui）——把
+  // 「输入条要渲染表情」这条边从基建层的 inputbar 挪到特性层（免得新增基建→特性反向边）
+  'jingxuanview.js', 'spacetab.js', 'spacemoments.js', 'composermirror.js', 'tokenedit.js']);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 
 // 在册项（0.9.119 起清空——data→ubb 随手下沉完成，方向卫生库存归零；新增项=需要一次裁决，

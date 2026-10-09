@@ -2506,6 +2506,35 @@ rec('square-cmt-namecolor', (function () {
     rec('detail-side-input', !!(await waitFor(function () {
       return !!q('.acsv-mdetail-side .acsv-cinput');
     }, 8000)));
+    // ---- 0.9.221 输入框镜像层 + 令牌原子化（评论/私信/动态编辑器三处共用同一件）----
+    // 钉三件事：① 镜像层存在且与 textarea 同度量；② 令牌在镜像层渲染成图/占位（不是那串代码）；
+    // ③ 光标落在令牌内部按退格 ⇒ **整块删**，不留 `[emot=` 碎片
+    var cIn = q('.acsv-mdetail-side .acsv-cinput-text');
+    var cMir = q('.acsv-mdetail-side .acsv-cinput-mir');
+    rec('composer-mirror-exists', !!cIn && !!cMir);
+    rec('composer-mirror-metrics', (function () {
+      if (!cIn || !cMir) return false;
+      var a = getComputedStyle(cIn), b = getComputedStyle(cMir);
+      // 同度量是镜像层的命门（差 1px 就露字影）：字号/行高/左右内边距逐项对齐
+      return a.fontSize === b.fontSize && a.lineHeight === b.lineHeight
+        && a.paddingLeft === b.paddingLeft && a.paddingRight === b.paddingRight;
+    })(), (function () {
+      if (!cIn || !cMir) return 'n/a';
+      var a = getComputedStyle(cIn), b = getComputedStyle(cMir);
+      return a.fontSize + '/' + b.fontSize + ' lh=' + a.lineHeight + '/' + b.lineHeight;
+    })());
+    if (cIn && cMir) {
+      cIn.focus();
+      cIn.value = '测试[emot=acfun,1/]好';
+      cIn.dispatchEvent(new Event('input', { bubbles: true }));
+      rec('composer-mirror-emot', !!cMir.querySelector('.ubb-emotion, .ubb-emot-ph'),
+        cMir.innerHTML.slice(0, 60));
+      cIn.setSelectionRange(8, 8); // 落在令牌内部（`[emot=acfun,1/]` 的中间）
+      cIn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+      rec('composer-token-atomic', cIn.value === '测试好', cIn.value);
+      cIn.value = '';
+      cIn.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     var cell0 = q('.acsv-mdcar-slide');
     if (cell0) cell0.click();
     rec('detail-imgview', !!(await waitFor(function () {

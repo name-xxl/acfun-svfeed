@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
 import { el, esc, toast, selfUid, ensureStyle, a11y } from './ui.js'; // cookieVal 已随图片换链管线迁 imsend（0.9.163）
+import { decorateInput } from './composermirror.js'; // 输入框镜像层（0.9.221）
 import { root, claimDrawer, releaseDrawer, setRoot } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { testHook } from './dbg.js';
@@ -175,6 +176,7 @@ function ensureDrawerDom() {
   var emotPanel = el('div', 'acsv-emotpanel');
   emotPanel.style.display = 'none';
   d.appendChild(emotPanel);
+  decorateInput(inputBar); // 0.9.221 镜像层 + 令牌原子编辑（评论/私信/动态编辑器同一件）
   mountEmotButton(inputBar.emotBtn, emotPanel, input);
   // 表情图渲染依赖 EmotionMap：抽屉创建即预热（localStorage 缓存命中近零开销），避免没开
   // 过面板时收到的表情消息只能显示 [表情]；首次真拉取完成后聊天视图在场就重渲一拍

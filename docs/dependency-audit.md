@@ -162,6 +162,24 @@ feedstore.js → player.js → input.js → feedstore.js
   方向已守护"的缺口由此补上）。
 - **附带**：0.9.184/185/186 的架构减债（errbox/playgest 拆件、a11y）均过本棘轮（0 未登记）。
 
+## 0.9.221：输入框镜像层（composermirror）+ 令牌原子编辑（tokenedit）台账
+
+- **新增两件**：`tokenedit.js`（令牌区间扫描/镜像 HTML/事件绑定；只依赖 `ui`）、
+  `composermirror.js`（输入条装饰器；依赖 `emoticon`+`tokenedit`+`ui`）。
+- **为什么单开装饰器而不塞进 inputbar（本批唯一的架构裁决）**：`inputbar.js` 在 README 分层里属
+  **基建层**（check-direction 的 INFRA 集，共 22 件）。要在输入框里渲染表情就必须碰 `emoticon`（特性层），
+  直接写在 inputbar 里 ⇒ **新增「基建 → 特性」反向边**（口径 A 实测报红，见本批首次 check-direction 输出）。
+  处置＝**加设缝/分家**：inputbar 退回「纯建 DOM」，表情渲染由**特性层装饰器**包一层，
+  调用方显式 `decorateInput(bar)`（评论/私信/动态编辑器三处）。方向两口径复归 0 条。
+- **新增边**：`composermirror → emoticon & tokenedit & ui`；`comments → composermirror`；
+  `imdrawer → composermirror`。`inputbar` 出边**零新增**（它仍然只依赖 ui/styles）。
+- **行为纪律（写在模块头注，改的时候别丢）**：① 删除走浏览器原生编辑路径（先选整块再删）⇒ 撤回栈不破；
+  ② 组合期（isComposing/229）一律不拦 ⇒ 不吃中文输入法候选词；③ 镜像层与 textarea **必须同度量**
+  （字号/行高/内边距/断行逐项对齐）——差 1px 就露「字影」，harness 有断言钉这一条。
+- **零漂移证据**：评论/私信/详情三处输入条 DOM 结构只多了 wrap+mirror 两层；既有断言（含 `detail-side-input`）
+  全绿，新增 4 条行为断言；摘修复反跑（装饰器空转）转红。
+- **顺带修**：`emoticon.insertAtCursor` 程序化写值不发 `input` 事件（镜像层/自动增高会「改了但没重画」）。
+
 ## 0.9.219：列表尾部件抽离（listtail）台账
 
 - **新增模块**：`src/listtail.js`——收口**尾部三样**（触底监听双方言 / 三态状态行 / 回顶按钮），

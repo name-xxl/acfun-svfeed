@@ -36,6 +36,9 @@ export function buildInputBar(opts) {
   if (opts.placeholder) input.placeholder = opts.placeholder;
   if (opts.maxLength) input.maxLength = opts.maxLength;
   box.appendChild(input);
+  // 0.9.221 镜像层/令牌原子化**不在本件**：本件属基建层（README 分层），import 特性层的 emoticon
+  // 会新增「基建→特性」反向边。要「写的时候就看见表情」的调用方调 composermirror.decorateInput(bar)
+  // 包一层（评论/私信/动态编辑器三处）——见该件头注。
   var send = el('button', 'acsv-cinput-send', '发送');
   box.appendChild(send);
   box.addEventListener('click', function (ev) { ev.stopPropagation(); });

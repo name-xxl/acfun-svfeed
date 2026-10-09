@@ -343,6 +343,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `emoticon.js` | 表情包服务 + 面板 + 输入栏表情按钮挂载（localStorage 缓存优先、最近使用、分包 tab） |
 | `imgview.js` | 配图大图查看器（评论/私信共用；root 单例浮层、Esc 模态） |
 | `inputbar.js` | 抽屉输入栏 builder（评论/私信共用：表情/图片按钮、自动增高、Enter/Esc；差异语义参数注入） |
+| `composermirror.js` | 输入框镜像层装饰器（0.9.221）：给 `inputbar` 建的输入条包一层——textarea 文字透明只留光标，下层同度量的 div 把 UBB 令牌画成图（表情取 **B 口径 1em** ⇒ 不撑行高、两侧行数永远一致；图片出「图片」小块），并挂上 `tokenedit` 的令牌原子编辑。**为什么单开一件**：inputbar 属基建层，让它 import 特性层的 emoticon 会新增「基建→特性」反向边（check-direction 口径 A）——装饰器把这条边挪到特性层。消费方：comments（评论输入条）/ imdrawer（私信）/ 动态编辑器 |
 | `upload.js` | 评论图片上传四阶段（GM 通道二进制分片，失败统一落 null） |
 | `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；0.9.180 起不可得=error 态，不回落原生；0.9.181 起「同 realm 返回式取数」+ UMD 分支遮罩；0.9.182 起 eval 拿不回再落 Blob 脚本层（页面 world，IM SDK 同款）；CDN 逐源兜底；Safari 原生 HLS 探测） |
 | `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐；画布取**播放器区域内居中的 16:9 区**，与稿件比例无关——原生同口径（0.9.205）；0.9.204 起另一条通道画高级弹幕——绝对定位不进轨道/位图缓存） |
@@ -432,6 +433,8 @@ flowchart LR
     route["route.js"]
     imgview["imgview.js（大图查看器）"]
     inputbar["inputbar.js（抽屉输入栏）"]
+    tokenedit["tokenedit.js（令牌原子编辑·输入框内令牌整块删/选区吸附）"]
+    composermirror["composermirror.js（输入框镜像层·令牌渲染成图，装饰输入条）"]
     imgurl["imgurl.js（图片 URL·零依赖叶子）"]
     pagekind["pagekind.js（页面类型分类器·零依赖叶子）"]
     timefmt["timefmt.js（时间/计数文案·零依赖叶子）"]
@@ -530,6 +533,7 @@ flowchart LR
   feedstore --> api & feedctx
   momentapi --> cfg & net & panelitem
   momentpost --> cfg & net
+  composermirror --> emoticon & tokenedit & ui
   pb --> feedstore & settings
   ubb --> emoticon
   playlayer --> api & attach & cards & comments & errbox & levelstack & playgest & reldrawer & relatedapi & viewreg
@@ -537,7 +541,7 @@ flowchart LR
   imsend --> appapi & immsg
   sharepanel --> imsend & imgload
   imbadge --> imsend
-  imdrawer --> appapi & comments & emoticon & imbadge & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & toastmsg & ubb
+  imdrawer --> appapi & comments & composermirror & emoticon & imbadge & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & toastmsg & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
   boot --> followview & imnative & jingxuanview & memberplaza & mypage & pagekind & player & playlayer & searchview & spacemoments & squareview & uppage & zone
@@ -564,7 +568,7 @@ flowchart LR
   searchview --> cards & grouppop & imgload & listtail & relationapi & searchfmt & searchhist & topbar & viewreg
   topbar --> searchhist
   input --> feedstore & overlay & pb & settings
-  comments --> appapi & commentkit & emoticon & imicons & imgview & immsg & reldrawer & sharepanel & inputbar & overlay & toastmsg & ubbtext
+  comments --> appapi & commentkit & composermirror & emoticon & imicons & imgview & immsg & reldrawer & sharepanel & inputbar & overlay & toastmsg & ubbtext
   commentkit --> imicons & imgload & ubb & uplook
   interact --> appapi
   release --> overlay & settings

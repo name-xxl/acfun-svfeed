@@ -12,6 +12,7 @@ import { AppAPI } from './appapi.js';
 import { uploadImage } from './upload.js';
 import { ubbImText } from './ubbtext.js';
 import { mountEmotButton, ensureEmotionMap, insertAtCursor } from './emoticon.js';
+import { decorateInput } from './composermirror.js'; // 输入框镜像层（0.9.221）
 import { openImageViewer } from './imgview.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import { openSharePanel } from './sharepanel.js';
@@ -553,6 +554,7 @@ function ensureCommentInput() {
     inputBar.imgBtn = bar.imgBtn;
     inputBar._fit = bar.fitHeight; // sendCurrent 清空后收回高度（既有约定）
     var inp = bar.input;
+    decorateInput(bar); // 0.9.221 镜像层 + 令牌原子编辑（写的时候就看见表情；删除整块）
     emotPanelEl = el('div', 'acsv-emotpanel');
     // 表情面板三件套（toggle+懒加载+光标插入）抽进了 emoticon.mountEmotButton，评论/私信共用
     mountEmotButton(bar.emotBtn, emotPanelEl, inp);
