@@ -21,13 +21,46 @@
         return { result: 0, moment: { momentId: '5109999' } };
       },
       'user/getUserCardList': { result: 1, users: [] },
+      // 动态档长列表（30 行）：让视图体真的能滚 —— 浮标贴回顶的几何断言需要滚动
+      'feed/profile': {
+        result: 0, pcursor: 'no_more',
+        feedList: Array.from({ length: 30 }, function (_, i) {
+          return {
+            resourceType: 10, resourceId: 5100000 + i, createTime: Date.now() - (i + 5) * 3600 * 1000,
+            moment: { momentId: String(5100000 + i), text: '第 ' + i + ' 行动态' },
+            user: { userId: 42, userName: '测试用户', userHead: '' }
+          };
+        })
+      },
       'browse/history/list': { result: 0, totalCount: 0, histories: [] }
     };
     location.hash = 'svfeed/my';
 
     // 1) 入口 → 编辑器壳
-    rec('pub-entry-present', !!(await waitFor(function () { return !!q('.acsv-me-entry'); }, 10000)));
-    q('.acsv-me-entry').click();
+    // 0.9.224：入口＝右下角常驻浮标（旧的三处入口已撤：`.acsv-me-entry` 应当不存在）
+    rec('pub-fab-present', !!(await waitFor(function () { return !!q('.acsv-pubfab'); }, 10000)));
+    rec('pub-old-entries-gone', !q('.acsv-me-entry') && !q('.acsv-sq-tools'));
+    // 位置口径（用户裁决）：**钉在「回到顶部」之上**——滚过阈值让回顶现身，再量几何
+    var vb = q('.acsv-view-body');
+    vb.scrollTop = 600;
+    vb.dispatchEvent(new Event('scroll'));
+    rec('pub-fab-above-backtop', !!(await waitFor(function () {
+      var f = q('.acsv-pubfab');
+      var b = q('.acsv-mepanel[data-tab="moments"] .acsv-backtop.on');
+      if (!f || !b) return false;
+      var fr = f.getBoundingClientRect(), br = b.getBoundingClientRect();
+      return fr.bottom <= br.top + 1                       // 上下不重叠（浮标在上）
+        && Math.abs(fr.right - br.right) <= 12;            // 右对齐（同一竖列）
+    }, 5000)), (function () {
+      var f = q('.acsv-pubfab');
+      var b = q('.acsv-mepanel[data-tab="moments"] .acsv-backtop.on');
+      if (!f || !b) return 'n/a';
+      return 'fab.b=' + Math.round(f.getBoundingClientRect().bottom)
+        + ' backtop.t=' + Math.round(b.getBoundingClientRect().top);
+    })());
+    vb.scrollTop = 0;
+    vb.dispatchEvent(new Event('scroll'));
+    q('.acsv-pubfab').click();
     rec('pub-editor-open', !!(await waitFor(function () { return !!q('.acsv-me-host .acsv-me'); }, 5000)));
     rec('pub-editor-title', /发动态/.test((q('.acsv-me-hd') || {}).textContent || ''),
       (q('.acsv-me-hd') || {}).textContent);
@@ -58,7 +91,7 @@
 
     // 4) 失败分支：服务端回 140000（内容太长）→ 可读话术 + **内容保留** + 按钮变「重试发布」
     window.__ACSV_ADD_FAIL__ = 140000;
-    q('.acsv-me-entry').click();
+    q('.acsv-pubfab').click();
     await waitFor(function () { return !!q('.acsv-me'); }, 5000);
     var ta2 = q('.acsv-me .acsv-cinput-text');
     ta2.value = '要失败的内容';

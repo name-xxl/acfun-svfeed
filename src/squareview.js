@@ -12,24 +12,18 @@ import { registerView } from './viewreg.js';
 import { openMomentDetail } from './momentdetail.js';
 import { closeInlineComments, openRowDefault } from './rowkit.js';
 import { createSquareFeed } from './squarefeed.js';
-import { openMomentEditor } from './momenteditor.js'; // 发布入口（0.9.222）
+import { mountPubFab } from './pubfab.js'; // 发布常驻浮标（0.9.224）
 import { testHook } from './dbg.js';
 
 // 行落点：视图内默认策略已下沉 rowkit.openRowDefault（0.9.218 单源——与「我的」页动态共用同一份：
 // 动态开详情面板、行内评论区先关防双宿主互踩；非动态条目走 href 新标签）
 
 var feed = null; // 当前实例（视图单例存活：build 建 / teardown 停）
+var pubFab = null; // 发布浮标（视图级，随视图摘）
 
 function buildSquareView(body) {
-  // 发布入口（0.9.222）：列表上方一条右贴工具条（本视图此前没有工具位；挂 body 下、随列表滚动）
-  var tools = el('div', 'acsv-sq-tools');
-  var pubBtn = el('button', 'acsv-me-entry', '✎ 发动态');
-  pubBtn.type = 'button';
-  pubBtn.addEventListener('click', function () {
-    openMomentEditor({ onDone: function () { if (feed) feed.refresh(); } }); // 发完刷新广场流
-  });
-  tools.appendChild(pubBtn);
-  body.appendChild(tools);
+  // 发布入口（0.9.224 用户裁决）：右下角**常驻浮标**（钉在回顶之上；0.9.222 的顶部工具条已撤）
+  pubFab = mountPubFab(body, { editorOpts: { onDone: function () { if (feed) feed.refresh(); } } });
   var wrap = el('div', 'acsv-sqwrap');
   body.appendChild(wrap);
   feed = createSquareFeed({
@@ -55,6 +49,7 @@ testHook('squarePoll', function () {
 // DOM 拆，残留 host 引用会读到死节点——followview 同款处置）
 function squareTeardown() {
   if (feed) { feed.stop(); feed = null; }
+  if (pubFab) { pubFab.remove(); pubFab = null; }
   closeInlineComments();
 }
 

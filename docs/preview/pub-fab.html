@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 发动态常驻浮标（右下角·回顶之上）</title>
+<!-- ============================================================
+     docs/preview/pub-fab.html —— 静态 UI 预览（形态确认稿）
+     特性：把「发动态」入口从"顶部工具条 / tab 行按钮 / 原生导航项"三处，**统一成一个右下角常驻浮标**，
+     位置钉在「回到顶部」按钮**上方**，在现有三页（我的页 / 广场 / 原生 /member/feeds）常驻。
+     量值来源：src/styles.js —— `.acsv-tbtn`（36 圆钮，回顶用）、`.acsv-backtop`（暗色 sticky bottom:18 /
+     浅色 .acsv-mp 下 fixed right:24 bottom:28）；层级取自既有阶梯：视图内容 55 / dock 56 / 视图顶栏 57 /
+     抽屉 58 / 详情 61 / 模态 62 / 大图 63 ⇒ **浮标取 z:57**（压住列表内容、**压在抽屉与编辑器模态之下**，
+     绝不能学 `#acsv-fab` 的 2147482990——那会盖住它自己打开的编辑器）。
+     ============================================================ -->
+<style>
+  :root{
+    --accent:#fd4c5d; --t1:#fff; --t2:#cfd3da; --t3:#8a90a0; --line:rgba(255,255,255,.09);
+    --sub:rgba(255,255,255,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0b0b0e;color:var(--t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 90px}
+  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .hint{color:var(--t3);font-size:12px;line-height:1.9;margin-bottom:20px}
+  .hint b{color:var(--t2)}
+  .sec{margin:26px 0 8px;padding-top:16px;border-top:1px solid var(--line)}
+  .sec>h2{font-size:13px;color:var(--t2);font-weight:600;margin-bottom:4px}
+  .sec>h2 em{color:var(--t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .note{color:var(--t3);font-size:12px;line-height:1.9;margin:6px 0 14px}
+  .note code{color:#ffb323;font-family:ui-monospace,Consolas,monospace;font-size:11px}
+  .row{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+
+  /* ---- 宿主页外壳（模拟视图/原生页，只画右下角那块） ---- */
+  .page{position:relative;width:420px;height:300px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.12)}
+  .page.dark{background:#16161b;color:#fff}
+  .page.light{background:#fff;color:#333;border-color:rgba(0,0,0,.14)}
+  .page .cap{position:absolute;top:8px;left:10px;font-size:12px;color:var(--t3)}
+  .page.light .cap{color:#999}
+  .page .list{position:absolute;inset:34px 12px 12px;display:flex;flex-direction:column;gap:8px}
+  .page .li{height:34px;border-radius:4px;background:var(--sub)}
+  .page.light .li{background:#f4f4f4}
+
+  /* ---- 右下角那对角：回顶（下）+ 发布浮标（上） ---- */
+  .corner{position:absolute;right:18px;bottom:18px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .fab{width:44px;height:44px;border-radius:50%;background:var(--accent);color:#fff;border:none;
+    font-size:18px;line-height:1;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.45);z-index:57}
+  .fab:hover{background:#ff6b7a}
+  .backtop{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;border:none;
+    font-size:16px;cursor:pointer}
+  .page.light .backtop{background:#fff;color:#666;box-shadow:0 2px 10px rgba(0,0,0,.16)}
+  .hidden{opacity:.18}   /* 回顶"滚过阈值才现身"的对照：未滚动时它就是隐的 */
+  .dim{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;
+    z-index:62;font-size:12px;color:#cfd3da;text-align:center;padding:0 30px}
+
+  table.geo{border-collapse:collapse;font-size:12px;color:var(--t2);margin-top:8px}
+  table.geo th,table.geo td{border:1px solid rgba(255,255,255,.12);padding:5px 10px;text-align:left}
+  table.geo th{color:var(--t3);font-weight:400}
+  .narrow{width:100%;max-width:540px;border:1px dashed rgba(255,255,255,.14);padding:12px}
+  @media (max-width:600px){ .board{padding:18px 12px 60px} }
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>发动态常驻浮标 —— 静态预览（确认后才进 src 实现）</h1>
+  <p class="hint">
+    把「发动态」从三处（广场顶部工具条 / 我的页 tab 行按钮 / 原生页导航项）**统一成一个右下角常驻浮标**：
+    <b>钉在「回到顶部」上方</b>，在现有三页常驻（不随滚动出现/消失）。<br>
+    层级取 <b>z:57</b>（视图内容 55 / dock 56 / 顶栏 57 之下都被它压住，但**压在抽屉 58、详情 61、编辑器 62 之下**）——
+    这是本稿最要紧的一条：浮标**不许**盖住它自己打开的编辑器。
+  </p>
+
+  <!-- ============ ① 我的页：未滚动（回顶还没现身） ============ -->
+  <div class="sec">
+    <h2>① 我的页 · 未滚动<em>浮标常驻；回顶此时还没出现（它滚过 300px 才淡入）</em></h2>
+    <p class="note">这一格就是"常驻"的证据：列表还没滚，右下角只有发布浮标。</p>
+    <div class="row">
+      <div class="page dark">
+        <span class="cap">我的 · 动态档</span>
+        <div class="list"><i class="li"></i><i class="li"></i><i class="li"></i><i class="li"></i><i class="li"></i></div>
+        <div class="corner">
+          <button class="fab">✎</button>
+          <button class="backtop hidden">↑</button>
+        </div>
+      </div>
+      <div class="page dark">
+        <span class="cap">我的 · 观看历史档（同一个浮标，跨 tab 常驻）</span>
+        <div class="list"><i class="li"></i><i class="li"></i><i class="li"></i><i class="li"></i><i class="li"></i></div>
+        <div class="corner">
+          <button class="fab">✎</button>
+          <button class="backtop hidden">↑</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ② 滚动后：两枚并存（浮标在上） ============ -->
+  <div class="sec">
+    <h2>② 滚过阈值后<em>浮标在上、回顶在下，间距 10px</em></h2>
+    <p class="note">
+      「回到顶部」在暗色视图里是**流内 sticky**（<code>bottom:18px</code>，滚到底部即贴视口底）；
+      浮标是 <code>fixed</code>。两者靠右下角对齐、上下错开，互不遮挡——**这也是"放回顶上面"的实际含义**。
+    </p>
+    <div class="row">
+      <div class="page dark">
+        <span class="cap">广场（暗色）</span>
+        <div class="list"><i class="li"></i><i class="li"></i><i class="li"></i><i class="li"></i></div>
+        <div class="corner">
+          <button class="fab">✎</button>
+          <button class="backtop">↑</button>
+        </div>
+      </div>
+      <div class="page light">
+        <span class="cap">原生 /member/feeds（浅色）</span>
+        <div class="list"><i class="li"></i><i class="li"></i><i class="li"></i><i class="li"></i></div>
+        <div class="corner">
+          <button class="fab">✎</button>
+          <button class="backtop">↑</button>
+        </div>
+      </div>
+    </div>
+    <table class="geo">
+      <tr><th>皮肤</th><th>回顶位置</th><th>浮标位置</th><th>错开量</th></tr>
+      <tr><td>暗色（脚本视图内）</td><td>sticky <code>bottom:18</code>，高 36</td><td>fixed <code>right:18 bottom:94</code>，直径 44</td><td>顶到回顶上缘：10px</td></tr>
+      <tr><td>浅色（原生页 .acsv-mp）</td><td>fixed <code>right:24 bottom:28</code>，高 36</td><td>fixed <code>right:24 bottom:74</code>，直径 44</td><td>10px</td></tr>
+    </table>
+  </div>
+
+  <!-- ============ ③ 层级自证：编辑器打开时浮标不越层 ============ -->
+  <div class="sec">
+    <h2>③ 层级自证<em>编辑器打开时，浮标必须被压在模态之下（否则它会盖住自己打开的编辑器）</em></h2>
+    <p class="note">
+      现有全局浮标先例 <code>#acsv-fab</code> 用的是 <code>z-index:2147482990</code>（压一切）——<b>不能照抄</b>：
+      那样浮标会浮在编辑器模态（z62）之上，点开编辑器后右下角还杵着一个按钮，既难看又可误点。
+      本稿浮标 <b>z:57</b>：压住列表内容/顶栏/dock，但被抽屉(58)、详情(61)、编辑器(62)、大图(63) 依次盖住。
+    </p>
+    <div class="row">
+      <div class="page dark">
+        <span class="cap">编辑器打开时（模态 z62 盖住浮标）</span>
+        <div class="list"><i class="li"></i><i class="li"></i><i class="li"></i><i class="li"></i></div>
+        <div class="corner">
+          <button class="fab">✎</button>
+          <button class="backtop">↑</button>
+        </div>
+        <div class="dim">编辑器模态（z62）<br>——浮标在此之下，被完全遮住</div>
+      </div>
+      <div class="page dark">
+        <span class="cap">抽屉打开时（评论抽屉 z58 也高于 57）</span>
+        <div class="list"><i class="li"></i><i class="li"></i><i class="li"></i><i class="li"></i></div>
+        <div class="corner">
+          <button class="fab">✎</button>
+          <button class="backtop">↑</button>
+        </div>
+        <div class="dim" style="left:auto;right:0;width:46%;background:rgba(0,0,0,.72)">评论抽屉（z58）<br>浮标被压在抽屉之下</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ④ 撤掉的旧入口 ============ -->
+  <div class="sec">
+    <h2>④ 同时撤掉的旧入口<em>三处统一成一个浮标</em></h2>
+    <p class="note">
+      撤：① 广场列表上方那条「✎ 发动态」工具条；② 我的页 tab 行右侧那个按钮；③ 原生页导航里注入的「发动态」项
+      （连 pubentry 的兜底浮标一起退场）。<br>
+      <b>要保留哪一处你说了算</b>——比如原生页那处若你觉得"导航项更贴站点观感"，可以留着，浮标只上脚本内两页。
+    </p>
+    <div class="row">
+      <div style="font-size:12px;color:var(--t3);line-height:2.0">
+        · 广场工具条（占一整行横栏）→ 撤<br>
+        · 我的页 tab 行按钮（藏在动线外）→ 撤<br>
+        · 原生页导航项（贴站点观感）→ <b>建议保留，或一并撤——你定</b><br>
+        · 浮标位置：<b>右下角、回顶之上、本页常驻</b>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ⑤ 窄宽 ============ -->
+  <div class="sec">
+    <h2>⑤ 窄宽 540<em>浮标不许压住输入框/内容，也不许被挤出视口</em></h2>
+    <div class="narrow">
+      <div class="page dark" style="width:100%;height:260px">
+        <span class="cap">窄态（视口 540）</span>
+        <div class="list"><i class="li"></i><i class="li"></i><i class="li"></i><i class="li"></i></div>
+        <div class="corner">
+          <button class="fab">✎</button>
+          <button class="backtop">↑</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 附 ============ -->
+  <div class="sec">
+    <h2>附：实现口径（按此实现，待你确认）</h2>
+    <p class="note" style="line-height:2.1">
+      1. <b>出现范围</b>：脚本内三页（我的页四档 / 广场）+ 原生 <code>/member/feeds</code>。<b>常驻</b>=不随滚动出现或消失；
+      其余视图（关注/分区/搜索）**暂不加**（你说"现有几个页面"，我按这三个理解；要扩是一行的事）。<br>
+      2. <b>位置</b>（**实测校准**，harness 几何断言给的数）：暗色 <code>fixed right:18 bottom:94</code>（回顶 sticky 的基准是滚动容器<b>内容盒</b>，视图体 padding-bottom:30 ⇒ 回顶实占 [48,84]）；浅色 <code>right:24 bottom:74</code>。两者都在回顶之上 10px。<br>
+      3. <b>层级</b>：<code>z-index:57</code>（理由见 ③）。<br>
+      4. <b>实现单源</b>：新共享件 `pubfab.js`，一个函数在三个宿主各挂一次（视图侧由 mypage/squareview 调用，
+      原生页由 pubentry 调用）；样式复用 `.acsv-tbtn` 的圆钮语言 + 红色主题。<br>
+      5. <b>误触</b>：点开的是编辑器（不是直接发），代价可控；提交中编辑器不许关。
+    </p>
+  </div>
+</div>
+</body>
+</html>

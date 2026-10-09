@@ -1527,12 +1527,19 @@ var RAW_CSS = ''
   + 'border-radius:50%;background:rgba(0,0,0,.66);color:#fff;font-size:11px;cursor:pointer;border:none;font-family:inherit}'
   + '.acsv-thumb.add{border:1px dashed rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;'
   + 'font-size:22px;color:#8a90a0;cursor:pointer}'
-  // 入口按钮（脚本内两处宿主用；原生页那处走导航项形态）
-  + '.acsv-me-entry{border:none;border-radius:18px;padding:7px 16px;background:#fd4c5d;color:#fff;font-size:13px;'
-  + 'font-weight:600;cursor:pointer;font-family:inherit}'
-  + '.acsv-me-entry:hover{background:#ff6b7a}'
-  + '.acsv-sq-tools{display:flex;justify-content:flex-end;padding:0 2px 8px}'
-  + '.acsv-me-card-entry{margin-left:auto;flex:none}'
+  // 发布**常驻浮标**（0.9.224）：右下角、钉在「回到顶部」之上、本页常驻。
+  // z:57 = 压住列表内容(55)/dock(56)/顶栏(57)，**但被抽屉(58)/详情(61)/编辑器(62)/大图(63) 盖住**
+  // ——浮标绝不许盖住它自己打开的编辑器（对照：全局兜底胶囊 .acsv-fab 是 2147482990，不能照抄）
+  // 位置是**实测校准**的（harness 几何断言给的数）：暗色回顶 sticky 的基准是滚动容器**内容盒**，
+  // 而 .acsv-view-body 有 padding-bottom:30px ⇒ 回顶实际占 [48,84]（viewport 底往上算）⇒ 浮标 bottom
+  // 必须 ≥84 才不压它；取 94（错开 10）。
+  + '.acsv-pubfab{position:fixed;right:18px;bottom:94px;z-index:57;width:44px;height:44px;border-radius:50%;'
+  + 'border:none;background:#fd4c5d;color:#fff;font-size:18px;line-height:1;cursor:pointer;'
+  + 'box-shadow:0 6px 18px rgba(0,0,0,.45);font-family:inherit}'
+  + '.acsv-pubfab:hover{background:#ff6b7a}'
+  // 原生页浅色语境：与浅色回顶（fixed right:24 bottom:28）同栏、错开 10px
+  // 浅色回顶是 fixed right:24 bottom:28 + 高 36 ⇒ 占 [28,64]；浮标取 74（错开 10）
+  + '.acsv-pubfab-light{right:24px;bottom:74px;box-shadow:0 4px 14px rgba(0,0,0,.2)}'
   // 分享面板里的「转发到动态」（与复制链接同栏）
   + '.acsv-share-fwd{border:none;background:rgba(255,255,255,.12);color:#cfd3da;border-radius:16px;'
   + 'padding:6px 14px;font-size:13px;cursor:pointer;font-family:inherit}'

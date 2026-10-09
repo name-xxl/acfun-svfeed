@@ -345,7 +345,8 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `inputbar.js` | 抽屉输入栏 builder（评论/私信共用：表情/图片按钮、自动增高、Enter/Esc；差异语义参数注入） |
 | `composermirror.js` | 输入框镜像层装饰器（0.9.221）：给 `inputbar` 建的输入条包一层——textarea 文字透明只留光标，下层同度量的 div 把 UBB 令牌画成图（表情取 **B 口径 1em** ⇒ 不撑行高、两侧行数永远一致；图片出「图片」小块），并挂上 `tokenedit` 的令牌原子编辑。**为什么单开一件**：inputbar 属基建层，让它 import 特性层的 emoticon 会新增「基建→特性」反向边（check-direction 口径 A）——装饰器把这条边挪到特性层。消费方：comments（评论输入条）/ imdrawer（私信）/ 动态编辑器 |
 | `momenteditor.js` | 发动态编辑器（0.9.222）：**三处入口共用的唯一出口** `openMomentEditor(opts)`——居中模态（overlay 栈 id=`momentedit`、modal 吞键）、输入条走 `inputbar`+`composermirror`（写时就看得见表情）、表情面板/九宫格缩略图（`imgInto`）/可见范围两药丸/字数计数（`momentCharCount`，>233 变红）；转发时顶部带源引用块（复用 `cards.quoteBlockOf`，不新画）、按钮与标题切「转发」。**防误发**：提交锁（绝不自动重试——端点无幂等键）、失败保留内容给可读话术（按 `postResultOf` 的 kind 分档）、**网络/超时结果未知**走「先查后补」（`listProfile` 核对自己最近动态）。调试钩子 `momentRepostOf`/`momentEdit` |
-| `pubentry.js` | 原生 `/member/feeds`「发动态」入口（0.9.222）：形态沿用同页 memberplaza 的**导航项注入**（同族类名、贴合原生），哨兵 `[data-acsv-pub]` + MO 自愈；导航结构变了 8 秒后兜底右下游标（`.acsv-fab` 同族）。该页官方发布元素无留档，故只走既有先例、不猜 DOM |
+| `pubfab.js` | 发布**常驻浮标**（0.9.224）：右下角一枚圆钮、钉在「回到顶部」之上、本页常驻——三处（我的页四档 / 广场 / 原生 `/member/feeds`）**同一机制同一位置**（0.9.222 的三处旧入口已全撤）。位置：暗色 `right:18 bottom:70`（回顶暗色是流内 sticky）／浅色 `right:24 bottom:80`（回顶浅色是 fixed）。**层级 z:57**：压列表内容(55)/dock(56)/顶栏(57)，**被抽屉(58)/详情(61)/编辑器(62)/大图(63) 盖住**——绝不许盖住它自己打开的编辑器（`#acsv-fab` 的 2147482990 不能照抄） |
+| `pubentry.js` | 原生 `/member/feeds` 的发布浮标挂载（0.9.224 收窄）：只做 `mountPubFab(document.body, {light:true})` 一件事——挂 body、fixed，站点 SPA 重画子树冲不掉 ⇒ **不需要自愈观察器**（0.9.222 观察器是给导航项用的，已随导航项退场） |
 | `upload.js` | 评论图片上传四阶段（GM 通道二进制分片，失败统一落 null） |
 | `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；0.9.180 起不可得=error 态，不回落原生；0.9.181 起「同 realm 返回式取数」+ UMD 分支遮罩；0.9.182 起 eval 拿不回再落 Blob 脚本层（页面 world，IM SDK 同款）；CDN 逐源兜底；Safari 原生 HLS 探测） |
 | `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐；画布取**播放器区域内居中的 16:9 区**，与稿件比例无关——原生同口径（0.9.205）；0.9.204 起另一条通道画高级弹幕——绝对定位不进轨道/位图缓存） |
@@ -505,6 +506,7 @@ flowchart LR
   spacetab["spacetab.js（空间页标签栏注入件·两标签共用+自愈）"]
   spacemoments["spacemoments.js（空间页动态标签·feed/profile 混排流）"]
   momenteditor["momenteditor.js（发动态编辑器·三处入口共用出口）"]
+  pubfab["pubfab.js（发布常驻浮标·右下角回顶之上）"]
   pubentry["pubentry.js（原生 /member/feeds 发动态入口）"]
   uppage["uppage.js（空间页小视频区块·m 站 pagelet 抓取）"]
   followbadge["followbadge.js（关注未读徽标·轮询退避）"]
@@ -538,10 +540,11 @@ flowchart LR
   momentapi --> cfg & net & panelitem
   momentpost --> cfg & net & tokenedit
   momenteditor --> cards & cfg & composermirror & dbg & emoticon & imgload & inputbar & momentapi & momentpost & overlay & toastmsg & ui & upload
-  pubentry --> momenteditor & ui
+  pubentry --> pubfab
+  pubfab --> momenteditor & ui
+  mypage --> pubfab
+  squareview --> pubfab
   sharepanel --> momenteditor
-  mypage --> momenteditor
-  squareview --> momenteditor
   boot --> pubentry
   composermirror --> emoticon & tokenedit & ui
   pb --> feedstore & settings

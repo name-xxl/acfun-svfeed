@@ -162,6 +162,20 @@ feedstore.js → player.js → input.js → feedstore.js
   方向已守护"的缺口由此补上）。
 - **附带**：0.9.184/185/186 的架构减债（errbox/playgest 拆件、a11y）均过本棘轮（0 未登记）。
 
+## 0.9.224：发布入口统一为常驻浮标（pubfab）台账
+
+- **新增件**：`pubfab.js`（消费 momenteditor/ui）；`pubentry.js` 由「导航项注入 + 哨兵 + MO 自愈」**收窄**为
+  「挂 body 的 fixed 浮标」一件事（观察器不再需要——站点 SPA 只重画自己的子树，body 级 fixed 元素冲不掉）。
+- **新增边**：`pubfab → momenteditor & ui`；`mypage → pubfab`、`squareview → pubfab`（替换 0.9.222 的
+  `mypage/squareview → momenteditor` 直连）；`pubentry → pubfab`。
+- **撤掉的边/类**：`.acsv-me-entry` / `.acsv-sq-tools` / `.acsv-me-card-entry` 三组样式与两处调用点全撤
+  （三处入口统一成一个机制）。
+- **两条写进头注的口径（改的时候别丢）**：① **z:57**——浮标压列表内容但**必须被抽屉/详情/编辑器盖住**
+  （不许照抄 `#acsv-fab` 的 2147482990：那会盖住它自己打开的编辑器）；② **位置实测校准**——暗色回顶 sticky
+  的基准是滚动容器**内容盒**（视图体 padding-bottom:30 ⇒ 实占 [48,84]），故浮标 bottom:94；浅色 fixed
+  回顶占 [28,64]，浮标 bottom:74。
+- **零漂移**：59/59 场景 + 309 单测；几何断言做过摘修复反跑（bottom 改回 70 即转红）。
+
 ## 0.9.222：发动态编辑器 + 三处入口 + 分享面板转发项台账
 
 - **新增两件**：`momenteditor.js`（编辑器，三处入口共用出口，消费 inputbar/composermirror/momentpost/
