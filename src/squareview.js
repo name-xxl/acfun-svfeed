@@ -10,18 +10,12 @@ import { momentPiOfRepost } from './panelitem.js';
 import { setMomentOpener } from './cards.js';
 import { registerView } from './viewreg.js';
 import { openMomentDetail } from './momentdetail.js';
-import { closeInlineComments } from './rowkit.js';
+import { closeInlineComments, openRowDefault } from './rowkit.js';
 import { createSquareFeed } from './squarefeed.js';
 import { testHook } from './dbg.js';
 
-// 行落点（广场条目全是动态，契约层保证）：点行=开详情面板；行内评论区先关防双宿主互踩
-//（followview 同款处置）；非动态分支纯防御（理论不出现）
-function rowDefault(pi) {
-  if (pi.ct === 'moment') {
-    closeInlineComments();
-    openMomentDetail(pi);
-  } else if (pi.href) window.open(pi.href, '_blank');
-}
+// 行落点：视图内默认策略已下沉 rowkit.openRowDefault（0.9.218 单源——与「我的」页动态共用同一份：
+// 动态开详情面板、行内评论区先关防双宿主互踩；非动态条目走 href 新标签）
 
 var feed = null; // 当前实例（视图单例存活：build 建 / teardown 停）
 
@@ -32,7 +26,7 @@ function buildSquareView(body) {
     root: wrap,
     scrollEl: body,      // 视图体即滚动容器（与广场原版 window 滚动的差异收在工厂方言）
     backTopHost: body,
-    onOpen: rowDefault
+    onOpen: openRowDefault
   });
 }
 

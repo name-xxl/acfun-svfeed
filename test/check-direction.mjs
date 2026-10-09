@@ -54,7 +54,11 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 0.9.169 登记：reldrawer（抽屉 tab 特性件，comments 两 seam 单向）/ jingxuanview（分区页视图，
   // 消费 appapi/channelapi/cards/settings/imicons/relatedapi，无被依赖回边）。两者的方向复核
   // 与新增边清单见 docs/dependency-audit.md「0.9.168–0.178」节
-  'jingxuanview.js']);
+  // 0.9.218 登记：spacetab（空间页标签栏注入共享件，两标签共用注入/切换/排序/自愈，只依赖 ui）/
+  // spacemoments（空间页「动态」标签特性件，消费 spacetab/squarefeed/momentapi/memberplaza/cfg/ui）。
+  // 二者与 rowkit 同属特性层 shared kit + 视图件，与 uppage/memberplaza 的依赖属层内互调
+  //（spacemoments 复用 memberplaza 导出的 addAmAnchor=两个原生页宿主单源，非反向）
+  'jingxuanview.js', 'spacetab.js', 'spacemoments.js']);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 
 // 在册项（0.9.119 起清空——data→ubb 随手下沉完成，方向卫生库存归零；新增项=需要一次裁决，

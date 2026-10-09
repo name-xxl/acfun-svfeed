@@ -2,6 +2,9 @@ import { CFG } from './cfg.js';
 import { el, selfUid, fmt, toast } from './ui.js';
 import { postForm } from './appapi.js';
 import { panelItem } from './panelitem.js';
+import { createSquareFeed } from './squarefeed.js'; // 列表机械（0.9.218 我的页动态复用广场工厂）
+import { listProfile } from './momentapi.js';       // 个人主页动态流（三合一混排）
+import { openRowDefault } from './rowkit.js';       // 行落点单源（动态→详情面板）
 import { groupNameError, folderNameError } from './nameval.js';
 import { coverUrl } from './imgurl.js'; // meCardOf 头像归一（0.9.160 就地收编随迁）
 import { gridCardOf, moreBtn, skeletonRows } from './cards.js';
@@ -15,7 +18,8 @@ import { openFavFolderPop } from './favpop.js';
 import { errNotLogin } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
 
 // ---------- 我的视图（0.9.62 起；0.9.69 抖音式个人主页改造）----------
-// 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（观看历史｜收藏夹｜**关注分组**，0.9.142 加第三个）→ 4:3 封面网格。
+// 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（**动态**｜观看历史｜收藏夹｜关注分组，
+// 0.9.218 把「动态」加在最前并作默认落地）→ 动态是行流（广场同套行卡），其余三个仍是 4:3 封面网格。
 // 接口契约 docs/api-research.md §4.1/§4.2（2026-10-02 实测）：历史 body 双 resourceTypes
 // 缺一即 result 21「参数格式错误」；dougaList 列表键是 favoriteList（无 list 别名）。
 // 条目一律经 panelItem 规整（类型过滤在契约层），点击 gridCardOf 走播放层（playlayer.openPlayer 就地播放，0.9.74 起不再插竖刷队尾）；
@@ -614,6 +618,36 @@ function buildFollowGroups(panel) {
   tab.refresh(); // 首进：拉组表 → 回落「全部」档（allId）并载入成员
 }
 
+// ---- 动态：个人主页动态流（0.9.218）----
+// 数据源=feed/profile?userId=<本人>（**三合一混排**：图文动态+视频+文章；docs §10.1 字段级核对），
+// 与广场共用列表机械（squarefeed 工厂）与整套行卡/详情/评论管线；差异只在四处注入：
+// 取数（profilePageOf——**无 24h 窗口**，个人主页是历史流，套广场窗口会把老动态全砍掉）、
+// 空态文案、关发现态轮询、阈值组（CFG.view.moments）。落点走视图内默认（openRowDefault）。
+// 面板常驻 DOM、首次激活才建（与历史/收藏同语义）；视图卸载时 stop（见 myTeardown）
+var meFeed = null;
+function buildMoments(panel, scroller) {
+  var uid = selfUid();
+  if (!uid) { // 未登录：不弹错（与资料头同口径），给一句可读空态
+    panel.appendChild(el('div', 'acsv-vempty', '登录后才能查看自己的动态'));
+    return;
+  }
+  meFeed = createSquareFeed({
+    root: panel,
+    scrollEl: scroller || panel, // 视图体即滚动容器（元素方言；与广场视图同款）
+    backTopHost: panel,
+    onOpen: openRowDefault,
+    fetchPage: function (pcursor) { return listProfile(uid, pcursor); },
+    view: CFG.view.moments,
+    emptyText: '你还没有发布过动态',
+    poll: false // 自己的动态不需要「发现 N 条新动态」的定时 diff
+  });
+}
+
+// 视图卸载：停列表机械（清轮询+解绑滚动）——与 squareview 同款处置
+function myTeardown() {
+  if (meFeed) { meFeed.stop(); meFeed = null; }
+}
+
 function buildMyView(body) {
   var wrap = el('div', 'acsv-mewrap');
   body.appendChild(wrap);
@@ -623,22 +657,29 @@ function buildMyView(body) {
   buildMeCard(cardSlot);
 
   // Tab：面板常驻 DOM 只切 display——切回不重拉接口，翻页游标与已加载列表都保留；
-  // 首次激活才 build（惰性），进入视图默认落观看历史
+  // 首次激活才 build（惰性），进入视图默认落「动态」（0.9.218 裁决：动态排第 1）
   var tabRow = el('div', 'acsv-metabs');
   wrap.appendChild(tabRow);
+  var panelMom = el('div', 'acsv-mepanel');
   var panelHist = el('div', 'acsv-mepanel');
   var panelFav = el('div', 'acsv-mepanel');
   var panelGroups = el('div', 'acsv-mepanel');
+  panelMom.setAttribute('data-tab', 'moments');
   panelHist.setAttribute('data-tab', 'hist');
   panelFav.setAttribute('data-tab', 'fav');
   panelGroups.setAttribute('data-tab', 'groups');
+  panelHist.style.display = 'none';
   panelFav.style.display = 'none';
   panelGroups.style.display = 'none';
+  wrap.appendChild(panelMom);
   wrap.appendChild(panelHist);
   wrap.appendChild(panelFav);
   wrap.appendChild(panelGroups);
 
+  // 键序=按钮序（下方 Object.keys 派生）：「动态」写在第一个键 ⇒ 排第 1（0.9.218 用户裁决）。
+  // 闸门：harness view-my 的 moments-tab-first——把动态键挪到最后即转红（已反跑验证）
   var panels = {
+    moments: { el: panelMom, build: buildMoments, inited: false, name: '动态' },
     hist: { el: panelHist, build: buildHistory, inited: false, name: '观看历史' },
     fav: { el: panelFav, build: buildFav, inited: false, name: '收藏夹' },
     groups: { el: panelGroups, build: buildFollowGroups, inited: false, name: '关注分组' }
@@ -659,14 +700,16 @@ function buildMyView(body) {
       b.classList.toggle('on', b.getAttribute('data-tab') === id);
     });
     var p = panels[id];
-    if (!p.inited) { p.inited = true; p.build(p.el); }
+    // build 第二参=视图体滚动容器（0.9.218：动态 tab 要它当列表滚动源；其余构建器忽略）
+    if (!p.inited) { p.inited = true; p.build(p.el, body); }
   }
-  select('hist');
+  select('moments');
 }
 
 // 左栏 dock 元数据随视图声明（0.9.78：sidebar 的条目从注册表派生，不再维护第二份清单）
 registerView({
   id: 'my', build: buildMyView,
+  teardown: myTeardown, // 0.9.218：动态 tab 起 list 实例，卸载必须 stop（清轮询+解绑滚动）
   dock: {
     label: '我的', order: 30, group: 1, // 0.9.155 用户裁决：与「关注」互换——放左栏最底
     svg: '<svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>'

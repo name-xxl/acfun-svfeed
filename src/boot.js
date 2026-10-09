@@ -3,6 +3,7 @@ import { ensureStyle } from './ui.js';
 import { toggle } from './player.js';
 import { watchNav } from './nav.js';
 import { tryInjectSpace } from './uppage.js';
+import { tryInjectSpaceMoments } from './spacemoments.js'; // 空间页「动态」标签（0.9.218）
 import { watchMemberNav } from './memberplaza.js';
 import { bootNativeIm } from './imnative.js';
 import { setRoot } from './state.js';
@@ -21,7 +22,9 @@ import './playlayer.js'; // 播放层（0.9.74）：注册 play 视图 + 注入�
 //     root 指到 body + 仅注入大图查看器样式段：评论卡配图点击看大图在原生页可用
 //   home（/）：全量初始化（现状不动）。ensureStyle 在 boot 跑是有意的——导航兜底胶囊
 //     可能在流未打开时出现，样式必须先就位（见 ui.ensureStyle 注释）
-//   member（/u/<数字>）：+ tryInjectSpace（空间页小视频区块）；样式由注入点自持（uppage 内调 ensureStyle）
+//   member（/u/<数字>）：+ tryInjectSpaceMoments（空间页「动态」标签，0.9.218，order=1）+ tryInjectSpace
+//     （空间页小视频区块）；两者的标签栏注入与自愈共用 spacetab（顺序由 order 定，与调用先后无关）；
+//     样式由注入点自持（两件内调 ensureStyle）
 //   memberCenter（/member/*，0.9.128）：0.9.47「其他页不注入」的**限定反转**（只此一路径）——
 //     ensureStyle + setRoot(document.body)（无壳浮层）+ watchMemberNav（原生页「动态广场」入口）
 //   video / article / other：仅基础设施（dbgInit + 路由监听）。全量 CSS 不再无条件注入——
@@ -50,7 +53,8 @@ if (kind === 'native') {
       watchNav();
     }
   } else if (kind === 'member') {
-    tryInjectSpace();
+    tryInjectSpaceMoments(); // 空间页「动态」标签（0.9.218，order=1 ⇒ 排在「小视频」之前）
+    tryInjectSpace();        // 空间页「小视频」标签（0.9.36）
   } else if (/^\/member(\/|$)/.test(location.pathname)) {
     // 个人中心 /member（0.9.128）：0.9.47 决策的限定反转（只此一路径参加，其余页维持不注入）。
     // 样式先就位（浅色皮肤 + 注入件），root 指到 body（无壳浮层：大图查看器等，native 分支同款先例）

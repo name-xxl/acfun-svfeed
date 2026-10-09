@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { squarePanelOf } from './panelitem.js'; // 条目派发在面板契约件（0.9.162 data.js 终解）；本域回包规整 0.9.159 域归域迁入本模块
+import { squarePanelOf, followPanelOf } from './panelitem.js'; // 条目派发在面板契约件（0.9.162 data.js 终解）；本域回包规整 0.9.159 域归域迁入本模块
 
 // ---------- 动态域读接口（0.9.106 收口；0.9.107 徽标弃用 webPush 后 unreadCount 退役） ----------
 // 背景（用户三问之「接口统一管理了吗」）：端点此前已全在 cfg.js，但**请求编排**散在
@@ -24,6 +24,16 @@ export function listVideos(pcursor) {
 export function listSquare(pcursor) {
   return request(CFG.api.feedSquare + (pcursor ? '?pcursor=' + encodeURIComponent(pcursor) : ''), 'GET')
     .then(squarePageOf);
+}
+
+// UP 个人主页动态流（0.9.218 数据面新增；实测 §10.1 字段级核对）：feed/profile 免登录读、任意
+// uid 可读；**三合一混排**（rt10 图文动态 / rt2 视频 / rt3 文章）；游标=下一页首条 createTime
+// （毫秒），终页 'no_more'；首页 pcursor 传空串（实测与不传等价）。URL 逐字护 mock 缝（feed/profile）；
+// 规整走本模块 profilePageOf——**刻意不套广场的 24h 窗口**（个人主页是历史流，套上会砍掉老动态）
+export function listProfile(uid, pcursor) {
+  return request(CFG.api.feedProfile + '?userId=' + encodeURIComponent(uid)
+    + '&count=' + CFG.view.moments.count + '&pcursor=' + encodeURIComponent(pcursor || ''), 'GET')
+    .then(profilePageOf);
 }
 
 // 单条动态详情（0.9.127，广场新鲜度回填）：pc-direct 带 Cookie 读——isLike/isThrowBanana
@@ -81,6 +91,31 @@ export function squarePageOf(j) {
   });
   var next = j.pcursor != null ? String(j.pcursor) : '';
   var noMore = crossed || next === 'no_more' || !raws.length || !items.length;
+  return { items: items, nextCursor: noMore ? '' : next, noMore: noMore, freshIds: freshIds };
+}
+
+// 个人主页动态流单页规整（0.9.218）：feed/profile 响应 → {items:[pi], nextCursor, noMore, freshIds}。
+// 条目形状与 followFeedV2 **同构**（2026-10-09 字段级核对：resourceId / createTime(毫秒) / 三计数 /
+// user(userId,userName,userHead,isFollowing,nameColor) / rt10 的 moment{text,imgs[]} 与 repostSource
+// 全部对得上）⇒ 直接复用契约层的 follow 解析器，**不新增解析器**（单源收口）。
+// **无 24h 窗口**（与 squarePageOf 的关键差异）：历史流照单全收，翻页只认 pcursor/空页/整页滤空；
+// freshIds=≤3h 的动态条目（视图据此走 moment/detail 补互动态真值，与广场同口径）。纯函数，单测直采。
+export function profilePageOf(j) {
+  if (!j || j.result !== 0) throw new Error('profile-fail');
+  var raws = Array.isArray(j.feedList) ? j.feedList : [];
+  var now = Date.now();
+  var items = [];
+  var freshIds = [];
+  raws.forEach(function (raw) {
+    var pi = followPanelOf(raw);
+    if (!pi) return; // 契约层过滤（宁可漏不错）：三类之外的 resourceType 一概不接
+    items.push(pi);
+    var t = Number(raw && raw.createTime) || 0;
+    if (pi.ct === 'moment' && t && now - t <= CFG.view.moments.freshMs) freshIds.push(pi.momentId);
+  });
+  var next = j.pcursor != null ? String(j.pcursor) : '';
+  // 到底判据：终页标记 / 空页 / 整页被契约层滤空（后端游标未推进时由工厂的"整页 0 新增"安全阀兜住）
+  var noMore = next === 'no_more' || !raws.length || !items.length;
   return { items: items, nextCursor: noMore ? '' : next, noMore: noMore, freshIds: freshIds };
 }
 

@@ -106,6 +106,11 @@ const HARNESS_CASES = [
   // 浅色皮肤 + 无壳浮层（评论/大图）——BOOT_PATH 改写 pathname 至 /member/feeds，且本场景
   // 禁自动挂壳（harness.html NO_AUTOMOUNT：须在无 shell 前提下验证）；夹具在 cases/member.js
   { name: 'member-plaza', viewport: { width: 1600, height: 900 } },
+  // 0.9.218 原生空间页 /u/<uid>「动态」标签注入：两个自建标签（动态/小视频）位次确定性、
+  // 点击切换与站点排序控件互斥、**惰性**（不点不拉接口）、三合一渲染、行尾 am 锚、浅色第二皮肤
+  //（0.9.218 补的视频/文章条规则）——BOOT_PATH 改写 pathname 至 /u/12345 + NO_AUTOMOUNT；
+  // 夹具在 cases/space.js（原生标签栏由场景体自建）
+  { name: 'space-moments', viewport: { width: 1600, height: 900 } },
   // 0.9.96 动态详情面板（卡点击原地展开 + 评论区管线复用 stype=4 + 赞/评写链乐观回滚 + 表情面板落位）
   { name: 'detail-open', viewport: { width: 1600, height: 900 } },
   // 0.9.99 关注语境「视频」侧（顶栏 seg → FollowVideos 上下文 → 舞台深链接管 + 按列表泵入 + 全部回路）

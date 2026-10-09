@@ -15,6 +15,7 @@ import { imgInto } from './imgload.js';
 import { openImageViewer } from './imgview.js';
 import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
 import { releaseDrawer } from './state.js';
+import { openMomentDetail } from './momentdetail.js'; // 行落点默认策略（0.9.218 单源下沉）
 
 // ---------- 原位评论区（0.9.100）：行内开合的宿主状态（模块级——teardown 要能收拾它） ----------
 // 开新行前必须**显式关旧行**：claimDrawer 同槽重入不互收（comments.js 注释在册），不关的话
@@ -179,6 +180,18 @@ export function armExpanders(scope) {
       t.parentNode.insertBefore(more, t.nextSibling);
     });
   });
+}
+
+// 视图内行落点默认策略（0.9.218 下沉收编）：点行 → 关行内评论区（防双宿主互踩）并开详情面板
+//（动态条目）；非动态条目走 href 新标签。此前该策略在 squareview 与 mypage 各写一份（同一含义
+// 两处定义=漂移源），下沉本 kit 单源。工厂的 onOpen 仍可覆盖——原生页内嵌宿主 memberplaza 传
+// noop（不穿越深色详情面板，原页语义）。
+export function openRowDefault(pi) {
+  if (!pi) return;
+  if (pi.ct === 'moment') {
+    closeInlineComments();
+    openMomentDetail(pi);
+  } else if (pi.href) window.open(pi.href, '_blank');
 }
 
 // 列表级委托（commentListClick 同款挂法）：互动键 → 行为分派；展开 → 钳高切换；

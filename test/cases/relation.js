@@ -68,9 +68,12 @@
       return v && v.offsetParent !== null && TEST.call('view') === 'my';
     }, 10000)));
     var tabs = document.querySelectorAll('.acsv-metab');
-    rec('fg-tab', tabs.length === 3 && /关注分组/.test(tabs[2].textContent),
-      'n=' + tabs.length + ' t=' + (tabs[2] ? tabs[2].textContent : 'n/a'));
-    if (tabs[2]) tabs[2].click();
+    // 0.9.218：按 data-tab 定位（此前用位置索引 tabs[2]——「动态」插到最前后即错位；
+    // 位置索引本身就是脆弱点，一并改成属性定位）
+    var tabGroups = q('.acsv-metab[data-tab="groups"]');
+    rec('fg-tab', tabs.length === 4 && !!tabGroups && /关注分组/.test(tabGroups.textContent),
+      'n=' + tabs.length + ' t=' + (tabGroups ? tabGroups.textContent : 'n/a'));
+    if (tabGroups) tabGroups.click();
     var panel = function () { return q('.acsv-mepanel[data-tab="groups"]'); };
     // 默认「全部」选中：chips = 全部 / 未分组 2 / 舞 1 / 新组 1 / ＋新建分组
     rec('fg-chips', !!(await waitFor(function () {

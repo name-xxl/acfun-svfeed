@@ -161,3 +161,27 @@ feedstore.js → player.js → input.js → feedstore.js
   边 = 需要一次裁决（修边 / 加设缝 / 登记入册），不再默默放过（V3 关闭时"不得把规则⑤绿灯误读为
   方向已守护"的缺口由此补上）。
 - **附带**：0.9.184/185/186 的架构减债（errbox/playgest 拆件、a11y）均过本棘轮（0 未登记）。
+
+## 0.9.218：动态浏览（空间页注入 + 我的页双宿主）拆件台账
+
+- **新增两个模块**：`spacetab.js`（空间页内容标签栏注入共享件：标签卡 + 面板 + 手动切换 +
+  站点排序控件互斥 + **确定性插入位** + 共享 MutationObserver 自愈；只依赖 `ui`）、
+  `spacemoments.js`（空间页「动态」标签特性件）。
+- **新增边**（全部层内互调，口径 A/B 均 0 未登记）：
+  - `spacemoments → cfg / ui / spacetab / squarefeed / momentapi / memberplaza`
+  - `spacetab → ui`
+  - `uppage → spacetab`（**uppage 借此从 `others` 聚合升为独立节点**——聚合名单会漏检指向它的边，
+    升节点后 `boot → uppage`、`player → uppage` 两条此前不可见的边一并入图）
+  - `mypage → momentapi / rowkit / squarefeed`；`rowkit → momentdetail`；`boot → spacemoments`
+- **为什么把落点策略下沉 rowkit**（`openRowDefault`）：广场视图与我的页动态两处原本各写一份
+  「动态→详情面板 / 非动态→href」的策略（同一含义两处定义=漂移源）。下沉后 `squareview` 与
+  `mypage` 共用一份，工厂的 `onOpen` 仍可覆盖（`memberplaza`/`spacemoments` 传 noop = 原生页语义）。
+  环检查：`momentdetail` 不 import `rowkit`，新边不成环（check-deps 规则⑤ 已复核）。
+- **为什么 `spacetab` 要抽**：两个自建标签（小视频 order2 / 动态 order1）共存需要**一套**切换/
+  互斥/排序逻辑——各写一份就是「两份看着一样」（单源收口不允许）。抽出时 uppage 侧只保留
+  面板内容与启动链，零行为变化（空间页场景 `space-moments` 的位次/切换断言即其闸门）。
+- **为什么 `addAmAnchor` 从 memberplaza 导出**：两个原生页宿主（/member 内嵌广场、/u/ 空间页动态）
+  的落点出口同形，导出复用可避免第二份实现；属特性层内互调（非反向）。
+- **`spacemoments → squarefeed` 的复用代价与代价的定价**：列表机械（加载/三态/骨架/触底/回顶/
+  新鲜度回填）全部来自广场工厂；为此给工厂加了四个可注入项（`fetchPage/emptyText/poll/view`），
+  **默认值＝改造前行为**——零漂移证据＝`view-square` 与 `member-plaza` 场景全绿（既有断言未动）。

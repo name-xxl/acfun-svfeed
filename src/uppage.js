@@ -1,7 +1,8 @@
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
 import { createFeedContext, runChain, registerContext, activateContext } from './feedctx.js';
-import { el, elHtml, fmt, ensureStyle, closeOnOutsideClick } from './ui.js';
+import { el, fmt, ensureStyle, closeOnOutsideClick } from './ui.js';
+import { mountSpaceTab, watchSpaceTabs } from './spacetab.js'; // 空间页标签栏注入件（0.9.218 抽出单源）
 import { FeedStore } from './feedstore.js';
 import { API } from './api.js';
 import { imgInto } from './imgload.js';
@@ -306,43 +307,28 @@ function injectSpaceVideos(uid) {
   UpVideos.pagebarEl = pagebar;
   UpVideos.progressEl = progress;
 
-  // 优先嵌入空间页的内容标签栏（视频/文章/合辑之后加一个「小视频」）
+  // 优先嵌入空间页的内容标签栏（原生 视频/文章/合辑 之后加一个「小视频」）。
+  // 0.9.218：注入/切换/排序收口 spacetab.mountSpaceTab（与「动态」标签同源）——order=2 ⇒
+  // 排在「动态（order=1）」之后，且与两者注入先后无关（首尾规则见该件头注）；本件只给
+  // 面板内容与启动链。
   var cl = document.querySelector('.ac-space-contribute-list');
   var tagsUl = cl && cl.querySelector('ul.tags');
   if (cl && tagsUl) {
-    var albumLi = tagsUl.querySelector('li[data-index="album"]');
-    // 站点原生排序（只对视频/文章/合辑生效）：小视频激活时隐藏，切走时恢复
-    var siteSortSpan = tagsUl.querySelector('#ac-space-contribute-sort');
-    var siteSortLi = siteSortSpan ? siteSortSpan.closest('li') : null;
-    var li = elHtml('li', null, '小视频<span>0</span>'); // 含徽标 span，须走 innerHTML 语义（el 第三参是 textContent）
-    li.dataset.index = 'svideo';
-    li.title = '该 UP 主的小视频';
-    var panel = el('div', 'tag-content');
-    panel.appendChild(toolbar);
-    panel.appendChild(grid);
-    panel.appendChild(pagebar);
-    li.addEventListener('click', function (ev) {
-      // 手动切换，阻断站点委托（未知 data-index 可能引发站点代码异常）
-      ev.stopPropagation();
-      if (siteSortLi) siteSortLi.style.display = 'none';
-      var lis = tagsUl.children;
-      for (var i = 0; i < lis.length; i++) lis[i].classList.remove('active');
-      li.classList.add('active');
-      var panels = cl.querySelectorAll(':scope > .tag-content');
-      for (var k = 0; k < panels.length; k++) panels[k].classList.remove('active');
-      panel.classList.add('active');
+    var mounted = mountSpaceTab({
+      cl: cl, tagsUl: tagsUl, index: 'svideo', order: 2,
+      html: '小视频<span>0</span>', // 含徽标 span，须走 innerHTML 语义（el 第三参是 textContent）
+      title: '该 UP 主的小视频',
+      buildPanel: function (panel) {
+        panel.appendChild(toolbar);
+        panel.appendChild(grid);
+        panel.appendChild(pagebar);
+      }
     });
-    // 点其他标签时恢复站点排序显示
-    tagsUl.addEventListener('click', function (ev) {
-      var t = ev.target && ev.target.closest ? ev.target.closest('li[data-index]') : null;
-      if (t && t.dataset.index !== 'svideo' && siteSortLi) siteSortLi.style.display = '';
-    });
-    if (albumLi) albumLi.insertAdjacentElement('afterend', li);
-    else tagsUl.appendChild(li);
-    cl.appendChild(panel);
-    UpVideos.countSpan = li.querySelector('span');
-    startUpChain();
-    return;
+    if (mounted) {
+      UpVideos.countSpan = mounted.li.querySelector('span');
+      startUpChain();
+    }
+    return; // 标签栏在：不论本次是否新注入（可能已注入过）都不走兜底区块
   }
 
   // 兜底：标签栏不存在时退化为底部独立区块
@@ -363,9 +349,21 @@ function injectSpaceVideos(uid) {
   startUpChain();
 }
 
+// 自愈回调（0.9.218，spacetab.watchSpaceTabs 驱动）：**单次同步尝试**，不起定时器
+//（观察器被反复触发时不得叠出多串重试）。三个条件同时成立才重注：在 /u/ 页、空间页根在、
+// 两个哨兵都不在（=被站点重渲染冲掉了）。injectSpaceVideos 与 mountSpaceTab 本身幂等。
+export function healSpaceVideos() {
+  var mU = location.pathname.match(/^\/u\/(\d+)/);
+  if (!mU) return;
+  if (document.getElementById('acsv-space') || document.getElementById('acsv-space-grid')) return;
+  if (!document.getElementById('ac-space')) return;
+  injectSpaceVideos(mU[1]);
+}
+
 export function tryInjectSpace() {
   var mU = location.pathname.match(/^\/u\/(\d+)/);
   if (!mU) return;
+  watchSpaceTabs(healSpaceVideos); // 自愈：SPA 重渲染冲掉注入项后回补（0.9.218 共享观察器）
   var tries = 0;
   var attempt = function () {
     // 主路径产物是 grid（tab 注入），兜底路径产物才是 section——两个哨兵都要查，

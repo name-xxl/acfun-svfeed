@@ -1429,6 +1429,16 @@ var RAW_CSS = ''
   + '.acsv-mp .acsv-frow-time{color:#999}'
   + '.acsv-mp .acsv-frow-text{color:#333}'
   + '.acsv-mp .acsv-frow-img{background:#f0f0f0}'
+  // 视频/文章条浅色（0.9.218 补缺）：此前本块只覆盖到 av/name/time/text/img/acts，**漏了 strip 族**
+  //（scover/sbody/stitle/sdesc/sinfo）——广场是纯动态流，从来没撞上这个缺口。个人动态流是
+  //**三合一混排**（含 rt2 视频 / rt3 文章），漏了会在白底上出「白底条 + 近白标题」。
+  // 同一处补丁也把 /member 内嵌广场的潜在白底白字一并修掉（底色/字色抄本块既有原生值）。
+  // 闸门：harness space-moments 的 sm-skin-light（computed 色）——摘掉本块即转红（已反跑验证）
+  + '.acsv-mp .acsv-frow-scover{background:#f0f0f0}'
+  + '.acsv-mp .acsv-frow-sbody{background:#f7f7f7}'
+  + '.acsv-mp .acsv-frow-stitle{color:#333}'
+  + '.acsv-mp .acsv-frow-sdesc{color:#666}'
+  + '.acsv-mp .acsv-frow-sinfo{color:#999}'
   + '.acsv-mp .acsv-frow-acts .acsv-fact{color:#999}'
   + '.acsv-mp .acsv-frow-acts .acsv-fact:hover{color:var(--acsv-accent)}'
   + '.acsv-mp .acsv-fstatus{color:#999}'

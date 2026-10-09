@@ -103,6 +103,13 @@ export var CFG = {
     // `时间戳:时间戳`）、终页 'no_more'、历史深度约 53h；服务端已过滤转发（1000 条样本全
     // type10）；**isLike/isThrowBanana 无登录态恒 false**（新鲜度刷新在视图层补偿）
     feedSquare: 'https://api-new.app.acfun.cn/rest/app/feed/feedSquare',
+    // UP 个人主页动态流（0.9.218，我的页「动态」标签 + 空间页注入数据源；实测 docs §10.1 字段级核对）：
+    // api-new APP 域、**免登录**（credentials:omit 裸调 result:0）、任意 uid 可读；**三合一混排**
+    // （rt10 图文动态 / rt2 视频 / rt3 文章）；`count` 生效；游标 pcursor=下一页首条 createTime
+    // （毫秒），终页 'no_more'；`type` 参数：不传/2/13=混排、3=纯视频（本批不传，照服务端给什么
+    // 显示什么）；条目形状与 followFeedV2 **同构** ⇒ 规整复用 panelitem.followPanelOf（省一份解析器）。
+    // URL 字面量逐字=harness mock 缝（'feed/profile'）
+    feedProfile: 'https://api-new.app.acfun.cn/rest/app/feed/profile',
     // 单条动态详情（0.9.127 广场新鲜度回填；plaza 同端点实测转引 §2.7）：pc-direct 带 Cookie
     // 读——列表（feedSquare 免登录）互动态恒 false，此端点才给真 isLike/isThrowBanana
     momentDetail: 'https://www.acfun.cn/rest/pc-direct/moment/detail',
@@ -274,6 +281,16 @@ export var CFG = {
       freshMs: 3 * 3600 * 1000,    // 新鲜窗口：≤3h 条目走 moment/detail 补互动态（S3）
       scrollPad: 300,              // 无限滚动触底提前量（同 follow）
       backTopAt: 300               // 回顶按钮显隐阈值（同 follow）
+    },
+    // 个人动态流（0.9.218，我的页「动态」标签 + 空间页注入两宿主共用；实测 docs §10.1）。
+    // 与广场的关键差异＝**无 24h 窗口**：个人主页是历史流，套广场窗口会把 24h 前的动态全砍掉，
+    // 看起来像"这人只发过今天的"⇒ 规整另写（profilePageOf，纯 pcursor 翻页）
+    moments: {
+      skel: 12,                    // 首屏骨架行数（同 follow/square）
+      count: 20,                   // 单页条数（端点对 count 生效，实测 10/20 直出）
+      freshMs: 3 * 3600 * 1000,    // 新鲜窗口：≤3h 条目走 moment/detail 补互动态（同广场口径）
+      scrollPad: 300,              // 无限滚动触底提前量
+      backTopAt: 300               // 回顶按钮显隐阈值
     },
     jingxuan: {                    // 精选页（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html ①②）
       scrollPad: 300,              // 无限滚动触底提前量（同 square）

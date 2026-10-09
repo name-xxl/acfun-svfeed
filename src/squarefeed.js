@@ -8,6 +8,13 @@
 // 宿主注入：root（sup/列表/状态行落点）/ scrollEl（元素或 window）/ backTopHost（默认 root）/
 // onOpen（行默认动作——视图=开详情面板、内嵌=不动作原页语义）/ onRow（行后处理，内嵌补 am 锚）。
 // 返回句柄 { stop, refresh, probe }：stop 清轮询并解绑滚动（window 滚动必须显式解绑）。
+// **数据源/文案可注入（0.9.218）**：本工厂原为广场专用（硬接 listSquare + 广场空态文案 + 强制
+// 发现态轮询）；个人动态流（我的页/空间页两宿主）复用同一套机械，故抽出三项 opts——
+//   fetchPage(pcursor)  取数（默认 listSquare；profile 流传 momentapi.listProfile 的绑定）
+//   emptyText           空态文案（默认广场原文案；profile 两宿主按宿主分派「你/TA 还没…」）
+//   poll:false          不建发现态轮询（空间页看的是别人，无需定时 diff）
+//   view                阈值组（默认 CFG.view.square；profile 传 CFG.view.moments——**无 24h 窗口**）
+// **默认值＝改造前行为**，零漂移证据=view-square 与 member-plaza 场景全绿。
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { skeletonRows } from './cards.js';
@@ -25,6 +32,10 @@ export function createSquareFeed(opts) {
   var winScroll = opts.scrollEl === window; // 滚动源方言：window（原生页内嵌）/ 元素（视图体）
   var onOpen = opts.onOpen || noop;
   var onRow = opts.onRow;
+  var fetchPage = opts.fetchPage || listSquare; // 取数可注入（默认广场流）
+  var view = opts.view || CFG.view.square;      // 阈值/骨架组可注入（默认广场档）
+  var emptyText = opts.emptyText || '广场暂时没有新动态';
+  var usePoll = opts.poll !== false;            // 发现态轮询（默认开；profile 宿主关）
 
   // 发现态提示（0.9.127）：列表顶部——有新动态时显形，点击重拉第一页并整列重建（plaza 原
   // 语义；重建代价=展开态/行内评论区丢弃，属已知取舍）
@@ -51,7 +62,7 @@ export function createSquareFeed(opts) {
   var latestAmId = 0;  // 发现态 diff 基准（最大 momentId；单调）
 
   function skeleton() {
-    return skeletonRows(list, CFG.view.square.skel, 'acsv-sqskel');
+    return skeletonRows(list, view.skel, 'acsv-sqskel');
   }
 
   function setStatus(text, busy) {
@@ -65,7 +76,7 @@ export function createSquareFeed(opts) {
     var my = ++seq;
     var sk = firstPage ? skeleton() : null;
     if (!firstPage) setStatus('加载中…', true);
-    listSquare(pcursor) // 传输/规整/24h 窗口/失败可辨收口 momentapi（squarePageOf，0.9.159 域归域）
+    fetchPage(pcursor) // 传输/规整/窗口/失败可辨收口 momentapi（squarePageOf / profilePageOf）
       .then(function (page) {
         if (sk) sk();
         if (my !== seq || !list.isConnected) return; // 实例已停/拆：在途回包丢弃
@@ -89,7 +100,7 @@ export function createSquareFeed(opts) {
         armExpanders(list);
         (page.freshIds || []).forEach(refreshOne); // 新鲜度回填（≤3h 条目，后台静默）
         if (firstPage && !list.children.length && noMore) {
-          list.appendChild(el('div', 'acsv-vempty', '广场暂时没有新动态'));
+          list.appendChild(el('div', 'acsv-vempty', emptyText));
         }
         firstPage = false;
         setStatus(noMore ? '已加载全部动态' : '');
@@ -139,7 +150,7 @@ export function createSquareFeed(opts) {
     if (Date.now() < pollClock) return;      // 固定节拍里的闸门
     if (!list.isConnected) return;
     var my = ++pollGen;
-    listSquare('').then(function (page) {
+    fetchPage('').then(function (page) {
       if (my !== pollGen || !list.isConnected) return; // 陈旧回包/实例已停：丢弃
       var newest = 0, n = 0;
       page.items.forEach(function (pi) {
@@ -159,7 +170,7 @@ export function createSquareFeed(opts) {
       pollClock = Date.now() + pollInterval;
     });
   }
-  pollTimer = setInterval(pollTick, CFG.square.tick);
+  if (usePoll) pollTimer = setInterval(pollTick, CFG.square.tick);
   function stopPoll() {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     pollGen++;
@@ -191,12 +202,12 @@ export function createSquareFeed(opts) {
   }
   function onScroll() {
     if (winScroll) {
-      if (scrollTop() + window.innerHeight >= document.documentElement.scrollHeight - CFG.view.square.scrollPad) load();
+      if (scrollTop() + window.innerHeight >= document.documentElement.scrollHeight - view.scrollPad) load();
     } else if (opts.scrollEl.scrollTop + opts.scrollEl.clientHeight
-        >= opts.scrollEl.scrollHeight - CFG.view.square.scrollPad) {
+        >= opts.scrollEl.scrollHeight - view.scrollPad) {
       load();
     }
-    backTop.classList.toggle('on', scrollTop() > CFG.view.square.backTopAt);
+    backTop.classList.toggle('on', scrollTop() > view.backTopAt);
   }
   opts.scrollEl.addEventListener('scroll', onScroll, { passive: true });
   backTop.addEventListener('click', function () {

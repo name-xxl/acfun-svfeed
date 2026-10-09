@@ -15,7 +15,26 @@
 document.cookie = 'auth_key=42_deadbeef'; // ui.selfUid：auth_key 前缀=uid
 window.__ACSV_CARD_CALLS__ = 0;
 window.__ACSV_HIST_CALLS__ = 0;
-window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
+  // 动态 tab 数据源（0.9.218）：feed/profile 三合一混排夹具（rt10 动态 / rt2 视频 / rt3 文章）。
+  // createTime 一律取 5h 前以上 ⇒ 不进新鲜度回填名单（免得触发 moment/detail 真请求打穿 mock）
+  'feed/profile': {
+    result: 0, pcursor: 'no_more',
+    feedList: [
+      { resourceType: 10, resourceId: 5104362, createTime: Date.now() - 5 * 3600 * 1000,
+        moment: { momentId: '5104362', text: '自己的动态正文' },
+        user: { userId: 42, userName: '测试用户', userHead: '' },
+        likeCount: 1, commentCount: 2, bananaCount: 3 },
+      { resourceType: 2, resourceId: 488900, createTime: Date.now() - 6 * 3600 * 1000,
+        caption: '动态流里的视频', playDuration: '00:11', viewCount: 5,
+        user: { userId: 42, userName: '测试用户', userHead: '' } },
+      { resourceType: 3, resourceId: 48879687, createTime: Date.now() - 7 * 3600 * 1000,
+        articleTitle: '动态流里的文章', beginParagraph: '摘要',
+        user: { userId: 42, userName: '测试用户', userHead: '' } },
+      { resourceType: 1, resourceId: 1 } // 直播：契约层过滤，不渲染
+    ]
+  }
+});
 // 播放层条目直挂缝（webm 套 hls 会死在解析）。0.9.82 起值可为对象 {id,name,head,delay}：
 // 连带模拟 douga/info 回包的作者部分（真实回包走 user.headUrl，见 my-sample 的实测形状）。
 // delay 模拟网络往返，让"面板首帧的作者 → 回包后被详情覆写"这条状态转移真能被观测到
@@ -57,6 +76,27 @@ rec('me-card', !!(await waitFor(function () {
 }, 8000)));
 rec('me-card-id-sign', /UID：42/.test((q('.acsv-mecard-id') || {}).textContent || '')
   && (q('.acsv-mecard-sign') || {}).textContent === '签名第一行 第二行');
+// ---- 动态 tab（0.9.218 用户裁决：排第 1 且默认落地）----
+// 顺序断言看按钮序列（键序=按钮序的机器证据），默认断言看 panel display + 选中类
+rec('moments-tab-first', (function () {
+  var t = document.querySelectorAll('.acsv-metab');
+  return t.length === 4 && t[0].getAttribute('data-tab') === 'moments' && t[0].classList.contains('on')
+    && q('.acsv-mepanel[data-tab="moments"]').style.display !== 'none'
+    && q('.acsv-mepanel[data-tab="hist"]').style.display === 'none';
+})(), (function () {
+  return [].map.call(document.querySelectorAll('.acsv-metab'), function (b) {
+    return b.getAttribute('data-tab') + (b.classList.contains('on') ? '*' : '');
+  }).join(',');
+})());
+// 三合一混排渲染（复用广场行卡管线）：动态=正文行卡 / 视频+文章=内容条；直播条被契约层滤掉
+rec('moments-rows', !!(await waitFor(function () {
+  var rows = document.querySelectorAll('.acsv-mepanel[data-tab="moments"] .acsv-frow');
+  return rows.length === 3 && !!rows[0].querySelector('.acsv-frow-text')
+    && !!rows[1].querySelector('.acsv-frow-strip') && !!rows[2].querySelector('.acsv-frow-strip');
+}, 8000)), 'rows=' + document.querySelectorAll('.acsv-mepanel[data-tab="moments"] .acsv-frow').length);
+// 切回历史：本场景余下断言（惰性建面板/保状态/播放层）全按「历史是活动 tab」写
+var tabHist0 = q('.acsv-metab[data-tab="hist"]');
+if (tabHist0) tabHist0.click();
 // 网格卡：历史首屏 18 条；骨架已清（独立类名，绝不与卡片计数选择器同构）
 rec('hist-cards', !!(await waitFor(function () {
   var cells = document.querySelectorAll('.acsv-vlist.hist .acsv-gcell');
@@ -1154,6 +1194,10 @@ function coverBox(title) {
   }
   return null;
 }
+// 0.9.218：「动态」成了我的页默认 tab ⇒ 本场景（只测封面策略，数据源 browse/history/list）
+// 必须先切到「观看历史」再断言；顺带钉 tab 就绪（不点就查 .acsv-vlist.hist 会全空）
+rec('cover-tab-ready', !!(await waitFor(function () { return !!q('.acsv-metab[data-tab="hist"]'); }, 10000)));
+q('.acsv-metab[data-tab="hist"]').click();
 rec('cover-cards', !!(await waitFor(function () {
   return document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 3;
 }, 10000)));
@@ -1206,6 +1250,9 @@ rec('cover-exit', !!(await waitFor(function () {
   return location.hash === '#svfeed' && document.querySelectorAll('.acsv-view').length === 0;
 }, 8000)), location.hash + ' views=' + document.querySelectorAll('.acsv-view').length);
 location.hash = 'svfeed/my';
+// 0.9.218：视图重建后默认落「动态」⇒ 本场景须再切回「观看历史」（同首进处置）
+rec('cover-reenter-tab', !!(await waitFor(function () { return !!q('.acsv-metab[data-tab="hist"]'); }, 10000)));
+q('.acsv-metab[data-tab="hist"]').click();
 rec('cover-reenter', !!(await waitFor(function () {
   return document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 3;
 }, 10000)));

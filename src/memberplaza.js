@@ -42,8 +42,10 @@ function setAutoFlag(v) {
   try { if (typeof GM_setValue === 'function') GM_setValue(AUTO_KEY, v); } catch (e) { }
 }
 
-// 行右上 am 号锚（plaza 原物）：宿主侧后处理——rowkit 行卡本体不动，仅内嵌宿主消费
-function addAmAnchor(row, pi) {
+// 行右上 am 号锚（plaza 原物）：宿主侧后处理——rowkit 行卡本体不动，仅内嵌宿主消费。
+// 0.9.218 起导出：空间页「动态」标签（spacemoments）共用同一份（两处原生页宿主单源，
+// 免得第二份「看着一样」的锚实现）
+export function addAmAnchor(row, pi) {
   if (!pi || pi.ct !== 'moment' || !pi.momentId) return;
   var a = el('a', 'acsv-mp-am', 'am' + pi.momentId);
   a.href = CFG.api.momentBase + pi.momentId;

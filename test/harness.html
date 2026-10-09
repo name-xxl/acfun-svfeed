@@ -32,6 +32,7 @@
 <script src="cases/boot.js"></script>
 <script src="cases/settings.js"></script>
 <script src="cases/member.js"></script><!-- 0.9.128 原生 /member 页内嵌广场（入口注入/就地展开/浅色皮肤/无壳浮层） -->
+<script src="cases/space.js"></script><!-- 0.9.218 原生 /u/ 空间页「动态」标签注入（位次/切换/惰性/浅色补丁） -->
 <script src="cases/relation.js"></script><!-- 0.9.142 关注分组全闭环（我的页分组 tab + rail 分组选择层） -->
 <script src="cases/favfolders.js"></script><!-- 0.9.143 收藏夹全闭环（rail 选择层 + 我的页夹管理） --><!-- 0.9.142 关注分组全闭环（我的页分组 tab + rail 分组选择层） -->
 <script>
@@ -41,7 +42,7 @@
   // 不自动挂壳的场景（0.9.128）：在**无壳**条件下验证原生页行为（boot 分流/入口注入/内嵌）。
   // 该名单约束两处：run() 不等待 #acsv-root 挂载（无壳=场景前提，由场景体自证）；文末不强制
   // hash='svfeed'（否则会把壳意外挂起来）
-  var NO_AUTOMOUNT = ['member-plaza'];
+  var NO_AUTOMOUNT = ['member-plaza', 'space-moments'];
   // 官方 weblog 管道 stub：debug 构建 unsafeWindow===window，reportLeave 读 window.weblog。
   // 所有场景无条件 stub——非 home 场景 cap.watchReport=false 不会触达；调用记录供断言
   window.__WL_CALLS = [];
@@ -175,7 +176,9 @@
     'boot-home': '/',             // 首页：全量初始化（样式先就位）
     'boot-video': '/v/ac99999999', // 视频页：仅基础设施（全量 CSS 不得注入）
     // 0.9.128 原生个人中心：/member/feeds 页面类型分流 + 无壳前提（配合下文 NO_AUTOMOUNT）
-    'member-plaza': '/member/feeds'
+    'member-plaza': '/member/feeds',
+    // 0.9.218 原生空间页：/u/<uid> 分流（pagekind=member ⇒ boot 走空间页注入分支）
+    'space-moments': '/u/12345'
   };
   if (BOOT_PATH[CASE]) {
     try { history.replaceState(null, '', BOOT_PATH[CASE] + location.search + location.hash); } catch (e) { }
