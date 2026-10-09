@@ -140,7 +140,9 @@ export function createSquareFeed(opts) {
           return backfillRow(row, pi.momentId);
         });
       }
-    }, { root: opts.scrollEl === window ? null : opts.scrollEl, rootMargin: '200px' }); // window 滚动用视口当 root
+    }, { rootMargin: '200px' }); // **root=视口**（对齐本项目三个既有 IO 先例：评论哨兵/图片懒加载/搜索哨兵；
+    // 此前传 `root: 视图体元素` ⇒ **在本 harness 里回调不触发**（真机因滚出来的后续页照样补，所以没暴露）；
+    // 语义上"进入视口"本就该以视口为准，且**两种滚动方言都适用**（window 或元素滚动，行可见即补）
   }
   function armBackfill(row) { if (bfIO) bfIO.observe(row); }
 
