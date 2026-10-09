@@ -19,6 +19,13 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 - **本批遗留（下一单元）**：① 退役 3h 那套（`freshIds`/`freshMs`/`refreshOne` 与两处页规整里的新鲜度判定
   + 相应单测）；② `view-square` 里两条旧契约断言（`square-fresh-inject` 改视口口径 / `square-fresh-skip-old`
   删）—— 现在它们仍绿是因为"3h 与视口两路并存、`_bf` 防重复"，退役时必须同步改。
+- **⚠ 退役的前置阻塞（本轮试过并回退，务必先修）**：**IO 路在"首屏可见行"上不触发**——把 3h 那套摘掉后
+  `bf-viewport` 的 `bf-first-row` 与 `view-square` 的 `square-fresh-inject` **双双转红**（首屏行无人回填）；
+  说明此前"首屏绿"其实是**3h 那条路**在做，IO 路只在**滚动后**（行因滚动进入视口）才生效。
+  修法候选（下一轮先试这个再退役）：① 行**等布局完成再 observe**（把 `bfIO.observe(row)` 包进
+  `requestAnimationFrame`，避开"观察时行尚无尺寸"）；② **首屏主动兜一次扫描**（首拉完成后对
+  `list.querySelectorAll('.acsv-frow')` 逐行 `armBackfill`，靠 `_bf`/`unobserve` 幂等）。
+  验收＝`bf-viewport` 在**没有 3h 那套**的前提下仍全绿（首屏行 + 老条目 + 每行一次三条都要绿）。
 
 ### 0.9.228（2026-10-10）· 动态流回填统一为「视口渐进」——四处一处改，老条目也有表情
 
