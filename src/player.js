@@ -292,30 +292,68 @@ function setActive(idx) {
   }
 }
 
-// 落地：把视口移到 idx 那张，并保证「落点就是它」（0.9.74）。
+// 落地：把视口移到 idx 那张，并保证「落点就是它」（0.9.74；0.9.216 近跳归队远跳链路）。
 //  - 舞台不可见时由 scrollToIndex 推迟调用：视图态 scroller 无布局盒，offsetTop 恒 0
 //    ⇒ 旧行为静默滚回第一条（命中缓冲的同步跳最常踩）
-//  - 远跳（|Δ|>1）用瞬时落位：跨多条平滑滚动期间泵流补渲染/强制吸附点都会截断动画，
-//    落点漂移成"停在目标上方几条"；近跳（箭头/连播 Δ=1）保持 smooth，手感与旧版零变化
-//  - 远跳落地后连续两帧复量回正一次（补插 slide 会让内容整体平移、像素锚点不动）；
+//  - 远近跳统一瞬时落位+两帧 settle：近跳旧走 smooth，会被一次「auto 瞬时滚动」无声撕掉
+//    （0.9.216 探针实测：auto 落笔即撕，scroll 事件一次不发，停在半途；而飞行中换壳/
+//    排序重排 52 次、途经 snap-stop:always 都掐不断 smooth——旧「重排掐断」推断被推翻）。
+//    游标在起飞时已同步到新条，撕掉后没有任何机制补吸附（mandatory snap 只对「正在滚动
+//    到吸附点」的滚动生效，对已取消的不补），观感=issue #1「滚动到一半停留」。瞬时落位
+//    无动画可撕，天然免疫；两帧 settle 补落位后微任务链补渲染的漂移，守卫与远跳同款
+//  - 落地后连续两帧复量回正一次（补插 slide 会让内容整体平移、像素锚点不动）；
 //    用户自己滚过（偏离超过半屏）立即放弃，不跟手势抢
 var landTimer = null;
 function landAt(idx, near) {
+  // 0.9.216 诊断：近/远落位各计一笔。用户在真机上「切换视频」走不走脚本这条路，全靠它
+  // 自证——滚轮/触摸走原生滚动，根本不到这里（`land.near` 恒 0 即「不走脚本」）
+  stat(near ? 'land.near' : 'land.far');
   var slide = slideAt(idx);
   if (!slide) return;
   var target = slide.offsetTop;
-  scroller.scrollTo({ top: target, behavior: near ? 'smooth' : 'auto' });
+  scroller.scrollTo({ top: target, behavior: 'auto' });
   setActive(idx);
-  if (near) return;
-  var tries = 2;
+  // settle 窗口 8 帧（~133ms）：盖过 0.9.74 landWhenVisible 轮询间隔（16ms）那类「auto
+  // 撕 smooth」的落笔延迟——0.9.216 探针实测撕扯发生在起飞后 16ms，两帧 settle 早已退场。
+  // 不设「偏离<半屏」上界：被撕回旧条时偏离恰是一整屏，上界守卫会天然拒修（探针实锤）；
+  // 「不跟手势抢」由 land.stuck 探测器的用户滚动时间戳兜底，settle 本身只管钉目标
+  var tries = 8;
   (function settle() {
     if (!scroller || tries-- <= 0) return;
     var s = slideAt(idx);
     if (!s) return;
     var d = s.offsetTop - scroller.scrollTop;
-    if (Math.abs(d) > 2 && Math.abs(d) < scroller.clientHeight / 2) scroller.scrollTop = s.offsetTop;
+    if (Math.abs(d) > 2) scroller.scrollTop = s.offsetTop;
     requestAnimationFrame(settle);
   })();
+}
+
+// 半屏停留探测器（0.9.216 诊断；debug 构建专用，release 整块死码消除）。
+// issue #1「切换后滚动到一半停留」= 视口静止在两个吸附点之间。0.9.216 探针实测（p7）：
+// smooth 在途被一次 auto 滚动撕掉 ⇒ 视口停在非吸附点（实测 150→30、450→398）且
+// **永久不吸附**（2s 后仍在原处）；而纯程序化赋值到非吸附点会被 snap 吸回（实测 150→2）
+// ——「被撕掉的在途滚动」绕过了 snap 的滚动结束吸附。这是现象可被独立观测的根据：
+// 每 600ms 采一次，连续两次 scrollTop 不动（真静止，排除动画/惯性）且不落在任何 slide
+// 的 offsetTop（±2）⇒ stat('land.stuck')。用户正常刷即可，读数非零＝现象存在（修复版恒 0）
+if (__ACSV_DEBUG__) {
+  // 装机标记：判读时先看它——`land.watch` 缺失即「含探测器的构建根本没装」（打点只在
+  // 命中时建键，stuck 缺失本身分不清"没现象"还是"没这代码"，0.9.216 真机排查连栽在此）
+  stat('land.watch');
+  setInterval(function () {
+    if (!scroller || !FeedStore.items.length) return;
+    var a = scroller.scrollTop;
+    setTimeout(function () {
+      if (!scroller) return;
+      if (Math.abs(scroller.scrollTop - a) > 2) return; // 还在动（动画/惯性）
+      if (Date.now() - (window.__acsvLastInput || 0) < 900) return; // 手势刚收，吸附未落
+      var st = scroller.scrollTop, kids = scroller.children, onSnap = false;
+      for (var i = 0; i < kids.length; i++) {
+        var c = kids[i];
+        if (c.dataset && c.dataset.idx != null && Math.abs(c.offsetTop - st) <= 2) { onSnap = true; break; }
+      }
+      if (!onSnap) stat('land.stuck');
+    }, 260);
+  }, 600);
 }
 
 // 视图态下 scroller 无布局盒：等它回来再落地（16ms 轮询，上限约 1s；期间离开流由 slideAt 兜底放弃）

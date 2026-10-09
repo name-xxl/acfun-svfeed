@@ -112,6 +112,7 @@ rec('home-first-playing', !!(await waitFor(function () { return firstVideoReady(
 var f = feed();
 rec('home-resolved', !!(f && f.items[0] && f.items[0].hasUrls));
   };
+
   // ---- fastswipe ----
   C['fastswipe'] = async function (h) {
     var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
@@ -128,6 +129,68 @@ Array.prototype.forEach.call(vids2, function (v) {
 rec('video-count-capped', vids2.length <= 3, 'count=' + vids2.length + ' cur=' + c);
 rec('only-current-plays', others === 0, 'othersPlaying=' + others);
   };
+
+  // ---- land-near（0.9.216：近跳落点不变式 + repeat 守卫；issue #1「滚半屏停留」） ----
+  C['land-near'] = async function (h) {
+    var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
+      waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, finish = h.finish;
+    rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+    // 0.9.216 探针实测：smooth 飞行中一次「auto 瞬时滚动」会无声撕掉动画（scroll 事件
+    // 不发、停在半途、mandatory snap 对已取消的滚动不补吸附）——issue #1「滚半屏停留」
+    // 的机制原型。近跳归队远跳链路（瞬时落位+两帧 settle）后，同窗口的 auto 落笔不再
+    // 能撕掉任何东西（动画本就不存在），落点钉死在目标顶
+    key('ArrowDown');
+    await wait(16); // 复刻 0.9.74 landWhenVisible 的轮询间隔：auto 撕 smooth 的历史窗口
+    q('.acsv-scroller').scrollTo({ top: 0, behavior: 'auto' }); // 撕 smooth 的那次落笔（旧病灶模拟）
+    rec('land-near-after-auto-tear', !!(await waitFor(function () {
+      var sl = slide(1), sc = q('.acsv-scroller');
+      return sl && sc && Math.abs(sl.offsetTop - sc.scrollTop) <= 2;
+    }, 4000)), (function () {
+      var sl = slide(1), sc = q('.acsv-scroller');
+      return sl && sc ? 'd=' + Math.round(sl.offsetTop - sc.scrollTop) : 'no-slide';
+    })());
+    rec('land-stuck-zero', (window.__ACSV_TEST__.getStats()['land.stuck'] || 0) === 0,
+      'land.stuck=' + (window.__ACSV_TEST__.getStats()['land.stuck'] || 0));
+    // 用户输入时间戳：滚轮必留痕（落点复核「跟不跟手势抢」的判据）
+    var t0 = window.__acsvLastInput || 0;
+    window.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
+    rec('input-stamp-wheel', (window.__acsvLastInput || 0) > t0);
+    // 键盘 repeat 不再触发连翻（0.9.216：repeat 重发导航会在飞行中段打断重发）：
+    // 首发起飞后 repeat 连发 3 次，游标与视口必须停在 2 不再前进
+    key('ArrowDown');
+    var held = 0;
+    for (var ri = 0; ri < 3; ri++) {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', repeat: true, bubbles: true }));
+      held++;
+    }
+    await wait(1200); // 等足一次近跳的落位+settle 周期
+    rec('key-repeat-no-advance', (function () {
+      var sl = slide(2), sc = q('.acsv-scroller');
+      return held === 3 && cur() === 2 && sl && sc && Math.abs(sl.offsetTop - sc.scrollTop) <= 2;
+    })(), 'cur=' + cur() + (function () {
+      var sl = slide(2), sc = q('.acsv-scroller');
+      return sl && sc ? ' d=' + Math.round(sl.offsetTop - sc.scrollTop) : ' no-slide';
+    })());
+    // 半屏停留探测器有效性（0.9.216）：临时解除吸附造出「静止在非吸附点」（真实病灶态
+    // ——在途滚动被 auto 撕掉后静态停在非吸附点、snap 不补——已由 0.9.216 探针 p7 实测
+    // 钉死，这里只验探测器本身不哑：判据连栽过三坑——收 keydown 自拦、拿 cur 判跳过正主、
+    // landSeq 让连续切换全废）。解除吸附后 scrollTop 能稳定停在两吸附点之间，探测器应记一笔
+    var stuck0 = window.__ACSV_TEST__.getStats()['land.stuck'] || 0;
+    var sc2 = q('.acsv-scroller');
+    sc2.style.scrollSnapType = 'none';
+    sc2.scrollTop = Math.round(sc2.clientHeight * 1.5);
+    rec('land-stuck-detected', !!(await waitFor(function () {
+      return (window.__ACSV_TEST__.getStats()['land.stuck'] || 0) > stuck0;
+    }, 4000)), 'stuck=' + (window.__ACSV_TEST__.getStats()['land.stuck'] || 0)
+      + ' top=' + Math.round(sc2.scrollTop) + ' h=' + sc2.clientHeight);
+    sc2.style.scrollSnapType = '';
+    // 落位调用计数（0.9.216 诊断）：近跳走脚本这条路必留痕（本场景共发起 2 次近跳）——
+    // 真机上「land.near 恒 0」即用户根本没走 landAt（滚轮/触摸原生滚动），排查方向整体换
+    rec('land-call-counted', (window.__ACSV_TEST__.getStats()['land.near'] || 0) >= 2,
+      'land.near=' + (window.__ACSV_TEST__.getStats()['land.near'] || 0));
+    finish();
+  };
+
   // ---- resolvefail ----
   C['resolvefail'] = async function (h) {
     var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,

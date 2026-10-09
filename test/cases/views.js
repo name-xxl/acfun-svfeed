@@ -1336,11 +1336,12 @@ rec('imview-esc-drawer', !!(await waitFor(function () {
 }, 5000)));
 rec('imview-view-kept', q('.acsv-view').offsetParent !== null
   && location.hash === (IMV_WIDE ? '#svfeed/my' : '#svfeed/zone'), location.hash);
-await wait(400); // 过渡回落
-rec('imview-restored', (function () {
+// 过渡回落：等正文右缘恢复满宽（抽屉 .28s 过渡 + 并发池负载下时机不定，固定 wait 会
+// 量到过渡中间态而假红——改成等稳定，最终不恢复仍会超时判红，诊断力不变）
+rec('imview-restored', !!(await waitFor(function () {
   var b = q('.acsv-view-body');
   return !!b && Math.abs(b.getBoundingClientRect().right - window.innerWidth) <= 2;
-})(), (function () {
+}, 5000)), (function () {
   var b = q('.acsv-view-body');
   return b ? 'bodyR=' + Math.round(b.getBoundingClientRect().right) + ' vw=' + window.innerWidth : 'n/a';
 })());
@@ -1480,11 +1481,12 @@ rec('imview-esc-drawer', !!(await waitFor(function () {
 }, 5000)));
 rec('imview-view-kept', q('.acsv-view').offsetParent !== null
   && location.hash === (IMV_WIDE ? '#svfeed/my' : '#svfeed/zone'), location.hash);
-await wait(400); // 过渡回落
-rec('imview-restored', (function () {
+// 过渡回落：等正文右缘恢复满宽（抽屉 .28s 过渡 + 并发池负载下时机不定，固定 wait 会
+// 量到过渡中间态而假红——改成等稳定，最终不恢复仍会超时判红，诊断力不变）
+rec('imview-restored', !!(await waitFor(function () {
   var b = q('.acsv-view-body');
   return !!b && Math.abs(b.getBoundingClientRect().right - window.innerWidth) <= 2;
-})(), (function () {
+}, 5000)), (function () {
   var b = q('.acsv-view-body');
   return b ? 'bodyR=' + Math.round(b.getBoundingClientRect().right) + ' vw=' + window.innerWidth : 'n/a';
 })());

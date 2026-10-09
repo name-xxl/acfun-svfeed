@@ -17,6 +17,14 @@ import { getSetting } from './settings.js';
 
 var keyHandler = null, keyUpHandler = null, fsChangeHandler = null, ghostIv = null, pipChangeHandler = null;
 
+// 用户滚动时间戳（0.9.216）：player.js 落点复核的「跟不跟手势抢」判据——打点前 2.2s 内
+// 有滚轮/触摸就视为用户自己在滚，落点不归脚本管。**只认两个原生滚动手势，不收 keydown**：
+// 键盘导航键正是脚本落位的触发源，收进来会让打点自己把自己拦掉（探针实锤：按 ↓ 切换时
+// keydown 先刷时间戳，2s 后的复核必然跳过 ⇒ 打点永不命中）。用户继续按键改游标的场景由
+// 打点的 `FeedStore.current===idx` 判据排除。capture+passive，纯读不改
+window.addEventListener('wheel', function () { window.__acsvLastInput = Date.now(); }, { capture: true, passive: true });
+window.addEventListener('touchstart', function () { window.__acsvLastInput = Date.now(); }, { capture: true, passive: true });
+
 // api: { scrollToIndex, exitFeed, getView, toggleImDrawer, toggleComments, playStep }
 export function setupInputHandlers(api) {
   keyHandler = function (ev) {
@@ -65,10 +73,10 @@ export function setupInputHandlers(api) {
     switch (ev.key) {
       case 'ArrowDown': case 'PageDown': case 'j':
         if (inPlay) { ev.preventDefault(); if (!ev.repeat && api.playStep) api.playStep(1); break; }
-        ev.preventDefault(); api.scrollToIndex(cur + 1); break;
+        ev.preventDefault(); if (!ev.repeat) api.scrollToIndex(cur + 1); break;
       case 'ArrowUp': case 'PageUp': case 'k':
         if (inPlay) { ev.preventDefault(); if (!ev.repeat && api.playStep) api.playStep(-1); break; }
-        ev.preventDefault(); api.scrollToIndex(Math.max(0, cur - 1)); break;
+        ev.preventDefault(); if (!ev.repeat) api.scrollToIndex(Math.max(0, cur - 1)); break;
       case 'ArrowLeft':
         ev.preventDefault();
         (function () {

@@ -91,7 +91,12 @@ function buildOptions(debug, forWatch) {
     target: ['es2018'],
     charset: 'utf8', // 中文文案/CSS 保持原样，不做 \uXXXX 转义
     outfile: debug ? 'acfun-svfeed.debug.user.js' : 'acfun-svfeed.user.js',
-    define: { __ACSV_DEBUG__: debug ? 'true' : 'false', __ACSV_VERSION__: JSON.stringify(V) },
+    // __ACSV_VERSION__ 带 -debug 后缀（0.9.216）：stats.ver 是「装的到底是哪一版」的自证
+    // 通道。此前 debug/release 注入同一个裸 V，读数分不出构建类型（0.9.216 实机排查撞上：
+    // 用户报的 ver 与正式版一字不差，无从判断装的是哪个；且 release 不写 stats，
+    // 读到的还可能是旧 debug 快照的残留）。normVer 在首个 '-' 处截断（release.js），
+    // 更新检查/上报口径零变化；仅 imnative 的启动日志多带个后缀（更好辨认）
+    define: { __ACSV_DEBUG__: debug ? 'true' : 'false', __ACSV_VERSION__: JSON.stringify(debug ? V + '-debug' : V) },
     // esbuild 的 IIFE 外再包一层，让 'use strict' 指令与拆分前的单文件保持一致；
     // 内嵌 hls.js 字符串放在头注释之后、src IIFE 之外（ensureHls 首调时 new Function 编译，挂 window.Hls）
     banner: { js: userscriptHeader(debug) + hlsInline + '\n(function () {\n\'use strict\';' },

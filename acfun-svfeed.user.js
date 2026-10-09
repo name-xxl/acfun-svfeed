@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.215
+// @version      0.9.216
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.215" : "",
+          ver: true ? "0.9.216" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -11812,7 +11812,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.215" : "");
+    return normVer(true ? "0.9.216" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -12794,6 +12794,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var fsChangeHandler = null;
   var ghostIv = null;
   var pipChangeHandler = null;
+  window.addEventListener("wheel", function() {
+    window.__acsvLastInput = Date.now();
+  }, { capture: true, passive: true });
+  window.addEventListener("touchstart", function() {
+    window.__acsvLastInput = Date.now();
+  }, { capture: true, passive: true });
   function setupInputHandlers(api) {
     keyHandler = function(ev) {
       if (!isFeedRoute() || !root) return;
@@ -12834,7 +12840,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
             break;
           }
           ev.preventDefault();
-          api.scrollToIndex(cur + 1);
+          if (!ev.repeat) api.scrollToIndex(cur + 1);
           break;
         case "ArrowUp":
         case "PageUp":
@@ -12845,7 +12851,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
             break;
           }
           ev.preventDefault();
-          api.scrollToIndex(Math.max(0, cur - 1));
+          if (!ev.repeat) api.scrollToIndex(Math.max(0, cur - 1));
           break;
         case "ArrowLeft":
           ev.preventDefault();
@@ -13934,21 +13940,42 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   }
   var landTimer = null;
   function landAt(idx, near) {
+    stat(near ? "land.near" : "land.far");
     var slide = slideAt(idx);
     if (!slide) return;
     var target = slide.offsetTop;
-    scroller.scrollTo({ top: target, behavior: near ? "smooth" : "auto" });
+    scroller.scrollTo({ top: target, behavior: "auto" });
     setActive(idx);
-    if (near) return;
-    var tries2 = 2;
+    var tries2 = 8;
     (function settle() {
       if (!scroller || tries2-- <= 0) return;
       var s = slideAt(idx);
       if (!s) return;
       var d = s.offsetTop - scroller.scrollTop;
-      if (Math.abs(d) > 2 && Math.abs(d) < scroller.clientHeight / 2) scroller.scrollTop = s.offsetTop;
+      if (Math.abs(d) > 2) scroller.scrollTop = s.offsetTop;
       requestAnimationFrame(settle);
     })();
+  }
+  if (false) {
+    stat("land.watch");
+    setInterval(function() {
+      if (!scroller || !FeedStore.items.length) return;
+      var a = scroller.scrollTop;
+      setTimeout(function() {
+        if (!scroller) return;
+        if (Math.abs(scroller.scrollTop - a) > 2) return;
+        if (Date.now() - (window.__acsvLastInput || 0) < 900) return;
+        var st2 = scroller.scrollTop, kids = scroller.children, onSnap = false;
+        for (var i = 0; i < kids.length; i++) {
+          var c = kids[i];
+          if (c.dataset && c.dataset.idx != null && Math.abs(c.offsetTop - st2) <= 2) {
+            onSnap = true;
+            break;
+          }
+        }
+        if (!onSnap) stat("land.stuck");
+      }, 260);
+    }, 600);
   }
   function landWhenVisible(idx, near, tries2) {
     if (!scroller) return;
@@ -15080,7 +15107,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.215：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.216：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

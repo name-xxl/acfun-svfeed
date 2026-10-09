@@ -40,6 +40,9 @@ const HARNESS_CASES = [
   { name: 'layer-list', serial: true  }, // 0.9.173 层内列表会话：榜单/搜索顺序步进 + 右栏 ▲▼ + 分区二选一
   { name: 'jingxuan', serial: true  }, // 0.9.169 分区页：分区网格+自持游标+按行补齐+进播放层
   { name: 'fastswipe', serial: true  },
+  // 0.9.216 近跳落点不变式（issue #1「滚半屏停留」）：spinner 混入 scroller 的排序 sweep
+  // 截断几何 + land.trunc 打点 + 键盘 repeat 守卫——serial（几何判定时序敏感）
+  { name: 'land-near', serial: true  },
   { name: 'feed-slim', serial: true  }, // 0.9.165 水位：远端置瘦 + slide 占位壳 + 划回重解析（40 条夹具）
   { name: 'resolvefail', serial: true, release: true },
   { name: 'prewarm', serial: true  },
