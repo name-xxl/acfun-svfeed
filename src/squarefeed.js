@@ -3,7 +3,7 @@
 // （原生 /member/feeds 内嵌浅色皮肤，滚动源=window）。抽取纪律=逐一搬运零逻辑改动（同
 // rowkit 0.9.124 红线）：五条不变量（append-only/失败不置到底/三态状态行/整页 0 新增判到底/
 // 代数丢弃）、24h 窗口（squarePageOf 收口，0.9.159 起在 momentapi：只出发布 ≤24h 且超窗即终页）、发现态轮询
-//（生命周期=实例存活期，plaza 常驻语义的收窄在案）、新鲜度回填（momentDetail+syncRowBar）
+//（生命周期=实例存活期，plaza 常驻语义的收窄在案）、视口回填（momentDetail+syncRowBar）
 // 全部原样；view-square 场景全绿=零漂移机器证据。
 // 宿主注入：root（sup/列表/状态行落点）/ scrollEl（元素或 window）/ backTopHost（默认 root）/
 // onOpen（行默认动作——视图=开详情面板、内嵌=不动作原页语义）/ onRow（行后处理，内嵌补 am 锚）。
@@ -100,7 +100,6 @@ export function createSquareFeed(opts) {
         noMore = page.noMore || (fresh === 0 && page.items.length > 0);
         pcursor = page.nextCursor;
         armExpanders(list);
-        (page.freshIds || []).forEach(refreshOne); // 新鲜度回填（≤3h 条目，后台静默）
         if (firstPage && !list.children.length && noMore) {
           list.appendChild(el('div', 'acsv-vempty', emptyText));
         }
@@ -135,25 +134,29 @@ export function createSquareFeed(opts) {
         var pi = row._pi;
         if (!pi || !pi.momentId || row._bf) continue;
         row._bf = true;
-        bfQueue = bfQueue.then(function () { // 串行：一个个来（并发 1）
-          if (!row.isConnected || !list.isConnected) return;
-          return backfillRow(row, pi.momentId);
-        });
+        queueBackfill(row, pi.momentId); // **按行传参**：直接在循环里 .then(function(){ 用 row/pi }) 是
+        // `var` 闭包共享绑定——本批所有排队闭包都指向**最后一条** entry，结果每批只补最后一行、
+        // 其余静默漏掉（0.9.230 真凶：harness 首屏 24 行只有第 5 行被补，6 次请求全打在它身上）
       }
     }, { rootMargin: '200px' }); // **root=视口**（对齐本项目三个既有 IO 先例：评论哨兵/图片懒加载/搜索哨兵；
     // 此前传 `root: 视图体元素` ⇒ **在本 harness 里回调不触发**（真机因滚出来的后续页照样补，所以没暴露）；
     // 语义上"进入视口"本就该以视口为准，且**两种滚动方言都适用**（window 或元素滚动，行可见即补）
   }
+  // 串行队列（并发 1）：按行传参封装，闭包绑定的就是本行的 row/mid（见上「真凶」注）
+  function queueBackfill(row, mid) {
+    bfQueue = bfQueue.then(function () {
+      if (!row.isConnected || !list.isConnected) return;
+      return backfillRow(row, mid);
+    });
+  }
   function armBackfill(row) { if (bfIO) bfIO.observe(row); }
 
-  // ---------- 新鲜度回填（0.9.127；plaza _refreshOneMoment 的收窄版） ----------
-  // 免登录列表的 isLike/isThrowBanana 恒 false；≤3h 新鲜条目走 moment/detail 补真值（携带
-  // 登录态），patch 回 pi 并同步互动栏。**0.9.227 起正文也换**：列表端点（feedSquare/feed/profile）
-  // 的 moment.text 是**明文**（表情被服务端剥掉），只有详情端点带 UBB 原文 ⇒ 这次回填是"列表里
-  // 看得见表情"的唯一来源，且**零额外请求**（本来就在拉这一发，此前把 text 丢掉了）。
-  // 失败/行已拆静默（保持列表快照，与 plaza 后台静默纪律一致）
-  // 行级回填（0.9.228 抽出）：拉一次详情 → patch 互动态五件 + **正文**（详情才有 UBB）→ 重绘该行。
-  // 失败静默（保持列表快照）且不重试。
+  // ---------- 行级回填（0.9.227 起；0.9.230 归一到视口触发） ----------
+  // 拉一次详情 → patch 互动态五件 + **正文** → 重绘该行。免登录列表的 isLike/isThrowBanana 恒
+  // false（详情端点带登录态才为真值），patch 回 pi 并同步互动栏。**0.9.227 起正文也换**：列表端点
+  // （feedSquare/feed/profile）的 moment.text 是**明文**（表情被服务端剥掉），只有详情端点带 UBB
+  // 原文 ⇒ 这次回填是"列表里看得见表情"的唯一来源，且**零额外请求**（本来就在拉这一发，此前把
+  // text 丢掉了）。失败静默（保持列表快照，与 plaza 后台静默纪律一致）且不重试，行已拆即放弃。
   function backfillRow(row, mid) {
     return momentDetail(mid).then(function (st) {
       if (!st || !row.isConnected) return;
@@ -179,18 +182,6 @@ export function createSquareFeed(opts) {
     }, function () { });
   }
 
-  // 3h 新鲜度路径（保留到下一批退役）：按 momentId 找行 → 行级回填（打 `_bf` 标，视口那路不重复拉）
-  function refreshOne(mid) {
-    var rows = list.querySelectorAll('.acsv-frow');
-    for (var i = 0; i < rows.length; i++) {
-      var pi = rows[i]._pi;
-      if (pi && pi.momentId === mid) {
-        rows[i]._bf = true;
-        backfillRow(rows[i], mid);
-        return;
-      }
-    }
-  }
 
   // ---------- 发现态轮询（0.9.127；plaza background 语义收窄到实例生命周期） ----------
   // 仅在广场展开期间运转（创建启 / stop 停——不学 plaza 在任意 /member 页常驻）；

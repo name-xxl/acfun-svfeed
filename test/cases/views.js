@@ -2226,24 +2226,18 @@ rec('square-cmt-namecolor', (function () {
     // 裸 .acsv-fstatus 首匹配会是它——底部状态行须 :not(.acsv-sup)
     rec('square-status-done', /已加载全部动态/.test(q('.acsv-fstatus:not(.acsv-sup)').textContent),
       q('.acsv-fstatus:not(.acsv-sup)').textContent);
-    // ---- S3（0.9.127）：新鲜度回填——≤3h 条目走 moment/detail（mock 全亮态）；>3h 保持快照 ----
-    rec('square-fresh-inject', !!(await waitFor(function () {
+    // ---- 回填（0.9.230 口径）：触发＝**进入视口**（旧的 ≤3h 新鲜度那套已退役）——首屏可见行即补，
+    // 老条目只要滚到也补（视口规则一视同仁），细节由独立场景 bf-viewport 覆盖
+    rec('square-vp-inject', !!(await waitFor(function () {
       var like = null, ban = null;
       [].forEach.call(mActs, function (b) { if (b._act === 'like') like = b; if (b._act === 'banana') ban = b; });
       return like && like.classList.contains('on') && like._n.textContent === '9'
         && ban && ban.classList.contains('thrown') && ban._n.textContent === '2';
-    }, 6000)), (function () {
+    }, 12000)), (function () {
       var out = [];
       [].forEach.call(mActs, function (b) { out.push(b._act + '=' + (b._n ? b._n.textContent : '') + (b.classList.contains('on') ? '+on' : '')); });
       return out.join(' ');
     })());
-    var oldRow = null;
-    for (var j = 0; j < rows.length; j++) if (/广场动态3/.test(rows[j].textContent)) oldRow = rows[j];
-    rec('square-fresh-skip-old', !!(oldRow && (function () { // 5h 不在新鲜窗：保持列表快照（like=6 未亮）
-      var like = null;
-      [].forEach.call(oldRow.querySelectorAll('.acsv-fact'), function (b) { if (b._act === 'like') like = b; });
-      return like && !like.classList.contains('on') && like._n.textContent === '6';
-    })()));
     // ---- S3：发现态轮询（testHook 直调一 tick）+ 点击刷新整列重建 ----
     window.__ACSV_SQUARE_EXTRA__ = true; // 首页多出一条「广场动态8」（模拟他人刚发）
     TEST.call('squarePoll');

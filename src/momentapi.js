@@ -36,7 +36,7 @@ export function listProfile(uid, pcursor) {
     .then(profilePageOf);
 }
 
-// 单条动态详情（0.9.127，广场新鲜度回填）：pc-direct 带 Cookie 读——isLike/isThrowBanana
+// 单条动态详情（0.9.127 引入；0.9.230 起唯一触发＝视口回填）：pc-direct 带 Cookie 读——isLike/isThrowBanana
 // 在此才为真值（免登录列表恒 false）。URL 逐字护 mock 缝（moment/detail）；Referer 按
 // plaza 实测形态给（同端点转引 §2.7）；规整走本模块 momentDetailStateOf（0.9.159 自契约层迁入；失败/形状不合→null）
 export function momentDetail(id) {
@@ -66,68 +66,58 @@ export function followVideoPageOf(j) {
   return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
 }
 
-// 广场流单页规整（0.9.125，§2.7 实测；0.9.126 收口 **24h 窗口**；0.9.127 出 **freshIds**）：
-// feedSquare 响应 → {items:[pi], nextCursor, noMore, freshIds}。窗口=广场的原味（plaza：翻到
-// 发布 >24h 即止）——超窗条目逐条剔除且**直接判到底**（首屏/翻页两态同此判据）；freshIds=
-// 窗口内且发布 ≤3h 的 momentId（视图据此走 moment/detail 补互动态真值——免登录列表的
-// isLike/isThrowBanana 恒 false）；**result!==0 = 失败（throw）**——调用方区分「失败可重试」与
-// 「到底」，绝不许把失败当到底；终判 pcursor='no_more'。**纯函数**收口本模块，单测直采
+// 广场流单页规整（0.9.125，§2.7 实测；0.9.126 收口 **24h 窗口**）：feedSquare 响应 →
+// {items:[pi], nextCursor, noMore}——超窗条目逐条剔除且**直接判到底**（首屏/翻页两态同此判据）。
+// 互动态免登录恒 false，真值由视图层**视口回填**补（moment/detail；0.9.228 起视口触发，
+// **0.9.230 起为唯一触发**——≤3h 新鲜度那条路已退役，本函数不再出 freshIds）。
+// **result!==0 = 失败（throw）**——调用方区分「失败可重试」与「到底」，绝不许把失败当到底；
+// 终判 pcursor='no_more'。**纯函数**收口本模块，单测直采
 export function squarePageOf(j) {
   if (!j || j.result !== 0) throw new Error('square-fail');
   var raws = Array.isArray(j.feedList) ? j.feedList : [];
-  var now = Date.now();
-  var cutoff = now - CFG.view.square.windowMs;
+  var cutoff = Date.now() - CFG.view.square.windowMs;
   var items = [];
-  var freshIds = [];
   var crossed = false;
   raws.forEach(function (raw) {
     var t = Number(raw && raw.createTime) || 0;
     if (t && t < cutoff) { crossed = true; return; } // 超 24h 窗口：剔除并标记边界
     var pi = squarePanelOf(raw);
-    if (pi) {
-      items.push(pi); // 契约层过滤（宁漏不错）
-      if (t && now - t <= CFG.view.square.freshMs) freshIds.push(pi.momentId);
-    }
+    if (pi) items.push(pi); // 契约层过滤（宁漏不错）
   });
   var next = j.pcursor != null ? String(j.pcursor) : '';
   var noMore = crossed || next === 'no_more' || !raws.length || !items.length;
-  return { items: items, nextCursor: noMore ? '' : next, noMore: noMore, freshIds: freshIds };
+  return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
 }
 
-// 个人主页动态流单页规整（0.9.218）：feed/profile 响应 → {items:[pi], nextCursor, noMore, freshIds}。
+// 个人主页动态流单页规整（0.9.218）：feed/profile 响应 → {items:[pi], nextCursor, noMore}。
 // 条目形状与 followFeedV2 **同构**（2026-10-09 字段级核对：resourceId / createTime(毫秒) / 三计数 /
 // user(userId,userName,userHead,isFollowing,nameColor) / rt10 的 moment{text,imgs[]} 与 repostSource
 // 全部对得上）⇒ 直接复用契约层的 follow 解析器，**不新增解析器**（单源收口）。
-// **无 24h 窗口**（与 squarePageOf 的关键差异）：历史流照单全收，翻页只认 pcursor/空页/整页滤空；
-// freshIds=≤3h 的动态条目（视图据此走 moment/detail 补互动态真值，与广场同口径）。纯函数，单测直采。
+// **无 24h 窗口**（与 squarePageOf 的关键差异）：历史流照单全收，翻页只认 pcursor/空页/整页滤空。
 export function profilePageOf(j) {
   if (!j || j.result !== 0) throw new Error('profile-fail');
   var raws = Array.isArray(j.feedList) ? j.feedList : [];
-  var now = Date.now();
   var items = [];
-  var freshIds = [];
   raws.forEach(function (raw) {
     var pi = followPanelOf(raw);
     if (!pi) return; // 契约层过滤（宁可漏不错）：三类之外的 resourceType 一概不接
     items.push(pi);
-    var t = Number(raw && raw.createTime) || 0;
-    if (pi.ct === 'moment' && t && now - t <= CFG.view.moments.freshMs) freshIds.push(pi.momentId);
   });
   var next = j.pcursor != null ? String(j.pcursor) : '';
   // 到底判据：终页标记 / 空页 / 整页被契约层滤空（后端游标未推进时由工厂的"整页 0 新增"安全阀兜住）
   var noMore = next === 'no_more' || !raws.length || !items.length;
-  return { items: items, nextCursor: noMore ? '' : next, noMore: noMore, freshIds: freshIds };
+  return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
 }
 
 // 单条动态详情状态（0.9.127，moment/detail 回填用；字段名 plaza 实测转引 §2.7）：只为
-// 「新鲜条目互动态回填」取五件——moment 对象上的 likeCount/commentCount/bananaCount 与
+// 「回填」取五件——moment 对象上的 likeCount/commentCount/bananaCount 与
 // isLike/isThrowBanana（详情才带登录态）。失败/形状不合返回 null，调用方静默保持列表快照
 export function momentDetailStateOf(j) {
   if (!j || j.result !== 0 || !j.moment) return null;
   var mo = j.moment;
   return {
     // 正文（0.9.227 增收）：**详情端点才带 UBB 原文**（列表端点 feedSquare/feed/profile 的
-    // moment.text 是明文、表情被剥）⇒ 这一项是"列表里能看见表情"的唯一来源，见 squarefeed.refreshOne
+    // moment.text 是明文、表情被剥）⇒ 这一项是"列表里能看见表情"的唯一来源，见 squarefeed.backfillRow
     text: String(mo.text || ''),
     liked: !!mo.isLike,
     thrown: !!mo.isThrowBanana,

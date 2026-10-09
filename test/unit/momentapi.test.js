@@ -42,7 +42,6 @@ test('squarePageOf：单页规整——result!==0 抛错（失败≠到底）；
   assert.equal(page.items.length, 2);
   assert.equal(page.nextCursor, '1790824871458:1790824871458');
   assert.equal(page.noMore, false);
-  assert.deepEqual(page.freshIds, [1, 2]); // ≤3h 新鲜（createTime=Date.now()）——回填名单
   var end = squarePageOf({
     result: 0, pcursor: 'no_more',
     feedList: [{ resourceType: 10, moment: { momentId: '3', text: 'c' }, user: {} }]
@@ -64,7 +63,6 @@ test('squarePageOf：单页规整——result!==0 抛错（失败≠到底）；
   assert.equal(win.items[0].momentId, 11);
   assert.equal(win.noMore, true); // 超窗=边界即止（nextCursor 作废）
   assert.equal(win.nextCursor, '');
-  assert.deepEqual(win.freshIds, [11]); // 窗内且 ≤3h 才进回填名单
 });
 
 // ---------- profilePageOf（0.9.218 个人主页动态流） ----------
@@ -114,8 +112,6 @@ test('profilePageOf：三合一混排逐类派发；复用的 follow 解析器�
   assert.equal(a.desc, '摘要');                 // beginParagraph
   assert.equal(page.nextCursor, '1788235590159');
   assert.equal(page.noMore, false);
-  // freshIds：只收 ≤3h 的动态（视频/文章不进回填名单）
-  assert.deepEqual(page.freshIds, [5104362]);
 });
 
 test('profilePageOf：**无 24h 窗口**——老动态照收且不判到底（与 squarePageOf 的关键差异）', () => {
@@ -132,7 +128,6 @@ test('profilePageOf：**无 24h 窗口**——老动态照收且不判到底（�
   assert.equal(page.items.length, 2);        // 老动态必须照收（摘掉"无窗口"即转红）
   assert.equal(page.noMore, false);          // 且不得因此判到底
   assert.equal(page.nextCursor, '1786000000000');
-  assert.deepEqual(page.freshIds, []);       // 都不新鲜：不进回填名单
 });
 
 test('profilePageOf：失败可辨（result!==0/null 抛错）；no_more/空页/整页滤空判到底', () => {

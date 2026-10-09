@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.229
+// @version      0.9.230
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.229" : "",
+          ver: true ? "0.9.230" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -198,7 +198,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       // 动态广场（0.9.125，广场页数据源；实测依据 docs/api-research.md §2.7）：api-new APP 域、
       // **免登录免 header**、单页固定 20（count 被忽略）、**首页不传 pcursor**（游标形态
       // `时间戳:时间戳`）、终页 'no_more'、历史深度约 53h；服务端已过滤转发（1000 条样本全
-      // type10）；**isLike/isThrowBanana 无登录态恒 false**（新鲜度刷新在视图层补偿）
+      // type10）；**isLike/isThrowBanana 无登录态恒 false**（互动态真值由视图层**视口回填**补，0.9.230）
       feedSquare: "https://api-new.app.acfun.cn/rest/app/feed/feedSquare",
       // UP 个人主页动态流（0.9.218，我的页「动态」标签 + 空间页注入数据源；实测 docs §10.1 字段级核对）：
       // api-new APP 域、**免登录**（credentials:omit 裸调 result:0）、任意 uid 可读；**三合一混排**
@@ -213,7 +213,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       // URL 字面量逐字=harness mock 缝（'moment/add' / 'moment/delete'）
       momentAdd: "https://api-new.app.acfun.cn/rest/app/moment/add",
       momentDelete: "https://api-new.app.acfun.cn/rest/app/moment/delete",
-      // 单条动态详情（0.9.127 广场新鲜度回填；plaza 同端点实测转引 §2.7）：pc-direct 带 Cookie
+      // 单条动态详情（0.9.127 引入、0.9.230 归一到视口回填；plaza 同端点实测转引 §2.7）：pc-direct 带 Cookie
       // 读——列表（feedSquare 免登录）互动态恒 false，此端点才给真 isLike/isThrowBanana
       momentDetail: "https://www.acfun.cn/rest/pc-direct/moment/detail",
       // 相关推荐（0.9.167，评论抽屉「相关推荐」tab + 随机游走泵数据源；实测 docs/api-research.md
@@ -434,14 +434,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         backTopAt: 300
         // 距顶多少 px 显示回顶按钮（借鉴广场 BACK_TOP_THRESHOLD）
       },
-      // 广场视图（0.9.126）：全站最新动态流——24h 窗口 + 新鲜度刷新 + 发现态轮询
+      // 广场视图（0.9.126）：全站最新动态流——24h 窗口 + 视口回填 + 发现态轮询
       square: {
         skel: 12,
         // 首屏骨架行数（与关注视图同量级）
         windowMs: 24 * 3600 * 1e3,
         // 向下翻页截止：只展示发布 ≤24h（plaza DOWN_STOP_AFTER_MS 语义）
-        freshMs: 3 * 3600 * 1e3,
-        // 新鲜窗口：≤3h 条目走 moment/detail 补互动态（S3）
         scrollPad: 300,
         // 无限滚动触底提前量（同 follow）
         backTopAt: 300
@@ -455,8 +453,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         // 首屏骨架行数（同 follow/square）
         count: 20,
         // 单页条数（端点对 count 生效，实测 10/20 直出）
-        freshMs: 3 * 3600 * 1e3,
-        // 新鲜窗口：≤3h 条目走 moment/detail 补互动态（同广场口径）
         scrollPad: 300,
         // 无限滚动触底提前量
         backTopAt: 300
@@ -5374,7 +5370,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     // followFeedV2 动态条目**不同构**——无 resourceId（momentId 嵌在 moment.momentId 字符串）、
     // 无转发源（服务端已过滤，v3.3.0 起 1000 条样本 resourceType 全 10）、createTime 是**绝对
     // 毫秒**；user/userInfo 两形状归一。互动态在条目顶层但免登录恒 false——解析层照收不虚改，
-    // 新鲜度刷新（≤3h 走 moment/detail）补偿在视图层
+    // 互动态回填（moment/detail）补在视图层（0.9.230 起触发＝进入视口）
     square: function(raw, it) {
       if (!raw || raw.resourceType !== 10) return false;
       var u = raw.user || raw.userInfo || {};
@@ -5506,10 +5502,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function squarePageOf(j) {
     if (!j || j.result !== 0) throw new Error("square-fail");
     var raws = Array.isArray(j.feedList) ? j.feedList : [];
-    var now = Date.now();
-    var cutoff = now - CFG.view.square.windowMs;
+    var cutoff = Date.now() - CFG.view.square.windowMs;
     var items = [];
-    var freshIds = [];
     var crossed = false;
     raws.forEach(function(raw) {
       var t = Number(raw && raw.createTime) || 0;
@@ -5518,38 +5512,31 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         return;
       }
       var pi = squarePanelOf(raw);
-      if (pi) {
-        items.push(pi);
-        if (t && now - t <= CFG.view.square.freshMs) freshIds.push(pi.momentId);
-      }
+      if (pi) items.push(pi);
     });
     var next = j.pcursor != null ? String(j.pcursor) : "";
     var noMore = crossed || next === "no_more" || !raws.length || !items.length;
-    return { items, nextCursor: noMore ? "" : next, noMore, freshIds };
+    return { items, nextCursor: noMore ? "" : next, noMore };
   }
   function profilePageOf(j) {
     if (!j || j.result !== 0) throw new Error("profile-fail");
     var raws = Array.isArray(j.feedList) ? j.feedList : [];
-    var now = Date.now();
     var items = [];
-    var freshIds = [];
     raws.forEach(function(raw) {
       var pi = followPanelOf(raw);
       if (!pi) return;
       items.push(pi);
-      var t = Number(raw && raw.createTime) || 0;
-      if (pi.ct === "moment" && t && now - t <= CFG.view.moments.freshMs) freshIds.push(pi.momentId);
     });
     var next = j.pcursor != null ? String(j.pcursor) : "";
     var noMore = next === "no_more" || !raws.length || !items.length;
-    return { items, nextCursor: noMore ? "" : next, noMore, freshIds };
+    return { items, nextCursor: noMore ? "" : next, noMore };
   }
   function momentDetailStateOf(j) {
     if (!j || j.result !== 0 || !j.moment) return null;
     var mo2 = j.moment;
     return {
       // 正文（0.9.227 增收）：**详情端点才带 UBB 原文**（列表端点 feedSquare/feed/profile 的
-      // moment.text 是明文、表情被剥）⇒ 这一项是"列表里能看见表情"的唯一来源，见 squarefeed.refreshOne
+      // moment.text 是明文、表情被剥）⇒ 这一项是"列表里能看见表情"的唯一来源，见 squarefeed.backfillRow
       text: String(mo2.text || ""),
       liked: !!mo2.isLike,
       thrown: !!mo2.isThrowBanana,
@@ -12742,7 +12729,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.229" : "");
+    return normVer(true ? "0.9.230" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -15648,7 +15635,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         noMore = page.noMore || fresh === 0 && page.items.length > 0;
         pcursor2 = page.nextCursor;
         armExpanders(list);
-        (page.freshIds || []).forEach(refreshOne);
         if (firstPage && !list.children.length && noMore) {
           list.appendChild(el("div", "acsv-vempty", emptyText));
         }
@@ -15675,12 +15661,15 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           var pi = row._pi;
           if (!pi || !pi.momentId || row._bf) continue;
           row._bf = true;
-          bfQueue = bfQueue.then(function() {
-            if (!row.isConnected || !list.isConnected) return;
-            return backfillRow(row, pi.momentId);
-          });
+          queueBackfill(row, pi.momentId);
         }
       }, { rootMargin: "200px" });
+    }
+    function queueBackfill(row, mid) {
+      bfQueue = bfQueue.then(function() {
+        if (!row.isConnected || !list.isConnected) return;
+        return backfillRow(row, mid);
+      });
     }
     function armBackfill(row) {
       if (bfIO) bfIO.observe(row);
@@ -15708,17 +15697,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         }
       }, function() {
       });
-    }
-    function refreshOne(mid) {
-      var rows = list.querySelectorAll(".acsv-frow");
-      for (var i = 0; i < rows.length; i++) {
-        var pi = rows[i]._pi;
-        if (pi && pi.momentId === mid) {
-          rows[i]._bf = true;
-          backfillRow(rows[i], mid);
-          return;
-        }
-      }
     }
     var pollTimer = null, pollClock = 0, pollInterval = 0, pollGen = 0;
     function pollTick() {
@@ -16157,7 +16135,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.229：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.230：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

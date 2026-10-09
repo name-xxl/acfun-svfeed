@@ -101,7 +101,7 @@ export var CFG = {
     // 动态广场（0.9.125，广场页数据源；实测依据 docs/api-research.md §2.7）：api-new APP 域、
     // **免登录免 header**、单页固定 20（count 被忽略）、**首页不传 pcursor**（游标形态
     // `时间戳:时间戳`）、终页 'no_more'、历史深度约 53h；服务端已过滤转发（1000 条样本全
-    // type10）；**isLike/isThrowBanana 无登录态恒 false**（新鲜度刷新在视图层补偿）
+    // type10）；**isLike/isThrowBanana 无登录态恒 false**（互动态真值由视图层**视口回填**补，0.9.230）
     feedSquare: 'https://api-new.app.acfun.cn/rest/app/feed/feedSquare',
     // UP 个人主页动态流（0.9.218，我的页「动态」标签 + 空间页注入数据源；实测 docs §10.1 字段级核对）：
     // api-new APP 域、**免登录**（credentials:omit 裸调 result:0）、任意 uid 可读；**三合一混排**
@@ -116,7 +116,7 @@ export var CFG = {
     // URL 字面量逐字=harness mock 缝（'moment/add' / 'moment/delete'）
     momentAdd: 'https://api-new.app.acfun.cn/rest/app/moment/add',
     momentDelete: 'https://api-new.app.acfun.cn/rest/app/moment/delete',
-    // 单条动态详情（0.9.127 广场新鲜度回填；plaza 同端点实测转引 §2.7）：pc-direct 带 Cookie
+    // 单条动态详情（0.9.127 引入、0.9.230 归一到视口回填；plaza 同端点实测转引 §2.7）：pc-direct 带 Cookie
     // 读——列表（feedSquare 免登录）互动态恒 false，此端点才给真 isLike/isThrowBanana
     momentDetail: 'https://www.acfun.cn/rest/pc-direct/moment/detail',
     // 相关推荐（0.9.167，评论抽屉「相关推荐」tab + 随机游走泵数据源；实测 docs/api-research.md
@@ -283,11 +283,10 @@ export var CFG = {
                           // 提前量大些，避免用户看到加载停顿；评论区 80 是小容器场景）
       backTopAt: 300      // 距顶多少 px 显示回顶按钮（借鉴广场 BACK_TOP_THRESHOLD）
     },
-    // 广场视图（0.9.126）：全站最新动态流——24h 窗口 + 新鲜度刷新 + 发现态轮询
+    // 广场视图（0.9.126）：全站最新动态流——24h 窗口 + 视口回填 + 发现态轮询
     square: {
       skel: 12,                    // 首屏骨架行数（与关注视图同量级）
       windowMs: 24 * 3600 * 1000,  // 向下翻页截止：只展示发布 ≤24h（plaza DOWN_STOP_AFTER_MS 语义）
-      freshMs: 3 * 3600 * 1000,    // 新鲜窗口：≤3h 条目走 moment/detail 补互动态（S3）
       scrollPad: 300,              // 无限滚动触底提前量（同 follow）
       backTopAt: 300               // 回顶按钮显隐阈值（同 follow）
     },
@@ -297,7 +296,6 @@ export var CFG = {
     moments: {
       skel: 12,                    // 首屏骨架行数（同 follow/square）
       count: 20,                   // 单页条数（端点对 count 生效，实测 10/20 直出）
-      freshMs: 3 * 3600 * 1000,    // 新鲜窗口：≤3h 条目走 moment/detail 补互动态（同广场口径）
       scrollPad: 300,              // 无限滚动触底提前量
       backTopAt: 300               // 回顶按钮显隐阈值
     },

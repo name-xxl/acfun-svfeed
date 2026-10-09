@@ -1,9 +1,9 @@
 // ---------- 广场视图（0.9.126，吸收动态广场；0.9.128 列表机械抽 squarefeed） ----------
 // 数据源=feedSquare（免登录，§2.7 实测）——与关注·全部页的差异全在「方言」：游标首页不传
 // （续翻用响应的 `时间戳:时间戳`）、**24h 窗口**（squarePageOf 收口，0.9.159 起在 momentapi：
-// 只出发布 ≤24h 且超窗即终页——广场的原味）、互动态免登录恒 false（对 ≤3h 新鲜条目走 moment/detail 补偿）。
+// 只出发布 ≤24h 且超窗即终页——广场的原味）、互动态免登录恒 false（真值由视口回填走 moment/detail 补，0.9.230 起唯一触发）。
 // 行卡/列表委托/行内评论全复用 rowkit（与 followview 同源零漂移）；列表机械（加载/五条不
-// 变量/发现态轮询/新鲜度回填/回顶/骨架）收口 **squarefeed 工厂**（0.9.128）——本文件只留
+// 变量/发现态轮询/视口回填/回顶/骨架）收口 **squarefeed 工厂**（0.9.128）——本文件只留
 // 视图外壳：dock 注册、行落点策略、unmount。内嵌宿主（memberplaza）与视图共用同一工厂。
 import { el } from './ui.js';
 import { momentPiOfRepost } from './panelitem.js';

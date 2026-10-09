@@ -244,7 +244,7 @@ var PANEL_PARSERS = {
   // followFeedV2 动态条目**不同构**——无 resourceId（momentId 嵌在 moment.momentId 字符串）、
   // 无转发源（服务端已过滤，v3.3.0 起 1000 条样本 resourceType 全 10）、createTime 是**绝对
   // 毫秒**；user/userInfo 两形状归一。互动态在条目顶层但免登录恒 false——解析层照收不虚改，
-  // 新鲜度刷新（≤3h 走 moment/detail）补偿在视图层
+  // 互动态回填（moment/detail）补在视图层（0.9.230 起触发＝进入视口）
   square: function (raw, it) {
     if (!raw || raw.resourceType !== 10) return false; // 端点语义即纯动态（过滤=宁漏不错兜底）
     var u = raw.user || raw.userInfo || {};
