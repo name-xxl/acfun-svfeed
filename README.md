@@ -561,7 +561,7 @@ flowchart LR
   sidebar --> viewreg
   followview --> cards & emoticon & followseen & listtail & momentapi & momentdetail & rowkit & sidebar & viewreg
   squareview --> cards & momentdetail & rowkit & squarefeed & viewreg
-  squarefeed --> cards & emoticon & followbadge & listtail & momentapi & momentbar & rowkit
+  squarefeed --> cards & emoticon & followbadge & listtail & momentapi & momentbar & rowkit & ubb
   memberplaza --> rowkit & squarefeed
   listtail --> styles & ui
   spacetab --> ui

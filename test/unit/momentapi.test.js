@@ -147,12 +147,16 @@ test('profilePageOf：失败可辨（result!==0/null 抛错）；no_more/空页/
 });
 
 // ---------- momentDetailStateOf（0.9.127 新鲜度回填） ----------
-test('momentDetailStateOf：五件回填态；失败/形状不合→null（调用方静默保持快照）', () => {
+test('momentDetailStateOf：五件回填态 + 正文（0.9.227 增收，列表是明文、详情带 UBB）；失败/形状不合→null', () => {
   var st = momentDetailStateOf({
     result: 0,
-    moment: { likeCount: 9, commentCount: 4, bananaCount: 2, isLike: true, isThrowBanana: true }
+    moment: { likeCount: 9, commentCount: 4, bananaCount: 2, isLike: true, isThrowBanana: true,
+      text: '111[emot=acfun,2762/]' }
   });
-  assert.deepEqual(st, { liked: true, thrown: true, like: 9, comment: 4, banana: 2 });
+  // 正文是"列表里看得见表情"的唯一来源（详情端点才有 UBB）——回填时会被 patch 回 pi 并重绘该行
+  assert.deepEqual(st, { text: '111[emot=acfun,2762/]', liked: true, thrown: true, like: 9, comment: 4, banana: 2 });
+  // 缺 text 时给空串（调用方按 `st.text && != pi.text` 判，不误清正文）
+  assert.equal(momentDetailStateOf({ result: 0, moment: { likeCount: 1 } }).text, '');
   assert.equal(momentDetailStateOf({ result: 1, moment: {} }), null); // 失败
   assert.equal(momentDetailStateOf({ result: 0 }), null);            // 缺 moment
   assert.equal(momentDetailStateOf(null), null);

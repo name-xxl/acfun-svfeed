@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.226
+// @version      0.9.227
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.226" : "",
+          ver: true ? "0.9.227" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -5548,6 +5548,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (!j || j.result !== 0 || !j.moment) return null;
     var mo2 = j.moment;
     return {
+      // 正文（0.9.227 增收）：**详情端点才带 UBB 原文**（列表端点 feedSquare/feed/profile 的
+      // moment.text 是明文、表情被剥）⇒ 这一项是"列表里能看见表情"的唯一来源，见 squarefeed.refreshOne
+      text: String(mo2.text || ""),
       liked: !!mo2.isLike,
       thrown: !!mo2.isThrowBanana,
       like: Number(mo2.likeCount) || 0,
@@ -12739,7 +12742,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.226" : "");
+    return normVer(true ? "0.9.227" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -15672,6 +15675,16 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
             pi.banana = st2.banana;
             pi.comment = st2.comment;
             syncRowBar(rows[i], pi);
+            if (st2.text && st2.text !== pi.text) {
+              pi.text = st2.text;
+              var t = rows[i].querySelector(".acsv-frow-text");
+              if (t) {
+                t.innerHTML = renderCommentHtml(st2.text);
+                t.classList.add("clamp");
+                t._armed = false;
+                armExpanders(list);
+              }
+            }
             return;
           }
         }
@@ -16111,7 +16124,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.226：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.227：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

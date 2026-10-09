@@ -126,6 +126,9 @@ export function momentDetailStateOf(j) {
   if (!j || j.result !== 0 || !j.moment) return null;
   var mo = j.moment;
   return {
+    // 正文（0.9.227 增收）：**详情端点才带 UBB 原文**（列表端点 feedSquare/feed/profile 的
+    // moment.text 是明文、表情被剥）⇒ 这一项是"列表里能看见表情"的唯一来源，见 squarefeed.refreshOne
+    text: String(mo.text || ''),
     liked: !!mo.isLike,
     thrown: !!mo.isThrowBanana,
     like: Number(mo.likeCount) || 0,

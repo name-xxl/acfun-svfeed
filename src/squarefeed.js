@@ -18,6 +18,7 @@
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { skeletonRows } from './cards.js';
+import { renderCommentHtml } from './ubb.js'; // 回填正文重绘（0.9.227）
 import { createListTail } from './listtail.js'; // 尾部件单源（0.9.219：状态行+回顶+触底双方言）
 import { listSquare, momentDetail } from './momentapi.js';
 import { ensureEmotionMap, refillEmoticons } from './emoticon.js';
@@ -118,8 +119,10 @@ export function createSquareFeed(opts) {
 
   // ---------- 新鲜度回填（0.9.127；plaza _refreshOneMoment 的收窄版） ----------
   // 免登录列表的 isLike/isThrowBanana 恒 false；≤3h 新鲜条目走 moment/detail 补真值（携带
-  // 登录态），patch 回 pi 并同步互动栏。只同步互动态五件（正文方言不换——[ac=] 已由 ubb.js
-  // 单源渲染）；失败/行已拆静默（保持列表快照，与 plaza 后台静默纪律一致）
+  // 登录态），patch 回 pi 并同步互动栏。**0.9.227 起正文也换**：列表端点（feedSquare/feed/profile）
+  // 的 moment.text 是**明文**（表情被服务端剥掉），只有详情端点带 UBB 原文 ⇒ 这次回填是"列表里
+  // 看得见表情"的唯一来源，且**零额外请求**（本来就在拉这一发，此前把 text 丢掉了）。
+  // 失败/行已拆静默（保持列表快照，与 plaza 后台静默纪律一致）
   function refreshOne(mid) {
     momentDetail(mid).then(function (st) {
       if (!st) return;
@@ -133,6 +136,17 @@ export function createSquareFeed(opts) {
           pi.banana = st.banana;
           pi.comment = st.comment;
           syncRowBar(rows[i], pi);
+          // 正文替换（仅当详情给的与列表不同——列表是明文、详情带令牌）
+          if (st.text && st.text !== pi.text) {
+            pi.text = st.text;
+            var t = rows[i].querySelector('.acsv-frow-text');
+            if (t) {
+              t.innerHTML = renderCommentHtml(st.text);
+              t.classList.add('clamp');
+              t._armed = false;   // 内容变了：清掉"已量过"标记，让 armExpanders 重新判要不要挂「展开」
+              armExpanders(list);
+            }
+          }
           return;
         }
       }
