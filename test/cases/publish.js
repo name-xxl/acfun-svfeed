@@ -65,6 +65,21 @@
     rec('pub-editor-title', /发动态/.test((q('.acsv-me-hd') || {}).textContent || ''),
       (q('.acsv-me-hd') || {}).textContent);
     rec('pub-editor-mirror', !!q('.acsv-me .acsv-cinput-mir')); // 编辑器输入条同带镜像层（三处共用）
+    // 0.9.226：表情面板必须落在**模态矩形内**（曾因 absolute+bottom:57px 是抽屉口径 ⇒ 逃到浮层根、跑到屏幕底部）
+    var eb = q('.acsv-me .acsv-cinput-emot');
+    if (eb) eb.click();
+    rec('pub-emotpanel-in-modal', !!(await waitFor(function () {
+      var p = q('.acsv-me-emot'), m = q('.acsv-me');
+      if (!p || !m || getComputedStyle(p).display === 'none') return false;
+      var pr = p.getBoundingClientRect(), mr = m.getBoundingClientRect();
+      return pr.top >= mr.top - 1 && pr.bottom <= mr.bottom + 1;
+    }, 4000)), (function () {
+      var p = q('.acsv-me-emot'), m = q('.acsv-me');
+      if (!p || !m) return 'none';
+      var pr = p.getBoundingClientRect(), mr = m.getBoundingClientRect();
+      return 'panel=' + Math.round(pr.top) + '..' + Math.round(pr.bottom) + ' modal=' + Math.round(mr.top) + '..' + Math.round(mr.bottom);
+    })());
+    if (eb) eb.click(); // 收起，免得影响后面
 
     // 2) 输入 → 字数 → 可见范围
     var ta = q('.acsv-me .acsv-cinput-text');
@@ -123,6 +138,18 @@
     ta3.dispatchEvent(new Event('input', { bubbles: true }));
     q('.acsv-me-ok').click();
     await waitFor(function () { return !q('.acsv-me-host'); }, 6000);
+    // 0.9.226 浅色语境（原生页打开编辑器时）：面板根带 .acsv-mp ⇒ 外壳与内部件都走浅色
+    TEST.call('momentEdit', { light: true });
+    rec('pub-light-open', !!(await waitFor(function () { return !!q('.acsv-me.acsv-mp'); }, 4000)));
+    rec('pub-light-shell', (function () {
+      var m = q('.acsv-me.acsv-mp');
+      if (!m) return false;
+      var cs = getComputedStyle(m);
+      return cs.backgroundColor === 'rgb(255, 255, 255)' && getComputedStyle(q('.acsv-me-hd')).color === 'rgb(51, 51, 51)';
+    })(), (function () { var m = q('.acsv-me.acsv-mp'); return m ? getComputedStyle(m).backgroundColor : 'none'; })());
+    q('.acsv-me-x').click();
+    rec('pub-light-closed', !!(await waitFor(function () { return !q('.acsv-me-host'); }, 3000)));
+
     rec('pub-repost-body', (function () {
       var b = window.__ACSV_ADD_BODY__;
       if (!b) return false;

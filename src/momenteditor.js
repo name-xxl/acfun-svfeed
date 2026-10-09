@@ -51,7 +51,9 @@ export function openMomentEditor(opts) {
   var repost = opts.repost || null;
 
   host = el('div', 'acsv-me-host');
-  var panel = el('div', 'acsv-me');
+  // 浅色语境（0.9.226）：从**原生页**打开时（浅色皮肤），面板根加 `.acsv-mp` ⇒ 既有的浅色规则
+  // 全套生效（输入框/镜像层/表情面板/图片块），只需再补模态外壳那几条（.acsv-me.acsv-mp）
+  var panel = el('div', 'acsv-me' + (opts.light ? ' acsv-mp' : ''));
   var hd = el('div', 'acsv-me-hd');
   hd.appendChild(el('div', null, repost ? '转发动态' : '发动态'));
   var x = el('button', 'acsv-me-x', '✕');
@@ -80,8 +82,9 @@ export function openMomentEditor(opts) {
   thumbs.style.display = 'none';
   bd.appendChild(thumbs);
 
-  // 表情面板（面板锚定：贴编辑器底左，与抽屉同款构件）
-  var emotPanel = el('div', 'acsv-emotpanel');
+  // 表情面板（0.9.226）：**插在工具行与脚行之间、走文档流**（原先是 .acsv-emotpanel 的
+  // absolute + bottom:57px——那是给抽屉输入条定的口径，在模态里会逃到浮层根 ⇒ 用户实报"面板跑到屏幕底部"）
+  var emotPanel = el('div', 'acsv-emotpanel acsv-me-emot');
   emotPanel.style.display = 'none';
   panel.appendChild(emotPanel);
   mountEmotButton(bar.emotBtn, emotPanel, bar.input);

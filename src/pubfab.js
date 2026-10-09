@@ -28,7 +28,8 @@ export function mountPubFab(host, opts) {
   btn.setAttribute('data-acsv-pubfab', '1');
   btn.addEventListener('click', function (ev) {
     ev.stopPropagation();
-    openMomentEditor(opts.editorOpts || {});
+    // 浅色宿主（原生页）里打开的编辑器也走浅色皮肤（0.9.226：用户实报"原生页的皮肤是暗色的"）
+    openMomentEditor(Object.assign({ light: !!opts.light }, opts.editorOpts || {}));
   });
   host.appendChild(btn);
   return {
