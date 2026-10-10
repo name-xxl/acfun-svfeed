@@ -21,9 +21,27 @@ var keyHandler = null, keyUpHandler = null, fsChangeHandler = null, ghostIv = nu
 // 有滚轮/触摸就视为用户自己在滚，落点不归脚本管。**只认两个原生滚动手势，不收 keydown**：
 // 键盘导航键正是脚本落位的触发源，收进来会让打点自己把自己拦掉（探针实锤：按 ↓ 切换时
 // keydown 先刷时间戳，2s 后的复核必然跳过 ⇒ 打点永不命中）。用户继续按键改游标的场景由
-// 打点的 `FeedStore.current===idx` 判据排除。capture+passive，纯读不改
-window.addEventListener('wheel', function () { window.__acsvLastInput = Date.now(); }, { capture: true, passive: true });
-window.addEventListener('touchstart', function () { window.__acsvLastInput = Date.now(); }, { capture: true, passive: true });
+// 打点的 `FeedStore.current===idx` 判据排除。capture+passive，纯读不改。
+// 方向戳（0.9.231）：落位兜底自愈按「最后一次手势方向」补齐吸附点（+1=scrollTop 增大/
+// 下一条，-1=反之）——半途静止时用户意图就是那个方向。touchmove 也盖时间戳：只有
+// touchstart 会让 900ms 静默判据在长拖拽中途误判「用户已收手」
+window.addEventListener('wheel', function (ev) {
+  window.__acsvLastInput = Date.now();
+  if (ev.deltaY) window.__acsvLastInputDir = ev.deltaY > 0 ? 1 : -1;
+}, { capture: true, passive: true });
+var lastTouchY = 0;
+window.addEventListener('touchstart', function (ev) {
+  window.__acsvLastInput = Date.now();
+  lastTouchY = ev.touches && ev.touches[0] ? ev.touches[0].clientY : 0;
+}, { capture: true, passive: true });
+window.addEventListener('touchmove', function (ev) {
+  window.__acsvLastInput = Date.now();
+  if (ev.touches && ev.touches[0]) {
+    var y = ev.touches[0].clientY; // 手指上滑（y 变小）=内容下行=下一条（scrollTop 增大）
+    if (y !== lastTouchY) window.__acsvLastInputDir = lastTouchY - y > 0 ? 1 : -1;
+    lastTouchY = y;
+  }
+}, { capture: true, passive: true });
 
 // api: { scrollToIndex, exitFeed, getView, toggleImDrawer, toggleComments, playStep }
 export function setupInputHandlers(api) {

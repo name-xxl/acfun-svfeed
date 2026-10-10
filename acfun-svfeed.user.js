@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.230
+// @version      0.9.231
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.230" : "",
+          ver: true ? "0.9.231" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -12729,7 +12729,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.230" : "");
+    return normVer(true ? "0.9.231" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -13711,11 +13711,22 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var fsChangeHandler = null;
   var ghostIv = null;
   var pipChangeHandler = null;
-  window.addEventListener("wheel", function() {
+  window.addEventListener("wheel", function(ev) {
     window.__acsvLastInput = Date.now();
+    if (ev.deltaY) window.__acsvLastInputDir = ev.deltaY > 0 ? 1 : -1;
   }, { capture: true, passive: true });
-  window.addEventListener("touchstart", function() {
+  var lastTouchY = 0;
+  window.addEventListener("touchstart", function(ev) {
     window.__acsvLastInput = Date.now();
+    lastTouchY = ev.touches && ev.touches[0] ? ev.touches[0].clientY : 0;
+  }, { capture: true, passive: true });
+  window.addEventListener("touchmove", function(ev) {
+    window.__acsvLastInput = Date.now();
+    if (ev.touches && ev.touches[0]) {
+      var y = ev.touches[0].clientY;
+      if (y !== lastTouchY) window.__acsvLastInputDir = lastTouchY - y > 0 ? 1 : -1;
+      lastTouchY = y;
+    }
   }, { capture: true, passive: true });
   function setupInputHandlers(api) {
     keyHandler = function(ev) {
@@ -14625,26 +14636,53 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       requestAnimationFrame(settle);
     })();
   }
+  var snapTicker = null;
+  var snapHealAt = 0;
+  function snapWatchTick() {
+    if (!scroller || !FeedStore.items.length) return;
+    if (!stageVisible()) return;
+    var a = scroller.scrollTop;
+    setTimeout(function() {
+      if (!scroller || !stageVisible()) return;
+      if (Math.abs(scroller.scrollTop - a) > 2) return;
+      if (Date.now() - (window.__acsvLastInput || 0) < 900) return;
+      var st2 = scroller.scrollTop, prev = -1, next = -1, onSnap = false;
+      Array.prototype.forEach.call(scroller.children, function(c) {
+        if (!c.dataset || c.dataset.idx == null) return;
+        var t = c.offsetTop;
+        if (Math.abs(t - st2) <= 2) {
+          onSnap = true;
+          return;
+        }
+        if (t < st2) {
+          if (t > prev) prev = t;
+        } else if (next === -1 || t < next) next = t;
+      });
+      if (onSnap) return;
+      if (false) stat("land.stuck");
+      if (Date.now() - snapHealAt < 2e3) return;
+      var dir = window.__acsvLastInputDir || 0;
+      var target;
+      if (dir > 0) target = next;
+      else if (dir < 0) target = prev;
+      else target = prev < 0 ? next : next < 0 ? prev : st2 - prev <= next - st2 ? prev : next;
+      if (target < 0) return;
+      snapHealAt = Date.now();
+      scroller.scrollTo({ top: target, behavior: "auto" });
+      if (false) stat("land.heal");
+    }, 260);
+  }
+  function startSnapWatch() {
+    if (snapTicker) return;
+    snapTicker = setInterval(snapWatchTick, 600);
+  }
+  function stopSnapWatch() {
+    if (!snapTicker) return;
+    clearInterval(snapTicker);
+    snapTicker = null;
+  }
   if (false) {
     stat("land.watch");
-    setInterval(function() {
-      if (!scroller || !FeedStore.items.length) return;
-      var a = scroller.scrollTop;
-      setTimeout(function() {
-        if (!scroller) return;
-        if (Math.abs(scroller.scrollTop - a) > 2) return;
-        if (Date.now() - (window.__acsvLastInput || 0) < 900) return;
-        var st2 = scroller.scrollTop, kids = scroller.children, onSnap = false;
-        for (var i = 0; i < kids.length; i++) {
-          var c = kids[i];
-          if (c.dataset && c.dataset.idx != null && Math.abs(c.offsetTop - st2) <= 2) {
-            onSnap = true;
-            break;
-          }
-        }
-        if (!onSnap) stat("land.stuck");
-      }, 260);
-    }, 600);
   }
   function landWhenVisible(idx, near, tries2) {
     if (!scroller) return;
@@ -14797,6 +14835,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     dbg("root-appended");
     releaseCheck();
     io2 = makeIO();
+    startSnapWatch();
     setupInputHandlers({ scrollToIndex, exitFeed, getView: currentView, toggleImDrawer, toggleComments: toggleItemComments, playStep, playEscape });
     var route = parseRoute();
     if (route.mid) {
@@ -14841,6 +14880,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       io2.disconnect();
       io2 = null;
     }
+    stopSnapWatch();
     teardownInputHandlers();
     cancelSeekHold();
     stopAll();
@@ -16135,7 +16175,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.230：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.231：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

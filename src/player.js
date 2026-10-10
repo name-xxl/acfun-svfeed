@@ -328,32 +328,67 @@ function landAt(idx, near) {
   })();
 }
 
-// 半屏停留探测器（0.9.216 诊断；debug 构建专用，release 整块死码消除）。
+// 半屏停留：探测器 → 落位兜底（0.9.216 埋点；0.9.231 升级为 release 常驻自愈）。
 // issue #1「切换后滚动到一半停留」= 视口静止在两个吸附点之间。0.9.216 探针实测（p7）：
 // smooth 在途被一次 auto 滚动撕掉 ⇒ 视口停在非吸附点（实测 150→30、450→398）且
 // **永久不吸附**（2s 后仍在原处）；而纯程序化赋值到非吸附点会被 snap 吸回（实测 150→2）
-// ——「被撕掉的在途滚动」绕过了 snap 的滚动结束吸附。这是现象可被独立观测的根据：
-// 每 600ms 采一次，连续两次 scrollTop 不动（真静止，排除动画/惯性）且不落在任何 slide
-// 的 offsetTop（±2）⇒ stat('land.stuck')。用户正常刷即可，读数非零＝现象存在（修复版恒 0）
+// ——「被撕掉的在途滚动」绕过了 snap 的滚动结束吸附。0.9.216 已把**脚本落位**改瞬时
+// （无动画可撕，见 landAt 注释）；但**滚轮/触摸走原生滚动、不经 landAt**——报障者
+// （2026-10-10 回帖：Win10+Edge100、滚轮、单次即停、永久卡半屏，两帧截图相隔 11s 视口
+// 纹丝不动）正是这条路。旧内核/别处撕扯何时制造它不可控，可控的是**最终态**：视口必须
+// 落在吸附点上。故把观测判据升级为动作——每 600ms 采一次，连续两次 scrollTop 不动
+// （真静止，排除动画/惯性）∧ 不落在任何带 data-idx 子项的 offsetTop（±2）∧ 距最后一次
+// 滚轮/触摸 >900ms（手势刚收、吸附未落不抢）⇒ 按最后一次手势方向补齐到吸附点（瞬时落位，
+// 同 landAt 的免疫手法），频控 2s；自愈不改 FeedStore.current，游标交回 IO 正常推进。
+// 判据三坑沿用 0.9.216 探针结论：不收 keydown（键盘导航正是脚本落位源，会自拦）、不拿
+// FeedStore.current 判（被撕回旧条时游标也回去，真场景整条跳过）、不设「期间无新落位」闸
+// （连续切换会让复核全废）
+var snapTicker = null;
+var snapHealAt = 0;
+function snapWatchTick() {
+  if (!scroller || !FeedStore.items.length) return;
+  // 舞台被视图盖住时 scroller 无布局盒：offsetTop 全体归 0 ⇒ 任何静止位都"非吸附"，必须排除
+  if (!stageVisible()) return;
+  var a = scroller.scrollTop;
+  setTimeout(function () {
+    if (!scroller || !stageVisible()) return;
+    if (Math.abs(scroller.scrollTop - a) > 2) return; // 还在动（动画/惯性）
+    if (Date.now() - (window.__acsvLastInput || 0) < 900) return; // 手势刚收，吸附未落
+    var st = scroller.scrollTop, prev = -1, next = -1, onSnap = false;
+    Array.prototype.forEach.call(scroller.children, function (c) {
+      if (!c.dataset || c.dataset.idx == null) return; // 全局 spinner 等无 idx 子项不参与吸附表
+      var t = c.offsetTop;
+      if (Math.abs(t - st) <= 2) { onSnap = true; return; }
+      if (t < st) { if (t > prev) prev = t; }
+      else if (next === -1 || t < next) next = t;
+    });
+    if (onSnap) return;
+    if (__ACSV_DEBUG__) stat('land.stuck'); // 现象计数（0.9.216 口径不变：非零＝当场上演过）
+    if (Date.now() - snapHealAt < 2000) return; // 频控：仍在漂的连发不放大，下一拍复核兜底
+    var dir = window.__acsvLastInputDir || 0; // 手势方向（input.js 打）：+1 下一条 / -1 上一条
+    var target;
+    if (dir > 0) target = next;
+    else if (dir < 0) target = prev;
+    else target = prev < 0 ? next : (next < 0 ? prev : (st - prev <= next - st ? prev : next));
+    if (target < 0) return; // 两侧都无吸附点（空表/重制中）不该发生，兜底放弃
+    snapHealAt = Date.now();
+    scroller.scrollTo({ top: target, behavior: 'auto' });
+    if (__ACSV_DEBUG__) stat('land.heal');
+  }, 260);
+}
+function startSnapWatch() {
+  if (snapTicker) return;
+  snapTicker = setInterval(snapWatchTick, 600);
+}
+function stopSnapWatch() {
+  if (!snapTicker) return;
+  clearInterval(snapTicker);
+  snapTicker = null;
+}
 if (__ACSV_DEBUG__) {
   // 装机标记：判读时先看它——`land.watch` 缺失即「含探测器的构建根本没装」（打点只在
   // 命中时建键，stuck 缺失本身分不清"没现象"还是"没这代码"，0.9.216 真机排查连栽在此）
   stat('land.watch');
-  setInterval(function () {
-    if (!scroller || !FeedStore.items.length) return;
-    var a = scroller.scrollTop;
-    setTimeout(function () {
-      if (!scroller) return;
-      if (Math.abs(scroller.scrollTop - a) > 2) return; // 还在动（动画/惯性）
-      if (Date.now() - (window.__acsvLastInput || 0) < 900) return; // 手势刚收，吸附未落
-      var st = scroller.scrollTop, kids = scroller.children, onSnap = false;
-      for (var i = 0; i < kids.length; i++) {
-        var c = kids[i];
-        if (c.dataset && c.dataset.idx != null && Math.abs(c.offsetTop - st) <= 2) { onSnap = true; break; }
-      }
-      if (!onSnap) stat('land.stuck');
-    }, 260);
-  }, 600);
 }
 
 // 视图态下 scroller 无布局盒：等它回来再落地（16ms 轮询，上限约 1s；期间离开流由 slideAt 兜底放弃）
@@ -529,6 +564,7 @@ function mount() {
   releaseCheck(); // 每次打开竖刷页检查一次更新（内部带最小间隔节流，失败静默）
 
   io = makeIO();
+  startSnapWatch(); // 落位兜底（0.9.231）：舞台生命周期内常驻，unmount 停
 
   setupInputHandlers({ scrollToIndex: scrollToIndex, exitFeed: exitFeed, getView: currentView, toggleImDrawer: toggleImDrawer, toggleComments: toggleItemComments, playStep: playStep, playEscape: playEscape }); // getView（0.9.111）/开合两键（0.9.116）/层内游走（0.9.170）/级别弹回（0.9.174）：经注入，input 不再 import views/comments/imdrawer/playlayer
 
@@ -579,6 +615,7 @@ function unmount() {
   setAppliedMid(null); // 深链意图随挂载态失效：重进时要按地址重新解析
   setChangeHandler(null); // 流仓库变更通知失效（0.9.115）：在途数据回流不得再触发重绘（重进由 mount 重注册）
   if (io) { io.disconnect(); io = null; }
+  stopSnapWatch(); // 落位兜底随舞台拆（0.9.231）：清定时器，重进由 mount 重起
   teardownInputHandlers();
   cancelSeekHold();
   dmStopAll();

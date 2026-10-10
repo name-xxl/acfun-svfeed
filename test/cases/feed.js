@@ -155,6 +155,13 @@ rec('only-current-plays', others === 0, 'othersPlaying=' + others);
     var t0 = window.__acsvLastInput || 0;
     window.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
     rec('input-stamp-wheel', (window.__acsvLastInput || 0) > t0);
+    // 方向戳（0.9.231）：落位兜底按它选补齐方向（+1 下一条 / -1 上一条）——无它则退化为
+    // 「最近吸附点」。两向各打一发，读数必须跟着翻
+    window.dispatchEvent(new WheelEvent('wheel', { deltaY: -120, bubbles: true }));
+    var dirUp = window.__acsvLastInputDir;
+    window.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true }));
+    rec('input-stamp-wheel-dir', dirUp === -1 && window.__acsvLastInputDir === 1,
+      'up=' + dirUp + ' down=' + window.__acsvLastInputDir);
     // 键盘 repeat 不再触发连翻（0.9.216：repeat 重发导航会在飞行中段打断重发）：
     // 首发起飞后 repeat 连发 3 次，游标与视口必须停在 2 不再前进
     key('ArrowDown');
@@ -176,13 +183,45 @@ rec('only-current-plays', others === 0, 'othersPlaying=' + others);
     // 钉死，这里只验探测器本身不哑：判据连栽过三坑——收 keydown 自拦、拿 cur 判跳过正主、
     // landSeq 让连续切换全废）。解除吸附后 scrollTop 能稳定停在两吸附点之间，探测器应记一笔
     var stuck0 = window.__ACSV_TEST__.getStats()['land.stuck'] || 0;
+    var heal0 = window.__ACSV_TEST__.getStats()['land.heal'] || 0; // 基线须在造态前抓：自愈与现象计数同拍
     var sc2 = q('.acsv-scroller');
-    sc2.style.scrollSnapType = 'none';
+    sc2.style.scrollSnapType = 'none'; // 造态期间吸附一直解除：非吸附位不会被引擎吸回
     sc2.scrollTop = Math.round(sc2.clientHeight * 1.5);
     rec('land-stuck-detected', !!(await waitFor(function () {
       return (window.__ACSV_TEST__.getStats()['land.stuck'] || 0) > stuck0;
     }, 4000)), 'stuck=' + (window.__ACSV_TEST__.getStats()['land.stuck'] || 0)
       + ' top=' + Math.round(sc2.scrollTop) + ' h=' + sc2.clientHeight);
+    // ---- 落位兜底自愈（0.9.231：0.9.216 的探测器升级为动作，release 也生效）----
+    // 与上一条同一造态、同一拍：现象计数先落，紧接着按手势方向补齐到吸附点（land.stuck
+    // 口径不变——非零＝当场上演过；自愈不改 FeedStore.current，游标交回 IO 正常推进）。
+    // 吸附仍解除着 ⇒ on-snap 只可能是脚本自愈写的（引擎不背这个锅；摘掉自愈两断言即转红）
+    rec('land-heal-acted', !!(await waitFor(function () {
+      return (window.__ACSV_TEST__.getStats()['land.heal'] || 0) > heal0;
+    }, 6000)), 'heal=' + (window.__ACSV_TEST__.getStats()['land.heal'] || 0)
+      + ' top=' + Math.round(sc2.scrollTop) + ' h=' + sc2.clientHeight);
+    rec('land-heal-on-snap', (function () {
+      var st = sc2.scrollTop, on = false;
+      Array.prototype.forEach.call(sc2.children, function (c) {
+        if (c.dataset && c.dataset.idx != null && Math.abs(c.offsetTop - st) <= 2) on = true;
+      });
+      return on;
+    })(), 'top=' + Math.round(sc2.scrollTop));
+    sc2.style.scrollSnapType = ''; // 造态结束：恢复吸附
+    // 负例（手势未收不抢）：同样造非吸附位，但持续打手势时间戳（模拟长拖拽/连续滚轮）——
+    // 静默判据不满足，自愈不得出手（scrollTop 保持原样、heal 计数不涨）。先等过上一笔
+    // 自愈的 2s 频控窗，否则会把「频控挡下」误读成「静默闸生效」
+    await wait(2200);
+    sc2.style.scrollSnapType = 'none';
+    var stuckTop = Math.round(sc2.clientHeight * 2.5);
+    sc2.scrollTop = stuckTop;
+    var healN = window.__ACSV_TEST__.getStats()['land.heal'] || 0;
+    var stampIv = setInterval(function () { window.__acsvLastInput = Date.now(); }, 200);
+    await wait(1400);
+    clearInterval(stampIv);
+    rec('land-heal-input-gate', (window.__ACSV_TEST__.getStats()['land.heal'] || 0) === healN
+      && Math.abs(sc2.scrollTop - stuckTop) <= 2,
+      'heal=' + (window.__ACSV_TEST__.getStats()['land.heal'] || 0) + '/' + healN
+        + ' top=' + Math.round(sc2.scrollTop) + ' want=' + stuckTop);
     sc2.style.scrollSnapType = '';
     // 落位调用计数（0.9.216 诊断）：近跳走脚本这条路必留痕（本场景共发起 2 次近跳）——
     // 真机上「land.near 恒 0」即用户根本没走 landAt（滚轮/触摸原生滚动），排查方向整体换
