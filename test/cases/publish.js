@@ -243,18 +243,37 @@
       var cs = getComputedStyle(m);
       return cs.backgroundColor === 'rgb(255, 255, 255)' && getComputedStyle(q('.acsv-me-hd')).color === 'rgb(51, 51, 51)';
     })(), (function () { var m = q('.acsv-me.acsv-mp'); return m ? getComputedStyle(m).backgroundColor : 'none'; })());
-    // 0.9.238：浅色语境下**工具栏**也要有取值（此前浅色覆盖只到输入条底色，格式键/字形会在白底上消失）
+    // 0.9.238：浅色语境下**工具栏**也要有取值；0.9.239 起改按**官方实测原值**（键 #666 / 正文 #333）
     rec('pub-light-toolbar', (function () {
       var fb = q('.acsv-me.acsv-mp .acsv-cinput-fmt');
       var eb2 = q('.acsv-me.acsv-mp .acsv-cinput-emot');
       var ed2 = q('.acsv-me.acsv-mp .acsv-cinput-edit');
       if (!fb || !eb2 || !ed2) return false;
-      return getComputedStyle(fb).color === 'rgb(102, 102, 102)'      // #666（← .acsv-frow-sdesc）
-        && getComputedStyle(eb2).color === 'rgb(153, 153, 153)'       // #999（← .acsv-fact）
-        && getComputedStyle(ed2).color === 'rgb(51, 51, 51)';         // #333 正文
+      return getComputedStyle(fb).color === 'rgb(102, 102, 102)'
+        && getComputedStyle(eb2).color === 'rgb(102, 102, 102)'       // 官方 7 键同色 #666（原为 #999）
+        && getComputedStyle(ed2).color === 'rgb(51, 51, 51)';
     })(), (function () {
       var fb = q('.acsv-me.acsv-mp .acsv-cinput-fmt');
-      return fb ? getComputedStyle(fb).color : 'none';
+      var eb2 = q('.acsv-me.acsv-mp .acsv-cinput-emot');
+      return (fb ? getComputedStyle(fb).color : 'none') + '/' + (eb2 ? getComputedStyle(eb2).color : 'none');
+    })());
+    // 0.9.239 浅色色板＝官方原值（格边 #e5e5e5 / 面板白底）+ 竖分隔线 #dcdcdc + 色条初值 #333
+    rec('pub-light-palette', (function () {
+      var caret = q('.acsv-me.acsv-mp .acsv-cinput-colcaret');
+      if (caret) caret.click();
+      var pop = q('.acsv-me.acsv-mp .acsv-colpop');
+      var cell = pop && pop.querySelector('.acsv-colpop-g i');
+      var sep = q('.acsv-me.acsv-mp .acsv-fmtsep');
+      var lab = q('.acsv-me.acsv-mp .acsv-cinput-collabel');
+      var ok = !!cell && getComputedStyle(cell).borderTopColor === 'rgb(229, 229, 229)'
+        && getComputedStyle(pop).backgroundColor === 'rgb(255, 255, 255)'
+        && !!sep && getComputedStyle(sep).backgroundColor === 'rgb(220, 220, 220)'
+        && !!lab && getComputedStyle(lab).backgroundColor === 'rgb(51, 51, 51)';
+      if (caret) caret.click(); // 收起
+      return ok;
+    })(), (function () {
+      var cell = q('.acsv-me.acsv-mp .acsv-colpop-g i');
+      return cell ? getComputedStyle(cell).borderTopColor : 'none';
     })());
     q('.acsv-me-x').click();
     rec('pub-light-closed', !!(await waitFor(function () { return !q('.acsv-me-host'); }, 3000)));

@@ -321,30 +321,58 @@ var RAW_CSS = ''
   // **0.9.238 富文本重写**：上下分层（上行工具栏 / 下行编辑区 + 发送，工具栏下沿一条分隔线），
   // 编辑区换成 contenteditable（.acsv-cinput-edit）。量值不变（字号 13 / 行高 18 / padding 9×12 /
   // 高 36→96 自动增高）；总高 56 → 84px（8+24+3+1+3+36+8 = 83，+1px 上边线），三宿主同增。
-  // 空态也是这个高度（工具栏常驻，聚焦不跳版）；表情面板锚点随之上移（.acsv-emotpanel bottom:84）
-  + '.acsv-cinput{flex:none;display:flex;flex-direction:column;align-items:stretch;gap:0;padding:8px 12px;'
-  + 'border-top:1px solid rgba(255,255,255,.09);background:rgba(22,22,27,.98)}'
-  + '.acsv-cinput-top{display:flex;align-items:center;gap:4px;min-height:24px;padding-bottom:3px;'
+  // **0.9.239 官方对齐**（真机实测，见 docs/api-research.md §11.10 与预览稿 ④/⑫）：键盒 18×18、
+  // 右距 8、两条 1×18 竖分隔线、悬停只提字色、激活浅底+深字、颜色键＝split 三件 + 官方 70 色色板。
+  // **行高仍 24px（总高 84 不变）**——官方工具行 38 高是配它自己页面的留白，我们不动三宿主高度。
+  // 空态也是这个高度（工具栏常驻，聚焦不跳版）；表情面板锚点 84（贴输入条上沿）
+  + '.acsv-cinput{--acsv-edit-fg:#e8eaee;flex:none;display:flex;flex-direction:column;align-items:stretch;'
+  + 'gap:0;padding:8px 12px;border-top:1px solid rgba(255,255,255,.09);background:rgba(22,22,27,.98)}'
+  + '.acsv-cinput-top{display:flex;align-items:center;min-height:24px;padding-bottom:3px;'
   + 'border-bottom:1px solid rgba(255,255,255,.06)}'
   + '.acsv-cinput-main{display:flex;align-items:flex-end;gap:8px;padding-top:3px}'
-  // 原生 iconfont 字形（acfun-frontend-next，@font-face 在本文件头）：工具栏 7 键全用它，
-  // 与官方 UMEditor 工具栏**同字体同码点**（码点登记 imicons.GLYPHS.ed*）。颜色随 currentColor
-  // ⇒ 深/浅两皮肤同一套 CSS（旧的自绘 SVG 写死 fill，两皮肤得各写一份）
+  // 原生 iconfont 字形（acfun-frontend-next，@font-face 在本文件头）：工具栏 7 键 + 下拉箭头全用它，
+  // 与官方工具栏**同码点、字形逐像素相同**（0.9.239 实测：7 字形 + E166 pixelDiff=0；官方那份是
+  // 内联 subset「iconfont」——取用方式不同，形状一致）。码点登记 imicons.GLYPHS.ed*
   + '.acsv-ic{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-weight:400;'
   + 'display:inline-block;line-height:1}'
-  + '.acsv-cinput-fmt{width:24px;height:24px;border:none;background:none;border-radius:5px;cursor:pointer;'
-  + 'flex:none;padding:0;position:relative;text-align:center;color:#cfd3da}'
+  // 键盒 = 官方 .edui-btn（18×18、右距 8；圆角 2 只用在激活态）
+  + '.acsv-cinput-fmt{width:18px;height:18px;border:none;background:none;border-radius:2px;cursor:pointer;'
+  + 'flex:none;padding:0;margin-right:8px;position:relative;text-align:center;color:#cfd3da}'
   + '.acsv-cinput-fmt .acsv-ic{font-size:18px}'
-  + '.acsv-cinput-fmt:hover{color:#fd4c5d}'
-  + '.acsv-cinput-fmt.on{background:rgba(253,76,93,.18);color:#fd4c5d}'
-  + '.acsv-fmtsep{flex:none;width:1px;height:16px;background:rgba(255,255,255,.16);margin:0 2px}'
-  // 色板弹层：锚在颜色键上、**向上开**——输入条恒贴宿主底边（抽屉/面板/模态），向下开会被裁掉
-  + '.acsv-colpop{position:absolute;left:-4px;bottom:100%;z-index:9;margin-bottom:6px;padding:8px;'
-  + 'grid-template-columns:repeat(6,20px);gap:6px;background:rgba(22,22,27,.98);'
-  + 'border:1px solid rgba(255,255,255,.14);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.5)}'
-  + '.acsv-colpop i{display:block;width:20px;height:20px;border-radius:4px;cursor:pointer;'
-  + 'border:1px solid rgba(255,255,255,.16)}'
-  + '.acsv-colpop i.on{outline:2px solid #fff;outline-offset:1px}'
+  // 悬停 = 官方「只提字色」（.edui-btn-hover{color:#333}）的暗色同族；激活 = 官方「浅底+深字」
+  // （.edui-btn-active{background:#e5e5e5;border-radius:2px;color:#333}）的暗色同族
+  + '.acsv-cinput-fmt:hover{color:#fff}'
+  + '.acsv-cinput-fmt.on{background:rgba(255,255,255,.12);color:#fff}'
+  // 竖分隔线（官方 .edui-separator：1×18 / #dcdcdc / 右距 10）——两条：S 后、颜色键后
+  + '.acsv-fmtsep{flex:none;width:1px;height:18px;background:rgba(255,255,255,.18);margin:0 10px 0 0}'
+  // 颜色键 = 官方 splitbutton 三件（主键 + 箭头键 + 键下当前色条）
+  + '.acsv-cinput-colkey{position:relative;flex:none;display:flex;align-items:center;margin-right:8px}'
+  + '.acsv-cinput-colkey .acsv-cinput-fmt{margin-right:0}'
+  + '.acsv-cinput-colcaret{width:14px}' // 官方 .edui-splitbutton .edui-dropdown-toggle{width:14px;height:18px}
+  + '.acsv-cinput-colcaret .acsv-ic{font-size:12px;transform:scale(.6)}' // 官方 caret：12px + scale(.6)
+  // ★ 色条：官方 .edui-splitbutton-color-label 16×2 圆角 1、bottom:2px，且**是主键的子元素**
+  // （left:50% 相对 18 宽的主键 ⇒ 居中于 A 字形；挂到 32 宽的包裹层上会右移 7px——用户实拍教训）
+  + '.acsv-cinput-collabel{position:absolute;bottom:2px;left:50%;width:16px;height:2px;margin-left:-8px;'
+  + 'border-radius:1px;background:var(--acsv-edit-fg);pointer-events:none}' // 初值＝编辑区字色（皮肤给）
+  // 色板弹层（官方 .edui-colorpicker 形态）：面板 216 宽（10×18 列 + 左右 18 内边距）、padding 10px 18px、
+  // 圆角 5、字号 14；**向上开**（锚在颜色键上——输入条恒贴宿主底边，向下开会被抽屉/面板裁掉；
+  // 官方向下开是配它自己的工具行位置）；顶上指回颜色键的三角（官方 .edui-popup-caret 0/10/10 边框三角）
+  + '.acsv-colpop{position:absolute;left:-6px;bottom:100%;z-index:9;margin-bottom:6px;display:none;'
+  + 'padding:10px 18px;background:rgba(22,22,27,.98);border:1px solid rgba(255,255,255,.14);'
+  + 'border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,.45);font-size:14px;color:#8a90a0;white-space:nowrap}'
+  + '.acsv-colpop.on{display:block}'
+  + '.acsv-colpop::before{content:"";position:absolute;top:-10px;left:4px;width:0;height:0;'
+  + 'border-style:solid;border-width:0 10px 10px;border-color:transparent transparent rgba(22,22,27,.98)}'
+  + '.acsv-colpop-h{margin:9px 0 10px}' // 官方 tr.edui-colorpicker-title{margin:9px 0 10px}
+  + '.acsv-colpop-h:first-child{margin-top:0}'
+  // 10 列网格、格 14×14、列距 18（格内 margin 0 2px = 官方 td{padding:0 2px}）；首行后 10px
+  + '.acsv-colpop-g{display:grid;grid-template-columns:repeat(10,18px)}'
+  + '.acsv-colpop-g.first{margin-bottom:10px}'
+  // ★ 格边：**暗色不是照抄官方**——官方 #e5e5e5 是白底取值（给浅色格划轮廓），暗色面板上要划的
+  // 恰是近黑格（#000000/#0c0c0c/#1d1b10），.16 白几乎看不出轮廓 ⇒ 取 .34（有效 ≈ #4a4a4d；
+  // 对照实测：.16 看不出 / .34 清楚不刺眼 / .50 偏描边盒）。浅色皮肤仍用官方原值（见 .acsv-mp 段）
+  + '.acsv-colpop-g i{display:block;width:14px;height:14px;margin:0 2px;border-radius:1px;cursor:pointer;'
+  + 'border:1px solid rgba(255,255,255,.34)}'
   + '.acsv-cinput-wrap{flex:1;min-width:0;position:relative;display:flex;background:rgba(255,255,255,.1);'
   + 'border-radius:8px;overflow:hidden}'
   + '.acsv-cinput-wrap:focus-within{background:rgba(255,255,255,.16)}'
@@ -1535,23 +1563,27 @@ var RAW_CSS = ''
   + '.acsv-mp .acsv-cinput{border-top:1px solid #eee;background:#fff}'
   + '.acsv-mp .acsv-cinput-wrap{background:#f5f5f5}'
   + '.acsv-mp .acsv-cinput-wrap:focus-within{background:#efefef}'
-  // 0.9.238 富文本工具栏的浅色取值（预览稿 ⑨ 定稿：**一律照本块既有原生值取**，不另立色号）——
-  // 图标 #999←.acsv-fact / 格式键 #666←.acsv-frow-sdesc / 分隔线 #e6e6e6←.acsv-chr /
-  // 配图块 #f0f0f0←.acsv-frow-img；唯一新色是"选中底" rgba(253,76,93,.12)（深色 .18 的浅色同族调淡）
+  // 0.9.238 富文本工具栏的浅色取值；**0.9.239 改按官方实测原值**（原「照原脚本既有值」的取法退役）：
+  // 键字色 #666 ← 官方 .edui-btn{color:#666}（全部 7 键）/ 悬停 #333 ← .edui-btn-hover /
+  // 激活底 #e5e5e5 + 字 #333 ← .edui-btn-active / 竖分隔线 #dcdcdc ← .edui-separator /
+  // 色板格边 #e5e5e5 ← .edui-colorpicker-colorcell（浅色照官方原值，不做暗色那套提亮）/
+  // 色条初值由 JS 取编辑区 computed 色（浅色即 #333）。底/wrap/聚焦/图块仍沿用原脚本既有值
   + '.acsv-mp .acsv-cinput-top{border-bottom-color:#e6e6e6}'
   + '.acsv-mp .acsv-cinput-edit{color:#333}'
   + '.acsv-mp .acsv-cinput-edit:empty::before{color:#999}'
-  + '.acsv-mp .acsv-cinput-emot,.acsv-mp .acsv-cinput-img{color:#999}'
-  + '.acsv-mp .acsv-cinput-emot:hover,.acsv-mp .acsv-cinput-img:hover{color:var(--acsv-accent)}'
+  + '.acsv-mp .acsv-cinput-emot,.acsv-mp .acsv-cinput-img{color:#666}'
+  + '.acsv-mp .acsv-cinput-emot:hover,.acsv-mp .acsv-cinput-img:hover{color:#333}'
   + '.acsv-mp .acsv-cinput-fmt{color:#666}'
-  + '.acsv-mp .acsv-cinput-fmt:hover{color:var(--acsv-accent)}'
-  + '.acsv-mp .acsv-cinput-fmt.on{background:rgba(253,76,93,.12)}'
-  + '.acsv-mp .acsv-fmtsep{background:#e0e0e0}'
+  + '.acsv-mp .acsv-cinput-fmt:hover{color:#333}'
+  + '.acsv-mp .acsv-cinput-fmt.on{background:#e5e5e5;color:#333}'
+  + '.acsv-mp .acsv-cinput{--acsv-edit-fg:#333}' // 色条初值随皮肤（浅色＝#333）
+  + '.acsv-mp .acsv-fmtsep{background:#dcdcdc}'
   + '.acsv-mp .acsv-cinput-count{color:#999}'
   + '.acsv-mp .acsv-cinput-imgblk{background:#f0f0f0}'
   + '.acsv-mp .acsv-cinput-imgblk .t{color:#666}'
-  + '.acsv-mp .acsv-colpop{background:#fff;border-color:#e6e6e6;box-shadow:0 10px 26px rgba(0,0,0,.14)}'
-  + '.acsv-mp .acsv-colpop i{border-color:rgba(0,0,0,.12)}'
+  + '.acsv-mp .acsv-colpop{background:#fff;border-color:#e6e6e6;box-shadow:0 2px 5px rgba(0,0,0,.3);color:#666}'
+  + '.acsv-mp .acsv-colpop::before{border-color:transparent transparent #fff}'
+  + '.acsv-mp .acsv-colpop-g i{border-color:#e5e5e5}'
   + '.acsv-mp .acsv-cinput-send.disabled,.acsv-mp .acsv-cinput-send.disabled:hover{background:#eee;color:#aaa}'
   // ---- 发动态编辑器（0.9.222）：居中模态（overlay 栈、z 与设置宿主同档），复用脚本暗色皮肤 ----
   + '.acsv-me-host{position:fixed;inset:0;z-index:62;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55)}'

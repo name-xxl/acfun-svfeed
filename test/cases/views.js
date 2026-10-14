@@ -2586,9 +2586,13 @@ rec('square-cmt-namecolor', (function () {
       return cs.fontSize + ' lh=' + cs.lineHeight + ' pl=' + cs.paddingLeft;
     })());
     var cTools = q('.acsv-mdetail-side .acsv-cinput-top');
-    rec('composer-toolbar', !!(cTools && cTools.querySelectorAll('.acsv-cinput-fmt').length === 5
+    // v2（0.9.239）：4 格式键 + split 颜色键（主键+箭头键）+ 两条竖分隔线 + 表情/图片
+    rec('composer-toolbar', !!(cTools
+      && cTools.querySelectorAll('.acsv-cinput-fmt').length === 6
+      && cTools.querySelectorAll('.acsv-cinput-colkey button').length === 2
+      && cTools.querySelectorAll('.acsv-fmtsep').length === 2
       && cTools.querySelector('.acsv-cinput-emot') && cTools.querySelector('.acsv-cinput-img')),
-      cTools ? ('fmt=' + cTools.querySelectorAll('.acsv-cinput-fmt').length) : 'no-toolbar');
+      cTools ? ('fmt=' + cTools.querySelectorAll('.acsv-cinput-fmt').length + ' sep=' + cTools.querySelectorAll('.acsv-fmtsep').length) : 'no-toolbar');
     if (cEdit) {
       // 出口序列化＋字数口径（composerUbb 钩子＝与编辑区同一套实现，非平行副本）：
       // 令牌整块串成 UBB、配图块的文件名不吃字数、换行不出字

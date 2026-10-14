@@ -56,5 +56,9 @@ export var GLYPHS = {
   edStrike: '\ue1e9',    // 删除线
   edColor: '\ue1eb',     // 颜色（字形自身带一条色条，随 currentColor——勿再叠自定义色条）
   edEmotion: '\ue18b',   // 表情
-  edImage: '\ue18a'      // 图片
+  edImage: '\ue18a',     // 图片
+  // 0.9.239 补：官方 splitbutton 的下拉箭头（`.edui-caret:before{content:"\E166"}`，
+  // 官方用法 font-size:12px + transform:scale(.6)）。同批实测：该码点在 acfun-frontend-next
+  // 里与官方内联 subset「逐像素相同」（pixelDiff=0）
+  edCaret: '\ue166'
 };

@@ -92,26 +92,74 @@
     }
 
     // ---- ① 工具栏形态 + 图标＝原生字形（预览稿 ⑪ 裁决） ----
+    // v2（0.9.239 官方对齐）：4 格式键 + split 颜色键（主键+箭头键）+ 两条竖分隔线 + 表情/图片 + 字数
     rec('cr-toolbar', (function () {
-      var fb = box.querySelectorAll('.acsv-cinput-top .acsv-cinput-fmt');
-      var emot = box.querySelector('.acsv-cinput-top .acsv-cinput-emot');
-      var img = box.querySelector('.acsv-cinput-top .acsv-cinput-img');
-      return fb.length === 5 && !!emot && !!img && !!cnt
-        && cnt.parentNode === box.querySelector('.acsv-cinput-top'); // 字数在工具栏行右端
+      var top = box.querySelector('.acsv-cinput-top');
+      var key = top.querySelector('.acsv-cinput-colkey');
+      var emot = top.querySelector('.acsv-cinput-emot');
+      var img = top.querySelector('.acsv-cinput-img');
+      var seps = top.querySelectorAll('.acsv-fmtsep');
+      return !!top && !!key && !!emot && !!img && !!cnt
+        && top.querySelectorAll('.acsv-cinput-fmt').length === 6   // B I U S + 主键 + 箭头键
+        && key.querySelectorAll('button').length === 2
+        && !!key.querySelector('.acsv-cinput-collabel')             // 主键内的当前色条
+        && seps.length === 2                                        // 官方两条（S 后 / 颜色键后）
+        && cnt.parentNode === top;                                  // 字数在工具栏行右端
     })());
     rec('cr-icons-native', (function () {
       if (!ed) return false;
       var glyphs = box.querySelectorAll('.acsv-cinput-top .acsv-ic');
-      if (glyphs.length !== 7) return false; // B I U S + 颜色 + 表情 + 图片
+      if (glyphs.length !== 8) return false; // B I U S + 颜色 + 箭头 + 表情 + 图片
       var ff = getComputedStyle(glyphs[0]).fontFamily;
       var codes = [];
       for (var i = 0; i < glyphs.length; i++) codes.push(glyphs[i].textContent);
-      // 与 imicons.GLYPHS.ed* 同码点（官方 UMEditor 工具栏码点）：B E18F / I E19A / U E1EA / S E1E9 / A E1EB / ☺ E18B / 🖼 E18A
+      // imicons.GLYPHS.ed*（官方工具栏码点）：E18F/E19A/E1EA/E1E9 · E1EB 颜色 · E166 下拉箭头 · E18B 表情 · E18A 图片
       return ff.indexOf('acfun-frontend-next') >= 0
-        && codes.join(',') === ['\ue18f', '\ue19a', '\ue1ea', '\ue1e9', '\ue1eb', '\ue18b', '\ue18a'].join(',');
+        && codes.join() === ['', '', '', '', '', '', '', ''].join();
     })(), (function () {
       var g = box.querySelectorAll('.acsv-cinput-top .acsv-ic');
       return g.length ? getComputedStyle(g[0]).fontFamily.slice(0, 40) : 'none';
+    })());
+    // v2 几何（官方实测）：键盒 18×18、相邻键右距 8、竖分隔线 1×18、split 包裹件 32（主 18 + 箭头 14）
+    rec('cr-toolbar-geometry', (function () {
+      var keys = box.querySelectorAll('.acsv-cinput-top .acsv-cinput-fmt');
+      var k0 = keys[0].getBoundingClientRect(), k1 = keys[1].getBoundingClientRect();
+      var sep = box.querySelector('.acsv-cinput-top .acsv-fmtsep').getBoundingClientRect();
+      var key = box.querySelector('.acsv-cinput-colkey').getBoundingClientRect();
+      var caret = box.querySelector('.acsv-cinput-colcaret').getBoundingClientRect();
+      return Math.round(k0.width) === 18 && Math.round(k0.height) === 18
+        && Math.round(k1.left - k0.right) === 8
+        && Math.round(sep.width) === 1 && Math.round(sep.height) === 18
+        && Math.round(key.width) === 32 && Math.round(caret.width) === 14;
+    })(), (function () {
+      var keys = box.querySelectorAll('.acsv-cinput-top .acsv-cinput-fmt');
+      var k0 = keys[0].getBoundingClientRect(), k1 = keys[1].getBoundingClientRect();
+      return 'key=' + Math.round(k0.width) + ' gap=' + Math.round(k1.left - k0.right);
+    })());
+    // ★ 色条居中于主键（官方 label 是主键的子元素 ⇒ left:50% 相对 18 宽主键）——2026-10-15 用户实拍抓过的
+    // "偏右 7px"（挂到 32 宽包裹层上就是那个形态）
+    rec('cr-collabel-center', (function () {
+      var main = box.querySelector('.acsv-cinput-colkey .acsv-cinput-fmt');
+      var lab = box.querySelector('.acsv-cinput-collabel');
+      if (!main || !lab) return false;
+      var m = main.getBoundingClientRect(), l = lab.getBoundingClientRect();
+      return Math.abs((l.left + l.width / 2) - (m.left + m.width / 2)) <= 1
+        && Math.round(l.width) === 16 && Math.round(l.height) === 2
+        && lab.parentNode === main;
+    })(), (function () {
+      var main = box.querySelector('.acsv-cinput-colkey .acsv-cinput-fmt');
+      var lab = box.querySelector('.acsv-cinput-collabel');
+      if (!main || !lab) return 'n/a';
+      var m = main.getBoundingClientRect(), l = lab.getBoundingClientRect();
+      return 'dx=' + ((l.left + l.width / 2) - (m.left + m.width / 2)).toFixed(1) + ' bg=' + getComputedStyle(lab).backgroundColor;
+    })());
+    // 色条初值＝编辑区当前字色（暗色宿主 = #e8eaee）
+    rec('cr-collabel-initial', (function () {
+      var lab = box.querySelector('.acsv-cinput-collabel');
+      return !!lab && getComputedStyle(lab).backgroundColor === 'rgb(232, 234, 238)';
+    })(), (function () {
+      var lab = box.querySelector('.acsv-cinput-collabel');
+      return lab ? getComputedStyle(lab).backgroundColor : 'none';
     })());
 
     // ---- ② 出口序列化对照表（⑧ 表逐条；构造 DOM 直采钩子＝与编辑区同一实现） ----
@@ -152,25 +200,80 @@
     rec('cr-underline', (function () { var w = wire(); return !!w && /\[u\]/.test(w.text) && /\[\/u\]/.test(w.text); })(),
       (function () { var w = wire(); return w && JSON.stringify(w.text); })());
 
-    // ---- ④ 颜色键：色板 → foreColor → 出口 [color=#hex]（rgb 归一进 hex 白名单） ----
-    var colBtn = box.querySelectorAll('.acsv-cinput-fmt')[4];
-    colBtn.click();
+    // ---- ④ 颜色键（官方 split 三件 + 官方 70 色色板）：出口 [color=#hex]（rgb 归一进 hex 白名单） ----
+    var colMain = box.querySelector('.acsv-cinput-colkey .acsv-cinput-fmt');
+    var colCaretKey = box.querySelector('.acsv-cinput-colcaret');
     var pop = box.querySelector('.acsv-colpop');
-    rec('cr-colorpop-open', !!pop && pop.style.display === 'grid');
-    if (pop && pop.children[0]) pop.children[0].click(); // 第一格 = #fd4c5d
+    var lab = box.querySelector('.acsv-cinput-collabel');
+    // 色板结构（官方实测）：70 格 = 主题 6×10 + 标准 1×10、两个行标题、格 14×14、列距 18、面板 216 宽
+    rec('cr-palette-structure', (function () {
+      var grids = pop.querySelectorAll('.acsv-colpop-g');
+      var cells = pop.querySelectorAll('.acsv-colpop-g i');
+      var titles = [].map.call(pop.querySelectorAll('.acsv-colpop-h'), function (x) { return x.textContent; });
+      var per = [].map.call(grids, function (g) { return g.children.length; }).join(',');
+      return grids.length === 7 && cells.length === 70 && per === '10,10,10,10,10,10,10'
+        && titles.join('|') === '主题颜色|标准颜色';
+    })(), (function () {
+      var cells = pop.querySelectorAll('.acsv-colpop-g i');
+      return 'cells=' + cells.length + ' titles=' + [].map.call(pop.querySelectorAll('.acsv-colpop-h'), function (x) { return x.textContent; }).join('/');
+    })());
+    // ★ 暗色格边不许"淡到看不出"（2026-10-15 用户实拍：.16 白时近黑格没轮廓）——钉 alpha ≥ 0.3
+    rec('cr-palette-cellborder', (function () {
+      var c = pop.querySelector('.acsv-colpop-g i');
+      var m = /rgba?\((\d+), ?(\d+), ?(\d+)(?:, ?([\d.]+))?\)/.exec(getComputedStyle(c).borderTopColor);
+      if (!m) return false;
+      var alpha = m[4] === undefined ? 1 : Number(m[4]);
+      return alpha >= 0.3;
+    })(), getComputedStyle(pop.querySelector('.acsv-colpop-g i')).borderTopColor);
+    // 主键 = 应用当前色（**不弹面板**）；箭头键 = 开/收面板
+    ed.focus(); selectAll();
+    var labBefore = lab.style.background;
+    colMain.click();
+    rec('cr-colmain-no-pop', !pop.classList.contains('on') && lab.style.background === labBefore,
+      'open=' + pop.classList.contains('on') + ' lab=' + lab.style.background);
+    colCaretKey.click();
+    rec('cr-colorpop-open', (function () {
+      return pop.classList.contains('on')
+        && getComputedStyle(pop).display === 'block'
+        && colCaretKey.classList.contains('on')                     // 官方开面板时 splitbutton 亮起
+        && Math.abs(pop.getBoundingClientRect().top - colMain.getBoundingClientRect().bottom) >= 0; // 向上开（面板在键上方）
+    })(), (function () {
+      var pr = pop.getBoundingClientRect(), kr = colMain.getBoundingClientRect();
+      return 'pop.bottom=' + Math.round(pr.bottom) + ' key.top=' + Math.round(kr.top);
+    })());
+    rec('cr-palette-geometry', (function () {
+      var c = pop.querySelector('.acsv-colpop-g i');
+      var cs = getComputedStyle(c);
+      var box2 = c.getBoundingClientRect(), pr = pop.getBoundingClientRect();
+      var cs2 = pop.querySelectorAll('.acsv-colpop-g i')[1].getBoundingClientRect();
+      return Math.round(box2.width) === 14 && Math.round(box2.height) === 14
+        && Math.round(cs2.left - box2.right) === 4                 // 列距 18（14 + 2×2 外边距）
+        && pr.width >= 210 && pr.width <= 226                      // 面板 216（官方实测同值）
+        && cs.borderTopStyle === 'solid';
+    })(), (function () {
+      var c = pop.querySelector('.acsv-colpop-g i');
+      var box2 = c.getBoundingClientRect(), pr = pop.getBoundingClientRect();
+      return 'cell=' + Math.round(box2.width) + ' panel=' + Math.round(pr.width) + ' border=' + getComputedStyle(c).borderTopColor;
+    })());
+    // 点官方主题红 #c0504d → 出口 [color=#c0504d]；色条跟着变；面板收起
+    if (pop.querySelector('i[data-color="#c0504d"]')) pop.querySelector('i[data-color="#c0504d"]').click();
     rec('cr-color', (function () {
       var w = wire();
-      return !!w && w.text.indexOf('[color=#fd4c5d]') >= 0 && w.text.indexOf('[/color]') >= 0;
+      return !!w && w.text.indexOf('[color=#c0504d]') >= 0 && w.text.indexOf('[/color]') >= 0;
     })(), (function () { var w = wire(); return w && JSON.stringify(w.text); })());
-    rec('cr-colorpop-closed', !!pop && pop.style.display === 'none');
+    rec('cr-color-label-follows', lab.style.background === 'rgb(192, 80, 77)', lab.style.background);
+    rec('cr-colorpop-closed', !pop.classList.contains('on') && !colCaretKey.classList.contains('on'),
+      'pop=' + pop.className + ' caret=' + colCaretKey.className + ' disp=' + getComputedStyle(pop).display
+      + ' inline=' + JSON.stringify(pop.style.display) + ' conn=' + pop.isConnected + ' parentHid=' + getComputedStyle(pop.parentNode).display);
     // 颜色键产物**没有** rgb() 残留（归一：渲染侧白名单只认 hex）
     rec('cr-color-hex-only', (function () {
-      var spans = ed.querySelectorAll('[style*="color"]'); // 颜色可能落在 b/u/span 任一标签上（见 styleWrap 注）
+      var spans = ed.querySelectorAll('[style*="color"]');
       for (var i = 0; i < spans.length; i++) {
         if (/rgb/i.test(spans[i].getAttribute('style') || '')) return false;
       }
       return spans.length > 0;
-    })(), (function () { return [].map.call(ed.querySelectorAll('span[style]'), function (s) { return s.getAttribute('style'); }).join(' | '); })());
+    })(), (function () { return [].map.call(ed.querySelectorAll('span[style]'), function (sp) { return sp.getAttribute('style'); }).join(' | '); })());
+
     clear();
     rec('cr-clear-placeholder', (function () {
       // 空态：DOM 真空 + :empty::before 出占位文案（contenteditable 无原生 placeholder）

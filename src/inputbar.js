@@ -274,9 +274,22 @@ function normalizeColors(root) {
   });
 }
 
-// 12 色常备色板（预览稿 ① 定稿）。颜色值必须落 #hex——渲染侧 [color] 限 hex 白名单（ubb.js）
-var PALETTE = ['#fd4c5d', '#ffb323', '#ffd35c', '#7ed957', '#40c4ff', '#409bef',
-  '#b18cff', '#ff8ac4', '#e8eaee', '#9aa0ab', '#666666', '#333333'];
+// 色板 = 官方全量 70 色（0.9.239；官方实测逐格抄录，见 docs/api-research.md §11.10）：
+// 「主题颜色」6 行 × 10（Office 2007 主题表：首行 黑白+6 主色+2 强调，下面 5 行是同色系深浅阶）
+// + 「标准颜色」1 行 × 10。官方实例里另有顶栏（128×20 预览 + 「无颜色」）在 CSS 里但**未渲染**，
+// 故不搬。全部 #hex —— 渲染侧 [color] 限 hex 白名单（src/ubb.js）。
+// 导出供单测直采（表本身就是官方实测的抄录件，改一处必须同步单测）
+export var THEME_COLORS = [
+  ['#ffffff', '#000000', '#eeece1', '#1f497d', '#4f81bd', '#c0504d', '#9bbb59', '#8064a2', '#4bacc6', '#f79646'],
+  ['#f2f2f2', '#7f7f7f', '#ddd9c3', '#c6d9f0', '#dbe5f1', '#f2dcdb', '#ebf1dd', '#e5e0ec', '#dbeef3', '#fdeada'],
+  ['#d8d8d8', '#595959', '#c4bd97', '#8db3e2', '#b8cce4', '#e5b9b7', '#d7e3bc', '#ccc1d9', '#b7dde8', '#fbd5b5'],
+  ['#bfbfbf', '#3f3f3f', '#938953', '#548dd4', '#95b3d7', '#d99694', '#c3d69b', '#b2a2c7', '#92cddc', '#fac08f'],
+  ['#a5a5a5', '#262626', '#494429', '#17365d', '#366092', '#953734', '#76923c', '#5f497a', '#31859b', '#e36c09'],
+  ['#7f7f7f', '#0c0c0c', '#1d1b10', '#0f243e', '#244061', '#632423', '#4f6128', '#3f3151', '#205867', '#974806']
+];
+export var STD_COLORS = [
+  ['#c00000', '#ff0000', '#ffc000', '#ffff00', '#92d050', '#00b050', '#00b0f0', '#0070c0', '#002060', '#7030a0']
+];
 
 // ================= 输入条本体 =================
 export function buildInputBar(opts) {
@@ -309,51 +322,91 @@ export function buildInputBar(opts) {
       fmtBtns.push(b);
       top.appendChild(b);
     });
+  // 竖分隔线两条（官方 .edui-separator 在 S 后与颜色键后各一条；见 preview §⑫）
+  top.appendChild(el('span', 'acsv-fmtsep'));
 
-  // 颜色键 + 色板弹层（锚在键上，**向上开**：输入条恒贴宿主底边，向下开会被抽屉/面板裁掉）
-  var colBtn = elHtml('button', 'acsv-cinput-fmt acsv-cinput-col', '<i class="acsv-ic">' + GLYPHS.edColor + '</i>');
+  // 颜色键 = 官方 splitbutton 三件（0.9.239；实测官 DOM：主键 .edui-btn（图标 + 当前色条）
+  // + 箭头键 .edui-dropdown-toggle（.edui-caret 字形 E166））：
+  //   主键 18×18  点 = 把「当前色」刷到选中文字上（不弹面板）
+  //   箭头键 14×18 点 = 开/收色板（官方 .edui-active 亮起）
+  //   色条 16×2   挂在**主键内**（官方 label 就是主键的子元素 ⇒ left:50% 相对主键，
+  //               居中于 A 字形；挂到 32 宽的包裹层上会右移 7px——2026-10-15 用户实拍后的定论）
+  //   初值 = 编辑区当前字色（官方该条初值即编辑器文字色），选色后 = 所选色
+  var colKey = el('span', 'acsv-cinput-colkey');
+  var colBtn = elHtml('button', 'acsv-cinput-fmt', '<i class="acsv-ic">' + GLYPHS.edColor + '</i>');
   colBtn.type = 'button';
-  a11y(colBtn, '颜色');
+  a11y(colBtn, '字体颜色');
   colBtn.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
-  var colPop = el('div', 'acsv-colpop');
-  colPop.style.display = 'none';
-  var lastColor = '';
-  PALETTE.forEach(function (hex) {
-    var sw = el('i');
-    sw.style.background = hex;
-    sw.addEventListener('mousedown', function (ev) { ev.preventDefault(); }); // 同格式键：不许塌选区
-    sw.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      edit.focus();
-      try {
-        document.execCommand('styleWithCSS', false, true);
-        document.execCommand('foreColor', false, hex);
-      } catch (e) { }
-      normalizeColors(edit);
-      lastColor = hex;
-      paintColorPop();
-      colPop.style.display = 'none';
-      syncFmt();
-      refresh();
+  var colLabel = el('span', 'acsv-cinput-collabel');
+  colBtn.appendChild(colLabel);
+  var colCaret = elHtml('button', 'acsv-cinput-fmt acsv-cinput-colcaret', '<i class="acsv-ic">' + GLYPHS.edCaret + '</i>');
+  colCaret.type = 'button';
+  a11y(colCaret, '选择颜色');
+  colCaret.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+  colKey.appendChild(colBtn);
+  colKey.appendChild(colCaret);
+
+  var colPop = el('div', 'acsv-colpop'); // 显隐走 .on 类（CSS 里 display:none → block）
+  var lastColor = ''; // '' = 还没选过（色条显示编辑区当前字色）
+  // 色板 = 官方全量 70 色（主题颜色 6×10 + 标准颜色 1×10，两个行标题；10 列 / 格 14×14 /
+  // 列距 18；逐格 data-color 实测抄录，见 docs/api-research.md §11.10）
+  [['主题颜色', THEME_COLORS], ['标准颜色', STD_COLORS]].forEach(function (grp) {
+    colPop.appendChild(el('div', 'acsv-colpop-h', grp[0]));
+    grp[1].forEach(function (row, ri) {
+      var g = el('div', 'acsv-colpop-g' + (ri === 0 ? ' first' : ''));
+      row.forEach(function (hex) {
+        var sw = el('i');
+        sw.style.background = hex;
+        sw.setAttribute('data-color', hex);
+        sw.addEventListener('mousedown', function (ev) { ev.preventDefault(); }); // 同格式键：不许塌选区
+        sw.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          applyColor(hex);
+          hideCol();
+          syncFmt();
+          refresh();
+        });
+        g.appendChild(sw);
+      });
+      colPop.appendChild(g);
     });
-    colPop.appendChild(sw);
   });
+  function applyColor(hex) {
+    edit.focus();
+    try {
+      document.execCommand('styleWithCSS', false, true);
+      document.execCommand('foreColor', false, hex);
+    } catch (e) { }
+    normalizeColors(edit); // Chrome 写 rgb()，出口与渲染白名单只认 hex
+    lastColor = hex;
+    paintColorLabel();
+  }
+  // 色条：**选过色才写内联**，没选过就清空内联 ⇒ 露出 CSS 的 --acsv-edit-fg（由皮肤给：
+  // 暗 #e8eaee / 浅 #333）——官方该条初值即编辑器文字色，用变量省掉"建条时机拿不到皮肤"的坑
+  function paintColorLabel() { colLabel.style.background = lastColor || ''; }
+  // 主键：应用当前色（还没选过 ⇒ 当前色就是编辑区字色，点了等于不动色——与官方同语义）
   colBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
-    var show = colPop.style.display === 'none';
-    colPop.style.display = show ? 'grid' : 'none';
-    if (!colPop._outArmed) {
-      colPop._outArmed = true;
-      closeOnOutsideClick(colPop, [colBtn], function () { colPop.style.display = 'none'; });
-    }
+    if (!lastColor) return;
+    applyColor(lastColor);
+    refresh();
   });
-  colBtn.appendChild(colPop);
-  function paintColorPop() {
-    [].forEach.call(colPop.children, function (sw, i) {
-      sw.classList.toggle('on', PALETTE[i] === lastColor);
-    });
+  // 箭头键：开/收色板
+  colCaret.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    toggleCol(!colPop.classList.contains('on')); // 开/收：状态在 .on 类上（CSS 控 display）
+  });
+  function hideCol() { toggleCol(false); }
+  function toggleCol(show) {
+    colPop.classList.toggle('on', !!show);
+    colCaret.classList.toggle('on', !!show); // 官方开面板时 splitbutton 亮起
+    if (show && !colPop._outArmed) {
+      colPop._outArmed = true;
+      closeOnOutsideClick(colPop, [colCaret, colBtn], function () { toggleCol(false); });
+    }
   }
-  top.appendChild(colBtn);
+  colKey.appendChild(colPop); // 弹层锚在 split 包裹层（position:relative），**向上开**
+  top.appendChild(colKey);
   top.appendChild(el('span', 'acsv-fmtsep'));
 
   // ---- 表情键（面板由调用方 mountEmotButton 接管） ----
@@ -454,7 +507,7 @@ export function buildInputBar(opts) {
       b.classList.toggle('on', !!on);
     });
   }
-  function hideCol() { colPop.style.display = 'none'; }
+  function hideCol() { toggleCol(false); } // 收面板的唯一出口（旧实现直接写 inline display ⇒ 类名残留）
 
   edit.addEventListener('input', function () { syncFmt(); refresh(); });
   edit.addEventListener('keyup', syncFmt);
