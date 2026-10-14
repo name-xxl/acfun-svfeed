@@ -47,14 +47,21 @@ export function buildInputBar(opts) {
     input.style.height = 'auto';
     input.style.height = Math.min(Math.max(input.scrollHeight, 36), 96) + 'px';
   }
+  // 程序化改值的唯一出口（清空/回填/会话切换）：值 + 高度一处收口；
+  // composermirror.decorateInput 会再包一层补镜像层重画（textarea 文字透明，只靠镜像层显示）
+  function setText(v) {
+    input.value = v == null ? '' : v;
+    fitHeight();
+  }
   input.addEventListener('input', fitHeight);
   input.addEventListener('keydown', function (ev) {
     ev.stopPropagation();
+    if (ev.isComposing || ev.keyCode === 229) return; // 组合期只挡冒泡，不拦发送/失焦（tokenedit 纪律②同款）
     if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); opts.onSend(); }
     else if (ev.key === 'Escape') { ev.stopPropagation(); input.blur(); }
   });
   send.addEventListener('click', function (ev) { ev.stopPropagation(); opts.onSend(); });
-  return { box: box, emotBtn: emotBtn, input: input, send: send, imgBtn: imgBtn, fileInp: fileInp, fitHeight: fitHeight };
+  return { box: box, emotBtn: emotBtn, input: input, send: send, imgBtn: imgBtn, fileInp: fileInp, fitHeight: fitHeight, setText: setText };
 }
 
 // 引用/回复 chip（0.9.47 收敛：私信引用与评论回复共用，置于输入条上方独立一行，原

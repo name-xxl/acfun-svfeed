@@ -47,6 +47,18 @@ function subOptsOf(opts) {
   return { mode: opts.mode, sourceId: opts.sourceId, stype: opts.stype, isSec: true };
 }
 
+// 点赞三态单源（0.9.234）：localLike 是**三态覆写**（undefined=无本地覆写 / true / false）。
+// 显示态 = 覆写 ?? 服务端（isLiked||isLike）；显示数 = 服务端计数 − 我的初始赞 + 当前赞。
+// 本 kit 初始渲染与 comments.toggleCommentLike 共用（此前两处各写各的：取消赞只 +0 不减、
+// 且取消后 isLiked 仍是 true ⇒ 再点仍走取消方向、回赞不了）
+export function commentLikeState(c) {
+  c = c || {};
+  var server = !!(c.isLiked || c.isLike);
+  var liked = (c.localLike == null) ? server : !!c.localLike;
+  var base = (c.likeCount || 0) - (server ? 1 : 0);
+  return { liked: liked, count: base + (liked ? 1 : 0) };
+}
+
 // 条目构建单源。opts 注入（0.9.133，去全局读）：{ mode, sourceId, stype }——mode 是原
 // commentState.kind 的交互态分叉（'home' 才有赞/回复/转发三键），sourceId/stype 供楼中楼拉取。
 // 版式自 0.9.138 全语境统一「原生形态」（真机量值：50px 头像/条目 18px 顶距/楼中楼 30+700/
@@ -104,12 +116,14 @@ export function commentItemOf(c, subMap, opts) {
     // 小视频模式纯浏览：点赞/回复仅推荐模式提供。
     // 点击统一委托在 drawer list 上（见 commentListClick），这里只挂数据引用，
     // 免得长列表每条评论两个监听器、innerHTML 重建时反复创建丢弃
-    // 已赞态（0.9.134 实锤修复）：列表真机字段=isLiked（isLike 字段不存在）——三读兜底
-    var on0 = !!(c.isLiked || c.isLike || c.localLike);
+    // 已赞态（0.9.134 实锤修复）：列表真机字段=isLiked（isLike 字段不存在）——三读兜底；
+    // 0.9.234 起走 commentLikeState 单源（三态覆写 + 计数基准）
+    var st0 = commentLikeState(c);
+    var on0 = st0.liked;
     like = el('span', 'acsv-clike' + (on0 ? ' on' : ''));
     like._g = likeGlyph(on0);
     like.appendChild(like._g);
-    var likeN = el('span', null, fmt((c.likeCount || 0) + (c.localLike ? 1 : 0)));
+    var likeN = el('span', null, fmt(st0.count));
     like.appendChild(likeN);
     like.title = '点赞评论';
     like._c = c;

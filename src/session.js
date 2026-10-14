@@ -28,6 +28,7 @@ export function createSession(slide, item, idx, hooks) {
     monitor: null, // HealthMonitor（见文末）：FROZEN/DEGRADED 检测与恢复阶梯
     _hls: null,
     resumeAt: 0,        // 重挂前的播放进度，playing 后 seek 回去（attachVideo 从槽位转入）
+    lastT: 0,           // dispose 前最终秒位快照（0.9.234：拆源会归零 currentTime，上报用它）
     _recovering: false, // 恢复链重入锁：video error 与 hls fatal 可能接连触发
     _waitTimer: null,
 
@@ -40,7 +41,10 @@ export function createSession(slide, item, idx, hooks) {
         slide.dataset.state = 'ready';
         slide.dataset.paused = '0';
       }
-      else if (s === 'error') slide.dataset.state = 'error';
+      else if (s === 'error') {
+        clearTimeout(this._waitTimer); // error 落地即撤在途转圈定时器（0.9.234：否则 300ms 后 loading 反盖 error）
+        slide.dataset.state = 'error';
+      }
       if (hooks.onState) hooks.onState(this, s);
     },
 
@@ -271,7 +275,7 @@ export function createSession(slide, item, idx, hooks) {
         self._waitTimer = setTimeout(function () {
           // 必须走内部态 'buffering' 而非直写 dataset：直写会让 session.state 停留在
           // 'ready'，seeked/playing 归位时被 setState 的同值守卫短路，转圈永远挂着
-          if (self.state === 'disposed') return;
+          if (self.state === 'disposed' || self.state === 'error') return; // error 后不许再翻回 loading（0.9.234 竞态）
           self.state = 'buffering';
           slide.dataset.state = 'loading';
         }, 300);
@@ -311,12 +315,16 @@ export function createSession(slide, item, idx, hooks) {
       if (slide._dmLayer) { slide._dmLayer.destroy(); slide._dmLayer = null; }
       var video = this.video;
       if (video) {
+        // 进度快照必须在拆源前取：removeAttribute('src')+load() 会把 currentTime 同步归零
+        //（0.9.234 本机 Chromium 实测 1.278s→0）——拆后钩子里再读就永远是 0，上报被
+        // watchReportMin 门槛静默丢弃。快照经 lastT 交给 hooks（video 引用照旧传递）
+        this.lastT = Math.floor(video.currentTime || 0);
         video.pause(); video.removeAttribute('src'); video.load(); video.remove();
         this.video = null;
       }
       stat('session.dispose');
-      // video 已从 DOM 拆除但对象仍持有 currentTime：观看历史上报要在离开时刻读最终进度，
-      // 经此参数把拆前引用交给 player（钩子内不得再操作 video）
+      // video 已从 DOM 拆除；观看历史上报的最终秒位用拆前快照 session.lastT
+      //（钩子内不得再操作 video——currentTime 已归零，读了只会拿到 0）
       if (hooks.onDisposed) hooks.onDisposed(this, video);
     }
   };

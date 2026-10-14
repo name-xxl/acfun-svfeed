@@ -342,4 +342,23 @@ rec('ledger-cleaned', !!(await waitFor(function () {
   } catch (e) { return false; }
 }, 5000)), 'raw=' + localStorage.getItem('acsvWatchLedger'));
   };
+  // ---- waiting-error-race（0.9.234：error 落地后不许被在途转圈定时器反盖） ----
+  C['waiting-error-race'] = async function (h) {
+    var rec = h.rec, slide = h.slide, wait = h.wait, waitFor = h.waitFor;
+// 病灶：waiting 的 300ms 定时器回调只挡 disposed；error 落下后定时器照跑 ⇒ loading 反盖 error，
+// 转圈出现、重试盒被藏。合成顺序：waiting（起表）→ setState('error') → 越过 300ms 窗口看终态。
+rec('race-ready', !!(await waitFor(function () {
+  var s = slide(0), v = s && s.querySelector('video');
+  return !!(v && v.duration > 0 && s.dataset.state === 'ready' && s._session);
+}, 25000)));
+var s = slide(0), v = s && s.querySelector('video');
+if (!s || !v || !s._session) { rec('race-ready', false, 'no-session'); return; }
+v.pause(); // 隔离：真视频继续播会发 playing/waiting（playing 会把 error 正常拨回 ready，干扰合成序列）
+await wait(60);
+v.dispatchEvent(new Event('waiting'));
+s._session.setState('error');
+rec('race-error-immediate', s.dataset.state === 'error', 'state=' + s.dataset.state);
+await wait(450); // 越过 300ms 定时器窗口
+rec('race-error-holds', s.dataset.state === 'error', 'state=' + s.dataset.state);
+  };
 })();

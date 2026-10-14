@@ -46,6 +46,13 @@ export function decorateInput(bar) {
   }
   bar.mirror = mirror;
   bar.renderMirror = renderMirror;
+  // 程序化改值（发送清空/切会话/失败回填）走 inputbar.setText 单源——这里包一层补镜像重画。
+  // 病灶（0.9.234）：调用方直接写 input.value 时镜像层不知道，已发送文字"幽灵残留"
+  var baseSetText = bar.setText;
+  bar.setText = function (v) {
+    if (baseSetText) baseSetText(v);
+    renderMirror();
+  };
   // 令牌原子编辑（删除整块/选区吸附/方向键跳过）；编辑落地后重画镜像层
   bar.tk = attachTokenEdit(input, { onEdit: renderMirror });
   input.addEventListener('input', renderMirror);

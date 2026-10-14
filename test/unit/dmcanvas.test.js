@@ -34,6 +34,17 @@ test('mergeDanmaku：同文本窗口内去重、超窗保留、异文不受影�
   assert.deepEqual(mergeDanmaku(null, 1500), []);
   assert.deepEqual(mergeDanmaku([null, { at: 1, text: 'x' }], 1500).length, 1); // 空条目跳过
   assert.deepEqual(mergeDanmaku([{ at: 1, text: '' }], 1500).length, 1); // 空文本不参与去重（仍保留）
+  // 0.9.234：原型键文本不再是"永不去重"的特例（`{}` 哈希读 __proto__ 命中 Object.prototype，
+  // `it.at - prev` 变 NaN ⇒ 每条都留下；改用 Object.create(null) 后恢复正常窗口去重）
+  var proto = [
+    { at: 0, text: '__proto__' },
+    { at: 100, text: '__proto__' },   // 窗口内重复 → 丢
+    { at: 2000, text: '__proto__' },  // 超窗 → 留
+    { at: 2100, text: 'constructor' },
+    { at: 2200, text: 'constructor' } // 窗口内重复 → 丢
+  ];
+  assert.deepEqual(mergeDanmaku(proto, 1500).map(function (x) { return x.at + ':' + x.text; }),
+    ['0:__proto__', '2000:__proto__', '2100:constructor']);
 });
 
 // 按类型/关键词屏蔽（0.9.202 起四类、0.9.204 补齐角色与高级两类）：判据全部落在回包字段上。

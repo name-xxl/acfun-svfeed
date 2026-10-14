@@ -91,7 +91,7 @@ export function filterDanmaku(list, block, keywords) {
 // 前提：入参已按 at 升序（assignLanes 里就排好序，这里保持顺序稳定）
 export function mergeDanmaku(list, winMs) {
   var win = Number(winMs) > 0 ? Number(winMs) : 1500;
-  var lastByText = {};
+  var lastByText = Object.create(null); // 0.9.234：无原型哈希——`__proto__`/`constructor` 文本不再被原型链吞掉
   var out = [];
   for (var i = 0; i < (list || []).length; i++) {
     var it = list[i];
@@ -436,6 +436,9 @@ function createLayer(slide, video) {
     },
     destroy: function () {
       this.stop();
+      // 销毁出口回调（0.9.234）：高级弹幕取池的定时器归 danmaku.js 管，用回调显式通知它停泵
+      //（原先 destroy 后 interval 仍在空转并持有死 video 闭包，直到整页退出才由 stopAll 清）
+      if (api.onDestroy) { try { api.onDestroy(); } catch (e) { } }
       if (canvas.parentNode) canvas.remove();
       // 从图层表摘除自己：否则每次重挂（切清晰度）都泄漏一个闭包，
       // 持有 canvas/ctx/video/items 直到整页退出才释放

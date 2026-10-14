@@ -154,8 +154,7 @@ function ensureDrawerDom() {
     onSend: function () {
       var t = inputBar.input.value.replace(/\s+$/, '');
       if (!t) return;
-      inputBar.input.value = '';
-      inputBar.fitHeight();
+      inputBar.setText(''); // 值 + 高度 + 镜像层重画单源（0.9.234）
       sendChat(t);
     }
   });
@@ -192,7 +191,8 @@ function ensureDrawerDom() {
   drawer = {
     el: d, head: head, back: back, title: title, close: close,
     listView: listView, search: search, listBody: listBody,
-    chatView: chatView, bubbles: bubbles, quoteChip: quoteChip, input: input, send: inputBar.send
+    chatView: chatView, bubbles: bubbles, quoteChip: quoteChip, input: input, send: inputBar.send,
+    setText: inputBar.setText // 切会话清草稿/失败回填单源（值+高度+镜像重画，0.9.234）
   };
 }
 
@@ -224,7 +224,7 @@ function showChat(targetId) {
   // 都是会话级状态：切会话随 chat 重建自然清空，不残留上一会话的引用
   chat = { targetId: String(targetId), name: card.name || '', session: null, lastCount: -1, seen: {}, lastDivTs: 0, quote: null, msgEls: {} };
   loadChat();
-  drawer.input.value = ''; // 清掉上一会话可能残留的草稿
+  drawer.setText(''); // 清掉上一会话可能残留的草稿（含镜像层重画）
   setTimeout(function () { try { drawer.input.focus(); } catch (e) { } }, 60);
   chatPoll.start();
 }
@@ -774,7 +774,7 @@ function sendChat(text) {
       b.addEventListener('click', function (ev) {
         ev.stopPropagation();
         holder.remove();
-        drawer.input.value = text;
+        drawer.setText(text);
         if (quote && chat && !chat.quote) setQuote(quote); // 重试恢复引用 chip（期间没换目标才回填）
         drawer.input.focus();
       });

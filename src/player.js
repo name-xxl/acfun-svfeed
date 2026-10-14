@@ -167,10 +167,10 @@ var SESSION_HOOKS = {
     }
   },
   // 兜底路径：滑出渲染窗口/换清晰度重挂/切源/关闭信息流才走 dispose（相邻划走只 pause
-  // 不 dispose，那条路由 setActive 负责）；video 已拆但引用仍持有最终 currentTime
-  // （见 session.js dispose），在此上报离开时刻的观看进度
-  onDisposed: function (session, video) {
-    reportLeave(session, video, 'dispose');
+  // 不 dispose，那条路由 setActive 负责）；最终秒位走 session.lastT 拆前快照
+  //（0.9.234：拆源后 video.currentTime 已归零，不能现场读）
+  onDisposed: function (session) {
+    reportLeave(session, null, 'dispose', session.lastT);
   }
 };
 // 会话驱动的起播（挂载/恢复链）门禁：按"视频自己那张舞台"判——竖刷被视图盖住不起播

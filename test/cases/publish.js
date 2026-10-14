@@ -91,6 +91,27 @@
     if (pills[1]) pills[1].click();
     rec('pub-vis-fans', !!(pills[1] && pills[1].classList.contains('on')));
 
+    // 0.9.234 上传失败提示必须"出现且留存"：先前链式收尾 then 在 pending=0 时立刻把 tip 抹成空串，
+    // 失败文案一闪而过。故意等 400ms 越过收尾 then 再断言（摘修复反跑：抹掉分支还原即转红）
+    var fileInp = q('.acsv-me input[type=file]');
+    if (fileInp) {
+      var dtOK = true;
+      try {
+        var dt = new DataTransfer();
+        dt.items.add(new File([new Uint8Array(2048)], 'probe.png', { type: 'image/png' }));
+        fileInp.files = dt.files;
+        fileInp.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch (e) { dtOK = false; }
+      var tipSeen = dtOK && !!(await waitFor(function () {
+        return /图片上传失败/.test((q('.acsv-me-tip') || {}).textContent || '');
+      }, 6000));
+      await wait(400);
+      rec('pub-upload-tip-persists', tipSeen && /图片上传失败/.test((q('.acsv-me-tip') || {}).textContent || ''),
+        'seen=' + tipSeen + ' now=' + JSON.stringify((q('.acsv-me-tip') || {}).textContent));
+    } else {
+      rec('pub-upload-tip-persists', false, 'no-file-input');
+    }
+
     // 3) 提交 → 成功分支（body 形状＝契约面）
     q('.acsv-me-ok').click();
     rec('pub-posted-closes', !!(await waitFor(function () { return !q('.acsv-me-host'); }, 6000)));

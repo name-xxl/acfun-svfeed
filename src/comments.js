@@ -16,7 +16,7 @@ import { decorateInput } from './composermirror.js'; // 输入框镜像层（0.9
 import { openImageViewer } from './imgview.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import { openSharePanel } from './sharepanel.js';
-import { commentItemOf } from './commentkit.js'; // 条目构建单源（0.9.133 自本文件下沉）
+import { commentItemOf, commentLikeState } from './commentkit.js'; // 条目构建单源（0.9.133 自本文件下沉；0.9.234 加点赞三态）
 import { relDrawerSync, relDrawerClose } from './reldrawer.js'; // 相关推荐 tab 两 seam（0.9.167）
 // imdrawer→本模块（syncCommentVars）为单向回指（0.9.114 断 imshare→imdrawer 后不再成环）；
 // 本模块→sharepanel（原 imshare 面板族）侧均为函数、调用期才解引用，模块求值期无依赖
@@ -245,25 +245,27 @@ function loadComments(sourceId, page, append) {
 // 全项目评论条目构建单源（view-follow 68 / detail-open 38 断言钉着类名与 DOM）；本文件经
 // commentItemOf(c, subMap, cmtOpts()) 消费——kit 无状态，mode/sourceId/stype 由 cmtOpts 注入
 
-// 评论点赞（乐观更新 + 失败回滚）；like._c/_n 由 commentItem 挂上
+// 评论点赞（乐观更新 + 失败回滚）；like._c/_n 由 commentItem 挂上。三态单源见 commentkit
 function toggleCommentLike(like) {
   var c = like._c;
   if (!c || c.likeBusy) return;
-  var on = !(c.isLiked || c.isLike || c.localLike); // 三读（0.9.134 实锤：列表真机字段为 isLiked）
+  var on = !commentLikeState(c).liked; // 0.9.234：以三态显示态取反（localLike 覆写 → 服务端字段）
+  var prevLocal = c.localLike;         // 回滚要还原三态原值（可能是 undefined，不能写 false）
   c.likeBusy = true;
   c.localLike = on;
-  like.classList.toggle('on', on);
-  like._g.textContent = on ? GLYPHS.feedLikeFill : GLYPHS.feedLike; // 点亮切实心字形
-  like._n.textContent = fmt((c.likeCount || 0) + (on ? 1 : 0));
+  function paint() {
+    var st = commentLikeState(c);
+    like.classList.toggle('on', st.liked);
+    like._g.textContent = st.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
+    like._n.textContent = fmt(st.count);
+  }
+  paint();
   AppAPI.commentLike(commentState.sourceId, commentState.stype, c.commentId, on)
     .then(function (ok) {
       c.likeBusy = false;
       if (ok) return;
-      c.localLike = !on; // 失败回滚
-      like.classList.toggle('on', !on);
-      // 恢复切换前状态的字形（on 是本次切换的目标态，故与乐观分支取值相反）
-      like._g.textContent = on ? GLYPHS.feedLike : GLYPHS.feedLikeFill;
-      like._n.textContent = fmt(c.likeCount || 0);
+      c.localLike = prevLocal; // 失败回滚：三态原值
+      paint();
       errNotLogin();
     });
 }
@@ -494,8 +496,7 @@ function sendCurrent() {
         return;
       }
       toast(replyTo ? '回复成功' : '评论成功');
-      inp.value = '';
-      if (inputBar._fit) inputBar._fit();
+      inputBar._setText(''); // 值 + 高度 + 镜像层重画单源（0.9.234：此前只清 value，镜像层幽灵残留）
       setReply(null);
       if (forId !== commentState.sourceId) return; // 发送期间已切视频
       if (insertLocalComment(r.comment, !!replyTo)) return; // 根评论乐观上屏，滚动位置不丢
@@ -552,7 +553,7 @@ function ensureCommentInput() {
     });
     inputBar = bar.box;
     inputBar.imgBtn = bar.imgBtn;
-    inputBar._fit = bar.fitHeight; // sendCurrent 清空后收回高度（既有约定）
+    inputBar._setText = function (v) { bar.setText(v); }; // 清空/回填单源（decorateInput 已包镜像重画）
     var inp = bar.input;
     decorateInput(bar); // 0.9.221 镜像层 + 令牌原子编辑（写的时候就看见表情；删除整块）
     emotPanelEl = el('div', 'acsv-emotpanel');

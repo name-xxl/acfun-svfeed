@@ -5,6 +5,39 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.234（2026-10-14）· UI/Bug 专项 Wave 1 第一组：输入链与上报链八件
+
+来源：全仓 UI 隐患普查（4 路源码扫描 + 实测探针）后的修复清单第一组。每件都配 harness
+断言并做**摘修复反跑**（下述反跑结论均为本批实测）。
+
+- **镜像幽灵文本**（comments/imdrawer 四处）：发送成功/切会话/失败回填原先只改 `input.value`，
+  textarea 文字透明（显示全在镜像层）⇒ 已发送文字"幽灵残留"、切会话看到上会话草稿。
+  修法：`inputbar.setText` 单源（值+高度）+ `decorateInput` 包一层补镜像重画。
+  反跑：还原直写 value ⇒ `detail-input-cleared-mirror` 转红（v="" mir="详情面板的测试评论"）。
+- **IME 组合期守卫 ×2**（danmaku.js / inputbar.js）：Enter 不判 `isComposing` ⇒ 中文选词回车
+  把半成品发出去。修法：组合期只挡冒泡不动作（tokenedit 纪律②同款）。新场景 `dm-ime`
+  正负双向钉（组合 Enter 不发 + 真 Enter 照发）；extend detail-open 同断言。
+  反跑：还原 ⇒ `dmime-ime-enter-blocked`/`detail-ime-enter-blocked` 转红。
+- **上传失败提示被立刻抹掉**（momenteditor）：链式收尾 then 在 pending=0 时清空 tip，失败文案
+  一闪而过。修法：本次失败标记阻止收尾覆盖。反跑：还原 ⇒ `pub-upload-tip-persists` 转红。
+- **waiting→error 竞态**（session）：error 落地后 300ms 在途转圈定时器把状态反盖成 loading
+  （转圈盖住重试盒）。修法：`setState('error')` 清 `_waitTimer` + 定时器回调判 error。
+  新场景 `waiting-error-race`；反跑 ⇒ `race-error-holds` 转红。
+- **dispose 上报恒归零**（session/player）：`removeAttribute('src')+load()` 先于 `onDisposed`
+  ⇒ 钩子读 currentTime 已是 0（本机 Chromium 实测 1.278s→0），低于门槛被静默丢弃。
+  修法：拆源前快照 `session.lastT`，`reportLeave(session,null,'dispose',lastT)`。
+  反跑 ⇒ `dispose-reports-lastT`/`dispose-lastT-value` 转红（watch 不增）。
+- **弹幕高级泵泄漏**（danmaku/dmcanvas）：图层 destroy 后 interval 空转并持有死 video 闭包
+  （直到整页退出才由 stopAll 清）。修法：dmcanvas `destroy` 增 `onDestroy` 出口回调，
+  danmaku 借它 `stopAdvPump`。dm-smoke 反跑 ⇒ 出口断言转红。
+- **mergeDanmaku 原型键**（dmcanvas）：`{}` 哈希读 `__proto__` 命中 Object.prototype ⇒
+  `at - prev` 变 NaN，该文本**永不去重**。修法：`Object.create(null)`。单测加原型键用例。
+- **评论点赞三态单源**（commentkit/comments）：取消赞只 +0 不减；且取消后 `isLiked` 仍为 true
+  ⇒ 再点仍走取消方向、**回赞不了**。修法：`commentLikeState` 三态（localLike 覆写 ?? 服务端字段）
+  单源，kit 渲染与 toggle 共用；反跑：还原 ⇒ `square-cmt-like-off-dec` 转红（0→0→0）。
+- **测试证据**：新增 2 场景（dm-ime/waiting-error-race）与 8 条断言（含 watch-playlayer-pagehide
+  的 dispose 上报两断言）；摘修复反跑上述 8 处全部转红；全量 lint/check + 310 单测 + 62/62 场景全绿。
+
 ### 0.9.233（2026-10-14）· 分类债专项收敛（sharepanel/rail/slide 一次登记）+ 契约面 tsc 扩面 10 件
 
 - **病灶（两条既有债，一次清）**：① 方向棘轮唯一在册例外 `sharepanel → momenteditor`——0.9.222

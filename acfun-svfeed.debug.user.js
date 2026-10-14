@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.233-debug
+// @version      0.9.234-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.233-debug" : "",
+          ver: true ? "0.9.234-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -3624,6 +3624,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }
     bar.mirror = mirror;
     bar.renderMirror = renderMirror;
+    var baseSetText = bar.setText;
+    bar.setText = function(v) {
+      if (baseSetText) baseSetText(v);
+      renderMirror();
+    };
     bar.tk = attachTokenEdit(input, { onEdit: renderMirror });
     input.addEventListener("input", renderMirror);
     input.addEventListener("scroll", renderMirror);
@@ -3695,9 +3700,14 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       input.style.height = "auto";
       input.style.height = Math.min(Math.max(input.scrollHeight, 36), 96) + "px";
     }
+    function setText(v) {
+      input.value = v == null ? "" : v;
+      fitHeight();
+    }
     input.addEventListener("input", fitHeight);
     input.addEventListener("keydown", function(ev) {
       ev.stopPropagation();
+      if (ev.isComposing || ev.keyCode === 229) return;
       if (ev.key === "Enter" && !ev.shiftKey) {
         ev.preventDefault();
         opts.onSend();
@@ -3710,7 +3720,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       ev.stopPropagation();
       opts.onSend();
     });
-    return { box, emotBtn, input, send, imgBtn, fileInp, fitHeight };
+    return { box, emotBtn, input, send, imgBtn, fileInp, fitHeight, setText };
   }
   function buildQuoteChip(onCancel, xTitle) {
     var box = el("div", "acsv-quotechip");
@@ -5705,12 +5715,14 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       pending3++;
       tip.textContent = "上传中…";
       renderThumbs();
+      var failed = false;
       uploadImage(
         file
         /* bizFlag 用默认值；动态能否复用待真机（docs §11.5） */
       ).then(function(url) {
         pending3--;
         if (!url) {
+          failed = true;
           tip.textContent = "图片上传失败，请重试";
           renderThumbs();
           return;
@@ -5719,7 +5731,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           imgs.push(dim);
         });
       }).then(function() {
-        if (pending3 === 0) tip.textContent = "";
+        if (!failed && pending3 === 0) tip.textContent = "";
         renderThumbs();
       }, function() {
         pending3--;
@@ -6414,6 +6426,13 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function subOptsOf(opts) {
     return { mode: opts.mode, sourceId: opts.sourceId, stype: opts.stype, isSec: true };
   }
+  function commentLikeState(c) {
+    c = c || {};
+    var server = !!(c.isLiked || c.isLike);
+    var liked = c.localLike == null ? server : !!c.localLike;
+    var base = (c.likeCount || 0) - (server ? 1 : 0);
+    return { liked, count: base + (liked ? 1 : 0) };
+  }
   function commentItemOf(c, subMap, opts) {
     var item = el("div", "acsv-citem");
     var homeUrl = c.userId ? CFG.api.userBase + c.userId : null;
@@ -6456,11 +6475,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       return glyph(on ? GLYPHS.feedLikeFill : GLYPHS.feedLike);
     };
     if (opts.mode === "home") {
-      var on0 = !!(c.isLiked || c.isLike || c.localLike);
+      var st0 = commentLikeState(c);
+      var on0 = st0.liked;
       like = el("span", "acsv-clike" + (on0 ? " on" : ""));
       like._g = likeGlyph(on0);
       like.appendChild(like._g);
-      var likeN = el("span", null, fmt((c.likeCount || 0) + (c.localLike ? 1 : 0)));
+      var likeN = el("span", null, fmt(st0.count));
       like.appendChild(likeN);
       like.title = "点赞评论";
       like._c = c;
@@ -7123,19 +7143,22 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function toggleCommentLike(like) {
     var c = like._c;
     if (!c || c.likeBusy) return;
-    var on = !(c.isLiked || c.isLike || c.localLike);
+    var on = !commentLikeState(c).liked;
+    var prevLocal = c.localLike;
     c.likeBusy = true;
     c.localLike = on;
-    like.classList.toggle("on", on);
-    like._g.textContent = on ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
-    like._n.textContent = fmt((c.likeCount || 0) + (on ? 1 : 0));
+    function paint() {
+      var st2 = commentLikeState(c);
+      like.classList.toggle("on", st2.liked);
+      like._g.textContent = st2.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
+      like._n.textContent = fmt(st2.count);
+    }
+    paint();
     AppAPI.commentLike(commentState.sourceId, commentState.stype, c.commentId, on).then(function(ok) {
       c.likeBusy = false;
       if (ok) return;
-      c.localLike = !on;
-      like.classList.toggle("on", !on);
-      like._g.textContent = on ? GLYPHS.feedLike : GLYPHS.feedLikeFill;
-      like._n.textContent = fmt(c.likeCount || 0);
+      c.localLike = prevLocal;
+      paint();
       errNotLogin();
     });
   }
@@ -7314,8 +7337,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         return;
       }
       toast(replyTo ? "回复成功" : "评论成功");
-      inp.value = "";
-      if (inputBar._fit) inputBar._fit();
+      inputBar._setText("");
       setReply(null);
       if (forId !== commentState.sourceId) return;
       if (insertLocalComment(r.comment, !!replyTo)) return;
@@ -7370,7 +7392,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       });
       inputBar = bar.box;
       inputBar.imgBtn = bar.imgBtn;
-      inputBar._fit = bar.fitHeight;
+      inputBar._setText = function(v) {
+        bar.setText(v);
+      };
       var inp = bar.input;
       decorateInput(bar);
       emotPanelEl = el("div", "acsv-emotpanel");
@@ -7489,7 +7513,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   }
   function mergeDanmaku(list, winMs) {
     var win = Number(winMs) > 0 ? Number(winMs) : 1500;
-    var lastByText = {};
+    var lastByText = /* @__PURE__ */ Object.create(null);
     var out = [];
     for (var i = 0; i < (list || []).length; i++) {
       var it = list[i];
@@ -7839,6 +7863,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       },
       destroy: function() {
         this.stop();
+        if (api.onDestroy) {
+          try {
+            api.onDestroy();
+          } catch (e) {
+          }
+        }
         if (canvas.parentNode) canvas.remove();
         var at = layers.indexOf(this);
         if (at >= 0) layers.splice(at, 1);
@@ -7905,6 +7935,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (!slide || !item || !item.cap || !item.cap.danmaku || !item.videoId) return;
     if (!slide._dmLayer) slide._dmLayer = DmCanvas.create(slide, video);
     var layer = slide._dmLayer;
+    layer.onDestroy = function() {
+      stopAdvPump(layer);
+    };
     if (!enabled) {
       layer.stop();
       stopAdvPump(layer);
@@ -8003,6 +8036,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     }
     input.addEventListener("keydown", function(ev) {
       ev.stopPropagation();
+      if (ev.isComposing || ev.keyCode === 229) return;
       if (ev.key === "Enter") doSend2();
       else if (ev.key === "Escape") {
         ev.stopPropagation();
@@ -9069,6 +9103,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       _hls: null,
       resumeAt: 0,
       // 重挂前的播放进度，playing 后 seek 回去（attachVideo 从槽位转入）
+      lastT: 0,
+      // dispose 前最终秒位快照（0.9.234：拆源会归零 currentTime，上报用它）
       _recovering: false,
       // 恢复链重入锁：video error 与 hls fatal 可能接连触发
       _waitTimer: null,
@@ -9080,7 +9116,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           clearTimeout(this._waitTimer);
           slide.dataset.state = "ready";
           slide.dataset.paused = "0";
-        } else if (s === "error") slide.dataset.state = "error";
+        } else if (s === "error") {
+          clearTimeout(this._waitTimer);
+          slide.dataset.state = "error";
+        }
         if (hooks3.onState) hooks3.onState(this, s);
       },
       start: function() {
@@ -9274,7 +9313,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         video.addEventListener("waiting", function() {
           clearTimeout(self._waitTimer);
           self._waitTimer = setTimeout(function() {
-            if (self.state === "disposed") return;
+            if (self.state === "disposed" || self.state === "error") return;
             self.state = "buffering";
             slide.dataset.state = "loading";
           }, 300);
@@ -9321,6 +9360,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         }
         var video = this.video;
         if (video) {
+          this.lastT = Math.floor(video.currentTime || 0);
           video.pause();
           video.removeAttribute("src");
           video.load();
@@ -11867,8 +11907,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       onSend: function() {
         var t = inputBar2.input.value.replace(/\s+$/, "");
         if (!t) return;
-        inputBar2.input.value = "";
-        inputBar2.fitHeight();
+        inputBar2.setText("");
         sendChat(t);
       }
     });
@@ -11907,7 +11946,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       bubbles,
       quoteChip,
       input,
-      send: inputBar2.send
+      send: inputBar2.send,
+      setText: inputBar2.setText
+      // 切会话清草稿/失败回填单源（值+高度+镜像重画，0.9.234）
     };
   }
   function setPane(name) {
@@ -11932,7 +11973,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     drawer.bubbles.innerHTML = "";
     chat = { targetId: String(targetId), name: card.name || "", session: null, lastCount: -1, seen: {}, lastDivTs: 0, quote: null, msgEls: {} };
     loadChat();
-    drawer.input.value = "";
+    drawer.setText("");
     setTimeout(function() {
       try {
         drawer.input.focus();
@@ -12527,7 +12568,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         b.addEventListener("click", function(ev) {
           ev.stopPropagation();
           holder.remove();
-          drawer.input.value = text;
+          drawer.setText(text);
           if (quote && chat && !chat.quote) setQuote(quote);
           drawer.input.focus();
         });
@@ -12730,7 +12771,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.233-debug" : "");
+    return normVer(true ? "0.9.234-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -14525,10 +14566,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       }
     },
     // 兜底路径：滑出渲染窗口/换清晰度重挂/切源/关闭信息流才走 dispose（相邻划走只 pause
-    // 不 dispose，那条路由 setActive 负责）；video 已拆但引用仍持有最终 currentTime
-    // （见 session.js dispose），在此上报离开时刻的观看进度
-    onDisposed: function(session2, video) {
-      reportLeave(session2, video, "dispose");
+    // 不 dispose，那条路由 setActive 负责）；最终秒位走 session.lastT 拆前快照
+    //（0.9.234：拆源后 video.currentTime 已归零，不能现场读）
+    onDisposed: function(session2) {
+      reportLeave(session2, null, "dispose", session2.lastT);
     }
   };
   function videoStageVisible(video) {
@@ -16176,7 +16217,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.233-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.234-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

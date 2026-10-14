@@ -2183,6 +2183,25 @@ rec('square-cmt-namecolor', (function () {
       var like = rootMeta && rootMeta.querySelector('.acsv-clike');
       return !!like && like.classList.contains('on'); // isLiked:true → 已赞点亮（0.9.134 三读）
     })());
+    // 0.9.234 取消赞 -1（原实现只 +1 不减）：点亮 → 取消一次数字必须变，再点回来必须回原值。
+    // comment/like 补 mock（成功态）：否则真网络失败会回滚，350ms 读数落在回滚后 = 时序假红
+    window.__ACSV_MOCK_FORM__ = Object.assign(window.__ACSV_MOCK_FORM__ || {}, {
+      'comment/like': { result: 0 },
+      'comment/unlike': { result: 0 }
+    });
+    var likeEl = rootMeta && rootMeta.querySelector('.acsv-clike');
+    if (likeEl) {
+      var n0 = likeEl._n ? likeEl._n.textContent : '';
+      likeEl.click();
+      await new Promise(function (r) { setTimeout(r, 350); }); // 等 likeBusy 落定（连点会被守卫吞掉）
+      var nOff = likeEl._n ? likeEl._n.textContent : '';
+      likeEl.click();
+      await new Promise(function (r) { setTimeout(r, 350); });
+      var nBack = likeEl._n ? likeEl._n.textContent : '';
+      rec('square-cmt-like-off-dec', nOff !== n0 && nBack === n0, n0 + '→' + nOff + '→' + nBack);
+    } else {
+      rec('square-cmt-like-off-dec', false, 'no-like');
+    }
     // 0.9.138 统一钉：日期在名字行「发表于 x」、工具行无日期；版式全语境统一原生形态——
     // 脚本页面（本条所在）头像也是 50px（界面上三处评论宿主同码，皮肤只差颜色）
     var rootNameRow = ownChild(rootBody, 'acsv-cname');
@@ -2390,6 +2409,15 @@ rec('square-cmt-namecolor', (function () {
     rec('detail-input-present', !!inp);
     if (inp) {
       inp.value = '详情面板的测试评论';
+      inp.dispatchEvent(new Event('input', { bubbles: true })); // 镜像层同步（0.9.234：后续断言清空态）
+      // 0.9.234 组合守卫：组合期 Enter 不得触发发送（发出去会多一条评论，条数可辨）
+      var nIme0 = document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length;
+      var imeEv = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, isComposing: true });
+      if (!imeEv.isComposing) { try { Object.defineProperty(imeEv, 'isComposing', { value: true }); } catch (e) { } }
+      inp.dispatchEvent(imeEv);
+      await wait(300);
+      rec('detail-ime-enter-blocked', document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length === nIme0
+        && inp.value === '详情面板的测试评论', 'items=' + document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length);
       var send = q('.acsv-mdetail-panel .acsv-cinput-send');
       if (send) send.click();
     }
@@ -2400,6 +2428,13 @@ rec('square-cmt-namecolor', (function () {
         && /详情面板的测试评论/.test(first.textContent)
         && /共\s*4\s*条评论/.test((q('.acsv-mdetail-cmt') || {}).textContent || '');
     }, 8000)), 'n=' + document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length);
+    // 0.9.234 发送后镜像层必须清空（原先只清 value，textarea 文字透明 ⇒ 已发送文字"幽灵残留"）
+    rec('detail-input-cleared-mirror', (function () {
+      var t = q('.acsv-mdetail-panel .acsv-cinput-text');
+      var m = q('.acsv-mdetail-panel .acsv-cinput-mir');
+      return !!t && !!m && t.value === '' && m.textContent === '';
+    })(), 'v=' + JSON.stringify((q('.acsv-mdetail-panel .acsv-cinput-text') || {}).value)
+      + ' mir=' + JSON.stringify((q('.acsv-mdetail-panel .acsv-cinput-mir') || {}).textContent));
     // 表情面板（4.2）：节点挂面板宿主（display:none 待开）；输入条在面板内（宿主迁移）
     rec('detail-emotpanel', !!q('.acsv-mdetail-panel > .acsv-emotpanel'));
     rec('detail-input-in-panel', !!q('.acsv-mdetail-panel .acsv-cinput'));

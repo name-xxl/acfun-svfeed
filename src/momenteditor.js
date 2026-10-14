@@ -195,14 +195,15 @@ export function openMomentEditor(opts) {
     pending++;
     tip.textContent = '上传中…';
     renderThumbs();
+    var failed = false; // 本次上传失败的提示不得被随后的收尾 then 抹掉（0.9.234 病灶）
     uploadImage(file /* bizFlag 用默认值；动态能否复用待真机（docs §11.5） */)
       .then(function (url) {
         pending--;
-        if (!url) { tip.textContent = '图片上传失败，请重试'; renderThumbs(); return; }
+        if (!url) { failed = true; tip.textContent = '图片上传失败，请重试'; renderThumbs(); return; }
         return dimsOf(url).then(function (dim) { imgs.push(dim); });
       })
       .then(function () {
-        if (pending === 0) tip.textContent = '';
+        if (!failed && pending === 0) tip.textContent = '';
         renderThumbs();
       }, function () { pending--; renderThumbs(); });
   }

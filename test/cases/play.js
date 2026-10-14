@@ -673,5 +673,49 @@ var lp1 = lastPayload();
 rec('pagehide-feed-acid', !!lp1 && String(lp1.params.ac_id) !== '488900'
   && String(lp1.params.ac_id) === String((feed().items[feed().current] || {}).id),
   JSON.stringify(lp1 && lp1.params || null));
+// 0.9.234 dispose 上报：拆源前快照（原实现 removeAttribute('src')+load() 已把 currentTime 归零，
+// 钩子里读到 0 被门槛静默丢弃）。先推进 ≥1s 避开 pagehide 同秒去重，再手动 dispose 现行会话。
+await wait(1700);
+var vD = slide(0) && slide(0).querySelector('video');
+var tD = vD ? Math.floor(vD.currentTime) : 0;
+var cD = watchCount();
+var sD = slide(0) && slide(0)._session;
+if (sD && tD >= 3) {
+  sD.dispose();
+  rec('dispose-reports-lastT', !!(await waitFor(function () { return watchCount() > cD; }, 5000)),
+    'watch=' + watchCount() + ' tD=' + tD);
+  var lpD = lastPayload();
+  rec('dispose-lastT-value', !!lpD && lpD.params && lpD.params.playedSeconds === tD,
+    'want=' + tD + ' got=' + JSON.stringify(lpD && lpD.params || null));
+} else {
+  rec('dispose-reports-lastT', false, 'no-session tD=' + tD);
+}
+  };
+  // ---- dm-ime（0.9.234：弹幕输入的输入法组合守卫） ----
+  C['dm-ime'] = async function (h) {
+    var rec = h.rec, q = h.q, slide = h.slide, wait = h.wait, waitFor = h.waitFor;
+// 病灶：Enter 不判 isComposing ⇒ 中文选词的回车把半成品弹幕发出去。
+// 正负双向钉：组合期 Enter 不得发送；真 Enter 必须照发（防守卫把正常发送一起拦死）。
+// home 源（harness HOME_CASES）：卡片 cap.danmaku=true 有弹幕框，videoId 由 refreshItem 缝补上
+var calls = 0;
+window.__ACSV_MOCK_FORM__ = Object.assign(window.__ACSV_MOCK_FORM__ || {}, {
+  'new-danmaku/add': function () { calls++; return { result: 0, danmakuId: 1 }; }
+});
+rec('dmime-ready', !!(await waitFor(function () {
+  var s = slide(0), v = s && s.querySelector('video');
+  return !!(v && v.duration > 0 && s.dataset.state !== 'error' && s._session && s._session.item.videoId);
+}, 25000)));
+var inp = q('.acsv-slide[data-idx="0"] .acsv-dm-input');
+rec('dmime-input-present', !!inp);
+if (!inp) return;
+inp.focus();
+inp.value = '组合期回车不该发送';
+var ev1 = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, isComposing: true });
+if (!ev1.isComposing) { try { Object.defineProperty(ev1, 'isComposing', { value: true }); } catch (e) { } }
+inp.dispatchEvent(ev1);
+await wait(400);
+rec('dmime-ime-enter-blocked', calls === 0 && inp.value === '组合期回车不该发送', 'calls=' + calls);
+inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+rec('dmime-real-enter-sends', !!(await waitFor(function () { return calls > 0; }, 6000)), 'calls=' + calls);
   };
 })();

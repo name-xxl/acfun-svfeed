@@ -42,6 +42,7 @@ export function onPlaying(slide, item, video) {
   if (!slide || !item || !item.cap || !item.cap.danmaku || !item.videoId) return;
   if (!slide._dmLayer) slide._dmLayer = DmCanvas.create(slide, video);
   var layer = slide._dmLayer;
+  layer.onDestroy = function () { stopAdvPump(layer); }; // 图层销毁同步停泵（0.9.234：此前 interval 空转泄漏）
   if (!enabled) { layer.stop(); stopAdvPump(layer); return; }
   layer.start();
   fetchList(item.videoId).then(function (list) { layer.setItems(list); });
@@ -135,6 +136,7 @@ export function createDmBox(item, videoOf) {
   }
   input.addEventListener('keydown', function (ev) {
     ev.stopPropagation();
+    if (ev.isComposing || ev.keyCode === 229) return; // 组合期只挡冒泡：选词回车不发、Esc 不失焦（0.9.234）
     if (ev.key === 'Enter') doSend();
     else if (ev.key === 'Escape') { ev.stopPropagation(); input.blur(); }
   });

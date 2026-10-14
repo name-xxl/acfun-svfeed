@@ -241,8 +241,11 @@
       !!cvGeom() && cvGeom().w === 640 && cvGeom().h === 360 && cvGeom().left === 0 && cvGeom().top === 0,
       JSON.stringify(cvGeom()));
 
+    var destroyed = false;
+    layer.onDestroy = function () { destroyed = true; }; // 0.9.234：销毁出口回调（danmaku 借它停高级弹幕泵）
     layer.destroy();
     rec('destroy 后无画布残留', !document.querySelector('.acsv-dmcanvas'), '');
+    rec('destroy 触发 onDestroy 出口（0.9.234）', destroyed === true, String(destroyed));
     window.__DM_RESULTS__.done = true;
   }
 </script>
