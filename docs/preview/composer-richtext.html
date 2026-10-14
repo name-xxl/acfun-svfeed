@@ -203,6 +203,18 @@
 <body>
 <div class="board">
   <h1>富文本输入条（三宿主共用）—— 静态预览</h1>
+  <p class="note" style="border-left:2px solid var(--accent);padding-left:10px;margin-bottom:14px">
+    <b>实现落地备注（0.9.238，2026-10-15；形态按本稿未改，三处布局性偏差在此备案）</b>：<br>
+    ① <b>色板向上开</b>（<code>bottom:100%</code> 锚在颜色键上）——输入条恒贴宿主底边，向下开会被
+    抽屉/面板裁掉；本稿 ① 段那张色板是静态示意（画在下方），非最终锚向。<br>
+    ② <b>动态编辑器隐藏输入条自带发送键</b>（<code>.acsv-me-bd .acsv-cinput-send{display:none}</code>）——
+    发布动作归模态脚行的「取消 / 发布(转发)」，否则面板里会出现两个「发布」。本稿 ② 段第三个宿主的
+    「发布」键因此只体现在脚行。<br>
+    ③ <b>超字数提示行由宿主出</b>：输入条统一给「字数转红 + 输入框描红边 + 发送键禁用」，
+    文案行（「已超出 N 字…」）走宿主自己的提示位——动态编辑器用脚行的 <code>.acsv-me-tip</code>，
+    评论/私信暂无独立提示行（红字 + 禁用键即反馈）。本稿 ④/⑨ 的红字行是宿主侧形态示意。<br>
+    另：harness 场景 <code>composer-rich</code>（41 断言）是本稿各条裁决的可执行副本，改版先看它。
+  </p>
   <p class="hint">
     三处输入条是<b>同一件</b>（<code>src/inputbar.js</code>：评论 / 私信 / 动态编辑器）⇒ 改一处三处生效。
     本稿要定的是：<b>换成 contenteditable 后长什么样、手感如何</b>。口径＝官方实测（<code>docs/api-research.md</code> §11.7/§11.8）：
