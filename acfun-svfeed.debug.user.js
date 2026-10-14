@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.239-debug
+// @version      0.9.240-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.239-debug" : "",
+          ver: true ? "0.9.240-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -3730,6 +3730,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   ];
   function buildInputBar(opts) {
     opts = opts || {};
+    var plain = !!opts.insertOnly;
     var box = el("div", "acsv-cinput");
     var top = el("div", "acsv-cinput-top");
     var fmtBtns = [];
@@ -3758,9 +3759,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         refresh();
       });
       fmtBtns.push(b);
-      top.appendChild(b);
     });
-    top.appendChild(el("span", "acsv-fmtsep"));
+    var sepAfterFmt = el("span", "acsv-fmtsep");
     var colKey = el("span", "acsv-cinput-colkey");
     var colBtn = elHtml("button", "acsv-cinput-fmt", '<i class="acsv-ic">' + GLYPHS.edColor + "</i>");
     colBtn.type = "button";
@@ -3841,8 +3841,15 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       }
     }
     colKey.appendChild(colPop);
-    top.appendChild(colKey);
-    top.appendChild(el("span", "acsv-fmtsep"));
+    var sepAfterCol = el("span", "acsv-fmtsep");
+    if (!plain) {
+      fmtBtns.forEach(function(b) {
+        top.appendChild(b);
+      });
+      top.appendChild(sepAfterFmt);
+      top.appendChild(colKey);
+      top.appendChild(sepAfterCol);
+    }
     var emotBtn = elHtml("button", "acsv-cinput-emot", '<i class="acsv-ic">' + GLYPHS.edEmotion + "</i>");
     emotBtn.type = "button";
     a11y(emotBtn, "表情");
@@ -3960,6 +3967,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     edit.addEventListener("keydown", function(ev) {
       ev.stopPropagation();
       if (ev.isComposing || ev.keyCode === 229) return;
+      if (plain && (ev.ctrlKey || ev.metaKey) && !ev.altKey && /^[biu]$/i.test(ev.key || "")) {
+        ev.preventDefault();
+        return;
+      }
       if (ev.key === "Enter" && !ev.shiftKey) {
         ev.preventDefault();
         opts.onSend();
@@ -3993,6 +4004,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       imgBtn,
       fileInp,
       colPop,
+      plain,
+      // 纯文本宿主（无格式键/颜色键）——harness 断言用
       focus: function() {
         try {
           edit.focus();
@@ -12357,6 +12370,9 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       setQuote(null);
     }, "取消引用");
     var inputBar2 = buildInputBar({
+      // 私信 wire 是**纯文本 + 表情令牌**（收侧 imTextHtml=emotify(linkify)，官方同口径；分享消息还要
+      // 刻意压平成明文）⇒ 不摆格式键与颜色键：发 [b]/[color] 给对方看到的是字面标签
+      insertOnly: true,
       img: { title: "发送图片", onFile: sendImageMsg },
       // 尺寸门禁在 sendImageMsg 内
       placeholder: "发个消息…",
@@ -13084,6 +13100,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       quoteChipInDrawer: !!(drawer.quoteChip && drawer.quoteChip.box && drawer.quoteChip.box.isConnected),
       input: !!drawer.el.querySelector(".acsv-cinput-edit"),
       send: !!drawer.el.querySelector(".acsv-cinput-send"),
+      // 0.9.240：私信条＝纯文本宿主——格式键/颜色键一个都不该有（wire 方言不支持 UBB）
+      fmtKeys: drawer.el.querySelectorAll(".acsv-cinput-fmt").length,
+      colKeys: drawer.el.querySelectorAll(".acsv-cinput-colkey").length,
+      seps: drawer.el.querySelectorAll(".acsv-fmtsep").length,
+      insertKeys: drawer.el.querySelectorAll(".acsv-cinput-emot, .acsv-cinput-img").length,
+      plain: !!(drawer.bar && drawer.bar.plain),
       bubblesConnected: !!(drawer.bubbles && drawer.bubbles.isConnected)
     };
   });
@@ -13233,7 +13255,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.239-debug" : "");
+    return normVer(true ? "0.9.240-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -16697,7 +16719,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.239-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.240-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

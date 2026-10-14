@@ -265,6 +265,18 @@
     （字数位与发送键形态是 ⑩ 的裁决）。<br>
     逐条官方数值与 CSS 原文见 ⑫；harness 场景 <code>composer-rich</code> 是可执行副本。
   </p>
+  <p class="note" style="border-left:2px solid var(--accent);padding-left:10px;margin-bottom:8px">
+    <b>v3 改版（0.9.240，2026-10-15 用户裁决「私信不支持富文本编辑，私信界面应该隐藏相关图标」）</b>：<br>
+    私信条改为<b>纯文本宿主</b>——工具栏<b>只留插入键（表情 / 图片）+ 字数</b>，格式键（B/I/U/S）、颜色键与两条竖分隔线一律不摆；
+    编辑区同时拦掉浏览器自带的 <span class="kbd">Ctrl</span>+<span class="kbd">B/I/U</span>。<br>
+    <b>依据</b>：私信 wire 方言＝<b>纯文本 + 表情令牌</b>——收侧渲染就是 <code>emotify(linkify())</code>
+    （<code>src/imdrawer.js</code> 的 <code>imTextHtml</code>），官方客户端同口径；分享消息还要刻意用
+    <code>ubbPlain</code> 压平成明文「只求官方可读」（<code>src/immsg.js:232</code>）。⇒ 发 <code>[b]</code>/<code>[color]</code>
+    给对方看到的是**字面标签**（0.9.238 给三宿主统一上富文本时的回退，本批修回）。<br>
+    表情/图片不受影响：<code>[emot=acfun,id/]</code> 是官方 IM 方言、图片走独立图片消息（即选即发）。
+    评论条与动态编辑器<b>不变</b>（那两处是真 UBB 正文）。<br>
+    分层形式保留（工具栏行仍在 —— 空态不跳版、宽窄一套版式）；若想给私信<b>收成单行 56px</b>（回到 0.9.238 前的形态），说一声即可。
+  </p>
   <p class="note" style="border-left:2px solid rgba(255,255,255,.2);padding-left:10px;margin-bottom:14px">
     <b>v1 实现落地备注（0.9.238，2026-10-15；形态按本稿未改，三处布局性偏差在此备案）</b>：<br>
     ① <b>色板向上开</b>（<code>bottom:100%</code> 锚在颜色键上）——输入条恒贴宿主底边，向下开会被
@@ -465,12 +477,9 @@
         </div>
       </div>
       <div class="host narrow">
-        <div class="above">私信（抽屉 · 380 宽 · 同一版式，无需另造排布）</div>
+        <div class="above">私信（抽屉 · 380 宽）· <b>纯文本宿主</b>：只有插入键 + 字数（无格式键/颜色键/分隔线）</div>
         <div class="acsv-cinput">
           <div class="acsv-cinput-top">
-            <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
-            <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
-            <span class="acsv-fmtsep"></span>
             <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
             <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
             <span class="acsv-cinput-count"></span>
@@ -695,7 +704,7 @@
     <table class="geo">
       <tr><th>宿主</th><th>宽度</th><th>字数上限</th><th>一键位</th><th>图片行为</th><th>格式键</th></tr>
       <tr><td>评论（视频页 / 评论抽屉）</td><td>满宽</td><td>1000<code>(comments.js:554)</code>，为容 <code>[img]</code> 长 URL 而放宽</td><td>Enter 发送 / Shift+Enter 换行</td><td>插入 <code>[img=图片]url[/img]</code> 令牌（编辑期＝缩略块）</td><td>B I U S <b>+ A 颜色</b>（<b>已定：做</b>）</td></tr>
-      <tr><td>私信（抽屉）</td><td>380</td><td>1000<code>(cfg.js:362)</code>，发送前 <code>slice</code></td><td>Enter 发送</td><td><b>不进正文</b>：即选即发独立图片消息</td><td>与评论同（分层后放得下）</td></tr>
+      <tr><td>私信（抽屉）</td><td>380</td><td>1000<code>(cfg.js:362)</code>，发送前 <code>slice</code></td><td>Enter 发送</td><td><b>不进正文</b>：即选即发独立图片消息</td><td><b>无</b>（纯文本宿主，见 v3 备注）</td></tr>
       <tr><td>动态编辑器（面板）</td><td>面板宽</td><td>233<code>(momentpost.js:57)</code>，超限拦截＋服务端 140000 兜底</td><td>Enter 发送</td><td>图片挂缩略图，不进正文</td><td>B I U S <b>+ A 颜色</b>（<b>已定：做</b>）</td></tr>
       <tr><td><b>个人主页 / UP 主页动态</b>（行内评论展开）</td><td>满宽（宿主内）</td><td>1000（同评论条）</td><td>同评论条</td><td>同评论条（<code>[img]</code> 令牌）</td><td>同评论条 —— <b>但皮肤是浅色 <code>.acsv-mp</code>，取值要另补（见 ⑨）</b></td></tr>
     </table>
@@ -735,7 +744,8 @@
         </div>
       </div>
       <div>
-        <div class="tagline">私信 380 宽 —— 同一版式（split 颜色键放得下，无需窄宿主另造排布）</div>
+        <div class="tagline">评论条 380 宽（抽屉最窄态）—— 完整 v2 工具行仍放得下（内容 ≈230px，可用 ≈356px）；
+        <b>私信条不摆格式组</b>（见 ② 的纯文本形态）</div>
         <div class="host narrow">
           <div class="acsv-cinput">
             <div class="acsv-cinput-top">
@@ -915,6 +925,8 @@
       D. <b>键几何与状态色全套对齐</b>（键盒 18×18、右距 8、两条 1×18 分隔线、悬停只提字色、激活浅底+深字）；<b>行高 24 / 总高 84 不变</b>。<br>
       E. <b>事实更正</b>：v1 依据「官方也是工具条在上」与实测相反（官方在编辑区下方）；形态保留，依据改口。<br>
       F. 官方 70 色无强调红 <code>#fd4c5d</code> ⇒ 品牌红退出色板（如需保留另议）。<br>
+      11. <b>私信＝纯文本宿主</b>（0.9.240 用户裁决）：隐藏格式键/颜色键/竖分隔线，只留插入键 + 字数；
+      编辑区拦 Ctrl+B/I/U，harness <code>im-open</code> 钉住。依据见稿头 v3 备注。<br>
       <b>v1 已定（仍有效，未被 v2 覆盖者）</b>：<br>
       1. <b>空态也显示工具栏</b> —— 高度恒定、聚焦不跳版。<br>
       2. <b>字数在工具栏行右端</b>。<br>
@@ -951,6 +963,9 @@
       <b>另批的收敛口径（备忘，不在本次实现）</b>：这 6 处属<b>单行输入</b>语义（搜索/命名/过滤），不该塞进富文本输入条——
       抽一件单行输入件（DOM 构造 + 行为纪律 + 错误态三点），分两步：命名输入 2→1、搜索 3→1；
       弹幕框单独评估（与播放器皮肤/生命周期耦合）。<b>本次一律不动它们。</b>
+      <br><b>v3 补（0.9.240）</b>：私信条虽然是同一件 <code>inputbar</code>，但**能力面按宿主收窄**——
+      wire 方言只认纯文本 + 表情令牌，故 <code>opts.insertOnly</code> 下不摆格式组；这一条与上面"不改原生输入框"的
+      统一范围不冲突（同一件、同一套纪律，只是选项不同）。
     </p>
   </div>
 

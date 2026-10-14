@@ -148,6 +148,9 @@ function ensureDrawerDom() {
   // 引用 chip：DOM 由 inputbar.buildQuoteChip 统一产出（0.9.47 起评论回复同款），置输入条上方，setQuote 驱动显隐
   var quoteChip = buildQuoteChip(function () { setQuote(null); }, '取消引用');
   var inputBar = buildInputBar({
+    // 私信 wire 是**纯文本 + 表情令牌**（收侧 imTextHtml=emotify(linkify)，官方同口径；分享消息还要
+    // 刻意压平成明文）⇒ 不摆格式键与颜色键：发 [b]/[color] 给对方看到的是字面标签
+    insertOnly: true,
     img: { title: '发送图片', onFile: sendImageMsg }, // 尺寸门禁在 sendImageMsg 内
     placeholder: '发个消息…',
     // 官方单条上限（cfg.im.maxLen）在**富文本口径**下当硬闸：字数按 DOM 算（表情计 1 字），
@@ -839,6 +842,12 @@ testHook('imDrawerSmoke', function () {
     quoteChipInDrawer: !!(drawer.quoteChip && drawer.quoteChip.box && drawer.quoteChip.box.isConnected),
     input: !!drawer.el.querySelector('.acsv-cinput-edit'),
     send: !!drawer.el.querySelector('.acsv-cinput-send'),
+    // 0.9.240：私信条＝纯文本宿主——格式键/颜色键一个都不该有（wire 方言不支持 UBB）
+    fmtKeys: drawer.el.querySelectorAll('.acsv-cinput-fmt').length,
+    colKeys: drawer.el.querySelectorAll('.acsv-cinput-colkey').length,
+    seps: drawer.el.querySelectorAll('.acsv-fmtsep').length,
+    insertKeys: drawer.el.querySelectorAll('.acsv-cinput-emot, .acsv-cinput-img').length,
+    plain: !!(drawer.bar && drawer.bar.plain),
     bubblesConnected: !!(drawer.bubbles && drawer.bubbles.isConnected)
   };
 });

@@ -59,6 +59,23 @@
     rec('quoteChip 是真实元素节点（0.9.49 回归哨兵）', s.quoteChipIsNode);
     rec('quoteChip 在抽屉内', s.quoteChipInDrawer);
     rec('输入框/发送键在场', s.input && s.send);
+    // 0.9.240 私信＝纯文本宿主：格式键（B/I/U/S）/颜色键/竖分隔线一个都没有，只剩插入键（表情/图片）
+    rec('私信条无格式键（wire 不支持 UBB）', s.plain === true && s.fmtKeys === 0 && s.colKeys === 0
+      && s.seps === 0 && s.insertKeys === 2,
+      'plain=' + s.plain + ' fmt=' + s.fmtKeys + ' col=' + s.colKeys + ' sep=' + s.seps + ' ins=' + s.insertKeys);
+    // 纯文本宿主：浏览器自带的 Ctrl+B/I/U 也要拦（否则编辑期看着是粗的、对方看到 [b] 字面）
+    rec('私信条拦掉 Ctrl+B/I/U', (function () {
+      var ed = document.querySelector('.acsv-msgdrawer .acsv-cinput-edit');
+      if (!ed) return false;
+      var r = {};
+      ['b', 'i', 'u'].forEach(function (k) {
+        var ev = new KeyboardEvent('keydown', { key: k, ctrlKey: true, bubbles: true, cancelable: true });
+        r[k] = ed.dispatchEvent(ev) === false; // false = 被 preventDefault 拦下
+      });
+      var ev2 = new KeyboardEvent('keydown', { key: 'b', bubbles: true, cancelable: true });
+      r.plainB = ed.dispatchEvent(ev2) === true; // 不带修饰键的 b 照常放行
+      return r.b && r.i && r.u && r.plainB;
+    })(), '见上');
     rec('气泡容器已挂载', s.bubblesConnected);
     // ---- 0.9.75：切页动画契约（舞台裁剪 + 面板叠加 + 时长单源） ----
     var stage = document.querySelector('.acsv-im-stage');

@@ -294,6 +294,11 @@ export var STD_COLORS = [
 // ================= 输入条本体 =================
 export function buildInputBar(opts) {
   opts = opts || {};
+  // insertOnly：**纯文本宿主**（私信）——不摆格式键（B/I/U/S）与颜色键。理由＝私信 wire 方言是
+  // 纯文本 + 表情令牌：收侧渲染就是 emotify(linkify())（imdrawer.imTextHtml），官方客户端同理；
+  // 分享消息还要刻意用 ubbPlain 压平成明文"只求官方可读"（immsg.js:232）⇒ 发 [b]/[color] 给对方
+  // 看到的是字面标签。表情/图片不受影响（[emot=acfun,id/] 是官方 IM 方言、图片走独立消息）。
+  var plain = !!opts.insertOnly;
   var box = el('div', 'acsv-cinput');
 
   // ---- 上行：工具栏 ----
@@ -319,11 +324,9 @@ export function buildInputBar(opts) {
         syncFmt();
         refresh();
       });
-      fmtBtns.push(b);
-      top.appendChild(b);
+      fmtBtns.push(b); // 先建后落位：insertOnly 时整组不 append（键对象留着，syncFmt 遍历无副作用）
     });
-  // 竖分隔线两条（官方 .edui-separator 在 S 后与颜色键后各一条；见 preview §⑫）
-  top.appendChild(el('span', 'acsv-fmtsep'));
+  var sepAfterFmt = el('span', 'acsv-fmtsep'); // 竖分隔线两条（官方 S 后 / 颜色键后各一条）
 
   // 颜色键 = 官方 splitbutton 三件（0.9.239；实测官 DOM：主键 .edui-btn（图标 + 当前色条）
   // + 箭头键 .edui-dropdown-toggle（.edui-caret 字形 E166））：
@@ -405,9 +408,15 @@ export function buildInputBar(opts) {
       closeOnOutsideClick(colPop, [colCaret, colBtn], function () { toggleCol(false); });
     }
   }
-  colKey.appendChild(colPop); // 弹层锚在 split 包裹层（position:relative），**向上开**
-  top.appendChild(colKey);
-  top.appendChild(el('span', 'acsv-fmtsep'));
+  colKey.appendChild(colPop); // 弹层锚在 split 包裹层（position:relative）——输入条贴宿主底边，故向上开
+  var sepAfterCol = el('span', 'acsv-fmtsep');
+  // 格式组 + 颜色组按官方次序落位（insertOnly = 私信：两组都不摆，只剩插入键与字数）
+  if (!plain) {
+    fmtBtns.forEach(function (b) { top.appendChild(b); });
+    top.appendChild(sepAfterFmt);
+    top.appendChild(colKey);
+    top.appendChild(sepAfterCol);
+  }
 
   // ---- 表情键（面板由调用方 mountEmotButton 接管） ----
   var emotBtn = elHtml('button', 'acsv-cinput-emot', '<i class="acsv-ic">' + GLYPHS.edEmotion + '</i>');
@@ -518,6 +527,9 @@ export function buildInputBar(opts) {
   edit.addEventListener('keydown', function (ev) {
     ev.stopPropagation(); // 栏内按键不出栏（宿主键盘手势/浮层栈都靠这条）
     if (ev.isComposing || ev.keyCode === 229) return; // 组合期只挡冒泡（0.9.234 纪律：组合 Enter 不许当发送）
+    // 纯文本宿主：浏览器自带的加粗/斜体/下划线快捷键要拦掉（工具栏没这键也不该让 Ctrl+B 生效——
+    // 编辑期看着是粗的、发出去对方看到的是 [b] 字面）
+    if (plain && (ev.ctrlKey || ev.metaKey) && !ev.altKey && /^[biu]$/i.test(ev.key || '')) { ev.preventDefault(); return; }
     if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); opts.onSend(); }
     else if (ev.key === 'Escape') { ev.stopPropagation(); hideCol(); edit.blur(); }
   });
@@ -539,6 +551,7 @@ export function buildInputBar(opts) {
   // ---- 对外句柄 ----
   var bar = {
     box: box, edit: edit, send: send, emotBtn: emotBtn, imgBtn: imgBtn, fileInp: fileInp, colPop: colPop,
+    plain: plain, // 纯文本宿主（无格式键/颜色键）——harness 断言用
     focus: function () { try { edit.focus(); } catch (e) { } },
     // 出口文本（提交给服务端的 UBB）与字数：宿主拿它组参/预检
     text: function () { return serializeUbb(edit); },
