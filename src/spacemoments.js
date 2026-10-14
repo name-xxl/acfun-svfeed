@@ -25,6 +25,8 @@ import { addAmAnchor } from './memberplaza.js';
 
 var feed = null;
 var builtFor = ''; // 已建列表对应的 uid（SPA 换人时重建，不把上一个人的流留在 DOM 里）
+var listBox = null; // 当前列表根（判断它是否仍在本面板里——站点重画会把面板连列表一起换掉）
+var mountedUid = ''; // 已挂标签对应的 uid（路由换人而标签卡幸存时，onShow 闭包里的 uid 已过期）
 
 function uidOf() {
   var m = /^\/u\/(\d+)/.exec(location.pathname); // 与 pagekind/uppage 同源判据（单测在册）
@@ -34,11 +36,14 @@ function uidOf() {
 function noop() { }
 
 function ensureList(panel, uid) {
-  if (builtFor === uid && feed) return;
-  if (feed) { feed.stop(); feed = null; } // 换人重建
+  // 幂等判据从「uid 没变」升级为「列表根仍在这个面板里」（0.9.236）：站点 SPA 重画把面板
+  // 带走后 heal 会重挂新面板，旧判据直接早退 ⇒ 新面板永久空白（死标签）
+  if (builtFor === uid && feed && listBox && panel.contains(listBox)) return;
+  if (feed) { feed.stop(); feed = null; } // 换人/旧列表已随面板被吞：停旧喂新
   builtFor = uid;
   ensureStyle(); // 幂等（boot 在 member 分支已调亦无妨）
   var box = el('div', 'acsv-mp'); // 浅色第二皮肤根（.acsv-mp 单源）
+  listBox = box;
   panel.appendChild(box);
   feed = createSquareFeed({
     root: box,
@@ -60,12 +65,19 @@ function inject() {
   var cl = document.querySelector('.ac-space-contribute-list');
   var tagsUl = cl && cl.querySelector('ul.tags');
   if (!cl || !tagsUl) return false;
-  if (tagsUl.querySelector('li[data-index="moment"]')) return true; // 已注入
+  var li = tagsUl.querySelector('li[data-index="moment"]');
+  var panel = cl.querySelector(':scope > .tag-content[data-acsv-tab="moment"]');
+  // 完整在位且还是同一个人：已注入。站点重画可能只吞一半（留卡丢面板/反之），或 SPA 换了
+  // uid 而标签卡幸存——残件一律清掉重挂（0.9.236；此前见卡即 true 会留死标签/上个人的流）
+  if (li && panel && mountedUid === uid) return true;
+  if (li) li.remove();
+  if (panel) panel.remove();
   mountSpaceTab({
     cl: cl, tagsUl: tagsUl, index: 'moment', order: 1, label: '动态',
     title: '该 UP 主的动态（图文 / 视频 / 文章）',
     onShow: function (panel) { ensureList(panel, uid); } // 首次显形才建列表（惰性）
   });
+  mountedUid = uid;
   return true;
 }
 

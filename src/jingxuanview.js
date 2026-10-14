@@ -216,8 +216,10 @@ function buildJingxuanView(body) {
     tab: 'all',            // 'all' | 频道 id（Number）
     cursor: null,          // home 方言首芯片 ''；channel 方言首芯片 '0'——按 tab 取
     done: false, busy: false, err: false,
+    gen: 0,                // 请求代数（0.9.236）：switchTab 递增——快速 A→B→A 时晚到的旧回包
+                           // 会通过 `st.tab===tab` 检查（同 tab），必须靠代数丢弃（重复卡/游标回退）
     big: false, normals: 0, buf: [],
-    rendered: [], // 已渲染 vm 序列（渲染顺序；列表会话的条目源，0.9.173）
+    rendered: [], // 已渲染 vm 序列（渲染顺序列表会话的条目源，0.9.173）
     waitMore: null, // 列表会话续拉的等待回调（drain 渲染完触发，0.9.173）
     chips: chips, grid: grid, tip: tip, body: body
   };
@@ -249,6 +251,7 @@ function buildJingxuanView(body) {
 }
 
 function switchTab() {
+  st.gen++; // 作废一切在途回包（0.9.236：见 st.gen 注释）
   st.cursor = st.tab === 'all' ? '' : '0'; // home 方言首芯片 ''；channel 首芯片 '0'
   st.done = false; st.busy = false; st.err = false;
   st.big = false; st.normals = 0; st.buf = [];
@@ -282,7 +285,7 @@ function failTip() {
 function fetchPage() {
   if (!st || st.busy || st.done || st.err) return;
   st.busy = true;
-  var tab = st.tab, cursor = st.cursor;
+  var tab = st.tab, cursor = st.cursor, gen = st.gen;
   var p = tab === 'all'
     ? AppAPI.homeFeedFetch(cursor).then(function (r) {
       return { vms: r.items.map(vmOfHome), next: r.pcursor, failed: r.failed, empty: !r.items.length };
@@ -291,7 +294,7 @@ function fetchPage() {
       return { vms: page.items.map(vmOfDv), next: page.nextCursor, failed: false, empty: page.noMore };
     });
   p.then(function (r) {
-    if (!st || st.tab !== tab) return; // 期间已切 tab：旧响应丢弃（gen 语义视图侧自持）
+    if (!st || st.gen !== gen || st.tab !== tab) return; // 期间已切 tab/快速切回：旧代回包丢弃（0.9.236）
     st.busy = false;
     if (r.failed) { st.err = true; failTip(); return; }
     if (!r.vms.length) { st.done = true; drain(); return; }
@@ -303,7 +306,7 @@ function fetchPage() {
     if (r.next == null || r.next === '' || r.next === cursor) st.done = true;
     advance();
   }, function () {
-    if (!st || st.tab !== tab) return;
+    if (!st || st.gen !== gen || st.tab !== tab) return;
     st.busy = false;
     st.err = true;
     failTip();

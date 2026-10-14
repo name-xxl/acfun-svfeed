@@ -19,18 +19,19 @@
           return {
             resourceType: 10, resourceId: id,
             createTime: now - (i < 2 ? 1 : 20) * 3600 * 1000,
-            moment: { momentId: String(id), text: '列表明文' + i }, // 列表是明文（服务端剥表情）
+            // 首条列表文案特意超行高：初始渲染就挂「展开」——回填重臂的重复/陈旧残件靠它现形（0.9.236）
+            moment: { momentId: String(id), text: '列表明文' + i + (i === 0 ? '，' + '长文'.repeat(160) : '') },
             user: { userId: 9, userName: 'UP' + i, userHead: '' },
             likeCount: 6, commentCount: 0, bananaCount: 0, shareCount: 0
           };
         })
       },
-      // 详情才带 UBB（含令牌）——回填应把该行正文换成这一份
+      // 详情才带 UBB（含令牌）——回填应把该行正文换成这一份（同样超行高：重臂后仍应只有一枚按钮）
       'moment/detail': function (body, url) {
         window.__ACSV_BF_CALLS__++;
         var id = (String(url).match(/momentId=(\d+)/) || [])[1] || '';
         return { result: 0, moment: {
-          momentId: id, text: '回填正文' + id + ' [emot=acfun,1/]',
+          momentId: id, text: '回填正文' + id + ' [emot=acfun,1/]' + '，' + '续文'.repeat(120),
           likeCount: 9, commentCount: 4, bananaCount: 2, isLike: true, isThrowBanana: true
         } };
       }
@@ -49,6 +50,15 @@
       var t = q('.acsv-sqwrap .acsv-frow .acsv-frow-text');
       return t ? String(t.innerHTML).slice(0, 60) : 'no-row';
     })());
+
+    // 0.9.236 回填重臂不得留下旧「展开」残件：正文被替换后重测按钮要"先摘再挂"。
+    // 等一拍越过重臂 rAF 再数——新文仍溢出时反跑的 old+new 会并存到此刻（摘修复即红）
+    await wait(600);
+    var dedupN = (function () {
+      var t = q('.acsv-sqwrap .acsv-frow .acsv-frow-text');
+      return t ? t.parentNode.querySelectorAll(':scope > .acsv-fmore').length : -1;
+    })();
+    rec('bf-expander-dedup', dedupN === 1, 'n=' + dedupN);
 
     // ② 老条目：滚到底（末行进视口）→ 同样被补（旧契约下它永远保持快照）
     var body = q('.acsv-view-body');

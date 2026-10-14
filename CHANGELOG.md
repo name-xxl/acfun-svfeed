@@ -5,6 +5,29 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.236（2026-10-14）· UI/Bug 专项 Wave 1 第三组：列表重臂/自愈/竞态六件
+
+- **视口回填后「展开」重复/陈旧**（rowkit）：回填替换正文会清 `_armed` 重臂，旧按钮不摘 ⇒
+  新文仍溢出时叠成两枚、新文变短时留陈旧件。修法＝重臂前先摘旧 `.acsv-fmore` 再量。
+  反跑：还原 ⇒ `bf-expander-dedup` 红（n=2；夹具首条文案加长触发溢出）。
+- **空间页「动态」标签死标签**（spacemoments）：站点 SPA 重画只吞一半（留卡丢面板/反之）或
+  换 uid 卡幸存时，inject 见卡即 true + ensureList 见 feed 即早退 ⇒ 新面板永久空白。修法＝
+  inject 校验「卡+面板+uid」三元并清残件重挂；ensureList 幂等判据升级为「列表根仍在本面板里」。
+  反跑 ⇒ `sm-heal-panel`/`sm-heal-rows`/`sm-heal-both`/`sm-heal-both-rows` 红。
+- **分区页快速 A→B→A 旧回包混入**（jingxuanview）：`st.tab` 检查在切回后失效 ⇒ 晚到旧代把
+  首页再叠一份（复现实测 cards=48/dup=18，重复段随缓冲放行才上屏）。修法＝请求代数 `st.gen`
+  （switchTab 递增、回包校验代数）。反跑 ⇒ `jx-stale-gen-dropped` 红。
+- **观看历史触底叠发**（mypage）：一拍多枚 scroll 各自 load（骨架叠闪 + 同页多请求）。修法＝
+  `loading` 在途守卫（同页 adminTab 既有范式）。反跑 ⇒ `hist-single-flight` 红（calls=3→1）。
+- **隐藏 tab 被连带触底**（listtail）：我的页四 tab 共用一个滚动体，滚动可见 tab 会把隐藏
+  tab 的 onBottom 一并派出（后台空拉）。修法＝onScroll 加宿主可见性判据（offsetParent）。
+  新增单测 `test/unit/listtail.test.js`（3 例）；反跑 ⇒ 隐藏宿主派发断言红。
+- **私信列表轮询重置搜索**（imdrawer）：新消息刷新 `renderList('',…)` 把过滤清掉并回顶。
+  修法＝刷新保留搜索词与 `listBody.scrollTop`。**无 harness 钉**（IM 列表无测试缝，smoke
+  钩子不驱动轮询）——标**真机待验**。
+- **测试证据**：+7 harness 断言（bf 1 / space 4 / jx 1 / my 1）+ 3 单测；上述五处反跑全红后
+  还原复绿；全量 lint/check + **313 单测 + 63/63 场景**全绿。
+
 ### 0.9.235（2026-10-14）· UI/Bug 专项 Wave 1 第二组：播放层控制打空 + 输入保活
 
 - **播放层控制三件套打空**（层内 slide 不在 scroller 里，三处旧写法只扫 scroller/FeedStore）：

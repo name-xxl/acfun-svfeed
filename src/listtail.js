@@ -52,7 +52,11 @@ export function createListTail(opts) {
   if (opts.backTopHost !== false) (opts.backTopHost || root).appendChild(backTop);
 
   function onScroll() {
-    if (opts.onBottom && atBottom(scrollEl, pad)) opts.onBottom();
+    // 隐藏宿主不派发触底（0.9.236）：我的页四个 tab 共用一个滚动体——滚动可见 tab 时，
+    // 隐藏 tab 的尾部件也会被派发 onBottom（后台空拉/骨架闪堆）。display:none 的面板
+    // offsetParent 为 null；window 滚动宿主（原生页内嵌）root 恒在流内，不受影响
+    var visible = root.isConnected && root.offsetParent !== null;
+    if (visible && opts.onBottom && atBottom(scrollEl, pad)) opts.onBottom();
     backTop.classList.toggle('on', scrollTopOf(scrollEl) > backTopAt);
   }
   // 滚动监听常挂：回顶显隐本来就靠它（只借回顶的页也要）；onBottom 缺省=只同步回顶

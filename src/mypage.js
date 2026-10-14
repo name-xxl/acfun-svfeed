@@ -155,17 +155,20 @@ function buildHistory(panel, scroller) {
   var pageNo = 0, seq = 0; // seq：换页/重试令牌，旧回包丢弃（0.9.77，searchview 同款模式）
   var allRows = [];      // 已加载面板条目（层内列表会话的条目源，0.9.173）
   var done = false;
+  var loading = false;   // 在途守卫（0.9.236）：滚动事件一拍可多枚 ⇒ 同页叠发请求 + 骨架叠闪
   // 层内语义（0.9.173）：↓/↑ = 历史列表顺序；尾部续拉下一页（到底=null → 层里停住提示）
   var lctx = makeListCtx(function () { return allRows; }, load, function () { return done; });
 
   function load() {
-    if (done) return;
+    if (done || loading) return;
+    loading = true;
     var my = ++seq;
     var gone = skeleton(list);
     if (pageNo) setStatus('加载中…', true);
     postForm(CFG.api.history,
       'pageNo=' + (pageNo + 1) + '&pageSize=' + CFG.view.pageSize
       + '&resourceTypes=1&resourceTypes=2').then(function (j) {
+        loading = false;
         gone();
         if (my !== seq || !list.isConnected) return; // 过期/退出视图：在途回包丢弃
         var raws = (j && j.histories) || [];
@@ -187,6 +190,7 @@ function buildHistory(panel, scroller) {
         setStatus(done ? '已加载全部' : '');
         if (!rows.length && pageNo === 1) list.appendChild(el('div', 'acsv-vempty', '暂无观看记录'));
       }, function () {
+        loading = false;
         gone();
         if (my !== seq || !list.isConnected) return;
         // 失败不置到底：下次触底自动重试；首屏失败列表为空，点击是唯一出口

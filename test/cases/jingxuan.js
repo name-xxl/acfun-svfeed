@@ -154,5 +154,45 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       return TEST.call('view') === 'jingxuan' && t && t.present && t.cards >= 1 ? t : null;
     }, 6000)), JSON.stringify(TEST.call('jingxuan')) + ' view=' + TEST.call('view'));
     rec('jx-view-not-held', !q('.acsv-view-held'));
+    // 0.9.236 快速 A→B→A：晚到的旧代回包必须丢弃（同 tab 的 `st.tab` 检查挡不住——切回后
+    // tab 又相等）。不丢会把第一页再叠一份（重复卡）。注意 mkChip 同 tab 点击是 no-op：
+    // 必须先切到游戏让动画成为"非当前"，再装延迟 wrapper（下一次动画请求=旧代）
+    var chips2 = q('.acsv-vchips');
+    function chipByName(txt) {
+      return Array.prototype.filter.call(chips2.children, function (x) { return x.textContent === txt; })[0];
+    }
+    var chipA2 = chipByName('动画'), chipG2 = chipByName('游戏');
+    if (chipA2 && chipG2) {
+      chipG2.click(); // 先离开动画 tab
+      await wait(400);
+      var chKey = 'channel/secondLevel/resourceList';
+      var chOrig = window.__ACSV_MOCK_FORM__[chKey];
+      var chFirst = true;
+      window.__ACSV_MOCK_FORM__[chKey] = function (body, url) {
+        var r = typeof chOrig === 'function' ? chOrig(body, url) : chOrig;
+        if (chFirst) {
+          chFirst = false;
+          return new Promise(function (res) { setTimeout(function () { res(r); }, 900); });
+        }
+        return r;
+      };
+      chipA2.click(); // A#1（延迟 900ms 的旧代在途）
+      await wait(150);
+      chipG2.click(); // 切走（旧代仍在途）
+      await wait(150);
+      chipA2.click(); // 最终回 A（A#2 立即；旧代晚到）
+      await wait(1800);
+      // 旧代混入时它先躺在缓冲里（重复段要等前面的合法段消费完才上屏）——持续触底把缓冲放出来
+      var body2 = q('.acsv-view-body');
+      for (var dj = 0; dj < 14; dj++) {
+        if (body2) { body2.scrollTop = body2.scrollHeight; body2.dispatchEvent(new Event('scroll')); }
+        await wait(150);
+      }
+    }
+    var dupTitles = Array.prototype.map.call(document.querySelectorAll('.acsv-jx-grid .acsv-jx-card'),
+      function (c) { return c.textContent; });
+    var dupN = dupTitles.length - new Set(dupTitles).size;
+    rec('jx-stale-gen-dropped', dupTitles.length >= 12 && dupN === 0,
+      'cards=' + dupTitles.length + ' dup=' + dupN);
   };
 })();

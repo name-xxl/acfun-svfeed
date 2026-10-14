@@ -175,6 +175,10 @@ export function armExpanders(scope) {
         });
         return;
       }
+      // 内容可能被回填替换过（squarefeed 替换正文后清 _armed 重臂）：旧「展开」残件先摘——
+      // 不摘会叠出两枚（新文仍溢出时新旧并列）或留下陈旧按钮（新文变短后无人摘，0.9.236）
+      var prev = t.nextElementSibling;
+      if (prev && prev.classList && prev.classList.contains('acsv-fmore')) prev.remove();
       t._armed = true;
       if (t.scrollHeight <= t.clientHeight + 1) return;
       var more = el('span', 'acsv-fmore', '展开');

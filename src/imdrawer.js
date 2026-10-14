@@ -266,7 +266,12 @@ function refreshList() {
       listSig = sig;
       return fetchCards(ids).then(function (m) {
         Object.keys(m).forEach(function (k) { cards[k] = m[k]; });
-        renderList('', ss);
+        // 0.9.236：轮询刷新保留搜索词与滚动位置（此前 renderList('',…)：新消息一到，
+        // 过滤失效全量回显 + 列表回顶——用户正在搜索时被"重置"）
+        var kw = drawer && drawer.search ? drawer.search.value : '';
+        var st0 = drawer && drawer.listBody ? drawer.listBody.scrollTop : 0;
+        renderList(kw, ss);
+        if (drawer && drawer.listBody) drawer.listBody.scrollTop = st0;
       });
     });
   }).catch(function () {

@@ -188,6 +188,31 @@ rec('no-overflow', (function () {
 rec('hist-morebtn-retired', q('.acsv-mepanel[data-tab="hist"] .acsv-vmore') === null);
 rec('hist-status-idle', (q('.acsv-mepanel[data-tab="hist"] .acsv-fstatus') || {}).textContent === '',
   (q('.acsv-mepanel[data-tab="hist"] .acsv-fstatus') || {}).textContent);
+// 0.9.236 在途守卫：滚到底一拍多枚 scroll 事件不得叠发同页请求（此前每枚都发：叠请求+骨架叠闪）。
+// 给下一页历史回包加 700ms 延迟，连发三枚 scroll——反跑（无 loading 守卫）时调用数会到 3
+var histKey = 'browse/history/list';
+var histOrig = window.__ACSV_MOCK_FORM__[histKey];
+var histSlow = true;
+window.__ACSV_MOCK_FORM__[histKey] = function (body, url) {
+  var r = typeof histOrig === 'function' ? histOrig(body, url) : histOrig;
+  if (histSlow) {
+    histSlow = false;
+    return new Promise(function (res) { setTimeout(function () { res(r); }, 700); });
+  }
+  return r;
+};
+var hc0 = window.__ACSV_HIST_CALLS__;
+var myScroll0 = q('.acsv-view-body');
+// 每枚前重钉到底：首发生成的骨架会增高列表，不重钉第二枚就"已不在底部"（假绿）
+for (var hs = 0; hs < 3; hs++) {
+  myScroll0.scrollTop = myScroll0.scrollHeight;
+  myScroll0.dispatchEvent(new Event('scroll'));
+}
+rec('hist-single-flight', !!(await waitFor(function () {
+  return window.__ACSV_HIST_CALLS__ - hc0 === 1
+    && document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22;
+}, 6000)), 'calls=' + (window.__ACSV_HIST_CALLS__ - hc0)
+  + ' n=' + document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length);
 var myScroll = q('.acsv-view-body');
 myScroll.scrollTop = myScroll.scrollHeight;
 myScroll.dispatchEvent(new Event('scroll'));

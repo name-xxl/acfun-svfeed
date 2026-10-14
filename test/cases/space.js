@@ -112,5 +112,29 @@
     rec('sm-sort-restore', !!(await waitFor(function () {
       return q('#sm-n-sort').style.display === '';
     }, 3000)));
+
+    // 9) 站点 SPA 重画自愈（0.9.236）：只吞面板（留标签卡）——共享 MO 驱动 heal 必须补回新面板，
+    //    点击后列表在新面板里重建（旧实现：inject 见卡即早退 + ensureList 见 feed 即早退 ⇒ 死标签）
+    var panelOld = q(panelSel);
+    panelOld.remove();
+    rec('sm-heal-panel', !!(await waitFor(function () {
+      var p = q(panelSel);
+      return !!p && p.isConnected && p !== panelOld;
+    }, 6000)));
+    q(liSel).click();
+    rec('sm-heal-rows', !!(await waitFor(function () {
+      return document.querySelectorAll(panelSel + ' .acsv-frow').length === 3;
+    }, 8000)), 'rows=' + document.querySelectorAll(panelSel + ' .acsv-frow').length);
+
+    // 10) 连卡一起吞（全量重画）：heal 重挂卡+面板，点击同样重建列表
+    q(liSel).remove();
+    q(panelSel).remove();
+    rec('sm-heal-both', !!(await waitFor(function () {
+      return !!q(liSel) && !!q(panelSel);
+    }, 6000)));
+    q(liSel).click();
+    rec('sm-heal-both-rows', !!(await waitFor(function () {
+      return document.querySelectorAll(panelSel + ' .acsv-frow').length === 3;
+    }, 8000)));
   };
 })();

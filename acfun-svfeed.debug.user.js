@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.235-debug
+// @version      0.9.236-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.235-debug" : "",
+          ver: true ? "0.9.236-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -12044,7 +12044,10 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           Object.keys(m).forEach(function(k) {
             cards[k] = m[k];
           });
-          renderList2("", ss);
+          var kw = drawer && drawer.search ? drawer.search.value : "";
+          var st0 = drawer && drawer.listBody ? drawer.listBody.scrollTop : 0;
+          renderList2(kw, ss);
+          if (drawer && drawer.listBody) drawer.listBody.scrollTop = st0;
         });
       });
     }).catch(function() {
@@ -12786,7 +12789,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.235-debug" : "");
+    return normVer(true ? "0.9.236-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -15133,7 +15136,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     backTop.title = "回到顶部";
     if (opts.backTopHost !== false) (opts.backTopHost || root3).appendChild(backTop);
     function onScroll() {
-      if (opts.onBottom && atBottom(scrollEl, pad)) opts.onBottom();
+      var visible = root3.isConnected && root3.offsetParent !== null;
+      if (visible && opts.onBottom && atBottom(scrollEl, pad)) opts.onBottom();
       backTop.classList.toggle("on", scrollTopOf(scrollEl) > backTopAt);
     }
     scrollEl.addEventListener("scroll", onScroll, { passive: true });
@@ -15621,6 +15625,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
           });
           return;
         }
+        var prev = t.nextElementSibling;
+        if (prev && prev.classList && prev.classList.contains("acsv-fmore")) prev.remove();
         t._armed = true;
         if (t.scrollHeight <= t.clientHeight + 1) return;
         var more = el("span", "acsv-fmore", "展开");
@@ -16146,6 +16152,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   // src/spacemoments.js
   var feed2 = null;
   var builtFor = "";
+  var listBox = null;
+  var mountedUid = "";
   function uidOf() {
     var m = /^\/u\/(\d+)/.exec(location.pathname);
     return m ? m[1] : "";
@@ -16153,7 +16161,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function noop3() {
   }
   function ensureList(panel2, uid) {
-    if (builtFor === uid && feed2) return;
+    if (builtFor === uid && feed2 && listBox && panel2.contains(listBox)) return;
     if (feed2) {
       feed2.stop();
       feed2 = null;
@@ -16161,6 +16169,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     builtFor = uid;
     ensureStyle();
     var box = el("div", "acsv-mp");
+    listBox = box;
     panel2.appendChild(box);
     feed2 = createSquareFeed({
       root: box,
@@ -16185,7 +16194,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var cl = document.querySelector(".ac-space-contribute-list");
     var tagsUl = cl && cl.querySelector("ul.tags");
     if (!cl || !tagsUl) return false;
-    if (tagsUl.querySelector('li[data-index="moment"]')) return true;
+    var li = tagsUl.querySelector('li[data-index="moment"]');
+    var panel2 = cl.querySelector(':scope > .tag-content[data-acsv-tab="moment"]');
+    if (li && panel2 && mountedUid === uid) return true;
+    if (li) li.remove();
+    if (panel2) panel2.remove();
     mountSpaceTab({
       cl,
       tagsUl,
@@ -16193,11 +16206,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       order: 1,
       label: "动态",
       title: "该 UP 主的动态（图文 / 视频 / 文章）",
-      onShow: function(panel2) {
-        ensureList(panel2, uid);
+      onShow: function(panel3) {
+        ensureList(panel3, uid);
       }
       // 首次显形才建列表（惰性）
     });
+    mountedUid = uid;
     return true;
   }
   function healSpaceMoments() {
@@ -16227,7 +16241,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.235-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.236-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -16756,13 +16770,15 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var pageNo = 0, seq = 0;
     var allRows = [];
     var done = false;
+    var loading2 = false;
     var lctx = makeListCtx(function() {
       return allRows;
     }, load, function() {
       return done;
     });
     function load() {
-      if (done) return;
+      if (done || loading2) return;
+      loading2 = true;
       var my = ++seq;
       var gone = skeleton(list);
       if (pageNo) setStatus("加载中…", true);
@@ -16770,6 +16786,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         CFG.api.history,
         "pageNo=" + (pageNo + 1) + "&pageSize=" + CFG.view.pageSize + "&resourceTypes=1&resourceTypes=2"
       ).then(function(j) {
+        loading2 = false;
         gone();
         if (my !== seq || !list.isConnected) return;
         var raws = j && j.histories || [];
@@ -16790,6 +16807,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         setStatus(done ? "已加载全部" : "");
         if (!rows.length && pageNo === 1) list.appendChild(el("div", "acsv-vempty", "暂无观看记录"));
       }, function() {
+        loading2 = false;
         gone();
         if (my !== seq || !list.isConnected) return;
         setStatus(list.children.length ? "加载失败，滚动重试" : "加载失败，点击重试");
@@ -18380,11 +18398,14 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       done: false,
       busy: false,
       err: false,
+      gen: 0,
+      // 请求代数（0.9.236）：switchTab 递增——快速 A→B→A 时晚到的旧回包
+      // 会通过 `st.tab===tab` 检查（同 tab），必须靠代数丢弃（重复卡/游标回退）
       big: false,
       normals: 0,
       buf: [],
       rendered: [],
-      // 已渲染 vm 序列（渲染顺序；列表会话的条目源，0.9.173）
+      // 已渲染 vm 序列（渲染顺序列表会话的条目源，0.9.173）
       waitMore: null,
       // 列表会话续拉的等待回调（drain 渲染完触发，0.9.173）
       chips,
@@ -18424,6 +18445,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     switchTab();
   }
   function switchTab() {
+    st.gen++;
     st.cursor = st.tab === "all" ? "" : "0";
     st.done = false;
     st.busy = false;
@@ -18460,14 +18482,14 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function fetchPage() {
     if (!st || st.busy || st.done || st.err) return;
     st.busy = true;
-    var tab = st.tab, cursor = st.cursor;
+    var tab = st.tab, cursor = st.cursor, gen2 = st.gen;
     var p = tab === "all" ? AppAPI.homeFeedFetch(cursor).then(function(r) {
       return { vms: r.items.map(vmOfHome), next: r.pcursor, failed: r.failed, empty: !r.items.length };
     }) : listChannelFeed(tab, cursor || "0").then(function(page) {
       return { vms: page.items.map(vmOfDv), next: page.nextCursor, failed: false, empty: page.noMore };
     });
     p.then(function(r) {
-      if (!st || st.tab !== tab) return;
+      if (!st || st.gen !== gen2 || st.tab !== tab) return;
       st.busy = false;
       if (r.failed) {
         st.err = true;
@@ -18484,7 +18506,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       if (r.next == null || r.next === "" || r.next === cursor) st.done = true;
       advance();
     }, function() {
-      if (!st || st.tab !== tab) return;
+      if (!st || st.gen !== gen2 || st.tab !== tab) return;
       st.busy = false;
       st.err = true;
       failTip();
