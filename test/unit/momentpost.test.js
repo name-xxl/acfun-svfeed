@@ -6,7 +6,29 @@ import assert from 'node:assert/strict';
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
 globalThis.location = { href: 'https://www.acfun.cn/', pathname: '/' };
-var { momentParams, momentCharCount, MOMENT_MAX, postResultOf, publishRequest } = await import('../../src/momentpost.js');
+var { momentParams, momentCharCount, MOMENT_MAX, postResultOf, publishRequest, tokenRanges } =
+  await import('../../src/momentpost.js');
+
+test('tokenRanges（0.9.238 自退役的 tokenedit 收编）：两种令牌各成整块，起点升序、互不重叠', () => {
+  var v = 'a[emot=acfun,123/]b[img=图片]https://i/x.jpg[/img]c';
+  var r = tokenRanges(v);
+  assert.equal(r.length, 2);
+  // 断言**按切片**写，不硬编码令牌长度——结构断言才是这里要钉的东西
+  assert.equal(v.slice(r[0][0], r[0][1]), '[emot=acfun,123/]');
+  assert.equal(v.slice(r[1][0], r[1][1]), '[img=图片]https://i/x.jpg[/img]');
+  assert.equal(r[0][0], 1);        // 前面隔一个 'a'
+  assert.equal(v[r[0][1]], 'b');   // 结束正好落在 'b' 上
+  assert.ok(r[1][0] > r[0][1]);    // 升序不重叠
+  assert.deepEqual(tokenRanges('纯文本没有令牌'), []);
+  assert.deepEqual(tokenRanges(null), []);
+  // 半个令牌（被劈开的残留）**不算令牌**——正是要防的碎裂态（富文本载体下已由浏览器原生整块删杜绝）
+  assert.deepEqual(tokenRanges('[emot=acfun,123'), []);
+  assert.deepEqual(tokenRanges('[img=图片]https://i/x.jpg'), []);
+  var v2 = '[emot=acfun,1/][emot=acfun,2/]';
+  var r2 = tokenRanges(v2);
+  assert.equal(r2[1][0], r2[0][1]);   // 紧邻：第二块起点＝第一块终点
+  assert.equal(r2[1][1], v2.length);
+});
 
 test('momentParams：纯文字默认形态——四字段齐、shareResourceType 恒 0、imgs 空数组', () => {
   var p = JSON.parse(momentParams('你好'));

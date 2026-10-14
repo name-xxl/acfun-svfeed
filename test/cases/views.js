@@ -2430,11 +2430,12 @@ rec('square-cmt-namecolor', (function () {
     }, 5000)));
     window.__ACSV_LIKE_FAIL__ = false;
     // 发评论乐观上屏：新评论紧跟正文 pin（无热门段 → pin 后第一条），标题计数 +1
-    var inp = q('.acsv-mdetail-panel .acsv-cinput-text');
+    var inp = q('.acsv-mdetail-panel .acsv-cinput-edit');
     rec('detail-input-present', !!inp);
     if (inp) {
-      inp.value = '详情面板的测试评论';
-      inp.dispatchEvent(new Event('input', { bubbles: true })); // 镜像层同步（0.9.234：后续断言清空态）
+      // 0.9.238 富文本：编辑区是 contenteditable（原 textarea 的 .value 写法退役）
+      inp.textContent = '详情面板的测试评论';
+      inp.dispatchEvent(new Event('input', { bubbles: true })); // 让输入条重算字数/启用态
       // 0.9.234 组合守卫：组合期 Enter 不得触发发送（发出去会多一条评论，条数可辨）
       var nIme0 = document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length;
       var imeEv = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, isComposing: true });
@@ -2442,7 +2443,7 @@ rec('square-cmt-namecolor', (function () {
       inp.dispatchEvent(imeEv);
       await wait(300);
       rec('detail-ime-enter-blocked', document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length === nIme0
-        && inp.value === '详情面板的测试评论', 'items=' + document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length);
+        && inp.textContent === '详情面板的测试评论', 'items=' + document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length);
       var send = q('.acsv-mdetail-panel .acsv-cinput-send');
       if (send) send.click();
     }
@@ -2453,13 +2454,12 @@ rec('square-cmt-namecolor', (function () {
         && /详情面板的测试评论/.test(first.textContent)
         && /共\s*4\s*条评论/.test((q('.acsv-mdetail-cmt') || {}).textContent || '');
     }, 8000)), 'n=' + document.querySelectorAll('.acsv-mdetail-list .acsv-citem').length);
-    // 0.9.234 发送后镜像层必须清空（原先只清 value，textarea 文字透明 ⇒ 已发送文字"幽灵残留"）
-    rec('detail-input-cleared-mirror', (function () {
-      var t = q('.acsv-mdetail-panel .acsv-cinput-text');
-      var m = q('.acsv-mdetail-panel .acsv-cinput-mir');
-      return !!t && !!m && t.value === '' && m.textContent === '';
-    })(), 'v=' + JSON.stringify((q('.acsv-mdetail-panel .acsv-cinput-text') || {}).value)
-      + ' mir=' + JSON.stringify((q('.acsv-mdetail-panel .acsv-cinput-mir') || {}).textContent));
+    // 0.9.234 发送后编辑区必须清空（原 textarea 时代只清 value 会留"幽灵文字"；
+    // 富文本时代清的是真节点——同一条纪律，判据换成 DOM）
+    rec('detail-input-cleared', (function () {
+      var t = q('.acsv-mdetail-panel .acsv-cinput-edit');
+      return !!t && t.childNodes.length === 0;
+    })(), 'html=' + JSON.stringify((q('.acsv-mdetail-panel .acsv-cinput-edit') || {}).innerHTML));
     // 表情面板（4.2）：节点挂面板宿主（display:none 待开）；输入条在面板内（宿主迁移）
     rec('detail-emotpanel', !!q('.acsv-mdetail-panel > .acsv-emotpanel'));
     rec('detail-input-in-panel', !!q('.acsv-mdetail-panel .acsv-cinput'));
@@ -2569,34 +2569,45 @@ rec('square-cmt-namecolor', (function () {
     rec('detail-side-input', !!(await waitFor(function () {
       return !!q('.acsv-mdetail-side .acsv-cinput');
     }, 8000)));
-    // ---- 0.9.221 输入框镜像层 + 令牌原子化（评论/私信/动态编辑器三处共用同一件）----
-    // 钉三件事：① 镜像层存在且与 textarea 同度量；② 令牌在镜像层渲染成图/占位（不是那串代码）；
-    // ③ 光标落在令牌内部按退格 ⇒ **整块删**，不留 `[emot=` 碎片
-    var cIn = q('.acsv-mdetail-side .acsv-cinput-text');
-    var cMir = q('.acsv-mdetail-side .acsv-cinput-mir');
-    rec('composer-mirror-exists', !!cIn && !!cMir);
-    rec('composer-mirror-metrics', (function () {
-      if (!cIn || !cMir) return false;
-      var a = getComputedStyle(cIn), b = getComputedStyle(cMir);
-      // 同度量是镜像层的命门（差 1px 就露字影）：字号/行高/左右内边距逐项对齐
-      return a.fontSize === b.fontSize && a.lineHeight === b.lineHeight
-        && a.paddingLeft === b.paddingLeft && a.paddingRight === b.paddingRight;
+    // ---- 0.9.238 富文本输入条（contenteditable + 出口序列化，三宿主共用同一件）----
+    // 这里只钉「面板/右栏宿主里输入条形态正确」；序列化对照表（⑧）与真实插入/撤销/超限
+    // 行为在 composer-rich 场景（test/cases/composer.js）逐条钉
+    var cEdit = q('.acsv-mdetail-side .acsv-cinput-edit');
+    rec('composer-edit-exists', !!cEdit && cEdit.getAttribute('contenteditable') === 'true');
+    rec('composer-edit-metrics', (function () {
+      if (!cEdit) return false;
+      // 度量不变回归钉（换载体不许顺手改观感）：字号 13 / 行高 18 / 左右内边距 12（原 textarea 同值）
+      var cs = getComputedStyle(cEdit);
+      return cs.fontSize === '13px' && cs.lineHeight === '18px'
+        && cs.paddingLeft === '12px' && cs.paddingRight === '12px';
     })(), (function () {
-      if (!cIn || !cMir) return 'n/a';
-      var a = getComputedStyle(cIn), b = getComputedStyle(cMir);
-      return a.fontSize + '/' + b.fontSize + ' lh=' + a.lineHeight + '/' + b.lineHeight;
+      if (!cEdit) return 'n/a';
+      var cs = getComputedStyle(cEdit);
+      return cs.fontSize + ' lh=' + cs.lineHeight + ' pl=' + cs.paddingLeft;
     })());
-    if (cIn && cMir) {
-      cIn.focus();
-      cIn.value = '测试[emot=acfun,1/]好';
-      cIn.dispatchEvent(new Event('input', { bubbles: true }));
-      rec('composer-mirror-emot', !!cMir.querySelector('.ubb-emotion, .ubb-emot-ph'),
-        cMir.innerHTML.slice(0, 60));
-      cIn.setSelectionRange(8, 8); // 落在令牌内部（`[emot=acfun,1/]` 的中间）
-      cIn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
-      rec('composer-token-atomic', cIn.value === '测试好', cIn.value);
-      cIn.value = '';
-      cIn.dispatchEvent(new Event('input', { bubbles: true }));
+    var cTools = q('.acsv-mdetail-side .acsv-cinput-top');
+    rec('composer-toolbar', !!(cTools && cTools.querySelectorAll('.acsv-cinput-fmt').length === 5
+      && cTools.querySelector('.acsv-cinput-emot') && cTools.querySelector('.acsv-cinput-img')),
+      cTools ? ('fmt=' + cTools.querySelectorAll('.acsv-cinput-fmt').length) : 'no-toolbar');
+    if (cEdit) {
+      // 出口序列化＋字数口径（composerUbb 钩子＝与编辑区同一套实现，非平行副本）：
+      // 令牌整块串成 UBB、配图块的文件名不吃字数、换行不出字
+      var probe = document.createElement('div');
+      probe.innerHTML = 'AB<b>粗</b><u>下</u><span style="color:#fd4c5d">红</span><br>'
+        + '<img class="ubb-emotion" data-pkg="acfun" data-id="2797" src="https://i/e.gif">'
+        + '<span class="acsv-cinput-imgblk" contenteditable="false" data-url="https://i/x.jpg" data-name="配图.jpg">'
+        + '<img src="https://i/x.jpg" alt="配图.jpg"><span class="t">配图.jpg</span></span>';
+      var out = TEST.call('composerUbb', probe);
+      rec('composer-ubb-serialize', !!(out
+        && out.text === 'AB[b]粗[/b][u]下[/u][color=#fd4c5d]红[/color]\r\n[emot=acfun,2797/][img=配图.jpg]https://i/x.jpg[/img]'
+        && out.count === 7), out && ('t=' + JSON.stringify(out.text) + ' n=' + out.count));
+      // 真·编辑区输入 → 字数落到工具栏右端（计数元素在场且跟手）
+      cEdit.textContent = '面板底栏输入';
+      cEdit.dispatchEvent(new Event('input', { bubbles: true }));
+      var cCount = q('.acsv-mdetail-side .acsv-cinput-count');
+      rec('composer-count-live', !!(cCount && cCount.textContent === '6'), cCount && cCount.textContent);
+      cEdit.textContent = '';
+      cEdit.dispatchEvent(new Event('input', { bubbles: true }));
     }
     var cell0 = q('.acsv-mdcar-slide');
     if (cell0) cell0.click();

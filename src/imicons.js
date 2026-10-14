@@ -45,5 +45,16 @@ export var GLYPHS = {
   rankView: '\ue164',    // 播放数（原生 video-card extra 首位）
   rankComment: '\ue161', // 评论数（原生 video-card extra 次位）
   rankTime: '\ue2f5',    // 发布时间（原生 video-card extra 时钟）
-  fans: '\ue155'         // 粉丝数（原生 up-card 次数据位；音柱/人形字形实测渲染核对）
+  fans: '\ue155',        // 粉丝数（原生 up-card 次数据位；音柱/人形字形实测渲染核对）
+  // 官方 UMEditor 工具栏字形（0.9.238 富文本输入条；2026-10-15 用户裁决「图标要用原生的」）。
+  // 来源＝官方工具栏 CSS 的 .edui-icon-*:before；**已核验这 7 个码点都在本字体里**
+  // （cmap 实测：151 字形 / 码点段 e153–e660）⇒ 与官方评论编辑器工具栏同字体、同码点，
+  // 字形逐像素相同。颜色随 currentColor（深/浅两皮肤一套 CSS），零新增资源
+  edBold: '\ue18f',      // 加粗
+  edItalic: '\ue19a',    // 斜体
+  edUnderline: '\ue1ea', // 下划线
+  edStrike: '\ue1e9',    // 删除线
+  edColor: '\ue1eb',     // 颜色（字形自身带一条色条，随 currentColor——勿再叠自定义色条）
+  edEmotion: '\ue18b',   // 表情
+  edImage: '\ue18a'      // 图片
 };

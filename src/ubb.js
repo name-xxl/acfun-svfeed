@@ -75,6 +75,15 @@ export function renderCommentHtml(content) {
     var base = type === '2' ? CFG.api.videoBase : CFG.api.articleBase;
     return '<a class="ubb-res" href="' + base + id + '" target="_blank" rel="noopener">' + inner.replace(/<[^>]+>/g, '') + '</a>';
   });
+  // 行内格式四件（0.9.238 补：官方 Fe 序列化器自己就在产出这四种，A 站评论确实支持；
+  // 此前只做富文本**写**侧、渲染侧缺这四条 ⇒ 自家发的加粗在正文里按字面显示）。
+  // 反方向（写侧→[b] 等）见 inputbar.serializeUbb；官方全集还有 [sup]/[sub]，工具栏没有对应
+  // 键、本批不做（出需求再补，规则同形）。位置放在 color 之前：颜色 span 可包格式标签，
+  // 四条内也不互相吞（各自 [\s\S]*? 非贪婪闭合）；未闭合/非法值一律按字面显示（与未知 UBB 一致）
+  h = h.replace(/\[b\]([\s\S]*?)\[\/b\]/g, '<b>$1</b>');
+  h = h.replace(/\[i\]([\s\S]*?)\[\/i\]/g, '<i>$1</i>');
+  h = h.replace(/\[u\]([\s\S]*?)\[\/u\]/g, '<u>$1</u>');
+  h = h.replace(/\[s\]([\s\S]*?)\[\/s\]/g, '<s>$1</s>');
   // 颜色：[color=#hex]…[/color]。颜色值白名单限 # + 3~8 位 hex（防 style 属性注入）；
   // 跑在 emot/img 之后，正文里的表情/配图可被颜色 span 包裹；未闭合或非法值按字面显示（与未知 UBB 一致）
   h = h.replace(/\[color=(#[0-9a-fA-F]{3,8})\]([\s\S]*?)\[\/color\]/g, function (_, cv, inner) {

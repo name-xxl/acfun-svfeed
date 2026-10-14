@@ -2,7 +2,6 @@ import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { el, fmt, toast, spinner } from './ui.js';
 import { errNotLogin, errSend, errImgTooBig } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
-import { ICONS } from './styles.js';
 import { GLYPHS } from './imicons.js';
 import { commentShareWire } from './immsg.js';
 import { root, commentDrawer, claimDrawer, releaseDrawer, currentDrawer } from './state.js';
@@ -11,8 +10,7 @@ import { testHook } from './dbg.js';
 import { AppAPI } from './appapi.js';
 import { uploadImage } from './upload.js';
 import { ubbImText } from './ubbtext.js';
-import { mountEmotButton, ensureEmotionMap, insertAtCursor } from './emoticon.js';
-import { decorateInput } from './composermirror.js'; // 输入框镜像层（0.9.221）
+import { mountEmotButton, ensureEmotionMap } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import { openSharePanel } from './sharepanel.js';
@@ -290,13 +288,10 @@ export function commentListClick(ev) {
   if (rb && rb._target) {
     ev.stopPropagation();
     setReply(rb._target);
-    if (inputBar) {
-      var inp = inputBar.querySelector('.acsv-cinput-text');
-      if (inp) inp.focus();
-    }
+    if (bar) bar.focus();
     return;
   }
-  // 转发到私信：弹层挂抽屉根（meta 行在滚动列表内会被裁剪），文本按官方动态转发格式
+  // 回复到私信：弹层挂抽屉根（meta 行在滚动列表内会被裁剪），文本按官方动态转发格式
   // 拼「@作者：内容」+ 作品链接（parseShare 契约：标题行\nURL，两端出分享卡）。
   // URL 带 #ncid= 评论锚点（A 站落地页原生定位楼层）；cmt 载荷携原始 UBB（extra 通道
   // 发送，接收端渲染真表情）
@@ -314,8 +309,7 @@ export function commentListClick(ev) {
       headText: '转发这条评论'
     });
     return;
-  }
-  var pic = ev.target.closest('.ubb-imgc');
+  }  var pic = ev.target.closest('.ubb-imgc');
   if (pic) {
     // 划选文字收尾在图片上不弹大图（选区非折叠 = 在复制文字）
     var sel = window.getSelection ? window.getSelection() : null;
@@ -460,8 +454,11 @@ function moreRow(kind, sourceId, page) {
 }
 
 // ---- 评论输入条（复用动态广场 editor/postComment 模块思路）----
-// 常驻宿主底部；支持发评论、回复评论（replyToCommentId=根评论）、回复楼中楼（=子评论）
-var inputBar = null;
+// 常驻宿主底部；支持发评论、回复评论（replyToCommentId=根评论）、回复楼中楼（=子评论）。
+// 0.9.238 富文本重载：编辑期是 DOM 节点（表情真图 / 配图缩略块 / B I U S A 格式），出口
+// inputbar.text() 序列化回 UBB 再提交（与官方编辑器同路，依据 docs §11.7/§11.8）
+var inputBar = null;  // 输入条根节点（宿主迁移/显隐判据；历史上就是它在用，保持同名）
+var bar = null;       // 输入条句柄（text/setText/insertCode/… 单源）
 var replyChip = null; // 回复提示条（inputbar.buildQuoteChip 共用工厂，私信引用 chip 同款）：{box, label}
 var emotPanelEl = null; // 表情面板容器（emoticon.mountEmotButton 消费）
 // （0.9.141 撤除）scrollList/scrollFn：按宿主 list 挂 scroll 的触底翻页——只有抽屉的 list 是
@@ -469,37 +466,34 @@ var emotPanelEl = null; // 表情面板容器（emoticon.mountEmotButton 消费�
 
 function setReply(target) {
   commentState.replyTo = target || null;
-  if (!inputBar) return;
-  var inp = inputBar.querySelector('.acsv-cinput-text');
+  if (!bar) return;
   if (commentState.replyTo) {
     replyChip.box.style.display = 'flex';
     replyChip.label.textContent = '回复：@' + commentState.replyTo.name;
-    inp.placeholder = '回复 @' + commentState.replyTo.name + '…';
+    bar.setPlaceholder('回复 @' + commentState.replyTo.name + '…');
   } else {
     replyChip.box.style.display = 'none';
-    inp.placeholder = '评论一时爽，一直评论一直爽。';
+    bar.setPlaceholder('评论一时爽，一直评论一直爽。');
   }
 }
 
 function sendCurrent() {
-  var inp = inputBar.querySelector('.acsv-cinput-text');
-  var send = inputBar.querySelector('.acsv-cinput-send');
-  var text = (inp.value || '').trim();
+  var text = (bar.text() || '').trim();
   if (!text || inputBar._busy) return;
   inputBar._busy = true;
-  send.textContent = '发送中…';
+  bar.setBusy(true);
   var replyTo = commentState.replyTo;
   var forId = commentState.sourceId;
   AppAPI.postComment(commentState.sourceId, commentState.stype, text, replyTo ? replyTo.id : 0)
     .then(function (r) {
       inputBar._busy = false;
-      send.textContent = '发送';
+      bar.setBusy(false);
       if (!r || !r.ok) {
         errSend('', r);
         return;
       }
       toast(replyTo ? '回复成功' : '评论成功');
-      inputBar._setText(''); // 值 + 高度 + 镜像层重画单源（0.9.234：此前只清 value，镜像层幽灵残留）
+      bar.setText(''); // 清空（值 + 字数 + 空态占位一处收口）
       setReply(null);
       if (forId !== commentState.sourceId) return; // 发送期间已切视频
       if (insertLocalComment(r.comment, !!replyTo)) return; // 根评论乐观上屏，滚动位置不丢
@@ -534,19 +528,19 @@ function ensureCommentInput() {
     // 文案与 placeholder 联动收敛在 setReply
     replyChip = buildQuoteChip(function () { setReply(null); }, '取消回复');
     // 输入栏 DOM/行为收敛在 inputbar.buildInputBar（评论/私信共用）：这里只注入差异语义——
-    // 图片按钮走「上传→插配图代码」、长度 1000（配图代码含完整签名 URL 450+ 字符，
-    // 限 233 会把输入框锁死到打不了字）
-    var bar = buildInputBar({
+    // 图片按钮走「上传→插配图代码」、长度 1000（**富文本口径**：字数按 DOM 算，一个配图/表情
+    // 计 1 字——配图代码里那串 450+ 字符的签名 URL 不再吃字数）
+    bar = buildInputBar({
       img: {
         title: '插入图片',
         onFile: function (f) {
           if (f.size > CFG.comments.imgMax) { errImgTooBig(Math.round(CFG.comments.imgMax / 1024 / 1024)); return; }
-          bar.imgBtn.textContent = '上传中';
+          bar.imgBusy('上传中');
           uploadImage(f).then(function (url) {
-            bar.imgBtn.innerHTML = ICONS.image;
+            bar.imgIdle();
             if (!url) { toast('图片上传失败（需登录）'); return; }
             toast('图片上传成功');
-            insertAtCursor(bar.input, '[img=图片]' + url + '[/img]');
+            bar.insertCode('[img=图片]' + url + '[/img]');
           });
         }
       },
@@ -555,13 +549,10 @@ function ensureCommentInput() {
       onSend: sendCurrent
     });
     inputBar = bar.box;
-    inputBar.imgBtn = bar.imgBtn;
-    inputBar._setText = function (v) { bar.setText(v); }; // 清空/回填单源（decorateInput 已包镜像重画）
-    var inp = bar.input;
-    decorateInput(bar); // 0.9.221 镜像层 + 令牌原子编辑（写的时候就看见表情；删除整块）
     emotPanelEl = el('div', 'acsv-emotpanel');
-    // 表情面板三件套（toggle+懒加载+光标插入）抽进了 emoticon.mountEmotButton，评论/私信共用
-    mountEmotButton(bar.emotBtn, emotPanelEl, inp);
+    // 表情面板三件套（toggle+懒加载+光标插入）抽进了 emoticon.mountEmotButton，评论/私信共用；
+    // 插入落点＝富文本编辑区（代码→真实节点，进原生撤销栈）
+    mountEmotButton(bar.emotBtn, emotPanelEl, bar.insertCode);
   }
   // 宿主迁移（0.9.96 面板↔抽屉互斥开，输入条三件套同一时刻只在一个宿主里）：append 即搬移。
   // 触底翻页不再随宿主换挂监听（0.9.141 起哨兵随 list 走，见 armMoreSentinel）

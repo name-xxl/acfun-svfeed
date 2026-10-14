@@ -200,7 +200,7 @@ export function openMomentDetail(pi) {
       // 评论区就在本面板（滚动体内）：滚到评论头并聚焦输入框
       var c = list.querySelector('.acsv-mdetail-cmthead');
       if (c) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      var inp = hostEl.querySelector('.acsv-cinput-text');
+      var inp = hostEl.querySelector('.acsv-cinput-edit');
       if (inp) inp.focus();
     }
   }));

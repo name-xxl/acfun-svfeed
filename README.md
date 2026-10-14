@@ -339,12 +339,11 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `reldrawer.js` | 评论抽屉「相关推荐」tab（0.9.168；形态=docs/preview/jingxuan.html ③④⑤）：tab 显隐与切换（平级第二列表 relList，绝不复用评论 dlist——resetList 会清它、.acsv-citem DOM 被 view-follow/detail-open 断言钉死）/行渲染（锚位「播放中」+小封面时长+两行标题+赞数·UP 名，图片走 imgload）/骨架·空·失败三态/**第三 tab「列表」**（0.9.174）：列表播放器里展示当前播放列表（当前项「▶ 播放中」高亮、点行=列表内跳转 via relatedapi.pickInLayer），seam=relDrawerShowList/relDrawerSyncList/relDrawerHideList/relDrawerListMode（列表播放器里收起相关推荐页签，0.9.175）；**行点击两落点**（0.9.170/0.9.172；0.9.179 删原 startChain 兜底）：播放层在场 = relatedapi.layerJump **压新级别**（列表播放器，不拆界面）；层外 = relatedapi.layerOpen **开层**（舞台/视图原地保活、Esc 回当前视频——0.9.167 的 startChain 会重置整条流+拆视图，实报「原窗口直接没了」后改此）；comments.js 只挂两 seam（openComments 尾部 sync / closeComments 复位）；sv（小视频）条目隐藏 tab（端点只收视频稿件） |
 | `channelapi.js` | 频道域件（0.9.169；实测 docs §6.7）：listChannels（allChannels 免登录频道树）/channelTreeOf（**非视频域剔除**：文章63 channelType=1 + AC正义177，单源在模块头 NON_VIDEO 表）/listChannelFeed（secondLevel/resourceList：channelId 主频道过滤、~30/块、pcursor \"{n},{n}\" 页码方言、终页形态未测按空游标/空页收口）/channelPageOf（**杂质本地复核滤**——条目 channel.parentId 与请求频道不符即弃，宁漏不错）。条目转播放契约由消费方经 relatedItemOf。消费方：jingxuanview |
 | `jingxuanview.js` | 分区页视图（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html v5；**0.9.171 展示名「精选」→「分区」**——id/路由/文件名仍 jingxuan，展示串改口）：dock order 5（**左栏最顶，推荐之上**）——chips（全部+频道树，复用 .acsv-vchip 族）/自适应网格（gridMin 250）/触底续页/骨架·空·失败三态。「全部」=推荐流（0.9.189 起 singleColumn）经 **AppAPI.homeFeedFetch 自持游标**（0.9.169 翻页器隔离——不动 home 泵模块游标，请求形状/规整单源）；分区=channelapi。**0.9.170 三条裁决**：①首卡=网格内 2×2 跨格大卡（.acsv-jx-big，撤旧 hero 大焦点区；封面锁 16:9 ⇒ cover 零裁切零拉伸；信息区恒 ≈164px 按 4 行排=标题 18px/分区标签/UP 行/数据行）；②**按行补齐**：渲染量取整行倍数（nextTarget=2(cols-2)+k·cols，cols 按现场列数算 2–5 列自适应，底部不留空卡；不足则拉页，流尽时尾行例外；铺不满滚动体时按整行继续推进）；③**卡片点击=openPanelItem 走播放层**（与榜单/搜索/我的同出口：浮层单条 + Esc 回分区原位保活；层内 ↓/↑ 与**滚轮/触摸上下滑**（0.9.171）走 relatedapi 游走，不再拆视图起舞台链）；④卡片计数位用**原生 iconfont 字形**（播放=rankView E164、点赞=feedLike E629，类 .acsvg-glyph 同 cards.js 面板卡），不再用文本示意符 |
-| `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[at]/[resource]/[img]/[color] 逐一白名单放行；IM wire 文本投影（ubbImText）与引用块富正文（ubbQuoteHtml）单源 |
-| `emoticon.js` | 表情包服务 + 面板 + 输入栏表情按钮挂载（localStorage 缓存优先、最近使用、分包 tab） |
+| `ubb.js` | 评论 UBB 渲染：esc-first 管线，[emot]/[at]/[resource]/[img]/[color] 逐一白名单放行（0.9.238 补行内格式四件 `[b]/[i]/[u]/[s]`——写侧富文本出口就在产出这四种）；IM wire 文本投影（ubbImText）与引用块富正文（ubbQuoteHtml）单源 |
+| `emoticon.js` | 表情包服务 + 面板 + 输入条表情按钮挂载（localStorage 缓存优先、最近使用、分包 tab；0.9.238 起插入落点由调用方注入——富文本编辑区的"贴光标插入"归 inputbar.insertCode） |
 | `imgview.js` | 配图大图查看器（评论/私信共用；root 单例浮层、Esc 模态） |
-| `inputbar.js` | 抽屉输入栏 builder（评论/私信共用：表情/图片按钮、自动增高、Enter/Esc；差异语义参数注入） |
-| `composermirror.js` | 输入框镜像层装饰器（0.9.221）：给 `inputbar` 建的输入条包一层——textarea 文字透明只留光标，下层同度量的 div 把 UBB 令牌画成图（表情取 **B 口径 1em** ⇒ 不撑行高、两侧行数永远一致；图片出「图片」小块），并挂上 `tokenedit` 的令牌原子编辑。**为什么单开一件**：inputbar 属基建层，让它 import 特性层的 emoticon 会新增「基建→特性」反向边（check-direction 口径 A）——装饰器把这条边挪到特性层。消费方：comments（评论输入条）/ imdrawer（私信）/ 动态编辑器 |
-| `momenteditor.js` | 发动态编辑器（0.9.222）：**三处入口共用的唯一出口** `openMomentEditor(opts)`——居中模态（overlay 栈 id=`momentedit`、modal 吞键）、输入条走 `inputbar`+`composermirror`（写时就看得见表情）、表情面板/九宫格缩略图（`imgInto`）/可见范围两药丸/字数计数（`momentCharCount`，>233 变红）；转发时顶部带源引用块（复用 `cards.quoteBlockOf`，不新画）、按钮与标题切「转发」。**防误发**：提交锁（绝不自动重试——端点无幂等键）、失败保留内容给可读话术（按 `postResultOf` 的 kind 分档）、**网络/超时结果未知**走「先查后补」（`listProfile` 核对自己最近动态）。调试钩子 `momentRepostOf`/`momentEdit` |
+| `inputbar.js` | 三宿主共用输入条 builder（0.9.41 收敛评论/私信；**0.9.238 富文本重写**）——contenteditable 编辑区 + 出口序列化：上行工具栏（B I U S · 颜色 · 表情/图片 · 字数；图标＝原生 iconfont 字形，与官方 UMEditor 同字体同码点）、下行编辑区 + 发送。编辑期就是真实 DOM 节点（表情＝`<img class="ubb-emotion">`、配图＝缩略块、格式＝`<b>/<i>/…`），出口 `serializeUbb` 序列化回 UBB 提交（口径逐条对齐官方 Fe 序列化器，依据 docs §11.7/§11.8）；字数＝文本 + 每个令牌块计 1（官方 `getContentLength` 口径）。程序化插入（表情/配图）统一走 `execCommand('insertHTML')` ⇒ 进浏览器**原生撤销栈**（不自建快照栈）；粘贴只做最保守纯文本化。差异语义全由 opts 注入（img/placeholder/maxLength/countMax/sendEnabled/onSend/onState）。**归类（0.9.238）**：由基建层改入特性层——富文本后它认识表情域与出口 UBB 方言，不再满足"基建＝零特性知识"（同 sharepanel/rail/slide 的 0.9.233 先例）；形态定稿见 docs/preview/composer-richtext.html |
+| `momenteditor.js` | 发动态编辑器（0.9.222）：**三处入口共用的唯一出口** `openMomentEditor(opts)`——居中模态（overlay 栈 id=`momentedit`、modal 吞键）、输入条走 `inputbar`（0.9.238 富文本，字数在工具栏右端 n/233）、表情面板/九宫格缩略图（`imgInto`）/可见范围两药丸；转发时顶部带源引用块（复用 `cards.quoteBlockOf`，不新画）、按钮与标题切「转发」。**防误发**：提交锁（绝不自动重试——端点无幂等键）、失败保留内容给可读话术（按 `postResultOf` 的 kind 分档）、**网络/超时结果未知**走「先查后补」（`listProfile` 核对自己最近动态）。**超字数硬拒绝**（0.9.238 预览稿 ⑩ 第 10 项）：输入条置红 + 脚行发布键禁用 + 「已超出 N 字」提示行；发布动作归脚行（模态内隐去输入条自带发送键）。调试钩子 `momentRepostOf`/`momentEdit` |
 | `pubfab.js` | 发布**常驻浮标**（0.9.224；0.9.225 收窄原生页范围）：右下角一枚圆钮、钉在「回到顶部」之上——消费方三处：我的页四档 / 广场视图 / **原生页的内嵌动态广场**（0.9.225 用户口径「原生页只需要在动态广场出现」⇒ 只在广场开着时出现，随广场收起而消失；不再常驻原生页）。位置：暗色 `right:18 bottom:70`（回顶暗色是流内 sticky）／浅色 `right:24 bottom:80`（回顶浅色是 fixed）。**层级 z:57**：压列表内容(55)/dock(56)/顶栏(57)，**被抽屉(58)/详情(61)/编辑器(62)/大图(63) 盖住**——绝不许盖住它自己打开的编辑器（`#acsv-fab` 的 2147482990 不能照抄） |
 | `upload.js` | 评论图片上传四阶段（GM 通道二进制分片，失败统一落 null） |
 | `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；0.9.180 起不可得=error 态，不回落原生；0.9.181 起「同 realm 返回式取数」+ UMD 分支遮罩；0.9.182 起 eval 拿不回再落 Blob 脚本层（页面 world，IM SDK 同款）；CDN 逐源兜底；Safari 原生 HLS 探测） |
@@ -434,9 +433,6 @@ flowchart LR
     state["state.js（UI 单例中介）"]
     route["route.js"]
     imgview["imgview.js（大图查看器）"]
-    inputbar["inputbar.js（抽屉输入栏）"]
-    tokenedit["tokenedit.js（令牌原子编辑·输入框内令牌整块删/选区吸附）"]
-    composermirror["composermirror.js（输入框镜像层·令牌渲染成图，装饰输入条）"]
     imgurl["imgurl.js（图片 URL·零依赖叶子）"]
     pagekind["pagekind.js（页面类型分类器·零依赖叶子）"]
     timefmt["timefmt.js（时间/计数文案·零依赖叶子）"]
@@ -504,6 +500,7 @@ flowchart LR
   momentpost["momentpost.js（动态发布域·params 组装+提交）"]
   spacetab["spacetab.js（空间页标签栏注入件·两标签共用+自愈）"]
   spacemoments["spacemoments.js（空间页动态标签·feed/profile 混排流）"]
+  inputbar["inputbar.js（三宿主共用输入条·contenteditable 编辑期 + 出口 UBB 序列化）"]
   momenteditor["momenteditor.js（发动态编辑器·三处入口共用出口）"]
   pubfab["pubfab.js（发布常驻浮标·右下角回顶之上）"]
   uppage["uppage.js（空间页小视频区块·m 站 pagelet 抓取）"]
@@ -536,15 +533,15 @@ flowchart LR
   player --> api & attach & comments & danmaku & errbox & feedstore & followstream & imbadge & imdrawer & input & overlay & pb & playlayer & release & settingspanel & sidebar & topbar & uppage & views
   feedstore --> api & feedctx
   momentapi --> cfg & net & panelitem
-  momentpost --> appapi & cfg & net & tokenedit
-  momenteditor --> cards & cfg & composermirror & dbg & emoticon & imgload & inputbar & momentapi & momentpost & overlay & toastmsg & ui & upload
+  momentpost --> appapi & cfg & net
+  inputbar --> emoticon & imicons
+  momenteditor --> cards & cfg & dbg & emoticon & imgload & inputbar & momentapi & momentpost & overlay & toastmsg & ui & upload
   pubfab --> momenteditor & ui
   memberplaza --> pubfab
   mypage --> pubfab
   squareview --> pubfab
   sharepanel --> momenteditor
   boot --> pubentry
-  composermirror --> emoticon & tokenedit & ui
   pb --> feedstore & settings
   ubb --> emoticon
   playlayer --> api & attach & cards & comments & errbox & levelstack & playgest & reldrawer & relatedapi & viewreg
@@ -552,7 +549,7 @@ flowchart LR
   imsend --> appapi & immsg
   sharepanel --> imsend & imgload
   imbadge --> imsend
-  imdrawer --> appapi & comments & composermirror & emoticon & imbadge & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & toastmsg & ubb
+  imdrawer --> appapi & comments & emoticon & imbadge & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & toastmsg & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
   boot --> followview & imnative & jingxuanview & memberplaza & mypage & pagekind & player & playlayer & searchview & spacemoments & squareview & uppage & zone
@@ -579,7 +576,7 @@ flowchart LR
   searchview --> cards & grouppop & imgload & listtail & relationapi & searchfmt & searchhist & topbar & viewreg
   topbar --> searchhist
   input --> feedstore & overlay & pb & settings
-  comments --> appapi & commentkit & composermirror & emoticon & imicons & imgview & immsg & reldrawer & sharepanel & inputbar & overlay & toastmsg & ubbtext
+  comments --> appapi & commentkit & emoticon & imicons & imgview & immsg & reldrawer & sharepanel & inputbar & overlay & toastmsg & ubbtext
   commentkit --> imicons & imgload & ubb & uplook
   interact --> appapi
   release --> overlay & settings
@@ -617,7 +614,8 @@ relatedapi——拆件不新增特性域对接口域的静态边）。
 图片加载面（懒加载/重试/降级）统一走 `imgload.js`——新图面加一行 `imgInto`，别再手拼
 `referrerPolicy`/`loading`（`uppage` 在 others 组内，同引 imgload）。
 0.9.41 起评论/私信的**输入栏（`inputbar.js`）与大图查看器（`imgview.js`）**同为共用件，
-两抽屉观感/行为单一来源。
+两抽屉观感/行为单一来源（0.9.238 富文本重写后输入条改归特性层——它认识表情域与出口 UBB
+方言，见上方模块表；共用件的实质不变：评论/私信/动态编辑器三处一处实现）。
 `player.js → attach.js → session.js` 的反向回调（qualitySwitch/reattach）不走 import，
 经 `setSessionHooks` 注入（见 `player.js` 头注释）——这是全项目唯一的钩子注入点；
 `state.js` 单例中介的存在就是为了切断 player 与只读方之间的循环 import。

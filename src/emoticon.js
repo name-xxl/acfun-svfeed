@@ -288,19 +288,16 @@ export function renderEmotPanel(panel, insert) {
 }
 
 // ---- 输入条表情按钮三件套（0.9.41 自 comments.js 抽出：评论/私信输入条共用） ----
-// 光标处插入 UBB 短代码并聚焦（maxlength 由 textarea 自身属性约束）
-export function insertAtCursor(inp, code) {
-  var pos = inp.selectionStart != null ? inp.selectionStart : inp.value.length;
-  inp.value = inp.value.slice(0, pos) + code + inp.value.slice(pos);
-  inp.focus();
-  try { inp.setSelectionRange(pos + code.length, pos + code.length); } catch (e) { }
-  // 程序化写入也要通知监听方（0.9.221）：镜像层与自动增高都挂在 input 上，不发事件就「改了但没重画」
-  try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch (e2) { }
-}
+// **插入侧改为调用方注入**（0.9.238）：编辑区换成 contenteditable 后，「贴光标插入」属富文本
+// 载体的活（inputbar 的 insertCode：代码→真实节点→execCommand('insertHTML')，进原生撤销栈），
+// 而本件只认表情域的活（拿图 URL、记最近使用）。原 insertAtCursor（textarea 版 value 拼接）随之
+// 退役——textarea 载体已不存在。
+//
 // 按钮点击 toggle 面板显隐（**外点收起 0.9.147**：closeOnOutsideClick，面板只隐不拆、每面板装一次）；
 // 首次打开懒加载表情数据再渲染，失败后重开顺带重试。
-// panel 由调用方创建并挂到自己抽屉的锚定位置（.acsv-emotpanel 定位随最近 positioned 祖先）
-export function mountEmotButton(btn, panel, textarea) {
+// panel 由调用方创建并挂到自己抽屉的锚定位置（.acsv-emotpanel 定位随最近 positioned 祖先）；
+// insert(code) 由调用方注入（如评论条传 bar.insertCode），收到的是 UBB 短代码原文
+export function mountEmotButton(btn, panel, insert) {
   var built = false;
   btn.addEventListener('click', function (ev) {
     ev.stopPropagation();
@@ -312,7 +309,7 @@ export function mountEmotButton(btn, panel, textarea) {
       panel._outArmed = true;
       closeOnOutsideClick(panel, [btn], function () { panel.style.display = 'none'; });
     }
-    function showPanel() { renderEmotPanel(panel, function (code) { insertAtCursor(textarea, code); }); }
+    function showPanel() { renderEmotPanel(panel, insert); }
     if (show && !built) {
       built = true;
       panel.appendChild(el('div', 'acsv-drawer-tip', '表情加载中…'));

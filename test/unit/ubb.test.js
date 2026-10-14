@@ -96,6 +96,27 @@ test('img：ksc2 分支 host+path 双锚定——ksc2 伪装进子域不渲染',
   assert.equal(renderCommentHtml('[img]' + fake2 + '[/img]'), fake2);
 });
 
+// ---------- 行内格式四件（0.9.238 补：写侧富文本出口就在产出这四种） ----------
+test('fmt：b/i/u/s 出同名标签；颜色 span 可包格式标签', () => {
+  assert.equal(renderCommentHtml('[b]粗[/b]'), '<b>粗</b>');
+  assert.equal(renderCommentHtml('[i]斜[/i]'), '<i>斜</i>');
+  assert.equal(renderCommentHtml('[u]下[/u]'), '<u>下</u>');
+  assert.equal(renderCommentHtml('[s]删[/s]'), '<s>删</s>');
+  assert.equal(renderCommentHtml('[b]a[i]b[/i][/b]'), '<b>a<i>b</i></b>'); // 嵌套不互相吞
+  assert.equal(renderCommentHtml('[color=#ff0000][b]红粗[/b][/color]'),
+    '<span style="color:#ff0000"><b>红粗</b></span>');
+  // 混排：写侧出口的典型形态
+  assert.equal(renderCommentHtml('前[b]中[/b]后'), '前<b>中</b>后');
+});
+
+test('fmt：未闭合/空标记收敛（空 [b][/b] 出空标签、未闭合按字面）', () => {
+  assert.equal(renderCommentHtml('[b][/b]'), '<b></b>'); // 空标记不吞邻近文本（写侧序列化会去空包装）
+  assert.equal(renderCommentHtml('[b]没有尾'), '[b]没有尾');
+  assert.equal(renderCommentHtml('[/b]乱序'), '[/b]乱序');
+  // 小写标记之外不认（官方方言小写；[B] 按字面）
+  assert.equal(renderCommentHtml('[B]大写不认[/B]'), '[B]大写不认[/B]');
+});
+
 // ---------- 既有规则回归 ----------
 test('emot：Node 下 EmotionMap 为空，主包表情降级占位；img 过白名单；color 包裹', () => {
   // 0.9.105：降级改为带 data 的占位 span（refillEmoticons 回填定位用）

@@ -5,6 +5,57 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.238（2026-10-15）· 输入条富文本重写：textarea+镜像层 → contenteditable+出口序列化
+
+用户 2026-10-14/15 就预览稿 `docs/preview/composer-richtext.html` 拍板：换成富文本编辑期
+（上下分层 + 工具栏下分隔线 + 颜色键 + 原生字形图标 + 配图缩略块 + 编辑期表情 1em），
+**依据＝官方实测**（docs §11.7/§11.8：官方评论编辑器就是主文档内 contenteditable + 出口
+序列化 UBB，工具栏 `bold italic underline strikethrough | forecolor | emotion image`）。
+
+- **载体替换（inputbar 重写，三宿主一处生效：评论 / 私信 / 动态编辑器）**：编辑期就是真实
+  DOM 节点（表情＝`<img class="ubb-emotion">`、配图＝`.acsv-cinput-imgblk` 原子块、格式＝
+  `<b>/<i>/<u>/<s>`），出口 `serializeUbb` 序列化回 UBB 提交。**病灶**（textarea 时代的
+  自建补丁）：表情只是 17 字符文本令牌 ⇒ 退格会劈成 `[emot=acfun,123` 垃圾、拖选选中半个、
+  方向键穿内部——为此养着镜像层 + 令牌原子化两件套；换载体后删除/选区/**撤销**全是浏览器
+  原生行为，`composermirror.js` 与 `tokenedit.js` **随之退役删除**（tokenRanges 收进
+  momentpost：出口文本的字数口径单源）。
+- **工具栏**（预览稿 ①/⑪）：上行 5 格式键（B I U S + A 颜色）+ 细分隔线 + 表情/图片键 + 字数；
+  图标改用**原生 iconfont 字形**（`acfun-frontend-next`，官方 UMEditor 同字体同码点：
+  E18F/E19A/E1EA/E1E9/E1EB/E18B/E18A，登记 imicons.GLYPHS.ed*），弃自绘 SVG ⇒ 颜色随
+  currentColor，深/浅两皮肤一套 CSS、零新增资源。色板 12 色、**向上开**（输入条恒贴宿主底边）。
+- **出口序列化口径**（逐条对齐官方 Fe 序列化器）：`<b>/<strong>→[b]`、`<i>/<em>→[i]`、
+  `<u>→[u]`、`<s>/<strike>/<del>→[s]`、行内 `text-decoration` 的 span → `[u]/[s]`、
+  `<span style="color:#hex">→[color=#hex]`、`<img src alt>→[img=alt]url[/img]`、表情 img →
+  `[emot=pkg,id/]`、`<br>→\r\n`、三连以上空行压两行、空包装去标记。字数＝文本 +
+  **每个令牌块计 1**（官方 `getContentLength` 口径；配图块文件名不吃字数）。
+  **渲染侧补四条**（ubb.js）：`[b]/[i]/[u]/[s]` 此前只写不认，自家发的加粗在正文按字面显示。
+- **探针实锤的两处坑**（0.9.238 反跑证据）：① `execCommand('foreColor')` 把颜色写进**选区所在的
+  既有标签**（`<b style="color: rgb(…)">`）而不是新包 span ⇒ 序列化只认 span 会整条丢色，改「任何
+  标签的行内 style 都读」+ rgb→hex 归一（渲染侧 [color] 限 hex）；② 清空后浏览器留占位 `<br>`
+  ⇒ `:empty` 占位文案不出，refresh 时清"纯占位壳"（`<b></b>` 空包装不清，那是加粗意图）。
+- **撤销策略**（预览稿 ⑤ 定论落地）：程序化插入（表情/配图）统一走 `execCommand('insertHTML')`
+  ⇒ 进浏览器原生撤销栈，**不自建快照栈**；`Range.insertNode` 只作降级退路。
+- **超字数＝硬拒绝**（预览稿 ⑩ 第 10 项）：字数转红 + 输入框描红边 + 发送键禁用；动态编辑器
+  另出「已超出 N 字，请删减后再发布」提示行（服务端 140000 仍作兜底）。字数文案：评论/私信裸数
+  （0 出空）、动态恒显 n/233、超限一律 n/max。
+- **浅色第二皮肤补齐**（预览稿 ⑨）：此前 `.acsv-mp` 只覆盖输入条底色三条，工具栏行在浅色下
+  没有取值（白底上几乎看不见）；本次按本块既有原生值逐条补 20 条（图标 #999 / 格式键 #666 /
+  分隔线 #e6e6e6 / 配图块 #f0f0f0；唯一新色是选中底 rgba(253,76,93,.12)）。
+- **归类与纪律**：inputbar 由基建层改入特性层（富文本后它认识表情域与出口 UBB 方言，同
+  sharepanel/rail/slide 的 0.9.233 先例）；粘贴只做**最保守纯文本化**（官方 filterRules 全集
+  仍未实测，未照抄）；表情面板插入落点改为调用方注入（原 textarea 版 insertAtCursor 退役）。
+  模态内隐去输入条自带发送键（发布动作归脚行，避免两个「发布」）。
+- **测试证据**：新增场景 `composer-rich`（41 断言：工具栏/字形码点/⑧ 序列化对照表逐条/字数口径/
+  真键输入/工具键 B·U/颜色归一/表情真插入/删除与撤销/粘贴清洗/空态占位/回复态 data-ph/超字硬拒绝/
+  Enter 端到端进 comment/add 的 body）；detail-open 的镜像层四条改夸 contenteditable 形态与
+  度量钉（13/18/12 不变）；moment-publish 改走"面板点表情 → 真节点 → 出口令牌 → body"（内容断言
+  从字面令牌改为序列化结果）、+浅色工具栏取值、×镜像层；im-open/imDrawerSmoke 选择器改 `.acsv-cinput-edit`；
+  单测 +2（ubb 四条格式规则：写入/嵌套/空标记/未闭合）+1（tokenRanges 收编后）−4（tokenedit 退役）。
+  **摘修复反跑**：撤回「任何标签读 style」与「插入走 execCommand」两处 ⇒ composer-rich 六条转红
+  （含预览稿记录的双令牌错乱形态），还原复绿；全量 lint/check + 312 单测 + 65/65 场景全绿。
+- **待真机抽验**（docs/api-research.md §11.9）：服务端对 `[b]/[i]/[u]/[s]` 的接受与回显、
+  三宿主 84px 输入条的底部占位观感、配图缩略图在真机签名 URL 下直显、233 硬拒绝与官方软提示差异。
+
 ### 0.9.237（2026-10-14）· UI/Bug 专项 Wave 2：预览定稿八项（docs/preview/ui-bugfix.html）
 
 用户 2026-10-14 预览裁决：窄视口底栏＝方案 B（横滑）；简介亮底可读性＝衬底 B（全宽轻衬底 .42+13px）；

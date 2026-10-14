@@ -1,6 +1,5 @@
 import { CFG } from './cfg.js';
 import { el, esc, toast, selfUid, ensureStyle, a11y } from './ui.js'; // cookieVal 已随图片换链管线迁 imsend（0.9.163）
-import { decorateInput } from './composermirror.js'; // 输入框镜像层（0.9.221）
 import { root, claimDrawer, releaseDrawer, setRoot } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { testHook } from './dbg.js';
@@ -151,14 +150,17 @@ function ensureDrawerDom() {
   var inputBar = buildInputBar({
     img: { title: '发送图片', onFile: sendImageMsg }, // 尺寸门禁在 sendImageMsg 内
     placeholder: '发个消息…',
+    // 官方单条上限（cfg.im.maxLen）在**富文本口径**下当硬闸：字数按 DOM 算（表情计 1 字），
+    // 超限即拒（发送键禁用）；发送链的 slice 仍留作兜底
+    maxLength: CFG.im.maxLen,
     onSend: function () {
-      var t = inputBar.input.value.replace(/\s+$/, '');
+      var t = inputBar.text().replace(/\s+$/, '');
       if (!t) return;
-      inputBar.setText(''); // 值 + 高度 + 镜像层重画单源（0.9.234）
+      inputBar.setText(''); // 清空（值 + 字数 + 空态占位一处收口）
       sendChat(t);
     }
   });
-  var input = inputBar.input; // 引用 chip 联动 placeholder（renderQuoteChip）用
+  var input = inputBar.edit; // 引用 chip 联动 placeholder / 切会话后聚焦（renderQuoteChip、showChat）
   chatView.appendChild(bubbles);
   chatView.appendChild(quoteChip.box); // chip 置输入条上方；buildQuoteChip 返回 {box,label}，挂 DOM 须取 .box
   chatView.appendChild(inputBar.box);
@@ -171,12 +173,11 @@ function ensureDrawerDom() {
   d.appendChild(stage);
 
   // 表情面板挂抽屉根：.acsv-emotpanel 以最近 positioned 祖先锚定，私信抽屉同为 absolute
-  // 容器、bottom:57px 与 IM 输入条高度恰好对齐，无需覆写样式
+  // 容器、bottom:84px 与富文本输入条（84px 高）恰好对齐，无需覆写样式
   var emotPanel = el('div', 'acsv-emotpanel');
   emotPanel.style.display = 'none';
   d.appendChild(emotPanel);
-  decorateInput(inputBar); // 0.9.221 镜像层 + 令牌原子编辑（评论/私信/动态编辑器同一件）
-  mountEmotButton(inputBar.emotBtn, emotPanel, input);
+  mountEmotButton(inputBar.emotBtn, emotPanel, inputBar.insertCode);
   // 表情图渲染依赖 EmotionMap：抽屉创建即预热（localStorage 缓存命中近零开销），避免没开
   // 过面板时收到的表情消息只能显示 [表情]；首次真拉取完成后聊天视图在场就重渲一拍
   var mapCold = !EmotionMap.loaded;
@@ -191,8 +192,8 @@ function ensureDrawerDom() {
   drawer = {
     el: d, head: head, back: back, title: title, close: close,
     listView: listView, search: search, listBody: listBody,
-    chatView: chatView, bubbles: bubbles, quoteChip: quoteChip, input: input, send: inputBar.send,
-    setText: inputBar.setText // 切会话清草稿/失败回填单源（值+高度+镜像重画，0.9.234）
+    chatView: chatView, bubbles: bubbles, quoteChip: quoteChip, input: input, bar: inputBar, send: inputBar.send,
+    setText: inputBar.setText // 切会话清草稿/失败回填单源（内容 + 字数 + 空态一处收口）
   };
 }
 
@@ -421,12 +422,12 @@ function renderQuoteChip() {
   if (!q) {
     chip.box.style.display = 'none';
     chip.label.textContent = '';
-    drawer.input.placeholder = '发个消息…';
+    drawer.bar.setPlaceholder('发个消息…');
     return;
   }
   chip.box.style.display = 'flex';
   chip.label.textContent = '引用：' + (q.preview || '原消息');
-  drawer.input.placeholder = '回复引用的内容…';
+  drawer.bar.setPlaceholder('回复引用的内容…');
 }
 // 气泡内引用摘要条：有锚点（原消息 seqId）才可点定位
 function quoteStrip(q) {
@@ -836,7 +837,7 @@ testHook('imDrawerSmoke', function () {
     drawerOpen: drawer.el.classList.contains('open'),
     quoteChipIsNode: !!(drawer.quoteChip && drawer.quoteChip.box instanceof Element),
     quoteChipInDrawer: !!(drawer.quoteChip && drawer.quoteChip.box && drawer.quoteChip.box.isConnected),
-    input: !!drawer.el.querySelector('.acsv-cinput-text'),
+    input: !!drawer.el.querySelector('.acsv-cinput-edit'),
     send: !!drawer.el.querySelector('.acsv-cinput-send'),
     bubblesConnected: !!(drawer.bubbles && drawer.bubbles.isConnected)
   };

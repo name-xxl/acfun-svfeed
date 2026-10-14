@@ -1,7 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { appDeviceHeaders } from './appapi.js'; // 设备头集单源（0.9.225）
-import { tokenRanges } from './tokenedit.js'; // 字数口径要认令牌（0.9.223）
 
 // ---------- 动态发布域（0.9.220） ----------
 // 契约全链实测在 docs/api-research.md §11：端点 APP 域、**只认网页 Cookie**、服务端**不校验**
@@ -43,10 +42,39 @@ export function momentParams(content, opts) {
   return JSON.stringify(p);
 }
 
+// UBB 令牌区间扫描（0.9.221 起在 tokenedit.js，0.9.238 随 textarea 载体退役后收进本域——
+// 富文本编辑期是真实 DOM 节点，只有**出口文本**上还需要认令牌；本件就是出口文本的唯一消费
+// 点（字数口径），故令牌形态的正则表也归这里）。表情＝emoticon 面板插的短码；图片＝评论配图
+// 上传后插的短码。新增令牌形态只在这张 PATTERNS 加一条。
+var PATTERNS = [
+  /\[emot=[^\/\]]+\/\]/g,
+  /\[img=[^\]]*\][\s\S]*?\[\/img\]/g
+];
+
+// 令牌区间（纯函数，单测直采）：返回按起点升序、互不重叠的 [start, end)；半个令牌不算（正是要防的碎裂态）
+export function tokenRanges(text) {
+  var v = String(text == null ? '' : text);
+  var hits = [];
+  PATTERNS.forEach(function (re) {
+    re.lastIndex = 0;
+    var m;
+    while ((m = re.exec(v))) hits.push([m.index, m.index + m[0].length]);
+  });
+  hits.sort(function (a, b) { return a[0] - b[0]; });
+  var out = [];
+  hits.forEach(function (h) {
+    if (out.length && h[0] < out[out.length - 1][1]) return; // 与前一个重叠：丢弃（前面的已覆盖）
+    out.push(h);
+  });
+  return out;
+}
+
 // 字数口径（**客户端预检**；真值以服务端 140000 为准）：**UBB 令牌按 1 字计**（其余按码元）。
 // 真机依据（2026-10-10）：发一条 raw 240、含一个 17 字令牌的内容 → 服务端**接受**（result 0）
 // ⇒ 令牌的实际成本 ≤ 10 字（若按原长，240 > 233 必被 140000 拒），故取 **1**（与计划原口径一致；
 // 万一真值略大于 1，客户端只是少拦一档，服务端 140000 会兜住并给可读话术，不会脏数据）。
+// 注（0.9.238）：富文本编辑器的**界面字数**走 DOM 口径（inputbar.countUnits：文本 + 每个图节点
+// 各计 1），与本文口径等价；本函数留在提交口做最后一道预检（宿主界面被绕过时的兜底）
 export function momentCharCount(text) {
   var v = String(text == null ? '' : text);
   var n = v.length;

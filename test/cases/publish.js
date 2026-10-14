@@ -35,7 +35,8 @@
       'browse/history/list': { result: 0, totalCount: 0, histories: [] },
       // 0.9.237 表情面板测试桩：包0 给 12 条（网格两行），其余 19 包各 1 条（底栏必然溢出）
       'emotion/getUserEmotion': function () {
-        var PIX = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+        // 表情图走真实 CDN 形态：data: URI 含分号，过不了 emoticon 的 URL 字符集（会一路出占位节点）
+        var PIX = 'https://imgs.aixifan.com/newUpload/emot-probe.gif';
         var pkgs = [];
         for (var p = 0; p < 20; p++) {
           var n = p === 0 ? 12 : 1;
@@ -78,7 +79,12 @@
     rec('pub-editor-open', !!(await waitFor(function () { return !!q('.acsv-me-host .acsv-me'); }, 5000)));
     rec('pub-editor-title', /发动态/.test((q('.acsv-me-hd') || {}).textContent || ''),
       (q('.acsv-me-hd') || {}).textContent);
-    rec('pub-editor-mirror', !!q('.acsv-me .acsv-cinput-mir')); // 编辑器输入条同带镜像层（三处共用）
+    // 0.9.238：输入条＝富文本（contenteditable 编辑区 + 工具栏；镜像层/textarea 已退役）
+    rec('pub-editor-edit', (function () {
+      var ed = q('.acsv-me .acsv-cinput-edit');
+      return !!ed && ed.getAttribute('contenteditable') === 'true'
+        && !!q('.acsv-me .acsv-cinput-top .acsv-cinput-fmt');
+    })());
     // 0.9.226：表情面板必须落在**模态矩形内**（曾因 absolute+bottom:57px 是抽屉口径 ⇒ 逃到浮层根、跑到屏幕底部）
     var eb = q('.acsv-me .acsv-cinput-emot');
     if (eb) eb.click();
@@ -132,11 +138,28 @@
     if (eb) eb.click(); // 收起，免得影响后面
 
     // 2) 输入 → 字数 → 可见范围
-    var ta = q('.acsv-me .acsv-cinput-text');
-    ta.value = '自动化测试内容 [emot=acfun,1/]';
-    ta.dispatchEvent(new Event('input', { bubbles: true }));
-    rec('pub-count', /\/233$/.test((q('.acsv-me-count') || {}).textContent || ''),
-      (q('.acsv-me-count') || {}).textContent);
+    var ed = q('.acsv-me .acsv-cinput-edit');
+    ed.textContent = '自动化测试内容';
+    ed.dispatchEvent(new Event('input', { bubbles: true }));
+    rec('pub-count', (q('.acsv-me .acsv-cinput-count') || {}).textContent === '7/233',
+      (q('.acsv-me .acsv-cinput-count') || {}).textContent);
+    // 光标摆到文末（真人是"打完字光标在末尾"；textContent 是程序化写法，不会自己带光标）
+    ed.focus();
+    (function () {
+      var sel = window.getSelection(), r = document.createRange();
+      r.selectNodeContents(ed); r.collapse(false);
+      sel.removeAllRanges(); sel.addRange(r);
+    })();
+    // 0.9.238 真插入路径：表情面板条目 → 编辑期 <img> 节点 → 出口令牌（字数按"整块计 1"）
+    if (eb) eb.click(); // 重开面板
+    await waitFor(function () { return !!q('.acsv-me-emot .acsv-emot-item'); }, 5000);
+    var cellIns = q('.acsv-me-emot .acsv-emot-item');
+    if (cellIns) cellIns.click();
+    rec('pub-emot-insert-node', !!q('.acsv-me .acsv-cinput-edit img.ubb-emotion'),
+      (q('.acsv-me .acsv-cinput-edit') || {}).innerHTML);
+    rec('pub-emot-count', (q('.acsv-me .acsv-cinput-count') || {}).textContent === '8/233',
+      (q('.acsv-me .acsv-cinput-count') || {}).textContent);
+    if (eb) eb.click();
     var pills = document.querySelectorAll('.acsv-me-pill');
     if (pills[1]) pills[1].click();
     rec('pub-vis-fans', !!(pills[1] && pills[1].classList.contains('on')));
@@ -171,7 +194,8 @@
       var m = /params=([^&]*)/.exec(String(b));
       if (!m) return false;
       var j = JSON.parse(decodeURIComponent(m[1]));
-      return j.content === '自动化测试内容 [emot=acfun,1/]' && Array.isArray(j.imgs)
+      // 编辑期 <img> 节点 → 出口 UBB 令牌（表情 id 由面板夹具给：包0 的 e0_*）
+      return /^自动化测试内容\[emot=acfun,e0_\d+\/\]$/.test(j.content) && Array.isArray(j.imgs)
         && j.shareResourceType === 0 && j.visibleForFans === true;
     })(), String(window.__ACSV_ADD_BODY__).slice(0, 100));
 
@@ -179,15 +203,16 @@
     window.__ACSV_ADD_FAIL__ = 140000;
     q('.acsv-pubfab').click();
     await waitFor(function () { return !!q('.acsv-me'); }, 5000);
-    var ta2 = q('.acsv-me .acsv-cinput-text');
-    ta2.value = '要失败的内容';
+    var ta2 = q('.acsv-me .acsv-cinput-edit');
+    ta2.textContent = '要失败的内容';
     ta2.dispatchEvent(new Event('input', { bubbles: true }));
     q('.acsv-me-ok').click();
     rec('pub-fail-tip', !!(await waitFor(function () {
       var t = q('.acsv-me-tip');
       return t && /内容太长/.test(t.textContent);
     }, 6000)), (q('.acsv-me-tip') || {}).textContent);
-    rec('pub-fail-keeps-content', (q('.acsv-me .acsv-cinput-text') || {}).value === '要失败的内容');
+    rec('pub-fail-keeps-content', ((q('.acsv-me .acsv-cinput-edit') || {}).textContent) === '要失败的内容',
+      (q('.acsv-me .acsv-cinput-edit') || {}).textContent);
     rec('pub-fail-retry-label', (q('.acsv-me-ok') || {}).textContent === '重试发布');
 
     // 5) 关闭（提交中不许关 → 落定后可以关）
@@ -204,8 +229,8 @@
     rec('pub-repost-edit', !!(await waitFor(function () { return !!q('.acsv-me-host'); }, 4000)));
     rec('pub-repost-quote', !!q('.acsv-me-bd .acsv-gquote'), (q('.acsv-me-bd') || {}).textContent);
     rec('pub-repost-title', /转发/.test((q('.acsv-me-hd') || {}).textContent || ''));
-    var ta3 = q('.acsv-me .acsv-cinput-text');
-    ta3.value = '转发语';
+    var ta3 = q('.acsv-me .acsv-cinput-edit');
+    ta3.textContent = '转发语';
     ta3.dispatchEvent(new Event('input', { bubbles: true }));
     q('.acsv-me-ok').click();
     await waitFor(function () { return !q('.acsv-me-host'); }, 6000);
@@ -218,6 +243,19 @@
       var cs = getComputedStyle(m);
       return cs.backgroundColor === 'rgb(255, 255, 255)' && getComputedStyle(q('.acsv-me-hd')).color === 'rgb(51, 51, 51)';
     })(), (function () { var m = q('.acsv-me.acsv-mp'); return m ? getComputedStyle(m).backgroundColor : 'none'; })());
+    // 0.9.238：浅色语境下**工具栏**也要有取值（此前浅色覆盖只到输入条底色，格式键/字形会在白底上消失）
+    rec('pub-light-toolbar', (function () {
+      var fb = q('.acsv-me.acsv-mp .acsv-cinput-fmt');
+      var eb2 = q('.acsv-me.acsv-mp .acsv-cinput-emot');
+      var ed2 = q('.acsv-me.acsv-mp .acsv-cinput-edit');
+      if (!fb || !eb2 || !ed2) return false;
+      return getComputedStyle(fb).color === 'rgb(102, 102, 102)'      // #666（← .acsv-frow-sdesc）
+        && getComputedStyle(eb2).color === 'rgb(153, 153, 153)'       // #999（← .acsv-fact）
+        && getComputedStyle(ed2).color === 'rgb(51, 51, 51)';         // #333 正文
+    })(), (function () {
+      var fb = q('.acsv-me.acsv-mp .acsv-cinput-fmt');
+      return fb ? getComputedStyle(fb).color : 'none';
+    })());
     q('.acsv-me-x').click();
     rec('pub-light-closed', !!(await waitFor(function () { return !q('.acsv-me-host'); }, 3000)));
 

@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 富文本输入条（三宿主共用 · composer-richtext）</title>
+<!-- ============================================================
+     docs/preview/composer-richtext.html —— 静态 UI 预览（形态确认稿）
+     特性：把三宿主共用输入条（src/inputbar.js，评论 / 私信 / 动态编辑器）从
+           「textarea + 镜像层 + 令牌原子化」换成「contenteditable 富编辑 + 出口序列化」。
+     版式（2026-10-14 用户裁决）：**上下分层 + 工具栏下分隔线 + 颜色键**——上行＝工具栏
+           （格式键 B I U S + 颜色键 A · 插入键 …… 字数），下行＝编辑区 + 发送。
+           理由：横向单行在 380 宽私信抽屉里必须砍格式键（逼出两套排布），
+           分层后宽窄一视同仁；官方 UMEditor 也是工具条在上、编辑区在下。
+           代价：输入条总高从 56px 涨到约 83px（空态亦然）。
+     依据：docs/api-research.md §11.7 / §11.8（2026-10-14 静态 bundle 实测）——
+           官方评论编辑器就是主文档内 contenteditable 元素 + 出口序列化 UBB，
+           表情插 execCommand("insertimage",{src}) 即真实 <img> 节点。
+     量值来源：src/styles.js（.acsv-cinput* :321-345 / .acsv-emot* :346-372 / 表情 1em 口径 :339）、
+               src/inputbar.js（36→96 自动增高、Enter 发送、Shift 换行）、
+               src/composermirror.js:16（表情取 1em 的理由：图矮于行框 ⇒ 不撑行高）。
+     数据口径：出口 UBB 与官方一致（<b>→[b]、<i>→[i]、<u>→[u]、<s>→[s]、img→[emot=acfun,id/]、
+               img→[img=alt]url[/img]、<br>→\r\n；字数=文本长度+每个图/表情节点计 1）。
+     纪律：单文件 / 无外部依赖 / 真实中文文案 / 状态全摆 / 1600×900 与 540 宽各过一眼。
+     确认后才进 src/ 实现。
+     ============================================================ -->
+<style>
+  /* ★ 工具栏图标＝**A 站原生 iconfont 字形**（2026-10-15 用户裁决「图标要用原生的」）。
+     字体＝ acfun-frontend-next（src/styles.js:17-19 早在 0.9.55 就注入的同款；本预览稿外链同一 URL
+     以便离线也能看到真字形——最终实现在脚本里走已注入的那份，零新增请求）。
+     码点来源＝官方 UMEditor 工具栏（@ac/umeditor 包内 CSS 的 .edui-icon-*:before），
+     已核验这 7 个码点都在该字体里（cmap 实测，151 字形 / e153–e660）：
+       加粗 E18F · 斜体 E19A · 下划线 E1EA · 删除线 E1E9 · 颜色 E1EB · 表情 E18B · 图片 E18A
+     ⇒ 与官方评论编辑器工具栏**同一字体、同一码点**，字形逐像素相同。 */
+  @font-face{font-family:acfun-frontend-next;
+    src:url(//ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.90fc2dfc.woff) format("woff"),
+        url(//ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.bdc44d05.ttf) format("truetype")}
+  :root{
+    --accent:#fd4c5d; --t1:#fff; --t2:#cfd3da; --t3:#8a90a0; --line:rgba(255,255,255,.09);
+    --panel:rgba(22,22,27,.98); --sub:rgba(255,255,255,.1); --sub2:rgba(255,255,255,.16);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0b0b0e;color:var(--t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 90px}
+  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .hint{color:var(--t3);font-size:12px;line-height:1.9;margin-bottom:20px}
+  .hint b{color:var(--t2)}
+  .hint code,.note code{color:#ffb323;font-family:ui-monospace,Consolas,monospace;font-size:11px}
+  .sec{margin:26px 0 8px;padding-top:16px;border-top:1px solid var(--line)}
+  .sec>h2{font-size:13px;color:var(--t2);font-weight:600;margin-bottom:4px}
+  .sec>h2 em{color:var(--t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .note{color:var(--t3);font-size:12px;line-height:1.95;margin:6px 0 14px}
+  .note b{color:var(--t2)}
+  .tagline{color:var(--t3);font-size:12px;margin:0 0 6px}
+  .tagline b{color:var(--t2)}
+  .stage{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
+  table.geo{border-collapse:collapse;font-size:12px;color:var(--t2);margin:8px 0 4px}
+  table.geo th,table.geo td{border:1px solid rgba(255,255,255,.12);padding:5px 9px;text-align:left}
+  table.geo th{background:rgba(255,255,255,.06);color:var(--t1);font-weight:600}
+
+  /* ================= 输入条本体（照 src/styles.js 量值 + 上下分层） ================= */
+  .host{width:680px;max-width:100%;background:var(--panel);border:1px solid rgba(255,255,255,.12);border-radius:10px;overflow:hidden}
+  .host.narrow{width:380px;max-width:100%}
+  .host .above{padding:12px 14px;color:var(--t3);font-size:12px;border-bottom:1px solid var(--line)}
+
+  /* 上下分层：上行工具栏（格式键 · 插入键 …… 字数），下行编辑区 + 发送。
+     带分隔线（2026-10-14 用户裁决）：top 的 padding-bottom 3px + 1px 线 + main 的 padding-top 3px。
+     总高 ≈ 8 + 24 + 3 + 1 + 3 + 36 + 8 = 83px（原单行 56px）。 */
+  .acsv-cinput{display:flex;flex-direction:column;gap:0;padding:8px 12px;
+    border-top:1px solid rgba(255,255,255,.09);background:var(--panel)}
+  .acsv-cinput-top{display:flex;align-items:center;gap:4px;min-height:24px;padding-bottom:3px;
+    border-bottom:1px solid rgba(255,255,255,.06)}
+  .acsv-cinput-top .acsv-cinput-count{margin-left:auto;padding-right:1px}
+  .acsv-cinput-main{display:flex;align-items:flex-end;gap:8px;padding-top:3px}
+  /* 图标按钮（表情/图片/格式/颜色） */
+  .acsv-cinput-emot,.acsv-cinput-img,.acsv-cinput-fmt{
+    border:none;background:none;cursor:pointer;flex:none;padding:2px;line-height:0;color:#999}
+  .acsv-cinput-emot:hover,.acsv-cinput-img:hover{transform:scale(1.12)}
+  .acsv-cinput-emot:hover,.acsv-cinput-img:hover,.acsv-cinput-fmt:hover{color:var(--accent)}
+  /* 原生字形（acfun-frontend-next）：格式键/表情/图片三组都用它，颜色由 currentColor 控 */
+  .acsv-ic{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-weight:400;
+    display:inline-block;line-height:1}
+  .acsv-cinput-fmt .acsv-ic{font-size:18px}
+  .acsv-cinput-emot .acsv-ic,.acsv-cinput-img .acsv-ic{font-size:20px}
+  .acsv-cinput-fmt{width:24px;height:24px;border-radius:5px;font-size:18px;line-height:24px;
+    text-align:center;font-family:acfun-frontend-next,sans-serif;color:#cfd3da;padding:0}
+  .acsv-cinput-fmt.on{background:rgba(253,76,93,.18);color:var(--accent)}
+  /* 颜色键：字形 E1EB **自身就带一条色条**（⑪ 核对表实测，无 ::after 时也有），随 currentColor。
+     所以这里不再叠自定义色条（避免画两条）。若实现时要「当前色提示」，建议加按钮底部内阴影
+     `box-shadow:inset 0 -2px 0 <当前色>`（不撑高、与字形条错开）——要不要加，见 ⑪ 末尾待定项。 */
+  .acsv-cinput-fmt.col{position:relative}
+  .acsv-colpop{position:absolute;z-index:9;margin-top:6px;padding:8px;display:grid;
+    grid-template-columns:repeat(6,20px);gap:6px;background:rgba(22,22,27,.98);
+    border:1px solid rgba(255,255,255,.14);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  .acsv-colpop i{display:block;width:20px;height:20px;border-radius:4px;cursor:pointer;
+    border:1px solid rgba(255,255,255,.16)}
+  .acsv-colpop i.on{outline:2px solid #fff;outline-offset:1px}
+  .mp .acsv-colpop{background:#fff;border-color:#e6e6e6;box-shadow:0 10px 26px rgba(0,0,0,.14)}
+  .mp .acsv-colpop i{border-color:rgba(0,0,0,.12)}
+  .acsv-fmtsep{flex:none;width:1px;height:16px;background:rgba(255,255,255,.16);margin:0 2px}
+
+  .acsv-cinput-wrap{flex:1;min-width:0;position:relative;display:flex;background:var(--sub);
+    border-radius:8px;overflow:hidden}
+  .acsv-cinput-wrap:focus-within{background:var(--sub2)}
+  /* ★ 新编辑区：contenteditable（原 .acsv-cinput-text 的 textarea）——度量不变：
+     13px / 行高 18 / padding 9px 12px / 高 36→96 */
+  .acsv-cinput-edit{flex:1;min-width:0;min-height:18px;max-height:96px;overflow-y:auto;outline:none;
+    font-size:13px;line-height:18px;padding:9px 12px;color:#e8eaee;white-space:pre-wrap;
+    word-break:break-word;overflow-wrap:anywhere;caret-color:var(--accent)}
+  .acsv-cinput-edit:empty::before{content:attr(data-ph);color:#8a90a0;pointer-events:none}
+  .acsv-cinput-edit::placeholder{color:#8a90a0}
+  /* 编辑期表情：仍取 1em（B 口径）——不撑行高 ⇒ 不漂移 */
+  .acsv-cinput-edit img.ubb-emotion{height:1em;width:auto;max-height:1em;max-width:3em;vertical-align:-.18em}
+  .acsv-cinput-edit .ubb-emot-ph{color:#8a90a0}
+  /* ★ 图片块（候选 B·推荐）：块状缩略图，替换原 .acsv-cinput-imgtok 的灰 chip */
+  .acsv-cinput-imgblk{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 8px 0 0;
+    margin:1px 2px;border-radius:4px;background:rgba(255,255,255,.14);vertical-align:-.32em;overflow:hidden;
+    max-width:100%}
+  .acsv-cinput-imgblk img{width:34px;height:34px;object-fit:cover;display:block;flex:none}
+  .acsv-cinput-imgblk .t{font-size:12px;color:#cfd3da;max-width:160px;min-width:0;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  /* 图片块（候选 A·现状 chip，仅供对照） */
+  .acsv-cinput-imgtok{display:inline-block;background:rgba(255,255,255,.14);border-radius:3px;
+    padding:0 6px;font-size:12px;color:#cfd3da;vertical-align:.06em}
+  .acsv-cinput-count{flex:none;font-size:12px;color:#7a7f8a;font-variant-numeric:tabular-nums}
+  .acsv-cinput-count.over{color:var(--accent)}
+  .acsv-cinput-send{flex:none;border:none;background:var(--accent);color:#fff;font-size:13px;padding:8px 16px;
+    border-radius:999px;cursor:pointer;font-family:inherit}
+  .acsv-cinput-send:hover{background:#ff6b7a}
+  .acsv-cinput-send.disabled{background:rgba(255,255,255,.14);color:#7a7f8a;cursor:not-allowed}
+
+  /* 浮层：表情面板（照 .acsv-emotpanel，仅示意锚点，不铺满） */
+  .acsv-emotpanel{margin:8px 12px 10px;padding:10px 10px 6px;background:rgba(22,22,27,.98);
+    border:1px solid rgba(255,255,255,.1);border-radius:8px}
+  .acsv-emot-head{font-size:12px;color:#7a7f8a;padding:2px 2px 6px}
+  .acsv-emot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:2px}
+  .acsv-emot-item{border:none;background:none;padding:2px;cursor:pointer;border-radius:6px;line-height:0}
+  .acsv-emot-item:hover{background:rgba(255,255,255,.08)}
+  .acsv-emot-item img{width:100%;height:44px;object-fit:contain}
+
+  /* 发出后的气泡（对照用）：.acsv-emotimg 34px / .ubb-imgc 缩略 */
+  .bubble{width:620px;max-width:100%;background:#1a1a1f;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:14px}
+  .bubble .who{font-size:12px;color:#9aa0ab;margin-bottom:8px}
+  .bubble .tx{font-size:14px;line-height:1.7;color:#f0f1f3}
+  .bubble .tx img.ubb-emotion{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}
+  .bubble .tx img.ubb-imgc{display:block;max-width:280px;max-height:200px;border-radius:6px;margin:8px 0 0}
+  .bubble .tx b,.bubble .tx strong{font-weight:700}
+  .bubble .tx u{text-decoration:underline}
+  .bubble .tx s{text-decoration:line-through}
+
+  /* 可试小样（外层容器；内部就是标准 .acsv-cinput，与正式形态完全一致） */
+  .demo{width:680px;max-width:100%;background:var(--panel);border:1px solid rgba(255,255,255,.12);border-radius:10px;overflow:hidden}
+  .demostat{color:var(--t3);font-size:12px;line-height:1.9;margin-top:8px}
+  .demostat b{color:var(--t2)}
+  .demostat .bad{color:var(--accent)}
+  .wiki{width:680px;max-width:100%;margin-top:10px}
+  .wiki .k{font-size:12px;color:var(--t3);margin-bottom:4px}
+  .wiki textarea{width:100%;height:76px;background:#141419;color:#ffd35c;border:1px solid rgba(255,255,255,.14);
+    border-radius:6px;padding:8px 10px;font-family:ui-monospace,Consolas,monospace;font-size:12px;resize:none;outline:none}
+  .kbd{display:inline-block;padding:0 5px;border:1px solid rgba(255,255,255,.2);border-radius:4px;
+    font-size:11px;color:var(--t2)}
+  .col{display:flex;flex-direction:column;gap:18px}
+
+  /* ================= ⑨ 个人主页 / UP 主页（浅色第二皮肤 .acsv-mp 作用域） =================
+     语境：spacemoments 注入的「动态」标签（/u/<uid>）、memberplaza 内嵌广场（/member）、
+           我的页动态、脚本广场视图 —— 行内点「评论」展开的就是**同一个 inputBar 实例**
+           （rowkit.toggleInlineComments → openCommentsHost(..., 'home') → 宿主 append 搬移）。
+     浅色取值抄 src/styles.js 的 .acsv-mp 块（:1449-1518）：底 #fff / wrap #f5f5f5 / 聚焦 #efefef /
+     字 #333 / 次要 #999 / 分割 #eee / 强调 var(--acsv-accent)。
+     ★ 现浅色覆盖只有 3 条（:1504-1506 border-top、background、wrap 底色）——分层后工具栏行
+       没有浅色取值，图标会沿用深色的 #999/白半透明，在白底上几乎看不见。下面这组是本次要补的。 */
+  .mp{background:#fff;color:#333;border:1px solid #e6e6e6;border-radius:10px;overflow:hidden}
+  .mp .above{padding:12px 14px;color:#999;font-size:12px;border-bottom:1px solid #eee}
+  .mp .acsv-cinput{border-top:1px solid #eee;background:#fff}
+  .mp .acsv-cinput-wrap{background:#f5f5f5}
+  .mp .acsv-cinput-wrap:focus-within{background:#efefef}
+  .mp .acsv-cinput-edit{color:#333}
+  .mp .acsv-cinput-edit:empty::before{color:#999}
+  /* ★ 待补的浅色工具栏取值 —— **一律照原脚本 .acsv-mp 既有值取**（2026-10-14 用户裁决「参考原脚本」），
+     不另立色号。逐条来源：
+       图标 #999        ← .acsv-mp .acsv-frow-acts .acsv-fact{color:#999}（:1470）/ .acsv-cfloor{color:#999}
+       格式键 #666      ← .acsv-mp .acsv-frow-sdesc{color:#666}（:1466）
+       选中底 .12 accent ← 深色版 .18 的同族调淡（浅色底上 .18 偏重）；描边沿用 .acsv-emot-thumb.on 的 accent 口径
+       分隔线 #e6e6e6   ← .acsv-mp .acsv-citem>.acsv-chr{border-top-color:#e6e6e6}（:1500，原生分割线色）
+       图片块 #f0f0f0   ← .acsv-mp .acsv-frow-av/.acsv-frow-img{background:#f0f0f0}（:1452/:1457）
+       图片块字 #666    ← 同 .acsv-frow-sdesc 一档
+       底 #fff / wrap #f5f5f5 / 聚焦 #efefef ← 现脚本既有三条（:1504-1506，本次不动） */
+  .mp .acsv-cinput-top{border-bottom:1px solid #e6e6e6}
+  .mp .acsv-cinput-emot,.mp .acsv-cinput-img{color:#999}
+  .mp .acsv-cinput-emot svg,.mp .acsv-cinput-img svg{fill:#999}
+  .mp .acsv-cinput-emot:hover,.mp .acsv-cinput-img:hover{color:var(--accent)}
+  .mp .acsv-cinput-fmt{color:#666}
+  .mp .acsv-cinput-fmt:hover{color:var(--accent)}
+  .mp .acsv-cinput-fmt.on{background:rgba(253,76,93,.12);color:var(--accent)}
+  .mp .acsv-fmtsep{background:#e0e0e0}
+  .mp .acsv-cinput-count{color:#999}
+  .mp .acsv-cinput-count.over{color:var(--accent)}
+  .mp .acsv-cinput-imgblk{background:#f0f0f0}
+  .mp .acsv-cinput-imgblk .t{color:#666}
+  .mp .acsv-cinput-send.disabled{background:#eee;color:#aaa}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>富文本输入条（三宿主共用）—— 静态预览</h1>
+  <p class="hint">
+    三处输入条是<b>同一件</b>（<code>src/inputbar.js</code>：评论 / 私信 / 动态编辑器）⇒ 改一处三处生效。
+    本稿要定的是：<b>换成 contenteditable 后长什么样、手感如何</b>。口径＝官方实测（<code>docs/api-research.md</code> §11.7/§11.8）：
+    编辑期是<b>真实 DOM 节点</b>（表情＝<code>&lt;img&gt;</code>），提交时序列化回 UBB 文本。
+    量值照 <code>src/styles.js</code>，表情仍取 <b>1em</b>（B 口径：不撑行高 ⇒ 不漂移）。
+    <br><b>版式（本次改版）＝上下分层</b>：上行工具栏、下行编辑区 + 发送 —— 宽窄共用一套布局（见 ① 与 ⑦）。
+  </p>
+
+  <!-- ============ ① 总览 ============ -->
+  <div class="sec">
+    <h2>① 目标形态总览<em>评论语境 · 默认态 · 上下分层 + 分隔线 + 颜色键（本次裁决后定稿）</em></h2>
+    <p class="note">
+      <b>上行＝工具栏</b>：左起 <b>[B][I][U][S]</b> 格式键 · <b>[A]</b> 颜色键 · 细分隔线 ·
+      <b>[☺][🖼]</b> 插入键，<b>最右端＝字数</b>，整行下沿一条极淡<b>分隔线</b>（<code>rgba(255,255,255,.06)</code>／浅色 <code>#e6e6e6</code>）。
+      全排图标＝<b>原生 iconfont 字形</b>（见 ⑪）。
+      <b>下行＝编辑区</b>（占满剩余宽度，1~4 行自动增高 36→96）+ <b>发送键</b>（贴底右端）。
+      <br>版式理由：横向单行在 380 宽的私信抽屉里塞不下 6 个图标（只能给窄宿主另造一套排布），
+      分层后<b>宽窄一视同仁</b>；官方 UMEditor 同样是工具条在上、编辑区在下。
+      代价：总高从 <b>56px → 约 83px</b>（空态也是这个高度，避免聚焦时工具行"冒出来"跳版）。
+      <br><b>其余各段为了不重复，工具栏都只画 4 个格式键</b>——实现时按本段为准（5 键：B I U S + A）。
+    </p>
+    <div class="host">
+      <div class="above">评论 · 输入条（抽屉内 / 视频页评论区同款）</div>
+      <div class="acsv-cinput">
+        <div class="acsv-cinput-top">
+          <button class="acsv-cinput-fmt" title="加粗"><i class="acsv-ic">&#xe18f;</i></button>
+          <button class="acsv-cinput-fmt" title="斜体"><i class="acsv-ic">&#xe19a;</i></button>
+          <button class="acsv-cinput-fmt" title="下划线"><i class="acsv-ic">&#xe1ea;</i></button>
+          <button class="acsv-cinput-fmt" title="删除线"><i class="acsv-ic">&#xe1e9;</i></button>
+          <button class="acsv-cinput-fmt col" title="颜色"><i class="acsv-ic">&#xe1eb;</i></button>
+          <span class="acsv-fmtsep"></span>
+          <button class="acsv-cinput-emot" title="表情">
+            <i class="acsv-ic">&#xe18b;</i>
+          </button>
+          <button class="acsv-cinput-img" title="插入图片">
+            <i class="acsv-ic">&#xe18a;</i>
+          </button>
+          <span class="acsv-cinput-count">34</span>
+        </div>
+        <div class="acsv-cinput-main">
+          <div class="acsv-cinput-wrap">
+            <div class="acsv-cinput-edit" contenteditable="true" data-ph="发条友善的评论…">这个 M4A1 的配装我照着打了三把，<span style="color:#fd4c5d">弹道真的稳</span> <img class="ubb-emotion" alt="表情" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ffd35c'/%3E%3Ccircle cx='11' cy='13' r='2' fill='%23332'/%3E%3Ccircle cx='21' cy='13' r='2' fill='%23332'/%3E%3Cpath d='M10 20c2 3 10 3 12 0' stroke='%23332' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">，<b>压枪</b>手感比上一个版本好太多</div>
+          </div>
+          <button class="acsv-cinput-send">发送</button>
+        </div>
+      </div>
+    </div>
+    <!-- 颜色键点开的色板（形态示意） -->
+    <div style="display:flex;gap:22px;align-items:flex-start;margin-top:14px;flex-wrap:wrap">
+      <div>
+        <div class="tagline"><b>颜色键点开</b>（6×2 = 12 色常备；选中项白描边）</div>
+        <div class="host" style="width:320px">
+          <div class="acsv-cinput">
+            <div class="acsv-cinput-top">
+              <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+              <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+              <button class="acsv-cinput-fmt col on" style="position:relative"><i class="acsv-ic">&#xe1eb;</i></button>
+              <span class="acsv-fmtsep"></span>
+              <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+              <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+            </div>
+            <div class="acsv-cinput-main" style="position:relative;display:block">
+              <div class="acsv-colpop" style="position:static;display:grid;margin:6px 0 0">
+                <i style="background:#fd4c5d" class="on"></i><i style="background:#ffb323"></i><i style="background:#ffd35c"></i>
+                <i style="background:#7ed957"></i><i style="background:#40c4ff"></i><i style="background:#409bef"></i>
+                <i style="background:#b18cff"></i><i style="background:#ff8ac4"></i><i style="background:#e8eaee"></i>
+                <i style="background:#9aa0ab"></i><i style="background:#666"></i><i style="background:#333"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="note" style="width:320px;margin-top:8px">
+          <b>出口序列化</b>：<code>&lt;span style="color:#hex"&gt;</code> → <code>[color=#hex]</code>（一条规则）。
+          <b>渲染侧零改动</b>——<code>src/ubb.js:80</code> 早已支持 <code>[color=#hex]</code> 且限 hex 白名单。
+          所以这一项成本＝<b>1 条序列化规则 + 1 个色板</b>，已按"做"排进本次。
+        </p>
+      </div>
+      <div>
+        <div class="tagline"><b>带颜色的编辑期 → 发出后</b>（颜色在两边一致）</div>
+        <div class="bubble" style="width:420px">
+          <div class="who">@一只芸喵喵 · 刚刚</div>
+          <div class="tx">这个 M4A1 的配装我照着打了三把，<span style="color:#fd4c5d">弹道真的稳</span> 压枪手感比上一个版本好太多</div>
+        </div>
+        <p class="note" style="width:420px;margin-top:8px">
+          颜色是<b>文字级</b>属性（不撑行高、不漂移），与表情/图片那种"节点级"不同——
+          所以它不存在 1em/34px 那类尺寸取舍。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ② 空态 ============ -->
+  <div class="sec">
+    <h2>② 空态（三宿主占位文案实样）<em>contenteditable 的占位用 :empty::before 出（非原生 placeholder）</em></h2>
+    <div class="col">
+      <div class="host">
+        <div class="above">评论（视频页 / 评论抽屉）</div>
+        <div class="acsv-cinput">
+          <div class="acsv-cinput-top">
+            <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+            <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+            <span class="acsv-fmtsep"></span>
+            <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+            <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+            <span class="acsv-cinput-count"></span>
+          </div>
+          <div class="acsv-cinput-main">
+            <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" contenteditable="true" data-ph="发条友善的评论…"></div></div>
+            <button class="acsv-cinput-send disabled">发送</button>
+          </div>
+        </div>
+      </div>
+      <div class="host narrow">
+        <div class="above">私信（抽屉 · 380 宽 · 同一版式，无需另造排布）</div>
+        <div class="acsv-cinput">
+          <div class="acsv-cinput-top">
+            <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+            <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+            <span class="acsv-fmtsep"></span>
+            <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+            <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+            <span class="acsv-cinput-count"></span>
+          </div>
+          <div class="acsv-cinput-main">
+            <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" contenteditable="true" data-ph="发个消息…"></div></div>
+            <button class="acsv-cinput-send disabled">发送</button>
+          </div>
+        </div>
+      </div>
+      <div class="host">
+        <div class="above">动态编辑器（面板内 · 233 上限）</div>
+        <div class="acsv-cinput">
+          <div class="acsv-cinput-top">
+            <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+            <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+            <span class="acsv-fmtsep"></span>
+            <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+            <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+            <span class="acsv-cinput-count">0/233</span>
+          </div>
+          <div class="acsv-cinput-main">
+            <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" contenteditable="true" data-ph="说点什么…"></div></div>
+            <button class="acsv-cinput-send disabled">发布</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ③ 有内容态：编辑期 vs 发出后 ============ -->
+  <div class="sec">
+    <h2>③ 有内容态<em>左＝编辑期（你写的时候） · 右＝发出后（气泡里）</em></h2>
+    <p class="note">
+      <b>这里要你确认的口径</b>：编辑期表情是 <b>1em（13px）</b>，发出后气泡里是 <b>34px</b> ——
+      即"写的时候比发出去小一圈"（0.9.221 就选了这个 B 口径，理由是输入期绝不漂移）。
+      若你要"完全所见即所得"，编辑期表情就得抬到 34px 并连带把行高抬到 34px（整个输入框变高、每行变松）。
+      <b>图片块</b>同理：编辑期是缩略图小块，发出后是真图。
+    </p>
+    <div class="stage">
+      <div>
+        <div class="tagline"><b>编辑期</b>（contenteditable · 行高 18 · 表情 1em · 图片＝缩略块）</div>
+        <div class="host">
+          <div class="acsv-cinput">
+            <div class="acsv-cinput-top">
+              <button class="acsv-cinput-fmt on"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+              <button class="acsv-cinput-fmt on"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+              <span class="acsv-fmtsep"></span>
+              <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+              <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+              <span class="acsv-cinput-count">58</span>
+            </div>
+            <div class="acsv-cinput-main">
+              <div class="acsv-cinput-wrap">
+                <div class="acsv-cinput-edit" contenteditable="true" data-ph="发条友善的评论…">今天终于把十年的老番补完了 <img class="ubb-emotion" alt="表情" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ffd35c'/%3E%3Ccircle cx='11' cy='13' r='2' fill='%23332'/%3E%3Ccircle cx='21' cy='13' r='2' fill='%23332'/%3E%3Cpath d='M10 20c2 3 10 3 12 0' stroke='%23332' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"><br><b>补番清单</b>里还差 <u>三集</u> 没看 <s>拖了两年</s><br><span class="acsv-cinput-imgblk"><img alt="配图" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' fill='%232a2f3d'/%3E%3Cpath d='M6 26l7-9 5 6 4-5 6 8z' fill='%23555c6e'/%3E%3Ccircle cx='24' cy='10' r='3' fill='%23555c6e'/%3E%3C/svg%3E"><span class="t">配图.jpg</span></span></div>
+              </div>
+              <button class="acsv-cinput-send">发送</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="tagline"><b>发出后</b>（评论气泡 · 表情 34px · 图片真图 · 格式生效需渲染侧加规则）</div>
+        <div class="bubble">
+          <div class="who">@一只芸喵喵 · 刚刚</div>
+          <div class="tx">今天终于把十年的老番补完了 <img class="ubb-emotion" alt="表情" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ffd35c'/%3E%3Ccircle cx='11' cy='13' r='2' fill='%23332'/%3E%3Ccircle cx='21' cy='13' r='2' fill='%23332'/%3E%3Cpath d='M10 20c2 3 10 3 12 0' stroke='%23332' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"><br><b>补番清单</b>里还差 <u>三集</u> 没看 <s>拖了两年</s>
+            <img class="ubb-imgc" alt="配图" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 140'%3E%3Crect width='240' height='140' fill='%232a2f3d'/%3E%3Cpath d='M30 110l40-50 30 36 24-30 56 74z' fill='%23555c6e'/%3E%3Ccircle cx='176' cy='36' r='16' fill='%23555c6e'/%3E%3C/svg%3E">
+          </div>
+        </div>
+        <p class="note" style="margin-top:10px;width:620px">
+          <b>注意</b>：<code>[b]/[i]/[u]/[s]</code> 这四条渲染规则<b>现在还没有</b>（<code>src/ubb.js</code> 只认
+          emot/img/at/color/resource…）。官方评论 UBB 方言确实含这四个（官方出口序列化器自己在产出），
+          所以本稿若确认，实现轮要同时补渲染侧四条规则——这是本次唯一"新增能力"（其余都是换载体）。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ④ 交互态 ============ -->
+  <div class="sec">
+    <h2>④ 交互态<em>悬停 / 聚焦 / 发送中禁用 / 超字数错误态</em></h2>
+    <div class="col">
+      <div>
+        <div class="tagline">聚焦态（<code>:focus-within</code> 底提亮）＋ 格式键选中态（<code>.on</code> 红底）</div>
+        <div class="host">
+          <div class="acsv-cinput">
+            <div class="acsv-cinput-top">
+              <button class="acsv-cinput-fmt on"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+              <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+              <span class="acsv-fmtsep"></span>
+              <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+              <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+              <span class="acsv-cinput-count">17</span>
+            </div>
+            <div class="acsv-cinput-main">
+              <div class="acsv-cinput-wrap" style="background:var(--sub2)">
+                <div class="acsv-cinput-edit" contenteditable="true" data-ph="发条友善的评论…"><b>动画</b>区那个转场是真的丝滑<span style="display:inline-block;width:1px;height:14px;background:#fd4c5d;vertical-align:-2px"></span></div>
+              </div>
+              <button class="acsv-cinput-send">发送</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="tagline">发送中（键变灰、不可点）——提交锁期间</div>
+        <div class="host">
+          <div class="acsv-cinput">
+            <div class="acsv-cinput-top">
+              <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+              <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+              <span class="acsv-fmtsep"></span>
+              <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+              <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+              <span class="acsv-cinput-count">21</span>
+            </div>
+            <div class="acsv-cinput-main">
+              <div class="acsv-cinput-wrap">
+                <div class="acsv-cinput-edit" contenteditable="false" data-ph="发条友善的评论…">再补一句：结尾那段 BGM 值得单曲循环</div>
+              </div>
+              <button class="acsv-cinput-send disabled">发送中…</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="tagline">超字数错误态（<b>原生 maxlength 随 textarea 一起消失</b> ⇒ 要自定义拒绝态）</div>
+        <div class="host">
+          <div class="acsv-cinput">
+            <div class="acsv-cinput-top">
+              <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+              <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+              <span class="acsv-fmtsep"></span>
+              <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+              <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+              <span class="acsv-cinput-count over">245/233</span>
+            </div>
+            <div class="acsv-cinput-main">
+              <div class="acsv-cinput-wrap" style="box-shadow:0 0 0 1px #fd4c5d inset">
+                <div class="acsv-cinput-edit" contenteditable="true" data-ph="说点什么…">这条动态写得有点长了，本来只想说三句话，结果越写越多，把昨天打的那局也写进去了，还有前天……（略）</div>
+              </div>
+              <button class="acsv-cinput-send disabled">发布</button>
+            </div>
+          </div>
+          <div class="above" style="border-top:1px solid var(--line);border-bottom:none;color:#fd4c5d;padding:8px 12px">
+            已超出 12 字，请删减后再发布
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ⑤ 可试小样 ============ -->
+  <div class="sec">
+    <h2>⑤ 可试小样（真 contenteditable）<em>本稿最重要的一段：别只看图，动手试</em></h2>
+    <p class="note">
+      下面是<b>真的 contenteditable + 真序列化函数</b>（照官方 ⑧ 口径实现的最小版），<b>内部结构与 ① 完全一致</b>
+      （上行工具栏、下行编辑区 + 发送）——即"正式形态就长这样"。请按序试五件。
+    </p>
+    <div class="demo">
+      <div class="acsv-cinput">
+        <div class="acsv-cinput-top">
+          <button class="acsv-cinput-fmt" id="dB" title="加粗"><i class="acsv-ic">&#xe18f;</i></button>
+          <button class="acsv-cinput-fmt" id="dI" title="斜体"><i class="acsv-ic">&#xe19a;</i></button>
+          <button class="acsv-cinput-fmt" id="dU" title="下划线"><i class="acsv-ic">&#xe1ea;</i></button>
+          <button class="acsv-cinput-fmt" id="dS" title="删除线"><i class="acsv-ic">&#xe1e9;</i></button>
+          <span class="acsv-fmtsep"></span>
+          <button class="acsv-cinput-emot" id="dEmot" title="插入表情">
+            <i class="acsv-ic">&#xe18b;</i>
+          </button>
+          <button class="acsv-cinput-img" id="dImg" title="插入图片块">
+            <i class="acsv-ic">&#xe18a;</i>
+          </button>
+          <span class="acsv-cinput-count" id="dCount">0</span>
+        </div>
+        <div class="acsv-cinput-main">
+          <div class="acsv-cinput-wrap">
+            <div class="acsv-cinput-edit" id="dEdit" contenteditable="true" data-ph="在这里试：中文输入 → 插表情 → 退格 → 选一段点 B → Ctrl+Z"></div>
+          </div>
+          <button class="acsv-cinput-send" id="dSend">发送</button>
+        </div>
+      </div>
+    </div>
+    <p class="demostat" id="dStat">
+      表情节点 <b id="dEmotN">0</b> 个 · 图片块 <b id="dImgN">0</b> 个 ·
+      令牌碎片（<code>[emot=…</code> 残文）<b id="dFrag" class="ok">0</b> 处 · 已发送 <b id="dSent">0</b> 次
+    </p>
+    <div class="wiki">
+      <div class="k">出口 UBB（实时序列化，这就是真正提交给服务端的文本）</div>
+      <textarea id="dWire" readonly placeholder="在这里输入内容，下面会实时显示序列化结果…"></textarea>
+    </div>
+    <p class="demostat">
+      <b>试五件</b>：
+      ① <b>中文输入法</b>连打一句话（组合期不许吞字、不许跳）；
+      ② 点 ☺ 插一个表情，再把光标放到表情<b>后面</b>按 <span class="kbd">退格</span> —— 应整块消失，不许剩 <code>[emot=acfun,</code> 碎片；
+      ③ 插表情／图片块后按 <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> —— <b>能不能撤掉？</b>（见下方结论）；
+      ④ 选中一段文字点 <b>B</b>／<b>U</b>／<b>S</b>，看出口 UBB 是否变成 <code>[b]…[/b]</code>；
+      ⑤ 从别处<b>粘贴</b>一段带格式的网页文字 —— 看清洗结果（本小样故意只做最保守的纯文本化）。
+    </p>
+    <p class="demostat" style="border-left:2px solid var(--accent);padding-left:10px;margin-top:12px">
+      <b>我已在这台机器上试过了，结论如下（2026-10-14 内置浏览器实测）</b>：<br>
+      · <b>中文输入 ✔</b>：程序化输入「测试中文输入」正常落字，字数 6；<br>
+      · <b>序列化 ✔</b>：插一个表情后出口 UBB ＝ <code>测试中文输入[emot=acfun,123/]</code>，字数 7（表情计 1）；
+      光标在表情后按退格 ⇒ 出口 UBB 回到 <code>测试中文输入</code>，<b>无 <code>[emot=</code> 碎片</b>（图节点整块删，原生行为）；<br>
+      · <b>撤销 → 取决于插入路径（本稿最重要的实测，两条路径我都跑了）</b>：<br>
+      &nbsp;&nbsp;<b>路径① <code>range.insertNode()</code>：✖ 不可用</b>。这样插入的表情节点<b>不进浏览器原生撤销栈</b>，
+      而退格删除<b>进栈</b>。按 <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> 会错乱：
+      第一次撤销把<b>先前删掉的表情"捞"回来</b>（与后插的重复 ⇒ UBB 出现两个 <code>[emot=acfun,123/]</code>），
+      第二次撤销只撤掉了文字、表情仍在。<br>
+      &nbsp;&nbsp;<b>路径② <code>execCommand('insertHTML')</code>：✔ 可用</b>（本小样现在走的就是这条）。
+      插表情后 <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> ⇒ 表情被正确撤销（UBB 回到 <code>撤销复测</code>）；
+      再走「退格删表情 → <span class="kbd">Ctrl</span>+<span class="kbd">Z</span>」混合场景 ⇒ 表情被正确复原，<b>没有重复</b>。<br>
+      ⇒ <b>实现期结论：撤销不必自建快照栈</b>——只要<b>所有程序化插入（表情/图片/提及）统一走
+      <code>execCommand('insertHTML')</code> 而不是 <code>Range.insertNode()</code></b>，原生撤销栈就完整可用
+      （A 站官方的 UMEditor 同样用 <code>execCommand</code>，与官方同路）。自建快照栈作为备选：只有将来出现
+      "非 execCommand 的节点改写"时才需要。
+    </p>
+  </div>
+
+  <!-- ============ ⑥ 三宿主差异 ============ -->
+  <div class="sec">
+    <h2>⑥ 三宿主差异<em>同一件输入条，差异全靠 opts 注入</em></h2>
+    <table class="geo">
+      <tr><th>宿主</th><th>宽度</th><th>字数上限</th><th>一键位</th><th>图片行为</th><th>格式键</th></tr>
+      <tr><td>评论（视频页 / 评论抽屉）</td><td>满宽</td><td>1000<code>(comments.js:554)</code>，为容 <code>[img]</code> 长 URL 而放宽</td><td>Enter 发送 / Shift+Enter 换行</td><td>插入 <code>[img=图片]url[/img]</code> 令牌（编辑期＝缩略块）</td><td>B I U S <b>+ A 颜色</b>（<b>已定：做</b>）</td></tr>
+      <tr><td>私信（抽屉）</td><td>380</td><td>1000<code>(cfg.js:362)</code>，发送前 <code>slice</code></td><td>Enter 发送</td><td><b>不进正文</b>：即选即发独立图片消息</td><td>与评论同（分层后放得下）</td></tr>
+      <tr><td>动态编辑器（面板）</td><td>面板宽</td><td>233<code>(momentpost.js:57)</code>，超限拦截＋服务端 140000 兜底</td><td>Enter 发送</td><td>图片挂缩略图，不进正文</td><td>B I U S <b>+ A 颜色</b>（<b>已定：做</b>）</td></tr>
+      <tr><td><b>个人主页 / UP 主页动态</b>（行内评论展开）</td><td>满宽（宿主内）</td><td>1000（同评论条）</td><td>同评论条</td><td>同评论条（<code>[img]</code> 令牌）</td><td>同评论条 —— <b>但皮肤是浅色 <code>.acsv-mp</code>，取值要另补（见 ⑨）</b></td></tr>
+    </table>
+    <p class="note">
+      <b>字数口径</b>：换 contenteditable 后从 DOM 算 —— 官方 <code>getContentLength</code> ＝ 纯文本长度 +
+      <b>每个图片/表情节点各计 1</b>，与现有 <code>momentCharCount</code>（令牌按 1 字，<code>momentpost.js:50</code>）等价 ⇒ 口径不变。
+      <br><b>高度代价</b>：输入条 56px → 约 83px（三宿主同增；含工具栏下那条分隔线）。评论区输入条在抽屉底部、私信在抽屉底部、
+      动态编辑器在面板内——三处都是"贴着底边"的位置，多出的 27px 是否吃得消，请看 ⑦ 的窄宽与高度对照。
+    </p>
+  </div>
+
+  <!-- ============ ⑦ 窄宽 ============ -->
+  <div class="sec">
+    <h2>⑦ 宽窄与高度<em>分层后 380 与 540 共用同一版式（不再有 P1/P2 两套）</em></h2>
+    <div class="stage">
+      <div style="width:min(540px,100%);border:1px dashed rgba(255,255,255,.14);padding:12px">
+        <div class="tagline">540 宽（视频页评论区侧栏态）—— 6 键 + 字数仍在同一行</div>
+        <div class="host" style="width:100%">
+          <div class="acsv-cinput">
+            <div class="acsv-cinput-top">
+              <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+              <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+              <span class="acsv-fmtsep"></span>
+              <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+              <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+              <span class="acsv-cinput-count">26</span>
+            </div>
+            <div class="acsv-cinput-main">
+              <div class="acsv-cinput-wrap">
+                <div class="acsv-cinput-edit" contenteditable="true" data-ph="发条友善的评论…">这个镜头调度很像《攻壳》<span class="acsv-cinput-imgblk"><img alt="配图" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' fill='%232a2f3d'/%3E%3Cpath d='M6 26l7-9 5 6 4-5 6 8z' fill='%23555c6e'/%3E%3C/svg%3E"><span class="t">很长的中文配图名不许逐字断行.jpg</span></span></div>
+              </div>
+              <button class="acsv-cinput-send">发送</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="tagline">私信 380 宽 —— 同一版式，无需「A」浮层兜底</div>
+        <div class="host narrow">
+          <div class="acsv-cinput">
+            <div class="acsv-cinput-top">
+              <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+              <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+              <span class="acsv-fmtsep"></span>
+              <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+              <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+              <span class="acsv-cinput-count">16</span>
+            </div>
+            <div class="acsv-cinput-main">
+              <div class="acsv-cinput-wrap">
+                <div class="acsv-cinput-edit" contenteditable="true" data-ph="发个消息…">在吗，问下那期视频里的 BGM 叫什么</div>
+              </div>
+              <button class="acsv-cinput-send">发送</button>
+            </div>
+          </div>
+        </div>
+        <div class="tagline" style="margin-top:12px">表情面板锚点（照 <code>.acsv-emotpanel</code> bottom:57px ⇒ 要改成贴新输入条上沿）</div>
+        <div class="acsv-emotpanel" style="margin:0;width:380px;max-width:100%">
+          <div class="acsv-emot-head">最近使用</div>
+          <div class="acsv-emot-grid">
+            <button class="acsv-emot-item"><img alt="表情" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ffd35c'/%3E%3Ccircle cx='11' cy='13' r='2' fill='%23332'/%3E%3Ccircle cx='21' cy='13' r='2' fill='%23332'/%3E%3Cpath d='M10 20c2 3 10 3 12 0' stroke='%23332' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"></button>
+            <button class="acsv-emot-item"><img alt="表情" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23a8dcff'/%3E%3Ccircle cx='11' cy='13' r='2' fill='%23332'/%3E%3Ccircle cx='21' cy='13' r='2' fill='%23332'/%3E%3Cpath d='M11 21c2-2 8-2 10 0' stroke='%23332' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"></button>
+            <button class="acsv-emot-item"><img alt="表情" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ffb0b8'/%3E%3Ccircle cx='11' cy='13' r='2' fill='%23332'/%3E%3Ccircle cx='21' cy='13' r='2' fill='%23332'/%3E%3Cellipse cx='16' cy='21' rx='3' ry='2' fill='%23332'/%3E%3C/svg%3E"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      检查项：① <b>5 键（B I U S + A）+ 字数</b>在 380 宽下同一行放得下（≈174px + 字数 40px，余量充足）；
+      ② 图片块的超长中文文件名要省略号收（<code>max-width:160px</code> + ellipsis）；
+      ③ 长中文不逐字断行；④ 输入条高度 83px，与抽屉/面板底部留白叠加后的观感。
+    </p>
+  </div>
+
+  <!-- ============ ⑧ 出口序列化对照 ============ -->
+  <div class="sec">
+    <h2>⑧ 出口序列化对照表<em>DOM → UBB，口径照官方 convertHtmlToEmotionCode / 序列化器</em></h2>
+    <table class="geo">
+      <tr><th>编辑期 DOM</th><th>提交的 UBB</th><th>官方依据</th></tr>
+      <tr><td><code>&lt;img class="ubb-emotion"&gt;</code>（表情节点）</td><td><code>[emot=acfun,&lt;id&gt;/]</code></td><td>按 <code>src</code> 与 <code>emotionImageUrl</code> 比对换回（隐藏 <code>.emotion-dom</code> 遍历）</td></tr>
+      <tr><td><code>&lt;b&gt;</code> / <code>&lt;strong&gt;</code></td><td><code>[b]…[/b]</code></td><td><code>&lt;strong&gt;</code>→<code>[b]</code>、<code>&lt;b&gt;</code>→<code>[b]</code></td></tr>
+      <tr><td><code>&lt;i&gt;</code> / <code>&lt;em&gt;</code></td><td><code>[i]…[/i]</code></td><td><code>&lt;em&gt;</code>→<code>[i]</code></td></tr>
+      <tr><td><code>&lt;u&gt;</code> 或 <code>text-decoration:underline</code> 的 span</td><td><code>[u]…[/u]</code></td><td>官方另有一条 span 规则兜底</td></tr>
+      <tr><td><code>&lt;s&gt;</code> / <code>&lt;strike&gt;</code> / <code>&lt;del&gt;</code> 或 line-through span</td><td><code>[s]…[/s]</code></td><td><code>&lt;strike|del&gt;</code>→<code>[s]</code></td></tr>
+      <tr><td><code>&lt;span style="color:#hex"&gt;</code>（颜色键产出）</td><td><code>[color=#hex]…[/color]</code></td><td>官方从行内 style 解析出 <code>[color=]</code>；<b>我方渲染侧已支持</b>（<code>src/ubb.js:80</code>，限 hex 白名单）</td></tr>
+      <tr><td>图片块（缩略图节点）</td><td><code>[img=配图.jpg]https://…[/img]</code></td><td><code>&lt;img src alt&gt;</code>→<code>[img=alt]src[/img]</code></td></tr>
+      <tr><td><code>&lt;br&gt;</code> / 空行</td><td><code>\r\n</code>（连续空行压成两个换行）</td><td><code>&lt;br&gt;</code>→换行、三连以上压两行</td></tr>
+      <tr><td>纯文本</td><td>原样（实体解码：<code>&amp;lt;</code>→<code>&lt;</code>）</td><td>去标签后做实体还原</td></tr>
+      <tr><td>字数</td><td>文本长度 + 每个图片/表情节点计 1</td><td><code>getContentLength</code></td></tr>
+    </table>
+  </div>
+
+  <!-- ============ ⑨ 个人主页 / UP 主页（浅色第二皮肤） ============ -->
+  <div class="sec">
+    <h2>⑨ 个人主页 / UP 主页动态（浅色 `.acsv-mp`）<em>同一件输入条，只是宿主语境不同 —— 本次一并覆盖</em></h2>
+    <p class="note">
+      <b>链路（已核对到行）</b>：个人主页 <code>/u/&lt;uid&gt;</code> 的「动态」标签＝<code>spacemoments.js</code> 注入，
+      列表根是 <code>el('div','acsv-mp')</code>（<code>:45</code>，浅色第二皮肤）。行里点「评论」→
+      <code>rowkit.toggleInlineComments</code>（<code>rowkit.js:37-56</code>）→ <code>openCommentsHost(…, 'home')</code>
+      → 评论管线的 <b>同一个 <code>inputBar</code> 实例</b>被 append 搬移过去（<code>comments.js:568</code> 的"宿主迁移"）。
+      ⇒ <b>换成 contenteditable 后它自动跟着变</b>，不存在第二份实现；但<b>浅色皮肤必须补取值</b>。
+      <br>同一宿主语境的还有：<code>/member</code> 内嵌广场（memberplaza）、脚本「我的」页动态（mypage）、
+      脚本广场视图（squareview，深色）——<b>四处的行内评论输入条都是这一个实例</b>。
+      <br><b>现状缺口（本次要补）</b>：浅色覆盖只有 3 条（<code>styles.js:1504-1506</code>：border-top / background / wrap 底色）。
+      分层新增的工具栏行在浅色下没有取值，格式键 <code>#cfd3da</code>、图标 <code>#999</code>、分隔线
+      <code>rgba(255,255,255,.16)</code>、图片块 <code>rgba(255,255,255,.14)</code> 都是深色值，白底上几乎看不见。
+      下面这组是按原生浅色页取的（底 <code>#fff</code>／字 <code>#333</code>／次要 <code>#999</code>／分割
+      <code>#eee</code>／强调 <code>accent</code>）。
+    </p>
+    <div class="stage">
+      <div>
+        <div class="tagline"><b>UP 主页动态 · 行内评论展开</b>（浅色 · 有内容态）</div>
+        <div class="mp" style="width:680px;max-width:100%">
+          <div class="above">TA 的动态（/u/11602352）· 点「评论」行内展开</div>
+          <div style="display:flex;gap:10px;padding:14px 14px 0">
+            <div style="width:50px;height:50px;border-radius:50%;background:#f0f0f0;flex:none"></div>
+            <div style="flex:1;min-width:0">
+              <div style="color:#333;font-size:16px">一只芸喵喵</div>
+              <div style="color:#999;font-size:12px;margin-top:4px">2026-10-8</div>
+            </div>
+          </div>
+          <div style="padding:10px 14px 12px;color:#333;font-size:14px;line-height:1.7">
+            今天终于把十年的老番补完了，附一张当年的截图留念。
+          </div>
+          <div class="acsv-cinput">
+            <div class="acsv-cinput-top">
+              <button class="acsv-cinput-fmt on"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+              <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+              <span class="acsv-fmtsep"></span>
+              <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+              <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+              <span class="acsv-cinput-count">42</span>
+            </div>
+            <div class="acsv-cinput-main">
+              <div class="acsv-cinput-wrap">
+                <div class="acsv-cinput-edit" contenteditable="true" data-ph="评论一时爽，一直评论一直爽。">这部番的<span style="text-decoration:underline">作画</span>在当年真的🐂，<img class="ubb-emotion" alt="表情" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ffd35c'/%3E%3Ccircle cx='11' cy='13' r='2' fill='%23332'/%3E%3Ccircle cx='21' cy='13' r='2' fill='%23332'/%3E%3Cpath d='M10 20c2 3 10 3 12 0' stroke='%23332' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"> 补完不亏</div>
+              </div>
+              <button class="acsv-cinput-send">发送</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="tagline"><b>同语境的三个状态</b>（浅色 · 空态 / 聚焦 / 超字数）</div>
+        <div class="col" style="gap:12px">
+          <div class="mp" style="width:480px;max-width:100%">
+            <div class="acsv-cinput">
+              <div class="acsv-cinput-top">
+                <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+                <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+                <span class="acsv-fmtsep"></span>
+                <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+                <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+                <span class="acsv-cinput-count"></span>
+              </div>
+              <div class="acsv-cinput-main">
+                <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" contenteditable="true" data-ph="评论一时爽，一直评论一直爽。"></div></div>
+                <button class="acsv-cinput-send disabled">发送</button>
+              </div>
+            </div>
+          </div>
+          <div class="mp" style="width:480px;max-width:100%">
+            <div class="acsv-cinput">
+              <div class="acsv-cinput-top">
+                <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+                <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+                <span class="acsv-fmtsep"></span>
+                <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+                <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+                <span class="acsv-cinput-count">11</span>
+              </div>
+              <div class="acsv-cinput-main">
+                <div class="acsv-cinput-wrap" style="background:#efefef">
+                  <div class="acsv-cinput-edit" contenteditable="true" data-ph="评论一时爽，一直评论一直爽。">同感<span style="display:inline-block;width:1px;height:14px;background:#fd4c5d;vertical-align:-2px"></span></div>
+                </div>
+                <button class="acsv-cinput-send">发送</button>
+              </div>
+            </div>
+          </div>
+          <div class="mp" style="width:480px;max-width:100%">
+            <div class="acsv-cinput">
+              <div class="acsv-cinput-top">
+                <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe18f;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe19a;</i></button>
+                <button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1ea;</i></button><button class="acsv-cinput-fmt"><i class="acsv-ic">&#xe1e9;</i></button>
+                <span class="acsv-fmtsep"></span>
+                <button class="acsv-cinput-emot"><i class="acsv-ic">&#xe18b;</i></button>
+                <button class="acsv-cinput-img"><i class="acsv-ic">&#xe18a;</i></button>
+                <span class="acsv-cinput-count over">1050/1000</span>
+              </div>
+              <div class="acsv-cinput-main">
+                <div class="acsv-cinput-wrap" style="box-shadow:0 0 0 1px #fd4c5d inset">
+                  <div class="acsv-cinput-edit" contenteditable="true" data-ph="评论一时爽，一直评论一直爽。">（这条太长了，省略号）……</div>
+                </div>
+                <button class="acsv-cinput-send disabled">发送</button>
+              </div>
+            </div>
+            <div style="padding:8px 12px;color:#fd4c5d;font-size:12px;border-top:1px solid #f2f2f2">已超出 50 字，请删减后再发送</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ⑩ 待裁决 ============ -->
+  <div class="sec">
+    <h2>⑩ 裁决结果<em>2026-10-14 用户已拍板 —— 下列即实现口径</em></h2>
+    <p class="note" style="line-height:2.1">
+      <b>已定（按此实现）</b>：<br>
+      1. <b>空态也显示工具栏</b> —— 高度恒定、聚焦不跳版。<br>
+      2. <b>字数在工具栏行右端</b>。<br>
+      3. <b>要分隔线</b> —— 工具栏行下沿：深色 <code>rgba(255,255,255,.06)</code>／浅色 <code>#e6e6e6</code>
+      （对齐原脚本 <code>.acsv-mp .acsv-citem>.acsv-chr</code> 的原生分割线色）。<br>
+      4. <b>颜色键做</b>（<code>[color]</code>）—— 用户问"好做吗"，评估结论＝<b>好做</b>：
+      出口只加一条规则（<code>&lt;span style="color:#hex"&gt;</code> → <code>[color=#hex]</code>），
+      <b>渲染侧零改动</b>（<code>src/ubb.js:80</code> 已支持 <code>[color=#hex]</code> 且限 hex 白名单），
+      UI ＝ 一个颜色键 + 12 色色板。形态见 ① 段。<br>
+      5. <b>编辑期表情 1em</b>（B 口径，不漂移；"写的小、发的大"保持不变）。<br>
+      6. <b>图片块＝缩略图块</b>（候选 B）。<br>
+      7. <b>浅色取值参考原脚本</b> —— 不另立色号，逐条取自现存 <code>.acsv-mp</code> 块的同族既有值
+      （图标 <code>#999</code> ← <code>.acsv-fact</code>／格式键 <code>#666</code> ← <code>.acsv-frow-sdesc</code>／
+      分隔线 <code>#e6e6e6</code> ← <code>.acsv-chr</code>／图片块 <code>#f0f0f0</code> ← <code>.acsv-frow-img</code>；
+      底/ wrap / 聚焦沿用现脚本既有三条）。<b>唯一新色</b>是"选中底"<code>rgba(253,76,93,.12)</code>（深色版 .18 的浅色同族调淡）。<br>
+      8. <b>撤销策略已实测定论</b>（见 ⑤ 结论块）：程序化插入一律走 <code>execCommand('insertHTML')</code>，
+      原生撤销栈完整可用，不自建快照栈。<br>
+      9. <b>图标用原生字形</b>（2026-10-15）—— 工具栏 7 个图标改用 <code>acfun-frontend-next</code> 的
+      <b>官方编辑器同款码点</b>（E18F/E19A/E1EA/E1E9/E1EB/E18B/E18A），弃用自绘 SVG；零新增资源（字体 0.9.55 已注入）。
+      字形与核验见 ⑪。<br>
+      <b>仍待你定</b>：10. 超字数行为 —— 硬拒绝（超了不让发，红字提示，本稿画的样子）／软提示（可发，交给服务端 140000 兜底）。
+    </p>
+    <p class="note" style="line-height:2.1;border-left:2px solid var(--accent);padding-left:10px">
+      <b>⑧ 统一范围（2026-10-14 用户裁决「不改原生输入框，只统一我们自建的」）</b><br>
+      <b>本次做</b>：<b>内容编辑器族</b>——评论 / 私信 / 动态编辑器三处（本就是 <code>src/inputbar.js</code> 一件）；
+      评论条是<b>单例 + 宿主搬移</b>（<code>comments.js:568</code>），在三类宿主间复用（评论抽屉 / 动态详情面板 /
+      <b>行内评论区</b>——个人主页、内嵌广场、我的页、广场视图共用，见 ⑨）。<br>
+      <b>本次不做，另批收敛（6 处单行输入）</b>——已裁决「只做内容编辑器，6 处另批」：<br>
+      &nbsp;&nbsp;· <code>danmaku.js:107</code> 弹幕发送框——<b>第二份"输入条"</b>：自拼 <code>input[type=text]</code> + 发送键，
+      还把 inputbar 的行为纪律（<code>stopPropagation</code> / Enter 发送 / Esc 失焦 / 组合期豁免）整套抄了一遍（<code>:137-142</code>）。<br>
+      &nbsp;&nbsp;· <code>mypage.js:302</code> <code>.acsv-ginput</code>（收藏夹/分组命名）与 <code>pickpop.js:164</code>
+      <code>.acsv-pick-input</code>（弹窗内新建）——<b>同一个"命名输入"的两份平行实现</b>。<br>
+      &nbsp;&nbsp;· 三个轻量搜索框：<code>topbar.js:96</code>（顶栏）、<code>imdrawer.js:137</code>（联系人）、
+      <code>sharepanel.js:57</code>（分享面板）。<br>
+      &nbsp;&nbsp;· <code>controls.js:586</code> <code>.acsv-dmpfilter</code>（弹幕关键词过滤，单行即时写设置）。<br>
+      <b>另批的收敛口径（备忘，不在本次实现）</b>：这 6 处属<b>单行输入</b>语义（搜索/命名/过滤），不该塞进富文本输入条——
+      抽一件单行输入件（DOM 构造 + 行为纪律 + 错误态三点），分两步：命名输入 2→1、搜索 3→1；
+      弹幕框单独评估（与播放器皮肤/生命周期耦合）。<b>本次一律不动它们。</b>
+    </p>
+  </div>
+
+  <!-- ============ ⑪ 图标来源（原生 iconfont 字形） ============ -->
+  <div class="sec">
+    <h2>⑪ 图标＝原生 iconfont 字形<em>不是自绘 SVG —— 与官方编辑器工具栏同字体、同码点（2026-10-15 用户裁决）</em></h2>
+    <p class="note">
+      <b>来源</b>：官方 UMEditor 工具栏的图标就是一套 iconfont 字形（<code>@ac/umeditor</code> 包里
+      <code>.edui-icon-*:before{content:"\E1xx"}</code>）。<b>核验方式</b>：把 A 站 CDN 上的字体文件下载后解析
+      cmap —— <b>这 7 个码点全部命中</b>，而且命中的正是我们脚本 <b>0.9.55 就注入的那份字体</b>
+      （<code>src/styles.js:17-19</code> 的 <code>acfun-frontend-next</code>，151 字形 / 码点段 <code>e153–e660</code>）：
+    </p>
+    <div class="host" style="width:680px">
+      <div style="display:flex;flex-wrap:wrap;gap:26px;padding:16px 18px;align-items:flex-end">
+        <div style="text-align:center"><i class="acsv-ic" style="font-size:26px;color:#cfd3da">&#xe18f;</i>
+          <div style="color:#8a90a0;font-size:11px;margin-top:6px">加粗 E18F</div></div>
+        <div style="text-align:center"><i class="acsv-ic" style="font-size:26px;color:#cfd3da">&#xe19a;</i>
+          <div style="color:#8a90a0;font-size:11px;margin-top:6px">斜体 E19A</div></div>
+        <div style="text-align:center"><i class="acsv-ic" style="font-size:26px;color:#cfd3da">&#xe1ea;</i>
+          <div style="color:#8a90a0;font-size:11px;margin-top:6px">下划线 E1EA</div></div>
+        <div style="text-align:center"><i class="acsv-ic" style="font-size:26px;color:#cfd3da">&#xe1e9;</i>
+          <div style="color:#8a90a0;font-size:11px;margin-top:6px">删除线 E1E9</div></div>
+        <div style="text-align:center"><i class="acsv-ic" style="font-size:26px;color:#cfd3da">&#xe1eb;</i>
+          <div style="color:#8a90a0;font-size:11px;margin-top:6px">颜色 E1EB</div></div>
+        <div style="text-align:center"><i class="acsv-ic" style="font-size:26px;color:#cfd3da">&#xe18b;</i>
+          <div style="color:#8a90a0;font-size:11px;margin-top:6px">表情 E18B</div></div>
+        <div style="text-align:center"><i class="acsv-ic" style="font-size:26px;color:#cfd3da">&#xe18a;</i>
+          <div style="color:#8a90a0;font-size:11px;margin-top:6px">图片 E18A</div></div>
+      </div>
+    </div>
+    <p class="note">
+      <b>实现口径</b>：码点登记进 <code>src/imicons.js</code> 的 <code>GLYPHS</code>（与既有
+      <code>feedLike</code>/<code>feedBanana</code> 等同一张表、同一机制 <code>.acsvg-glyph</code>/<code>font-family:acfun-frontend-next</code>），
+      按钮内容用 <code>&lt;i&gt;</code> 放字形而不是内联 SVG —— <b>零新增资源</b>（字体已注入），
+      且颜色随 <code>currentColor</code> 自动适配深/浅两个皮肤（此前 SVG 写死 <code>fill="#999"</code> 要各写一套）。
+      <br><b>待你扫一眼</b>：这几个字形渲染出来是否符合预期（尤其 <b>颜色键 E1EB</b> —— 官方那个字形自身是否已带色条；
+      若带，我把 CSS 里那条自定义色条 <code>::after</code> 去掉，避免画两条）。
+    </p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var edit = document.getElementById('dEdit');
+  var wire = document.getElementById('dWire');
+  var stat = { emot: 0, img: 0, frag: 0, sent: 0 };
+
+  // 官方表情图（预览用内联 SVG，真实现读 EmotionMap）
+  var EMOT_SRC = "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ffd35c'/%3E%3Ccircle cx='11' cy='13' r='2' fill='%23332'/%3E%3Ccircle cx='21' cy='13' r='2' fill='%23332'/%3E%3Cpath d='M10 20c2 3 10 3 12 0' stroke='%23332' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E";
+  var IMG_SRC = "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' fill='%232a2f3d'/%3E%3Cpath d='M6 26l7-9 5 6 4-5 6 8z' fill='%23555c6e'/%3E%3Ccircle cx='24' cy='10' r='3' fill='%23555c6e'/%3E%3C/svg%3E";
+
+  // 插入路径：优先 execCommand('insertHTML')——**目的是让它进浏览器原生撤销栈**；
+  // 失败才退回 Range.insertNode（该路径实测不进撤销栈，会造成 Ctrl+Z 错乱，见 ⑤ 结论块）
+  function caretInsert(node) {
+    edit.focus();
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount || !edit.contains(sel.anchorNode)) {
+      var r0 = document.createRange();
+      r0.selectNodeContents(edit); r0.collapse(false);
+      sel.removeAllRanges(); sel.addRange(r0);
+    }
+    try {
+      if (document.execCommand('insertHTML', false, node.outerHTML)) { refresh(); return; }
+    } catch (e) { /* 落到下面的退路 */ }
+    var range = window.getSelection().getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(node);
+    range.setStartAfter(node); range.collapse(true);
+    refresh();
+  }
+
+  // ---- 出口序列化（照官方口径的最小实现） ----
+  function ser(node) {
+    if (node.nodeType === 3) return node.nodeValue;
+    if (node.nodeType !== 1) return '';
+    var tag = node.tagName.toLowerCase();
+    if (tag === 'br') return '\r\n';
+    if (tag === 'img') {
+      if (node.dataset.emotionId) return '[emot=acfun,' + node.dataset.emotionId + '/]';
+      return '[img=' + (node.getAttribute('alt') || '图片') + ']' + (node.dataset.url || node.src) + '[/img]';
+    }
+    var inner = '';
+    for (var i = 0; i < node.childNodes.length; i++) inner += ser(node.childNodes[i]);
+    if (tag === 'b' || tag === 'strong') return inner ? '[b]' + inner + '[/b]' : '';
+    if (tag === 'i' || tag === 'em') return inner ? '[i]' + inner + '[/i]' : '';
+    if (tag === 'u') return inner ? '[u]' + inner + '[/u]' : '';
+    if (tag === 's' || tag === 'strike' || tag === 'del') return inner ? '[s]' + inner + '[/s]' : '';
+    if (tag === 'div' || tag === 'p') return inner + '\r\n';
+    if (tag === 'span') {
+      var st = node.getAttribute('style') || '';
+      // 颜色（颜色键产出，或粘贴带入）：<span style="color:#hex"> → [color=#hex]（渲染侧已支持，限 hex）
+      var cm = /(?:^|;)\s*color:\s*(#[0-9a-f]{3,8})/i.exec(st);
+      if (cm) return inner ? '[color=' + cm[1].toLowerCase() + ']' + inner + '[/color]' : '';
+      if (/text-decoration:\s*underline/i.test(st)) return inner ? '[u]' + inner + '[/u]' : '';
+      if (/text-decoration:\s*line-through/i.test(st)) return inner ? '[s]' + inner + '[/s]' : '';
+      return inner;
+    }
+    return inner;
+  }
+  function serialize() {
+    var out = '';
+    for (var i = 0; i < edit.childNodes.length; i++) out += ser(edit.childNodes[i]);
+    return out.replace(/[ \t]*\r\n[ \t]*/g, '\r\n').replace(/(\r\n){3,}/g, '\r\n\r\n').replace(/^\r\n+|\r\n+$/g, '');
+  }
+  // 字数：文本长度 + 每个图片/表情节点计 1（官方 getContentLength 口径）
+  function count() {
+    var n = 0;
+    (function walk(el) {
+      for (var i = 0; i < el.childNodes.length; i++) {
+        var c = el.childNodes[i];
+        if (c.nodeType === 3) n += c.nodeValue.replace(/[\t\r\n]/g, '').length;
+        else if (c.nodeType === 1) {
+          var t = c.tagName.toLowerCase();
+          if (t === 'img') n += 1;
+          else if (t === 'br') { /* 不计数 */ }
+          else walk(c);
+        }
+      }
+    })(edit);
+    return n;
+  }
+
+  function refresh() {
+    stat.emot = edit.querySelectorAll('img.ubb-emotion').length;
+    stat.img = edit.querySelectorAll('.acsv-cinput-imgblk').length;
+    var txt = edit.textContent || '';
+    stat.frag = (txt.match(/\[emot=|\[img=/g) || []).length;
+    document.getElementById('dEmotN').textContent = stat.emot;
+    document.getElementById('dImgN').textContent = stat.img;
+    var f = document.getElementById('dFrag');
+    f.textContent = stat.frag;
+    f.className = stat.frag ? 'bad' : 'ok';
+    document.getElementById('dCount').textContent = count();
+    wire.value = serialize();
+  }
+
+  document.getElementById('dEmot').addEventListener('click', function () {
+    var img = document.createElement('img');
+    img.className = 'ubb-emotion';
+    img.setAttribute('alt', '表情');
+    img.dataset.emotionId = '123';
+    img.src = EMOT_SRC;
+    caretInsert(img);
+  });
+  document.getElementById('dImg').addEventListener('click', function () {
+    var blk = document.createElement('span');
+    blk.className = 'acsv-cinput-imgblk';
+    blk.contentEditable = 'false';
+    var im = document.createElement('img');
+    im.setAttribute('alt', '配图.jpg');
+    im.dataset.url = 'https://imgs.aixifan.com/newUpload/123456_abc.jpg';
+    im.src = IMG_SRC;
+    var t = document.createElement('span');
+    t.className = 't'; t.textContent = '配图.jpg';
+    blk.appendChild(im); blk.appendChild(t);
+    caretInsert(blk);
+  });
+  ['B', 'I', 'U', 'S'].forEach(function (k) {
+    document.getElementById('d' + k).addEventListener('click', function () {
+      edit.focus();
+      // 与浏览器一致：execCommand 在选区上包标签（草稿级演示，真实现用 Range 包裹）
+      try { document.execCommand('styleWithCSS', false, false); document.execCommand(k === 'S' ? 'strikeThrough' : (k === 'I' ? 'italic' : (k === 'U' ? 'underline' : 'bold'))); }
+      catch (e) {}
+      refresh();
+    });
+  });
+  document.getElementById('dSend').addEventListener('click', function () {
+    stat.sent++;
+    document.getElementById('dSent').textContent = stat.sent;
+    if (!wire.value) { return; }
+    alert('将提交这段 UBB（草稿级演示）：\n\n' + wire.value);
+  });
+  edit.addEventListener('input', refresh);
+  // 粘贴：最保守的纯文本化（真实现的清洗规则要按官方 filterRules 定）
+  edit.addEventListener('paste', function (ev) {
+    ev.preventDefault();
+    var t = (ev.clipboardData || window.clipboardData).getData('text/plain') || '';
+    document.execCommand('insertText', false, t);
+    refresh();
+  });
+  refresh();
+})();
+</script>
+</body>
+</html>

@@ -115,9 +115,12 @@ const HARNESS_CASES = [
   //（0.9.218 补的视频/文章条规则）——BOOT_PATH 改写 pathname 至 /u/12345 + NO_AUTOMOUNT；
   // 夹具在 cases/space.js（原生标签栏由场景体自建）
   { name: 'space-moments', viewport: { width: 1600, height: 900 } },
-  // 0.9.222 发动态编辑器：真实入口（我的页「✎ 发动态」）→ 壳/镜像层/字数/可见范围 → 提交，
+  // 0.9.222 发动态编辑器：真实入口（我的页「✎ 发动态」）→ 壳/富文本输入条(0.9.238)/字数/可见范围 → 提交，
   // mock 缝抓 params body 形状 + 成功关闭 + 失败话术与内容保留 + 转发形态（引用块 + repostMomentId）
   { name: 'moment-publish', viewport: { width: 1600, height: 900 } },
+  // 0.9.238 富文本输入条（三宿主共用）：出口序列化对照表（composerUbb 钩子逐条）、真·键盘输入/
+  // 工具栏格式与颜色/表情插入/退格整块删/撤销/粘贴清洗/超字硬拒绝/面板锚点几何——评论宿主（行内）
+  { name: 'composer-rich', viewport: { width: 1600, height: 900 } },
   { name: 'bf-viewport', viewport: { width: 1600, height: 900 } }, // 0.9.229 视口渐进回填（老条目/每行一次）
   // 0.9.96 动态详情面板（卡点击原地展开 + 评论区管线复用 stype=4 + 赞/评写链乐观回滚 + 表情面板落位）
   { name: 'detail-open', viewport: { width: 1600, height: 900 } },

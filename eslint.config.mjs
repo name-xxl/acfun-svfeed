@@ -68,10 +68,14 @@ export default [
   //   sidebar.js  AcFun logo（站点静态 SVG）
   //   commentkit.js 评论头像框覆盖层（0.9.134）：装饰性 PNG，失败语义=整框摘除（imgInto 的
   //               defaultAvatar 兜底会误盖头像；框仅覆盖层无"封面字段"语义）
+  //   inputbar.js 富文本输入条（0.9.238）：图在这是**内容/令牌节点**（表情 img、配图缩略块），
+  //               不是封面/头像字段——要能进编辑区、随 execCommand('insertHTML') 进原生撤销栈，
+  //               且无"失败降级兜底"语义（图挂了就是挂了，不做占位替换）
   // 注：new Image() 不受禁令（探测/读自然宽高不是页面图面）。新增图面若确有例外，加到这里并注明理由
   {
     files: ['src/imgload.js', 'src/imcard.js', 'src/imdrawer.js', 'src/emoticon.js',
-      'src/imgview.js', 'src/rail.js', 'src/banpop.js', 'src/sidebar.js', 'src/commentkit.js'],
+      'src/imgview.js', 'src/rail.js', 'src/banpop.js', 'src/sidebar.js', 'src/commentkit.js',
+      'src/inputbar.js'],
     rules: {
       'no-restricted-syntax': ['error', {
         selector: "CallExpression[callee.property.name='split'][arguments.0.value='?']",

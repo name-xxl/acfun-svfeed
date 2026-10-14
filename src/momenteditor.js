@@ -1,7 +1,6 @@
 import { CFG } from './cfg.js';
 import { el, toast, selfUid, a11y } from './ui.js';
 import { buildInputBar } from './inputbar.js';
-import { decorateInput } from './composermirror.js';
 import { mountEmotButton } from './emoticon.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { quoteBlockOf } from './cards.js';
@@ -18,8 +17,8 @@ import { testHook } from './dbg.js';
 //
 // 形如预览稿 docs/preview/moment-editor.html：居中模态（overlay 栈、modal 吞键）、标题「发动态」/
 // 转发时「转发动态」、转入时顶部带源引用块（复用行卡引用卡构件 quoteBlockOf，不新画）、输入条用
-// inputbar + composermirror（写的时候就看得见表情、令牌整块删）、工具行「表情 · 图片 · 可见范围 · 字数」、
-// 脚行「取消 / 发布(转发)」。
+// inputbar（0.9.238 富文本：编辑期真节点、出口序列化 UBB；字数在工具栏右端 n/233）、
+// 工具行「可见范围」、脚行「取消 / 发布(转发)」。
 //
 // **防误发**（发布是外向不可逆动作）：提交期锁（禁用输入与按钮，绝不自动重试——端点无幂等键，
 // 重试可能重复发）；失败保留内容并给可读话术；**网络不明/超时**走「先查后补」——用 listProfile
@@ -68,43 +67,17 @@ export function openMomentEditor(opts) {
   if (repost) bd.appendChild(quoteBlockOf(repost)); // 源引用块（行卡同构件）
   panel.appendChild(bd);
 
-  // 输入条（inputbar 纯建 DOM + composermirror 包镜像层：看得见表情、令牌整块删）
-  var bar = buildInputBar({
-    placeholder: '说点什么…（图片动态文字可留空）',
-    maxLength: MOMENT_MAX,
-    onSend: submit,
-    img: { title: '插入图片', onFile: onFile }
-  });
-  decorateInput(bar);
-  bar.box.className = 'acsv-cinput'; // 保持既有类（bd 内的边距由 .acsv-me-bd 收）
-  bd.appendChild(bar.box);
-  var thumbs = el('div', 'acsv-thumbs');
-  thumbs.style.display = 'none';
-  bd.appendChild(thumbs);
+  // ---- 状态（**必须在 buildInputBar 之前**：输入条建好即会 refresh 一拍 ⇒ onState/
+  // sendEnabled 立刻被调到，此处的 var 若还在下面声明就是 undefined ⇒ 开局即抛 ——
+  // 0.9.238 harness 实锤的 `imgs.length of undefined`）----
+  var visFans = false;
+  var imgs = [];        // 已上传：{url,width,height}
+  var pending = 0;      // 在传图片数
+  var busy = false;     // 提交锁
+  var overTip = false;  // 提示行当前显示的是不是"超字数"（只在它显示时才允许被清，免得盖掉上传/失败话术）
 
-  // 表情面板（0.9.226）：**插在工具行与脚行之间、走文档流**（原先是 .acsv-emotpanel 的
-  // absolute + bottom:57px——那是给抽屉输入条定的口径，在模态里会逃到浮层根 ⇒ 用户实报"面板跑到屏幕底部"）
-  var emotPanel = el('div', 'acsv-emotpanel acsv-me-emot');
-  emotPanel.style.display = 'none';
-  panel.appendChild(emotPanel);
-  mountEmotButton(bar.emotBtn, emotPanel, bar.input);
-
-  // 工具行：可见范围 + 字数（表情/图片键在输入条内，工具行只放右侧两项）
-  var tools = el('div', 'acsv-me-tools');
-  var vis = el('span', 'acsv-me-vis');
-  vis.appendChild(el('span', null, '可见范围'));
-  var pPublic = el('button', 'acsv-me-pill on', '公开');
-  var pFans = el('button', 'acsv-me-pill', '仅粉丝');
-  pPublic.type = pFans.type = 'button';
-  pPublic.addEventListener('click', function () { setVis(false); });
-  pFans.addEventListener('click', function () { setVis(true); });
-  vis.appendChild(pPublic);
-  vis.appendChild(pFans);
-  tools.appendChild(vis);
-  var count = el('span', 'acsv-me-count', '0/' + MOMENT_MAX);
-  tools.appendChild(count);
-  panel.appendChild(tools);
-
+  // 脚行（取消 / 发布(转发) + 提示行）：**先建后挂**——onState（见下）在输入条建好的第一拍
+  // 就会写 ok.disabled，脚行元素必须在那之前就位（0.9.238 harness 实锤：`ok.disabled of undefined`）
   var ft = el('div', 'acsv-me-ft');
   var tip = el('span', 'acsv-me-tip');
   ft.appendChild(tip);
@@ -116,7 +89,46 @@ export function openMomentEditor(opts) {
   ok.addEventListener('click', submit);
   ft.appendChild(cancel);
   ft.appendChild(ok);
-  panel.appendChild(ft);
+
+  // 输入条（0.9.238 富文本：编辑期真节点 + 出口序列化；字数在工具栏右端＝n/233，
+  // 与评论/私信同一件。发送键在模态内由 CSS 隐去，发布动作归脚行——见 styles .acsv-me-bd）
+  var bar = buildInputBar({
+    placeholder: '说点什么…（图片动态文字可留空）',
+    maxLength: MOMENT_MAX,
+    countMax: true,               // 动态字数恒显 n/233（预览稿 ② 形态；评论/私信是裸数）
+    onSend: submit,
+    img: { title: '插入图片', onFile: onFile },
+    // 发送键启用谓词：文字为空但**有图/是转发**也可发（图片动态文字可留空）；
+    // over/busy 由输入条自己兜（谓词只补"空文字也合法"这一条）
+    sendEnabled: function (st) { return !busy && (st.count > 0 || imgs.length > 0 || !!repost); },
+    onState: onState
+  });
+  bd.appendChild(bar.box);
+  var thumbs = el('div', 'acsv-thumbs');
+  thumbs.style.display = 'none';
+  bd.appendChild(thumbs);
+
+  // 表情面板（0.9.226）：**插在工具行与脚行之间、走文档流**（原先是 .acsv-emotpanel 的
+  // absolute + bottom:57px——那是给抽屉输入条定的口径，在模态里会逃到浮层根 ⇒ 用户实报"面板跑到屏幕底部"）
+  var emotPanel = el('div', 'acsv-emotpanel acsv-me-emot');
+  emotPanel.style.display = 'none';
+  panel.appendChild(emotPanel);
+  mountEmotButton(bar.emotBtn, emotPanel, bar.insertCode);
+
+  // 工具行：可见范围（字数已在输入条工具栏右端；发布动作在脚行）
+  var tools = el('div', 'acsv-me-tools');
+  var vis = el('span', 'acsv-me-vis');
+  vis.appendChild(el('span', null, '可见范围'));
+  var pPublic = el('button', 'acsv-me-pill on', '公开');
+  var pFans = el('button', 'acsv-me-pill', '仅粉丝');
+  pPublic.type = pFans.type = 'button';
+  pPublic.addEventListener('click', function () { setVis(false); });
+  pFans.addEventListener('click', function () { setVis(true); });
+  vis.appendChild(pPublic);
+  vis.appendChild(pFans);
+  tools.appendChild(vis);
+  panel.appendChild(tools);
+  panel.appendChild(ft); // 脚行元素建在上面（输入条之前），此处才落位
 
   panel.addEventListener('click', function (ev) { if (ev.target === panel) close(); });
   host.appendChild(panel);
@@ -125,24 +137,26 @@ export function openMomentEditor(opts) {
   root.appendChild(host);
   overlayOpen({ id: 'momentedit', modal: true, close: close });
 
-  // ---- 状态 ----
-  var visFans = false;
-  var imgs = [];        // 已上传：{url,width,height}
-  var pending = 0;      // 在传图片数
-  var busy = false;     // 提交锁
-  bar.input.addEventListener('input', refreshCount);
-  refreshCount();
-
+  // ---- 状态回调与工具 ----
   function setVis(fans) {
     visFans = !!fans;
     pPublic.classList.toggle('on', !visFans);
     pFans.classList.toggle('on', visFans);
   }
 
-  function refreshCount() {
-    var n = momentCharCount(bar.input.value);
-    count.textContent = n + '/' + MOMENT_MAX;
-    count.classList.toggle('over', n > MOMENT_MAX);
+  // 输入条状态回调（每次刷新都到）：① 脚行发布键的启用态（硬拒绝——超限/空且无图无转发都不许发）；
+  // ② 超限提示行（预览稿 ④：「已超出 N 字，请删减后再发布」）
+  function onState(st) {
+    ok.disabled = busy || st.over || !(st.count > 0 || imgs.length > 0 || !!repost);
+    if (st.over) {
+      overTip = true;
+      tip.className = 'acsv-me-tip err';
+      tip.textContent = '已超出 ' + (st.count - MOMENT_MAX) + ' 字，请删减后再发布';
+    } else if (overTip) {
+      overTip = false;
+      tip.className = 'acsv-me-tip';
+      tip.textContent = '';
+    }
   }
 
   function renderThumbs() {
@@ -205,11 +219,12 @@ export function openMomentEditor(opts) {
       .then(function () {
         if (!failed && pending === 0) tip.textContent = '';
         renderThumbs();
-      }, function () { pending--; renderThumbs(); });
+        bar.refresh(); // 图数变了 ⇒ 重算发布键启用态（纯图动态也允许发）
+      }, function () { pending--; renderThumbs(); bar.refresh(); });
   }
 
   function teardown() {
-    if (bar.tk) bar.tk.stop(); // 解绑令牌原子编辑的 document 级监听
+    // （0.9.238 撤除）bar.tk.stop()：令牌原子化随 textarea 载体退役，编辑区不再有 document 级监听
     overlayClose('momentedit');
     if (root) root.remove();   // 连根容器一起删（只删 host 会残留空壳，反复开会累积）
     host = null;
@@ -224,7 +239,7 @@ export function openMomentEditor(opts) {
   // 提交：锁 → 组参 → 发布 → 成功/失败/未知三分支
   function submit() {
     if (busy) return;
-    var content = (bar.input.value || '').trim();
+    var content = bar.text().trim(); // 出口 UBB（富文本 → 序列化，0.9.238）
     if (!content && !imgs.length && !repost) { tip.textContent = '写点什么，或加张图'; return; }
     if (pending) { tip.textContent = '图片还在上传…'; return; }
     if (momentCharCount(content) > MOMENT_MAX) { tip.textContent = '内容太长了（限 ' + MOMENT_MAX + ' 字）'; return; }
@@ -234,7 +249,7 @@ export function openMomentEditor(opts) {
     ok.disabled = true;
     ok.textContent = repost ? '转发中…' : '发布中…';
     cancel.disabled = true;
-    bar.input.readOnly = true;
+    bar.setBusy(true, '发布中…'); // 锁编辑区（原 readOnly 对 contenteditable 不生效）
     var payload = { imgs: imgs, visibleForFans: visFans, repost: repost ? { ct: repost.ct, id: repost.id } : null };
     addMoment(content, payload).then(function (r) {
       if (r.ok) { done(content); return; }
@@ -258,7 +273,7 @@ export function openMomentEditor(opts) {
       ok.disabled = false;
       ok.textContent = '重试发布';
       cancel.disabled = false;
-      bar.input.readOnly = false;
+      bar.setBusy(false); // 解锁编辑区（内容保留，可直接改后重试）
     }
 
     function done(text) {

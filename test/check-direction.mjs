@@ -30,7 +30,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
 
 // 口径 A 用：README 基建层（styles.js 等 16 件）+ 接口层（3 件）
-const INFRA = new Set(['cfg.js', 'net.js', 'playitem.js', 'panelitem.js', 'state.js', 'route.js', 'imgview.js', 'inputbar.js',
+// 0.9.238：inputbar.js **移出基建层**（改入 FEATURE，见下）——富文本重载后它认识表情域
+// （emotImgOf 出表情节点）与出口 UBB 方言（评论域的序列化/计数口径），不再满足"基建 = 零特性
+// 知识"的口径；与 sharepanel/rail/slide（0.9.233）同款归类：地位是特性层共享 UI 件
+const INFRA = new Set(['cfg.js', 'net.js', 'playitem.js', 'panelitem.js', 'state.js', 'route.js', 'imgview.js',
   'imgurl.js', 'pagekind.js', 'settings.js', 'viewreg.js', 'imgload.js', 'overlay.js', 'topbar.js',
   'ui.js', 'errbox.js', 'styles.js', 'dbg.js', 'timefmt.js', 'uplook.js', 'nameval.js']);
 const API = new Set(['api.js', 'appapi.js', 'quality.js']);
@@ -60,9 +63,14 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   //（spacemoments 复用 memberplaza 导出的 addAmAnchor=两个原生页宿主单源，非反向）
   // 0.9.221 登记：composermirror（输入框镜像层装饰器，消费 emoticon/tokenedit/ui）——把
   // 「输入条要渲染表情」这条边从基建层的 inputbar 挪到特性层（免得新增基建→特性反向边）
-  // 0.9.222 登记：momenteditor（发动态编辑器，三处入口共用出口；消费 inputbar/composermirror/
-  // momentpost/cards/overlay…）/ pubentry（原生 /member/feeds 入口注入，与 memberplaza 同页共存）
-  'jingxuanview.js', 'spacetab.js', 'spacemoments.js', 'composermirror.js', 'tokenedit.js',
+  //〔0.9.238 撤除：镜像层与令牌原子化两件随富文本载体退役，条目删除〕
+  // 0.9.222 登记：momenteditor（发动态编辑器，三处入口共用出口；消费 inputbar/momentpost/
+  // cards/overlay…）/ pubentry（原生 /member/feeds 入口注入，与 memberplaza 同页共存）
+  'jingxuanview.js', 'spacetab.js', 'spacemoments.js',
+  // 0.9.238 登记：inputbar（富文本输入条：contenteditable 编辑 + 出口序列化，消费 emoticon/
+  // imicons/ui）——由基建层改入特性层（口径 A 的注释见上）；消费方 comments/imdrawer/momenteditor
+  // 三件均在本表内，属层内互调，两口径 0 条（反跑证据见 docs/dependency-audit.md「0.9.238」节）
+  'inputbar.js',
   // 分享面板的登记史（0.9.222 → 0.9.233）：0.9.222 它新增 → momenteditor 边，当批只把该边
   // 入 KNOWN 放行（sharepanel/rail/slide 三件分类债未定）；0.9.233 专项一次登记，见下
   // 0.9.224 登记：pubfab（发布常驻浮标共用件，消费 momenteditor/ui）——与 composermirror 同类的
@@ -76,7 +84,8 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 两口径 0 条、KNOWN 清零（反跑证据见 docs/dependency-audit.md「0.9.233」节）
   'sharepanel.js', 'rail.js', 'slide.js',
   // momentpost 同批归类（0.9.223）：动态**发布域**，与同在 FEATURE 里的 momentapi（读域）同类；
-  // 它新 import tokenedit（字数口径要认令牌）后按实归类即可，非登记例外
+  // 0.9.238：tokenRanges 随令牌原子化件退役收进本件（出口文本的字数口径），依赖面反而变窄
+  'momentpost.js',
   ]);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 
