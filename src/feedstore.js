@@ -1,3 +1,4 @@
+// @ts-check
 import { CFG } from './cfg.js';
 import { API } from './api.js';
 import { activeContext } from './feedctx.js';

@@ -63,26 +63,27 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 0.9.222 登记：momenteditor（发动态编辑器，三处入口共用出口；消费 inputbar/composermirror/
   // momentpost/cards/overlay…）/ pubentry（原生 /member/feeds 入口注入，与 memberplaza 同页共存）
   'jingxuanview.js', 'spacetab.js', 'spacemoments.js', 'composermirror.js', 'tokenedit.js',
-  // sharepanel 一并登记（0.9.222）：它是**分享面板 UI 共用件**（此前只 import imsend/imgload/popplace，
-  // 都没进 FEATURE 集 ⇒ 从未报警）；本批它新增 → momenteditor（面板里「转发到动态」直接开编辑器），
-  // 归类纠正后不再误报。同批：momenteditor（编辑器）/ pubentry（原生入口注入）
+  // 分享面板的登记史（0.9.222 → 0.9.233）：0.9.222 它新增 → momenteditor 边，当批只把该边
+  // 入 KNOWN 放行（sharepanel/rail/slide 三件分类债未定）；0.9.233 专项一次登记，见下
   // 0.9.224 登记：pubfab（发布常驻浮标共用件，消费 momenteditor/ui）——与 composermirror 同类的
   // 特性层 UI 件（此前 pubentry 也归在特性层）
   'momenteditor.js', 'momentpost.js', 'pubfab.js',
+  // 0.9.233 分类债专项收敛：sharepanel（分享面板 UI 共用件，消费方只认 openSharePanel 等出口）/
+  // rail（右侧操作栏）/ slide（slide/抽屉骨架）三件一次登记——它们是**特性层 UI 件**，与
+  // followview/comments 同格；README 图中位于播放层 others/私信层 subgraph 是出身 placement、
+  // 不是专属域（同 immsg/imicons/ubbtext 校准先例）。+3 后三条消费链（rail→sharepanel、
+  // slide→rail 及三件的全部入边：comments/imdrawer/momentdetail/rowkit/playlayer）全成层内互调：
+  // 两口径 0 条、KNOWN 清零（反跑证据见 docs/dependency-audit.md「0.9.233」节）
+  'sharepanel.js', 'rail.js', 'slide.js',
   // momentpost 同批归类（0.9.223）：动态**发布域**，与同在 FEATURE 里的 momentapi（读域）同类；
   // 它新 import tokenedit（字数口径要认令牌）后按实归类即可，非登记例外
   ]);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 
-// 在册项（0.9.119 起清空——data→ubb 随手下沉完成，方向卫生库存归零；新增项=需要一次裁决，
+// 在册项（0.9.119 起清空——data→ubb 随手下沉完成，方向卫生库存归零；0.9.222 曾破例入册 1 条
+// sharepanel→momenteditor，0.9.233 专项分类纠正后复归清空；新增项=需要一次裁决，
 // 改动须同步 docs/dependency-audit.md）
-const KNOWN = [
-  // 0.9.222：分享面板加「转发到动态」⇒ sharepanel → momenteditor（新边）。
-  // **为什么登记而不是改归类**：sharepanel/rail/slide 三者谁属特性层是**既有分类债**——把
-  // sharepanel 计入 FEATURE 会连锁浮出 rail→sharepanel、slide→rail…… 那是另一次分类纠正的活，
-  // 不该在一个功能批里连环做（本批只新增了这一条边）。债务与后续处置见 docs/dependency-audit.md。
-  { edge: 'sharepanel.js -> momenteditor.js', note: '分享面板「转发到动态」直开编辑器；分类债待专项纠正' }
-];
+const KNOWN = [];
 const knownSet = new Set(KNOWN.map((k) => k.edge));
 
 const files = fs.readdirSync(SRC).filter((f) => f.endsWith('.js'));

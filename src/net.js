@@ -1,3 +1,4 @@
+// @ts-check
 // ---------- 网络层 ----------
 // request(url, method, headers, body)：headers/body 可选（body 为 x-www-form-urlencoded 字符串）
 // requestText(url)：文本通道（GET，SSR HTML/纯文本端点——搜索页等非 JSON 源）；

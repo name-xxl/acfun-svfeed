@@ -1,3 +1,4 @@
+// @ts-check
 import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { normalize, normalizeHome, deepLinkOf, foldBr } from './playitem.js';

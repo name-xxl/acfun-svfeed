@@ -1,3 +1,4 @@
+// @ts-check
 import { CFG } from './cfg.js';
 import { stat, set, testHook } from './dbg.js';
 import { toast, sweepSlideVideos } from './ui.js';

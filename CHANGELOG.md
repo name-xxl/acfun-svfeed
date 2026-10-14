@@ -3,6 +3,24 @@
 AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，最新在前；0.9.81 起自 README 迁出）。
 每节记录：病灶（真机/评审实证）→ 修法 → 测试证据。项目约定见 README 的「开发」章。
 
+### 0.9.233（2026-10-14）· 分类债专项收敛（sharepanel/rail/slide 一次登记）+ 契约面 tsc 扩面 10 件
+
+- **病灶（两条既有债，一次清）**：① 方向棘轮唯一在册例外 `sharepanel → momenteditor`——0.9.222
+  判定「三件分类不该在功能批里连环重分类」，债留专项；② 契约面类型检查自 0.9.188 起停在 10 件
+  （roadmap A4 待办），扩面卡在没有环境全局声明（GM_*/__ACSV_* 等），逐文件 @ts-ignore 噪音大。
+- **修法一（方向）**：`sharepanel/rail/slide` 三件一次计入 FEATURE——特性层 UI 件（消费方只认
+  openSharePanel/buildSlide 等出口），README 图中位于播放层 others/私信层 subgraph 是**出身
+  placement、不是专属域**（immsg/imicons/ubbtext 校准先例）。+3 前按真实边集重放：全部入边 =
+  comments/imdrawer/momentdetail/rowkit/playlayer（FEATURE）+ player（SKIP_B）⇒ 无新红。
+  KNOWN 复归 []，口径 A/B 双 0。**反跑**：暂摘 sharepanel ⇒ 未登记转红（exit 1），还原复绿。
+- **修法二（类型）**：新 `types/globals.d.ts` 纯声明件（项目「不写 .ts」唯一例外，jsconfig 头注
+  已记：只声明不运行、不进产物不进依赖图）+ 10 契约件挂 `// @ts-check`（feedstore/session/net/
+  api/settings/levelstack/playstate/immsg/commentkit/ubbtext）。实测 17 条错误全为环境全局
+  （GM_xmlhttpRequest/GM_getValue/GM_setValue/__ACSV_DEBUG__/window.__ACSV_MOCK_*/
+  WebKitMediaSource），0 条逻辑/类型错误。**反跑**：摘掉 d.ts → 17 条原样转红。
+- **测试证据**：全量 check + 310 单测 + 60/60 场景全绿；checked 件 10 → 20 件；处置记录见
+  docs/dependency-audit.md「0.9.233」节。
+
 ### 0.9.232（2026-10-14）· 正式产物开 minify——1.02MB→725KB（-29%），每个站点页面少解析约三成
 
 - **病灶（量化）**：正式产物 1,046KB 全量缩进源码。`@match https://www.acfun.cn/*` 且

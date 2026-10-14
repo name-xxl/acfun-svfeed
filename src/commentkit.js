@@ -1,3 +1,4 @@
+// @ts-check
 // ---------- 评论条目 kit（0.9.133 自 comments.js 拆出：条目构建件 + 楼中楼展开件） ----------
 // 全项目评论条目构建**单源**：commentItemOf（头像/名字/正文/meta/点赞回复转发三键/楼中楼递归）
 // + expandSubComments（「展开 N 条回复」按钮 + sublist 分页追加）。消费方：comments.js 管线——

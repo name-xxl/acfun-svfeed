@@ -162,6 +162,22 @@ feedstore.js → player.js → input.js → feedstore.js
   方向已守护"的缺口由此补上）。
 - **附带**：0.9.184/185/186 的架构减债（errbox/playgest 拆件、a11y）均过本棘轮（0 未登记）。
 
+## 0.9.233：分类债专项收敛（sharepanel/rail/slide 一次登记，KNOWN 清零）+ 契约面 tsc 扩面
+
+- **背景（0.9.222 登记的债务兑现）**：0.9.222 记录「sharepanel/rail/slide 谁属特性层从未定过……
+  债务留待专项分类纠正（届时三件一起定，一次收敛）」。本批即该专项。
+- **裁决**：三件一并计入 FEATURE（check-direction 口径 B 的「特性域」）——它们是与 followview/
+  comments 同格的**特性层 UI 件**（消费方只认 openSharePanel/buildSlide 等出口）；README 图中位于
+  播放层 others / 私信层 subgraph 是**出身 placement、不是专属域**（同 immsg/imicons/ubbtext 校准先例）。
+- **连锁核对（+3 前先重放）**：三件全部入边 = comments/imdrawer/momentdetail/rowkit/playlayer
+  （FEATURE）+ player（SKIP_B 组合根）⇒ +3 不浮任何新红；两口径 0 条、KNOWN 复归 []。
+- **反跑证据**：暂摘 `'sharepanel.js'` 出 FEATURE ⇒ `sharepanel.js -> momenteditor.js` 立刻以
+  「⚠ 未登记」转红（exit 1）；还原后 0/0。check-release 的 minify 反跑见 CHANGELOG 0.9.232。
+- **同批第二件（tsc 扩面）**：新 `types/globals.d.ts` 纯声明件（项目「不写 .ts」的唯一例外，
+  见 jsconfig 头注）+ 10 契约件（feedstore/session/net/api/settings/levelstack/playstate/immsg/
+  commentkit/ubbtext）挂 `// @ts-check`。实测 17 条错误全为环境全局（GM_*/__ACSV_DEBUG__/
+  `window.__ACSV_MOCK_*`/WebKitMediaSource）、0 条逻辑/类型错误；摘掉 d.ts 反跑：17 条原样转红。
+
 ## 0.9.225：发布头集修复 + 原生页浮标收窄（pubentry 退场）
 
 - **删件**：`pubentry.js`（0.9.224 引入）——原生页浮标不再 body 级常驻，改由 `memberplaza.openPlaza`
@@ -200,6 +216,7 @@ feedstore.js → player.js → input.js → feedstore.js
   **既有分类债**（sharepanel/rail/slide 谁属特性层从未定过；它们此前 import 的目标都不在 FEATURE 集内，
   所以一直没报），**不该在一个功能批里连环重分类**。故撤回 sharepanel/rail 的归类改动，只把本批
   **新引入的那一条边**登记放行，债务留待专项分类纠正（届时 slide/rail/sharepanel 一起定，一次收敛）。
+- **后续（0.9.233）**：专项已做——三件一次计入 FEATURE、KNOWN 复归清零（见本文件 0.9.233 节）。
 - **顺带**：`momenteditor` 收尾收成单出口 `teardown()`（初版 close/done 各写一遍，且都漏删 `#acsv-me-root`
   ⇒ 反复开会累积空壳）。
 - **harness**：新场景 `moment-publish`（20 断言）钉「入口→壳→组参→提交」全链与 params body 形状；
