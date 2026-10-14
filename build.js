@@ -3,8 +3,9 @@
  *   node build.js          产出 acfun-svfeed.user.js（正式）+ acfun-svfeed.debug.user.js（调试）
  *   node build.js --watch  监听 src/ 变更自动重建
  *
- * 两个产物出自同一份源码，仅 __ACSV_DEBUG__ 注入值不同：
- * 正式构建里 dbg()/dbgInit() 被 define 成 false 后死码消除，运行行为与调试版完全一致。
+ * 两个产物出自同一份源码，差异两处：__ACSV_DEBUG__ 注入值（正式构建里 dbg()/dbgInit() 被 define
+ * 成 false 后死码消除，运行行为与调试版完全一致）与 minify（0.9.232 起正式产物压缩、调试版保持
+ * 可读）。压缩只改写法不改语义：banner/footer 为 esbuild 原样插入，不受 minify 影响。
  */
 import esbuild from 'esbuild';
 import fs from 'fs';
@@ -90,6 +91,11 @@ function buildOptions(debug, forWatch) {
     format: 'iife',
     target: ['es2018'],
     charset: 'utf8', // 中文文案/CSS 保持原样，不做 \uXXXX 转义
+    // 0.9.232：正式产物开压缩（1.02MB→≈724KB，-29%）——@match www.acfun.cn/*，每开一个站点
+    // 页面都要解析这份脚本，压缩即页面少解析约三成。调试版保持可读（DevTools 读 __dbg/对照源码）。
+    // userscript 头/@version/内嵌 hls 串在 banner 里由 esbuild 原样插入（压缩前后实测核对）；
+    // check-release 已钉「release < debug×0.9」尺寸断言，防止被悄悄摘掉
+    minify: !debug,
     outfile: debug ? 'acfun-svfeed.debug.user.js' : 'acfun-svfeed.user.js',
     // __ACSV_VERSION__ 带 -debug 后缀（0.9.216）：stats.ver 是「装的到底是哪一版」的自证
     // 通道。此前 debug/release 注入同一个裸 V，读数分不出构建类型（0.9.216 实机排查撞上：
