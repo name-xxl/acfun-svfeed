@@ -1,9 +1,9 @@
 import { CFG } from './cfg.js';
 import { ICONS, PLAYER_ICONS } from './styles.js';
 import { el, elHtml, toast, fmtTime, isCinema, toggleWebFull, toggleWindowFull, a11y, mountIcon, closeOnOutsideClick } from './ui.js';
-import { root, scroller, slideAt, isOvlSlide } from './state.js';
+import { root, slideAt, isOvlSlide, videoTarget, playItem } from './state.js';
 import { FeedStore } from './feedstore.js';
-import { pb, togglePlayGesture, toggleMuteGesture, applyLoop, setVolume, isMuted } from './playback.js';
+import { pb, togglePlayGesture, toggleMuteGesture, applyLoop, setVolume, isMuted, applyRate } from './playback.js';
 import { dmEnabled, setDmEnabled, onPlaying as dmOnPlaying, createDmBox as dmCreateBox } from './danmaku.js';
 import { switchQuality, attachVideo, detachSession } from './attach.js';
 import { AppAPI, spriteCueAt } from './appapi.js'; // 悬停缩略图（0.9.200）
@@ -20,10 +20,21 @@ function applyDmState(sl, item) {
   if (on && v) dmOnPlaying(sl, item, v);
   else if (sl._dmLayer) sl._dmLayer.stop();
 }
-// 设置面板改弹幕开关 → 当前条即时同步（面板是模态：开着时看不见控制栏，关掉后必须已就位）
-onChange('dmDefault', function () {
+// 设置面板改弹幕开关 → **当前生效条目**即时同步（面板是模态：开着时看不见控制栏，关掉后
+// 必须已就位）。"当前"解析（0.9.235）：播放层开着打层内那条——videoTarget 有钩子就不回落
+// 竖刷（层内 video 不在竖刷流里，按 FeedStore.current 查会打错条、层内开关变死键）
+function activeDmContext() {
+  var tf = videoTarget();
+  if (tf) {
+    var v = tf();
+    return { slide: (v && v.closest) ? v.closest('.acsv-slide') : null, item: playItem };
+  }
   var idx = FeedStore.current;
-  applyDmState(idx >= 0 ? slideAt(idx) : null, idx >= 0 ? FeedStore.items[idx] : null);
+  return { slide: idx >= 0 ? slideAt(idx) : null, item: idx >= 0 ? FeedStore.items[idx] : null };
+}
+onChange('dmDefault', function () {
+  var c = activeDmContext();
+  applyDmState(c.slide, c.item);
 });
 
 export function showControls(slide) {
@@ -33,6 +44,13 @@ export function showControls(slide) {
     // 音量滑杆开着（悬停/拖动/滚轮调节中）：保活重排，不随闲置隐藏——否则静止 2.5s
     // 整条栏连滑杆一起消失（0.9.215 用户实报「音量条不常驻」）
     if (slide._volOpen) { showControls(slide); return; }
+    // 栏内输入框聚焦中（弹幕框/评论输入条）：保活——栏一收输入框变 visibility:hidden，
+    // 打长弹幕/输入法选词超 2.5s 就成盲打（0.9.235）
+    var ae = document.activeElement;
+    if (ae && slide.contains(ae) && (ae.tagName === 'TEXTAREA' || (ae.tagName === 'INPUT' && ae.type !== 'file'))) {
+      showControls(slide);
+      return;
+    }
     var v = slide.querySelector('video');
     if (v && !v.paused) slide.dataset.ctl = '';
   }, CFG.time.ctlIdle);
@@ -167,10 +185,7 @@ export function buildControls(slide, idx, item) {
     },
     function (i) {
       pb.playRate = CFG.rate[i];
-      if (scroller) {
-        var vs = scroller.querySelectorAll('video');
-        Array.prototype.forEach.call(vs, function (v) { v.playbackRate = pb.playRate; });
-      }
+      applyRate(); // 全舞台（含层内）——只扫 scroller 时层内倍速菜单是死键（0.9.235）
       toast('播放速度：' + pb.playRate + 'x');
     },
     '切换播放速度'

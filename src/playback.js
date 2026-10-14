@@ -26,6 +26,14 @@ export function applyLoop(slide, video) {
   video.loop = !pb.autoplayNext || (isOvlSlide(slide) && ovlNoNext());
 }
 
+// 全局倍速落全舞台（0.9.235）：层内 slide 挂在视图体下、不在 scroller 里——倍速菜单与长按
+// 恢复只扫 scroller 时层内视频全部打空（与 0.9.183 连播键同款漂移）。root 全遍历；新建
+// video 由 player.initVideo 按 pb.playRate 同步（既有）
+export function applyRate() {
+  if (!root) return;
+  Array.prototype.forEach.call(root.querySelectorAll('video'), function (v) { v.playbackRate = pb.playRate; });
+}
+
 // mount 时复位会话内手势/提示状态；静音偏好从设置层取（0.9.89 收编：老键 acsv-sound-on 首读收养）
 export function resetForMount() {
   pb.firstGestureSeen = false;

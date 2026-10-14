@@ -116,6 +116,56 @@ await wait(800);
 rec('play-quality-isolated', qi.length > 1
   && feed().items.map(function (x) { return x.qIdx; }).join(',') === qBefore,
   'before=' + qBefore + ' after=' + feed().items.map(function (x) { return x.qIdx; }).join(','));
+// 0.9.235 层内控制三件（层内 slide 不在 scroller 里，旧写法全打空）：
+// ① 倍速菜单改层内视频（菜单按钮与清晰度同 class，按文案「倍速」找）
+var ovlV2 = q('.acsv-slide[data-ovl="1"] video');
+var rateBtn = null;
+Array.prototype.forEach.call(document.querySelectorAll('.acsv-slide[data-ovl="1"] .acsv-cq'), function (b) {
+  if (/^倍速/.test(b.textContent || '')) rateBtn = b;
+});
+rec('ctl-rate-btn', !!rateBtn, rateBtn ? rateBtn.textContent : 'none');
+if (rateBtn && ovlV2) {
+  rateBtn.click();
+  var rateItems = document.querySelectorAll('.acsv-qmenu .acsv-qitem');
+  var pick2 = null;
+  Array.prototype.forEach.call(rateItems, function (it) { if (/^2\.0x/.test(it.textContent)) pick2 = it; });
+  if (pick2) pick2.click();
+  await wait(200);
+  rec('ctl-layer-rate-applied', ovlV2.playbackRate === 2, 'rate=' + ovlV2.playbackRate);
+  rateBtn.click(); // 还原 1x（重开菜单后重取条目——旧引用已随菜单移除失联）
+  await wait(80);
+  var pick1 = null;
+  Array.prototype.forEach.call(document.querySelectorAll('.acsv-qmenu .acsv-qitem'), function (it) {
+    if (/^1\.0x/.test(it.textContent)) pick1 = it;
+  });
+  if (pick1) pick1.click();
+  await wait(200);
+  rec('ctl-layer-rate-restored', ovlV2.playbackRate === 1, 'rate=' + ovlV2.playbackRate);
+}
+// ② 长按 →2x、松手恢复（恢复走 applyRate 全舞台）
+window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+await wait(500); // > hold(350ms) 进入长按态
+rec('ctl-hold-2x', !!(ovlV2 && ovlV2.playbackRate === 2), 'rate=' + (ovlV2 && ovlV2.playbackRate));
+window.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowRight' }));
+await wait(200);
+rec('ctl-hold-restored', !!(ovlV2 && ovlV2.playbackRate === 1), 'rate=' + (ovlV2 && ovlV2.playbackRate));
+// ③ 层内弹幕开关：只翻层内按钮/图层（播放层开着时"当前条"=层内那条，不得打 FeedStore.current）
+var ovlDmBtn = q('.acsv-slide[data-ovl="1"] .acsv-cdm');
+rec('ctl-dm-btn', !!ovlDmBtn);
+if (ovlDmBtn) {
+  var ovlSlide = q('.acsv-slide[data-ovl="1"]');
+  var running0 = !!(ovlSlide._dmLayer && ovlSlide._dmLayer.isRunning && ovlSlide._dmLayer.isRunning());
+  ovlDmBtn.click();
+  await wait(250);
+  var running1 = !!(ovlSlide._dmLayer && ovlSlide._dmLayer.isRunning && ovlSlide._dmLayer.isRunning());
+  rec('ctl-dm-layer-off', !ovlDmBtn.classList.contains('on') && running0 && !running1,
+    'on=' + ovlDmBtn.classList.contains('on') + ' run=' + running0 + '->' + running1);
+  ovlDmBtn.click();
+  await wait(250);
+  rec('ctl-dm-layer-on', ovlDmBtn.classList.contains('on')
+    && !!(ovlSlide._dmLayer && ovlSlide._dmLayer.isRunning && ovlSlide._dmLayer.isRunning()),
+    'on=' + ovlDmBtn.classList.contains('on'));
+}
 var backEl = q('.acsv-back-btn'); // 顶栏「向左返回」=回来源（此例来源是竖刷）
 if (backEl) backEl.click();
 rec('play-back', !!(await waitFor(function () {
@@ -717,5 +767,34 @@ await wait(400);
 rec('dmime-ime-enter-blocked', calls === 0 && inp.value === '组合期回车不该发送', 'calls=' + calls);
 inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 rec('dmime-real-enter-sends', !!(await waitFor(function () { return calls > 0; }, 6000)), 'calls=' + calls);
+  };
+  // ---- fs-guard（已撤，留注防重走）：0.9.235 曾疑「层内 fullscreenchange 把隐藏的竖刷
+  // 回正归零」而加 stageVisible 守卫——摘修复反跑实测**无法转红**：scroller display:none 时
+  // 写 scrollTop 是空操作、关层恢复后位置原样。按「不写猜测性实现」撤掉守卫与用例。
+  // ---- ctl-typing（0.9.235：栏内输入框聚焦中，控制栏闲置不得收） ----
+  C['ctl-typing'] = async function (h) {
+    var rec = h.rec, slide = h.slide, wait = h.wait, waitFor = h.waitFor;
+// 弹幕输入框聚焦（home 源才有弹幕框）→ 越过 ctlIdle(2500ms) 栏必须仍在；失焦后闲置照旧收起
+rec('ctlt-playing', !!(await waitFor(function () {
+  var s = slide(0), v = s && s.querySelector('video');
+  return !!(v && v.duration > 0 && !v.paused && s.dataset.state !== 'error');
+}, 25000)));
+var s = slide(0);
+var inp = s.querySelector('.acsv-dm-input');
+rec('ctlt-input', !!inp);
+if (!inp) return;
+s.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
+await wait(120);
+rec('ctlt-shown', s.dataset.ctl === '1', 'ctl=' + s.dataset.ctl);
+inp.focus();
+// 持续采样 4s（> ctlIdle 2500ms）：聚焦期栏必须全程在场。不用"blur 后必收"做负例——
+// 视频 5s 循环的 playing→showControls 会周期性重新点亮，读单点会随机假红/假绿
+var stayed = true;
+for (var i = 0; i < 20; i++) {
+  await wait(200);
+  if (s.dataset.ctl !== '1') stayed = false;
+}
+rec('ctlt-keepalive', stayed, 'ctl=' + s.dataset.ctl);
+inp.blur();
   };
 })();

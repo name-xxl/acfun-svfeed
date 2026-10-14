@@ -5,6 +5,26 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.235（2026-10-14）· UI/Bug 专项 Wave 1 第二组：播放层控制打空 + 输入保活
+
+- **播放层控制三件套打空**（层内 slide 不在 scroller 里，三处旧写法只扫 scroller/FeedStore）：
+  - 倍速菜单（controls.js）：层内选倍速只改按钮与 toast，画面码率不变；修法＝`playback.applyRate`
+    全舞台单源（root 遍历；与 0.9.183 连播键同款先例）。
+  - 长按→松手恢复（input.js）：层内长按后松手不恢复原速（toast 宣称已恢复）；同走 applyRate。
+  - 弹幕开关（controls.js）：按钮只翻全局开关，onChange 回调按 `FeedStore.current` 找"当前条"——
+    播放层开着时打的是背后隐藏的竖刷条（层内开关变死键、图层不停）；修法＝`activeDmContext`
+    经 `state.videoTarget`/`playItem` 中介解析（有层打层内、不回落竖刷）。
+- **弹幕输入聚焦中控制栏保活**（controls.js）：隐藏判据只有"视频在播"，打长弹幕/输入法选词超
+  2.5s 整条栏连输入框一起隐藏＝盲打；修法＝焦点在 slide 内可编辑元素时保活重排（同 _volOpen 体例）。
+- **撤一条未成立的猜测**：普查疑「层内 fullscreenchange 把隐藏的竖刷回正归零」——探针实测
+  scroller display:none 时写 scrollTop 是空操作、关层后位置原样（反跑无法转红），按「不写猜测性
+  实现」撤掉守卫与用例（案例代码处留注防重走）。
+- **测试证据**：play-deep +4 断言（倍速生效/还原、长按 2x、松手恢复、层内弹幕开关连带图层
+  停/起）；新场景 `ctl-typing`（聚焦 4s 持续采样保活，负例避开视频循环 playing 的重亮干扰）。
+  摘修复反跑：ctl-layer-rate-applied（rate=1）/ctl-hold-restored（rate=2）/ctl-dm-layer-off
+  （on=true run=true→true）/ctlt-keepalive（ctl=）四处全红后还原复绿。全量 lint/check +
+  310 单测 + 63/63 场景全绿。
+
 ### 0.9.234（2026-10-14）· UI/Bug 专项 Wave 1 第一组：输入链与上报链八件
 
 来源：全仓 UI 隐患普查（4 路源码扫描 + 实测探针）后的修复清单第一组。每件都配 harness

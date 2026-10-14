@@ -4,7 +4,7 @@ import { refreshFullBtns, refreshPipBtn } from './controls.js';
 import { root, scroller, slideAt, playItem } from './state.js';
 import { isFeedRoute } from './route.js';
 import { FeedStore } from './feedstore.js';
-import { pb, currentVideo, sweepVideos, togglePlayGesture, toggleMuteGesture } from './playback.js';
+import { pb, currentVideo, sweepVideos, togglePlayGesture, toggleMuteGesture, applyRate } from './playback.js';
 import { overlayTop, overlayClose } from './overlay.js';
 import { getSetting } from './settings.js';
 
@@ -159,13 +159,10 @@ export function setupInputHandlers(api) {
       pb.seekHold.timer = null;
       if (v && v.duration) v.currentTime = Math.min(v.duration, v.currentTime + getSetting('seekStep'));
     } else if (pb.seekHold.active) {
-      // 长按结束：恢复原速
+      // 长按结束：恢复原速（全舞台，含层内——只扫 scroller 时层内长按松手不恢复，0.9.235）
       pb.seekHold.active = false;
       pb.playRate = pb.seekHold.prevRate;
-      if (scroller) {
-        var vs = scroller.querySelectorAll('video');
-        Array.prototype.forEach.call(vs, function (x) { x.playbackRate = pb.playRate; });
-      }
+      applyRate();
       toast('恢复 ' + pb.playRate.toFixed(1) + 'x');
     }
   };

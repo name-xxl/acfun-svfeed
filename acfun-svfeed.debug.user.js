@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.234-debug
+// @version      0.9.235-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.234-debug" : "",
+          ver: true ? "0.9.235-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -8745,6 +8745,12 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   function applyLoop(slide, video) {
     video.loop = !pb.autoplayNext || isOvlSlide(slide) && ovlNoNext();
   }
+  function applyRate() {
+    if (!root) return;
+    Array.prototype.forEach.call(root.querySelectorAll("video"), function(v) {
+      v.playbackRate = pb.playRate;
+    });
+  }
   function resetForMount() {
     pb.firstGestureSeen = false;
     pb.soundHintShown = false;
@@ -9765,15 +9771,29 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     if (on && v) onPlaying(sl, item, v);
     else if (sl._dmLayer) sl._dmLayer.stop();
   }
-  onChange("dmDefault", function() {
+  function activeDmContext() {
+    var tf = videoTarget();
+    if (tf) {
+      var v = tf();
+      return { slide: v && v.closest ? v.closest(".acsv-slide") : null, item: playItem };
+    }
     var idx = FeedStore.current;
-    applyDmState(idx >= 0 ? slideAt(idx) : null, idx >= 0 ? FeedStore.items[idx] : null);
+    return { slide: idx >= 0 ? slideAt(idx) : null, item: idx >= 0 ? FeedStore.items[idx] : null };
+  }
+  onChange("dmDefault", function() {
+    var c = activeDmContext();
+    applyDmState(c.slide, c.item);
   });
   function showControls(slide) {
     if (slide.dataset.ctl !== "1") slide.dataset.ctl = "1";
     clearTimeout(slide._ctlTimer);
     slide._ctlTimer = setTimeout(function() {
       if (slide._volOpen) {
+        showControls(slide);
+        return;
+      }
+      var ae = document.activeElement;
+      if (ae && slide.contains(ae) && (ae.tagName === "TEXTAREA" || ae.tagName === "INPUT" && ae.type !== "file")) {
         showControls(slide);
         return;
       }
@@ -9911,12 +9931,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       },
       function(i) {
         pb.playRate = CFG.rate[i];
-        if (scroller) {
-          var vs = scroller.querySelectorAll("video");
-          Array.prototype.forEach.call(vs, function(v) {
-            v.playbackRate = pb.playRate;
-          });
-        }
+        applyRate();
         toast("播放速度：" + pb.playRate + "x");
       },
       "切换播放速度"
@@ -12771,7 +12786,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.234-debug" : "");
+    return normVer(true ? "0.9.235-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -13887,12 +13902,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       } else if (pb.seekHold.active) {
         pb.seekHold.active = false;
         pb.playRate = pb.seekHold.prevRate;
-        if (scroller) {
-          var vs = scroller.querySelectorAll("video");
-          Array.prototype.forEach.call(vs, function(x) {
-            x.playbackRate = pb.playRate;
-          });
-        }
+        applyRate();
         toast("恢复 " + pb.playRate.toFixed(1) + "x");
       }
     };
@@ -16217,7 +16227,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.234-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.235-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
