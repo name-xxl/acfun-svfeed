@@ -116,14 +116,19 @@ var RAW_CSS = ''
   // 两级全屏 · 影院态（0.9.197）：隐自身 UI（左栏/顶栏/右栏/信息区），只剩画面+弹幕+控制栏。
   // 抽屉不隐（是用户主动开的浮层）；退出靠 Esc/按钮/F 梯子（顶栏隐了，故必须有别的出口）
   + '#acsv-root.acsv-cinema .acsv-dock,#acsv-root.acsv-cinema .acsv-top,'
-  + '#acsv-root.acsv-cinema .acsv-side,#acsv-root.acsv-cinema .acsv-info{display:none}'
-  + '.acsv-desc{font-size:12px;line-height:1.65;color:#cfd3da;white-space:pre-line;text-shadow:0 1px 3px rgba(0,0,0,.6);'
+  + '#acsv-root.acsv-cinema .acsv-side,#acsv-root.acsv-cinema .acsv-info,#acsv-root.acsv-cinema .acsv-info-scrim{display:none}'
+  + '.acsv-desc{font-size:13px;line-height:1.65;color:#d7dae1;white-space:pre-line;overflow-wrap:anywhere;'
+  + 'text-shadow:0 1px 3px rgba(0,0,0,.6);'
   + 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}'
   + '.acsv-descwrap.open .acsv-desc{display:block;-webkit-line-clamp:unset;max-height:34vh;overflow-y:auto;'
   + 'scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.3) transparent}'
-  + '.acsv-descm{display:inline-block;margin-top:3px;font-size:12px;color:#cfd3da;opacity:.85;cursor:pointer;'
-  + 'text-decoration:none;text-shadow:0 1px 3px rgba(0,0,0,.6)}'
-  + '.acsv-descm:hover{opacity:1;text-decoration:underline}'
+  + '.acsv-descm{display:inline-block;margin-top:6px;font-size:12px;color:#e8eaee;opacity:.92;cursor:pointer;'
+  + 'border:1px solid rgba(255,255,255,.28);background:rgba(0,0,0,.3);border-radius:999px;padding:2px 12px;'
+  + 'font-family:inherit;text-shadow:0 1px 3px rgba(0,0,0,.6)}'
+  + '.acsv-descm:hover{opacity:1;background:rgba(0,0,0,.5);text-decoration:underline}'
+  // 简介可读性衬底（0.9.237 案 B 定稿：全宽轻衬底 .42）：只在有简介时显示（syncDesc 开关），影院态随信息区隐藏
+  + '.acsv-info-scrim{position:absolute;left:0;right:0;bottom:0;height:42%;z-index:14;pointer-events:none;'
+  + 'background:linear-gradient(transparent,rgba(0,0,0,.42))}'
   // 音量：静音键 + 悬停展开的**竖条**滑杆（0.9.199 用户裁决「做成竖的」）。
   // 竖轨自下而上＝声音变大；填充/手柄/数字由 playback.refreshMuteIcons 按 pb.volume 同步。
   // 显隐 0.9.215 起收归 JS（controls 的 pointerenter/leave + 延时关闭）：纯 CSS :hover 在
@@ -189,7 +194,10 @@ var RAW_CSS = ''
   + '.acsv-bubble.has-thumb{padding:4px}'
   + '.acsv-bubthumb{background-repeat:no-repeat;border-radius:5px;margin-bottom:3px;background-color:rgba(255,255,255,.06)}'
   + '.acsv-bubtime{font-size:11px;color:#e8eaee;text-align:center}'
-  + '.acsv-ctl-row{display:flex;align-items:center;gap:6px}'
+  + '.acsv-ctl-row{display:flex;align-items:center;gap:6px;min-width:0}'
+  // 0.9.237 窄视口横滑（案 B）：容器不滚（滚动容器会裁掉清晰度/倍速下拉菜单），
+  // 平移只作用 strip 的 transform；宽屏 strip=max(100%, 内容) ⇒ 行为与旧单行一致
+  + '.acsv-ctl-strip{display:flex;align-items:center;gap:6px;min-width:100%;width:max-content}'
   + '.acsv-cbtn{border:none;background:none;color:#fff;cursor:pointer;height:32px;min-width:32px;padding:0 6px;'
   + 'border-radius:6px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:13px;'
   + 'font-family:inherit;transition:background .15s;white-space:nowrap;flex:none}'
@@ -219,11 +227,13 @@ var RAW_CSS = ''
   // 抽屉贴右、dock 贴左，两者不重叠——层级反转只保证「后开的浮层在上」与 overlay 栈序一致
   // 抽屉滑入骨架（0.9.75 抽离）：评论/私信两抽屉共用同一条规则（此前逐字重复两份，只差
   // 宽度默认值与背景透明度 .96/.97）；各自的差异写在共享规则**之后**（同权重靠后生效）
-  + '.acsv-msgdrawer{z-index:62}' // 私信抽屉与详情面板（z61）共存时浮于其上（0.9.105 裁决）；评论抽屉仍 58
   + '.acsv-drawer,.acsv-msgdrawer{position:absolute;top:0;right:0;bottom:0;z-index:58;display:flex;flex-direction:column;'
   + 'background:rgba(22,22,27,.96);backdrop-filter:blur(12px);border-left:1px solid rgba(255,255,255,.09);'
   + 'transform:translateX(100%);transition:transform var(--acsv-dw-t) ease}'
   + '.acsv-drawer.open,.acsv-msgdrawer.open{transform:translateX(0)}'
+  // 0.9.237 修正：62 必须写在共享规则**之后**（同权重靠后生效）——原声明在前被 58 压掉，
+  // 详情面板（z61）上开「捎句话」的抽屉被盖住且点不到。评论抽屉仍 58
+  + '.acsv-msgdrawer{z-index:62}'
   + '.acsv-drawer{width:var(--acsv-dw,412px)}'
   + '.acsv-drawer-head{display:flex;align-items:center;gap:10px;padding:14px 16px;font-size:15px;font-weight:600;'
   + 'border-bottom:1px solid rgba(255,255,255,.09);flex:none}'
@@ -345,7 +355,8 @@ var RAW_CSS = ''
   + '.acsv-emot-foot{display:flex;align-items:center;gap:6px;margin-top:6px;padding:4px 6px;'
   + 'background:rgba(255,255,255,.05);border-radius:8px}'
   + '.acsv-emot-strip{display:flex;align-items:center;gap:8px;overflow-x:auto;flex:1;min-width:0;'
-  + 'padding:2px;scrollbar-width:none}'
+  + 'padding:2px;scrollbar-width:none;cursor:grab}'
+  + '.acsv-emot-strip:active{cursor:grabbing}'
   + '.acsv-emot-strip::-webkit-scrollbar{display:none}'
   + '.acsv-emot-thumb{flex:none;width:32px;height:32px;padding:0;border:2px solid transparent;'
   + 'border-radius:8px;background:none;cursor:pointer;line-height:0}'
@@ -1521,8 +1532,9 @@ var RAW_CSS = ''
   + '.acsv-me-cc{border:none;border-radius:18px;padding:8px 18px;background:rgba(255,255,255,.12);color:#cfd3da;'
   + 'font-size:14px;cursor:pointer;font-family:inherit}'
   // 面板在模态里走**文档流**（0.9.226 修「面板跑到屏幕底部」：absolute+bottom:57px 是抽屉口径，
-  // 在模态内会锚到浮层根），限高可滚
-  + '.acsv-me .acsv-me-emot{position:static;left:auto;right:auto;bottom:auto;border-top:1px solid rgba(255,255,255,.09);'
+  // 在模态内会锚到浮层根）。0.9.237：改 position:relative——仍在文档流，但恢复绝对定位锚点，
+  // 悬停大图预览（absolute）不再逃到浮层根（实测曾跑到屏幕左上 (82,4)）；限高可滚
+  + '.acsv-me .acsv-me-emot{position:relative;left:auto;right:auto;bottom:auto;border-top:1px solid rgba(255,255,255,.09);'
   + 'background:rgba(0,0,0,.25);max-height:220px;flex:none}'
   // 浅色外壳（modal 自着色；内部件由 .acsv-mp 的既有规则接管）
   + '.acsv-me.acsv-mp{background:#fff;border-color:#e5e5e5;box-shadow:0 18px 50px rgba(0,0,0,.28)}'

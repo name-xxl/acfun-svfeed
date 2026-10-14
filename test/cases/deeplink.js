@@ -37,23 +37,15 @@ if (CASE === 'deeplink-miss') {
       var f = feed();
       return f && f.items[0] && f.items[0].desc === '第一行简介\n第二行简介';
     }, 8000)), 'desc=' + JSON.stringify((feed().items[0] || {}).desc));
-    // 0.9.196 案 A：简介渲染到标题下方（clamp 2 行）+「展开简介」可点开/收起
+    // 0.9.196 案 A：简介渲染到标题下方（clamp 2 行）。0.9.237 条件挂载：能放下的两行短简介
+    // 不再出「展开」假按钮（有溢出才挂的行为由 homeswitch 的长简介钉）；衬底随简介在场
     rec('deep-desc-ui', !!(await waitFor(function () {
       var d = q('.acsv-slide .acsv-desc');
-      return !!d && /第一行简介/.test(d.textContent || '') && !!q('.acsv-slide .acsv-descm');
-    }, 8000)), 'txt=' + ((q('.acsv-slide .acsv-desc') || {}).textContent || '').slice(0, 20));
-    rec('deep-desc-toggle', (function () {
-      var box = q('.acsv-slide .acsv-descwrap'), more = q('.acsv-slide .acsv-descm');
-      if (!box || !more) return false;
-      more.click();
-      var opened = box.classList.contains('open') && /收起/.test(more.textContent);
-      more.click();
-      var closed = !box.classList.contains('open') && /展开/.test(more.textContent);
-      return opened && closed;
-    })(), (function () {
-      var more = q('.acsv-slide .acsv-descm');
-      return more ? more.textContent : 'none';
-    })());
+      return !!d && /第一行简介/.test(d.textContent || '') && !q('.acsv-slide .acsv-descm');
+    }, 8000)), 'txt=' + ((q('.acsv-slide .acsv-desc') || {}).textContent || '').slice(0, 20)
+      + ' hasBtn=' + !!q('.acsv-slide .acsv-descm'));
+    rec('deep-desc-short-no-toggle', !!q('.acsv-slide .acsv-info-scrim'),
+      'scrim=' + !!q('.acsv-slide .acsv-info-scrim'));
   }
   // 源随链接走：a → 推荐 / v → 小视频（deeplink-switch 的源记忆故意留 home，必须被压过）
   rec('deep-source', segOn() === (CASE === 'deeplink-ac' ? '推荐' : '小视频'), 'seg=' + segOn());
@@ -131,23 +123,15 @@ if (CASE === 'deeplink-miss') {
       var f = feed();
       return f && f.items[0] && f.items[0].desc === '第一行简介\n第二行简介';
     }, 8000)), 'desc=' + JSON.stringify((feed().items[0] || {}).desc));
-    // 0.9.196 案 A：简介渲染到标题下方（clamp 2 行）+「展开简介」可点开/收起
+    // 0.9.196 案 A：简介渲染到标题下方（clamp 2 行）。0.9.237 条件挂载：能放下的两行短简介
+    // 不再出「展开」假按钮（有溢出才挂的行为由 homeswitch 的长简介钉）；衬底随简介在场
     rec('deep-desc-ui', !!(await waitFor(function () {
       var d = q('.acsv-slide .acsv-desc');
-      return !!d && /第一行简介/.test(d.textContent || '') && !!q('.acsv-slide .acsv-descm');
-    }, 8000)), 'txt=' + ((q('.acsv-slide .acsv-desc') || {}).textContent || '').slice(0, 20));
-    rec('deep-desc-toggle', (function () {
-      var box = q('.acsv-slide .acsv-descwrap'), more = q('.acsv-slide .acsv-descm');
-      if (!box || !more) return false;
-      more.click();
-      var opened = box.classList.contains('open') && /收起/.test(more.textContent);
-      more.click();
-      var closed = !box.classList.contains('open') && /展开/.test(more.textContent);
-      return opened && closed;
-    })(), (function () {
-      var more = q('.acsv-slide .acsv-descm');
-      return more ? more.textContent : 'none';
-    })());
+      return !!d && /第一行简介/.test(d.textContent || '') && !q('.acsv-slide .acsv-descm');
+    }, 8000)), 'txt=' + ((q('.acsv-slide .acsv-desc') || {}).textContent || '').slice(0, 20)
+      + ' hasBtn=' + !!q('.acsv-slide .acsv-descm'));
+    rec('deep-desc-short-no-toggle', !!q('.acsv-slide .acsv-info-scrim'),
+      'scrim=' + !!q('.acsv-slide .acsv-info-scrim'));
   }
   // 源随链接走：a → 推荐 / v → 小视频（deeplink-switch 的源记忆故意留 home，必须被压过）
   rec('deep-source', segOn() === (CASE === 'deeplink-ac' ? '推荐' : '小视频'), 'seg=' + segOn());
@@ -225,23 +209,15 @@ if (CASE === 'deeplink-miss') {
       var f = feed();
       return f && f.items[0] && f.items[0].desc === '第一行简介\n第二行简介';
     }, 8000)), 'desc=' + JSON.stringify((feed().items[0] || {}).desc));
-    // 0.9.196 案 A：简介渲染到标题下方（clamp 2 行）+「展开简介」可点开/收起
+    // 0.9.196 案 A：简介渲染到标题下方（clamp 2 行）。0.9.237 条件挂载：能放下的两行短简介
+    // 不再出「展开」假按钮（有溢出才挂的行为由 homeswitch 的长简介钉）；衬底随简介在场
     rec('deep-desc-ui', !!(await waitFor(function () {
       var d = q('.acsv-slide .acsv-desc');
-      return !!d && /第一行简介/.test(d.textContent || '') && !!q('.acsv-slide .acsv-descm');
-    }, 8000)), 'txt=' + ((q('.acsv-slide .acsv-desc') || {}).textContent || '').slice(0, 20));
-    rec('deep-desc-toggle', (function () {
-      var box = q('.acsv-slide .acsv-descwrap'), more = q('.acsv-slide .acsv-descm');
-      if (!box || !more) return false;
-      more.click();
-      var opened = box.classList.contains('open') && /收起/.test(more.textContent);
-      more.click();
-      var closed = !box.classList.contains('open') && /展开/.test(more.textContent);
-      return opened && closed;
-    })(), (function () {
-      var more = q('.acsv-slide .acsv-descm');
-      return more ? more.textContent : 'none';
-    })());
+      return !!d && /第一行简介/.test(d.textContent || '') && !q('.acsv-slide .acsv-descm');
+    }, 8000)), 'txt=' + ((q('.acsv-slide .acsv-desc') || {}).textContent || '').slice(0, 20)
+      + ' hasBtn=' + !!q('.acsv-slide .acsv-descm'));
+    rec('deep-desc-short-no-toggle', !!q('.acsv-slide .acsv-info-scrim'),
+      'scrim=' + !!q('.acsv-slide .acsv-info-scrim'));
   }
   // 源随链接走：a → 推荐 / v → 小视频（deeplink-switch 的源记忆故意留 home，必须被压过）
   rec('deep-source', segOn() === (CASE === 'deeplink-ac' ? '推荐' : '小视频'), 'seg=' + segOn());
@@ -319,23 +295,15 @@ if (CASE === 'deeplink-miss') {
       var f = feed();
       return f && f.items[0] && f.items[0].desc === '第一行简介\n第二行简介';
     }, 8000)), 'desc=' + JSON.stringify((feed().items[0] || {}).desc));
-    // 0.9.196 案 A：简介渲染到标题下方（clamp 2 行）+「展开简介」可点开/收起
+    // 0.9.196 案 A：简介渲染到标题下方（clamp 2 行）。0.9.237 条件挂载：能放下的两行短简介
+    // 不再出「展开」假按钮（有溢出才挂的行为由 homeswitch 的长简介钉）；衬底随简介在场
     rec('deep-desc-ui', !!(await waitFor(function () {
       var d = q('.acsv-slide .acsv-desc');
-      return !!d && /第一行简介/.test(d.textContent || '') && !!q('.acsv-slide .acsv-descm');
-    }, 8000)), 'txt=' + ((q('.acsv-slide .acsv-desc') || {}).textContent || '').slice(0, 20));
-    rec('deep-desc-toggle', (function () {
-      var box = q('.acsv-slide .acsv-descwrap'), more = q('.acsv-slide .acsv-descm');
-      if (!box || !more) return false;
-      more.click();
-      var opened = box.classList.contains('open') && /收起/.test(more.textContent);
-      more.click();
-      var closed = !box.classList.contains('open') && /展开/.test(more.textContent);
-      return opened && closed;
-    })(), (function () {
-      var more = q('.acsv-slide .acsv-descm');
-      return more ? more.textContent : 'none';
-    })());
+      return !!d && /第一行简介/.test(d.textContent || '') && !q('.acsv-slide .acsv-descm');
+    }, 8000)), 'txt=' + ((q('.acsv-slide .acsv-desc') || {}).textContent || '').slice(0, 20)
+      + ' hasBtn=' + !!q('.acsv-slide .acsv-descm'));
+    rec('deep-desc-short-no-toggle', !!q('.acsv-slide .acsv-info-scrim'),
+      'scrim=' + !!q('.acsv-slide .acsv-info-scrim'));
   }
   // 源随链接走：a → 推荐 / v → 小视频（deeplink-switch 的源记忆故意留 home，必须被压过）
   rec('deep-source', segOn() === (CASE === 'deeplink-ac' ? '推荐' : '小视频'), 'seg=' + segOn());
@@ -413,23 +381,15 @@ if (CASE === 'deeplink-miss') {
       var f = feed();
       return f && f.items[0] && f.items[0].desc === '第一行简介\n第二行简介';
     }, 8000)), 'desc=' + JSON.stringify((feed().items[0] || {}).desc));
-    // 0.9.196 案 A：简介渲染到标题下方（clamp 2 行）+「展开简介」可点开/收起
+    // 0.9.196 案 A：简介渲染到标题下方（clamp 2 行）。0.9.237 条件挂载：能放下的两行短简介
+    // 不再出「展开」假按钮（有溢出才挂的行为由 homeswitch 的长简介钉）；衬底随简介在场
     rec('deep-desc-ui', !!(await waitFor(function () {
       var d = q('.acsv-slide .acsv-desc');
-      return !!d && /第一行简介/.test(d.textContent || '') && !!q('.acsv-slide .acsv-descm');
-    }, 8000)), 'txt=' + ((q('.acsv-slide .acsv-desc') || {}).textContent || '').slice(0, 20));
-    rec('deep-desc-toggle', (function () {
-      var box = q('.acsv-slide .acsv-descwrap'), more = q('.acsv-slide .acsv-descm');
-      if (!box || !more) return false;
-      more.click();
-      var opened = box.classList.contains('open') && /收起/.test(more.textContent);
-      more.click();
-      var closed = !box.classList.contains('open') && /展开/.test(more.textContent);
-      return opened && closed;
-    })(), (function () {
-      var more = q('.acsv-slide .acsv-descm');
-      return more ? more.textContent : 'none';
-    })());
+      return !!d && /第一行简介/.test(d.textContent || '') && !q('.acsv-slide .acsv-descm');
+    }, 8000)), 'txt=' + ((q('.acsv-slide .acsv-desc') || {}).textContent || '').slice(0, 20)
+      + ' hasBtn=' + !!q('.acsv-slide .acsv-descm'));
+    rec('deep-desc-short-no-toggle', !!q('.acsv-slide .acsv-info-scrim'),
+      'scrim=' + !!q('.acsv-slide .acsv-info-scrim'));
   }
   // 源随链接走：a → 推荐 / v → 小视频（deeplink-switch 的源记忆故意留 home，必须被压过）
   rec('deep-source', segOn() === (CASE === 'deeplink-ac' ? '推荐' : '小视频'), 'seg=' + segOn());

@@ -76,6 +76,7 @@ const HARNESS_CASES = [
   { name: 'hls-blob' }, // 0.9.182 装载第三层：eval 秒拒 → Blob 脚本（页面 world）顶上且不下沉 CDN（debug 构建）
   { name: 'dm-ime', serial: true }, // 0.9.234 弹幕输入组合期守卫：组合 Enter 不发、真 Enter 照发（home 源）
   { name: 'ctl-typing', serial: true }, // 0.9.235 弹幕输入聚焦中控制栏保活（home 源）
+  { name: 'ctl-narrow', serial: true, viewport: { width: 540, height: 960 } }, // 0.9.237 窄底栏横滑（home 源）
   { name: 'waiting-error-race', serial: true }, // 0.9.234 waiting 定时器不得反盖 error（合成事件，debug 构建）
   { name: 'im-native' }, // 0.9.80 原生私信页增强装配（造站结构 + douga/info 桩，debug 构建）
   // 0.9.73 顶栏四界面复用 + 抽屉避让推广：抽屉×视图的避让几何/降级/Esc 链（imOpenSmoke 缝）

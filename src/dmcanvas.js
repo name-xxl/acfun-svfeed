@@ -449,14 +449,39 @@ function createLayer(slide, video) {
   // 设置变更后即时重排（0.9.202）：用最近一次入参重跑（重读设置 → 合并/屏蔽/轨道/字号全刷新）。
   // 「弹幕设置」面板改任何一项都调它；挂在对象上而非字面量里（字面量内引用不到同级属性）
   api.refresh = function () { api.setItems(lastRaw); };
+  // 强制几何重排（0.9.237）：align 平时只在 paint 里跑，暂停时 rVFC/rAF 双停 ⇒ 开评论抽屉/
+  // 拉窗口后画布停在旧几何（实测错位到恢复播放才跟上）。由抽屉开合事件与 resize 驱动（见下）
+  api.realign = function () {
+    align();
+    if (Math.abs(cssW - lastW) > 60) assignLanes(); // 尺寸突变同步重排轨道（与 paint 内同口径）
+  };
   return api;
 }
 
 // 当前窗口内所有存活图层（切 slide / 退出竖刷页时统一停）
 var layers = [];
 
+// 布局突变广播（0.9.237）：评论抽屉开合派发 acsv-layout-shift（零 import 边的跨模块提示）；
+// 窗口 resize 直接挂。只装一次（首个图层创建时），图层表为空时空转
+var realignArmed = false;
+export function realignAll() {
+  for (var i = 0; i < layers.length; i++) {
+    try { layers[i].realign(); } catch (e) { }
+  }
+}
+function armRealign() {
+  if (realignArmed) return;
+  realignArmed = true;
+  window.addEventListener('resize', realignAll);
+  document.addEventListener('acsv-layout-shift', function () {
+    realignAll();
+    setTimeout(realignAll, 330); // 抽屉 0.2s 过渡结束后再补一次（过渡中途 rect 是动画值）
+  });
+}
+
 export var DmCanvas = {
   create: function (slide, video) {
+    armRealign();
     var layer = createLayer(slide, video);
     layers.push(layer);
     return layer;
@@ -466,7 +491,9 @@ export var DmCanvas = {
     layers = [];
   },
   // harness 直采：让"真机形状的 ext JSON → 模型"这条解析链在浏览器里也被跑一遍（不只是单测）
-  parseAdvExt: parseAdvanced
+  parseAdvExt: parseAdvanced,
+  // harness 直采（0.9.237）：暂停态强制重排——dm-smoke 用它钉「不泵帧也要跟上几何变化」
+  realignAll: realignAll
 };
 
 // harness 模拟缝：绕过弹幕接口直接驱动图层做绘制冒烟（正式构建 testHook 为 noop）

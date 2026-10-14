@@ -213,8 +213,10 @@ export function renderEmotPanel(panel, insert) {
       var prr = panel.getBoundingClientRect(), br = b.getBoundingClientRect();
       var left = br.left - prr.left + br.width / 2 - 62;
       left = Math.max(6, Math.min(left, prr.width - 130)); // 横向钳在面板内
+      // 上方放得下就放上方；放不下（首行/贴顶）翻到条目下方（0.9.237，防盖住首行）
+      var above = br.top - prr.top - 132;
+      pr.style.top = (above < 4 ? br.bottom - prr.top + 10 : above) + 'px';
       pr.style.left = left + 'px';
-      pr.style.top = Math.max(4, br.top - prr.top - 132) + 'px';
       pr.style.display = 'block';
     });
     b.addEventListener('mouseleave', function () {
@@ -262,6 +264,23 @@ export function renderEmotPanel(panel, insert) {
   var next = el('button', 'acsv-emot-page', '›');
   prev.addEventListener('click', function (ev2) { ev2.stopPropagation(); strip.scrollBy({ left: -120, behavior: 'smooth' }); });
   next.addEventListener('click', function (ev2) { ev2.stopPropagation(); strip.scrollBy({ left: 120, behavior: 'smooth' }); });
+  // 底栏拖动横滚 + 竖向滚轮映射（0.9.237）：此前藏了滚动条又无拖拽，鼠标用户只能连点 ‹ ›
+  var dragS = null;
+  strip.addEventListener('pointerdown', function (ev2) {
+    dragS = { x: ev2.clientX, s: strip.scrollLeft };
+  });
+  strip.addEventListener('pointermove', function (ev2) {
+    if (!dragS) return;
+    var dx = ev2.clientX - dragS.x;
+    if (Math.abs(dx) > 4) strip.scrollLeft = dragS.s - dx;
+  });
+  strip.addEventListener('pointerup', function () { dragS = null; });
+  strip.addEventListener('pointercancel', function () { dragS = null; });
+  strip.addEventListener('wheel', function (ev2) {
+    if (!ev2.deltaY || strip.scrollWidth <= strip.clientWidth + 1) return;
+    ev2.preventDefault();
+    strip.scrollLeft += ev2.deltaY;
+  }, { passive: false });
   foot.appendChild(prev);
   foot.appendChild(strip);
   foot.appendChild(next);

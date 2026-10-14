@@ -190,6 +190,16 @@ export function showSoundHint(slide) {
   slide.appendChild(soundHintEl);
 }
 
+// 竖条音量滑杆单支同步（0.9.237 单源）：填充高、手柄位、数字——同一判据 pb.volume。
+// refreshMuteIcons 对全舞台循环调用；controls 新键滑杆时也调它（此前不画初值 ⇒ 初始空轨）
+export function fillVolSlide(s) {
+  var pct = Math.round(pb.volume * 100);
+  var fill = s.querySelector('.voltrack i'), hd = s.querySelector('.voltrack b'), n = s.querySelector('.volnum');
+  if (fill) fill.style.height = pct + '%';
+  if (hd) { hd.style.bottom = pct + '%'; hd.style.display = pct > 0 ? '' : 'none'; }
+  if (n) n.textContent = String(pct);
+}
+
 export function refreshMuteIcons() {
   if (!root) return;
   var muted = isMuted();
@@ -197,12 +207,6 @@ export function refreshMuteIcons() {
     b.innerHTML = muted ? ICONS.volOff : ICONS.volOn;
     b.classList.toggle('mute', muted); // 0.9.199：静音态可断言/可着色
   });
-  // 竖条滑杆同步（0.9.199）：填充高、手柄位、数字——同一判据 pb.volume
-  var pct = Math.round(pb.volume * 100);
-  Array.prototype.forEach.call(root.querySelectorAll('.acsv-volslide'), function (s) {
-    var fill = s.querySelector('.voltrack i'), hd = s.querySelector('.voltrack b'), n = s.querySelector('.volnum');
-    if (fill) fill.style.height = pct + '%';
-    if (hd) { hd.style.bottom = pct + '%'; hd.style.display = pct > 0 ? '' : 'none'; }
-    if (n) n.textContent = String(pct);
-  });
+  // 竖条滑杆同步（0.9.199）：填充高、手柄位、数字——单支逻辑见 fillVolSlide（0.9.237 抽出）
+  Array.prototype.forEach.call(root.querySelectorAll('.acsv-volslide'), fillVolSlide);
 }

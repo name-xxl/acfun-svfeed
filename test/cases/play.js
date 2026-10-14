@@ -782,6 +782,10 @@ rec('ctlt-playing', !!(await waitFor(function () {
 var s = slide(0);
 var inp = s.querySelector('.acsv-dm-input');
 rec('ctlt-input', !!inp);
+// 0.9.237 音量竖条初始即绘制（原先不画初值：首悬停/新建 slide 是空轨、数字却是真值）。
+// 滑杆本体默认 display:none（悬停才展开）——rect 高度恒 0，判据用内联填充高是否已写
+var vt = s.querySelector('.voltrack i');
+rec('ctlt-vol-initial', !!(vt && vt.style.height), 'inlineH=' + (vt ? vt.style.height : 'none'));
 if (!inp) return;
 s.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
 await wait(120);
@@ -796,5 +800,45 @@ for (var i = 0; i < 20; i++) {
 }
 rec('ctlt-keepalive', stayed, 'ctl=' + s.dataset.ctl);
 inp.blur();
+  };
+  // ---- ctl-narrow（0.9.237：540 窄视口底栏横滑——方案 B，transform 平移不形成裁剪上下文） ----
+  C['ctl-narrow'] = async function (h) {
+    var rec = h.rec, q = h.q, slide = h.slide, wait = h.wait, waitFor = h.waitFor;
+rec('ctln-ready', !!(await waitFor(function () {
+  var s = slide(0), v = s && s.querySelector('video');
+  return !!(v && v.duration > 0 && s.dataset.state !== 'error');
+}, 25000)));
+var s = slide(0);
+var row = s && s.querySelector('.acsv-ctl-row');
+var strip = s && s.querySelector('.acsv-ctl-strip');
+rec('ctln-parts', !!(row && strip));
+if (!row || !strip) return;
+var maxX = Math.round(strip.scrollWidth - row.clientWidth);
+rec('ctln-overflow', maxX > 20, 'maxX≈' + maxX);
+// 拖动：内容超出时按住左移（阈值 6px）——拖 60px 留出后续滚轮余量（拖满会顶到钳制上限）
+row.dispatchEvent(new PointerEvent('pointerdown', { clientX: 420, bubbles: true, pointerId: 1 }));
+row.dispatchEvent(new PointerEvent('pointermove', { clientX: 360, bubbles: true, pointerId: 1 }));
+row.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+var m1 = /translateX\(-([\d.]+)px\)/.exec(strip.style.transform || '');
+rec('ctln-drag-pans', !!(m1 && Number(m1[1]) > 20), strip.style.transform || '(none)');
+// 滚轮映射为横滑
+row.dispatchEvent(new WheelEvent('wheel', { deltaY: 80, bubbles: true, cancelable: true }));
+var m2 = /translateX\(-([\d.]+)px\)/.exec(strip.style.transform || '');
+rec('ctln-wheel-pans', !!(m2 && Number(m2[1]) > Number(m1 ? m1[1] : 0)), strip.style.transform || '(none)');
+// 平移后开倍速菜单：菜单必须完整可见（这就是不用 overflow 滚动的理由）。
+// 先补一拍"干净点击"的 pointerdown/up——拖动落点的 click 抑制以 pointerdown 为周期复位
+row.dispatchEvent(new PointerEvent('pointerdown', { clientX: 300, bubbles: true, pointerId: 2 }));
+row.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 2 }));
+var rateBtn = null;
+Array.prototype.forEach.call(s.querySelectorAll('.acsv-cq'), function (b) {
+  if (/^倍速/.test(b.textContent || '')) rateBtn = b;
+});
+if (rateBtn) {
+  rateBtn.click();
+  await wait(120);
+  var qm = s.querySelector('.acsv-qmenu');
+  rec('ctln-menu-visible', !!(qm && qm.getBoundingClientRect().height > 10),
+    qm ? 'h=' + Math.round(qm.getBoundingClientRect().height) : 'no-menu');
+}
   };
 })();

@@ -62,6 +62,28 @@
     var host2 = await openPanel(h);
     var sh2 = shadowOf(host2);
     rec('set-reopen-kept', !!(sh2 && swOf(sh2, 1) && !swOf(sh2, 1).classList.contains('on')));
+    // 0.9.237 设置下拉三钉：字体简写修复（36px 行高/14px 字真正生效）+ 点外收起 + Esc 先收菜单不关面板
+    var sel2 = sh2 && sh2.querySelector('.set-sel-btn');
+    if (sel2) {
+      sel2.click();
+      var it0 = sh2.querySelector('.set-sel-item');
+      rec('set-menu-metrics', (function () {
+        if (!it0) return false;
+        var cs = getComputedStyle(it0);
+        return cs.lineHeight === '36px' && cs.fontSize === '14px';
+      })(), it0 ? getComputedStyle(it0).lineHeight + '/' + getComputedStyle(it0).fontSize : 'no-item');
+      await wait(60); // 外点监听在下一拍挂上（closeOnOutsideClick 的 setTimeout(0)）
+      document.body.dispatchEvent(new MouseEvent('click', { bubbles: true })); // 面板外任意处
+      await wait(80);
+      rec('set-menu-outside-close', !sh2.querySelector('.set-sel-menu'));
+      sel2.click(); // 重开，验证菜单级 Esc
+      await wait(80);
+      host2.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await wait(80);
+      rec('set-menu-esc-once', !sh2.querySelector('.set-sel-menu') && !!q('.acsv-set-host')
+        && (TEST.call('overlay') || []).some(function (l) { return /^settings/.test(l); }),
+        JSON.stringify(TEST.call('overlay')));
+    }
     // 收编端到端（计划验收项）：面板改编码偏好 → 控制栏「编码」菜单高亮跟上（同一键的两个入口）
     var selBtn = sh2 && sh2.querySelector('.set-sel-btn'); // 第一个 select = 编码偏好
     if (selBtn) {

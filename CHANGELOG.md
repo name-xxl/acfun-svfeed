@@ -5,6 +5,44 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.237（2026-10-14）· UI/Bug 专项 Wave 2：预览定稿八项（docs/preview/ui-bugfix.html）
+
+用户 2026-10-14 预览裁决：窄视口底栏＝方案 B（横滑）；简介亮底可读性＝衬底 B（全宽轻衬底 .42+13px）；
+简介行数＝2 行（不变）。本批按稿实现，预览稿留档。
+
+- **简介组**（slide/styles）：① 「展开简介」只在溢出时挂（量 clamp 后 scrollHeight——短简介不再
+  出现点不动的假按钮）；② 长串 `overflow-wrap:anywhere`（此前 URL 撑到 704px 被裁、展开也看不到）；
+  ③ 字号 12→13 + 亮底衬底 B（`.acsv-info-scrim` 全宽 42% / .42，随简介有无显隐、影院态隐藏、
+  点穿透）；④ 「展开」`<a>`→`<button>`（点击区/键盘可达）；⑤ 点简介区不外冒（不再误触播放/暂停）。
+- **窄视口底栏 B**（controls/styles）：按钮行内容包进 `.acsv-ctl-strip`，超出时 **transform 平移**
+  （不用 overflow 滚动——那会形成裁剪上下文把清晰度/倍速菜单裁掉）：pointer 拖拽（>6px 进拖，
+  落点 click 吞掉防误触）+ 竖向滚轮映射横滑；宽屏 strip=100% 行为不变。540 实测内容 626 vs
+  容器 512（maxX≈114）。
+- **私信抽屉 z 层级**（styles）：`.acsv-msgdrawer{z-index:62}` 原先声明在共享规则**之前**被同权重
+  58 压掉——详情面板(z61)上开「捎句话」被盖住点不到。修法＝把 62 挪到共享规则之后；computed
+  断言钉住。
+- **设置面板三连**（settingspanel）：① `font:13px/1.4 inherit` 非法简写整条被丢（36px 行高从未
+  生效）→ 拆成 font-size/line-height/font-family 三属性（btn/item/num-btn 三处）；② 下拉点外
+  收起（closeOnOutsideClick，Shadow DOM 外点/别行点击都收）；③ 矮窗贴底时菜单上翻
+  （`.set-sel-menu.up`，实测空间不足才翻）；④ Esc 先收菜单不关面板（overlay 新增层级 `onEsc`
+  预处理器，返回真=已消费）。
+- **音量竖条初始态**（playback/controls）：新键滑杆不画初值 ⇒ 首悬停/新建 slide 是空轨而数字是
+  真值。修法＝抽 `fillVolSlide` 单源（refreshMuteIcons 同用），buildVolSlide 建完即填。
+- **编辑器表情预览定位**（styles/emoticon）：0.9.226 面板改 static 后绝对定位预览逃到浮层根
+  （实测悬停条目 (531,408) 预览出在 (82,4)）→ `.acsv-me-emot` 改 `position:relative`（仍在
+  文档流）恢复锚点；并加「上方放不下 → 翻到条目下方」（首行不再盖住自己）。
+- **弹幕画布暂停重排**（dmcanvas/comments）：align 只在 paint 里跑、暂停时 rVFC/rAF 双停 ⇒ 开
+  评论抽屉/拉窗口后画布停在旧几何。修法＝`DmCanvas.realignAll`（图层表遍历 realign）+ 抽屉
+  开合广播 `acsv-layout-shift`（零 import 边的跨模块提示，含过渡后 330ms 补拍）+ resize 监听。
+- **表情面板底栏拖动**（emoticon/styles）：原先藏滚动条又无拖拽（鼠标只能连点 ‹ ›）→ pointer
+  拖拽 + 竖向滚轮映射横滑 + grab 光标。
+- **测试证据**：homeswitch +4（短简介无按钮/长简介有按钮/overflow-wrap/衬底）、deeplink 短简介
+  断言按新行为校准（deep-desc-ui/no-fake-toggle）、detail-open +1（msgdrawer z=62）、settings-open
+  +3（36px 行高/外点收起/Esc 只收菜单）、ctl-typing +1（音量初始填充）、新场景 `ctl-narrow`
+  （横滑/拖拽/滚轮/菜单不被裁）、moment-publish +4（预览锚回面板/首行与行2 下翻/底栏拖动）、
+  dm-smoke +1（realignAll 暂停跟几何）。摘修复反跑：上述各处全部转红后还原复绿；全量 lint/check
+  + 313 单测 + 64/64 场景全绿。
+
 ### 0.9.236（2026-10-14）· UI/Bug 专项 Wave 1 第三组：列表重臂/自愈/竞态六件
 
 - **视口回填后「展开」重复/陈旧**（rowkit）：回填替换正文会清 `_armed` 重臂，旧按钮不摘 ⇒

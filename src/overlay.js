@@ -10,14 +10,16 @@
 // close 回调由注册方提供（release 的 seen/notified 写入、imdrawer 停轮询都在各自
 // close 里，管理器零业务知识）；先出栈再调 close、异常隔离——单个浮层炸不掉整条
 // Esc 链。close 内可再调 overlayClose(自身 id)（显式关闭路径同步栈），已出栈时空转。
-var stack = []; // [{ id, close, modal }]，栈顶 = 最后打开
+// onEsc（0.9.237）：层可选的 Esc 预处理器——返回真=本层已消费（如设置面板先收下拉菜单），
+// 不关层；返回假/未提供则走既有关层语义
+var stack = []; // [{ id, close, modal, onEsc }]，栈顶 = 最后打开
 import { testHook } from './dbg.js';
 
 export function overlayOpen(layer) {
   if (!layer || !layer.id || typeof layer.close !== 'function') return;
   ensureKey();
   overlayClose(layer.id); // 幂等：同 id 重开先收旧（imgview/release「open 先 close」惯例）
-  stack.push({ id: layer.id, close: layer.close, modal: !!layer.modal });
+  stack.push({ id: layer.id, close: layer.close, modal: !!layer.modal, onEsc: layer.onEsc });
 }
 
 export function overlayClose(id) {
@@ -64,6 +66,7 @@ function onOverlayKey(ev) {
   // 非聚焦时走下方关层
   if (ev.key !== 'Escape' && isInputTarget(ev)) return;
   ev.stopPropagation();
+  if (ev.key === 'Escape' && top.onEsc && top.onEsc()) return; // 层内先处理（如设置菜单先收）
   if (ev.key === 'Escape') overlayClose(top.id);
 }
 function ensureKey() {

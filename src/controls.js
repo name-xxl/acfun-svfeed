@@ -3,7 +3,7 @@ import { ICONS, PLAYER_ICONS } from './styles.js';
 import { el, elHtml, toast, fmtTime, isCinema, toggleWebFull, toggleWindowFull, a11y, mountIcon, closeOnOutsideClick } from './ui.js';
 import { root, slideAt, isOvlSlide, videoTarget, playItem } from './state.js';
 import { FeedStore } from './feedstore.js';
-import { pb, togglePlayGesture, toggleMuteGesture, applyLoop, setVolume, isMuted, applyRate } from './playback.js';
+import { pb, togglePlayGesture, toggleMuteGesture, applyLoop, setVolume, isMuted, applyRate, fillVolSlide } from './playback.js';
 import { dmEnabled, setDmEnabled, onPlaying as dmOnPlaying, createDmBox as dmCreateBox } from './danmaku.js';
 import { switchQuality, attachVideo, detachSession } from './attach.js';
 import { AppAPI, spriteCueAt } from './appapi.js'; // 悬停缩略图（0.9.200）
@@ -141,7 +141,11 @@ export function buildControls(slide, idx, item) {
     bubble.classList.remove('show');
   });
 
+  // 窄视口横滑（0.9.237 案 B）：内容放进 strip，超出时拖拽/滚轮平移 strip 的 transform。
+  // 不用 overflow 滚动——那会形成裁剪上下文，把清晰度/倍速下拉菜单一起裁掉；宽屏 strip=100% 行为不变
   var row = el('div', 'acsv-ctl-row');
+  var strip = el('div', 'acsv-ctl-strip');
+  row.appendChild(strip);
 
   var playBtn = el('button', 'acsv-cbtn acsv-cplay');
   mountIcon(playBtn, PLAYER_ICONS.pause); // 0.9.195：原生播放器图标（初始=播放中→暂停双竖条）
@@ -395,21 +399,53 @@ export function buildControls(slide, idx, item) {
     });
   }
 
-  row.appendChild(playBtn);
-  row.appendChild(timeLabel);
-  row.appendChild(spacer);
-  if (dmBtn) row.appendChild(dmBtn);
-  if (dmBox) row.appendChild(dmBox);
-  if (dmWrap) row.appendChild(dmWrap);
-  if (qWrap) row.appendChild(qWrap);
-  if (codecWrap) row.appendChild(codecWrap);
-  if (bufWrap) row.appendChild(bufWrap);
-  row.appendChild(autoBtn);
-  row.appendChild(rateWrap);
-  row.appendChild(volWrap);
-  row.appendChild(pipBtn);
-  row.appendChild(webBtn);
-  row.appendChild(winBtn);
+  strip.appendChild(playBtn);
+  strip.appendChild(timeLabel);
+  strip.appendChild(spacer);
+  if (dmBtn) strip.appendChild(dmBtn);
+  if (dmBox) strip.appendChild(dmBox);
+  if (dmWrap) strip.appendChild(dmWrap);
+  if (qWrap) strip.appendChild(qWrap);
+  if (codecWrap) strip.appendChild(codecWrap);
+  if (bufWrap) strip.appendChild(bufWrap);
+  strip.appendChild(autoBtn);
+  strip.appendChild(rateWrap);
+  strip.appendChild(volWrap);
+  strip.appendChild(pipBtn);
+  strip.appendChild(webBtn);
+  strip.appendChild(winBtn);
+
+  // 平移只动 transform；maxX 现算（换视口/换条各自成立）；拖动超过阈值后的落点 click 吞掉
+  var panX = 0, panDrag = null, panMoved = false;
+  function panMax() {
+    // 用 scrollWidth 量内容宽（overflow:visible 下 Chromium 照报溢出内容；rect 差在 flex 收缩下失真）
+    return Math.max(0, strip.scrollWidth - row.clientWidth);
+  }
+  function panTo(x) {
+    panX = Math.max(0, Math.min(x, panMax()));
+    strip.style.transform = panX ? 'translateX(' + (-panX) + 'px)' : '';
+  }
+  row.addEventListener('pointerdown', function (ev) {
+    if (panMax() <= 0) return;
+    panDrag = { x: ev.clientX, s: panX };
+    panMoved = false;
+  });
+  row.addEventListener('pointermove', function (ev) {
+    if (!panDrag) return;
+    var dx = ev.clientX - panDrag.x;
+    if (Math.abs(dx) > 6) panMoved = true;
+    if (panMoved) panTo(panDrag.s - dx);
+  });
+  row.addEventListener('pointerup', function () { panDrag = null; });
+  row.addEventListener('pointercancel', function () { panDrag = null; });
+  row.addEventListener('click', function (ev) {
+    if (panMoved) { ev.stopPropagation(); ev.preventDefault(); panMoved = false; } // 拖动后的落点别误触按钮
+  }, true);
+  row.addEventListener('wheel', function (ev) {
+    if (!ev.deltaY || panMax() <= 0) return;
+    ev.preventDefault();
+    panTo(panX + ev.deltaY);
+  }, { passive: false });
 
   box.appendChild(track);
   box.appendChild(row);
@@ -588,6 +624,7 @@ function buildVolSlide() {
   track.appendChild(el('b'));
   box.appendChild(track);
   box.appendChild(el('span', 'volnum', String(Math.round(pb.volume * 100))));
+  fillVolSlide(box); // 初始即绘制（0.9.237：此前不画 ⇒ 首次悬停/新建 slide 是空轨，数字却是真值）
   function ratioAt(ev) {
     var r = track.getBoundingClientRect();
     return Math.min(1, Math.max(0, (r.bottom - ev.clientY) / r.height));

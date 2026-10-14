@@ -2473,6 +2473,15 @@ rec('square-cmt-namecolor', (function () {
       var rt = document.getElementById('acsv-root');
       return !!back && !!q('.acsv-msgdrawer.open') && rt.classList.contains('acsv-with-comments');
     }, 5000)), 'panel=' + !!q('.acsv-mdetail') + ' drawer=' + !!q('.acsv-msgdrawer.open'));
+    // 0.9.237 层级修复：私信抽屉 computed z 必须是 62（此前被同权重后置共享规则压回 58，
+    // 低于详情面板 z61 ⇒ 变暗且点不到）
+    rec('detail-im-z62', (function () {
+      var dr = q('.acsv-msgdrawer');
+      return !!dr && getComputedStyle(dr).zIndex === '62';
+    })(), (function () {
+      var dr = q('.acsv-msgdrawer');
+      return dr ? getComputedStyle(dr).zIndex : 'none';
+    })());
     // 避让有 .2s 过渡：等值到位再断言（首版读瞬时值 0px 假红）
     rec('detail-im-avoid', !!(await waitFor(function () {
       var back = q('.acsv-mdetail');

@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · UI/Bug 专项 Wave 2（简介 / 窄底栏 / 音量 / 设置面板 / 表情预览 / 弹幕画布 / 抽屉层级 / 面板底栏）</title>
+<!-- ============================================================
+     docs/preview/ui-bugfix.html —— UI/Bug 专项 Wave 2 合并预览（2026-10-14，0.9.237 前置）
+     证据来源（全部为 0.9.234–236 普查/探针实测，非估算）：
+       · 简介：长链接 scrollWidth 704 > 盒宽 560/302（展开也裁）；「展开简介」无条件显示；
+         12px #cfd3da 亮底可读性弱（亮底截图）；点击正文冒泡到播放/暂停；<a> 无 href。
+       · 窄底栏：controls.js 单行 ~690px 固定宽，540 宽溢出约 200px，右侧键被裁（无 <=720 用例）。
+       · 音量：controls.js 建轨不画初值 + styles.js 无默认 height ⇒ 首悬停/新建 slide 空轨。
+       · 设置面板：`font:13px/1.4 inherit` 非法简写整条被丢（Chromium computed 实测回退
+         Arial/normal，官方量取的 36px 行高从未生效）；下拉点外不收起（无外点监听）；
+         矮窗菜单被 .set-body 滚动容器裁切。
+       · 表情预览：`.acsv-me .acsv-me-emot{position:static}`（0.9.226 修「跑到屏幕底部」的
+         副作用）⇒ 预览 absolute 锚到浮层根——实测悬停条目 (531,408) 时预览出在 (82,4)。
+       · 弹幕画布：align 只在 paint；暂停时 rVFC/rAF 双停，开抽屉/拉窗口后画布停在旧位。
+       · 私信抽屉：styles.js 同权重后置 `.acsv-drawer,.acsv-msgdrawer{...z-index:58}` 压掉
+         声明在前面的 `.acsv-msgdrawer{z-index:62}`——详情面板(z61)上开「捎句话」被盖住点不到。
+     形态待定项（摆出供选）：简介 clamp 2 行 vs 3 行；窄底栏 方案 A 换行 / 方案 B 横滑。
+     纪律：单文件/无依赖；量值抄 src/styles.js；确认后才进 src；改版先改本稿。
+     自检：1600×900 与 540 宽各过一眼。
+     ============================================================ -->
+<style>
+  :root{--acsv-accent:#fd4c5d;--acsv-bg:#000;--acsv-panel:rgba(22,22,27,.97);--acsv-line:rgba(255,255,255,.09);
+    --acsv-t1:#fff;--acsv-t2:#cfd3da;--acsv-t3:#8a90a0}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 90px}
+  h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .hint{color:var(--acsv-t3);font-size:12px;line-height:1.85;margin-bottom:20px}
+  .hint b{color:var(--acsv-t2)}
+  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .sec>p.d{color:var(--acsv-t3);font-size:12px;line-height:1.7;margin:6px 0 14px}
+  code{background:rgba(255,255,255,.08);border-radius:4px;padding:0 5px;font-size:12px;color:#e8eaee;font-family:Consolas,Menlo,monospace}
+  .dual{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+  .badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;margin-left:8px;
+    border:1px solid rgba(255,255,255,.25);color:var(--acsv-t2)}
+  .badge.ok{color:#7ee08a;border-color:rgba(126,224,138,.5)}
+  .badge.warn{color:#ffcf7a;border-color:rgba(255,207,122,.5)}
+  .badge.bad{color:#ff8a95;border-color:rgba(255,138,149,.5)}
+
+  /* ================= ① 简介（slide 左下信息区） ================= */
+  .stage{position:relative;width:720px;max-width:100%;height:405px;border-radius:10px;overflow:hidden;
+    border:1px solid var(--acsv-line);background:linear-gradient(135deg,#2b3a52,#5a2f44 55%,#3b2b52)}
+  .stage.bright{background:linear-gradient(135deg,#f2ede2,#ffe9a8 45%,#d8ecff)}
+  .stage .tagv{position:absolute;left:10px;top:8px;font-size:11px;color:rgba(255,255,255,.75);
+    background:rgba(0,0,0,.35);border-radius:999px;padding:1px 8px}
+  .stage.bright .tagv{color:rgba(0,0,0,.6);background:rgba(255,255,255,.5)}
+  .sinfo{position:absolute;left:20px;bottom:34px;max-width:min(56%,560px);color:#fff}
+  .sinfo .meta{font-size:15px;font-weight:600;line-height:21px;margin-bottom:5px;display:flex;gap:12px;
+    align-items:center;text-shadow:0 1px 4px rgba(0,0,0,.7)}
+  .sinfo .meta .views{font-size:13px;font-weight:400;opacity:.85}
+  .sinfo .title{font-size:16px;font-weight:400;line-height:22px;max-height:66px;overflow:hidden;
+    text-shadow:0 1px 4px rgba(0,0,0,.7)}
+  .sinfo .desc{margin-top:6px;font-size:13px;line-height:1.65;color:#d7dae1;white-space:pre-line;
+    text-shadow:0 1px 3px rgba(0,0,0,.6)}
+  .stage.bright .sinfo .meta,.stage.bright .sinfo .title{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.75)}
+  .stage.bright .sinfo .desc{color:#f2f3f5;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+  .desc.clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .desc.clamp3{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .desc.open{display:block;max-height:34vh;overflow-y:auto}
+  .dmore{border:1px solid rgba(255,255,255,.28);background:rgba(0,0,0,.3);color:#e8eaee;font-size:12px;
+    font-family:inherit;border-radius:999px;padding:2px 12px;margin-top:6px;cursor:pointer;display:inline-block}
+  .dmore:hover{background:rgba(0,0,0,.5);text-decoration:underline}
+  /* 亮底可读性三案：全宽渐变 A / 全宽轻衬底 B / 局部文字块 C（均只在信息区可见时存在） */
+  .stage.cmp{width:400px;height:225px}
+  .stage.cmp .sinfo{left:14px;bottom:16px;max-width:82%}
+  .stage .shade{position:absolute;left:0;right:0;bottom:0;pointer-events:none}
+  .shade.a{height:52%;background:linear-gradient(transparent,rgba(0,0,0,.62))}
+  .shade.b{height:42%;background:linear-gradient(transparent,rgba(0,0,0,.42))}
+  .blockback .sinfo{background:rgba(0,0,0,.38);border-radius:12px;padding:10px 12px 9px;margin-left:-12px}
+  .badrow{position:absolute;right:10px;top:8px;font-size:11px}
+
+  /* ================= ② 窄底栏（540） ================= */
+  .phone540{width:540px;max-width:100%;border:1px dashed rgba(255,255,255,.18);border-radius:12px;padding:10px;margin-bottom:18px}
+  .minivideo{position:relative;height:300px;border-radius:8px;overflow:hidden;
+    background:linear-gradient(135deg,#243044,#43263a);margin-bottom:8px}
+  .ctl{position:absolute;left:0;right:0;bottom:0;padding:6px 10px 8px;background:linear-gradient(transparent,rgba(0,0,0,.72))}
+  .trackm{position:relative;height:4px;border-radius:2px;background:rgba(255,255,255,.22);margin:0 2px 10px}
+  .trackm i{position:absolute;left:0;top:0;bottom:0;width:38%;border-radius:2px;background:#fd4c5d}
+  .trackm .kn{position:absolute;left:38%;top:-4px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#fd4c5d}
+  .rowm{display:flex;align-items:center;gap:10px}
+  .rowm.wrap{flex-wrap:wrap;row-gap:6px}
+  .rowm.scrollx{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
+  .rowm.scrollx::-webkit-scrollbar{height:4px}
+  .rowm.scrollx::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
+  .tm{font-size:12px;color:#cfd3da;font-variant-numeric:tabular-nums;flex:none}
+  .spacer{flex:1}
+  .cb{min-width:32px;height:32px;padding:0 8px;border-radius:8px;background:none;border:none;cursor:pointer;
+    color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-size:13px;
+    font-family:inherit;white-space:nowrap;flex:none}
+  .cb:hover{background:rgba(255,255,255,.12)}
+  .cb.on{color:var(--acsv-accent)}
+  .dmk{margin-left:auto;flex:none;width:150px;height:28px;border-radius:999px;background:rgba(255,255,255,.1);
+    color:#8a90a0;font-size:12px;display:flex;align-items:center;padding:0 12px}
+  .dmk.send{width:auto;background:#fd4c5d;color:#fff;padding:0 14px}
+
+  /* ================= ③ 音量竖条 ================= */
+  .volrow{display:flex;gap:34px;align-items:flex-end;padding:10px 6px}
+  .volbox{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .volbox .cap{font-size:11px;color:var(--acsv-t3)}
+  .volslide{width:36px;padding:10px 0 8px;background:var(--acsv-panel);border:1px solid rgba(255,255,255,.14);
+    border-radius:8px;display:flex;flex-direction:column;align-items:center}
+  .volslide .track{width:4px;height:84px;border-radius:2px;background:rgba(255,255,255,.24);position:relative;margin-top:2px}
+  .volslide .track i{position:absolute;left:0;right:0;bottom:0;border-radius:2px;background:var(--acsv-accent);height:55%}
+  .volslide .track b{position:absolute;left:-4px;bottom:55%;width:12px;height:12px;margin-bottom:-6px;border-radius:50%;background:#fff}
+  .volslide .n{font-size:11px;color:var(--acsv-t2);margin-top:6px;font-variant-numeric:tabular-nums}
+  .volslide.empty .track i{height:0;display:none}
+  .volslide.empty .track b{bottom:100%}
+
+  /* ================= ④ 设置面板 ================= */
+  .setpanel{width:430px;max-width:100%;background:var(--acsv-panel);border:1px solid rgba(255,255,255,.12);
+    border-radius:12px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.55)}
+  .set-hd{display:flex;align-items:center;padding:13px 16px 9px;font-size:15px;font-weight:600}
+  .set-hd .x{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:26px;height:26px;
+    border-radius:50%;font-size:12px;cursor:pointer;font-family:inherit}
+  .set-body{padding:0 16px 8px;overflow-y:auto;position:relative}
+  .set-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+  .set-row:last-child{border-bottom:none}
+  .set-lb{flex:1;min-width:0}
+  .set-lb .t{font-size:14px}
+  .set-lb .s{font-size:12px;color:var(--acsv-t3);margin-top:3px;line-height:1.5}
+  .set-sw{flex:none;width:34px;height:18px;border-radius:999px;background:rgb(158,158,158);position:relative;cursor:pointer;border:none}
+  .set-sw i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s}
+  .set-sw.on{background:var(--acsv-accent)}
+  .set-sw.on i{transform:translateX(16px)}
+  .set-sel{flex:none;position:relative}
+  .set-sel-btn{min-width:88px;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;
+    background:rgba(255,255,255,.12);color:#fff;font-size:13px;line-height:1.4;font-family:inherit;text-align:center}
+  .set-sel-btn:hover{background:rgba(255,255,255,.2)}
+  .set-sel-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;min-width:120px;
+    background:rgba(21,21,21,.92);border-radius:4px;padding:0;display:none;flex-direction:column;
+    box-shadow:0 8px 28px rgba(0,0,0,.45)}
+  .set-sel-menu.up{top:auto;bottom:calc(100% + 6px)}
+  .set-sel-menu.show{display:flex}
+  .set-sel-item{border:none;background:none;color:#fff;font-size:14px;line-height:36px;font-family:inherit;
+    cursor:pointer;padding:0 14px;text-align:left;white-space:nowrap}
+  .set-sel-item:hover{background:rgba(255,255,255,.12)}
+  .set-sel-item.on{color:var(--acsv-accent)}
+  .set-foot{display:flex;gap:8px;justify-content:flex-end;padding:10px 16px 14px;border-top:1px solid rgba(255,255,255,.09)}
+  .set-act{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;cursor:pointer;
+    background:rgba(255,255,255,.12);color:#fff}
+  .set-act.primary{background:var(--acsv-accent)}
+  .shortwin{height:250px;border:1px dashed rgba(255,255,255,.18);border-radius:10px;padding:6px;width:460px;max-width:100%}
+  .shortwin .set-body{max-height:210px}
+
+  /* ================= ⑤ 编辑器表情面板 ================= */
+  .me{width:560px;max-width:100%;background:rgba(22,22,27,.97);border:1px solid rgba(255,255,255,.12);
+    border-radius:12px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.55)}
+  .me-hd{display:flex;align-items:center;padding:14px 16px 10px;font-size:15px;font-weight:600}
+  .me-hd .x{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:26px;height:26px;border-radius:50%;font-size:12px}
+  .me-bd{padding:0 16px}
+  .me-tools{display:flex;align-items:center;gap:14px;padding:6px 16px 12px;border-top:1px solid rgba(255,255,255,.09)}
+  .me-vis{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--acsv-t3);margin-left:auto}
+  .me-ft{display:flex;align-items:center;gap:10px;padding:12px 16px 14px;border-top:1px solid rgba(255,255,255,.09)}
+  .me-tip{font-size:12px;color:var(--acsv-t3)}
+  .me-ok{margin-left:auto;border:none;border-radius:18px;padding:8px 22px;background:#fd4c5d;color:#fff;font-size:14px;font-weight:600}
+  .me-cc{border:none;border-radius:18px;padding:8px 18px;background:rgba(255,255,255,.12);color:#cfd3da;font-size:14px}
+  .emot{position:relative;border-top:1px solid rgba(255,255,255,.09);background:rgba(0,0,0,.25);
+    padding:10px 10px 6px;max-height:220px;overflow:visible}
+  .emot .head{font-size:12px;color:#7a7f8a;padding:0 2px 6px}
+  .emot .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:2px}
+  .emot .cell{height:48px;border-radius:6px;background:rgba(255,255,255,.07);display:grid;place-items:center;font-size:12px;color:#8a90a0;cursor:pointer}
+  .emot .cell.hot{outline:2px solid var(--acsv-accent)}
+  .emot .prev{position:absolute;width:124px;height:124px;padding:8px;border-radius:10px;z-index:7;
+    background:rgba(22,22,27,.97);border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 28px rgba(0,0,0,.45);
+    display:grid;place-items:center;color:#8a90a0;font-size:12px;pointer-events:none}
+  .emot .foot{display:flex;align-items:center;gap:6px;margin-top:6px;padding:4px 6px;background:rgba(255,255,255,.05);border-radius:8px}
+  .emot .strip{display:flex;align-items:center;gap:8px;overflow-x:auto;flex:1;min-width:0;padding:2px;scrollbar-width:none}
+  .emot .strip::-webkit-scrollbar{display:none}
+  .emot .thumb{flex:none;width:32px;height:32px;border:2px solid transparent;border-radius:8px;background:rgba(255,255,255,.08)}
+  .emot .thumb.on{border-color:var(--acsv-accent)}
+  .emot .pg{flex:none;width:24px;height:24px;border:none;border-radius:50%;background:none;color:#999;font-size:14px}
+
+  /* ================= ⑥ 弹幕画布错位示意 ================= */
+  .dstage{position:relative;width:420px;height:236px;border-radius:8px;overflow:hidden;border:1px solid var(--acsv-line);
+    background:linear-gradient(135deg,#1f2b3f,#3a2233)}
+  .dstage .vid{position:absolute;left:0;top:0;bottom:0;width:100%;background:rgba(255,255,255,.03);
+    display:grid;place-items:center;color:#5a6270;font-size:12px;transition:all .25s}
+  .dstage.shift .vid{left:0;width:64%}
+  .dstage .drawer{position:absolute;right:0;top:0;bottom:0;width:36%;background:rgba(22,22,27,.96);
+    border-left:1px solid rgba(255,255,255,.09);display:none}
+  .dstage.shift .drawer{display:block}
+  .dstage .dm{position:absolute;left:6%;top:18%;color:#fff;font-size:13px;text-shadow:0 1px 2px #000;white-space:nowrap}
+  .dstage .dm.d2{top:34%;left:28%}
+  .dstage .dm.d3{top:52%;left:12%}
+  .dstage .dmline{position:absolute;border-top:1px dashed rgba(255,120,140,.8);left:0;right:0}
+  .dstage .note{position:absolute;right:8px;bottom:8px;font-size:11px;padding:2px 8px;border-radius:999px;
+    background:rgba(0,0,0,.55);color:#ffcf7a}
+
+  /* ================= ⑦ 抽屉层级 ================= */
+  .lay{position:relative;width:640px;height:300px;border:1px solid var(--acsv-line);border-radius:10px;
+    overflow:hidden;background:rgba(255,255,255,.02)}
+  .lay .dpanel{position:absolute;left:8%;top:8%;width:62%;height:84%;background:rgba(22,22,27,.98);
+    border:1px solid rgba(255,255,255,.14);border-radius:10px;z-index:61;padding:12px 14px}
+  .lay .msg{position:absolute;right:0;top:0;bottom:0;width:42%;background:rgba(22,22,27,.97);
+    border-left:1px solid rgba(255,255,255,.12);z-index:62;padding:12px 14px}
+  .lay .msg.old{z-index:58;opacity:.85}
+  .lay .hd{font-size:14px;font-weight:600;margin-bottom:8px}
+  .lay .line{height:10px;border-radius:5px;background:rgba(255,255,255,.08);margin:8px 0}
+  .lay .line.sh{width:70%}
+  .lay .z{position:absolute;right:8px;top:8px;font-size:11px;color:var(--acsv-t3)}
+
+  /* ================= ⑧ 表情面板底栏拖动 ================= */
+  .barstrip{display:flex;align-items:center;gap:6px;padding:6px 8px;width:430px;max-width:100%;
+    background:rgba(255,255,255,.05);border-radius:8px;border:1px solid var(--acsv-line)}
+  .barstrip .th{flex:none;width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.09);
+    border:2px solid transparent}
+  .barstrip .th.on{border-color:var(--acsv-accent)}
+  .barstrip .pg{flex:none;width:24px;height:24px;border:none;border-radius:50%;background:none;color:#999;font-size:14px}
+  .barstrip .drag{flex:1;min-width:0;display:flex;gap:8px;overflow-x:auto;cursor:grab;scrollbar-width:none;padding:2px}
+  .barstrip .drag::-webkit-scrollbar{display:none}
+  .barstrip .drag:active{cursor:grabbing}
+
+  /* 自检窄段 */
+  @media (max-width:700px){
+    .board{padding:18px 12px 70px}
+    .stage,.me,.lay{width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>UI/Bug 专项 Wave 2 —— 静态预览（确认后才进 src 实现）</h1>
+  <p class="hint">
+    口径：<b>暗色皮肤</b>（变量照 src/styles.js）/ 真实中文文案 / 关键状态全摆。改前/改后并列标注
+    <span class="badge bad">改前</span><span class="badge ok">改后</span>；待定项标
+    <span class="badge warn">待选</span>。<b>1600×900 桌面 + 540 宽</b>各过一眼（②③⑧ 为窄态重点）。<br>
+    <b>决策记录（2026-10-14）</b>：② 窄视口底栏＝<b>方案 B（按钮行横滑，已选）</b>；
+    ① 简介亮底可读性＝<b>衬底 B（全宽轻衬底 .42 + 13px，已选）</b>；简介行数＝<b>2 行（已定）</b>。
+  </p>
+
+  <!-- ================= ① 简介 ================= -->
+  <div class="sec">
+    <h2>① 简介（slide 左下信息区）<em>溢出才挂「展开」/ 长串换行 / 亮底衬底 / 字号 13px</em></h2>
+    <p class="d">修复点：短简介不再出现假「展开」按钮；长链接 <code>overflow-wrap:anywhere</code> 不再被裁；
+      「展开」改按钮（加大点击区、可键盘聚焦）；字号 12→13；亮底可读性**三案待选**（见下方对比）。</p>
+
+    <div class="dual">
+      <div>
+        <div class="stage">
+          <span class="tagv">暗底 · 短简介（1 行，无按钮）<span class="badge ok">改后</span></span>
+          <div class="sinfo">
+            <div class="meta"><span>@子弹哥</span><span class="views">2026-09-26 · 2.3万次播放</span></div>
+            <div class="title">极限竞速地平线6：0.01 秒绝杀！GMC 反超宝马 X6M 越野赛</div>
+            <div class="desc">正片在 00:12 开始，三台车的胎压都按官方建议下调了 0.2bar。</div>
+          </div>
+        </div>
+        <p class="d" style="margin:8px 0 0">「展开简介 ▾」仅在溢出时出现（量 <code>scrollHeight &gt; clientHeight</code>）。</p>
+      </div>
+
+      <div>
+        <div class="stage">
+          <span class="tagv">暗底 · 长简介默认（clamp 2 行，有按钮）</span>
+          <div class="sinfo">
+            <div class="meta"><span>@子弹哥</span><span class="views">2026-09-26</span></div>
+            <div class="title">极限竞速地平线6：0.01 秒绝杀！GMC 反超宝马 X6M 越野赛</div>
+            <div class="desc clamp2">【正片简介】本期把三台越野车拉到同一条拉力线路上做对照测试，第一段先交代路线与天气：前半段是碎石长上坡，后半段是连续发卡弯，湿滑程度远超预期。第二段说说车况：三台车都换了同规格的全地形胎……</div>
+            <button class="dmore">展开简介 ▾</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="d" style="margin:14px 0 8px"><b>亮底可读性 · 三案对比</b>（同一亮底画面；衬底只在信息区可见时存在，
+      影院态/无信息列表不渲染）：A 全宽渐变 .62（抖音/快手惯例）／ B 全宽轻衬底 .42 + 13px（推荐折中）／
+      C 只垫文字块（画面改动最小，但文字区像"卡"）。</p>
+    <div class="dual">
+      <div>
+        <div class="stage cmp bright">
+          <span class="tagv">改前（无衬底 12px）</span>
+          <div class="sinfo">
+            <div class="meta"><span>@子弹哥</span></div>
+            <div class="title">极限竞速地平线6：0.01 秒绝杀！</div>
+            <div class="desc clamp2" style="font-size:12px">亮底画面上 12px 浅灰字 + 单层投影：远处发灰、贴纸感弱。</div>
+            <button class="dmore" style="font-size:12px">展开简介 ▾</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="stage cmp bright" style="opacity:.55">
+          <span class="tagv">A · 全宽渐变（.62）<span class="badge">备选（未选）</span></span>
+          <div class="shade a"></div>
+          <div class="sinfo">
+            <div class="meta"><span>@子弹哥</span></div>
+            <div class="title">极限竞速地平线6：0.01 秒绝杀！</div>
+            <div class="desc clamp3">底部整条压暗到 62%，任何亮底都稳；代价是画面下缘一直有一层渐变。</div>
+            <button class="dmore">展开简介 ▾</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="stage cmp bright">
+          <span class="tagv">B · 全宽轻衬底（.42 + 13px）<span class="badge ok">已选</span></span>
+          <div class="shade b"></div>
+          <div class="sinfo">
+            <div class="meta"><span>@子弹哥</span></div>
+            <div class="title">极限竞速地平线6：0.01 秒绝杀！</div>
+            <div class="desc clamp3">压暗减到 42% + 字号 13：亮底够读、暗底几乎无感，画面损失最小。</div>
+            <button class="dmore">展开简介 ▾</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="stage cmp bright blockback" style="opacity:.55">
+          <span class="tagv">C · 只垫文字块<span class="badge">备选（未选）</span></span>
+          <div class="sinfo">
+            <div class="meta"><span>@子弹哥</span></div>
+            <div class="title">极限竞速地平线6：0.01 秒绝杀！</div>
+            <div class="desc clamp3">整幅画面零压暗；文字区浮一块圆角半透明底，观感偏"卡片"。</div>
+            <button class="dmore">展开简介 ▾</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dual" style="margin-top:16px">
+      <div>
+        <div class="stage">
+          <span class="tagv">长串换行（URL 不再被横向裁掉）<span class="badge ok">改后</span></span>
+          <div class="sinfo" style="max-width:min(70%,560px)">
+            <div class="desc clamp2" style="overflow-wrap:anywhere">拍摄场地与车辆信息：https://www.example.com/this/is/a/very/long/link/that/has/no/spaces/so/it/tests/overflow/behavior/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</div>
+            <button class="dmore">展开简介 ▾</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="stage">
+          <span class="tagv">展开态（限高 34vh 内滚，收起点「收起简介 ▴」）</span>
+          <div class="sinfo" style="max-width:min(70%,560px)">
+            <div class="desc open" style="max-height:150px">【正片简介】本期把三台越野车拉到同一条拉力线路上做对照测试。第一段先交代路线与天气：前半段是碎石长上坡，后半段是连续发卡弯，湿滑程度远超预期。第二段说说车况：三台车都换了同规格的全地形胎，胎压按官方建议下调 0.2bar，电子辅助全关。第三段是彩蛋：片尾有一处 0.01 秒级别的冲线争议，逐帧回放放在分P的 12:34 处。制作不易，点个赞再走吧～</div>
+            <button class="dmore">收起简介 ▴</button>
+          </div>
+        </div>
+        <p class="d" style="margin:8px 0 0">行数已定 <b>2 行</b>（现状 clamp 保留）；展开态同上：限高 34vh 内滚，收起点「收起简介 ▴」。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ② 窄底栏 ================= -->
+  <div class="sec">
+    <h2>② 播放控制栏 · 窄视口 540（≤720 断点）<em>已选方案 B（按钮行横滑）；方案 A 保留备查</em></h2>
+    <p class="d">现状：单行十余键不换行、不横滑（<code>flex:none</code>），540 宽右侧 PiP/全屏被裁。
+      <b>实现按方案 B</b>：单行不变，按钮行 <code>overflow-x:auto</code>（滚动条隐藏）——按钮/触控板横向滚动、
+      鼠标按住拖动即可见后面按键；进度条与时间行保持整宽。</p>
+
+    <div class="phone540">
+      <div class="tagv" style="position:static;display:inline-block;margin-bottom:6px;color:var(--acsv-t2);font-size:12px">
+        方案 B · 按钮行横滑<span class="badge ok">已选</span>——单行不变，溢出可拖/滑（滚动条隐藏）
+      </div>
+      <div class="minivideo">
+        <div class="ctl">
+          <div class="trackm"><i></i><span class="kn"></span></div>
+          <div class="rowm scrollx">
+            <button class="cb">▶</button><span class="tm">00:12</span>
+            <button class="cb">弹</button><button class="cb">连播</button><button class="cb">倍速</button><button class="cb">编码</button>
+            <button class="cb">缓冲</button><span class="dmk">发个弹幕呗</span><button class="cb">PiP</button><button class="cb">网全</button><button class="cb">窗全</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone540" style="opacity:.6">
+      <div class="tagv" style="position:static;display:inline-block;margin-bottom:6px;color:var(--acsv-t2);font-size:12px">
+        方案 A · 换行两行<span class="badge">备选（未选）</span>——进度行 + 按钮行（可换行）
+      </div>
+      <div class="minivideo">
+        <div class="ctl">
+          <div class="trackm"><i></i><span class="kn"></span></div>
+          <div class="rowm" style="margin-bottom:6px"><span class="tm">00:12 / 00:44</span></div>
+          <div class="rowm wrap">
+            <button class="cb">▶</button><button class="cb">弹</button>
+            <button class="cb">连播</button><button class="cb">倍速 1.0x</button><button class="cb">编码</button><button class="cb">缓冲</button>
+            <span class="dmk">发个弹幕呗，嗷嗷</span><button class="cb on">–</button>
+            <button class="cb">PiP</button><button class="cb">网全</button><button class="cb">窗全</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ③ 音量竖条 ================= -->
+  <div class="sec">
+    <h2>③ 音量竖条 · 初始态<em>进入即绘制（原实现空轨：填充/手柄不画，首悬停才出现）</em></h2>
+    <div class="volrow">
+      <div class="volbox">
+        <div class="volslide"><div class="track"><i style="height:55%"></i><b style="bottom:55%"></b></div><span class="n">55</span></div>
+        <span class="cap">默认（pb.volume=0.55）<span class="badge ok">改后</span></span>
+      </div>
+      <div class="volbox">
+        <div class="volslide"><div class="track"><i style="height:20%"></i><b style="bottom:20%"></b></div><span class="n">20</span></div>
+        <span class="cap">拖到 20</span>
+      </div>
+      <div class="volbox">
+        <div class="volslide"><div class="track"><i style="height:0"></i><b style="bottom:0"></b></div><span class="n">0</span></div>
+        <span class="cap">拖到底 = 静音（图标联动）</span>
+      </div>
+      <div class="volbox">
+        <div class="volslide empty"><div class="track"><i></i><b></b></div><span class="n">55</span></div>
+        <span class="cap">现状：空轨 + 手柄贴顶<span class="badge bad">改前</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ④ 设置面板 ================= -->
+  <div class="sec">
+    <h2>④ 设置面板下拉<em>字体简写修复（36px 行高生效）/ 点外收起 / 矮窗上翻</em></h2>
+    <p class="d">现状病灶：<code>font:13px/1.4 inherit</code> 是非法简写（整条被浏览器丢弃，回退 Arial/normal，
+      官方量取的 36px 行高从未生效）；点面板空白处菜单不收起；窗口矮时菜单下半截被滚动容器裁切。
+      本稿为「改后」形态——行高 36 / 字体继承，外点与 Esc 收起，贴着下缘时自动上翻。可点击试。</p>
+
+    <div class="dual">
+      <div class="setpanel">
+        <div class="set-hd">设置 <button class="x">✕</button></div>
+        <div class="set-body" style="max-height:330px">
+          <div class="set-row">
+            <div class="set-lb"><div class="t">弹幕开关</div><div class="s">关掉后当前视频立即停止渲染弹幕</div></div>
+            <button class="set-sw on"><i></i></button>
+          </div>
+          <div class="set-row">
+            <div class="set-lb"><div class="t">清晰度</div><div class="s">自动＝在可播档位里挑最高</div></div>
+            <div class="set-sel" data-sel>
+              <button class="set-sel-btn">自动 ▾</button>
+              <div class="set-sel-menu">
+                <button class="set-sel-item on">自动</button>
+                <button class="set-sel-item">1080P</button>
+                <button class="set-sel-item">720P</button>
+              </div>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-lb"><div class="t">快进步长</div><div class="s">→ 键单次快进的秒数</div></div>
+            <div class="set-sel" data-sel>
+              <button class="set-sel-btn">10 秒 ▾</button>
+              <div class="set-sel-menu">
+                <button class="set-sel-item">5 秒</button>
+                <button class="set-sel-item on">10 秒</button>
+                <button class="set-sel-item">15 秒</button>
+                <button class="set-sel-item">30 秒</button>
+              </div>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-lb"><div class="t">连播</div><div class="s">播完自动播放下一条</div></div>
+            <button class="set-sw"><i></i></button>
+          </div>
+        </div>
+        <div class="set-foot"><button class="set-act primary">完成</button></div>
+      </div>
+
+      <div>
+        <div class="shortwin">
+          <div class="setpanel" style="width:100%;box-shadow:none;border-color:rgba(255,255,255,.09)">
+            <div class="set-hd" style="font-size:13px;padding:10px 12px 6px">矮窗——行贴底，菜单上翻不裁切（常显示意）</div>
+            <div class="set-body" style="padding:0 12px 8px;display:flex;flex-direction:column;justify-content:flex-end">
+              <div style="height:96px"></div>
+              <div class="set-row" style="padding:8px 0;border-bottom:none">
+                <div class="set-lb"><div class="t" style="font-size:13px">快进步长</div></div>
+                <div class="set-sel" data-sel>
+                  <button class="set-sel-btn">10 秒 ▾</button>
+                  <div class="set-sel-menu up show">
+                    <button class="set-sel-item">5 秒</button>
+                    <button class="set-sel-item on">10 秒</button>
+                    <button class="set-sel-item">15 秒</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="d" style="margin:8px 0 0">行贴着容器底：菜单向上展开（<code>bottom:100%+6</code>）完整可见；
+          点空白处 / Esc 收起（可交互）。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ⑤ 表情预览 ================= -->
+  <div class="sec">
+    <h2>⑤ 编辑器表情面板 · 悬停大图预览<em>锚回面板（改前逃到浮层根）；首行翻到下方</em></h2>
+    <p class="d">病灶：0.9.226 面板改文档流（<code>position:static</code>）后，预览 absolute 锚到了浮层根——
+      实测悬停条目在 (531,408) 时预览跑到屏幕左上 (82,4)。修法：<code>.acsv-me-emot{position:relative}</code>
+      （仍在文档流里），并加「上方放不下 → 翻到条目下方」。</p>
+
+    <div class="dual">
+      <div class="me">
+        <div class="me-hd">发动态 <button class="x">✕</button></div>
+        <div class="me-bd">
+          <div style="height:36px;border-radius:8px;background:rgba(255,255,255,.1);margin:6px 0 10px"></div>
+        </div>
+        <div class="emot">
+          <div class="head">包0</div>
+          <div class="grid">
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell"></div><div class="cell hot"></div><div class="cell"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          </div>
+          <div class="prev" style="left:38%;top:-140px">大图预览 ↑（锚在面板，条目上方）</div>
+          <div class="foot"><button class="pg">‹</button>
+            <div class="strip"><span class="thumb on"></span><span class="thumb"></span><span class="thumb"></span><span class="thumb"></span><span class="thumb"></span><span class="thumb"></span></div>
+            <button class="pg">›</button></div>
+        </div>
+        <div class="me-tools"><span class="me-vis">公开</span></div>
+        <div class="me-ft"><span class="me-tip">图片上传失败，请重试</span><button class="me-cc">取消</button><button class="me-ok">发布</button></div>
+      </div>
+
+      <div class="me">
+        <div class="me-hd">发动态（首行悬停 → 下翻） <button class="x">✕</button></div>
+        <div class="emot" style="border-top:none">
+          <div class="head">包0</div>
+          <div class="grid">
+            <div class="cell hot"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          </div>
+          <div class="prev" style="left:6%;top:60px">大图预览 ↓（首行上方不够 → 翻到条目下，不越出面板）</div>
+          <div class="foot"><button class="pg">‹</button>
+            <div class="strip"><span class="thumb on"></span><span class="thumb"></span><span class="thumb"></span></div>
+            <button class="pg">›</button></div>
+        </div>
+        <div class="me-ft"><span class="me-tip"></span><button class="me-cc">取消</button><button class="me-ok">发布</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ⑥ 弹幕画布 ================= -->
+  <div class="sec">
+    <h2>⑥ 弹幕画布 · 暂停中的重定位<em>开评论抽屉/拉窗口 → 画布跟随视频区</em></h2>
+    <div class="dual">
+      <div>
+        <div class="dstage shift">
+          <div class="vid">视频区（左移让位）</div>
+          <div class="drawer"></div>
+          <div class="dm" style="left:4%">这条弹幕停在旧位置 → 压在黑边/抽屉下</div>
+          <div class="dm d2">画布没跟着视频走</div>
+          <div class="note">暂停 · 错位（现状）</div>
+        </div>
+        <p class="d" style="margin:8px 0 0">align 只在 paint 里跑；暂停时 rVFC/rAF 双停，画布无人重排。</p>
+      </div>
+      <div>
+        <div class="dstage shift">
+          <div class="vid">视频区（左移让位）</div>
+          <div class="drawer"></div>
+          <div class="dm" style="left:4%">弹幕与视频区对齐 ✓</div>
+          <div class="dm d2">抽屉开合/窗口变化即重排</div>
+          <div class="note" style="color:#7ee08a">暂停 · 对齐（改后）</div>
+        </div>
+        <p class="d" style="margin:8px 0 0">修法：抽屉开合 / resize 时对存活图层做一次 align（不依赖播放帧）。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ⑦ 抽屉层级 ================= -->
+  <div class="sec">
+    <h2>⑦ 私信抽屉层级<em>详情面板(z61)之上、可点（原被同权重 58 压住）</em></h2>
+    <div class="dual">
+      <div>
+        <div class="lay">
+          <div class="dpanel"><div class="hd">动态详情</div><div class="line"></div><div class="line sh"></div></div>
+          <div class="msg old"><div class="hd">私信（点在背板上…）</div><div class="line"></div><div class="line sh"></div><span class="z">z-index:58</span></div>
+        </div>
+        <p class="d" style="margin:8px 0 0"><span class="badge bad">改前</span> 抽屉被详情背板盖住：变暗且点不到，点它命中的是背板。</p>
+      </div>
+      <div>
+        <div class="lay">
+          <div class="dpanel"><div class="hd">动态详情</div><div class="line"></div><div class="line sh"></div></div>
+          <div class="msg"><div class="hd">私信（可点）</div><div class="line"></div><div class="line sh"></div><span class="z">z-index:62</span></div>
+        </div>
+        <p class="d" style="margin:8px 0 0"><span class="badge ok">改后</span> 抽屉在详情之上（0.9.105 裁决原意），
+          「捎句话」进来的会话正常可交互。修法：把 62 挪到共享规则之后（或提权重），与 pubfab 注释口径对齐。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ⑧ 面板底栏拖动 ================= -->
+  <div class="sec">
+    <h2>⑧ 表情面板底栏<em>可拖动横滚（原：藏滚动条 + 无拖拽，只能连点 ‹ ›）</em></h2>
+    <p class="d">修法：底栏 strip 加 pointer 拖拽（按住左右拖 = 横滚）+ 竖向滚轮映射为横滚；
+      hover 显示 grab 光标。保留 ‹ › 按钮（点击 120px）。</p>
+    <div class="barstrip">
+      <button class="pg">‹</button>
+      <div class="drag" id="dragstrip">
+        <span class="th on"></span><span class="th"></span><span class="th"></span><span class="th"></span>
+        <span class="th"></span><span class="th"></span><span class="th"></span><span class="th"></span>
+        <span class="th"></span><span class="th"></span><span class="th"></span><span class="th"></span>
+        <span class="th"></span><span class="th"></span><span class="th"></span><span class="th"></span>
+      </div>
+      <button class="pg">›</button>
+    </div>
+    <p class="d" style="margin:8px 0 0">按住条纹区域左右拖动试试（本预览为演示实现，正式实现走 pointer 事件 + 惯性可选）。</p>
+  </div>
+</div>
+
+<script>
+  // ④ 设置面板演示：点开/点外收起/Esc 收起/自动上翻
+  (function () {
+    document.querySelectorAll('[data-sel]').forEach(function (wrap) {
+      var btn = wrap.querySelector('.set-sel-btn');
+      var menu = wrap.querySelector('.set-sel-menu');
+      function close() { menu.classList.remove('show'); }
+      btn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var willOpen = !menu.classList.contains('show');
+        document.querySelectorAll('.set-sel-menu.show').forEach(function (m) { m.classList.remove('show'); });
+        if (!willOpen) return;
+        // 空间不足时上翻（正式实现按 getBoundingClientRect 量）
+        var r = btn.getBoundingClientRect();
+        var below = window.innerHeight - r.bottom;
+        menu.classList.toggle('up', below < 150);
+        menu.classList.add('show');
+      });
+      menu.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        if (ev.target.classList.contains('set-sel-item')) {
+          menu.querySelectorAll('.set-sel-item').forEach(function (x) { x.classList.remove('on'); });
+          ev.target.classList.add('on');
+          btn.textContent = ev.target.textContent + ' ▾';
+          close();
+        }
+      });
+      document.addEventListener('click', close);
+      document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') close(); });
+    });
+  })();
+  // ⑧ 底栏拖拽演示
+  (function () {
+    var strip = document.getElementById('dragstrip');
+    var down = false, x0 = 0, s0 = 0;
+    strip.addEventListener('pointerdown', function (ev) {
+      down = true; x0 = ev.clientX; s0 = strip.scrollLeft;
+      try { strip.setPointerCapture(ev.pointerId); } catch (e) { }
+    });
+    strip.addEventListener('pointermove', function (ev) {
+      if (down) strip.scrollLeft = s0 - (ev.clientX - x0);
+    });
+    strip.addEventListener('pointerup', function () { down = false; });
+  })();
+  // ① 简介展开/收起演示
+  (function () {
+    document.querySelectorAll('.dmore').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var d = b.parentNode.querySelector('.desc');
+        if (!d) return;
+        var open = d.classList.toggle('open');
+        if (open) { d.classList.remove('clamp2', 'clamp3'); b.textContent = '收起简介 ▴'; }
+        else { d.classList.add('clamp2'); b.textContent = '展开简介 ▾'; }
+      });
+    });
+  })();
+</script>
+</body>
+</html>

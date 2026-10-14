@@ -108,9 +108,50 @@ rec('scroll-lock-released', !document.documentElement.classList.contains('acsv-s
     var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
       waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
       feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
+// 简介组夹具（0.9.237）在 harness.html 预置段写入——必须在 resolve 前（见该处注释）
 rec('home-first-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
 var f = feed();
 rec('home-resolved', !!(f && f.items[0] && f.items[0].hasUrls));
+// ---- 0.9.237 简介组四钉 ----
+rec('desc-short-no-button', !!(await waitFor(function () {
+  var s = slide(0);
+  return !!s && !!s.querySelector('.acsv-desc') && !s.querySelector('.acsv-descm');
+}, 12000)), (function () {
+  var s = slide(0);
+  return s ? ('hasDesc=' + !!s.querySelector('.acsv-desc') + ' hasBtn=' + !!s.querySelector('.acsv-descm')) : 'no-slide';
+})());
+// 点简介正文不得触发播放/暂停（原先冒泡成 slide 点按；desc 区已 stopPropagation）——须在 idx0 是当前条时测
+rec('desc-tap-keeps-playing', (function () {
+  var s = slide(0), v = s && s.querySelector('video');
+  var d = s && s.querySelector('.acsv-desc');
+  if (!v || v.paused || !d) return false;
+  d.click();
+  return !v.paused;
+})());
+// idx1 的简介要等它成为当前条才被解析（懒解析随挂载；夹具的 description 在 resolve 时才读）——按 ↓ 过去再等
+key('ArrowDown');
+await waitFor(function () { return cur() === 1; }, 8000);
+rec('desc-long-button', !!(await waitFor(function () {
+  var s = slide(1);
+  return !!s && !!s.querySelector('.acsv-desc') && !!s.querySelector('.acsv-descm');
+}, 12000)), (function () {
+  var s = slide(1);
+  return s ? ('hasDesc=' + !!s.querySelector('.acsv-desc') + ' hasBtn=' + !!s.querySelector('.acsv-descm')) : 'no-slide';
+})());
+rec('desc-wrap-anywhere', (function () {
+  var d = q('.acsv-slide[data-idx="1"] .acsv-desc');
+  return !!d && getComputedStyle(d).overflowWrap === 'anywhere';
+})(), (function () {
+  var d = q('.acsv-slide[data-idx="1"] .acsv-desc');
+  return d ? getComputedStyle(d).overflowWrap : 'no-desc';
+})());
+rec('desc-scrim-on', (function () {
+  var s = q('.acsv-slide[data-idx="1"] .acsv-info-scrim');
+  return !!s && s.style.display !== 'none' && s.offsetParent !== null;
+})(), (function () {
+  var s = q('.acsv-slide[data-idx="1"] .acsv-info-scrim');
+  return s ? ('display=' + s.style.display) : 'no-scrim';
+})());
   };
 
   // ---- fastswipe ----

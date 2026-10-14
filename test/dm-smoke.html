@@ -241,6 +241,19 @@
       !!cvGeom() && cvGeom().w === 640 && cvGeom().h === 360 && cvGeom().left === 0 && cvGeom().top === 0,
       JSON.stringify(cvGeom()));
 
+    // 0.9.237 暂停态强制重排：改几何不泵帧，realignAll 必须让画布跟上（align 只在 paint 里跑的缺口）
+    v.__rect = { left: 40, top: 30, width: 640, height: 360 };
+    await sleep(320); v.__pump(2);
+    var g0 = cvGeom();
+    v.__rect = { left: 120, top: 80, width: 480, height: 270 };
+    await sleep(120); // 不泵帧＝rVFC/rAF 双停的等价态
+    var g1 = cvGeom();
+    if (Dm.realignAll) Dm.realignAll();
+    await sleep(120);
+    var g2 = cvGeom();
+    rec('暂停中 realignAll 跟几何（0.9.237）',
+      !!(g0 && g1 && g2 && g1.left === g0.left && g2.left === 120),
+      JSON.stringify({ g0: g0, g1: g1, g2: g2 }));
     var destroyed = false;
     layer.onDestroy = function () { destroyed = true; }; // 0.9.234：销毁出口回调（danmaku 借它停高级弹幕泵）
     layer.destroy();

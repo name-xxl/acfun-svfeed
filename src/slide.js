@@ -14,22 +14,36 @@ import { buildSideRail, syncMetaUp } from './rail.js';
 // ---------- 简介渲染（0.9.196 案 A）：标题下方内联，2 行 clamp + 「展开简介」 ----------
 // 幂等：同文不重绘（保住展开态）；解析回包把 desc 从无到有时经 _descSync 重刷。
 // 展开后限高可滚（竖刷是全屏单条，不能让简介吃掉画面）。
+// 0.9.237：①「展开」只在溢出时挂（量 scrollHeight）；②「展开」改 button（点击区/键盘可达）；
+// ③ 点简介区不外冒（不误触播放/暂停）；④ 有简介时开衬底（案 B 轻衬底，_scrim 引用在 buildSlide 挂）
 function syncDesc(box, item) {
   var txt = (item && item.desc) || '';
-  if (!txt) { box.style.display = 'none'; box.textContent = ''; return; }
+  var scrim = box._scrim;
+  if (!txt) {
+    box.style.display = 'none';
+    box.textContent = '';
+    if (scrim) scrim.style.display = 'none';
+    return;
+  }
   box.style.display = '';
+  if (scrim) scrim.style.display = '';
   if (box.dataset.txt === txt) return;
   box.dataset.txt = txt;
   box.textContent = '';
   box.classList.remove('open');
-  box.appendChild(el('p', 'acsv-desc', txt));
-  var more = el('a', 'acsv-descm', '展开简介 ▾');
-  more.addEventListener('click', function (ev) {
-    ev.stopPropagation(); // 别冒泡成 slide 点按（会切播放/暂停）
-    var on = box.classList.toggle('open');
-    more.textContent = on ? '收起简介 ▴' : '展开简介 ▾';
-  });
-  box.appendChild(more);
+  var p = el('p', 'acsv-desc', txt);
+  box.appendChild(p);
+  // 溢出才挂按钮（clamp 两行后一次测量；短简介不再出现点不动的假「展开」）
+  if (p.scrollHeight > p.clientHeight + 1) {
+    var more = el('button', 'acsv-descm', '展开简介 ▾');
+    more.type = 'button';
+    more.addEventListener('click', function (ev) {
+      ev.stopPropagation(); // 别冒泡成 slide 点按（会切播放/暂停）
+      var on = box.classList.toggle('open');
+      more.textContent = on ? '收起简介 ▴' : '展开简介 ▾';
+    });
+    box.appendChild(more);
+  }
 }
 
 export function buildSlide(item, idx, goTo) {
@@ -82,10 +96,17 @@ export function buildSlide(item, idx, goTo) {
   info.appendChild(el('p', 'acsv-title', item.title));
   // 简介（0.9.196，用户裁决「案 A」）：数据要等 douga/info 回包（appapi.resolve 写 item.desc），
   // 故容器先建、由 _descSync 在解析完成后填充（onHomeResolved 统一驱动）；无简介则整块不显示。
+  // 衬底（0.9.237 案 B）：全宽轻衬底元素随 slide 常建，显隐由 syncDesc 按 desc 有无开关
+  var descScrim = el('div', 'acsv-info-scrim');
+  descScrim.style.display = 'none';
   var descWrap = el('div', 'acsv-descwrap');
+  descWrap._scrim = descScrim;
+  // 点简介区不外冒：点正文/展开键不应触发 slide 的播放/暂停（0.9.237）
+  descWrap.addEventListener('click', function (ev) { ev.stopPropagation(); });
   slide._descSync = function () { syncDesc(descWrap, item); };
   syncDesc(descWrap, item); // 构建期若已有（预热抢跑）先绘一次
   info.appendChild(descWrap);
+  slide.appendChild(descScrim);
   slide.appendChild(info);
 
   slide.addEventListener('mousemove', function () { showControls(slide); });

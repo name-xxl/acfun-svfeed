@@ -87,7 +87,7 @@
 
   // 走 home mock 的场景（其余默认 sv；显式 ?src=home 保持人工预览语义）
   // 0.9.89 起源记忆收编进设置层：写新键 acsv.s.source（JSON 标量）
-  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1, 'watch-playlayer-pagehide': 1, 'watch-pagehide-beacon': 1, 'settings-open': 1, 'settings-migrate': 1, 'rel-drawer': 1, 'rel-layer': 1, 'layer-list': 1, 'dm-ime': 1, 'ctl-typing': 1 };
+  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1, 'watch-playlayer-pagehide': 1, 'watch-pagehide-beacon': 1, 'settings-open': 1, 'settings-migrate': 1, 'rel-drawer': 1, 'rel-layer': 1, 'layer-list': 1, 'dm-ime': 1, 'ctl-typing': 1, 'ctl-narrow': 1 };
   try {
     if (HOME_CASES[CASE] || /[?&]src=home/.test(location.search)) localStorage.setItem('acsv.s.source', '"home"');
     else localStorage.removeItem('acsv.s.source');
@@ -95,6 +95,18 @@
   // 深链场景（0.9.72）：源记忆故意留「推荐」，验证地址栏深链的 id 空间标记能压过持久化偏好
   // （这是「粘贴分享链接却重新随机一屏」的原始复现条件：旧代码 source=home 直接丢弃深链）
   if (CASE === 'deeplink-switch') { try { localStorage.setItem('acsv.s.source', '"home"'); } catch (e) { } }
+  // 0.9.237 简介组夹具（homeswitch）：描述必须在 **resolve 前** 写入——首页条目的 desc 随挂载
+  // 解析一次性填入，用例体内改数组已经太晚（idx1 早已解析完、不会重读）
+  if (CASE === 'homeswitch') {
+    try {
+      if (window.__ACSV_MOCK_HOME__ && window.__ACSV_MOCK_HOME__[0]) {
+        window.__ACSV_MOCK_HOME__[0].description = '正片在 00:12 开始，三台车的胎压按官方建议下调了 0.2bar。';
+        if (window.__ACSV_MOCK_HOME__[1]) {
+          window.__ACSV_MOCK_HOME__[1].description = new Array(40).fill('这是一段很长的简介内容').join('，');
+        }
+      }
+    } catch (e) { }
+  }
   // 设置迁移场景（0.9.89）：bundle 前只预置**老键**（无新键）——首读收养路径的端到端取证。
   // 值域取自 docs/api-research.md §7 真值表；刻意选与默认不同的值（hevc≠avc、std≠mid、关≠开）
   if (CASE === 'settings-migrate') {

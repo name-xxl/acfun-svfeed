@@ -32,7 +32,21 @@
           };
         })
       },
-      'browse/history/list': { result: 0, totalCount: 0, histories: [] }
+      'browse/history/list': { result: 0, totalCount: 0, histories: [] },
+      // 0.9.237 表情面板测试桩：包0 给 12 条（网格两行），其余 19 包各 1 条（底栏必然溢出）
+      'emotion/getUserEmotion': function () {
+        var PIX = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+        var pkgs = [];
+        for (var p = 0; p < 20; p++) {
+          var n = p === 0 ? 12 : 1;
+          var emos = [];
+          for (var i = 0; i < n; i++) {
+            emos.push({ id: 'e' + p + '_' + i, name: 'e' + p + '_' + i, emotionImageSmallUrl: PIX, emotionImageBigUrl: PIX });
+          }
+          pkgs.push({ name: '包' + p, emotions: emos });
+        }
+        return { result: 0, emotionPackageList: pkgs };
+      }
     };
     location.hash = 'svfeed/my';
 
@@ -79,6 +93,42 @@
       var pr = p.getBoundingClientRect(), mr = m.getBoundingClientRect();
       return 'panel=' + Math.round(pr.top) + '..' + Math.round(pr.bottom) + ' modal=' + Math.round(mr.top) + '..' + Math.round(mr.bottom);
     })());
+    rec('pub-emot-items', !!(await waitFor(function () { return !!q('.acsv-me-emot .acsv-emot-item'); }, 5000)));
+    // 0.9.237 预览定位钉：预览锚回面板内（原先逃到浮层根、屏幕左上 (82,4)）；首行条目翻到下方
+    var paRect = q('.acsv-me-emot') && q('.acsv-me-emot').getBoundingClientRect();
+    var cell1 = q('.acsv-me-emot .acsv-emot-item');
+    var cellMid = q('.acsv-me-emot .acsv-emot-item:nth-child(12)') || cell1;
+    if (cell1) cell1.dispatchEvent(new MouseEvent('mouseenter'));
+    await wait(120);
+    var pv = q('.acsv-me-emot .acsv-emot-prev');
+    var pvRect = pv && pv.getBoundingClientRect();
+    var c1Rect = cell1 && cell1.getBoundingClientRect();
+    rec('pub-emot-prev-in-panel', !!(pvRect && paRect && pvRect.left >= paRect.left - 1
+      && pvRect.right <= paRect.right + 1 && pvRect.top >= paRect.top - 1),
+      pvRect ? JSON.stringify({ l: Math.round(pvRect.left), t: Math.round(pvRect.top), pl: Math.round(paRect.left), pt: Math.round(paRect.top) }) : 'no-prev');
+    rec('pub-emot-prev-first-row-below', !!(pvRect && c1Rect && pvRect.top > c1Rect.bottom),
+      pvRect && c1Rect ? Math.round(pvRect.top) + '>' + Math.round(c1Rect.bottom) : 'no-prev');
+    if (cellMid && cellMid !== cell1) {
+      cellMid.dispatchEvent(new MouseEvent('mouseenter'));
+      await wait(120);
+      var pv2 = q('.acsv-me-emot .acsv-emot-prev');
+      var r2 = pv2 && pv2.getBoundingClientRect();
+      var c2Rect = cellMid.getBoundingClientRect();
+      // 面板内第二行（上方留给 124px 预览不够）→ 翻到条目下方；且必须在面板矩形内
+      rec('pub-emot-prev-row2-below', !!(r2 && r2.top > c2Rect.bottom && r2.left >= paRect.left - 1 && r2.right <= paRect.right + 1),
+        r2 ? JSON.stringify({ t: Math.round(r2.top), cb: Math.round(c2Rect.bottom) }) : 'no-prev');
+    }
+    // 0.9.237 底栏拖动钉：20 包溢出，pointer 拖拽必须滚动（原先藏滚动条又无拖拽）
+    var strip2 = q('.acsv-me-emot .acsv-emot-strip');
+    var sBefore = strip2 ? strip2.scrollLeft : -1;
+    if (strip2) {
+      strip2.dispatchEvent(new PointerEvent('pointerdown', { clientX: 400, bubbles: true, pointerId: 3 }));
+      strip2.dispatchEvent(new PointerEvent('pointermove', { clientX: 150, bubbles: true, pointerId: 3 }));
+      strip2.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 3 }));
+    }
+    rec('pub-emot-strip-drag', !!(strip2 && strip2.scrollWidth > strip2.clientWidth + 10
+      && strip2.scrollLeft > sBefore + 20),
+      strip2 ? ('sw=' + strip2.scrollWidth + ' cw=' + strip2.clientWidth + ' sl=' + strip2.scrollLeft) : 'no-strip');
     if (eb) eb.click(); // 收起，免得影响后面
 
     // 2) 输入 → 字数 → 可见范围

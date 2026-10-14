@@ -23,7 +23,7 @@
 // **差异裁决（有意，不是漏抄）**：几何与节奏（尺寸/行距/控件块/菜单行高）取官方量取值；
 // 表面与圆角取本方家族——脚本页面板必须与自家模态同族，而官方面板是无模糊的扁平 2px 圆角
 // （量取原文如上）。未量取项：开关内部旋钮的几何（只量到药丸本体），按药丸内切推导，注释在册。
-import { el } from './ui.js';
+import { el, closeOnOutsideClick } from './ui.js';
 import { root } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { panelItems, getSetting, setSetting, flushSettings, onChange } from './settings.js';
@@ -60,19 +60,21 @@ var SET_CSS = ''
   // 下拉：菜单表面与选项行取官方量取值（rgba(21,21,21,.8) / radius 4px / 行高 36px）
   + '.set-sel{flex:none;position:relative}'
   + '.set-sel-btn{min-width:88px;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;'
-  + 'background:rgba(255,255,255,.12);color:#fff;font:13px/1.4 inherit;text-align:center}'
+  + 'background:rgba(255,255,255,.12);color:#fff;font-size:13px;line-height:1.4;font-family:inherit;text-align:center}'
   + '.set-sel-btn:hover{background:rgba(255,255,255,.2)}'
   + '.set-sel-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;min-width:120px;'
   + 'background:rgba(21,21,21,.92);border-radius:4px;padding:0;display:flex;flex-direction:column;'
   + 'box-shadow:0 8px 28px rgba(0,0,0,.45)}'
-  + '.set-sel-item{border:none;background:none;color:#fff;font:14px/36px inherit;cursor:pointer;'
-  + 'padding:0 14px;text-align:left;white-space:nowrap}'
+  // 上方空间不足时的翻转位（0.9.237：由打开时实测决定，防被 set-body 滚动容器裁切）
+  + '.set-sel-menu.up{top:auto;bottom:calc(100% + 6px)}'
+  + '.set-sel-item{border:none;background:none;color:#fff;font-size:14px;line-height:36px;font-family:inherit;'
+  + 'cursor:pointer;padding:0 14px;text-align:left;white-space:nowrap}'
   + '.set-sel-item:hover{background:rgba(255,255,255,.12)}'
   + '.set-sel-item.on{color:var(--acsv-accent)}'
   // 步进器：按钮 26px 高取官方按钮量取值
   + '.set-num{flex:none;display:flex;align-items:center;gap:8px}'
   + '.set-num-btn{width:26px;height:26px;border:1px solid rgba(255,255,255,.2);border-radius:3px;'
-  + 'background:none;color:#fff;font:14px/1 inherit;cursor:pointer}'
+  + 'background:none;color:#fff;font-size:14px;line-height:1;font-family:inherit;cursor:pointer}'
   + '.set-num-btn:hover:not(:disabled){background:rgba(255,255,255,.12)}'
   + '.set-num-btn:disabled{opacity:.35;cursor:default}'
   + '.set-num-val{min-width:56px;text-align:center;font-size:14px}'
@@ -85,9 +87,17 @@ var SET_CSS = ''
 
 var host = null, panel = null;
 var offs = []; // open 期间注册的 onChange 订阅：close 全部退订（面板是短命对象，不留监听）
+var menuCloser = null; // 当前打开的下拉菜单收起函数（0.9.237：overlay 的 Esc 先收菜单、不关整面板）
+
+function dismissMenu() {
+  if (!menuCloser) return false;
+  menuCloser();
+  return true;
+}
 
 export function closeSettings() {
   if (!panel) return;
+  dismissMenu(); // 菜单随面板一起收（清 menuCloser）
   var p = panel;
   panel = null;
   var h = host;
@@ -121,7 +131,10 @@ function selectControl(item) {
     }
     return v;
   };
-  var closeMenu = function () { if (menu) { menu.remove(); menu = null; } };
+  var closeMenu = function () {
+    if (menu) { menu.remove(); menu = null; }
+    if (menuCloser === closeMenu) menuCloser = null;
+  };
   var sync = function () { closeMenu(); btn.textContent = labelOf(getSetting(item.key)); };
   btn.addEventListener('click', function (ev) {
     ev.stopPropagation();
@@ -136,6 +149,14 @@ function selectControl(item) {
       menu.appendChild(it);
     });
     wrap.appendChild(menu);
+    menuCloser = closeMenu;
+    // 空间不足上翻（0.9.237）：下方放不下整菜单就翻到按钮上方——不被 set-body 滚动容器裁掉半截
+    var br = btn.getBoundingClientRect(), mh = menu.getBoundingClientRect().height;
+    if (br.bottom + 6 + mh > window.innerHeight - 8) menu.classList.add('up');
+    // 外点收起（0.9.147 规矩：capture + 常驻到拆除）。Shadow DOM 内点其它设置行时 target 被
+    // 重定向到宿主、判为"外点"——正好是「点面板别处收菜单」的手感；点菜单内部被 item 的
+    // stopPropagation 挡在影子边界内，不会误收
+    closeOnOutsideClick(menu, [btn], closeMenu);
   });
   // 点面板别处收菜单（同控制栏 qmenu 的既有手感）
   wrap.addEventListener('click', function (ev) { ev.stopPropagation(); });
@@ -218,5 +239,5 @@ export function openSettings() {
   panel.addEventListener('click', function (ev) { if (ev.target === panel) closeSettings(); });
   shadow.appendChild(panel);
   root.appendChild(host);
-  overlayOpen({ id: 'settings', modal: true, close: closeSettings });
+  overlayOpen({ id: 'settings', modal: true, close: closeSettings, onEsc: dismissMenu });
 }
