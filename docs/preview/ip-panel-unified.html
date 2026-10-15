@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · IP 面板两主题（脚本页深色 / 原生页浅色）· 精简版（0.9.253）</title>
+<!-- ============================================================
+     docs/preview/ip-panel-unified.html —— 0.9.253 静态预览（2026-10-15）
+     改稿①（用户「脚本页的ip弹出面板用深色」）：IP 面板＝同一面板两主题——脚本页（.acsv-cip 入口）
+       ＝深色主题（token 对齐齿轮面板家族）；原生页（.acsv-nip 入口）＝浅色主题（Web-IP 收敛版）。
+     改稿②（用户「小字太多了，有点挤，可以精简」）：**精简**——
+       · 设置行小字提示（hint 第二行）全部移除：文案转入 label 的悬停 title（信息不丢、视觉归零）；
+       · 「评论」组标移除（评论域独占，标题已交代语境）；
+       · 页脚只留 `v{版本}`（免责文案已在每个 IP 标签的悬停提示里，页脚不重复）。
+     改稿③（用户「悬停title，设备型号美化不用举例子，举例子也不要用一加，可以用苹果或者华为，政治正确就用华为」）：
+       · 设备型号美化的悬停文案**去例子**（「代号自动替换为友好名称；点击型号可切回代号」）；
+       · 本稿凡举例一律苹果/华为——抽屉夹具设备名随之改为 HUAWEI Mate 60 Pro / iPhone 4；
+       · 实现批同步改 SCHEMA 的 devName hint（齿轮面板该行 hint 同源受益）。
+     其余收敛项保留：标题改口（不再撞名「设置」）/ 开关 34×18（两主题同几何）/ 标签 cursor:pointer /
+       齿轮面板页脚补版本号。口径来源：settingspanel.js SET_CSS、styles.js NATIVE_PANEL_CSS、SCHEMA。
+     待确认点见页尾 ⑧。确认后进 src。
+     ============================================================ -->
+<style>
+  :root{
+    --acsv-accent:#fd4c5d;--acsv-bg:#000;--acsv-panel:rgba(22,22,27,.97);--acsv-line:rgba(255,255,255,.09);
+    --acsv-t2:#cfd3da;--acsv-t3:#8a90a0}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:#fff;font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
+  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
+  .hint b{color:var(--acsv-t2)}
+  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .sec>p.desc{color:var(--acsv-t3);font-size:12px;line-height:1.7;margin:6px 0 14px}
+  .dual{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+  code{background:rgba(255,255,255,.08);border-radius:4px;padding:0 5px;font-size:12px;color:#e8eaee;
+    font-family:Consolas,Menlo,monospace}
+  .badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;margin-left:8px;
+    border:1px solid rgba(255,255,255,.25);color:var(--acsv-t2)}
+  .badge.new{color:#7ee08a;border-color:rgba(126,224,138,.5)}
+
+  /* ============ IP 面板 · 结构单源（两主题只换 token）；精简版：行＝单行 label + 控件 ============ */
+  .np{width:340px;max-width:92vw;border-radius:6px;background:#fff;color:#666;
+    font:12px/1.6 PingFangSC,-apple-system,"Microsoft YaHei",sans-serif;
+    box-shadow:0 6px 24px rgba(0,0,0,.25);overflow:hidden}
+  .np-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 4px}
+  .np-title{font-size:14px;font-weight:600;color:#333}
+  .np-close{cursor:pointer;font-size:20px;line-height:1;color:#999}
+  .np-body{padding:4px 14px 8px}
+  .np-card{margin:8px 0 4px;padding:8px 12px;background:#fafafa;border:1px solid #e5e5e5;border-radius:4px;
+    font-size:12px;color:#666}
+  .np-card div{display:flex;justify-content:space-between;padding:1px 0}
+  .np-card .np-ip{color:#fd4c5d;font-weight:600;font-size:13px}
+  .np-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;
+    border-bottom:1px solid #f0f0f0}
+  .np-row:last-child{border-bottom:none}
+  .np-label{font-size:14px;line-height:18px;color:#333} /* 原 hint 文案在此元素的 title（悬停可见） */
+  .np-sw{position:relative;width:34px;height:18px;border-radius:22px;background:#ddd;flex:none}
+  .np-sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .np-sw.on{background:#fd4c5d}
+  .np-sw.on::after{transform:translateX(16px)}
+  .np-seg{display:flex;border:1px solid #e5e5e5;border-radius:3px;overflow:hidden;flex:none}
+  .np-seg button{border:none;background:#fff;color:#666;font-size:12px;padding:3px 10px;cursor:pointer;
+    border-right:1px solid #e5e5e5;font-family:inherit;line-height:16px}
+  .np-seg button:last-child{border-right:none}
+  .np-seg button.on{background:#fd4c5d;border-color:#fd4c5d;color:#fff}
+  .np-acts{display:flex;gap:6px;flex:none}
+  .np-acts button{border:1px solid #999;background:#f4f4f4;color:#666;font-size:12px;padding:3px 12px;
+    border-radius:3px;cursor:pointer;line-height:16px;font-family:inherit}
+  .np-acts button.danger{background:#fff;border-color:#f5222d;color:#f5222d}
+  .np-foot{padding:8px 14px;font-size:11px;color:#999;background:#fafafa;border-top:1px solid #f0f0f0}
+
+  /* ---- 深色主题（脚本页）：token 对齐齿轮面板家族，结构不动 ---- */
+  .np.dark{background:rgba(22,22,27,.97);border:1px solid rgba(255,255,255,.1);border-radius:14px;
+    color:#cfd3da;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+    backdrop-filter:blur(12px);box-shadow:0 10px 34px rgba(0,0,0,.5)}
+  .np.dark .np-title{font-size:15px;color:#fff}
+  .np.dark .np-close{color:#9aa0ab}
+  .np.dark .np-card{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.09);color:#cfd3da}
+  .np.dark .np-card .np-ip{color:var(--acsv-accent)}
+  .np.dark .np-row{border-bottom-color:rgba(255,255,255,.07)}
+  .np.dark .np-label{color:#fff}
+  .np.dark .np-sw{background:rgb(158,158,158)}
+  .np.dark .np-sw.on{background:var(--acsv-accent)}
+  .np.dark .np-seg{border-color:rgba(255,255,255,.2);border-radius:8px}
+  .np.dark .np-seg button{background:transparent;color:#cfd3da;border-right-color:rgba(255,255,255,.2)}
+  .np.dark .np-seg button.on{background:var(--acsv-accent);border-color:var(--acsv-accent);color:#fff}
+  .np.dark .np-acts button{border:none;background:rgba(255,255,255,.12);color:#fff;border-radius:8px;
+    padding:7px 16px;font-size:13px}
+  .np.dark .np-acts button.danger{background:rgba(255,255,255,.12);color:#ff8a95}
+  .np.dark .np-foot{background:rgba(255,255,255,.03);border-top-color:rgba(255,255,255,.09);color:#8b909a;
+    font-size:12px;padding:10px 14px}
+
+  /* ============ 上下文：暗色抽屉 + 上叠面板 ============ */
+  .ctxwrap{position:relative;width:1180px;max-width:100%;height:520px;border:1px dashed rgba(255,255,255,.14);
+    border-radius:8px;overflow:hidden;background:#000}
+  .drawer{position:absolute;left:24px;top:24px;bottom:24px;width:412px;background:var(--acsv-panel);
+    border:1px solid var(--acsv-line);border-radius:10px;overflow:hidden}
+  .dhead{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--acsv-line);
+    font-size:15px;font-weight:600}
+  .citem{display:flex;gap:30px;padding:0 16px;margin-top:18px}
+  .avlink{flex:none}
+  .av{width:50px;height:50px;border-radius:50%;display:block;background:linear-gradient(135deg,#3a4a6b,#6b3a4a)}
+  .cbody{flex:1;min-width:0}
+  .cname{font-size:12px;color:#9aa0ab;margin-bottom:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .ctext{font-size:14px;line-height:1.6;color:#f0f1f3;margin-bottom:13px}
+  .cmeta{font-size:12px;color:#7a7f8a;margin-bottom:17px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .cfrom{display:inline-flex;align-items:center;gap:3px}
+  .cfrom a{color:inherit;text-decoration:none}
+  .cip{color:#7a7f8a;cursor:pointer}          /* 0.9.253：cursor default → pointer */
+  .cip.hov{color:var(--acsv-accent)}           /* 悬停态（示意） */
+  .ctxmask{position:absolute;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;
+    justify-content:center}
+
+  /* ============ 齿轮面板（暗色）——页脚收敛 ============ */
+  .set-panel{width:min(400px,92vw);background:rgba(22,22,27,.97);border:1px solid rgba(255,255,255,.1);
+    border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden;color:#fff;font-size:14px}
+  .set-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.09)}
+  .set-title{font-size:15px;font-weight:600}
+  .set-x{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:28px;height:28px;
+    border-radius:50%;font-size:12px}
+  .set-body{padding:20px}
+  .set-group{font-size:12px;color:#8b909a;margin:0 0 6px}
+  .set-row{display:flex;align-items:center;gap:20px;min-height:18px;margin:0 0 20px}
+  .set-row-main{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:2px}
+  .set-label{font-size:14px;line-height:18px}
+  .set-hint{font-size:12px;line-height:16px;color:#8b909a}
+  .set-sw{flex:none;width:34px;height:18px;border-radius:22px;background:rgb(158,158,158);position:relative}
+  .set-sw.on{background:var(--acsv-accent)}
+  .set-sw i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff}
+  .set-sw.on i{transform:translateX(16px)}
+  /* 【新增】页脚：版本号左 + 完成右（原为 justify-content:flex-end 仅按钮） */
+  .set-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 14px;
+    border-top:1px solid rgba(255,255,255,.09)}
+  .set-ver{font-size:12px;color:#8b909a}
+  .set-act{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;
+    cursor:pointer;background:var(--acsv-accent);color:#fff}
+  .set-foot.old{justify-content:flex-end}
+
+  /* 开关几何对照 */
+  .swrow{display:flex;gap:28px;align-items:center;flex-wrap:wrap}
+  .swbox{display:flex;flex-direction:column;gap:6px;align-items:center;color:var(--acsv-t3);font-size:11px}
+
+  /* 窄宽 */
+  .narrow{width:540px;max-width:100%;border:1px dashed rgba(255,255,255,.14);padding:12px}
+</style>
+</head>
+<body class="board">
+  <h1>IP 面板两主题（脚本页深色 / 原生页浅色）· 精简版 + 脚本页点击接通 + 齿轮页脚版本号</h1>
+  <p class="hint">
+    <b>改稿② 精简已并入</b>：设置行小字提示全部移除（<b>文案转入 label 悬停 title</b>）、「评论」组标移除、页脚只留 <code>v{版本}</code>
+    （免责文案已在每个 IP 标签的悬停提示里）。其余：两主题（脚本页深色 / 原生页浅色）/ 标题改口 / 开关 34×18 /
+    脚本页点 IP 接通 / 齿轮页脚版本号。静态稿的 title 悬停可在浏览器里试（鼠标停在行文字上）。
+  </p>
+
+  <!-- ① 原生页语境（浅色主题） -->
+  <div class="sec">
+    <h2>① 原生页语境 · 浅色主题<em>点原生页 IP 标签（.acsv-nip）弹出；Web-IP 面板资产的收敛版</em></h2>
+    <p class="desc">三行设置＝评论域 SCHEMA 文案原文（单行式；悬停 label 见原提示文案）。</p>
+    <div class="np">
+      <div class="np-head"><span class="np-title">IP 属地 · 设备</span><span class="np-close">×</span></div>
+      <div class="np-body">
+        <div class="np-card">
+          <div><span>用户名</span><span>一只芸喵喵</span></div>
+          <div><span>UID</span><span>12229455</span></div>
+          <div><span>IP属地</span><span class="np-ip">江苏</span></div>
+          <div><span>查询于</span><span>2026/10/15 21:03:12</span></div>
+        </div>
+        <div class="np-row" title="来自用户主页实时资料，不代表发布时的 IP；需登录态">
+          <span class="np-label">评论区显示 IP 属地</span>
+          <span class="np-sw on"></span>
+        </div>
+        <div class="np-row" title="过期后重新查询；「永久」= 不自动过期（上限 5000 用户仍会淘汰）">
+          <span class="np-label">属地缓存保留</span>
+          <span class="np-seg"><button>永久</button><button>1 天</button><button class="on">7 天</button><button>30 天</button></span>
+        </div>
+        <div class="np-row" title="代号自动替换为友好名称；点击型号可切回代号">
+          <span class="np-label">设备型号美化</span>
+          <span class="np-sw on"></span>
+        </div>
+        <div class="np-row">
+          <span class="np-label">缓存管理</span>
+          <span class="np-acts"><button>导出</button><button>导入</button><button class="danger">清空</button></span>
+        </div>
+        <div class="np-row">
+          <span class="np-label">设备数据 996 条</span>
+          <span class="np-acts"><button>导入</button><button>导出</button><button class="danger">重置</button></span>
+        </div>
+      </div>
+      <div class="np-foot">v0.9.253</div>
+    </div>
+  </div>
+
+  <!-- ② 脚本页语境（深色主题） -->
+  <div class="sec">
+    <h2>② 脚本页语境 · <b>深色主题</b><span class="badge new">改稿①</span><em>点抽屉里的 IP 标签（.acsv-cip）弹出；token 对齐齿轮面板家族</em></h2>
+    <p class="desc">
+      结构与内容与 ① 完全同源，只换 token：面板 rgba(22,22,27,.97)+blur12/radius14、标题 15px 白、开关关态
+      rgb(158,158,158)、动作按钮 radius8 半透明、页脚 12px #8b909a。抽屉内三个标签：常规灰 / 悬停主题色 / 点后即弹本面板。
+    </p>
+    <div class="ctxwrap">
+      <div class="drawer">
+        <div class="dhead">评论 <span style="margin-left:auto;font-weight:400;font-size:12px;color:#8a90a0">2221 条</span></div>
+        <div class="citem">
+          <a class="avlink"><span class="av"></span></a>
+          <div class="cbody">
+            <div class="cname"><a style="color:#9aa0ab;text-decoration:none">所念是个幸运儿</a><span>发表于 10-11 18:15</span></div>
+            <div class="ctext">最怕的可能是这显卡内存波涨价会持续到下代U上市</div>
+            <div class="cmeta">
+              <span>♡ 128</span><span>回复</span><span>转发</span>
+              <span class="cfrom"><span>来自</span><a>HUAWEI Mate 60 Pro</a></span>
+              <span class="cip hov">重庆</span>
+            </div>
+          </div>
+        </div>
+        <div class="citem">
+          <a class="avlink"><span class="av"></span></a>
+          <div class="cbody">
+            <div class="cname"><a style="color:#9aa0ab;text-decoration:none">污泥小熊uniii</a><span>发表于 10-11 18:02</span></div>
+            <div class="ctext">主板这块的供电排序讲得很清楚，收藏了</div>
+            <div class="cmeta">
+              <span>♡ 36</span><span>回复</span><span>转发</span>
+              <span class="cfrom"><span>来自</span><a>iPhone 4</a></span>
+              <span class="cip">内蒙古</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ctxmask">
+        <div class="np dark">
+          <div class="np-head"><span class="np-title">IP 属地 · 设备</span><span class="np-close">×</span></div>
+          <div class="np-body">
+            <div class="np-card">
+              <div><span>用户名</span><span>所念是个幸运儿</span></div>
+              <div><span>UID</span><span>59653933</span></div>
+              <div><span>IP属地</span><span class="np-ip">重庆</span></div>
+              <div><span>查询于</span><span>2026/10/15 21:03:12</span></div>
+            </div>
+            <div class="np-row" title="来自用户主页实时资料，不代表发布时的 IP；需登录态">
+              <span class="np-label">评论区显示 IP 属地</span>
+              <span class="np-sw on"></span>
+            </div>
+            <div class="np-row" title="过期后重新查询；「永久」= 不自动过期（上限 5000 用户仍会淘汰）">
+              <span class="np-label">属地缓存保留</span>
+              <span class="np-seg"><button>永久</button><button>1 天</button><button class="on">7 天</button><button>30 天</button></span>
+            </div>
+            <div class="np-row" title="代号自动替换为友好名称；点击型号可切回代号">
+              <span class="np-label">设备型号美化</span>
+              <span class="np-sw on"></span>
+            </div>
+            <div class="np-row">
+              <span class="np-label">缓存管理</span>
+              <span class="np-acts"><button>导出</button><button>导入</button><button class="danger">清空</button></span>
+            </div>
+            <div class="np-row">
+              <span class="np-label">设备数据 996 条</span>
+              <span class="np-acts"><button>导入</button><button>导出</button><button class="danger">重置</button></span>
+            </div>
+          </div>
+          <div class="np-foot">v0.9.253</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 两主题对照 -->
+  <div class="sec">
+    <h2>③ 两主题并排对照<em>同结构、同内容——只换 token</em></h2>
+    <div class="dual">
+      <div>
+        <p class="desc" style="margin-top:0">浅色主题（原生页入口 .acsv-nip）</p>
+        <div class="np">
+          <div class="np-head"><span class="np-title">IP 属地 · 设备</span><span class="np-close">×</span></div>
+          <div class="np-body">
+            <div class="np-card"><div><span>用户名</span><span>一只芸喵喵</span></div><div><span>IP属地</span><span class="np-ip">江苏</span></div></div>
+            <div class="np-row"><span class="np-label">评论区显示 IP 属地</span><span class="np-sw on"></span></div>
+            <div class="np-row"><span class="np-label">属地缓存保留</span><span class="np-seg"><button>永久</button><button>1 天</button><button class="on">7 天</button><button>30 天</button></span></div>
+            <div class="np-row"><span class="np-label">设备型号美化</span><span class="np-sw on"></span></div>
+          </div>
+          <div class="np-foot">v0.9.253</div>
+        </div>
+      </div>
+      <div>
+        <p class="desc" style="margin-top:0">深色主题（脚本页入口 .acsv-cip）</p>
+        <div class="np dark">
+          <div class="np-head"><span class="np-title">IP 属地 · 设备</span><span class="np-close">×</span></div>
+          <div class="np-body">
+            <div class="np-card"><div><span>用户名</span><span>所念是个幸运儿</span></div><div><span>IP属地</span><span class="np-ip">重庆</span></div></div>
+            <div class="np-row"><span class="np-label">评论区显示 IP 属地</span><span class="np-sw on"></span></div>
+            <div class="np-row"><span class="np-label">属地缓存保留</span><span class="np-seg"><button>永久</button><button>1 天</button><button class="on">7 天</button><button>30 天</button></span></div>
+            <div class="np-row"><span class="np-label">设备型号美化</span><span class="np-sw on"></span></div>
+          </div>
+          <div class="np-foot">v0.9.253</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ 标题备选 -->
+  <div class="sec">
+    <h2>④ 标题备选<em>默认案在前；点一个我按稿改</em></h2>
+    <div class="dual">
+      <div class="np" style="width:340px">
+        <div class="np-head"><span class="np-title">IP 属地 · 设备</span><span class="np-close">×</span></div>
+        <div style="padding:4px 14px 12px;color:#999;font-size:12px">默认案：短、点标签进来的语义直给（两主题同文案）。</div>
+      </div>
+      <div class="np dark" style="width:340px">
+        <div class="np-head"><span class="np-title">用户信息 · IP 与设备</span><span class="np-close">×</span></div>
+        <div style="padding:4px 14px 12px;color:#8b909a;font-size:12px">备选：强调资料卡；略长，窄宽下与「×」同排仍可容。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ 开关几何对照 -->
+  <div class="sec">
+    <h2>⑤ 开关几何对照<em>两主题共用几何（34×18）；配色随主题</em></h2>
+    <div class="swrow">
+      <div class="swbox">
+        <span class="np-sw" style="width:40px;height:22px;opacity:.45"></span>
+        <span>旧 · 浅 40×22（退役）</span>
+      </div>
+      <div class="swbox">
+        <span class="np-sw"></span>
+        <span>新 · 浅 34×18 关</span>
+      </div>
+      <div class="swbox">
+        <span class="np-sw on"></span>
+        <span>新 · 浅 34×18 开</span>
+      </div>
+      <div class="swbox" style="margin-left:18px">
+        <span class="set-sw"><i></i></span>
+        <span>暗 34×18 关（＝齿轮面板现状）</span>
+      </div>
+      <div class="swbox">
+        <span class="set-sw on"><i></i></span>
+        <span>暗 34×18 开（＝齿轮面板现状）</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ 齿轮面板页脚 -->
+  <div class="sec">
+    <h2>⑥ 齿轮面板页脚补版本号<em>v{版本} 左 + 「完成」右；面板其余不动</em></h2>
+    <p class="desc">左：新形态（space-between，版本号 12px #8b909a）；右：现状对照。版本号两面板同源（<code>APP_VERSION</code>）。</p>
+    <div class="dual">
+      <div class="set-panel">
+        <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
+        <div class="set-body" style="padding-bottom:0">
+          <div class="set-group">评论</div>
+          <div class="set-row">
+            <div class="set-row-main">
+              <div class="set-label">评论区显示 IP 属地</div>
+              <div class="set-hint">来自用户主页实时资料，不代表发布时的 IP；需登录态</div>
+            </div>
+            <span class="set-sw on"><i></i></span>
+          </div>
+        </div>
+        <div class="set-foot"><span class="set-ver">v0.9.253</span><button class="set-act">完成</button></div>
+      </div>
+      <div class="set-panel" style="opacity:.55">
+        <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
+        <div class="set-body" style="padding-bottom:0">
+          <div class="set-group" style="color:#5a5f6a">（中部同上，略）</div>
+        </div>
+        <div class="set-foot old"><button class="set-act">完成</button></div>
+      </div>
+    </div>
+    <p class="desc">注：齿轮面板的设置行**保留其现有 hint 两行式**（该面板 9 行、信息密度是它的既有形态，本次不动）。</p>
+  </div>
+
+  <!-- ⑦ 窄宽 540 -->
+  <div class="sec">
+    <h2>⑦ 窄宽 540<em>两主题各一件；页脚版本号不被挤</em></h2>
+    <div class="narrow dual">
+      <div class="np" style="width:100%;max-width:498px">
+        <div class="np-head"><span class="np-title">IP 属地 · 设备</span><span class="np-close">×</span></div>
+        <div class="np-body">
+          <div class="np-row">
+            <span class="np-label">属地缓存保留</span>
+            <span class="np-seg"><button>永久</button><button>1 天</button><button class="on">7 天</button><button>30 天</button></span>
+          </div>
+        </div>
+        <div class="np-foot">v0.9.253</div>
+      </div>
+      <div class="np dark" style="width:100%;max-width:498px">
+        <div class="np-head"><span class="np-title">IP 属地 · 设备</span><span class="np-close">×</span></div>
+        <div class="np-body">
+          <div class="np-row">
+            <span class="np-label">属地缓存保留</span>
+            <span class="np-seg"><button>永久</button><button>1 天</button><button class="on">7 天</button><button>30 天</button></span>
+          </div>
+        </div>
+        <div class="np-foot">v0.9.253</div>
+      </div>
+      <div class="set-panel" style="width:min(400px,92vw)">
+        <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
+        <div class="set-foot" style="border-top:none;padding-top:4px"><span class="set-ver">v0.9.253</span><button class="set-act">完成</button></div>
+      </div>
+    </div>
+    <p class="desc" style="margin-bottom:0">自检：① 单行设置行窄容不折标签、分段整件右置；② 页脚版本号与「完成」同行不重叠。</p>
+  </div>
+
+  <!-- ⑧ 待确认 -->
+  <div class="sec">
+    <h2>⑧ 待确认点<em>你点头后按此稿进 src；有异议先改本稿</em></h2>
+    <p class="desc" style="line-height:2">
+      1. <b>精简口径</b>（本次）：设置行单行式（hint 转入悬停 title）/ 组标移除 / 页脚只留版本号——照此；
+      设备型号美化的悬停文案已**去例子**（本稿举例策略：一律苹果/华为；实现批同步 SCHEMA 的 devName hint）。<br>
+      2. <b>两主题落位</b>：脚本页深色 / 原生页浅色——照此。<br>
+      3. <b>标题</b>：<code>IP 属地 · 设备</code>（默认）/ <code>用户信息 · IP 与设备</code>（备选，④）——选一。<br>
+      4. <b>开关几何</b>：两主题 34×18（⑤）——照此。<br>
+      5. <b>齿轮页脚版本号</b>：<code>v{版本}</code> 左置 12px 灰（⑥）——照此。<br>
+      6. 其余不动：资料卡/分段/行分隔/数据管理两区块只留本面板；齿轮面板内容与 hint 保持现状。
+    </p>
+  </div>
+</body>
+</html>

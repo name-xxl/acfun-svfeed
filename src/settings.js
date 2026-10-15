@@ -88,7 +88,7 @@ export var SCHEMA = [
     label: '属地缓存保留', options: CFG.ip.keepOptions,
     hint: '过期后重新查询；「永久」= 不自动过期（上限 5000 用户仍会淘汰）' },
   { key: 'devName', type: 'bool', def: true, panel: true, native: true, group: '评论',
-    label: '设备型号美化', hint: '把「RMX3619」这类代号替换为「真我 V30」；点击型号可切回代号' }
+    label: '设备型号美化', hint: '代号自动替换为友好名称；点击型号可切回代号' }
 ];
 
 var STORE_PREFIX = 'acsv.s.'; // 逐键命名空间（路线图 1.1）

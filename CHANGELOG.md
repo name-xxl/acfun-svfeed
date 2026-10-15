@@ -5,6 +5,32 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.253（2026-10-15）· IP 面板两主题 + 脚本页点击接通 + 齿轮页脚版本号（三项，预览定案）
+
+**由头**（用户三问：「设置面板设计不统一吗 / 脚本页点击 IP 没反应吗 / 脚本页设置不展示版本号吗」；
+计划模式定案 → 预览稿 `docs/preview/ip-panel-unified.html` 三轮改稿（两主题 → 精简 → 去例子）后确认，
+标题定案「IP 属地 · 设备」）：
+
+- **① 两皮肤收敛 + IP 面板两主题**：IP 面板定为**结构单源、两主题只换 token**——脚本页（`.acsv-cip`
+  入口）＝**深色主题**（token 对齐齿轮面板家族：rgba(22,22,27,.97)+blur12/radius14、标题 15px 白、
+  开关关态 rgb(158,158,158)、动作按钮 radius8 半透明，用户裁决）；原生页（`.acsv-nip` 入口）＝
+  浅色主题（Web-IP 面板资产收敛版）。设置行**精简为单行式**（原 hint 文案转入 label 悬停 title）、
+  组标移除、页脚只留版本号；开关 40×22→**34×18**（两主题同几何）；标签 cursor 改 **pointer**。
+  SCHEMA 的 devName hint 顺带改口（去例子：『代号自动替换为友好名称；点击型号可切回代号』——
+  齿轮面板该行同源受益）。**注：齿轮面板内容与 hint 两行式保持现状**（其既有形态，用户确认不动）。
+- **② 脚本页 IP 点击接通**：`.acsv-cip` 补 uid 背引用（iploc.appendTag）；natpanel 委托 selector 扩
+  `.acsv-cip, .acsv-nip`（主题随入口类）；boot home 分支装配 `mountNatPanel()`（幂等；全站覆盖＝
+  home 由 boot、其余 www 由 nativeip）；面板宿主改 `#acsv-root || body`（脚本页进 root，momenteditor
+  先例）。
+- **③ 版本号单源 + 齿轮页脚**：cfg.js 新增 `export var APP_VERSION`（构建期 `__ACSV_VERSION__` 的
+  UI 唯一出口）；settingspanel 页脚改 space-between——`v{APP_VERSION}` 左置 12px #8b909a + 「完成」
+  右置（IP 面板页脚同源：只留 `v{版本}`，免责文案已在标签 tooltip 里不重复）。
+- **测试**：harness +13 断言——`nat-panel`（23：标题/浅色主题/无小字块且 label title 载文案/开关
+  34×18 实测/页脚版本号）；`ip-tags`（21：cip cursor:pointer + **点 cip 开面板** + 深色主题 +
+  资料卡为该 uid + Esc 关）；`settings-open`（25：页脚版本号在场）。**摘修复反跑**：委托摘掉
+  `.acsv-cip` 分支 ⇒ `iph-panel-open/dark/card` 三条转红，还原复绿。lint/check + 391 单测 +
+  73/73 场景全绿。预览确认稿随批入库。
+
 ### 0.9.252（2026-10-15）· 原生面板设置区收窄为评论域（用户裁决 A）
 
 **由头**（用户问「原生页面点击 ip 弹出的设置面板需要展示全部设置项吗」→ 裁决 A）：0.9.250 的原生

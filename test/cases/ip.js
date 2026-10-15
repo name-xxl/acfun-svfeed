@@ -134,6 +134,28 @@
       await wait(400); // 若有漏网重查，这一拍足够冒出来
       rec('iph-cache-noreq', calls['9001'] === 1 && calls['9002'] === 1 && calls['9003'] === 1
         && calls['9004'] === 1, JSON.stringify(calls));
+      // ⑤ 脚本页 IP 点击接通（0.9.253）：点 .acsv-cip → 面板开（**深色主题**）+ 资料卡为该 uid + Esc 关
+      var cip = n1 && n1.querySelector('.acsv-cip');
+      rec('iph-cip-pointer', !!(cip && getComputedStyle(cip).cursor === 'pointer'),
+        cip ? getComputedStyle(cip).cursor : 'none');
+      if (cip) {
+        cip.click();
+        var maskP = await waitFor(function () { return document.querySelector('.acsv-np-mask'); }, 3000);
+        rec('iph-panel-open', (function () {
+          if (!maskP) return false;
+          var r = maskP.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && getComputedStyle(maskP).display !== 'none';
+        })());
+        rec('iph-panel-dark', !!(maskP && maskP.querySelector('.acsv-np.dark')));
+        rec('iph-panel-card', (function () {
+          var card = maskP && maskP.querySelector('.acsv-np-card');
+          if (!card) return false;
+          var t = card.textContent;
+          return t.indexOf('甲') >= 0 && t.indexOf('9001') >= 0 && t.indexOf('广东') >= 0;
+        })(), (maskP && maskP.querySelector('.acsv-np-card')) ? maskP.querySelector('.acsv-np-card').textContent : 'none');
+        h.key('Escape');
+        rec('iph-panel-esc', !!(await waitFor(function () { return !document.querySelector('.acsv-np-mask'); }, 3000)));
+      }
     }
   };
 

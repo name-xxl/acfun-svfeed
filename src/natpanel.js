@@ -1,21 +1,21 @@
 // @ts-check
-// ---------- 原生页设置面板（0.9.250，Web-IP 吸收 6c；路线图 Phase 6 · 任务卡 6.2） ----------
-// 触发：点击任意原生页 IP 标签（`.acsv-nip`）——捕获阶段委托 + preventDefault +
-// stopImmediatePropagation（Web-IP 同款，避免触发站方点击逻辑）；Esc / 遮罩点击关闭。
-// 视觉＝原脚本面板资产照抄（浅色仿 A 站弹窗、主色 #fd4c5d、340px，NATIVE_PANEL_CSS 段），
-// **不进 svfeed 暗色体系**（D4：共享层同源、皮肤各自生命周期）。
+// ---------- IP 面板（0.9.250 生 / 0.9.253 两主题+全站接通；Web-IP 吸收 6c；路线图 Phase 6 · 任务卡 6.2） ----------
+// 触发：点击任意 IP 标签——**原生页 `.acsv-nip`（浅色主题）/ 脚本页 `.acsv-cip`（深色主题）**
+//（0.9.253 全站接通；捕获阶段委托 + preventDefault + stopImmediatePropagation，Web-IP 同款，
+// 避免触发站方点击逻辑）；Esc / 遮罩点击关闭。
+// 视觉＝**结构单源、两主题只换 token**（NATIVE_PANEL_CSS 段）：浅色＝Web-IP 面板资产收敛版
+//（原生页，仿 A 站弹窗语言）；深色＝token 对齐齿轮面板家族（脚本页，用户 2026-10-15 裁决
+//「脚本页的 IP 弹出面板用深色」）。
+// 0.9.253 精简（用户裁决「小字太多了，有点挤」）：设置行单行式（原 hint 文案转入 label 悬停
+// title）、组标移除、页脚只留 `v{APP_VERSION}`（免责文案已在每个标签的 tooltip 里）。
 // 结构（D4 表驱动 + Web-IP 面板资产）：
 //  - 用户资料卡（带 uid 进入时）：用户名 / UID / IP属地 / 查询于（iploc.entryOf 直读，含负缓存）
-//  - 设置区：**评论域 SCHEMA 表驱动**（`nativeItems()`——panel ∧ native 标记；0.9.252，用户裁决：
-//    点 IP 进来的语境就是 IP/设备功能，播放/通用项在原生页看不到效果、不进；加项时在 SCHEMA
-//    同一行顺手打 native 标记，两侧都不漏）
-//  - 缓存管理（acr_uids）：导出 / 导入（粘贴 JSON，跳过已存在）/ 清空（二次确认）
-//  - 设备数据（acr_device_models 用户层）：N 条 + 导入（文件 .md/.txt + 粘贴，可跳过已存在）/
-//    导出 / 重置（二次确认）
-// 与 Web-IP 的有意差异：① 开关关语义分离——ipShow 关＝不查不渲染但**不清数据**（其「缓存开关
-// 关闭即清空」是耦合设计，清空改由显式按钮承担）；② 剪贴板走 ui.copyText（本仓无 GM_setClipboard
-// 授权）；③ toast 走本面板自带（原生页无 #acsv-root，ui.toast 依赖 root）。
+//  - 设置区：**评论域 SCHEMA 表驱动**（`nativeItems()`——panel ∧ native 标记；0.9.252 裁决）
+//  - 缓存管理（acr_uids）/ 设备数据（acr_device_models 用户层）两区块——只留本面板，齿轮面板不带
+// 与 Web-IP 的有意差异：① 开关关语义分离（ipShow 关＝不查不渲染但不清数据）；② 剪贴板走
+// ui.copyText；③ toast 走本面板自带（原生页无 #acsv-root）。
 import { nativeItems, getSetting, setSetting, flushSettings } from './settings.js';
+import { APP_VERSION } from './cfg.js';
 import { entryOf, exportUids, importUids, clearUids } from './iploc.js';
 import { deviceCount, exportDevices, importDeviceText, resetUserDevices } from './devname.js';
 import { el, copyText } from './ui.js';
@@ -25,10 +25,6 @@ import { stat, testHook } from './dbg.js';
 var maskEl = null;
 var curUid = null;
 var wired = false;
-
-function ver() {
-  return typeof __ACSV_VERSION__ !== 'undefined' ? __ACSV_VERSION__ : '';
-}
 
 function ensureCss() {
   if (document.getElementById('acsv-np-css')) return;
@@ -137,16 +133,14 @@ function cardRow(card, label, value, cls) {
   card.appendChild(row);
 }
 
+// 设置区：评论域 SCHEMA 表驱动（0.9.252）。0.9.253 精简：单行式（label + 控件；原 hint 文案转入
+// label 悬停 title）、不渲染组标（评论域独占，标题已交代语境）
 function renderSettings(body) {
-  var items = nativeItems(); // 评论域项（0.9.252）；分组标签随 schema（当前仅「评论」一组）
-  var lastGroup = null;
-  items.forEach(function (it) {
-    if (it.group && it.group !== lastGroup) {
-      body.appendChild(el('div', 'acsv-np-group', it.group));
-      lastGroup = it.group;
-    }
+  nativeItems().forEach(function (it) {
     var row = el('div', 'acsv-np-row');
-    row.appendChild(el('span', null, it.label || it.key));
+    var lab = el('span', 'acsv-np-label', it.label || it.key);
+    if (it.hint) lab.title = it.hint;
+    row.appendChild(lab);
     row.appendChild(controlFor(it));
     body.appendChild(row);
   });
@@ -277,30 +271,32 @@ function renderDeviceImport(body) {
 
 // ---------- 打开/挂载 ----------
 
-export function openNatPanel(uid) {
+// openNatPanel(uid, dark)：dark＝脚本页深色主题（`.acsv-cip` 入口）；缺省浅色（原生页 `.acsv-nip`）
+export function openNatPanel(uid, dark) {
   ensureCss();
   closeNatPanel();
   curUid = uid != null ? String(uid) : null;
   maskEl = el('div', 'acsv-np-mask');
   maskEl.addEventListener('click', closeNatPanel);
-  var panel = el('div', 'acsv-np');
+  var panel = el('div', 'acsv-np' + (dark ? ' dark' : ''));
   panel.addEventListener('click', function (e) { e.stopPropagation(); }); // 面板内点击不冒泡到遮罩
   var head = el('div', 'acsv-np-head');
-  head.appendChild(el('span', 'acsv-np-title', 'AcFun svfeed 设置'));
+  head.appendChild(el('span', 'acsv-np-title', 'IP 属地 · 设备'));
   var x = el('span', 'acsv-np-close', '×');
   x.addEventListener('click', closeNatPanel);
   head.appendChild(x);
   var body = el('div', 'acsv-np-body');
   panel.appendChild(head);
   panel.appendChild(body);
-  panel.appendChild(el('div', 'acsv-np-foot', 'v' + ver() + ' · 属地基于用户主页实时资料，不代表发布时的IP'));
+  panel.appendChild(el('div', 'acsv-np-foot', 'v' + APP_VERSION)); // 精简（0.9.253）：免责文案在标签 tooltip 里，页脚只留版本号
   maskEl.appendChild(panel);
-  document.body.appendChild(maskEl);
+  // 宿主：脚本页优先进 #acsv-root（momenteditor.js:136 先例），原生页回落 body
+  (document.getElementById('acsv-root') || document.body).appendChild(maskEl);
   stat('np.open');
   renderMain(body);
 }
 
-// 事件接线（幂等；由 nativeip.mountNativeIp 调）
+// 事件接线（幂等；boot 全站装配 + nativeip 调，双路安全）
 export function mountNatPanel() {
   if (wired) return;
   wired = true;
@@ -309,14 +305,16 @@ export function mountNatPanel() {
   window.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && maskEl) closeNatPanel();
   });
-  // 点击任意 IP 标签打开面板；捕获阶段拦截，避免触发站方评论点击逻辑
+  // 点击任意 IP 标签打开面板；捕获阶段拦截，避免触发站方评论点击逻辑。
+  // 0.9.253：selector 扩 `.acsv-cip, .acsv-nip`（脚本页抽屉/原生页全站接通）；主题随入口——
+  // `.acsv-cip`＝脚本页 ⇒ 深色主题，`.acsv-nip`＝原生页 ⇒ 浅色主题
   document.addEventListener('click', function (e) {
     var t = /** @type {any} */ (e.target);
-    var span = t && t.closest ? t.closest('.acsv-nip') : null;
+    var span = t && t.closest ? t.closest('.acsv-cip, .acsv-nip') : null;
     if (!span) return;
     e.preventDefault();
     e.stopImmediatePropagation();
-    openNatPanel(span.dataset.acsvUid || null);
+    openNatPanel(span.dataset.acsvUid || null, span.classList.contains('acsv-cip'));
   }, true);
 }
 

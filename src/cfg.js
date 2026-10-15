@@ -413,4 +413,9 @@ if (__ACSV_DEBUG__) {
   try { CFG.exp = JSON.parse(localStorage.getItem('acsv-exp') || '{}') || {}; } catch (e) { }
 }
 
+// UI 版本号单源（0.9.253）：构建期注入的 __ACSV_VERSION__（debug 构建带 -debug 后缀）——设置面板
+// 页脚（settingspanel「设置」/ natpanel「IP 属地 · 设备」）两处消费；dbg.js/release.js 各自的守卫
+// 读取语义不同（stats 自证 / 版本比较），不并入此处
+export var APP_VERSION = typeof __ACSV_VERSION__ !== 'undefined' ? __ACSV_VERSION__ : '';
+
 dbg('cfg-ok');

@@ -7,6 +7,7 @@ import { tryInjectSpaceMoments } from './spacemoments.js'; // 空间页「动态
 import { watchMemberNav } from './memberplaza.js';
 import { bootNativeIm } from './imnative.js';
 import { mountNativeIp } from './nativeip.js'; // 原生页评论 IP+设备（0.9.248，Phase 6·6a）
+import { mountNatPanel } from './natpanel.js'; // IP 标签点击面板（0.9.253：脚本页 .acsv-cip 入口）
 import { setRoot } from './state.js';
 import { IMGVIEW_CSS } from './styles.js';
 import { pageKind } from './pagekind.js';
@@ -48,6 +49,7 @@ if (kind === 'native') {
   toggle();
   window.addEventListener('hashchange', toggle);
   if (kind === 'home') {
+    mountNatPanel(); // 脚本页 IP 标签点击入口（0.9.253）：抽屉里点 .acsv-cip 弹 IP 面板（暗色主题）
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', watchNav);
     } else {

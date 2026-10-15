@@ -265,6 +265,34 @@
     var mask = await waitFor(function () { return document.querySelector('.acsv-np-mask'); }, 3000);
     rec('np-open', visible(mask));
     if (!mask) return;
+    // ②.5 收敛后形态（0.9.253）：标题改口 / 浅色主题 / 无小字块（hint 转 label 悬停 title）/
+    // 开关 34×18 / 页脚只留版本号
+    rec('np-title', (function () {
+      var t = mask.querySelector('.acsv-np-title');
+      return !!t && t.textContent === 'IP 属地 · 设备';
+    })(), (mask.querySelector('.acsv-np-title') || {}).textContent || 'none');
+    rec('np-light-theme', (function () {
+      var p = mask.querySelector('.acsv-np');
+      return !!p && !p.classList.contains('dark');
+    })());
+    rec('np-nohint', (function () {
+      var lab = mask.querySelector('.acsv-np-row .acsv-np-label');
+      return !mask.querySelector('.acsv-np-ihint') && !mask.querySelector('.acsv-np-group')
+        && !!lab && /需登录态/.test(lab.title || '');
+    })());
+    rec('np-sw-metrics', (function () {
+      var sw = mask.querySelector('.acsv-np-sw');
+      if (!sw) return false;
+      var cs = getComputedStyle(sw);
+      return cs.width === '34px' && cs.height === '18px';
+    })(), (function () {
+      var sw = mask.querySelector('.acsv-np-sw');
+      return sw ? getComputedStyle(sw).width + '×' + getComputedStyle(sw).height : 'none';
+    })());
+    rec('np-footer-ver', (function () {
+      var f = mask.querySelector('.acsv-np-foot');
+      return !!f && /^v0\.9\.\d+/.test(f.textContent) && f.textContent.indexOf('属地基于') === -1;
+    })(), (mask.querySelector('.acsv-np-foot') || {}).textContent || 'none');
     // ② 用户资料卡（用户名/UID/属地来自 mock）
     var card = mask.querySelector('.acsv-np-card');
     rec('np-card', (function () {

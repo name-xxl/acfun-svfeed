@@ -248,7 +248,7 @@ if (typeof IntersectionObserver === 'function') {
 function armQuery(meta, k) {
   if (!getSetting('ipShow')) return; // 挂观察期间关开关：不再发起
   var st = lookupState(uids[k], Date.now(), keepMsOf(getSetting('ipKeep')));
-  if (st === 'pos') { stat('ip.hit'); appendTag(meta, uids[k].ip, uids[k].t || 0); return; }
+  if (st === 'pos') { stat('ip.hit'); appendTag(meta, uids[k].ip, uids[k].t || 0, k); return; }
   if (st === 'neg') { stat('ip.neg'); return; }
   fetchFor(k, function (ip, t) {
     if (!meta.isConnected) return; // 条目已被重渲染/宿主关闭：只留缓存
@@ -323,9 +323,10 @@ export function clearUids() {
 
 // ---------- 渲染点接线口（单源；commentkit 经 opts.ipTag 注入后调用） ----------
 
-function appendTag(meta, ip, t) {
+function appendTag(meta, ip, t, uid) {
   if (!ip || meta.querySelector('.acsv-cip')) return; // 幂等：重放/补注不叠标签
   var s = el('span', 'acsv-cip', ip);
+  s.dataset.acsvUid = String(uid); // 点击入口（natpanel 捕获委托读取；0.9.253）
   s.title = tagTitle(ip, t);
   meta.appendChild(s);
 }
@@ -337,7 +338,7 @@ export function tagInto(meta, uid) {
   var k = String(uid);
   ensureLoaded();
   var st = lookupState(uids[k], Date.now(), keepMsOf(getSetting('ipKeep')));
-  if (st === 'pos') { stat('ip.hit'); appendTag(meta, uids[k].ip, uids[k].t || 0); return; }
+  if (st === 'pos') { stat('ip.hit'); appendTag(meta, uids[k].ip, uids[k].t || 0, k); return; }
   if (st === 'neg') { stat('ip.neg'); return; }
   if (viewIO) {
     meta._acsvIpUid = k;

@@ -12,15 +12,19 @@ export var IMGVIEW_CSS = '.acsv-imgview{position:absolute;inset:0;z-index:63;bac
 
 // 原生页 IP 标签段（0.9.248，Phase 6·6a）：**单独段导出**——原生页由 nativeip 自持注入（同
 // IMGVIEW_CSS 先例，不进全量 CSS）。量值照 Web-IP `.acr-ip`：无底色、继承父级字色、间距 3px、
-// hover 主题色（#fd4c5d 即站点主色）；cursor 暂 default，点击弹面板（6c）到位后改 pointer
-export var NATIVE_IP_CSS = '.acsv-nip{margin-left:3px;cursor:default;transition:color .2s}'
+// hover 主题色（#fd4c5d 即站点主色）；**0.9.253 起 cursor:pointer**——点击弹 IP 面板（natpanel；
+// 原注释「点击弹面板到位后改 pointer」的兑现）
+export var NATIVE_IP_CSS = '.acsv-nip{margin-left:3px;cursor:pointer;transition:color .2s}'
   // 盖楼模式注入点在 .comment-item-footer-left（间距照 Web-IP floorMode 的 8px；0.9.251）
   + '.comment-item-footer-left .acsv-nip{margin-left:8px}'
   + '.acsv-nip:hover{color:#fd4c5d}';
 
-// 原生页设置面板段（0.9.250，Phase 6·6c）：**单独段导出**——原生页由 natpanel 自持注入（同
-// NATIVE_IP_CSS 先例）。视觉＝Web-IP v5.8.5 面板资产照抄（浅色仿 A 站弹窗、主色 #fd4c5d、
-// 340px、z 2147483000），**不进 svfeed 暗色体系**（D4：共享层同源、皮肤各自生命周期）
+// IP 面板段（0.9.250 生，0.9.253 两主题重构+精简）：**单独段导出**——由 natpanel 自持注入（同
+// NATIVE_IP_CSS 先例）。**结构单源、两主题只换 token**：浅色＝Web-IP 面板资产收敛版（原生页
+// `.acsv-nip` 入口）；深色＝token 对齐齿轮面板家族（脚本页 `.acsv-cip` 入口——用户 2026-10-15
+// 裁决「脚本页的 ip 弹出面板用深色」）。0.9.253 精简（用户裁决）：设置行单行式（原 hint 文案转入
+// label 悬停 title，见 natpanel.renderSettings）、组标移除、页脚只留版本号；开关 34×18（与齿轮
+// 面板同几何，配色随主题）
 export var NATIVE_PANEL_CSS =
   '.acsv-np-mask{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:2147483000;display:flex;align-items:center;justify-content:center}'
   + '.acsv-np{width:340px;max-width:92vw;max-height:86vh;overflow-y:auto;background:#fff;border-radius:6px;color:#666;'
@@ -30,16 +34,16 @@ export var NATIVE_PANEL_CSS =
   + '.acsv-np-close{cursor:pointer;font-size:20px;line-height:1;color:#999;transition:color .2s}'
   + '.acsv-np-close:hover{color:#fd4c5d}'
   + '.acsv-np-body{padding:4px 14px 8px}'
-  + '.acsv-np-group{font-size:12px;color:#999;margin:10px 0 0}'
   + '.acsv-np-card{margin:8px 0 4px;padding:8px 12px;background:#fafafa;border:1px solid #e5e5e5;border-radius:4px;font-size:12px;color:#666}'
   + '.acsv-np-card div{display:flex;justify-content:space-between;padding:1px 0}'
   + '.acsv-np-card .acsv-np-ip{color:#fd4c5d;font-weight:600;font-size:13px}'
   + '.acsv-np-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0}'
   + '.acsv-np-row:last-child{border-bottom:none}'
-  + '.acsv-np-sw{position:relative;width:40px;height:22px;border-radius:11px;background:#ddd;cursor:pointer;transition:background .2s;flex:none}'
-  + '.acsv-np-sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s}'
+  + '.acsv-np-label{font-size:14px;line-height:18px;color:#333}'
+  + '.acsv-np-sw{position:relative;width:34px;height:18px;border-radius:22px;background:#ddd;cursor:pointer;transition:background .2s;flex:none}'
+  + '.acsv-np-sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s}'
   + '.acsv-np-sw.on{background:#fd4c5d}'
-  + '.acsv-np-sw.on::after{left:20px}'
+  + '.acsv-np-sw.on::after{transform:translateX(16px)}'
   + '.acsv-np-seg{display:flex;border:1px solid #e5e5e5;border-radius:3px;overflow:hidden;flex:none}'
   + '.acsv-np-seg button{border:none;background:#fff;color:#666;font-size:12px;padding:3px 10px;cursor:pointer;'
   + 'border-right:1px solid #e5e5e5;transition:.15s;font-family:inherit;line-height:16px}'
@@ -65,7 +69,31 @@ export var NATIVE_PANEL_CSS =
   + '.acsv-np-file{width:100%;padding:6px;border:1px dashed #e5e5e5;border-radius:3px;font-size:12px;box-sizing:border-box}'
   + '.acsv-np-skip{display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer}'
   + '.acsv-np-skip span{font-size:12px}'
-  + '.acsv-np-foot{padding:10px 14px;font-size:11px;color:#999;background:#fafafa;border-top:1px solid #f0f0f0}'
+  + '.acsv-np-foot{padding:8px 14px;font-size:11px;color:#999;background:#fafafa;border-top:1px solid #f0f0f0}'
+  // ---- 深色主题（脚本页 `.acsv-cip` 入口；token 对齐齿轮面板家族） ----
+  + '.acsv-np.dark{background:rgba(22,22,27,.97);border:1px solid rgba(255,255,255,.1);border-radius:14px;color:#cfd3da;'
+  + 'font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;backdrop-filter:blur(12px);'
+  + 'box-shadow:0 10px 34px rgba(0,0,0,.5)}'
+  + '.acsv-np.dark .acsv-np-title{font-size:15px;color:#fff}'
+  + '.acsv-np.dark .acsv-np-close{color:#9aa0ab}'
+  + '.acsv-np.dark .acsv-np-close:hover{color:var(--acsv-accent)}'
+  + '.acsv-np.dark .acsv-np-card{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.09);color:#cfd3da}'
+  + '.acsv-np.dark .acsv-np-card .acsv-np-ip{color:var(--acsv-accent)}'
+  + '.acsv-np.dark .acsv-np-row{border-bottom-color:rgba(255,255,255,.07)}'
+  + '.acsv-np.dark .acsv-np-label{color:#fff}'
+  + '.acsv-np.dark .acsv-np-sw{background:rgb(158,158,158)}'
+  + '.acsv-np.dark .acsv-np-sw.on{background:var(--acsv-accent)}'
+  + '.acsv-np.dark .acsv-np-seg{border-color:rgba(255,255,255,.2);border-radius:8px}'
+  + '.acsv-np.dark .acsv-np-seg button{background:transparent;color:#cfd3da;border-right-color:rgba(255,255,255,.2)}'
+  + '.acsv-np.dark .acsv-np-seg button.on{background:var(--acsv-accent);border-color:var(--acsv-accent);color:#fff}'
+  + '.acsv-np.dark .acsv-np-acts button{border:none;background:rgba(255,255,255,.12);color:#fff;border-radius:8px;padding:7px 16px;font-size:13px}'
+  + '.acsv-np.dark .acsv-np-acts button.danger{background:rgba(255,255,255,.12);color:#ff8a95}'
+  + '.acsv-np.dark .acsv-np-acts button.primary{background:var(--acsv-accent)}'
+  + '.acsv-np.dark .acsv-np-field>span{color:#fff}'
+  + '.acsv-np.dark .acsv-np-ta{border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff}'
+  + '.acsv-np.dark .acsv-np-file{border-color:rgba(255,255,255,.15);color:#cfd3da}'
+  + '.acsv-np.dark .acsv-np-skip span{color:#cfd3da}'
+  + '.acsv-np.dark .acsv-np-foot{background:rgba(255,255,255,.03);border-top-color:rgba(255,255,255,.09);color:#8b909a;font-size:12px;padding:10px 14px}'
   + '.acsv-np-toastbox{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:2147483647;'
   + 'display:flex;flex-direction:column;gap:6px;pointer-events:none}'
   + '.acsv-np-toast{background:rgba(0,0,0,.75);color:#fff;font:13px/1.4 PingFangSC,-apple-system,Microsoft Yahei,sans-serif;'
@@ -554,10 +582,10 @@ var RAW_CSS = ''
   + '.acsv-cfrom{display:inline-flex;align-items:center;gap:3px}'
   + '.acsv-cfrom a{color:inherit;text-decoration:none}'
   + '.acsv-cfrom a:hover{color:#9fd0ff}'
-  // IP 属地标签（0.9.245，Web-IP 吸收批次①）：灰字原文直显、不可点（点击弹面板属 Phase 6）；
-  // 悬停主题色＝「将来可点」的预兆（预览 ② 定稿，Web-IP .acr-ip 同款）；nowrap 由
+  // IP 属地标签（0.9.245）：灰字原文直显；**0.9.253 起可点**——点击弹 IP 面板（natpanel，暗色
+  // 主题），cursor:pointer；悬停主题色（预览 ② 定稿，Web-IP .acr-ip 同款）；nowrap 由
   // .acsv-cmeta>* 既有规则兜住
-  + '.acsv-cip{color:#7a7f8a}'
+  + '.acsv-cip{color:#7a7f8a;cursor:pointer}'
   + '.acsv-cip:hover{color:var(--acsv-accent)}'
   + '.acsv-cfloor{position:absolute;right:0;top:12px;font-size:12px;color:#7a7f8a}'
   + '.acsv-hot-head{padding:10px 14px 4px;font-size:12px;color:#fd4c5d;font-weight:700;'

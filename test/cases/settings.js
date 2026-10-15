@@ -45,6 +45,9 @@
     // 面板必须真渲染（offsetParent 真值法：0.9.62 黑屏教训）
     var pnl = sh.querySelector('.set-panel');
     rec('set-panel-visible', !!(pnl && pnl.offsetParent !== null));
+    // 页脚版本号（0.9.253）：v{APP_VERSION} 左置（debug 构建带 -debug 后缀）——与 IP 面板页脚同源
+    rec('set-footer-ver', /^v0\.9\.\d+/.test((sh.querySelector('.set-ver') || {}).textContent || ''),
+      (sh.querySelector('.set-ver') || {}).textContent || 'none');
     // 弹幕开关：默认开 → 点关 → 存储 + 控制栏「弹」按钮即时同步（0.9.89 单源 applyDmState）
     var sw = swOf(sh, 1);
     rec('set-dm-on-default', !!(sw && sw.classList.contains('on')));

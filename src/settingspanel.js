@@ -27,6 +27,7 @@ import { el, closeOnOutsideClick } from './ui.js';
 import { root } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { panelItems, getSetting, setSetting, flushSettings, onChange } from './settings.js';
+import { APP_VERSION } from './cfg.js'; // UI 版本号单源（0.9.253）：页脚左置展示
 
 var SET_CSS = ''
   + '.set{position:absolute;inset:0;z-index:62;background:rgba(0,0,0,.62);display:flex;'
@@ -78,8 +79,10 @@ var SET_CSS = ''
   + '.set-num-btn:hover:not(:disabled){background:rgba(255,255,255,.12)}'
   + '.set-num-btn:disabled{opacity:.35;cursor:default}'
   + '.set-num-val{min-width:56px;text-align:center;font-size:14px}'
-  + '.set-foot{flex:none;display:flex;gap:8px;justify-content:flex-end;padding:10px 16px 14px;'
-  + 'border-top:1px solid rgba(255,255,255,.09)}'
+  // 页脚（0.9.253）：版本号左置 + 「完成」右置（space-between）；与 IP 面板页脚同型（APP_VERSION 单源）
+  + '.set-foot{flex:none;display:flex;align-items:center;gap:8px;justify-content:space-between;'
+  + 'padding:10px 16px 14px;border-top:1px solid rgba(255,255,255,.09)}'
+  + '.set-ver{font-size:12px;color:#8b909a}'
   + '.set-act{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;'
   + 'cursor:pointer;background:rgba(255,255,255,.12);color:#fff;transition:background .15s}'
   + '.set-act:hover{background:rgba(255,255,255,.2)}'
@@ -231,6 +234,7 @@ export function openSettings() {
   buildBody(body);
   pnl.appendChild(body);
   var foot = el('div', 'set-foot');
+  foot.appendChild(el('span', 'set-ver', 'v' + APP_VERSION));
   var done = el('button', 'set-act primary', '完成');
   done.addEventListener('click', closeSettings);
   foot.appendChild(done);

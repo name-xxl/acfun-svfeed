@@ -351,7 +351,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `interact.js` | 真实点赞（api_st → interact 接口）+ 投蕉/Pi 级写链（AppAPI.throwBanana）；**关注→relationapi.js、收藏→favapi.js**（0.9.142/143 迁出，退役登记在文件头） |
 | `devname.js` | 设备型号美化（0.9.246，Web-IP 吸收批次②，路线图 Phase 5）：评论「来自 x」内部代号（`RMX3619`/`iPhone3,1`）→ 友好名（真我 V30 / iPhone 4）。四级匹配（精确 → 大小写 → 去尾字母 → 前缀包含）+ 查找缓存（上限 500 最旧 20% 淘汰）逐字移植 Web-IP 56-device.js；接线口 `devTag(a, model)` 由 comments.cmtOpts 经 `opts.devTag` 注入 commentkit（同 ipTag 纪律）——**只换锚文本**（href/结构不动）、未收录兜底原文、命中映射才挂点击切换（友好名 ⇄ 原文，照抄 Web-IP）。用户层读 Web-IP 同键 `acr_device_models`（只读兼容；导入/导出/重置 UI 0.9.250 随原生面板落地），**合并语义升级**＝内置先、用户条覆盖（反转其「快照顶掉内置」）。设置项 devName 在 SCHEMA 评论组 |
 | `devicetab.js` | 设备型号内置表（**生成物，勿手改**；996 条）：由 `tools/gen-device-data.js` 从 KHwang9883/MobileModels + Apple 表生成；数据 **CC BY-NC-SA 4.0**，与 MIT 分声明（见「设备型号数据许可」段）；再生成：`node tools/gen-device-data.js <MobileModels 数据目录>` |
-| `natpanel.js` | 原生页设置面板（0.9.250/0.9.252，Web-IP 吸收 6c，路线图 Phase 6）：点击任意原生页 IP 标签（捕获阶段委托）弹出——视觉＝原脚本面板资产照抄（浅色仿 A 站弹窗、主色 #fd4c5d、340px，NATIVE_PANEL_CSS 段，**不进 svfeed 暗色体系**）。结构＝资料卡（用户名/UID/IP属地/查询于，iploc.entryOf 直读）+ **评论域 SCHEMA 表驱动设置区**（`nativeItems()`＝panel ∧ native 标记；0.9.252 用户裁决 A——点 IP 的语境只放 IP/设备项，播放/通用项在原生页看不到效果不进）+ 缓存管理（acr_uids 导出/导入/清空二次确认）+ 设备数据（导入文件·粘贴/导出/重置，devname 用户层）。Esc/遮罩关闭即 flushSettings；剪贴板走 ui.copyText |
+| `natpanel.js` | IP 面板（0.9.250 生 / 0.9.253 两主题+全站接通；Web-IP 吸收 6c，路线图 Phase 6）：点击任意 IP 标签弹出——**结构单源、两主题只换 token**（NATIVE_PANEL_CSS 段）：浅色＝Web-IP 面板资产收敛版（原生页 `.acsv-nip` 入口）；**深色＝token 对齐齿轮面板家族**（脚本页 `.acsv-cip` 入口，用户裁决）。结构＝资料卡（用户名/UID/IP属地/查询于，iploc.entryOf 直读）+ **评论域 SCHEMA 表驱动**（`nativeItems()`＝panel ∧ native 标记）+ 缓存管理（acr_uids 导出/导入/清空二次确认）+ 设备数据（导入文件·粘贴/导出/重置，devname 用户层）。**0.9.253 精简**：设置行单行式（原 hint 文案转入 label 悬停 title）/ 组标移除 / 页脚只留 `v{APP_VERSION}`；开关 34×18（两主题同几何）。Esc/遮罩关闭即 flushSettings；剪贴板走 ui.copyText |
 | `nativeip.js` | 原生页评论 IP + 设备（0.9.248/0.9.249/0.9.251，Web-IP 吸收 6a+6b，路线图 Phase 6）：评论区**两种显示模式**——「默认模式」＝`[data-commentid]` 统一组件（视频/文章/动态详情三面同款）+「**盖楼模式**」（用户可切换，`ac_usp_commMode` 1/2；根 `.main-comment-item` + 楼层块 `.fc-comment-item` + `a.name[data-uid]`、回包 `listByFloor`--commentsMap 形）——拦截层（fetch/XHR hook → commentId|cid→userId 映射，路径变清表）+ DOM 兜底链（a[data-userid] → a.name[data-uid] → /u/ 链接 → 头像 src，**Web-IP 24 项单测等值迁移**）+ 可见优先注入（IO 200px/入视口即 unobserve → `iploc.resolveFor` 共享核 → `.acsv-nip` 浅色段，tooltip 同源；盖楼注入点 `.comment-item-footer-left` 间距 8px）+ 重画补注（MutationObserver 300ms 重扫，缓存制）+ SPA 路由清映射 + 设备美化（`.deviceModel` → devname.devTag 单源，两模式同款锚，手动态尊重）+ 专属挂点（6b）：用户主页 `/u/` 资料卡「IP属地：x」（common-info 类复用站内定位）、个人中心 `/member` 动态条目的 `.feed-time`（closest 两跳爬链真机核过）。**修正 port**：Web-IP IO 先 unobserve、uid 提取失败即永久漏 → 我们失败不放弃、有界重观察重试 |
 | `iploc.js` | 评论 IP 属地查询层（0.9.245，Web-IP 吸收批次①，路线图 Phase 5）：uid → 属地（`userInfo` 回包 `profile.ipLocation`，需登录态；契约 docs/api-research.md §12）。**单层 uid 缓存**沿用老键 `acr_uids` 同 key 同形状（Web-IP 老用户数据零迁移，D8）+ 串行限流 200ms + 负缓存分级（无属地 6h / 网络错 10min）+ 写防抖 2s + 上限 5000 最旧淘汰 + pagehide 兜底落盘；接线口 `tagInto(meta, uid)` 由 comments.cmtOpts 经 `opts.ipTag` 注入 commentkit（kit 不 import 特性模块的纪律）——命中同步上屏/**未命中进入视口才排队回填**（0.9.247，广场 backfillIO 同款视口渐进）/空属地不渲染；设置项 ipShow/ipKeep 在 SCHEMA 评论组（Web-IP 老保留期键 `acr_days` 一次性收养） |
 | `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3/4、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出）。0.9.96 管线 **host 化**：DOM 宿主显式化（默认=抽屉单例，动态详情面板灌入同款三元组），`openCommentsHost`/`closeCommentsHost` 为面板入口，输入条三件套随宿主迁移；0.9.133 条目构建/楼中楼展开**下沉 commentkit.js**（本文件只留管线：状态/宿主/输入条/委托/乐观插入/翻页）；0.9.245 起 cmtOpts 增 ipTag（属地接线口，三宿主+乐观插入全覆盖） |
@@ -435,7 +435,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；`/member/*` 页加原生页入口（0.9.128：ensureStyle + setRoot(document.body) + watchMemberNav——memberplaza，0.9.47 决策的限定反转）；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷） |
 | `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/other——boot 运行分流的唯一判据（判据与 uppage 的 `/u/\d+` 逐字一致，单测钉一致性） |
 | `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）；`onChange` 订阅让消费方零反向依赖地即时生效 |
-| `settingspanel.js` | 脚本页设置皮肤（0.9.89）：dock 齿轮 → `openSettings()` → overlay 栈（modal，Esc 白拿）；host + **Shadow DOM** 作用域样式（量取值与日期在文件头注释）；控件按 schema 表驱动（bool 开关 / select 下拉 / number 步进器）；原生页皮肤＝`natpanel.js`（0.9.250 落地，见其行） |
+| `settingspanel.js` | 脚本页设置皮肤（0.9.89）：dock 齿轮 → `openSettings()` → overlay 栈（modal，Esc 白拿）；host + **Shadow DOM** 作用域样式（量取值与日期在文件头注释）；控件按 schema 表驱动（bool 开关 / select 下拉 / number 步进器）；**0.9.253 页脚补版本号**（`v{APP_VERSION}` 左置 + 「完成」右置，与 IP 面板页脚同源）；原生页皮肤＝`natpanel.js`（见其行） |
 
 ### 模块依赖图
 
@@ -609,8 +609,9 @@ flowchart LR
   devname --> cfg & devicetab & settings
   nativeip --> dbg & devname & iploc & styles
   nativeip --> natpanel
-  natpanel --> dbg & devname & iploc & settings & styles & ui
+  natpanel --> cfg & dbg & devname & iploc & settings & styles & ui
   boot --> nativeip
+  boot --> natpanel
   commentkit --> imicons & imgload & timefmt & ubb & uplook
   interact --> appapi
   release --> overlay & settings
