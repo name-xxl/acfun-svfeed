@@ -1,7 +1,11 @@
 // @ts-check
 // ---------- 原生页评论 IP + 设备（0.9.248，Web-IP 吸收 6a；路线图 Phase 6 · 任务卡 6.1） ----------
-// 覆盖面（2026-10-15 真机逐面实测，docs/api-research.md §13）：评论区＝`[data-commentid]` 统一
-// 组件——视频 /v/、文章 /a/、动态详情 /moment/ 三面同款，楼中楼子评论同带（`sec` 类）；
+// 覆盖面（2026-10-15 真机逐面实测，docs/api-research.md §13）：评论区＝**两种显示模式**——
+// 「默认模式」＝`[data-commentid]` 统一组件（视频 /v/、文章 /a/、动态详情 /moment/ 三面同款，
+// 楼中楼子评论同带 `sec` 类）；「**盖楼模式**」＝用户可切换（评论区切换器 → 浏览器偏好键
+// `ac_usp_commMode`：1=默认 / 2=盖楼），根＝`.main-comment-item`（精确类），楼层块＝
+// `.fc-comment-item`（嵌在根的引用区，自带 footer），uid 在 `a.name[data-uid]`（无 data-userid），
+// 回包走 `/comment/listByFloor`（顶层 `commentsMap`+`commentIds`，非 rootComments）。
 // 专属挂点＝用户主页 /u/ 的 `#ac-space-info[data-uid]` 与个人中心 /member 动态条目的
 // `.feed-time`（6b 批，closest 两跳爬链真机核过在册）。
 //
@@ -23,7 +27,12 @@
 //    同页 replaceState 改查询参数不算换页——Web-IP v5.8.1 修正同款）
 //  - 设备美化：评论里 `.deviceModel` 锚 → `devname.devTag`（单源复用：四级查表/点击切换/手动
 //    记忆）；已替换态跳过、手动态尊重——站点原地重渲染把文本改回代号时会重替换（Web-IP 同款）
-//  - 不 port：盖楼精确类（今日站零命中，§13）、m 站（D2）、油猴菜单（D3）
+//  - 盖楼模式（0.9.251 补配，用户质疑「盖楼模式没适配吗」后真机核实）：根 `.main-comment-item`
+//    （精确类）+ 楼层块 `.fc-comment-item` 入 commentRoot（默认模式根是 `main-comment-item-<id>`
+//    变体类，不重叠）；uid 走 `a.name[data-uid]`（无 data-userid）；回包 `/comment/listByFloor`
+//    （顶层 commentsMap/commentIds）入拦截层；注入点 `.comment-item-footer-left`＋间距 8px
+//    （NATIVE_IP_CSS，照 Web-IP floorMode）。**§13「盖楼零命中」系默认模式页面的单面读数——更正**
+//  - 不 port：m 站（D2）、油猴菜单（D3）
 import { resolveFor, peek, tagTitle } from './iploc.js';
 import { devTag } from './devname.js';
 import { stat, testHook } from './dbg.js';
@@ -31,19 +40,22 @@ import { NATIVE_IP_CSS } from './styles.js';
 import { mountNatPanel } from './natpanel.js'; // 原生页设置面板（0.9.250，6c）：标签点击入口
 
 // ---------- 选择器与阈值（照 Web-IP CONFIG.OBSERVER/注释；站点改版只改这里） ----------
-var COMMENT_URL_PATTERNS = ['/comment/list', '/comment/sublist', '/comment/subComment', '/comment/reply'];
+var COMMENT_URL_PATTERNS = ['/comment/list', '/comment/sublist', '/comment/subComment', '/comment/reply',
+  '/comment/listByFloor']; // 0.9.251：盖楼模式回包端点（Web-IP 未含，其盖楼映射全靠 DOM 兜底）
 var SEL = {
-  commentRoot: '[data-commentid]',
+  // 0.9.251（盖楼模式适配）：默认模式根 [data-commentid] + 盖楼根/楼层块精确类（默认模式根是
+  // `main-comment-item-<id>` 变体类，与 `.main-comment-item` 不重叠，无重复扫描）
+  commentRoot: '[data-commentid], .main-comment-item, .fc-comment-item',
   from: '.area-comment-from',
-  fromFallback: '.comment-item-footer-left', // 老布局保险（今日站零命中，§13；零成本保留）
+  fromFallback: '.comment-item-footer-left', // 盖楼模式注入点（实测命中；默认模式为老布局保险）
   userAttr: 'a[data-userid]',
-  nameAttr: 'a.name[data-uid]',
+  nameAttr: 'a.name[data-uid]', // 盖楼模式 uid 正主（实测 data-uid，无 data-userid）
   profileLink: 'a[href*="/u/"]',
   avatar: 'img.avatar',
   avatarUidRe: /newUpload\/(\d+)_/,
   floorAvatar: 'img.fc-avatar',
   floorAvatarUidRe: /\/u\/(\d+)/,
-  deviceModel: '.deviceModel'
+  deviceModel: '.deviceModel' // 盖楼模式设备锚同款（实测：fc-device 包裹层内 <a.deviceModel>）
 };
 var OBS = { rootMargin: '200px', domDebounceMs: 300, urlChangeDelayMs: 500 };
 var NIP = 'acsv-nip';
@@ -59,13 +71,23 @@ export function isCommentUrl(url) {
   return false;
 }
 
-// 回包 → 评论数组（rootComments + subComments|comments 兜底；非数组容错——Web-IP 直吃字段，
-// 形状意外时 .concat 抛错被其 catch 吞掉，本仓改显式容错）
+// 回包 → 评论数组（default 模式 rootComments + subComments|comments 兜底；非数组容错——Web-IP
+// 直吃字段，形状意外时 .concat 抛错被其 catch 吞掉，本仓改显式容错。0.9.251 增盖楼分支：
+// listByFloor 回包顶层是 commentsMap（cid→comment）+ commentIds，**不是** rootComments）
 export function extractCommentList(data) {
   var roots = data && Array.isArray(data.rootComments) ? data.rootComments : [];
   var subs = data && Array.isArray(data.subComments) ? data.subComments
     : (data && Array.isArray(data.comments) ? data.comments : []);
-  return roots.concat(subs);
+  var list = roots.concat(subs);
+  if (list.length) return list;
+  var out = [];
+  if (data && data.commentsMap && typeof data.commentsMap === 'object') {
+    for (var k in data.commentsMap) {
+      var v = data.commentsMap[k];
+      if (v && typeof v === 'object') out.push(v);
+    }
+  }
+  return out;
 }
 
 // href → uid（/u/ 与 /live/ 双空间，Web-IP parseUidFromHref 同款）
@@ -100,7 +122,9 @@ function onComments(list) {
   if (!list.length) return;
   for (var i = 0; i < list.length; i++) {
     var c = list[i];
-    if (c && c.commentId != null && c.userId) commentUserMap.set(String(c.commentId), c.userId);
+    // commentId 为主名；盖楼模式对象沿用 cid（0.9.251，与 DOM 的 data-cid 对齐）
+    var id = c && c.commentId != null ? c.commentId : (c ? c.cid : null);
+    if (id != null && c.userId) commentUserMap.set(String(id), c.userId);
   }
   stat('nip.map');
 }

@@ -74,6 +74,17 @@ test('extractCommentList：非数组字段容错（显式丢弃，不炸）', ()
   assert.equal(extractCommentList({ rootComments: null, comments: [{ commentId: 9 }] }).length, 1);
   assert.equal(extractCommentList(null).length, 0);
 });
+test('extractCommentList：盖楼回包 commentsMap（listByFloor，0.9.251）', () => {
+  var list = extractCommentList({
+    result: 0,
+    commentIds: [807272106, 807272359],
+    commentsMap: { '807272106': { cid: 807272106, userId: 41997180 }, '807272359': { commentId: 'x', userId: 1 } }
+  });
+  assert.equal(list.length, 2);
+  assert.equal(extractCommentList({ commentsMap: { a: null, b: 'x' } }).length, 0); // 非对象值剔除
+  // rootComments 在场时优先（不混入 commentsMap）
+  assert.equal(extractCommentList({ rootComments: [{ commentId: 1 }], commentsMap: { z: { cid: 2 } } }).length, 1);
+});
 
 // ---------- parseUidFromHref（Web-IP 7 项等值迁移） ----------
 

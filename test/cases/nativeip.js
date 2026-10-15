@@ -22,6 +22,8 @@
         if (uid) calls[uid] = (calls[uid] || 0) + 1;
         if (uid === '9301') return { result: 0, profile: { ipLocation: '广东' } };
         if (uid === '9302') return { result: 0, profile: { ipLocation: '上海' } };
+        if (uid === '9503') return { result: 0, profile: { ipLocation: '湖北' } };
+        if (uid === '9504') return { result: 0, profile: { ipLocation: '湖南' } };
         return { result: 0, profile: {} };
       }
     };
@@ -100,6 +102,47 @@
     rec('nip-c2-tag', !!(await waitFor(function () { return c2.querySelector('.acsv-nip'); }, 8000)));
     // 同 uid 去重：c3 的 9302 应吃 c2 已查回的缓存（查询计数不涨）——共享核单源
     rec('nip-uid-once', calls['9302'] === 1, JSON.stringify(calls));
+    // ③.5 盖楼模式形状（0.9.251）：根 .main-comment-item（精确类）+ 楼层块 .fc-comment-item；
+    // uid 走 a.name[data-uid]；注入点在 .comment-item-footer-left（间距 8px）；设备锚同款
+    var fr = document.createElement('div');
+    fr.className = 'main-comment-item main-comment-item-777001';
+    fr.setAttribute('data-cid', '777001');
+    var na = document.createElement('a');
+    na.className = 'name';
+    na.setAttribute('data-uid', '9503');
+    fr.appendChild(na);
+    var flA = document.createElement('div');
+    flA.className = 'comment-item-footer-left';
+    fr.appendChild(flA);
+    document.body.appendChild(fr);
+    fr.scrollIntoView({ block: 'center' });
+    var floorTag = await waitFor(function () { return flA.querySelector('.acsv-nip'); }, 8000);
+    rec('nip-floor-tag', !!floorTag, (flA.querySelector('.acsv-nip') || {}).textContent || 'none');
+    rec('nip-floor-margin', !!(floorTag && getComputedStyle(floorTag).marginLeft === '8px'),
+      floorTag ? getComputedStyle(floorTag).marginLeft : 'none');
+    // 楼层块（无 data-uid）：靠 listByFloor 回包（commentsMap/cid 形）灌映射后由重观察补齐
+    var fcB = document.createElement('div');
+    fcB.className = 'fc-comment-item';
+    fcB.setAttribute('data-cid', '777002');
+    var flB = document.createElement('div');
+    flB.className = 'comment-item-footer-left';
+    fcB.appendChild(flB);
+    var devF = document.createElement('a');
+    devF.className = 'deviceModel';
+    devF.textContent = 'RMX3700';
+    fcB.appendChild(devF);
+    document.body.appendChild(fcB);
+    fcB.scrollIntoView({ block: 'center' });
+    await wait(500); // 重扫 + 首拍：uid 缺不放弃（有界重试窗口内）
+    rec('nip-floor-before', !flB.querySelector('.acsv-nip'));
+    try {
+      await fetch('data:application/json,{"result":0,"commentIds":[777002],"commentsMap":{"777002":{"cid":777002,"userId":9504}},"m":"/comment/listByFloor"}');
+    } catch (e) { }
+    rec('nip-floor-map-tag', !!(await waitFor(function () { return flB.querySelector('.acsv-nip'); }, 8000)),
+      (flB.querySelector('.acsv-nip') || {}).textContent || 'none');
+    rec('nip-floor-dev', !!(await waitFor(function () {
+      return devF.textContent === '真我 GT Neo5 SE';
+    }, 8000)), devF.textContent);
     // ④ SPA 路由：路径变 → 映射清空（跨页无效且会无限累积）
     history.pushState(null, '', '/v/ac888888' + location.search);
     rec('nip-route-clear', !!(await waitFor(function () {

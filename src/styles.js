@@ -14,6 +14,8 @@ export var IMGVIEW_CSS = '.acsv-imgview{position:absolute;inset:0;z-index:63;bac
 // IMGVIEW_CSS 先例，不进全量 CSS）。量值照 Web-IP `.acr-ip`：无底色、继承父级字色、间距 3px、
 // hover 主题色（#fd4c5d 即站点主色）；cursor 暂 default，点击弹面板（6c）到位后改 pointer
 export var NATIVE_IP_CSS = '.acsv-nip{margin-left:3px;cursor:default;transition:color .2s}'
+  // 盖楼模式注入点在 .comment-item-footer-left（间距照 Web-IP floorMode 的 8px；0.9.251）
+  + '.comment-item-footer-left .acsv-nip{margin-left:8px}'
   + '.acsv-nip:hover{color:#fd4c5d}';
 
 // 原生页设置面板段（0.9.250，Phase 6·6c）：**单独段导出**——原生页由 natpanel 自持注入（同

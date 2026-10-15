@@ -5,6 +5,33 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.251（2026-10-15）· 盖楼模式补配（Web-IP 6a 勘误）——评论组件两种显示模式全适配
+
+**病灶（用户质疑「盖楼模式没适配吗」后真机核实，§13.4 更正）**：6a（0.9.248）把「盖楼精确类
+今日站零命中」当依据不 port——那是**默认模式页面的单面读数**。真机切换实测：**盖楼模式是站点
+评论区的用户可切换显示模式**（切换器 `.area-switch-floor` → 菜单 `data-usemode=FLOOR`；偏好键
+`localStorage.ac_usp_commMode` 1=默认/2=盖楼）。切到盖楼后：`[data-commentid]` **= 0**（我们的
+commentRoot 一条都扫不到 ⇒ 原生页 IP/设备在盖楼模式**完全不工作**）；根＝`.main-comment-item`
+（精确类）×6、楼层块＝`.fc-comment-item`×9、注入点＝`.comment-item-footer-left`×8、uid 正主＝
+`a.name[data-uid]`（`a[data-userid]`＝0）、设备锚 `.deviceModel` 同款、数据回包走
+**`/rest/pc-direct/comment/listByFloor`**（顶层 `commentsMap{cid→评论}`+`commentIds`，非 rootComments）。
+Web-IP 的 `SELECTORS_FLOOR` 正是给此模式用的、今天仍全命中；其 COMMENT_URL_PATTERNS 未含
+listByFloor（盖楼映射全靠 DOM 兜底）。
+
+- **修法**：`nativeip` 四处补配——① commentRoot 并入 `.main-comment-item, .fc-comment-item`
+  （默认模式根是 `main-comment-item-<id>` 变体类，不重叠、无重复扫描）；② 拦截层加
+  `/comment/listByFloor` + `extractCommentList` 增 commentsMap 分支（对象值收集；rootComments
+  在场时优先）；③ `onComments` 增 `cid` 主名兼容；④ NATIVE_IP_CSS 补
+  `.comment-item-footer-left .acsv-nip{margin-left:8px}`（照 Web-IP floorMode）。uid 兜底链的
+  `a.name[data-uid]`（Web-IP 盖楼 userAttrLink）原样已在——实测 8/8 命中。切换模式会整片重渲染
+  → 既有 MutationObserver 重扫自然接管（零新增机制）。
+- **测试**：单测 +1（commentsMap 形 / 非对象值剔除 / rootComments 优先）。harness `native-ip`
+  增**盖楼形状段**（21 断言）：根 `.main-comment-item`+`footer-left`+`a.name[data-uid]` → 标签 +
+  **8px 间距**；无 uid 属性的楼层块 → listByFloor 回包（data:URL 灌 `commentsMap`/cid 形）→
+  重观察补齐；盖楼设备锚同款替换（'RMX3700'→真我 GT Neo5 SE）。**摘修复反跑**：commentRoot
+  退回单选择器 ⇒ `nip-floor-tag`/`nip-floor-margin`/`nip-floor-map-tag` 三条转红（设备断言
+  不依赖 root 故仍绿——符合设计），还原复绿。lint/check + 390 单测 + 73/73 场景全绿。
+
 ### 0.9.250（2026-10-15）· 原生页设置面板（Web-IP 吸收 6c）——标签点击弹面板 + 数据导入导出
 
 **由头**（Phase 6 第三块；用户「继续 6c 和 6d」）：把 Web-IP 的原生风格设置面板搬进来——它是
