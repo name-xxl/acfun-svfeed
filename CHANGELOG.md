@@ -5,6 +5,30 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.242（2026-10-15）· hls 内嵌串压缩存储：产物 -176KB（-23%），每页少解析约 180KB
+
+**病灶（体积账本实测）**：hls.light.min.js 以**原文**字符串内嵌（window.__ACSV_HLS_SRC__，
+300,381 字节 = 产物 39.7%）——`@match www.acfun.cn/*` 每开一个站内页面（含不看视频的）
+都要下载并解析这份脚本，是低配机的固定成本。
+
+- **修法**（方案 B＝纯 JS 解压，兼容面归零）：build.js 改 `deflateRawSync(level 9)` + base64
+  内嵌（raw 296,762 → 90,254 → b64 120,340），并注入 `window.__ACSV_HLS_LEN__`（原文字节数，
+  完整性校验）；产物 **756,474 → 580,673 字节**（739→567KB，-175.8KB ≈ -23.2%），debug 同批
+  1046KB→879KB。src/hls.js 新增 `unpackHls`（atob → fflate `inflateSync` → utf8 解码）：
+  fflate 为纯 JS 实现（~3.8KB，随包，零浏览器新 API 依赖）；ensureHls 首调（懒）解包后照旧
+  走三层装载；解包失败（缺串/截断/非法 base64/长度不符）静默下沉既有 CDN 兜底链——不新增
+  失败形态。新埋点 hls.unpackMs / hls.unpackLen / hls.unpackErr。
+- **解压库选型实录（单测抓出）**：先试更小的 tiny-inflate（~3KB）——其对**截断流死循环**
+  （读越界按 0 位继续解码、destLen 无界增长，页面会被冻死；本批单测「半截串」用例实锤挂起
+  30s+）；同用例 fflate 5ms 抛 `unexpected EOF`、随机脏字节抛 `invalid distance` ⇒ 换 fflate
+  （仅 +736B）。教训：**库的失败模式也是选型指标**，损坏输入要摆上单测台面。
+- **测试证据**：新单测 `hls-pack.test.js` 两条——往返还原 hls.light.min.js 原文（逐字节相等）
+  + 5 类脏输入一律 null；harness `hls-lazy` 断言改压缩形态（packed>90KB + raw 区间
+  250K~360K 钉 light 版不退回完整版）+ 新增 `hls-unpack-counted`（解包埋点在场的装载链自证，
+  同 `hls-eval-counted` 体例）。**摘修复反跑**：unpackHls 直返压缩串 ⇒ hls-src-embedded /
+  hls-unpack-counted 转红（装载退层 CDN，离线全灭），还原复绿。lint/check + 317 单测 +
+  65/65 场景全绿。
+
 ### 0.9.241（2026-10-15）· 播放/计数「万」口径统一：ui.fmt 退役，全部走 timefmt.fmtWan
 
 **病灶（静态复算实证）**：同一指标存在两套「万」口径——`ui.fmt` 走 `(n/10000).toFixed(1)`

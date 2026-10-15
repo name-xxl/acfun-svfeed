@@ -1,11 +1,14 @@
 import { CFG } from './cfg.js';
 import { stat, set, testHook } from './dbg.js';
+import { inflateSync } from 'fflate';
 
 // ---------- hls.js 懒加载 ----------
 // 推荐模式的播放直链是 m3u8；Safari 原生支持，Chromium 系需要 hls.js。
 // 0.9.14 起构建期内嵌进产物；0.9.164 起内嵌形态从「可执行代码」改为「字符串字面量」
 // （window.__ACSV_HLS_SRC__，build.js 注入）——页面加载只解析一个字符串常量，首个 m3u8
-// 挂载前 ensureHls 才编译执行，非竖刷页不再白付这份编译。
+// 挂载前 ensureHls 才编译执行，非竖刷页不再白付这份编译；0.9.242 起**压缩存储**
+// （deflateRaw+base64，ensureHls 首调 fflate 解压，见 unpackHls）——内嵌串体积
+// 300KB→120KB（产物 -23%），每开一个站内页面都少解析约 180KB。
 // 装载三层（逐层下沉，任一层成功即止）：
 //   ① eval 收编：new Function 编译执行 + 「同 realm 返回式取数 + UMD 分支遮罩」（0.9.181，
 //      治「编译了取不回类」——TM 沙箱全局落点与脚本 window 未必同对象；页面有 CJS
@@ -15,8 +18,8 @@ import { stat, set, testHook } from './dbg.js';
 //      即抛）。与 IM SDK 装载同机制（0.9.41 起实机实证可用；依赖页面 script-src 含 blob:，
 //      A 站满足）；onload 后经 pageWin()（unsafeWindow，0.9.30 同款跨 world 读法）读回类；
 //   ③ CDN 逐源兜底：GM_xhr 拉文本（先 eval 后 blob）；无 GM 环境退回 <script> 直挂 CDN。
-// 串缺失（构建机没装 hls.js）/全层失败 → 按 0.9.180 封印语义落 error 态（不回退原生 HLS
-// ——v0.9.14 冻结专项定案 Chromium 原生管线最小化往返冻死）。
+// 串缺失（构建机没装 hls.js）/解包失败（压缩串损坏或截断）/全层失败 → 按 0.9.180 封印语义
+// 落 error 态（不回退原生 HLS——v0.9.14 冻结专项定案 Chromium 原生管线最小化往返冻死）。
 // 分层落点全部打点（hls.evalOk/evalNoClass/evalNoMse/blobOk/blobNoClass/blobErr/blobTimeout
 // /blobNoUrl + hls.evalErr 异常摘要 + hls.cdnIdx），实机归因一轮读数即可定位。
 var loading = null;
@@ -49,6 +52,27 @@ function probeHls() {
     if (G && typeof G.isSupported === 'function' && G.isSupported()) return G;
   }
   return null;
+}
+
+// 内嵌串解包（0.9.242）：__ACSV_HLS_SRC__ 为 deflateRaw+base64 压缩串，fflate 解回原文。
+// len 来自构建期注入的 __ACSV_HLS_LEN__（原始字节数），是完整性校验：fflate 对截断/损坏流
+// 快速抛错（实测「unexpected EOF」等），length 不符再兜一道；失败一律返回 null（静默，
+// 调用方按「串缺失」同路径下沉 CDN 链，不新增失败形态）。
+// 选型实录：先试更小的 tiny-inflate（~3KB）——单测抓出它对**截断流死循环**（读越界当 0 位
+// 永不收敛，页面会被冻死）；同用例下 fflate 5ms 抛 EOF（+736B，~3.8KB 值得）
+export function unpackHls(packed, len) {
+  try {
+    if (!packed || !len) return null;
+    var bin = atob(String(packed));
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i) & 255;
+    var out = inflateSync(bytes);
+    if (!out || out.length !== len) { stat('hls.unpackLen'); return null; }
+    return new TextDecoder('utf-8').decode(out);
+  } catch (e) {
+    set('hls.unpackErr', String((e && e.message) || e).slice(0, 140));
+    return null;
+  }
 }
 
 // ① eval 收编：编译执行并取回类；不可得返回 null（异常摘要进 hls.evalErr，结局进分层计数）。
@@ -148,7 +172,12 @@ export function ensureHls() {
       next();
     }
     var src = null;
-    if (!evalTried) { evalTried = true; src = window.__ACSV_HLS_SRC__; }
+    if (!evalTried) {
+      evalTried = true;
+      var tP = Date.now();
+      src = unpackHls(window.__ACSV_HLS_SRC__, Number(window.__ACSV_HLS_LEN__) || 0);
+      set('hls.unpackMs', Date.now() - tP);
+    }
     if (!src) return cdnChain();
     var t0 = Date.now();
     var Got = evalOff ? null : evalHlsSource(src);

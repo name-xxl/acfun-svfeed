@@ -9,12 +9,19 @@
  */
 import esbuild from 'esbuild';
 import fs from 'fs';
+import zlib from 'node:zlib';
 
 var V = JSON.parse(fs.readFileSync('./package.json', 'utf8')).version;
 
 // 内嵌 hls.js（npm 依赖，构建时读取）：0.9.164 起以**字符串字面量**内嵌（window.__ACSV_HLS_SRC__），
-// 运行时首个 m3u8 挂载前才由 ensureHls new Function 编译执行——页面加载不再编译整份库
+// 运行时首个 m3u8 挂载前才由 ensureHls 编译执行——页面加载不再编译整份库
 //（非竖刷页：原生页注入/动态/空间…这些用不到 hls 的会话照付全额编译，是低配机最大固定成本）。
+// 0.9.242 起串改 **deflateRaw+base64 压缩存储**：raw 296,762 → 90,254 → b64 120,340 字节
+//（产物 -176KB ≈ -23%；@match www.acfun.cn/* 每开一个页面都要解析这份脚本，省的是全量用户的
+// 页面解析/传输成本）。解压在 ensureHls 首调（懒）用 fflate（纯 JS，零浏览器 API 依赖，
+// ~3.8KB 随包；选型见 src/hls.js unpackHls 注——tiny-inflate 对截断流死循环被单测抓出）
+// 完成；失败/长度不符自动下沉既有 CDN 兜底链（与串缺失同路径，不新增失败形态）。
+// __ACSV_HLS_LEN__ = 原始字节数：完整性校验（fflate 抛错外再兜一道长度）。
 // 0.9.14 的「运行时零网络依赖」目标不变：CDN 逐源兜底仍在，串缺失/损坏时自动接管。
 // 缘起：jsdelivr/npmmirror 在部分用户网络均不可达（attach.cdnFail 实测），
 // CDN 兜底永远拉不到 hls.js，推荐流被迫走浏览器原生 HLS 管线。
@@ -25,10 +32,13 @@ var V = JSON.parse(fs.readFileSync('./package.json', 'utf8')).version;
 // 预告）——取视频音频流（Web Audio）走语音识别，不经 hls 字幕轨，light 不受影响。
 var hlsInline = '';
 try {
-  hlsInline = '\n// ==== vendored hls.js@' + (JSON.parse(fs.readFileSync('./node_modules/hls.js/package.json', 'utf8')).version)
-    + '（light 版，构建时内嵌为字符串，首次 ensureHls 再编译——勿手改；npm i hls.js 后重新构建） ====\n'
-    + 'window.__ACSV_HLS_SRC__ = ' + JSON.stringify(fs.readFileSync('node_modules/hls.js/dist/hls.light.min.js', 'utf8'))
-      .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029') + ';\n';
+  var hlsVer = JSON.parse(fs.readFileSync('./node_modules/hls.js/package.json', 'utf8')).version;
+  var hlsRaw = fs.readFileSync('node_modules/hls.js/dist/hls.light.min.js');
+  var hlsB64 = zlib.deflateRawSync(hlsRaw, { level: 9 }).toString('base64');
+  hlsInline = '\n// ==== vendored hls.js@' + hlsVer
+    + '（light 版，构建时 deflateRaw+base64 压缩内嵌，ensureHls 首调 fflate 解压——勿手改；npm i hls.js 后重新构建） ====\n'
+    + 'window.__ACSV_HLS_SRC__ = ' + JSON.stringify(hlsB64) + ';\n'
+    + 'window.__ACSV_HLS_LEN__ = ' + hlsRaw.length + ';\n';
 } catch (e) {
   console.warn('[warn] 未找到 node_modules/hls.js/dist/hls.light.min.js，跳过内嵌（运行时走 CDN 兜底列表）');
 }

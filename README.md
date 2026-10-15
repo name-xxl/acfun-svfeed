@@ -175,7 +175,8 @@
   streams[] 按清晰度降序（1080P60…360P，各 2 个 CDN），playUrls 为 http m3u8，
   前缀直接换 https 可用（实测 200）；Chromium 需 hls.js——0.9.14 起构建期内嵌进产物、
   0.9.164 起以字符串字面量内嵌（首个 m3u8 挂载前才编译执行——非竖刷页不再支付这份
-  ~415KB 编译；无 CDN 依赖、不吃页面 CSP），内嵌缺失时才逐源拉
+  编译；无 CDN 依赖、不吃页面 CSP）；0.9.242 起串改 **deflateRaw+base64 压缩存储**
+  （300KB→120KB，产物 -23%；首调解包 fflate 纯 JS），内嵌缺失/解包失败时才逐源拉
   CDN 文本 + Function 兜底（npmmirror 优先）；两者全灭即落 error 态（**0.9.180 封原生回落**
   ——冻结专项定案 Chromium 系原生 HLS 管线不可靠，不再「赌一把原生解码」）；Safari 走原生 HLS。streams[] 不带编码字段，且每档是单变体 media playlist
   （无 #EXT-X-STREAM-INF 变体），编码维度只体现在 m3u8 文件名标记里（如 `h264_60`/`h264_6m`），
@@ -223,7 +224,8 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 - `attach.hls`/`attach.native`/`attach.cdnFail`：挂载管线归属——Chromium 系无 `exp.native` 时
   出现 `attach.native` 即异常；`attach.cdnFail` 增长且落 error 态 = hls.js 不可得（0.9.180 起
   不回落原生，坏情况表现为「视频加载失败」而非冻结）；
-- `hls.lazyEval`/`hls.evalMs`/`hls.evalErr`：内嵌串编译是否发生/耗时/异常摘要（0.9.181 起）——
+- `hls.lazyEval`/`hls.evalMs`/`hls.evalErr`/`hls.unpackMs`/`hls.unpackLen`/`hls.unpackErr`：
+  内嵌串解包与编译是否发生/耗时/异常摘要（0.9.181 起；解包六件 0.9.242 起——`unpackLen` 计数 = 长度校验拦下）——
   `evalMs` 有耗却 `attach.hls` 不涨 = 编译了但取不回类；近零（秒拒）= 构造期即抛（TM 沙箱
   Function 语义），两者 0.9.181/182 已分别以「返回式取数」「Blob 脚本层（页面 world）」兜住；
 - `hls.evalOk`/`evalNoClass`/`evalNoMse`/`blobOk`/`blobErr`/`blobTimeout`：装载分层落点计数
@@ -281,7 +283,7 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 源码按模块拆在 `src/`（ES 模块），构建打包成单文件油猴脚本：
 
 ```
-npm install          # 安装开发依赖（esbuild/eslint/playwright）与 hls.js（运行时依赖，构建期内嵌进产物）
+npm install          # 安装开发依赖（esbuild/eslint/playwright）与 hls.js / fflate（运行时依赖：前者构建期内嵌、后者打包进产物负责懒解包）
 npm run build        # 产出 acfun-svfeed.user.js + acfun-svfeed.debug.user.js
 npm run watch        # 监听 src/ 变更自动重建
 npm test             # 静态一致性校验 + 单测 + 无头 harness 全场景（需先 npx playwright install chromium，
@@ -346,7 +348,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `momenteditor.js` | 发动态编辑器（0.9.222）：**三处入口共用的唯一出口** `openMomentEditor(opts)`——居中模态（overlay 栈 id=`momentedit`、modal 吞键）、输入条走 `inputbar`（0.9.238 富文本，字数在工具栏右端 n/233）、表情面板/九宫格缩略图（`imgInto`）/可见范围两药丸；转发时顶部带源引用块（复用 `cards.quoteBlockOf`，不新画）、按钮与标题切「转发」。**防误发**：提交锁（绝不自动重试——端点无幂等键）、失败保留内容给可读话术（按 `postResultOf` 的 kind 分档）、**网络/超时结果未知**走「先查后补」（`listProfile` 核对自己最近动态）。**超字数硬拒绝**（0.9.238 预览稿 ⑩ 第 10 项）：输入条置红 + 脚行发布键禁用 + 「已超出 N 字」提示行；发布动作归脚行（模态内隐去输入条自带发送键）。调试钩子 `momentRepostOf`/`momentEdit` |
 | `pubfab.js` | 发布**常驻浮标**（0.9.224；0.9.225 收窄原生页范围）：右下角一枚圆钮、钉在「回到顶部」之上——消费方三处：我的页四档 / 广场视图 / **原生页的内嵌动态广场**（0.9.225 用户口径「原生页只需要在动态广场出现」⇒ 只在广场开着时出现，随广场收起而消失；不再常驻原生页）。位置：暗色 `right:18 bottom:70`（回顶暗色是流内 sticky）／浅色 `right:24 bottom:80`（回顶浅色是 fixed）。**层级 z:57**：压列表内容(55)/dock(56)/顶栏(57)，**被抽屉(58)/详情(61)/编辑器(62)/大图(63) 盖住**——绝不许盖住它自己打开的编辑器（`#acsv-fab` 的 2147482990 不能照抄） |
 | `upload.js` | 评论图片上传四阶段（GM 通道二进制分片，失败统一落 null） |
-| `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；0.9.180 起不可得=error 态，不回落原生；0.9.181 起「同 realm 返回式取数」+ UMD 分支遮罩；0.9.182 起 eval 拿不回再落 Blob 脚本层（页面 world，IM SDK 同款）；CDN 逐源兜底；Safari 原生 HLS 探测） |
+| `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；0.9.180 起不可得=error 态，不回落原生；0.9.181 起「同 realm 返回式取数」+ UMD 分支遮罩；0.9.182 起 eval 拿不回再落 Blob 脚本层（页面 world，IM SDK 同款）；0.9.242 起内嵌串为 deflateRaw+base64 压缩形态，首调 unpackHls（fflate）懒解包、失败下沉 CDN；CDN 逐源兜底；Safari 原生 HLS 探测） |
 | `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐；画布取**播放器区域内居中的 16:9 区**，与稿件比例无关——原生同口径（0.9.205）；0.9.204 起另一条通道画高级弹幕——绝对定位不进轨道/位图缓存） |
 | `advdm.js` | 高级弹幕模型核·零依赖纯函数（0.9.204）：`parseAdvanced`（ext JSON → 模型）/`easeProgress`（CSS 关键字 + cubic-bezier 牛顿迭代+二分兜底，非法值回落 linear）/`interpolateModel`（多段帧插值）/`drawModel`（九宫格锚点/多行/描边/影子）。真机口径见 docs/api-research.md §10.13（本地留档） |
 | `danmaku.js` | 弹幕编排：列表拉取/缓存、开关记忆、绑定/解绑 slide、发送输入条；**高级弹幕取池**（0.9.204：pollByPosition 跟播放头 20s 窗口增量拉——list 链路一条高级弹幕都不返回） |

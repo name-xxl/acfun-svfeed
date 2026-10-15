@@ -1,9 +1,11 @@
 // test/cases/hls.js —— harness 场景：hls.js 懒 eval（0.9.164）、封原生回落（0.9.180）、
 // 装载取数修 world/UMD 双坑（0.9.181）
-// 机制：build.js 把 hls.min.js 内嵌为字符串常量 window.__ACSV_HLS_SRC__（banner 段），
-// 页面加载不再编译整份 hls——ensureHls 首调才 new Function 编译执行。harness 全部 mock
-// 播放走 cap.hls=false 直链（api.js 直挂缝），无人提前触发 ensureHls ⇒ 「加载后未定义」可断言。
-//   hls-lazy：加载后内嵌串在场且 Hls 未定义 → 经测试钩子调 ensureHls → Hls.isSupported 为真
+// 机制：build.js 把 hls.min.js **压缩**内嵌为 base64 串 window.__ACSV_HLS_SRC__（0.9.242 起
+// deflateRaw；__ACSV_HLS_LEN__=原文长度，banner 段），ensureHls 首调才解包 + new Function
+// 编译执行。harness 全部 mock 播放走 cap.hls=false 直链（api.js 直挂缝），无人提前触发
+// ensureHls ⇒ 「加载后未定义」可断言。
+//   hls-lazy：加载后压缩串与原文长度常量在场且 Hls 未定义 → 经测试钩子调 ensureHls →
+//   Hls.isSupported 为真 + hls.unpackMs 埋点在场
 //   hls-sealed（0.9.180）：playInfo 桩改吐 m3u8（appapi.resolve 的非 m3u8 守卫放行 ⇒ cap.hls
 //   保持 true）→ setFail 缝令 ensureHls 拒绝 → 播放层 home 条目深链挂载 ⇒ 断言：落 error 态、
 //   video 无 src（m3u8 未落原生管线）、错误盒可见、attach.cdnFail 计数在场
@@ -16,19 +18,25 @@
 // session 还原旧回落（video.src = url）⇒ hls-sealed-no-native 转红（video 拿到 m3u8 直链）；
 // hls.js 还原旧取数（裸 new Function(src)() + window.Hls 直读）⇒ hls-probe-no-amd /
 // hls-probe-loaded 转红（UMD 走 define 注册、不落全局）；摘 blob 层 ⇒ hls-blob-counted /
-// hls-blob-no-cdn 转红（网络在时 CDN 接走、离线全红）
+// hls-blob-no-cdn 转红（网络在时 CDN 接走、离线全红）；摘解包（unpackHls 直返压缩串）⇒
+// hls-src-embedded / hls-unpack-counted 转红（装载退层至 CDN、离线全灭）
 (function () {
   var C = window.__ACSV_CASES__ = window.__ACSV_CASES__ || {};
   C['hls-lazy'] = async function (h) {
     var rec = h.rec;
+    // 0.9.242 起内嵌串为 deflateRaw+base64 压缩形态（packed ~120KB）；__ACSV_HLS_LEN__ 是原文
+    // 字节数（light 版 296,762；完整版 415,253——区间上限同时钉「没退回完整版」）
     var srcLen = (window.__ACSV_HLS_SRC__ || '').length;
-    rec('hls-src-embedded', srcLen > 250000, 'len=' + srcLen); // 0.9.209 起内嵌 light 版（296,762 字节；旧完整版 415,253）
+    var rawLen = Number(window.__ACSV_HLS_LEN__) || 0;
+    rec('hls-src-embedded', srcLen > 90000 && rawLen > 250000 && rawLen < 360000,
+      'packed=' + srcLen + ' raw=' + rawLen);
     rec('hls-not-parsed-on-load', !(window.Hls && window.Hls.isSupported));
     var hook = window.__ACSV_TEST__.call('hls');
     rec('hls-hook-idle', !!hook && !hook.ready());
     await hook.ensure();
     rec('hls-loaded-after-ensure', !!(window.Hls && window.Hls.isSupported));
     rec('hls-eval-counted', (window.__ACSV_TEST__.getStats()['hls.lazyEval'] || 0) >= 1);
+    rec('hls-unpack-counted', typeof window.__ACSV_TEST__.getStats()['hls.unpackMs'] === 'number');
   };
   C['hls-sealed'] = async function (h) {
     var rec = h.rec, q = h.q, waitFor = h.waitFor, TEST = h.TEST;
