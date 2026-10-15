@@ -491,6 +491,11 @@ var RAW_CSS = ''
   + '.acsv-cfrom{display:inline-flex;align-items:center;gap:3px}'
   + '.acsv-cfrom a{color:inherit;text-decoration:none}'
   + '.acsv-cfrom a:hover{color:#9fd0ff}'
+  // IP 属地标签（0.9.245，Web-IP 吸收批次①）：灰字原文直显、不可点（点击弹面板属 Phase 6）；
+  // 悬停主题色＝「将来可点」的预兆（预览 ② 定稿，Web-IP .acr-ip 同款）；nowrap 由
+  // .acsv-cmeta>* 既有规则兜住
+  + '.acsv-cip{color:#7a7f8a}'
+  + '.acsv-cip:hover{color:var(--acsv-accent)}'
   + '.acsv-cfloor{position:absolute;right:0;top:12px;font-size:12px;color:#7a7f8a}'
   + '.acsv-hot-head{padding:10px 14px 4px;font-size:12px;color:#fd4c5d;font-weight:700;'
   + 'display:flex;align-items:center;gap:5px}'

@@ -5,6 +5,35 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.245（2026-10-15）· 评论抽屉 IP 属地（Web-IP 吸收批次①）——iploc 查询层 + 设置两行 + 渲染点注入
+
+**由头**（路线图 Phase 5 启动；用户 2026-10-15 裁决两批拆分 + 预览定稿「原项目的 UI 已经很成熟，
+照抄就行」）：吸收 Web-IP（本地 `AcFun-Web-IP` v5.8.5）的评论 IP 属地——抽屉渲染点手里就有
+userId，**不需要它的 commentId→userId 拦截层**（那层随 Phase 6 原生页再 port），是本批最大的
+简化；页面级缓存同撤（uid 缓存已覆盖跨页复用）。前置实测全清（docs/api-research.md §12，本地
+留档）：端点 `userInfo→profile.ipLocation`（登录态 5/5 非空、游客空串；`getUserCardList` 不带
+属地）、通道 GM 裸调真机带回登录态（§12.4）、属地格式 **64 条采样全部省级短名**（§12.1——预览
+示例已按实测改稿，用户改稿点①）。
+
+- **修法**：新 `src/iploc.js`（评论 IP 属地查询层）：**单层 uid 缓存**沿用老键 `acr_uids` 同 key
+  同形状（Web-IP 老用户数据零迁移，D8）；串行限流 200ms + 写盘防抖 2s + 上限 5000 最旧淘汰 +
+  **pagehide 兜底落盘**（Web-IP 无此件，补的）；负缓存分级（无属地 6h / 网络错 10min，照
+  Web-IP）；「无值不渲染」铁律。接线口 `tagInto(meta, uid)` 由 comments.cmtOpts 经 **opts.ipTag**
+  注入 commentkit（kit 不 import 特性模块的纪律；三宿主 + 发送后乐观插入同经 cmtOpts，天然全
+  覆盖）——缓存命中**同步上屏**、未命中串行排队回填（节点存活守卫）、空属地静默。阈值收
+  `CFG.ip` 单源 + `CFG.api.userInfo` 新端点。settings SCHEMA 评论组 +2 行：`ipShow`（开关，默认
+  开）/ `ipKeep`（保留期 永久/1/7/30 天，默认 7 天——比 Web-IP 的永久更保守）；Web-IP 老保留期键
+  `acr_days` 一次性收养（值域重合零翻译）。styles 增 `.acsv-cip`（灰字原文直显；悬停主题色＝
+  Phase 6 可点击的预兆，预览 ② 定稿）。确认稿 `docs/preview/ip-device-tags.html` 随批入库。
+- **测试**：新单测 `iploc.test.js` 26 项（Web-IP `isFailureCacheFresh` 8 项等值迁移 + 正面新鲜度/
+  三态判定/保留期换算/老键映射/tooltip 文案/过期清理与上限淘汰）。harness 新场景 **ip-tags**
+  （15 断言：未命中排队四发 + 标签落地**同一 DOM 节点**不变式 + meta 末尾落位 + 三行 tooltip +
+  空属地/网络错不渲染 + **楼中楼同显**（opts.ipTag 透传路径）+ 收起重开：命中同步上屏 + 四种
+  缓存复用计数不涨）与 **ip-tags-off**（6 断言：开关关闭零查询零标签）；settings-open 断言随
+  SCHEMA +2 行更新（6→8 行）。
+  **摘修复反跑**：临时摘掉两条负缓存写入 ⇒ `iph-cache-noreq` 转红（9002/9003 各被重查一次），
+  还原复绿。lint/check + 345 单测 + 66/66 场景全绿（README 依赖图 +iploc 节点与 6 条边）。
+
 ### 0.9.244（2026-10-15）· 私信徽标轮询随 badgeDelay 起：不再「进竖刷 5s 就拉 860KB SDK」
 
 **病灶（真机实测实锤）**：imbadge 在 mount 即起 `setInterval(tick, 5s)`，首拍（~5s）就

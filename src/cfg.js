@@ -55,6 +55,9 @@ export var CFG = {
     // 实测对 acfun token 401）；官方页同资源走本域、参数不含 token 即 200（0.9.41 实测）
     imDownloadBase: 'https://message.acfun.cn',
     userCard: 'https://www.acfun.cn/rest/pc-direct/user/getUserCardList',
+    // 评论 IP 属地（0.9.245，Web-IP 吸收批次①）：profile.ipLocation **需登录态**（游客恒空串）；
+    // 契约实测见 docs/api-research.md §12.1（getUserCardList 不带属地，故独立端点）
+    userInfo: 'https://www.acfun.cn/rest/pc-direct/user/userInfo?userId=',
     defaultAvatar: 'https://imgs.aixifan.com/style/image/defaultAvatar.jpg',
     logoSvg: 'https://ali-imgs.acfun.cn/kos/nlav10360/static/common/widget/header/img/acfunlogo.11a9841251f31e1a3316.svg',
     // ---- APP 家族接口（api-new.app.acfun.cn，免登录读 + 域 Cookie 写） ----
@@ -327,6 +330,17 @@ export var CFG = {
     // 容器、行内/面板宿主恒挂错；翻页改哨兵 + IntersectionObserver（rootMargin 内建 200px），
     // 本项随之退役（退役登记，勿再加回）
     recentMax: 12      // 最近使用表情保留数
+  },
+  // 评论 IP 属地（0.9.245，Web-IP 吸收批次①）：阈值单源——队列节奏/负缓存分级/缓存上限均照
+  // Web-IP v5.8.5 既有值；缓存数据在 acr_uids（iploc 域），展示文案口径在 iploc.tagTitle
+  ip: {
+    intervalMs: 200,          // 串行队列相邻请求最小间隔（防风控；Web-IP REQUEST.minIntervalMs）
+    failedTtlMs: 6 * 3600 * 1000,         // 负缓存：API 正常但无属地（6h）
+    transientFailedTtlMs: 10 * 60 * 1000, // 负缓存：网络错/超时/风控（10min，防瞬时故障反复重打）
+    maxUids: 5000,            // uid 缓存上限（超限按时间最旧淘汰）
+    saveDebounceMs: 2000,     // 缓存写盘防抖（连续查询合并为一次序列化）
+    keepDef: '7',             // 「属地缓存保留」默认档＝7 天（比 Web-IP 的永久更保守，预览定稿）
+    keepOptions: [{ v: '0', t: '永久' }, { v: '1', t: '1 天' }, { v: '7', t: '7 天' }, { v: '30', t: '30 天' }]
   },
   rate: [0.5, 1, 1.5, 2, 3],   // 倍速循环档位（0.9.194 加 3x；菜单/文案由本表驱动，无第二处名单）
   win: { back: 1, fwd: 1 }, // 渲染窗口：当前条向上 back/向下 fwd 张挂视频；slide DOM 与氛围背景在窗外更远一/两格回收

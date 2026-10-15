@@ -135,7 +135,12 @@ const HARNESS_CASES = [
   // 0.9.142 关注分组全闭环（我的页第三 tab 建/改名/删/移组/取关 + rail 分组选择层两态）
   { name: 'follow-groups' },
   // 0.9.143 收藏夹全闭环（rail 选择层三分支 + 我的页建/改名/删夹与移动/移除）
-  { name: 'fav-folders' }
+  { name: 'fav-folders' },
+  // 0.9.245 评论 IP 属地（Web-IP 吸收批次①）：行内宿主 + 定向桩（comment/list 三 uid ×
+  // userInfo 三种回包——有属地/空串/rejected）；命中同步上屏/未命中回填/同一节点/负缓存复用/
+  // 开关关闭零查询（off 场景依赖 bundle 前预置 acsv.s.ipShow，见 harness.html）
+  { name: 'ip-tags', viewport: { width: 1600, height: 900 } },
+  { name: 'ip-tags-off', viewport: { width: 1600, height: 900 } }
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

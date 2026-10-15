@@ -86,6 +86,9 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // momentpost 同批归类（0.9.223）：动态**发布域**，与同在 FEATURE 里的 momentapi（读域）同类；
   // 0.9.238：tokenRanges 随令牌原子化件退役收进本件（出口文本的字数口径），依赖面反而变窄
   'momentpost.js',
+  // 0.9.245 登记：iploc（评论 IP 属地查询层，Web-IP 吸收批次①）——与 comments/commentkit 同层，
+  // 消费 cfg/net/ui/dbg/settings；消费方 comments 已在表内，属层内互调（两口径 0 条）
+  'iploc.js',
   ]);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 
