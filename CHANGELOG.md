@@ -5,6 +5,36 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.248（2026-10-15）· 原生页评论 IP + 设备（Web-IP 吸收 6a）——拦截层 + 视口注入 + 竞态修正
+
+**由头**（Phase 6 开工；用户「做原生页功能实现……以原脚本为准」）：把 Web-IP 的原生页覆盖面搬进
+来。**先真机逐面核实覆盖**（docs/api-research.md §13）：评论区实为**统一组件**——视频 /v/、文章
+/a/、动态详情 /moment/ 三面同款（`[data-commentid]` 根 + `.area-comment-from` 注入点 +
+`a.name[data-userid]`，实测 6/24/2 条全带）；Web-IP 的「盖楼」精确类（`.main-comment-item`/
+`.fc-comment-item`）今天零命中（站上新类名带 id 后缀）⇒ 不 port；用户主页 /u/ 与个人中心
+/member 动态条目两处挂点留 6b 批。
+
+- **修法**：新 `src/nativeip.js`（**只挂原生页**，boot 表尾统一入口，home 竖刷不吃）：拦截层
+  （fetch/XHR hook → commentId→userId 映射，路径变清表）+ DOM 兜底链（a[data-userid] →
+  a.name[data-uid] → /u/ 链接 → 头像 src）+ 可见优先注入（IO 200px/root=视口/入视口即 unobserve
+  → `iploc.resolveFor` 共享核 → `.acsv-nip` 浅色段：无底色继承字色、hover #fd4c5d、间距 3px，
+  tooltip 与抽屉同源）+ 重画补注（MutationObserver 300ms 重扫；已见未注入只读缓存补——屏外不
+  打扰）+ SPA 路由清映射 + 设备美化（评论 `.deviceModel` → `devname.devTag` 单源，含点击切换与
+  手动记忆 data-acsv-dev-manual，站点重渲染改回代号会重替换）。配套：`iploc` 增数据侧出口
+  `resolveFor`/`peek`（视口语义归调用方）；`styles` 增 `NATIVE_IP_CSS` 段（原生页自持注入，
+  同 IMGVIEW_CSS 先例，不进全量 CSS）。
+  **修正 port（roadmap 6.1 在册）**：Web-IP 的 IO 回调**先 unobserve 再处理**、uid 提取失败即
+  **永久漏处理**——我们失败不放弃：卸观察后**有界重观察重试**（600ms×8 拍；IO 只报状态变化，
+  重新 observe 才会对仍在视口内的目标再触发）。
+- **测试**：新单测 `nativeip.test.js` 26 项——**Web-IP 停靠的 24 项全部等值迁移**（isCommentUrl 7 /
+  extractCommentList 4 / parseUidFromHref 7 / extractUidFromComment 6，DOM 用最小桩）＋ 非数组
+  回包容错。harness 新场景 **native-ip**（16 断言；BOOT_PATH 到 /v/ac777777 + NO_AUTOMOUNT 无壳，
+  场景体自建原生评论 DOM）：标签注入（同一节点/注入点/tooltip 同源）+ 设备替换/点击切换/手动
+  态不被重扫覆盖 + 拦截层与竞态修正（无 uid 属性评论：data:URL 灌"评论回包"建映射 → 重观察把
+  标签补齐）+ 同 uid 去重（缓存单源）+ 路由清映射。**摘修复反跑**：handleVisible 换回 Web-IP 原
+  语义（先卸观察、缺失即弃）⇒ `nip-race-tag` 转红（该条永久漏），还原复绿。
+  lint/check + 383 单测 + 71/71 场景全绿。
+
 ### 0.9.247（2026-10-15）· IP 属地回填改「视口内回填」——广场 backfillIO 同款
 
 **由头**（用户一句「ip 回填能不能和广场一样用视口内回填」）：0.9.245 的回填是「渲染即排队」——

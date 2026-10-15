@@ -175,6 +175,9 @@ function onToggle(e) {
   var a = e.currentTarget;
   var showingFriendly = a.textContent === (a.dataset.acsvFriendly || '');
   a.textContent = showingFriendly ? (a.dataset.acsvOriginal || '') : (a.dataset.acsvFriendly || '');
+  // 手动记忆：原生页重扫对「用户手动切过」的元素不再覆盖（Web-IP manualAttr 同义，0.9.248 增；
+  // 抽屉无重扫，标记无害）
+  a.setAttribute('data-acsv-dev-manual', '1');
   a.title = showingFriendly
     ? '原始型号: ' + (a.dataset.acsvOriginal || '') + '\n点击可切换显示'
     : (a.dataset.acsvFriendly || '') + '\n点击可切换显示';

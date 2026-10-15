@@ -256,6 +256,28 @@ function armQuery(meta, k) {
   });
 }
 
+// ---------- 数据侧出口（原生页皮肤等宿主消费；0.9.248 随 6a 增） ----------
+
+// 缓存直读（**不查询**）：原生页重扫补注入用（Web-IP injectFromCache 同义）——新鲜正面才返回
+export function peek(uid) {
+  var k = String(uid);
+  ensureLoaded();
+  var st = lookupState(uids[k], Date.now(), keepMsOf(getSetting('ipKeep')));
+  return st === 'pos' ? { ip: uids[k].ip, t: uids[k].t || 0 } : null;
+}
+
+// uid → 属地回调（原生页等宿主消费；**视口语义归调用方**——命中同步回调、未命中排队、负缓存静默、
+// 无值不回调）。抽屉皮肤走 tagInto（自带视口观察），本口给已有自持触发链的宿主用
+export function resolveFor(uid, cb) {
+  if (!uid || !getSetting('ipShow')) return;
+  var k = String(uid);
+  ensureLoaded();
+  var st = lookupState(uids[k], Date.now(), keepMsOf(getSetting('ipKeep')));
+  if (st === 'pos') { stat('ip.hit'); cb(uids[k].ip, uids[k].t || 0); return; }
+  if (st === 'neg') { stat('ip.neg'); return; }
+  fetchFor(k, function (ip, t) { if (ip) cb(ip, t); });
+}
+
 // ---------- 渲染点接线口（单源；commentkit 经 opts.ipTag 注入后调用） ----------
 
 function appendTag(meta, ip, t) {

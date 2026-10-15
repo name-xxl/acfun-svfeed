@@ -145,7 +145,11 @@ const HARNESS_CASES = [
   // 楼中楼透传）；href 保持 + tooltip + 点击切换两向 + 关态原文（off 依赖 bundle 前预置
   // acsv.s.devName，见 harness.html）
   { name: 'dev-name', viewport: { width: 1600, height: 900 } },
-  { name: 'dev-name-off', viewport: { width: 1600, height: 900 } }
+  { name: 'dev-name-off', viewport: { width: 1600, height: 900 } },
+  // 0.9.248 原生页评论 IP+设备（Web-IP 吸收 6a）：BOOT_PATH 改到 /v/（pagekind=video ⇒
+  // mountNativeIp）+ NO_AUTOMOUNT 无壳（见 harness.html）；场景体自建原生评论 DOM——
+  // 标签注入/设备切换/拦截层与竞态修正/SAP 路由清映射
+  { name: 'native-ip', viewport: { width: 1600, height: 900 } }
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

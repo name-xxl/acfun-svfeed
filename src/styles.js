@@ -10,6 +10,12 @@ export var IMGVIEW_CSS = '.acsv-imgview{position:absolute;inset:0;z-index:63;bac
   + 'box-shadow:0 8px 48px rgba(0,0,0,.6);-webkit-user-select:none;user-select:none}'
   + '@keyframes acsv-fadein{from{opacity:0}to{opacity:1}}';
 
+// 原生页 IP 标签段（0.9.248，Phase 6·6a）：**单独段导出**——原生页由 nativeip 自持注入（同
+// IMGVIEW_CSS 先例，不进全量 CSS）。量值照 Web-IP `.acr-ip`：无底色、继承父级字色、间距 3px、
+// hover 主题色（#fd4c5d 即站点主色）；cursor 暂 default，点击弹面板（6c）到位后改 pointer
+export var NATIVE_IP_CSS = '.acsv-nip{margin-left:3px;cursor:default;transition:color .2s}'
+  + '.acsv-nip:hover{color:#fd4c5d}';
+
 var RAW_CSS = ''
   // A 站原生 iconfont（acfun-frontend-next）：动态页等站内页面同款字体（src 取自
   // member/feeds 页面样式，0.9.55），小视频/推荐页不加载，抽屉内自注入；码点登记在

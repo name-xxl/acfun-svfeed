@@ -6,6 +6,7 @@ import { tryInjectSpace } from './uppage.js';
 import { tryInjectSpaceMoments } from './spacemoments.js'; // 空间页「动态」标签（0.9.218）
 import { watchMemberNav } from './memberplaza.js';
 import { bootNativeIm } from './imnative.js';
+import { mountNativeIp } from './nativeip.js'; // 原生页评论 IP+设备（0.9.248，Phase 6·6a）
 import { setRoot } from './state.js';
 import { IMGVIEW_CSS } from './styles.js';
 import { pageKind } from './pagekind.js';
@@ -27,9 +28,9 @@ import './playlayer.js'; // 播放层（0.9.74）：注册 play 视图 + 注入�
 //     样式由注入点自持（两件内调 ensureStyle）
 //   memberCenter（/member/*，0.9.128）：0.9.47「其他页不注入」的**限定反转**（只此一路径）——
 //     ensureStyle + setRoot(document.body)（无壳浮层）+ watchMemberNav（原生页「动态广场」入口）
-//   video / article / other：仅基础设施（dbgInit + 路由监听）。全量 CSS 不再无条件注入——
-//     挂载时 player.mount 自持（ensureStyle）；设置存储 / 更新检查 / 原生页 IP·设备模块
-//     将来在 video/article 分支入住（Phase 5/6），勿在此处塞临时判断
+//   video / article / other：基础设施（dbgInit + 路由监听）+ **原生页 IP·设备已入住（0.9.248）**。
+//     全量 CSS 不再无条件注入——挂载时 player.mount 自持（ensureStyle）；原生页增强统一走表尾
+//     的 mountNativeIp()（幂等；站点改版只改 nativeip 的选择器表），勿在此处散塞路径判断
 // 路由监听（toggle + hashchange）全 www 保留：任何页面粘 #svfeed 深链都能进竖刷（0.9.72 起
 // 性质；route.js 的 /svfeed 路径别名同样依赖它），不挂载时零成本。
 // 注意：上报链路（report.js 信封嗅探 / pagehide 监听 / 账本补报）是模块求值期行为，不经本表
@@ -62,4 +63,7 @@ if (kind === 'native') {
     setRoot(document.body);
     watchMemberNav();
   }
+  // 原生页评论 IP + 设备（0.9.248，Phase 6·6a）：video/article/other（含 /moment）/member/
+  // 个人中心全入住；home 竖刷自己就是脚本页，不吃。幂等
+  if (kind !== 'home') mountNativeIp();
 }

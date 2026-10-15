@@ -92,6 +92,9 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 0.9.246 登记：devname（设备型号美化，Web-IP 吸收批次②）——消费 cfg/settings/devicetab（纯数据
   // 叶子，非特性）；消费方 comments 已在表内，同属层内互调
   'devname.js',
+  // 0.9.248 登记：nativeip（原生页评论 IP+设备，Web-IP 吸收 6a）——消费 dbg/devname/iploc/styles；
+  // 消费方 boot 是组合根（SKIP_B，装配向下不计）
+  'nativeip.js',
   ]);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 
