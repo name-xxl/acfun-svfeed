@@ -143,6 +143,15 @@
     rec('nip-floor-dev', !!(await waitFor(function () {
       return devF.textContent === '真我 GT Neo5 SE';
     }, 8000)), devF.textContent);
+    // 复审②（0.9.254）：站点原地重渲染把文本改回代号 → 重扫对**同一元素二次 devTag**。
+    // devTag 的内联函数若每次新建 ⇒ 叠加第二个 click 监听 ⇒ 一次点击两次 toggle 相抵
+    //（看起来切不动）；同引用注册按 DOM 规范去重则单击单切——本断言钉住后者（病灶形状反跑见批次记录）
+    devF.textContent = 'RMX3700'; // 模拟站方回写（devF 无 manual 标记：从未点过）
+    document.body.appendChild(document.createElement('span')); // append 触发重扫（防抖 300ms）
+    await wait(600);
+    rec('nip-dev-rescan-reapply', devF.textContent === '真我 GT Neo5 SE', devF.textContent);
+    devF.click();
+    rec('nip-dev-rescan-single-toggle', devF.textContent === 'RMX3700', devF.textContent);
     // ④ SPA 路由：路径变 → 映射清空（跨页无效且会无限累积）
     history.pushState(null, '', '/v/ac888888' + location.search);
     rec('nip-route-clear', !!(await waitFor(function () {

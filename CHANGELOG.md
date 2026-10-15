@@ -5,6 +5,40 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.254（2026-10-15）· 复审处置（①真 bug 修 + ②核实不复现 + 连带实证 Esc 层序缺陷）
+
+**由头**：外部复审（Phase 5+6 吸收批次）报 1 真 bug + 1 边缘 bug + 可选意见若干。处置中借新增断言
+连带实锤一处 Esc 层序缺陷（③）。
+
+- **① 脚本页异步回填的 IP 标签丢 uid（真 bug，已修）**：病灶 `src/iploc.js` armQuery 的 fetchFor
+  回填回调 `appendTag(meta, ip, t)` 漏传第 4 参 k ⇒ **首屏首次异步回填**的标签
+  `data-acsv-uid="undefined"`，点击弹面板显示「用户名 未知 / UID undefined / 暂无缓存」（缓存命中
+  路径 `tagInto`/`stmt==='pos'` 两处传了 k，此前测试只点了这条路径）。修法一行：
+  `appendTag(meta, ip, t, k)`。测试：ip-tags 新增点**首条异步回填标签**⇒面板开（深色）+ 资料卡含
+  甲/9001/广东；**摘修复反跑**（k 摘掉）⇒ `iph-async-panel-card` 唯一转红
+  （`用户名未知UIDundefinedIP属地暂无缓存`），还原复绿。
+- **② devTag 防重复绑（边缘 bug，实测不复现——同引用注册按 DOM 规范去重）**：复审指原生页重扫对
+  站方原地重渲染的元素二次 devTag 会叠 click 监听 ⇒ 单击两次 toggle 相抵「切不动」。实测：devTag
+  的 onToggle 是**模块级具名函数**，`addEventListener` 同 (type, callback, capture) 重复注册是
+  no-op ⇒ 二次 devTag 后单击仍单切（Web-IP 的 `_acrDeviceBound` 守卫在其原仓同为冗余——其 handler
+  也是具名函数，56-device.js:179）。处置：**不加死守卫**；native-ip 用例新增两条断言（重扫把代号改
+  回→重扫重新美化 / 单击只切一次）钉住不变式，devTag 注释钉「onToggle 必须保持具名函数」的形状约束
+  （改内联闭包即叠监听）；**病灶形状反跑**（临时改闭包注册）⇒ `nip-dev-rescan-single-toggle` 转红，
+  还原复绿。
+- **③ 连带修复：Esc 关 IP 面板会把底层视图层一起关掉（复核实锤）**：写①的断言时暴露——natpanel 自家
+  window 按键监听的注册序先于 input.js 的 keyHandler，Esc 先把面板抢关出栈，input.js 随即把新栈顶
+  `'view'` 层（订阅视图的浮层层，views.js:171）当普通层连关（`closeView()` → hash 回裸 `#svfeed`
+  → 视图拆、回竖刷）。修法（两件）：natpanel **入浮层栈**（`overlayOpen({id:'natpanel', modal:true})`
+  ——Esc 单点关栈顶，真键盘走 overlay capture，settingspanel 同款）；自家监听**门控只兜原生页合成
+  事件**（判据「无 #acsv-root 壳」＝与 input.js:49 `isFeedRoute() && root` 同一事实的两处读取；摘掉
+  门控即抢跑）。测试：`iph-esc-panel-only` 钉「Esc 后面板关 + 行内评论盒存活 + hash 仍
+  `#svfeed/follow`」（hash 是同步判据：closeView 一发生地址即刻被改）；**摘修复反跑**（门控摘掉）⇒
+  该条转红（`hash=#svfeed`）且 `iph-reopen` 连锁红。
+- **④ 可选意见处置**：产物 626KB / debug 963KB（本批吸收 +47KB，大头 devicetab 40KB 原文）——R6
+  1MB 水位 debug 侧余约 37KB，roadmap R6 行记观察不动表结构；natpanel number 控件分支留作表驱动
+  通用性（无消费项，无害）；acr_cache 不收养维持现状（Web-IP v5.4 起正面积累进 acr_uids，损失≈零）。
+- lint/check + 391 单测 + 73/73 场景全绿（ip-tags 21→24、native-ip 21→23 断言）。
+
 ### 0.9.253（2026-10-15）· IP 面板两主题 + 脚本页点击接通 + 齿轮页脚版本号（三项，预览定案）
 
 **由头**（用户三问：「设置面板设计不统一吗 / 脚本页点击 IP 没反应吗 / 脚本页设置不展示版本号吗」；

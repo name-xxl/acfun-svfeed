@@ -16,6 +16,7 @@
 // ui.copyText；③ toast 走本面板自带（原生页无 #acsv-root）。
 import { nativeItems, getSetting, setSetting, flushSettings } from './settings.js';
 import { APP_VERSION } from './cfg.js';
+import { overlayOpen, overlayClose } from './overlay.js'; // 浮层栈（modal）：Esc 单点裁决（0.9.254 复审修）
 import { entryOf, exportUids, importUids, clearUids } from './iploc.js';
 import { deviceCount, exportDevices, importDeviceText, resetUserDevices } from './devname.js';
 import { el, copyText } from './ui.js';
@@ -53,6 +54,7 @@ function toast(msg) {
 function closeNatPanel() {
   if (maskEl) { maskEl.remove(); maskEl = null; }
   flushSettings(); // 关面板即落盘（settingspanel 同款纪律）
+  overlayClose('natpanel'); // 显式关闭路径同步栈（Esc 路径已出栈时空转；settingspanel 同款）
 }
 
 // ---------- 控件工厂（native 皮肤；与 settingspanel 同语义不同皮） ----------
@@ -292,6 +294,10 @@ export function openNatPanel(uid, dark) {
   maskEl.appendChild(panel);
   // 宿主：脚本页优先进 #acsv-root（momenteditor.js:136 先例），原生页回落 body
   (document.getElementById('acsv-root') || document.body).appendChild(maskEl);
+  // 入浮层栈（modal）：真键盘 Esc 由 overlay capture 单点裁决——只关本面板、不再连关底层
+  // 评论层（0.9.254 复审实证：此前不入栈时 Esc 会把行内评论框一起关掉）；脚本页合成事件
+  // 由 input.js 栈判定兜底（overlay.js:64 合成事件早退），原生页合成事件走下文的 window 兜底
+  overlayOpen({ id: 'natpanel', modal: true, close: closeNatPanel });
   stat('np.open');
   renderMain(body);
 }
@@ -300,10 +306,16 @@ export function openNatPanel(uid, dark) {
 export function mountNatPanel() {
   if (wired) return;
   wired = true;
-  // Esc 关闭：常驻监听，面板不存在时不操作（Web-IP v5.8.4 修正同款）。挂 **window**——真机
-  // keydown 冒泡到 window 同样到达，且 harness 的 key()（window.dispatchEvent）也能触达
+  // Esc 关闭（**仅原生页合成事件兜底**）：真键盘 Esc 走 overlay.js capture 单点关栈顶（本面板
+  // modal）；脚本页合成事件由 input.js 栈判定接管（overlay.js:64 同款分工：栈顶=本面板 modal
+  // ⇒ 只关本层）。**脚本页禁用本监听**——监听序先于 input.js 时会把面板抢关出栈，input.js 随即
+  // 视栈顶 'view' 层为普通层连关（0.9.254 实证：Esc 连带退出订阅视图回竖刷）。判据取「有无
+  // #acsv-root 壳」：脚本页恒有（root 即它），原生页恒无——与 input.js:49 的 isFeedRoute()&&root
+  // 同一事实的两处读取，不再复制判定逻辑
   window.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && maskEl) closeNatPanel();
+    if (e.key !== 'Escape' || !maskEl) return;
+    if (document.getElementById('acsv-root')) return;
+    closeNatPanel();
   });
   // 点击任意 IP 标签打开面板；捕获阶段拦截，避免触发站方评论点击逻辑。
   // 0.9.253：selector 扩 `.acsv-cip, .acsv-nip`（脚本页抽屉/原生页全站接通）；主题随入口——

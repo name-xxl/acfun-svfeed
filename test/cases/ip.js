@@ -116,6 +116,28 @@
       var t = item1.querySelector('.acsv-csub .acsv-cip');
       return t && t.textContent === '北京';
     }, 8000)));
+    // 复审①（0.9.254）：点**首次异步回填**的标签（后段缓存上屏标签之外的另一条路径）——
+    // 资料卡必须带该 uid（病灶：armQuery 回填回调漏传第 4 参 ⇒ data-acsv-uid="undefined"）
+    var asyncTag = item1.querySelector('.acsv-cmeta .acsv-cip');
+    if (asyncTag) {
+      asyncTag.click();
+      var maskA = await waitFor(function () { return document.querySelector('.acsv-np-mask'); }, 3000);
+      rec('iph-async-panel-open', !!(maskA && maskA.querySelector('.acsv-np.dark')));
+      rec('iph-async-panel-card', (function () {
+        var card = maskA && maskA.querySelector('.acsv-np-card');
+        if (!card) return false;
+        var t = card.textContent;
+        return t.indexOf('甲') >= 0 && t.indexOf('9001') >= 0 && t.indexOf('广东') >= 0;
+      })(), (maskA && maskA.querySelector('.acsv-np-card')) ? maskA.querySelector('.acsv-np-card').textContent : 'none');
+      // Esc 只关面板：浮层栈 modal（natpanel 注册）单点关栈顶——底层 'view' 层与行内评论盒
+      // 必须原样存活（0.9.254 复审连带修为：此前 Esc 会顺着栈把订阅视图一起关掉回竖刷）。
+      // hash 钉法：closeView()（views.js:107）关视图即把 hash 改回裸 #svfeed——视图若被连带
+      // 关闭，hash 同步已变（hashchange 事件虽延迟，赋值是同步的），此处当场判得出来
+      h.key('Escape');
+      rec('iph-esc-panel-only', !!(await waitFor(function () { return !document.querySelector('.acsv-np-mask'); }, 3000)
+        && hs.box.isConnected && rootsOf(hs.box).length === 3
+        && location.hash === '#svfeed/follow'), 'hash=' + location.hash + ' boxAlive=' + hs.box.isConnected);
+    }
     // 收起 → 重开：新渲染走缓存——正面同步上屏、三种负面静默，计数不涨
     var acts = hs.row.querySelectorAll('.acsv-fact');
     acts[1].click(); // 收起

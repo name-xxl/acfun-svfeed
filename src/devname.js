@@ -259,5 +259,10 @@ export function devTag(a, model) {
   a.dataset.acsvFriendly = friendly;
   a.title = '原始型号: ' + text + '\n点击可切换显示';
   a.textContent = friendly;
+  // 同引用注册按 DOM 规范去重：原生页重扫（nativeip.processDevices 对站方原地重渲染改回代号
+  // 的元素二次 devTag）不会叠第二个监听——**onToggle 必须保持模块级具名函数**；改成每次新建的
+  // 内联闭包即叠监听，一次点击两次 toggle 相抵「看着切不动」（Web-IP 的 _acrDeviceBound 守卫
+  // 在原仓同为冗余：其 handler 也是具名函数）。该行为由 native-ip 用例
+  // nip-dev-rescan-single-toggle 钉住（病灶形状=闭包注册，摘换反跑已验转红）
   a.addEventListener('click', onToggle);
 }

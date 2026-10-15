@@ -252,7 +252,7 @@ function armQuery(meta, k) {
   if (st === 'neg') { stat('ip.neg'); return; }
   fetchFor(k, function (ip, t) {
     if (!meta.isConnected) return; // 条目已被重渲染/宿主关闭：只留缓存
-    appendTag(meta, ip, t);
+    appendTag(meta, ip, t, k); // k 必带：标签的 data-acsv-uid＝点击弹面板的资料卡键（0.9.254 复审①修）
   });
 }
 
