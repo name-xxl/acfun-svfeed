@@ -66,14 +66,18 @@ test('fmtAgo：今天/昨天/前天走相对文案，更早退回带年份日期
 });
 
 // ---------- fmtWan（0.9.69 UP 数据位；原生实测 33235→3.3万 / 29978→3万 / 6062 原样） ----------
+// 0.9.241 起为全站唯一「万」口径（ui.fmt 退役并入）：半值=整数半进位、无尾随 .0——
+// 11500 / 999949 两条即口径分界钉（toFixed 实现分别会给 1.1万 / 100.0万）
 test('fmtWan：<1万原样、≥1万一位小数「万」去尾随 .0、脏输入 0', () => {
   assert.equal(fmtWan(9999), '9999');
   assert.equal(fmtWan(6062), '6062');
   assert.equal(fmtWan(10000), '1万');
   assert.equal(fmtWan(10499), '1万');
+  assert.equal(fmtWan(11500), '1.2万'); // 半值：整数半进位
   assert.equal(fmtWan(29978), '3万');
   assert.equal(fmtWan(33235), '3.3万');
   assert.equal(fmtWan(469000), '46.9万');
+  assert.equal(fmtWan(999949), '100万'); // 进位到整 100 万，不出现 100.0万
   assert.equal(fmtWan(0), '0');
   assert.equal(fmtWan(null), '0');
   assert.equal(fmtWan(NaN), '0');

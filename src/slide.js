@@ -1,5 +1,6 @@
 import { ICONS } from './styles.js';
-import { el, elHtml, fmt, a11y, spinner } from './ui.js';
+import { el, elHtml, a11y, spinner } from './ui.js';
+import { fmtWan } from './timefmt.js';
 import { root, setCommentDrawer, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { togglePlayGesture } from './playback.js';
@@ -90,7 +91,7 @@ export function buildSlide(item, idx, goTo) {
     meta.appendChild(el('span', 'acsv-date', item.date || ''));
   } else {
     meta.appendChild(el('span', null, item.date || ''));
-    meta.appendChild(el('span', 'acsv-views', fmt(item.view) + '次播放'));
+    meta.appendChild(el('span', 'acsv-views', fmtWan(item.view) + '次播放'));
   }
   info.appendChild(meta);
   info.appendChild(el('p', 'acsv-title', item.title));

@@ -1,6 +1,7 @@
 import { CFG } from './cfg.js';
 import { ICONS, SITE_ICONS, VIDEO_ICONS } from './styles.js';
-import { el, elHtml, fmt, toast, a11y, mountIcon } from './ui.js';
+import { el, elHtml, toast, a11y, mountIcon } from './ui.js';
+import { fmtWan } from './timefmt.js';
 import { imgInto } from './imgload.js';
 import { FeedStore } from './feedstore.js';
 import { setRealLike, giveBanana } from './interact.js';
@@ -150,12 +151,12 @@ export function buildSideRail(slide, item, goTo) {
   }
   // 原生图标形状 + CSS 换色：home 用视频页原生点赞/收藏/投蕉图标，
   // sv 点赞用小视频站原生心形 PNG；svg 字段为 CDN 失效时的回退
-  var likeUI = railBtn({ mask: item.kind === 'home' ? VIDEO_ICONS.like : SITE_ICONS.heart, svg: ICONS.heart }, fmt(item.like), '点赞', function (b) {
+  var likeUI = railBtn({ mask: item.kind === 'home' ? VIDEO_ICONS.like : SITE_ICONS.heart, svg: ICONS.heart }, fmtWan(item.like), '点赞', function (b) {
     var turnOn = !item.localLike;
     // 乐观更新
     item.localLike = turnOn;
     item.like += turnOn ? 1 : -1;
-    likeUI.count.textContent = fmt(item.like);
+    likeUI.count.textContent = fmtWan(item.like);
     b.classList.toggle('on', turnOn);
     b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
     withBusy(item, 'likeBusy', function () {
@@ -168,7 +169,7 @@ export function buildSideRail(slide, item, goTo) {
         // 未登录或失败：回滚
         item.localLike = !turnOn;
         item.like += turnOn ? -1 : 1;
-        likeUI.count.textContent = fmt(item.like);
+        likeUI.count.textContent = fmtWan(item.like);
         toast('点赞失败（未登录？）');
       }
       likeUI.btn.classList.toggle('on', item.liked || item.localLike);
@@ -178,16 +179,16 @@ export function buildSideRail(slide, item, goTo) {
   slide._likeSync = function () {
     var on = item.liked || item.localLike;
     likeUI.btn.classList.toggle('on', on);
-    likeUI.count.textContent = fmt(item.like); // 解析后回填真实点赞数
+    likeUI.count.textContent = fmtWan(item.like); // 解析后回填真实点赞数
   };
   // 评论（两模式都在右栏，sourceType 由 item.stype 分发；0.9.116 经注册缝）
-  var cmtUI = railBtn({ img: SITE_ICONS.comment, svg: ICONS.comment }, fmt(item.comment), '展开/收起评论（C）', function () {
+  var cmtUI = railBtn({ img: SITE_ICONS.comment, svg: ICONS.comment }, fmtWan(item.comment), '展开/收起评论（C）', function () {
     if (commentsOpener) commentsOpener(item);
   });
-  slide._cmtSync = function () { cmtUI.count.textContent = fmt(item.comment); };
+  slide._cmtSync = function () { cmtUI.count.textContent = fmtWan(item.comment); };
   if (item.cap.banana) {
     // 投蕉：弹数量层（对齐视频页"点第 N 根投 N"）；已投过则不可再展开
-    var banUI = railBtn({ mask: VIDEO_ICONS.banana, svg: ICONS.banana }, fmt(item.banana), '投蕉', function (b) {
+    var banUI = railBtn({ mask: VIDEO_ICONS.banana, svg: ICONS.banana }, fmtWan(item.banana), '投蕉', function (b) {
       if (item.thrown) { toast('已投过蕉啦，明天再来~'); return; }
       toggleBananaPop(b, {
         send: function (n) { return giveBanana(item, n); },
@@ -199,7 +200,7 @@ export function buildSideRail(slide, item, goTo) {
       });
     });
     slide._banSync = function () {
-      banUI.count.textContent = fmt(item.banana);
+      banUI.count.textContent = fmtWan(item.banana);
       banUI.btn.classList.toggle('thrown', item.thrown); // 投过锁定蕉黄
       a11y(banUI.btn, item.thrown ? '今日已投过蕉啦' : '投蕉');
     };
@@ -208,7 +209,7 @@ export function buildSideRail(slide, item, goTo) {
     // 收藏（0.9.143 官方口径）：点开=「选择收藏夹」层（多选勾选 + 行内新建 + 已藏回显；确定按
     // 三分支提交 add/updateFolder/remove，见 favpop）。旧的"单击直接落第一个夹"退役（0.9.30 起
     // 的 ensureFavFolder 默认夹体系随之退场）——未收藏默认勾第一个夹，点开即确定≈原一步路径。
-    var favUI = railBtn({ mask: VIDEO_ICONS.favorite, svg: ICONS.star }, fmt(item.fav), '收藏', function (b) {
+    var favUI = railBtn({ mask: VIDEO_ICONS.favorite, svg: ICONS.star }, fmtWan(item.fav), '收藏', function (b) {
       b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
       openFavFolderPop(b, {
         acId: item.id,
@@ -224,20 +225,20 @@ export function buildSideRail(slide, item, goTo) {
     });
     favUI.btn.classList.toggle('on', item.favorited);
     slide._favSync = function () {
-      favUI.count.textContent = fmt(item.fav);
+      favUI.count.textContent = fmtWan(item.fav);
       favUI.btn.classList.toggle('on', item.favorited);
     };
   }
   // 分享：打开私信分享面板（最近联系人一键发送；复制链接收纳在面板底部）。
   // home 带分享数（解析后 _shareSync 回填），sv 显示文字标签
   var shareUI = item.kind === 'home'
-    ? railBtn({ img: SITE_ICONS.share, svg: ICONS.share }, fmt(item.share), '私信分享给朋友', function (b) {
+    ? railBtn({ img: SITE_ICONS.share, svg: ICONS.share }, fmtWan(item.share), '私信分享给朋友', function (b) {
       openSharePanel(b, item);
     })
     : railBtn({ img: SITE_ICONS.share, svg: ICONS.share }, '分享', '私信分享给朋友', function (b) {
       openSharePanel(b, item);
     });
-  if (item.kind === 'home') slide._shareSync = function () { shareUI.count.textContent = fmt(item.share); };
+  if (item.kind === 'home') slide._shareSync = function () { shareUI.count.textContent = fmtWan(item.share); };
   // 右侧功能区与上下翻页共用一个定位容器（箭头永远在功能区上方，不遮挡）。
   // 箭头建不建由调用方定（0.9.173）：竖刷传函数、播放层传 {up,down}（非单条会话就建；
   // 单条会话传 null——层内没有可去的下一条时不摆死键）

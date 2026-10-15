@@ -11,7 +11,8 @@
 // comments.js）；本模块不 import 任何视图/管线（cfg/net/ui/imicons/imgload/ubb 皆基建件）。
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { el, esc, fmt } from './ui.js';
+import { el, esc } from './ui.js';
+import { fmtWan } from './timefmt.js';
 import { GLYPHS } from './imicons.js';
 import { imgInto } from './imgload.js';
 import { renderCommentHtml } from './ubb.js';
@@ -123,7 +124,7 @@ export function commentItemOf(c, subMap, opts) {
     like = el('span', 'acsv-clike' + (on0 ? ' on' : ''));
     like._g = likeGlyph(on0);
     like.appendChild(like._g);
-    var likeN = el('span', null, fmt(st0.count));
+    var likeN = el('span', null, fmtWan(st0.count));
     like.appendChild(likeN);
     like.title = '点赞评论';
     like._c = c;
@@ -144,7 +145,7 @@ export function commentItemOf(c, subMap, opts) {
   } else {
     like = el('span', 'acsv-clike');
     like.appendChild(likeGlyph(false));
-    like.appendChild(el('span', null, fmt(c.likeCount)));
+    like.appendChild(el('span', null, fmtWan(c.likeCount)));
     meta.appendChild(like);
   }
   // 设备「来自 x」（0.9.134）：deviceModel 真机双源在册，链官方 APP 落点（plaza 同款；根+子都显）

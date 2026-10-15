@@ -24,11 +24,6 @@ export function elHtml(tag, cls, html) {
   return e;
 }
 
-export function fmt(n) {
-  n = Number(n) || 0;
-  return n <= CFG.fmt.wanMin ? String(n) : (n / 10000).toFixed(1) + '万';
-}
-
 export function fmtTime(s) {
   s = Math.max(0, Math.floor(Number(s) || 0));
   var m = Math.floor(s / 60), sec = s % 60;

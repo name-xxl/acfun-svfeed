@@ -1,4 +1,5 @@
-import { el, fmt, toast } from './ui.js';
+import { el, toast } from './ui.js';
+import { fmtWan } from './timefmt.js';
 import { CFG } from './cfg.js';
 import { GLYPHS } from './imicons.js';
 import { likePi, throwBananaPi } from './interact.js';
@@ -34,7 +35,7 @@ function syncLike(btn, pi) {
   btn.title = pi.liked ? '已赞' : '点赞';
   var g = btn.querySelector('.acsvg-glyph');
   if (g) g.textContent = pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
-  if (btn._n) btn._n.textContent = fmt(pi.like);
+  if (btn._n) btn._n.textContent = fmtWan(pi.like);
 }
 
 function syncBanana(btn, pi) {
@@ -42,7 +43,7 @@ function syncBanana(btn, pi) {
   btn.title = pi.thrown ? '已投蕉' : '投蕉';
   var g = btn.querySelector('.acsvg-glyph');
   if (g) g.textContent = pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana;
-  if (btn._n) btn._n.textContent = fmt(pi.banana);
+  if (btn._n) btn._n.textContent = fmtWan(pi.banana);
 }
 
 // 互动栏外部同步（0.9.127）：行卡数据被后台回填（广场视口回填）后，按当前 pi 把赞/蕉/评论
@@ -52,7 +53,7 @@ export function syncRowBar(row, pi) {
   [].forEach.call(row.querySelectorAll('.acsv-fact'), function (b) {
     if (b._act === 'like') syncLike(b, pi);
     else if (b._act === 'banana') syncBanana(b, pi);
-    else if (b._act === 'comment' && b._n) b._n.textContent = fmt(pi.comment);
+    else if (b._act === 'comment' && b._n) b._n.textContent = fmtWan(pi.comment);
   });
 }
 
@@ -118,7 +119,7 @@ export function momentBarOf(pi, opts) {
     b.appendChild(el('i', 'acsvg-glyph', o.glyph));
     if (o.text) b.appendChild(el('span', null, o.text)); // 分享=文字无计数（原生同款）
     if (o.n != null) {
-      var n = el('span', null, fmt(o.n));
+      var n = el('span', null, fmtWan(o.n));
       b.appendChild(n);
       b._n = n;
     }

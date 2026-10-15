@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
-import { el, fmt } from './ui.js';
+import { el } from './ui.js';
+import { fmtWan } from './timefmt.js';
 import { root, releaseDrawer } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { imgInto } from './imgload.js';
@@ -225,7 +226,7 @@ export function openMomentDetail(pi) {
   // 文案「共 N 条评论」；shareUrl 用官方动态页落点（评论转发的 #ncid 锚点在原页原生定位楼层）
   openCommentsHost({
     el: hostEl, title: title, list: list, close: closeMomentDetail, pin: pin,
-    titleFmt: function (n) { return '共 ' + fmt(n) + ' 条评论'; }
+    titleFmt: function (n) { return '共 ' + fmtWan(n) + ' 条评论'; }
   }, pi.momentId, 4, pi.href, 'home');
 }
 

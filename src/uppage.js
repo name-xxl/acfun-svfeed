@@ -1,7 +1,8 @@
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
 import { createFeedContext, runChain, registerContext, activateContext } from './feedctx.js';
-import { el, fmt, ensureStyle, closeOnOutsideClick } from './ui.js';
+import { el, ensureStyle, closeOnOutsideClick } from './ui.js';
+import { fmtWan } from './timefmt.js';
 import { mountSpaceTab, watchSpaceTabs } from './spacetab.js'; // 空间页标签栏注入件（0.9.218 抽出单源）
 import { FeedStore } from './feedstore.js';
 import { API } from './api.js';
@@ -189,7 +190,7 @@ function renderUpProgress() {
   if (!elp) return;
   // 标签页徽标同步总数（0 投稿也要把 '0' 写实，而不是留占位）
   if (UpVideos.countSpan && (UpVideos.total || UpVideos.done)) {
-    UpVideos.countSpan.textContent = fmt(UpVideos.total);
+    UpVideos.countSpan.textContent = fmtWan(UpVideos.total);
   }
   var loaded = UpVideos.items.length;
   var base = '已加载 ' + loaded + (UpVideos.total ? ' / ' + UpVideos.total : '');

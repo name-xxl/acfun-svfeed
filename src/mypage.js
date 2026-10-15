@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
-import { el, selfUid, fmt, toast } from './ui.js';
+import { el, selfUid, toast } from './ui.js';
+import { fmtWan } from './timefmt.js';
 import { postForm } from './appapi.js';
 import { panelItem } from './panelitem.js';
 import { createSquareFeed } from './squarefeed.js'; // 列表机械（0.9.218 我的页动态复用广场工厂）
@@ -106,7 +107,7 @@ function buildMeCard(slot) {
   function addStat(host, num, label) {
     if (num == null) return;
     var s = el('div', 'acsv-mecard-stat');
-    s.appendChild(el('b', '', fmt(num)));
+    s.appendChild(el('b', '', fmtWan(num)));
     s.appendChild(document.createTextNode(label));
     host.appendChild(s);
   }

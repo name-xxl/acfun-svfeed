@@ -1,4 +1,5 @@
-import { el, fmt, fmtDurMs } from './ui.js';
+import { el, fmtDurMs } from './ui.js';
+import { fmtWan } from './timefmt.js';
 import { commentDrawer } from './state.js';
 import { imgInto } from './imgload.js';
 import { GLYPHS } from './imicons.js';
@@ -108,7 +109,7 @@ function listRowOf(row, i) {
   var mm = el('div', 'acsv-relmm');
   var like = el('span', null);
   like.appendChild(el('span', 'acsv-relicon', GLYPHS.feedLike));
-  like.appendChild(document.createTextNode(' ' + fmt(row.like || 0)));
+  like.appendChild(document.createTextNode(' ' + fmtWan(row.like || 0)));
   mm.appendChild(like);
   mm.appendChild(el('span', null, row.up || ''));
   rt.appendChild(mm);
@@ -208,7 +209,7 @@ function rowOf(dv) {
   var mm = el('div', 'acsv-relmm');
   var like = el('span', null);
   like.appendChild(el('span', 'acsv-relicon', GLYPHS.feedLike));
-  like.appendChild(document.createTextNode(' ' + fmt(dv.likeCount || 0)));
+  like.appendChild(document.createTextNode(' ' + fmtWan(dv.likeCount || 0)));
   mm.appendChild(like);
   mm.appendChild(el('span', null, (dv.user && dv.user.name) || ''));
   rt.appendChild(mm);

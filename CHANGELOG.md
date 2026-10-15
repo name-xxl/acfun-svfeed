@@ -5,6 +5,24 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.241（2026-10-15）· 播放/计数「万」口径统一：ui.fmt 退役，全部走 timefmt.fmtWan
+
+**病灶（静态复算实证）**：同一指标存在两套「万」口径——`ui.fmt` 走 `(n/10000).toFixed(1)`
+（滑卡「次播放」/rail 赞评蕉藏/评论计数/我的页统计/精选网格等 10 件消费），出 `1.0万`、
+11500→`1.1万`；`timefmt.fmtWan` 走整数半进位（面板网格卡/行卡/粉丝数），出 `1万`、11500→`1.2万`。
+全量复算 [1万,300万]：两口径显示不同者 30 万个数字（约 10%）——尾随 `.0` 样式差 298,804 例、
+真值分岔 1,196 例（全在 x.x5 半值，浮点 vs 半进位）；同一张网格卡族内部即分裂（精选走 fmt、
+面板走 fmtWan）。
+
+- **修法**（预览稿 `docs/preview/views-count-format.html` 裁决 **B**）：`timefmt.fmtWan` 为全站唯一
+  「万」口径（原生实测背书：up-card 33235→3.3万 / 469000→46.9万；整数半进位无浮点歧义）；
+  `ui.fmt` 与 `CFG.fmt.wanMin` 一并退役；10 个消费件（commentkit/comments/jingxuanview/momentbar/
+  momentdetail/mypage/rail/reldrawer/slide/uppage）改 `import { fmtWan } from './timefmt.js'`，
+  调用名同步更名；README 依赖图 +8 边、模块表 ui 行去 `fmt`；注释旧名 `fmt()` 订正（playitem）。
+- **测试证据**：单测补两条口径分界断言——`fmtWan(11500)='1.2万'`（toFixed 口径会给 1.1万）、
+  `fmtWan(999949)='100万'`（不出现 100.0万）；**摘修复反跑**：把 fmtWan 临时还原为 toFixed 实现
+  ⇒ 两条断言转红，还原复绿。lint/check + 315 单测 + 65/65 场景全绿。
+
 ### 0.9.240（2026-10-15）· 私信条＝纯文本宿主（隐藏格式键/颜色键）
 
 **用户实报**：「私信不支持富文本编辑，私信界面应该隐藏相关图标」——这是 0.9.238 给三宿主统一上

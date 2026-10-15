@@ -1,6 +1,7 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { el, fmt, toast, spinner } from './ui.js';
+import { el, toast, spinner } from './ui.js';
+import { fmtWan } from './timefmt.js';
 import { errNotLogin, errSend, errImgTooBig } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
 import { GLYPHS } from './imicons.js';
 import { commentShareWire } from './immsg.js';
@@ -185,7 +186,7 @@ export function closeCommentsHost() { host = null; }
 // 评论计数标题文案（0.9.103）：宿主可选 titleFmt 定制（小红书式详情面板用「共 N 条评论」）；
 // 缺省维持「评论 N」——抽屉/行内不传，行为零变化
 function titleText(h, n) {
-  return h && h.titleFmt ? h.titleFmt(n) : '评论 ' + fmt(n);
+  return h && h.titleFmt ? h.titleFmt(n) : '评论 ' + fmtWan(n);
 }
 
 // 清空评论列表（宿主感知）：面板宿主的正文 pin（h.pin，.acsv-cpin）由宿主持有，
@@ -258,7 +259,7 @@ function toggleCommentLike(like) {
     var st = commentLikeState(c);
     like.classList.toggle('on', st.liked);
     like._g.textContent = st.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
-    like._n.textContent = fmt(st.count);
+    like._n.textContent = fmtWan(st.count);
   }
   paint();
   AppAPI.commentLike(commentState.sourceId, commentState.stype, c.commentId, on)

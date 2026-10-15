@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
-import { el, fmt, fmtDurMs } from './ui.js';
+import { el, fmtDurMs } from './ui.js';
+import { fmtWan } from './timefmt.js';
 import { registerView } from './viewreg.js';
 import { createListTail } from './listtail.js'; // 尾部件（0.9.219：触底+回顶）
 import { AppAPI } from './appapi.js';
@@ -82,7 +83,7 @@ function infoOf(vm, big) {
   ci.appendChild(el('div', 'acsv-jx-ct', vm.title));
   if (!big) {
     var cm0 = el('div', 'acsv-jx-cm');
-    cm0.appendChild(statOf(GLYPHS.feedLike, fmt(vm.like)));
+    cm0.appendChild(statOf(GLYPHS.feedLike, fmtWan(vm.like)));
     cm0.appendChild(el('span', null, (vm.up && vm.up.name) || ''));
     ci.appendChild(cm0);
     return ci;
@@ -101,8 +102,8 @@ function infoOf(vm, big) {
     ci.appendChild(up);
   }
   var cm = el('div', 'acsv-jx-cm');
-  cm.appendChild(statOf(GLYPHS.rankView, fmt(vm.views)));
-  cm.appendChild(statOf(GLYPHS.feedLike, fmt(vm.like)));
+  cm.appendChild(statOf(GLYPHS.rankView, fmtWan(vm.views)));
+  cm.appendChild(statOf(GLYPHS.feedLike, fmtWan(vm.like)));
   cm.appendChild(el('span', null, vm.dur || ''));
   ci.appendChild(cm);
   return ci;

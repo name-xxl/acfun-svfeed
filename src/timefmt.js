@@ -59,7 +59,9 @@ export function fmtAgo(ms, now) {
 }
 
 // UP 数据位计数文案（0.9.69 对齐原生 up-card）：<10000 原样；≥10000 一位小数「N.N万」
-// （原生实测 33235→3.3万 / 469000→46.9万 / 6062 原样）；脏输入按 0
+// （原生实测 33235→3.3万 / 469000→46.9万 / 6062 原样）；脏输入按 0。
+// 0.9.241 起为**全站唯一「万」口径**（预览稿 docs/preview/views-count-format.html 裁决 B）：
+// ui.fmt 的 toFixed 口径退役并入本件——滑卡「次播放」/rail 计数/评论计数/我的页统计等全部走它
 export function fmtWan(n) {
   var v = Number(n) || 0;
   if (v < 10000) return String(v);

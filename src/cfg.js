@@ -238,7 +238,6 @@ export var CFG = {
     pages: [/^\/$/]
   },
   io: { ratio: 0.6 },
-  fmt: { wanMin: 9999 },
   // ---- 子视图（0.9.62）：#svfeed/<view>/<arg>，左栏入口 + 面板参数 ----
   view: {
     narrow: 720,          // 视口宽低于此值隐藏左栏（竖刷是移动式布局，面板无意义）

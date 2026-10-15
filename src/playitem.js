@@ -107,7 +107,7 @@ export function normalize(raw) {
     like: counts.likeCount || 0,
     comment: counts.commentCount || 0,
     view: counts.viewCount || 0,
-    // 与 home 契约对齐的零值字段：sv 不提供这些数据，但消费端可无分支地 fmt()
+    // 与 home 契约对齐的零值字段：sv 不提供这些数据，但消费端可无分支地 fmtWan()
     banana: 0,
     fav: 0,
     share: 0,

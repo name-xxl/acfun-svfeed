@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.240-debug
+// @version      0.9.241-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -67,7 +67,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.240-debug" : "",
+          ver: true ? "0.9.241-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -369,7 +369,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       pages: [/^\/$/]
     },
     io: { ratio: 0.6 },
-    fmt: { wanMin: 9999 },
     // ---- 子视图（0.9.62）：#svfeed/<view>/<arg>，左栏入口 + 面板参数 ----
     view: {
       narrow: 720,
@@ -721,10 +720,6 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var e = el(tag, cls);
     if (html != null) e.innerHTML = html;
     return e;
-  }
-  function fmt(n) {
-    n = Number(n) || 0;
-    return n <= CFG.fmt.wanMin ? String(n) : (n / 1e4).toFixed(1) + "万";
   }
   function fmtTime(s) {
     s = Math.max(0, Math.floor(Number(s) || 0));
@@ -1201,7 +1196,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       like: counts.likeCount || 0,
       comment: counts.commentCount || 0,
       view: counts.viewCount || 0,
-      // 与 home 契约对齐的零值字段：sv 不提供这些数据，但消费端可无分支地 fmt()
+      // 与 home 契约对齐的零值字段：sv 不提供这些数据，但消费端可无分支地 fmtWan()
       banana: 0,
       fav: 0,
       share: 0,
@@ -6863,7 +6858,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       like = el("span", "acsv-clike" + (on0 ? " on" : ""));
       like._g = likeGlyph(on0);
       like.appendChild(like._g);
-      var likeN = el("span", null, fmt(st0.count));
+      var likeN = el("span", null, fmtWan(st0.count));
       like.appendChild(likeN);
       like.title = "点赞评论";
       like._c = c;
@@ -6883,7 +6878,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     } else {
       like = el("span", "acsv-clike");
       like.appendChild(likeGlyph(false));
-      like.appendChild(el("span", null, fmt(c.likeCount)));
+      like.appendChild(el("span", null, fmtWan(c.likeCount)));
       meta.appendChild(like);
     }
     if (c.deviceModel) {
@@ -7174,7 +7169,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var mm = el("div", "acsv-relmm");
     var like = el("span", null);
     like.appendChild(el("span", "acsv-relicon", GLYPHS.feedLike));
-    like.appendChild(document.createTextNode(" " + fmt(row.like || 0)));
+    like.appendChild(document.createTextNode(" " + fmtWan(row.like || 0)));
     mm.appendChild(like);
     mm.appendChild(el("span", null, row.up || ""));
     rt.appendChild(mm);
@@ -7271,7 +7266,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var mm = el("div", "acsv-relmm");
     var like = el("span", null);
     like.appendChild(el("span", "acsv-relicon", GLYPHS.feedLike));
-    like.appendChild(document.createTextNode(" " + fmt(dv.likeCount || 0)));
+    like.appendChild(document.createTextNode(" " + fmtWan(dv.likeCount || 0)));
     mm.appendChild(like);
     mm.appendChild(el("span", null, dv.user && dv.user.name || ""));
     rt.appendChild(mm);
@@ -7477,7 +7472,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     host2 = null;
   }
   function titleText(h, n) {
-    return h && h.titleFmt ? h.titleFmt(n) : "评论 " + fmt(n);
+    return h && h.titleFmt ? h.titleFmt(n) : "评论 " + fmtWan(n);
   }
   function resetList(h) {
     h.list.innerHTML = "";
@@ -7536,7 +7531,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       var st2 = commentLikeState(c);
       like.classList.toggle("on", st2.liked);
       like._g.textContent = st2.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
-      like._n.textContent = fmt(st2.count);
+      like._n.textContent = fmtWan(st2.count);
     }
     paint();
     AppAPI.commentLike(commentState.sourceId, commentState.stype, c.commentId, on).then(function(ok) {
@@ -8698,7 +8693,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     var elp = UpVideos.progressEl;
     if (!elp) return;
     if (UpVideos.countSpan && (UpVideos.total || UpVideos.done)) {
-      UpVideos.countSpan.textContent = fmt(UpVideos.total);
+      UpVideos.countSpan.textContent = fmtWan(UpVideos.total);
     }
     var loaded = UpVideos.items.length;
     var base = "已加载 " + loaded + (UpVideos.total ? " / " + UpVideos.total : "");
@@ -11766,11 +11761,11 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       rail.appendChild(wrap);
       return { btn: b, count: c };
     }
-    var likeUI = railBtn({ mask: item.kind === "home" ? VIDEO_ICONS.like : SITE_ICONS.heart, svg: ICONS.heart }, fmt(item.like), "点赞", function(b) {
+    var likeUI = railBtn({ mask: item.kind === "home" ? VIDEO_ICONS.like : SITE_ICONS.heart, svg: ICONS.heart }, fmtWan(item.like), "点赞", function(b) {
       var turnOn = !item.localLike;
       item.localLike = turnOn;
       item.like += turnOn ? 1 : -1;
-      likeUI.count.textContent = fmt(item.like);
+      likeUI.count.textContent = fmtWan(item.like);
       b.classList.toggle("on", turnOn);
       b.classList.remove("bump");
       void b.offsetWidth;
@@ -11784,7 +11779,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         } else {
           item.localLike = !turnOn;
           item.like += turnOn ? -1 : 1;
-          likeUI.count.textContent = fmt(item.like);
+          likeUI.count.textContent = fmtWan(item.like);
           toast("点赞失败（未登录？）");
         }
         likeUI.btn.classList.toggle("on", item.liked || item.localLike);
@@ -11794,16 +11789,16 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     slide._likeSync = function() {
       var on = item.liked || item.localLike;
       likeUI.btn.classList.toggle("on", on);
-      likeUI.count.textContent = fmt(item.like);
+      likeUI.count.textContent = fmtWan(item.like);
     };
-    var cmtUI = railBtn({ img: SITE_ICONS.comment, svg: ICONS.comment }, fmt(item.comment), "展开/收起评论（C）", function() {
+    var cmtUI = railBtn({ img: SITE_ICONS.comment, svg: ICONS.comment }, fmtWan(item.comment), "展开/收起评论（C）", function() {
       if (commentsOpener) commentsOpener(item);
     });
     slide._cmtSync = function() {
-      cmtUI.count.textContent = fmt(item.comment);
+      cmtUI.count.textContent = fmtWan(item.comment);
     };
     if (item.cap.banana) {
-      var banUI = railBtn({ mask: VIDEO_ICONS.banana, svg: ICONS.banana }, fmt(item.banana), "投蕉", function(b) {
+      var banUI = railBtn({ mask: VIDEO_ICONS.banana, svg: ICONS.banana }, fmtWan(item.banana), "投蕉", function(b) {
         if (item.thrown) {
           toast("已投过蕉啦，明天再来~");
           return;
@@ -11820,13 +11815,13 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
         });
       });
       slide._banSync = function() {
-        banUI.count.textContent = fmt(item.banana);
+        banUI.count.textContent = fmtWan(item.banana);
         banUI.btn.classList.toggle("thrown", item.thrown);
         a11y(banUI.btn, item.thrown ? "今日已投过蕉啦" : "投蕉");
       };
     }
     if (item.cap.favorite) {
-      var favUI = railBtn({ mask: VIDEO_ICONS.favorite, svg: ICONS.star }, fmt(item.fav), "收藏", function(b) {
+      var favUI = railBtn({ mask: VIDEO_ICONS.favorite, svg: ICONS.star }, fmtWan(item.fav), "收藏", function(b) {
         b.classList.remove("bump");
         void b.offsetWidth;
         b.classList.add("bump");
@@ -11843,17 +11838,17 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       });
       favUI.btn.classList.toggle("on", item.favorited);
       slide._favSync = function() {
-        favUI.count.textContent = fmt(item.fav);
+        favUI.count.textContent = fmtWan(item.fav);
         favUI.btn.classList.toggle("on", item.favorited);
       };
     }
-    var shareUI = item.kind === "home" ? railBtn({ img: SITE_ICONS.share, svg: ICONS.share }, fmt(item.share), "私信分享给朋友", function(b) {
+    var shareUI = item.kind === "home" ? railBtn({ img: SITE_ICONS.share, svg: ICONS.share }, fmtWan(item.share), "私信分享给朋友", function(b) {
       openSharePanel(b, item);
     }) : railBtn({ img: SITE_ICONS.share, svg: ICONS.share }, "分享", "私信分享给朋友", function(b) {
       openSharePanel(b, item);
     });
     if (item.kind === "home") slide._shareSync = function() {
-      shareUI.count.textContent = fmt(item.share);
+      shareUI.count.textContent = fmtWan(item.share);
     };
     var side = el("div", "acsv-side");
     if (goTo) {
@@ -11958,7 +11953,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       meta.appendChild(el("span", "acsv-date", item.date || ""));
     } else {
       meta.appendChild(el("span", null, item.date || ""));
-      meta.appendChild(el("span", "acsv-views", fmt(item.view) + "次播放"));
+      meta.appendChild(el("span", "acsv-views", fmtWan(item.view) + "次播放"));
     }
     info.appendChild(meta);
     info.appendChild(el("p", "acsv-title", item.title));
@@ -13255,7 +13250,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.240-debug" : "");
+    return normVer(true ? "0.9.241-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -15656,21 +15651,21 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     btn.title = pi.liked ? "已赞" : "点赞";
     var g = btn.querySelector(".acsvg-glyph");
     if (g) g.textContent = pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
-    if (btn._n) btn._n.textContent = fmt(pi.like);
+    if (btn._n) btn._n.textContent = fmtWan(pi.like);
   }
   function syncBanana(btn, pi) {
     btn.classList.toggle("thrown", !!pi.thrown);
     btn.title = pi.thrown ? "已投蕉" : "投蕉";
     var g = btn.querySelector(".acsvg-glyph");
     if (g) g.textContent = pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana;
-    if (btn._n) btn._n.textContent = fmt(pi.banana);
+    if (btn._n) btn._n.textContent = fmtWan(pi.banana);
   }
   function syncRowBar(row, pi) {
     if (!row) return;
     [].forEach.call(row.querySelectorAll(".acsv-fact"), function(b) {
       if (b._act === "like") syncLike(b, pi);
       else if (b._act === "banana") syncBanana(b, pi);
-      else if (b._act === "comment" && b._n) b._n.textContent = fmt(pi.comment);
+      else if (b._act === "comment" && b._n) b._n.textContent = fmtWan(pi.comment);
     });
   }
   function wireLike(btn, pi) {
@@ -15742,7 +15737,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       b.appendChild(el("i", "acsvg-glyph", o.glyph));
       if (o.text) b.appendChild(el("span", null, o.text));
       if (o.n != null) {
-        var n = el("span", null, fmt(o.n));
+        var n = el("span", null, fmtWan(o.n));
         b.appendChild(n);
         b._n = n;
       }
@@ -15963,7 +15958,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       close: closeMomentDetail,
       pin,
       titleFmt: function(n) {
-        return "共 " + fmt(n) + " 条评论";
+        return "共 " + fmtWan(n) + " 条评论";
       }
     }, pi.momentId, 4, pi.href, "home");
   }
@@ -16719,7 +16714,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.240-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.241-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -17201,7 +17196,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     function addStat(host4, num2, label) {
       if (num2 == null) return;
       var s = el("div", "acsv-mecard-stat");
-      s.appendChild(el("b", "", fmt(num2)));
+      s.appendChild(el("b", "", fmtWan(num2)));
       s.appendChild(document.createTextNode(label));
       host4.appendChild(s);
     }
@@ -18749,7 +18744,7 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
     ci.appendChild(el("div", "acsv-jx-ct", vm.title));
     if (!big) {
       var cm0 = el("div", "acsv-jx-cm");
-      cm0.appendChild(statOf(GLYPHS.feedLike, fmt(vm.like)));
+      cm0.appendChild(statOf(GLYPHS.feedLike, fmtWan(vm.like)));
       cm0.appendChild(el("span", null, vm.up && vm.up.name || ""));
       ci.appendChild(cm0);
       return ci;
@@ -18770,8 +18765,8 @@ window.__ACSV_HLS_SRC__ = "!function e(t){var r,i;r=this,i=function(){\"use stri
       ci.appendChild(up);
     }
     var cm = el("div", "acsv-jx-cm");
-    cm.appendChild(statOf(GLYPHS.rankView, fmt(vm.views)));
-    cm.appendChild(statOf(GLYPHS.feedLike, fmt(vm.like)));
+    cm.appendChild(statOf(GLYPHS.rankView, fmtWan(vm.views)));
+    cm.appendChild(statOf(GLYPHS.feedLike, fmtWan(vm.like)));
     cm.appendChild(el("span", null, vm.dur || ""));
     ci.appendChild(cm);
     return ci;
