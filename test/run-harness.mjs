@@ -152,7 +152,10 @@ const HARNESS_CASES = [
   { name: 'native-ip', viewport: { width: 1600, height: 900 } },
   // 0.9.249 原生页专属挂点（6b）：路由 pushState 串测 /u/ 主页资料卡与 /member/feeds 动态条目
   //（同 BOOT_PATH /v/ + NO_AUTOMOUNT；两挂点经路由监听各自重扫）
-  { name: 'native-surfaces', viewport: { width: 1600, height: 900 } }
+  { name: 'native-surfaces', viewport: { width: 1600, height: 900 } },
+  // 0.9.250 原生页设置面板（6c）：标签点击开面板 → 资料卡/SCHEMA 行/开关落盘/设备导入端到端/
+  // 缓存清空二次确认（同 BOOT_PATH /v/ + NO_AUTOMOUNT）
+  { name: 'nat-panel', viewport: { width: 1600, height: 900 } }
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

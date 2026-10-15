@@ -5,6 +5,35 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.250（2026-10-15）· 原生页设置面板（Web-IP 吸收 6c）——标签点击弹面板 + 数据导入导出
+
+**由头**（Phase 6 第三块；用户「继续 6c 和 6d」）：把 Web-IP 的原生风格设置面板搬进来——它是
+原生页上的**唯一设置入口**（D3：不走油猴菜单），并承接预览 ⑧.6 遗留的「设备数据导入/导出 UI」
+（当时裁决「另批」，落点即此）。
+
+- **修法**：新 `src/natpanel.js` + `styles.NATIVE_PANEL_CSS` 段（视觉＝原脚本面板资产照抄：浅色
+  仿 A 站弹窗、主色 #fd4c5d、340px、z 2147483000，**不进 svfeed 暗色体系**——D4：共享层同源、
+  皮肤各自生命周期）：
+  - **触发**：点击任意原生页 IP 标签——捕获阶段委托 + preventDefault/stopImmediatePropagation
+    （Web-IP 同款，避免触发站方点击逻辑）；Esc/遮罩点击关闭，关闭即 flushSettings。
+  - **资料卡**：用户名/UID/IP属地/查询于（`iploc.entryOf` 直读，含负缓存条目）。
+  - **设置区＝全量 SCHEMA 表驱动**（D4 落地：新增设置项两边自动出现）：bool→开关 / select→分段 /
+    number→步进，三件工厂与 settingspanel 同语义不同皮。
+  - **缓存管理**（acr_uids）：导出（ui.copyText）/导入（粘贴 JSON，bundle 或裸表两形，**跳过已
+    存在**——Web-IP 同款）/清空（二次确认「确认清空?」，3 秒自还原）。
+  - **设备数据**（acr_device_models 用户层）：N 条 + 导入（文件 .md/.txt 多选 + 粘贴，可跳过已存在）
+    /导出/重置（二次确认）。
+- **配套数据层**：`iploc` 增 `entryOf/exportUids/importUids/clearUids`（bundle 形与危险键守卫
+  照 Web-IP）；`devname` 增 `deviceCount/exportDevices/importDeviceText/resetUserDevices`
+  （导入写用户层 → 重建索引；`isSafeKey` 迁 `ui.js` 单源——缓存导入与设备导入两域共用）。
+  与 Web-IP 的有意差异：**开关关语义分离**（ipShow 关＝不查不渲染但不清数据；其「缓存开关关闭
+  即清空」是耦合设计，清空改由显式按钮承担）。
+- **测试**：单测 +6（iploc 导出/导入两形/危险键/清空；devname 导入合并·跳过·覆盖/重置回内置/
+  条数导出——垫桩 localStorage 升级为真表）；harness 新场景 **nat-panel**（18 断言）：标签点击
+  开面板（可见性）/资料卡三行/全量 SCHEMA 行在场/开关拨动 + Esc 落盘/设备导入**端到端**（粘贴
+  新代号 → 新评论的设备锚被替换）/缓存清空二次确认 + 计数归零。**摘修复反跑**：摘掉标签点击
+  委托 ⇒ `np-open` 转红，还原复绿。lint/check + 389 单测 + 73/73 场景全绿。
+
 ### 0.9.249（2026-10-15）· 原生页专属挂点（Web-IP 吸收 6b）——用户主页 IP + 个人中心动态 UP IP
 
 **由头**：6a（0.9.248）把评论区打通后，补 Web-IP 覆盖面的另两处专属挂点（用户 2026-10-15 点名

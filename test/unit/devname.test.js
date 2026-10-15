@@ -10,15 +10,19 @@ globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
 globalThis.addEventListener = function () { };
 globalThis.removeEventListener = function () { };
+// 存储垫片（0.9.250：数据管理组要真读写——importDeviceText 写用户层、reset 清之）
+var store = {};
 globalThis.localStorage = {
-  getItem: function () { return null; },
-  setItem: function () { },
-  removeItem: function () { }
+  getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+  setItem: function (k, v) { store[k] = String(v); },
+  removeItem: function (k) { delete store[k]; }
 };
 
 var {
-  isSafeKey, mergeTab, buildIndexes, lookupIn, parseDeviceModelsText
+  mergeTab, buildIndexes, lookupIn, parseDeviceModelsText,
+  friendlyOf, deviceCount, exportDevices, importDeviceText, resetUserDevices
 } = await import('../../src/devname.js');
+var { isSafeKey } = await import('../../src/ui.js');
 var { DEVICE_TAB } = await import('../../src/devicetab.js');
 
 // ---------- parseDeviceModelsText（Web-IP 7 项等值迁移） ----------
@@ -97,4 +101,35 @@ test('DEVICE_TAB：真机样本与 Apple 抽查命中、规模 ≥900', () => {
   assert.equal(DEVICE_TAB['24129PN74C'], 'Xiaomi 15');   // 2026-10-15 真机评论样本
   assert.equal(DEVICE_TAB['RMX3619'], '真我 V30');
   assert.ok(Object.keys(DEVICE_TAB).length >= 900, 'n=' + Object.keys(DEVICE_TAB).length);
+});
+
+// ---------- 数据管理（0.9.250，面板 6c） ----------
+
+test('importDeviceText：合并进用户层 + 跳过已存在 + 覆盖语义', () => {
+  var r1 = importDeviceText('`ZZZT-99`: 测试机型', true);
+  assert.equal(r1.added, 1);
+  assert.equal(friendlyOf('ZZZT-99'), '测试机型');
+  var r2 = importDeviceText('`ZZZT-99`: 另一名', true); // 已存在 → 跳过
+  assert.equal(r2.added, 0);
+  assert.equal(r2.skipped, 1);
+  assert.equal(friendlyOf('ZZZT-99'), '测试机型');
+  var r3 = importDeviceText('`RMX3619`: 覆盖名', true); // 内置已存在 → 跳过（Web-IP 同款：对全表判重）
+  assert.equal(r3.skipped, 1);
+  assert.equal(friendlyOf('RMX3619'), '真我 V30');
+  var r4 = importDeviceText('`RMX3619`: 覆盖名', false); // 不跳过 → 用户层覆盖
+  assert.equal(r4.added, 1);
+  assert.equal(friendlyOf('RMX3619'), '覆盖名');
+});
+test('resetUserDevices：清用户层回内置表', () => {
+  var n = resetUserDevices();
+  assert.ok(n >= 900, 'n=' + n);
+  assert.equal(friendlyOf('RMX3619'), '真我 V30');
+  assert.equal(friendlyOf('ZZZT-99'), null); // 用户条已清
+});
+test('deviceCount/exportDevices：数量与合并全表', () => {
+  var c = deviceCount();
+  assert.ok(c >= 900);
+  var t = exportDevices();
+  assert.equal(t['iPhone3,1'], 'iPhone 4');
+  assert.equal(Object.keys(t).length, c);
 });

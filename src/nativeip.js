@@ -28,6 +28,7 @@ import { resolveFor, peek, tagTitle } from './iploc.js';
 import { devTag } from './devname.js';
 import { stat, testHook } from './dbg.js';
 import { NATIVE_IP_CSS } from './styles.js';
+import { mountNatPanel } from './natpanel.js'; // 原生页设置面板（0.9.250，6c）：标签点击入口
 
 // ---------- 选择器与阈值（照 Web-IP CONFIG.OBSERVER/注释；站点改版只改这里） ----------
 var COMMENT_URL_PATTERNS = ['/comment/list', '/comment/sublist', '/comment/subComment', '/comment/reply'];
@@ -157,12 +158,13 @@ function uidOf(el) {
   return uid || extractUidFromComment(el);
 }
 
-function injectIntoComment(el, ip, t) {
+function injectIntoComment(el, ip, t, uid) {
   if (!ip || el.querySelector('.' + NIP)) return;
   var from = el.querySelector(SEL.from) || el.querySelector(SEL.fromFallback);
   if (!from) return;
   var s = document.createElement('span');
   s.className = NIP;
+  s.dataset.acsvUid = String(uid); // 点击入口（natpanel 捕获阶段委托读它）
   s.textContent = ip; // 原文直显（省级短名，§12.1）
   s.title = tagTitle(ip, t); // tooltip 文案与抽屉单源
   from.appendChild(s);
@@ -188,7 +190,7 @@ function handleVisible(el) {
   }
   viewIO.unobserve(el);
   resolveFor(uid, function (ip, t) {
-    if (el.isConnected) injectIntoComment(el, ip, t);
+    if (el.isConnected) injectIntoComment(el, ip, t, uid);
   });
 }
 
@@ -222,6 +224,7 @@ function injectProfileIp() {
     if (!top) return;
     var s = document.createElement('span');
     s.className = NIP + ' common-info';
+    s.dataset.acsvUid = String(uid);
     s.style.cssText = 'font-size:12px;color:#999;margin-left:16px;';
     s.textContent = 'IP属地：' + ip;
     s.title = tagTitle(ip, t);
@@ -237,6 +240,7 @@ function injectUpFor(timeEl, uid) {
     if (timeEl.parentNode && timeEl.parentNode.querySelector('.' + NIP)) return;
     var s = document.createElement('span');
     s.className = NIP;
+    s.dataset.acsvUid = String(uid);
     s.textContent = ip;
     s.title = tagTitle(ip, t);
     timeEl.appendChild(s);
@@ -271,7 +275,7 @@ function retrySeen(el) {
   var uid = uidOf(el);
   if (!uid) return;
   var hit = peek(uid);
-  if (hit) injectIntoComment(el, hit.ip, hit.t);
+  if (hit) injectIntoComment(el, hit.ip, hit.t, uid);
 }
 
 function scanComments() {
@@ -335,6 +339,7 @@ export function mountNativeIp() {
   (document.head || document.documentElement).appendChild(st);
   hookFetch();
   hookXHR();
+  mountNatPanel(); // 面板事件接线（标签点击 → 原生皮肤面板；6c）
   if (typeof IntersectionObserver === 'function') {
     viewIO = new IntersectionObserver(function (entries) {
       for (var i = 0; i < entries.length; i++) {

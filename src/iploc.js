@@ -21,8 +21,8 @@
 // 设置：开关 ipShow / 保留期 ipKeep（SCHEMA group 评论）；Web-IP 老保留期键 `acr_days` 一次性收养。
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { el } from './ui.js';
-import { stat } from './dbg.js';
+import { el, isSafeKey } from './ui.js';
+import { stat, testHook } from './dbg.js';
 import { getSetting, setSetting, storeKey } from './settings.js';
 
 var UID_KEY = 'acr_uids';   // Web-IP v5.8.5 同 key（形状也同——双向兼容）
@@ -278,6 +278,49 @@ export function resolveFor(uid, cb) {
   fetchFor(k, function (ip, t) { if (ip) cb(ip, t); });
 }
 
+// ---------- 数据管理（0.9.250，面板 6c 消费） ----------
+
+// 缓存条目直读（资料卡用：含负缓存条目；未查询过 null）
+export function entryOf(uid) {
+  var k = String(uid);
+  ensureLoaded();
+  return uids[k] || null;
+}
+
+// 导出（Web-IP bundle 同形 {version, uids}——其导入侧按 uids 取值，互通；pages 段我们没有）
+export function exportUids() {
+  ensureLoaded();
+  return {
+    version: typeof __ACSV_VERSION__ !== 'undefined' ? __ACSV_VERSION__ : '',
+    uids: JSON.parse(JSON.stringify(uids))
+  };
+}
+
+// 导入合并（Web-IP 语义：**跳过已存在**、危险键剔除；接受 bundle {uids} 或裸 uid 表）
+export function importUids(data) {
+  ensureLoaded();
+  var src = data && typeof data === 'object'
+    ? (data.uids && typeof data.uids === 'object' ? data.uids : data)
+    : null;
+  var added = 0;
+  if (src) {
+    for (var k in src) {
+      if (!isSafeKey(k) || uids[k]) continue;
+      var e = src[k];
+      if (e && typeof e === 'object') { uids[k] = e; added++; }
+    }
+    if (added) { stat('ip.import', added); saveUids(); }
+  }
+  return { added: added, total: Object.keys(uids).length };
+}
+
+// 清空（显式动作，立即写盘不等防抖）
+export function clearUids() {
+  ensureLoaded();
+  uids = {};
+  writeStore(uids);
+}
+
 // ---------- 渲染点接线口（单源；commentkit 经 opts.ipTag 注入后调用） ----------
 
 function appendTag(meta, ip, t) {
@@ -303,3 +346,7 @@ export function tagInto(meta, uid) {
     armQuery(meta, k);
   }
 }
+
+testHook('iploc', function () {
+  return { size: loaded ? Object.keys(uids).length : -1 };
+});

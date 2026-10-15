@@ -48,7 +48,7 @@
   // 不自动挂壳的场景（0.9.128）：在**无壳**条件下验证原生页行为（boot 分流/入口注入/内嵌）。
   // 该名单约束两处：run() 不等待 #acsv-root 挂载（无壳=场景前提，由场景体自证）；文末不强制
   // hash='svfeed'（否则会把壳意外挂起来）
-  var NO_AUTOMOUNT = ['member-plaza', 'space-moments', 'native-ip', 'native-surfaces'];
+  var NO_AUTOMOUNT = ['member-plaza', 'space-moments', 'native-ip', 'native-surfaces', 'nat-panel'];
   // 官方 weblog 管道 stub：debug 构建 unsafeWindow===window，reportLeave 读 window.weblog。
   // 所有场景无条件 stub——非 home 场景 cap.watchReport=false 不会触达；调用记录供断言
   window.__WL_CALLS = [];
@@ -208,7 +208,9 @@
     // 0.9.248 原生页评论 IP+设备：/v/ 分流（pagekind=video ⇒ boot 挂 mountNativeIp）
     'native-ip': '/v/ac777777',
     // 0.9.249 原生页专属挂点（6b）：同起 /v/，场景体内 pushState 到 /u/、/member/feeds
-    'native-surfaces': '/v/ac777777'
+    'native-surfaces': '/v/ac777777',
+    // 0.9.250 原生页设置面板（6c）：同起 /v/
+    'nat-panel': '/v/ac777777'
   };
   if (BOOT_PATH[CASE]) {
     try { history.replaceState(null, '', BOOT_PATH[CASE] + location.search + location.hash); } catch (e) { }

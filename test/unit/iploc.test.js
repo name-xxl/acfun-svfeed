@@ -19,7 +19,8 @@ globalThis.localStorage = {
 var CFGmod = await import('../../src/cfg.js');
 var CFG = CFGmod.CFG;
 var {
-  isFailureCacheFresh, positiveFresh, lookupState, keepMsOf, mapLegacyDays, tagTitle, pruneUids
+  isFailureCacheFresh, positiveFresh, lookupState, keepMsOf, mapLegacyDays, tagTitle, pruneUids,
+  entryOf, exportUids, importUids, clearUids
 } = await import('../../src/iploc.js');
 
 var now = Date.now();
@@ -162,4 +163,36 @@ test('pruneUids：超上限按时间最旧淘汰，负数/垃圾条目不炸', (
   // bad 先清理（1 条），cap=2 再淘汰最旧的 old（1 条）
   assert.equal(pruneUids(m, now, 0, 2), 2);
   assert.ok(!m.old && !m.bad && m.mid && m.new);
+});
+
+// ---------- 数据管理（0.9.250，面板 6c） ----------
+
+test('importUids/entryOf/exportUids：bundle 与裸表两形、跳过已存在', () => {
+  clearUids();
+  var now2 = Date.now(); // 时间戳必须新鲜：saveUids 的保留期清理会淘汰过期正面条目
+  var r1 = importUids({ version: 'x', uids: { '111': { ip: '广东', t: now2 } } });
+  assert.equal(r1.added, 1);
+  assert.equal(entryOf('111').ip, '广东');
+  var r2 = importUids({ '111': { ip: '江苏', t: now2 }, '222': { ip: '北京', t: now2 } }); // 裸 uid 表
+  assert.equal(r2.added, 1); // 111 已存在跳过（Web-IP 同款合并语义）
+  assert.equal(entryOf('111').ip, '广东');
+  assert.equal(entryOf('999'), null);
+  var ex = exportUids();
+  assert.equal(Object.keys(ex.uids).length, 2);
+  assert.ok(typeof ex.version === 'string');
+});
+test('importUids：危险键剔除（JSON.parse 真造 own property）', () => {
+  clearUids();
+  var now3 = Date.now();
+  var r = importUids(JSON.parse('{"__proto__":{"ip":"x"},"333":{"ip":"上海","t":' + now3 + '}}'));
+  assert.equal(r.added, 1);
+  assert.equal(entryOf('333').ip, '上海');
+  assert.equal(/** @type {any} */ (Object.prototype).ip, undefined);
+});
+test('clearUids：清空后条目为 null、导出为空', () => {
+  importUids({ '444': { ip: '浙江', t: Date.now() } });
+  assert.ok(entryOf('444'));
+  clearUids();
+  assert.equal(entryOf('444'), null);
+  assert.equal(Object.keys(exportUids().uids).length, 0);
 });

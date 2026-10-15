@@ -162,4 +162,121 @@
     rec('nsp-up-in-time', !!timeEl.querySelector('.acsv-nip'));
     rec('nsp-up-once', calls['9402'] === 1, JSON.stringify(calls));
   };
+
+  // 6c：原生页设置面板（点击 IP 标签 → 浅色原生皮肤面板；资料卡/SCHEMA 行/开关落盘/
+  // 设备数据导入端到端/缓存清空二次确认）
+  C['nat-panel'] = async function (h) {
+    var rec = h.rec, waitFor = h.waitFor, wait = h.wait, TEST = h.TEST, key = h.key;
+    var calls = {};
+    window.__ACSV_MOCK_FORM__ = {
+      'user/userInfo': function (body, url) {
+        var uid = (String(url).match(/userId=(\d+)/) || [])[1];
+        if (uid) calls[uid] = (calls[uid] || 0) + 1;
+        if (uid === '9501') return { result: 0, profile: { ipLocation: '广东', name: '甲' } };
+        return { result: 0, profile: {} };
+      }
+    };
+    function addComment(cid, uid, dev) {
+      var el0 = document.createElement('div');
+      el0.className = 'area-comment-top comment-item-' + cid + ' main-comment-item-' + cid;
+      el0.setAttribute('data-commentid', cid);
+      var from = document.createElement('span');
+      from.className = 'area-comment-from';
+      var lbl = document.createElement('span');
+      lbl.textContent = '来自';
+      from.appendChild(lbl);
+      if (dev) {
+        var d = document.createElement('a');
+        d.className = 'deviceModel';
+        d.textContent = dev;
+        from.appendChild(d);
+      }
+      el0.appendChild(from);
+      var a = document.createElement('a');
+      a.className = 'name';
+      a.setAttribute('data-userid', String(uid));
+      el0.appendChild(a);
+      document.body.appendChild(el0);
+      return el0;
+    }
+    function visible(el2) {
+      if (!el2) return false;
+      var r = el2.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && getComputedStyle(el2).display !== 'none';
+    }
+    function rowOf(mask, re) {
+      var rows = mask.querySelectorAll('.acsv-np-row');
+      for (var i = 0; i < rows.length; i++) if (re.test(rows[i].textContent)) return rows[i];
+      return null;
+    }
+    function btnOf(scope, text) {
+      return Array.prototype.filter.call(scope.querySelectorAll('button'), function (b) { return b.textContent === text; })[0] || null;
+    }
+
+    // ① 造评论 → 标签 → 点击开面板
+    var c1 = addComment('np-1', 9501, 'RMX3619');
+    var tag = await waitFor(function () { return c1.querySelector('.acsv-nip'); }, 8000);
+    rec('np-tag', !!tag);
+    if (!tag) return;
+    tag.click();
+    var mask = await waitFor(function () { return document.querySelector('.acsv-np-mask'); }, 3000);
+    rec('np-open', visible(mask));
+    if (!mask) return;
+    // ② 用户资料卡（用户名/UID/属地来自 mock）
+    var card = mask.querySelector('.acsv-np-card');
+    rec('np-card', (function () {
+      if (!card) return false;
+      var t = card.textContent;
+      return t.indexOf('甲') >= 0 && t.indexOf('9501') >= 0 && t.indexOf('广东') >= 0;
+    })(), card ? card.textContent : 'none');
+    // ③ 全量 SCHEMA 表驱动在场（通用/播放/评论三组代表行）
+    var labels = Array.prototype.map.call(mask.querySelectorAll('.acsv-np-row>span:first-child'), function (x) { return x.textContent; }).join('|');
+    rec('np-schema-rows', labels.indexOf('自动检查更新') >= 0 && labels.indexOf('缓冲档位') >= 0
+      && labels.indexOf('评论区显示 IP 属地') >= 0 && labels.indexOf('属地缓存保留') >= 0
+      && labels.indexOf('设备型号美化') >= 0, labels);
+    // ④ 开关拨动 + Esc 关闭即落盘（flushSettings）
+    var ipRow = rowOf(mask, /评论区显示 IP 属地/);
+    var ipSw = ipRow && ipRow.querySelector('.acsv-np-sw');
+    rec('np-ipshow-on', !!(ipSw && ipSw.classList.contains('on')));
+    if (ipSw) ipSw.click();
+    rec('np-ipshow-off', !!(ipSw && !ipSw.classList.contains('on')));
+    key('Escape');
+    rec('np-esc-close', !!(await waitFor(function () { return !document.querySelector('.acsv-np-mask'); }, 3000)));
+    rec('np-ipshow-persist', localStorage.getItem('acsv.s.ipShow') === 'false', 'raw=' + localStorage.getItem('acsv.s.ipShow'));
+    // ⑤ 设备数据导入端到端：重开 → 导入视图 → 粘贴 → 导入 → 新代号进查表
+    tag.click();
+    var mask2 = await waitFor(function () { return document.querySelector('.acsv-np-mask'); }, 3000);
+    rec('np-reopen', visible(mask2));
+    var dRow = mask2 && rowOf(mask2, /设备数据/);
+    var dImport = dRow && btnOf(dRow, '导入');
+    if (dImport) dImport.click();
+    var ta = mask2 && mask2.querySelector('.acsv-np-ta');
+    rec('np-dev-import-view', !!ta);
+    if (ta) {
+      ta.value = '`ZZZT-NP`: 测试机型NP';
+      var confirmBtnImport = btnOf(mask2, '导入');
+      if (confirmBtnImport) confirmBtnImport.click();
+      await wait(250);
+    }
+    rec('np-dev-count-after', !!(mask2 && /设备数据 997 条/.test(mask2.textContent)),
+      mask2 ? (rowOf(mask2, /设备数据/) || {}).textContent || 'none' : 'no-mask');
+    var c2 = addComment('np-2', 9502, 'ZZZT-NP');
+    rec('np-dev-import-e2e', !!(await waitFor(function () {
+      var d = c2.querySelector('.deviceModel');
+      return d && d.textContent === '测试机型NP';
+    }, 8000)), (c2.querySelector('.deviceModel') || {}).textContent || 'none');
+    // ⑥ 缓存清空（二次确认识别）+ 面板仍可关
+    var cRow = mask2 && rowOf(mask2, /缓存管理/);
+    var clearBtn = cRow && btnOf(cRow, '清空');
+    rec('np-clear-btn', !!clearBtn);
+    if (clearBtn) {
+      clearBtn.click();
+      rec('np-clear-confirm-label', clearBtn.textContent === '确认清空?', clearBtn.textContent);
+      clearBtn.click();
+    }
+    rec('np-clear-done', !!(await waitFor(function () { return TEST.call('iploc').size === 0; }, 3000)),
+      'size=' + (TEST.call('iploc') || {}).size);
+    key('Escape');
+    rec('np-final-close', !!(await waitFor(function () { return !document.querySelector('.acsv-np-mask'); }, 3000)));
+  };
 })();

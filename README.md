@@ -351,6 +351,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `interact.js` | 真实点赞（api_st → interact 接口）+ 投蕉/Pi 级写链（AppAPI.throwBanana）；**关注→relationapi.js、收藏→favapi.js**（0.9.142/143 迁出，退役登记在文件头） |
 | `devname.js` | 设备型号美化（0.9.246，Web-IP 吸收批次②，路线图 Phase 5）：评论「来自 x」内部代号（`RMX3619`/`iPhone3,1`）→ 友好名（真我 V30 / iPhone 4）。四级匹配（精确 → 大小写 → 去尾字母 → 前缀包含）+ 查找缓存（上限 500 最旧 20% 淘汰）逐字移植 Web-IP 56-device.js；接线口 `devTag(a, model)` 由 comments.cmtOpts 经 `opts.devTag` 注入 commentkit（同 ipTag 纪律）——**只换锚文本**（href/结构不动）、未收录兜底原文、命中映射才挂点击切换（友好名 ⇄ 原文，照抄 Web-IP）。用户层读 Web-IP 同键 `acr_device_models`（只读兼容；导入 UI 属 Phase 6 6c），**合并语义升级**＝内置先、用户条覆盖（反转其「快照顶掉内置」）。设置项 devName 在 SCHEMA 评论组 |
 | `devicetab.js` | 设备型号内置表（**生成物，勿手改**；996 条）：由 `tools/gen-device-data.js` 从 KHwang9883/MobileModels + Apple 表生成；数据 **CC BY-NC-SA 4.0**，与 MIT 分声明（见「设备型号数据许可」段）；再生成：`node tools/gen-device-data.js <MobileModels 数据目录>` |
+| `natpanel.js` | 原生页设置面板（0.9.250，Web-IP 吸收 6c，路线图 Phase 6）：点击任意原生页 IP 标签（捕获阶段委托）弹出——视觉＝原脚本面板资产照抄（浅色仿 A 站弹窗、主色 #fd4c5d、340px，NATIVE_PANEL_CSS 段，**不进 svfeed 暗色体系**）。结构＝资料卡（用户名/UID/IP属地/查询于，iploc.entryOf 直读）+ **全量 SCHEMA 表驱动设置区**（D4：新增设置项两边自动出现）+ 缓存管理（acr_uids 导出/导入/清空二次确认）+ 设备数据（导入文件·粘贴/导出/重置，devname 用户层）。Esc/遮罩关闭即 flushSettings；剪贴板走 ui.copyText |
 | `nativeip.js` | 原生页评论 IP + 设备（0.9.248/0.9.249，Web-IP 吸收 6a+6b，路线图 Phase 6）：评论区＝`[data-commentid]` 统一组件（视频/文章/动态详情三面同款，2026-10-15 真机逐面实测 §13）——拦截层（fetch/XHR hook → commentId→userId 映射，路径变清表）+ DOM 兜底链（a[data-userid] → a.name[data-uid] → /u/ 链接 → 头像 src，**Web-IP 24 项单测等值迁移**）+ 可见优先注入（IO 200px/入视口即 unobserve → `iploc.resolveFor` 共享核 → `.acsv-nip` 浅色段，tooltip 同源）+ 重画补注（MutationObserver 300ms 重扫，缓存制）+ SPA 路由清映射 + 设备美化（`.deviceModel` → devname.devTag 单源，手动态尊重）+ 专属挂点（6b）：用户主页 `/u/` 资料卡「IP属地：x」（common-info 类复用站内定位）、个人中心 `/member` 动态条目的 `.feed-time`（closest 两跳爬链真机核过）。**修正 port**：Web-IP IO 先 unobserve、uid 提取失败即永久漏 → 我们失败不放弃、有界重观察重试 |
 | `iploc.js` | 评论 IP 属地查询层（0.9.245，Web-IP 吸收批次①，路线图 Phase 5）：uid → 属地（`userInfo` 回包 `profile.ipLocation`，需登录态；契约 docs/api-research.md §12）。**单层 uid 缓存**沿用老键 `acr_uids` 同 key 同形状（Web-IP 老用户数据零迁移，D8）+ 串行限流 200ms + 负缓存分级（无属地 6h / 网络错 10min）+ 写防抖 2s + 上限 5000 最旧淘汰 + pagehide 兜底落盘；接线口 `tagInto(meta, uid)` 由 comments.cmtOpts 经 `opts.ipTag` 注入 commentkit（kit 不 import 特性模块的纪律）——命中同步上屏/**未命中进入视口才排队回填**（0.9.247，广场 backfillIO 同款视口渐进）/空属地不渲染；设置项 ipShow/ipKeep 在 SCHEMA 评论组（Web-IP 老保留期键 `acr_days` 一次性收养） |
 | `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3/4、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出）。0.9.96 管线 **host 化**：DOM 宿主显式化（默认=抽屉单例，动态详情面板灌入同款三元组），`openCommentsHost`/`closeCommentsHost` 为面板入口，输入条三件套随宿主迁移；0.9.133 条目构建/楼中楼展开**下沉 commentkit.js**（本文件只留管线：状态/宿主/输入条/委托/乐观插入/翻页）；0.9.245 起 cmtOpts 增 ipTag（属地接线口，三宿主+乐观插入全覆盖） |
@@ -532,6 +533,7 @@ flowchart LR
   reldrawer["reldrawer.js（评论抽屉·相关推荐/列表 tab；列表播放器）"]
   iploc["iploc.js（评论属地查询层·acr_uids 兼容缓存+串行限流+负缓存分级）"]
   nativeip["nativeip.js（原生页评论 IP+设备·拦截层+视口注入+重扫路由）"]
+  natpanel["natpanel.js（原生页设置面板·浅色原生皮肤+全量 SCHEMA 表驱动）"]
   devname["devname.js（设备型号美化·四级查表+点击切换）"]
   devicetab["devicetab.js（设备型号内置表·生成物 勿手改）"]
   channelapi["channelapi.js（频道域·分区树+分区流规整）"]
@@ -606,6 +608,8 @@ flowchart LR
   iploc --> cfg & dbg & net & settings & ui
   devname --> cfg & devicetab & settings
   nativeip --> dbg & devname & iploc & styles
+  nativeip --> natpanel
+  natpanel --> dbg & devname & iploc & settings & styles & ui
   boot --> nativeip
   commentkit --> imicons & imgload & timefmt & ubb & uplook
   interact --> appapi

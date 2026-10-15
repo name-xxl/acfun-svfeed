@@ -25,6 +25,12 @@ export function elHtml(tag, cls, html) {
   return e;
 }
 
+// 导入族键守卫（0.9.250 自 devname 迁入 ui——iploc 缓存导入与设备数据导入两域共用，单源收口；
+// Web-IP 同款语义：__proto__ 这类键走原型链 setter、赋值静默丢失，必须跳过）
+export function isSafeKey(k) {
+  return k !== '__proto__' && k !== 'constructor' && k !== 'prototype';
+}
+
 // slide 内取 video 元素（0.9.243 单源收口：全项目 20 处手写 querySelector('video') 归此一件）。
 // null 安全——原「slide && slide.querySelector('video')」形态由此吸收
 export function videoOf(slide) {

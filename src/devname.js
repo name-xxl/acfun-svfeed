@@ -18,15 +18,11 @@
 import { DEVICE_TAB } from './devicetab.js';
 import { CFG } from './cfg.js';
 import { getSetting } from './settings.js';
+import { isSafeKey } from './ui.js'; // 键守卫单源（0.9.250 迁 ui：设备导入与缓存导入共用）
 
 var USER_KEY = 'acr_device_models'; // Web-IP 同键（只读合并其用户层）
 
 // ---------- 纯函数（单测直采） ----------
-
-// 导入数据的键可能来自外部 JSON/文本：__proto__ 这类键走原型链 setter、赋值静默丢失（Web-IP 同款守卫）
-export function isSafeKey(k) {
-  return k !== '__proto__' && k !== 'constructor' && k !== 'prototype';
-}
 
 // 用户层合并：内置先、用户条覆盖（快照→覆盖层，见文件头；危险键剔除）
 export function mergeTab(builtin, user) {
@@ -142,6 +138,8 @@ export function parseDeviceModelsText(text) {
 
 var idx = null;
 var searchCache = new Map();
+var mergedTab = {};
+var mergedCount = 0;
 
 function readUserTab() {
   try {
@@ -157,13 +155,79 @@ function readUserTab() {
   return null;
 }
 
+function writeUserTab(obj) {
+  try { if (typeof GM_setValue === 'function') { GM_setValue(USER_KEY, obj); return; } } catch (e) { }
+  try { localStorage.setItem(USER_KEY, JSON.stringify(obj)); } catch (e) { }
+}
+
+// 重置写空对象（无 GM_deleteValue 授权；Web-IP 侧读到空表会回落内置——互通安全）
+function clearUserTab() {
+  try { if (typeof GM_setValue === 'function') { GM_setValue(USER_KEY, {}); return; } } catch (e) { }
+  try { localStorage.removeItem(USER_KEY); } catch (e) { }
+}
+
 function ensure() {
-  if (!idx) idx = buildIndexes(mergeTab(DEVICE_TAB, readUserTab()));
+  if (!idx) {
+    mergedTab = mergeTab(DEVICE_TAB, readUserTab());
+    mergedCount = Object.keys(mergedTab).length;
+    idx = buildIndexes(mergedTab);
+  }
+}
+
+function rebuild() {
+  idx = null;
+  searchCache = new Map();
+  ensure();
 }
 
 export function friendlyOf(code) {
   ensure();
   return lookupIn(idx, code, searchCache);
+}
+
+// ---------- 数据管理（0.9.250，面板 6c 消费） ----------
+
+// 当前库条数（内置 ⊕ 用户层）
+export function deviceCount() {
+  ensure();
+  return mergedCount;
+}
+
+// 导出（合并后全表；与 Web-IP 导出语义同款——下游可整体再导入）
+export function exportDevices() {
+  ensure();
+  return JSON.parse(JSON.stringify(mergedTab));
+}
+
+// 文本导入 → 用户层：解析三格式 → 合并进 `acr_device_models` 用户层 → 重建索引。
+// skipExisting=true 时对**合并后全表**已存在的代号跳过（Web-IP importDeviceModels 同款——
+// 其 deviceDB 本就含内置）
+export function importDeviceText(text, skipExisting) {
+  var entries = parseDeviceModelsText(text);
+  ensure();
+  var user = readUserTab();
+  if (!user || typeof user !== 'object') user = {};
+  var added = 0, skipped = 0;
+  for (var code in entries) {
+    if (!isSafeKey(code)) continue;
+    var name = entries[code];
+    if (!name) continue;
+    if (skipExisting && mergedTab[code]) { skipped++; continue; }
+    user[code] = name;
+    added++;
+  }
+  if (added) {
+    writeUserTab(user);
+    rebuild();
+  }
+  return { added: added, skipped: skipped, total: mergedCount };
+}
+
+// 重置为内置表（用户层清空；Web-IP resetDeviceDB 同义）
+export function resetUserDevices() {
+  clearUserTab();
+  rebuild();
+  return mergedCount;
 }
 
 // ---------- 渲染点接线口（commentkit 经管线 opts.devTag 调用） ----------
