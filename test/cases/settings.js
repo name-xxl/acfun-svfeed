@@ -37,11 +37,11 @@
     var sh = shadowOf(host);
     rec('set-shadow-root', !!sh);
     if (!sh) return;
-    // 表驱动：八张卡（label 顺序 = schema 顺序：通用组 1 + 播放组 5 + 评论组 2；0.9.168 增 relSequential）
-    // 0.9.202：弹幕设置整组移出设置面板（改为底栏弹层）；0.9.245：评论组 +2（ipShow/ipKeep）
+    // 表驱动：九张卡（label 顺序 = schema 顺序：通用组 1 + 播放组 5 + 评论组 3；0.9.168 增 relSequential）
+    // 0.9.202：弹幕设置整组移出设置面板（改为底栏弹层）；0.9.245/246：评论组 +3（ipShow/ipKeep/devName）
     var labels = labelTexts(sh);
-    rec('set-row-count', sh.querySelectorAll('.set-row').length === 8, 'rows=' + labels.join('/'));
-    rec('set-labels', labels.join('|') === '自动检查更新|弹幕默认开启|编码偏好|缓冲档位|快进步长（秒）|相关推荐按列表顺序续播|评论区显示 IP 属地|属地缓存保留', labels.join('|'));
+    rec('set-row-count', sh.querySelectorAll('.set-row').length === 9, 'rows=' + labels.join('/'));
+    rec('set-labels', labels.join('|') === '自动检查更新|弹幕默认开启|编码偏好|缓冲档位|快进步长（秒）|相关推荐按列表顺序续播|评论区显示 IP 属地|属地缓存保留|设备型号美化', labels.join('|'));
     // 面板必须真渲染（offsetParent 真值法：0.9.62 黑屏教训）
     var pnl = sh.querySelector('.set-panel');
     rec('set-panel-visible', !!(pnl && pnl.offsetParent !== null));

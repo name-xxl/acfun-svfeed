@@ -39,6 +39,7 @@
 <script src="cases/relation.js"></script><!-- 0.9.142 关注分组全闭环（我的页分组 tab + rail 分组选择层） -->
 <script src="cases/favfolders.js"></script><!-- 0.9.143 收藏夹全闭环（rail 选择层 + 我的页夹管理） --><!-- 0.9.142 关注分组全闭环（我的页分组 tab + rail 分组选择层） -->
 <script src="cases/ip.js"></script><!-- 0.9.245 评论 IP 属地（Web-IP 吸收批次①：命中/回填/负缓存/开关） -->
+<script src="cases/dev.js"></script><!-- 0.9.246 设备型号美化（Web-IP 吸收批次②：替换/切换/未收录原文/开关） -->
 <script>
   // ============ 场景预处理（须在 bundle 加载前：改 mock / 写 localStorage） ============
   var CASE = (location.search.match(/[?&]case=([\w-]+)/) || [])[1] || 'smoke';
@@ -122,6 +123,10 @@
   // 评论 IP 属地关态场景（0.9.245）：bundle 前把开关预置为关——设置层首读即收养，零查询零标签
   if (CASE === 'ip-tags-off') {
     try { localStorage.setItem('acsv.s.ipShow', 'false'); } catch (e) { }
+  }
+  // 设备美化关态场景（0.9.246）：同上——代号原文直显
+  if (CASE === 'dev-name-off') {
+    try { localStorage.setItem('acsv.s.devName', 'false'); } catch (e) { }
   }
   // 深链的 hash 必须在本 bundle 求值前写好——boot 的 toggle 在 document-end 读 location.hash。
   // 其余场景一律是 bundle 加载后 300ms 才设 hash（见文件尾），那种时序走不到「冷启动深链」路径。

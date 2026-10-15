@@ -84,7 +84,9 @@ export var SCHEMA = [
     label: '评论区显示 IP 属地', hint: '来自用户主页实时资料，不代表发布时的 IP；需登录态' },
   { key: 'ipKeep', type: 'select', def: CFG.ip.keepDef, panel: true, group: '评论',
     label: '属地缓存保留', options: CFG.ip.keepOptions,
-    hint: '过期后重新查询；「永久」= 不自动过期（上限 5000 用户仍会淘汰）' }
+    hint: '过期后重新查询；「永久」= 不自动过期（上限 5000 用户仍会淘汰）' },
+  { key: 'devName', type: 'bool', def: true, panel: true, group: '评论',
+    label: '设备型号美化', hint: '把「RMX3619」这类代号替换为「真我 V30」；点击型号可切回代号' }
 ];
 
 var STORE_PREFIX = 'acsv.s.'; // 逐键命名空间（路线图 1.1）

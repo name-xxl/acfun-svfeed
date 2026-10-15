@@ -140,7 +140,12 @@ const HARNESS_CASES = [
   // userInfo 三种回包——有属地/空串/rejected）；命中同步上屏/未命中回填/同一节点/负缓存复用/
   // 开关关闭零查询（off 场景依赖 bundle 前预置 acsv.s.ipShow，见 harness.html）
   { name: 'ip-tags', viewport: { width: 1600, height: 900 } },
-  { name: 'ip-tags-off', viewport: { width: 1600, height: 900 } }
+  { name: 'ip-tags-off', viewport: { width: 1600, height: 900 } },
+  // 0.9.246 设备型号美化（Web-IP 吸收批次②）：行内宿主 + 定向桩（代前缀取末段/精确/未收录原文/
+  // 楼中楼透传）；href 保持 + tooltip + 点击切换两向 + 关态原文（off 依赖 bundle 前预置
+  // acsv.s.devName，见 harness.html）
+  { name: 'dev-name', viewport: { width: 1600, height: 900 } },
+  { name: 'dev-name-off', viewport: { width: 1600, height: 900 } }
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

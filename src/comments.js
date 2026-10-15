@@ -17,6 +17,7 @@ import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import { openSharePanel } from './sharepanel.js';
 import { commentItemOf, commentLikeState } from './commentkit.js'; // 条目构建单源（0.9.133 自本文件下沉；0.9.234 加点赞三态）
 import { tagInto } from './iploc.js'; // IP 属地接线口（0.9.245，Web-IP 吸收批次①；kit 无状态，经 cmtOpts 注入）
+import { devTag } from './devname.js'; // 设备型号美化接线口（0.9.246，Web-IP 吸收批次②；同纪律）
 import { relDrawerSync, relDrawerClose } from './reldrawer.js'; // 相关推荐 tab 两 seam（0.9.167）
 // imdrawer→本模块（syncCommentVars）为单向回指（0.9.114 断 imshare→imdrawer 后不再成环）；
 // 本模块→sharepanel（原 imshare 面板族）侧均为函数、调用期才解引用，模块求值期无依赖
@@ -325,10 +326,11 @@ export function commentListClick(ev) {
 // （0.9.133 下沉）expandSubComments → commentkit.js（搬迁注见上方条目构建处）
 
 // 评论条目渲染出口（0.9.133 抽离 commentkit 后）：把管线状态注入给无状态 kit（原为 kit 直读全局）
-// ipTag（0.9.245）：IP 属地接线口——查询/缓存全在 iploc；三宿主（抽屉/行内/详情面板）与发送后
-// 乐观插入同经此处注入，天然全覆盖
+// ipTag（0.9.245）/devTag（0.9.246）：IP 属地与设备美化接线口——查询/缓存/查表全在 iploc/devname；
+// 三宿主（抽屉/行内/详情面板）与发送后乐观插入同经此处注入，天然全覆盖
 function cmtOpts() {
-  return { mode: commentState.kind, sourceId: commentState.sourceId, stype: commentState.stype, ipTag: tagInto };
+  return { mode: commentState.kind, sourceId: commentState.sourceId, stype: commentState.stype,
+    ipTag: tagInto, devTag: devTag };
 }
 
 // ---- 触底自动加载（0.9.141 实报改）：哨兵 + IntersectionObserver，三宿主通用 ----

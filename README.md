@@ -275,6 +275,17 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 - 如本项目侵犯你的合法权益，请通过 [Issues](https://github.com/name-xxl/acfun-svfeed/issues)
   联系，核实后将第一时间处理。
 
+### 设备型号数据许可（与代码的 MIT **分声明**）
+
+内置设备型号表（`src/devicetab.js`，由 `tools/gen-device-data.js` 生成）的数据来自：
+
+- [KHwang9883/MobileModels](https://github.com/KHwang9883/MobileModels) — **CC BY-NC-SA 4.0**
+  （署名 + 非商业性使用 + 相同方式共享）
+- [adamawolf/Apple_mobile_device_types](https://gist.github.com/adamawolf/3048717) — Apple 型号对照表
+
+即：**脚本代码是 MIT，设备型号数据不是**。再分发时须保留上述署名与许可声明，不得将数据段当作
+MIT 内容一并分发，不得用于商业用途（数据许可的约束不因代码许可是 MIT 而豁免）。
+
 ## 更新日志
 
 完整更新日志见 [CHANGELOG.md](CHANGELOG.md)——每个版本一节（病灶 / 修法 / 测试证据），
@@ -338,6 +349,8 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策（三跳两两换 URL；0.9.166 二三跳 ±20% 抖动，rnd 缺省 0.5 保确定性）+ `memoState`/`memoTrim` 死链备忘纯判定（0.9.77：只读不续期）——URL 正确性只在这里定义 |
 | `imgload.js` | 图片加载执行层（0.9.76；0.9.77 头注校准覆盖边界）：项目图片字段（封面/头像）统一入口——`IMG_POLICY` 策略表（grid/thumb/avatar/space）+ `imgInto(host,url,policy[,cls])`（懒加载/重试链/终败降级/淡入/死链备忘）+ `lazyObserve` 观察器单例（私信气泡共用）。有意在外的例外：鉴权 blob 管线（imsend）、UBB/表情 HTML、站点静态图标、大图查看器 |
 | `interact.js` | 真实点赞（api_st → interact 接口）+ 投蕉/Pi 级写链（AppAPI.throwBanana）；**关注→relationapi.js、收藏→favapi.js**（0.9.142/143 迁出，退役登记在文件头） |
+| `devname.js` | 设备型号美化（0.9.246，Web-IP 吸收批次②，路线图 Phase 5）：评论「来自 x」内部代号（`RMX3619`/`iPhone3,1`）→ 友好名（真我 V30 / iPhone 4）。四级匹配（精确 → 大小写 → 去尾字母 → 前缀包含）+ 查找缓存（上限 500 最旧 20% 淘汰）逐字移植 Web-IP 56-device.js；接线口 `devTag(a, model)` 由 comments.cmtOpts 经 `opts.devTag` 注入 commentkit（同 ipTag 纪律）——**只换锚文本**（href/结构不动）、未收录兜底原文、命中映射才挂点击切换（友好名 ⇄ 原文，照抄 Web-IP）。用户层读 Web-IP 同键 `acr_device_models`（只读兼容；导入 UI 属 Phase 6 6c），**合并语义升级**＝内置先、用户条覆盖（反转其「快照顶掉内置」）。设置项 devName 在 SCHEMA 评论组 |
+| `devicetab.js` | 设备型号内置表（**生成物，勿手改**；996 条）：由 `tools/gen-device-data.js` 从 KHwang9883/MobileModels + Apple 表生成；数据 **CC BY-NC-SA 4.0**，与 MIT 分声明（见「设备型号数据许可」段）；再生成：`node tools/gen-device-data.js <MobileModels 数据目录>` |
 | `iploc.js` | 评论 IP 属地查询层（0.9.245，Web-IP 吸收批次①，路线图 Phase 5）：uid → 属地（`userInfo` 回包 `profile.ipLocation`，需登录态；契约 docs/api-research.md §12）。**单层 uid 缓存**沿用老键 `acr_uids` 同 key 同形状（Web-IP 老用户数据零迁移，D8）+ 串行限流 200ms + 负缓存分级（无属地 6h / 网络错 10min）+ 写防抖 2s + 上限 5000 最旧淘汰 + pagehide 兜底落盘；接线口 `tagInto(meta, uid)` 由 comments.cmtOpts 经 `opts.ipTag` 注入 commentkit（kit 不 import 特性模块的纪律）——命中同步上屏/未命中排队回填/空属地不渲染；设置项 ipShow/ipKeep 在 SCHEMA 评论组（Web-IP 老保留期键 `acr_days` 一次性收养） |
 | `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3/4、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出）。0.9.96 管线 **host 化**：DOM 宿主显式化（默认=抽屉单例，动态详情面板灌入同款三元组），`openCommentsHost`/`closeCommentsHost` 为面板入口，输入条三件套随宿主迁移；0.9.133 条目构建/楼中楼展开**下沉 commentkit.js**（本文件只留管线：状态/宿主/输入条/委托/乐观插入/翻页）；0.9.245 起 cmtOpts 增 ipTag（属地接线口，三宿主+乐观插入全覆盖） |
 | `commentkit.js` | 评论条目 kit（0.9.133 自 comments.js 拆出，逐字搬运零逻辑改动）：`commentItemOf` 条目构建**单源**（头像/名字/正文 UBB/meta/赞·回复·转发三键/楼中楼递归）+ `expandSubComments`「展开 N 条回复」分页件——**无状态**（mode/sourceId/stype 经 opts 注入，原直读全局 commentState 的三处已去）；点击行为归消费方委托（`_c/_n/_target` 契约原样保留）。消费方：comments.js 三宿主（抽屉/行内/详情面板）。全项目评论条目渲染只此一处（审计在册）；**0.9.134 观感五项在此落地**：名字等级色（nameColor 2紫/1红）、头像框**仅根评论**（thumbnailImageCdnUrl → cdnUrls[0].url）、设备「来自 x」、楼层**仅根评论**、楼中楼「回复 @名 :」前缀（replyToUserName↔replyToName 双读）；已赞态三读含 isLiked（真机字段实锤）；**0.9.138 版式全语境统一**（撤 0.9.135 的 form 分派）：抽屉/详情/广场页/关注页与内嵌原生页**同码**——50px 头像（框 80×70/-15）、条目 18px 顶距扁平无 hover、名字 12px、「发表于 x」入名字行、楼中楼 30+700、「共 N 条回复, 点击查看」；皮肤只差颜色（深色基础值 / `.acsv-mp` 浅色）；0.9.136 条目间分割线（仅根，白 7%/#e6e6e6）+ 元信息件整件换行防逐字断；**0.9.137 撤除「UP」标**（真机核对：原生 pc 评论组件在视频/文章/动态三域均无 UP 标识） |
@@ -517,6 +530,8 @@ flowchart LR
   relatedapi["relatedapi.js（相关推荐域·传输+规整+游走泵）"]
   reldrawer["reldrawer.js（评论抽屉·相关推荐/列表 tab；列表播放器）"]
   iploc["iploc.js（评论属地查询层·acr_uids 兼容缓存+串行限流+负缓存分级）"]
+  devname["devname.js（设备型号美化·四级查表+点击切换）"]
+  devicetab["devicetab.js（设备型号内置表·生成物 勿手改）"]
   channelapi["channelapi.js（频道域·分区树+分区流规整）"]
   jingxuanview["jingxuanview.js（分区页视图·抖音精选式分区网格）"]
   grouppop["grouppop.js（关注分组选择层·语义件）"]
@@ -585,7 +600,9 @@ flowchart LR
   input --> feedstore & overlay & pb & settings
   comments --> appapi & commentkit & emoticon & imicons & imgview & immsg & reldrawer & sharepanel & inputbar & overlay & timefmt & toastmsg & ubbtext
   comments --> iploc
+  comments --> devname
   iploc --> cfg & dbg & net & settings & ui
+  devname --> cfg & devicetab & settings
   commentkit --> imicons & imgload & timefmt & ubb & uplook
   interact --> appapi
   release --> overlay & settings

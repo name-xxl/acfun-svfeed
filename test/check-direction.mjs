@@ -89,6 +89,9 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 0.9.245 登记：iploc（评论 IP 属地查询层，Web-IP 吸收批次①）——与 comments/commentkit 同层，
   // 消费 cfg/net/ui/dbg/settings；消费方 comments 已在表内，属层内互调（两口径 0 条）
   'iploc.js',
+  // 0.9.246 登记：devname（设备型号美化，Web-IP 吸收批次②）——消费 cfg/settings/devicetab（纯数据
+  // 叶子，非特性）；消费方 comments 已在表内，同属层内互调
+  'devname.js',
   ]);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 

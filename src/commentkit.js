@@ -7,7 +7,8 @@
 // 被 harness 断言钉着（view-follow 68 / detail-open 38）。
 // **无状态 kit**（0.9.133 去全局耦合）：原直读全局 commentState 的三处（交互态分叉 mode、sublist
 // 的 sourceId/stype）一律改经 opts 注入 { mode:'home'|'sv', sourceId, stype }，由消费方从自己的
-// 状态取值（0.9.245 起 opts 增 ipTag——IP 属地接线口，同由消费方注入）。点击行为归消费方委托
+// 状态取值（0.9.245 起 opts 增 ipTag（IP 属地）/0.9.246 增 devTag（设备美化）两个接线口，同由
+// 消费方注入）。点击行为归消费方委托
 //（back-refs 契约 _c/_n/_target 原样保留，commentListClick 在 comments.js）；本模块不 import
 // 任何视图/管线（cfg/net/ui/imicons/imgload/ubb 皆基建件）。
 import { CFG } from './cfg.js';
@@ -44,10 +45,11 @@ function replyPrefixHtml(c) {
     + '" target="_blank" rel="noopener">@' + esc(n) + '</a> : </span>';
 }
 
-// 子评论 opts 派生（楼中楼上下文）：isSec 三处限定——回复前缀在、头像框/楼层不在；ipTag 透传
-//（楼中楼同显属地，预览 ⑤ 定稿）
+// 子评论 opts 派生（楼中楼上下文）：isSec 三处限定——回复前缀在、头像框/楼层不在；ipTag/devTag
+// 透传（楼中楼同显属地与设备美化，预览 ⑤ 定稿）
 function subOptsOf(opts) {
-  return { mode: opts.mode, sourceId: opts.sourceId, stype: opts.stype, isSec: true, ipTag: opts.ipTag };
+  return { mode: opts.mode, sourceId: opts.sourceId, stype: opts.stype, isSec: true,
+    ipTag: opts.ipTag, devTag: opts.devTag };
 }
 
 // 点赞三态单源（0.9.234）：localLike 是**三态覆写**（undefined=无本地覆写 / true / false）。
@@ -158,6 +160,9 @@ export function commentItemOf(c, subMap, opts) {
     fa.href = '//www.acfun.cn/app/';
     fa.target = '_blank';
     fa.rel = 'noopener';
+    // 设备型号美化（0.9.246，Web-IP 吸收批次②）：接线口经管线 opts.devTag 注入（同 ipTag 纪律；
+    // 未收录兜底原文、href 与结构不动、命中映射才挂点击切换）
+    if (opts.devTag) opts.devTag(fa, c.deviceModel);
     from.appendChild(fa);
     meta.appendChild(from);
   }
