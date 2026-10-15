@@ -5,6 +5,25 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.249（2026-10-15）· 原生页专属挂点（Web-IP 吸收 6b）——用户主页 IP + 个人中心动态 UP IP
+
+**由头**：6a（0.9.248）把评论区打通后，补 Web-IP 覆盖面的另两处专属挂点（用户 2026-10-15 点名
+的「用户主页 ip」与「个人主页（动态）」，**以原脚本为准**）：`injectProfileIp`（/u/ 资料卡）与
+`injectUpIp`（/member 动态条目）两函数**真机核实爬链后逐件 port**（closest 两跳
+`.feed-time → .feed-up-info → .feed-up` 实测成立、条目内 UP 链 `a[href=//www.acfun.cn/u/<uid>]` ✓，
+docs/api-research.md §13.2）。
+
+- **修法**：`nativeip.js` 增两挂点（进 `onDomChange` 统一重扫链）：
+  - 用户主页：`#ac-space-info[data-uid]` 的 `.top` 内补「IP属地：x」——文案带前缀、`common-info`
+    类复用站内相对定位（与私信/举报/分享同一水平线）、12px/#999/左距 16 内联（Web-IP 同款）；
+  - 个人中心：每条 `.feed-time` 内追加 UP 属地 span（closest 两跳取条目 → 条目内 `/u/` 或
+    `/live/` 链取 uid；**uid 未渲染时不标记、留待下次重扫**——Web-IP 同款语义）；按节点传参，
+    不在循环里写共享闭包（广场 0.9.230 教训在册）。
+- **测试**：harness 新场景 **native-surfaces**（7 断言；同 native-ip 的无壳 + /v/ 起步，场景体内
+  **pushState 串测**两处挂点）：主页标签（文案前缀 + common-info 类 + 16px 左距）→ 动态条目
+  （标签落进 `.feed-time` + 同 uid 只查一次）。**摘修复反跑**：摘掉 `injectProfileIp()` 调用 ⇒
+  `nsp-profile-tag`/`nsp-profile-common-info` 转红，还原复绿。lint/check + 383 单测 + 72/72 场景全绿。
+
 ### 0.9.248（2026-10-15）· 原生页评论 IP + 设备（Web-IP 吸收 6a）——拦截层 + 视口注入 + 竞态修正
 
 **由头**（Phase 6 开工；用户「做原生页功能实现……以原脚本为准」）：把 Web-IP 的原生页覆盖面搬进

@@ -1,4 +1,4 @@
-// test/cases/nativeip.js —— harness 场景：原生页评论 IP + 设备（0.9.248，Web-IP 吸收 6a）
+// test/cases/nativeip.js —— harness 场景：原生页评论 IP + 设备（0.9.248，Web-IP 吸收 6a/6b）
 // 机制：pathname 经 harness.html BOOT_PATH 在 bundle 前改到 /v/ac777777（pagekind=video ⇒
 // boot 原生页分支 ⇒ mountNativeIp；同 member-plaza 先例，本场景在 NO_AUTOMOUNT——无壳前提）；
 // 场景体自建原生评论 DOM（照 §13 实测形状：`[data-commentid]` 根 + `.area-comment-from` +
@@ -6,6 +6,9 @@
 //   native-ip：标签注入（同一节点/注入点/tooltip）+ 设备美化（替换/点击切换/手动态不被重扫覆盖）
 //     + 拦截层与竞态修正（无 uid 属性的评论先挂观察 → data:URL 灌一发"评论回包"建映射 →
 //     有界重观察把标签补上）+ 同 uid 去重（缓存单源）+ SPA 路由清映射
+//   native-surfaces（6b）：pushState 换路径串测两处专属挂点——用户主页 /u/ 的
+//     #ac-space-info[data-uid]（IP属地 前缀 + common-info 类）→ 个人中心 /member/feeds 的
+//     .feed-time（closest 两跳爬链取条目内 UP 链 uid）
 // 新增场景记得同步 run-harness.mjs 的 HARNESS_CASES（test/check-cases.mjs 双向校验）
 (function () {
   var C = window.__ACSV_CASES__ = window.__ACSV_CASES__ || {};
@@ -102,5 +105,61 @@
     rec('nip-route-clear', !!(await waitFor(function () {
       return TEST.call('nativeip') && TEST.call('nativeip').map === 0;
     }, 3000)), 'map=' + (TEST.call('nativeip') || {}).map);
+  };
+
+  C['native-surfaces'] = async function (h) {
+    var rec = h.rec, waitFor = h.waitFor;
+    var calls = {};
+    window.__ACSV_MOCK_FORM__ = {
+      'user/userInfo': function (body, url) {
+        var uid = (String(url).match(/userId=(\d+)/) || [])[1];
+        if (uid) calls[uid] = (calls[uid] || 0) + 1;
+        if (uid === '9401') return { result: 0, profile: { ipLocation: '北京' } };
+        if (uid === '9402') return { result: 0, profile: { ipLocation: '广州' } };
+        return { result: 0, profile: {} };
+      }
+    };
+    // ① 用户主页：pushState 换路径（路由监听 500ms 后重扫；DOM 追加触发 300ms 重扫，双路兜）
+    history.pushState(null, '', '/u/12345' + location.search);
+    var info = document.createElement('div');
+    info.id = 'ac-space-info';
+    info.setAttribute('data-uid', '9401');
+    var top = document.createElement('div');
+    top.className = 'top';
+    var name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = '一只芸喵喵';
+    top.appendChild(name);
+    info.appendChild(top);
+    document.body.appendChild(info);
+    rec('nsp-profile-tag', !!(await waitFor(function () {
+      var s = info.querySelector('.acsv-nip');
+      return s && s.textContent === 'IP属地：北京';
+    }, 8000)), (info.querySelector('.acsv-nip') || {}).textContent || 'none');
+    rec('nsp-profile-common-info', (function () {
+      var s = info.querySelector('.acsv-nip');
+      return !!(s && s.classList.contains('common-info') && s.style.marginLeft === '16px');
+    })());
+    // ② 个人中心动态条目：再换路径 → 造条目（真机链 .feed-time → .feed-up-info → .feed-up）
+    history.pushState(null, '', '/member/feeds' + location.search);
+    var feed = document.createElement('div');
+    feed.className = 'feed-up';
+    var upInfo = document.createElement('div');
+    upInfo.className = 'feed-up-info';
+    var timeEl = document.createElement('span');
+    timeEl.className = 'feed-time';
+    timeEl.textContent = '37分钟前';
+    upInfo.appendChild(timeEl);
+    var a = document.createElement('a');
+    a.setAttribute('href', '//www.acfun.cn/u/9402');
+    upInfo.appendChild(a);
+    feed.appendChild(upInfo);
+    document.body.appendChild(feed);
+    rec('nsp-up-tag', !!(await waitFor(function () {
+      var s = timeEl.querySelector('.acsv-nip');
+      return s && s.textContent === '广州';
+    }, 8000)), (timeEl.querySelector('.acsv-nip') || {}).textContent || 'none');
+    rec('nsp-up-in-time', !!timeEl.querySelector('.acsv-nip'));
+    rec('nsp-up-once', calls['9402'] === 1, JSON.stringify(calls));
   };
 })();

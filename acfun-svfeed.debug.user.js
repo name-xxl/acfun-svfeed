@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.248-debug
+// @version      0.9.249-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -68,7 +68,7 @@ window.__ACSV_HLS_LEN__ = 296762;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.248-debug" : "",
+          ver: true ? "0.9.249-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -15119,7 +15119,7 @@ window.__ACSV_HLS_LEN__ = 296762;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.248-debug" : "");
+    return normVer(true ? "0.9.249-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -18584,7 +18584,7 @@ window.__ACSV_HLS_LEN__ = 296762;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.248-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.249-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -19147,6 +19147,56 @@ window.__ACSV_HLS_LEN__ = 296762;
       devTag(el2, text);
     }
   }
+  function injectProfileIp() {
+    if (!/^\/u\/\d+/.test(location.pathname)) return;
+    var info = document.querySelector("#ac-space-info[data-uid]");
+    if (!info || info.querySelector("." + NIP)) return;
+    var uid = info.getAttribute("data-uid");
+    if (!uid) return;
+    resolveFor(uid, function(ip, t) {
+      if (info.querySelector("." + NIP)) return;
+      var top = info.querySelector(".top");
+      if (!top) return;
+      var s = document.createElement("span");
+      s.className = NIP + " common-info";
+      s.style.cssText = "font-size:12px;color:#999;margin-left:16px;";
+      s.textContent = "IP属地：" + ip;
+      s.title = tagTitle(ip, t);
+      top.appendChild(s);
+      stat("nip.profile");
+    });
+  }
+  function injectUpFor(timeEl, uid) {
+    resolveFor(uid, function(ip, t) {
+      if (!timeEl.isConnected) return;
+      if (timeEl.parentNode && timeEl.parentNode.querySelector("." + NIP)) return;
+      var s = document.createElement("span");
+      s.className = NIP;
+      s.textContent = ip;
+      s.title = tagTitle(ip, t);
+      timeEl.appendChild(s);
+      stat("nip.up");
+    });
+  }
+  function injectUpIp() {
+    if (!/^\/member(\/|$)/.test(location.pathname)) return;
+    var times = document.querySelectorAll(".feed-time");
+    for (var i = 0; i < times.length; i++) {
+      var timeEl = (
+        /** @type {any} */
+        times[i]
+      );
+      if (timeEl._acsvNipUp) continue;
+      if (timeEl.parentNode && timeEl.parentNode.querySelector("." + NIP)) continue;
+      var info = timeEl.closest(".feed-up-info");
+      var up = info && info.closest(".feed-up");
+      var upLink = up && up.querySelector('a[href*="/u/"], a[href*="/live/"]');
+      var uid = parseUidFromHref(upLink && upLink.getAttribute("href"));
+      if (!uid) continue;
+      timeEl._acsvNipUp = true;
+      injectUpFor(timeEl, uid);
+    }
+  }
   function retrySeen(el2) {
     if (el2.querySelector("." + NIP)) return;
     var uid = uidOf2(el2);
@@ -19173,6 +19223,8 @@ window.__ACSV_HLS_LEN__ = 296762;
   }
   function onDomChange() {
     scanComments();
+    injectProfileIp();
+    injectUpIp();
   }
   var lastUrl = "";
   var lastPath = "";

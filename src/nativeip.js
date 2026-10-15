@@ -1,8 +1,9 @@
 // @ts-check
 // ---------- 原生页评论 IP + 设备（0.9.248，Web-IP 吸收 6a；路线图 Phase 6 · 任务卡 6.1） ----------
 // 覆盖面（2026-10-15 真机逐面实测，docs/api-research.md §13）：评论区＝`[data-commentid]` 统一
-// 组件——视频 /v/、文章 /a/、动态详情 /moment/ 三面同款，楼中楼子评论同带（`sec` 类）。
-// 用户主页 /u/ 与个人中心 /member 动态条目两处专属挂点在 6b 批入住（见 onDomChange 尾注）。
+// 组件——视频 /v/、文章 /a/、动态详情 /moment/ 三面同款，楼中楼子评论同带（`sec` 类）；
+// 专属挂点＝用户主页 /u/ 的 `#ac-space-info[data-uid]` 与个人中心 /member 动态条目的
+// `.feed-time`（6b 批，closest 两跳爬链真机核过在册）。
 //
 // 与 Web-IP v5.8.5 的关系（吸收口径，每条差异有意为之）：
 //  - 拦截层（fetch/XHR hook → commentId→userId 映射，**路径变清表**）+ DOM 兜底链
@@ -205,6 +206,62 @@ function processDevices() {
   }
 }
 
+// ---------- 专属挂点（6b）：用户主页 /u/ 与个人中心 /member 动态条目 ----------
+
+// 用户主页资料卡「IP属地：x」（Web-IP injectProfileIp 同款：文案带前缀、class common-info 复用
+// 站内相对定位与私信/举报/分享同一水平线、12px/#999/margin-left 16 内联）
+function injectProfileIp() {
+  if (!/^\/u\/\d+/.test(location.pathname)) return;
+  var info = document.querySelector('#ac-space-info[data-uid]');
+  if (!info || info.querySelector('.' + NIP)) return;
+  var uid = info.getAttribute('data-uid');
+  if (!uid) return;
+  resolveFor(uid, function (ip, t) {
+    if (info.querySelector('.' + NIP)) return;
+    var top = info.querySelector('.top');
+    if (!top) return;
+    var s = document.createElement('span');
+    s.className = NIP + ' common-info';
+    s.style.cssText = 'font-size:12px;color:#999;margin-left:16px;';
+    s.textContent = 'IP属地：' + ip;
+    s.title = tagTitle(ip, t);
+    top.appendChild(s);
+    stat('nip.profile');
+  });
+}
+
+// 个人中心动态条目：UP 的 IP 追加进 `.feed-time` 内（Web-IP injectUpIp 同款）
+function injectUpFor(timeEl, uid) {
+  resolveFor(uid, function (ip, t) {
+    if (!timeEl.isConnected) return;
+    if (timeEl.parentNode && timeEl.parentNode.querySelector('.' + NIP)) return;
+    var s = document.createElement('span');
+    s.className = NIP;
+    s.textContent = ip;
+    s.title = tagTitle(ip, t);
+    timeEl.appendChild(s);
+    stat('nip.up');
+  });
+}
+
+function injectUpIp() {
+  if (!/^\/member(\/|$)/.test(location.pathname)) return;
+  var times = document.querySelectorAll('.feed-time');
+  for (var i = 0; i < times.length; i++) {
+    var timeEl = /** @type {any} */ (times[i]); // _acsvNipUp 背引用不在 Element 契约面
+    if (timeEl._acsvNipUp) continue;
+    if (timeEl.parentNode && timeEl.parentNode.querySelector('.' + NIP)) continue;
+    // closest 两跳取条目（真机链：.feed-time → .feed-up-info → .feed-up → ……，§13 核过在案）
+    var info = timeEl.closest('.feed-up-info');
+    var up = info && info.closest('.feed-up');
+    var upLink = up && up.querySelector('a[href*="/u/"], a[href*="/live/"]');
+    var uid = parseUidFromHref(upLink && upLink.getAttribute('href'));
+    if (!uid) continue; // uid 未渲染出来时不标记，留待下次 DOM 变化重试（Web-IP 同款）
+    timeEl._acsvNipUp = true;
+    injectUpFor(timeEl, uid); // 按节点传参（不在循环里写共享闭包——广场 0.9.230 教训在案）
+  }
+}
+
 // ---------- 重扫（DOM 变化防抖） ----------
 
 function retrySeen(el) {
@@ -231,7 +288,8 @@ function scanComments() {
 
 function onDomChange() {
   scanComments();
-  // 6b 挂点（用户主页 /u/ 的 #ac-space-info、个人中心 /member 的 .feed-up）在此追加
+  injectProfileIp(); // 6b：用户主页资料卡
+  injectUpIp();      // 6b：个人中心 /member 动态条目
 }
 
 // ---------- SPA 路由 ----------

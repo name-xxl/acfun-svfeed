@@ -149,7 +149,10 @@ const HARNESS_CASES = [
   // 0.9.248 原生页评论 IP+设备（Web-IP 吸收 6a）：BOOT_PATH 改到 /v/（pagekind=video ⇒
   // mountNativeIp）+ NO_AUTOMOUNT 无壳（见 harness.html）；场景体自建原生评论 DOM——
   // 标签注入/设备切换/拦截层与竞态修正/SAP 路由清映射
-  { name: 'native-ip', viewport: { width: 1600, height: 900 } }
+  { name: 'native-ip', viewport: { width: 1600, height: 900 } },
+  // 0.9.249 原生页专属挂点（6b）：路由 pushState 串测 /u/ 主页资料卡与 /member/feeds 动态条目
+  //（同 BOOT_PATH /v/ + NO_AUTOMOUNT；两挂点经路由监听各自重扫）
+  { name: 'native-surfaces', viewport: { width: 1600, height: 900 } }
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {
