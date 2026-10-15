@@ -238,7 +238,9 @@ feed/webPush 目前只有**视频条目**的字段实测。待测清单：
 > - **原生适配件**（新写，只做三件事）：① **取数**——拦截层 hook fetch/XHR 捕获
 >   `comment/list|sublist|subComment|reply` 回包建 commentId→userId 映射（路由切换清表）＋ DOM
 >   兜底链（`a[data-userid]` / `a.name[data-uid]` / `a[href*=/u/]` / 头像 src 模式）；**只挂原生页**
->   （pageKind 门），竖刷不吃（5.1 已简化掉该层）。② **注点**——两布局（`.area-comment-from` /
+>   （pageKind 门），竖刷不吃（5.1 已简化掉该层）。**port 时修一处原项目薄弱点**：Web-IP 的 IO
+>   回调先 unobserve 再处理、uid 提取失败（映射未就绪竞态）即**永久漏处理**（其
+>   `70-observers.js:7+64`）；我们改为「提取失败不卸观察 / 留待重扫」。② **注点**——两布局（`.area-comment-from` /
 >   `.comment-item-footer-left`）＋ 主页（`#ac-space-info[data-uid]`）＋ UP 动态区（feed-up）；
 >   选择器全部收适配件常数区（站点改版只改这里）；设备美化锚文本替换共用同一遍扫描。③ **活命**——
 >   IO 可见优先 ＋ MutationObserver 防抖重扫 ＋ 缓存原地补注（不重查）＋ data 标记去重 ＋
