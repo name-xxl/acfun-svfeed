@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
 import { el, esc, toast, selfUid, ensureStyle, a11y } from './ui.js'; // cookieVal 已随图片换链管线迁 imsend（0.9.163）
+import { pad2 } from './timefmt.js';
 import { root, claimDrawer, releaseDrawer, setRoot } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { testHook } from './dbg.js';
@@ -83,9 +84,9 @@ function msgTime(m) {
   return 0;
 }
 
-function pad2(n) { return n < 10 ? '0' + n : '' + n; }
-// 对齐抖音相对时间：今天显时刻（刚刚/HH:MM）、昨天、一周内显星期、更早显日期（本地时区）
-function relTime(ts) {
+// 对齐抖音相对时间：今天显时刻（刚刚/HH:MM）、昨天、一周内显星期、更早显日期（本地时区）。
+// 0.9.243 由 relTime 改名 chatTime：与 timefmt.relTime（原生四档口径）同名两义，防混用
+function chatTime(ts) {
   if (!ts) return '';
   var d = Date.now() - ts;
   if (d < 60000) return '刚刚';
@@ -313,7 +314,7 @@ function renderList(kw, ss) {
     var prev = el('div', 'acsv-im-preview', previewOf(r));
     mid.appendChild(prev);
     row.appendChild(mid);
-    var tm = el('div', 'acsv-im-time', relTime(r.t));
+    var tm = el('div', 'acsv-im-time', chatTime(r.t));
     row.appendChild(tm);
     row.addEventListener('click', function (ev) {
       ev.stopPropagation();

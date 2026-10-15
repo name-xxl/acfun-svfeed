@@ -110,6 +110,8 @@ export function parseShare(text) {
   return shareAt(t, pick.m, pick.kind, pick.id);
 }
 
+// 本地副本按零依赖叶豁免（0.9.243 单源收口批注）：immsg 零依赖是既有定案（引 timefmt 即破叶），
+// 一行 helper 换取整链解耦，值
 function pad2(n) { return n < 10 ? '0' + n : '' + n; }
 export function fmtDur(sec) {
   var s = Math.round(Number(sec) || 0);

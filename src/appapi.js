@@ -3,7 +3,7 @@ import { request, mockHit } from './net.js';
 import { stat } from './dbg.js';
 import { singleFlight } from './ui.js';
 import { normalizeHome, foldBr } from './playitem.js';
-import { fmtDate } from './timefmt.js';
+import { fmtDate, pad2 } from './timefmt.js';
 import { coverUrl } from './imgurl.js';
 import { applyQuality } from './quality.js';
 import { parseAdvanced } from './advdm.js';
@@ -41,7 +41,6 @@ export function appDeviceHeaders(withAppVer) { return homeHeaders(withAppVer !==
 
 function homeHeaders(withAppVer) {
   var d = new Date();
-  function p(n) { return n < 10 ? '0' + n : '' + n; }
   var h = {
     'User-Agent': CFG.home.ua,
     'acPlatform': 'ANDROID_PHONE',
@@ -51,8 +50,8 @@ function homeHeaders(withAppVer) {
     'udid': UDID,
     'resolution': '1080x1920',
     'market': 'tencent',
-    'requestTime': d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
-      + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) + '.000',
+    'requestTime': d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate())
+      + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()) + '.000',
     'Content-Type': 'application/x-www-form-urlencoded'
   };
   if (withAppVer) h['appVersion'] = CFG.home.appVer;

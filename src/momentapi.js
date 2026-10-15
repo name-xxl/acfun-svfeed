@@ -45,10 +45,6 @@ export function momentDetail(id) {
     .then(momentDetailStateOf);
 }
 
-export function momentPageUrl(id) {
-  return CFG.api.momentBase + id;
-}
-
 // ---------- 回包规整（0.9.159 自 data.js 域归域迁入）：端点回包 → 模型，纯函数单测直采 ----------
 // 本域回包形状只有本域消费，规整随域走（不再寄放契约层）；squarePageOf 消费的条目派发
 // squarePanelOf 仍属契约层（面板条目契约单源）。

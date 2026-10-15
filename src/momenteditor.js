@@ -33,7 +33,7 @@ var root = null;  // 根容器（overlay 挂载点；收尾一起删）
 export function repostOf(pi) {
   if (!pi) return null;
   if (pi.ct === 'moment') {
-    return { ct: 'moment', id: pi.momentId, text: pi.text || '', imgs: pi.imgs || [], cover: '', up: pi.up || null };
+    return { ct: 'moment', id: pi.momentId, text: pi.text || '', imgs: pi.imgs || [], cover: pi.cover || '', up: pi.up || null };
   }
   if (pi.ct === 'video') {
     return { ct: 'video', id: pi.acId, title: pi.title || '', cover: pi.cover || '', dur: pi.dur || '', views: pi.views || '', up: pi.up || null };

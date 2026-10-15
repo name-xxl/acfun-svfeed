@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { PLAYER_ICONS } from './styles.js';
-import { el, fmtTime, ensureStyle, spinner, setBtnIcon } from './ui.js';
+import { el, fmtTime, ensureStyle, spinner, setBtnIcon, videoOf } from './ui.js';
 import { errBox } from './errbox.js';
 import { root, scroller, setRoot, setScroller, setCommentDrawer, slideAt, resetDrawerSlot, stageVisible, isOvlSlide, OVL_IDX } from './state.js';
 import { parseRoute, isFeedRoute, syncHash, getAppliedMid, setAppliedMid, cancelHashSync, setItemProvider } from './route.js';
@@ -58,7 +58,7 @@ function panFitOf(video) {
   return video.videoWidth / video.videoHeight <= (window.innerWidth - dw) / window.innerHeight;
 }
 function syncPanFit(slide) {
-  var v = slide.querySelector('video');
+  var v = videoOf(slide);
   if (v && panFitOf(v)) slide.dataset.panfit = '1';
   else slide.removeAttribute('data-panfit');
 }
@@ -205,7 +205,7 @@ export function renderWindow() {
       else scroller.appendChild(slide);
       if (io) io.observe(slide);
     }
-    if ((i === cur || i === cur + CFG.win.fwd) && !slide.querySelector('video')
+    if ((i === cur || i === cur + CFG.win.fwd) && !videoOf(slide)
       && slide.dataset.state !== 'error') {
       attachVideo(slide, FeedStore.items[i], i);
     }
@@ -270,14 +270,14 @@ function setActive(idx) {
   for (var wi = Math.max(0, idx - CFG.win.back); wi <= idx + CFG.win.fwd && wi < FeedStore.items.length; wi++) {
     var ws = slideAt(wi);
     if (!ws || !offCurrent(ws)) continue;
-    var wv = ws.querySelector('video');
+    var wv = videoOf(ws);
     if (wv && !wv.paused) {
       wv.pause();
       if (ws._dmLayer) ws._dmLayer.stop();
     }
   }
   var curSlide = slideAt(idx);
-  var cur = curSlide && curSlide.querySelector('video');
+  var cur = videoOf(curSlide);
   if (cur) {
     cur.muted = !pb.soundOn;
     // 舞台被视图盖住时不起播、不弹提示：隐藏舞台起播＝幽灵音频（视图冷启动时 loadInitial
@@ -349,6 +349,7 @@ function snapWatchTick() {
   if (!scroller || !FeedStore.items.length) return;
   // 舞台被视图盖住时 scroller 无布局盒：offsetTop 全体归 0 ⇒ 任何静止位都"非吸附"，必须排除
   if (!stageVisible()) return;
+  if (document.hidden) return; // 后台标签不打扰（imbade/followbadge 同款约定）；回前台下一拍自然续上
   var a = scroller.scrollTop;
   setTimeout(function () {
     if (!scroller || !stageVisible()) return;

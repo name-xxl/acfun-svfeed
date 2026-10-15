@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { testHook } from './dbg.js';
-import { el } from './ui.js';
+import { el, videoOf } from './ui.js';
 import { root, scroller } from './state.js';
 import { parseRoute } from './route.js';
 import { overlayOpen, overlayTeardown } from './overlay.js';
@@ -50,7 +50,7 @@ function pauseAllVideos() {
 function resumeCurrentVideo() {
   if (!scroller) return;
   var slide = scroller.querySelector('.acsv-slide[data-idx="' + FeedStore.current + '"]');
-  var v = slide && slide.querySelector('video');
+  var v = videoOf(slide);
   if (v && v.paused) {
     var p = v.play();
     if (p && p.catch) p.catch(function () { }); // 自动播放策略拒绝时静默（用户手动起播）
@@ -63,7 +63,7 @@ function resumeCurrentVideo() {
 function stageHide() {
   if (!scroller || scroller.style.display === 'none') return;
   var slide = scroller.querySelector('.acsv-slide[data-idx="' + FeedStore.current + '"]');
-  var v = slide && slide.querySelector('video');
+  var v = videoOf(slide);
   wasPlaying = !!(v && !v.paused);
   scroller.style.display = 'none';
   pauseAllVideos();

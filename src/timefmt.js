@@ -29,14 +29,16 @@ export function relTime(ms, now) {
   return (dt.getMonth() + 1) + '月' + dt.getDate() + '日 ' + hm;
 }
 
+// 两位补零（0.9.243 单源收口：appapi/imdrawer/ui 三处同形副本归此；immsg 零依赖叶豁免保留本地）
+export function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
 // 本地时区 YYYY-MM-DD（0.9.85）。**不要用 toISOString().slice(0,10)**：那是 UTC，
 // 本地凌晨/晚上会整体差一天（既有 resolve 兜底分支就踩过）
 export function fmtDate(ms) {
   var t = Number(ms) || 0;
   if (!t) return '';
   var d = new Date(t);
-  var p = function (n) { return (n < 10 ? '0' : '') + n; };
-  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
 }
 
 // 卡片上的"时间"文案（0.9.85）：今天/昨天/前天走 relTime 的相对文案（今天8小时前 / 昨天20时36分 /

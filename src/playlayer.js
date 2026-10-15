@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { spinner, toast } from './ui.js';
+import { spinner, toast, videoOf } from './ui.js';
 import { errBox } from './errbox.js';
 import { bindLayerGestures } from './playgest.js'; // 层内滑动手势（0.9.184 自本模块拆出）
 import { parseRoute } from './route.js';
@@ -92,7 +92,7 @@ function syncListTab() {
 
 // 当前播放位置（秒；<1s 不记——首帧误差不值得存）
 function curTime() {
-  var v = slideRef && slideRef.querySelector('video');
+  var v = videoOf(slideRef);
   return v && v.currentTime > 1 ? v.currentTime : 0;
 }
 
@@ -134,7 +134,7 @@ function mountSlide(body, item, resumeAt) {
   setCurItem(item);
   // 键盘手势重定向（空格/静音/快进/全屏打层内那条；有钩子不回落竖刷，见 state.videoTarget）
   setVideoTarget(function () {
-    var v = slideRef && slideRef.querySelector('video');
+    var v = videoOf(slideRef);
     return v || null;
   });
   // 关页/切标签兜底上报的重定向（0.9.86，见 state.watchTarget）：reportLeaveCurrent 必须能
@@ -290,7 +290,7 @@ registerView({
 // debug 构建测试钩子：harness 断言读层态与游走账（release 死码消除；键名是 harness 契约，勿改）
 testHook('playlayer', function () {
   var ls = debugState();
-  var v = slideRef && slideRef.querySelector('video');
+  var v = videoOf(slideRef);
   return {
     active: !!slideRef,
     id: curItemOf() ? curItemOf().id : null,

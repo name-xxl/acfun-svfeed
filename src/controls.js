@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { ICONS, PLAYER_ICONS } from './styles.js';
-import { el, elHtml, toast, fmtTime, isCinema, toggleWebFull, toggleWindowFull, a11y, mountIcon, closeOnOutsideClick } from './ui.js';
+import { el, elHtml, toast, fmtTime, isCinema, toggleWebFull, toggleWindowFull, a11y, mountIcon, closeOnOutsideClick, videoOf } from './ui.js';
 import { root, slideAt, isOvlSlide, videoTarget, playItem } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { pb, togglePlayGesture, toggleMuteGesture, applyLoop, setVolume, isMuted, applyRate, fillVolSlide } from './playback.js';
@@ -16,7 +16,7 @@ function applyDmState(sl, item) {
   var on = dmEnabled();
   if (sl && sl._ctlDmBtn) sl._ctlDmBtn.classList.toggle('on', on);
   if (!sl) return;
-  var v = sl.querySelector('video');
+  var v = videoOf(sl);
   if (on && v) dmOnPlaying(sl, item, v);
   else if (sl._dmLayer) sl._dmLayer.stop();
 }
@@ -51,7 +51,7 @@ export function showControls(slide) {
       showControls(slide);
       return;
     }
-    var v = slide.querySelector('video');
+    var v = videoOf(slide);
     if (v && !v.paused) slide.dataset.ctl = '';
   }, CFG.time.ctlIdle);
 }
@@ -72,7 +72,7 @@ export function buildControls(slide, idx, item) {
   track.appendChild(bubble);
 
   var dragging = false;
-  function videoOf() { return slide.querySelector('video'); }
+  // 0.9.243：原局部取 video 闭包收口到 ui.videoOf(slide)（单源），此处不再自持
   // 缩略图懒拉（0.9.200）：首次悬停才取，失败静默（整块不显示，气泡回落为"只有时间"）
   function ensureSprite() {
     if (!item || item._sprite || item._spriteBusy || !item.videoId) return;
@@ -102,7 +102,7 @@ export function buildControls(slide, idx, item) {
       fill.style.width = ratio * 100 + '%';
       handle.style.left = ratio * 100 + '%';
     }
-    var v = videoOf();
+    var v = videoOf(slide);
     if (v && v.duration) {
       var sec = ratio * v.duration;
       btime.textContent = fmtTime(sec);
@@ -129,7 +129,7 @@ export function buildControls(slide, idx, item) {
     if (!dragging) return;
     dragging = false;
     track.dataset.drag = '';
-    var v = videoOf();
+    var v = videoOf(slide);
     var ratio = ratioAt(ev);
     if (v && v.duration) v.currentTime = ratio * v.duration;
     bubble.classList.remove('show');
@@ -152,7 +152,7 @@ export function buildControls(slide, idx, item) {
   a11y(playBtn, '播放/暂停（空格）');
   playBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
-    togglePlayGesture(videoOf());
+    togglePlayGesture(videoOf(slide));
   });
 
   var timeLabel = el('span', 'acsv-time', '00:00 / 00:00');
@@ -205,7 +205,7 @@ export function buildControls(slide, idx, item) {
   a11y(muteBtn, '静音开关（M）· 悬停调节音量');
   muteBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
-    toggleMuteGesture(videoOf());
+    toggleMuteGesture(videoOf(slide));
   });
   var volSlide = buildVolSlide();
   volWrap.appendChild(muteBtn);
@@ -246,7 +246,7 @@ export function buildControls(slide, idx, item) {
   }
   pipBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
-    togglePip(videoOf());
+    togglePip(videoOf(slide));
   });
 
   // 两级全屏（0.9.197 用户裁决）：网页全屏＝隐自身 UI、画面铺满浏览器窗口；窗口全屏＝再进 OS 全屏。
@@ -306,7 +306,7 @@ export function buildControls(slide, idx, item) {
     slide._ctlDmBtn = dmBtn; // 面板路径经 applyDmState 找得到本条按钮（同 _qBtn 体例）
 
     // 常驻内嵌输入框（Enter 发送，Esc 失焦）
-    dmBox = dmCreateBox(item, videoOf);
+    dmBox = dmCreateBox(item, function () { return videoOf(slide); });
 
     // 弹幕设置键 + 展开面板（0.9.202）：面板挂 slide（不随控制栏闲置隐藏），外点/Esc 收
     dmSetBtn = elHtml('button', 'acsv-cbtn acsv-cdmset');
@@ -371,7 +371,7 @@ export function buildControls(slide, idx, item) {
       setSetting('codec', keys[i]); // 0.9.89 收编：同键设置面板也改，控制栏菜单 getter 展开时现读
       toast('编码偏好：' + ['自动', 'H.264', 'HEVC'][i]);
       // 档位集随偏好过滤（applyQuality）：清懒解析缓存强制重跑解析链
-      var v = slide.querySelector('video');
+      var v = videoOf(slide);
       if (v && v.currentTime > 1) slide._resumeAt = v.currentTime;
       item.urls = [];
       item.qualities = null;
@@ -392,7 +392,7 @@ export function buildControls(slide, idx, item) {
       setSetting('buf', k); // 0.9.89 收编（会话内即时生效靠下面的重挂；落盘走设置层防抖）
       toast('缓冲：' + p.label + '（前向 ' + p.maxBufferLength + 's）');
       // 只影响 Hls 构造参数：重挂即生效
-      var v = slide.querySelector('video');
+      var v = videoOf(slide);
       if (v && v.currentTime > 1) slide._resumeAt = v.currentTime;
       attachVideo(slide, item, Number(slide.dataset.idx));
       rebuildFwdNeighbor(slide, false);

@@ -5,6 +5,31 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.243（2026-10-15）· 单源收口批：pad2/videoOf 归位、relTime 改名、死码清理、测试管线并行
+
+**病灶（复核清单实锤）**：同一小逻辑多份副本与同名两义——`pad2` 五处（appapi/imdrawer/
+immsg/timefmt/ui）、`querySelector('video')` 20 处跨 8 文件、`imdrawer.relTime`（抖音式）与
+`timefmt.relTime`（原生四档）同名两义；另有零引用死码（`ui.toggleFullscreen`、
+`momentapi.momentPageUrl`、8 个无生产者 CSS 类）；`repostOf` moment 分支硬写 `cover:''`
+与 panelitem 生产面（cover 透传）不对称；snapWatch 缺后台标签门；`npm test` 三段串行白等。
+
+- **修法**：
+  - `pad2` 归 `timefmt.js` 单源（appapi/imdrawer/ui 三处副本改 import；ui.fmtTime/fmtDurMs 顺带
+    改走它）；**immsg 按零依赖叶属性豁免**（引 timefmt 即破叶——既有定案，本地副本留注释档）。
+  - `imdrawer.relTime` 改名 `chatTime`（防与 timefmt.relTime 混用；调用点 :316 随改）。
+  - `ui.videoOf(slide)` 单源（null 安全），`querySelector('video')` 20 处全数收口；controls 局部
+    `videoOf()` 闭包退役（dmCreateBox 注入改写为 `function () { return videoOf(slide); }`）。
+  - 死码删除：`ui.toggleFullscreen`、`momentapi.momentPageUrl`、styles 八类（dmpnote /
+    space-more×2 / space-tip / cbtxt / mdetail-imgs×2 / mdetail-imgcell×2 / vsec×2）。
+  - `repostOf` moment 分支 `cover: pi.cover || ''`（对齐 panelitem 生产面）。
+  - snapWatch 补 `document.hidden` 门（后台标签不打扰，同徽标轮询约定；回前台下一拍自然续上）。
+  - `npm test` 改 `test/run-all.mjs`：check/单测/harness 三段并行（本机 20 核实测 ~44s vs 串行
+    ~54.6s），输出按任务名行级加前缀；CI 分步跑法不动（`npm test` 仅本地入口）。
+- **测试证据**：新单测 `momenteditor-repost.test.js`（repostOf 三支形状 + cover 透传钉——
+  **摘修复反跑**：moment 分支 cover 改回 `''` ⇒ 断言转红，还原复绿）；pad2/videoOf/改名/死码为
+  等价改写，由 lint/check + 全量单测 + 65/65 场景兜底。README 依赖图 +2 边（ui→timefmt、
+  imdrawer→timefmt）。lint/check + 319 单测 + 65/65 场景全绿。
+
 ### 0.9.242（2026-10-15）· hls 内嵌串压缩存储：产物 -176KB（-23%），每页少解析约 180KB
 
 **病灶（体积账本实测）**：hls.light.min.js 以**原文**字符串内嵌（window.__ACSV_HLS_SRC__，

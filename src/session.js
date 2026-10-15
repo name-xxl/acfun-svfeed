@@ -1,7 +1,7 @@
 // @ts-check
 import { CFG } from './cfg.js';
 import { stat, set, testHook } from './dbg.js';
-import { toast, sweepSlideVideos } from './ui.js';
+import { toast, sweepSlideVideos, videoOf } from './ui.js';
 import { ensureResolved } from './api.js';
 import { nativeHls, ensureHls } from './hls.js';
 import { getSetting } from './settings.js';
@@ -134,7 +134,7 @@ export function createSession(slide, item, idx, hooks) {
       }
       ensureHls().then(function (Hls) {
         if (self.state === 'disposed') return;
-        if (!slide.isConnected || slide.querySelector('video') !== video) return; // 期间已换绑
+        if (!slide.isConnected || videoOf(slide) !== video) return; // 期间已换绑
         if (!Hls || !Hls.isSupported()) { self._failNoHls('attach.unsupported'); return; }
         self._destroyHls();
         var hls = new Hls(bufConfig());

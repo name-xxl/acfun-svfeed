@@ -1,5 +1,5 @@
 import { ICONS } from './styles.js';
-import { el } from './ui.js';
+import { el, videoOf } from './ui.js';
 import { root, scroller, slideAt, videoTarget, isOvlSlide, ovlNoNext } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { getSetting, setSetting } from './settings.js';
@@ -82,7 +82,7 @@ export function currentVideo() {
   var tf = videoTarget();
   if (tf) return tf();
   var s = slideAt(FeedStore.current);
-  return s && s.querySelector('video');
+  return videoOf(s);
 }
 
 // 「非当前即暂停」谓词：setActive 窗口扫描与 sweepVideos 幽灵扫描共用（0.9.38 收敛）
@@ -173,7 +173,7 @@ export function showSoundHint(slide) {
   btn.addEventListener('click', function (ev) {
     ev.stopPropagation();
     pb.firstGestureSeen = true;
-    var v = slide.querySelector('video');
+    var v = videoOf(slide);
     enableSound(v);
     if (v && pb.soundOn) playVideo(v);
     hideSoundHint();

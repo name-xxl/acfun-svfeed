@@ -521,6 +521,7 @@ flowchart LR
   favapi["favapi.js（收藏域读写·夹 CRUD）"]
   favpop["favpop.js（收藏夹选择层·语义件）"]
   panelitem --> imgurl & playitem & timefmt & ubbtext
+  ui --> timefmt
   playitem --> imgurl
   imgview --> overlay
   imgload --> imgurl
@@ -551,7 +552,7 @@ flowchart LR
   imsend --> appapi & immsg
   sharepanel --> imsend & imgload
   imbadge --> imsend
-  imdrawer --> appapi & comments & emoticon & imbadge & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & toastmsg & ubb
+  imdrawer --> appapi & comments & emoticon & imbadge & imcard & imgload & imgview & imicons & immsg & imsend & sharepanel & inputbar & overlay & timefmt & toastmsg & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
   boot --> followview & imnative & jingxuanview & memberplaza & mypage & pagekind & player & playlayer & searchview & spacemoments & squareview & uppage & zone

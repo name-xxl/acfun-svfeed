@@ -1,5 +1,5 @@
 import { ICONS } from './styles.js';
-import { el, elHtml, a11y, spinner } from './ui.js';
+import { el, elHtml, a11y, spinner, videoOf } from './ui.js';
 import { fmtWan } from './timefmt.js';
 import { root, setCommentDrawer, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js';
@@ -127,7 +127,7 @@ function onSlideTap(ev) {
     var idx = Number(slide.dataset.idx);
     if (idx !== FeedStore.current) return;
   }
-  togglePlayGesture(slide.querySelector('video'));
+  togglePlayGesture(videoOf(slide));
 }
 
 // 评论抽屉骨架（挂载时构建一次；**只建空壳 + 注册句柄**——关闭键/列表委托由 comments.js

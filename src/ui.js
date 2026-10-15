@@ -1,6 +1,7 @@
 import { CFG } from './cfg.js';
 import { CSS } from './styles.js';
 import { root } from './state.js';
+import { pad2 } from './timefmt.js';
 
 export function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -24,10 +25,15 @@ export function elHtml(tag, cls, html) {
   return e;
 }
 
+// slide 内取 video 元素（0.9.243 单源收口：全项目 20 处手写 querySelector('video') 归此一件）。
+// null 安全——原「slide && slide.querySelector('video')」形态由此吸收
+export function videoOf(slide) {
+  return slide ? slide.querySelector('video') : null;
+}
+
 export function fmtTime(s) {
   s = Math.max(0, Math.floor(Number(s) || 0));
-  var m = Math.floor(s / 60), sec = s % 60;
-  return (m < 10 ? '0' + m : m) + ':' + (sec < 10 ? '0' + sec : sec);
+  return pad2(Math.floor(s / 60)) + ':' + pad2(s % 60);
 }
 
 // ms → 时长文案（h:mm:ss / m:ss；0 或非法值给空串）。0.9.179 收口：此前 reldrawer 与
@@ -36,8 +42,7 @@ export function fmtDurMs(ms) {
   var s = Math.round((Number(ms) || 0) / 1000);
   if (!s) return '';
   var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
-  var p = function (n) { return n < 10 ? '0' + n : '' + n; };
-  return h ? h + ':' + p(m) + ':' + p(r) : m + ':' + p(r);
+  return h ? h + ':' + pad2(m) + ':' + pad2(r) : m + ':' + pad2(r);
 }
 
 var toastTimer = null;
@@ -88,12 +93,6 @@ export function toggleFullLadder() {
   if (document.fullscreenElement) { document.exitFullscreen(); setCinema(false); return; }
   if (!isCinema()) { setCinema(true); return; }
   if (root && root.requestFullscreen) root.requestFullscreen();
-}
-
-// 全屏开关：root 容器整体进出（控制栏按钮与 F 键共用）
-export function toggleFullscreen() {
-  if (document.fullscreenElement) document.exitFullscreen();
-  else if (root && root.requestFullscreen) root.requestFullscreen();
 }
 
 // 样式表挂在 head 上，保证悬浮按钮在信息流未打开时也有样式

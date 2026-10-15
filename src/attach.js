@@ -1,4 +1,4 @@
-import { toast, sweepSlideVideos } from './ui.js';
+import { toast, sweepSlideVideos, videoOf } from './ui.js';
 import { createSession } from './session.js';
 import { slideAt, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js'; // 仅调用期解引用（0.9.115 断 feedstore↔player 环后为普通单向边）
@@ -66,7 +66,7 @@ export function detachSession(slide) {
 // 清晰度切换：保留进度重挂（slide._resumeAt 在 playing 后 seek 回去）
 // manual=true 表示用户在菜单手选：此后看门狗不再对该条目自动降档，且把新偏好同步到前向邻居
 export function switchQuality(item, slide, qIdx, manual) {
-  var video = slide.querySelector('video');
+  var video = videoOf(slide);
   if (!video || !item.qualities || !item.qualities[qIdx]) {
     // 解析中/错误态没有 video：菜单点击不能无声无息（!item.qualities 已由菜单侧 toast）
     if (!video && item.qualities) toast('视频还没就绪，稍候再试');
@@ -107,7 +107,7 @@ function syncFwdQuality(slide) {
     var fwd = slideAt(idx + 1);
     var it = fwd && FeedStore.items[idx + 1];
     if (!fwd || !it || !it.qualities || !fwd._session) return; // 解析在途时 reapply 未生效，等 resolve 现读新偏好
-    var fv = fwd.querySelector('video');
+    var fv = videoOf(fwd);
     if (fv && fv.currentTime > 1) fwd._resumeAt = fv.currentTime; // 预挂条可能被回看过（滑回场景）
     detachSession(fwd);
     attachVideo(fwd, it, idx + 1);
