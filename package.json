@@ -14,7 +14,7 @@
     "test:harness": "node test/run-harness.mjs",
     "case": "node test/run-harness.mjs",
     "typecheck": "tsc -p jsconfig.json",
-    "lint": "eslint src build.js test/unit"
+    "lint": "eslint src build.js test/unit tools"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

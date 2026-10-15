@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 // ---------- 源清单 ----------
 
 // [文件, 说明]；按报告口径收录（手机+平板）
-export const BRAND_SOURCES = [
+const BRAND_SOURCES = [
   ['360shouji.md', '360'],
   ['blackshark.md', '黑鲨'],
   ['coolpad.md', '酷派'],
@@ -67,7 +67,7 @@ export function shouldKeep(section, name) {
 
 // ---------- 归一规则（顺序即优先级；两轮收敛） ----------
 
-export const RULES = [
+const RULES = [
   ['multi', '多名合并取首段', /\s*\/.*$/],
   ['storage', '存储/内存括号', /\s*\((?:\d+\s*(?:GB|TB)(?:\s*\+\s*\d+\s*(?:GB|TB))?(?:\s*\/\s*\d+\s*(?:GB|TB)(?:\s*\+\s*\d+\s*(?:GB|TB))?)*|\d+\s*(?:GB|TB)\s*内存)\)\s*$/g],
   ['carrier', '运营商/渠道+SKU版', /(移动|联通|电信|运营商)(?:\s*(?:4G\+?|3G|5G|双卡|单卡|NFC|合约|定制|渠道|合作|优先|公开|国行|疾速|标配|高配|顶配|标准|尊享|旗舰|臻享|臻逸|优享|悦享|惊爆|超值))*\s*版/g],

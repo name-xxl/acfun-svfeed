@@ -25,6 +25,12 @@ test('normalizeName：运营商/区域后缀与保留项', () => {
   assert.equal(normalizeName('HUAWEI Mate 40 Pro 5G'), 'HUAWEI Mate 40 Pro 5G'); // 5G 保留
   assert.equal(normalizeName('iPhone 4'), 'iPhone 4'); // 无规则命中即原样
 });
+test('normalizeName：全网通/双网通与区域尾词', () => {
+  assert.equal(normalizeName('HUAWEI nova 全网通标配版'), 'HUAWEI nova');
+  assert.equal(normalizeName('红米 3 全网通 标准版'), '红米 3');
+  assert.equal(normalizeName('华为 P8 双 4G 标配版'), '华为 P8');
+  assert.equal(normalizeName('Nothing Phone (2) Global'), 'Nothing Phone (2)');
+});
 test('normalizeName：幂等（两轮收敛后不再变化）', () => {
   var samples = ['小米 5 高配版 / 尊享版', '一加 Ace 2 国行版 / 原神定制礼盒',
     'HUAWEI Mate 40 Pro 5G', '荣耀 Magic7 (16GB+1TB)', '红米 3X (联通定制)'];
