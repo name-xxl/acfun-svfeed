@@ -2,8 +2,9 @@
 // 机制：跟随关注视图行内评论宿主（comment-fail 同款入口：hash=follow → 行「评论」键就地展开）；
 // 定向桩两个——'comment/list'（三根评论 + 一楼中楼，四 uid）+ 'user/userInfo'（带计数：9001 有
 // 属地「广东」/9002 空串/9003 rejected 造网络错/9004 楼中楼「北京」）。
-//   ip-tags：未命中排队回填 + 标签落地（**同一 DOM 节点**不变式：item 引用渲染期捕获，标签必须
-//     长在它里面）+ meta 末尾落位 + 三行 tooltip（Web-IP 文案）+ 空属地/失败不渲染 + 楼中楼同显 +
+//   ip-tags：**视口内回填门控**（0.9.247，广场同款：滚离视口不查询 → 滚回才发、四条串行）+ 标签
+//     落地（**同一 DOM 节点**不变式：item 引用渲染期捕获，标签必须长在它里面）+ meta 末尾落位 +
+//     三行 tooltip（Web-IP 文案）+ 空属地/失败不渲染 + 楼中楼同显 +
 //     收起重开：命中同步上屏 + 四种缓存各自复用（计数不涨）
 //   ip-tags-off：bundle 前预置 acsv.s.ipShow=false（harness.html 场景预处理）→ 零查询、零标签
 // 新增场景记得同步 run-harness.mjs 的 HARNESS_CASES（test/check-cases.mjs 双向校验）
@@ -37,8 +38,9 @@
   // 根评论节点（注释：楼中楼会嵌套 .acsv-citem，取直属子级才是根）
   function rootsOf(box) { return box.querySelectorAll('.acsv-frow-cmtlist > .acsv-citem'); }
 
-  // 关注视图行内评论区打开（comment-fail 同款流程），返回 { row, box } 或 null
-  async function openRowInline(h) {
+  // 关注视图行内评论区打开（comment-fail 同款流程），返回 { row, box } 或 null。
+  // scrollAway：点开评论后**同步把视图滚到底**——把评论区推离视口，用于验证视口内回填门控
+  async function openRowInline(h, scrollAway) {
     var waitFor = h.waitFor, q = h.q;
     location.hash = 'svfeed/follow';
     var viewOk = await waitFor(function () {
@@ -57,6 +59,7 @@
     if (!mRow) return null;
     var acts = mRow.querySelectorAll('.acsv-fact');
     if (acts[1]) acts[1].click(); // 评论键 → 行内展开
+    if (scrollAway) { var vb = q('.acsv-view-body'); if (vb) vb.scrollTop = vb.scrollHeight; }
     var box = await waitFor(function () {
       var b = mRow.querySelector('.acsv-frow-cmts');
       return b && rootsOf(b).length === 3 ? b : null;
@@ -69,12 +72,22 @@
     var calls = {};
     window.__ACSV_MOCK_FORM__ = stubOf(calls);
     delete window.__ACSV_MOCK__; // 走定向桩（comment-fail 同款处置）
-    var hs = await openRowInline(h);
+    var hs = await openRowInline(h, true); // 打开即滚离视口（视口门控验证）
     rec('iph-open', !!hs);
     if (!hs) return;
     var items = rootsOf(hs.box);
     var item1 = items[0], item2 = items[1], item3 = items[2]; // 渲染期捕获：后面对「同一节点」断言
-    // 未命中 → 串行排队：等四发全部发出（200ms 间隔，~800ms 内）
+    // 视口门控（0.9.247，广场同款）：评论区已滚离视口 → **不得发起任何查询**（等一拍，计数全空）
+    await wait(500);
+    rec('iph-viewport-gate', !calls['9001'] && !calls['9002'] && !calls['9003'] && !calls['9004'],
+      'calls=' + JSON.stringify(calls) + ' boxTop=' + Math.round(hs.box.getBoundingClientRect().top));
+    // 滚回评论区 → 进视口才排队。两段滚动都是必需的：①居中整盒——前三件进**内层列表**的可见带
+    //（`.acsv-frow-cmtlist` 是 max-height:420 的独立滚动区；IO 的相交按祖先裁剪盒算，件被内层
+    // 列表裁掉就不算「在视口内」——本用例首跑正是栽在这 7px 裁切上，diag 实锤）；
+    // ②再滚第三件进带（内层列表跟着滚）
+    hs.box.scrollIntoView({ block: 'center' });
+    await wait(250);
+    item3.scrollIntoView({ block: 'nearest' });
     rec('iph-queried', !!(await waitFor(function () {
       return calls['9001'] >= 1 && calls['9002'] >= 1 && calls['9003'] >= 1 && calls['9004'] >= 1;
     }, 8000)), JSON.stringify(calls));

@@ -13,6 +13,9 @@
 //    见 docs/api-research.md §12.4；实测属地口径＝省级短名，原文直显不做二次格式化（§12.1）
 //  - 串行限流 / 负缓存分级 / 写防抖 / 上限淘汰照 Web-IP 既有值（阈值收 CFG.ip 单源）；
 //    **加** pagehide 兜底落盘（路线图健壮性通则：关页时在途防抖要答得上出口）
+//  - 回填触发＝**进入视口**（0.9.247，用户裁决「和广场一样用视口内回填」；squarefeed backfillIO
+//    同款机械）——渲染只挂观察、滚到才进队列；命中缓存仍同步上屏（根本不进观察）。长列表
+//    （首屏 40 条）不再把屏外评论塞满队列
 //  - 「无值不渲染」铁律：ipLocation 空串 → 不上标签、不占位（负缓存防重复查询）
 //
 // 设置：开关 ipShow / 保留期 ipKeep（SCHEMA group 评论）；Web-IP 老保留期键 `acr_days` 一次性收养。
@@ -220,6 +223,39 @@ function fetchFor(k, cb) {
   });
 }
 
+// ---------- 视口内回填（0.9.247，用户裁决「和广场一样用视口内回填」） ----------
+// 触发从「渲染即排队」改为「**进入视口**」——squarefeed backfillIO 同款（0.9.228/0.9.230 的机械
+// 与教训都在册）：单例 IO、rootMargin 200px、**root=视口**（不是宿主容器——广场实测容器 root 在
+// harness 里回调不触发；且「进入视口」本就该以视口为准，两种滚动方言通吃）、进过一次就 unobserve
+//（滚回去不重查——正/负缓存已兜）。命中缓存仍同步上屏，只有未命中才挂观察、滚到才排队。
+var viewIO = null;
+if (typeof IntersectionObserver === 'function') {
+  viewIO = new IntersectionObserver(function (entries) {
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i];
+      if (!e.isIntersecting) continue;
+      var meta = /** @type {any} */ (e.target); // 元素背引用 _acsvIpUid 不在 Element 契约面（cast 过 tsc）
+      viewIO.unobserve(meta); // 只观察一次
+      var uid = meta._acsvIpUid; // 元素背引用（commentkit _c/_n/_target 体例）
+      // 按节点传参进 armQuery（**不在循环里写闭包**——广场 0.9.230「闭包共享绑定、每批只补最后
+      // 一行」的真凶在案）
+      if (uid != null && meta.isConnected) armQuery(meta, String(uid));
+    }
+  }, { rootMargin: '200px' });
+}
+
+// 进视口后触发（非同步路径）：到点**重判缓存**——等待期间同 uid 的可见条目可能已查回
+function armQuery(meta, k) {
+  if (!getSetting('ipShow')) return; // 挂观察期间关开关：不再发起
+  var st = lookupState(uids[k], Date.now(), keepMsOf(getSetting('ipKeep')));
+  if (st === 'pos') { stat('ip.hit'); appendTag(meta, uids[k].ip, uids[k].t || 0); return; }
+  if (st === 'neg') { stat('ip.neg'); return; }
+  fetchFor(k, function (ip, t) {
+    if (!meta.isConnected) return; // 条目已被重渲染/宿主关闭：只留缓存
+    appendTag(meta, ip, t);
+  });
+}
+
 // ---------- 渲染点接线口（单源；commentkit 经 opts.ipTag 注入后调用） ----------
 
 function appendTag(meta, ip, t) {
@@ -229,7 +265,8 @@ function appendTag(meta, ip, t) {
   meta.appendChild(s);
 }
 
-// 挂标签（渲染点调用）：命中即上屏（同步）；负缓存静默；未命中排队，回填前查节点存活
+// 挂标签（渲染点调用）：命中即上屏（同步，不进观察）；负缓存静默；未命中挂**视口观察**，滚到
+// 才排队（无 IO 的老内核退回渲染即排队）
 export function tagInto(meta, uid) {
   if (!uid || !getSetting('ipShow')) return;
   var k = String(uid);
@@ -237,8 +274,10 @@ export function tagInto(meta, uid) {
   var st = lookupState(uids[k], Date.now(), keepMsOf(getSetting('ipKeep')));
   if (st === 'pos') { stat('ip.hit'); appendTag(meta, uids[k].ip, uids[k].t || 0); return; }
   if (st === 'neg') { stat('ip.neg'); return; }
-  fetchFor(k, function (ip, t) {
-    if (!meta.isConnected) return; // 条目已被重渲染/宿主关闭：只留缓存
-    appendTag(meta, ip, t);
-  });
+  if (viewIO) {
+    meta._acsvIpUid = k;
+    viewIO.observe(meta);
+  } else {
+    armQuery(meta, k);
+  }
 }
