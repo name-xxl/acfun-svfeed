@@ -17,7 +17,7 @@ globalThis.localStorage = {
 };
 
 var {
-  SCHEMA, storeKey, findItem, panelItems, validateValue, clampNumber,
+  SCHEMA, storeKey, findItem, panelItems, nativeItems, validateValue, clampNumber,
   coerceValue, fromLegacy, defaultsSnapshot
 } = await import('../../src/settings.js');
 
@@ -53,6 +53,20 @@ test('SCHEMA 不变量：面板项必须有 label/group，且类型在皮肤实�
     assert.ok(IMPL.indexOf(it.type) >= 0, it.key + ' 面板类型未实现：' + it.type);
   });
   assert.ok(panelItems().length >= 5, '首批面板项不应少于 5');
+});
+
+test('SCHEMA 不变量：原生面板项（panel ∧ native）⊆ 面板项、结构合法、成员当前钉三件（0.9.252）', () => {
+  var natives = nativeItems();
+  var keys = natives.map(function (it) { return it.key; });
+  // 精确钉成员：原生面板 = 评论域三件（用户裁决 A——点 IP 的语境只放 IP/设备项；增删即改此断言）
+  assert.deepEqual(keys, ['ipShow', 'ipKeep', 'devName']);
+  var panelKeys = panelItems().map(function (it) { return it.key; });
+  var IMPL = ['bool', 'select', 'number'];
+  natives.forEach(function (it) {
+    assert.ok(panelKeys.indexOf(it.key) >= 0, it.key + ' native 项必须同为 panel 项');
+    assert.ok(it.label && it.group, it.key + ' native 项缺 label/group');
+    assert.ok(IMPL.indexOf(it.type) >= 0, it.key + ' native 类型未实现：' + it.type);
+  });
 });
 
 test('SCHEMA 不变量：legacy 只对内部/收编项声明，且键名非空', () => {

@@ -272,11 +272,12 @@
       var t = card.textContent;
       return t.indexOf('甲') >= 0 && t.indexOf('9501') >= 0 && t.indexOf('广东') >= 0;
     })(), card ? card.textContent : 'none');
-    // ③ 全量 SCHEMA 表驱动在场（通用/播放/评论三组代表行）
+    // ③ 设置区＝**评论域** SCHEMA 表驱动（0.9.252 用户裁决 A）：评论三件在场 + 播放/通用项**不在**
     var labels = Array.prototype.map.call(mask.querySelectorAll('.acsv-np-row>span:first-child'), function (x) { return x.textContent; }).join('|');
-    rec('np-schema-rows', labels.indexOf('自动检查更新') >= 0 && labels.indexOf('缓冲档位') >= 0
-      && labels.indexOf('评论区显示 IP 属地') >= 0 && labels.indexOf('属地缓存保留') >= 0
-      && labels.indexOf('设备型号美化') >= 0, labels);
+    rec('np-schema-rows', labels.indexOf('评论区显示 IP 属地') >= 0 && labels.indexOf('属地缓存保留') >= 0
+      && labels.indexOf('设备型号美化') >= 0
+      && labels.indexOf('自动检查更新') === -1 && labels.indexOf('缓冲档位') === -1
+      && labels.indexOf('快进步长（秒）') === -1, labels);
     // ④ 开关拨动 + Esc 关闭即落盘（flushSettings）
     var ipRow = rowOf(mask, /评论区显示 IP 属地/);
     var ipSw = ipRow && ipRow.querySelector('.acsv-np-sw');

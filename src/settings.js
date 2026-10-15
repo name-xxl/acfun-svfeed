@@ -79,13 +79,15 @@ export var SCHEMA = [
   { key: 'dmFilter', type: 'text', def: '', panel: false, group: '弹幕', label: '过滤弹幕关键词' },
   // ---- 评论 IP 属地（0.9.245，Web-IP 吸收批次①）：查询/展示开关 + 缓存保留期（iploc 消费）。
   // 档位 v 即天数、'0'=永久——与 Web-IP acr_days 同值域（老键收养零翻译，见 iploc.adoptLegacyDays）；
-  // 缓存数据本体在 acr_uids（iploc 域，不进 SCHEMA）。放 SCHEMA 末尾：分组渲染按连续同名分组
-  { key: 'ipShow', type: 'bool', def: true, panel: true, group: '评论',
+  // 缓存数据本体在 acr_uids（iploc 域，不进 SCHEMA）。放 SCHEMA 末尾：分组渲染按连续同名分组。
+  // **native:true（0.9.252，用户裁决）**：原生页 IP 标签面板的设置区只渲染带此标记的项——点 IP
+  // 进来的语境就是 IP/设备功能（Web-IP 面板同范围），播放/通用项在原生页看不到效果、不进
+  { key: 'ipShow', type: 'bool', def: true, panel: true, native: true, group: '评论',
     label: '评论区显示 IP 属地', hint: '来自用户主页实时资料，不代表发布时的 IP；需登录态' },
-  { key: 'ipKeep', type: 'select', def: CFG.ip.keepDef, panel: true, group: '评论',
+  { key: 'ipKeep', type: 'select', def: CFG.ip.keepDef, panel: true, native: true, group: '评论',
     label: '属地缓存保留', options: CFG.ip.keepOptions,
     hint: '过期后重新查询；「永久」= 不自动过期（上限 5000 用户仍会淘汰）' },
-  { key: 'devName', type: 'bool', def: true, panel: true, group: '评论',
+  { key: 'devName', type: 'bool', def: true, panel: true, native: true, group: '评论',
     label: '设备型号美化', hint: '把「RMX3619」这类代号替换为「真我 V30」；点击型号可切回代号' }
 ];
 
@@ -101,6 +103,12 @@ export function findItem(key) {
 // 面板项（皮肤据此渲染；顺序即 schema 顺序，皮肤再按 group 分组）
 export function panelItems() {
   return SCHEMA.filter(function (it) { return !!it.panel; });
+}
+
+// 原生面板项（0.9.252）：panel ∧ native——原生页 IP 标签面板的设置区只渲染自己语境的项；
+// 契约仍本表单源（加项时在同一行顺手打 native 标记即可，两侧都不漏）
+export function nativeItems() {
+  return SCHEMA.filter(function (it) { return it.panel === true && it.native === true; });
 }
 
 // ---------- 纯函数（单测直采） ----------

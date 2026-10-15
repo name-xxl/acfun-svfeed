@@ -6,14 +6,16 @@
 // **不进 svfeed 暗色体系**（D4：共享层同源、皮肤各自生命周期）。
 // 结构（D4 表驱动 + Web-IP 面板资产）：
 //  - 用户资料卡（带 uid 进入时）：用户名 / UID / IP属地 / 查询于（iploc.entryOf 直读，含负缓存）
-//  - 设置区：**全量 SCHEMA 表驱动**（panelItems() 按组渲染；bool→开关 / select→分段 / number→步进）
+//  - 设置区：**评论域 SCHEMA 表驱动**（`nativeItems()`——panel ∧ native 标记；0.9.252，用户裁决：
+//    点 IP 进来的语境就是 IP/设备功能，播放/通用项在原生页看不到效果、不进；加项时在 SCHEMA
+//    同一行顺手打 native 标记，两侧都不漏）
 //  - 缓存管理（acr_uids）：导出 / 导入（粘贴 JSON，跳过已存在）/ 清空（二次确认）
 //  - 设备数据（acr_device_models 用户层）：N 条 + 导入（文件 .md/.txt + 粘贴，可跳过已存在）/
 //    导出 / 重置（二次确认）
 // 与 Web-IP 的有意差异：① 开关关语义分离——ipShow 关＝不查不渲染但**不清数据**（其「缓存开关
 // 关闭即清空」是耦合设计，清空改由显式按钮承担）；② 剪贴板走 ui.copyText（本仓无 GM_setClipboard
 // 授权）；③ toast 走本面板自带（原生页无 #acsv-root，ui.toast 依赖 root）。
-import { panelItems, getSetting, setSetting, flushSettings } from './settings.js';
+import { nativeItems, getSetting, setSetting, flushSettings } from './settings.js';
 import { entryOf, exportUids, importUids, clearUids } from './iploc.js';
 import { deviceCount, exportDevices, importDeviceText, resetUserDevices } from './devname.js';
 import { el, copyText } from './ui.js';
@@ -136,7 +138,7 @@ function cardRow(card, label, value, cls) {
 }
 
 function renderSettings(body) {
-  var items = panelItems();
+  var items = nativeItems(); // 评论域项（0.9.252）；分组标签随 schema（当前仅「评论」一组）
   var lastGroup = null;
   items.forEach(function (it) {
     if (it.group && it.group !== lastGroup) {

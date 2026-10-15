@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.251-debug
+// @version      0.9.252-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -68,7 +68,7 @@ window.__ACSV_HLS_LEN__ = 296762;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.251-debug" : "",
+          ver: true ? "0.9.252-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -1500,12 +1500,15 @@ window.__ACSV_HLS_LEN__ = 296762;
     { key: "dmFilter", type: "text", def: "", panel: false, group: "弹幕", label: "过滤弹幕关键词" },
     // ---- 评论 IP 属地（0.9.245，Web-IP 吸收批次①）：查询/展示开关 + 缓存保留期（iploc 消费）。
     // 档位 v 即天数、'0'=永久——与 Web-IP acr_days 同值域（老键收养零翻译，见 iploc.adoptLegacyDays）；
-    // 缓存数据本体在 acr_uids（iploc 域，不进 SCHEMA）。放 SCHEMA 末尾：分组渲染按连续同名分组
+    // 缓存数据本体在 acr_uids（iploc 域，不进 SCHEMA）。放 SCHEMA 末尾：分组渲染按连续同名分组。
+    // **native:true（0.9.252，用户裁决）**：原生页 IP 标签面板的设置区只渲染带此标记的项——点 IP
+    // 进来的语境就是 IP/设备功能（Web-IP 面板同范围），播放/通用项在原生页看不到效果、不进
     {
       key: "ipShow",
       type: "bool",
       def: true,
       panel: true,
+      native: true,
       group: "评论",
       label: "评论区显示 IP 属地",
       hint: "来自用户主页实时资料，不代表发布时的 IP；需登录态"
@@ -1515,6 +1518,7 @@ window.__ACSV_HLS_LEN__ = 296762;
       type: "select",
       def: CFG.ip.keepDef,
       panel: true,
+      native: true,
       group: "评论",
       label: "属地缓存保留",
       options: CFG.ip.keepOptions,
@@ -1525,6 +1529,7 @@ window.__ACSV_HLS_LEN__ = 296762;
       type: "bool",
       def: true,
       panel: true,
+      native: true,
       group: "评论",
       label: "设备型号美化",
       hint: "把「RMX3619」这类代号替换为「真我 V30」；点击型号可切回代号"
@@ -1541,6 +1546,11 @@ window.__ACSV_HLS_LEN__ = 296762;
   function panelItems() {
     return SCHEMA.filter(function(it) {
       return !!it.panel;
+    });
+  }
+  function nativeItems() {
+    return SCHEMA.filter(function(it) {
+      return it.panel === true && it.native === true;
     });
   }
   function validateValue(item, v) {
@@ -7294,7 +7304,7 @@ window.__ACSV_HLS_LEN__ = 296762;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.251-debug" : "",
+      version: true ? "0.9.252-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -15265,7 +15275,7 @@ window.__ACSV_HLS_LEN__ = 296762;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.251-debug" : "");
+    return normVer(true ? "0.9.252-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -18730,7 +18740,7 @@ window.__ACSV_HLS_LEN__ = 296762;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.251-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.252-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -19137,7 +19147,7 @@ window.__ACSV_HLS_LEN__ = 296762;
   var curUid = null;
   var wired = false;
   function ver() {
-    return true ? "0.9.251-debug" : "";
+    return true ? "0.9.252-debug" : "";
   }
   function ensureCss() {
     if (document.getElementById("acsv-np-css")) return;
@@ -19249,7 +19259,7 @@ window.__ACSV_HLS_LEN__ = 296762;
     card.appendChild(row);
   }
   function renderSettings(body) {
-    var items = panelItems();
+    var items = nativeItems();
     var lastGroup = null;
     items.forEach(function(it) {
       if (it.group && it.group !== lastGroup) {
