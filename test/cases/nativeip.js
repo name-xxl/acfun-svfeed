@@ -329,6 +329,11 @@
     var mask2 = await waitFor(function () { return document.querySelector('.acsv-np-mask'); }, 3000);
     rec('np-reopen', visible(mask2));
     var dRow = mask2 && rowOf(mask2, /设备数据/);
+    // 基准条数取导入前显示值（0.9.255 全量表 4,031 起不再写死绝对值；断「导入 +1」不变式）
+    var baseCount = (function () {
+      var m = dRow && /设备数据 (\d+) 条/.exec(dRow.textContent);
+      return m ? Number(m[1]) : -1;
+    })();
     var dImport = dRow && btnOf(dRow, '导入');
     if (dImport) dImport.click();
     var ta = mask2 && mask2.querySelector('.acsv-np-ta');
@@ -339,8 +344,9 @@
       if (confirmBtnImport) confirmBtnImport.click();
       await wait(250);
     }
-    rec('np-dev-count-after', !!(mask2 && /设备数据 997 条/.test(mask2.textContent)),
-      mask2 ? (rowOf(mask2, /设备数据/) || {}).textContent || 'none' : 'no-mask');
+    rec('np-dev-count-after', !!(mask2 && baseCount > 0
+      && new RegExp('设备数据 ' + (baseCount + 1) + ' 条').test(mask2.textContent)),
+      'base=' + baseCount + ' | ' + (mask2 ? (rowOf(mask2, /设备数据/) || {}).textContent || 'none' : 'no-mask'));
     var c2 = addComment('np-2', 9502, 'ZZZT-NP');
     rec('np-dev-import-e2e', !!(await waitFor(function () {
       var d = c2.querySelector('.deviceModel');

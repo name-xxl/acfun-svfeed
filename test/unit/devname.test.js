@@ -19,11 +19,12 @@ globalThis.localStorage = {
 };
 
 var {
-  mergeTab, buildIndexes, lookupIn, parseDeviceModelsText,
+  mergeTab, buildIndexes, lookupIn, parseDeviceModelsText, unpackDeviceTab,
   friendlyOf, deviceCount, exportDevices, importDeviceText, resetUserDevices
 } = await import('../../src/devname.js');
 var { isSafeKey } = await import('../../src/ui.js');
-var { DEVICE_TAB } = await import('../../src/devicetab.js');
+var { DEVICE_TAB_PACKED, DEVICE_TAB_LEN, DEVICE_TAB_COUNT } = await import('../../src/devicetab.js');
+var DEVICE_TAB = unpackDeviceTab(DEVICE_TAB_PACKED, DEVICE_TAB_LEN);
 
 // ---------- parseDeviceModelsText（Web-IP 7 项等值迁移） ----------
 
@@ -94,13 +95,39 @@ test('mergeTab：危险键剔除、非字符串值不收', () => {
   assert.equal(isSafeKey('G'), true);
 });
 
+// ---------- 内置表解包（0.9.255 数据优化专项） ----------
+
+test('unpackDeviceTab：解包成功 + 全量表 + 压缩串预算', () => {
+  assert.ok(DEVICE_TAB && typeof DEVICE_TAB === 'object');
+  assert.equal(Object.keys(DEVICE_TAB).length, DEVICE_TAB_COUNT);
+  assert.ok(DEVICE_TAB_COUNT >= 4000, 'n=' + DEVICE_TAB_COUNT);
+  assert.ok(DEVICE_TAB_PACKED.length < 48 * 1024, 'packed=' + DEVICE_TAB_PACKED.length);
+});
+test('unpackDeviceTab：截断/长度不符/空值一律 null（不炸）', () => {
+  assert.equal(unpackDeviceTab(DEVICE_TAB_PACKED.slice(0, 100), DEVICE_TAB_LEN), null);
+  assert.equal(unpackDeviceTab(DEVICE_TAB_PACKED, DEVICE_TAB_LEN + 1), null);
+  assert.equal(unpackDeviceTab('', DEVICE_TAB_LEN), null);
+  assert.equal(unpackDeviceTab(null, DEVICE_TAB_LEN), null);
+});
+
 // ---------- 真实内置表抽查（真机样本；防生成器走样） ----------
 
-test('DEVICE_TAB：真机样本与 Apple 抽查命中、规模 ≥900', () => {
+test('DEVICE_TAB：真机样本与 Apple 抽查命中、规模 ≥4000', () => {
   assert.equal(DEVICE_TAB['iPhone3,1'], 'iPhone 4');
+  assert.equal(DEVICE_TAB['iPhone14,5'], 'iPhone 13');   // harness dev 场景样本
   assert.equal(DEVICE_TAB['24129PN74C'], 'Xiaomi 15');   // 2026-10-15 真机评论样本
   assert.equal(DEVICE_TAB['RMX3619'], '真我 V30');
-  assert.ok(Object.keys(DEVICE_TAB).length >= 900, 'n=' + Object.keys(DEVICE_TAB).length);
+  assert.equal(DEVICE_TAB['PGT-AN10'], '荣耀 Magic5 Pro'); // 专项前窄表 miss（TAIL 截断），全量补回
+  assert.equal(DEVICE_TAB['PHK110'], '一加 Ace 2');       // 机械归一样本（原「一加 Ace 2 国行版 / 原神定制礼盒」）
+  assert.equal(DEVICE_TAB['SM-S9280'], 'Galaxy S24 Ultra');
+  assert.equal(DEVICE_TAB['NOH-AN00'], 'HUAWEI Mate 40 Pro 5G');
+  assert.ok(Object.keys(DEVICE_TAB).length >= 4000, 'n=' + Object.keys(DEVICE_TAB).length);
+});
+test('DEVICE_TAB：类别过滤不变式（无笔记本/电视泄漏）', () => {
+  var names = Object.values(DEVICE_TAB);
+  assert.ok(!names.some(function (n) { return /MateBook|MagicBook|MacBook|云电脑|智慧屏|电视/.test(n); }), '泄漏');
+  assert.equal(DEVICE_TAB['Nbl-WAQ9HNRP'], undefined); // 荣耀 MagicBook 曾漏进窄表（DROP 按章节名猜的洞）
+  assert.equal(DEVICE_TAB['W200DS'], undefined);        // 中兴云电脑（非手机/平板）
 });
 
 // ---------- 数据管理（0.9.250，面板 6c） ----------
@@ -122,13 +149,13 @@ test('importDeviceText：合并进用户层 + 跳过已存在 + 覆盖语义', (
 });
 test('resetUserDevices：清用户层回内置表', () => {
   var n = resetUserDevices();
-  assert.ok(n >= 900, 'n=' + n);
+  assert.ok(n >= 4000, 'n=' + n);
   assert.equal(friendlyOf('RMX3619'), '真我 V30');
   assert.equal(friendlyOf('ZZZT-99'), null); // 用户条已清
 });
 test('deviceCount/exportDevices：数量与合并全表', () => {
   var c = deviceCount();
-  assert.ok(c >= 900);
+  assert.ok(c >= 4000);
   var t = exportDevices();
   assert.equal(t['iPhone3,1'], 'iPhone 4');
   assert.equal(Object.keys(t).length, c);

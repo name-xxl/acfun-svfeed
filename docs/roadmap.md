@@ -414,7 +414,7 @@ feed/webPush 目前只有**视频条目**的字段实测。待测清单：
 | R3 | comments.js stype=4 复用不成立 | **已闭合**（2026-10-03 前置实测成立，api-research §4.7；动态详情评论区复用现有抽屉，无 +50% 工作量） |
 | R4 | CC BY-NC-SA 数据混布合规 | 0.9.91 前完成 README 数据许可段；数据段与 MIT 代码分声明 |
 | R5 | sv 源观看无 web 上报通道 | api-research 记「未实测」，不当 bug 反复查 |
-| R6 | 单文件体积过 1MB | 盯水位；死链备忘式惰性加载守住。**2026-10-15 实测**（Phase 5+6 吸收后）：release 626KB / debug 963KB（本批 +47KB，大头 devicetab 40KB 原文）——debug 侧距 1MB 余约 37KB，过线再议表结构/裁剪 |
+| R6 | 单文件体积过 1MB | 盯水位；死链备忘式惰性加载守住。**2026-10-15 实测**（Phase 5+6 吸收后）：release 626KB / debug 963KB（本批 +47KB，大头 devicetab 40KB 原文）；**0.9.255 设备数据优化专项**：devicetab 改压缩内嵌（全量 4,031 条仅 35KB）——release 628KB / debug 960KB，余量回升，水位压力解除 |
 | R7 | 高弹回炉后迁入评估不通过 | 不迁，保持独立；svfeed 不受影响（本就不依赖） |
 | R8 | 服务端对 client_increment_id 的校验强度未知 | 缓解：信封嗅探时续号（max+1）；若观测到直发丢报，再评估与官方序列对齐 |
 

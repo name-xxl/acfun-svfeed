@@ -6,7 +6,10 @@
 //
 // 吸收口径（每条差异有意为之）：
 //  - 内置表 = `src/devicetab.js`（tools/gen-device-data.js 生成，「带生成器」入库；数据 CC BY-NC-SA，
-//    与 MIT 分声明——README「设备型号数据许可」）
+//    与 MIT 分声明——README「设备型号数据许可」）。**0.9.255 数据优化专项**：全品牌手机+平板
+//    4,031 条（原 996 条窄表）、名称机械归一（渠道/区域/存储后缀剥离等 14 组规则）、同码多名
+//    自动裁决（CN 优先 → 最短 → 字典序）；产物改为 deflateRaw+base64 压缩内嵌（debug 侧体积
+//    反而略降），本模块首用惰性解包（unpackDeviceTab，hls 同款长度校验纪律）
 //  - 用户层读 Web-IP 同键 `acr_device_models`（**只读**兼容老用户导入；导入/导出 UI 属 Phase 6
 //    原生面板 6c）
 //  - **合并语义升级**：内置先、用户条覆盖——Web-IP 是「保存快照整体顶掉内置」（旧快照会把新内置
@@ -15,7 +18,8 @@
 //  - 点击切换（友好名 ⇄ 代号）照抄 Web-IP：命中映射才挂监听、preventDefault 拦原生跳转、title
 //    提示「原始型号 + 点击可切换显示」。Web-IP 的 manual 标记（防其 MutationObserver 重扫把用户
 //    切换覆盖回去）在我们架构里不需要——条目由 commentkit 单次构建、不重扫，切换态天然留痕
-import { DEVICE_TAB } from './devicetab.js';
+import { DEVICE_TAB_PACKED, DEVICE_TAB_LEN } from './devicetab.js';
+import { inflateSync } from 'fflate'; // 内置表解包（0.9.255；hls 同款，已在包内）
 import { CFG } from './cfg.js';
 import { getSetting } from './settings.js';
 import { isSafeKey } from './ui.js'; // 键守卫单源（0.9.250 迁 ui：设备导入与缓存导入共用）
@@ -23,6 +27,21 @@ import { isSafeKey } from './ui.js'; // 键守卫单源（0.9.250 迁 ui：设�
 var USER_KEY = 'acr_device_models'; // Web-IP 同键（只读合并其用户层）
 
 // ---------- 纯函数（单测直采） ----------
+
+// 内置表解包（0.9.255）：deflateRaw+base64 串 → 表对象。长度校验同 hls.unpackHls——
+// 截断/损坏/长度不符一律 null（调用方回落空内置表：用户层导入仍可用，功能降级不炸）
+export function unpackDeviceTab(packed, len) {
+  try {
+    if (!packed || !len) return null;
+    var bin = atob(String(packed));
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i) & 255;
+    var out = inflateSync(bytes);
+    if (!out || out.length !== len) return null;
+    var tab = JSON.parse(new TextDecoder('utf-8').decode(out));
+    return tab && typeof tab === 'object' ? tab : null;
+  } catch (e) { return null; }
+}
 
 // 用户层合并：内置先、用户条覆盖（快照→覆盖层，见文件头；危险键剔除）
 export function mergeTab(builtin, user) {
@@ -168,7 +187,8 @@ function clearUserTab() {
 
 function ensure() {
   if (!idx) {
-    mergedTab = mergeTab(DEVICE_TAB, readUserTab());
+    var builtin = unpackDeviceTab(DEVICE_TAB_PACKED, DEVICE_TAB_LEN) || {}; // 解包失败=空表（用户层仍可用）
+    mergedTab = mergeTab(builtin, readUserTab());
     mergedCount = Object.keys(mergedTab).length;
     idx = buildIndexes(mergedTab);
   }
