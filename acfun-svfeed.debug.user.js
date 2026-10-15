@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.243-debug
+// @version      0.9.244-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -68,7 +68,7 @@ window.__ACSV_HLS_LEN__ = 296762;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.243-debug" : "",
+          ver: true ? "0.9.244-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -564,7 +564,7 @@ window.__ACSV_HLS_LEN__ = 296762;
       badgePoll: 5e3,
       // 顶栏未读徽标刷新间隔（仅缓存读）
       badgeDelay: 15e3,
-      // 徽标首次探测延迟：避免页面一打开就拉起 SDK
+      // 徽标首次探测与轮询起点的延迟（0.9.244 对齐）：避免页面一打开就拉起 SDK
       flashMs: 1200
       // 引用定位高亮闪动时长（与 styles 的 acsv-im-flash 动画同源；JS 清类=本值+余量）
     },
@@ -4472,6 +4472,7 @@ window.__ACSV_HLS_LEN__ = 296762;
     return gmRequest({ url, timeout: CFG.im.loadT, responseType: "text", okStatus: true });
   }
   function loadImSdk() {
+    var t0 = Date.now();
     return new Promise(function(resolve, reject) {
       ensureLocalLog();
       ensureWeblogSync();
@@ -4480,10 +4481,13 @@ window.__ACSV_HLS_LEN__ = 296762;
       if (src.indexOf("//") === 0) src = "https:" + src;
       var settled = false;
       function done(fn, val) {
-        if (!settled) {
-          settled = true;
-          fn(val);
+        if (settled) return;
+        settled = true;
+        if (fn === resolve) {
+          stat("im.sdkLoad");
+          set("im.loadMs", Date.now() - t0);
         }
+        fn(val);
       }
       function injectScript(url, onok, onfail) {
         var s = document.createElement("script");
@@ -12445,10 +12449,10 @@ window.__ACSV_HLS_LEN__ = 296762;
         badgeEl.style.display = show;
       }
     }
-    badgeTimer = setInterval(tick2, CFG.im.badgePoll);
     badgeDelayTimer = setTimeout(function() {
       if (!mounted) return;
       tick2();
+      badgeTimer = setInterval(tick2, CFG.im.badgePoll);
       ensureIm().then(function(inst) {
         try {
           inst.on("unReadCountUpdate", function() {
@@ -12472,6 +12476,19 @@ window.__ACSV_HLS_LEN__ = 296762;
     }
     badgeEl = null;
   }
+  testHook("imbadge", function() {
+    return {
+      mounted: function() {
+        return mounted;
+      },
+      delayArmed: function() {
+        return !!badgeDelayTimer;
+      },
+      pollArmed: function() {
+        return !!badgeTimer;
+      }
+    };
+  });
 
   // src/imcard.js
   function hideCover(img, skin) {
@@ -13628,7 +13645,7 @@ window.__ACSV_HLS_LEN__ = 296762;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.243-debug" : "");
+    return normVer(true ? "0.9.244-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -17093,7 +17110,7 @@ window.__ACSV_HLS_LEN__ = 296762;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.243-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.244-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

@@ -129,4 +129,16 @@ rec('native-list-moment', (function () { // 列表预览按 kind 分流，不误
   return s ? JSON.stringify(s.textContent) : 'no-row';
 })());
   };
+
+  // ---- badge-delay（0.9.244）----
+  // 私信徽标轮询随 badgeDelay 起：分发器已等过挂载（harness.html run() 先 waitFor #acsv-root），
+  // 本场景在挂载后立即断言——曾经 mount 即起 5s 拍、首拍就 ensureIm 拉 860KB SDK
+  //（真机读数「挂载后 7.8s SDK connect」实锤），故 mount 时须只武装延迟 timer、不武装轮询。
+  // 摘修复（把 interval 挪回 mount 处）⇒ poll=true 转红；debug 构建专属（TEST 钩子）
+  C['badge-delay'] = async function (h) {
+    var rec = h.rec, TEST = h.TEST;
+    var ib = TEST.call('imbadge');
+    rec('badge-delay-armed', !!(ib && ib.mounted() && ib.delayArmed() && !ib.pollArmed()),
+      ib ? ('mounted=' + ib.mounted() + ' delay=' + ib.delayArmed() + ' poll=' + ib.pollArmed()) : 'no-hook');
+  };
 })();

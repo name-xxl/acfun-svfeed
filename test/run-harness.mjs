@@ -79,6 +79,9 @@ const HARNESS_CASES = [
   { name: 'ctl-narrow', serial: true, viewport: { width: 540, height: 960 } }, // 0.9.237 窄底栏横滑（home 源）
   { name: 'waiting-error-race', serial: true }, // 0.9.234 waiting 定时器不得反盖 error（合成事件，debug 构建）
   { name: 'im-native' }, // 0.9.80 原生私信页增强装配（造站结构 + douga/info 桩，debug 构建）
+  // 0.9.244 私信徽标轮询随 badgeDelay 起：挂载后立即断言「只武装延迟、不武装轮询」
+  //（曾 mount 即起 5s 拍、首拍拉 860KB SDK——真机读数 7.8s 实锤）；TEST 钩子，debug 构建
+  { name: 'badge-delay' },
   // 0.9.73 顶栏四界面复用 + 抽屉避让推广：抽屉×视图的避让几何/降级/Esc 链（imOpenSmoke 缝）
   { name: 'view-im' },        // 宽视口：正文右缘收窄到抽屉左缘 + 顶栏右组让位 + Esc 链
   { name: 'view-im-narrow', viewport: { width: 1000, height: 720 } }, // 中窄视口（<CFG.view.avoidW）：降级纯覆盖

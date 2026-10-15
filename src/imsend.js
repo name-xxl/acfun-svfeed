@@ -13,6 +13,7 @@
 // 全链路失败均降级为「复制链接」，不阻断分享。
 
 import { CFG } from './cfg.js';
+import { stat, set } from './dbg.js';
 import { gmRequest } from './net.js';
 import { cookieVal, selfUid } from './ui.js';
 import { postForm } from './appapi.js';
@@ -209,6 +210,7 @@ function gmGetText(url) {
 }
 
 function loadImSdk() {
+  var t0 = Date.now(); // 埋点（0.9.244，对标 hls.evalMs）：fetch+补丁+注入 → 拿到构造器的总耗时
   return new Promise(function (resolve, reject) {
     ensureLocalLog();
     ensureWeblogSync();
@@ -216,7 +218,12 @@ function loadImSdk() {
     var src = (w.globalConfig && w.globalConfig.imsdkcdn) || CFG.api.imsdk;
     if (src.indexOf('//') === 0) src = 'https:' + src;
     var settled = false;
-    function done(fn, val) { if (!settled) { settled = true; fn(val); } }
+    function done(fn, val) {
+      if (settled) return;
+      settled = true;
+      if (fn === resolve) { stat('im.sdkLoad'); set('im.loadMs', Date.now() - t0); }
+      fn(val);
+    }
     function injectScript(url, onok, onfail) {
       var s = document.createElement('script');
       var timer = setTimeout(function () {

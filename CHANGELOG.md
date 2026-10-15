@@ -5,6 +5,23 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.244（2026-10-15）· 私信徽标轮询随 badgeDelay 起：不再「进竖刷 5s 就拉 860KB SDK」
+
+**病灶（真机实测实锤）**：imbadge 在 mount 即起 `setInterval(tick, 5s)`，首拍（~5s）就
+`ensureIm()` 拉 860KB IM SDK——cfg 里 `badgeDelay: 15000`「避免页面一打开就拉起 SDK」的意图
+被架空。真机读数（`__acsvImLog` 秒表探针，2026-10-15）：**挂载后 7.8s** SDK 即 connect
+（5s 首拍 + fetch/编译约 2.8s）。
+
+- **修法**：轮询起点移入 `badgeDelayTimer` 回调（15s 到点：首查 → 武装 5s 轮询 → 订阅
+  unReadCountUpdate 加速）。行为变化＝私信角标出现从 ~5-8s 推到 ~15s（即 cfg 声明意图；
+  期间手动开私信抽屉仍即时走 ensureIm，不受影响）。顺带给 `loadImSdk` 加埋点
+  `im.sdkLoad`/`im.loadMs`（对标 hls.evalMs，此后读 acsv-stats 即可验证）。
+- **测试证据**：imbadge 增 debug 测试钩子（mounted/delayArmed/pollArmed）；新增 harness 场景
+  `badge-delay`（debug 构建；分发器等过挂载后立即断言「只武装延迟 timer、轮询未武装」——
+  初版挂在 smoke 上，smoke 走 release 构建无 `__ACSV_TEST__`、断言被恒跳过，反跑不红即改）。
+  **摘修复反跑**：把 interval 挪回 mount 处 ⇒ `badge-delay-armed` 转红（poll=true），还原复绿。
+  lint/check + 319 单测 + 66/66 场景全绿。
+
 ### 0.9.243（2026-10-15）· 单源收口批：pad2/videoOf 归位、relTime 改名、死码清理、测试管线并行
 
 **病灶（复核清单实锤）**：同一小逻辑多份副本与同名两义——`pad2` 五处（appapi/imdrawer/
