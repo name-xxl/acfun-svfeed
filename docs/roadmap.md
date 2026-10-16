@@ -488,8 +488,11 @@ P3-2/P3-3 等工程项。报告 11 条判错逐条裁定（8 条维持判决、3
 - **批① 行为/工程焊缝**（免预览，逐条"摘修复反跑"）：A1 / A2 / A3（修正版）/ A4（修正版）/
   P1-3 / P1-4 / P2-4 / C1。
 - **批② 构建改造**（**0.9.258 已落地**）：CSS deflateRaw+base64 内嵌（23 缝模板 + 运行时拼接 + 共享解包助手 `pack.unpackText`）+ 体积门禁（阈值按压缩后实测定，分段基线 ×1.02）+ `docs/roadmap.md:418`（R6 水位）同步。实测 release 645,532 → 575,990 B（−69,542 B = −10.77%），runtime CSS 与压缩前逐字节相同。
-- **批③ 性能**：共享尾节流助手 → dmcanvas resize；snapWatchTick/renderWindow 改有界；
-  controls rect 读 rAF 合并；fetchCards uid 级请求缓存（保留"刚发送会话恒派生"语义）。
+- **批③ 性能（2026-10-16 实测后撤下三条）**：`dmcanvas` resize 节流、`snapWatchTick` 有界扫描、
+  `controls` rect rAF 合并——harness 实测成本分别 0.005–2.7 ms/事件（且浏览器已把 resize 合并到
+  ≈1 次/帧，JS 节流降不下事件数）、0.29 ms/拍（201 子项，占空比 0.05%）、26 µs/事件 ⇒ 收益不可测，
+  **不做**（数字见 `docs/optimization-audit-2026-10-16.md` §九）；`fetchCards` uid 级请求缓存**缓议**，
+  待真机端点延迟/限流与会话规模数据（页内成本实测为 0）。
 - **批④ 单源收口**：翻页骨架 `pageLoader`（followview + squarefeed + mypage×2；pickpop/searchview
   不在范围）；check-direction 注释漂移（16→21）+ 去 `momentpost` 重复登记 + 逐件入边审计补登记。
 - **缓议/不做**：P3-3 双皮合并（**须先出 `docs/preview/` 预览稿**）、P3-1 探活停拍（不做）、
