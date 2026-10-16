@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.258-debug
+// @version      0.9.259-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 91800;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.258-debug" : "",
+          ver: true ? "0.9.259-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -622,7 +622,7 @@ window.__ACSV_CSS_LEN__ = 91800;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.258-debug" : "";
+  var APP_VERSION = true ? "0.9.259-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -7766,7 +7766,7 @@ window.__ACSV_CSS_LEN__ = 91800;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.258-debug" : "",
+      version: true ? "0.9.259-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -14448,7 +14448,7 @@ window.__ACSV_CSS_LEN__ = 91800;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.258-debug" : "");
+    return normVer(true ? "0.9.259-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -17355,6 +17355,62 @@ window.__ACSV_CSS_LEN__ = 91800;
     });
   }
 
+  // src/pageloader.js
+  function createPageLoader(o) {
+    var firstCursor = o.firstCursor === void 0 ? "" : o.firstCursor;
+    var loadingLabel = o.loadingLabel || "加载中…";
+    var doneLabel = o.doneLabel || "已加载全部";
+    var failLabel = o.failLabel || "加载失败，点击重试";
+    var cursor = firstCursor;
+    var loading2 = false;
+    var noMore = false;
+    var firstPage = true;
+    var seq = 0;
+    function load() {
+      if (loading2 || noMore) return;
+      if (o.beforeFetch && o.beforeFetch() === false) return;
+      loading2 = true;
+      var my = ++seq;
+      var sk = o.skeleton ? o.skeleton(firstPage) : null;
+      if (o.busyGate ? o.busyGate() : !firstPage) o.setStatus(loadingLabel, true);
+      o.fetch(cursor).then(function(res) {
+        if (o.earlySettle) loading2 = false;
+        if (sk) sk();
+        var box = o.host();
+        if (my !== seq || !box.isConnected) return;
+        var r = o.onPage(res, { firstPage, cursor }) || {};
+        if (r.cursor !== void 0) cursor = r.cursor;
+        noMore = !!r.noMore;
+        firstPage = false;
+        o.setStatus(noMore ? doneLabel : "");
+        if (!o.earlySettle) loading2 = false;
+        if (o.onSettle) o.onSettle(true);
+      }, function() {
+        if (o.earlySettle) loading2 = false;
+        if (sk) sk();
+        var box = o.host();
+        if (my !== seq || !box.isConnected) return;
+        o.setStatus(box.children.length ? "加载失败，滚动重试" : failLabel);
+        loading2 = false;
+        if (o.onSettle) o.onSettle(false);
+      });
+    }
+    function reset() {
+      seq++;
+      loading2 = false;
+      noMore = false;
+      firstPage = true;
+      cursor = firstCursor;
+    }
+    return {
+      load,
+      reset,
+      done: function() {
+        return noMore;
+      }
+    };
+  }
+
   // src/squarefeed.js
   function noop() {
   }
@@ -17371,35 +17427,26 @@ window.__ACSV_CSS_LEN__ = 91800;
     root3.appendChild(upStatus);
     var list = el("div", "acsv-frows");
     root3.appendChild(list);
-    var tail2 = createListTail({
-      root: root3,
-      scrollEl: opts.scrollEl,
-      backTopHost: opts.backTopHost,
-      pad: view2.scrollPad,
-      backTopAt: view2.backTopAt,
-      onBottom: load,
-      onRetry: load
-    });
-    var pcursor2 = "";
-    var seq = 0;
-    var loading2 = false;
-    var noMore = false;
-    var firstPage = true;
+    var tail2 = null;
     var seenKeys = null;
     var latestAmId = 0;
-    function skeleton3() {
-      return skeletonRows(list, view2.skel, "acsv-sqskel");
-    }
-    var setStatus = tail2.setStatus;
-    function load() {
-      if (loading2 || noMore) return;
-      loading2 = true;
-      var my = ++seq;
-      var sk = firstPage ? skeleton3() : null;
-      if (!firstPage) setStatus("加载中…", true);
-      fetchPage2(pcursor2).then(function(page) {
-        if (sk) sk();
-        if (my !== seq || !list.isConnected) return;
+    var pg = createPageLoader({
+      // 广场游标：首页**不传**（免登录实测惯例）；续翻用响应的 `时间戳:时间戳`
+      host: function() {
+        return list;
+      },
+      fetch: function(pcursor2) {
+        return fetchPage2(pcursor2);
+      },
+      // 传输/规整/窗口/失败可辨收口 momentapi（squarePageOf / profilePageOf）
+      skeleton: function(first) {
+        return first ? skeletonRows(list, view2.skel, "acsv-sqskel") : null;
+      },
+      setStatus: function(text, busy) {
+        tail2.setStatus(text, busy);
+      },
+      doneLabel: "已加载全部动态",
+      onPage: function(page, info) {
         var fresh = 0;
         if (!seenKeys) seenKeys = /* @__PURE__ */ new Set();
         page.items.forEach(function(pi) {
@@ -17413,22 +17460,23 @@ window.__ACSV_CSS_LEN__ = 91800;
           list.appendChild(row);
           armBackfill(row);
         });
-        noMore = page.noMore || fresh === 0 && page.items.length > 0;
-        pcursor2 = page.nextCursor;
+        var noMore = page.noMore || fresh === 0 && page.items.length > 0;
         armExpanders(list);
-        if (firstPage && !list.children.length && noMore) {
+        if (info.firstPage && !list.children.length && noMore) {
           list.appendChild(el("div", "acsv-vempty", emptyText));
         }
-        firstPage = false;
-        setStatus(noMore ? "已加载全部动态" : "");
-        loading2 = false;
-      }, function() {
-        if (sk) sk();
-        if (my !== seq || !list.isConnected) return;
-        setStatus(list.children.length ? "加载失败，滚动重试" : "加载失败，点击重试");
-        loading2 = false;
-      });
-    }
+        return { cursor: page.nextCursor, noMore };
+      }
+    });
+    tail2 = createListTail({
+      root: root3,
+      scrollEl: opts.scrollEl,
+      backTopHost: opts.backTopHost,
+      pad: view2.scrollPad,
+      backTopAt: view2.backTopAt,
+      onBottom: pg.load,
+      onRetry: pg.load
+    });
     wireRowList(list, onOpen);
     var bfQueue = Promise.resolve();
     var bfIO = null;
@@ -17518,23 +17566,19 @@ window.__ACSV_CSS_LEN__ = 91800;
       upStatus.textContent = "";
       closeInlineComments();
       list.textContent = "";
-      seq++;
-      loading2 = false;
-      noMore = false;
-      firstPage = true;
+      pg.reset();
       seenKeys = null;
-      pcursor2 = "";
       latestAmId = 0;
       pollInterval = 0;
       pollClock = 0;
-      load();
+      pg.load();
     }
     upStatus.addEventListener("click", refresh);
     ensureEmotionMap().then(function() {
       if (list.isConnected) refillEmoticons(list);
     }, function() {
     });
-    load();
+    pg.load();
     return {
       stop: function() {
         stopPoll();
@@ -17924,7 +17968,7 @@ window.__ACSV_CSS_LEN__ = 91800;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.258-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.259-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -19089,37 +19133,29 @@ window.__ACSV_CSS_LEN__ = 91800;
   }
   function buildHistory(panel2, scroller2) {
     var list = rowList(panel2, "hist");
-    var tail2 = createListTail({
-      root: panel2,
-      scrollEl: scroller2 || panel2,
-      pad: CFG.view.me.scrollPad,
-      backTopAt: CFG.view.me.backTopAt,
-      onBottom: load,
-      onRetry: load
-    });
-    var setStatus = tail2.setStatus;
-    var pageNo = 0, seq = 0;
+    var pageNo = 0;
     var allRows = [];
-    var done = false;
-    var loading2 = false;
-    var lctx = makeListCtx(function() {
-      return allRows;
-    }, load, function() {
-      return done;
-    });
-    function load() {
-      if (done || loading2) return;
-      loading2 = true;
-      var my = ++seq;
-      var gone = skeleton(list);
-      if (pageNo) setStatus("加载中…", true);
-      postForm(
-        CFG.api.history,
-        "pageNo=" + (pageNo + 1) + "&pageSize=" + CFG.view.pageSize + "&resourceTypes=1&resourceTypes=2"
-      ).then(function(j) {
-        loading2 = false;
-        gone();
-        if (my !== seq || !list.isConnected) return;
+    var pg = createPageLoader({
+      earlySettle: true,
+      host: function() {
+        return list;
+      },
+      fetch: function() {
+        return postForm(
+          CFG.api.history,
+          "pageNo=" + (pageNo + 1) + "&pageSize=" + CFG.view.pageSize + "&resourceTypes=1&resourceTypes=2"
+        );
+      },
+      skeleton: function() {
+        return skeleton(list);
+      },
+      // 建序：尾部件 ↔ 翻页骨架互相引用——骨架先建、状态行走懒引用（`tail` 在首次落定前必然已
+      // 赋值：尾部件就在下面几行），尾部件拿 load 本体作触底/重试回调
+      setStatus: function(text, busy) {
+        tail2.setStatus(text, busy);
+      },
+      doneLabel: "已加载全部",
+      onPage: function(j, info) {
         var raws = j && j.histories || [];
         var rows = [];
         raws.forEach(function(raw) {
@@ -19133,19 +19169,29 @@ window.__ACSV_CSS_LEN__ = 91800;
             return lctx.ctxOf(pi);
           }));
         });
+        var noMore = raws.length < CFG.view.pageSize;
+        if (!rows.length && info.firstPage) list.appendChild(el("div", "acsv-vempty", "暂无观看记录"));
+        return { noMore };
+      },
+      // 层内续拉回话（0.9.173）：成功给新增条目、失败给 null → 层里停住提示；两路都要回话
+      onSettle: function() {
         lctx.flush();
-        done = raws.length < CFG.view.pageSize;
-        setStatus(done ? "已加载全部" : "");
-        if (!rows.length && pageNo === 1) list.appendChild(el("div", "acsv-vempty", "暂无观看记录"));
-      }, function() {
-        loading2 = false;
-        gone();
-        if (my !== seq || !list.isConnected) return;
-        setStatus(list.children.length ? "加载失败，滚动重试" : "加载失败，点击重试");
-        lctx.flush();
-      });
-    }
-    load();
+      }
+    });
+    var lctx = makeListCtx(function() {
+      return allRows;
+    }, pg.load, function() {
+      return pg.done();
+    });
+    var tail2 = createListTail({
+      root: panel2,
+      scrollEl: scroller2 || panel2,
+      pad: CFG.view.me.scrollPad,
+      backTopAt: CFG.view.me.backTopAt,
+      onBottom: pg.load,
+      onRetry: pg.load
+    });
+    pg.load();
   }
   function adminTab(panel2, o) {
     var chips = el("div", "acsv-vchips");
@@ -19157,23 +19203,59 @@ window.__ACSV_CSS_LEN__ = 91800;
     panel2.appendChild(ops);
     panel2.appendChild(form);
     panel2.appendChild(list);
-    var tail2 = createListTail({
+    var tail2 = null;
+    var tabs = [];
+    var allRows = [];
+    var cur = o.allChip ? o.allId : null;
+    var started = false;
+    var pg = createPageLoader({
+      firstCursor: o.firstCursor || 0,
+      host: function() {
+        return list;
+      },
+      // 游标由骨架持有并原样交给下一拍（分页口径自洽：收藏夹=页号递增/分组=响应偏移量）
+      fetch: function(cursor) {
+        return o.loadPage(cur, cursor);
+      },
+      busyGate: function() {
+        return allRows.length > 0;
+      },
+      // 首屏靠骨架，续拉用状态行（同广场口径）
+      beforeFetch: function() {
+        if (cur == null) {
+          setStatus("");
+          return false;
+        }
+      },
+      setStatus: function(text, busy) {
+        tail2.setStatus(text, busy);
+      },
+      doneLabel: o.doneText || "已加载全部",
+      failLabel: o.loadFailText,
+      onPage: function(p) {
+        var added = 0;
+        (p.rows || []).forEach(function(r) {
+          allRows.push(r);
+          list.appendChild(o.renderRow(r, ctx));
+          added++;
+        });
+        if (!added && !list.children.length) list.appendChild(el("div", "acsv-vempty", o.emptyText(cur)));
+        return { cursor: p.nextCursor, noMore: !!p.noMore };
+      },
+      // 失败也回话（续拉等待方收到 null → 层里停住提示）
+      onSettle: function() {
+        lctx.flush();
+      }
+    });
+    tail2 = createListTail({
       root: panel2,
       scrollEl: o.scrollEl || panel2,
       pad: CFG.view.me.scrollPad,
       backTopAt: CFG.view.me.backTopAt,
-      onBottom: load,
-      onRetry: load
+      onBottom: pg.load,
+      onRetry: pg.load
     });
     var setStatus = tail2.setStatus;
-    var tabs = [];
-    var allRows = [];
-    var cur = o.allChip ? o.allId : null;
-    var cursor = o.firstCursor || 0;
-    var seq = 0;
-    var loading2 = false;
-    var done = false;
-    var started = false;
     function tabOf(id) {
       for (var i = 0; i < tabs.length; i++) if (tabs[i].id === id) return tabs[i];
       return null;
@@ -19278,15 +19360,12 @@ window.__ACSV_CSS_LEN__ = 91800;
     function select(id) {
       cur = id;
       started = true;
-      cursor = o.firstCursor || 0;
-      seq++;
-      loading2 = false;
-      done = false;
+      pg.reset();
       allRows = [];
       list.textContent = "";
       resetBtn();
       renderChips();
-      load();
+      pg.load();
     }
     function refresh(nextSel) {
       return o.loadTabs().then(function(ts) {
@@ -19322,40 +19401,10 @@ window.__ACSV_CSS_LEN__ = 91800;
         setStatus("");
       });
     }
-    function load() {
-      if (loading2 || done) return;
-      if (cur == null) {
-        setStatus("");
-        return;
-      }
-      loading2 = true;
-      var my = ++seq;
-      if (allRows.length) setStatus("加载中…", true);
-      o.loadPage(cur, cursor).then(function(p) {
-        if (my !== seq || !list.isConnected) return;
-        loading2 = false;
-        var added = 0;
-        (p.rows || []).forEach(function(r) {
-          allRows.push(r);
-          list.appendChild(o.renderRow(r, ctx));
-          added++;
-        });
-        cursor = p.nextCursor;
-        done = !!p.noMore;
-        setStatus(done ? o.doneText || "已加载全部" : "");
-        if (!added && !list.children.length) list.appendChild(el("div", "acsv-vempty", o.emptyText(cur)));
-        lctx.flush();
-      }, function() {
-        if (my !== seq || !list.isConnected) return;
-        loading2 = false;
-        setStatus(list.children.length ? "加载失败，滚动重试" : o.loadFailText);
-        lctx.flush();
-      });
-    }
     var lctx = makeListCtx(function() {
       return allRows;
-    }, load, function() {
-      return done;
+    }, pg.load, function() {
+      return pg.done();
     });
     var ctx = {
       list,
@@ -20375,31 +20424,36 @@ window.__ACSV_CSS_LEN__ = 91800;
     body.appendChild(wrap);
     var list = el("div", "acsv-frows");
     wrap.appendChild(list);
+    var seenKeys = null;
     tail = createListTail({
       root: wrap,
       scrollEl: body,
       backTopHost: body,
       pad: CFG.view.follow.scrollPad,
       backTopAt: CFG.view.follow.backTopAt,
-      onBottom: load,
-      onRetry: load
+      onBottom: function() {
+        pg.load();
+      },
+      onRetry: function() {
+        pg.load();
+      }
     });
-    var pcursor2 = "0";
-    var seq = 0;
-    var loading2 = false;
-    var noMore = false;
-    var firstPage = true;
-    var seenKeys = null;
-    var setStatus = tail.setStatus;
-    function load() {
-      if (loading2 || noMore) return;
-      loading2 = true;
-      var my = ++seq;
-      var sk = firstPage ? skeleton2(list) : null;
-      if (!firstPage) setStatus("加载中…", true);
-      listMoments(pcursor2).then(function(j) {
-        if (sk) sk();
-        if (my !== seq || !list.isConnected) return;
+    var pg = createPageLoader({
+      firstCursor: "0",
+      // 首页游标（毫秒时间戳由响应回填；空/缺=no_more → 到底）
+      host: function() {
+        return list;
+      },
+      fetch: function(pcursor2) {
+        return listMoments(pcursor2);
+      },
+      // 传输收口 momentapi（0.9.106）；解析留在视图（分档/去重是视图语义）
+      skeleton: function(first) {
+        return first ? skeleton2(list) : null;
+      },
+      setStatus: tail.setStatus,
+      doneLabel: "已加载全部动态",
+      onPage: function(j, info) {
         var raws = j && j.feedList || [];
         var fresh = 0;
         if (!seenKeys) seenKeys = /* @__PURE__ */ new Set();
@@ -20413,29 +20467,21 @@ window.__ACSV_CSS_LEN__ = 91800;
           list.appendChild(feedRowOf(pi));
         });
         var next = j && j.pcursor != null ? String(j.pcursor) : "";
-        if (next === "no_more" || !next || !raws.length || fresh === 0 && raws.length) noMore = true;
-        pcursor2 = next;
-        if (firstPage) markSeen();
+        if (info.firstPage) markSeen();
         armExpanders(list);
-        if (firstPage && !list.children.length && noMore) {
+        var noMore = next === "no_more" || !next || !raws.length || fresh === 0 && raws.length;
+        if (info.firstPage && !list.children.length && noMore) {
           list.appendChild(el("div", "acsv-vempty", "关注的 UP 还没有新动态"));
         }
-        firstPage = false;
-        setStatus(noMore ? "已加载全部动态" : "");
-        loading2 = false;
-      }, function() {
-        if (sk) sk();
-        if (my !== seq || !list.isConnected) return;
-        setStatus(list.children.length ? "加载失败，滚动重试" : "加载失败，点击重试");
-        loading2 = false;
-      });
-    }
+        return { cursor: next, noMore };
+      }
+    });
     wireRowList(list, rowDefault);
     ensureEmotionMap().then(function() {
       if (list.isConnected) refillEmoticons(list);
     }, function() {
     });
-    load();
+    pg.load();
   }
   function followTeardown() {
     if (tail) {

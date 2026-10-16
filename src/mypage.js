@@ -11,6 +11,7 @@ import { groupNameError, folderNameError } from './nameval.js';
 import { coverUrl } from './imgurl.js'; // meCardOf 头像归一（0.9.160 就地收编随迁）
 import { gridCardOf, skeletonRows } from './cards.js';
 import { createListTail } from './listtail.js'; // 尾部件单源（0.9.219：我的页四档统一自动触底）
+import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259：历史档 + 管理档壳）
 import { registerView } from './viewreg.js';
 import { imgInto } from './imgload.js';
 import { getGroups, listFollows, createGroup, renameGroup, removeGroup, unfollowUser } from './relationapi.js';
@@ -146,60 +147,57 @@ function makeListCtx(rowsOf, loadFn, isDone) {
 // ---- 观看历史：pageNo 翻页，list.length < pageSize 即到底 ----
 // 尾部加载（0.9.219 统一）：改走 listtail 自动触底（此前是「加载更多」按钮——与同页「动态」档
 // 及全站其它页都不一致）；到底/失败改由状态行表达
+// 0.9.259（审计批④）：在途守卫/代数令牌/骨架起收/三态状态行收进 pageloader 单源；本档只剩
+// 页码方言（请求体 pageNo=pageNo+1）、契约过滤、到底判据与空态。两处差异显式注入：
+//   ① skeleton 不看 firstPage——历史档**每页都建**骨架（首屏也是它）；
+//   ② earlySettle——0.9.236「在途守卫」的既有形状是**在陈旧守卫之前**结算（loading 与骨架
+//      都在守卫前收），与另三家的「守卫后结算」不同形，原样保留
 function buildHistory(panel, scroller) {
   var list = rowList(panel, 'hist');
+  var pageNo = 0;        // 页码（已落定页数；请求体 pageNo=pageNo+1，空态判据 pageNo===1）
+  var allRows = [];      // 已加载面板条目（层内列表会话的条目源，0.9.173）
+  var pg = createPageLoader({
+    earlySettle: true,
+    host: function () { return list; },
+    fetch: function () {
+      return postForm(CFG.api.history,
+        'pageNo=' + (pageNo + 1) + '&pageSize=' + CFG.view.pageSize
+        + '&resourceTypes=1&resourceTypes=2');
+    },
+    skeleton: function () { return skeleton(list); },
+    // 建序：尾部件 ↔ 翻页骨架互相引用——骨架先建、状态行走懒引用（`tail` 在首次落定前必然已
+    // 赋值：尾部件就在下面几行），尾部件拿 load 本体作触底/重试回调
+    setStatus: function (text, busy) { tail.setStatus(text, busy); },
+    doneLabel: '已加载全部',
+    onPage: function (j, info) {
+      var raws = (j && j.histories) || [];
+      var rows = [];
+      raws.forEach(function (raw) {
+        var pi = panelItem('history', raw);
+        if (pi) rows.push(pi);
+      });
+      pageNo++;
+      rows.forEach(function (pi) {
+        allRows.push(pi);
+        list.appendChild(gridCardOf(pi, function () { return lctx.ctxOf(pi); }));
+      });
+      // 到底判定按**原始条数**（非筛除后条数）：契约层会滤掉非视频条目（番剧/无 videoId），
+      // 「有效行 < pageSize」在筛除后恒真会把还有下一页的列表误判成到底（0.9.77 实锤：
+      // mock 首页 20 原始 → 18 有效，按有效数判到底则第二页 4 条永远拉不到）
+      var noMore = raws.length < CFG.view.pageSize;
+      if (!rows.length && info.firstPage) list.appendChild(el('div', 'acsv-vempty', '暂无观看记录'));
+      return { noMore: noMore };
+    },
+    // 层内续拉回话（0.9.173）：成功给新增条目、失败给 null → 层里停住提示；两路都要回话
+    onSettle: function () { lctx.flush(); }
+  });
+  // 层内语义（0.9.173）：↓/↑ = 历史列表顺序；尾部续拉下一页（到底=null → 层里停住提示）
+  var lctx = makeListCtx(function () { return allRows; }, pg.load, function () { return pg.done(); });
   var tail = createListTail({
     root: panel, scrollEl: scroller || panel, pad: CFG.view.me.scrollPad,
-    backTopAt: CFG.view.me.backTopAt, onBottom: load, onRetry: load
+    backTopAt: CFG.view.me.backTopAt, onBottom: pg.load, onRetry: pg.load
   });
-  var setStatus = tail.setStatus;
-  var pageNo = 0, seq = 0; // seq：换页/重试令牌，旧回包丢弃（0.9.77，searchview 同款模式）
-  var allRows = [];      // 已加载面板条目（层内列表会话的条目源，0.9.173）
-  var done = false;
-  var loading = false;   // 在途守卫（0.9.236）：滚动事件一拍可多枚 ⇒ 同页叠发请求 + 骨架叠闪
-  // 层内语义（0.9.173）：↓/↑ = 历史列表顺序；尾部续拉下一页（到底=null → 层里停住提示）
-  var lctx = makeListCtx(function () { return allRows; }, load, function () { return done; });
-
-  function load() {
-    if (done || loading) return;
-    loading = true;
-    var my = ++seq;
-    var gone = skeleton(list);
-    if (pageNo) setStatus('加载中…', true);
-    postForm(CFG.api.history,
-      'pageNo=' + (pageNo + 1) + '&pageSize=' + CFG.view.pageSize
-      + '&resourceTypes=1&resourceTypes=2').then(function (j) {
-        loading = false;
-        gone();
-        if (my !== seq || !list.isConnected) return; // 过期/退出视图：在途回包丢弃
-        var raws = (j && j.histories) || [];
-        var rows = [];
-        raws.forEach(function (raw) {
-          var pi = panelItem('history', raw);
-          if (pi) rows.push(pi);
-        });
-        pageNo++;
-        rows.forEach(function (pi) {
-          allRows.push(pi);
-          list.appendChild(gridCardOf(pi, function () { return lctx.ctxOf(pi); }));
-        });
-        lctx.flush();
-        // 到底判定按**原始条数**（非筛除后条数）：契约层会滤掉非视频条目（番剧/无 videoId），
-        // 「有效行 < pageSize」在筛除后恒真会把还有下一页的列表误判成到底（0.9.77 实锤：
-        // mock 首页 20 原始 → 18 有效，按有效数判到底则第二页 4 条永远拉不到）
-        done = raws.length < CFG.view.pageSize;
-        setStatus(done ? '已加载全部' : '');
-        if (!rows.length && pageNo === 1) list.appendChild(el('div', 'acsv-vempty', '暂无观看记录'));
-      }, function () {
-        loading = false;
-        gone();
-        if (my !== seq || !list.isConnected) return;
-        // 失败不置到底：下次触底自动重试；首屏失败列表为空，点击是唯一出口
-        setStatus(list.children.length ? '加载失败，滚动重试' : '加载失败，点击重试');
-        lctx.flush(); // 失败也回话（续拉等待方收到 null → 层里停住提示）
-      });
-  }
-  load();
+  pg.load();
 }
 
 // ---- 管理 tab 壳（0.9.150 抽件）：chips（[全部?]＋各档＋「＋ 新建」）+ 组头操作（改名/删除，sys 档豁免）
@@ -238,20 +236,40 @@ function adminTab(panel, o) {
   panel.appendChild(form);
   panel.appendChild(list); // 消费方可能已挂过（rowList）——appendChild 即搬移，落位统一在此
   // 尾部件（0.9.219）：三态状态行 + 回顶 + 自动触底（此前是「加载更多」按钮）
-  var tail = createListTail({
-    root: panel, scrollEl: o.scrollEl || panel, pad: CFG.view.me.scrollPad,
-    backTopAt: CFG.view.me.backTopAt, onBottom: load, onRetry: load
-  });
-  var setStatus = tail.setStatus;
-
+  // 建序：尾部件 ↔ 翻页骨架互相引用（前者要 load 作触底/重试回调，后者要 setStatus 作状态行写口）
+  // ——骨架先建、状态行走懒引用（`tail` 在首次落定前必然已赋值），尾部件拿 load 本体
+  var tail = null;
   var tabs = [];
   var allRows = [];      // 已加载面板条目（顺序；层内列表会话的条目源，0.9.173）
   var cur = o.allChip ? o.allId : null;
-  var cursor = o.firstCursor || 0;
-  var seq = 0; // 在途回包令牌：换档/视图拆（isConnected）即丢弃
-  var loading = false;
-  var done = false;
   var started = false; // 是否已完成首拉（首进 refresh 要 select 一次把列表带起来）
+  // 翻页骨架（0.9.259 批④）：在途守卫/代数令牌/骨架起收/三态状态行收进 pageloader。本壳的
+  // 差异两处，都显式注入：①续拉状态行的判据是「已有条目」（不是「非首屏」——首屏 0 行且未到底
+  // 时两者不等价）②档表未到不发废请求（连状态行也保持干净）
+  var pg = createPageLoader({
+    firstCursor: o.firstCursor || 0,
+    host: function () { return list; },
+    // 游标由骨架持有并原样交给下一拍（分页口径自洽：收藏夹=页号递增/分组=响应偏移量）
+    fetch: function (cursor) { return o.loadPage(cur, cursor); },
+    busyGate: function () { return allRows.length > 0; }, // 首屏靠骨架，续拉用状态行（同广场口径）
+    beforeFetch: function () { if (cur == null) { setStatus(''); return false; } },
+    setStatus: function (text, busy) { tail.setStatus(text, busy); },
+    doneLabel: o.doneText || '已加载全部',
+    failLabel: o.loadFailText,
+    onPage: function (p) {
+      var added = 0;
+      (p.rows || []).forEach(function (r) { allRows.push(r); list.appendChild(o.renderRow(r, ctx)); added++; });
+      if (!added && !list.children.length) list.appendChild(el('div', 'acsv-vempty', o.emptyText(cur)));
+      return { cursor: p.nextCursor, noMore: !!p.noMore };
+    },
+    // 失败也回话（续拉等待方收到 null → 层里停住提示）
+    onSettle: function () { lctx.flush(); }
+  });
+  tail = createListTail({
+    root: panel, scrollEl: o.scrollEl || panel, pad: CFG.view.me.scrollPad,
+    backTopAt: CFG.view.me.backTopAt, onBottom: pg.load, onRetry: pg.load
+  });
+  var setStatus = tail.setStatus;
 
   function tabOf(id) {
     for (var i = 0; i < tabs.length; i++) if (tabs[i].id === id) return tabs[i];
@@ -343,15 +361,13 @@ function adminTab(panel, o) {
   function select(id) {
     cur = id;
     started = true;
-    cursor = o.firstCursor || 0;
-    seq++;
-    loading = false;
-    done = false;
+    // 游标回首屏 + 代数 ++（作废在途回包）+ 在途标志/到底态复位（原五行的单源）
+    pg.reset();
     allRows = [];
     list.textContent = '';
     resetBtn();
     renderChips();
-    load();
+    pg.load();
   }
 
   // 档表刷新（建/改名/删/移组/取关后——计数与选中态都要跟着动）；nextSel 给了就跳过去（新建/删组后）
@@ -387,34 +403,9 @@ function adminTab(panel, o) {
     });
   }
 
-  function load() {
-    if (loading || done) return;
-    if (cur == null) { setStatus(''); return; } // 档表未到：不发废请求，状态行也保持干净
-    loading = true;
-    var my = ++seq;
-    if (allRows.length) setStatus('加载中…', true); // 首屏靠骨架，续拉用状态行（同广场口径）
-    o.loadPage(cur, cursor).then(function (p) {
-      if (my !== seq || !list.isConnected) return; // 过期/退出视图：在途回包丢弃
-      loading = false;
-      var added = 0;
-      (p.rows || []).forEach(function (r) { allRows.push(r); list.appendChild(o.renderRow(r, ctx)); added++; });
-      cursor = p.nextCursor;
-      done = !!p.noMore;
-      setStatus(done ? (o.doneText || '已加载全部') : '');
-      if (!added && !list.children.length) list.appendChild(el('div', 'acsv-vempty', o.emptyText(cur)));
-      lctx.flush();
-    }, function () {
-      if (my !== seq || !list.isConnected) return;
-      loading = false;
-      // 失败不置到底：下次触底自动重试；首屏失败列表为空，点击状态行是唯一出口
-      setStatus(list.children.length ? '加载失败，滚动重试' : o.loadFailText);
-      lctx.flush(); // 失败也回话（续拉等待方收到 null → 层里停住提示）
-    });
-  }
-
   // 列表会话续拉（0.9.173；0.9.179 收口为 makeListCtx 单源）：走同一台 load 机器，
-  // 回话=本轮新增条目（无新增/失败/到底=null）
-  var lctx = makeListCtx(function () { return allRows; }, load, function () { return done; });
+  // 回话=本轮新增条目（无新增/失败/到底=null）；到底读数取自翻页骨架
+  var lctx = makeListCtx(function () { return allRows; }, pg.load, function () { return pg.done(); });
 
   var ctx = {
     list: list,

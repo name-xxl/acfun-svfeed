@@ -29,7 +29,10 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
 
-// 口径 A 用：README 基建层（styles.js 等 16 件）+ 接口层（3 件）
+// 口径 A 用：README 基建层（styles.js 等 23 件）+ 接口层（3 件）
+// 计数纪律（审计批④ P3-2）：括号里的数=INFRA 实有成员数，动 INFRA 就得同批改本行——此前写死
+// 「16 件」而实有 21（0.9.258 加 pack 后 22；0.9.259 加 pageloader 后 23），注释漂了多个版本没人发现。复点一条命令：
+//   node -e "const t=require('fs').readFileSync('test/check-direction.mjs','utf8');console.log((t.match(/INFRA = new Set\(\[([\s\S]*?)\]\)/)[1].match(/'[\w.-]+\.js'/g)||[]).length)"
 // 0.9.238：inputbar.js **移出基建层**（改入 FEATURE，见下）——富文本重载后它认识表情域
 // （emotImgOf 出表情节点）与出口 UBB 方言（评论域的序列化/计数口径），不再满足"基建 = 零特性
 // 知识"的口径；与 sharepanel/rail/slide（0.9.233）同款归类：地位是特性层共享 UI 件
@@ -40,7 +43,10 @@ const INFRA = new Set(['cfg.js', 'net.js', 'playitem.js', 'panelitem.js', 'state
   // 消费方 styles 属基建层（不登记就会在口径 A 报「styles→pack 越层」）；pack 自身零内部依赖
   // （只 import fflate）。另：cssraw.js 是构建期输入（只被根目录 build.js import），src 内零入边，
   // 两口径都天然 0 条，不入表
-  'pack.js']);
+  // 0.9.259（审计批④）登记：pageloader（翻页骨架**单源**，followview/squarefeed/mypage 历史档
+  // 与管理档壳四处共用）。零依赖叶（不 import 任何东西）⇒ 无自有出边，登记只为让消费点（三家
+  // 特性/视图件）的入边留在口径 A 射程外——与 pack 同款「共享基建件」定位
+  'pack.js', 'pageloader.js']);
 const API = new Set(['api.js', 'appapi.js', 'quality.js']);
 // 校准（0.9.117 首跑即立；0.9.119 扩一项）：README 明示的五件零依赖解耦点里，immsg/imicons
 // 现居私信层 subgraph——那是出身 placement，不是专属域；它们被 topbar/cards/momentbar/comments
@@ -90,7 +96,9 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   'sharepanel.js', 'rail.js', 'slide.js',
   // momentpost 同批归类（0.9.223）：动态**发布域**，与同在 FEATURE 里的 momentapi（读域）同类；
   // 0.9.238：tokenRanges 随令牌原子化件退役收进本件（出口文本的字数口径），依赖面反而变窄
-  'momentpost.js',
+  // 0.9.259（审计批④ P3-2）：本行原有的 'momentpost.js' **删去**——它已在上方
+  // 'momenteditor.js', 'momentpost.js', 'pubfab.js' 那一组里登过（全表唯一重复登记，令
+  // 注册数与 FEATURE 成员数各虚增 1）。归类理由留在本处，条目位置归位上组
   // 0.9.245 登记：iploc（评论 IP 属地查询层，Web-IP 吸收批次①）——与 comments/commentkit 同层，
   // 消费 cfg/net/ui/dbg/settings；消费方 comments 已在表内，属层内互调（两口径 0 条）
   'iploc.js',
@@ -103,6 +111,23 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 0.9.250 登记：natpanel（原生页设置面板皮肤，Web-IP 吸收 6c）——消费 dbg/devname/iploc/
   // settings/styles/ui；消费方 nativeip 同在表内（层内互调）
   'natpanel.js',
+  // 0.9.259（审计批④ P3-2 覆盖扩面·bounded 第一轮）：cards（卡面 kit 单源——网格卡/行卡/横条/
+  // 引用卡/UP 卡/计数行/骨架）。归特性层而非基建层：它 import 的 ubb（动态正文 UBB 单源）不在
+  // 基建/接口/零依赖叶之列，当基建件会在口径 A 报「cards→ubb 越层」；而全部 11 个消费方
+  //（followview/jingxuanview/momentdetail/momenteditor/mypage/playlayer/rowkit/searchview/
+  // squarefeed/squareview/zone）**都已在 FEATURE 表内** ⇒ 口径 B 也是层内互调，两口径 0 条
+  'cards.js',
+  // 0.9.259（同上批，覆盖扩面第一轮之二）：views（子视图框架/宿主——`#svfeed/<view>` 路由宿主 +
+  // 来源链/挂起保活；卡面 kit 0.9.109 已拆出，本件只管编排）。与 squareview/squarefeed/rowkit
+  // 同属视图家族；其唯一消费方是 player（SKIP_B 组合根，装配向下不计）⇒ 口径 B 0 条。另一可行
+  // 桶是 SKIP_B（README:405 自述「只管编排」，与 boot/player 同格，同样绿）——取 FEATURE 是因为
+  // 它更严：将来任何非特性件反向依赖本件照样翻红
+  'views.js',
+  // 0.9.259（同上批之三）：imsend（ImSdk 基建·私信域发送核心）。FEATURE 与 INFRA 两桶都绿，
+  // 取特性层：消费方 imbadge/imdrawer/sharepanel 三件**均已在表内**（层内互调），自身只 import
+  // 基建/接口/零依赖叶（cfg/dbg/net/ui + appapi + immsg）；README 私信层是出身 placement、非专属
+  // 域（同 0.9.233 的 sharepanel/rail/slide 校准先例）
+  'imsend.js',
   ]);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 

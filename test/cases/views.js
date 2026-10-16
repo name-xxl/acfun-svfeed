@@ -96,6 +96,17 @@ rec('moments-rows', !!(await waitFor(function () {
 }, 8000)), 'rows=' + document.querySelectorAll('.acsv-mepanel[data-tab="moments"] .acsv-frow').length);
 // 切回历史：本场景余下断言（惰性建面板/保状态/播放层）全按「历史是活动 tab」写
 var tabHist0 = q('.acsv-metab[data-tab="hist"]');
+// 0.9.259（审计批④ P2-5 翻页骨架抽 pageloader）的**出口取证**：包一层记录历史的请求体。
+// 两处出口都要钉：①请求体逐字（页码方言 pageNo=已落定页数+1；pageSize=CFG.view.pageSize=20 是
+// 夹具前提，双 resourceTypes 缺一即服务端 result 21）②"第二发存在"本身=到底判据按**原始条数**
+// 的机器证据（首屏 20 原始 = 18 有效 + 2 被契约层滤掉；按筛除后条数判则 18<20 首屏即到底，
+// 第二页 4 条永远拉不到——0.9.77 实锤回归）。下包必须在**首屏请求发出前**装上
+var histBodies = [];
+var histMockFn = window.__ACSV_MOCK_FORM__['browse/history/list'];
+window.__ACSV_MOCK_FORM__['browse/history/list'] = function (body, url) {
+  histBodies.push(String(body));
+  return typeof histMockFn === 'function' ? histMockFn(body, url) : histMockFn;
+};
 if (tabHist0) tabHist0.click();
 // 网格卡：历史首屏 18 条；骨架已清（独立类名，绝不与卡片计数选择器同构）
 rec('hist-cards', !!(await waitFor(function () {
@@ -208,6 +219,10 @@ for (var hs = 0; hs < 3; hs++) {
   myScroll0.scrollTop = myScroll0.scrollHeight;
   myScroll0.dispatchEvent(new Event('scroll'));
 }
+// 骨架**每页都建**（历史档的既有形状，抽 pageloader 时显式保留的差异之一）：续拉在途期间
+// （此处回包被延迟 700ms）骨架必须已在列表里；改成"仅首屏建"即红
+rec('hist-page2-skeleton', document.querySelectorAll('.acsv-vlist.hist .acsv-gskel').length === 12,
+  'skel=' + document.querySelectorAll('.acsv-vlist.hist .acsv-gskel').length);
 rec('hist-single-flight', !!(await waitFor(function () {
   return window.__ACSV_HIST_CALLS__ - hc0 === 1
     && document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22;
@@ -220,6 +235,16 @@ rec('hist-page2', !!(await waitFor(function () {
   return document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22;
 }, 8000)), 'n=' + document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length
   + ' calls=' + window.__ACSV_HIST_CALLS__);
+// ---- 翻页协议出口（0.9.259 批④）----
+// ① 请求体逐字（两发：pageNo=1 / pageNo=2，形状与页序都不能变）
+rec('hist-request-bodies', histBodies.length >= 2
+  && histBodies[0] === 'pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2'
+  && histBodies[1] === 'pageNo=2&pageSize=20&resourceTypes=1&resourceTypes=2',
+  JSON.stringify(histBodies.slice(0, 3)));
+// ② 到底判据=**原始条数**：首屏 20 原始（18 有效 + 2 契约层滤掉）必须判"还有下一页" ⇒ 第二发
+//    存在；把判据换成筛除后条数（rows.length < pageSize）即在此转红（0.9.77 实锤回归）
+rec('hist-done-raw-count', histBodies.length >= 2 && /^pageNo=2&/.test(histBodies[1] || ''),
+  'bodies=' + histBodies.length + ' 末发=' + JSON.stringify(histBodies[histBodies.length - 1]));
 rec('hist-status-done', (q('.acsv-mepanel[data-tab="hist"] .acsv-fstatus') || {}).textContent === '已加载全部',
   (q('.acsv-mepanel[data-tab="hist"] .acsv-fstatus') || {}).textContent);
 rec('hist-backtop-shown', !!q('.acsv-mepanel[data-tab="hist"] .acsv-backtop.on'));

@@ -25,6 +25,7 @@ import { ensureEmotionMap, refillEmoticons } from './emoticon.js';
 import { nextBadgeInterval } from './followbadge.js'; // 退避序列单源（纯函数，单测在册）
 import { syncRowBar } from './momentbar.js'; // 回填后互动栏同步（0.9.127）
 import { closeInlineComments, feedRowOf, armExpanders, wireRowList } from './rowkit.js';
+import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259）
 
 function noop() { }
 
@@ -46,74 +47,53 @@ export function createSquareFeed(opts) {
   root.appendChild(list);
   // 尾部件（0.9.219 收口 listtail）：三态状态行 + 回顶 + 触底监听（元素/window 两方言）。
   // 状态行**点击重试显式接线**——广场首屏失败列表为空，没有滚动可依时点击是唯一出口；
-  // 触底回调 load 在 loading/noMore 下自 No-op
-  var tail = createListTail({
+  // 触底回调 load 在 loading/noMore 下自 No-op（那份在途/到底守卫收在 pageloader）
+  // 建序：尾部件 ↔ 翻页骨架互相引用（前者要 load 作触底/重试回调，后者要 setStatus 作状态行写口）
+  // ——骨架先建、状态行走懒引用（`tail` 在首次落定前必然已赋值），尾部件拿 load 本体
+  var tail = null;
+  var seenKeys = null; // 去重键集（momentId）：整页 0 新增 → 判到底（广场安全阀）
+  var latestAmId = 0;  // 发现态 diff 基准（最大 momentId；单调）
+  var pg = createPageLoader({
+    // 广场游标：首页**不传**（免登录实测惯例）；续翻用响应的 `时间戳:时间戳`
+    host: function () { return list; },
+    fetch: function (pcursor) { return fetchPage(pcursor); }, // 传输/规整/窗口/失败可辨收口 momentapi（squarePageOf / profilePageOf）
+    skeleton: function (first) { return first ? skeletonRows(list, view.skel, 'acsv-sqskel') : null; },
+    setStatus: function (text, busy) { tail.setStatus(text, busy); },
+    doneLabel: '已加载全部动态',
+    onPage: function (page, info) {
+      var fresh = 0;
+      if (!seenKeys) seenKeys = new Set();
+      page.items.forEach(function (pi) {
+        var key = pi.momentId;
+        if (key && seenKeys.has(key)) return;
+        if (key) seenKeys.add(key);
+        if (key && key > latestAmId) latestAmId = key; // 发现态 diff 基准（单调）
+        fresh++;
+        // append-only：新行只追加尾部（展开态/原位评论区靠它保命）
+        var row = feedRowOf(pi);
+        if (onRow) onRow(row, pi); // 行后处理（内嵌宿主补 am 锚；视图不传）
+        list.appendChild(row);
+        armBackfill(row); // 视口渐进回填的观察挂点（0.9.228）
+      });
+      // 到底判定：契约层已把「no_more/空页/超 24h 窗口」收口进 page.noMore；此处只补
+      // 「整页 0 新增」安全阀（去重后无新增=后端游标未推进）
+      var noMore = page.noMore || (fresh === 0 && page.items.length > 0);
+      armExpanders(list);
+      if (info.firstPage && !list.children.length && noMore) {
+        list.appendChild(el('div', 'acsv-vempty', emptyText));
+      }
+      return { cursor: page.nextCursor, noMore: noMore };
+    }
+  });
+  tail = createListTail({
     root: root,
     scrollEl: opts.scrollEl,
     backTopHost: opts.backTopHost,
     pad: view.scrollPad,
     backTopAt: view.backTopAt,
-    onBottom: load,
-    onRetry: load
+    onBottom: pg.load,
+    onRetry: pg.load
   });
-
-  var pcursor = '';   // 广场游标：首页**不传**（免登录实测惯例）；续翻用响应的 `时间戳:时间戳`
-  var seq = 0;        // 在途回包令牌：实例停用/重建时旧回包丢弃
-  var loading = false;
-  var noMore = false;
-  var firstPage = true;
-  var seenKeys = null; // 去重键集（momentId）：整页 0 新增 → 判到底（广场安全阀）
-  var latestAmId = 0;  // 发现态 diff 基准（最大 momentId；单调）
-
-  function skeleton() {
-    return skeletonRows(list, view.skel, 'acsv-sqskel');
-  }
-
-  var setStatus = tail.setStatus;
-
-  function load() {
-    if (loading || noMore) return;
-    loading = true;
-    var my = ++seq;
-    var sk = firstPage ? skeleton() : null;
-    if (!firstPage) setStatus('加载中…', true);
-    fetchPage(pcursor) // 传输/规整/窗口/失败可辨收口 momentapi（squarePageOf / profilePageOf）
-      .then(function (page) {
-        if (sk) sk();
-        if (my !== seq || !list.isConnected) return; // 实例已停/拆：在途回包丢弃
-        var fresh = 0;
-        if (!seenKeys) seenKeys = new Set();
-        page.items.forEach(function (pi) {
-          var key = pi.momentId;
-          if (key && seenKeys.has(key)) return;
-          if (key) seenKeys.add(key);
-          if (key && key > latestAmId) latestAmId = key; // 发现态 diff 基准（单调）
-          fresh++;
-          // append-only：新行只追加尾部（展开态/原位评论区靠它保命）
-          var row = feedRowOf(pi);
-          if (onRow) onRow(row, pi); // 行后处理（内嵌宿主补 am 锚；视图不传）
-          list.appendChild(row);
-          armBackfill(row); // 视口渐进回填的观察挂点（0.9.228）
-        });
-        // 到底判定：契约层已把「no_more/空页/超 24h 窗口」收口进 page.noMore；此处只补
-        // 「整页 0 新增」安全阀（去重后无新增=后端游标未推进）
-        noMore = page.noMore || (fresh === 0 && page.items.length > 0);
-        pcursor = page.nextCursor;
-        armExpanders(list);
-        if (firstPage && !list.children.length && noMore) {
-          list.appendChild(el('div', 'acsv-vempty', emptyText));
-        }
-        firstPage = false;
-        setStatus(noMore ? '已加载全部动态' : '');
-        loading = false;
-      }, function () {
-        if (sk) sk();
-        if (my !== seq || !list.isConnected) return;
-        // 失败不置到底：下次触底自动重试；首屏失败列表为空，点击是唯一出口
-        setStatus(list.children.length ? '加载失败，滚动重试' : '加载失败，点击重试');
-        loading = false;
-      });
-  }
 
   wireRowList(list, onOpen); // 列表级委托（rowkit 共享；落点=宿主注入）
 
@@ -226,16 +206,12 @@ export function createSquareFeed(opts) {
     upStatus.textContent = '';
     closeInlineComments();
     list.textContent = '';
-    seq++;              // 作废在途回包
-    loading = false;
-    noMore = false;
-    firstPage = true;
+    pg.reset();         // 作废在途回包 + 在途/到底/首屏游标复位（原 seq++/loading/noMore/firstPage/pcursor 五行）
     seenKeys = null;
-    pcursor = '';
     latestAmId = 0;     // 重建基准（下一次轮询重新建立）
     pollInterval = 0;
     pollClock = 0;
-    load();
+    pg.load();
   }
   upStatus.addEventListener('click', refresh);
 
@@ -244,7 +220,7 @@ export function createSquareFeed(opts) {
     if (list.isConnected) refillEmoticons(list);
   }, function () { });
 
-  load();
+  pg.load();
 
   return {
     stop: function () {

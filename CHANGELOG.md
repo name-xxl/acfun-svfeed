@@ -5,6 +5,52 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.259（2026-10-16）· 审计批④——翻页协议单源 / check-direction 登记卫生与覆盖首轮（两项）
+
+**由头**：`docs/optimization-audit-2026-10-16.md` 的批④（P2-5 逐字副本 + P3-2 棘轮卫生）。
+**无用户可见行为改动**（三处同拍内次序归一，逐条论证见①）。
+
+- **① 翻页协议收进单源（`src/pageloader.js` 新增）**：病灶——四份"加载下一页"是逐字副本
+  （`followview.load` / `squarefeed.load` / `mypage` 观看历史 / `mypage` adminTab 动态档壳），
+  字面守卫 `if (my !== seq || !list.isConnected) return;` 全仓 8 处。四处同形的协议有六件事：
+  在途守卫、代数令牌 + 已拆/换档丢包、骨架两路都收、三态状态行（续拉/到底/失败二选一）、首屏
+  标记、两路都清 `loading`。修法——新件只收**这六件事**，**翻页范式不收**：游标方言（毫秒时间戳 /
+  页码 / 偏移量）、传输、解析、到底判定、空态文案全留消费点，以注入缝显式表达差异——
+  `skeleton(firstPage)`（**建不建由消费点定**：历史档每页都建，与另三家"仅首屏"不同形）、
+  `earlySettle`（历史档沿用 0.9.236 的"在陈旧守卫**之前**结算"形状）、`busyGate`（动态档续拉
+  状态行的判据是"已有条目"而非"非首屏"）、`beforeFetch`（档表未到不发废请求）、
+  `doneLabel`/`failLabel`/`loadingLabel`；返回 `{load, reset, done}`（`reset` 收容原
+  `squarefeed.refresh`/`adminTab.select` 里的五行复位，`done` 供 `makeListCtx` 的 isDone 缝）。
+  净折掉约 117 行重复协议（四文件净 +1 行，新件 88 行）——方向同仓内先例（`makeListCtx` 0.9.179、
+  0.9.148 的 `adminTab` 壳："同形副本必漂移"）。
+  **测试**：`view-my` 新增三钉——`hist-page2-skeleton`（延迟的第二页在途时 12 张骨架在位 ⇒ 钉
+  "历史档每页都建骨架"）、`hist-request-bodies`（两发请求体精确等于
+  `pageNo=1&pageSize=20&resourceTypes=1&resourceTypes=2` 与 `pageNo=2&…`）、
+  `hist-done-raw-count`（第二发确实发生 ⇒ 钉"到底按**原始条数**"，即 0.9.77 那条实锤注释的
+  承重墙）。**反跑**：历史档到底改成按筛除后条数 ⇒ `view-my` **8 条断言转红**
+  （`hist-done-raw-count bodies=1`、`hist-page2-skeleton skel=0`、`hist-page2 n=18 calls=1` …）；
+  骨架改成仅首屏 ⇒ `hist-page2-skeleton` 转红。两处均还原复绿（主代理独立复跑第一条反跑，
+  读数一致）。行为等价：三处同拍内次序归一（历史/动态档空态插在状态行之前；动态档 `loading`
+  在状态行之后清），两写之间无布局读取、无重入点。
+- **② check-direction 登记卫生 + 覆盖首轮（`test/check-direction.mjs` / `docs/dependency-audit.md`）**：
+  病灶——口径注释写"基建层 16 件"而 `INFRA` 实有 21 件（0.9.258 加 `pack` 后 22、本批加
+  `pageloader` 后 23）；`momentpost.js` 在 `FEATURE` 重复登记（全表唯一重复）；覆盖率 60.9%。
+  修法/结果——注释改 **23** 并附"改 INFRA 必须改这一行"的纪律注与复算一行命令；删重复登记；
+  `pageloader` 入 INFRA（零依赖叶，同 `pack` 先例）；再**有界首轮**试登七件真共享件：
+  `cards`（卡面 kit 单源，11 个消费方都在 FEATURE）、`views`（子视图框架；唯一消费方 player 属
+  SKIP_B，选更严的 FEATURE 登记）、`imsend`（私信域发送核心）**三件登记成功**；
+  `session`/`feedstore`/`controls`/`dmcanvas` **四件留待**——它们的入边全是"播放层→播放层"，
+  而现有分类只有基建/接口/特性三桶，缺的其实是"播放层"桶（**未造 `KNOWN` 豁免凑绿**）。
+  覆盖率 67→**71/111（64.0%）**；未纳 40 件清单与四件被卡的具体入边记入
+  `docs/dependency-audit.md` 新增的 0.9.259 节（审计定的"多批小步"，不硬扫）。
+- **测试总账**：单测 414/414；harness **82/82 场景**（`view-my 67`、`view-follow 80`、
+  `view-square 39`、`fav-folders 46`、`member-plaza 36`、`layer-list 67`、`play-deep 93` …）；
+  lint / tsc / check（cases/release/deps/no-leak/direction）全绿；产物 576,649 B / 920,367 B（563/899KB）。
+  **一则如实记录**：验证期间 `view-follow` 的行内评论链出现时序抖动（该场景本体约 5s，偶发跑到
+  15–32s，断言落在固定 8s 窗口上）；用 HEAD 的 followview 在本树可复现、在净 HEAD 工作树 10/10
+  通过 ⇒ 判为环境/时序抖动、**未归因到本批改动**（最终全量两轮均绿，但未找到确定性成因，
+  不以"已修"记）。
+
 ### 0.9.258（2026-10-16）· 审计批②——CSS 压缩内嵌 / 解包单源收口 / 体积门禁（三项）
 
 **由头**：`docs/optimization-audit-2026-10-16.md` 的批②（构建改造）：P0-1 全量 CSS 压缩内嵌

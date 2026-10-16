@@ -350,6 +350,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`toast`/`a11y`（title+aria-label 同源）/剪贴板/样式注入等工具。**0.9.258（审计批②）**：全量 CSS 原文搬到 `cssraw.js`（构建期输入，只被 `build.js` import），产物里以 deflateRaw+base64 内嵌串（`window.__ACSV_CSS_SRC__`）携带——styles.js 求值即解包（`pack.unpackText`）+ 回填 `SEAMS` 表 13 缝 + 主色替换，runtime CSS 与压缩前逐字节相同 |
 | `cssraw.js` | 全量 CSS **模板**（0.9.258，审计批② P0-1）：原 `styles.js` 的 RAW_CSS 字面量链整段迁移，23 处 CFG 插值 + 1 处 `IMGVIEW_CSS` 拼接改成 `'{{缝名}}'` 标记（缝表在 styles.js 一处）。**构建期输入**（同 `node_modules/hls.js` 的定位）——**只许 build.js import**，随产物发布的模块一律不得引它（真引了 ⇒ 产物里重新出现 `'{{'`，`check-release` 即红）。改样式改这里 |
 | `pack.js` | 内嵌压缩串解包**单源**（0.9.258，审计批②）：`unpackText(packed, len, onFail)` = base64→inflateSync(fflate)→长度校验→UTF-8 解码，失败返 null 绝不抛。三个消费方各只补自己的失败打点（hls 下沉 CDN 链 / devicetab 回落空表 / styles 空模板），**不许再造第二份 unpack**（AGENTS 规则 3；`check-direction` 已登记为基建件） |
+| `pageloader.js` | 翻页骨架**单源**（0.9.259，审计批④ P2-5）：`createPageLoader({fetch,onPage,host,setStatus,skeleton,…})` → `{load,reset,done}`。收的是四家**相同的协议**——在途守卫 / 代数令牌 + `host().isConnected` 陈旧回包丢弃 / 骨架两路都收 / 三态状态行（`'加载中…'` 续拉才打、`'已加载全部…'` 到底、`'加载失败，滚动重试'`⇄`'加载失败，点击重试'` 按列表子节点分）/ 落定交 `onPage` 回 `{cursor,noMore}`；**翻页范式（游标方言/解析/到底判定/空态文案）仍归各消费点**。四处消费：followview / squarefeed / mypage 观看历史（`earlySettle`＝守卫前结算，0.9.236 形状；骨架每页都建）/ mypage 管理档壳（`busyGate`＝已有条目，档表未到不发废请求）。零依赖叶，`check-direction` 登记为基建件 |
 | `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策（三跳两两换 URL；0.9.166 二三跳 ±20% 抖动，rnd 缺省 0.5 保确定性）+ `memoState`/`memoTrim` 死链备忘纯判定（0.9.77：只读不续期）——URL 正确性只在这里定义 |
 | `imgload.js` | 图片加载执行层（0.9.76；0.9.77 头注校准覆盖边界）：项目图片字段（封面/头像）统一入口——`IMG_POLICY` 策略表（grid/thumb/avatar/space）+ `imgInto(host,url,policy[,cls])`（懒加载/重试链/终败降级/淡入/死链备忘）+ `lazyObserve` 观察器单例（私信气泡共用）。有意在外的例外：鉴权 blob 管线（imsend）、UBB/表情 HTML、站点静态图标、大图查看器 |
 | `interact.js` | 真实点赞（api_st → interact 接口）+ 投蕉/Pi 级写链（AppAPI.throwBanana）；**关注→relationapi.js、收藏→favapi.js**（0.9.142/143 迁出，退役登记在文件头） |
@@ -473,6 +474,7 @@ flowchart LR
     styles["styles.js（CSS 常量 + 接缝回填）"]
     cssraw["cssraw.js（全量 CSS 模板·构建期输入，只被 build.js import）"]
     pack["pack.js（内嵌压缩串解包单源·hls/devicetab/CSS 共用）"]
+    pageloader["pageloader.js（翻页骨架单源·followview/squarefeed/mypage×2 共用）"]
     dbg["dbg.js（调试埋点）"]
   end
 
@@ -588,9 +590,9 @@ flowchart LR
   views --> feedstore & overlay & sidebar & topbar & viewreg
   cards --> imgload & imgview & imicons & ubb & uplook
   sidebar --> viewreg
-  followview --> cards & emoticon & followseen & listtail & momentapi & momentdetail & rowkit & sidebar & viewreg
+  followview --> cards & emoticon & followseen & listtail & momentapi & momentdetail & pageloader & rowkit & sidebar & viewreg
   squareview --> cards & momentdetail & rowkit & squarefeed & viewreg
-  squarefeed --> cards & emoticon & followbadge & listtail & momentapi & momentbar & rowkit & ubb
+  squarefeed --> cards & emoticon & followbadge & listtail & momentapi & momentbar & pageloader & rowkit & ubb
   memberplaza --> rowkit & squarefeed
   listtail --> styles & ui
   spacetab --> ui
@@ -624,7 +626,7 @@ flowchart LR
   commentkit --> imicons & imgload & timefmt & ubb & uplook
   interact --> appapi
   release --> overlay & settings
-  mypage --> appapi & cards & favapi & favpop & grouppop & imgload & imgurl & listtail & momentapi & nameval & pickpop & relationapi & rowkit & squarefeed & timefmt & toastmsg & viewreg
+  mypage --> appapi & cards & favapi & favpop & grouppop & imgload & imgurl & listtail & momentapi & nameval & pageloader & pickpop & relationapi & rowkit & squarefeed & timefmt & toastmsg & viewreg
   relationapi --> appapi
   relatedapi --> imgurl & settings
   reldrawer --> imgload & imicons & relatedapi & timefmt

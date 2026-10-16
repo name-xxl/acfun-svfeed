@@ -25,6 +25,7 @@ import { setDockBadge } from './sidebar.js';
 import { openMomentDetail } from './momentdetail.js';
 import { ensureEmotionMap, refillEmoticons } from './emoticon.js';
 import { closeInlineComments, feedRowOf, armExpanders, wireRowList } from './rowkit.js';
+import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259）
 
 // ---------- 互动行为（乐观更新照 rail.js:154-177 范式；pi 与详情面板同引用——
 // 面板里再操作计数，行内 DOM 不自动跟新：v1 不做跨面实时同步，低频场景，注释防误判） ----------
@@ -57,73 +58,56 @@ function buildFollowView(body) {
   wrap.appendChild(list);
   // 尾部件（0.9.219 收口 listtail）：三态状态行 + 回顶 + 触底监听（元素方言）。
   // **顺带修**：此前状态行注释写着「点击=手动重试（首屏失败列表为空，点击是唯一出口）」却没接线，
-  // 接入本件后自动接上
+  // 接入本件后自动接上。
+  // 建序：尾部件先建、骨架接它的 setStatus 本体（与改造前 `var setStatus = tail.setStatus` 同一份
+  // 捕获语义——挂起/孤儿实例的迟到写只落到自己那条状态行上）；尾部件的触底回调反向引用骨架，
+  // 故走`pg`懒引用（var 提升，事件到达时必已装配）
+  var seenKeys = null;  // 去重键集（momentId||acId）：整页 0 新增 → 判到底（广场安全阀）
   tail = createListTail({
     root: wrap,
     scrollEl: body,
     backTopHost: body,
     pad: CFG.view.follow.scrollPad,
     backTopAt: CFG.view.follow.backTopAt,
-    onBottom: load,
-    onRetry: load
+    onBottom: function () { pg.load(); },
+    onRetry: function () { pg.load(); }
   });
-
-  var pcursor = '0';    // 首页游标（毫秒时间戳由响应回填；空/缺=no_more → 到底）
-  var seq = 0;          // 在途回包令牌：视图已拆（闭包死）或重建时旧回包丢弃
-  var loading = false;
-  var noMore = false;
-  var firstPage = true;
-  var seenKeys = null;  // 去重键集（momentId||acId）：整页 0 新增 → 判到底（广场安全阀）
-
-  var setStatus = tail.setStatus;
-
-  function load() {
-    if (loading || noMore) return;
-    loading = true;
-    var my = ++seq;
-    var sk = firstPage ? skeleton(list) : null;
-    if (!firstPage) setStatus('加载中…', true);
-    listMoments(pcursor) // 传输收口 momentapi（0.9.106）；解析留在视图（分档/去重是视图语义）
-      .then(function (j) {
-        if (sk) sk();
-        if (my !== seq || !list.isConnected) return; // 视图已拆/重建：在途回包丢弃
-        var raws = (j && j.feedList) || [];
-        // 整页重复安全阀：新增键=0 即判到底（被契约过滤的条目不算新增也不算重复）
-        var fresh = 0;
-        if (!seenKeys) seenKeys = new Set();
-        raws.forEach(function (raw) {
-          var pi = followPanelOf(raw);
-          if (!pi) return; // 契约层过滤（未知类型/缺身份字段——宁可漏不错）
-          var key = pi.momentId || pi.acId;
-          if (key && seenKeys.has(key)) return;
-          if (key) seenKeys.add(key);
-          fresh++;
-          // **append-only 不变量**：新行只追加尾部，绝不重渲染整列表（头部注释①——
-          // 展开态/原位评论区/面板引用靠它保命）
-          list.appendChild(feedRowOf(pi));
-        });
-        var next = j && j.pcursor != null ? String(j.pcursor) : '';
-        // 到底判定：终值 'no_more'（与 followDougaFeed 同族语义）/ 空游标 / 空页 / 整页 0 新增
-        if (next === 'no_more' || !next || !raws.length || (fresh === 0 && raws.length)) noMore = true;
-        pcursor = next;
-        // 首屏到达=已读（0.9.139）：水位推进从"访问期内撞上轮询闸门"改为确定性钩子（短访不
-        // 再复亮）。**放在成功回包内**——拉失败时用户什么也没看到，不得吞掉新内容
-        if (firstPage) markSeen();
-        armExpanders(list);
-        if (firstPage && !list.children.length && noMore) {
-          list.appendChild(el('div', 'acsv-vempty', '关注的 UP 还没有新动态'));
-        }
-        firstPage = false;
-        setStatus(noMore ? '已加载全部动态' : '');
-        loading = false;
-      }, function () {
-        if (sk) sk();
-        if (my !== seq || !list.isConnected) return;
-        // 失败不置到底：下次触底自动重试；首屏失败列表为空，点击是唯一出口
-        setStatus(list.children.length ? '加载失败，滚动重试' : '加载失败，点击重试');
-        loading = false;
+  var pg = createPageLoader({
+    firstCursor: '0',   // 首页游标（毫秒时间戳由响应回填；空/缺=no_more → 到底）
+    host: function () { return list; },
+    fetch: function (pcursor) { return listMoments(pcursor); }, // 传输收口 momentapi（0.9.106）；解析留在视图（分档/去重是视图语义）
+    skeleton: function (first) { return first ? skeleton(list) : null; },
+    setStatus: tail.setStatus,
+    doneLabel: '已加载全部动态',
+    onPage: function (j, info) {
+      var raws = (j && j.feedList) || [];
+      // 整页重复安全阀：新增键=0 即判到底（被契约过滤的条目不算新增也不算重复）
+      var fresh = 0;
+      if (!seenKeys) seenKeys = new Set();
+      raws.forEach(function (raw) {
+        var pi = followPanelOf(raw);
+        if (!pi) return; // 契约层过滤（未知类型/缺身份字段——宁可漏不错）
+        var key = pi.momentId || pi.acId;
+        if (key && seenKeys.has(key)) return;
+        if (key) seenKeys.add(key);
+        fresh++;
+        // **append-only 不变量**：新行只追加尾部，绝不重渲染整列表（头部注释①——
+        // 展开态/原位评论区/面板引用靠它保命）
+        list.appendChild(feedRowOf(pi));
       });
-  }
+      var next = j && j.pcursor != null ? String(j.pcursor) : '';
+      // 首屏到达=已读（0.9.139）：水位推进从"访问期内撞上轮询闸门"改为确定性钩子（短访不
+      // 再复亮）。**放在成功回包内**——拉失败时用户什么也没看到，不得吞掉新内容
+      if (info.firstPage) markSeen();
+      armExpanders(list);
+      // 到底判定：终值 'no_more'（与 followDougaFeed 同族语义）/ 空游标 / 空页 / 整页 0 新增
+      var noMore = next === 'no_more' || !next || !raws.length || (fresh === 0 && raws.length);
+      if (info.firstPage && !list.children.length && noMore) {
+        list.appendChild(el('div', 'acsv-vempty', '关注的 UP 还没有新动态'));
+      }
+      return { cursor: next, noMore: noMore };
+    }
+  });
 
   wireRowList(list, rowDefault); // 列表级委托（commentListClick 同款挂法；0.9.124 收口 rowkit，落点经 onOpen）
 
@@ -135,7 +119,7 @@ function buildFollowView(body) {
 
   // 无限滚动：挂在**实际滚动容器**（.acsv-view-body 即本 body）——非 window（与广场的
   // 差异点，广场列表直接活在页面流里）；触底提前量/回顶阈值由 listtail 按 cfg 档位驱动
-  load();
+  pg.load();
 }
 
 // 视图卸载：停尾部件（解绑滚动）+ 行内评论区宿主复位

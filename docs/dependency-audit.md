@@ -302,3 +302,50 @@ feedstore.js → player.js → input.js → feedstore.js
 - **IMGVIEW_CSS 为何留作第 13 缝**：它在原文里是 `+ IMGVIEW_CSS +` 拼接引用；内联成字面量会让
   同一段 CSS 在仓里存两份（styles.js 与 cssraw.js）⇒ 迟早漂，与单源收口相冲。留缝则 styles.js
   仍是该段文本唯一出处。
+
+## 0.9.259：翻页骨架抽离（审计批④ P2-5）+ check-direction 登记卫生与覆盖扩面第一轮
+
+- **新增模块**：`pageloader.js`（翻页骨架**单源**，零依赖叶：`createPageLoader(o) → {load, reset, done}`）。
+  收口的是四家**逐字相同的协议**——在途守卫 / 代数令牌 + `host().isConnected` 陈旧回包丢弃 / 骨架
+  成功失败两路都收 / 三态状态行 / 落定交 `onPage` 回 `{cursor, noMore}`；**翻页范式留在消费点**
+  （游标方言、传输、契约过滤、到底判定、空态文案）。四消费点：`followview`（关注流，momentId||acId
+  去重 + markSeen + armExpanders）、`squarefeed`（广场/个人主页两宿主，onRow + armBackfill + 发现态
+  latestAmId）、`mypage` 观看历史（页码方言 + **原始条数**到底判据 + 契约过滤，bone 每页都建）、
+  `mypage` 管理档壳（收藏夹/分组，页码⇄偏移量两游标，档表未到不发）。
+- **保留到缝里的四处差异（都是显式选项，不是隐性行为）**：①`skeleton(firstPage)`——历史档每页都建，
+  故本件不按 firstPage 过滤、只把 firstPage 传进去；②`earlySettle`——历史档沿用 0.9.236 形状
+  （在途标志与骨架在**陈旧守卫之前**结算；另三家在守卫之后，`reset()` 的 seq++ 若在守卫前清
+  loading 会让迟到回包放开在途标志、叠发一发）；③`busyGate()`——管理档壳的续拉状态行判据是
+  「已有条目」（首屏 0 行且未到底时与「非首屏」不等价）；④`beforeFetch()`——同上壳的「档表未到
+  不发废请求」（`cur == null` 时清状态行并跳过）。
+- **新增边**（`check-direction` 两口径 0 未登记 / `check-deps` 绿）：`followview → pageloader`、
+  `squarefeed → pageloader`、`mypage → pageloader`（三条都是特性/视图件 → 基建件）。`pageloader.js`
+  已登记 `check-direction` 的 INFRA（零依赖叶，同 `pack.js` 定位）；README 图补一节点三边。
+  **`check-deps` 未动 EXCLUDED_TARGETS**：`pack.js` 那条走豁免是因为它的入边不打算画，而本件的
+  三条入边直接画在图里（规则③由"画边"满足，比豁免更严——将来新增消费点漏画会直接翻红）。
+- **`check-direction` 卫生（P3-2）**：①`INFRA` 计数注释 16 → **23**（16 是 0.9.11x 时代的残留；
+  实况 0.9.256 时 21、0.9.258 加 pack 后 22、本批加 pageloader 后 23），并附复点命令与"改 INFRA
+  同批改本行"的纪律；②删掉 `FEATURE` 内 `momentpost.js` 的**重复登记**（`:83` 与 `:93` 各一份，
+  全表唯一重复，令注册数与成员数各虚增 1——归类理由留在原处，条目归位上组）。
+- **覆盖扩面第一轮（逐件试登记 + 跑 check-direction；本轮 7 件里 3 件入册）**：
+  - 入册 `cards.js` / `views.js` / `imsend.js`（均 **FEATURE**，两口径 0 条）。理由分别：cards＝
+    卡面 kit 单源，11 个消费方全在表内（当基建件会在口径 A 报 `cards→ubb` 越层）；views＝子视图
+    框架，唯一消费方 player 是 SKIP_B 组合根（另一可行桶是 SKIP_B，取 FEATURE 是因为它更严：
+    将来任何非特性件反向依赖本件仍会翻红）；imsend＝私信域发送核心，消费方 imbadge/imdrawer/
+    sharepanel 三件均已在表内（README 私信层是出身 placement，同 0.9.233 校准先例）。
+  - **未入册四件（`session` / `feedstore` / `controls` / `dmcanvas`）——两个桶都会翻红，且翻红的
+    边全是播放层→播放层**（`check-direction` 只认"基建/接口/特性"三层，**播放层内核没有桶**）：
+    | 文件 | 登记 FEATURE 时翻红 | 登记 INFRA 时翻红 |
+    |---|---|---|
+    | `session.js` | `attach → session` | `session → hls` |
+    | `feedstore.js` | `attach/controls/input/playback/prewarm/report/views → feedstore`（7 条） | `feedstore → feedctx` |
+    | `controls.js` | `input → controls` | `controls → attach/danmaku/feedstore/playback`（4 条） |
+    | `dmcanvas.js` | `danmaku → dmcanvas` | `dmcanvas → advdm` |
+    这不是"修边"就能消的债——要收它们得先给口径 B 添一个"播放层/编排宿主"桶（本批不动，
+    留作下一轮分类裁决；`KNOWN` 仍为 **[]**，没有为凑绿新增任何豁免）。
+  - 结果：注册 67 → **71** / `src` 110 → **111**（60.9% → **64.0%**）；未纳 40 件（follow-up 清单：
+    advdm/attach/banpop/channelapi/controls/cssraw/dmcanvas/emoticon/favapi/favpop/feedctx/feedstore/
+    followseen/grouppop/hls/imcard/input/interact/levelstack/listtail/momentapi/pickpop/playback/
+    playgest/playstate/popplace/prewarm/relatedapi/relationapi/release/report/searchfmt/session/
+    sidebar/toastmsg/ubb/upload/watchledger + devicetab（生成物））。每加一件都要入边审计，
+    故全量扫尾不在本批范围。
