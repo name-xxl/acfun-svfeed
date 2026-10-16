@@ -5,6 +5,67 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.256（2026-10-16）· 深挖复核处置批——恢复看门狗 / Esc 语义单源 / UBB 保护块 / 关注流回置 / 写链超时 / 深链令牌 / 转圈收口（七项）
+
+**由头**：对全仓做七簇行级深读 + 逐条回源码复核（含对上一轮外部清单的误判剔除），筛出七项可
+用现有 harness 复现、且能"摘修复反跑"的真问题，逐项修复并配断言。全部证据链见下（病灶 → 修法
+→ 测试），关键断言均经**摘修复反跑转红、还原复绿**。
+
+- **① 会话错误恢复锁死（`session.js`）**：病灶——`_recovering` 重入锁只由 `playing` 释放，而
+  恢复链第一步"换备用 CDN"直接 return；备线再失败时新 `error` 被 190 行锁吞，不升级
+  refreshItem、不落 error 态 ⇒ 无限转圈无重试（多 CDN 条目永远到不了升级档）。修法——换线后
+  挂**看门狗**（`CFG.time.recoverStuck=8s`，playing/dispose 清表）：到期仍持锁且新源无数据/已
+  error ⇒ 清锁回 `recover()` 走升级链；已出数据（暂停/被拒播）只解锁不升级。测试：新场景
+  `recover-backup-fail`（真身经 `slide._session.item` 换双死链 + 合成 error，先等真实 error 落
+  地防异步归零假绿）钉"升级到 refreshItem 恢复起播 + `recover.watch` 计数"；反跑（摘
+  `_armRecoverWatch`）⇒ 两条断言转红（state=loading、watch=0），还原复绿。
+- **② Esc 语义单源（`overlay.js`/`input.js`/`momenteditor.js`）**：病灶——`onEsc` 只在 overlay
+  capture 生效，input.js 合成事件路径三处直调 `overlayClose`；发布动态提交中按 Esc 先弹栈、
+  `close` 再因 busy 拒执行 ⇒ 编辑器在屏但不在栈顶（后续 Esc/媒体键泄漏到下层，且再也关不掉）。
+  修法——新增 `overlayEsc()`（onEsc 裁决与关层顺序单源），overlay capture 与 input.js 三处接线
+  全部走它；momentedit 注册 `onEsc:()=>!!busy`。测试：单测 overlayEsc 两条（消费不弹栈/放行走
+  关层/空栈返假）；moment-publish 新增 busy 期连按 Esc 两条 + 落定关 + 非 busy 关；反跑（摘
+  onEsc 注册）⇒ 三条断言转红且层序崩坏（stack=["view"]→[]、后续入口 null），还原复绿。
+- **③ UBB 裸 ac 号规则二次改写已生成 HTML（`ubb.js`）**：病灶——裸 ac 号/动态短链规则跑在
+  话题/at/img 之后且对整串替换：`#ac2019#` 话题 href、`[color=#ac1234]` hex 值、图链路径段含
+  `ac\d{4,}` 三类输入被二次改写成 `<a>`（属性截断/`<a>` 嵌套）；原"顺序等价论"证伪。修法——
+  **保护块**（protect/restore token）：表情/图/at/话题先行产出收进 token，裸 ac/动态短链只扫
+  "未进 UBB 属性区与已生成标记"的文本段（`split(<tag>|[attr])` 双切）；`[ac=]`/`[resource]`
+  内文先还原再剥标签（与旧"先成链再剥壳"逐字等价）；含保护块的话题不建链（token 防编进
+  search keyword）。测试：单测 +5（话题/href、hex 颜色、图链 src、at 昵称、话题+正文并存），
+  既有 32 条全量回归通过；反跑（protect 恒等 + 拆回旧整串替换）⇒ 恰好 5 条新断言转红，还原复绿。
+- **④ 关注视频流二次进入回放上届列表（`followstream.js`）**：病灶——`enterVideos` 全新进入
+  分支不重置 `FollowVideos`，items 只 concat：上届整列计入新会话（首条仍是旧视频），且上届
+  `done=true` 令 `startFollowChain` 立即短路、新分页永不加载（耗尽后静默回落随机流）。修法——
+  全新分支先 `FollowVideos.reset()`（feedctx 单源，含 failed=false）。测试：follow-videos 新增
+  "离开关注流→再进视频"（等进入完成 + 沉降 1.2s 再比对 count——不只看瞬态，反跑实锤过瞬时窗口
+  假绿）；反跑（摘 reset）⇒ count 14→24 转红，还原复绿。
+- **⑤ 写链无超时 + 单飞 reset 假复位（`appapi.js`/`ui.js`）**：病灶——`postForm` 裸 fetch 无超时
+  （半开 TCP 可 pending 数分钟，发送键锁死）；`singleFlight.reset()` 只清 val，请求挂起时
+  `ensureApiSt(true)` 强制刷新拿到的仍是挂在 busy 上的僵尸 promise（全互动写链卡到刷新）。修
+  法——postForm 加 AbortController 超时（对齐 `CFG.time.gm`，abort 归一到 'timeout' 话术供
+  momentpost"结果未知→先查后补"匹配）；singleFlight reset 升代为**代际作废**（新 get 重新发
+  起，旧等待者不撕）。测试：单测 singleflight 4 条（共享/失败重试/清值/在途作废）；反跑（reset
+  还原旧语义）⇒ 在途作废条转红，还原复绿。
+- **⑥ 深链迟到回包覆盖后发深链 + 首屏误弹错误盒（`player.js`）**：病灶——`loadDeepLink` 回包只
+  挡"已退出竖刷"，不挡"期间又发起新深链"：A 未决时切 B 落地，A 迟到把 B 流重置成 A、地址栏
+  也回写成 A；`loadInitial` 的 reset 后旧链以"成功空结果"收尾，旧回调见空库会弹错误盒盖在新流
+  上。修法——两处都取 `FeedStore.gen` 代际快照守卫（deep-link 回包整体作废；loadInitial 旧链
+  作废不再出盒/重绘）。测试：新场景 `deeplink-race`（harness 桩挂起 A 的 douga/info、切 B 落地
+  后放行 A）；反跑（摘 gen 守卫）⇒ `race-stale-discarded`（first=48867213）+ `race-url-kept`
+  转红，还原复绿。
+- **⑦ 转圈收口：残留子项 + scroller 级不可见（`player.js`/`styles.js`）**：病灶——`clearSpinner`
+  只删首个，播放层直达回舞台路径 mount/maybeStartFeed 双挂 ⇒ 残留无 idx 子项令 renderWindow
+  排序快路（children.length !== ordered.length）恒真、此后每次重绘全量 appendChild 重排；
+  scroller 直属 spinner 命中的是 `.acsv-spinner{display:none}`（622 行只匹配 slide 内）——
+  首屏/切源/深链加载实际无转圈。修法——clearSpinner 全清；补 `.acsv-scroller>.acsv-spinner
+  {display:block}`（可视形态入册 `docs/preview/loading-spinner.html`，与既有 slide 级转圈同枚）。
+  测试：play-cold 新增残留清零 + 合成探测 computed display 两条；反跑（双处各自摘除）⇒ 两条
+  分别转红（n=1 / display=none），还原复绿。
+- **测试总账**：单测 414/414（+11：ubb 保护块 5 / overlayEsc 2 / singleflight 4）；harness
+  75/75 场景全量通过（+2 新场景，publish/follow-videos/play-cold 新增断言）；lint / tsc /
+  check（cases/release/deps/no-leak/direction）全绿；七项反跑逐项转红均还原复绿。
+
 ### 0.9.255（2026-10-15）· 设备数据优化专项——全品牌 4,031 条机械归一 + 压缩内嵌
 
 **由头**：内置设备表是 Web-IP 移植批次的窄快照（996 条，生成器 TAIL 截断 + 区域变体剔除），

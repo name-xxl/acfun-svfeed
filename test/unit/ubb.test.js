@@ -256,3 +256,38 @@ test('方言顺序：[resource] 标题里的 #话题# 先成链再被剥壳（�
   assert.ok(!/ubb-res[^>]*>[^<]*<a/.test(h), h); // 内层不再有 <a>
   assert.ok(h.includes('看 #话题# 了'), h); // 话题链接被资源规则剥壳为纯文本
 });
+
+// ---------- 保护块（0.9.256）：裸 ac 号/动态短链规则不得二次改写先行规则的产物 ----------
+// 摘修复反跑：还原保护块（旧顺序等价实现）时以下五条必须转红
+test('保护：话题内容恰为 ac 号形态——href 不被改写、无嵌套 <a>', () => {
+  var h = renderCommentHtml('#ac2019#');
+  assert.equal((h.match(/<a /g) || []).length, 1, h);
+  assert.ok(h.includes('href="https://www.acfun.cn/search?keyword=ac2019"'), h);
+  assert.ok(!h.includes('ubb-ac'), h);
+  assert.ok(h.includes('>#ac2019#</a>'), h);
+});
+
+test('保护：hex 颜色值以 ac 开头——颜色规则照常生效、值逐字保留', () => {
+  assert.equal(renderCommentHtml('[color=#ac1234]红[/color]'),
+    '<span style="color:#ac1234">红</span>');
+});
+
+test('保护：图链路径段含 ac 号——img src 逐字完好、无 ubb-ac', () => {
+  assert.equal(renderCommentHtml('[img]https://imgs.aixifan.com/ac1234/x.png[/img]'),
+    '<img class="ubb-imgc" src="https://imgs.aixifan.com/ac1234/x.png" referrerpolicy="no-referrer">');
+});
+
+test('保护：at 昵称恰为 ac 号形态——单一 <a>，不嵌套', () => {
+  var h = renderCommentHtml('[at uid=7]@ac12345[/at]');
+  assert.equal((h.match(/<a /g) || []).length, 1, h);
+  assert.ok(!h.includes('ubb-ac'), h);
+  assert.ok(h.includes('>@ac12345</a>'), h);
+});
+
+test('保护：话题与正文裸 ac 号并存——各自出链一次；含保护块的话题不建链（同旧 HTML 阻断）', () => {
+  var h = renderCommentHtml('#ac2019# 另见 ac123456');
+  assert.equal((h.match(/ubb-topic/g) || []).length, 1, h);
+  assert.equal((h.match(/ubb-ac/g) || []).length, 1, h);
+  var h2 = renderCommentHtml('#见[emot=acfun,1/]封#');
+  assert.equal(h2, '#见<span class="ubb-emot-ph" data-pkg="acfun" data-id="1">[表情]</span>封#');
+});

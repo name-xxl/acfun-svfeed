@@ -2879,6 +2879,22 @@ rec('square-cmt-namecolor', (function () {
     rec('fv-feed-from-view', !!(await waitFor(function () {
       return !q('.acsv-view') && (TEST.call('followstream') || {}).feedActive === false;
     }, 8000)), location.hash);
+    // 0.9.256 二次进入回置：离开关注流后（feed 重置已把 feedActive 置假）再进「视频」，
+    // 列表必须从新拉的首屏重来——旧实现 items 只 concat 不 reset：上届整列计入 count
+    //（断言数翻倍），且上届 done=true 令 startFollowChain 立即短路、新分页永不加载
+    q('.acsv-dock-item[data-view="follow"]').click();
+    await waitFor(function () { return location.hash === '#svfeed/follow'; }, 8000);
+    var fvCountBefore = (TEST.call('followstream') || {}).count;
+    q('.acsv-seg-follow .acsv-seg-btn:nth-child(1)').click();
+    rec('fv-reenter-entered', !!(await waitFor(function () {
+      var st = TEST.call('followstream');
+      return st && st.feedActive === true && location.hash === '#svfeed/a/488911';
+    }, 10000)));
+    await wait(1200); // 等新首屏与分页链落定——不能只看瞬态：旧列未并入的窗口里 count 还是旧值（反跑实锤过的假绿）
+    rec('fv-reenter-reset', (function () {
+      var st = TEST.call('followstream') || {};
+      return st.done === true && st.count === fvCountBefore;
+    })(), 'before=' + fvCountBefore + ' now=' + JSON.stringify(TEST.call('followstream')));
     key('Escape');
     await wait(400);
   };

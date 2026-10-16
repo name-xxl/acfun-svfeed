@@ -229,7 +229,8 @@ export var CFG = {
     watchLedgerTtl: 86400000,  // 账本条目 TTL（24h）：陈旧差量没有补报价值，不养僵尸
     setFlush: 300,             // 设置写盘防抖窗（0.9.89）：面板连点开关只落一次盘；关面板/pagehide 强制 flush
     upd: 10000,          // release.atom 拉取超时
-    updGap: 60000        // 两次更新检查最小间隔：防 Esc 频繁进出竖刷刷请求（mock 注入时绕过）
+    updGap: 60000,       // 两次更新检查最小间隔：防 Esc 频繁进出竖刷刷请求（mock 注入时绕过）
+    recoverStuck: 8000   // 换线看门狗（0.9.256）：换备用 CDN 后这么久新源仍无数据/已 error ⇒ 清锁升级
   },
   nav: {
     labels: ['首页', '番剧', '直播', '文章区', '鱼塘'],

@@ -135,7 +135,9 @@ export function openMomentEditor(opts) {
   root = el('div'); root.id = 'acsv-me-root'; // 挂在脚本根（无壳页也要能开：退化为 body）
   (document.getElementById('acsv-root') || document.body).appendChild(root);
   root.appendChild(host);
-  overlayOpen({ id: 'momentedit', modal: true, close: close });
+  // onEsc（0.9.256）：提交中 Esc 交给本层消费（返回真=不关层）——此前 Esc 先把层弹出栈、
+  // close 再因 busy 拒绝执行 ⇒ 层在屏但已不在栈顶（后续 Esc/媒体键泄漏到下层，且再也关不掉）
+  overlayOpen({ id: 'momentedit', modal: true, close: close, onEsc: function () { return !!busy; } });
 
   // ---- 状态回调与工具 ----
   function setVis(fans) {

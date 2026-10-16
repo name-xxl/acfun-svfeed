@@ -5,7 +5,7 @@ import { root, scroller, slideAt, playItem } from './state.js';
 import { isFeedRoute } from './route.js';
 import { FeedStore } from './feedstore.js';
 import { pb, currentVideo, sweepVideos, togglePlayGesture, toggleMuteGesture, applyRate } from './playback.js';
-import { overlayTop, overlayClose } from './overlay.js';
+import { overlayTop, overlayEsc } from './overlay.js';
 import { getSetting } from './settings.js';
 
 // ---------- 键盘/全屏/幽灵扫描：全局监听的注册与解除 ----------
@@ -57,7 +57,7 @@ export function setupInputHandlers(api) {
       // 真实键盘同款豁免在 overlay.js capture）——Esc 不豁免，关层语义保持
       if (ev.key !== 'Escape' && ev.target
         && /^(input|textarea|select)$/i.test(ev.target.tagName)) return;
-      if (ev.key === 'Escape') overlayClose(top.id);
+      if (ev.key === 'Escape') overlayEsc(); // onEsc 裁决与关层顺序单源（0.9.256）
       return;
     }
     if (ev.target && /^(input|textarea|select)$/i.test(ev.target.tagName)) return;
@@ -80,9 +80,9 @@ export function setupInputHandlers(api) {
         // Esc 三级链（0.9.174）：① 浮层（抽屉/大图…）先关；② 播放层还有"级别"可弹就先弹级
         //（列表播放器→回原视频；单级时 playEscape 返回 false）；③ 最后才关视图层=退出回来源
         var vTop = overlayTop();
-        if (vTop && vTop.id !== 'view') { overlayClose(vTop.id); return; }
+        if (vTop && vTop.id !== 'view') { overlayEsc(); return; }
         if (inPlay && api.playEscape && api.playEscape()) return;
-        if (vTop) overlayClose(vTop.id);
+        if (vTop) overlayEsc();
         return;
       }
       if (!inPlay) return;
@@ -133,9 +133,9 @@ export function setupInputHandlers(api) {
         break;
       case 'Escape': {
         // 浮层栈顶（更新弹窗→大图→抽屉，按打开序）：关栈顶；栈空退出竖刷页。
-        // 0.9.61 起显式分支链收拢为栈——新增浮层不再改这里
+        // 0.9.61 起显式分支链收拢为栈——新增浮层不再改这里；onEsc 裁决收口 overlayEsc（0.9.256）
         var ov = overlayTop();
-        if (ov) overlayClose(ov.id);
+        if (ov) overlayEsc();
         // 影院态（0.9.197）先退：顶栏/左栏都隐了，Esc 是主出口（不直接退出脚本）
         else if (isCinema()) { setCinema(false); refreshFullBtns(); }
         else api.exitFeed();

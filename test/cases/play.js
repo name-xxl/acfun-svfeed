@@ -658,6 +658,19 @@ rec('cold-feed-loaded', !!(await waitFor(function () {
   return feed() && feed().items.length > 0;
 }, 15000)), 'items=' + (feed() ? feed().items.length : 'n/a'));
 rec('cold-feed-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+// 0.9.256 转圈收口：① 播放层直达路径 mount/maybeStartFeed 双挂 spinner，clearSpinner 旧只删
+// 首个 ⇒ 残留无 idx 子项让 renderWindow 排序快路永久失效；② scroller 级 spinner 旧 CSS 只给
+// slide 内选择器，直属 scroller 的转圈被 display:none 隐掉（首屏加载实际无转圈）
+rec('cold-no-stale-spinner', document.querySelectorAll('.acsv-scroller > .acsv-spinner').length === 0,
+  'n=' + document.querySelectorAll('.acsv-scroller > .acsv-spinner').length);
+(function () {
+  var spProbe = document.createElement('div');
+  spProbe.className = 'acsv-spinner';
+  q('.acsv-scroller').appendChild(spProbe);
+  rec('spinner-scroller-visible', getComputedStyle(spProbe).display !== 'none',
+    'display=' + getComputedStyle(spProbe).display);
+  spProbe.remove();
+})();
 // onTime 同值跳过（0.9.166）：连发两次同 currentTime 的合成 timeupdate ⇒ 第二次 pct/文本
 // 双同值整拍跳过（stat 计数可证；真进度变化时 moved/talked 任一为真即照写，不吞真进度）
 var tv = document.querySelector('.acsv-scroller video');

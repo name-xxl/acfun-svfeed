@@ -621,6 +621,9 @@ var RAW_CSS = ''
   + '@keyframes acsv-spin{to{transform:rotate(360deg)}}'
   + '.acsv-slide[data-state="loading"] .acsv-spinner{display:block}'
   + '.acsv-spinner{display:none}'
+  // scroller 级首屏转圈（0.9.256）：622 行只匹配 slide 内，此前 scroller 直属 spinner 被
+  // display:none 隐掉——首屏/切源/深链加载期实际无转圈（681-682 的避让 transition 在册）
+  + '.acsv-scroller>.acsv-spinner{display:block}'
   // 居中用负 margin（同 spinner）：transform 留给评论抽屉的舞台缩放，避免叠加错位
   + '.acsv-playicon{position:absolute;top:50%;left:50%;margin:-36px 0 0 -36px;z-index:9;width:72px;height:72px;'
   + 'border-radius:50%;background:rgba(0,0,0,.5);display:none;place-items:center;pointer-events:none}'

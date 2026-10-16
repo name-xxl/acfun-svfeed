@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 加载转圈（scroller 级首屏/切源/深链）</title>
+<!-- ============================================================
+     docs/preview/loading-spinner.html —— 0.9.256 加载转圈静态预览（随修复批同批入册）
+     背景：scroller 级 spinner 此前被 `.acsv-spinner{display:none}` 隐掉（只有 slide 内
+     的 loading 选择器会在显示），修复后 scroller 直属 spinner 恢复可见。
+     形态来源：src/styles.js 的 .acsv-spinner（32×32 / 3px 边 / 上半白 / .8s 旋转），
+     与既有 slide 级 loading 转圈**同一枚**——本稿同时摆出两处供对照。
+     改版先改本稿，实现按本稿逐项对齐。
+     ============================================================ -->
+<style>
+  :root{
+    --acsv-accent:#fd4c5d;
+    --acsv-bg:#000;
+    --acsv-line:rgba(255,255,255,.09);
+    --acsv-t1:#fff;
+    --acsv-t2:#cfd3da;
+    --acsv-t3:#8a90a0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
+  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .board .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
+  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:12px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  /* ---- 与 src/styles.js 同量值的转圈 ---- */
+  .acsv-spinner{position:absolute;top:50%;left:50%;margin:-16px 0 0 -16px;width:32px;height:32px;z-index:8;
+    border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;
+    animation:acsv-spin .8s linear infinite;pointer-events:none}
+  @keyframes acsv-spin{to{transform:rotate(360deg)}}
+  .stage{position:relative;background:var(--acsv-bg);border:1px solid var(--acsv-line);
+    border-radius:12px;overflow:hidden}
+  .stage .frame{position:absolute;inset:0;display:grid;place-items:center;color:var(--acsv-t3);font-size:13px}
+  .stage.tall{height:360px}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>加载转圈 —— 静态预览（scroller 级首屏/切源/深链）</h1>
+  <p class="hint">
+    修复前：scroller 直属 spinner 被 display:none 隐掉（首屏加载实际无转圈）；修复后可见。
+    形态与既有 slide 级 loading 转圈**同一枚**（32×32 / 3px 边 / 上半白 / .8s 线性旋转），
+    位置居中（负 margin 16px）、层级 z-index:8、pointer-events:none 不挡点击。
+  </p>
+
+  <div class="sec">
+    <h2>① scroller 级首屏转圈（0.9.256 修后形态）<em>竖刷挂载/错误盒重试/maybeStartFeed 补拉期间</em></h2>
+    <div class="stage tall">
+      <div class="acsv-spinner"></div>
+      <div class="frame">（此段模拟空舞台：数据未到时只见转圈；转圈居中不挡点击）</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>② slide 级 loading 转圈（既有形态，一致性参照）<em>data-state="loading" 时出现</em></h2>
+    <div class="stage tall">
+      <div class="frame">（视频条加载中：转圈压在画面中央，控制栏 250ms 闲置后隐藏）</div>
+      <div class="acsv-spinner" style="z-index:9"></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>③ 非加载态<em>转圈默认 display:none —— 渲染完成/错误盒出现前必先撤掉</em></h2>
+    <div class="stage tall">
+      <div class="frame">（正常播放：画面 + 信息区，无转圈；错误态则错误盒顶替转圈）</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>④ 窄宽（540）<em>转圈不随视口变形，仍居中</em></h2>
+    <div class="stage tall" style="width:540px;max-width:100%">
+      <div class="acsv-spinner"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

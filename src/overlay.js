@@ -35,6 +35,19 @@ export function overlayTop() {
   return stack.length ? stack[stack.length - 1] : null;
 }
 
+// Esc 语义单源（0.9.256）：层内 onEsc 先裁决（返回真=本层消费、不关层——如提交中拒关、
+// 设置面板先收下拉菜单），否则关栈顶。capture 路径与 input.js 合成路径都走这里——
+// 此前 input.js 三处只看栈顶 id 直调 overlayClose，onEsc 在合成事件路径完全失效（两径行为
+// 不一致：真实键盘被层消费，harness/合成键盘却把 busy 中的层弹出栈外、close 再拒绝执行）。
+// 返回真=有层且已处理。
+export function overlayEsc() {
+  var top = overlayTop();
+  if (!top) return false;
+  if (top.onEsc && top.onEsc()) return true;
+  overlayClose(top.id);
+  return true;
+}
+
 export function overlayIsOpen(id) {
   for (var i = 0; i < stack.length; i++) if (stack[i].id === id) return true;
   return false;
@@ -66,8 +79,7 @@ function onOverlayKey(ev) {
   // 非聚焦时走下方关层
   if (ev.key !== 'Escape' && isInputTarget(ev)) return;
   ev.stopPropagation();
-  if (ev.key === 'Escape' && top.onEsc && top.onEsc()) return; // 层内先处理（如设置菜单先收）
-  if (ev.key === 'Escape') overlayClose(top.id);
+  if (ev.key === 'Escape') overlayEsc(); // 层内 onEsc 裁决与关层顺序单源（0.9.256）
 }
 function ensureKey() {
   if (keyBound) return;

@@ -351,14 +351,43 @@ rec('race-ready', !!(await waitFor(function () {
   var s = slide(0), v = s && s.querySelector('video');
   return !!(v && v.duration > 0 && s.dataset.state === 'ready' && s._session);
 }, 25000)));
-var s = slide(0), v = s && s.querySelector('video');
-if (!s || !v || !s._session) { rec('race-ready', false, 'no-session'); return; }
-v.pause(); // 隔离：真视频继续播会发 playing/waiting（playing 会把 error 正常拨回 ready，干扰合成序列）
-await wait(60);
-v.dispatchEvent(new Event('waiting'));
-s._session.setState('error');
-rec('race-error-immediate', s.dataset.state === 'error', 'state=' + s.dataset.state);
-await wait(450); // 越过 300ms 定时器窗口
-rec('race-error-holds', s.dataset.state === 'error', 'state=' + s.dataset.state);
+    var s = slide(0), v = s && s.querySelector('video');
+    if (!s || !v || !s._session) { rec('race-ready', false, 'no-session'); return; }
+    v.pause(); // 隔离：真视频继续播会发 playing/waiting（playing 会把 error 正常拨回 ready，干扰合成序列）
+    await wait(60);
+    v.dispatchEvent(new Event('waiting'));
+    s._session.setState('error');
+    rec('race-error-immediate', s.dataset.state === 'error', 'state=' + s.dataset.state);
+    await wait(450); // 越过 300ms 定时器窗口
+    rec('race-error-holds', s.dataset.state === 'error', 'state=' + s.dataset.state);
+  };
+  // ---- recover-backup-fail（0.9.256：换线看门狗——备线也失败必须能升级，不许永卡恢复中） ----
+  // 病灶：_recovering 锁只由 playing 释放；恢复第一步换备用 CDN 后 return，备线新 error 又被
+  // 锁吞（不升级 refreshItem、不落 error 态）⇒ 无限转圈无重试。修后：8s 看门狗清锁升级。
+  // 造态：首条在播（真源正常），把条目 URL 换成双死链再合成一次 error——恢复链换到死链、
+  // 真 error 紧随其后被锁吞；看门狗到期后 refreshItem（sv=info 桩回好地址）应恢复起播。
+  // 摘修复反跑：摘掉 session.js 的 _armRecoverWatch 即转红（waitFor 超时、watch 计数为 0）。
+  C['recover-backup-fail'] = async function (h) {
+    var rec = h.rec, slide = h.slide, wait = h.wait, waitFor = h.waitFor,
+      firstVideoReady = h.firstVideoReady, feed = h.feed, TEST = h.TEST, finish = h.finish;
+    rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+    var s = slide(0), v = s && s.querySelector('video');
+    // 真身经 slide._session.item 取（TEST.call('feed') 是快照映射，改拷贝不影响会话）
+    var it = s && s._session && s._session.item;
+    if (!it || !v) { rec('backup-fail-recovered', false, 'no-item'); finish(); return; }
+    it.urls = [location.origin + '/nope-404.mp4', location.origin + '/nope-404.mp4'];
+    it.urlIdx = 0;
+    v.dispatchEvent(new Event('error'));
+    // 先等死链的真实 error 落地（load 的 currentTime 归零是异步的——不先等会读到旧进度假绿）；
+    // 旧代码此后永远停在这里：error 被 _recovering 锁吞，不升级、不落 error 态、无重试
+    var swapped = await waitFor(function () { return !!v.error; }, 8000);
+    rec('backup-fail-swapped', !!swapped, 'error=' + (v.error && v.error.code)
+      + ' state=' + (slide(0) && slide(0).dataset.state));
+    var ok = await waitFor(function () { return firstVideoReady(0) && !v.error; }, 30000);
+    var stats = TEST.getStats();
+    rec('backup-fail-recovered', !!ok, 'state=' + (slide(0) && slide(0).dataset.state)
+      + ' watch=' + (stats['recover.watch'] || 0) + ' resolve=' + (stats['recover.resolve'] || 0));
+    rec('backup-fail-escalated', (stats['recover.watch'] || 0) >= 1,
+      'watch=' + (stats['recover.watch'] || 0));
   };
 })();

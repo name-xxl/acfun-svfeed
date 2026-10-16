@@ -108,6 +108,32 @@ test('非法注册：缺 id / 缺 close 回调不入栈', () => {
   assert.equal(overlay.overlayTop(), null);
 });
 
+// ---------- overlayEsc（0.9.256：onEsc 裁决 + 关层顺序单源） ----------
+// 病灶：input.js 合成事件路径直调 overlayClose，onEsc 只在 overlay.js capture 生效——
+// 提交中（busy）Esc 先弹栈、close 再拒绝执行 ⇒ 层在屏但不在栈顶。overlayEsc 收口两径。
+test('overlayEsc：onEsc 消费则不弹栈不关层；放行后照常关', () => {
+  reset();
+  var closed = [];
+  var busy = true;
+  overlay.overlayOpen({ id: 'm', close: () => closed.push('m'), onEsc: () => busy });
+  assert.equal(overlay.overlayEsc(), true);
+  assert.equal(overlay.overlayTop().id, 'm'); // 栈未动
+  assert.deepEqual(closed, []);
+  busy = false;
+  overlay.overlayEsc();
+  assert.equal(overlay.overlayTop(), null);
+  assert.deepEqual(closed, ['m']);
+});
+
+test('overlayEsc：空栈返回假（调用方走降级链）；无 onEsc 层直接关', () => {
+  reset();
+  assert.equal(overlay.overlayEsc(), false);
+  var closed = [];
+  overlay.overlayOpen({ id: 'plain', close: () => closed.push('plain') });
+  assert.equal(overlay.overlayEsc(), true);
+  assert.deepEqual(closed, ['plain']);
+});
+
 // ---------- 输入元素豁免分类器（0.9.96 动态详情面板） ----------
 // 面板 modal 层内有评论输入框：分类器决定打字放行；Esc 永不豁免（关层语义）由调用侧保证，
 // 这里钉的是分类本体（接线在 overlay.js capture 与 input.js 气泡各 2 行）

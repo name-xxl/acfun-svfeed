@@ -434,4 +434,32 @@ if (CASE === 'deeplink-miss') {
   }
 }
   };
+  // ---- deeplink-race（0.9.256：深链迟到回包不得覆盖后发深链） ----
+  // 病灶：loadDeepLink 的回包只挡「已退出竖刷」，不挡「期间又发起了新深链」——A（冷启动
+  // hash，douga 回包被 harness 桩挂起）未决时切到 B 并落地，随后放行 A：旧实现会把 B 的
+  // 流整体重置成 A 并把地址栏也回写成 A（内容与 URL 双双被静默替换）。
+  // 桩与时序：harness.html 的 DEEP_HASH + __ACSV_MOCK_FORM__['douga/info']（A=48867213 挂起）
+  C['deeplink-race'] = async function (h) {
+    var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor, feed = h.feed,
+      firstVideoReady = h.firstVideoReady;
+    window.__ACSV_MOCK_DIRECT__ = { '48867214': 1 }; // B 不在 home-sample 池：直挂缝给可播地址
+    rec('race-a-inflight', !!(await waitFor(function () {
+      return !!(window.__ACSV_DL_PENDING__ && window.__ACSV_DL_PENDING__['48867213']);
+    }, 10000)));
+    location.hash = 'svfeed/a/48867214'; // 挂载态切 B：新深链解析立即返回
+    rec('race-b-first', !!(await waitFor(function () {
+      var f = feed();
+      return f && f.items[0] && String(f.items[0].id) === '48867214';
+    }, 15000)), 'first=' + (feed() && feed().items[0] ? feed().items[0].id : 'n/a'));
+    rec('race-b-plays', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+    // 放行 A 的迟到回包（含 syncHash 地址回写的完整回调链）
+    window.__ACSV_DL_PENDING__['48867213']({ result: 0, videoList: [{ id: 'mock-douga-48867213' }],
+      title: 'A 深链', coverUrl: '' });
+    await wait(1200);
+    rec('race-stale-discarded', (function () {
+      var f = feed();
+      return !!f && f.items[0] && String(f.items[0].id) === '48867214' && f.current === 0;
+    })(), 'first=' + (feed() && feed().items[0] ? feed().items[0].id : 'n/a'));
+    rec('race-url-kept', /^#svfeed\/a\/48867214$/.test(location.hash), location.hash);
+  };
 })();

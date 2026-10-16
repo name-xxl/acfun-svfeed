@@ -138,6 +138,7 @@
     'deeplink-ac': '#svfeed/a/48867212',     // 推荐标记形态（home-sample 首条 href）
     'deeplink-switch': '#svfeed/v/11053531', // 源记忆=home 下也必须落到小视频
     'deeplink-miss': '#svfeed/a/99999999999', // 两个 id 空间都查不到：必须错误盒，不许随机流
+    'deeplink-race': '#svfeed/a/48867213',    // 深链竞态（0.9.256）：A 回包挂起期切 B，A 迟到不得覆盖
     'play-cold': '#svfeed/play/a/488900'      // 播放层直达（0.9.79）：分享链接冷启动不预热竖刷
   };
   if (DEEP_HASH[CASE]) {
@@ -146,6 +147,19 @@
       // 播放层直达：解析链同 view-my（douga/info 全量桩 + 直挂缝——webm 套 hls.js 会死在解析上）
       window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       window.__ACSV_MOCK_DIRECT__ = { '488900': 1 };
+    } else if (CASE === 'deeplink-race') {
+      // A（48867213）的 douga/info 挂起——resolver 交给场景体控制放行时序；其余 id 立即返回
+      // （mockHit 对返回的 pending promise 做 Promise.resolve ⇒ 保持 pending，直到场景体调用）
+      window.__ACSV_DL_PENDING__ = {};
+      window.__ACSV_MOCK_FORM__ = {
+        'douga/info': function (body, url) {
+          var id = (String(url).match(/dougaId=(\d+)/) || [])[1];
+          if (id === '48867213') {
+            return new Promise(function (res) { window.__ACSV_DL_PENDING__['48867213'] = res; });
+          }
+          return { result: 0, videoList: [{ id: 'mock-douga-' + id }], title: 'B 深链', coverUrl: '' };
+        }
+      };
     } else {
       // douga/info 桩：ac 深链的解析端点（生产 = api-new.app.acfun.cn/rest/app/douga/info）。
       // key 收窄到 'douga/info' 单端点，防误伤其他请求；非白名单 id 回 result≠0 走未命中分支

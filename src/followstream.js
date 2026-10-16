@@ -81,7 +81,11 @@ export function enterVideos() {
     // feedActive 残留但缓冲已空（被切源/重置过）：落回全新进入
   }
   activateContext(FollowVideos); // 单活互斥：清掉空间页等其余上下文（0.9.106 互踩修复）
-  FollowVideos.failed = false;
+  // 0.9.256 二次进入必须先回置：feedActive=false 只代表"不在流中"，items/pcursor/done 还留着
+  // 上届整列——不回置会把新首屏 concat 到旧列（items[0] 仍是旧首条，深链落错条），且上届
+  // done=true 会让 startFollowChain 立即短路、新分页永不加载（耗尽后静默回落随机流）。
+  // reset 已含 failed=false（见 feedctx.createFeedContext）
+  FollowVideos.reset();
   return loadFollowPage('0').then(function (res) {
     var page = res.page; // 0.9.106：loadFollowPage 回 {loaded, page}（并入已在其内完成）
     if (!page.items.length) { FollowVideos.feedActive = false; FollowVideos.done = true; return false; }

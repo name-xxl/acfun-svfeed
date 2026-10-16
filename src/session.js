@@ -30,6 +30,7 @@ export function createSession(slide, item, idx, hooks) {
     resumeAt: 0,        // 重挂前的播放进度，playing 后 seek 回去（attachVideo 从槽位转入）
     lastT: 0,           // dispose 前最终秒位快照（0.9.234：拆源会归零 currentTime，上报用它）
     _recovering: false, // 恢复链重入锁：video error 与 hls fatal 可能接连触发
+    _recoverWatch: 0,   // 换线看门狗（0.9.256）：备线也失败时 error 会被重入锁吞，锁只由 playing 释放
     _waitTimer: null,
 
     setState: function (s) {
@@ -206,6 +207,10 @@ export function createSession(slide, item, idx, hooks) {
         item.urlIdx++;
         this._attachSource(video);
         video.load();
+        // 换线看门狗（0.9.256）：重入锁只由 playing 释放，而备线新 error 又被 190 行锁吞——
+        // 备线也失败时会话永久停在恢复中（无错误盒无重试）。8s 内新源无数据/已明确 error
+        // 即清锁继续升级（refreshItem → error 态）；已出数据（暂停/被拒播）只解锁不升级
+        this._armRecoverWatch();
         // video.load() 按规范置 paused：必须显式续播（旧实现漏了这一步，
         // 一直被「用户划走再划回会重播」掩盖成隐形卡死）
         if (self.idx === hooks.currentIdx() && !self.slide._userPaused) hooks.play(video);
@@ -232,6 +237,25 @@ export function createSession(slide, item, idx, hooks) {
       this.setState('error');
     },
 
+    // 换线看门狗（0.9.256）：见 recover 换线分支注释。playing/dispose 清表；
+    // 到期时锁仍持且新源无数据/已 error ⇒ 清锁回到 recover 走升级链
+    _armRecoverWatch: function () {
+      var self = this;
+      clearTimeout(this._recoverWatch);
+      this._recoverWatch = setTimeout(function () {
+        self._recoverWatch = 0;
+        if (self.state === 'disposed' || self.state === 'error' || !self._recovering) return;
+        var v = self.video;
+        if (!v || v.error || v.readyState === 0) {
+          stat('recover.watch');
+          self._recovering = false; // 解锁后 recover 重新入锁：urlIdx 到底 → refreshItem → error 态
+          self.recover();
+        } else {
+          self._recovering = false; // 新源已出数据（暂停/被拒播）：链已落地，锁交回事件
+        }
+      }, CFG.time.recoverStuck);
+    },
+
     _wire: function (video) {
       var self = this;
       // recover() 后台守卫的另一半：挂起的恢复请求回前台复查——给解码器 1.5s 自愈窗口，
@@ -254,6 +278,8 @@ export function createSession(slide, item, idx, hooks) {
       video.addEventListener('playing', function () {
         if (self.state === 'disposed') return;
         clearTimeout(self._waitTimer);
+        clearTimeout(self._recoverWatch); // 恢复成功：看门狗退场（0.9.256）
+        self._recoverWatch = 0;
         self._recovering = false; // 错误恢复链成功走完
         // 暂停标记不能只靠 setState('ready') 清：回滑/手动恢复时会话本就是 ready 态，
         // setState 幂等早退，残留 data-paused="1" 会让中央暂停图标盖住正常播放的画面
@@ -309,6 +335,7 @@ export function createSession(slide, item, idx, hooks) {
       if (this.state === 'disposed') return;
       this.state = 'disposed';
       if (this._waitTimer) { clearTimeout(this._waitTimer); this._waitTimer = null; }
+      if (this._recoverWatch) { clearTimeout(this._recoverWatch); this._recoverWatch = 0; }
       if (this._onVis) { document.removeEventListener('visibilitychange', this._onVis); this._onVis = null; }
       this._destroyHls();
       if (this.monitor) { this.monitor.stop(); this.monitor = null; }

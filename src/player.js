@@ -422,11 +422,13 @@ export function scrollToIndex(idx) {
   });
 }
 
-// 首屏转圈的统一清理（错误盒出现前、数据渲染前都要撤掉转圈）
+// 首屏转圈的统一清理（错误盒出现前、数据渲染前都要撤掉转圈）。
+// 0.9.256：全清而非只删首个——播放层直达回舞台路径同时存在 mount/maybeStartFeed 两个，
+// 残留的无 data-idx 子项会让 renderWindow 的排序守卫（children.length !== ordered.length）
+// 恒真 ⇒ 此后每次重绘都对全部子项 appendChild 重排
 function clearSpinner() {
   if (!scroller) return;
-  var sp = scroller.querySelector('.acsv-spinner');
-  if (sp) sp.remove();
+  Array.prototype.forEach.call(scroller.querySelectorAll('.acsv-spinner'), function (sp) { sp.remove(); });
 }
 
 // 首屏/切源/深链加载失败的统一错误盒（盒体单源见 errbox.js）：重试重跑传入的加载链，
@@ -450,8 +452,11 @@ var feedStreamOn = false;
 // 首屏/切源共用的初始加载链：spinner 撤除、错误盒、渲染与吸附都在这一处收口
 function loadInitial() {
   feedStreamOn = true; // 本链=当前源随机流（深链走 loadDeepLink，那里置假）
+  // 代际快照（0.9.256）：reset 后旧链的 fetchMore 以"成功空结果"收尾（feedstore gen 失配
+  // 静默返回），旧回调见空库会误弹错误盒盖在新流上——首屏在途时切源/回推荐的竞态窗口
+  var my = FeedStore.gen;
   FeedStore.ensureMore().then(function () {
-    if (!scroller) return; // 加载期间已退出竖刷页
+    if (!scroller || my !== FeedStore.gen) return; // 加载期间已退出 / 已换流：本链作废
     if (!FeedStore.items.length) {
       showLoadError('内容加载失败，请检查网络后重试', loadInitial);
       return;
@@ -488,8 +493,10 @@ function loadDeepLink(mid, src) {
   FeedStore.reset();  // gen++：作废旧流在途响应（旧源不得回填新库）
   resetStream();
   if (scroller) scroller.appendChild(spinner());
+  var my = FeedStore.gen; // 本次深链的数据代（0.9.256）：迟到回包不得覆盖后发的深链/换流
   API.deepLink(mid, src).then(function (hit) {
     if (!scroller) return; // 加载期间已退出竖刷页
+    if (my !== FeedStore.gen) return; // 期间已发起新深链/换流：整体作废（含 setActive 的地址回写）
     if (!hit) {
       showLoadError('链接的视频加载失败，请重试', function () { loadDeepLink(mid, src); });
       return;

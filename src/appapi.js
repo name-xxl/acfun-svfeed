@@ -72,15 +72,25 @@ function q(extra) {
 export function postForm(url, body) {
   var mocked = mockHit(url, body);
   if (mocked) return mocked;
+  // 超时（0.9.256）：fetch 规范无超时——半开 TCP/服务端挂起可 pending 数分钟，期间发送键
+  // 锁死、"发送中…"不下线，apiSt 单飞 busy 也永不复位（全互动写链卡到刷新）。
+  // AbortController 对齐 net.js 的 CFG.time.gm 口径；abort 归一到 'timeout' 话术——
+  // momentpost 的「结果未知 → 先查后补」（/timeout/ 匹配）依赖它走查证分支
+  var ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  var timer = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) { } }, CFG.time.gm) : 0;
   return fetch(url, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body
+    body: body,
+    signal: ctl ? ctl.signal : undefined
   }).then(function (r) {
+    clearTimeout(timer);
     if (r.status < 200 || r.status >= 300) throw new Error('http-' + r.status);
     return r.json();
   }).catch(function (e) {
+    clearTimeout(timer);
+    if (e && e.name === 'AbortError') e = new Error('timeout');
     stat('net.fail');
     throw e;
   });

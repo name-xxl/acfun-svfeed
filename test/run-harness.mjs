@@ -49,7 +49,9 @@ const HARNESS_CASES = [
   { name: 'stall-frozen', serial: true  },
   { name: 'stall-slow', serial: true  },
   { name: 'stall-healthy', serial: true  },
-  { name: 'cdn-fallback', serial: true  },
+  { name: 'cdn-fallback', serial: true },
+  // 0.9.256 换线看门狗：备线也失败必须升级（refreshItem/error 态），不许永卡恢复中（debug）
+  { name: 'recover-backup-fail', serial: true },
   { name: 'quality-switch', serial: true  },
   { name: 'dispose-mid-recovery', serial: true  },
   { name: 'stall-visibility', serial: true  },
@@ -92,6 +94,8 @@ const HARNESS_CASES = [
   { name: 'deeplink-ac' },      // a 标记形态（推荐 acId）经 douga 详情置顶
   { name: 'deeplink-switch' },  // 源记忆=推荐 时深链仍须落地（源随链接走）
   { name: 'deeplink-miss' },   // 两空间都查不到：错误盒，不许静默重随机
+  // 0.9.256 深链竞态：A 回包挂起期切 B，A 迟到不得覆盖 B 的内容与地址（debug）
+  { name: 'deeplink-race' },
   // 0.9.88 boot 页面类型分流：pathname 在 bundle 前改写（harness.html 的 BOOT_PATH）+
   // 挂载前快照（__BOOT_SNAP__）断言样式注入差异与 dbg 埋点，故为 debug 构建
   { name: 'boot-home', serial: true },  // '/'：全量初始化（样式先就位）

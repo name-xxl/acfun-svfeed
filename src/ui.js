@@ -111,18 +111,26 @@ export function ensureStyle() {
 
 // ---------- 通用工具（0.9.35 收敛自各模块的重复样板） ----------
 
-// 单飞 + 值缓存：并发调用共享同一次加载；失败弃缓存下次自动重试；reset() 供强制刷新
+// 单飞 + 值缓存：并发调用共享同一次加载；失败弃缓存下次自动重试；reset() 供强制刷新。
+// 0.9.256：reset 带代际作废——在途 busy 一并弃用（旧实现只清 val，请求挂起时 ensureApiSt(true)
+// 强制刷新拿到手的仍是那条僵尸 promise ⇒ 全互动写链卡到刷新）；旧等待者仍收旧 promise 的结果
 export function singleFlight(load) {
-  var val, busy = null;
+  var val, busy = null, gen = 0;
   return {
     get: function () {
       if (val !== undefined) return Promise.resolve(val);
       if (busy) return busy;
-      busy = load().then(function (v) { busy = null; val = v; return v; },
-        function (e) { busy = null; throw e; });
+      var my = ++gen;
+      busy = load().then(function (v) {
+        if (my === gen) { busy = null; val = v; }
+        return v;
+      }, function (e) {
+        if (my === gen) busy = null;
+        throw e;
+      });
       return busy;
     },
-    reset: function () { val = undefined; }
+    reset: function () { val = undefined; gen++; busy = null; }
   };
 }
 

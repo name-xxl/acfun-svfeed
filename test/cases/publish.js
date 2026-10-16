@@ -6,7 +6,7 @@
   var C = window.__ACSV_CASES__ = window.__ACSV_CASES__ || {};
 
   C['moment-publish'] = async function (h) {
-    var rec = h.rec, q = h.q, waitFor = h.waitFor, wait = h.wait, TEST = h.TEST;
+    var rec = h.rec, q = h.q, waitFor = h.waitFor, wait = h.wait, key = h.key, TEST = h.TEST;
 
     document.cookie = 'auth_key=42_deadbeef'; // selfUid（先查后补路径要用）
     window.__ACSV_ADD_BODY__ = null;
@@ -286,5 +286,37 @@
       var j = JSON.parse(decodeURIComponent(m[1]));
       return j.content === '转发语' && j.repostMomentId === 5104362;
     })(), String(window.__ACSV_ADD_BODY__).slice(0, 100));
+
+    // 7) 0.9.256 Esc×提交中：onEsc 消费（层留在栈内、界面不关）；落定后可正常关；
+    //    非 busy 时 Esc 照关。摘修复反跑：还原 input.js/overlay.js 的 overlayEsc 接线即转红。
+    var pendingResolve = null;
+    window.__ACSV_MOCK_FORM__['moment/add'] = function () {
+      return new Promise(function (res) { pendingResolve = res; });
+    };
+    q('.acsv-pubfab').click();
+    await waitFor(function () { return !!q('.acsv-me'); }, 5000);
+    var ed4 = q('.acsv-me .acsv-cinput-edit');
+    ed4.textContent = '提交中按 Esc 的内容';
+    ed4.dispatchEvent(new Event('input', { bubbles: true }));
+    q('.acsv-me-ok').click();
+    rec('pub-busy-tip', !!(await waitFor(function () {
+      return /发布中/.test((q('.acsv-me-tip') || {}).textContent || '');
+    }, 3000)));
+    key('Escape');
+    await wait(150);
+    rec('pub-esc-busy-keeps-layer', !!q('.acsv-me')
+      && (TEST.call('overlay') || []).indexOf('momentedit:m') >= 0,
+      'stack=' + JSON.stringify(TEST.call('overlay')));
+    key('Escape'); // 连按两次也不许弹栈（busy 期消费到底）
+    await wait(150);
+    rec('pub-esc-busy-consumed-again', !!q('.acsv-me')
+      && (TEST.call('overlay') || []).indexOf('momentedit:m') >= 0,
+      'stack=' + JSON.stringify(TEST.call('overlay')));
+    pendingResolve({ result: 0, moment: { momentId: '5110001' } });
+    rec('pub-busy-settled-closes', !!(await waitFor(function () { return !q('.acsv-me-host'); }, 6000)));
+    q('.acsv-pubfab').click();
+    await waitFor(function () { return !!q('.acsv-me'); }, 5000);
+    key('Escape');
+    rec('pub-esc-idle-closes', !!(await waitFor(function () { return !q('.acsv-me-host'); }, 4000)));
   };
 })();
