@@ -8,6 +8,7 @@ import { dmEnabled, setDmEnabled, onPlaying as dmOnPlaying, createDmBox as dmCre
 import { switchQuality, attachVideo, detachSession } from './attach.js';
 import { AppAPI, spriteCueAt } from './appapi.js'; // 悬停缩略图（0.9.200）
 import { getSetting, setSetting, onChange } from './settings.js';
+import { stat } from './dbg.js'; // 仅调试埋点（release 死码消除）
 
 // ---------- 播放控制栏 ----------
 // 弹幕开关的「作用」单源（0.9.89）：控制栏按钮与设置面板是同一全局开关的两个入口——
@@ -41,9 +42,16 @@ export function showControls(slide) {
   if (slide.dataset.ctl !== '1') slide.dataset.ctl = '1'; // mousemove 高频：避免重复写 DOM 属性
   clearTimeout(slide._ctlTimer);
   slide._ctlTimer = setTimeout(function () {
+    // 已拆壳即停（0.9.257）：悬停音量区时被换条/Esc/换层拆走的话，Chromium 不给已拆节点补发
+    // pointerleave ⇒ volScheduleHide 不再排、_volOpen 卡 true，下面的自续会以 ctlIdle 节奏
+    // 永续保活整棵 slide 子树（闭包还持 item）。旧 slide 不会被插回（换回槽位的是新 slide），
+    // 所以 isConnected 为假就是终态
+    if (!slide.isConnected) return;
     // 音量滑杆开着（悬停/拖动/滚轮调节中）：保活重排，不随闲置隐藏——否则静止 2.5s
     // 整条栏连滑杆一起消失（0.9.215 用户实报「音量条不常驻」）
-    if (slide._volOpen) { showControls(slide); return; }
+    // 0.9.257 埋点（debug 构建）：保活自续的计次。harness 断言「拆壳后此链确实断了」——
+    // 摘掉上面那行 isConnected 守卫即转红（分离的 slide 会以 ctlIdle 节奏永续计数）
+    if (slide._volOpen) { stat('ctl.keepalive'); showControls(slide); return; }
     // 栏内输入框聚焦中（弹幕框/评论输入条）：保活——栏一收输入框变 visibility:hidden，
     // 打长弹幕/输入法选词超 2.5s 就成盲打（0.9.235）
     var ae = document.activeElement;

@@ -42,11 +42,18 @@ export function onPlaying(slide, item, video) {
   if (!slide || !item || !item.cap || !item.cap.danmaku || !item.videoId) return;
   if (!slide._dmLayer) slide._dmLayer = DmCanvas.create(slide, video);
   var layer = slide._dmLayer;
-  layer.onDestroy = function () { stopAdvPump(layer); }; // 图层销毁同步停泵（0.9.234：此前 interval 空转泄漏）
+  layer.onDestroy = function () { stopAdvPump(layer); slide._dmVideoId = null; }; // 图层销毁同步停泵（0.9.234：此前 interval 空转泄漏）；清装填标记（0.9.257：新图层必须重拉）
   if (!enabled) { layer.stop(); stopAdvPump(layer); return; }
-  layer.start();
-  fetchList(item.videoId).then(function (list) { layer.setItems(list); });
-  startAdvPump(layer, item, video);
+  layer.start(); // 不进下面的门控：stop() 只停画不清条目，重开弹幕也要走这里（controls.applyDmState）
+  // 暂停→恢复**同一视频**不重建（0.9.257）：setItems 是全量重排（dmcanvas.js:372-388），
+  // 泵重建还会把 wins 归零（ADV_MAX_WIN 单会话上限失效）并对同窗多发一次 POST。
+  // 两条判据：图层是否已为该 videoId 装填、泵是否仍在——弹幕开关重开时泵已被
+  // stopAdvPump 拆掉而条目还在，此时必须重建泵（同一函数被 controls.applyDmState 复用）。
+  if (slide._dmVideoId !== item.videoId) {
+    slide._dmVideoId = item.videoId;
+    fetchList(item.videoId).then(function (list) { layer.setItems(list); });
+  }
+  if (!findPump(layer)) startAdvPump(layer, item, video);
 }
 
 // 清晰度切换/重挂后的图层重建不在此处：旧会话 dispose 销毁 _dmLayer，onPlaying 再建

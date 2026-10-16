@@ -34,16 +34,19 @@ export function createSession(slide, item, idx, hooks) {
     _waitTimer: null,
 
     setState: function (s) {
+      // 转圈的清除与状态拨回归口一处（0.9.257：移到同值早退**之前**）。平滑 seek 期间 state
+      // 仍是 ready（waiting 的 300ms 定时器未到点），seeked 的 setState('ready') 会被下面这行
+      // 短路——清理若留在分支内，定时器无人撤，到期直写 loading 反盖已恢复的画面，而 smooth
+      // seek 只发 seeking/seeked 不发 playing（见 _wire 的 seeked 段注），转圈永久挂着。
+      if (s === 'ready' || s === 'error') clearTimeout(this._waitTimer);
       if (this.state === s) return;
       this.state = s;
       if (s === 'loading') slide.dataset.state = 'loading';
       else if (s === 'ready') {
-        clearTimeout(this._waitTimer); // 转圈的清除与状态拨回归口一处
         slide.dataset.state = 'ready';
         slide.dataset.paused = '0';
       }
       else if (s === 'error') {
-        clearTimeout(this._waitTimer); // error 落地即撤在途转圈定时器（0.9.234：否则 300ms 后 loading 反盖 error）
         slide.dataset.state = 'error';
       }
       if (hooks.onState) hooks.onState(this, s);
@@ -226,6 +229,10 @@ export function createSession(slide, item, idx, hooks) {
             item.urlIdx = 0;
             self._attachSource(video);
             video.load();
+            // 重解析换源同样要看门狗（0.9.257）：重入锁只由 playing 释放，而新源若立刻 error，
+            // 该 error 会被 :191 的锁吞掉——不补这一臂，会话永久停在 recovering（无错误盒无重试）。
+            // 注意本回调是**普通函数**（非箭头）：this 不是会话，必须用 self（:186）
+            self._armRecoverWatch();
             if (self.idx === hooks.currentIdx() && !self.slide._userPaused) hooks.play(video);
           } else {
             self.setState('error');

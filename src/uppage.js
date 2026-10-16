@@ -7,6 +7,7 @@ import { mountSpaceTab, watchSpaceTabs } from './spacetab.js'; // 空间页标�
 import { FeedStore } from './feedstore.js';
 import { API } from './api.js';
 import { imgInto } from './imgload.js';
+import { testHook } from './dbg.js'; // 仅调试缝（release 死码消除）
 
 // ---------- UP 主空间页：小视频区块 ----------
 // m 站 upPage 的 pagelet 数据（GM_xhr 抓取，跨域）；翻页游标为时间戳，no_more 表示到底。
@@ -378,3 +379,22 @@ export function tryInjectSpace() {
   };
   attempt();
 }
+
+// debug 测试钩子（0.9.257，harness 专用）：空间页列表上下文的造态 + 快照。
+// 真机里该上下文由「空间页小视频格子点击」激活（appendUpCells 的 click），而格子条目要 GM
+// 抓 m 站 HTML 才有（本地 harness 无 GM 通道，startUpChain 必失败）——故给一个最小造态入口
+// activate(ids)：把上下文置成「已载入 ids 的空间页列表并激活」，供「深链到达时旧上下文必须
+// 让位」这条断言复现真机的常驻上下文前提（上下文是模块级单例、unmount 不复位）。返回值恒为快照
+testHook('upvideos', function (op, ids) {
+  if (op === 'activate') {
+    UpVideos.reset();
+    UpVideos.items = (ids || []).map(function (id) { return { id: String(id), cover: '' }; });
+    UpVideos.done = true; // 列表已载完：泵耗尽后按既有回落路径走随机流（不额外等链）
+    activateContext(UpVideos);
+  }
+  return {
+    feedActive: UpVideos.feedActive,
+    cursor: UpVideos.feedCursor,
+    ids: UpVideos.items.map(function (it) { return it.id; })
+  };
+});

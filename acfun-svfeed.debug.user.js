@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.256-debug
+// @version      0.9.257-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -68,7 +68,7 @@ window.__ACSV_HLS_LEN__ = 296762;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.256-debug" : "",
+          ver: true ? "0.9.257-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -618,7 +618,7 @@ window.__ACSV_HLS_LEN__ = 296762;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.256-debug" : "";
+  var APP_VERSION = true ? "0.9.257-debug" : "";
   dbg("cfg-ok");
 
   // src/styles.js
@@ -2698,12 +2698,15 @@ window.__ACSV_HLS_LEN__ = 296762;
           }
           if (ctx.feedCursor >= ctx.items.length) {
             self.pumpBusy = false;
-            if (ctx.done || ctx.failed) self.fetchMore().then(function() {
+            if (ctx.done || ctx.failed || ctx.chainCapped) self.fetchMore().then(function() {
               env.onChange();
             });
-            else setTimeout(function() {
-              self.pumpListContext(ctx);
-            }, CFG.time.chainGap);
+            else {
+              stat("feed.pumpRearm");
+              setTimeout(function() {
+                self.pumpListContext(ctx);
+              }, CFG.time.chainGap);
+            }
             return;
           }
           var raw = ctx.items[ctx.feedCursor];
@@ -7342,7 +7345,7 @@ window.__ACSV_HLS_LEN__ = 296762;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.256-debug" : "",
+      version: true ? "0.9.257-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -9386,6 +9389,7 @@ window.__ACSV_HLS_LEN__ = 296762;
     var layer = slide._dmLayer;
     layer.onDestroy = function() {
       stopAdvPump(layer);
+      slide._dmVideoId = null;
     };
     if (!enabled) {
       layer.stop();
@@ -9393,10 +9397,13 @@ window.__ACSV_HLS_LEN__ = 296762;
       return;
     }
     layer.start();
-    fetchList(item.videoId).then(function(list) {
-      layer.setItems(list);
-    });
-    startAdvPump(layer, item, video);
+    if (slide._dmVideoId !== item.videoId) {
+      slide._dmVideoId = item.videoId;
+      fetchList(item.videoId).then(function(list) {
+        layer.setItems(list);
+      });
+    }
+    if (!findPump(layer)) startAdvPump(layer, item, video);
   }
   function stopAll() {
     DmCanvas.stopAll();
@@ -9917,6 +9924,23 @@ window.__ACSV_HLS_LEN__ = 296762;
     };
     attempt2();
   }
+  testHook("upvideos", function(op, ids) {
+    if (op === "activate") {
+      UpVideos.reset();
+      UpVideos.items = (ids || []).map(function(id) {
+        return { id: String(id), cover: "" };
+      });
+      UpVideos.done = true;
+      activateContext(UpVideos);
+    }
+    return {
+      feedActive: UpVideos.feedActive,
+      cursor: UpVideos.feedCursor,
+      ids: UpVideos.items.map(function(it) {
+        return it.id;
+      })
+    };
+  });
 
   // src/viewreg.js
   var registry = {};
@@ -10586,15 +10610,14 @@ window.__ACSV_HLS_LEN__ = 296762;
       // 换线看门狗（0.9.256）：备线也失败时 error 会被重入锁吞，锁只由 playing 释放
       _waitTimer: null,
       setState: function(s) {
+        if (s === "ready" || s === "error") clearTimeout(this._waitTimer);
         if (this.state === s) return;
         this.state = s;
         if (s === "loading") slide.dataset.state = "loading";
         else if (s === "ready") {
-          clearTimeout(this._waitTimer);
           slide.dataset.state = "ready";
           slide.dataset.paused = "0";
         } else if (s === "error") {
-          clearTimeout(this._waitTimer);
           slide.dataset.state = "error";
         }
         if (hooks3.onState) hooks3.onState(this, s);
@@ -10743,6 +10766,7 @@ window.__ACSV_HLS_LEN__ = 296762;
               item2.urlIdx = 0;
               self._attachSource(video);
               video.load();
+              self._armRecoverWatch();
               if (self.idx === hooks3.currentIdx() && !self.slide._userPaused) hooks3.play(video);
             } else {
               self.setState("error");
@@ -11284,7 +11308,9 @@ window.__ACSV_HLS_LEN__ = 296762;
     if (slide.dataset.ctl !== "1") slide.dataset.ctl = "1";
     clearTimeout(slide._ctlTimer);
     slide._ctlTimer = setTimeout(function() {
+      if (!slide.isConnected) return;
       if (slide._volOpen) {
+        stat("ctl.keepalive");
         showControls(slide);
         return;
       }
@@ -13128,10 +13154,13 @@ window.__ACSV_HLS_LEN__ = 296762;
   var mounted = false;
   var badgeTimer = null;
   var badgeDelayTimer = null;
+  var badgeInst = null;
+  var unreadFn = null;
   function badgeText(n) {
     return n > 99 ? "99+" : n > 0 ? String(n) : "";
   }
   function mountBadge(btn, badge) {
+    stopBadge();
     badgeEl = badge;
     mounted = true;
     var last = -1;
@@ -13169,10 +13198,12 @@ window.__ACSV_HLS_LEN__ = 296762;
       tick2();
       badgeTimer = setInterval(tick2, CFG.im.badgePoll);
       ensureIm().then(function(inst) {
+        badgeInst = inst;
+        unreadFn = function() {
+          if (mounted) tick2();
+        };
         try {
-          inst.on("unReadCountUpdate", function() {
-            if (mounted) tick2();
-          });
+          inst.on("unReadCountUpdate", unreadFn);
         } catch (e) {
         }
       }, function() {
@@ -13189,6 +13220,14 @@ window.__ACSV_HLS_LEN__ = 296762;
       clearInterval(badgeTimer);
       badgeTimer = null;
     }
+    if (badgeInst && unreadFn) {
+      try {
+        badgeInst.off("unReadCountUpdate", unreadFn);
+      } catch (e) {
+      }
+    }
+    badgeInst = null;
+    unreadFn = null;
     badgeEl = null;
   }
   testHook("imbadge", function() {
@@ -13201,6 +13240,15 @@ window.__ACSV_HLS_LEN__ = 296762;
       },
       pollArmed: function() {
         return !!badgeTimer;
+      },
+      listenerArmed: function() {
+        return !!unreadFn;
+      },
+      // 0.9.257 增 accelerate（debug 缝）：把 badgeDelay 压到毫秒级。跨挂载循环的「监听登记
+      // 几何」每轮都要等一个 badgeDelay（15s）才可观测，harness 连等数轮不现实；只改本模块
+      // 读的 CFG 值，不碰任何逻辑（下一次 mountBadge 生效——已武装的 timer 仍按旧值走）
+      accelerate: function(ms) {
+        CFG.im.badgeDelay = Math.max(0, Number(ms) || 0);
       }
     };
   });
@@ -14360,7 +14408,7 @@ window.__ACSV_HLS_LEN__ = 296762;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.256-debug" : "");
+    return normVer(true ? "0.9.257-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -16416,6 +16464,12 @@ window.__ACSV_HLS_LEN__ = 296762;
       }
       setSource(hit.source);
       updateSegUI();
+      if (UpVideos.feedActive) {
+        var owned = UpVideos.items.some(function(it) {
+          return String(it.id) === String(mid) || String(it.id) === String(hit.item.id);
+        });
+        if (!owned) UpVideos.feedActive = false;
+      }
       FeedStore.reset();
       FeedStore.items.push(hit.item);
       FeedStore.seen[hit.item.id] = 1;
@@ -17830,7 +17884,7 @@ window.__ACSV_HLS_LEN__ = 296762;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.256-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.257-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

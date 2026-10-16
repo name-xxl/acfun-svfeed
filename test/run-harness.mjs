@@ -159,7 +159,16 @@ const HARNESS_CASES = [
   { name: 'native-surfaces', viewport: { width: 1600, height: 900 } },
   // 0.9.250 原生页设置面板（6c）：标签点击开面板 → 资料卡/SCHEMA 行/开关落盘/设备导入端到端/
   // 缓存清空二次确认（同 BOOT_PATH /v/ + NO_AUTOMOUNT）
-  { name: 'nat-panel', viewport: { width: 1600, height: 900 } }
+  { name: 'nat-panel', viewport: { width: 1600, height: 900 } },
+  // 0.9.257「批①」六修 + 徽标监听（P2-4）的摘修复反跑钉子（test/cases/audit257.js）：
+  // 全部为确定性造态 + 真实路径驱动，serial（时序窗口/挂载循环/滚动落位对并发负载敏感）
+  { name: 'state-seek-ready', serial: true },   // A1 平滑 seek 归位必须撤掉在途转圈定时器
+  { name: 'recover-refresh-watch', serial: true }, // A2 重解析换源同样要看门狗（~12s）
+  { name: 'deeplink-upctx', serial: true },     // A3 深链不属旧空间页列表时必须让出上下文
+  { name: 'dm-play-gated', serial: true },      // A4 暂停→恢复同一视频不重建弹幕（home 源）
+  { name: 'ctl-detach-stop', serial: true },    // P1-3 拆壳即停：音量悬停保活链不得永续
+  { name: 'pump-chaincapped', serial: true },   // P1-4 链打满上限必须收口并回落随机流
+  { name: 'badge-listener', serial: true }      // P2-4 跨挂载只留一份推送监听（假 SDK 夹具）
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

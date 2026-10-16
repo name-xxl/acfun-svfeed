@@ -503,8 +503,17 @@ function loadDeepLink(mid, src) {
     }
     setSource(hit.source);
     updateSegUI();
-    // 不动 UpVideos.feedActive：空间页入口（uppage）靠它继续按主页列表顺序泵流，
-    // 深链只负责把点击的那条置顶（旧路径 loadFirst 同款语义）
+    // 空间页入口（uppage）靠 UpVideos.feedActive 继续按主页列表顺序泵流，深链只负责把点击的
+    // 那条置顶（旧路径 loadFirst 同款语义）——但只在**该上下文确实拥有这条 id** 时才延续：
+    // 空间页条目点击正是「activateContext(UpVideos) + 写 /v/<id> 哈希」（uppage.js:118-124），
+    // 而上下文是模块级常驻的，unmount 不复位。从别处深链进同一 id 空间（分享链、前进后退）
+    // 时若沿用，泵会按上一集的 feedCursor 把旧空间页列表的剩余条目灌进新舞台（0.9.257）
+    if (UpVideos.feedActive) {
+      var owned = UpVideos.items.some(function (it) {
+        return String(it.id) === String(mid) || String(it.id) === String(hit.item.id);
+      });
+      if (!owned) UpVideos.feedActive = false;
+    }
     FeedStore.reset();           // 源可能已变：清一次再置顶（gen++ 丢切换窗口内的在途响应）
     FeedStore.items.push(hit.item);
     FeedStore.seen[hit.item.id] = 1;

@@ -5,13 +5,18 @@
 //   no-unused-vars                —— 死变量/死参数（catch(e) 惯用空捕，显式豁免）
 //   no-constant-binary-expression —— `a || b()` 短路掩盖、恒真恒假条件
 //   no-restricted-syntax          —— 定向禁令（0.9.78 起）：把"注释即规格"的教训钉成工具规则
-// 范围：src/ + build.js + 单测；test/ 下的浏览器夹具（harness.html 内联脚本与
-// feed-sample 等数据桩）非模块代码，不纳入。
+// 范围（0.9.257 扩面）：src/ + build.js + test（单测/场景/校验脚本）+ tools。此前 files 只列
+// src、test/unit、build.js，命令行里的 `tools` 没有配置对象匹配 ⇒ 规则集为空、静默通过（实测：
+// --print-config 对 tools/gen-device-data.js 与 test/cases/views.js 均 rules: 0；
+// `eslint src build.js test/unit tools` 退出 0 且零输出——tools 等于从没被检查过）。
+// test/cases/*.js 是 harness.html 用 <script src> 挂的经典脚本（IIFE 挂 window.__ACSV_CASES__），
+// 其余 test/*.js 是数据桩；test/tmp-probe/（gitignored 的一次性探针）不纳入。
 import globals from 'globals';
 
 export default [
   {
-    files: ['src/**/*.js', 'test/unit/**/*.js', 'build.js'],
+    files: ['src/**/*.js', 'test/unit/**/*.js', 'test/cases/**/*.js', 'test/*.mjs', 'test/*.js',
+      'tools/**/*.js', 'build.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
@@ -113,5 +118,15 @@ export default [
         }
       ]
     }
+  },
+  // harness 场景体豁免 no-unused-vars（0.9.257 扩面时发现）：test/cases/*.js 统一按「公共件
+  // 参数前置」写——每个场景开头把 h 的全部公共件一次解出（rec/q/slide/cur/key/wait/waitFor/
+  // firstVideoReady/…/TEST/CASE/RELEASE/finish），实际只用到其中一部分。这是 0.9.81 自
+  // harness.html 原样搬迁时定下的形制（"场景体逐字未改"），不是遗漏；要它零告警就得逐场景删
+  // 声明，反而让新增场景更易写错。故本组只关这一条，其余三条照旧生效（no-undef 正是 msgText
+  // 类错误的那张网）。
+  {
+    files: ['test/cases/**/*.js'],
+    rules: { 'no-unused-vars': 'off' }
   }
 ];

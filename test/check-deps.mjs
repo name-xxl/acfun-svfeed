@@ -85,7 +85,7 @@ const missing = [...imports].filter((e) => {
 missing.forEach((e) => bad.push('依赖图缺边：' + e + '（import 有、图里没有）'));
 // ④ 概念边告警
 const extra = [...graphEdges].filter((e) => {
-  const [a, b] = e.split(' -> ');
+  const [, b] = e.split(' -> ');
   return !imports.has(e) && !EXCLUDED_TARGETS.has(b); // 基础件的精选多边不算问题
 }).sort();
 

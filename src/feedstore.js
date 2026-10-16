@@ -114,8 +114,14 @@ function createFeedStore(env) {
         if (ctx.feedCursor >= ctx.items.length) {
           // 已加载的列表耗尽：后台链还在加载则轮询等它，到底/失败后回落随机流
           self.pumpBusy = false;
-          if (ctx.done || ctx.failed) self.fetchMore().then(function () { env.onChange(); });
-          else setTimeout(function () { self.pumpListContext(ctx); }, CFG.time.chainGap);
+          // chainCapped 与 done/failed 并列（0.9.257）：撞到自动加载上限的链永远等不到 done
+          // （feedctx 只在列表尽头置 done），若不算终态，这里会以 chainGap(30ms) 永久空转，
+          // 而且 fetchMore 的回落分支永不进入（ensureMore 有上下文时直接早退）——舞台会饿死
+          if (ctx.done || ctx.failed || ctx.chainCapped) self.fetchMore().then(function () { env.onChange(); });
+          // 0.9.257 埋点（debug 构建）：等待后台链的再入计次。harness 断言「链打满上限
+          // （chainCapped）后此等待必须收口、不再以 chainGap 空转」——摘掉上面的 chainCapped
+          // 判据即转红（计数以 30ms 节奏无限爬升，且下方的随机流回落永不执行）
+          else { stat('feed.pumpRearm'); setTimeout(function () { self.pumpListContext(ctx); }, CFG.time.chainGap); }
           return;
         }
         var raw = ctx.items[ctx.feedCursor];

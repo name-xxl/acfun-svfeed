@@ -5,7 +5,70 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
-### 0.9.256（2026-10-16）· 深挖复核处置批——恢复看门狗 / Esc 语义单源 / UBB 保护块 / 关注流回置 / 写链超时 / 深链令牌 / 转圈收口（七项）
+### 0.9.257（2026-10-16）· 审计批①——转圈定时器 / 恢复看门狗 / 陈旧列表上下文 / 弹幕恢复 / 悬停保活链 / 上限空转 / 徽标监听 / lint 盲区（八项）
+
+**由头**：三份外部优化报告（原始方案 / 二次精读复核 / 合并版）逐条回源裁定，归档
+`docs/optimization-audit-2026-10-16.md`（含**撤回的判错**与"未复核"清单——报告 11 条判错里 8 条维持、
+3 条经独立反驳者复核改写理由）。本批取其中**可用 harness 复现、且能"摘修复反跑"**的八项，逐项修 +
+配断言；关键断言均经**还原病灶转红、复绿**，逐条反跑读数记在 `test/cases/audit257.js` 文件头。
+
+- **① 平滑 seek 后永久转圈（`session.js`）**：病灶——转圈定时器的清理点写在 `setState` 的同值早退
+  **之后**（ready/error 两分支内）。`waiting` 臂起 300ms 定时器后 state 仍是 `ready`，smooth seek 的
+  `seeked` 调 `setState('ready')` 被同值守卫短路 ⇒ 定时器无人撤，到期直写 `loading` 反盖已恢复的
+  画面；而 spec 下 smooth seek 只发 seeking/seeked、**不发 playing**，再没有归位事件。修法——清理
+  提到早退之前（"归口一处"的原注释即指此处）。测试 `state-seek-ready`（waiting → 100ms → seeked →
+  越过 300ms 仍须 ready）；反跑 ⇒ `ssr-ready-holds` 读 `state=loading` 转红。
+- **② 重解析换源无看门狗（`session.js`）**：病灶——`_recovering` 重入锁只由 `playing`/看门狗释放，
+  而 0.9.256 只给"换备用 CDN"臂挂了看门狗；"重跑解析"臂挂上新源后若立刻 error，该 error 被锁吞 ⇒
+  会话永停 `recovering`（无错误盒无重试）。修法——该臂同样 `self._armRecoverWatch()`（回调是**普通
+  函数**，必须 `self`，写 `this.` 会 TypeError）。测试 `recover-refresh-watch`（真身换单条死链 +
+  mock 直链改本地 404，经 `slide._session.item` 取真身）；反跑 ⇒ `rrw-watch-armed`（watch=0）+
+  `rrw-error-state` + `rrw-leaves-recovering` 三条转红。
+- **③ 陈旧列表上下文灌进新舞台（`player.js`）**：病灶——空间页列表上下文是模块级常驻（格子点击
+  激活、unmount 有意不复位，深链续泵靠它），从别处深链进同一 id 空间时沿用了它，于是按上一集的
+  `feedCursor` 把旧列表剩余条目灌进新舞台。修法——深链落地时加**所有权判据**：`UpVideos.items` 含
+  本次 `mid`（或解析出的 `hit.item.id`）才延续，否则让出（不动 unmount、不动关注侧）。测试
+  `deeplink-upctx`（造态缝 `upvideos.activate`——真机条目需 GM 抓 m 站 HTML，本地 harness 无 GM
+  通道）；反跑 ⇒ `duc-old-list-not-pumped`（`second=11053531`＝旧列表首条）+ `duc-ctx-released` 转红。
+- **④ 暂停→恢复重建弹幕态并多发请求（`danmaku.js`）**：病灶——同一视频每次 `playing` 都重跑
+  `setItems`（全量重排轨）并重建高级弹幕泵（`wins` 归零 ⇒ `ADV_MAX_WIN` 单会话上限失效），恢复后
+  ≤1.5s 还会对同窗多发一次 POST。修法——按 `slide._dmVideoId` 与 `!findPump(layer)` 两道门控
+  （`layer.start()` 不进闸：弹幕开关重开必须照旧生效）；图层销毁时清标记。测试 `dm-play-gated`
+  （mock 计 `pollByPosition` + 包装 `layer.setItems` 计次）；反跑 ⇒ `dpg-no-extra-adv`（adv 1→2）+
+  `dpg-no-refill` 转红。
+- **⑤ 音量悬停保活链永续（`controls.js`）**：病灶——指针停在音量区（`_volOpen` 真）时 slide 被拆壳
+  （换条/Esc/换层），Chromium 不给已拆节点补发 `pointerleave` ⇒ `volScheduleHide` 不再排、`_volOpen`
+  卡真，闲置保活以 `ctlIdle`(2500ms) 永续自续，闭包持整棵 slide 子树 + item。修法——定时器体首行
+  `if (!slide.isConnected) return;`（旧 slide 不会被插回，分离即终态）。测试 `ctl-detach-stop`（切源
+  `resetStream` 摘整批 slide）+ debug 埋点 `ctl.keepalive`；反跑 ⇒ `cds-detach-stopped` 两拍计数继续
+  爬升（k 1→2）转红。
+- **⑥ 列表链打满上限后 30ms 空转、随机流回落永不触发（`feedstore.js`）**：病灶——`feedctx` 撞
+  `maxPages` 只置 `chainCapped`、不置 `done`，泵见 `!done && !failed` 便以 `chainGap`(30ms) 自续，
+  **且 `fetchMore()` 的回落分支永不进入**（`ensureMore` 有上下文时直接早退）⇒ 舞台饿死。修法——
+  `chainCapped` 与 `done/failed` 并列当终态。测试 `pump-chaincapped`（关注流定向桩永不 `no_more`
+  ⇒ 链必然打满，再逐条 `scrollTo` 泵到耗尽）+ 埋点 `feed.pumpRearm`；反跑 ⇒ `pcm-pump-rearm-stopped`
+  （rearm 187→421）+ `pcm-fallback-engaged`（items 停在 9、随机流 0 条）转红。
+  **口径备注**：回落与 `done/failed` 同款——在下一次 `ensureMore`（用户下一划）执行，不是主动补拉；
+  与修复前等价（旧代码那 30ms 空转同样不送货），无回归。
+- **⑦ 未读徽标监听跨挂载累积（`imbadge.js`）**：病灶——SDK 实例是永不释放的单例（`imsend.ensureIm`
+  只 bump `connGen`），每次 mount 都叠一层 `unReadCountUpdate` 且从不撤；回调里的 `mounted` 又是
+  **共享模块标志**，最新一次挂载置真后所有陈旧回调都过守卫 ⇒ 一个事件触发 N 次 `getSessions` 全量
+  求和。修法——登记句柄 + `stopBadge()` 里 `off`（照 `imsend` 的 `sendSucceed` 撤法），`mountBadge`
+  先 `stopBadge` 收旧（防未 teardown 的重挂孤儿化 timer/监听）。测试 `badge-listener`（假 SDK 夹具
+  `test/fake-imsdk.js` 走 `imsend` 的 directLoad 真路径 + `imbadge.accelerate` 压缩 `badgeDelay`）+
+  钩子增 `listenerArmed`；反跑 ⇒ `bl-single-listener`（live=3）+ `bl-one-event-one-sum`（invoked=3）
+  转红。
+- **⑧ lint 盲区（`eslint.config.mjs` / `package.json`）**：病灶——`files` 只列 src、test/unit、
+  build.js，而 `npm run lint` 命令行里的 `tools` **没有配置对象匹配** ⇒ 规则集为空、静默通过
+  （实测 `--print-config tools/gen-device-data.js` 与 `test/cases/views.js` 均 `rules: 0`；
+  `eslint src build.js test/unit tools` 退出 0 且零输出——`tools` 等于从没被检查）；`test/cases`、
+  `test/*.mjs` 同样全裸。修法——`files` 扩到 test/tools，`lint` 脚本改 `eslint .`（范围由配置单点
+  决定）。扩面即红 263 条 `no-unused-vars`，其中 262 条是 harness 场景体开头"公共件参数前置"的既有
+  形制（0.9.81 迁入，逐字未改）⇒ 给 `test/cases/**` 单开一块只关这一条（`no-undef` /
+  `no-constant-binary-expression` / `no-restricted-syntax` 照旧生效）；剩下 1 条是真账
+  （`test/check-deps.mjs:88` 未用的 `a`，已删）。
+
+
 
 **由头**：对全仓做七簇行级深读 + 逐条回源码复核（含对上一轮外部清单的误判剔除），筛出七项可
 用现有 harness 复现、且能"摘修复反跑"的真问题，逐项修复并配断言。全部证据链见下（病灶 → 修法
