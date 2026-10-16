@@ -19,7 +19,7 @@
 //    提示「原始型号 + 点击可切换显示」。Web-IP 的 manual 标记（防其 MutationObserver 重扫把用户
 //    切换覆盖回去）在我们架构里不需要——条目由 commentkit 单次构建、不重扫，切换态天然留痕
 import { DEVICE_TAB_PACKED, DEVICE_TAB_LEN } from './devicetab.js';
-import { inflateSync } from 'fflate'; // 内置表解包（0.9.255；hls 同款，已在包内）
+import { unpackText } from './pack.js'; // 内置表解包（0.9.255 起；0.9.258 起走单源助手，已在包内）
 import { CFG } from './cfg.js';
 import { getSetting } from './settings.js';
 import { isSafeKey } from './ui.js'; // 键守卫单源（0.9.250 迁 ui：设备导入与缓存导入共用）
@@ -28,17 +28,14 @@ var USER_KEY = 'acr_device_models'; // Web-IP 同键（只读合并其用户层�
 
 // ---------- 纯函数（单测直采） ----------
 
-// 内置表解包（0.9.255）：deflateRaw+base64 串 → 表对象。长度校验同 hls.unpackHls——
-// 截断/损坏/长度不符一律 null（调用方回落空内置表：用户层导入仍可用，功能降级不炸）
+// 内置表解包（0.9.255；0.9.258 起解包本体走 pack.unpackText 单源）：deflateRaw+base64 串 →
+// 表对象。长度校验同 hls（len=原始字节数）——截断/损坏/长度不符一律 null（调用方回落空内置表：
+// 用户层导入仍可用，功能降级不炸）
 export function unpackDeviceTab(packed, len) {
+  var txt = unpackText(packed, len);
+  if (!txt) return null;
   try {
-    if (!packed || !len) return null;
-    var bin = atob(String(packed));
-    var bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i) & 255;
-    var out = inflateSync(bytes);
-    if (!out || out.length !== len) return null;
-    var tab = JSON.parse(new TextDecoder('utf-8').decode(out));
+    var tab = JSON.parse(txt);
     return tab && typeof tab === 'object' ? tab : null;
   } catch (e) { return null; }
 }

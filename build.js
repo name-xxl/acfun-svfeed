@@ -10,6 +10,7 @@
 import esbuild from 'esbuild';
 import fs from 'fs';
 import zlib from 'node:zlib';
+import { CSS_TEMPLATE } from './src/cssraw.js'; // 构建期输入（同 node_modules/hls.js 的定位）
 
 var V = JSON.parse(fs.readFileSync('./package.json', 'utf8')).version;
 
@@ -41,6 +42,27 @@ try {
     + 'window.__ACSV_HLS_LEN__ = ' + hlsRaw.length + ';\n';
 } catch (e) {
   console.warn('[warn] 未找到 node_modules/hls.js/dist/hls.light.min.js，跳过内嵌（运行时走 CDN 兜底列表）');
+}
+
+// 内嵌全量 CSS 模板（审计批② P0-1）：src/styles.js 的 RAW_CSS（~92KB 字面量链）搬到
+// src/cssraw.js——**构建期输入**，定位与 node_modules/hls.js 同（只被本文件 import；随产物发布的
+// 模块一律不得 import 它，否则 CSS 原文又进产物）。同 hls 先例 deflateRaw+base64 压缩内嵌为
+// window.__ACSV_CSS_SRC__，__ACSV_CSS_LEN__ = 模板 UTF-8 字节数（同一道长度校验）。
+// 解包在 src/styles.js 模块求值期（**eager**，不同于 hls/devicetab 的懒解包）：boot.js:48 的
+// ensureStyle 首屏就要用，包内 fflate 已在（不增体积；入参 21,656 B 的 b64）。
+// 失败/长度不符 → styles.js 落空模板（CSS 仍带 :root 与三小段独立导出）+ css.tplFail 打点。
+// 实测：模板原文 91,800 B → deflateRaw+base64 21,656 B（release 645,532 → 575,990 = −69,542 B
+// ≈ −10.77%；debug 987,456 → 918,713 = −68,743 B）。
+var cssInline = '';
+try {
+  var cssRaw = Buffer.from(CSS_TEMPLATE, 'utf8');
+  var cssB64 = zlib.deflateRawSync(cssRaw, { level: 9 }).toString('base64');
+  cssInline = '\n// ==== 内嵌 CSS 模板（src/cssraw.js，构建时 deflateRaw+base64 压缩内嵌，'
+    + 'styles.js 求值即解包；改样式改 src/cssraw.js 后重新构建，勿手改本串） ====\n'
+    + 'window.__ACSV_CSS_SRC__ = ' + JSON.stringify(cssB64) + ';\n'
+    + 'window.__ACSV_CSS_LEN__ = ' + cssRaw.length + ';\n';
+} catch (e) {
+  console.warn('[warn] 内嵌 CSS 模板压缩失败，跳过内嵌（运行时 styles.js 落空模板）');
 }
 
 function userscriptHeader(debug) {
@@ -114,8 +136,9 @@ function buildOptions(debug, forWatch) {
     // 更新检查/上报口径零变化；仅 imnative 的启动日志多带个后缀（更好辨认）
     define: { __ACSV_DEBUG__: debug ? 'true' : 'false', __ACSV_VERSION__: JSON.stringify(debug ? V + '-debug' : V) },
     // esbuild 的 IIFE 外再包一层，让 'use strict' 指令与拆分前的单文件保持一致；
-    // 内嵌 hls.js 字符串放在头注释之后、src IIFE 之外（ensureHls 首调时 new Function 编译，挂 window.Hls）
-    banner: { js: userscriptHeader(debug) + hlsInline + '\n(function () {\n\'use strict\';' },
+    // 内嵌 hls.js / CSS 模板两串放在头注释之后、src IIFE 之外（前者 ensureHls 首调时 new Function
+    // 编译挂 window.Hls；后者 styles.js 模块求值期解包）
+    banner: { js: userscriptHeader(debug) + hlsInline + cssInline + '\n(function () {\n\'use strict\';' },
     footer: { js: '\n})();' },
     logLevel: 'warning',
     plugins: plugins

@@ -5,6 +5,50 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.258（2026-10-16）· 审计批②——CSS 压缩内嵌 / 解包单源收口 / 体积门禁（三项）
+
+**由头**：`docs/optimization-audit-2026-10-16.md` 的批②（构建改造）：P0-1 全量 CSS 压缩内嵌
+（实测上限 −10.98%）与 P1-2 体积门禁（阈值按压缩后实测定）。形态照二审裁定的**"接缝模板 + 运行时
+拼接"**（§四 P0-1）——不采用"构建期冻结最终串"，理由=单源：CFG 插值与主色替换仍只住 `styles.js`
+一处（同 hls/devicetab 先例）。**本批零行为改动**：runtime CSS 与压缩前逐字节相同（见①的 cmp 证据）。
+
+- **① 全量 CSS 由字面量链改压缩内嵌（`src/cssraw.js` 新增 / `src/styles.js` / `build.js`）**：
+  病灶——全量 CSS 以 ~92KB 的 `+ '…'` 字面量链写在 `styles.js` 里，而 esbuild **不压字符串字面量**
+  （实测逐字进产物）⇒ 每个页面都要下载并解析这 92KB。修法——原文整段机械搬到 `src/cssraw.js`
+  （**构建期输入**，定位同 `node_modules/hls.js`：只被 `build.js` import；随产物发布的模块一律
+  不得引它），23 处 CFG 插值 + 1 处 `+ IMGVIEW_CSS +` 拼接改写为 `'{{缝名}}'` 标记；`build.js`
+  以 deflateRaw(level 9)+base64 内嵌 `window.__ACSV_CSS_SRC__`（`__ACSV_CSS_LEN__`=模板 UTF-8
+  字节数，同 hls 的长度校验纪律），`styles.js` 模块求值期解包 → 按 `SEAMS` 表回填 → 照旧
+  `#fd4c5d → var(--acsv-accent)`（**顺序不变**：先回填、后换色）。`IMGVIEW_CSS` 留作第 13 缝
+  （不内联进 cssraw.js）——同一段 CSS 在仓里存两份迟早漂，与"单源收口"相冲。失败降级：串缺失/
+  解包失败 → 空模板（CSS 仍带 `:root` 与三小段独立导出），打点 `css.tplFail`；未登记标记原样留下
+  并打点 `css.seamLeft`（缝名与表漂移可见；两者仅 debug 有效）。
+  **测试**：改动前后各打桩求值一次 runtime `CSS` → **92,451 B 逐字节相同（`cmp` 退出 0）**，另三块
+  独立导出段 sha 前缀不变；产物 release 645,532 → **575,990 B（−69,542 B = −10.77%）**、
+  debug 987,456 → **918,713 B（−68,743 B）**。首屏成本：**node 口径探针，未真机实测**
+  （审计 §四点名要真机数据，这条只作量级参考；探针 `test/tmp-probe/css-unpack-perf.mjs` 未跟踪）
+  ＝解包 1.83 ms + 接缝回填 0.05 ms（50 次均值），量级远小于原先每页解析 92KB 源文字的代价。
+- **② 解包助手单源（`src/pack.js` 新增 / `src/hls.js` / `src/devname.js`）**：病灶——`unpackHls`
+  与 `unpackDeviceTab` 是两份逐字相似的 deflateRaw+base64 解包（审计明令：CSS 若各写一份就是第三
+  份 `unpack*`，违 AGENTS 规则 3）。修法——抽 `pack.unpackText(packed, len, onFail)`（零内部依赖：
+  base64 → inflateSync(fflate) → 长度校验 → UTF-8 解码；失败一律返 null、绝不抛），两个旧件只剩
+  薄壳补各自打点（`hls.unpackLen` / `hls.unpackErr` 读数与调用方零变化）。`check-direction` 登记
+  pack 为基建件（否则口径 A 报 styles→pack 越层）、`check-deps` 入基础件集 + README 图补节点与边。
+  **测试**：既有 `hls-pack.test.js`（脏 base64/半截串/长度不符一律 null）与 `devname.test.js`
+  （截断/长度不符/空值一律 null）原样通过（414/414）；harness 的 hls/cdn-fallback 场景照旧经
+  注入串解包起播。
+- **③ 体积门禁落地（`test/check-release.mjs`）**：病灶——此前只有"release < debug×0.9"的**相对**
+  断言，整体静默膨胀 11% 照样绿；CSS 压缩落下 70KB 后不立闸，等于把这 11% 余量白送。修法——加
+  **绝对上限 + 分段表**（total / head / hls / css / rest 五段，上限=压缩后实测定 ×1.02；分段让
+  "涨在哪一段"一眼可读），另加两条反跑闸：产物里 `'{{'` 必须 **0 次**（CSS 原文一旦被哪个随产物
+  发布的模块 import 进来即现形）、`window.__ACSV_CSS_SRC__` 必须在场。
+  **测试**：**摘修复反跑**——把 release 基线临时调到当前体积之下 ⇒ 红（`release total 超上限：
+  575990B > 510000B`）；往产物尾塞一个 `{{` ⇒ 红（`产物里出现 1 处 '{{' 标记`），两者还原复绿。
+- **测试总账**：单测 414/414；harness **82/82 场景全量通过**（本批不动行为，computed style/几何
+  断言即 CSS 的回归网——如 `composer`（面板/弹层取色与几何）、`views`（各视图网格与量取值）、
+  `smoke`（**release 产物**冷启动）；CSS 若空/未回填，这些场景成片转红）；lint / tsc / check
+  （cases/release/deps/no-leak/direction）全绿。
+
 ### 0.9.257（2026-10-16）· 审计批①——转圈定时器 / 恢复看门狗 / 陈旧列表上下文 / 弹幕恢复 / 悬停保活链 / 上限空转 / 徽标监听 / lint 盲区（八项）
 
 **由头**：三份外部优化报告（原始方案 / 二次精读复核 / 合并版）逐条回源裁定，归档

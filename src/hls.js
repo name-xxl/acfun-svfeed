@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { stat, set, testHook } from './dbg.js';
-import { inflateSync } from 'fflate';
+import { unpackText } from './pack.js';
 
 // ---------- hls.js 懒加载 ----------
 // 推荐模式的播放直链是 m3u8；Safari 原生支持，Chromium 系需要 hls.js。
@@ -54,25 +54,17 @@ function probeHls() {
   return null;
 }
 
-// 内嵌串解包（0.9.242）：__ACSV_HLS_SRC__ 为 deflateRaw+base64 压缩串，fflate 解回原文。
-// len 来自构建期注入的 __ACSV_HLS_LEN__（原始字节数），是完整性校验：fflate 对截断/损坏流
-// 快速抛错（实测「unexpected EOF」等），length 不符再兜一道；失败一律返回 null（静默，
-// 调用方按「串缺失」同路径下沉 CDN 链，不新增失败形态）。
+// 内嵌串解包（0.9.242；0.9.258 起走 pack.unpackText 单源，本函数只补失败打点）：
+// __ACSV_HLS_SRC__ 为 deflateRaw+base64 压缩串，len 来自构建期注入的 __ACSV_HLS_LEN__
+//（原始字节数）。失败一律返回 null（调用方按「串缺失」同路径下沉 CDN 链，不新增失败形态），
+// 两种结局各记一档（长度不符 hls.unpackLen / 解包抛错 hls.unpackErr 摘要）。
 // 选型实录：先试更小的 tiny-inflate（~3KB）——单测抓出它对**截断流死循环**（读越界当 0 位
 // 永不收敛，页面会被冻死）；同用例下 fflate 5ms 抛 EOF（+736B，~3.8KB 值得）
 export function unpackHls(packed, len) {
-  try {
-    if (!packed || !len) return null;
-    var bin = atob(String(packed));
-    var bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i) & 255;
-    var out = inflateSync(bytes);
-    if (!out || out.length !== len) { stat('hls.unpackLen'); return null; }
-    return new TextDecoder('utf-8').decode(out);
-  } catch (e) {
-    set('hls.unpackErr', String((e && e.message) || e).slice(0, 140));
-    return null;
-  }
+  return unpackText(packed, len, function (why, msg) {
+    if (why === 'len') stat('hls.unpackLen');
+    else set('hls.unpackErr', String(msg || '').slice(0, 140));
+  });
 }
 
 // ① eval 收编：编译执行并取回类；不可得返回 null（异常摘要进 hls.evalErr，结局进分层计数）。

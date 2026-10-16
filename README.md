@@ -347,11 +347,13 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `feedstore.js` | 信息流数据仓库（游标泵，空间页列表上下文按序泵入；home 条目允许空 urls 懒解析；0.9.165 水位 slim：cur 背后 N 条外置瘦 urls/qualities，划回经 ensureResolved 重解析） |
 | `route.js` | `#svfeed[/v|a/<id>]`、`#svfeed/play/<v|a>/<id>`（0.9.74 播放层：view=play + src 标记、**不填 mid**）路由解析、地址栏同步与深链意图（appliedMid/cancelHashSync） |
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
-| `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`toast`/`a11y`（title+aria-label 同源）/剪贴板/样式注入等工具 |
+| `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`toast`/`a11y`（title+aria-label 同源）/剪贴板/样式注入等工具。**0.9.258（审计批②）**：全量 CSS 原文搬到 `cssraw.js`（构建期输入，只被 `build.js` import），产物里以 deflateRaw+base64 内嵌串（`window.__ACSV_CSS_SRC__`）携带——styles.js 求值即解包（`pack.unpackText`）+ 回填 `SEAMS` 表 13 缝 + 主色替换，runtime CSS 与压缩前逐字节相同 |
+| `cssraw.js` | 全量 CSS **模板**（0.9.258，审计批② P0-1）：原 `styles.js` 的 RAW_CSS 字面量链整段迁移，23 处 CFG 插值 + 1 处 `IMGVIEW_CSS` 拼接改成 `'{{缝名}}'` 标记（缝表在 styles.js 一处）。**构建期输入**（同 `node_modules/hls.js` 的定位）——**只许 build.js import**，随产物发布的模块一律不得引它（真引了 ⇒ 产物里重新出现 `'{{'`，`check-release` 即红）。改样式改这里 |
+| `pack.js` | 内嵌压缩串解包**单源**（0.9.258，审计批②）：`unpackText(packed, len, onFail)` = base64→inflateSync(fflate)→长度校验→UTF-8 解码，失败返 null 绝不抛。三个消费方各只补自己的失败打点（hls 下沉 CDN 链 / devicetab 回落空表 / styles 空模板），**不许再造第二份 unpack**（AGENTS 规则 3；`check-direction` 已登记为基建件） |
 | `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策（三跳两两换 URL；0.9.166 二三跳 ±20% 抖动，rnd 缺省 0.5 保确定性）+ `memoState`/`memoTrim` 死链备忘纯判定（0.9.77：只读不续期）——URL 正确性只在这里定义 |
 | `imgload.js` | 图片加载执行层（0.9.76；0.9.77 头注校准覆盖边界）：项目图片字段（封面/头像）统一入口——`IMG_POLICY` 策略表（grid/thumb/avatar/space）+ `imgInto(host,url,policy[,cls])`（懒加载/重试链/终败降级/淡入/死链备忘）+ `lazyObserve` 观察器单例（私信气泡共用）。有意在外的例外：鉴权 blob 管线（imsend）、UBB/表情 HTML、站点静态图标、大图查看器 |
 | `interact.js` | 真实点赞（api_st → interact 接口）+ 投蕉/Pi 级写链（AppAPI.throwBanana）；**关注→relationapi.js、收藏→favapi.js**（0.9.142/143 迁出，退役登记在文件头） |
-| `devname.js` | 设备型号美化（0.9.246，Web-IP 吸收批次②，路线图 Phase 5）：评论「来自 x」内部代号（`RMX3619`/`iPhone3,1`）→ 友好名（真我 V30 / iPhone 4）。四级匹配（精确 → 大小写 → 去尾字母 → 前缀包含）+ 查找缓存（上限 500 最旧 20% 淘汰）逐字移植 Web-IP 56-device.js；接线口 `devTag(a, model)` 由 comments.cmtOpts 经 `opts.devTag` 注入 commentkit（同 ipTag 纪律）——**只换锚文本**（href/结构不动）、未收录兜底原文、命中映射才挂点击切换（友好名 ⇄ 原文，照抄 Web-IP）。用户层读 Web-IP 同键 `acr_device_models`（只读兼容；导入/导出/重置 UI 0.9.250 随原生面板落地），**合并语义升级**＝内置先、用户条覆盖（反转其「快照顶掉内置」）。设置项 devName 在 SCHEMA 评论组。**0.9.255 数据优化专项**：内置表全品牌 4,031 条 + deflateRaw+b64 压缩内嵌（`unpackDeviceTab` 惰性解包，hls 同款长度校验；解包失败回落空表、用户层仍可用） |
+| `devname.js` | 设备型号美化（0.9.246，Web-IP 吸收批次②，路线图 Phase 5）：评论「来自 x」内部代号（`RMX3619`/`iPhone3,1`）→ 友好名（真我 V30 / iPhone 4）。四级匹配（精确 → 大小写 → 去尾字母 → 前缀包含）+ 查找缓存（上限 500 最旧 20% 淘汰）逐字移植 Web-IP 56-device.js；接线口 `devTag(a, model)` 由 comments.cmtOpts 经 `opts.devTag` 注入 commentkit（同 ipTag 纪律）——**只换锚文本**（href/结构不动）、未收录兜底原文、命中映射才挂点击切换（友好名 ⇄ 原文，照抄 Web-IP）。用户层读 Web-IP 同键 `acr_device_models`（只读兼容；导入/导出/重置 UI 0.9.250 随原生面板落地），**合并语义升级**＝内置先、用户条覆盖（反转其「快照顶掉内置」）。设置项 devName 在 SCHEMA 评论组。**0.9.255 数据优化专项**：内置表全品牌 4,031 条 + deflateRaw+b64 压缩内嵌（`unpackDeviceTab` 惰性解包，hls 同款长度校验，0.9.258 起解包本体走 `pack.unpackText` 单源；解包失败回落空表、用户层仍可用） |
 | `devicetab.js` | 设备型号内置表（**生成物，勿手改**；0.9.255 起全品牌手机+平板 4,031 条，deflateRaw+base64 压缩内嵌：`DEVICE_TAB_PACKED`/`DEVICE_TAB_LEN`/`DEVICE_TAB_COUNT`，运行时经 devname.unpackDeviceTab 惰性解包）：由 `tools/gen-device-data.js` 从 KHwang9883/MobileModels + Apple 表生成（多源解析 → 名称机械归一 → 同码多名自动裁决，零人工清单）；数据 **CC BY-NC-SA 4.0**，与 MIT 分声明（见「设备型号数据许可」段）；再生成：`node tools/gen-device-data.js <MobileModels 数据目录>` |
 | `natpanel.js` | IP 面板（0.9.250 生 / 0.9.253 两主题+全站接通；Web-IP 吸收 6c，路线图 Phase 6）：点击任意 IP 标签弹出——**结构单源、两主题只换 token**（NATIVE_PANEL_CSS 段）：浅色＝Web-IP 面板资产收敛版（原生页 `.acsv-nip` 入口）；**深色＝token 对齐齿轮面板家族**（脚本页 `.acsv-cip` 入口，用户裁决）。结构＝资料卡（用户名/UID/IP属地/查询于，iploc.entryOf 直读）+ **评论域 SCHEMA 表驱动**（`nativeItems()`＝panel ∧ native 标记）+ 缓存管理（acr_uids 导出/导入/清空二次确认）+ 设备数据（导入文件·粘贴/导出/重置，devname 用户层）。**0.9.253 精简**：设置行单行式（原 hint 文案转入 label 悬停 title）/ 组标移除 / 页脚只留 `v{APP_VERSION}`；开关 34×18（两主题同几何）。**0.9.254 入浮层栈**（`overlayOpen` modal：Esc 单点关栈顶、真键盘走 overlay capture；自家按键监听只兜**原生页合成事件**——判据「无 #acsv-root 壳」，脚本页若抢关会把栈内视图层连带关掉，复核实证在册）。Esc/遮罩关闭即 flushSettings；剪贴板走 ui.copyText |
 | `nativeip.js` | 原生页评论 IP + 设备（0.9.248/0.9.249/0.9.251，Web-IP 吸收 6a+6b，路线图 Phase 6）：评论区**两种显示模式**——「默认模式」＝`[data-commentid]` 统一组件（视频/文章/动态详情三面同款）+「**盖楼模式**」（用户可切换，`ac_usp_commMode` 1/2；根 `.main-comment-item` + 楼层块 `.fc-comment-item` + `a.name[data-uid]`、回包 `listByFloor`--commentsMap 形）——拦截层（fetch/XHR hook → commentId|cid→userId 映射，路径变清表）+ DOM 兜底链（a[data-userid] → a.name[data-uid] → /u/ 链接 → 头像 src，**Web-IP 24 项单测等值迁移**）+ 可见优先注入（IO 200px/入视口即 unobserve → `iploc.resolveFor` 共享核 → `.acsv-nip` 浅色段，tooltip 同源；盖楼注入点 `.comment-item-footer-left` 间距 8px）+ 重画补注（MutationObserver 300ms 重扫，缓存制）+ SPA 路由清映射 + 设备美化（`.deviceModel` → devname.devTag 单源，两模式同款锚，手动态尊重）+ 专属挂点（6b）：用户主页 `/u/` 资料卡「IP属地：x」（common-info 类复用站内定位）、个人中心 `/member` 动态条目的 `.feed-time`（closest 两跳爬链真机核过）。**修正 port**：Web-IP IO 先 unobserve、uid 提取失败即永久漏 → 我们失败不放弃、有界重观察重试 |
@@ -368,7 +370,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `momenteditor.js` | 发动态编辑器（0.9.222）：**三处入口共用的唯一出口** `openMomentEditor(opts)`——居中模态（overlay 栈 id=`momentedit`、modal 吞键）、输入条走 `inputbar`（0.9.238 富文本，字数在工具栏右端 n/233）、表情面板/九宫格缩略图（`imgInto`）/可见范围两药丸；转发时顶部带源引用块（复用 `cards.quoteBlockOf`，不新画）、按钮与标题切「转发」。**防误发**：提交锁（绝不自动重试——端点无幂等键）、失败保留内容给可读话术（按 `postResultOf` 的 kind 分档）、**网络/超时结果未知**走「先查后补」（`listProfile` 核对自己最近动态）。**超字数硬拒绝**（0.9.238 预览稿 ⑩ 第 10 项）：输入条置红 + 脚行发布键禁用 + 「已超出 N 字」提示行；发布动作归脚行（模态内隐去输入条自带发送键）。调试钩子 `momentRepostOf`/`momentEdit` |
 | `pubfab.js` | 发布**常驻浮标**（0.9.224；0.9.225 收窄原生页范围）：右下角一枚圆钮、钉在「回到顶部」之上——消费方三处：我的页四档 / 广场视图 / **原生页的内嵌动态广场**（0.9.225 用户口径「原生页只需要在动态广场出现」⇒ 只在广场开着时出现，随广场收起而消失；不再常驻原生页）。位置：暗色 `right:18 bottom:70`（回顶暗色是流内 sticky）／浅色 `right:24 bottom:80`（回顶浅色是 fixed）。**层级 z:57**：压列表内容(55)/dock(56)/顶栏(57)，**被抽屉(58)/详情(61)/编辑器(62)/大图(63) 盖住**——绝不许盖住它自己打开的编辑器（`#acsv-fab` 的 2147482990 不能照抄） |
 | `upload.js` | 评论图片上传四阶段（GM 通道二进制分片，失败统一落 null） |
-| `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；0.9.180 起不可得=error 态，不回落原生；0.9.181 起「同 realm 返回式取数」+ UMD 分支遮罩；0.9.182 起 eval 拿不回再落 Blob 脚本层（页面 world，IM SDK 同款）；0.9.242 起内嵌串为 deflateRaw+base64 压缩形态，首调 unpackHls（fflate）懒解包、失败下沉 CDN；CDN 逐源兜底；Safari 原生 HLS 探测） |
+| `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；0.9.180 起不可得=error 态，不回落原生；0.9.181 起「同 realm 返回式取数」+ UMD 分支遮罩；0.9.182 起 eval 拿不回再落 Blob 脚本层（页面 world，IM SDK 同款）；**0.9.242 起内嵌串为 deflateRaw+base64 压缩形态，首调 `unpackHls` 懒解包、失败下沉 CDN**（0.9.258 起解包本体走 `pack.unpackText` 单源，本函数只剩打点：`hls.unpackLen`/`hls.unpackErr`）；CDN 逐源兜底；Safari 原生 HLS 探测） |
 | `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐；画布取**播放器区域内居中的 16:9 区**，与稿件比例无关——原生同口径（0.9.205）；0.9.204 起另一条通道画高级弹幕——绝对定位不进轨道/位图缓存） |
 | `advdm.js` | 高级弹幕模型核·零依赖纯函数（0.9.204）：`parseAdvanced`（ext JSON → 模型）/`easeProgress`（CSS 关键字 + cubic-bezier 牛顿迭代+二分兜底，非法值回落 linear）/`interpolateModel`（多段帧插值）/`drawModel`（九宫格锚点/多行/描边/影子）。真机口径见 docs/api-research.md §10.13（本地留档） |
 | `danmaku.js` | 弹幕编排：列表拉取/缓存、开关记忆、绑定/解绑 slide、发送输入条；**高级弹幕取池**（0.9.204：pollByPosition 跟播放头 20s 窗口增量拉——list 链路一条高级弹幕都不返回） |
@@ -468,7 +470,9 @@ flowchart LR
     ui["ui.js（el/esc/toast 工具）"]
     toastmsg["toastmsg.js（用户提示话术单源·0.9.212）"]
     errbox["errbox.js（错误盒单源·浮出盒）"]
-    styles["styles.js（CSS 常量）"]
+    styles["styles.js（CSS 常量 + 接缝回填）"]
+    cssraw["cssraw.js（全量 CSS 模板·构建期输入，只被 build.js import）"]
+    pack["pack.js（内嵌压缩串解包单源·hls/devicetab/CSS 共用）"]
     dbg["dbg.js（调试埋点）"]
   end
 
@@ -609,6 +613,9 @@ flowchart LR
   comments --> devname
   iploc --> cfg & dbg & net & settings & ui
   devname --> cfg & devicetab & settings
+  devname --> pack
+  hls --> pack
+  styles --> pack
   nativeip --> dbg & devname & iploc & styles
   nativeip --> natpanel
   natpanel --> cfg & dbg & devname & iploc & overlay & settings & styles & ui

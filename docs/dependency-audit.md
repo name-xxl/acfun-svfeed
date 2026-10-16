@@ -287,3 +287,18 @@ feedstore.js → player.js → input.js → feedstore.js
 - **`spacemoments → squarefeed` 的复用代价与代价的定价**：列表机械（加载/三态/骨架/触底/回顶/
   新鲜度回填）全部来自广场工厂；为此给工厂加了四个可注入项（`fetchPage/emptyText/poll/view`），
   **默认值＝改造前行为**——零漂移证据＝`view-square` 与 `member-plaza` 场景全绿（既有断言未动）。
+
+## 0.9.258：CSS 压缩内嵌的两个新件（审计批②，P0-1 + 解包单源）
+
+- **新增模块**：`pack.js`（内嵌压缩串解包**单源**：`unpackText(packed, len, onFail)`，零内部依赖，
+  只 import fflate）、`cssraw.js`（全量 CSS 模板，**构建期输入**——只被根目录 `build.js` import，
+  src 内零入边、不进产物；产物里以 `window.__ACSV_CSS_SRC__` 压缩串携带）。
+- **新增边**（口径 A/B 均 0 未登记）：`styles → pack`、`hls → pack`、`devname → pack`（三条都是
+  特性/播放层 → 基建件）。`pack.js` 已登记 `check-direction` 的 INFRA 与 `check-deps` 的
+  EXCLUDED_TARGETS（否则口径 A 报「styles→pack 越层」）；README 图补两节点三边。
+- **为什么不再各留一份解包**：原 `hls.unpackHls` 与 `devname.unpackDeviceTab` 是逐字相似的两份，
+  CSS 若照抄就是第三份（AGENTS 规则 3）。收口后两件只剩薄壳补各自打点
+  （`hls.unpackLen`/`hls.unpackErr` 读数与调用方零变化），`hls-pack` / `devname` 单测未改即绿。
+- **IMGVIEW_CSS 为何留作第 13 缝**：它在原文里是 `+ IMGVIEW_CSS +` 拼接引用；内联成字面量会让
+  同一段 CSS 在仓里存两份（styles.js 与 cssraw.js）⇒ 迟早漂，与单源收口相冲。留缝则 styles.js
+  仍是该段文本唯一出处。

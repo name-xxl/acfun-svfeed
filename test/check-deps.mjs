@@ -23,7 +23,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
 const EXCLUDED_TARGETS = new Set(['cfg.js', 'net.js', 'state.js', 'route.js',
-  'ui.js', 'dbg.js', 'styles.js', 'playitem.js', 'panelitem.js']); // 基础/工具件（含契约件，0.9.162 接替 data.js）：图刻意只留少量精选边，不要求全画
+  'ui.js', 'dbg.js', 'styles.js', 'playitem.js', 'panelitem.js', 'pack.js']); // 基础/工具件（含契约件，0.9.162 接替 data.js）：图刻意只留少量精选边，不要求全画
+  // 0.9.258 加 pack.js：内嵌压缩串解包单源（hls/devname/styles 共用）——基建定位同 dbg/styles
 
 // ---- 真实 import 边 + 模块清单 ----
 const files = fs.readdirSync(SRC).filter((f) => f.endsWith('.js'));

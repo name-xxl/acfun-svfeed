@@ -415,7 +415,7 @@ feed/webPush 目前只有**视频条目**的字段实测。待测清单：
 | R3 | comments.js stype=4 复用不成立 | **已闭合**（2026-10-03 前置实测成立，api-research §4.7；动态详情评论区复用现有抽屉，无 +50% 工作量） |
 | R4 | CC BY-NC-SA 数据混布合规 | 0.9.91 前完成 README 数据许可段；数据段与 MIT 代码分声明 |
 | R5 | sv 源观看无 web 上报通道 | api-research 记「未实测」，不当 bug 反复查 |
-| R6 | 单文件体积过 1MB | 盯水位；死链备忘式惰性加载守住。**2026-10-15 实测**（Phase 5+6 吸收后）：release 626KB / debug 963KB（本批 +47KB，大头 devicetab 40KB 原文）；**0.9.255 设备数据优化专项**：devicetab 改压缩内嵌（全量 4,031 条仅 35KB）——release 628KB / debug 960KB，余量回升，水位压力解除 |
+| R6 | 单文件体积过 1MB | 盯水位；死链备忘式惰性加载守住。**2026-10-15 实测**（Phase 5+6 吸收后）：release 626KB / debug 963KB（本批 +47KB，大头 devicetab 40KB 原文）；**0.9.255 设备数据优化专项**：devicetab 改压缩内嵌（全量 4,031 条仅 35KB）——release 628KB / debug 960KB，余量回升，水位压力解除。**0.9.258 审计批②（CSS 压缩内嵌，实测 −69.5KB）**：release 645,532 B → **575,990 B（562KB）**、debug 987,456 B → **918,713 B（897KB）**，且 `test/check-release.mjs` 起立**绝对体积门禁**（分段基线 ×1.02，撞线即红）——此后静默膨胀不再有 ~11% 余量可吃 |
 | R7 | 高弹回炉后迁入评估不通过 | 不迁，保持独立；svfeed 不受影响（本就不依赖） |
 | R8 | 服务端对 client_increment_id 的校验强度未知 | 缓解：信封嗅探时续号（max+1）；若观测到直发丢报，再评估与官方序列对齐 |
 
@@ -487,8 +487,7 @@ P3-2/P3-3 等工程项。报告 11 条判错逐条裁定（8 条维持判决、3
 
 - **批① 行为/工程焊缝**（免预览，逐条"摘修复反跑"）：A1 / A2 / A3（修正版）/ A4（修正版）/
   P1-3 / P1-4 / P2-4 / C1。
-- **批② 构建改造**：CSS deflateRaw+base64 内嵌（23 缝模板 + 运行时拼接 + 共享解包助手）+
-  体积门禁（阈值按压缩后实测定）+ `docs/roadmap.md:418`（R6 水位）同步。
+- **批② 构建改造**（**0.9.258 已落地**）：CSS deflateRaw+base64 内嵌（23 缝模板 + 运行时拼接 + 共享解包助手 `pack.unpackText`）+ 体积门禁（阈值按压缩后实测定，分段基线 ×1.02）+ `docs/roadmap.md:418`（R6 水位）同步。实测 release 645,532 → 575,990 B（−69,542 B = −10.77%），runtime CSS 与压缩前逐字节相同。
 - **批③ 性能**：共享尾节流助手 → dmcanvas resize；snapWatchTick/renderWindow 改有界；
   controls rect 读 rAF 合并；fetchCards uid 级请求缓存（保留"刚发送会话恒派生"语义）。
 - **批④ 单源收口**：翻页骨架 `pageLoader`（followview + squarefeed + mypage×2；pickpop/searchview

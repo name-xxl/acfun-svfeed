@@ -35,7 +35,12 @@ const SRC = path.join(ROOT, 'src');
 // 知识"的口径；与 sharepanel/rail/slide（0.9.233）同款归类：地位是特性层共享 UI 件
 const INFRA = new Set(['cfg.js', 'net.js', 'playitem.js', 'panelitem.js', 'state.js', 'route.js', 'imgview.js',
   'imgurl.js', 'pagekind.js', 'settings.js', 'viewreg.js', 'imgload.js', 'overlay.js', 'topbar.js',
-  'ui.js', 'errbox.js', 'styles.js', 'dbg.js', 'timefmt.js', 'uplook.js', 'nameval.js']);
+  'ui.js', 'errbox.js', 'styles.js', 'dbg.js', 'timefmt.js', 'uplook.js', 'nameval.js',
+  // 0.9.258 登记：pack（内嵌压缩串解包**单源**，hls/devname/styles 三处共用）。归基建件是因为
+  // 消费方 styles 属基建层（不登记就会在口径 A 报「styles→pack 越层」）；pack 自身零内部依赖
+  // （只 import fflate）。另：cssraw.js 是构建期输入（只被根目录 build.js import），src 内零入边，
+  // 两口径都天然 0 条，不入表
+  'pack.js']);
 const API = new Set(['api.js', 'appapi.js', 'quality.js']);
 // 校准（0.9.117 首跑即立；0.9.119 扩一项）：README 明示的五件零依赖解耦点里，immsg/imicons
 // 现居私信层 subgraph——那是出身 placement，不是专属域；它们被 topbar/cards/momentbar/comments
