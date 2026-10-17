@@ -23,7 +23,8 @@
 // **差异裁决（有意，不是漏抄）**：几何与节奏（尺寸/行距/控件块/菜单行高）取官方量取值；
 // 表面与圆角取本方家族——脚本页面板必须与自家模态同族，而官方面板是无模糊的扁平 2px 圆角
 // （量取原文如上）。未量取项：开关内部旋钮的几何（只量到药丸本体），按药丸内切推导，注释在册。
-import { el, closeOnOutsideClick } from './ui.js';
+import { el, closeOnOutsideClick, makeSwitch } from './ui.js';
+import { SWITCH_CSS } from './styles.js'; // 开关控件单源（0.9.262）：影子根内注入同一串
 import { root } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { panelItems, getSetting, setSetting, flushSettings, onChange } from './settings.js';
@@ -51,13 +52,7 @@ var SET_CSS = ''
   + '.set-row-main{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:2px}'
   + '.set-label{font-size:14px;line-height:18px}'
   + '.set-hint{font-size:12px;line-height:16px;color:#8b909a}'
-  // 开关：34×18 药丸（官方量取值）；旋钮按药丸内切推导（2px 内衬）
-  + '.set-sw{flex:none;width:34px;height:18px;border:none;border-radius:22px;padding:0;cursor:pointer;'
-  + 'background:rgb(158,158,158);position:relative;transition:background .15s}'
-  + '.set-sw.on{background:var(--acsv-accent)}'
-  + '.set-sw i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;'
-  + 'transition:transform .15s}'
-  + '.set-sw.on i{transform:translateX(16px)}'
+  // 开关：几何/状态/两皮 token 全走 SWITCH_CSS 单源（0.9.262；原 .set-sw 双皮已并）
   // 下拉：菜单表面与选项行取官方量取值（rgba(21,21,21,.8) / radius 4px / 行高 36px）
   + '.set-sel{flex:none;position:relative}'
   + '.set-sel-btn{min-width:88px;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;'
@@ -115,13 +110,12 @@ export function closeSettings() {
 
 // 控件工厂：返回 { node, sync }。sync 幂等（自家 setSetting 触发的 onChange 也会回调到它）
 function boolControl(item) {
-  var b = el('button', 'set-sw');
-  b.title = item.label || item.key;
-  b.appendChild(el('i'));
-  var sync = function () { b.classList.toggle('on', getSetting(item.key) === true); };
-  b.addEventListener('click', function () { setSetting(item.key, getSetting(item.key) !== true); });
-  sync();
-  return { node: b, sync: sync };
+  var sw = makeSwitch(getSetting(item.key) === true, function (next) {
+    setSetting(item.key, next);
+  }, 'dark'); // 齿轮面板恒为暗色主题
+  sw.node.title = item.label || item.key;
+  var sync = function () { sw.sync(getSetting(item.key) === true); }; // 幂等：onChange 回调也会打到它
+  return { node: sw.node, sync: sync };
 }
 
 function selectControl(item) {
@@ -219,7 +213,7 @@ export function openSettings() {
   host = el('div', 'acsv-set-host');
   var shadow = host.attachShadow({ mode: 'open' });
   var style = document.createElement('style');
-  style.textContent = SET_CSS;
+  style.textContent = SWITCH_CSS + SET_CSS; // 开关控件单源前置（0.9.262）：影子根内拿不到全局样式，必须随皮肤注入
   shadow.appendChild(style);
   panel = el('div', 'set');
   var pnl = el('div', 'set-panel');

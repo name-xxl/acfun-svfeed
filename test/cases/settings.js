@@ -25,7 +25,7 @@
     return b ? b.textContent : '';
   }
   function swOf(sh, idx) {
-    return sh.querySelectorAll('.set-sw')[idx];
+    return sh.querySelectorAll('.acsv-sw')[idx];
   }
 
   C['settings-open'] = async function (h) {
@@ -45,6 +45,17 @@
     // 面板必须真渲染（offsetParent 真值法：0.9.62 黑屏教训）
     var pnl = sh.querySelector('.set-panel');
     rec('set-panel-visible', !!(pnl && pnl.offsetParent !== null));
+    // 0.9.262 开关控件单源（P3-3）：几何 34×18 + 旋钮 14×14 + 可访问性（role/aria-checked）
+    var sw0 = swOf(sh, 0);
+    var swr = sw0 && sw0.getBoundingClientRect();
+    rec('set-sw-geometry', !!swr && Math.round(swr.width) === 34 && Math.round(swr.height) === 18,
+      swr ? swr.width + '×' + swr.height : 'none');
+    var knob0 = sw0 && sw0.querySelector('i');
+    var kr = knob0 && knob0.getBoundingClientRect();
+    rec('set-sw-knob', !!kr && Math.round(kr.width) === 14 && Math.round(kr.height) === 14,
+      kr ? kr.width + '×' + kr.height : 'none');
+    rec('set-sw-a11y', !!sw0 && sw0.getAttribute('role') === 'switch',
+      sw0 ? sw0.getAttribute('role') + '/' + sw0.getAttribute('aria-checked') : 'none');
     // 页脚版本号（0.9.253）：v{APP_VERSION} 左置（debug 构建带 -debug 后缀）——与 IP 面板页脚同源
     rec('set-footer-ver', /^v0\.9\.\d+/.test((sh.querySelector('.set-ver') || {}).textContent || ''),
       (sh.querySelector('.set-ver') || {}).textContent || 'none');
@@ -55,6 +66,11 @@
     rec('set-ctl-dm-on-before', !!(ctlDm && ctlDm.classList.contains('on')));
     if (sw) sw.click();
     rec('set-dm-now-off', !!(sw && !sw.classList.contains('on')));
+    // 0.9.262 单源首日：暗色皮 token（关态 rgb(158,158,158)）与浅色皮分开由 skin-* 决定。
+    // 等过渡落定再读（150ms 过渡期内 getComputedStyle 拿到的是插值/起点色）
+    rec('set-sw-dark-token', !!sw && !!(await waitFor(function () {
+      return getComputedStyle(sw).backgroundColor === 'rgb(158, 158, 158)';
+    }, 1200)), sw ? getComputedStyle(sw).backgroundColor : 'none');
     rec('set-ctl-dm-synced', !!(ctlDm && !ctlDm.classList.contains('on')), 'ctlDmOn=' + (ctlDm ? ctlDm.classList.contains('on') : 'no-btn'));
     // Esc 关面板（overlay 栈 modal:true 白拿；input.js 零改）→ 关即 flush
     key('Escape');

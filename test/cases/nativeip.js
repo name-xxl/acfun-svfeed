@@ -290,12 +290,12 @@
         && !!lab && /需登录态/.test(lab.title || '');
     })());
     rec('np-sw-metrics', (function () {
-      var sw = mask.querySelector('.acsv-np-sw');
+      var sw = mask.querySelector('.acsv-sw');
       if (!sw) return false;
       var cs = getComputedStyle(sw);
       return cs.width === '34px' && cs.height === '18px';
     })(), (function () {
-      var sw = mask.querySelector('.acsv-np-sw');
+      var sw = mask.querySelector('.acsv-sw');
       return sw ? getComputedStyle(sw).width + '×' + getComputedStyle(sw).height : 'none';
     })());
     rec('np-footer-ver', (function () {
@@ -317,10 +317,15 @@
       && labels.indexOf('快进步长（秒）') === -1, labels);
     // ④ 开关拨动 + Esc 关闭即落盘（flushSettings）
     var ipRow = rowOf(mask, /评论区显示 IP 属地/);
-    var ipSw = ipRow && ipRow.querySelector('.acsv-np-sw');
+    var ipSw = ipRow && ipRow.querySelector('.acsv-sw');
     rec('np-ipshow-on', !!(ipSw && ipSw.classList.contains('on')));
     if (ipSw) ipSw.click();
     rec('np-ipshow-off', !!(ipSw && !ipSw.classList.contains('on')));
+    // 0.9.262 开关控件单源（P3-3）：浅色皮 token（关态 #ddd）——与齿轮面板的 rgb(158,158,158) 分皮。
+    // 等过渡落定再读（150ms 过渡期内 getComputedStyle 拿到的是插值/起点色）
+    rec('np-sw-light-token', !!ipSw && !!(await waitFor(function () {
+      return getComputedStyle(ipSw).backgroundColor === 'rgb(221, 221, 221)';
+    }, 1200)), ipSw ? getComputedStyle(ipSw).backgroundColor : 'none');
     key('Escape');
     rec('np-esc-close', !!(await waitFor(function () { return !document.querySelector('.acsv-np-mask'); }, 3000)));
     rec('np-ipshow-persist', localStorage.getItem('acsv.s.ipShow') === 'false', 'raw=' + localStorage.getItem('acsv.s.ipShow'));

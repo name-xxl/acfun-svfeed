@@ -88,7 +88,7 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
     var host = await waitFor(function () { return q('.acsv-set-host'); }, 5000);
     rec('rel-set-open', !!host);
     var sh = host && host.shadowRoot;
-    var sw = sh && sh.querySelectorAll('.set-sw')[2];
+    var sw = sh && sh.querySelectorAll('.acsv-sw')[2];
     rec('rel-set-sw-found', !!sw);
     if (sw) sw.click();
     rec('rel-set-sw-on', !!(sw && sw.classList.contains('on')));

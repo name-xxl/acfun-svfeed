@@ -21,6 +21,28 @@ export var NATIVE_IP_CSS = '.acsv-nip{margin-left:3px;cursor:pointer;transition:
   + '.comment-item-footer-left .acsv-nip{margin-left:8px}'
   + '.acsv-nip:hover{color:#fd4c5d}';
 
+// 开关控件单源（0.9.262，审计 P3-3）：34×18 药丸的几何/过渡/悬停/焦点/禁用全在本段，**两处宿主
+// 共用同一串**——齿轮面板（SET_CSS，影子根内）与原生页 / IP 面板（NATIVE_PANEL_CSS，全局）各自
+// 注入；皮肤只换 token：`.skin-dark`（齿轮面板 / IP 面板深色主题）走基础 token，`.skin-light`
+// （原生页浅色）换关态底色与旋钮阴影。几何全由变量推导（位移=--sw-w−--sw-knob−2×--sw-inset
+// =16px，不再写死魔数）。悬停用 filter 提亮而非 color-mix：项目仍要照顾旧内核（Chrome/Edge<111
+// 不支持 color-mix）。
+export var SWITCH_CSS =
+  '.acsv-sw{--sw-w:34px;--sw-h:18px;--sw-r:22px;--sw-inset:2px;--sw-knob:14px;--sw-tr:150ms;'
+  + '--sw-off:rgb(158,158,158);--sw-on:var(--acsv-accent,#fd4c5d);--sw-knob-bg:#fff;--sw-knob-sh:none;'
+  + 'flex:none;position:relative;width:var(--sw-w);height:var(--sw-h);padding:0;border:none;'
+  + 'border-radius:var(--sw-r);background:var(--sw-off);cursor:pointer;transition:background var(--sw-tr)}'
+  + '.acsv-sw i{position:absolute;top:var(--sw-inset);left:var(--sw-inset);'
+  + 'width:var(--sw-knob);height:var(--sw-knob);border-radius:50%;background:var(--sw-knob-bg);'
+  + 'box-shadow:var(--sw-knob-sh);transition:transform var(--sw-tr)}'
+  + '.acsv-sw.on{background:var(--sw-on)}'
+  + '.acsv-sw.on i{transform:translateX(calc(var(--sw-w) - var(--sw-knob) - 2 * var(--sw-inset)))}'
+  + '.acsv-sw:hover{filter:brightness(1.06)}'
+  + '.acsv-sw:focus-visible{outline:2px solid var(--sw-on);outline-offset:2px}'
+  + '.acsv-sw[disabled]{opacity:.45;cursor:not-allowed;filter:none}'
+  // 皮肤只换 token（用户 2026-10-17 确认：浅色保留旋钮阴影、暗色无——与改造前一致）
+  + '.acsv-sw.skin-light{--sw-off:#ddd;--sw-knob-sh:0 1px 3px rgba(0,0,0,.2)}';
+
 // IP 面板段（0.9.250 生，0.9.253 两主题重构+精简）：**单独段导出**——由 natpanel 自持注入（同
 // NATIVE_IP_CSS 先例）。**结构单源、两主题只换 token**：浅色＝Web-IP 面板资产收敛版（原生页
 // `.acsv-nip` 入口）；深色＝token 对齐齿轮面板家族（脚本页 `.acsv-cip` 入口——用户 2026-10-15
@@ -42,10 +64,8 @@ export var NATIVE_PANEL_CSS =
   + '.acsv-np-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0}'
   + '.acsv-np-row:last-child{border-bottom:none}'
   + '.acsv-np-label{font-size:14px;line-height:18px;color:#333}'
-  + '.acsv-np-sw{position:relative;width:34px;height:18px;border-radius:22px;background:#ddd;cursor:pointer;transition:background .2s;flex:none}'
-  + '.acsv-np-sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s}'
-  + '.acsv-np-sw.on{background:#fd4c5d}'
-  + '.acsv-np-sw.on::after{transform:translateX(16px)}'
+  // 开关：几何/状态/两皮 token 全走 SWITCH_CSS 单源（0.9.262；原 .acsv-np-sw 双皮已并）
+  + SWITCH_CSS
   + '.acsv-np-seg{display:flex;border:1px solid #e5e5e5;border-radius:3px;overflow:hidden;flex:none}'
   + '.acsv-np-seg button{border:none;background:#fff;color:#666;font-size:12px;padding:3px 10px;cursor:pointer;'
   + 'border-right:1px solid #e5e5e5;transition:.15s;font-family:inherit;line-height:16px}'
@@ -83,8 +103,8 @@ export var NATIVE_PANEL_CSS =
   + '.acsv-np.dark .acsv-np-card .acsv-np-ip{color:var(--acsv-accent)}'
   + '.acsv-np.dark .acsv-np-row{border-bottom-color:rgba(255,255,255,.07)}'
   + '.acsv-np.dark .acsv-np-label{color:#fff}'
-  + '.acsv-np.dark .acsv-np-sw{background:rgb(158,158,158)}'
-  + '.acsv-np.dark .acsv-np-sw.on{background:var(--acsv-accent)}'
+  // 开关配色已由 SWITCH_CSS 的 skin token 承担（0.9.262）：深色主题的开关由
+  // `switchOf` 传 skin='dark' 决定，不再需要 `.acsv-np.dark .acsv-np-sw` 覆盖规则
   + '.acsv-np.dark .acsv-np-seg{border-color:rgba(255,255,255,.2);border-radius:8px}'
   + '.acsv-np.dark .acsv-np-seg button{background:transparent;color:#cfd3da;border-right-color:rgba(255,255,255,.2)}'
   + '.acsv-np.dark .acsv-np-seg button.on{background:var(--acsv-accent);border-color:var(--acsv-accent);color:#fff}'

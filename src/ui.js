@@ -25,6 +25,30 @@ export function elHtml(tag, cls, html) {
   return e;
 }
 
+// 开关控件单源（0.9.262，审计 P3-3）：34×18 药丸 + 旋钮。几何/过渡/悬停/焦点全在
+// styles.SWITCH_CSS（齿轮面板与原生页/IP 面板各自注入同一串，影子根隔离下无法靠全局样式）；
+// 本件只管 DOM 与状态：`<button class="acsv-sw" role="switch" aria-checked><i></i></button>`。
+// skin='dark'|'light' 只选 token；onToggle(next) 由宿主落库——开关自身先乐观同步，避免
+// setSetting→onChange 异步时视觉滞后；sync 幂等，随后被宿主回读覆盖也无害。
+export function makeSwitch(on, onToggle, skin) {
+  var b = el('button', 'acsv-sw' + (skin ? ' skin-' + skin : ''));
+  b.type = 'button';
+  b.setAttribute('role', 'switch');
+  b.appendChild(el('i'));
+  function sync(v) {
+    v = v === true;
+    b.classList.toggle('on', v);
+    b.setAttribute('aria-checked', v ? 'true' : 'false');
+  }
+  sync(on);
+  b.addEventListener('click', function () {
+    var next = !b.classList.contains('on');
+    sync(next);
+    if (onToggle) onToggle(next);
+  });
+  return { node: b, sync: sync };
+}
+
 // 导入族键守卫（0.9.250 自 devname 迁入 ui——iploc 缓存导入与设备数据导入两域共用，单源收口；
 // Web-IP 同款语义：__proto__ 这类键走原型链 setter、赋值静默丢失，必须跳过）
 export function isSafeKey(k) {

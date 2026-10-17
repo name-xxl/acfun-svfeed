@@ -5,6 +5,33 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.262（2026-10-17）· 开关控件单源（双皮合并；按确认稿落地）（一项）
+
+**由头**：审计 P3-3——同一枚 34×18 药丸开关在齿轮面板（`settingspanel` 的 `.set-sw`，`button+<i>`）
+与原生页/IP 面板（`natpanel` 的 `.acsv-np-sw`，`span+::after`）各写一份。按
+`docs/preview/toggle-unified.html` 确认稿落地（预览稿已入档）。**几何零变化**。
+
+- **① CSS 单源（`styles.js` 新增 `SWITCH_CSS`）**：几何/过渡/悬停/焦点/禁用一份；几何全由变量
+  推导（位移 = `--sw-w − --sw-knob − 2×--sw-inset` = 16px，不再写死魔数）；两皮只换 token
+  （`skin-dark` 走基础 token / `skin-light` 换关态 `#ddd` + 旋钮阴影）。两处宿主各自注入**同一串**
+  （齿轮面板在 Shadow DOM 内，全局样式进不去）：`SET_CSS` 前置 `SWITCH_CSS`，`NATIVE_PANEL_CSS`
+  原位拼 `SWITCH_CSS`，并删掉 `.acsv-np-sw` 四条与 `.acsv-np.dark` 两条覆盖规则。
+- **② DOM/状态单源（`ui.makeSwitch`）**：`<button class="acsv-sw" role="switch" aria-checked>` +
+  `<i>` 旋钮；乐观切换 + 幂等 `sync`。原生页面板由 `span` 改 `button`（顺带修掉不可聚焦/不可键盘
+  操作）；`switchOf` 按本次主题传 `dark|light`，齿轮面板 `boolControl` 改用它。
+- **③ 三处用户确认的观感变更**（预览稿已确认）：新增悬停提亮（`filter:brightness(1.06)`——用
+  filter 而非 `color-mix`，照顾旧内核）、新增 `:focus-visible` 焦点环、过渡统一 `150ms`。浅色
+  旋钮阴影保留、暗色无（与改造前一致）。
+- **④ 预览期未暴露的坑（已修）**：`--sw-on` 不能只写 `var(--acsv-accent)`——原生页不注入全量
+  CSS，变量未定义会让"开"态透明；改为 `var(--acsv-accent, #fd4c5d)` 带回退。
+- **测试**：`settings-open` +4 钉（`set-sw-geometry` 34×18 / `set-sw-knob` 14×14 / `set-sw-a11y`
+  `role=switch` / `set-sw-dark-token` 关态 `rgb(158,158,158)`）；`nat-panel` +1 钉
+  （`np-sw-light-token` 关态 `#ddd`）。**反跑**：删掉 `.acsv-sw.skin-light` 的 token ⇒
+  `np-sw-light-token` 转红（读回退色 `rgb(158,158,158)`），还原复绿。两条 token 断言用 `waitFor`
+  等过渡落定（150ms 过渡期内 `getComputedStyle` 读到的是插值/起点色，直接断言会假红）。
+- **测试总账**：单测 414/414；harness 82/82；lint/tsc/check 全绿；产物 576,916 B / 920,991 B
+  （较 0.9.261 +263 B / +494 B：按钮化 + 可访问性属性的净增）。
+
 ### 0.9.261（2026-10-17）· 分类覆盖收尾——剩余 18 件全部登记（一项）
 
 **由头**：0.9.260 建播放层桶后仍有 20 件未纳。本批把其中 18 件按性质一次登完（另 2 件不属口径候选），

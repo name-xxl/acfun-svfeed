@@ -19,12 +19,13 @@ import { APP_VERSION } from './cfg.js';
 import { overlayOpen, overlayClose } from './overlay.js'; // 浮层栈（modal）：Esc 单点裁决（0.9.254 复审修）
 import { entryOf, exportUids, importUids, clearUids } from './iploc.js';
 import { deviceCount, exportDevices, importDeviceText, resetUserDevices } from './devname.js';
-import { el, copyText } from './ui.js';
+import { el, copyText, makeSwitch } from './ui.js';
 import { NATIVE_PANEL_CSS } from './styles.js';
 import { stat, testHook } from './dbg.js';
 
 var maskEl = null;
 var curUid = null;
+var curDark = false; // 本次打开的主题（switchOf 选 token 用；openNatPanel 每次赋值）
 var wired = false;
 
 function ensureCss() {
@@ -83,13 +84,9 @@ function confirmBtn(btn, label, act) {
 }
 
 function switchOf(on, onToggle) {
-  var s = el('span', 'acsv-np-sw' + (on ? ' on' : ''));
-  s.addEventListener('click', function () {
-    var next = !s.classList.contains('on');
-    s.classList.toggle('on', next);
-    onToggle(next);
-  });
-  return s;
+  // 开关控件单源（0.9.262）：DOM/状态/可访问性在 ui.makeSwitch，几何与两皮 token 在
+  // styles.SWITCH_CSS；本面板只按当前主题选皮肤（浅色=原生页入口，深色=脚本页入口）
+  return makeSwitch(on, onToggle, curDark ? 'dark' : 'light').node;
 }
 
 function controlFor(it) {
@@ -278,6 +275,7 @@ export function openNatPanel(uid, dark) {
   ensureCss();
   closeNatPanel();
   curUid = uid != null ? String(uid) : null;
+  curDark = !!dark; // 本面板的开关皮肤（switchOf 在 renderMain 期间读取）
   maskEl = el('div', 'acsv-np-mask');
   maskEl.addEventListener('click', closeNatPanel);
   var panel = el('div', 'acsv-np' + (dark ? ' dark' : ''));
