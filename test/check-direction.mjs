@@ -36,7 +36,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
 
-// 口径 A 用：README 基建层（styles.js 等 23 件）+ 接口层（3 件）
+// 口径 A 用：README 基建层（styles.js 等 23 件）+ 接口层（8 件）
 // 计数纪律（审计批④ P3-2）：括号里的数=INFRA 实有成员数，动 INFRA 就得同批改本行——此前写死
 // 「16 件」而实有 21（0.9.258 加 pack 后 22；0.9.259 加 pageloader 后 23），注释漂了多个版本没人发现。复点一条命令：
 //   node -e "const t=require('fs').readFileSync('test/check-direction.mjs','utf8');console.log((t.match(/INFRA = new Set\(\[([\s\S]*?)\]\)/)[1].match(/'[\w.-]+\.js'/g)||[]).length)"
@@ -54,7 +54,13 @@ const INFRA = new Set(['cfg.js', 'net.js', 'playitem.js', 'panelitem.js', 'state
   // 与管理档壳四处共用）。零依赖叶（不 import 任何东西）⇒ 无自有出边，登记只为让消费点（三家
   // 特性/视图件）的入边留在口径 A 射程外——与 pack 同款「共享基建件」定位
   'pack.js', 'pageloader.js']);
-const API = new Set(['api.js', 'appapi.js', 'quality.js']);
+// 接口层（0.9.261 扩面：+5 件域传输）。这五件与 api/appapi/quality 同性质——只做端点取数与
+// 回包规整，不含视图/交互知识：channelapi（分区频道树）/ favapi（收藏夹与收藏列表）/
+// relationapi（关注关系）/ momentapi（动态读域）/ upload（评论图片上传四段，GM 二进制通道）。
+// 归 FEATURE 也全绿，但会把"传输"与"特性域"混为一谈；归 API 后它们**仍受口径 B 约束**
+// （接口层 → 特性 = 红），不是"无检查的自由桶"。
+const API = new Set(['api.js', 'appapi.js', 'quality.js',
+  'channelapi.js', 'favapi.js', 'relationapi.js', 'momentapi.js', 'upload.js']);
 // 校准（0.9.117 首跑即立；0.9.119 扩一项）：README 明示的五件零依赖解耦点里，immsg/imicons
 // 现居私信层 subgraph——那是出身 placement，不是专属域；它们被 topbar/cards/momentbar/comments
 // 等广泛消费，视同基础件。ubbtext（0.9.119 下沉的纯投影族）同为零依赖叶子。不校准则口径 A
@@ -66,8 +72,10 @@ const API = new Set(['api.js', 'appapi.js', 'quality.js']);
 // 两者都是"被广泛消费的共享叶子"，不归类的话播放层建口径 C 后会各自被「→ 未登记」卡住
 // （dmcanvas→advdm、danmaku→toastmsg）；归零依赖叶即消解，且不放松任何既有边
 // （无一基建件 import 它们，故口径 A 的射程零变化）
+// 0.9.261：searchfmt（搜索卡投影——纯函数，只依赖 imgurl/playitem/timefmt）与 ubbtext 同族
+// （纯投影族），消费方 searchview 属特性层 ⇒ 归零依赖叶
 const LEAF_SHARED = new Set(['immsg.js', 'imicons.js', 'ubbtext.js', 'searchhist.js',
-  'advdm.js', 'toastmsg.js']);
+  'advdm.js', 'toastmsg.js', 'searchfmt.js']);
 
 // 口径 B 用：特性域清单（0.9.117 定版；新增特性模块时同步。0.9.124 加 rowkit.js——视图层
 // 行卡 kit，与 followview/squareview 同层：它依赖 momentbar/comments 属特性层内互调，非反向；
@@ -107,7 +115,8 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // slide→rail 及三件的全部入边：comments/imdrawer/momentdetail/rowkit/playlayer）全成层内互调：
   // 两口径 0 条、KNOWN 清零（反跑证据见 docs/dependency-audit.md「0.9.233」节）
   'sharepanel.js', 'rail.js', 'slide.js',
-  // momentpost 同批归类（0.9.223）：动态**发布域**，与同在 FEATURE 里的 momentapi（读域）同类；
+  // momentpost 同批归类（0.9.223）：动态**发布域**（写链 + 编辑器宿主），与接口层的 momentapi
+  // （读域）同属动态域但方向不同：本件被 momenteditor/memberplaza 消费，属特性层；
   // 0.9.238：tokenRanges 随令牌原子化件退役收进本件（出口文本的字数口径），依赖面反而变窄
   // 0.9.259（审计批④ P3-2）：本行原有的 'momentpost.js' **删去**——它已在上方
   // 'momenteditor.js', 'momentpost.js', 'pubfab.js' 那一组里登过（全表唯一重复登记，令
@@ -141,6 +150,23 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 基建/接口/零依赖叶（cfg/dbg/net/ui + appapi + immsg）；README 私信层是出身 placement、非专属
   // 域（同 0.9.233 的 sharepanel/rail/slide 校准先例）
   'imsend.js',
+  // 0.9.261（覆盖收尾=审计批④ P3-2 的剩余 18 件）：以下 12 件均为**特性层共享件**
+  // （UI kit / 弹层 / 私信卡 / 视图尾件 / 沙盒宿主）。逐件核过入边：全部来自 FEATURE 或
+  // SKIP_B 组合根，三口径 0 条。逐组说明：
+  //   · 弹层族：banpop（投蕉数量层，momentbar/rail 消费）/ favpop（收藏夹弹层，mypage/rail）/
+  //     grouppop（关注分组弹层，mypage/rail/searchview）/ pickpop（锚定弹层底座，
+  //     favpop/grouppop/mypage）/ popplace（浮层定位单源，pickpop/sharepanel）
+  //   · 内容 kit：emoticon（表情映射+渲染，comments/followview/imcard/imdrawer/imnative/
+  //     inputbar/momentdetail/momenteditor/squarefeed）/ ubb（UBB 解析+渲染单源，
+  //     cards/commentkit/imdrawer/imnative/squarefeed）/ imcard（私信卡片装配，两皮肤同源；
+  //     imdrawer/imnative）
+  //   · 视图件：listtail（三态状态行+回顶+触底，followview/jingxuanview/mypage/searchview/
+  //     squarefeed/zone）/ sidebar（dock 左栏，followbadge/followstream/followview/player/views）/
+  //     release（更新检查+弹窗单例，player 消费）/ followseen（关注已读水位，
+  //     followbadge/followstream/followview）
+  'banpop.js', 'favpop.js', 'grouppop.js', 'pickpop.js', 'popplace.js',
+  'emoticon.js', 'ubb.js', 'imcard.js', 'listtail.js', 'sidebar.js', 'release.js',
+  'followseen.js',
   ]);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 

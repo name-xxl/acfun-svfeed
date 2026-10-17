@@ -373,3 +373,24 @@ feedstore.js → player.js → input.js → feedstore.js
   followseen/grouppop/imcard/listtail/momentapi/pickpop/popplace/relationapi/release/searchfmt/sidebar/
   ubb/upload）仍是后续可选的逐件审计对象（每加一件仍要过入边）。
 
+## 0.9.261：覆盖收尾——剩余 18 件全部登记（另 2 件属"无需登记"）
+
+0.9.260 之后未纳 20 件；本批把其中 18 件按性质登记，逐件核过入边，三口径复跑 **0/0/0**：
+
+| 桶 | +件数 | 文件 | 归类依据 |
+|---|---|---|---|
+| **API**（接口层） | +5 | `channelapi` `favapi` `relationapi` `momentapi` `upload` | 域传输：只做端点取数与回包规整，不含视图/交互知识。归 FEATURE 也全绿，但会把"传输"与"特性域"混为一谈；归 API 后出边**仍受口径 B 约束**（接口层→特性=红），不是自由桶 |
+| **LEAF_SHARED** | +1 | `searchfmt` | 纯投影（同 `ubbtext` 族）：搜索卡投影，只依赖 imgurl/playitem/timefmt |
+| **FEATURE** | +12 | `banpop` `favpop` `grouppop` `pickpop` `popplace` `emoticon` `ubb` `imcard` `listtail` `sidebar` `release` `followseen` | 特性层共享 kit / 弹层族 / 视图尾件 / 私信卡；入边**全部来自 FEATURE 或 SKIP_B 组合根**（逐件表见 `check-direction` 内的分组注释） |
+
+- **覆盖**：91 → **109 / 111（98.2%）**。未纳仅 `cssraw.js`（构建期输入，src 内零入边）与
+  `devicetab.js`（生成物）——这两件**不属于任何方向口径的候选**，登记反而是噪声。
+- **一处注释勘误**：`momentpost` 的归类注释曾写"与同在 FEATURE 里的 momentapi（读域）同类"——
+  momentapi 实际从未登记过。本批按域传输归接口层，注释同步改为"接口层的 momentapi（读域）"。
+- **反跑/证据**：本批只做登记（不改任何 import 边），门禁本身即证据——若某 FEATURE 成员的入边
+  来自非特性来源，口径 B 立即翻红（0.9.259 的"四件被卡"表就是历史反证）。
+- **未做的**：`deleteMoment`/`uploadImages` 仍不删。复读后判定它们不是"漏删的死代码"而是
+  **已设计未接线**的 API（文件头与 CHANGELOG 都记着设计意图：动态删除、九宫格多图上传），
+  删掉等于丢弃已完成的实现；真要清，应先裁决"这两个功能还做不做"，再连 README/CHANGELOG 一起改。
+
+

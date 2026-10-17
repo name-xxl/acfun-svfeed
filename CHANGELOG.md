@@ -5,6 +5,28 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.261（2026-10-17）· 分类覆盖收尾——剩余 18 件全部登记（一项）
+
+**由头**：0.9.260 建播放层桶后仍有 20 件未纳。本批把其中 18 件按性质一次登完（另 2 件不属口径候选），
+`check-direction` 覆盖面 **82.0% → 98.2%（109/111）**。**无代码行为改动**（只动测试门禁与文档）。
+
+- **① 18 件登记（`test/check-direction.mjs`）**：接口层 **+5**（`channelapi`/`favapi`/`relationapi`/
+  `momentapi`/`upload`——域传输：只做端点取数与回包规整，不含视图/交互知识；归 FEATURE 也绿，但会
+  把"传输"与"特性域"混为一谈，且归 API 后出边**仍受口径 B 约束**，不是自由桶）；零依赖叶 **+1**
+  （`searchfmt`——纯投影，同 `ubbtext` 族，只依赖 imgurl/playitem/timefmt）；特性层 **+12**
+  （`banpop`/`favpop`/`grouppop`/`pickpop`/`popplace` 弹层族；`emoticon`/`ubb`/`imcard` 内容 kit；
+  `listtail`/`sidebar`/`release`/`followseen` 视图件）。**逐件核过入边**：18 件的全部消费方都是
+  FEATURE 或 SKIP_B 组合根 ⇒ 三口径复跑 **0/0/0**，`KNOWN` 仍为 `[]`。
+- **② 注释勘误**：`momentpost` 的归类注释曾称"与同在 FEATURE 里的 momentapi（读域）同类"——
+  momentapi 实际从未登记；本批按域传输归接口层，注释同步改为"接口层的 momentapi（读域）"。
+- **未纳 2 件（有意）**：`cssraw.js`（构建期输入，src 内零入边）与 `devicetab.js`（生成物）——
+  不属于任何方向口径的候选，登记反而是噪声。
+- **不做**：`deleteMoment`/`uploadImages` 仍不删——复读判定二者是**已设计未接线**的 API（动态删除、
+  九宫格多图上传，文件头与历史 CHANGELOG 都记着设计意图），删掉等于丢弃已完成实现；真要清，先裁决
+  "这两个功能还做不做"，再连 README/CHANGELOG 一起改。
+- **测试**：`check-direction` 三口径 0 条；单测 414/414、harness 82/82、lint/tsc/check 全绿；
+  产物仅版本号变化（本批不碰 `src/`，体积不变）。
+
 ### 0.9.260（2026-10-17）· 方向诊断补第三口径（播放层桶）/ 首屏解包耗时打点（两项）
 
 **由头**：0.9.259 批④ 的覆盖首轮卡在四件播放层内核上——不是入边审计没做完，而是 `check-direction`
