@@ -495,5 +495,8 @@ P3-2/P3-3 等工程项。报告 11 条判错逐条裁定（8 条维持判决、3
   待真机端点延迟/限流与会话规模数据（页内成本实测为 0）。
 - **批④ 单源收口**：翻页骨架 `pageLoader`（followview + squarefeed + mypage×2；pickpop/searchview
   不在范围）；check-direction 注释漂移（16→21）+ 去 `momentpost` 重复登记 + 逐件入边审计补登记。
+  **落地追记**：0.9.259 出货翻页收口与卫生；0.9.260 补**播放层桶（口径 C，18 件）**并把 0.9.259
+  卡住的四件（session/feedstore/controls/dmcanvas）连同同层 14 件、两件零依赖叶（advdm/toastmsg）
+  一并收编——覆盖面 64.0% → **82.0%**（91/111），`KNOWN` 仍为空。
 - **缓议/不做**：P3-3 双皮合并（**须先出 `docs/preview/` 预览稿**）、P3-1 探活停拍（不做）、
   state.js 只读化（前提不成立）、`deleteMoment`/`uploadImages` 死代码删除（宜独立小批）。

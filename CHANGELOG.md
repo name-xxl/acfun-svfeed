@@ -5,6 +5,36 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.260（2026-10-17）· 方向诊断补第三口径（播放层桶）/ 首屏解包耗时打点（两项）
+
+**由头**：0.9.259 批④ 的覆盖首轮卡在四件播放层内核上——不是入边审计没做完，而是 `check-direction`
+只有"基建/接口/特性"三层，**缺播放层桶**。本批补桶（而不是给四件找 `KNOWN` 豁免），并顺手把审计
+§九 留下的"首屏解包成本未真机实测"做成可直接读数的打点。**无用户可见行为改动**。
+
+- **① 新口径 C + PLAY（播放层，18 件；`test/check-direction.mjs`）**：病灶——四件
+  （`session`/`feedstore`/`controls`/`dmcanvas`）归 FEATURE 会把"播放层→播放层"的入边误判成反向
+  （口径 B 红），归 INFRA 又会被"→ 未登记件"判红（口径 A 红），于是长期登不进任何桶；`KNOWN` 为空
+  其实是靠"不登"回避，而不是真无债。修法——建 18 件播放层桶（session/attach/playback/hls/prewarm；
+  controls/input；dmcanvas/danmaku；playgest/playstate/levelstack/relatedapi；interact/report/
+  watchledger；feedstore/feedctx）+ 口径 C（**播放层只许依赖 播放层/基建/接口/零依赖叶**；不许依赖
+  特性层、组合根、未登记件）。**建桶不放松任何既有边**：基建→播放层仍由口径 A 判红（PLAY 不在 A 的
+  允许集），播放层→特性仍由口径 B 判红（PLAY ⊄ FEATURE）。同批把 `advdm`（高弹模型核：无 DOM/无
+  状态/无网络）与 `toastmsg`（话术单源：只 import ui/cfg）归入零依赖叶，消解口径 C 唯一会报的两条
+  （`dmcanvas→advdm`、`danmaku→toastmsg`）；且**无一基建件 import 它们**，口径 A 射程零变化。
+  **测试**：反跑——临时在 `session.js` 顶插 `import './devicetab.js';`（播放层→未登记件）⇒ 口径 C
+  **1 条 / exit=1**；还原后三口径复归 0、exit=0。覆盖面 71 → **91/111（82.0%）**（未纳 20 件，其中
+  `cssraw.js` 是构建期输入、`devicetab.js` 是生成物，二者无需登记；其余 18 件为后续可选的逐件审计）。
+  **没有新增任何 `KNOWN` 豁免**（仍为 `[]`）。
+- **② 首屏解包耗时打点（`src/styles.js`，debug-only）**：病灶——审计 §九 明确"首屏解包成本只有
+  node 口径（≈1.9 ms）、未真机实测"，而 0.9.258 的 CSS 压缩已交付，这条不闭环就永远是个"不知道真机
+  多贵"的已交付项。修法——模块求值期在 `unpackText` 前后 `set('css.unpackMs', …)`（`__ACSV_DEBUG__`
+  闸内，release 整段死码消除），真机 DevTools 读 `__ACSV_TEST__.getStats()['css.unpackMs']`
+  （TM grant 模式经 `unsafeWindow`）。这不是行为断言（不配 harness 钉子），只是把真机验收清单里的
+  那一项变成可直接读数。
+- **测试总账**：单测 414/414；harness 82/82 场景；lint / tsc / check（cases/release/deps/no-leak/
+  direction）全绿；产物 release 576,653 B / debug 920,497 B（较 0.9.259 +4 B / +130 B，为 debug
+  计时段的死码残留，体积门禁内）。
+
 ### 0.9.259（2026-10-16）· 审计批④——翻页协议单源 / check-direction 登记卫生与覆盖首轮（两项）
 
 **由头**：`docs/optimization-audit-2026-10-16.md` 的批④（P2-5 逐字副本 + P3-2 棘轮卫生）。

@@ -349,3 +349,27 @@ feedstore.js → player.js → input.js → feedstore.js
     playgest/playstate/popplace/prewarm/relatedapi/relationapi/release/report/searchfmt/session/
     sidebar/toastmsg/ubb/upload/watchledger + devicetab（生成物））。每加一件都要入边审计，
     故全量扫尾不在本批范围。
+
+## 0.9.260：播放层建桶（口径 C）+ 收编 0.9.259 卡住的四件 + 覆盖面 64%→82%
+
+0.9.259 的四件（`session`/`feedstore`/`controls`/`dmcanvas`）不是"入边审计没做完"，而是**分类学缺一层**：
+归 FEATURE 会把"播放层→播放层"的入边误判成反向（口径 B 红），归 INFRA 又会被"→ 未登记件"判红
+（口径 A 红）。本批补的正是这个桶，而不是给四件找豁免（`KNOWN` 仍为 **[]**）。
+
+- **新桶 `PLAY`（播放层，18 件）**：`session attach playback hls prewarm | controls input |
+  dmcanvas danmaku | playgest playstate levelstack relatedapi | interact report watchledger |
+  feedstore feedctx`。定位=**播放/泵流核心**（含播放态、弹幕窗口、泵游标等**领域知识**——所以不能进
+  INFRA；又被特性层广泛依赖——所以不能进 FEATURE）。
+- **新口径 C**（`test/check-direction.mjs`）：`PLAY → (PLAY ∪ INFRA ∪ API ∪ LEAF_SHARED)` 之外即红。
+  它补的正是前两条口径剩下的两半：口径 B 管"播放层→特性"，口径 C 再管"播放层→组合根 / 未登记件"；
+  反过来"基建→播放层"仍由口径 A 判红（PLAY 不在 A 的允许集里）——**建桶没有放松任何既有边**。
+- **两件零依赖叶归位（`LEAF_SHARED`）**：`advdm`（高弹模型核：无 DOM/无状态/无网络）与
+  `toastmsg`（话术单源：只 import ui/cfg）。不归位的话口径 C 会各报一条 `dmcanvas→advdm` /
+  `danmaku→toastmsg`；归零依赖叶即消解，且**无一基建件 import 它们**，口径 A 射程零变化。
+- **反跑证据**：临时在 `session.js` 顶插 `import './devicetab.js';`（播放层→未登记件）⇒ 口径 C
+  `1 条 / [⚠ 未登记] session.js -> devicetab.js`、**exit=1**；还原后三口径复归 0、exit=0。
+- **覆盖**：注册 71 → **91 / 111（82.0%）**，未纳 20 件；其中 `cssraw.js`（构建期输入、src 内零入边）
+  与 `devicetab.js`（生成物）属**无需登记**，其余 18 件（banpop/channelapi/emoticon/favapi/favpop/
+  followseen/grouppop/imcard/listtail/momentapi/pickpop/popplace/relationapi/release/searchfmt/sidebar/
+  ubb/upload）仍是后续可选的逐件审计对象（每加一件仍要过入边）。
+

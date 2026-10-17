@@ -16,6 +16,13 @@
  * 口径 A（正式分层）：README 基建层成员 → 基建层/接口层之外的 import 边。
  * 口径 B（特性域）：非特性模块 → 特性模块的边（特性集见下方清单，可增改；
  *                    boot/player 为组合根/编排层，对特性的装配属正常向下，不计）。
+ * 口径 C（播放层，0.9.260）：播放/泵流核心 → 播放层/基建/接口/零依赖叶之外的 import 边。
+ *                    存在的理由：播放层四件（session/feedstore/controls/dmcanvas）此前两个桶都
+ *                    登不进去——归特性层会把「播放层→播放层」的入边误判成反向（口径 B 红），
+ *                    归基建层又会被「→ 未登记件」判红（口径 A 红）；缺的其实就是一个**播放层
+ *                    **桶。口径 C 让这个桶有牙：播放层只许依赖**同级 / 更下层**，不许回头依赖
+ *                    特性层、组合根或未登记件（口径 B 顺带仍覆盖「→ 特性」，C 再补「→ 未登记 /
+ *                    组合根」那一半）。
  *
  * 在册项（KNOWN，带理由）——新增项冒出来 = 需要一次裁决，别默默放过；
  * 处置记录见 docs/dependency-audit.md：
@@ -54,7 +61,13 @@ const API = new Set(['api.js', 'appapi.js', 'quality.js']);
 // 会持续误报「共享叶子被顶层消费」（同 report→watchledger 的误报自纠：错的是归类，不是依赖）。
 // searchhist（0.9.158 共享化：读写站方 searchCache 的零依赖叶，topbar 聚焦面板与 searchview
 // 两方消费——0.9.160 诊断复跑发现该边漏登记，同 immsg/imicons 校准：错的是归类，不是依赖）
-const LEAF_SHARED = new Set(['immsg.js', 'imicons.js', 'ubbtext.js', 'searchhist.js']);
+// 0.9.260（播放层建桶同批）：advdm（高级弹幕模型核，**零依赖纯函数**：解析/缓动/插值/绘制，
+// 无 DOM 无状态无网络）与 toastmsg（用户提示**话术单源**，只 import ui/cfg，零 DOM 依赖）——
+// 两者都是"被广泛消费的共享叶子"，不归类的话播放层建口径 C 后会各自被「→ 未登记」卡住
+// （dmcanvas→advdm、danmaku→toastmsg）；归零依赖叶即消解，且不放松任何既有边
+// （无一基建件 import 它们，故口径 A 的射程零变化）
+const LEAF_SHARED = new Set(['immsg.js', 'imicons.js', 'ubbtext.js', 'searchhist.js',
+  'advdm.js', 'toastmsg.js']);
 
 // 口径 B 用：特性域清单（0.9.117 定版；新增特性模块时同步。0.9.124 加 rowkit.js——视图层
 // 行卡 kit，与 followview/squareview 同层：它依赖 momentbar/comments 属特性层内互调，非反向；
@@ -131,6 +144,25 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   ]);
 const SKIP_B = new Set(['boot.js', 'player.js']);
 
+// 口径 C 用：播放层（0.9.260 建桶）。定位=**播放/泵流核心**：视频会话与源挂载（session/attach/
+// playback/hls/prewarm）、控制栏与手势（controls/input）、弹幕渲染（dmcanvas/danmaku）、播放层
+// 编排（playgest/playstate/levelstack/relatedapi）、写入链（interact）、观看上报（report/
+// watchledger）、泵流仓库与列表上下文（feedstore/feedctx）。
+// 为什么这 18 件**都不该**进 FEATURE：它们被特性层广泛依赖（feedstore 被 attach/controls/input/
+// playback/prewarm/report/views/rail 消费；relatedapi 被 jingxuanview/playlayer 消费），归特性层
+// 会把"播放层→播放层"的入边误判成"非特性→特性"（口径 B 红）；也不该进 INFRA（它们有领域知识：
+// 播放态、弹幕窗口、泵游标）。口径 C 的方向：**播放层只许依赖同级/更下层**（基建/接口/零依赖叶/
+// 播放层），不许依赖特性层（口径 B 也管这半）、组合根或未登记件（C 补这半）。
+// 复点：node -e "…"（同 INFRA 那条，把 INFRA 换成 PLAY）
+const PLAY = new Set([
+  'session.js', 'attach.js', 'playback.js', 'hls.js', 'prewarm.js',
+  'controls.js', 'input.js',
+  'dmcanvas.js', 'danmaku.js',
+  'playgest.js', 'playstate.js', 'levelstack.js', 'relatedapi.js',
+  'interact.js', 'report.js', 'watchledger.js',
+  'feedstore.js', 'feedctx.js'
+]);
+
 // 在册项（0.9.119 起清空——data→ubb 随手下沉完成，方向卫生库存归零；0.9.222 曾破例入册 1 条
 // sharepanel→momenteditor，0.9.233 专项分类纠正后复归清空；新增项=需要一次裁决，
 // 改动须同步 docs/dependency-audit.md）
@@ -147,13 +179,16 @@ for (const f of files) {
 
 const hitsA = [];
 const hitsB = [];
+const hitsC = [];
 for (const e of edges) {
   const [a, b] = e.split(' -> ');
   if (INFRA.has(a) && !INFRA.has(b) && !API.has(b) && !LEAF_SHARED.has(b)) hitsA.push(e);
   if (!FEATURE.has(a) && FEATURE.has(b) && !SKIP_B.has(a)) hitsB.push(e);
+  if (PLAY.has(a) && !PLAY.has(b) && !INFRA.has(b) && !API.has(b) && !LEAF_SHARED.has(b)) hitsC.push(e);
 }
 hitsA.sort();
 hitsB.sort();
+hitsC.sort();
 
 let unregistered = 0;
 function report(hits) {
@@ -173,6 +208,8 @@ console.log('口径 A · 基建层 → 基建/接口层之外：' + hitsA.length
 report(hitsA);
 console.log('口径 B · 非特性 → 特性模块：' + hitsB.length + ' 条');
 report(hitsB);
+console.log('口径 C · 播放层 → 播放层/基建/接口/零依赖叶之外：' + hitsC.length + ' 条');
+report(hitsC);
 if (unregistered) {
   console.log('[check-direction] 在册 ' + KNOWN.length + ' 条，未登记 ' + unregistered
     + ' 条——请裁决（修边 / 加设缝 / 登记入册）并同步 docs/dependency-audit.md');

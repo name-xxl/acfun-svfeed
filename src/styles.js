@@ -1,6 +1,6 @@
 // ---------- 样式与图标 ----------
 import { CFG } from './cfg.js';
-import { stat } from './dbg.js'; // 解包/回填失败打点（仅 debug；正式构建整段死码消除）
+import { stat, set } from './dbg.js'; // 解包/回填失败打点 + 首屏解包耗时（仅 debug；正式构建整段死码消除）
 import { unpackText } from './pack.js'; // 内嵌压缩串解包单源（hls/devicetab 同款）
 
 // RAW_CSS 里主题色一律写 #fd4c5d 占位，导出时统一替换为 CSS 变量（换肤只改 cfg.accent）
@@ -131,7 +131,11 @@ var SEAMS = {
   // cssraw.js——同一段文本在仓里存两份迟早漂（单源收口）
   imgview: IMGVIEW_CSS
 };
+// 首屏解包成本（debug 打点，0.9.260）：审计 §九 那条"首屏成本未真机实测"要靠它闭环——
+// 真机 DevTools 读 __ACSV_TEST__.getStats()['css.unpackMs']（TM grant 模式走 unsafeWindow）
+var cssT0 = __ACSV_DEBUG__ ? performance.now() : 0;
 var tpl = unpackText(window.__ACSV_CSS_SRC__, Number(window.__ACSV_CSS_LEN__) || 0);
+if (__ACSV_DEBUG__) set('css.unpackMs', Math.round((performance.now() - cssT0) * 100) / 100);
 if (tpl === null) { tpl = ''; stat('css.tplFail'); }
 var seamMiss = false;
 var RAW_CSS = tpl.replace(/\{\{(\w+)\}\}/g, function (all, name) {
