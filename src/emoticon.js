@@ -101,7 +101,7 @@ function gmEmotWrite(flat) {
   try {
     if (typeof GM_setValue !== 'function') return;
     GM_setValue(GM_EMOT_KEY, JSON.stringify({ ts: Date.now(), packs: flat }));
-  } catch (e) { }
+  } catch (e) { /* best-effort: storage */ }
 }
 
 export function ensureEmotionMap() {
@@ -113,7 +113,7 @@ export function ensureEmotionMap() {
     try {
       var cached = JSON.parse(localStorage.getItem('emoticonList') || 'null');
       if (Array.isArray(cached) && cached.length) { applyEmotPacks(cached); resolve(); return; }
-    } catch (e) { }
+    } catch (e) { /* best-effort: storage */ }
     var gmPacks = gmEmotRead();
     if (gmPacks) { applyEmotPacks(gmPacks); resolve(); return; }
     request(CFG.api.emotion, 'POST').then(function (j) {
@@ -137,7 +137,7 @@ export function ensureEmotionMap() {
               emotionBigUrl: rawBig || url,
               emotionName: (typeof e.name === 'string' && e.name) || ''
             });
-          } catch (err) { }
+          } catch (err) { /* best-effort: parse */ }
         });
       });
       applyEmotPacks(flat);
@@ -156,13 +156,13 @@ function emotReadRecent() {
   try {
     var ids = JSON.parse(localStorage.getItem(CFG.lsEmotRecent) || '[]');
     if (Array.isArray(ids)) return ids.map(String).filter(Boolean).slice(0, CFG.comments.recentMax);
-  } catch (e) { }
+  } catch (e) { /* best-effort: storage */ }
   return [];
 }
 function emotPick(id) {
   var ids = emotReadRecent().filter(function (x) { return x !== String(id); });
   ids.unshift(String(id));
-  try { localStorage.setItem(CFG.lsEmotRecent, JSON.stringify(ids.slice(0, CFG.comments.recentMax))); } catch (e) { }
+  try { localStorage.setItem(CFG.lsEmotRecent, JSON.stringify(ids.slice(0, CFG.comments.recentMax))); } catch (e) { /* best-effort: storage */ }
 }
 function emotFind(id) {
   var packs = EmotionMap.packs || [];

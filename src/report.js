@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { selfUid } from './ui.js';
-import { stat } from './dbg.js';
+import { stat, swallow } from './dbg.js';
 import { FeedStore } from './feedstore.js';
 import { scroller, slideAt, watchTarget } from './state.js';
 import {
@@ -21,6 +21,12 @@ import {
 // reconcile，那是无用户意图的死会话，补低值会把手前的历史改回去）。**不要把 live 路径
 // "修"成单调的**
 var watchSentAt = {};
+var WATCH_MAP_MAX = 500; // 单会话上限定长：键是 item.id:videoId，长刷不该无限攒（0.9.276）
+function trimWatchMap(map) {
+  var keys = Object.keys(map);
+  if (keys.length <= WATCH_MAP_MAX) return;
+  for (var i = 0; i < keys.length - WATCH_MAP_MAX; i++) delete map[keys[i]];
+}
 
 function hostWeblog() {
   var w = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
@@ -57,6 +63,7 @@ export function reportLeave(session, video, via, sec, retryN) {
     // 只代表 SDK 队列收了——真丢了由下一次离开事件按推进后的秒位天然愈合（进度语义允许），
     // 不是 bug，别在这里加"确认送达"机制
     watchSentAt[key] = sec;
+    trimWatchMap(watchSentAt);
     ledgerReported(key, sec, Date.now());
     stat('report-watch');
   } catch (e) { stat('report-watch-err'); }
@@ -79,7 +86,7 @@ export function reportLeaveCurrent(via) {
   try {
     var t = pickTarget();
     if (t) reportLeave(t.session, t.video, via);
-  } catch (e) { }
+  } catch (e) { swallow(e, 'report'); }
 }
 
 // ---------- 官方 klog 信封嗅探（0.9.87；时序实测 2026-10-03 入档 api-research §4.6） ----------
@@ -99,10 +106,10 @@ var beaconCache = null; // { url, common, tpl, inc }——官方 misc2 批的最
     navigator.sendBeacon = function (url, body) {
       try {
         if (String(url).indexOf('/log/collect/misc2') >= 0) cacheEnvelope(url, body);
-      } catch (e) { }
+      } catch (e) { swallow(e, 'report'); }
       return nb.apply(navigator, arguments);
     };
-  } catch (e) { }
+  } catch (e) { swallow(e, 'report'); }
 })();
 
 function cacheEnvelope(url, body) {
@@ -125,11 +132,11 @@ function cacheEnvelope(url, body) {
     beaconCache = { url: String(url), common: common, tpl: tpl, inc: inc };
   };
   if (typeof body === 'string') {
-    try { parse(body); } catch (e) { }
+    try { parse(body); } catch (e) { swallow(e, 'report'); }
     return;
   }
   if (body && typeof body.text === 'function') {
-    body.text().then(function (t) { try { parse(t); } catch (e) { } }, function () { });
+    body.text().then(function (t) { try { parse(t); } catch (e) { swallow(e, 'report'); } }, function () { });
   }
 }
 
@@ -152,7 +159,7 @@ function sendHistoryBeacon(item, sec) {
   return true;
 }
 
-window.addEventListener('pagehide', function () {
+window.addEventListener('pagehide', function () { // singleton-listener: 观看上报关页兜底，页面级
   try {
     var t = pickTarget();
     var item = t && t.session && t.session.item;
@@ -163,14 +170,15 @@ window.addEventListener('pagehide', function () {
     if (watchSentAt[key] === sec) return; // 已报同一秒位
     if (sendHistoryBeacon(item, sec)) {
       watchSentAt[key] = sec;
+      trimWatchMap(watchSentAt);
       ledgerReported(key, sec, Date.now());
       stat('report-watch-beacon');
     } else {
       reportLeave(t.session, t.video, 'pagehide', sec); // 回落：SDK 队列（卸载期可能丢失）
     }
-  } catch (e) { }
+  } catch (e) { swallow(e, 'report'); }
 });
-document.addEventListener('visibilitychange', function () {
+document.addEventListener('visibilitychange', function () { // singleton-listener: 后台切走上报，页面级
   if (document.hidden) reportLeaveCurrent('hidden');
 });
 
@@ -187,6 +195,7 @@ export function markWatchProgress(session, video) {
   var now = Date.now();
   if (now - (lastMarkAt[key] || 0) < CFG.time.watchLedgerFlush) return;
   lastMarkAt[key] = now;
+  trimWatchMap(lastMarkAt);
   ledgerMax(key, sec, now);
 }
 
@@ -215,6 +224,7 @@ function replayWatchLedger() {
           wl.impr.getCurrentGroupID ? wl.impr.getCurrentGroupID() : undefined)
       });
       watchSentAt[key] = r.sec; // 页内去重同步：随后的 live 触发按推进后秒位正常发
+      trimWatchMap(watchSentAt);
       ledgerDelete(key); // 账平即清
       stat('report-watch-replay');
     }

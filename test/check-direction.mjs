@@ -53,7 +53,10 @@ const INFRA = new Set(['cfg.js', 'net.js', 'playitem.js', 'panelitem.js', 'state
   // 0.9.259（审计批④）登记：pageloader（翻页骨架**单源**，followview/squarefeed/mypage 历史档
   // 与管理档壳四处共用）。零依赖叶（不 import 任何东西）⇒ 无自有出边，登记只为让消费点（三家
   // 特性/视图件）的入边留在口径 A 射程外——与 pack 同款「共享基建件」定位
-  'pack.js', 'pageloader.js']);
+  'pack.js', 'pageloader.js',
+  // 0.9.264 登记：lifecycle（监听器作用域，零依赖叶）与 contract（端点形状守卫，只依赖 dbg）。
+  // 两者都是被播放/视图/域传输共用的基建件，消费方向均为特性/接口 → 基建
+  'lifecycle.js', 'contract.js']);
 // 接口层（0.9.261 扩面：+5 件域传输）。这五件与 api/appapi/quality 同性质——只做端点取数与
 // 回包规整，不含视图/交互知识：channelapi（分区频道树）/ favapi（收藏夹与收藏列表）/
 // relationapi（关注关系）/ momentapi（动态读域）/ upload（评论图片上传四段，GM 二进制通道）。
@@ -136,7 +139,7 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 0.9.259（审计批④ P3-2 覆盖扩面·bounded 第一轮）：cards（卡面 kit 单源——网格卡/行卡/横条/
   // 引用卡/UP 卡/计数行/骨架）。归特性层而非基建层：它 import 的 ubb（动态正文 UBB 单源）不在
   // 基建/接口/零依赖叶之列，当基建件会在口径 A 报「cards→ubb 越层」；而全部 11 个消费方
-  //（followview/jingxuanview/momentdetail/momenteditor/mypage/playlayer/rowkit/searchview/
+  //（followview/jingxuanview/momentdetail/momenteditor/mytabs/playlayer/rowkit/searchview/
   // squarefeed/squareview/zone）**都已在 FEATURE 表内** ⇒ 口径 B 也是层内互调，两口径 0 条
   'cards.js',
   // 0.9.259（同上批，覆盖扩面第一轮之二）：views（子视图框架/宿主——`#svfeed/<view>` 路由宿主 +
@@ -150,6 +153,24 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 基建/接口/零依赖叶（cfg/dbg/net/ui + appapi + immsg）；README 私信层是出身 placement、非专属
   // 域（同 0.9.233 的 sharepanel/rail/slide 校准先例）
   'imsend.js',
+  // 0.9.270 登记：imsdk（ImSdk 加载/注入/补丁 + 日志黑匣子 + 单例连接/重连 + 崩溃水位，
+  // 自 imsend 拆件）。与 imsend 同属私信特性域：入边 imsend/imdrawer/imbadge/imlist/imchat/
+  // imsendui/sharepanel 全部在表内（层内互调）；出边只到基建（cfg/dbg/net/ui）⇒ 两口径 0 条。
+  // 单例槽 imPromise/世代 connGen/水位 tracerFixedTotal 整组随本件走，imsend 不持副本
+  'imsdk.js',
+  // 0.9.266 登记：imimage（私信图片管线：字节 midground 令牌/blob LRU/下载队列/在飞去重 + URL
+  // 换链 ks://→官方直链，自 imsend 拆件）。与 imsend/imdrawer 同属私信特性域：唯一消费方 imdrawer
+  // 在表内（层内互调）；自身只 import 基建（cfg/dbg/net/ui）⇒ 口径 A/B 均 0 条
+  'imimage.js',
+  // 0.9.268 登记：imbubble（私信气泡渲染簇，自 imdrawer 拆件）。与 imdrawer/imsend/imimage 同属
+  // 私信特性域：唯一入边 imdrawer 在表内（层内互调）；自身只 import FEATURE（emoticon/imcard/
+  // imimage/ubb）+ INFRA（cfg/ui/imgload/imgview）+ API（appapi）+ 零依赖叶（immsg/imicons）
+  'imbubble.js',
+  // 0.9.269 登记：imlist/imchat/imsendui（私信列表视图 / 聊天视图+引用 chip / 发送乐观 UI，自
+  // imdrawer 三簇拆件）。与 imdrawer/imbubble 同属私信特性域：入边全部来自 imdrawer（层内互调），
+  // 出边只到 FEATURE（imsend）/ INFRA（cfg/ui/timefmt/imgload）/ 零依赖叶（immsg/toastmsg）；
+  // 三件均不 import imdrawer（无回边、无环）
+  'imlist.js', 'imchat.js', 'imsendui.js',
   // 0.9.261（覆盖收尾=审计批④ P3-2 的剩余 18 件）：以下 12 件均为**特性层共享件**
   // （UI kit / 弹层 / 私信卡 / 视图尾件 / 沙盒宿主）。逐件核过入边：全部来自 FEATURE 或
   // SKIP_B 组合根，三口径 0 条。逐组说明：
@@ -167,22 +188,31 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   'banpop.js', 'favpop.js', 'grouppop.js', 'pickpop.js', 'popplace.js',
   'emoticon.js', 'ubb.js', 'imcard.js', 'listtail.js', 'sidebar.js', 'release.js',
   'followseen.js',
+  // 0.9.265 登记：mytabs（我的页管理档：观看历史/收藏夹/关注分组 + 管理档壳，自 mypage 拆件）。
+  // 与 mypage 同属视图特性层：唯一消费方 mypage 在表内（层内互调）；自身只 import 基建（cfg/
+  // panelitem/ui/pageloader/nameval/imgload）、接口（appapi/favapi/relationapi）与特性层共享件
+  //（cards/listtail/favpop/grouppop/pickpop/toastmsg）⇒ 口径 A/B 均 0 条
+  'mytabs.js',
   ]);
-const SKIP_B = new Set(['boot.js', 'player.js']);
+const SKIP_B = new Set(['boot.js', 'player.js', 'sessionhooks.js']);
+// 0.9.271：sessionhooks（会话回接钩子）与 player 同属组合根/编排层——它 import rail/playlayer/
+// views 等 FEATURE 属装配向下，归 PLAY 会触发口径 C、归 FEATURE 语义不准；SKIP_B 对口径 B 豁免。
 
 // 口径 C 用：播放层（0.9.260 建桶）。定位=**播放/泵流核心**：视频会话与源挂载（session/attach/
 // playback/hls/prewarm）、控制栏与手势（controls/input）、弹幕渲染（dmcanvas/danmaku）、播放层
 // 编排（playgest/playstate/levelstack/relatedapi）、写入链（interact）、观看上报（report/
 // watchledger）、泵流仓库与列表上下文（feedstore/feedctx）。
-// 为什么这 18 件**都不该**进 FEATURE：它们被特性层广泛依赖（feedstore 被 attach/controls/input/
+// 为什么这 19 件**都不该**进 FEATURE：它们被特性层广泛依赖（feedstore 被 attach/controls/input/
 // playback/prewarm/report/views/rail 消费；relatedapi 被 jingxuanview/playlayer 消费），归特性层
 // 会把"播放层→播放层"的入边误判成"非特性→特性"（口径 B 红）；也不该进 INFRA（它们有领域知识：
 // 播放态、弹幕窗口、泵游标）。口径 C 的方向：**播放层只许依赖同级/更下层**（基建/接口/零依赖叶/
 // 播放层），不许依赖特性层（口径 B 也管这半）、组合根或未登记件（C 补这半）。
+// 0.9.267 加 dmpanel（弹幕设置面板 UI 件，自 controls 拆出）：与 controls 同层；只 import
+// ui/settings（基建）⇒ PLAY→INFRA 合法，不放开任何既有边。
 // 复点：node -e "…"（同 INFRA 那条，把 INFRA 换成 PLAY）
 const PLAY = new Set([
   'session.js', 'attach.js', 'playback.js', 'hls.js', 'prewarm.js',
-  'controls.js', 'input.js',
+  'controls.js', 'dmpanel.js', 'feedland.js', 'input.js',
   'dmcanvas.js', 'danmaku.js',
   'playgest.js', 'playstate.js', 'levelstack.js', 'relatedapi.js',
   'interact.js', 'report.js', 'watchledger.js',

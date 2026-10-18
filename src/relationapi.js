@@ -1,3 +1,4 @@
+// @ts-check
 // ---------- 关注域读写接口（0.9.142）：关注/取关/改分组 + 分组 CRUD + 组内成员读 ----------
 // 端点/参数来自 docs/api-research.md §2.2/§2.5/§2.6（全生命周期真机实测），本模块=编排 + 落点
 // + 回包规整（groupListOf/followListPageOf/newGroupIdOf，0.9.159 自 data.js 域归域迁入——

@@ -2,16 +2,16 @@
 // 顶栏 + 收起浮条未读徽标：unReadCountUpdate 事件加速 + 慢轮询兜底（仅缓存读）。
 // 0.9.244：轮询起点随 badgeDelay（15s）——此前 mount 即起 5s 拍、首拍就 ensureIm 拉 860KB
 // SDK，「避免一打开就拉 SDK」的延迟意图被架空（真机读数：挂载后 7.8s SDK 已 connect）。
-// 与抽屉 UI 零共享状态（只经 imsend.ensureIm 取会话缓存）——mountBadge 由 player 挂载、
-// teardownIm 经 stopBadge 反向通知拆除，本模块不 import 抽屉（方向 imbadge→imsend 单向）。
+// 与抽屉 UI 零共享状态（只经 imsdk.ensureIm 取会话缓存）——mountBadge 由 player 挂载、
+// teardownIm 经 stopBadge 反向通知拆除，本模块不 import 抽屉（方向 imbadge→imsdk 单向）。
 // mounted 门禁：teardown 后残留的 tick/延迟首查/推送监听全部失效（重进由 mountBadge 重新武装）。
 // 0.9.257 推送监听改「登记句柄 + stopBadge 里 off」：SDK 实例是永不释放的单例
-// （imsend.ensureIm 只 bump connGen），此前每次挂载都叠一层监听且从不撤；更糟的是回调里的
+// （imsdk.ensureIm 只 bump connGen），此前每次挂载都叠一层监听且从不撤；更糟的是回调里的
 // mounted 是**共享模块标志**，最新一次挂载置真后所有陈旧回调都能通过守卫 ⇒ 一个
 // unReadCountUpdate 触发 N 次 getSessions 全量求和（N=历史挂载次数）。另 mountBadge 先
 // stopBadge：未经 teardown 的重挂否则还会孤儿化上一对 timer 与旧监听。
 import { CFG } from './cfg.js';
-import { ensureIm, isLogined } from './imsend.js';
+import { ensureIm, isLogined } from './imsdk.js';
 import { testHook } from './dbg.js';
 
 var badgeEl = null, mounted = false;
@@ -35,7 +35,7 @@ export function mountBadge(btn, badge) {
       var sum = 0;
       try {
         (inst.kernel.getSessions() || []).forEach(function (s) { sum += Number(s.unreadCount) || 0; });
-      } catch (e) { }
+      } catch (e) { /* best-effort: sdk */ }
       setBadge(sum);
     }, function () { });
   }
@@ -54,7 +54,7 @@ export function mountBadge(btn, badge) {
     ensureIm().then(function (inst) {
       badgeInst = inst;
       unreadFn = function () { if (mounted) tick(); };
-      try { inst.on('unReadCountUpdate', unreadFn); } catch (e) { }
+      try { inst.on('unReadCountUpdate', unreadFn); } catch (e) { /* best-effort: sdk */ }
     }, function () { });
   }, CFG.im.badgeDelay);
 }
@@ -66,7 +66,7 @@ export function stopBadge() {
   if (badgeDelayTimer) { clearTimeout(badgeDelayTimer); badgeDelayTimer = null; }
   if (badgeTimer) { clearInterval(badgeTimer); badgeTimer = null; }
   // 摘监听（0.9.257）：单例活着，不摘就跨挂载累积（句柄只在本次挂载内有效，随挂载重建）
-  if (badgeInst && unreadFn) { try { badgeInst.off('unReadCountUpdate', unreadFn); } catch (e) { } }
+  if (badgeInst && unreadFn) { try { badgeInst.off('unReadCountUpdate', unreadFn); } catch (e) { /* best-effort: sdk */ } }
   badgeInst = null;
   unreadFn = null;
   badgeEl = null;

@@ -13,7 +13,7 @@ var pendingHooks = [];
 export function dbgInit() {
   if (!__ACSV_DEBUG__) return;
   W.__dbg = ['iife-start'];
-  window.addEventListener('error', function (e) {
+  window.addEventListener('error', function (e) { // singleton-listener: 调试构建错误收集，页面级
     // 无 message 的 error 是资源加载失败（video/img 404 等），不是脚本错误，不计入
     if (!e.message && e.target) return;
     W.__dbg.push('ERR: ' + (e.message || 'unknown') + ' @' + (e.lineno || '?'));
@@ -34,7 +34,7 @@ export function dbgInit() {
   // 再把 stats/启动埋点镜像进 localStorage（同源两 world 共享同步读写，页面控制台必可读）。
   // 读取：JSON.parse(localStorage.getItem('acsv-stats'))，1s 内刷新
   // ver（0.9.182）：构建期版本号随身——「装的到底是哪一版」从此随读数自证（此前两轮靠追问）
-  setInterval(function () {
+  var statIv = setInterval(function () {
     try {
       localStorage.setItem('acsv-stats', JSON.stringify({
         t: Date.now(),
@@ -42,8 +42,12 @@ export function dbgInit() {
         stats: stats,
         dbg: (W.__dbg || []).slice(-60)
       }));
-    } catch (e) { }
+    } catch (e) { /* best-effort: storage */ }
   }, 1000);
+  // 关页停镜像（0.9.276）：调试通道不应把 1s 定时器带过页面生命周期。
+  window.addEventListener('pagehide', function () { // singleton-listener: 调试镜像关页停表
+    if (statIv) { clearInterval(statIv); statIv = 0; }
+  });
 }
 
 function noop() { }
@@ -56,6 +60,15 @@ export var dbg = __ACSV_DEBUG__
 export var stat = __ACSV_DEBUG__
   ? function (k, d) { stats[k] = (stats[k] || 0) + (d == null ? 1 : d); }
   : noop;
+
+// 空 catch 的统一出口：先计数、debug 构建再留一行原因。自身绝不抛错——
+// 它替换的正是「这里已经出过错，不要再把错误处理链路带崩」的位置。
+export function swallow(e, where) {
+  try {
+    stat('swallow.' + (where || 'other'));
+    if (__ACSV_DEBUG__) dbg('swallow:' + (where || '?') + ':' + ((e && e.message) || e || ''));
+  } catch (_) { /* best-effort: swallow */ }
+}
 
 // 覆写型打点（周期结算的均值/快照用）：set('dm.paintMs', 1.23)
 export var set = __ACSV_DEBUG__

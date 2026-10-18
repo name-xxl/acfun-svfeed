@@ -163,23 +163,23 @@ function readUserTab() {
       var g = GM_getValue(USER_KEY, null);
       if (g) return typeof g === 'string' ? JSON.parse(g) : g;
     }
-  } catch (e) { }
+  } catch (e) { /* best-effort: storage */ }
   try {
     var raw = localStorage.getItem(USER_KEY);
     return raw ? JSON.parse(raw) : null;
-  } catch (e) { }
+  } catch (e) { /* best-effort: storage */ }
   return null;
 }
 
 function writeUserTab(obj) {
-  try { if (typeof GM_setValue === 'function') { GM_setValue(USER_KEY, obj); return; } } catch (e) { }
-  try { localStorage.setItem(USER_KEY, JSON.stringify(obj)); } catch (e) { }
+  try { if (typeof GM_setValue === 'function') { GM_setValue(USER_KEY, obj); return; } } catch (e) { /* best-effort: storage */ }
+  try { localStorage.setItem(USER_KEY, JSON.stringify(obj)); } catch (e) { /* best-effort: storage */ }
 }
 
 // 重置写空对象（无 GM_deleteValue 授权；Web-IP 侧读到空表会回落内置——互通安全）
 function clearUserTab() {
-  try { if (typeof GM_setValue === 'function') { GM_setValue(USER_KEY, {}); return; } } catch (e) { }
-  try { localStorage.removeItem(USER_KEY); } catch (e) { }
+  try { if (typeof GM_setValue === 'function') { GM_setValue(USER_KEY, {}); return; } } catch (e) { /* best-effort: storage */ }
+  try { localStorage.removeItem(USER_KEY); } catch (e) { /* best-effort: storage */ }
 }
 
 function ensure() {

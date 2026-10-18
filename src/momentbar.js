@@ -7,7 +7,7 @@ import { toggleBananaPop } from './banpop.js';
 import { ubbPlain } from './ubbtext.js';
 import { commentShareWire } from './immsg.js';
 import { momentExtraOf } from './panelitem.js';
-import { errNotLogin } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
+import { errBanana, errBananaThrown, errNotLogin } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
 
 // ---------- 动态互动栏（0.9.105 自 followview/momentdetail 收口共享） ----------
 // 两个消费面（行流卡 / 详情面板）此前各一套：键集不同（面板缺分享）、尺寸不同（48/42/12px
@@ -82,13 +82,13 @@ function wireBanana(btn, pi) {
   btn.addEventListener('click', function (ev) {
     ev.stopPropagation();
     if (pi.banBusy) return;
-    if (pi.thrown) { toast('已投过蕉啦，明天再来~'); return; } // rail 同款语义
+    if (pi.thrown) { errBananaThrown(); return; } // rail 同款语义
     if (pi.ct === 'moment') {
       // 动态：单蕉直投（官方机制=一蕉，resourceType=10）；不可逆——失败只 toast 不回滚
       pi.banBusy = true;
       throwBananaPi(pi).then(function (ok) {
         pi.banBusy = false;
-        if (!ok) { toast('投蕉失败（今日已投过/未登录？）'); return; }
+        if (!ok) { errBanana(); return; }
         pi.thrown = true;
         pi.banana += 1;
         syncBanana(btn, pi);

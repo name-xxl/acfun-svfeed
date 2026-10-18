@@ -310,7 +310,7 @@ export function mountNatPanel() {
   // 视栈顶 'view' 层为普通层连关（0.9.254 实证：Esc 连带退出订阅视图回竖刷）。判据取「有无
   // #acsv-root 壳」：脚本页恒有（root 即它），原生页恒无——与 input.js:49 的 isFeedRoute()&&root
   // 同一事实的两处读取，不再复制判定逻辑
-  window.addEventListener('keydown', function (e) {
+  window.addEventListener('keydown', function (e) { // singleton-listener: wired 幂等，面板全局入口
     if (e.key !== 'Escape' || !maskEl) return;
     if (document.getElementById('acsv-root')) return;
     closeNatPanel();
@@ -318,7 +318,7 @@ export function mountNatPanel() {
   // 点击任意 IP 标签打开面板；捕获阶段拦截，避免触发站方评论点击逻辑。
   // 0.9.253：selector 扩 `.acsv-cip, .acsv-nip`（脚本页抽屉/原生页全站接通）；主题随入口——
   // `.acsv-cip`＝脚本页 ⇒ 深色主题，`.acsv-nip`＝原生页 ⇒ 浅色主题
-  document.addEventListener('click', function (e) {
+  document.addEventListener('click', function (e) { // singleton-listener: wired 幂等，IP 标签委托
     var t = /** @type {any} */ (e.target);
     var span = t && t.closest ? t.closest('.acsv-cip, .acsv-nip') : null;
     if (!span) return;

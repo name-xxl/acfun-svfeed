@@ -25,16 +25,16 @@ var keyHandler = null, keyUpHandler = null, fsChangeHandler = null, ghostIv = nu
 // 方向戳（0.9.231）：落位兜底自愈按「最后一次手势方向」补齐吸附点（+1=scrollTop 增大/
 // 下一条，-1=反之）——半途静止时用户意图就是那个方向。touchmove 也盖时间戳：只有
 // touchstart 会让 900ms 静默判据在长拖拽中途误判「用户已收手」
-window.addEventListener('wheel', function (ev) {
+window.addEventListener('wheel', function (ev) { // singleton-listener: 页面级手势时间戳捕获（只读）
   window.__acsvLastInput = Date.now();
   if (ev.deltaY) window.__acsvLastInputDir = ev.deltaY > 0 ? 1 : -1;
 }, { capture: true, passive: true });
 var lastTouchY = 0;
-window.addEventListener('touchstart', function (ev) {
+window.addEventListener('touchstart', function (ev) { // singleton-listener: 页面级手势时间戳捕获（只读）
   window.__acsvLastInput = Date.now();
   lastTouchY = ev.touches && ev.touches[0] ? ev.touches[0].clientY : 0;
 }, { capture: true, passive: true });
-window.addEventListener('touchmove', function (ev) {
+window.addEventListener('touchmove', function (ev) { // singleton-listener: 页面级手势方向捕获（只读）
   window.__acsvLastInput = Date.now();
   if (ev.touches && ev.touches[0]) {
     var y = ev.touches[0].clientY; // 手指上滑（y 变小）=内容下行=下一条（scrollTop 增大）

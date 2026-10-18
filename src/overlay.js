@@ -84,7 +84,7 @@ function onOverlayKey(ev) {
 function ensureKey() {
   if (keyBound) return;
   keyBound = true;
-  window.addEventListener('keydown', onOverlayKey, true);
+  window.addEventListener('keydown', onOverlayKey, true); // singleton-listener: 浮层栈 Esc 捕获，模块级
 }
 
 // debug 构建测试钩子：harness 断言读浮层栈快照

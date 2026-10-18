@@ -8,6 +8,7 @@ import { watchMemberNav } from './memberplaza.js';
 import { bootNativeIm } from './imnative.js';
 import { mountNativeIp } from './nativeip.js'; // 原生页评论 IP+设备（0.9.248，Phase 6·6a）
 import { mountNatPanel } from './natpanel.js'; // IP 标签点击面板（0.9.253：脚本页 .acsv-cip 入口）
+import { tryAutoSign } from './signapi.js'; // 自动签到（0.9.277）：进脚本主页静默一次
 import { setRoot } from './state.js';
 import { IMGVIEW_CSS } from './styles.js';
 import { pageKind } from './pagekind.js';
@@ -47,11 +48,12 @@ if (kind === 'native') {
   dbg('boot:' + kind); // harness boot-home / boot-video 断言点（正式构建死码消除）
   if (kind === 'home') ensureStyle();
   toggle();
-  window.addEventListener('hashchange', toggle);
+  window.addEventListener('hashchange', toggle); // singleton-listener: SPA 路由入口，页面级
   if (kind === 'home') {
     mountNatPanel(); // 脚本页 IP 标签点击入口（0.9.253）：抽屉里点 .acsv-cip 弹 IP 面板（暗色主题）
+    tryAutoSign();   // 自动签到（0.9.277）：首页进脚本即静默签一次；设置可关、已签跳过、失败静默
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', watchNav);
+      document.addEventListener('DOMContentLoaded', watchNav); // singleton-listener: 首屏导航注入，页面级
     } else {
       watchNav();
     }

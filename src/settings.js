@@ -32,6 +32,10 @@ import { CFG } from './cfg.js';
 export var SCHEMA = [
   { key: 'updCheck', type: 'bool', def: true, panel: true, group: '通用',
     label: '自动检查更新', hint: '关掉后不再自动拉取 release 说明（顶栏「更新」仍可手动看）' },
+  // 自动签到（0.9.277）：进脚本主页（/）静默签到一次；当天已签服务端判定跳过。聊天入口为
+  // 我的页资料头按钮（signapi/signpanel）——本项只控自动链，手动按钮始终可用
+  { key: 'autoSign', type: 'bool', def: true, panel: true, group: '通用',
+    label: '自动签到', hint: '进入脚本主页时自动签到，当天已签自动跳过，不弹黄历' },
   { key: 'dmDefault', type: 'bool', def: true, panel: true, group: '播放',
     label: '弹幕默认开启', legacy: CFG.lsDm, hint: '立即生效' },
   // 音量真值（0.9.199）：0~1；0 即静音（与 soundOn 联动）。控制栏竖条滑杆是它的唯一入口，
@@ -172,13 +176,13 @@ export function defaultsSnapshot(schema) {
 
 // ---------- 存储触点（GM 优先 / localStorage 回落，watchledger 体例） ----------
 function rawGet(k) {
-  try { if (typeof GM_getValue === 'function') { var g = GM_getValue(k); if (g != null) return String(g); } } catch (e) { }
-  try { return localStorage.getItem(k); } catch (e) { }
+  try { if (typeof GM_getValue === 'function') { var g = GM_getValue(k); if (g != null) return String(g); } } catch (e) { /* best-effort: storage */ }
+  try { return localStorage.getItem(k); } catch (e) { /* best-effort: storage */ }
   return null;
 }
 function rawSet(k, str) {
-  try { if (typeof GM_setValue === 'function') { GM_setValue(k, str); return; } } catch (e) { }
-  try { localStorage.setItem(k, str); } catch (e) { }
+  try { if (typeof GM_setValue === 'function') { GM_setValue(k, str); return; } } catch (e) { /* best-effort: storage */ }
+  try { localStorage.setItem(k, str); } catch (e) { /* best-effort: storage */ }
 }
 
 // ---------- 读：三态（新键 → 老键收养 → 默认） ----------
@@ -192,7 +196,7 @@ var subs = {};           // key → [fn]：变更订阅（读方零反向依赖�
 function adoptIfNeeded(item, v) {
   if (v != null || !item.legacy) return v;
   var lraw = null;
-  try { lraw = localStorage.getItem(item.legacy); } catch (e) { } // 老键只写在 localStorage（历史写入点）
+  try { lraw = localStorage.getItem(item.legacy); } catch (e) { /* best-effort: storage */ } // 老键只写在 localStorage（历史写入点）
   if (lraw == null) return null;
   var lv = fromLegacy(item, lraw);
   if (lv == null) return null;
@@ -237,7 +241,7 @@ function scheduleFlush(key) {
 function flushKey(key) {
   if (pending[key]) { clearTimeout(pending[key]); pending[key] = null; }
   if (!mem || !Object.prototype.hasOwnProperty.call(mem, key)) return;
-  try { rawSet(storeKey(key), JSON.stringify(mem[key])); } catch (e) { }
+  try { rawSet(storeKey(key), JSON.stringify(mem[key])); } catch (e) { /* best-effort: storage */ }
 }
 
 // 强制落盘（面板关闭 / pagehide / 单测）：不依赖墙钟把在途防抖收掉
@@ -258,5 +262,5 @@ export function onChange(key, fn) {
 
 // 关页兜底（模块求值期注册，一行为重）：防抖窗口内关页不丢最后一次改动
 try {
-  window.addEventListener('pagehide', flushSettings);
+  window.addEventListener('pagehide', flushSettings); // singleton-listener: 设置落盘兜底，页面级
 } catch (e) { /* 非浏览器环境（单测）无 window.addEventListener，忽略 */ }

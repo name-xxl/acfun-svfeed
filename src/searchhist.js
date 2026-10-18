@@ -25,7 +25,7 @@ var merged = false;
 function ls() {
   try {
     if (typeof localStorage !== 'undefined' && localStorage) return localStorage;
-  } catch (e) { }
+  } catch (e) { /* best-effort: storage */ }
   return null;
 }
 
@@ -53,7 +53,7 @@ function mergeLegacy(arr) {
   if (merged) return arr;
   merged = true;
   var old = '';
-  try { if (typeof GM_getValue === 'function') old = String(GM_getValue(LEGACY_KEY, '') || ''); } catch (e) { }
+  try { if (typeof GM_getValue === 'function') old = String(GM_getValue(LEGACY_KEY, '') || ''); } catch (e) { /* best-effort: storage */ }
   if (!old) return arr;
   var j = null;
   try { j = JSON.parse(old); } catch (e) { j = null; }
@@ -98,5 +98,5 @@ export function histClear() {
   memArr = [];
   var L = ls();
   if (!L) return;
-  try { L.removeItem(SITE_KEY); } catch (e) { }
+  try { L.removeItem(SITE_KEY); } catch (e) { /* best-effort: storage */ }
 }

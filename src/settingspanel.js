@@ -102,7 +102,7 @@ export function closeSettings() {
   host = null;
   p.remove();
   if (h) h.remove();
-  for (var i = 0; i < offs.length; i++) { try { offs[i](); } catch (e) { } }
+  for (var i = 0; i < offs.length; i++) { try { offs[i](); } catch (e) { /* best-effort: cleanup */ } }
   offs = [];
   flushSettings(); // 关面板即落盘：不等防抖窗（用户改完就关是最常见路径）
   overlayClose('settings'); // 已出栈（Esc 路径）时空转；显式关闭路径由此同步栈

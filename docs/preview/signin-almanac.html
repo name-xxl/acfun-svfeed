@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 我的页签到按钮 + 黄历弹窗（docs/preview）</title>
+<!-- ============================================================
+     docs/preview/signin-almanac.html —— 我的页「签到」按钮 + 黄历弹窗
+     （2026-10-18 用户裁决：不做签到栏，资料头只留一个按钮；
+       点击→签到→弹出黄历卡；另有「今日已签」灰药丸态；参考 App 端 UI）
+     数据源：docs/api-research.md §10.17（实测回包原文）。
+     签到链：mobile-direct 首选 → pc-direct 兜底（均网页 Cookie 直通）。
+     黄历卡：App 同款 3:4 竖卡（反编译布局 + 截图逐像素实测还原）；
+     破框吉祥物为 App 二进制立绘，不入仓不复刻。
+     ============================================================ -->
+<style>
+  :root{
+    --acsv-accent:#fd4c5d;
+    --acsv-bg:#000;
+    --acsv-panel:rgba(22,22,27,.97);
+    --acsv-line:rgba(255,255,255,.09);
+    --acsv-t1:#fff;
+    --acsv-t2:#cfd3da;
+    --acsv-t3:#8a90a0;
+    --alm-red:#e4342f;               /* App 黄历主红（截图逐像素实测） */
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
+  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .board .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
+  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:12px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .chip{border:none;border-radius:16px;padding:5px 14px;font-size:13px;font-family:inherit;
+    cursor:pointer;background:rgba(255,255,255,.1);color:var(--acsv-t2)}
+
+  /* ---- 资料头行（mock 我的页头部；按钮挂右侧，App「已签到」药丸同位） ---- */
+  .mehead{display:flex;align-items:center;gap:14px;padding:14px 4px;max-width:760px}
+  .mehead .av{width:56px;height:56px;border-radius:50%;flex:none;background:rgba(255,255,255,.08)}
+  .mehead .who{min-width:0}
+  .mehead .nm{font-size:16px;font-weight:600}
+  .mehead .meta{margin-top:5px;font-size:12px;color:var(--acsv-t3);display:flex;gap:12px}
+  .mehead .meta b{color:var(--acsv-t2);font-weight:600}
+  .mehead .act{margin-left:auto;flex:none}
+
+  /* 签到按钮三态（App：accent 可点 / 进行中禁用 / 「今日已签」灰底灰字药丸不可点） */
+  .signbtn{border:none;border-radius:999px;padding:8px 22px;font-size:13px;font-family:inherit;cursor:pointer}
+  .signbtn.go{background:var(--acsv-accent);color:#fff}
+  .signbtn.busy{background:var(--acsv-accent);color:#fff;opacity:.55;cursor:default}
+  .signbtn.signed{background:#f7f7f7;color:#999;cursor:pointer}
+
+  /* ---- 黄历弹窗（点击「签到」后：黑蒙层 + 黄历卡居中 + 底部「取消」条，App 弹窗同构） ---- */
+  .mwrap{background:rgba(0,0,0,.55);padding:36px 0 0;text-align:center}
+  .mwrap .mcap{font-size:12px;color:var(--acsv-t3);margin-bottom:14px}
+
+  /* ---- 黄历卡（App 同款：fragment_sign_almanac_dialog_layout + 用户截图逐像素实测） ----
+     3:4 竖卡（250×333dp）；6px(2%W) 纯红 #E4342F 包边、小圆角、四角回纹方块角饰（白孔）；
+     纯白卡面；日期行「十月/巨号衬线数字/OCT」三角错位，数字底边贴横幅；
+     「AC·运势」红幅(81.8%W)+散布白星；宜条幅 #FD3F3A 边+杏黄 #FBD177 宜章，
+     忌条幅 #333 边+黑底白字忌章，条目竖排右→左、超长裁切（App 原样）；
+     中央特粗宋体运势；#D8D8D8 分隔线；「今日奖励：香蕉x6」+「签到规则 ›」。
+     破框吉祥物为 App 二进制立绘，不入仓，此处不复刻。 */
+  .alm{width:290px;height:398px;max-width:100%;margin:0 auto;background:#fff;
+    border:6px solid var(--alm-red);border-radius:5px;position:relative;
+    padding:16px 26px 12px;color:#333}
+  .alm .corner{position:absolute;width:17px;height:17px;background:var(--alm-red)}
+  .alm .corner::after{content:'';display:block;width:6px;height:6px;background:#fff;margin:5.5px auto}
+  .alm .corner.tl{top:-6px;left:-6px}
+  .alm .corner.tr{top:-6px;right:-6px}
+  .alm .corner.bl{bottom:-6px;left:-6px}
+  .alm .corner.br{bottom:-6px;right:-6px}
+  .alm .date{position:relative;height:104px}
+  .alm .date .zh{position:absolute;left:0;top:8px;font-size:20px;font-weight:800;
+    color:var(--alm-red);letter-spacing:2px}
+  .alm .date .en{position:absolute;right:0;top:6px;font-size:20px;font-weight:800;
+    color:var(--alm-red);letter-spacing:1px}
+  .alm .date .num{display:block;text-align:center;font-family:Georgia,"Times New Roman",serif;
+    font-size:96px;line-height:.98;font-weight:700;color:var(--alm-red);letter-spacing:2px}
+  .alm .acban{position:relative;width:100%;height:27px;background:var(--alm-red);color:#fff;
+    border-radius:2px;text-align:center;font-size:16px;font-weight:700;line-height:27px;
+    letter-spacing:4px}
+  .alm .acban .st{position:absolute;color:#fff;font-size:11px;line-height:1}
+  .alm .acban .st.s1{left:14%;top:-5px;font-size:14px}
+  .alm .acban .st.s2{left:22%;bottom:-4px}
+  .alm .acban .st.s3{right:20%;top:-8px;font-size:15px}
+  .alm .acban .st.s4{right:12%;bottom:-3px;font-size:9px}
+  .alm .acban .st.s5{right:4%;top:4px;font-size:8px}
+  .alm .cols{display:flex;align-items:stretch;justify-content:space-between;gap:10px;margin-top:12px;height:172px}
+  .alm .strip{width:68px;border-radius:3px;padding:4px 4px 0;display:flex;flex-direction:column;align-items:center}
+  .alm .strip.yi{border:2px solid #fd3f3a}
+  .alm .strip.ji{border:2px solid #333}
+  .alm .strip .seal{width:56px;height:56px;line-height:56px;text-align:center;
+    font-size:32px;font-weight:700;border-radius:3px;margin-bottom:10px;
+    font-family:KaiTi,STKaiti,serif}
+  .alm .strip.yi .seal{background:#fbd177;color:var(--alm-red)}
+  .alm .strip.ji .seal{background:#333;color:#fff}
+  .alm .strip .its{flex:1;display:flex;flex-direction:row-reverse;justify-content:space-around;align-items:flex-start;width:100%;overflow:hidden}
+  .alm .strip .its span{writing-mode:vertical-rl;font-size:11px;color:#333;line-height:1.2;
+    letter-spacing:1px;max-height:100px;overflow:hidden}
+  .alm .fortune{flex:1;display:flex;align-items:center;justify-content:center}
+  .alm .fortune .fnum{font-family:"Songti SC",SimSun,"Noto Serif SC",serif;
+    font-size:56px;font-weight:900;color:var(--alm-red);line-height:1.1;text-align:center}
+  .alm .meta{border-top:1px solid #d8d8d8;margin-top:12px;padding-top:9px;
+    display:flex;justify-content:space-between;align-items:center}
+  .alm .meta .reward{font-size:13px;color:#333}
+  .alm .meta .rule{font-size:13px;color:#999}
+  .alm .meta .rule::after{content:' ›';color:#ccc}
+  /* 规则翻面页（App 同款：同一张卡同尺寸，点「签到规则」滑入，「‹ 返回」翻回） */
+  .alm .rulepage{display:flex;flex-direction:column;height:100%}
+  .alm .rulepage .bk{align-self:flex-start;font-size:13px;color:#333;cursor:pointer}
+  .alm .rulepage .bk::before{content:'‹ ';color:#999}
+  .alm .rulepage .rt{font-size:17px;font-weight:700;text-align:center;color:#333;
+    letter-spacing:3px;margin-top:-6px}
+  .alm .rulepage ul{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;
+    list-style:none;margin-top:8px}
+  .alm .rulepage li{display:flex;gap:9px;font-size:13px;color:#333;line-height:1.8;
+    text-align:justify}
+  .alm .rulepage li::before{content:'';flex:none;width:5px;height:5px;border-radius:50%;
+    background:var(--alm-red);margin-top:9px;opacity:.55}
+  .mclose{margin:18px auto 0;display:block;background:rgba(255,255,255,.1);color:var(--acsv-t2);
+    border:none;border-radius:16px;padding:7px 26px;font-size:13px;font-family:inherit;cursor:pointer}
+
+  /* toast 形态（对齐 toastmsg 既有底部浮层；成功反馈即弹窗本身，toast 只报失败） */
+  .toast{display:inline-block;background:var(--acsv-panel);border:1px solid rgba(255,255,255,.12);
+    border-radius:8px;padding:9px 18px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+
+  /* 设置面板开关行（settingspanel 体例：左文案右开关） */
+  .setrow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--acsv-line);
+    max-width:420px;background:var(--acsv-panel);font-size:13px}
+  .setrow .sub{font-size:11px;color:var(--acsv-t3);margin-top:2px}
+  .sw{margin-left:auto;width:34px;height:19px;border-radius:10px;background:rgba(255,255,255,.18);
+    position:relative;flex:none;cursor:pointer}
+  .sw::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff}
+  .sw.on{background:var(--acsv-accent)}
+  .sw.on::after{left:auto;right:2px}
+
+  @media (max-width:539px){
+    .board{padding:18px 12px 60px}
+    .mehead .act{margin-left:0;width:100%}
+    .mehead .act .signbtn{width:100%}
+    .alm{padding:12px 16px 10px}
+    .alm .date{height:84px}
+    .alm .date .num{font-size:76px}
+    .alm .date .zh,.alm .date .en{font-size:16px}
+    .alm .cols{height:150px}
+    .alm .strip{width:62px}
+    .alm .fortune .fnum{font-size:46px}
+    .alm .meta .reward,.alm .meta .rule{font-size:12px}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>我的页「签到」按钮 + 黄历弹窗 —— 静态预览（确认后才进 src 实现）</h1>
+  <p class="hint">
+    宿主：我的页资料头右侧一枚按钮（App「已签到」药丸同位），<b>不做独立签到栏</b>。
+    点击「签到」→ 发签到请求 → 成功弹出黄历卡弹窗（奖励行取实拿 bananaDelta）；当天已签则按钮转灰药丸，<b>再点重开当天黄历卡</b>（实时重新拉取，不重复签到）。
+    自动签到（设置可关）在进主页时静默完成，不打弹窗。数据来自 2026-10-18 实测回包
+    （连签 4 天 / 累计 1145 天 / 当日 6 蕉 / 黄历「大吉」）。黄历卡按 App 截图逐像素还原。
+  </p>
+
+  <div class="sec">
+    <h2>① 资料头按钮三态<em>未签=红色可点；签到中=禁用防连点；已签=灰底灰字药丸（App 同款外观，<b>可点</b>：实时重拉当天黄历卡，不再发签到请求）</em></h2>
+    <div class="mehead">
+      <div class="av"></div>
+      <div class="who">
+        <div class="nm">name_xxl</div>
+        <div class="meta"><span><b>91</b> 关注</span><span><b>73</b> 投稿</span><span>🍌 <b>1095</b></span></div>
+      </div>
+      <div class="act"><button class="signbtn go">签到</button></div>
+    </div>
+    <div class="mehead" style="border-top:1px dashed rgba(255,255,255,.12)">
+      <div class="av"></div>
+      <div class="who">
+        <div class="nm">name_xxl</div>
+        <div class="meta"><span><b>91</b> 关注</span><span><b>73</b> 投稿</span><span>🍌 <b>1095</b></span></div>
+      </div>
+      <div class="act"><button class="signbtn busy">签到中…</button></div>
+    </div>
+    <div class="mehead" style="border-top:1px dashed rgba(255,255,255,.12)">
+      <div class="av"></div>
+      <div class="who">
+        <div class="nm">name_xxl</div>
+        <div class="meta"><span><b>91</b> 关注</span><span><b>73</b> 投稿</span><span>🍌 <b>1101</b></span></div>
+      </div>
+      <div class="act"><button class="signbtn signed">今日已签</button></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>② 点击「签到」→ 黄历弹窗<em>黑蒙层 + 黄历卡居中 + 底部「取消」条（App 弹窗同构）；奖励行取实拿值</em></h2>
+    <div class="mwrap">
+      <div class="mcap">↑ 页面压 55% 黑蒙层，卡片水平居中；点蒙层或「取消」关闭（吉祥物立绘为 App 二进制素材，不复刻）</div>
+      <div class="alm">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div class="date">
+          <span class="zh">十月</span>
+          <span class="num">18</span>
+          <span class="en">OCT</span>
+        </div>
+        <div class="acban">AC·运势<i class="st s1">✦</i><i class="st s2">✦</i><i class="st s3">✦</i><i class="st s4">✦</i><i class="st s5">✦</i></div>
+        <div class="cols">
+          <div class="strip yi">
+            <div class="seal">宜</div>
+            <div class="its"><span>在家抠脚</span><span>一个人看电影</span><span>深夜看恐怖片</span></div>
+          </div>
+          <div class="fortune"><span class="fnum">大<br>吉</span></div>
+          <div class="strip ji">
+            <div class="seal">忌</div>
+            <div class="its"><span>同事婚礼喝酒</span><span>裸奔</span><span>开车太快</span></div>
+          </div>
+        </div>
+        <div class="meta">
+          <span class="reward">今日奖励：香蕉x6</span>
+          <span class="rule">签到规则</span>
+        </div>
+      </div>
+      <button class="mclose">取消</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>②½ 点「签到规则」→ 卡片翻面<em>App 同款：同卡同框换内容，规则页顶部「‹ 返回」翻回黄历面</em></h2>
+    <div class="mwrap">
+      <div class="mcap">↑ 弹窗不关、卡片翻面；返回后回到黄历面</div>
+      <div class="alm">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div class="rulepage">
+          <span class="bk">返回</span>
+          <div class="rt">签到规则</div>
+          <ul>
+            <li>签到即可获得香蕉奖励；连续签到可获得随机香蕉礼包</li>
+            <li>连续签到7天最高奖励666蕉</li>
+            <li>如签到中断或连续签满7天，下次连签天数从第1天开始计算</li>
+            <li>签到可随机显示AC运势，分享还有概率升级签运，祝好运</li>
+            <li>签到显示AC运势可在设置中关闭</li>
+          </ul>
+        </div>
+      </div>
+      <button class="mclose">取消</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>③ 失败降级<em>弹窗不出，只弹 toast；行内不打断</em></h2>
+    <div class="row">
+      <span class="hint" style="margin:0">签到失败（网络错误）：</span>
+      <span class="toast">签到失败，请稍后重试</span>
+      <span class="hint" style="margin:0">未登录：</span>
+      <span class="toast">登录后可签到领蕉</span>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>④ 设置面板「自动签到」开关<em>schema 新增布尔项，默认开；沿用现有开关形态</em></h2>
+    <div class="setrow">
+      <div>
+        <div>自动签到</div>
+        <div class="sub">进入脚本主页时自动签到，当天已签自动跳过，不打弹窗</div>
+      </div>
+      <div class="sw on"></div>
+    </div>
+    <div class="setrow" style="border-bottom:none">
+      <div>
+        <div>自动签到</div>
+        <div class="sub">进入脚本主页时自动签到，当天已签自动跳过，不打弹窗</div>
+      </div>
+      <div class="sw"></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑤ 窄宽（540）<em>按钮落行通栏；黄历卡本就 290 窄，弹窗内居中</em></h2>
+    <div style="width:540px;max-width:100%;border:1px dashed rgba(255,255,255,.14);padding:12px">
+      <div class="mehead" style="max-width:none">
+        <div class="av"></div>
+        <div class="who">
+          <div class="nm">name_xxl</div>
+          <div class="meta"><span><b>91</b> 关注</span><span><b>73</b> 投稿</span><span>🍌 <b>1101</b></span></div>
+        </div>
+        <div class="act"><button class="signbtn signed">今日已签</button></div>
+      </div>
+      <div class="mwrap" style="margin-top:10px">
+        <div class="alm">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="date">
+            <span class="zh">十月</span>
+            <span class="num">18</span>
+            <span class="en">OCT</span>
+          </div>
+          <div class="acban">AC·运势<i class="st s1">✦</i><i class="st s2">✦</i><i class="st s3">✦</i><i class="st s4">✦</i><i class="st s5">✦</i></div>
+          <div class="cols">
+            <div class="strip yi">
+              <div class="seal">宜</div>
+              <div class="its"><span>在家抠脚</span><span>一个人看电影</span><span>深夜看恐怖片</span></div>
+            </div>
+            <div class="fortune"><span class="fnum">大<br>吉</span></div>
+            <div class="strip ji">
+              <div class="seal">忌</div>
+              <div class="its"><span>同事婚礼喝酒</span><span>裸奔</span><span>开车太快</span></div>
+            </div>
+          </div>
+          <div class="meta">
+            <span class="reward">今日奖励：香蕉x6</span>
+            <span class="rule">签到规则</span>
+          </div>
+        </div>
+        <button class="mclose">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

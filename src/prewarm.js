@@ -20,7 +20,7 @@ export function prewarm(idx) {
         stat('prewarm');
         ensureResolved(it).then(function (ok) {
           if (!ok || !it.urls.length) return;
-          try { preconnect(new URL(it.urls[0]).origin); } catch (e) { }
+          try { preconnect(new URL(it.urls[0]).origin); } catch (e) { /* best-effort: network */ }
         });
       })(FeedStore.items[i]);
     }

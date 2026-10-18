@@ -122,6 +122,18 @@ export var CFG = {
     // 单条动态详情（0.9.127 引入、0.9.230 归一到视口回填；plaza 同端点实测转引 §2.7）：pc-direct 带 Cookie
     // 读——列表（feedSquare 免登录）互动态恒 false，此端点才给真 isLike/isThrowBanana
     momentDetail: 'https://www.acfun.cn/rest/pc-direct/moment/detail',
+    // ---- 签到族（0.9.277；实测 docs/api-research.md §10.17，2026-10-18） ----
+    // 签到写链：**api-new 版要 App OAuth 令牌，web 不可行**（8 组组合全灭）；可走的是
+    // mobile-direct（m 站，首选，GM 通道跨域带 Cookie）与 pc-direct（同源 fetch 写链兜底）。
+    // 两链均空表体，今日已签回 result=122（App 侧按成功处理、bananaDelta=0）。
+    // URL 字面量逐字=harness mock 缝
+    signInMobile: 'https://m.acfun.cn/rest/mobile-direct/user/signIn',
+    signInPc: 'https://www.acfun.cn/rest/pc-direct/user/signIn',
+    // 查询：getSignInInfos 免参数网页 Cookie 直通（7 天签到日历 infos[7]；网页回包无 almanac）
+    signInInfos: 'https://api-new.app.acfun.cn/rest/app/user/getSignInInfos',
+    // 黄历：网页 Cookie + 空表体 POST 直通 → {result:0, almanac:{fortune/suits/avoids/guideMsg/今日荐片}}；
+    // App 侧语义=黄历弹窗「改运」按钮（非欧皇可重复改运）——用户裁决（2026-10-18）不做缓存、每次实时拉
+    almanac: 'https://api-new.app.acfun.cn/rest/app/user/updateAlmanacFortune',
     // 相关推荐（0.9.167，评论抽屉「相关推荐」tab + 随机游走泵数据源；实测 docs/api-research.md
     // §5）：api-new APP 域、**免登录免 header**；表单 resourceType=2&resourceId={稿件id}；
     // **无游标一发 10 条，重复调用换一批**（推荐流刷新语义）；回包不含当前视频自身；首条
@@ -411,7 +423,7 @@ export var CFG = {
 //   native 强制走原生 HLS（0.9.12 对照组：MSE 可用时默认一律 hls.js）
 CFG.exp = {};
 if (__ACSV_DEBUG__) {
-  try { CFG.exp = JSON.parse(localStorage.getItem('acsv-exp') || '{}') || {}; } catch (e) { }
+  try { CFG.exp = JSON.parse(localStorage.getItem('acsv-exp') || '{}') || {}; } catch (e) { /* best-effort: storage */ }
 }
 
 // UI 版本号单源（0.9.253）：构建期注入的 __ACSV_VERSION__（debug 构建带 -debug 后缀）——设置面板

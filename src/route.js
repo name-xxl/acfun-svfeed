@@ -107,6 +107,6 @@ export function syncHash(idx) {
       history.replaceState(null, '',
         location.pathname + location.search + '#' + CFG.hash
         + '/' + (it.kind === 'home' ? 'a' : 'v') + '/' + it.id);
-    } catch (e) { }
+    } catch (e) { /* best-effort: cleanup */ }
   }, 150);
 }

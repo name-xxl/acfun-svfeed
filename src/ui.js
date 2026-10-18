@@ -98,7 +98,7 @@ export function copyText(text) {
     document.body.appendChild(ta);
     ta.select();
     var ok = false;
-    try { ok = document.execCommand('copy'); } catch (e) { }
+    try { ok = document.execCommand('copy'); } catch (e) { /* best-effort: cleanup */ }
     ta.remove();
     resolve(ok);
   });

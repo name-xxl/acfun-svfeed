@@ -75,7 +75,7 @@ export function setSearchHandler(fn) {
 // 供搜索视图空词进入时聚焦（视图 body 内已无自有输入框）
 export function focusSearch() {
   if (!searchInput) return;
-  try { searchInput.focus(); } catch (e) { }
+  try { searchInput.focus(); } catch (e) { /* best-effort: cleanup */ }
 }
 
 export function buildTopbar(parent, h) {
@@ -137,7 +137,7 @@ export function buildTopbar(parent, h) {
     hideSearchPop();
     // 广播（0.9.158）：清空是共享键级动作，已挂载的空词搜索视图据此重画「最近搜索」chips——
     // 否则面板清空后，身后那份 chips 还是旧的（两个面同源不同步）。事件名见 searchview 订阅处
-    try { document.dispatchEvent(new Event('acsv-searchhist')); } catch (e) { }
+    try { document.dispatchEvent(new Event('acsv-searchhist')); } catch (e) { /* best-effort: cleanup */ }
   });
   spopHead.appendChild(spopClr);
   spopList = el('div', 'acsv-spop-list'); // 同上

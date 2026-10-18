@@ -7,7 +7,7 @@
 //   二进制 data、okStatus 状态码门）——upload.js 二进制分片上传、uppage/imsend 拉文本等 GM-only
 //   场景统一走这里，勿再各自内联 GM_xmlhttpRequest 包装（0.9.35 收敛）
 import { CFG } from './cfg.js';
-import { stat } from './dbg.js';
+import { stat, swallow } from './dbg.js';
 
 // 会话计数（0.9.166，debug 构建生效/正式死码消除）：领域通道 request/requestText 的
 // 请求数与失败数（含 mock 命中——它对调用方就是一次请求）。gmRequest 直用方（upload/
@@ -108,7 +108,7 @@ export function request(url, method, headers, body) {
         x.timeout = CFG.time.xhr;
         if (headers) {
           for (var k in headers) {
-            try { x.setRequestHeader(k, headers[k]); } catch (e) { }
+            try { x.setRequestHeader(k, headers[k]); } catch (e) { swallow(e, 'net'); }
           }
         }
         x.onload = function () {

@@ -18,13 +18,13 @@ export function seenAt() {
       var v = Number(GM_getValue(SEEN_KEY, '0')) || 0;
       if (v) return v;
     }
-  } catch (e) { }
+  } catch (e) { /* best-effort: storage */ }
   return memSeen;
 }
 
 export function setSeen(ts) {
   memSeen = ts;
-  try { if (typeof GM_setValue === 'function') GM_setValue(SEEN_KEY, String(ts)); } catch (e) { }
+  try { if (typeof GM_setValue === 'function') GM_setValue(SEEN_KEY, String(ts)); } catch (e) { /* best-effort: storage */ }
 }
 
 // 首装无水位 → 以当前时刻起算（防把存量内容全算成新）

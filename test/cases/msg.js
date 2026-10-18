@@ -141,4 +141,22 @@ rec('native-list-moment', (function () { // 列表预览按 kind 分流，不误
     rec('badge-delay-armed', !!(ib && ib.mounted() && ib.delayArmed() && !ib.pollArmed()),
       ib ? ('mounted=' + ib.mounted() + ' delay=' + ib.delayArmed() + ' poll=' + ib.pollArmed()) : 'no-hook');
   };
+
+  // ---- im-bubble（0.9.268）----
+  // 气泡渲染簇拆件前的结构钉子：假消息直调 appendBubble，覆盖己方/对方文本、extra 引用条、
+  // 10001 作品卡。拆件后同一钩子（经 imbubble.appendBubble）必须继续返回同一形状；
+  // 图片分支会触发鉴权换链，不在本场景（no network）——debug 构建专属（TEST 钩子）。
+  C['im-bubble'] = function (h) {
+    var rec = h.rec, TEST = h.TEST;
+    var s = TEST.call('imBubbleSmoke');
+    rec('bubble-hook', !!s, s ? 'uid=' + s.uid : 'no-hook');
+    if (!s) return;
+    rec('bubble-text-mine', s.bubbles === 3 && s.mine === 1 && s.text === 3,
+      'bubbles=' + s.bubbles + ' mine=' + s.mine + ' text=' + s.text);
+    rec('bubble-quote', s.quote === 1 && s.quoteLink === 1 && s.quotePreview === '原消息',
+      'quote=' + s.quote + ' link=' + s.quoteLink + ' preview=' + JSON.stringify(s.quotePreview));
+    rec('bubble-quotebtn', s.quotebtn === 4, 'quotebtn=' + s.quotebtn);
+    rec('bubble-card', s.card === 1, 'card=' + s.card);
+    rec('bubble-daydiv', s.daydiv === 0, 'daydiv=' + s.daydiv);
+  };
 })();

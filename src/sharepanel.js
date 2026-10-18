@@ -2,15 +2,17 @@
 // openSharePanel 一族：锚定浮层（place 模式走 **popplace.rowPlaceOf**——锚行/面板、**底对齐**；
 // 与选择层的 anchorPlaceOf 是同一模块里的两套模型，常数一处收口，0.9.149）/搜索过滤/联系人行/分享按钮
 // （分享上报 0.9.145 经 report.reportShare；外点收起 0.9.147 走 ui.closeOnOutsideClick）
-//（含「捎句话」注册缝 setChatOpener 与 im-open 页哨兵）。单向依赖 imsend 的出口
-//（ensureIm/ensureConnected/getContacts/fetchCards/isLogined/sendCmtShare/sendMomentShare），
-// 核心完全不知道面板。纯搬迁零逻辑改动。
+//（含「捎句话」注册缝 setChatOpener 与 im-open 页哨兵）。单向依赖 imsdk 的连接出口
+//（ensureIm/ensureConnected/isLogined）与 imsend 的发送/联系人出口
+//（getContacts/fetchCards/sendCmtShare/sendMomentShare/sendOnce），核心完全不知道面板。
+// 纯搬迁零逻辑改动。
 import { CFG } from './cfg.js';
 import { el, toast, copyText, closeOnOutsideClick } from './ui.js';
 import { rowPlaceOf, applyPlace, watchPlace } from './popplace.js';
 import { imgInto } from './imgload.js';
 import { testHook } from './dbg.js';
-import { ensureIm, ensureConnected, getContacts, fetchCards, isLogined, sendCmtShare, sendMomentShare, sendOnce } from './imsend.js';
+import { ensureIm, ensureConnected, isLogined } from './imsdk.js';
+import { getContacts, fetchCards, sendCmtShare, sendMomentShare, sendOnce } from './imsend.js';
 import { openMomentEditor, repostOf } from './momenteditor.js'; // 转发到动态（0.9.222）
 import { reportShare } from './report.js'; // 分享上报（0.9.145）
 

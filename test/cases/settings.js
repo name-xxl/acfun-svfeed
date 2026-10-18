@@ -40,8 +40,8 @@
     // 表驱动：九张卡（label 顺序 = schema 顺序：通用组 1 + 播放组 5 + 评论组 3；0.9.168 增 relSequential）
     // 0.9.202：弹幕设置整组移出设置面板（改为底栏弹层）；0.9.245/246：评论组 +3（ipShow/ipKeep/devName）
     var labels = labelTexts(sh);
-    rec('set-row-count', sh.querySelectorAll('.set-row').length === 9, 'rows=' + labels.join('/'));
-    rec('set-labels', labels.join('|') === '自动检查更新|弹幕默认开启|编码偏好|缓冲档位|快进步长（秒）|相关推荐按列表顺序续播|评论区显示 IP 属地|属地缓存保留|设备型号美化', labels.join('|'));
+    rec('set-row-count', sh.querySelectorAll('.set-row').length === 10, 'rows=' + labels.join('/'));
+    rec('set-labels', labels.join('|') === '自动检查更新|自动签到|弹幕默认开启|编码偏好|缓冲档位|快进步长（秒）|相关推荐按列表顺序续播|评论区显示 IP 属地|属地缓存保留|设备型号美化', labels.join('|'));
     // 面板必须真渲染（offsetParent 真值法：0.9.62 黑屏教训）
     var pnl = sh.querySelector('.set-panel');
     rec('set-panel-visible', !!(pnl && pnl.offsetParent !== null));
@@ -60,7 +60,7 @@
     rec('set-footer-ver', /^v0\.9\.\d+/.test((sh.querySelector('.set-ver') || {}).textContent || ''),
       (sh.querySelector('.set-ver') || {}).textContent || 'none');
     // 弹幕开关：默认开 → 点关 → 存储 + 控制栏「弹」按钮即时同步（0.9.89 单源 applyDmState）
-    var sw = swOf(sh, 1);
+    var sw = swOf(sh, 2);
     rec('set-dm-on-default', !!(sw && sw.classList.contains('on')));
     var ctlDm = q('.acsv-cdm');
     rec('set-ctl-dm-on-before', !!(ctlDm && ctlDm.classList.contains('on')));
@@ -80,7 +80,7 @@
     // 重开：状态保持（读回自己的盘）
     var host2 = await openPanel(h);
     var sh2 = shadowOf(host2);
-    rec('set-reopen-kept', !!(sh2 && swOf(sh2, 1) && !swOf(sh2, 1).classList.contains('on')));
+    rec('set-reopen-kept', !!(sh2 && swOf(sh2, 2) && !swOf(sh2, 2).classList.contains('on')));
     // 0.9.237 设置下拉三钉：字体简写修复（36px 行高/14px 字真正生效）+ 点外收起 + Esc 先收菜单不关面板
     var sel2 = sh2 && sh2.querySelector('.set-sel-btn');
     if (sel2) {
@@ -133,7 +133,7 @@
         var opts3 = sh3.querySelectorAll('.set-sel-item');
         for (var oj = 0; oj < opts3.length; oj++) if (opts3[oj].textContent === '自动') opts3[oj].click();
       }
-      var sw3 = swOf(sh3, 1);
+      var sw3 = swOf(sh3, 2);
       if (sw3) sw3.click();
       var x3 = sh3.querySelector('.set-x');
       if (x3) x3.click();
@@ -156,7 +156,7 @@
     // 面板读出老键值（收养）：编码=HEVC、缓冲=标准 10s、弹幕开关=关
     rec('mig-codec-adopted', selTextOf(sh, 0) === 'HEVC', selTextOf(sh, 0));
     rec('mig-buf-adopted', selTextOf(sh, 1) === '标准 10s', selTextOf(sh, 1));
-    rec('mig-dm-adopted', !!(swOf(sh, 1) && !swOf(sh, 1).classList.contains('on')));
+    rec('mig-dm-adopted', !!(swOf(sh, 2) && !swOf(sh, 2).classList.contains('on')));
     // 收养须落新键；老键不删（回滚友好）
     rec('mig-new-written', !!(await waitFor(function () { return ls('acsv.s.codec') === '"hevc"'; }, 3000)), 'raw=' + ls('acsv.s.codec'));
     rec('mig-legacy-kept', ls('acsv-codec') === 'hevc' && ls('acsv-buf') === 'std' && ls('acsv-dm-on') === '0');

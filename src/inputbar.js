@@ -223,7 +223,7 @@ function setUbbText(root, v) {
 export function insertHtmlAtCaret(host, html) {
   host.focus();
   placeCaretEndIfOutside(host);
-  try { if (document.execCommand('insertHTML', false, html)) return true; } catch (e) { }
+  try { if (document.execCommand('insertHTML', false, html)) return true; } catch (e) { /* best-effort: cleanup */ }
   return false;
 }
 
@@ -320,7 +320,7 @@ export function buildInputBar(opts) {
           // styleWithCSS=false ⇒ 产标签（<b>/<i>/<u>/<strike>）而不是 style span——出口序列化认标签
           document.execCommand('styleWithCSS', false, false);
           document.execCommand(f[0]);
-        } catch (e) { }
+        } catch (e) { /* best-effort: cleanup */ }
         syncFmt();
         refresh();
       });
@@ -379,7 +379,7 @@ export function buildInputBar(opts) {
     try {
       document.execCommand('styleWithCSS', false, true);
       document.execCommand('foreColor', false, hex);
-    } catch (e) { }
+    } catch (e) { /* best-effort: cleanup */ }
     normalizeColors(edit); // Chrome 写 rgb()，出口与渲染白名单只认 hex
     lastColor = hex;
     paintColorLabel();
@@ -512,7 +512,7 @@ export function buildInputBar(opts) {
     var focused = document.activeElement === edit;
     fmtBtns.forEach(function (b) {
       var on = false;
-      if (focused) { try { on = document.queryCommandState(b._cmd); } catch (e) { } }
+      if (focused) { try { on = document.queryCommandState(b._cmd); } catch (e) { /* best-effort: cleanup */ } }
       b.classList.toggle('on', !!on);
     });
   }
@@ -552,7 +552,7 @@ export function buildInputBar(opts) {
   var bar = {
     box: box, edit: edit, send: send, emotBtn: emotBtn, imgBtn: imgBtn, fileInp: fileInp, colPop: colPop,
     plain: plain, // 纯文本宿主（无格式键/颜色键）——harness 断言用
-    focus: function () { try { edit.focus(); } catch (e) { } },
+    focus: function () { try { edit.focus(); } catch (e) { /* best-effort: cleanup */ } },
     // 出口文本（提交给服务端的 UBB）与字数：宿主拿它组参/预检
     text: function () { return serializeUbb(edit); },
     count: function () { return countUnits(edit); },

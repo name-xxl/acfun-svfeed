@@ -6,6 +6,7 @@
  *
  *   node test/run-harness.mjs                 全部场景
  *   node test/run-harness.mjs smoke,fastswipe 只跑指定场景（调试用）
+ *   HARNESS_BROWSER=webkit node test/run-harness.mjs <场景名,…>  换 WebKit（默认 chromium）
  *
  * 静态服务器以仓库根为 docroot（harness 以 ../acfun-svfeed.user.js 相对路径引产物，
  * 且 cdn-fallback 场景依赖 /nope-404.mp4 真实 404）。
@@ -15,10 +16,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
+import { chromium, webkit } from 'playwright';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ONLY = (process.argv[2] || '').split(',').filter(Boolean);
+// 浏览器选择：默认 chromium（本地/CI 全量）；HARNESS_BROWSER=webkit 跑 WebKit 冒烟
+//（CI 里只跑对媒体/弹幕时序不敏感的场景，见 .github/workflows/build.yml）。
+const BROWSER = (process.env.HARNESS_BROWSER || 'chromium').toLowerCase();
 
 // headless 下因环境差异（合成器/解码器）确认跑不了的场景放这里，须注明原因——
 // 不允许静默跳过：加名时必须带理由字符串。
@@ -81,6 +85,9 @@ const HARNESS_CASES = [
   { name: 'ctl-narrow', serial: true, viewport: { width: 540, height: 960 } }, // 0.9.237 窄底栏横滑（home 源）
   { name: 'waiting-error-race', serial: true }, // 0.9.234 waiting 定时器不得反盖 error（合成事件，debug 构建）
   { name: 'im-native' }, // 0.9.80 原生私信页增强装配（造站结构 + douga/info 桩，debug 构建）
+  // 0.9.268 气泡渲染簇拆件前的结构钉子（假消息直调 appendBubble：己方/对方/引用/10001 卡；
+  // imBubbleSmoke 钩子，debug 构建）
+  { name: 'im-bubble' },
   // 0.9.244 私信徽标轮询随 badgeDelay 起：挂载后立即断言「只武装延迟、不武装轮询」
   //（曾 mount 即起 5s 拍、首拍拉 860KB SDK——真机读数 7.8s 实锤）；TEST 钩子，debug 构建
   { name: 'badge-delay' },
@@ -165,6 +172,7 @@ const HARNESS_CASES = [
   { name: 'state-seek-ready', serial: true },   // A1 平滑 seek 归位必须撤掉在途转圈定时器
   { name: 'recover-refresh-watch', serial: true }, // A2 重解析换源同样要看门狗（~12s）
   { name: 'deeplink-upctx', serial: true },     // A3 深链不属旧空间页列表时必须让出上下文
+  { name: 'deeplink-followctx', serial: true }, // A3 残留：深链不属旧关注视频流时必须让出上下文
   { name: 'dm-play-gated', serial: true },      // A4 暂停→恢复同一视频不重建弹幕（home 源）
   { name: 'ctl-detach-stop', serial: true },    // P1-3 拆壳即停：音量悬停保活链不得永续
   { name: 'pump-chaincapped', serial: true },   // P1-4 链打满上限必须收口并回落随机流
@@ -282,16 +290,25 @@ function serve(req, res) {
 }
 
 async function launch() {
+  if (BROWSER === 'webkit') {
+    // WebKit 无 Chromium 的自动播放/静音开关，也不接受 --autoplay-policy 一类 args。
+    console.log('[info] browser=webkit');
+    return await webkit.launch({ headless: true });
+  }
   var args = [
     '--autoplay-policy=no-user-gesture-required',
     '--mute-audio'
   ];
   try {
-    return await chromium.launch({ headless: true, args: args });
+    var launched = await chromium.launch({ headless: true, args: args });
+    console.log('[info] browser=chromium');
+    return launched;
   } catch (e) {
     // 本机没跑过 npx playwright install 时回退系统 Edge（Windows 自带）
     console.log('[info] 内置 chromium 不可用（' + e.message.split('\n')[0] + '），回退 msedge');
-    return await chromium.launch({ headless: true, channel: 'msedge', args: args });
+    var fallback = await chromium.launch({ headless: true, channel: 'msedge', args: args });
+    console.log('[info] browser=msedge');
+    return fallback;
   }
 }
 

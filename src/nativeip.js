@@ -167,7 +167,7 @@ function hookXHR() {
         if (isCommentUrl(self._acsvNipUrl || '')) {
           onComments(extractCommentList(JSON.parse(self.responseText)));
         }
-      } catch (e) { }
+      } catch (e) { /* best-effort: parse */ }
     });
     return originalSend.apply(this, arguments);
   };
@@ -323,6 +323,7 @@ function onDomChange() {
 // ---------- SPA 路由 ----------
 var lastUrl = '';
 var lastPath = '';
+var urlTimer = 0; // 路由扫描去抖：连续 pushState 只留最后一拍（0.9.276）
 
 function checkUrl() {
   if (location.href === lastUrl) return;
@@ -331,7 +332,8 @@ function checkUrl() {
     lastPath = location.pathname;
     commentUserMap.clear(); // 路径变了：旧页映射对新页无效且会无限累积（同页换参不清——Web-IP 同款）
   }
-  setTimeout(onDomChange, OBS.urlChangeDelayMs);
+  if (urlTimer) clearTimeout(urlTimer);
+  urlTimer = setTimeout(function () { urlTimer = 0; onDomChange(); }, OBS.urlChangeDelayMs);
 }
 
 function wrapHistory() {
@@ -347,7 +349,7 @@ function wrapHistory() {
     checkUrl();
     return r;
   };
-  window.addEventListener('popstate', checkUrl);
+  window.addEventListener('popstate', checkUrl); // singleton-listener: SPA 路由清理，模块级幂等
 }
 
 // ---------- 挂载（boot 原生页分支调用；幂等） ----------

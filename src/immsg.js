@@ -130,7 +130,7 @@ export function degradeText(m) {
         .replace(/<[^>]+>/g, '')
         .trim();
     }
-  } catch (e) { }
+  } catch (e) { /* best-effort: parse */ }
   return '[暂不支持查看的消息，请前往客户端查看]';
 }
 
@@ -162,7 +162,7 @@ export function quoteOf(m) {
       try {
         var raw = o.rawMsg || {};
         if (raw.seqId !== undefined && raw.seqId !== null) seqId = String(raw.seqId);
-      } catch (e1) { }
+      } catch (e1) { /* best-effort: parse */ }
       preview = previewOfMessage(o) || '';
     }
     return {
@@ -261,7 +261,7 @@ export function msgTextOf(m) {
     var raw = m.rawMsg || {};
     if (typeof raw.content === 'string' && raw.content) return raw.content;
     if (raw.content && typeof raw.content.text === 'string') return raw.content.text;
-  } catch (e) { }
+  } catch (e) { /* best-effort: parse */ }
   return degradeText(m);
 }
 

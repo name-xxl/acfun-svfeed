@@ -7,6 +7,7 @@ import { fmtDate, pad2 } from './timefmt.js';
 import { coverUrl } from './imgurl.js';
 import { applyQuality } from './quality.js';
 import { parseAdvanced } from './advdm.js';
+import { hasShape, isArray } from './contract.js';
 
 // ---------- APP 家族接口层 ----------
 // 读接口走 api-new.app.acfun.cn（与 acfunchina.com 同后端），固定 mkey 免登录：
@@ -77,7 +78,7 @@ export function postForm(url, body) {
   // AbortController 对齐 net.js 的 CFG.time.gm 口径；abort 归一到 'timeout' 话术——
   // momentpost 的「结果未知 → 先查后补」（/timeout/ 匹配）依赖它走查证分支
   var ctl = typeof AbortController === 'function' ? new AbortController() : null;
-  var timer = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) { } }, CFG.time.gm) : 0;
+  var timer = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) { /* best-effort: network */ } }, CFG.time.gm) : 0;
   return fetch(url, {
     method: 'POST',
     credentials: 'include',
@@ -100,11 +101,15 @@ export function postForm(url, body) {
 // selection/feed **同形**（body[{schema,bodyContents[]}]），故本函数两条源通用（0.9.189 换源未改）。
 // 导出供单测直采（feed-blocks.test.js）。
 export function cardsOf(body) {
-  if (!Array.isArray(body)) return []; // 加固（0.9.189）：result=0 但 body 非数组时不抛（返回空页）
+  if (!isArray(body, 'feed.body')) return []; // 加固（0.9.189）：result=0 但 body 非数组时不抛（返回空页）
   var out = [];
   body.forEach(function (block) {
     if (!block || block.schema === 'carousels') return;
-    (block.bodyContents || []).forEach(function (bc) {
+    // 二级数组同样守卫（0.9.275）：站点换形状时 bodyContents 可能不是数组，直接 .forEach 会
+    // 把整条推荐流炸成失败页。缺失=合法空块，静默跳过；非数组才计数。
+    if (block.bodyContents == null) return;
+    if (!isArray(block.bodyContents, 'feed.block.contents')) return;
+    block.bodyContents.forEach(function (bc) {
       if (bc && bc.href && bc.resourceType === 2) out.push(bc);
     });
   });
@@ -205,19 +210,22 @@ export var AppAPI = {
     return request(CFG.api.playInfo + q('&videoId=' + videoId + '&resourceId=' + acId
       + '&resourceType=2&mkey=' + CFG.home.mkey), 'GET', homeHeaders(false))
       .then(function (j) {
-        var streams = (j && j.playInfo && j.playInfo.streams) || [];
+        if (!hasShape(j, ['playInfo'], 'play.info') || !isArray(j.playInfo.streams, 'play.streams')) return [];
+        var streams = j.playInfo.streams;
         return streams.map(function (s) {
-          var urls = (s.playUrls || []).map(function (u) {
+          // 流项内的 playUrls 也按数组守卫（0.9.275）：坏形状不应让整条 playInfo 拒绝。
+          var playUrls = s && s.playUrls;
+          var urls = (Array.isArray(playUrls) ? playUrls : []).map(function (u) {
             return /^http:/.test(u) ? u.replace(/^http:/, 'https:') : u;
           }).filter(function (u) { return /^https?:/.test(u); });
           // 档位无编码字段：从首个 m3u8 文件名嗅探（实测依据见 cfg.codec 注释）
           var hevc = CFG.codec.reHevc.test(urls[0] || '');
-          var raw = String(s.qualityLabel || s.qualityType || '默认');
+          var raw = String((s && (s.qualityLabel || s.qualityType)) || '默认');
           return {
             res: parseInt(raw, 10) || 0, // 排序键：同分辨率档（60fps/30fps）值相同，稳定排序保接口先后
             label: raw + (hevc ? CFG.codec.suffix : ''),
             codec: hevc ? 'hevc' : 'avc',
-            fps: s.fps || 0, // HealthMonitor 的理论帧间隔与降帧率判定用
+            fps: (s && s.fps) || 0, // HealthMonitor 的理论帧间隔与降帧率判定用
             urls: urls
           };
         }).filter(function (x) { return x.urls.length; })
@@ -230,7 +238,9 @@ export var AppAPI = {
   resolve: function (item) {
     var self = this;
     return this.dougaInfo(item.id).then(function (d) {
-      if (!d || d.result !== 0 || !(d.videoList || []).length) return false;
+      if (!d || d.result !== 0) return false;
+      if (!hasShape(d, ['videoList'], 'douga.info') || !isArray(d.videoList, 'douga.info.list')
+        || !d.videoList.length) return false;
       item.videoId = d.videoList[0].id;
       item.channel = d.channel || null;
       item.danmakuCount = d.danmakuCount || 0;

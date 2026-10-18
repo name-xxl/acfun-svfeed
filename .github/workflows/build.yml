@@ -29,3 +29,12 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:unit
       - run: node test/run-harness.mjs
+      # WebKit 冒烟（跨引擎）：Playwright WebKit 没有 Chromium 的 --autoplay-policy 开关，
+      # 媒体类断言（smoke/boot-home/play-cold/view-zone 的 first-play / 续播）在 WebKit 必红，
+      # 故名单只保留纯 UI/契约场景（本机 WebKit 实测 7/7；CI 下 CONC=1 串行）。
+      # 不选 view-im：正文收窄几何在并发多标签时受 WebKit 后台过渡动画节流影响会假红。
+      # chromium 全量仍是上面的主回归。
+      - name: Install WebKit
+        run: npx playwright install --with-deps webkit
+      - name: WebKit smoke
+        run: HARNESS_BROWSER=webkit node test/run-harness.mjs view-my,view-search,im-open,upd-open,ip-tags,composer-rich,comment-fail

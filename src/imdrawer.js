@@ -1,45 +1,36 @@
 import { CFG } from './cfg.js';
-import { el, esc, toast, selfUid, ensureStyle, a11y } from './ui.js'; // cookieVal 已随图片换链管线迁 imsend（0.9.163）
-import { pad2 } from './timefmt.js';
+import { el, selfUid, ensureStyle, a11y } from './ui.js'; // cookieVal 已随图片换链管线迁 imimage（0.9.266）
 import { root, claimDrawer, releaseDrawer, setRoot } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { testHook } from './dbg.js';
-import {
-  ensureIm, ensureConnected, ensureTracer, linkOk, forceSync,
-  doSend, sendQuote, sendImage, fetchImImageBlob, fetchCards, isLogined, imShutdown,
-  prewarmIm, peekImImageBlob, imageUrlOf
-} from './imsend.js';
+import { ensureIm, isLogined, imShutdown } from './imsdk.js';
+import { prewarmIm } from './imimage.js';
 import { stopBadge } from './imbadge.js'; // 未读徽标件（0.9.163 自本模块拆出；teardown 经它收清）
 import { setChatOpener } from './sharepanel.js';
 import { syncCommentVars } from './comments.js';
-import { mountEmotButton, EmotionMap, ensureEmotionMap, emotify } from './emoticon.js';
-import { openImageViewer } from './imgview.js';
-import { vcard, patchVcard, cshareCard, patchCshare, mcard } from './imcard.js';
-import { imgInto, lazyObserve } from './imgload.js';
-import { ubbQuoteHtml } from './ubb.js';
+import { mountEmotButton, EmotionMap, ensureEmotionMap } from './emoticon.js';
+import { vcard, cshareCard, mcard } from './imcard.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
-import {
-  parseCard, parseShare, msgTextOf, previewOfMessage,
-  isCommentShare, commentShareAuthor, cmtShareOf, momentShareOf,
-  msgContentType, isQuotable, quoteOf, quoteExtraOf
-} from './immsg.js';
-import { ICON_SVGS } from './imicons.js';
-import { AppAPI } from './appapi.js';
-import { errImLogin, errImgTooBig, errLong } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
+import { createBubbleKit } from './imbubble.js';
+import { createSendKit } from './imsendui.js';
+import { createListKit } from './imlist.js';
+import { createChatKit } from './imchat.js';
+import { errImLogin } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
 
 // ---------- 私信抽屉（抖音式：列表 + 聊天两视图） ----------
-// 数据面全部复用 imsend 已验证基础设施（补丁版 SDK / 连接 / 发送 / 头像）。
+// 数据面全部复用 imsdk/imsend 已验证基础设施（补丁版 SDK / 连接 / 发送 / 头像）。
 // 收发确认零事件依赖：新消息靠轮询 kernel.getMessages 增量（WS 推送由 SDK 内核自动
 // 写入缓存，推送事件仅作即时上屏的加速路径）；已读走内核级 markSessionRead。
 //
-// 簇导览（0.9.163；自上而下，每段以 `// ----------` 横幅开头，grep 段名即达）：
-//   模块态+自停轮询（makePoller/listPoll/chatPoll）→ 消息对象内省 → DOM 骨架（ensureDrawerDom）
-//   → 视图切换（setPane/showList/showChat）→ 列表视图（refreshList/renderList）→ 聊天视图
-//   （loadChat/chatPollOnce/时间分割）→ 消息引用（setQuote/quoteStrip/bubbleRow）→ 气泡渲染
-//   分流（appendBubble：引用/图片/卡片/分享/文本）→ 发送乐观 UI（sendImageMsg/sendChat）→
-//   开关与生命周期（openDrawer/openChat/toggle/closeDrawer/teardownIm + 测试缝×4）。
-//   调用方向：生命周期→列表/聊天数据→气泡渲染→引用/发送，全簇单向向下；
-//   顶栏未读徽标在 imbadge.js、图片 URL 换链在 imsend.js（0.9.163 两缝外迁）。
+// 簇导览（0.9.269；自上而下，每段以 `// ----------` 横幅开头，grep 段名即达）：
+//   共享态+自停轮询（makePoller）→ 三簇工厂装配（chat/list/send kit）→ 消息对象内省（msgTime）
+//   → DOM 骨架（ensureDrawerDom）→ 视图切换（setPane/showList/showChat）→ 开关与生命周期
+//   （openDrawer/openChat/toggle/closeDrawer/teardownIm + 测试缝×6）。
+//   三簇已外迁（0.9.269）：列表视图→imlist.js、聊天视图+时间分割+引用 chip→imchat.js、
+//   发送乐观 UI→imsendui.js；0.9.268 气泡渲染与引用条→imbubble.js。三件均经工厂 env 注入
+//   抽屉/会话态，不 import 本模块（无回边）。
+//   调用方向：生命周期→列表/聊天数据→气泡渲染→引用/发送，全簇单向向下；顶栏未读徽标在
+//   imbadge.js、图片 URL 换链在 imimage.js（0.9.163 两缝外迁；换链 0.9.266 自 imsend 再迁）。
 
 var drawer = null;          // { el, head, back, title, close, listView, search, listBody, chatView, bubbles, quoteChip:{box,label}, input, send }
 var view = '';              // '' | 'list' | 'chat'
@@ -51,59 +42,65 @@ function makePoller(fn, gap) {
   function stop() { if (t) { clearInterval(t); t = null; } }
   return { start: function () { stop(); t = setInterval(fn, gap); }, stop: stop };
 }
-var listPoll = makePoller(function () {
-  if (view !== 'list') return listPoll.stop();
-  if (document.hidden) return; // 后台标签不打扰（同 followbadge/squarefeed 约定）
-  refreshList();
-}, CFG.im.drawerListPoll);
-var chatPoll = makePoller(function () {
-  if (!chat) return chatPoll.stop();
-  if (document.hidden) return; // 后台标签不打扰（同 followbadge/squarefeed 约定）
-  ensureIm().then(function (inst) {
-    if (!inst.connected) return;
-    chatPollOnce(inst, false);
-  }, function () { });
-}, CFG.im.drawerChatPoll);
+// 列表/聊天轮询分别随 imlist.js / imchat.js（0.9.269）
 var chat = null;            // { targetId, name, session, lastCount, seen, lastDivTs, quote, msgEls }
+// 会话态单写点（showChat 重建 / teardown 清空）：以 env.setChat 注入 imchat，宿主不另开第二份赋值
+function setChat(c) { chat = c; }
 var lastImInst = null;      // 最近一次轮询的 IM 实例：图片消息 ks:// 换链要用 kernel.file
+// 聊天视图簇（0.9.269 自本模块拆至 imchat.js）：抽屉/会话/实例态与轮询工厂、时间提取注入，
+// 聊天件不 import 本模块（无回边）
+var chatKit = createChatKit({
+  getDrawer: function () { return drawer; },
+  getChat: function () { return chat; },
+  setChat: setChat,
+  getInst: function () { return lastImInst; },
+  setInst: function (inst) { lastImInst = inst; },
+  getBubble: function () { return bubble; },
+  makePoller: makePoller,
+  msgTime: msgTime
+});
+// 气泡渲染簇（0.9.268 自本模块拆至 imbubble.js）：抽屉/会话/实例态与引用、时间分割钩子注入，
+// 渲染件不 import 本模块（无回边）
+var bubble = createBubbleKit({
+  getDrawer: function () { return drawer; },
+  getChat: function () { return chat; },
+  getInst: function () { return lastImInst; },
+  setQuote: chatKit.setQuote,
+  maybeDayDiv: chatKit.maybeDayDiv,
+  msgTime: msgTime
+});
+// 发送 UI 簇（0.9.269 自本模块拆至 imsendui.js）：抽屉/会话/气泡/时间分割/轮询钩子注入，
+// 发送件不 import 本模块（无回边）
+var sendKit = createSendKit({
+  getDrawer: function () { return drawer; },
+  getChat: function () { return chat; },
+  getBubble: function () { return bubble; },
+  maybeDayDiv: chatKit.maybeDayDiv,
+  setQuote: chatKit.setQuote,
+  chatPollOnce: chatKit.chatPollOnce
+});
+// 列表视图簇（0.9.269 自本模块拆至 imlist.js）：抽屉/视图/联系人缓存/开聊天/轮询工厂注入，
+// 列表件不 import 本模块（无回边）
+var listKit = createListKit({
+  getDrawer: function () { return drawer; },
+  getView: function () { return view; },
+  getCards: function () { return cards; },
+  setCards: function (m) { Object.keys(m).forEach(function (k) { cards[k] = m[k]; }); },
+  openChat: function (targetId) { showChat(targetId); },
+  makePoller: makePoller,
+  msgTime: msgTime,
+  chatTime: chatKit.chatTime
+});
 
 
-// ---------- 消息对象内省：方向/时间的降级提取（文本与卡片解析在 immsg.js 共享层） ----------
-function msgFrom(m) {
-  try {
-    if (m.fromUserId != null) return String(m.fromUserId);
-    if (m.rawMsg && m.rawMsg.fromUserId != null) return String(m.rawMsg.fromUserId);
-  } catch (e) { }
-  return '';
-}
+// ---------- 消息对象内省：时间的降级提取（方向/文本/卡片解析随气泡簇在 imbubble.js） ----------
 function msgTime(m) {
   try {
     if (m.date) return new Date(m.date).getTime() || 0;
     if (m.rawMsg && m.rawMsg.timestampMs) return Number(m.rawMsg.timestampMs) || 0;
-  } catch (e) { }
+  } catch (e) { /* best-effort: parse */ }
   return 0;
 }
-
-// 对齐抖音相对时间：今天显时刻（刚刚/HH:MM）、昨天、一周内显星期、更早显日期（本地时区）。
-// 0.9.243 由 relTime 改名 chatTime：与 timefmt.relTime（原生四档口径）同名两义，防混用
-function chatTime(ts) {
-  if (!ts) return '';
-  var d = Date.now() - ts;
-  if (d < 60000) return '刚刚';
-  var now = new Date(), t = new Date(ts);
-  if (t.toDateString() === now.toDateString()) return pad2(t.getHours()) + ':' + pad2(t.getMinutes());
-  if (t.toDateString() === new Date(now.getTime() - 86400000).toDateString()) return '昨天';
-  if (d < 604800000) return '周' + '日一二三四五六'.charAt(t.getDay());
-  return pad2(t.getMonth() + 1) + '-' + pad2(t.getDate());
-}
-
-function linkify(s) {
-  return esc(s).replace(/(https?:\/\/[^\s<]+)/g, function (u) {
-    return '<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>';
-  });
-}
-
-function imTextHtml(s) { return emotify(linkify(s)); }
 
 // ---------- DOM ----------
 function ensureDrawerDom() {
@@ -137,7 +134,7 @@ function ensureDrawerDom() {
   var search = el('input', 'acsv-im-search');
   search.placeholder = '搜索联系人';
   search.addEventListener('click', function (ev) { ev.stopPropagation(); });
-  search.addEventListener('input', function () { renderList(search.value); });
+  search.addEventListener('input', function () { listKit.renderList(search.value); });
   searchWrap.appendChild(search);
   listView.appendChild(searchWrap);
   var listBody = el('div', 'acsv-im-list');
@@ -147,12 +144,12 @@ function ensureDrawerDom() {
   var chatView = el('div', 'acsv-im-chatview acsv-im-pane');
   var bubbles = el('div', 'acsv-im-bubbles');
   // 引用 chip：DOM 由 inputbar.buildQuoteChip 统一产出（0.9.47 起评论回复同款），置输入条上方，setQuote 驱动显隐
-  var quoteChip = buildQuoteChip(function () { setQuote(null); }, '取消引用');
+  var quoteChip = buildQuoteChip(function () { chatKit.setQuote(null); }, '取消引用');
   var inputBar = buildInputBar({
     // 私信 wire 是**纯文本 + 表情令牌**（收侧 imTextHtml=emotify(linkify)，官方同口径；分享消息还要
     // 刻意压平成明文）⇒ 不摆格式键与颜色键：发 [b]/[color] 给对方看到的是字面标签
     insertOnly: true,
-    img: { title: '发送图片', onFile: sendImageMsg }, // 尺寸门禁在 sendImageMsg 内
+    img: { title: '发送图片', onFile: sendKit.sendImageMsg }, // 尺寸门禁在 sendImageMsg 内
     placeholder: '发个消息…',
     // 官方单条上限（cfg.im.maxLen）在**富文本口径**下当硬闸：字数按 DOM 算（表情计 1 字），
     // 超限即拒（发送键禁用）；发送链的 slice 仍留作兜底
@@ -161,7 +158,7 @@ function ensureDrawerDom() {
       var t = inputBar.text().replace(/\s+$/, '');
       if (!t) return;
       inputBar.setText(''); // 清空（值 + 字数 + 空态占位一处收口）
-      sendChat(t);
+      sendKit.sendChat(t);
     }
   });
   var input = inputBar.edit; // 引用 chip 联动 placeholder / 切会话后聚焦（renderQuoteChip、showChat）
@@ -188,7 +185,7 @@ function ensureDrawerDom() {
   ensureEmotionMap().then(function () {
     if (!mapCold || !drawer || view !== 'chat' || !chat) return;
     ensureIm().then(function (inst) {
-      if (inst.connected) chatPollOnce(inst, true);
+      if (inst.connected) chatKit.chatPollOnce(inst, true);
     }, function () { });
   });
 
@@ -212,452 +209,48 @@ function setPane(name) {
 }
 function showList() {
   if (!drawer) return;
-  chatPoll.stop();
+  chatKit.chatPoll.stop();
   setPane('list');
   drawer.title.textContent = '私信';
-  refreshList();
-  listPoll.start();
+  listKit.refreshList();
+  listKit.listPoll.start();
 }
 function showChat(targetId) {
   if (!drawer) return;
-  listPoll.stop();
+  listKit.listPoll.stop();
   var card = cards[targetId] || {};
   drawer.title.textContent = card.name || '用户 ' + targetId;
   setPane('chat');
   drawer.bubbles.innerHTML = '';
   // quote=待引用目标 {seqId, preview, originMsg}；msgEls=seen key→气泡主元素（引用定位用）。
   // 都是会话级状态：切会话随 chat 重建自然清空，不残留上一会话的引用
-  chat = { targetId: String(targetId), name: card.name || '', session: null, lastCount: -1, seen: {}, lastDivTs: 0, quote: null, msgEls: {} };
-  loadChat();
+  setChat({ targetId: String(targetId), name: card.name || '', session: null, lastCount: -1, seen: {}, lastDivTs: 0, quote: null, msgEls: {} });
+  chatKit.loadChat();
   drawer.setText(''); // 清掉上一会话可能残留的草稿（含镜像层重画）
-  setTimeout(function () { try { drawer.input.focus(); } catch (e) { } }, 60);
-  chatPoll.start();
+  setTimeout(function () { try { drawer.input.focus(); } catch (e) { /* best-effort: cleanup */ } }, 60);
+  chatKit.chatPoll.start();
 }
 
-// ---------- 列表视图 ----------
-var listSig = '';
-// 增量签名：只读映射后的真实字段（旧版读 s.activeTime/s.lastMessage——映射后对象上
-// 不存在，签名后两段恒为空串，预览/时间的变化永远触发不了重渲染）
-function sessionSig(ss) {
-  return ss.map(function (s) {
-    return [s.targetId, s.unread, s.t,
-      (s.last && (s.last.seqId || msgTime(s.last) || msgTextOf(s.last))) || ''].join(':');
-  }).join('|');
-}
-function refreshList() {
-  ensureIm().then(function (inst) {
-    return ensureConnected(inst).then(function () {
-      var ss = [];
-      try { ss = inst.kernel.getSessions() || []; } catch (e) { }
-      ss = ss.map(function (s) {
-        // 末条从消息库派生：发送即时进库（聊天视图同源），预览/排序随之即时更新；
-        // 会话冗余字段 lastMessage 只作回退（SDK 发送后不更新它）
-        var last = s.lastMessage || null;
-        try {
-          var msgs = inst.kernel.getMessages(s) || [];
-          if (msgs.length) last = msgs[msgs.length - 1];
-        } catch (e) { }
-        return {
-          targetId: String(s.targetId),
-          unread: Number(s.unreadCount) || 0,
-          t: msgTime(last) || new Date(s.date || 0).getTime() || 0,
-          last: last
-        };
-      }).filter(function (s) { return s.targetId && s.targetId !== selfUid(); })
-        .sort(function (a, b) { return b.t - a.t; });
-      var ids = ss.map(function (s) { return Number(s.targetId); });
-      var sig = sessionSig(ss) + '|' + ids.join(',');
-      if (sig === listSig && drawer && view === 'list') return; // 0.9.75：视图态看 view，不再看 display
-      listSig = sig;
-      return fetchCards(ids).then(function (m) {
-        Object.keys(m).forEach(function (k) { cards[k] = m[k]; });
-        // 0.9.236：轮询刷新保留搜索词与滚动位置（此前 renderList('',…)：新消息一到，
-        // 过滤失效全量回显 + 列表回顶——用户正在搜索时被"重置"）
-        var kw = drawer && drawer.search ? drawer.search.value : '';
-        var st0 = drawer && drawer.listBody ? drawer.listBody.scrollTop : 0;
-        renderList(kw, ss);
-        if (drawer && drawer.listBody) drawer.listBody.scrollTop = st0;
-      });
-    });
-  }).catch(function () {
-    if (drawer && drawer.listBody && !drawer.listBody.children.length) {
-      drawer.listBody.innerHTML = '';
-      drawer.listBody.appendChild(el('div', 'acsv-share-tip', '私信连接失败，请稍后再试\n可先复制链接去站内分享'));
-    }
-  });
-}
-function renderList(kw, ss) {
-  if (!drawer) return;
-  kw = String(kw || '').trim().toLowerCase();
-  var rows = (ss || lastListRows || []);
-  if (ss) lastListRows = ss;
-  // 标题带未读总数（对齐抖音「消息 (1)」）
-  var unreadTotal = 0;
-  rows.forEach(function (r) { unreadTotal += r.unread || 0; });
-  if (view === 'list') drawer.title.textContent = '私信' + (unreadTotal > 0 ? ' (' + unreadTotal + ')' : '');
-  drawer.listBody.innerHTML = '';
-  var shown = 0;
-  rows.forEach(function (r) {
-    var card = cards[r.targetId] || {};
-    var name = card.name || '用户 ' + r.targetId;
-    if (kw && name.toLowerCase().indexOf(kw) < 0) return;
-    shown++;
-    var row = el('div', 'acsv-im-row');
-    row.dataset.tid = r.targetId;
-    // 头像走共享加载器（0.9.77，与分享面板同一份）：归一 + 重试 + 默认头像兜底；
-    // 旧实现手拼 src + split('?')[0] + onerror 兜底，与 imsend 同构双份（改一处漏一处）
-    imgInto(row, card.headUrl || CFG.api.defaultAvatar, 'avatar', 'acsv-im-av');
-    var mid = el('div', 'acsv-im-mid');
-    var nm = el('div', 'acsv-im-name');
-    nm.innerHTML = esc(name) + (r.unread > 0 ? '<span class="acsv-share-unread">' + (r.unread > 99 ? '99+' : r.unread) + '</span>' : '');
-    mid.appendChild(nm);
-    var prev = el('div', 'acsv-im-preview', previewOf(r));
-    mid.appendChild(prev);
-    row.appendChild(mid);
-    var tm = el('div', 'acsv-im-time', chatTime(r.t));
-    row.appendChild(tm);
-    row.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      showChat(r.targetId);
-    });
-    drawer.listBody.appendChild(row);
-  });
-  if (!shown) {
-    drawer.listBody.appendChild(el('div', 'acsv-share-tip',
-      kw ? '没有匹配的联系人' : '还没有聊过天的朋友\n先在 A 站 APP / 网页和 TA 私聊一句\n再回来把视频分享给 TA'));
-  }
-}
-var lastListRows = null;
-// 文本消息预览前缀在 immsg.previewOfMessage 统一映射：脚本分享格式出「[分享] 标题」，
-// 其余 acfun 链接出「[视频] …」——对齐抖音「分享[视频]」的辨识度
-function previewOf(r) {
-  return r.last ? previewOfMessage(r.last) : '';
-}
+// ---------- 列表视图（0.9.269 拆至 imlist.js：listPoll/sessionSig/refreshList/renderList/previewOf） ----------
 
-// ---------- 聊天视图 ----------
-function loadChat() {
-  ensureIm().then(function (inst) {
-    return ensureConnected(inst).then(function () {
-      ensureTracer(inst);
-      var ss = [];
-      try { ss = inst.kernel.getSessions() || []; } catch (e) { }
-      var sess = null;
-      ss.some(function (s) { if (String(s.targetId) === chat.targetId) { sess = s; return true; } return false; });
-      if (!sess) {
-        // 没聊过：内核级创建会话后重取
-        return inst.kernel.openSession(0, chat.targetId).then(function () {
-          var ss2 = inst.kernel.getSessions() || [];
-          ss2.some(function (s) { if (String(s.targetId) === chat.targetId) { sess = s; return true; } return false; });
-          chat.session = sess;
-          chatPollOnce(inst, true);
-          return null;
-        }, function () { chat.session = null; return null; });
-      }
-      chat.session = sess;
-      return chatPollOnce(inst, true);
-    });
-  }).catch(function () {
-    if (drawer && drawer.bubbles && !drawer.bubbles.children.length) {
-      drawer.bubbles.appendChild(el('div', 'acsv-share-tip', '私信连接失败，请稍后再试\n可先复制链接去站内分享'));
-    }
-  });
-}
-function chatPollOnce(inst, reset) {
-  lastImInst = inst;
-  try {
-    var k = inst.kernel;
-    if (!chat.session) {
-      var ss = k.getSessions() || [];
-      ss.some(function (s) { if (String(s.targetId) === chat.targetId) { chat.session = s; return true; } return false; });
-    }
-    if (!chat.session) return;
-    var msgs = k.getMessages(chat.session) || [];
-    if (reset) { chat.seen = {}; chat.msgEls = {}; chat.lastCount = -1; drawer.bubbles.innerHTML = ''; }
-    var fresh = [];
-    msgs.forEach(function (m) {
-      // 兜底 key 用内容指纹而非随机数：reset 重建 seen 后同一条消息不会二次上屏
-      var key = String((m.seqId !== undefined && m.seqId) || msgTime(m) || ('h' + msgFrom(m) + ':' + msgTextOf(m)));
-      if (chat.seen[key]) return;
-      chat.seen[key] = true;
-      fresh.push({ m: m, key: key });
-    });
-    fresh.forEach(function (x) {
-      appendBubble(x.m);
-      // 登记本条消息最后一个节点（文本气泡=rowwrap，卡片=vcard）作引用定位锚：
-      // 引用块点击按 originMsg.seqId 反查这里
-      var lastEl = drawer.bubbles.lastElementChild;
-      if (lastEl) chat.msgEls[x.key] = lastEl;
-    });
-    if (fresh.length || reset) {
-      drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-      // 已读上报（内核级，headless 可用）
-      try {
-        if (chat.session && k.markSessionRead && chat.session.unreadCount !== undefined) k.markSessionRead(chat.session);
-      } catch (e) { }
-    }
-  } catch (e) { }
-}
-// 时间分割线（抖音式）：与上一条消息间隔超过 dayDivGap 插入居中时间（乐观气泡同样参与分组）
-function dayLabel(ts) {
-  var now = new Date(), t = new Date(ts);
-  var hm = pad2(t.getHours()) + ':' + pad2(t.getMinutes());
-  if (t.toDateString() === now.toDateString()) return '今天 ' + hm;
-  if (t.toDateString() === new Date(now.getTime() - 86400000).toDateString()) return '昨天 ' + hm;
-  if (now.getTime() - ts < 604800000) return '周' + '日一二三四五六'.charAt(t.getDay()) + ' ' + hm;
-  return pad2(t.getMonth() + 1) + '-' + pad2(t.getDate()) + ' ' + hm;
-}
-function maybeDayDiv(ts) {
-  if (!ts || !drawer || !chat) return;
-  if (!chat.lastDivTs || ts - chat.lastDivTs >= CFG.im.dayDivGap) {
-    drawer.bubbles.appendChild(el('div', 'acsv-im-daydiv', dayLabel(ts)));
-  }
-  chat.lastDivTs = ts;
-}
-
-// ---------- 消息引用（气泡内摘要条 / hover 引用按钮 / 输入条 chip / 定位） ----------
-function setQuote(q) {
-  if (chat) chat.quote = q || null;
-  renderQuoteChip();
-}
-// chip 文案与 placeholder 联动（评论侧 comments.setReply 同构）；chat 为空时只藏不显
-function renderQuoteChip() {
-  if (!drawer) return;
-  var chip = drawer.quoteChip, q = chat && chat.quote;
-  if (!q) {
-    chip.box.style.display = 'none';
-    chip.label.textContent = '';
-    drawer.bar.setPlaceholder('发个消息…');
-    return;
-  }
-  chip.box.style.display = 'flex';
-  chip.label.textContent = '引用：' + (q.preview || '原消息');
-  drawer.bar.setPlaceholder('回复引用的内容…');
-}
-// 气泡内引用摘要条：有锚点（原消息 seqId）才可点定位
-function quoteStrip(q) {
-  var s = el('div', 'acsv-im-quote' + (q.seqId ? ' link' : ''));
-  s.appendChild(el('div', 'acsv-im-quote-preview', q.preview || '[原消息]'));
-  if (q.seqId) {
-    s.title = '点击查看原消息';
-    s.addEventListener('click', function (ev) { ev.stopPropagation(); locateMessage(q.seqId); });
-  }
-  return s;
-}
-function locateMessage(seqId) {
-  if (!drawer || !chat) return;
-  var wrap = chat.msgEls[String(seqId)];
-  if (!wrap || !wrap.isConnected) { toast('原消息不在已加载的记录里'); return; }
-  // 描边打在气泡/卡片本体：包裹器还含默认隐藏的引用按钮，连同描边会框进一段空位
-  var t = wrap.querySelector('.acsv-im-bubble') || wrap.querySelector('.acsv-im-vcard') || wrap;
-  try { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e1) { t.scrollIntoView(); }
-  t.classList.remove('acsv-im-flash');
-  void t.offsetWidth; // 强制 reflow：连续点击同一条也能重触发 CSS 动画
-  t.classList.add('acsv-im-flash');
-  // 清类时值 = 动画时长(CFG.im.flashMs) + 余量——与 styles 的 acsv-im-flash 动画**同源**
-  // （此前 1300 与 CSS 1.2s 分处两地硬编码，改一处忘另一处即残留描边/闪动被截断）
-  setTimeout(function () { t.classList.remove('acsv-im-flash'); }, CFG.im.flashMs + 100);
-}
-// 行包裹器：气泡/卡片 + hover 引用按钮同行（mine 行反序让按钮贴右缘）。引用范围按通道
-// 裁决：extra 通道（默认）文本/卡片/图片/引用都能引（0.9.41 起 isQuotable 含图片），
-// reference 通道禁卡（内核重建 originMsg 会崩，见 immsg.isQuotable）
-function bubbleRow(b, mine, m, extraCls) {
-  var wrap = el('div', 'acsv-im-rowwrap' + (extraCls ? ' ' + extraCls : '') + (mine ? ' mine' : ''));
-  wrap.appendChild(b);
-  if (m && isQuotable(m, CFG.im.quoteWire)) wrap.appendChild(quoteBtnEl(m));
-  return wrap;
-}
-function quoteBtnEl(m) {
-  var btn = el('button', 'acsv-im-quotebtn', '↩'); // 回复箭头字形：比文字药丸轻量
-  btn.title = '引用这条消息';
-  btn.addEventListener('click', function (ev) {
-    ev.stopPropagation();
-    var raw = m.rawMsg || {};
-    setQuote({
-      seqId: raw.seqId !== undefined && raw.seqId !== null ? String(raw.seqId) : '',
-      preview: previewOfMessage(m) || msgTextOf(m).slice(0, 40),
-      originMsg: m
-    });
-    try { drawer.input.focus(); } catch (e) { }
-  });
-  return btn;
-}
-function appendBubble(m) {
-  if (!drawer) return;
-  maybeDayDiv(msgTime(m));
-  var mine = msgFrom(m) === selfUid();
-  // 引用判定先行于卡片/分享：回复正文里带链接时依然是引用气泡，不出分享卡
-  var q = quoteOf(m) || quoteExtraOf(m);
-  var b = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
-  if (q) {
-    b.appendChild(quoteStrip(q));
-    var qtxt = el('div', 'acsv-im-msgtext');
-    qtxt.innerHTML = imTextHtml(q.text);
-    b.appendChild(qtxt);
-    drawer.bubbles.appendChild(bubbleRow(b, mine, m)); // 引用消息本身也可被引用（套引用）
-    return;
-  }
-  if (msgContentType(m) === 1) return appendImageBubble(m, mine);
-  var card = parseCard(m);
-  if (card) return appendCardBubble(card, mine, m);
-  var share = parseShare(msgTextOf(m));
-  if (share) return appendShareBubble(share, mine, m, cmtShareOf(m), momentShareOf(m));
-  var txt = el('div', 'acsv-im-msgtext');
-  txt.innerHTML = imTextHtml(msgTextOf(m));
-  b.appendChild(txt);
-  drawer.bubbles.appendChild(bubbleRow(b, mine, m));
-}
-// 图片气泡（contentType 1，官方同路消息 APP 原生渲染）：wire 上 uri 是 ks:// 资源串，须经
-// kernel.file 换带鉴权的 https 直链才能显示；换链失败不出裂图，降级 [图片] 文本。
-// 宽高非 0 时按比例占位防布局跳动；点击开大图查看器（划选文字收尾在图上不触发，对齐评论）。
-// 字节懒加载（0.9.49）：滚入视口才拉，长历史只加载可见几张；pending 骨架微光占位
-function appendImageBubble(m, mine) {
-  if (!drawer) return;
-  var w = Number(m.width) || 0, h = Number(m.height) || 0;
-  var src = imageUrlOf(m, lastImInst); // 换链管线 0.9.163 迁 imsend.js（inst 传参替代直读抽屉模块态）
-  var b = el('div', 'acsv-im-imgbubble' + (mine ? ' mine' : ''));
-  if (src) {
-    var img = document.createElement('img');
-    img.className = 'acsv-im-imgimg';
-    img.alt = '';
-    if (w > 0 && h > 0) {
-      img.style.width = Math.min(w, 180) + 'px';
-      img.style.aspectRatio = w + ' / ' + h; // 加载前占住宽高比，上屏不跳
-    }
-    b.appendChild(img);
-    var cached = peekImImageBlob(src);
-    if (cached) {
-      img.src = cached; // 缓存同步上屏：重开/切回会话不闪微光、不等观察器一拍
-    } else {
-      b.classList.add('pending');
-      lazyObserve(img, function () {
-        fetchImImageBlob(src).then(function (blobUrl) {
-          if (!img.isConnected) return;
-          b.classList.remove('pending');
-          if (blobUrl) img.src = blobUrl;
-          else { img.remove(); b.appendChild(document.createTextNode('[图片]')); }
-        });
-      });
-    }
-    b.addEventListener('click', function (ev) {
-      var sel = window.getSelection ? window.getSelection() : null;
-      if (sel && !sel.isCollapsed) return;
-      ev.stopPropagation();
-      // 大图查看器也走 fetchImImageBlob：命中缓存秒开；旧 blob 被 LRU 淘汰 revoke 了则
-      // 自动重拉（直用渲染时的 curSrc 会裂图）。在飞去重保证与气泡加载共用同一次下载
-      fetchImImageBlob(src).then(function (blobUrl) {
-        if (blobUrl) openImageViewer(blobUrl);
-      });
-    });
-  } else {
-    b.textContent = '[图片]';
-  }
-  drawer.bubbles.appendChild(bubbleRow(b, mine, m));
-}
-// 图片懒加载观察器（0.9.76 起共用 imgload.lazyObserve 单例实现——全项目只留一份 IO：
-// root 缺省=viewport，祖先滚动容器裁剪自动计入；抽屉关/拆无需重建；会话视图平移出裁剪舞台
-// 期间（transform + overflow:hidden）不交叉也就不触发）
-// 卡片皮肤（暗色抽屉，0.9.80）：装配逻辑在 imcard.js 共享层（与原生私信页同源），
-// 这里只声明命名与图标画法——布局/视觉仍在 styles.js 的 .acsv-im-* 规则里
-var SKIN = {
-  tag: 'div',
-  root: 'acsv-im-vcard', coverbox: 'acsv-im-vcard-coverbox', cover: 'acsv-im-vcard-cover',
-  bar: 'acsv-im-vcard-bar', view: 'acsv-im-vcard-view', cmt: 'acsv-im-vcard-cmt',
-  dur: 'acsv-im-vcard-dur', title: 'acsv-im-vcard-title',
-  rootMine: 'mine',
-  cshare: 'acsv-im-cshare', quote: 'acsv-im-cshare-quote', src: 'acsv-im-cshare-src',
-  srct: 'acsv-im-cshare-srctitle', srcimg: 'acsv-im-cshare-cover',
-  mimgs: 'acsv-im-cshare-mimgs', mimg: 'acsv-im-cshare-mimg', // 动态卡配图行（0.9.122）
-  coverHidden: 'visibility', // 沿用 0.9.51 真机验收形态（盒子保留，防布局跳动）
-  icon: function (kind) {
-    var i = document.createElement('i');
-    i.className = 'acsvg-cicon';
-    i.style.setProperty('--acsvg-cicon', 'url(' + (kind === 'comment' ? ICON_SVGS.comment : ICON_SVGS.play) + ')');
-    return i;
-  }
-};
-// 作品分享卡（对齐手机端）：封面 + 播放/评论计数 + 时长 + 两行标题；投稿视频整卡可点跳 ac 号页。
-// 卡片包 cardrow 行挂引用按钮（同条多卡各自可点，引的都是同一条消息）
-function appendCardBubble(card, mine, m) {
-  if (card.prologue) {
-    var pre = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
-    pre.textContent = card.prologue;
-    drawer.bubbles.appendChild(pre);
-  }
-  card.resourceBody.forEach(function (r) {
-    var parts = vcard(SKIN, {
-      href: Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : '',
-      coverUrl: r.coverUrl, viewCountShow: r.viewCountShow,
-      commentCountShow: r.commentCountShow, durationSec: r.durationSec, title: r.title
-    }, mine);
-    drawer.bubbles.appendChild(bubbleRow(parts.el, mine, m, 'cardrow'));
-  });
-}
-// 脚本分享消息（标题\n推荐链）与 10001 同契约：卡片替代纯文本。同步先渲染消息内标题的
-// 卡片骨架（整卡 href 即分享链，enrich 失败也保持可读可点，不再出现文本+卡片双份），
-// dougaCard 回来后原位 patch 以接口字段为准；标题外文本作附言气泡。等待期间切走会话/视图则放弃。
-// 评论转发（isCommentShare 命中）走专属评论卡——评论内容是主视觉，绝不能进视频卡的标题槽
-//（会被 enrich 的视频标题覆盖，0.9.51 前评论因此整个消失）。cmt=cmtShareOf 载荷
-//（extra 存活时），quote 用原始 UBB 富渲染真表情；被剥则按 wire 文本占位降级。
-// 动态转发（0.9.122）走专属动态卡：动态 wire 首行也是 @作者： 形态**会过 isCommentShare**，
-// 必须按 kind 先分流（否则被评论卡抢走）；动态无按 id 的读接口，不回拉 enrich
-function appendShareBubble(share, mine, m, cmt, moment) {
-  if (share.kind === 'moment') return appendMomentBubble(share, mine, m, moment);
-  if (share.note) {
-    var note = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
-    note.textContent = share.note;
-    drawer.bubbles.appendChild(note);
-  }
-  var isCmt = isCommentShare(share.title);
-  var parts = isCmt
-    ? cshareCard(SKIN, {
-        href: share.url, text: share.title,
-        html: cmt && cmt.content ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : ''
-      }, mine)
-    : vcard(SKIN, { href: share.url, title: share.title }, mine);
-  var cardEl = parts.el;
-  drawer.bubbles.appendChild(bubbleRow(cardEl, mine, m, 'cardrow'));
-  var bubbles = drawer.bubbles;
-  var tid = chat && chat.targetId;
-  AppAPI.dougaCard(share.acId).then(function (c) {
-    if (!c || !cardEl.isConnected || !drawer || drawer.bubbles !== bubbles
-      || !chat || chat.targetId !== tid) return;
-    if (isCmt) patchCshare(parts, c);
-    else patchVcard(parts, c);
-    drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-  });
-}
-// 动态分享气泡（0.9.122）：extra 载荷（momentShareOf）命中富渲染正文/真图，被剥按 wire
-// 文本降级——两态都出「查看动态」动态卡；附言（note）仍走独立文本气泡
-function appendMomentBubble(share, mine, m, moment) {
-  if (share.note) {
-    var note = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
-    note.textContent = share.note;
-    drawer.bubbles.appendChild(note);
-  }
-  var parts = mcard(SKIN, {
-    href: share.url, text: share.title,
-    html: moment && moment.text ? ubbQuoteHtml(commentShareAuthor(share.title), moment.text) : '',
-    imgs: moment ? moment.imgs : []
-  }, mine);
-  drawer.bubbles.appendChild(bubbleRow(parts.el, mine, m, 'cardrow'));
-}
+// ---------- 聊天视图（0.9.269 拆至 imchat.js：chatPoll/loadChat/chatPollOnce/时间/引用 chip） ----------
 // debug 构建测试钩子（0.9.80）：卡片装配迁共享层 imcard 后，抽屉皮肤（类名/己方类/图标类/
 // 封面隐藏机制/骨架补全）在 im-open 页有结构断言——不做网络与内核依赖，只验装配产物。
 // 与 im-native 场景的分工：那边验原生皮肤与 attach 时序，这里验暗色皮肤
 testHook('imCardSmoke', function () {
   if (!root) setRoot(document.body);
   ensureDrawerDom();
-  var v = vcard(SKIN, {
+  var v = vcard(bubble.SKIN, {
     href: 'https://www.acfun.cn/v/ac1', coverUrl: '', viewCountShow: '12',
     commentCountShow: '3', title: '卡片标题'
   }, true);
-  var c = cshareCard(SKIN, { href: 'https://www.acfun.cn/v/ac1#ncid=9', text: '@张三：好看' }, false);
-  var mt = mcard(SKIN, { // 动态卡富态（0.9.122）：html 富渲染 + 配图行 + 查看动态条
+  var c = cshareCard(bubble.SKIN, { href: 'https://www.acfun.cn/v/ac1#ncid=9', text: '@张三：好看' }, false);
+  var mt = mcard(bubble.SKIN, { // 动态卡富态（0.9.122）：html 富渲染 + 配图行 + 查看动态条
     href: 'https://www.acfun.cn/moment/am5104327', text: '@李四：动态正文',
     html: '<span class="ubb-emotion">富渲染</span>正文',
     imgs: [{ url: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==', big: 'https://imgs.aixifan.com/big.jpg' }]
   }, false);
-  var md = mcard(SKIN, { href: '', text: '@李四：动态正文', imgs: [] }, true); // 降级态（extra 被剥）
+  var md = mcard(bubble.SKIN, { href: '', text: '@李四：动态正文', imgs: [] }, true); // 降级态（extra 被剥）
   drawer.bubbles.appendChild(v.el);
   drawer.bubbles.appendChild(c.el);
   drawer.bubbles.appendChild(mt.el);
@@ -681,142 +274,63 @@ testHook('imCardSmoke', function () {
     srcimgHidden: getComputedStyle(c.cover).visibility === 'hidden',
     mcardCls: mt.el.className,
     mcardHref: mt.el.getAttribute('href'),
-    mcardImgs: mt.el.querySelectorAll('.' + SKIN.mimg).length,
+    mcardImgs: mt.el.querySelectorAll('.' + bubble.SKIN.mimg).length,
     mcardQuoteHtml: mt.quote.querySelector('.ubb-emotion') !== null,
-    mcardSrct: mt.el.querySelector('.' + SKIN.srct).textContent,
+    mcardSrct: mt.el.querySelector('.' + bubble.SKIN.srct).textContent,
     mcardDegraded: md.el.classList.contains('mine') && md.quote.textContent.indexOf('动态正文') > -1
-      && md.el.querySelector('.' + SKIN.mimg) === null
+      && md.el.querySelector('.' + bubble.SKIN.mimg) === null
   };
 });
-// 图片即选即发（微信/抖音 IM 惯例，不插入文本框）：读自然宽高 → 乐观占位（本地预览）→
-// sendImage（SDK 内核自动传图床换 ks://，确认含上传故用 imgSendT）→ 成功摘占位补真身。
-// File 留在闭包，失败点击重试整条重走（ImageMsg 每次新建，File 可重复上传）
-function sendImageMsg(file) {
-  var targetId = chat && chat.targetId;
-  if (!targetId) return;
-  if (file.size > CFG.im.imgMax) {
-    errImgTooBig(Math.round(CFG.im.imgMax / 1024 / 1024));
-    return;
-  }
-  var localUrl = '';
-  try { localUrl = URL.createObjectURL(file); } catch (e0) { }
-  readSize(localUrl, function (w, h) {
-    maybeDayDiv(Date.now());
-    var b = el('div', 'acsv-im-imgbubble mine pending');
-    if (localUrl) {
-      var ph = document.createElement('img');
-      ph.className = 'acsv-im-imgimg';
-      ph.alt = '';
-      ph.src = localUrl;
-      if (w > 0 && h > 0) {
-        ph.style.width = Math.min(w, 180) + 'px';
-        ph.style.aspectRatio = w + ' / ' + h;
-      }
-      b.appendChild(ph);
-    } else {
-      b.textContent = '[图片]';
-    }
-    var holder = el('div', 'acsv-im-rowwrap mine');
-    holder.appendChild(b);
-    drawer.bubbles.appendChild(holder);
-    drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-    function cleanup() { if (localUrl) { try { URL.revokeObjectURL(localUrl); } catch (e2) { } } }
-    function onFail(err) {
-      var stale = !chat || chat.targetId !== targetId;
-      if (!stale && holder.isConnected) {
-        b.classList.remove('pending');
-        b.classList.add('failed');
-        b.title = '发送失败，点击重试';
-        b.addEventListener('click', function (ev) {
-          ev.stopPropagation();
-          holder.remove();
-          cleanup();
-          sendImageMsg(file);
-        });
-      }
-      errLong('图片发送失败：' + String((err && err.message) || '').slice(0, 120));
-    }
-    ensureIm().then(function (inst) {
-      return ensureConnected(inst).then(function () {
-        ensureTracer(inst);
-        return sendImage(inst, Number(targetId), file, w, h);
-      }).then(function () {
-        // 确认成功：内核缓存必有真身（ks:// 已回填），立即增量拉一拍渲染成图片气泡
-        if (!chat || chat.targetId !== targetId) { cleanup(); return; }
-        if (holder.isConnected) holder.remove();
-        cleanup();
-        chatPollOnce(inst, false);
-      }, onFail);
-    }, onFail);
+// 气泡渲染冒烟（0.9.268）：拆件前先钉住 appendBubble 的分流产物——己方/对方文本、extra 引用条、
+// 10001 作品卡。假消息直调渲染入口，不碰网络/内核；图片分支会触发鉴权换链，留给后续场景。
+testHook('imBubbleSmoke', function () {
+  if (!root) setRoot(document.body);
+  ensureDrawerDom();
+  setChat({
+    targetId: '9001', name: '', session: null, lastCount: -1,
+    seen: {}, lastDivTs: 0, quote: null, msgEls: {}
   });
-}
-function readSize(url, cb) {
-  if (!url) return cb(0, 0);
-  var img = new Image();
-  img.onload = function () { cb(img.naturalWidth || 0, img.naturalHeight || 0); };
-  img.onerror = function () { cb(0, 0); };
-  img.src = url;
-}
-
-function sendChat(text) {
-  var targetId = chat && chat.targetId;
-  if (!targetId) return;
-  // 裁剪先行：占位/发送/失败回填共用同一串，所见即所发（超限官方静默拒发，只会白等超时）
-  text = String(text).slice(0, CFG.im.maxLen);
-  var quote = chat.quote || null; // 发送即定格：发送期间改引用目标不影响本条
-  // 乐观占位（引用回复同款：摘要条 + 正文）
-  maybeDayDiv(Date.now());
-  var b = el('div', 'acsv-im-bubble mine pending');
-  if (quote) b.appendChild(quoteStrip({ seqId: quote.seqId, preview: quote.preview }));
-  var txt = el('div', 'acsv-im-msgtext');
-  txt.innerHTML = imTextHtml(text);
-  b.appendChild(txt);
-  var holder = el('div', 'acsv-im-rowwrap mine');
-  holder.appendChild(b);
-  drawer.bubbles.appendChild(holder);
-  drawer.bubbles.scrollTop = drawer.bubbles.scrollHeight;
-  function onFail(err) {
-    var stale = !chat || chat.targetId !== targetId;
-    if (!stale && holder.isConnected) {
-      b.classList.remove('pending');
-      b.classList.add('failed');
-      b.title = '发送失败，点击重试';
-      b.addEventListener('click', function (ev) {
-        ev.stopPropagation();
-        holder.remove();
-        drawer.setText(text);
-        if (quote && chat && !chat.quote) setQuote(quote); // 重试恢复引用 chip（期间没换目标才回填）
-        drawer.input.focus();
-      });
+  drawer.bubbles.innerHTML = '';
+  var enc = new TextEncoder();
+  var uid = selfUid();
+  bubble.appendBubble({ fromUserId: uid, text: '你好', rawMsg: { contentType: 0 } });
+  bubble.appendBubble({ fromUserId: '9002', text: '对方消息', rawMsg: { contentType: 0 } });
+  bubble.appendBubble({
+    fromUserId: '9002', text: '引用正文',
+    rawMsg: {
+      contentType: 0,
+      extra: enc.encode(JSON.stringify({
+        acsvQuote: { seqId: '11', preview: '原消息', text: '引用正文' }
+      }))
     }
-    // 消息确实没发出去：无论是否已切会话都提示（切会话场景不碰 DOM，只告知）
-    errLong('发送失败：' + String((err && err.message) || '').slice(0, 120));
-  }
-  ensureIm().then(function (inst) {
-    return ensureConnected(inst).then(function () {
-      ensureTracer(inst);
-      // 引用走 sendQuote（内核直发，恢复重试已内置）；文本维持 doSend+就地恢复的既有路径
-      return quote
-        ? sendQuote(inst, Number(targetId), quote, text)
-        : doSend(inst, Number(targetId), text).catch(function (err) {
-          // 失败自动恢复一次（链路坏→重连；否则强制同步），再试一发
-          var pre = linkOk(inst) ? Promise.resolve() : ensureConnected(inst);
-          return pre.then(function () { return forceSync(inst); })
-            .then(function () { return doSend(inst, Number(targetId), text); });
-        });
-    }).then(function () {
-      // 成功即摘占位并就地补真身：文本走 doSend 确认、引用走 clientSeqId 对账，两条
-      // 确认途径都晚于内核 pushSentKwaiMessage 把消息写入缓存，此刻 getMessages 必有
-      // 真身，立即增量拉一拍上屏，不等下一拍轮询。占位节点走闭包引用，不用
-      // querySelector——连发多条时按选择器只能摸到第一条，会摘错
-      if (!chat || chat.targetId !== targetId) return;
-      if (holder.isConnected) holder.remove();
-      if (quote && chat.quote === quote) setQuote(null);
-      chatPollOnce(inst, false);
-    }, onFail);
-  }, onFail);
-}
-
+  });
+  bubble.appendBubble({
+    fromUserId: '9002',
+    rawMsg: {
+      contentType: 10001,
+      content: enc.encode(JSON.stringify({
+        prologue: '',
+        resourceBody: [{
+          resourceType: 2, resourceId: '488900', title: '卡片标题', coverUrl: '',
+          viewCountShow: '1', commentCountShow: '2', durationSec: 60
+        }]
+      }))
+    }
+  });
+  var bubbles = drawer.bubbles;
+  return {
+    uid: uid,
+    bubbles: bubbles.querySelectorAll('.acsv-im-bubble').length,
+    mine: bubbles.querySelectorAll('.acsv-im-bubble.mine').length,
+    text: bubbles.querySelectorAll('.acsv-im-msgtext').length,
+    quote: bubbles.querySelectorAll('.acsv-im-quote').length,
+    quoteLink: bubbles.querySelectorAll('.acsv-im-quote.link').length,
+    quotePreview: (bubbles.querySelector('.acsv-im-quote-preview') || {}).textContent || '',
+    quotebtn: bubbles.querySelectorAll('.acsv-im-quotebtn').length,
+    card: bubbles.querySelectorAll('.acsv-im-vcard').length,
+    daydiv: bubbles.querySelectorAll('.acsv-im-daydiv').length
+  };
+});
 // ---------- 开关与生命周期 ----------
 // 模拟缝（harness im-open 冒烟，0.9.49 quoteChip 回归教训）：绕过登录门槛直验「抽屉 DOM
 // 骨架可建可开」——quoteChip 必须是真实元素节点（工厂返回对象漏 .box 的同族回归在此拦截）
@@ -918,8 +432,8 @@ export function toggleImDrawer() {
 }
 export function closeDrawer() {
   if (drawer) drawer.el.classList.remove('open');
-  listPoll.stop();
-  chatPoll.stop();
+  listKit.listPoll.stop();
+  chatKit.chatPoll.stop();
   view = '';
   releaseDrawer('im');
   overlayClose('im'); // 已出栈（Esc 路径）时空转；显式关闭路径由此同步栈
@@ -930,9 +444,9 @@ export function closeDrawer() {
 export function teardownIm() {
   imShutdown(); // 使在途连接轮询失效：孤儿 poll 不再 forceReconnect 动共享单例（0.9.34）
   stopBadge(); // 徽标双 timer/门禁/元素引用清收（0.9.163 随 mountBadge 迁 imbadge）
-  listPoll.stop();
-  chatPoll.stop();
+  listKit.listPoll.stop();
+  chatKit.chatPoll.stop();
   releaseDrawer('im');
-  drawer = null; view = ''; chat = null;
-  cards = {}; listSig = ''; lastListRows = null;
+  drawer = null; view = ''; setChat(null);
+  cards = {}; listKit.reset();
 }

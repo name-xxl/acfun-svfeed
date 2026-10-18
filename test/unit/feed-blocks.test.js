@@ -27,6 +27,12 @@ test('cardsOf：carousels 轮播块丢弃、非 resourceType=2 丢弃、无 href
   assert.deepEqual(ids, ['48375523', '48375525']);
 });
 
+test('cardsOf：bodyContents 非数组不抛（站点换形状时返回空页，不炸整条推荐流）', () => {
+  assert.deepEqual(cardsOf([{ schema: 'x', bodyContents: {} }]), []);
+  assert.deepEqual(cardsOf([{ schema: 'x', bodyContents: 'bad' }]), []);
+  assert.deepEqual(cardsOf([{ schema: 'x', bodyContents: 42 }]), []);
+});
+
 test('cardsOf：脏输入不抛——body 非数组 / 块空 / bodyContents 缺失一律安全', () => {
   assert.deepEqual(cardsOf(null), []);
   assert.deepEqual(cardsOf(undefined), []);

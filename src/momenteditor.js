@@ -281,7 +281,7 @@ export function openMomentEditor(opts) {
     function done(text) {
       busy = false;
       toast(repost ? '已转发' : '已发布');
-      if (opts.onDone) { try { opts.onDone(text); } catch (e) { } }
+      if (opts.onDone) { try { opts.onDone(text); } catch (e) { /* best-effort: cleanup */ } }
       teardown();
     }
 

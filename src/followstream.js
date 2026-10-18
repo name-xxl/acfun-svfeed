@@ -106,8 +106,24 @@ export function enterAll() {
   location.hash = CFG.hash + '/follow';
 }
 
-// debug 构建测试钩子：harness 断言上下文激活/泵游标/链状态
-testHook('followstream', function () {
+// debug 构建测试钩子：harness 断言上下文激活/泵游标/链状态；
+// activate(ids) 造"关注视频流上下文仍活跃"的现场（0.9.273 deeplink-followctx 反跑用）——
+// 只造上下文与可解析的假条目，不拉真实关注流；页面每场景独立，覆盖 info 无副作用。
+testHook('followstream', function (op, ids) {
+  if (op === 'activate') {
+    FollowVideos.reset();
+    FollowVideos.items = (ids || []).map(function (id) { return { id: String(id) }; });
+    FollowVideos.feedCursor = 0;
+    FollowVideos.done = true;
+    FollowVideos.info = function (id) {
+      var it = playItemOf({ acId: Number(id), title: '旧关注条目', cover: '' });
+      it.id = String(id);
+      it.urls = [window.__ACSV_TEST_WEBM__ || '/nope-404.mp4'];
+      it.cap.hls = false;
+      return Promise.resolve(it);
+    };
+    activateContext(FollowVideos);
+  }
   return {
     feedActive: FollowVideos.feedActive,
     count: FollowVideos.items.length,

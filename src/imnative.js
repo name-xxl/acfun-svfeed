@@ -20,7 +20,7 @@ var UNSUPPORTED = '不支持查看此消息，请前往最新版客户端查看�
 // douga/info 桩后驱动 enhance——"wire → 卡 DOM 装配"与"会话列表预览改写"有网可兜。
 // 覆盖边界：内核配对（占位替换/引用剥离）与真实站皮肤不在内（那部分靠真机验收）
 testHook('nativeChatEnhance', function () {
-  try { enhance(); } catch (e) { }
+  try { enhance(); } catch (e) { /* best-effort: cleanup */ }
   return true;
 });
 
@@ -110,7 +110,7 @@ function watch() {
     // 等于一个观察器都不装，之后所有渲染永远不触发重扫
     mo.observe(document.querySelector('.container-im') || document.body,
       { childList: true, subtree: true });
-  } catch (e) { }
+  } catch (e) { /* best-effort: cleanup */ }
 }
 
 function kernel() {
@@ -125,8 +125,8 @@ function kernel() {
 }
 
 function enhance() {
-  try { enhanceChat(); } catch (e) { }
-  try { enhanceList(); } catch (e) { }
+  try { enhanceChat(); } catch (e) { /* best-effort: cleanup */ }
+  try { enhanceList(); } catch (e) { /* best-effort: cleanup */ }
 }
 
 // ---------- 官方 DOM 结构自检（0.9.120） ----------
@@ -145,7 +145,7 @@ function structureInventory() {
   var hits = [], missing = [];
   NATIVE_SELECTORS.forEach(function (sel) {
     var n = 0;
-    try { n = document.querySelectorAll(sel).length; } catch (e) { }
+    try { n = document.querySelectorAll(sel).length; } catch (e) { /* best-effort: cleanup */ }
     hits.push({ sel: sel, n: n });
     if (!n) missing.push(sel);
   });
@@ -160,7 +160,7 @@ function structureCanary(retry) {
   var familiesOk = hit['.container-im'] || hit['.chat-content-item .message']
     || hit['.chat-nav-item[data-user-id]'];
   var shell = false;
-  try { shell = document.querySelectorAll('[class*="chat-"]').length > 0; } catch (e) { }
+  try { shell = document.querySelectorAll('[class*="chat-"]').length > 0; } catch (e) { /* best-effort: cleanup */ }
   if (!familiesOk && shell && !retry) {
     // 页面是 IM 壳但三位家族全空：可能只是加载慢——20s 复跑终判（告警以复跑为准）
     setTimeout(function () { structureCanary(true); }, 20000);
@@ -197,7 +197,7 @@ function enhanceChat() {
       msgEl.setAttribute('data-acsv', '1');
       var card = parseCard(msg);
       if (card) renderCard(content, card);
-      else if (renderQuote(content, msg)) { } // 引用消息（占位形态）：摘要条+正文整体替换
+      else if (renderQuote(content, msg)) { /* 引用消息（占位形态）：摘要条+正文整体替换已由 renderQuote 完成 */ }
       else {
         var tip = degradeText(msg);
         if (tip && tip !== UNSUPPORTED) content.textContent = tip;
@@ -253,7 +253,7 @@ function pairMessage(msgEl, msgCache) {
         if (String(s.targetId) === tid) { sess = s; return true; }
         return false;
       });
-    } catch (e) { }
+    } catch (e) { /* best-effort: sdk */ }
     var by = {};
     if (sess) {
       try {
@@ -262,7 +262,7 @@ function pairMessage(msgEl, msgCache) {
           if (raw.seqId !== undefined) by[String(raw.seqId)] = m;
           if (raw.id) by['id:' + raw.id] = m;
         });
-      } catch (e) { }
+      } catch (e) { /* best-effort: sdk */ }
     }
     msgCache[tid] = by;
   }
@@ -418,7 +418,7 @@ function quoteStripEl(q) {
         var t = document.querySelector('.chat-content-item .message[data-seq-id="'
           + String(q.seqId).replace(/"/g, '') + '"]');
         if (t) t.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      } catch (e) { }
+      } catch (e) { /* best-effort: cleanup */ }
     });
   }
   return s;

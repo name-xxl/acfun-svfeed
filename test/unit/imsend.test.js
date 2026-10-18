@@ -1,4 +1,4 @@
-// imsend.js（私信发送基建；0.9.123 自 imshare.js 拆出）单元测试：只测与页面/内核无关的
+// imsdk.js（私信 SDK 基建；0.9.270 自 imsend.js 拆出）单元测试：只测与页面/内核无关的
 // 纯判据——tracer 崩溃水位扫描（0.9.121 修复的核心语义）。环境垫桩按 route/followbadge 惯例。
 // 覆盖边界如实登记：单测钉的是水位语义（旧崩溃忽略/新崩溃命中/驱逐补偿）；live 侧
 //「旧崩溃不再误诊重建」由该语义保证，发送路径本身需真 SDK，无自动化直测。
@@ -24,12 +24,26 @@ globalThis.document = {
     return { style: {}, setAttribute: function () { }, appendChild: function () { } };
   }
 };
-// imsend 链：cfg/net/ui/appapi/immsg（imgload/dbg 已随面板拆出至 sharepanel）——垫桩不足
-// 时按"先怀疑链上新触点、再扩垫桩"纪律补齐，不放宽断言
-var { tracerCrashAfter } = await import('../../src/imsend.js');
+// imsdk 链：cfg/net/ui（日志黑匣子与崩溃水位随 SDK 基建走）——垫桩不足时按
+// "先怀疑链上新触点、再扩垫桩"纪律补齐，不放宽断言
+var { tracerCrashAfter, imLogMark, imLogVerdict } = await import('../../src/imsdk.js');
 
 var CRASH = "TypeError: Cannot read properties of undefined (reading 'context')";
 var OK = '信息发送成功';
+
+test('发送日志水位按累计写入数：滚动缓冲驱逐后仍能命中本次发送', () => {
+  // mark 时缓冲 2 行、无驱逐 → 绝对水位 2。发送期间缓冲滚掉 2 行，当前只剩
+  // ['filler', '信息发送成功']（绝对序号 2/3）。旧实现从数组下标 2 起扫（越界）→ null
+  // → doSend 超时 → withSendRecovery 重试 → 可能重复私信。
+  globalThis.__acsvImLog = ['old1', 'old2'];
+  globalThis.__acsvImLogDrop = 0;
+  var mark = imLogMark();
+  globalThis.__acsvImLog = ['filler', '信息发送成功'];
+  globalThis.__acsvImLogDrop = 2;
+  assert.deepEqual(imLogVerdict(mark), { ok: true });
+  globalThis.__acsvImLog = ['filler', '信息发送失败 服务端拒绝'];
+  assert.deepEqual(imLogVerdict(mark), { ok: false, why: '信息发送失败 服务端拒绝' });
+});
 
 test('水位前崩溃忽略（0.9.121 修：已治愈旧崩溃不再误诊重建）', () => {
   assert.equal(tracerCrashAfter([CRASH], 0, 1), false);

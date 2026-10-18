@@ -12,13 +12,13 @@ var LEDGER_CAP = 32; // 容量上限：长会话按 ts 淘汰最旧条目，防�
 
 // ---------- 存储触点（GM 优先跨 origin 共享，emoticon.js 先例；无 TM 回落 localStorage） ----------
 function rawGet() {
-  try { if (typeof GM_getValue === 'function') return GM_getValue(LEDGER_KEY); } catch (e) { }
-  try { return localStorage.getItem(LEDGER_KEY); } catch (e) { }
+  try { if (typeof GM_getValue === 'function') return GM_getValue(LEDGER_KEY); } catch (e) { /* best-effort: storage */ }
+  try { return localStorage.getItem(LEDGER_KEY); } catch (e) { /* best-effort: storage */ }
   return null;
 }
 function rawSet(str) {
-  try { if (typeof GM_setValue === 'function') { GM_setValue(LEDGER_KEY, str); return; } } catch (e) { }
-  try { localStorage.setItem(LEDGER_KEY, str); } catch (e) { }
+  try { if (typeof GM_setValue === 'function') { GM_setValue(LEDGER_KEY, str); return; } } catch (e) { /* best-effort: storage */ }
+  try { localStorage.setItem(LEDGER_KEY, str); } catch (e) { /* best-effort: storage */ }
 }
 
 // ---------- 对账（纯函数，now/ttl 可注入） ----------
@@ -110,7 +110,7 @@ function mem() {
   return ledgerMem;
 }
 function flush() {
-  try { rawSet(JSON.stringify(ledgerMem)); } catch (e) { }
+  try { rawSet(JSON.stringify(ledgerMem)); } catch (e) { /* best-effort: storage */ }
 }
 
 // 播放中水位（onTime 节流后调用）：只推 maxSec，不动 reportedSec——单调水位

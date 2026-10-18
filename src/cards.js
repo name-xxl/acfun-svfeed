@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { el } from './ui.js';
+import { el, fmtTime } from './ui.js';
 import { imgInto } from './imgload.js';
 import { openImageViewer } from './imgview.js';
 import { GLYPHS } from './imicons.js';
@@ -94,7 +94,7 @@ export function rowOf(pi, rank, openCtx) { // openCtx：来源会话语境（0.9
   } else {
     var bits = [];
     if (pi.sub) bits.push(pi.sub);
-    if (pi.progress != null && pi.kind !== 'history') bits.push('看到 ' + fmtDur(pi.progress));
+    if (pi.progress != null && pi.kind !== 'history') bits.push('看到 ' + fmtTime(pi.progress));
     main.appendChild(el('div', 'acsv-vrow-meta', bits.join(' · ')));
   }
   row.appendChild(main);
@@ -133,7 +133,7 @@ export function gridCardOf(pi, openCtx) { // openCtx：来源会话语境（0.9.
   // 封面角标 = 进度/属性语义位：历史 sub 就是「观看至xx:xx」（契约在册）；收藏只有续看秒数能进
   // 角标——没有时长算不出比例条，就不做比例条（不伪造）
   var tag = pi.kind === 'history' ? pi.sub
-    : (pi.progress != null ? '看到 ' + fmtDur(pi.progress) : '');
+    : (pi.progress != null ? '看到 ' + fmtTime(pi.progress) : '');
   if (tag) cover.appendChild(el('div', 'acsv-gtag', tag));
   if (pi.views) {
     var vb = el('div', 'acsv-gtag acsv-gviews');
@@ -333,10 +333,4 @@ export function upCardOf(pi) {
   a.appendChild(info);
   card.appendChild(a);
   return card;
-}
-
-function fmtDur(sec) {
-  sec = Math.max(0, Number(sec) || 0);
-  var m = Math.floor(sec / 60), s = Math.floor(sec % 60);
-  return (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
 }

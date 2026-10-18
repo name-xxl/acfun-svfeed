@@ -15,9 +15,14 @@ export function errNotLogin() {
   toast('操作失败（未登录？）');
 }
 
-// 投蕉失败（banpop 同串两处）
+// 投蕉失败（momentbar / 数量层同口径）
 export function errBanana() {
   toast('投蕉失败（未登录或今日已投完？）');
+}
+
+// 已投过蕉（rail 与 momentbar 同串两处；投蕉不可取消，点开只提示）
+export function errBananaThrown() {
+  toast('已投过蕉啦，明天再来~');
 }
 
 // 私信域登录门槛（imdrawer 两处）
@@ -38,4 +43,17 @@ export function errSend(what, r) {
 // 长驻失败提示（带动态归因详情，用户要时间读——imdrawer 两处；时长口径收 CFG.time.toastLong）
 export function errLong(msg) {
   toast(msg, CFG.time.toastLong);
+}
+
+// 签到域（0.9.277）：写链双通道均失败 / 未登录 / 黄历拉取失败。成功反馈=黄历弹窗本身，不出 toast
+export function errSignLogin() {
+  toast('登录后才能签到');
+}
+
+export function errSignFail() {
+  toast('签到失败，请稍后重试');
+}
+
+export function errSignAlmanac() {
+  toast('黄历拉取失败，请稍后再试');
 }

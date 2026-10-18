@@ -1,3 +1,4 @@
+// @ts-check
 // ---------- 翻页骨架单源（0.9.259；审计批④ P2-5） ----------
 // 四份「加载下一页」此前是逐字副本（followview.load / squarefeed.load / mypage 观看历史 /
 // mypage adminTab 动态档壳）。本件只收**四家相同的协议**，不收翻页范式——游标方言（毫秒

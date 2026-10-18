@@ -119,7 +119,7 @@ function curVersion() {
 var stateFallback = null;
 function readState() {
   var st = null;
-  try { st = JSON.parse(localStorage.getItem(CFG.lsUpd) || 'null'); } catch (e) { }
+  try { st = JSON.parse(localStorage.getItem(CFG.lsUpd) || 'null'); } catch (e) { /* best-effort: storage */ }
   st = st && typeof st === 'object' ? st : {};
   if (stateFallback) { for (var k in stateFallback) st[k] = stateFallback[k]; }
   return st;

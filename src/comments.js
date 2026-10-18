@@ -18,6 +18,7 @@ import { openSharePanel } from './sharepanel.js';
 import { commentItemOf, commentLikeState } from './commentkit.js'; // 条目构建单源（0.9.133 自本文件下沉；0.9.234 加点赞三态）
 import { tagInto } from './iploc.js'; // IP 属地接线口（0.9.245，Web-IP 吸收批次①；kit 无状态，经 cmtOpts 注入）
 import { devTag } from './devname.js'; // 设备型号美化接线口（0.9.246，Web-IP 吸收批次②；同纪律）
+import { isArray } from './contract.js'; // 关键端点形状守卫（0.9.264，P1）
 import { relDrawerSync, relDrawerClose } from './reldrawer.js'; // 相关推荐 tab 两 seam（0.9.167）
 // imdrawer→本模块（syncCommentVars）为单向回指（0.9.114 断 imshare→imdrawer 后不再成环）；
 // 本模块→sharepanel（原 imshare 面板族）侧均为函数、调用期才解引用，模块求值期无依赖
@@ -41,7 +42,7 @@ import { relDrawerSync, relDrawerClose } from './reldrawer.js'; // 相关推荐 
 //  修「失败后 tip 节点占了 !children.length 的坑 ⇒ 同一视频重开不重拉」
 // failPage：追加失败停在的页号（0=无）。>0 时 canLoadMore() 判假——防触底哨兵在视口内
 //  反复自动重试成请求风暴；点尾行「重试」清闸
-export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, loading: false, replyTo: null, kind: 'sv', loadedSourceId: 0, failPage: 0 };
+export var commentState = { sourceId: 0, stype: 5, shareUrl: '', page: 1, totalPage: 1, loading: false, replyTo: null, kind: 'sv', loadedSourceId: 0, failPage: 0, reqSeq: 0 };
 
 // 评论管线 DOM 宿主（0.9.96 动态详情面板）：null = 经典抽屉（commentDrawer）。管线全经
 // curHost() 取宿主——与 commentState 数据单例配对；claimDrawer('comments') 同槽互斥保证
@@ -67,7 +68,7 @@ export function syncCommentVars() {
   // 避让根类由槽位统一裁决（任一抽屉占槽即避让；两抽屉同宽同锚点，同一时刻只开一个）
   root.classList.toggle('acsv-with-comments', !!currentDrawer() && ratio >= CFG.comments.avoidMin);
 }
-window.addEventListener('resize', syncCommentVars);
+window.addEventListener('resize', syncCommentVars); // singleton-listener: 抽屉避让变量同步，模块级
 
 export function closeComments() {
   if (commentDrawer) commentDrawer.el.classList.remove('open');
@@ -96,7 +97,7 @@ export function openComments(sourceId, stype, shareUrl, kind, title) {
   ensureDrawerWired(); // 0.9.118：首次打开时自附关闭键/列表委托（边 slide→comments 已收）
   // 面板/行内宿主先显式收（0.9.105：面板不再占抽屉槽，互斥改**双向显式收**——私有信抽屉
   // 场景：面板与 IM 抽屉共存（避让由 CSS 根类做），抽屉 vs 面板仍是互斥的两面宿主）
-  if (host) { var hPrev = host; host = null; try { hPrev.close(); } catch (e) { } }
+  if (host) { var hPrev = host; host = null; try { hPrev.close(); } catch (e) { /* best-effort: cleanup */ } }
   host = null; // 抽屉路径：管线宿主回到经典抽屉（面板路径见 openCommentsHost）
   // overlayOpen 必须先于 claimDrawer（0.9.64 顺序回归修复）：其内部幂等收旧层会调
   // closeComments 清槽+摘避让根类（其内 relDrawerClose 会把任何非评论页签复位到评论，0.9.178）——若槽先占后清，末尾 syncCommentVars 读到空槽会把
@@ -203,7 +204,9 @@ function loadComments(sourceId, page, append) {
   if (!h) return;
   commentState.loading = true;
   commentState.sourceId = sourceId;
-  var reqId = sourceId; // 换视频后旧响应一律丢弃，防止评论串台/分页游标被污染
+  // 每次加载自增序号：换视频、同源换宿主、重试都作废旧响应（0.9.275）。只比 sourceId 时，
+  // 同源切宿主（抽屉→详情面板）或同源重试的在途回包会被误收，旧页追加/旧游标会污染新列表。
+  var reqId = ++commentState.reqSeq;
   if (!append) {
     commentState.failPage = 0;
     resetList(h); // 首屏/换源：清空整个列表（含任何尾行）
@@ -216,11 +219,11 @@ function loadComments(sourceId, page, append) {
     request(CFG.api.comment + sourceId + '&sourceType=' + commentState.stype + '&page=' + page +
       '&pivotCommentId=0&newPivotCommentId=&showHotComments=1', 'GET');
   Promise.all([p, ensureEmotionMap()]).then(function (res) {
-    if (reqId !== commentState.sourceId) return; // 响应返回前已切到其他视频
+    if (reqId !== commentState.reqSeq) return; // 响应返回前已有更新的加载（换源/换宿主/重试）
     var j = res[0];
     commentState.loading = false;
     commentState.failPage = 0;
-    var list = (j && j.rootComments) || [];
+    var list = (j && isArray(j.rootComments, 'comment.list.root')) ? j.rootComments : [];
     commentState.page = (j && j.curPage) || page;
     commentState.totalPage = (j && j.totalPage) || 1;
     // 越界空页=到底（防"按钮点了没反应"式空转；正常到底由 page===totalPage 收口）
@@ -229,7 +232,7 @@ function loadComments(sourceId, page, append) {
     if (!append) commentState.loadedSourceId = sourceId; // 首屏成功：落账本（重开判据用）
     renderComments(list, append, j && j.subCommentsMap, (j && j.hotComments) || []);
   }, function () {
-    if (reqId !== commentState.sourceId) return;
+    if (reqId !== commentState.reqSeq) return;
     commentState.loading = false;
     if (append) {
       // 追加失败（0.9.193 病灶修复）：**不动已渲染列表**，末尾挂可点重试行。

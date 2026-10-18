@@ -35,12 +35,12 @@ function hostEl() { return document.querySelector(SEL_MAIN_FEEDS); }
 function noop() { }
 
 function autoFlag() {
-  try { if (typeof GM_getValue === 'function') return !!GM_getValue(AUTO_KEY, false); } catch (e) { }
+  try { if (typeof GM_getValue === 'function') return !!GM_getValue(AUTO_KEY, false); } catch (e) { /* best-effort: storage */ }
   return memAuto;
 }
 function setAutoFlag(v) {
   memAuto = v;
-  try { if (typeof GM_setValue === 'function') GM_setValue(AUTO_KEY, v); } catch (e) { }
+  try { if (typeof GM_setValue === 'function') GM_setValue(AUTO_KEY, v); } catch (e) { /* best-effort: storage */ }
 }
 
 // 行右上 am 号锚（plaza 原物）：宿主侧后处理——rowkit 行卡本体不动，仅内嵌宿主消费。

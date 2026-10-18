@@ -4,6 +4,7 @@ import { request } from './net.js';
 import { normalize, normalizeHome, deepLinkOf, foldBr } from './playitem.js';
 import { AppAPI } from './appapi.js';
 import { getSetting, setSetting } from './settings.js';
+import { hasShape, isArray } from './contract.js';
 
 // ---------- API：站点接口（mock 桩统一在 API 层收口） ----------
 // 内容源：sv=小视频 meow（随机池重复拉+去重）；home=推荐流 selection/feed/singleColumn（真 pcursor 游标）。
@@ -63,7 +64,8 @@ export var API = {
         .map(normalize));
     }
     return request(CFG.api.feed).then(function (json) {
-      return ((json && json.meowFeed) || []).map(normalize);
+      if (!hasShape(json, ['meowFeed'], 'feed.meow') || !isArray(json.meowFeed, 'feed.meow.arr')) return [];
+      return json.meowFeed.map(normalize);
     });
   },
   // 小视频单条详情（深链置顶/空间页泵入/最热统计共用，home 模式不走）
@@ -74,7 +76,8 @@ export var API = {
       return Promise.resolve(raw ? normalize(raw) : null);
     }
     return request(CFG.api.info + mid).then(function (json) {
-      return (json && json.meowFeed) ? normalize(json.meowFeed) : null;
+      if (!hasShape(json, ['meowFeed'], 'feed.info')) return null;
+      return normalize(json.meowFeed);
     });
   },
   // 深链解析（0.9.72）：地址栏 id 跨两个 id 空间——meowId（小视频）与 acId（推荐），

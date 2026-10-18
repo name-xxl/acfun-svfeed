@@ -1,3 +1,4 @@
+// @ts-check
 import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { squarePanelOf, followPanelOf } from './panelitem.js'; // 条目派发在面板契约件（0.9.162 data.js 终解）；本域回包规整 0.9.159 域归域迁入本模块

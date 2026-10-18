@@ -33,6 +33,9 @@ export default [
       'no-undef': 'error',
       'no-unused-vars': ['error', { args: 'none', caughtErrors: 'none' }],
       'no-constant-binary-expression': 'error',
+      // 空 catch 一律显式表态：注释说明意图，或走 dbg.swallow 计数/留因。
+      // 0.9.264 清点 137 处空捕，按 cleanup/storage/sdk/media/parse/network 分级标注。
+      'no-empty': ['error', { allowEmptyCatch: false }],
       'no-restricted-syntax': ['error',
         // URL 手剥 query 已禁：0.9.40 实锤（剥参数会把带签名的图整条清空）。
         // 归一与失败重试链在 imgurl.coverUrl/coverAttempts（query 一律保留）
@@ -65,7 +68,9 @@ export default [
   //   imgload.js  执行层本体
   //   imcard.js   私信卡片封面：装配层自带"load 才放出/error 隐藏"时序，且要同时喂
   //               Shadow DOM（原生页）与抽屉两套皮肤；并入 imgInto 需先统一时序语义（后续按需评估）
-  //   imdrawer.js 私信图片气泡：鉴权 blob 管线（fetchImImageBlob，0.9.41/0.9.49 真机验收）
+  //   imbubble.js 私信图片气泡（0.9.268 自 imdrawer 拆出）：鉴权 blob 管线（fetchImImageBlob，
+  //               0.9.41/0.9.49 真机验收）；imsendui.js（0.9.269 发送 UI 拆出）只剩发送乐观占位的
+  //               本地预览 img
   //   emoticon.js 表情图：接口直给 URL + 未命中回落 [表情] 文本，无"封面字段"语义
   //   imgview.js  大图查看器：转呈被点 <img> 的 src（blob/原图形态混杂），非字段加载
   //   rail.js     站点静态图标（SITE_ICONS/VIDEO_ICONS 的 mask/img 探测 + 香蕉弹层）
@@ -78,7 +83,7 @@ export default [
   //               且无"失败降级兜底"语义（图挂了就是挂了，不做占位替换）
   // 注：new Image() 不受禁令（探测/读自然宽高不是页面图面）。新增图面若确有例外，加到这里并注明理由
   {
-    files: ['src/imgload.js', 'src/imcard.js', 'src/imdrawer.js', 'src/emoticon.js',
+    files: ['src/imgload.js', 'src/imcard.js', 'src/imsendui.js', 'src/imbubble.js', 'src/emoticon.js',
       'src/imgview.js', 'src/rail.js', 'src/banpop.js', 'src/sidebar.js', 'src/commentkit.js',
       'src/inputbar.js'],
     rules: {
@@ -118,6 +123,14 @@ export default [
         }
       ]
     }
+  },
+  // no-empty 门禁射程收口在 src（0.9.264）：目标是把 src 的 137 处空 catch 钉成显式意图。
+  // 测试夹具/工具里另有一批空 catch 与 `else if (…) { }` 写法，属既有夹具形态，不在本轮
+  // 收口范围（只改 src/*.js 与 eslint.config.mjs）；非 src 文件维持原规则集。
+  {
+    files: ['test/unit/**/*.js', 'test/cases/**/*.js', 'test/*.mjs', 'test/*.js',
+      'tools/**/*.js', 'build.js'],
+    rules: { 'no-empty': 'off' }
   },
   // harness 场景体豁免 no-unused-vars（0.9.257 扩面时发现）：test/cases/*.js 统一按「公共件
   // 参数前置」写——每个场景开头把 h 的全部公共件一次解出（rec/q/slide/cur/key/wait/waitFor/

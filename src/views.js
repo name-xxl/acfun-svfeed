@@ -80,7 +80,7 @@ function stageShow(restore) {
 // 真销毁一个视图记录（拆 DOM；overlay 栈由调用方统一收）
 function destroyRec(rec) {
   if (!rec) return;
-  if (rec.def.teardown) { try { rec.def.teardown(); } catch (e) { } }
+  if (rec.def.teardown) { try { rec.def.teardown(); } catch (e) { /* best-effort: cleanup */ } }
   if (rec.el) rec.el.remove();
 }
 
@@ -127,7 +127,7 @@ export function backFromOrigin() {
 // volatile（播放层：握播放会话/定时器）= 不入链也不挂起——隐藏容器里继续出声绝不允许，
 // 它自己的来源本来就在链上，Esc 直接回那一层
 function holdOrigin(prev) {
-  if (prev.def.suspend) { try { prev.def.suspend(); } catch (e) { } }
+  if (prev.def.suspend) { try { prev.def.suspend(); } catch (e) { /* best-effort: cleanup */ } }
   prev.el.className = 'acsv-view-held'; // 换类名：q('.acsv-view') 是全局定位锚
   origins.push({ view: prev.id, arg: prev.arg, kind: prev.kind, rec: prev });
 }
@@ -166,7 +166,7 @@ function enterView(id, arg, kind) {
   if (rec) {
     rec.el.className = 'acsv-view';
     rec.el.style.display = 'block';
-    if (rec.def.resume) { try { rec.def.resume(); } catch (e) { } }
+    if (rec.def.resume) { try { rec.def.resume(); } catch (e) { /* best-effort: cleanup */ } }
     current = rec;
     overlayOpen({ id: 'view', close: closeView }); // 非模态层：Esc=关闭
     return true;

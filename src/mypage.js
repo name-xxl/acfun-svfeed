@@ -1,25 +1,19 @@
 import { CFG } from './cfg.js';
-import { el, selfUid, toast } from './ui.js';
+import { el, selfUid } from './ui.js';
 import { fmtWan } from './timefmt.js';
 import { postForm } from './appapi.js';
-import { panelItem } from './panelitem.js';
 import { createSquareFeed } from './squarefeed.js'; // 列表机械（0.9.218 我的页动态复用广场工厂）
 import { listProfile } from './momentapi.js';       // 个人主页动态流（三合一混排）
 import { openRowDefault } from './rowkit.js';       // 行落点单源（动态→详情面板）
 import { mountPubFab } from './pubfab.js'; // 发布常驻浮标（0.9.224）
-import { groupNameError, folderNameError } from './nameval.js';
 import { coverUrl } from './imgurl.js'; // meCardOf 头像归一（0.9.160 就地收编随迁）
-import { gridCardOf, skeletonRows } from './cards.js';
-import { createListTail } from './listtail.js'; // 尾部件单源（0.9.219：我的页四档统一自动触底）
-import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259：历史档 + 管理档壳）
 import { registerView } from './viewreg.js';
 import { imgInto } from './imgload.js';
-import { getGroups, listFollows, createGroup, renameGroup, removeGroup, unfollowUser } from './relationapi.js';
-import { openFollowGroupPop } from './grouppop.js';
-import { openConfirmPop } from './pickpop.js';
-import { folderList, folderAdd, folderRename, folderDelete, favRemove, favList } from './favapi.js';
-import { openFavFolderPop } from './favpop.js';
-import { errNotLogin } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
+import { buildHistory, buildFav, buildFollowGroups } from './mytabs.js'; // 我的页管理档（0.9.265 拆件）
+// 签到（0.9.277）：资料头右侧按钮（App「已签到」药丸同位）+ 黄历弹窗；数据/写链全在 signapi
+import { signIn, getSignInInfos, fetchAlmanac } from './signapi.js';
+import { openSignAlmanac } from './signpanel.js';
+import { errSignLogin, errSignFail, errSignAlmanac } from './toastmsg.js';
 
 // ---------- 我的视图（0.9.62 起；0.9.69 抖音式个人主页改造）----------
 // 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（**动态**｜观看历史｜收藏夹｜关注分组，
@@ -58,19 +52,6 @@ export function meCardOf(j, uid) {
   };
 }
 
-function rowList(parent, cls) {
-  var list = el('div', 'acsv-vlist acsv-megrid ' + cls);
-  parent.appendChild(list);
-  return list;
-}
-
-// 首屏骨架（0.9.102 收口：计数/移除走 cards.skeletonRows；类名仍独立 acsv-gskel——
-// 绝不与行/卡计数选择器同构，0.9.66 同构元素污染计数断言是既有教训；成功/失败/空三条路径
-// 都必须调 remove，否则骨架常驻）
-function skeleton(listEl) {
-  return skeletonRows(listEl, CFG.view.me.skel, 'acsv-gskel');
-}
-
 // ---- 资料头：auth_key 前缀=uid（ui.selfUid，与私信自有会话排除同源）→ getUserCardList ----
 // 头部是锦上添花块：任何一步失败都静默（不 toast/不占位/无控制台噪音），页面照常可用
 function buildMeCard(slot) {
@@ -102,6 +83,7 @@ function buildMeCard(slot) {
     info.appendChild(el('div', 'acsv-mecard-id', 'UID：' + card.uid));
     if (card.sign) info.appendChild(el('div', 'acsv-mecard-sign', card.sign));
     box.appendChild(info);
+    mountSign(box);
     slot.appendChild(box);
   }
   // 缺省（契约层 null=该字段无来源）不显示 0：避免把「没这个数」说成 0
@@ -114,525 +96,80 @@ function buildMeCard(slot) {
   }
 }
 
-// 列表会话机械（0.9.179 抽：历史 tab 与 adminTab 此前各写一份 moreWaiters/flush/more——单源收口）：
-// 层内「列表」会话续拉 = 攒等待回调 → load() 落定后回话（新增条目 / null=到底或失败）；
-// ctxOf(pi) 出 openPanelItem 第二参的会话语境（items 已加载序列 + 预载 idx + more 缝）
-function makeListCtx(rowsOf, loadFn, isDone) {
-  var waiters = [];
-  function flush() {
-    var w = waiters;
-    waiters = [];
-    w.forEach(function (cb) { cb(); });
+// ---- 签到按钮（0.9.277，用户裁决：我的页资料头只留一枚按钮，不做签到栏）----
+// 三态：签到（红可点）/ 签到中…（禁用防连点）/ 今日已签（灰药丸，可点→实时重拉黄历卡）。
+// 初始态以 getSignInInfos 为准（失败静默保持「签到」——点击时服务端仍按真实态回 122）。
+// 签到成功：回包带 almanac 直用（App 侧 SinginResult 设计），否则实时 fetchAlmanac；
+// 弹窗本身即成功反馈（不另 toast）。黄历拉取失败只 toast，按钮仍进已签态（签到已成立）。
+function mountSign(host) {
+  var btn = el('button', 'acsv-signbtn go', '签到');
+  btn.type = 'button';
+  host.appendChild(btn);
+  var state = null;   // 最近一次 getSignInInfos 规整结果（奖励行/已签判定）
+  var busy = false;
+
+  getSignInInfos().then(function (st) {
+    if (!st) return;
+    state = st;
+    if (st.signedToday) paintSigned();
+  }, function () { /* 初始态查询失败：保持「签到」，点击时服务端判定 */ });
+
+  function paintSigned() {
+    btn.className = 'acsv-signbtn signed';
+    btn.textContent = '今日已签';
   }
-  function more() {
-    if (isDone()) return Promise.resolve(null);
-    return new Promise(function (resolve) {
-      var before = rowsOf().length;
-      waiters.push(function () {
-        resolve(rowsOf().length > before ? rowsOf().slice(before) : null);
-      });
-      loadFn();
-    });
+  function paintGo() {
+    btn.className = 'acsv-signbtn go';
+    btn.textContent = '签到';
   }
-  return {
-    flush: flush,
-    more: more,
-    ctxOf: function (pi) {
-      var rows = rowsOf();
-      return { kind: 'list', items: rows.slice(), idx: Math.max(0, rows.indexOf(pi)), more: more };
-    }
-  };
-}
-
-// ---- 观看历史：pageNo 翻页，list.length < pageSize 即到底 ----
-// 尾部加载（0.9.219 统一）：改走 listtail 自动触底（此前是「加载更多」按钮——与同页「动态」档
-// 及全站其它页都不一致）；到底/失败改由状态行表达
-// 0.9.259（审计批④）：在途守卫/代数令牌/骨架起收/三态状态行收进 pageloader 单源；本档只剩
-// 页码方言（请求体 pageNo=pageNo+1）、契约过滤、到底判据与空态。两处差异显式注入：
-//   ① skeleton 不看 firstPage——历史档**每页都建**骨架（首屏也是它）；
-//   ② earlySettle——0.9.236「在途守卫」的既有形状是**在陈旧守卫之前**结算（loading 与骨架
-//      都在守卫前收），与另三家的「守卫后结算」不同形，原样保留
-function buildHistory(panel, scroller) {
-  var list = rowList(panel, 'hist');
-  var pageNo = 0;        // 页码（已落定页数；请求体 pageNo=pageNo+1，空态判据 pageNo===1）
-  var allRows = [];      // 已加载面板条目（层内列表会话的条目源，0.9.173）
-  var pg = createPageLoader({
-    earlySettle: true,
-    host: function () { return list; },
-    fetch: function () {
-      return postForm(CFG.api.history,
-        'pageNo=' + (pageNo + 1) + '&pageSize=' + CFG.view.pageSize
-        + '&resourceTypes=1&resourceTypes=2');
-    },
-    skeleton: function () { return skeleton(list); },
-    // 建序：尾部件 ↔ 翻页骨架互相引用——骨架先建、状态行走懒引用（`tail` 在首次落定前必然已
-    // 赋值：尾部件就在下面几行），尾部件拿 load 本体作触底/重试回调
-    setStatus: function (text, busy) { tail.setStatus(text, busy); },
-    doneLabel: '已加载全部',
-    onPage: function (j, info) {
-      var raws = (j && j.histories) || [];
-      var rows = [];
-      raws.forEach(function (raw) {
-        var pi = panelItem('history', raw);
-        if (pi) rows.push(pi);
-      });
-      pageNo++;
-      rows.forEach(function (pi) {
-        allRows.push(pi);
-        list.appendChild(gridCardOf(pi, function () { return lctx.ctxOf(pi); }));
-      });
-      // 到底判定按**原始条数**（非筛除后条数）：契约层会滤掉非视频条目（番剧/无 videoId），
-      // 「有效行 < pageSize」在筛除后恒真会把还有下一页的列表误判成到底（0.9.77 实锤：
-      // mock 首页 20 原始 → 18 有效，按有效数判到底则第二页 4 条永远拉不到）
-      var noMore = raws.length < CFG.view.pageSize;
-      if (!rows.length && info.firstPage) list.appendChild(el('div', 'acsv-vempty', '暂无观看记录'));
-      return { noMore: noMore };
-    },
-    // 层内续拉回话（0.9.173）：成功给新增条目、失败给 null → 层里停住提示；两路都要回话
-    onSettle: function () { lctx.flush(); }
-  });
-  // 层内语义（0.9.173）：↓/↑ = 历史列表顺序；尾部续拉下一页（到底=null → 层里停住提示）
-  var lctx = makeListCtx(function () { return allRows; }, pg.load, function () { return pg.done(); });
-  var tail = createListTail({
-    root: panel, scrollEl: scroller || panel, pad: CFG.view.me.scrollPad,
-    backTopAt: CFG.view.me.backTopAt, onBottom: pg.load, onRetry: pg.load
-  });
-  pg.load();
-}
-
-// ---- 管理 tab 壳（0.9.150 抽件）：chips（[全部?]＋各档＋「＋ 新建」）+ 组头操作（改名/删除，sys 档豁免）
-// + 内联表单（新建/改名共用）+ 列表 + **自动触底尾部（0.9.219 改）** + 选中/刷新骨架 ----
-// 由头（0.9.148 审计）：`buildFav` 与 `buildFollowGroups` 此前是同形副本（各约百行，差异只有数据源/
-// 校验/文案），违背理念 3「同形副本必漂移」——骨架收口到本壳。**仍作我页局部工厂**（单一消费面；
-// 出现第三个消费方再提独立模块）。
-// 0.9.219：尾部由「加载更多」按钮改 listtail 自动触底（与同页动态档/全站一致）；`o.scrollEl`=视图体
-// 壳零业务：数据/文案/校验/行渲染全由 opts 注入——
-//   list            列表容器（消费方建：收藏夹=网格、分组=普通 div）；壳按 chips→ops→form→list→尾部件 序挂
-//   scrollEl        滚动容器（视图体；尾部件触底/回顶挂它）
-//   doneText        到底状态行文案（缺省「已加载全部」）
-//   list            列表容器（消费方建：收藏夹=网格、分组=普通 div）；壳按 chips→ops→form→list→btn 序挂
-//   allChip/allId   有 allChip 则加「全部」档（值 = allId）
-//   addLabel        「＋ 新建 x」；delLabel「删除 x」
-//   formLabel       { placeholder, maxLen, submit:{create,rename}, created, renamed }（后两为 toast 前缀）
-//   nameError(name) 契约层校验（''=通过）
-//   loadTabs()      → Promise<[{ id, chipText, raw }]>
-//   loadPage(sel, cursor) → Promise<{ rows, noMore, nextCursor }>（分页口径自洽：收藏夹=页号递增/
-//                   分组=响应偏移量；游标由壳持有并原样交给下一拍）
-//   renderRow(row, ctx) → 元素（ctx={ list, refresh, sel() }——行内操作要用当前档与刷新）
-//   emptyText(selId)/emptyTabsText/tabsFailText/loadFailText  四种空/失败文案
-//   onCreate(name)/onRename(id,name) → Promise<id|true|null>（null=失败）
-//   delConfirm(tab, refresh) → openConfirmPop opts（确认文案与 run/done 全由消费方给）
-//   sysTab(tab)     → true 不给改名/删除（系统档）
-//   reloadOnRefresh  refresh 后是否重拉列表（收藏夹=true：计数与卡面归属要重排；分组=false：成员行原地改）
-//   firstCursor     首屏游标（缺省 0）
-function adminTab(panel, o) {
-  var chips = el('div', 'acsv-vchips');
-  var ops = el('div', 'acsv-gops');
-  var form = el('div', 'acsv-gform');
-  form.style.display = 'none';
-  var list = o.list;
-  panel.appendChild(chips);
-  panel.appendChild(ops);
-  panel.appendChild(form);
-  panel.appendChild(list); // 消费方可能已挂过（rowList）——appendChild 即搬移，落位统一在此
-  // 尾部件（0.9.219）：三态状态行 + 回顶 + 自动触底（此前是「加载更多」按钮）
-  // 建序：尾部件 ↔ 翻页骨架互相引用（前者要 load 作触底/重试回调，后者要 setStatus 作状态行写口）
-  // ——骨架先建、状态行走懒引用（`tail` 在首次落定前必然已赋值），尾部件拿 load 本体
-  var tail = null;
-  var tabs = [];
-  var allRows = [];      // 已加载面板条目（顺序；层内列表会话的条目源，0.9.173）
-  var cur = o.allChip ? o.allId : null;
-  var started = false; // 是否已完成首拉（首进 refresh 要 select 一次把列表带起来）
-  // 翻页骨架（0.9.259 批④）：在途守卫/代数令牌/骨架起收/三态状态行收进 pageloader。本壳的
-  // 差异两处，都显式注入：①续拉状态行的判据是「已有条目」（不是「非首屏」——首屏 0 行且未到底
-  // 时两者不等价）②档表未到不发废请求（连状态行也保持干净）
-  var pg = createPageLoader({
-    firstCursor: o.firstCursor || 0,
-    host: function () { return list; },
-    // 游标由骨架持有并原样交给下一拍（分页口径自洽：收藏夹=页号递增/分组=响应偏移量）
-    fetch: function (cursor) { return o.loadPage(cur, cursor); },
-    busyGate: function () { return allRows.length > 0; }, // 首屏靠骨架，续拉用状态行（同广场口径）
-    beforeFetch: function () { if (cur == null) { setStatus(''); return false; } },
-    setStatus: function (text, busy) { tail.setStatus(text, busy); },
-    doneLabel: o.doneText || '已加载全部',
-    failLabel: o.loadFailText,
-    onPage: function (p) {
-      var added = 0;
-      (p.rows || []).forEach(function (r) { allRows.push(r); list.appendChild(o.renderRow(r, ctx)); added++; });
-      if (!added && !list.children.length) list.appendChild(el('div', 'acsv-vempty', o.emptyText(cur)));
-      return { cursor: p.nextCursor, noMore: !!p.noMore };
-    },
-    // 失败也回话（续拉等待方收到 null → 层里停住提示）
-    onSettle: function () { lctx.flush(); }
-  });
-  tail = createListTail({
-    root: panel, scrollEl: o.scrollEl || panel, pad: CFG.view.me.scrollPad,
-    backTopAt: CFG.view.me.backTopAt, onBottom: pg.load, onRetry: pg.load
-  });
-  var setStatus = tail.setStatus;
-
-  function tabOf(id) {
-    for (var i = 0; i < tabs.length; i++) if (tabs[i].id === id) return tabs[i];
-    return null;
-  }
-  function resetBtn() { setStatus(''); }
-
-  function renderChips() {
-    chips.textContent = '';
-    if (o.allChip) {
-      var all = el('button', 'acsv-vchip' + (cur === o.allId ? ' on' : ''), o.allChip);
-      all.type = 'button';
-      all.addEventListener('click', function () { select(o.allId); });
-      chips.appendChild(all);
-    }
-    tabs.forEach(function (t) {
-      var c = el('button', 'acsv-vchip' + (cur === t.id ? ' on' : ''), t.chipText);
-      c.type = 'button';
-      c.addEventListener('click', function () { select(t.id); });
-      chips.appendChild(c);
-    });
-    var add = el('button', 'acsv-vchip', o.addLabel);
-    add.type = 'button';
-    add.addEventListener('click', function () { openForm('create'); });
-    chips.appendChild(add);
-    renderOps();
+  function paintBusy() {
+    btn.className = 'acsv-signbtn busy';
+    btn.textContent = '签到中…';
   }
 
-  function renderOps() {
-    ops.textContent = '';
-    var t = tabOf(cur);
-    if (!t || (o.sysTab && o.sysTab(t))) return;
-    var rn = el('button', 'acsv-vchip sm', '改名');
-    rn.type = 'button';
-    rn.addEventListener('click', function () { openForm('rename', t); });
-    var del = el('button', 'acsv-vchip sm acsv-gdanger', o.delLabel);
-    del.type = 'button';
-    del.addEventListener('click', function () {
-      openConfirmPop(del, o.delConfirm(t, refresh));
-    });
-    ops.appendChild(rn);
-    ops.appendChild(del);
-  }
-
-  // 新建/改名共用内联表单（不弹层：管理页本来就是"编辑态"，原地输入最轻）
-  function openForm(mode, t) {
-    form.textContent = '';
-    form.style.display = '';
-    var input = el('input', 'acsv-ginput');
-    input.maxLength = o.formLabel.maxLen;
-    input.placeholder = o.formLabel.placeholder;
-    if (mode === 'rename') input.value = t.raw.name;
-    var label = o.formLabel.submit[mode];
-    var ok = el('button', 'acsv-gok', label);
-    ok.type = 'button';
-    var cancel = el('button', 'acsv-gcancel', '取消');
-    cancel.type = 'button';
-    var err = el('span', 'acsv-gerr');
-    cancel.addEventListener('click', function () { form.style.display = 'none'; form.textContent = ''; });
-    ok.addEventListener('click', function () {
-      if (form._busy) return;
-      var name = (input.value || '').trim();
-      var msg = o.nameError(name);
-      if (msg) { err.textContent = msg; return; }
-      form._busy = true;
-      ok.textContent = '提交中…';
-      var req = mode === 'rename' ? o.onRename(t.id, name) : o.onCreate(name);
-      req.then(function (made) {
-        form._busy = false;
-        ok.textContent = label;
-        if (!made) { err.textContent = label + '失败（重名或未登录？）'; return; }
-        form.style.display = 'none';
-        form.textContent = '';
-        toast((mode === 'rename' ? o.formLabel.renamed : o.formLabel.created) + name);
-        refresh(mode === 'create' ? String(made) : undefined); // 新建跳新档；改名停在原档
-      }, function () {
-        form._busy = false;
-        ok.textContent = label;
-        err.textContent = '操作失败（未登录？）';
-      });
-    });
-    form.appendChild(input);
-    form.appendChild(ok);
-    form.appendChild(cancel);
-    form.appendChild(err);
-    input.focus();
-  }
-
-  function select(id) {
-    cur = id;
-    started = true;
-    // 游标回首屏 + 代数 ++（作废在途回包）+ 在途标志/到底态复位（原五行的单源）
-    pg.reset();
-    allRows = [];
-    list.textContent = '';
-    resetBtn();
-    renderChips();
-    pg.load();
-  }
-
-  // 档表刷新（建/改名/删/移组/取关后——计数与选中态都要跟着动）；nextSel 给了就跳过去（新建/删组后）
-  function refresh(nextSel) {
-    return o.loadTabs().then(function (ts) {
-      if (!list.isConnected) return;
-      tabs = ts;
-      if (nextSel !== undefined) { select(nextSel); return; }
-      if (!tabs.length) { // 无档（收藏夹被删空）：空态 + 清状态行
-        chips.textContent = '';
-        ops.textContent = '';
-        list.textContent = '';
-        list.appendChild(el('div', 'acsv-vempty', o.emptyTabsText));
-        setStatus('');
-        return;
-      }
-      // 「全部」是伪档（不在 tabs 里）——不算失效；其余当前档查无（被删/首进）才回落
-      var curValid = o.allChip ? (cur === o.allId || !!tabOf(cur)) : !!tabOf(cur);
-      if (cur === null || !curValid) {
-        select(o.allChip ? o.allId : tabs[0].id);
-        return;
-      }
-      // 首进（列表还没起来）或需重拉：走 select（含 renderChips + load）；否则只重画 chips
-      // （分组=成员行原地改，不重拉；收藏夹 reloadOnRefresh=true 走上面这条）
-      if (!started || o.reloadOnRefresh) { select(cur); return; }
-      renderChips();
+  // 已签态点击：实时重拉黄历（用户 2026-10-18 裁决：不缓存）
+  function reopen() {
+    busy = true;
+    paintBusy();
+    Promise.all([
+      getSignInInfos().then(function (st) { state = st; return st; }, function () { return null; }),
+      fetchAlmanac()
+    ]).then(function (arr) {
+      busy = false;
+      paintSigned();
+      openSignAlmanac(arr[1], { banana: arr[0] ? arr[0].reward : null });
     }, function () {
-      if (!list.isConnected) return;
-      if (list.children.length) return; // 已有内容：静默（计数可能略旧，下一拍再刷）
-      list.textContent = '';
-      list.appendChild(el('div', 'acsv-vempty', o.tabsFailText));
-      setStatus('');
+      busy = false;
+      paintSigned();
+      errSignAlmanac();
     });
   }
 
-  // 列表会话续拉（0.9.173；0.9.179 收口为 makeListCtx 单源）：走同一台 load 机器，
-  // 回话=本轮新增条目（无新增/失败/到底=null）；到底读数取自翻页骨架
-  var lctx = makeListCtx(function () { return allRows; }, pg.load, function () { return pg.done(); });
-
-  var ctx = {
-    list: list,
-    refresh: refresh,
-    sel: function () { return cur; },
-    // 层内会话语境：本档已加载条目 + 续拉缝（收藏/历史=有下一页续拉；到底=null→层里停）
-    openCtxOf: function (pi) { return lctx.ctxOf(pi); }
-  };
-  return { refresh: refresh, select: select, list: list, chips: chips, tail: tail };
-}
-
-// ---- 收藏夹 tab（0.9.143 管理化；0.9.150 骨架交 adminTab 壳）----
-// 管理面：＋新建夹 / 组头「改名·删除收藏夹」（删除二次确认——**连带移除仅存于该夹的收藏记录**，
-// 2026-10-04 隔离实测在册）+ 卡面 hover「移动 / 移除收藏」两键。读链走 favapi（folderList 带
-// inFolder 是选择层专用，本页只用夹表与 favList）；夹 id/名一律字符串。
-// reloadOnRefresh=true：夹表一变（建/删/改名/移动/移除）计数与卡面归属都要重排 ⇒ 重拉列表。
-function buildFav(panel, scroller) {
-  var list = rowList(panel, 'fav');
-  var sk = skeleton(list);
-
-  // 卡面 + hover 管理键（移动=调整收藏夹弹层；移除=二次确认）——wrapper 是网格项，卡面照常进
-  function favCell(pi, ctx) {
-    var box = el('div', 'acsv-favcell');
-    box.appendChild(gridCardOf(pi, function () { return ctx.openCtxOf(pi); }));
-    var acts = el('div', 'acsv-favacts');
-    var mv = el('button', 'acsv-vchip sm', '移动');
-    mv.type = 'button';
-    mv.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      openFavFolderPop(mv, {
-        acId: pi.acId, favorited: true, title: '调整收藏夹',
-        done: function (res) {
-          // 本夹被取消勾选（或整条移除）→ 该卡不再属于当前列表：摘除；否则原地留（夹计数刷新）
-          // 契约由 favpop 保证：done 回 { favorited, ids }（0.9.148 实锤——旧契约只回 favorited 时
-          // 这里抛 TypeError、卡不摘除且夹计数不刷新）。**刻意不做 `|| []` 容错**：缺 ids 即契约破坏，
-          // 由 harness ff-move-refresh 钉住（容错会把该缺陷掩盖成"删了卡"）
-          if (!res.ids.length || res.ids.indexOf(String(ctx.sel())) < 0) box.remove();
-          ctx.refresh();
-        }
+  function doSign() {
+    busy = true;
+    paintBusy();
+    signIn().then(function (r) {
+      busy = false;
+      paintSigned();
+      if (r.almanac) { openSignAlmanac(r.almanac, { banana: r.banana }); return; }
+      var banana = r.banana || (state && state.reward) || null;
+      fetchAlmanac().then(function (a) {
+        openSignAlmanac(a, { banana: banana });
+      }, function () {
+        errSignAlmanac();
       });
+    }, function (e) {
+      busy = false;
+      paintGo();
+      if (e && e.kind === 'notlogin') errSignLogin(); else errSignFail();
     });
-    var rm = el('button', 'acsv-vchip sm', '移除收藏');
-    rm.type = 'button';
-    rm.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      openConfirmPop(rm, {
-        title: '移除收藏',
-        text: '把「' + (pi.title || '这条视频') + '」从所有收藏夹移除？',
-        okLabel: '移除',
-        run: function () { return favRemove(pi.acId, [ctx.sel()]); },
-        done: function () { toast('已移除收藏'); box.remove(); ctx.refresh(); }
-      });
-    });
-    acts.appendChild(mv);
-    acts.appendChild(rm);
-    box.appendChild(acts);
-    return box;
   }
 
-  var tab = adminTab(panel, {
-    list: list,
-    scrollEl: scroller, // 尾部件（0.9.219）：触底/回顶挂视图体
-    allChip: null, // 收藏夹无「全部」档
-    addLabel: '＋ 新建夹',
-    delLabel: '删除收藏夹',
-    formLabel: {
-      placeholder: '收藏夹名（1~40 字）', maxLen: 40,
-      submit: { create: '新建', rename: '改名' },
-      created: '已新建收藏夹：', renamed: '已改名：'
-    },
-    nameError: folderNameError,
-    reloadOnRefresh: true,
-    emptyTabsText: '还没有收藏夹',
-    tabsFailText: '收藏夹加载失败',
-    loadFailText: '加载失败，点击重试',
-    loadTabs: function () {
-      return folderList().then(function (fs) {
-        return fs.map(function (f) {
-          return { id: f.id, chipText: (f.name || '收藏夹') + (f.count != null ? ' ' + f.count : ''), raw: f };
-        });
-      });
-    },
-    loadPage: function (sel, cursor) {
-      return favList(sel, cursor + 1).then(function (j) { // 收藏夹分页=页号（1 起）
-        var rows = [];
-        ((j && j.favoriteList) || []).forEach(function (raw) {
-          var pi = panelItem('fav', raw);
-          if (pi) rows.push(pi);
-        });
-        // 到底判定：返回行数 < 页大小（favoriteList 与 folder/info 的 resourceCount 自洽，§4.2 实测）
-        return { rows: rows, noMore: !rows.length || rows.length < CFG.view.pageSize, nextCursor: cursor + 1 };
-      });
-    },
-    renderRow: function (pi, ctx) { return favCell(pi, ctx); },
-    emptyText: function () { return '这个夹还没有收藏'; },
-    onCreate: function (name) { return folderAdd(name); },        // → 新夹 id（响应 data.folderId）
-    onRename: function (id, name) { return folderRename(id, name); },
-    delConfirm: function (t, refresh) {
-      return {
-        title: '删除收藏夹',
-        text: '「' + t.raw.name + '」及其中收藏会一并移除（视频本身不受影响，不可恢复）。',
-        okLabel: '删除',
-        run: function () { return folderDelete(t.id); },
-        done: function () { toast('已删除收藏夹：' + t.raw.name); refresh(); }
-      };
-    }
+  btn.addEventListener('click', function () {
+    if (busy) return;
+    if (btn.classList.contains('signed')) reopen();
+    else if (btn.classList.contains('go')) doSign();
   });
-  tab.refresh().then(sk);
-}
-
-// ---- 关注分组 tab（0.9.142；0.9.150 骨架交 adminTab 壳）----
-// 读链走 relationapi（getGroups / listFollows action=9 组内·7 全部）；**游标是偏移量**
-//（与 feed 域毫秒时间戳不同源，relationapi 内收口）。成员行自带 groupId/groupName（真机实测 §2.3），
-// 「全部」视图里直接显归属标签。系统组（未分组 id="0"、保留名"特别关注"）不给改名/删除（站方语义：
-// 未分组不可删）。**分组不动关注流内容**——服务端 followFeedV2 不吃 groupId（2026-10-04 实测参数
-// 被忽略），所以关注视图无分组 chips，分组只在这里做"关系管理"（建/删/改名/移组/取关）。
-// reloadOnRefresh=false：成员行自带回调原地更新（移组改标签/摘行、取关摘行），重拉会覆盖成旧夹具形态。
-function buildFollowGroups(panel, scroller) {
-  var list = el('div', 'acsv-glist');
-
-  function memberRow(u, ctx) {
-    var row = el('div', 'acsv-grow');
-    var a = el('a', 'acsv-grow-link');
-    a.href = CFG.api.userBase + u.id;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    imgInto(a, u.head || CFG.api.defaultAvatar, 'avatar', 'acsv-avatar acsv-grow-avatar');
-    row.appendChild(a);
-    var info = el('div', 'acsv-grow-info');
-    info.appendChild(el('div', 'acsv-grow-name', u.name));
-    var meta = el('div', 'acsv-grow-meta');
-    if (u.fans) meta.appendChild(el('span', null, '粉丝 ' + u.fans));
-    if (u.contrib) meta.appendChild(el('span', null, '投稿 ' + u.contrib));
-    if (ctx.sel() === '-1' && u.groupName) meta.appendChild(el('span', 'acsv-grow-tag', u.groupName));
-    info.appendChild(meta);
-    row.appendChild(info);
-    var acts = el('div', 'acsv-grow-acts');
-    var move = el('button', 'acsv-vchip sm', '移组');
-    move.type = 'button';
-    move.addEventListener('click', function () {
-      openFollowGroupPop(move, {
-        uid: u.id, name: u.name, following: true, noExtra: true,
-        done: function (res) {
-          if (ctx.sel() !== '-1' && String(res.groupId) !== String(ctx.sel())) {
-            row.remove(); // 组内视图：移走的成员即离席
-            if (!ctx.list.querySelector('.acsv-grow')) ctx.list.appendChild(el('div', 'acsv-vempty', '这个分组还没有成员'));
-          } else {
-            var tag = meta.querySelector('.acsv-grow-tag');
-            if (tag) tag.textContent = res.groupName || '';
-          }
-          ctx.refresh();
-        }
-      });
-    });
-    var un = el('button', 'acsv-vchip sm', '取关');
-    un.type = 'button';
-    un.addEventListener('click', function () {
-      if (un._busy) return;
-      un._busy = true;
-      un.textContent = '…';
-      unfollowUser(u.id).then(function (ok) {
-        un._busy = false;
-        if (!ok) { un.textContent = '取关'; errNotLogin(); return; }
-        toast('已取消关注 @' + u.name);
-        row.remove();
-        if (!ctx.list.querySelector('.acsv-grow')) ctx.list.appendChild(el('div', 'acsv-vempty', '还没有关注'));
-        ctx.refresh();
-      });
-    });
-    acts.appendChild(move);
-    acts.appendChild(un);
-    row.appendChild(acts);
-    return row;
-  }
-
-  if (!selfUid()) { // 未登录：只出提示，不拉数据
-    list.appendChild(el('div', 'acsv-vempty', '登录后可管理关注分组'));
-    panel.appendChild(list);
-    return;
-  }
-  var tab = adminTab(panel, {
-    list: list,
-    scrollEl: scroller, // 尾部件（0.9.219）：触底/回顶挂视图体
-    allChip: '全部', allId: '-1',
-    addLabel: '＋ 新建分组',
-    delLabel: '删除分组',
-    formLabel: {
-      placeholder: '分组名（1~8 字）', maxLen: 8,
-      submit: { create: '新建', rename: '改名' },
-      created: '已新建分组：', renamed: '已改名：'
-    },
-    nameError: groupNameError,
-    sysTab: function (t) { return t.id === '0' || t.raw.name === '特别关注'; },
-    reloadOnRefresh: false,
-    firstCursor: '', // 偏移量游标（首页空串）
-    emptyTabsText: '还没有分组',
-    tabsFailText: '分组加载失败',
-    loadFailText: '加载失败，点击重试',
-    loadTabs: function () {
-      return getGroups().then(function (gs) {
-        return gs.map(function (g) {
-          return { id: g.id, chipText: g.name + (g.count != null ? ' ' + g.count : ''), raw: g };
-        });
-      });
-    },
-    loadPage: function (sel, cursor) {
-      return listFollows(sel === '-1' ? '' : sel, cursor).then(function (page) {
-        return { rows: page.items, noMore: page.noMore, nextCursor: page.nextCursor };
-      });
-    },
-    renderRow: function (u, ctx) { return memberRow(u, ctx); },
-    emptyText: function (sel) { return sel === '-1' ? '还没有关注' : '这个分组还没有成员'; },
-    onCreate: function (name) { return createGroup(name); },      // → 新组 id（响应带，差集兜底）
-    onRename: function (id, name) { return renameGroup(id, name); },
-    delConfirm: function (t, refresh) {
-      return {
-        title: '删除分组',
-        text: '「' + t.raw.name + '」里的成员会移到「未分组」，关注关系不变。',
-        okLabel: '删除',
-        run: function () { return removeGroup(t.id); },
-        done: function () { toast('已删除分组：' + t.raw.name); refresh('-1'); }
-      };
-    }
-  });
-  // 首屏骨架（0.9.219 补）：此前分组档没有骨架（同页历史/收藏都有），首拉期间是白屏
-  var sk = skeleton(list);
-  tab.refresh().then(sk, sk); // 首进：拉组表 → 回落「全部」档（allId）并载入成员
 }
 
 // ---- 动态：个人主页动态流（0.9.218）----

@@ -502,3 +502,69 @@ P3-2/P3-3 等工程项。报告 11 条判错逐条裁定（8 条维持判决、3
   `devicetab`（生成物），二者不属口径候选。
 - **缓议/不做**：P3-3 双皮合并（**须先出 `docs/preview/` 预览稿**）、P3-1 探活停拍（不做）、
   state.js 只读化（前提不成立）、`deleteMoment`/`uploadImages` 死代码删除（宜独立小批）。
+
+## 11. 大文件拆件评估（2026-10-17，P2-8）
+
+五维评估的 P2 第 8 条：只做**评估**，未动代码。结论按「风险/收益」排序，拆件仍须逐批走
+「零漂移 + 既有断言不改 + 摘缝反跑 + check-direction/README 图同步」的既有纪律。
+
+| 文件 | 行数 | 最自然拆缝 | 判定 |
+|---|---:|---|---|
+| `mypage.js` | 739 | `mytabs.js`：adminTab + 收藏档 + 关注分组档（约 203–636 行） | **优先**：纯搬迁、单向 mypage→mytabs，view-my/favfolders/relation 三场景可钉 |
+| `imsend.js` | 889 | `imimage.js`：图片字节管线 + URL 换链（约 606–733、820–889） | **优先**：状态自足、只依赖 cfg/net/ui，与 0.9.163「同族」原意一致 |
+| `controls.js` | 732 | `dmpanel.js`：弹幕设置面板（约 471–623）；菜单另做单源 | 次优先：单向、低风险；菜单同形副本先归一 |
+| `imsend.js` | 889 | `imsdk.js`：日志黑匣 + SDK 加载补丁 + 单例/连接（约 27–371） | 收益最大但风险高：`imPromise`/`connGen`/崩溃水位被发送恢复链跨切，需一次边界重排 |
+| `imdrawer.js` | 938 | `imbubble.js`：气泡渲染 + 引用条（约 417–660） | 风险中高：`msgEls` 依赖 `lastElementChild`，多处直读 drawer；先补渲染断言再拆 |
+| `player.js` | 758 | `feedland.js`：观察器/落位/吸附（约 33–73、295–423） | **暂缓**：issue #1 时序核心，风险高于收益；player 作为组合根体量可接受 |
+
+**明确不拆**：player 的 SESSION_HOOKS 与 mount/unmount（编排结）；controls.buildControls 主体与
+进度条段（闭包态横跨构建、高频写 `slide._ctl*`）；mypage.meCardOf/buildMeCard/buildMoments
+（0.9.160 刚就地收编）；imsend 日志黑匣与 weblog（与水位语义共命）；imdrawer DOM/生命周期与
+内省（4 个 testHook 直读抽屉内部）。
+
+**落地追记（0.9.265）**：第一项 `mypage → mytabs` 已出货——`mypage.js` 739 → 195 行，
+`mytabs.js` 552 行（逐字搬迁，单测 419 + harness 82 未改断言全绿）。下一项按序为
+`imsend → imimage`（图片字节管线 + URL 换链，状态自足、只依赖 cfg/net/ui）。
+**落地追记（0.9.266）**：第二项 `imsend → imimage` 已出货——`imsend.js` 889 → 688 行，
+`imimage.js` 210 行（图片字节管线 + URL 换链逐字搬迁；单测 419 + harness 82 未改断言全绿）。
+下一项按序为 `controls → dmpanel`（弹幕设置面板；菜单同形副本先归一）。
+**落地追记（0.9.267）**：第三项 `controls → dmpanel` 已出货——`controls.js` 732 → 579 行，
+`dmpanel.js` 159 行（弹幕设置面板逐字搬迁；单测 419 + harness 82 未改断言全绿）。下一项为
+`imsend → imsdk`（高风险：imPromise/connGen/崩溃水位跨切，需边界重排）或
+`imdrawer → imbubble`（先补渲染断言再拆）。
+**落地追记（0.9.268）**：第四项 `imdrawer → imbubble` 已出货——先补 `imBubbleSmoke` 钩子 +
+`im-bubble` 场景（9 断言）并跑绿，再搬迁：`imdrawer.js` 938 → 769 行、`imbubble.js` 264 行
+（气泡渲染簇逐字搬迁，工厂 env 注入抽屉态；单测 419 + harness 82 未改断言全绿）。
+下一项按序为 `imsend → imsdk`（高风险：发送恢复链跨切，需边界重排）；`player → feedland`
+仍暂缓（issue #1 时序核心）。
+**落地追记（0.9.269）**：`imdrawer` 的**列表/聊天/发送三簇已出货**——分三子批（每批 build +
+harness 绿后再下一批）：发送 UI → `imsendui.js`（769 → 652 行；harness 9/25/13/49）、列表 →
+`imlist.js`（652 → 561；9/25/13/30/30）、聊天视图+引用 chip → `imchat.js`（561 → 454；
+9/25/13/9/4）。三件均以 `createXKit(env)` 工厂注入共享态，不 import imdrawer；`imdrawer.js`
+只留共享状态/DOM 骨架/视图切换/生命周期与测试钩子（454 行）。**落地追记（0.9.270）**：
+第五项 `imsend → imsdk` 已出货（高风险边界专项）——`imsend.js` 688 → 302 行，
+`imsdk.js` 402 行（SDK 加载/补丁/日志黑匣子/单例连接/崩溃水位逐字搬迁，`imPromise`/
+`connGen`/`tracerFixedTotal` 整组随件走，`rebuildIm` 水位推进仍在 `ensureConnected` 成功后；
+单测 419 + harness 83 未改断言全绿）。**落地追记（0.9.271）**：`player` 拆件按方案先做
+Phase 1——`SESSION_HOOKS`/画幅判断移入 `sessionhooks.js`（148 行），`player.js` 758 → 640 行；
+归类 SKIP_B，门禁 0/0/0。**落地追记（0.9.272）**：Phase 2 也已出货——`landAt`/`snapWatchTick`/
+`scrollToIndex` 等落地/吸附逻辑移入 `feedland.js`（174 行），`player.js` 640 → 522 行；
+归类 PLAY，`land-near` 的 stuck/heal/trunc 断言未改全绿。player 仍保留 renderWindow/setActive/
+mount/unmount/路由编排（组合根不拆），后续不再追 <500 行的形式目标。
+**A 类精读追记（0.9.273）**：播放核心精读台账见 `docs/a-class-audit-2026-10-17.md`——修
+深链不清理 `FollowVideos` 上下文的 P1（新增 `deeplink-followctx`），以及 `feedland` 探针/
+settle 两个 P2（各有一条单测反跑）。`dmcanvas` 无 rVFC 暂停空转列为观察项，未动。
+**B 类精读追记（0.9.274）**：私信域台账见 `docs/b-class-audit-2026-10-17.md`——修
+`imLogMark/imLogVerdict` 的数组下标水位（缓冲驱逐后会误判超时/重复私信；单测反跑），以及
+`ensureIm/rebuildIm` 构造器抛错后单例槽永久 rejected 的弃槽缺陷。图片下载取消、prewarm
+注释漂移等列为观察项。
+**C 类精读追记（0.9.275）**：视图/数据台账见 `docs/c-class-audit-2026-10-17.md`——修
+`cardsOf.bodyContents` / `playInfo.playUrls` 的二级数组守卫、HLS 脚本分支逐源回落、评论
+请求 `reqSeq` 序号；`cardsOf` 有单测反跑，其余以代码路径证明。
+**D 类机械扫描（0.9.275 同基线）**：全仓 `docs/d-class-audit-2026-10-17.md`——59 处
+`innerHTML`、32 处 `JSON.parse`、11 个 `setInterval`、58 个 `setTimeout`、8 个 `parseInt`
+与 269 个模块级 `var` 逐类核对；**未发现需要修的确定项**。观察项：debug 统计镜像常驻、
+nativeip 路由扫描可去抖、release 正文信任 GitHub、report 会话内映射线性增长（均有界/有意）。
+**观察项收口（0.9.276）**：debug 镜像加 pagehide 停表、nativeip 路由扫描去抖、report 映射
+500 上限、`dmcanvas` 暂停停排 + `stopAll` 逐层 destroy；`release` 正文信任边界与
+`session` 恢复后自动播放两项明确接受/待真机，不再作为待办。

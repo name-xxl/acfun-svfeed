@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { stat, set, testHook } from './dbg.js';
+import { stat, set, testHook, swallow } from './dbg.js';
 import { unpackText } from './pack.js';
 
 // ---------- hls.js 懒加载 ----------
@@ -48,7 +48,7 @@ function probeHls() {
   var cands = [pageWin(), window];
   for (var i = 0; i < cands.length; i++) {
     var G = null;
-    try { G = cands[i] && cands[i].Hls; } catch (e) { }
+    try { G = cands[i] && cands[i].Hls; } catch (e) { swallow(e, 'hls'); }
     if (G && typeof G.isSupported === 'function' && G.isSupported()) return G;
   }
   return null;
@@ -75,7 +75,7 @@ function evalHlsSource(src) {
     Got = (new Function('(function (define, module, exports) {\n' + src + GRAB + '\n})(void 0, void 0, void 0);'))();
   } catch (e) { set('hls.evalErr', String((e && e.message) || e).slice(0, 140)); }
   if (!Got && window.Hls && window.Hls.isSupported) Got = window.Hls; // 页面 world 直执行路径本就落 window
-  if (Got && Got.isSupported) { try { window.Hls = Got; } catch (e) { } stat('hls.evalOk'); return Got; }
+  if (Got && Got.isSupported) { try { window.Hls = Got; } catch (e) { swallow(e, 'hls'); } stat('hls.evalOk'); return Got; }
   stat(Got ? 'hls.evalNoMse' : 'hls.evalNoClass');
   return null;
 }
@@ -94,10 +94,10 @@ function loadViaBlob(src) {
       if (done) return;
       done = true;
       clearTimeout(timer);
-      try { URL.revokeObjectURL(url); } catch (e) { }
-      try { s.remove(); } catch (e) { }
+      try { URL.revokeObjectURL(url); } catch (e) { /* best-effort: cleanup */ }
+      try { s.remove(); } catch (e) { /* best-effort: cleanup */ }
       if (G) {
-        try { window.Hls = G; } catch (e) { } // 脚本 world 回填，后续快路径命中
+        try { window.Hls = G; } catch (e) { swallow(e, 'hls'); } // 脚本 world 回填，后续快路径命中
         stat('hls.blobOk');
         resolve(G);
       } else {
@@ -131,8 +131,10 @@ export function ensureHls() {
       var i = 0;
       // 脚本标签分支（无 GM 环境）：页面 world 直执行，类落可读的 window——直读即可
       function ok() {
-        if (window.Hls && window.Hls.isSupported) { set('hls.cdnIdx', i - 1); resolve(window.Hls); }
-        else reject(new Error('hls-load-failed'));
+        if (window.Hls && window.Hls.isSupported) { set('hls.cdnIdx', i - 1); resolve(window.Hls); return; }
+        // 脚本执行了但没给出可用类（坏内容/不支持 MSE）：与 GM 分支同口径继续下一个 CDN，
+        // 不能在这里直接 reject——后续源可能可用（0.9.275）。
+        next();
       }
       function next() {
         if (i >= urls.length) return reject(new Error('hls-network'));

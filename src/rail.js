@@ -9,6 +9,7 @@ import { openFollowGroupPop } from './grouppop.js'; // 关注角标→分组选�
 import { openFavFolderPop } from './favpop.js'; // 收藏键→收藏夹选择层（0.9.143）
 import { openSharePanel } from './sharepanel.js';
 import { toggleBananaPop } from './banpop.js';
+import { errBananaThrown } from './toastmsg.js';
 
 // ---------- 右侧操作栏 + 上下翻页箭头 ----------
 // 从 buildSlide 抽出：头像/关注、点赞、评论、投蕉、收藏、分享。
@@ -189,7 +190,7 @@ export function buildSideRail(slide, item, goTo) {
   if (item.cap.banana) {
     // 投蕉：弹数量层（对齐视频页"点第 N 根投 N"）；已投过则不可再展开
     var banUI = railBtn({ mask: VIDEO_ICONS.banana, svg: ICONS.banana }, fmtWan(item.banana), '投蕉', function (b) {
-      if (item.thrown) { toast('已投过蕉啦，明天再来~'); return; }
+      if (item.thrown) { errBananaThrown(); return; }
       toggleBananaPop(b, {
         send: function (n) { return giveBanana(item, n); },
         applied: function (n) {

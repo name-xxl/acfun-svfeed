@@ -1,374 +1,22 @@
-// ---------- 私信发送基建（0.9.123 自 imshare.js 拆出：协议核心 ↔ 分享面板 UI 分居） ----------
-// 本模块 = SDK 加载/注入/补丁（源码补丁 + Blob 执行 + tracer 手术 + 日志黑匣子/weblog 垫片）
-// + 连接与重连 + 发送核心（doSend/sendKernel/withSendRecovery/sendQuote/sendImage/
-// sendCmtShare/sendMomentShare）+ 图片管线（字节：midground 令牌/blob LRU/下载队列/在飞去重；
-// URL 换链 0.9.163 自 imdrawer 迁入：imageUrlOf ks://→官方直链/imageUriFromRaw/officialize）。
-// 分享面板 UI 在 sharepanel.js（单向依赖本模块出口）；拆分动机：协议核心获得独立可测面、
-// UI 改动不再碰发送可靠性。纯搬迁零逻辑改动（原 imshare.js 单文件 45.9K）。
+// ---------- 私信发送核心（0.9.123 自 imshare.js 拆出：协议核心 ↔ 分享面板 UI 分居） ----------
+// 0.9.270：SDK 基建（加载/注入/补丁/tracer 手术/日志黑匣子/weblog 垫片/单例连接/崩溃水位）
+// 拆至 imsdk.js——本模块只留「联系人/头像 + 发送核心」（doSend/withSendRecovery/sendKernel/
+// sendQuote/sendImage/sendCmtShare/sendMomentShare）；恢复链经 imsdk 出口读状态，不持副本。
+// 图片管线（字节：midground 令牌/blob LRU/下载队列/在飞去重；URL 换链：imageUrlOf ks://→官方
+// 直链/imageUriFromRaw/officialize）已 0.9.266 拆至 imimage.js。分享面板 UI 在 sharepanel.js
+// （单向依赖本模块出口）；拆分动机：协议核心获得独立可测面、UI 改动不再碰发送可靠性。
 // ---------- 私信分享（抖音式分享面板） ----------
 // 网页端私信没有 REST 发送端点：官方自己走快手 ImSdk（klink WebSocket + protobuf），
-// SDK CDN 与用法取自站点顶栏 newHeader 原版逻辑（$.getScript(globalConfig.imsdkcdn) 后
-// new ImSdk({dev:false})）。构造是单例：若顶栏已建实例则复用同一条 WS 连接，不重复握手。
-// 头像昵称用 getUserCardList（SDK 内部同款接口，网页 Cookie 鉴权）。
-// 全链路失败均降级为「复制链接」，不阻断分享。
+// SDK 加载/单例构造/日志读回在 imsdk.js。头像昵称用 getUserCardList（SDK 内部同款接口，
+// 网页 Cookie 鉴权）。全链路失败均降级为「复制链接」，不阻断分享。
 
 import { CFG } from './cfg.js';
-import { stat, set } from './dbg.js';
-import { gmRequest } from './net.js';
-import { cookieVal, selfUid } from './ui.js';
+import { swallow } from './dbg.js';
 import { postForm } from './appapi.js';
 import { quoteWireText, QUOTE_EXTRA_KEY, CMT_EXTRA_KEY, MOMENT_EXTRA_KEY } from './immsg.js';
-
-// 脚本在 TM 隔离 world 运行，页面变量（globalConfig/ImSdk）必须经 unsafeWindow 读
-function pageWin() {
-  return typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
-}
-
-// ---------- SDK 日志黑匣子 ----------
-// SDK 的 @log 装饰器把每个 kernel API 的入参/resolve/reject 全部打到 window.localLog
-// （官方钩子，缺省回落 console）。发送失败的真实原因（服务端拒绝码等）就在 reject: 行里。
-// 跨 world 直写 unsafeWindow 属性在部分 TM 组合下不落页面（dbg.js 同款教训），所以先直写、
-// 失败再借页面上下文内联脚本安装；收集进 window.__acsvImLog 供沙箱读回
-// G = 目标 global（页面 world）：直写时传 unsafeWindow，内联兜底时由序列化调用传 window。
-// 函数体不得引用外层闭包（会被 toString 后在页面上下文执行）。
-// 除 localLog 外同时包装 console（widget 的失败日志走裸 console.log，不在 localLog 里）
-function logInstaller(G) {
-  if (G.__acsvImLog) return;
-  G.__acsvImLog = [];
-  G.__acsvImLogDrop = 0; // 累计驱逐数（0.9.121）：水位判据按"累计写入数"记，见 tracerCrashAfter
-  G.__acsvImErr = '';
-  var ser = function (a) {
-    if (a == null) return String(a);
-    var t = typeof a;
-    if (t === 'string') return a;
-    if (t === 'number' || t === 'boolean') return String(a);
-    try {
-      if (typeof a.toJSON === 'function') return JSON.stringify(a.toJSON());
-    } catch (e) { }
-    // Error 家族 JSON.stringify 恒为 {}（TypeError 假失败的教训），必须手动摘字段
-    if (a instanceof Error || (a && a.message && a.stack)) {
-      return JSON.stringify({ name: a.name, message: a.message, code: a.code });
-    }
-    try { return JSON.stringify(a); } catch (e2) { return String(a); }
-  };
-  var push = function () {
-    try {
-      var parts = [], errJson = '';
-      for (var i = 0; i < arguments.length; i++) {
-        var s = ser(arguments[i]);
-        parts.push(s);
-        if (s && s.charAt(0) === '{') errJson = s; // 末尾 JSON 载荷 = 拒绝原因
-      }
-      var line = parts.join(' ');
-      if (line.indexOf('[im-sdk]') > -1 || line.indexOf('信息发送') > -1 || line.indexOf('reject:') > -1) {
-        if (errJson) G.__acsvImErr = errJson;
-        G.__acsvImLog.push(line.slice(0, 2000));
-        if (G.__acsvImLog.length > 60) { G.__acsvImLog.shift(); G.__acsvImLogDrop++; }
-      }
-    } catch (e) { }
-  };
-  G.localLog = {
-    log: function () { push.apply(null, arguments); console.log.apply(console, arguments); },
-    info: function () { push.apply(null, arguments); console.info.apply(console, arguments); },
-    error: function () { push.apply(null, arguments); console.error.apply(console, arguments); }
-  };
-  try {
-    ['log', 'info', 'error'].forEach(function (lv) {
-      var orig = G.console[lv].bind(G.console);
-      G.console[lv] = function () {
-        push.apply(null, arguments);
-        orig.apply(null, arguments);
-      };
-    });
-  } catch (e) { }
-}
-// 「直写 unsafeWindow → 失败再内联 script」统一出口：installer 是自包含函数（页面
-// world 无闭包变量可引用），installed(w) 探测注入是否已生效。返回 true = 本次注入过
-function injectPageFn(installer, installed) {
-  var w = pageWin();
-  if (installed(w)) return false;
-  try { installer(w); } catch (e) { } // 直写 unsafeWindow：多数 TM 组合可用
-  if (installed(w)) return false;
-  try {
-    var s = document.createElement('script');
-    s.textContent = '(' + installer.toString() + ')(window);';
-    (document.head || document.documentElement).appendChild(s);
-    s.remove();
-  } catch (e2) { }
-  return true;
-}
-
-function ensureLocalLog() {
-  injectPageFn(logInstaller, function (w) { return w.localLog && w.__acsvImLog; });
-}
-function imLogMark() {
-  try { return (pageWin().__acsvImLog || []).length; } catch (e) { return 0; }
-}
-// 从 mark 起按顺序扫描：成功/失败谁先出现算谁（混入多条时保序）
-function imLogVerdict(mark) {
-  var buf = [];
-  try { buf = pageWin().__acsvImLog || []; } catch (e) { }
-  for (var i = mark; i < buf.length; i++) {
-    var l = String(buf[i]);
-    if (l.indexOf('信息发送成功') > -1) return { ok: true };
-    if (l.indexOf('信息发送失败') > -1) return { ok: false, why: l };
-  }
-  return null;
-}
-// 日志状态读取（缓冲 + 累计驱逐数）：水位判据按"累计写入数"记——滚动缓冲 shift() 会让
-// 数组下标整体漂移，纯下标水位在驱逐后错位（0.9.121）
-function imLogState() {
-  try {
-    var w = pageWin();
-    return { lines: w.__acsvImLog || [], drop: Number(w.__acsvImLogDrop) || 0 };
-  } catch (e) { return { lines: [], drop: 0 }; }
-}
-function imLogTotal() { var s = imLogState(); return s.drop + s.lines.length; }
-
-// 崩溃水位判据（纯函数，导出供单测）：仅认"绝对序号 ≥ fromTotal"的行的崩溃指纹。
-// 绝对序号 = drop + 数组下标；fromTotal = 已修复水位（tracer 病治愈时推进的累计写入数）
-export function tracerCrashAfter(lines, drop, fromTotal) {
-  var d = Number(drop) || 0, from = Number(fromTotal) || 0;
-  var arr = lines || [];
-  for (var i = 0; i < arr.length; i++) {
-    if (d + i < from) continue;
-    if (String(arr[i]).indexOf("reading 'context'") > -1) return true;
-  }
-  return false;
-}
-
-// 已修复水位与判定（0.9.121 修）：此前从缓冲 0 号全量扫——已治愈的旧崩溃（滚动 60 行内
-// 可滞留很久）会让之后每次普通发送失败都被误诊成"需要重建单例"（无谓重建=断链重连）。
-// 现在只认水位之后的崩溃。**为什么不选"重建成功后清缓冲"**：清空会让同页在途 doSend 的
-// imLogVerdict(mark) 水位失配（buf.length < mark 恒 null）→ 该发送超时终局 →
-// withSendRecovery 重试 → 若原发送实际已成功 = 重复私信；水位+驱逐计数无此险
-var tracerFixedTotal = 0;
-function hadTracerCrash() {
-  var s = imLogState();
-  return tracerCrashAfter(s.lines, s.drop, tracerFixedTotal);
-}
-
-// ---------- weblog 兜底 ----------
-// SDK 构造时捕获 window.weblog（快手日志器）当链路 tracer；竖刷页上站点脚本可能尚未
-// 初始化它 → kernel 带病创建，send 一律崩 `TypeError: ... reading 'context'`（旧版
-// 49d365 实测），且单例一旦带病终生带病。先等站点自己的 weblog（最多 3s），没有就装
-// 最小 no-op tracer。函数体不引外层闭包（会被序列化后注入页面执行）
-function weblogInstaller(G) {
-  function makeSpan(opts) {
-    var span = {
-      context: (opts && opts.context) || { traceId: 'acsv' + Date.now() },
-      setTags: function () { return span; },
-      end: function () { },
-      createSubSpan: function (sub, o1, o2, parent) {
-        return makeSpan({ context: parent || span.context });
-      }
-    };
-    return span;
-  }
-  function safeStart(name, opts) {
-    var sp = null;
-    try { sp = G.__acsvOrigStart ? G.__acsvOrigStart.apply(this, arguments) : null; } catch (e) { }
-    if (sp && sp.context !== undefined) return sp; // 原生 span 可用就走原生
-    return makeSpan(opts); // 缺失/残缺（startSpan 返回 undefined 一样崩 send）→ 兜底 span
-  }
-  if (!G.weblog) {
-    G.weblog = { startSpan: safeStart };
-    return;
-  }
-  // 已有 weblog 但可能残缺：只包 startSpan 一层，别整体替换（站点埋点还依赖其余方法）
-  if (!G.__acsvOrigStart) {
-    G.__acsvOrigStart = G.weblog.startSpan;
-    G.weblog.startSpan = safeStart;
-  }
-}
-// 同步补齐 weblog：缺了立刻装垫片（不等站点——站点可能加载得比单例构造还晚，
-// 那正是带病单例的成因）。返回 true 表示本次装了垫片
-function tracerOk() {
-  try {
-    var wl = pageWin().weblog;
-    if (!wl || typeof wl.startSpan !== 'function') return false;
-    var sp = wl.startSpan('__acsv_probe__', {});
-    return !!(sp && sp.context !== undefined); // 存在但 startSpan 返回 undefined 的残缺实现也算坏
-  } catch (e) { return false; }
-}
-function ensureWeblogSync() {
-  if (tracerOk()) return false;
-  return injectPageFn(weblogInstaller, function () { return tracerOk(); });
-}
-
-export function isLogined() {
-  return /^\d/.test(cookieVal('auth_key'));
-}
-
-// 加载 ImSdk：拉源码文本 → 打补丁 → blob 执行（CSP script-src 含 blob: ✓）。
-// 旧版 49d365 构建缺陷：SendMsg 打点裸读 f.context（tracer 未注入时必崩，见 ensureTracer
-// 注释）。补丁把 Encode/Transfer 两个纯追踪 span 的创建禁掉（!1 短路），f 恒为 false，
-// f.context 走既有 void 0 保护——零功能影响。补丁失配（官方换版）则回退未修补直载，
-// 那时发送崩溃走 hadTracerCrash 既有兜底
-function gmGetText(url) {
-  return gmRequest({ url: url, timeout: CFG.im.loadT, responseType: 'text', okStatus: true });
-}
-
-function loadImSdk() {
-  var t0 = Date.now(); // 埋点（0.9.244，对标 hls.evalMs）：fetch+补丁+注入 → 拿到构造器的总耗时
-  return new Promise(function (resolve, reject) {
-    ensureLocalLog();
-    ensureWeblogSync();
-    var w = pageWin();
-    var src = (w.globalConfig && w.globalConfig.imsdkcdn) || CFG.api.imsdk;
-    if (src.indexOf('//') === 0) src = 'https:' + src;
-    var settled = false;
-    function done(fn, val) {
-      if (settled) return;
-      settled = true;
-      if (fn === resolve) { stat('im.sdkLoad'); set('im.loadMs', Date.now() - t0); }
-      fn(val);
-    }
-    function injectScript(url, onok, onfail) {
-      var s = document.createElement('script');
-      var timer = setTimeout(function () {
-        clearTimeout(timer);
-        s.remove();
-        if (url.indexOf('blob:') === 0) URL.revokeObjectURL(url);
-        onfail();
-      }, CFG.im.loadT);
-      s.onload = function () {
-        clearTimeout(timer);
-        var Ctor = pageWin().ImSdk;
-        if (Ctor) onok(Ctor);
-        else onfail();
-      };
-      s.onerror = function () {
-        clearTimeout(timer);
-        s.remove();
-        if (url.indexOf('blob:') === 0) URL.revokeObjectURL(url);
-        onfail();
-      };
-      s.src = url;
-      (document.head || document.documentElement).appendChild(s);
-    }
-    function directLoad() {
-      injectScript(src, function (Ctor) { done(resolve, Ctor); },
-        function () { done(reject, new Error('imsdk-load-fail')); });
-    }
-    gmGetText(src).then(function (text) {
-      var n = 0;
-      text = text
-        .replace('p=be.includes(e)&&(null==d?void 0:d.createSubSpan("Encode"', function (m) { n++; return 'p=!1&&(null==d?void 0:d.createSubSpan("Encode"'; })
-        .replace('f=be.includes(e)&&(null==d?void 0:d.createSubSpan("Transfer"', function (m) { n++; return 'f=!1&&(null==d?void 0:d.createSubSpan("Transfer"'; });
-      if (n < 2) { console.warn('[acsv-im] SDK 补丁失配（官方可能换了版），回退未修补加载'); return directLoad(); }
-      var url = URL.createObjectURL(new Blob([text], { type: 'text/javascript' }));
-      injectScript(url, function (Ctor) { done(resolve, Ctor); }, function () { directLoad(); });
-    }, function () { directLoad(); });
-  });
-}
-
-var imPromise = null;
-export function ensureIm() {
-  if (imPromise) return imPromise;
-  imPromise = loadImSdk().then(function (Ctor) {
-    // 单例直接复用：站点实例若已存在，其连接与同步缓存都是现成的（tracer 缺陷由
-    // ensureTracer 注入修复，无需重造）。复用语义在 SDK 构造器内部（构造即单例）
-    return new Ctor({ dev: false });
-  }, function (e) { imPromise = null; throw e; });
-  return imPromise;
-}
-
-// 真实链路活性：不同版本暴露位置不同（新 kernel.isConnected / 内层 link 管理器的
-// linkState，部分版本挂在 kernel.api 上），多探针兼容。会话列表 kernel.getSessions()
-// 读本地缓存、widget.connected 断线后仍为 true——都不能作为连接依据
-export function linkOk(inst) {
-  try {
-    var k = inst.kernel;
-    if (!k) return false;
-    // 多探针兼容（各版本暴露位置不同）；探针全缺失的版本信任 widget.connected——
-    // 旧版 49d365 无任何探针，误判"断线"会让恢复流程反复重连自己捣乱
-    var probes = [];
-    if ('isConnected' in k) probes.push(k.isConnected === true);
-    if ('linkState' in k) probes.push(k.linkState === 'connected');
-    if (k.api && 'isConnected' in k.api) probes.push(k.api.isConnected === true);
-    if (k.api && 'linkState' in k.api) probes.push(k.api.linkState === 'connected');
-    if (!probes.length) return !!inst.connected;
-    return probes.indexOf(true) > -1;
-  } catch (e) { return false; }
-}
-
-// 强制重连：清掉 widget 的已连标记后走官方 connect()（重新取 token + 重建 WS）。
-// 顶栏实例与面板共用，重连同时把顶栏红点也救活，无副作用
-export function forceReconnect(inst) {
-  try { inst.connected = false; inst.retryNum = 0; inst.connect(); } catch (e) { }
-}
-
-// 手术式修复旧版构建缺陷：initLink 不传 kTraceConfig → link.tracer 永远 undefined →
-// SendMsg 打点裸读 f.context 必崩。注入独立的页面世界 tracer（不依赖站点 weblog 好坏），
-// 幂等：建一次 tracer + 注入当前单例的链路对象。G=页面 window，函数体不引外层闭包
-function tracerInstaller(G) {
-  if (!G.__acsvTracer) {
-    var span = function (opts, parent) {
-      var s = {
-        context: (opts && opts.context) || parent || { traceId: 'acsv' + Date.now() },
-        setTags: function () { return s; },
-        end: function () { },
-        createSubSpan: function (n, parentCtx) { return span(opts, parentCtx || s.context); }
-      };
-      return s;
-    };
-    G.__acsvTracer = { startSpan: function (name, opts) { return span(opts); } };
-  }
-  try {
-    var inst = G.ImSdk && G.ImSdk.instance;
-    var zs = inst && inst.kernel && (inst.kernel.api || inst.kernel);
-    var link = zs && zs.link;
-    if (link && !link.tracer) link.tracer = G.__acsvTracer;
-    // 旧版构建的 link 缺 log/logPerformance（站点 globalConfig 供给的 rc.1 实测，0.9.41）：
-    // 图片上传成功后的性能打点走 kernel.log → this.link.log，只判 link 存在不判方法，
-    // 直接 TypeError 把发送整体打断（实测上传都 200 了死在打点上；文本路径不经此打点故无恙）。
-    // 补 no-op 与补 tracer 同性质：只丢性能埋点，零功能影响
-    if (link) {
-      if (typeof link.log !== 'function') link.log = function () { };
-      if (typeof link.logPerformance !== 'function') link.logPerformance = function () { };
-    }
-    G.__acsvTracerOk = !!(link && link.tracer);
-  } catch (e) { G.__acsvTracerOk = false; }
-}
-export function ensureTracer(inst) {
-  injectPageFn(tracerInstaller, function (w) { return w.__acsvTracer && w.__acsvTracerOk; });
-  var w = pageWin();
-  // 沙箱侧再补一刀（页面内联若被 CSP 拦截时的尽力而为）
-  try {
-    var k = inst.kernel || {};
-    var zs = k.api || k;
-    if (zs && zs.link && !zs.link.tracer && w.__acsvTracer) zs.link.tracer = w.__acsvTracer;
-    // 沙箱侧同款补桩：injectPageFn 装过一次后 installer 不再重跑，这里每次兜底
-    if (zs && zs.link) {
-      if (typeof zs.link.log !== 'function') zs.link.log = function () { };
-      if (typeof zs.link.logPerformance !== 'function') zs.link.logPerformance = function () { };
-    }
-  } catch (e3) { }
-}
-
-// 等待链路就绪：健康则秒回。不挂任何事件——SDK 事件在页面 world 触发，跨 TM 沙箱
-// 回调不可靠（WS 已连上、面板却超时的教训）；改为轮询可观察状态（跨 world 读已证实可靠）。
-// connT1 后仍未连才主动重连（widget 自带 3 次重试，别抢它的活），connT2 总闸
-var connGen = 0; // 递增使在途连接轮询失效：抽屉拆除后孤儿 poll 不再动共享单例（0.9.34）
-export function imShutdown() { connGen++; }
-export function ensureConnected(inst) {
-  if (inst.connected && linkOk(inst)) return Promise.resolve();
-  return new Promise(function (resolve, reject) {
-    var start = Date.now(), forced = false, gen = connGen;
-    (function poll() {
-      if (gen !== connGen) return reject(new Error('im-cancelled'));
-      var ok = false;
-      try { ok = !!inst.connected && linkOk(inst); } catch (e) { }
-      if (ok) return resolve();
-      var t = Date.now() - start;
-      if (t > CFG.im.connT2) return reject(new Error('im-connect-fail'));
-      if (!forced && t > CFG.im.connT1) { forced = true; forceReconnect(inst); }
-      ensureTracer(inst); // 注入时机无关紧要（send 时才读取），趁轮询顺手补上
-      setTimeout(poll, 250);
-    })();
-  });
-}
+import {
+  ensureConnected, ensureTracer, linkOk, rebuildIm, hadTracerCrash, imLogMark, imLogVerdict
+} from './imsdk.js';
 
 // 会话列表（最近联系人）：连接后服务端 sync 需要 1~2 拍，轮询到非空即止。
 // 空列表是合法状态（从没私聊过），区分「超时仍空」与「真的没有」意义不大，统一返回 []。
@@ -378,7 +26,7 @@ export function getContacts(inst) {
     var n = 0;
     (function poll() {
       var ss = [];
-      try { ss = inst.kernel.getSessions() || []; } catch (e) { }
+      try { ss = inst.kernel.getSessions() || []; } catch (e) { swallow(e, 'imsend'); }
       if (ss.length) return resolve(mapSessions(ss));
       if (++n >= CFG.im.pollMax) return resolve([]);
       setTimeout(poll, CFG.im.pollGap);
@@ -423,13 +71,13 @@ export function doSend(inst, targetId, text) {
       if (done) return;
       done = true;
       clearTimeout(timer);
-      try { inst.off('sendSucceed', onEvt); } catch (e) { }
+      try { inst.off('sendSucceed', onEvt); } catch (e) { swallow(e, 'imsend'); }
       clearInterval(logPoll);
       if (err) reject(err); else resolve();
     }
     // sendSucceed 事件/回调若能触发则最快确认（跨 world 不可靠，仅作快路径）
     function onEvt(tid) { if (String(tid) === String(targetId)) settle(); }
-    try { inst.on('sendSucceed', onEvt); } catch (e) { }
+    try { inst.on('sendSucceed', onEvt); } catch (e) { swallow(e, 'imsend'); }
     // 主确认途径：SDK 成功打「信息发送成功」、失败打「信息发送失败」+ 原因（同 world 落地）
     var logPoll = setInterval(function () {
       var v = imLogVerdict(mark);
@@ -459,50 +107,16 @@ export function forceSync(inst) {
     k.syncStatus.isSyncing = false;
     k.syncStatus.lastSyncDate = 0;
     k.sync();
-  } catch (e) { }
+  } catch (e) { swallow(e, 'imsend'); }
   return new Promise(function (resolve) {
     var start = Date.now();
     (function poll() {
       var busy = false;
-      try { busy = !!(inst.kernel && inst.kernel.syncStatus && inst.kernel.syncStatus.isSyncing); } catch (e) { }
+      try { busy = !!(inst.kernel && inst.kernel.syncStatus && inst.kernel.syncStatus.isSyncing); } catch (e) { swallow(e, 'imsend'); }
       if (!busy || Date.now() - start > 6000) return resolve();
       setTimeout(poll, 250);
     })();
   });
-}
-
-// 重建带病单例：weblog 缺失时站点（或我们）已创建的实例 tracer 永久损坏（send 必崩），
-// 装好垫片后清掉 widget 类上的单例缓存强制重造。跨 world 直写可能失灵，失灵则自愈失败、
-// 走正常失败提示（不恶化）
-// 清掉 widget 类上的单例缓存：跨 world 直写可能静默失效（dbg.js 同款教训），
-// 失效时退 delete 再试；仍不行就只能依赖 hadTracerCrash 时的可见报错
-function resetSingleton(Ctor) {
-  try {
-    Ctor.instance = null;
-    if (Ctor.instance) Ctor.instance = undefined;
-    if (Ctor.instance) delete Ctor.instance;
-  } catch (e) { }
-}
-
-function rebuildIm() {
-  // 先同步占住单例槽再走异步衔接：重建期间（loadImSdk 在途）任何 ensureIm() 都会
-  // 等到同一个 promise，而不是看到 null 又并行 new 一个（0.9.34 双单例窗口修复）
-  var p = loadImSdk().then(function (Ctor) {
-    ensureWeblogSync();
-    resetSingleton(Ctor);
-    var inst = new Ctor({ dev: false });
-    imPromise = Promise.resolve(inst);
-    return ensureConnected(inst).then(function () {
-      // 水位推进（0.9.121）：tracer 已随 ensureWeblogSync 修复——此前历史崩溃不再计入误诊
-      tracerFixedTotal = imLogTotal();
-      return inst;
-    });
-  }, function (e) {
-    if (imPromise === p) imPromise = null; // 加载失败弃槽，下次 ensureIm 可重试
-    throw e;
-  });
-  imPromise = p;
-  return p;
 }
 
 // 发送 + 失败自动恢复重试一次（文本 doSend 与引用 sendQuote 共用）。按失败指纹分派：
@@ -560,7 +174,7 @@ export function sendKernel(inst, msg, targetId, timeout) {
     (function poll() {
       if (done) return;
       var csid = '';
-      try { csid = String((msg.rawMsg && msg.rawMsg.clientSeqId) || ''); } catch (e1) { }
+      try { csid = String((msg.rawMsg && msg.rawMsg.clientSeqId) || ''); } catch (e1) { /* best-effort: parse */ }
       if (csid) {
         var hit = false;
         try {
@@ -576,7 +190,7 @@ export function sendKernel(inst, msg, targetId, timeout) {
               return false;
             });
           }
-        } catch (e) { }
+        } catch (e) { swallow(e, 'imsend'); }
         if (hit) return finish(null);
       }
       if (Date.now() - start > limit) return finish(new Error('send-timeout'));
@@ -603,135 +217,6 @@ export function sendImage(inst, targetId, file, w, h) {
   });
 }
 
-// midground 服务令牌：IM 网关（message.acfun.cn）下载鉴权凭据。本页没有它的会话 Cookie
-//（只有官方页访问过才有，浏览器重开即失——渲染 401 的根因），走 id.app.acfun.cn 的
-// token/get 现换一枚（GM 带域 Cookie，未登录 -401）拼进下载 URL query（SDK 上传同款姿势）。
-// 单飞 + 模块缓存；失败清缓存允许下次重取
-var mgTokenP = null;
-function midgroundToken(refresh) {
-  if (!mgTokenP || refresh) {
-    mgTokenP = gmRequest({
-      method: 'POST',
-      url: CFG.api.token, // 0.9.106 收口：此前内联硬编码与 cfg 重复一份（appapi 同端点）
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      data: 'sid=acfun.midground.api',
-      timeout: CFG.time.gm
-    }).then(function (j) {
-      var t = j && j['acfun.midground.api_st'];
-      if (!t) { mgTokenP = null; return ''; }
-      return String(t);
-    }, function () { mgTokenP = null; return ''; });
-  }
-  return mgTokenP;
-}
-
-// ---------- 图片字节：LRU 缓存 + 限流下载 ----------
-// blob objectURL 的 LRU 缓存（key=资源本体：imgCacheKey 取 resourceId，缺则退整串 URL）：重开/来回切会话不再全量重下，命中直接秒显；
-// 淘汰时 revoke，顺带修掉旧版 objectURL 永不回收的泄漏。查询在令牌之前——命中连 token/get
-// 往返都省。已上屏的 blob 被 revoke 不影响显示（已解码位图仍在 img 里）
-var imgBlobCache = new Map();
-var IMG_BLOB_CACHE_MAX = 30;
-function cacheBlobPut(url, blobUrl) {
-  imgBlobCache.delete(url); // delete+set 搬队尾：命中即续命（LRU）
-  imgBlobCache.set(url, blobUrl);
-  while (imgBlobCache.size > IMG_BLOB_CACHE_MAX) {
-    var k = imgBlobCache.keys().next().value;
-    var u = imgBlobCache.get(k);
-    imgBlobCache.delete(k);
-    try { URL.revokeObjectURL(u); } catch (e0) { }
-  }
-}
-
-// 下载并发上限：快滚长历史时也只保持 3 个在途 GM 请求，互不挤占带宽（FIFO 配对队列）
-var imgQ = [], imgActive = 0, IMG_Q_LIMIT = 3;
-function runQueuedImg(it) {
-  it[0]().then(function (v) { imgActive--; pumpImgQ(); it[1](v); },
-    function (e) { imgActive--; pumpImgQ(); it[2](e); });
-}
-function pumpImgQ() {
-  while (imgActive < IMG_Q_LIMIT && imgQ.length) runQueuedImg(imgQ.shift());
-}
-function enqueueImg(job) {
-  return new Promise(function (resolve, reject) {
-    imgQ.push([job, resolve, reject]);
-    pumpImgQ();
-  });
-}
-
-// 在飞去重：同 URL 的并发调用（气泡加载中又点开大图）共享同一次下载
-var imgInflight = new Map();
-
-// 缓存 key 取资源本体（resourceId）而非完整 URL：重开会话内核换链可用性不定（0.9.41
-// 「零会话依赖三级兜底」的同款前提），同一张图在「内核形态」与「本地拼装」两条路下
-// URL 参数不同（userId/did/imsdkver 有无），按整串 URL 做 key 两条路互不命中——真机
-// 首验「非秒出」的根因。两类形态产物都必带 resourceId 参数
-function imgCacheKey(url) {
-  var m = /[?&]resourceId=([^&]+)/.exec(url);
-  return m ? m[1] : url;
-}
-
-// 只读窥缓存（不触发下载/令牌）：渲染路径同步命中直接上屏，免 IntersectionObserver
-// 一拍延迟也不闪微光
-export function peekImImageBlob(url) {
-  var key = imgCacheKey(url);
-  var hit = imgBlobCache.get(key);
-  if (hit) cacheBlobPut(key, hit);
-  return hit || null;
-}
-
-// 图片字节拉取：下载端按 Cookie 里的 midground 令牌鉴权（直链跨站没这张 Cookie 必 401，
-// query 里带实测不认）。流程：查缓存/在飞 → id.app.acfun.cn token/get 现换令牌 → 写进
-// .acfun.cn 父域 Cookie（message.acfun.cn 无自己的 host 级同名 Cookie 时即采用；本页可写
-// 父域）→ GM 带 Cookie 拉字节换 blob。首拉不带 buster 让浏览器 HTTP 缓存跨刷新生效；
-// 令牌被拒则强刷一枚、带 buster 重试一次（防命中可能已中毒的缓存响应）。
-// 失败统一 null（降级 [图片] 文本）
-export function fetchImImageBlob(url) {
-  var key = imgCacheKey(url);
-  var hit = imgBlobCache.get(key);
-  if (hit) { cacheBlobPut(key, hit); return Promise.resolve(hit); }
-  var flying = imgInflight.get(key);
-  if (flying) return flying;
-  function setMgCookie(tk) {
-    if (!tk) return;
-    try {
-      document.cookie = 'acfun.midground.api_st=' + tk
-        + '; domain=.acfun.cn; path=/; max-age=86400; SameSite=None; Secure';
-    } catch (e0) { }
-  }
-  function once(bust) {
-    var u = bust ? url + (url.indexOf('?') > -1 ? '&' : '?') + '_=' + Date.now() : url;
-    return enqueueImg(function () {
-      return gmRequest({ url: u, timeout: CFG.time.gm, responseType: 'arraybuffer', okStatus: true });
-    });
-  }
-  function toBlob(buf) {
-    try { return (buf && buf.byteLength) ? URL.createObjectURL(new Blob([buf])) : null; }
-    catch (e) { return null; }
-  }
-  var p = midgroundToken(false).then(function (tk) {
-    setMgCookie(tk);
-    return once(false);
-  }, function () { return once(false); }).then(toBlob, function () {
-    // 401/网络错：令牌可能过期，强刷一枚重写 Cookie 再试一次
-    return midgroundToken(true).then(function (tk) {
-      setMgCookie(tk);
-      return once(true);
-    }, function () { return once(true); }).then(toBlob, function () { return null; });
-  }).then(function (blobUrl) {
-    imgInflight.delete(key); // 链路终态恒 resolve（失败也是 null），清在飞允许下次重试
-    if (blobUrl) cacheBlobPut(key, blobUrl);
-    return blobUrl;
-  });
-  imgInflight.set(key, p);
-  return p;
-}
-
-// 令牌预热：开抽屉即单飞换好令牌写好 Cookie，进会话首图免去 token/get 串行往返。
-// midgroundToken 单飞缓存本身幂等，缓存命中时此令牌用不上也无副作用
-export function prewarmIm() {
-  midgroundToken(false);
-}
-
 // 引用消息发送（双通道按 CFG.im.quoteWire 切换，都走 kernel 直发 + 恢复重试）。
 // reference：ReferenceMsg.create({text, originMsg, targetType, targetId})，编解码内核全包；
 // extra：TextMsg + extra 藏 {acsvQuote} JSON，wire 文本拼「[引用] 摘要\n正文」给对方
@@ -755,7 +240,7 @@ export function sendQuote(inst, targetId, quote, text) {
             var qExtra = {};
             qExtra[QUOTE_EXTRA_KEY] = { seqId: quote.seqId || '', preview: quote.preview || '', text: text };
             extra = new TextEncoder().encode(JSON.stringify(qExtra));
-          } catch (e1) { }
+          } catch (e1) { /* best-effort: parse */ }
           resolve(sendKernel(i, Txt.create({
             targetType: 0, targetId: Number(targetId),
             text: quoteWireText(quote.preview, text), // 拼接格式唯一定义处（immsg，原生页去重同源）
@@ -783,7 +268,7 @@ export function sendCmtShare(inst, targetId, payload, text) {
           var cExtra = {};
           cExtra[CMT_EXTRA_KEY] = payload;
           extra = new TextEncoder().encode(JSON.stringify(cExtra));
-        } catch (e1) { }
+        } catch (e1) { /* best-effort: parse */ }
         resolve(sendKernel(i, Txt.create({
           targetType: 0, targetId: Number(targetId), text: text, extra: extra
         }), targetId));
@@ -807,83 +292,11 @@ export function sendMomentShare(inst, targetId, payload, text) {
           var mExtra = {};
           mExtra[MOMENT_EXTRA_KEY] = payload;
           extra = new TextEncoder().encode(JSON.stringify(mExtra));
-        } catch (e1) { }
+        } catch (e1) { /* best-effort: parse */ }
         resolve(sendKernel(i, Txt.create({
           targetType: 0, targetId: Number(targetId), text: text, extra: extra
         }), targetId));
       } catch (e) { reject(e); }
     });
   });
-}
-
-
-// ---------- 图片 URL 换链管线（0.9.163 自 imdrawer.js 迁入：纯 URL/协议规则，与上方图片字节管线同族） ----------
-// ks:// 资源 → 官方 download 直链（message.acfun.cn，参数白名单官方形态，无 token）。
-// 零会话依赖三级兜底（重开会话后内核 decodeContent/file 配置都不保证就绪，首次能渲染
-// 重开挂车的前车之鉴）：uri 取 m.url → rawMsg.content 手解 proto 字段 1；URL 取内核换链
-// → 本地拼装（resourceId 从 ks:// 尾段、userId/did 取本端 Cookie）
-// inst=最近一次轮询的 IM 实例（抽屉侧 lastImInst 传入）——内核换链/config 读它，
-// 不再依赖抽屉模块态（0.9.163 私有签名随迁调整，机器比对在案）
-export function imageUrlOf(m, inst) {
-  var ks = '';
-  try { ks = (m && (m.url || (m.imageAttachment && m.imageAttachment.uri))) || ''; } catch (e0) { }
-  if (!ks) ks = imageUriFromRaw(m);
-  if (!ks) { console.warn('[acsv-im] 图片消息无 uri（decode 与 raw 均未恢复）'); return ''; }
-  if (!/^ks:\/\//.test(ks)) return officialize(ks);
-  try {
-    var k = inst && inst.kernel;
-    if (k && k.file && k.file.resourceUrlToHttpUrl) {
-      var u = officialize(k.file.resourceUrlToHttpUrl(ks, false, Number(m.width) || 0, Number(m.height) || 0));
-      if (u) return u;
-    }
-  } catch (e) { }
-  try {
-    // ks://<resourceId>[/<数字尾缀>]：官方页 DOM 实测形态（data-text="ks://xxx.jpg/1"），
-    // resourceId = 去掉 ks:// 后再剥尾缀的主段（官方 widget 同款 /\/\w+$/ 尾缀语义）
-    var rid = ks.slice(5).replace(/\/\w+$/, '');
-    if (!rid) { console.warn('[acsv-im] ks 资源串形态不识别:', ks.slice(0, 60)); return ''; }
-    var ver = '';
-    try {
-      var cfgk = inst && inst.kernel && inst.kernel.config;
-      ver = (cfgk && (cfgk.imsdkver || cfgk.sdkVersion)) || '';
-    } catch (e2) { }
-    return CFG.api.imDownloadBase + '/rest/v2/app/download?resourceId=' + encodeURIComponent(rid)
-      + '&userId=' + encodeURIComponent(selfUid())
-      + '&did=' + encodeURIComponent(cookieVal('_did') || '')
-      + '&kpn=ACFUN_APP&platform=H5' + (ver ? '&imsdkver=' + encodeURIComponent(ver) : '');
-  } catch (e3) { return ''; }
-}
-// Image proto 字段 1（uri, string）手解：tag 0x0A + varint 长度 + 字节（uri 为 ASCII）。
-// 内核 decodeContent 没跑（重开会话的缓存消息）时从这里恢复 uri
-function imageUriFromRaw(m) { // （私有，仅 imageUrlOf 兜底用）
-  try {
-    var buf = m && m.rawMsg && m.rawMsg.content;
-    if (!buf) return '';
-    var u8 = new Uint8Array(buf), i = 0;
-    if (u8[i++] !== 0x0a) return '';
-    var len = 0, shift = 0, b;
-    do { b = u8[i++]; len += (b & 0x7f) * Math.pow(2, shift); shift += 7; } while (b & 0x80);
-    if (!len || i + len > u8.length) return '';
-    var s = '';
-    for (var j = 0; j < len; j++) s += String.fromCharCode(u8[i + j]);
-    return (/^ks:\/\//.test(s) || /^https?:\/\//.test(s)) ? s : '';
-  } catch (e) { return ''; }
-}
-// 把 /rest/v2/app/download 产物改写成 message.acfun.cn 官方参数形态：剥 token 与 w/h
-//（sixinpic 域 401 的教训：acfun token 在该域不认，官方形态免 token），参数白名单对齐
-// 官方页抓包（resourceId/userId/did/kpn/imsdkver/platform）
-function officialize(httpUrl) {
-  try {
-    if (!httpUrl || !/^https?:\/\//.test(httpUrl)) return '';
-    var u = new URL(httpUrl);
-    var rid = u.searchParams.get('resourceId');
-    if (!rid) return '';
-    var q = ['resourceId', 'userId', 'did', 'kpn', 'imsdkver', 'platform']
-      .map(function (k) {
-        var v = u.searchParams.get(k);
-        return v == null ? null : k + '=' + encodeURIComponent(v);
-      })
-      .filter(Boolean).join('&');
-    return CFG.api.imDownloadBase + '/rest/v2/app/download?' + q;
-  } catch (e) { return ''; }
 }

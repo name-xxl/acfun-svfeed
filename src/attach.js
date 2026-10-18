@@ -111,7 +111,7 @@ function syncFwdQuality(slide) {
     if (fv && fv.currentTime > 1) fwd._resumeAt = fv.currentTime; // 预挂条可能被回看过（滑回场景）
     detachSession(fwd);
     attachVideo(fwd, it, idx + 1);
-  } catch (e) { }
+  } catch (e) { /* best-effort: media */ }
 }
 
 // 重挂统一入口：旧会话一次拆净（video/看门狗/弹幕层/定时器），新会话接管。

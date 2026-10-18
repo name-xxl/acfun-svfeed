@@ -112,6 +112,38 @@
     finish();
   };
 
+  // ---- deeplink-followctx（A3 的 FollowVideos 残留 · src/player.js loadDeepLink） ----
+  // 病灶：loadDeepLink 只对 UpVideos 做归属判定，FollowVideos.feedActive 仍真时
+  // FeedStore.ensureMore 会按旧关注列表的 feedCursor 泵入旧条目，污染深链舞台。
+  // 反跑：摘掉 loadDeepLink 里新增的 FollowVideos 归属判定 ⇒ dfc-old-list-not-pumped /
+  // dfc-second-from-stream / dfc-ctx-released 三条转红。
+  C['deeplink-followctx'] = async function (h) {
+    var rec = h.rec, wait = h.wait, waitFor = h.waitFor, feed = h.feed, TEST = h.TEST, finish = h.finish;
+    window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;  // douga/info 桩（a 深链解析）
+    window.__ACSV_MOCK_DIRECT__ = { '48867212': 1 };      // 深链首条直挂本地 webm（免 hls 死在解析上）
+    rec('dfc-playing', !!(await waitFor(function () { return h.firstVideoReady(0); }, 25000)));
+    var OLD = ['11053531', '11042989'];                   // 旧关注视频列表（两条假条目）
+    TEST.call('followstream', 'activate', OLD);
+    rec('dfc-armed', (TEST.call('followstream') || {}).feedActive === true,
+      JSON.stringify(TEST.call('followstream')));
+    var homeCards = window.__ACSV_MOCK_HOME__ || [];
+    var homeFirst = String((homeCards[0] || {}).href || '');
+    var homeSecond = String((homeCards[1] || {}).href || '');
+    location.hash = 'svfeed/a/' + homeFirst;              // 从别处深链进同一 id 空间（非旧列表成员）
+    rec('dfc-deeplink', !!(await waitFor(function () {
+      var f = feed();
+      return f && f.items[0] && String(f.items[0].id) === homeFirst;
+    }, 15000)), 'hash=' + location.hash);
+    await wait(2000);                                     // 等泵/随机流把第二条落位
+    var f2 = feed() || { items: [] };
+    var second = f2.items[1] != null ? String(f2.items[1].id) : '';
+    rec('dfc-old-list-not-pumped', OLD.indexOf(second) === -1, 'second=' + second + ' old=' + OLD.join(','));
+    rec('dfc-second-from-stream', second === homeSecond, 'second=' + second + ' want=' + homeSecond);
+    rec('dfc-ctx-released', (TEST.call('followstream') || {}).feedActive === false,
+      JSON.stringify(TEST.call('followstream')));
+    finish();
+  };
+
   // ---- dm-play-gated（A4 · src/danmaku.js onPlaying 的两道门控） ----
   // 病灶：每次暂停→恢复同一视频都重建弹幕状态（setItems 全量重排/重排轨）、重建高级弹幕泵
   //（wins 归零 ⇒ ADV_MAX_WIN 单会话上限失效）并对同窗多发一次 POST。

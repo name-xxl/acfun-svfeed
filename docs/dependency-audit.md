@@ -393,4 +393,205 @@ feedstore.js → player.js → input.js → feedstore.js
   **已设计未接线**的 API（文件头与 CHANGELOG 都记着设计意图：动态删除、九宫格多图上传），
   删掉等于丢弃已完成的实现；真要清，应先裁决"这两个功能还做不做"，再连 README/CHANGELOG 一起改。
 
+## 0.9.265：mypage 拆件（mytabs）
 
+- **由头**：P2-8 拆件评估第一项。`mypage.js` 739 行，资料头 + 动态 + 历史 + 管理壳 + 收藏 +
+  分组 + 视图注册挤在一件，改任一档都要读整文件。
+- **拆法**：新建 `mytabs.js`，承接 `buildHistory` / `adminTab` / `buildFav` /
+  `buildFollowGroups` 及其私有件 `rowList`/`skeleton`/`makeListCtx`；`mypage.js` 只留资料头
+  （`meCardOf`/`buildMeCard`）、动态档（`buildMoments`）、视图壳（`buildMyView`）、卸载与注册。
+  代码**逐字搬迁**（仅三个 builder 加 export、import/export 重排），对 `HEAD:src/mypage.js`
+  做过逐段行多重集比对。
+- **方向**：`mypage → mytabs` 单向；mytabs 出边 = 基建（cfg/panelitem/ui/pageloader/nameval/
+  imgload）+ 接口（appapi/favapi/relationapi）+ 特性共享件（cards/listtail/favpop/grouppop/
+  pickpop/toastmsg）。`check-direction` FEATURE 加 `mytabs.js`，三口径复跑 **0/0/0**；
+  README 图把原 mypage 的 18 个目标拆成 mypage 9 条 + mytabs 12 条（与 import 实测一致）。
+- **零漂移证据**：既有单测 419/419、lint/tsc/check、harness chromium 82/82 全绿，断言与夹具
+  未改。产物 release 577,942 B / debug 923,519 B（debug +20 B = 文件头注释，压缩产物不变）。
+
+
+## 0.9.266：imsend 拆件（imimage）
+
+- **由头**：P2-8 拆件评估第二项（§11）。`imsend.js` 889 行里约 200 行是**纯图片域**（字节管线 +
+  URL 换链），与发送核心（SDK 加载/连接/发送恢复链）无共享状态，却让每次改图片缓存都要读发送可靠性。
+- **拆法**：新建 `imimage.js`，承接 `midgroundToken`/`mgTokenP`、`imgBlobCache`/`IMG_BLOB_CACHE_MAX`/
+  `cacheBlobPut`、`imgQ`/`imgActive`/`IMG_Q_LIMIT`/`runQueuedImg`/`pumpImgQ`/`enqueueImg`、
+  `imgInflight`、`imgCacheKey`、`peekImImageBlob`/`fetchImImageBlob`/`prewarmIm`，以及 URL 换链
+  `imageUrlOf`/`imageUriFromRaw`/`officialize`；`imsend.js` 保留 `sendImage`（只走 SDK 构造器，
+  不碰字节管线）。代码**逐字搬迁**（两段原文直接剪切，仅 import/export 重排），`imsend.js`
+  889 → 688 行、`imimage.js` 210 行。
+- **方向**：`imdrawer → imimage` 单向；imimage 出边 = 基建（cfg/dbg/net/ui），**不 import imsend**
+  （无回边、无环）。`check-direction` FEATURE 加 `imimage.js`（与 imsend/imdrawer 同属私信特性域，
+  唯一入边来自 imdrawer），三口径复跑 **0/0/0**；README 图新增 imimage 节点 +
+  `imdrawer --> … & imimage & …`，check-deps 节点/边规则即证。
+- **零漂移证据**：既有单测 419/419、lint/tsc/check、harness chromium 82/82 全绿，断言与夹具
+  未改；`imsend.js` 的 `ui` import 去掉搬迁后不再使用的 `selfUid`（`cookieVal` 仍供 `isLogined`），
+  `gmRequest`/`swallow`/`stat`/`set` 均仍被 SDK 加载器与其他段使用，保留。产物尺寸见 CHANGELOG
+  0.9.266（净增仅为新文件头注释，逻辑字节等价）。
+
+
+## 0.9.267：controls 拆件（dmpanel）
+
+- **由头**：P2-8 拆件评估第三项（§11）。`controls.js` 732 行里约 150 行是**弹幕设置面板**
+  （齿轮展开的两 tab：设置滑杆/开关 + 屏蔽标签/关键词），与控制栏的进度条/菜单/手势无共享
+  状态，却让每次改面板都要读整份控制栏代码。
+- **拆法**：新建 `dmpanel.js`，承接 `buildDmPanel(slide)` 及其私有件 `DM_DEFAULT`/
+  `refreshDmPanel(box)`（原 471–623 行整体搬迁）；`controls.js` 只留控制栏主体与
+  `var dmPanel = buildDmPanel(slide)` 调用点。代码**逐字搬迁**（仅 `buildDmPanel` 加 `export`、
+  import 重排 + 文件头归属注释），对搬迁前工作区原文做过逐行 diff：除 `export` 关键字外 0 差异。
+- **方向**：`controls → dmpanel` 单向；dmpanel 出边 = 基建（ui/settings），**不 import
+  controls**（无回边、无环）。`check-direction` 把 `dmpanel.js` 登入 **PLAY**（与 controls 同属
+  播放层 UI 件；PLAY→INFRA 合法，不归 FEATURE），三口径复跑 **0/0/0**；README 图把 dmpanel
+  并入播放层 others 聚合名单（不单独建节点——单独建 controls 节点会触发其全部出边校验）。
+- **零漂移证据**：既有单测 419/419、lint/tsc/check、harness chromium 82/82 全绿，断言与夹具
+  未改；`controls.js` 732 → 579 行、`dmpanel.js` 159 行。产物尺寸见 CHANGELOG 0.9.267。
+
+## 0.9.268：imdrawer 拆件（imbubble）
+
+- **由头**：P2-8 拆件评估第四项（§11）。`imdrawer.js` 938 行里约 200 行是聊天视图的**气泡渲染
+  簇**（引用条/定位/行包裹/文本/图片/作品卡/分享/评论转发/动态卡 + 暗色卡片皮肤），与抽屉
+  骨架、轮询、列表、发送生命周期零共享状态；评估原判「风险中高：`msgEls` 依赖
+  `lastElementChild`，多处直读 drawer，先补渲染断言再拆」。
+- **先补断言（搬迁前独立跑绿）**：新增 debug 钩子 `imBubbleSmoke`（假消息直调 `appendBubble`：
+  己方/对方文本、extra 引用、10001 作品卡；返回 bubbles/mine/text/quote/quoteLink/
+  quotePreview/quotebtn/card/daydiv 快照）；`test/cases/msg.js` 新增 `im-bubble` 场景（6 条
+  断言），`run-harness.mjs` 登记 debug 构建。搬迁前 `im-bubble` 9 断言、`im-open,im-native`
+  25+13 断言全绿，搬迁后同一钩子继续绿——断言是拆件的验收面，不是事后补的注脚。
+- **拆法**：新建 `imbubble.js`（264 行），导出 `createBubbleKit(env)`；env =
+  `getDrawer/getChat/getInst/setQuote/maybeDayDiv/msgTime`。出口
+  `{ appendBubble, quoteStrip, bubbleRow, locateMessage, SKIN, msgFrom, imTextHtml }`
+  （后两个供 `chatPollOnce` 的消息 key 与发送乐观占位复用，避免第二份实现）。
+  搬迁范围：`msgFrom`、`linkify`/`imTextHtml`、`quoteStrip`/`locateMessage`/`bubbleRow`/
+  `quoteBtnEl`、`appendBubble`/`appendImageBubble`/`SKIN`/`appendCardBubble`/
+  `appendShareBubble`/`appendMomentBubble`。机械替换仅五类：
+  `drawer`→`env.getDrawer()`、`chat`→`env.getChat()`、`lastImInst`→`env.getInst()`、
+  `setQuote`→`env.setQuote`、`maybeDayDiv`→`env.maybeDayDiv`；逻辑/文案/类名/请求参数零改动。
+- **方向**：`imdrawer → imbubble` 单向；imbubble 出边 = FEATURE（emoticon/imcard/imimage/ubb）
+  + INFRA（cfg/ui/imgload/imgview）+ API（appapi）+ 零依赖叶（immsg/imicons），**不 import
+  imdrawer**。`check-direction` FEATURE 加 `imbubble.js`，三口径复跑 **0/0/0**；README 图新增
+  节点 + imdrawer/imbubble 两组实测边，`check-deps` 节点/边/环全绿。
+- **零漂移证据**：既有断言与夹具零改动；lint、tsc、check（check-cases 81/81、check-deps、
+  check-direction）、单测 419/419、harness chromium 82/82（含拆前新增的 im-bubble）全绿。
+  `imdrawer.js` 938 → 769 行、`imbubble.js` 264 行；仅新增文件头注释与工厂边界。
+
+## 0.9.269：imdrawer 三簇拆件（imlist / imchat / imsendui）
+
+- **由头**：P2-8 拆件评估续项（§11）。0.9.268 把气泡渲染簇拆到 imbubble 后，`imdrawer.js` 仍
+  769 行混四族：抽屉骨架/视图切换/生命周期（本分）、列表视图、聊天视图+引用 chip、发送乐观 UI。
+  后三族只共享 `drawer/view/cards/chat/lastImInst` 与 `msgTime`/`makePoller`，却让任一族改动都要
+  读整份抽屉代码。**分三子批，每批 build + harness 全绿后才动下一批**（与 0.9.265–268 同纪律）。
+- **子批 1（发送 UI → imsendui.js）**：搬 `sendImageMsg`/`readSize`/`sendChat`；工厂
+  `createSendKit(env)` 导出 `{ sendImageMsg, sendChat }`，env =
+  `getDrawer/getChat/getBubble/maybeDayDiv/setQuote/chatPollOnce`。`inputBar` 的图片/发送回调改走
+  kit；`imdrawer.js` 769 → 652 行。harness `im-bubble,im-open,im-native,composer-rich`
+  = 9/25/13/49 断言全绿。
+- **子批 2（列表视图 → imlist.js）**：搬 `listPoll`/`sessionSig`/`refreshList`/`renderList`/
+  `previewOf`/`lastListRows`/`listSig`；`createListKit(env)` 导出
+  `{ listPoll, refreshList, renderList, previewOf, reset }`，env =
+  `getDrawer/getView/getCards/setCards/openChat/makePoller/msgTime/chatTime`。`showList` 改
+  `listKit.listPoll.stop()/start()`；搜索框改 `listKit.renderList`；行点击经 env.openChat 注入回
+  `showChat`（编排仍留宿主）；`imdrawer.js` 652 → 561 行。harness
+  `im-bubble,im-open,im-native,view-im,view-im-narrow` = 9/25/13/30/30 全绿。
+- **子批 3（聊天视图+引用 chip → imchat.js）**：搬 `chatPoll`/`loadChat`/`chatPollOnce`/
+  `dayLabel`/`maybeDayDiv`/`chatTime`/`setQuote`/`renderQuoteChip`；`createChatKit(env)` 导出八件，
+  env = `getDrawer/getChat/setChat/getInst/setInst/getBubble/makePoller/msgTime`。`bubble` 工厂的
+  `setQuote`/`maybeDayDiv`、`sendKit`/`listKit` 的跨簇钩子全部改指 `chatKit`；`showChat` 改
+  `chatKit.chatPoll.stop()`/`loadChat()`/`chatPoll.start()`；`closeDrawer`/`teardownIm`/
+  `ensureDrawerDom`（chip 取消、表情冷启动重拉）与 `imBubbleSmoke` 同步改；`imdrawer.js`
+  561 → 454 行。harness `im-bubble,im-open,im-native,badge-listener,badge-delay`
+  = 9/25/13/9/4 全绿。
+- **两处必要的缝扩展**（与 0.9.268 同款，记为偏差而非静默改动）：
+  ① `imlist` 多一个 `reset()`——teardown 原先清 `listSig/lastListRows`；若不重置，重开抽屉时
+  同一会话集命中旧签名会跳过 `renderList`，新骨架的 listBody 将空着；
+  ② `imchat` 直接 import 零依赖叶 `immsg.msgTextOf`，保持 `chatPollOnce` 的兜底消息 key 与拆前
+  逐字一致（避免在 kit 内复制一份文本投影）。`imdrawer` 的 `setChat` 单写点以 env 注入，宿主与
+  kit 不各存一份会话态赋值。
+- **方向**：三件均为 `imdrawer → imlist/imchat/imsendui` 单向，**不 import imdrawer**（无回边、
+  无环）。出边：imlist = INFRA（imgload）+ 零依赖叶（immsg）+ FEATURE（imsend）；imchat =
+  零依赖叶（immsg）+ FEATURE（imsend）+ INFRA（timefmt）；imsendui = FEATURE（imsend）+ 零依赖叶
+  （toastmsg）。
+  `check-direction` FEATURE 加三件，三口径复跑 **0/0/0**。
+- **README 图**：私信 subgraph 新增三节点；`imdrawer -->` 按实测收窄（去 imgload/immsg/timefmt，
+  加 imchat/imlist/imsendui）；新增 `imlist -->`/`imchat -->`/`imsendui -->` 三组实测边；
+  `check-deps` 节点/边/环全绿。
+- **零漂移证据**：既有断言与夹具零改动；lint、tsc、check（check-cases、check-deps、
+  check-direction 0/0/0、check-listeners）、单测 419/419、harness chromium **83/83** 全绿。
+  `imdrawer.js` 769 → 454 行；`imsendui.js` 154 / `imlist.js` 139 / `imchat.js` 155 行。
+  产物 release 581,083 B / debug 930,497 B（+1,415 / +3,666 B，均在新文件头注释与工厂边界）。
+
+## 0.9.270：imsend 拆件（imsdk）
+
+- **由头**：P2-8 拆件评估第五项（§11，评估原判「收益最大但风险高：`imPromise`/`connGen`/
+  崩溃水位被发送恢复链跨切，需一次边界重排」）。`imsend.js` 688 行里约 350 行是 SDK 基建
+  （加载/注入/源码补丁/tracer 手术/日志黑匣子/weblog 垫片/单例连接/崩溃水位），与「联系人 +
+  发送核心」只经 7 个出口相连；改 SDK 策略却要读完整份发送可靠性代码。
+- **边界（按当前函数名整组搬，零逻辑改动）**：新件 `imsdk.js`（402 行）收 `pageWin`、日志
+  黑匣子（`logInstaller`/`injectPageFn`/`ensureLocalLog`/`imLogMark`/`imLogVerdict`/
+  `imLogState`/`imLogTotal`/`tracerCrashAfter`/`tracerFixedTotal`/`hadTracerCrash`）、weblog
+  兜底（`weblogInstaller`/`tracerOk`/`ensureWeblogSync`）、`isLogined`、`gmGetText`/
+  `loadImSdk`、`imPromise`/`ensureIm`、`linkOk`/`forceReconnect`、`tracerInstaller`/
+  `ensureTracer`、`connGen`/`imShutdown`/`ensureConnected`、`resetSingleton`/`rebuildIm`。
+  `imsend.js` 688 → 302 行，只留 `getContacts`/`mapSessions`/`fetchCards` + `doSend`/
+  `forceSync`/`withSendRecovery`/`sendOnce`/`sendKernel`/`sendImage`/`sendQuote`/
+  `sendCmtShare`/`sendMomentShare`。
+- **跨切状态处理**：三处跨切状态**整组随 SDK 走**，不做双向访问——
+  `imPromise`（单例槽，rebuild 期间占槽语义不变）、`connGen`（在途轮询世代，`imShutdown`
+  与 `ensureConnected` 同处）、`tracerFixedTotal`（已修复水位，`hadTracerCrash` 与
+  `rebuildIm` 同处）。`imsend.withSendRecovery` 只 import `hadTracerCrash`/`rebuildIm`/
+  `linkOk`/`ensureConnected`/`ensureTracer` 五个出口；`doSend` 只 import `imLogMark`/
+  `imLogVerdict`。`rebuildIm` 的水位推进**仍在 `ensureConnected(inst)` 成功后执行**
+  （`tracerFixedTotal = imLogTotal()`），与拆前逐字一致。
+- **导出契约**：imsdk 导出 13 件——`ensureIm`/`isLogined`/`linkOk`/`forceReconnect`/
+  `ensureTracer`/`imShutdown`/`ensureConnected`/`rebuildIm`/`imLogMark`/`imLogVerdict`/
+  `hadTracerCrash`/`imLogTotal`/`tracerCrashAfter`。imsend 的 SDK 出口全部删除（消费方同步
+  改指 imsdk），`gmRequest`/`cookieVal`/`stat`/`set` 四个不再使用的 import 同批移除
+  （eslint 零告警）。
+- **消费方迁移（逐个 grep，7 件）**：`imdrawer` → `ensureIm/isLogined/imShutdown`；
+  `imbadge` → `ensureIm/isLogined`；`imlist` → `ensureIm/ensureConnected`（`fetchCards`
+  留 imsend）；`imchat` → `ensureIm/ensureConnected/ensureTracer`；`imsendui` →
+  `ensureIm/ensureConnected/ensureTracer/linkOk`（发送四件留 imsend）；`sharepanel` →
+  `ensureIm/ensureConnected/isLogined`（联系人/发送留 imsend）；`imsend` → 上述七个出口。
+  无遗漏：`grep -rn "from './imsend.js'" src test` 复核后，该路径只剩三处发送/联系人消费
+  （`imlist` 的 `fetchCards`、`imsendui` 的发送四件、`sharepanel` 的联系人/发送五件），
+  SDK 出口已无任何 imsend 引用。
+- **方向**：入边 `imsend/imdrawer/imbadge/imlist/imchat/imsendui/sharepanel → imsdk`，
+  全部在 FEATURE 表内（层内互调）；imsdk 出边只到基建 `cfg/dbg/net/ui`。`check-direction`
+  FEATURE 加 `imsdk.js`，三口径复跑 **0/0/0**；`check-deps` 图节点 111 + 图边 372，
+  新增七条实测边后全绿（旧图里 `imbadge/imchat/imdrawer → imsend` 三条多边告警随之消失）。
+- **零漂移证据**：搬迁前后按函数逐段 diff（HEAD 基线 + 工作区 0.9.269 增量核对），除
+  `export` 关键字与模块头注释外 0 差异。单测 **419/419**（`imsend.test.js` 4 条水位语义
+  断言未改，只改 import 路径与头注）；lint、tsc、check 全绿；harness chromium **83/83**
+  （badge-delay 4、badge-listener 9、im-open 25、im-native 13、im-bubble 9 全绿）。
+  `imsend.js` 688 → 302 行、`imsdk.js` 402 行；产物 release 581,083 B / debug 930,516 B
+  （release ±0 B / debug +19 B，均在新文件头注释）。
+
+## 0.9.271：player 第一阶段拆件（sessionhooks）
+
+- **由头**：`player.js` 758 行拆件方案 Phase 1。`SESSION_HOOKS` 与画幅判断约 120 行是
+  session↔UI 胶水，却占着组合根；先把这层显性化，再做 Phase 2 `feedland`。
+- **拆法**：新建 `sessionhooks.js`（148 行），导出 `createSessionHooks({ scrollToIndex })` +
+  `syncPanFit`/`videoStageVisible`；`SESSION_HOOKS` 与 `panFitOf`/`syncPanFit` 逐字搬迁，
+  唯一导航回调 `scrollToIndex` 经工厂注入（不 import player）。`player.js` 758 → 640 行，
+  只留装配、resize 监听与原编排。
+- **方向**：`player → sessionhooks` 单向；sessionhooks 出边 = 播放层（attach/controls/danmaku/
+  feedstore/playback/playlayer/report）+ 特性（rail/views）+ 基建（cfg/styles/ui/state/dbg）。
+  归类 **SKIP_B**（与 boot/player 同格；SKIP_B 对口径 B 源豁免，归 PLAY 会触发口径 C）。
+  `check-direction` 三口径 **0/0/0**；README 图新增 `player --> sessionhooks` 与
+  `sessionhooks --> attach & danmaku & feedstore & pb & playlayer & views`（实测边）。
+- **零漂移证据**：`SESSION_HOOKS` 逐字搬迁（仅 `scrollToIndex` 改注入引用、模块头注释新增）；
+  现有 smoke/stall-*/recover-*/watch-report/prewarm/land-near 等断言不改。单测 419/419、
+  harness 83/83、lint/tsc/check 全绿；产物尺寸见 CHANGELOG。
+
+## 0.9.272：player 第二阶段拆件（feedland）
+
+- **由头**：player 方案 Phase 2。issue #1 的落位/吸附约 120 行是时序最敏感的一段，先独立。
+- **拆法**：新建 `feedland.js`（174 行），`createLandKit(env)` 注入 `getScroller/feedStore/
+  slideAt/stageVisible/setActive/renderWindow/reportLeaveCurrent`；`landAt`/`snapWatchTick`/
+  `start-stopSnapWatch`/`landWhenVisible`/`scrollToIndex` 逐字搬迁，`player` 640 → 522 行。
+- **方向**：`player → feedland` 单向；feedland 只 import `dbg`（基建），`setActive`/`renderWindow`
+  经注入避免 PLAY→组合根。归 **PLAY**；`check-direction` 三口径 **0/0/0**。README 图新增
+  `player --> feedland`。
+- **零漂移证据**：`land-near` 的 `land.stuck`/`land.heal`/`land.trunc`/`land-heal-on-snap`
+  断言未改且全绿；fastswipe/feed-slim/deeplink-*/stall-*/recover-* 同批全绿；单测 419、
+  harness 83、lint/tsc/check 全绿。player 仍保留 renderWindow/setActive/mount/unmount 与
+  路由编排（组合根不拆）。

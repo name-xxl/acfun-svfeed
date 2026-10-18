@@ -113,7 +113,7 @@ function createLayer(slide, video) {
 
   var items = [];  // {text, at(ms), mode, color, size, _px, _w, _dur, _lane,
                    //  _mk(量宽键), _bmp/_bk/_lw/_lh(位图缓存)}，按 at 升序
-  var raf = 0, running = false, lastAlign = 0;
+  var raf = 0, running = false, lastAlign = 0, destroyed = false;
   var cssW = 0, cssH = 0, dpr = 1;
   var lastRaw = [];  // 最近一次 setItems 的原始入参：设置变更后 refresh() 重排用（0.9.202）
   var advRaw = [];   // 最近一次 addAdvanced 的原始入参（同上，供 refresh 重筛）
@@ -361,9 +361,10 @@ function createLayer(slide, video) {
 
   function frame() {
     if (!running) return;
-    // rAF 兜底路径按显示器刷新率驱动：暂停时不重绘（rVFC 路径暂停自然不出帧），
-    // 恢复播放后下一帧自动恢复
-    if (!vfc && video.paused) { schedule(); return; }
+    // rAF 兜底路径按显示器刷新率驱动：暂停时**停止排帧**（旧写法每帧 schedule 会 60Hz 空转）。
+    // danmaku.onPlaying 在 playing 事件里会再调 layer.start()，running=false 时能正常重启；
+    // rVFC 路径暂停自然不出帧，不受此分支影响（0.9.276）。
+    if (!vfc && video.paused) { running = false; raf = 0; return; }
     paint();
     schedule();
   }
@@ -428,17 +429,19 @@ function createLayer(slide, video) {
     stop: function () {
       running = false;
       if (raf) {
-        if (vfc) { try { video.cancelVideoFrameCallback(raf); } catch (e) { } }
+        if (vfc) { try { video.cancelVideoFrameCallback(raf); } catch (e) { /* best-effort: cleanup */ } }
         else cancelAnimationFrame(raf);
         raf = 0;
       }
-      try { ctx.clearRect(0, 0, cssW, cssH); } catch (e) { }
+      try { ctx.clearRect(0, 0, cssW, cssH); } catch (e) { /* best-effort: cleanup */ }
     },
     destroy: function () {
+      if (destroyed) return; // 幂等：stopAll 已销毁后，session.dispose 的再次 destroy 不得重复回调
+      destroyed = true;
       this.stop();
       // 销毁出口回调（0.9.234）：高级弹幕取池的定时器归 danmaku.js 管，用回调显式通知它停泵
       //（原先 destroy 后 interval 仍在空转并持有死 video 闭包，直到整页退出才由 stopAll 清）
-      if (api.onDestroy) { try { api.onDestroy(); } catch (e) { } }
+      if (api.onDestroy) { try { api.onDestroy(); } catch (e) { /* best-effort: cleanup */ } }
       if (canvas.parentNode) canvas.remove();
       // 从图层表摘除自己：否则每次重挂（切清晰度）都泄漏一个闭包，
       // 持有 canvas/ctx/video/items 直到整页退出才释放
@@ -466,14 +469,14 @@ var layers = [];
 var realignArmed = false;
 export function realignAll() {
   for (var i = 0; i < layers.length; i++) {
-    try { layers[i].realign(); } catch (e) { }
+    try { layers[i].realign(); } catch (e) { /* best-effort: cleanup */ }
   }
 }
 function armRealign() {
   if (realignArmed) return;
   realignArmed = true;
-  window.addEventListener('resize', realignAll);
-  document.addEventListener('acsv-layout-shift', function () {
+  window.addEventListener('resize', realignAll); // singleton-listener: 弹幕画布重排，模块级
+  document.addEventListener('acsv-layout-shift', function () { // singleton-listener: 布局位移广播，模块级
     realignAll();
     setTimeout(realignAll, 330); // 抽屉 0.2s 过渡结束后再补一次（过渡中途 rect 是动画值）
   });
@@ -487,8 +490,11 @@ export var DmCanvas = {
     return layer;
   },
   stopAll: function () {
-    layers.forEach(function (l) { try { l.stop(); } catch (e) { } });
+    // 统一按销毁出口收（0.9.276）：只 stop 会留下画布/图层闭包，且高级弹幕 onDestroy 不触发。
+    // 先换空表再逐层 destroy（destroy 会 splice layers，不能边遍历边改）。
+    var old = layers;
     layers = [];
+    old.forEach(function (l) { try { l.destroy(); } catch (e) { /* best-effort: cleanup */ } });
   },
   // harness 直采：让"真机形状的 ext JSON → 模型"这条解析链在浏览器里也被跑一遍（不只是单测）
   parseAdvExt: parseAdvanced,

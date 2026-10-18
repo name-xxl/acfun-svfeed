@@ -44,9 +44,14 @@ function sections(file) {
 }
 // 实测基线（0.9.258 构建产物）与 +2% 上限（上限 = ceil(基线×1.02)）。+2% 是单批正常改动的量级：
 // 撞线说明这一批涨得超常，应重新裁一次阈值（并把新基线写在这里），而不是默默放过
+// 0.9.276 重裁 rest：0.9.258 压缩基线之后累计新增功能（拆件/审计修复/测试缝）已把
+// debug rest 推到 790,410，超过旧基线 +2%（790,329）81 B。按审计批②约定“撞线即重裁”，
+// rest 基线取本批实测值；head/hls/css 与 total 仍保留 0.9.258 基线，+2% 门禁不变。
+// 0.9.277 重裁 css+total：签到黄历弹窗（3:4 卡 + 规则翻面）新增 CSS ~1.2KB、JS 域件 ~3KB，
+// 撞线属单批功能量级；css/total 基线取本批实测值，head/hls/rest 保留原基线。
 const BASE = {
-  release: { total: 575990, head: 1815, hls: 120340, css: 21656, rest: 432179 },
-  debug: { total: 918713, head: 1885, hls: 120340, css: 21656, rest: 774832 }
+  release: { total: 590777, head: 1815, hls: 120340, css: 22912, rest: 438779 },
+  debug: { total: 947977, head: 1885, hls: 120340, css: 22912, rest: 790410 }
 };
 const relSec = sections('acfun-svfeed.user.js');
 const dbgSec = sections('acfun-svfeed.debug.user.js');

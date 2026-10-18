@@ -12,6 +12,7 @@ import { setSearchHandler, focusSearch } from './topbar.js';
 import { openFollowGroupPop } from './grouppop.js';
 import { followUser } from './relationapi.js';
 import { histList, histAdd, histClear } from './searchhist.js';
+import { createScope } from './lifecycle.js';
 
 // ---------- 搜索视图 2.0（0.9.151）：类目 chips + 真分页 + UP 卡 + 文章行 + 搜索历史 ----------
 // 数据源=三端点（cfg.api.search{Video,User,Article}，真机实测 docs/api-research.md §4.10）：
@@ -60,7 +61,7 @@ function hashOf(kind, kw) {
 // 顶栏提交接管（挂起/复原用；0.9.74 深界面保活期间交还默认提交）
 var activeSubmit = null;
 var activeIO = null; // 当前视图的续页哨兵观察器（teardown 断开；同一时刻只有一个搜索视图）
-var histListener = null; // 共享历史清空广播的订阅器（0.9.158；teardown 摘除）
+var histScope = null; // 共享历史清空广播的订阅作用域（0.9.158；teardown 一次摘净）
 
 function buildSearchView(body, arg, kind) {
   var kw = String(arg || '').trim();
@@ -99,9 +100,11 @@ function buildSearchView(body, arg, kind) {
   sentinel.style.display = 'none';
 
   // 共享历史被外部清空（顶栏面板「清除历史」）→ 空词态重画 chips（0.9.158；非空词态无历史件，免画）
-  if (!histListener) {
-    histListener = function () { if (!String(arg || '').trim() && res.isConnected) render(); };
-    document.addEventListener('acsv-searchhist', histListener);
+  if (!histScope) {
+    histScope = createScope();
+    histScope.on(document, 'acsv-searchhist', function () {
+      if (!String(arg || '').trim() && res.isConnected) render();
+    });
   }
   var skelGone = null;
   function showSkel() {
@@ -398,7 +401,7 @@ function teardownSearchView() {
   activeSubmit = null;
   setSearchHandler(null);
   if (activeIO) { activeIO.disconnect(); activeIO = null; }
-  if (histListener) { document.removeEventListener('acsv-searchhist', histListener); histListener = null; }
+  if (histScope) { histScope.dispose(); histScope = null; }
 }
 
 registerView({

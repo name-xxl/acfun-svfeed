@@ -1,10 +1,11 @@
 // @ts-check
 import { CFG } from './cfg.js';
-import { stat, set, testHook } from './dbg.js';
+import { stat, set, testHook, swallow } from './dbg.js';
 import { toast, sweepSlideVideos, videoOf } from './ui.js';
 import { ensureResolved } from './api.js';
 import { nativeHls, ensureHls } from './hls.js';
 import { getSetting } from './settings.js';
+import { createScope } from './lifecycle.js';
 
 // ---------- 播放会话：一个「正在播放的视频」的完整生命周期 ----------
 // 状态机：idle → resolving → loading → ready(⇄paused)；→ error；任意 → disposed。
@@ -32,6 +33,7 @@ export function createSession(slide, item, idx, hooks) {
     _recovering: false, // 恢复链重入锁：video error 与 hls fatal 可能接连触发
     _recoverWatch: 0,   // 换线看门狗（0.9.256）：备线也失败时 error 会被重入锁吞，锁只由 playing 释放
     _waitTimer: null,
+    _scope: createScope(), // per-session window/document 监听作用域（dispose 一次摘净）
 
     setState: function (s) {
       // 转圈的清除与状态拨回归口一处（0.9.257：移到同值早退**之前**）。平滑 seek 期间 state
@@ -178,7 +180,7 @@ export function createSession(slide, item, idx, hooks) {
 
     _destroyHls: function () {
       if (this._hls) {
-        try { this._hls.destroy(); } catch (e) { }
+        try { this._hls.destroy(); } catch (e) { /* best-effort: cleanup */ }
         this._hls = null;
       }
     },
@@ -281,7 +283,7 @@ export function createSession(slide, item, idx, hooks) {
           if (v.error || stuck) self.recover();
         }, 1500);
       };
-      document.addEventListener('visibilitychange', this._onVis);
+      this._scope.on(document, 'visibilitychange', this._onVis);
       video.addEventListener('playing', function () {
         if (self.state === 'disposed') return;
         clearTimeout(self._waitTimer);
@@ -293,7 +295,7 @@ export function createSession(slide, item, idx, hooks) {
         slide.dataset.paused = '0';
         self.setState('ready');
         if (self.resumeAt) {
-          try { video.currentTime = self.resumeAt; } catch (e) { }
+          try { video.currentTime = self.resumeAt; } catch (e) { swallow(e, 'session'); }
           self.resumeAt = 0;
         }
         if (hooks.onPlaying) hooks.onPlaying(self, video);
@@ -343,7 +345,7 @@ export function createSession(slide, item, idx, hooks) {
       this.state = 'disposed';
       if (this._waitTimer) { clearTimeout(this._waitTimer); this._waitTimer = null; }
       if (this._recoverWatch) { clearTimeout(this._recoverWatch); this._recoverWatch = 0; }
-      if (this._onVis) { document.removeEventListener('visibilitychange', this._onVis); this._onVis = null; }
+      if (this._onVis) { this._scope.dispose(); this._onVis = null; }
       this._destroyHls();
       if (this.monitor) { this.monitor.stop(); this.monitor = null; }
       if (slide._dmLayer) { slide._dmLayer.destroy(); slide._dmLayer = null; }
@@ -508,14 +510,14 @@ function installHealthMonitor(S) {
     var tfNow = video.getVideoPlaybackQuality ? video.getVideoPlaybackQuality().totalVideoFrames : -1;
     // 第 1 次：0.1s 前跳顶针，强制解码管线重出帧，肉眼无感
     if (item._freezeTries === 1) {
-      try { video.currentTime = Math.min(video.duration || 1e9, video.currentTime + CFG.stall.nudge); } catch (e) { }
+      try { video.currentTime = Math.min(video.duration || 1e9, video.currentTime + CFG.stall.nudge); } catch (e) { swallow(e, 'session'); }
       if (tfNow >= 0) st.lastTF = tfNow;
       armTimeout();
       return;
     }
     // 第 2 次：recoverMediaError 重置解码管线，不丢缓冲、不重新拉流
     if (item._freezeTries === 2 && S._hls && S._hls.recoverMediaError) {
-      try { S._hls.recoverMediaError(); } catch (e) { }
+      try { S._hls.recoverMediaError(); } catch (e) { swallow(e, 'session'); }
       if (tfNow >= 0) st.lastTF = tfNow;
       armTimeout();
       return;
@@ -547,7 +549,7 @@ function installHealthMonitor(S) {
     // 只有重挂换全新元素才有机会；奇数次先重挂（强手段优先）。无 hls 直链只能重挂
     if (S._hls && S._hls.recoverMediaError && item._freezeTries % 2 === 0) {
       stat('stall.tailRme');
-      try { S._hls.recoverMediaError(); } catch (e) { }
+      try { S._hls.recoverMediaError(); } catch (e) { swallow(e, 'session'); }
       armTimeout();
       return;
     }

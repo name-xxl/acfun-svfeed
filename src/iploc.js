@@ -22,7 +22,7 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { el, isSafeKey } from './ui.js';
-import { stat, testHook } from './dbg.js';
+import { stat, testHook, swallow } from './dbg.js';
 import { getSetting, setSetting, storeKey } from './settings.js';
 
 var UID_KEY = 'acr_uids';   // Web-IP v5.8.5 同 key（形状也同——双向兼容）
@@ -117,17 +117,17 @@ function readStore() {
       var g = GM_getValue(UID_KEY, null);
       if (g) return typeof g === 'string' ? JSON.parse(g) : g;
     }
-  } catch (e) { }
+  } catch (e) { /* best-effort: storage */ }
   try {
     var raw = localStorage.getItem(UID_KEY);
     return raw ? JSON.parse(raw) : null;
-  } catch (e) { }
+  } catch (e) { /* best-effort: storage */ }
   return null;
 }
 
 function writeStore(obj) {
-  try { if (typeof GM_setValue === 'function') { GM_setValue(UID_KEY, obj); return; } } catch (e) { }
-  try { localStorage.setItem(UID_KEY, JSON.stringify(obj)); } catch (e) { }
+  try { if (typeof GM_setValue === 'function') { GM_setValue(UID_KEY, obj); return; } } catch (e) { /* best-effort: storage */ }
+  try { localStorage.setItem(UID_KEY, JSON.stringify(obj)); } catch (e) { /* best-effort: storage */ }
 }
 
 function ensureLoaded() {
@@ -158,7 +158,7 @@ function scheduleSave() {
 
 // 关页兜底：在途防抖的查询结果不丢（settings.flushSettings 同款纪律）
 try {
-  window.addEventListener('pagehide', function () {
+  window.addEventListener('pagehide', function () { // singleton-listener: 关页落盘兜底，页面级
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; saveUids(); }
   });
 } catch (e) { /* 非浏览器环境（单测）忽略 */ }
@@ -168,14 +168,14 @@ function adoptLegacyDays() {
   try {
     var mine = null;
     if (typeof GM_getValue === 'function') mine = GM_getValue(storeKey('ipKeep'), null);
-    if (mine == null) { try { mine = localStorage.getItem(storeKey('ipKeep')); } catch (e) { } }
+    if (mine == null) { try { mine = localStorage.getItem(storeKey('ipKeep')); } catch (e) { /* best-effort: storage */ } }
     if (mine != null) return;
     var old = null;
     if (typeof GM_getValue === 'function') old = GM_getValue(DAYS_KEY, null);
     if (old == null) return;
     var v = mapLegacyDays(old);
     if (v != null) setSetting('ipKeep', v);
-  } catch (e) { }
+  } catch (e) { /* best-effort: storage */ }
 }
 adoptLegacyDays();
 
@@ -219,7 +219,7 @@ function fetchFor(k, cb) {
     var e = uids[k];
     var ip = (e && e.ip) || '';
     if (ip) stat('ip.serve');
-    cbs.forEach(function (fn) { try { fn(ip, (e && e.t) || 0); } catch (err) { } });
+    cbs.forEach(function (fn) { try { fn(ip, (e && e.t) || 0); } catch (err) { swallow(err, 'iploc'); } });
   });
 }
 
