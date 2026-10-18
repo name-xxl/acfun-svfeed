@@ -191,11 +191,13 @@ export function armExpanders(scope) {
 //（动态条目）；非动态条目走 href 新标签。此前该策略在 squareview 与 mypage 各写一份（同一含义
 // 两处定义=漂移源），下沉本 kit 单源。工厂的 onOpen 仍可覆盖——原生页内嵌宿主 memberplaza 传
 // noop（不穿越深色详情面板，原页语义）。
-export function openRowDefault(pi) {
+export function openRowDefault(pi, row) {
   if (!pi) return;
   if (pi.ct === 'moment') {
     closeInlineComments();
-    openMomentDetail(pi);
+    openMomentDetail(pi, {
+      onDeleted: function () { if (row && row.parentNode) row.remove(); }
+    });
   } else if (pi.href) window.open(pi.href, '_blank');
 }
 
@@ -237,6 +239,6 @@ export function wireRowList(list, onOpen) {
     // 会把详情/播放打开——与上方图片「划选收尾不弹大图」同一判据（commentListClick 先例）
     var selRow = window.getSelection ? window.getSelection() : null;
     if (selRow && !selRow.isCollapsed) return;
-    onOpen(pi);
+    onOpen(pi, row);
   });
 }

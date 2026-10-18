@@ -92,7 +92,13 @@ export var SCHEMA = [
     label: '属地缓存保留', options: CFG.ip.keepOptions,
     hint: '过期后重新查询；「永久」= 不自动过期（上限 5000 用户仍会淘汰）' },
   { key: 'devName', type: 'bool', def: true, panel: true, native: true, group: '评论',
-    label: '设备型号美化', hint: '代号自动替换为友好名称；点击型号可切回代号' }
+    label: '设备型号美化', hint: '代号自动替换为友好名称；点击型号可切回代号' },
+  // 非个性化推荐（0.9.278）：只换发现类读的拉取凭证——推荐/小视频/相关推荐/分区/榜单/搜索/
+  // 播放直链/弹幕列表走游客态；视频详情个人态、评论、动态、我的页、写链与观看上报全部保持登录。
+  // 放 SCHEMA 末尾：现有面板开关索引不变；native 不标——原生页 IP 面板不显示浏览项。
+  { key: 'guestRead', type: 'bool', def: false, panel: true, group: '隐私',
+    label: '非个性化推荐',
+    hint: '换用游客身份拉取推荐、小视频与发现内容；互动与观看上报照常，下次加载生效' }
 ];
 
 var STORE_PREFIX = 'acsv.s.'; // 逐键命名空间（路线图 1.1）

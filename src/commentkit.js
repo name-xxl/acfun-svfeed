@@ -146,6 +146,14 @@ export function commentItemOf(c, subMap, opts) {
     fwdBtn.title = '转发这条评论到私信';
     fwdBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户', content: c.content || '' };
     meta.appendChild(fwdBtn);
+    // 删除自己的评论（0.9.279）：可见性/归属由管线 opts.canDelete 注入（同 ipTag/devTag 纪律），
+    // 点击行为在 commentListClick 委托；kit 不 import 交互/弹层。
+    if (opts.canDelete && opts.canDelete(c)) {
+      var delBtn = el('span', 'acsv-cdelbtn', '删除');
+      delBtn.title = '删除这条评论';
+      delBtn._del = c;
+      meta.appendChild(delBtn);
+    }
   } else {
     like = el('span', 'acsv-clike');
     like.appendChild(likeGlyph(false));

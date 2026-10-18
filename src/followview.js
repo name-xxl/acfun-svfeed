@@ -30,10 +30,12 @@ import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.
 // ---------- 互动行为（乐观更新照 rail.js:154-177 范式；pi 与详情面板同引用——
 // 面板里再操作计数，行内 DOM 不自动跟新：v1 不做跨面实时同步，低频场景，注释防误判） ----------
 
-function rowDefault(pi) {
+function rowDefault(pi, row) {
   if (pi.ct === 'moment') {
     closeInlineComments(); // 面板接管评论区（claimDrawer 同槽，先关行内防两份宿主互踩）
-    openMomentDetail(pi);
+    openMomentDetail(pi, {
+      onDeleted: function () { if (row && row.parentNode) row.remove(); }
+    });
   } else if (pi.ct === 'video') {
     // 用户裁决（0.9.173）：「仅播放单条就只剩**动态里的视频卡片**」——动态语境的视频条目
     // 显式声明单条会话（不出右栏箭头、↓ 无下一条）；其余来源一律带列表/游走上下文

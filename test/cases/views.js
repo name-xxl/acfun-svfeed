@@ -33,7 +33,17 @@ window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
         user: { userId: 42, userName: '测试用户', userHead: '' } },
       { resourceType: 1, resourceId: 1 } // 直播：契约层过滤，不渲染
     ]
-  }
+  },
+  // 稍后再看（0.9.279）：列表 + 移出写链 mock（URL 子串命中 'app/waitingList' / 'app/cancelWaiting'）
+  'app/waitingList': {
+    result: 0, pcursor: 'no_more',
+    list: [{
+      dougaId: '489100', title: '稍后再看视频', coverUrls: ['https://imgs.example/wl.jpg'],
+      playDuration: '01:23', viewCount: 1234,
+      user: { userId: 9, name: '测试UP', headUrl: '', isFollowing: true }
+    }]
+  },
+  'app/cancelWaiting': { result: 0 }
 });
 // 播放层条目直挂缝（webm 套 hls 会死在解析）。0.9.82 起值可为对象 {id,name,head,delay}：
 // 连带模拟 douga/info 回包的作者部分（真实回包走 user.headUrl，见 my-sample 的实测形状）。
@@ -80,7 +90,8 @@ rec('me-card-id-sign', /UID：42/.test((q('.acsv-mecard-id') || {}).textContent 
 // 顺序断言看按钮序列（键序=按钮序的机器证据），默认断言看 panel display + 选中类
 rec('moments-tab-first', (function () {
   var t = document.querySelectorAll('.acsv-metab');
-  return t.length === 4 && t[0].getAttribute('data-tab') === 'moments' && t[0].classList.contains('on')
+  return t.length === 5 && t[0].getAttribute('data-tab') === 'moments' && t[0].classList.contains('on')
+    && t[2].getAttribute('data-tab') === 'wait'
     && q('.acsv-mepanel[data-tab="moments"]').style.display !== 'none'
     && q('.acsv-mepanel[data-tab="hist"]').style.display === 'none';
 })(), (function () {
@@ -94,6 +105,26 @@ rec('moments-rows', !!(await waitFor(function () {
   return rows.length === 3 && !!rows[0].querySelector('.acsv-frow-text')
     && !!rows[1].querySelector('.acsv-frow-strip') && !!rows[2].querySelector('.acsv-frow-strip');
 }, 8000)), 'rows=' + document.querySelectorAll('.acsv-mepanel[data-tab="moments"] .acsv-frow').length);
+// ---- 稍后再看第 5 档（0.9.279）----
+var tabWait = q('.acsv-metab[data-tab="wait"]');
+if (tabWait) tabWait.click();
+rec('wait-cards', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-mepanel[data-tab="wait"] .acsv-gcell').length === 1;
+}, 8000)), 'cells=' + document.querySelectorAll('.acsv-mepanel[data-tab="wait"] .acsv-gcell').length);
+rec('wait-cell-remove', !!q('.acsv-mepanel[data-tab="wait"] .acsv-wlacts .acsv-vchip'));
+var waitBody = '';
+var waitMockFn = window.__ACSV_MOCK_FORM__['app/cancelWaiting'];
+window.__ACSV_MOCK_FORM__['app/cancelWaiting'] = function (body, url) {
+  waitBody = String(body);
+  return typeof waitMockFn === 'function' ? waitMockFn(body, url) : waitMockFn;
+};
+var waitRm = q('.acsv-mepanel[data-tab="wait"] .acsv-wlacts .acsv-vchip');
+if (waitRm) waitRm.click();
+rec('wait-remove-body', !!(await waitFor(function () { return !!waitBody; }, 3000)), waitBody);
+rec('wait-remove-gone', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-mepanel[data-tab="wait"] .acsv-gcell').length === 0;
+}, 3000)));
+rec('wait-empty', !!q('.acsv-mepanel[data-tab="wait"] .acsv-vempty'));
 // 切回历史：本场景余下断言（惰性建面板/保状态/播放层）全按「历史是活动 tab」写
 var tabHist0 = q('.acsv-metab[data-tab="hist"]');
 // 0.9.259（审计批④ P2-5 翻页骨架抽 pageloader）的**出口取证**：包一层记录历史的请求体。
@@ -524,7 +555,18 @@ rec('esc-back-to-feed', !!(await waitFor(function () {
       waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
       feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
 // 分区榜单视图冒烟：渠道/榜期 chips 切换重渲染 + contentType 过滤 + 条目回竖刷
-window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
+function rankRow(title) {
+  return { contentType: 2, dougaId: '489500', contentId: 489500, contentTitle: title,
+    videoCover: 'https://img.example/r.jpg', contentDesc: '榜单简介',
+    contributeTime: Date.now() - 3600e3, channelName: '动画', viewCount: 100, commentCount: 2,
+    userName: '榜单UP', userId: 9, userImg: '', fansCount: 1000, contributionCount: 10,
+    userSignature: '签名', duration: 10000 };
+}
+window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
+  'app/rank/hot': { result: 0, rankList: [rankRow('热榜视频')] },
+  'app/rank/banana': { result: 0, rankList: [rankRow('香蕉视频')] },
+  'app/rank/youngStar': { result: 0, rankList: [rankRow('新秀视频')] }
+});
 window.__ACSV_MOCK_DIRECT__ = { '489500': 1 }; // 播放层条目直挂缝（同 view-my）
 location.hash = 'svfeed/zone';
 rec('zone-open', !!(await waitFor(function () {
@@ -588,7 +630,41 @@ var upcH = upcEl ? Math.round(upcEl.getBoundingClientRect().height) : null;
 var upcTxt = upcEl && upcEl.querySelector('.acsv-upcard-extra') ? upcEl.querySelector('.acsv-upcard-extra').textContent : '';
 rec('zone-upcard', upcCps.join(',') === 'U+E15B,U+E155' && /万/.test(upcTxt) && upcH >= 127 && upcH <= 131,
   'cp=' + upcCps.join(',') + ' h=' + upcH + ' txt=' + upcTxt);
-var zchips = document.querySelectorAll('.acsv-vchips')[0].children;
+// ---- 三榜（0.9.279）：板 chips 切换；非 channel 隐藏子频道/榜期 ----
+function boardChip(id) { return q('.acsv-rboards [data-board="' + id + '"]'); }
+var hotChip = boardChip('hot');
+if (hotChip) hotChip.click();
+rec('zone-hot-rows', !!(await waitFor(function () {
+  var t = q('.acsv-rlist .acsv-vrow .acsv-vrow-title');
+  return t && /热榜视频/.test(t.textContent);
+}, 8000)), 't=' + ((q('.acsv-rlist .acsv-vrow .acsv-vrow-title') || {}).textContent || ''));
+rec('zone-hot-hides-channel', (function () {
+  var cs = document.querySelectorAll('.acsv-vchips:not(.acsv-rboards)');
+  return cs.length === 3 && [].every.call(cs, function (x) { return x.style.display === 'none'; });
+})());
+rec('zone-hot-tip', /全站热榜 \/ 按热度排序/.test((q('.acsv-vtip') || {}).textContent || ''),
+  (q('.acsv-vtip') || {}).textContent);
+var bananaChip = boardChip('banana');
+if (bananaChip) bananaChip.click();
+rec('zone-banana-rows', !!(await waitFor(function () {
+  var t = q('.acsv-rlist .acsv-vrow .acsv-vrow-title');
+  return t && /香蕉视频/.test(t.textContent);
+}, 8000)));
+var youngChip = boardChip('youngStar');
+if (youngChip) youngChip.click();
+rec('zone-young-rows', !!(await waitFor(function () {
+  var t = q('.acsv-rlist .acsv-vrow .acsv-vrow-title');
+  return t && /新秀视频/.test(t.textContent);
+}, 8000)));
+var channelChip = boardChip('channel');
+if (channelChip) channelChip.click();
+rec('zone-channel-back', !!(await waitFor(function () {
+  var cs = document.querySelectorAll('.acsv-vchips:not(.acsv-rboards)');
+  var t = q('.acsv-rlist .acsv-vrow .acsv-vrow-title');
+  return cs.length === 3 && cs[0].style.display !== 'none' && cs[2].style.display !== 'none'
+    && t && /榜单/.test(t.textContent);
+}, 8000)));
+var zchips = document.querySelectorAll('.acsv-vchips:not(.acsv-rboards)')[0].children;
 var gameChip = [].filter.call(zchips, function (c) { return c.textContent === '游戏'; })[0];
 if (gameChip) gameChip.click();
 rec('zone-switch', !!(await waitFor(function () {
@@ -597,7 +673,7 @@ rec('zone-switch', !!(await waitFor(function () {
 }, 8000)));
 // 子频道行：切频道后填官方树 children（mock navTree），「全部」默认选中、请求带 subChannelId
 rec('zone-subs', !!(await waitFor(function () {
-  var chips = document.querySelectorAll('.acsv-vchips')[1].children;
+  var chips = document.querySelectorAll('.acsv-vchips:not(.acsv-rboards)')[1].children;
   return chips.length === 3 && chips[0].textContent === '全部' && chips[0].classList.contains('on');
 }, 8000)));
 // 播放层（0.9.74）：点榜单行 → 就地覆盖播放（不跳回竖刷、不插队尾）。钉：地址 play 形态、
@@ -647,7 +723,7 @@ rec('zone-backtop-idle-top', (function () { // 在顶部：按钮在（视图层
   return b ? ('on=' + b.classList.contains('on')) : 'no-btn';
 })());
 window.__ACSV_RANK_N__ = 14;
-var weekChip = [].filter.call(document.querySelectorAll('.acsv-vchips')[2].children,
+var weekChip = [].filter.call(document.querySelectorAll('.acsv-vchips:not(.acsv-rboards)')[2].children,
   function (c) { return c.textContent === '本周'; })[0];
 if (weekChip) weekChip.click();
 rec('zone-backtop-tall', !!(await waitFor(function () {
@@ -3005,5 +3081,180 @@ rec('square-cmt-namecolor', (function () {
     })());
     if (acts[1]) acts[1].click(); // 收起，防污染
     await wait(200);
+  };
+
+  // ---- comment-delete（0.9.279：推荐源自己的评论可删；他人无入口；sv/纯判据门控） ----
+  C['comment-delete'] = async function (h) {
+    var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor, TEST = h.TEST;
+    document.cookie = 'auth_key=31_deadbeef'; // 本人 uid=31
+    var delBody = '';
+    window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
+      'comment/list': function () {
+        return { result: 0, commentCount: 2, curPage: 1, totalPage: 1, pcursor: 'no_more', hotComments: [],
+          rootComments: [
+            { commentId: 'cd1', userId: 31, userName: '本人', headUrl: '', content: '自己的评论', postDate: '1分钟前', likeCount: 0, isLike: false, subCommentCount: 0 },
+            { commentId: 'cd2', userId: 32, userName: '他人', headUrl: '', content: '别人的评论', postDate: '1分钟前', likeCount: 0, isLike: false, subCommentCount: 0 }
+          ],
+          subCommentsMap: {} };
+      },
+      'comment/delete': function (body) {
+        delBody = String(body);
+        return { result: 0 };
+      }
+    });
+    delete window.__ACSV_MOCK__;
+    location.hash = 'svfeed/follow';
+    rec('cd-open', !!(await waitFor(function () {
+      var v = q('.acsv-view');
+      return v && v.offsetParent !== null;
+    }, 10000)));
+    // 纯判据（debug hook）：本人 + home + stype 3/4 才可删；他人/sv/stype5 一律 false
+    rec('cd-rule', TEST.call('canDelete', { userId: 31 }, '31', 'home', 4) === true
+      && TEST.call('canDelete', { userId: 32 }, '31', 'home', 4) === false
+      && TEST.call('canDelete', { userId: 31 }, '31', 'sv', 4) === false
+      && TEST.call('canDelete', { userId: 31 }, '31', 'home', 5) === false);
+    var mRow = null;
+    await waitFor(function () {
+      var rows = document.querySelectorAll('.acsv-mewrap .acsv-frow');
+      for (var i = 0; i < rows.length; i++) {
+        if (/动态正文带 UBB/.test(rows[i].textContent)) { mRow = rows[i]; return true; }
+      }
+      return false;
+    }, 8000);
+    rec('cd-row', !!mRow);
+    var acts = mRow ? mRow.querySelectorAll('.acsv-fact') : [];
+    if (acts[1]) acts[1].click();
+    rec('cd-comments', !!(await waitFor(function () {
+      var box = mRow && mRow.querySelector('.acsv-frow-cmts');
+      return box && box.querySelectorAll('.acsv-citem').length === 2;
+    }, 8000)));
+    var box = mRow && mRow.querySelector('.acsv-frow-cmts');
+    rec('cd-only-own-has-key', !!box && box.querySelectorAll('.acsv-cdelbtn').length === 1,
+      'n=' + (box ? box.querySelectorAll('.acsv-cdelbtn').length : 'na'));
+    var del = box && box.querySelector('.acsv-cdelbtn');
+    if (del) del.click();
+    var pop = box && box.querySelector('.acsv-confirmpop');
+    rec('cd-confirm', !!pop);
+    var ok = pop && pop.querySelector('.acsv-pick-ok');
+    if (ok) ok.click();
+    rec('cd-body', !!(await waitFor(function () { return !!delBody; }, 3000)), delBody);
+    rec('cd-own-removed', !!(await waitFor(function () {
+      return !!box && box.querySelectorAll('.acsv-citem').length === 1
+        && !/自己的评论/.test(box.textContent) && /别人的评论/.test(box.textContent);
+    }, 3000)));
+    if (acts[1]) acts[1].click(); // 收起
+    await wait(150);
+  };
+
+  // ---- detail-delete（0.9.279：自己的动态详情可删；他人的无键；删后面板关+行移除） ----
+  C['detail-delete'] = async function (h) {
+    var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor;
+    document.cookie = 'auth_key=1004_deadbeef'; // 夹具「无图动态」作者 userId=1004
+    var delBody = '';
+    window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
+      'comment/list': function () {
+        return { result: 0, commentCount: 0, curPage: 1, totalPage: 1, pcursor: 'no_more',
+          hotComments: [], rootComments: [], subCommentsMap: {} };
+      },
+      'moment/delete': function (body) {
+        delBody = String(body);
+        return { result: 0 };
+      }
+    });
+    delete window.__ACSV_MOCK__;
+    location.hash = 'svfeed/follow';
+    rec('dd-feed-open', !!(await waitFor(function () {
+      return document.querySelectorAll('.acsv-mewrap .acsv-frow').length === 19;
+    }, 10000)));
+    function rowOf(text) {
+      var rows = document.querySelectorAll('.acsv-mewrap .acsv-frow');
+      for (var i = 0; i < rows.length; i++) if (new RegExp(text).test(rows[i].textContent)) return rows[i];
+      return null;
+    }
+    var ownRow = rowOf('无图动态');
+    rec('dd-own-row', !!ownRow);
+    if (!ownRow) return;
+    ownRow.click();
+    rec('dd-panel', !!(await waitFor(function () {
+      return !!q('.acsv-mdetail-panel') && !!q('.acsv-mdetail-more');
+    }, 8000)));
+    q('.acsv-mdetail-more').click();
+    var pop = q('.acsv-mdetail-panel .acsv-confirmpop');
+    rec('dd-confirm', !!pop);
+    var ok = pop && pop.querySelector('.acsv-pick-ok');
+    if (ok) ok.click();
+    rec('dd-body', !!(await waitFor(function () { return !!delBody; }, 3000)), delBody);
+    rec('dd-panel-closed', !!(await waitFor(function () {
+      return !q('.acsv-mdetail-panel');
+    }, 3000)));
+    rec('dd-row-gone', !!(await waitFor(function () {
+      return !rowOf('无图动态') && document.querySelectorAll('.acsv-mewrap .acsv-frow').length === 18;
+    }, 3000)), 'n=' + document.querySelectorAll('.acsv-mewrap .acsv-frow').length);
+    // 他人的动态：详情头部无删除键
+    var otherRow = rowOf('动态正文带 UBB');
+    if (otherRow) otherRow.click();
+    rec('dd-other-no-key', !!(await waitFor(function () {
+      return !!q('.acsv-mdetail-panel') && !q('.acsv-mdetail-more');
+    }, 8000)));
+    var x = q('.acsv-mdetail-x');
+    if (x) x.click();
+    await wait(150);
+  };
+
+  // ---- hist-delete（0.9.279：历史单条删除 / 清空；写链 body 逐字） ----
+  C['hist-delete'] = async function (h) {
+    var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor;
+    document.cookie = 'auth_key=42_deadbeef';
+    var delBody = '', clearBody = '';
+    var histOrig = window.__ACSV_MY_MOCK__['browse/history/list'];
+    function withCombo(body, url) {
+      var j = typeof histOrig === 'function' ? histOrig(body, url) : histOrig;
+      (j.histories || []).forEach(function (x, i) { if (x) x.comboId = 9000 + i; });
+      return j;
+    }
+    window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
+      'browse/history/list': withCombo,
+      // 顺序有意：deleteAll 必须在 delete 之前——mockHit 是**子串**命中，delete 会先吃掉 deleteAll
+      'app/browse/history/deleteAll': function (body) { clearBody = String(body); return { result: 0 }; },
+      'app/browse/history/delete': function (body) { delBody = String(body); return { result: 0 }; }
+    });
+    location.hash = 'svfeed/my';
+    rec('hd-open', !!(await waitFor(function () {
+      var v = q('.acsv-view');
+      return v && v.offsetParent !== null;
+    }, 10000)));
+    var tab = q('.acsv-metab[data-tab="hist"]');
+    if (tab) tab.click();
+    rec('hd-cards', !!(await waitFor(function () {
+      return document.querySelectorAll('.acsv-mepanel[data-tab="hist"] .acsv-gcell').length === 18;
+    }, 8000)));
+    var cells = document.querySelectorAll('.acsv-mepanel[data-tab="hist"] .acsv-gcell');
+    var first = cells[0];
+    var firstCell = first && first.closest('.acsv-histcell');
+    var del = firstCell && firstCell.querySelector('.acsv-hisacts .acsv-vchip');
+    rec('hd-delete-key', !!del);
+    if (del) del.click();
+    var pop = q('.acsv-confirmpop');
+    var ok = pop && pop.querySelector('.acsv-pick-ok');
+    if (ok) ok.click();
+    rec('hd-delete-body', !!(await waitFor(function () { return !!delBody; }, 3000)), delBody);
+    rec('hd-delete-gone', !!(await waitFor(function () {
+      return document.querySelectorAll('.acsv-mepanel[data-tab="hist"] .acsv-gcell').length === 17;
+    }, 3000)), 'n=' + document.querySelectorAll('.acsv-mepanel[data-tab="hist"] .acsv-gcell').length);
+    var clear = q('.acsv-histhead .acsv-vchip');
+    rec('hd-clear-key', !!clear);
+    rec('hd-clear-vis', clear ? getComputedStyle(clear).display : 'none');
+    if (clear) clear.click();
+    var pop2 = q('.acsv-confirmpop');
+    rec('hd-clear-pop', !!pop2, pop2 ? pop2.textContent.slice(0, 40) : 'none');
+    var ok2 = pop2 && pop2.querySelector('.acsv-pick-ok');
+    rec('hd-clear-ok', !!ok2);
+    if (ok2) ok2.click();
+    rec('hd-clear-body', !!(await waitFor(function () { return !!clearBody; }, 3000)), clearBody);
+    rec('hd-clear-empty', !!(await waitFor(function () {
+      return document.querySelectorAll('.acsv-mepanel[data-tab="hist"] .acsv-gcell').length === 0
+        && /暂无观看记录/.test((q('.acsv-mepanel[data-tab="hist"]') || {}).textContent || '');
+    }, 3000)));
+    await wait(150);
   };
 })();

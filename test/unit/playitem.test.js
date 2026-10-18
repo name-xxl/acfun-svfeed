@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { upOf, playItemOf, normalize, normalizeHome, homeItemOf, deepLinkOf, foldBr } = await import('../../src/playitem.js');
+var { upOf, playItemOf, normalize, normalizeHome, homeItemOf, deepLinkOf, foldBr, ITEM_FIELDS } = await import('../../src/playitem.js');
 
 // ---------- <br> 折叠单源（0.9.194，原 panelitem 内联两处的收口） ----------
 test('foldBr：<br>/<br/>/<br /> 折行、去首尾空白；缺省换行、可传替换串；脏输入空串', () => {
@@ -114,4 +114,15 @@ test('upOf：第 5 参才挂 nameColor（play 侧四处沿用 4 参调用——�
   // 播放侧桥：始终重建四件套（等级色是面板/卡面语义，不进播放契约）
   var item = playItemOf({ acId: 1, title: 't', up: { id: 5, name: 'u', img: 'i', isFollowing: false, nameColor: 2 } });
   assert.deepEqual(Object.keys(item.up).sort(), ['id', 'img', 'isFollowing', 'name']);
+});
+
+// ---------- 稍后再看（0.9.279）：home 有 cap.waiting，sv 不出现该键 ----------
+test('waiting：home cap 有 waiting，sv 不新增 cap 键；字段白名单在册', () => {
+  var sv = normalize({ meowId: 1 });
+  var hm = normalizeHome({ href: '2' });
+  assert.equal(sv.waiting, false);
+  assert.equal(hm.waiting, false);
+  assert.equal(hm.cap.waiting, true);
+  assert.equal(sv.cap.waiting, undefined); // 不是 false，而是根本不出现
+  assert.ok(ITEM_FIELDS.play.indexOf('waiting') >= 0);
 });

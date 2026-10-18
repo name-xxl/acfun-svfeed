@@ -5,6 +5,78 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.279（2026-10-18）· 接线包：稍后再看（底栏）+ 评论/动态删除 + 三榜 + 历史删除
+
+**由头**：接线包三批一次落。用户确认 `docs/preview/content-actions.html` 第 ⑥ 段：稍后再看入口放
+播放器底栏，**倍速之后、音量之前**；**仅时钟图标**；on 态沿用底栏 `.acsv-cbtn.on` 的 accent 红。
+
+- **批次 B · 数据域 `watchlaterapi.js`**：`waitingPageOf`（`list[]` + `pcursor`；`no_more`/空页到底）+
+  `listWaiting`（POST query `pcursor/count`，登录读走 `request`）+ `addWaiting`/`cancelWaiting`
+  （POST form `resourceId/resourceType=2`，写链走 `net.request` GM 通道 + APP 头）。参数取自 jadx
+  `AcFunApiService`（`K2/Q0/H1`）；**登录态样本未取到**，面板字段只映射确定项、缺省不伪造。
+- **B · 我的页第 5 档**：`mypage` 在「观看历史」与「收藏夹」之间插入「稍后再看」；`mytabs.buildWatchLater`
+  走 `pageloader/listtail`，卡片复用 `gridCardOf`，hover「移出」复用收藏夹 `.acsv-favcell/.acsv-favacts`
+  动作壳；移出乐观隐藏、失败回滚 + toast；未登录不请求，直接出可读空态。
+- **B · 底栏入口**：`playitem` 加 `waiting` 字段 + home `cap.waiting`（sv 不新增键）；`styles.ICONS.clock`；
+  `controls` 在倍速之后插入时钟键（仅图标；`a11y` 文案「稍后再看 / 已加入稍后再看，点击移出」），
+  乐观切换 `.on`、失败回滚；右栏不改，小视频底栏无此键。
+- **A1 · 评论删除**：`comment/delete` PC 端点（`sourceId/sourceType/commentId`）；`commentkit`
+  经 `opts.canDelete` 只在**推荐源 + 本人 + stype 3/4** 挂「删除」，点击委托 `openConfirmPop`
+  （host=宿主根，防滚动列表裁剪）→ 成功移除条目 + 计数 -1；sv/他人无入口。sourceType=3 未单独实测，
+  失败由 API 兜住、条目保留。
+- **A2 · 动态删除**：`momentdetail` 头部对 `pi.momentId && pi.up.id===selfUid()` 出「⋮」→ 确认 →
+  `deleteMoment`（既有）→ 关闭面板 + `opts.onDeleted`；`rowkit/followview/squareview/mypage` 移除
+  对应行卡；列表卡面不加入口。
+- **A3 · 三榜**：新 `rankapi.js`（hot GET count/pcursor/mkey；banana GET rankPeriod；youngStar
+  POST form rankPeriod；回包复用 `panelitem.rank`，三榜与分区榜同族）+ `zone` 板 chips
+  （分区榜/全站热榜/香蕉榜/新秀榜）；非 channel 隐藏渠道/子频道/榜期，`rankCache` key 加板名。
+- **C · 历史删除/清空**：新 `historyapi.js`（`deleteHistory` form `comboIds` / `clearHistory`
+  form `resourceTypes=1&resourceTypes=2`，jadx V2/f4）；`panelitem.history` 落 `comboId`；
+  `mytabs` 历史卡 hover「删除」+ 顶部「清空历史」（复用 favcell 动作壳），确认后移除/清空 + 空态。
+- **实报修复（APP 域写链 CORS 误判）**：用户实报「加稍后再看提示失败、实际已加入」。内置浏览器
+  登录态表单 POST 实测：`addWaiting` 新增/已存在均回 `{"result":0}`；但 api-new 响应
+  **没有 `Access-Control-Allow-Origin`**（未登录 401/无 ACAO），页面 `fetch` 会「服务端已写入、
+  浏览器读不到响应」→ 误判失败。修法：waiting add/cancel 与 history delete/deleteAll 改走
+  `net.request`（GM 通道带 Cookie + APP 头），与 `momentpost` 的 APP 域写链同口径；不再依赖
+  `postForm` 的 Empty 假设。
+- **测试**：单测 **447/447**（+11：watchlater 4 + playitem 1 + rankapi 3 + historyapi 3）；
+  harness **88/88**（+4 `ctl-waiting`/`comment-delete`/`detail-delete`/`hist-delete`；
+  `ctl-narrow`/`view-my`/`view-zone`/`fav-folders`/`relation` 扩面）。lint/tsc/check 全绿。
+- **体积**：`acfun-svfeed.user.js` 601,321 B / `acfun-svfeed.debug.user.js` 968,570 B；
+  check-release 的 rest/debug-total 段按约定重裁（见 `test/check-release.mjs` 0.9.279 注）。
+- **文档**：README 模块表补 `watchlaterapi`/`rankapi`/`historyapi`、`controls`/`mypage`/`mytabs`/
+  `zone` 行更新与依赖图节点/边；预览稿 `docs/preview/content-actions.html` 第 ⑥ 段为确认稿。
+
+### 0.9.278（2026-10-18）· 非个性化推荐（游客态拉取发现类读，写链不变）
+
+**由头**：用户要一个开关，换掉平台按个性化推荐拉来的视频，同时观看上报、评论、转发等行为不变。
+真机用不带 Cookie 的 `curl` 实测 11 个发现类端点均可游客取数（结论入本地 `docs/api-research.md`
+§14，不入公开仓）。
+
+- **设置**：SCHEMA 末尾新增「隐私 → 非个性化推荐」（内部 key `guestRead`，默认关，hint 一行：
+  「换用游客身份拉取推荐、小视频与发现内容；互动与观看上报照常，下次加载生效」）。放在末尾
+  保证既有 `.acsv-sw` 索引不变；原生页 IP 面板不显示（无 `native` 标记）。
+- **网络层**：`net.js` 新增 `transportPlan`（纯函数）/`requestRead`，`gmRequest` 透传
+  `anonymous`；`request` 增加第 5 参 `opts.anon`。游客态规则：GM 用 `anonymous` 去 Cookie；
+  无 GM 时跨域 XHR 可 `withCredentials=false`；**同源 XHR 无法 omit Cookie ⇒ fail closed**
+  （`net.guestNoGm`），绝不静默退回带 Cookie。
+- **游客读**（`requestRead`）：`homeFeed`、`api.feed`/`api.info`（小视频）、`playInfo`、
+  `dmList`、`spriteVtt`、`channelapi` 两处、`relatedapi.listRelated`、搜索的视频/文章两端、
+  `zone` 分区榜。
+- **保持登录**（`request` 原样）：`dougaInfo`（赞/藏/蕉/关注个人态）、UP 主搜索（isFollowing）、
+  评论/楼中楼、动态/广场/个人动态、我的页历史/收藏/分组、IP、签到。
+- **写链不变**：`postForm` 仍 `credentials:'include'`；观看上报仍走官方 SDK/sendBeacon；
+  转发/私信仍走 ImSdk。新增单测钉 `postForm` 凭证不受开关影响。
+- **小视频**：`feed`/`info` 纳入游客拉取，但**不新增任何交互**；游客态 `isLike` 为 false
+  （红心初始未赞），本轮不做 `like/infos` 回填。
+- **测试**：单测 **436/436**（+6：`net.test.js` 新件 5 例 + settings 契约 1 例）；harness
+  **84/84** 全绿（`settings-open` 行数 10→11、labels 追加「非个性化推荐」、新增默认关/开/持久化/
+  关/持久化五钉；`related`/`layer-list` 的开关索引不变）。lint/tsc/check 全绿。
+- **产物**：`acfun-svfeed.user.js` 591,653 B / `acfun-svfeed.debug.user.js` 950,002 B
+  （check-release 分段 578/928KB，均在 ×1.02 门禁内）。
+- **文档**：README 补「非个性化推荐」段、`net.js`/`settings.js` 模块行与 `net --> settings`
+  依赖边；预览稿 `docs/preview/guest-read.html`（确认稿）。
+
 ### 0.9.277（2026-10-18）· 签到 + App 式黄历弹窗（网页端首个签到能力）
 
 **由头**：用户问「网页端能不能调手机端签到接口、签到黄历能不能实现」→ 真机调研

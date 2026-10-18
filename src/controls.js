@@ -9,6 +9,7 @@ import { switchQuality, attachVideo, detachSession } from './attach.js';
 import { AppAPI, spriteCueAt } from './appapi.js'; // 悬停缩略图（0.9.200）
 import { getSetting, setSetting, onChange } from './settings.js';
 import { buildDmPanel } from './dmpanel.js';
+import { addWaiting, cancelWaiting } from './watchlaterapi.js';
 import { stat } from './dbg.js'; // 仅调试埋点（release 死码消除）
 
 // ---------- 播放控制栏 ----------
@@ -203,6 +204,39 @@ export function buildControls(slide, idx, item) {
     },
     '切换播放速度'
   );
+
+  // 稍后再看（0.9.279，用户裁决）：底栏时钟，仅图标，放在倍速之后、音量之前；
+  // on 态沿用底栏 `.acsv-cbtn.on` 的 accent 红（不另造绿色）。只给 home，sv 无此键。
+  var waitBtn = null;
+  if (item.kind === 'home' && item.cap && item.cap.waiting) {
+    waitBtn = elHtml('button', 'acsv-cbtn acsv-cwait', ICONS.clock);
+    waitBtn.classList.toggle('on', !!item.waiting);
+    a11y(waitBtn, item.waiting ? '已加入稍后再看，点击移出' : '稍后再看');
+    waitBtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (item.waitingBusy) return;
+      item.waitingBusy = true;
+      var next = !item.waiting;
+      function paint() {
+        waitBtn.classList.toggle('on', !!item.waiting);
+        a11y(waitBtn, item.waiting ? '已加入稍后再看，点击移出' : '稍后再看');
+      }
+      item.waiting = next;
+      paint();
+      (next ? addWaiting(item) : cancelWaiting(item)).then(function (ok) {
+        item.waitingBusy = false;
+        if (ok) { toast(next ? '已加入稍后再看' : '已移出稍后再看'); return; }
+        item.waiting = !next;
+        paint();
+        toast('操作失败（未登录或网络错误）');
+      }, function () {
+        item.waitingBusy = false;
+        item.waiting = !next;
+        paint();
+        toast('操作失败（未登录或网络错误）');
+      });
+    });
+  }
 
   // 音量（0.9.199 用户裁决「滑杆做成竖的」）：静音键 + 悬停展开的**竖条**滑杆；
   // 竖轨自下而上＝声音变大，拖到底=0＝静音（与静音键两态联动，判据 playback.isMuted）。
@@ -419,6 +453,7 @@ export function buildControls(slide, idx, item) {
   if (bufWrap) strip.appendChild(bufWrap);
   strip.appendChild(autoBtn);
   strip.appendChild(rateWrap);
+  if (waitBtn) strip.appendChild(waitBtn);
   strip.appendChild(volWrap);
   strip.appendChild(pipBtn);
   strip.appendChild(webBtn);

@@ -101,6 +101,11 @@
   60s 最小间隔防频繁进出刷请求），正文直接用 GitHub 官方渲染 HTML（不自研 markdown 渲染）；
   状态存 `localStorage['acsv-upd-v1']`（{seen,notified,ignored,lastCheck}）。拉取失败/未授权
   一律静默——GitHub 不可达意味着发布通道本身不可达，弹窗无意义。
+- 非个性化推荐（0.9.278）：设置 → 隐私 → 「非个性化推荐」。开启后推荐流、小视频流、相关推荐、
+  分区/榜单、视频/文章搜索、播放直链、弹幕列表与进度缩略图改用游客身份拉取；视频详情（含赞/藏/蕉
+  状态）、UP 主搜索、评论、动态、我的页、关注、IP、签到仍走登录态，写链与观看上报不变。需
+  Tampermonkey；只控制脚本请求，页面自身请求仍带 Cookie，`udid`/IP 仍可能被服务端识别；下次
+  加载/翻页生效。小视频游客态 `isLike` 为 false（红心初始未赞），本轮不做登录态回填。
 - 操作栏图标：推荐模式的赞/藏/蕉用视频页原生图标做 CSS mask（借形状换色：未激活白色 →
   激活 A 站红 `--acsv-accent`，投过蕉锁定蕉黄）；小视频模式的赞用小视频站原生 PNG。
   评论/分享取自 AcFun 小视频页面自带资源（ali-imgs CDN 的 PNG）。内置 SVG 仅为
@@ -356,7 +361,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | 模块 | 职责 |
 |---|---|
 | `cfg.js` | 常量表（接口地址、APP 请求头/固定 mkey、timings、导航标签） |
-| `net.js` | `request(url, method, headers, body)`：GM_xmlhttpRequest 优先、XHR 回退；0.9.166 会话计数 net.req/net.fail（debug 构建生效，领域通道口径、gmRequest 直用方不计） |
+| `net.js` | `request(url, method, headers, body[, opts])`：GM_xmlhttpRequest 优先、XHR 回退；0.9.278 起 `opts.anon` 走游客通道（GM `anonymous` / 跨域 XHR 无凭证；同源无 GM 时 fail closed），`requestRead` 按 `guestRead` 分派，写链仍走 `request`；0.9.166 会话计数 net.req/net.fail（debug 构建生效，领域通道口径、gmRequest 直用方不计） |
 | `playitem.js` | 播放条目契约（0.9.162 自 data.js 终解拆出）：双 normalize——meow 小视频（kind=sv）与 selection 卡片（kind=home）→ 同一字段契约 + `ITEM_FIELDS` 字段白名单；**作者契约 up（0.9.82 统一条目模型）**：`upOf` 定型（0.9.157 起可选第 5 参 nameColor）+ `playItemOf` 面板→播放的桥（纯函数）+ `deepLinkOf` 深链判据；0.9.170 起 home 卡带 `channelInfo`（卡片自带的分区展示串，分区页大卡标签行用——与 resolve 回填的 channel 对象形状不同，另立键） |
 | `panelitem.js` | 面板条目契约（0.9.162 自 data.js 终解拆出；原 0.9.62 落户）：panelItem 解析器表（history/fav/rank/follow/square 五源，表驱动）+ `followPanelOf`/`squarePanelOf` 派发 + `momentPiOfRepost` 转发源→详情面板 pi（0.9.102）+ `momentExtraOf` 私信转发 extra 载荷（0.9.122）+ `viewPiOf` 视图态投影（0.9.211 批⑦：searchview/jingxuanview 的「域条目→面板 pi」最后一步收此单源——kind 盖章/acId 守卫/up 覆盖/id 双容差；searchfmt/channelapi 仍是各自域内规整的归属地，投影与规整分层） |
 | `api.js` | 接口封装 + 内容源状态（getSource/setSource）+ feed/refresh 按源分发（mock 桩收口在这） |
@@ -401,7 +406,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `session.js` | 播放会话：video 生命周期/懒解析等待/hls 实例与锁档/错误恢复链（换 CDN→重解析→重挂）/HealthMonitor（冻结/慢放检测与恢复阶梯），dispose 一次拆净 |
 | `attach.js` | 重挂统一入口 attachVideo + switchQuality；slide._xxx 与 dataset 投影的跨模块契约总表（唯一登记点） |
 | `playback.js` | 播放/声音原语与手势：播放/暂停/静音手势合并实现、_userPaused 暂停意图、幽灵音频清扫 |
-| `controls.js` | 控制栏：进度条（拖动/时间气泡）、清晰度/编码/缓冲菜单（buildMenu）、连播/倍速/静音/全屏、前向邻位重建；**0.9.267 弹幕设置面板拆至 dmpanel.js** |
+| `controls.js` | 控制栏：进度条（拖动/时间气泡）、清晰度/编码/缓冲菜单（buildMenu）、连播/倍速/静音/全屏、前向邻位重建；**0.9.267 弹幕设置面板拆至 dmpanel.js**；**0.9.279 底栏时钟（稍后再看）**——倍速之后、仅图标、on 态沿用 `.acsv-cbtn.on` 的 accent 红，仅 home |
 | `dmpanel.js` | 弹幕设置面板（0.9.267 自 controls.js 拆出，纯搬迁）：齿轮入口展开的两 tab——弹幕设置（防挡字幕/合并重复开关 + 显示区域/不透明度/字体大小/弹幕速度滑杆 + 恢复默认）与屏蔽设置（六类按类型屏蔽 + 关键词过滤）；写设置即时生效并唤当前层 refresh()。只产面板 DOM/交互（消费 ui/settings），不碰播放器/控制栏状态；消费方 controls.js |
 | `rail.js` | 右侧操作栏（赞/蕉/藏/评/分享/关注）：乐观更新+失败回滚、原生图标 CSS mask 换色、计数回填钩子、分享面板入口 |
 | `slide.js` | buildSlide/buildDrawer：slide 骨架与评论抽屉骨架（commentDrawer 赋值点；0.9.118 起抽屉**只建空壳+注册句柄**，关闭键/列表委托由 comments 首次打开自附）、scroll 归零防护；点按判定对 data-ovl（播放层）免「当前条」检查 |
@@ -445,9 +450,12 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `playgest.js` | 层内滑动手势（0.9.184 自 playlayer.js 拆出，逐字搬运）：`bindLayerGestures(body, step)` 绑定滚轮/触摸上下滑（攒阈值 60px + 锁 500ms 防一次滑动连推多条），返回解绑函数随层拆；`step` 由宿主注入（playlayer.playStep）——真翻了一条才吞滚轮（防橡皮筋）。零依赖叶子；视图壳/会话/级别栈/手势四缝之一 |
 | `playstate.js` | 播放层会话模型（0.9.209 自 playlayer.js 拆出，逐字搬运）：三态会话装配（freshSession/sessionFromCtx——**缺省=walk**，single 只由来源显式声明、list 有 idx 钳位）+ 快照/还原（snapSession/sessionFromSnap，list 共享数组引用、idx/more 值拷贝）+ 层内历史（createHist/histJump/histReset/histBack，历史格随身带会话快照 {item,sess}——↑ 回退连列表下标一起还原）。纯状态零依赖叶子，node 单测直采 |
 | `levelstack.js` | 级别栈/步进核（0.9.209 自 playlayer.js 拆出）：工作态（会话/历史/levels/queue/stepping）收此单源——`applyCtx`/`enterLayer`（历史第 0 条+栈底）/`pushLevel`（压级存档 saveLevel+自动列表抽屉，封顶 MAX_LEVELS=2 静默吞）/`escape`（弹级还原上级工作态，返回 {item,at} 交续播槽）/`pickInLevel`（列表内跳）/`step`（↓ 按三态会话分派、↑ 一律历史回退）/`resetAll`/`debugState`（testHook 取数）。环境触面（swap slide/箭头/页签/toast/curTime/relatedBatch）经 `setLevelIO` 注入——纯态可 node 直测；只 import playstate/playitem，**不新增对 relatedapi 的静态边**。消费方：playlayer（唯一） |
-| `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf（0.9.160 就地收编本文件），缺省不渲染）+ Tab 惰性面板（**动态（0.9.218，排第 1 且默认落地——用户裁决）/hist/fav/groups 四档**：动态=个人主页动态流（feed/profile 三合一混排，行卡流，见 spacemoments 条）；观看历史=双 resourceTypes/pageNo 翻页；**收藏夹**=chips 切夹→dougaList 翻页，0.9.143 管理化（建/改名/删夹 + 卡面移动·移除）；**关注分组（0.9.142）**=组 chips + 建/改名/删组 + 成员列表（移组/取关），读 relationapi、偏移量游标）+ 4:3 封面网格卡；条目经 panelItem 契约规整、点击进播放层（0.9.74）；**尾部统一（0.9.219）**：四档全部走 listtail 自动触底 + 状态行 + 回顶（「加载更多」按钮退役；分组档补首屏骨架）。**0.9.265 拆件**：观看历史/收藏夹/关注分组三档与管理档壳移入 `mytabs.js`（逐字搬迁零行为漂移），本件只留资料头/动态档/视图壳与注册 |
-| `mytabs.js` | 我的页管理档（0.9.265 自 mypage.js 拆件，逐字搬迁零行为漂移）：观看历史档（双 resourceTypes + pageNo 翻页，`earlySettle` 形状）+ 管理 tab 壳 adminTab（chips〔含可选「全部」档〕/组头改名·删除/内联表单/列表/listtail 自动触底，0.9.150 起收藏夹与关注分组共用，sys 档豁免）+ 收藏夹档（0.9.143 管理化：建/改名/删夹 + 卡面移动·移除）+ 关注分组档（0.9.142：建/改名/删组/移组/取关，relationapi 偏移量游标）。条目经 panelItem 规整、卡面 gridCardOf 进播放层；翻页走 pageloader、尾部走 listtail 单源。消费方：mypage.js |
-| `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层 |
+| `mypage.js` | 我的视图（0.9.62；0.9.69 抖音式）：资料头（auth_key→uid + getUserCardList 契约 meCardOf（0.9.160 就地收编本文件），缺省不渲染）+ Tab 惰性面板（**动态（0.9.218，排第 1 且默认落地——用户裁决）/hist/wait/fav/groups 五档**：动态=个人主页动态流（feed/profile 三合一混排，行卡流，见 spacemoments 条）；观看历史=双 resourceTypes/pageNo 翻页；**稍后再看（0.9.279）**=waitingList（mytabs.buildWatchLater，见下）；**收藏夹**=chips 切夹→dougaList 翻页，0.9.143 管理化（建/改名/删夹 + 卡面移动·移除）；**关注分组（0.9.142）**=组 chips + 建/改名/删组 + 成员列表（移组/取关），读 relationapi、偏移量游标）+ 4:3 封面网格卡；条目经 panelItem 契约规整、点击进播放层（0.9.74）；**尾部统一（0.9.219）**：五档全部走 listtail 自动触底 + 状态行 + 回顶（「加载更多」按钮退役；分组档补首屏骨架）。**0.9.265 拆件**：观看历史/收藏夹/关注分组三档与管理档壳移入 `mytabs.js`（逐字搬迁零行为漂移）；0.9.279 稍后再看档同批由 `mytabs.buildWatchLater` 提供，本件只留资料头/动态档/视图壳与注册 |
+| `mytabs.js` | 我的页管理档（0.9.265 自 mypage.js 拆件，逐字搬迁零行为漂移）：观看历史档（双 resourceTypes + pageNo 翻页，`earlySettle` 形状）+ **稍后再看档（0.9.279：waitingList cursor 翻页 + 卡面「移出」；复用收藏夹 `.acsv-favcell/.acsv-favacts` 动作壳，`watchlaterapi` 域件）** + 管理 tab 壳 adminTab（chips〔含可选「全部」档〕/组头改名·删除/内联表单/列表/listtail 自动触底，0.9.150 起收藏夹与关注分组共用，sys 档豁免）+ 收藏夹档（0.9.143 管理化：建/改名/删夹 + 卡面移动·移除）+ 关注分组档（0.9.142：建/改名/删组/移组/取关，relationapi 偏移量游标）。条目经 panelItem 规整、卡面 gridCardOf 进播放层；翻页走 pageloader、尾部走 listtail 单源。消费方：mypage.js；0.9.279 历史档卡面「删除」+「清空历史」（historyapi，复用 favcell 动作壳） |
+| `watchlaterapi.js` | 稍后再看域（0.9.279）：`waitingPageOf` 纯函数（`list[]` + `pcursor`；`no_more`/空页到底）+ `listWaiting`（POST query `pcursor/count`，登录读）+ `addWaiting`/`cancelWaiting`（POST form `resourceId/resourceType=2`，**`net.request` GM 通道 + APP 头**——api-new 写链无 CORS 头，页面 fetch 会误报失败，见 `docs/api-research.md` §14.1）。端点参数取自 jadx `AcFunApiService`；`result===0` 判成功，失败记 `wl.fail`。消费方：`mytabs`（列表）/`controls`（底栏时钟） |
+| `historyapi.js` | 观看历史写链（0.9.279）：`deleteHistory(pi)`（form `comboIds=`，pi.comboId 由 panelitem.history 落键）+ `clearHistory()`（form `resourceTypes=1&resourceTypes=2`）；写链同走 **`net.request` GM 通道 + APP 头**，`result===0` 判成功、失败记 `hist.fail`，缺 comboId 不发请求。参数取自 jadx `AcFunApiService`（V2/f4）。消费方：`mytabs` 历史档 |
+| `zone.js` | 分区榜单视图（0.9.62；0.9.66 对齐原生：子频道行+UP 卡；0.9.79 首屏 5 分钟缓存）：渠道/子频道/榜期 chips + GET rank/channel；contentType 过滤在契约层。**0.9.279 板 chips**：分区榜/全站热榜/香蕉榜/新秀榜；三榜走 `rankapi`，非 channel 隐藏渠道/子频道/榜期行 |
+| `rankapi.js` | 三榜域（0.9.279）：`rankBoardPageOf` 复用 `panelitem.rank` 解析（三榜 rankList 与分区榜同族）+ `fetchRankBoard`（hot GET count/pcursor/mkey；banana GET rankPeriod；youngStar POST form rankPeriod）；传输 `requestRead`，消费方 zone |
 | `followview.js` | 关注视图「全部」侧（0.9.100 原生骨架复刻；0.9.101 交互补课；0.9.102 收口）：单列无限流——**逐段复刻原生 /member/feeds 骨架与量取值**（扁平列表+灰带分隔、头像 50、名字 16px、60px 内容缩进、正文 14/21 pre-line+展开、九宫格 342/110/299/228、横条双灰块+title 600+时长 hover 浮层、互动行 48px/42/12px、图标四件套逐码点采样；量取日与暗色换算表在 styles 段头注）；互动行写链（乐观回滚；点赞文章只读；**投蕉**：动态=单蕉直投、视频/文章=视频页同款数量层 banpop.js「点第 N 根投 N」、已投锁定蕉黄 #ffb323；pi 级写路径单源=interact.likePi/throwBananaPi）；**评论键原位展开评论区**（全类型：动态 stype=4/视频 stype=3，comments 管线 host 化挂行内，开新关旧互斥）；**引用卡完全照原生**（@源UP 蓝链 + 内嵌完整源内容卡，复用 stripOf；三落点可点）；无限滚动五条借鉴广场 + **回顶按钮（0.9.105 顶栏同款圆钮+chevUp）**；**作者名蓝链**（与引用卡同源）；互动栏/分享出口走 **momentbar 共享件**（分享 place=右缘贴行左缘 12px、底部共用坐标）。视频行进播放层，动态行点详情面板，文章行外链；行卡构建件与行内评论控制器 0.9.124 下沉 rowkit（本文件只留视图壳/游标方言/落点策略） |
 | `squareview.js` | 广场视图（0.9.126，吸收「AcFun 动态广场」；0.9.127 发现态+新鲜度）：feedSquare 免登录全站动态流——首页不传游标、**24h 窗口**（squarePageOf 收口，0.9.159 起在 momentapi：超窗剔除+即止）、互动态恒 false 由**回填**补真值：**0.9.228 起触发＝进入视口**（IntersectionObserver＋串行队列＋每行只补一次，详情回包里的**正文（表情）与互动态一起补**），**0.9.230 退役 ≤3h 新鲜度那条路**（squarePageOf 不再出 freshIds，视口成为唯一触发）；**发现态轮询仅在视图打开时运转**（followbadge 同款骨架+退避单源，diff=最大 momentId → 顶部提示条 → 点击重拉重建）；行卡/委托/行内评论全走 rowkit；dock order 15（榜单下面）；容器/骨架独立类名；0.9.128 列表机械（加载/五条不变量/发现态/新鲜度/骨架/回顶）抽 **squarefeed.js 工厂**——与原生页内嵌宿主共用同一份代码。IndexedDB 留存随之**丢弃**（plaza 审计：只写不读、无消费面） |
 | `squarefeed.js` | 广场流列表机械工厂（0.9.128 自 squareview.js 抽出，逐一搬运零逻辑改动）：加载/append-only 等五条不变量/24h 窗口消费/发现态轮询/**回填（0.9.228 起以视口触发为主）**/骨架/三态状态行/触底翻页/回顶/debug 探针；宿主注入 root / scrollEl（元素或 window）/ backTopHost / onOpen（行落点）/ onRow（行后处理）。消费方：squareview（深色广场页）与 memberplaza（原生页内嵌浅色）。**0.9.218 起数据源/文案/阈值可注入**（`fetchPage`/`emptyText`/`poll:false`/`view`，默认值＝原行为）——个人动态流（我的页/空间页）复用同一套机械，零漂移证据=view-square 与 member-plaza 场景全绿 |
@@ -469,7 +477,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `followbadge.js` | 关注未读徽标（0.9.97；0.9.107 时间水位线；**0.9.139 水位抽件 followseen**）：徽标=自水位（GM）以来 followFeedV2 首屏 `createTime > 水位` 的新条数——旧 webPush followUpers 布尔是服务端长期不清标记（实测清不掉⇒固定数字复亮），已退役；**正式推进点=各入口首屏到达时 `followseen.markSeen`**（followview 首屏成功 / followstream 进视频侧），poll 的 in-view 分支退化为兜底（吸收停留期新内容）；退避真逐次翻倍 60s→10min 纯函数；hidden 短路/未登录静默；挂 player.mount/unmount |
 | `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；`/member/*` 页加原生页入口（0.9.128：ensureStyle + setRoot(document.body) + watchMemberNav——memberplaza，0.9.47 决策的限定反转）；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷） |
 | `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/other——boot 运行分流的唯一判据（判据与 uppage 的 `/u/\d+` 逐字一致，单测钉一致性） |
-| `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）；`onChange` 订阅让消费方零反向依赖地即时生效 |
+| `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）＋0.9.278 `guestRead`（非个性化推荐，隐私组）；`onChange` 订阅让消费方零反向依赖地即时生效 |
 | `settingspanel.js` | 脚本页设置皮肤（0.9.89）：dock 齿轮 → `openSettings()` → overlay 栈（modal，Esc 白拿）；host + **Shadow DOM** 作用域样式（量取值与日期在文件头注释）；控件按 schema 表驱动（bool 开关 / select 下拉 / number 步进器）；**0.9.253 页脚补版本号**（`v{APP_VERSION}` 左置 + 「完成」右置，与 IP 面板页脚同源）；原生页皮肤＝`natpanel.js`（见其行） |
 
 ### 模块依赖图
@@ -566,6 +574,7 @@ flowchart LR
   feedctx["feedctx.js（列表上下文工厂·单活互斥）"]
   momentapi["momentapi.js（动态域读接口）"]
   momentpost["momentpost.js（动态发布域·params 组装+提交）"]
+  rankapi["rankapi.js（三榜域·hot/banana/youngStar 传输+规整）"]
   signapi["signapi.js（签到域·双链写+日历+黄历·0.9.277）"]
   signpanel["signpanel.js（签到黄历弹窗·App 式 3:4 卡+规则翻面）"]
   spacetab["spacetab.js（空间页标签栏注入件·两标签共用+自愈）"]
@@ -573,7 +582,9 @@ flowchart LR
   inputbar["inputbar.js（三宿主共用输入条·contenteditable 编辑期 + 出口 UBB 序列化）"]
   momenteditor["momenteditor.js（发动态编辑器·三处入口共用出口）"]
   pubfab["pubfab.js（发布常驻浮标·右下角回顶之上）"]
-  mytabs["mytabs.js（我的页管理档壳·历史/收藏/分组）"]
+  mytabs["mytabs.js（我的页管理档壳·历史/稍后再看/收藏/分组）"]
+  watchlaterapi["watchlaterapi.js（稍后再看域·列表/增删）"]
+  historyapi["historyapi.js（观看历史写链·单条/清空）"]
   uppage["uppage.js（空间页小视频区块·m 站 pagelet 抓取）"]
   followbadge["followbadge.js（关注未读徽标·轮询退避）"]
   followseen["followseen.js（关注已读水位·零依赖叶子）"]
@@ -600,6 +611,7 @@ flowchart LR
   imgview --> overlay
   imgload --> imgurl
   topbar --> imicons
+  net --> settings
   api --> appapi & settings
   appapi --> advdm & playitem
   appapi --> quality
@@ -652,7 +664,7 @@ flowchart LR
   followstream --> appapi & feedctx & feedstore & followseen & momentapi & playitem & sidebar
   momentbar --> banpop & imicons & immsg & interact & panelitem & styles & timefmt & toastmsg & ubbtext & ui
   followbadge --> followstream & followseen & momentapi
-  momentdetail --> comments & emoticon & imgload & imgview & sharepanel & momentbar & overlay & cards & timefmt & uplook
+  momentdetail --> comments & emoticon & imgload & imgview & sharepanel & momentbar & overlay & cards & timefmt & uplook & momentpost & pickpop
   followbadge --> net & sidebar
   player --> followbadge
   settingspanel --> settings & overlay
@@ -660,7 +672,7 @@ flowchart LR
   searchview --> cards & grouppop & imgload & listtail & relationapi & searchfmt & searchhist & topbar & viewreg
   topbar --> searchhist
   input --> feedstore & overlay & pb & settings
-  comments --> appapi & commentkit & emoticon & imicons & imgview & immsg & reldrawer & sharepanel & inputbar & overlay & timefmt & toastmsg & ubbtext
+  comments --> appapi & commentkit & emoticon & imicons & imgview & immsg & reldrawer & sharepanel & inputbar & overlay & timefmt & toastmsg & ubbtext & pickpop
   comments --> iploc
   comments --> devname
   iploc --> cfg & dbg & net & settings & ui
@@ -677,7 +689,9 @@ flowchart LR
   interact --> appapi
   release --> overlay & settings
   mypage --> appapi & imgload & imgurl & momentapi & rowkit & squarefeed & timefmt & viewreg & mytabs & signapi & signpanel & toastmsg
-  mytabs --> appapi & cards & favapi & favpop & grouppop & imgload & listtail & nameval & pageloader & pickpop & relationapi & toastmsg
+  mytabs --> appapi & cards & favapi & favpop & grouppop & imgload & listtail & nameval & pageloader & pickpop & relationapi & toastmsg & watchlaterapi & historyapi
+  watchlaterapi --> appapi & cfg & dbg & net
+  historyapi --> appapi & cfg & dbg & net
   relationapi --> appapi
   relatedapi --> imgurl & settings
   reldrawer --> imgload & imicons & relatedapi & timefmt
@@ -690,7 +704,8 @@ flowchart LR
   sharepanel --> popplace
   favapi --> appapi
   favpop --> favapi & nameval & pickpop
-  zone --> appapi & cards & listtail & viewreg
+  zone --> appapi & cards & listtail & viewreg & rankapi
+  rankapi --> appapi
 
   classDef leaf fill:#e8f5e9,stroke:#2e7d32;
   class immsg,imicons,imgurl,pagekind,viewreg,followseen,popplace,timefmt,uplook,nameval,playstate leaf;

@@ -63,7 +63,8 @@ const INFRA = new Set(['cfg.js', 'net.js', 'playitem.js', 'panelitem.js', 'state
 // 归 FEATURE 也全绿，但会把"传输"与"特性域"混为一谈；归 API 后它们**仍受口径 B 约束**
 // （接口层 → 特性 = 红），不是"无检查的自由桶"。
 const API = new Set(['api.js', 'appapi.js', 'quality.js',
-  'channelapi.js', 'favapi.js', 'relationapi.js', 'momentapi.js', 'upload.js']);
+  'channelapi.js', 'favapi.js', 'relationapi.js', 'momentapi.js', 'upload.js',
+  'watchlaterapi.js', 'rankapi.js', 'historyapi.js']); // 0.9.279 稍后再看/三榜/历史写链
 // 校准（0.9.117 首跑即立；0.9.119 扩一项）：README 明示的五件零依赖解耦点里，immsg/imicons
 // 现居私信层 subgraph——那是出身 placement，不是专属域；它们被 topbar/cards/momentbar/comments
 // 等广泛消费，视同基础件。ubbtext（0.9.119 下沉的纯投影族）同为零依赖叶子。不校准则口径 A

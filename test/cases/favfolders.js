@@ -217,8 +217,8 @@
     var tabs = document.querySelectorAll('.acsv-metab');
     // 0.9.218：按 data-tab 定位（此前位置索引 tabs[1]——「动态」插最前即错位）；顺带钉 tab 总数
     var tabFav0 = q('.acsv-metab[data-tab="fav"]');
-    if (tabFav0) tabFav0.click(); // 收藏夹 tab（顺序：动态/观看历史/收藏夹/关注分组）
-    rec('ff-tabs', tabs.length === 4 && !!tabFav0, 'n=' + tabs.length);
+    if (tabFav0) tabFav0.click(); // 收藏夹 tab（顺序：动态/观看历史/稍后再看/收藏夹/关注分组）
+    rec('ff-tabs', tabs.length === 5 && !!tabFav0, 'n=' + tabs.length);
     var favPanel = function () { return q('.acsv-mepanel[data-tab="fav"]'); };
     var chipOf = function (txt) {
       var cs = favPanel() ? favPanel().querySelectorAll('.acsv-vchips .acsv-vchip') : [];

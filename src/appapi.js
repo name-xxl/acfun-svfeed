@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { request, mockHit } from './net.js';
+import { request, requestRead, mockHit } from './net.js';
 import { stat } from './dbg.js';
 import { singleFlight } from './ui.js';
 import { normalizeHome, foldBr } from './playitem.js';
@@ -69,7 +69,7 @@ function q(extra) {
 // 全项目的表单 POST 统一走这里（token/interact/follow 等写接口同语义），勿再内联 fetch。
 // 失败口径对齐 net.js countFail（0.9.209 批⑥）：非 2xx 抛 http-<status>（此前非 200 的
 // HTML 错误页死在 r.json() 的 SyntaxError，归因不明），全链失败计入 stat('net.fail')；
-// mock 命中不计（对齐 request 的 mock 语义——它对调用方就是一次成功请求）
+// mock 命中不计（对齐 request 的 mock 语义——它对调用方就是一次成功请求）。
 export function postForm(url, body) {
   var mocked = mockHit(url, body);
   if (mocked) return mocked;
@@ -179,7 +179,7 @@ export var AppAPI = {
       if (cur) return Promise.resolve({ items: [], pcursor: '', failed: false });
       return Promise.resolve({ items: mh.map(normalizeHome), pcursor: '', failed: false });
     }
-    return request(CFG.api.homeFeed + q('&appMode=0'), 'POST', homeHeaders(true),
+    return requestRead(CFG.api.homeFeed + q('&appMode=0'), 'POST', homeHeaders(true),
       'mkey=' + CFG.home.mkey + '&pcursor=' + (cur || '') + '&count=' + CFG.homeFeedCfg.count)
       .then(function (j) {
         if (!j || j.result !== 0) return { items: [], pcursor: '', failed: true };
@@ -207,7 +207,7 @@ export var AppAPI = {
       'GET', homeHeaders(false));
   },
   playInfo: function (videoId, acId) {
-    return request(CFG.api.playInfo + q('&videoId=' + videoId + '&resourceId=' + acId
+    return requestRead(CFG.api.playInfo + q('&videoId=' + videoId + '&resourceId=' + acId
       + '&resourceType=2&mkey=' + CFG.home.mkey), 'GET', homeHeaders(false))
       .then(function (j) {
         if (!hasShape(j, ['playInfo'], 'play.info') || !isArray(j.playInfo.streams, 'play.streams')) return [];
@@ -338,6 +338,13 @@ export var AppAPI = {
       'sourceId=' + sourceId + '&sourceType=' + sourceType + '&commentId=' + commentId)
       .then(function (j) { return !!(j && j.result === 0); }, function () { return false; });
   },
+  // 删自己的评论（0.9.279）：PC 端点；sourceType=4 已实测，3 同族未单独实测。
+  // 删除是幂等意图动作，失败回 false 由调用方保留条目 + toast（不做乐观移除）。
+  commentDelete: function (sourceId, sourceType, commentId) {
+    return postForm(CFG.api.commentDelete,
+      'sourceId=' + sourceId + '&sourceType=' + sourceType + '&commentId=' + commentId)
+      .then(function (j) { return !!(j && j.result === 0); }, function () { return false; });
+  },
 
   // 发评论/回复（复用动态广场 postComment：replyToCommentId 传入则为回复楼中楼；
   // midgroundToken 由网页 Cookie 换取，未登录时直发让接口报错）；失败透传 error_msg
@@ -366,7 +373,7 @@ export var AppAPI = {
     var FORM = { 'Content-Type': 'application/x-www-form-urlencoded' };
     var pages = 0;
     function page(p) {
-      return request(CFG.api.dmList, 'POST', FORM,
+      return requestRead(CFG.api.dmList, 'POST', FORM,
         'resourceId=' + videoId + '&resourceType=9&enableAdvanced=true&pcursor=' + p
         + '&count=' + CFG.danmaku.pageSize + '&sortType=1&asc=false')
         .then(function (j) {
@@ -436,7 +443,7 @@ export var AppAPI = {
     var key = String(videoId || '');
     if (!key) return Promise.resolve([]);
     if (self.spriteCache[key]) return self.spriteCache[key];
-    var p = request(CFG.api.spriteVtt + q(''), 'POST', homeHeaders(false),
+    var p = requestRead(CFG.api.spriteVtt + q(''), 'POST', homeHeaders(false),
       'videoId=' + key + '&resourceId=' + acId + '&resourceType=2&mkey=' + CFG.home.mkey)
       .then(function (j) {
         if (!j || j.result !== 0 || !j.spriteVtt) { delete self.spriteCache[key]; return []; }

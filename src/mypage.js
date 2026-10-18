@@ -9,15 +9,16 @@ import { mountPubFab } from './pubfab.js'; // 发布常驻浮标（0.9.224）
 import { coverUrl } from './imgurl.js'; // meCardOf 头像归一（0.9.160 就地收编随迁）
 import { registerView } from './viewreg.js';
 import { imgInto } from './imgload.js';
-import { buildHistory, buildFav, buildFollowGroups } from './mytabs.js'; // 我的页管理档（0.9.265 拆件）
+import { buildHistory, buildFav, buildFollowGroups, buildWatchLater } from './mytabs.js'; // 我的页管理档（0.9.265 拆件）
 // 签到（0.9.277）：资料头右侧按钮（App「已签到」药丸同位）+ 黄历弹窗；数据/写链全在 signapi
 import { signIn, getSignInInfos, fetchAlmanac } from './signapi.js';
 import { openSignAlmanac } from './signpanel.js';
 import { errSignLogin, errSignFail, errSignAlmanac } from './toastmsg.js';
 
 // ---------- 我的视图（0.9.62 起；0.9.69 抖音式个人主页改造）----------
-// 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（**动态**｜观看历史｜收藏夹｜关注分组，
-// 0.9.218 把「动态」加在最前并作默认落地）→ 动态是行流（广场同套行卡），其余三个仍是 4:3 封面网格。
+// 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（**动态**｜观看历史｜稍后再看｜收藏夹｜关注分组；
+// 0.9.218 动态最前默认落地，0.9.279 稍后再看插在历史与收藏之间）→ 动态是行流（广场同套行卡），
+// 历史/稍后再看/收藏为 4:3 网格，分组为列表。
 // 接口契约 docs/api-research.md §4.1/§4.2（2026-10-02 实测）：历史 body 双 resourceTypes
 // 缺一即 result 21「参数格式错误」；dougaList 列表键是 favoriteList（无 list 别名）。
 // 条目一律经 panelItem 规整（类型过滤在契约层），点击 gridCardOf 走播放层（playlayer.openPlayer 就地播放，0.9.74 起不再插竖刷队尾）；
@@ -221,17 +222,21 @@ function buildMyView(body) {
   pubFab = mountPubFab(body, { editorOpts: { onDone: function () { if (meFeed) meFeed.refresh(); } } });
   var panelMom = el('div', 'acsv-mepanel');
   var panelHist = el('div', 'acsv-mepanel');
+  var panelWait = el('div', 'acsv-mepanel');
   var panelFav = el('div', 'acsv-mepanel');
   var panelGroups = el('div', 'acsv-mepanel');
   panelMom.setAttribute('data-tab', 'moments');
   panelHist.setAttribute('data-tab', 'hist');
+  panelWait.setAttribute('data-tab', 'wait');
   panelFav.setAttribute('data-tab', 'fav');
   panelGroups.setAttribute('data-tab', 'groups');
   panelHist.style.display = 'none';
+  panelWait.style.display = 'none';
   panelFav.style.display = 'none';
   panelGroups.style.display = 'none';
   wrap.appendChild(panelMom);
   wrap.appendChild(panelHist);
+  wrap.appendChild(panelWait);
   wrap.appendChild(panelFav);
   wrap.appendChild(panelGroups);
 
@@ -240,6 +245,7 @@ function buildMyView(body) {
   var panels = {
     moments: { el: panelMom, build: buildMoments, inited: false, name: '动态' },
     hist: { el: panelHist, build: buildHistory, inited: false, name: '观看历史' },
+    wait: { el: panelWait, build: buildWatchLater, inited: false, name: '稍后再看' },
     fav: { el: panelFav, build: buildFav, inited: false, name: '收藏夹' },
     groups: { el: panelGroups, build: buildFollowGroups, inited: false, name: '关注分组' }
   };

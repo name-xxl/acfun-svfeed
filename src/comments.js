@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { el, toast, spinner } from './ui.js';
+import { el, toast, spinner, selfUid } from './ui.js';
 import { fmtWan } from './timefmt.js';
 import { errNotLogin, errSend, errImgTooBig } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
 import { GLYPHS } from './imicons.js';
@@ -15,6 +15,7 @@ import { mountEmotButton, ensureEmotionMap } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import { openSharePanel } from './sharepanel.js';
+import { openConfirmPop } from './pickpop.js';
 import { commentItemOf, commentLikeState } from './commentkit.js'; // 条目构建单源（0.9.133 自本文件下沉；0.9.234 加点赞三态）
 import { tagInto } from './iploc.js'; // IP 属地接线口（0.9.245，Web-IP 吸收批次①；kit 无状态，经 cmtOpts 注入）
 import { devTag } from './devname.js'; // 设备型号美化接线口（0.9.246，Web-IP 吸收批次②；同纪律）
@@ -315,7 +316,31 @@ export function commentListClick(ev) {
       headText: '转发这条评论'
     });
     return;
-  }  var pic = ev.target.closest('.ubb-imgc');
+  }
+  var del = ev.target.closest('.acsv-cdelbtn');
+  if (del && del._del) {
+    ev.stopPropagation();
+    var dc = del._del;
+    openConfirmPop(del, {
+      host: curHost().el, // 评论行在滚动列表内，确认弹挂宿主根防裁剪
+      title: '删除这条评论？',
+      text: '删除后不可恢复，评论计数会同步减一。',
+      okLabel: '删除',
+      run: function () {
+        return AppAPI.commentDelete(commentState.sourceId, commentState.stype, dc.commentId);
+      },
+      done: function () {
+        var item = del.closest('.acsv-citem');
+        if (item) item.remove();
+        commentState.count = Math.max(0, (commentState.count || 0) - 1);
+        var h = curHost();
+        if (h && h.title) h.title.textContent = titleText(h, commentState.count);
+        toast('评论已删除');
+      }
+    });
+    return;
+  }
+  var pic = ev.target.closest('.ubb-imgc');
   if (pic) {
     // 划选文字收尾在图片上不弹大图（选区非折叠 = 在复制文字）
     var sel = window.getSelection ? window.getSelection() : null;
@@ -328,12 +353,21 @@ export function commentListClick(ev) {
 
 // （0.9.133 下沉）expandSubComments → commentkit.js（搬迁注见上方条目构建处）
 
+// 删除可见性纯判据（0.9.279，单测直采）：推荐源 + stype 3/4 + 本人 uid。
+// sv（kind!=='home' / stype=5）一律 false；sourceType=3 同族未单独实测，失败由 API 兜住。
+export function canDeleteComment(c, uid, kind, stype) {
+  return kind === 'home' && (stype === 3 || stype === 4)
+    && !!uid && !!c && String(c.userId) === String(uid);
+}
+testHook('canDelete', canDeleteComment); // debug 构建：harness 直采纯判据（sv/他人/stype 门控）
+
 // 评论条目渲染出口（0.9.133 抽离 commentkit 后）：把管线状态注入给无状态 kit（原为 kit 直读全局）
 // ipTag（0.9.245）/devTag（0.9.246）：IP 属地与设备美化接线口——查询/缓存/查表全在 iploc/devname；
 // 三宿主（抽屉/行内/详情面板）与发送后乐观插入同经此处注入，天然全覆盖
 function cmtOpts() {
   return { mode: commentState.kind, sourceId: commentState.sourceId, stype: commentState.stype,
-    ipTag: tagInto, devTag: devTag };
+    ipTag: tagInto, devTag: devTag,
+    canDelete: function (c) { return canDeleteComment(c, selfUid(), commentState.kind, commentState.stype); } };
 }
 
 // ---- 触底自动加载（0.9.141 实报改）：哨兵 + IntersectionObserver，三宿主通用 ----

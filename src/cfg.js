@@ -30,6 +30,9 @@ export var CFG = {
     comment: 'https://www.acfun.cn/rest/pc-direct/comment/list?sourceId=',
     commentSub: 'https://www.acfun.cn/rest/pc-direct/comment/sublist',
     commentAdd: 'https://www.acfun.cn/rest/pc-direct/comment/add',
+    // 评论删除（0.9.279）：PC 端点，body sourceId/sourceType/commentId；docs §4.7 实测 sourceType=4，
+    // sourceType=3（推荐视频）同族但未单独实测。URL 字面量逐字=harness mock 缝
+    commentDelete: 'https://www.acfun.cn/rest/pc-direct/comment/delete',
     commentLikePc: 'https://www.acfun.cn/rest/pc-direct/comment/',
     token: 'https://id.app.acfun.cn/rest/web/token/get',
     interact: 'https://api.kuaishouzt.com/rest/zt/interact/',
@@ -88,7 +91,18 @@ export var CFG = {
     bananaPc: 'https://www.acfun.cn/rest/pc-direct/banana/throwBanana',
     // ---- 视图面板（0.9.62，契约见 docs/api-research.md §4/§6 实测） ----
     history: 'https://www.acfun.cn/rest/pc-direct/browse/history/list',
+    // 历史删除（0.9.279；jadx V2/f4）：单条 form comboIds（重复 Long，PC 列表条目带 comboId）；
+    // 清空 form resourceTypes（重复 int，按 PC 列表口径 1=视频 2=番剧）。均需登录。
+    // URL 字面量逐字=harness mock 缝
+    historyDelete: 'https://api-new.app.acfun.cn/rest/app/browse/history/delete',
+    historyDeleteAll: 'https://api-new.app.acfun.cn/rest/app/browse/history/deleteAll',
     rank: 'https://www.acfun.cn/rest/pc-direct/rank/channel',
+    // 三榜（0.9.279；jadx AcFunApiService.j2/Y3/B + §10.5 实测）：
+    // hot=GET count/pcursor/mkey；banana=GET rankPeriod；youngStar=POST form rankPeriod。
+    // URL 字面量逐字=harness mock 缝（'app/rank/hot' 等）
+    rankHot: 'https://api-new.app.acfun.cn/rest/app/rank/hot',
+    rankBanana: 'https://api-new.app.acfun.cn/rest/app/rank/banana',
+    rankYoungStar: 'https://api-new.app.acfun.cn/rest/app/rank/youngStar',
     navTree: 'https://www.acfun.cn/rest/pc-direct/page/queryNavigators',
     // 关注流（0.9.91）：**统一混合流**——不带 resourceTypes 即视频(2)+文章(3)+动态(10) 混排，
     // pcursor 是毫秒时间戳（翻页用响应值）。实测与差异见 docs/api-research.md §2.1.1：
@@ -119,6 +133,12 @@ export var CFG = {
     // URL 字面量逐字=harness mock 缝（'moment/add' / 'moment/delete'）
     momentAdd: 'https://api-new.app.acfun.cn/rest/app/moment/add',
     momentDelete: 'https://api-new.app.acfun.cn/rest/app/moment/delete',
+    // 稍后再看（0.9.279；jadex AcFunApiService.Q0/H1/K2）：列表 POST query pcursor/count；
+    // 增删 POST form resourceId/resourceType（视频=2）。三条均需登录。
+    // URL 字面量逐字=harness mock 缝（'app/waitingList' 等）
+    waitingList: 'https://api-new.app.acfun.cn/rest/app/waitingList',
+    waitingAdd: 'https://api-new.app.acfun.cn/rest/app/addWaiting',
+    waitingCancel: 'https://api-new.app.acfun.cn/rest/app/cancelWaiting',
     // 单条动态详情（0.9.127 引入、0.9.230 归一到视口回填；plaza 同端点实测转引 §2.7）：pc-direct 带 Cookie
     // 读——列表（feedSquare 免登录）互动态恒 false，此端点才给真 isLike/isThrowBanana
     momentDetail: 'https://www.acfun.cn/rest/pc-direct/moment/detail',
@@ -322,6 +342,14 @@ export var CFG = {
     },
     periods: ['DAY', 'THREE_DAYS', 'WEEK'], // 榜期（原生：今日/三日/本周）
     periodNames: { DAY: '今日', THREE_DAYS: '三日', WEEK: '本周' },
+    // 榜单板（0.9.279）：分区榜保持现有逻辑；三榜走 APP rank 家族（第 1 节证据）。
+    // 三榜不带子频道/榜期（预览确认稿），统一取 DAY。
+    rankBoards: [
+      { id: 'channel', label: '分区榜', tip: '依综合指数排序，每日更新一次' },
+      { id: 'hot', label: '全站热榜', tip: '按热度排序' },
+      { id: 'banana', label: '香蕉榜', tip: '按香蕉数排序' },
+      { id: 'youngStar', label: '新秀榜', tip: '新人榜' }
+    ],
     zones: [              // 频道全集（对齐原生榜单页 tab 序；cid 实测 docs/api-research.md §6.2）：
       // 番剧不放（cid=155 仅 3 条杂项）、文章榜不放（89 条全 contentType=3，竖刷不支持）
       { id: 0, name: '全站综合' },

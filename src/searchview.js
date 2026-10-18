@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { el, toast } from './ui.js';
-import { request } from './net.js';
+import { request, requestRead } from './net.js';
 import { upOf } from './playitem.js';
 import { searchVideoPageOf, searchUserPageOf, searchArticlePageOf } from './searchfmt.js'; // 回包规整（0.9.161 出库）
 import { viewPiOf } from './panelitem.js'; // 域条目→面板 pi 投影（0.9.211 批⑦收编）
@@ -127,7 +127,9 @@ function buildSearchView(body, arg, kind) {
     if (!c.kw || st.loading || st.err) return;
     if (page <= st.page || (page > 1 && (st.done || st.page < page - 1))) return;
     st.loading = true;
-    request(apiOf(k) + '?keyword=' + encodeURIComponent(c.kw) + '&pCursor=' + page).then(function (j) {
+    // UP 主搜索带 isFollowing（关注态），保持登录；视频/文章不含个人态，走非个性化读
+    (k === 'up' ? request : requestRead)(apiOf(k) + '?keyword=' + encodeURIComponent(c.kw)
+      + '&pCursor=' + page).then(function (j) {
       st.loading = false;
       if (!j || j.result !== 0) { st.err = true; render(); return; }
       var pg = normOf(k, j);

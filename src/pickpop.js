@@ -259,12 +259,14 @@ export function openPickPop(btn, opts) {
 }
 
 // 确认弹（删除类二次确认；项目内无 window.confirm 先例，沿用同一锚定范式）。
-// opts：{ title, text, okLabel, run()->Promise<bool>, done() }
+// opts：{ title, text, okLabel, run()->Promise<bool>, done(), host? }
+// host：宿主元素（缺省 btn.parentNode）。评论行在滚动列表内会被裁剪时传抽屉根；
+// 显式 host 下不沿用 toggle（同一宿主可连续开不同确认弹）。
 export function openConfirmPop(btn, opts) {
-  var host = btn.parentNode;
+  var host = opts.host || btn.parentNode;
   if (!host) return;
   var existing = host.querySelector('.acsv-confirmpop');
-  if (existing) { existing.remove(); return; }
+  if (existing) { existing.remove(); if (!opts.host) return; }
   var pop = el('div', 'acsv-confirmpop');
   pop.appendChild(el('div', 'acsv-pick-head', opts.title || '确认操作'));
   pop.appendChild(el('div', 'acsv-confirm-text', opts.text || ''));

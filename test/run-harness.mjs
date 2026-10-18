@@ -69,6 +69,7 @@ const HARNESS_CASES = [
   { name: 'watch-ledger-replay', serial: true  },
   { name: 'upd-open', serial: true  }, // 0.9.60 更新提示冒烟（mock atom 注入，debug 构建）
   { name: 'view-my' }, // 0.9.62 我的视图冒烟（hash 子路由 + __ACSV_MOCK_FORM__ 缝，debug 构建）
+  { name: 'hist-delete', viewport: { width: 1600, height: 900 } }, // 0.9.279 历史单条删除/清空
   // 0.9.76 封面加载策略（URL 归一/失败重试/终败降级）：/flaky-cover.png 首拉 404 再拉 200
   // 走通重试链；/nope-404.png 死链走降级占位。依赖 debug 构建的 __ACSV_MOCK_FORM__ 缝
   { name: 'cover-fallback' },
@@ -83,6 +84,7 @@ const HARNESS_CASES = [
   { name: 'dm-ime', serial: true }, // 0.9.234 弹幕输入组合期守卫：组合 Enter 不发、真 Enter 照发（home 源）
   { name: 'ctl-typing', serial: true }, // 0.9.235 弹幕输入聚焦中控制栏保活（home 源）
   { name: 'ctl-narrow', serial: true, viewport: { width: 540, height: 960 } }, // 0.9.237 窄底栏横滑（home 源）
+  { name: 'ctl-waiting', serial: true }, // 0.9.279 底栏稍后再看（add/cancel 写链，home 源）
   { name: 'waiting-error-race', serial: true }, // 0.9.234 waiting 定时器不得反盖 error（合成事件，debug 构建）
   { name: 'im-native' }, // 0.9.80 原生私信页增强装配（造站结构 + douga/info 桩，debug 构建）
   // 0.9.268 气泡渲染簇拆件前的结构钉子（假消息直调 appendBubble：己方/对方/引用/10001 卡；
@@ -117,6 +119,7 @@ const HARNESS_CASES = [
   // 0.9.193 评论追加失败健壮性：追加失败**不清列表** + 末尾可点重试 + 到底尾行（rejected promise
   // 造请求失败；定向桩 comment/list，debug 构建）
   { name: 'comment-fail', viewport: { width: 1600, height: 900 } },
+  { name: 'comment-delete', viewport: { width: 1600, height: 900 } }, // 0.9.279 评论删除（本人/他人/sv 门控）
   // 0.9.126 广场视图（吸收动态广场）：feedSquare 免登录流——dock 高亮/行卡契约/行内评论/
   // 触底续翻/24h 窗口剔除即止/状态行；夹具在 my-sample.js（mock 缝依赖 debug 构建）
   { name: 'view-square', viewport: { width: 1600, height: 900 } },
@@ -138,6 +141,7 @@ const HARNESS_CASES = [
   { name: 'bf-viewport', viewport: { width: 1600, height: 900 } }, // 0.9.229 视口渐进回填（老条目/每行一次）
   // 0.9.96 动态详情面板（卡点击原地展开 + 评论区管线复用 stype=4 + 赞/评写链乐观回滚 + 表情面板落位）
   { name: 'detail-open', viewport: { width: 1600, height: 900 } },
+  { name: 'detail-delete', viewport: { width: 1600, height: 900 } }, // 0.9.279 动态删除（本人/他人门控）
   // 0.9.99 关注语境「视频」侧（顶栏 seg → FollowVideos 上下文 → 舞台深链接管 + 按列表泵入 + 全部回路）
   // 视口 1600×900：桌面几何（分享卡贴行左缘/贴面板右缘的裁决坐标需行侧留白 ≥310px）
   { name: 'follow-videos', viewport: { width: 1600, height: 900 } },

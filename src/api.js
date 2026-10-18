@@ -1,6 +1,6 @@
 // @ts-check
 import { CFG } from './cfg.js';
-import { request } from './net.js';
+import { requestRead } from './net.js';
 import { normalize, normalizeHome, deepLinkOf, foldBr } from './playitem.js';
 import { AppAPI } from './appapi.js';
 import { getSetting, setSetting } from './settings.js';
@@ -63,7 +63,7 @@ export var API = {
         .filter(function (r) { return r && r.playInfo && r.playInfo.videoUrls && r.playInfo.videoUrls.length; })
         .map(normalize));
     }
-    return request(CFG.api.feed).then(function (json) {
+    return requestRead(CFG.api.feed).then(function (json) {
       if (!hasShape(json, ['meowFeed'], 'feed.meow') || !isArray(json.meowFeed, 'feed.meow.arr')) return [];
       return json.meowFeed.map(normalize);
     });
@@ -75,7 +75,7 @@ export var API = {
       var raw = mock.feed.filter(function (r) { return String(r.meowId) === String(mid); })[0];
       return Promise.resolve(raw ? normalize(raw) : null);
     }
-    return request(CFG.api.info + mid).then(function (json) {
+    return requestRead(CFG.api.info + mid).then(function (json) {
       if (!hasShape(json, ['meowFeed'], 'feed.info')) return null;
       return normalize(json.meowFeed);
     });

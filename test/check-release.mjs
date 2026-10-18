@@ -49,9 +49,13 @@ function sections(file) {
 // rest 基线取本批实测值；head/hls/css 与 total 仍保留 0.9.258 基线，+2% 门禁不变。
 // 0.9.277 重裁 css+total：签到黄历弹窗（3:4 卡 + 规则翻面）新增 CSS ~1.2KB、JS 域件 ~3KB，
 // 撞线属单批功能量级；css/total 基线取本批实测值，head/hls/rest 保留原基线。
+// 0.9.279 重裁 rest + debug total：接线包（稍后再看/三榜/评论+动态删除/历史删除）把
+// rest 推到 release 456,099 / debug 823,189，debug total 推到 968,418——后者超过 0.9.277
+// 基线 +2%（966,937）1,481 B。同约定：debug total 取本批实测值；rest 保留上一条 0.9.279
+// 基线（release 450,737 / debug 812,574，仍在本批 +2% 门禁内），head/hls/css 不变。
 const BASE = {
-  release: { total: 590777, head: 1815, hls: 120340, css: 22912, rest: 438779 },
-  debug: { total: 947977, head: 1885, hls: 120340, css: 22912, rest: 790410 }
+  release: { total: 590777, head: 1815, hls: 120340, css: 22912, rest: 450737 },
+  debug: { total: 968418, head: 1885, hls: 120340, css: 22912, rest: 812574 }
 };
 const relSec = sections('acfun-svfeed.user.js');
 const dbgSec = sections('acfun-svfeed.debug.user.js');

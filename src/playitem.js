@@ -16,7 +16,7 @@ import { coverUrl } from './imgurl.js';
  *   resolving?:boolean, videoId?:string, channel?:any, channelInfo?:string, qualities?:any, qIdx?:number,
  *   like:number, comment:number, view:number, banana:number, fav:number, share:number,
  *   danmakuCount:number, date:string, shareUrl:string, liked:boolean, favorited:boolean,
- *   thrown:boolean, localLike:boolean, desc?:string }} PlayItem
+ *   thrown:boolean, localLike:boolean, waiting:boolean, desc?:string }} PlayItem
  */
 
 // ---------- 播放条目契约（0.9.162 自 data.js 终解拆出：两种内容源规整成同一份字段） ----------
@@ -63,8 +63,8 @@ export var ITEM_FIELDS = {
   play: ['kind', 'stype', 'id', 'title', 'up', 'cover', 'urls', 'urlIdx', 'refreshed', 'cap',
     'resolving', 'videoId', 'channel', 'channelInfo', 'qualities', 'qIdx', 'like', 'comment', 'view',
     'banana', 'fav', 'share', 'danmakuCount', 'date', 'shareUrl', 'liked', 'favorited',
-    'thrown', 'localLike', 'desc'],
-  panel: ['kind', 'acId', 'title', 'cover', 'dur', 'views', 'dateText', 'desc', 'progress',
+    'thrown', 'localLike', 'waiting', 'desc'],
+  panel: ['kind', 'acId', 'comboId', 'title', 'cover', 'dur', 'views', 'dateText', 'desc', 'progress',
     'sub', 'meta', 'up',
     // 关注流（0.9.91）：content type 判别子与动态卡字段。ct 与 kind 正交——kind 在契约里是
     // **来源方言**（= panelitem.js PANEL_PARSERS 的表键），不能兼内容类型；关注流一个来源出
@@ -114,6 +114,7 @@ export function normalize(raw) {
     danmakuCount: 0,
     favorited: false,
     thrown: false,
+    waiting: false,
     // meow 源的 createTime 实测是日期串（feed-sample: "2019-09-06"），且该流无毫秒兄弟字段，
     // 故仍按"日期串切前 10 位"取。⚠️ 若哪天真机发现它也返回相对文案（APP 家族的 douga/info
     // createTime 就是 "24小时前" 这种展示串，见 appapi.resolve 的 0.9.85 注释），同法改成
@@ -147,7 +148,7 @@ export function normalizeHome(bc) {
     // home：m3u8（hls.js）+ 弹幕 + 清晰度 + 投蕉/收藏；卡片懒解析；可上报观看历史
     cap: {
       hls: true, danmaku: true, quality: true, banana: true,
-      favorite: true, lazyResolve: true, watchReport: true
+      favorite: true, lazyResolve: true, watchReport: true, waiting: true
     },
     // 懒解析状态：resolving 防并发（ensureResolved 在途复用同管）
     resolving: false,
@@ -167,6 +168,7 @@ export function normalizeHome(bc) {
     liked: false,
     favorited: false,
     thrown: false, // 是否已投过蕉（douga/info 的 isThrowBanana 回填；投蕉不可取消）
+    waiting: false,
     localLike: false
   };
 }

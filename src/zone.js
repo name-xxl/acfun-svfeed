@@ -1,7 +1,8 @@
 import { CFG } from './cfg.js';
 import { el, singleFlight } from './ui.js';
-import { request } from './net.js';
+import { requestRead } from './net.js';
 import { postForm } from './appapi.js';
+import { fetchRankBoard } from './rankapi.js';
 import { panelItem } from './panelitem.js';
 import { rowOf, upCardOf } from './cards.js';
 import { createListTail } from './listtail.js'; // 尾部件（0.9.219：只借回顶） // chevUp 回顶图标（与关注/广场/搜索同源）
@@ -46,10 +47,12 @@ function buildZoneView(body) {
   // 原生 1200 内容宽居中（video-card≈860 + up-card 338）：chips/说明行/列头/列表
   // 同轨同宽——列头与行必须共用同一 grid 模板（0.9.67 两栏对齐教训）
   var wrap = el('div', 'acsv-zone-wrap');
+  var boardChips = el('div', 'acsv-vchips acsv-rboards');
   var zoneChips = el('div', 'acsv-vchips');
   var subChips = el('div', 'acsv-vchips');
   var periodChips = el('div', 'acsv-vchips');
-  var tip = el('div', 'acsv-vtip'); // 说明行文案随频道更新（原生「全站综合 / 依综合指数排序，每日更新一次」）
+  var tip = el('div', 'acsv-vtip'); // 说明行文案随频道/榜单更新
+  wrap.appendChild(boardChips);
   wrap.appendChild(zoneChips);
   wrap.appendChild(subChips);
   wrap.appendChild(periodChips);
@@ -77,6 +80,7 @@ function buildZoneView(body) {
   var curZone = CFG.view.zones[0];
   var curSub = null;    // null=全部（subChannelId 空）
   var curPeriod = CFG.view.periods[0];
+  var curBoard = CFG.view.rankBoards[0].id; // channel=分区榜；hot/banana/youngStar 走 APP 三榜
 
   function fillSubChips() {
     subChips.innerHTML = '';
@@ -122,12 +126,22 @@ function buildZoneView(body) {
   }
 
   function load() {
-    var key = curZone.id + '|' + (curSub == null ? '' : curSub) + '|' + curPeriod;
+    var key = curBoard + '|' + (curBoard === 'channel'
+      ? curZone.id + '|' + (curSub == null ? '' : curSub) + '|' + curPeriod : '');
     var hit = rankCache[key];
     if (hit && Date.now() - hit.at < RANK_TTL) { render(hit.rows); return; } // 命中：零请求直出
     list.innerHTML = '';
     list.appendChild(el('div', 'acsv-vempty', '加载中…'));
-    request(CFG.api.rank + '?channelId=' + curZone.id + '&subChannelId='
+    function settle(rows) { rankCache[key] = { at: Date.now(), rows: rows }; render(rows); }
+    function fail() {
+      list.innerHTML = '';
+      list.appendChild(el('div', 'acsv-vempty', '加载失败（网络不可达）'));
+    }
+    if (curBoard !== 'channel') {
+      fetchRankBoard(curBoard, CFG.view.periods[0]).then(settle, fail);
+      return;
+    }
+    requestRead(CFG.api.rank + '?channelId=' + curZone.id + '&subChannelId='
       + (curSub == null ? '' : curSub) + '&rankLimit=' + CFG.view.rankLimit
       + '&rankPeriod=' + curPeriod, 'GET')
       .then(function (j) {
@@ -136,15 +150,43 @@ function buildZoneView(body) {
           var pi = panelItem('rank', raw);
           if (pi) rows.push({ pi: pi, rank: i + 1 });
         });
-        rankCache[key] = { at: Date.now(), rows: rows };
-        render(rows);
-      }, function () {
-        list.innerHTML = '';
-        list.appendChild(el('div', 'acsv-vempty', '加载失败（网络不可达）'));
-      });
+        settle(rows);
+      }, fail);
   }
 
-  function syncTip() { tip.textContent = curZone.name + ' / 依综合指数排序，每日更新一次'; }
+  function boardOf(id) {
+    for (var i = 0; i < CFG.view.rankBoards.length; i++) {
+      if (CFG.view.rankBoards[i].id === id) return CFG.view.rankBoards[i];
+    }
+    return CFG.view.rankBoards[0];
+  }
+  function updateBoardVisibility() {
+    var ch = curBoard === 'channel';
+    zoneChips.style.display = ch ? '' : 'none';
+    subChips.style.display = ch ? '' : 'none';
+    periodChips.style.display = ch ? '' : 'none';
+  }
+  function syncTip() {
+    var b = boardOf(curBoard);
+    tip.textContent = curBoard === 'channel'
+      ? curZone.name + ' / 依综合指数排序，每日更新一次'
+      : b.label + ' / ' + b.tip;
+  }
+  CFG.view.rankBoards.forEach(function (b, i) {
+    var c = el('button', 'acsv-vchip' + (i === 0 ? ' on' : ''), b.label);
+    c.setAttribute('data-board', b.id);
+    c.addEventListener('click', function () {
+      if (curBoard === b.id) return;
+      Array.prototype.forEach.call(boardChips.children, function (x) { x.classList.remove('on'); });
+      c.classList.add('on');
+      curBoard = b.id;
+      updateBoardVisibility();
+      syncTip();
+      if (curBoard === 'channel') fillSubChips();
+      load();
+    });
+    boardChips.appendChild(c);
+  });
   CFG.view.zones.forEach(function (z, i) {
     var c = el('button', 'acsv-vchip' + (i === 0 ? ' on' : ''), z.name);
     c.addEventListener('click', function () {
@@ -171,6 +213,7 @@ function buildZoneView(body) {
     periodChips.appendChild(c);
   });
   syncTip();
+  updateBoardVisibility();
   fillSubChips();
   load();
 }

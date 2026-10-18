@@ -1,6 +1,6 @@
 // @ts-check
 import { CFG } from './cfg.js';
-import { request } from './net.js';
+import { requestRead } from './net.js';
 
 // ---------- 频道域（0.9.169 精选页分区流）：传输 + 回包规整 ----------
 // 实测 docs/api-research.md §6.7（2026-10-05 内置浏览器 + curl 免登录双验）：
@@ -35,7 +35,7 @@ export function channelTreeOf(j) {
 }
 
 export function listChannels() {
-  return request(CFG.api.channelAll, 'POST', FORM_TYPE, '').then(channelTreeOf);
+  return requestRead(CFG.api.channelAll, 'POST', FORM_TYPE, '').then(channelTreeOf);
 }
 
 // 回包 → { items:[dougaFeedView 原始卡], nextCursor, noMore }。本地复核滤杂质：条目
@@ -59,7 +59,7 @@ export function channelPageOf(j, channelId) {
 }
 
 export function listChannelFeed(channelId, pcursor) {
-  return request(CFG.api.channelResourceList, 'POST', FORM_TYPE,
+  return requestRead(CFG.api.channelResourceList, 'POST', FORM_TYPE,
     'channelId=' + encodeURIComponent(channelId) + '&pcursor=' + encodeURIComponent(pcursor || '0'))
     .then(function (j) { return channelPageOf(j, channelId); });
 }

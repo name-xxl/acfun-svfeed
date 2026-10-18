@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { request } from './net.js';
+import { requestRead } from './net.js';
 import { homeItemOf, upOf } from './playitem.js';
 import { coverUrl } from './imgurl.js';
 import { getSetting } from './settings.js';
@@ -40,7 +40,7 @@ function idOf(dv) {
 }
 
 export function listRelated(rid) {
-  return request(CFG.api.relatedGeneral, 'POST', FORM_TYPE,
+  return requestRead(CFG.api.relatedGeneral, 'POST', FORM_TYPE,
     'resourceType=2&resourceId=' + encodeURIComponent(rid)).then(relatedPageOf);
 }
 

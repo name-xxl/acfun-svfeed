@@ -838,6 +838,12 @@ rec('ctln-drag-pans', !!(m1 && Number(m1[1]) > 20), strip.style.transform || '(n
 row.dispatchEvent(new WheelEvent('wheel', { deltaY: 80, bubbles: true, cancelable: true }));
 var m2 = /translateX\(-([\d.]+)px\)/.exec(strip.style.transform || '');
 rec('ctln-wheel-pans', !!(m2 && Number(m2[1]) > Number(m1 ? m1[1] : 0)), strip.style.transform || '(none)');
+// 底栏时钟（0.9.279）：全量右移后必须落进可视区（新增键不能永远藏在横滑区）
+row.dispatchEvent(new WheelEvent('wheel', { deltaY: 9999, bubbles: true, cancelable: true }));
+var wb = s.querySelector('.acsv-cwait');
+var rr = row.getBoundingClientRect(), br = wb && wb.getBoundingClientRect();
+rec('ctln-wait-reachable', !!br && br.right > rr.left && br.left < rr.right,
+  br ? Math.round(br.left - rr.left) + '..' + Math.round(br.right - rr.left) : 'no-btn');
 // 平移后开倍速菜单：菜单必须完整可见（这就是不用 overflow 滚动的理由）。
 // 先补一拍"干净点击"的 pointerdown/up——拖动落点的 click 抑制以 pointerdown 为周期复位
 row.dispatchEvent(new PointerEvent('pointerdown', { clientX: 300, bubbles: true, pointerId: 2 }));
@@ -853,5 +859,39 @@ if (rateBtn) {
   rec('ctln-menu-visible', !!(qm && qm.getBoundingClientRect().height > 10),
     qm ? 'h=' + Math.round(qm.getBoundingClientRect().height) : 'no-menu');
 }
+  };
+
+  // ---- ctl-waiting（0.9.279：底栏时钟 → add/cancel 写链） ----
+  C['ctl-waiting'] = async function (h) {
+    var rec = h.rec, slide = h.slide, waitFor = h.waitFor;
+    rec('ctlw-ready', !!(await waitFor(function () { return h.firstVideoReady(0); }, 25000)));
+    var s = slide(0);
+    var it = s && s._session && s._session.item;
+    var btn = s && s.querySelector('.acsv-cwait');
+    rec('ctlw-present', !!(btn && it && it.kind === 'home'), btn ? 'btn' : 'no-btn');
+    if (!btn || !it) return;
+    var addBody = '', cancelBody = '';
+    window.__ACSV_MOCK_FORM__ = window.__ACSV_MOCK_FORM__ || {};
+    window.__ACSV_MOCK_FORM__['app/addWaiting'] = function (body) {
+      addBody = String(body);
+      return { result: 0 };
+    };
+    window.__ACSV_MOCK_FORM__['app/cancelWaiting'] = function (body) {
+      cancelBody = String(body);
+      return { result: 0 };
+    };
+    rec('ctlw-default-off', !btn.classList.contains('on'));
+    btn.click();
+    rec('ctlw-add-on', !!(await waitFor(function () { return btn.classList.contains('on'); }, 3000)));
+    rec('ctlw-add-body', addBody === 'resourceId=' + it.id + '&resourceType=2', addBody);
+    await waitFor(function () { return !it.waitingBusy; }, 3000); // 等写链 busy 复位再点第二下
+    btn.click();
+    rec('ctlw-cancel-off', !!(await waitFor(function () { return !btn.classList.contains('on'); }, 3000)));
+    rec('ctlw-cancel-body', cancelBody === 'resourceId=' + it.id + '&resourceType=2', cancelBody);
+    await waitFor(function () { return !it.waitingBusy; }, 3000);
+    // 失败回滚：mock 返回显式错误码 -401（result:1 在新口径下是 Empty 成功码）
+    window.__ACSV_MOCK_FORM__['app/addWaiting'] = function () { return { result: -401 }; };
+    btn.click();
+    rec('ctlw-fail-rollback', !!(await waitFor(function () { return !btn.classList.contains('on'); }, 3000)));
   };
 })();

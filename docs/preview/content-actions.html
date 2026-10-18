@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 接线包内容操作（评论 / 动态 / 历史 / 稍后再看 / 榜单）</title>
+<!-- ============================================================
+     docs/preview/content-actions.html —— 接线包静态预览（2026-10-18）
+     范围硬线：小视频源（kind='sv'）零新增交互。本稿只画推荐源
+     （kind='home'）与脚本视图（我的 / 榜单 / 历史）里的新控件；
+     sv 右栏保持赞 / 评论 / 分享三键原样。
+     口径：暗色皮肤、真实中文文案、1600×900 与 540 宽自检。
+     确认后才进 src/ 实现；改版先改本稿。
+     ============================================================ -->
+<style>
+  :root{
+    --acsv-accent:#fd4c5d;
+    --acsv-bg:#000;
+    --acsv-panel:rgba(22,22,27,.97);
+    --acsv-line:rgba(255,255,255,.09);
+    --acsv-t1:#fff;
+    --acsv-t2:#cfd3da;
+    --acsv-t3:#8a90a0;
+    --acsv-green:#3ddc97;
+    --acsv-yellow:#ffb323;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:32px 40px 100px}
+  .board>h1{font-size:20px;font-weight:600;margin-bottom:8px}
+  .board>.hint{color:var(--acsv-t3);font-size:12px;line-height:1.9;margin-bottom:8px}
+  .board>.hint b{color:#ffb3ba;font-weight:500}
+  .sec{margin:34px 0 0;padding-top:18px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:14px;color:var(--acsv-t2);font-weight:600;margin-bottom:5px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .sec>.note{color:var(--acsv-t3);font-size:12px;line-height:1.8;margin-bottom:14px}
+  .demo{background:#0a0a0c;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:20px 22px}
+  .split{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+  .split>*{min-width:0}
+
+  /* ---- 通用件 ---- */
+  .chip{border:none;border-radius:16px;padding:5px 14px;font-size:13px;font-family:inherit;
+    cursor:pointer;background:rgba(255,255,255,.1);color:var(--acsv-t2)}
+  .chip.sm{padding:4px 10px;font-size:12px}
+  .chip.on{background:var(--acsv-accent);color:#fff}
+  .chip.danger{color:#ff8a95}
+  .chip.ghost{background:transparent;border:1px solid rgba(255,255,255,.16)}
+  .btn{border:none;border-radius:16px;padding:6px 16px;font-size:13px;font-family:inherit;cursor:pointer}
+  .btn.cancel{background:rgba(255,255,255,.12);color:var(--acsv-t2)}
+  .btn.ok{background:var(--acsv-accent);color:#fff}
+  .btn.ok.danger{background:#d9364a}
+  .empty{color:var(--acsv-t3);font-size:13px;padding:28px 2px;text-align:center}
+  .tiny{font-size:12px;color:var(--acsv-t3);line-height:1.7}
+
+  /* ---- ① 评论行 ---- */
+  .crow{display:flex;gap:12px;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+  .crow:last-child{border-bottom:0}
+  .av{width:50px;height:50px;border-radius:50%;flex:none;
+    background:linear-gradient(135deg,#6a5cff,#2b2b45)}
+  .av.a2{background:linear-gradient(135deg,#ff9a62,#5b2b2b)}
+  .av.a3{background:linear-gradient(135deg,#3ddc97,#1d4d3b)}
+  .cbody{flex:1;min-width:0}
+  .cname{font-size:12px;color:#9aa0ab;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .cname b{font-size:12px;font-weight:400;color:#cfd3da}
+  .cname .dev{color:#7a7f8a}
+  .ctext{margin-top:7px;font-size:14px;line-height:1.65;color:#f0f1f3}
+  .cmeta{margin-top:9px;display:flex;gap:16px;align-items:center;font-size:12px;color:#7a7f8a}
+  .cact{display:inline-flex;gap:4px;align-items:center;cursor:pointer}
+  .cact.del{color:#ff8a95;opacity:0;transition:opacity .15s}
+  .crow.hover .cact.del{opacity:1}
+  .crow.no-del .cact.del{display:none}
+
+  /* ---- 确认层（openConfirmPop 形态） ---- */
+  .confirm{width:300px;background:var(--acsv-panel);border:1px solid rgba(255,255,255,.12);
+    border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.55);overflow:hidden}
+  .confirm .hd{padding:12px 14px 6px;font-size:14px;font-weight:600}
+  .confirm .tx{padding:0 14px 10px;font-size:12px;color:var(--acsv-t3);line-height:1.6}
+  .confirm .err{padding:0 14px 8px;font-size:12px;color:#ff8a95}
+  .confirm .ft{display:flex;gap:8px;padding:10px 14px 12px;justify-content:flex-end}
+  .confirm.busy .ok{background:rgba(255,255,255,.18);color:#ddd}
+
+  /* ---- ② 动态详情 ---- */
+  .detail{width:760px;max-width:100%;background:#0b0b0e;border:1px solid rgba(255,255,255,.08);
+    border-radius:14px;overflow:hidden}
+  .dhead{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--acsv-line)}
+  .dhead .av{width:40px;height:40px}
+  .dname{font-size:15px;color:#8ab4ff}
+  .dtime{font-size:12px;color:var(--acsv-t3)}
+  .dmore{margin-left:auto;width:28px;height:28px;border-radius:50%;border:none;
+    background:rgba(255,255,255,.08);color:#fff;cursor:pointer;font-size:16px;line-height:1}
+  .dbody{padding:16px 18px;font-size:15px;line-height:1.75;color:#f0f1f3}
+  .dmedia{display:flex;gap:8px;padding:0 18px 14px}
+  .dmedia span{flex:1;aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#30304a,#15151f)}
+  .dactions{display:flex;gap:24px;padding:12px 18px;border-top:1px solid var(--acsv-line);
+    color:var(--acsv-t2);font-size:13px}
+  .dactions b{font-weight:400;color:#fff}
+  .dcmt{padding:12px 18px 16px;border-top:1px solid var(--acsv-line);font-size:13px;color:var(--acsv-t3)}
+
+  /* ---- ③ 历史 / ④ 稍后再看：网格卡 ---- */
+  .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .gcell{position:relative;min-width:0}
+  .gcover{position:relative;aspect-ratio:4/3;border-radius:10px;overflow:hidden;
+    background:linear-gradient(135deg,#2b2b44,#12121a)}
+  .gcover.c2{background:linear-gradient(135deg,#4a2b35,#181118)}
+  .gcover.c3{background:linear-gradient(135deg,#23453a,#101a17)}
+  .gcover .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:0;height:0;border-left:14px solid rgba(255,255,255,.75);
+    border-top:9px solid transparent;border-bottom:9px solid transparent}
+  .gdur{position:absolute;right:7px;bottom:7px;padding:2px 6px;border-radius:4px;
+    background:rgba(0,0,0,.7);font-size:11px;color:#fff}
+  .gtag{position:absolute;left:7px;bottom:7px;padding:2px 6px;border-radius:4px;
+    background:rgba(0,0,0,.7);font-size:11px;color:#fff}
+  .gdel{position:absolute;right:8px;top:8px;width:28px;height:28px;border-radius:50%;
+    border:none;background:rgba(0,0,0,.68);color:#fff;font-size:15px;line-height:1;
+    opacity:0;transition:opacity .15s;cursor:pointer}
+  .gcell.hover .gdel{opacity:1}
+  .gremove{position:absolute;right:8px;top:8px;border:none;border-radius:14px;padding:4px 10px;
+    background:rgba(0,0,0,.72);color:#fff;font-size:12px;font-family:inherit;
+    opacity:0;transition:opacity .15s;cursor:pointer}
+  .gcell.hover .gremove{opacity:1}
+  .gtitle{margin-top:8px;font-size:14px;line-height:1.5;color:#f0f1f3;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .gfoot{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:12px;color:var(--acsv-t3)}
+  .gfoot .up{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ---- tabs ---- */
+  .tabs{display:flex;gap:24px;border-bottom:1px solid var(--acsv-line);margin-bottom:18px;overflow-x:auto}
+  .tab{border:none;background:transparent;color:var(--acsv-t2);font:inherit;font-size:14px;
+    padding:10px 2px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+  .tab.on{color:#fff;border-bottom-color:var(--acsv-accent)}
+
+  /* ---- ⑤ 榜单 ---- */
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .rankhead{display:flex;align-items:center;gap:12px;padding:10px 8px;border-bottom:1px solid var(--acsv-line);
+    font-size:12px;color:var(--acsv-t3)}
+  .rankhead .col{flex:1}
+  .rankhead .col2{width:260px}
+  .rankrow{display:flex;gap:16px;padding:14px 8px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .rankno{width:44px;flex:none;font-size:28px;font-weight:700;color:rgba(255,255,255,.18);
+    font-style:italic;text-align:center}
+  .rankcard{display:flex;gap:12px;flex:1;min-width:0}
+  .rankcover{width:160px;height:90px;flex:none;border-radius:8px;
+    background:linear-gradient(135deg,#34345a,#14141d);position:relative}
+  .rankinfo{min-width:0;flex:1}
+  .ranktitle{font-size:14px;line-height:1.5;color:#f0f1f3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rankdesc{margin-top:6px;font-size:12px;line-height:1.6;color:var(--acsv-t3);
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .rankmeta{margin-top:8px;font-size:12px;color:#7a7f8a;display:flex;gap:14px}
+  .upcard{width:260px;flex:none;border-left:3px solid rgba(255,255,255,.14);padding-left:12px;
+    display:flex;gap:10px;align-items:center}
+  .upcard .av{width:44px;height:44px}
+  .upname{font-size:14px;color:#8ab4ff}
+  .upmeta{margin-top:4px;font-size:12px;color:var(--acsv-t3)}
+  .loading{color:var(--acsv-t3);font-size:13px;padding:24px 8px}
+
+  /* ---- ⑥ 右栏 ---- */
+  .rail{display:flex;flex-direction:column;gap:18px;width:78px;align-items:center}
+  .railbtn{display:flex;flex-direction:column;align-items:center;gap:4px;color:#fff;user-select:none}
+  .railbtn .ic{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.1);
+    display:grid;place-items:center}
+  .railbtn .ic svg{width:22px;height:22px;fill:currentColor}
+  .railbtn .n{font-size:12px;color:#cfd3da}
+  .railbtn.on .ic{background:rgba(253,76,93,.18);color:var(--acsv-accent)}
+  .railbtn.clock.on .ic{background:rgba(61,220,151,.16);color:var(--acsv-green)}
+  .railbtn.clock.on .n{color:var(--acsv-green)}
+  .railbtn .lbl{font-size:12px;color:#cfd3da}
+  .railbox{display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap}
+  .railstate{font-size:12px;color:var(--acsv-t3);margin-top:10px;text-align:center}
+
+  /* ---- ⑥ 播放器底栏 ---- */
+  .cstage{position:relative;height:190px;border-radius:12px;overflow:hidden;
+    background:linear-gradient(135deg,#1b1b2b,#0a0a0c);border:1px solid rgba(255,255,255,.06)}
+  .cstage .vplay{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);
+    width:0;height:0;border-left:18px solid rgba(255,255,255,.5);
+    border-top:11px solid transparent;border-bottom:11px solid transparent}
+  .cbar{position:absolute;left:0;right:0;bottom:0;padding:18px 14px 10px;
+    background:linear-gradient(transparent,rgba(0,0,0,.86) 38%)}
+  .cctl-row{display:flex;align-items:center;gap:6px;min-width:0}
+  .cctl-strip{display:flex;align-items:center;gap:6px;min-width:100%;width:max-content}
+  .cbtn{border:none;background:none;color:#fff;cursor:pointer;height:32px;min-width:32px;
+    padding:0 6px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;
+    gap:5px;font-size:13px;font-family:inherit;white-space:nowrap;flex:none}
+  .cbtn:hover{background:rgba(255,255,255,.16)}
+  .cbtn svg{width:20px;height:20px;fill:currentColor}
+  .cbtn.on{color:var(--acsv-accent)}
+  .cbtn .dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.5)}
+  .cbtn.on .dot{background:var(--acsv-accent)}
+  .ctime{font-size:12px;color:#ddd;font-variant-numeric:tabular-nums;margin-left:4px;white-space:nowrap;flex:none}
+  .cspacer{flex:1;min-width:12px}
+  .cinput{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:14px;
+    background:rgba(255,255,255,.1);color:#9aa0ab;font-size:12px;white-space:nowrap;flex:none}
+  .cnarrow{width:540px;max-width:100%;overflow:hidden;border:1px dashed rgba(255,255,255,.16);
+    border-radius:10px;background:#0a0a0c;margin-top:6px}
+  .cnarrow .cctl-row{width:540px;padding:8px 10px}
+  .cnarrow.pan .cctl-strip{transform:translateX(-190px)}
+  .cnarrow .cbar{position:static;padding:0;background:none}
+
+  /* ---- ⑦ 窄宽 ---- */
+  .narrow{width:540px;max-width:100%;border:1px dashed rgba(255,255,255,.16);border-radius:12px;padding:14px}
+  .narrow .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .narrow .tabs{gap:18px}
+  .narrow .rankrow{flex-wrap:wrap}
+  .narrow .upcard{width:100%;border-left:0;padding-left:0;margin-top:8px}
+  .narrow .rankhead .col2{display:none}
+
+  @media (max-width:700px){
+    .board{padding:22px 16px 70px}
+    .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .split{display:block}
+    .split>*+*{margin-top:18px}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>接线包内容操作 · 静态预览</h1>
+  <p class="hint">
+    范围硬线：<b>小视频源（kind='sv'）零新增交互</b>。本稿只画推荐源（kind='home'）与脚本视图里的新控件；
+    sv 右栏保持「赞 / 评论 / 分享」三键原样，评论行不挂删除。
+  </p>
+  <p class="hint">口径：暗色皮肤 / 1600×900 桌面 / 真实中文文案。每段上方标注状态名；540 窄宽见第 ⑦ 段。</p>
+
+  <!-- ================= ① 评论行删除 ================= -->
+  <section class="sec">
+    <h2>① 评论行 · 删除入口<em>仅推荐源；仅自己的评论；hover 才显形</em></h2>
+    <p class="note">默认态只显示点赞 / 回复 / 转发；鼠标移到评论行，自己的评论右侧出现「删除」。他人的评论永远没有这一项。</p>
+    <div class="split">
+      <div class="demo" style="flex:1;min-width:420px">
+        <p class="tiny" style="margin-bottom:2px">默认态 · 自己的评论（删除键未显形）</p>
+        <div class="crow">
+          <div class="av"></div>
+          <div class="cbody">
+            <div class="cname"><b>一只芸喵喵</b><span>发表于 10-18 14:32</span><span class="dev">来自 iPhone 15 Pro</span></div>
+            <div class="ctext">这个转场也太丝滑了，求教程！</div>
+            <div class="cmeta"><span class="cact">♥ 128</span><span class="cact">回复</span><span class="cact">转发</span><span class="cact del">删除</span></div>
+          </div>
+        </div>
+
+        <p class="tiny" style="margin-top:12px">悬停态 · 自己的评论（删除键显形）</p>
+        <div class="crow hover">
+          <div class="av"></div>
+          <div class="cbody">
+            <div class="cname"><b>一只芸喵喵</b><span>发表于 10-18 14:32</span><span class="dev">来自 iPhone 15 Pro</span></div>
+            <div class="ctext">这个转场也太丝滑了，求教程！</div>
+            <div class="cmeta"><span class="cact">♥ 128</span><span class="cact">回复</span><span class="cact">转发</span><span class="cact del">删除</span></div>
+          </div>
+        </div>
+
+        <p class="tiny" style="margin-top:12px">悬停态 · 他人的评论（没有删除）</p>
+        <div class="crow hover no-del">
+          <div class="av a2"></div>
+          <div class="cbody">
+            <div class="cname"><b>夜航船</b><span>发表于 10-18 14:20</span></div>
+            <div class="ctext">同求，蹲一个教程。</div>
+            <div class="cmeta"><span class="cact">♥ 36</span><span class="cact">回复</span><span class="cact">转发</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:320px">
+        <p class="tiny" style="margin-bottom:10px">确认层 · 删除前二次确认</p>
+        <div class="confirm">
+          <div class="hd">删除这条评论？</div>
+          <div class="tx">删除后不可恢复，评论计数会同步减一。</div>
+          <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">删除</button></div>
+        </div>
+        <p class="tiny" style="margin:12px 0 10px">删除中 · 按钮进入「处理中…」</p>
+        <div class="confirm busy">
+          <div class="hd">删除这条评论？</div>
+          <div class="tx">删除后不可恢复，评论计数会同步减一。</div>
+          <div class="ft"><button class="btn cancel">取消</button><button class="btn ok">处理中…</button></div>
+        </div>
+        <p class="tiny" style="margin:12px 0 10px">失败态 · 评论保留，可重试</p>
+        <div class="confirm">
+          <div class="hd">删除这条评论？</div>
+          <div class="tx">删除后不可恢复，评论计数会同步减一。</div>
+          <div class="err">操作失败（未登录？）</div>
+          <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">重试</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ② 动态详情删除 ================= -->
+  <section class="sec">
+    <h2>② 动态详情 · 删除自己的动态<em>只在详情面板内；列表卡面不加入口</em></h2>
+    <p class="note">自己的动态在头部右侧出现「⋮」；点开确认后关闭面板并从列表移除。他人的动态没有这个键。</p>
+    <div class="split">
+      <div class="detail">
+        <div class="dhead">
+          <div class="av"></div>
+          <span class="dname">@一只芸喵喵</span>
+          <span class="dtime">10-18 14:32</span>
+          <button class="dmore" title="更多">⋮</button>
+        </div>
+        <div class="dbody">今天试了一下新的调色方案，感觉比上一版干净很多。</div>
+        <div class="dmedia"><span></span><span></span><span></span></div>
+        <div class="dactions"><span>分享</span><span>评论 <b>12</b></span><span>香蕉 <b>3</b></span><span>赞 <b>48</b></span></div>
+        <div class="dcmt">共 12 条评论 · 评论区沿用现有面板</div>
+      </div>
+      <div style="width:300px">
+        <p class="tiny" style="margin-bottom:10px">确认层 · 删动态</p>
+        <div class="confirm">
+          <div class="hd">删除这条动态？</div>
+          <div class="tx">删除后不可恢复，动态会从列表里消失。</div>
+          <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">删除</button></div>
+        </div>
+        <p class="tiny" style="margin-top:12px">他人的动态 · 没有「⋮」</p>
+        <div class="detail" style="margin-top:6px">
+          <div class="dhead">
+            <div class="av a3"></div>
+            <span class="dname">@夜航船</span>
+            <span class="dtime">10-18 13:05</span>
+          </div>
+          <div class="dbody" style="font-size:13px">周五了，发一条证明我还活着。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ③ 观看历史删除 / 清空 ================= -->
+  <section class="sec">
+    <h2>③ 观看历史 · 单条删除 / 清空<em>卡面 hover 出「×」；顶部右侧「清空历史」</em></h2>
+    <p class="note">删除与清空都走二次确认；成功后卡面移除，失败保留原样。清空后出空态。</p>
+    <div class="demo">
+      <div style="display:flex;align-items:center;margin-bottom:12px">
+        <span style="font-size:15px;font-weight:600">观看历史</span>
+        <button class="chip sm danger" style="margin-left:auto">清空历史</button>
+      </div>
+      <div class="grid">
+        <div class="gcell hover">
+          <div class="gcover c2"><span class="play"></span><span class="gtag">观看至 03:51</span><span class="gdur">12:08</span><button class="gdel" title="删除这条历史">×</button></div>
+          <div class="gtitle">【4K】这可能是今年最舒服的转场合集</div>
+          <div class="gfoot"><span class="up">@一只芸喵喵</span><span>10-18 14:02</span></div>
+        </div>
+        <div class="gcell">
+          <div class="gcover"><span class="play"></span><span class="gtag">观看至 08:20</span><span class="gdur">21:37</span><button class="gdel" title="删除这条历史">×</button></div>
+          <div class="gtitle">从零开始做一支 A 站风格的开场动画</div>
+          <div class="gfoot"><span class="up">@夜航船</span><span>10-17 22:10</span></div>
+        </div>
+        <div class="gcell">
+          <div class="gcover c3"><span class="play"></span><span class="gdel" title="删除这条历史">×</span><span class="gdur">08:45</span></div>
+          <div class="gtitle">用三个镜头讲完一个故事：分镜入门</div>
+          <div class="gfoot"><span class="up">@纸飞机</span><span>10-16 19:30</span></div>
+        </div>
+      </div>
+      <div class="split" style="margin-top:22px">
+        <div class="confirm">
+          <div class="hd">删除这条观看记录？</div>
+          <div class="tx">只删除观看历史，不会取消收藏，也不影响稿件本身。</div>
+          <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">删除</button></div>
+        </div>
+        <div class="confirm">
+          <div class="hd">清空全部观看历史？</div>
+          <div class="tx">共 268 条记录将被移除，操作不可恢复。</div>
+          <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">清空</button></div>
+        </div>
+      </div>
+      <p class="tiny" style="margin-top:20px">清空后的空态：</p>
+      <div class="empty">暂无观看记录</div>
+    </div>
+  </section>
+
+  <!-- ================= ④ 我的页 · 稍后再看 ================= -->
+  <section class="sec">
+    <h2>④ 我的页 · 第 5 档「稍后再看」<em>放在观看历史与收藏夹之间</em></h2>
+    <p class="note">tab 本身沿用现有样式；卡面 hover 出「移出」。未登录时只出可读空态，不发请求。</p>
+    <div class="demo">
+      <div class="tabs">
+        <button class="tab">动态</button>
+        <button class="tab">观看历史</button>
+        <button class="tab on">稍后再看</button>
+        <button class="tab">收藏夹</button>
+        <button class="tab">关注分组</button>
+      </div>
+      <div class="grid">
+        <div class="gcell hover">
+          <div class="gcover"><span class="play"></span><span class="gdur">09:12</span><button class="gremove">移出</button></div>
+          <div class="gtitle">周末补番：这三部冷门动画值得一口气看完</div>
+          <div class="gfoot"><span class="up">@夜航船</span><span>10-18</span></div>
+        </div>
+        <div class="gcell">
+          <div class="gcover c2"><span class="play"></span><span class="gdur">16:40</span><button class="gremove">移出</button></div>
+          <div class="gtitle">把旧手机改成桌面时钟：完整改造记录</div>
+          <div class="gfoot"><span class="up">@纸飞机</span><span>10-17</span></div>
+        </div>
+        <div class="gcell">
+          <div class="gcover c3"><span class="play"></span><span class="gdur">04:28</span><button class="gremove">移出</button></div>
+          <div class="gtitle">一分钟学会这个转场，剪视频真的不难</div>
+          <div class="gfoot"><span class="up">@一只芸喵喵</span><span>10-16</span></div>
+        </div>
+      </div>
+      <div class="split" style="margin-top:22px">
+        <div style="flex:1;min-width:280px">
+          <p class="tiny">空态 · 登录但列表为空：</p>
+          <div class="empty">还没有稍后再看的内容</div>
+        </div>
+        <div style="flex:1;min-width:280px">
+          <p class="tiny">未登录态 · 不请求列表：</p>
+          <div class="empty">登录后才能查看稍后再看</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ⑤ 榜单 ================= -->
+  <section class="sec">
+    <h2>⑤ 榜单 · 新增三榜<em>分区榜保持默认；三榜不带子频道 / 榜期</em></h2>
+    <p class="note">顶部多一行榜单 chips；切到全站热榜 / 香蕉榜 / 新秀榜时，子频道与榜期两行隐藏，说明行随榜更新。</p>
+    <div class="demo">
+      <p class="tiny" style="margin-bottom:8px">默认态 · 分区榜（与现在完全一致）</p>
+      <div class="chips">
+        <button class="chip on">分区榜</button>
+        <button class="chip">全站热榜</button>
+        <button class="chip">香蕉榜</button>
+        <button class="chip">新秀榜</button>
+      </div>
+      <div class="chips">
+        <button class="chip sm on">全部</button>
+        <button class="chip sm">动画</button>
+        <button class="chip sm">音乐</button>
+        <button class="chip sm">游戏</button>
+        <button class="chip sm">影视</button>
+      </div>
+      <div class="chips">
+        <button class="chip sm on">今日</button>
+        <button class="chip sm">三日</button>
+        <button class="chip sm">本周</button>
+      </div>
+      <p class="tiny" style="margin:4px 0 12px">全站综合 / 依综合指数排序，每日更新一次</p>
+
+      <p class="tiny" style="margin:18px 0 8px">切到「全站热榜」· 子频道与榜期隐藏</p>
+      <div class="chips">
+        <button class="chip">分区榜</button>
+        <button class="chip on">全站热榜</button>
+        <button class="chip">香蕉榜</button>
+        <button class="chip">新秀榜</button>
+      </div>
+      <p class="tiny" style="margin:4px 0 10px">全站热榜 / 按热度排序</p>
+      <div class="rankhead"><span class="rankno"></span><span class="col">榜单 Rank</span><span class="col2">Up主 Author</span></div>
+      <div class="rankrow">
+        <div class="rankno">1</div>
+        <div class="rankcard">
+          <div class="rankcover"><span class="play"></span></div>
+          <div class="rankinfo">
+            <div class="ranktitle">这可能是今年最舒服的转场合集</div>
+            <div class="rankdesc">整理了半年的素材，终于剪完了。每一段都可以单独拿去用。</div>
+            <div class="rankmeta"><span>▶ 128.6万</span><span>评论 2381</span><span>10-18</span></div>
+          </div>
+        </div>
+        <div class="upcard"><div class="av"></div><div><div class="upname">@一只芸喵喵</div><div class="upmeta">粉丝 16.2万 · 投稿 286</div></div></div>
+      </div>
+      <div class="rankrow">
+        <div class="rankno">2</div>
+        <div class="rankcard">
+          <div class="rankcover"></div>
+          <div class="rankinfo">
+            <div class="ranktitle">从零开始做一支 A 站风格的开场动画</div>
+            <div class="rankdesc">软件是免费的，思路是共通的。</div>
+            <div class="rankmeta"><span>▶ 86.4万</span><span>评论 1204</span><span>10-17</span></div>
+          </div>
+        </div>
+        <div class="upcard"><div class="av a3"></div><div><div class="upname">@夜航船</div><div class="upmeta">粉丝 9.8万 · 投稿 154</div></div></div>
+      </div>
+
+      <p class="tiny" style="margin:18px 0 8px">加载中 / 空态：</p>
+      <div class="loading">加载中…</div>
+      <div class="empty">该榜单暂无数据</div>
+    </div>
+  </section>
+
+  <!-- ================= ⑥ 播放器底栏 · 稍后再看 ================= -->
+  <section class="sec">
+    <h2>⑥ 播放器底栏 · 稍后再看<em>仅推荐源；放在「倍速」之后</em></h2>
+    <p class="note">底栏悬停出现。宽屏单行放下；540 窄屏横向拖动 / 滚轮查看右侧键。右栏不再加时钟键。</p>
+    <div class="demo">
+      <p class="tiny" style="margin-bottom:8px">宽屏 · 未加入（白图标）</p>
+      <div class="cstage">
+        <span class="vplay"></span>
+        <div class="cbar">
+          <div class="cctl-row">
+            <div class="cctl-strip">
+              <button class="cbtn">播放</button>
+              <span class="ctime">00:12 / 03:48</span>
+              <span class="cspacer"></span>
+              <button class="cbtn on">弹</button>
+              <span class="cinput">发个弹幕呗，嗷嗷</span>
+              <button class="cbtn">设置</button>
+              <button class="cbtn">1080P</button>
+              <button class="cbtn">H.264</button>
+              <button class="cbtn">加大</button>
+              <button class="cbtn on"><span class="dot"></span>连播</button>
+              <button class="cbtn">1.0x</button>
+              <button class="cbtn" title="稍后再看"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg></button>
+              <button class="cbtn">音量</button>
+              <button class="cbtn">画中画</button>
+              <button class="cbtn">网页全屏</button>
+              <button class="cbtn">窗口全屏</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="tiny" style="margin:18px 0 8px">宽屏 · 已加入（底栏 on 态 / accent 红）</p>
+      <div class="cstage">
+        <span class="vplay"></span>
+        <div class="cbar">
+          <div class="cctl-row">
+            <div class="cctl-strip">
+              <button class="cbtn">播放</button>
+              <span class="ctime">00:12 / 03:48</span>
+              <span class="cspacer"></span>
+              <button class="cbtn on">弹</button>
+              <span class="cinput">发个弹幕呗，嗷嗷</span>
+              <button class="cbtn">设置</button>
+              <button class="cbtn">1080P</button>
+              <button class="cbtn">H.264</button>
+              <button class="cbtn">加大</button>
+              <button class="cbtn on"><span class="dot"></span>连播</button>
+              <button class="cbtn">1.0x</button>
+              <button class="cbtn on" title="已加入稍后再看（点击移出）"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg></button>
+              <button class="cbtn">音量</button>
+              <button class="cbtn">画中画</button>
+              <button class="cbtn">网页全屏</button>
+              <button class="cbtn">窗口全屏</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="tiny" style="margin:18px 0 8px">540 窄屏 · 初始视口（右侧键在横滑区）</p>
+      <div class="cnarrow">
+        <div class="cbar">
+          <div class="cctl-row">
+            <div class="cctl-strip">
+              <button class="cbtn">播放</button>
+              <span class="ctime">00:12 / 03:48</span>
+              <span class="cspacer"></span>
+              <button class="cbtn on">弹</button>
+              <span class="cinput">发个弹幕呗</span>
+              <button class="cbtn">设置</button>
+              <button class="cbtn">1080P</button>
+              <button class="cbtn">H.264</button>
+              <button class="cbtn">加大</button>
+              <button class="cbtn on"><span class="dot"></span>连播</button>
+              <button class="cbtn">1.0x</button>
+              <button class="cbtn" title="稍后再看"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg></button>
+              <button class="cbtn">音量</button>
+              <button class="cbtn">画中画</button>
+              <button class="cbtn">网页全屏</button>
+              <button class="cbtn">窗口全屏</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="tiny" style="margin:12px 0 8px">540 窄屏 · 向左拖动后（露出「倍速 / 稍后 / 音量 / 全屏」）</p>
+      <div class="cnarrow pan">
+        <div class="cbar">
+          <div class="cctl-row">
+            <div class="cctl-strip">
+              <button class="cbtn">播放</button>
+              <span class="ctime">00:12 / 03:48</span>
+              <span class="cspacer"></span>
+              <button class="cbtn on">弹</button>
+              <span class="cinput">发个弹幕呗</span>
+              <button class="cbtn">设置</button>
+              <button class="cbtn">1080P</button>
+              <button class="cbtn">H.264</button>
+              <button class="cbtn">加大</button>
+              <button class="cbtn on"><span class="dot"></span>连播</button>
+              <button class="cbtn">1.0x</button>
+              <button class="cbtn" title="稍后再看"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg></button>
+              <button class="cbtn">音量</button>
+              <button class="cbtn">画中画</button>
+              <button class="cbtn">网页全屏</button>
+              <button class="cbtn">窗口全屏</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="tiny" style="margin:18px 0 8px">右栏保持原样 · 不再加时钟键</p>
+      <div class="rail">
+        <div class="railbtn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.4-9.5-8.5C.8 9.2 2.4 5.5 6 5.5c2 0 3.2 1.1 4 2.2.8-1.1 2-2.2 4-2.2 3.6 0 5.2 3.7 3.5 7C19 16.6 12 21 12 21z"/></svg></span><span class="n">2.8万</span></div>
+        <div class="railbtn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4V4z"/></svg></span><span class="n">1362</span></div>
+        <div class="railbtn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M5 5c6 0 10 4 10 10 0 2-1 4-3 4 0-6-4-10-10-10 0-2 1-4 3-4z"/></svg></span><span class="n">486</span></div>
+        <div class="railbtn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.2 6.8.8-5 4.6 1.3 6.7L12 17.8 5.9 20.3 7.2 13.6l-5-4.6 6.8-.8L12 2z"/></svg></span><span class="n">921</span></div>
+        <div class="railbtn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M14 9V5l7 7-7 7v-4C9 15 6 17 4 20c0-6 3-10 10-11z"/></svg></span><span class="n">分享</span></div>
+      </div>
+      <p class="tiny" style="margin-top:10px">失败：保持原态并 toast，不乐观锁死。</p>
+    </div>
+  </section>
+
+  <!-- ================= ⑦ 窄宽 ================= -->
+  <section class="sec">
+    <h2>⑦ 窄宽 540<em>长中文不逐字断、按钮不溢出、tab 可横向滚</em></h2>
+    <div class="narrow">
+      <div class="tabs">
+        <button class="tab">动态</button>
+        <button class="tab">观看历史</button>
+        <button class="tab on">稍后再看</button>
+        <button class="tab">收藏夹</button>
+        <button class="tab">关注分组</button>
+      </div>
+      <div class="grid">
+        <div class="gcell hover">
+          <div class="gcover"><span class="play"></span><span class="gdur">09:12</span><button class="gremove">移出</button></div>
+          <div class="gtitle">周末补番：这三部冷门动画值得一口气看完</div>
+          <div class="gfoot"><span class="up">@夜航船</span><span>10-18</span></div>
+        </div>
+        <div class="gcell">
+          <div class="gcover c2"><span class="play"></span><span class="gdur">16:40</span><button class="gremove">移出</button></div>
+          <div class="gtitle">把旧手机改成桌面时钟：完整改造记录</div>
+          <div class="gfoot"><span class="up">@纸飞机</span><span>10-17</span></div>
+        </div>
+      </div>
+      <div class="chips" style="margin-top:16px">
+        <button class="chip">分区榜</button>
+        <button class="chip on">全站热榜</button>
+        <button class="chip">香蕉榜</button>
+      </div>
+      <div class="rankrow">
+        <div class="rankno">1</div>
+        <div class="rankcard">
+          <div class="rankcover" style="width:120px;height:68px"></div>
+          <div class="rankinfo">
+            <div class="ranktitle">这可能是今年最舒服的转场合集</div>
+            <div class="rankmeta"><span>▶ 128.6万</span><span>10-18</span></div>
+          </div>
+        </div>
+        <div class="upcard"><div class="av"></div><div><div class="upname">@一只芸喵喵</div><div class="upmeta">粉丝 16.2万</div></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

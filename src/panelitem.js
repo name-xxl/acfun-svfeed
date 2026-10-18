@@ -36,6 +36,8 @@ var PANEL_PARSERS = {
   history: function (raw, it) {
     if (raw.resourceType !== 2 || !raw.videoId) return false;
     it.acId = Number(raw.resourceId) || 0;
+    // 删除写链用（0.9.279）：PC 历史条目自带 comboId；缺失则不挂删除键（下发不猜）。
+    it.comboId = raw.comboId != null && raw.comboId !== '' ? String(raw.comboId) : '';
     it.title = raw.title || raw.dougaVideoTitle || '';
     it.cover = coverUrl(raw.cover);
     it.progress = raw.playedSeconds > 0 ? Number(raw.playedSeconds) : null;
@@ -68,6 +70,28 @@ var PANEL_PARSERS = {
     // createTimeMillis，实测同稿比上传时刻晚 5.16 天），收藏列表接口不提供该值，故此处按上传
     // 时刻显示——差异来源已记入 docs §4.2，不做静默对齐（要拿发布时刻得每张卡各发一发详情请求）
     it.dateText = fmtDate(Number(raw.contentCreateTime));
+    return true;
+  },
+  // 稍后再看（0.9.279）：APP `waitingList` 的 list[] 条目 = RecommendFeedDouga（APP 视频卡）。
+  // 字段映射取自 jadx 模型（LaterListResponse / RecommendFeedDouga extends VideoDetailInfo）；
+  // **登录态样本未取到**，故只映射确定字段、缺省不伪造（标题/封面/作者/时长/播放数/时间）。
+  waiting: function (raw, it) {
+    var acId = Number(raw.dougaId || raw.contentId || raw.href) || 0;
+    if (!acId) return false;
+    it.acId = acId;
+    it.title = raw.title || raw.caption || raw.contentTitle || '';
+    var cs = raw.coverUrls || raw.img || [];
+    var c0 = Array.isArray(cs) ? cs[0] : cs;
+    if (c0 && typeof c0 === 'object') c0 = c0.url;
+    it.cover = coverUrl(raw.coverUrl || raw.contentImg || c0);
+    var u = raw.user || {};
+    it.up = upOf(u.userId != null ? u.userId : u.id, u.name || u.userName,
+      coverUrl(u.headUrl || u.userImg || u.head), u.isFollowing);
+    if (raw.playDuration) it.dur = String(raw.playDuration);
+    var v = raw.viewCount != null ? raw.viewCount : raw.displayPlayCount;
+    if (v != null) it.views = fmtWan(v);
+    var ct = Number(raw.contributeTime);
+    if (ct) it.dateText = relTime(ct);
     return true;
   },
   rank: function (raw, it) {

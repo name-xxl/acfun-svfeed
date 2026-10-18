@@ -427,6 +427,8 @@ export var CSS_TEMPLATE = ''
   + '.acsv-cinput-emot:hover,.acsv-cinput-img:hover{transform:scale(1.12);color:#fd4c5d}'
   + '.acsv-creplybtn,.acsv-cfwdbtn{cursor:pointer;color:#7a7f8a;font-size:12px;display:inline-flex;align-items:center;gap:3px}'
   + '.acsv-creplybtn:hover,.acsv-cfwdbtn:hover{color:#9fd0ff}'
+  + '.acsv-cdelbtn{cursor:pointer;color:#ff8a95;font-size:12px;display:inline-flex;align-items:center}'
+  + '.acsv-cdelbtn:hover{color:#ffb3ba}'
   // 评论版式（0.9.138 全语境统一「原生形态」——真机量值）：条目 18px 顶距、无内边距/圆角/hover
   //（扁平列表 + .acsv-chr 分割线）、头像 50、内容缩进 30；皮肤只差颜色（深色基础值 / .acsv-mp 浅色）。
   // 撤除登记：条目 hover 卡、头像悬停缩放在 0.9.138 随统一移除（原生形态无此交互）
@@ -950,6 +952,9 @@ export var CSS_TEMPLATE = ''
   + '.acsv-mdetail-x{position:absolute;top:16px;right:16px;z-index:2;border:none;background:rgba(255,255,255,.12);'
   + 'color:#fff;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1}'
   + '.acsv-mdetail-x:hover{background:rgba(255,255,255,.22)}'
+  + '.acsv-mdetail-more{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.12);color:#fff;'
+  + 'width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1}'
+  + '.acsv-mdetail-more:hover{background:rgba(255,255,255,.22)}'
   // 面板（单栏态基准；圆角 20 = XHS 实测）
   + '.acsv-mdetail-panel{position:relative;width:min(620px,94vw);max-height:min(84vh,760px);display:flex;flex-direction:column;'
   + 'background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);'
@@ -1608,6 +1613,8 @@ export var CSS_TEMPLATE = ''
   + '.acsv-mp .acsv-clike:hover{color:#666}'
   + '.acsv-mp .acsv-creplybtn,.acsv-mp .acsv-cfwdbtn{color:#999}'
   + '.acsv-mp .acsv-creplybtn:hover,.acsv-mp .acsv-cfwdbtn:hover{color:var(--acsv-accent)}'
+  + '.acsv-mp .acsv-cdelbtn{color:#d9364a}'
+  + '.acsv-mp .acsv-cdelbtn:hover{color:var(--acsv-accent)}'
   + '.acsv-mp .acsv-csub{background:#f7f7f7}'
   + '.acsv-mp .acsv-hot-divider{color:#999}'
   // 观感件浅色（0.9.134；头像框无肤色差异不做覆盖）

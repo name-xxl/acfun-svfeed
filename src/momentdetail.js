@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { el } from './ui.js';
+import { el, selfUid } from './ui.js';
 import { fmtWan } from './timefmt.js';
 import { root, releaseDrawer } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
@@ -11,6 +11,8 @@ import { openCommentsHost, closeCommentsHost, commentListClick } from './comment
 import { openImageViewer } from './imgview.js';
 import { openSharePanel } from './sharepanel.js';
 import { momentBarOf, momentShareItemOf } from './momentbar.js';
+import { deleteMoment } from './momentpost.js';
+import { openConfirmPop } from './pickpop.js';
 import { ensureEmotionMap } from './emoticon.js';
 import { testHook } from './dbg.js';
 
@@ -114,7 +116,7 @@ function panelSingle(pi, im0) {
 // pi = follow 契约条目（ct='moment'）；正文/计数用列表载荷——text 全文性已实测
 // （api-research §4.7：list 与 detail 逐字节相等），moment/detail 端点不接（其 moment 内
 // commentCount/bananaCount 实测不可信，计数只有 feed 顶层是准的）
-export function openMomentDetail(pi) {
+export function openMomentDetail(pi, opts) {
   closeMomentDetail(); // open 先 close（幂等双保险，overlayOpen 同款惯例）
   if (!root || !pi || pi.ct !== 'moment' || !pi.momentId) return;
 
@@ -163,6 +165,29 @@ export function openMomentDetail(pi) {
   }
   head.appendChild(nameEl);
   head.appendChild(el('span', 'acsv-gmom-time', pi.dateText || ''));
+  // 自己的动态：头部右侧「⋮」→ 确认 → 删除（0.9.279）。只在详情面板，列表卡面不加入口。
+  if (pi.momentId && pi.up && String(pi.up.id) === selfUid()) {
+    var more = el('button', 'acsv-mdetail-more', '⋮');
+    more.type = 'button';
+    more.title = '删除这条动态';
+    more.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      openConfirmPop(more, {
+        host: hostEl,
+        title: '删除这条动态？',
+        text: '删除后不可恢复，动态会从列表里消失。',
+        okLabel: '删除',
+        run: function () {
+          return deleteMoment(pi.momentId).then(function (r) { return !!(r && r.ok); });
+        },
+        done: function () {
+          closeMomentDetail();
+          if (opts && opts.onDeleted) opts.onDeleted(pi);
+        }
+      });
+    });
+    head.appendChild(more);
+  }
   hostEl.appendChild(head);
 
   // 可滚动体 = 评论管线的 list：正文 pin 在其首（管线清列表重挂，见 comments.resetList），

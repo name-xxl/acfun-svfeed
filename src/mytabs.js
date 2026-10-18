@@ -1,5 +1,6 @@
 // ---------- 我的页管理档（0.9.265 自 mypage.js 拆件：逐字搬迁，零行为漂移）----------
-// 观看历史档 + 管理 tab 壳 + 收藏夹档 + 关注分组档。mypage.js 只留资料头/动态/视图壳与注册；
+// 观看历史档（0.9.279 加单条删除/清空）+ 稍后再看档（0.9.279）+ 管理 tab 壳 + 收藏夹档 +
+// 关注分组档。mypage.js 只留资料头/动态/视图壳与注册；
 // 布局与接口契约的总说明见 mypage.js 文件头（两件同属我的视图）。
 import { CFG } from './cfg.js';
 import { el, selfUid, toast } from './ui.js';
@@ -10,6 +11,8 @@ import { createListTail } from './listtail.js'; // 尾部件单源（0.9.219：�
 import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259：历史档 + 管理档壳）
 import { imgInto } from './imgload.js';
 import { getGroups, listFollows, createGroup, renameGroup, removeGroup, unfollowUser } from './relationapi.js';
+import { listWaiting, cancelWaiting } from './watchlaterapi.js';
+import { deleteHistory, clearHistory } from './historyapi.js';
 import { openFollowGroupPop } from './grouppop.js';
 import { openConfirmPop } from './pickpop.js';
 import { folderList, folderAdd, folderRename, folderDelete, favRemove, favList } from './favapi.js';
@@ -69,6 +72,12 @@ function makeListCtx(rowsOf, loadFn, isDone) {
 //   ② earlySettle——0.9.236「在途守卫」的既有形状是**在陈旧守卫之前**结算（loading 与骨架
 //      都在守卫前收），与另三家的「守卫后结算」不同形，原样保留
 export function buildHistory(panel, scroller) {
+  var head = el('div', 'acsv-vchips acsv-histhead');
+  var clearBtn = el('button', 'acsv-vchip sm acsv-gdanger', '清空历史');
+  clearBtn.type = 'button';
+  clearBtn.style.display = 'none'; // 列表非空才显示（syncTail）
+  head.appendChild(clearBtn);
+  panel.appendChild(head);
   var list = rowList(panel, 'hist');
   var pageNo = 0;        // 页码（已落定页数；请求体 pageNo=pageNo+1，空态判据 pageNo===1）
   var allRows = [];      // 已加载面板条目（层内列表会话的条目源，0.9.173）
@@ -95,13 +104,13 @@ export function buildHistory(panel, scroller) {
       pageNo++;
       rows.forEach(function (pi) {
         allRows.push(pi);
-        list.appendChild(gridCardOf(pi, function () { return lctx.ctxOf(pi); }));
+        list.appendChild(cellOf(pi));
       });
       // 到底判定按**原始条数**（非筛除后条数）：契约层会滤掉非视频条目（番剧/无 videoId），
       // 「有效行 < pageSize」在筛除后恒真会把还有下一页的列表误判成到底（0.9.77 实锤：
       // mock 首页 20 原始 → 18 有效，按有效数判到底则第二页 4 条永远拉不到）
       var noMore = raws.length < CFG.view.pageSize;
-      if (!rows.length && info.firstPage) list.appendChild(el('div', 'acsv-vempty', '暂无观看记录'));
+      syncTail();
       return { noMore: noMore };
     },
     // 层内续拉回话（0.9.173）：成功给新增条目、失败给 null → 层里停住提示；两路都要回话
@@ -113,6 +122,146 @@ export function buildHistory(panel, scroller) {
     root: panel, scrollEl: scroller || panel, pad: CFG.view.me.scrollPad,
     backTopAt: CFG.view.me.backTopAt, onBottom: pg.load, onRetry: pg.load
   });
+
+  // 空态/清空键随列表长度同步（单条删完也要回到「暂无观看记录」）
+  function syncTail() {
+    var n = allRows.length;
+    clearBtn.style.display = n ? '' : 'none';
+    if (!n) {
+      if (!list.querySelector('.acsv-vempty')) list.appendChild(el('div', 'acsv-vempty', '暂无观看记录'));
+      tail.setStatus('');
+    } else {
+      var empty = list.querySelector('.acsv-vempty');
+      if (empty) empty.remove();
+    }
+  }
+
+  function cellOf(pi) {
+    var cell = el('div', 'acsv-favcell acsv-histcell');
+    cell.appendChild(gridCardOf(pi, function () { return lctx.ctxOf(pi); }));
+    if (pi.comboId) {
+      var acts = el('div', 'acsv-favacts acsv-hisacts');
+      var rm = el('button', 'acsv-vchip sm', '删除');
+      rm.type = 'button';
+      rm.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        ev.preventDefault();
+        openConfirmPop(rm, {
+          host: panel,
+          title: '删除这条观看记录？',
+          text: '只删除观看历史，不会取消收藏，也不影响稿件本身。',
+          okLabel: '删除',
+          run: function () { return deleteHistory(pi); },
+          done: function () {
+            var i = allRows.indexOf(pi);
+            if (i >= 0) allRows.splice(i, 1);
+            cell.remove();
+            syncTail();
+            toast('已删除观看记录');
+          }
+        });
+      });
+      acts.appendChild(rm);
+      cell.appendChild(acts);
+    }
+    return cell;
+  }
+
+  clearBtn.addEventListener('click', function () {
+    openConfirmPop(clearBtn, {
+      host: panel,
+      title: '清空全部观看历史？',
+      text: '共 ' + allRows.length + ' 条记录将被移除，操作不可恢复。',
+      okLabel: '清空',
+      run: clearHistory,
+      done: function () {
+        list.innerHTML = '';
+        allRows = [];
+        syncTail();
+        toast('已清空观看历史');
+      }
+    });
+  });
+
+  pg.load();
+}
+
+// ---- 稍后再看（0.9.279）：cursor 翻页；卡片复用网格卡，hover「移出」复用收藏夹 cell 动作壳 ----
+// 数据面见 watchlaterapi；条目规整见 panelitem.waiting。未登录不请求，直接出可读空态。
+export function buildWatchLater(panel, scroller) {
+  if (!selfUid()) {
+    panel.appendChild(el('div', 'acsv-vempty', '登录后才能查看稍后再看'));
+    return;
+  }
+  var list = rowList(panel, 'wl');
+  var allRows = [];
+  var pg = createPageLoader({
+    host: function () { return list; },
+    fetch: function (cursor) { return listWaiting(cursor); },
+    skeleton: function () { return skeleton(list); },
+    setStatus: function (text, busy) { tail.setStatus(text, busy); },
+    doneLabel: '已加载全部',
+    onPage: function (page, info) {
+      var raws = page.items || [];
+      var rows = [];
+      raws.forEach(function (raw) {
+        var pi = panelItem('waiting', raw);
+        if (pi) rows.push(pi);
+      });
+      var empty = list.querySelector('.acsv-vempty');
+      if (empty && rows.length) empty.remove();
+      rows.forEach(function (pi) {
+        allRows.push(pi);
+        list.appendChild(cellOf(pi));
+      });
+      if (!rows.length && info.firstPage) {
+        list.appendChild(el('div', 'acsv-vempty', '还没有稍后再看的内容'));
+      }
+      return { cursor: page.cursor, noMore: page.noMore };
+    },
+    onSettle: function () { lctx.flush(); }
+  });
+  var lctx = makeListCtx(function () { return allRows; }, pg.load, function () { return pg.done(); });
+  var tail = createListTail({
+    root: panel, scrollEl: scroller || panel, pad: CFG.view.me.scrollPad,
+    backTopAt: CFG.view.me.backTopAt, onBottom: pg.load, onRetry: pg.load
+  });
+  function cellOf(pi) {
+    var cell = el('div', 'acsv-favcell acsv-wlcell');
+    cell.appendChild(gridCardOf(pi, function () { return lctx.ctxOf(pi); }));
+    var acts = el('div', 'acsv-favacts acsv-wlacts');
+    var rm = el('button', 'acsv-vchip', '移出');
+    rm.type = 'button';
+    rm.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      ev.preventDefault();
+      if (cell._busy) return;
+      cell._busy = true;
+      cell.style.display = 'none'; // 乐观移除
+      cancelWaiting(pi).then(function (ok) {
+        cell._busy = false;
+        if (!ok) {
+          cell.style.display = '';
+          toast('移出失败（未登录或网络错误）');
+          return;
+        }
+        var i = allRows.indexOf(pi);
+        if (i >= 0) allRows.splice(i, 1);
+        cell.remove();
+        if (!allRows.length && !list.querySelector('.acsv-vempty')) {
+          list.appendChild(el('div', 'acsv-vempty', '还没有稍后再看的内容'));
+        }
+        toast('已移出稍后再看');
+      }, function () {
+        cell._busy = false;
+        cell.style.display = '';
+        toast('移出失败（未登录或网络错误）');
+      });
+    });
+    acts.appendChild(rm);
+    cell.appendChild(acts);
+    return cell;
+  }
   pg.load();
 }
 

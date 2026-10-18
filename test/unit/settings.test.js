@@ -69,6 +69,17 @@ test('SCHEMA 不变量：原生面板项（panel ∧ native）⊆ 面板项、�
   });
 });
 
+test('SCHEMA：guestRead 是非个性化推荐开关（0.9.278）', () => {
+  var it = findItem('guestRead');
+  assert.ok(it);
+  assert.equal(it.type, 'bool');
+  assert.equal(it.def, false);
+  assert.equal(it.panel, true);
+  assert.equal(it.native, undefined); // 原生页 IP 面板不显示浏览项
+  assert.equal(it.group, '隐私');
+  assert.equal(it.label, '非个性化推荐');
+});
+
 test('SCHEMA 不变量：legacy 只对内部/收编项声明，且键名非空', () => {
   SCHEMA.forEach(function (it) {
     if (it.legacy == null) return;

@@ -37,11 +37,12 @@
     var sh = shadowOf(host);
     rec('set-shadow-root', !!sh);
     if (!sh) return;
-    // 表驱动：九张卡（label 顺序 = schema 顺序：通用组 1 + 播放组 5 + 评论组 3；0.9.168 增 relSequential）
+    // 表驱动：十一张卡（label 顺序 = schema 顺序：通用组 2 + 播放组 5 + 评论组 3 + 隐私组 1）
     // 0.9.202：弹幕设置整组移出设置面板（改为底栏弹层）；0.9.245/246：评论组 +3（ipShow/ipKeep/devName）
+    // 0.9.278：隐私组 +1（guestRead 非个性化推荐）
     var labels = labelTexts(sh);
-    rec('set-row-count', sh.querySelectorAll('.set-row').length === 10, 'rows=' + labels.join('/'));
-    rec('set-labels', labels.join('|') === '自动检查更新|自动签到|弹幕默认开启|编码偏好|缓冲档位|快进步长（秒）|相关推荐按列表顺序续播|评论区显示 IP 属地|属地缓存保留|设备型号美化', labels.join('|'));
+    rec('set-row-count', sh.querySelectorAll('.set-row').length === 11, 'rows=' + labels.join('/'));
+    rec('set-labels', labels.join('|') === '自动检查更新|自动签到|弹幕默认开启|编码偏好|缓冲档位|快进步长（秒）|相关推荐按列表顺序续播|评论区显示 IP 属地|属地缓存保留|设备型号美化|非个性化推荐', labels.join('|'));
     // 面板必须真渲染（offsetParent 真值法：0.9.62 黑屏教训）
     var pnl = sh.querySelector('.set-panel');
     rec('set-panel-visible', !!(pnl && pnl.offsetParent !== null));
@@ -72,6 +73,19 @@
       return getComputedStyle(sw).backgroundColor === 'rgb(158, 158, 158)';
     }, 1200)), sw ? getComputedStyle(sw).backgroundColor : 'none');
     rec('set-ctl-dm-synced', !!(ctlDm && !ctlDm.classList.contains('on')), 'ctlDmOn=' + (ctlDm ? ctlDm.classList.contains('on') : 'no-btn'));
+    // 非个性化推荐（0.9.278）：默认关 → 点开（验持久化）→ 点关（验持久化）
+    var swGuest = swOf(sh, 6);
+    rec('set-guest-default', !!(swGuest && !swGuest.classList.contains('on')));
+    if (swGuest) swGuest.click();
+    rec('set-guest-on', !!(swGuest && swGuest.classList.contains('on')));
+    rec('set-guest-persist-on', !!(await waitFor(function () {
+      return ls('acsv.s.guestRead') === 'true';
+    }, 3000)), 'raw=' + ls('acsv.s.guestRead'));
+    if (swGuest) swGuest.click();
+    rec('set-guest-off', !!(swGuest && !swGuest.classList.contains('on')));
+    rec('set-guest-persist-off', !!(await waitFor(function () {
+      return ls('acsv.s.guestRead') === 'false';
+    }, 3000)), 'raw=' + ls('acsv.s.guestRead'));
     // Esc 关面板（overlay 栈 modal:true 白拿；input.js 零改）→ 关即 flush
     key('Escape');
     rec('set-closed-by-esc', !!(await waitFor(function () { return !q('.acsv-set-host'); }, 3000)));
