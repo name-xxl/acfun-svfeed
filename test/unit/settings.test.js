@@ -69,6 +69,18 @@ test('SCHEMA 不变量：原生面板项（panel ∧ native）⊆ 面板项、�
   });
 });
 
+test('SCHEMA：弹幕滑杆四键一律 text（0.9.280 病灶钉）——select 白名单会静默拒绝滑杆连续值', () => {
+  // 唯一写入方是底栏面板的连续滑杆（dmpanel sliderRow）：dmAlpha 写 '73' 这类任意整数、
+  // dmSize/dmSpeed 写 toFixed(2) 串（'1.13'）。0.9.201 曾以 select 入库 + 0.9.202 换滑杆入口，
+  // 白名单把连续值全数拒之门外 ⇒ 三杆从未生效（dmArea 当时就是 text 故独活）。
+  // 摘修复反跑：把任一键 type 改回 select，本断言转红。
+  ['dmAlpha', 'dmSize', 'dmSpeed', 'dmArea'].forEach(function (k) {
+    var it = findItem(k);
+    assert.ok(it, k + ' 缺席 SCHEMA');
+    assert.equal(it.type, 'text', k + ' 必须是 text（滑杆连续值；select 白名单会拒）');
+  });
+});
+
 test('SCHEMA：guestRead 是非个性化推荐开关（0.9.278）', () => {
   var it = findItem('guestRead');
   assert.ok(it);
@@ -215,6 +227,25 @@ test('setSetting：校验不过拒绝写入；合法值走防抖、flushSettings
   assert.equal(S.getSetting('seekStep'), 30);
   S.flushSettings();
   assert.equal(store['acsv.s.seekStep'], '30');
+});
+
+test('setSetting：弹幕滑杆连续值必须被接受且读回一致（0.9.280 病灶钉）', async () => {
+  // 0.9.202 面板滑杆实际会写的值形：任意整数串（dmAlpha）与 toFixed(2) 串（dmSize/dmSpeed）。
+  // select 时代三条 setSetting 全部返回 false（静默拒绝）⇒ 面板滑杆「不生效」。
+  // 摘修复反跑：type 改回 select，三条 assert.equal(S.setSetting(...), true) 全转红。
+  var S = await fresh();
+  reset();
+  assert.equal(S.setSetting('dmAlpha', '73'), true);
+  assert.equal(S.getSetting('dmAlpha'), '73');
+  assert.equal(S.setSetting('dmSize', '1.13'), true);
+  assert.equal(S.getSetting('dmSize'), '1.13');
+  assert.equal(S.setSetting('dmSpeed', '0.93'), true);
+  assert.equal(S.getSetting('dmSpeed'), '0.93');
+  // 面板「恢复默认」写的档位串同样合法（历史落盘值全是这类串，text 化后照常读回）
+  assert.equal(S.setSetting('dmAlpha', '100'), true);
+  assert.equal(S.setSetting('dmSize', '1'), true);
+  S.flushSettings();
+  assert.equal(store['acsv.s.dmAlpha'], '"100"', '落盘为 JSON 串');
 });
 
 test('onChange：变更即回调（含钳后值）；退订后不再触发；异常订阅方不阻断', async () => {

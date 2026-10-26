@@ -401,6 +401,32 @@ rec('dmpanel-reset-sw-off', (function () {
 rec('dmpanel-reset-clears-filter', !!(await waitFor(function () {
   return window.localStorage.getItem('acsv.s.dmFilter') === '""';
 }, 3000)), 'raw=' + window.localStorage.getItem('acsv.s.dmFilter'));
+// 0.9.280 滑杆生效钉：拖四杆到**非档位**连续值 → 落盘必须等于滑杆写值。0.9.201 三键以 select
+// 入库、0.9.202 换滑杆入口，options 白名单把连续值（'73'/'1.13'/'1.10'）在 setSetting 静默拒绝
+// ——面板照画新位置、设置从未变更 ⇒「不透明度/字体大小/弹幕速度」从未生效（dmArea 当时即
+// text 故独活，本组恒绿防回漂）。摘修复反跑：settings.js 三键 type 改回 select，三条转红。
+var sliderPins = [
+  [2, 'dmArea', 25 / 70, '55'],    // min30 max100 → v=55
+  [3, 'dmAlpha', 53 / 80, '73'],   // min20 max100 → v=73（刻意避开 20/40/60/80/100 档位点）
+  [4, 'dmSize', 28 / 55, '1.13'],  // min85 max140 → v=113 → encode (113/100).toFixed(2)
+  [5, 'dmSpeed', 0.5, '1.10']      // min60 max160 → v=110 → encode (110/100).toFixed(2)
+];
+for (var spi = 0; spi < sliderPins.length; spi++) {
+  await (async function (pin) {
+    var prow = dmp ? dmp.querySelectorAll('.acsv-dmprow')[pin[0]] : null;
+    var ptrack = prow && prow.querySelector('.acsv-dmptrack');
+    if (ptrack) {
+      var pr = ptrack.getBoundingClientRect();
+      ptrack.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true,
+        clientX: pr.left + pr.width * pin[2], clientY: pr.top + pr.height / 2, pointerId: 1 }));
+    }
+    rec('dmpanel-slider-' + pin[1], !!(await waitFor(function () {
+      try { return JSON.parse(window.localStorage.getItem('acsv.s.' + pin[1])) === pin[3]; }
+      catch (e) { return false; }
+    }, 3000)), pin[1] + ' raw=' + window.localStorage.getItem('acsv.s.' + pin[1])
+      + ' want=' + JSON.stringify(pin[3]));
+  })(sliderPins[spi]);
+}
 if (dmpBtn) dmpBtn.click(); // 再点齿轮收起：能收起即证明闭包还指着活节点
 rec('dmpanel-closes', !!(await waitFor(function () {
   var d = q('.acsv-slide[data-ovl="1"] .acsv-dmpanel');
