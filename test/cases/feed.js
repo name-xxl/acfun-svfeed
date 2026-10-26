@@ -66,6 +66,36 @@ rec('webfs-fills-viewport', (function () {
     + ' | scroller=' + Math.round(sr.left) + '..' + Math.round(sr.right)
     + ' | slide=' + Math.round(lr.left) + '..' + Math.round(lr.right);
 })());
+// 混合态（:fullscreen 有、acsv-cinema 无——0.9.281 实报「窗口全屏里点网页全屏退出」：
+// toggleWebFull 只翻类不退 OS 全屏）无头不可达（见文件头注），钉**注入样式表**里的让位
+// 归零规则在场且 left=0：顶栏阴影与搜索框随容器，规则缺失即复现「左侧 168px 无阴影」
+rec('fs-topbar-zero-rule', (function () {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    var rules;
+    try { rules = sheets[i].cssRules; } catch (e) { continue; } // 跨域样式表禁读，跳过
+    if (!rules) continue;
+    for (var j = 0; j < rules.length; j++) {
+      if (rules[j].selectorText === '#acsv-root:fullscreen .acsv-top') {
+        return rules[j].style.left === '0px';
+      }
+    }
+  }
+  return false;
+})(), (function () {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    var rules;
+    try { rules = sheets[i].cssRules; } catch (e) { continue; }
+    if (!rules) continue;
+    for (var j = 0; j < rules.length; j++) {
+      if (rules[j].selectorText === '#acsv-root:fullscreen .acsv-top') {
+        return 'found left=' + rules[j].style.left;
+      }
+    }
+  }
+  return 'rule not found';
+})());
 // 影院态下**站点滚动条必须被锁掉**：页面有滚动条时覆盖层仍须铺满（锁前 1265 / 锁后 1280 实测）
 rec('webfs-locks-page-scroll', (function () {
   var de = document.documentElement;

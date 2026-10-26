@@ -1038,6 +1038,10 @@ export var CSS_TEMPLATE = ''
   + '.acsv-scroller{margin-left:' + '{{dockW}}' + 'px}'
   + '#acsv-root:fullscreen .acsv-dock{display:none}'
   + '#acsv-root:fullscreen .acsv-scroller{margin-left:0}'
+  // 同族第三处（0.9.281 实报「窗口全屏里点网页全屏退出」）：:fullscreen 有、cinema 无的混合态
+  // （toggleWebFull 只翻类不退 OS 全屏）——dock/滚动区已归零，顶栏仍 left:dockW ⇒ 左侧 168px
+  // 无阴影（.acsv-top 自身就是那道渐变）、搜索框偏离视口中心。与上两行同口径归零
+  + '#acsv-root:fullscreen .acsv-top{left:0}'
   // 影院态（0.9.202）：左栏已隐，让位边距必须同步归零，否则左侧留一条黑（实报「网页全屏没铺满」）
   + '#acsv-root.acsv-cinema .acsv-scroller{margin-left:0}'
   // 同一个坑的第二处（0.9.208 实报「playlayer 的网页全屏没修复」）：**播放层舞台**把左缘让开 dock
