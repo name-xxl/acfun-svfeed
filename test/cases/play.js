@@ -655,6 +655,37 @@ rec('play-retry-playing', !!(await waitFor(function () {
 })());
 key('Escape');
 rec('play-miss-back', !!(await waitFor(function () { return location.hash === '#svfeed'; }, 8000)), location.hash);
+// 0.9.281 连播/倍速跨会话记忆（底栏机制统一，用户裁决）：点击双写设置层；退出竖刷再深链
+// 重进（remount → resetForMount 从设置层刷初值）后控件态恢复——「记忆」钉用户可见行为。
+// 摘修复反跑：撤 controls 两处 setSetting 或 resetForMount 两行，persist/restored 即转红。
+window.__ACSV_MOCK_DIRECT__ = { '488900': { date: window.__ACSV_PUBLISH_DATE__ } }; // 尾段 retry 改过直挂缝，进层前恢复（开局同款）
+location.hash = 'svfeed/play/a/488900';
+rec('mem-layer-open', !!(await waitFor(function () {
+  return !!q('.acsv-slide[data-ovl="1"] .acsv-cauto');
+}, 12000)), location.hash);
+var memAuto = q('.acsv-slide[data-ovl="1"] .acsv-cauto');
+if (memAuto) memAuto.click(); // 连播开（层内默认关）
+rec('mem-loop-persist', !!(await waitFor(function () {
+  return window.localStorage.getItem('acsv.s.loop') === 'true';
+}, 3000)), 'raw=' + window.localStorage.getItem('acsv.s.loop'));
+// 倍速：底栏多个 buildMenu 同类名（.acsv-cq），按文案找倍速键；菜单在 wrap 内取（防拿捏别的开着的菜单），选 1.5x（CFG.rate[2]）
+var memRateBtn = null;
+Array.prototype.forEach.call(document.querySelectorAll('.acsv-slide[data-ovl="1"] .acsv-cq'), function (b) {
+  if (/^倍速 /.test(b.textContent)) memRateBtn = b;
+});
+if (memRateBtn) memRateBtn.click();
+var memMenu = memRateBtn ? memRateBtn.parentNode.querySelector('.acsv-qmenu') : null;
+var memItem = null;
+if (memMenu) Array.prototype.forEach.call(memMenu.querySelectorAll('.acsv-qitem'), function (c) {
+  if (c.textContent === '1.5x') memItem = c;
+});
+if (memItem) memItem.click();
+rec('mem-rate-persist', !!(await waitFor(function () {
+  try { return JSON.parse(window.localStorage.getItem('acsv.s.rate')) === 1.5; } catch (e) { return false; }
+}, 3000)), 'raw=' + window.localStorage.getItem('acsv.s.rate'));
+// 「恢复」半边不在此钉：pb 是模块单例，hash 退出重进只是 unmount/mount、pb 残留旧值 ⇒
+// 断言恒绿测不出目标行为（首跑反跑实证）。跨会话恢复由独立场景 mem-controls 钉——
+// harness 在 bundle 求值前预置存储，新鲜加载即「上次会话」语义（watch-ledger-replay 范式）。
   };
   // ---- play-cold ----
   C['play-cold'] = async function (h) {
@@ -919,5 +950,52 @@ if (rateBtn) {
     window.__ACSV_MOCK_FORM__['app/addWaiting'] = function () { return { result: -401 }; };
     btn.click();
     rec('ctlw-fail-rollback', !!(await waitFor(function () { return !btn.classList.contains('on'); }, 3000)));
+  };
+  // ---- mem-controls ----
+  // 0.9.281 连播/倍速跨会话记忆：harness 在 bundle 求值前预置 acsv.s.loop=true / acsv.s.rate=1.5
+  //（见 harness.html 场景预处理）——页面新鲜加载即「上次会话退出」语义，mount 的 resetForMount
+  // 从设置层刷 pb 初值，控件态与播放行为必须恢复。摘修复反跑：撤 resetForMount 两行即转红
+  //（控件回落默认 关/1.0x、playbackRate=1、loop=true）。pb 是模块单例、hash 重进不刷新 ⇒
+  // 「跨会话」只能靠新鲜加载钉（watch-ledger-replay 同款范式）；play-deep 尾部只钉点击落盘半边
+  C['mem-controls'] = async function (h) {
+    var rec = h.rec, q = h.q, waitFor = h.waitFor;
+rec('mem-layer-open', !!(await waitFor(function () {
+  return !!q('.acsv-slide[data-ovl="1"] .acsv-cauto');
+}, 25000)), location.hash);
+rec('mem-loop-restored', (function () {
+  var b = q('.acsv-slide[data-ovl="1"] .acsv-cauto');
+  return !!b && b.classList.contains('on');
+})(), (function () {
+  var b = q('.acsv-slide[data-ovl="1"] .acsv-cauto');
+  return b ? b.className : 'no-btn';
+})());
+rec('mem-rate-restored', (function () {
+  var b = null;
+  Array.prototype.forEach.call(document.querySelectorAll('.acsv-slide[data-ovl="1"] .acsv-cq'), function (x) {
+    if (/^倍速 /.test(x.textContent)) b = x;
+  });
+  return !!b && b.textContent === '倍速 1.5x';
+})(), (function () {
+  var b = null;
+  Array.prototype.forEach.call(document.querySelectorAll('.acsv-slide[data-ovl="1"] .acsv-cq'), function (x) {
+    if (/^倍速 /.test(x.textContent)) b = x;
+  });
+  return b ? b.textContent : 'no-btn';
+})());
+// 记忆落到播放行为：initVideo/onPlaying 按 pb.playRate 同步速率；连播开 ⇒ 层内（walk）不循环
+rec('mem-rate-applied', !!(await waitFor(function () {
+  var v = q('.acsv-slide[data-ovl="1"] video');
+  return !!v && Math.abs(v.playbackRate - 1.5) < 0.01;
+}, 15000)), (function () {
+  var v = q('.acsv-slide[data-ovl="1"] video');
+  return v ? 'rate=' + v.playbackRate : 'no-video';
+})());
+rec('mem-loop-applied', (function () {
+  var v = q('.acsv-slide[data-ovl="1"] video');
+  return !!v && v.loop === false;
+})(), (function () {
+  var v = q('.acsv-slide[data-ovl="1"] video');
+  return v ? 'loop=' + v.loop : 'no-video';
+})());
   };
 })();

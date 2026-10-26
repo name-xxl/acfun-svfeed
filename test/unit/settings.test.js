@@ -81,6 +81,23 @@ test('SCHEMA：弹幕滑杆四键一律 text（0.9.280 病灶钉）——select 
   });
 });
 
+test('SCHEMA：连播/倍速记忆两键（0.9.281 底栏机制统一）', () => {
+  // 与 sound/vol 同款收编：panel:false（底栏唯一入口）、运行态在 pb、设置层只管持久。
+  // rate 的 min/max 对齐 CFG.rate 档位极值（0.5/3.0），越界由 clampNumber 钳——勿造第二份守卫
+  var loop = findItem('loop');
+  assert.ok(loop, 'loop 缺席 SCHEMA');
+  assert.equal(loop.type, 'bool');
+  assert.equal(loop.def, false);
+  assert.equal(loop.panel, false);
+  var rate = findItem('rate');
+  assert.ok(rate, 'rate 缺席 SCHEMA');
+  assert.equal(rate.type, 'number');
+  assert.equal(rate.def, 1);
+  assert.equal(rate.min, 0.5);
+  assert.equal(rate.max, 3);
+  assert.equal(rate.panel, false);
+});
+
 test('SCHEMA：guestRead 是非个性化推荐开关（0.9.278）', () => {
   var it = findItem('guestRead');
   assert.ok(it);

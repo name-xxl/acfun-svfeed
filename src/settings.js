@@ -61,6 +61,11 @@ export var SCHEMA = [
     options: [{ v: 'sv' }, { v: 'home' }] },          // 源记忆（控制栏 seg 是入口）
   { key: 'quality', type: 'text', def: '', legacy: CFG.lsQuality }, // 清晰度 label（动态值，见 §7 实测）
   { key: 'sound', type: 'bool', def: false, legacy: CFG.lsSound },   // 静音记忆（播放器手势是入口）
+  // 连播/倍速跨会话记忆（0.9.281，用户裁决「底栏机制统一」）：与 sound/vol 同款收编——
+  // 运行态仍在 playback.js 的 pb 上，mount 时 resetForMount 从设置层刷初值、控制栏写入点双写。
+  // 长按 2x 快进（seekHold）是临时态，不落盘。panel:false——底栏是唯一入口。
+  { key: 'loop', type: 'bool', def: false, panel: false, group: '播放', label: '连播' },
+  { key: 'rate', type: 'number', def: 1, min: 0.5, max: 3, panel: false, group: '播放', label: '倍速' },
   // ---- 弹幕设置（0.9.201）：照 A 站原生「弹幕设置」tab 的条目（§10.12 真机 dump）。
   // 面板是**表驱动**——加进 SCHEMA 即在设置面板「弹幕」分组下出现（两皮肤同源，不另造弹窗）。
   // **放 SCHEMA 末尾**：分组渲染按连续同名分组，插在中间会把「播放」组劈成两段。

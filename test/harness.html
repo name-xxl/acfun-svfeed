@@ -130,6 +130,14 @@
   if (CASE === 'dev-name-off') {
     try { localStorage.setItem('acsv.s.devName', 'false'); } catch (e) { }
   }
+  // 连播/倍速记忆场景（0.9.281）：bundle 前预置两键——新鲜加载即「上次会话退出」语义，
+  // resetForMount 从设置层刷 pb 初值，控件态与播放行为必须恢复（场景体 mem-controls）
+  if (CASE === 'mem-controls') {
+    try {
+      localStorage.setItem('acsv.s.loop', 'true');
+      localStorage.setItem('acsv.s.rate', '1.5');
+    } catch (e) { }
+  }
   // 深链的 hash 必须在本 bundle 求值前写好——boot 的 toggle 在 document-end 读 location.hash。
   // 其余场景一律是 bundle 加载后 300ms 才设 hash（见文件尾），那种时序走不到「冷启动深链」路径。
   // 目标 id 都取样例里**非首条**（首条会被随机流首条蒙对，断言失去意义）
@@ -140,11 +148,12 @@
     'deeplink-switch': '#svfeed/v/11053531', // 源记忆=home 下也必须落到小视频
     'deeplink-miss': '#svfeed/a/99999999999', // 两个 id 空间都查不到：必须错误盒，不许随机流
     'deeplink-race': '#svfeed/a/48867213',    // 深链竞态（0.9.256）：A 回包挂起期切 B，A 迟到不得覆盖
-    'play-cold': '#svfeed/play/a/488900'      // 播放层直达（0.9.79）：分享链接冷启动不预热竖刷
+    'play-cold': '#svfeed/play/a/488900',     // 播放层直达（0.9.79）：分享链接冷启动不预热竖刷
+    'mem-controls': '#svfeed/play/a/488900'   // 连播/倍速记忆（0.9.281）：冷进层 + 预置偏好
   };
   if (DEEP_HASH[CASE]) {
     location.hash = DEEP_HASH[CASE];
-    if (CASE === 'play-cold') {
+    if (CASE === 'play-cold' || CASE === 'mem-controls') {
       // 播放层直达：解析链同 view-my（douga/info 全量桩 + 直挂缝——webm 套 hls.js 会死在解析上）
       window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
       window.__ACSV_MOCK_DIRECT__ = { '488900': 1 };

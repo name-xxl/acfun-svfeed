@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.281-debug
+// @version      0.9.282-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 96876;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.281-debug" : "",
+          ver: true ? "0.9.282-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -675,7 +675,7 @@ window.__ACSV_CSS_LEN__ = 96876;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.281-debug" : "";
+  var APP_VERSION = true ? "0.9.282-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -1683,6 +1683,11 @@ window.__ACSV_CSS_LEN__ = 96876;
     // 清晰度 label（动态值，见 §7 实测）
     { key: "sound", type: "bool", def: false, legacy: CFG.lsSound },
     // 静音记忆（播放器手势是入口）
+    // 连播/倍速跨会话记忆（0.9.281，用户裁决「底栏机制统一」）：与 sound/vol 同款收编——
+    // 运行态仍在 playback.js 的 pb 上，mount 时 resetForMount 从设置层刷初值、控制栏写入点双写。
+    // 长按 2x 快进（seekHold）是临时态，不落盘。panel:false——底栏是唯一入口。
+    { key: "loop", type: "bool", def: false, panel: false, group: "播放", label: "连播" },
+    { key: "rate", type: "number", def: 1, min: 0.5, max: 3, panel: false, group: "播放", label: "倍速" },
     // ---- 弹幕设置（0.9.201）：照 A 站原生「弹幕设置」tab 的条目（§10.12 真机 dump）。
     // 面板是**表驱动**——加进 SCHEMA 即在设置面板「弹幕」分组下出现（两皮肤同源，不另造弹窗）。
     // **放 SCHEMA 末尾**：分组渲染按连续同名分组，插在中间会把「播放」组劈成两段。
@@ -8122,7 +8127,7 @@ window.__ACSV_CSS_LEN__ = 96876;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.281-debug" : "",
+      version: true ? "0.9.282-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -10664,9 +10669,9 @@ window.__ACSV_CSS_LEN__ = 96876;
     firstGestureSeen: false,
     // 是否已发生过用户手势（浏览器自动播放策略：首次交互才能出声）
     autoplayNext: false,
-    // 连播开关（关闭=单条循环）
+    // 连播开关（关闭=单条循环；0.9.281 起跨会话记忆，resetForMount 刷初值）
     playRate: 1,
-    // 全局倍速
+    // 全局倍速（0.9.281 起跨会话记忆，resetForMount 刷初值）
     seekHold: { active: false, timer: null, prevRate: 1 },
     // →键 长按 2x 快进状态
     soundHintShown: false,
@@ -10689,6 +10694,8 @@ window.__ACSV_CSS_LEN__ = 96876;
     var v = Number(getSetting("vol"));
     pb.volume = v >= 0 && v <= 1 ? v : 1;
     if (pb.volume === 0) pb.soundOn = false;
+    pb.autoplayNext = !!getSetting("loop");
+    pb.playRate = Number(getSetting("rate")) || 1;
   }
   function setVolume(v) {
     v = Math.min(1, Math.max(0, Number(v) || 0));
@@ -12173,6 +12180,7 @@ window.__ACSV_CSS_LEN__ = 96876;
     autoBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
       pb.autoplayNext = !pb.autoplayNext;
+      setSetting("loop", pb.autoplayNext);
       autoBtn.classList.toggle("on", pb.autoplayNext);
       if (root) {
         var vs = root.querySelectorAll("video");
@@ -12194,6 +12202,7 @@ window.__ACSV_CSS_LEN__ = 96876;
       },
       function(i) {
         pb.playRate = CFG.rate[i];
+        setSetting("rate", pb.playRate);
         applyRate();
         toast("播放速度：" + pb.playRate + "x");
       },
@@ -15052,7 +15061,7 @@ window.__ACSV_CSS_LEN__ = 96876;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.281-debug" : "");
+    return normVer(true ? "0.9.282-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -16751,6 +16760,7 @@ window.__ACSV_CSS_LEN__ = 96876;
         video.volume = pb.volume;
         video.muted = !pb.soundOn || pb.volume === 0;
         applyLoop(session2.slide, video);
+        video.defaultPlaybackRate = pb.playRate;
         video.playbackRate = pb.seekHold.active ? 2 : pb.playRate;
       },
       // 播放层开着时"当前条"是层内那条（哨兵 idx）：session 的自动起播判定按它比对
@@ -18657,7 +18667,7 @@ window.__ACSV_CSS_LEN__ = 96876;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.281-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.282-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

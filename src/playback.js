@@ -11,8 +11,8 @@ export var pb = {
   soundOn: false,        // 当前是否出声（localStorage 恢复，mount 时 resetForMount 刷新）
   volume: 1,             // 音量真值 0~1（0.9.199；0 即静音，与 soundOn 联动）
   firstGestureSeen: false, // 是否已发生过用户手势（浏览器自动播放策略：首次交互才能出声）
-  autoplayNext: false,   // 连播开关（关闭=单条循环）
-  playRate: 1,           // 全局倍速
+  autoplayNext: false,   // 连播开关（关闭=单条循环；0.9.281 起跨会话记忆，resetForMount 刷初值）
+  playRate: 1,           // 全局倍速（0.9.281 起跨会话记忆，resetForMount 刷初值）
   seekHold: { active: false, timer: null, prevRate: 1 }, // →键 长按 2x 快进状态
   soundHintShown: false, // 静音提示只弹一次
   soundHintDismissed: false
@@ -34,7 +34,9 @@ export function applyRate() {
   Array.prototype.forEach.call(root.querySelectorAll('video'), function (v) { v.playbackRate = pb.playRate; });
 }
 
-// mount 时复位会话内手势/提示状态；静音偏好从设置层取（0.9.89 收编：老键 acsv-sound-on 首读收养）
+// mount 时复位会话内手势/提示状态；静音偏好从设置层取（0.9.89 收编：老键 acsv-sound-on 首读收养）。
+// 连播/倍速同款（0.9.281 收编）：初值从设置层刷（值域守卫单源在 settings 层的 clampNumber/
+// validateValue——此处不再造第二份校验），写入点在 controls（连播键/倍速菜单）双写
 export function resetForMount() {
   pb.firstGestureSeen = false;
   pb.soundHintShown = false;
@@ -42,6 +44,8 @@ export function resetForMount() {
   var v = Number(getSetting('vol'));
   pb.volume = (v >= 0 && v <= 1) ? v : 1;
   if (pb.volume === 0) pb.soundOn = false; // 音量为 0 即静音（两态联动，避免"开着声却没声"）
+  pb.autoplayNext = !!getSetting('loop');
+  pb.playRate = Number(getSetting('rate')) || 1;
 }
 
 // 音量（0.9.199）：0~1 真值 + 与静音态的联动；控制栏竖条滑杆/静音键共用。

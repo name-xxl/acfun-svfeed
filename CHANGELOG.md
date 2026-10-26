@@ -5,6 +5,33 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.282（2026-10-26）· 连播/倍速跨会话记忆（底栏机制统一）+ 新会话倍速继承修复
+
+**由头**（用户裁决）：底栏的记忆机制应当统一——弹幕开关/静音/音量/编码/缓冲都跨会话记忆，
+唯独连播、倍速是纯会话内存态（刷新即回「关/1.0x」），不合用户直觉。收编进同一偏好层。
+
+- **SCHEMA**：新增 `loop`（bool，def false）与 `rate`（number 0.5~3，def 1）两键（播放组、
+  panel:false——底栏是唯一入口，照 sound/vol 先例）。值域守卫单源在设置层（clampNumber），
+  消费侧不造第二份校验。
+- **写入**（controls 两处双写）：连播键点击、倍速菜单选中各补 `setSetting`；**长按 → 键的
+  临时 2x 快进（seekHold）有意不落盘**——它是瞬时态，松手恢复全局倍速。
+- **读取**（playback.resetForMount）：mount 时从设置层刷 `pb.autoplayNext`/`pb.playRate`
+  初值，与 sound/vol 同款位置；顺带修**既有缺陷**——`initVideo` 只设 `playbackRate`，
+  而 `_attachSource+video.load()` 的媒体装载算法会把 playbackRate 重置回
+  `defaultPlaybackRate`（恒 1）⇒「新建会话继承全局倍速」从未真正生效（换条/刷新后回 1x）。
+  现同设 `defaultPlaybackRate = pb.playRate`，load 重置后落回的正是它；seekHold 的临时 2x
+  只进 playbackRate，不污染恢复基准。
+- **测试**（摘修复反跑双向验证）：单测 **450/450**（+1：SCHEMA 两键形状钉）；harness
+  **89/89**（play-deep +3 连播/倍速点击落盘 `mem-loop-persist`/`mem-rate-persist`；
+  新场景 **mem-controls** 8 断言——bundle 求值前预置 `acsv.s.loop=true`/`rate=1.5`，
+  新鲜加载即「上次会话退出」语义，断言控件态恢复 + 播放行为生效
+  （`playbackRate=1.5`/层内不循环））。反跑：撤 resetForMount 两行 → mem-controls 四条
+  恢复断言全红（控件回落默认/速率 1/循环开），恢复后全绿。**反跑还揪出首版断言设计缺陷**：
+  pb 是模块单例，hash 退出重进只是 unmount/mount、pb 残留旧值 ⇒「跨会话恢复」只能靠
+  新鲜加载钉（watch-ledger-replay 范式），已在 play-deep 尾部注释在案。
+  lint/tsc/check 全绿。
+- **文档**：README 使用表连播/倍速两行补「跨会话记忆」；模块表 playback/sessionhooks 行同步。
+
 ### 0.9.281（2026-10-26）· 窗口全屏里退网页全屏的混合态——顶栏阴影左缺、搜索框偏心
 
 **病灶**（用户实报「全屏状态顶部阴影左侧不完整」+ 复现路径「点击窗口全屏后，关闭网页全屏就

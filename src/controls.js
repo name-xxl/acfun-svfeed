@@ -175,6 +175,7 @@ export function buildControls(slide, idx, item) {
   autoBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
     pb.autoplayNext = !pb.autoplayNext;
+    setSetting('loop', pb.autoplayNext); // 跨会话记忆（0.9.281 收编，与静音/音量同层）
     autoBtn.classList.toggle('on', pb.autoplayNext);
     if (root) {
       // 全舞台遍历（0.9.183）：层内 slide 挂在视图体下、不在 scroller 里——旧写法只扫
@@ -199,6 +200,7 @@ export function buildControls(slide, idx, item) {
     },
     function (i) {
       pb.playRate = CFG.rate[i];
+      setSetting('rate', pb.playRate); // 跨会话记忆（0.9.281 收编；长按 2x 快进是临时态不落盘）
       applyRate(); // 全舞台（含层内）——只扫 scroller 时层内倍速菜单是死键（0.9.235）
       toast('播放速度：' + pb.playRate + 'x');
     },

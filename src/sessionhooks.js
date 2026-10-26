@@ -50,6 +50,11 @@ export function createSessionHooks(env) {
       video.volume = pb.volume;                          // 0.9.199 音量真值（0 = 静音态）
       video.muted = !pb.soundOn || pb.volume === 0;
       applyLoop(session.slide, video); // loop 落点单源（0.9.183，playback.applyLoop）
+      // defaultPlaybackRate 必须同设（0.9.281）：_attachSource+video.load() 的媒体装载算法
+      // 会把 playbackRate 重置回 defaultPlaybackRate——只设 playbackRate 的话倍速（含
+      // 0.9.281 起的跨会话记忆）在新会话上永远落回 1x（mem-rate-applied 断言抓出的既有缺陷）。
+      // seekHold 的临时 2x 只进 playbackRate，不污染恢复基准
+      video.defaultPlaybackRate = pb.playRate;
       video.playbackRate = pb.seekHold.active ? 2 : pb.playRate;
     },
     // 播放层开着时"当前条"是层内那条（哨兵 idx）：session 的自动起播判定按它比对

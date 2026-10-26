@@ -77,6 +77,7 @@ const HARNESS_CASES = [
   { name: 'view-search' }, // 0.9.72 搜索视图冒烟（搜索页 SSR HTML mock → 抖音式结果卡，debug 构建）
   { name: 'play-deep' }, // 0.9.74 播放层深链冒烟（直挂缝/坏形态/未命中错误盒/清晰度隔离，debug 构建）
   { name: 'play-cold' }, // 0.9.79 播放层直达不预热竖刷（冷启动 hash + MY_MOCK 桩，debug 构建）
+  { name: 'mem-controls' }, // 0.9.281 连播/倍速跨会话记忆（bundle 前预置偏好，新鲜加载控件/播放行为须恢复）
   { name: 'hls-lazy' }, // 0.9.164 hls.js 懒 eval（加载后未定义 → ensureHls 编译内嵌串，debug 构建）
   { name: 'hls-sealed' }, // 0.9.180 封原生回落：hls.js 不可得 → error 态（video 不得落 m3u8 直链；debug 构建）
   { name: 'hls-probe' }, // 0.9.181 装载取数修 world/UMD 双坑：敌意 AMD/CJS 标识符下仍须取回类（debug 构建）

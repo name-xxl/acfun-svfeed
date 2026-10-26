@@ -41,8 +41,8 @@
 | 标题下的简介（0.9.196） | 播放层的简介默认**折叠 3 行**，点「展开/收起」就地展开（无简介不占位；解析失败静默不留白） |
 | 控制栏「弹幕设置」（0.9.202） | 齿轮键展开**两 tab 弹层**：**弹幕设置**（防挡字幕 / 合并重复弹幕 / 显示区域 / 不透明度 / 字体大小 / 弹幕速度 / 恢复默认设置）｜**屏蔽设置**（按类型屏蔽：顶部·底部·滚动·彩色·角色·高级弹幕；过滤弹幕关键词）。**改任何一项即时生效**，不必等换条 |
 | 控制栏 音量 / 画中画 / 两级全屏 | **音量**＝竖条滑杆（0 即静音，与静音键两态联动、记忆）；**画中画**＝浏览器原生画中画（换条/退出自动关）；**网页全屏**＝隐自身界面、视频铺满浏览器窗口；**窗口全屏**＝在其上再进系统全屏 |
-| 连播开关 | 开：播完自动下一条；关（默认）：单条循环 |
-| 倍速菜单 | 展开菜单选 0.5x / 1.0x / 1.5x / 2.0x / **3.0x**（0.9.194；按钮实时显示当前倍速） |
+| 连播开关 | 开：播完自动下一条；关（默认）：单条循环（**0.9.282 起跨会话记忆**，与静音/编码等底栏偏好同层） |
+| 倍速菜单 | 展开菜单选 0.5x / 1.0x / 1.5x / 2.0x / **3.0x**（0.9.194；按钮实时显示当前倍速；**0.9.282 起跨会话记忆**——长按快进的临时 2x 不记忆） |
 | 评论按钮 / C 键 | 展开右侧评论抽屉：真实评论列表（头像、名字、嵌套回复），头像和昵称可点击进入用户主页；切视频自动刷新，**滚到底自动续页**（0.9.141 撤除「加载更多评论」按钮，改哨兵 + IntersectionObserver）。**互动按源门控**：推荐模式可用底部输入栏**发表评论/回复/表情/插配图**、评论可**点赞**；小视频模式纯浏览（输入栏隐藏、点赞仅展示）。Esc 关闭顺序：大图查看器 → 抽屉 → 退出。**UBB 富文本**：表情、`[img]` 配图、`[color=#hex]` 着色均正常渲染；配图可**点击看大图**（点任意处/Esc 关闭）；**评论正文可划选复制**（右键原生复制）。**展开时视频画面等比缩放到剩余空间**（不裁画面，弹幕随画面），界面控件不缩放——底栏钉底收窄宽度，侧栏左移、顶栏整体收窄到抽屉左缘（右组贴边、居中搜索框回剩余区中心）；竖屏等满高可容的画面只平移不缩放（保持原始大小居中于剩余区域），窗口过窄（剩余空间 <50% 视口）时改纯覆盖：视频原尺寸继续播，抽屉近乎全遮，关闭即恢复。**同一套避让在榜单/我的/搜索视图同样生效**（0.9.73）：视图正文右缘收窄到抽屉左缘、网格自然重排，中窄视口退化为纯覆盖 |
 | 右侧红心 | **真实点赞**：登录 A 站后直接生效（自动换取 api_st 令牌调互动接口）；未登录回退本地状态并提示 |
 | 头像角标 +/✓ | **关注 / 分组**（0.9.142）：点开=「选择分组 / 更改分组」弹层（单选 + 行内新建；已关注态含「取消关注」），未关注默认勾「未分组」≈原一键关注（需登录） |
@@ -401,11 +401,11 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `advdm.js` | 高级弹幕模型核·零依赖纯函数（0.9.204）：`parseAdvanced`（ext JSON → 模型）/`easeProgress`（CSS 关键字 + cubic-bezier 牛顿迭代+二分兜底，非法值回落 linear）/`interpolateModel`（多段帧插值）/`drawModel`（九宫格锚点/多行/描边/影子）。真机口径见 docs/api-research.md §10.13（本地留档） |
 | `danmaku.js` | 弹幕编排：列表拉取/缓存、开关记忆、绑定/解绑 slide、发送输入条；**高级弹幕取池**（0.9.204：pollByPosition 跟播放头 20s 窗口增量拉——list 链路一条高级弹幕都不返回） |
 | `player.js` | 播放器编排层：renderWindow 窗口扫描（0.9.165 起窗外 belt 格 slide 换等高占位壳、数据水位同拍）、setActive、顶栏源高亮同步、挂载/卸载、观看历史触发；0.9.79 播放层直达不预热竖刷（feedDeferred/maybeStartFeed）。**0.9.271**：SESSION_HOOKS/画幅判断迁 `sessionhooks.js`；**0.9.272**：落地/吸附/scrollToIndex 迁 `feedland.js`（本件只留装配与调用点，522 行） |
-| `sessionhooks.js` | 会话回接钩子（0.9.271 自 player.js 拆出，逐字搬迁）：`initVideo`/`currentIdx`/`play`/`onResolved`/`qualitySwitch`/`refreshItem`/`reattach`/`onAttachPlay`/`onPlaying`/`onPause`/`onMeta`/`onTime`/`onEnded`/`onDisposed` + `videoStageVisible` + `syncPanFit`；session.js 只认状态机，控件条/弹幕/连播/上报/挂源在此回接。仅由 player 经 `createSessionHooks({ scrollToIndex })` 装配，不 import player；归类 SKIP_B（组合根/编排层） |
+| `sessionhooks.js` | 会话回接钩子（0.9.271 自 player.js 拆出，逐字搬迁）：`initVideo`/`currentIdx`/`play`/`onResolved`/`qualitySwitch`/`refreshItem`/`reattach`/`onAttachPlay`/`onPlaying`/`onPause`/`onMeta`/`onTime`/`onEnded`/`onDisposed` + `videoStageVisible` + `syncPanFit`；session.js 只认状态机，控件条/弹幕/连播/上报/挂源在此回接。initVideo 同设 defaultPlaybackRate（0.9.282：video.load() 的媒体装载算法会把 playbackRate 重置回 defaultPlaybackRate，只设 playbackRate 的话新会话倍速永远落回 1x）。仅由 player 经 `createSessionHooks({ scrollToIndex })` 装配，不 import player；归类 SKIP_B（组合根/编排层） |
 | `feedland.js` | 舞台落地/吸附（0.9.272 自 player.js 拆出，逐字搬迁）：issue #1 两条防线——`landAt`/`landWhenVisible`/`scrollToIndex`（瞬时落位+8 帧 settle，防 auto 撕 smooth 停在半途）与 `snapWatchTick`/`start/stopSnapWatch`（600ms 采样，静止且不在吸附点 → 按手势方向补齐，频控 2s）。舞台/仓库/渲染回调经 `createLandKit(env)` 注入，不 import player；归类 PLAY。现有 `land-near` 钉 `land.stuck`/`land.heal`/`land.trunc`/`land-heal-on-snap` |
 | `session.js` | 播放会话：video 生命周期/懒解析等待/hls 实例与锁档/错误恢复链（换 CDN→重解析→重挂）/HealthMonitor（冻结/慢放检测与恢复阶梯），dispose 一次拆净 |
 | `attach.js` | 重挂统一入口 attachVideo + switchQuality；slide._xxx 与 dataset 投影的跨模块契约总表（唯一登记点） |
-| `playback.js` | 播放/声音原语与手势：播放/暂停/静音手势合并实现、_userPaused 暂停意图、幽灵音频清扫 |
+| `playback.js` | 播放/声音原语与手势：播放/暂停/静音手势合并实现、_userPaused 暂停意图、幽灵音频清扫；连播/倍速跨会话记忆（0.9.282 收编 loop/rate 两键——resetForMount 从设置层刷 pb 初值，写入点在 controls 双写；长按 2x 是临时态不落盘） |
 | `controls.js` | 控制栏：进度条（拖动/时间气泡）、清晰度/编码/缓冲菜单（buildMenu）、连播/倍速/静音/全屏、前向邻位重建；**0.9.267 弹幕设置面板拆至 dmpanel.js**；**0.9.279 底栏时钟（稍后再看）**——倍速之后、仅图标、on 态沿用 `.acsv-cbtn.on` 的 accent 红，仅 home |
 | `dmpanel.js` | 弹幕设置面板（0.9.267 自 controls.js 拆出，纯搬迁）：齿轮入口展开的两 tab——弹幕设置（防挡字幕/合并重复开关 + 显示区域/不透明度/字体大小/弹幕速度滑杆 + 恢复默认）与屏蔽设置（六类按类型屏蔽 + 关键词过滤）；写设置即时生效并唤当前层 refresh()。只产面板 DOM/交互（消费 ui/settings），不碰播放器/控制栏状态；消费方 controls.js |
 | `rail.js` | 右侧操作栏（赞/蕉/藏/评/分享/关注）：乐观更新+失败回滚、原生图标 CSS mask 换色、计数回填钩子、分享面板入口 |
