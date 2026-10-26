@@ -160,6 +160,11 @@ export function commentItemOf(c, subMap, opts) {
     like.appendChild(el('span', null, fmtWan(c.likeCount)));
     meta.appendChild(like);
   }
+  // 属性组（0.9.286，预览 comment-meta-polish 定稿 A+C）：设备+IP 归组 .acsv-cattr——组是 meta
+  // 行的一个整件：宽屏同线、放不下整组落第二行、极窄（行内宿主长设备名）才组内断设备/IP 两线，
+  // 互动键永不与来源件混排；C 档 = 组 11px 弱色（cssraw）。空组零足迹（无设备且属地未回时不渲染
+  // 任何可见件——ipTag 无值不上签的纪律不变）
+  var attr = el('span', 'acsv-cattr');
   // 设备「来自 x」（0.9.134）：deviceModel 真机双源在册，链官方 APP 落点（plaza 同款；根+子都显）
   if (c.deviceModel) {
     var from = el('span', 'acsv-cfrom');
@@ -172,11 +177,13 @@ export function commentItemOf(c, subMap, opts) {
     // 未收录兜底原文、href 与结构不动、命中映射才挂点击切换）
     if (opts.devTag) opts.devTag(fa, c.deviceModel);
     from.appendChild(fa);
-    meta.appendChild(from);
+    attr.appendChild(from);
   }
   // IP 属地标签（0.9.245，Web-IP 吸收批次①）：接线口经管线 opts.ipTag 注入（kit 不 import 特性
-  // 模块——纪律同 mode/sourceId/stype；逻辑全在 iploc：命中同步上屏、未命中排队回填、无值不渲染）
-  if (opts.ipTag) opts.ipTag(meta, c.userId);
+  // 模块——纪律同 mode/sourceId/stype；逻辑全在 iploc：命中同步上屏、未命中排队回填、无值不渲染）。
+  // 0.9.286 落点从 meta 行改为属性组——tagInto 首参即落签容器，IO 背引用（_acsvIpUid）随之挂组上
+  if (opts.ipTag) opts.ipTag(attr, c.userId);
+  meta.appendChild(attr);
   body.appendChild(meta);
   var subs = normalizeSubs(subMap, c.commentId);
   var subBox = null;
@@ -212,13 +219,35 @@ export function commentItemOf(c, subMap, opts) {
   return item;
 }
 
-// 楼中楼展开：comment/sublist 分页拉取，就地追加渲染（网页版交互）
+// 楼中楼展开 + 收起（0.9.286，预览 comment-meta-polish 定稿）：comment/sublist 分页拉取，
+// 就地追加渲染（网页版交互）；收起是**独立灰键** .acsv-cfold——首次成功展开即挂（分页中途即可收），
+// 点击整块移除回初始态（收起键一并自摘、展开键若已自摘则放回），再点重新拉取（不走缓存）。
+// 展开键保持单语义（查看 → 继续展开（剩 N 条）），拉完自摘、只剩灰收起键；代次门闸丢弃收起后的
+// 在飞回包（防收起后旧页追加上屏）。
 // opts（0.9.133 注入）：{ mode, sourceId, stype }——sourceId/stype 原读全局 commentState 改注入
 function expandSubComments(body, c, subBox, opts) {
   // 文案（0.9.138 全语境统一原生措辞）
   var more = el('button', 'acsv-cmore', '共 ' + c.subCommentCount + ' 条回复, 点击查看');
   var pcursor = '';
   var loaded = subBox ? subBox.querySelectorAll('.acsv-citem').length : 0;
+  var fold = null;
+  var gen = 0;
+  function ensureFold() {
+    if (fold) return;
+    fold = el('button', 'acsv-cfold', '收起');
+    fold.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      gen++;
+      more._busy = false;
+      if (subBox) { subBox.remove(); subBox = null; }
+      loaded = 0;
+      pcursor = '';
+      more.textContent = '共 ' + c.subCommentCount + ' 条回复, 点击查看';
+      if (!more.isConnected) body.insertBefore(more, fold);
+      if (fold) { fold.remove(); fold = null; }
+    });
+    body.appendChild(fold);
+  }
   function appendSubs(arr) {
     if (!arr.length) return;
     if (!subBox) { subBox = el('div', 'acsv-csub'); body.insertBefore(subBox, more); }
@@ -228,20 +257,24 @@ function expandSubComments(body, c, subBox, opts) {
     ev.stopPropagation();
     if (more._busy) return;
     more._busy = true;
+    var my = gen;
     more.textContent = '展开中…';
     request(CFG.api.commentSub + '?sourceId=' + opts.sourceId
       + '&sourceType=' + opts.stype
       + '&rootCommentId=' + c.commentId + '&pcursor=' + pcursor + '&count=' + CFG.comments.subCount, 'GET')
       .then(function (j) {
         more._busy = false;
+        if (my !== gen) return; // 收起后的过期回包：整包丢弃（不上屏、不改状态）
         if (!j || j.result !== 0) { more.textContent = '展开失败，点击重试'; return; }
         appendSubs(j.subComments || []);
         loaded += (j.subComments || []).length;
         pcursor = j.pcursor;
+        ensureFold();
         if (!pcursor || pcursor === 'no_more' || loaded >= (c.subCommentCount || 0)) more.remove();
         else more.textContent = '继续展开（剩 ' + ((c.subCommentCount || 0) - loaded) + ' 条）';
       }, function () {
         more._busy = false;
+        if (my !== gen) return;
         more.textContent = '展开失败，点击重试';
       });
   });

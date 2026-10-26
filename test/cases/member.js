@@ -12,7 +12,14 @@
   C['member-plaza'] = async function (h) {
     var rec = h.rec, q = h.q, waitFor = h.waitFor, wait = h.wait, TEST = h.TEST;
     // 定向桩（view-square 同款处置：走 __ACSV_MOCK_FORM__ 而非内置 __ACSV_MOCK__）
+    var subCalls = 0; // 楼中楼收起件链路计数（0.9.286 断言用：第一页留 pcursor 造分页中途态）
     window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
+      'comment/sublist': function () {
+        subCalls++;
+        return subCalls === 1
+          ? { result: 0, subComments: [{ commentId: 'mp1-2', userId: 43, userName: '楼中楼乙', headUrl: '', content: '第一页追加', postDate: '1分钟前', likeCount: 0, isLiked: false }], pcursor: '1' }
+          : { result: 0, subComments: [{ commentId: 'mp1-3', userId: 44, userName: '楼中楼丙', headUrl: '', content: '第二页追加', postDate: '1分钟前', likeCount: 0, isLiked: false }], pcursor: 'no_more' };
+      },
       'comment/list': function () {
         // 0.9.135 原生形态版式断言用：postDate（并入名字行）、subCommentCount 3 > 已载 1（展开按钮
         // 文案「共 3 条回复, 点击查看」）、子评论名字加粗/头像 30 的 CSS 语境
@@ -164,6 +171,37 @@
     // UP 标不渲染（0.9.137；真机核对：原生评论组件无 UP 标识——isUp:true 样本也不该出标）
     rec('mp-cmt-no-up', !(mpBox && mpBox.querySelector('.acsv-cname .up'))
       && !(mpName && /UP/.test(mpName.textContent)), mpName ? mpName.textContent.trim().slice(0, 20) : 'none');
+    // 楼中楼收起件（0.9.286，预览 comment-meta-polish 定稿）：独立灰键首次展开即挂、分页中途
+    // 即可收、收起整块移除回初始（展开键放回）、重拉到完展开键自摘仅剩灰收起键。
+    // 摘修复反跑：还原 expandSubComments 的 ensureFold/collapse 即转红
+    var mpMore0 = mpBox && mpBox.querySelector('.acsv-cmore');
+    rec('mp-cmt-fold-present', !!mpMore0 && /共 3 条回复, 点击查看/.test(mpMore0.textContent),
+      mpMore0 ? mpMore0.textContent : 'none');
+    if (mpMore0) mpMore0.click();
+    await waitFor(function () { return mpBox.querySelector('.acsv-cfold'); }, 8000);
+    rec('mp-cmt-fold-mid', (function () {
+      var more = mpBox.querySelector('.acsv-cmore'), fold = mpBox.querySelector('.acsv-cfold');
+      return !!more && /继续展开（剩 1 条）/.test(more.textContent) && !!fold
+        && mpBox.querySelectorAll('.acsv-csub .acsv-citem').length === 2;
+    })());
+    mpBox.querySelector('.acsv-cfold').click();
+    rec('mp-cmt-fold-collapse', (function () {
+      var more = mpBox.querySelector('.acsv-cmore'), fold = mpBox.querySelector('.acsv-cfold');
+      return !!more && /共 3 条回复, 点击查看/.test(more.textContent) && !fold
+        && !mpBox.querySelector('.acsv-csub');
+    })());
+    mpBox.querySelector('.acsv-cmore').click();
+    await waitFor(function () { return !mpBox.querySelector('.acsv-cmore'); }, 8000);
+    rec('mp-cmt-fold-full', (function () {
+      var fold = mpBox.querySelector('.acsv-cfold');
+      // 重拉不走缓存：收起后再展开只含新拉的页（内联首屏子评论不回并）——1 页 1 条即拉完自摘
+      return !!fold && mpBox.querySelectorAll('.acsv-csub .acsv-citem').length === 1;
+    })());
+    mpBox.querySelector('.acsv-cfold').click();
+    rec('mp-cmt-fold-reset', (function () {
+      var more = mpBox.querySelector('.acsv-cmore'), fold = mpBox.querySelector('.acsv-cfold');
+      return !!more && !fold && !mpBox.querySelector('.acsv-csub');
+    })());
     if (acts[1]) acts[1].click();
     await wait(250);
     rec('mp-cmts-close', !mRow.querySelector('.acsv-frow-cmts'));

@@ -95,10 +95,14 @@
     rec('iph-tag', !!(await waitFor(function () { return item1.querySelector('.acsv-cip'); }, 8000)));
     rec('iph-same-node', !!(item1.isConnected && item1.querySelector('.acsv-cip')
       && item1.querySelector('.acsv-cip').textContent === '广东'));
-    // 落位：meta 行末尾（预览 ① 定稿——无设备件时排在转发之后）
-    rec('iph-meta-last', (function () {
-      var meta = item1.querySelector('.acsv-cmeta'), tag = meta && meta.querySelector('.acsv-cip');
-      return !!(meta && tag && meta.lastElementChild === tag);
+    // 落位（0.9.286 属性组收口，预览 comment-meta-polish 定稿）：meta 直系末件=属性组
+    // .acsv-cattr、标签长在组内（此前钉「标签=meta 末件」随收口改钉包裹关系；摘修复反跑：
+    // ipTag 落点改回 meta 直挂即转红）
+    rec('iph-meta-attr', (function () {
+      var meta = item1.querySelector('.acsv-cmeta');
+      var attr = meta && meta.lastElementChild;
+      var tag = meta && meta.querySelector('.acsv-cip');
+      return !!(attr && attr.classList.contains('acsv-cattr') && tag && attr.contains(tag));
     })());
     // tooltip 三行（Web-IP 文案同款）
     rec('iph-tip', (function () {

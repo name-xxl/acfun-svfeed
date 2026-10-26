@@ -90,6 +90,15 @@
       var sub = roots[2] && roots[2].querySelector('.acsv-csub .acsv-cfrom a');
       return sub ? sub.textContent : 'no-sub';
     })());
+    // 属性组收口（0.9.286，预览 comment-meta-polish 定稿 A+C）：设备链接长在 .acsv-cattr 组内、
+    // 组是 meta 直系末件（楼中楼同构——subOpts 透传同组；摘修复反跑：设备件改回 meta 直挂即转红）
+    rec('dname-attr-wrap', (function () {
+      var m = roots[0] && roots[0].querySelector('.acsv-cmeta');
+      var attr = null;
+      [].forEach.call((m && m.children) || [], function (ch) { if (ch.classList.contains('acsv-cattr')) attr = ch; });
+      var from = m && m.querySelector('.acsv-cfrom');
+      return !!(attr && from && attr.contains(from) && m.lastElementChild === attr);
+    })());
     await wait(200); // 属地链路静默收尾（不干扰本场景断言）
   };
 
