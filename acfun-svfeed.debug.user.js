@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.282-debug
+// @version      0.9.283-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 96876;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.282-debug" : "",
+          ver: true ? "0.9.283-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -675,7 +675,7 @@ window.__ACSV_CSS_LEN__ = 96876;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.282-debug" : "";
+  var APP_VERSION = true ? "0.9.283-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -8127,7 +8127,7 @@ window.__ACSV_CSS_LEN__ = 96876;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.282-debug" : "",
+      version: true ? "0.9.283-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -12053,6 +12053,15 @@ window.__ACSV_CSS_LEN__ = 96876;
     var c = activeDmContext();
     applyDmState(c.slide, c.item);
   });
+  function refreshPlaybackBtns() {
+    if (!root) return;
+    Array.prototype.forEach.call(root.querySelectorAll(".acsv-cauto"), function(b) {
+      b.classList.toggle("on", pb.autoplayNext);
+    });
+    Array.prototype.forEach.call(root.querySelectorAll(".acsv-qwrap"), function(w) {
+      if (w.refreshLabel) w.refreshLabel();
+    });
+  }
   function showControls(slide) {
     if (slide.dataset.ctl !== "1") slide.dataset.ctl = "1";
     clearTimeout(slide._ctlTimer);
@@ -12181,7 +12190,7 @@ window.__ACSV_CSS_LEN__ = 96876;
       ev.stopPropagation();
       pb.autoplayNext = !pb.autoplayNext;
       setSetting("loop", pb.autoplayNext);
-      autoBtn.classList.toggle("on", pb.autoplayNext);
+      refreshPlaybackBtns();
       if (root) {
         var vs = root.querySelectorAll("video");
         Array.prototype.forEach.call(vs, function(v) {
@@ -12204,6 +12213,7 @@ window.__ACSV_CSS_LEN__ = 96876;
         pb.playRate = CFG.rate[i];
         setSetting("rate", pb.playRate);
         applyRate();
+        refreshPlaybackBtns();
         toast("播放速度：" + pb.playRate + "x");
       },
       "切换播放速度"
@@ -12579,6 +12589,9 @@ window.__ACSV_CSS_LEN__ = 96876;
       return typeof title === "function" ? title() : title;
     };
     btn.textContent = labelText();
+    if (typeof title === "function") wrap.refreshLabel = function() {
+      btn.textContent = labelText();
+    };
     var menuLbl = tip || (typeof title === "function" ? "" : title);
     if (menuLbl) a11y(btn, menuLbl);
     var menu = el("div", "acsv-qmenu");
@@ -15061,7 +15074,7 @@ window.__ACSV_CSS_LEN__ = 96876;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.282-debug" : "");
+    return normVer(true ? "0.9.283-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -18667,7 +18680,7 @@ window.__ACSV_CSS_LEN__ = 96876;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.282-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.283-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

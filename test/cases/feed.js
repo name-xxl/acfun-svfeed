@@ -127,6 +127,49 @@ rec('webfs-esc-exits', (function () {
 // 影院退出**不解锁**（我们的 UI 还挂着，覆盖层仍须铺满）——解锁点只在根拆除时
 rec('webfs-lock-kept-after-exit', document.documentElement.classList.contains('acsv-scroll-lock'),
   'lockClass=' + document.documentElement.classList.contains('acsv-scroll-lock'));
+// 0.9.283 倍速/连播控件态跨 slide 同步：slide 控制栏在**预渲染时**构建（win back/fwd=1，
+// cur=1 时 slide(2) 已建、按钮文案=当时 pb 快照 '1.0x'），写入点只刷当前条的话滑到
+// 预渲染条就「显示 1.0x、播放 2.0x」——0.9.282 修好播放侧继承后此不一致裸露（此前被
+// 「换条回 1x」掩盖）。摘修复反跑：撤 controls 两处 refreshPlaybackBtns 调用即转红
+await (async function () {
+  var s1 = slide(1);
+  var rb = null;
+  if (s1) Array.prototype.forEach.call(s1.querySelectorAll('.acsv-cq'), function (b) {
+    if (/^倍速 /.test(b.textContent)) rb = b;
+  });
+  rb ? rb.click() : rec('rate-sync-setup', false, 'no-rate-btn');
+  var item = null;
+  if (rb) Array.prototype.forEach.call(rb.parentNode.querySelectorAll('.acsv-qmenu .acsv-qitem'), function (c) {
+    if (c.textContent === '2.0x') item = c;
+  });
+  if (item) item.click();
+  rec('rate-sync-setup', !!item && rb.textContent === '倍速 2.0x', rb ? rb.textContent : 'no-btn');
+  var ab = s1 && s1.querySelector('.acsv-cauto');
+  if (ab) ab.click(); // 连播开
+  key('ArrowDown'); // 滑到预渲染的 slide(2)：按钮必须显示新值，video 按 2x 挂
+  rec('rate-sync-next', !!(await waitFor(function () {
+    var s2 = slide(2);
+    var b2 = null;
+    if (s2) Array.prototype.forEach.call(s2.querySelectorAll('.acsv-cq'), function (x) {
+      if (/^倍速 /.test(x.textContent)) b2 = x;
+    });
+    var a2 = s2 && s2.querySelector('.acsv-cauto');
+    var v2 = s2 && s2.querySelector('video');
+    return !!b2 && b2.textContent === '倍速 2.0x' && !!a2 && a2.classList.contains('on')
+      && !!v2 && Math.abs(v2.playbackRate - 2) < 0.01;
+  }, 8000)), (function () {
+    var s2 = slide(2);
+    var b2 = null;
+    if (s2) Array.prototype.forEach.call(s2.querySelectorAll('.acsv-cq'), function (x) {
+      if (/^倍速 /.test(x.textContent)) b2 = x;
+    });
+    var a2 = s2 && s2.querySelector('.acsv-cauto');
+    var v2 = s2 && s2.querySelector('video');
+    return 'rate=' + (b2 ? b2.textContent : 'no-btn')
+      + ' loop=' + (a2 ? a2.classList.contains('on') : 'no-btn')
+      + ' vRate=' + (v2 ? v2.playbackRate : 'no-video');
+  })());
+}());
 key('Escape');
 rec('esc-exits', !!(await waitFor(function () { return !document.getElementById('acsv-root'); }, 5000)));
 // 根拆除＝解锁：把 html 还给站点（否则站页再也滚不动）

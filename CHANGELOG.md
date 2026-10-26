@@ -5,6 +5,24 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.283（2026-10-26）· 倍速/连播控件态跨 slide 同步——预渲染条的按钮快照漂移
+
+**病灶**（用户实报）：改底栏倍速后下滑到第二条，**按钮文案显示旧倍速，播放速度却正确继承**——
+显示与实际不一致。根因：slide 的控制栏在**预渲染时**一次性构建（slide.js appendChild
+buildControls），倍速按钮文案/连播 on 态是**构建时的 pb 快照**（win back/fwd=1，滑到第 2 条时
+它的控制栏早在首屏就建好了）；写入点只刷当前条的按钮，预渲染条永不跟随。0.9.282 修好播放侧
+继承（defaultPlaybackRate）后此不一致裸露——此前被「换条回 1x」的旧缺陷掩盖（按钮显示 1.0x、
+播放也 1x，一致地错）；连播 on 态是同款既有漂移，一并收。
+
+- **修法**：controls 新增 `refreshPlaybackBtns()`（照 refreshFullBtns 体例全舞台扫）——连播键
+  按 pb 刷 on 态、倍速 wrap 调 `refreshLabel` 刷文案；`buildMenu` 对**动态 title** 挂
+  `wrap.refreshLabel` 外部刷新缝（编码/缓冲是静态串不挂）。两处写入点（连播点击/倍速选中）
+  调用，预渲染条与层内条一并同步。
+- **测试**（摘修复反跑双向验证）：smoke 场景 +2（`rate-sync-setup` 当前条改 2.0x + 连播开；
+  `rate-sync-next` 滑到预渲染 slide(2) 断言按钮文案 '倍速 2.0x' + 连播 on + video 2x）。
+  反跑：撤两处 refreshPlaybackBtns 调用 → `rate-sync-next` 红（失败信息正是病灶形态
+  'rate=倍速 1.0x'），恢复后全绿。单测 450/450、harness 89/89、lint/tsc/check 全绿。
+
 ### 0.9.282（2026-10-26）· 连播/倍速跨会话记忆（底栏机制统一）+ 新会话倍速继承修复
 
 **由头**（用户裁决）：底栏的记忆机制应当统一——弹幕开关/静音/音量/编码/缓冲都跨会话记忆，

@@ -40,6 +40,21 @@ onChange('dmDefault', function () {
   applyDmState(c.slide, c.item);
 });
 
+// 连播/倍速控件态跨 slide 同步（0.9.283）：slide 的控制栏在**预渲染时**构建（slide.js 一次性
+// appendChild），倍速文案/连播 on 态是构建时的 pb 快照——写入点只刷当前条的话，滑到预渲染条
+// 就「显示 1.0x、播放 2.0x」（0.9.282 修好播放侧继承后此不一致裸露，此前被「换条回 1x」掩盖；
+// 连播 on 态是同款既有漂移）。写入点全舞台扫一遍按 pb 刷（refreshFullBtns 体例）。
+// 倍速文案的刷新缝挂在 buildMenu 的 wrap 上（动态 title 才有，编码/缓冲是静态串不挂）
+function refreshPlaybackBtns() {
+  if (!root) return;
+  Array.prototype.forEach.call(root.querySelectorAll('.acsv-cauto'), function (b) {
+    b.classList.toggle('on', pb.autoplayNext);
+  });
+  Array.prototype.forEach.call(root.querySelectorAll('.acsv-qwrap'), function (w) {
+    if (w.refreshLabel) w.refreshLabel();
+  });
+}
+
 export function showControls(slide) {
   if (slide.dataset.ctl !== '1') slide.dataset.ctl = '1'; // mousemove 高频：避免重复写 DOM 属性
   clearTimeout(slide._ctlTimer);
@@ -176,7 +191,7 @@ export function buildControls(slide, idx, item) {
     ev.stopPropagation();
     pb.autoplayNext = !pb.autoplayNext;
     setSetting('loop', pb.autoplayNext); // 跨会话记忆（0.9.281 收编，与静音/音量同层）
-    autoBtn.classList.toggle('on', pb.autoplayNext);
+    refreshPlaybackBtns(); // 预渲染条的 on 态同步（0.9.283；本条也在扫描内，幂等）
     if (root) {
       // 全舞台遍历（0.9.183）：层内 slide 挂在视图体下、不在 scroller 里——旧写法只扫
       // scroller，层内视频 loop 不随开关切换（漂移）；统一走 applyLoop（层内 single
@@ -202,6 +217,7 @@ export function buildControls(slide, idx, item) {
       pb.playRate = CFG.rate[i];
       setSetting('rate', pb.playRate); // 跨会话记忆（0.9.281 收编；长按 2x 快进是临时态不落盘）
       applyRate(); // 全舞台（含层内）——只扫 scroller 时层内倍速菜单是死键（0.9.235）
+      refreshPlaybackBtns(); // 预渲染条的按钮文案同步（0.9.283）
       toast('播放速度：' + pb.playRate + 'x');
     },
     '切换播放速度'
@@ -591,6 +607,9 @@ function buildMenu(title, getEntries, onPick, tip) {
   var btn = el('button', 'acsv-cbtn acsv-cq');
   var labelText = function () { return typeof title === 'function' ? title() : title; };
   btn.textContent = labelText();
+  // 动态 title 的外部刷新缝（0.9.283）：预渲染条上的按钮文案是构建时快照，写入点经
+  // refreshPlaybackBtns 全舞台调它。静态 title（编码/缓冲）不挂——刷了也是同值
+  if (typeof title === 'function') wrap.refreshLabel = function () { btn.textContent = labelText(); };
   var menuLbl = tip || (typeof title === 'function' ? '' : title);
   if (menuLbl) a11y(btn, menuLbl);
   var menu = el('div', 'acsv-qmenu');
