@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { getSetting } from './settings.js';
+import { getSetting, onChange, SCHEMA } from './settings.js';
 import { stat, set, testHook } from './dbg.js';
 import { interpolateModel, drawModel, parseAdvanced } from './advdm.js';
 
@@ -463,6 +463,19 @@ function createLayer(slide, video) {
 
 // 当前窗口内所有存活图层（切 slide / 退出竖刷页时统一停）
 var layers = [];
+
+// 弹幕组设置订阅（0.9.285 偏好记忆单链）：改任何 dm* 键 → 全部存活图层重排（setItems
+// 会重读设置，§readSettings）。原 dmpanel 逐写点手搓 apply()（「写完设置要记得捅一下播放器」
+// 的病灶形态）退役；组键清单与恢复默认（0.9.284）同源派生——新增弹幕设置键自动进订阅，
+// 不必记得改这里。图层未装填时 refresh 安全（setItems 的 list||[] 守卫）
+function refreshAllLayers() {
+  for (var i = 0; i < layers.length; i++) {
+    try { layers[i].refresh(); } catch (e) { /* best-effort: render */ }
+  }
+}
+SCHEMA.forEach(function (it) {
+  if (it.group === '弹幕') onChange(it.key, refreshAllLayers);
+});
 
 // 布局突变广播（0.9.237）：评论抽屉开合派发 acsv-layout-shift（零 import 边的跨模块提示）；
 // 窗口 resize 直接挂。只装一次（首个图层创建时），图层表为空时空转

@@ -8,12 +8,10 @@ import { getSetting, SCHEMA, setSetting } from './settings.js';
 // 入口＝底栏「弹幕设置」键（原生 bfq_dmsz 齿轮气泡图标）；面板挂 **slide**（不像控制栏那样随闲置隐藏）。
 // 两个 tab 照原生：**弹幕设置**（防挡字幕/合并重复 开关 + 显示区域/不透明度/字体大小/弹幕速度 滑杆 +
 // 恢复默认设置）与 **屏蔽设置**（按类型屏蔽 + 关键词过滤）。
-// 任一改动即时生效：写设置（防抖落盘）+ 让当前层 refresh()（dmcanvas 用最近入参重排，不等换条）。
+// 任一改动即时生效（0.9.285 单链化）：写设置（防抖落盘）后图层重排由 dmcanvas 的弹幕组
+// 订阅（refreshAllLayers）接管——面板只管自己的控件态绘制，不再手搓「捅播放器」那一步。
 export function buildDmPanel(slide) {
   var box = el('div', 'acsv-dmpanel');
-  function apply() {
-    if (slide && slide._dmLayer && slide._dmLayer.refresh) slide._dmLayer.refresh();
-  }
   function swRow(label, key) {
     var r = el('div', 'acsv-dmprow');
     r.appendChild(el('label', null, label));
@@ -23,7 +21,7 @@ export function buildDmPanel(slide) {
     sw.addEventListener('click', function (ev) {
       ev.stopPropagation();
       setSetting(key, !getSetting(key));
-      sync(); apply();
+      sync();
     });
     r.appendChild(sw);
     return r;
@@ -50,7 +48,7 @@ export function buildDmPanel(slide) {
     function setTo(ev) {
       var v = Math.round(min + ratioAt(ev) * (max - min));
       setSetting(key, encode(v));
-      paint(v); apply();
+      paint(v);
     }
     var dragging = false;
     track.addEventListener('pointerdown', function (ev) {
@@ -95,8 +93,7 @@ export function buildDmPanel(slide) {
     SCHEMA.forEach(function (it) {
       if (it.group === '弹幕') setSetting(it.key, it.def);
     });
-    refreshDmPanel(box); // 面板自身重绘（滑杆/开关回到默认）
-    apply();
+    refreshDmPanel(box); // 面板自身重绘（滑杆/开关回到默认）；图层重排走 dmcanvas 订阅
   });
   bodySet.appendChild(reset);
   box.appendChild(bodySet);
@@ -112,7 +109,6 @@ export function buildDmPanel(slide) {
     var i = parts.indexOf(k);
     if (i >= 0) parts.splice(i, 1); else parts.push(k);
     setSetting('dmBlock', parts.join(' '));
-    apply();
   }
   // 六类与原生一致（§10.12）；判据字段：mode / color / roleId / adv（0.9.204 补齐后两类）
   [['top', '顶部弹幕'], ['bottom', '底部弹幕'], ['scroll', '滚动弹幕'], ['color', '彩色弹幕'],
@@ -133,7 +129,7 @@ export function buildDmPanel(slide) {
   fi.placeholder = '如：剧透, 前排';
   fi.value = String(getSetting('dmFilter') || '');
   fi.addEventListener('click', function (ev) { ev.stopPropagation(); });
-  fi.addEventListener('input', function () { setSetting('dmFilter', fi.value); apply(); });
+  fi.addEventListener('input', function () { setSetting('dmFilter', fi.value); });
   bodyBlk.appendChild(fi);
   box.appendChild(bodyBlk);
 

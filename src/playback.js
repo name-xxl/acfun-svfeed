@@ -2,18 +2,22 @@ import { ICONS } from './styles.js';
 import { el, videoOf } from './ui.js';
 import { root, scroller, slideAt, videoTarget, isOvlSlide, ovlNoNext } from './state.js';
 import { FeedStore } from './feedstore.js';
-import { getSetting, setSetting } from './settings.js';
+import { getSetting, setSetting, onChange } from './settings.js';
 
 // ---------- 播放态与声音原语 ----------
 // 播放相关全局状态收拢在 pb 一个对象里（原 player.js 顶部散落的一批模块变量）：
-// 划动/键盘/控制栏/hooks 都读写它，跨模块传值不再依赖 player.js 闭包
+// 划动/键盘/控制栏/hooks 都读写它，跨模块传值不再依赖 player.js 闭包。
+// 四个记忆字段（soundOn/volume/autoplayNext/playRate）是 settings 层的**运行态缓存**，
+// 唯一真源在设置层（0.9.285 偏好记忆单链）：写入只走 setSetting，同步/生效/刷图标全挂
+// 本件底部 watchPref 订阅捆绑；**禁止本件之外直写**（test/check-pref.mjs 棘轮），唯一豁免
+// 是 seekHold 的临时 2x（不落盘的瞬时态，写点也在本件）
 export var pb = {
-  soundOn: false,        // 当前是否出声（localStorage 恢复，mount 时 resetForMount 刷新）
-  volume: 1,             // 音量真值 0~1（0.9.199；0 即静音，与 soundOn 联动）
+  soundOn: false,        // 当前是否出声（'sound' 订阅同步）
+  volume: 1,             // 音量真值 0~1（'vol' 订阅同步；0 即静音，与 soundOn 联动）
   firstGestureSeen: false, // 是否已发生过用户手势（浏览器自动播放策略：首次交互才能出声）
-  autoplayNext: false,   // 连播开关（关闭=单条循环；0.9.281 起跨会话记忆，resetForMount 刷初值）
-  playRate: 1,           // 全局倍速（0.9.281 起跨会话记忆，resetForMount 刷初值）
-  seekHold: { active: false, timer: null, prevRate: 1 }, // →键 长按 2x 快进状态
+  autoplayNext: false,   // 连播开关（'loop' 订阅同步）
+  playRate: 1,           // 全局倍速（'rate' 订阅同步）
+  seekHold: { active: false, timer: null, prevRate: 1 }, // →键 长按 2x 快进状态（临时态）
   soundHintShown: false, // 静音提示只弹一次
   soundHintDismissed: false
 };
@@ -26,6 +30,17 @@ export function applyLoop(slide, video) {
   video.loop = !pb.autoplayNext || (isOvlSlide(slide) && ovlNoNext());
 }
 
+// 连播 loop 全舞台落点（0.9.285 自 controls 连播键收编）：层内 slide 挂在视图体下、不在
+// scroller 里——开关的生效扫描必须走 root 全遍历（0.9.183 同款漂移教训）；新建 video 由
+// sessionhooks.initVideo 按 pb.autoplayNext 同步
+export function applyLoopAll() {
+  if (!root) return;
+  Array.prototype.forEach.call(root.querySelectorAll('video'), function (v) {
+    var sl = v.closest('.acsv-slide');
+    if (sl) applyLoop(sl, v);
+  });
+}
+
 // 全局倍速落全舞台（0.9.235）：层内 slide 挂在视图体下、不在 scroller 里——倍速菜单与长按
 // 恢复只扫 scroller 时层内视频全部打空（与 0.9.183 连播键同款漂移）。root 全遍历；新建
 // video 由 player.initVideo 按 pb.playRate 同步（既有）
@@ -34,29 +49,49 @@ export function applyRate() {
   Array.prototype.forEach.call(root.querySelectorAll('video'), function (v) { v.playbackRate = pb.playRate; });
 }
 
-// mount 时复位会话内手势/提示状态；静音偏好从设置层取（0.9.89 收编：老键 acsv-sound-on 首读收养）。
-// 连播/倍速同款（0.9.281 收编）：初值从设置层刷（值域守卫单源在 settings 层的 clampNumber/
-// validateValue——此处不再造第二份校验），写入点在 controls（连播键/倍速菜单）双写
+// ---------- 偏好效果捆绑（0.9.285 偏好记忆单链） ----------
+// 每个可记忆偏好「一键一捆绑」：写入方只许 setSetting（一键一出口），一切后果（pb 同步/
+// 全舞台生效/图标刷新）只挂这里的订阅。watchPref 注册即以当前值跑一遍——**注册即恢复**，
+// resetForMount 不再另列偏好清单（「写入点副作用清单 + 恢复清单」两份人肉对齐，正是
+// 0.9.282/283 病灶的结构形态）。controls.js 对 loop/rate 另挂 UI 刷订阅；setSetting 按注册
+// 序同步派发，本件先于 controls 求值（import 序）⇒ 进到 controls 的订阅时 pb 已同步。
+function watchPref(key, fn) { onChange(key, fn); fn(getSetting(key)); }
+
+watchPref('sound', function (v) {
+  pb.soundOn = v;
+  applyVolume();
+  refreshMuteIcons();
+});
+watchPref('vol', function (v) {
+  pb.volume = v;
+  if (v === 0) pb.soundOn = false; // 音量为 0 即静音（两态联动，避免"开着声却没声"）
+  applyVolume();
+  refreshMuteIcons();
+});
+watchPref('loop', function (v) {
+  pb.autoplayNext = !!v;
+  applyLoopAll();
+});
+watchPref('rate', function (v) {
+  pb.playRate = Number(v) || 1;
+  applyRate();
+});
+
+// mount 时复位**会话内手势/提示**状态（0.9.285 起偏好不在此列：pb 的记忆字段由上面的
+// watchPref 订阅链在模块求值期从设置层刷入并保持同步——恢复清单已消灭，不存在第二份要背）
 export function resetForMount() {
   pb.firstGestureSeen = false;
   pb.soundHintShown = false;
-  pb.soundOn = getSetting('sound');
-  var v = Number(getSetting('vol'));
-  pb.volume = (v >= 0 && v <= 1) ? v : 1;
-  if (pb.volume === 0) pb.soundOn = false; // 音量为 0 即静音（两态联动，避免"开着声却没声"）
-  pb.autoplayNext = !!getSetting('loop');
-  pb.playRate = Number(getSetting('rate')) || 1;
 }
 
 // 音量（0.9.199）：0~1 真值 + 与静音态的联动；控制栏竖条滑杆/静音键共用。
-// 拖起来（>0）= 取消静音；拖到底（0）= 静音。落盘走设置层（防抖），跨会话记住。
+// 0.9.285 单链化：拖起来（>0）= 取消静音是**会话意图**（写 pb.soundOn、不落 sound 键，
+// 旧语义保留）；落盘只走 setSetting('vol')，其余（pb.volume 同步/0 即静音联动/全舞台应用/
+// 图标刷新）全在 'vol' 订阅捆绑里。
 export function setVolume(v) {
   v = Math.min(1, Math.max(0, Number(v) || 0));
-  pb.volume = v;
-  setSetting('vol', v);
   pb.soundOn = v > 0;
-  applyVolume();
-  refreshMuteIcons();
+  setSetting('vol', v);
 }
 
 // 把当前音量/静音态落到所有 video（新建的由 player.initVideo 同步）
@@ -71,13 +106,25 @@ export function applyVolume() {
 // 当前是否"静音"（声音关 或 音量为 0）——图标与滑杆态的单一判据
 export function isMuted() { return !pb.soundOn || pb.volume === 0; }
 
-// 退出信息流时复位长按快进：恢复原速，否则倍速残留到下次进入
+// 退出信息流时复位长按快进：恢复原速，否则倍速残留到下次进入。
+// 与 endSeekHold 的差别=本件是卸载兜底（video 已拆，不 applyRate 不 toast）
 export function cancelSeekHold() {
   if (pb.seekHold.timer) { clearTimeout(pb.seekHold.timer); pb.seekHold.timer = null; }
   if (pb.seekHold.active) {
     pb.seekHold.active = false;
     pb.playRate = pb.seekHold.prevRate;
   }
+}
+
+// 长按 2x 快进松手恢复（0.9.285 自 input.js 收编写点）：恢复原速并全舞台落 playbackRate
+//（含层内，0.9.235 口径），返回是否有活动中的长按（调用方据此决定是否 toast）。
+// pb.playRate 的这次写是 seekHold 临时态豁免——恢复的本来就是记忆值，不落盘
+export function endSeekHold() {
+  if (!pb.seekHold.active) return false;
+  pb.seekHold.active = false;
+  pb.playRate = pb.seekHold.prevRate;
+  applyRate();
+  return true;
 }
 
 export function currentVideo() {
@@ -114,23 +161,21 @@ export function playVideo(video) {
   }
 }
 
+// 开声/静音切换（0.9.285 单链化）：落盘只走 setSetting，pb.soundOn 同步与图标/全舞台应用
+// 由 'sound'/'vol' 订阅链接管；video 上的即时动作（muted/续播）是本写点的上下文动作
 export function enableSound(video) {
   setSetting('sound', true);
-  pb.soundOn = true;
-  if (pb.volume === 0) { pb.volume = 1; setSetting('vol', 1); } // 音量被拖到 0 后开声：回到满音量
+  if (pb.volume === 0) setSetting('vol', 1); // 音量被拖到 0 后开声：回满音量（订阅链连带 soundOn）
   if (video) { video.muted = false; video.volume = pb.volume; playVideo(video); }
-  refreshMuteIcons();
 }
 
 export function toggleSound(video) {
   if (pb.soundOn) {
-    pb.soundOn = false;
     setSetting('sound', false);
     if (video) video.muted = true;
   } else {
     enableSound(video);
   }
-  refreshMuteIcons();
 }
 
 // 点按/空格/播放按钮共用的播放-暂停切换：首次手势先开声（自动播放策略），

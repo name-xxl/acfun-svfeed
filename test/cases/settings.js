@@ -60,11 +60,18 @@
     // 页脚版本号（0.9.253）：v{APP_VERSION} 左置（debug 构建带 -debug 后缀）——与 IP 面板页脚同源
     rec('set-footer-ver', /^v0\.9\.\d+/.test((sh.querySelector('.set-ver') || {}).textContent || ''),
       (sh.querySelector('.set-ver') || {}).textContent || 'none');
-    // 弹幕开关：默认开 → 点关 → 存储 + 控制栏「弹」按钮即时同步（0.9.89 单源 applyDmState）
+    // 弹幕开关：默认开 → 点关 → 存储 + 控制栏「弹」按钮即时同步（0.9.89 单源 applyDmState；
+    // 0.9.285 偏好记忆单链：面板是「外部写入方」，按钮/图层跟随钉的就是 onChange 订阅链）
     var sw = swOf(sh, 2);
     rec('set-dm-on-default', !!(sw && sw.classList.contains('on')));
     var ctlDm = q('.acsv-cdm');
     rec('set-ctl-dm-on-before', !!(ctlDm && ctlDm.classList.contains('on')));
+    var dmLayerOf = function () {
+      var v = q('.acsv-slide video');
+      var s = v && v.closest('.acsv-slide');
+      return s && s._dmLayer;
+    };
+    rec('set-ctl-dm-layer-on-before', !!(function () { var L = dmLayerOf(); return !!L && L.isRunning(); })());
     if (sw) sw.click();
     rec('set-dm-now-off', !!(sw && !sw.classList.contains('on')));
     // 0.9.262 单源首日：暗色皮 token（关态 rgb(158,158,158)）与浅色皮分开由 skin-* 决定。
@@ -73,6 +80,8 @@
       return getComputedStyle(sw).backgroundColor === 'rgb(158, 158, 158)';
     }, 1200)), sw ? getComputedStyle(sw).backgroundColor : 'none');
     rec('set-ctl-dm-synced', !!(ctlDm && !ctlDm.classList.contains('on')), 'ctlDmOn=' + (ctlDm ? ctlDm.classList.contains('on') : 'no-btn'));
+    // 图层起停同链跟随（0.9.285 断言补强）：关=applyDmState 停层（同一次 onChange 派发，同步生效）
+    rec('set-ctl-dm-layer-stopped', !!(function () { var L = dmLayerOf(); return !!L && !L.isRunning(); })());
     // 非个性化推荐（0.9.278）：默认关 → 点开（验持久化）→ 点关（验持久化）
     var swGuest = swOf(sh, 6);
     rec('set-guest-default', !!(swGuest && !swGuest.classList.contains('on')));
@@ -149,6 +158,7 @@
       }
       var sw3 = swOf(sh3, 2);
       if (sw3) sw3.click();
+      rec('set-ctl-dm-layer-resumed', !!(function () { var L = dmLayerOf(); return !!L && L.isRunning(); })());
       var x3 = sh3.querySelector('.set-x');
       if (x3) x3.click();
     }

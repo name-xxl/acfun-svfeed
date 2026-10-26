@@ -2,7 +2,7 @@ import { AppAPI } from './appapi.js';
 import { DmCanvas } from './dmcanvas.js';
 import { el, toast } from './ui.js';
 import { errSend } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
-import { getSetting, setSetting, onChange } from './settings.js';
+import { getSetting, setSetting } from './settings.js';
 
 // ---------- 弹幕编排：拉取/缓存/开关/发送/输入框 ----------
 // 渲染在 dmcanvas（每 slide 一个 Canvas 图层）；数据走 PC 站弹幕接口（网页 Cookie）。
@@ -10,15 +10,14 @@ import { getSetting, setSetting, onChange } from './settings.js';
 
 var DM_CACHE_MAX = 30; // 只留最近看过的 videoId：长会话不至于积攒几百份弹幕数组
 var cache = new Map(); // videoId → Promise<规整弹幕列表>；失败不占缓存
-// 弹幕默认开关（0.9.89 收编）：老键 acsv-dm-on 由 settings 首读收养；设置面板改动即时生效
-var enabled = getSetting('dmDefault');
-onChange('dmDefault', function (v) { enabled = v; });
 
-export function dmEnabled() { return enabled; }
+// 弹幕默认开关（0.9.89 收编老键；0.9.285 影子变量退役）：直读设置层即真源（settings 有
+// mem 缓存，读路径无成本）——此前的「模块变量 + onChange 回填」是偏好记忆单链要消灭的
+// 第二真源形态；按钮/图层起停的后果订阅在 controls.applyDmState（唯一出口）
+export function dmEnabled() { return getSetting('dmDefault'); }
 
 export function setDmEnabled(on) {
-  enabled = !!on;
-  setSetting('dmDefault', enabled);
+  setSetting('dmDefault', !!on);
 }
 
 function fetchList(videoId) {
@@ -43,7 +42,7 @@ export function onPlaying(slide, item, video) {
   if (!slide._dmLayer) slide._dmLayer = DmCanvas.create(slide, video);
   var layer = slide._dmLayer;
   layer.onDestroy = function () { stopAdvPump(layer); slide._dmVideoId = null; }; // 图层销毁同步停泵（0.9.234：此前 interval 空转泄漏）；清装填标记（0.9.257：新图层必须重拉）
-  if (!enabled) { layer.stop(); stopAdvPump(layer); return; }
+  if (!dmEnabled()) { layer.stop(); stopAdvPump(layer); return; }
   layer.start(); // 不进下面的门控：stop() 只停画不清条目，重开弹幕也要走这里（controls.applyDmState）
   // 暂停→恢复**同一视频**不重建（0.9.257）：setItems 是全量重排（dmcanvas.js:372-388），
   // 泵重建还会把 wins 归零（ADV_MAX_WIN 单会话上限失效）并对同窗多发一次 POST。

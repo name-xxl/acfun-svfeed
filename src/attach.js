@@ -81,7 +81,10 @@ export function switchQuality(item, slide, qIdx, manual) {
   // 自动降档沿用累计数（cap 门槛 + healthyMs 衰减仍然有效），真卡顿多次后照样放弃
   if (manual) item._freezeTries = 0;
   if (manual) item._qManual = true;
-  // 仅用户手选才记忆：看门狗自动降档是临时的，写进去会跨会话固化成低清偏好
+  // 仅用户手选才记忆：看门狗自动降档是临时的，写进去会跨会话固化成低清偏好。
+  // quality 键走「消费点现读」形态（quality.applyQuality 在 resolve 时选档），无全局订阅；
+  // 下面这些（item 改档/重挂/邻居同步）都是**写点上下文动作**——只该在用户手势时刻发生，
+  // 不进 onChange 订阅（否则设置面板改同族键会误触发重挂），与 0.9.285 的订阅捆绑分界在此
   if (manual) {
     setSetting('quality', item.qualities[qIdx].label); // 0.9.89 收编（老键 acsv-quality）
   }

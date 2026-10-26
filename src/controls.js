@@ -3,7 +3,7 @@ import { ICONS, PLAYER_ICONS } from './styles.js';
 import { el, elHtml, toast, fmtTime, isCinema, toggleWebFull, toggleWindowFull, a11y, mountIcon, closeOnOutsideClick, videoOf } from './ui.js';
 import { root, slideAt, isOvlSlide, videoTarget, playItem } from './state.js';
 import { FeedStore } from './feedstore.js';
-import { pb, togglePlayGesture, toggleMuteGesture, applyLoop, setVolume, isMuted, applyRate, fillVolSlide } from './playback.js';
+import { pb, togglePlayGesture, toggleMuteGesture, setVolume, isMuted, fillVolSlide } from './playback.js';
 import { dmEnabled, setDmEnabled, onPlaying as dmOnPlaying, createDmBox as dmCreateBox } from './danmaku.js';
 import { switchQuality, attachVideo, detachSession } from './attach.js';
 import { AppAPI, spriteCueAt } from './appapi.js'; // 悬停缩略图（0.9.200）
@@ -54,6 +54,13 @@ function refreshPlaybackBtns() {
     if (w.refreshLabel) w.refreshLabel();
   });
 }
+
+// 连播/倍速的 UI 刷订阅（0.9.285 偏好记忆单链）：任何写入方改键，按钮 on 态/文案全舞台
+// 跟随——刷新不再依赖写入点记得调用（0.9.283 预渲染条快照漂移病灶的结构性消灭）。
+// 派发按注册序：playback 先求值先注册（语义捆绑：pb 同步+全舞台生效），进到这里时 pb
+// 已是新值，refresh 读到的就是新态
+onChange('loop', refreshPlaybackBtns);
+onChange('rate', refreshPlaybackBtns);
 
 export function showControls(slide) {
   if (slide.dataset.ctl !== '1') slide.dataset.ctl = '1'; // mousemove 高频：避免重复写 DOM 属性
@@ -189,20 +196,11 @@ export function buildControls(slide, idx, item) {
   autoBtn.classList.toggle('on', pb.autoplayNext);
   autoBtn.addEventListener('click', function (ev) {
     ev.stopPropagation();
-    pb.autoplayNext = !pb.autoplayNext;
-    setSetting('loop', pb.autoplayNext); // 跨会话记忆（0.9.281 收编，与静音/音量同层）
-    refreshPlaybackBtns(); // 预渲染条的 on 态同步（0.9.283；本条也在扫描内，幂等）
-    if (root) {
-      // 全舞台遍历（0.9.183）：层内 slide 挂在视图体下、不在 scroller 里——旧写法只扫
-      // scroller，层内视频 loop 不随开关切换（漂移）；统一走 applyLoop（层内 single
-      // 会话恒循环，不受开关影响）
-      var vs = root.querySelectorAll('video');
-      Array.prototype.forEach.call(vs, function (v) {
-        var sl = v.closest('.acsv-slide');
-        if (sl) applyLoop(sl, v);
-      });
-    }
-    toast(pb.autoplayNext ? '连播已开启：播完自动下一条' : '连播已关闭：单条循环播放');
+    // 唯一动作=落设置层（0.9.285 单链）：pb 同步+全舞台 loop 生效在 playback 的 'loop'
+    // 订阅，按钮 on 态全舞台跟随在本件 UI 订阅——写入点不再手搓副作用清单
+    var next = !pb.autoplayNext;
+    setSetting('loop', next);
+    toast(next ? '连播已开启：播完自动下一条' : '连播已关闭：单条循环播放');
   });
 
   // 倍速：与清晰度一致的展开菜单，按钮实时显示当前倍速
@@ -214,11 +212,10 @@ export function buildControls(slide, idx, item) {
       });
     },
     function (i) {
-      pb.playRate = CFG.rate[i];
-      setSetting('rate', pb.playRate); // 跨会话记忆（0.9.281 收编；长按 2x 快进是临时态不落盘）
-      applyRate(); // 全舞台（含层内）——只扫 scroller 时层内倍速菜单是死键（0.9.235）
-      refreshPlaybackBtns(); // 预渲染条的按钮文案同步（0.9.283）
-      toast('播放速度：' + pb.playRate + 'x');
+      // 唯一动作=落设置层（0.9.285 单链）：pb 同步+全舞台倍速在 playback 的 'rate' 订阅，
+      // 预渲染条文案跟随在本件 UI 订阅；长按 2x 快进是临时态（playback.seekHold），不进这里
+      setSetting('rate', CFG.rate[i]);
+      toast('播放速度：' + CFG.rate[i] + 'x');
     },
     '切换播放速度'
   );

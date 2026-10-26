@@ -655,9 +655,9 @@ rec('play-retry-playing', !!(await waitFor(function () {
 })());
 key('Escape');
 rec('play-miss-back', !!(await waitFor(function () { return location.hash === '#svfeed'; }, 8000)), location.hash);
-// 0.9.281 连播/倍速跨会话记忆（底栏机制统一，用户裁决）：点击双写设置层；退出竖刷再深链
-// 重进（remount → resetForMount 从设置层刷初值）后控件态恢复——「记忆」钉用户可见行为。
-// 摘修复反跑：撤 controls 两处 setSetting 或 resetForMount 两行，persist/restored 即转红。
+// 0.9.281 连播/倍速跨会话记忆（底栏机制统一，用户裁决；0.9.285 起写入收口 setSetting 单出口，
+// pb 同步/生效挂 playback.watchPref 订阅）：点击落设置层；「记忆」钉用户可见行为。
+// 摘修复反跑：撤 controls 两处 setSetting（或撤 playback 两条 watchPref 订阅），persist 即转红。
 window.__ACSV_MOCK_DIRECT__ = { '488900': { date: window.__ACSV_PUBLISH_DATE__ } }; // 尾段 retry 改过直挂缝，进层前恢复（开局同款）
 location.hash = 'svfeed/play/a/488900';
 rec('mem-layer-open', !!(await waitFor(function () {
@@ -953,10 +953,11 @@ if (rateBtn) {
   };
   // ---- mem-controls ----
   // 0.9.281 连播/倍速跨会话记忆：harness 在 bundle 求值前预置 acsv.s.loop=true / acsv.s.rate=1.5
-  //（见 harness.html 场景预处理）——页面新鲜加载即「上次会话退出」语义，mount 的 resetForMount
-  // 从设置层刷 pb 初值，控件态与播放行为必须恢复。摘修复反跑：撤 resetForMount 两行即转红
-  //（控件回落默认 关/1.0x、playbackRate=1、loop=true）。pb 是模块单例、hash 重进不刷新 ⇒
-  // 「跨会话」只能靠新鲜加载钉（watch-ledger-replay 同款范式）；play-deep 尾部只钉点击落盘半边
+  //（见 harness.html 场景预处理）——页面新鲜加载即「上次会话退出」语义，0.9.285 起恢复由
+  // playback.watchPref 的「注册即恢复」承担（订阅以当前设置值跑一遍），控件态与播放行为必须恢复。
+  // 摘修复反跑：撤 playback 两条 watchPref('loop'/'rate') 注册即转红（控件回落默认 关/1.0x、
+  // playbackRate=1、loop=true）。pb 是模块单例、hash 重进不刷新 ⇒「跨会话」只能靠新鲜加载钉
+  //（watch-ledger-replay 同款范式）；play-deep 尾部只钉点击落盘半边
   C['mem-controls'] = async function (h) {
     var rec = h.rec, q = h.q, waitFor = h.waitFor;
 rec('mem-layer-open', !!(await waitFor(function () {

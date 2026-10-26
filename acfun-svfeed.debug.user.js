@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.284-debug
+// @version      0.9.285-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 96876;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.284-debug" : "",
+          ver: true ? "0.9.285-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -675,7 +675,7 @@ window.__ACSV_CSS_LEN__ = 96876;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.284-debug" : "";
+  var APP_VERSION = true ? "0.9.285-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -1683,9 +1683,11 @@ window.__ACSV_CSS_LEN__ = 96876;
     // 清晰度 label（动态值，见 §7 实测）
     { key: "sound", type: "bool", def: false, legacy: CFG.lsSound },
     // 静音记忆（播放器手势是入口）
-    // 连播/倍速跨会话记忆（0.9.281，用户裁决「底栏机制统一」）：与 sound/vol 同款收编——
-    // 运行态仍在 playback.js 的 pb 上，mount 时 resetForMount 从设置层刷初值、控制栏写入点双写。
-    // 长按 2x 快进（seekHold）是临时态，不落盘。panel:false——底栏是唯一入口。
+    // 连播/倍速跨会话记忆（0.9.281 收编；0.9.285 偏好记忆单链归一）：与 sound/vol 同款——
+    // 本表是唯一真源，pb 只是 playback.js 里订阅同步的运行态缓存；写入方只许 setSetting，
+    // 同步/生效/UI 刷全挂 onChange 订阅捆绑（注册即恢复），禁止写入点双写与直写 pb
+    // （test/check-pref.mjs 棘轮）。长按 2x 快进（seekHold）是临时态，不落盘。panel:false——
+    // 底栏是唯一入口。
     { key: "loop", type: "bool", def: false, panel: false, group: "播放", label: "连播" },
     { key: "rate", type: "number", def: 1, min: 0.5, max: 3, panel: false, group: "播放", label: "倍速" },
     // ---- 弹幕设置（0.9.201）：照 A 站原生「弹幕设置」tab 的条目（§10.12 真机 dump）。
@@ -8127,7 +8129,7 @@ window.__ACSV_CSS_LEN__ = 96876;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.284-debug" : "",
+      version: true ? "0.9.285-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -9757,6 +9759,17 @@ window.__ACSV_CSS_LEN__ = 96876;
     return api;
   }
   var layers = [];
+  function refreshAllLayers() {
+    for (var i = 0; i < layers.length; i++) {
+      try {
+        layers[i].refresh();
+      } catch (e) {
+      }
+    }
+  }
+  SCHEMA.forEach(function(it) {
+    if (it.group === "弹幕") onChange(it.key, refreshAllLayers);
+  });
   var realignArmed = false;
   function realignAll() {
     for (var i = 0; i < layers.length; i++) {
@@ -9804,16 +9817,11 @@ window.__ACSV_CSS_LEN__ = 96876;
   // src/danmaku.js
   var DM_CACHE_MAX = 30;
   var cache2 = /* @__PURE__ */ new Map();
-  var enabled = getSetting("dmDefault");
-  onChange("dmDefault", function(v) {
-    enabled = v;
-  });
   function dmEnabled() {
-    return enabled;
+    return getSetting("dmDefault");
   }
   function setDmEnabled(on) {
-    enabled = !!on;
-    setSetting("dmDefault", enabled);
+    setSetting("dmDefault", !!on);
   }
   function fetchList(videoId) {
     var hit = cache2.get(videoId);
@@ -9838,7 +9846,7 @@ window.__ACSV_CSS_LEN__ = 96876;
       stopAdvPump(layer);
       slide._dmVideoId = null;
     };
-    if (!enabled) {
+    if (!dmEnabled()) {
       layer.stop();
       stopAdvPump(layer);
       return;
@@ -10663,17 +10671,17 @@ window.__ACSV_CSS_LEN__ = 96876;
   // src/playback.js
   var pb = {
     soundOn: false,
-    // 当前是否出声（localStorage 恢复，mount 时 resetForMount 刷新）
+    // 当前是否出声（'sound' 订阅同步）
     volume: 1,
-    // 音量真值 0~1（0.9.199；0 即静音，与 soundOn 联动）
+    // 音量真值 0~1（'vol' 订阅同步；0 即静音，与 soundOn 联动）
     firstGestureSeen: false,
     // 是否已发生过用户手势（浏览器自动播放策略：首次交互才能出声）
     autoplayNext: false,
-    // 连播开关（关闭=单条循环；0.9.281 起跨会话记忆，resetForMount 刷初值）
+    // 连播开关（'loop' 订阅同步）
     playRate: 1,
-    // 全局倍速（0.9.281 起跨会话记忆，resetForMount 刷初值）
+    // 全局倍速（'rate' 订阅同步）
     seekHold: { active: false, timer: null, prevRate: 1 },
-    // →键 长按 2x 快进状态
+    // →键 长按 2x 快进状态（临时态）
     soundHintShown: false,
     // 静音提示只弹一次
     soundHintDismissed: false
@@ -10681,29 +10689,50 @@ window.__ACSV_CSS_LEN__ = 96876;
   function applyLoop(slide, video) {
     video.loop = !pb.autoplayNext || isOvlSlide(slide) && ovlNoNext();
   }
+  function applyLoopAll() {
+    if (!root) return;
+    Array.prototype.forEach.call(root.querySelectorAll("video"), function(v) {
+      var sl = v.closest(".acsv-slide");
+      if (sl) applyLoop(sl, v);
+    });
+  }
   function applyRate() {
     if (!root) return;
     Array.prototype.forEach.call(root.querySelectorAll("video"), function(v) {
       v.playbackRate = pb.playRate;
     });
   }
+  function watchPref(key, fn) {
+    onChange(key, fn);
+    fn(getSetting(key));
+  }
+  watchPref("sound", function(v) {
+    pb.soundOn = v;
+    applyVolume();
+    refreshMuteIcons();
+  });
+  watchPref("vol", function(v) {
+    pb.volume = v;
+    if (v === 0) pb.soundOn = false;
+    applyVolume();
+    refreshMuteIcons();
+  });
+  watchPref("loop", function(v) {
+    pb.autoplayNext = !!v;
+    applyLoopAll();
+  });
+  watchPref("rate", function(v) {
+    pb.playRate = Number(v) || 1;
+    applyRate();
+  });
   function resetForMount() {
     pb.firstGestureSeen = false;
     pb.soundHintShown = false;
-    pb.soundOn = getSetting("sound");
-    var v = Number(getSetting("vol"));
-    pb.volume = v >= 0 && v <= 1 ? v : 1;
-    if (pb.volume === 0) pb.soundOn = false;
-    pb.autoplayNext = !!getSetting("loop");
-    pb.playRate = Number(getSetting("rate")) || 1;
   }
   function setVolume(v) {
     v = Math.min(1, Math.max(0, Number(v) || 0));
-    pb.volume = v;
-    setSetting("vol", v);
     pb.soundOn = v > 0;
-    applyVolume();
-    refreshMuteIcons();
+    setSetting("vol", v);
   }
   function applyVolume() {
     if (!root) return;
@@ -10724,6 +10753,13 @@ window.__ACSV_CSS_LEN__ = 96876;
       pb.seekHold.active = false;
       pb.playRate = pb.seekHold.prevRate;
     }
+  }
+  function endSeekHold() {
+    if (!pb.seekHold.active) return false;
+    pb.seekHold.active = false;
+    pb.playRate = pb.seekHold.prevRate;
+    applyRate();
+    return true;
   }
   function currentVideo() {
     var tf = videoTarget();
@@ -10753,27 +10789,20 @@ window.__ACSV_CSS_LEN__ = 96876;
   }
   function enableSound(video) {
     setSetting("sound", true);
-    pb.soundOn = true;
-    if (pb.volume === 0) {
-      pb.volume = 1;
-      setSetting("vol", 1);
-    }
+    if (pb.volume === 0) setSetting("vol", 1);
     if (video) {
       video.muted = false;
       video.volume = pb.volume;
       playVideo(video);
     }
-    refreshMuteIcons();
   }
   function toggleSound(video) {
     if (pb.soundOn) {
-      pb.soundOn = false;
       setSetting("sound", false);
       if (video) video.muted = true;
     } else {
       enableSound(video);
     }
-    refreshMuteIcons();
   }
   function togglePlayGesture(video) {
     if (!video) return;
@@ -11775,9 +11804,6 @@ window.__ACSV_CSS_LEN__ = 96876;
   // src/dmpanel.js
   function buildDmPanel(slide) {
     var box = el("div", "acsv-dmpanel");
-    function apply() {
-      if (slide && slide._dmLayer && slide._dmLayer.refresh) slide._dmLayer.refresh();
-    }
     function swRow(label, key) {
       var r = el("div", "acsv-dmprow");
       r.appendChild(el("label", null, label));
@@ -11790,7 +11816,6 @@ window.__ACSV_CSS_LEN__ = 96876;
         ev.stopPropagation();
         setSetting(key, !getSetting(key));
         sync();
-        apply();
       });
       r.appendChild(sw);
       return r;
@@ -11822,7 +11847,6 @@ window.__ACSV_CSS_LEN__ = 96876;
         var v = Math.round(min + ratioAt(ev) * (max2 - min));
         setSetting(key, encode(v));
         paint(v);
-        apply();
       }
       var dragging = false;
       track.addEventListener("pointerdown", function(ev) {
@@ -11918,7 +11942,6 @@ window.__ACSV_CSS_LEN__ = 96876;
           if (it.group === "弹幕") setSetting(it.key, it.def);
         });
         refreshDmPanel(box);
-        apply();
       });
       bodySet.appendChild(reset);
       box.appendChild(bodySet);
@@ -11935,7 +11958,6 @@ window.__ACSV_CSS_LEN__ = 96876;
         if (i >= 0) parts.splice(i, 1);
         else parts.push(k);
         setSetting("dmBlock", parts.join(" "));
-        apply();
       }
       [
         ["top", "顶部弹幕"],
@@ -11965,7 +11987,6 @@ window.__ACSV_CSS_LEN__ = 96876;
       });
       fi.addEventListener("input", function() {
         setSetting("dmFilter", fi.value);
-        apply();
       });
       bodyBlk.appendChild(fi);
       box.appendChild(bodyBlk);
@@ -12059,6 +12080,8 @@ window.__ACSV_CSS_LEN__ = 96876;
       if (w.refreshLabel) w.refreshLabel();
     });
   }
+  onChange("loop", refreshPlaybackBtns);
+  onChange("rate", refreshPlaybackBtns);
   function showControls(slide) {
     if (slide.dataset.ctl !== "1") slide.dataset.ctl = "1";
     clearTimeout(slide._ctlTimer);
@@ -12185,17 +12208,9 @@ window.__ACSV_CSS_LEN__ = 96876;
     autoBtn.classList.toggle("on", pb.autoplayNext);
     autoBtn.addEventListener("click", function(ev) {
       ev.stopPropagation();
-      pb.autoplayNext = !pb.autoplayNext;
-      setSetting("loop", pb.autoplayNext);
-      refreshPlaybackBtns();
-      if (root) {
-        var vs = root.querySelectorAll("video");
-        Array.prototype.forEach.call(vs, function(v) {
-          var sl = v.closest(".acsv-slide");
-          if (sl) applyLoop(sl, v);
-        });
-      }
-      toast(pb.autoplayNext ? "连播已开启：播完自动下一条" : "连播已关闭：单条循环播放");
+      var next = !pb.autoplayNext;
+      setSetting("loop", next);
+      toast(next ? "连播已开启：播完自动下一条" : "连播已关闭：单条循环播放");
     });
     var rateWrap = buildMenu(
       function() {
@@ -12207,11 +12222,8 @@ window.__ACSV_CSS_LEN__ = 96876;
         });
       },
       function(i) {
-        pb.playRate = CFG.rate[i];
-        setSetting("rate", pb.playRate);
-        applyRate();
-        refreshPlaybackBtns();
-        toast("播放速度：" + pb.playRate + "x");
+        setSetting("rate", CFG.rate[i]);
+        toast("播放速度：" + CFG.rate[i] + "x");
       },
       "切换播放速度"
     );
@@ -15071,7 +15083,7 @@ window.__ACSV_CSS_LEN__ = 96876;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.284-debug" : "");
+    return normVer(true ? "0.9.285-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -16194,10 +16206,7 @@ window.__ACSV_CSS_LEN__ = 96876;
         clearTimeout(pb.seekHold.timer);
         pb.seekHold.timer = null;
         if (v && v.duration) v.currentTime = Math.min(v.duration, v.currentTime + getSetting("seekStep"));
-      } else if (pb.seekHold.active) {
-        pb.seekHold.active = false;
-        pb.playRate = pb.seekHold.prevRate;
-        applyRate();
+      } else if (endSeekHold()) {
         toast("恢复 " + pb.playRate.toFixed(1) + "x");
       }
     };
@@ -18677,7 +18686,7 @@ window.__ACSV_CSS_LEN__ = 96876;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.284-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.285-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

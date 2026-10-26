@@ -5,6 +5,46 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.285（2026-10-26）· 偏好记忆单链——底栏记忆收口 setSetting 单出口 + onChange 订阅捆绑
+
+**病灶**（结构归因，非单点回归）：底栏偏好键的"记忆"长期三种真源并存——① `pb` 运行态 +
+写入点手搓副作用清单（controls 连播/倍速：改 pb → setSetting → applyLoop/applyRate →
+refreshPlaybackBtns 四步各写一遍）；② `resetForMount` 另列恢复清单（与写入清单靠人肉对齐）；
+③ danmaku 影子变量 `enabled`（onChange 回填的第二真源）。0.9.282/283/284 三连病灶
+（漏 defaultPlaybackRate / 预渲染条按钮快照漂移 / DM_DEFAULT 字典双写）表面各不相干，
+合看即同一结构因：**"一个偏好改动后必须发生什么"没有单一出口**，加一处忘另一处只能靠
+review 抓。归因与裁决过程见 README「病灶上溯结构（bug 三问）」。
+
+- **修法**（0.9.285 偏好记忆单链，dmDefault 既有模型的推广）：可记忆偏好以 settings SCHEMA
+  为唯一真源——**写入只许 `setSetting`；后果只许 `onChange` 订阅捆绑挂在拥有者模块；
+  订阅注册即恢复（恢复清单消灭）；pb 记忆字段禁 playback.js 之外直写**。① playback.js 新增
+  `watchPref`（onChange 注册 + 立即以当前值跑一遍）四捆绑：sound/vol（pb 同步+applyVolume+
+  刷图标；vol 0=静音联动保持）/loop（pb 同步+全舞台 `applyLoopAll`，自 controls 内联扫描
+  收编）/rate（pb 同步+applyRate）；`setVolume` 瘦身为"写会话意图+setSetting"，音量 0→1
+  回弹改走订阅链；`resetForMount` 只剩手势复位两行。② controls.js 连播/倍速点击瘦身为
+  `setSetting + toast`，另挂 `onChange('loop'/'rate', refreshPlaybackBtns)` UI 订阅（派发按
+  注册序，playback 先求值 ⇒ 刷文案时 pb 已同步；0.9.283 的病灶由此结构性消灭）。③ danmaku
+  影子变量退役，`dmEnabled()` 直读设置层（mem 缓存，热路径无成本）。④ dmcanvas 新增
+  `refreshAllLayers`：SCHEMA「弹幕」组全键 onChange 订阅（与 0.9.284 恢复默认同源派生），
+  dmpanel 逐写点手搓 `apply()` 退役。⑤ 长按松手恢复写点收进 `playback.endSeekHold`
+  （棘轮零豁免）；seekHold 临时 2x 仍是唯一不落盘豁免。⑥ **有意不改**：codec/buf/quality
+  走"消费点现读"（下次播放生效），菜单选中的重挂/邻居重建是**写点上下文动作**（只该在用户
+  手势时刻发生，进订阅会让面板改键误触发重挂）——边界注释落在 attach.js/controls.js。
+- **新守卫** `test/check-pref.mjs`（仿 check-listeners 静态棘轮，入 `npm run check` 链）：
+  `pb.(soundOn|volume|autoplayNext|playRate) =` 在 playback.js 之外即红——写点收敛从此
+  机器可查。
+- **测试**（行为断言零改动，反跑矩阵双向验证）：① 撤 playback loop/rate 两条订阅 →
+  mem-controls 四条恢复断言全红（失败信息正是病灶形态 '倍速 1.0x'/loop=true/rate=1），恢复
+  复绿；② 撤 controls 两条 UI 订阅 → smoke `rate-sync-next` 红（'rate=倍速 1.0x loop=false'），
+  恢复复绿；③ 临时在 controls 直写 `pb.autoplayNext=false` → check-pref 报未登记 exit 1，
+  恢复复绿。断言补强：settings-open 增 `set-ctl-dm-layer-on-before/stopped/resumed` 三钉
+  （面板改 dmDefault → 底栏按钮与图层起停同链跟随——"外部写入方→底栏跟随"的写者无关不变式，
+  按钮半边 `set-ctl-dm-synced` 既有）。单测 450/450、harness 89/89、lint/tsc/check 全绿
+  （含 check-pref 首跑 0 未登记）。
+- **文档**：AGENTS.md 新增规矩 7「病灶上溯结构」（只沉淀方法论意识，个案归本日志）；
+  README「项目理念」补方法展开段；模块表 playback/controls/dmcanvas/danmaku/dmpanel/input
+  行与 check 描述同步。
+
 ### 0.9.284（2026-10-26）· DM_DEFAULT 归一——恢复默认收口 SCHEMA def 单源
 
 **债务**（0.9.283 底栏审计盘出，用户裁决归一）：dmpanel 自持一份 `DM_DEFAULT` 字典（六值

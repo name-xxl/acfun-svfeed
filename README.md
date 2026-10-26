@@ -283,6 +283,21 @@ JSON.parse(localStorage.getItem('acsv-stats'))    // TM 环境兜底（debug 版
 分支？③ 失败时降级到什么、留下什么可观测信号？④ 监听器/定时器/单例由谁负责撤？⑤ 目标域外
 的兼容是否在承诺范围内？回答不了就不算"好代码"。
 
+### 病灶上溯结构（bug 三问，2026-10-26）
+
+修 bug 的完成态不是"这一个不出了"，而是"**这一类出不来了**"。任何病灶落地前先过三问：
+① 这是孤例还是同类病灶？② 什么结构放它进来？③ 修法灭的是这一例还是这一类？判据很朴素：
+**同一道缝反复出血，就是结构裁决**——三起"各自不同"的 bug 如果都能画到同一张因果图上，
+修第三起时就不该再用修第一起的姿势（再打一个补丁），而应该把缝本身收掉，并配机械守卫
+（棘轮/门禁/lint 禁令）让回潮在 CI 就红，不靠 review 抓。
+
+沉淀纪律随之分层：**意识进本契约**（AGENTS.md 规矩 7，只写方法论）；**个案与修法细节进
+CHANGELOG**（日志的本职就是记个案）；**结构落工具与代码**（单出口、注册表、订阅捆绑、
+check 门禁）。最新的教科书样本是底栏偏好记忆：0.9.282/283/284 三连病灶（双写漏同步/预渲染
+快照漂移/字典双写）表面各不相干，合看即同一结构因——"一个偏好改动后必须发生什么"没有单一
+出口；0.9.285 收口为「偏好记忆单链」（写入只 setSetting、后果挂 onChange 订阅捆绑、注册即
+恢复、`test/check-pref.mjs` 棘轮），详见该版 CHANGELOG 与各模块头注。
+
 ## 免责声明与使用规范
 
 - 本项目为**非官方第三方用户脚本**，与 AcFun、快手及其关联方无任何关系，不代表官方立场。
@@ -328,6 +343,7 @@ npm run check        # 仅静态校验（CI 在 build 后跑）：场景登记�
                      #   三者一致 / 依赖图不缺边（含整图环检测）/ 接口侦察文档不入公开仓 /
                      #   方向卫生棘轮（未登记反向边即红，0.9.187 起）/ 全局监听器卫生
                      #   （window/document 监听未撤且未标 singleton-listener 即红，0.9.264 起）/
+                     #   偏好写点棘轮（pb 记忆字段唯 playback.js 可写，0.9.285 起）/
                      #   契约面类型检查（tsc，0.9.188 起）
 npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSDoc 查类型；单跑用）
 ```
@@ -397,20 +413,20 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `pubfab.js` | 发布**常驻浮标**（0.9.224；0.9.225 收窄原生页范围）：右下角一枚圆钮、钉在「回到顶部」之上——消费方三处：我的页四档 / 广场视图 / **原生页的内嵌动态广场**（0.9.225 用户口径「原生页只需要在动态广场出现」⇒ 只在广场开着时出现，随广场收起而消失；不再常驻原生页）。位置：暗色 `right:18 bottom:70`（回顶暗色是流内 sticky）／浅色 `right:24 bottom:80`（回顶浅色是 fixed）。**层级 z:57**：压列表内容(55)/dock(56)/顶栏(57)，**被抽屉(58)/详情(61)/编辑器(62)/大图(63) 盖住**——绝不许盖住它自己打开的编辑器（`#acsv-fab` 的 2147482990 不能照抄） |
 | `upload.js` | 评论图片上传四阶段（GM 通道二进制分片，失败统一落 null） |
 | `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；0.9.180 起不可得=error 态，不回落原生；0.9.181 起「同 realm 返回式取数」+ UMD 分支遮罩；0.9.182 起 eval 拿不回再落 Blob 脚本层（页面 world，IM SDK 同款）；**0.9.242 起内嵌串为 deflateRaw+base64 压缩形态，首调 `unpackHls` 懒解包、失败下沉 CDN**（0.9.258 起解包本体走 `pack.unpackText` 单源，本函数只剩打点：`hls.unpackLen`/`hls.unpackErr`）；CDN 逐源兜底；Safari 原生 HLS 探测） |
-| `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐；画布取**播放器区域内居中的 16:9 区**，与稿件比例无关——原生同口径（0.9.205）；0.9.204 起另一条通道画高级弹幕——绝对定位不进轨道/位图缓存） |
+| `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐；画布取**播放器区域内居中的 16:9 区**，与稿件比例无关——原生同口径（0.9.205）；0.9.204 起另一条通道画高级弹幕——绝对定位不进轨道/位图缓存）；**0.9.285 弹幕组订阅**：SCHEMA「弹幕」组全键 onChange → `refreshAllLayers`（与恢复默认同源派生，新增弹幕键自动进订阅；dmpanel 逐写点手搓 apply() 退役） |
 | `advdm.js` | 高级弹幕模型核·零依赖纯函数（0.9.204）：`parseAdvanced`（ext JSON → 模型）/`easeProgress`（CSS 关键字 + cubic-bezier 牛顿迭代+二分兜底，非法值回落 linear）/`interpolateModel`（多段帧插值）/`drawModel`（九宫格锚点/多行/描边/影子）。真机口径见 docs/api-research.md §10.13（本地留档） |
-| `danmaku.js` | 弹幕编排：列表拉取/缓存、开关记忆、绑定/解绑 slide、发送输入条；**高级弹幕取池**（0.9.204：pollByPosition 跟播放头 20s 窗口增量拉——list 链路一条高级弹幕都不返回） |
+| `danmaku.js` | 弹幕编排：列表拉取/缓存、开关记忆、绑定/解绑 slide、发送输入条；**高级弹幕取池**（0.9.204：pollByPosition 跟播放头 20s 窗口增量拉——list 链路一条高级弹幕都不返回）；0.9.285 起 `dmEnabled()` 直读设置层（影子变量+onChange 回填的第二真源退役） |
 | `player.js` | 播放器编排层：renderWindow 窗口扫描（0.9.165 起窗外 belt 格 slide 换等高占位壳、数据水位同拍）、setActive、顶栏源高亮同步、挂载/卸载、观看历史触发；0.9.79 播放层直达不预热竖刷（feedDeferred/maybeStartFeed）。**0.9.271**：SESSION_HOOKS/画幅判断迁 `sessionhooks.js`；**0.9.272**：落地/吸附/scrollToIndex 迁 `feedland.js`（本件只留装配与调用点，522 行） |
 | `sessionhooks.js` | 会话回接钩子（0.9.271 自 player.js 拆出，逐字搬迁）：`initVideo`/`currentIdx`/`play`/`onResolved`/`qualitySwitch`/`refreshItem`/`reattach`/`onAttachPlay`/`onPlaying`/`onPause`/`onMeta`/`onTime`/`onEnded`/`onDisposed` + `videoStageVisible` + `syncPanFit`；session.js 只认状态机，控件条/弹幕/连播/上报/挂源在此回接。initVideo 同设 defaultPlaybackRate（0.9.282：video.load() 的媒体装载算法会把 playbackRate 重置回 defaultPlaybackRate，只设 playbackRate 的话新会话倍速永远落回 1x）。仅由 player 经 `createSessionHooks({ scrollToIndex })` 装配，不 import player；归类 SKIP_B（组合根/编排层） |
 | `feedland.js` | 舞台落地/吸附（0.9.272 自 player.js 拆出，逐字搬迁）：issue #1 两条防线——`landAt`/`landWhenVisible`/`scrollToIndex`（瞬时落位+8 帧 settle，防 auto 撕 smooth 停在半途）与 `snapWatchTick`/`start/stopSnapWatch`（600ms 采样，静止且不在吸附点 → 按手势方向补齐，频控 2s）。舞台/仓库/渲染回调经 `createLandKit(env)` 注入，不 import player；归类 PLAY。现有 `land-near` 钉 `land.stuck`/`land.heal`/`land.trunc`/`land-heal-on-snap` |
 | `session.js` | 播放会话：video 生命周期/懒解析等待/hls 实例与锁档/错误恢复链（换 CDN→重解析→重挂）/HealthMonitor（冻结/慢放检测与恢复阶梯），dispose 一次拆净 |
 | `attach.js` | 重挂统一入口 attachVideo + switchQuality；slide._xxx 与 dataset 投影的跨模块契约总表（唯一登记点） |
-| `playback.js` | 播放/声音原语与手势：播放/暂停/静音手势合并实现、_userPaused 暂停意图、幽灵音频清扫；连播/倍速跨会话记忆（0.9.282 收编 loop/rate 两键——resetForMount 从设置层刷 pb 初值，写入点在 controls 双写；长按 2x 是临时态不落盘） |
-| `controls.js` | 控制栏：进度条（拖动/时间气泡）、清晰度/编码/缓冲菜单（buildMenu）、连播/倍速/静音/全屏、前向邻位重建；**0.9.267 弹幕设置面板拆至 dmpanel.js**；**0.9.279 底栏时钟（稍后再看）**——倍速之后、仅图标、on 态沿用 `.acsv-cbtn.on` 的 accent 红，仅 home |
-| `dmpanel.js` | 弹幕设置面板（0.9.267 自 controls.js 拆出，纯搬迁）：齿轮入口展开的两 tab——弹幕设置（防挡字幕/合并重复开关 + 显示区域/不透明度/字体大小/弹幕速度滑杆 + 恢复默认）与屏蔽设置（六类按类型屏蔽 + 关键词过滤）；写设置即时生效并唤当前层 refresh()。只产面板 DOM/交互（消费 ui/settings），不碰播放器/控制栏状态；消费方 controls.js |
+| `playback.js` | 播放/声音原语与手势：播放/暂停/静音手势合并实现、_userPaused 暂停意图、幽灵音频清扫；**偏好效果捆绑单源（0.9.285 偏好记忆单链）**——sound/vol/loop/rate 四键各一条 `watchPref` 订阅（写入方只 setSetting，pb 同步/全舞台生效/图标刷新全挂订阅，**注册即恢复**=resetForMount 只剩手势复位），pb 记忆字段禁本件外直写（`test/check-pref.mjs` 棘轮）；长按 2x 快进是临时态（seekHold，恢复出口 `endSeekHold` 也在本件），不落盘 |
+| `controls.js` | 控制栏：进度条（拖动/时间气泡）、清晰度/编码/缓冲菜单（buildMenu）、连播/倍速/静音/全屏、前向邻位重建；**0.9.267 弹幕设置面板拆至 dmpanel.js**；**0.9.279 底栏时钟（稍后再看）**——倍速之后、仅图标、on 态沿用 `.acsv-cbtn.on` 的 accent 红，仅 home；**0.9.285 单链化**：连播/倍速点击只 setSetting，按钮态/文案跨条跟随走本件 `onChange('loop'/'rate', refreshPlaybackBtns)` 订阅（写入点不再手搓刷新） |
+| `dmpanel.js` | 弹幕设置面板（0.9.267 自 controls.js 拆出，纯搬迁）：齿轮入口展开的两 tab——弹幕设置（防挡字幕/合并重复开关 + 显示区域/不透明度/字体大小/弹幕速度滑杆 + 恢复默认）与屏蔽设置（六类按类型屏蔽 + 关键词过滤）；写设置即时生效（图层重排走 dmcanvas 弹幕组订阅，0.9.285 起）。只产面板 DOM/交互（消费 ui/settings），不碰播放器/控制栏状态；消费方 controls.js |
 | `rail.js` | 右侧操作栏（赞/蕉/藏/评/分享/关注）：乐观更新+失败回滚、原生图标 CSS mask 换色、计数回填钩子、分享面板入口 |
 | `slide.js` | buildSlide/buildDrawer：slide 骨架与评论抽屉骨架（commentDrawer 赋值点；0.9.118 起抽屉**只建空壳+注册句柄**，关闭键/列表委托由 comments 首次打开自附）、scroll 归零防护；点按判定对 data-ovl（播放层）免「当前条」检查 |
-| `input.js` | 键盘/全屏/幽灵扫描：翻页、快进快退、长按 2x、Esc 优先级链（更新弹窗→大图查看器→抽屉→退出）、幽灵视频扫描；**I=私信抽屉开合**（0.9.75，模态门禁与输入框豁免之后、视图门禁之前——视图/播放层也生效） |
+| `input.js` | 键盘/全屏/幽灵扫描：翻页、快进快退、长按 2x（松手恢复走 `playback.endSeekHold`，0.9.285 写点收编）、Esc 优先级链（更新弹窗→大图查看器→抽屉→退出）、幽灵视频扫描；**I=私信抽屉开合**（0.9.75，模态门禁与输入框豁免之后、视图门禁之前——视图/播放层也生效） |
 | `report.js` | 观看历史上报：与官方事件流对齐（0.9.86 实测——暂停即报/播完/离开，无心跳），页内走官方 SDK 队列，关页 sendBeacon 直发官方同款信封（0.9.87 嗅探+续号）、同秒位去重；播放中账本落盘 + 启动对账补报（崩溃出口，误差≤3s） |
 | `watchledger.js` | 观看上报纯逻辑层（0.9.87）：持久账本 reconcile（TTL/账平/容量/单调守卫）、上报参数与直发信封构造——node --test 直测，环境触点留在 report.js |
 | `prewarm.js` | 预热：索引稳定 500ms 后预解析 cur+1/2、媒体域动态 preconnect（上限 6 + 静态种子） |
