@@ -5,6 +5,21 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.284（2026-10-26）· DM_DEFAULT 归一——恢复默认收口 SCHEMA def 单源
+
+**债务**（0.9.283 底栏审计盘出，用户裁决归一）：dmpanel 自持一份 `DM_DEFAULT` 字典（六值
+硬编码），与 SCHEMA def **双写**——settings.js 早已导出 defaultsSnapshot 并注释「皮肤初值
+单源」，恢复默认按钮却不走它；将来任何人调 SCHEMA 里的 dm* 默认值（如 dmArea 72→50），
+「恢复默认设置」会默默恢复到旧值。0.9.202 既有债务，非回归。
+
+- **修法**：reset 按钮改 `SCHEMA.filter(group==='弹幕')` 全键回 `it.def`——**默认值与组键
+  清单双双派生**（原六键清单 + dmBlock/dmFilter 显式写 '' 一并退役）；新增弹幕设置键自动
+  进 reset，不必记得改这里。`DM_DEFAULT` 字典删除。
+- **等值证明**（机器比对在案）：SCHEMA 弹幕组派生值 ≡ 原 DM_DEFAULT 六值 + dmBlock/''
+  + dmFilter/''（键集合 8 键、逐值相同；零行为漂移，纯搬迁）。harness play-deep 的
+  dmpanel-reset-samenode/sw-off/clears-filter 与滑杆四断言即回归网。单测 450/450、
+  harness 89/89、lint/tsc/check 全绿。
+
 ### 0.9.283（2026-10-26）· 倍速/连播控件态跨 slide 同步——预渲染条的按钮快照漂移
 
 **病灶**（用户实报）：改底栏倍速后下滑到第二条，**按钮文案显示旧倍速，播放速度却正确继承**——

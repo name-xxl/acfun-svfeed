@@ -2,7 +2,7 @@
 // 入口仍是控制栏齿轮（controls.buildControls 内 `var dmPanel = buildDmPanel(slide)`）；
 // 本件只产面板 DOM/交互，不碰播放器/控制栏状态；消费方 controls.js。
 import { el } from './ui.js';
-import { getSetting, setSetting } from './settings.js';
+import { getSetting, SCHEMA, setSetting } from './settings.js';
 
 // ---------- 弹幕设置面板（0.9.202，用户裁决：入口在底栏、展开面板——照 A 站原生两 tab） ----------
 // 入口＝底栏「弹幕设置」键（原生 bfq_dmsz 齿轮气泡图标）；面板挂 **slide**（不像控制栏那样随闲置隐藏）。
@@ -89,11 +89,12 @@ export function buildDmPanel(slide) {
   var reset = el('button', 'acsv-dmpreset', '恢复默认设置');
   reset.addEventListener('click', function (ev) {
     ev.stopPropagation();
-    ['dmSubtitle', 'dmMerge', 'dmArea', 'dmAlpha', 'dmSize', 'dmSpeed'].forEach(function (k) {
-      setSetting(k, DM_DEFAULT[k]);
+    // 恢复默认 = 弹幕组全键回 SCHEMA def（0.9.284 归一）：此前 dmpanel 自持一份 DM_DEFAULT
+    // 字典，与 SCHEMA def 双写——调 def 会漏同步到这里（单源违例）。组键清单一并派生：
+    // 新增弹幕设置键自动进 reset，不必记得改这里。等值证明在案（0.9.284 CHANGELOG）
+    SCHEMA.forEach(function (it) {
+      if (it.group === '弹幕') setSetting(it.key, it.def);
     });
-    setSetting('dmBlock', '');
-    setSetting('dmFilter', '');
     refreshDmPanel(box); // 面板自身重绘（滑杆/开关回到默认）
     apply();
   });
@@ -153,7 +154,6 @@ export function buildDmPanel(slide) {
 }
 
 // 面板内控件按当前设置重绘（恢复默认后调）——原地重绘，保住外层对 box 的引用
-var DM_DEFAULT = { dmSubtitle: false, dmMerge: true, dmArea: '72', dmAlpha: '100', dmSize: '1', dmSpeed: '1' };
 function refreshDmPanel(box) {
   if (box && box.__fill) box.__fill();
 }
