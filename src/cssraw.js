@@ -426,12 +426,14 @@ export var CSS_TEMPLATE = ''
   + '.acsv-cinput-emot .acsv-ic,.acsv-cinput-img .acsv-ic{font-size:20px}'
   + '.acsv-cinput-emot:hover,.acsv-cinput-img:hover{transform:scale(1.12);color:#fd4c5d}'
   + '.acsv-creplybtn,.acsv-cfwdbtn{cursor:pointer;color:#7a7f8a;font-size:12px;display:inline-flex;align-items:center;gap:3px}'
-  // 悬停色统一（0.9.286，预览 comment-meta-polish 定稿）：互动键/设备/IP 全键悬停蓝 #9fd0ff
-  //（设备链现款；浅色 #409bef），唯点赞悬停主题红（身份色呼应已赞）；删除基色保留警示粉、悬停同蓝。
+  // 悬停色一档（0.9.287 对齐原生交互态，api-research §15 三重实测：原生悬停=点亮色预览，
+  // 赞/回复悬停都红、无悬停蓝；0.9.286 全蓝口径退役）：互动键/设备/IP/展开收起全键悬停主题红
+  // ——无原生参考的键（删除/转发/IP/文字键）按「统一设计语言」裁决归红（预览
+  // native-interaction-states 定稿）；删除基色保留警示粉（只改悬停）。
   // 图标（imicons 字形/mask/svg）全 currentColor 挂容器，变色自动带上
-  + '.acsv-creplybtn:hover,.acsv-cfwdbtn:hover{color:#9fd0ff}'
+  + '.acsv-creplybtn:hover,.acsv-cfwdbtn:hover{color:var(--acsv-accent)}'
   + '.acsv-cdelbtn{cursor:pointer;color:#ff8a95;font-size:12px;display:inline-flex;align-items:center}'
-  + '.acsv-cdelbtn:hover{color:#9fd0ff}'
+  + '.acsv-cdelbtn:hover{color:var(--acsv-accent)}'
   // 评论版式（0.9.138 全语境统一「原生形态」——真机量值）：条目 18px 顶距、无内边距/圆角/hover
   //（扁平列表 + .acsv-chr 分割线）、头像 50、内容缩进 30；皮肤只差颜色（深色基础值 / .acsv-mp 浅色）。
   // 撤除登记：条目 hover 卡、头像悬停缩放在 0.9.138 随统一移除（原生形态无此交互）
@@ -488,14 +490,15 @@ export var CSS_TEMPLATE = ''
   + '.acsv-csub .acsv-cname a,.acsv-csub .acsv-cname>span{font-weight:700}'
   + '.acsv-csub .acsv-ctext{margin-bottom:8px}'
   + '.acsv-csub .acsv-cmeta{margin-bottom:8px}'
-  // 展开/收起键（0.9.286 悬停统一）：基色由主题红改灰、悬停同全蓝（保留下划线暗示可点）；
-  // 收起为独立灰键——首次成功展开即挂（分页中途即可收），点击整块移除回初始（commentkit）
+  // 展开/收起键（0.9.286 定形：展开键基色灰、保留下划线暗示可点；收起为独立灰键——首次成功
+  // 展开即挂（分页中途即可收），点击整块移除回初始（commentkit）。0.9.287 悬停归红：文字键
+  // 也属交互键，统一设计语言（无原生参考，原生展开键悬停未实测）
   + '.acsv-cmore{display:block;width:100%;padding:14px 0;text-align:center;font-size:13px;color:#7a7f8a;'
   + 'background:none;border:none;cursor:pointer;font-family:inherit}'
-  + '.acsv-cmore:hover{color:#9fd0ff;text-decoration:underline}'
+  + '.acsv-cmore:hover{color:var(--acsv-accent);text-decoration:underline}'
   + '.acsv-cfold{display:block;width:100%;padding:10px 0 14px;text-align:center;font-size:13px;color:#7a7f8a;'
   + 'background:none;border:none;cursor:pointer;font-family:inherit}'
-  + '.acsv-cfold:hover{color:#9fd0ff}'
+  + '.acsv-cfold:hover{color:var(--acsv-accent)}'
   // 评论观感件（0.9.134；字段真机双源核对在册）：名字等级色=JS 内联（uplook.nameColorCss，无需
   // CSS）；头像框几何=头像 50 配 80×70/-15（plaza 原生复刻同值——0.9.138 全语境 50px 后同码）；
   // 回复前缀/设备/楼层件
@@ -504,12 +507,12 @@ export var CSS_TEMPLATE = ''
   + '.acsv-creplyto:hover{text-decoration:underline}'
   + '.acsv-cfrom{display:inline-flex;align-items:center;gap:3px}'
   + '.acsv-cfrom a{color:inherit;text-decoration:none}'
-  + '.acsv-cfrom a:hover{color:#9fd0ff}'
+  + '.acsv-cfrom a:hover{color:var(--acsv-accent)}'
   // IP 属地标签（0.9.245）：灰字原文直显；**0.9.253 起可点**——点击弹 IP 面板（natpanel，暗色
-  // 主题），cursor:pointer；悬停主题色（预览 ② 定稿，Web-IP .acr-ip 同款）；nowrap 由
+  // 主题），cursor:pointer；0.9.287 悬停主题红（统一设计语言，原生无此件可参考）；nowrap 由
   // .acsv-cmeta>* 既有规则兜住
   + '.acsv-cip{color:#7a7f8a;cursor:pointer}'
-  + '.acsv-cip:hover{color:#9fd0ff}'
+  + '.acsv-cip:hover{color:var(--acsv-accent)}'
   + '.acsv-cfloor{position:absolute;right:0;top:12px;font-size:12px;color:#7a7f8a}'
   + '.acsv-hot-head{padding:10px 14px 4px;font-size:12px;color:#fd4c5d;font-weight:700;'
   + 'display:flex;align-items:center;gap:5px}'
@@ -1038,10 +1041,13 @@ export var CSS_TEMPLATE = ''
   + 'border-bottom:1px solid rgba(255,255,255,.09);font-size:13px;color:#8a90a0}'
   + '.acsv-mdetail-actions .acsvg-glyph{font-size:14px}'
   + '.acsv-mdl-like,.acsv-mdl-ban,.acsv-mdl-cmt,.acsv-mdl-fwd{display:inline-flex;align-items:center;gap:5px}'
-  + '.acsv-mdl-like,.acsv-mdl-ban,.acsv-mdl-fwd{cursor:pointer}'
-  + '.acsv-mdl-like:hover,.acsv-mdl-ban:hover,.acsv-mdl-fwd:hover{color:#fff}'
+  // 评论键在详情面板可点（滚到评论头，momentdetail.onComment）→ 0.9.287 起与原生同为悬停键
+  + '.acsv-mdl-like,.acsv-mdl-ban,.acsv-mdl-cmt,.acsv-mdl-fwd{cursor:pointer}'
+  // 0.9.287 对齐原生互动条（api-research §15）：悬停=点亮色预览（红），蕉悬停蕉黄；白悬停退役
+  + '.acsv-mdl-like:hover,.acsv-mdl-cmt:hover,.acsv-mdl-fwd:hover{color:var(--acsv-accent)}'
+  + '.acsv-mdl-ban:hover{color:#ffba0d}'
   + '.acsv-mdl-like.on{color:var(--acsv-accent)}'
-  + '.acsv-mdl-ban.thrown{color:#ffb323}' // 蕉黄（0.9.104 拆色，A 站蕉色）
+  + '.acsv-mdl-ban.thrown{color:#ffba0d}' // 动态域蕉黄（0.9.287 对齐原生互动条 #FFBA0D；视频侧 rail/banpop 仍 #ffb323）
   + '.acsv-mdetail-cmthead{margin:16px 0 6px;text-align:center}'
   + '.acsv-mdetail-cmt{font-size:14px;font-weight:400;color:#8a90a0}'
   // 表情悬停大图（0.9.96 4.2）：锚定宿主面板（absolute），预览在条目上方、不挡交互
@@ -1542,10 +1548,20 @@ export var CSS_TEMPLATE = ''
   + 'font-size:12px;color:#8a90a0;cursor:pointer;user-select:none}'
   + '.acsv-frow-acts .acsv-fact:hover{color:var(--acsv-accent)}'
   + '.acsv-frow-acts .acsv-fact.on{color:var(--acsv-accent)}'
-  + '.acsv-frow-acts .acsv-fact.thrown{color:#ffb323}' // 投过蕉：锁定蕉黄（A 站蕉色，rail .thrown 同源）
+  + '.acsv-frow-acts .acsv-fact.thrown{color:#ffba0d}' // 动态域蕉黄（0.9.287 对齐原生互动条 #FFBA0D；视频侧 rail/banpop 仍 #ffb323）
+  // 蕉键悬停黄（0.9.287 原生互动条实测：蕉悬停 #FFBA0D !important、不随红；acsv-k-* 是
+  // 键定义表的 CSS 投影，两皮同挂）
+  + '.acsv-fact.acsv-k-banana:hover{color:#ffba0d}'
   // 数量层在行内互动行的落位（共享件 acsv-banpop 原为竖刷右栏设计：right:62——行内改锚底部上方）
   + '.acsv-frow-acts .acsv-banpop{right:0;top:auto;bottom:100%;margin-bottom:4px}'
   + '.acsv-fact .acsvg-glyph{font-size:14px}'
+  // 蕉/赞双图标显隐（0.9.287 照原生 .icon_path/.icon_fill 形制：线框/实心同在 DOM——
+  // 悬停与点亮(.on/.thrown)都切实心；分享/评论无实心码点，保持单字形不进本机制）
+  + '.acsvg-dual{position:relative;display:inline-flex;width:14px;height:14px}'
+  + '.acsvg-dual .acsvg-glyph{position:absolute;left:0;top:0;width:14px;height:14px;line-height:14px}'
+  + '.acsvg-dual .gfill{display:none}'
+  + '.acsv-fact:hover .gfill,.acsv-fact.on .gfill,.acsv-fact.thrown .gfill{display:inline-block}'
+  + '.acsv-fact:hover .gpath,.acsv-fact.on .gpath,.acsv-fact.thrown .gpath{display:none}'
   // 原位评论区（0.9.100）：60px 缩进对齐内容区；列表/输入条/表情面板样式全继承评论族。
   // position:relative 是表情面板的锚（.acsv-emotpanel 是 absolute;bottom:57px——宿主无定位
   // 时它逃逸到 .acsv-view-body 底缘，看起来就是「打不开」；0.9.101 用户实报修复）
@@ -1611,6 +1627,7 @@ export var CSS_TEMPLATE = ''
   + '.acsv-mp .acsv-frow-sinfo{color:#999}'
   + '.acsv-mp .acsv-frow-acts .acsv-fact{color:#999}'
   + '.acsv-mp .acsv-frow-acts .acsv-fact:hover{color:var(--acsv-accent)}'
+  + '.acsv-mp .acsv-fact.acsv-k-banana:hover{color:#ffba0d}' // 蕉键悬停黄（0.9.287，两皮同裁）
   + '.acsv-mp .acsv-fstatus{color:#999}'
   + '.acsv-mp .acsv-vempty{color:#999}'
   + '.acsv-mp .acsv-sqskel{background:#f2f2f2}'
@@ -1628,24 +1645,25 @@ export var CSS_TEMPLATE = ''
   + '.acsv-mp .acsv-cname a:hover{color:var(--acsv-accent);text-decoration:none}'
   + '.acsv-mp .acsv-ctext{color:#333}'
   + '.acsv-mp .acsv-cmeta{color:#999}'
-  // 悬停统一浅色档（0.9.286 与深色同口径：全键蓝 #409bef、唯点赞悬停红；两肤一档）
+  // 悬停统一浅色档（0.9.287 对齐原生：原生即浅色皮肤，互动键/设备/IP/展开收起悬停全主题红，
+  // #409bef 蓝档随深色同批退役——与深色同一裁决）
   + '.acsv-mp .acsv-clike{color:#999}'
   + '.acsv-mp .acsv-clike:hover{color:var(--acsv-accent)}'
   + '.acsv-mp .acsv-creplybtn,.acsv-mp .acsv-cfwdbtn{color:#999}'
-  + '.acsv-mp .acsv-creplybtn:hover,.acsv-mp .acsv-cfwdbtn:hover{color:#409bef}'
+  + '.acsv-mp .acsv-creplybtn:hover,.acsv-mp .acsv-cfwdbtn:hover{color:var(--acsv-accent)}'
   + '.acsv-mp .acsv-cdelbtn{color:#d9364a}'
-  + '.acsv-mp .acsv-cdelbtn:hover{color:#409bef}'
-  // 属性组/展开收起键浅色（0.9.286）：弱灰比 meta 基色 #999 退一档；悬停同浅蓝
+  + '.acsv-mp .acsv-cdelbtn:hover{color:var(--acsv-accent)}'
+  // 属性组/展开收起键浅色（0.9.286）：弱灰比 meta 基色 #999 退一档；0.9.287 悬停归红
   + '.acsv-mp .acsv-cattr{color:#a8adb5}'
   + '.acsv-mp .acsv-cattr .acsv-cip{color:#a8adb5}'
-  + '.acsv-mp .acsv-cip:hover{color:#409bef}'
+  + '.acsv-mp .acsv-cip:hover{color:var(--acsv-accent)}'
   + '.acsv-mp .acsv-cmore,.acsv-mp .acsv-cfold{color:#999}'
-  + '.acsv-mp .acsv-cmore:hover,.acsv-mp .acsv-cfold:hover{color:#409bef}'
+  + '.acsv-mp .acsv-cmore:hover,.acsv-mp .acsv-cfold:hover{color:var(--acsv-accent)}'
   + '.acsv-mp .acsv-csub{background:#f7f7f7}'
   + '.acsv-mp .acsv-hot-divider{color:#999}'
   // 观感件浅色（0.9.134；头像框无肤色差异不做覆盖）
   + '.acsv-mp .acsv-creplyto{color:#409bef}'
-  + '.acsv-mp .acsv-cfrom a:hover{color:#409bef}'
+  + '.acsv-mp .acsv-cfrom a:hover{color:var(--acsv-accent)}'
   + '.acsv-mp .acsv-cfloor{color:#999}'
   // 原生形态版式（0.9.138 全语境统一）：几何已上提为基础规则（.acsv-citem/.acsv-csub/… 处，
   // 全宿主同码）——本块只留浅色差异（时间/前缀灰、分割线原生色）

@@ -1924,25 +1924,40 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
     }
     if (emotBtn) emotBtn.click(); // 再点收面板
     vActs[1].click(); // 收起
-    // 图标码点（0.9.101 实报「投蕉图标用错」）：原生 member-feed 四件套
-    // 分享 E628 / 评论 E627 / 蕉 E62A / 赞（该行预置已赞）E660——竖刷侧栏的蕉(E2EA)与
-    // 站点头部分享(E15B)都是错的（0.9.100 用错那两个）
+    // 图标码点（0.9.101 实报「投蕉图标用错」；0.9.287 双图标结构后四码点全钉）：
+    // 原生 member-feed 四件套 分享 E628 / 评论 E627 单字形；蕉 线框 E62A+实心 E65F、
+    // 赞 线框 E629+实心 E660 双字形同在 DOM（照原生 .icon_path/.icon_fill，显隐归 CSS）
     rec('follow-icon-codepoints', (function () {
-      function cp(act) {
+      function cp(act, sub) {
         var b = null;
         [].forEach.call(vRow.querySelectorAll('.acsv-fact'), function (x) { if (x._act === act) b = x; });
-        var g = b && b.querySelector('.acsvg-glyph');
+        var g = b && b.querySelector(sub ? '.acsvg-glyph.' + sub : '.acsvg-glyph');
         return g ? g.textContent.codePointAt(0) : 0;
       }
-      return cp('share') === 0xE628 && cp('comment') === 0xE627 && cp('banana') === 0xE62A && cp('like') === 0xE660;
+      return cp('share') === 0xE628 && cp('comment') === 0xE627
+        && cp('banana', 'gpath') === 0xE62A && cp('banana', 'gfill') === 0xE65F
+        && cp('like', 'gpath') === 0xE629 && cp('like', 'gfill') === 0xE660;
     })(), 'share/comment/banana/like=' + (function () {
       var out = [];
       [].forEach.call(vRow.querySelectorAll('.acsv-fact'), function (x) {
+        var ps = x.querySelector('.acsvg-glyph.gpath'), fl = x.querySelector('.acsvg-glyph.gfill');
         var g = x.querySelector('.acsvg-glyph');
-        out.push(x._act + ':' + (g ? g.textContent.codePointAt(0).toString(16) : '?'));
+        out.push(x._act + ':' + (ps && fl
+          ? ps.textContent.codePointAt(0).toString(16) + '/' + fl.textContent.codePointAt(0).toString(16)
+          : (g ? g.textContent.codePointAt(0).toString(16) : '?')));
       });
       return out.join(' ');
     })());
+    // 双图标显隐=点亮态驱动的结果不变式（0.9.287）：预置已赞行的赞键 .on → 实心可见、线框隐藏
+    //（悬停态同一机制的另一半，harness 无真鼠标不钉；真机抽验走内置浏览器）
+    rec('follow-dual-fill-on', (function () {
+      var b = null;
+      [].forEach.call(vRow.querySelectorAll('.acsv-fact'), function (x) { if (x._act === 'like') b = x; });
+      if (!b || !b.classList.contains('on')) return false;
+      var ps = b.querySelector('.gpath'), fl = b.querySelector('.gfill');
+      return !!ps && !!fl && getComputedStyle(ps).display === 'none'
+        && getComputedStyle(fl).display !== 'none';
+    })(), 'on 键 fill 可见/path 隐藏');
     // ---- 投蕉（0.9.104 用户口径「视频/文章=视频机制」）：数量层（点第 N 根投 N）+ 蕉黄 ----
     var vBan = null;
     [].forEach.call(vRow.querySelectorAll('.acsv-fact'), function (x) { if (x._act === 'banana') vBan = x; });
@@ -2023,7 +2038,9 @@ rec('follow-quote-upname-level', (function () { // 引用卡 @源UP：夹具源U
   [].forEach.call(document.querySelectorAll('.acsv-gquote-upname'), function (x) { if (/源UP乙/.test(x.textContent)) n = x; });
   return n ? getComputedStyle(n).color : 'no-node';
 })());
-rec('follow-ban-yellow', getComputedStyle(vBan).color === 'rgb(255, 179, 35)',
+// 蕉黄 = 动态域蕉黄 #ffba0d（0.9.287 对齐原生互动条实测值 #FFBA0D；视频侧 rail/banpop
+// 仍保持自家原生 #ffb323——站点自体两档各随各原生，api-research §15.3-5）
+rec('follow-ban-yellow', getComputedStyle(vBan).color === 'rgb(255, 186, 13)',
       getComputedStyle(vBan).color);
     rec('follow-ban-video-rt', /resourceType=2/.test(window.__ACSV_BAN_BODY__ || '')
       && /count=3/.test(window.__ACSV_BAN_BODY__ || ''), window.__ACSV_BAN_BODY__);

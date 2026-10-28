@@ -33,16 +33,12 @@ export function momentShareItemOf(pi) {
 function syncLike(btn, pi) {
   btn.classList.toggle('on', !!pi.liked);
   btn.title = pi.liked ? '已赞' : '点赞';
-  var g = btn.querySelector('.acsvg-glyph');
-  if (g) g.textContent = pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike;
   if (btn._n) btn._n.textContent = fmtWan(pi.like);
 }
 
 function syncBanana(btn, pi) {
-  btn.classList.toggle('thrown', !!pi.thrown); // 蕉黄态（#ffb323；.on 是赞的 accent）
+  btn.classList.toggle('thrown', !!pi.thrown); // 蕉黄态（0.9.287 起动态域 #ffba0d；.on 是赞的 accent）
   btn.title = pi.thrown ? '已投蕉' : '投蕉';
-  var g = btn.querySelector('.acsvg-glyph');
-  if (g) g.textContent = pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana;
   if (btn._n) btn._n.textContent = fmtWan(pi.banana);
 }
 
@@ -105,6 +101,15 @@ function wireBanana(btn, pi) {
   });
 }
 
+// 蕉/赞双图标（0.9.287 照原生 .icon_path/.icon_fill 形制：线框/实心两字形同在 DOM，
+// 显隐归 CSS——悬停与点亮(.on/.thrown)都切实心；分享/评论无实心码点保持单字形）
+function dualIcon(gpath, gfill) {
+  var w = el('span', 'acsvg-dual');
+  w.appendChild(el('i', 'acsvg-glyph gpath', gpath));
+  w.appendChild(el('i', 'acsvg-glyph gfill', gfill));
+  return w;
+}
+
 // 建互动栏。opts = { skin:'row'|'detail', onShare(btn)?, onComment(btn)? }
 // 无 onShare/onComment 时对应键不建（面板无评论外链语境时也传回调——两消费面现全传）
 export function momentBarOf(pi, opts) {
@@ -112,11 +117,13 @@ export function momentBarOf(pi, opts) {
   var detail = opts.skin === 'detail';
   var bar = el('div', detail ? 'acsv-mdetail-actions' : 'acsv-frow-acts');
   function item(k, o) {
-    var cls = 'acsv-fact' + (detail && o.detailCls ? ' ' + o.detailCls : '') + (o.cls ? ' ' + o.cls : '');
+    // acsv-k-<键名>：键定义表的 CSS 投影（蕉键悬停黄等按键规则的选择器落点；0.9.287）
+    var cls = 'acsv-fact acsv-k-' + k + (detail && o.detailCls ? ' ' + o.detailCls : '') + (o.cls ? ' ' + o.cls : '');
     var b = el('span', cls);
     b._act = k;
     b.title = o.title;
-    b.appendChild(el('i', 'acsvg-glyph', o.glyph));
+    if (o.glyphs) b.appendChild(dualIcon(o.glyphs[0], o.glyphs[1]));
+    else b.appendChild(el('i', 'acsvg-glyph', o.glyph));
     if (o.text) b.appendChild(el('span', null, o.text)); // 分享=文字无计数（原生同款）
     if (o.n != null) {
       var n = el('span', null, fmtWan(o.n));
@@ -136,12 +143,12 @@ export function momentBarOf(pi, opts) {
   var cmt = item('comment', { glyph: GLYPHS.feedComment, n: pi.comment, title: '评论', detailCls: 'acsv-mdl-cmt' });
   if (opts.onComment) cmt.addEventListener('click', function (ev) { ev.stopPropagation(); opts.onComment(cmt); });
   var ban = item('banana', {
-    glyph: pi.thrown ? GLYPHS.feedBananaFill : GLYPHS.feedBanana, n: pi.banana,
+    glyphs: [GLYPHS.feedBanana, GLYPHS.feedBananaFill], n: pi.banana,
     title: pi.thrown ? '已投蕉' : '投蕉', cls: pi.thrown ? 'thrown' : '', detailCls: 'acsv-mdl-ban'
   });
   wireBanana(ban, pi);
   var like = item('like', {
-    glyph: pi.liked ? GLYPHS.feedLikeFill : GLYPHS.feedLike, n: pi.like,
+    glyphs: [GLYPHS.feedLike, GLYPHS.feedLikeFill], n: pi.like,
     title: pi.liked ? '已赞' : '点赞', cls: pi.liked ? 'on' : '', detailCls: 'acsv-mdl-like'
   });
   wireLike(like, pi);
