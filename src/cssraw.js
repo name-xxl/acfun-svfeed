@@ -1245,7 +1245,6 @@ export var CSS_TEMPLATE = ''
   + '.acsv-metab:hover{color:#fff}'
   + '.acsv-metab.on{color:#fff;font-weight:600;border-bottom-color:var(--acsv-accent)}'
   + '.acsv-mepanel{padding-top:16px}'
-  + '.acsv-mepanel .acsv-vchips{margin-bottom:14px}'
   // 网格：列数随容器宽自适应（minmax 自动填充，无硬断点）
   + '.acsv-megrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(' + '{{megridMin}}' + 'px,1fr));'
   + 'gap:18px ' + '{{megridGap}}' + 'px}'
@@ -1318,38 +1317,94 @@ export var CSS_TEMPLATE = ''
   + '.acsv-pick-extra{margin-right:auto;border:none;background:none;color:#ff8a95;font-size:12px;'
   + 'font-family:inherit;cursor:pointer;padding:4px 2px}'
   + '.acsv-confirm-text{padding:0 12px 6px;color:#cfd3da;line-height:1.6;font-size:13px}'
-  // ---- 管理档壳样式（0.9.142 建；0.9.289 起只剩收藏夹壳消费——关注列表档改版为 followadmin）----
-  // 组头操作行（改名/删除）/ 内联表单（建夹·改名）
-  + '.acsv-gops{display:flex;gap:8px;margin:-6px 0 12px}'
-  + '.acsv-vchip.acsv-gdanger{color:#ff8a95}'
-  + '.acsv-gform{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}'
-  + '.acsv-ginput{height:32px;min-width:180px;border:1px solid rgba(255,255,255,.18);border-radius:8px;'
-  + 'background:rgba(255,255,255,.08);color:#fff;font-size:13px;font-family:inherit;padding:0 12px;outline:none}'
-  + '.acsv-ginput:focus{border-color:var(--acsv-accent)}'
-  + '.acsv-gok{border:none;border-radius:16px;padding:6px 18px;font-size:13px;font-family:inherit;cursor:pointer;'
-  + 'background:var(--acsv-accent);color:#fff}'
-  + '.acsv-gcancel{border:none;border-radius:16px;padding:6px 18px;font-size:13px;font-family:inherit;cursor:pointer;'
-  + 'background:rgba(255,255,255,.12);color:#cfd3da}'
-  + '.acsv-gerr{font-size:12px;color:#ff8a95}'
-  // ---- 关注列表管理（0.9.289 对齐原生 /member/feeds/following，确认稿
-  //      docs/preview/follow-list-native.html；量取值与暗色换算 docs/api-research.md §16；
-  //      结构见 followadmin.buildFollowAdmin。旧 .acsv-grow* 家族随旧形态退役）----
-  // 顶栏：全部分组 select（142×36）+ 编辑分组文字钮
-  + '.acsv-fltop{position:relative;display:flex;align-items:flex-start}'
-  + '.acsv-flselect{position:relative;width:142px;height:36px;border:1px solid rgba(255,255,255,.12);'
+  // ---- 我的页档头+管理模态共用（0.9.293 meadmin，确认稿 docs/preview/me-tabhead.html）----
+  // 档头 mehead=[select?]+[动作区]，三档同构（关注列表/收藏夹/历史）；量值=0.9.289 原生对齐
+  // 在档值（select 142×36 / 菜单 142 选项 22 行高 / 文字钮 14/28 hover accent——自 .acsv-fltop
+  // 族升共享段，类名随构件迁移）。管理模态=0.9.292 设置面板族壳（量值=settingspanel SET_CSS，
+  // 确认稿 docs/preview/follow-modal-settings.html；.acsv-flm* 随出库改姓 .acsv-mm*）。
+  // 顶栏：select 142×36 + 右侧动作钮（关注列表=编辑分组/收藏夹=管理收藏夹/历史=清空历史）
+  + '.acsv-mhead{position:relative;display:flex;align-items:flex-start;margin-bottom:14px}'
+  + '.acsv-mhsel{position:relative;width:142px;height:36px;border:1px solid rgba(255,255,255,.12);'
   + 'border-radius:4px;padding:0 30px 0 11px;font-size:14px;color:#e8eaee;line-height:34px;cursor:pointer;user-select:none}'
-  + '.acsv-flarw{position:absolute;right:10px;top:0;font-family:acfun-frontend-next;font-style:normal;'
+  + '.acsv-mharw{position:absolute;right:10px;top:0;font-family:acfun-frontend-next;font-style:normal;'
   + 'font-size:14px;color:#8a90a0;pointer-events:none}'
-  + '.acsv-flarw.up{transform:rotate(180deg)}'
-  + '.acsv-flmenu{position:absolute;left:-1px;top:38px;width:142px;background:rgba(22,22,27,.97);'
+  + '.acsv-mharw.up{transform:rotate(180deg)}'
+  + '.acsv-mhmenu{position:absolute;left:-1px;top:38px;width:142px;background:rgba(22,22,27,.97);'
   + 'border:1px solid rgba(255,255,255,.12);border-radius:4px;box-shadow:0 10px 30px rgba(0,0,0,.5);'
   + 'padding:4px 0;z-index:36}'
-  + '.acsv-flopt{padding:5px 12px;font-size:14px;line-height:22px;color:#e8eaee;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
-  + '.acsv-flopt:hover{background:rgba(255,255,255,.06)}'
-  + '.acsv-flopt.on{color:var(--acsv-accent)}'
-  + '.acsv-fledit{margin-left:auto;border:none;background:none;font-family:inherit;font-size:14px;'
-  + 'color:#e8eaee;height:28px;cursor:pointer}'
-  + '.acsv-fledit:hover{color:var(--acsv-accent)}'
+  + '.acsv-mhopt{padding:5px 12px;font-size:14px;line-height:22px;color:#e8eaee;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+  + '.acsv-mhopt:hover{background:rgba(255,255,255,.06)}'
+  + '.acsv-mhopt.on{color:var(--acsv-accent)}'
+  + '.acsv-mhact{margin-left:auto;border:none;background:none;font-family:inherit;font-size:14px;'
+  + 'color:#e8eaee;height:28px;cursor:pointer;padding:0 2px}'
+  + '.acsv-mhact:hover{color:var(--acsv-accent)}'
+  + '.acsv-mhact.danger{color:#ff8a95}'
+  + '.acsv-mhact.danger:hover{color:#ffb0b8}'
+  // 模态壳（遮罩 .62 / 面板 blur12 圆角14 / 页头左置 15/600 + 28 圆✕ / 体 20 padding 滚动 /
+  // 页脚右置 primary；落位=视口垂直居中 0.9.291 钉，margin:auto 模式：居中之外模态高于视口
+  // 时顶边仍可达）
+  + '.acsv-mmask{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:63}'
+  + '.acsv-mm-wrap{position:fixed;inset:0;display:flex;overflow-y:auto;z-index:64;padding:16px}'
+  + '.acsv-mm-main{margin:auto;width:400px;max-width:100%;max-height:min(76vh,640px);'
+  + 'display:flex;flex-direction:column;background:rgba(22,22,27,.97);backdrop-filter:blur(12px);'
+  + 'border:1px solid rgba(255,255,255,.1);border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);'
+  + 'overflow:hidden;color:#fff}'
+  + '.acsv-mm-hd{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px;'
+  + 'border-bottom:1px solid rgba(255,255,255,.09)}'
+  + '.acsv-mm-ttl{font-size:15px;font-weight:600;color:#fff}'
+  + '.acsv-mm-x{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;'
+  + 'width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}'
+  + '.acsv-mm-x:hover{background:rgba(255,255,255,.22)}'
+  // 体：列表随面板体滚动（.set-body 模式；内层 203 限高已于 0.9.292 退役）
+  + '.acsv-mm-bd{flex:1 1 auto;min-height:64px;overflow-y:auto;padding:20px;scrollbar-width:thin;'
+  + 'scrollbar-color:rgba(255,255,255,.2) transparent}'
+  + '.acsv-mm-grp{font-size:12px;color:#8b909a;margin:0 0 12px}'
+  + '.acsv-mm-list{display:flex;flex-direction:column}'
+  // 条目行（管理模态）＝.set-row 节奏：名 14/18 左 + ghost 操作键右，行距 20
+  + '.acsv-mm-erow{display:flex;align-items:center;gap:12px;min-height:26px;margin:0 0 20px}'
+  + '.acsv-mm-erow .acsv-mm-gl{color:#fff}'
+  + '.acsv-mm-gops{margin-left:auto;display:flex;gap:6px;flex:none}'
+  + '.acsv-mm-gop{border:none;background:none;font-family:inherit;font-size:13px;color:#8b909a;'
+  + 'padding:3px 10px;border-radius:6px;cursor:pointer}'
+  + '.acsv-mm-gop:hover{background:rgba(255,255,255,.12);color:#fff}'
+  // 条目行（设置分组·radio ⑤-A）＝.set-sel-item 行语言：透底 36 高 hover 白.12、选中 radio
+  // accent 点亮 + 字转白（保圆点案，2026-10-29 用户裁决）
+  + '.acsv-mm-gi{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;'
+  + 'border-radius:4px;cursor:pointer}'
+  + '.acsv-mm-gi:hover{background:rgba(255,255,255,.12)}'
+  + '.acsv-mm-radio{width:16px;height:16px;border-radius:100px;border:1px solid rgba(255,255,255,.25);flex:none;position:relative}'
+  + '.acsv-mm-gi.on .acsv-mm-radio{border-color:var(--acsv-accent)}'
+  + '.acsv-mm-gi.on .acsv-mm-radio::after{content:"";position:absolute;left:3px;top:3px;width:8px;height:8px;'
+  + 'border-radius:100px;background:var(--acsv-accent)}'
+  + '.acsv-mm-gl{font-size:14px;color:#cfd3da;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+  + '.acsv-mm-gi.on .acsv-mm-gl{color:#fff}'
+  // 输入（改名/添加）＝设置输入家族（无边 圆角8 bg 白.12 13px，focus .18）
+  + '.acsv-mm-rninput{flex:1;min-width:0;border:none;border-radius:8px;background:rgba(255,255,255,.12);'
+  + 'color:#fff;font-size:13px;font-family:inherit;padding:7px 12px;outline:none}'
+  + '.acsv-mm-rninput:focus{background:rgba(255,255,255,.18)}'
+  + '.acsv-mm-addrow{display:flex;align-items:center;gap:12px;margin:16px 0 0;flex:none}'
+  + '.acsv-mm-addin{flex:1;min-width:0;border:none;border-radius:8px;background:rgba(255,255,255,.12);'
+  + 'color:#fff;font-size:13px;font-family:inherit;padding:7px 12px;outline:none}'
+  + '.acsv-mm-addin::placeholder{color:#8b909a}'
+  + '.acsv-mm-addin:focus{background:rgba(255,255,255,.18)}'
+  + '.acsv-mm-addacts{display:flex;justify-content:flex-end;gap:8px;margin:8px 0 0;flex:none}'
+  + '.acsv-mm-sbtn{border:none;border-radius:8px;padding:5px 12px;font-size:13px;font-family:inherit;'
+  + 'cursor:pointer;background:rgba(255,255,255,.12);color:#fff}'
+  + '.acsv-mm-sbtn:hover{background:rgba(255,255,255,.2)}'
+  + '.acsv-mm-sbtn.primary{background:var(--acsv-accent)}'
+  // 页脚（＝.set-foot：确定 primary 右置；原居中红块 128×36 退役）
+  + '.acsv-mm-foot{flex:none;display:flex;align-items:center;gap:8px;justify-content:flex-end;'
+  + 'padding:10px 16px 14px;border-top:1px solid rgba(255,255,255,.09)}'
+  + '.acsv-mm-ok{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;'
+  + 'cursor:pointer;background:var(--acsv-accent);color:#fff;transition:background .15s}'
+  // 顶部警示条（模仿原生 ac-toast-warn：icon U+E1A0 金黄 + 14px 文案；暗色加 panel 底成浮层药丸）
+  + '.acsv-mmwarn{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:66;display:flex;'
+  + 'align-items:center;gap:6px;padding:8px 14px;font-size:14px;color:#cfd3da;background:rgba(22,22,27,.97);'
+  + 'border:1px solid rgba(255,255,255,.12);border-radius:4px;box-shadow:0 10px 30px rgba(0,0,0,.5);white-space:nowrap}'
+  + '.acsv-mmwarn .acsv-flico{color:#faad14}'
+  // ---- 关注列表本体（0.9.289 对齐原生 /member/feeds/following，确认稿
+  //      docs/preview/follow-list-native.html；量取值与暗色换算 docs/api-research.md §16；
+  //      档头/模态已于 0.9.293 升 meadmin 共用段，本段只剩成员行与行内菜单）----
   // 成员行：头像 60 圆 + 名 16/24 + data 三段（12/18 间距24）+ 签名 2 行钳 + 行内关系钮
   + '.acsv-fllist{display:flex;flex-direction:column}'
   + '.acsv-flrow{display:flex;padding:20px 0;border-bottom:1px solid rgba(255,255,255,.06)}'
@@ -1374,71 +1429,6 @@ export var CSS_TEMPLATE = ''
   + '.acsv-flmi{display:block;width:100%;border:none;background:none;font-family:inherit;height:38px;'
   + 'line-height:38px;text-align:center;font-size:14px;color:#e8eaee;cursor:pointer}'
   + '.acsv-flmi:hover{color:var(--acsv-accent)}'
-  // 确认弹层（0.9.292 起删组/取关类确认全走 pickpop.openConfirmPop 同族确认卡
-  // .acsv-confirmpop——样式单源在其段落，本件不再有私有 PopConfirm 模仿态）
-  // 模态壳（0.9.292 对齐设置面板家族，量值=settingspanel SET_CSS：遮罩 .62 / 面板 blur12
-  // 圆角14 边白.1 阴影 0 10px 34 / 页头左置 15/600 + 28 圆✕ / 体 20 padding 滚动 / 页脚右置
-  // primary。确认稿 docs/preview/follow-modal-settings.html；交互与写链零变化）
-  + '.acsv-flmask{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:63}'
-  // 落位=视口垂直居中（0.9.291 钉）；margin:auto 模式：居中之外，模态高于视口时顶边仍可达
-  + '.acsv-flm-wrap{position:fixed;inset:0;display:flex;overflow-y:auto;z-index:64;padding:16px}'
-  + '.acsv-flm-main{margin:auto;width:400px;max-width:100%;max-height:min(76vh,640px);'
-  + 'display:flex;flex-direction:column;background:rgba(22,22,27,.97);backdrop-filter:blur(12px);'
-  + 'border:1px solid rgba(255,255,255,.1);border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);'
-  + 'overflow:hidden;color:#fff}'
-  + '.acsv-flm-hd{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px;'
-  + 'border-bottom:1px solid rgba(255,255,255,.09)}'
-  + '.acsv-flm-ttl{font-size:15px;font-weight:600;color:#fff}'
-  + '.acsv-flm-x{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;'
-  + 'width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}'
-  + '.acsv-flm-x:hover{background:rgba(255,255,255,.22)}'
-  // 体：内层 203 限高退役——列表随面板体滚动（.set-body 模式）
-  + '.acsv-flm-bd{flex:1 1 auto;min-height:64px;overflow-y:auto;padding:20px;scrollbar-width:thin;'
-  + 'scrollbar-color:rgba(255,255,255,.2) transparent}'
-  + '.acsv-flm-grp{font-size:12px;color:#8b909a;margin:0 0 12px}'
-  + '.acsv-flm-list{display:flex;flex-direction:column}'
-  // 组行（编辑分组）＝.set-row 节奏：名 14/18 左 + ghost 操作键右，行距 20
-  + '.acsv-flm-erow{display:flex;align-items:center;gap:12px;min-height:26px;margin:0 0 20px}'
-  + '.acsv-flm-erow .acsv-flm-gl{color:#fff}'
-  + '.acsv-flm-gops{margin-left:auto;display:flex;gap:6px;flex:none}'
-  + '.acsv-flm-gop{border:none;background:none;font-family:inherit;font-size:13px;color:#8b909a;'
-  + 'padding:3px 10px;border-radius:6px;cursor:pointer}'
-  + '.acsv-flm-gop:hover{background:rgba(255,255,255,.12);color:#fff}'
-  // 组行（设置分组·radio ⑤-A）＝.set-sel-item 行语言：透底 36 高 hover 白.12、选中 radio
-  // accent 点亮 + 字转白（保圆点案，2026-10-29 用户裁决）
-  + '.acsv-flm-gi{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;'
-  + 'border-radius:4px;cursor:pointer}'
-  + '.acsv-flm-gi:hover{background:rgba(255,255,255,.12)}'
-  + '.acsv-flm-radio{width:16px;height:16px;border-radius:100px;border:1px solid rgba(255,255,255,.25);flex:none;position:relative}'
-  + '.acsv-flm-gi.on .acsv-flm-radio{border-color:var(--acsv-accent)}'
-  + '.acsv-flm-gi.on .acsv-flm-radio::after{content:"";position:absolute;left:3px;top:3px;width:8px;height:8px;'
-  + 'border-radius:100px;background:var(--acsv-accent)}'
-  + '.acsv-flm-gl{font-size:14px;color:#cfd3da;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
-  + '.acsv-flm-gi.on .acsv-flm-gl{color:#fff}'
-  // 输入（改名/添加）＝设置输入家族（无边 圆角8 bg 白.12 13px，focus .18）
-  + '.acsv-flm-rninput{flex:1;min-width:0;border:none;border-radius:8px;background:rgba(255,255,255,.12);'
-  + 'color:#fff;font-size:13px;font-family:inherit;padding:7px 12px;outline:none}'
-  + '.acsv-flm-rninput:focus{background:rgba(255,255,255,.18)}'
-  + '.acsv-flm-addrow{display:flex;align-items:center;gap:12px;margin:16px 0 0;flex:none}'
-  + '.acsv-flm-addin{flex:1;min-width:0;border:none;border-radius:8px;background:rgba(255,255,255,.12);'
-  + 'color:#fff;font-size:13px;font-family:inherit;padding:7px 12px;outline:none}'
-  + '.acsv-flm-addin::placeholder{color:#8b909a}'
-  + '.acsv-flm-addin:focus{background:rgba(255,255,255,.18)}'
-  + '.acsv-flm-addacts{display:flex;justify-content:flex-end;gap:8px;margin:8px 0 0;flex:none}'
-  + '.acsv-flm-sbtn{border:none;border-radius:8px;padding:5px 12px;font-size:13px;font-family:inherit;'
-  + 'cursor:pointer;background:rgba(255,255,255,.12);color:#fff}'
-  + '.acsv-flm-sbtn:hover{background:rgba(255,255,255,.2)}'
-  + '.acsv-flm-sbtn.primary{background:var(--acsv-accent)}'
-  // 页脚（＝.set-foot：确定 primary 右置；原居中红块 128×36 退役）
-  + '.acsv-flm-foot{flex:none;display:flex;align-items:center;gap:8px;justify-content:flex-end;'
-  + 'padding:10px 16px 14px;border-top:1px solid rgba(255,255,255,.09)}'
-  + '.acsv-flm-ok{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;'
-  + 'cursor:pointer;background:var(--acsv-accent);color:#fff;transition:background .15s}'
-  // 顶部警示条（模仿原生 ac-toast-warn：icon U+E1A0 金黄 + 14px 文案；暗色加 panel 底成浮层药丸）
-  + '.acsv-flwarn{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:66;display:flex;'
-  + 'align-items:center;gap:6px;padding:8px 14px;font-size:14px;color:#cfd3da;background:rgba(22,22,27,.97);'
-  + 'border:1px solid rgba(255,255,255,.12);border-radius:4px;box-shadow:0 10px 30px rgba(0,0,0,.5);white-space:nowrap}'
-  + '.acsv-flwarn .acsv-flico{color:#faad14}'
   // ---- 收藏夹管理（0.9.143，我的页收藏夹 tab）：卡面 hover 的「移动/移除收藏」两键 ----
   // wrapper 是网格项（.acsv-megrid 的直接子级），卡面在其内照常拉伸；两键绝对定位贴封面右上，
   // hover 才显形（桌面习惯；不遮封面主体）

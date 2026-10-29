@@ -323,21 +323,33 @@ rec('fav-card-composition', (function () {
     + ' gfoot=' + JSON.stringify((t.gfoot || {}).textContent) + ' gtag=' + JSON.stringify((t.gtag || {}).textContent)
     + ' gtime=' + JSON.stringify(((c.querySelector('.acsv-gtime') || {}).textContent));
 })());
-// chips 顺序（0.9.69 修）：夹位选择器必须在**列表之上**（几何比较——原先
-// insertBefore(chips, btn) 落在列表下方，真机实测 favRow0 y=833 < chips y=997）
-rec('fav-chips-above', (function () {
-  var chips = q('.acsv-mepanel[data-tab="fav"] .acsv-vchips');
+// 档头在列表之上（0.9.69 修的几何判据沿用：夹位选择器必须在**列表之上**——原先
+// insertBefore(chips, btn) 落在列表下方，真机实测 favRow0 y=833 < chips y=997；
+// 0.9.293 起 chips 换 mehead 档头，判据对象随迁）
+rec('fav-head-above', (function () {
+  var head = q('.acsv-mepanel[data-tab="fav"] .acsv-mhead');
   var first = q('.acsv-vlist.fav .acsv-gcell');
-  if (!chips || !first || !chips.offsetParent) return false;
-  return chips.getBoundingClientRect().bottom <= first.getBoundingClientRect().top + 1;
+  if (!head || !first || !head.offsetParent) return false;
+  return head.getBoundingClientRect().bottom <= first.getBoundingClientRect().top + 1;
+})(), (function () {
+  var head = q('.acsv-mepanel[data-tab="fav"] .acsv-mhead');
+  var first = q('.acsv-vlist.fav .acsv-gcell');
+  if (!head) return 'no-head';
+  if (!first) return 'no-first';
+  return 'op=' + (head.offsetParent ? head.offsetParent.className : 'null')
+    + ' headBottom=' + Math.round(head.getBoundingClientRect().bottom)
+    + ' firstTop=' + Math.round(first.getBoundingClientRect().top);
 })());
-var fchips = q('.acsv-mepanel[data-tab="fav"] .acsv-vchips').children;
-// 0.9.143 起 chips 末尾是「＋ 新建夹」——按**文案**取「夹二」（不再取末位 child）
-var chip2 = null;
-for (var fc = 0; fc < fchips.length; fc++) {
-  if (fchips[fc].textContent.indexOf('夹二') === 0) { chip2 = fchips[fc]; break; }
+// 切夹（0.9.293）：chips 退役，走 mehead select 菜单——点开选「夹二」
+var favSel = q('.acsv-mepanel[data-tab="fav"] .acsv-mhead .acsv-mhsel');
+if (favSel) favSel.click();
+var opt2 = null;
+await waitFor(function () { return !!q('.acsv-mepanel[data-tab="fav"] .acsv-mhmenu'); }, 8000);
+var fopts = document.querySelectorAll('.acsv-mepanel[data-tab="fav"] .acsv-mhmenu .acsv-mhopt');
+for (var fc = 0; fc < fopts.length; fc++) {
+  if (fopts[fc].textContent.indexOf('夹二') === 0) { opt2 = fopts[fc]; break; }
 }
-if (chip2) chip2.click();
+if (opt2) opt2.click();
 rec('fav-switch-rows', !!(await waitFor(function () {
   var cells = document.querySelectorAll('.acsv-vlist.fav .acsv-gcell');
   return cells.length === 1 && /测试收藏视频0/.test(cells[0].textContent);
@@ -3258,7 +3270,7 @@ rec('square-cmt-namecolor', (function () {
     rec('hd-delete-gone', !!(await waitFor(function () {
       return document.querySelectorAll('.acsv-mepanel[data-tab="hist"] .acsv-gcell').length === 17;
     }, 3000)), 'n=' + document.querySelectorAll('.acsv-mepanel[data-tab="hist"] .acsv-gcell').length);
-    var clear = q('.acsv-histhead .acsv-vchip');
+    var clear = q('.acsv-mepanel[data-tab="hist"] .acsv-mhead .acsv-mhact');
     rec('hd-clear-key', !!clear);
     rec('hd-clear-vis', clear ? getComputedStyle(clear).display : 'none');
     if (clear) clear.click();

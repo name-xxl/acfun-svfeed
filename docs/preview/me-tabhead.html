@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 我的页档头抽离共用（me-tabhead）</title>
+<!-- ============================================================
+     docs/preview/me-tabhead.html —— 我的页三档顶部栏抽离共用件（暂名 mehead）。
+     现状（三栏三种语言）：
+     · 收藏夹：chips 胶囊行（每夹一枚「夹名 N」+「＋ 新建夹」）+ 下方 ops 行（改名/删除收藏夹）
+     · 历史：chips 行里孤一枚「清空历史」小 danger chip（列表非空才显示）
+     · 关注列表（0.9.289/292，参照稿）：原生 select 142×36 + 右置「编辑分组」文字钮
+     抽离方向（用户令）：以关注列表顶栏为参照，三档共用一个「档头」构件：
+     [select?] … [右侧动作区]。关注列表=与现役同形；收藏夹=chips 换 select（双案：ops 两去处）；
+     历史=无 select、右置 danger 文字钮。
+     量值来源：select/菜单/文字钮 = cssraw .acsv-fltop/.acsv-flselect/.acsv-flmenu/.acsv-fledit
+     （0.9.289 原生对齐稿在档值）；模态 = 0.9.292 设置面板家族（follow-modal-settings.html）；
+     chips = cssraw .acsv-vchip（现状对照用）。箭头字形 U+E166 预览以 ▾ 顶替（实现走 iconfont）。
+     待裁决：A 收藏夹 ops 去处（④ 行下保留 / ⑤ 管理模态+adminTab 退役）；
+             B 历史「清空历史」钮色（danger 红字 / 中性灰字）。
+     ============================================================ -->
+<style>
+  :root{
+    --acsv-accent:#fd4c5d;
+    --acsv-bg:#000;
+    --acsv-panel:rgba(22,22,27,.97);
+    --acsv-line:rgba(255,255,255,.09);
+    --acsv-t1:#fff;
+    --acsv-t2:#cfd3da;
+    --acsv-t3:#8a90a0;
+    --acsv-danger:#ff8a95;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
+  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .board .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
+  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:12px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .duo{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+  .duo>div{min-width:0}
+  .demo{border:1px dashed rgba(255,255,255,.14);border-radius:10px;padding:18px 20px;position:relative}
+  .cap{color:var(--acsv-t3);font-size:12px;margin-top:8px;line-height:1.7}
+
+  /* ---- 现状对照：chips 语言 ---- */
+  .vchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .vchip{border:none;border-radius:16px;padding:5px 14px;font-size:13px;font-family:inherit;
+    cursor:pointer;background:rgba(255,255,255,.1);color:var(--acsv-t2);transition:background .15s,color .15s}
+  .vchip.on{background:var(--acsv-accent);color:#fff}
+  .vchip.sm{padding:4px 10px;font-size:12px}
+  .vchip.gdanger{color:var(--acsv-danger)}
+  .gops{display:flex;gap:8px;margin:-6px 0 12px}
+
+  /* ---- 共用档头（参照 = .acsv-fltop 家族原值） ---- */
+  .methead{display:flex;align-items:flex-start;position:relative;margin-bottom:14px}
+  .metsel{position:relative;width:142px;height:36px;border:1px solid rgba(255,255,255,.12);
+    border-radius:4px;padding:0 30px 0 11px;font-size:14px;color:#e8eaee;line-height:34px;cursor:pointer;
+    user-select:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .metarw{position:absolute;right:10px;top:0;font-style:normal;font-size:14px;color:var(--acsv-t3);
+    pointer-events:none}
+  .metarw.up{transform:rotate(180deg)}
+  .metmenu{position:absolute;left:-1px;top:38px;width:142px;background:var(--acsv-panel);
+    border:1px solid rgba(255,255,255,.12);border-radius:4px;box-shadow:0 10px 30px rgba(0,0,0,.5);
+    padding:4px 0;z-index:36}
+  .metopt{padding:5px 12px;font-size:14px;line-height:22px;color:#e8eaee;cursor:pointer;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .metopt:hover{background:rgba(255,255,255,.06)}
+  .metopt.on{color:var(--acsv-accent)}
+  .metact{margin-left:auto;border:none;background:none;font-family:inherit;font-size:14px;
+    color:#e8eaee;height:28px;cursor:pointer;padding:0 2px}
+  .metact:hover{color:var(--acsv-accent)}
+  .metact.danger{color:var(--acsv-danger)}
+  .metact.danger:hover{color:#ffb0b8}
+  .metact.ghost{display:none} /* 动作隐藏态（历史空列表=整行不渲染） */
+
+  /* ---- ops 行（收藏夹 ④ 案保留形态） ---- */
+  .metops{display:flex;gap:8px;margin:-4px 0 12px}
+
+  /* ---- ⑤ 案管理模态（= 0.9.292 设置面板家族原值，紧致版） ---- */
+  .fmpanel{width:400px;max-width:100%;display:flex;flex-direction:column;
+    background:var(--acsv-panel);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);
+    border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden;color:#fff}
+  .fmhead{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px;
+    border-bottom:1px solid var(--acsv-line)}
+  .fmttl{font-size:15px;font-weight:600}
+  .fmx{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;
+    width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}
+  .fmx:hover{background:rgba(255,255,255,.22)}
+  .fmbody{padding:20px;overflow-y:auto}
+  .fmfoot{flex:none;display:flex;align-items:center;gap:8px;justify-content:flex-end;
+    padding:10px 16px 14px;border-top:1px solid var(--acsv-line)}
+  .fmact{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;
+    cursor:pointer;background:rgba(255,255,255,.12);color:#fff}
+  .fmact:hover{background:rgba(255,255,255,.2)}
+  .fmact.primary{background:var(--acsv-accent)}
+  .fmrow{display:flex;align-items:center;gap:12px;min-height:26px;margin:0 0 20px}
+  .fmgname{font-size:14px;line-height:18px;min-width:0;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
+  .fmgops{margin-left:auto;display:flex;gap:6px;flex:none}
+  .fmgop{border:none;background:none;font-family:inherit;font-size:13px;color:var(--acsv-t3);
+    padding:3px 10px;border-radius:6px;cursor:pointer}
+  .fmgop:hover{background:rgba(255,255,255,.12);color:#fff}
+  .fminput{flex:1;min-width:0;border:none;border-radius:8px;background:rgba(255,255,255,.12);
+    color:#fff;font-size:13px;font-family:inherit;padding:7px 12px;outline:none}
+  .fminput::placeholder{color:var(--acsv-t3)}
+
+  /* ---- 网格示意（收藏夹/历史列表占位） ---- */
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .cell{aspect-ratio:4/3;border-radius:6px;background:rgba(255,255,255,.06)}
+
+  table.geo{border-collapse:collapse;font-size:12px;color:var(--acsv-t2)}
+  table.geo th,table.geo td{border:1px solid rgba(255,255,255,.1);padding:6px 10px;text-align:left;
+    vertical-align:top}
+  table.geo th{color:var(--acsv-t3);font-weight:600;background:rgba(255,255,255,.04)}
+  table.geo td b{color:#fff;font-weight:600}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>我的页档头抽离共用 —— 静态预览（确认后才进 src 实现）</h1>
+  <p class="hint">
+    抽离对象：我的页三档顶部栏 → 一个共用构件（暂名 <b>mehead</b>）：[select 过滤档？] + [右侧动作区]。
+    参照稿=关注列表顶栏（0.9.289 原生量值：select 142×36 + 菜单 142 选项 22 行高 + 右置文字钮 14/28 hover accent）。
+    关注列表套用后<b>与现役同形</b>（只换出口不换样子）；收藏夹=chips 换 select；历史=右置 danger 文字钮。
+    待裁决：<b>A</b> 收藏夹「改名/删除收藏夹」去处（④ 行下保留 / ⑤ 收进管理模态，adminTab 壳退役）；
+    <b>B</b> 历史「清空历史」钮色（danger 红 / 中性灰）。
+  </p>
+
+  <div class="sec">
+    <h2>① 现状三栏对照<em>三种语言：收藏夹 chips+ops / 历史孤 chip / 关注列表 select+文字钮</em></h2>
+    <div class="duo">
+      <div class="demo" style="flex:1;min-width:300px">
+        <div class="vchips">
+          <button class="vchip on">默认收藏夹 12</button>
+          <button class="vchip">AC 正经拉伸 3</button>
+          <button class="vchip">＋ 新建夹</button>
+        </div>
+        <div class="gops">
+          <button class="vchip sm">改名</button>
+          <button class="vchip sm gdanger">删除收藏夹</button>
+        </div>
+        <div class="grid"><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+        <p class="cap">收藏夹（现状）：chips 胶囊 + 下方 ops 两小 chip——夹多了 chips 换行挤、计数与选中态全靠胶囊</p>
+      </div>
+      <div class="demo" style="flex:1;min-width:300px">
+        <div class="vchips"><button class="vchip sm gdanger">清空历史</button></div>
+        <div class="grid"><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+        <p class="cap">历史（现状）：chips 行里孤一枚小 danger chip（列表非空才显示，空态整行留着但看不见）</p>
+      </div>
+      <div class="demo" style="flex:1;min-width:300px">
+        <div class="methead">
+          <div class="metsel">全部分组<span class="metarw">▾</span></div>
+          <button class="metact">编辑分组</button>
+        </div>
+        <p class="cap">关注列表（0.9.289 现役，参照稿）：select 142×36 + 右置文字钮——本片唯一「select 语言」</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>② 共用档头解剖<em>mehead：[select（可选）] + 右侧动作数组（label/danger/visible 注入）；select 菜单与动作区全档同款</em></h2>
+    <div class="demo">
+      <div class="methead" style="max-width:560px">
+        <div class="metsel">默认收藏夹 12<span class="metarw">▾</span></div>
+        <button class="metact">＋ 新建夹</button>
+      </div>
+      <div class="methead" style="max-width:560px">
+        <div class="metsel">全部分组<span class="metarw">▾</span></div>
+        <button class="metact">编辑分组</button>
+      </div>
+      <div class="methead" style="max-width:560px">
+        <button class="metact danger">清空历史</button>
+      </div>
+      <p class="cap">三行=同一构件的三次套用：收藏夹 / 关注列表 / 历史。select 缺省=纯动作行（历史）；
+        动作缺省=纯过滤行；空态可见性由 visible() 注入（历史空列表整行不渲染）。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>③ 关注列表套用（与现役同形）<em>select 分组 +「编辑分组」——0.9.289/292 形态原样，实现只换出口</em></h2>
+    <div class="demo">
+      <div class="methead">
+        <div class="metsel">舞<span class="metarw">▾</span></div>
+        <button class="metact">编辑分组</button>
+      </div>
+      <p class="cap">openPop 单槽/overlay Esc/外点收起等弹层纪律不动——mehead 只产 [select+动作] 这一行的 DOM 与菜单，
+        弹层单槽仍归 followadmin（经注入缝对接，无反向依赖）。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>④ 收藏夹套用·A 案（ops 行下保留）<em>chips→select；右侧「＋ 新建夹」；改名/删除收藏夹 留行下 ops</em></h2>
+    <div class="demo">
+      <div class="methead">
+        <div class="metsel">默认收藏夹 12<span class="metarw">▾</span></div>
+        <button class="metact">＋ 新建夹</button>
+      </div>
+      <div class="metops">
+        <button class="vchip sm">改名</button>
+        <button class="vchip sm gdanger">删除收藏夹</button>
+      </div>
+      <div class="grid"><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+      <p class="cap">改动最小：只换过滤档的表达（chips→select），管理动作原地不动；adminTab 壳保留。
+        代价：ops 行仍是 chips 语言，与 select 档头两套语言并存。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑤ 收藏夹套用·B 案（管理收进模态）<em>select +「管理收藏夹」→ 0.9.292 同族模态（与「编辑分组」完全镜像）；adminTab 壳退役</em></h2>
+    <div class="duo">
+      <div class="demo" style="flex:1;min-width:300px">
+        <div class="methead">
+          <div class="metsel">默认收藏夹 12<span class="metarw">▾</span></div>
+          <button class="metact">管理收藏夹</button>
+        </div>
+        <div class="grid"><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+        <p class="cap">档头之上只剩 select+一枚文字钮；建/改名/删全进模态。关注列表与收藏夹两档
+          <b>完全同构</b>（select 过滤 + 右上管理钮 + 同族管理模态）。</p>
+      </div>
+      <div class="demo" style="flex:1;min-width:340px">
+        <div class="fmpanel">
+          <div class="fmhead"><div class="fmttl">管理收藏夹</div><button class="fmx">✕</button></div>
+          <div class="fmbody">
+            <div class="fmrow"><div class="fmgname">默认收藏夹</div><div class="fmgops"><button class="fmgop">改名</button></div></div>
+            <div class="fmrow"><div class="fmgname">AC 正经拉伸</div><div class="fmgops"><button class="fmgop">改名</button><button class="fmgop">删除</button></div></div>
+            <div class="fmrow"><input class="fminput" type="text" placeholder="收藏夹名（1~40 字）"></div>
+          </div>
+          <div class="fmfoot"><button class="fmact primary">确定</button></div>
+        </div>
+        <p class="cap">管理模态=0.9.292「编辑分组」同壳同件（erow 改名/删除 + 添加行 + 页脚确定）——
+          两档的管理模态可共一个构建器（load/onCreate/onRename/onDelete 注入）。
+          结构账：adminTab 壳自此零消费方，按「死后即删」退役，buildFav 改镜像 followadmin 结构。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑥ 历史套用<em>无 select；「清空历史」升为档头文字钮——danger 红 / 中性灰 双案（裁决 B）</em></h2>
+    <div class="duo">
+      <div class="demo" style="flex:1;min-width:300px">
+        <div class="methead"><button class="metact danger">清空历史</button></div>
+        <div class="grid"><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+        <p class="cap">B1 danger 红字（沿用现役 gdanger 语义色）——破坏性动作一眼可辨</p>
+      </div>
+      <div class="demo" style="flex:1;min-width:300px">
+        <div class="methead"><button class="metact">清空历史</button></div>
+        <div class="grid"><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+        <p class="cap">B2 中性灰字（与「编辑分组」同款，悬停才 accent）——档头语言最纯，但破坏性不显</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑦ select 下拉展开态<em>142 菜单 + 选项 22 行高 + hover 白.06 + 选中 accent（原值）；夹名带计数</em></h2>
+    <div class="demo" style="padding-bottom:150px">
+      <div class="methead">
+        <div class="metsel">默认收藏夹 12<span class="metarw up">▾</span></div>
+        <div class="metmenu">
+          <div class="metopt on">默认收藏夹 12</div>
+          <div class="metopt">AC 正经拉伸 3</div>
+          <div class="metopt">剪辑练习 0</div>
+        </div>
+        <button class="metact">＋ 新建夹</button>
+      </div>
+      <p class="cap">菜单挂档头容器（不挂 select 柄内——0.9.289 实锤冒泡关层教训，共用件按同口径实现）。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑧ 窄宽（540）自检<em>长夹名省略、动作钮不被挤出；历史空态整行消失不留白</em></h2>
+    <div style="width:540px;border:1px dashed rgba(255,255,255,.14);padding:12px">
+      <div class="methead">
+        <div class="metsel">一个特别特别长的收藏夹名称测试截断 3</div>
+        <button class="metact">管理收藏夹</button>
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(3,1fr)"><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+      <p class="cap" style="margin-top:8px">检查项：select 142 定宽下长名省略号；动作钮 margin-left:auto 右贴不换行。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑨ 结构推导表<em>现役 → 共用后，逐档列出</em></h2>
+    <table class="geo">
+      <tr><th>档</th><th>现役</th><th>共用后</th><th>去向</th></tr>
+      <tr><td>关注列表</td><td>.acsv-fltop select+编辑分组</td><td><b>同形</b>（DOM 出口换 mehead）</td><td>mehead + followadmin 注入弹层缝</td></tr>
+      <tr><td>收藏夹</td><td>chips 行 + ops 行（adminTab 壳）</td><td><b>A 案</b>：select+新建夹+ops 留行下<br><b>B 案</b>：select+管理收藏夹模态</td><td>A=adminTab 保留换头；B=adminTab 退役、模态构建器与编辑分组共用</td></tr>
+      <tr><td>历史</td><td>chips 行孤 danger chip</td><td><b>档头文字钮</b>（B1 红 / B2 灰）</td><td>mehead 纯动作行；空列表整行不渲染</td></tr>
+      <tr><td>稍后再看</td><td>无顶栏</td><td><b>不动</b></td><td>—</td></tr>
+      <tr><td>共享 CSS</td><td>.acsv-flselect/.acsv-flmenu/.acsv-fledit 在 followadmin 段</td><td><b>升共享段</b>（类名随构件迁移）</td><td>cssraw 独立「档头」段；测试选择器随迁</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>

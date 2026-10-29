@@ -189,6 +189,10 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   'banpop.js', 'favpop.js', 'grouppop.js', 'pickpop.js', 'popplace.js',
   'emoticon.js', 'ubb.js', 'imcard.js', 'listtail.js', 'sidebar.js', 'release.js',
   'followseen.js',
+  // 0.9.293 登记：meadmin（我的页档头+管理模态共用件，自 followadmin 出库）。与 cards 同属
+  // 特性层 shared kit：消费方 followadmin/mytabs 全在表内（层内互调）；自身只 import 基建
+  //（ui/state/overlay）、零依赖叶（imicons）与弹层族 pickpop（确认卡单源）⇒ 口径 A/B 均 0 条
+  'meadmin.js',
   // 0.9.265 登记：mytabs（我的页管理档：观看历史/收藏夹/关注分组 + 管理档壳，自 mypage 拆件）。
   // 与 mypage 同属视图特性层：唯一消费方 mypage 在表内（层内互调）；自身只 import 基建（cfg/
   // panelitem/ui/pageloader/nameval/imgload）、接口（appapi/favapi/relationapi）与特性层共享件

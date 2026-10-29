@@ -1,6 +1,7 @@
 // test/cases/favfolders.js —— harness 场景：收藏夹全闭环（0.9.143）
 // 覆盖：rail 收藏键的「选择收藏夹」层（多选勾选 / 已藏回显 / 层内新建 / **三分支提交**）
-//      + 我的页收藏夹 tab 管理（建夹 / 改名 / 删夹 + 卡面「移动 / 移除收藏」）。
+//      + 我的页收藏夹 tab 管理（建夹 / 改名 / 删夹 + 卡面「移动 / 移除收藏」；
+//        0.9.293 起管理收进「管理收藏夹」模态、切夹走 mehead select——adminTab 壳退役）。
 // 夹具：夹表与"该视频在哪些夹"都**可变**（folder/list 带 resourceId 现读 inFolder）；六个写端点
 // body 全部留档（window.__FAV_BODY__）——三分支派发（add / updateFolder / remove）只在 body 上可见。
 // 真机语义口径（写死防回归）：未收藏默认勾第一个夹（点开即确定≈原一步）；全取消=remove；
@@ -220,23 +221,36 @@
     if (tabFav0) tabFav0.click(); // 收藏夹 tab（顺序：动态/观看历史/稍后再看/收藏夹/关注分组）
     rec('ff-tabs', tabs.length === 5 && !!tabFav0, 'n=' + tabs.length);
     var favPanel = function () { return q('.acsv-mepanel[data-tab="fav"]'); };
-    var chipOf = function (txt) {
-      var cs = favPanel() ? favPanel().querySelectorAll('.acsv-vchips .acsv-vchip') : [];
-      for (var i = 0; i < cs.length; i++) if (cs[i].textContent.indexOf(txt) === 0) return cs[i];
+    // 档头（mehead，0.9.293）：select 标签=当前夹名+计数；「管理收藏夹」开管理模态
+    var favSelBtn = function () {
+      var h = favPanel() && favPanel().querySelector('.acsv-mhead');
+      return h && h.querySelector('.acsv-mhsel');
+    };
+    var manageBtn = function () {
+      var h = favPanel() && favPanel().querySelector('.acsv-mhead');
+      return h && h.querySelector('.acsv-mhact');
+    };
+    var headLabel = function () { var s = favSelBtn(); return s ? s.textContent : 'n/a'; };
+    var modal = function () { return q('.acsv-mm-main'); };
+    var mRow = function (fid) {
+      var m = modal();
+      return m && m.querySelector('.acsv-mm-erow[data-id="' + fid + '"]');
+    };
+    var pickOpt = function (txt) {
+      var os = document.querySelectorAll('.acsv-mhmenu .acsv-mhopt');
+      for (var i = 0; i < os.length; i++) if (os[i].textContent.indexOf(txt) === 0) return os[i];
       return null;
     };
-    // chips = 默认收藏夹 2 / 夹二 1 / 临时夹 0 / ＋ 新建夹；默认选第一个 + 组头操作
-    rec('ff-chips', !!(await waitFor(function () {
-      var cs = favPanel() && favPanel().querySelectorAll('.acsv-vchips .acsv-vchip');
-      return cs && cs.length === 4 && /默认收藏夹 2/.test(cs[0].textContent) && cs[0].classList.contains('on');
-    }, 8000)), (function () {
-      var cs = favPanel() && favPanel().querySelectorAll('.acsv-vchips .acsv-vchip');
-      return cs ? [].map.call(cs, function (c) { return c.textContent; }).join('|') : 'n/a';
-    })());
-    rec('ff-ops', (function () {
-      var ops = favPanel() && favPanel().querySelector('.acsv-gops');
-      return !!ops && /改名/.test(ops.textContent) && /删除收藏夹/.test(ops.textContent);
-    })(), (favPanel().querySelector('.acsv-gops') || {}).textContent);
+    var selectByMenu = async function (txt) {
+      if (favSelBtn()) favSelBtn().click();
+      await waitFor(function () { return !!q('.acsv-mhmenu'); }, 8000);
+      var o = pickOpt(txt);
+      if (o) o.click();
+    };
+    // 档头：select 默认选首夹（标签=「默认收藏夹 2」）+「管理收藏夹」钮
+    rec('ff-head', !!(await waitFor(function () {
+      return favSelBtn() && /默认收藏夹 2/.test(headLabel()) && !!manageBtn() && /管理收藏夹/.test(manageBtn().textContent);
+    }, 8000)), headLabel());
     rec('ff-rows', !!(await waitFor(function () {
       return favPanel().querySelectorAll('.acsv-favcell').length === 2;
     }, 8000)));
@@ -245,47 +259,55 @@
       var acts = c && c.querySelector('.acsv-favacts');
       return !!acts && /移动/.test(acts.textContent) && /移除收藏/.test(acts.textContent);
     })());
-    // 建夹（内联表单）→ 新 chip 出现且选中（列表切到新夹）
-    if (chipOf('＋')) chipOf('＋').click();
-    rec('ff-my-form', (function () {
-      var f = favPanel().querySelector('.acsv-gform');
-      return !!f && f.style.display !== 'none';
-    })());
-    var fIn2 = favPanel().querySelector('.acsv-ginput');
-    if (fIn2) fIn2.value = '新夹子';
-    var fOk2 = favPanel().querySelector('.acsv-gok');
+    // 建夹（管理模态添加行）→ 模态出新行；关模态后 select 标签=新夹子（建夹跳新夹）
+    if (manageBtn()) manageBtn().click();
+    rec('ff-my-modal', !!(await waitFor(function () { return !!modal(); }, 8000)));
+    // 列表异步加载：添加行随 render 落地，等它出现再填（弹层壳先于内容是 openManageModal 的正常时序）
+    await waitFor(function () { return !!modal().querySelector('.acsv-mm-addin'); }, 8000);
+    var fIn2 = modal() && modal().querySelector('.acsv-mm-addin');
+    if (fIn2) { fIn2.focus(); fIn2.value = '新夹子'; }
+    var fOk2 = modal() && modal().querySelector('.acsv-mm-addacts .acsv-mm-sbtn.primary');
     if (fOk2) fOk2.click();
+    var fid1 = window.__FAV_NEW__[1] || '?';
     rec('ff-my-create', !!(await waitFor(function () {
-      var c = chipOf('新夹子');
-      return !!c && c.classList.contains('on');
-    }, 8000)), (function () {
-      var cs = favPanel().querySelectorAll('.acsv-vchips .acsv-vchip');
-      return [].map.call(cs, function (c) { return c.textContent; }).join('|');
-    })());
+      var r = mRow(fid1);
+      return !!r && /新夹子/.test(r.textContent);
+    }, 8000)), modal() ? modal().textContent : 'no-modal');
     rec('ff-my-create-body', /^addfolder:name=%E6%96%B0%E5%A4%B9%E5%AD%90$/.test(favBodies(/^addfolder:/)[1] || ''),
       window.__FAV_BODY__.join(' | '));
-    // 改名（内联表单预填旧名 → folder/update）
-    var rn2 = favPanel().querySelector('.acsv-gops .acsv-vchip');
+    var mOk = modal() && modal().querySelector('.acsv-mm-foot .acsv-mm-ok');
+    if (mOk) mOk.click();
+    rec('ff-my-create-sel', !!(await waitFor(function () {
+      return !modal() && /新夹子/.test(headLabel());
+    }, 8000)), headLabel());
+    // 改名（模态内联输入条预填旧名 → folder/update）
+    if (manageBtn()) manageBtn().click();
+    await waitFor(function () { return !!modal() && !!mRow(fid1); }, 8000);
+    var rnRow = mRow(fid1);
+    var rn2 = rnRow && [].filter.call(rnRow.querySelectorAll('.acsv-mm-gop'), function (b) { return /改名/.test(b.textContent); })[0];
     if (rn2) rn2.click();
-    var rIn2 = favPanel().querySelector('.acsv-ginput');
+    var rIn2 = rnRow && rnRow.querySelector('.acsv-mm-rninput');
     rec('ff-rename-open', !!rIn2 && rIn2.value === '新夹子', rIn2 ? JSON.stringify(rIn2.value) : 'no-input');
     if (rIn2) rIn2.value = '新夹子2';
-    var rOk2 = favPanel().querySelector('.acsv-gok');
+    var rOk2 = rnRow && rnRow.querySelector('.acsv-mm-gops .acsv-mm-sbtn.primary');
     if (rOk2) rOk2.click();
-    rec('ff-my-rename', !!(await waitFor(function () { return !!chipOf('新夹子2'); }, 8000)), (function () {
-      var cs = favPanel().querySelectorAll('.acsv-vchips .acsv-vchip');
-      return [].map.call(cs, function (c) { return c.textContent; }).join('|');
-    })());
+    rec('ff-my-rename', !!(await waitFor(function () {
+      var r = mRow(fid1);
+      return !!r && /新夹子2/.test(r.textContent);
+    }, 8000)), modal() ? modal().textContent : 'no-modal');
     rec('ff-rename-body', (function () {
       var fid = window.__FAV_NEW__[1] || '?';
       return new RegExp('^rename:folderId=' + fid + '&name=%E6%96%B0%E5%A4%B9%E5%AD%902$')
         .test(favBodies(/^rename:/)[0] || '');
     })(), window.__FAV_BODY__.join(' | ') + ' new=' + window.__FAV_NEW__.join(','));
+    mOk = modal() && modal().querySelector('.acsv-mm-foot .acsv-mm-ok');
+    if (mOk) mOk.click();
+    await waitFor(function () { return !modal(); }, 8000);
     // 卡面「移除收藏」：切回默认夹 → 二次确认 → 卡摘除 + remove
-    if (chipOf('默认收藏夹')) chipOf('默认收藏夹').click();
+    await selectByMenu('默认收藏夹');
     rec('ff-back-default', !!(await waitFor(function () {
-      return favPanel().querySelectorAll('.acsv-favcell').length === 2;
-    }, 8000)), 'n=' + favPanel().querySelectorAll('.acsv-favcell').length);
+      return favPanel().querySelectorAll('.acsv-favcell').length === 2 && /默认收藏夹/.test(headLabel());
+    }, 8000)), 'n=' + favPanel().querySelectorAll('.acsv-favcell').length + ' head=' + headLabel());
     var rmBtn = favPanel().querySelector('.acsv-favcell .acsv-favacts .acsv-vchip:nth-child(2)');
     if (rmBtn) rmBtn.click();
     rec('ff-rm-confirm', (function () {
@@ -298,8 +320,9 @@
       return !favPanel().querySelector('.acsv-confirmpop') && favPanel().querySelectorAll('.acsv-favcell').length === 1;
     }, 8000)), 'n=' + favPanel().querySelectorAll('.acsv-favcell').length);
     rec('ff-rm-body', /^remove:resourceId=\d+&resourceType=9&delFolderIds=111$/.test(lastFav()), lastFav());
-    // 收藏卡「移动」（0.9.148 修 P0：favpop 只回 favorited 时该路径抛 TypeError、
-    // 卡不摘除且列表不刷新）：开移动层 → 勾选一个夹 → 确定 → 钉 updateFolder body + **列表真重渲染**
+    // 收藏卡「移动」（0.9.148 修 P0 的 favpop ids 契约仍钉在 done 取 res.ids——缺 ids 即抛）；
+    // 0.9.293 语义：移出当前夹=摘卡+夹表刷新，留在当前夹=原地留（不再整表重拉）。
+    // 开移动层 → 勾「夹二」（非当前夹）→ 确定 → 钉 updateFolder body + 卡摘除
     var cardBefore = favPanel().querySelector('.acsv-favcell');
     var mvBtn = favPanel().querySelector('.acsv-favcell .acsv-favacts .acsv-vchip');
     if (mvBtn) mvBtn.click();
@@ -308,38 +331,45 @@
       return !!pop && pop.querySelectorAll('.acsv-pick-item').length >= 2;
     }, 8000)), (q('.acsv-pickpop') || {}).textContent);
     var mvItems = document.querySelectorAll('.acsv-pickpop .acsv-pick-item');
-    if (mvItems[0]) mvItems[0].click();
+    if (mvItems[1]) mvItems[1].click(); // 勾「夹二」——移出当前夹（默认收藏夹）
     var mvOk = q('.acsv-pickpop .acsv-pick-ok');
     if (mvOk) mvOk.click();
     rec('ff-move-done', !!(await waitFor(function () { return !q('.acsv-pickpop'); }, 8000)));
     rec('ff-move-body', /^update:resourceId=\d+&resourceType=9&addFolderIds=\d+&delFolderIds=$/.test(lastFav()), lastFav());
     rec('ff-move-refresh', !!(await waitFor(function () {
-      return !!cardBefore && !cardBefore.isConnected; // refreshFolders 重渲染列表（抛错时旧节点常留）
+      return !!cardBefore && !cardBefore.isConnected; // 移出当前夹=摘卡（留在当前夹则原地留）
     }, 8000)), 'connected=' + (cardBefore ? cardBefore.isConnected : 'n/a'));
 
-    // 删夹（连带移除文案）→ chip 消失
-    if (chipOf('新夹子2')) chipOf('新夹子2').click();
-    await waitFor(function () { return !!(favPanel().querySelector('.acsv-gops .acsv-gdanger')); }, 8000);
-    var delBtn = favPanel().querySelector('.acsv-gops .acsv-gdanger');
+    // 删夹：切到新夹子2 → 管理模态删除（连带移除文案）→ 行消失；关模态后回落首夹
+    await selectByMenu('新夹子2');
+    rec('ff-del-select', !!(await waitFor(function () {
+      return /新夹子2/.test(headLabel()); // mock 对未知夹也回行，列表数不钉
+    }, 8000)), 'head=' + headLabel());
+    if (manageBtn()) manageBtn().click();
+    await waitFor(function () { return !!modal() && !!mRow(fid1); }, 8000);
+    var delRow = mRow(fid1);
+    var delBtn = delRow && [].filter.call(delRow.querySelectorAll('.acsv-mm-gop'), function (b) { return /删除/.test(b.textContent); })[0];
     if (delBtn) delBtn.click();
     rec('ff-del-confirm', (function () {
-      var pop = favPanel().querySelector('.acsv-confirmpop');
+      var pop = q('.acsv-confirmpop');
       return !!pop && /一并移除/.test(pop.querySelector('.acsv-confirm-text').textContent);
     })(), (function () {
-      var pop = favPanel().querySelector('.acsv-confirmpop');
+      var pop = q('.acsv-confirmpop');
       return pop ? pop.querySelector('.acsv-confirm-text').textContent : 'no-pop';
     })());
-    var dOk = favPanel().querySelector('.acsv-confirmpop .acsv-pick-ok');
+    var dOk = q('.acsv-confirmpop .acsv-pick-ok');
     if (dOk) dOk.click();
     rec('ff-del-done', !!(await waitFor(function () {
-      return !chipOf('新夹子2') && !chipOf('新夹子');
-    }, 8000)), (function () {
-      var cs = favPanel().querySelectorAll('.acsv-vchips .acsv-vchip');
-      return [].map.call(cs, function (c) { return c.textContent; }).join('|');
-    })());
+      return !mRow(fid1);
+    }, 8000)), modal() ? modal().textContent : 'no-modal');
     rec('ff-del-body', (function () {
       var fid = window.__FAV_NEW__[1] || '?';
       return new RegExp('^delfolder:folderId=' + fid + '$').test(favBodies(/^delfolder:/)[0] || '');
     })(), window.__FAV_BODY__.join(' | '));
+    mOk = modal() && modal().querySelector('.acsv-mm-foot .acsv-mm-ok');
+    if (mOk) mOk.click();
+    rec('ff-del-fallback', !!(await waitFor(function () {
+      return !modal() && /默认收藏夹 2/.test(headLabel());
+    }, 8000)), headLabel());
   };
 })();

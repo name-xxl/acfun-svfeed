@@ -5,6 +5,46 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.293（2026-10-29）· 我的页档头抽离共用——三档收一个 mehead 构件，收藏夹管理收进模态、adminTab 壳退役
+
+**由头（用户令）**：「收藏夹也有顶部选择栏，还有历史记录栏，关注列表顶部选择栏 ui 能否抽离共用」
+——我的页三档顶栏原本三种语言（收藏夹 chips+ops 行 / 历史孤一枚 danger chip / 关注列表原生
+select+文字钮）。按硬规矩先出静态预览（docs/preview/me-tabhead.html：①三栏现状对照 +
+②构件解剖 + ⑤B 案管理模态 + ⑨结构推导表，15 项计算样式机器清查），两项裁决：**收藏夹 B 案**
+（管理收进「管理收藏夹」模态，与「编辑分组」同构建器，adminTab 壳零消费方退役）、
+**清空历史=danger 红字**（B1）。
+
+**修法**：
+1. 新共用件 `meadmin.js`（零业务，全 opts 注入）：**createMeHead**——档头
+   `[select?]+[动作区]`，关注列表/收藏夹/历史三档同构；select 菜单自持（overlay 'mehead-pop'+
+   外点收起，菜单挂档头根不挂柄内——0.9.289 冒泡关层教训照抄），与消费方弹层互斥走
+   onOpen/closeMenu 两根注入缝；visible 全假且无 select 时整行不渲染（历史空态）。
+   **openManageModal**——管理模态共用构建器（erow 行改名/删除+常驻添加行+确认卡+页脚确定），
+   followadmin「编辑分组」与 fav「管理收藏夹」同款；**openMmModal**——0.9.292 设置面板族壳
+   （「设置分组」radio 模态直用）；mmWarn 顶部警示条、openMmConfirm 确认卡（全页单枚）。
+2. **关注列表**：顶栏/编辑分组模态换 meadmin 出口，**形态零变化**（select 142×36/菜单/文字钮
+   量值原样，模态家族类名 .acsv-flm*→.acsv-mm* 随出库改姓，mh* 档头升共享段）。
+3. **收藏夹**：chips+ops 行退役 → mehead select（夹名+计数）+「管理收藏夹」模态（建/改名/
+   删夹，删除确认「一并移除」文案原样）；卡面「移动/移除收藏」不动。行为校准两处：建夹跳
+   新夹沿用旧口径；夹表刷新不再整表重拉列表（旧 adminTab reloadOnRefresh 的粗粒度余留——
+   卡面增删已就地维护，摘卡后空态照出）。
+4. **历史**：孤 chip 升档头 danger 文字钮（红字 #ff8a95，悬停提亮；裁决 B1），列表空=整行
+   不渲染；确认卡/写链原样。
+5. **adminTab 壳退役**（0.9.150 建，0.9.289 起收藏夹单消费方 → 本批零消费方，死后即删）：
+   mytabs 体内删除，cssraw 管理壳段（gops/gform/ginput/gok/gcancel/gerr/gdanger）与
+   `.acsv-mepanel .acsv-vchips` 孤儿规则随批清除。
+
+**测试**：三场景随新结构更新——relation.js 选择器迁移（mh/mm/mmwarn，45 处）；views.js
+fav 几何钉换档头对象（fav-head-above）、切夹走 select 菜单、历史清空键选择器随迁；
+favfolders.js 管理段重写为模态驱动（ff-head/ff-my-modal/ff-my-create-sel/ff-del-select/
+ff-del-fallback 新钉，行定位走 mm-erow data-id）。**摘更新反跑**：临时退掉 mehead 标签文本
+节点，follow-groups（fg-topbar）+fav-folders（ff-head 等 5 处）恰好转红，恢复复绿。实现期
+连带修掉三个真伤：mehead setLabel 初版写到箭头元素（标签恒空）、档头动作 onClick 没把钮
+本体传给消费方（hist 确认卡锚 undefined 抛 getBoundingClientRect）、buildFav 的 list 先于
+head 挂载（档头落到列表下面=0.9.69 病灶形态，fav-head-above 几何钉抓到）。全量三段并行
+全绿（57.4s，89 场景 0 失败）+ lint/check 八门禁（含 check-direction meadmin FEATURE 登记）
+/tsc 通过。
+
 ### 0.9.292（2026-10-29）· 关注列表两张弹窗对齐设置面板——原生模仿壳整体换族，确认弹层并入 pickpop 单源
 
 **由头（用户裁决）**：编辑分组/设置分组两张模态 0.9.289 虽对齐了原生，但与脚本自家设置面板
