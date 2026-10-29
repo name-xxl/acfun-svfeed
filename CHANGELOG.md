@@ -5,6 +5,24 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.290（2026-10-29）· 关注列表模态「不出弹窗」——body 挂载被 #acsv-root 盖住，挂载点收进脚本根 + 场景可视断言补闸
+
+**病灶**（真机报障：点编辑分组/设置分组无反应）：0.9.289 的两张模态与顶部警示条挂
+`document.body`、z 用根内层档 63/64/66——而脚本整个 UI 活在 `#acsv-root`（fixed inset:0、
+**z 2147483000、不透明黑底**）里，低 z 的 body 子元素被根容器整体盖住：DOM 在、事件通
+（harness 用 JS click 照样走）、**视觉永不可见**。harness 45 断言绿着漏过——模态类断言全是
+DOM 存在判据，无一可视判据（fixed 层 offsetParent 恒 null，老帮手也照不出来）。
+
+**修法**：①挂载点收进脚本根（`mountHost() = state.root || document.body`，模态/警示条同改）
+——根内 z 63/64/66 即 cssraw 层档语义（视图 55…更新 65 之上），与在册 `.acsv-toast`
+（body 挂载配 z 2147483600）两种口径并存、本件取根挂口径；②场景补**可视断言帮手
+topmost()**（元素中心 elementFromPoint 命中须在元素内部——被盖住即红，fixed 层有效），
+钉进 fg-group-modal/fg-edit-modal/fg-add-invalid 三处。
+
+**测试**：摘修复反跑——临时退回 body 挂载，三条可视断言恰好转红（42/45），恢复复绿
+（45/45，7.2s）；全量三段+七门禁/tsc 复跑见下。可视断言从此钉住「弹层被盖」这一类病灶
+（harness 盲区教训在册：可见性判据不能只查 DOM 存在/offsetParent）。
+
 ### 0.9.289（2026-10-29）· 我的页「关注列表」对齐原生 /member/feeds/following——域件 followadmin 接替旧关注分组档
 
 **由头（用户裁决）**：原生个人中心左栏本就有「关注列表」页（/member/feeds/following），脚本

@@ -76,6 +76,15 @@
     rec('fg-tab', /关注列表/.test(tabGroups ? tabGroups.textContent : ''), tabGroups ? tabGroups.textContent : 'n/a');
     if (tabGroups) tabGroups.click();
     var panel = function () { return q('.acsv-mepanel[data-tab="groups"]'); };
+    // 可视断言帮手：取元素中心做命中测试，命中者必须是元素自身或其内部——固定层被更
+    // 高层盖住时（DOM 在、看不见）此判据转红（elementFromPoint 对 fixed 层有效）
+    var topmost = function (elm) {
+      if (!elm) return false;
+      var r = elm.getBoundingClientRect();
+      if (r.width < 10 || r.height < 10) return false;
+      var hit = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + 14));
+      return elm.contains(hit);
+    };
     // 顶栏：select 默认「全部分组」+ 编辑分组钮
     rec('fg-topbar', !!(await waitFor(function () {
       var p = panel();
@@ -163,7 +172,7 @@
       if (!m) return false;
       var radios = m.querySelectorAll('.acsv-flm-gi[data-gid]');
       var on = m.querySelector('.acsv-flm-gi.on');
-      return /设置分组/.test(m.textContent) && radios.length === 3
+      return topmost(m) && /设置分组/.test(m.textContent) && radios.length === 3
         && !!on && on.getAttribute('data-gid') === '0'
         && !!m.querySelector('.acsv-flm-addin'); // 底部常驻添加行
     }, 8000)), (q('.acsv-flm-main') || {}).textContent);
@@ -194,7 +203,7 @@
       var m = q('.acsv-flm-main');
       if (!m) return false;
       var bars = m.querySelectorAll('.acsv-flm-gi[data-gid]');
-      return /编辑分组/.test(m.textContent) && bars.length === 2
+      return topmost(m) && /编辑分组/.test(m.textContent) && bars.length === 2
         && bars[0].getAttribute('data-gid') === '273464'
         && !!bars[0].querySelector('.acsv-flm-gop');
     }, 8000)), (q('.acsv-flm-main') || {}).textContent);
@@ -208,7 +217,7 @@
     if (addOk) addOk.click();
     rec('fg-add-invalid', !!(await waitFor(function () {
       var w = q('.acsv-flwarn');
-      return !!w && /1~8 个字/.test(w.textContent);
+      return !!w && topmost(w) && /1~8 个字/.test(w.textContent);
     }, 8000)), (q('.acsv-flwarn') || {}).textContent);
     // 保留字：特别关注 → 警示条
     if (addIn) addIn.value = '特别关注';

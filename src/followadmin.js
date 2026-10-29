@@ -22,6 +22,7 @@
 //   外点走 ui.closeOnOutsideClick——无自带 window 按键监听（0.9.254 抢关出栈教训）。
 import { CFG } from './cfg.js';
 import { el, selfUid, toast, closeOnOutsideClick } from './ui.js';
+import { root } from './state.js';
 import { createListTail } from './listtail.js';       // 尾部单源（0.9.219 裁决，不跟数字分页）
 import { createPageLoader } from './pageloader.js';   // 翻页骨架单源
 import { skeletonRows } from './cards.js';
@@ -46,6 +47,11 @@ function loadGroups() {
   return groupsP;
 }
 
+// 弹层挂载点：**必须挂脚本根**（#acsv-root）——根是 fixed inset:0 z 2147483000 的不透明容器，
+// 挂 document.body 的低 z 元素会被它整个盖住（0.9.289 真机报「弹窗不出」实锤）；根内 z 63/64/66
+// 即 cssraw 层档语义（视图 55…更新 65 之上）。root 未建时退 body（ui.toast 同款容错）
+function mountHost() { return root || document.body; }
+
 // ---- 顶部警示条（模仿原生 ac-toast-warn：金黄 icon + 文案，~3s 自消；暗色下加 panel 底）----
 var warnTimer = null;
 function warnStrip(msg) {
@@ -54,7 +60,7 @@ function warnStrip(msg) {
   var s = el('div', 'acsv-flwarn');
   s.appendChild(el('i', 'acsv-flico', GLYPHS.toastWarn));
   s.appendChild(document.createTextNode(msg));
-  document.body.appendChild(s);
+  mountHost().appendChild(s);
   clearTimeout(warnTimer);
   warnTimer = setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, 3000);
 }
@@ -141,7 +147,7 @@ function openModal(id, title, buildBody) {
   main.appendChild(hd);
   wrap.appendChild(main);
   mask.appendChild(wrap);
-  document.body.appendChild(mask);
+  mountHost().appendChild(mask);
   function close() {
     if (!mask.parentNode) return;
     mask.parentNode.removeChild(mask);
