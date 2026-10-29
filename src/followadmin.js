@@ -1,25 +1,30 @@
 // ---------- 我的页「关注列表」档（0.9.289 对齐原生 /member/feeds/following）----------
 // 确认稿 docs/preview/follow-list-native.html（用户逐轮确认）；量取值与暗色换算、写链探针
 // 全在 docs/api-research.md §16。接替 mytabs.buildFollowGroups（旧 chips+两 chip 形态随批退役，
-// adminTab 壳留收藏夹单消费方）。
+// adminTab 壳留收藏夹单消费方）。**0.9.292 弹窗换族**：两张模态从原生 ac-modal 模仿态整体
+// 换到设置面板家族（壳/页头/页脚/输入/按钮量值 = settingspanel SET_CSS，确认稿
+// docs/preview/follow-modal-settings.html），确认弹层并入 pickpop.openConfirmPop 同族单源
+//（私有 .acsv-flpcf 退役）；列表页本体（成员行/select/菜单）维持原生对齐稿不动。
 //
 // 结构映射（对齐原生）：chips 行 →「全部分组」select +「编辑分组」文字钮；组头改名/删除 →
 // 编辑分组模态；成员行「移组/取关」两 chip → 行内「☰ 已关注」下拉钮（特别关注 action=14 /
-// 取消特别关注 15 / 取消关注 2 / 设置分组=本模态）+ 原生模态壳（400 圆角 15，radio 选组 +
-// 底部常驻添加输入行）。**明确不跟**：数字分页（0.9.219 尾部统一 listtail）、行内归属标签
-//（原生没有，归属由 select 过滤档 + 设置分组表达）、名字行勋章/认证小图标（2026-10-29 用户
-// 裁决不加，资产已采 §16 备用）。
+// 取消特别关注 15 / 取消关注 2 / 设置分组=本模态）+ 模态（radio 选组 + 常驻添加输入行）。
+// **明确不跟**：数字分页（0.9.219 尾部统一 listtail）、行内归属标签（原生没有，归属由
+// select 过滤档 + 设置分组表达）、名字行勋章/认证小图标（2026-10-29 用户裁决不加，资产已采
+// §16 备用）。
 //
 // 边界登记：
-// · 确认弹层（.acsv-flpcf，模仿原生 PopConfirm：取消特别关注/取消关注套确认、加特别关注不套——
-//   非对称确认）与 pickpop.openConfirmPop 并存——本页走原生模仿态（预览④b 裁决），它页仍走
-//   openConfirmPop；两者不复用因形态语言不同（134 宽 msg+右下双钮 vs 标题+正文卡）。
+// · 确认弹层（取消特别关注/取消关注/删除分组）= pickpop.openConfirmPop 单源（0.9.292 起；
+//   原生模仿态退役）。**不占 overlay 槽**——与全脚本删除类确认同口径（mytabs/评论区现行，
+//   Esc 随宿主视图）；与行内菜单互斥由 openRowMenu 开场清扫 + 全页单枚（开新摘旧）保证。
+//   非对称确认照旧：加特别关注直发不套确认。
 // · 分组选择在此是**页面内模态**（radio+确定）；rail 角标的 grouppop（锚定浮层语义件）不动，
 //   写链同走 relationapi.regroup(action=3)。
 // · 组名校验单源 nameval.groupNameError（与原生 bundle 正则逐字符一致，§16 实锤）；校验失败/
 //   保留字反馈 = 顶部警示条（模仿原生 ac-toast-warn，icon GLYPHS.toastWarn）。
-// · 弹出层（select 下拉/行内菜单/确认弹层）共用单槽：同屏一个，Esc 走 overlay 栈（'fl-pop'），
-//   外点走 ui.closeOnOutsideClick——无自带 window 按键监听（0.9.254 抢关出栈教训）。
+// · 弹出层（select 下拉/行内菜单）共用单槽：同屏一个，Esc 走 overlay 栈（'fl-pop'），
+//   外点走 ui.closeOnOutsideClick——无自带 window 按键监听（0.9.254 抢关出栈教训）；
+//   确认卡的外点收起走 pickpop 自带 guardOutside。
 import { CFG } from './cfg.js';
 import { el, selfUid, toast, closeOnOutsideClick } from './ui.js';
 import { root } from './state.js';
@@ -29,6 +34,7 @@ import { skeletonRows } from './cards.js';
 import { imgInto } from './imgload.js';
 import { GLYPHS } from './imicons.js';
 import { overlayOpen, overlayClose } from './overlay.js';
+import { openConfirmPop } from './pickpop.js';        // 确认卡单源（0.9.292 换族）
 import { groupNameError } from './nameval.js';
 import { errNotLogin } from './toastmsg.js';
 import { getGroups, listFollows, createGroup, renameGroup, removeGroup, regroup,
@@ -98,41 +104,18 @@ function relLabel(item) {
   return item.isFriend ? '已互粉' : '已关注';
 }
 
-// ---- 确认弹层（模仿原生 PopConfirm；run()->Promise<bool>，确定才发包，取消纯关闭）----
-function openPcf(anchor, msg, run, done) {
-  var pcf = el('div', 'acsv-flpcf');
-  pcf.appendChild(el('div', 'acsv-flpcf-msg', msg));
-  var btns = el('div', 'acsv-flpcf-btns');
-  var cc = el('button', 'acsv-flpcf-cc', '取消');
-  cc.type = 'button';
-  var ok = el('button', 'acsv-flpcf-ok', '确定');
-  ok.type = 'button';
-  btns.appendChild(cc);
-  btns.appendChild(ok);
-  pcf.appendChild(btns);
-  anchor.appendChild(pcf);
-  var close = openPop(pcf, [anchor]);
-  cc.addEventListener('click', function () { closePop(); });
-  ok.addEventListener('click', function () {
-    if (pcf._busy) return;
-    pcf._busy = true;
-    ok.textContent = '…';
-    run().then(function (good) {
-      pcf._busy = false;
-      if (!good) { ok.textContent = '确定'; errNotLogin(); return; }
-      closePop();
-      if (done) done();
-    }, function () {
-      pcf._busy = false;
-      ok.textContent = '确定';
-      errNotLogin();
-    });
-  });
-  return close;
+// ---- 确认卡（0.9.292 换族：pickpop.openConfirmPop 单源；title/text/okLabel/run/done 注入）----
+// anchor=常驻锚元素（落位与外点豁免都认它）；host=挂载宿主（popplace 落位基准）。
+// 全页同屏一枚：开新前摘旧（与弹出层单槽同口径）。busy/失败提示（层内 hint）由 pickpop 承担。
+function openConfirmCard(anchor, opts) {
+  var old = document.querySelector('.acsv-confirmpop');
+  if (old) old.remove();
+  return openConfirmPop(anchor, opts);
 }
 
-// ---- 模态壳（原生 ac-modal 暗色换算：mask + 400 圆角15 面板；标题 + 右上叉）----
-// overlayOpen(modal) 入栈：Esc 走浮层栈单点裁决；mask 区点击/右上叉两路同 close
+// ---- 模态壳（0.9.292 设置面板家族：页头左置标题+28 圆✕ / 滚动体 / 页脚右置 primary 确定）----
+// overlayOpen(modal) 入栈：Esc 走浮层栈单点裁决；mask 区点击/右上叉两路同 close。
+// buildBody(body, ok, close)：内容灌滚动体；确定键归属各模态（设置分组=发包，编辑分组=纯关）。
 function openModal(id, title, buildBody) {
   closePop();
   var mask = el('div', 'acsv-flmask');
@@ -140,11 +123,18 @@ function openModal(id, title, buildBody) {
   var main = el('div', 'acsv-flm-main');
   var hd = el('div', 'acsv-flm-hd');
   hd.appendChild(el('div', 'acsv-flm-ttl', title));
-  var x = el('button', 'acsv-flm-x', GLYPHS.modalClose);
+  var x = el('button', 'acsv-flm-x', '✕');
   x.type = 'button';
   x.setAttribute('aria-label', '关闭');
   hd.appendChild(x);
   main.appendChild(hd);
+  var body = el('div', 'acsv-flm-bd');
+  main.appendChild(body);
+  var foot = el('div', 'acsv-flm-foot');
+  var ok = el('button', 'acsv-flm-ok', '确定');
+  ok.type = 'button';
+  foot.appendChild(ok);
+  main.appendChild(foot);
   wrap.appendChild(main);
   mask.appendChild(wrap);
   mountHost().appendChild(mask);
@@ -158,8 +148,8 @@ function openModal(id, title, buildBody) {
     if (ev.target === wrap || ev.target === mask) close(); // 面板外点击收（原生同款）
   });
   overlayOpen({ id: id, close: close, modal: true });
-  buildBody(main, close);
-  return { close: close, main: main };
+  buildBody(body, ok, close);
+  return { close: close, body: body, ok: ok };
 }
 
 // ---- 添加输入行（两模态共用件）：返回 { li, acts }，由调用方挂载/重挂（render 清列表后
@@ -168,16 +158,16 @@ function openModal(id, title, buildBody) {
 // 聚焦出「取消添加/添加分组」双小钮；校验失败/保留字 → 顶部警示条；成功 → toast + onCreated。
 // opts：{ okLabel, onCreate(name)->Promise<id|true|null>（null=失败）, created(name), onCreated(made) }
 function mountAddRow(opts) {
-  var li = el('div', 'acsv-flm-gi addrow');
+  var li = el('div', 'acsv-flm-addrow');
   var inp = el('input', 'acsv-flm-addin');
   inp.type = 'text';
   inp.placeholder = '+添加分组，分组名称应在1到8个字符之间，仅支持中文、英文、数字。';
   li.appendChild(inp);
   var acts = el('div', 'acsv-flm-addacts');
   acts.style.display = 'none';
-  var cc = el('button', 'acsv-flpcf-cc', '取消添加');
+  var cc = el('button', 'acsv-flm-sbtn', '取消添加');
   cc.type = 'button';
-  var ok = el('button', 'acsv-flpcf-ok', opts.okLabel || '添加分组');
+  var ok = el('button', 'acsv-flm-sbtn primary', opts.okLabel || '添加分组');
   ok.type = 'button';
   var okText = opts.okLabel || '添加分组';
   acts.appendChild(cc);
@@ -218,16 +208,11 @@ function mountAddRow(opts) {
 // ---- 设置分组模态（radio 选组 + 底部添加行 + 红确定）----
 // 写链 regroup(action=3)；选中未变时确定=空操作直接关（无变化不发废包）
 function openGroupModal(item, ctx) {
-  openModal('fl-group', '设置分组', function (main, close) {
-    main.appendChild(el('div', 'acsv-flm-sub', '请选择分组'));
+  openModal('fl-group', '设置分组', function (body, ok, close) {
+    body.appendChild(el('div', 'acsv-flm-grp', '请选择分组'));
     var listBox = el('div', 'acsv-flm-list');
-    main.appendChild(listBox);
+    body.appendChild(listBox);
     var sel = item.groupId;
-    var okrow = el('div', 'acsv-flm-okrow');
-    var ok = el('button', 'acsv-flm-ok', '确定');
-    ok.type = 'button';
-    okrow.appendChild(ok);
-    main.appendChild(okrow);
     var add = mountAddRow({
       onCreate: createGroup,
       onCreated: function () { groupsP = null; render(); } // 建组后组表置脏，radio 现拉
@@ -278,25 +263,20 @@ function openGroupModal(item, ctx) {
   });
 }
 
-// ---- 编辑分组模态（组条改名/删除 + 底部添加行 + 红确定=关）----
+// ---- 编辑分组模态（组条改名/删除 + 底部添加行 + 页脚确定=关）----
 // 系统组口径沿用旧 adminTab：未分组（id "0"）不进列表；特别关注只给改名不给删
-//（删除原生也套 PopConfirm「…会移至未分组」，本模态用同款 .acsv-flpcf；改名走内联输入条）
+//（删除套 pickpop 确认卡「…会移至未分组」；改名走内联输入条）
 function openEditModal(ctx) {
-  openModal('fl-edit', '编辑分组', function (main, close) {
+  openModal('fl-edit', '编辑分组', function (body, ok, close) {
     var listBox = el('div', 'acsv-flm-list');
-    main.appendChild(listBox);
-    var okrow = el('div', 'acsv-flm-okrow');
-    var ok = el('button', 'acsv-flm-ok', '确定');
-    ok.type = 'button';
-    okrow.appendChild(ok);
-    main.appendChild(okrow);
+    body.appendChild(listBox);
     var add = mountAddRow({
       onCreate: createGroup,
       onCreated: function () { groupsP = null; render(); } // 建组后组表置脏，编辑列表现拉
     });
 
     function bar(g) {
-      var li = el('div', 'acsv-flm-gi');
+      var li = el('div', 'acsv-flm-erow');
       li.setAttribute('data-gid', String(g.id));
       var gl = el('span', 'acsv-flm-gl', g.name || '');
       li.appendChild(gl);
@@ -309,13 +289,18 @@ function openEditModal(ctx) {
         var del = el('button', 'acsv-flm-gop', '删除');
         del.type = 'button';
         del.addEventListener('click', function () {
-          openPcf(li, '确定删除分组「' + (g.name || '') + '」？该分组下的人会移至未分组。', function () {
-            return removeGroup(g.id);
-          }, function () {
-            toast('已删除分组：' + (g.name || ''));
-            groupsP = null;
-            li.remove();
-            ctx.afterGroupsChanged(g.id);
+          openConfirmCard(del, {
+            host: li,
+            title: '删除分组',
+            text: '确定删除分组「' + (g.name || '') + '」？该分组下的人会移至未分组。',
+            okLabel: '确定',
+            run: function () { return removeGroup(g.id); },
+            done: function () {
+              toast('已删除分组：' + (g.name || ''));
+              groupsP = null;
+              li.remove();
+              ctx.afterGroupsChanged(g.id);
+            }
           });
         });
         ops.appendChild(del);
@@ -328,9 +313,9 @@ function openEditModal(ctx) {
         input.type = 'text';
         input.maxLength = 8;
         input.value = g.name || '';
-        var cc = el('button', 'acsv-flpcf-cc', '取消');
+        var cc = el('button', 'acsv-flm-sbtn', '取消');
         cc.type = 'button';
-        var sv = el('button', 'acsv-flpcf-ok', '确认');
+        var sv = el('button', 'acsv-flm-sbtn primary', '确认');
         sv.type = 'button';
         var tail = el('span', 'acsv-flm-gops');
         tail.appendChild(cc);
@@ -499,14 +484,17 @@ export function buildFollowAdmin(panel, scroller) {
     return { it: it, row: row, btn: btn, paint: paint };
   }
 
-  // 行内菜单：特别关注(14)/取消特别关注(15，确认)/取消关注(2，确认)/设置分组(模态)
-  // 非对称确认照原生：加特别关注直接发，取消类两键套 .acsv-flpcf（菜单收、确认层开=同槽轮换）
+  // 行内菜单：特别关注(14)/取消特别关注(15，确认卡)/取消关注(2，确认卡)/设置分组(模态)
+  // 非对称确认照原生：加特别关注直接发，取消类两键套 pickpop 确认卡（菜单收、卡开；
+  // 锚=☰ 钮、宿主=acts，落位/外点收起归 pickpop）。开场摘掉可能残存的确认卡（全页单枚）。
   function openRowMenu(it, acts, btn, ctx) {
+    var stray = document.querySelector('.acsv-confirmpop');
+    if (stray) stray.remove();
     var menu = el('div', 'acsv-relmenu');
     var defs = [];
     if (it.followingStatus === 3) {
       defs.push({
-        label: '取消特别关注', confirm: '是否取消特别关注？',
+        label: '取消特别关注', title: '取消特别关注', confirm: '是否取消特别关注？',
         run: function () { return unSpecialFollow(it.id); },
         done: function () { it.followingStatus = 2; ctx.paint(); }
       });
@@ -518,7 +506,7 @@ export function buildFollowAdmin(panel, scroller) {
       });
     }
     defs.push({
-      label: '取消关注', confirm: '是否取消关注？',
+      label: '取消关注', title: '取消关注', confirm: '是否取消关注？',
       run: function () { return unfollowUser(it.id); },
       done: function () { ctx.removeRow(); }
     });
@@ -530,7 +518,11 @@ export function buildFollowAdmin(panel, scroller) {
         if (mi._busy) return;
         if (!d.run) { closePop(); openGroupModal(it, ctx); return; }
         if (d.confirm) {
-          openPcf(acts, d.confirm, d.run, d.done);
+          closePop();
+          openConfirmCard(btn, {
+            host: acts, title: d.title, text: d.confirm, okLabel: '确定',
+            run: d.run, done: d.done
+          });
         } else {
           mi._busy = true;
           d.run().then(function (good) {

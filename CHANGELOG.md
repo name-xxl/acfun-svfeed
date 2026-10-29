@@ -5,6 +5,36 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.292（2026-10-29）· 关注列表两张弹窗对齐设置面板——原生模仿壳整体换族，确认弹层并入 pickpop 单源
+
+**由头（用户裁决）**：编辑分组/设置分组两张模态 0.9.289 虽对齐了原生，但与脚本自家设置面板
+家族（齿轮面板）割裂——用户令「编辑弹窗 ui 设计要对齐设置面板」。按硬规矩先出静态预览
+（docs/preview/follow-modal-settings.html：①设置面板缩样并排同族对照 + ⑦新旧几何推导表 +
+交付前 33 项计算样式机器清查），三项裁决：**同批换族**（两模态共用 openModal 壳）/
+**选中表达保 radio 圆点**（行语言取 .set-sel-item）/ **删除确认弹层换 pickpop 同族**。
+
+**修法**（交互与写链零变化，只换皮）：
+1. 模态壳换设置面板量值（cssraw `.acsv-flm-*` / followadmin.openModal 壳重构 hd+bd+foot）：
+   遮罩 .45→.62；面板 blur12+边白.1+圆角15→14+阴影 0 10px 34（SET_CSS .set-panel）；标题
+   16 居中→15/600 左置、✕ 裸字形→28 圆钮（.set-x）；**内层 203px 限高退役**——列表随面板体
+   滚动（体 20 padding，面板 max-height min(76vh,640px)）；确定键从居中红块 128×36→**页脚
+   右置 primary**（.set-foot 同型）。落位不动（0.9.291 视口垂直居中钉，fg-group-center 原样过）。
+2. 行语言：编辑分组组行=**.set-row 节奏**（新 `.acsv-flm-erow`：名 14/18 左+ghost 操作键右
+   hover 白.12，行距 20，替代灰条卡）；设置分组 radio 行=透底 36 高 hover 白.12（.set-sel-item
+   同款，radio accent 点亮+字白保留=⑤-A 案）；输入（改名/添加）=设置输入家族（无边 圆角8
+   bg 白.12 focus .18）；添加行/改名小动作键换 `.acsv-flm-sbtn(.primary)`。
+3. **确认弹层单源收口**：`openPcf`/`.acsv-flpcf` 整体退役——取消特别关注/取消关注/删除分组
+   三处改走 `pickpop.openConfirmPop`（title/text/okLabel 注入，busy 与层内失败提示归
+   pickpop；锚=☰钮/删除键、宿主=acts/行，落位 popplace、外点收起 guardOutside）。**不占
+   overlay 槽**（与全脚本删除类确认同口径——mytabs/评论区现行，Esc 随宿主视图）；互斥由
+   行内菜单开场清扫+全页单枚（openConfirmCard 开新摘旧）保证。followadmin→pickpop 新边入图。
+4. 文案零变化：确认文案/警示条/placeholder/toast 全保留原串。
+
+**测试**：relation.js follow-groups 场景断言随新结构更新选择器（confirmpop/pick-ok/erow/
+flm-foot/flm-sbtn）——写链 body 断言（action 14/15/2/3/4/6/5）、校验警示条、topmost 可视、
+居中钉全部保留。**摘更新反跑**：临时退回旧选择器（erow→gi），fg-edit-modal 恰好转红
+（45/46），恢复复绿；全量三段并行全绿（57.2s，89 场景 0 失败）+ lint/check 七门禁/tsc 通过。
+
 ### 0.9.291（2026-10-29）· 关注列表模态落位改视口垂直居中——顶部下移系实现自造，原生实测重心正中
 
 **病灶**（用户真机纠正「弹窗居中啊，怎么定位在顶部啊」）：0.9.290 模态落位写了

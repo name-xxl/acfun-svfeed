@@ -8,7 +8,7 @@
 //（action=9 按组过滤、action=7 全部）；relation/follow 与 relation/group 的 body 全部留档
 //（window.__FOLLOW_BODY__/__GROUP_BODY__）——写链正确性只在 body 上可见（mock 不回语义，只回 0）。
 // 真机语义口径（写死以防回归，§16）：特别关注=action=14 独立标记不动分组；取消类两键套
-// PopConfirm（加特别关注不套——非对称确认）；组名校验=trim 后 /^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$/
+// pickpop 确认卡（0.9.292 换族；加特别关注不套——非对称确认）；组名校验=trim 后 /^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$/
 // +保留名「未分组/特别关注」；「未分组」= id "0"；成员行钮文案 followingStatus 2→已关注/3→特别关注。
 (function () {
   var C = window.__ACSV_CASES__ = window.__ACSV_CASES__ || {};
@@ -140,21 +140,21 @@
     var miUn = Array.from(document.querySelectorAll('.acsv-relmenu .acsv-flmi')).find(function (m) { return /取消特别关注/.test(m.textContent); });
     if (miUn) miUn.click();
     rec('fg-unsp-pcf', !!(await waitFor(function () {
-      var pcf = q('.acsv-flpcf');
+      var pcf = q('.acsv-confirmpop');
       return !!pcf && /是否取消特别关注？/.test(pcf.textContent);
-    }, 8000)), (q('.acsv-flpcf') || {}).textContent);
+    }, 8000)), (q('.acsv-confirmpop') || {}).textContent);
     var bodies = window.__FOLLOW_BODY__.length;
-    var pcfCc = q('.acsv-flpcf .acsv-flpcf-cc');
+    var pcfCc = q('.acsv-confirmpop .acsv-pick-cancel');
     if (pcfCc) pcfCc.click();
     rec('fg-unsp-cancel', !!(await waitFor(function () {
-      return !q('.acsv-flpcf') && window.__FOLLOW_BODY__.length === bodies;
+      return !q('.acsv-confirmpop') && window.__FOLLOW_BODY__.length === bodies;
     }, 8000)));
     // 「确定」→ action=15（也不带 groupId）→ 钮文案回「已关注」
     if (relbtn(0)) relbtn(0).click();
     await waitFor(function () { return document.querySelectorAll('.acsv-relmenu .acsv-flmi').length === 3; }, 8000);
     miUn = Array.from(document.querySelectorAll('.acsv-relmenu .acsv-flmi')).find(function (m) { return /取消特别关注/.test(m.textContent); });
     if (miUn) miUn.click();
-    var pcfOk = q('.acsv-flpcf .acsv-flpcf-ok');
+    var pcfOk = q('.acsv-confirmpop .acsv-pick-ok');
     if (pcfOk) pcfOk.click();
     rec('fg-unsp-body', !!(await waitFor(function () {
       return /toUserId=1001&action=15$/.test(lastBody());
@@ -201,8 +201,8 @@
     await waitFor(function () { return document.querySelectorAll('.acsv-relmenu .acsv-flmi').length === 3; }, 8000);
     var miUnf = Array.from(document.querySelectorAll('.acsv-relmenu .acsv-flmi')).find(function (m) { return /取消关注/.test(m.textContent); });
     if (miUnf) miUnf.click();
-    var pcfOk2 = q('.acsv-flpcf .acsv-flpcf-ok');
-    rec('fg-unfollow-pcf', !!pcfOk2 && /是否取消关注？/.test(q('.acsv-flpcf').textContent));
+    var pcfOk2 = q('.acsv-confirmpop .acsv-pick-ok');
+    rec('fg-unfollow-pcf', !!pcfOk2 && /是否取消关注？/.test(q('.acsv-confirmpop').textContent));
     if (pcfOk2) pcfOk2.click();
     rec('fg-unfollow', !!(await waitFor(function () {
       return panel().querySelectorAll('.acsv-flrow').length === before - 1
@@ -214,7 +214,7 @@
     rec('fg-edit-modal', !!(await waitFor(function () {
       var m = q('.acsv-flm-main');
       if (!m) return false;
-      var bars = m.querySelectorAll('.acsv-flm-gi[data-gid]');
+      var bars = m.querySelectorAll('.acsv-flm-erow[data-gid]');
       return topmost(m) && /编辑分组/.test(m.textContent) && bars.length === 2
         && bars[0].getAttribute('data-gid') === '273464'
         && !!bars[0].querySelector('.acsv-flm-gop');
@@ -225,7 +225,7 @@
       addIn.focus();
       addIn.value = '一二三四五六七八九';
     }
-    var addOk = q('.acsv-flm-main .acsv-flm-addacts .acsv-flpcf-ok');
+    var addOk = q('.acsv-flm-main .acsv-flm-addacts .acsv-flm-sbtn.primary');
     if (addOk) addOk.click();
     rec('fg-add-invalid', !!(await waitFor(function () {
       var w = q('.acsv-flwarn');
@@ -243,44 +243,44 @@
     if (addOk) addOk.click();
     rec('fg-add', !!(await waitFor(function () {
       var m = q('.acsv-flm-main');
-      var bar = m && m.querySelector('.acsv-flm-gi[data-gid="281990"]');
+      var bar = m && m.querySelector('.acsv-flm-erow[data-gid="281990"]');
       return !!bar && /临时组/.test(bar.textContent);
     }, 8000)), window.__GROUP_BODY__.join(' | '));
     rec('fg-add-body', /action=4&groupName=%E4%B8%B4%E6%97%B6%E7%BB%84/.test(window.__GROUP_BODY__.join('|')),
       window.__GROUP_BODY__.join(' | '));
     // 改名（内联输入条）：舞 → 舞2 → action=6
-    var barWu = document.querySelector('.acsv-flm-main .acsv-flm-gi[data-gid="273464"]');
+    var barWu = document.querySelector('.acsv-flm-main .acsv-flm-erow[data-gid="273464"]');
     var rnBtn = barWu && Array.from(barWu.querySelectorAll('.acsv-flm-gop')).find(function (b) { return /改名/.test(b.textContent); });
     if (rnBtn) rnBtn.click();
     var rnIn = q('.acsv-flm-main .acsv-flm-rninput');
     rec('fg-rename-open', !!rnIn && rnIn.value === '舞');
     if (rnIn) rnIn.value = '舞2';
-    var rnOk = barWu && Array.from(barWu.querySelectorAll('.acsv-flm-gops .acsv-flpcf-ok')).pop();
+    var rnOk = barWu && Array.from(barWu.querySelectorAll('.acsv-flm-gops .acsv-flm-sbtn.primary')).pop();
     if (rnOk) rnOk.click();
     rec('fg-rename', !!(await waitFor(function () {
-      var b = q('.acsv-flm-main .acsv-flm-gi[data-gid="273464"]');
+      var b = q('.acsv-flm-main .acsv-flm-erow[data-gid="273464"]');
       return !!b && /舞2/.test(b.textContent);
     }, 8000)), window.__GROUP_BODY__.join(' | '));
     rec('fg-rename-body', /groupId=273464&action=6&groupName=%E8%88%9E2/.test(window.__GROUP_BODY__.join('|')),
       window.__GROUP_BODY__.join(' | '));
     // 删除（确认弹层文案含「移至未分组」）→ action=5 → 杠消失
-    barWu = document.querySelector('.acsv-flm-main .acsv-flm-gi[data-gid="273464"]');
+    barWu = document.querySelector('.acsv-flm-main .acsv-flm-erow[data-gid="273464"]');
     var delBtn = barWu && Array.from(barWu.querySelectorAll('.acsv-flm-gop')).find(function (b) { return /删除/.test(b.textContent); });
     if (delBtn) delBtn.click();
     rec('fg-del-pcf', !!(await waitFor(function () {
-      var pcf = q('.acsv-flpcf');
+      var pcf = q('.acsv-confirmpop');
       return !!pcf && /移至未分组/.test(pcf.textContent);
-    }, 8000)), (q('.acsv-flpcf') || {}).textContent);
-    var delOk = q('.acsv-flpcf .acsv-flpcf-ok');
+    }, 8000)), (q('.acsv-confirmpop') || {}).textContent);
+    var delOk = q('.acsv-confirmpop .acsv-pick-ok');
     if (delOk) delOk.click();
     rec('fg-del', !!(await waitFor(function () {
       var m = q('.acsv-flm-main');
-      return !!m && !m.querySelector('.acsv-flm-gi[data-gid="273464"]');
+      return !!m && !m.querySelector('.acsv-flm-erow[data-gid="273464"]');
     }, 8000)), window.__GROUP_BODY__.join(' | '));
     rec('fg-del-body', /action=5&groupId=273464/.test(window.__GROUP_BODY__.join('|')),
       window.__GROUP_BODY__.join(' | '));
     // 关编辑模态（确定）；select 下拉含新组「临时组」；点「新组」过滤（action=9 带组 id）
-    var editOk = q('.acsv-flm-main .acsv-flm-okrow .acsv-flm-ok');
+    var editOk = q('.acsv-flm-main .acsv-flm-foot .acsv-flm-ok');
     if (editOk) editOk.click();
     rec('fg-edit-close', !!(await waitFor(function () { return !q('.acsv-flm-main'); }, 8000)));
     if (relbtn(0)) relbtn(0).click(); // 关掉可能开着的行菜单，保持场净
