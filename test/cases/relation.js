@@ -95,6 +95,24 @@
     rec('fg-rows', !!(await waitFor(function () {
       return panel() && panel().querySelectorAll('.acsv-flrow').length === 2;
     }, 8000)));
+    // 档头位置不变式（0.9.296 把守卫补齐三档）：档头必须在成员行**之上**——与 views.js 的
+    // fav-head-above / hd-head-above 同款；0.9.293 历史档就是因「档头挂到列表末尾」而真机
+    // 报「不显示顶栏」，本档此前只有存在性断言（fg-topbar），缺位置钉
+    rec('fg-head-above', (function () {
+      var p = panel();
+      var head = p && p.querySelector('.acsv-mhead');
+      var firstRow = p && p.querySelector('.acsv-fllist .acsv-flrow');
+      if (!head || !firstRow || !head.offsetParent) return false;
+      return head.getBoundingClientRect().bottom <= firstRow.getBoundingClientRect().top + 1;
+    })(), (function () {
+      var p = panel();
+      var head = p && p.querySelector('.acsv-mhead');
+      var firstRow = p && p.querySelector('.acsv-fllist .acsv-flrow');
+      if (!head) return 'no-head';
+      if (!firstRow) return 'no-row';
+      return 'headBottom=' + Math.round(head.getBoundingClientRect().bottom)
+        + ' rowTop=' + Math.round(firstRow.getBoundingClientRect().top);
+    })());
     rec('fg-row-anatomy', (function () {
       var r0 = panel().querySelectorAll('.acsv-flrow')[0];
       if (!r0) return false;

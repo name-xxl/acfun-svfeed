@@ -21,6 +21,7 @@ import { root } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { GLYPHS } from './imicons.js';
 import { openConfirmPop } from './pickpop.js';
+import { stat } from './dbg.js';
 
 function mmHost() { return root || document.body; }
 
@@ -104,9 +105,15 @@ export function createMeHead(panel, opts) {
     rootEl.appendChild(b);
     acts.push({ def: a, btn: b });
   });
-  // 落位：before 给了就插到它前面（位置与调用先后解耦，见头注 0.9.294 教训）
+  // 落位：before 给了就插到它前面（位置与调用先后解耦，见头注 0.9.294 教训）。
+  // before 给了却还不是 panel 的子节点（消费方先建档头、后挂列表）⇒ 降级 append，但**留计数**：
+  // 静默降级正是档头落位两次走偏的温床（0.9.293 收藏夹 / 0.9.295 历史），坏姿势要能在 debug
+  // 读数里被看见，不只靠 harness 几何断言兜。
   if (opts.before && opts.before.parentNode === panel) panel.insertBefore(rootEl, opts.before);
-  else panel.appendChild(rootEl);
+  else {
+    if (opts.before) stat('mehead.beforeDetached');
+    panel.appendChild(rootEl);
+  }
   function setLabel(t) { if (selBtn) selBtn.firstChild.nodeValue = t; }
   function refresh() {
     var any = false;
