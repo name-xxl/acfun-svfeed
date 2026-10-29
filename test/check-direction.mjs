@@ -194,6 +194,12 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // panelitem/ui/pageloader/nameval/imgload）、接口（appapi/favapi/relationapi）与特性层共享件
   //（cards/listtail/favpop/grouppop/pickpop/toastmsg）⇒ 口径 A/B 均 0 条
   'mytabs.js',
+  // 0.9.289 登记：followadmin（我的页关注列表档，对齐原生 /member/feeds/following，自 mytabs
+  // 移出）。与 mypage/mytabs 同属视图特性层：唯一消费方 mypage 在表内（层内互调）；自身只 import
+  // 基建（cfg/ui/pageloader/imgload）、零依赖叶（imicons/nameval/toastmsg）、基建族 cards
+  // （骨架行，0.9.259 已入表）/listtail（0.9.219 已入表）、特性层 overlay 与接口层 relationapi
+  // ⇒ 口径 A/B 均 0 条
+  'followadmin.js',
   ]);
 const SKIP_B = new Set(['boot.js', 'player.js', 'sessionhooks.js']);
 // 0.9.271：sessionhooks（会话回接钩子）与 player 同属组合根/编排层——它 import rail/playlayer/

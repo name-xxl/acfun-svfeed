@@ -60,5 +60,11 @@ export var GLYPHS = {
   // 0.9.239 补：官方 splitbutton 的下拉箭头（`.edui-caret:before{content:"\E166"}`，
   // 官方用法 font-size:12px + transform:scale(.6)）。同批实测：该码点在 acfun-frontend-next
   // 里与官方内联 subset「逐像素相同」（pixelDiff=0）
-  edCaret: '\ue166'
+  edCaret: '\ue166',
+  // 原生「关注列表」页（/member/feeds/following）三码点（0.9.289，2026-10-29 真机码点提取，
+  // 一览表 docs/api-research.md §16；select 下拉箭头复用 edCaret E166 不重登）
+  followList: '\ue2ce',  // 关系行「已关注」钮的三横（原生 action-button 同字，14px）
+  modalClose: '\ue182',  // ac-modal 右上叉（16px；原生元素计算字体是 Helvetica 栈靠末位
+                         // 回退命中本字体——脚本侧显式声明即可）
+  toastWarn: '\ue1a0'    // 顶部警示条图标（ac-toast-warn，#faad14 金黄，14px）
 };

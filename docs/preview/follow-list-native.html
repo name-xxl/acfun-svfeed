@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 我的页「关注列表」对齐原生（待确认）</title>
+<!-- ============================================================
+     docs/preview/follow-list-native.html —— 我的页「关注分组」tab 对齐原生
+     /member/feeds/following（2026-10-29 真机取证，量值见 docs/api-research.md §16）。
+     口径：结构/字号/间距/信息层级 1:1 照原生量取值；颜色按暗色换算对照
+     （cssraw.js:1475 先例）：#333→#e8eaee、#666→#cfd3da、#999→#acsv-t3、
+     #f5f5f5/#f8f8f8→rgba(255,255,255,.06)、边 #d9d9d9→rgba(255,255,255,.12)、
+     accent #fd4c5d 原样。弹层底/阴影走脚本家族（--acsv-panel / 0 10px 30px）。
+     结构映射：chips 行 →「全部分组」select +「编辑分组」文字钮；
+     组头改名/删除 → 编辑分组弹窗；成员行两 chip（移组/取关）→ 行内
+     「☰ 已关注」下拉钮（特别关注/取消关注/设置分组）+ 原生模态壳。
+     待核清单已收口（2026-10-29 探针实测，详见 api-research §16「特别关注行为链」）：
+     ① getFollows 回包**全字段都有**——signature / followingCount(Show) / followingStatus /
+     isFollowed / isFriend / verifiedTypes / socialMedal / nameColor，签名行、「关注:N」、
+     「已互粉」文案、认证/勋章小图标全部可落地；② 特别关注＝relation/follow **action=14**（独立标记，
+     不动 groupId，非 regroup），取消=action=15；钮文案状态机 followingStatus 1=回粉/关注、
+     2=已关注(isFollowed→已互粉)、3=特别关注。
+     已实测收口：原生建组入口＝设置分组弹窗组列表底部常驻输入行（li.group-item 同款灰条 +
+     无边框透明 input，placeholder 即校验文案「1~8字、中文/英文/数字」，无独立新建钮）；
+     编辑分组弹窗按同构处理（未逐项取证）。
+     随件拍板：~~校验文案口径~~ **已核收口（2026-10-29）**：原生真实规则 = trim 后
+     /^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$/（含下划线，与脚本现行一致；placeholder 漏写下划线是
+     原生文案偏窄，照抄）；保留字「特别关注/未分组」拒绝；失败=顶部警示条（icon U+E1A0）；
+     relation/group action 4 建组/5 删组/6 改名——详见 api-research §16。
+     ~~确认步跟不跟~~ **已拍板「模仿原生」采纳**（取消特别关注/取消关注套 PopConfirm 确认，
+     加特别关注不确认，弹层形态见④b、量取值在 api-research §16）；~~名字行小图标~~
+     **已拍板不加**（official/college 两枚 SVG 资产已采入 §16 备用）；~~菜单红字~~
+     **已拍板不要**（三串同色跟原生）。**拍板清单已清零，本稿待最终确认进实现。**
+     明确不跟：数字分页（0.9.219 尾部统一 listtail）；行内归属标签（跟随原生撤除）。
+     图标＝原生 iconfont 字形，不自己画（2026-10-29 用户裁决）：acfun-frontend-next 字体
+     @font-face 与 src/cssraw.js:14 同一 CDN 源；码点采自本页并在册：钮三横 U+E2CE、
+     select 箭头 U+E166（=imicons.GLYPHS.edCaret）、弹窗叉 U+E182、radio 照原生 CSS 实测值
+     （16 圆/off 边 #e5e5e5/选中 8px 红点）——一览表见 docs/api-research.md §16。
+     纪律：颜色一律走类规则、元素零内联色；确认后按本稿进 src 实现（新码点登记 imicons.GLYPHS）。
+     ============================================================ -->
+<style>
+  /* 原生 iconfont（与 src/cssraw.js:14 同一 CDN 源；file:// 直开须写全 https） */
+  @font-face{font-family:acfun-frontend-next;
+    src:url(https://ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.90fc2dfc.woff) format("woff"),
+        url(https://ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.bdc44d05.ttf) format("truetype")}
+  :root{
+    --acsv-accent:#fd4c5d;
+    --acsv-bg:#000;
+    --acsv-panel:rgba(22,22,27,.97);
+    --acsv-line:rgba(255,255,255,.09);
+    --acsv-t1:#fff;
+    --acsv-t2:#cfd3da;
+    --acsv-t3:#8a90a0;
+    --row-line:rgba(255,255,255,.06);   /* 原生行分隔 #f5f5f5 的暗色换算 */
+    --surf:rgba(255,255,255,.06);       /* 原生 #f5f5f5/#f8f8f8 面 */
+    --surf-hov:rgba(255,255,255,.12);   /* 原生悬停 #e5e5e5 的暗色换算 */
+    --edge:rgba(255,255,255,.12);       /* 原生边 #d9d9d9 的暗色换算 */
+    --name-c:#e8eaee;                   /* 原生 #333 的暗色换算 */
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
+  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .board .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
+  .board .hint b{color:var(--acsv-t2)}
+  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:12px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .stage{border:1px solid var(--edge);border-radius:10px;padding:16px 18px;background:#0b0d12}
+  .stage.tall{padding-bottom:230px}    /* ② 展开态：给下拉留own框内空间 */
+  .stage.menub{padding-bottom:140px}   /* ④ 菜单展开态：菜单出行走框内 */
+  .cap{font-size:12px;color:var(--acsv-t3);margin-top:10px;line-height:1.8}
+  .pair{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+
+  /* ---- ① 顶栏：select + 编辑分组（原生量取：select 高36宽142 边1 圆角4 字14；编辑分组 14px 高28） ---- */
+  .fltop{display:flex;align-items:flex-start}
+  .flselect{position:relative;width:142px;height:36px;border:1px solid var(--edge);border-radius:4px;
+    padding:0 30px 0 11px;font-size:14px;color:var(--name-c);line-height:34px;cursor:pointer}
+  .flselect .arw{position:absolute;right:10px;top:0;font-family:acfun-frontend-next;font-style:normal;
+    font-size:14px;color:var(--acsv-t3);line-height:34px}   /* U+E166（edCaret 同码点） */
+  .arw-u{transform:rotate(180deg)}
+  .fledit{margin-left:auto;border:none;background:none;font-family:inherit;font-size:14px;color:var(--name-c);
+    height:28px;cursor:pointer}
+  .fledit:hover{color:var(--acsv-accent)}   /* 原生悬停态未实测，按站点文字钮惯例点亮 accent */
+
+  /* ---- ② select 下拉展开（原生：白底圆角4 大阴影、项高32 padding 5 12 字14） ---- */
+  .flselect .opts{position:absolute;left:-1px;top:38px;width:142px;background:var(--acsv-panel);
+    border:1px solid var(--edge);border-radius:4px;box-shadow:0 10px 30px rgba(0,0,0,.5);
+    padding:4px 0;z-index:5;line-height:normal}
+  .opt{padding:5px 12px;font-size:14px;line-height:22px;color:var(--name-c);cursor:pointer}
+  .opt:hover{background:var(--surf)}
+  .opt.on{color:var(--acsv-accent)}         /* 选中态原生类名未截到，按下拉惯例 accent+勾 */
+
+  /* ---- ③ 成员行（原生量取：行 padding 20 0、分隔线1px、头像60圆、info 左距10、
+          名16/24、data·sign 12/18 #999、sign 上距4 无钳制；暗色换算见头注） ---- */
+  .grow{display:flex;padding:20px 0;border-bottom:1px solid var(--row-line)}
+  .grow .av{width:60px;height:60px;border-radius:50%;flex:none;margin-top:2px;background:var(--surf)}
+  .grow .info{flex:1;min-width:0;margin-left:10px}
+  .grow .nm{font-size:16px;line-height:24px;color:var(--name-c);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .grow .data{margin-top:2px;font-size:12px;line-height:18px;color:var(--acsv-t3);
+    display:flex;gap:24px}               /* 原生三段渲染间距 ≈23-24px */
+  .grow .sign{margin-top:4px;font-size:12px;line-height:18px;color:var(--acsv-t3);
+    overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  /* 注：原生 sign 无钳制自然换行（最高 2 行实测）；脚本行高按原生克制，此处 2 行钳防极端长签
+     撑破行节奏，超长以 title 全文兜底——如要 1:1 去掉 -webkit-line-clamp 即可（实现时二选一）。 */
+
+  /* ---- ④ 行内「已关注」下拉钮（原生：104×30 bg#f5f5f5 圆角4 字14 #999、悬停仅 bg 加深；
+          菜单宽104 白底圆角4 项高38居中 字14） ---- */
+  .gacts{position:relative;flex:none;margin-left:16px}
+  .relbtn{display:inline-flex;align-items:center;gap:4px;min-width:104px;height:30px;padding:3px 10px;
+    border:none;border-radius:4px;background:var(--surf);color:var(--acsv-t3);
+    font-family:inherit;font-size:14px;cursor:pointer;justify-content:center}
+  .relbtn:hover,.relbtn.hov{background:var(--surf-hov)}
+  .relbtn .ico{font-family:acfun-frontend-next;font-style:normal;font-size:14px;line-height:1}  /* U+E2CE */
+  .relmenu{position:absolute;right:0;top:34px;width:104px;background:var(--acsv-panel);
+    border:1px solid var(--edge);border-radius:4px;box-shadow:0 10px 30px rgba(0,0,0,.5);
+    z-index:6}
+  .relmenu .mi{display:block;width:100%;border:none;background:none;font-family:inherit;
+    height:38px;line-height:38px;text-align:center;font-size:14px;color:var(--name-c);cursor:pointer}
+  .relmenu .mi:hover{color:var(--acsv-accent)}   /* 菜单悬停原生未实测，按站点菜单惯例点亮 accent */
+
+  /* ---- ④b 确认弹层（原生 PopConfirm 量取：134 宽 圆角2 z1030 antd 系三层阴影、
+          文案 12px 左对齐、双钮右下 22 高 12px：取消=边+灰字、确定=红底白字；
+          暗色换算：底 panel、边家族线、阴影家族；水平以行钮为中心悬于其下） ---- */
+  .pcf{position:absolute;top:38px;left:50%;transform:translateX(-50%);width:134px;
+    background:var(--acsv-panel);border:1px solid var(--edge);border-radius:2px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:7;padding:8px 10px 10px}
+  .pcfm{font-size:12px;line-height:18px;color:var(--name-c);white-space:nowrap}
+  .pcfb{display:flex;justify-content:flex-end;gap:6px;margin-top:10px}
+  .pcfc{border:1px solid var(--edge);background:none;color:var(--acsv-t3);font-family:inherit;
+    font-size:12px;height:22px;padding:0 8px;border-radius:4px;cursor:pointer}
+  .pcfk{border:none;background:var(--acsv-accent);color:#fff;font-family:inherit;
+    font-size:12px;height:22px;padding:0 8px;border-radius:4px;cursor:pointer}
+
+  /* ---- ⑤b 添加行编辑态 + 校验失败警示条（原生实测：聚焦出行下双小钮；
+          失败=顶部通栏扁平条 icon U+E1A0 #faad14 + 14px 文案，slide-down ~3s 自消） ---- */
+  .addacts{display:flex;justify-content:flex-end;gap:8px;margin:8px 30px 0}
+  .warnstrip{display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 0;
+    font-size:14px;color:var(--acsv-t2);text-align:center}
+  .warnstrip .wicon{font-family:acfun-frontend-next;font-style:normal;font-size:14px;color:#faad14}
+
+  /* ---- ⑤⑥ 原生模态壳（400 宽 圆角15、标题16/600 居中、✕右上30、副题14 居中、
+          组条 surf 圆角5 padding 7 20 label 16 #666、列表限高203 滚动、红确定） ---- */
+  .maskdemo{border:1px dashed var(--edge);border-radius:10px;padding:28px 0;background:rgba(0,0,0,.45)}
+  .modal{width:400px;margin:0 auto;background:var(--acsv-panel);border:1px solid var(--edge);
+    border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,.5);padding:0 0 24px}
+  .modal .hd{position:relative;padding:26px 30px 0}
+  .modal .ttl{font-size:16px;font-weight:600;color:var(--name-c);text-align:center;line-height:24px}
+  .modal .x{position:absolute;right:30px;top:30px;border:none;background:none;color:var(--acsv-t3);
+    font-family:acfun-frontend-next;font-style:normal;font-size:16px;cursor:pointer;line-height:1}  /* U+E182 */
+  .modal .sub{margin-top:4px;font-size:14px;color:var(--acsv-t3);text-align:center;line-height:20px}
+  .modal .glist{margin-top:14px;padding:0 30px;max-height:203px;overflow:auto}
+  .gitem{display:flex;align-items:center;gap:10px;background:var(--surf);border-radius:5px;
+    padding:7px 20px;margin:10px 0 0;cursor:pointer}   /* 原生组条间距 = margin-top 10px */
+  .gitem.addrow{cursor:text}
+  .addin{flex:1;min-width:0;border:none;background:none;outline:none;font-family:inherit;
+    font-size:14px;color:var(--name-c)}
+  .addin::placeholder{color:var(--acsv-t3)}
+  /* radio 照原生 CSS 实测：16 圆白底、未选边 #e5e5e5、选中边红 + ::after 8×8 红点 */
+  .gitem .radio{width:16px;height:16px;border-radius:100px;border:1px solid rgba(255,255,255,.25);flex:none;position:relative}
+  .gitem.on .radio{border-color:var(--acsv-accent)}
+  .gitem.on .radio::after{content:"";position:absolute;left:3px;top:3px;width:8px;height:8px;
+    border-radius:100px;background:var(--acsv-accent)}
+  .gitem .gl{font-size:16px;color:var(--acsv-t2)}
+  .gitem.on .gl{color:var(--name-c)}
+  .gitem .rops{margin-left:auto;display:flex;gap:12px}
+  .gitem .rbtn{border:none;background:none;font-family:inherit;font-size:13px;color:var(--acsv-t3);cursor:pointer}
+  .gitem .rbtn:hover{color:var(--acsv-accent)}
+  .gitem .rbtn.danger:hover{color:#ff8a95}
+  .modal .okrow{text-align:center;margin-top:18px}
+  .modal .ok{border:none;border-radius:4px;background:var(--acsv-accent);color:#fff;font-family:inherit;
+    font-size:14px;width:128px;height:36px;cursor:pointer}
+
+  /* ---- ⑦ 空态 / ⑨ 窄宽 ---- */
+  .empty{color:var(--acsv-t3);font-size:13px;padding:18px 2px}
+  .narrow{width:540px;max-width:100%;border:1px dashed var(--edge);border-radius:10px;padding:12px;background:#0b0d12}
+
+  /* ---- ⑧ 改前对照（现状 0.9.142 形态：50 圆/名14/meta+tag/两 chip） ---- */
+  .old .grow{padding:12px 4px;border-bottom:1px solid var(--acsv-line);align-items:center;gap:14px}
+  .old .grow .av{width:50px;height:50px;margin-top:0}
+  .old .grow .info{margin-left:0}
+  .old .grow .nm{font-size:14px;line-height:normal;color:var(--acsv-t1)}
+  .old .grow .data{display:flex;gap:12px;align-items:center;margin-top:5px}
+  .oldtag{padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.1);color:var(--acsv-t2);font-size:12px}
+  .oldchip{border:none;border-radius:16px;padding:4px 10px;font-size:12px;font-family:inherit;
+    cursor:pointer;background:rgba(255,255,255,.1);color:var(--acsv-t2)}
+  .oldchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .oldchip.on{background:var(--acsv-accent);color:#fff}
+  table{border-collapse:collapse;font-size:12px;color:var(--acsv-t2)}
+  td,th{border:1px solid var(--edge);padding:5px 10px;text-align:left;line-height:1.7}
+  th{color:var(--acsv-t3);font-weight:600}
+  td b{color:var(--name-c);font-weight:600}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>我的页「关注分组」对齐原生「关注列表」—— 静态预览（待确认，确认后才进 src 实现）</h1>
+  <p class="hint">
+    口径：<b>暗色皮肤</b>；结构/字号/间距/信息层级 1:1 照原生 <b>/member/feeds/following</b> 量取值
+    （2026-10-29 真机取证，全量数值入档 docs/api-research.md §16），颜色按暗色换算对照表映射。
+    结构映射：chips 行 → select +「编辑分组」；组头改名/删除 → 编辑分组弹窗；
+    成员行「移组/取关」两 chip → 行内「☰ 已关注」下拉（特别关注/取消关注/设置分组）+ 原生模态壳。
+    <b>不跟</b>：数字分页（0.9.219 尾部统一 listtail）、行内归属标签（原生没有）。
+    待核字段：签名行 /「关注:N」/「已互粉」能否落地取决于 getFollows 回包，缺则降级（§16）。
+  </p>
+
+  <div class="sec">
+    <h2>① 顶栏<em>「全部分组」select（142×36 边1圆角4 字14）+ 右上「编辑分组」文字钮——chips 行退役</em></h2>
+    <div class="stage">
+      <div class="fltop">
+        <div class="flselect">全部分组<span class="arw">&#xE166;</span></div>
+        <button class="fledit">编辑分组</button>
+      </div>
+      <p class="cap">选档语义与现 chips 一致（全部 / 未分组 / 各组）；建组入口＝⑤⑥弹窗底部的添加输入行（原生同款）。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>② select 下拉展开态<em>暗色弹层、项高 32、padding 5×12、字 14；选中档 accent（原生选中类名未截到，标注未实测）</em></h2>
+    <div class="stage tall">
+      <div class="flselect">全部分组<span class="arw arw-u">&#xE166;</span>
+        <div class="opts">
+          <div class="opt on">全部分组</div>
+          <div class="opt">未分组</div>
+          <div class="opt">舞</div>
+          <div class="opt">回</div>
+          <div class="opt">趣</div>
+          <div class="opt">番</div>
+        </div>
+      </div>
+      <p class="cap">原生选项不带计数（现 chips 的「舞 8」计数跟原生口径一并去掉）。</p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>③ 成员行（默认态）<em>头像 60 圆 · 名 16/24 · data「关注:N 粉丝:N 投稿:N」12/18 间距24 · 签名 12/18 上距4 · 行 padding 20×0 分隔线 1px</em></h2>
+    <div class="stage">
+      <div class="grow">
+        <div class="av"></div>
+        <div class="info">
+          <div class="nm">一只芸喵喵</div>
+          <div class="data"><span>关注:31</span><span>粉丝:1.7万</span><span>投稿:309</span></div>
+          <div class="sign">喜欢跳舞～感谢关注！ 各平台同名：一只芸喵喵 不怎么出现的QQ群：985160785</div>
+        </div>
+        <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已关注</button></div>
+      </div>
+      <div class="grow">
+        <div class="av"></div>
+        <div class="info">
+          <div class="nm">二七梦</div>
+          <div class="data"><span>关注:99</span><span>粉丝:11.7万</span><span>投稿:598</span></div>
+          <div class="sign">偶尔晚上直播 |多边形摆烂大王 | 交流群875057713 |其他地方都叫二七梦（希望你一直在ෆ）</div>
+        </div>
+        <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已互粉</button></div>
+      </div>
+      <div class="grow">
+        <div class="av"></div>
+        <div class="info">
+          <div class="nm">绝对呆</div>
+          <div class="data"><span>关注:217</span><span>粉丝:3155</span><span>投稿:168</span></div>
+          <div class="sign">年更UP，此人已死，有事烧纸；小事挖坟，大事招魂。 我叫阿呆，我一个人住，我家的房子还蛮大的，欢迎你们来我家玩。 我们还可以去超商买啤酒和零食，玩累了就直接睡觉，没关系的。</div>
+        </div>
+        <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已互粉</button></div>
+      </div>
+      <p class="cap">
+        签名行按原生完整展示（上面第三行是实测真实长签，原生渲染为两行自然换行）——预览里给了 2 行钳
+        防极端长签破坏行节奏，要 1:1 就去掉钳制，实现时二选一。
+        「已互粉/已关注/特别关注」文案照钮文案状态机落地（followingStatus 1=回粉/关注、
+        2=已关注/已互粉、3=特别关注，字段实测都在回包里）。
+        原生名字行还带认证/学院小图标（official/college 两枚 18×18 SVG，驱动字段
+        verifiedType=2 / isSignedUpCollege）——<b>已拍板不加</b>，资产已采入 §16 备用。
+        行悬停：原生无反馈，不加。
+      </p>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>④ 行内钮悬停 + 下拉菜单展开态<em>悬停仅底色加深（原生实测）；菜单 = 特别关注 / 取消关注 / 设置分组，宽104 项高38 居中</em></h2>
+    <div class="pair">
+      <div class="stage" style="flex:1;min-width:320px">
+        <div class="grow">
+          <div class="av"></div>
+          <div class="info">
+            <div class="nm">小勒个朵</div>
+            <div class="data"><span>关注:683</span><span>粉丝:1.4万</span><span>投稿:297</span></div>
+            <div class="sign">一只成精的老妖婆 专吃小孩 |隔壁“一只纱朵”｜网易云“纱小朵”|粉丝Q群183736615</div>
+          </div>
+          <div class="gacts"><button class="relbtn hov"><span class="ico">&#xE2CE;</span>已互粉</button></div>
+        </div>
+        <p class="cap">悬停 = 面亮一档（rgba(255,255,255,.12)），字色不变——原生实测同款。</p>
+      </div>
+      <div class="stage menub" style="flex:1;min-width:320px">
+        <div class="grow">
+          <div class="av"></div>
+          <div class="info">
+            <div class="nm">小勒个朵</div>
+            <div class="data"><span>关注:683</span><span>粉丝:1.4万</span><span>投稿:297</span></div>
+            <div class="sign">一只成精的老妖婆 专吃小孩 |隔壁“一只纱朵”｜网易云“纱小朵”|粉丝Q群183736615</div>
+          </div>
+          <div class="gacts">
+            <button class="relbtn"><span class="ico">&#xE2CE;</span>已互粉</button>
+            <div class="relmenu">
+              <button class="mi">特别关注</button>
+              <button class="mi">取消关注</button>
+              <button class="mi">设置分组</button>
+            </div>
+          </div>
+        </div>
+        <p class="cap">三项语义映射（写链已实抓）：特别关注 = relation/follow action=14
+          （独立标记，不动组归属）；取消关注 = action=2（现取关）；设置分组 = 开⑤弹窗（现「移组」）。
+          原生取消类两键套 PopConfirm 确认步（「是否取消特别关注？/是否取消关注？」），加特别关注不确认
+          ——<b>已拍板「模仿原生」，确认步采纳</b>（形态见右侧第三态）。菜单悬停点亮 accent 为惯例推断（原生未实测）。
+          菜单项三串同色（<b>已拍板不要红字</b>，跟原生）。</p>
+      </div>
+      <div class="stage menub" style="flex:1;min-width:300px">
+        <p class="cap" style="margin:0 0 4px">④b 确认弹层（模仿原生，拍板已定）</p>
+        <div class="grow">
+          <div class="av"></div>
+          <div class="info">
+            <div class="nm">渣丸子</div>
+            <div class="data"><span>关注:486</span><span>粉丝:7.1万</span><span>投稿:655</span></div>
+            <div class="sign">生活工作需要，很难固定直播，一般周②周④晚上直播，具体情况随缘，看动态和群内通知。</div>
+          </div>
+          <div class="gacts">
+            <button class="relbtn"><span class="ico">&#xE2CE;</span>已关注</button>
+            <div class="pcf">
+              <div class="pcfm">是否取消关注？</div>
+              <div class="pcfb"><button class="pcfc">取消</button><button class="pcfk">确定</button></div>
+            </div>
+          </div>
+        </div>
+        <p class="cap">原生量取：134 宽 圆角 2、文案 12px 左对齐、双钮右下 22 高 12px
+          （取消=边+灰字、确定=红底白字）；水平以行钮为中心悬于其下；打开时菜单收起、外点关闭；
+          「确定」才发包（action=15 / action=2），「取消」纯关闭。「取消特别关注」同款换文案
+          （是否取消特别关注？→ action=15）。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑤ 「设置分组」弹窗<em>原生壳：400 宽 圆角15、标题 16/600 居中 + ✕、副题居中、组单选列表限高203 滚动（底部常驻添加输入行）、红确定 128×36</em></h2>
+    <div class="maskdemo">
+      <div class="modal">
+        <div class="hd"><div class="ttl">设置分组</div><button class="x">&#xE182;</button></div>
+        <div class="sub">请选择分组</div>
+        <div class="glist">
+          <div class="gitem"><span class="radio"></span><span class="gl">未分组</span></div>
+          <div class="gitem on"><span class="radio"></span><span class="gl">舞</span></div>
+          <div class="gitem"><span class="radio"></span><span class="gl">回</span></div>
+          <div class="gitem"><span class="radio"></span><span class="gl">趣</span></div>
+          <div class="gitem"><span class="radio"></span><span class="gl">番</span></div>
+          <div class="gitem addrow"><input class="addin" readonly
+            placeholder="+添加分组，分组名称应在1到8个字符之间，仅支持中文、英文、数字。"></div>
+        </div>
+        <div class="okrow"><button class="ok">确定</button></div>
+      </div>
+    </div>
+    <div class="maskdemo" style="margin-top:12px">
+      <div class="warnstrip"><span class="wicon">&#xE1A0;</span>分组名称应在1到8个字符之间，仅支持中文、英文、数字。</div>
+      <div class="modal">
+        <div class="hd"><div class="ttl">设置分组</div><button class="x">&#xE182;</button></div>
+        <div class="sub">请选择分组</div>
+        <div class="glist">
+          <div class="gitem"><span class="radio"></span><span class="gl">未分组</span></div>
+          <div class="gitem on"><span class="radio"></span><span class="gl">舞</span></div>
+          <div class="gitem addrow"><input class="addin" readonly value="一二三四五六七八九"></div>
+          <div class="addacts"><button class="pcfc">取消添加</button><button class="pcfk">添加分组</button></div>
+        </div>
+        <div class="okrow"><button class="ok">确定</button></div>
+      </div>
+    </div>
+    <p class="cap">形态 = 原生 ac-modal 暗色换算；数据/写链沿用现 grouppop（regroup action=3、未分组 id"0"），
+      只是换壳。rail 角标的选择层（浮层锚定宿主）不在此列、形态不动。
+      底部添加输入行＝原生实测（2026-10-29 补采：与组条同款灰条 34 高、内嵌无边框透明 input，
+      placeholder 即校验文案；原生无独立「新建」钮）。
+      <b>校验口径已核（bundle + 真机失败路径）</b>：原生真实规则 = trim 后
+      <b>/^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$/</b>——下划线放行，与脚本现行完全一致；
+      placeholder 漏写「下划线」是原生文案自己偏窄，照抄即可。保留字「特别关注/未分组」拒绝；
+      失败 = 顶部通栏警示条（icon U+E1A0 金黄 + 文案 14px，~3s 自消，见上）；成功 = toast
+      「添加分组成功！」。聚焦态行下出「取消添加/添加分组」双小钮（上图第二态，9 字超长示例）。</p>
+  </div>
+
+  <div class="sec">
+    <h2>⑥ 「编辑分组」弹窗<em>同款壳；组条内改名/删除 + 底部同款添加输入行 = 脚本功能填原生壳（原生此弹窗内部交互未逐项取证）</em></h2>
+    <div class="maskdemo">
+      <div class="modal">
+        <div class="hd"><div class="ttl">编辑分组</div><button class="x">&#xE182;</button></div>
+        <div class="glist">
+          <div class="gitem"><span class="gl">舞</span>
+            <span class="rops"><button class="rbtn">改名</button><button class="rbtn danger">删除</button></span>
+          </div>
+          <div class="gitem"><span class="gl">回</span>
+            <span class="rops"><button class="rbtn">改名</button><button class="rbtn danger">删除</button></span>
+          </div>
+          <div class="gitem"><span class="gl">特别关注</span>
+            <span class="rops"><button class="rbtn">改名</button></span>
+          </div>
+          <div class="gitem addrow"><input class="addin" readonly
+            placeholder="+添加分组，分组名称应在1到8个字符之间，仅支持中文、英文、数字。"></div>
+        </div>
+        <div class="okrow"><button class="ok">确定</button></div>
+      </div>
+    </div>
+    <p class="cap">系统组不给删（特别关注只给改名，未分组不进列表）——沿用现 adminTab 豁免规则。
+      建组流程随原生收敛：脚本现「＋新建分组 → 输入 → 新建钮」三步改为常驻输入行直接输入
+      （回车/失焦提交，无独立按钮，与⑤同款）。</p>
+  </div>
+
+  <div class="sec">
+    <h2>⑦ 空态<em>组内档无成员 / 全部无关注两串</em></h2>
+    <div class="stage">
+      <div class="empty">这个分组还没有成员</div>
+      <div class="empty">还没有关注任何UP，去首页逛逛吧</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>⑧ 改前 / 改后对照<em>同一行两种形态并排；下方为量取对照表</em></h2>
+    <div class="pair">
+      <div class="stage old" style="flex:1;min-width:340px">
+        <p class="cap" style="margin:0 0 8px">改前（0.9.142 现状）</p>
+        <div class="oldchips">
+          <button class="oldchip on">全部</button><button class="oldchip">未分组 14</button>
+          <button class="oldchip">舞 8</button><button class="oldchip">＋ 新建分组</button>
+        </div>
+        <div class="grow">
+          <div class="av"></div>
+          <div class="info">
+            <div class="nm">一只芸喵喵</div>
+            <div class="data"><span>粉丝 1.6万</span><span>投稿 286</span><span class="oldtag">舞</span></div>
+          </div>
+          <div style="display:flex;gap:8px"><button class="oldchip">移组</button><button class="oldchip">取关</button></div>
+        </div>
+      </div>
+      <div class="stage" style="flex:1;min-width:340px">
+        <p class="cap" style="margin:0 0 8px">改后（对齐原生）</p>
+        <div class="fltop" style="margin-bottom:4px">
+          <div class="flselect">全部分组<span class="arw">&#xE166;</span></div>
+          <button class="fledit">编辑分组</button>
+        </div>
+        <div class="grow">
+          <div class="av"></div>
+          <div class="info">
+            <div class="nm">一只芸喵喵</div>
+            <div class="data"><span>关注:31</span><span>粉丝:1.7万</span><span>投稿:309</span></div>
+            <div class="sign">喜欢跳舞～感谢关注！ 各平台同名：一只芸喵喵 不怎么出现的QQ群：985160785</div>
+          </div>
+          <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已关注</button></div>
+        </div>
+      </div>
+    </div>
+    <table style="margin-top:14px">
+      <tr><th>节点</th><th>原生实测</th><th>暗色落地</th></tr>
+      <tr><td>行</td><td>padding 20×0，分隔线 1px #f5f5f5</td><td>同值；分隔线 rgba(255,255,255,.06)</td></tr>
+      <tr><td>头像</td><td>60×60 圆，上距 2</td><td>同值（原 50）</td></tr>
+      <tr><td>名字</td><td>16px/24 #333</td><td>16px/24 #e8eaee（原 14px）</td></tr>
+      <tr><td>data 三段</td><td>12px/18 #999，渲染间距 ≈24</td><td>12px/18 #8a90a0，gap 24（新增「关注:N」）</td></tr>
+      <tr><td>签名</td><td>12px/18 #999 上距4，无钳制</td><td>同值 #8a90a0；2 行钳（可去，见③）</td></tr>
+      <tr><td>行内钮</td><td>104×30 bg#f5f5f5 圆角4 字14 #999，悬停 bg→#e5e5e5</td><td>同几何；surf/.12 悬停</td></tr>
+      <tr><td>钮菜单</td><td>宽104 白底圆角4 项高38 居中</td><td>同几何；panel 底+家族阴影</td></tr>
+      <tr><td>select</td><td>142×36 边1 #d9d9d9 圆角4 字14</td><td>同几何；边 rgba(255,255,255,.12)</td></tr>
+      <tr><td>模态</td><td>400 宽 圆角15 列表限高203 组条圆角5</td><td>同几何；panel 底、组条 surf</td></tr>
+      <tr><td>确定钮</td><td>#fd4c5d 白字 圆角4</td><td>同值（accent 单源）</td></tr>
+    </table>
+  </div>
+
+  <div class="sec">
+    <h2>⑨ 窄宽（540）自检<em>长签名换行不破行、行内钮不被挤出、select 与「编辑分组」同行共存</em></h2>
+    <div class="narrow">
+      <div class="fltop" style="margin-bottom:8px">
+        <div class="flselect">全部分组<span class="arw">&#xE166;</span></div>
+        <button class="fledit">编辑分组</button>
+      </div>
+      <div class="grow">
+        <div class="av"></div>
+        <div class="info">
+          <div class="nm">一只很长很长很长很长很长很长的昵称样例</div>
+          <div class="data"><span>关注:31</span><span>粉丝:1.7万</span><span>投稿:309</span></div>
+          <div class="sign">偶尔晚上直播 |多边形摆烂大王 | 交流群875057713 |其他地方都叫二七梦（希望你一直在ෆ）这是一段特别长的签名用来验证窄宽下两行钳与省略号是否正常工作不破行节奏</div>
+        </div>
+        <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已关注</button></div>
+      </div>
+      <p class="cap">窄态检查项：长昵称省略不逐字断行；签名 2 行钳；行内钮 min-width 104 不被挤扁。</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

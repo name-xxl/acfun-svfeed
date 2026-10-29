@@ -595,3 +595,15 @@ feedstore.js → player.js → input.js → feedstore.js
   断言未改且全绿；fastswipe/feed-slim/deeplink-*/stall-*/recover-* 同批全绿；单测 419、
   harness 83、lint/tsc/check 全绿。player 仍保留 renderWindow/setActive/mount/unmount 与
   路由编排（组合根不拆）。
+
+## 0.9.289：关注列表档移件（followadmin）
+
+- **新增模块**：`src/followadmin.js`——我的页「关注列表」档（对齐原生 /member/feeds/following，
+  自 mytabs 移出；旧 buildFollowGroups 形态随批退役，adminTab 壳自此只剩收藏夹单消费方）。
+- **新增边**：`followadmin → cards & imicons & imgload & listtail & nameval & overlay &
+  pageloader & relationapi & toastmsg`；`mypage → followadmin`。`mytabs` 出边同步收窄
+  （grouppop/imgload/nameval/relationapi/toastmsg 五边随移件消失）。
+- **登记**：`check-direction` FEATURE 加 `followadmin.js`（唯一消费方 mypage 在表内；出边只到
+  基建/零依赖叶/已入表特性共享件 cards/listtail/overlay——overlay 归 INFRA，接口层 relationapi
+  为合法向下），三口径 0 条。
+- 复点：`node test/check-direction.mjs` 0/0/0。

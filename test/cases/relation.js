@@ -1,12 +1,15 @@
-// test/cases/relation.js —— harness 场景：关注分组全闭环（0.9.142）
-// （同域的收藏夹全闭环（0.9.143）在 cases/favfolders.js）
-// 覆盖：我的页第三 tab「关注分组」（chips / 建组 / 改名 / 删组 / 成员列表 / 移组 / 取关）
-//      + rail 关注角标的分组选择层（未关注选组 / 已关注改分组 + 取关）+ 两处「新建分组」入口。
+// test/cases/relation.js —— harness 场景：关注列表全闭环（0.9.142 建，0.9.289 随对齐原生
+// /member/feeds/following 重写我的页段；rail 段两形态不变故原样保留）
+// 覆盖：我的页第五 tab「关注列表」（顶栏 select 过滤 + 编辑分组 / 成员行 data 三段+签名 /
+// 行内关系钮菜单：特别关注 14 直发 / 取消特别关注 15·取消关注 2 套确认弹层 / 设置分组模态
+// regroup 3 / 编辑分组模态：添加 4·校验警示条·保留字·改名 6·删除 5）
+//      + rail 关注角标的分组选择层（未关注选组 / 已关注改分组 + 取关）。
 // 夹具要点：组表**可变**（建/删/改名都改同一份，getGroups 每次现读）；成员按 groupId 分桶
 //（action=9 按组过滤、action=7 全部）；relation/follow 与 relation/group 的 body 全部留档
 //（window.__FOLLOW_BODY__/__GROUP_BODY__）——写链正确性只在 body 上可见（mock 不回语义，只回 0）。
-// 真机语义口径（写死以防回归）：建组响应带 groupId（优先取它）；已关注改分组=action=3（action=1
-// 对已关注用户不改归属）；「未分组」= id "0"；成员行自带 groupId/groupName。
+// 真机语义口径（写死以防回归，§16）：特别关注=action=14 独立标记不动分组；取消类两键套
+// PopConfirm（加特别关注不套——非对称确认）；组名校验=trim 后 /^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$/
+// +保留名「未分组/特别关注」；「未分组」= id "0"；成员行钮文案 followingStatus 2→已关注/3→特别关注。
 (function () {
   var C = window.__ACSV_CASES__ = window.__ACSV_CASES__ || {};
   C['follow-groups'] = async function (h) {
@@ -14,20 +17,21 @@
       TEST = h.TEST, feed = h.feed, firstVideoReady = h.firstVideoReady;
     document.cookie = 'auth_key=42_deadbeef'; // ui.selfUid：auth_key 前缀=uid
     var AV = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
-    function member(id, name, gid, gname) {
+    function member(id, name, gid, gname, st, friend) {
       return { userId: id, userName: name, userImg: AV, groupId: gid, groupName: gname,
-        fanCountShow: '1.6万', contributeCountShow: '286', signature: '签名' + id };
+        fanCountShow: '1.6万', contributeCountShow: '286', followingCountShow: '31',
+        signature: '签名' + id, followingStatus: st, isFriend: !!friend };
     }
     var GROUPS = [
-      { groupId: '0', groupName: '未分组', followingCount: 2 },
+      { groupId: '0', groupName: '未分组', followingCount: 1 },
       { groupId: '273464', groupName: '舞', followingCount: 1 },
       { groupId: '281985', groupName: '新组', followingCount: 1 }
     ];
     var MEMBERS = {
-      '-1': [member('1001', '甲', '0', '未分组'), member('1002', '乙', '273464', '舞')],
-      '0': [member('1001', '甲', '0', '未分组')],
-      '273464': [member('1002', '乙', '273464', '舞')],
-      '281985': [member('1003', '丙', '281985', '新组')]
+      '-1': [member('1001', '甲', '0', '未分组', 2, false), member('1002', '乙', '273464', '舞', 3, true)],
+      '0': [member('1001', '甲', '0', '未分组', 2, false)],
+      '273464': [member('1002', '乙', '273464', '舞', 3, true)],
+      '281985': [member('1003', '丙', '281985', '新组', 2, false)]
     };
     window.__FOLLOW_BODY__ = [];
     window.__GROUP_BODY__ = [];
@@ -56,157 +60,250 @@
       },
       'relation/getFollows': function (body) {
         var gid = (String(body).match(/groupId=([^&]*)/) || [])[1] || '-1';
+        window.__FOLLOWS_QUERY__ = String(body);
         var list = MEMBERS[gid] || [];
         return { result: 0, pcursor: 'no_more', totalCount: list.length, friendList: list };
       }
     });
 
-    // ---------- 我的页 → 关注分组 tab ----------
+    // ---------- 我的页 → 关注列表 tab ----------
     location.hash = 'svfeed/my';
     rec('fg-view-open', !!(await waitFor(function () {
       var v = q('.acsv-view');
       return v && v.offsetParent !== null && TEST.call('view') === 'my';
     }, 10000)));
-    var tabs = document.querySelectorAll('.acsv-metab');
-    // 0.9.218：按 data-tab 定位（此前用位置索引 tabs[2]——「动态」插到最前后即错位；
-    // 位置索引本身就是脆弱点，一并改成属性定位）
     var tabGroups = q('.acsv-metab[data-tab="groups"]');
-    rec('fg-tab', tabs.length === 5 && !!tabGroups && /关注分组/.test(tabGroups.textContent),
-      'n=' + tabs.length + ' t=' + (tabGroups ? tabGroups.textContent : 'n/a'));
+    rec('fg-tab', /关注列表/.test(tabGroups ? tabGroups.textContent : ''), tabGroups ? tabGroups.textContent : 'n/a');
     if (tabGroups) tabGroups.click();
     var panel = function () { return q('.acsv-mepanel[data-tab="groups"]'); };
-    // 默认「全部」选中：chips = 全部 / 未分组 2 / 舞 1 / 新组 1 / ＋新建分组
-    rec('fg-chips', !!(await waitFor(function () {
-      var cs = panel() && panel().querySelectorAll('.acsv-vchips .acsv-vchip');
-      return cs && cs.length === 5 && cs[0].classList.contains('on') && /未分组 2/.test(cs[1].textContent);
-    }, 8000)), (function () {
-      var cs = panel() && panel().querySelectorAll('.acsv-vchips .acsv-vchip');
-      return cs ? [].map.call(cs, function (c) { return c.textContent; }).join('|') : 'n/a';
-    })());
-    // 成员列表（全部）：2 行；行显归属标签（组名来自 getFollows 自带字段）
+    // 顶栏：select 默认「全部分组」+ 编辑分组钮
+    rec('fg-topbar', !!(await waitFor(function () {
+      var p = panel();
+      return p && p.querySelector('.acsv-flselect') && /全部分组/.test(p.querySelector('.acsv-flselect').textContent)
+        && !!p.querySelector('.acsv-fledit');
+    }, 8000)));
+    // 成员行：2 行；行甲=data 三段+签名+钮「已关注」；行乙（st3）钮「特别关注」
     rec('fg-rows', !!(await waitFor(function () {
-      return panel() && panel().querySelectorAll('.acsv-grow').length === 2;
+      return panel() && panel().querySelectorAll('.acsv-flrow').length === 2;
     }, 8000)));
-    rec('fg-row-tag', (function () {
-      var rows = panel().querySelectorAll('.acsv-grow');
-      return rows.length === 2 && /未分组/.test(rows[0].textContent) && /舞/.test(rows[1].textContent)
-        && !!rows[0].querySelector('.acsv-grow-avatar');
-    })(), 'r0=' + (panel().querySelector('.acsv-grow') || {}).textContent);
-    // 切组：点「舞」→ 1 行；组头操作（改名/删除）出现
-    var chipOf = function (txt) {
-      var cs = panel().querySelectorAll('.acsv-vchips .acsv-vchip');
-      for (var i = 0; i < cs.length; i++) if (cs[i].textContent.indexOf(txt) === 0) return cs[i];
-      return null;
+    rec('fg-row-anatomy', (function () {
+      var r0 = panel().querySelectorAll('.acsv-flrow')[0];
+      if (!r0) return false;
+      var spans = r0.querySelectorAll('.acsv-fldata span');
+      var btn = r0.querySelector('.acsv-relbtn');
+      return spans.length === 3
+        && /关注:31/.test(spans[0].textContent) && /粉丝:1\.6万/.test(spans[1].textContent)
+        && /投稿:286/.test(spans[2].textContent)
+        && !!r0.querySelector('.acsv-flsign')
+        && /已关注/.test(btn.textContent) && !!btn.querySelector('.acsv-flico');
+    })(), (panel().querySelector('.acsv-flrow') || {}).textContent);
+    rec('fg-row-st3-label', (function () {
+      var rows = panel().querySelectorAll('.acsv-flrow');
+      return rows.length === 2 && /特别关注/.test(rows[1].querySelector('.acsv-relbtn').textContent);
+    })());
+    var relbtn = function (idx) {
+      var rows = panel().querySelectorAll('.acsv-flrow');
+      return rows[idx] ? rows[idx].querySelector('.acsv-relbtn') : null;
     };
-    if (chipOf('舞')) chipOf('舞').click();
-    rec('fg-group-filter', !!(await waitFor(function () {
-      var rows = panel().querySelectorAll('.acsv-grow');
-      return rows.length === 1 && /乙/.test(rows[0].textContent);
-    }, 8000)), 'n=' + panel().querySelectorAll('.acsv-grow').length);
-    rec('fg-ops', (function () {
-      var ops = panel().querySelector('.acsv-gops');
-      return ops && /改名/.test(ops.textContent) && /删除分组/.test(ops.textContent);
-    })(), (panel().querySelector('.acsv-gops') || {}).textContent);
-    // 未分组是系统组：不给改名/删除
-    if (chipOf('未分组')) chipOf('未分组').click();
-    await waitFor(function () {
-      return panel().querySelectorAll('.acsv-grow').length === 1;
-    }, 8000);
-    rec('fg-ops-sys-hidden', !panel().querySelector('.acsv-gops .acsv-vchip'),
-      (panel().querySelector('.acsv-gops') || {}).textContent);
-    // 建组（内联表单）：＋新建分组 → 输入 → 新建 → 新 chip 出现且自动选中
-    if (chipOf('＋')) chipOf('＋').click();
-    rec('fg-form-open', (function () {
-      var f = panel().querySelector('.acsv-gform');
-      return !!f && f.style.display !== 'none' && !!f.querySelector('.acsv-ginput');
-    })());
-    var ginput = panel().querySelector('.acsv-ginput');
-    if (ginput) ginput.value = '临时组';
-    var gok = panel().querySelector('.acsv-gok');
-    if (gok) gok.click();
-    rec('fg-create', !!(await waitFor(function () {
-      return /临时组 0/.test((chipOf('临时组') || {}).textContent || '');
-    }, 8000)), (function () {
-      var cs = panel().querySelectorAll('.acsv-vchips .acsv-vchip');
-      return [].map.call(cs, function (c) { return c.textContent; }).join('|');
-    })());
-    rec('fg-create-body', /action=4&groupName=%E4%B8%B4%E6%97%B6%E7%BB%84/.test(window.__GROUP_BODY__.join('|')),
-      window.__GROUP_BODY__.join(' | '));
-    // 改名：组头「改名」→ 预填旧名 → 提交 → chip 文案更新
-    var rnBtn = panel().querySelector('.acsv-gops .acsv-vchip');
-    if (rnBtn) rnBtn.click();
-    rec('fg-rename-open', (function () {
-      var f = panel().querySelector('.acsv-ginput');
-      return !!f && f.value === '临时组';
-    })(), (function () {
-      var f = panel().querySelector('.acsv-ginput');
-      return f ? JSON.stringify(f.value) : 'no-input';
-    })());
-    var rinput = panel().querySelector('.acsv-ginput');
-    if (rinput) rinput.value = '临时组2';
-    var rOk = panel().querySelector('.acsv-gok');
-    if (rOk) rOk.click();
-    rec('fg-rename', !!(await waitFor(function () {
-      return !!chipOf('临时组2');
-    }, 8000)), (function () {
-      var cs = panel().querySelectorAll('.acsv-vchips .acsv-vchip');
-      return [].map.call(cs, function (c) { return c.textContent; }).join('|');
-    })());
-    // 删组：确认弹（文案含"移到未分组"）→ 确认 → chip 消失、选择回落「全部」
-    var del = panel().querySelector('.acsv-gops .acsv-gdanger');
-    if (del) del.click();
-    rec('fg-del-confirm', (function () {
-      var pop = panel().querySelector('.acsv-confirmpop');
-      return !!pop && /未分组/.test(pop.querySelector('.acsv-confirm-text').textContent);
-    })(), (function () {
-      var pop = panel().querySelector('.acsv-confirmpop');
-      return pop ? pop.textContent : 'no-pop';
-    })());
-    var cok = panel().querySelector('.acsv-confirmpop .acsv-pick-ok');
-    if (cok) cok.click();
-    rec('fg-del', !!(await waitFor(function () {
-      return !chipOf('临时组2') && !panel().querySelector('.acsv-confirmpop');
-    }, 8000)));
-    rec('fg-del-fallback', !!(await waitFor(function () {
-      var cs = panel().querySelectorAll('.acsv-vchips .acsv-vchip');
-      return cs.length === 5 && cs[0].classList.contains('on');
-    }, 8000)));
-    // 移组（成员行）：弹「更改分组」——不预选（确定禁用）→ 选「舞」→ 确定 → action=3
-    await waitFor(function () { return panel().querySelectorAll('.acsv-grow').length === 2; }, 8000);
-    var rowMove = panel().querySelectorAll('.acsv-grow')[0].querySelector('.acsv-vchip');
-    if (rowMove) rowMove.click();
-    rec('fg-move-pop', !!(await waitFor(function () {
-      var pop = q('.acsv-pickpop');
-      return !!pop && pop.querySelectorAll('.acsv-pick-item').length === 3
-        && /更改分组/.test(pop.textContent) && pop.querySelector('.acsv-pick-ok').disabled
-        && !pop.querySelector('.acsv-pick-extra'); // 行内移组不带「取消关注」附加键
-    }, 8000)), (q('.acsv-pickpop') || {}).textContent);
-    var popItems = document.querySelectorAll('.acsv-pickpop .acsv-pick-item');
-    if (popItems[1]) popItems[1].click(); // 舞（0=未分组 1=舞 2=新组）
-    var popOk = q('.acsv-pickpop .acsv-pick-ok');
-    if (popOk) popOk.click();
-    rec('fg-move-done', !!(await waitFor(function () {
-      return !q('.acsv-pickpop');
-    }, 8000)));
-    rec('fg-move-body', /action=3&groupId=273464/.test(window.__FOLLOW_BODY__.join('|')),
-      window.__FOLLOW_BODY__.join(' | '));
-    rec('fg-move-tag', !!(await waitFor(function () {
-      return /舞/.test(panel().querySelectorAll('.acsv-grow')[0].textContent);
-    }, 8000)), panel().querySelectorAll('.acsv-grow')[0].textContent);
-    // 取关（成员行）：行摘除 + action=2（写链留档只在 body 上可见）
     var lastBody = function () {
       var a = window.__FOLLOW_BODY__;
       return a.length ? a[a.length - 1] : '';
     };
-    var beforeUn = panel().querySelectorAll('.acsv-grow').length;
-    var rowUn = panel().querySelectorAll('.acsv-grow')[0].querySelectorAll('.acsv-vchip')[1];
-    if (rowUn) rowUn.click();
+    // 菜单（st2 行）：特别关注 / 取消关注 / 设置分组（三串同色无红字——warn 类不该存在）
+    if (relbtn(0)) relbtn(0).click();
+    rec('fg-menu', !!(await waitFor(function () {
+      var mis = document.querySelectorAll('.acsv-relmenu .acsv-flmi');
+      return mis.length === 3 && /特别关注/.test(mis[0].textContent)
+        && /取消关注/.test(mis[1].textContent) && /设置分组/.test(mis[2].textContent);
+    }, 8000)));
+    // 特别关注：直发 action=14（无 groupId、无确认层），钮文案原地变「特别关注」
+    var mi0 = document.querySelectorAll('.acsv-relmenu .acsv-flmi')[0];
+    if (mi0) mi0.click();
+    rec('fg-special-body', !!(await waitFor(function () {
+      return /toUserId=1001&action=14$/.test(lastBody());
+    }, 8000)), lastBody());
+    rec('fg-special-label', !!(await waitFor(function () {
+      return /特别关注/.test((relbtn(0) || {}).textContent || '');
+    }, 8000)), (relbtn(0) || {}).textContent);
+    // 取消特别关注：套确认弹层；「取消」纯关闭不发包
+    if (relbtn(0)) relbtn(0).click();
+    await waitFor(function () { return document.querySelectorAll('.acsv-relmenu .acsv-flmi').length === 3; }, 8000);
+    var miUn = Array.from(document.querySelectorAll('.acsv-relmenu .acsv-flmi')).find(function (m) { return /取消特别关注/.test(m.textContent); });
+    if (miUn) miUn.click();
+    rec('fg-unsp-pcf', !!(await waitFor(function () {
+      var pcf = q('.acsv-flpcf');
+      return !!pcf && /是否取消特别关注？/.test(pcf.textContent);
+    }, 8000)), (q('.acsv-flpcf') || {}).textContent);
+    var bodies = window.__FOLLOW_BODY__.length;
+    var pcfCc = q('.acsv-flpcf .acsv-flpcf-cc');
+    if (pcfCc) pcfCc.click();
+    rec('fg-unsp-cancel', !!(await waitFor(function () {
+      return !q('.acsv-flpcf') && window.__FOLLOW_BODY__.length === bodies;
+    }, 8000)));
+    // 「确定」→ action=15（也不带 groupId）→ 钮文案回「已关注」
+    if (relbtn(0)) relbtn(0).click();
+    await waitFor(function () { return document.querySelectorAll('.acsv-relmenu .acsv-flmi').length === 3; }, 8000);
+    miUn = Array.from(document.querySelectorAll('.acsv-relmenu .acsv-flmi')).find(function (m) { return /取消特别关注/.test(m.textContent); });
+    if (miUn) miUn.click();
+    var pcfOk = q('.acsv-flpcf .acsv-flpcf-ok');
+    if (pcfOk) pcfOk.click();
+    rec('fg-unsp-body', !!(await waitFor(function () {
+      return /toUserId=1001&action=15$/.test(lastBody());
+    }, 8000)), lastBody());
+    rec('fg-unsp-label', !!(await waitFor(function () {
+      return /已关注/.test((relbtn(0) || {}).textContent || '');
+    }, 8000)), (relbtn(0) || {}).textContent);
+    // 设置分组模态：radio 3 档、勾在成员现组（未分组）；选「舞」→ 确定 → action=3
+    if (relbtn(0)) relbtn(0).click();
+    await waitFor(function () { return document.querySelectorAll('.acsv-relmenu .acsv-flmi').length === 3; }, 8000);
+    var miSet = Array.from(document.querySelectorAll('.acsv-relmenu .acsv-flmi')).find(function (m) { return /设置分组/.test(m.textContent); });
+    if (miSet) miSet.click();
+    rec('fg-group-modal', !!(await waitFor(function () {
+      var m = q('.acsv-flm-main');
+      if (!m) return false;
+      var radios = m.querySelectorAll('.acsv-flm-gi[data-gid]');
+      var on = m.querySelector('.acsv-flm-gi.on');
+      return /设置分组/.test(m.textContent) && radios.length === 3
+        && !!on && on.getAttribute('data-gid') === '0'
+        && !!m.querySelector('.acsv-flm-addin'); // 底部常驻添加行
+    }, 8000)), (q('.acsv-flm-main') || {}).textContent);
+    var giWu = document.querySelector('.acsv-flm-gi[data-gid="273464"]');
+    if (giWu) giWu.click();
+    var gmOk = q('.acsv-flm-main .acsv-flm-ok');
+    if (gmOk) gmOk.click();
+    rec('fg-group-regroup', !!(await waitFor(function () {
+      return !q('.acsv-flm-main') && /toUserId=1001&action=3&groupId=273464/.test(lastBody());
+    }, 8000)), lastBody());
+    // 取消关注：套确认弹层 → 确定 → action=2 → 行摘除
+    var before = panel().querySelectorAll('.acsv-flrow').length;
+    if (relbtn(1)) relbtn(1).click();
+    await waitFor(function () { return document.querySelectorAll('.acsv-relmenu .acsv-flmi').length === 3; }, 8000);
+    var miUnf = Array.from(document.querySelectorAll('.acsv-relmenu .acsv-flmi')).find(function (m) { return /取消关注/.test(m.textContent); });
+    if (miUnf) miUnf.click();
+    var pcfOk2 = q('.acsv-flpcf .acsv-flpcf-ok');
+    rec('fg-unfollow-pcf', !!pcfOk2 && /是否取消关注？/.test(q('.acsv-flpcf').textContent));
+    if (pcfOk2) pcfOk2.click();
     rec('fg-unfollow', !!(await waitFor(function () {
-      return panel().querySelectorAll('.acsv-grow').length === beforeUn - 1;
-    }, 8000)), 'n=' + panel().querySelectorAll('.acsv-grow').length);
-    rec('fg-unfollow-body', /action=2&groupId=$/.test(lastBody()), lastBody());
+      return panel().querySelectorAll('.acsv-flrow').length === before - 1
+        && /toUserId=1002&action=2(&groupId=)?$/.test(lastBody());
+    }, 8000)), 'n=' + panel().querySelectorAll('.acsv-flrow').length + ' b=' + lastBody());
+    // 编辑分组模态：未分组不进列表；舞/新组两杠带改名/删除
+    var editBtn = panel().querySelector('.acsv-fledit');
+    if (editBtn) editBtn.click();
+    rec('fg-edit-modal', !!(await waitFor(function () {
+      var m = q('.acsv-flm-main');
+      if (!m) return false;
+      var bars = m.querySelectorAll('.acsv-flm-gi[data-gid]');
+      return /编辑分组/.test(m.textContent) && bars.length === 2
+        && bars[0].getAttribute('data-gid') === '273464'
+        && !!bars[0].querySelector('.acsv-flm-gop');
+    }, 8000)), (q('.acsv-flm-main') || {}).textContent);
+    // 添加行：超长 → 顶部警示条（校验失败，不发请求）
+    var addIn = q('.acsv-flm-main .acsv-flm-addin');
+    if (addIn) {
+      addIn.focus();
+      addIn.value = '一二三四五六七八九';
+    }
+    var addOk = q('.acsv-flm-main .acsv-flm-addacts .acsv-flpcf-ok');
+    if (addOk) addOk.click();
+    rec('fg-add-invalid', !!(await waitFor(function () {
+      var w = q('.acsv-flwarn');
+      return !!w && /1~8 个字/.test(w.textContent);
+    }, 8000)), (q('.acsv-flwarn') || {}).textContent);
+    // 保留字：特别关注 → 警示条
+    if (addIn) addIn.value = '特别关注';
+    if (addOk) addOk.click();
+    rec('fg-add-reserved', !!(await waitFor(function () {
+      var w = q('.acsv-flwarn');
+      return !!w && /保留名/.test(w.textContent);
+    }, 8000)), (q('.acsv-flwarn') || {}).textContent);
+    // 合法名：临时组 → action=4 → 新杠出现
+    if (addIn) addIn.value = '临时组';
+    if (addOk) addOk.click();
+    rec('fg-add', !!(await waitFor(function () {
+      var m = q('.acsv-flm-main');
+      var bar = m && m.querySelector('.acsv-flm-gi[data-gid="281990"]');
+      return !!bar && /临时组/.test(bar.textContent);
+    }, 8000)), window.__GROUP_BODY__.join(' | '));
+    rec('fg-add-body', /action=4&groupName=%E4%B8%B4%E6%97%B6%E7%BB%84/.test(window.__GROUP_BODY__.join('|')),
+      window.__GROUP_BODY__.join(' | '));
+    // 改名（内联输入条）：舞 → 舞2 → action=6
+    var barWu = document.querySelector('.acsv-flm-main .acsv-flm-gi[data-gid="273464"]');
+    var rnBtn = barWu && Array.from(barWu.querySelectorAll('.acsv-flm-gop')).find(function (b) { return /改名/.test(b.textContent); });
+    if (rnBtn) rnBtn.click();
+    var rnIn = q('.acsv-flm-main .acsv-flm-rninput');
+    rec('fg-rename-open', !!rnIn && rnIn.value === '舞');
+    if (rnIn) rnIn.value = '舞2';
+    var rnOk = barWu && Array.from(barWu.querySelectorAll('.acsv-flm-gops .acsv-flpcf-ok')).pop();
+    if (rnOk) rnOk.click();
+    rec('fg-rename', !!(await waitFor(function () {
+      var b = q('.acsv-flm-main .acsv-flm-gi[data-gid="273464"]');
+      return !!b && /舞2/.test(b.textContent);
+    }, 8000)), window.__GROUP_BODY__.join(' | '));
+    rec('fg-rename-body', /groupId=273464&action=6&groupName=%E8%88%9E2/.test(window.__GROUP_BODY__.join('|')),
+      window.__GROUP_BODY__.join(' | '));
+    // 删除（确认弹层文案含「移至未分组」）→ action=5 → 杠消失
+    barWu = document.querySelector('.acsv-flm-main .acsv-flm-gi[data-gid="273464"]');
+    var delBtn = barWu && Array.from(barWu.querySelectorAll('.acsv-flm-gop')).find(function (b) { return /删除/.test(b.textContent); });
+    if (delBtn) delBtn.click();
+    rec('fg-del-pcf', !!(await waitFor(function () {
+      var pcf = q('.acsv-flpcf');
+      return !!pcf && /移至未分组/.test(pcf.textContent);
+    }, 8000)), (q('.acsv-flpcf') || {}).textContent);
+    var delOk = q('.acsv-flpcf .acsv-flpcf-ok');
+    if (delOk) delOk.click();
+    rec('fg-del', !!(await waitFor(function () {
+      var m = q('.acsv-flm-main');
+      return !!m && !m.querySelector('.acsv-flm-gi[data-gid="273464"]');
+    }, 8000)), window.__GROUP_BODY__.join(' | '));
+    rec('fg-del-body', /action=5&groupId=273464/.test(window.__GROUP_BODY__.join('|')),
+      window.__GROUP_BODY__.join(' | '));
+    // 关编辑模态（确定）；select 下拉含新组「临时组」；点「新组」过滤（action=9 带组 id）
+    var editOk = q('.acsv-flm-main .acsv-flm-okrow .acsv-flm-ok');
+    if (editOk) editOk.click();
+    rec('fg-edit-close', !!(await waitFor(function () { return !q('.acsv-flm-main'); }, 8000)));
+    if (relbtn(0)) relbtn(0).click(); // 关掉可能开着的行菜单，保持场净
+    await waitFor(function () { return !q('.acsv-relmenu'); }, 3000);
+    var selBtn = panel().querySelector('.acsv-flselect');
+    if (selBtn) selBtn.click();
+    rec('fg-select-opts', !!(await waitFor(function () {
+      var opts = document.querySelectorAll('.acsv-flmenu .acsv-flopt');
+      // 全部分组 / 未分组 / 新组 / 临时组（舞2 已在上一步删除）
+      return opts.length === 4 && /全部分组/.test(opts[0].textContent)
+        && /未分组/.test(opts[1].textContent) && /临时组/.test(opts[3].textContent);
+    }, 8000)), (function () {
+      var opts = document.querySelectorAll('.acsv-flmenu .acsv-flopt');
+      return [].map.call(opts, function (o) { return o.textContent; }).join('|');
+    })());
+    var optXin = Array.from(document.querySelectorAll('.acsv-flmenu .acsv-flopt')).find(function (o) { return /新组/.test(o.textContent); });
+    if (optXin) optXin.click();
+    rec('fg-select-filter', !!(await waitFor(function () {
+      return panel().querySelectorAll('.acsv-flrow').length === 1
+        && /groupId=281985/.test(window.__FOLLOWS_QUERY__ || '');
+    }, 8000)), window.__FOLLOWS_QUERY__ || 'n/a');
+    // 组内空态：新组（丙已离去？无——丙在）；切回全部分组恢复 2 行
+    var selBtn2 = panel().querySelector('.acsv-flselect');
+    if (selBtn2) selBtn2.click();
+    await waitFor(function () { return document.querySelectorAll('.acsv-flmenu .acsv-flopt').length === 4; }, 8000);
+    var optAll = Array.from(document.querySelectorAll('.acsv-flmenu .acsv-flopt')).find(function (o) { return /全部分组/.test(o.textContent); });
+    if (optAll) optAll.click();
+    rec('fg-select-all', !!(await waitFor(function () {
+      return panel().querySelectorAll('.acsv-flrow').length === 2;
+    }, 8000)), (function () {
+      var p = panel();
+      return 'n=' + p.querySelectorAll('.acsv-flrow').length
+        + ' sel=' + ((p.querySelector('.acsv-flselect') || {}).textContent || '')
+        + ' menu=' + document.querySelectorAll('.acsv-flmenu').length
+        + ' empty=' + ((p.querySelector('.acsv-vempty') || {}).textContent || '')
+        + ' q=' + (window.__FOLLOWS_QUERY__ || '');
+    })());
 
     // ---------- rail 关注角标：分组选择层（未关注 → 选组关注；再点 → 改分组 + 取关） ----------
+    // 组表复位：编辑模态段动过 GROUPS（删舞2/建临时组），rail 夹具假设干净 3 组（index 语义）
+    GROUPS.length = 0;
+    GROUPS.push({ groupId: '0', groupName: '未分组', followingCount: 0 },
+      { groupId: '273464', groupName: '舞', followingCount: 0 },
+      { groupId: '281985', groupName: '新组', followingCount: 0 });
     key('Escape');
     rec('fg-stage', !!(await waitFor(function () {
       return !q('.acsv-view') && !!q('.acsv-followbtn');
@@ -244,9 +341,9 @@
       return !q('.acsv-pickpop') && !q('.acsv-followbtn').classList.contains('on');
     }, 8000)), 'class=' + q('.acsv-followbtn').className);
     rec('fg-rail-unfollow-body', /action=2&groupId=$/.test(lastBody()), lastBody());
-    // 选择层定位（0.9.144 实报「弹出浮层的位置不是很合理」）：组表堆到 31 项再开层——
-    // 钉结果不变式：①弹层整体不越出视口（旧实现无高度上限：31 项 ~960px 会从锚点往下长出去被裁）；
-    // ②垂直分支服从规则（下方可用 < 240 且上方更宽裕 → 必须翻上，否则保持向下）；③高度 <= 所选方向可用空间
+    // 选择层定位（0.9.144/0.9.146 裁决在册）：组表堆到 31 项再开层——钉结果不变式：
+    // ①弹层整体不越出视口；②垂直分支服从规则（下方可用 < 240 且上方更宽裕 → 必须翻上）；
+    // ③高度 <= 所选方向可用空间；④水平整体让开操作栏列（右缘=宿主左缘−10px±2）
     for (var gi = 0; gi < 28; gi++) GROUPS.push({ groupId: '9' + (100 + gi), groupName: '长组' + gi, followingCount: gi });
     q('.acsv-followbtn').click();
     rec('fg-pop-tall', !!(await waitFor(function () {
@@ -267,8 +364,6 @@
       var flipped = r.bottom <= br.top + 1;
       if (wantFlip !== flipped) return false;
       if (!(r.height <= Math.max(wantFlip ? above : below, 120) + 1)) return false;
-      // 水平（0.9.146 实报：「会盖住图标」）——弹层必须**整体让开操作栏列**
-      // （右缘 ≤ 操作栏列左缘），且右缘 = 宿主（头像块）左缘 − 10px（±2px 容差）
       var rail = q('.acsv-rail');
       var wrap = b.parentNode;
       var rr = rail ? rail.getBoundingClientRect() : null;

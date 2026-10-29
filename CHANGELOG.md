@@ -5,6 +5,53 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.289（2026-10-29）· 我的页「关注列表」对齐原生 /member/feeds/following——域件 followadmin 接替旧关注分组档
+
+**由头（用户裁决）**：原生个人中心左栏本就有「关注列表」页（/member/feeds/following），脚本
+「我的页-关注分组」tab 与之同语义却完全不同构（chips+组头操作+两 chip 成员行）。用户令对齐；
+按硬规矩先出静态预览（docs/preview/follow-list-native.html），经五轮确认（每轮附真机取证）
+后才进实现。取证与写链探针全量入档 docs/api-research.md §16（本地留档）。
+
+**修法**：新域件 `followadmin.buildFollowAdmin` 接替 `mytabs.buildFollowGroups`（adminTab 壳
+自此只剩收藏夹单消费方）——
+
+1. 顶栏 chips 行退役 →「全部分组」select（142×36，过滤 action=7/9）+ 右上「编辑分组」文字钮；
+   行内归属标签随原生撤除（归属由过滤档+设置分组表达）。
+2. 成员行 1:1 照原生量取（§16）：头像 60 圆、名 16/24、data「关注:N 粉丝:N 投稿:N」三段
+   （间距 24）、完整签名 2 行钳、行距 20×0 分隔线；行悬停不加（原生无反馈）。
+3. 行内两 chip → 单颗「☰ 已关注」钮（104×30，iconfont 三横 **U+E2CE**）→ 下拉菜单：
+   **特别关注=action 14 直发（独立标记，实测不动 groupId，非 regroup）**/取消特别关注=15/
+   取消关注=2——后两键套原生 PopConfirm 确认步（134 宽 圆角 2 双钮小层，用户拍板「模仿原生」；
+   加特别关注不确认=非对称确认，探针实抓）。钮文案照 bundle 状态机：followingStatus
+   1=回粉/2=已关注·互粉→已互粉/3=特别关注（getFollows 条目自带，relationapi 补解析
+   followingStatus/isFriend/followingCountShow 三键）。写链出口新增
+   relationapi.specialFollow/unSpecialFollow（body 只 toUserId+action，与 bundle handleAction 同形）。
+4. 组管理收进两张原生壳模态（400 宽 圆角 15+遮罩）：「设置分组」=radio 选组（限高 203 滚动）
+   +底部常驻添加输入行+红确定（regroup action=3，选中未变不发废包）；「编辑分组」=组条改名
+   （relation/group action=6）/删除（action=5，删组确认文案含「移至未分组」；未分组不进列、
+   特别关注只改名）/建组（action=4）。校验单源 nameval.groupNameError——**与原生 bundle 真实
+   正则 /^[-一-龥_a-zA-Z0-9_]{1,8}$/（trim 后）逐字符一致**（placeholder 漏写下划线是原生文案
+   自己偏窄，§16 bundle+失败路径实测）；失败/保留字反馈=顶部警示条（模仿 ac-toast-warn，
+   icon **U+E1A0** 金黄）。添加行聚焦出「取消添加/添加分组」双小钮。
+5. imicons 登记 E2CE/E182（模态叉）/E1A0（警示条）三码点（select 箭头复用在册 edCaret E166，
+   不重登）；字体走 cssraw 在册 @font-face 同源。
+6. tab 名「关注分组」→「关注列表」（对齐原生导航口径）；**明确不跟**：数字分页（0.9.219
+   尾部统一 listtail 在册）、行内归属标签、名字行勋章/认证小图标（用户裁决不加——official/
+   college 两枚 SVG 已采 §16 备用）。
+
+**边界**：确认弹层（.acsv-flpcf）与 pickpop.openConfirmPop 并存——本页走原生模仿态（预览④b
+裁决），它页仍走 openConfirmPop；rail 角标 grouppop 不动（写链同走 regroup 单源）；弹出层共
+用单槽（Esc 走 overlay 栈 'fl-pop'，无自带按键监听）。
+
+**测试证据**：harness `follow-groups` 随形态重写，45 断言全绿（7.0s）——写链 body 逐字节钉
+14/15/2/3/4/5/6 七码；确认弹层取消（零发包）/确定两路；校验警示条两路（超长/保留名）；
+select 过滤档 body（action=9 带组 id）与档表联动；编辑模态建/改名/删全链。期间揪出并修掉
+select 菜单误挂 toggle 柄内的冒泡关层缺陷（点选项即被关闭，harness 实锤）。单测 450 全绿
+（followListPageOf 新三键缺省中性值不伪造）。check 六步链绿；体积基线按审计批②「撞线即重裁」
+约定更新至本批实测（release total 611,440/css 24,432/rest 464,852；debug total 988,304/
+rest 841,646——增量=新域件+模态壳+弹层家族 CSS，head/hls 不动）。真机探针全程自家账号、
+测后 followingStatus 3→2 复原、groupId 未动（§16 在档）。
+
 ### 0.9.288（2026-10-29）· 已投蕉话术三串归二——「已经投过蕉啦」/「已投蕉」，删「明天再来」伪每日语义
 
 **病灶**：同一「已投蕉」语义三处三串——竖刷右栏 title `今日已投过蕉啦`、动态底栏 title

@@ -49,6 +49,7 @@ test('followListPageOf：成员字段落位（头像读序 userImg → userHeadI
     friendList: [
       { userId: '12229455', userName: '一只芸喵喵', userImg: 'https://x/a.jpg',
         signature: '签名', fanCountShow: '1.6万', contributeCountShow: '286',
+        followingCountShow: '31', followingStatus: 3, isFriend: false,
         groupId: '273464', groupName: '舞' },
       { userId: '2', userName: '乙', userHeadImgInfo: { thumbnailImageCdnUrl: 'https://x/b.jpg' } },
       { userName: '无 id 丢弃' }
@@ -60,6 +61,13 @@ test('followListPageOf：成员字段落位（头像读序 userImg → userHeadI
   assert.equal(p.items[0].fans, '1.6万');
   assert.equal(p.items[0].groupId, '273464');
   assert.equal(p.items[0].groupName, '舞');
+  // 0.9.289 对齐原生关注列表行新增三键（§16 全键实测）：缺省给中性值不伪造
+  assert.equal(p.items[0].followCount, '31');
+  assert.equal(p.items[0].followingStatus, 3);
+  assert.equal(p.items[0].isFriend, false);
+  assert.equal(p.items[1].followCount, '');
+  assert.equal(p.items[1].followingStatus, 0);
+  assert.equal(p.items[1].isFriend, false);
   assert.equal(p.items[1].head, 'https://x/b.jpg'); // 回落对象形状
   assert.equal(p.nextCursor, '20');
   assert.equal(p.total, 91);

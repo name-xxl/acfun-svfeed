@@ -1,24 +1,23 @@
 // ---------- 我的页管理档（0.9.265 自 mypage.js 拆件：逐字搬迁，零行为漂移）----------
-// 观看历史档（0.9.279 加单条删除/清空）+ 稍后再看档（0.9.279）+ 管理 tab 壳 + 收藏夹档 +
-// 关注分组档。mypage.js 只留资料头/动态/视图壳与注册；
+// 观看历史档（0.9.279 加单条删除/清空）+ 稍后再看档（0.9.279）+ 管理 tab 壳 + 收藏夹档。
+// 关注分组档 0.9.289 移出至 followadmin.js（对齐原生关注列表形态）。
+// mypage.js 只留资料头/动态/视图壳与注册；
 // 布局与接口契约的总说明见 mypage.js 文件头（两件同属我的视图）。
 import { CFG } from './cfg.js';
 import { el, selfUid, toast } from './ui.js';
 import { postForm } from './appapi.js';
 import { panelItem } from './panelitem.js';
 import { gridCardOf, skeletonRows } from './cards.js';
-import { createListTail } from './listtail.js'; // 尾部件单源（0.9.219：我的页四档统一自动触底）
+import { createListTail } from './listtail.js'; // 尾部单源（0.9.219：我的页四档统一自动触底）
 import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259：历史档 + 管理档壳）
-import { imgInto } from './imgload.js';
-import { getGroups, listFollows, createGroup, renameGroup, removeGroup, unfollowUser } from './relationapi.js';
 import { listWaiting, cancelWaiting } from './watchlaterapi.js';
 import { deleteHistory, clearHistory } from './historyapi.js';
-import { openFollowGroupPop } from './grouppop.js';
 import { openConfirmPop } from './pickpop.js';
 import { folderList, folderAdd, folderRename, folderDelete, favRemove, favList } from './favapi.js';
 import { openFavFolderPop } from './favpop.js';
-import { errNotLogin } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
-import { groupNameError, folderNameError } from './nameval.js';
+import { folderNameError } from './nameval.js';
+// 关注分组档 0.9.289 移出：对齐原生关注列表形态，域件 followadmin.buildFollowAdmin
+//（adminTab 壳自此只剩收藏夹一个消费方）
 
 function rowList(parent, cls) {
   var list = el('div', 'acsv-vlist acsv-megrid ' + cls);
@@ -581,121 +580,7 @@ export function buildFav(panel, scroller) {
   tab.refresh().then(sk);
 }
 
-// ---- 关注分组 tab（0.9.142；0.9.150 骨架交 adminTab 壳）----
-// 读链走 relationapi（getGroups / listFollows action=9 组内·7 全部）；**游标是偏移量**
-//（与 feed 域毫秒时间戳不同源，relationapi 内收口）。成员行自带 groupId/groupName（真机实测 §2.3），
-// 「全部」视图里直接显归属标签。系统组（未分组 id="0"、保留名"特别关注"）不给改名/删除（站方语义：
-// 未分组不可删）。**分组不动关注流内容**——服务端 followFeedV2 不吃 groupId（2026-10-04 实测参数
-// 被忽略），所以关注视图无分组 chips，分组只在这里做"关系管理"（建/删/改名/移组/取关）。
-// reloadOnRefresh=false：成员行自带回调原地更新（移组改标签/摘行、取关摘行），重拉会覆盖成旧夹具形态。
-export function buildFollowGroups(panel, scroller) {
-  var list = el('div', 'acsv-glist');
-
-  function memberRow(u, ctx) {
-    var row = el('div', 'acsv-grow');
-    var a = el('a', 'acsv-grow-link');
-    a.href = CFG.api.userBase + u.id;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    imgInto(a, u.head || CFG.api.defaultAvatar, 'avatar', 'acsv-avatar acsv-grow-avatar');
-    row.appendChild(a);
-    var info = el('div', 'acsv-grow-info');
-    info.appendChild(el('div', 'acsv-grow-name', u.name));
-    var meta = el('div', 'acsv-grow-meta');
-    if (u.fans) meta.appendChild(el('span', null, '粉丝 ' + u.fans));
-    if (u.contrib) meta.appendChild(el('span', null, '投稿 ' + u.contrib));
-    if (ctx.sel() === '-1' && u.groupName) meta.appendChild(el('span', 'acsv-grow-tag', u.groupName));
-    info.appendChild(meta);
-    row.appendChild(info);
-    var acts = el('div', 'acsv-grow-acts');
-    var move = el('button', 'acsv-vchip sm', '移组');
-    move.type = 'button';
-    move.addEventListener('click', function () {
-      openFollowGroupPop(move, {
-        uid: u.id, name: u.name, following: true, noExtra: true,
-        done: function (res) {
-          if (ctx.sel() !== '-1' && String(res.groupId) !== String(ctx.sel())) {
-            row.remove(); // 组内视图：移走的成员即离席
-            if (!ctx.list.querySelector('.acsv-grow')) ctx.list.appendChild(el('div', 'acsv-vempty', '这个分组还没有成员'));
-          } else {
-            var tag = meta.querySelector('.acsv-grow-tag');
-            if (tag) tag.textContent = res.groupName || '';
-          }
-          ctx.refresh();
-        }
-      });
-    });
-    var un = el('button', 'acsv-vchip sm', '取关');
-    un.type = 'button';
-    un.addEventListener('click', function () {
-      if (un._busy) return;
-      un._busy = true;
-      un.textContent = '…';
-      unfollowUser(u.id).then(function (ok) {
-        un._busy = false;
-        if (!ok) { un.textContent = '取关'; errNotLogin(); return; }
-        toast('已取消关注 @' + u.name);
-        row.remove();
-        if (!ctx.list.querySelector('.acsv-grow')) ctx.list.appendChild(el('div', 'acsv-vempty', '还没有关注'));
-        ctx.refresh();
-      });
-    });
-    acts.appendChild(move);
-    acts.appendChild(un);
-    row.appendChild(acts);
-    return row;
-  }
-
-  if (!selfUid()) { // 未登录：只出提示，不拉数据
-    list.appendChild(el('div', 'acsv-vempty', '登录后可管理关注分组'));
-    panel.appendChild(list);
-    return;
-  }
-  var tab = adminTab(panel, {
-    list: list,
-    scrollEl: scroller, // 尾部件（0.9.219）：触底/回顶挂视图体
-    allChip: '全部', allId: '-1',
-    addLabel: '＋ 新建分组',
-    delLabel: '删除分组',
-    formLabel: {
-      placeholder: '分组名（1~8 字）', maxLen: 8,
-      submit: { create: '新建', rename: '改名' },
-      created: '已新建分组：', renamed: '已改名：'
-    },
-    nameError: groupNameError,
-    sysTab: function (t) { return t.id === '0' || t.raw.name === '特别关注'; },
-    reloadOnRefresh: false,
-    firstCursor: '', // 偏移量游标（首页空串）
-    emptyTabsText: '还没有分组',
-    tabsFailText: '分组加载失败',
-    loadFailText: '加载失败，点击重试',
-    loadTabs: function () {
-      return getGroups().then(function (gs) {
-        return gs.map(function (g) {
-          return { id: g.id, chipText: g.name + (g.count != null ? ' ' + g.count : ''), raw: g };
-        });
-      });
-    },
-    loadPage: function (sel, cursor) {
-      return listFollows(sel === '-1' ? '' : sel, cursor).then(function (page) {
-        return { rows: page.items, noMore: page.noMore, nextCursor: page.nextCursor };
-      });
-    },
-    renderRow: function (u, ctx) { return memberRow(u, ctx); },
-    emptyText: function (sel) { return sel === '-1' ? '还没有关注' : '这个分组还没有成员'; },
-    onCreate: function (name) { return createGroup(name); },      // → 新组 id（响应带，差集兜底）
-    onRename: function (id, name) { return renameGroup(id, name); },
-    delConfirm: function (t, refresh) {
-      return {
-        title: '删除分组',
-        text: '「' + t.raw.name + '」里的成员会移到「未分组」，关注关系不变。',
-        okLabel: '删除',
-        run: function () { return removeGroup(t.id); },
-        done: function () { toast('已删除分组：' + t.raw.name); refresh('-1'); }
-      };
-    }
-  });
-  // 首屏骨架（0.9.219 补）：此前分组档没有骨架（同页历史/收藏都有），首拉期间是白屏
-  var sk = skeleton(list);
-  tab.refresh().then(sk, sk); // 首进：拉组表 → 回落「全部」档（allId）并载入成员
-}
+// ---- 关注分组档：0.9.289 移出本件 ----
+// 对齐原生 /member/feeds/following 形态（select 过滤 + 编辑分组模态 + 行内关系钮下拉 +
+// PopConfirm 确认步 + 原生模态壳），域件 = followadmin.buildFollowAdmin（mypage.panels.groups
+// 直连）。本件不再持有该档；adminTab 壳自此只剩收藏夹一个消费方（上注）。

@@ -60,8 +60,11 @@ export function groupListOf(j) {
 
 // 关注成员分页规整：getFollows（action=9 组内 / 7 全部）→ {items, nextCursor, total, noMore}。
 // **游标口径**：响应 pcursor 是**偏移量**（实测 "20"→"40"），与 followFeedV2 的毫秒时间戳不同源
-// ——勿跨域复用游标（relationapi 内独立收口）。条目自带 groupId/groupName（成员归属，
-// 管理页行上直接可显）；头像读序 userImg → userHeadImgInfo.thumbnailImageCdnUrl
+// ——勿跨域复用游标（relationapi 内独立收口）。条目自带 groupId/groupName（成员归属）、
+// signature/followingCountShow/fanCountShow/contributeCountShow（0.9.289 对齐原生关注列表行：
+// 签名行 + 关注:N 粉丝:N 投稿:N，原始字段面全键实测 docs/api-research.md §16）、
+// followingStatus（钮文案状态机：1=待回粉/2=已关注·isFriend→已互粉/3=特别关注）与
+// isFriend（互粉标记）。头像读序 userImg → userHeadImgInfo.thumbnailImageCdnUrl
 export function followListPageOf(j) {
   var raws = (j && j.friendList) || [];
   var items = [];
@@ -74,6 +77,9 @@ export function followListPageOf(j) {
       sign: String(u.signature == null ? '' : u.signature),
       fans: u.fanCountShow != null ? String(u.fanCountShow) : '',
       contrib: u.contributeCountShow != null ? String(u.contributeCountShow) : '',
+      followCount: u.followingCountShow != null ? String(u.followingCountShow) : '',
+      followingStatus: u.followingStatus != null ? Number(u.followingStatus) || 0 : 0,
+      isFriend: !!u.isFriend,
       groupId: u.groupId != null ? String(u.groupId) : '',
       groupName: String(u.groupName == null ? '' : u.groupName)
     });
@@ -124,6 +130,16 @@ export function unfollowUser(uid) {
 export function regroup(uid, groupId) {
   return postForm(CFG.api.follow,
     'toUserId=' + uid + '&action=3&groupId=' + (groupId || '')).then(ok0);
+}
+
+// 特别关注（action=14）/ 取消特别关注（action=15）：**独立标记，不动分组归属**
+//（0.9.289 探针实抓 docs/api-research.md §16——设/撤后 getFollows 条目 groupId 原样）。
+// body 只 toUserId+action，与原生 bundle handleAction 同形（不带 groupId）
+export function specialFollow(uid) {
+  return postForm(CFG.api.follow, 'toUserId=' + uid + '&action=14').then(ok0);
+}
+export function unSpecialFollow(uid) {
+  return postForm(CFG.api.follow, 'toUserId=' + uid + '&action=15').then(ok0);
 }
 
 // 建组（action=4）：**优先取响应 groupId**（真机①），拿不到才回查差集；→ 新 id 或 null（重名等）
