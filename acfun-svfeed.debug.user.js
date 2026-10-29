@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.287-debug
+// @version      0.9.288-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 98171;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.287-debug" : "",
+          ver: true ? "0.9.288-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -675,7 +675,7 @@ window.__ACSV_CSS_LEN__ = 98171;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.287-debug" : "";
+  var APP_VERSION = true ? "0.9.288-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -3395,7 +3395,7 @@ window.__ACSV_CSS_LEN__ = 98171;
     toast("投蕉失败（未登录或今日已投完？）");
   }
   function errBananaThrown() {
-    toast("已投过蕉啦，明天再来~");
+    toast("已经投过蕉啦");
   }
   function errImLogin() {
     toast("私信需要先登录 AcFun 账号");
@@ -8159,7 +8159,7 @@ window.__ACSV_CSS_LEN__ = 98171;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.287-debug" : "",
+      version: true ? "0.9.288-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -13251,7 +13251,7 @@ window.__ACSV_CSS_LEN__ = 98171;
       slide._banSync = function() {
         banUI.count.textContent = fmtWan(item.banana);
         banUI.btn.classList.toggle("thrown", item.thrown);
-        a11y(banUI.btn, item.thrown ? "今日已投过蕉啦" : "投蕉");
+        a11y(banUI.btn, item.thrown ? "已投蕉" : "投蕉");
       };
     }
     if (item.cap.favorite) {
@@ -15113,7 +15113,7 @@ window.__ACSV_CSS_LEN__ = 98171;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.287-debug" : "");
+    return normVer(true ? "0.9.288-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -18719,7 +18719,7 @@ window.__ACSV_CSS_LEN__ = 98171;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.287-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.288-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

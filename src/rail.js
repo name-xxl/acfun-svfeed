@@ -203,7 +203,7 @@ export function buildSideRail(slide, item, goTo) {
     slide._banSync = function () {
       banUI.count.textContent = fmtWan(item.banana);
       banUI.btn.classList.toggle('thrown', item.thrown); // 投过锁定蕉黄
-      a11y(banUI.btn, item.thrown ? '今日已投过蕉啦' : '投蕉');
+      a11y(banUI.btn, item.thrown ? '已投蕉' : '投蕉'); // 短口径与 momentbar 同串（0.9.288）
     };
   }
   if (item.cap.favorite) {

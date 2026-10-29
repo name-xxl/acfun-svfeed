@@ -20,9 +20,11 @@ export function errBanana() {
   toast('投蕉失败（未登录或今日已投完？）');
 }
 
-// 已投过蕉（rail 与 momentbar 同串两处；投蕉不可取消，点开只提示）
+// 已投过蕉（rail 与 momentbar 同串两处；投蕉不可取消，点开只提示）。
+// 0.9.288 原生取证（api-research §15.4）：isThrowBanana 是持久标记、弹层永久断——
+// 旧尾缀「明天再来~」暗示按天重置，无实测依据，删
 export function errBananaThrown() {
-  toast('已投过蕉啦，明天再来~');
+  toast('已经投过蕉啦');
 }
 
 // 私信域登录门槛（imdrawer 两处）
