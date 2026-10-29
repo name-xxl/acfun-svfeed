@@ -220,7 +220,8 @@ function buildMyView(body) {
   var tabRow = el('div', 'acsv-metabs');
   wrap.appendChild(tabRow);
   // 发布入口（0.9.224 用户裁决）：**右下角常驻浮标**（钉在回顶之上），不再占 tab 行
-  //（0.9.222 曾在 tab 行右侧放按钮——用户裁决"不要放顶部，放右下角回顶上面、本页常驻"）
+  //（0.9.222 曾在 tab 行右侧放按钮——用户裁决"不要放顶部，放右下角回顶上面、本页常驻"）；
+  // 0.9.294 起**仅动态档可见**（用户裁决：发动态钮只在动态栏出现）——显隐在下方 select 回调里切
   pubFab = mountPubFab(body, { editorOpts: { onDone: function () { if (meFeed) meFeed.refresh(); } } });
   var panelMom = el('div', 'acsv-mepanel');
   var panelHist = el('div', 'acsv-mepanel');
@@ -266,6 +267,9 @@ function buildMyView(body) {
     Array.prototype.forEach.call(tabRow.children, function (b) {
       b.classList.toggle('on', b.getAttribute('data-tab') === id);
     });
+    // 发布浮标「仅动态档出现」（0.9.294 用户裁决）：与面板同语义——常驻 DOM 只切显隐，
+    // 切走挂 .tab-hide（淡出+断点击），切回动态复现；不重建不摘除（重建丢 hover/动画态）
+    if (pubFab) pubFab.el.classList.toggle('tab-hide', id !== 'moments');
     var p = panels[id];
     // build 第二参=视图体滚动容器（0.9.218：动态 tab 要它当列表滚动源；其余构建器忽略）
     if (!p.inited) { p.inited = true; p.build(p.el, body); }

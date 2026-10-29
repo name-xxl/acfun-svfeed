@@ -106,8 +106,53 @@ rec('moments-rows', !!(await waitFor(function () {
     && !!rows[1].querySelector('.acsv-frow-strip') && !!rows[2].querySelector('.acsv-frow-strip');
 }, 8000)), 'rows=' + document.querySelectorAll('.acsv-mepanel[data-tab="moments"] .acsv-frow').length);
 // ---- 稍后再看第 5 档（0.9.279）----
+// 发布浮标 C2+（0.9.294，确认稿 docs/preview/pubfab-backtop.html）：在切走前先钉「动态档」形态——
+// SVG 铅笔（非文本 ✎）+ 「发动态」文案位 + 折叠 36 与回顶等大 + right 30 与回顶同线
+rec('pubfab-form-c2', (function () {
+  var f = q('.acsv-pubfab');
+  if (!f) return false;
+  var cs = getComputedStyle(f);
+  return !!f.querySelector('svg') && !/✎/.test(f.textContent)
+    && (f.querySelector('.acsv-pubfab-lb') || {}).textContent === '发动态'
+    && Math.round(parseFloat(cs.width)) === 36 && Math.round(parseFloat(cs.right)) === 30;
+})(), (function () {
+  var f = q('.acsv-pubfab');
+  if (!f) return 'n/a';
+  var cs = getComputedStyle(f);
+  return 'svg=' + !!f.querySelector('svg') + ' w=' + cs.width + ' right=' + cs.right
+    + ' lb=' + ((f.querySelector('.acsv-pubfab-lb') || {}).textContent || 'none');
+})());
+// hover 展开椭条（0.9.294）：钉规则**载量**而非真 hover——合成事件不触发原生 :hover
+//（预览稿已实测 hover 真展开），这里钉：样式表有 :hover width:88 规则 + 右缘锚定（hover 不写 right
+// ⇒ right 恒 30 不变宽）+ 文案行初始收 0（opacity 0 + max-width 0，展开才滑出）
+rec('pubfab-hover-expand', (function () {
+  var f = q('.acsv-pubfab');
+  if (!f) return false;
+  var sheets = [].slice.call(document.styleSheets);
+  var cssText = '';
+  for (var i = 0; i < sheets.length; i++) {
+    try { cssText += [].map.call(sheets[i].cssRules, function (r) { return r.cssText; }).join(''); } catch (e) { }
+  }
+  var lb = f.querySelector('.acsv-pubfab-lb');
+  var lbcs = lb ? getComputedStyle(lb) : null;
+  return /\.acsv-pubfab:hover\{[^}]*width:\s*88px/.test(cssText.replace(/\s+/g, ''))
+    && !/\.acsv-pubfab:hover\{[^}]*right:/.test(cssText.replace(/\s+/g, ''))
+    && !!lbcs && lbcs.opacity === '0' && lbcs.maxWidth === '0px';
+})(), (function () {
+  var f = q('.acsv-pubfab');
+  var lb = f && f.querySelector('.acsv-pubfab-lb');
+  return lb ? 'lb.op=' + getComputedStyle(lb).opacity + ' maxw=' + getComputedStyle(lb).maxWidth : 'n/a';
+})());
 var tabWait = q('.acsv-metab[data-tab="wait"]');
 if (tabWait) tabWait.click();
+// 切到稍后再看档 ⇒ 浮标即隐（0.9.294「仅动态档出现」：常驻 DOM 只切显隐，不摘除）
+rec('pubfab-hidden-off-moments', !!(await waitFor(function () {
+  var f = q('.acsv-pubfab');
+  return f && f.classList.contains('tab-hide') && getComputedStyle(f).opacity === '0';
+}, 3000)), (function () {
+  var f = q('.acsv-pubfab');
+  return f ? 'cls=' + f.className + ' op=' + getComputedStyle(f).opacity : 'gone';
+})());
 rec('wait-cards', !!(await waitFor(function () {
   return document.querySelectorAll('.acsv-mepanel[data-tab="wait"] .acsv-gcell').length === 1;
 }, 8000)), 'cells=' + document.querySelectorAll('.acsv-mepanel[data-tab="wait"] .acsv-gcell').length);
@@ -139,6 +184,11 @@ window.__ACSV_MOCK_FORM__['browse/history/list'] = function (body, url) {
   return typeof histMockFn === 'function' ? histMockFn(body, url) : histMockFn;
 };
 if (tabHist0) tabHist0.click();
+// 切到历史档浮标仍隐（0.9.294：非动态档一律 tab-hide——hist 档再钉一例，防只闸 wait 漏其它档）
+rec('pubfab-hidden-hist', !!(await waitFor(function () {
+  var f = q('.acsv-pubfab');
+  return f && f.classList.contains('tab-hide') && getComputedStyle(f).opacity === '0';
+}, 3000)));
 // 网格卡：历史首屏 18 条；骨架已清（独立类名，绝不与卡片计数选择器同构）
 rec('hist-cards', !!(await waitFor(function () {
   var cells = document.querySelectorAll('.acsv-vlist.hist .acsv-gcell');
@@ -283,6 +333,11 @@ rec('hist-backtop-shown', !!q('.acsv-mepanel[data-tab="hist"] .acsv-backtop.on')
 rec('fav-tab-lazy', document.querySelectorAll('.acsv-vlist.fav .acsv-gcell').length === 0);
 var tabFav = q('.acsv-metab[data-tab="fav"]');
 if (tabFav) tabFav.click();
+// 收藏夹档浮标仍隐（0.9.294：非动态档一律 tab-hide；fav 档第三钉——wait/hist/fav 三档全覆盖）
+rec('pubfab-hidden-fav', !!(await waitFor(function () {
+  var f = q('.acsv-pubfab');
+  return f && f.classList.contains('tab-hide') && getComputedStyle(f).opacity === '0';
+}, 3000)));
 rec('fav-open', !!(await waitFor(function () {
   var p = q('.acsv-mepanel[data-tab="fav"]');
   return p && p.style.display !== 'none';
@@ -409,6 +464,17 @@ if (tabHist) tabHist.click();
 await wait(500);
 rec('tab-keep-state', document.querySelectorAll('.acsv-vlist.hist .acsv-gcell').length === 22
   && window.__ACSV_HIST_CALLS__ === histCalls, 'calls=' + window.__ACSV_HIST_CALLS__);
+// 切回动态档 ⇒ 浮标复现（0.9.294「仅动态档出现」的另一半：复现也要钉，防"隐了就不回来"）
+q('.acsv-metab[data-tab="moments"]').click();
+rec('pubfab-back-on-moments', !!(await waitFor(function () {
+  var f = q('.acsv-pubfab');
+  return f && !f.classList.contains('tab-hide') && getComputedStyle(f).opacity === '1';
+}, 3000)), (function () {
+  var f = q('.acsv-pubfab');
+  return f ? 'cls=' + f.className + ' op=' + getComputedStyle(f).opacity : 'gone';
+})());
+// 钉完回历史档（本场景余下断言按「历史是活动 tab」写）
+q('.acsv-metab[data-tab="hist"]').click();
 // 播放层（0.9.74）：点首条历史 → 就地覆盖播放（旧契约「回竖刷 + 插队尾」已废止）。
 // 钉：地址是 play 形态、层内视频真的起播、竖刷缓冲/游标零改动、层内箭头随会话（列表会话两枚，0.9.173 口径）
 var firstRow = q('.acsv-vlist.hist .acsv-gcell');

@@ -65,7 +65,7 @@
       if (!f || !b) return false;
       var fr = f.getBoundingClientRect(), br = b.getBoundingClientRect();
       return fr.bottom <= br.top + 1                       // 上下不重叠（浮标在上）
-        && Math.abs(fr.right - br.right) <= 12;            // 右对齐（同一竖列）
+        && Math.abs(fr.right - br.right) <= 1;             // 右对齐同一竖列（0.9.294 收严到 0——横向错位 12 矫正后同线）
     }, 5000)), (function () {
       var f = q('.acsv-pubfab');
       var b = q('.acsv-mepanel[data-tab="moments"] .acsv-backtop.on');

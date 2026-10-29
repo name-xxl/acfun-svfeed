@@ -5,6 +5,54 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.294（2026-10-29）· 发布浮标与回顶协调——横向错位 12px 矫正、C2+ 等大圆钮悬停展开椭条、我的页仅动态档出现
+
+**由头（用户两条令）**：①「发布按钮和回到顶部按钮在显示上不协调」；②「'我的'界面不是有几个栏目吗，写动态按钮应该只在动态栏出现」。
+按硬规矩先出静态预览（docs/preview/pubfab-backtop.html：①病灶对照 ②浅色基准 ③–⑤ 三案对照
+**⑥ 案 C2+**（用户定案：折叠 36 与回顶等大 + 悬停展开椭形长条）**⑦ 我的页仅动态档出现** ⑧ 机器自检），
+十项几何/显隐断言开页即跑、浏览器实测全过后才动 `src/`。
+
+**病灶（五项，量值出自 cssraw 在册规则）**：
+1. **横向错位 12px**（最刺眼）：回顶在脚本视图内是 `position:sticky`，基准是滚动容器**内容盒**——
+   `.acsv-view-body` `padding-right:24` + `.acsv-backtop` `margin 0 6px 6px auto` ⇒ 回顶右缘距视口
+   **30px**；浮标按 fixed 直觉写 `right:18` ⇒ 两钮右缘差 12px。0.9.224 头注自称「靠右下角对齐」，
+   但只校了纵向（bottom 94 ≥ 回顶顶缘 84），横向这条缝一直开着。
+2. **直径差 8px**：44 vs 36（回顶是 `.acsv-tbtn` 顶栏圆钮同族 36）。
+3. **两套图标语言**：回顶=内联 SVG（chevUp，`fill:currentColor`），浮标=**文本字符 ✎（U+270E）**
+   ——字形随系统字体漂移，与 0.9.105「图标语言统一」口径相悖。
+4. **hover 反馈不一致**：回顶 `scale(1.08)+提亮`，浮标仅变色。
+5. **全档常驻**：我的页五档（动态/观看历史/稍后再看/收藏夹/关注列表）共用一个视图体，浮标挂在
+   视图体上 ⇒ 在「观看历史」档也杵着一枚「发动态」，与所在档语义无关。
+（浅色语境早已对齐 24/24，是达标基准；阴影/实心红＝主行动强调，**有意保留**。）
+
+**修法**：
+1. **几何**（cssraw `.acsv-pubfab`）：`right 18→30` 与回顶同线；纵向不动（bottom 94）。
+2. **C2+ 形态**：`width/height 36`（与回顶等大）、`border-radius 18`、flex 右对齐 + `padding:0 9px`
+   + `overflow:hidden`；`hover` **只改 width 36→88 + 底色**、**不写 right**（右缘锚定 ⇒ 向左生长，
+   光标下的图标零位移）；`transition:width .18s`。图标位钉右（`justify-content:flex-end`）⇒
+   展开时文案从左侧滑出、图标原地不动。
+3. **图标**（pubfab.js）：文本 `'✎'` → **内联 SVG 铅笔**（Material edit 实心路径，与 chevUp 同族
+   「24 viewBox + 单 path + fill」）；SVG 走 `createElementNS`（`el`/`elHtml` 是 HTML 命名空间，
+   innerHTML 拼不出真 svg——0.9.80 教训族）。文案 `span.acsv-pubfab-lb`「发动态」默认 `opacity:0`
+   + `max-width:0`，hover 滑出（不用 display 切换——要保留过渡）。
+4. **我的页仅动态档**（mypage.js `select()`）：浮标**常驻 DOM 只切显隐**（与五档面板「常驻 DOM
+   只切 display」同语义；重建会丢 hover/动画态）——非动态档挂 `.tab-hide`（`opacity:0` +
+   `pointer-events:none`，过渡与 tab 切换同步）。广场视图 / 原生页内嵌广场**不受影响**（整页
+   都是动态语境）。
+5. 浅色语境：`right/bottom` 不动（本就对齐），随形态继承 36 圆与展开。
+
+**测试**（`view-my` 78 断言 +5、`moment-publish` 41 断言收紧 1）：
+- `pubfab-form-c2`：SVG 图标（非 ✎ 文本）+ 文案位「发动态」+ 折叠 36 + right 30；
+- `pubfab-hover-expand`：钉**规则载量**（样式表存在 `.acsv-pubfab:hover{…width:88px}`、该规则
+  **不含 right**（右缘锚定）+ 文案行初始 `opacity:0/max-width:0`）——合成 mouseover **不触发**原生
+  `:hover`（首版这样写恰好转红，改为规则断言；真 hover 由确认稿浏览器实测兜）；
+- `pubfab-hidden-off-moments` / `pubfab-hidden-hist` / `pubfab-hidden-fav`：三档各钉一例（防只闸
+  wait 档漏其它）+ `pubfab-back-on-moments`（切回复现——「隐了不回来」同样要钉）；
+- `pub-fab-above-backtop` 的右对齐容差 **≤12 → ≤1**（病灶矫正后同线，收紧即门禁）。
+- **摘修复反跑**：`git stash` 三个 src 文件后恰好转红 6 条（`pubfab-form-c2` svg=false w=44 right=18 /
+  `pubfab-hover-expand` n/a / 三个 `pubfab-hidden-*` op=1 / `pub-fab-above-backtop` 差 10px），
+  恢复后复绿。全量三段并行全绿（89 场景 / 0 失败，58.1s；`npm test` 含 check 七门禁 + 单测 + tsc）。
+
 ### 0.9.293（2026-10-29）· 我的页档头抽离共用——三档收一个 mehead 构件，收藏夹管理收进模态、adminTab 壳退役
 
 **由头（用户令）**：「收藏夹也有顶部选择栏，还有历史记录栏，关注列表顶部选择栏 ui 能否抽离共用」

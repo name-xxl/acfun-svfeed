@@ -1838,18 +1838,28 @@ export var CSS_TEMPLATE = ''
   + 'border-radius:50%;background:rgba(0,0,0,.66);color:#fff;font-size:11px;cursor:pointer;border:none;font-family:inherit}'
   + '.acsv-thumb.add{border:1px dashed rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;'
   + 'font-size:22px;color:#8a90a0;cursor:pointer}'
-  // 发布**常驻浮标**（0.9.224）：右下角、钉在「回到顶部」之上、本页常驻。
+  // 发布浮标（0.9.224 建；**0.9.294 显示协调批**——对齐确认稿 docs/preview/pubfab-backtop.html 案 C2+）：
   // z:57 = 压住列表内容(55)/dock(56)/顶栏(57)，**但被抽屉(58)/详情(61)/编辑器(62)/大图(63) 盖住**
   // ——浮标绝不许盖住它自己打开的编辑器（对照：全局兜底胶囊 .acsv-fab 是 2147482990，不能照抄）
-  // 位置是**实测校准**的（harness 几何断言给的数）：暗色回顶 sticky 的基准是滚动容器**内容盒**，
-  // 而 .acsv-view-body 有 padding-bottom:30px ⇒ 回顶实际占 [48,84]（viewport 底往上算）⇒ 浮标 bottom
-  // 必须 ≥84 才不压它；取 94（错开 10）。
-  + '.acsv-pubfab{position:fixed;right:18px;bottom:94px;z-index:57;width:44px;height:44px;border-radius:50%;'
-  + 'border:none;background:#fd4c5d;color:#fff;font-size:18px;line-height:1;cursor:pointer;'
-  + 'box-shadow:0 6px 18px rgba(0,0,0,.45);font-family:inherit}'
-  + '.acsv-pubfab:hover{background:#ff6b7a}'
-  // 原生页浅色语境：与浅色回顶（fixed right:24 bottom:28）同栏、错开 10px
-  // 浅色回顶是 fixed right:24 bottom:28 + 高 36 ⇒ 占 [28,64]；浮标取 74（错开 10）
+  // 几何（0.9.294 矫正横向错位）：暗色回顶 sticky 的基准是滚动容器内容盒（.acsv-view-body
+  // padding-right:24 + backtop margin 6 ⇒ 回顶右缘距视口 30），浮标 right 由 18 **收 30 与回顶同线**
+  // （0.9.224–293 只校了纵向、横向错位 12px）；纵向不动：回顶占 [48,84] ⇒ 浮标 bottom 94（隙 10）。
+  // **C2+ 形态**（用户 2026-10-29 裁决）：折叠=36 圆与回顶（.acsv-tbtn 36）等大；hover **右缘锚定**
+  // 向左展开椭形长条（width 36→88，文案「发动态」滑出；图标 padding-right 9 钉右 ⇒ 光标下零位移）。
+  // 图标换内联 SVG 铅笔（chevUp 同族「24 viewBox 单 path + fill」语言，退役文本字符 ✎——字形随系统漂）。
+  + '.acsv-pubfab{position:fixed;right:30px;bottom:94px;z-index:57;height:36px;width:36px;border-radius:18px;'
+  + 'border:none;background:#fd4c5d;cursor:pointer;display:flex;align-items:center;justify-content:flex-end;'
+  + 'padding:0 9px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.45);font-family:inherit;'
+  + 'transition:width .18s ease,background .15s,opacity .18s ease}'
+  + '.acsv-pubfab:hover{width:88px;background:#ff6b7a}'
+  + '.acsv-pubfab svg{width:18px;height:18px;fill:#fff;flex:none}'
+  + '.acsv-pubfab-lb{white-space:nowrap;font-size:13px;font-weight:500;color:#fff;line-height:1;'
+  + 'margin-right:7px;opacity:0;max-width:0;transition:opacity .15s ease}'
+  + '.acsv-pubfab:hover .acsv-pubfab-lb{opacity:1;max-width:45px}'
+  // 我的页「仅动态档出现」（0.9.294 用户裁决）：浮标常驻 DOM 只切显隐（与五档面板同语义），
+  // tab 切换回调挂 .tab-hide——淡出+断点击，切回动态档复现
+  + '.acsv-pubfab.tab-hide{opacity:0;pointer-events:none}'
+  // 原生页浅色语境：与浅色回顶（fixed right:24 bottom:28）同栏、错开 10px；横向浅色本就对齐（24/24）不动
   + '.acsv-pubfab-light{right:24px;bottom:74px;box-shadow:0 4px 14px rgba(0,0,0,.2)}'
   // 分享面板里的「转发到动态」（与复制链接同栏）
   + '.acsv-share-fwd{border:none;background:rgba(255,255,255,.12);color:#cfd3da;border-radius:16px;'
