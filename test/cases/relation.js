@@ -176,6 +176,18 @@
         && !!on && on.getAttribute('data-gid') === '0'
         && !!m.querySelector('.acsv-flm-addin'); // 底部常驻添加行
     }, 8000)), (q('.acsv-flm-main') || {}).textContent);
+    // 落位钉：视口垂直居中（0.9.290 报障「定位在顶部」——margin:auto 模式的结果不变式
+    // =上距≈下距；容差 24px 吸收列表行数带来的高度差）
+    rec('fg-group-center', (function () {
+      var m = q('.acsv-flm-main');
+      if (!m) return false;
+      var r = m.getBoundingClientRect();
+      var topGap = r.top, botGap = window.innerHeight - r.bottom;
+      return r.height <= window.innerHeight && Math.abs(topGap - botGap) <= 24;
+    })(), (function () {
+      var r = q('.acsv-flm-main').getBoundingClientRect();
+      return 'top=' + Math.round(r.top) + ' bottomGap=' + Math.round(window.innerHeight - r.bottom);
+    })());
     var giWu = document.querySelector('.acsv-flm-gi[data-gid="273464"]');
     if (giWu) giWu.click();
     var gmOk = q('.acsv-flm-main .acsv-flm-ok');

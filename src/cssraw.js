@@ -1386,9 +1386,10 @@ export var CSS_TEMPLATE = ''
   + 'font-size:12px;height:22px;padding:0 8px;border-radius:4px;cursor:pointer}'
   // 模态壳（原生 ac-modal 暗色换算：400 宽 圆角15；z 63/64 档，警示条 66 在上）
   + '.acsv-flmask{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:63}'
-  + '.acsv-flm-wrap{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:center;'
-  + 'padding:96px 16px 16px;overflow-y:auto;z-index:64}'
-  + '.acsv-flm-main{width:400px;max-width:100%;background:rgba(22,22,27,.97);'
+  // 落位=视口垂直居中（原生实测 y 266..641/900h 重心正中，2026-10-29 用户纠正「弹窗居中」）；
+  // margin:auto 模式：居中之外，模态高于视口时顶边仍可达（滚动不裁顶）
+  + '.acsv-flm-wrap{position:fixed;inset:0;display:flex;overflow-y:auto;z-index:64;padding:16px}'
+  + '.acsv-flm-main{margin:auto;width:400px;max-width:100%;background:rgba(22,22,27,.97);'
   + 'border:1px solid rgba(255,255,255,.12);border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,.5);'
   + 'padding:0 0 24px}'
   + '.acsv-flm-hd{position:relative;padding:26px 30px 0}'
