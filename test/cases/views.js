@@ -143,6 +143,41 @@ rec('pubfab-hover-expand', (function () {
   var lb = f && f.querySelector('.acsv-pubfab-lb');
   return lb ? 'lb.op=' + getComputedStyle(lb).opacity + ' maxw=' + getComputedStyle(lb).maxWidth : 'n/a';
 })());
+// 右缘补偿（0.9.295 真机实报「脚本页没对齐」）：回顶 sticky 基准=内容盒（含容器滚动条），
+// 浮标 fixed 基准=ICB ⇒ 恒差一条滚动条宽。**无头 Chromium 用覆盖式滚动条（宽 0），天生看不到这条缝**
+//（docs §10.15 同款盲区）——故覆盖 offsetWidth/clientWidth 模拟经典滚动条，再改宿主内边距触发
+// ResizeObserver 重算，断言 inline right 由 30 变 39；还原后再断言回 30。
+var vbForSb = q('.acsv-view-body');
+rec('pubfab-corner-base', (function () {
+  var f = q('.acsv-pubfab');
+  return !!f && Math.round(parseFloat(f.style.right)) === 30;
+})(), (function () { var f = q('.acsv-pubfab'); return f ? 'inline right=' + f.style.right : 'no fab'; })());
+(function () {
+  if (!vbForSb) return;
+  Object.defineProperty(vbForSb, 'offsetWidth', { configurable: true, value: 1000 });
+  Object.defineProperty(vbForSb, 'clientWidth', { configurable: true, value: 991 }); // 经典细滚动条 9px
+})();
+if (vbForSb) vbForSb.style.paddingRight = '23px'; // 内容盒变宽 1px → ResizeObserver 回调
+rec('pubfab-corner-scrollbar', !!(await waitFor(function () {
+  var f = q('.acsv-pubfab');
+  return f && Math.round(parseFloat(f.style.right)) === 39;
+}, 3000)), (function () {
+  var f = q('.acsv-pubfab');
+  return f ? 'inline right=' + f.style.right : 'no fab';
+})());
+(function () { // 还原：撤属性覆盖 + 撤尺寸触发
+  if (!vbForSb) return;
+  delete vbForSb.offsetWidth;
+  delete vbForSb.clientWidth;
+  vbForSb.style.paddingRight = '';
+})();
+rec('pubfab-corner-restore', !!(await waitFor(function () {
+  var f = q('.acsv-pubfab');
+  return f && Math.round(parseFloat(f.style.right)) === 30;
+}, 3000)), (function () {
+  var f = q('.acsv-pubfab');
+  return f ? 'inline right=' + f.style.right : 'no fab';
+})());
 var tabWait = q('.acsv-metab[data-tab="wait"]');
 if (tabWait) tabWait.click();
 // 切到稍后再看档 ⇒ 浮标即隐（0.9.294「仅动态档出现」：常驻 DOM 只切显隐，不摘除）
@@ -3336,6 +3371,23 @@ rec('square-cmt-namecolor', (function () {
     rec('hd-delete-gone', !!(await waitFor(function () {
       return document.querySelectorAll('.acsv-mepanel[data-tab="hist"] .acsv-gcell').length === 17;
     }, 3000)), 'n=' + document.querySelectorAll('.acsv-mepanel[data-tab="hist"] .acsv-gcell').length);
+    // 档头位置不变式（0.9.294 真机报障「观看历史界面不显示顶栏」）：档头必须在列表**之上**——
+    // 旧实现先挂列表后建档头，档头被 append 到 18 张卡网格下面（视口外）=看起来没有顶栏。
+    // 与 fav-head-above 同款几何钉（同一道缝在两个档各犯一次）
+    rec('hd-head-above', (function () {
+      var head = q('.acsv-mepanel[data-tab="hist"] .acsv-mhead');
+      var firstCard = q('.acsv-mepanel[data-tab="hist"] .acsv-vlist.hist .acsv-gcell');
+      if (!head || !firstCard || !head.offsetParent) return false;
+      return head.getBoundingClientRect().bottom <= firstCard.getBoundingClientRect().top + 1;
+    })(), (function () {
+      var head = q('.acsv-mepanel[data-tab="hist"] .acsv-mhead');
+      var firstCard = q('.acsv-mepanel[data-tab="hist"] .acsv-vlist.hist .acsv-gcell');
+      if (!head) return 'no-head';
+      if (!firstCard) return 'no-card';
+      return 'headBottom=' + Math.round(head.getBoundingClientRect().bottom)
+        + ' cardTop=' + Math.round(firstCard.getBoundingClientRect().top)
+        + ' headY=' + Math.round(head.getBoundingClientRect().top);
+    })());
     var clear = q('.acsv-mepanel[data-tab="hist"] .acsv-mhead .acsv-mhact');
     rec('hd-clear-key', !!clear);
     rec('hd-clear-vis', clear ? getComputedStyle(clear).display : 'none');

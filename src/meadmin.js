@@ -49,6 +49,10 @@ export function openMmConfirm(anchor, opts) {
 // opts.actions：[{ label, danger?, visible?()→bool, onClick(btn) }]（右置文字钮，btn=钮本体；
 // visible 全假且
 //   无 select 时整行不渲染=历史空态）。opts.onOpen：开菜单前回调（互斥缝）。
+// **opts.before**：插入锚元素（档头插到它之前）。档头位置**不许依赖消费方建档头的先后**——
+//   0.9.293 历史档先挂列表后建档头 ⇒ 档头被 append 到 18 张卡网格之后约 1600px（视口外），
+//   真机表现「观看历史不显示顶栏」；0.9.294 起三档统一「先建列表 → 档头带 before:list」，
+//   位置由锚点决定，并各钉一条 harness 几何断言（fav-head-above / hd-head-above）。
 // 返回 { root, setLabel, refresh, closeMenu }。
 export function createMeHead(panel, opts) {
   opts = opts || {};
@@ -100,7 +104,9 @@ export function createMeHead(panel, opts) {
     rootEl.appendChild(b);
     acts.push({ def: a, btn: b });
   });
-  panel.appendChild(rootEl);
+  // 落位：before 给了就插到它前面（位置与调用先后解耦，见头注 0.9.294 教训）
+  if (opts.before && opts.before.parentNode === panel) panel.insertBefore(rootEl, opts.before);
+  else panel.appendChild(rootEl);
   function setLabel(t) { if (selBtn) selBtn.firstChild.nodeValue = t; }
   function refresh() {
     var any = false;

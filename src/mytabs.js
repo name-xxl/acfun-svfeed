@@ -78,6 +78,7 @@ export function buildHistory(panel, scroller) {
   // 档头（meadmin 共用件，0.9.293）：无 select 纯动作行；「清空历史」danger 红字（预览⑥B1），
   // 列表空=整行不渲染（visible 全假触发 mehead 整行隐藏）
   var head = createMeHead(panel, {
+    before: list, // 档头钉在列表之上（0.9.294：位置由锚点定，不依赖调用先后）
     actions: [{
       label: '清空历史',
       danger: true,
@@ -277,11 +278,13 @@ export function buildWatchLater(panel, scroller) {
 // 「一并移除」）；卡面 hover「移动 / 移除收藏」不动。读链走 favapi（folderList 带 inFolder 是
 // 选择层专用，本页只用夹表与 favList）；夹 id/名一律字符串。
 export function buildFav(panel, scroller) {
+  var list = rowList(panel, 'fav');
   var tabs = [];   // [{ id, label, raw }] 夹表（loadTabs 现拉，写链后重拉）
   var cur = null;  // 当前夹 id
   var rows = [];   // 已加载面板条目（顺序；层内列表会话的条目源，0.9.173）
-  // 档头先于列表挂载（0.9.69 钉的几何不变式：夹位选择器必须在列表之上——fav-head-above）
+  // 档头钉在列表之上（0.9.294：与历史档同范式——before:list 定位置，不靠调用先后）
   var head = createMeHead(panel, {
+    before: list,
     select: {
       load: function () {
         return loadTabs().then(function (ts) {
@@ -294,7 +297,6 @@ export function buildFav(panel, scroller) {
     actions: [{ label: '管理收藏夹', onClick: function () { openManage(); } }],
     onFail: function () { mmWarn('收藏夹加载失败'); }
   });
-  var list = rowList(panel, 'fav');
   var tail = null;
   var pg = createPageLoader({
     host: function () { return list; },

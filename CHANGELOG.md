@@ -5,6 +5,44 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.295（2026-10-29）· 浮标右缘按滚动条宽补偿（真机 9.5px 偏差）+ 我的页三档档头落位改锚点定序
+
+**病灶 A（用户真机实报「只在原生页对齐了，脚本页没对齐」）**：0.9.294 把浮标 `right` 由 18 收到 30
+（回顶内容盒右缘 24+6），harness 里两钮严丝合缝——**真机却差一条滚动条宽**。根因是两者**参照系不同**：
+回顶是 `position:sticky`，横向基准＝滚动容器**内容盒**（`.acsv-view-body` padding 24 + `.acsv-backtop`
+margin 6 **+ 容器自己的经典滚动条宽**）；浮标是 `position:fixed`，基准＝ICB（不含滚动条）。无头 Chromium
+一律用**覆盖式滚动条（宽 0）**⇒ 这条缝在 harness 里恒等于 0（`docs/api-research.md` §10.15 在册盲区，
+本轮实测复核：同参数滚动容器 `offsetWidth−clientWidth === 0`）。
+
+**取证（不是推断）**：量用户真机截图——浮标直径 54 图素 ÷1.5 = **36 CSS px** ⇒ 确认跑的是 0.9.294
+（非构建漂移，旧版 44 会显示 66 图素）；两枚钮图标中心横差 **9.5 CSS px**，回顶偏左，恰等于
+`scrollbar-width:thin` 的滚动条宽。
+
+**修法 A**：`pubfab.js` 新增纯函数 `cornerRightOf(offsetW, clientW, base)`＝`base + max(0, offset−client)`，
+挂载时与容器内容盒变化时（`ResizeObserver`）重算并写 inline `right`（cssraw 的 `right:30` 留作兜底）。
+浅色语境**不补偿**（原生页两钮都是 fixed、同贴 ICB，本就同线）。容器滚动条随内容有无出现/消失
+（空列表↔长列表、切档换面板）⇒ 观察者跟着重算，不需要在消费方补调用点。
+
+**测试 A**：
+- 新单测 `test/unit/pubfab.test.js` 六条（6 断言）——**写测试当场抓出实现缺陷**：`clientWidth` 缺值
+  被当成 0 宽，会算出 `base+整宽` 的荒谬补偿；修法＝两侧都须是可用的正数才谈滚动条，否则原值返回。
+- harness `view-my` 81 断言（+3）：无头环境看不到真滚动条，故**覆盖 `offsetWidth/clientWidth` 模拟
+  经典细滚动条（9px）+ 改宿主内边距触发 ResizeObserver**——`pubfab-corner-base`（基准 30）→
+  `pubfab-corner-scrollbar`（变 39）→ `pubfab-corner-restore`（还原回 30）。
+- **摘修复反跑**：`git stash` 掉 `pubfab.js` 后三条恰好全红（`inline right=` 空），恢复复绿。
+
+**病灶 B（真机报障「观看历史界面不显示顶栏」同批修正，随本版出货）**：我的页三档的档头
+（`meadmin.createMeHead`）与列表的**挂载先后**决定位置——历史档先挂 18 张卡网格、后建档头 ⇒ 档头被
+append 到视口外约 1600px（DOM 在、断言绿、肉眼"没有顶栏"）。同属「位置靠调用先后」这一道缝。
+
+**修法 B**：`createMeHead` 新增 `opts.before`（给了就 `insertBefore` 锚到列表之前），三档统一
+「先建列表 → 档头带 `before:list`」——位置由锚点决定，与调用先后解耦。
+
+**测试 B**：`hd-head-above` 几何钉（档头底 ≤ 首卡顶，与既有 `fav-head-above` 同款）钉住这一类，
+防「换个档又犯一次」。
+
+**合并验证**：全量三段并行全绿——89 场景 / 0 失败（57.3s）+ `check` 七门禁 + 单测 456 + tsc。
+
 ### 0.9.294（2026-10-29）· 发布浮标与回顶协调——横向错位 12px 矫正、C2+ 等大圆钮悬停展开椭条、我的页仅动态档出现
 
 **由头（用户两条令）**：①「发布按钮和回到顶部按钮在显示上不协调」；②「'我的'界面不是有几个栏目吗，写动态按钮应该只在动态栏出现」。

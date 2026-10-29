@@ -189,9 +189,13 @@ export function buildFollowAdmin(panel, scroller) {
   }
   var filterGid = '';       // '' = 全部分组（listFollows action=7）；组 id = 组内（action=9）
   var filterLabel = '全部分组';
+  var list = el('div', 'acsv-fllist');
+  panel.appendChild(list);
 
-  // 顶栏（meadmin.createMeHead 共用件：select + 编辑分组；与收藏夹/历史同构，0.9.293）
+  // 顶栏（meadmin.createMeHead 共用件：select + 编辑分组；与收藏夹/历史同构，0.9.293）。
+  // 0.9.294：before:list 定位置——档头钉在列表之上，不依赖建档头与建列表的先后
   var head = createMeHead(panel, {
+    before: list,
     select: {
       load: function () {
         return loadGroups().then(function (gs) {
@@ -229,9 +233,6 @@ export function buildFollowAdmin(panel, scroller) {
     onFail: function () { mmWarn('分组加载失败'); }
   });
   head.setLabel(filterLabel); // 初始标签（mehead 只管写口，初值归消费方）
-
-  var list = el('div', 'acsv-fllist');
-  panel.appendChild(list);
 
   var rows = []; // { it, row, btn, paint } —— 行内原地改的句柄（写链后不整表重拉）
 
