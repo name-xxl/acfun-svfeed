@@ -4,10 +4,14 @@ import { slideAt, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js'; // 仅调用期解引用（0.9.115 断 feedstore↔player 环后为普通单向边）
 import { reapplyQuality } from './quality.js';
 import { setSetting } from './settings.js';
+// 字段名单的唯一真源（0.9.297）：本件只保留读/写方说明，名字表在 domfields.js；
+// test/check-contract.mjs 扫源码未登记字段即红
+export { SLIDE_FIELDS, ITEM_FIELDS } from './domfields.js';
 
 // ---------- 元素级契约总表 ----------
 // 以下 _xxx 属性挂在 slide/item DOM 对象上，是跨模块的隐式协作面。
-// 曾散落在各文件的闭包里，现集中列出（读/写方），新增字段先来此处登记：
+// 曾散落在各文件的闭包里，现集中列出（读/写方）；**新增字段先登记 src/domfields.js**
+// （名字表的唯一真源），再回到这里补读/写方说明。
 //
 // slide（.acsv-slide 元素）：
 //   _session     会话句柄    写: attach.js(attachVideo 赋值);dispose+置 null: 一律经本件

@@ -36,10 +36,10 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
 
-// 口径 A 用：README 基建层（styles.js 等 23 件）+ 接口层（8 件）
-// 计数纪律（审计批④ P3-2）：括号里的数=INFRA 实有成员数，动 INFRA 就得同批改本行——此前写死
-// 「16 件」而实有 21（0.9.258 加 pack 后 22；0.9.259 加 pageloader 后 23），注释漂了多个版本没人发现。复点一条命令：
-//   node -e "const t=require('fs').readFileSync('test/check-direction.mjs','utf8');console.log((t.match(/INFRA = new Set\(\[([\s\S]*?)\]\)/)[1].match(/'[\w.-]+\.js'/g)||[]).length)"
+// 口径 A 用：README 基建层 + 接口层。**不再在注释里写死成员数**——0.9.297 起由运行时的
+// 「分类覆盖」行输出实际计数；此前注释从 16 漂到 23 而实有 25，说明手写计数本身就是第二真源。
+// 0.9.297 同时补了「每个 src 必须显式分类」的覆盖检查（未分类即红），并给 signapi/signpanel
+// 落了正式桶位；cssraw（构建期输入）与 devicetab（生成物）显式豁免。
 // 0.9.238：inputbar.js **移出基建层**（改入 FEATURE，见下）——富文本重载后它认识表情域
 // （emotImgOf 出表情节点）与出口 UBB 方言（评论域的序列化/计数口径），不再满足"基建 = 零特性
 // 知识"的口径；与 sharepanel/rail/slide（0.9.233）同款归类：地位是特性层共享 UI 件
@@ -64,7 +64,8 @@ const INFRA = new Set(['cfg.js', 'net.js', 'playitem.js', 'panelitem.js', 'state
 // （接口层 → 特性 = 红），不是"无检查的自由桶"。
 const API = new Set(['api.js', 'appapi.js', 'quality.js',
   'channelapi.js', 'favapi.js', 'relationapi.js', 'momentapi.js', 'upload.js',
-  'watchlaterapi.js', 'rankapi.js', 'historyapi.js']); // 0.9.279 稍后再看/三榜/历史写链
+  'watchlaterapi.js', 'rankapi.js', 'historyapi.js',
+  'signapi.js']); // 0.9.279 稍后再看/三榜/历史写链；0.9.297 补签到域（原未分类=零检查）
 // 校准（0.9.117 首跑即立；0.9.119 扩一项）：README 明示的五件零依赖解耦点里，immsg/imicons
 // 现居私信层 subgraph——那是出身 placement，不是专属域；它们被 topbar/cards/momentbar/comments
 // 等广泛消费，视同基础件。ubbtext（0.9.119 下沉的纯投影族）同为零依赖叶子。不校准则口径 A
@@ -79,7 +80,8 @@ const API = new Set(['api.js', 'appapi.js', 'quality.js',
 // 0.9.261：searchfmt（搜索卡投影——纯函数，只依赖 imgurl/playitem/timefmt）与 ubbtext 同族
 // （纯投影族），消费方 searchview 属特性层 ⇒ 归零依赖叶
 const LEAF_SHARED = new Set(['immsg.js', 'imicons.js', 'ubbtext.js', 'searchhist.js',
-  'advdm.js', 'toastmsg.js', 'searchfmt.js']);
+  'advdm.js', 'toastmsg.js', 'searchfmt.js',
+  'domfields.js']); // 0.9.297：slide/item 字段契约数据（零依赖叶，attach 与 check-contract 共同消费）
 
 // 口径 B 用：特性域清单（0.9.117 定版；新增特性模块时同步。0.9.124 加 rowkit.js——视图层
 // 行卡 kit，与 followview/squareview 同层：它依赖 momentbar/comments 属特性层内互调，非反向；
@@ -204,6 +206,10 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // （骨架行，0.9.259 已入表）/listtail（0.9.219 已入表）、特性层 overlay 与接口层 relationapi
   // ⇒ 口径 A/B 均 0 条
   'followadmin.js',
+  // 0.9.297 登记：signpanel（签到黄历弹窗，0.9.277 建；此前未分类=零方向检查）。
+  // 归 FEATURE：消费方 mypage 在表内，层内互调；自身只 import ui/overlay（基建）与
+  // signapi 回包（由 mypage 传入，不反向 import 接口层）⇒ 口径 A/B 0 条。
+  'signpanel.js',
   ]);
 const SKIP_B = new Set(['boot.js', 'player.js', 'sessionhooks.js']);
 // 0.9.271：sessionhooks（会话回接钩子）与 player 同属组合根/编排层——它 import rail/playlayer/
@@ -213,7 +219,7 @@ const SKIP_B = new Set(['boot.js', 'player.js', 'sessionhooks.js']);
 // playback/hls/prewarm）、控制栏与手势（controls/input）、弹幕渲染（dmcanvas/danmaku）、播放层
 // 编排（playgest/playstate/levelstack/relatedapi）、写入链（interact）、观看上报（report/
 // watchledger）、泵流仓库与列表上下文（feedstore/feedctx）。
-// 为什么这 19 件**都不该**进 FEATURE：它们被特性层广泛依赖（feedstore 被 attach/controls/input/
+// 为什么这批模块（20 件，计数见运行时「分类覆盖」行）**都不该**进 FEATURE：它们被特性层广泛依赖（feedstore 被 attach/controls/input/
 // playback/prewarm/report/views/rail 消费；relatedapi 被 jingxuanview/playlayer 消费），归特性层
 // 会把"播放层→播放层"的入边误判成"非特性→特性"（口径 B 红）；也不该进 INFRA（它们有领域知识：
 // 播放态、弹幕窗口、泵游标）。口径 C 的方向：**播放层只许依赖同级/更下层**（基建/接口/零依赖叶/
@@ -237,6 +243,24 @@ const KNOWN = [];
 const knownSet = new Set(KNOWN.map((k) => k.edge));
 
 const files = fs.readdirSync(SRC).filter((f) => f.endsWith('.js'));
+// 0.9.297 分类覆盖（棘轮）：每个 src 必须落在恰好一个桶里；仅这两件显式豁免。
+// 此前 signapi/signpanel 不在任何桶——不报错也不检查，等于「未分类=自由」。新增模块漏登记
+// 从此是 CI 红，不是 review 漏网。
+const EXEMPT = new Set([
+  'cssraw.js',   // 构建期输入，只被根目录 build.js import（src 内零入边）
+  'devicetab.js' // 生成物（tools/gen-device-data.js），数据件不参与方向判定
+]);
+const buckets = { INFRA, API, LEAF_SHARED, FEATURE, SKIP_B, PLAY };
+const unclassified = files.filter((f) => !EXEMPT.has(f)
+  && !Object.keys(buckets).some((k) => buckets[k].has(f)));
+const multi = files.filter((f) => Object.keys(buckets).filter((k) => buckets[k].has(f)).length > 1);
+const coverageBad = [];
+if (unclassified.length) coverageBad.push('未分类：' + unclassified.join(', '));
+if (multi.length) coverageBad.push('重复分类：' + multi.map((f) => f + '（'
+  + Object.keys(buckets).filter((k) => buckets[k].has(f)).join('/') + '）').join(', '));
+console.log('[check-direction] 分类覆盖：' + Object.keys(buckets)
+  .map((k) => k + ' ' + buckets[k].size).join(' / ') + ' / 豁免 ' + EXEMPT.size
+  + '（src ' + files.length + '）');
 const edges = new Set();
 for (const f of files) {
   const txt = fs.readFileSync(path.join(SRC, f), 'utf8');
@@ -277,9 +301,13 @@ console.log('口径 B · 非特性 → 特性模块：' + hitsB.length + ' 条')
 report(hitsB);
 console.log('口径 C · 播放层 → 播放层/基建/接口/零依赖叶之外：' + hitsC.length + ' 条');
 report(hitsC);
+if (coverageBad.length) {
+  coverageBad.forEach((b) => console.log('  ✗ 分类覆盖：' + b + '——新增模块必须显式入桶（或加入 EXEMPT 并写理由）'));
+}
 if (unregistered) {
   console.log('[check-direction] 在册 ' + KNOWN.length + ' 条，未登记 ' + unregistered
     + ' 条——请裁决（修边 / 加设缝 / 登记入册）并同步 docs/dependency-audit.md');
   process.exit(1); // 棘轮（0.9.187）：未登记即红；在册项带理由放行
 }
+if (coverageBad.length) process.exit(1);
 console.log('[check-direction] 在册 ' + KNOWN.length + ' 条，未登记 0 条——方向卫生无新增侵蚀');

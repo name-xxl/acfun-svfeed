@@ -3,7 +3,7 @@
 // 需 GM_xmlhttpRequest（二进制分片）；各阶段独立成 Promise 小函数，任何一步失败落为 null。
 // 0.9.220：`bizFlag` **提为参数**（此前写死 web-comment-text）——动态发布要用同一个图床，但
 // bizFlag 能否复用 web-comment-text **未实测**（docs §11.5：脚本走的是 rest/app 那条 getToken 路）；
-// 默认值不变 ⇒ 评论链零扰动。另加**多图编排** uploadImages（九宫格：串行、逐张独立成败、不中断）
+// 默认值不变 ⇒ 评论链零扰动。（0.9.297 删除从未接线的 uploadImages 多图编排——死后即删）
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
 
@@ -89,17 +89,4 @@ export function uploadImage(file, opts) {
     })
     .then(function (token) { return uploadGetUrl(token, bizFlag); })
     .then(function (url) { return url || null; }, function () { return null; });
-}
-
-// 多图编排（0.9.220，动态九宫格用）：**串行**上传（并发会撞图床限流/风控），逐张独立成败——
-// 任一张失败不中断其余（返回数组里该项为 null，调用方据此提示"N 张上传失败"并允许重试单张）。
-// 顺序保证与入参一致（append-only 的九宫格预览靠它）。
-export function uploadImages(files, opts) {
-  var out = [];
-  var list = [].slice.call(files || []);
-  return list.reduce(function (chain, f) {
-    return chain.then(function () {
-      return uploadImage(f, opts).then(function (url) { out.push(url); }, function () { out.push(null); });
-    });
-  }, Promise.resolve()).then(function () { return out; });
 }

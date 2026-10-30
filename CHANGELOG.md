@@ -5,6 +5,40 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.297（2026-10-30）· 结构卫生批——字段契约数据化 + 分类/依赖/文档三道门禁补漏
+
+**病灶（0.9.296 可维护性复核，按 AGENTS 规矩 7 三问归因）**：
+1. `attach.js` 的 slide/item 字段总表只是**注释**，代码里已用到 8 个表外字段
+   （slide `_lastPct/_lastTimeTxt/_descSync/_ctlDmBtn/_dmVideoId`；item `_sprite/_spriteBusy/
+   _qualitiesAll`）——改名/重构不受任何门禁约束。
+2. `check-direction` 只检查已分类的边，`signapi.js`/`signpanel.js` 不在任何桶里 = **零检查**；
+   且 INFRA/API 的注释计数已漂（写 23/8，实 25/11）。
+3. `check-deps` 对图里的未知节点静默 `continue`——README 的 `boot --> pubentry` 死边一直全绿。
+4. README 模块表：route/nativeip 行有未转义竖线、482 行空行截断表格、momentapi/momentdetail
+   挤成一行，且表里缺 11 个模块；`16 个文件`/`522 行` 等易变数字无人守。
+5. `upload.js` 的 `uploadImages` 全仓零引用（早已被 tree-shake），属于死后未删。
+
+**修法**：
+1. 新增 `src/domfields.js`（零依赖叶）：`SLIDE_FIELDS`/`ITEM_FIELDS` 成为字段名单唯一真源；
+   `attach.js` 改为 re-export 并在头注指向它。新增 `test/check-contract.mjs` 扫源码
+   `slide/sl/item/it._字段` 字面量，未登记即红（dmcanvas 的 `it` 是弹幕项，整文件豁免）。
+   连带把 `momentdetail.js` 的局部变量 `slide` 改名 `cell`——它不是 .acsv-slide，避免与契约术语混淆。
+2. `check-direction` 增加**分类覆盖**棘轮：每个 src 必须恰好落在一个桶（`cssraw` 构建期输入 /
+   `devicetab` 生成物显式豁免）；`signapi` 入 API、`signpanel` 入 FEATURE、`domfields` 入
+   LEAF_SHARED；桶计数改为运行时输出，不再写死在注释里。
+3. `check-deps` 新增未知节点即红（聚合名单成员如 `upload` 仍放行）；删除 README 的
+   `boot --> pubentry` 死边。
+4. 新增 `test/check-docs.mjs`：模块表内空行/竖线数/模块覆盖三项机械校验；README 补齐 11 行、
+   修 3 处竖线/空行/合并行，删掉易变计数。
+5. 删除 `uploadImages` 死导出（产品行为零变化；esbuild 本就 tree-shake，产物体积不变）。
+
+**测试**：
+- 三道新门禁 + 两道既有门禁均做**摘修复反跑**：删 `_sprite` 登记 → check-contract exit 1；
+  删 `signpanel` 分类 → check-direction exit 1；插 `boot --> ghostnode` → check-deps exit 1；
+  删 `banpop` 模块行 → check-docs exit 1；恢复后全绿。
+- `npm run lint` 通过；单测 456/456；harness **89 场景 0 失败**；`npm run check` 全链通过
+  （含 tsc）。无界面/版式变化，按 AGENTS 规矩 1 边界不出预览。
+
 ### 0.9.296（2026-10-29）· 档头落位守卫补齐第三档 + 锚点未挂载不再静默降级
 
 **病灶（0.9.295 收尾复核时发现，同一道缝的余漏）**：0.9.295 给「档头被挂到列表末尾」这一类钉了

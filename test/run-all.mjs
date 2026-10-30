@@ -1,6 +1,6 @@
 /*
  * 测试三段并行 runner（0.9.243）——npm test 的新入口：
- * check（静态六步链）/ 单测（node --test）/ harness（Playwright 65 场景）三者互不依赖
+ * check（静态门禁链，条数见 package.json）/ 单测（node --test）/ harness（Playwright 场景，条数见 runner）三者互不依赖
  * （harness 只读预构建产物；check 只读源码/产物；单测只读源码）——串行 ~54.6s 里三段
  * 各自独占等待，并行压到 ~44s（本机 20 核实测全绿；harness 内部并发池 5 不受影响，
  * 三进程同跑未见假红）。CI 仍按步分开跑（.github/workflows/build.yml 不动），本件只服务本地。

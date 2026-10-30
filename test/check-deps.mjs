@@ -59,16 +59,23 @@ for (const m of block.matchAll(/^\s*(\w+)\s*-->/gm)) {
   if (!id2file[m[1]] && nodeFiles.has(m[1] + '.js')) id2file[m[1]] = m[1] + '.js';
 }
 const graphEdges = new Set();
+const unknownNodes = new Set();
+// 聚合成员（others 里列出的模块名）可以出现在边目标上（如 momenteditor -> upload），
+// 它们不是独立图节点，但也不是「未知节点」——0.9.297 加未知检查时按此放行。
+const aggregatedIds = new Set([...aggregated].map((f) => f.replace(/\.js$/, '')));
 for (const m of block.matchAll(/^\s*(\w+)\s*-->\s*(.+)$/gm)) {
   const from = id2file[m[1]];
-  if (!from) continue; // 聚合/未知节点：不参与边比对
+  if (!from && !aggregatedIds.has(m[1])) unknownNodes.add(m[1]); // 0.9.297：未知节点不再静默跳过
   for (const t of m[2].split('&')) {
-    const to = id2file[t.trim()];
-    if (to) graphEdges.add(from + ' -> ' + to);
+    const toId = t.trim();
+    const to = id2file[toId];
+    if (!to && !aggregatedIds.has(toId)) unknownNodes.add(toId);
+    if (from && to) graphEdges.add(from + ' -> ' + to);
   }
 }
 
 const bad = [];
+unknownNodes.forEach((id) => bad.push('依赖图边引用了未知节点：' + id + '（节点/聚合名单都不存在）'));
 const graphFiles = new Set(Object.values(id2file));
 // ① 模块漏进图
 for (const f of files) {

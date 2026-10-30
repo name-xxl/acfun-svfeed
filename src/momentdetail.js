@@ -53,14 +53,14 @@ function carouselOf(pi) {
   var track = el('div', 'acsv-mdcar-track');
   var dots = [];
   pi.imgs.forEach(function (im) {
-    var slide = el('div', 'acsv-mdcar-slide');
-    imgInto(slide, im.url, 'grid');
-    slide._big = im.big || im.url;
-    slide.addEventListener('click', function (ev) {
+    var cell = el('div', 'acsv-mdcar-slide');
+    imgInto(cell, im.url, 'grid');
+    cell._big = im.big || im.url;
+    cell.addEventListener('click', function (ev) {
       ev.stopPropagation();
-      openImageViewer(slide._big);
+      openImageViewer(cell._big);
     });
-    track.appendChild(slide);
+    track.appendChild(cell);
   });
   box.appendChild(track);
   function go(i) {

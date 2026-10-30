@@ -340,17 +340,20 @@ npm run watch        # 监听 src/ 变更自动重建
 npm test             # 静态一致性校验 + 单测 + 无头 harness 全场景（需先 npx playwright install chromium，
                      #   没装时本机自动回退系统 Edge）
 npm run check        # 仅静态校验（CI 在 build 后跑）：场景登记双向对齐 / 版本号-产物-CHANGELOG
-                     #   三者一致 / 依赖图不缺边（含整图环检测）/ 接口侦察文档不入公开仓 /
-                     #   方向卫生棘轮（未登记反向边即红，0.9.187 起）/ 全局监听器卫生
+                     #   三者一致 / 依赖图不缺边且无未知节点（含整图环检测；0.9.297 起未知节点即红）/
+                     #   接口侦察文档不入公开仓 / 方向卫生棘轮（未登记反向边即红，0.9.187 起；
+                     #   0.9.297 起每个 src 必须显式分类）/ 全局监听器卫生
                      #   （window/document 监听未撤且未标 singleton-listener 即红，0.9.264 起）/
                      #   偏好写点棘轮（pb 记忆字段唯 playback.js 可写，0.9.285 起）/
+                     #   文档机械事实（模块表覆盖/竖线/空行，0.9.297 起）/
+                     #   slide/item 字段契约（唯 domfields.js 可登记，0.9.297 起）/
                      #   契约面类型检查（tsc，0.9.188 起）
 npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSDoc 查类型；单跑用）
 ```
 
 测试设施（0.9.81 工程化）：
-- `test/cases/*.js`——harness 场景体（**16 个文件**按域拆分：feed/stall/views/play/deeplink/upd/msg/boot/settings/member/relation/favfolders/hls/jingxuan/layer-list/related），
-  `test/harness.html` 只留公共件与分发器（~200 行）；场景里加断言改 cases 文件，新增场景记得
+- `test/cases/*.js`——harness 场景体（按域拆分，文件清单以目录为准：feed/stall/views/play/deeplink/upd/msg/boot/settings/member/relation/favfolders/hls/jingxuan/layer-list/related 等），
+  `test/harness.html` 只留公共件与分发器；场景里加断言改 cases 文件，新增场景记得
   同步 `run-harness.mjs` 的 HARNESS_CASES（双向漏登记由 `test/check-cases.mjs` 拦截）。
 - `test/run-harness.mjs`——无头驱动：**全部场景同池并发**（0.9.203 起；默认 min(6, 核数/4)，
   `HARNESS_CONC` 可覆盖；夹具计数按 `pid` 隔离），本机 20 核实测全场景约 **37s**（此前串行独占口径 2m11s）。
@@ -384,7 +387,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `appapi.js` | APP 家族接口层：selection feed（游标）、douga/playInfo 懒解析、投蕉/评论点赞、弹幕 list/add、api_st 令牌（播放档位策略已剥离到 quality.js）。**postForm（页面 fetch 表单通道）在本件，收藏/关注域已迁 favapi/relationapi 但仍经它发**（0.9.143 迁出登记在文件头） |
 | `quality.js` | 播放质量策略（零网络）：编码偏好过滤 HEVC/AVC、清晰度记忆选档；appapi 取档、它选档 |
 | `feedstore.js` | 信息流数据仓库（游标泵，空间页列表上下文按序泵入；home 条目允许空 urls 懒解析；0.9.165 水位 slim：cur 背后 N 条外置瘦 urls/qualities，划回经 ensureResolved 重解析） |
-| `route.js` | `#svfeed[/v|a/<id>]`、`#svfeed/play/<v|a>/<id>`（0.9.74 播放层：view=play + src 标记、**不填 mid**）路由解析、地址栏同步与深链意图（appliedMid/cancelHashSync） |
+| `route.js` | `#svfeed[/v\|a/<id>]`、`#svfeed/play/<v\|a>/<id>`（0.9.74 播放层：view=play + src 标记、**不填 mid**）路由解析、地址栏同步与深链意图（appliedMid/cancelHashSync） |
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`toast`/`a11y`（title+aria-label 同源）/剪贴板/样式注入等工具。**0.9.258（审计批②）**：全量 CSS 原文搬到 `cssraw.js`（构建期输入，只被 `build.js` import），产物里以 deflateRaw+base64 内嵌串（`window.__ACSV_CSS_SRC__`）携带——styles.js 求值即解包（`pack.unpackText`）+ 回填 `SEAMS` 表 13 缝 + 主色替换，runtime CSS 与压缩前逐字节相同 |
 | `cssraw.js` | 全量 CSS **模板**（0.9.258，审计批② P0-1）：原 `styles.js` 的 RAW_CSS 字面量链整段迁移，23 处 CFG 插值 + 1 处 `IMGVIEW_CSS` 拼接改成 `'{{缝名}}'` 标记（缝表在 styles.js 一处）。**构建期输入**（同 `node_modules/hls.js` 的定位）——**只许 build.js import**，随产物发布的模块一律不得引它（真引了 ⇒ 产物里重新出现 `'{{'`，`check-release` 即红）。改样式改这里 |
@@ -398,7 +401,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `devname.js` | 设备型号美化（0.9.246，Web-IP 吸收批次②，路线图 Phase 5）：评论「来自 x」内部代号（`RMX3619`/`iPhone3,1`）→ 友好名（真我 V30 / iPhone 4）。四级匹配（精确 → 大小写 → 去尾字母 → 前缀包含）+ 查找缓存（上限 500 最旧 20% 淘汰）逐字移植 Web-IP 56-device.js；接线口 `devTag(a, model)` 由 comments.cmtOpts 经 `opts.devTag` 注入 commentkit（同 ipTag 纪律）——**只换锚文本**（href/结构不动）、未收录兜底原文、命中映射才挂点击切换（友好名 ⇄ 原文，照抄 Web-IP）。用户层读 Web-IP 同键 `acr_device_models`（只读兼容；导入/导出/重置 UI 0.9.250 随原生面板落地），**合并语义升级**＝内置先、用户条覆盖（反转其「快照顶掉内置」）。设置项 devName 在 SCHEMA 评论组。**0.9.255 数据优化专项**：内置表全品牌 4,031 条 + deflateRaw+b64 压缩内嵌（`unpackDeviceTab` 惰性解包，hls 同款长度校验，0.9.258 起解包本体走 `pack.unpackText` 单源；解包失败回落空表、用户层仍可用） |
 | `devicetab.js` | 设备型号内置表（**生成物，勿手改**；0.9.255 起全品牌手机+平板 4,031 条，deflateRaw+base64 压缩内嵌：`DEVICE_TAB_PACKED`/`DEVICE_TAB_LEN`/`DEVICE_TAB_COUNT`，运行时经 devname.unpackDeviceTab 惰性解包）：由 `tools/gen-device-data.js` 从 KHwang9883/MobileModels + Apple 表生成（多源解析 → 名称机械归一 → 同码多名自动裁决，零人工清单）；数据 **CC BY-NC-SA 4.0**，与 MIT 分声明（见「设备型号数据许可」段）；再生成：`node tools/gen-device-data.js <MobileModels 数据目录>` |
 | `natpanel.js` | IP 面板（0.9.250 生 / 0.9.253 两主题+全站接通；Web-IP 吸收 6c，路线图 Phase 6）：点击任意 IP 标签弹出——**结构单源、两主题只换 token**（NATIVE_PANEL_CSS 段）：浅色＝Web-IP 面板资产收敛版（原生页 `.acsv-nip` 入口）；**深色＝token 对齐齿轮面板家族**（脚本页 `.acsv-cip` 入口，用户裁决）。结构＝资料卡（用户名/UID/IP属地/查询于，iploc.entryOf 直读）+ **评论域 SCHEMA 表驱动**（`nativeItems()`＝panel ∧ native 标记）+ 缓存管理（acr_uids 导出/导入/清空二次确认）+ 设备数据（导入文件·粘贴/导出/重置，devname 用户层）。**0.9.253 精简**：设置行单行式（原 hint 文案转入 label 悬停 title）/ 组标移除 / 页脚只留 `v{APP_VERSION}`；开关 34×18（两主题同几何）。**0.9.254 入浮层栈**（`overlayOpen` modal：Esc 单点关栈顶、真键盘走 overlay capture；自家按键监听只兜**原生页合成事件**——判据「无 #acsv-root 壳」，脚本页若抢关会把栈内视图层连带关掉，复核实证在册）。Esc/遮罩关闭即 flushSettings；剪贴板走 ui.copyText |
-| `nativeip.js` | 原生页评论 IP + 设备（0.9.248/0.9.249/0.9.251，Web-IP 吸收 6a+6b，路线图 Phase 6）：评论区**两种显示模式**——「默认模式」＝`[data-commentid]` 统一组件（视频/文章/动态详情三面同款）+「**盖楼模式**」（用户可切换，`ac_usp_commMode` 1/2；根 `.main-comment-item` + 楼层块 `.fc-comment-item` + `a.name[data-uid]`、回包 `listByFloor`--commentsMap 形）——拦截层（fetch/XHR hook → commentId|cid→userId 映射，路径变清表）+ DOM 兜底链（a[data-userid] → a.name[data-uid] → /u/ 链接 → 头像 src，**Web-IP 24 项单测等值迁移**）+ 可见优先注入（IO 200px/入视口即 unobserve → `iploc.resolveFor` 共享核 → `.acsv-nip` 浅色段，tooltip 同源；盖楼注入点 `.comment-item-footer-left` 间距 8px）+ 重画补注（MutationObserver 300ms 重扫，缓存制）+ SPA 路由清映射 + 设备美化（`.deviceModel` → devname.devTag 单源，两模式同款锚，手动态尊重）+ 专属挂点（6b）：用户主页 `/u/` 资料卡「IP属地：x」（common-info 类复用站内定位）、个人中心 `/member` 动态条目的 `.feed-time`（closest 两跳爬链真机核过）。**修正 port**：Web-IP IO 先 unobserve、uid 提取失败即永久漏 → 我们失败不放弃、有界重观察重试 |
+| `nativeip.js` | 原生页评论 IP + 设备（0.9.248/0.9.249/0.9.251，Web-IP 吸收 6a+6b，路线图 Phase 6）：评论区**两种显示模式**——「默认模式」＝`[data-commentid]` 统一组件（视频/文章/动态详情三面同款）+「**盖楼模式**」（用户可切换，`ac_usp_commMode` 1/2；根 `.main-comment-item` + 楼层块 `.fc-comment-item` + `a.name[data-uid]`、回包 `listByFloor`--commentsMap 形）——拦截层（fetch/XHR hook → commentId\|cid→userId 映射，路径变清表）+ DOM 兜底链（a[data-userid] → a.name[data-uid] → /u/ 链接 → 头像 src，**Web-IP 24 项单测等值迁移**）+ 可见优先注入（IO 200px/入视口即 unobserve → `iploc.resolveFor` 共享核 → `.acsv-nip` 浅色段，tooltip 同源；盖楼注入点 `.comment-item-footer-left` 间距 8px）+ 重画补注（MutationObserver 300ms 重扫，缓存制）+ SPA 路由清映射 + 设备美化（`.deviceModel` → devname.devTag 单源，两模式同款锚，手动态尊重）+ 专属挂点（6b）：用户主页 `/u/` 资料卡「IP属地：x」（common-info 类复用站内定位）、个人中心 `/member` 动态条目的 `.feed-time`（closest 两跳爬链真机核过）。**修正 port**：Web-IP IO 先 unobserve、uid 提取失败即永久漏 → 我们失败不放弃、有界重观察重试 |
 | `iploc.js` | 评论 IP 属地查询层（0.9.245，Web-IP 吸收批次①，路线图 Phase 5）：uid → 属地（`userInfo` 回包 `profile.ipLocation`，需登录态；契约 docs/api-research.md §12）。**单层 uid 缓存**沿用老键 `acr_uids` 同 key 同形状（Web-IP 老用户数据零迁移，D8）+ 串行限流 200ms + 负缓存分级（无属地 6h / 网络错 10min）+ 写防抖 2s + 上限 5000 最旧淘汰 + pagehide 兜底落盘；接线口 `tagInto(meta, uid)` 由 comments.cmtOpts 经 `opts.ipTag` 注入 commentkit（kit 不 import 特性模块的纪律）——命中同步上屏/**未命中进入视口才排队回填**（0.9.247，广场 backfillIO 同款视口渐进）/空属地不渲染；设置项 ipShow/ipKeep 在 SCHEMA 评论组（Web-IP 老保留期键 `acr_days` 一次性收养） |
 | `comments.js` | 评论抽屉（sourceType 按 item.stype 分发 5/3/4、楼中楼、分页、评论点赞；UBB/表情/大图查看器/输入栏已拆出）。0.9.96 管线 **host 化**：DOM 宿主显式化（默认=抽屉单例，动态详情面板灌入同款三元组），`openCommentsHost`/`closeCommentsHost` 为面板入口，输入条三件套随宿主迁移；0.9.133 条目构建/楼中楼展开**下沉 commentkit.js**（本文件只留管线：状态/宿主/输入条/委托/乐观插入/翻页）；0.9.245 起 cmtOpts 增 ipTag（属地接线口，三宿主+乐观插入全覆盖） |
 | `commentkit.js` | 评论条目 kit（0.9.133 自 comments.js 拆出，逐字搬运零逻辑改动）：`commentItemOf` 条目构建**单源**（头像/名字/正文 UBB/meta/赞·回复·转发三键/楼中楼递归）+ `expandSubComments`「展开 N 条回复」分页件——**无状态**（mode/sourceId/stype 经 opts 注入，原直读全局 commentState 的三处已去）；点击行为归消费方委托（`_c/_n/_target` 契约原样保留）。消费方：comments.js 三宿主（抽屉/行内/详情面板）。全项目评论条目渲染只此一处（审计在册）；**0.9.134 观感五项在此落地**：名字等级色（nameColor 2紫/1红）、头像框**仅根评论**（thumbnailImageCdnUrl → cdnUrls[0].url）、设备「来自 x」、楼层**仅根评论**、楼中楼「回复 @名 :」前缀（replyToUserName↔replyToName 双读）；已赞态三读含 isLiked（真机字段实锤）；**0.9.138 版式全语境统一**（撤 0.9.135 的 form 分派）：抽屉/详情/广场页/关注页与内嵌原生页**同码**——50px 头像（框 80×70/-15）、条目 18px 顶距扁平无 hover、名字 12px、「发表于 x」入名字行、楼中楼 30+700、「共 N 条回复, 点击查看」；皮肤只差颜色（深色基础值 / `.acsv-mp` 浅色）；0.9.136 条目间分割线（仅根，白 7%/#e6e6e6）+ 元信息件整件换行防逐字断；**0.9.137 撤除「UP」标**（真机核对：原生 pc 评论组件在视频/文章/动态三域均无 UP 标识） |
@@ -416,7 +419,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐；画布取**播放器区域内居中的 16:9 区**，与稿件比例无关——原生同口径（0.9.205）；0.9.204 起另一条通道画高级弹幕——绝对定位不进轨道/位图缓存）；**0.9.285 弹幕组订阅**：SCHEMA「弹幕」组全键 onChange → `refreshAllLayers`（与恢复默认同源派生，新增弹幕键自动进订阅；dmpanel 逐写点手搓 apply() 退役） |
 | `advdm.js` | 高级弹幕模型核·零依赖纯函数（0.9.204）：`parseAdvanced`（ext JSON → 模型）/`easeProgress`（CSS 关键字 + cubic-bezier 牛顿迭代+二分兜底，非法值回落 linear）/`interpolateModel`（多段帧插值）/`drawModel`（九宫格锚点/多行/描边/影子）。真机口径见 docs/api-research.md §10.13（本地留档） |
 | `danmaku.js` | 弹幕编排：列表拉取/缓存、开关记忆、绑定/解绑 slide、发送输入条；**高级弹幕取池**（0.9.204：pollByPosition 跟播放头 20s 窗口增量拉——list 链路一条高级弹幕都不返回）；0.9.285 起 `dmEnabled()` 直读设置层（影子变量+onChange 回填的第二真源退役） |
-| `player.js` | 播放器编排层：renderWindow 窗口扫描（0.9.165 起窗外 belt 格 slide 换等高占位壳、数据水位同拍）、setActive、顶栏源高亮同步、挂载/卸载、观看历史触发；0.9.79 播放层直达不预热竖刷（feedDeferred/maybeStartFeed）。**0.9.271**：SESSION_HOOKS/画幅判断迁 `sessionhooks.js`；**0.9.272**：落地/吸附/scrollToIndex 迁 `feedland.js`（本件只留装配与调用点，522 行） |
+| `player.js` | 播放器编排层：renderWindow 窗口扫描（0.9.165 起窗外 belt 格 slide 换等高占位壳、数据水位同拍）、setActive、顶栏源高亮同步、挂载/卸载、观看历史触发；0.9.79 播放层直达不预热竖刷（feedDeferred/maybeStartFeed）。**0.9.271**：SESSION_HOOKS/画幅判断迁 `sessionhooks.js`；**0.9.272**：落地/吸附/scrollToIndex 迁 `feedland.js`（本件只留装配与调用点） |
 | `sessionhooks.js` | 会话回接钩子（0.9.271 自 player.js 拆出，逐字搬迁）：`initVideo`/`currentIdx`/`play`/`onResolved`/`qualitySwitch`/`refreshItem`/`reattach`/`onAttachPlay`/`onPlaying`/`onPause`/`onMeta`/`onTime`/`onEnded`/`onDisposed` + `videoStageVisible` + `syncPanFit`；session.js 只认状态机，控件条/弹幕/连播/上报/挂源在此回接。initVideo 同设 defaultPlaybackRate（0.9.282：video.load() 的媒体装载算法会把 playbackRate 重置回 defaultPlaybackRate，只设 playbackRate 的话新会话倍速永远落回 1x）。仅由 player 经 `createSessionHooks({ scrollToIndex })` 装配，不 import player；归类 SKIP_B（组合根/编排层） |
 | `feedland.js` | 舞台落地/吸附（0.9.272 自 player.js 拆出，逐字搬迁）：issue #1 两条防线——`landAt`/`landWhenVisible`/`scrollToIndex`（瞬时落位+8 帧 settle，防 auto 撕 smooth 停在半途）与 `snapWatchTick`/`start/stopSnapWatch`（600ms 采样，静止且不在吸附点 → 按手势方向补齐，频控 2s）。舞台/仓库/渲染回调经 `createLandKit(env)` 注入，不 import player；归类 PLAY。现有 `land-near` 钉 `land.stuck`/`land.heal`/`land.trunc`/`land-heal-on-snap` |
 | `session.js` | 播放会话：video 生命周期/懒解析等待/hls 实例与锁档/错误恢复链（换 CDN→重解析→重挂）/HealthMonitor（冻结/慢放检测与恢复阶梯），dispose 一次拆净 |
@@ -479,7 +482,6 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `squarefeed.js` | 广场流列表机械工厂（0.9.128 自 squareview.js 抽出，逐一搬运零逻辑改动）：加载/append-only 等五条不变量/24h 窗口消费/发现态轮询/**回填（0.9.228 起以视口触发为主）**/骨架/三态状态行/触底翻页/回顶/debug 探针；宿主注入 root / scrollEl（元素或 window）/ backTopHost / onOpen（行落点）/ onRow（行后处理）。消费方：squareview（深色广场页）与 memberplaza（原生页内嵌浅色）。**0.9.218 起数据源/文案/阈值可注入**（`fetchPage`/`emptyText`/`poll:false`/`view`，默认值＝原行为）——个人动态流（我的页/空间页）复用同一套机械，零漂移证据=view-square 与 member-plaza 场景全绿 |
 | `memberplaza.js` | 原生 /member 页「动态广场」入口 + 内嵌广场（0.9.128；0.9.129/130/131/132 真机迭代）：成员导航注入入口（**0.9.132 起不再注入 /member/feeds 推广条**——用户裁决「多余的设计」，入口已在导航内；旧脚本残留条幅随接管清扫）；点击决策**以宿主存在为准**——宿主在场就地展开，feeds 子页（/following、/fans）与他人个人中心页走 auto_enter：GM 旗标 + 跳 /member/feeds 落地自动展开；点击**就地展开**（原生子节点隐藏、收回即复原；squarefeed 单源 + `.acsv-mp` 浅色皮肤；行点击不动作=原页语义、行右上 am 号锚、分享/评论/赞蕉/表情/图片全走 svfeed 单源）；0.9.47「其他页不注入」的**限定反转**（只 /member 路径）；**真机加固**（个人中心是 Vue Router SPA）：悬空恢复（展开态被重画吞掉→再点先清态再重开）、SPA 自愈（body 级观察+防抖，入口被吞自动补回）、接管旧 plaza（移除其入口/推广条后注入自有）；0.9.131 入口选中态=镜像原生 active 类名（router-link-exact-active + ac-member-navigation-item-active，字色/字重与原生选中项同款，非自绘） |
 | `followstream.js` | 关注语境「视频」侧（0.9.99）：FollowVideos 列表上下文（UpVideos 通道先例）——followDougaFeed 后台分页链（§2.1.2：固定 10/页、终页 no_more）→ 深链 `svfeed/a/<acId>` 接管宿主竖刷舞台 → feedstore 泵按列表灌入（`ctx.info` 自带 home 家族 resolve，非 m3u8 直链绕 hls）；`isFollowContext()` 是顶栏 seg 显隐与徽标不点亮的单源判据；enterVideos 原地续看不重置缓冲 |
-
 | `feedctx.js` | 列表上下文工厂（0.9.106）：`createFeedContext`（8 核心字段+reset 单源，UpVideos/FollowVideos 同源生成）+ `runChain`（链式加载状态机单源：上限/间隔/done/failed/chainCapped 判定一处）+ **注册表单活互斥**（activateContext 清其余——空间页/关注视频流互踩修复） |
 | `followseen.js` | 关注已读水位（0.9.139，**零依赖叶子**）：`seenAt`/`setSeen`/`ensureSeen`/`markSeen`（GM `acsvFollowSeenAt`，无 GM 内存降级）。抽件动机=水位被三处共写（徽标轮询 + followview 首屏 + followstream 进视频侧）而 followbadge 已依赖 followstream，留在徽标域即环；实锤缺口=只靠 poll 写水位时"访问短于轮询闸门（≤60s）会在离开后复亮" |
 | `relationapi.js` | 关注域读写接口（0.9.142）：getGroups / listFollows（action=9 组内·7 全部；**偏移量游标**、终值 no_more）/ followUser·unfollowUser·regroup（action 1/2/3）/ createGroup（优先取响应 groupId、差集兜底）·removeGroup·renameGroup；写链走 appapi.postForm（页面 fetch 通道，风控友好）；URL 逐字护 mock 缝（docs §2.2/§2.5/§2.6） |
@@ -489,7 +491,8 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `pickpop.js` | 通用「选择层」壳（0.9.142，零业务）：标题 + 单选/多选列表 + 内联新建 + 底键（确定/取消/附加动作）+ `openConfirmPop` 二次确认；**定位全权交 popplace.anchorPlaceOf**（本件只取 rect + 落位；0.9.149）；外点收起走 `ui.closeOnOutsideClick`（0.9.147）。消费方：grouppop/favpop |
 | `grouppop.js` | 关注分组选择层语义件（0.9.142）：未关注=「选择分组」（默认勾未分组≈原一键，可新建）；已关注=「更改分组」（**不预选**防误移 + 层内「取消关注」）；改分组必须 action=3（实测 action=1 对已关注用户不改归属）。消费方：rail 关注角标 + 搜索 UP 卡一键关注（我的页成员行 0.9.289 起改走 followadmin 页面内模态，不再经此件） |
 | `favpop.js` | 收藏夹选择层语义件（0.9.143）：多选勾选 + 行内新建 + **三分支提交**（未收藏=add（默认勾第一个夹）/ 有改动=updateFolder 差集 / 全取消=remove）；`done(res)` 回 `{ favorited, ids }`（0.9.148 实锤：缺 ids 时我的页「移动」会抛且卡不摘除） |
-| `momentapi.js` | 动态域读接口（0.9.106 收口；0.9.107 unreadCount 退役）：listMoments（followFeedV2）/listVideos（followDougaFeed，规整走本域 followVideoPageOf）/listSquare（feedSquare 免登录广场流，首页不传游标；规整走本域 squarePageOf，0.9.125）/**listProfile（0.9.218：feed/profile UP 个人主页动态流——免登录、任意 uid、三合一混排，规整走本域 profilePageOf：**无 24h 窗口**，条目复用契约层 follow 解析器）**/momentDetail（单条详情，pc-direct 带 Cookie；**回填**用：0.9.228 起视口触发、0.9.230 起唯一触发——正文与互动态一起补，≤3h 新鲜度已退役）/momentPageUrl；URL 形态逐字保持（mock 缝）；评论管线/写链不入（边界登记） || `momentdetail.js` | 动态详情面板（0.9.96 起；0.9.103 小红书式两栏；0.9.105 轮播+共存）：按内容型换布局——有 imgs（**图像权威=imgs**，0.9.105）两栏（左媒体黑底台 / 右 `.acsv-mdetail-side` 400）+**多图轮播**（track translate3d/60×60 箭头/底点/滚轮 preventDefault 逐格，XHS 实测 2026-10-04），无图/转发单栏 min(620px)；✕ 浮卡片外右上；正文 16/24；评论标题「共 N 条评论」（comments 管线 titleFmt）；互动栏（momentbar 共享件 skin=detail 四键）留内容底部；管线 host.el 两栏态指右栏（stype=4）；**不占 claimDrawer 槽**（私信抽屉共存+acsv-with-comments 左移避让，0.9.105）。**光 DOM 有意偏离 intake**（评论 CSS 单源，登记在模块头）；与评论抽屉共用 overlay 'comments' 层位 |
+| `momentapi.js` | 动态域读接口（0.9.106 收口；0.9.107 unreadCount 退役）：listMoments（followFeedV2）/listVideos（followDougaFeed，规整走本域 followVideoPageOf）/listSquare（feedSquare 免登录广场流，首页不传游标；规整走本域 squarePageOf，0.9.125）/**listProfile（0.9.218：feed/profile UP 个人主页动态流——免登录、任意 uid、三合一混排，规整走本域 profilePageOf：**无 24h 窗口**，条目复用契约层 follow 解析器）**/momentDetail（单条详情，pc-direct 带 Cookie；**回填**用：0.9.228 起视口触发、0.9.230 起唯一触发——正文与互动态一起补，≤3h 新鲜度已退役）/momentPageUrl；URL 形态逐字保持（mock 缝）；评论管线/写链不入（边界登记） |
+| `momentdetail.js` | 动态详情面板（0.9.96 起；0.9.103 小红书式两栏；0.9.105 轮播+共存）：按内容型换布局——有 imgs（**图像权威=imgs**，0.9.105）两栏（左媒体黑底台 / 右 `.acsv-mdetail-side` 400）+**多图轮播**（track translate3d/60×60 箭头/底点/滚轮 preventDefault 逐格，XHS 实测 2026-10-04），无图/转发单栏 min(620px)；✕ 浮卡片外右上；正文 16/24；评论标题「共 N 条评论」（comments 管线 titleFmt）；互动栏（momentbar 共享件 skin=detail 四键）留内容底部；管线 host.el 两栏态指右栏（stype=4）；**不占 claimDrawer 槽**（私信抽屉共存+acsv-with-comments 左移避让，0.9.105）。**光 DOM 有意偏离 intake**（评论 CSS 单源，登记在模块头）；与评论抽屉共用 overlay 'comments' 层位 |
 | `momentpost.js` | 动态发布域（0.9.220 数据面）：`momentParams(content, opts)`＝组 params JSON（content/imgs/shareResourceType/visibleForFans + 转发族 repost*：动态=repostMomentId、视频/文章=repostResourceType+repostResourceId）/ `momentCharCount`（**原始长度**口径，服务端 140000 为准）/ `dimsOf`（写侧自量尺寸）/ `postResultOf`（错误码 0/21/-401/140000/140002 → 话术键）/ `addMoment`+`deleteMoment`（走 `net.request`：真机＝GM 通道且命中 harness mock 缝）。契约 docs §11；**未实测项**：bizFlag 复用、转发字段必填组合、风控 |
 | `momentbar.js` | 动态互动栏共享件（0.9.105）：行流卡与详情面板同键定义表（分享/评论/蕉/赞）+ 写链编排单源（乐观回滚/投蕉锁/动态单蕉/视频文章数量层），skin 分皮肤（尺寸/类名由 CSS 按根类作用域）；键出口经 opts 注入（行流=原位评论+place 分享；面板=滚动聚焦评论+右贴分享） |
 | `followbadge.js` | 关注未读徽标（0.9.97；0.9.107 时间水位线；**0.9.139 水位抽件 followseen**）：徽标=自水位（GM）以来 followFeedV2 首屏 `createTime > 水位` 的新条数——旧 webPush followUpers 布尔是服务端长期不清标记（实测清不掉⇒固定数字复亮），已退役；**正式推进点=各入口首屏到达时 `followseen.markSeen`**（followview 首屏成功 / followstream 进视频侧），poll 的 in-view 分支退化为兜底（吸收停留期新内容）；退避真逐次翻倍 60s→10min 纯函数；hidden 短路/未登录静默；挂 player.mount/unmount |
@@ -497,6 +500,16 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/other——boot 运行分流的唯一判据（判据与 uppage 的 `/u/\d+` 逐字一致，单测钉一致性） |
 | `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）＋0.9.278 `guestRead`（非个性化推荐，隐私组）；`onChange` 订阅让消费方零反向依赖地即时生效 |
 | `settingspanel.js` | 脚本页设置皮肤（0.9.89）：dock 齿轮 → `openSettings()` → overlay 栈（modal，Esc 白拿）；host + **Shadow DOM** 作用域样式（量取值与日期在文件头注释）；控件按 schema 表驱动（bool 开关 / select 下拉 / number 步进器）；**0.9.253 页脚补版本号**（`v{APP_VERSION}` 左置 + 「完成」右置，与 IP 面板页脚同源）；原生页皮肤＝`natpanel.js`（见其行） |
+| `banpop.js` | 投蕉数量层（0.9.104 自 rail 抽出）：默认全灰，悬停第 N 根点亮 1~N，点第 N 根投 N；已投锁定蕉黄。消费 rail/followview/momentbar。 |
+| `domfields.js` | slide/item 跨模块 `_xxx` 字段的**唯一登记处**（0.9.297，零依赖）：`SLIDE_FIELDS`/`ITEM_FIELDS` 数据表；`check-contract` 扫源码未登记字段即红。读/写方说明仍在 attach.js。 |
+| `listtail.js` | 列表尾部件（0.9.219）：触底哨兵 + 三态状态行 + 回顶按钮单源；消费 followview/followadmin/mytabs/squarefeed/searchview/zone/jingxuanview。 |
+| `nameval.js` | 组名/夹名校验（零依赖叶）：与原生 bundle 正则逐字符一致；消费 grouppop/favpop/followadmin/mytabs。 |
+| `signapi.js` | 签到域（0.9.277）：双链写 + 签到日历 + 黄历；消费 mypage。 |
+| `signpanel.js` | 签到黄历弹窗（0.9.277）：App 式 3:4 卡 + 规则翻面；0.9.298 起入 overlay 栈，关闭归视图 teardown。 |
+| `timefmt.js` | 时间/计数文案纯函数（零依赖叶）：`fmtAgo`/`fmtDate`/`fmtWan`/`relTime`；契约层、卡片与评论共用。 |
+| `ui.js` | `el`/`esc`/`toast`/`a11y`/剪贴板/样式注入等工具（被几乎全部 UI 模块引用）。 |
+| `uplook.js` | 作者观感映射（等级色/署名颜色，零依赖叶）；消费 rowkit/commentkit/momentdetail。 |
+| `uppage.js` | UP 主空间页小视频区块（m 站 pagelet 抓取）；0.9.218 起注入/切换/排序/自愈收口 spacetab。 |
 
 ### 模块依赖图
 
@@ -534,6 +547,7 @@ flowchart LR
     meadmin["meadmin.js（我的页档头+管理模态共用·mehead+openManageModal）"]
     lifecycle["lifecycle.js（监听器作用域·per-mount 监听登记/一次摘净）"]
     contract["contract.js（关键端点形状守卫·缺形状计数不抛错）"]
+    domfields["domfields.js（slide/item 字段契约数据·零依赖·0.9.297）"]
     dbg["dbg.js（调试埋点）"]
   end
 
@@ -638,7 +652,7 @@ flowchart LR
   quality --> settings
   appapi --> imgurl & timefmt
   session --> api & hls & settings
-  attach --> feedstore & quality & session & settings
+  attach --> feedstore & quality & session & settings & domfields
   player --> api & attach & comments & danmaku & errbox & feedland & feedstore & followstream & imbadge & imdrawer & input & overlay & pb & playlayer & release & sessionhooks & settingspanel & sidebar & topbar & uppage & views
   sessionhooks --> attach & danmaku & feedstore & pb & playlayer & views
   feedstore --> api & feedctx
@@ -652,8 +666,7 @@ flowchart LR
   mypage --> pubfab
   squareview --> pubfab
   sharepanel --> momenteditor
-  boot --> pubentry
-  pb --> feedstore & settings
+    pb --> feedstore & settings
   ubb --> emoticon
   playlayer --> api & attach & cards & comments & errbox & levelstack & playgest & reldrawer & relatedapi & viewreg
   levelstack --> playstate & playitem

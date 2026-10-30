@@ -607,3 +607,17 @@ feedstore.js → player.js → input.js → feedstore.js
   基建/零依赖叶/已入表特性共享件 cards/listtail/overlay——overlay 归 INFRA，接口层 relationapi
   为合法向下），三口径 0 条。
 - 复点：`node test/check-direction.mjs` 0/0/0。
+
+## 0.9.297：结构卫生批（字段契约数据化 + 分类/依赖/文档门禁补漏）
+
+- **新增模块**：`src/domfields.js`（零依赖叶）——`SLIDE_FIELDS`/`ITEM_FIELDS` 成为 slide/item
+  跨模块字段名单唯一真源；`attach.js` re-export 并在头注指向它。新增
+  `test/check-contract.mjs`（源码 `slide/sl/item/it._字段` 扫描，未登记即红）与
+  `test/check-docs.mjs`（模块表空行/竖线/覆盖）。
+- **分类补漏**：`signapi.js` 入 **API**、`signpanel.js` 入 **FEATURE**、`domfields.js` 入
+  **LEAF_SHARED**；`cssraw.js`（构建期输入）与 `devicetab.js`（生成物）显式豁免。
+  `check-direction` 起要求**每个 src 恰好一个桶**，桶计数运行时打印（删除写死 23/8）。
+- **依赖门禁**：`check-deps` 对图边未知节点由静默跳过改红；聚合成员（如 `upload`）仍放行。
+  README 删除 `boot --> pubentry` 死边，新增 `domfields` 节点与 `attach --> domfields` 边。
+- **复点**：`node test/check-direction.mjs` 分类覆盖 25/12/8/61/3/20 + 豁免 2（src 131），
+  三口径 0/0/0；`check-deps` 417 图边 / 695 import 边 OK。
