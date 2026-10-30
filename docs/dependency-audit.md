@@ -389,7 +389,10 @@ feedstore.js → player.js → input.js → feedstore.js
   momentapi 实际从未登记过。本批按域传输归接口层，注释同步改为"接口层的 momentapi（读域）"。
 - **反跑/证据**：本批只做登记（不改任何 import 边），门禁本身即证据——若某 FEATURE 成员的入边
   来自非特性来源，口径 B 立即翻红（0.9.259 的"四件被卡"表就是历史反证）。
-- **未做的**：`deleteMoment`/`uploadImages` 仍不删。复读后判定它们不是"漏删的死代码"而是
+- **未做的**：~~`deleteMoment`/`uploadImages` 仍不删~~ **均已销账**——`deleteMoment` 于
+  0.9.279（c28d6c4「接线包」）接进动态详情（「⋮」确认弹层 → `deleteMoment(pi.momentId)`，
+  `onDeleted` 回调驱动列表移除）；`uploadImages` 于 0.9.297（4bb12b4）裁决「死后即删」
+  （多图上传不做，实现出仓，`src/upload.js` 头注在案）。当时判定照录："漏删的死代码"而是
   **已设计未接线**的 API（文件头与 CHANGELOG 都记着设计意图：动态删除、九宫格多图上传），
   删掉等于丢弃已完成的实现；真要清，应先裁决"这两个功能还做不做"，再连 README/CHANGELOG 一起改。
 
