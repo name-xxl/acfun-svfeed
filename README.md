@@ -348,6 +348,7 @@ npm run check        # 仅静态校验（CI 在 build 后跑）：场景登记�
                      #   文档机械事实（模块表覆盖/竖线/空行，0.9.297 起）/
                      #   浮层键盘监听白名单（新浮层只许 overlayOpen，0.9.298 起）/
                      #   空态/列表失败文案单源（liststate.setEmpty / pageloader 常数，0.9.300 起）/
+                     #   z 档实体↔注释一致性 + gridMin/gridGap→SEAMS 消费闸（0.9.303 起）/
                      #   slide/item 字段契约（唯 domfields.js 可登记，0.9.297 起）/
                      #   契约面类型检查（tsc，0.9.188 起）
 npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSDoc 查类型；单跑用）
@@ -399,7 +400,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `route.js` | `#svfeed[/v\|a/<id>]`、`#svfeed/play/<v\|a>/<id>`（0.9.74 播放层：view=play + src 标记、**不填 mid**）路由解析、地址栏同步与深链意图（appliedMid/cancelHashSync） |
 | `state.js` | `root`/`scroller`/`commentDrawer` 跨模块 UI 单例（player 赋值，他人只读） |
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`toast`/`a11y`（title+aria-label 同源）/剪贴板/样式注入等工具。**0.9.258（审计批②）**：全量 CSS 原文搬到 `cssraw.js`（构建期输入，只被 `build.js` import），产物里以 deflateRaw+base64 内嵌串（`window.__ACSV_CSS_SRC__`）携带——styles.js 求值即解包（`pack.unpackText`）+ 回填 `SEAMS` 表 13 缝 + 主色替换，runtime CSS 与压缩前逐字节相同 |
-| `cssraw.js` | 全量 CSS **模板**（0.9.258，审计批② P0-1）：原 `styles.js` 的 RAW_CSS 字面量链整段迁移，23 处 CFG 插值 + 1 处 `IMGVIEW_CSS` 拼接改成 `'{{缝名}}'` 标记（缝表在 styles.js 一处）。**构建期输入**（同 `node_modules/hls.js` 的定位）——**只许 build.js import**，随产物发布的模块一律不得引它（真引了 ⇒ 产物里重新出现 `'{{'`，`check-release` 即红）。改样式改这里 |
+| `cssraw.js` | 全量 CSS **模板**（0.9.258，审计批② P0-1）：原 `styles.js` 的 RAW_CSS 字面量链整段迁移，CFG 插值 + `IMGVIEW_CSS` 拼接改成 `'{{缝名}}'` 标记（缝表在 styles.js 一处；缝计数不写死在注释——摘要数字必漂，实况以代码为准，网格缝消费闸=test/check-zlayers.mjs）。**构建期输入**（同 `node_modules/hls.js` 的定位）——**只许 build.js import**，随产物发布的模块一律不得引它（真引了 ⇒ 产物里重新出现 `'{{'`，`check-release` 即红）。改样式改这里 |
 | `pack.js` | 内嵌压缩串解包**单源**（0.9.258，审计批②）：`unpackText(packed, len, onFail)` = base64→inflateSync(fflate)→长度校验→UTF-8 解码，失败返 null 绝不抛。三个消费方各只补自己的失败打点（hls 下沉 CDN 链 / devicetab 回落空表 / styles 空模板），**不许再造第二份 unpack**（AGENTS 规则 3；`check-direction` 已登记为基建件） |
 | `pageloader.js` | 翻页骨架**单源**（0.9.259，审计批④ P2-5）：`createPageLoader({fetch,onPage,host,setStatus,skeleton,…})` → `{load,reset,done}`。收的是四家**相同的协议**——在途守卫 / 代数令牌 + `host().isConnected` 陈旧回包丢弃 / 骨架两路都收 / 三态状态行（`'加载中…'` 续拉才打、`'已加载全部…'` 到底、`'加载失败，滚动重试'`⇄`'加载失败，点击重试'` 按列表子节点分）/ 落定交 `onPage` 回 `{cursor,noMore}`；**翻页范式（游标方言/解析/到底判定/空态文案）仍归各消费点**。四处消费：followview / squarefeed / mytabs 观看历史（`earlySettle`＝守卫前结算，0.9.236 形状；骨架每页都建）/ mytabs 管理档壳（`busyGate`＝已有条目，档表未到不发废请求）。零依赖叶，`check-direction` 登记为基建件 |
 | `lifecycle.js` | 监听器生命周期作用域（0.9.264，P1）：`createScope()` → `{on, dispose, size}`。只收 `window`/`document` 级、随挂载/会话生灭的监听；teardown 一次摘净，幂等。页面级单例监听不进本件，由 `test/check-listeners.mjs` 的 `// singleton-listener:` 标记放行。零依赖叶 |
@@ -422,7 +423,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `imgview.js` | 配图大图查看器（评论/私信共用；root 单例浮层、Esc 模态） |
 | `inputbar.js` | 三宿主共用输入条 builder（0.9.41 收敛评论/私信；**0.9.238 富文本重写**）——contenteditable 编辑区 + 出口序列化：上行工具栏（B I U S · 颜色 · 表情/图片 · 字数；图标＝原生 iconfont 字形，与官方 UMEditor 同字体同码点）、下行编辑区 + 发送。编辑期就是真实 DOM 节点（表情＝`<img class="ubb-emotion">`、配图＝缩略块、格式＝`<b>/<i>/…`），出口 `serializeUbb` 序列化回 UBB 提交（口径逐条对齐官方 Fe 序列化器，依据 docs §11.7/§11.8）；字数＝文本 + 每个令牌块计 1（官方 `getContentLength` 口径）。程序化插入（表情/配图）统一走 `execCommand('insertHTML')` ⇒ 进浏览器**原生撤销栈**（不自建快照栈）；粘贴只做最保守纯文本化。差异语义全由 opts 注入（img/placeholder/maxLength/countMax/sendEnabled/onSend/onState）。**归类（0.9.238）**：由基建层改入特性层——富文本后它认识表情域与出口 UBB 方言，不再满足"基建＝零特性知识"（同 sharepanel/rail/slide 的 0.9.233 先例）；形态定稿见 docs/preview/composer-richtext.html |
 | `momenteditor.js` | 发动态编辑器（0.9.222）：**三处入口共用的唯一出口** `openMomentEditor(opts)`——居中模态（overlay 栈 id=`momentedit`、modal 吞键）、输入条走 `inputbar`（0.9.238 富文本，字数在工具栏右端 n/233）、表情面板/九宫格缩略图（`imgInto`）/可见范围两药丸；转发时顶部带源引用块（复用 `cards.quoteBlockOf`，不新画）、按钮与标题切「转发」。**防误发**：提交锁（绝不自动重试——端点无幂等键）、失败保留内容给可读话术（按 `postResultOf` 的 kind 分档）、**网络/超时结果未知**走「先查后补」（`listProfile` 核对自己最近动态）。**超字数硬拒绝**（0.9.238 预览稿 ⑩ 第 10 项）：输入条置红 + 脚行发布键禁用 + 「已超出 N 字」提示行；发布动作归脚行（模态内隐去输入条自带发送键）。调试钩子 `momentRepostOf`/`momentEdit` |
-| `pubfab.js` | 发布**常驻浮标**（0.9.224；0.9.225 收窄原生页范围；**0.9.294 显示协调批**＝确认稿 docs/preview/pubfab-backtop.html 案 C2+；**0.9.295 右缘补偿**）：右下角一枚钮、钉在「回到顶部」之上——消费方三处：**我的页（0.9.294 起仅「动态」档可见**——切档只切显隐（`.tab-hide`）不摘 DOM，与五档面板同语义）/ 广场视图 / **原生页的内嵌动态广场**（0.9.225 用户口径「原生页只需要在动态广场出现」⇒ 只在广场开着时出现，随广场收起而消失）。位置**与回顶右缘同线**：暗色 `right:30 + 滚动条宽`（回顶 sticky 基准=内容盒 24+margin 6 **+容器经典滚动条**；浮标 fixed 对 ICB ⇒ 差额由 `cornerRightOf` 运行时量、ResizeObserver 跟随，覆盖式滚动条=0）、`bottom:94`；浅色 `right:24 bottom:74`（两钮都 fixed 同贴 ICB，不补偿）。形态：折叠 36 圆与回顶（`.acsv-tbtn` 36）等大，**hover 右缘锚定向左展开椭条 36→88** 滑出「发动态」，图标钉右零位移；图标=内联 SVG 铅笔（chevUp 同族，退役文本 ✎）。**层级 z:57**：压列表内容(55)/dock(56)/顶栏(57)，**被抽屉(58)/详情(61)/编辑器(62)/大图(63) 盖住**——绝不许盖住它自己打开的编辑器（`#acsv-fab` 的 2147482990 不能照抄）。**滚动条宽度类几何 harness 测不到**（无头用覆盖式），靠单测 `cornerRightOf` + 模拟覆盖钉 |
+| `pubfab.js` | 发布**常驻浮标**（0.9.224；0.9.225 收窄原生页范围；**0.9.294 显示协调批**＝确认稿 docs/preview/pubfab-backtop.html 案 C2+；**0.9.295 右缘补偿**）：右下角一枚钮、钉在「回到顶部」之上——消费方三处：**我的页（0.9.294 起仅「动态」档可见**——切档只切显隐（`.tab-hide`）不摘 DOM，与五档面板同语义）/ 广场视图 / **原生页的内嵌动态广场**（0.9.225 用户口径「原生页只需要在动态广场出现」⇒ 只在广场开着时出现，随广场收起而消失）。位置**与回顶右缘同线**：暗色 `right:30 + 滚动条宽`（回顶 sticky 基准=内容盒 24+margin 6 **+容器经典滚动条**；浮标 fixed 对 ICB ⇒ 差额由 `cornerRightOf` 运行时量、ResizeObserver 跟随，覆盖式滚动条=0）、`bottom:94`；浅色 `right:24 bottom:74`（两钮都 fixed 同贴 ICB，不补偿）。形态：折叠 36 圆与回顶（`.acsv-tbtn` 36）等大，**hover 右缘锚定向左展开椭条 36→88** 滑出「发动态」，图标钉右零位移；图标=内联 SVG 铅笔（chevUp 同族，退役文本 ✎）。**层级 z:57**：压列表内容(55)/dock(56)/顶栏(57)，**被抽屉(58)/详情(61)/编辑器(63 遮罩·64 主体)/大图(63) 盖住**——绝不许盖住它自己打开的编辑器（`#acsv-fab` 的 2147482990 不能照抄）。档位一致性由 `test/check-zlayers.mjs` 钉（0.9.303）。**滚动条宽度类几何 harness 测不到**（无头用覆盖式），靠单测 `cornerRightOf` + 模拟覆盖钉 |
 | `upload.js` | 评论图片上传四阶段（GM 通道二进制分片，失败统一落 null） |
 | `hls.js` | hls.js 加载（0.9.14 起构建期内嵌：window.Hls 首检命中；0.9.180 起不可得=error 态，不回落原生；0.9.181 起「同 realm 返回式取数」+ UMD 分支遮罩；0.9.182 起 eval 拿不回再落 Blob 脚本层（页面 world，IM SDK 同款）；**0.9.242 起内嵌串为 deflateRaw+base64 压缩形态，首调 `unpackHls` 懒解包、失败下沉 CDN**（0.9.258 起解包本体走 `pack.unpackText` 单源，本函数只剩打点：`hls.unpackLen`/`hls.unpackErr`）；CDN 逐源兜底；Safari 原生 HLS 探测） |
 | `dmcanvas.js` | Canvas 弹幕渲染层（无状态重绘：每帧按 video.currentTime 反推位置；滚动轨道分配；DPR 对齐；画布取**播放器区域内居中的 16:9 区**，与稿件比例无关——原生同口径（0.9.205）；0.9.204 起另一条通道画高级弹幕——绝对定位不进轨道/位图缓存）；**0.9.285 弹幕组订阅**：SCHEMA「弹幕」组全键 onChange → `refreshAllLayers`（与恢复默认同源派生，新增弹幕键自动进订阅；dmpanel 逐写点手搓 apply() 退役） |
@@ -506,7 +507,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `momentbar.js` | 动态互动栏共享件（0.9.105）：行流卡与详情面板同键定义表（分享/评论/蕉/赞）+ 写链编排单源（乐观回滚/投蕉锁/动态单蕉/视频文章数量层），skin 分皮肤（尺寸/类名由 CSS 按根类作用域）；键出口经 opts 注入（行流=原位评论+place 分享；面板=滚动聚焦评论+右贴分享） |
 | `followbadge.js` | 关注未读徽标（0.9.97；0.9.107 时间水位线；**0.9.139 水位抽件 followseen**）：徽标=自水位（GM）以来 followFeedV2 首屏 `createTime > 水位` 的新条数——旧 webPush followUpers 布尔是服务端长期不清标记（实测清不掉⇒固定数字复亮），已退役；**正式推进点=各入口首屏到达时 `followseen.markSeen`**（followview 首屏成功 / followstream 进视频侧），poll 的 in-view 分支退化为兜底（吸收停留期新内容）；退避真逐次翻倍 60s→10min 纯函数；hidden 短路/未登录静默；挂 player.mount/unmount |
 | `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；`/member/*` 页加原生页入口（0.9.128：ensureStyle + setRoot(document.body) + watchMemberNav——memberplaza，0.9.47 决策的限定反转）；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷） |
-| `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/other——boot 运行分流的唯一判据（判据与 uppage 的 `/u/\d+` 逐字一致，单测钉一致性） |
+| `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/**memberCenter**/other——boot 运行分流的唯一判据。0.9.303 起判据导出单源：`SPACE_UID_RE`（uppage/spacemoments 注入判据共用）、`memberCenterPath`（boot/memberplaza 共用）；防复制=pagekind.test 字面扫描（旧「与 uppage 逐字一致+单测钉」实为只钉 pageKind 自己的假守卫） |
 | `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）＋0.9.278 `guestRead`（非个性化推荐，隐私组）；`onChange` 订阅让消费方零反向依赖地即时生效 |
 | `settingspanel.js` | 脚本页设置皮肤（0.9.89）：dock 齿轮 → `openSettings()` → overlay 栈（modal，Esc 白拿）；host + **Shadow DOM** 作用域样式（量取值与日期在文件头注释）；控件按 schema 表驱动（bool 开关 / select 下拉 / number 步进器）；**0.9.253 页脚补版本号**（`v{APP_VERSION}` 左置 + 「完成」右置，与 IP 面板页脚同源）；原生页皮肤＝`natpanel.js`（见其行） |
 | `banpop.js` | 投蕉数量层（0.9.104 自 rail 抽出）：默认全灰，悬停第 N 根点亮 1~N，点第 N 根投 N；已投锁定蕉黄。消费 rail/followview/momentbar。 |
@@ -701,11 +702,11 @@ flowchart LR
   followview --> cards & emoticon & followseen & listtail & momentapi & momentdetail & pageloader & rowkit & sidebar & viewreg
   squareview --> cards & momentdetail & rowkit & squarefeed & viewreg
   squarefeed --> cards & emoticon & followbadge & listtail & momentapi & momentbar & pageloader & rowkit & ubb
-  memberplaza --> rowkit & squarefeed
+  memberplaza --> pagekind & rowkit & squarefeed
   listtail --> styles & ui
   spacetab --> ui
-  spacemoments --> cfg & memberplaza & momentapi & spacetab & squarefeed & ui
-  uppage --> api & cfg & feedctx & feedstore & imgload & net & spacetab & timefmt & ui
+  spacemoments --> cfg & memberplaza & momentapi & pagekind & spacetab & squarefeed & ui
+  uppage --> api & cfg & feedctx & feedstore & imgload & net & pagekind & spacetab & timefmt & ui
   rowkit --> cards & comments & imgload & imgview & momentbar & momentdetail & sharepanel & uplook
   followstream --> appapi & feedctx & feedstore & followseen & momentapi & playitem & sidebar
   momentbar --> banpop & imicons & immsg & interact & panelitem & styles & timefmt & toastmsg & ubbtext & ui
@@ -727,7 +728,7 @@ flowchart LR
   devname --> pack
   hls --> pack
   styles --> pack
-  nativeip --> dbg & devname & iploc & styles
+  nativeip --> dbg & devname & iploc & styles & pagekind
   nativeip --> natpanel
   natpanel --> cfg & dbg & devname & iploc & overlay & settings & styles & ui
   boot --> nativeip

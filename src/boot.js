@@ -60,7 +60,8 @@ if (kind === 'native') {
   } else if (kind === 'member') {
     tryInjectSpaceMoments(); // 空间页「动态」标签（0.9.218，order=1 ⇒ 排在「小视频」之前）
     tryInjectSpace();        // 空间页「小视频」标签（0.9.36）
-  } else if (/^\/member(\/|$)/.test(location.pathname)) {
+  } else if (kind === 'memberCenter') {
+  // 判据 0.9.303 收编进 pageKind（旧此处裸正则与 memberplaza.memberPath 逐字两份）
     // 个人中心 /member（0.9.128）：0.9.47 决策的限定反转（只此一路径参加，其余页维持不注入）。
     // 样式先就位（浅色皮肤 + 注入件），root 指到 body（无壳浮层：大图查看器等，native 分支同款先例）
     ensureStyle();

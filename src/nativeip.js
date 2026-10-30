@@ -38,6 +38,7 @@ import { devTag } from './devname.js';
 import { stat, testHook } from './dbg.js';
 import { NATIVE_IP_CSS } from './styles.js';
 import { mountNatPanel } from './natpanel.js'; // 原生页设置面板（0.9.250，6c）：标签点击入口
+import { memberCenterPath } from './pagekind.js'; // 判据单源（0.9.303：防复制闸当场抓出的第三处裸写）
 
 // ---------- 选择器与阈值（照 Web-IP CONFIG.OBSERVER/注释；站点改版只改这里） ----------
 var COMMENT_URL_PATTERNS = ['/comment/list', '/comment/sublist', '/comment/subComment', '/comment/reply',
@@ -273,7 +274,7 @@ function injectUpFor(timeEl, uid) {
 }
 
 function injectUpIp() {
-  if (!/^\/member(\/|$)/.test(location.pathname)) return;
+  if (!memberCenterPath(location.pathname)) return; // 判据单源=pagekind（0.9.303）
   var times = document.querySelectorAll('.feed-time');
   for (var i = 0; i < times.length; i++) {
     var timeEl = /** @type {any} */ (times[i]); // _acsvNipUp 背引用不在 Element 契约面

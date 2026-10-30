@@ -6,6 +6,7 @@ import { fmtWan } from './timefmt.js';
 import { mountSpaceTab, watchSpaceTabs } from './spacetab.js'; // 空间页标签栏注入件（0.9.218 抽出单源）
 import { FeedStore } from './feedstore.js';
 import { API } from './api.js';
+import { SPACE_UID_RE } from './pagekind.js'; // 空间页判据单源（0.9.303 收编）
 import { imgInto } from './imgload.js';
 import { testHook } from './dbg.js'; // 仅调试缝（release 死码消除）
 
@@ -355,7 +356,7 @@ function injectSpaceVideos(uid) {
 //（观察器被反复触发时不得叠出多串重试）。三个条件同时成立才重注：在 /u/ 页、空间页根在、
 // 两个哨兵都不在（=被站点重渲染冲掉了）。injectSpaceVideos 与 mountSpaceTab 本身幂等。
 export function healSpaceVideos() {
-  var mU = location.pathname.match(/^\/u\/(\d+)/);
+  var mU = location.pathname.match(SPACE_UID_RE);
   if (!mU) return;
   if (document.getElementById('acsv-space') || document.getElementById('acsv-space-grid')) return;
   if (!document.getElementById('ac-space')) return;
@@ -363,7 +364,7 @@ export function healSpaceVideos() {
 }
 
 export function tryInjectSpace() {
-  var mU = location.pathname.match(/^\/u\/(\d+)/);
+  var mU = location.pathname.match(SPACE_UID_RE);
   if (!mU) return;
   watchSpaceTabs(healSpaceVideos); // 自愈：SPA 重渲染冲掉注入项后回补（0.9.218 共享观察器）
   var tries = 0;

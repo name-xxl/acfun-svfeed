@@ -120,6 +120,10 @@ function controlFor(it) {
     wrap.appendChild(plus);
     return wrap;
   }
+  // 未知控件类型=静默画空件曾是盲区（0.9.303 审计：settingspanel 有 FACTORY 集棘轮、
+  // 本件无——SCHEMA 加 native:true 未实现类型只有这里知道）。降级留形的同时补可观测信号；
+  // 结构性防呆由 test/unit/settings.test.js「native 类型∈实现集」断言兜（棘轮已镜像两侧）
+  stat('np.unknown-type:' + it.type);
   return el('span');
 }
 

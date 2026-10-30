@@ -15,6 +15,7 @@ import { testHook } from './dbg.js';
 import { createSquareFeed } from './squarefeed.js';
 import { closeInlineComments } from './rowkit.js';
 import { mountPubFab } from './pubfab.js'; // 内嵌广场内的发布浮标（0.9.225）
+import { memberCenterPath } from './pagekind.js'; // 判据单源（0.9.303 收编：此前本件与 boot 各写一份裸正则）
 
 var SEL_MAIN_FEEDS = '.ac-member-main .ac-member-feeds'; // plaza 原选择器（真机验证在册）
 var AUTO_KEY = 'acsvMpAutoEnter'; // plaza moment_plaza_auto_enter 同款语义（键名换 svfeed 域）
@@ -26,7 +27,7 @@ var hiddenNative = []; // 展开时隐藏的原生子节点 [{el, display}]（�
 var timer = null, tries = 0, pendingOpen = false;
 var memAuto = false;   // 无 GM（harness/降级）时的内存旗标
 
-function memberPath() { return /^\/member(\/|$)/.test(location.pathname); }
+function memberPath() { return memberCenterPath(location.pathname); } // 判据单源=pagekind（0.9.303）
 // 只认**主页面**（`/^\/member\/feeds\/?$/`）：子页（/member/feeds/following、/fans——真机实测容器是
 // following-panel/fans-panel，无 .ac-member-feeds 宿主）不算。此前用前缀匹配把子页误认作 feeds 页
 // → 在子页上走"等宿主"分支静默放弃 = 实报「点了没反应」（2026-10-04 真机复现）

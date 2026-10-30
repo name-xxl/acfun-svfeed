@@ -337,8 +337,9 @@ export var CFG = {
     jingxuan: {                    // 精选页（0.9.169；0.9.170 网格改版=docs/preview/jingxuan.html ①②）
       scrollPad: 300,              // 无限滚动触底提前量（同 square）
       backTopAt: 300,              // 回顶按钮显隐阈值（0.9.219 补：本页此前没有回顶）
-      gridMin: 250,                // 网格卡最小列宽（列数随容器自适应，不写死断点；与 styles.js 同值）
-      gridGap: 14                  // 网格间距（同上）；骨架/补齐数量按现场列数算，不收常量
+      gridMin: 250,                // 网格卡最小列宽（列数随容器自适应，不写死断点）；经
+      gridGap: 14                  // styles.js SEAMS（jxgridMin/jxgridGap 缝，0.9.303 补挂）
+                                   // 回填进 CSS——改此值即生效；骨架/补齐数量按现场列数算，不收常量
     },
     periods: ['DAY', 'THREE_DAYS', 'WEEK'], // 榜期（原生：今日/三日/本周）
     periodNames: { DAY: '今日', THREE_DAYS: '三日', WEEK: '本周' },

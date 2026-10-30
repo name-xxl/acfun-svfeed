@@ -131,10 +131,12 @@ export var NATIVE_PANEL_CSS =
 // 失败降级：串缺失/解包失败 → 空模板（CSS 仍带 :root 变量段与三小段独立导出，注入不炸），
 // 打点 css.tplFail；缝名与表漂移 → 未登记标记原样留下，打点 css.seamLeft（两者仅 debug 有效）。
 var SEAMS = {
-  // 各缝在 cssraw.js 原文里的位置与份数：dockW 4 处（top/dock/scroller/vbody-play）、
-  // dockWp14=dockW+14（正文左内边距）、3 条 @media 条件缝（媒体查询不吃 var()，故在此内联
-  // 常量——这也是 CFG 值必须冻结在 CSS 文本里的原因）、我的页/搜索页网格 4 缝、主色 3 处、
-  // 引用定位闪动 1 处。CFG 侧量取值来源见 cfg.js 对应注释
+  // 各缝在 cssraw.js 原文里的位置与份数：**计数不写在注释里**（0.9.303 审计批：旧「3 条
+  // @media 缝/网格 4 缝」与实况 8 处媒体缝/网格 7 缝已漂——摘要数字必漂，以代码为准）——
+  // dockW 系（top/dock/scroller/vbody-play）、@media 条件缝（媒体查询不吃 var()，在此内联
+  // 常量，这也是 CFG 值必须冻结在 CSS 文本里的原因）、三族网格缝（我的/搜索/分区，0.9.303
+  // 补 jx 两缝——分区页曾 cfg 死值+CSS 裸字面而注释宣称同值）、主色、引用定位闪动。
+  // CFG 侧量取值来源见 cfg.js 对应注释；消费闸=test/check-zlayers.mjs（gridMin/gridGap 必进本表）
   dockW: CFG.view.dockW,
   dockWp14: CFG.view.dockW + 14,
   avoidTopW1: CFG.view.avoidTopW - 1,
@@ -145,6 +147,8 @@ var SEAMS = {
   meCoverRatio: CFG.view.me.coverRatio,
   searchGridMin: CFG.view.search.gridMin,
   searchGridGap: CFG.view.search.gridGap,
+  jxgridMin: CFG.view.jingxuan.gridMin,
+  jxgridGap: CFG.view.jingxuan.gridGap,
   accent: CFG.accent,
   flashMs: CFG.im.flashMs,
   // 非 CFG 缝：原文里的 `+ IMGVIEW_CSS +` 拼接（0.9.57 拆分）。留作缝而非把这段 CSS 内联进

@@ -5,6 +5,24 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.303（2026-10-30）· 「注释即档位表」上闸——jx 缝补挂 + z 档校正 + pagekind 判据收编 + check-zlayers
+
+**病灶（六域卫生审计 P0 之三/之五 + P1 假守卫家族，复核属实）**：三类「注释/文档充当事实源却无机械守卫」——
+- 分区页 `cfg.view.jingxuan.gridMin/gridGap` **零消费**（注释宣称「与 styles.js 同值」但 SEAMS 无 jx 缝），
+  cssraw 裸字面 `minmax(250px)/14px`——me/search 邻居网格都走 `{{缝}}` 回填，唯 jingxuan 掉队；按 cfg 调参 UI 不动。
+- z 档位表注释实漂：overlay.js 头注「大图 60」、cssraw「压过 imgview(60)」「编辑器(62)」（实体 63/64，0.9.108 提档后旧语未跟；README 反而是对的）；SEAMS 头注缝计数（3 条媒体缝/网格 4 缝）与实况（8 处/7 缝）漂移。
+- pagekind 头注宣称「判据与 uppage 逐字一致（**单测钉一致性**）」——旧哨兵单测只比 pageKind 自己，钉不到消费点=假守卫；boot 的 `/member` 裸正则与 memberplaza.memberPath **逐字两份**（pageKind 不返回该 kind，单测结构上测不到）。
+
+**修法（规矩 7：个案收口 + 缝本身收掉 + 机械守卫防回潮）**：
+- styles.js SEAMS 补挂 `jxgridMin/jxgridGap`，cssraw 裸字面进缝（运行时 CSS 逐字节不变）；SEAMS 头注改为「计数不写死在注释」的稳定表述。
+- overlay/cssraw/pubfab 三处 z 档注释按实体重写（并顺手校正 pubfab「编辑器(62)」→63 遮罩·64 主体——同族失实）；README pubfab/cssraw/pagekind 行同步。
+- pagekind 升为判据导出单源：`SPACE_UID_RE`（uppage×2/spacemoments 消费）、`memberCenterPath`（boot/memberplaza 消费）、`pageKind` 新增 `memberCenter` kind（boot 分支改按 kind，memberplaza 头注/README 划界随批）。
+- **新闸 `test/check-zlayers.mjs`（接入 npm run check）**三道：① z 档实体权威表（16 类，展平 CSS 按规则解析、逗号选择器与后覆盖近似级联）；② 注释档语一致性（「大图(60)」这类单档词括注数字必须=权威值）；③ gridMin/gridGap→SEAMS 消费闸（cfg 每个网格字段必须进缝表、SEAMS 网格缝必须被 cssraw 的 `{{}}` 消费，双向防死值/死缝）。
+- pagekind.test 补真单源断言（SPACE_UID_RE/memberCenter 分类）+ 防复制字面扫描——**该闸当场抓出 nativeip.js:276 第三处裸写 `/^\/member(\/|$)/`（第四消费点），同批收编**。
+- natpanel controlFor 未命中类型补 `stat('np.unknown-type:<type>')`（结构防呆两侧对齐：settingspanel 有 FACTORY 集棘轮、native 侧此前静默画空件无信号）。
+
+**测试**：check-zlayers 摘修复反跑——从 SEAMS 摘掉 jxgridMin ⇒ 「cfg.view.jingxuan.gridMin 未进 SEAMS」转红；pagekind 防复制扫描在 nativeip 收编前当场转红（真实取证）。build/lint/check/单测/全场景全绿（91 场景，boot/member-plaza/jingxuan/native-ip 分流路径全过）。
+
 ### 0.9.302（2026-10-30）· 两处已出血的口径漂移——图床白名单沉 imgurl + 私信预览收 immsg 单源
 
 **病灶（六域卫生审计 P0 之二/之四，复核属实）**：两处「同一条规则两份实现、且头注定语与事实

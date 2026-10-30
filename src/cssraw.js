@@ -277,8 +277,8 @@ export var CSS_TEMPLATE = ''
   // 大卡（0.9.170 用户裁决）：网格内跨 2 列 × 2 行（撤旧 hero 大焦点区）。封面锁 16:9——与
   // selection/feed 源图同比例 ⇒ object-fit:cover 下零裁切零拉伸；信息区高度恒 ≈164px
   // （= 2×普通卡行高 + 间距 − 16:9 封面高，比例项抵消），按 4 行排（space-between 摊余量）
-  + '.acsv-jx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));'
-  + 'grid-auto-flow:dense;gap:14px}'
+  + '.acsv-jx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(' + '{{jxgridMin}}' + 'px,1fr));'
+  + 'grid-auto-flow:dense;gap:' + '{{jxgridGap}}' + 'px}'
   + '.acsv-jx-card{background:rgba(255,255,255,.04);border:1px solid transparent;border-radius:10px;'
   + 'overflow:hidden;cursor:pointer;display:flex;flex-direction:column}'
   + '.acsv-jx-card:hover{border-color:rgba(253,76,93,.55);background:rgba(255,255,255,.07)}'
@@ -957,7 +957,8 @@ export var CSS_TEMPLATE = ''
   // 设置齿轮（0.9.89）：钉 dock 底部；条目样式复用 .acsv-dock-item，只补钉底与顶部留白
   + '.acsv-dock-gear{margin-top:auto}'
   // 设置面板 host（0.9.89）：光 DOM 侧只负责定位与层级，内里视觉全在影子根（settingspanel.js）。
-  // z 62：压过 imgview(60)，低于更新弹窗(65)——系统级模态仍最高（z 档位表见 overlay.js 头注释）
+  // z 62：与私信抽屉/黄历/我的页模态同档，低于大图(63)与更新弹窗(65)——系统级模态仍最高
+  //（旧注「压过 imgview=60」系 0.9.108 提档前的失实残留，0.9.303 校正；档位一致性=check-zlayers）
   + '.acsv-set-host{position:absolute;inset:0;z-index:62}'
   // ---- 动态详情面板（0.9.96）：光 DOM 复用全局评论 CSS（intake Shadow 偏离登记见 momentdetail.js 头）。
   // 量取（0.9.69 纪律）：站方 PC **无动态详情弹层可量取**（动态详情是整页不是浮层）——按本方
@@ -1839,7 +1840,7 @@ export var CSS_TEMPLATE = ''
   + '.acsv-thumb.add{border:1px dashed rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;'
   + 'font-size:22px;color:#8a90a0;cursor:pointer}'
   // 发布浮标（0.9.224 建；**0.9.294 显示协调批**——对齐确认稿 docs/preview/pubfab-backtop.html 案 C2+）：
-  // z:57 = 压住列表内容(55)/dock(56)/顶栏(57)，**但被抽屉(58)/详情(61)/编辑器(62)/大图(63) 盖住**
+  // z:57 = 压住列表内容(55)/dock(56)/顶栏(57)，**但被抽屉(58)/详情(61)/编辑器(63 遮罩·64 主体)/大图(63) 盖住**
   // ——浮标绝不许盖住它自己打开的编辑器（对照：全局兜底胶囊 .acsv-fab 是 2147482990，不能照抄）
   // 几何（0.9.294 矫正横向错位）：暗色回顶 sticky 的基准是滚动容器内容盒（.acsv-view-body
   // padding-right:24 + backtop margin 6 ⇒ 回顶右缘距视口 30），浮标 right 由 18 **收 30 与回顶同线**

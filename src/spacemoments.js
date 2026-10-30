@@ -4,6 +4,7 @@ import { mountSpaceTab, watchSpaceTabs } from './spacetab.js';
 import { createSquareFeed } from './squarefeed.js';
 import { listProfile } from './momentapi.js';
 import { addAmAnchor } from './memberplaza.js';
+import { SPACE_UID_RE } from './pagekind.js'; // 空间页判据单源（0.9.303 收编）
 
 // ---------- 空间页「动态」标签（0.9.218） ----------
 // 宿主＝UP 空间页 /u/<uid>（判据与 pagekind/uppage 同源）；数据＝feed/profile?userId=<uid>
@@ -29,7 +30,7 @@ var listBox = null; // 当前列表根（判断它是否仍在本面板里——
 var mountedUid = ''; // 已挂标签对应的 uid（路由换人而标签卡幸存时，onShow 闭包里的 uid 已过期）
 
 function uidOf() {
-  var m = /^\/u\/(\d+)/.exec(location.pathname); // 与 pagekind/uppage 同源判据（单测在册）
+  var m = SPACE_UID_RE.exec(location.pathname); // 判据单源=pagekind.SPACE_UID_RE（0.9.303 收编，与 uppage/boot 同源）
   return m ? m[1] : '';
 }
 
