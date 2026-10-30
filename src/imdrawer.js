@@ -6,6 +6,7 @@ import { testHook } from './dbg.js';
 import { ensureIm, isLogined, imShutdown } from './imsdk.js';
 import { prewarmIm } from './imimage.js';
 import { stopBadge } from './imbadge.js'; // 未读徽标件（0.9.163 自本模块拆出；teardown 经它收清）
+import { fallbackName } from './immsg.js'; // 回落名口径单源（0.9.305 批6）
 import { setChatOpener } from './sharepanel.js';
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap } from './emoticon.js';
@@ -219,7 +220,7 @@ function showChat(targetId) {
   if (!drawer) return;
   listKit.listPoll.stop();
   var card = cards[targetId] || {};
-  drawer.title.textContent = card.name || '用户 ' + targetId;
+  drawer.title.textContent = card.name || fallbackName(targetId);
   setPane('chat');
   drawer.bubbles.innerHTML = '';
   // quote=待引用目标 {seqId, preview, originMsg}；msgEls=seen key→气泡主元素（引用定位用）。
@@ -307,6 +308,8 @@ testHook('imBubbleSmoke', function () {
   bubble.appendBubble({
     fromUserId: '9002',
     rawMsg: {
+      // 夹具有意用协议字面量（= immsg.CT.CARD 对账；值由 immsg.test.js 钉死），
+      // 钩子改引 CT 的话表漂移与装配漂移将互相掩护
       contentType: 10001,
       content: enc.encode(JSON.stringify({
         prologue: '',

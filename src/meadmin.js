@@ -20,7 +20,7 @@ import { el, toast, closeOnOutsideClick } from './ui.js';
 import { root } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { GLYPHS } from './imicons.js';
-import { openConfirmPop } from './pickpop.js';
+import { openConfirmPop, dismissConfirm } from './pickpop.js';
 import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 import { stat } from './dbg.js';
 
@@ -40,9 +40,9 @@ export function mmWarn(msg) {
 }
 
 // ---- 确认卡（pickpop.openConfirmPop 同族）：全页单枚，开新前摘旧 ----
+// 摘旧逻辑 0.9.305 批⑤⑦收口 pickpop.dismissConfirm——类串 '.acsv-confirmpop' 不再在本文件私拼
 export function openMmConfirm(anchor, opts) {
-  var old = document.querySelector('.acsv-confirmpop');
-  if (old) old.remove();
+  dismissConfirm();
   return openConfirmPop(anchor, opts);
 }
 

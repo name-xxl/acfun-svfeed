@@ -9,9 +9,11 @@
 //      （弹层底=锚点底）；锚点之上可用空间不足时压缩自身高度（列表内部滚动，下限 ROW_MIN_H）。
 // 共用：applyPlace（写 style：两模型都写 maxHeight/left/top）+ watchPlace（首帧 rAF 校准 +
 // ResizeObserver 重算 + window resize；el 拆掉即自清理，无监听残留）。
-// 纯函数只吃几何（rect/尺寸/视口），**不碰 DOM、零 import**——单测直采 test/unit/popplace.test.js；
-// 坐标口径：函数入参的 a/host 是**视口坐标**，返回值 left/top 是**宿主内容坐标**（+滚动偏移），
-// 故弹层随宿主滚动天然跟随。
+// 纯函数只吃几何（rect/尺寸/视口），不碰 DOM（唯一 import=CFG 常数表，仍纯函数）——单测直采
+// test/unit/popplace.test.js；坐标口径：函数入参的 a/host 是**视口坐标**，返回值 left/top 是
+// **宿主内容坐标**（+滚动偏移），故弹层随宿主滚动天然跟随。
+import { CFG } from './cfg.js';
+
 export var GAP = 6;         // A：弹层与锚点的垂直间距
 export var GAP_H = 10;      // A：让开宿主列的水平间距（= 分享面板 rail 实测口径：宿主左缘 − 10）
 export var PAD = 8;         // A：视口内边距
@@ -20,6 +22,11 @@ export var A_MIN_H = 120;   // A：高度下限（空间极窄时尽力而为）
 export var ROW_GAP = 12;    // B：贴行/面板的水平间距（place.gap 缺省）
 export var ROW_PAD = 4;     // B：视口内边距
 export var ROW_MIN_H = 140; // B：高度下限
+// 视觉上限具名常数（0.9.305 卫生批4⑦，值单源 CFG.pop）：JS 压高与 CSS max-height 收口同一处——
+// cssraw.js 以 {{anchorMaxH/anchorMaxVh/rowMaxH/rowMaxVh}} 缝回填（vh 取整×100 由 styles.js SEAMS
+// 完成），此前两端各写裸字面量已跨文件漂
+export var A_MAX_H = CFG.pop.anchorMaxH, A_MAX_VH = CFG.pop.anchorMaxVh;
+export var ROW_MAX_H = CFG.pop.rowMaxH, ROW_MAX_VH = CFG.pop.rowMaxVh;
 
 // A) 按钮旁选择层：a=锚点 rect、host=宿主 rect+滚动、vp=视口、popW/popH=弹层当前尺寸
 // → { up, left, top, maxH }（up=是否翻上；maxH=生效高度上限，调用方写进 style.maxHeight）
@@ -28,8 +35,8 @@ export function anchorPlaceOf(a, host, vp, popW, popH) {
   var above = a.top - GAP - PAD;
   var up = below < MIN_BELOW && above > below;
   var avail = up ? above : below;
-  // 高度上限：所选方向可用空间 ∩ 既有视觉上限（420 / 64vh）；下限 A_MIN_H
-  var maxH = Math.max(A_MIN_H, Math.min(avail, 420, vp.h * 0.64));
+  // 高度上限：所选方向可用空间 ∩ 既有视觉上限（A_MAX_H / A_MAX_VH）；下限 A_MIN_H
+  var maxH = Math.max(A_MIN_H, Math.min(avail, A_MAX_H, vp.h * A_MAX_VH));
   var h = Math.min(Math.max(popH, 0), maxH);
   var top = up
     ? a.top - GAP - h - host.top + host.st   // 翻上：底边贴锚点上缘 - GAP
@@ -47,11 +54,11 @@ export function anchorPlaceOf(a, host, vp, popW, popH) {
 }
 
 // B) 行/面板贴靠：mode='left-of'（弹层在锚点左侧，右缘贴锚点左缘 − gap）/ 'right-of'（对侧）；
-// 底对齐锚点底；高度上限 = 锚点之上可用空间（∩ 430 / 62vh，下限 ROW_MIN_H）
+// 底对齐锚点底；高度上限 = 锚点之上可用空间（∩ ROW_MAX_H / ROW_MAX_VH，下限 ROW_MIN_H）
 export function rowPlaceOf(a, host, vp, popW, popH, mode, gap) {
   var g = gap > 0 ? gap : ROW_GAP;
   var leftOf = mode !== 'right-of';
-  var maxH = Math.max(ROW_MIN_H, Math.min(a.bottom - host.top + host.st - ROW_PAD, 430, vp.h * 0.62));
+  var maxH = Math.max(ROW_MIN_H, Math.min(a.bottom - host.top + host.st - ROW_PAD, ROW_MAX_H, vp.h * ROW_MAX_VH));
   function leftAt(isLeft) {
     return isLeft
       ? a.left - host.left + host.sl - popW - g

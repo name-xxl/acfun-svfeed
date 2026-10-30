@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 globalThis.window = globalThis;
 globalThis.document = globalThis.document || {};
 globalThis.__ACSV_DEBUG__ = false;
-var { normMode, mergeDanmaku, filterDanmaku, fit169 } = await import('../../src/dmcanvas.js');
+var { normMode, isScrollMode, DM_BLOCK_TYPES, mergeDanmaku, filterDanmaku, fit169 } = await import('../../src/dmcanvas.js');
 
 test('normMode：4/5/6 保留；其余（含 7/8 高级弹幕编码、undefined、字符串）兜底 1', () => {
   assert.equal(normMode(1), 1);
@@ -17,6 +17,39 @@ test('normMode：4/5/6 保留；其余（含 7/8 高级弹幕编码、undefined�
   assert.equal(normMode(8), 1);
   assert.equal(normMode(undefined), 1);
   assert.equal(normMode('5'), 1); // 不认字符串（映射层已 Number 归一）
+});
+
+// 滚动族判据单源（0.9.305 卫生批4⑤）：屏蔽/时长/轨道四处共用一条缝——**不**吃归一（调用点自决）
+test('isScrollMode：仅 1/6（数字）；4/5/7/undefined/字符串都算假', () => {
+  assert.ok(isScrollMode(1));
+  assert.ok(isScrollMode(6));
+  assert.ok(!isScrollMode(4));
+  assert.ok(!isScrollMode(5));
+  assert.ok(!isScrollMode(7));
+  assert.ok(!isScrollMode(undefined));
+  assert.ok(!isScrollMode('1'));
+});
+
+// 六类表与过滤编排（0.9.305 卫生批4⑤）：表=名单/文案/判据三面的单源；
+// 摘修复反跑：把 filterDanmaku 改回自抄一份判据（删表驱动），下方「表与既有语义逐条对齐」转红
+test('DM_BLOCK_TYPES：六类 k/label 序 + 表驱动过滤与既有语义逐条对齐', () => {
+  assert.deepEqual(DM_BLOCK_TYPES.map(function (t) { return t.k; }),
+    ['top', 'bottom', 'scroll', 'color', 'role', 'advanced']);
+  assert.deepEqual(DM_BLOCK_TYPES.map(function (t) { return t.label; }),
+    ['顶部弹幕', '底部弹幕', '滚动弹幕', '彩色弹幕', '角色弹幕', '高级弹幕']);
+  var rows = [
+    { text: '滚动', mode: 1, color: '#ffffff' },
+    { text: '逆向', mode: 6, color: '#ffffff' },
+    { text: '顶部', mode: 5, color: '#ffffff' },
+    { text: '底部', mode: 4, color: '#ffffff' },
+    { text: '白大写', mode: 1, color: '#FFFFFF' } // 判据 toLowerCase 口径：不算彩色
+  ];
+  var txt = function (l) { return l.map(function (x) { return x.text; }); };
+  assert.deepEqual(txt(filterDanmaku(rows, { scroll: true }, null)), ['顶部', '底部']); // 白大写也是滚动族（mode 1）
+  assert.deepEqual(txt(filterDanmaku(rows, { color: true }, null)),
+    ['滚动', '逆向', '顶部', '底部', '白大写']); // '#FFFFFF' 大写白不算彩色（toLowerCase 口径）
+  // 屏蔽判据吃**原始** mode（归一前）：mode 7 不在滚动族
+  assert.deepEqual(txt(filterDanmaku([{ text: '七', mode: 7 }], { scroll: true }, null)), ['七']);
 });
 
 // 合并重复弹幕（0.9.201，照原生「合并重复弹幕」默认开）：同文本在窗口内只留第一条

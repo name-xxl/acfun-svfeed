@@ -13,10 +13,15 @@
 import { CFG } from './cfg.js';
 import { swallow } from './dbg.js';
 import { postForm } from './appapi.js';
-import { quoteWireText, QUOTE_EXTRA_KEY, CMT_EXTRA_KEY, MOMENT_EXTRA_KEY } from './immsg.js';
+import { quoteWireText, QUOTE_EXTRA_KEY, CMT_EXTRA_KEY, MOMENT_EXTRA_KEY, CT, encodeExtra, findSession } from './immsg.js';
 import {
   ensureConnected, ensureTracer, linkOk, rebuildIm, hadTracerCrash, imLogMark, imLogVerdict
 } from './imsdk.js';
+
+// 发送失败码单源（0.9.305 批6）：sharepanel 对账口径（indexOf(码)===0 → 「发送失败，请稍后再试」
+// 可重试话术）与生成端必须同串——此前两端各持字面，改一侧即静默退化为裸错误文本
+export var SEND_TIMEOUT = 'send-timeout';
+export var SEND_REJECTED = 'send-rejected';
 
 // 会话列表（最近联系人）：连接后服务端 sync 需要 1~2 拍，轮询到非空即止。
 // 空列表是合法状态（从没私聊过），区分「超时仍空」与「真的没有」意义不大，统一返回 []。
@@ -51,6 +56,9 @@ export function fetchCards(ids) {
   return postForm(CFG.api.userCard, 'ids=' + ids.join(',')).then(function (j) {
     var map = {};
     ((j && j.result === 0 && j.users) || []).forEach(function (u) {
+      // 「A站用户」≠ immsg.fallbackName：语义不同——fallbackName 是**拿不到联系人名**时按
+      // 会话对端 id 兜底（「用户 <id>」），这里是回包**已含该用户但 name 字段为空**的行内缺省
+      // （id 未必等于行 targetId 语境，且无 id 可拼）——两口径有意并存，不并入 fallbackName
       map[u.id] = { name: u.name || 'A站用户', headUrl: u.headUrl || '' };
     });
     return map;
@@ -65,7 +73,7 @@ export function doSend(inst, targetId, text) {
   var mark = imLogMark(); // 发送前的日志水位：之后首次出现的成功/失败即本次结果
   return new Promise(function (resolve, reject) {
     var done = false;
-    var timer = setTimeout(function () { finish(new Error('send-timeout')); }, CFG.im.sendT);
+    var timer = setTimeout(function () { finish(new Error(SEND_TIMEOUT)); }, CFG.im.sendT);
     function settle() { finish(null); }
     function finish(err) {
       if (done) return;
@@ -93,7 +101,7 @@ export function doSend(inst, targetId, text) {
     }
     catch (e) { finish(e); return; }
     if (r === false && !done) { // 未连接 / 超 1000 字：官方同步返回 false
-      finish(new Error('send-rejected'));
+      finish(new Error(SEND_REJECTED));
     }
   });
 }
@@ -163,7 +171,7 @@ export function sendKernel(inst, msg, targetId, timeout) {
       clearTimeout(timer);
       if (err) reject(err); else resolve();
     }
-    var timer = setTimeout(function () { finish(new Error('send-timeout')); }, limit);
+    var timer = setTimeout(function () { finish(new Error(SEND_TIMEOUT)); }, limit);
     var r;
     try { r = inst.kernel.sendMessage(msg); } catch (e) { finish(e); return; }
     // 内核若返回 promise：resolve 只代表内核侧收发完成，仍以缓存对账为准（服务端
@@ -178,11 +186,7 @@ export function sendKernel(inst, msg, targetId, timeout) {
       if (csid) {
         var hit = false;
         try {
-          var sess = null;
-          (inst.kernel.getSessions() || []).some(function (s) {
-            if (String(s.targetId) === String(targetId)) { sess = s; return true; }
-            return false;
-          });
+          var sess = findSession(inst.kernel.getSessions() || [], targetId);
           if (sess) {
             (inst.kernel.getMessages(sess) || []).some(function (m) {
               var raw = m.rawMsg || {};
@@ -193,7 +197,7 @@ export function sendKernel(inst, msg, targetId, timeout) {
         } catch (e) { swallow(e, 'imsend'); }
         if (hit) return finish(null);
       }
-      if (Date.now() - start > limit) return finish(new Error('send-timeout'));
+      if (Date.now() - start > limit) return finish(new Error(SEND_TIMEOUT));
       setTimeout(poll, 300);
     })();
   });
@@ -207,7 +211,7 @@ export function sendImage(inst, targetId, file, w, h) {
     return new Promise(function (resolve, reject) {
       try {
         var map = i.kernel && i.kernel.messageConstructorMap;
-        var Img = map && map[1];
+        var Img = map && map[CT.IMAGE];
         if (!Img || !Img.create) throw new Error('image-msg-class-missing');
         resolve(sendKernel(i, Img.create({
           image: file, width: w || 300, height: h || 300, targetType: 0, targetId: Number(targetId)
@@ -227,19 +231,19 @@ export function sendQuote(inst, targetId, quote, text) {
       try {
         var map = i.kernel && i.kernel.messageConstructorMap;
         if (CFG.im.quoteWire === 'reference') {
-          var Ref = map && map[12];
+          var Ref = map && map[CT.QUOTE];
           if (!Ref || !Ref.create) throw new Error('reference-msg-class-missing');
           resolve(sendKernel(i, Ref.create({
             text: text, originMsg: quote.originMsg, targetType: 0, targetId: Number(targetId)
           }), targetId));
         } else {
-          var Txt = map && map[0];
+          var Txt = map && map[CT.TEXT];
           if (!Txt || !Txt.create) throw new Error('text-msg-class-missing');
           var extra = null;
           try {
             var qExtra = {};
             qExtra[QUOTE_EXTRA_KEY] = { seqId: quote.seqId || '', preview: quote.preview || '', text: text };
-            extra = new TextEncoder().encode(JSON.stringify(qExtra));
+            extra = encodeExtra(qExtra);
           } catch (e1) { /* best-effort: parse */ }
           resolve(sendKernel(i, Txt.create({
             targetType: 0, targetId: Number(targetId),
@@ -252,22 +256,22 @@ export function sendQuote(inst, targetId, quote, text) {
   });
 }
 
-// 评论转发私信（0.9.52，extra 通道唯一）：明文 wire（@作者：纯文本\n链接#ncid=，官方
-// APP 可读）+ proto extra 藏 {acsvCmt:{ncid, content:原始 UBB}}，接收端 extra 存活时
-// 渲染真表情/[img]，被剥则按 wire 走 isCommentShare 启发式降级（[表情] 占位文本）。
+// extra 通道转发卡统一发送（0.9.305 批6收口：sendCmtShare/sendMomentShare 逐行同构合一，
+// 未来第三种转发 = 加一个薄壳表项，不再复制管线）：明文 wire 文本（对方客户端可读）+
+// proto extra 藏 {[extraKey]: payload}；接收端 extra 存活时富渲染，被剥则按 wire 降级。
 // 不做 reference 通道：引用消息是「重建原消息」语义，装不下自构 payload
-export function sendCmtShare(inst, targetId, payload, text) {
+function sendExtraShare(inst, targetId, extraKey, payload, text) {
   return withSendRecovery(inst, function (i) {
     return new Promise(function (resolve, reject) {
       try {
         var map = i.kernel && i.kernel.messageConstructorMap;
-        var Txt = map && map[0];
+        var Txt = map && map[CT.TEXT];
         if (!Txt || !Txt.create) throw new Error('text-msg-class-missing');
         var extra = null;
         try {
-          var cExtra = {};
-          cExtra[CMT_EXTRA_KEY] = payload;
-          extra = new TextEncoder().encode(JSON.stringify(cExtra));
+          var wExtra = {};
+          wExtra[extraKey] = payload;
+          extra = encodeExtra(wExtra);
         } catch (e1) { /* best-effort: parse */ }
         resolve(sendKernel(i, Txt.create({
           targetType: 0, targetId: Number(targetId), text: text, extra: extra
@@ -277,26 +281,16 @@ export function sendCmtShare(inst, targetId, payload, text) {
   });
 }
 
+// 评论转发私信（0.9.52，extra 通道唯一）：明文 wire（@作者：纯文本\n链接#ncid=，官方
+// APP 可读）+ proto extra 藏 {acsvCmt:{ncid, content:原始 UBB}}，接收端 extra 存活时
+// 渲染真表情/[img]，被剥则按 wire 走 isCommentShare 启发式降级（[表情] 占位文本）
+export function sendCmtShare(inst, targetId, payload, text) {
+  return sendExtraShare(inst, targetId, CMT_EXTRA_KEY, payload, text);
+}
+
 // 动态转发私信（0.9.122，extra 通道唯一；与评论转发同纪律）：明文 wire「@作者：明文\n动态链」
 // 官方可读 + proto extra 藏 {acsvMoment:{momentId,text,imgs,up}}——接收端 extra 存活时渲染
 // 真图动态卡，被剥则按 wire 降级为文本动态卡（仍可读可点）
 export function sendMomentShare(inst, targetId, payload, text) {
-  return withSendRecovery(inst, function (i) {
-    return new Promise(function (resolve, reject) {
-      try {
-        var map = i.kernel && i.kernel.messageConstructorMap;
-        var Txt = map && map[0];
-        if (!Txt || !Txt.create) throw new Error('text-msg-class-missing');
-        var extra = null;
-        try {
-          var mExtra = {};
-          mExtra[MOMENT_EXTRA_KEY] = payload;
-          extra = new TextEncoder().encode(JSON.stringify(mExtra));
-        } catch (e1) { /* best-effort: parse */ }
-        resolve(sendKernel(i, Txt.create({
-          targetType: 0, targetId: Number(targetId), text: text, extra: extra
-        }), targetId));
-      } catch (e) { reject(e); }
-    });
-  });
+  return sendExtraShare(inst, targetId, MOMENT_EXTRA_KEY, payload, text);
 }

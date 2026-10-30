@@ -26,10 +26,20 @@ import { createScope } from './lifecycle.js';
 //   · 分页=哨兵自动续页（同评论侧 0.9.141 口径，不做「加载更多」按钮）；到底出「已显示全部 N 条」；
 //   · UP 卡：未关注一键关注（relationapi.followUser，落未分组）；已关注点开**分组选择层**
 //     （grouppop，可改分组/取消关注——与 rail 关注角标同语义件，不在卡上另造一套）；
-//   · 历史：searchhist 记最近 10 词，空词态出 chips（可点可清空）；联想端点实测不存在，不做。
+//   · 历史：searchhist 记最近 8 词（0.9.305 批⑤⑤修正注释与实况相符：HIST_MAX=8，
+//     0.9.158 复用站方件后上限随站方 splice(8)；曾自定 10），空词态出 chips（可点可清空）；
+//     联想端点实测不存在，不做。
 var KIND_LABEL = { video: '视频', up: 'UP主', article: '文章' };
 var KINDS = ['video', 'up', 'article'];
 var PAGE_SIZE = 30; // 三端点实测固定每页 30（响应 pageSize=30；count 类参数被忽略）
+// 首屏骨架行数（0.9.305 批⑤⑤）：cfg.view.search **未登记骨架档**（follow/me/square 各有
+// skel 字段，搜索侧历史上就硬编码在视图里）——先提本文件常数收口；升档时补 cfg 再切引用
+var SKEL_ROWS = 6;
+// UP 卡关注钮文案文件级单源（0.9.305 批⑤⑤）：与 followadmin relLabel 近邻但不同皮
+// （'＋ 关注' 带前缀、无回粉/互粉/特别关注分支）——跨文件合表需新增 README 边且串集
+// 不重合，按批注裁决各文件内收
+var FOLLOW_OFF_LABEL = '＋ 关注';
+var FOLLOW_ON_LABEL = '已关注';
 
 // 模块级缓存（跨视图重建存活：类目切换/前进后退/换词回来都读它，不再打接口）：
 // { kw, kinds: { video|up|article: { items, total, page, done, loading, err } } }。同一时刻只
@@ -111,7 +121,7 @@ function buildSearchView(body, arg, kind) {
   function showSkel() {
     if (skelGone) return;
     res.textContent = '';
-    skelGone = skeletonRows(res, 6, 'acsv-gskel');
+    skelGone = skeletonRows(res, SKEL_ROWS, 'acsv-gskel');
   }
   function hideSkel() {
     if (skelGone) { skelGone(); skelGone = null; }
@@ -225,10 +235,10 @@ function buildSearchView(body, arg, kind) {
     info.appendChild(meta);
     if (u.signature) info.appendChild(el('div', 'acsv-supsig', u.signature));
     hd.appendChild(info);
-    var fb = el('button', 'acsv-supfollow' + (u.following ? ' on' : ''), u.following ? '已关注' : '＋ 关注');
+    var fb = el('button', 'acsv-supfollow' + (u.following ? ' on' : ''), u.following ? FOLLOW_ON_LABEL : FOLLOW_OFF_LABEL);
     fb.type = 'button';
     function paintFb() {
-      fb.textContent = u.following ? '已关注' : '＋ 关注';
+      fb.textContent = u.following ? FOLLOW_ON_LABEL : FOLLOW_OFF_LABEL;
       fb.classList.toggle('on', u.following);
     }
     fb.addEventListener('click', function () {

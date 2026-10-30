@@ -191,7 +191,7 @@ export var FeedStore = createFeedStore({
   },
   onChange: function () {
     if (changeHandler) changeHandler();
-    else stat('feed-changed-no-listener'); // 金丝雀（0.9.115）：不可达态；可达即见 acsv-stats
+    else stat('feed.noListener'); // 金丝雀（0.9.115）：不可达态；可达即见 acsv-stats（键名 0.9.305 批4⑥归点分族——全库唯一连字符键）
   },
   // 列表上下文二选一（0.9.99 +关注流）：空间页 UP 主列表 / 关注视频流，命中即按列表泵入，
   // 都不活动回落随机流（判据单源=listContext 导出）

@@ -8,7 +8,9 @@ import {
   degradeText, msgTextOf, previewOfMessage, sharePreviewOf,
   isQuotable, quoteOf, quoteExtraOf, quoteWireText, quoteWireTrimLen,
   isCommentShare, commentShareWire, commentShareAuthor, cmtShareOf, momentShareOf,
-  QUOTE_EXTRA_KEY, CMT_EXTRA_KEY, MOMENT_EXTRA_KEY
+  QUOTE_EXTRA_KEY, CMT_EXTRA_KEY, MOMENT_EXTRA_KEY,
+  CT, QUOTABLE_CT, fallbackName, IMG_PLACEHOLDER, QUOTE_STRIP_FALLBACK,
+  decodeExtra, encodeExtra, findSession
 } from '../../src/immsg.js';
 
 // contentType 10001 的 content 是 UTF-8 解码即 JSON 的 ArrayBuffer
@@ -443,4 +445,55 @@ test('momentShareOf：extra 载荷往返；被剥/非文本/空载荷（无正�
 test('previewOfMessage：动态转发出 [动态] 前缀（先于 @作者： 评论形态分流）', () => {
   assert.equal(previewOfMessage({ text: '@李四：动态正文\nhttps://www.acfun.cn/moment/am5104327' }),
     '[动态] @李四：动态正文');
+});
+
+// ---------- 0.9.305 批6：协议表/能力表/展示文案/编解码原语/会话查找 单源导出 ----------
+test('CT 协议表钉死字面值（发送端 map[CT.*] 与双端比较处共用；值漂移即红）', () => {
+  assert.deepEqual(CT, { TEXT: 0, IMAGE: 1, QUOTE: 12, CARD: 10001 });
+  // parseCard/quoteOf 等消费点与字面量夹具对账：表漂移则既有解析用例整批转红
+  assert.equal(msgContentType(cardMsg(SAMPLE_CARD)), CT.CARD);
+  assert.equal(msgContentType({ rawMsg: {} }), CT.TEXT); // 缺失落 TEXT
+});
+
+test('QUOTABLE_CT 能力表成员集合 = 旧内联白名单 {TEXT, IMAGE, CARD, QUOTE}（勿改集合）', () => {
+  assert.deepEqual(QUOTABLE_CT.slice().sort(), [CT.TEXT, CT.IMAGE, CT.CARD, CT.QUOTE].sort());
+  // 表外类型不可引、表内可引（reference 通道禁卡走 isQuotable 第二判，与表无关）
+  assert.equal(isQuotable({ rawMsg: { contentType: 2026 } }), false);
+  assert.equal(isQuotable({ rawMsg: { contentType: CT.QUOTE } }), true);
+});
+
+test('展示文案单源：fallbackName / IMG_PLACEHOLDER / QUOTE_STRIP_FALLBACK 钉字面', () => {
+  assert.equal(fallbackName('9001'), '用户 9001');
+  assert.equal(fallbackName(9001), '用户 9001'); // 数字入参经拼接同串
+  assert.equal(IMG_PLACEHOLDER, '[图片]');
+  assert.equal(QUOTE_STRIP_FALLBACK, '[原消息]');
+  // 消费点对账：预览层图片消息仍出同串
+  assert.equal(previewOfMessage({ rawMsg: { contentType: CT.IMAGE } }), IMG_PLACEHOLDER);
+  // wire 侧「原消息」（无括号）与显示侧「[原消息]」两形态有意并存
+  assert.equal(quoteWireText('', '回复'), '[引用] 原消息\n回复');
+});
+
+test('decodeExtra/encodeExtra 往返 + 坏形落 null 不抛（三解析点共用原语）', () => {
+  var obj = {};
+  obj[QUOTE_EXTRA_KEY] = { seqId: '1', preview: 'p', text: 't' };
+  var back = decodeExtra(encodeExtra(obj).buffer);
+  assert.deepEqual(back[QUOTE_EXTRA_KEY], obj[QUOTE_EXTRA_KEY]);
+  assert.equal(decodeExtra(null), null);
+  assert.equal(decodeExtra(new TextEncoder().encode('{oops').buffer), null);
+  assert.equal(decodeExtra(new TextEncoder().encode('5').buffer), null); // 非对象 JSON
+  // 原语接入后既有解析器行为不变（反证：extra 走坏 → quoteExtraOf 仍 null 不抛）
+  assert.equal(quoteExtraOf({ rawMsg: { contentType: 0, extra: new TextEncoder().encode('{oops').buffer } }), null);
+  var circ = {}; circ.self = circ;
+  assert.equal(encodeExtra(circ), null); // 循环引用序列化炸 → null（发送侧据此以 extra=null 继续发，同旧内联 try 语义）
+});
+
+test('findSession：String 全等匹配数字/字符串混布 targetId；无命中/脏输入 null 不抛', () => {
+  var ss = [{ targetId: 1001 }, { targetId: '2002' }];
+  assert.equal(findSession(ss, '1001'), ss[0]);
+  assert.equal(findSession(ss, 2002), ss[1]);
+  assert.equal(findSession(ss, '3003'), null);
+  assert.equal(findSession(null, 1), null);
+  assert.equal(findSession([], undefined), null); // String(undefined) 不匹配真实 targetId
+  var poisoned = [{ get targetId() { throw new Error('boom'); } }];
+  assert.equal(findSession(poisoned, 1), null); // 容错契约：不抛
 });

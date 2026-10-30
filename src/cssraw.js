@@ -31,7 +31,7 @@ export var CSS_TEMPLATE = ''
   // 绝不压到右组（0.9.72 遗留：右组 transform 左移后会与居中搜索框重叠）。预留 304 =
   // 2×(im/upd/✕ 共 128) + 2×间距 12 + 两侧 48；源切换隐藏（抽屉开着时切源会静默重置背后
   // 舞台）；视口窄到搜索框已不可用（<CFG.view.avoidTopW）时只留右组
-  + '#acsv-root.acsv-with-comments .acsv-top{right:var(--acsv-dw,412px)}'
+  + '#acsv-root.acsv-with-comments .acsv-top{right:var(--acsv-dw,' + '{{dwFallback}}' + 'px)}'
   + '#acsv-root.acsv-with-comments .acsv-seg:not(.acsv-seg-follow){display:none}'
   + '#acsv-root.acsv-with-comments .acsv-top .acsv-sbox{width:min(480px,44%,calc(100% - 304px))}'
   // 聚焦历史面板（0.9.158「ui 也复用」）：锚在搜索框正下方，宽度随框（含抽屉避让同款收窄）；
@@ -230,7 +230,7 @@ export var CSS_TEMPLATE = ''
   // 0.9.237 修正：62 必须写在共享规则**之后**（同权重靠后生效）——原声明在前被 58 压掉，
   // 详情面板（z61）上开「捎句话」的抽屉被盖住且点不到。评论抽屉仍 58
   + '.acsv-msgdrawer{z-index:62}'
-  + '.acsv-drawer{width:var(--acsv-dw,412px)}'
+  + '.acsv-drawer{width:var(--acsv-dw,' + '{{dwFallback}}' + 'px)}'
   + '.acsv-drawer-head{display:flex;align-items:center;gap:10px;padding:14px 16px;font-size:15px;font-weight:600;'
   + 'border-bottom:1px solid rgba(255,255,255,.09);flex:none}'
   + '.acsv-drawer-close{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:30px;height:30px;'
@@ -586,29 +586,29 @@ export var CSS_TEMPLATE = ''
   // --acsv-dw（抽屉实际宽）/ --acsv-cscale（缩放比）由 JS 按 CFG.comments 写入 root
   + '.acsv-video,.acsv-playicon,.acsv-errbox,.acsv-side{transition:transform var(--acsv-dw-t) ease}'
   + '#acsv-root.acsv-with-comments .acsv-video,#acsv-root.acsv-with-comments .acsv-playicon,'
-  + '#acsv-root.acsv-with-comments .acsv-errbox{transform:translateX(calc(var(--acsv-dw,412px) / -2)) scale(var(--acsv-cscale,1))}'
+  + '#acsv-root.acsv-with-comments .acsv-errbox{transform:translateX(calc(var(--acsv-dw,' + '{{dwFallback}}' + 'px) / -2)) scale(var(--acsv-cscale,1))}'
   + '#acsv-root.acsv-with-comments .acsv-dmcanvas{transition:left var(--acsv-dw-t) ease,top var(--acsv-dw-t) ease,width var(--acsv-dw-t) ease,height var(--acsv-dw-t) ease}'
-  + '#acsv-root.acsv-with-comments .acsv-controls{right:var(--acsv-dw,412px)}'
-  + '#acsv-root.acsv-with-comments .acsv-side{transform:translateX(calc(var(--acsv-dw,412px) * -1))}'
+  + '#acsv-root.acsv-with-comments .acsv-controls{right:var(--acsv-dw,' + '{{dwFallback}}' + 'px)}'
+  + '#acsv-root.acsv-with-comments .acsv-side{transform:translateX(calc(var(--acsv-dw,' + '{{dwFallback}}' + 'px) * -1))}'
   // 视图正文让位（0.9.73）：抽屉占槽时视图正文右缘收窄到抽屉左缘——视图内容是「舞台」，与
   // 竖刷同理念（卡片不缩放，只收窄可用宽，网格 auto-fill 自然重排）。正文 right 与抽屉
   // transform 与抽屉同用 var(--acsv-dw-t)（:root 单源）：线性插值下正文右缘恒等于抽屉左缘
   // （逐帧贴合，无先跳后盖）。
   // 中窄视口由 avoidW 护栏退化纯覆盖（视图不能像视频那样缩放，阈值只能比 avoidMin 更严）
-  + '@media (min-width:' + '{{avoidW}}' + 'px){#acsv-root.acsv-with-comments .acsv-view-body{right:var(--acsv-dw,412px)}}'
+  + '@media (min-width:' + '{{avoidW}}' + 'px){#acsv-root.acsv-with-comments .acsv-view-body{right:var(--acsv-dw,' + '{{dwFallback}}' + 'px)}}'
   // 详情面板避让（0.9.105 裁决「左移避让」）：IM/评论抽屉占槽时面板在剩余区居中（右让位）
-  + '#acsv-root.acsv-with-comments .acsv-mdetail{padding-right:var(--acsv-dw,412px);'
+  + '#acsv-root.acsv-with-comments .acsv-mdetail{padding-right:var(--acsv-dw,' + '{{dwFallback}}' + 'px);'
   + 'transition:padding-right var(--acsv-dw-t,.2s) ease}'
   // 画幅满高可容（竖屏/方屏/4:3，判据见 player.js panFitOf）：只平移不缩放——
   // 宽度驱动的缩放对高度受限的画面是纯浪费，平移后画面保持原始大小、居中于剩余区域
   + '#acsv-root.acsv-with-comments .acsv-slide[data-panfit="1"]>.acsv-video,'
   + '#acsv-root.acsv-with-comments .acsv-slide[data-panfit="1"]>.acsv-playicon,'
-  + '#acsv-root.acsv-with-comments .acsv-slide[data-panfit="1"]>.acsv-errbox{transform:translateX(calc(var(--acsv-dw,412px) / -2))}'
+  + '#acsv-root.acsv-with-comments .acsv-slide[data-panfit="1"]>.acsv-errbox{transform:translateX(calc(var(--acsv-dw,' + '{{dwFallback}}' + 'px) / -2))}'
   // spinner 不进上面的 transform 避让名单：它的旋转动画 acsv-spin 独占 transform
   // （CSS 动画优先级高于普通规则，translateX 会被覆盖而永不生效），改用 left 平移避让
   // （不随 cscale 缩放）；slide 级与首屏 scroller 级（包含块=root）都处理，随抽屉同步过渡
   + '.acsv-slide>.acsv-spinner,.acsv-scroller>.acsv-spinner{transition:left var(--acsv-dw-t) ease}'
-  + '#acsv-root.acsv-with-comments .acsv-slide>.acsv-spinner,#acsv-root.acsv-with-comments .acsv-scroller>.acsv-spinner{left:calc(50% - var(--acsv-dw,412px)/2)}'
+  + '#acsv-root.acsv-with-comments .acsv-slide>.acsv-spinner,#acsv-root.acsv-with-comments .acsv-scroller>.acsv-spinner{left:calc(50% - var(--acsv-dw,' + '{{dwFallback}}' + 'px)/2)}'
   // 评论内 UBB 渲染（表情/图片/@提及/作品引用）。带 .acsv-cbody 作用域：
   // 这是注入宿主页的全局样式表，不能留无前缀选择器（防与站点样式互染）
   + '.acsv-cbody .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}'
@@ -682,7 +682,7 @@ export var CSS_TEMPLATE = ''
   + '.acsv-banpop button img{width:26px;height:26px;display:block}'
   // 私信分享面板（锚定分享按钮左侧的浮层，banpop 同款随 slide 销毁回收）
   + '.acsv-sharepop{position:absolute;right:66px;bottom:-6px;z-index:32;width:300px;'
-  + 'max-height:min(430px,62vh);display:flex;flex-direction:column;'
+  + 'max-height:min(' + '{{rowMaxH}}' + 'px,' + '{{rowMaxVh}}' + 'vh);display:flex;flex-direction:column;'
   + 'background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);'
   + 'border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);animation:acsv-fadein .18s ease}'
   // 评论转发私信变体（0.9.50）：挂在抽屉根（滚动列表内挂载会被水平裁剪），锚输入条上方
@@ -729,7 +729,7 @@ export var CSS_TEMPLATE = ''
   + 'border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:12px;text-decoration:none}'
   + '.acsv-share-center:hover{background:rgba(255,255,255,.2)}'
   // ---- 私信抽屉（列表 + 聊天两视图；滑入骨架见上共享规则，这里只写差异） ----
-  + '.acsv-msgdrawer{width:var(--acsv-dw,min(412px,88vw));background:rgba(22,22,27,.97)}'
+  + '.acsv-msgdrawer{width:var(--acsv-dw,min(' + '{{dwFallback}}' + 'px,88vw));background:rgba(22,22,27,.97)}'
   + '.acsv-im-head{flex:none;display:flex;align-items:center;gap:8px;padding:14px 16px;font-size:15px;'
   + 'font-weight:600;color:#fff;border-bottom:1px solid rgba(255,255,255,.09)}'
   + '.acsv-im-back{border:none;background:rgba(255,255,255,.1);color:#fff;width:28px;height:28px;'
@@ -1279,7 +1279,7 @@ export var CSS_TEMPLATE = ''
   // ---- 通用选择层（0.9.142；pickpop.js）：锚在按钮旁的「选择分组/选择收藏夹/确认删除」小弹层 ----
   // 定位由脚本算（宿主内容坐标系，滚动跟随），CSS 只管外观与层级；z 34 在 banpop(30)/sharepop(32)
   // 之上、模态（settings 62 / update 65）之下——消费面是 rail（竖刷/播放层）与我的页
-  + '.acsv-pickpop,.acsv-confirmpop{position:absolute;z-index:34;width:260px;max-height:min(420px,64vh);'
+  + '.acsv-pickpop,.acsv-confirmpop{position:absolute;z-index:34;width:260px;max-height:min(' + '{{anchorMaxH}}' + 'px,' + '{{anchorMaxVh}}' + 'vh);'
   + 'display:flex;flex-direction:column;background:rgba(22,22,27,.97);border:1px solid rgba(255,255,255,.12);'
   + 'border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:13px;color:#e8eaed}'
   + '.acsv-confirmpop{width:240px}'

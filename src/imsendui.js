@@ -7,6 +7,7 @@ import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { ensureIm, ensureConnected, ensureTracer, linkOk } from './imsdk.js';
 import { doSend, sendQuote, sendImage, forceSync } from './imsend.js';
+import { IMG_PLACEHOLDER } from './immsg.js'; // 图片占位文案单源（0.9.305 批6）
 import { errLong, errImgTooBig } from './toastmsg.js';
 
 // env 契约：
@@ -46,7 +47,7 @@ export function createSendKit(env) {
         }
         b.appendChild(ph);
       } else {
-        b.textContent = '[图片]';
+        b.textContent = IMG_PLACEHOLDER;
       }
       var holder = el('div', 'acsv-im-rowwrap mine');
       holder.appendChild(b);

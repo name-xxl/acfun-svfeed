@@ -1,4 +1,5 @@
-import { toast, sweepSlideVideos, videoOf } from './ui.js';
+import { CFG } from './cfg.js';
+import { toast, sweepSlideVideos, videoOf, resumeSlotOf } from './ui.js';
 import { createSession } from './session.js';
 import { slideAt, isOvlSlide } from './state.js';
 import { FeedStore } from './feedstore.js'; // 仅调用期解引用（0.9.115 断 feedstore↔player 环后为普通单向边）
@@ -110,12 +111,12 @@ function syncFwdQuality(slide) {
   try {
     if (isOvlSlide(slide)) return; // 播放层 slide 无前向邻居（idx 哨兵会打到竖刷第 0 条）
     var idx = Number(slide.dataset.idx);
-    for (var k = 1; k <= 2; k++) reapplyQuality(FeedStore.items[idx + k]);
+    for (var k = 1; k <= CFG.win.fwdDepth; k++) reapplyQuality(FeedStore.items[idx + k]); // 深挂同深（0.9.305 批4⑥）
     var fwd = slideAt(idx + 1);
     var it = fwd && FeedStore.items[idx + 1];
     if (!fwd || !it || !it.qualities || !fwd._session) return; // 解析在途时 reapply 未生效，等 resolve 现读新偏好
-    var fv = videoOf(fwd);
-    if (fv && fv.currentTime > 1) fwd._resumeAt = fv.currentTime; // 预挂条可能被回看过（滑回场景）
+    var slot = resumeSlotOf(videoOf(fwd)); // 预挂条可能被回看过（滑回场景）；门限单源（0.9.305 批4③）
+    if (slot) fwd._resumeAt = slot;
     detachSession(fwd);
     attachVideo(fwd, it, idx + 1);
   } catch (e) { /* best-effort: media */ }

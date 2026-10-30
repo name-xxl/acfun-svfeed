@@ -5,7 +5,8 @@
 // boot/player 同属组合根/编排层，对特性的装配属正常向下（口径 B 对 SKIP_B 源豁免）。
 import { CFG } from './cfg.js';
 import { PLAYER_ICONS } from './styles.js';
-import { fmtTime, setBtnIcon, videoOf } from './ui.js';
+import { setBtnIcon, videoOf } from './ui.js';
+import { timeText } from './timefmt.js';
 import { applyLoop, playVideo, showSoundHint, pb } from './playback.js';
 import { showControls } from './controls.js';
 import { onPlaying as dmOnPlaying } from './danmaku.js';
@@ -24,7 +25,7 @@ import { stat } from './dbg.js';
 // 元数据到达（onMeta）与 resize 时重估，结果写在 slide 的 data-panfit 上，CSS 据此切换平移/缩放
 function panFitOf(video) {
   if (!video.videoWidth || !video.videoHeight) return false;
-  var dw = Math.min(CFG.comments.drawerW, window.innerWidth * CFG.comments.drawerMaxWp);
+  var dw = CFG.comments.drawerWOf(window.innerWidth); // 抽屉宽公式单源（0.9.305 批4⑧，与 syncCommentVars 同式）
   return video.videoWidth / video.videoHeight <= (window.innerWidth - dw) / window.innerHeight;
 }
 export function syncPanFit(slide) {
@@ -55,7 +56,7 @@ export function createSessionHooks(env) {
       // 0.9.281 起的跨会话记忆）在新会话上永远落回 1x（mem-rate-applied 断言抓出的既有缺陷）。
       // seekHold 的临时 2x 只进 playbackRate，不污染恢复基准
       video.defaultPlaybackRate = pb.playRate;
-      video.playbackRate = pb.seekHold.active ? 2 : pb.playRate;
+      video.playbackRate = pb.seekHold.active ? CFG.rate.hold2x : pb.playRate; // 长按临时倍率单源（0.9.305 批4②）
     },
     // 播放层开着时"当前条"是层内那条（哨兵 idx）：session 的自动起播判定按它比对
     currentIdx: function () { return currentView() === 'play' ? OVL_IDX : FeedStore.current; },
@@ -94,7 +95,9 @@ export function createSessionHooks(env) {
     onMeta: function (session, video) {
       syncPanFit(session.slide); // 竖屏等满高可容的画面标记只平移，抽屉避让不白缩
       if (session.slide._ctlTime) {
-        var metaTxt = fmtTime(video.currentTime) + ' / ' + fmtTime(video.duration);
+        // 与 onTime 逐字同式（timefmt.timeText 单源，0.9.305 批4⑥）：_lastTimeTxt 同值短路的
+        // 成立前提就是这里和 onTime 组出的串一模一样
+        var metaTxt = timeText(video.currentTime, video.duration);
         session.slide._ctlTime.textContent = metaTxt;
         session.slide._lastTimeTxt = metaTxt; // 与 onTime 的同值缓存对齐（0.9.166）
       }
@@ -106,7 +109,7 @@ export function createSessionHooks(env) {
       var trackEl = slide._ctlTrack;
       var draggingNow = !!trackEl && trackEl.dataset.drag === '1';
       var pct = (video.currentTime / video.duration * 100) + '%';
-      var txt = fmtTime(video.currentTime) + ' / ' + fmtTime(video.duration);
+      var txt = timeText(video.currentTime, video.duration); // 「x / y」单源（0.9.305 批4⑥）
       // 同值跳过（0.9.166）：pct 每拍都在变（写了也看不出差别），时间文本 1Hz 才变——
       // 文本去重省掉 ~3/4 tick 的 textContent 写。stat 只在 pct/文本双同值的整拍跳过时
       // 计数（harness 断言用）；拖动态照旧不写进度条（_lastPct 照跟，松手即恢复真值）

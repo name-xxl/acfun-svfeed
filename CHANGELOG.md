@@ -5,6 +5,56 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.305（2026-10-30）· 卫生收口混批④⑤⑥——播放/弹幕常量单源 + chip 族/状态行文案 + IM 协议表（三域并行，11 类同事实多写收口）
+
+三域并行各清一片（审计播放/卡面/私信报告的 P1/P2 主力项），全部**行为零变化**（运行时 CSS 逐字节回验、请求串全等、12 样本正则 matchAll 恒等）。
+
+**病灶与修法·④ 播放/弹幕（常量散写）**：codec 名单四份且 settings「同源」注释虚报、归一规则两份分躺
+quality/controls；长按 2x 两处、倍速文案三处、「>1s 记续播」六处、弹幕默认三件套两口径、屏蔽六类双表、
+dmArea 默认三处、滚动族判据四式、事件名/恢复态串/前向深度/探测窗/60px 阈值/音量初值/时间文案/60fps 双正则
+各两处以上、金丝雀 stat 键全库唯一连字符；popplace 上限 420/0.64/430/0.62 与 CSS max-height 各写各的、
+抽屉宽公式两份 + CSS 兜底 412 十处。→ `CFG.codec.options/buf.labelOf/time.resumeMinSec/rate.hold2x/
+win.fwdDepth/stall.probeMs/pop 四值/comments.drawerWOf/danmaku.defaults（colorInt 文件末派生）`；quality 导出
+`normalizeCodec/drop60FpsLabel`、timefmt 收 `fmtTime/timeText/timeRateLabel`（ui 门面再导保旧引用）、ui 出
+`resumeSlotOf/EV_LAYOUT_SHIFT`、dmcanvas 出 `DM_BLOCK_TYPES（k/label/test，序=判定序=展示序）/isScrollMode/
+AREA_DEF（从 SCHEMA def 派生，漂移走 stat dm.areaDefBad）`；SEAMS 新增五缝（anchorMaxH/anchorMaxVh/rowMaxH/
+rowMaxVh/dwFallback）照 jxgridMin 先例，**运行时 CSS 逐字节不变**（展平回验过；本批还揪出「注释里写缝标记
+= 压进产物被零缝闸拦」——缝标记只许写 cssraw/styles，cfg 注释已改写）。有意不动：advdm 残包默认保持字面量
+（零依赖模型核，其单测无 window 垫片，import cfg 即求值崩——同改义务注释登记）；toast 无 root no-op 补
+`stat('toast.noRoot')`；金丝雀键改点分 `feed.noListener`。
+
+**病灶与修法·⑤ 视图/卡面（协议与文案旁路）**：「同项短路→摘 on→点亮→回调」chip 点击协议手抄六份
+（zone×4/精选/原生面板），zone 子频道「全部」无条件 on 与实选漂移；「已加载全部动态」两份、「加载中…」
+三处旁路 0.9.300 的收口；分区榜把 cfg.rankBoards.channel.tip 绕成死字段（channel 档硬编码同值串）；
+空态串/关注态钮文案各文件重拼；「分区」「榜单」标题与 dock.label 两份（0.9.171 改名同碰教训余数）；
+确认卡「全页单枚」摘旧两份私拼 `.acsv-confirmpop`。→ 新件 `chipkit.mountChipGroup({host,items,isOn,onPick,cls})`
+（初始高亮与短路同问 isOn，DOM on 态恒等数据态）三消费改表驱动 + 容器钉 `data-chips` 锚；pageloader 出库
+`DONE_LABEL_MOMENTS`、五处裸串改引用，check-liststate 随批立「加载中…」规则（owner=pageloader，comments/pickpop
+在途占位=有意例外白名单双登记）；zone.syncTip 两档统一 `名 / b.tip`（cfg 死字段复活，文案逐字不变）；
+mytabs/followadmin/searchview 空态与钮文案各文件内常数化（跨文件合表否决：串集不重合且需视图→档件反向边）；
+列头/标题改读 `viewDef(id).dock.label`；pickpop 导出 `dismissConfirm()`。makeListCtx×moreOfList 抽 listsession
+评估后**放弃**——回话落点/waiter 形制/条目投影/短路路径/ctx 分叉五处结构差，强抽造第三件（差异账在册）。
+
+**病灶与修法·⑥ IM/私信（协议号与展示串散写）**：contentType 0/1/12/10001 裸数字六文件散写、可引白名单两处
+互不相干；未读 99+ 口径三写；回落名「用户 <id>」三写/「[图片]」四写/「[原消息]」两写；sendCmtShare/
+sendMomentShare 逐行同构；extra 编解码样板三写+三写；按 targetId 找会话六处各写；ks:// 三形态（含 slice(5)
+魔数）；发送码生成端与 sharepanel indexOf 对账端各持字面；「消息中心」URL 绕 CFG；10001 卡 href 公式两份逐字、
+dayLabel/chatTime 四档日期梯整套两写、mcard/cshareCard 骨架同族。→ immsg 立 `CT/QUOTABLE_CT/decodeExtra/
+encodeExtra/findSession/fallbackName/IMG_PLACEHOLDER/QUOTE_STRIP_FALLBACK`（全零新边落点）；imsend 合并
+`sendExtraShare`（第三种转发=加表项）+ 导出 `SEND_TIMEOUT/SEND_REJECTED`；imbadge 导出 `unreadBadge` 三处消费；
+imimage `KS_PREFIX` 一处派生；sharepanel host 改引 `CFG.api.imDownloadBase` 拼装（值恒等）；imcard 出
+`videoHrefOf + quoteCardCore`；imchat `dayTier` 文件内合一；inputbar 令牌正则字符类单源派生三式（新旧 12 样本
+matchAll 逐串全等）。核实并存：imnative 列表占位清单与 QUOTABLE_CT 集合差、wire 侧「原消息」与显示侧、
+fetchCards「A站用户」与 fallbackName——三处有意形态差异注释划界，未强并。
+
+**测试**：settings/dmcanvas/timefmt/levelstack/popplace +advdm 防崩对照 69/69；chipkit 新单测 4 用例；
+immsg.test 56（5 新钉：CT 值/能力表成员/三展示串/编解码往返/findSession）；check-liststate 扩规则后绿、
+反跑还原裸串即红。cases/views.js：chip 五处断言换 data-chips 锚（zone-hot-hides-channel 加「锚集合恰三枚」
+不变式——反跑：摘 DOM 换序旧序选择器静默错拿、锚选择器免疫，功能真坏才红）+ 新增 `zone-channel-tip`
+（cfg channel.tip 表项驱动对账，import 源码读值=0.9.299 几何同源先例）。摘修复反跑另两路：还原 momentpost
+query 复刻/`resourceType=9` 字面 ⇒ check-dialect 转红（0.9.304 已证，本批未回潮）；还原 popplace 裸上限 ⇒
+check-zlayers 死缝红。build/lint/check（含 check-deps 新边 12 条并入图）/单测/全场景全绿。
+
 ### 0.9.304（2026-10-30）· 协议方言收口——游标终值/资源枚举/令牌串/成功码单源 + check-dialect
 
 **病灶（六域卫生审计 P1×5，跨接口/评论/私信三域交叉命中，复核属实）**：端点方言此前是「裸字面

@@ -87,6 +87,10 @@
     window.__errs.push((e.message || 'res:' + (e.target && e.target.tagName || '?'))
       + ' @' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || 0));
   }, true);
+  // 场景体可 `await import('/src/…')` 直读源码常数做同源断言（0.9.299 几何先例、0.9.305 zone-channel-tip）
+  // ——src 模块顶层裸引构建期 define `__ACSV_DEBUG__`，这里按 debug 构建同值补全局垫片；
+  // 必须 var（顶层 var→window 属性→裸引解析得到），产物内 define 早被 esbuild 折叠不受影响。
+  var __ACSV_DEBUG__ = true;
   window.__HARNESS_RESULTS__ = { case: CASE, bundle: RELEASE ? 'release' : 'debug', results: [], skips: [], done: false };
   function rec(name, pass, info) { window.__HARNESS_RESULTS__.results.push({ name: name, pass: !!pass, info: info == null ? '' : String(info) }); }
   // 0.9.299：跳过必须显式记账——不许再 rec(..., true, 'skip:...') 冒充通过。runner 默认把

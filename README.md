@@ -50,7 +50,7 @@
 | 顶栏信封（私信）/ **I 键** | **私信抽屉**（信封点第二遍即关、I 键全界面开合，0.9.75）：列表（联系人/未读/相对时间/搜索）↔ 聊天（气泡/**时间分割线**/**作品卡片**（封面/计数/时长，点击跳视频；自己发出的 `标题+链接` 分享消息同样渲染为卡片）/发送/失败点击重试/已读上报/**消息引用**（hover 引用按钮 → 引用 chip，摘要条点击定位高亮）/**表情收发**/**图片消息**（即拍即发、点击看大图）；自己气泡深蓝灰不刺眼）两视图；与评论抽屉**同槽互斥**（state.js 槽位协调：开一方自动收回另一方）；**视图态也可开**（0.9.73：抽屉盖在视图上，正文/顶栏按同一套避让让位）；Esc 逐层关：更新弹窗 → 大图查看器 → 当前抽屉 → 当前视图 → 退出 |
 | 顶栏更新（信封旁） | **更新说明弹窗**：每次打开竖刷页自动检查一次新版本——更新后首次打开弹「vX 更新内容」（官方 release 渲染正文）；发现新版本首次弹「发现新版本」+ 说明 + [前往更新][忽略此版本]，此后仅 toast 轻提醒（红点亮至忽略或升级，忽略后该版本完全静默）；点按钮随时手动查看。数据取 GitHub 官方 `releases.atom`，拉取失败静默不打扰；Esc 关闭顺序：更新弹窗 → 大图查看器 → 抽屉 → 退出 |
 | 打开 message.acfun.cn 私信 | **原生私信页自动增强**（装脚本即生效）：「不支持查看此消息」占位原位替换为 10001 作品卡；脚本分享消息渲染为紧凑作品卡（限宽 228px、封面裁切，原文只留附言）；引用消息补灰色摘要条并把正文剥成纯回复（与抽屉同观感，不再双份摘要）；会话列表预览改写「[分享] 标题」 |
-| 顶栏搜索框（居中常驻，0.9.72；0.9.73 起四界面共用一个） | **搜 A 站视频 / UP主 / 文章**（0.9.151 搜索 2.0）：Enter / 放大镜 → 搜索视图（`#svfeed/search/<类目>/<关键词>`，可收藏/分享/刷新回放）——类目 chips（视频/UP主/文章，计数即总数）+ **视频**抖音式结果网格（封面左下播放数、右下时长，标题两行，底部 @UP·日期；点卡片进播放层就地播放）、**UP主**卡（头像/粉丝/投稿/签名 + 最近投稿 3 条可直接点播 + 一键关注（已关注点开=分组选择层改分组/取关））、**文章**文本行（标题/摘要/作者/阅读/评论/频道/日期，点击新标签开原生页）；**滚动到底自动续页**（哨兵，同评论侧 0.9.141 口径），到底显示「已显示全部 N 条」；空词态出**最近搜索**（本地记 10 词，可点可清空）。**搜索视图里它就是唯一的输入框**（深链/换词时按地址回填，同词再回车就地重跑）；**点空框出「历史记录」面板**（0.9.158 复用原生逻辑：focus 展开 / 鼠标移出或点面板外或 Esc 收起 / 点词即搜 / 「清除历史」；**与站方搜索框共享同一份历史**——原生搜的我们看得到、反之亦然；无历史不占位） |
+| 顶栏搜索框（居中常驻，0.9.72；0.9.73 起四界面共用一个） | **搜 A 站视频 / UP主 / 文章**（0.9.151 搜索 2.0）：Enter / 放大镜 → 搜索视图（`#svfeed/search/<类目>/<关键词>`，可收藏/分享/刷新回放）——类目 chips（视频/UP主/文章，计数即总数）+ **视频**抖音式结果网格（封面左下播放数、右下时长，标题两行，底部 @UP·日期；点卡片进播放层就地播放）、**UP主**卡（头像/粉丝/投稿/签名 + 最近投稿 3 条可直接点播 + 一键关注（已关注点开=分组选择层改分组/取关））、**文章**文本行（标题/摘要/作者/阅读/评论/频道/日期，点击新标签开原生页）；**滚动到底自动续页**（哨兵，同评论侧 0.9.141 口径），到底显示「已显示全部 N 条」；空词态出**最近搜索**（与站方共享历史、上限随站方口径 8 词，可点可清空）。**搜索视图里它就是唯一的输入框**（深链/换词时按地址回填，同词再回车就地重跑）；**点空框出「历史记录」面板**（0.9.158 复用原生逻辑：focus 展开 / 鼠标移出或点面板外或 Esc 收起 / 点词即搜 / 「清除历史」；**与站方搜索框共享同一份历史**——原生搜的我们看得到、反之亦然；无历史不占位） |
 | 左栏「我的」 | **个人主页**（`#svfeed/my`）：资料头（头像/昵称/关注·粉丝·投稿/签名，来源 `auth_key`→uid + `getUserCardList`；未登录或接口失败不显示头部）→ Tab（观看历史｜收藏夹｜**关注分组**，切换不重拉）→ **4:3 封面网格**（A 站普通视频封面固定 4:3，历史项封面左下角「观看至 xx:xx」角标，收藏显示 UP 名/续看秒数）；点卡片进播放层就地播放（Esc/「向左返回」回本列表），「加载更多」翻页。**收藏夹 tab 0.9.143 管理化**：＋新建夹 / 改名·删除收藏夹（删除二次确认「一并移除」）/ 卡面 hover「移动·移除收藏」；**关注列表 tab（0.9.289 对齐原生 /member/feeds/following，前名「关注分组」）**：「全部分组」过滤下拉 + 编辑分组（建/改名/删组模态）+ 成员行流（头像/昵称/关注·粉丝·投稿/完整签名 + 行内「已关注」下拉钮：特别关注 / 取消关注 / 设置分组——取消类套确认弹层，偏移量游标触底翻页） |
 | 左栏「榜单」 | **分区榜单**（`#svfeed/zone`，0.9.69 全量对齐原生 rank/list）：渠道/子频道/榜期 chips（全站日榜 100 条）→ 1600 上限居中 rlist 分栏行（视频卡+UP 卡 338，0.9.70 起宽屏不留大空白）；封面 160×90、标题单行、简介 3 行（`<br>` 折行）、**meta 贴封面底**（原生图标：播放/评论/发布于·频道），排名=48px 旋转 10° 水印贴卡右下；UP 卡扁平+左竖线（头像 90/名字/签名 3 行/投稿·粉丝万格式图标位）；点行进播放层就地播放，整卡 UP 主页新窗；滚过 300px 出右下**回顶钮**（0.9.155，与关注/广场/搜索同款共享件） |
 | 视图态顶栏（榜单/我的/搜索/播放层，0.9.73 四界面复用） | 与竖刷**同一套顶栏**：居中搜索框（搜索视图里它就是唯一输入框）+ 私信 / 更新 / ✕；源切换隐藏；**✕=退出脚本**（0.9.74 单一意义），搜索结果页与播放层在左缘多一个「向左返回」=回来源界面（播放层自 0.9.176 起：还有级别可弹时先弹回原视频，单级才回来源）；私信 **I 键**四界面通用；抽屉开着时顶栏整体收窄到抽屉左缘（右组贴边、搜索框回剩余区中心，互不重叠） |
@@ -347,7 +347,10 @@ npm run check        # 仅静态校验（CI 在 build 后跑）：场景登记�
                      #   偏好写点棘轮（pb 记忆字段唯 playback.js 可写，0.9.285 起）/
                      #   文档机械事实（模块表覆盖/竖线/空行，0.9.297 起）/
                      #   浮层键盘监听白名单（新浮层只许 overlayOpen，0.9.298 起）/
-                     #   空态/列表失败文案单源（liststate.setEmpty / pageloader 常数，0.9.300 起）/
+                     #   空态/列表文案单源（liststate.setEmpty / pageloader 常数〔失败两态+「加载中…」+
+                     #   动态到底，0.9.300 起、0.9.305 批⑤扩〕）/
+                     #   z 档实体↔注释一致性 + gridMin/gridGap→SEAMS 消费闸（check-zlayers，0.9.303 起）/
+                     #   协议方言字面单源（no_more/令牌串/裸 resourceType，check-dialect，0.9.304 起）/
                      #   z 档实体↔注释一致性 + gridMin/gridGap→SEAMS 消费闸（0.9.303 起）/
                      #   slide/item 字段契约（唯 domfields.js 可登记，0.9.297 起）/
                      #   契约面类型检查（tsc，0.9.188 起）
@@ -402,7 +405,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `styles.js` / `ui.js` | CSS、图标；`el`/`esc`/`toast`/`a11y`（title+aria-label 同源）/剪贴板/样式注入等工具。**0.9.258（审计批②）**：全量 CSS 原文搬到 `cssraw.js`（构建期输入，只被 `build.js` import），产物里以 deflateRaw+base64 内嵌串（`window.__ACSV_CSS_SRC__`）携带——styles.js 求值即解包（`pack.unpackText`）+ 回填 `SEAMS` 表 13 缝 + 主色替换，runtime CSS 与压缩前逐字节相同 |
 | `cssraw.js` | 全量 CSS **模板**（0.9.258，审计批② P0-1）：原 `styles.js` 的 RAW_CSS 字面量链整段迁移，CFG 插值 + `IMGVIEW_CSS` 拼接改成 `'{{缝名}}'` 标记（缝表在 styles.js 一处；缝计数不写死在注释——摘要数字必漂，实况以代码为准，网格缝消费闸=test/check-zlayers.mjs）。**构建期输入**（同 `node_modules/hls.js` 的定位）——**只许 build.js import**，随产物发布的模块一律不得引它（真引了 ⇒ 产物里重新出现 `'{{'`，`check-release` 即红）。改样式改这里 |
 | `pack.js` | 内嵌压缩串解包**单源**（0.9.258，审计批②）：`unpackText(packed, len, onFail)` = base64→inflateSync(fflate)→长度校验→UTF-8 解码，失败返 null 绝不抛。三个消费方各只补自己的失败打点（hls 下沉 CDN 链 / devicetab 回落空表 / styles 空模板），**不许再造第二份 unpack**（AGENTS 规则 3；`check-direction` 已登记为基建件） |
-| `pageloader.js` | 翻页骨架**单源**（0.9.259，审计批④ P2-5）：`createPageLoader({fetch,onPage,host,setStatus,skeleton,…})` → `{load,reset,done}`。收的是四家**相同的协议**——在途守卫 / 代数令牌 + `host().isConnected` 陈旧回包丢弃 / 骨架两路都收 / 三态状态行（`'加载中…'` 续拉才打、`'已加载全部…'` 到底、`'加载失败，滚动重试'`⇄`'加载失败，点击重试'` 按列表子节点分）/ 落定交 `onPage` 回 `{cursor,noMore}`；**翻页范式（游标方言/解析/到底判定/空态文案）仍归各消费点**。四处消费：followview / squarefeed / mytabs 观看历史（`earlySettle`＝守卫前结算，0.9.236 形状；骨架每页都建）/ mytabs 管理档壳（`busyGate`＝已有条目，档表未到不发废请求）。零依赖叶，`check-direction` 登记为基建件 |
+| `pageloader.js` | 翻页骨架**单源**（0.9.259，审计批④ P2-5）：`createPageLoader({fetch,onPage,host,setStatus,skeleton,…})` → `{load,reset,done}`。收的是四家**相同的协议**——在途守卫 / 代数令牌 + `host().isConnected` 陈旧回包丢弃 / 骨架两路都收 / 三态状态行（`'加载中…'` 续拉才打、`'已加载全部…'` 到底、`'加载失败，滚动重试'`⇄`'加载失败，点击重试'` 按列表子节点分）/ 落定交 `onPage` 回 `{cursor,noMore}`；**翻页范式（游标方言/解析/到底判定/空态文案）仍归各消费点**。四处消费：followview / squarefeed / mytabs 观看历史（`earlySettle`＝守卫前结算，0.9.236 形状；骨架每页都建）/ mytabs 管理档壳（`busyGate`＝已有条目，档表未到不发废请求）。零依赖叶，`check-direction` 登记为基建件。**状态行文案常数单源（0.9.305 批⑤补全 0.9.300 的两拍）**：`LOADING_LABEL`/`DONE_LABEL`/`DONE_LABEL_MOMENTS`（followview/squarefeed 两处「已加载全部动态」字面收编）/`FAIL_RETRY`/`FAIL_SCROLL` 全走本件引用，裸串旁路由 check-liststate「加载中…」规则钉死（owner=pageloader；comments/pickpop 两处系「在途占位」非翻页语境=有意例外白名单双登记） |
 | `lifecycle.js` | 监听器生命周期作用域（0.9.264，P1）：`createScope()` → `{on, dispose, size}`。只收 `window`/`document` 级、随挂载/会话生灭的监听；teardown 一次摘净，幂等。页面级单例监听不进本件，由 `test/check-listeners.mjs` 的 `// singleton-listener:` 标记放行。零依赖叶 |
 | `contract.js` | 关键端点回包形状守卫（0.9.264，P1）：`hasShape(obj, fields, tag)` / `isArray(v, tag)`，只把 `undefined/null` 判缺，缺形状时 `stat('contract.<tag>.miss')` 计数、**绝不抛错**；调用方保持既有回退行为。用于把站点改版/网关换形状从静默降级变成可读计数。**协议方言单源（0.9.304，六域卫生审计）**：`CURSOR_END`/`isEndCursor(v,{also})`（终页游标，此前 'no_more' 裸串 11 处跨 8 文件且 null/空串/'0' 方言各拼）、`RT`（资源类型 2=APP稿件/3=文章/9=收藏·弹幕族/10=动态）、`ST`（评论 sourceType 5/3/4，与 RT 不同族）、`okResult0`（PC-direct 成功码，曾两份 ok0+多处内联）；防回潮闸=`test/check-dialect.mjs`（字符串字面唯 owner + 裸 resourceType=数字行级扫描） |
 | `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策（三跳两两换 URL；0.9.166 二三跳 ±20% 抖动，rnd 缺省 0.5 保确定性）+ `memoState`/`memoTrim` 死链备忘纯判定（0.9.77：只读不续期）+ **`CDN_URL_OK` A 站图床白名单**（0.9.302 收口此单源，ubb 评论 `[img]` 放行与 emoticon 表情出图共用——此前两处各持逐字节相同正则、ubb 头注还宣称「两张网不共用」，与事实相反；防复制回归见 imgurl.test.js 全 src 扫描）——URL 正确性只在这里定义 |
@@ -459,7 +462,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `imbadge.js` | 私信未读徽标（0.9.163 自 imdrawer.js 拆出，仿 followbadge.js 先例）：顶栏+浮条未读数 = unReadCountUpdate 事件加速 + 慢轮询兜底（仅内核缓存读）；与抽屉 UI 零共享状态（只经 imsdk.ensureIm 取会话缓存；0.9.270 SDK 连接出口随 imsdk 拆件移出 imsend），teardownIm 经 stopBadge 反向通知拆除；mountBadge 由 player 挂载；**0.9.244 起轮询起点随 badgeDelay（15s）**（此前 mount 即起 5s 拍、首拍就拉 860KB SDK，「一打开不拉 SDK」的延迟被架空——真机读数 7.8s 实锤）；**0.9.257 起推送监听登记句柄、`stopBadge` 里 `off` 摘除**（SDK 单例永不释放，此前每次挂载叠一层且各层回调共用 `mounted` 标志 ⇒ 一个 `unReadCountUpdate` 触发 N 次 `getSessions` 全量求和；另 `mountBadge` 先 `stopBadge` 收旧，防未 teardown 的重挂孤儿化 timer/监听） |
 | `imnative.js` | 原生私信页增强（message.acfun.cn）：占位替换（10001 卡，unsafeWindow 读页面内核）+ 分享卡 + 引用消息渲染（去重加固）+ Shadow DOM 隔离（0.9.80：卡片装配与抽屉同源，只留浅色皮肤声明）+ **结构自检 canary**（0.9.120：启动 10s 盘点官方选择器命中，改版第一现场点名；清单=test/cases/msg.js im-native 契约断言同源） |
 | `imcard.js` | 私信卡片装配（0.9.80，两皮肤共用）：视频卡=封面+计数条+两行标题、评论卡=引用块+来源小条、**动态卡**=引用块+配图行+「查看动态」条（0.9.122，extra 被剥自动降级 wire 文本态）；共享"load 才放出/error 隐藏"时序、[img]/配图看图、dougaCard 原位 patch（信封双皮肤：抽屉暗色 `.acsv-im-*` / 原生页浅色 Shadow） |
-| `immsg.js` | 私信消息共享解析层（parseCard/parseShare 容忍式契约、引用解析 quoteOf/quoteExtraOf/isQuotable、评论转发 wire 组装与识别/拆分、extra 载荷 key 常量、预览映射/降级文案），双端渲染器各自消费。**分享/评论/动态 wire 预览文案 `sharePreviewOf` 单源（0.9.302）**：抽屉 previewOfMessage 与原生页 imnative.enhanceList 共此出口——此前 imnative 自写一份、绕开表情码占位化（0.9.53 教训只落抽屉端），携 `[emot=…]` 的 wire 出 `[emot=acfun,1…` 截断垃圾、动态空标题错回落「推荐视频」；「双端渲染器各自消费」豁免止于渲染外壳/皮肤，文案口径必须共享 |
+| `immsg.js` | 私信消息共享解析层（parseCard/parseShare 容忍式契约、引用解析 quoteOf/quoteExtraOf/isQuotable、评论转发 wire 组装与识别/拆分、extra 载荷 key 常量、预览映射/降级文案），双端渲染器各自消费。**分享/评论/动态 wire 预览文案 `sharePreviewOf` 单源（0.9.302）**：抽屉 previewOfMessage 与原生页 imnative.enhanceList 共此出口——此前 imnative 自写一份、绕开表情码占位化（0.9.53 教训只落抽屉端），携 `[emot=…]` 的 wire 出 `[emot=acfun,1…` 截断垃圾、动态空标题错回落「推荐视频」；「双端渲染器各自消费」豁免止于渲染外壳/皮肤，文案口径必须共享。**0.9.305 批⑥协议/文案/原语单源**：`CT`={TEXT:0,IMAGE:1,QUOTE:12,CARD:10001} 与 `QUOTABLE_CT` 能力表、`decodeExtra`/`encodeExtra` 编解码原语、`findSession`（imsend/imchat/imnative 三端消费、零新边落点）、`fallbackName`「用户 <id>」/`IMG_PLACEHOLDER`「[图片]」/`QUOTE_STRIP_FALLBACK`「[原消息]」。仍为零依赖叶 |
 | `imicons.js` | 站点原生图标登记表（CDN SVG + 字形码点，双端共享） |
 | `release.js` | 更新提示（0.9.60）：官方 releases.atom 拉取/解析纯函数（cmpVersion/normVer/parseRelAtom/latestEntry/decideUpd）+ 说明弹窗单例 + 红点；正文直接用 GitHub 官方渲染 HTML（elHtml 信任契约）；每次 mount 检查一次（60s 节流）、失败静默、unmount 显式拆监听 |
 | `overlay.js` | 浮层栈（0.9.61）：Esc 显式分支链的收拢（overlayOpen/Close/Top/IsOpen/Teardown，close 回调注册方自带、先出栈再调+异常隔离）；modal 键语义单监听承载（release/imgview capture 自关退役）；栈=显式状态（0.9.22 精神延续） |
@@ -497,7 +500,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `relationapi.js` | 关注域读写接口（0.9.142）：getGroups / listFollows（action=9 组内·7 全部；**偏移量游标**、终值 no_more）/ followUser·unfollowUser·regroup（action 1/2/3）/ createGroup（优先取响应 groupId、差集兜底）·removeGroup·renameGroup；写链走 appapi.postForm（页面 fetch 通道，风控友好）；URL 逐字护 mock 缝（docs §2.2/§2.5/§2.6） |
 | `relatedapi.js` | 相关推荐域件（0.9.168）：listRelated（feed/related/general POST 表单 resourceType=2&resourceId；免登录；URL 逐字护 mock 缝）/relatedPageOf（包裹层拆包纯函数）/relatedItemOf（dougaFeedView→play 契约，home 模板+计数富化）/随机游走泵 batch（tip=**层内当前条**；walk 随机抽 1 条逐级游走（默认）/seq 按列表顺序；自持 seen 防回头路；整批见尽换批 ≤3 次、兜底放宽允许重播；**唯一消费方=播放层 playStep**）。**三缝**（mediator，均由 playlayer 注册）：层宿主 setLayerHost/layerActive/layerJump/**pickInLayer**（0.9.170/0.9.174——reldrawer 据此判「层内压新级别 / 层外开层」，列表 tab 行点击走 pickInLayer）；开层 setLayerOpener/layerOpen（0.9.172——层外行点击 = 以该视频开层，舞台原地保活）；两缝均透传会话语境 ctx、panelItemOfDv（dougaFeedView→面板条目=跳轨列表条目源；0.9.173）；不 import feedstore/player（环检测零豁免）。消费方：reldrawer（行点击）/playlayer（层内步进 + 三缝注册） |
 | `favapi.js` | 收藏域读写接口（0.9.143）：folderList（带 resourceId 得 inFolder 勾选态）/ folderAdd·folderRename·folderDelete / favList（dougaList 单夹列表，0.9.148 自视图收口）/ favAdd·favUpdate·favRemove（三分支，一律 resourceType=9）；原 appapi 的 ensureFavFolder 默认夹体系随之退役（docs §4.2） |
-| `popplace.js` | 弹层定位（0.9.149 统一收口，**零依赖叶子**）：**两套锚定模型一份实现**——`anchorPlaceOf`（按钮旁选择层：下方优先→翻上→按可用空间压高；水平**让开宿主一列**：右缘=min(宿主左缘,锚左缘)−10，左不够翻宿主右侧；0.9.144/0.9.146）/ `rowPlaceOf`（行·面板贴靠：右缘贴行左缘 / 左缘贴面板右缘、**底对齐**、超高压缩；0.9.105 裁决几何）+ 共用 `applyPlace`/`watchPlace`（首帧 rAF + ResizeObserver + window resize，自清理）。常数一处收口（此前两份实现已漂：间距 12/10、边距 4/8、下限 140/120）；纯函数单测直采（test/unit/popplace.test.js） |
+| `popplace.js` | 弹层定位（0.9.149 统一收口；0.9.305 批④起唯一 import=CFG 常数表——「零依赖叶」措辞让位「只吃 cfg 的准叶」，弹层视觉上限 `A_MAX_H/A_MAX_VH/ROW_MAX_H/ROW_MAX_VH` 具名常数与 CSS `{{anchorMaxH}}` 等缝单源）：**两套锚定模型一份实现**——`anchorPlaceOf`（按钮旁选择层：下方优先→翻上→按可用空间压高；水平**让开宿主一列**：右缘=min(宿主左缘,锚左缘)−10，左不够翻宿主右侧；0.9.144/0.9.146）/ `rowPlaceOf`（行·面板贴靠：右缘贴行左缘 / 左缘贴面板右缘、**底对齐**、超高压缩；0.9.105 裁决几何）+ 共用 `applyPlace`/`watchPlace`（首帧 rAF + ResizeObserver + window resize，自清理）。常数一处收口（此前两份实现已漂：间距 12/10、边距 4/8、下限 140/120）；纯函数单测直采（test/unit/popplace.test.js） |
 | `pickpop.js` | 通用「选择层」壳（0.9.142，零业务）：标题 + 单选/多选列表 + 内联新建 + 底键（确定/取消/附加动作）+ `openConfirmPop` 二次确认；**定位全权交 popplace.anchorPlaceOf**（本件只取 rect + 落位；0.9.149）；外点收起走 `ui.closeOnOutsideClick`（0.9.147）。消费方：grouppop/favpop |
 | `grouppop.js` | 关注分组选择层语义件（0.9.142）：未关注=「选择分组」（默认勾未分组≈原一键，可新建）；已关注=「更改分组」（**不预选**防误移 + 层内「取消关注」）；改分组必须 action=3（实测 action=1 对已关注用户不改归属）。消费方：rail 关注角标 + 搜索 UP 卡一键关注（我的页成员行 0.9.289 起改走 followadmin 页面内模态，不再经此件） |
 | `favpop.js` | 收藏夹选择层语义件（0.9.143）：多选勾选 + 行内新建 + **三分支提交**（未收藏=add（默认勾第一个夹）/ 有改动=updateFolder 差集 / 全取消=remove）；`done(res)` 回 `{ favorited, ids }`（0.9.148 实锤：缺 ids 时我的页「移动」会抛且卡不摘除） |
@@ -514,10 +517,11 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `domfields.js` | slide/item 跨模块 `_xxx` 字段的**唯一登记处**（0.9.297，零依赖）：`SLIDE_FIELDS`/`ITEM_FIELDS` 数据表；`check-contract` 扫源码未登记字段即红。读/写方说明仍在 attach.js。 |
 | `listtail.js` | 列表尾部件（0.9.219）：触底哨兵 + 三态状态行 + 回顶按钮单源；消费 followview/followadmin/mytabs/squarefeed/searchview/zone/jingxuanview。 |
 | `liststate.js` | 列表空态行单源（0.9.300，共享 UI 基建）：`setEmpty(list, text)` 统一「建/改/摘」协议，一个容器最多一枚 `.acsv-vempty`；消费 followadmin/followview/meadmin/mypage/mytabs/squarefeed/zone。 |
+| `chipkit.js` | chip 按钮组单源（0.9.305 批⑤，共享 UI 基建）：`mountChipGroup({host,items,isOn,onPick,cls})`——「同项短路→摘 on→点亮→回调」协议唯一定义处；初始高亮与点击短路同问 isOn（DOM on 态恒等数据态——zone 子频道行旧「全部无条件 on」与实选漂移的角由此消失）；cls 默认 'acsv-vchip'（'acsv-vchip sm' 小档、natpanel 段钮 cls:''），选中类名 'on' 固定；返回节点数组供消费点补 data-* 锚；只 import ui.js，零业务；消费 zone/jingxuanview/natpanel。 |
 | `nameval.js` | 组名/夹名校验（零依赖叶）：与原生 bundle 正则逐字符一致；消费 grouppop/favpop/followadmin/mytabs。 |
 | `signapi.js` | 签到域（0.9.277）：双链写 + 签到日历 + 黄历；消费 mypage。 |
 | `signpanel.js` | 签到黄历弹窗（0.9.277）：App 式 3:4 卡 + 规则翻面；0.9.298 起入 overlay 栈，关闭归视图 teardown。 |
-| `timefmt.js` | 时间/计数文案纯函数（零依赖叶）：`fmtAgo`/`fmtDate`/`fmtWan`/`relTime`；契约层、卡片与评论共用。 |
+| `timefmt.js` | 时间/计数文案纯函数（零依赖叶）：`relTime`/`fmtDate`/`fmtAgo`/`fmtWan` + 播放面文案 `fmtTime`（mm:ss，自 ui.js 下沉、ui 门面再导保旧引用）/`timeText`（「x / y」单源，onMeta/onTime 同值短路依赖两侧同式）/`timeRateLabel`（「N.Nx」单源）（0.9.305 批④②⑥）。契约层、卡片与评论、播放控制面共用。 |
 | `ui.js` | `el`/`esc`/`toast`/`a11y`/剪贴板/样式注入等工具（被几乎全部 UI 模块引用）。 |
 | `uplook.js` | 作者观感映射（等级色/署名颜色，零依赖叶）；消费 rowkit/commentkit/momentdetail。 |
 | `uppage.js` | UP 主空间页小视频区块（m 站 pagelet 抓取）；0.9.218 起注入/切换/排序/自愈收口 spacetab。 |
@@ -555,6 +559,7 @@ flowchart LR
     cssraw["cssraw.js（全量 CSS 模板·构建期输入，只被 build.js import）"]
     pack["pack.js（内嵌压缩串解包单源·hls/devicetab/CSS 共用）"]
     liststate["liststate.js（列表空态行单源·setEmpty）"]
+    chipkit["chipkit.js（chip 按钮组单源·mountChipGroup）"]
     pageloader["pageloader.js（翻页骨架单源·followview/squarefeed/mytabs×2 共用）"]
     meadmin["meadmin.js（我的页档头+管理模态共用·mehead+openManageModal）"]
     lifecycle["lifecycle.js（监听器作用域·per-mount 监听登记/一次摘净）"]
@@ -663,10 +668,10 @@ flowchart LR
   appapi --> quality
   quality --> settings
   appapi --> imgurl & timefmt
-  session --> api & hls & settings
+  session --> api & hls & settings & quality
   attach --> feedstore & quality & session & settings & domfields
   player --> api & attach & comments & danmaku & errbox & feedland & feedstore & followstream & imbadge & imdrawer & input & overlay & pb & playlayer & release & sessionhooks & settingspanel & sidebar & topbar & uppage & views
-  sessionhooks --> attach & danmaku & feedstore & pb & playlayer & views
+  sessionhooks --> attach & danmaku & feedstore & pb & playlayer & views & timefmt
   feedstore --> api & feedctx
   momentapi --> cfg & net & panelitem
   signapi --> appapi & settings & timefmt
@@ -686,12 +691,12 @@ flowchart LR
   levelstack --> playstate & playitem
   imsend --> appapi & immsg & imsdk
   imsdk --> cfg & dbg & net & ui
-  sharepanel --> imsend & imsdk & imgload
+  sharepanel --> imsend & imsdk & imgload & immsg & imbadge
   imbadge --> imsdk
-  imdrawer --> comments & emoticon & imbadge & imcard & imbubble & imchat & imimage & imlist & imsendui & imsdk & sharepanel & inputbar & overlay & toastmsg
-  imlist --> imgload & immsg & imsend & imsdk
+  imdrawer --> comments & emoticon & imbadge & imcard & imbubble & imchat & imimage & imlist & immsg & imsendui & imsdk & sharepanel & inputbar & overlay & toastmsg
+  imlist --> imgload & imbadge & immsg & imsend & imsdk
   imchat --> immsg & imsdk & timefmt
-  imsendui --> imsend & imsdk & toastmsg
+  imsendui --> imsend & imsdk & immsg & toastmsg
   imbubble --> appapi & emoticon & imcard & imimage & imgload & imgview & immsg & imicons & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
@@ -706,7 +711,7 @@ flowchart LR
   listtail --> styles & ui
   spacetab --> ui
   spacemoments --> cfg & memberplaza & momentapi & pagekind & spacetab & squarefeed & ui
-  uppage --> api & cfg & feedctx & feedstore & imgload & net & pagekind & spacetab & timefmt & ui
+  uppage --> api & cfg & feedctx & feedstore & imgload & net & pagekind & pageloader & spacetab & timefmt & ui
   rowkit --> cards & comments & imgload & imgview & momentbar & momentdetail & sharepanel & uplook
   followstream --> appapi & feedctx & feedstore & followseen & momentapi & playitem & sidebar
   momentbar --> banpop & imicons & immsg & interact & panelitem & styles & timefmt & toastmsg & ubbtext & ui
@@ -719,7 +724,7 @@ flowchart LR
   searchview --> cards & grouppop & imgload & listtail & relationapi & searchfmt & searchhist & topbar & viewreg
   topbar --> searchhist
   searchview --> pageloader
-  input --> feedstore & overlay & pb & settings
+  input --> feedstore & overlay & pb & settings & timefmt
   comments --> appapi & commentkit & emoticon & imicons & imgview & immsg & reldrawer & sharepanel & inputbar & overlay & timefmt & toastmsg & ubbtext & pickpop
   comments --> iploc
   comments --> devname
@@ -730,7 +735,7 @@ flowchart LR
   styles --> pack
   nativeip --> dbg & devname & iploc & styles & pagekind
   nativeip --> natpanel
-  natpanel --> cfg & dbg & devname & iploc & overlay & settings & styles & ui
+  natpanel --> cfg & chipkit & dbg & devname & iploc & overlay & settings & styles & ui
   boot --> nativeip
   boot --> natpanel
   commentkit --> imicons & imgload & timefmt & ubb & uplook
@@ -739,7 +744,7 @@ flowchart LR
   mypage --> appapi & followadmin & imgload & imgurl & momentapi & rowkit & squarefeed & timefmt & viewreg & mytabs & signapi & signpanel & toastmsg
   mytabs --> appapi & cards & favapi & favpop & listtail & meadmin & nameval & pageloader & pickpop & watchlaterapi & historyapi
   meadmin --> dbg & imicons & overlay & pickpop & state
-  followadmin --> cards & imicons & imgload & listtail & meadmin & nameval & overlay & pageloader & relationapi & toastmsg
+  followadmin --> cards & imicons & imgload & listtail & meadmin & nameval & overlay & pageloader & pickpop & relationapi & toastmsg
   watchlaterapi --> appapi & cfg & dbg & net
   historyapi --> appapi & cfg & dbg & net
   relationapi --> appapi
@@ -748,13 +753,13 @@ flowchart LR
   danmaku --> appapi & settings & toastmsg
   banpop --> toastmsg
   channelapi --> cfg & net
-  jingxuanview --> appapi & cards & channelapi & imicons & imgload & listtail & relatedapi & settings & timefmt & viewreg
+  jingxuanview --> appapi & cards & channelapi & chipkit & imicons & imgload & listtail & pageloader & relatedapi & settings & timefmt & viewreg
   grouppop --> nameval & pickpop & relationapi
   pickpop --> popplace
   sharepanel --> popplace
   favapi --> appapi
   favpop --> favapi & nameval & pickpop
-  zone --> appapi & cards & listtail & viewreg & rankapi
+  zone --> appapi & cards & chipkit & listtail & pageloader & viewreg & rankapi
   rankapi --> appapi
 
   classDef leaf fill:#e8f5e9,stroke:#2e7d32;

@@ -103,7 +103,7 @@ const stylesTxt = read('styles.js');
 const cfgGrid = []; // [{block, field}]
 {
   const lines = cfgTxt.split('\n');
-  let block = null, depthAt = -1;
+  let block = null;
   for (let i = 0; i < lines.length; i++) {
     const bh = lines[i].match(/^\s{4}(\w+):\s*\{/);          // view 块内的一级子块
     if (bh) { block = bh[1]; continue; }

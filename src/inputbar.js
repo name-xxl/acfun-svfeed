@@ -54,8 +54,21 @@ import { testHook } from './dbg.js';
 // 文件名，原子块）、占位 <span class="ubb-emot-ph" data-pkg data-id>（EmotionMap 晚到时的回填锚，
 // 与渲染侧 emoticon.emotPlaceholderHtml 同名同款）。识别、计数、序列化三处共用 tokenInfo 单源。
 
-var EMOT_CODE = /^\[emot=([^,]+),([^\/\]]+)\/\]$/;
-var IMG_CODE = /^\[img=([^\]]*)\]([\s\S]+)\[\/img\]$/;
+// 令牌正则字符类单源（0.9.305 批6）：锚定式（单令牌识别）与内联全局式（回填扫描）是同一套
+// 字符类的两形态方言——此前各手写一遍，改一处必漂。量词/锚点差异**按方言各自保留**：
+// 全局式 img 体必须惰性（逐块扫描，贪心会把两块 [img] 并成一块）；锚定式整串 ^$ 锚定，
+// 贪心/惰性等价。互指：渲染方言（[emot=pkg,id/] → 真图，处理已 esc 的 HTML、\S 通配比
+// 包名/id 类宽松）在 emoticon.emotify（:77/:83）——**不同契约、有意不并**（那边注释同登记）
+var CLS_PKG = '[^,]+';        // 表情包名：不许逗号
+var CLS_ID = '[^\\/\\]]+';    // 表情 id：不许 / 与 ]
+var CLS_ALT = '[^\\]]*';      // 配图 alt：不许 ]、可空
+var CLS_ANY = '[\\s\\S]';     // 配图 URL：任意字符（含换行）
+var EMOT_CODE = new RegExp('^\\[emot=(' + CLS_PKG + '),(' + CLS_ID + ')/\\]$');
+var IMG_CODE = new RegExp('^\\[img=(' + CLS_ALT + ')\\](' + CLS_ANY + '+)\\[/img\\]$');
+// 回填扫描式 = 两锚定式同字符类派生的全局合取（与 0.9.305 前 :208 内联式匹配集恒等）
+var TOKEN_SCAN = new RegExp(
+  '\\[emot=' + CLS_PKG + ',' + CLS_ID + '/\\]'
+  + '|\\[img=' + CLS_ALT + '\\]' + CLS_ANY + '*?\\[/img\\]', 'g');
 
 function firstOfHtml(html) {
   return elHtml('span', null, html).firstChild; // 包一层再取首子：图节点自带 outerHTML 骨架
@@ -205,7 +218,10 @@ function setUbbText(root, v) {
       if (lines[k]) root.appendChild(document.createTextNode(lines[k]));
     }
   }
-  var re = /\[emot=[^,]+,[^\/\]]+\/\]|\[img=[^\]]*\][\s\S]*?\[\/img\]/g;
+  // 模块级 g 式复用：进扫描前归零 lastIndex（正常路径 exec 到 null 自动归零，
+  // 防 nodesOfCode 中途抛错留下陈旧扫描态——原内联式每次新建没有这个面，派生化后须自持）
+  var re = TOKEN_SCAN;
+  re.lastIndex = 0;
   var i = 0, m;
   while ((m = re.exec(text))) {
     if (m.index > i) textPart(text.slice(i, m.index));

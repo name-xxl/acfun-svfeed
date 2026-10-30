@@ -18,7 +18,10 @@ var badgeEl = null, mounted = false;
 var badgeTimer = null, badgeDelayTimer = null;
 var badgeInst = null, unreadFn = null; // 推送监听句柄（0.9.257；撤法同 imsend.js 的 sendSucceed）
 
-function badgeText(n) { return n > 99 ? '99+' : (n > 0 ? String(n) : ''); }
+// 未读徽标显示口径单源（0.9.305 批6）：>99 封顶「99+」、0/负数空——顶栏徽标 / 抽屉列表行
+// （imlist）/ 分享面板行（sharepanel）三形态同判据，此前三处各写 '>99?99+' 一份。
+// 消费方各自保留「>0 才出元素」门槛（imlist/sharepanel），本函数只管显示串
+export function unreadBadge(n) { return n > 99 ? '99+' : (n > 0 ? String(n) : ''); }
 
 // btn 参数保留（player 调用形态不变）；徽标只写 badge 元素
 export function mountBadge(btn, badge) {
@@ -42,7 +45,7 @@ export function mountBadge(btn, badge) {
   function setBadge(n) {
     if (n === last) return;
     last = n;
-    var txt = badgeText(n), show = n > 0 ? '' : 'none';
+    var txt = unreadBadge(n), show = n > 0 ? '' : 'none';
     if (badgeEl) { badgeEl.textContent = txt; badgeEl.style.display = show; }
   }
   // 轮询不在此武装（0.9.244）：mount 即起的 5s 拍会在首拍就 ensureIm 拉 860KB SDK，

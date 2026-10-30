@@ -7,14 +7,13 @@
 // 会话列表分享/动态/评论预览必须走 immsg.sharePreviewOf 单源（本文件曾自写一份并漂：表情码
 // 未占位化直 slice 出 `[emot=…` 截断垃圾、动态空标题错回落「推荐视频」）。
 
-import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { testHook, stat } from './dbg.js';
 import { ICON_SVGS } from './imicons.js';
 import { ensureEmotionMap } from './emoticon.js';
-import { parseCard, parseShare, isCommentShare, commentShareAuthor, cmtShareOf, momentShareOf, degradeText, previewOfMessage, sharePreviewOf, msgContentType, msgTextOf, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
+import { parseCard, parseShare, isCommentShare, commentShareAuthor, cmtShareOf, momentShareOf, degradeText, previewOfMessage, sharePreviewOf, msgContentType, msgTextOf, quoteOf, quoteExtraOf, quoteWireTrimLen, CT, findSession, QUOTE_STRIP_FALLBACK } from './immsg.js';
 import { ubbQuoteHtml } from './ubb.js';
-import { vcard, cshareCard, patchCshare, mcard } from './imcard.js';
+import { vcard, cshareCard, patchCshare, mcard, videoHrefOf } from './imcard.js';
 import { AppAPI } from './appapi.js';
 
 var UNSUPPORTED = '不支持查看此消息，请前往最新版客户端查看。';
@@ -252,10 +251,7 @@ function pairMessage(msgEl, msgCache) {
   if (!msgCache[tid]) {
     var sess = null;
     try {
-      (k.getSessions() || []).some(function (s) {
-        if (String(s.targetId) === tid) { sess = s; return true; }
-        return false;
-      });
+      sess = findSession(k.getSessions() || [], tid);
     } catch (e) { /* best-effort: sdk */ }
     var by = {};
     if (sess) {
@@ -305,7 +301,10 @@ function enhanceList() {
     if (!last) return;
     span.setAttribute('data-acsv', '1');
     var ct = msgContentType(last);
-    if (ct === 10001 || ct === 12) { // 10001 作品卡 / 12 引用消息：previewOfMessage 已统一映射
+    // 列表占位预览可改写类型表：CARD 作品卡 / QUOTE 引用消息走 previewOfMessage 统一映射。
+    // 注意与 immsg.QUOTABLE_CT **不同集合**（那是「可被引用」能力白名单 {0,1,10001,12}，本行是
+    // 「预览映射已覆盖」清单 {10001,12}）——两形态并存的差异是有意的，勿表化为同一份
+    if (ct === CT.CARD || ct === CT.QUOTE) {
       var prev = previewOfMessage(last);
       if (prev) span.textContent = prev;
     } else {
@@ -411,9 +410,13 @@ function attachShadowRoot(content) {
 
 // ---------- 消息引用渲染（0.9.39 补条；0.9.42 起正文去重：剥 wire 拼接前缀） ----------
 // 摘要条：有 seqId 锚点才可点，按官方 message 元素自带的 data-seq-id 定位滚动
+// 双形态豁免登记（0.9.305 批6）：本条与 imbubble.quoteStrip 同构——空预览占位文案已收
+// immsg.QUOTE_STRIP_FALLBACK 单源，条体本身属双端渲染外壳豁免区，但**两套形态选择器
+//（.qstrip/.p vs .acsv-im-quote/.acsv-im-quote-preview）无契约测试钉同步**：改任一侧
+// 形态/类名必须人工对另一侧与 harness 断言（im-native fixture / imdrawer imBubbleSmoke）
 function quoteStripEl(q) {
   var s = el('div', 'qstrip' + (q.seqId ? ' link' : ''));
-  s.appendChild(el('span', 'p', q.preview || '[原消息]'));
+  s.appendChild(el('span', 'p', q.preview || QUOTE_STRIP_FALLBACK));
   if (q.seqId) {
     s.addEventListener('click', function (ev) {
       ev.stopPropagation();
@@ -505,10 +508,10 @@ var SKIN = {
   }
 };
 // 资源共享卡的本地适配：hrefOverride 优先（脚本分享链），否则按协议字段自跳 ac 号页
+// （RT==video 判定与 videoBase 拼装单源在 imcard.videoHrefOf，0.9.305 与抽屉端收口）
 function cardItemOf(r, hrefOverride) {
   return vcard(SKIN, {
-    href: hrefOverride
-      || (Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : ''),
+    href: hrefOverride || videoHrefOf(r),
     coverUrl: r.coverUrl, viewCountShow: r.viewCountShow, commentCountShow: r.commentCountShow,
     durationSec: r.durationSec, title: r.title
   }, false).el;

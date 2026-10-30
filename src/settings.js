@@ -43,12 +43,13 @@ export var SCHEMA = [
   { key: 'vol', type: 'number', def: 1, min: 0, max: 1, panel: false, group: '播放', label: '音量' },
   { key: 'codec', type: 'select', def: CFG.codec.def, panel: true, group: '播放',
     label: '编码偏好', legacy: CFG.lsCodec, hint: '下次播放生效',
-    // 选项文案与控制栏「编码」菜单同源（controls.js 同表），不另抄一份
-    options: [{ v: 'auto', t: '自动' }, { v: 'avc', t: 'H.264' }, { v: 'hevc', t: 'HEVC' }] },
+    // 选项名单单源 CFG.codec.options（0.9.305 卫生批4①收口）：控制栏「编码」菜单/toast 同表派生
+    options: CFG.codec.options },
   { key: 'buf', type: 'select', def: CFG.buf.def, panel: true, group: '播放',
     label: '缓冲档位', legacy: CFG.lsBuf, hint: '下次播放生效',
+    // 展示格式单源 CFG.buf.labelOf（0.9.305 卫生批4①）：控制栏「缓冲」菜单同式
     options: Object.keys(CFG.buf.presets).map(function (k) {
-      return { v: k, t: CFG.buf.presets[k].label + ' ' + CFG.buf.presets[k].maxBufferLength + 's' };
+      return { v: k, t: CFG.buf.labelOf(k) };
     }) },
   { key: 'seekStep', type: 'number', def: CFG.time.seekStep, panel: true, group: '播放',
     label: '快进步长（秒）', min: 5, max: 30, step: 5,
@@ -85,8 +86,9 @@ export var SCHEMA = [
     hint: '底部留出一条字幕带，滚动弹幕不占用' },
   { key: 'dmMerge', type: 'bool', def: true, panel: false, group: '弹幕', label: '合并重复弹幕',
     hint: '同一段时间内内容相同的弹幕只显示一条' },
-  // 屏蔽设置（0.9.202）：类型用空格分隔的名单（top/bottom/scroll/color；角色/高级待批次 10 有字段后再接）；
-  // 过滤弹幕＝关键词列表（逗号/换行分隔）。两者都只从底栏面板改，故 panel:false
+  // 屏蔽设置（0.9.202 建，0.9.204 补齐六类）：类型用空格分隔的名单（top/bottom/scroll/color/role/
+  // advanced——类名/展示文案/判据单源 dmcanvas.DM_BLOCK_TYPES）；过滤弹幕＝关键词列表（逗号/换行
+  // 分隔）。两者都只从底栏面板改，故 panel:false
   { key: 'dmBlock', type: 'text', def: '', panel: false, group: '弹幕', label: '按类型屏蔽' },
   { key: 'dmFilter', type: 'text', def: '', panel: false, group: '弹幕', label: '过滤弹幕关键词' },
   // ---- 评论 IP 属地（0.9.245，Web-IP 吸收批次①）：查询/展示开关 + 缓存保留期（iploc 消费）。

@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
 import { toast, toggleFullLadder, isCinema, setCinema } from './ui.js';
+import { timeRateLabel } from './timefmt.js';
 import { refreshFullBtns, refreshPipBtn } from './controls.js';
 import { root, scroller, slideAt, playItem } from './state.js';
 import { isFeedRoute } from './route.js';
@@ -112,8 +113,8 @@ export function setupInputHandlers(api) {
           pb.seekHold.active = true;
           pb.seekHold.prevRate = pb.playRate;
           var v = currentVideo();
-          if (v) v.playbackRate = 2;
-          toast('2× 快进中');
+          if (v) v.playbackRate = CFG.rate.hold2x; // 长按临时倍率单源（0.9.305 批4②）
+          toast(CFG.rate.hold2x + '× 快进中');
         }, CFG.time.hold);
         break;
       }
@@ -160,7 +161,7 @@ export function setupInputHandlers(api) {
       if (v && v.duration) v.currentTime = Math.min(v.duration, v.currentTime + getSetting('seekStep'));
     } else if (endSeekHold()) {
       // 长按结束：恢复原速（恢复写点与全舞台 applyRate 收在 playback.endSeekHold，0.9.285）
-      toast('恢复 ' + pb.playRate.toFixed(1) + 'x');
+      toast('恢复 ' + timeRateLabel(pb.playRate)); // 倍速文案单源（0.9.305 批4②）
     }
   };
   window.addEventListener('keydown', keyHandler);

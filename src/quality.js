@@ -4,6 +4,21 @@
 import { CFG } from './cfg.js';
 import { getSetting } from './settings.js';
 
+// 编码偏好归一（0.9.305 卫生批4①）：auto/hevc 原样，其余（含脏值/退役值）落 def——
+// applyQuality 选档与 controls 编码菜单高亮两条消费链共用，判据不许有第二份
+export function normalizeCodec(pref) {
+  return (pref === 'auto' || pref === 'hevc') ? pref : CFG.codec.def;
+}
+
+// 60fps 档口径（0.9.305 卫生批4⑥）：label 里的「60」须紧跟「·」或结尾才算 60 帧档
+//（防误伤「1080p2650」这类码率数字）；命中返回去掉 60 后的同名低帧档 label，
+// 未命中返回 null。session 恢复阶梯（dropFpsRung）的单判据出口——此前 test/replace
+// 双正则平行两处，改口径必漏一边
+export function drop60FpsLabel(label) {
+  if (!/60(·|$)/.test(label)) return null;
+  return label.replace(/60(?=·|$)/, '');
+}
+
 // 按记忆清晰度（无记忆取最高档；档位已在 playInfo 显式按分辨率数字降序）。
 // 先按编码偏好过滤档位：avc 滤掉 HEVC 档（cast 对部分设备/未来 4K 档可能下发
 // HEVC，默认 avc 是防无硬解卡帧的保底）；hevc 反之只留 HEVC 档；auto 不干预。
@@ -14,8 +29,7 @@ export function applyQuality(item) {
   if (!item.qualities || !item.qualities.length) return;
   var all = item.qualities;
   item._qualitiesAll = all;
-  var pref = getSetting('codec'); // 0.9.89 收编（老键 acsv-codec 首读收养、值域由设置层兜）
-  if (pref !== 'auto' && pref !== 'hevc') pref = CFG.codec.def;
+  var pref = normalizeCodec(getSetting('codec')); // 0.9.89 收编（老键 acsv-codec 首读收养、值域由设置层兜）
   if (pref !== 'auto') {
     var hit = all.filter(function (x) { return x.codec === pref; });
     item.qualities = hit.length ? hit : all;

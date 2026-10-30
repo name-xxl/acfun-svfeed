@@ -37,6 +37,10 @@ export var LOADING_LABEL = '加载中…';
 export var DONE_LABEL = '已加载全部';
 export var FAIL_RETRY = '加载失败，点击重试';
 export var FAIL_SCROLL = '加载失败，滚动重试';
+// 动态流到底文案（0.9.305 批⑤②，收 0.9.300 遗留两拍）：followview 与 squarefeed 两处
+// doneLabel 注入同串字面量——值与「动态」语境绑定，入本段与默认值同纪律；新增动态流
+// 消费点直接引用，别再抄字面量（check-liststate 闸随批登记 owner）
+export var DONE_LABEL_MOMENTS = '已加载全部动态';
 
 export function createPageLoader(o) {
   var firstCursor = o.firstCursor === undefined ? '' : o.firstCursor;

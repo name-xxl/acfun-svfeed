@@ -219,7 +219,12 @@ export var CFG = {
     maxPages: 8,    // 全量列表最多翻页数（每页 200 条）
     pageSize: 200,
     scrollSec: 8,   // 滚动弹幕穿过全屏时长（速度基准）
-    staySec: 4      // 顶部/底部弹幕停留时长
+    staySec: 4,
+    // 弹幕默认口径（0.9.305 卫生收口批4④）：滚动/白字/25 号一套默认的三个消费面——
+    // appapi.danmakuAdd 请求体（colorInt 十进制）、danmaku.addLocal 本地回显（colorHex）、
+    // dmcanvas 屏蔽判据「非白即彩色」（colorHex）。colorInt 由 colorHex 派生（见文件末语句），
+    // 两处口径不许各写一份字面量
+    defaults: { mode: 1, size: 25, colorHex: '#ffffff' }
   },
   stall: {
     // FROZEN 判定（rVFC 事件驱动）：超过 gapFactor×理论帧间隔无新帧、且时间轴仍在推进
@@ -237,7 +242,9 @@ export var CFG = {
     cap: 6,            // home 模式单可见期累计自动恢复上限（回前台清零重计；期内自动降档不清，防走楼梯）
     svCap: 4,          // sv 直链无档可降，跨重挂累计上限更低
     nudge: 0.1,        // 无感顶针步长（秒）：前跳触发解码器重出帧
-    visGraceMs: 3000   // 回前台保护期：合成器/解码器唤醒慢期间不进恢复阶梯（防最小化往返误判冻结降档）
+    visGraceMs: 3000,  // 回前台保护期：合成器/解码器唤醒慢期间不进恢复阶梯（防最小化往返误判冻结降档）
+    probeMs: 1000      // 复查探测窗（0.9.305 卫生批4⑥）：缓冲饿死复查与回前台保护期两处重探共用
+                       // 同一窗宽；keepIv 巡检 1s 是另一回事（只管 arm()），不收本项
   },
   // 编码偏好（推荐模式）：cast 接口档位不带编码字段，m3u8 是单变体 media playlist，
   // 编码只能从 m3u8 文件名嗅探（2026-09-28 实测：标记形如 h264_60/h264_6m，
@@ -246,7 +253,11 @@ export var CFG = {
   codec: {
     def: 'avc',
     suffix: '·HEVC',            // HEVC 档 label 后缀（纯 H.264 视频不加，避免视觉噪音）
-    reHevc: /hevc|hvc1|hev1|h265/i // 嗅探 HEVC（h265 要求 h 前缀，防误伤 1080p_2650 之类码率数字）；未命中按 avc 推断
+    reHevc: /hevc|hvc1|hev1|h265/i, // 嗅探 HEVC（h265 要求 h 前缀，防误伤 1080p_2650 之类码率数字）；未命中按 avc 推断
+    // 编码偏好选项表（0.9.305 卫生批4①：此前四份名单平行——设置面板/控制栏菜单/toast/归一各抄一遍）：
+    // 菜单 toast 全由本表派生——顺序即菜单序（onPick 下标写回 v），新增编码档只改这里。
+    // 归一规则在 quality.normalizeCodec（非法值→def），两份消费不许各抄一份
+    options: [{ v: 'auto', t: '自动' }, { v: 'avc', t: 'H.264' }, { v: 'hevc', t: 'HEVC' }]
   },
   // 缓冲档位（推荐模式 hls.js 构造参数）。maxBufferSize 单位是字节
   // （0.9.1 前误写 120 当 MB，实为 120 字节，被 maxBufferLength 的时间上限掩盖）。
@@ -258,6 +269,12 @@ export var CFG = {
       std: { label: '标准', maxBufferLength: 10,  maxMaxBufferLength: 20, maxBufferSize: 15e6, backBufferLength: 30 },
       mid: { label: '加大', maxBufferLength: 20,  maxMaxBufferLength: 40, maxBufferSize: 30e6, backBufferLength: 30 },
       max: { label: '极限', maxBufferLength: 30,  maxMaxBufferLength: 60, maxBufferSize: 45e6, backBufferLength: 60 }
+    },
+    // 档位展示名（0.9.305 卫生批4①）：设置面板 select 与控制栏「缓冲」菜单同式「名 + 前向秒数」
+    //（「标准 10s」形态，两处字面拼接已漂过格式——归此一件；控制栏 toast 是另一句文案，不进本式）
+    labelOf: function (k) {
+      var p = CFG.buf.presets[k];
+      return p.label + ' ' + p.maxBufferLength + 's';
     }
   },
   time: {
@@ -271,6 +288,10 @@ export var CFG = {
     chainGap: 30,       // 空间页链式加载间隔
     hotGap: 120,        // 最热统计批次间隔
     seekStep: 5,        // 左右键快进/快退秒数
+    // 续播槽门限（0.9.305 卫生批4③）：进度大于该秒数才记进重挂槽（首帧误差不值得存）——
+    // 六个写点（session.recover / attach.syncFwdQuality / controls 编码·缓冲菜单 /
+    // playlayer curTime·mountSlide）共用一条判据，出口在 session.resumeSlotOf
+    resumeMinSec: 1,
     navWait: 6000,      // 导航注入兜底等待
     ghostIv: 5000,      // 幽灵视频扫描间隔（兜底，低频即可）
     watchReportMin: 3,   // 观看历史上报门槛：离开时进度达到该秒数才计入历史（过滤闪滑）
@@ -381,6 +402,10 @@ export var CFG = {
     drawerW: 412,      // 抽屉宽度（窄屏按比例收缩）。0.9.190：380→412——评论行加左右 16px 内边距
                        // 修头像框左侧被裁（框 80×70 偏移 −15 溢出 15px），加宽正好补回内边距，正文宽不变
     drawerMaxWp: 0.88, // 抽屉最大占视口宽比例
+    // 抽屉实际宽公式（0.9.305 卫生批4⑧）：min(drawerW, 视口宽×drawerMaxWp)——
+    // comments.syncCommentVars 与 sessionhooks.panFitOf 两份同式拼装归此；
+    // CSS 兜底常量走 dwFallback 缝回填 drawerW 单值（非本表达式；缝标记只许写 cssraw/styles）
+    drawerWOf: function (vw) { return Math.min(CFG.comments.drawerW, vw * CFG.comments.drawerMaxWp); },
     scaleMin: 0.3,     // 视频区缩放下限
     avoidMin: 0.5,     // 剩余空间占视口比低于此值时放弃避让改纯覆盖（视频不缩放原尺寸续播，抽屉近乎全遮）
     subCount: 20,      // 楼中楼每页条数
@@ -389,6 +414,15 @@ export var CFG = {
     // 容器、行内/面板宿主恒挂错；翻页改哨兵 + IntersectionObserver（rootMargin 内建 200px），
     // 本项随之退役（退役登记，勿再加回）
     recentMax: 12      // 最近使用表情保留数
+  },
+  // 弹层视觉上限（0.9.305 卫生批4⑦）：popplace 算几何时的定高上限与 CSS max-height 收口同数
+  // 同源——此前 JS 与 CSS 各写一份、跨文件漂。分数形态归 JS（×视口高，逐位等于旧字面量）；
+  // CSS 走 anchorMaxH/anchorMaxVh/rowMaxH/rowMaxVh 四缝回填（vh 取整由 styles SEAMS ×100；缝标记只许写 cssraw/styles）。
+  // anchor=模型 A（按钮旁选择层 pickpop/confirmpop：min(420px,64vh)）；row=模型 B（行贴靠
+  // sharepop：min(430px,62vh)）
+  pop: {
+    anchorMaxH: 420, anchorMaxVh: 0.64,
+    rowMaxH: 430, rowMaxVh: 0.62
   },
   // 评论 IP 属地（0.9.245，Web-IP 吸收批次①）：阈值单源——队列节奏/负缓存分级/缓存上限均照
   // Web-IP v5.8.5 既有值；缓存数据在 acr_uids（iploc 域），展示文案口径在 iploc.tagTitle
@@ -404,7 +438,13 @@ export var CFG = {
   // 设备型号美化（0.9.246，Web-IP 吸收批次②）：查表缓存上限（Web-IP CONFIG.DEVICE.cacheMaxSize）
   dev: { cacheMax: 500 },
   rate: [0.5, 1, 1.5, 2, 3],   // 倍速循环档位（0.9.194 加 3x；菜单/文案由本表驱动，无第二处名单）
-  win: { back: 1, fwd: 1 }, // 渲染窗口：当前条向上 back/向下 fwd 张挂视频；slide DOM 与氛围背景在窗外更远一/两格回收
+  win: {
+    back: 1, fwd: 1, // 渲染窗口：当前条向上 back/向下 fwd 张挂视频；slide DOM 与氛围背景在窗外更远一/两格回收
+    // 前向深挂深度（0.9.305 卫生批4⑥）：prewarm 预解析（idx+1..+N）、手动切档/改偏好同步邻居
+    // （attach.syncFwdQuality/controls.rebuildFwdNeighbor 的 idx+N 缓存作废）共用此深——与 fwd
+    // （挂 video 窗口）是两个口径，勿并；三处裸写 2 归此
+    fwdDepth: 2
+  },
   // 关注未读徽标轮询（0.9.97，4.3）：60s 起步逐次翻倍封顶 10min，发现新内容即刻回落基准
   //（退避序列钉单测；tick 是固定节拍器粒度——真实间隔由 nextAt 闸门控制，广场同款骨架）
   follow: {
@@ -461,6 +501,15 @@ export var CFG = {
     urlT: 15000       // getUrlAfterUpload 超时
   }
 };
+
+// 长按 → 键临时快进倍率（0.9.305 卫生批4②）：sessionhooks.initVideo 与 input.seekHold 两处
+// 裸写 2 归此——「2」虽也在下面的循环档位表里（可选项），但本值语义=长按临时态不落盘，两口径
+// 勿并。数组挂名属性不参与 map/索引迭代，消费点只读 .hold2x
+CFG.rate.hold2x = 2;
+
+// 弹幕默认色接口口径（0.9.305 卫生批4④）：由 colorHex 派生（#ffffff → 16777215），
+// appapi.danmakuAdd 请求体消费——两处字面量从此只存 hex 一份
+CFG.danmaku.defaults.colorInt = parseInt(CFG.danmaku.defaults.colorHex.slice(1), 16);
 
 // 归因实验开关（冻结排查用）：仅 debug 构建解析 localStorage['acsv-exp']（JSON）。
 // 用语句形式而非三元：esbuild 无 minify 时只消除 if(false) 语句块，三元函数体会残留产物。

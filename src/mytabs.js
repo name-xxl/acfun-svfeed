@@ -22,6 +22,11 @@ import { folderList, folderAdd, folderRename, folderDelete, favRemove, favList }
 import { openFavFolderPop } from './favpop.js';
 import { folderNameError } from './nameval.js';
 
+// 档级空态串文件级单源（0.9.305 批⑤④）：首屏空与删空两处共用同一串——改文案只改一处，
+// 不再两行各拼各的（setEmpty 协议不动，收的只是串出口）
+var EMPTY_WL = '还没有稍后再看的内容'; // 稍后再看档
+var EMPTY_FAV = '这个夹还没有收藏';    // 收藏夹档（当前夹为空）
+
 function rowList(parent, cls) {
   var list = el('div', 'acsv-vlist acsv-megrid ' + cls);
   parent.appendChild(list);
@@ -219,7 +224,7 @@ export function buildWatchLater(panel, scroller) {
         list.appendChild(cellOf(pi));
       });
       if (!rows.length && info.firstPage) {
-        setEmpty(list, '还没有稍后再看的内容');
+        setEmpty(list, EMPTY_WL);
       }
       return { cursor: page.cursor, noMore: page.noMore };
     },
@@ -252,7 +257,7 @@ export function buildWatchLater(panel, scroller) {
         var i = allRows.indexOf(pi);
         if (i >= 0) allRows.splice(i, 1);
         cell.remove();
-        if (!allRows.length) setEmpty(list, '还没有稍后再看的内容');
+        if (!allRows.length) setEmpty(list, EMPTY_WL);
         toast('已移出稍后再看');
       }, function () {
         cell._busy = false;
@@ -306,7 +311,7 @@ export function buildFav(panel, scroller) {
         var pi = panelItem('fav', raw);
         if (pi) { rows.push(pi); list.appendChild(favCell(pi)); }
       });
-      if (!rows.length) setEmpty(list, '这个夹还没有收藏');
+      if (!rows.length) setEmpty(list, EMPTY_FAV);
       // 到底判定按**原始条数**（favoriteList 与 folder/info 的 resourceCount 自洽，§4.2 实测）
       return { noMore: !raws.length || raws.length < CFG.view.pageSize };
     },
@@ -411,7 +416,7 @@ export function buildFav(panel, scroller) {
     box.remove();
     var i = rows.indexOf(pi);
     if (i >= 0) rows.splice(i, 1);
-    if (!rows.length) setEmpty(list, '这个夹还没有收藏');
+    if (!rows.length) setEmpty(list, EMPTY_FAV);
   }
 
   // 管理收藏夹模态（meadmin.openManageModal；与关注列表「编辑分组」同构建器）

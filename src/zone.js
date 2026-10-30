@@ -1,13 +1,15 @@
 import { CFG } from './cfg.js';
 import { el, singleFlight } from './ui.js';
 import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
+import { LOADING_LABEL } from './pageloader.js'; // 「加载中…」文案单源（0.9.305 批⑤②）
+import { mountChipGroup } from './chipkit.js'; // chip 点击协议单源（0.9.305 批⑤①）
 import { requestRead } from './net.js';
 import { postForm } from './appapi.js';
 import { fetchRankBoard } from './rankapi.js';
 import { panelItem } from './panelitem.js';
 import { rowOf, upCardOf } from './cards.js';
 import { createListTail } from './listtail.js'; // 尾部件（0.9.219：只借回顶） // chevUp 回顶图标（与关注/广场/搜索同源）
-import { registerView } from './viewreg.js';
+import { registerView, viewDef } from './viewreg.js';
 
 // ---------- 分区榜单视图（0.9.62 建，0.9.66 对齐原生：子频道行 + UP 榜） ----------
 // GET rank/channel（§6.1 实测：rankLimit 生效；POST 形状无 rankLimit 只回 10 条，勿改 POST；
@@ -52,6 +54,11 @@ function buildZoneView(body) {
   var zoneChips = el('div', 'acsv-vchips');
   var subChips = el('div', 'acsv-vchips');
   var periodChips = el('div', 'acsv-vchips');
+  // 三行容器钉 data-chips 锚（0.9.305 批⑤①/⑨）：harness 与外部选择器按锚取行，不再靠
+  // 「非榜单行的 DOM 顺序」这种脆弱事实；榜单行沿用子钮上的 data-board 锚
+  zoneChips.setAttribute('data-chips', 'zone');
+  subChips.setAttribute('data-chips', 'sub');
+  periodChips.setAttribute('data-chips', 'period');
   var tip = el('div', 'acsv-vtip'); // 说明行文案随频道/榜单更新
   wrap.appendChild(boardChips);
   wrap.appendChild(zoneChips);
@@ -61,7 +68,9 @@ function buildZoneView(body) {
   // 双列头（原生 rlist__banner：榜单 Rank | Up主 Author）——rlist 行=视频卡+作者卡左右分栏
   var head = el('div', 'acsv-rlist-head');
   var hc1 = el('div', 'acsv-rlist-hcell');
-  hc1.appendChild(el('span', 'acsv-rlist-hcn', '榜单'));
+  // 列头中文名与 dock 展示名共读注册表（0.9.305 批⑤⑥；0.9.171「改名四处同碰」教训：
+  // 展示名不许在视图体内再存一份串，改一处漏三处）。build 必发生在 registerView 之后
+  hc1.appendChild(el('span', 'acsv-rlist-hcn', viewDef('zone').dock.label));
   hc1.appendChild(el('span', 'acsv-rlist-hen', 'Rank'));
   var hc2 = el('div', 'acsv-rlist-hcell');
   hc2.appendChild(el('span', 'acsv-rlist-hcn', 'Up主'));
@@ -88,19 +97,17 @@ function buildZoneView(body) {
     navTreeFlight.get().then(function (tree) {
       var subs = subChannelsOf(tree, curZone.name);
       if (!subs.length) return; // 全站综合/树缺：无子频道行（降级）
-      var mk = function (label, sub, on) {
-        var c = el('button', 'acsv-vchip sm' + (on ? ' on' : ''), label);
-        c.addEventListener('click', function () {
-          if (curSub === sub) return;
-          Array.prototype.forEach.call(subChips.children, function (x) { x.classList.remove('on'); });
-          c.classList.add('on');
-          curSub = sub;
-          load();
-        });
-        subChips.appendChild(c);
-      };
-      mk('全部', null, true);
-      subs.forEach(function (s) { mk(s.name, s.id, false); });
+      // 表驱动（0.9.305 批⑤①）：协议在 chipkit 单源。旧写法「全部」无条件 on，榜单档
+      // 往返后 curSub 未清时会与实选子频道漂移（高亮说谎）；现初值与短路同问 isOn，
+      // 高亮恒等于实际生效的过滤档
+      mountChipGroup({
+        host: subChips, cls: 'acsv-vchip sm',
+        items: [{ label: '全部', data: null }].concat(subs.map(function (s) {
+          return { label: s.name, data: s.id };
+        })),
+        isOn: function (sub) { return curSub === sub; },
+        onPick: function (sub) { curSub = sub; load(); }
+      });
     });
   }
 
@@ -132,7 +139,7 @@ function buildZoneView(body) {
     var hit = rankCache[key];
     if (hit && Date.now() - hit.at < RANK_TTL) { render(hit.rows); return; } // 命中：零请求直出
     list.innerHTML = '';
-    setEmpty(list, '加载中…');
+    setEmpty(list, LOADING_LABEL); // 文案单源 pageloader（0.9.305 批⑤②）
     function settle(rows) { rankCache[key] = { at: Date.now(), rows: rows }; render(rows); }
     function fail() {
       list.innerHTML = '';
@@ -169,49 +176,43 @@ function buildZoneView(body) {
   }
   function syncTip() {
     var b = boardOf(curBoard);
-    tip.textContent = curBoard === 'channel'
-      ? curZone.name + ' / 依综合指数排序，每日更新一次'
-      : b.label + ' / ' + b.tip;
+    // 统一走表项（0.9.305 批⑤③）：此前 channel 档绕开表项、把「依综合指数排序…」硬编码
+    // 在本函数（cfg rankBoards 的 channel.tip 成死字段）。现两档同式：`名 + ' / ' + b.tip`，
+    // channel 档的"名"取当前分区名（语境就是分区），cfg 串回到单源；产出文案逐字不变
+    tip.textContent = (curBoard === 'channel' ? curZone.name : b.label) + ' / ' + b.tip;
   }
-  CFG.view.rankBoards.forEach(function (b, i) {
-    var c = el('button', 'acsv-vchip' + (i === 0 ? ' on' : ''), b.label);
-    c.setAttribute('data-board', b.id);
-    c.addEventListener('click', function () {
-      if (curBoard === b.id) return;
-      Array.prototype.forEach.call(boardChips.children, function (x) { x.classList.remove('on'); });
-      c.classList.add('on');
-      curBoard = b.id;
+  // ---- 四组 chip 全部表驱动（0.9.305 批⑤①）：建钮/短路/摘 on/点亮/回调协议在 chipkit ----
+  mountChipGroup({
+    host: boardChips,
+    items: CFG.view.rankBoards.map(function (b) { return { label: b.label, data: b.id }; }),
+    isOn: function (id) { return curBoard === id; },
+    onPick: function (id) {
+      curBoard = id;
       updateBoardVisibility();
       syncTip();
       if (curBoard === 'channel') fillSubChips();
       load();
-    });
-    boardChips.appendChild(c);
+    }
+  }).forEach(function (c, i) {
+    c.setAttribute('data-board', CFG.view.rankBoards[i].id); // 锚沿用（cases/views.js 的 boardChip）
   });
-  CFG.view.zones.forEach(function (z, i) {
-    var c = el('button', 'acsv-vchip' + (i === 0 ? ' on' : ''), z.name);
-    c.addEventListener('click', function () {
-      if (curZone.id === z.id) return;
-      Array.prototype.forEach.call(zoneChips.children, function (x) { x.classList.remove('on'); });
-      c.classList.add('on');
+  mountChipGroup({
+    host: zoneChips,
+    items: CFG.view.zones.map(function (z) { return { label: z.name, data: z }; }),
+    isOn: function (z) { return curZone.id === z.id; },
+    onPick: function (z) {
       curZone = z;
       curSub = null; // 切频道重置子频道选区（坑 E）
       syncTip();
       fillSubChips();
       load();
-    });
-    zoneChips.appendChild(c);
+    }
   });
-  CFG.view.periods.forEach(function (p, i) {
-    var c = el('button', 'acsv-vchip sm' + (i === 0 ? ' on' : ''), CFG.view.periodNames[p] || p);
-    c.addEventListener('click', function () {
-      if (curPeriod === p) return;
-      Array.prototype.forEach.call(periodChips.children, function (x) { x.classList.remove('on'); });
-      c.classList.add('on');
-      curPeriod = p;
-      load();
-    });
-    periodChips.appendChild(c);
+  mountChipGroup({
+    host: periodChips, cls: 'acsv-vchip sm',
+    items: CFG.view.periods.map(function (p) { return { label: CFG.view.periodNames[p] || p, data: p }; }),
+    isOn: function (p) { return curPeriod === p; },
+    onPick: function (p) { curPeriod = p; load(); }
   });
   syncTip();
   updateBoardVisibility();

@@ -1,11 +1,17 @@
 // @ts-check
 import { CFG } from './cfg.js';
 import { stat, set, testHook, swallow } from './dbg.js';
-import { toast, sweepSlideVideos, videoOf } from './ui.js';
+import { toast, sweepSlideVideos, videoOf, resumeSlotOf } from './ui.js';
 import { ensureResolved } from './api.js';
 import { nativeHls, ensureHls } from './hls.js';
+import { drop60FpsLabel } from './quality.js';
 import { getSetting } from './settings.js';
 import { createScope } from './lifecycle.js';
+
+// 恢复态串（0.9.305 卫生批4⑥）：session.state 的内部态——dataset 不投影它、全库零读方
+//（grep 核实：无 `=== 'recovering'` 判定，归位全靠 playing→setState('ready')），三个写点
+//（recover 错误链 / 监视器阶梯 recover / onDegraded）共用本常量；改串只许改这里
+var ST_RECOVERING = 'recovering';
 
 // ---------- 播放会话：一个「正在播放的视频」的完整生命周期 ----------
 // 状态机：idle → resolving → loading → ready(⇄paused)；→ error；任意 → disposed。
@@ -203,10 +209,12 @@ export function createSession(slide, item, idx, hooks) {
         return;
       }
       this._recovering = true;
-      this.state = 'recovering'; // 内部态：dataset 保持原样，恢复成功由 playing 归位
+      this.state = ST_RECOVERING; // 内部态：dataset 保持原样，恢复成功由 playing 归位
       // 换 CDN/重解析都会重挂源（video.load 归零），先记下进度，playing 后 seek 回去。
       // 否则后台挂久回前台时 Chromium 偶发的解码错误会把视频打回开头重放。
-      if (video.currentTime > 1) this.resumeAt = video.currentTime;
+      // 门限单源 resumeSlotOf（0.9.305 批4③）；判假不写=保住挂载槽里已有的待续播值
+      var rSlot = resumeSlotOf(video);
+      if (rSlot) this.resumeAt = rSlot;
       if (item.urlIdx < item.urls.length - 1) {
         stat('recover.cdn');
         item.urlIdx++;
@@ -462,7 +470,7 @@ function installHealthMonitor(S) {
       st.mediaT = video.currentTime; // 探测基线
       st.probes = 0;
       if (armTimer) clearTimeout(armTimer);
-      armTimer = setTimeout(onGap, 1000); // 缓冲探测放宽到 1s，避免重缓冲期高频空转
+      armTimer = setTimeout(onGap, CFG.stall.probeMs); // 缓冲探测放宽，避免重缓冲期高频空转（窗宽单源 0.9.305 批4⑥）
       return;
     }
     st.probes = (st.probes || 0) + 1;
@@ -476,7 +484,7 @@ function installHealthMonitor(S) {
     if (Date.now() < st.protectUntil) {
       st.probes = 0;
       st.mediaT = video.currentTime;
-      armTimer = setTimeout(onGap, 1000);
+      armTimer = setTimeout(onGap, CFG.stall.probeMs); // 保护期按缓冲探测同款窗重探（窗宽单源）
       return;
     }
     st.probes = 0;
@@ -492,7 +500,7 @@ function installHealthMonitor(S) {
     st.lastEvent = now;
     st.mediaT = -1; // 修复动作后重建基线
     st.degSince = 0;
-    S.state = 'recovering'; // 内部态：dataset 保持原样
+    S.state = ST_RECOVERING; // 内部态：dataset 保持原样
     stat('stall.frozen');
     if (detectMs < 0) stat('stall.novfc'); // 从未收到过 rVFC 帧：环境饿死，无法度量检测延迟
     else stat(detectMs < 800 ? 'stall.detectLt800' : 'stall.detectSlow');
@@ -564,13 +572,14 @@ function installHealthMonitor(S) {
     return !item._qManual && item.cap.quality && item.qualities
       && item.qualities.length > 1 && item.qIdx < item.qualities.length - 1;
   }
-  // 同分辨率降帧率（1080P60 → 1080P）：label 可能带编码后缀（1080P60·HEVC），
-  // 60 后面允许 · 或结尾。阶梯第 3 级与慢放判定共用，找到即切并返回 true
+  // 同分辨率降帧率（1080P60 → 1080P）：60 帧档判定与低帧档 label 推导单源 quality.drop60FpsLabel
+  //（0.9.305 批4⑥——此前 test/replace 双正则平行两处）。阶梯第 3 级与慢放判定共用，找到即切并返回 true
   function dropFpsRung(toastHead, statKey) {
-    if (!(canAutoQ() && /60(·|$)/.test(item.qualities[item.qIdx].label))) return false;
-    var curLabel = item.qualities[item.qIdx].label;
+    if (!canAutoQ()) return false;
+    var want = drop60FpsLabel(item.qualities[item.qIdx].label);
+    if (want == null) return false;
     for (var q = item.qIdx + 1; q < item.qualities.length; q++) {
-      if (item.qualities[q].label === curLabel.replace(/60(?=·|$)/, '')) {
+      if (item.qualities[q].label === want) {
         toast(toastHead + item.qualities[q].label + '（同分辨率降帧率）');
         stat(statKey);
         S.hooks.qualitySwitch(S, q); // 换档 → 新会话接管，本监视器随 dispose 停止
@@ -590,7 +599,7 @@ function installHealthMonitor(S) {
     st.lastFix = now;
     st.lastEvent = now;
     st.degSince = 0;
-    S.state = 'recovering';
+    S.state = ST_RECOVERING;
     if (dropFpsRung('持续掉帧，已降为 ', 'stall.degradeDown')) return;
     if (!item._qManual) toast('画面持续掉帧，可尝试在清晰度菜单降低档位');
   }

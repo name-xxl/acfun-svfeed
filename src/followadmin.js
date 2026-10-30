@@ -34,6 +34,7 @@ import { imgInto } from './imgload.js';
 import { GLYPHS } from './imicons.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { createMeHead, openMmModal, openManageModal, openMmConfirm, mountMmAddRow, mmWarn } from './meadmin.js';
+import { dismissConfirm } from './pickpop.js'; // 「全页单枚」摘旧协议（0.9.305 批⑤⑦）
 import { groupNameError } from './nameval.js';
 import { errNotLogin } from './toastmsg.js';
 import { getGroups, listFollows, createGroup, renameGroup, removeGroup, regroup,
@@ -79,11 +80,24 @@ function openPop(elm, keep, onClose) {
 }
 
 // 钮文案状态机（bundle buttonStatus 照搬，§16）：1=待回粉/2=已关注·互粉→已互粉/3=特别关注
+// 文案文件级单源（0.9.305 批⑤⑤）：串只许从这里出。searchview UP 卡钮是另一张皮的近邻
+// 文案（'＋ 关注'/'已关注'），跨文件合表需在 README 加边且两串集合本就不重合（'关注'不带
+// ＋、无'回粉/已互粉/特别关注'分支）——按批注裁决各自文件内收，不新增模块依赖
+var REL_SPECIAL = '特别关注';
+var REL_FOLLOW = '关注';
+var REL_BACKFOLLOW = '回粉';
+var REL_MUTUAL = '已互粉';
+var REL_FOLLOWED = '已关注';
 function relLabel(item) {
-  if (item.followingStatus === 3) return '特别关注';
-  if (item.followingStatus === 1) return item.isFriend ? '回粉' : '关注';
-  return item.isFriend ? '已互粉' : '已关注';
+  if (item.followingStatus === 3) return REL_SPECIAL;
+  if (item.followingStatus === 1) return item.isFriend ? REL_BACKFOLLOW : REL_FOLLOW;
+  return item.isFriend ? REL_MUTUAL : REL_FOLLOWED;
 }
+
+// 关注列表档级空态串（0.9.305 批⑤④）：「全部分组/组内」两档 × 「首屏空/删空」两拍
+// 共四处同串——串出常数、三元判据出一函数（空态协议 setEmpty 不动）
+var EMPTY_NOFOLLOW = '还没有关注';
+var EMPTY_GROUP_EMPTY = '这个分组还没有成员';
 
 // ---- 设置分组模态（radio 选组 + 底部添加行 + 页脚确定；壳=meadmin.openMmModal）----
 // 写链 regroup(action=3)；选中未变时确定=空操作直接关（无变化不发废包）
@@ -236,6 +250,7 @@ export function buildFollowAdmin(panel, scroller) {
   head.setLabel(filterLabel); // 初始标签（mehead 只管写口，初值归消费方）
 
   var rows = []; // { it, row, btn, paint } —— 行内原地改的句柄（写链后不整表重拉）
+  function emptyTextForFilter() { return filterGid === '' ? EMPTY_NOFOLLOW : EMPTY_GROUP_EMPTY; }
 
   var tail = null;
   var pg = createPageLoader({
@@ -247,7 +262,7 @@ export function buildFollowAdmin(panel, scroller) {
     setStatus: function (text, busy) { tail.setStatus(text, busy); },
     onPage: function (p) {
       (p.items || []).forEach(function (it) { rows.push(addRow(it)); });
-      if (!rows.length) setEmpty(list, filterGid === '' ? '还没有关注' : '这个分组还没有成员');
+      if (!rows.length) setEmpty(list, emptyTextForFilter());
       return { cursor: p.nextCursor, noMore: !!p.noMore };
     }
   });
@@ -257,7 +272,7 @@ export function buildFollowAdmin(panel, scroller) {
   });
 
   function emptyCheck() {
-    if (!rows.length) setEmpty(list, filterGid === '' ? '还没有关注' : '这个分组还没有成员');
+    if (!rows.length) setEmpty(list, emptyTextForFilter());
   }
   function removeEntry(it) {
     for (var i = 0; i < rows.length; i++) {
@@ -327,8 +342,7 @@ export function buildFollowAdmin(panel, scroller) {
   // 非对称确认照原生：加特别关注直接发，取消类两键套 pickpop 确认卡（菜单收、卡开；
   // 锚=☰ 钮、宿主=acts，落位/外点收起归 pickpop）。开场摘掉可能残存的确认卡（全页单枚）。
   function openRowMenu(it, acts, btn, ctx) {
-    var stray = document.querySelector('.acsv-confirmpop');
-    if (stray) stray.remove();
+    dismissConfirm(); // 开场摘残卡（协议单源 pickpop；0.9.305 批⑤⑦ 类串不再本件私拼）
     var menu = el('div', 'acsv-relmenu');
     var defs = [];
     if (it.followingStatus === 3) {

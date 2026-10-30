@@ -1,6 +1,8 @@
 import { CFG } from './cfg.js';
 import { ICONS, PLAYER_ICONS } from './styles.js';
-import { el, elHtml, toast, fmtTime, isCinema, toggleWebFull, toggleWindowFull, a11y, mountIcon, closeOnOutsideClick, videoOf } from './ui.js';
+import { el, elHtml, toast, fmtTime, isCinema, toggleWebFull, toggleWindowFull, a11y, mountIcon, closeOnOutsideClick, videoOf, resumeSlotOf } from './ui.js';
+import { timeRateLabel, timeText } from './timefmt.js';
+import { normalizeCodec } from './quality.js';
 import { root, slideAt, isOvlSlide, videoTarget, playItem } from './state.js';
 import { FeedStore } from './feedstore.js';
 import { pb, togglePlayGesture, toggleMuteGesture, setVolume, isMuted, fillVolSlide } from './playback.js';
@@ -187,7 +189,7 @@ export function buildControls(slide, idx, item) {
     togglePlayGesture(videoOf(slide));
   });
 
-  var timeLabel = el('span', 'acsv-time', '00:00 / 00:00');
+  var timeLabel = el('span', 'acsv-time', timeText(0, 0)); // 初始占位与 onMeta/onTime 同式（timefmt 单源）
   var spacer = el('span');
   spacer.style.flex = '1';
 
@@ -203,12 +205,12 @@ export function buildControls(slide, idx, item) {
     toast(next ? '连播已开启：播完自动下一条' : '连播已关闭：单条循环播放');
   });
 
-  // 倍速：与清晰度一致的展开菜单，按钮实时显示当前倍速
+  // 倍速：与清晰度一致的展开菜单，按钮实时显示当前倍速（展示格式单源 timefmt.timeRateLabel）
   var rateWrap = buildMenu(
-    function () { return '倍速 ' + pb.playRate.toFixed(1) + 'x'; },
+    function () { return '倍速 ' + timeRateLabel(pb.playRate); },
     function () {
       return CFG.rate.map(function (r) {
-        return { t: r.toFixed(1) + 'x', on: r === pb.playRate };
+        return { t: timeRateLabel(r), on: r === pb.playRate };
       });
     },
     function (i) {
@@ -336,7 +338,7 @@ export function buildControls(slide, idx, item) {
       if (isOvlSlide(slide)) return; // 播放层 slide 无前向邻居（idx 哨兵会打到竖刷第 0 条）
       var idx = Number(slide.dataset.idx);
       if (dropCache) {
-        var it2 = FeedStore.items[idx + 2];
+        var it2 = FeedStore.items[idx + CFG.win.fwdDepth]; // 深挂邻居（与 prewarm/syncFwdQuality 同深，0.9.305 批4⑥）
         if (it2 && it2.cap && it2.cap.hls) { it2.urls = []; it2.qualities = null; it2.refreshed = false; }
       }
       var fwd = slideAt(idx + 1);
@@ -419,18 +421,14 @@ export function buildControls(slide, idx, item) {
   if (item && item.cap.hls) {
     codecWrap = buildMenu('编码', function () {
       var cur = codecPref();
-      return [
-        { t: '自动', on: cur === 'auto' },
-        { t: 'H.264', on: cur === 'avc' },
-        { t: 'HEVC', on: cur === 'hevc' }
-      ];
+      return CFG.codec.options.map(function (o) { return { t: o.t, on: cur === o.v }; });
     }, function (i) {
-      var keys = ['auto', 'avc', 'hevc'];
-      setSetting('codec', keys[i]); // 0.9.89 收编：同键设置面板也改，控制栏菜单 getter 展开时现读
-      toast('编码偏好：' + ['自动', 'H.264', 'HEVC'][i]);
+      var opt = CFG.codec.options[i]; // 名单/序/toast 同表派生（0.9.305 卫生批4①）
+      setSetting('codec', opt.v); // 0.9.89 收编：同键设置面板也改，控制栏菜单 getter 展开时现读
+      toast('编码偏好：' + opt.t);
       // 档位集随偏好过滤（applyQuality）：清懒解析缓存强制重跑解析链
-      var v = videoOf(slide);
-      if (v && v.currentTime > 1) slide._resumeAt = v.currentTime;
+      var slot = resumeSlotOf(videoOf(slide));
+      if (slot) slide._resumeAt = slot;
       item.urls = [];
       item.qualities = null;
       item.refreshed = false;
@@ -441,17 +439,16 @@ export function buildControls(slide, idx, item) {
       var key = getSetting('buf');
       if (!CFG.buf.presets[key]) key = CFG.buf.def;
       return Object.keys(CFG.buf.presets).map(function (k) {
-        var p = CFG.buf.presets[k];
-        return { t: p.label + ' ' + p.maxBufferLength + 's', on: k === key };
+        return { t: CFG.buf.labelOf(k), on: k === key };
       });
     }, function (i) {
       var k = Object.keys(CFG.buf.presets)[i];
       var p = CFG.buf.presets[k];
       setSetting('buf', k); // 0.9.89 收编（会话内即时生效靠下面的重挂；落盘走设置层防抖）
-      toast('缓冲：' + p.label + '（前向 ' + p.maxBufferLength + 's）');
+      toast('缓冲：' + p.label + '（前向 ' + p.maxBufferLength + 's）'); // 句级 toast 文案非菜单式，保留
       // 只影响 Hls 构造参数：重挂即生效
-      var v = videoOf(slide);
-      if (v && v.currentTime > 1) slide._resumeAt = v.currentTime;
+      var slot = resumeSlotOf(videoOf(slide));
+      if (slot) slide._resumeAt = slot;
       attachVideo(slide, item, Number(slide.dataset.idx));
       rebuildFwdNeighbor(slide, false);
     });
@@ -528,7 +525,7 @@ function buildVolSlide() {
   track.appendChild(el('i'));
   track.appendChild(el('b'));
   box.appendChild(track);
-  box.appendChild(el('span', 'volnum', String(Math.round(pb.volume * 100))));
+  box.appendChild(el('span', 'volnum')); // 数字由 fillVolSlide 单源写入（0.9.305 批4⑥撤此前置手写第二份）
   fillVolSlide(box); // 初始即绘制（0.9.237：此前不画 ⇒ 首次悬停/新建 slide 是空轨，数字却是真值）
   function ratioAt(ev) {
     var r = track.getBoundingClientRect();
@@ -588,12 +585,10 @@ export function updateArrows(slide) {  if (!root) return;
 }
 
 // hls 实例/挂源/错误恢复链已迁入 session.js（3b）；这里只留编码偏好的 UI 读取。
-// 当前编码偏好（档位集已在 applyQuality 按偏好过滤，这里只供 UI 高亮与 toast）。
-// 0.9.89 收编：值域校验留在设置层（coerceValue），此处只管 UI 兜底默认
+// 当前编码偏好（档位集已在 applyQuality 按偏好过滤，这里只供 UI 高亮与 toast）——
+// 归一规则与选档链同出 quality.normalizeCodec（0.9.305 批4①），值域校验留在设置层（coerceValue）
 export function codecPref() {
-  var v = getSetting('codec');
-  if (v !== 'auto' && v !== 'hevc') v = CFG.codec.def;
-  return v;
+  return normalizeCodec(getSetting('codec'));
 }
 
 // 仿清晰度菜单的下拉构造（复用 acsv-qwrap/acsv-qmenu 样式，无需新 CSS）。

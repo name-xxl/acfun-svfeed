@@ -811,7 +811,9 @@ rec('zone-hot-rows', !!(await waitFor(function () {
   return t && /热榜视频/.test(t.textContent);
 }, 8000)), 't=' + ((q('.acsv-rlist .acsv-vrow .acsv-vrow-title') || {}).textContent || ''));
 rec('zone-hot-hides-channel', (function () {
-  var cs = document.querySelectorAll('.acsv-vchips:not(.acsv-rboards)');
+  // 0.9.305 批⑤⑨：钉 data-chips 锚（zone.js 三行容器），不再靠「非榜单行 DOM 顺序」。
+  // 不变式：热榜档下「分区/子频道/榜期」三行**全部**隐藏；且锚集合恰好三枚（少锚/多挂即红）
+  var cs = document.querySelectorAll('[data-chips]');
   return cs.length === 3 && [].every.call(cs, function (x) { return x.style.display === 'none'; });
 })());
 rec('zone-hot-tip', /全站热榜 \/ 按热度排序/.test((q('.acsv-vtip') || {}).textContent || ''),
@@ -831,12 +833,24 @@ rec('zone-young-rows', !!(await waitFor(function () {
 var channelChip = boardChip('channel');
 if (channelChip) channelChip.click();
 rec('zone-channel-back', !!(await waitFor(function () {
-  var cs = document.querySelectorAll('.acsv-vchips:not(.acsv-rboards)');
+  // 0.9.305 批⑤⑨：同锚集合读取；不变式=回 channel 档后三行锚齐、[0]分区行与[2]榜期行
+  // 现身（文档序 zone/sub/period 与旧 :not(.acsv-rboards) 选取等秩）
+  var cs = document.querySelectorAll('[data-chips]');
   var t = q('.acsv-rlist .acsv-vrow .acsv-vrow-title');
   return cs.length === 3 && cs[0].style.display !== 'none' && cs[2].style.display !== 'none'
     && t && /榜单/.test(t.textContent);
 }, 8000)));
-var zchips = document.querySelectorAll('.acsv-vchips:not(.acsv-rboards)')[0].children;
+// 0.9.305 批⑤③：channel 档 tip 现由 cfg.rankBoards.channel.tip 表项驱动（死字段复活）——
+// 期望「<当前分区名> / <cfg channel.tip>」，cfg 值 import 源码对账（0.9.299 几何同源先例）；
+// 反跑：改坏 cfg.channel.tip 或 zone.js channel 分支退回硬编码串 ⇒ 本断言转红
+var _cfgV = await import('/src/cfg.js');
+var chanTip = (_cfgV.CFG.view.rankBoards.filter(function (b) { return b.id === 'channel'; })[0] || {}).tip;
+rec('zone-channel-tip', (function () {
+  var tip = (q('.acsv-vtip') || {}).textContent || '';
+  var name = (document.querySelector('[data-chips="zone"] .on') || {}).textContent || '';
+  return !!name && !!chanTip && tip === name + ' / ' + chanTip;
+})(), (q('.acsv-vtip') || {}).textContent);
+var zchips = document.querySelector('[data-chips="zone"]').children; // 分区行钮集合（锚定，下同）
 var gameChip = [].filter.call(zchips, function (c) { return c.textContent === '游戏'; })[0];
 if (gameChip) gameChip.click();
 rec('zone-switch', !!(await waitFor(function () {
@@ -845,7 +859,7 @@ rec('zone-switch', !!(await waitFor(function () {
 }, 8000)));
 // 子频道行：切频道后填官方树 children（mock navTree），「全部」默认选中、请求带 subChannelId
 rec('zone-subs', !!(await waitFor(function () {
-  var chips = document.querySelectorAll('.acsv-vchips:not(.acsv-rboards)')[1].children;
+  var chips = document.querySelector('[data-chips="sub"]').children; // 0.9.305 批⑤⑨：子频道行按锚取
   return chips.length === 3 && chips[0].textContent === '全部' && chips[0].classList.contains('on');
 }, 8000)));
 // 播放层（0.9.74）：点榜单行 → 就地覆盖播放（不跳回竖刷、不插队尾）。钉：地址 play 形态、
@@ -895,7 +909,7 @@ rec('zone-backtop-idle-top', (function () { // 在顶部：按钮在（视图层
   return b ? ('on=' + b.classList.contains('on')) : 'no-btn';
 })());
 window.__ACSV_RANK_N__ = 14;
-var weekChip = [].filter.call(document.querySelectorAll('.acsv-vchips:not(.acsv-rboards)')[2].children,
+var weekChip = [].filter.call(document.querySelector('[data-chips="period"]').children, // 0.9.305 批⑤⑨：榜期行按锚取
   function (c) { return c.textContent === '本周'; })[0];
 if (weekChip) weekChip.click();
 rec('zone-backtop-tall', !!(await waitFor(function () {
