@@ -72,6 +72,10 @@ function applyEmotPacks(flat) {
 // 官方 IM 的 wire 格式就是 [emot=acfun,ID/]，APP/官方 web 原生渲染；EmotionMap 直查转小图，
 // 未加载/查无此 ID 降级「[表情]」文本；其余方言包走 umeditor 老图路径——两分支与官方
 // convertEmotionCodeToHtml 同构。入参须是已 esc 的 HTML 文本
+// 方言互指（0.9.305 批6登记）：下面两条是**渲染方言**（对已 esc 的 HTML 做 replace，
+// \S 通配比 inputbar 的包名/id 字符类宽松）；**输入方言**（编辑期识别/序列化/回填扫描，
+// 锚定式+全局式、字符类单源 CLS_*）在 inputbar.js:57 一带——两套契约不同、有意不并，
+// 改动任一侧勿顺手"统一"另一侧（ubb 侧评论渲染方言不归 IM 域，亦不互并）
 export function emotify(html) {
   return html
     .replace(/\[emot=acfun,(\S+?)\/\]/g, function (_, id) {

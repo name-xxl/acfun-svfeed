@@ -5,7 +5,7 @@
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { pad2 } from './timefmt.js';
-import { msgTextOf } from './immsg.js';
+import { msgTextOf, findSession } from './immsg.js';
 import { ensureIm, ensureConnected, ensureTracer } from './imsdk.js';
 
 // env 契约：
@@ -37,14 +37,12 @@ export function createChatKit(env) {
         ensureTracer(inst);
         var ss = [];
         try { ss = inst.kernel.getSessions() || []; } catch (e) { /* best-effort: sdk */ }
-        var sess = null;
-        ss.some(function (s) { if (String(s.targetId) === getChat().targetId) { sess = s; return true; } return false; });
+        var sess = findSession(ss, getChat().targetId);
         if (!sess) {
           // 没聊过：内核级创建会话后重取
           return inst.kernel.openSession(0, getChat().targetId).then(function () {
-            var ss2 = inst.kernel.getSessions() || [];
-            ss2.some(function (s) { if (String(s.targetId) === getChat().targetId) { sess = s; return true; } return false; });
-            getChat().session = sess;
+            var sess2 = findSession(inst.kernel.getSessions() || [], getChat().targetId);
+            getChat().session = sess2;
             chatPollOnce(inst, true);
             return null;
           }, function () { getChat().session = null; return null; });
@@ -65,8 +63,7 @@ export function createChatKit(env) {
       var chat = getChat();
       if (!chat) return;
       if (!chat.session) {
-        var ss = k.getSessions() || [];
-        ss.some(function (s) { if (String(s.targetId) === chat.targetId) { chat.session = s; return true; } return false; });
+        chat.session = findSession(k.getSessions() || [], chat.targetId);
       }
       if (!chat.session) return;
       var msgs = k.getMessages(chat.session) || [];
@@ -96,13 +93,31 @@ export function createChatKit(env) {
     } catch (e) { /* best-effort: sdk */ }
   }
   // 时间分割线（抖音式）：与上一条消息间隔超过 dayDivGap 插入居中时间（乐观气泡同样参与分组）
-  function dayLabel(ts) {
+  // 四档日期梯单源（0.9.305 批6合一：此前 dayLabel/chatTime 各写一份 86400000/604800000/
+  // '日一二三四五六' 全套判据）：dayTier 只做**分档与片段**，两函数的文案差异（今天前缀/
+  // 刚刚档/时分后缀）留在各自消费点。timefmt.relTime 是原生四档口径，不归本件（0.9.243 更名防混用）
+  var DAY_MS = 86400000;
+  var WEEK_MS = 604800000;
+  var WEEK_CN = '日一二三四五六';
+  function dayTier(ts) {
     var now = new Date(), t = new Date(ts);
-    var hm = pad2(t.getHours()) + ':' + pad2(t.getMinutes());
-    if (t.toDateString() === now.toDateString()) return '今天 ' + hm;
-    if (t.toDateString() === new Date(now.getTime() - 86400000).toDateString()) return '昨天 ' + hm;
-    if (now.getTime() - ts < 604800000) return '周' + '日一二三四五六'.charAt(t.getDay()) + ' ' + hm;
-    return pad2(t.getMonth() + 1) + '-' + pad2(t.getDate()) + ' ' + hm;
+    var tier = 'older';
+    if (t.toDateString() === now.toDateString()) tier = 'today';
+    else if (t.toDateString() === new Date(now.getTime() - DAY_MS).toDateString()) tier = 'yesterday';
+    else if (now.getTime() - ts < WEEK_MS) tier = 'week';
+    return {
+      tier: tier,
+      hm: pad2(t.getHours()) + ':' + pad2(t.getMinutes()),
+      wk: '周' + WEEK_CN.charAt(t.getDay()),
+      md: pad2(t.getMonth() + 1) + '-' + pad2(t.getDate())
+    };
+  }
+  function dayLabel(ts) {
+    var p = dayTier(ts);
+    if (p.tier === 'today') return '今天 ' + p.hm;
+    if (p.tier === 'yesterday') return '昨天 ' + p.hm;
+    if (p.tier === 'week') return p.wk + ' ' + p.hm;
+    return p.md + ' ' + p.hm;
   }
   function maybeDayDiv(ts) {
     if (!ts || !getDrawer() || !getChat()) return;
@@ -117,13 +132,12 @@ export function createChatKit(env) {
   // 0.9.243 由 relTime 改名 chatTime：与 timefmt.relTime（原生四档口径）同名两义，防混用
   function chatTime(ts) {
     if (!ts) return '';
-    var d = Date.now() - ts;
-    if (d < 60000) return '刚刚';
-    var now = new Date(), t = new Date(ts);
-    if (t.toDateString() === now.toDateString()) return pad2(t.getHours()) + ':' + pad2(t.getMinutes());
-    if (t.toDateString() === new Date(now.getTime() - 86400000).toDateString()) return '昨天';
-    if (d < 604800000) return '周' + '日一二三四五六'.charAt(t.getDay());
-    return pad2(t.getMonth() + 1) + '-' + pad2(t.getDate());
+    if (Date.now() - ts < 60000) return '刚刚';
+    var p = dayTier(ts);
+    if (p.tier === 'today') return p.hm;
+    if (p.tier === 'yesterday') return '昨天';
+    if (p.tier === 'week') return p.wk;
+    return p.md;
   }
 
   // ---------- 消息引用（输入条 chip；气泡内摘要条/定位在 imbubble.js） ----------

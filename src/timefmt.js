@@ -1,7 +1,8 @@
 // @ts-check
 // ---------- 时间/计数文案（0.9.160 自 data.js 叶子出库；原 0.9.69/0.9.85 落户） ----------
 // 零依赖纯函数：now 可注入 → 日历判定离线单测。被契约件（panelitem/playitem）各解析器、appapi（fmtDate）
-// 共同消费。与 ui.js 的 fmt（计数千分位）分工：这里只管「时间文案与万格式」。
+// 共同消费。播放面文案也归此（0.9.305 卫生批4②⑥）：fmtTime（自 ui.js 下沉，ui 原位 re-export）、
+// timeText（「x / y」单源）、timeRateLabel（「N.Nx」单源）。
 
 // 榜单 extra 的相对时间（0.9.69 对齐原生「发布于xx」四档，日历判定）：
 // 今天 <1h「N分钟前」/ 今天「N小时前」/ 昨天「昨天H时MM分」/ 前天「前天H时MM分」/
@@ -31,6 +32,22 @@ export function relTime(ms, now) {
 
 // 两位补零（0.9.243 单源收口：appapi/imdrawer/ui 三处同形副本归此；immsg 零依赖叶豁免保留本地）
 export function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+// 秒 → mm:ss（0.9.305 卫生批4⑥自 ui.js 下沉本件——timeText 组「x / y」要用它，契约件不吃 ui；
+// ui.js 原位 re-export，外部消费点零改动）；脏输入按 0
+export function fmtTime(s) {
+  s = Math.max(0, Math.floor(Number(s) || 0));
+  return pad2(Math.floor(s / 60)) + ':' + pad2(s % 60);
+}
+
+// 播放时间文案「当前 / 总长」（0.9.305 卫生批4⑥单源）：sessionhooks.onMeta/onTime 两处拼装与
+// controls 初始占位「00:00 / 00:00」同式——onTime 的 _lastTimeTxt 同值短路（0.9.166）依赖
+// 两侧逐字一致，本件就是那条依赖的锚（改格式只许改这里）
+export function timeText(cur, dur) { return fmtTime(cur) + ' / ' + fmtTime(dur); }
+
+// 倍速展示格式「N.Nx」（0.9.305 卫生批4②单源）：控制栏倍速按钮/菜单项与长按恢复 toast
+// 三处同式；档位循环列表由 CFG.rate 驱动，本件只管文案
+export function timeRateLabel(rate) { return rate.toFixed(1) + 'x'; }
 
 // 本地时区 YYYY-MM-DD（0.9.85）。**不要用 toISOString().slice(0,10)**：那是 UTC，
 // 本地凌晨/晚上会整体差一天（既有 resolve 兜底分支就踩过）

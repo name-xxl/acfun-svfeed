@@ -25,7 +25,7 @@ import { setDockBadge } from './sidebar.js';
 import { openMomentDetail } from './momentdetail.js';
 import { ensureEmotionMap, refillEmoticons } from './emoticon.js';
 import { closeInlineComments, feedRowOf, armExpanders, wireRowList } from './rowkit.js';
-import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259）
+import { createPageLoader, DONE_LABEL_MOMENTS } from './pageloader.js'; // 翻页骨架单源（0.9.259）；到底文案 0.9.305 批⑤②出库
 import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 import { isEndCursor } from './contract.js'; // 游标方言单源（0.9.304；与 followDougaFeed 同族语义）
 
@@ -82,7 +82,7 @@ function buildFollowView(body) {
     fetch: function (pcursor) { return listMoments(pcursor); }, // 传输收口 momentapi（0.9.106）；解析留在视图（分档/去重是视图语义）
     skeleton: function (first) { return first ? skeleton(list) : null; },
     setStatus: tail.setStatus,
-    doneLabel: '已加载全部动态',
+    doneLabel: DONE_LABEL_MOMENTS, // 串单源 pageloader（0.9.305 批⑤②），文案逐字不变
     onPage: function (j, info) {
       var raws = (j && j.feedList) || [];
       // 整页重复安全阀：新增键=0 即判到底（被契约过滤的条目不算新增也不算重复）

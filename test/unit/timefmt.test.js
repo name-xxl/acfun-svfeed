@@ -1,10 +1,36 @@
 // timefmt.js 单元测试（0.9.160 自 data.test.js 迁入，用例逐字保持）：
 // relTime（0.9.69 原生四档）/ fmtDate / fmtAgo（0.9.85）/ fmtWan（0.9.69）——零依赖纯函数，
-// now 可注入，Node 内置 test 运行器。
+// now 可注入，Node 内置 test 运行器。播放面文案（fmtTime/timeText/timeRateLabel）0.9.305 批4②⑥入册。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-var { relTime, fmtDate, fmtAgo, fmtWan } = await import('../../src/timefmt.js');
+var { relTime, fmtDate, fmtAgo, fmtWan, fmtTime, timeText, timeRateLabel } = await import('../../src/timefmt.js');
+
+// 播放面文案口径（0.9.305 卫生批4②⑥）：timeText 是 onMeta/onTime 同值短路（0.9.166）的锚——
+// 摘修复反跑：改拼接式（空格/斜杠/分隔）或把 controls 占位改回裸串不同式，相应断言转红
+test('fmtTime：mm:ss 补零、脏输入/负数按 0；floor 不是 round', () => {
+  assert.equal(fmtTime(0), '00:00');
+  assert.equal(fmtTime(59.9), '00:59');
+  assert.equal(fmtTime(61), '01:01');
+  assert.equal(fmtTime(3600), '60:00'); // 分钟位不折时（mm:ss 口径）
+  assert.equal(fmtTime(-3), '00:00');
+  assert.equal(fmtTime('x'), '00:00');
+  assert.equal(fmtTime(undefined), '00:00');
+});
+
+test('timeText：「x / y」单源——初始占位与 onMeta/onTime 同式', () => {
+  assert.equal(timeText(0, 0), '00:00 / 00:00'); // controls 时间位初始文案的契约
+  assert.equal(timeText(65, 130), '01:05 / 02:10');
+  assert.equal(timeText(2, 2), '00:02 / 00:02'); // 两侧同式：短路依赖点
+});
+
+test('timeRateLabel：「N.Nx」单源（一位小数）', () => {
+  assert.equal(timeRateLabel(0.5), '0.5x');
+  assert.equal(timeRateLabel(1), '1.0x');
+  assert.equal(timeRateLabel(1.5), '1.5x');
+  assert.equal(timeRateLabel(2), '2.0x');
+  assert.equal(timeRateLabel(3), '3.0x');
+});
 
 // ---------- relTime（0.9.69 原生四档；注入 now → 日历边界确定性） ----------
 test('relTime：今天/昨天/前天/更早四档原生文案（H 不补零、MM 补零）', () => {

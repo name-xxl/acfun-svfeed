@@ -7,13 +7,26 @@
 // {prologue, resourceBody:[{coverUrl,resourceId,resourceType,durationSec,
 //   viewCountShow,commentCountShow,danmakuCountShow,title}]}
 
+// contentType 协议表（0.9.305 批6单源收口；值 = 现字面，逐位不漂移）：
+//   TEXT/IMAGE/QUOTE 是内核 messageConstructorMap 已注册类型（发送侧按号取构造器，imsend）；
+//   CARD=10001 作品分享卡 web ImSdk **未注册**——content 留在原始 ArrayBuffer，UTF-8 解码即
+//   JSON（见头注；真机语境 docs/api-research.md 本地留档，IM 域实测在册于本文件头注与 CHANGELOG）。
+// 消费方：immsg 自身 + imsend（map[CT.*]）+ imbubble/imnative/imdrawer 比较处——协议号只在表里出现
+export var CT = { TEXT: 0, IMAGE: 1, QUOTE: 12, CARD: 10001 };
+
+// 可被引用能力表（0.9.305 表项化，成员集合与旧内联白名单逐字相同 {TEXT, IMAGE, CARD, QUOTE}）：
+// 有有效预览的类型才可引——引用条要有可读摘要才有意义，未知类型（预览只能是「暂不支持」文案）
+// 不给入口。图片两条通道都安全：ImageMsg 已注册，reference 通道的 originMsg 重建无碍；
+// extra 通道更不经过内核解码
+export var QUOTABLE_CT = [CT.TEXT, CT.IMAGE, CT.CARD, CT.QUOTE];
+
 export function msgContentType(m) {
-  try { return (m.rawMsg && m.rawMsg.contentType) || 0; } catch (e) { return 0; }
+  try { return (m.rawMsg && m.rawMsg.contentType) || CT.TEXT; } catch (e) { return CT.TEXT; }
 }
 
 export function parseCard(m) {
   try {
-    if (msgContentType(m) !== 10001) return null;
+    if (msgContentType(m) !== CT.CARD) return null;
     var buf = m.rawMsg && m.rawMsg.content;
     if (!buf) return null;
     var j = JSON.parse(new TextDecoder('utf-8').decode(buf));
@@ -27,6 +40,46 @@ export function parseCard(m) {
 export var QUOTE_EXTRA_KEY = 'acsvQuote';
 export var CMT_EXTRA_KEY = 'acsvCmt';
 export var MOMENT_EXTRA_KEY = 'acsvMoment'; // 0.9.122 动态转发（发送 momentbar / 解析 momentShareOf）
+
+// ---------- extra 字段编解码原语（0.9.305 批6单源：此前 decode 三写/encode 三写同构样板） ----------
+// extra 是 proto bytes 字段：收端 = ArrayBuffer/TypedArray → UTF-8 解码 → JSON；发端反之。
+// 两端都「宁可漏不错」：坏形/异常一律落 null，由调用方决定降级（解码失败按 extra 被剥处理）
+export function decodeExtra(extra) {
+  try {
+    if (!extra) return null;
+    var j = JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(extra)));
+    return (j && typeof j === 'object') ? j : null;
+  } catch (e) { return null; }
+}
+export function encodeExtra(obj) {
+  try { return new TextEncoder().encode(JSON.stringify(obj)); } catch (e) { return null; }
+}
+
+// ---------- 展示文案单源（0.9.305 批6） ----------
+// 联系人名未就绪时的回落名——抽屉标题/列表行/分享面板行三处同一口径
+export function fallbackName(id) { return '用户 ' + id; }
+// 图片消息占位文案：列表预览 / 换链失败气泡 / 乐观占位三处同串
+export var IMG_PLACEHOLDER = '[图片]';
+// 引用条空预览占位（双端显示层：imbubble.quoteStrip 与 imnative.quoteStripEl 同串）。
+// 勿与 quoteWirePrefix 里**无括号**的「原消息」混同——那是给对方客户端读的 wire 文本契约，两形态有意并存
+export var QUOTE_STRIP_FALLBACK = '[原消息]';
+
+// ---------- 会话查找（0.9.305 批6单源：此前按 targetId some() 遍历六处各写一份） ----------
+// 入参 = kernel.getSessions() 产物（调用方自取，本件不触内核）；比较口径恒为
+// String(targetId) 全等（三端 targetId 数字/字符串混布）。无命中/脏输入返回 null，不抛错
+// （immsg 容错契约）。落点选 immsg 而非 imsend：imchat/imnative/imsend 三方均已 import
+// 本件——零新依赖边；且「会话对象形状」属域内数据事实，与消息解析同责
+export function findSession(sessions, targetId) {
+  try {
+    var want = String(targetId);
+    var out = null;
+    (sessions || []).some(function (s) {
+      if (String(s && s.targetId) === want) { out = s; return true; }
+      return false;
+    });
+    return out;
+  } catch (e) { return null; }
+}
 
 // ---------- 评论转发识别（0.9.51，评论转发私信专属卡片的分流通约） ----------
 // 发送侧（comments 转发委托）wire 首行为「@作者：」，与手打视频分享（标题\n链接）只差
@@ -141,21 +194,19 @@ export function degradeText(m) {
 //    服务端零风险，对方客户端只看到可读拼接文本（imsend.sendQuote 负责拼）。
 // 引用锚点 = 原消息 seqId（抽屉定位与列表 key 同源）。
 
-// 是否可被引用：有有效预览的类型（文本/分享 0、图片 1、作品卡 10001、引用 12）——引用条
-// 要有可读摘要才有意义，未知类型（预览只能是「暂不支持」文案）不给入口。图片两条通道都
-// 安全：ImageMsg 已注册，reference 通道的 originMsg 重建无碍；extra 通道更不经过内核解码。
-// reference 通道仍禁 10001：内核 decodeContent 查表 new，未注册类型会崩
+// 是否可引用判定：白名单查 QUOTABLE_CT 能力表（表化理由见该表处）。
+// reference 通道仍禁 CARD：内核 decodeContent 查表 new，未注册类型会崩
 export function isQuotable(m, wire) {
   var ct = msgContentType(m);
-  if (ct !== 0 && ct !== 1 && ct !== 10001 && ct !== 12) return false;
-  return !(wire === 'reference' && ct === 10001);
+  if (QUOTABLE_CT.indexOf(ct) < 0) return false;
+  return !(wire === 'reference' && ct === CT.CARD);
 }
 
 // 原生引用通道解析：非 type 12 返回 null。originMsg 缺失/异常时降级不弃疗——
 // seqId/preview 置空（引用条退化为无锚点样式），正文 text 照常可读
 export function quoteOf(m) {
   try {
-    if (msgContentType(m) !== 12) return null;
+    if (msgContentType(m) !== CT.QUOTE) return null;
     var o = m.originMsg;
     var seqId = '', preview = '';
     if (o) {
@@ -177,10 +228,10 @@ export function quoteOf(m) {
 // 返回 null，消息按普通文本渲染（wire 文文本身可读，官方端观感不受影响）
 export function quoteExtraOf(m) {
   try {
-    if (msgContentType(m) !== 0) return null;
+    if (msgContentType(m) !== CT.TEXT) return null;
     var extra = m.rawMsg && m.rawMsg.extra;
     if (!extra) return null;
-    var q = (JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(extra))) || {})[QUOTE_EXTRA_KEY];
+    var q = (decodeExtra(extra) || {})[QUOTE_EXTRA_KEY];
     if (!q || typeof q.text !== 'string') return null;
     return {
       seqId: q.seqId != null ? String(q.seqId) : '',
@@ -221,10 +272,10 @@ export function quoteWireTrimLen(contentText, q) {
 // extra 被服务端/中间端剥掉时返回 null，走 isCommentShare 启发式降级（[表情] 占位文本）
 export function cmtShareOf(m) {
   try {
-    if (msgContentType(m) !== 0) return null;
+    if (msgContentType(m) !== CT.TEXT) return null;
     var extra = m.rawMsg && m.rawMsg.extra;
     if (!extra) return null;
-    var q = (JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(extra))) || {})[CMT_EXTRA_KEY];
+    var q = (decodeExtra(extra) || {})[CMT_EXTRA_KEY];
     if (!q || typeof q.content !== 'string') return null;
     return { ncid: q.ncid != null ? String(q.ncid) : '', content: q.content };
   } catch (e) { return null; }
@@ -236,10 +287,10 @@ export function cmtShareOf(m) {
 // imgs 全无）视为没有
 export function momentShareOf(m) {
   try {
-    if (msgContentType(m) !== 0) return null;
+    if (msgContentType(m) !== CT.TEXT) return null;
     var extra = m.rawMsg && m.rawMsg.extra;
     if (!extra) return null;
-    var raw = (JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(extra))) || {})[MOMENT_EXTRA_KEY];
+    var raw = (decodeExtra(extra) || {})[MOMENT_EXTRA_KEY];
     if (!raw) return null;
     var imgs = (Array.isArray(raw.imgs) ? raw.imgs : []).filter(function (im) { return im && im.url; });
     if (!raw.text && !imgs.length) return null; // 空载荷（无正文、无有效图）视为没有
@@ -291,7 +342,7 @@ export function previewOfMessage(m) {
       var res = card.resourceBody[0] || {};
       return '[作品卡片] ' + String(res.title || card.prologue || '').slice(0, 30);
     }
-    if (msgContentType(m) === 1) return '[图片]';
+    if (msgContentType(m) === CT.IMAGE) return IMG_PLACEHOLDER;
     // 引用消息：预览回复正文（引用链消息正文里带链接时也归引用，不出分享/视频预览）
     var q = quoteOf(m) || quoteExtraOf(m);
     if (q) return '[引用] ' + plainPreview(q.text).slice(0, 30);

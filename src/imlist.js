@@ -5,7 +5,8 @@
 import { CFG } from './cfg.js';
 import { el, esc, selfUid } from './ui.js';
 import { imgInto } from './imgload.js';
-import { msgTextOf, previewOfMessage } from './immsg.js';
+import { msgTextOf, previewOfMessage, fallbackName } from './immsg.js';
+import { unreadBadge } from './imbadge.js'; // 未读显示口径单源（0.9.305 批6，imbadge 导出）
 import { ensureIm, ensureConnected } from './imsdk.js';
 import { fetchCards } from './imsend.js';
 
@@ -94,7 +95,7 @@ export function createListKit(env) {
     var shown = 0;
     rows.forEach(function (r) {
       var card = getCards()[r.targetId] || {};
-      var name = card.name || '用户 ' + r.targetId;
+      var name = card.name || fallbackName(r.targetId);
       if (kw && name.toLowerCase().indexOf(kw) < 0) return;
       shown++;
       var row = el('div', 'acsv-im-row');
@@ -104,7 +105,9 @@ export function createListKit(env) {
       imgInto(row, card.headUrl || CFG.api.defaultAvatar, 'avatar', 'acsv-im-av');
       var mid = el('div', 'acsv-im-mid');
       var nm = el('div', 'acsv-im-name');
-      nm.innerHTML = esc(name) + (r.unread > 0 ? '<span class="acsv-share-unread">' + (r.unread > 99 ? '99+' : r.unread) + '</span>' : '');
+      // 未读角标借用分享面板的 .acsv-share-unread 样式类（跨界事实登记 0.9.305：CSS 归
+      // styles.js 的 share 域规则，列表行复用未另立类——显示串口径见 imbadge.unreadBadge）
+      nm.innerHTML = esc(name) + (r.unread > 0 ? '<span class="acsv-share-unread">' + unreadBadge(r.unread) + '</span>' : '');
       mid.appendChild(nm);
       var prev = el('div', 'acsv-im-preview', previewOf(r));
       mid.appendChild(prev);

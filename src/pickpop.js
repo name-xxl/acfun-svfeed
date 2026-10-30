@@ -258,6 +258,17 @@ export function openPickPop(btn, opts) {
   return pop;
 }
 
+// 摘除全页残存确认卡（0.9.305 批⑤⑦）：「全页单枚」协议的**开新前摘旧**半段——
+// meadmin.openMmConfirm 与 followadmin.openRowMenu（开行内菜单前）此前各抄一份
+// `document.querySelector('.acsv-confirmpop')` 摘除逻辑，类串四处漂移。协议收口本件
+// （构建处 openConfirmPop 与摘除处同文件，类串只出现在 pickpop.js 内）；
+// 刻意不做「openConfirmPop 默认全局单枚」：显式 host 下同宿主可连开是既有语义
+//（comments.js 消费点依赖），默认清全局会改行为——零可见变化红线不让。
+export function dismissConfirm() {
+  var old = document.querySelector('.acsv-confirmpop');
+  if (old) old.remove();
+}
+
 // 确认弹（删除类二次确认；项目内无 window.confirm 先例，沿用同一锚定范式）。
 // opts：{ title, text, okLabel, run()->Promise<bool>, done(), host? }
 // host：宿主元素（缺省 btn.parentNode）。评论行在滚动列表内会被裁剪时传抽屉根；

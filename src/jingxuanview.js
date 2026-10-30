@@ -1,7 +1,9 @@
 import { CFG } from './cfg.js';
 import { el, fmtDurMs } from './ui.js';
 import { fmtWan } from './timefmt.js';
-import { registerView } from './viewreg.js';
+import { registerView, viewDef } from './viewreg.js';
+import { mountChipGroup } from './chipkit.js'; // chip 点击协议单源（0.9.305 批⑤①）
+import { LOADING_LABEL } from './pageloader.js'; // 「加载中…」文案单源（0.9.305 批⑤②）
 import { createListTail } from './listtail.js'; // 尾部件（0.9.219：触底+回顶）
 import { AppAPI } from './appapi.js';
 import { listChannels, listChannelFeed } from './channelapi.js';
@@ -70,6 +72,11 @@ function vmOfDv(dv) {
 // 计数位（0.9.171）：原生 iconfont 字形 + 数字——播放=rankView（E164，selection/feed 卡的
 // extra 首位同字）、点赞=feedLike（E629，动态卡互动区同字）；类与用法照 cards.js 面板卡
 // （el('i','acsvg-glyph',码点)，字体在 styles @font-face 注入）
+// 与 cards.statRowOf 同形不同源——差异在皮肤，差异登记（0.9.305 批⑤⑧，审计⑧裁决）：
+// 本件是 jx 网格卡的**单元**（span.acsv-jx-stat，cssraw 精选段，gap 由 inline-flex 给、
+// 字面 ' ' 文本节点参与其排版）；statRowOf 是网格卡**整行**（div.acsv-gstats > span.acsv-gstat，
+// 入参走契约 meta 表项 {k,t} 经 META_GLYPH 译码点）。合并需给 statRowOf 加皮肤/入参双分叉，
+// 两份各得的收益为零——保持两份，类名与几何被各自 CSS 段钉死
 function statOf(code, text) {
   var s = el('span', 'acsv-jx-stat');
   s.appendChild(el('i', 'acsvg-glyph', code));
@@ -202,7 +209,9 @@ function skeletonCards() {
 function buildJingxuanView(body) {
   var wrap = el('div', 'acsv-jx-wrap');
   var hd = el('div', 'acsv-jx-hd');
-  hd.appendChild(el('span', 'acsv-jx-title', '分区')); // 展示名 0.9.171 用户裁决：精选→分区（id/路由仍 jingxuan）
+  // 视图标题与 dock 展示名共读注册表（0.9.305 批⑤⑥；0.9.171「改名四处同碰」教训：
+  // 展示名 0.9.171 裁决精选→分区，id/路由仍 jingxuan——串只许有 dock 一份）
+  hd.appendChild(el('span', 'acsv-jx-title', viewDef('jingxuan').dock.label));
   hd.appendChild(el('span', 'acsv-jx-sub', '大家都在看 · 分区随便刷'));
   wrap.appendChild(hd);
   var chips = el('div', 'acsv-vchips'); // chips 复用 zone 的样式族（.acsv-vchip）
@@ -231,21 +240,19 @@ function buildJingxuanView(body) {
     backTopAt: CFG.view.jingxuan.backTopAt, status: false, onBottom: advance
   });
 
-  function mkChip(label, id, on) {
-    var c = el('button', 'acsv-vchip' + (on ? ' on' : ''), label);
-    c.addEventListener('click', function () {
-      if (st.tab === id) return;
-      Array.prototype.forEach.call(chips.children, function (x) { x.classList.remove('on'); });
-      c.classList.add('on');
-      st.tab = id;
-      switchTab();
+  // chip 组表驱动（0.9.305 批⑤①）：协议在 chipkit 单源；「全部」先挂、频道树到达后
+  // **追加**同一组（host 不清空——两批同皮同判据，短路照读 st.tab）
+  function chipGroup(items) {
+    return mountChipGroup({
+      host: chips, items: items,
+      isOn: function (id) { return st.tab === id; },
+      onPick: function (id) { st.tab = id; switchTab(); }
     });
-    chips.appendChild(c);
   }
-  mkChip('全部', 'all', true);
+  chipGroup([{ label: '全部', data: 'all' }]);
   listChannels().then(function (tree) {
     if (!st) return; // 视图已拆
-    tree.forEach(function (ch) { mkChip(ch.name, ch.id, false); });
+    chipGroup(tree.map(function (ch) { return { label: ch.name, data: ch.id }; }));
   }, function () { /* 树失败：只剩「全部」tab，主功能不拦 */ });
 
   switchTab();
@@ -323,7 +330,7 @@ function advance() {
   if (st.buf.length >= need || st.done) { drain(); return; }
   // 触底续页的「加载中…」尾行（0.9.194）：旧实现续页在途零提示（只有到底/失败有 tip），
   // 用户分不清"到底了"还是"卡住了"。成功由 drain 的 setTip(null) 收、失败由 failTip 顶替。
-  if (!st.tip.textContent) setTip(el('div', null, '加载中…'));
+  if (!st.tip.textContent) setTip(el('div', null, LOADING_LABEL)); // 文案单源 pageloader（0.9.305 批⑤②）
   fetchPage();
 }
 

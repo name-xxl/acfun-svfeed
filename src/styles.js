@@ -149,6 +149,15 @@ var SEAMS = {
   searchGridGap: CFG.view.search.gridGap,
   jxgridMin: CFG.view.jingxuan.gridMin,
   jxgridGap: CFG.view.jingxuan.gridGap,
+  // 弹层视觉上限缝（0.9.305 卫生批4⑦）：与 popplace 几何口径同源 CFG.pop——vh 分数×100 取整
+  // 回填（运行时串与旧裸字面量 min(420px,64vh)/min(430px,62vh) 逐字节相同）
+  anchorMaxH: CFG.pop.anchorMaxH,
+  anchorMaxVh: Math.round(CFG.pop.anchorMaxVh * 100),
+  rowMaxH: CFG.pop.rowMaxH,
+  rowMaxVh: Math.round(CFG.pop.rowMaxVh * 100),
+  // 抽屉宽兜底缝（0.9.305 卫生批4⑧）：CSS 侧 var(--acsv-dw,<兜底>) 的 412 与 CFG.comments.drawerW
+  // 同值单源（JS 恒先写 --acsv-dw，兜底仅理论态；回填值逐字节=旧字面量）
+  dwFallback: CFG.comments.drawerW,
   accent: CFG.accent,
   flashMs: CFG.im.flashMs,
   // 非 CFG 缝：原文里的 `+ IMGVIEW_CSS +` 拼接（0.9.57 拆分）。留作缝而非把这段 CSS 内联进

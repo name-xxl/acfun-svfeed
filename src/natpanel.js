@@ -20,6 +20,7 @@ import { overlayOpen, overlayClose } from './overlay.js'; // 浮层栈（modal�
 import { entryOf, exportUids, importUids, clearUids } from './iploc.js';
 import { deviceCount, exportDevices, importDeviceText, resetUserDevices } from './devname.js';
 import { el, copyText, makeSwitch } from './ui.js';
+import { mountChipGroup } from './chipkit.js'; // 单选钮组点击协议单源（0.9.305 批⑤①）
 import { NATIVE_PANEL_CSS } from './styles.js';
 import { stat, testHook } from './dbg.js';
 
@@ -97,15 +98,14 @@ function controlFor(it) {
     });
   }
   if (it.type === 'select') {
+    // 段钮组走 chipkit 单源（0.9.305 批⑤①）：协议同款，皮肤传 cls:''（钮上只有 'on'，
+    // 与旧 actBtn(extra) 逐字节同 DOM）；同项点击由短路免重复 setSetting（写同值本就无感）
     var seg = el('span', 'acsv-np-seg');
-    (it.options || []).forEach(function (o) {
-      var b = actBtn(o.t || o.v, null, getSetting(it.key) === o.v ? 'on' : null);
-      b.addEventListener('click', function () {
-        setSetting(it.key, o.v);
-        Array.prototype.forEach.call(seg.children, function (x) { x.classList.remove('on'); });
-        b.classList.add('on');
-      });
-      seg.appendChild(b);
+    mountChipGroup({
+      host: seg, cls: '',
+      items: (it.options || []).map(function (o) { return { label: o.t || o.v, data: o }; }),
+      isOn: function (o) { return getSetting(it.key) === o.v; },
+      onPick: function (o) { setSetting(it.key, o.v); }
     });
     return seg;
   }

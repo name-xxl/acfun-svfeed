@@ -1,6 +1,7 @@
 import { CFG } from './cfg.js';
-import { getSetting, onChange, SCHEMA } from './settings.js';
+import { getSetting, onChange, SCHEMA, findItem } from './settings.js';
 import { stat, set, testHook } from './dbg.js';
+import { EV_LAYOUT_SHIFT } from './ui.js';
 import { interpolateModel, drawModel, parseAdvanced } from './advdm.js';
 
 // ---------- Canvas 弹幕渲染层 ----------
@@ -29,6 +30,26 @@ export function normMode(m) {
   return (m === 4 || m === 5 || m === 6) ? m : 1;
 }
 
+// 滚动族判据（0.9.305 卫生批4⑤）：mode 1=滚动 / 6=逆向滚动——绘制时长/轨道/屏蔽四处共用
+// 一条缝。调用点各自决定喂原始 mode 还是归一 mode（屏蔽判据在归一**前**，既有语义勿动）
+export function isScrollMode(m) {
+  return m === 1 || m === 6;
+}
+
+// 屏蔽六类单源表（0.9.305 卫生批4⑤）：k=dmBlock 存储 token（空格分隔名单的成员），
+// label=面板 tag 文案，test=条目判据。curBlock 构造（readSettings）与条目过滤（filterDanmaku）、
+// 面板六 tag（dmpanel）全由本表派生——表序=存储 token 判定序=tag 展示序（勿重排：
+// 过滤时多条命中的落点顺序即本表序）。判据吃**原始** mode（屏蔽先于归一，established 语义）
+export var DM_BLOCK_TYPES = [
+  { k: 'top', label: '顶部弹幕', test: function (it) { return it.mode === 5; } },
+  { k: 'bottom', label: '底部弹幕', test: function (it) { return it.mode === 4; } },
+  { k: 'scroll', label: '滚动弹幕', test: function (it) { return isScrollMode(it.mode); } },
+  { k: 'color', label: '彩色弹幕', test: function (it) { return it.color &&
+      String(it.color).toLowerCase() !== CFG.danmaku.defaults.colorHex; } },
+  { k: 'role', label: '角色弹幕', test: function (it) { return Number(it.roleId) > 0; } },
+  { k: 'advanced', label: '高级弹幕', test: function (it) { return !!it.adv; } }
+];
+
 // 16:9 适配（0.9.205 真机改口径，纯函数供单测直采）：在 w×h 的播放器区域里取
 // **居中、恰好装下的 16:9 矩形**（相对区域左上角的偏移 + 尺寸）。容器比 16:9 更宽 → 左右留边；
 // 更高 → 上下留边。这是原生弹幕的坐标空间（§10.14：`.danmaku-screen` 恒 16:9，与稿件比例无关）。
@@ -43,9 +64,19 @@ export function fit169(w, h) {
   return { x: 0, y: (h - nh) / 2, w: w, h: nh };
 }
 
+// 显示区域默认占比（0.9.305 卫生批4⑤）：从 settings SCHEMA 的 dmArea.def（'72'）派生——
+// 初值与守卫回落值同出一个源，不再各自抱着一份 0.72。schema 漂移（键没了/def 非数）
+// 走 stat 信号并回落全区域 1（宁可画多不许画错几何）
+var AREA_DEF = (function () {
+  var it = findItem('dmArea');
+  var f = Number(it && it.def) / 100;
+  if (!(f > 0 && f <= 1)) { stat('dm.areaDefBad'); return 1; }
+  return f;
+})();
+
 // 弹幕设置缓存（0.9.201）：**只在轨道重排时读一次**（不得进逐帧绘制路径，否则掉帧）。
 // 值来自 settings 的「弹幕」分组（照原生 tab 条目，§10.12）。
-var curAlpha = 1, curSizeScale = 1, curSpeed = 1, curArea = 0.72, curSubtitle = false, curMerge = true;
+var curAlpha = 1, curSizeScale = 1, curSpeed = 1, curArea = AREA_DEF, curSubtitle = false, curMerge = true;
 var curBlock = {}, curFilter = [];
 function readSettings() {
   var a = Number(getSetting('dmAlpha'));
@@ -55,30 +86,30 @@ function readSettings() {
   var sp = Number(getSetting('dmSpeed'));
   curSpeed = sp > 0 ? sp : 1;
   var ar = Number(getSetting('dmArea')) / 100; // 面板存百分比（30~100），内部用 0~1 占比
-  curArea = (ar > 0 && ar <= 1) ? ar : 0.72;
+  curArea = (ar > 0 && ar <= 1) ? ar : AREA_DEF;
   curSubtitle = !!getSetting('dmSubtitle');
   curMerge = !!getSetting('dmMerge');
-  // 屏蔽设置（0.9.202）：按类型（top/bottom/scroll/color）+ 关键词列表（逗号/换行分隔）
+  // 屏蔽设置（0.9.202）：六类开关由 DM_BLOCK_TYPES 表驱动解析 + 关键词列表（逗号/换行分隔）
   var blk = String(getSetting('dmBlock') || '');
-  curBlock = { top: /\btop\b/.test(blk), bottom: /\bbottom\b/.test(blk), scroll: /\bscroll\b/.test(blk),
-    color: /\bcolor\b/.test(blk), role: /\brole\b/.test(blk), advanced: /\badvanced\b/.test(blk) };
+  curBlock = {};
+  for (var bi = 0; bi < DM_BLOCK_TYPES.length; bi++) {
+    var bk = DM_BLOCK_TYPES[bi].k;
+    curBlock[bk] = new RegExp('\\b' + bk + '\\b').test(blk); // k 全是纯字母词，RegExp 拼接与字面量判据等值
+  }
   curFilter = String(getSetting('dmFilter') || '').split(/[\n,]/)
     .map(function (x) { return x.trim(); }).filter(Boolean);
 }
 
-// 按类型/关键词屏蔽（0.9.204，纯函数单测直采）：六类全部有字段可依——
-// top/bottom/scroll 看 mode、color 看是否非白、role 看 roleId>0（两条链路都带该字段）、
-// advanced 看 adv（高级弹幕条目，由另一通道渲染，这里只供单测与经典条目共用判据）。
+// 按类型/关键词屏蔽（0.9.204，纯函数单测直采）：类型判据单源 DM_BLOCK_TYPES（六类全部有字段可依），
+// 本函数只做编排——命中即剔。关键词叠加＝并集剔除（既有语义，测试钉着）。
 export function filterDanmaku(list, block, keywords) {
   return (list || []).filter(function (it) {
     if (!it) return false;
     if (block) {
-      if (block.top && it.mode === 5) return false;
-      if (block.bottom && it.mode === 4) return false;
-      if (block.scroll && (it.mode === 1 || it.mode === 6)) return false;
-      if (block.color && it.color && String(it.color).toLowerCase() !== '#ffffff') return false;
-      if (block.role && Number(it.roleId) > 0) return false;
-      if (block.advanced && it.adv) return false;
+      for (var b = 0; b < DM_BLOCK_TYPES.length; b++) {
+        var t = DM_BLOCK_TYPES[b];
+        if (block[t.k] && t.test(it)) return false;
+      }
     }
     if (keywords && keywords.length) {
       for (var i = 0; i < keywords.length; i++) if (String(it.text || '').indexOf(keywords[i]) >= 0) return false;
@@ -214,7 +245,8 @@ function createLayer(slide, video) {
     for (i = 0; i < items.length; i++) {
       measure(items[i]);
       if (items[i]._px > maxPx) maxPx = items[i]._px;
-      items[i]._dur = (items[i].mode === 1 || items[i].mode === 6)
+      // 滚动族判据单源 isScrollMode（0.9.305 批4⑤）；此处仍吃**归一前**原始 mode（既有行为）
+      items[i]._dur = isScrollMode(items[i].mode)
         ? (cssW + items[i]._w) / cssW * CFG.danmaku.scrollSec * curSpeed * 1000
         : CFG.danmaku.staySec * 1000;
     }
@@ -230,7 +262,7 @@ function createLayer(slide, video) {
       var mode = normMode(it.mode);
       it.mode = mode;
       var arr = busy[mode] || (busy[mode] = []);
-      var limit = (mode === 1 || mode === 6) ? scrollLanes : sideLanes;
+      var limit = isScrollMode(mode) ? scrollLanes : sideLanes; // 滚动族单源（0.9.305 批4⑤；此处吃归一后 mode）
       var pick = -1, minAt = Infinity, minIdx = 0;
       for (var l = 0; l < limit; l++) {
         var freeAt = arr[l] || 0;
@@ -239,7 +271,7 @@ function createLayer(slide, video) {
       }
       if (pick < 0) pick = minIdx;
       it._lane = pick;
-      if (mode === 1 || mode === 6) {
+      if (isScrollMode(mode)) {
         var speed = (cssW + it._w) / it._dur; // px/ms
         arr[pick] = it.at + it._w / speed;
       } else {
@@ -477,8 +509,9 @@ SCHEMA.forEach(function (it) {
   if (it.group === '弹幕') onChange(it.key, refreshAllLayers);
 });
 
-// 布局突变广播（0.9.237）：评论抽屉开合派发 acsv-layout-shift（零 import 边的跨模块提示）；
-// 窗口 resize 直接挂。只装一次（首个图层创建时），图层表为空时空转
+// 布局突变广播（0.9.237）：评论抽屉开合派发 EV_LAYOUT_SHIFT（事件名单源 ui.js，0.9.305 批4⑥
+// 收口——通道仍是零数据提示事件，收口的只是名字）；窗口 resize 直接挂。
+// 只装一次（首个图层创建时），图层表为空时空转
 var realignArmed = false;
 export function realignAll() {
   for (var i = 0; i < layers.length; i++) {
@@ -489,7 +522,7 @@ function armRealign() {
   if (realignArmed) return;
   realignArmed = true;
   window.addEventListener('resize', realignAll); // singleton-listener: 弹幕画布重排，模块级
-  document.addEventListener('acsv-layout-shift', function () { // singleton-listener: 布局位移广播，模块级
+  document.addEventListener(EV_LAYOUT_SHIFT, function () { // singleton-listener: 布局位移广播，模块级
     realignAll();
     setTimeout(realignAll, 330); // 抽屉 0.2s 过渡结束后再补一次（过渡中途 rect 是动画值）
   });

@@ -1,5 +1,5 @@
 import { CFG } from './cfg.js';
-import { spinner, toast, videoOf } from './ui.js';
+import { spinner, toast, videoOf, resumeSlotOf } from './ui.js';
 import { errBox } from './errbox.js';
 import { bindLayerGestures } from './playgest.js'; // 层内滑动手势（0.9.184 自本模块拆出）
 import { parseRoute } from './route.js';
@@ -90,10 +90,9 @@ function syncListTab() {
   if (s.kind === 'list' && s.list.length) relDrawerSyncList(s.idx);
 }
 
-// 当前播放位置（秒；<1s 不记——首帧误差不值得存）
+// 当前播放位置（秒；门限单源 resumeSlotOf——首帧误差不值得存，0.9.305 批4③）
 function curTime() {
-  var v = videoOf(slideRef);
-  return v && v.currentTime > 1 ? v.currentTime : 0;
+  return resumeSlotOf(videoOf(slideRef));
 }
 
 // 环境触面注入（levelstack 的 swap/箭头/页签/toast/相关池全部经此；本模块不再持工作态）
@@ -123,8 +122,9 @@ function mountSlide(body, item, resumeAt) {
   };
   var slide = buildSlide(item, OVL_IDX, goTo);
   // 进度续播槽（0.9.174 弹回上级）：attachVideo 会把 slide._resumeAt 转入 session.resumeAt，
-  // playing 后 seek 回去——复用既有槽位，不自造第二套 seek（attach.js 契约表在册）
-  if (resumeAt > 1) slide._resumeAt = resumeAt;
+  // playing 后 seek 回去——复用既有槽位，不自造第二套 seek（attach.js 契约表在册）。
+  // 门限与 resumeSlotOf 同一常量（这里是上级存档秒位数值，不经 video 元素）
+  if (resumeAt > CFG.time.resumeMinSec) slide._resumeAt = resumeAt;
   slide.dataset.ovl = '1';
   body.appendChild(slide);
   slideRef = slide;

@@ -16,7 +16,10 @@
 
 // 锚点枚举（与 A 站原生九宫格一致）：0 左上 1 中上 2 右上 3 左中 4 中中 5 右中 6 左下 7 中下 8 右下
 export var DEFAULT_ANCHOR = 4;
-// 模型缺省值（真机样本全带字段，这里只为残包兜底，不作"编造"用）
+// 模型缺省值（真机样本全带字段，这里只为残包兜底，不作"编造"用）。
+// DEF_SIZE/DEF_COLOR 与 CFG.danmaku.defaults 同值（卫生批4④裁决**保持字面量**）：本件是零依赖
+// 模型核，其单测（test/unit/advdm.test.js）不装 window/__ACSV_DEBUG__ 垫片——import cfg 即求值
+// 崩溃；改接须先给该测补垫片（本批文件清单外）。改默认色时两处同批改，勿只改 CFG
 var DEF_DUR = 5000, DEF_SIZE = 25, DEF_COLOR = '#ffffff', DEF_FONT = 'SimHei';
 
 function num(v, def) {

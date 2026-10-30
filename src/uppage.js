@@ -8,6 +8,7 @@ import { FeedStore } from './feedstore.js';
 import { API } from './api.js';
 import { SPACE_UID_RE } from './pagekind.js'; // 空间页判据单源（0.9.303 收编）
 import { CURSOR_END, isEndCursor } from './contract.js'; // 游标方言单源（0.9.304）
+import { LOADING_LABEL } from './pageloader.js'; // 「加载中…」文案单源（0.9.305 批⑤②）
 import { imgInto } from './imgload.js';
 import { testHook } from './dbg.js'; // 仅调试缝（release 死码消除）
 
@@ -272,7 +273,7 @@ function injectSpaceVideos(uid) {
   var grid = el('div', 'acsv-space-grid');
   grid.id = 'acsv-space-grid';
   var pagebar = el('div', 'acsv-pagebar');
-  var progress = el('span', 'acsv-progress-txt', '加载中…');
+  var progress = el('span', 'acsv-progress-txt', LOADING_LABEL); // 串单源（0.9.305 批⑤②）
 
   // 最新/最热排序（样式仿站点排序下拉）
   var sort = el('div', 'acsv-sort');

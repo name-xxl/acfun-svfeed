@@ -6,13 +6,20 @@
 // 不命中绑定在层体上的本监听（天然隔离）。
 // step 由宿主注入（playlayer.playStep），返回布尔——true=确实翻了一条才吞滚轮（防橡皮筋）；
 // 手势累计态（gest）随层单例：一次只开一层，绑定即重置。
+// 阈值常数（0.9.305 卫生批4⑥合一；README 使用表口径「攒阈值 60px + 锁 500ms」）：滚轮累计
+// 与触摸位移共用 STEP_PX，翻条锁共用 LOCK_MS——本件保持零依赖叶（口径：纯手势壳，不吃 CFG），
+// 400ms 断段窗/800ms 划动时限同族登记，防再裸写
+var STEP_PX = 60;   // 攒阈值：细碎滚动先累计到这个像素量才推一步（防一次滑动连推多条）
+var LOCK_MS = 500;  // 翻条后防抖锁：锁内不再翻
+var SEG_MS = 400;   // 滚轮断段窗：距上一事件超过它按新一段从头累计
+var FLICK_MS = 800; // 触摸划动时限：慢拖超过它不算划动
 var gest = { acc: 0, at: 0, lock: 0, y0: 0, t0: 0 };
 function onWheel(step, ev) {
   var now = Date.now();
-  if (now - gest.at > 400) gest.acc = 0; // 新一段滚动从头累计
+  if (now - gest.at > SEG_MS) gest.acc = 0; // 新一段滚动从头累计
   gest.at = now;
   gest.acc += ev.deltaY;
-  if (Math.abs(gest.acc) < 60 || now - gest.lock < 500) return;
+  if (Math.abs(gest.acc) < STEP_PX || now - gest.lock < LOCK_MS) return;
   var dir = gest.acc > 0 ? 1 : -1;
   gest.acc = 0;
   if (step(dir)) {
@@ -30,7 +37,7 @@ function onTouchEnd(step, ev) {
   if (!t || !gest.y0) return;
   var dy = gest.y0 - t.clientY; // 上滑（dy>0）=下一条
   gest.y0 = 0;
-  if (Math.abs(dy) < 60 || Date.now() - gest.t0 > 800) return;
+  if (Math.abs(dy) < STEP_PX || Date.now() - gest.t0 > FLICK_MS) return;
   step(dy > 0 ? 1 : -1);
 }
 

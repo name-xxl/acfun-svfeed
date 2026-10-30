@@ -3,6 +3,7 @@
 // 本件只产面板 DOM/交互，不碰播放器/控制栏状态；消费方 controls.js。
 import { el } from './ui.js';
 import { getSetting, SCHEMA, setSetting } from './settings.js';
+import { DM_BLOCK_TYPES } from './dmcanvas.js'; // 六类名单/文案/判据单源（0.9.305 卫生批4⑤）
 
 // ---------- 弹幕设置面板（0.9.202，用户裁决：入口在底栏、展开面板——照 A 站原生两 tab） ----------
 // 入口＝底栏「弹幕设置」键（原生 bfq_dmsz 齿轮气泡图标）；面板挂 **slide**（不像控制栏那样随闲置隐藏）。
@@ -110,17 +111,17 @@ export function buildDmPanel(slide) {
     if (i >= 0) parts.splice(i, 1); else parts.push(k);
     setSetting('dmBlock', parts.join(' '));
   }
-  // 六类与原生一致（§10.12）；判据字段：mode / color / roleId / adv（0.9.204 补齐后两类）
-  [['top', '顶部弹幕'], ['bottom', '底部弹幕'], ['scroll', '滚动弹幕'], ['color', '彩色弹幕'],
-    ['role', '角色弹幕'], ['advanced', '高级弹幕']].forEach(function (p) {
-    var t = el('span', 'acsv-dmptag', p[1]);
-    t.classList.toggle('on', blockHas(p[0]));
-    t.addEventListener('click', function (ev) {
+  // 六类 tag 由 DM_BLOCK_TYPES 派生（0.9.305 批4⑤收口——此前本件自抄一份 [key,label] 平行表，
+  // 与原生一致（§10.12），判据字段 mode/color/roleId/adv 归 dmcanvas 表项 test）
+  DM_BLOCK_TYPES.forEach(function (bt) {
+    var tg = el('span', 'acsv-dmptag', bt.label);
+    tg.classList.toggle('on', blockHas(bt.k));
+    tg.addEventListener('click', function (ev) {
       ev.stopPropagation();
-      toggleBlock(p[0]);
-      t.classList.toggle('on', blockHas(p[0]));
+      toggleBlock(bt.k);
+      tg.classList.toggle('on', blockHas(bt.k));
     });
-    tags.appendChild(t);
+    tags.appendChild(tg);
   });
   bodyBlk.appendChild(tags);
   bodyBlk.appendChild(el('div', 'acsv-dmpblk', '过滤弹幕（关键词，逗号分隔）'));

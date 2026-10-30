@@ -76,7 +76,7 @@ export function syncDock(view) {
 }
 
 // 视图未读徽标（0.9.97，4.3）：运行态走本命令式出口（viewreg dock 元数据是静态声明，
-// 运行状态混入即成第二份状态源——评审裁决）；n<=0 隐藏、>99 封顶（imdrawer badgeText 同语义）
+// 运行状态混入即成第二份状态源——评审裁决）；n<=0 隐藏、>99 封顶（口径同 imbadge.unreadBadge，0.9.305 注释校准：badgeText 0.9.163 已迁 imbadge、0.9.305 批⑥更名单源导出）
 export function setDockBadge(view, n) {
   if (!dockEl) return;
   var b = dockEl.querySelector('.acsv-dock-item[data-view="' + view + '"]');

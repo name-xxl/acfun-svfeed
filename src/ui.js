@@ -1,7 +1,12 @@
 import { CFG } from './cfg.js';
+import { stat } from './dbg.js';
 import { CSS } from './styles.js';
 import { root } from './state.js';
 import { pad2 } from './timefmt.js';
+
+// fmtTime 已下沉 timefmt（0.9.305 卫生批4⑥，「x / y」单源在那边组句）；经 ui 门面再导一次，
+// 外部经 ui 取 fmtTime 的旧引用点零改动（字面 `from ui` 勿写回本行——check-deps 会误读成自环）
+export { fmtTime } from './timefmt.js';
 
 export function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -61,10 +66,17 @@ export function videoOf(slide) {
   return slide ? slide.querySelector('video') : null;
 }
 
-export function fmtTime(s) {
-  s = Math.max(0, Math.floor(Number(s) || 0));
-  return pad2(Math.floor(s / 60)) + ':' + pad2(s % 60);
+// 续播槽值（0.9.305 卫生批4③）：进度 >CFG.time.resumeMinSec 秒才值得记，否则 0（null video
+// 同 0）。消费点判假即**不写槽**（保住既有待续播值）——attach.syncFwdQuality、controls
+// 编码/缓冲菜单、playlayer.curTime、session.recover 六处「>1 才记」拼装归此一件
+export function resumeSlotOf(video) {
+  return (video && video.currentTime > CFG.time.resumeMinSec) ? video.currentTime : 0;
 }
+
+// 布局突变广播事件名（0.9.305 卫生批4⑥）：评论抽屉开合派发（comments 两处）、弹幕画布监听
+//（dmcanvas armRealign）——字面量三份归此；事件语义（零 import 边的提示通道）不变，
+// 收口的只是名字本身
+export var EV_LAYOUT_SHIFT = 'acsv-layout-shift';
 
 // ms → 时长文案（h:mm:ss / m:ss；0 或非法值给空串）。0.9.179 收口：此前 reldrawer 与
 // jingxuanview 各写一份 durText（单源收口违规），统一到这里
@@ -77,7 +89,9 @@ export function fmtDurMs(ms) {
 
 var toastTimer = null;
 export function toast(msg, ms) {
-  if (!root) return;
+  // 无 root 静默 no-op 不再是纯无声（0.9.305 卫生批4⑨）：补 stat 信号——未挂载舞台的 toast
+  // 调用多为时序 bug，可读 acsv-stats（release 构建 stat 空转，运行时零开销）
+  if (!root) { stat('toast.noRoot'); return; }
   var t = root.querySelector('.acsv-toast');
   if (!t) return;
   t.textContent = msg;
@@ -125,7 +139,9 @@ export function toggleFullLadder() {
   if (root && root.requestFullscreen) root.requestFullscreen();
 }
 
-// 样式表挂在 head 上，保证悬浮按钮在信息流未打开时也有样式
+// 样式表挂在 head 上，保证悬浮按钮在信息流未打开时也有样式。
+// 「getElementById 幂等注入」同款形态在 boot/nativeip/natpanel 还有三份——那是登记例外
+//（挂载时机与注入范围各异：boot=全量 CSS、nativeip/natpanel=独立段），本批不扩面，勿再抽
 export function ensureStyle() {
   if (document.getElementById('acsv-style')) return;
   var st = el('style', null, CSS);

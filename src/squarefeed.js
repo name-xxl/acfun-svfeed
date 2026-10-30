@@ -25,7 +25,7 @@ import { ensureEmotionMap, refillEmoticons } from './emoticon.js';
 import { nextBadgeInterval } from './followbadge.js'; // 退避序列单源（纯函数，单测在册）
 import { syncRowBar } from './momentbar.js'; // 回填后互动栏同步（0.9.127）
 import { closeInlineComments, feedRowOf, armExpanders, wireRowList } from './rowkit.js';
-import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259）
+import { createPageLoader, DONE_LABEL_MOMENTS } from './pageloader.js'; // 翻页骨架单源（0.9.259）；到底文案 0.9.305 批⑤②出库
 import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 
 function noop() { }
@@ -60,7 +60,7 @@ export function createSquareFeed(opts) {
     fetch: function (pcursor) { return fetchPage(pcursor); }, // 传输/规整/窗口/失败可辨收口 momentapi（squarePageOf / profilePageOf）
     skeleton: function (first) { return first ? skeletonRows(list, view.skel, 'acsv-sqskel') : null; },
     setStatus: function (text, busy) { tail.setStatus(text, busy); },
-    doneLabel: '已加载全部动态',
+    doneLabel: DONE_LABEL_MOMENTS, // 串单源 pageloader（0.9.305 批⑤②），文案逐字不变
     onPage: function (page, info) {
       var fresh = 0;
       if (!seenKeys) seenKeys = new Set();

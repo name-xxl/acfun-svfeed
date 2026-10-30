@@ -1,3 +1,4 @@
+import { CFG } from './cfg.js';
 import { AppAPI } from './appapi.js';
 import { DmCanvas } from './dmcanvas.js';
 import { el, toast } from './ui.js';
@@ -136,7 +137,10 @@ export function createDmBox(item, videoOf) {
       input.value = '';
       var slide = video.closest && video.closest('.acsv-slide');
       if (slide && slide._dmLayer) {
-        slide._dmLayer.addLocal({ text: text, at: at, mode: 1, color: '#ffffff', size: 25 });
+        // 回显口径=发送口径（0.9.305 卫生批4④）：默认三件套单源 CFG.danmaku.defaults——
+        // 发出去的串是 mode1/白/25，画回来必须同值，此前两处各写一份字面量已漂过
+        var D = CFG.danmaku.defaults;
+        slide._dmLayer.addLocal({ text: text, at: at, mode: D.mode, color: D.colorHex, size: D.size });
       }
     });
   }

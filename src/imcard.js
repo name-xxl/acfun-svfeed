@@ -6,9 +6,20 @@
 // 皮肤（skin）只声明命名与图标画法——布局与视觉仍在各自 CSS（暗/浅两套），皮肤差异是事实，
 // 不当重复消灭。拼装差异（标签名/类名/隐藏机制）全部由 skin 承载，装配逻辑只有这一份
 import { el, esc } from './ui.js';
+import { CFG } from './cfg.js';
 import { fmtDur } from './immsg.js';
 import { emotify } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
+
+// 稿件资源类型：本文件局部常数（0.9.305 批6）——**不 import contract**（contract.RT 属主
+// 会话的跨域契约件，卡片装配域按纪律自带同值常数），值 = RT.VIDEO 同字面
+var RT_VIDEO = 2;
+
+// 10001 作品卡 → 视频页链接（0.9.305 批6单源：此前 imbubble.appendCardBubble 与
+// imnative.cardItemOf 两份逐字实现）：仅投稿视频（RT_VIDEO）且有 resourceId 时可点
+export function videoHrefOf(r) {
+  return Number(r.resourceType) === RT_VIDEO && r.resourceId ? CFG.api.videoBase + r.resourceId : '';
+}
 
 // skin 契约（消费方各自声明；见 imdrawer/imnative 的 SKIN）：
 //   tag          卡片内块级标签名（抽屉 div / 原生页 span）
@@ -83,10 +94,11 @@ export function patchVcard(parts, c) {
   }
 }
 
-// 评论转发卡（0.9.51）：评论原文是主视觉——html（extra 载荷 ubbQuoteHtml 富渲染）优先，
-// 缺则 wire 文本 emotify（表情码仍真图）；来源作品收底部小条，封面 load 才放出
-// （enrich 失败也保持可读可点：整卡 href=作品链接，小条先出占位文案）
-export function cshareCard(skin, spec, mine) {
+// 摘要条卡片共同骨架（0.9.305 批6抽收口）：cshareCard（评论转发）与 mcard（动态转发）同族
+// 的前段——根类复用 cshare（皮肤 CSS 直接继承）、html 富渲染优先 / wire 文本 emotify 降级、
+// 整卡 <a> 内禁嵌套链接与 [img]/配图点击看大图。装配逻辑此前两份逐字（头注自认同族）。
+// 产出 {a, quote}，尾部小条/配图行差异由调用方自持
+function quoteCardCore(skin, spec, mine) {
   var a = el(spec.href ? 'a' : 'div', skin.cshare + (mine && skin.rootMine ? ' ' + skin.rootMine : ''));
   if (spec.href) {
     a.href = spec.href;
@@ -97,7 +109,7 @@ export function cshareCard(skin, spec, mine) {
   var quote = el(skin.tag, skin.quote);
   if (spec.html) {
     quote.innerHTML = spec.html;
-    // [img] 配图点击看大图：整卡是 <a>，preventDefault 防跳作品页
+    // [img] 配图点击看大图：整卡是 <a>，preventDefault 防跳来源页
     quote.addEventListener('click', function (ev) {
       var im = ev.target && ev.target.closest ? ev.target.closest('.ubb-imgc') : null;
       if (!im) return;
@@ -111,6 +123,16 @@ export function cshareCard(skin, spec, mine) {
     quote.innerHTML = emotify(esc(spec.text || ''));
   }
   a.appendChild(quote);
+  return { a: a, quote: quote };
+}
+
+// 评论转发卡（0.9.51）：评论原文是主视觉——html（extra 载荷 ubbQuoteHtml 富渲染）优先，
+// 缺则 wire 文本 emotify（表情码仍真图）；来源作品收底部小条，封面 load 才放出
+// （enrich 失败也保持可读可点：整卡 href=作品链接，小条先出占位文案）
+export function cshareCard(skin, spec, mine) {
+  var core = quoteCardCore(skin, spec, mine);
+  var a = core.a;
+  var quote = core.quote;
   var src = el(skin.tag, skin.src);
   var cover = el('img', skin.srcimg);
   cover.alt = '';
@@ -134,32 +156,12 @@ export function patchCshare(parts, c) {
 
 // 动态分享卡（0.9.122）：动态正文是主视觉——html（extra 载荷 ubbQuoteHtml 富渲染）优先，
 // 缺则 wire 文本 emotify（降级链与评论卡同款）；配图行（extra imgs，发送侧已限 9）点击看
-// 大图；底部「查看动态」小条。骨架与评论卡同族——根类复用 cshare（皮肤 CSS 直接继承），
+// 大图；底部「查看动态」小条。前段骨架走 quoteCardCore 共族（0.9.305 收口），
 // 新增 mimgs/mimg 两个皮肤名承载配图行
 export function mcard(skin, spec, mine) {
-  var a = el(spec.href ? 'a' : 'div', skin.cshare + (mine && skin.rootMine ? ' ' + skin.rootMine : ''));
-  if (spec.href) {
-    a.href = spec.href;
-    a.target = '_blank';
-    a.rel = 'noopener';
-  }
-  a.addEventListener('click', function (ev) { ev.stopPropagation(); });
-  var quote = el(skin.tag, skin.quote);
-  if (spec.html) {
-    quote.innerHTML = spec.html;
-    // [img] 配图点击看大图：整卡是 <a>，preventDefault 防跳动态页（评论卡同款）
-    quote.addEventListener('click', function (ev) {
-      var im = ev.target && ev.target.closest ? ev.target.closest('.ubb-imgc') : null;
-      if (!im) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      openImageViewer(im.getAttribute('src') || '');
-    });
-  } else {
-    // wire 文本兜底：esc + emotify 出真表情（同评论卡 0.9.53 纪律）；不走 linkify——quote 在卡片 <a> 内
-    quote.innerHTML = emotify(esc(spec.text || ''));
-  }
-  a.appendChild(quote);
+  var core = quoteCardCore(skin, spec, mine);
+  var a = core.a;
+  var quote = core.quote;
   var imgs = spec.imgs || [];
   if (imgs.length) {
     var row = el(skin.tag, skin.mimgs);

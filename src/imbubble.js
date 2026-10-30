@@ -6,7 +6,7 @@
 import { CFG } from './cfg.js';
 import { el, esc, toast, selfUid } from './ui.js';
 import { emotify } from './emoticon.js';
-import { vcard, patchVcard, cshareCard, patchCshare, mcard } from './imcard.js';
+import { vcard, patchVcard, cshareCard, patchCshare, mcard, videoHrefOf } from './imcard.js';
 import { lazyObserve } from './imgload.js';
 import { fetchImImageBlob, peekImImageBlob, imageUrlOf } from './imimage.js';
 import { openImageViewer } from './imgview.js';
@@ -14,7 +14,8 @@ import { ubbQuoteHtml } from './ubb.js';
 import {
   parseCard, parseShare, msgTextOf, previewOfMessage,
   isCommentShare, commentShareAuthor, cmtShareOf, momentShareOf,
-  msgContentType, isQuotable, quoteOf, quoteExtraOf
+  msgContentType, isQuotable, quoteOf, quoteExtraOf,
+  CT, IMG_PLACEHOLDER, QUOTE_STRIP_FALLBACK
 } from './immsg.js';
 import { ICON_SVGS } from './imicons.js';
 import { AppAPI } from './appapi.js';
@@ -49,9 +50,13 @@ export function createBubbleKit(env) {
 
   // ---------- 消息引用（气泡内摘要条 / hover 引用按钮 / 定位） ----------
   // 气泡内引用摘要条：有锚点（原消息 seqId）才可点定位
+  // 双形态豁免登记（0.9.305 批6）：本条与 imnative.quoteStripEl 同构——空预览占位文案已收
+  // immsg.QUOTE_STRIP_FALLBACK 单源，条体本身属双端渲染外壳豁免区，但**两套形态选择器
+  //（.acsv-im-quote/.acsv-im-quote-preview vs .qstrip/.p）无契约测试钉同步**：改任一侧
+  // 形态/类名必须人工对另一侧与 harness 断言（imdrawer imBubbleSmoke / im-native fixture）
   function quoteStrip(q) {
     var s = el('div', 'acsv-im-quote' + (q.seqId ? ' link' : ''));
-    s.appendChild(el('div', 'acsv-im-quote-preview', q.preview || '[原消息]'));
+    s.appendChild(el('div', 'acsv-im-quote-preview', q.preview || QUOTE_STRIP_FALLBACK));
     if (q.seqId) {
       s.title = '点击查看原消息';
       s.addEventListener('click', function (ev) { ev.stopPropagation(); locateMessage(q.seqId); });
@@ -111,7 +116,7 @@ export function createBubbleKit(env) {
       getDrawer().bubbles.appendChild(bubbleRow(b, mine, m)); // 引用消息本身也可被引用（套引用）
       return;
     }
-    if (msgContentType(m) === 1) return appendImageBubble(m, mine);
+    if (msgContentType(m) === CT.IMAGE) return appendImageBubble(m, mine);
     var card = parseCard(m);
     if (card) return appendCardBubble(card, mine, m);
     var share = parseShare(msgTextOf(m));
@@ -149,7 +154,7 @@ export function createBubbleKit(env) {
             if (!img.isConnected) return;
             b.classList.remove('pending');
             if (blobUrl) img.src = blobUrl;
-            else { img.remove(); b.appendChild(document.createTextNode('[图片]')); }
+            else { img.remove(); b.appendChild(document.createTextNode(IMG_PLACEHOLDER)); }
           });
         });
       }
@@ -164,7 +169,7 @@ export function createBubbleKit(env) {
         });
       });
     } else {
-      b.textContent = '[图片]';
+      b.textContent = IMG_PLACEHOLDER;
     }
     getDrawer().bubbles.appendChild(bubbleRow(b, mine, m));
   }
@@ -200,7 +205,7 @@ export function createBubbleKit(env) {
     }
     card.resourceBody.forEach(function (r) {
       var parts = vcard(SKIN, {
-        href: Number(r.resourceType) === 2 && r.resourceId ? CFG.api.videoBase + r.resourceId : '',
+        href: videoHrefOf(r),
         coverUrl: r.coverUrl, viewCountShow: r.viewCountShow,
         commentCountShow: r.commentCountShow, durationSec: r.durationSec, title: r.title
       }, mine);

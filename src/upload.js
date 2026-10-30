@@ -7,6 +7,11 @@
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
 
+// 表单 Content-Type 本件常数（0.9.305 批6：两处 header 同串收口）。cfg 不可动、net 不归本批——
+// 长期应进 net 导出 FORM_URLENC 供全项目引用（登记于 docs/_batch-notes-C.md，imimage/appapi 等
+// 域外出现处同批收）
+var FORM_URLENC = 'application/x-www-form-urlencoded';
+
 // 上传用 GM 通道（POST + JSON 解析；无 GM/网络错/超时/解析失败一律 reject）
 function gmPostJson(opts) {
   return gmRequest({
@@ -18,7 +23,7 @@ function gmPostJson(opts) {
 function uploadGetToken(file) {
   return gmPostJson({
     url: CFG.upload.tokenUrl,
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { 'Content-Type': FORM_URLENC },
     data: 'fileName=' + encodeURIComponent(file.name || 'image.png'),
     timeout: CFG.upload.tokenT
   }).then(function (d) {
@@ -63,7 +68,7 @@ function uploadComplete(token, chunks) {
 function uploadGetUrl(token, bizFlag) {
   return gmPostJson({
     url: CFG.upload.urlAfterUpload,
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { 'Content-Type': FORM_URLENC },
     data: 'token=' + encodeURIComponent(token) + '&bizFlag=' + encodeURIComponent(bizFlag || CFG.upload.bizFlag),
     timeout: CFG.upload.urlT
   }).then(function (d) {

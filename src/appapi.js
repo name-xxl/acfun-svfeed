@@ -458,9 +458,10 @@ export var AppAPI = {
 
   danmakuAdd: function (item, text, positionMs) {
     var ch = item.channel || {};
+    var D = CFG.danmaku.defaults; // 默认口径单源（0.9.305 卫生批4④；colorInt 由 colorHex 派生，串逐字不变）
     return postForm(CFG.api.dmAdd,
       'body=' + encodeURIComponent(text)
-      + '&color=16777215&mode=1&size=25'
+      + '&color=' + D.colorInt + '&mode=' + D.mode + '&size=' + D.size
       + '&position=' + Math.max(0, Math.round(positionMs))
       + '&id=' + item.id + '&videoId=' + item.videoId
       + '&roleId=&subChannelId=' + (ch.parentId || 0)

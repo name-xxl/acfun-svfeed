@@ -20,6 +20,7 @@ var {
   SCHEMA, storeKey, findItem, panelItems, nativeItems, validateValue, clampNumber,
   coerceValue, fromLegacy, defaultsSnapshot
 } = await import('../../src/settings.js');
+var { CFG } = await import('../../src/cfg.js');
 
 function reset() { store = {}; }
 
@@ -42,6 +43,30 @@ test('SCHEMA 不变量：key 唯一、类型合法、def 合规、默认值引�
     }
     assert.ok(validateValue(it, it.def), it.key + ' 的 def 过不了自校验');
   });
+});
+
+test('SCHEMA 不变量：codec/buf 选项名单与展示格式单源 CFG（0.9.305 卫生批4①）', () => {
+  // 摘修复反跑：SCHEMA 里改回本地抄一份名单 → options 引用同一性断言转红；
+  // 改 CFG.buf.labelOf 的格式 → buf options 派生断言转红（harness case「mig-buf-adopted」
+  // 钉的「标准 10s」同口径）
+  var codec = findItem('codec');
+  assert.equal(codec.options, CFG.codec.options, 'codec options 必须就是 CFG.codec.options（引用同一）');
+  assert.deepEqual(codec.options.map(function (o) { return o.v; }), ['auto', 'avc', 'hevc']);
+  assert.deepEqual(codec.options.map(function (o) { return o.t; }), ['自动', 'H.264', 'HEVC']);
+  var buf = findItem('buf');
+  assert.deepEqual(buf.options, Object.keys(CFG.buf.presets).map(function (k) {
+    return { v: k, t: CFG.buf.labelOf(k) };
+  }), '缓冲档位展示格式派生自 CFG.buf.labelOf');
+  assert.equal(buf.options[0].t, '标准 10s');
+});
+
+test('normalizeCodec：非 auto/hevc 一律落 def（0.9.305 卫生批4①，选档链与 UI 高亮共用）', async () => {
+  var { normalizeCodec } = await import('../../src/quality.js');
+  assert.equal(normalizeCodec('auto'), 'auto');
+  assert.equal(normalizeCodec('hevc'), 'hevc');
+  assert.equal(normalizeCodec('avc'), CFG.codec.def); // 'avc' 恰等于 def；脏值/退役值同样落 def
+  assert.equal(normalizeCodec('bogus'), CFG.codec.def);
+  assert.equal(normalizeCodec(undefined), CFG.codec.def);
 });
 
 test('SCHEMA 不变量：面板项必须有 label/group，且类型在皮肤实现集内（bool|select|number）', () => {

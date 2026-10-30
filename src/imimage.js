@@ -140,6 +140,11 @@ export function prewarmIm() {
 }
 
 // ---------- 图片 URL 换链管线（0.9.163 自 imdrawer.js 迁入：纯 URL/协议规则，与上方图片字节管线同族） ----------
+// ks:// 资源串前缀一处派生（0.9.305 批6）：此前两写正则字面 + slice(5) 魔数三份同实——
+// 前缀若变（或剥段）三处必须人肉对齐；本常数收口后测试面只剩 RE_KS.test 与 prefix 长度
+var KS_PREFIX = 'ks://';
+var RE_KS = new RegExp('^' + KS_PREFIX);
+
 // ks:// 资源 → 官方 download 直链（message.acfun.cn，参数白名单官方形态，无 token）。
 // 零会话依赖三级兜底（重开会话后内核 decodeContent/file 配置都不保证就绪，首次能渲染
 // 重开挂车的前车之鉴）：uri 取 m.url → rawMsg.content 手解 proto 字段 1；URL 取内核换链
@@ -151,7 +156,7 @@ export function imageUrlOf(m, inst) {
   try { ks = (m && (m.url || (m.imageAttachment && m.imageAttachment.uri))) || ''; } catch (e0) { /* best-effort: parse */ }
   if (!ks) ks = imageUriFromRaw(m);
   if (!ks) { console.warn('[acsv-im] 图片消息无 uri（decode 与 raw 均未恢复）'); return ''; }
-  if (!/^ks:\/\//.test(ks)) return officialize(ks);
+  if (!RE_KS.test(ks)) return officialize(ks);
   try {
     var k = inst && inst.kernel;
     if (k && k.file && k.file.resourceUrlToHttpUrl) {
@@ -162,7 +167,7 @@ export function imageUrlOf(m, inst) {
   try {
     // ks://<resourceId>[/<数字尾缀>]：官方页 DOM 实测形态（data-text="ks://xxx.jpg/1"），
     // resourceId = 去掉 ks:// 后再剥尾缀的主段（官方 widget 同款 /\/\w+$/ 尾缀语义）
-    var rid = ks.slice(5).replace(/\/\w+$/, '');
+    var rid = ks.slice(KS_PREFIX.length).replace(/\/\w+$/, '');
     if (!rid) { console.warn('[acsv-im] ks 资源串形态不识别:', ks.slice(0, 60)); return ''; }
     var ver = '';
     try {
@@ -188,7 +193,7 @@ function imageUriFromRaw(m) { // （私有，仅 imageUrlOf 兜底用）
     if (!len || i + len > u8.length) return '';
     var s = '';
     for (var j = 0; j < len; j++) s += String.fromCharCode(u8[i + j]);
-    return (/^ks:\/\//.test(s) || /^https?:\/\//.test(s)) ? s : '';
+    return (RE_KS.test(s) || /^https?:\/\//.test(s)) ? s : '';
   } catch (e) { return ''; }
 }
 // 把 /rest/v2/app/download 产物改写成 message.acfun.cn 官方参数形态：剥 token 与 w/h

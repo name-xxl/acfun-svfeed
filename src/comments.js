@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { el, toast, spinner, selfUid } from './ui.js';
+import { el, toast, spinner, selfUid, EV_LAYOUT_SHIFT } from './ui.js';
 import { fmtWan } from './timefmt.js';
 import { errNotLogin, errSend, errImgTooBig } from './toastmsg.js'; // 话术单源（0.9.212 批⑧）
 import { GLYPHS } from './imicons.js';
@@ -62,7 +62,7 @@ export function isOpenComments() {
 export function syncCommentVars() {
   if (!root) return;
   var vw = window.innerWidth;
-  var dw = Math.min(CFG.comments.drawerW, vw * CFG.comments.drawerMaxWp);
+  var dw = CFG.comments.drawerWOf(vw); // 抽屉宽公式单源（0.9.305 批4⑧，与 panFitOf 同式）
   var ratio = (vw - dw) / vw;
   root.style.setProperty('--acsv-dw', dw + 'px');
   root.style.setProperty('--acsv-cscale', String(Math.max(CFG.comments.scaleMin, ratio)));
@@ -77,8 +77,8 @@ export function closeComments() {
   releaseDrawer('comments');
   overlayClose('comments'); // 已出栈（Esc 路径）时空转；显式关闭路径由此同步栈
   if (root) syncCommentVars(); // 根类统一由 syncCommentVars 收拾（覆盖模式下可能本就没加）
-  // 布局突变广播（0.9.237）：暂停中的弹幕画布靠它重排（对齐避让后的视频区；零 import 边的提示事件）
-  document.dispatchEvent(new Event('acsv-layout-shift'));
+  // 布局突变广播（0.9.237）：暂停中的弹幕画布靠它重排（对齐避让后的视频区；事件名单源 ui.js）
+  document.dispatchEvent(new Event(EV_LAYOUT_SHIFT));
 }
 
 // 抽屉接线自附（0.9.118）：slide 只建空壳+注册句柄（setCommentDrawer），关闭键与列表委托由
@@ -107,7 +107,7 @@ export function openComments(sourceId, stype, shareUrl, kind, title) {
   claimDrawer('comments', closeComments); // 占槽：私信抽屉开着则自动收回，再展开评论
   commentDrawer.el.classList.add('open');
   if (root) syncCommentVars(); // isOpenComments 此时已为真：空间够则加避让根类，不够则纯覆盖
-  document.dispatchEvent(new Event('acsv-layout-shift')); // 弹幕画布重排（0.9.237，见 closeComments）
+  document.dispatchEvent(new Event(EV_LAYOUT_SHIFT)); // 弹幕画布重排（0.9.237，见 closeComments）
   applyDrawerContent(sourceId, stype, shareUrl, kind, title);
 }
 

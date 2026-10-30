@@ -1,3 +1,4 @@
+import { CFG } from './cfg.js';
 import { stat } from './dbg.js';
 import { ensureResolved } from './api.js';
 import { FeedStore } from './feedstore.js';
@@ -14,7 +15,7 @@ export function prewarm(idx) {
   prewarmTimer = setTimeout(function () {
     prewarmTimer = null;
     if (!scroller || FeedStore.current !== idx) return; // 期间又划走了
-    for (var i = idx + 1; i <= idx + 2; i++) {
+    for (var i = idx + 1; i <= idx + CFG.win.fwdDepth; i++) { // 前向深挂单源（0.9.305 批4⑥）
       (function (it) {
         if (!it || !it.cap.lazyResolve || it.urls.length || it._resolveP) return;
         stat('prewarm');

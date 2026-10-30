@@ -12,7 +12,9 @@ import { rowPlaceOf, applyPlace, watchPlace } from './popplace.js';
 import { imgInto } from './imgload.js';
 import { testHook } from './dbg.js';
 import { ensureIm, ensureConnected, isLogined } from './imsdk.js';
-import { getContacts, fetchCards, sendCmtShare, sendMomentShare, sendOnce } from './imsend.js';
+import { getContacts, fetchCards, sendCmtShare, sendMomentShare, sendOnce, SEND_TIMEOUT, SEND_REJECTED } from './imsend.js';
+import { fallbackName } from './immsg.js'; // 回落名口径单源（0.9.305 批6）
+import { unreadBadge } from './imbadge.js'; // 未读显示口径单源（0.9.305 批6）
 import { openMomentEditor, repostOf } from './momenteditor.js'; // 转发到动态（0.9.222）
 import { reportShare } from './report.js'; // 分享上报（0.9.145）
 
@@ -89,7 +91,10 @@ export function openSharePanel(btn, item, opts) {
     foot.appendChild(fwd);
   }
   var centerLink = el('a', 'acsv-share-center', '消息中心');
-  centerLink.href = 'https://message.acfun.cn/im';
+  // IM 网关主机单源（0.9.305 批6）：message.acfun.cn 已由 CFG.api.imDownloadBase 在册
+  //（图片下载同源 host），/im 为消息中心页路径。若日后页面 host 与下载 host 分家，
+  // 需 cfg 专列 imChatHost 字段（报告已登记）
+  centerLink.href = CFG.api.imDownloadBase + '/im';
   centerLink.target = '_blank';
   foot.appendChild(copyBtn);
   foot.appendChild(centerLink);
@@ -163,9 +168,9 @@ function renderRows(pop, list, contacts, item, inst) {
       // 头像走共享加载器（0.9.77，与私信列表同一份）：归一 + 重试 + 默认头像兜底
       imgInto(row, card.headUrl || CFG.api.defaultAvatar, 'avatar', 'acsv-share-av');
 
-      var name = el('div', 'acsv-share-name', card.name || '用户 ' + c.targetId);
+      var name = el('div', 'acsv-share-name', card.name || fallbackName(c.targetId));
       if (c.unread > 0) {
-        var dot = el('span', 'acsv-share-unread', c.unread > 99 ? '99+' : String(c.unread));
+        var dot = el('span', 'acsv-share-unread', unreadBadge(c.unread));
         name.appendChild(dot);
       }
       row.appendChild(name);
@@ -205,7 +210,9 @@ function renderRows(pop, list, contacts, item, inst) {
             var why = (err && err.message) || '';
             console.warn('[acsv-im] 发送失败', why,
               'linkState=' + ((inst.kernel && (inst.kernel.linkState || inst.kernel.isConnected)) || 'unknown'));
-            toast(why.indexOf('send-timeout') === 0 || why.indexOf('send-rejected') === 0
+            // 对账语义保留（0.9.305 引码常量）：indexOf(码)===0 = 消息以码**开头**才判可重试
+            // （imsend 恢复链会把服务端原因拼在码前后，全等会漏配）
+            toast(why.indexOf(SEND_TIMEOUT) === 0 || why.indexOf(SEND_REJECTED) === 0
               ? '发送失败，请稍后再试'
               : '发送失败：' + why.slice(0, 200), 10000);
           });
