@@ -10,7 +10,11 @@
 // 只有选中态类 'on'）。选中类名 'on' 固定（全站样式 .acsv-vchip.on 与 np-seg .on 同词）。
 // 返回本批挂载的按钮节点数组（消费点补 data-* 锚用，如 zone boardChips 的 data-board）。
 // host 清空不归本件：重挂时机（如 fillSubChips 换分区重拉）由消费点自己 innerHTML=''。
+// 皮肤类名归本件管辖（0.9.308 扫描批）：mountChipGroup 的 cls 参数与「借皮肤的单钮」
+// （mytabs 卡面 删除/移动/移除收藏、zone 小档行）都引 CHIP_SM——皮肤类串曾五处散写。
 import { el } from './ui.js';
+
+export var CHIP_SM = 'acsv-vchip sm'; // 小档皮肤（对应 css .acsv-vchip.sm 规则）
 
 /**
  * @param {{ host: HTMLElement, items: Array<{label:string, data?: any}>,

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.307-debug
+// @version      0.9.308-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.307-debug" : "",
+          ver: true ? "0.9.308-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -740,7 +740,7 @@ window.__ACSV_CSS_LEN__ = 103928;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.307-debug" : "";
+  var APP_VERSION = true ? "0.9.308-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -4086,6 +4086,7 @@ window.__ACSV_CSS_LEN__ = 103928;
 
   // src/emoticon.js
   var EmotionMap = { loaded: false, loading: null, map: {}, packs: [] };
+  var RECENT_TAB = "最近使用";
   var EMOT_URL_OK = /^[\w\-./:?=&%]+$/;
   function emotImgOf(pkg, id) {
     pkg = String(pkg || "");
@@ -4289,14 +4290,14 @@ window.__ACSV_CSS_LEN__ = 103928;
     }
     var recent = emotReadRecent().map(emotFind).filter(Boolean);
     var tabNames = [];
-    if (recent.length) tabNames.push("最近使用");
+    if (recent.length) tabNames.push(RECENT_TAB);
     packs.forEach(function(p) {
       tabNames.push(p.name);
     });
     var tab = panel2._tab && tabNames.indexOf(panel2._tab) !== -1 ? panel2._tab : tabNames[0];
     var body = el("div", "acsv-emot-body");
     body.appendChild(el("div", "acsv-emot-head", tab));
-    if (tab === "最近使用") body.appendChild(gridOf(recent));
+    if (tab === RECENT_TAB) body.appendChild(gridOf(recent));
     else packs.forEach(function(p) {
       if (p.name === tab) body.appendChild(gridOf(p.items));
     });
@@ -4318,7 +4319,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       });
       strip.appendChild(tb);
     }
-    if (recent.length) thumb("最近使用", recent[0].url);
+    if (recent.length) thumb(RECENT_TAB, recent[0].url);
     packs.forEach(function(p) {
       thumb(p.name, p.items[0].url);
     });
@@ -7954,6 +7955,7 @@ window.__ACSV_CSS_LEN__ = 103928;
   }
 
   // src/commentkit.js
+  var ANON_NAME = "AcFun用户";
   function normalizeSubs(subMap, cid) {
     if (!subMap) return [];
     var v = subMap[String(cid)] || subMap[cid];
@@ -8005,13 +8007,13 @@ window.__ACSV_CSS_LEN__ = 103928;
     var name = el("div", "acsv-cname");
     var nameChild = null;
     if (homeUrl) {
-      var na = el("a", null, c.userName || "AcFun用户");
+      var na = el("a", null, c.userName || ANON_NAME);
       na.href = homeUrl;
       na.target = "_blank";
       name.appendChild(na);
       nameChild = na;
     } else {
-      nameChild = el("span", null, c.userName || "AcFun用户");
+      nameChild = el("span", null, c.userName || ANON_NAME);
       name.appendChild(nameChild);
     }
     var ncss = nameColorCss(c.nameColor);
@@ -8044,13 +8046,13 @@ window.__ACSV_CSS_LEN__ = 103928;
       replyBtn = el("span", "acsv-creplybtn");
       replyBtn.appendChild(glyph(GLYPHS.feedComment));
       replyBtn.appendChild(document.createTextNode("回复"));
-      replyBtn._target = { id: String(c.commentId), name: c.userName || "AcFun用户" };
+      replyBtn._target = { id: String(c.commentId), name: c.userName || ANON_NAME };
       meta.appendChild(replyBtn);
       var fwdBtn = el("span", "acsv-cfwdbtn");
       fwdBtn.appendChild(glyph(GLYPHS.feedRepost));
       fwdBtn.appendChild(document.createTextNode("转发"));
       fwdBtn.title = "转发这条评论到私信";
-      fwdBtn._target = { id: String(c.commentId), name: c.userName || "AcFun用户", content: c.content || "" };
+      fwdBtn._target = { id: String(c.commentId), name: c.userName || ANON_NAME, content: c.content || "" };
       meta.appendChild(fwdBtn);
       if (opts.canDelete && opts.canDelete(c)) {
         var delBtn = el("span", "acsv-cdelbtn", "删除");
@@ -8443,7 +8445,7 @@ window.__ACSV_CSS_LEN__ = 103928;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.307-debug" : "",
+      version: true ? "0.9.308-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -15389,7 +15391,7 @@ window.__ACSV_CSS_LEN__ = 103928;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.307-debug" : "");
+    return normVer(true ? "0.9.308-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -16665,6 +16667,7 @@ window.__ACSV_CSS_LEN__ = 103928;
   var H = createHist();
   var levels = [];
   var queue = [];
+  var END_HINT = "已经是最后一条";
   var stepping = false;
   var curItem = null;
   var MAX_LEVELS = 2;
@@ -16778,17 +16781,17 @@ window.__ACSV_CSS_LEN__ = 103928;
             session.list = session.list.concat(added);
             stepNext();
           } else {
-            io.toast("已经是最后一条");
+            io.toast(END_HINT);
             io.syncArrows();
           }
         }, function() {
           stepping = false;
-          io.toast("已经是最后一条");
+          io.toast(END_HINT);
           io.syncArrows();
         });
         return true;
       }
-      io.toast("已经是最后一条");
+      io.toast(END_HINT);
       return false;
     }
     if (queue.length) {
@@ -18989,7 +18992,7 @@ window.__ACSV_CSS_LEN__ = 103928;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.307-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.308-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -19386,6 +19389,7 @@ window.__ACSV_CSS_LEN__ = 103928;
   }
 
   // src/chipkit.js
+  var CHIP_SM = "acsv-vchip sm";
   function mountChipGroup(o) {
     var host5 = o.host;
     var cls = o.cls === void 0 ? "acsv-vchip" : o.cls;
@@ -20659,7 +20663,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       }));
       if (pi.comboId) {
         var acts = el("div", "acsv-favacts acsv-hisacts");
-        var rm = el("button", "acsv-vchip sm", "删除");
+        var rm = el("button", CHIP_SM, "删除");
         rm.type = "button";
         rm.addEventListener("click", function(ev) {
           ev.stopPropagation();
@@ -20937,7 +20941,7 @@ window.__ACSV_CSS_LEN__ = 103928;
         return lctx.ctxOf(pi);
       }));
       var acts = el("div", "acsv-favacts");
-      var mv = el("button", "acsv-vchip sm", "移动");
+      var mv = el("button", CHIP_SM, "移动");
       mv.type = "button";
       mv.addEventListener("click", function(ev) {
         ev.stopPropagation();
@@ -20951,7 +20955,7 @@ window.__ACSV_CSS_LEN__ = 103928;
           }
         });
       });
-      var rm = el("button", "acsv-vchip sm", "移除收藏");
+      var rm = el("button", CHIP_SM, "移除收藏");
       rm.type = "button";
       rm.addEventListener("click", function(ev) {
         ev.stopPropagation();
@@ -21150,7 +21154,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       onRename: renameGroup,
       onDelete: removeGroup,
       canDelete: function(g) {
-        return g.name !== "特别关注";
+        return g.name !== REL_SPECIAL;
       },
       // 系统保留组不给删
       deleteTitle: "删除分组",
@@ -21349,7 +21353,7 @@ window.__ACSV_CSS_LEN__ = 103928;
         });
       } else {
         defs.push({
-          label: "特别关注",
+          label: REL_SPECIAL,
           run: function() {
             return specialFollow(it.id);
           },
@@ -21886,7 +21890,7 @@ window.__ACSV_CSS_LEN__ = 103928;
         if (!subs2.length) return;
         mountChipGroup({
           host: subChips,
-          cls: "acsv-vchip sm",
+          cls: CHIP_SM,
           items: [{ label: "全部", data: null }].concat(subs2.map(function(s) {
             return { label: s.name, data: s.id };
           })),
@@ -22003,7 +22007,7 @@ window.__ACSV_CSS_LEN__ = 103928;
     });
     mountChipGroup({
       host: periodChips,
-      cls: "acsv-vchip sm",
+      cls: CHIP_SM,
       items: CFG.view.periods.map(function(p) {
         return { label: CFG.view.periodNames[p] || p, data: p };
       }),

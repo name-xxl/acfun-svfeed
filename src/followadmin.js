@@ -180,7 +180,7 @@ function openEditModal(ctx) {
     onCreate: createGroup,
     onRename: renameGroup,
     onDelete: removeGroup,
-    canDelete: function (g) { return g.name !== '特别关注'; }, // 系统保留组不给删
+    canDelete: function (g) { return g.name !== REL_SPECIAL; }, // 系统保留组不给删
     deleteTitle: '删除分组',
     deleteOkLabel: '确定',
     deleteText: function (g) {
@@ -352,7 +352,7 @@ export function buildFollowAdmin(panel, scroller) {
       });
     } else {
       defs.push({
-        label: '特别关注',
+        label: REL_SPECIAL,
         run: function () { return specialFollow(it.id); }, // 无确认（原生非对称确认）
         done: function () { it.followingStatus = 3; ctx.paint(); }
       });
