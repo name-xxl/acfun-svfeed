@@ -49,6 +49,7 @@ const HARNESS_CASES = [
   // 截断几何 + land.trunc 打点 + 键盘 repeat 守卫——serial（几何判定时序敏感）
   { name: 'land-near', serial: true, bundle: 'debug'  },
   { name: 'feed-slim', serial: true, bundle: 'debug'}, // 0.9.165 水位：远端置瘦 + slide 占位壳 + 划回重解析（40 条夹具）
+  { name: 'feed-slim-home', serial: true, bundle: 'debug'}, // 0.9.301 置瘦形态收口：home 条目回滑重建不崩（qualities 唯 null 表示）
   { name: 'resolvefail', serial: true, bundle: 'release' },
   { name: 'prewarm', serial: true, bundle: 'debug'  },
   { name: 'stall-frozen', serial: true, bundle: 'debug'  },

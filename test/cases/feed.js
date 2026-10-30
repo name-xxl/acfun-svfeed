@@ -424,4 +424,51 @@ rec('slim-reresolve-on-return', !!(back.items[0] && back.items[0].hasUrls),
 // 深带两级水位（0.9.213 批⑨）的带边界/不误伤不变式由 feedstore-slim.test.js 直采钉死
 //（sv 条目全链路不产 desc，本场景无判据——探针前提不成立，勿在此加 desc 断言）。
   };
+  // ---- feed-slim-home（0.9.301 置瘦形态收口：home 条目回滑重建不崩）----
+  // 与 feed-slim 差一拍：home 条目 resolve 后带 qualities（mock 两档），slim 清载荷的形态
+  // 才有意义——修复前写 []（与契约初值 null 双形态），controls 建控件/ rail 回填的裸读点
+  // `item.qualities ? qualities[qIdx].label` 对 [] truthy → [0] undefined → .label 抛，
+  // 回跳段 renderWindow 中断、下面每拍 waitFor 全灭（摘修复反跑=本场景转红，正是取证）。
+  // 夹具：harness.html 把 home mock（8 条）克隆到 40 条（homeFeedFetch 单发全量入库）
+  C['feed-slim-home'] = async function (h) {
+    var rec = h.rec, cur = h.cur, key = h.key, wait = h.wait, slide = h.slide,
+      waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, TEST = h.TEST;
+rec('slim-home-first-video', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+key('ArrowDown');
+await waitFor(function () { return cur() === 1; }, 8000);
+key('ArrowDown');
+await waitFor(function () { return cur() === 2; }, 8000);
+var stops = [8, 14, 20, 26, 32, 35];
+for (var i = 0; i < stops.length; i++) {
+  TEST.call('scrollTo', stops[i]);
+  await waitFor(function () { return cur() === stops[i]; }, 15000);
+}
+await wait(600);
+var c = cur(), snap = TEST.call('feed');
+var expect = Math.min(c - 30, snap.items.length), slimmed = 0;
+snap.items.forEach(function (it, k) { if (k < c - 30 && !it.hasUrls) slimmed++; });
+rec('slim-home-behind-cleared', c >= 31 && slimmed === expect,
+  'cur=' + c + ' slimmed=' + slimmed + '/' + expect);
+// 回跳重建段：置瘦 home 条目经「占位壳换回 → 建 slide（buildControls 读 qualities）」
+// 形态收口后落 null → 回落「自动」占位；再 ensureResolved 重解析回填两档
+TEST.call('scrollTo', 2);
+rec('slim-home-return-alive', !!(await waitFor(function () { return cur() === 2; }, 15000)),
+  '回跳 renderWindow 被崩断则此项红（摘修复反跑点）');
+key('ArrowUp');
+await waitFor(function () { return cur() === 1; }, 8000);
+key('ArrowUp');
+await waitFor(function () { return cur() === 0; }, 8000);
+rec('slim-home-video-back', !!(await waitFor(function () { return firstVideoReady(0); }, 15000)));
+await wait(1200); // 重解析回填（home=resolve mock 两拍）
+var back = TEST.call('feed');
+rec('slim-home-reresolve-qualities', !!(back.items[0] && back.items[0].hasUrls
+  && back.items[0].qLabel === '示例'),
+  'it0=' + JSON.stringify(back.items[0]));
+var s0 = slide(0);
+var qBtn = s0 && s0.querySelector('.acsv-cq');
+// 回落后置建控件=「自动」，重解析回填后档位标签非空——两种都是存活形态，
+// 崩断才会拿不到钮；钉非空防静默空钮
+rec('slim-home-qbtn-alive', !!qBtn && !!qBtn.textContent,
+  'qBtn=' + (qBtn ? JSON.stringify(qBtn.textContent) : 'missing'));
+  };
 })();

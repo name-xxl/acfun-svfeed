@@ -5,6 +5,25 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.301（2026-10-30）· 置瘦「无档位」形态收口——qualities 唯 null 表示，home 回滑不再崩
+
+**病灶（六域卫生审计 P0，复核属实）**：数据水位置瘦（`feedstore.slim`）把已解析条目的
+`qualities` 写成 `[]`，而契约初值、缓存作废（dropCache）、mock 无档位都用 `null`——同一事实
+两种表示。`controls.js:395` 建控件与 `rail.js:277` 档位回填是两处
+`item.qualities ? qualities[qIdx].label` 裸读点，只防 null：home 源长会话划出 ≥30 条后回滑，
+重建 slide 时 `[]` truthy → `[0]` undefined → `.label` 抛 TypeError、renderWindow 整拍中断。
+api.js 的 home mock 是 `[]` 的第二写点。旧 `feed-slim` 场景全盲的原因：sv 夹具不产
+`qualities` 字段，恰走不到该分支——**夹具选型造成的覆盖盲区**，非断言写错。
+
+**修法（规矩 7：收口到契约层而非补防御）**：`slim` 置瘦与 mock 无档位统一落 `null`——
+「无档位」全库唯一种表示；两裸读点不加 length 守卫（加了就是第三份防御副本，形态统一后
+null 守卫本已够用）。
+
+**测试**：`feedstore-slim.test.js` 一级/深带各加 `qualities===null` 形态断言；新增 harness
+场景 `feed-slim-home`（home mock 克隆 40 条夹具 + HOME_CASES 源切换）：远跳置瘦 → 回跳重建
+→ 恢复起播 → 重解析回填两档（`qLabel==='示例'`）→ 清晰度钮存活非空。摘修复反跑：还原
+`= []` → 单测形态断言转红、场景回跳段 waitFor 全灭。build/lint/check/单测/全场景全绿。
+
 ### 0.9.300（2026-10-30）· 列表空态/失败文案单源——`setEmpty` 收口 + 文案常数
 
 **病灶（0.9.296/0.9.299 复核）**：`el('div','acsv-vempty', …)` 在 9 个视图/档件里各拼一遍

@@ -53,12 +53,14 @@ test('slim 两级水位：三带边界（未及/一级/深带）与不变式', (
       // 深带：载荷+desc 全清；契约面字段保留
       assert.equal(it.desc, undefined, 'idx' + i + ' 深带 desc 应清');
       assert.equal(it.urls.length, 0, 'idx' + i + ' 深带 urls 应清');
+      assert.equal(it.qualities, null, 'idx' + i + ' 深带 qualities 必须落 null——「无档位」唯一种表示（0.9.301；曾漂 [] 崩 controls/rail 裸读点）');
       assert.equal(it.cap.lazyResolve, true, 'idx' + i + ' 应置懒解析');
       assert.ok(it.id && it.title && it.up, 'idx' + i + ' 契约面字段必须保留（回滚重建不残缺）');
     } else if (i < lim) {
       // 一级带：载荷清、**desc 有意保留**（未跨深带不误伤）
       assert.equal(it.desc, '简介' + i, 'idx' + i + ' 一级带 desc 不应被清');
       assert.equal(it.urls.length, 0, 'idx' + i + ' 一级带 urls 应清');
+      assert.equal(it.qualities, null, 'idx' + i + ' 一级带 qualities 必须落 null（同上形态收口）');
       assert.equal(it.cap.lazyResolve, true, 'idx' + i + ' 应置懒解析');
     } else {
       // 窗口带：原样不动

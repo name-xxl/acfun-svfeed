@@ -125,7 +125,8 @@ export var API = {
             var mu = raw.mockUrl;
             item.urls = mu ? [mu] : [];
             // 两档同址：清晰度菜单可切（switchQuality 链路 harness 可断言）
-            item.qualities = mu ? [{ label: '示例', urls: [mu] }, { label: '示例·备线', urls: [mu] }] : [];
+            // 无档位= null（契约初值口径，0.9.301 形态收口；此处曾是 [] 的第二写点）
+            item.qualities = mu ? [{ label: '示例', urls: [mu] }, { label: '示例·备线', urls: [mu] }] : null;
             // mock 直链不是 m3u8：绕开 hls.js 管线走 video.src 直挂（仅 harness mock 生效）
             if (mu) item.cap.hls = false;
             if (raw.up) { // 同 appapi.resolve 的回填写法：就地补建/补充 item.up

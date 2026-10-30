@@ -78,7 +78,10 @@ function createFeedStore(env) {
         }
         if (!(it.urls && it.urls.length)) continue;
         it.urls = [];
-        if (it.qualities) it.qualities = [];
+        // 「无档位」全库唯 null 表示（0.9.301）：此处曾写 []，与契约初值/dropCache 的
+        // null 两形态并存——controls/rail 的 `item.qualities ? qualities[qIdx].label`
+        // 裸读点只防 null，置瘦条目回滑重建即 TypeError（home 长会话回滑实证路径）
+        if (it.qualities) it.qualities = null;
         if ('_qualitiesAll' in it) it._qualitiesAll = null;
         it.urlIdx = 0;
         it.cap.lazyResolve = true;
