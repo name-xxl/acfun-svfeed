@@ -13,6 +13,7 @@ import { openPickPop } from './pickpop.js';
 import { getGroups, createGroup, followUser, unfollowUser, regroup } from './relationapi.js';
 import { groupNameError } from './nameval.js';
 import { toast } from './ui.js';
+import { okFollow, okUnfollow } from './toastmsg.js'; // 回显话术单源（0.9.307 卫生扫描批）
 
 // 关注/改分组选择层。opts：{ uid, name, following, noExtra, done(res) }
 // done 的 res = { unfollowed:bool, groupId:string, groupName:string }（消费方据此回写 UI）
@@ -54,9 +55,9 @@ export function openFollowGroupPop(btn, opts) {
       run: function () { return unfollowUser(opts.uid).then(function (ok) { if (ok) state.unfollowed = true; return ok; }); }
     } : null,
     done: function () {
-      if (state.unfollowed) toast('已取消关注 @' + (opts.name || ''));
+      if (state.unfollowed) okUnfollow(opts.name);
       else if (following) toast('已更改分组' + (state.groupName ? '：' + state.groupName : ''));
-      else toast('已关注 @' + (opts.name || ''));
+      else okFollow(opts.name);
       if (opts.done) opts.done(state);
     }
   });

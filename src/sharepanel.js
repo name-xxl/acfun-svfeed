@@ -13,6 +13,7 @@ import { imgInto } from './imgload.js';
 import { testHook } from './dbg.js';
 import { ensureIm, ensureConnected, isLogined } from './imsdk.js';
 import { getContacts, fetchCards, sendCmtShare, sendMomentShare, sendOnce, SEND_TIMEOUT, SEND_REJECTED } from './imsend.js';
+import { IM_CONN_TEXT, SEND_FAIL_PREFIX } from './toastmsg.js'; // tip/前缀单源（0.9.307）
 import { fallbackName } from './immsg.js'; // 回落名口径单源（0.9.305 批6）
 import { unreadBadge } from './imbadge.js'; // 未读显示口径单源（0.9.305 批6）
 import { openMomentEditor, repostOf } from './momenteditor.js'; // 转发到动态（0.9.222）
@@ -144,7 +145,7 @@ export function openSharePanel(btn, item, opts) {
   }).catch(function () {
     if (!pop.isConnected) return;
     list.innerHTML = '';
-    list.appendChild(el('div', 'acsv-share-tip', '私信连接失败，请稍后再试\n可先复制链接去站内分享'));
+    list.appendChild(el('div', 'acsv-share-tip', IM_CONN_TEXT)); // 串单源=toastmsg（0.9.307）
   });
 }
 
@@ -214,7 +215,7 @@ function renderRows(pop, list, contacts, item, inst) {
             // （imsend 恢复链会把服务端原因拼在码前后，全等会漏配）
             toast(why.indexOf(SEND_TIMEOUT) === 0 || why.indexOf(SEND_REJECTED) === 0
               ? '发送失败，请稍后再试'
-              : '发送失败：' + why.slice(0, 200), 10000);
+              : SEND_FAIL_PREFIX + why.slice(0, 200), 10000);
           });
       });
       row.appendChild(send);

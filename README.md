@@ -369,6 +369,7 @@ npm run check        # 仅静态校验（CI 在 build 后跑）：场景登记�
                      #   动态到底，0.9.300 起、0.9.305 批⑤扩〕）/
                      #   z 档实体↔注释一致性 + gridMin/gridGap→SEAMS 消费闸（check-zlayers，0.9.303 起）/
                      #   协议方言字面单源（no_more/令牌串/裸 resourceType，check-dialect，0.9.304 起）/
+                     #   通用重复扫描（跨文件字面+代码克隆，check-hygiene 棘轮+基线，0.9.307 起）/
                      #   z 档实体↔注释一致性 + gridMin/gridGap→SEAMS 消费闸（0.9.303 起）/
                      #   slide/item 字段契约（唯 domfields.js 可登记，0.9.297 起）/
                      #   契约面类型检查（tsc，0.9.188 起）
@@ -790,6 +791,15 @@ flowchart LR
   grouppop --> nameval & pickpop & relationapi
   pickpop --> popplace
   sharepanel --> popplace
+  grouppop --> toastmsg
+  imchat --> toastmsg
+  imlist --> toastmsg
+  meadmin --> toastmsg
+  mytabs --> toastmsg
+  pickpop --> toastmsg
+  playlayer --> toastmsg
+  searchview --> toastmsg
+  sharepanel --> toastmsg
   favapi --> appapi
   favpop --> favapi & nameval & pickpop
   zone --> appapi & cards & chipkit & listtail & pageloader & viewreg & rankapi

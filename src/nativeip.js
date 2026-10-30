@@ -33,7 +33,7 @@
 //    （顶层 commentsMap/commentIds）入拦截层；注入点 `.comment-item-footer-left`＋间距 8px
 //    （NATIVE_IP_CSS，照 Web-IP floorMode）。**§13「盖楼零命中」系默认模式页面的单面读数——更正**
 //  - 不 port：m 站（D2）、油猴菜单（D3）
-import { resolveFor, peek, tagTitle } from './iploc.js';
+import { resolveFor, peek, tagTitle, IP_LABEL } from './iploc.js';
 import { devTag } from './devname.js';
 import { stat, testHook } from './dbg.js';
 import { NATIVE_IP_CSS } from './styles.js';
@@ -251,7 +251,7 @@ function injectProfileIp() {
     s.className = NIP + ' common-info';
     s.dataset.acsvUid = String(uid);
     s.style.cssText = 'font-size:12px;color:#999;margin-left:16px;';
-    s.textContent = 'IP属地：' + ip;
+    s.textContent = IP_LABEL + ip;
     s.title = tagTitle(ip, t);
     top.appendChild(s);
     stat('nip.profile');

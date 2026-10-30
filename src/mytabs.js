@@ -21,6 +21,8 @@ import { createMeHead, openManageModal, mmWarn } from './meadmin.js';
 import { folderList, folderAdd, folderRename, folderDelete, favRemove, favList } from './favapi.js';
 import { openFavFolderPop } from './favpop.js';
 import { folderNameError } from './nameval.js';
+import { FAV_TITLES } from './favpop.js'; // 收藏域串单源（0.9.307）
+import { okWaitingRemove } from './toastmsg.js'; // 稍后再看话术单源（0.9.307）
 
 // 档级空态串文件级单源（0.9.305 批⑤④）：首屏空与删空两处共用同一串——改文案只改一处，
 // 不再两行各拼各的（setEmpty 协议不动，收的只是串出口）
@@ -258,7 +260,7 @@ export function buildWatchLater(panel, scroller) {
         if (i >= 0) allRows.splice(i, 1);
         cell.remove();
         if (!allRows.length) setEmpty(list, EMPTY_WL);
-        toast('已移出稍后再看');
+        okWaitingRemove();
       }, function () {
         cell._busy = false;
         cell.style.display = '';
@@ -358,7 +360,7 @@ export function buildFav(panel, scroller) {
         pg.reset();
         rows.length = 0;
         list.textContent = '';
-        setEmpty(list, '还没有收藏夹');
+        setEmpty(list, FAV_TITLES.empty);
         tail.setStatus('');
         return;
       }
@@ -384,7 +386,7 @@ export function buildFav(panel, scroller) {
     mv.addEventListener('click', function (ev) {
       ev.stopPropagation();
       openFavFolderPop(mv, {
-        acId: pi.acId, favorited: true, title: '调整收藏夹',
+        acId: pi.acId, favorited: true, title: FAV_TITLES.adjust,
         done: function (res) {
           // 本夹被取消勾选（或整条移除）→ 该卡不再属于当前列表：摘除；否则原地留（夹计数刷新）
           // 契约由 favpop 保证：done 回 { favorited, ids }（0.9.148 实锤——旧契约只回 favorited 时
@@ -426,7 +428,7 @@ export function buildFav(panel, scroller) {
       id: 'fav-manage',
       title: '管理收藏夹',
       load: function () { return folderList(); },
-      addPlaceholder: '收藏夹名（1~40 字）',
+      addPlaceholder: FAV_TITLES.namePlaceholder,
       addOkLabel: '新建',
       addMaxLen: 40,
       check: folderNameError,
@@ -439,7 +441,6 @@ export function buildFav(panel, scroller) {
         return '「' + (f.name || '') + '」及其中收藏会一并移除（视频本身不受影响，不可恢复）。';
       },
       created: '已新建收藏夹：',
-      renamed: '已改名：',
       deleted: function (n) { return '已删除收藏夹：' + (n || ''); },
       onChanged: function (type, id) {
         // 建夹跳新夹（旧 adminTab.refresh(made) 口径）；删当前夹回落首夹；其余刷标签计数

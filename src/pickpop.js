@@ -24,6 +24,7 @@
 // 关注分组语义在 grouppop.js、收藏夹在 favpop.js（0.9.143）。
 import { el, closeOnOutsideClick } from './ui.js';
 import { anchorPlaceOf, applyPlace, watchPlace } from './popplace.js';
+import { FAIL_NOTLOGIN_TEXT } from './toastmsg.js'; // 层内 hint 与 toast 话术共源（0.9.307）
 
 // 定位（0.9.149 收口 popplace）：本件只负责取 rect + 落位，几何决策全在 popplace.anchorPlaceOf
 // （纯函数、单测直采）；内容到达后重算与尺寸守望由 popplace.watchPlace 统一提供。
@@ -66,7 +67,7 @@ function pickItem(item, mode, isOn, onToggle) {
 //   confirm(sel)    → Promise<bool>；sel={ids, added, removed}（added/removed 是相对初始勾选集）
 //   extraAction     {label, run()->Promise<bool>}——附加动作键（如「取消关注」，成功即关层）
 //   done()          成功后回调（不区分 confirm/extra，消费方只回写 UI）
-//   errorText       失败提示（缺省「操作失败（未登录？）」）
+//   errorText       失败提示（缺省 FAIL_NOTLOGIN_TEXT=toastmsg 共源）
 export function openPickPop(btn, opts) {
   var host = btn.parentNode;
   if (!host) return;
@@ -96,10 +97,10 @@ export function openPickPop(btn, opts) {
       pop._busy = true;
       opts.extraAction.run().then(function (good) {
         pop._busy = false;
-        if (!good) { hint.textContent = opts.errorText || '操作失败（未登录？）'; return; }
+        if (!good) { hint.textContent = opts.errorText || FAIL_NOTLOGIN_TEXT; return; }
         pop.remove();
         if (opts.done) opts.done();
-      }, function () { pop._busy = false; hint.textContent = opts.errorText || '操作失败（未登录？）'; });
+      }, function () { pop._busy = false; hint.textContent = opts.errorText || FAIL_NOTLOGIN_TEXT; });
     });
     foot.appendChild(ex);
   }
@@ -238,13 +239,13 @@ export function openPickPop(btn, opts) {
     opts.confirm(diff(), init).then(function (good) {
       pop._busy = false;
       ok.textContent = '确定';
-      if (!good) { hint.textContent = opts.errorText || '操作失败（未登录？）'; return; }
+      if (!good) { hint.textContent = opts.errorText || FAIL_NOTLOGIN_TEXT; return; }
       pop.remove();
       if (opts.done) opts.done();
     }, function () {
       pop._busy = false;
       ok.textContent = '确定';
-      hint.textContent = opts.errorText || '操作失败（未登录？）';
+      hint.textContent = opts.errorText || FAIL_NOTLOGIN_TEXT;
     });
   });
   x.addEventListener('click', function () { pop.remove(); });
@@ -299,13 +300,13 @@ export function openConfirmPop(btn, opts) {
     opts.run().then(function (good) {
       pop._busy = false;
       ok.textContent = opts.okLabel || '确定';
-      if (!good) { hint.textContent = '操作失败（未登录？）'; return; }
+      if (!good) { hint.textContent = FAIL_NOTLOGIN_TEXT; return; }
       pop.remove();
       if (opts.done) opts.done();
     }, function () {
       pop._busy = false;
       ok.textContent = opts.okLabel || '确定';
-      hint.textContent = '操作失败（未登录？）';
+      hint.textContent = FAIL_NOTLOGIN_TEXT;
     });
   });
   cancel.addEventListener('click', function () { pop.remove(); });

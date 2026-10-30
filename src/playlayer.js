@@ -19,6 +19,7 @@ import {
 } from './levelstack.js'; // 级别栈/会话/步进核（0.9.209 自本模块拆出，环境触面经 setLevelIO 注入）
 import { relDrawerShowList, relDrawerSyncList, relDrawerHideList, relDrawerListMode } from './reldrawer.js'; // 列表播放器抽屉（0.9.174/175）
 import { testHook } from './dbg.js';
+import { VIDEO_FAIL_TEXT } from './toastmsg.js'; // 错误盒话术与 slide 共源（0.9.307）
 
 // ---------- 播放层（0.9.74）：列表条目就地播放，不再插队尾 + 跳回竖刷 ----------
 // 契约与理由（详见 README 0.9.74）：
@@ -250,12 +251,12 @@ function buildPlayView(body, arg) {
     API.deepLink(id, parseRoute().src).then(function (hit) {
       if (!body.isConnected) return; // 期间已离开播放层
       sp.remove();
-      if (!hit) { errBox(body, '视频加载失败', load); return; }
+      if (!hit) { errBox(body, VIDEO_FAIL_TEXT, load); return; }
       enterLayer(hit.item);
     }, function () {
       if (!body.isConnected) return;
       sp.remove();
-      errBox(body, '视频加载失败（网络不可达）', load);
+      errBox(body, VIDEO_FAIL_TEXT + '（网络不可达）', load);
     });
   }
   load();

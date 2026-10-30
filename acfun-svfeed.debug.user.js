@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.306-debug
+// @version      0.9.307-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.306-debug" : "",
+          ver: true ? "0.9.307-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -740,7 +740,7 @@ window.__ACSV_CSS_LEN__ = 103928;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.306-debug" : "";
+  var APP_VERSION = true ? "0.9.307-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -3507,8 +3507,9 @@ window.__ACSV_CSS_LEN__ = 103928;
   });
 
   // src/toastmsg.js
+  var FAIL_NOTLOGIN_TEXT = "操作失败（未登录？）";
   function errNotLogin() {
-    toast("操作失败（未登录？）");
+    toast(FAIL_NOTLOGIN_TEXT);
   }
   function errBanana() {
     toast("投蕉失败（未登录或今日已投完？）");
@@ -3519,6 +3520,24 @@ window.__ACSV_CSS_LEN__ = 103928;
   function errImLogin() {
     toast("私信需要先登录 AcFun 账号");
   }
+  var IM_CONN_TEXT = "私信连接失败，请稍后再试\n可先复制链接去站内分享";
+  var SEND_FAIL_PREFIX = "发送失败：";
+  function okFollow(name) {
+    toast("已关注 @" + (name || ""));
+  }
+  function okUnfollow(name) {
+    toast("已取消关注 @" + (name || ""));
+  }
+  function okRenamed(name) {
+    toast("已改名：" + name);
+  }
+  function okWaitingAdd() {
+    toast("已加入稍后再看");
+  }
+  function okWaitingRemove() {
+    toast("已移出稍后再看");
+  }
+  var VIDEO_FAIL_TEXT = "视频加载失败";
   function errImgTooBig(mb) {
     toast("图片不能超过 " + mb + "MB");
   }
@@ -3661,6 +3680,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       return null;
     }
   }
+  var CHAT_PLACEHOLDER = "发个消息…";
   var QUOTE_EXTRA_KEY = "acsvQuote";
   var CMT_EXTRA_KEY = "acsvCmt";
   var MOMENT_EXTRA_KEY = "acsvMoment";
@@ -6681,7 +6701,7 @@ window.__ACSV_CSS_LEN__ = 103928;
     return request(
       CFG.api.momentDetail + "?momentId=" + encodeURIComponent(id),
       "GET",
-      { Referer: "https://www.acfun.cn/moment/am" + id }
+      { Referer: CFG.api.momentBase + id }
     ).then(momentDetailStateOf);
   }
   function followVideoPageOf(j) {
@@ -7547,7 +7567,7 @@ window.__ACSV_CSS_LEN__ = 103928;
     }).catch(function() {
       if (!pop2.isConnected) return;
       list.innerHTML = "";
-      list.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
+      list.appendChild(el("div", "acsv-share-tip", IM_CONN_TEXT));
     });
   }
   function renderLoading(list, text) {
@@ -7602,7 +7622,7 @@ window.__ACSV_CSS_LEN__ = 103928;
               why,
               "linkState=" + (inst.kernel && (inst.kernel.linkState || inst.kernel.isConnected) || "unknown")
             );
-            toast(why.indexOf(SEND_TIMEOUT) === 0 || why.indexOf(SEND_REJECTED) === 0 ? "发送失败，请稍后再试" : "发送失败：" + why.slice(0, 200), 1e4);
+            toast(why.indexOf(SEND_TIMEOUT) === 0 || why.indexOf(SEND_REJECTED) === 0 ? "发送失败，请稍后再试" : SEND_FAIL_PREFIX + why.slice(0, 200), 1e4);
           });
         });
         row.appendChild(send);
@@ -7684,14 +7704,14 @@ window.__ACSV_CSS_LEN__ = 103928;
         opts.extraAction.run().then(function(good) {
           pop2._busy = false;
           if (!good) {
-            hint.textContent = opts.errorText || "操作失败（未登录？）";
+            hint.textContent = opts.errorText || FAIL_NOTLOGIN_TEXT;
             return;
           }
           pop2.remove();
           if (opts.done) opts.done();
         }, function() {
           pop2._busy = false;
-          hint.textContent = opts.errorText || "操作失败（未登录？）";
+          hint.textContent = opts.errorText || FAIL_NOTLOGIN_TEXT;
         });
       });
       foot.appendChild(ex);
@@ -7850,7 +7870,7 @@ window.__ACSV_CSS_LEN__ = 103928;
         pop2._busy = false;
         ok.textContent = "确定";
         if (!good) {
-          hint.textContent = opts.errorText || "操作失败（未登录？）";
+          hint.textContent = opts.errorText || FAIL_NOTLOGIN_TEXT;
           return;
         }
         pop2.remove();
@@ -7858,7 +7878,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       }, function() {
         pop2._busy = false;
         ok.textContent = "确定";
-        hint.textContent = opts.errorText || "操作失败（未登录？）";
+        hint.textContent = opts.errorText || FAIL_NOTLOGIN_TEXT;
       });
     });
     x.addEventListener("click", function() {
@@ -7910,7 +7930,7 @@ window.__ACSV_CSS_LEN__ = 103928;
         pop2._busy = false;
         ok.textContent = opts.okLabel || "确定";
         if (!good) {
-          hint.textContent = "操作失败（未登录？）";
+          hint.textContent = FAIL_NOTLOGIN_TEXT;
           return;
         }
         pop2.remove();
@@ -7918,7 +7938,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       }, function() {
         pop2._busy = false;
         ok.textContent = opts.okLabel || "确定";
-        hint.textContent = "操作失败（未登录？）";
+        hint.textContent = FAIL_NOTLOGIN_TEXT;
       });
     });
     cancel.addEventListener("click", function() {
@@ -8158,6 +8178,7 @@ window.__ACSV_CSS_LEN__ = 103928;
   }
 
   // src/iploc.js
+  var IP_LABEL = "IP属地：";
   var UID_KEY = "acr_uids";
   var DAYS_KEY = "acr_days";
   var DAY = 864e5;
@@ -8194,7 +8215,7 @@ window.__ACSV_CSS_LEN__ = 103928;
     return null;
   }
   function tagTitle(ip, t) {
-    var s = "IP属地：" + ip + "\n（基于用户主页实时资料，不代表发布时的IP）";
+    var s = IP_LABEL + ip + "\n（基于用户主页实时资料，不代表发布时的IP）";
     if (t) s += "\n查询于：" + new Date(t).toLocaleString();
     return s;
   }
@@ -8422,7 +8443,7 @@ window.__ACSV_CSS_LEN__ = 103928;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.306-debug" : "",
+      version: true ? "0.9.307-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -12204,6 +12225,12 @@ window.__ACSV_CSS_LEN__ = 103928;
   }
 
   // src/dmpanel.js
+  function itemLabel(k) {
+    var it = SCHEMA.filter(function(x) {
+      return x.key === k;
+    })[0];
+    return it ? it.label : k;
+  }
   function buildDmPanel(slide) {
     var box = el("div", "acsv-dmpanel");
     function swRow(label, key) {
@@ -12284,7 +12311,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       box.appendChild(tabs);
       var bodySet = el("div", "acsv-dmpbody");
       bodySet.appendChild(swRow("防挡字幕", "dmSubtitle"));
-      bodySet.appendChild(swRow("合并重复弹幕", "dmMerge"));
+      bodySet.appendChild(swRow(itemLabel("dmMerge"), "dmMerge"));
       bodySet.appendChild(sliderRow(
         "显示区域",
         "dmArea",
@@ -12349,7 +12376,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       box.appendChild(bodySet);
       var bodyBlk = el("div", "acsv-dmpbody");
       bodyBlk.style.display = "none";
-      bodyBlk.appendChild(el("div", "acsv-dmpblk", "按类型屏蔽"));
+      bodyBlk.appendChild(el("div", "acsv-dmpblk", itemLabel("dmBlock")));
       var tags = el("div", "acsv-dmptags");
       function blockHas(k) {
         return new RegExp("\\b" + k + "\\b").test(String(getSetting("dmBlock") || ""));
@@ -12641,7 +12668,8 @@ window.__ACSV_CSS_LEN__ = 103928;
         (next ? addWaiting(item) : cancelWaiting(item)).then(function(ok) {
           item.waitingBusy = false;
           if (ok) {
-            toast(next ? "已加入稍后再看" : "已移出稍后再看");
+            if (next) okWaitingAdd();
+            else okWaitingRemove();
             return;
           }
           item.waiting = !next;
@@ -13242,9 +13270,9 @@ window.__ACSV_CSS_LEN__ = 103928;
         }
       } : null,
       done: function() {
-        if (state.unfollowed) toast("已取消关注 @" + (opts.name || ""));
+        if (state.unfollowed) okUnfollow(opts.name);
         else if (following) toast("已更改分组" + (state.groupName ? "：" + state.groupName : ""));
-        else toast("已关注 @" + (opts.name || ""));
+        else okFollow(opts.name);
         if (opts.done) opts.done(state);
       }
     });
@@ -13316,15 +13344,16 @@ window.__ACSV_CSS_LEN__ = 103928;
   }
 
   // src/favpop.js
+  var FAV_TITLES = { pick: "选择收藏夹", adjust: "调整收藏夹", empty: "还没有收藏夹", namePlaceholder: "收藏夹名（1~40 字）", nameMax: 40 };
   function openFavFolderPop(btn, opts) {
     var favorited = !!opts.favorited;
     var state = { on: favorited };
     return openPickPop(btn, {
-      title: opts.title || (favorited ? "调整收藏夹" : "选择收藏夹"),
+      title: opts.title || (favorited ? FAV_TITLES.adjust : FAV_TITLES.pick),
       multi: true,
       requireSelection: !favorited,
       // 未收藏不许提交空勾选；已收藏允许"全取消=移除收藏"
-      emptyText: "还没有收藏夹",
+      emptyText: FAV_TITLES.empty,
       load: function() {
         return folderList(opts.acId).then(function(items) {
           var its = items.map(function(f) {
@@ -13338,8 +13367,8 @@ window.__ACSV_CSS_LEN__ = 103928;
       },
       canCreate: {
         label: "＋ 新建收藏夹",
-        placeholder: "收藏夹名（1~40 字）",
-        maxLen: 40,
+        placeholder: FAV_TITLES.namePlaceholder,
+        maxLen: FAV_TITLES.nameMax,
         check: folderNameError,
         create: function(name) {
           return folderAdd(name);
@@ -13728,7 +13757,7 @@ window.__ACSV_CSS_LEN__ = 103928;
     var sp = spinner();
     var playicon = elHtml("div", "acsv-playicon", ICONS.play);
     var errbox = el("div", "acsv-errbox");
-    errbox.appendChild(el("p", null, "视频加载失败"));
+    errbox.appendChild(el("p", null, VIDEO_FAIL_TEXT));
     var retry = el("button", "acsv-retry", "重试");
     retry.addEventListener("click", function(ev) {
       ev.stopPropagation();
@@ -14531,7 +14560,7 @@ window.__ACSV_CSS_LEN__ = 103928;
             getDrawer().input.focus();
           });
         }
-        errLong("发送失败：" + String(err2 && err2.message || "").slice(0, 120));
+        errLong(SEND_FAIL_PREFIX + String(err2 && err2.message || "").slice(0, 120));
       }
       ensureIm().then(function(inst) {
         return ensureConnected(inst).then(function() {
@@ -14621,7 +14650,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       }).catch(function() {
         if (getDrawer() && getDrawer().listBody && !getDrawer().listBody.children.length) {
           getDrawer().listBody.innerHTML = "";
-          getDrawer().listBody.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
+          getDrawer().listBody.appendChild(el("div", "acsv-share-tip", IM_CONN_TEXT));
         }
       });
     }
@@ -14724,7 +14753,7 @@ window.__ACSV_CSS_LEN__ = 103928;
         });
       }).catch(function() {
         if (getDrawer() && getDrawer().bubbles && !getDrawer().bubbles.children.length) {
-          getDrawer().bubbles.appendChild(el("div", "acsv-share-tip", "私信连接失败，请稍后再试\n可先复制链接去站内分享"));
+          getDrawer().bubbles.appendChild(el("div", "acsv-share-tip", IM_CONN_TEXT));
         }
       });
     }
@@ -14818,7 +14847,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       if (!q2) {
         chip.box.style.display = "none";
         chip.label.textContent = "";
-        getDrawer().bar.setPlaceholder("发个消息…");
+        getDrawer().bar.setPlaceholder(CHAT_PLACEHOLDER);
         return;
       }
       chip.box.style.display = "flex";
@@ -14986,7 +15015,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       insertOnly: true,
       img: { title: "发送图片", onFile: sendKit.sendImageMsg },
       // 尺寸门禁在 sendImageMsg 内
-      placeholder: "发个消息…",
+      placeholder: CHAT_PLACEHOLDER,
       // 官方单条上限（cfg.im.maxLen）在**富文本口径**下当硬闸：字数按 DOM 算（表情计 1 字），
       // 超限即拒（发送键禁用）；发送链的 slice 仍留作兜底
       maxLength: CFG.im.maxLen,
@@ -15360,7 +15389,7 @@ window.__ACSV_CSS_LEN__ = 103928;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.306-debug" : "");
+    return normVer(true ? "0.9.307-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -16975,14 +17004,14 @@ window.__ACSV_CSS_LEN__ = 103928;
         if (!body.isConnected) return;
         sp.remove();
         if (!hit) {
-          errBox(body, "视频加载失败", load);
+          errBox(body, VIDEO_FAIL_TEXT, load);
           return;
         }
         enterLayer2(hit.item);
       }, function() {
         if (!body.isConnected) return;
         sp.remove();
-        errBox(body, "视频加载失败（网络不可达）", load);
+        errBox(body, VIDEO_FAIL_TEXT + "（网络不可达）", load);
       });
     }
     load();
@@ -18133,7 +18162,6 @@ window.__ACSV_CSS_LEN__ = 103928;
       skin: "detail",
       onShare: function(btn) {
         openSharePanel(btn, momentShareItemOf(pi), {
-          headText: "分享给朋友",
           pi,
           // 0.9.222：给分享面板「转发到动态」用
           host: backdrop,
@@ -18249,7 +18277,6 @@ window.__ACSV_CSS_LEN__ = 103928;
       skin: "row",
       onShare: function(btn) {
         openSharePanel(btn, momentShareItemOf(pi), {
-          headText: "分享给朋友",
           pi,
           // 0.9.222：给分享面板「转发到动态」用（引用块要源 UP/正文/配图）
           host: row.closest(".acsv-view-body") || row.closest(".acsv-mp") || document.body,
@@ -18962,7 +18989,7 @@ window.__ACSV_CSS_LEN__ = 103928;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.306-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.307-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -19901,7 +19928,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       s.className = NIP + " common-info";
       s.dataset.acsvUid = String(uid);
       s.style.cssText = "font-size:12px;color:#999;margin-left:16px;";
-      s.textContent = "IP属地：" + ip;
+      s.textContent = IP_LABEL + ip;
       s.title = tagTitle(ip, t);
       top.appendChild(s);
       stat("nip.profile");
@@ -20461,7 +20488,8 @@ window.__ACSV_CSS_LEN__ = 103928;
                 mmWarn("改名失败（重名或未登录？）");
                 return;
               }
-              toast(typeof opts.renamed === "function" ? opts.renamed(name) : (opts.renamed || "已改名：") + name);
+              if (typeof opts.renamed === "function") toast(opts.renamed(name));
+              else okRenamed(name);
               if (opts.onChanged) opts.onChanged("renamed", it.id);
               render2();
             }, function() {
@@ -20754,7 +20782,7 @@ window.__ACSV_CSS_LEN__ = 103928;
           if (i >= 0) allRows.splice(i, 1);
           cell.remove();
           if (!allRows.length) setEmpty(list, EMPTY_WL);
-          toast("已移出稍后再看");
+          okWaitingRemove();
         }, function() {
           cell._busy = false;
           cell.style.display = "";
@@ -20885,7 +20913,7 @@ window.__ACSV_CSS_LEN__ = 103928;
           pg.reset();
           rows.length = 0;
           list.textContent = "";
-          setEmpty(list, "还没有收藏夹");
+          setEmpty(list, FAV_TITLES.empty);
           tail2.setStatus("");
           return;
         }
@@ -20916,7 +20944,7 @@ window.__ACSV_CSS_LEN__ = 103928;
         openFavFolderPop(mv, {
           acId: pi.acId,
           favorited: true,
-          title: "调整收藏夹",
+          title: FAV_TITLES.adjust,
           done: function(res) {
             if (!res.ids.length || res.ids.indexOf(String(cur)) < 0) removeRow(pi, box);
             refreshFolders();
@@ -20960,7 +20988,7 @@ window.__ACSV_CSS_LEN__ = 103928;
         load: function() {
           return folderList();
         },
-        addPlaceholder: "收藏夹名（1~40 字）",
+        addPlaceholder: FAV_TITLES.namePlaceholder,
         addOkLabel: "新建",
         addMaxLen: 40,
         check: folderNameError,
@@ -20973,7 +21001,6 @@ window.__ACSV_CSS_LEN__ = 103928;
           return "「" + (f.name || "") + "」及其中收藏会一并移除（视频本身不受影响，不可恢复）。";
         },
         created: "已新建收藏夹：",
-        renamed: "已改名：",
         deleted: function(n) {
           return "已删除收藏夹：" + (n || "");
         },
@@ -21132,9 +21159,6 @@ window.__ACSV_CSS_LEN__ = 103928;
         return "确定删除分组「" + (g.name || "") + "」？该分组下的人会移至未分组。";
       },
       created: "添加分组成功！",
-      renamed: function(n) {
-        return "已改名：" + n;
-      },
       deleted: function(n) {
         return "已删除分组：" + (n || "");
       },
@@ -21297,7 +21321,7 @@ window.__ACSV_CSS_LEN__ = 103928;
           paint,
           removeRow: function() {
             removeEntry(it);
-            toast("已取消关注 @" + it.name);
+            okUnfollow(it.name);
             groupsP = null;
             emptyCheck();
           },
@@ -22283,7 +22307,7 @@ window.__ACSV_CSS_LEN__ = 103928;
             }
             u.following = true;
             paintFb();
-            toast("已关注 @" + u.name);
+            okFollow(u.name);
           });
           return;
         }
@@ -22294,7 +22318,7 @@ window.__ACSV_CSS_LEN__ = 103928;
           done: function(res2) {
             if (res2 && res2.unfollowed) {
               u.following = false;
-              toast("已取消关注 @" + u.name);
+              okUnfollow(u.name);
             }
             paintFb();
           }

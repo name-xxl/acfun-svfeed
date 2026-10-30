@@ -12,6 +12,7 @@ import { AppAPI, spriteCueAt } from './appapi.js'; // 悬停缩略图（0.9.200�
 import { getSetting, setSetting, onChange } from './settings.js';
 import { buildDmPanel } from './dmpanel.js';
 import { addWaiting, cancelWaiting } from './watchlaterapi.js';
+import { okWaitingAdd, okWaitingRemove } from './toastmsg.js'; // 稍后再看话术单源（0.9.307）
 import { stat } from './dbg.js'; // 仅调试埋点（release 死码消除）
 
 // ---------- 播放控制栏 ----------
@@ -242,7 +243,7 @@ export function buildControls(slide, idx, item) {
       paint();
       (next ? addWaiting(item) : cancelWaiting(item)).then(function (ok) {
         item.waitingBusy = false;
-        if (ok) { toast(next ? '已加入稍后再看' : '已移出稍后再看'); return; }
+        if (ok) { if (next) okWaitingAdd(); else okWaitingRemove(); return; }
         item.waiting = !next;
         paint();
         toast('操作失败（未登录或网络错误）');

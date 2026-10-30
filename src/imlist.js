@@ -9,6 +9,7 @@ import { msgTextOf, previewOfMessage, fallbackName } from './immsg.js';
 import { unreadBadge } from './imbadge.js'; // 未读显示口径单源（0.9.305 批6，imbadge 导出）
 import { ensureIm, ensureConnected } from './imsdk.js';
 import { fetchCards } from './imsend.js';
+import { IM_CONN_TEXT } from './toastmsg.js'; // 连接失败 tip 单源（0.9.307）
 
 // env 契约：
 //   getDrawer()  当前抽屉态（search / listBody / title）
@@ -78,7 +79,7 @@ export function createListKit(env) {
     }).catch(function () {
       if (getDrawer() && getDrawer().listBody && !getDrawer().listBody.children.length) {
         getDrawer().listBody.innerHTML = '';
-        getDrawer().listBody.appendChild(el('div', 'acsv-share-tip', '私信连接失败，请稍后再试\n可先复制链接去站内分享'));
+        getDrawer().listBody.appendChild(el('div', 'acsv-share-tip', IM_CONN_TEXT));
       }
     });
   }

@@ -23,6 +23,7 @@ import { GLYPHS } from './imicons.js';
 import { openConfirmPop, dismissConfirm } from './pickpop.js';
 import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 import { stat } from './dbg.js';
+import { okRenamed } from './toastmsg.js'; // 改名话术单源（0.9.307）
 
 function mmHost() { return root || document.body; }
 
@@ -294,7 +295,9 @@ export function openManageModal(opts) {
           opts.onRename(it.id, name).then(function (good) {
             li._busy = false;
             if (!good) { mmWarn('改名失败（重名或未登录？）'); return; }
-            toast(typeof opts.renamed === 'function' ? opts.renamed(name) : (opts.renamed || '已改名：') + name);
+            // opts.renamed 缝保留（特殊域可改回显话术），缺省走 toastmsg.okRenamed 单源
+            if (typeof opts.renamed === 'function') toast(opts.renamed(name));
+            else okRenamed(name);
             if (opts.onChanged) opts.onChanged('renamed', it.id);
             render();
           }, function () {

@@ -11,6 +11,8 @@ import { openPickPop } from './pickpop.js';
 import { folderList, folderAdd, favAdd, favUpdate, favRemove } from './favapi.js';
 import { folderNameError } from './nameval.js';
 import { toast } from './ui.js';
+// 收藏域 UI 串单源（0.9.307 卫生扫描批：mytabs 收藏夹档三串曾并写）
+export var FAV_TITLES = { pick: '选择收藏夹', adjust: '调整收藏夹', empty: '还没有收藏夹', namePlaceholder: '收藏夹名（1~40 字）', nameMax: 40 };
 
 // opts：{ acId, favorited, title?, done(res) }——done 回传 **{ favorited:bool, ids:[] }**
 //（ids=提交后仍勾选的夹；我的页「移动」用它判该卡是否已不属于当前夹——
@@ -19,10 +21,10 @@ export function openFavFolderPop(btn, opts) {
   var favorited = !!opts.favorited;
   var state = { on: favorited };
   return openPickPop(btn, {
-    title: opts.title || (favorited ? '调整收藏夹' : '选择收藏夹'),
+    title: opts.title || (favorited ? FAV_TITLES.adjust : FAV_TITLES.pick),
     multi: true,
     requireSelection: !favorited, // 未收藏不许提交空勾选；已收藏允许"全取消=移除收藏"
-    emptyText: '还没有收藏夹',
+    emptyText: FAV_TITLES.empty,
     load: function () {
       return folderList(opts.acId).then(function (items) {
         var its = items.map(function (f) {
@@ -33,7 +35,7 @@ export function openFavFolderPop(btn, opts) {
       });
     },
     canCreate: {
-      label: '＋ 新建收藏夹', placeholder: '收藏夹名（1~40 字）', maxLen: 40,
+      label: '＋ 新建收藏夹', placeholder: FAV_TITLES.namePlaceholder, maxLen: FAV_TITLES.nameMax,
       check: folderNameError,
       create: function (name) { return folderAdd(name); } // → 新夹 id（响应 data.folderId）
     },
