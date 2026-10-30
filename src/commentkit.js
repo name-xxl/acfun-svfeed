@@ -19,6 +19,7 @@ import { fmtWan } from './timefmt.js';
 import { GLYPHS } from './imicons.js';
 import { imgInto } from './imgload.js';
 import { renderCommentHtml } from './ubb.js';
+import { A_TAIL } from './ubbattr.js'; // 出链属性段单源（0.9.309 缝化）
 import { nameColorCss, frameUrlOf } from './uplook.js'; // 观感纯函数（0.9.134；字段真机核对在册；0.9.160 叶子出库）
 
 // 评论作者匿名名（本件四写收口，0.9.308 扫描批；与 imsend「A站用户」（联系人缺席名）
@@ -47,7 +48,7 @@ function replyPrefixHtml(c) {
   var id = Number(c.replyTo) || 0;
   if (!n || !id) return '';
   return '<span class="acsv-cpre">回复 <a class="acsv-creplyto" href="' + CFG.api.userBase + id
-    + '" target="_blank" rel="noopener">@' + esc(n) + '</a> : </span>';
+    + A_TAIL + '@' + esc(n) + '</a> : </span>';
 }
 
 // 子评论 opts 派生（楼中楼上下文）：isSec 三处限定——回复前缀在、头像框/楼层不在；ipTag/devTag

@@ -1,105 +1,37 @@
 {
- "_comment": "check-hygiene 棘轮基线：已审登记的「有意并存」重复。key=扫描器生成式（dup:字面原文 / clone:文件+首窗首行）。收口一处删一行——基线只能缩不能胖。",
+ "_comment": "check-hygiene 棘轮基线：已审登记的「有意并存」重复。key=扫描器生成式，0.9.309 起 dup 携带文件集（dup:字面@文件,文件；idup 另带次数@n；clone:文件+文件:首窗首行）——扩张即换 key 转 NEW。收口一处删一行——基线只能缩不能胖。",
  "entries": [
   {
-   "key": "dup:\" target=\"_blank\" rel=\"noopener\">@",
-   "why": "HTML 拼装属性尾片段（ubb/commentkit/imbubble/emoticon 链 img 骨架构装）——片段共用无害，扩到 3 处以上再抽 helper"
-  },
-  {
-   "key": "dup: 条）",
+   "key": "dup: 条）@commentkit.js,natpanel.js",
    "why": "「（剩 N 条）」拼装尾（commentkit 楼中楼 / natpanel 缓存计数）——域内各自语义，句级合并负价值"
   },
   {
-   "key": "dup:.acsv-arrow-up",
-   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态"
+   "key": "dup:.acsv-arrow-up@controls.js,playlayer.js",
+   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
   },
   {
-   "key": "dup:scrollbar-color:rgba(255,255,255,.2) transparent}",
-   "why": "settingspanel 影子根内联样式与全局 cssraw 同段——Shadow 吃不到文档级样式，自带段系两皮肤架构（README 0.9.89 登记）；改样式两处同碰为已知成本，长期方向=影子样式缝化另批"
+   "key": "dup:.acsv-im-bubble@imbubble.js,imdrawer.js",
+   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
   },
   {
-   "key": "dup:box-shadow:0 8px 28px rgba(0,0,0,.45)}",
-   "why": "settingspanel 影子根内联样式与全局 cssraw 同段——Shadow 吃不到文档级样式，自带段系两皮肤架构（README 0.9.89 登记）；改样式两处同碰为已知成本，长期方向=影子样式缝化另批"
+   "key": "dup:.acsv-im-vcard@imbubble.js,imdrawer.js",
+   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
   },
   {
-   "key": "dup:background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);",
-   "why": "settingspanel 影子根内联样式与全局 cssraw 同段——Shadow 吃不到文档级样式，自带段系两皮肤架构（README 0.9.89 登记）；改样式两处同碰为已知成本，长期方向=影子样式缝化另批"
+   "key": "dup:.acsv-cinput-edit@imdrawer.js,momentdetail.js",
+   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
   },
   {
-   "key": "dup:width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}",
-   "why": "settingspanel 影子根内联样式与全局 cssraw 同段——Shadow 吃不到文档级样式，自带段系两皮肤架构（README 0.9.89 登记）；改样式两处同碰为已知成本，长期方向=影子样式缝化另批"
+   "key": "dup:.acsv-frow-text@rowkit.js,squarefeed.js",
+   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
   },
   {
-   "key": "dup:vertical-align:middle;margin:1px 2px}",
-   "why": "imnative Shadow 浅色皮肤自带表情/引用配图段（0.9.80 Shadow 隔离登记），理由同上"
-  },
-  {
-   "key": "dup:border-radius:8px;margin-top:6px;cursor:zoom-in}",
-   "why": "imnative Shadow 浅色皮肤自带表情/引用配图段（0.9.80 Shadow 隔离登记），理由同上"
-  },
-  {
-   "key": "dup:border-bottom:1px solid rgba(255,255,255,.09)}",
-   "why": "settingspanel 影子根内联样式与全局 cssraw 同段——Shadow 吃不到文档级样式，自带段系两皮肤架构（README 0.9.89 登记）；改样式两处同碰为已知成本，长期方向=影子样式缝化另批"
-  },
-  {
-   "key": "dup:font:14px/1.6 -apple-system,BlinkMacSystemFont,\"Segoe UI\",\"Microsoft YaHei\",sans-serif}",
-   "why": "settingspanel 影子根内联样式与全局 cssraw 同段——Shadow 吃不到文档级样式，自带段系两皮肤架构（README 0.9.89 登记）；改样式两处同碰为已知成本，长期方向=影子样式缝化另批"
-  },
-  {
-   "key": "dup:padding:10px 16px 14px;border-top:1px solid rgba(255,255,255,.09)}",
-   "why": "settingspanel 影子根内联样式与全局 cssraw 同段——Shadow 吃不到文档级样式，自带段系两皮肤架构（README 0.9.89 登记）；改样式两处同碰为已知成本，长期方向=影子样式缝化另批"
-  },
-  {
-   "key": "dup:\" referrerpolicy=\"no-referrer\">",
-   "why": "HTML 拼装属性尾片段（ubb/commentkit/imbubble/emoticon 链 img 骨架构装）——片段共用无害，扩到 3 处以上再抽 helper"
-  },
-  {
-   "key": "dup:text/javascript",
-   "why": "Blob 装载 MIME 双件同法（hls/imsdk 0.9.182 登记同款先例）"
-  },
-  {
-   "key": "dup:\" target=\"_blank\" rel=\"noopener\">",
-   "why": "HTML 拼装属性尾片段（ubb/commentkit/imbubble/emoticon 链 img 骨架构装）——片段共用无害，扩到 3 处以上再抽 helper"
-  },
-  {
-   "key": "dup:.acsv-im-bubble",
-   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态"
-  },
-  {
-   "key": "dup:.acsv-im-vcard",
-   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态"
-  },
-  {
-   "key": "dup:.acsv-cinput-edit",
-   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态"
-  },
-  {
-   "key": "dup:.acsv-frow-text",
-   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态"
-  },
-  {
-   "key": "dup:.ac-space-contribute-list",
+   "key": "dup:.ac-space-contribute-list@spacemoments.js,uppage.js",
    "why": "站方原生 DOM 选择器双查（uppage/spacemoments 同宿主）——外部契约登记"
   },
   {
-   "key": "dup:.acsv-slide[data-idx=\"",
-   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态"
-  },
-  {
-   "key": "clone:comments.js+rowkit.js:return;",
-   "why": "行内评论点击委托双宿主同族（comments 抽屉管线 / rowkit 行列表）——commentkit 头注登记契约「点击行为归消费方委托」；滑动窗一"
-  },
-  {
-   "key": "clone:comments.js+rowkit.js:}",
-   "why": "同上，滑动窗二"
-  },
-  {
-   "key": "clone:comments.js+rowkit.js:var pic = ev.target.closest('.ubb-imgc');",
-   "why": "同上（配图看大图委托段），滑动窗三"
-  },
-  {
-   "key": "clone:comments.js+rowkit.js:if (pic) {",
-   "why": "同上，滑动窗四"
+   "key": "dup:.acsv-slide[data-idx=\"@state.js,views.js",
+   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
   }
  ]
 }

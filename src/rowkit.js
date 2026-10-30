@@ -12,8 +12,7 @@ import { nameColorCss } from './uplook.js'; // 行名等级色（0.9.134；字�
 import { openSharePanel } from './sharepanel.js';
 import { momentBarOf, momentShareItemOf } from './momentbar.js';
 import { imgInto } from './imgload.js';
-import { openImageViewer } from './imgview.js';
-import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
+import { openCommentsHost, closeCommentsHost, commentListClick, commentPicClick } from './comments.js';
 import { releaseDrawer } from './state.js';
 import { openMomentDetail } from './momentdetail.js'; // 行落点默认策略（0.9.218 单源下沉）
 
@@ -223,16 +222,8 @@ export function wireRowList(list, onOpen) {
     }
     // 宫格图的大图查看由格子自挂（cards.momentCellOf，含 stopPropagation）——委托不再接
     //（0.9.102 收口：此前两处各挂一份会双开）
-    var pic = ev.target.closest('.ubb-imgc');
-    if (pic) {
-      // 划选文字收尾在图片上不弹大图（commentListClick 同款判据）
-      var sel = window.getSelection ? window.getSelection() : null;
-      if (!sel || sel.isCollapsed) {
-        ev.stopPropagation();
-        openImageViewer(pic.getAttribute('src') || '');
-      }
-      return;
-    }
+    // 配图弹大图判据单源（0.9.309 下沉 comments.commentPicClick；命中即消费，划选收尾不弹）
+    if (commentPicClick(ev)) return;
     if (ev.target.closest('a')) return; // 内链（@/资源/名字/文章条）自导航，不冒泡成行默认
     // 划选收尾不触发行默认（0.9.153）：正文开了文字选择（拖动划选复制），drag 结束的 click
     // 会把详情/播放打开——与上方图片「划选收尾不弹大图」同一判据（commentListClick 先例）

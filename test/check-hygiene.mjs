@@ -11,7 +11,12 @@
  *   node test/check-hygiene.mjs            → 报告模式（永远 exit 0，出候选清单供人判）
  *   node test/check-hygiene.mjs --gate     → 棘轮模式：候选须全在 test/hygiene-baseline.json
  *                                            （登记=有意并存/待收口批），新增未登记即红。
- * 基线条目：{ "kind":"dup|clone", "key":..., "why":... }——收口一处删一行，基线只能缩不能胖。
+ *   node test/check-hygiene.mjs --emit     → 迁移辅助：stdout 出当前候选的 key 清单（JSON，
+ *                                            无 why）——key 格式升级/收口后重排基线用。
+ * 基线条目：{ "kind":"dup|idup|clone", "key":..., "why":... }——收口一处删一行，基线只能缩
+ * 不能胖。key 携带**文件集/次数**（0.9.309）：dup:字面@文件,文件 / idup:文件:字面@次数 /
+ * clone:文件+文件:首窗首行——登记项扩张（×2→×3、换宿主、同件加写）即换 key 转 NEW，
+ * 「登记时写下的触发条件」（如「扩到 3 处再抽 helper」）从此由闸看见，不再靠眼过。
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -20,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
 const GATE = process.argv.includes('--gate');
+const EMIT = process.argv.includes('--emit');
 const K = 6; // 克隆判定：连续有效行数阈值
 
 const files = fs.readdirSync(SRC).filter((f) => f.endsWith('.js')).sort();
@@ -37,7 +43,9 @@ const IDIOM = new Set(['POST', 'GET', 'PUT', 'DELETE', 'PATCH', 'HEAD',
   'vertical', 'block', 'inline', 'flex', 'grid', 'absolute', 'fixed', 'relative', 'sticky',
   'hidden', 'visible', 'cover', 'contain', 'center', 'pointer', 'default', 'inherit',
   'https://', 'http://', '//', '/', '', 'utf-8', 'no-referrer', 'same-origin',
-  'boolean', 'string', 'number', 'object', 'function', 'undefined', 'null']);
+  'boolean', 'string', 'number', 'object', 'function', 'undefined', 'null',
+  'text/javascript']); // 0.9.309 补：Blob 装载 MIME——与表内 application/json 同类惯用，
+                       // hls/imsdk 双件同法登记项据此销账（值属平台词汇，非项目字面）
 const HAS_CJK = /[一-鿿＀-￯]/;
 const stripComments = (s) => s.split('\n')
   .filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l))
@@ -140,12 +148,22 @@ const baseline = fs.existsSync(BASE_PATH)
   ? JSON.parse(fs.readFileSync(BASE_PATH, 'utf8')) : { entries: [] };
 const inBase = (key) => baseline.entries.some((e) => e.key === key);
 const unregistered = [];
+// key 生成式三份共用（报告/闸/emit 同源，漂移即假绿）：
+const dupKey = (lit, s) => 'dup:' + lit + '@' + [...s].sort().join(',');
+const idupKey = (d) => 'idup:' + d.file + ':' + d.lit + '@' + d.n;
+const cloneKey = (c) => 'clone:' + c.files.slice().sort().join('+') + ':' + c.text[0].slice(0, 42);
 
 // ---------- 报告 ----------
+if (EMIT) { // 迁移辅助：纯 key 清单（不带报告头尾，stdout 即 JSON），基线重排后 why 由人迁
+  console.log(JSON.stringify({ entries: dups.map(([lit, s]) => ({ key: dupKey(lit, s) }))
+    .concat(idups.map((d) => ({ key: idupKey(d) })))
+    .concat(clones.map((c) => ({ key: cloneKey(c) }))) }, null, 1));
+  process.exit(0);
+}
 console.log('[check-hygiene] ' + (GATE ? '棘轮' : '报告') + '模式 · src ' + files.length + ' 件 · 克隆阈值 ' + K + ' 行');
 console.log('—— ① 跨文件重复字面 ' + dups.length + ' 组 ——');
 for (const [lit, s] of dups) {
-  const key = 'dup:' + lit;
+  const key = dupKey(lit, s);
   if (!inBase(key)) unregistered.push(key);
   const tag = inBase(key) ? '登记' : 'NEW ';
   console.log('  [' + tag + '] ' + JSON.stringify(lit.length > 40 ? lit.slice(0, 40) + '…' : lit)
@@ -153,14 +171,14 @@ for (const [lit, s] of dups) {
 }
 console.log('—— ③ 同文件内 ≥3 写 ' + idups.length + ' 项 ——');
 for (const d of idups) {
-  const key = 'idup:' + d.file + ':' + d.lit;
+  const key = idupKey(d);
   if (!inBase(key)) unregistered.push(key);
   console.log('  [' + (inBase(key) ? '登记' : 'NEW ') + '] ' + d.file + '  ×' + d.n
     + '  ' + JSON.stringify(d.lit.length > 44 ? d.lit.slice(0, 44) + '…' : d.lit));
 }
 console.log('—— ② 跨文件代码克隆 ' + clones.length + ' 簇 ——');
 for (const c of clones) {
-  const key = 'clone:' + c.files.slice().sort().join('+') + ':' + c.text[0].slice(0, 42);
+  const key = cloneKey(c);
   if (!inBase(key)) unregistered.push(key);
   const tag = inBase(key) ? '登记' : 'NEW ';
   // byFile[file] = 该文件命中的区段数组（合并后）

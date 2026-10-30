@@ -340,15 +340,21 @@ export function commentListClick(ev) {
     });
     return;
   }
+  commentPicClick(ev);
+}
+
+// 配图点击→弹大图（0.9.309 自 commentListClick 下沉单源；rowkit 行列表委托同判据消费）。
+// 命中 .ubb-imgc 即视为消费（宿主据此中止后续分支），但划选文字收尾不弹大图
+//（选区非折叠 = 在复制文字）。点击委托的**挂点**仍归各宿主（commentkit 头注契约不变）。
+export function commentPicClick(ev) {
   var pic = ev.target.closest('.ubb-imgc');
-  if (pic) {
-    // 划选文字收尾在图片上不弹大图（选区非折叠 = 在复制文字）
-    var sel = window.getSelection ? window.getSelection() : null;
-    if (!sel || sel.isCollapsed) {
-      ev.stopPropagation();
-      openImageViewer(pic.getAttribute('src') || '');
-    }
+  if (!pic) return false;
+  var sel = window.getSelection ? window.getSelection() : null;
+  if (!sel || sel.isCollapsed) {
+    ev.stopPropagation();
+    openImageViewer(pic.getAttribute('src') || '');
   }
+  return true;
 }
 
 // （0.9.133 下沉）expandSubComments → commentkit.js（搬迁注见上方条目构建处）

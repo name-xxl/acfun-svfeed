@@ -46,6 +46,7 @@ const SRC = path.join(ROOT, 'src');
 const INFRA = new Set(['cfg.js', 'net.js', 'playitem.js', 'panelitem.js', 'state.js', 'route.js', 'imgview.js',
   'liststate.js', // 0.9.300：空态行单源（表格/列表共用；只 import ui/pageloader，基建→基建）
   'chipkit.js', // 0.9.305 卫生批⑤：chip 组协议单源（zone/精选/原生面板共用；只 import ui，基建→基建）
+  'cssseg.js', // 0.9.309 影子样式缝化：影子根/文档级共用 CSS 段 token（零依赖纯常量；cssraw 构建期插值 + settingspanel/imnative 影子根运行时共用）
   'imgurl.js', 'pagekind.js', 'settings.js', 'viewreg.js', 'imgload.js', 'overlay.js', 'topbar.js',
   'ui.js', 'errbox.js', 'styles.js', 'dbg.js', 'timefmt.js', 'uplook.js', 'nameval.js',
   // 0.9.258 登记：pack（内嵌压缩串解包**单源**，hls/devname/styles 三处共用）。归基建件是因为
@@ -83,7 +84,8 @@ const API = new Set(['api.js', 'appapi.js', 'quality.js',
 // （纯投影族），消费方 searchview 属特性层 ⇒ 归零依赖叶
 const LEAF_SHARED = new Set(['immsg.js', 'imicons.js', 'ubbtext.js', 'searchhist.js',
   'advdm.js', 'toastmsg.js', 'searchfmt.js',
-  'domfields.js']); // 0.9.297：slide/item 字段契约数据（零依赖叶，attach 与 check-contract 共同消费）
+  'domfields.js', // 0.9.297：slide/item 字段契约数据（零依赖叶，attach 与 check-contract 共同消费）
+  'ubbattr.js']); // 0.9.309：UBB 出链/出图 HTML 属性段单源（零依赖叶；ubb/emoticon/imbubble/commentkit 四面消费）
 
 // 口径 B 用：特性域清单（0.9.117 定版；新增特性模块时同步。0.9.124 加 rowkit.js——视图层
 // 行卡 kit，与 followview/squareview 同层：它依赖 momentbar/comments 属特性层内互调，非反向；

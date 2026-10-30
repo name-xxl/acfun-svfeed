@@ -11,6 +11,7 @@ import { lazyObserve } from './imgload.js';
 import { fetchImImageBlob, peekImImageBlob, imageUrlOf } from './imimage.js';
 import { openImageViewer } from './imgview.js';
 import { ubbQuoteHtml } from './ubb.js';
+import { A_TAIL } from './ubbattr.js'; // 出链属性段单源（0.9.309 缝化）
 import {
   parseCard, parseShare, msgTextOf, previewOfMessage,
   isCommentShare, commentShareAuthor, cmtShareOf, momentShareOf,
@@ -42,7 +43,7 @@ export function createBubbleKit(env) {
 
   function linkify(s) {
     return esc(s).replace(/(https?:\/\/[^\s<]+)/g, function (u) {
-      return '<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>';
+      return '<a href="' + u + A_TAIL + u + '</a>';
     });
   }
 

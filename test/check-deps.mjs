@@ -24,10 +24,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
 const EXCLUDED_TARGETS = new Set(['cfg.js', 'net.js', 'state.js', 'route.js',
   'ui.js', 'dbg.js', 'styles.js', 'playitem.js', 'panelitem.js', 'pack.js',
-  'lifecycle.js', 'contract.js', 'liststate.js']); // 基础/工具件（含契约件，0.9.162 接替 data.js）：图刻意只留少量精选边，不要求全画
+  'lifecycle.js', 'contract.js', 'liststate.js', 'cssseg.js', 'ubbattr.js']); // 基础/工具件（含契约件，0.9.162 接替 data.js）：图刻意只留少量精选边，不要求全画
   // 0.9.300 加 liststate：空态行单源（消费方多，同 ui 的「共享 UI 基建」定位）
   // 0.9.264 加 lifecycle/contract：监听器作用域与端点形状守卫，均为基建件
   // 0.9.258 加 pack.js：内嵌压缩串解包单源（hls/devname/styles 共用）——基建定位同 dbg/styles
+  // 0.9.309 加 cssseg/ubbattr：影子段/出链属性 token 单源（零依赖纯常量叶）——同基建定位
 
 // ---- 真实 import 边 + 模块清单 ----
 const files = fs.readdirSync(SRC).filter((f) => f.endsWith('.js'));

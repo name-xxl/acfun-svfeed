@@ -5,6 +5,46 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.309（2026-10-30）· 旧裁决复评——影子样式缝化 + 属性段/委托段收口，登记项触发条件上闸
+
+**背景（用户裁决「旧判断旧方案过时可评估推翻，从实际出发」）**：0.9.307/308 基线 25 项
+「有意不收」登记逐组复评：三组站得住（类名契约/数字不可棘轮化/测试文案即闸），四组过时
+——登记时写下的触发条件其实已到、或收口方案已成形，本批推翻落改。
+
+**① 影子样式缝化（推翻「两皮肤架构成本，另批」——方案成形即收）**：settingspanel/imnative
+影子根吃不到文档级样式，9 段面板样式此前与 cssraw 模板逐字并存（imnative 段旁注「对齐抽屉
+数值」＝手工同步契约的档案）。沉 `src/cssseg.js`（零依赖纯常量 9 token：SHEET_BG/BASE_FONT/
+SECT_LINE/CLOSE_BTN/SCROLL_TAIL/POP_SHADOW/FOOT_BAR/EMO_TAIL/IMG_ZOOM_TAIL），cssraw
+28 处插值（codemod 改写）+ settingspanel 7 处 + imnative 3 处同源取值。**字节级同证**：改前
+后 CSS_TEMPLATE 逐字节一致（103,924 字符）。cssraw 出边不入方向口径（EXEMPT 源），cssseg
+入 INFRA（同 chipkit「共享 UI 基建」定位）；影子根运行时引用只多出常量一份、无产物体积回退。
+
+**② HTML 属性段收口（「扩到 3 处再抽 helper」触发条件已到——A 尾实为 3 文件 8 写）**：
+沉 `src/ubbattr.js`（`A_TAIL`/`IMG_TAIL` 零依赖叶；ubb→emoticon 已有边故属性段不能落 ubb，
+独立叶子四面安全），ubb×6 + imbubble + commentkit 的链接尾、ubb×2 + emoticon×2 的配图尾
+全接单源——target/rel/referrerpolicy 是**策略**不是胶水（noopener 断 opener、no-referrer 不
+外泄引用页），散写即行为分叉温床。unit/ubb.test.js 渲染产物断言原样全绿＝行为同证。
+
+**③ 点击委托克隆下沉（推翻「消费方委托契约=可双写」——契约管挂点，不管判据）**：
+comments/rowkit 配图弹大图判据段逐字同形（6 行×4 窗，0.9.307 起登记 4 簇）。沉
+`comments.commentPicClick(ev)` 导出（返回是否命中，宿主据此中止分支），rowkit 经既有边消费
+零新增 DAG 边；「点击行为归消费方委托」契约不变——**挂点**仍在各宿主，单源的是判据。
+
+**④ 扫描器缝补：登记项的触发条件机械化**——旧 dup key 只含字面，×2→×3 闸看不见（「扩到
+3 处再抽 helper」这类条件落了空、只能眼过）。dup key 升级为 `字面@文件集`、idup 加 `@次数`、
+clone 本含文件集；**登记项扩张即换 key 转 NEW**。新增 `--emit` 子命令（stdout 纯 key 清单，
+基线迁移用）。IDIOM 惯用词表补 `text/javascript`（与表内 application/json 同类平台词汇，
+hls/imsdk 双件同法登记销账——值属浏览器 API，非项目字面）。
+
+**基线迁移（--emit 重排，why 按 key 前缀回填）**：25 项 → 8 项。死于收口 17 项：①9 段
+样式、②3 条尾巴、③4 窗克隆、text/javascript ×1；存 8 项全为类名/选择器契约（建/查双写
+DOM 常态）+「 条）」拼装尾，why 补注「扩张即换 key 转 NEW」。
+
+**测试**：check-hygiene --gate 全绿（8 项全登记、克隆 0 簇）。**反跑两条**：zone.js 探针加
+`.acsv-arrow-up` 第三文件 ⇒ `NEW` 转红（×3 从此闸见）、还原转绿；imbubble 还原裸串 ⇒
+`NEW` 转红、复收口转绿。CSS 字节级同证如上。check-direction 分类覆盖 / check-deps 豁免 /
+README 图+覆盖表+模块表同步（cssseg/ubbattr 入册）。build/lint/check/单测/全场景全绿。
+
 ### 0.9.308（2026-10-30）· 扫描器补第三扫（同文件 ≥3 写）+ 盲区测量——chip 皮肤类串等五处收口
 
 **问题（用户追问「机械扫描扫全了吗」）**：0.9.307 的网只有「跨文件字面+克隆」一角——

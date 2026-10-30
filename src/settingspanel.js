@@ -25,6 +25,8 @@
 // （量取原文如上）。未量取项：开关内部旋钮的几何（只量到药丸本体），按药丸内切推导，注释在册。
 import { el, closeOnOutsideClick, makeSwitch } from './ui.js';
 import { SWITCH_CSS } from './styles.js'; // 开关控件单源（0.9.262）：影子根内注入同一串
+import { SHEET_BG, BASE_FONT, SECT_LINE, CLOSE_BTN, SCROLL_TAIL, POP_SHADOW, FOOT_BAR }
+  from './cssseg.js'; // 影子根/文档级共用段 token（0.9.309 缝化）：同值段与 cssraw 同源
 import { root } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { panelItems, getSetting, setSetting, flushSettings, onChange } from './settings.js';
@@ -35,17 +37,17 @@ var SET_CSS = ''
   + 'align-items:center;justify-content:center;animation:set-in .18s ease}'
   + '@keyframes set-in{from{opacity:0}to{opacity:1}}'
   + '.set-panel{width:min(400px,92vw);max-height:min(76vh,640px);display:flex;flex-direction:column;'
-  + 'background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);'
+  + SHEET_BG
   + 'border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden;color:#fff;'
-  + 'font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}'
+  + BASE_FONT
   + '.set-head{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px;'
-  + 'border-bottom:1px solid rgba(255,255,255,.09)}'
+  + SECT_LINE
   + '.set-title{font-size:15px;font-weight:600}'
   + '.set-x{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;'
-  + 'width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}'
+  + CLOSE_BTN
   + '.set-x:hover{background:rgba(255,255,255,.22)}'
   + '.set-body{flex:1 1 auto;min-height:64px;overflow-y:auto;padding:20px;scrollbar-width:thin;'
-  + 'scrollbar-color:rgba(255,255,255,.2) transparent}'
+  + SCROLL_TAIL
   + '.set-group{font-size:12px;color:#8b909a;margin:0 0 6px}'
   + '.set-group + .set-row:last-child{margin-bottom:0}'
   + '.set-row{display:flex;align-items:center;gap:20px;min-height:18px;margin:0 0 20px}'
@@ -60,7 +62,7 @@ var SET_CSS = ''
   + '.set-sel-btn:hover{background:rgba(255,255,255,.2)}'
   + '.set-sel-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;min-width:120px;'
   + 'background:rgba(21,21,21,.92);border-radius:4px;padding:0;display:flex;flex-direction:column;'
-  + 'box-shadow:0 8px 28px rgba(0,0,0,.45)}'
+  + POP_SHADOW
   // 上方空间不足时的翻转位（0.9.237：由打开时实测决定，防被 set-body 滚动容器裁切）
   + '.set-sel-menu.up{top:auto;bottom:calc(100% + 6px)}'
   + '.set-sel-item{border:none;background:none;color:#fff;font-size:14px;line-height:36px;font-family:inherit;'
@@ -76,7 +78,7 @@ var SET_CSS = ''
   + '.set-num-val{min-width:56px;text-align:center;font-size:14px}'
   // 页脚（0.9.253）：版本号左置 + 「完成」右置（space-between）；与 IP 面板页脚同型（APP_VERSION 单源）
   + '.set-foot{flex:none;display:flex;align-items:center;gap:8px;justify-content:space-between;'
-  + 'padding:10px 16px 14px;border-top:1px solid rgba(255,255,255,.09)}'
+  + FOOT_BAR
   + '.set-ver{font-size:12px;color:#8b909a}'
   + '.set-act{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;'
   + 'cursor:pointer;background:rgba(255,255,255,.12);color:#fff;transition:background .15s}'

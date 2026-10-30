@@ -13,6 +13,7 @@ import { ICON_SVGS } from './imicons.js';
 import { ensureEmotionMap } from './emoticon.js';
 import { parseCard, parseShare, isCommentShare, commentShareAuthor, cmtShareOf, momentShareOf, degradeText, previewOfMessage, sharePreviewOf, msgContentType, msgTextOf, quoteOf, quoteExtraOf, quoteWireTrimLen, CT, findSession, QUOTE_STRIP_FALLBACK } from './immsg.js';
 import { ubbQuoteHtml } from './ubb.js';
+import { EMO_TAIL, IMG_ZOOM_TAIL } from './cssseg.js'; // 影子段 token（0.9.309 缝化）：与 cssraw 同源，「对齐抽屉数值」由同值常量保证
 import { vcard, cshareCard, patchCshare, mcard, videoHrefOf } from './imcard.js';
 import { AppAPI } from './appapi.js';
 
@@ -63,12 +64,12 @@ var SHADOW_CSS = ''
   + 'padding:8px 10px;border-left:2px solid #fd4c5d;font-size:13px;line-height:1.55;color:#333;'
   + 'white-space:pre-wrap;word-break:break-word}'
   + '.cshare .quote .acsv-emotimg{display:inline-block;max-height:34px;max-width:68px;'
-  + 'vertical-align:middle;margin:1px 2px}'
+  + EMO_TAIL
   // quote 富渲染（extra 载荷命中，renderCommentHtml 产出）的 UBB 元素：对齐抽屉数值
   + '.cshare .quote .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;'
-  + 'vertical-align:middle;margin:1px 2px}'
+  + EMO_TAIL
   + '.cshare .quote .ubb-imgc{display:block;max-width:min(200px,100%);max-height:150px;'
-  + 'border-radius:8px;margin-top:6px;cursor:zoom-in}'
+  + IMG_ZOOM_TAIL
   + '.cshare .src{display:flex;align-items:center;gap:8px;padding:7px 9px;border-top:1px solid #efefef}'
   + '.cshare .srcimg{flex:none;width:56px;height:36px;object-fit:cover;border-radius:4px;background:#f2f2f2}'
   + '.cshare .srct{flex:1;min-width:0;font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'

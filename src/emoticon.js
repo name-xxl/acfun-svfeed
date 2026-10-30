@@ -5,6 +5,7 @@ import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { CDN_URL_OK } from './imgurl.js';
 import { el, closeOnOutsideClick } from './ui.js';
+import { IMG_TAIL } from './ubbattr.js'; // 出图属性段单源（0.9.309 缝化）
 
 // 表情包数据（复用动态广场 fetchEmoticonPacks/_applyEmoticons 思路）：
 // map[id]={url,big,name,pkg} 供 UBB 渲染；packs=[{name,items}] 供面板分包展示
@@ -26,14 +27,14 @@ export function emotImgOf(pkg, id) {
   if (pkg !== 'acfun') {
     // 非主包老表情走 umeditor 静态路径（与原生 fallback 同构；pkg/id 已过 \w+/\d+ 正则）
     return { html: '<img class="ubb-emotion" src="https://cdn.aixifan.com/dotnet/20130418/umeditor/dialogs/emotion/images/'
-      + pkg + '/' + id + '.gif" referrerpolicy="no-referrer">' };
+      + pkg + '/' + id + '.gif' + IMG_TAIL };
   }
   var em = EmotionMap.map[id];
   var u = em ? (typeof em === 'string' ? em : em.url) : null;
   if (!u) return null;
   var abs = u.replace(/^\/\//, 'https://');
   if (!CDN_URL_OK.test(abs) || !EMOT_URL_OK.test(abs)) return null;
-  return { html: '<img class="ubb-emotion" src="' + u + '" referrerpolicy="no-referrer">' };
+  return { html: '<img class="ubb-emotion" src="' + u + IMG_TAIL };
 }
 // 表情占位（灰字；带 data-pkg/id 供回填定位）
 export function emotPlaceholderHtml(pkg, id) {
