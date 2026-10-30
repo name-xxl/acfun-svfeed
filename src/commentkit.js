@@ -13,6 +13,7 @@
 // 任何视图/管线（cfg/net/ui/imicons/imgload/ubb 皆基建件）。
 import { CFG } from './cfg.js';
 import { request } from './net.js';
+import { isEndCursor } from './contract.js'; // 游标方言单源（0.9.304）
 import { el, esc } from './ui.js';
 import { fmtWan } from './timefmt.js';
 import { GLYPHS } from './imicons.js';
@@ -270,7 +271,7 @@ function expandSubComments(body, c, subBox, opts) {
         loaded += (j.subComments || []).length;
         pcursor = j.pcursor;
         ensureFold();
-        if (!pcursor || pcursor === 'no_more' || loaded >= (c.subCommentCount || 0)) more.remove();
+        if (isEndCursor(pcursor) || loaded >= (c.subCommentCount || 0)) more.remove();
         else more.textContent = '继续展开（剩 ' + ((c.subCommentCount || 0) - loaded) + ' 条）';
       }, function () {
         more._busy = false;

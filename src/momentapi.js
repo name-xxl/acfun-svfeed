@@ -1,6 +1,7 @@
 // @ts-check
 import { CFG } from './cfg.js';
 import { request } from './net.js';
+import { CURSOR_END, RT } from './contract.js'; // 游标终值/资源类型单源（0.9.304；空页/空条目/24h 窗口另一半仍归本域）
 import { squarePanelOf, followPanelOf } from './panelitem.js'; // 条目派发在面板契约件（0.9.162 data.js 终解）；本域回包规整 0.9.159 域归域迁入本模块
 
 // ---------- 动态域读接口（0.9.106 收口；0.9.107 徽标弃用 webPush 后 unreadCount 退役） ----------
@@ -56,10 +57,10 @@ export function momentDetail(id) {
 // loadFollowPage 转发它，单测直采不必拉起竖刷依赖图
 export function followVideoPageOf(j) {
   var raws = (j && j.feedList) || [];
-  var items = raws.filter(function (r) { return r && r.resourceType === 2 && r.resourceId; })
+  var items = raws.filter(function (r) { return r && r.resourceType === RT.VIDEO && r.resourceId; })
     .map(function (r) { return { id: Number(r.resourceId) }; });
   var next = j && j.pcursor != null ? String(j.pcursor) : '';
-  var noMore = next === 'no_more' || !raws.length || !items.length;
+  var noMore = next === CURSOR_END || !raws.length || !items.length;
   return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
 }
 
@@ -82,7 +83,7 @@ export function squarePageOf(j) {
     if (pi) items.push(pi); // 契约层过滤（宁漏不错）
   });
   var next = j.pcursor != null ? String(j.pcursor) : '';
-  var noMore = crossed || next === 'no_more' || !raws.length || !items.length;
+  var noMore = crossed || next === CURSOR_END || !raws.length || !items.length;
   return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
 }
 
@@ -102,7 +103,7 @@ export function profilePageOf(j) {
   });
   var next = j.pcursor != null ? String(j.pcursor) : '';
   // 到底判据：终页标记 / 空页 / 整页被契约层滤空（后端游标未推进时由工厂的"整页 0 新增"安全阀兜住）
-  var noMore = next === 'no_more' || !raws.length || !items.length;
+  var noMore = next === CURSOR_END || !raws.length || !items.length;
   return { items: items, nextCursor: noMore ? '' : next, noMore: noMore };
 }
 

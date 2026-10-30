@@ -20,10 +20,10 @@ function midgroundToken(refresh) {
       method: 'POST',
       url: CFG.api.token, // 0.9.106 收口：此前内联硬编码与 cfg 重复一份（appapi 同端点）
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      data: 'sid=acfun.midground.api',
+      data: CFG.dialect.tokenSid, // sid/字段名单源（0.9.304 CFG.dialect；GM 通道+失败落 '' 是本域事实）
       timeout: CFG.time.gm
     }).then(function (j) {
-      var t = j && j['acfun.midground.api_st'];
+      var t = j && j[CFG.dialect.tokenField];
       if (!t) { mgTokenP = null; return ''; }
       return String(t);
     }, function () { mgTokenP = null; return ''; });
@@ -100,7 +100,7 @@ export function fetchImImageBlob(url) {
   function setMgCookie(tk) {
     if (!tk) return;
     try {
-      document.cookie = 'acfun.midground.api_st=' + tk
+      document.cookie = CFG.dialect.tokenField + '=' + tk // Cookie 名=令牌字段名同源（0.9.304）
         + '; domain=.acfun.cn; path=/; max-age=86400; SameSite=None; Secure';
     } catch (e0) { /* best-effort: storage */ }
   }
@@ -172,7 +172,7 @@ export function imageUrlOf(m, inst) {
     return CFG.api.imDownloadBase + '/rest/v2/app/download?resourceId=' + encodeURIComponent(rid)
       + '&userId=' + encodeURIComponent(selfUid())
       + '&did=' + encodeURIComponent(cookieVal('_did') || '')
-      + '&kpn=ACFUN_APP&platform=H5' + (ver ? '&imsdkver=' + encodeURIComponent(ver) : '');
+      + '&kpn=' + CFG.dialect.kpn + '&platform=H5' + (ver ? '&imsdkver=' + encodeURIComponent(ver) : '');
   } catch (e3) { return ''; }
 }
 // Image proto 字段 1（uri, string）手解：tag 0x0A + varint 长度 + 字节（uri 为 ASCII）。

@@ -11,6 +11,7 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { appDeviceHeaders } from './appapi.js';
+import { isEndCursor, RT, okResult0 } from './contract.js'; // 游标/资源类型/成功码方言单源（0.9.304）
 import { stat } from './dbg.js';
 
 // 回包 → { items: 原始卡[], cursor, noMore }。只做形状守卫，条目规整归 panelitem.waiting。
@@ -18,7 +19,7 @@ import { stat } from './dbg.js';
 export function waitingPageOf(j) {
   var raws = (j && Array.isArray(j.list)) ? j.list : [];
   var cur = (j && j.pcursor != null) ? String(j.pcursor) : '';
-  var noMore = !raws.length || cur === '' || cur === 'no_more';
+  var noMore = !raws.length || isEndCursor(cur);
   return { items: raws, cursor: noMore ? '' : cur, noMore: noMore };
 }
 
@@ -34,9 +35,9 @@ export function listWaiting(pcursor) {
 
 function writeWaiting(url, item) {
   return request(url, 'POST', appDeviceHeaders(),
-    'resourceId=' + encodeURIComponent(item && item.id) + '&resourceType=2')
+    'resourceId=' + encodeURIComponent(item && item.id) + '&resourceType=' + RT.VIDEO)
     .then(function (j) {
-      var ok = !!(j && j.result === 0);
+      var ok = okResult0(j);
       if (!ok) stat('wl.fail');
       return ok;
     }, function () {

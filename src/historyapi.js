@@ -8,11 +8,16 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
 import { appDeviceHeaders } from './appapi.js';
+import { okResult0 } from './contract.js'; // 成功码方言单源（0.9.304）
 import { stat } from './dbg.js';
+
+// 历史族「视频+番剧」双类型（0.9.304 单源）：deleteAll body 与 PC 列表查询共用同一对——
+// 此前 mytabs 列表请求逐字复刻 `resourceTypes=1&resourceTypes=2`，改口径要碰两文件
+export var HISTORY_TYPES_FORM = 'resourceTypes=1&resourceTypes=2';
 
 function write(url, body) {
   return request(url, 'POST', appDeviceHeaders(), body).then(function (j) {
-    var ok = !!(j && j.result === 0);
+    var ok = okResult0(j);
     if (!ok) stat('hist.fail');
     return ok;
   }, function () {
@@ -29,5 +34,5 @@ export function deleteHistory(item) {
 }
 
 export function clearHistory() {
-  return write(CFG.api.historyDeleteAll, 'resourceTypes=1&resourceTypes=2');
+  return write(CFG.api.historyDeleteAll, HISTORY_TYPES_FORM);
 }

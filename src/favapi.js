@@ -19,8 +19,7 @@
 // 一并退役）。收藏写链唯一入口 = 本模块。
 import { CFG } from './cfg.js';
 import { postForm } from './appapi.js';
-
-function ok0(j) { return !!(j && j.result === 0); }
+import { RT, okResult0 as ok0 } from './contract.js'; // 枚举/成功码方言单源（0.9.304：resourceType=9、result===0）
 
 // ---------- 回包规整（0.9.159 自 data.js 域归域迁入；字段真机核对 2026-10-04，docs/api-research.md §4.2） ----------
 
@@ -86,18 +85,18 @@ export function folderRename(folderId, name) {
 // 加收藏（可多夹）：addFolderIds 逗号拼接
 export function favAdd(acId, addIds) {
   return postForm(CFG.api.favoriteAdd,
-    'resourceId=' + acId + '&resourceType=9&addFolderIds=' + addIds.join(',')).then(ok0);
+    'resourceId=' + acId + '&resourceType=' + RT.DOUGA + '&addFolderIds=' + addIds.join(',')).then(ok0);
 }
 
 // 改夹/移动（差集）：addFolderIds 新勾、delFolderIds 取消；两者都可空（各表单向）
 export function favUpdate(acId, addIds, delIds) {
   return postForm(CFG.api.favResUpdate,
-    'resourceId=' + acId + '&resourceType=9&addFolderIds=' + (addIds || []).join(',')
+    'resourceId=' + acId + '&resourceType=' + RT.DOUGA + '&addFolderIds=' + (addIds || []).join(',')
     + '&delFolderIds=' + (delIds || []).join(',')).then(ok0);
 }
 
 // 移除收藏（从这些夹里摘掉该记录）
 export function favRemove(acId, delIds) {
   return postForm(CFG.api.favoriteRemove,
-    'resourceId=' + acId + '&resourceType=9&delFolderIds=' + delIds.join(',')).then(ok0);
+    'resourceId=' + acId + '&resourceType=' + RT.DOUGA + '&delFolderIds=' + delIds.join(',')).then(ok0);
 }

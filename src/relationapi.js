@@ -21,8 +21,7 @@
 import { CFG } from './cfg.js';
 import { postForm } from './appapi.js';
 import { request } from './net.js';
-
-function ok0(j) { return !!(j && j.result === 0); }
+import { isEndCursor, okResult0 as ok0 } from './contract.js'; // 游标/成功码方言单源（0.9.304）
 
 // ---------- 回包规整（0.9.159 自 data.js 域归域迁入；字段真机核对 2026-10-04，docs/api-research.md §2.2/§2.3/§2.6） ----------
 
@@ -86,7 +85,7 @@ export function followListPageOf(j) {
   });
   // 终值 'no_more'（真机实测：最后一页回 pcursor:"no_more"）与空页同判到底；偏移量游标仅在上限内递交
   var next = j && j.pcursor != null ? String(j.pcursor) : '';
-  var noMore = !items.length || !next || next === 'no_more';
+  var noMore = !items.length || isEndCursor(next);
   return {
     items: items,
     nextCursor: noMore ? '' : next,

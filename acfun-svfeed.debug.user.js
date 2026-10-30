@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.303-debug
+// @version      0.9.304-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 103776;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.303-debug" : "",
+          ver: true ? "0.9.304-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -136,6 +136,23 @@ window.__ACSV_CSS_LEN__ = 103776;
       appVer: "6.31.1.1026",
       ua: "acvideo core/6.31.1.1026(OPPO;OPPO A83;7.1.1)",
       mkey: "AAHewK3eIAAyMTkwNTExNzYAAhAAMEP1uwSZbohCYAAAAJlXIdNAMQR5fM2F-KEOYN5wnGQA6_eLEvGiajzUp4_YnU8EjTm7gzNYhBv59oCCDhbdkmIwsXnF9PgS5ly8eQyjuXlcS7VpWG0QlK0HakVDamteMHNHIui0A8V4tmELqQ%3D%3D"
+    },
+    // ---------- 协议方言常量（0.9.304，六域卫生审计·接口域 P1）----------
+    // 网关识别参数 / 令牌字段 / 互动枚举此前散作字面量（appapi/momentpost/interact/imimage/
+    // favapi/watchlaterapi/relatedapi 各写各的），站方重编号或换 sid 即多文件同批。此表登记
+    // 「跨域共享、改则全改」的字节级契约；防复制闸=test/check-dialect.mjs。资源类型枚举族
+    // （2=APP 稿件·9=投稿收藏/弹幕族·3=文章·10=动态）与评论 sourceType 族归各域契约件登记
+    // （RT 表见 contract.js），这里只放字符串方言。
+    dialect: {
+      // APP 网关识别查询串前缀（appapi.q / momentpost.query 单源）
+      appQuery: "?product=ACFUN_APP&app_version=",
+      // midground 服务令牌：换取 sid 参数 + 回包字段名（appapi.ensureApiSt / imimage 共用）
+      tokenSid: "sid=acfun.midground.api",
+      tokenField: "acfun.midground.api_st",
+      // 互动接口枚举（kuaishouzt 家族）：kpn/subBiz 恒量 + 成功码
+      kpn: "ACFUN_APP",
+      subBiz: "mainApp",
+      interactTypeLike: 1
     },
     api: {
       feed: "https://m.acfun.cn/rest/mobile-direct/meow/feedList?count=20&firstPage=false",
@@ -676,7 +693,7 @@ window.__ACSV_CSS_LEN__ = 103776;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.303-debug" : "";
+  var APP_VERSION = true ? "0.9.304-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -2524,13 +2541,28 @@ window.__ACSV_CSS_LEN__ = 103776;
     stat("contract." + tag + ".miss");
     return false;
   }
+  var CURSOR_END = "no_more";
+  function isEndCursor(v, opts) {
+    if (v === void 0 || v === null || v === "") return true;
+    var s = String(v);
+    if (s === CURSOR_END) return true;
+    var also = opts && opts.also || [];
+    for (var i = 0; i < also.length; i++) {
+      if (s === String(also[i])) return true;
+    }
+    return false;
+  }
+  var RT = { VIDEO: 2, ARTICLE: 3, DOUGA: 9, MOMENT: 10 };
+  function okResult0(j) {
+    return !!(j && j.result === 0);
+  }
 
   // src/appapi.js
   var pcursor = "";
   var exhausted = false;
   var apiStFlight = singleFlight(function() {
-    return postForm(CFG.api.token, "sid=acfun.midground.api").then(function(j) {
-      if (j && j.result === 0 && j["acfun.midground.api_st"]) return j["acfun.midground.api_st"];
+    return postForm(CFG.api.token, CFG.dialect.tokenSid).then(function(j) {
+      if (j && j.result === 0 && j[CFG.dialect.tokenField]) return j[CFG.dialect.tokenField];
       throw new Error("token-denied");
     });
   });
@@ -2559,8 +2591,11 @@ window.__ACSV_CSS_LEN__ = 103776;
     if (withAppVer) h["appVersion"] = CFG.home.appVer;
     return h;
   }
+  function appQuery(extra) {
+    return CFG.dialect.appQuery + CFG.home.appVer + (extra || "");
+  }
   function q(extra) {
-    return "?product=ACFUN_APP&app_version=" + CFG.home.appVer + (extra || "");
+    return appQuery(extra);
   }
   function postForm(url, body) {
     var mocked = mockHit(url, body);
@@ -2597,7 +2632,7 @@ window.__ACSV_CSS_LEN__ = 103776;
       if (block.bodyContents == null) return;
       if (!isArray(block.bodyContents, "feed.block.contents")) return;
       block.bodyContents.forEach(function(bc) {
-        if (bc && bc.href && bc.resourceType === 2) out.push(bc);
+        if (bc && bc.href && bc.resourceType === RT.VIDEO) out.push(bc);
       });
     });
     return out;
@@ -2694,7 +2729,7 @@ window.__ACSV_CSS_LEN__ = 103776;
       );
     },
     playInfo: function(videoId, acId) {
-      return requestRead(CFG.api.playInfo + q("&videoId=" + videoId + "&resourceId=" + acId + "&resourceType=2&mkey=" + CFG.home.mkey), "GET", homeHeaders(false)).then(function(j) {
+      return requestRead(CFG.api.playInfo + q("&videoId=" + videoId + "&resourceId=" + acId + "&resourceType=" + RT.VIDEO + "&mkey=" + CFG.home.mkey), "GET", homeHeaders(false)).then(function(j) {
         if (!hasShape(j, ["playInfo"], "play.info") || !isArray(j.playInfo.streams, "play.streams")) return [];
         var streams = j.playInfo.streams;
         return streams.map(function(s) {
@@ -2800,9 +2835,9 @@ window.__ACSV_CSS_LEN__ = 103776;
     throwBanana: function(acId, count, resourceType) {
       return postForm(
         CFG.api.bananaPc,
-        "resourceId=" + acId + "&resourceType=" + (resourceType || 2) + "&count=" + (count > 0 ? count : 1)
+        "resourceId=" + acId + "&resourceType=" + (resourceType || RT.VIDEO) + "&count=" + (count > 0 ? count : 1)
       ).then(function(j) {
-        return !!(j && j.result === 0);
+        return okResult0(j);
       }, function() {
         return false;
       });
@@ -2813,7 +2848,7 @@ window.__ACSV_CSS_LEN__ = 103776;
         CFG.api.commentLikePc + (on ? "like" : "unlike"),
         "sourceId=" + sourceId + "&sourceType=" + sourceType + "&commentId=" + commentId
       ).then(function(j) {
-        return !!(j && j.result === 0);
+        return okResult0(j);
       }, function() {
         return false;
       });
@@ -2825,7 +2860,7 @@ window.__ACSV_CSS_LEN__ = 103776;
         CFG.api.commentDelete,
         "sourceId=" + sourceId + "&sourceType=" + sourceType + "&commentId=" + commentId
       ).then(function(j) {
-        return !!(j && j.result === 0);
+        return okResult0(j);
       }, function() {
         return false;
       });
@@ -2857,7 +2892,7 @@ window.__ACSV_CSS_LEN__ = 103776;
           CFG.api.dmList,
           "POST",
           FORM2,
-          "resourceId=" + videoId + "&resourceType=9&enableAdvanced=true&pcursor=" + p + "&count=" + CFG.danmaku.pageSize + "&sortType=1&asc=false"
+          "resourceId=" + videoId + "&resourceType=" + RT.DOUGA + "&enableAdvanced=true&pcursor=" + p + "&count=" + CFG.danmaku.pageSize + "&sortType=1&asc=false"
         ).then(function(j) {
           if (!j || j.result !== 0) return all;
           (j.danmakus || []).forEach(function(m) {
@@ -2873,7 +2908,7 @@ window.__ACSV_CSS_LEN__ = 103776;
             });
           });
           var next = j.pcursor;
-          if (!next || next === "no_more" || next === "0" || ++pages >= CFG.danmaku.maxPages || all.length >= CFG.danmaku.maxPages * CFG.danmaku.pageSize) return all;
+          if (isEndCursor(next, { also: ["0"] }) || ++pages >= CFG.danmaku.maxPages || all.length >= CFG.danmaku.maxPages * CFG.danmaku.pageSize) return all;
           return page(next);
         }, function() {
           return all;
@@ -2895,7 +2930,7 @@ window.__ACSV_CSS_LEN__ = 103776;
       var to = Math.max(from + 1, Math.round(toMs || 0));
       return postForm(
         CFG.api.dmPollPos,
-        "resourceId=" + videoId + "&resourceType=9&enableAdvanced=true&positionFromInclude=" + from + "&positionToExclude=" + to
+        "resourceId=" + videoId + "&resourceType=" + RT.DOUGA + "&enableAdvanced=true&positionFromInclude=" + from + "&positionToExclude=" + to
       ).then(function(j) {
         if (!j || j.result !== 0) return [];
         var seen = {}, out = [];
@@ -2934,7 +2969,7 @@ window.__ACSV_CSS_LEN__ = 103776;
         CFG.api.spriteVtt + q(""),
         "POST",
         homeHeaders(false),
-        "videoId=" + key + "&resourceId=" + acId + "&resourceType=2&mkey=" + CFG.home.mkey
+        "videoId=" + key + "&resourceId=" + acId + "&resourceType=" + RT.VIDEO + "&mkey=" + CFG.home.mkey
       ).then(function(j) {
         if (!j || j.result !== 0 || !j.spriteVtt) {
           delete self.spriteCache[key];
@@ -6046,7 +6081,7 @@ window.__ACSV_CSS_LEN__ = 103776;
 
   // src/momentpost.js
   function query() {
-    return "?product=ACFUN_APP&app_version=" + CFG.home.appVer;
+    return appQuery();
   }
   function momentParams(content, opts) {
     opts = opts || {};
@@ -6442,12 +6477,12 @@ window.__ACSV_CSS_LEN__ = 103776;
   function followVideoPageOf(j) {
     var raws = j && j.feedList || [];
     var items = raws.filter(function(r) {
-      return r && r.resourceType === 2 && r.resourceId;
+      return r && r.resourceType === RT.VIDEO && r.resourceId;
     }).map(function(r) {
       return { id: Number(r.resourceId) };
     });
     var next = j && j.pcursor != null ? String(j.pcursor) : "";
-    var noMore = next === "no_more" || !raws.length || !items.length;
+    var noMore = next === CURSOR_END || !raws.length || !items.length;
     return { items, nextCursor: noMore ? "" : next, noMore };
   }
   function squarePageOf(j) {
@@ -6466,7 +6501,7 @@ window.__ACSV_CSS_LEN__ = 103776;
       if (pi) items.push(pi);
     });
     var next = j.pcursor != null ? String(j.pcursor) : "";
-    var noMore = crossed || next === "no_more" || !raws.length || !items.length;
+    var noMore = crossed || next === CURSOR_END || !raws.length || !items.length;
     return { items, nextCursor: noMore ? "" : next, noMore };
   }
   function profilePageOf(j) {
@@ -6479,7 +6514,7 @@ window.__ACSV_CSS_LEN__ = 103776;
       items.push(pi);
     });
     var next = j.pcursor != null ? String(j.pcursor) : "";
-    var noMore = next === "no_more" || !raws.length || !items.length;
+    var noMore = next === CURSOR_END || !raws.length || !items.length;
     return { items, nextCursor: noMore ? "" : next, noMore };
   }
   function momentDetailStateOf(j) {
@@ -7897,7 +7932,7 @@ window.__ACSV_CSS_LEN__ = 103776;
         loaded2 += (j.subComments || []).length;
         pcursor2 = j.pcursor;
         ensureFold();
-        if (!pcursor2 || pcursor2 === "no_more" || loaded2 >= (c.subCommentCount || 0)) more.remove();
+        if (isEndCursor(pcursor2) || loaded2 >= (c.subCommentCount || 0)) more.remove();
         else more.textContent = "继续展开（剩 " + ((c.subCommentCount || 0) - loaded2) + " 条）";
       }, function() {
         more._busy = false;
@@ -8173,7 +8208,7 @@ window.__ACSV_CSS_LEN__ = 103776;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.303-debug" : "",
+      version: true ? "0.9.304-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -8492,7 +8527,7 @@ window.__ACSV_CSS_LEN__ = 103776;
       CFG.api.relatedGeneral,
       "POST",
       FORM_TYPE,
-      "resourceType=2&resourceId=" + encodeURIComponent(rid)
+      "resourceType=" + RT.VIDEO + "&resourceId=" + encodeURIComponent(rid)
     ).then(relatedPageOf);
   }
   function panelItemOfDv(dv) {
@@ -10155,7 +10190,7 @@ window.__ACSV_CSS_LEN__ = 103776;
     var url = first ? CFG.api.upPage + uid : CFG.api.upPage + uid + "?page=" + UpVideos.pcursor + "&userId=" + uid + "&type=6&pcursor=" + UpVideos.pcursor + "&pagelets=short-video-list&ajaxpipe=1";
     return gmGetText2(url).then(function(txt) {
       UpVideos.busy = false;
-      var html = txt, pc = "no_more", svi;
+      var html = txt, pc = CURSOR_END, svi;
       if (first) {
         svi = extractSvInfo(txt);
       } else {
@@ -10173,7 +10208,7 @@ window.__ACSV_CSS_LEN__ = 103776;
         if (svi.pcursor) pc = svi.pcursor;
       }
       var items = parseUpItems(html);
-      if (pc === "no_more" || !items.length) {
+      if (isEndCursor(pc) || !items.length) {
         UpVideos.done = true;
         UpVideos.total = UpVideos.items.length + items.length;
       }
@@ -12079,7 +12114,7 @@ window.__ACSV_CSS_LEN__ = 103776;
   function waitingPageOf(j) {
     var raws = j && Array.isArray(j.list) ? j.list : [];
     var cur = j && j.pcursor != null ? String(j.pcursor) : "";
-    var noMore = !raws.length || cur === "" || cur === "no_more";
+    var noMore = !raws.length || isEndCursor(cur);
     return { items: raws, cursor: noMore ? "" : cur, noMore };
   }
   function listWaiting(pcursor2) {
@@ -12093,9 +12128,9 @@ window.__ACSV_CSS_LEN__ = 103776;
       url,
       "POST",
       appDeviceHeaders(),
-      "resourceId=" + encodeURIComponent(item && item.id) + "&resourceType=2"
+      "resourceId=" + encodeURIComponent(item && item.id) + "&resourceType=" + RT.VIDEO
     ).then(function(j) {
-      var ok = !!(j && j.result === 0);
+      var ok = okResult0(j);
       if (!ok) stat("wl.fail");
       return ok;
     }, function() {
@@ -12691,10 +12726,10 @@ window.__ACSV_CSS_LEN__ = 103776;
 
   // src/interact.js
   function callInteract(st2, item, add, webStyle) {
-    var ot = item.kind === "moment" ? 10 : 2;
+    var ot = item.kind === "moment" ? RT.MOMENT : RT.VIDEO;
     return postForm(
       CFG.api.interact + (add ? "add" : "delete"),
-      "objectId=" + item.id + "&objectType=" + ot + "&interactType=1&subBiz=mainApp&kpn=ACFUN_APP" + (webStyle ? "&kpf=PC_WEB" : "") + "&acfun.midground.api_st=" + encodeURIComponent(st2)
+      "objectId=" + item.id + "&objectType=" + ot + "&interactType=" + CFG.dialect.interactTypeLike + "&subBiz=" + CFG.dialect.subBiz + "&kpn=" + CFG.dialect.kpn + (webStyle ? "&kpf=PC_WEB" : "") + "&" + CFG.dialect.tokenField + "=" + encodeURIComponent(st2)
     ).then(function(j) {
       return !!(j && j.result === 1);
     });
@@ -12723,15 +12758,12 @@ window.__ACSV_CSS_LEN__ = 103776;
   }
   function throwBananaPi(pi, count, resourceType) {
     var n = count > 0 ? count : 1;
-    var rt = resourceType || (pi.ct === "moment" ? 10 : pi.ct === "article" ? 3 : 2);
+    var rt = resourceType || (pi.ct === "moment" ? RT.MOMENT : pi.ct === "article" ? RT.ARTICLE : RT.VIDEO);
     var id = pi.ct === "moment" ? pi.momentId : pi.acId;
     return AppAPI.throwBanana(id, n, rt);
   }
 
   // src/relationapi.js
-  function ok0(j) {
-    return !!(j && j.result === 0);
-  }
   function getGroups() {
     return request(CFG.api.relationGroups, "GET").then(groupListOf);
   }
@@ -12776,7 +12808,7 @@ window.__ACSV_CSS_LEN__ = 103776;
       });
     });
     var next = j && j.pcursor != null ? String(j.pcursor) : "";
-    var noMore = !items.length || !next || next === "no_more";
+    var noMore = !items.length || isEndCursor(next);
     return {
       items,
       nextCursor: noMore ? "" : next,
@@ -12804,22 +12836,22 @@ window.__ACSV_CSS_LEN__ = 103776;
     return postForm(
       CFG.api.follow,
       "toUserId=" + uid + "&action=1&groupId=" + (groupId || "")
-    ).then(ok0);
+    ).then(okResult0);
   }
   function unfollowUser(uid) {
-    return postForm(CFG.api.follow, "toUserId=" + uid + "&action=2&groupId=").then(ok0);
+    return postForm(CFG.api.follow, "toUserId=" + uid + "&action=2&groupId=").then(okResult0);
   }
   function regroup(uid, groupId) {
     return postForm(
       CFG.api.follow,
       "toUserId=" + uid + "&action=3&groupId=" + (groupId || "")
-    ).then(ok0);
+    ).then(okResult0);
   }
   function specialFollow(uid) {
-    return postForm(CFG.api.follow, "toUserId=" + uid + "&action=14").then(ok0);
+    return postForm(CFG.api.follow, "toUserId=" + uid + "&action=14").then(okResult0);
   }
   function unSpecialFollow(uid) {
-    return postForm(CFG.api.follow, "toUserId=" + uid + "&action=15").then(ok0);
+    return postForm(CFG.api.follow, "toUserId=" + uid + "&action=15").then(okResult0);
   }
   function createGroup(name) {
     var before = [];
@@ -12829,7 +12861,7 @@ window.__ACSV_CSS_LEN__ = 103776;
       });
       return postForm(CFG.api.relationGroup, "action=4&groupName=" + encodeURIComponent(name));
     }).then(function(j) {
-      if (!ok0(j)) return null;
+      if (!okResult0(j)) return null;
       if (j.groupId != null && String(j.groupId) !== "") return String(j.groupId);
       return getGroups().then(function(after) {
         return newGroupIdOf(before, after, name) || null;
@@ -12837,13 +12869,13 @@ window.__ACSV_CSS_LEN__ = 103776;
     });
   }
   function removeGroup(groupId) {
-    return postForm(CFG.api.relationGroup, "action=5&groupId=" + groupId).then(ok0);
+    return postForm(CFG.api.relationGroup, "action=5&groupId=" + groupId).then(okResult0);
   }
   function renameGroup(groupId, name) {
     return postForm(
       CFG.api.relationGroup,
       "groupId=" + groupId + "&action=6&groupName=" + encodeURIComponent(name)
-    ).then(ok0);
+    ).then(okResult0);
   }
 
   // src/nameval.js
@@ -12925,9 +12957,6 @@ window.__ACSV_CSS_LEN__ = 103776;
   }
 
   // src/favapi.js
-  function ok02(j) {
-    return !!(j && j.result === 0);
-  }
   function folderListOf(j) {
     var raws = j && (j.dataList || j.data) || [];
     var out = [];
@@ -12960,36 +12989,36 @@ window.__ACSV_CSS_LEN__ = 103776;
   }
   function folderAdd(name) {
     return postForm(CFG.api.favFolderAdd, "name=" + encodeURIComponent(name)).then(function(j) {
-      if (!ok02(j)) return null;
+      if (!okResult0(j)) return null;
       return folderIdOf(j) || null;
     });
   }
   function folderDelete(folderId) {
-    return postForm(CFG.api.favFolderDelete, "folderId=" + folderId).then(ok02);
+    return postForm(CFG.api.favFolderDelete, "folderId=" + folderId).then(okResult0);
   }
   function folderRename(folderId, name) {
     return postForm(
       CFG.api.favFolderUpdate,
       "folderId=" + folderId + "&name=" + encodeURIComponent(name)
-    ).then(ok02);
+    ).then(okResult0);
   }
   function favAdd(acId, addIds) {
     return postForm(
       CFG.api.favoriteAdd,
-      "resourceId=" + acId + "&resourceType=9&addFolderIds=" + addIds.join(",")
-    ).then(ok02);
+      "resourceId=" + acId + "&resourceType=" + RT.DOUGA + "&addFolderIds=" + addIds.join(",")
+    ).then(okResult0);
   }
   function favUpdate(acId, addIds, delIds) {
     return postForm(
       CFG.api.favResUpdate,
-      "resourceId=" + acId + "&resourceType=9&addFolderIds=" + (addIds || []).join(",") + "&delFolderIds=" + (delIds || []).join(",")
-    ).then(ok02);
+      "resourceId=" + acId + "&resourceType=" + RT.DOUGA + "&addFolderIds=" + (addIds || []).join(",") + "&delFolderIds=" + (delIds || []).join(",")
+    ).then(okResult0);
   }
   function favRemove(acId, delIds) {
     return postForm(
       CFG.api.favoriteRemove,
-      "resourceId=" + acId + "&resourceType=9&delFolderIds=" + delIds.join(",")
-    ).then(ok02);
+      "resourceId=" + acId + "&resourceType=" + RT.DOUGA + "&delFolderIds=" + delIds.join(",")
+    ).then(okResult0);
   }
 
   // src/favpop.js
@@ -13506,10 +13535,11 @@ window.__ACSV_CSS_LEN__ = 103776;
         url: CFG.api.token,
         // 0.9.106 收口：此前内联硬编码与 cfg 重复一份（appapi 同端点）
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        data: "sid=acfun.midground.api",
+        data: CFG.dialect.tokenSid,
+        // sid/字段名单源（0.9.304 CFG.dialect；GM 通道+失败落 '' 是本域事实）
         timeout: CFG.time.gm
       }).then(function(j) {
-        var t = j && j["acfun.midground.api_st"];
+        var t = j && j[CFG.dialect.tokenField];
         if (!t) {
           mgTokenP = null;
           return "";
@@ -13586,7 +13616,7 @@ window.__ACSV_CSS_LEN__ = 103776;
     function setMgCookie(tk) {
       if (!tk) return;
       try {
-        document.cookie = "acfun.midground.api_st=" + tk + "; domain=.acfun.cn; path=/; max-age=86400; SameSite=None; Secure";
+        document.cookie = CFG.dialect.tokenField + "=" + tk + "; domain=.acfun.cn; path=/; max-age=86400; SameSite=None; Secure";
       } catch (e0) {
       }
     }
@@ -13661,7 +13691,7 @@ window.__ACSV_CSS_LEN__ = 103776;
         ver = cfgk && (cfgk.imsdkver || cfgk.sdkVersion) || "";
       } catch (e2) {
       }
-      return CFG.api.imDownloadBase + "/rest/v2/app/download?resourceId=" + encodeURIComponent(rid) + "&userId=" + encodeURIComponent(selfUid()) + "&did=" + encodeURIComponent(cookieVal("_did") || "") + "&kpn=ACFUN_APP&platform=H5" + (ver ? "&imsdkver=" + encodeURIComponent(ver) : "");
+      return CFG.api.imDownloadBase + "/rest/v2/app/download?resourceId=" + encodeURIComponent(rid) + "&userId=" + encodeURIComponent(selfUid()) + "&did=" + encodeURIComponent(cookieVal("_did") || "") + "&kpn=" + CFG.dialect.kpn + "&platform=H5" + (ver ? "&imsdkver=" + encodeURIComponent(ver) : "");
     } catch (e3) {
       return "";
     }
@@ -15153,7 +15183,7 @@ window.__ACSV_CSS_LEN__ = 103776;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.303-debug" : "");
+    return normVer(true ? "0.9.304-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -18811,7 +18841,7 @@ window.__ACSV_CSS_LEN__ = 103776;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.303-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.304-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -20004,9 +20034,10 @@ window.__ACSV_CSS_LEN__ = 103776;
   }
 
   // src/historyapi.js
+  var HISTORY_TYPES_FORM = "resourceTypes=1&resourceTypes=2";
   function write(url, body) {
     return request(url, "POST", appDeviceHeaders(), body).then(function(j) {
-      var ok = !!(j && j.result === 0);
+      var ok = okResult0(j);
       if (!ok) stat("hist.fail");
       return ok;
     }, function() {
@@ -20020,7 +20051,7 @@ window.__ACSV_CSS_LEN__ = 103776;
     return write(CFG.api.historyDelete, "comboIds=" + encodeURIComponent(id));
   }
   function clearHistory() {
-    return write(CFG.api.historyDeleteAll, "resourceTypes=1&resourceTypes=2");
+    return write(CFG.api.historyDeleteAll, HISTORY_TYPES_FORM);
   }
 
   // src/meadmin.js
@@ -20398,7 +20429,7 @@ window.__ACSV_CSS_LEN__ = 103776;
       fetch: function() {
         return postForm(
           CFG.api.history,
-          "pageNo=" + (pageNo + 1) + "&pageSize=" + CFG.view.pageSize + "&resourceTypes=1&resourceTypes=2"
+          "pageNo=" + (pageNo + 1) + "&pageSize=" + CFG.view.pageSize + "&" + HISTORY_TYPES_FORM
         );
       },
       skeleton: function() {
@@ -22356,7 +22387,7 @@ window.__ACSV_CSS_LEN__ = 103776;
         var next = j && j.pcursor != null ? String(j.pcursor) : "";
         if (info.firstPage) markSeen();
         armExpanders(list);
-        var noMore = next === "no_more" || !next || !raws.length || fresh === 0 && raws.length;
+        var noMore = isEndCursor(next) || !raws.length || fresh === 0 && raws.length;
         if (info.firstPage && !list.children.length && noMore) {
           setEmpty(list, "关注的 UP 还没有新动态");
         }
@@ -22472,7 +22503,7 @@ window.__ACSV_CSS_LEN__ = 103776;
       out.push(dv);
     }
     var cur = j.pcursor;
-    var noMore = !out.length || cur == null || cur === "" || cur === "no_more";
+    var noMore = !out.length || isEndCursor(cur);
     return { items: out, nextCursor: noMore ? null : String(cur), noMore };
   }
   function listChannelFeed(channelId, pcursor2) {

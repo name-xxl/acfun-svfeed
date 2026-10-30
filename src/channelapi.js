@@ -1,6 +1,7 @@
 // @ts-check
 import { CFG } from './cfg.js';
 import { requestRead } from './net.js';
+import { isEndCursor } from './contract.js'; // 游标方言单源（0.9.304：null/空串/终值统一判，杂质复核仍归本域）
 
 // ---------- 频道域（0.9.169 精选页分区流）：传输 + 回包规整 ----------
 // 实测 docs/api-research.md §6.7（2026-10-05 内置浏览器 + curl 免登录双验）：
@@ -54,7 +55,7 @@ export function channelPageOf(j, channelId) {
     out.push(dv);
   }
   var cur = j.pcursor;
-  var noMore = !out.length || cur == null || cur === '' || cur === 'no_more';
+  var noMore = !out.length || isEndCursor(cur);
   return { items: out, nextCursor: noMore ? null : String(cur), noMore: noMore };
 }
 

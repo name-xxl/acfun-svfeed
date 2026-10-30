@@ -15,7 +15,7 @@ import { createListTail } from './listtail.js'; // 尾部单源（0.9.219：我�
 import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259：历史档）
 import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 import { listWaiting, cancelWaiting } from './watchlaterapi.js';
-import { deleteHistory, clearHistory } from './historyapi.js';
+import { deleteHistory, clearHistory, HISTORY_TYPES_FORM } from './historyapi.js';
 import { openConfirmPop } from './pickpop.js';
 import { createMeHead, openManageModal, mmWarn } from './meadmin.js';
 import { folderList, folderAdd, folderRename, folderDelete, favRemove, favList } from './favapi.js';
@@ -94,7 +94,7 @@ export function buildHistory(panel, scroller) {
     fetch: function () {
       return postForm(CFG.api.history,
         'pageNo=' + (pageNo + 1) + '&pageSize=' + CFG.view.pageSize
-        + '&resourceTypes=1&resourceTypes=2');
+        + '&' + HISTORY_TYPES_FORM);
     },
     skeleton: function () { return skeleton(list); },
     // 建序：尾部件 ↔ 翻页骨架互相引用——骨架先建、状态行走懒引用（`tail` 在首次落定前必然已

@@ -1,6 +1,6 @@
 import { CFG } from './cfg.js';
 import { request } from './net.js';
-import { appDeviceHeaders } from './appapi.js'; // 设备头集单源（0.9.225）
+import { appDeviceHeaders, appQuery } from './appapi.js'; // 设备头集单源（0.9.225）/APP 识别查询串单源（0.9.304——此前本文件逐字复刻一份 q()）
 
 // ---------- 动态发布域（0.9.220） ----------
 // 契约全链实测在 docs/api-research.md §11：端点 APP 域、**只认网页 Cookie**、服务端**不校验**
@@ -11,9 +11,9 @@ import { appDeviceHeaders } from './appapi.js'; // 设备头集单源（0.9.225�
 // `gmRequest` 的模块是漏缝的）。⚠ 与 `appapi` 头注「GM 写操作会被判不可信设备」的冲突：那条是
 // pc-direct **同域**写的结论，APP 域没有页面通道可用——**真机 go/no-go 以实测为准**（docs §11.5）。
 
-// 查询串（脚本原样 product/app_version）。实测不带也能过鉴权（门是 Cookie），带上更贴近官方客户端
+// 查询串走 appapi.appQuery 单源（0.9.304）。实测不带也能过鉴权（门是 Cookie），带上更贴近官方客户端
 function query() {
-  return '?product=ACFUN_APP&app_version=' + CFG.home.appVer;
+  return appQuery();
 }
 
 // params JSON 组装（纯函数，单测直采）。字段名取自反编译 `DynamicContributeData`（docs §11.6）：

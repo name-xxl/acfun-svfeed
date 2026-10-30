@@ -1,4 +1,5 @@
 import { CFG } from './cfg.js';
+import { RT } from './contract.js'; // 资源/对象类型枚举单源（0.9.304）
 import { AppAPI, postForm, ensureApiSt } from './appapi.js';
 
 // ---------- 真实互动（点赞 / 投蕉；关注→relationapi、收藏→favapi，0.9.142/143 迁出） ----------
@@ -15,11 +16,12 @@ function callInteract(st, item, add, webStyle) {
   // objectType 按条目派生（0.9.96 动态写链）：动态=10（api-research §4.7 实测 add/delete
   // 均 result 1），视频/meow 维持 2；动态条目以 {id: momentId, kind: 'moment'} 过链，
   // kpf 不带——实测非必需（广场版多带的 userId/kpf 都不是必要条件）
-  var ot = item.kind === 'moment' ? 10 : 2;
+  var ot = item.kind === 'moment' ? RT.MOMENT : RT.VIDEO;
   return postForm(CFG.api.interact + (add ? 'add' : 'delete'),
-    'objectId=' + item.id + '&objectType=' + ot + '&interactType=1&subBiz=mainApp&kpn=ACFUN_APP'
+    'objectId=' + item.id + '&objectType=' + ot + '&interactType=' + CFG.dialect.interactTypeLike
+    + '&subBiz=' + CFG.dialect.subBiz + '&kpn=' + CFG.dialect.kpn
       + (webStyle ? '&kpf=PC_WEB' : '') // 网页版身份标识：推荐模式点赞对齐官方网页参数
-      + '&acfun.midground.api_st=' + encodeURIComponent(st)
+      + '&' + CFG.dialect.tokenField + '=' + encodeURIComponent(st)
   ).then(function (j) {
     return !!(j && j.result === 1); // kuaishouzt 家族成功码是 1
   });
@@ -68,7 +70,7 @@ export function throwBananaPi(pi, count, resourceType) {
   // ——写链测试纪律不能对他人文章投蕉，失败态由 toast 兜底）**；count 1~5（0.9.104 视频/文章
   // 行接数量层，默认 1 同广场语义）
   var n = count > 0 ? count : 1;
-  var rt = resourceType || (pi.ct === 'moment' ? 10 : pi.ct === 'article' ? 3 : 2);
+  var rt = resourceType || (pi.ct === 'moment' ? RT.MOMENT : pi.ct === 'article' ? RT.ARTICLE : RT.VIDEO);
   var id = pi.ct === 'moment' ? pi.momentId : pi.acId;
   return AppAPI.throwBanana(id, n, rt);
 }

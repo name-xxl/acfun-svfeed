@@ -5,6 +5,39 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.304（2026-10-30）· 协议方言收口——游标终值/资源枚举/令牌串/成功码单源 + check-dialect
+
+**病灶（六域卫生审计 P1×5，跨接口/评论/私信三域交叉命中，复核属实）**：端点方言此前是「裸字面
++ 注释互指」的原始形态——
+- 游标终值 `'no_more'` 全库 11 处判定跨 8 文件，且各方 null/空串/'0' 拼装口径不一（channelapi 判
+  null+''、appapi 另判 '0'、momentapi 空游标不判终）——站方换终值即全批同改，改漏一处「永不到底」
+  或「提前到底」，无任何守卫。
+- `resourceType` 2/3/9/10 裸数字散写 6+ 文件（favapi 三连 9、appapi 弹幕族 9、interact 自带
+  ct→数字三元映射、momentapi 过滤 2、watchlaterapi/relatedapi/historyapi/mytabs 各拼）——同数字
+  跨族不同义（2=APP 稿件 vs 9=收藏·弹幕体系），cfg 只有口头注释无表。
+- midground 令牌 sid 串/回包字段名跨 appapi/imimage/interact 写四遍（imimage 是第四处：Cookie 名）；
+  APP 网关识别串 `?product=ACFUN_APP&app_version=` 两份（appapi.q 私有 + momentpost 逐字复刻）。
+- PC-direct 成功码 `!!(j && j.result===0)`：favapi/relationapi 两份同名 ok0 + appapi 三处内联 +
+  historyapi/watchlaterapi 各一份。
+- kpn/subBiz/interactType 恒量散写。
+
+**修法（规矩 7：收口到结构层 + 回潮在 CI 就红）**：
+- `contract.js` 立**方言登记处**：`CURSOR_END` + `isEndCursor(v,{also})`（判定语义逐点如实迁移：
+  原「空游标不终」的 momentapi 用 strict `=== CURSOR_END`，其余用谓词）；`RT`/`ST` 枚举表（带
+  每族注释）；`okResult0`。`CFG.dialect` 登记字符串方言（appQuery 前缀/tokenSid/tokenField/kpn/
+  subBiz/interactTypeLike）。appapi 导出 `appQuery`，momentpost.query 改壳。
+- 消费点全换：游标 11 处（appapi/channelapi/momentapi×3/relationapi/watchlaterapi/commentkit/
+  followview/uppage×2 + cfg/historyapi 注释校准）；RT 表 12 处（favapi×3/appapi×6/relatedapi/
+  momentapi/watchlaterapi/interact×2）；历史族 `resourceTypes=1&resourceTypes=2` 对——audit 抓到
+  的真复制（historyapi.clearHistory vs mytabs 列表请求）→ historyapi.HISTORY_TYPES_FORM 单源。
+- 有意不动：`result !== 0` 抛错探针（failCode 家族）是失败消息拼装不是成功布尔；kuaishouzt 成功码
+  1 语义不同族不入 okResult0；APP 头集（homeHeaders）0.9.225 已单源。
+
+**测试**：新闸 `test/check-dialect.mjs`（接入 npm run check）六道：`'no_more'` 字面唯 contract.js /
+sid·字段串·query 前缀唯 cfg.js / 内联成功码布尔唯 contract.js / 裸 `resourceType=数字` 行级扫描
+（owner 豁免 contract/historyapi 定义处）。摘修复反跑：把 momentpost.query 还原成逐字复刻 ⇒
+query 串规则转红；favapi 还原 `&resourceType=9` ⇒ 枚举规则转红。build/lint/check/单测/全场景全绿。
+
 ### 0.9.303（2026-10-30）· 「注释即档位表」上闸——jx 缝补挂 + z 档校正 + pagekind 判据收编 + check-zlayers
 
 **病灶（六域卫生审计 P0 之三/之五 + P1 假守卫家族，复核属实）**：三类「注释/文档充当事实源却无机械守卫」——

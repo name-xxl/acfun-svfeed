@@ -1,4 +1,5 @@
 import { CFG } from './cfg.js';
+import { RT } from './contract.js'; // 资源类型枚举单源（0.9.304）
 import { requestRead } from './net.js';
 import { homeItemOf, upOf } from './playitem.js';
 import { coverUrl } from './imgurl.js';
@@ -41,7 +42,7 @@ function idOf(dv) {
 
 export function listRelated(rid) {
   return requestRead(CFG.api.relatedGeneral, 'POST', FORM_TYPE,
-    'resourceType=2&resourceId=' + encodeURIComponent(rid)).then(relatedPageOf);
+    'resourceType=' + RT.VIDEO + '&resourceId=' + encodeURIComponent(rid)).then(relatedPageOf);
 }
 
 // dougaFeedView → **面板条目**（openPanelItem/层内会话列表用的契约形状；0.9.173 抽——抽屉行

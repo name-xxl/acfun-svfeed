@@ -7,7 +7,7 @@ import { fmtDate, pad2 } from './timefmt.js';
 import { coverUrl } from './imgurl.js';
 import { applyQuality } from './quality.js';
 import { parseAdvanced } from './advdm.js';
-import { hasShape, isArray } from './contract.js';
+import { hasShape, isArray, isEndCursor, RT, okResult0 } from './contract.js';
 
 // ---------- APP 家族接口层 ----------
 // 读接口走 api-new.app.acfun.cn（与 acfunchina.com 同后端），固定 mkey 免登录：
@@ -22,8 +22,8 @@ var exhausted = false;
 
 // 令牌：登录后 id.app.acfun.cn 用网页 Cookie 换 acfun.midground.api_st
 var apiStFlight = singleFlight(function () {
-  return postForm(CFG.api.token, 'sid=acfun.midground.api').then(function (j) {
-    if (j && j.result === 0 && j['acfun.midground.api_st']) return j['acfun.midground.api_st'];
+  return postForm(CFG.api.token, CFG.dialect.tokenSid).then(function (j) {
+    if (j && j.result === 0 && j[CFG.dialect.tokenField]) return j[CFG.dialect.tokenField];
     throw new Error('token-denied');
   });
 });
@@ -59,9 +59,12 @@ function homeHeaders(withAppVer) {
   return h;
 }
 
-function q(extra) {
-  return '?product=ACFUN_APP&app_version=' + CFG.home.appVer + (extra || '');
+// APP 网关识别查询串（0.9.304 导出单源）：product/app_version 前缀常量在 CFG.dialect——
+// momentpost.query 此前逐字复刻一份，APP 网关换识别参数即两文件同批（写链最先静默失败）
+export function appQuery(extra) {
+  return CFG.dialect.appQuery + CFG.home.appVer + (extra || '');
 }
+function q(extra) { return appQuery(extra); }
 
 // 同域（www.acfun.cn）表单 POST 走原生 fetch：携带完整 Cookie/Referer/Sec-Fetch 指纹。
 // 写操作（发弹幕/发评论）若经 GM_xmlhttpRequest 桥接会被风控判定为不可信设备
@@ -110,7 +113,7 @@ export function cardsOf(body) {
     if (block.bodyContents == null) return;
     if (!isArray(block.bodyContents, 'feed.block.contents')) return;
     block.bodyContents.forEach(function (bc) {
-      if (bc && bc.href && bc.resourceType === 2) out.push(bc);
+      if (bc && bc.href && bc.resourceType === RT.VIDEO) out.push(bc);
     });
   });
   return out;
@@ -208,7 +211,7 @@ export var AppAPI = {
   },
   playInfo: function (videoId, acId) {
     return requestRead(CFG.api.playInfo + q('&videoId=' + videoId + '&resourceId=' + acId
-      + '&resourceType=2&mkey=' + CFG.home.mkey), 'GET', homeHeaders(false))
+      + '&resourceType=' + RT.VIDEO + '&mkey=' + CFG.home.mkey), 'GET', homeHeaders(false))
       .then(function (j) {
         if (!hasShape(j, ['playInfo'], 'play.info') || !isArray(j.playInfo.streams, 'play.streams')) return [];
         var streams = j.playInfo.streams;
@@ -329,21 +332,21 @@ export var AppAPI = {
   // 同一端点 bananaPc；count 1~5。动态实测禁自投（result 170008）
   throwBanana: function (acId, count, resourceType) {
     return postForm(CFG.api.bananaPc,
-      'resourceId=' + acId + '&resourceType=' + (resourceType || 2) + '&count=' + (count > 0 ? count : 1))
-      .then(function (j) { return !!(j && j.result === 0); }, function () { return false; });
+      'resourceId=' + acId + '&resourceType=' + (resourceType || RT.VIDEO) + '&count=' + (count > 0 ? count : 1))
+      .then(function (j) { return okResult0(j); }, function () { return false; });
   },
   // 评论点赞：PC 端点（复用动态广场模块，网页 Cookie 即可，无需 token）
   commentLike: function (sourceId, sourceType, commentId, on) {
     return postForm(CFG.api.commentLikePc + (on ? 'like' : 'unlike'),
       'sourceId=' + sourceId + '&sourceType=' + sourceType + '&commentId=' + commentId)
-      .then(function (j) { return !!(j && j.result === 0); }, function () { return false; });
+      .then(function (j) { return okResult0(j); }, function () { return false; });
   },
   // 删自己的评论（0.9.279）：PC 端点；sourceType=4 已实测，3 同族未单独实测。
   // 删除是幂等意图动作，失败回 false 由调用方保留条目 + toast（不做乐观移除）。
   commentDelete: function (sourceId, sourceType, commentId) {
     return postForm(CFG.api.commentDelete,
       'sourceId=' + sourceId + '&sourceType=' + sourceType + '&commentId=' + commentId)
-      .then(function (j) { return !!(j && j.result === 0); }, function () { return false; });
+      .then(function (j) { return okResult0(j); }, function () { return false; });
   },
 
   // 发评论/回复（复用动态广场 postComment：replyToCommentId 传入则为回复楼中楼；
@@ -374,7 +377,7 @@ export var AppAPI = {
     var pages = 0;
     function page(p) {
       return requestRead(CFG.api.dmList, 'POST', FORM,
-        'resourceId=' + videoId + '&resourceType=9&enableAdvanced=true&pcursor=' + p
+        'resourceId=' + videoId + '&resourceType=' + RT.DOUGA + '&enableAdvanced=true&pcursor=' + p
         + '&count=' + CFG.danmaku.pageSize + '&sortType=1&asc=false')
         .then(function (j) {
           if (!j || j.result !== 0) return all;
@@ -392,7 +395,7 @@ export var AppAPI = {
           var next = j.pcursor;
           // 页数与条目数双上限：条目数挡不住「空页 + 活游标」的服务端异常，
           // 那会让同一游标无限递归爆栈（0.9.34）
-          if (!next || next === 'no_more' || next === '0'
+          if (isEndCursor(next, { also: ['0'] })
             || ++pages >= CFG.danmaku.maxPages
             || all.length >= CFG.danmaku.maxPages * CFG.danmaku.pageSize) return all;
           return page(next);
@@ -411,7 +414,7 @@ export var AppAPI = {
     var from = Math.max(0, Math.round(fromMs || 0));
     var to = Math.max(from + 1, Math.round(toMs || 0));
     return postForm(CFG.api.dmPollPos,
-      'resourceId=' + videoId + '&resourceType=9&enableAdvanced=true'
+      'resourceId=' + videoId + '&resourceType=' + RT.DOUGA + '&enableAdvanced=true'
       + '&positionFromInclude=' + from + '&positionToExclude=' + to)
       .then(function (j) {
         if (!j || j.result !== 0) return [];
@@ -444,7 +447,7 @@ export var AppAPI = {
     if (!key) return Promise.resolve([]);
     if (self.spriteCache[key]) return self.spriteCache[key];
     var p = requestRead(CFG.api.spriteVtt + q(''), 'POST', homeHeaders(false),
-      'videoId=' + key + '&resourceId=' + acId + '&resourceType=2&mkey=' + CFG.home.mkey)
+      'videoId=' + key + '&resourceId=' + acId + '&resourceType=' + RT.VIDEO + '&mkey=' + CFG.home.mkey)
       .then(function (j) {
         if (!j || j.result !== 0 || !j.spriteVtt) { delete self.spriteCache[key]; return []; }
         return parseSpriteVtt(j.spriteVtt);

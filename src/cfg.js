@@ -24,6 +24,23 @@ export var CFG = {
     ua: 'acvideo core/6.31.1.1026(OPPO;OPPO A83;7.1.1)',
     mkey: 'AAHewK3eIAAyMTkwNTExNzYAAhAAMEP1uwSZbohCYAAAAJlXIdNAMQR5fM2F-KEOYN5wnGQA6_eLEvGiajzUp4_YnU8EjTm7gzNYhBv59oCCDhbdkmIwsXnF9PgS5ly8eQyjuXlcS7VpWG0QlK0HakVDamteMHNHIui0A8V4tmELqQ%3D%3D'
   },
+  // ---------- 协议方言常量（0.9.304，六域卫生审计·接口域 P1）----------
+  // 网关识别参数 / 令牌字段 / 互动枚举此前散作字面量（appapi/momentpost/interact/imimage/
+  // favapi/watchlaterapi/relatedapi 各写各的），站方重编号或换 sid 即多文件同批。此表登记
+  // 「跨域共享、改则全改」的字节级契约；防复制闸=test/check-dialect.mjs。资源类型枚举族
+  // （2=APP 稿件·9=投稿收藏/弹幕族·3=文章·10=动态）与评论 sourceType 族归各域契约件登记
+  // （RT 表见 contract.js），这里只放字符串方言。
+  dialect: {
+    // APP 网关识别查询串前缀（appapi.q / momentpost.query 单源）
+    appQuery: '?product=ACFUN_APP&app_version=',
+    // midground 服务令牌：换取 sid 参数 + 回包字段名（appapi.ensureApiSt / imimage 共用）
+    tokenSid: 'sid=acfun.midground.api',
+    tokenField: 'acfun.midground.api_st',
+    // 互动接口枚举（kuaishouzt 家族）：kpn/subBiz 恒量 + 成功码
+    kpn: 'ACFUN_APP',
+    subBiz: 'mainApp',
+    interactTypeLike: 1
+  },
   api: {
     feed: 'https://m.acfun.cn/rest/mobile-direct/meow/feedList?count=20&firstPage=false',
     info: 'https://m.acfun.cn/rest/mobile-direct/meow/info?meowId=',

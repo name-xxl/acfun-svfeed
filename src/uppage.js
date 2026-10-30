@@ -7,6 +7,7 @@ import { mountSpaceTab, watchSpaceTabs } from './spacetab.js'; // 空间页标�
 import { FeedStore } from './feedstore.js';
 import { API } from './api.js';
 import { SPACE_UID_RE } from './pagekind.js'; // 空间页判据单源（0.9.303 收编）
+import { CURSOR_END, isEndCursor } from './contract.js'; // 游标方言单源（0.9.304）
 import { imgInto } from './imgload.js';
 import { testHook } from './dbg.js'; // 仅调试缝（release 死码消除）
 
@@ -73,7 +74,7 @@ function loadUpVideos(first) {
       + '&pagelets=short-video-list&ajaxpipe=1';
   return gmGetText(url).then(function (txt) {
     UpVideos.busy = false;
-    var html = txt, pc = 'no_more', svi;
+    var html = txt, pc = CURSOR_END, svi;
     if (first) {
       svi = extractSvInfo(txt);
     } else {
@@ -92,7 +93,7 @@ function loadUpVideos(first) {
       if (svi.pcursor) pc = svi.pcursor;
     }
     var items = parseUpItems(html);
-    if (pc === 'no_more' || !items.length) {
+    if (isEndCursor(pc) || !items.length) {
       UpVideos.done = true;
       // 到底后以实际加载条数为准：0 投稿归零，接口计数异常时也被纠正
       UpVideos.total = UpVideos.items.length + items.length;
