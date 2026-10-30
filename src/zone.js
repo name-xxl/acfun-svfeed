@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
 import { el, singleFlight } from './ui.js';
+import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 import { requestRead } from './net.js';
 import { postForm } from './appapi.js';
 import { fetchRankBoard } from './rankapi.js';
@@ -106,7 +107,7 @@ function buildZoneView(body) {
   function render(rows) {
     list.innerHTML = '';
     if (!rows.length) {
-      list.appendChild(el('div', 'acsv-vempty', '该分区暂无榜单数据'));
+      setEmpty(list, '该分区暂无榜单数据');
       return;
     }
     // 原生 rlist__cards：每行=视频卡+作者卡左右分栏（rowOf 出视频卡含排名水印，upCardOf 出作者卡）
@@ -131,11 +132,11 @@ function buildZoneView(body) {
     var hit = rankCache[key];
     if (hit && Date.now() - hit.at < RANK_TTL) { render(hit.rows); return; } // 命中：零请求直出
     list.innerHTML = '';
-    list.appendChild(el('div', 'acsv-vempty', '加载中…'));
+    setEmpty(list, '加载中…');
     function settle(rows) { rankCache[key] = { at: Date.now(), rows: rows }; render(rows); }
     function fail() {
       list.innerHTML = '';
-      list.appendChild(el('div', 'acsv-vempty', '加载失败（网络不可达）'));
+      setEmpty(list, '加载失败（网络不可达）');
     }
     if (curBoard !== 'channel') {
       fetchRankBoard(curBoard, CFG.view.periods[0]).then(settle, fail);

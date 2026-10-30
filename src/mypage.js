@@ -11,6 +11,7 @@ import { registerView } from './viewreg.js';
 import { imgInto } from './imgload.js';
 import { buildHistory, buildFav, buildWatchLater } from './mytabs.js'; // 我的页管理档（0.9.265 拆件）
 import { buildFollowAdmin } from './followadmin.js'; // 关注列表档（0.9.289 对齐原生 /member/feeds/following）
+import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 // 签到（0.9.277）：资料头右侧按钮（App「已签到」药丸同位）+ 黄历弹窗；数据/写链全在 signapi
 import { signIn, getSignInInfos, fetchAlmanac } from './signapi.js';
 import { openSignAlmanac, closeSignAlmanac } from './signpanel.js';
@@ -186,7 +187,7 @@ var pubFab = null; // 发布浮标（视图级，随视图摘）
 function buildMoments(panel, scroller) {
   var uid = selfUid();
   if (!uid) { // 未登录：不弹错（与资料头同口径），给一句可读空态
-    panel.appendChild(el('div', 'acsv-vempty', '登录后才能查看自己的动态'));
+    setEmpty(panel, '登录后才能查看自己的动态');
     return;
   }
   meFeed = createSquareFeed({

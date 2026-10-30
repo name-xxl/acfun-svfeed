@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.299-debug
+// @version      0.9.300-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 103755;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.299-debug" : "",
+          ver: true ? "0.9.300-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -675,7 +675,7 @@ window.__ACSV_CSS_LEN__ = 103755;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.299-debug" : "";
+  var APP_VERSION = true ? "0.9.300-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -8168,7 +8168,7 @@ window.__ACSV_CSS_LEN__ = 103755;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.299-debug" : "",
+      version: true ? "0.9.300-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -15131,7 +15131,7 @@ window.__ACSV_CSS_LEN__ = 103755;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.299-debug" : "");
+    return normVer(true ? "0.9.300-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -18125,11 +18125,15 @@ window.__ACSV_CSS_LEN__ = 103755;
   }
 
   // src/pageloader.js
+  var LOADING_LABEL = "加载中…";
+  var DONE_LABEL = "已加载全部";
+  var FAIL_RETRY = "加载失败，点击重试";
+  var FAIL_SCROLL = "加载失败，滚动重试";
   function createPageLoader(o) {
     var firstCursor = o.firstCursor === void 0 ? "" : o.firstCursor;
-    var loadingLabel = o.loadingLabel || "加载中…";
-    var doneLabel = o.doneLabel || "已加载全部";
-    var failLabel = o.failLabel || "加载失败，点击重试";
+    var loadingLabel = o.loadingLabel || LOADING_LABEL;
+    var doneLabel = o.doneLabel || DONE_LABEL;
+    var failLabel = o.failLabel || FAIL_RETRY;
     var cursor = firstCursor;
     var loading2 = false;
     var noMore = false;
@@ -18159,7 +18163,7 @@ window.__ACSV_CSS_LEN__ = 103755;
         if (sk) sk();
         var box = o.host();
         if (my !== seq || !box.isConnected) return;
-        o.setStatus(box.children.length ? "加载失败，滚动重试" : failLabel);
+        o.setStatus(box.children.length ? FAIL_SCROLL : failLabel);
         loading2 = false;
         if (o.onSettle) o.onSettle(false);
       });
@@ -18178,6 +18182,22 @@ window.__ACSV_CSS_LEN__ = 103755;
         return noMore;
       }
     };
+  }
+
+  // src/liststate.js
+  function setEmpty(list, text) {
+    var cur = list.querySelector(".acsv-vempty");
+    if (!text) {
+      if (cur && cur.parentNode) cur.parentNode.removeChild(cur);
+      return null;
+    }
+    if (cur) {
+      cur.textContent = String(text);
+      return cur;
+    }
+    var row = el("div", "acsv-vempty", String(text));
+    list.appendChild(row);
+    return row;
   }
 
   // src/squarefeed.js
@@ -18232,7 +18252,7 @@ window.__ACSV_CSS_LEN__ = 103755;
         var noMore = page.noMore || fresh === 0 && page.items.length > 0;
         armExpanders(list);
         if (info.firstPage && !list.children.length && noMore) {
-          list.appendChild(el("div", "acsv-vempty", emptyText));
+          setEmpty(list, emptyText);
         }
         return { cursor: page.nextCursor, noMore };
       }
@@ -18769,7 +18789,7 @@ window.__ACSV_CSS_LEN__ = 103755;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.299-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.300-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -20295,7 +20315,7 @@ window.__ACSV_CSS_LEN__ = 103755;
           listBox2.appendChild(add.acts);
         }, function() {
           if (listBox2.isConnected && !listBox2.children.length) {
-            listBox2.appendChild(el("div", "acsv-vempty", "加载失败"));
+            setEmpty(listBox2, "加载失败");
           }
         });
       }
@@ -20378,7 +20398,6 @@ window.__ACSV_CSS_LEN__ = 103755;
       setStatus: function(text, busy) {
         tail2.setStatus(text, busy);
       },
-      doneLabel: "已加载全部",
       onPage: function(j, info) {
         var raws = j && j.histories || [];
         var rows = [];
@@ -20417,11 +20436,10 @@ window.__ACSV_CSS_LEN__ = 103755;
       var n = allRows.length;
       head.refresh();
       if (!n) {
-        if (!list.querySelector(".acsv-vempty")) list.appendChild(el("div", "acsv-vempty", "暂无观看记录"));
+        setEmpty(list, "暂无观看记录");
         tail2.setStatus("");
       } else {
-        var empty = list.querySelector(".acsv-vempty");
-        if (empty) empty.remove();
+        setEmpty(list, "");
       }
     }
     function cellOf(pi) {
@@ -20477,7 +20495,7 @@ window.__ACSV_CSS_LEN__ = 103755;
   }
   function buildWatchLater(panel2, scroller2) {
     if (!selfUid()) {
-      panel2.appendChild(el("div", "acsv-vempty", "登录后才能查看稍后再看"));
+      setEmpty(panel2, "登录后才能查看稍后再看");
       return;
     }
     var list = rowList(panel2, "wl");
@@ -20495,7 +20513,6 @@ window.__ACSV_CSS_LEN__ = 103755;
       setStatus: function(text, busy) {
         tail2.setStatus(text, busy);
       },
-      doneLabel: "已加载全部",
       onPage: function(page, info) {
         var raws = page.items || [];
         var rows = [];
@@ -20503,14 +20520,13 @@ window.__ACSV_CSS_LEN__ = 103755;
           var pi = panelItem("waiting", raw);
           if (pi) rows.push(pi);
         });
-        var empty = list.querySelector(".acsv-vempty");
-        if (empty && rows.length) empty.remove();
+        if (rows.length) setEmpty(list, "");
         rows.forEach(function(pi) {
           allRows.push(pi);
           list.appendChild(cellOf(pi));
         });
         if (!rows.length && info.firstPage) {
-          list.appendChild(el("div", "acsv-vempty", "还没有稍后再看的内容"));
+          setEmpty(list, "还没有稍后再看的内容");
         }
         return { cursor: page.cursor, noMore: page.noMore };
       },
@@ -20555,9 +20571,7 @@ window.__ACSV_CSS_LEN__ = 103755;
           var i = allRows.indexOf(pi);
           if (i >= 0) allRows.splice(i, 1);
           cell.remove();
-          if (!allRows.length && !list.querySelector(".acsv-vempty")) {
-            list.appendChild(el("div", "acsv-vempty", "还没有稍后再看的内容"));
-          }
+          if (!allRows.length) setEmpty(list, "还没有稍后再看的内容");
           toast("已移出稍后再看");
         }, function() {
           cell._busy = false;
@@ -20626,8 +20640,6 @@ window.__ACSV_CSS_LEN__ = 103755;
       setStatus: function(text, busy) {
         tail2.setStatus(text, busy);
       },
-      doneLabel: "已加载全部",
-      failLabel: "加载失败，点击重试",
       onPage: function(j) {
         var raws = j && j.favoriteList || [];
         raws.forEach(function(raw) {
@@ -20637,9 +20649,7 @@ window.__ACSV_CSS_LEN__ = 103755;
             list.appendChild(favCell(pi));
           }
         });
-        if (!rows.length && !list.querySelector(".acsv-vempty")) {
-          list.appendChild(el("div", "acsv-vempty", "这个夹还没有收藏"));
-        }
+        if (!rows.length) setEmpty(list, "这个夹还没有收藏");
         return { noMore: !raws.length || raws.length < CFG.view.pageSize };
       },
       onSettle: function() {
@@ -20693,7 +20703,7 @@ window.__ACSV_CSS_LEN__ = 103755;
           pg.reset();
           rows.length = 0;
           list.textContent = "";
-          list.appendChild(el("div", "acsv-vempty", "还没有收藏夹"));
+          setEmpty(list, "还没有收藏夹");
           tail2.setStatus("");
           return;
         }
@@ -20707,7 +20717,7 @@ window.__ACSV_CSS_LEN__ = 103755;
         if (!list.isConnected) return;
         if (list.children.length) return;
         list.textContent = "";
-        list.appendChild(el("div", "acsv-vempty", "收藏夹加载失败"));
+        setEmpty(list, "收藏夹加载失败");
         tail2.setStatus("");
       });
     }
@@ -20758,9 +20768,7 @@ window.__ACSV_CSS_LEN__ = 103755;
       box.remove();
       var i = rows.indexOf(pi);
       if (i >= 0) rows.splice(i, 1);
-      if (!rows.length && !list.querySelector(".acsv-vempty")) {
-        list.appendChild(el("div", "acsv-vempty", "这个夹还没有收藏"));
-      }
+      if (!rows.length) setEmpty(list, "这个夹还没有收藏");
     }
     function openManage() {
       head.closeMenu();
@@ -20879,7 +20887,7 @@ window.__ACSV_CSS_LEN__ = 103755;
           listBox2.appendChild(add.acts);
         }, function() {
           if (listBox2.isConnected && !listBox2.children.length) {
-            listBox2.appendChild(el("div", "acsv-vempty", "分组加载失败"));
+            setEmpty(listBox2, "分组加载失败");
           }
         });
       }
@@ -20949,7 +20957,7 @@ window.__ACSV_CSS_LEN__ = 103755;
   }
   function buildFollowAdmin(panel2, scroller2) {
     if (!selfUid()) {
-      panel2.appendChild(el("div", "acsv-vempty", "登录后可管理关注列表"));
+      setEmpty(panel2, "登录后可管理关注列表");
       return;
     }
     var filterGid = "";
@@ -21021,15 +21029,11 @@ window.__ACSV_CSS_LEN__ = 103755;
       setStatus: function(text, busy) {
         tail2.setStatus(text, busy);
       },
-      doneLabel: "已加载全部",
-      failLabel: "加载失败，点击重试",
       onPage: function(p) {
         (p.items || []).forEach(function(it) {
           rows.push(addRow(it));
         });
-        if (!rows.length && !list.querySelector(".acsv-vempty")) {
-          list.appendChild(el("div", "acsv-vempty", filterGid === "" ? "还没有关注" : "这个分组还没有成员"));
-        }
+        if (!rows.length) setEmpty(list, filterGid === "" ? "还没有关注" : "这个分组还没有成员");
         return { cursor: p.nextCursor, noMore: !!p.noMore };
       }
     });
@@ -21042,9 +21046,7 @@ window.__ACSV_CSS_LEN__ = 103755;
       onRetry: pg.load
     });
     function emptyCheck() {
-      if (!rows.length && !list.querySelector(".acsv-vempty")) {
-        list.appendChild(el("div", "acsv-vempty", filterGid === "" ? "还没有关注" : "这个分组还没有成员"));
-      }
+      if (!rows.length) setEmpty(list, filterGid === "" ? "还没有关注" : "这个分组还没有成员");
     }
     function removeEntry(it) {
       for (var i = 0; i < rows.length; i++) {
@@ -21455,7 +21457,7 @@ window.__ACSV_CSS_LEN__ = 103755;
   function buildMoments(panel2, scroller2) {
     var uid = selfUid();
     if (!uid) {
-      panel2.appendChild(el("div", "acsv-vempty", "登录后才能查看自己的动态"));
+      setEmpty(panel2, "登录后才能查看自己的动态");
       return;
     }
     meFeed = createSquareFeed({
@@ -21686,7 +21688,7 @@ window.__ACSV_CSS_LEN__ = 103755;
     function render2(rows) {
       list.innerHTML = "";
       if (!rows.length) {
-        list.appendChild(el("div", "acsv-vempty", "该分区暂无榜单数据"));
+        setEmpty(list, "该分区暂无榜单数据");
         return;
       }
       rows.forEach(function(r, i) {
@@ -21712,14 +21714,14 @@ window.__ACSV_CSS_LEN__ = 103755;
         return;
       }
       list.innerHTML = "";
-      list.appendChild(el("div", "acsv-vempty", "加载中…"));
+      setEmpty(list, "加载中…");
       function settle(rows) {
         rankCache[key] = { at: Date.now(), rows };
         render2(rows);
       }
       function fail() {
         list.innerHTML = "";
-        list.appendChild(el("div", "acsv-vempty", "加载失败（网络不可达）"));
+        setEmpty(list, "加载失败（网络不可达）");
       }
       if (curBoard !== "channel") {
         fetchRankBoard(curBoard, CFG.view.periods[0]).then(settle, fail);
@@ -22175,7 +22177,7 @@ window.__ACSV_CSS_LEN__ = 103755;
       if (st2.err) {
         hideSkel();
         setState("");
-        var r = el("button", "acsv-sretry", "加载失败，点击重试");
+        var r = el("button", "acsv-sretry", FAIL_RETRY);
         r.type = "button";
         r.addEventListener("click", retry);
         res.appendChild(r);
@@ -22345,7 +22347,7 @@ window.__ACSV_CSS_LEN__ = 103755;
         armExpanders(list);
         var noMore = next === "no_more" || !next || !raws.length || fresh === 0 && raws.length;
         if (info.firstPage && !list.children.length && noMore) {
-          list.appendChild(el("div", "acsv-vempty", "关注的 UP 还没有新动态"));
+          setEmpty(list, "关注的 UP 还没有新动态");
         }
         return { cursor: next, noMore };
       }

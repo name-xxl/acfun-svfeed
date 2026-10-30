@@ -31,11 +31,18 @@
 // 返回 { load, reset, done }：load 翻一页（在途/到底时 No-op，可直接作 listtail 的
 // onBottom/onRetry）；reset 复位（seq++/在途清/到底清/回首屏游标——刷新与换档复用原
 // refresh/select 里的那几行）；done 读当前到底态（层内续拉的 isDone 缝）。
+// 三态文案单源（0.9.300）：默认值与「续拉失败二选一」此前各写一份（followadmin/mytabs
+// 又各覆盖同值）。新增消费点直接用默认，别再抄字面量；特殊文案才注入。
+export var LOADING_LABEL = '加载中…';
+export var DONE_LABEL = '已加载全部';
+export var FAIL_RETRY = '加载失败，点击重试';
+export var FAIL_SCROLL = '加载失败，滚动重试';
+
 export function createPageLoader(o) {
   var firstCursor = o.firstCursor === undefined ? '' : o.firstCursor;
-  var loadingLabel = o.loadingLabel || '加载中…';
-  var doneLabel = o.doneLabel || '已加载全部';
-  var failLabel = o.failLabel || '加载失败，点击重试';
+  var loadingLabel = o.loadingLabel || LOADING_LABEL;
+  var doneLabel = o.doneLabel || DONE_LABEL;
+  var failLabel = o.failLabel || FAIL_RETRY;
   var cursor = firstCursor;
   var loading = false;
   var noMore = false;
@@ -67,7 +74,7 @@ export function createPageLoader(o) {
       var box = o.host();
       if (my !== seq || !box.isConnected) return;
       // 失败不置到底：下次触底自动重试；列表为空时点击状态行是唯一出口
-      o.setStatus(box.children.length ? '加载失败，滚动重试' : failLabel);
+      o.setStatus(box.children.length ? FAIL_SCROLL : failLabel);
       loading = false;
       if (o.onSettle) o.onSettle(false);
     });

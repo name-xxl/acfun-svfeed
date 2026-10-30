@@ -26,6 +26,7 @@ import { nextBadgeInterval } from './followbadge.js'; // 退避序列单源（�
 import { syncRowBar } from './momentbar.js'; // 回填后互动栏同步（0.9.127）
 import { closeInlineComments, feedRowOf, armExpanders, wireRowList } from './rowkit.js';
 import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259）
+import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 
 function noop() { }
 
@@ -80,7 +81,7 @@ export function createSquareFeed(opts) {
       var noMore = page.noMore || (fresh === 0 && page.items.length > 0);
       armExpanders(list);
       if (info.firstPage && !list.children.length && noMore) {
-        list.appendChild(el('div', 'acsv-vempty', emptyText));
+        setEmpty(list, emptyText);
       }
       return { cursor: page.nextCursor, noMore: noMore };
     }

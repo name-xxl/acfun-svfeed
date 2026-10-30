@@ -347,6 +347,7 @@ npm run check        # 仅静态校验（CI 在 build 后跑）：场景登记�
                      #   偏好写点棘轮（pb 记忆字段唯 playback.js 可写，0.9.285 起）/
                      #   文档机械事实（模块表覆盖/竖线/空行，0.9.297 起）/
                      #   浮层键盘监听白名单（新浮层只许 overlayOpen，0.9.298 起）/
+                     #   空态/列表失败文案单源（liststate.setEmpty / pageloader 常数，0.9.300 起）/
                      #   slide/item 字段契约（唯 domfields.js 可登记，0.9.297 起）/
                      #   契约面类型检查（tsc，0.9.188 起）
 npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSDoc 查类型；单跑用）
@@ -511,6 +512,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `banpop.js` | 投蕉数量层（0.9.104 自 rail 抽出）：默认全灰，悬停第 N 根点亮 1~N，点第 N 根投 N；已投锁定蕉黄。消费 rail/followview/momentbar。 |
 | `domfields.js` | slide/item 跨模块 `_xxx` 字段的**唯一登记处**（0.9.297，零依赖）：`SLIDE_FIELDS`/`ITEM_FIELDS` 数据表；`check-contract` 扫源码未登记字段即红。读/写方说明仍在 attach.js。 |
 | `listtail.js` | 列表尾部件（0.9.219）：触底哨兵 + 三态状态行 + 回顶按钮单源；消费 followview/followadmin/mytabs/squarefeed/searchview/zone/jingxuanview。 |
+| `liststate.js` | 列表空态行单源（0.9.300，共享 UI 基建）：`setEmpty(list, text)` 统一「建/改/摘」协议，一个容器最多一枚 `.acsv-vempty`；消费 followadmin/followview/meadmin/mypage/mytabs/squarefeed/zone。 |
 | `nameval.js` | 组名/夹名校验（零依赖叶）：与原生 bundle 正则逐字符一致；消费 grouppop/favpop/followadmin/mytabs。 |
 | `signapi.js` | 签到域（0.9.277）：双链写 + 签到日历 + 黄历；消费 mypage。 |
 | `signpanel.js` | 签到黄历弹窗（0.9.277）：App 式 3:4 卡 + 规则翻面；0.9.298 起入 overlay 栈，关闭归视图 teardown。 |
@@ -551,6 +553,7 @@ flowchart LR
     styles["styles.js（CSS 常量 + 接缝回填）"]
     cssraw["cssraw.js（全量 CSS 模板·构建期输入，只被 build.js import）"]
     pack["pack.js（内嵌压缩串解包单源·hls/devicetab/CSS 共用）"]
+    liststate["liststate.js（列表空态行单源·setEmpty）"]
     pageloader["pageloader.js（翻页骨架单源·followview/squarefeed/mytabs×2 共用）"]
     meadmin["meadmin.js（我的页档头+管理模态共用·mehead+openManageModal）"]
     lifecycle["lifecycle.js（监听器作用域·per-mount 监听登记/一次摘净）"]
@@ -713,6 +716,7 @@ flowchart LR
   searchfmt --> imgurl & playitem & timefmt
   searchview --> cards & grouppop & imgload & listtail & relationapi & searchfmt & searchhist & topbar & viewreg
   topbar --> searchhist
+  searchview --> pageloader
   input --> feedstore & overlay & pb & settings
   comments --> appapi & commentkit & emoticon & imicons & imgview & immsg & reldrawer & sharepanel & inputbar & overlay & timefmt & toastmsg & ubbtext & pickpop
   comments --> iploc

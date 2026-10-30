@@ -28,6 +28,7 @@ import { CFG } from './cfg.js';
 import { el, selfUid, toast, closeOnOutsideClick } from './ui.js';
 import { createListTail } from './listtail.js';       // 尾部单源（0.9.219 裁决，不跟数字分页）
 import { createPageLoader } from './pageloader.js';   // 翻页骨架单源
+import { setEmpty } from './liststate.js';           // 空态行单源（0.9.300）
 import { skeletonRows } from './cards.js';
 import { imgInto } from './imgload.js';
 import { GLYPHS } from './imicons.js';
@@ -123,7 +124,7 @@ function openGroupModal(item, ctx) {
         listBox.appendChild(add.acts);
       }, function () {
         if (listBox.isConnected && !listBox.children.length) {
-          listBox.appendChild(el('div', 'acsv-vempty', '分组加载失败'));
+          setEmpty(listBox, '分组加载失败');
         }
       });
     }
@@ -184,7 +185,7 @@ function openEditModal(ctx) {
 // ---- 档主体（mypage.panels.groups.build 入口）----
 export function buildFollowAdmin(panel, scroller) {
   if (!selfUid()) { // 未登录：只出提示，不拉数据（与稍后再看同口径）
-    panel.appendChild(el('div', 'acsv-vempty', '登录后可管理关注列表'));
+    setEmpty(panel, '登录后可管理关注列表');
     return;
   }
   var filterGid = '';       // '' = 全部分组（listFollows action=7）；组 id = 组内（action=9）
@@ -244,13 +245,9 @@ export function buildFollowAdmin(panel, scroller) {
     skeleton: function () { return skeletonRows(list, CFG.view.me.skel, 'acsv-gskel'); }, // 每页都建，两路自动收（历史档同形）
     busyGate: function () { return rows.length > 0; }, // 首屏靠骨架，续拉用状态行
     setStatus: function (text, busy) { tail.setStatus(text, busy); },
-    doneLabel: '已加载全部',
-    failLabel: '加载失败，点击重试',
     onPage: function (p) {
       (p.items || []).forEach(function (it) { rows.push(addRow(it)); });
-      if (!rows.length && !list.querySelector('.acsv-vempty')) {
-        list.appendChild(el('div', 'acsv-vempty', filterGid === '' ? '还没有关注' : '这个分组还没有成员'));
-      }
+      if (!rows.length) setEmpty(list, filterGid === '' ? '还没有关注' : '这个分组还没有成员');
       return { cursor: p.nextCursor, noMore: !!p.noMore };
     }
   });
@@ -260,9 +257,7 @@ export function buildFollowAdmin(panel, scroller) {
   });
 
   function emptyCheck() {
-    if (!rows.length && !list.querySelector('.acsv-vempty')) {
-      list.appendChild(el('div', 'acsv-vempty', filterGid === '' ? '还没有关注' : '这个分组还没有成员'));
-    }
+    if (!rows.length) setEmpty(list, filterGid === '' ? '还没有关注' : '这个分组还没有成员');
   }
   function removeEntry(it) {
     for (var i = 0; i < rows.length; i++) {

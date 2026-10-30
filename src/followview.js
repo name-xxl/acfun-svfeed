@@ -26,6 +26,7 @@ import { openMomentDetail } from './momentdetail.js';
 import { ensureEmotionMap, refillEmoticons } from './emoticon.js';
 import { closeInlineComments, feedRowOf, armExpanders, wireRowList } from './rowkit.js';
 import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259）
+import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 
 // ---------- 互动行为（乐观更新照 rail.js:154-177 范式；pi 与详情面板同引用——
 // 面板里再操作计数，行内 DOM 不自动跟新：v1 不做跨面实时同步，低频场景，注释防误判） ----------
@@ -105,7 +106,7 @@ function buildFollowView(body) {
       // 到底判定：终值 'no_more'（与 followDougaFeed 同族语义）/ 空游标 / 空页 / 整页 0 新增
       var noMore = next === 'no_more' || !next || !raws.length || (fresh === 0 && raws.length);
       if (info.firstPage && !list.children.length && noMore) {
-        list.appendChild(el('div', 'acsv-vempty', '关注的 UP 还没有新动态'));
+        setEmpty(list, '关注的 UP 还没有新动态');
       }
       return { cursor: next, noMore: noMore };
     }

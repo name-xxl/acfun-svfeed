@@ -6,6 +6,7 @@ import { searchVideoPageOf, searchUserPageOf, searchArticlePageOf } from './sear
 import { viewPiOf } from './panelitem.js'; // 域条目→面板 pi 投影（0.9.211 批⑦收编）
 import { gridCardOf, openPanelItem, skeletonRows } from './cards.js';
 import { createListTail } from './listtail.js'; // 尾部件（0.9.219：只借回顶）
+import { FAIL_RETRY } from './pageloader.js'; // 失败重试文案单源（0.9.300）
 import { imgInto } from './imgload.js';
 import { registerView } from './viewreg.js';
 import { setSearchHandler, focusSearch } from './topbar.js';
@@ -326,7 +327,7 @@ function buildSearchView(body, arg, kind) {
     if (st.err) {
       hideSkel();
       setState('');
-      var r = el('button', 'acsv-sretry', '加载失败，点击重试');
+      var r = el('button', 'acsv-sretry', FAIL_RETRY);
       r.type = 'button';
       r.addEventListener('click', retry);
       res.appendChild(r);

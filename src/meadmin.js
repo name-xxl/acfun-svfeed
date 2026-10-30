@@ -21,6 +21,7 @@ import { root } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { GLYPHS } from './imicons.js';
 import { openConfirmPop } from './pickpop.js';
+import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 import { stat } from './dbg.js';
 
 function mmHost() { return root || document.body; }
@@ -327,7 +328,7 @@ export function openManageModal(opts) {
         listBox.appendChild(add.acts);
       }, function () {
         if (listBox.isConnected && !listBox.children.length) {
-          listBox.appendChild(el('div', 'acsv-vempty', '加载失败'));
+          setEmpty(listBox, '加载失败');
         }
       });
     }

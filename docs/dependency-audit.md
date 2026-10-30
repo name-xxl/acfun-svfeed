@@ -632,3 +632,15 @@ feedstore.js → player.js → input.js → feedstore.js
 - **反跑**：feature 文件临时加 keydown → exit 1；删 `signpanel --> overlay` 图边 →
   `check-deps` exit 1；恢复全绿。
 - **复点**：`view-my` 90 断言（+9）全绿；harness 89 场景 0 失败；三口径 0/0/0。
+
+## 0.9.300：列表空态/失败文案单源（liststate + pageloader 常数）
+
+- **新增模块**：`src/liststate.js`（共享 UI 基建，只 import ui）——`setEmpty(list, text)`
+  统一 `.acsv-vempty` 的建/改/摘协议；9 个消费文件 16 处手拼全迁。
+- **新增边**：`searchview → pageloader`（读 `FAIL_RETRY`）；`liststate` 登记为基建件
+  （check-direction INFRA / check-deps EXCLUDED_TARGETS），消费方入边不逐条画。
+  `pageloader` 导出 `LOADING_LABEL`/`DONE_LABEL`/`FAIL_RETRY`/`FAIL_SCROLL` 四常数。
+- **新增门禁**：`test/check-liststate.mjs`——`el('div','acsv-vempty',…)` 只许 liststate.js；
+  两句失败重试文案只许 pageloader.js。入 `npm run check`。
+- **复点**：`check-liststate` 0 未登记；方向覆盖 INFRA 26 / API 12 / LEAF 8 / FEATURE 61 /
+  SKIP_B 3 / PLAY 20 + 豁免 2（src 132），三口径 0/0/0；harness 90 场景 0 失败。

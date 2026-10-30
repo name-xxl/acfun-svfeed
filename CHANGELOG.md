@@ -5,6 +5,32 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.300（2026-10-30）· 列表空态/失败文案单源——`setEmpty` 收口 + 文案常数
+
+**病灶（0.9.296/0.9.299 复核）**：`el('div','acsv-vempty', …)` 在 9 个视图/档件里各拼一遍
+（followadmin/followview/meadmin/mypage/mytabs/squarefeed/zone），「已有就改、有行就摘」的
+时序也各写各的——有的先 querySelector 再 append，有的手动 remove；「加载失败，点击重试」
+在 `pageloader` 默认、followadmin/mytabs 覆盖、searchview 按钮里共四份字面量。文案本身不是
+问题，**同一枚空态行/同一句失败话术没有单一出口**才是。
+
+**修法**：
+1. 新增 `src/liststate.js`（共享 UI 基建，只 import ui）：`setEmpty(list, text)` 统一
+   「建/改/摘」协议——text 为假即摘、已有只改 textContent（不重建）、没有才追加；
+   一个列表容器最多一枚 `.acsv-vempty`。消费点全部改为 `setEmpty`（9 文件 16 处）。
+2. `pageloader.js` 导出三态文案常数：`LOADING_LABEL`/`DONE_LABEL`/`FAIL_RETRY`/`FAIL_SCROLL`；
+   默认值与失败二选一改引用常数；followadmin/mytabs 删掉与默认同值的 `doneLabel/failLabel`
+   覆盖；searchview 的重试按钮改用 `FAIL_RETRY`。
+3. 新增 `test/check-liststate.mjs`：src 里 `el('div','acsv-vempty',…)` 只许出现在
+   `liststate.js`；两句失败重试文案只许出现在 `pageloader.js`；入 `npm run check` 链。
+4. `liststate` 登记为基建件（check-direction INFRA / check-deps EXCLUDED_TARGETS）；
+   README 依赖图与模块表补节点/行，`searchview --> pageloader` 新边入图。
+
+**测试**：
+- **摘修复反跑**：临时在 `src/zone.js` 手拼 `el('div','acsv-vempty','x')` → check-liststate
+  exit 1；临时写回 `'加载失败，点击重试'` 字面量 → exit 1；恢复全绿。
+- `npm run lint` / `npm run check`（含新 gate 与 tsc）通过；单测 456/456；harness
+  **90 场景 0 失败**。空态/文案的 DOM 类名与文本逐字不变，视觉零变化，不出预览。
+
 ### 0.9.299（2026-10-30）· 测试覆盖批——release 显式声明 + skip 语义 + 类名/几何单源
 
 **病灶（0.9.296 复核）**：

@@ -13,6 +13,7 @@ import { panelItem } from './panelitem.js';
 import { gridCardOf, skeletonRows } from './cards.js';
 import { createListTail } from './listtail.js'; // 尾部单源（0.9.219：我的页四档统一自动触底）
 import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259：历史档）
+import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 import { listWaiting, cancelWaiting } from './watchlaterapi.js';
 import { deleteHistory, clearHistory } from './historyapi.js';
 import { openConfirmPop } from './pickpop.js';
@@ -99,7 +100,6 @@ export function buildHistory(panel, scroller) {
     // 建序：尾部件 ↔ 翻页骨架互相引用——骨架先建、状态行走懒引用（`tail` 在首次落定前必然已
     // 赋值：尾部件就在下面几行），尾部件拿 load 本体作触底/重试回调
     setStatus: function (text, busy) { tail.setStatus(text, busy); },
-    doneLabel: '已加载全部',
     onPage: function (j, info) {
       var raws = (j && j.histories) || [];
       var rows = [];
@@ -134,11 +134,10 @@ export function buildHistory(panel, scroller) {
     var n = allRows.length;
     head.refresh(); // 清空历史随列表长度显隐（空=整行不渲染，0.9.293）
     if (!n) {
-      if (!list.querySelector('.acsv-vempty')) list.appendChild(el('div', 'acsv-vempty', '暂无观看记录'));
+      setEmpty(list, '暂无观看记录');
       tail.setStatus('');
     } else {
-      var empty = list.querySelector('.acsv-vempty');
-      if (empty) empty.remove();
+      setEmpty(list, '');
     }
   }
 
@@ -197,7 +196,7 @@ export function buildHistory(panel, scroller) {
 // 数据面见 watchlaterapi；条目规整见 panelitem.waiting。未登录不请求，直接出可读空态。
 export function buildWatchLater(panel, scroller) {
   if (!selfUid()) {
-    panel.appendChild(el('div', 'acsv-vempty', '登录后才能查看稍后再看'));
+    setEmpty(panel, '登录后才能查看稍后再看');
     return;
   }
   var list = rowList(panel, 'wl');
@@ -207,7 +206,6 @@ export function buildWatchLater(panel, scroller) {
     fetch: function (cursor) { return listWaiting(cursor); },
     skeleton: function () { return skeleton(list); },
     setStatus: function (text, busy) { tail.setStatus(text, busy); },
-    doneLabel: '已加载全部',
     onPage: function (page, info) {
       var raws = page.items || [];
       var rows = [];
@@ -215,14 +213,13 @@ export function buildWatchLater(panel, scroller) {
         var pi = panelItem('waiting', raw);
         if (pi) rows.push(pi);
       });
-      var empty = list.querySelector('.acsv-vempty');
-      if (empty && rows.length) empty.remove();
+      if (rows.length) setEmpty(list, '');
       rows.forEach(function (pi) {
         allRows.push(pi);
         list.appendChild(cellOf(pi));
       });
       if (!rows.length && info.firstPage) {
-        list.appendChild(el('div', 'acsv-vempty', '还没有稍后再看的内容'));
+        setEmpty(list, '还没有稍后再看的内容');
       }
       return { cursor: page.cursor, noMore: page.noMore };
     },
@@ -255,9 +252,7 @@ export function buildWatchLater(panel, scroller) {
         var i = allRows.indexOf(pi);
         if (i >= 0) allRows.splice(i, 1);
         cell.remove();
-        if (!allRows.length && !list.querySelector('.acsv-vempty')) {
-          list.appendChild(el('div', 'acsv-vempty', '还没有稍后再看的内容'));
-        }
+        if (!allRows.length) setEmpty(list, '还没有稍后再看的内容');
         toast('已移出稍后再看');
       }, function () {
         cell._busy = false;
@@ -305,17 +300,13 @@ export function buildFav(panel, scroller) {
     busyGate: function () { return rows.length > 0; }, // 首屏靠骨架，续拉用状态行
     beforeFetch: function () { if (cur == null) { tail.setStatus(''); return false; } },
     setStatus: function (text, busy) { tail.setStatus(text, busy); },
-    doneLabel: '已加载全部',
-    failLabel: '加载失败，点击重试',
     onPage: function (j) {
       var raws = (j && j.favoriteList) || [];
       raws.forEach(function (raw) {
         var pi = panelItem('fav', raw);
         if (pi) { rows.push(pi); list.appendChild(favCell(pi)); }
       });
-      if (!rows.length && !list.querySelector('.acsv-vempty')) {
-        list.appendChild(el('div', 'acsv-vempty', '这个夹还没有收藏'));
-      }
+      if (!rows.length) setEmpty(list, '这个夹还没有收藏');
       // 到底判定按**原始条数**（favoriteList 与 folder/info 的 resourceCount 自洽，§4.2 实测）
       return { noMore: !raws.length || raws.length < CFG.view.pageSize };
     },
@@ -362,7 +353,7 @@ export function buildFav(panel, scroller) {
         pg.reset();
         rows.length = 0;
         list.textContent = '';
-        list.appendChild(el('div', 'acsv-vempty', '还没有收藏夹'));
+        setEmpty(list, '还没有收藏夹');
         tail.setStatus('');
         return;
       }
@@ -373,7 +364,7 @@ export function buildFav(panel, scroller) {
       if (!list.isConnected) return;
       if (list.children.length) return; // 已有内容：静默（计数可能略旧，下一拍再刷）
       list.textContent = '';
-      list.appendChild(el('div', 'acsv-vempty', '收藏夹加载失败'));
+      setEmpty(list, '收藏夹加载失败');
       tail.setStatus('');
     });
   }
@@ -420,9 +411,7 @@ export function buildFav(panel, scroller) {
     box.remove();
     var i = rows.indexOf(pi);
     if (i >= 0) rows.splice(i, 1);
-    if (!rows.length && !list.querySelector('.acsv-vempty')) {
-      list.appendChild(el('div', 'acsv-vempty', '这个夹还没有收藏'));
-    }
+    if (!rows.length) setEmpty(list, '这个夹还没有收藏');
   }
 
   // 管理收藏夹模态（meadmin.openManageModal；与关注列表「编辑分组」同构建器）

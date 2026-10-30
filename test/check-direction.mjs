@@ -44,6 +44,7 @@ const SRC = path.join(ROOT, 'src');
 // （emotImgOf 出表情节点）与出口 UBB 方言（评论域的序列化/计数口径），不再满足"基建 = 零特性
 // 知识"的口径；与 sharepanel/rail/slide（0.9.233）同款归类：地位是特性层共享 UI 件
 const INFRA = new Set(['cfg.js', 'net.js', 'playitem.js', 'panelitem.js', 'state.js', 'route.js', 'imgview.js',
+  'liststate.js', // 0.9.300：空态行单源（表格/列表共用；只 import ui/pageloader，基建→基建）
   'imgurl.js', 'pagekind.js', 'settings.js', 'viewreg.js', 'imgload.js', 'overlay.js', 'topbar.js',
   'ui.js', 'errbox.js', 'styles.js', 'dbg.js', 'timefmt.js', 'uplook.js', 'nameval.js',
   // 0.9.258 登记：pack（内嵌压缩串解包**单源**，hls/devname/styles 三处共用）。归基建件是因为
