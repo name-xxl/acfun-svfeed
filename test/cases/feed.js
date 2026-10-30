@@ -11,9 +11,12 @@
       feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
 rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
 key('ArrowDown');
-// release 构建无 __ACSV_TEST__（读不到 current）：跳过索引断言，非死路
-rec('next-on-arrowdown', !TEST ? true : !!(await waitFor(function () { return cur() === 1; }, 5000)),
-  TEST ? '' : 'skip:release');
+// release 构建无 __ACSV_TEST__（读不到 current）：改用 DOM 结果不变式——下一条 slide 已建且 ready
+if (TEST) rec('next-on-arrowdown', !!(await waitFor(function () { return cur() === 1; }, 5000)));
+else rec('next-on-arrowdown', !!(await waitFor(function () {
+  var s = slide(1);
+  return !!s && s.dataset.state === 'ready';
+}, 5000)), 'release: slide1 ready');
 await wait(1500);
 var vids = document.querySelectorAll('#acsv-root video');
 // 窗口 [cur-1, cur+1]：cur/cur+1 挂新 video，cur-1 保留旧 video（已暂停）→ 上限 3

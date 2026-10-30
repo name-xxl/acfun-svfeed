@@ -360,6 +360,13 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
   `HARNESS_CONC` 可覆盖；夹具计数按 `pid` 隔离），本机 20 核实测全场景约 **37s**（此前串行独占口径 2m11s）。
   标 `serial: true` 的场景记录的是「曾被判定时序敏感」的老名单，现用 `HARNESS_SERIAL=1` 恢复独占分组做对照诊断；
   `ONLY` 传未知名会直接报错退出，每行打印该场景耗时。
+- **bundle 声明（0.9.299）**：每个场景必须显式 `bundle: 'release' | 'debug'`，缺声明由
+  `check-cases` 拦截；release 场景下限 7（`smoke`/`resolvefail`/`release-smoke`/`ctl-typing`/
+  `ctl-narrow`/`state-seek-ready`/`waiting-error-race`），其余 debug 依赖理由见各行注释。
+- **skip 语义（0.9.299）**：环境缺能力必须走 `h.skip(name, reason)` 显式记账；有 skip 默认算失败
+  （`HARNESS_ALLOW_SKIP=1` 仅作诊断阀），不许再用 `rec(..., true, 'skip:…')` 冒充通过。
+- **测试侧单源（0.9.299）**：cases 里的 `.acsv-*` 类名必须存在于 `src/`（负存在断言单独白名单）；
+  几何断言直接 `await import('/src/popplace.js')` 读源码常数，不再手抄 240/120/10。
 - 依赖图、CHANGELOG、产物版本三者与代码的一致性由 `test/check-*.mjs` 静态保证（CI 必过）。
 
 #### 发布（Release）

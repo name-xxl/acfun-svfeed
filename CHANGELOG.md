@@ -5,6 +5,38 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.299（2026-10-30）· 测试覆盖批——release 显式声明 + skip 语义 + 类名/几何单源
+
+**病灶（0.9.296 复核）**：
+1. 87 个 harness 场景里只有 `smoke`/`resolvefail` 跑正式产物，其余全跑 debug；用户实际安装的
+   release 只被「产物 diff + 体积 + 2 个冒烟」覆盖。0.9.299 试点把 `mem-controls` 标成 release 后
+   **40.8s 失败**（深链走 `__ACSV_MOCK_FORM__`，该缝仅在 debug 生效）——说明 bundle 选择不能靠默认。
+2. skip 没有独立语义：`feed.js` 用 `rec(..., !TEST ? true : ...)`、`stall.js` 用
+   `rec(..., true, 'skip:rVFC-starved')`，环境缺能力被记成绿色。
+3. 测试侧几何常数手抄：`relation.js` 把 `popplace` 的 240/120/10 再写一遍；cases 里的
+   `.acsv-*` 类名改名漏改无人守。
+
+**修法**：
+1. `HARNESS_CASES` 每个场景显式 `bundle: 'release' | 'debug'`（88 个全声明），`ALL_CASES.url`
+   按它分派；新增 `release-smoke`（无 TEST 依赖：根/顶栏/dock/首条起播/首 slide）补正式产物冒烟。
+   release 集合 7 个：`smoke`/`resolvefail`/`release-smoke`/`ctl-typing`/`ctl-narrow`/
+   `state-seek-ready`/`waiting-error-race`；`mem-controls` 按实测回 debug（理由在行注释）。
+   `check-cases` 要求 bundle 声明、release 下限 7，缺声明/低于下限即红。
+2. `harness.html` 增加 `skips[]` 与 `h.skip(name, reason)`；runner 汇总跳过，**有 skip 默认按失败计**
+   （`HARNESS_ALLOW_SKIP=1` 仅诊断阀），且断言失败优先于 skip——skip 不许掩盖真回归。
+   `feed.js`/`stall.js` 的 skip-as-pass 改显式 skip；`check-cases` 扫 `rec(..., true, 'skip:…')` 即红。
+3. `test/cases/relation.js` 的定位几何改为 `await import('/src/popplace.js')` 直读源码常数
+   （GAP/PAD/MIN_BELOW/A_MIN_H/GAP_H），不再手抄；`check-cases` 扫 cases 的 `.acsv-*` 类名必须
+   存在于 src（`acsv-np-ihint/acsv-np-group/acsv-me-entry/acsv-sq-tools` 四个负存在断言进白名单）。
+
+**测试**：
+- release 7 场景全绿（`ctl-typing`/`ctl-narrow`/`state-seek-ready`/`waiting-error-race` 实跑 PASS；
+  `smoke`/`resolvefail`/`release-smoke` 同批 PASS）；`mem-controls` 回 debug 后 PASS。
+- **摘修复反跑**：删 `release-smoke` 的 bundle → check-cases exit 1；塞 `rec(..., true, 'skip:test')`
+  → exit 1；塞 `.acsv-does-not-exist` → exit 1；恢复全绿。
+- `npm run check` 全链（含 check-cases 新三项）通过；单测 456/456；harness **90 场景 0 失败**。
+- 测试资产改动，无视觉形态变化，不出预览。
+
 ### 0.9.298（2026-10-30）· 签到黄历入浮层栈——收掉「浮层自带 keydown」第二次出血
 
 **病灶（0.9.296 复核，与 0.9.254 natpanel 同一道缝）**：`signpanel.js` 用

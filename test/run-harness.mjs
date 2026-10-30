@@ -37,170 +37,174 @@ const HEADLESS_SKIP = [
 //  - debug：用 TEST 模拟缝做断言的场景（stall-*/prewarm/quality-switch/watch-report 等）
 //    本就是按 debug 构建写的——TEST 缺失时场景脚本会抛错，done 永不置位（表现为驱动超时）。
 const HARNESS_CASES = [
-  { name: 'smoke', serial: true, release: true },
-  { name: 'homeswitch', serial: true  },
-  { name: 'rel-drawer', serial: true  }, // 0.9.168 相关推荐 tab + 游走链（home 源）
-  { name: 'rel-layer', serial: true  }, // 0.9.170/174 层内游走 + 相关行压列表播放器 + Esc 弹回原视频（home 源）
-  { name: 'layer-list', serial: true  }, // 0.9.173 层内列表会话：榜单/搜索顺序步进 + 右栏 ▲▼ + 分区二选一
-  { name: 'jingxuan', serial: true  }, // 0.9.169 分区页：分区网格+自持游标+按行补齐+进播放层
-  { name: 'fastswipe', serial: true  },
+  { name: 'smoke', serial: true, bundle: 'release' },
+  { name: 'release-smoke', serial: true, bundle: 'release' }, // 0.9.299 正式产物最小冒烟（无 TEST 依赖）
+  { name: 'homeswitch', serial: true, bundle: 'debug'  },
+  { name: 'rel-drawer', serial: true, bundle: 'debug'}, // 0.9.168 相关推荐 tab + 游走链（home 源）
+  { name: 'rel-layer', serial: true, bundle: 'debug'}, // 0.9.170/174 层内游走 + 相关行压列表播放器 + Esc 弹回原视频（home 源）
+  { name: 'layer-list', serial: true, bundle: 'debug'}, // 0.9.173 层内列表会话：榜单/搜索顺序步进 + 右栏 ▲▼ + 分区二选一
+  { name: 'jingxuan', serial: true, bundle: 'debug'}, // 0.9.169 分区页：分区网格+自持游标+按行补齐+进播放层
+  { name: 'fastswipe', serial: true, bundle: 'debug'  },
   // 0.9.216 近跳落点不变式（issue #1「滚半屏停留」）：spinner 混入 scroller 的排序 sweep
   // 截断几何 + land.trunc 打点 + 键盘 repeat 守卫——serial（几何判定时序敏感）
-  { name: 'land-near', serial: true  },
-  { name: 'feed-slim', serial: true  }, // 0.9.165 水位：远端置瘦 + slide 占位壳 + 划回重解析（40 条夹具）
-  { name: 'resolvefail', serial: true, release: true },
-  { name: 'prewarm', serial: true  },
-  { name: 'stall-frozen', serial: true  },
-  { name: 'stall-slow', serial: true  },
-  { name: 'stall-healthy', serial: true  },
-  { name: 'cdn-fallback', serial: true },
+  { name: 'land-near', serial: true, bundle: 'debug'  },
+  { name: 'feed-slim', serial: true, bundle: 'debug'}, // 0.9.165 水位：远端置瘦 + slide 占位壳 + 划回重解析（40 条夹具）
+  { name: 'resolvefail', serial: true, bundle: 'release' },
+  { name: 'prewarm', serial: true, bundle: 'debug'  },
+  { name: 'stall-frozen', serial: true, bundle: 'debug'  },
+  { name: 'stall-slow', serial: true, bundle: 'debug'  },
+  { name: 'stall-healthy', serial: true, bundle: 'debug'  },
+  { name: 'cdn-fallback', serial: true, bundle: 'debug' },
   // 0.9.256 换线看门狗：备线也失败必须升级（refreshItem/error 态），不许永卡恢复中（debug）
-  { name: 'recover-backup-fail', serial: true },
-  { name: 'quality-switch', serial: true  },
-  { name: 'dispose-mid-recovery', serial: true  },
-  { name: 'stall-visibility', serial: true  },
-  { name: 'spinner-recover', serial: true  },
-  { name: 'watch-report', serial: true  },
+  { name: 'recover-backup-fail', serial: true, bundle: 'debug' },
+  { name: 'quality-switch', serial: true, bundle: 'debug'  },
+  { name: 'dispose-mid-recovery', serial: true, bundle: 'debug'  },
+  { name: 'stall-visibility', serial: true, bundle: 'debug'  },
+  { name: 'spinner-recover', serial: true, bundle: 'debug'  },
+  { name: 'watch-report', serial: true, bundle: 'debug'  },
   // 0.9.86 播放层 pagehide 兜底上报（watchTarget 重定向；home 源 + MY_MOCK 直挂缝，debug 构建）
-  { name: 'watch-playlayer-pagehide', serial: true  },
+  { name: 'watch-playlayer-pagehide', serial: true, bundle: 'debug'  },
   // 0.9.87 官方同款卸载形态：pagehide → sendBeacon 直发（嗅探缓存信封 + 续号；home 源，debug 构建）
-  { name: 'watch-pagehide-beacon', serial: true  },
+  { name: 'watch-pagehide-beacon', serial: true, bundle: 'debug'  },
   // 0.9.87 崩溃补报对账：bundle 前预置账本（见 harness.html）→ init 对账补发 → 清账（debug 构建）
-  { name: 'watch-ledger-replay', serial: true  },
-  { name: 'upd-open', serial: true  }, // 0.9.60 更新提示冒烟（mock atom 注入，debug 构建）
-  { name: 'view-my' }, // 0.9.62 我的视图冒烟（hash 子路由 + __ACSV_MOCK_FORM__ 缝，debug 构建）
-  { name: 'hist-delete', viewport: { width: 1600, height: 900 } }, // 0.9.279 历史单条删除/清空
+  { name: 'watch-ledger-replay', serial: true, bundle: 'debug'  },
+  { name: 'upd-open', serial: true, bundle: 'debug'}, // 0.9.60 更新提示冒烟（mock atom 注入，debug 构建）
+  { name: 'view-my', bundle: 'debug'}, // 0.9.62 我的视图冒烟（hash 子路由 + __ACSV_MOCK_FORM__ 缝，debug 构建）
+  { name: 'hist-delete', viewport: { width: 1600, height: 900 }, bundle: 'debug'}, // 0.9.279 历史单条删除/清空
   // 0.9.76 封面加载策略（URL 归一/失败重试/终败降级）：/flaky-cover.png 首拉 404 再拉 200
   // 走通重试链；/nope-404.png 死链走降级占位。依赖 debug 构建的 __ACSV_MOCK_FORM__ 缝
-  { name: 'cover-fallback' },
-  { name: 'view-zone' }, // 0.9.62 分区榜单视图冒烟（渠道/榜期切换 + 契约过滤，debug 构建）
-  { name: 'view-search' }, // 0.9.72 搜索视图冒烟（搜索页 SSR HTML mock → 抖音式结果卡，debug 构建）
-  { name: 'play-deep' }, // 0.9.74 播放层深链冒烟（直挂缝/坏形态/未命中错误盒/清晰度隔离，debug 构建）
-  { name: 'play-cold' }, // 0.9.79 播放层直达不预热竖刷（冷启动 hash + MY_MOCK 桩，debug 构建）
-  { name: 'mem-controls' }, // 0.9.281 连播/倍速跨会话记忆（bundle 前预置偏好，新鲜加载控件/播放行为须恢复）
-  { name: 'hls-lazy' }, // 0.9.164 hls.js 懒 eval（加载后未定义 → ensureHls 编译内嵌串，debug 构建）
-  { name: 'hls-sealed' }, // 0.9.180 封原生回落：hls.js 不可得 → error 态（video 不得落 m3u8 直链；debug 构建）
-  { name: 'hls-probe' }, // 0.9.181 装载取数修 world/UMD 双坑：敌意 AMD/CJS 标识符下仍须取回类（debug 构建）
-  { name: 'hls-blob' }, // 0.9.182 装载第三层：eval 秒拒 → Blob 脚本（页面 world）顶上且不下沉 CDN（debug 构建）
-  { name: 'dm-ime', serial: true }, // 0.9.234 弹幕输入组合期守卫：组合 Enter 不发、真 Enter 照发（home 源）
-  { name: 'ctl-typing', serial: true }, // 0.9.235 弹幕输入聚焦中控制栏保活（home 源）
-  { name: 'ctl-narrow', serial: true, viewport: { width: 540, height: 960 } }, // 0.9.237 窄底栏横滑（home 源）
-  { name: 'ctl-waiting', serial: true }, // 0.9.279 底栏稍后再看（add/cancel 写链，home 源）
-  { name: 'waiting-error-race', serial: true }, // 0.9.234 waiting 定时器不得反盖 error（合成事件，debug 构建）
-  { name: 'im-native' }, // 0.9.80 原生私信页增强装配（造站结构 + douga/info 桩，debug 构建）
+  { name: 'cover-fallback', bundle: 'debug' },
+  { name: 'view-zone', bundle: 'debug'}, // 0.9.62 分区榜单视图冒烟（渠道/榜期切换 + 契约过滤，debug 构建）
+  { name: 'view-search', bundle: 'debug'}, // 0.9.72 搜索视图冒烟（搜索页 SSR HTML mock → 抖音式结果卡，debug 构建）
+  { name: 'play-deep', bundle: 'debug'}, // 0.9.74 播放层深链冒烟（直挂缝/坏形态/未命中错误盒/清晰度隔离，debug 构建）
+  { name: 'play-cold', bundle: 'debug'}, // 0.9.79 播放层直达不预热竖刷（冷启动 hash + MY_MOCK 桩，debug 构建）
+  { name: 'mem-controls', bundle: 'debug'}, // 0.9.281 连播/倍速跨会话记忆（bundle 前预置偏好 + mock 深链，debug）
+  { name: 'hls-lazy', bundle: 'debug'}, // 0.9.164 hls.js 懒 eval（加载后未定义 → ensureHls 编译内嵌串，debug 构建）
+  { name: 'hls-sealed', bundle: 'debug'}, // 0.9.180 封原生回落：hls.js 不可得 → error 态（video 不得落 m3u8 直链；debug 构建）
+  { name: 'hls-probe', bundle: 'debug'}, // 0.9.181 装载取数修 world/UMD 双坑：敌意 AMD/CJS 标识符下仍须取回类（debug 构建）
+  { name: 'hls-blob', bundle: 'debug'}, // 0.9.182 装载第三层：eval 秒拒 → Blob 脚本（页面 world）顶上且不下沉 CDN（debug 构建）
+  { name: 'dm-ime', serial: true, bundle: 'debug'}, // 0.9.234 弹幕输入组合期守卫：组合 Enter 不发、真 Enter 照发（home 源）
+  { name: 'ctl-typing', serial: true, bundle: 'release'}, // 0.9.235 弹幕输入聚焦中控制栏保活（home 源）
+  { name: 'ctl-narrow', serial: true, viewport: { width: 540, height: 960 }, bundle: 'release'}, // 0.9.237 窄底栏横滑（home 源）
+  { name: 'ctl-waiting', serial: true, bundle: 'debug'}, // 0.9.279 底栏稍后再看（add/cancel 写链，home 源）
+  { name: 'waiting-error-race', serial: true, bundle: 'release'}, // 0.9.234 waiting 定时器不得反盖 error（合成事件，debug 构建）
+  { name: 'im-native', bundle: 'debug'}, // 0.9.80 原生私信页增强装配（造站结构 + douga/info 桩，debug 构建）
   // 0.9.268 气泡渲染簇拆件前的结构钉子（假消息直调 appendBubble：己方/对方/引用/10001 卡；
   // imBubbleSmoke 钩子，debug 构建）
-  { name: 'im-bubble' },
+  { name: 'im-bubble', bundle: 'debug' },
   // 0.9.244 私信徽标轮询随 badgeDelay 起：挂载后立即断言「只武装延迟、不武装轮询」
   //（曾 mount 即起 5s 拍、首拍拉 860KB SDK——真机读数 7.8s 实锤）；TEST 钩子，debug 构建
-  { name: 'badge-delay' },
+  { name: 'badge-delay', bundle: 'debug' },
   // 0.9.73 顶栏四界面复用 + 抽屉避让推广：抽屉×视图的避让几何/降级/Esc 链（imOpenSmoke 缝）
-  { name: 'view-im' },        // 宽视口：正文右缘收窄到抽屉左缘 + 顶栏右组让位 + Esc 链
-  { name: 'view-im-narrow', viewport: { width: 1000, height: 720 } }, // 中窄视口（<CFG.view.avoidW）：降级纯覆盖
+  { name: 'view-im', bundle: 'debug'},        // 宽视口：正文右缘收窄到抽屉左缘 + 顶栏右组让位 + Esc 链
+  { name: 'view-im-narrow', viewport: { width: 1000, height: 720 }, bundle: 'debug'}, // 中窄视口（<CFG.view.avoidW）：降级纯覆盖
   // 0.9.72 深链冒烟：hash 须在 bundle 前写好（冷启动深链路径）+ __ACSV_MOCK_FORM__ 的
   // douga/info 桩 + TEST.feed 断言，故全为 debug 构建
-  { name: 'deeplink-sv' },      // v 标记形态置顶 + 挂载态就地跳转（不重置缓冲）
-  { name: 'deeplink-bare' },    // 0.9.72 前的裸数字形态：靠探测出 meow
-  { name: 'deeplink-ac' },      // a 标记形态（推荐 acId）经 douga 详情置顶
-  { name: 'deeplink-switch' },  // 源记忆=推荐 时深链仍须落地（源随链接走）
-  { name: 'deeplink-miss' },   // 两空间都查不到：错误盒，不许静默重随机
+  { name: 'deeplink-sv', bundle: 'debug'},      // v 标记形态置顶 + 挂载态就地跳转（不重置缓冲）
+  { name: 'deeplink-bare', bundle: 'debug'},    // 0.9.72 前的裸数字形态：靠探测出 meow
+  { name: 'deeplink-ac', bundle: 'debug'},      // a 标记形态（推荐 acId）经 douga 详情置顶
+  { name: 'deeplink-switch', bundle: 'debug'},  // 源记忆=推荐 时深链仍须落地（源随链接走）
+  { name: 'deeplink-miss', bundle: 'debug'},   // 两空间都查不到：错误盒，不许静默重随机
   // 0.9.256 深链竞态：A 回包挂起期切 B，A 迟到不得覆盖 B 的内容与地址（debug）
-  { name: 'deeplink-race' },
+  { name: 'deeplink-race', bundle: 'debug' },
   // 0.9.88 boot 页面类型分流：pathname 在 bundle 前改写（harness.html 的 BOOT_PATH）+
   // 挂载前快照（__BOOT_SNAP__）断言样式注入差异与 dbg 埋点，故为 debug 构建
-  { name: 'boot-home', serial: true },  // '/'：全量初始化（样式先就位）
-  { name: 'boot-video', serial: true }, // '/v/…'：仅基础设施（全量 CSS 不得注入）+ 深链仍可挂载
+  { name: 'boot-home', serial: true, bundle: 'debug'},  // '/'：全量初始化（样式先就位）
+  { name: 'boot-video', serial: true, bundle: 'debug'}, // '/v/…'：仅基础设施（全量 CSS 不得注入）+ 深链仍可挂载
   // 0.9.89 设置面板（Shadow DOM 断言走 host.shadowRoot）：开/关/持久化 + 老键收养，
   // settings-migrate 依赖 bundle 前预置老键（见 harness.html），故为 debug 构建
-  { name: 'settings-open', serial: true },
-  { name: 'settings-migrate', serial: true },
+  { name: 'settings-open', serial: true, bundle: 'debug' },
+  { name: 'settings-migrate', serial: true, bundle: 'debug' },
   // 0.9.91 关注视图（followFeedV2 混合流；0.9.99 重构为仿原生单列无限流：三类行判别位 +
   // 行内写链乐观两向 + 展开/收起 + 滚动触底翻页/状态行；mock 缝依赖 debug 构建，夹具在 my-sample.js）
-  { name: 'view-follow', viewport: { width: 1600, height: 900 } },
+  { name: 'view-follow', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
   // 0.9.193 评论追加失败健壮性：追加失败**不清列表** + 末尾可点重试 + 到底尾行（rejected promise
   // 造请求失败；定向桩 comment/list，debug 构建）
-  { name: 'comment-fail', viewport: { width: 1600, height: 900 } },
-  { name: 'comment-delete', viewport: { width: 1600, height: 900 } }, // 0.9.279 评论删除（本人/他人/sv 门控）
+  { name: 'comment-fail', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
+  { name: 'comment-delete', viewport: { width: 1600, height: 900 }, bundle: 'debug'}, // 0.9.279 评论删除（本人/他人/sv 门控）
   // 0.9.126 广场视图（吸收动态广场）：feedSquare 免登录流——dock 高亮/行卡契约/行内评论/
   // 触底续翻/24h 窗口剔除即止/状态行；夹具在 my-sample.js（mock 缝依赖 debug 构建）
-  { name: 'view-square', viewport: { width: 1600, height: 900 } },
+  { name: 'view-square', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
   // 0.9.128 原生 /member 页内嵌广场：「动态广场」入口注入（真实轮询）+ 就地展开/收回 +
   // 浅色皮肤 + 无壳浮层（评论/大图）——BOOT_PATH 改写 pathname 至 /member/feeds，且本场景
   // 禁自动挂壳（harness.html NO_AUTOMOUNT：须在无 shell 前提下验证）；夹具在 cases/member.js
-  { name: 'member-plaza', viewport: { width: 1600, height: 900 } },
+  { name: 'member-plaza', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
   // 0.9.218 原生空间页 /u/<uid>「动态」标签注入：两个自建标签（动态/小视频）位次确定性、
   // 点击切换与站点排序控件互斥、**惰性**（不点不拉接口）、三合一渲染、行尾 am 锚、浅色第二皮肤
   //（0.9.218 补的视频/文章条规则）——BOOT_PATH 改写 pathname 至 /u/12345 + NO_AUTOMOUNT；
   // 夹具在 cases/space.js（原生标签栏由场景体自建）
-  { name: 'space-moments', viewport: { width: 1600, height: 900 } },
+  { name: 'space-moments', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
   // 0.9.222 发动态编辑器：真实入口（我的页「✎ 发动态」）→ 壳/富文本输入条(0.9.238)/字数/可见范围 → 提交，
   // mock 缝抓 params body 形状 + 成功关闭 + 失败话术与内容保留 + 转发形态（引用块 + repostMomentId）
-  { name: 'moment-publish', viewport: { width: 1600, height: 900 } },
+  { name: 'moment-publish', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
   // 0.9.238 富文本输入条（三宿主共用）：出口序列化对照表（composerUbb 钩子逐条）、真·键盘输入/
   // 工具栏格式与颜色/表情插入/退格整块删/撤销/粘贴清洗/超字硬拒绝/面板锚点几何——评论宿主（行内）
-  { name: 'composer-rich', viewport: { width: 1600, height: 900 } },
-  { name: 'bf-viewport', viewport: { width: 1600, height: 900 } }, // 0.9.229 视口渐进回填（老条目/每行一次）
+  { name: 'composer-rich', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
+  { name: 'bf-viewport', viewport: { width: 1600, height: 900 }, bundle: 'debug'}, // 0.9.229 视口渐进回填（老条目/每行一次）
   // 0.9.96 动态详情面板（卡点击原地展开 + 评论区管线复用 stype=4 + 赞/评写链乐观回滚 + 表情面板落位）
-  { name: 'detail-open', viewport: { width: 1600, height: 900 } },
-  { name: 'detail-delete', viewport: { width: 1600, height: 900 } }, // 0.9.279 动态删除（本人/他人门控）
+  { name: 'detail-open', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
+  { name: 'detail-delete', viewport: { width: 1600, height: 900 }, bundle: 'debug'}, // 0.9.279 动态删除（本人/他人门控）
   // 0.9.99 关注语境「视频」侧（顶栏 seg → FollowVideos 上下文 → 舞台深链接管 + 按列表泵入 + 全部回路）
   // 视口 1600×900：桌面几何（分享卡贴行左缘/贴面板右缘的裁决坐标需行侧留白 ≥310px）
-  { name: 'follow-videos', viewport: { width: 1600, height: 900 } },
+  { name: 'follow-videos', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
   // 0.9.97 关注未读徽标（followFeedV2 桩驱动 poll 状态机：计数/回落/翻倍/进视图不打扰；webPush 自 0.9.107 退役）
-  { name: 'badge-poll' },
+  { name: 'badge-poll', bundle: 'debug' },
   // 0.9.142 关注分组全闭环（我的页第三 tab 建/改名/删/移组/取关 + rail 分组选择层两态）
-  { name: 'follow-groups' },
+  { name: 'follow-groups', bundle: 'debug' },
   // 0.9.143 收藏夹全闭环（rail 选择层三分支 + 我的页建/改名/删夹与移动/移除）
-  { name: 'fav-folders' },
+  { name: 'fav-folders', bundle: 'debug' },
   // 0.9.245 评论 IP 属地（Web-IP 吸收批次①）：行内宿主 + 定向桩（comment/list 三 uid ×
   // userInfo 三种回包——有属地/空串/rejected）；命中同步上屏/未命中回填/同一节点/负缓存复用/
   // 开关关闭零查询（off 场景依赖 bundle 前预置 acsv.s.ipShow，见 harness.html）
-  { name: 'ip-tags', viewport: { width: 1600, height: 900 } },
-  { name: 'ip-tags-off', viewport: { width: 1600, height: 900 } },
+  { name: 'ip-tags', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
+  { name: 'ip-tags-off', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
   // 0.9.246 设备型号美化（Web-IP 吸收批次②）：行内宿主 + 定向桩（代前缀取末段/精确/未收录原文/
   // 楼中楼透传）；href 保持 + tooltip + 点击切换两向 + 关态原文（off 依赖 bundle 前预置
   // acsv.s.devName，见 harness.html）
-  { name: 'dev-name', viewport: { width: 1600, height: 900 } },
-  { name: 'dev-name-off', viewport: { width: 1600, height: 900 } },
+  { name: 'dev-name', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
+  { name: 'dev-name-off', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
   // 0.9.248 原生页评论 IP+设备（Web-IP 吸收 6a）：BOOT_PATH 改到 /v/（pagekind=video ⇒
   // mountNativeIp）+ NO_AUTOMOUNT 无壳（见 harness.html）；场景体自建原生评论 DOM——
   // 标签注入/设备切换/拦截层与竞态修正/SAP 路由清映射
-  { name: 'native-ip', viewport: { width: 1600, height: 900 } },
+  { name: 'native-ip', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
   // 0.9.249 原生页专属挂点（6b）：路由 pushState 串测 /u/ 主页资料卡与 /member/feeds 动态条目
   //（同 BOOT_PATH /v/ + NO_AUTOMOUNT；两挂点经路由监听各自重扫）
-  { name: 'native-surfaces', viewport: { width: 1600, height: 900 } },
+  { name: 'native-surfaces', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
   // 0.9.250 原生页设置面板（6c）：标签点击开面板 → 资料卡/SCHEMA 行/开关落盘/设备导入端到端/
   // 缓存清空二次确认（同 BOOT_PATH /v/ + NO_AUTOMOUNT）
-  { name: 'nat-panel', viewport: { width: 1600, height: 900 } },
+  { name: 'nat-panel', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
   // 0.9.257「批①」六修 + 徽标监听（P2-4）的摘修复反跑钉子（test/cases/audit257.js）：
   // 全部为确定性造态 + 真实路径驱动，serial（时序窗口/挂载循环/滚动落位对并发负载敏感）
-  { name: 'state-seek-ready', serial: true },   // A1 平滑 seek 归位必须撤掉在途转圈定时器
-  { name: 'recover-refresh-watch', serial: true }, // A2 重解析换源同样要看门狗（~12s）
-  { name: 'deeplink-upctx', serial: true },     // A3 深链不属旧空间页列表时必须让出上下文
-  { name: 'deeplink-followctx', serial: true }, // A3 残留：深链不属旧关注视频流时必须让出上下文
-  { name: 'dm-play-gated', serial: true },      // A4 暂停→恢复同一视频不重建弹幕（home 源）
-  { name: 'ctl-detach-stop', serial: true },    // P1-3 拆壳即停：音量悬停保活链不得永续
-  { name: 'pump-chaincapped', serial: true },   // P1-4 链打满上限必须收口并回落随机流
-  { name: 'badge-listener', serial: true }      // P2-4 跨挂载只留一份推送监听（假 SDK 夹具）
+  { name: 'state-seek-ready', serial: true, bundle: 'release'},   // A1 平滑 seek 归位必须撤掉在途转圈定时器
+  { name: 'recover-refresh-watch', serial: true, bundle: 'debug'}, // A2 重解析换源同样要看门狗（~12s）
+  { name: 'deeplink-upctx', serial: true, bundle: 'debug'},     // A3 深链不属旧空间页列表时必须让出上下文
+  { name: 'deeplink-followctx', serial: true, bundle: 'debug'}, // A3 残留：深链不属旧关注视频流时必须让出上下文
+  { name: 'dm-play-gated', serial: true, bundle: 'debug'},      // A4 暂停→恢复同一视频不重建弹幕（home 源）
+  { name: 'ctl-detach-stop', serial: true, bundle: 'debug'},    // P1-3 拆壳即停：音量悬停保活链不得永续
+  { name: 'pump-chaincapped', serial: true, bundle: 'debug'},   // P1-4 链打满上限必须收口并回落随机流
+  { name: 'badge-listener', serial: true, bundle: 'debug'}      // P2-4 跨挂载只留一份推送监听（假 SDK 夹具）
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {
   return {
     name: c.name,
-    url: '/test/harness.html?case=' + c.name + (c.release ? '&bundle=release' : ''),
+    url: '/test/harness.html?case=' + c.name + (c.bundle === 'release' ? '&bundle=release' : ''),
     key: '__HARNESS_RESULTS__',
     serial: !!c.serial,
+    bundle: c.bundle,
     viewport: c.viewport // 少数场景需要特定视口（如 avoidW 护栏的窄态）；缺省用 Playwright 默认 1280×720
   };
 }).concat([{
   // dm-smoke 固定加载 debug 构建（依赖 testHook 模拟缝），自身确定性泵帧
   name: 'dm-smoke',
+  bundle: 'debug',
   url: '/test/dm-smoke.html',
   key: '__DM_RESULTS__',
   serial: true
 }, {
   // im-open 私信抽屉开启冒烟（debug 构建 testHook 模拟缝）：0.9.49 quoteChip 回归哨兵
   name: 'im-open',
+  bundle: 'debug',
   url: '/test/im-open.html',
   key: '__IM_RESULTS__',
   serial: true
@@ -335,7 +339,8 @@ while (!port || BLOCKED_PORTS.has(port)) {
 console.log('[info] 静态服务 http://127.0.0.1:' + port + '（docroot=' + ROOT + '）');
 
 var browser = await launch();
-var failed = 0, ran = 0, retried = 0;
+var failed = 0, ran = 0, retried = 0, skipped = 0;
+var ALLOW_SKIP = !!process.env.HARNESS_ALLOW_SKIP;
 
 // 单次尝试的结局：'pass' | 'assert'（断言红，**不重试**）| 'driver'（驱动层失败，可重试一次）
 async function runOnce(c) {
@@ -353,12 +358,18 @@ async function runOnce(c) {
       { timeout: 120000, polling: 100 }
     );
     var res = await page.evaluate(function (k) { return window[k]; }, c.key);
+    var skips = res.skips || [];
     var bad = res.results.filter(function (r) { return !r.pass; });
     var dt = ((Date.now() - t0) / 1000).toFixed(1) + 's';
+    // 断言失败优先于 skip：有红就是红，skip 不许掩盖真回归
     if (bad.length) {
       console.log('FAIL ' + c.name + '  (' + (res.results.length - bad.length) + '/' + res.results.length + ' 断言通过, ' + dt + ')');
       bad.forEach(function (r) { console.log('     ✗ ' + r.name + (r.info ? '  (' + r.info + ')' : '')); });
       return 'assert';
+    }
+    if (skips.length) {
+      console.log('SKIP ' + c.name + '  (' + skips.map(function (s) { return s.name + '：' + s.reason; }).join(' | ') + ')');
+      return 'skip';
     }
     console.log('PASS ' + c.name + '  (' + res.results.length + ' 断言, ' + dt + ')');
     return 'pass';
@@ -372,7 +383,7 @@ async function runOnce(c) {
 
 async function runOne(c) {
   var skip = HEADLESS_SKIP.filter(function (s) { return s.name === c.name; })[0];
-  if (skip) { console.log('SKIP ' + c.name + ' — ' + skip.reason); return; }
+  if (skip) { skipped++; console.log('SKIP ' + c.name + ' — ' + skip.reason); return; }
   var r = await runOnce(c);
   if (r === 'driver') {
     // 驱动层失败＝环境级偶发（页面子资源卡住，见下方归因更正）——重试一次；
@@ -383,6 +394,11 @@ async function runOne(c) {
   }
   ran++;
   if (r === 'pass') return;
+  if (r === 'skip') {
+    skipped++;
+    if (!ALLOW_SKIP) failed++; // 跳过不是通过：默认红；HARNESS_ALLOW_SKIP=1 仅作诊断阀
+    return;
+  }
   failed++;
 }
 
@@ -423,5 +439,7 @@ if (parCases.length) {
 
 await browser.close();
 server.close();
-console.log('—— ' + ran + ' 个场景，失败 ' + failed + (retried ? ('（' + retried + ' 个驱动层偶发已重试）') : '') + ' ——');
+console.log('—— ' + ran + ' 个场景，失败 ' + failed
+  + (skipped ? ('，跳过 ' + skipped + (ALLOW_SKIP ? '（HARNESS_ALLOW_SKIP 放行）' : '（按失败计）')) : '')
+  + (retried ? ('（' + retried + ' 个驱动层偶发已重试）') : '') + ' ——');
 process.exit(failed ? 1 : 0);

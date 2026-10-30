@@ -87,8 +87,11 @@
     window.__errs.push((e.message || 'res:' + (e.target && e.target.tagName || '?'))
       + ' @' + String(e.filename || '').split('/').pop() + ':' + (e.lineno || 0));
   }, true);
-  window.__HARNESS_RESULTS__ = { case: CASE, bundle: RELEASE ? 'release' : 'debug', results: [], done: false };
+  window.__HARNESS_RESULTS__ = { case: CASE, bundle: RELEASE ? 'release' : 'debug', results: [], skips: [], done: false };
   function rec(name, pass, info) { window.__HARNESS_RESULTS__.results.push({ name: name, pass: !!pass, info: info == null ? '' : String(info) }); }
+  // 0.9.299：跳过必须显式记账——不许再 rec(..., true, 'skip:...') 冒充通过。runner 默认把
+  // 有 skip 的场景判失败（HARNESS_ALLOW_SKIP=1 仅作诊断阀），让环境缺能力可见。
+  function skip(name, reason) { window.__HARNESS_RESULTS__.skips.push({ name: name, reason: String(reason || '') }); }
 
   // 走 home mock 的场景（其余默认 sv；显式 ?src=home 保持人工预览语义）
   // 0.9.89 起源记忆收编进设置层：写新键 acsv.s.source（JSON 标量）
@@ -317,7 +320,7 @@
       // 公共件经 __ACSV_H 传入；未知场景名显式失败（check-cases.mjs 静态拦截 + 页内兜底），
       // 不再出现「CASE 名拼错 → 零断言静默通过」
       window.__ACSV_H = {
-        rec: rec, q: q, slide: slide, cur: cur, key: key, wait: wait, waitFor: waitFor,
+        rec: rec, skip: skip, q: q, slide: slide, cur: cur, key: key, wait: wait, waitFor: waitFor,
         firstVideoReady: firstVideoReady, topbarInView: topbarInView, feed: feed,
         TEST: window.__ACSV_TEST__, CASE: CASE, RELEASE: RELEASE, finish: finish
       };

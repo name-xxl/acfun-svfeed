@@ -24,11 +24,11 @@ rec('recovers-after-sim-off', !!okBack);
   };
   // ---- stall-slow ----
   C['stall-slow'] = async function (h) {
-    var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
+    var rec = h.rec, skip = h.skip, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
       waitFor = h.waitFor, firstVideoReady = h.firstVideoReady, topbarInView = h.topbarInView,
       feed = h.feed, TEST = h.TEST, CASE = h.CASE, RELEASE = h.RELEASE, finish = h.finish;
 rec('first-video-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
-// DEGRADED 依赖帧节奏（EMA），rVFC 饿死的面板无法度量——先探针，饿死则诚实跳过
+// DEGRADED 依赖帧节奏（EMA），rVFC 饿死的面板无法度量——先探针，饿死则显式 skip（runner 判红）
 var vfcLive = await new Promise(function (res) {
   var v = slide(0).querySelector('video'), n = 0;
   if (!v || !v.requestVideoFrameCallback) return res(false);
@@ -36,8 +36,8 @@ var vfcLive = await new Promise(function (res) {
   v.requestVideoFrameCallback(tick);
   setTimeout(function () { res(n >= 3); }, 2500);
 });
-rec('rvfc-live', true, vfcLive ? 'live' : 'skip:rVFC-starved');
-if (!vfcLive) { finish(); return; }
+if (!vfcLive) { skip('rvfc-live', 'rVFC starved'); finish(); return; }
+rec('rvfc-live', true, 'live');
 TEST.call('setStallSim', 'slow');
 var okD = await waitFor(function () {
   return TEST.getStats()['stall.degraded'] >= 1;

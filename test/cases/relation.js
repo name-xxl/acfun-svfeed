@@ -15,6 +15,8 @@
   C['follow-groups'] = async function (h) {
     var rec = h.rec, q = h.q, wait = h.wait, waitFor = h.waitFor, key = h.key,
       TEST = h.TEST, feed = h.feed, firstVideoReady = h.firstVideoReady;
+    // 0.9.299：几何断言直接读源码常数（零依赖叶，浏览器动态 import 即可），不再手抄 240/120/10
+    var PP = await import('/src/popplace.js');
     document.cookie = 'auth_key=42_deadbeef'; // ui.selfUid：auth_key 前缀=uid
     var AV = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
     function member(id, name, gid, gname, st, friend) {
@@ -396,20 +398,21 @@
       var pop = q('.acsv-avwrap .acsv-pickpop'), b = q('.acsv-followbtn');
       if (!pop || !b) return false;
       var r = pop.getBoundingClientRect(), br = b.getBoundingClientRect();
-      if (!(r.top >= 4 && r.left >= 4 && r.bottom <= window.innerHeight - 4 && r.right <= window.innerWidth - 4)) return false;
-      var below = window.innerHeight - br.bottom - 6 - 8;
-      var above = br.top - 6 - 8;
-      var wantFlip = below < 240 && above > below;
+      if (!(r.top >= PP.PAD && r.left >= PP.PAD && r.bottom <= window.innerHeight - PP.PAD
+        && r.right <= window.innerWidth - PP.PAD)) return false;
+      var below = window.innerHeight - br.bottom - PP.GAP - PP.PAD;
+      var above = br.top - PP.GAP - PP.PAD;
+      var wantFlip = below < PP.MIN_BELOW && above > below;
       var flipped = r.bottom <= br.top + 1;
       if (wantFlip !== flipped) return false;
-      if (!(r.height <= Math.max(wantFlip ? above : below, 120) + 1)) return false;
+      if (!(r.height <= Math.max(wantFlip ? above : below, PP.A_MIN_H) + 1)) return false;
       var rail = q('.acsv-rail');
       var wrap = b.parentNode;
       var rr = rail ? rail.getBoundingClientRect() : null;
       var wr = wrap ? wrap.getBoundingClientRect() : null;
       if (!rr || !wr) return false;
       if (!(r.right <= rr.left + 0.5)) return false;
-      return Math.abs(r.right - (wr.left - 10)) <= 2;
+      return Math.abs(r.right - (wr.left - PP.GAP_H)) <= 2;
     })(), (function () {
       var pop = q('.acsv-avwrap .acsv-pickpop'), b = q('.acsv-followbtn');
       if (!pop || !b) return 'no-pop';

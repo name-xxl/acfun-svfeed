@@ -4,6 +4,18 @@
 //（test/check-cases.mjs 双向校验，漏登记/多登记直接失败）
 (function () {
   var C = window.__ACSV_CASES__ = window.__ACSV_CASES__ || {};
+  // ---- release-smoke（0.9.299）----
+  // 正式产物的最小行为冒烟：不读 TEST/mock 缝，只钉「挂载 + 顶栏 + 首条起播 + dock 清单」。
+  // 用户装的就是 release；此前 87 个场景只有 2 个跑它。
+  C['release-smoke'] = async function (h) {
+    var rec = h.rec, q = h.q, waitFor = h.waitFor, firstVideoReady = h.firstVideoReady;
+    rec('rs-root', !!q('#acsv-root'));
+    rec('rs-topbar', !!q('.acsv-top'));
+    rec('rs-dock', document.querySelectorAll('.acsv-dock-item[data-view]').length >= 6,
+      'n=' + document.querySelectorAll('.acsv-dock-item[data-view]').length);
+    rec('rs-first-playing', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
+    rec('rs-slide', !!q('.acsv-slide[data-idx="0"]'));
+  };
   // ---- view-my ----
   C['view-my'] = async function (h) {
     var rec = h.rec, q = h.q, slide = h.slide, cur = h.cur, key = h.key, wait = h.wait,
