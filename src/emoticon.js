@@ -10,6 +10,9 @@ import { el, closeOnOutsideClick } from './ui.js';
 // map[id]={url,big,name,pkg} 供 UBB 渲染；packs=[{name,items}] 供面板分包展示
 export var EmotionMap = { loaded: false, loading: null, map: {}, packs: [] };
 
+// 「最近使用」分包 tab 名（本件三写收口，0.9.308 扫描批③）
+var RECENT_TAB = '最近使用';
+
 // ---------- UBB 表情三件（0.9.105 自 ubb.js 收口表情域） ----------
 // 图床白名单走 CDN_URL_OK（0.9.302 沉 imgurl.js 单源——此前与评论 [img] 各持一份逐字节
 // 相同的正则；「表情与评论图两张网不共用」的旧定语不实，两张网本共用同一字符集）
@@ -236,13 +239,13 @@ export function renderEmotPanel(panel, insert) {
   }
   var recent = emotReadRecent().map(emotFind).filter(Boolean);
   var tabNames = [];
-  if (recent.length) tabNames.push('最近使用');
+  if (recent.length) tabNames.push(RECENT_TAB);
   packs.forEach(function (p) { tabNames.push(p.name); });
   var tab = panel._tab && tabNames.indexOf(panel._tab) !== -1 ? panel._tab : tabNames[0];
   // 内容区（可滚动）
   var body = el('div', 'acsv-emot-body');
   body.appendChild(el('div', 'acsv-emot-head', tab));
-  if (tab === '最近使用') body.appendChild(gridOf(recent));
+  if (tab === RECENT_TAB) body.appendChild(gridOf(recent));
   else packs.forEach(function (p) { if (p.name === tab) body.appendChild(gridOf(p.items)); });
   panel.appendChild(body);
   // 底部包切换条（固定，不随内容滚动）
@@ -263,7 +266,7 @@ export function renderEmotPanel(panel, insert) {
     });
     strip.appendChild(tb);
   }
-  if (recent.length) thumb('最近使用', recent[0].url);
+  if (recent.length) thumb(RECENT_TAB, recent[0].url);
   packs.forEach(function (p) { thumb(p.name, p.items[0].url); });
   var prev = el('button', 'acsv-emot-page', '‹');
   var next = el('button', 'acsv-emot-page', '›');

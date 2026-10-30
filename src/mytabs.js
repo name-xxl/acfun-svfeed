@@ -14,6 +14,7 @@ import { gridCardOf, skeletonRows } from './cards.js';
 import { createListTail } from './listtail.js'; // 尾部单源（0.9.219：我的页四档统一自动触底）
 import { createPageLoader } from './pageloader.js'; // 翻页骨架单源（0.9.259：历史档）
 import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
+import { CHIP_SM } from './chipkit.js'; // 卡面动作钮借 chip 小档皮肤，类串单源（0.9.308）
 import { listWaiting, cancelWaiting } from './watchlaterapi.js';
 import { deleteHistory, clearHistory, HISTORY_TYPES_FORM } from './historyapi.js';
 import { openConfirmPop } from './pickpop.js';
@@ -153,7 +154,7 @@ export function buildHistory(panel, scroller) {
     cell.appendChild(gridCardOf(pi, function () { return lctx.ctxOf(pi); }));
     if (pi.comboId) {
       var acts = el('div', 'acsv-favacts acsv-hisacts');
-      var rm = el('button', 'acsv-vchip sm', '删除');
+      var rm = el('button', CHIP_SM, '删除');
       rm.type = 'button';
       rm.addEventListener('click', function (ev) {
         ev.stopPropagation();
@@ -381,7 +382,7 @@ export function buildFav(panel, scroller) {
     var box = el('div', 'acsv-favcell');
     box.appendChild(gridCardOf(pi, function () { return lctx.ctxOf(pi); }));
     var acts = el('div', 'acsv-favacts');
-    var mv = el('button', 'acsv-vchip sm', '移动');
+    var mv = el('button', CHIP_SM, '移动');
     mv.type = 'button';
     mv.addEventListener('click', function (ev) {
       ev.stopPropagation();
@@ -397,7 +398,7 @@ export function buildFav(panel, scroller) {
         }
       });
     });
-    var rm = el('button', 'acsv-vchip sm', '移除收藏');
+    var rm = el('button', CHIP_SM, '移除收藏');
     rm.type = 'button';
     rm.addEventListener('click', function (ev) {
       ev.stopPropagation();

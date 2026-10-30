@@ -24,6 +24,7 @@ var session = freshSession();
 var H = createHist();
 var levels = [];    // 级别栈：levels[0]=第 1 级（视频播放器），栈顶=当前
 var queue = [];     // walk 会话里 seq 模式一次多出的候选（随机模式恒空）
+var END_HINT = '已经是最后一条'; // 到底提示（本件三写收口，0.9.308 扫描批）
 var stepping = false;
 var curItem = null; // 层内当前条目（换条/游走的锚；mountSlide 经 setCurItem 镜像）
 var MAX_LEVELS = 2; // 封顶（0.9.175 用户裁决）：列表播放器只播自己那份列表，不再压级
@@ -148,11 +149,11 @@ function stepNext() {
         stepping = false;
         if (!io.alive()) return; // 期间层已拆
         if (added && added.length) { session.list = session.list.concat(added); stepNext(); }
-        else { io.toast('已经是最后一条'); io.syncArrows(); }
-      }, function () { stepping = false; io.toast('已经是最后一条'); io.syncArrows(); });
+        else { io.toast(END_HINT); io.syncArrows(); }
+      }, function () { stepping = false; io.toast(END_HINT); io.syncArrows(); });
       return true;
     }
-    io.toast('已经是最后一条');
+    io.toast(END_HINT);
     return false;
   }
   // walk（相关池；分区默认。seq 模式先吃队列，随机模式每次向池要一批）

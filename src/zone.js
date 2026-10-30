@@ -2,7 +2,7 @@ import { CFG } from './cfg.js';
 import { el, singleFlight } from './ui.js';
 import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 import { LOADING_LABEL } from './pageloader.js'; // 「加载中…」文案单源（0.9.305 批⑤②）
-import { mountChipGroup } from './chipkit.js'; // chip 点击协议单源（0.9.305 批⑤①）
+import { mountChipGroup, CHIP_SM } from './chipkit.js'; // chip 协议/小档皮肤单源（0.9.305⑤/0.9.308）
 import { requestRead } from './net.js';
 import { postForm } from './appapi.js';
 import { fetchRankBoard } from './rankapi.js';
@@ -101,7 +101,7 @@ function buildZoneView(body) {
       // 往返后 curSub 未清时会与实选子频道漂移（高亮说谎）；现初值与短路同问 isOn，
       // 高亮恒等于实际生效的过滤档
       mountChipGroup({
-        host: subChips, cls: 'acsv-vchip sm',
+        host: subChips, cls: CHIP_SM,
         items: [{ label: '全部', data: null }].concat(subs.map(function (s) {
           return { label: s.name, data: s.id };
         })),
@@ -209,7 +209,7 @@ function buildZoneView(body) {
     }
   });
   mountChipGroup({
-    host: periodChips, cls: 'acsv-vchip sm',
+    host: periodChips, cls: CHIP_SM,
     items: CFG.view.periods.map(function (p) { return { label: CFG.view.periodNames[p] || p, data: p }; }),
     isOn: function (p) { return curPeriod === p; },
     onPick: function (p) { curPeriod = p; load(); }

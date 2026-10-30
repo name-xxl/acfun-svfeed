@@ -21,6 +21,10 @@ import { imgInto } from './imgload.js';
 import { renderCommentHtml } from './ubb.js';
 import { nameColorCss, frameUrlOf } from './uplook.js'; // 观感纯函数（0.9.134；字段真机核对在册；0.9.160 叶子出库）
 
+// 评论作者匿名名（本件四写收口，0.9.308 扫描批；与 imsend「A站用户」（联系人缺席名）
+// 语义不同不并表——0.9.305 划界在册）
+var ANON_NAME = 'AcFun用户';
+
 // 楼中楼数组规整（subCommentsMap 三形态：数组 / {subComments} / 缺）
 function normalizeSubs(subMap, cid) {
   if (!subMap) return [];
@@ -86,12 +90,12 @@ export function commentItemOf(c, subMap, opts) {
   var name = el('div', 'acsv-cname');
   var nameChild = null;
   if (homeUrl) {
-    var na = el('a', null, c.userName || 'AcFun用户');
+    var na = el('a', null, c.userName || ANON_NAME);
     na.href = homeUrl; na.target = '_blank';
     name.appendChild(na);
     nameChild = na;
   } else {
-    nameChild = el('span', null, c.userName || 'AcFun用户');
+    nameChild = el('span', null, c.userName || ANON_NAME);
     name.appendChild(nameChild);
   }
   // 名字等级色（0.9.134，真机 nameColor 0/1/2）：2=紫、1=红、0/缺失不加色（根+楼中楼同款）
@@ -138,14 +142,14 @@ export function commentItemOf(c, subMap, opts) {
     replyBtn = el('span', 'acsv-creplybtn');
     replyBtn.appendChild(glyph(GLYPHS.feedComment));
     replyBtn.appendChild(document.createTextNode('回复'));
-    replyBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户' };
+    replyBtn._target = { id: String(c.commentId), name: c.userName || ANON_NAME };
     meta.appendChild(replyBtn);
     // 转发到私信（0.9.50，官方无此入口）：按钮只挂数据引用，弹层与发送在 commentListClick 委托
     var fwdBtn = el('span', 'acsv-cfwdbtn');
     fwdBtn.appendChild(glyph(GLYPHS.feedRepost));
     fwdBtn.appendChild(document.createTextNode('转发'));
     fwdBtn.title = '转发这条评论到私信';
-    fwdBtn._target = { id: String(c.commentId), name: c.userName || 'AcFun用户', content: c.content || '' };
+    fwdBtn._target = { id: String(c.commentId), name: c.userName || ANON_NAME, content: c.content || '' };
     meta.appendChild(fwdBtn);
     // 删除自己的评论（0.9.279）：可见性/归属由管线 opts.canDelete 注入（同 ipTag/devTag 纪律），
     // 点击行为在 commentListClick 委托；kit 不 import 交互/弹层。

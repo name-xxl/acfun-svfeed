@@ -1,10 +1,12 @@
 /*
- * 通用重复扫描器（2026-10-30，用户追问「能否机械判定」）——把卫生审计的判定口径
- * 变成不依赖预先知道答案的网：定向棘轮（check-dialect/liststate/zlayers）只守「已知事实」，
- * 本件负责**发现未知**。两扫：
+ * 通用重复扫描器（2026-10-30，用户追问「能否机械判定」；0.9.308 补第三扫）——把卫生审计
+ * 的判定口径变成不依赖预先知道答案的网：定向棘轮（check-dialect/liststate/zlayers）只守
+ * 「已知事实」，本件负责**发现未知**。三扫：
  *   ① 字符串字面跨文件重复：CJK 用户文案 / ≥12 字符协议·URL·键串（排除 web 惯用词表），
  *      同一字面出现 ≥2 文件即候选（README 判定口径 1：字面≥2处即病灶，一致只是漂移前态）。
- *   ② 代码克隆：注释剥离 + 空白归一后，≥K 连续有效行的同形窗口跨文件出现即候选。
+ *   ② 代码克隆：注释剥离 + 空白归一后，≥K 连续有效行的同形窗口跨文件出现即候选；
+ *   ③ 同文件 ≥3 写（0.9.308）：文案串/长协议串在本件内第 3 次出现即候选（跨文件网看不见
+ *      的角落；数字面实测同名不同义淹信号，有意不扫，见 CHANGELOG 0.9.308 盲区测量）。
  * 两种模式：
  *   node test/check-hygiene.mjs            → 报告模式（永远 exit 0，出候选清单供人判）
  *   node test/check-hygiene.mjs --gate     → 棘轮模式：候选须全在 test/hygiene-baseline.json
@@ -69,6 +71,32 @@ for (const f of files) {
 const dups = [...stringMap].filter(([, s]) => s.size >= 2)
   .sort((a, b) => b[1].size - a[1].size);
 
+// ---------- ③ 同文件内重复字面（≥3 写，跨文件网看不见的角落） ----------
+// 排除：cssraw.js（CSS 模板本体，重复样式段是设计）；缝名 {{…}}；首尾非标点成分的「胶水串」
+// （", label: " "</a>" "<i …>" 这类拼装尾/HTML 骨架——收常量价值低、噪声高，如实放弃这条边）；
+// CJK ≤2 字。合格判据同判定口径 1：本件内第 3 次写同一串，就该有常数。
+const idups = []; // {file, lit, n}
+for (const f of files) {
+  if (f === 'cssraw.js') continue;
+  const code = stripComments(srcOf(f));
+  const cnt = new Map();
+  let m;
+  const re3 = /'([^'\n]{4,})'|"([^"\n]{4,})"|`([^`\n$]{4,})`/g;
+  while ((m = re3.exec(code))) {
+    const lit = m[1] !== undefined ? m[1] : (m[2] !== undefined ? m[2] : m[3]);
+    if (IDIOM.has(lit) || /^\.\//.test(lit) || lit.includes('{{') || /\}\}$/.test(lit)) continue;
+    // 胶水/骨架尾排除只对 ASCII 串判（JS 的 \W 含 CJK——中文文案首字不是标点！）
+    if (!HAS_CJK.test(lit) && /^\W|\W$/.test(lit)) continue;
+    // 题材聚焦（同判定口径 1 的本意）：CJK 文案串（≥4 字）或含非字面字符的长协议串（≥16）——
+    // DOM tag 名、状态机串（'disposed'×18）、类型字面量属正常多写，不是「该常量化」的文案/协议
+    if (HAS_CJK.test(lit) ? lit.length < 4
+      : !(lit.length >= 16 && /[^A-Za-z0-9_ .\-:]/.test(lit))) continue;
+    cnt.set(lit, (cnt.get(lit) || 0) + 1);
+  }
+  for (const [lit, n] of cnt) if (n >= 3) idups.push({ file: f, lit, n });
+}
+idups.sort((a, b) => b.n - a.n);
+
 // ---------- ② 代码克隆（跨文件同形窗口） ----------
 function sigLines(f) {
   const out = [];
@@ -122,6 +150,13 @@ for (const [lit, s] of dups) {
   const tag = inBase(key) ? '登记' : 'NEW ';
   console.log('  [' + tag + '] ' + JSON.stringify(lit.length > 40 ? lit.slice(0, 40) + '…' : lit)
     + '  ×' + s.size + '  ' + [...s].join(','));
+}
+console.log('—— ③ 同文件内 ≥3 写 ' + idups.length + ' 项 ——');
+for (const d of idups) {
+  const key = 'idup:' + d.file + ':' + d.lit;
+  if (!inBase(key)) unregistered.push(key);
+  console.log('  [' + (inBase(key) ? '登记' : 'NEW ') + '] ' + d.file + '  ×' + d.n
+    + '  ' + JSON.stringify(d.lit.length > 44 ? d.lit.slice(0, 44) + '…' : d.lit));
 }
 console.log('—— ② 跨文件代码克隆 ' + clones.length + ' 簇 ——');
 for (const c of clones) {

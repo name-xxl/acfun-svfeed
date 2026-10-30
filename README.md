@@ -369,7 +369,7 @@ npm run check        # 仅静态校验（CI 在 build 后跑）：场景登记�
                      #   动态到底，0.9.300 起、0.9.305 批⑤扩〕）/
                      #   z 档实体↔注释一致性 + gridMin/gridGap→SEAMS 消费闸（check-zlayers，0.9.303 起）/
                      #   协议方言字面单源（no_more/令牌串/裸 resourceType，check-dialect，0.9.304 起）/
-                     #   通用重复扫描（跨文件字面+代码克隆，check-hygiene 棘轮+基线，0.9.307 起）/
+                     #   通用重复扫描（跨文件字面+同文件≥3写+代码克隆，check-hygiene 棘轮+基线，0.9.307/308 起）/
                      #   z 档实体↔注释一致性 + gridMin/gridGap→SEAMS 消费闸（0.9.303 起）/
                      #   slide/item 字段契约（唯 domfields.js 可登记，0.9.297 起）/
                      #   契约面类型检查（tsc，0.9.188 起）
@@ -407,6 +407,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | 「注释即权威表」（z 档 / 判据 / 同源宣称） | 实体为准（overlay 头注降级为摘要）；判据导出单源（pagekind.SPACE_UID_RE·memberCenterPath、imgurl.CDN_URL_OK、immsg.sharePreviewOf） | `check-zlayers`（z 实体表 + 注释单档词）+ 源码字面扫描防复制闸（unit/pagekind、unit/imgurl） |
 | 字段契约 / 依赖方向 / 视图与设置注册 | `domfields.js`、`check-direction` 分类桶、`viewreg`/SCHEMA/表项工厂 | `check-contract` / `check-deps` / `check-direction` |
 | 监听器面 / 浮层键盘面 | `lifecycle.createScope` + `overlayOpen`（modal 让渡） | `check-listeners` / `check-overlay` |
+| **通用发现层**（不依赖预知的网：跨文件字面 / 同文件≥3写 / ≥6行克隆） | 分诊后收口进上列各行出口；「有意并存」进 `test/hygiene-baseline.json` 带 why（只缩不胖） | `check-hygiene --gate`（报告模式 `npm run hygiene`）——已知不机械化的三面：同值数字（重名噪声）、测试文案手抄（断言即闸）、同义异词（需人判） |
 
 #### 发布（Release）
 
@@ -776,7 +777,7 @@ flowchart LR
   interact --> appapi
   release --> overlay & settings
   mypage --> appapi & followadmin & imgload & imgurl & momentapi & rowkit & squarefeed & timefmt & viewreg & mytabs & signapi & signpanel & toastmsg
-  mytabs --> appapi & cards & favapi & favpop & listtail & meadmin & nameval & pageloader & pickpop & watchlaterapi & historyapi
+  mytabs --> chipkit & appapi & cards & favapi & favpop & listtail & meadmin & nameval & pageloader & pickpop & watchlaterapi & historyapi
   meadmin --> dbg & imicons & overlay & pickpop & state
   followadmin --> cards & imicons & imgload & listtail & meadmin & nameval & overlay & pageloader & pickpop & relationapi & toastmsg
   watchlaterapi --> appapi & cfg & dbg & net
