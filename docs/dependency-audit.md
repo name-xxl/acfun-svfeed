@@ -621,3 +621,14 @@ feedstore.js → player.js → input.js → feedstore.js
   README 删除 `boot --> pubentry` 死边，新增 `domfields` 节点与 `attach --> domfields` 边。
 - **复点**：`node test/check-direction.mjs` 分类覆盖 25/12/8/61/3/20 + 豁免 2（src 131），
   三口径 0/0/0；`check-deps` 417 图边 / 695 import 边 OK。
+
+## 0.9.298：签到黄历入浮层栈（signpanel → overlay）
+
+- **新增边**：`signpanel → overlay`（FEATURE → INFRA，合法向下）；README 图同步。
+  `signpanel` 去掉自有 `document` keydown，Esc/模态键交 overlay 单点裁决；`mypage` 在
+  `myTeardown` 调 `closeSignAlmanac()`，视图卸载即关层。
+- **新增门禁**：`test/check-overlay.mjs`——`window/document.addEventListener('keydown')`
+  只许 overlay/input/natpanel 三处白名单；新浮层不走 `overlayOpen` 即红。入 `npm run check`。
+- **反跑**：feature 文件临时加 keydown → exit 1；删 `signpanel --> overlay` 图边 →
+  `check-deps` exit 1；恢复全绿。
+- **复点**：`view-my` 90 断言（+9）全绿；harness 89 场景 0 失败；三口径 0/0/0。

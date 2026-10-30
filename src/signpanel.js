@@ -4,7 +4,11 @@
 // 竖排宜忌条幅（右→左读、超长照 App 裁切）、特粗宋体运势、「今日奖励：香蕉xN」+「签到规则 ›」。
 // 点「签到规则」同卡翻面（App SignAlmanacDialogFragment 同款）：‹返回 + 标题 + 5 条规则原文。
 // 关闭：点蒙层 / 「取消」/ Esc。App 二进制素材（吉祥物立绘）不入仓；无分享面板。
+// 0.9.298：**入浮层栈**（overlayOpen modal）——此前自带 document keydown，与 0.9.254
+// natpanel 同类病灶（叠层时 Esc 连关两层、视图 teardown 后单例 host 残留）。Esc 单点裁决
+// 与整栈卸载交 overlay；本件只保留 DOM 构建与 close 清理。
 import { el } from './ui.js';
+import { overlayOpen, overlayClose } from './overlay.js';
 
 var RULES = [
   '签到即可获得香蕉奖励；连续签到可获得随机香蕉礼包',
@@ -17,7 +21,7 @@ var MONTH_ZH = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '
 var MONTH_EN = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 var host = null;   // 单实例：同一时刻只开一个弹窗
-var escOff = null;
+var LAYER_ID = 'signalmanac';
 
 function rulePage() {
   var page = el('div', 'acsv-salm-rules');
@@ -87,27 +91,22 @@ export function openSignAlmanac(alm, opts) {
   card.appendChild(rulePage());
   var cancel = el('button', 'acsv-salm-close', '取消');
   cancel.type = 'button';
-  cancel.addEventListener('click', close);
+  cancel.addEventListener('click', closeSignAlmanac);
   host.appendChild(card);
   host.appendChild(cancel);
   host.addEventListener('click', function (e) {
-    if (e.target === host) close(); // 蒙层空白处关闭（卡内点击不冒泡到关闭）
+    if (e.target === host) closeSignAlmanac(); // 蒙层空白处关闭（卡内点击不冒泡到关闭）
   });
-  escOff = function (e) { if (e.key === 'Escape') close(); };
-  document.addEventListener('keydown', escOff);
   (document.getElementById('acsv-root') || document.body).appendChild(host);
+  overlayOpen({ id: LAYER_ID, modal: true, close: close });
   return true;
 }
 
 export function closeSignAlmanac() {
-  close();
+  overlayClose(LAYER_ID); // Esc 路径已出栈时空转；显式关闭路径由此同步栈
 }
 
 function close() {
-  if (escOff) {
-    document.removeEventListener('keydown', escOff);
-    escOff = null;
-  }
   if (host) {
     if (host.parentNode) host.parentNode.removeChild(host);
     host = null;

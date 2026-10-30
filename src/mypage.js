@@ -13,7 +13,7 @@ import { buildHistory, buildFav, buildWatchLater } from './mytabs.js'; // 我的
 import { buildFollowAdmin } from './followadmin.js'; // 关注列表档（0.9.289 对齐原生 /member/feeds/following）
 // 签到（0.9.277）：资料头右侧按钮（App「已签到」药丸同位）+ 黄历弹窗；数据/写链全在 signapi
 import { signIn, getSignInInfos, fetchAlmanac } from './signapi.js';
-import { openSignAlmanac } from './signpanel.js';
+import { openSignAlmanac, closeSignAlmanac } from './signpanel.js';
 import { errSignLogin, errSignFail, errSignAlmanac } from './toastmsg.js';
 
 // ---------- 我的视图（0.9.62 起；0.9.69 抖音式个人主页改造）----------
@@ -203,6 +203,7 @@ function buildMoments(panel, scroller) {
 
 // 视图卸载：停列表机械（清轮询+解绑滚动）——与 squareview 同款处置
 function myTeardown() {
+  closeSignAlmanac(); // 0.9.298：黄历浮层随视图卸载关闭，防单例 host 残留
   if (meFeed) { meFeed.stop(); meFeed = null; }
   if (pubFab) { pubFab.remove(); pubFab = null; }
 }

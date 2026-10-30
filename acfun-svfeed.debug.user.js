@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.297-debug
+// @version      0.9.298-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 103755;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.297-debug" : "",
+          ver: true ? "0.9.298-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -675,7 +675,7 @@ window.__ACSV_CSS_LEN__ = 103755;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.297-debug" : "";
+  var APP_VERSION = true ? "0.9.298-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -8168,7 +8168,7 @@ window.__ACSV_CSS_LEN__ = 103755;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.297-debug" : "",
+      version: true ? "0.9.298-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -15131,7 +15131,7 @@ window.__ACSV_CSS_LEN__ = 103755;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.297-debug" : "");
+    return normVer(true ? "0.9.298-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -18769,7 +18769,7 @@ window.__ACSV_CSS_LEN__ = 103755;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.297-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.298-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -21219,7 +21219,7 @@ window.__ACSV_CSS_LEN__ = 103755;
   var MONTH_ZH = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"];
   var MONTH_EN = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
   var host4 = null;
-  var escOff = null;
+  var LAYER_ID = "signalmanac";
   function rulePage() {
     var page = el("div", "acsv-salm-rules");
     var bk = el("span", "acsv-salm-bk", "返回");
@@ -21290,24 +21290,20 @@ window.__ACSV_CSS_LEN__ = 103755;
     card.appendChild(rulePage());
     var cancel = el("button", "acsv-salm-close", "取消");
     cancel.type = "button";
-    cancel.addEventListener("click", close);
+    cancel.addEventListener("click", closeSignAlmanac);
     host4.appendChild(card);
     host4.appendChild(cancel);
     host4.addEventListener("click", function(e) {
-      if (e.target === host4) close();
+      if (e.target === host4) closeSignAlmanac();
     });
-    escOff = function(e) {
-      if (e.key === "Escape") close();
-    };
-    document.addEventListener("keydown", escOff);
     (document.getElementById("acsv-root") || document.body).appendChild(host4);
+    overlayOpen({ id: LAYER_ID, modal: true, close });
     return true;
   }
+  function closeSignAlmanac() {
+    overlayClose(LAYER_ID);
+  }
   function close() {
-    if (escOff) {
-      document.removeEventListener("keydown", escOff);
-      escOff = null;
-    }
     if (host4) {
       if (host4.parentNode) host4.parentNode.removeChild(host4);
       host4 = null;
@@ -21478,6 +21474,7 @@ window.__ACSV_CSS_LEN__ = 103755;
     });
   }
   function myTeardown() {
+    closeSignAlmanac();
     if (meFeed) {
       meFeed.stop();
       meFeed = null;

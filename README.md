@@ -346,6 +346,7 @@ npm run check        # 仅静态校验（CI 在 build 后跑）：场景登记�
                      #   （window/document 监听未撤且未标 singleton-listener 即红，0.9.264 起）/
                      #   偏好写点棘轮（pb 记忆字段唯 playback.js 可写，0.9.285 起）/
                      #   文档机械事实（模块表覆盖/竖线/空行，0.9.297 起）/
+                     #   浮层键盘监听白名单（新浮层只许 overlayOpen，0.9.298 起）/
                      #   slide/item 字段契约（唯 domfields.js 可登记，0.9.297 起）/
                      #   契约面类型检查（tsc，0.9.188 起）
 npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSDoc 查类型；单跑用）
@@ -658,6 +659,7 @@ flowchart LR
   feedstore --> api & feedctx
   momentapi --> cfg & net & panelitem
   signapi --> appapi & settings & timefmt
+  signpanel --> overlay
   momentpost --> appapi & cfg & net
   inputbar --> emoticon & imicons
   momenteditor --> cards & cfg & dbg & emoticon & imgload & inputbar & momentapi & momentpost & overlay & toastmsg & ui & upload

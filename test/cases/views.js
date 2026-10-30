@@ -43,7 +43,16 @@ window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, {
       user: { userId: 9, name: '测试UP', headUrl: '', isFollowing: true }
     }]
   },
-  'app/cancelWaiting': { result: 0 }
+  'app/cancelWaiting': { result: 0 },
+  // 签到域（0.9.298 黄历浮层入栈断言）：已签态 → 点按钮走 reopen（getSignInInfos+黄历）
+  'user/getSignInInfos': { result: 0, hasSignedIn: true, infos: [] },
+  'user/updateAlmanacFortune': { result: 0, almanac: {
+    fortune: '大吉', suits: ['宜一', '宜二', '宜三'], avoids: ['忌一', '忌二', '忌三'],
+    guideMsg: '', todayRecoGuideMsg: '', todayRecoResourceId: 0, todayRecoResourceType: 0
+  } },
+  'user/signIn': { result: 0, bananaDelta: 6, continuousDays: 1, almanac: {
+    fortune: '大吉', suits: ['宜一', '宜二', '宜三'], avoids: ['忌一', '忌二', '忌三']
+  } }
 });
 // 播放层条目直挂缝（webm 套 hls 会死在解析）。0.9.82 起值可为对象 {id,name,head,delay}：
 // 连带模拟 douga/info 回包的作者部分（真实回包走 user.headUrl，见 my-sample 的实测形状）。
@@ -86,6 +95,29 @@ rec('me-card', !!(await waitFor(function () {
 }, 8000)));
 rec('me-card-id-sign', /UID：42/.test((q('.acsv-mecard-id') || {}).textContent || '')
   && (q('.acsv-mecard-sign') || {}).textContent === '签名第一行 第二行');
+// ---- 签到黄历浮层（0.9.298 入 overlay 栈）----
+// 钉三件事：面板在栈内（modal）；Esc 单点关且栈同步清；关后可再开（host 单例已复位）
+function signLayer() {
+  try { return (TEST.call('overlay') || []).indexOf('signalmanac:m') >= 0; } catch (e) { return false; }
+}
+var signBtn = await waitFor(function () { return q('.acsv-signbtn'); }, 5000);
+rec('sign-btn-signed', !!signBtn && signBtn.textContent === '今日已签',
+  signBtn ? signBtn.textContent : 'no-btn');
+signBtn.click();
+rec('sign-panel-open', !!(await waitFor(function () {
+  var h = q('.acsv-salm-host');
+  return h && h.getBoundingClientRect().width > 0;
+}, 5000)));
+rec('sign-panel-overlay', signLayer());
+key('Escape');
+rec('sign-panel-esc', !!(await waitFor(function () { return !q('.acsv-salm-host'); }, 3000))
+  && !signLayer());
+signBtn.click();
+rec('sign-panel-reopen', !!(await waitFor(function () { return q('.acsv-salm-host'); }, 5000)));
+var signHost = q('.acsv-salm-host');
+if (signHost) signHost.click(); // 蒙层空白处关闭
+rec('sign-panel-mask-close', !!(await waitFor(function () { return !q('.acsv-salm-host'); }, 3000))
+  && !signLayer());
 // ---- 动态 tab（0.9.218 用户裁决：排第 1 且默认落地）----
 // 顺序断言看按钮序列（键序=按钮序的机器证据），默认断言看 panel display + 选中类
 rec('moments-tab-first', (function () {
@@ -656,6 +688,21 @@ rec('hold-restore-invariants', q('.acsv-view-body') === myBody
   && window.__ACSV_HIST_CALLS__ === histCalls0
   && document.querySelectorAll('.acsv-view-held').length === 0,
   'scrollTop=' + Math.round(q('.acsv-view-body').scrollTop) + ' histCalls=' + window.__ACSV_HIST_CALLS__);
+// 黄历浮层随视图 teardown 关闭（0.9.298）：开着卡切回竖刷，host 必须摘、overlay 栈必须清；
+// 再进我的页按钮仍可开（单例 host 已复位）
+var signBtn2 = q('.acsv-signbtn');
+if (signBtn2) signBtn2.click();
+rec('sign-panel-before-teardown', !!(await waitFor(function () {
+  return q('.acsv-salm-host');
+}, 5000)));
+location.hash = 'svfeed';
+rec('sign-panel-teardown', !!(await waitFor(function () {
+  return !q('.acsv-salm-host');
+}, 8000)) && !signLayer());
+location.hash = 'svfeed/my';
+rec('sign-panel-after-reenter', !!(await waitFor(function () {
+  return q('.acsv-signbtn') && q('.acsv-view');
+}, 8000)));
 await wait(400); // 越过进视图前残留的 syncHash 150ms 定时器窗口（真实用户不可达的时序）
 key('Escape');
 rec('esc-back-to-feed', !!(await waitFor(function () {

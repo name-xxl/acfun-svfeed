@@ -5,6 +5,32 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.298（2026-10-30）· 签到黄历入浮层栈——收掉「浮层自带 keydown」第二次出血
+
+**病灶（0.9.296 复核，与 0.9.254 natpanel 同一道缝）**：`signpanel.js` 用
+`document.addEventListener('keydown', escOff)` 自持 Esc；0.9.254 已实证这类监听在叠层时
+一次 Esc 连关两层。它还有两个互相咬合的生命周期缺口：`openSignAlmanac` 用 `if (host) return false`
+做单例，`closeSignAlmanac` 全仓零调用，`mypage.myTeardown` 不关它——`#acsv-root` 被拆/视图
+重挂后 host 变量仍非空，签到按钮再也打不开黄历（直到用户按 Esc 走它的私有监听）。
+
+**修法**：
+1. `signpanel.js` 入 overlay 栈：`overlayOpen({ id:'signalmanac', modal:true, close })`；
+   删除自有 keydown/`escOff`，关闭按钮/蒙层/`closeSignAlmanac` 一律 `overlayClose('signalmanac')`
+   （显式路径同步栈、Esc 路径已出栈时空转）；`close()` 只摘 DOM 与清 host。
+2. `mypage.myTeardown` 调 `closeSignAlmanac()`——视图卸载即关层，单例 host 复位；脚本级
+   `overlayTeardown` 继续兜底。
+3. 新增 `test/check-overlay.mjs`：`window/document.addEventListener('keydown')` 只许出现在
+   overlay/input/natpanel 三处白名单（各带理由），其余 feature 模块即红——把「新浮层走
+   overlayOpen」从注释约定变成 CI 门禁。入 `npm run check` 链。
+
+**测试**：
+- `view-my` 81 → **90 断言**（+9）：已签态按钮 → 面板在 `signalmanac:m` 栈内 → 合成 Esc
+  只关一层且栈清 → 再开成功（host 复位）→ 蒙层关；随后开着卡切回竖刷，钉
+  `sign-panel-teardown`（host 摘、栈清）与 `sign-panel-after-reenter`（重进仍可开）。
+- **摘修复反跑**：临时给 feature 模块加 `document.addEventListener('keydown', …)` →
+  `check-overlay` exit 1；临时删 `signpanel --> overlay` 图边 → `check-deps` exit 1；恢复全绿。
+- 单测 456/456；harness 89 场景 0 失败；lint/check（含 tsc）全绿。无视觉形态变化，不出预览。
+
 ### 0.9.297（2026-10-30）· 结构卫生批——字段契约数据化 + 分类/依赖/文档三道门禁补漏
 
 **病灶（0.9.296 可维护性复核，按 AGENTS 规矩 7 三问归因）**：
