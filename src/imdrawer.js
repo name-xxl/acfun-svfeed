@@ -6,7 +6,7 @@ import { testHook } from './dbg.js';
 import { ensureIm, isLogined, imShutdown } from './imsdk.js';
 import { prewarmIm } from './imimage.js';
 import { stopBadge } from './imbadge.js'; // 未读徽标件（0.9.163 自本模块拆出；teardown 经它收清）
-import { fallbackName } from './immsg.js'; // 回落名口径单源（0.9.305 批6）
+import { fallbackName , CHAT_PLACEHOLDER} from './immsg.js'; // 回落名口径单源（0.9.305 批6）
 import { setChatOpener } from './sharepanel.js';
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap } from './emoticon.js';
@@ -151,7 +151,7 @@ function ensureDrawerDom() {
     // 刻意压平成明文）⇒ 不摆格式键与颜色键：发 [b]/[color] 给对方看到的是字面标签
     insertOnly: true,
     img: { title: '发送图片', onFile: sendKit.sendImageMsg }, // 尺寸门禁在 sendImageMsg 内
-    placeholder: '发个消息…',
+    placeholder: CHAT_PLACEHOLDER,
     // 官方单条上限（cfg.im.maxLen）在**富文本口径**下当硬闸：字数按 DOM 算（表情计 1 字），
     // 超限即拒（发送键禁用）；发送链的 slice 仍留作兜底
     maxLength: CFG.im.maxLen,

@@ -24,6 +24,8 @@ import { request } from './net.js';
 import { el, isSafeKey } from './ui.js';
 import { stat, testHook, swallow } from './dbg.js';
 import { getSetting, setSetting, storeKey } from './settings.js';
+// 「IP属地」前缀单源（0.9.307 卫生扫描批：nativeip 资料卡/tooltip 两处并写）
+export var IP_LABEL = 'IP属地：';
 
 var UID_KEY = 'acr_uids';   // Web-IP v5.8.5 同 key（形状也同——双向兼容）
 var DAYS_KEY = 'acr_days';  // Web-IP 保留期偏好老键（只收养一次，不写回）
@@ -82,7 +84,7 @@ export function mapLegacyDays(v) {
 
 // tooltip 文案（Web-IP 三行同款，文案单源——Phase 6 原生皮肤同用；t 缺省不落第三行）
 export function tagTitle(ip, t) {
-  var s = 'IP属地：' + ip + '\n（基于用户主页实时资料，不代表发布时的IP）';
+  var s = IP_LABEL + ip + '\n（基于用户主页实时资料，不代表发布时的IP）';
   if (t) s += '\n查询于：' + new Date(t).toLocaleString();
   return s;
 }

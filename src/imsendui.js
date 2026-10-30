@@ -8,7 +8,7 @@ import { el } from './ui.js';
 import { ensureIm, ensureConnected, ensureTracer, linkOk } from './imsdk.js';
 import { doSend, sendQuote, sendImage, forceSync } from './imsend.js';
 import { IMG_PLACEHOLDER } from './immsg.js'; // 图片占位文案单源（0.9.305 批6）
-import { errLong, errImgTooBig } from './toastmsg.js';
+import { errLong, errImgTooBig , SEND_FAIL_PREFIX} from './toastmsg.js';
 
 // env 契约：
 //   getDrawer()      当前抽屉态（bubbles / setText / input）
@@ -123,7 +123,7 @@ export function createSendKit(env) {
         });
       }
       // 消息确实没发出去：无论是否已切会话都提示（切会话场景不碰 DOM，只告知）
-      errLong('发送失败：' + String((err && err.message) || '').slice(0, 120));
+      errLong(SEND_FAIL_PREFIX + String((err && err.message) || '').slice(0, 120));
     }
     ensureIm().then(function (inst) {
       return ensureConnected(inst).then(function () {

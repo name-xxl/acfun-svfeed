@@ -3,6 +3,12 @@
 // 本件只产面板 DOM/交互，不碰播放器/控制栏状态；消费方 controls.js。
 import { el } from './ui.js';
 import { getSetting, SCHEMA, setSetting } from './settings.js';
+
+// 题标签读 SCHEMA.label 单源（0.9.307 卫生扫描批：曾与 settings 两处并写）
+function itemLabel(k) {
+  var it = SCHEMA.filter(function (x) { return x.key === k; })[0];
+  return it ? it.label : k;
+}
 import { DM_BLOCK_TYPES } from './dmcanvas.js'; // 六类名单/文案/判据单源（0.9.305 卫生批4⑤）
 
 // ---------- 弹幕设置面板（0.9.202，用户裁决：入口在底栏、展开面板——照 A 站原生两 tab） ----------
@@ -76,7 +82,7 @@ export function buildDmPanel(slide) {
   // tab1：弹幕设置
   var bodySet = el('div', 'acsv-dmpbody');
   bodySet.appendChild(swRow('防挡字幕', 'dmSubtitle'));
-  bodySet.appendChild(swRow('合并重复弹幕', 'dmMerge'));
+  bodySet.appendChild(swRow(itemLabel('dmMerge'), 'dmMerge'));
   bodySet.appendChild(sliderRow('显示区域', 'dmArea', 30, 100, '%',
     function (v) { return Number(v); }, function (v) { return String(v); }));
   bodySet.appendChild(sliderRow('不透明度', 'dmAlpha', 20, 100, '%',
@@ -102,7 +108,7 @@ export function buildDmPanel(slide) {
   // tab2：屏蔽设置
   var bodyBlk = el('div', 'acsv-dmpbody');
   bodyBlk.style.display = 'none';
-  bodyBlk.appendChild(el('div', 'acsv-dmpblk', '按类型屏蔽'));
+  bodyBlk.appendChild(el('div', 'acsv-dmpblk', itemLabel('dmBlock')));
   var tags = el('div', 'acsv-dmptags');
   function blockHas(k) { return new RegExp('\\b' + k + '\\b').test(String(getSetting('dmBlock') || '')); }
   function toggleBlock(k) {

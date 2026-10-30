@@ -5,6 +5,32 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.307（2026-10-30）· 通用重复扫描器——check-hygiene（字面+克隆两扫）棘轮入链 + 17 组真副本收口
+
+**问题（用户追问「能否机械判定、用脚本检查其它模块」）**：既有闸全是定向棘轮——只守「已知的那枚值」，
+发现不了未知副本。本批把判定口径 1（字面≥2处即病灶）做成不依赖预知的通用网。
+
+**扫描器** `test/check-hygiene.mjs`：① 跨文件重复字符串字面（CJK 文案/≥12 字符协议串两类，
+web 惯用词表+import 路径+纯拼参片段排除，CJK≤4 字短词降弱候选——「关闭×6」同名不同义属常态）；
+② ≥6 连续有效行归一化代码克隆（注释剥离+空白归一，签名 ≥140 字符防壳行雨，跨文件滑动窗并区段）。
+报告模式供人诊；`--gate` 棘轮模式配 `test/hygiene-baseline.json`（25 条已审「有意并存」：Shadow
+影子样式×12、HTML 拼装尾×4、querySelector 类名契约×7、blob MIME、委托骨架同族克隆×4——各带 why，
+**收口一处删一行，基线只缩不胖**）。入 npm run check。
+
+**首轮人诊分诊的 17 组真副本，本批收口**（行为零变化，全串等值替换）：
+私信连接失败 tip×3→toastmsg.IM_CONN_TEXT；已关注@/已取消关注@×5→okFollow/okUnfollow；
+稍后再看话术×2→okWaitingAdd/Remove；改名成功×3→meadmin 缺省走 toastmsg.okRenamed（followadmin/
+mytabs 撤同值注入）；视频加载失败×2→VIDEO_FAIL_TEXT；IP属地：前缀×2→iploc.IP_LABEL；
+发个消息…×2→immsg.CHAT_PLACEHOLDER；发送失败：前缀→SEND_FAIL_PREFIX；收藏域三串×2 文件→
+favpop.FAV_TITLES（mytabs 消费）；poppick 层内失败 hint×6→FAIL_NOTLOGIN_TEXT（与 errNotLogin 共串源）；
+dmpanel 两题标签→读 SCHEMA.label 派生（消「假同源」平行表）；**momentapi Referer 绕 momentBase
+常量（审计 API#5 修漏，扫描器当场抓到）**；分享给朋友 headText×2 冗余传参删除（sharepanel 缺省即单源）。
+顺手修一处 codemod 真 bug：meadmin 曾把 okRenamed（自带 toast）再包一层 toast()——已改分支。
+
+**测试**：幽灵键反跑同款=新造一组跨文件重复字面 ⇒ --gate 转红、登记/收口后绿（棘轮有效性自证）；
+摘修复反跑：还原 dmpanel 硬编码标签 ⇒ hygiene NEW 组复活。build/lint/check（含 check-deps 新边 9 条
+入图、check-hygiene 0 未登记）/单测/全场景全绿。
+
 ### 0.9.306（2026-10-30）· 反思落档——卫生审计判定口径五条 + 病灶×守卫对照表 + 测试存储键镜像闸（六域审计闭环）
 
 **病灶（六域审计的最后一块机械面空格 + 「审后不沉淀即白审」）**：

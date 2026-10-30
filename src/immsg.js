@@ -37,6 +37,9 @@ export function parseCard(m) {
 
 // extra 载荷 key 单源（0.9.59）：发送构造（imsend）与解析（quoteExtraOf/cmtShareOf）
 // 共用——字符串两处硬编码时 typo 即静默丢载荷
+// 聊天输入占位单源（0.9.307 卫生扫描批：imdrawer 建壳与 imchat 引用清除两处并写）
+export var CHAT_PLACEHOLDER = '发个消息…';
+
 export var QUOTE_EXTRA_KEY = 'acsvQuote';
 export var CMT_EXTRA_KEY = 'acsvCmt';
 export var MOMENT_EXTRA_KEY = 'acsvMoment'; // 0.9.122 动态转发（发送 momentbar / 解析 momentShareOf）

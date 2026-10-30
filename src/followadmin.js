@@ -25,7 +25,7 @@
 //   （meadmin 'mehead-pop'）——两缝互关（mehead.onOpen→closePop；openRowMenu→head.closeMenu），
 //   无 window 按键监听（0.9.254 抢关出栈教训）。
 import { CFG } from './cfg.js';
-import { el, selfUid, toast, closeOnOutsideClick } from './ui.js';
+import { el, selfUid, closeOnOutsideClick } from './ui.js'; // toast 退位：回显话术已收 toastmsg.okUnfollow（0.9.307）
 import { createListTail } from './listtail.js';       // 尾部单源（0.9.219 裁决，不跟数字分页）
 import { createPageLoader } from './pageloader.js';   // 翻页骨架单源
 import { setEmpty } from './liststate.js';           // 空态行单源（0.9.300）
@@ -36,7 +36,7 @@ import { overlayOpen, overlayClose } from './overlay.js';
 import { createMeHead, openMmModal, openManageModal, openMmConfirm, mountMmAddRow, mmWarn } from './meadmin.js';
 import { dismissConfirm } from './pickpop.js'; // 「全页单枚」摘旧协议（0.9.305 批⑤⑦）
 import { groupNameError } from './nameval.js';
-import { errNotLogin } from './toastmsg.js';
+import { errNotLogin, okUnfollow } from './toastmsg.js'; // 回显/门槛话术单源（0.9.307）
 import { getGroups, listFollows, createGroup, renameGroup, removeGroup, regroup,
   specialFollow, unSpecialFollow, unfollowUser } from './relationapi.js';
 
@@ -187,7 +187,6 @@ function openEditModal(ctx) {
       return '确定删除分组「' + (g.name || '') + '」？该分组下的人会移至未分组。';
     },
     created: '添加分组成功！',
-    renamed: function (n) { return '已改名：' + n; },
     deleted: function (n) { return '已删除分组：' + (n || ''); },
     onChanged: function (type, gid) {
       groupsP = null;
@@ -328,7 +327,7 @@ export function buildFollowAdmin(panel, scroller) {
         paint: paint,
         removeRow: function () {
           removeEntry(it);
-          toast('已取消关注 @' + it.name);
+          okUnfollow(it.name);
           groupsP = null;
           emptyCheck();
         },

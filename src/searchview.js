@@ -14,6 +14,7 @@ import { openFollowGroupPop } from './grouppop.js';
 import { followUser } from './relationapi.js';
 import { histList, histAdd, histClear } from './searchhist.js';
 import { createScope } from './lifecycle.js';
+import { okFollow, okUnfollow } from './toastmsg.js'; // 回显话术单源（0.9.307）
 
 // ---------- 搜索视图 2.0（0.9.151）：类目 chips + 真分页 + UP 卡 + 文章行 + 搜索历史 ----------
 // 数据源=三端点（cfg.api.search{Video,User,Article}，真机实测 docs/api-research.md §4.10）：
@@ -250,7 +251,7 @@ function buildSearchView(body, arg, kind) {
           if (!ok) { toast('关注失败（未登录？）'); return; }
           u.following = true;
           paintFb();
-          toast('已关注 @' + u.name);
+          okFollow(u.name);
         });
         return;
       }
@@ -258,7 +259,7 @@ function buildSearchView(body, arg, kind) {
       openFollowGroupPop(fb, {
         uid: u.uid, name: u.name, following: true,
         done: function (res2) {
-          if (res2 && res2.unfollowed) { u.following = false; toast('已取消关注 @' + u.name); }
+          if (res2 && res2.unfollowed) { u.following = false; okUnfollow(u.name); }
           paintFb();
         }
       });

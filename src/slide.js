@@ -7,6 +7,7 @@ import { togglePlayGesture } from './playback.js';
 import { attachVideo } from './attach.js';
 import { buildControls, showControls } from './controls.js';
 import { buildSideRail, syncMetaUp } from './rail.js';
+import { VIDEO_FAIL_TEXT } from './toastmsg.js'; // 错误盒主话术单源（0.9.307）
 
 // ---------- 单条 slide 的构建 ----------
 // buildSlide 把控制栏（controls.js）、右侧栏（rail.js）、信息区拼成一个 slide；
@@ -61,7 +62,7 @@ export function buildSlide(item, idx, goTo) {
   var sp = spinner();
   var playicon = elHtml('div', 'acsv-playicon', ICONS.play);
   var errbox = el('div', 'acsv-errbox');
-  errbox.appendChild(el('p', null, '视频加载失败'));
+  errbox.appendChild(el('p', null, VIDEO_FAIL_TEXT));
   var retry = el('button', 'acsv-retry', '重试');
   retry.addEventListener('click', function (ev) {
     ev.stopPropagation();

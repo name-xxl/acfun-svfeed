@@ -5,8 +5,9 @@
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { pad2 } from './timefmt.js';
-import { msgTextOf, findSession } from './immsg.js';
+import { msgTextOf, findSession , CHAT_PLACEHOLDER} from './immsg.js';
 import { ensureIm, ensureConnected, ensureTracer } from './imsdk.js';
+import { IM_CONN_TEXT } from './toastmsg.js'; // 连接失败 tip 单源（0.9.307）
 
 // env 契约：
 //   getDrawer()   当前抽屉态（bubbles / quoteChip / bar）
@@ -52,7 +53,7 @@ export function createChatKit(env) {
       });
     }).catch(function () {
       if (getDrawer() && getDrawer().bubbles && !getDrawer().bubbles.children.length) {
-        getDrawer().bubbles.appendChild(el('div', 'acsv-share-tip', '私信连接失败，请稍后再试\n可先复制链接去站内分享'));
+        getDrawer().bubbles.appendChild(el('div', 'acsv-share-tip', IM_CONN_TEXT));
       }
     });
   }
@@ -153,7 +154,7 @@ export function createChatKit(env) {
     if (!q) {
       chip.box.style.display = 'none';
       chip.label.textContent = '';
-      getDrawer().bar.setPlaceholder('发个消息…');
+      getDrawer().bar.setPlaceholder(CHAT_PLACEHOLDER);
       return;
     }
     chip.box.style.display = 'flex';

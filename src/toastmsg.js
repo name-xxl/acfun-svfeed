@@ -10,9 +10,13 @@
 import { toast } from './ui.js';
 import { CFG } from './cfg.js';
 
+// 通用写链失败话术的**串本体**（0.9.307 卫生扫描批）：pickpop 选择层把失败写进层内 hint
+// （非 toast 弹层），与 errNotLogin 同串共源——改话术仍只动本件
+export var FAIL_NOTLOGIN_TEXT = '操作失败（未登录？）';
+
 // 通用写链失败：未登录态的统一口径（comments/momentbar/mypage 同串三处）
 export function errNotLogin() {
-  toast('操作失败（未登录？）');
+  toast(FAIL_NOTLOGIN_TEXT);
 }
 
 // 投蕉失败（momentbar / 数量层同口径）
@@ -31,6 +35,34 @@ export function errBananaThrown() {
 export function errImLogin() {
   toast('私信需要先登录 AcFun 账号');
 }
+
+// 私信连接失败（0.9.307 卫生扫描批：imchat/imlist/sharepanel 三处行内 tip 同串共源——
+// tip 不是 toast，导串本体）
+export var IM_CONN_TEXT = '私信连接失败，请稍后再试\n可先复制链接去站内分享';
+
+// 发送失败前缀族（imsendui 两处 + sharepanel 一处拼装头；详情串各调用方自拼）
+export var SEND_FAIL_PREFIX = '发送失败：';
+
+// 关注写链回显（0.9.307 收口：grouppop/followadmin/searchview 五处同式）
+export function okFollow(name) {
+  toast('已关注 @' + (name || ''));
+}
+export function okUnfollow(name) {
+  toast('已取消关注 @' + (name || ''));
+}
+
+// 改名成功（meadmin 管理模态家族：分组/收藏夹两域同话术，0.9.307 收口）
+export function okRenamed(name) {
+  toast('已改名：' + name);
+}
+
+// 稍后再看（controls 时钟钮与 mytabs 移除行同话术，0.9.307 收口）
+export function okWaitingAdd() { toast('已加入稍后再看'); }
+export function okWaitingRemove() { toast('已移出稍后再看'); }
+
+// 竖刷/播放层错误盒主话术（slide 常驻结构件与 playlayer 运行盒同串，0.9.307 收口；
+// playlayer 的「（网络不可达）」变体在本串上追加）
+export var VIDEO_FAIL_TEXT = '视频加载失败';
 
 // 图片超限（comments/imdrawer 两处，上限值各自域不同——传计算好的 MB 数）
 export function errImgTooBig(mb) {

@@ -43,7 +43,7 @@ export function listProfile(uid, pcursor) {
 // plaza 实测形态给（同端点转引 §2.7）；规整走本模块 momentDetailStateOf（0.9.159 自契约层迁入；失败/形状不合→null）
 export function momentDetail(id) {
   return request(CFG.api.momentDetail + '?momentId=' + encodeURIComponent(id), 'GET',
-    { Referer: 'https://www.acfun.cn/moment/am' + id })
+    { Referer: CFG.api.momentBase + id })
     .then(momentDetailStateOf);
 }
 
