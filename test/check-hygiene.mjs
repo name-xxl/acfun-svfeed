@@ -1,20 +1,31 @@
 /*
- * 通用重复扫描器（2026-10-30，用户追问「能否机械判定」；0.9.308 补第三扫）——把卫生审计
- * 的判定口径变成不依赖预先知道答案的网：定向棘轮（check-dialect/liststate/zlayers）只守
- * 「已知事实」，本件负责**发现未知**。三扫：
+ * 通用重复扫描器（2026-10-30，用户追问「能否机械判定」；0.9.308 补第三扫；同日扩面补④⑤两扫）
+ * ——把卫生审计的判定口径变成不依赖预先知道答案的网：定向棘轮
+ * （check-dialect/liststate/zlayers）只守「已知事实」，本件负责**发现未知**。五扫：
  *   ① 字符串字面跨文件重复：CJK 用户文案 / ≥12 字符协议·URL·键串（排除 web 惯用词表），
  *      同一字面出现 ≥2 文件即候选（README 判定口径 1：字面≥2处即病灶，一致只是漂移前态）。
  *   ② 代码克隆：注释剥离 + 空白归一后，≥K 连续有效行的同形窗口跨文件出现即候选；
  *   ③ 同文件 ≥3 写（0.9.308）：文案串/长协议串在本件内第 3 次出现即候选（跨文件网看不见
  *      的角落；数字面实测同名不同义淹信号，有意不扫，见 CHANGELOG 0.9.308 盲区测量）。
- * 两种模式：
+ *   ④ 债务标记（2026-10-30 扩面）：在**含注释原文**扫 /TODO|FIXME|HACK|未实测/——不能用
+ *      stripComments 后文本，TODO 就住在注释里（与 ①②③ 的剥注释层分属两层，不共用中间量）；
+ *      kind=debt；key=debt:文件:字样@次数（不用行号——行号易漂；次数变化即换 key 转 NEW，
+ *      「记下的债还了没有、又欠了几笔」由闸看见）。
+ *   ⑤ 纯叶失真（2026-10-30 扩面）：leaf 清单**机器读自 README.md 依赖图 `class … leaf;` 行**
+ *      （解析逗号分隔文件名；读不到 fail loud 直接报错退出，不许静默跳过——纯度宣称失去
+ *      事实源就等于没宣称）。strip comments 后的文本含 document. / window. / globalThis /
+ *      localStorage / Date.now( / Math.random( / new Date( 任一即候选；kind=leaf；
+ *      key=leaf:文件:原语。依据=README 卫生审计判定口径 3「注释即事实源者必须可核」：
+ *      零依赖叶的纯度是写给消费方的承诺，必须机械核验，不核就是假注释。--src 只换扫描目录，
+ *      事实源仍在本仓 README。
+ * 三种模式（另有可选 --src <dir> 覆盖扫描目录，缺省 src/ 不变，向后兼容，供 fixture 自检）：
  *   node test/check-hygiene.mjs            → 报告模式（永远 exit 0，出候选清单供人判）
  *   node test/check-hygiene.mjs --gate     → 棘轮模式：候选须全在 test/hygiene-baseline.json
  *                                            （登记=有意并存/待收口批），新增未登记即红。
  *   node test/check-hygiene.mjs --emit     → 迁移辅助：stdout 出当前候选的 key 清单（JSON，
  *                                            无 why）——key 格式升级/收口后重排基线用。
- * 基线条目：{ "kind":"dup|idup|clone", "key":..., "why":... }——收口一处删一行，基线只能缩
- * 不能胖。key 携带**文件集/次数**（0.9.309）：dup:字面@文件,文件 / idup:文件:字面@次数 /
+ * 基线条目：{ "kind":"dup|idup|clone|debt|leaf", "key":..., "why":... }——收口一处删一行，
+ * 基线只能缩不能胖。key 携带**文件集/次数**（0.9.309）：dup:字面@文件,文件 / idup:文件:字面@次数 /
  * clone:文件+文件:首窗首行——登记项扩张（×2→×3、换宿主、同件加写）即换 key 转 NEW，
  * 「登记时写下的触发条件」（如「扩到 3 处再抽 helper」）从此由闸看见，不再靠眼过。
  */
@@ -23,7 +34,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SRC = path.join(ROOT, 'src');
+// --src <dir>：覆盖扫描目录（缺省 src/ 不变；resolve 兼容绝对路径，供 fixture 自检）
+const SRCI = process.argv.indexOf('--src');
+const SRC = path.resolve(ROOT, SRCI > -1 && process.argv[SRCI + 1] ? process.argv[SRCI + 1] : 'src');
 const GATE = process.argv.includes('--gate');
 const EMIT = process.argv.includes('--emit');
 const K = 6; // 克隆判定：连续有效行数阈值
@@ -142,6 +155,47 @@ for (const [win, hits] of winMap) {
 clones.sort((a, b) => (b.byFile[Object.keys(b.byFile)[0]].to - b.byFile[Object.keys(b.byFile)[0]].from)
   - (a.byFile[Object.keys(a.byFile)[0]].to - a.byFile[Object.keys(a.byFile)[0]].from));
 
+// ---------- ④ 债务标记（含注释原文——TODO 就住在注释里，故不用 stripComments 后文本） ----------
+// 字面匹配、区分大小写、全文计数（次数进 key：+1 笔 / 还 1 笔都换 key 转 NEW，闸看得见）
+const DEBT_WORDS = ['TODO', 'FIXME', 'HACK', '未实测'];
+const debts = []; // {file, word, n}
+for (const f of files) {
+  const raw = srcOf(f);
+  for (const w of DEBT_WORDS) {
+    const n = (raw.match(new RegExp(w, 'g')) || []).length;
+    if (n) debts.push({ file: f, word: w, n });
+  }
+}
+
+// ---------- ⑤ 纯叶失真（leaf 清单机器读自 README——读不到 fail loud，不许静默跳过） ----------
+// 口径出处：README 卫生审计判定口径 3「注释即事实源者必须可核」。--src 只换扫描目录，
+// 事实源仍在本仓 README（fixture 自检时复用 README 在册叶名即可命中）。
+const LEAF_PRIMITIVES = ['document.', 'window.', 'globalThis', 'localStorage',
+  'Date.now(', 'Math.random(', 'new Date('];
+const README_PATH = path.join(ROOT, 'README.md');
+if (!fs.existsSync(README_PATH)) {
+  console.error('[check-hygiene] ✗ README.md 读不到——零依赖叶清单失去事实源，纯叶扫描无法进行（fail loud）');
+  process.exit(1);
+}
+const leafClass = fs.readFileSync(README_PATH, 'utf8')
+  .match(/^\s*class\s+([^\s;]+)\s+leaf\s*;/m); // 不匹配 classDef（"class" 后须紧跟空白）
+if (!leafClass) {
+  console.error('[check-hygiene] ✗ README.md 依赖图中找不到 `class … leaf;` 行——纯叶清单失去机器可读事实源，fail loud（不许静默跳过）');
+  process.exit(1);
+}
+const LEAVES = new Set(leafClass[1].split(',').map((s) => s.trim())
+  .filter(Boolean).map((n) => n.endsWith('.js') ? n : n + '.js'));
+if (!LEAVES.size) {
+  console.error('[check-hygiene] ✗ README.md `class … leaf;` 行解析结果为空——事实源疑似损坏，fail loud');
+  process.exit(1);
+}
+const leafHits = []; // {file, prim}
+for (const f of files) {
+  if (!LEAVES.has(f)) continue;
+  const code = stripComments(srcOf(f)); // 剥注释后判定：注释里提到 window. 不算触面
+  for (const p of LEAF_PRIMITIVES) if (code.includes(p)) leafHits.push({ file: f, prim: p });
+}
+
 // ---------- 基线（棘轮模式） ----------
 const BASE_PATH = path.join(ROOT, 'test', 'hygiene-baseline.json');
 const baseline = fs.existsSync(BASE_PATH)
@@ -152,12 +206,16 @@ const unregistered = [];
 const dupKey = (lit, s) => 'dup:' + lit + '@' + [...s].sort().join(',');
 const idupKey = (d) => 'idup:' + d.file + ':' + d.lit + '@' + d.n;
 const cloneKey = (c) => 'clone:' + c.files.slice().sort().join('+') + ':' + c.text[0].slice(0, 42);
+const debtKey = (d) => 'debt:' + d.file + ':' + d.word + '@' + d.n;
+const leafKey = (h) => 'leaf:' + h.file + ':' + h.prim;
 
 // ---------- 报告 ----------
 if (EMIT) { // 迁移辅助：纯 key 清单（不带报告头尾，stdout 即 JSON），基线重排后 why 由人迁
   console.log(JSON.stringify({ entries: dups.map(([lit, s]) => ({ key: dupKey(lit, s) }))
     .concat(idups.map((d) => ({ key: idupKey(d) })))
-    .concat(clones.map((c) => ({ key: cloneKey(c) }))) }, null, 1));
+    .concat(clones.map((c) => ({ key: cloneKey(c) })))
+    .concat(debts.map((d) => ({ key: debtKey(d) })))
+    .concat(leafHits.map((h) => ({ key: leafKey(h) }))) }, null, 1));
   process.exit(0);
 }
 console.log('[check-hygiene] ' + (GATE ? '棘轮' : '报告') + '模式 · src ' + files.length + ' 件 · 克隆阈值 ' + K + ' 行');
@@ -186,6 +244,18 @@ for (const c of clones) {
     ranges.map((r) => r.from + '-' + r.to).join(',')).join(' | ');
   console.log('  [' + tag + '] ' + c.files.length + ' 份  ' + span);
   console.log('         首行: ' + c.text[0].slice(0, 90));
+}
+console.log('—— ④ 债务标记 ' + debts.length + ' 项 ——');
+for (const d of debts) {
+  const key = debtKey(d);
+  if (!inBase(key)) unregistered.push(key);
+  console.log('  [' + (inBase(key) ? '登记' : 'NEW ') + '] ' + d.file + '  ' + d.word + ' ×' + d.n);
+}
+console.log('—— ⑤ 纯叶失真 ' + leafHits.length + ' 项（README class…leaf; 清单 × 环境原语） ——');
+for (const h of leafHits) {
+  const key = leafKey(h);
+  if (!inBase(key)) unregistered.push(key);
+  console.log('  [' + (inBase(key) ? '登记' : 'NEW ') + '] ' + h.file + '  ' + h.prim);
 }
 console.log('—— 弱候选（CJK≤4 字短词，同名不同义常态，仅眼过）：'
   + [...weakSet].join(' / ') + ' ——');

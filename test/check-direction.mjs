@@ -23,18 +23,31 @@
  *                    **桶。口径 C 让这个桶有牙：播放层只许依赖**同级 / 更下层**，不许回头依赖
  *                    特性层、组合根或未登记件（口径 B 顺带仍覆盖「→ 特性」，C 再补「→ 未登记 /
  *                    组合根」那一半）。
+ * 口径 D（命名↔分类·零依赖叶纯度，2026-10-30 扩面）：README 依赖图 `class … leaf;` 行点名的
+ *                    零依赖叶，必须 **0 条静态 import 边**——「零依赖」是 README 白纸黑字写的
+ *                    命名承诺，命名对架构做的承诺必须兑现（依据=README 卫生审计判定口径 3
+ *                    「注释即事实源者必须可核」）。清单**机器读自 README**（与 check-hygiene
+ *                    pass ⑤ 同一事实源；读不到 fail loud 直接退出，不许静默跳过；--src 只换
+ *                    扫描目录，事实源仍在本仓 README）。注意 LEAF_SHARED 桶不是纯度桶：
+ *                    toastmsg/searchfmt 的依赖是有登记的裁决，不属本断言射程。
+ * 口径 E（命名↔分类·接口族触面，2026-10-30 扩面）：文件名以 api.js 结尾的件（接口家族）
+ *                    不得 import ui.js / styles.js / views.js——接口层不得有 DOM/UI 触面，
+ *                    按静态 import 边判定（与既有口径同尺）。既有三口径只管 INFRA/PLAY 的
+ *                    出边，API 桶的出边无主，本口径补这个缺口。
  *
  * 在册项（KNOWN，带理由）——新增项冒出来 = 需要一次裁决，别默默放过；
  * 处置记录见 docs/dependency-audit.md：
  *
- *   node test/check-direction.mjs
+ *   node test/check-direction.mjs [--src <dir>]  （--src 覆盖扫描目录，缺省 src/ 不变，供 fixture 自检）
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SRC = path.join(ROOT, 'src');
+// --src <dir>：覆盖扫描目录（缺省 src/ 不变；resolve 兼容绝对路径，供 fixture 自检）
+const SRCI = process.argv.indexOf('--src');
+const SRC = path.resolve(ROOT, SRCI > -1 && process.argv[SRCI + 1] ? process.argv[SRCI + 1] : 'src');
 
 // 口径 A 用：README 基建层 + 接口层。**不再在注释里写死成员数**——0.9.297 起由运行时的
 // 「分类覆盖」行输出实际计数；此前注释从 16 漂到 23 而实有 25，说明手写计数本身就是第二真源。
@@ -219,6 +232,28 @@ const SKIP_B = new Set(['boot.js', 'player.js', 'sessionhooks.js']);
 // 0.9.271：sessionhooks（会话回接钩子）与 player 同属组合根/编排层——它 import rail/playlayer/
 // views 等 FEATURE 属装配向下，归 PLAY 会触发口径 C、归 FEATURE 语义不准；SKIP_B 对口径 B 豁免。
 
+// 口径 D 用：零依赖叶清单**机器读自 README** 依赖图 `class … leaf;` 行——与 check-hygiene
+// pass ⑤ 同一事实源（「零依赖」的命名承诺写在 README 图上，注释即事实源者必须可核）。
+// 读不到 fail loud 直接退出，不许静默跳过。受限本批只许改两个检查件，此处与 check-hygiene
+// 的解析暂各留一份极小副本；第三处需要时收口成共享件。
+const README_PATH = path.join(ROOT, 'README.md');
+if (!fs.existsSync(README_PATH)) {
+  console.error('[check-direction] ✗ README.md 读不到——零依赖叶清单失去事实源，口径 D 无法进行（fail loud）');
+  process.exit(1);
+}
+const leafClass = fs.readFileSync(README_PATH, 'utf8')
+  .match(/^\s*class\s+([^\s;]+)\s+leaf\s*;/m); // 不匹配 classDef（"class" 后须紧跟空白）
+if (!leafClass) {
+  console.error('[check-direction] ✗ README.md 依赖图中找不到 `class … leaf;` 行——零依赖叶清单失去机器可读事实源，fail loud（不许静默跳过）');
+  process.exit(1);
+}
+const LEAVES = new Set(leafClass[1].split(',').map((s) => s.trim())
+  .filter(Boolean).map((n) => n.endsWith('.js') ? n : n + '.js'));
+if (!LEAVES.size) {
+  console.error('[check-direction] ✗ README.md `class … leaf;` 行解析结果为空——事实源疑似损坏，fail loud');
+  process.exit(1);
+}
+
 // 口径 C 用：播放层（0.9.260 建桶）。定位=**播放/泵流核心**：视频会话与源挂载（session/attach/
 // playback/hls/prewarm）、控制栏与手势（controls/input）、弹幕渲染（dmcanvas/danmaku）、播放层
 // 编排（playgest/playstate/levelstack/relatedapi）、写入链（interact）、观看上报（report/
@@ -241,9 +276,14 @@ const PLAY = new Set([
 ]);
 
 // 在册项（0.9.119 起清空——data→ubb 随手下沉完成，方向卫生库存归零；0.9.222 曾破例入册 1 条
-// sharepanel→momenteditor，0.9.233 专项分类纠正后复归清空；新增项=需要一次裁决，
-// 改动须同步 docs/dependency-audit.md）
-const KNOWN = [];
+// sharepanel→momenteditor，0.9.233 专项分类纠正后复归清空；0.9.310 口径 E 首轮登记 2 条。
+// 新增项=需要一次裁决，改动须同步 docs/dependency-audit.md）
+const KNOWN = [
+  // 口径 E 首轮登记（0.9.310）：singleFlight/selfUid 纯工具暂居 ui.js——并发/鉴权原语误居
+  // UI 工具件的历史归置，接口族被迫触 ui；挂账 ui 拆件时迁出后撤行。在册=可见的债，不是赦免。
+  { edge: 'appapi.js -> ui.js', note: 'singleFlight/selfUid 纯工具暂居 ui.js（历史归置）——ui 拆件迁出后撤行' },
+  { edge: 'signapi.js -> ui.js', note: 'singleFlight/selfUid 纯工具暂居 ui.js（历史归置）——ui 拆件迁出后撤行' },
+];
 const knownSet = new Set(KNOWN.map((k) => k.edge));
 
 const files = fs.readdirSync(SRC).filter((f) => f.endsWith('.js'));
@@ -281,9 +321,21 @@ for (const e of edges) {
   if (!FEATURE.has(a) && FEATURE.has(b) && !SKIP_B.has(a)) hitsB.push(e);
   if (PLAY.has(a) && !PLAY.has(b) && !INFRA.has(b) && !API.has(b) && !LEAF_SHARED.has(b)) hitsC.push(e);
 }
+// 口径 D：零依赖叶的**任何**静态 import 出边都算失真（无目标白名单——承诺是「零依赖」本身；
+// 既有 A/B/C 都不约束叶的出边，此为缺口所在）
+const hitsD = [...edges].filter((e) => LEAVES.has(e.split(' -> ')[0]));
+// 口径 E：接口家族（按文件名 *api.js 判，与桶位无关——relatedapi 虽居 PLAY 同样受管）
+// 不得触 UI 三件；既有口径对 API 桶出边零约束，此为缺口所在
+const UI_TOUCH = new Set(['ui.js', 'styles.js', 'views.js']);
+const hitsE = [...edges].filter((e) => {
+  const [a, b] = e.split(' -> ');
+  return /api\.js$/.test(a) && UI_TOUCH.has(b);
+});
 hitsA.sort();
 hitsB.sort();
 hitsC.sort();
+hitsD.sort();
+hitsE.sort();
 
 let unregistered = 0;
 function report(hits) {
@@ -305,6 +357,10 @@ console.log('口径 B · 非特性 → 特性模块：' + hitsB.length + ' 条')
 report(hitsB);
 console.log('口径 C · 播放层 → 播放层/基建/接口/零依赖叶之外：' + hitsC.length + ' 条');
 report(hitsC);
+console.log('口径 D · 命名承诺「零依赖叶」（README class … leaf; 清单）→ 0 条静态 import 边：' + hitsD.length + ' 条');
+report(hitsD);
+console.log('口径 E · 命名承诺「接口家族」（*api.js）→ 不得触 ui/styles/views：' + hitsE.length + ' 条');
+report(hitsE);
 if (coverageBad.length) {
   coverageBad.forEach((b) => console.log('  ✗ 分类覆盖：' + b + '——新增模块必须显式入桶（或加入 EXEMPT 并写理由）'));
 }

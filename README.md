@@ -370,6 +370,10 @@ npm run check        # 仅静态校验（CI 在 build 后跑）：场景登记�
                      #   z 档实体↔注释一致性 + gridMin/gridGap→SEAMS 消费闸（check-zlayers，0.9.303 起）/
                      #   协议方言字面单源（no_more/令牌串/裸 resourceType，check-dialect，0.9.304 起）/
                      #   通用重复扫描（跨文件字面+同文件≥3写+代码克隆，check-hygiene 棘轮+基线，0.9.307/308 起）/
+                     #   结构面棘轮（孤儿件/死导出/单消费抽象/尺寸建档+扇出榜仅报告，check-structure，0.9.310 起）/
+                     #   生灭配对与吞错分诊（定时器·观察器计数配对+catch 静默候选，check-lifecycle2 棘轮+基线，0.9.310 起）/
+                     #   债务标记与纯叶纯度（TODO/未实测 台账+零依赖叶禁浏览器/时间原语，check-hygiene pass④⑤，0.9.310 起）/
+                     #   命名↔分类一致性（README 叶清单零出边+*api.js 禁触 ui/styles/views，check-direction 口径 D/E，0.9.310 起）/
                      #   z 档实体↔注释一致性 + gridMin/gridGap→SEAMS 消费闸（0.9.303 起）/
                      #   slide/item 字段契约（唯 domfields.js 可登记，0.9.297 起）/
                      #   契约面类型检查（tsc，0.9.188 起）
@@ -405,8 +409,11 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | 列表状态行 / toast 话术 | `liststate.setEmpty` + `pageloader` 五常数 + `toastmsg` | `check-liststate`（字面唯 owner + 白名单双登记） |
 | 几何三方镜像（CSS↔JS↔测试） | cfg→SEAMS 缝回填（dockW/三族网格/pop 上限/dwFallback）+ 生效公式入 cfg（drawerWOf）+ 测试 import 源码常数 | `check-zlayers`（grid 缝双向消费）+ `check-cases`（类名/键）+ `check-release`（产物零缝标记——注释写双括号也会触发，缝标记只许 cssraw/styles） |
 | 「注释即权威表」（z 档 / 判据 / 同源宣称） | 实体为准（overlay 头注降级为摘要）；判据导出单源（pagekind.SPACE_UID_RE·memberCenterPath、imgurl.CDN_URL_OK、immsg.sharePreviewOf） | `check-zlayers`（z 实体表 + 注释单档词）+ 源码字面扫描防复制闸（unit/pagekind、unit/imgurl） |
-| 字段契约 / 依赖方向 / 视图与设置注册 | `domfields.js`、`check-direction` 分类桶、`viewreg`/SCHEMA/表项工厂 | `check-contract` / `check-deps` / `check-direction` |
+| 字段契约 / 依赖方向 / 视图与设置注册 | `domfields.js`、`check-direction` 分类桶、`viewreg`/SCHEMA/表项工厂 | `check-contract` / `check-deps` / `check-direction`（命名↔分类一致性口径 D/E：README 叶清单零出边、`*api.js` 禁触 ui/styles/views，0.9.310） |
 | 监听器面 / 浮层键盘面 | `lifecycle.createScope` + `overlayOpen`（modal 让渡） | `check-listeners` / `check-overlay` |
+| 结构面（孤儿件/死导出/单消费抽象/模块尺寸） | 拆件与单源出口照上列各行；单消费豁免两型＝「为可测性抽纯」（playstate 先例）／「挂账第二消费方」（roadmap 佐证） | `check-structure --gate`（orphan/dead/single/size 四 kind 棘轮+基线；扇出/扇入 top10 仅报告，标定 imdrawer 拆前扇出 14；0.9.310） |
+| 生灭配对（定时器/观察器）/ 静默吞错分诊 | `lifecycle.createScope` + `swallow(e,域)` 计数出口或 `// swallow:` 标记显式表态 | `check-lifecycle2 --gate`（pair=计数配对 + `// singleton-obs:` 放行；swallow=块体无 stat/throw/标记即候选；首轮存量已登记只锁增量；0.9.310） |
+| 债务标记（TODO/未实测）/ 纯叶纯度宣称 | 债务=规矩 2 的显式挂账（消账=真机实测后改注）；纯叶=「参数优先可注入时钟」形态（imgurl rnd 先例） | `check-hygiene` pass④⑤（kind=debt/leaf 与 dup 族同一基线棘轮；叶清单事实源=README class 行；0.9.310） |
 | **通用发现层**（不依赖预知的网：跨文件字面 / 同文件≥3写 / ≥6行克隆） | 分诊后收口进上列各行出口；「有意并存」进 `test/hygiene-baseline.json` 带 why（只缩不胖）——**key 携带文件集/次数**（0.9.309）：登记项扩张（×2→×3、换宿主、同件加写）即换 key 转 NEW，登记时写下的触发条件由闸看见 | `check-hygiene --gate`（报告模式 `npm run hygiene`；`--emit` 出 key 清单供基线迁移）——已知不机械化的三面：同值数字（重名噪声）、测试文案手抄（断言即闸）、同义异词（需人判） |
 
 #### 发布（Release）
@@ -692,7 +699,7 @@ flowchart LR
   jingxuanview["jingxuanview.js（分区页视图·抖音精选式分区网格）"]
   grouppop["grouppop.js（关注分组选择层·语义件）"]
   pickpop["pickpop.js（通用选择层·锚定弹层壳）"]
-  popplace["popplace.js（弹层定位·两模型一实现·零依赖叶子）"]
+  popplace["popplace.js（弹层定位·两模型一实现·只吃 cfg 的准叶）"]
   favapi["favapi.js（收藏域读写·夹 CRUD）"]
   favpop["favpop.js（收藏夹选择层·语义件）"]
   panelitem --> imgurl & playitem & timefmt & ubbtext
@@ -811,10 +818,10 @@ flowchart LR
   rankapi --> appapi
 
   classDef leaf fill:#e8f5e9,stroke:#2e7d32;
-  class immsg,imicons,imgurl,pagekind,viewreg,followseen,popplace,timefmt,uplook,nameval,playstate leaf;
+  class immsg,imicons,imgurl,pagekind,viewreg,followseen,timefmt,uplook,nameval,playstate leaf;
 ```
 
-绿色十一个节点是刻意的解耦点：`immsg.js`/`imicons.js`/`imgurl.js`/`pagekind.js`/`viewreg.js` 零 import，消费方各自引入
+绿色十个节点是刻意的解耦点：`immsg.js`/`imicons.js`/`imgurl.js`/`pagekind.js`/`viewreg.js` 零 import，消费方各自引入
 （`immsg` 现为 imchat/imlist/imbubble/imnative/imsend/imcard/comments/momentbar 八方），私信格式与图片 URL 规则变更只改各自一处；
 `pagekind` 零依赖是为 boot 与单测都能直采（含 `location` 的 boot 不可单测，判据必须抽纯）；
 `followseen.js`（关注已读水位，0.9.139 抽出）零依赖是为两个关注语境入口（`followview` 首屏成功 /
@@ -826,6 +833,9 @@ followstream 引入它就会与既有的 `followbadge → followstream` 成环�
 `playstate.js`（0.9.209 自 playlayer.js 拆出）零依赖是为会话装配/快照/历史回退可 node 直测
 （消费方 levelstack.js 同批拆出、经 setLevelIO 注入环境触面，`relatedBatch` 走注入不 import
 relatedapi——拆件不新增特性域对接口域的静态边）。
+`popplace.js` 已移出叶清单（0.9.305 批④起唯一 import=CFG 常数表，模块表早已改口「只吃 cfg 的
+准叶」，本图是滞后的一处）——0.9.310 起叶清单由 `check-direction` 口径 D 机器核验：清单内文件
+出现任何静态 import 出边即红，「零依赖」宣称不再靠眼过；纯度失真的叶按事实改清单或收边，不登记豁免。
 图片加载面（懒加载/重试/降级）统一走 `imgload.js`——新图面加一行 `imgInto`，别再手拼
 `referrerPolicy`/`loading`（`uppage` 在 others 组内，同引 imgload）。
 0.9.41 起评论/私信的**输入栏（`inputbar.js`）与大图查看器（`imgview.js`）**同为共用件，
