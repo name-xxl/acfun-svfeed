@@ -298,6 +298,24 @@ check 门禁）。最新的教科书样本是底栏偏好记忆：0.9.282/283/28
 出口；0.9.285 收口为「偏好记忆单链」（写入只 setSetting、后果挂 onChange 订阅捆绑、注册即
 恢复、`test/check-pref.mjs` 棘轮），详见该版 CHANGELOG 与各模块头注。
 
+**卫生审计判定口径**（2026-10-30 六域全量审计 0.9.301–306 收口后沉淀——审"魔法值散落/同形
+副本/改动放大"三类债时的判据，日常改动自查同款）：
+
+1. **字面量出现次数即病灶计数**：同一外部事实（协议号、枚举、阈值、几何、文案串、存储键、
+   判据正则）字面出现 ≥2 处就是副本，不论当下是否一致——**一致只是漂移的前态**。合格的收口
+   判据只有一条：值写在一处，其余处引用它，或有闸证明它们必同改。
+2. **改动放大按"改一个事实"推演**：动手数同改面——散在多文件且无机械联动即结构缺位；修法是
+   建表项/派生/订阅（规矩 6），不是逐处改字面顺手把下一处漂留作哑雷。
+3. **注释即事实源者必须可核**：注释写「同值/同源/逐字一致/单测钉/档位表」即做了事实断言，
+   要么有机械闸核到实体，要么降级为「摘要，以实体为准」。**假注释比没有注释更坏**——它主动
+   骗过单源检查（本域实证：codec「controls 同表」实为四份、白名单「两张网不共用」实为逐字节
+   相同、pagekind「单测钉一致」实钉不到消费点）。
+4. **豁免要划界到"层"**：登记「双端/各宿主各自消费」类豁免时必须写明豁免的是哪一层——
+   渲染外壳、皮肤、时机可以不同；**文案口径、协议号、成功码、判据值不可以不同**。边界含糊
+   即放行副本（imnative 预览、slide errbox 皆此判）。
+5. **收口必配闸，闸必能反跑**：每处收口落地时回答「哪条闸防它回潮」；没有现成闸就按规矩 7
+   补一条（本仓闸全清单与覆盖面见「开发」章的病灶×守卫对照表），新闸用摘修复反跑证明有效。
+
 ## 免责声明与使用规范
 
 - 本项目为**非官方第三方用户脚本**，与 AcFun、快手及其关联方无任何关系，不代表官方立场。
@@ -370,9 +388,24 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
   `ctl-narrow`/`state-seek-ready`/`waiting-error-race`），其余 debug 依赖理由见各行注释。
 - **skip 语义（0.9.299）**：环境缺能力必须走 `h.skip(name, reason)` 显式记账；有 skip 默认算失败
   （`HARNESS_ALLOW_SKIP=1` 仅作诊断阀），不许再用 `rec(..., true, 'skip:…')` 冒充通过。
-- **测试侧单源（0.9.299）**：cases 里的 `.acsv-*` 类名必须存在于 `src/`（负存在断言单独白名单）；
-  几何断言直接 `await import('/src/popplace.js')` 读源码常数，不再手抄 240/120/10。
+- **测试侧单源（0.9.299 类名/几何、0.9.306 存储键）**：cases 里的 `.acsv-*` 类名必须存在于 `src/`
+  （负存在断言单独白名单）；几何断言直接 `await import('/src/popplace.js')` 读源码常数，不再手抄
+  240/120/10；测试面出现的存储键字面（`acsv.s.*`/GM 键/`acr_*`/`searchCache`）必须能对上 src
+  权威键集（SCHEMA 或代码面全串）——键漂移会往孤儿键种状态、断言照绿，比类名漂移更毒（0.9.306 闸）。
 - 依赖图、CHANGELOG、产物版本三者与代码的一致性由 `test/check-*.mjs` 静态保证（CI 必过）。
+
+**病灶 × 守卫对照表**（2026-10-30 六域卫生审计收口闭环后的全景——新增任何"事实"前先问它
+落在哪一行、走哪个出口、被哪条闸守；无行可落即结构缺位，先补表/补闸再写代码）：
+
+| 病灶类 | 收口出口 | 机械守卫（反跑证明过） |
+|---|---|---|
+| 接口方言（终值游标 / resourceType·sourceType 枚举 / PC 成功码 / 令牌 sid·字段 / 网关识别串 / IM contentType） | `contract.js`（CURSOR_END·isEndCursor·RT·ST·okResult0）+ `CFG.dialect` + immsg.CT | `check-dialect`（字面唯 owner + 裸枚举行级扫描） |
+| 存储键（`acsv.s.*` 设置 / GM 键 / 站点共享键） | `settings.js` STORE_PREFIX+SCHEMA 单链；各域键常数 | `check-pref`（偏好写点棘轮）+ `check-cases`（测试面键存在闸，0.9.306） |
+| 列表状态行 / toast 话术 | `liststate.setEmpty` + `pageloader` 五常数 + `toastmsg` | `check-liststate`（字面唯 owner + 白名单双登记） |
+| 几何三方镜像（CSS↔JS↔测试） | cfg→SEAMS 缝回填（dockW/三族网格/pop 上限/dwFallback）+ 生效公式入 cfg（drawerWOf）+ 测试 import 源码常数 | `check-zlayers`（grid 缝双向消费）+ `check-cases`（类名/键）+ `check-release`（产物零缝标记——注释写双括号也会触发，缝标记只许 cssraw/styles） |
+| 「注释即权威表」（z 档 / 判据 / 同源宣称） | 实体为准（overlay 头注降级为摘要）；判据导出单源（pagekind.SPACE_UID_RE·memberCenterPath、imgurl.CDN_URL_OK、immsg.sharePreviewOf） | `check-zlayers`（z 实体表 + 注释单档词）+ 源码字面扫描防复制闸（unit/pagekind、unit/imgurl） |
+| 字段契约 / 依赖方向 / 视图与设置注册 | `domfields.js`、`check-direction` 分类桶、`viewreg`/SCHEMA/表项工厂 | `check-contract` / `check-deps` / `check-direction` |
+| 监听器面 / 浮层键盘面 | `lifecycle.createScope` + `overlayOpen`（modal 让渡） | `check-listeners` / `check-overlay` |
 
 #### 发布（Release）
 

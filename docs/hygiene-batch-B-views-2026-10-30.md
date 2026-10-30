@@ -91,7 +91,7 @@ followadmin 空态串与 followadmin relLabel、searchview 钮文案各文件内
 否决：串集不重合且需视图→档件反向边）；zone 列头/精选标题改读 `viewDef(id).dock.label`；
 pickpop 导出 `dismissConfirm()` 收「全页单枚」摘旧（类串只剩构建处同文件内）。makeListCtx
 ×moreOfList 抽 listsession 评估后**放弃**——回话落点/waiter 形制/条目投影/短路路径/ctx
-分叉五处结构差，强抽造第三件（差异账入 docs/_batch-notes-B.md）。
+分叉五处结构差，强抽造第三件（差异账入 docs/hygiene-batch-B-views-2026-10-30.md）。
 
 **测试**：新单测 `test/unit/chipkit.test.js`（node --test 4 绿：初始高亮/同项短路/换项
 协议与回调实参/皮肤覆写与组间隔离，反跑点在册）；`check-liststate` 绿；eslint 全触面文件
