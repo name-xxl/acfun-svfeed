@@ -407,7 +407,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | 「注释即权威表」（z 档 / 判据 / 同源宣称） | 实体为准（overlay 头注降级为摘要）；判据导出单源（pagekind.SPACE_UID_RE·memberCenterPath、imgurl.CDN_URL_OK、immsg.sharePreviewOf） | `check-zlayers`（z 实体表 + 注释单档词）+ 源码字面扫描防复制闸（unit/pagekind、unit/imgurl） |
 | 字段契约 / 依赖方向 / 视图与设置注册 | `domfields.js`、`check-direction` 分类桶、`viewreg`/SCHEMA/表项工厂 | `check-contract` / `check-deps` / `check-direction` |
 | 监听器面 / 浮层键盘面 | `lifecycle.createScope` + `overlayOpen`（modal 让渡） | `check-listeners` / `check-overlay` |
-| **通用发现层**（不依赖预知的网：跨文件字面 / 同文件≥3写 / ≥6行克隆） | 分诊后收口进上列各行出口；「有意并存」进 `test/hygiene-baseline.json` 带 why（只缩不胖） | `check-hygiene --gate`（报告模式 `npm run hygiene`）——已知不机械化的三面：同值数字（重名噪声）、测试文案手抄（断言即闸）、同义异词（需人判） |
+| **通用发现层**（不依赖预知的网：跨文件字面 / 同文件≥3写 / ≥6行克隆） | 分诊后收口进上列各行出口；「有意并存」进 `test/hygiene-baseline.json` 带 why（只缩不胖）——**key 携带文件集/次数**（0.9.309）：登记项扩张（×2→×3、换宿主、同件加写）即换 key 转 NEW，登记时写下的触发条件由闸看见 | `check-hygiene --gate`（报告模式 `npm run hygiene`；`--emit` 出 key 清单供基线迁移）——已知不机械化的三面：同值数字（重名噪声）、测试文案手抄（断言即闸）、同义异词（需人判） |
 
 #### 发布（Release）
 
@@ -553,6 +553,8 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `listtail.js` | 列表尾部件（0.9.219）：触底哨兵 + 三态状态行 + 回顶按钮单源；消费 followview/followadmin/mytabs/squarefeed/searchview/zone/jingxuanview。 |
 | `liststate.js` | 列表空态行单源（0.9.300，共享 UI 基建）：`setEmpty(list, text)` 统一「建/改/摘」协议，一个容器最多一枚 `.acsv-vempty`；消费 followadmin/followview/meadmin/mypage/mytabs/squarefeed/zone。 |
 | `chipkit.js` | chip 按钮组单源（0.9.305 批⑤，共享 UI 基建）：`mountChipGroup({host,items,isOn,onPick,cls})`——「同项短路→摘 on→点亮→回调」协议唯一定义处；初始高亮与点击短路同问 isOn（DOM on 态恒等数据态——zone 子频道行旧「全部无条件 on」与实选漂移的角由此消失）；cls 默认 'acsv-vchip'（'acsv-vchip sm' 小档、natpanel 段钮 cls:''），选中类名 'on' 固定；返回节点数组供消费点补 data-* 锚；只 import ui.js，零业务；消费 zone/jingxuanview/natpanel。 |
+| `cssseg.js` | 影子根/文档级共用 CSS 段 token 单源（0.9.309 影子样式缝化，零依赖纯常量）：settingspanel/imnative 影子根吃不到文档级样式，面板同段此前与 cssraw 模板逐字并存、靠「对齐抽屉数值」注释手工同步——现 cssraw（构建期插值）与影子根（运行时）同取本件；段值含块尾 `}`，改值一处生效，字节级同证见 0.9.309 CHANGELOG。 |
+| `ubbattr.js` | UBB 出链/出图 HTML 属性段单源（0.9.309，零依赖叶）：`A_TAIL`（`" target="_blank" rel="noopener">`）/`IMG_TAIL`（`" referrerpolicy="no-referrer">`）——target/rel/referrerpolicy 是策略不是胶水，散写即行为分叉温床；ubb/emoticon/imbubble/commentkit 四面消费。 |
 | `nameval.js` | 组名/夹名校验（零依赖叶）：与原生 bundle 正则逐字符一致；消费 grouppop/favpop/followadmin/mytabs。 |
 | `signapi.js` | 签到域（0.9.277）：双链写 + 签到日历 + 黄历；消费 mypage。 |
 | `signpanel.js` | 签到黄历弹窗（0.9.277）：App 式 3:4 卡 + 规则翻面；0.9.298 起入 overlay 栈，关闭归视图 teardown。 |
@@ -600,6 +602,8 @@ flowchart LR
     lifecycle["lifecycle.js（监听器作用域·per-mount 监听登记/一次摘净）"]
     contract["contract.js（关键端点形状守卫·缺形状计数不抛错）"]
     domfields["domfields.js（slide/item 字段契约数据·零依赖·0.9.297）"]
+    cssseg["cssseg.js（影子段/共用 CSS token 单源·零依赖·0.9.309）"]
+    ubbattr["ubbattr.js（UBB 出链/出图属性段单源·零依赖·0.9.309）"]
     dbg["dbg.js（调试埋点）"]
   end
 

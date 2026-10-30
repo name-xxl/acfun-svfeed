@@ -7,6 +7,10 @@
 // 后者在 RAW_CSS 里是拼接引用，内联成字面量会让同一段 CSS 在仓里存两份，违"单源收口"）。
 // 改样式改这里；缝名/表漂移会被 styles.js 的 css.seamLeft 打点抓住。
 // 覆盖档位：接缝实值回填 + 主色 #fd4c5d → var(--acsv-accent) 仍在 styles.js（顺序=先回填后换色）
+// 共用段 token（0.9.309 影子样式缝化）：面板底/关闭钮/滚动条等同值段走 cssseg 单源，
+// settingspanel/imnative 影子根与这里取同一常量——改这类段值去 cssseg，改这里不生效。
+import { SHEET_BG, BASE_FONT, SECT_LINE, CLOSE_BTN, SCROLL_TAIL, POP_SHADOW, FOOT_BAR,
+  EMO_TAIL, IMG_ZOOM_TAIL } from './cssseg.js';
 export var CSS_TEMPLATE = ''
   // A 站原生 iconfont（acfun-frontend-next）：动态页等站内页面同款字体（src 取自
   // member/feeds 页面样式，0.9.55），小视频/推荐页不加载，抽屉内自注入；码点登记在
@@ -236,7 +240,7 @@ export var CSS_TEMPLATE = ''
   + '.acsv-drawer-close{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;width:30px;height:30px;'
   + 'border-radius:50%;cursor:pointer;font-size:13px;line-height:1}'
   + '.acsv-drawer-close:hover{background:rgba(255,255,255,.22)}'
-  + '.acsv-drawer-list{flex:1;overflow-y:auto;padding:6px 0 14px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}'
+  + '.acsv-drawer-list{flex:1;overflow-y:auto;padding:6px 0 14px;scrollbar-width:thin;' + SCROLL_TAIL
   + '.acsv-drawer-list::-webkit-scrollbar{width:5px}'
   + '.acsv-drawer-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}'
   // 评论抽屉三 tab（0.9.167 相关推荐；0.9.174 加「列表」；形态=docs/preview/jingxuan.html ③④⑥）：tab 键在 head 内、
@@ -401,7 +405,7 @@ export var CSS_TEMPLATE = ''
   + '.acsv-emotpanel{position:absolute;left:0;right:0;bottom:84px;z-index:6;display:none;flex-direction:column;'
   + 'max-height:300px;padding:10px 10px 6px;background:rgba(22,22,27,.98);border-top:1px solid rgba(255,255,255,.1)}'
   + '.acsv-emot-body{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:thin;'
-  + 'scrollbar-color:rgba(255,255,255,.2) transparent}'
+  + SCROLL_TAIL
   + '.acsv-emot-head{font-size:12px;color:#7a7f8a;padding:4px 2px 6px}'
   + '.acsv-emot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:2px}'
   + '.acsv-emot-item{border:none;background:none;padding:2px;cursor:pointer;line-height:0;border-radius:6px}'
@@ -611,8 +615,8 @@ export var CSS_TEMPLATE = ''
   + '#acsv-root.acsv-with-comments .acsv-slide>.acsv-spinner,#acsv-root.acsv-with-comments .acsv-scroller>.acsv-spinner{left:calc(50% - var(--acsv-dw,' + '{{dwFallback}}' + 'px)/2)}'
   // 评论内 UBB 渲染（表情/图片/@提及/作品引用）。带 .acsv-cbody 作用域：
   // 这是注入宿主页的全局样式表，不能留无前缀选择器（防与站点样式互染）
-  + '.acsv-cbody .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}'
-  + '.acsv-cbody .ubb-imgc{display:block;max-width:min(240px,100%);max-height:220px;border-radius:8px;margin-top:6px;cursor:zoom-in}'
+  + '.acsv-cbody .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;' + EMO_TAIL
+  + '.acsv-cbody .ubb-imgc{display:block;max-width:min(240px,100%);max-height:220px;' + IMG_ZOOM_TAIL
   // 动态正文内链接（0.9.157 顺修）：行卡正文/详情面板正文/引用源正文此前**没有任何规则**
   // → 落回浏览器默认链接色（黑底近乎不可见）。统一到链接蓝（"名字不再占蓝"后的分工）
   + '.acsv-frow-text a,.acsv-mdetail-text a,.acsv-gquote-textbody a{color:#57a9f5;text-decoration:none}'
@@ -655,7 +659,7 @@ export var CSS_TEMPLATE = ''
   + '.acsv-qmenu{position:absolute;right:0;bottom:calc(100% + 12px);z-index:35;min-width:88px;'
   + 'background:rgba(18,18,22,.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.08);'
   + 'border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:2px;'
-  + 'box-shadow:0 8px 28px rgba(0,0,0,.45)}'
+  + POP_SHADOW
   + '.acsv-qitem{border:none;background:none;color:#ccc;font-size:13px;font-family:inherit;'
   + 'padding:7px 16px;border-radius:8px;cursor:pointer;text-align:center;white-space:nowrap}'
   + '.acsv-qitem:hover{background:rgba(255,255,255,.12);color:#fff}'
@@ -683,7 +687,7 @@ export var CSS_TEMPLATE = ''
   // 私信分享面板（锚定分享按钮左侧的浮层，banpop 同款随 slide 销毁回收）
   + '.acsv-sharepop{position:absolute;right:66px;bottom:-6px;z-index:32;width:300px;'
   + 'max-height:min(' + '{{rowMaxH}}' + 'px,' + '{{rowMaxVh}}' + 'vh);display:flex;flex-direction:column;'
-  + 'background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);'
+  + SHEET_BG
   + 'border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);animation:acsv-fadein .18s ease}'
   // 评论转发私信变体（0.9.50）：挂在抽屉根（滚动列表内挂载会被水平裁剪），锚输入条上方
   + '.acsv-sharepop-drawer{right:12px;bottom:57px}'
@@ -700,7 +704,7 @@ export var CSS_TEMPLATE = ''
   + '.acsv-share-search::placeholder{color:rgba(255,255,255,.4)}'
   + '.acsv-share-search:focus{background:rgba(255,255,255,.16)}'
   + '.acsv-share-list{flex:1 1 auto;min-height:120px;overflow-y:auto;padding:2px 6px 6px;'
-  + 'scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}'
+  + 'scrollbar-width:thin;' + SCROLL_TAIL
   + '.acsv-share-list::-webkit-scrollbar{width:5px}'
   + '.acsv-share-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}'
   + '.acsv-share-row{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:10px}'
@@ -731,13 +735,13 @@ export var CSS_TEMPLATE = ''
   // ---- 私信抽屉（列表 + 聊天两视图；滑入骨架见上共享规则，这里只写差异） ----
   + '.acsv-msgdrawer{width:var(--acsv-dw,min(' + '{{dwFallback}}' + 'px,88vw));background:rgba(22,22,27,.97)}'
   + '.acsv-im-head{flex:none;display:flex;align-items:center;gap:8px;padding:14px 16px;font-size:15px;'
-  + 'font-weight:600;color:#fff;border-bottom:1px solid rgba(255,255,255,.09)}'
+  + 'font-weight:600;color:#fff;' + SECT_LINE
   + '.acsv-im-back{border:none;background:rgba(255,255,255,.1);color:#fff;width:28px;height:28px;'
   + 'border-radius:50%;cursor:pointer;font-size:16px;line-height:1;display:none}'
   + '.acsv-msgdrawer.chat-on .acsv-im-back{display:block}' // 返回键只属会话页（0.9.75 收进 CSS）
   + '.acsv-im-back:hover{background:rgba(255,255,255,.22)}'
   + '.acsv-im-close{margin-left:auto;border:none;background:rgba(255,255,255,.1);color:#fff;'
-  + 'width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}'
+  + CLOSE_BTN
   + '.acsv-im-close:hover{background:rgba(255,255,255,.22)}'
   // 列表↔会话「双向平移」（0.9.75，iOS/微信式下钻）：舞台负责裁剪——两面板要 translateX(±100%)，
   // 而 .acsv-msgdrawer / #acsv-root 都没有 overflow，不裁就会滑出视口/出横向滚动条；
@@ -754,7 +758,7 @@ export var CSS_TEMPLATE = ''
   + '.acsv-im-search::placeholder{color:rgba(255,255,255,.4)}'
   + '.acsv-im-search:focus{background:rgba(255,255,255,.16)}'
   + '.acsv-im-list,.acsv-im-bubbles{flex:1 1 auto;min-height:0;overflow-y:auto;padding:4px 8px 10px;'
-  + 'scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}'
+  + 'scrollbar-width:thin;' + SCROLL_TAIL
   + '.acsv-im-bubbles{display:flex;flex-direction:column}' // 气泡容器必须是 flex 列：align-self 左右分侧才生效
   + '.acsv-im-list::-webkit-scrollbar,.acsv-im-bubbles::-webkit-scrollbar{width:5px}'
   + '.acsv-im-list::-webkit-scrollbar-thumb,.acsv-im-bubbles::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}'
@@ -822,7 +826,7 @@ export var CSS_TEMPLATE = ''
   + '@keyframes acsv-im-shimmer{from{background-position:200% 0}to{background-position:-200% 0}}'
   + '.acsv-im-imgbubble.failed{background:rgba(255,255,255,.08);cursor:pointer}'
   // 气泡内表情图（正文/引用正文同款）：尺寸对齐评论正文 .ubb-emotion 的 34px 档
-  + '.acsv-emotimg{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}'
+  + '.acsv-emotimg{display:inline-block;max-height:34px;max-width:68px;' + EMO_TAIL
   // 顶栏私信按钮（A 站原生 iconfont 字形 + 未读徽标）
   + '.acsv-im-btn{position:relative;font-style:normal}'
   + '.acsv-im-btn svg{width:20px;height:20px;fill:#fff;display:block}'
@@ -856,9 +860,9 @@ export var CSS_TEMPLATE = ''
   // quote 富渲染（extra 载荷命中，renderCommentHtml 产出）的 UBB 元素：作用域收在
   // 评论卡内，样式对齐评论正文（.acsv-cbody 同款数值）
   + '.acsv-im-cshare-quote .ubb-emotion{display:inline-block;max-height:34px;max-width:68px;'
-  + 'vertical-align:middle;margin:1px 2px}'
+  + EMO_TAIL
   + '.acsv-im-cshare-quote .ubb-imgc{display:block;max-width:min(200px,100%);max-height:150px;'
-  + 'border-radius:8px;margin-top:6px;cursor:zoom-in}'
+  + IMG_ZOOM_TAIL
   // 动态卡配图行（0.9.122，骨架根类复用评论卡）：缩略网格，点图开大图
   + '.acsv-im-cshare .acsv-im-cshare-mimgs{display:flex;flex-wrap:wrap;gap:4px;padding:8px 10px 0 11px}'
   + '.acsv-im-cshare .acsv-im-cshare-mimg{display:block;width:92px;height:92px;border-radius:6px;'
@@ -885,15 +889,15 @@ export var CSS_TEMPLATE = ''
   // 自带 keyframes：acsv-fadein 只随 IMGVIEW_CSS 段提供（0.9.57 拆分），不跨段依赖
   + '@keyframes acsv-upd-in{from{opacity:0}to{opacity:1}}'
   + '.acsv-upd-panel{width:min(560px,92vw);max-height:min(76vh,640px);display:flex;flex-direction:column;'
-  + 'background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);'
+  + SHEET_BG
   + 'border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden}'
   + '.acsv-upd-head{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px;'
-  + 'border-bottom:1px solid rgba(255,255,255,.09)}'
+  + SECT_LINE
   + '.acsv-upd-title{min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;'
   + 'font-size:15px;font-weight:600;color:#fff}'
   + '.acsv-upd-sub{font-size:12px;font-weight:400;color:#8b909a}'
   + '.acsv-upd-x{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;'
-  + 'width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}'
+  + CLOSE_BTN
   + '.acsv-upd-x:hover{background:rgba(255,255,255,.22)}'
   + '.acsv-upd-body{flex:1 1 auto;min-height:64px;overflow-y:auto;padding:12px 18px 16px;'
   // 正文可划选复制（评论正文先例：root 全局 user-select:none 之上的例外区，只开正文）
@@ -976,9 +980,9 @@ export var CSS_TEMPLATE = ''
   + '.acsv-mdetail-more:hover{background:rgba(255,255,255,.22)}'
   // 面板（单栏态基准；圆角 20 = XHS 实测）
   + '.acsv-mdetail-panel{position:relative;width:min(620px,94vw);max-height:min(84vh,760px);display:flex;flex-direction:column;'
-  + 'background:rgba(22,22,27,.97);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);'
+  + SHEET_BG
   + 'border-radius:20px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden;color:#fff;'
-  + 'font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}'
+  + BASE_FONT
   // ---- 两栏态（0.9.103 小红书式；量取日 2026-10-03 xiaohongshu.com 详情页 computed style）----
   // XHS 实测：容器 904×672 圆角 20 深色 #121212；左媒体区 504 黑底（圆角 20 0 0 20）/右栏 400。
   // 按内容型换布局（用户裁决）：有自有图=两栏，无图/转发=单栏收窄（上方面板基准）。
@@ -1008,14 +1012,14 @@ export var CSS_TEMPLATE = ''
   // 作者行（XHS 实测 81 高：头像 40 圆、名字 16px rgba(255,255,255,.8)；gmom 类名复用处的
   // 显式尺寸覆盖——类名复用=连作用域复用，0.9.96 教训）
   + '.acsv-mdetail-head{flex:none;display:flex;align-items:center;gap:10px;padding:14px 20px;'
-  + 'border-bottom:1px solid rgba(255,255,255,.09)}'
+  + SECT_LINE
   + '.acsv-mdetail-head .acsv-gmom-av{width:40px;height:40px}'
   + '.acsv-mdetail-head .acsv-gmom-av img{width:40px;height:40px}'
   + '.acsv-mdetail-head .acsv-gmom-name{font-size:16px;color:#fff;text-decoration:none}' // 名字默认白（0.9.157；与列表同色，不再点开变蓝）
   + '.acsv-mdetail-head .acsv-gmom-name:hover{text-decoration:underline}'
   // 列表 = 管线宿主（正文 pin 在首、评论区衔接其后；输入条是 list 的兄弟节点不遮列表，底距收小）
   + '.acsv-mdetail-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px 20px 10px;'
-  + 'scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}'
+  + 'scrollbar-width:thin;' + SCROLL_TAIL
   // 正文 16/24 = XHS 实测（此前 14/22）
   // 正文开文字选择（0.9.153 实报「动态正文不支持拖动选择复制」）：root 全局 user-select:none 之上
   // 的例外区（评论正文先例），只开正文——名字/时间/按键保持不可选防误选
@@ -1024,7 +1028,7 @@ export var CSS_TEMPLATE = ''
   // 正文表情/配图尺寸作用域（0.9.105：此前只在 .acsv-cbody 下有限制，行流/面板/引用卡内
   // 表情图以自然尺寸显示≈80px——实报「动态卡片不支持 ubb 解析吗」的真凶）；34/68 与评论同源
   + '.acsv-frow-text .ubb-emotion,.acsv-mdetail-text .ubb-emotion,.acsv-gquote-textbody .ubb-emotion'
-  + '{display:inline-block;max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px}'
+  + '{display:inline-block;max-height:34px;max-width:68px;' + EMO_TAIL
   + '.acsv-frow-text .ubb-imgc,.acsv-mdetail-text .ubb-imgc,.acsv-gquote-textbody .ubb-imgc'
   + '{max-width:100%;border-radius:6px;vertical-align:middle}'
   + '.ubb-emot-ph{color:#8a90a0;font-size:13px}' // 表情占位（字面 [表情] 与未就绪回填前）
@@ -1054,7 +1058,7 @@ export var CSS_TEMPLATE = ''
   // 表情悬停大图（0.9.96 4.2）：锚定宿主面板（absolute），预览在条目上方、不挡交互
   + '.acsv-emot-prev{position:absolute;width:124px;height:124px;z-index:7;display:none;padding:8px;pointer-events:none;'
   + 'background:rgba(22,22,27,.97);border:1px solid rgba(255,255,255,.14);border-radius:10px;'
-  + 'box-shadow:0 8px 28px rgba(0,0,0,.45)}'
+  + POP_SHADOW
   + '.acsv-emot-prev img{width:100%;height:100%;object-fit:contain;display:block}'
   // 主区让位：竖刷视频区居中于剩余空间；全屏沉浸还原满幅
   + '.acsv-scroller{margin-left:' + '{{dockW}}' + 'px}'
@@ -1290,7 +1294,7 @@ export var CSS_TEMPLATE = ''
   // 弹体：0.9.144 起 min-height:0（原 60px）——JS 会按可用空间给弹层写 maxHeight，
   // flex 子项若带 min-height 会把弹层顶出去（越界的老病灶路径）；标题/底键 flex:none 常驻
   + '.acsv-pick-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 6px 6px;scrollbar-width:thin;'
-  + 'scrollbar-color:rgba(255,255,255,.2) transparent}'
+  + SCROLL_TAIL
   + '.acsv-pick-item{display:flex;align-items:center;gap:8px;width:100%;border:none;background:none;'
   + 'color:#cfd3da;font-size:13px;font-family:inherit;text-align:left;padding:8px 10px;border-radius:8px;cursor:pointer}'
   + '.acsv-pick-item:hover{background:rgba(255,255,255,.08);color:#fff}'
@@ -1351,14 +1355,14 @@ export var CSS_TEMPLATE = ''
   + 'border:1px solid rgba(255,255,255,.1);border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);'
   + 'overflow:hidden;color:#fff}'
   + '.acsv-mm-hd{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px;'
-  + 'border-bottom:1px solid rgba(255,255,255,.09)}'
+  + SECT_LINE
   + '.acsv-mm-ttl{font-size:15px;font-weight:600;color:#fff}'
   + '.acsv-mm-x{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;'
-  + 'width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}'
+  + CLOSE_BTN
   + '.acsv-mm-x:hover{background:rgba(255,255,255,.22)}'
   // 体：列表随面板体滚动（.set-body 模式；内层 203 限高已于 0.9.292 退役）
   + '.acsv-mm-bd{flex:1 1 auto;min-height:64px;overflow-y:auto;padding:20px;scrollbar-width:thin;'
-  + 'scrollbar-color:rgba(255,255,255,.2) transparent}'
+  + SCROLL_TAIL
   + '.acsv-mm-grp{font-size:12px;color:#8b909a;margin:0 0 12px}'
   + '.acsv-mm-list{display:flex;flex-direction:column}'
   // 条目行（管理模态）＝.set-row 节奏：名 14/18 左 + ghost 操作键右，行距 20
@@ -1395,7 +1399,7 @@ export var CSS_TEMPLATE = ''
   + '.acsv-mm-sbtn.primary{background:var(--acsv-accent)}'
   // 页脚（＝.set-foot：确定 primary 右置；原居中红块 128×36 退役）
   + '.acsv-mm-foot{flex:none;display:flex;align-items:center;gap:8px;justify-content:flex-end;'
-  + 'padding:10px 16px 14px;border-top:1px solid rgba(255,255,255,.09)}'
+  + FOOT_BAR
   + '.acsv-mm-ok{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;'
   + 'cursor:pointer;background:var(--acsv-accent);color:#fff;transition:background .15s}'
   // 顶部警示条（模仿原生 ac-toast-warn：icon U+E1A0 金黄 + 14px 文案；暗色加 panel 底成浮层药丸）
@@ -1656,7 +1660,7 @@ export var CSS_TEMPLATE = ''
   // 时它逃逸到 .acsv-view-body 底缘，看起来就是「打不开」；0.9.101 用户实报修复）
   + '.acsv-frow-cmts{position:relative;margin:0 0 6px 60px}'
   + '.acsv-frow-cmtlist{max-height:420px;overflow-y:auto;scrollbar-width:thin;'
-  + 'scrollbar-color:rgba(255,255,255,.2) transparent}'
+  + SCROLL_TAIL
   // 三态底部状态行（借鉴广场 load-more-status）；busy 态加点点动画的克制版=文字+降透明
   + '.acsv-fstatus{min-height:34px;padding:8px 2px;text-align:center;font-size:12px;color:#8a90a0;cursor:pointer}'
   + '.acsv-fstatus.busy{opacity:.7;cursor:default}'

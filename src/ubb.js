@@ -9,6 +9,7 @@ import { esc } from './ui.js';
 import { CFG } from './cfg.js';
 import { CDN_URL_OK } from './imgurl.js';
 import { emotImgOf, emotPlaceholderHtml } from './emoticon.js';
+import { A_TAIL, IMG_TAIL } from './ubbattr.js'; // 出链/出图属性段单源（0.9.309 缝化）
 
 // A 站图床白名单 = CDN_URL_OK（0.9.302 沉 imgurl.js 单源，与表情域**共用同一字符集**；
 // 此前本处与 emoticon.js 各持一份逐字节相同的正则、头注还宣称「两张网不共用」——已核正）
@@ -39,16 +40,16 @@ export function renderCommentHtml(content) {
   });
   // 图片：[img=图片]URL[/img] / [img=alt]URL[/img] / [img]URL[/img]，限 A 站图床白名单
   h = h.replace(/\[img=[^\]]*\](https?:\/\/[^\["']+?)\[\/img\]/g, function (_, u) {
-    return CDN_URL_OK.test(u) ? protect('<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">') : u;
+    return CDN_URL_OK.test(u) ? protect('<img class="ubb-imgc" src="' + u + IMG_TAIL) : u;
   });
   h = h.replace(/\[img\](https?:\/\/[^\["']+?)\[\/img\]/g, function (_, u) {
-    return CDN_URL_OK.test(u) ? protect('<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">') : u;
+    return CDN_URL_OK.test(u) ? protect('<img class="ubb-imgc" src="' + u + IMG_TAIL) : u;
   });
   // @ 提及：[at uid=123]@昵称[/at] → 用户主页链接。uid 限数字进 href；@? 可选吞掉后
   // 统一补 @ 前缀；昵称不再单独转义——全文 esc 已跑过，二次转义会把 & 变成 &amp;quot;
   // （广场项目 v3.7.0 修过的双重转义教训）
   h = h.replace(/\[at uid=(\d+)\]@?(.*?)\[\/at\]/g, function (_, uid, name) {
-    return protect('<a class="ubb-at" href="' + CFG.api.userBase + uid + '" target="_blank" rel="noopener">@' + name + '</a>');
+    return protect('<a class="ubb-at" href="' + CFG.api.userBase + uid + A_TAIL + '@' + name + '</a>');
   });
   // 行内链接类三条（0.9.105 吸收广场规则）：#话题# → 站内搜索（保护块——话题内文不再被
   // 后续 ac/动态短链规则二次改写）；裸 ac 号/v/ac、a/ac → 作品链；动态短链
@@ -59,14 +60,14 @@ export function renderCommentHtml(content) {
     // 不建话题链——否则 token 会被 encodeURIComponent 编进 search keyword
     if (/\x01acsv\d+\x01/.test(topic)) return m;
     return protect('<a class="ubb-topic" href="https://www.acfun.cn/search?keyword=' + encodeURIComponent(topic)
-      + '" target="_blank" rel="noopener">#' + topic + '#</a>');
+      + A_TAIL + '#' + topic + '#</a>');
   });
   h = h.split(/(<[^>]*>|\[[^\]]*\]?)/).map(function (seg, i) {
     if (i % 2) return seg; // 标记段/UBB 属性段：不扫
     seg = seg.replace(/\b(?:([va])\/)?(ac\d{4,})\b/gi, function (_, prefix, id) {
       var type = (prefix || 'a').toLowerCase();
       var display = prefix ? prefix + '/' + id : id;
-      return '<a class="ubb-ac" href="https://www.acfun.cn/' + type + '/' + id + '" target="_blank" rel="noopener">'
+      return '<a class="ubb-ac" href="https://www.acfun.cn/' + type + '/' + id + A_TAIL
         + display + '</a>';
     });
     return seg.replace(/m\.acfun\.cn\/communityCircle\/moment\/(\d+)/g, function (_, id) {
@@ -80,7 +81,7 @@ export function renderCommentHtml(content) {
   h = h.replace(/\[ac=(\d+)(?:@(\w+))?\]([\s\S]*?)\[\/ac\]/gi, function (_, id, suffix, inner) {
     var type = String(suffix || '').toLowerCase() === 'video' ? 'v' : 'a';
     // id 是纯数字：落点补 'ac' 前缀（/v/ac<id>），与裸 ac 号规则同形
-    return '<a class="ubb-ac" href="https://www.acfun.cn/' + type + '/ac' + id + '" target="_blank" rel="noopener">'
+    return '<a class="ubb-ac" href="https://www.acfun.cn/' + type + '/ac' + id + A_TAIL
       + restore(inner).replace(/<[^>]+>/g, '') + '</a>';
   });
   // 作品引用：[resource id=456 type=2 icon=URL]标题[/resource] → 视频/文章链接
@@ -89,7 +90,7 @@ export function renderCommentHtml(content) {
   // 内层表情/配图/话题只留可见文本（与旧"先成链再剥壳"逐字等价）。未闭合按字面
   h = h.replace(/\[resource id=(\d+) type=(\d+)[^\]]*\]([\s\S]*?)\[\/resource\]/gi, function (_, id, type, inner) {
     var base = type === '2' ? CFG.api.videoBase : CFG.api.articleBase;
-    return '<a class="ubb-res" href="' + base + id + '" target="_blank" rel="noopener">'
+    return '<a class="ubb-res" href="' + base + id + A_TAIL
       + restore(inner).replace(/<[^>]+>/g, '') + '</a>';
   });
   // 行内格式四件（0.9.238 补：官方 Fe 序列化器自己就在产出这四种，A 站评论确实支持；
