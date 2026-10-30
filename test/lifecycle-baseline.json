@@ -1,0 +1,381 @@
+{
+  "_comment": "check-lifecycle2 棘轮基线：首轮盘点登记（0.9.310）。key=扫描器生成式（pair:文件:iv|obs 生/灭计数 / swallow:文件:块体摘要@同形次数）——新病灶=NEW 红；swallow 块体改动即换 key（触发再分诊）。分诊出口三型：迁 swallow(e,域) 计数出口 / 补 // swallow: 标记 / 改结构。基线只能缩不能胖。",
+  "entries": [
+    {
+      "key": "pair:comments.js:obs 1/0",
+      "why": "宿主级观察器（评论哨兵），随宿主 teardown"
+    },
+    {
+      "key": "pair:danmaku.js:iv 1/2",
+      "why": "防御式双清（tick 自清 + teardown 清）——计数差有意"
+    },
+    {
+      "key": "pair:imgload.js:obs 1/0",
+      "why": "按 margin 建池：unobserve 回收 + 观察器单例常驻（lazyObserve）"
+    },
+    {
+      "key": "pair:imnative.js:obs 1/0",
+      "why": "页面级增强观察器，随页面常驻"
+    },
+    {
+      "key": "pair:iploc.js:obs 1/0",
+      "why": "视口回填观察器，随消费方 teardown"
+    },
+    {
+      "key": "pair:memberplaza.js:obs 1/0",
+      "why": "SPA 自愈观察器，body 级单例"
+    },
+    {
+      "key": "pair:nativeip.js:obs 2/0",
+      "why": "页面级注入观察器，随页面常驻"
+    },
+    {
+      "key": "pair:nav.js:obs 1/2",
+      "why": "一建多断＝同一实例多处 disconnect（防御式）"
+    },
+    {
+      "key": "pair:player.js:obs 1/2",
+      "why": "一建多断＝同一实例多处 disconnect（防御式）"
+    },
+    {
+      "key": "pair:spacetab.js:obs 1/0",
+      "why": "真·生而不灭候选：挂账分诊批（0.9.311+）——判 singleton 补 // singleton-obs: 标记或补 disconnect"
+    },
+    {
+      "key": "swallow:imnative.js:(空块体)@9",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:immsg.js:return null;@8",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:iploc.js:(空块体)@8",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:settings.js:(空块体)@8",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:devname.js:(空块体)@6",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:dmcanvas.js:(空块体)@6",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:controls.js:(空块体)@5",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:emoticon.js:(空块体)@5",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:inputbar.js:(空块体)@5",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:watchledger.js:(空块体)@5",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imimage.js:(空块体)@4",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:views.js:(空块体)@4",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imbadge.js:(空块体)@3",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imchat.js:(空块体)@3",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imimage.js:return '';@3",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:immsg.js:(空块体)@3",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imsdk.js:(空块体)@3",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imsend.js:(空块体)@3",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imsend.js:reject(e);@3",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:nativeip.js:(空块体)@3",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:searchhist.js:(空块体)@3",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:dbg.js:(空块体)@2",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:followseen.js:(空块体)@2",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:hls.js:(空块体)@2",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imbubble.js:(空块体)@2",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imdrawer.js:(空块体)@2",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imlist.js:(空块体)@2",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imsdk.js:return false;@2",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imsend.js:finish(e); return;@2",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imsendui.js:(空块体)@2",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:memberplaza.js:(空块体)@2",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:searchhist.js:j = null;@2",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:topbar.js:(空块体)@2",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:advdm.js:return null;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:appapi.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:attach.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:cfg.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:comments.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:devname.js:return null;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:dmpanel.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:emoticon.js:return null;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:hls.js:set(' ', String((e && e.message) || e).slice(0, 140));@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:hls.js:return false;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imbubble.js:t.scrollIntoView();@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imchat.js:if (getDrawer() && getDrawer().bubbles && !getDrawer().bubbles.children.length) @1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imimage.js:return null;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imlist.js:if (getDrawer() && getDrawer().listBody && !getDrawer().listBody.children.length@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:immsg.js:return CT.TEXT;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:immsg.js:return 0;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:immsg.js:return '';@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imnative.js:return null;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imsdk.js:return String(a);@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imsdk.js:return 0;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imsdk.js:return { lines: [], drop: 0 };@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imsdk.js:G.__acsvTracerOk = false;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imsend.js:var p;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:imsendui.js:var pre = linkOk(inst) ? Promise.resolve() : ensureConnected(inst);@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:interact.js:return false;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:lifecycle.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:momenteditor.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:natpanel.js:toast(' ' + e.message); return;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:net.js:reject(new Error(' '));@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:net.js:return true;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:net.js:reject(e);@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:overlay.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:pack.js:if (onFail) onFail(' ', String((e && e.message) || e));@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:playback.js:var slide = video.closest(' ');@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:prewarm.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:release.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:release.js:stateFallback = st;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:report.js:return false;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:route.js:return s;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:route.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:searchhist.js:memArr = a.slice();@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:searchview.js:location.hash = hashOf(curKind, kw);@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:session.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:settings.js:return null;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:settingspanel.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:sharepanel.js:if (!pop.isConnected) return;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:spacetab.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:ui.js:(空块体)@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:uppage.js:return null;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:uppage.js:UpVideos.failed = true;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:watchledger.js:return out;@1",
+      "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    }
+  ]
+}

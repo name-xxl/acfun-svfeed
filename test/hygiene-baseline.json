@@ -1,37 +1,101 @@
 {
- "_comment": "check-hygiene 棘轮基线：已审登记的「有意并存」重复。key=扫描器生成式，0.9.309 起 dup 携带文件集（dup:字面@文件,文件；idup 另带次数@n；clone:文件+文件:首窗首行）——扩张即换 key 转 NEW。收口一处删一行——基线只能缩不能胖。",
- "entries": [
-  {
-   "key": "dup: 条）@commentkit.js,natpanel.js",
-   "why": "「（剩 N 条）」拼装尾（commentkit 楼中楼 / natpanel 缓存计数）——域内各自语义，句级合并负价值"
-  },
-  {
-   "key": "dup:.acsv-arrow-up@controls.js,playlayer.js",
-   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
-  },
-  {
-   "key": "dup:.acsv-im-bubble@imbubble.js,imdrawer.js",
-   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
-  },
-  {
-   "key": "dup:.acsv-im-vcard@imbubble.js,imdrawer.js",
-   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
-  },
-  {
-   "key": "dup:.acsv-cinput-edit@imdrawer.js,momentdetail.js",
-   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
-  },
-  {
-   "key": "dup:.acsv-frow-text@rowkit.js,squarefeed.js",
-   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
-  },
-  {
-   "key": "dup:.ac-space-contribute-list@spacemoments.js,uppage.js",
-   "why": "站方原生 DOM 选择器双查（uppage/spacemoments 同宿主）——外部契约登记"
-  },
-  {
-   "key": "dup:.acsv-slide[data-idx=\"@state.js,views.js",
-   "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
-  }
- ]
+  "_comment": "check-hygiene 棘轮基线：已审登记的「有意并存」重复。key=扫描器生成式，0.9.309 起 dup 携带文件集（dup:字面@文件,文件；idup 另带次数@n；clone:文件+文件:首窗首行）——扩张即换 key 转 NEW。收口一处删一行——基线只能缩不能胖。",
+  "entries": [
+    {
+      "key": "dup: 条）@commentkit.js,natpanel.js",
+      "why": "「（剩 N 条）」拼装尾（commentkit 楼中楼 / natpanel 缓存计数）——域内各自语义，句级合并负价值"
+    },
+    {
+      "key": "dup:.acsv-arrow-up@controls.js,playlayer.js",
+      "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
+    },
+    {
+      "key": "dup:.acsv-im-bubble@imbubble.js,imdrawer.js",
+      "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
+    },
+    {
+      "key": "dup:.acsv-im-vcard@imbubble.js,imdrawer.js",
+      "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
+    },
+    {
+      "key": "dup:.acsv-cinput-edit@imdrawer.js,momentdetail.js",
+      "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
+    },
+    {
+      "key": "dup:.acsv-frow-text@rowkit.js,squarefeed.js",
+      "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
+    },
+    {
+      "key": "dup:.ac-space-contribute-list@spacemoments.js,uppage.js",
+      "why": "站方原生 DOM 选择器双查（uppage/spacemoments 同宿主）——外部契约登记"
+    },
+    {
+      "key": "dup:.acsv-slide[data-idx=\"@state.js,views.js",
+      "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
+    },
+    {
+      "key": "debt:cards.js:未实测@1",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+    },
+    {
+      "key": "debt:cfg.js:未实测@1",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+    },
+    {
+      "key": "debt:cssraw.js:未实测@1",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+    },
+    {
+      "key": "debt:inputbar.js:未实测@2",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+    },
+    {
+      "key": "debt:interact.js:未实测@1",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+    },
+    {
+      "key": "debt:momentbar.js:未实测@3",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+    },
+    {
+      "key": "debt:momenteditor.js:未实测@1",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+    },
+    {
+      "key": "debt:mypage.js:未实测@1",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+    },
+    {
+      "key": "debt:panelitem.js:未实测@2",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+    },
+    {
+      "key": "debt:report.js:未实测@1",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+    },
+    {
+      "key": "debt:rowkit.js:未实测@2",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+    },
+    {
+      "key": "debt:upload.js:未实测@1",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+    },
+    {
+      "key": "leaf:followseen.js:Date.now(",
+      "why": "可注入时钟形态（Number(now) || Date.now() 参数优先兜底 / 纯日期算术）——确定性由参数注入保证（imgurl rnd 先例）"
+    },
+    {
+      "key": "leaf:imgurl.js:Date.now(",
+      "why": "可注入时钟形态（Number(now) || Date.now() 参数优先兜底 / 纯日期算术）——确定性由参数注入保证（imgurl rnd 先例）"
+    },
+    {
+      "key": "leaf:timefmt.js:Date.now(",
+      "why": "可注入时钟形态（Number(now) || Date.now() 参数优先兜底 / 纯日期算术）——确定性由参数注入保证（imgurl rnd 先例）"
+    },
+    {
+      "key": "leaf:timefmt.js:new Date(",
+      "why": "可注入时钟形态（Number(now) || Date.now() 参数优先兜底 / 纯日期算术）——确定性由参数注入保证（imgurl rnd 先例）"
+    }
+  ]
 }

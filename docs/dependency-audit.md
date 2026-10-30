@@ -644,3 +644,19 @@ feedstore.js → player.js → input.js → feedstore.js
   两句失败重试文案只许 pageloader.js。入 `npm run check`。
 - **复点**：`check-liststate` 0 未登记；方向覆盖 INFRA 26 / API 12 / LEAF 8 / FEATURE 61 /
   SKIP_B 3 / PLAY 20 + 豁免 2（src 132），三口径 0/0/0；harness 90 场景 0 失败。
+
+## 0.9.310 —— 方向口径 D/E 落地与首批登记
+
+`check-direction` 扩两口径（命名↔分类一致性：「命名对架构做的承诺必须兑现」）：
+
+- **口径 D（叶清单零出边）**：README 依赖图 `class … leaf;` 行是「零依赖」承诺的白纸黑字，
+  清单内文件出现任何静态 import 出边即红。落地即清一处：**popplace 移出叶清单**——模块表
+  0.9.305 已改口「只吃 cfg 的准叶」（唯一 import=CFG），依赖图该行是滞后处；修法=改事实源
+  （清单 11→10 叶、节点标注改准叶），不登记豁免。
+- **口径 E（接口族触面）**：`*api.js` 不得 import ui/styles/views。首轮在册 2 条
+  （KNOWN，0.9.310）：
+  - `appapi.js -> ui.js`
+  - `signapi.js -> ui.js`
+  病灶同源：singleFlight/selfUid 并发/鉴权纯工具误居 ui.js（历史归置），接口族被迫触 UI 件。
+  **撤行条件**：ui 拆件把纯工具迁出（落点候选：并发原语归 net/lifecycle 族、selfUid 归 session
+  族），迁出后从 KNOWN 删除。在册=可见的债，不是赦免。

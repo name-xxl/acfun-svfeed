@@ -5,6 +5,49 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.310（2026-10-30）· 机械筛选+人工判定体系扩闸——结构面/生灭面两新闸 + hygiene 两 pass + 方向两口径，首批存量登记
+
+**背景**：用户裁决把「正确性/简洁性」拆成可机械筛选的**结构前件**，按「机械网捞候选 →
+人工四选一裁决 → 棘轮固化」漏斗扩面；四子代理并行落地（结构筛/生灭筛/hygiene 扩面/只读盘点），
+主会话接线与裁决。运行时零行为变化，纯工程向。
+
+**新闸两件**：
+- `test/check-structure.mjs`——孤儿件/死导出/单消费抽象/尺寸建档四 kind 棘轮（`--gate`，
+  基线 `test/structure-baseline.json`）+ 扇出/扇入 top10 仅报告（标定：imdrawer 拆件前扇出 14）。
+  首轮：**orphan 0**（135 件全部可达）/ dead 52 / single 6 / size 135 建档。自检揪出并修掉
+  自身一处病灶：emit 模式原本解析基线，「`--emit > 基线路径`」的建档工作流会被 shell 先截断
+  成空文件必崩——改 emit 对基线零依赖。
+- `test/check-lifecycle2.mjs`——pair＝定时器/观察器**计数配对**（`setInterval⇄clearInterval`、
+  三种 Observer⇄`.disconnect`，`// singleton-obs:` 放行镜像 check-listeners 机制）+
+  swallow＝catch 块体无 `stat(`/`throw`/标记即候选。基线 `test/lifecycle-baseline.json`
+  94 项（pair 10 / swallow 84；212 处 catch 中 37 处被既有放行判据命中）。**真病灶在册**：
+  spacetab.js 观察器生而不灭（裸实例未存引用）——挂账 0.9.311+ 分诊。
+
+**扩面两处**：
+- `check-hygiene` 加 pass④**债务标记**（`TODO|FIXME|HACK|未实测`——18 处全为「未实测」，
+  规矩 2 显式挂账的台账化）+ pass⑤**纯叶纯度**（README 叶清单文件禁浏览器/时间原语）；
+  leaf 清单机器读自 README `class … leaf;` 行，读不到 fail loud。旧三扫报告逐条 diff 零回归。
+- `check-direction` 加**口径 D**（叶清单零静态出边——「零依赖」宣称机器核验）与
+  **口径 E**（`*api.js` 禁触 ui/styles/views——命名对架构的承诺必须兑现）。
+
+**首轮裁决三件**：
+- **popplace 降准叶（改事实源而非豁免）**：口径 D 首轮即红 `popplace → cfg`——模块表 0.9.305
+  已改口「只吃 cfg 的准叶」，依赖图 `class…leaf;` 行是滞后处。修法＝叶清单剔除 popplace、
+  绿色节点 11→10、节点标注改准叶；纯度失真按事实改清单，不登记豁免。
+- **口径 E 登记 2 条**（KNOWN 首轮）：`appapi/signapi → ui.js` 取 singleFlight/selfUid
+  纯工具——工具误居 ui.js 的历史归置，挂账 ui 拆件迁出后撤行；同步 docs/dependency-audit.md。
+- 叶失真余 4 键（timefmt/imgurl/followseen 的 `Date.now`/`new Date`）均为「参数优先、
+  Date.now 兜底」**可注入时钟形态**（imgurl rnd 先例），登记豁免；单消费 6 件全为拆件/注入缝
+  （commentkit←comments、imbubble/imchat/imlist/imsendui←imdrawer、sessionhooks←player），
+  登记豁免「为可测性抽纯」型。
+
+**接线**：`npm run check` 链挂 check-structure/check-lifecycle2 的 `--gate`；README 病灶×守卫
+对照表加 3 行（结构面/生灭配对+吞错/债务+纯叶）、开发章补 4 条口径。
+
+**测试证据**：两新闸+两扩面各自摘修复反跑（OS 临时目录合成病灶 → 报告模式落网 → gate 转红 →
+摘除复绿）；check-hygiene 旧三扫改前/改后全量报告 diff 零差异；`--emit` 出 key 与基线双向核对
+（hygiene 24＝dup 8+debt 12+leaf 4；structure 193；lifecycle 94）；全量 lint/check/单测/harness 全绿。
+
 ### 0.9.309（2026-10-30）· 旧裁决复评——影子样式缝化 + 属性段/委托段收口，登记项触发条件上闸
 
 **背景（用户裁决「旧判断旧方案过时可评估推翻，从实际出发」）**：0.9.307/308 基线 25 项

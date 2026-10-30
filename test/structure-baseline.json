@@ -1,0 +1,777 @@
+{
+  "_comment": "check-structure 棘轮基线：首轮盘点建档（0.9.310）。key=扫描器生成式（dead:文件:符号@外次 / single:文件 / size:文件:行L:导出E / orphan:文件）——dead/single 换宿主或扩消费即换 key 转 NEW；size 数值增长即 NEW、缩小合法（重跑 --emit 重排）。基线只能缩不能胖。",
+  "entries": [
+    {
+      "key": "dead:advdm.js:DEFAULT_ANCHOR@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:cards.js:statRowOf@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:comments.js:commentState@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:comments.js:retargetComments@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:comments.js:canDeleteComment@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:contract.js:ST@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:controls.js:codecPref@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:cssraw.js:CSS_TEMPLATE@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:emoticon.js:renderEmotPanel@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:followstream.js:loadFollowPage@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:followstream.js:startFollowChain@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:imdrawer.js:openDrawer@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:imdrawer.js:isImOpen@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:imdrawer.js:closeDrawer@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:imgload.js:IMG_POLICY@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:imgload.js:policyOf@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:imgview.js:closeImageViewer@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:immsg.js:quoteWirePrefix@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:imsdk.js:forceReconnect@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:imsend.js:sendKernel@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:inputbar.js:serializeUbb@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:inputbar.js:countUnits@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:inputbar.js:insertHtmlAtCaret@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:momentdetail.js:closeMomentDetail@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:natpanel.js:openNatPanel@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:net.js:requestText@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:pageloader.js:DONE_LABEL@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:playback.js:applyLoopAll@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:playback.js:applyRate@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:playback.js:applyVolume@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:playback.js:enableSound@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:playback.js:toggleSound@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:playback.js:hideSoundHint@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:playback.js:refreshMuteIcons@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:player.js:goFeedHome@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:playlayer.js:openPlayer@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:popplace.js:ROW_GAP@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:popplace.js:ROW_PAD@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:popplace.js:A_MAX_H@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:popplace.js:ROW_MAX_H@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:relatedapi.js:layerActive@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:release.js:closeReleaseModal@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:rowkit.js:toggleInlineComments@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:settingspanel.js:closeSettings@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:spacemoments.js:healSpaceMoments@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:topbar.js:openSearchPop@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:topbar.js:hideSearchPop@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:topbar.js:syncFollowSeg@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:ui.js:teardownVideo@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:uppage.js:healSpaceVideos@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:views.js:originView@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "dead:watchledger.js:LEDGER_KEY@0",
+      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
+    },
+    {
+      "key": "single:commentkit.js@comments.js",
+      "why": "拆件/注入缝单消费（commentkit←comments、imbubble/imchat/imlist/imsendui←imdrawer 注入、sessionhooks←player 装配点）——非 YAGNI：为可测性与拆件而抽，登记豁免「为可测性抽纯」型"
+    },
+    {
+      "key": "single:imbubble.js@imdrawer.js",
+      "why": "拆件/注入缝单消费（commentkit←comments、imbubble/imchat/imlist/imsendui←imdrawer 注入、sessionhooks←player 装配点）——非 YAGNI：为可测性与拆件而抽，登记豁免「为可测性抽纯」型"
+    },
+    {
+      "key": "single:imchat.js@imdrawer.js",
+      "why": "拆件/注入缝单消费（commentkit←comments、imbubble/imchat/imlist/imsendui←imdrawer 注入、sessionhooks←player 装配点）——非 YAGNI：为可测性与拆件而抽，登记豁免「为可测性抽纯」型"
+    },
+    {
+      "key": "single:imlist.js@imdrawer.js",
+      "why": "拆件/注入缝单消费（commentkit←comments、imbubble/imchat/imlist/imsendui←imdrawer 注入、sessionhooks←player 装配点）——非 YAGNI：为可测性与拆件而抽，登记豁免「为可测性抽纯」型"
+    },
+    {
+      "key": "single:imsendui.js@imdrawer.js",
+      "why": "拆件/注入缝单消费（commentkit←comments、imbubble/imchat/imlist/imsendui←imdrawer 注入、sessionhooks←player 装配点）——非 YAGNI：为可测性与拆件而抽，登记豁免「为可测性抽纯」型"
+    },
+    {
+      "key": "single:sessionhooks.js@player.js",
+      "why": "拆件/注入缝单消费（commentkit←comments、imbubble/imchat/imlist/imsendui←imdrawer 注入、sessionhooks←player 装配点）——非 YAGNI：为可测性与拆件而抽，登记豁免「为可测性抽纯」型"
+    },
+    {
+      "key": "size:advdm.js:行210:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:api.js:行163:导出5",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:appapi.js:行476:导出8",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:attach.js:行138:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:banpop.js:行69:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:boot.js:行75:导出0",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:cards.js:行337:导出13",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:cfg.js:行530:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:channelapi.js:行67:导出4",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:chipkit.js:行44:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:commentkit.js:行289:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:comments.js:行644:导出13",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:contract.js:行86:导出7",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:controls.js:行629:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:cssraw.js:行1891:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:cssseg.js:行32:导出9",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:danmaku.js:行156:导出5",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:dbg.js:行87:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:devicetab.js:行14:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:devname.js:行286:导出11",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:dmcanvas.js:行553:导出8",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:dmpanel.js:行163:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:domfields.js:行32:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:emoticon.js:行331:导出8",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:errbox.js:行30:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:favapi.js:行103:导出10",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:favpop.js:行58:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:feedctx.js:行92:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:feedland.js:行180:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:feedstore.js:行221:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:followadmin.js:行410:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:followbadge.js:行115:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:followseen.js:行39:导出4",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:followstream.js:行135:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:followview.js:行150:导出0",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:grouppop.js:行65:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:historyapi.js:行39:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:hls.js:行197:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imbadge.js:行92:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imbubble.js:行271:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imcard.js:行193:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imchat.js:行171:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imdrawer.js:行456:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imgload.js:行153:导出4",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imgurl.js:行82:导出5",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imgview.js:行29:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imicons.js:行71:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imimage.js:行217:导出4",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imlist.js:行145:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:immsg.js:行363:导出31",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imnative.js:行520:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imsdk.js:行416:导出12",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imsend.js:行297:导出12",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:imsendui.js:行155:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:input.js:行204:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:inputbar.js:行629:导出7",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:interact.js:行77:导出4",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:iploc.js:行356:导出15",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:jingxuanview.js:行411:导出0",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:levelstack.js:行200:导出15",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:lifecycle.js:行38:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:liststate.js:行32:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:listtail.js:行86:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:meadmin.js:行342:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:memberplaza.js:行265:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:momentapi.js:行127:导出9",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:momentbar.js:行157:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:momentdetail.js:行261:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:momenteditor.js:行308:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:momentpost.js:行136:导出9",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:mypage.js:行291:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:mytabs.js:行455:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:nameval.js:行23:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:nativeip.js:行391:导出5",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:natpanel.js:行338:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:nav.js:行70:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:net.js:行162:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:overlay.js:行94:导出7",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:pack.js:行31:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:pagekind.js:行32:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:pageloader.js:行101:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:panelitem.js:行392:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:pickpop.js:行319:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:playback.js:行262:导出22",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:player.js:行532:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:playgest.js:行59:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:playitem.js:行214:导出8",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:playlayer.js:行319:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:playstate.js:行59:导出8",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:popplace.js:行113:导出14",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:prewarm.js:行50:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:pubfab.js:行97:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:quality.js:行64:导出4",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:rail.js:行285:导出4",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:rankapi.js:行47:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:relatedapi.js:行173:导出13",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:relationapi.js:行167:导出13",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:reldrawer.js:行338:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:release.js:行333:导出11",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:report.js:行296:导出5",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:route.js:行113:导出8",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:rowkit.js:行235:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:searchfmt.js:行92:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:searchhist.js:行103:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:searchview.js:行432:导出0",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:session.js:行700:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:sessionhooks.js:行157:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:settings.js:行283:导出14",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:settingspanel.js:行244:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:sharepanel.js:行239:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:sidebar.js:行97:导出5",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:signapi.js:行170:导出8",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:signpanel.js:行115:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:slide.js:行177:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:spacemoments.js:行99:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:spacetab.js:行106:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:squarefeed.js:行240:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:squareview.js:行65:导出0",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:state.js:行92:导出17",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:styles.js:行245:导出9",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:timefmt.js:行89:导出8",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:toastmsg.js:行94:导出19",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:topbar.js:行270:导出9",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:ubb.js:行121:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:ubbattr.js:行12:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:ubbtext.js:行39:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:ui.js:行289:导出28",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:upload.js:行98:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:uplook.js:行21:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:uppage.js:行404:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:viewreg.js:行48:导出3",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:views.js:行250:导出5",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:watchlaterapi.js:行56:导出4",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:watchledger.js:行143:导出8",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    },
+    {
+      "key": "size:zone.js:行231:导出0",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+    }
+  ]
+}
