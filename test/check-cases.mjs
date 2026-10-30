@@ -85,10 +85,38 @@ for (const c of caseClasses) {
     bad.push('cases 引用了 src 不存在的类 .' + c + '（改名漏改？确为负存在断言请进白名单）');
   }
 }
+// ---- 0.9.306（卫生审计反思批）：存储键镜像扫描 ----
+// 病灶（审计基建批 P1#9）：cases 手抄存储键（upd.js `'acsv-upd-v1'` 系 cfg.lsUpd 复刻）比类名
+// 漂移更毒——键漂了往孤儿键种状态、断言照绿（类名有存在性闸、键名没有）。同款补闸：
+// 测试面（cases/unit/harness.html）出现的存储键字面，必须能对上 src 权威键集：
+//   · `acsv.s.<key>`（settings 逐键命名空间）⇒ <key> ∈ SCHEMA 或 src 有全串字面；
+//   · 其它键串（acsvXxx / acsv-xxx-v1 / acr_xxx / searchCache）⇒ src **代码面**存在全串字面（剥注释）。
+const srcCode = srcText.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+const schemaKeys = new Set([...srcCode.matchAll(/key:\s*'([\w-]+)'/g)].map((m) => m[1]));
+const testFiles = [
+  ...fs.readdirSync(casesDir).map((f) => path.join(casesDir, f)),
+  ...fs.readdirSync(path.join(ROOT, 'test', 'unit')).map((f) => path.join(ROOT, 'test', 'unit', f)),
+  path.join(ROOT, 'test', 'harness.html')
+];
+const testKeys = new Set();
+for (const p of testFiles) {
+  const txt = fs.readFileSync(p, 'utf8');
+  for (const m of txt.matchAll(/['"](acsv\.s\.[\w-]+|acsv[A-Z]\w*|acsv-(?:upd|stats|exp)[\w-]*|acr_\w+|searchCache)['"]/g)) {
+    testKeys.add(m[1]);
+  }
+}
+for (const k of testKeys) {
+  const sm = k.match(/^acsv\.s\.(.+)$/);
+  const ok = sm
+    ? (schemaKeys.has(sm[1]) || srcCode.includes("'" + k + "'"))
+    : srcCode.includes("'" + k + "'");
+  if (!ok) bad.push('测试引用存储键 "' + k + '" 在 src 无权威出处（手抄漂移会写进孤儿键、断言假绿——'
+    + '引 src 单源常数，或确为 src 键请检查拼写）');
+}
 if (bad.length) {
   bad.forEach((b) => console.log('  ✗ ' + b));
   process.exit(1);
 }
 console.log('[check-cases] bundle 声明 ' + caseLines.length + ' 个（release ' + releaseN
-  + '）/ 类名 ' + caseClasses.size + ' 个 / skip 语义 OK');
+  + '）/ 类名 ' + caseClasses.size + ' 个 / 存储键 ' + testKeys.size + ' 个 / skip 语义 OK');
 console.log('[check-cases] OK');
