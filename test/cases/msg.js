@@ -43,7 +43,10 @@ document.body.insertAdjacentHTML('beforeend',
   + '<div class="chat-nav-item" data-user-id="9002">'
   + '<span class="content-last-message">@张三：小说真好看\nhttps://www.acfun.cn/v/ac488900#ncid=999</span></div>'
   + '<div class="chat-nav-item" data-user-id="9003">'
-  + '<span class="content-last-message">@李四：动态正文\nhttps://www.acfun.cn/moment/am5104999</span></div>');
+  + '<span class="content-last-message">@李四：动态正文\nhttps://www.acfun.cn/moment/am5104999</span></div>'
+  // 0.9.302：携表情码的分享 wire——原生端预览必须与抽屉同口径（占位化后截断）
+  + '<div class="chat-nav-item" data-user-id="9004">'
+  + '<span class="content-last-message">标题[emot=acfun,9/]尾巴\nhttps://www.acfun.cn/v/ac488902</span></div>');
 function shadowRootOf(id) {
   var m = q('.message[data-id="' + id + '"]');
   var host = m && m.querySelector('.content').firstElementChild;
@@ -126,6 +129,15 @@ rec('native-list-moment', (function () { // 列表预览按 kind 分流，不误
   return !!s && s.textContent === '[动态] @李四：动态正文';
 })(), (function () {
   var s = q('.chat-nav-item[data-user-id="9003"] .content-last-message');
+  return s ? JSON.stringify(s.textContent) : 'no-row';
+})());
+// ---- 0.9.302：表情码 wire 预览与抽屉同口径（sharePreviewOf 单源——修复前原生端裸 slice
+// 切在码中间出 `[emot=acfun,` 垃圾；摘修复反跑此项转红）----
+rec('native-list-emot', (function () {
+  var s = q('.chat-nav-item[data-user-id="9004"] .content-last-message');
+  return !!s && s.textContent === '[分享] 标题[表情]尾巴';
+})(), (function () {
+  var s = q('.chat-nav-item[data-user-id="9004"] .content-last-message');
   return s ? JSON.stringify(s.textContent) : 'no-row';
 })());
   };

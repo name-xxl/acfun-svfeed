@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   msgContentType, parseCard, parseShare, fmtDur,
-  degradeText, msgTextOf, previewOfMessage,
+  degradeText, msgTextOf, previewOfMessage, sharePreviewOf,
   isQuotable, quoteOf, quoteExtraOf, quoteWireText, quoteWireTrimLen,
   isCommentShare, commentShareWire, commentShareAuthor, cmtShareOf, momentShareOf,
   QUOTE_EXTRA_KEY, CMT_EXTRA_KEY, MOMENT_EXTRA_KEY
@@ -262,6 +262,25 @@ test('previewOfMessage：脏输入不抛错（getter 抛异常也走降级）', 
   assert.doesNotThrow(() => previewOfMessage(poisoned));
   assert.equal(previewOfMessage(poisoned), '[暂不支持查看的消息，请前往客户端查看]');
   assert.equal(previewOfMessage(null), '[暂不支持查看的消息，请前往客户端查看]');
+});
+
+// ---------- sharePreviewOf（0.9.302 双端预览口径单源） ----------
+test('sharePreviewOf：空标题回落——动态 [动态] 动态 / 视频 [分享] 推荐视频（两形态不互换）', () => {
+  assert.equal(sharePreviewOf({ kind: 'moment', title: '' }), '[动态] 动态');
+  assert.equal(sharePreviewOf({ title: '' }), '[分享] 推荐视频');
+});
+test('sharePreviewOf：表情码先占位化再截断（0.9.53 教训——修复前 imnative 裸 slice 切码中）', () => {
+  assert.equal(sharePreviewOf({ title: '标题[emot=acfun,9/]尾巴' }), '[分享] 标题[表情]尾巴');
+  assert.ok(!sharePreviewOf({ title: '标题[emot=acfun,9/]尾巴' }).includes('[emot='),
+    '输出不得残留原始表情码');
+});
+test('sharePreviewOf：kind 优先于「@作者：」形态分流（0.9.122 动态 wire 不误标评论）', () => {
+  assert.equal(sharePreviewOf({ kind: 'moment', title: '@李四：动态正文' }), '[动态] @李四：动态正文');
+  assert.equal(sharePreviewOf({ title: '@张三：小说真好看' }), '[评论] @张三：小说真好看');
+});
+test('sharePreviewOf 与 previewOfMessage 分享分支同结果——抽屉/原生共用的单源不变式', () => {
+  var wire = '标题[emot=acfun,9/]\nhttps://www.acfun.cn/v/ac488902';
+  assert.equal(previewOfMessage({ text: wire }), sharePreviewOf(parseShare(wire)));
 });
 
 // ---------- isCommentShare（0.9.51 评论转发识别） ----------

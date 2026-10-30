@@ -404,7 +404,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `pageloader.js` | 翻页骨架**单源**（0.9.259，审计批④ P2-5）：`createPageLoader({fetch,onPage,host,setStatus,skeleton,…})` → `{load,reset,done}`。收的是四家**相同的协议**——在途守卫 / 代数令牌 + `host().isConnected` 陈旧回包丢弃 / 骨架两路都收 / 三态状态行（`'加载中…'` 续拉才打、`'已加载全部…'` 到底、`'加载失败，滚动重试'`⇄`'加载失败，点击重试'` 按列表子节点分）/ 落定交 `onPage` 回 `{cursor,noMore}`；**翻页范式（游标方言/解析/到底判定/空态文案）仍归各消费点**。四处消费：followview / squarefeed / mytabs 观看历史（`earlySettle`＝守卫前结算，0.9.236 形状；骨架每页都建）/ mytabs 管理档壳（`busyGate`＝已有条目，档表未到不发废请求）。零依赖叶，`check-direction` 登记为基建件 |
 | `lifecycle.js` | 监听器生命周期作用域（0.9.264，P1）：`createScope()` → `{on, dispose, size}`。只收 `window`/`document` 级、随挂载/会话生灭的监听；teardown 一次摘净，幂等。页面级单例监听不进本件，由 `test/check-listeners.mjs` 的 `// singleton-listener:` 标记放行。零依赖叶 |
 | `contract.js` | 关键端点回包形状守卫（0.9.264，P1）：`hasShape(obj, fields, tag)` / `isArray(v, tag)`，只把 `undefined/null` 判缺，缺形状时 `stat('contract.<tag>.miss')` 计数、**绝不抛错**；调用方保持既有回退行为。用于把站点改版/网关换形状从静默降级变成可读计数 |
-| `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策（三跳两两换 URL；0.9.166 二三跳 ±20% 抖动，rnd 缺省 0.5 保确定性）+ `memoState`/`memoTrim` 死链备忘纯判定（0.9.77：只读不续期）——URL 正确性只在这里定义 |
+| `imgurl.js` | 图片 URL 纯逻辑层（0.9.76，零 import 叶子）：`coverUrl` 归一（http→https/实体解码/query 一律保留）+ `coverAttempts` 失败重试链决策（三跳两两换 URL；0.9.166 二三跳 ±20% 抖动，rnd 缺省 0.5 保确定性）+ `memoState`/`memoTrim` 死链备忘纯判定（0.9.77：只读不续期）+ **`CDN_URL_OK` A 站图床白名单**（0.9.302 收口此单源，ubb 评论 `[img]` 放行与 emoticon 表情出图共用——此前两处各持逐字节相同正则、ubb 头注还宣称「两张网不共用」，与事实相反；防复制回归见 imgurl.test.js 全 src 扫描）——URL 正确性只在这里定义 |
 | `imgload.js` | 图片加载执行层（0.9.76；0.9.77 头注校准覆盖边界）：项目图片字段（封面/头像）统一入口——`IMG_POLICY` 策略表（grid/thumb/avatar/space）+ `imgInto(host,url,policy[,cls])`（懒加载/重试链/终败降级/淡入/死链备忘）+ `lazyObserve` 观察器单例（私信气泡共用）。有意在外的例外：鉴权 blob 管线（imimage）、UBB/表情 HTML、站点静态图标、大图查看器 |
 | `interact.js` | 真实点赞（api_st → interact 接口）+ 投蕉/Pi 级写链（AppAPI.throwBanana）；**关注→relationapi.js、收藏→favapi.js**（0.9.142/143 迁出，退役登记在文件头） |
 | `devname.js` | 设备型号美化（0.9.246，Web-IP 吸收批次②，路线图 Phase 5）：评论「来自 x」内部代号（`RMX3619`/`iPhone3,1`）→ 友好名（真我 V30 / iPhone 4）。四级匹配（精确 → 大小写 → 去尾字母 → 前缀包含）+ 查找缓存（上限 500 最旧 20% 淘汰）逐字移植 Web-IP 56-device.js；接线口 `devTag(a, model)` 由 comments.cmtOpts 经 `opts.devTag` 注入 commentkit（同 ipTag 纪律）——**只换锚文本**（href/结构不动）、未收录兜底原文、命中映射才挂点击切换（友好名 ⇄ 原文，照抄 Web-IP）。用户层读 Web-IP 同键 `acr_device_models`（只读兼容；导入/导出/重置 UI 0.9.250 随原生面板落地），**合并语义升级**＝内置先、用户条覆盖（反转其「快照顶掉内置」）。设置项 devName 在 SCHEMA 评论组。**0.9.255 数据优化专项**：内置表全品牌 4,031 条 + deflateRaw+b64 压缩内嵌（`unpackDeviceTab` 惰性解包，hls 同款长度校验，0.9.258 起解包本体走 `pack.unpackText` 单源；解包失败回落空表、用户层仍可用） |
@@ -458,7 +458,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `imbadge.js` | 私信未读徽标（0.9.163 自 imdrawer.js 拆出，仿 followbadge.js 先例）：顶栏+浮条未读数 = unReadCountUpdate 事件加速 + 慢轮询兜底（仅内核缓存读）；与抽屉 UI 零共享状态（只经 imsdk.ensureIm 取会话缓存；0.9.270 SDK 连接出口随 imsdk 拆件移出 imsend），teardownIm 经 stopBadge 反向通知拆除；mountBadge 由 player 挂载；**0.9.244 起轮询起点随 badgeDelay（15s）**（此前 mount 即起 5s 拍、首拍就拉 860KB SDK，「一打开不拉 SDK」的延迟被架空——真机读数 7.8s 实锤）；**0.9.257 起推送监听登记句柄、`stopBadge` 里 `off` 摘除**（SDK 单例永不释放，此前每次挂载叠一层且各层回调共用 `mounted` 标志 ⇒ 一个 `unReadCountUpdate` 触发 N 次 `getSessions` 全量求和；另 `mountBadge` 先 `stopBadge` 收旧，防未 teardown 的重挂孤儿化 timer/监听） |
 | `imnative.js` | 原生私信页增强（message.acfun.cn）：占位替换（10001 卡，unsafeWindow 读页面内核）+ 分享卡 + 引用消息渲染（去重加固）+ Shadow DOM 隔离（0.9.80：卡片装配与抽屉同源，只留浅色皮肤声明）+ **结构自检 canary**（0.9.120：启动 10s 盘点官方选择器命中，改版第一现场点名；清单=test/cases/msg.js im-native 契约断言同源） |
 | `imcard.js` | 私信卡片装配（0.9.80，两皮肤共用）：视频卡=封面+计数条+两行标题、评论卡=引用块+来源小条、**动态卡**=引用块+配图行+「查看动态」条（0.9.122，extra 被剥自动降级 wire 文本态）；共享"load 才放出/error 隐藏"时序、[img]/配图看图、dougaCard 原位 patch（信封双皮肤：抽屉暗色 `.acsv-im-*` / 原生页浅色 Shadow） |
-| `immsg.js` | 私信消息共享解析层（parseCard/parseShare 容忍式契约、引用解析 quoteOf/quoteExtraOf/isQuotable、评论转发 wire 组装与识别/拆分、extra 载荷 key 常量、预览映射/降级文案），双端渲染器各自消费 |
+| `immsg.js` | 私信消息共享解析层（parseCard/parseShare 容忍式契约、引用解析 quoteOf/quoteExtraOf/isQuotable、评论转发 wire 组装与识别/拆分、extra 载荷 key 常量、预览映射/降级文案），双端渲染器各自消费。**分享/评论/动态 wire 预览文案 `sharePreviewOf` 单源（0.9.302）**：抽屉 previewOfMessage 与原生页 imnative.enhanceList 共此出口——此前 imnative 自写一份、绕开表情码占位化（0.9.53 教训只落抽屉端），携 `[emot=…]` 的 wire 出 `[emot=acfun,1…` 截断垃圾、动态空标题错回落「推荐视频」；「双端渲染器各自消费」豁免止于渲染外壳/皮肤，文案口径必须共享 |
 | `imicons.js` | 站点原生图标登记表（CDN SVG + 字形码点，双端共享） |
 | `release.js` | 更新提示（0.9.60）：官方 releases.atom 拉取/解析纯函数（cmpVersion/normVer/parseRelAtom/latestEntry/decideUpd）+ 说明弹窗单例 + 红点；正文直接用 GitHub 官方渲染 HTML（elHtml 信任契约）；每次 mount 检查一次（60s 节流）、失败静默、unmount 显式拆监听 |
 | `overlay.js` | 浮层栈（0.9.61）：Esc 显式分支链的收拢（overlayOpen/Close/Top/IsOpen/Teardown，close 回调注册方自带、先出栈再调+异常隔离）；modal 键语义单监听承载（release/imgview capture 自关退役）；栈=显式状态（0.9.22 精神延续） |
@@ -679,7 +679,8 @@ flowchart LR
   squareview --> pubfab
   sharepanel --> momenteditor
     pb --> feedstore & settings
-  ubb --> emoticon
+  ubb --> emoticon & imgurl
+  emoticon --> imgurl
   playlayer --> api & attach & cards & comments & errbox & levelstack & playgest & reldrawer & relatedapi & viewreg
   levelstack --> playstate & playitem
   imsend --> appapi & immsg & imsdk

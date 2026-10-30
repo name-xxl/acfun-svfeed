@@ -3,13 +3,16 @@
 // 占位。本模块借同页 ImSdk 的内核缓存把消息解析出来，在原生 DOM 上原位渲染——只替换
 // 占位内容，气泡外壳（白底圆角/头像/头像列）全部保留原生样式。
 // 解析层与脚本抽屉共享（immsg.js）：以后新消息格式在 immsg 加解析，这里加渲染分支即可。
+// 豁免划界（0.9.302）：「双端渲染器各自消费」止于渲染外壳与皮肤——**列表预览文案不在豁免区**，
+// 会话列表分享/动态/评论预览必须走 immsg.sharePreviewOf 单源（本文件曾自写一份并漂：表情码
+// 未占位化直 slice 出 `[emot=…` 截断垃圾、动态空标题错回落「推荐视频」）。
 
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { testHook, stat } from './dbg.js';
 import { ICON_SVGS } from './imicons.js';
 import { ensureEmotionMap } from './emoticon.js';
-import { parseCard, parseShare, isCommentShare, commentShareAuthor, cmtShareOf, momentShareOf, degradeText, previewOfMessage, msgContentType, msgTextOf, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
+import { parseCard, parseShare, isCommentShare, commentShareAuthor, cmtShareOf, momentShareOf, degradeText, previewOfMessage, sharePreviewOf, msgContentType, msgTextOf, quoteOf, quoteExtraOf, quoteWireTrimLen } from './immsg.js';
 import { ubbQuoteHtml } from './ubb.js';
 import { vcard, cshareCard, patchCshare, mcard } from './imcard.js';
 import { AppAPI } from './appapi.js';
@@ -284,10 +287,10 @@ function enhanceList() {
         var sh = parseShare(span.textContent);
         if (sh) {
           span.setAttribute('data-acsv-share', '1');
-          // 0.9.122：动态 wire 首行也是 @作者： 形态——按 kind 优先，防误标 [评论]
-          span.textContent = (sh.kind === 'moment' ? '[动态] '
-            : isCommentShare(sh.title) ? '[评论] ' : '[分享] ')
-            + (sh.title ? sh.title.slice(0, 30) : '推荐视频');
+          // 预览口径走 immsg.sharePreviewOf 单源（0.9.302：此前此处自写一份、绕开表情码
+          // 占位化——携 [emot=…] 的 wire 出截断垃圾，动态空标题错回落「推荐视频」；
+          // kind 分流/回落名单/截断全随 immsg 端走，本文件不再拼文案）
+          span.textContent = sharePreviewOf(sh);
         }
       }
       return;

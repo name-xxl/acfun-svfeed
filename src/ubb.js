@@ -7,14 +7,11 @@
 // 纯文本投影族（ubbImText/ubbPlain）0.9.119 下沉 ubbtext.js——本模块只留渲染侧。
 import { esc } from './ui.js';
 import { CFG } from './cfg.js';
+import { CDN_URL_OK } from './imgurl.js';
 import { emotImgOf, emotPlaceholderHtml } from './emoticon.js';
 
-// A 站图床白名单（[img] 用）：host 锚定 + 斜杠后全 URL 字符集（白名单只锚 host 时，斜杠后
-// 可带引号破出 src 属性——0.9.33 教训）。第二个分支是评论图床的 ksc2 预览域（upload.js
-// 换出的签名 URL 就落在这里），host+path 双锚定防子域伪装；裸路径公开可访问，服务端 add
-// 时会把它改写成 imgs.aixifan.com/newUpload 长期地址。**表情域的白名单已随 emotImgOf
-// 搬去 emoticon.js（0.9.105）**——表情与评论图两张网不共用一套字符集
-var IMG_CDN_OK = /^https?:\/\/([\w.-]+\.(aixifan\.com|acfun\.cn)|preview\.ndcsk\.com\/ksc2)\//;
+// A 站图床白名单 = CDN_URL_OK（0.9.302 沉 imgurl.js 单源，与表情域**共用同一字符集**；
+// 此前本处与 emoticon.js 各持一份逐字节相同的正则、头注还宣称「两张网不共用」——已核正）
 
 export function renderCommentHtml(content) {
   var h = esc(content || '');
@@ -42,10 +39,10 @@ export function renderCommentHtml(content) {
   });
   // 图片：[img=图片]URL[/img] / [img=alt]URL[/img] / [img]URL[/img]，限 A 站图床白名单
   h = h.replace(/\[img=[^\]]*\](https?:\/\/[^\["']+?)\[\/img\]/g, function (_, u) {
-    return IMG_CDN_OK.test(u) ? protect('<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">') : u;
+    return CDN_URL_OK.test(u) ? protect('<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">') : u;
   });
   h = h.replace(/\[img\](https?:\/\/[^\["']+?)\[\/img\]/g, function (_, u) {
-    return IMG_CDN_OK.test(u) ? protect('<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">') : u;
+    return CDN_URL_OK.test(u) ? protect('<img class="ubb-imgc" src="' + u + '" referrerpolicy="no-referrer">') : u;
   });
   // @ 提及：[at uid=123]@昵称[/at] → 用户主页链接。uid 限数字进 href；@? 可选吞掉后
   // 统一补 @ 前缀；昵称不再单独转义——全文 esc 已跑过，二次转义会把 & 变成 &amp;quot;

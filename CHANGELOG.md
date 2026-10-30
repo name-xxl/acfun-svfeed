@@ -5,6 +5,32 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.302（2026-10-30）· 两处已出血的口径漂移——图床白名单沉 imgurl + 私信预览收 immsg 单源
+
+**病灶（六域卫生审计 P0 之二/之四，复核属实）**：两处「同一条规则两份实现、且头注定语与事实
+相反」——
+- **图床白名单**：`ubb.js` 评论 `[img]` 与 `emoticon.js` 表情出图各持一份**逐字节相同**的正则，
+  而 ubb 头注白纸黑字写「表情与评论图两张网不共用一套字符集」。这是 XSS/属性破出防线
+  （0.9.33 教训件），放行域变更只改一侧即静默失守/收紧；错误定语还会让单源检查被系统性跳过。
+- **私信会话预览**：原生页 `imnative.enhanceList` 自写一份分享/动态/评论预览文案拼装，绕开
+  `immsg` 的 `plainPreview` 表情码占位化——0.9.53「先占位化再截断」教训只落了抽屉端，原生页
+  对携 `[emot=acfun,9/]` 的 wire 出 `[emot=acfun,` 截断垃圾，且动态空标题错回落成「推荐视频」。
+
+**修法（规矩 7：收口到结构层，非各打补丁）**：
+- 白名单提为 `imgurl.CDN_URL_OK` 单源（imgurl 本就是「URL 正确性只在这里定义」的零 import 叶子），
+  ubb/emoticon 改 import 之、物理消灭复制；两处头注改为如实的「两张网共用同一字符集」。
+  ubbtext 前置检查注释同步校准（IMG_CDN_OK 已下沉、投影侧本不用它）。
+- immsg 抽 `sharePreviewOf(share)` 单源（kind 分流 + 占位化 + 截断 + 回落名单），previewOfMessage
+  分享分支与 imnative.enhanceList 共此出口；imnative 头注显式划界——「双端渲染器各自消费」豁免
+  止于渲染外壳/皮肤，**列表预览文案不在豁免区**。
+
+**测试**：`imgurl.test.js` 新增 `CDN_URL_OK` 放行/拒绝族（后缀换装、ksc2 子域伪装、斜杠破出、
+破 src 属性全钉）+ 一条防复制回归闸（扫全 `src/` 断言 `ndcsk` 正则字面唯 `imgurl.js` 一处命中）；
+`immsg.test.js` 新增 `sharePreviewOf` 四组（空标题回落/表情码占位化/kind 优先分流/与
+previewOfMessage 同结果）；`test/cases/msg.js` 会话列表 fixture 补携表情码的分享 wire 一行 +
+`native-list-emot` 断言。摘修复反跑：还原 imnative 自写版（裸 slice）→ `native-list-emot` 转红；
+还原 emoticon 副本正则后删 imgurl 单源 → 复制回归闸转红。build/lint/check/单测/全场景全绿。
+
 ### 0.9.301（2026-10-30）· 置瘦「无档位」形态收口——qualities 唯 null 表示，home 回滑不再崩
 
 **病灶（六域卫生审计 P0，复核属实）**：数据水位置瘦（`feedstore.slim`）把已解析条目的

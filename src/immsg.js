@@ -269,6 +269,20 @@ export function msgTextOf(m) {
 var RE_EMOT_CODE = /\[emot=\S+?\/\]/g;
 function plainPreview(s) { return String(s).replace(RE_EMOT_CODE, '[表情]'); }
 
+// 分享/评论/动态转发 wire → 列表预览文案。**双端渲染器共用预览口径**（抽屉 previewOfMessage
+// 与原生页会话列表 imnative.enhanceList 同一出口，0.9.302 收口——此前 imnative 自写一份，
+// 绕开了下面的 plainPreview 占位化，携表情码的 wire 出 `[emot=acfun,1…` 截断垃圾、动态空标题
+// 也错回落成「推荐视频」）。「双端渲染器各自消费」的豁免止于渲染外壳/皮肤，文案口径必须共享。
+// 先占位化再截断：wire 携原始表情码（0.9.53），直接 slice 会切在码中间
+//（0.9.122：动态 wire 首行是 @作者： 形态、会过 isCommentShare——先按 kind 分流防误标评论）
+export function sharePreviewOf(share) {
+  if (share.kind === 'moment') {
+    return '[动态] ' + (share.title ? plainPreview(share.title).slice(0, 30) : '动态');
+  }
+  return (isCommentShare(share.title) ? '[评论] ' : '[分享] ')
+    + (share.title ? plainPreview(share.title).slice(0, 30) : '推荐视频');
+}
+
 // 消息 → 列表预览文案（抽屉列表行 / 原生页列表占位共用）
 export function previewOfMessage(m) {
   try {
@@ -283,15 +297,7 @@ export function previewOfMessage(m) {
     if (q) return '[引用] ' + plainPreview(q.text).slice(0, 30);
     var txt = plainPreview(msgTextOf(m));
     var share = parseShare(txt);
-    if (share) {
-      // 先占位化再截断：wire 携原始表情码（0.9.53），直接 slice 会切在码中间
-      //（0.9.122：动态 wire 首行是 @作者： 形态、会过 isCommentShare——先按 kind 分流防误标评论）
-      if (share.kind === 'moment') {
-        return '[动态] ' + (share.title ? plainPreview(share.title).slice(0, 30) : '动态');
-      }
-      return (isCommentShare(share.title) ? '[评论] ' : '[分享] ')
-        + (share.title ? plainPreview(share.title).slice(0, 30) : '推荐视频');
-    }
+    if (share) return sharePreviewOf(share);
     if (/https?:\/\/[^\s]*acfun\.cn/i.test(txt)) {
       var first = (txt.split('\n')[0] || '').trim();
       var title = /^https?:\/\//i.test(first) ? '' : first;

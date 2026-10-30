@@ -1,9 +1,11 @@
-// imgurl.js 纯逻辑单测（0.9.76）：封面 URL 归一 + 重试链决策。
+// imgurl.js 纯逻辑单测（0.9.76）：封面 URL 归一 + 重试链决策 + 图床白名单（0.9.302 沉此单源）。
 // 立测背景：封面裂图三来源（http 混合内容被拦 / CDN 处理参数失败 / 瞬时网络抖动 + 失败
 // 负缓存），修复的关键判定全在这两个纯函数里——纯函数化就是为了在这里钉死边界。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-var { coverUrl, coverAttempts, memoState, memoTrim } = await import('../../src/imgurl.js');
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+var { coverUrl, coverAttempts, memoState, memoTrim, CDN_URL_OK } = await import('../../src/imgurl.js');
 
 test('coverUrl：http→https、协议相对→https、实体解码、trim；query 与其它 scheme 原样', () => {
   assert.equal(coverUrl('http://a.cn/x.png'), 'https://a.cn/x.png');
@@ -105,4 +107,30 @@ test('memoTrim：超限按插入序淘汰最旧；未超限不动', () => {
   assert.equal(m.has('c'), true);
   memoTrim(m, 5);
   assert.equal(m.size, 2);
+});
+
+// ---------- CDN_URL_OK（0.9.302 图床白名单沉此单源）----------
+test('CDN_URL_OK：放行 A 站 CDN 与 ksc2 预览域（host+path 锚定）', () => {
+  assert.ok(CDN_URL_OK.test('https://imgs.aixifan.com/newUpload/x.png'));
+  assert.ok(CDN_URL_OK.test('https://a.b.acfun.cn/x.jpg?imageMogr2=1'));
+  assert.ok(CDN_URL_OK.test('https://preview.ndcsk.com/ksc2/sig?k=1'));
+});
+test('CDN_URL_OK：拒绝后缀换装伪装 / 属性破出（0.9.33 教训全族）', () => {
+  assert.ok(!CDN_URL_OK.test('https://aixifan.com.evil.cn/x'));            // 后缀换装
+  assert.ok(!CDN_URL_OK.test('https://evil.cn/?x=https://imgs.aixifan.com/')); // host 段无斜杠破出
+  assert.ok(!CDN_URL_OK.test('https://preview.ndcsk.com.evil.cn/ksc2/'));  // ksc2 子域伪装
+  assert.ok(!CDN_URL_OK.test('https://evil.cn/aixifan.com/'));             // 路径冒充 host
+  assert.ok(!CDN_URL_OK.test('https://x"/>img.evil.cn/a'));                // 破出 src 属性
+});
+test('CDN_URL_OK：scheme 面如实钉——`https?` 双收系原行为（本批收口**不改判定语义**，归一升 https 归 coverUrl）', () => {
+  assert.ok(CDN_URL_OK.test('http://imgs.aixifan.com/x.png'));
+});
+test('防复制回归：图床白名单正则字面全 src 唯 imgurl.js 一处（ubb/emoticon 不得再抄，0.9.302 单源）', () => {
+  var dir = new URL('../../src/', import.meta.url);
+  var hits = readdirSync(dir).filter(function (f) {
+    return f.endsWith('.js') &&
+      readFileSync(fileURLToPath(new URL(f, dir)), 'utf8').includes('ndcsk');
+  });
+  assert.deepEqual(hits, ['imgurl.js'],
+    '白名单复制会重蹈「头注定语与事实相反」的漂移——只许 import CDN_URL_OK');
 });

@@ -3,6 +3,7 @@
 // 面板：分包 tab + 最近使用（localStorage 记录），插入走调用方注入的光标回调。
 import { CFG } from './cfg.js';
 import { request } from './net.js';
+import { CDN_URL_OK } from './imgurl.js';
 import { el, closeOnOutsideClick } from './ui.js';
 
 // 表情包数据（复用动态广场 fetchEmoticonPacks/_applyEmoticons 思路）：
@@ -10,9 +11,9 @@ import { el, closeOnOutsideClick } from './ui.js';
 export var EmotionMap = { loaded: false, loading: null, map: {}, packs: [] };
 
 // ---------- UBB 表情三件（0.9.105 自 ubb.js 收口表情域） ----------
-// 白名单（host 锚定 + 全 URL 字符集，0.9.33 破出 src 属性教训）随表情域走：
+// 图床白名单走 CDN_URL_OK（0.9.302 沉 imgurl.js 单源——此前与评论 [img] 各持一份逐字节
+// 相同的正则；「表情与评论图两张网不共用」的旧定语不实，两张网本共用同一字符集）
 // emotImgOf 供 ubb.js 渲染、refillEmoticons 供行流「占位→真图」回填（map 就绪晚于首屏渲染）
-var EMOT_CDN_OK = /^https?:\/\/([\w.-]+\.(aixifan\.com|acfun\.cn)|preview\.ndcsk\.com\/ksc2)\//;
 var EMOT_URL_OK = /^[\w\-./:?=&%]+$/;
 // 返回 { html }（真图）或 null（未就绪/未命中——调用方出占位 span）
 export function emotImgOf(pkg, id) {
@@ -28,7 +29,7 @@ export function emotImgOf(pkg, id) {
   var u = em ? (typeof em === 'string' ? em : em.url) : null;
   if (!u) return null;
   var abs = u.replace(/^\/\//, 'https://');
-  if (!EMOT_CDN_OK.test(abs) || !EMOT_URL_OK.test(abs)) return null;
+  if (!CDN_URL_OK.test(abs) || !EMOT_URL_OK.test(abs)) return null;
   return { html: '<img class="ubb-emotion" src="' + u + '" referrerpolicy="no-referrer">' };
 }
 // 表情占位（灰字；带 data-pkg/id 供回填定位）
