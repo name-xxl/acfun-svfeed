@@ -44,7 +44,7 @@ export function mmWarn(msg) {
 // 摘旧逻辑 0.9.305 批⑤⑦收口 pickpop.dismissConfirm——类串 '.acsv-confirmpop' 不再在本文件私拼
 export function openMmConfirm(anchor, opts) {
   dismissConfirm();
-  return openConfirmPop(anchor, opts);
+  return openConfirmPop(anchor, opts); // popgeom-ok:opts 透传——几何宿主真声明在各 openMmConfirm 调用点（本闸同扫）
 }
 
 // ---- 档头（mehead）：[select 过滤档？] + [右侧动作区]；三档同构（关注列表/收藏夹/历史）----
@@ -254,6 +254,7 @@ export function openManageModal(opts) {
         del.addEventListener('click', function () {
           openMmConfirm(del, {
             host: li,
+            placeHost: del, // 0.9.316：几何宿主=锚点自身（li 是整条成员行，按整行让位会把弹层甩出模态）
             title: opts.deleteTitle || '删除',
             text: opts.deleteText(it),
             okLabel: opts.deleteOkLabel || '删除',

@@ -373,7 +373,8 @@ export function buildFollowAdmin(panel, scroller) {
           closePop();
           head.closeMenu(); // 互斥缝②：开确认卡前收档头菜单
           openMmConfirm(btn, {
-            host: acts, title: d.title, text: d.confirm, okLabel: '确定',
+            host: acts, placeHost: btn, // 0.9.316：几何宿主=锚点自身（acts 是整组 chip，让位列不该按整组算）
+            title: d.title, text: d.confirm, okLabel: '确定',
             run: d.run, done: d.done
           });
         } else {

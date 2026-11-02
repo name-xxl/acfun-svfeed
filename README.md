@@ -384,6 +384,8 @@ npm run check        # 仅静态校验（CI 在 build 后跑）：场景登记�
                      #   slide/item 字段契约（唯 domfields.js 可登记，0.9.297 起）/
                      #   确认稿↔实现 取值一致（稿承诺的取值必须在两侧逐字出现、且实现侧出现次数与注册相符，
                      #   摘实现任一条即红；形态/行为类承诺仍由 harness 钉，check-preview，0.9.314 起）/
+                     #   确认弹几何宿主声明（pickpop 确认弹族每个调用点必须显式 placeHost；宽宿主会让整宿主当
+                     #   让位列、弹层与锚点脱钩；透传须带 popgeom-ok 标记，check-popgeom，0.9.316 起）/
                      #   契约面类型检查（tsc，0.9.188 起）
 npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSDoc 查类型；单跑用）
 ```
@@ -419,6 +421,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | 「注释即权威表」（z 档 / 判据 / 同源宣称） | 实体为准（overlay 头注降级为摘要）；判据导出单源（pagekind.SPACE_UID_RE·memberCenterPath、imgurl.CDN_URL_OK、immsg.sharePreviewOf） | `check-zlayers`（z 实体表 + 注释单档词）+ 源码字面扫描防复制闸（unit/pagekind、unit/imgurl） |
 | 字段契约 / 依赖方向 / 视图与设置注册 | `domfields.js`、`check-direction` 分类桶、`viewreg`/SCHEMA/表项工厂 | `check-contract` / `check-deps` / `check-direction`（命名↔分类一致性口径 D/E：README 叶清单零出边、`*api.js` 禁触 ui/styles/views，0.9.310） |
 | 监听器面 / 浮层键盘面 | `lifecycle.createScope` + `overlayOpen`（modal 让渡） | `check-listeners` / `check-overlay` |
+| 确认弹定位（宽宿主当让位列） | `pickpop.place` 的第三参 **`placeHost`（几何宿主）**：避让列与坐标换算按它算、DOM 仍挂原宿主；每个调用点显式声明（锚点自身，或刻意要避开的那一列） | `check-popgeom`（`openConfirmPop`/`openMmConfirm` 调用点必须写 `placeHost:`，opts 透传须带 `// popgeom-ok:` 标记；0.9.316）+ harness 几何钉 `dd-delete-pop-place` / `hd-delete-pop-place`（右缘须**贴合**锚点左缘 GAP_H=10——只查「在锚点左侧」会假绿，宽宿主脱钩态同样满足左邻） |
 | 结构面（孤儿件/死导出/单消费抽象/模块尺寸） | 拆件与单源出口照上列各行；单消费豁免两型＝「为可测性抽纯」（playstate 先例）／「挂账第二消费方」（roadmap 佐证） | `check-structure --gate`（orphan/dead/single/size 四 kind 棘轮+基线；扇出/扇入 top10 仅报告，标定 imdrawer 拆前扇出 14；0.9.310） |
 | 生灭配对（定时器/观察器）/ 静默吞错分诊 | `lifecycle.createScope` + `swallow(e,域)` 计数出口或 `// swallow:` 标记显式表态 | `check-lifecycle2 --gate`（pair=计数配对 + `// singleton-obs:` 放行；swallow=块体无 stat/throw/标记即候选；首轮存量已登记只锁增量；0.9.310） |
 | 债务标记（TODO/未实测）/ 纯叶纯度宣称 | 债务=规矩 2 的显式挂账（消账=真机实测后改注）；纯叶=「参数优先可注入时钟」形态（imgurl rnd 先例） | `check-hygiene` pass④⑤（kind=debt/leaf 与 dup 族同一基线棘轮；叶清单事实源=README class 行；0.9.310） |

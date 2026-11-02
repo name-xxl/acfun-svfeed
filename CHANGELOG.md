@@ -5,6 +5,31 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.316（2026-11-02）· 确认弹「宽宿主」余下四处出血收口——几何宿主声明上闸（check-popgeom）
+
+**病灶**（用户实报「删除动态的确认浮窗定位有问题」）：这是 0.9.312 那道缝的**同类出血**——`pickpop.place`
+的 A 模型「右缘 = min(宿主左缘, 锚点左缘) − GAP_H」把 **host（DOM 宿主）**当**让位列**用；0.9.312 抽出
+`placeHost`（几何宿主）只修了三处（历史删除/清空、评论删除），**其余四处照旧**：动态详情删除确认
+（`host: hostEl`＝920 宽面板/侧栏）、收藏「移除」确认（不传 host ⇒ wrap 落在整操作行）、关注列表
+「移组/取关」确认（`host: acts`＝整组 chip）、管理模态「删除」确认（`host: li`＝整条成员行）。后果：
+让位量 = 整个宿主宽度 ⇒ 弹层右缘落到宿主左缘 −10，**与锚点脱钩几百像素**（harness 实测 544px；用户
+看到的「定位有问题」即此）。
+
+**修法**：四处补齐 `placeHost: <锚点自身>`（`momentdetail` / `mytabs` 移除收藏 / `followadmin` /
+`meadmin`）。**结构收口（规矩 7）**：把「确认弹族每个调用点必须显式声明几何宿主」做成机械闸
+[`test/check-popgeom.mjs`](test/check-popgeom.mjs)（接入 `npm run check`）——扫全部 `openConfirmPop(` /
+`openMmConfirm(` 调用，括号配平取 opts 对象，要求其中出现 `placeHost:`；opts 透传的调用点
+（`meadmin.openMmConfirm`）必须带 `// popgeom-ok:<理由>` 标记并保证真声明在其调用点。新增调用点漏
+声明 ⇒ CI 红，不再靠 review 抓。
+
+**测试证据**：harness `detail-delete` 新增 `dd-delete-pop-place`（确认弹右缘须**贴合** ⋮ 左缘：
+`≤ 左缘 − 8` 且 `≥ 左缘 − 24`）——反跑实测：摘掉 `placeHost: more` → 转红
+（`popRight=481 moreLeft=1025 gap=544`），还原复绿；**同批修掉一处判据漏洞**：只查「落在锚点左侧」在
+脱钩态同样成立（宽宿主把弹层推到面板左缘，仍满足左邻）⇒ 上界与下界同时钉（这正解释了 0.9.312 的
+`hd-delete-pop-place` 为何只在「翻到宿主右缘」那种变体下才转红；该钉本轮不动，类级防线由新闸承担）。
+`check-popgeom` 反跑：摘任一调用点的 `placeHost:` → 转红。全链绿：lint / `npm run check`（含两处新闸）
+/ 单测 483 / harness 91 场景；结构基线重排 4 条 key。
+
 ### 0.9.315（2026-11-02）· 动态详情关闭键收进面板头部——背板浮钮「离卡片 304px」的位置病灶
 
 **病灶**（用户实报「动态详情卡片的关闭按钮位置是不是不合理」）：✕ 挂在**背板层**

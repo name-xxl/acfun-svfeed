@@ -3398,6 +3398,22 @@ rec('square-cmt-namecolor', (function () {
     q('.acsv-mdetail-more').click();
     var pop = q('.acsv-mdetail-panel .acsv-confirmpop');
     rec('dd-confirm', !!pop);
+    // 0.9.316（用户实报「删除动态的确认浮窗定位有问题」）：确认弹的几何宿主=锚点自身（⋮）——
+    // 弹层右缘必须**贴合**锚点左缘（GAP_H=10），不能只是「落在锚点左侧」：宽宿主病灶下整面板
+    //（920 宽）被当让位列，弹层右缘 = 面板左缘−10，虽仍满足「在 ⋮ 左侧」却已与锚点脱钩约 900px
+    //（最小视角证据：只查左邻会**假绿**，上界/下界都要有）。摘修复反跑：摘 placeHost: more → 转红。
+    rec('dd-delete-pop-place', (function () {
+      var p = q('.acsv-confirmpop'), m = q('.acsv-mdetail-more');
+      if (!p || !m) return false;
+      var pr = p.getBoundingClientRect().right, ml = m.getBoundingClientRect().left;
+      return pr <= ml - 8 && pr >= ml - 24;
+    })(), (function () {
+      var p = q('.acsv-confirmpop'), m = q('.acsv-mdetail-more');
+      if (!p || !m) return 'no-pop-or-more';
+      return 'popRight=' + Math.round(p.getBoundingClientRect().right)
+        + ' moreLeft=' + Math.round(m.getBoundingClientRect().left)
+        + ' gap=' + Math.round(m.getBoundingClientRect().left - p.getBoundingClientRect().right);
+    })());
     var ok = pop && pop.querySelector('.acsv-pick-ok');
     if (ok) ok.click();
     rec('dd-body', !!(await waitFor(function () { return !!delBody; }, 3000)), delBody);
