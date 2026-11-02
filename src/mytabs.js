@@ -250,7 +250,7 @@ export function buildWatchLater(panel, scroller) {
       if (cell._busy) return;
       cell._busy = true;
       cell.style.display = 'none'; // 乐观移除
-      cancelWaiting(pi).then(function (ok) {
+      cancelWaiting(pi.acId).then(function (ok) {
         cell._busy = false;
         if (!ok) {
           cell.style.display = '';

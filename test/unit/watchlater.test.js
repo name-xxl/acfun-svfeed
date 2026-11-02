@@ -39,6 +39,7 @@ test('listWaiting：POST query pcursor/count，回包走 waitingPageOf', async (
 
 // 真机回包已用内置浏览器登录态表单 POST 确认：addWaiting（新增/已存在）均为
 // {"result":0}；api-new 无 CORS 头，必须走 GM 通道（request），不能走页面 fetch。
+// 入参契约（0.9.311）＝显式 resourceId 标量；守卫：非正整数不发请求（false + 零 GM 调用）。
 test('addWaiting / cancelWaiting：GM POST form resourceId + resourceType=2，result 0 判成功', async () => {
   var calls = [];
   var reply = '{"result":0}';
@@ -46,16 +47,30 @@ test('addWaiting / cancelWaiting：GM POST form resourceId + resourceType=2，re
     calls.push(opts);
     opts.onload({ status: 200, responseText: reply });
   };
-  assert.equal(await addWaiting({ id: 123 }), true);
+  assert.equal(await addWaiting(123), true);
   assert.equal(calls[0].url, CFG.api.waitingAdd);
   assert.equal(calls[0].method, 'POST');
   assert.equal(calls[0].data, 'resourceId=123&resourceType=2');
   assert.ok(/application\/x-www-form-urlencoded/.test(calls[0].headers['Content-Type'] || ''));
 
-  assert.equal(await cancelWaiting({ id: 456 }), true);
+  assert.equal(await cancelWaiting(456), true);
   assert.equal(calls[1].url, CFG.api.waitingCancel);
   assert.equal(calls[1].data, 'resourceId=456&resourceType=2');
 
   reply = '{"result":-401}';
-  assert.equal(await addWaiting({ id: 789 }), false);
+  assert.equal(await addWaiting(789), false);
+});
+
+test('写链守卫：非正整数 resourceId 不发请求（false + 零 GM 调用）', async () => {
+  var calls = [];
+  globalThis.GM_xmlhttpRequest = function (opts) {
+    calls.push(opts);
+    opts.onload({ status: 200, responseText: '{"result":0}' });
+  };
+  assert.equal(await addWaiting(undefined), false);
+  assert.equal(await cancelWaiting(undefined), false);
+  assert.equal(await addWaiting('abc'), false);
+  assert.equal(await addWaiting(0), false);
+  assert.equal(await addWaiting(-5), false);
+  assert.equal(calls.length, 0);
 });
