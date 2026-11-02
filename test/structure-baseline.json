@@ -258,8 +258,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:cards.js:行337:导出13",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:cards.js:行366:导出13",
+      "why": "0.9.314 登记：宿主开关 siteOnly 收口（引用卡出站 + 原生页不接脚本查看器）与 momentMediaOf 回调带 opts 透传——有意增长"
     },
     {
       "key": "size:cfg.js:行530:导出2",
@@ -290,8 +290,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:cssraw.js:行1894:导出1",
-      "why": "0.9.313 登记：黄历规则页声明行 li.note 样式（小字灰无红点）——+3 行"
+      "key": "size:cssraw.js:行1930:导出1",
+      "why": "0.9.314 登记：行卡族交互态（hover 提底/按压/宫格 1.05/条卡 cursor:pointer）+ 浅皮点亮修复两行 + 号锚 .acsv-mp-am 撤除；同批撤除 hover 红框（用户实看后裁决）——净增约 14 行"
     },
     {
       "key": "size:cssseg.js:行32:导出9",
@@ -490,8 +490,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:memberplaza.js:行265:导出2",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:memberplaza.js:行259:导出1",
+      "why": "0.9.314 登记：号锚 addAmAnchor 整件撤除 + onOpen 改 openRowSource + 一枚 siteOnly 总开关（含其注释）——导出 2→1"
     },
     {
       "key": "size:momentapi.js:行127:导出9",
@@ -638,8 +638,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:rowkit.js:行235:导出6",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:rowkit.js:行259:导出7",
+      "why": "0.9.314 登记：新增 openRowSource + feedRowOf/wireRowList 的 opt 透传（siteOnly）与注释——导出 6→7"
     },
     {
       "key": "size:searchfmt.js:行92:导出3",
@@ -678,8 +678,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:signapi.js:行170:导出8",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:signapi.js:行193:导出8",
+      "why": "0.9.314 登记：自动签到链补可观测埋点（sign.try / skip.off / skip.nouid / readFail / already）——原四道静默出口用户与 debug 计数都看不出跑没跑；用户实报「开了开关却不签」的诊断前置"
     },
     {
       "key": "size:signpanel.js:行119:导出2",
@@ -690,16 +690,16 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:spacemoments.js:行99:导出2",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:spacemoments.js:行104:导出2",
+      "why": "0.9.314 登记：onOpen 改 openRowSource + siteOnly 总开关与注释（原 addAmAnchor 依赖整件撤除）"
     },
     {
       "key": "size:spacetab.js:行106:导出2",
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:squarefeed.js:行240:导出1",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:squarefeed.js:行250:导出1",
+      "why": "0.9.314 登记：siteOnly 透传（feedRowOf/wireRowList）+ 头注与选项注按总开关口径改写"
     },
     {
       "key": "size:squareview.js:行65:导出0",
@@ -710,8 +710,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:styles.js:行245:导出9",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:styles.js:行251:导出9",
+      "why": "0.9.314 登记：:root 追加 --acsv-accent-dim / --acsv-ban-new（同值字面收口）；注记红框撤除后 accent-dim 由 .acsv-jx-card:hover 独用"
     },
     {
       "key": "size:timefmt.js:行89:导出8",

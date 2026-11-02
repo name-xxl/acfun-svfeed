@@ -2,10 +2,13 @@
 // 页面=BOOT_PATH 改写的 /member/feeds + 本场景 opt-out 自动挂壳（harness.html NO_AUTOMOUNT）
 // ——必须在**无壳**条件下验证：入口注入（走真实轮询，非 TEST 直驱）→ 点击就地展开（.acsv-mp
 // 出现 + 行卡渲染 + 原生节点隐藏 + #acsv-root 不存在=不跳全屏壳的机器证据）→ 浅色皮肤
-// （computed 色 #333 vs 深色皮肤的默认白；等级色两皮肤同值）→ 无壳评论管线（列表+输入条）→ 无壳大图浮层 →
+// （computed 色 #333 vs 深色皮肤的默认白；等级色两皮肤同值；点亮态赞红/蕉黄 computed 钉，0.9.314）
+// → 行落点（0.9.314 用户裁决：行内无 am 号锚；点行 → window.open 收到站方原址 + '_blank'，
+// 原生页不开脚本面板）→ 无壳评论管线（列表+输入条）→ 原生页点配图不接脚本查看器（同条点击
+// 出站站方原址，0.9.314 裁决；旧「无壳大图浮层」两钉随裁决退役）→
 // 再点=刷新重建（EXTRA 旗标证明真的重拉首页）→ 点原生「动态」链收回（不 reload）→ 收回后再点
 // 入口重开（0.9.132：推广条按用户裁决撤除，重开唯入口径）。夹具：MY_MOCK 的 feedSquare
-//（广场动态2 带图，喂无壳大图断言）；mock 缝依赖 debug 构建。
+//（广场动态2 带图，喂点图落点断言）；mock 缝依赖 debug 构建。
 (function () {
   var C = window.__ACSV_CASES__ = window.__ACSV_CASES__ || {};
 
@@ -119,11 +122,51 @@
       [].forEach.call(document.querySelectorAll('.acsv-mp .acsv-frow-name'), function (n) { if (/广场UP3/.test(n.textContent)) hit = n; });
       return hit ? getComputedStyle(hit).color : 'no-node';
     })());
-    // am 号锚（plaza 原物）
-    rec('mp-amlink', (function () {
-      var a = q('.acsv-mp-am');
-      return !!a && /\/moment\/am\d+/.test(a.href) && /^am\d+$/.test(a.textContent);
-    })(), (q('.acsv-mp-am') || {}).href);
+    // 0.9.314 浅皮点亮态 computed 色钉（本批 CSS 修复的专属闸）：浅皮块里 0,3,0 的 #999 与深皮
+    // .on/.thrown（同 0,3,0）打平且源码更后 → 已赞/已投常驻灰（真病灶）。cssraw 在本块补的
+    // `.acsv-mp .acsv-frow-acts .acsv-fact.on/.thrown` 两行（0,4,0）若被摘，这里即回 rgb(153,153,153)
+    var mpLitLike = null, mpLitBan = null;
+    [].forEach.call(document.querySelectorAll('.acsv-mp .acsv-frow-acts .acsv-fact'), function (b) {
+      if (b._act === 'like' && !mpLitLike) mpLitLike = b; // 键判别走 momentbar 挂的 _act（同 views.js 惯例）
+      if (b._act === 'banana' && !mpLitBan) mpLitBan = b;
+    });
+    var mpLitGot = 'no-key';
+    if (mpLitLike && mpLitBan) {
+      // 点亮态=类（生产路径=行数据回填时 syncRowBar 挂）：临时加类量 computed，量完**立即撤类**——
+      // 残留的 .on/.thrown 会让本页后续点亮态断言假绿
+      mpLitLike.classList.add('on');
+      mpLitBan.classList.add('thrown');
+      mpLitGot = getComputedStyle(mpLitLike).color + ' / ' + getComputedStyle(mpLitBan).color;
+      mpLitLike.classList.remove('on');
+      mpLitBan.classList.remove('thrown');
+    }
+    rec('mp-light-lit-colors', mpLitGot === 'rgb(253, 76, 93) / rgb(255, 186, 13)', mpLitGot);
+
+    // 0.9.314 用户裁决①③：行尾 am 号锚整件撤除（memberplaza.addAmAnchor 与 cssraw 两行样式已删，
+    // 行内已无生产者）——.acsv-mp-am 不得再出现；行落点改为**站方原址新标签**（rowkit.openRowSource
+    // → window.open(pi.href,'_blank')），原生页不开脚本面板。摘 onOpen:openRowSource 回 noop 即转红
+    rec('mp-no-amlink', !q('.acsv-mp .acsv-mp-am'),
+      q('.acsv-mp') ? 'rows=' + document.querySelectorAll('.acsv-mp .acsv-frow').length : 'no-plaza');
+    // 点**行根**：互动键/宫格各自 stopPropagation、内链走 <a> 分支，都够不到行默认（onOpen）——
+    // 行根与正文文本才是落点。window.open 临时替换 → 点击 → **必须复原**（漏还原会劫持后续用例
+    // 的全部开窗断言）；桩记 URL 串与第二参，证据串带实际值便于诊断
+    var mpRow1 = null;
+    [].forEach.call(document.querySelectorAll('.acsv-mp .acsv-frow'), function (r) {
+      if (!mpRow1 && /广场动态1/.test(r.textContent)) mpRow1 = r;
+    });
+    window.__ACSV_OPEN__ = null;
+    window.__ACSV_OPEN_T__ = null;
+    if (mpRow1) {
+      var origOpen = window.open;
+      window.open = function (u, t) { window.__ACSV_OPEN__ = String(u); window.__ACSV_OPEN_T__ = String(t); return null; };
+      try { mpRow1.click(); } finally { window.open = origOpen; }
+    }
+    rec('mp-row-open-source', !!(mpRow1 && mpRow1._pi
+      && window.__ACSV_OPEN_T__ === '_blank' // 新标签（同窗跳转会丢页面：原生页内嵌语境不许）
+      && /^https:\/\/www\.acfun\.cn\/moment\/am\d+$/.test(window.__ACSV_OPEN__ || '')
+      && window.__ACSV_OPEN__ === mpRow1._pi.href), // 与行数据同源（CFG.api.momentBase，不许第二份手拼）
+      window.__ACSV_OPEN__ == null ? (mpRow1 ? 'no-open' : 'no-row')
+        : window.__ACSV_OPEN__ + ' [' + window.__ACSV_OPEN_T__ + ']');
 
     // 3) 无壳评论管线：行内展开 = 列表 + 输入条
     var rows = document.querySelectorAll('.acsv-mp .acsv-frow'), mRow = null;
@@ -206,14 +249,43 @@
     await wait(250);
     rec('mp-cmts-close', !mRow.querySelector('.acsv-frow-cmts'));
 
-    // 4) 无壳大图浮层（imgview 走 root=body 的既有先例）
+    // 4) 原生页不接脚本大图查看器（0.9.314 用户裁决；实测依据 docs/api-research.md §18：官方关注
+    //    动态流点动态卡配图＝站方自带查看器，脚本浮层在原生页既非原生观感又多余）。旧钉
+    //    mp-imgview / mp-imgview-close（点格子 → 弹 .acsv-imgview → 点浮层关闭）随裁决退役，
+    //    改写为两条各指一个红点：
+    //      mp-no-imgview：点单图格子后脚本浮层不得出现，且那一击必须**有落点**（落到行默认）。
+    //        红点＝摘 src/cards.js momentCellOf 的 siteOnly 提前 return（查看器回来 +
+    //        stopPropagation 回来 ⇒ 弹层出现且不再有出站）
+    //      mp-imgview-source：同一次点击的落点＝该行站方原址新标签，URL 与行数据同源。
+    //        红点＝摘 memberplaza 的 onOpen:openRowSource（回 noop 即无出站）
+    //    本宿主 boot 有 setRoot(document.body)（无壳浮层根，boot.js 分流表 memberCenter 分支），
+    //    摘修复时浮层真的会挂上来，「不得出现」在这里是有牙的判据。事件派发同步，但弹层可能由
+    //    后续补挂，故用 waitFor 开观察窗取**首个可见效应**：浮层节点与出站 URL 谁先到即本击落点，
+    //    两侧都不动则窗满（3s）判红——不用固定 sleep 蒙
     var r2 = null;
     for (var j = 0; j < rows.length; j++) if (/广场动态2/.test(rows[j].textContent)) r2 = rows[j];
-    var cell = r2 && r2.querySelector('.acsv-frow-img');
-    if (cell) cell.click();
-    rec('mp-imgview', !!(await waitFor(function () { return q('.acsv-imgview'); }, 5000)));
-    if (q('.acsv-imgview')) q('.acsv-imgview').click();
-    rec('mp-imgview-close', !!(await waitFor(function () { return !q('.acsv-imgview'); }, 3000)));
+    var mpCell = r2 && r2.querySelector('.acsv-frow-img'); // 广场动态2 夹具带一张图 → rowGrid n1 单图格子
+    window.__ACSV_OPEN__ = null; // 先清：上面 mp-row-open-source 用的是同一组捕获位
+    window.__ACSV_OPEN_T__ = null;
+    if (mpCell) {
+      var mpCellOpen = window.open;
+      window.open = function (u, t) { window.__ACSV_OPEN__ = String(u); window.__ACSV_OPEN_T__ = String(t); return null; };
+      try { mpCell.click(); } finally { window.open = mpCellOpen; } // 用完必须复原
+    }
+    var mpHit = await waitFor(function () {
+      if (q('.acsv-imgview')) return 'imgview';
+      return window.__ACSV_OPEN__ ? 'source' : null;
+    }, 3000);
+    rec('mp-no-imgview', mpHit === 'source' && !q('.acsv-imgview'),
+      'hit=' + mpHit + ' cell=' + (mpCell ? 'y' : 'none') + ' open=' + window.__ACSV_OPEN__);
+    // 站方原址逐字钉（夹具 sq(2) → moment.momentId=5105000+2 → CFG.api.momentBase+5105002），
+    // 并与行 _pi.href 同值——两条任一漂移即红，不留第二份手拼的余地
+    rec('mp-imgview-source', mpHit === 'source'
+      && window.__ACSV_OPEN__ === 'https://www.acfun.cn/moment/am5105002'
+      && window.__ACSV_OPEN_T__ === '_blank'
+      && !!r2 && !!r2._pi && window.__ACSV_OPEN__ === r2._pi.href,
+      'hit=' + mpHit + ' u=' + window.__ACSV_OPEN__ + ' t=' + window.__ACSV_OPEN_T__
+        + ' href=' + (r2 && r2._pi ? r2._pi.href : 'no-row'));
 
     // 5) 再点导航项 = 刷新重建（plaza refreshPlaza 语义；EXTRA 旗标证明真的重拉了首页）
     window.__ACSV_SQUARE_EXTRA__ = true;

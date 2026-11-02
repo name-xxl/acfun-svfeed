@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 v6 · 动态行卡全类型交互态统一（五形态 × 悬停/按压）+ 浅皮点亮态修复 + 原生页不接脚本查看器</title>
+<!-- ============================================================
+     docs/preview/moment-strip-actions.html —— 静态 UI 预览（确认后才进 src 实现）
+     v6 修订（2026-11-02 用户裁决；只改口径标注与开关名，DOM 与动效取值未动）：
+       ① <b>原生页两处不接脚本大图查看器</b>（/member 内嵌广场 · 空间页「动态」标签）：点宫格格子 / 点正文配图
+          一律<b>不再弹 <code>.acsv-imgview</code></b>，落到行默认 → 出站站方原址新标签；用户在官方页即可拿到站方
+          那套查看器（返回 / 查看原图 / 下载 / 翻页 / 底部缩略图条）。实测依据 <b>docs/api-research.md §18</b>：
+          官方「关注动态」流点动态卡配图＝站方自有查看器，且叠在「动态详情」路由之上；官方空间页<b>无「动态」档</b>
+          （那档我们自建），无站方查看器可对照。<b>脚本页三宿主（关注流 · 广场 · 我的页动态）保持现状：查看器照常。</b>
+       ② 宿主开关<b>收成一枚 <code>siteOnly</code></b>（语义＝<b>原生页不开脚本浮层</b>，含原有的引用卡出站）；
+          稿内一切旧开关名均改写为 <code>siteOnly</code>——一枚开关管「原生页不开脚本浮层」，不再按功能各立一枚。
+       ③ 表内两域口径同步：A⑤ 落点表「九宫格格子 / 正文配图」行改为<b>两域分栏</b>（脚本页＝脚本查看器照旧；
+          原生页两处＝不接查看器、落到行默认出站），裁决点登记新增 <b>⑭</b>。
+     v5 修订（2026-11-02 用户实看暗皮后裁决；撤环 + 口径同步，提底/按压/放大这块地基未动）：
+       ① hover 红框<b>全场景撤除</b>——原案给行卡族三个可点面（条卡 .acsv-frow-strip、引用卡
+          .acsv-gquote-on、宫格格子 .acsv-frow-img）加的 accent 半档 .55 overlay 伪元素描边环，用户看过
+          暗色界面后判「红框突兀」，遂与 0.9.314 同批撤。稿内撤干净：环的演示规则、为环服务的
+          border-radius:3px 与只为环加的 position:relative、.sim-hover-* 的「静态常显环」定格、
+          以及描边色 token 一处，全部删除（token 表留一行「已撤除」档案）。
+       ② 撤环后 hover 的可见反馈只剩两样（与 src/cssraw.js 1638–1662 / 1749–1753 已落地口径一致）：
+          <b>提底一档</b>——暗皮条卡两块灰底与引用卡灰块 .06→.10（rgba(255,255,255,.10)）；浅皮条卡体
+          #f7f7f7→#f0f0f0、封面块 #f0f0f0→#ececec、引用卡 #f5f5f5→#ececec —— 与<b>宫格图元微放大 1.05</b>
+          （对齐既有网格卡族先例）。按压不变：卡面 scale(.985) / 行级 translateY(1px)。
+          另：src/styles.js 的 --acsv-accent-dim 变量<b>保留</b>（现由 .acsv-jx-card:hover 独用，cssraw 288），
+          行卡族不再引用它。
+       ③ 章内所有把环当现状的说法（A② 段、A⑤ 落点表反馈列、场景 B 浅皮注、文件头【新增形态】/【实现口径】、
+          token 表、裁决点 ①、实现面预告与 harness 钉）同步为「已撤除（0.9.314）」；现况一律用现在时写提底。
+          技术教训留档（仍然有效，只是这次不用框）：<b>将来若再加框，不许退回 outline / inset 阴影</b>——它们画在
+          卡根自己的装饰层，会被封面与宫格的不透明图元整条吃掉（确认稿 v1 实测即此病）。
+     v4 修订（2026-11-02 与实现对齐三处；只改稿内标注与取值，DOM 与动效机制未动）：
+       ① 宫格 hover img 微放大取值定案 scale(1.05)（该项原为「可选」提案，现裁掉该字样）：对齐网格卡族
+          既有先例 .acsv-gcell:hover .acsv-gcover img{transform:scale(1.05)}（cssraw 1273）——两族同值，
+          实现即按 1.05 落地；A② 左格改挂 .sim-zoom 静态定格（实装后任意格真悬停均 1.05）。
+       ② 落点表补原生页引用卡（转发卡）出站口径：宿主开启出站开关（现名 <code>siteOnly</code>，v6 收口）时点任意源一律出站站方
+          原址新标签（源视频 /v/ac… · 源文章 /a/ac… · 源动态 /moment/am…，取 CFG.api.videoBase /
+          articleBase / momentBase 单源，不另立手拼 URL），不进脚本播放层与详情面板，与「原生页
+          点行出新标签」同口径（用户裁决 ④）；脚本页行流 / 详情面板 / 转发编辑器的引用卡行为不变。
+       ③ 浅色宿主内 .st 标注提深：#cfd3da 落白底 .lighthost 内几乎不可见（v2 既有），
+          .lighthost .st 改 #555（括注 .st em 同批提至 #6b6b6b）；只改稿内标注可读性，不动任何卡面配色（场景 B ①②）。
+     v3 修订（2026-11-02 三条用户裁决；纯减法与口径修正，动效演示本体未动）：
+       ① 原生页落点＝跳原址：原生页两处点行＝window.open(pi.href,'_blank')（rowkit.openRowSource），
+          不开脚本内详情面板——面板只留脚本页。反转 0.9.218「原生页点行无动作」。
+       ② 本批范围＝只行卡族 + 浅皮点亮修复；榜单/分区/搜索/网格卡的按压留后批。
+       ③ 行右角标（ac 号直达）整件撤除：挂点 + cssraw 样式两行一并删；原 B③ 演示整段撤，
+          改画「行整面 → 站方原址」说明。
+     v2 重写（2026-11-02，用户评审后修正）：
+       ① 图标全部站方 iconfont 码点（imicons.GLYPHS），撤内联 SVG 三角与自造「阅读/评论」行
+       ② 五类动态形态全覆盖：纯文字（clamp/展开）/ 图文九宫格 / 视频条卡 / 文章条卡 / 引用卡×3
+       ③ 点击落点口径改正：所有动态行整行可点（rowkit.wireRowList）：脚本页 → openRowDefault → 详情面板；
+          原生页 → openRowSource → 站方原址新标签（v3 ①）
+       ④ 统一动效语言一张 token 表（hover 描边+提底 / press 卡面 scale / 行 translateY）
+          （此项含「hover 描边」，该形态已于 <b>v5 撤除</b>，现况只剩提底——见 v5 修订 ①）
+     量值来源（全抄真值，未另立一套）：
+       src/cssraw.js 1582–1660  .acsv-frow* 行卡族（strip 204/128、acts 48/42、imgs 342/110、text clamp 4 行）
+       src/cssraw.js 1547–1562  .acsv-gquote* 引用卡（灰块 padding 10 左出血 -10、无圆角无竖线）
+       src/cssraw.js 1605–1612  .acsv-frow-imgs 九宫格（n1 299 自适应 / n24 228 / 格 110×110 margin 0 4 4 0）
+       src/cssraw.js 1599–1602  .acsv-frow-text.clamp 4 行 + .acsv-fmore 展开键
+       src/cssraw.js 1700–1730  .acsv-mp 浅皮覆盖；1886–1890 浅皮引用卡（1892 起的行右角标 v3 已撤，稿内不再画）
+       src/momentbar.js         键序 分享/评论/蕉/赞；蕉赞双字形 gpath/gfill 显隐
+       src/cards.js:204         stripOf 信息位 = GLYPHS.rankView(E164) 码点 + views（视频/文章同一形状）
+       src/cfg.js 66–70         出站基址单源 videoBase(/v/ac) / articleBase(/a/ac) / momentBase(/moment/am)
+                                —— 原生页引用卡出站与行 href 同取这一处，不另立第二份手拼 URL
+       src/imicons.js 26–31/45  码点 e628/e627/e62a+e65f/e629+e660/rankView e164
+       src/rowkit.js 192–233    wireRowList 点击分派：整行→详情/原址、内链/互动键/宫格 stopPropagation
+     语义承接 native-interaction-states（0.9.287 定稿）：悬停色=点亮色预览；动态域蕉黄 #FFBA0D。
+     【新增形态（本稿要裁决的）】可点卡面 hover <b>提底一档</b>（暗皮 .06→.10 / 浅皮同档）、卡面按压 scale(.985)、
+     行卡按压 translateY(1px)、宫格 img 微放大 <b>1.05</b>（已裁：对齐网格卡族 .acsv-gcell 先例，cssraw 1273）。
+     原案另有的 hover 描边环<b>已撤除（0.9.314，见 v5 修订 ①）</b>——用户实看暗皮判「红框突兀」，撤后 hover 可见反馈＝提底。
+     【实现口径】动效选择器一律限定 .acsv-frow 作用域内（写成 .acsv-frow .acsv-frow-strip … 这一形制）：
+     详情面板 / 转发编辑器里的引用卡复用同批类名（.acsv-frow-strip / .acsv-gquote-on），不获得该提底与按压。
+     【病灶】浅皮点亮态显灰：.acsv-mp .acsv-frow-acts .acsv-fact{color:#999}（cssraw 1724）
+     与 .acsv-frow-acts .acsv-fact.on/.thrown（1646/1647）特异性打平且后写 → 线上浅皮
+     已赞/已投显灰。修法＝补 .acsv-mp 作用域的 .on/.thrown 两行（稿中 B② 已按修复后画）。
+     ============================================================ -->
+<style>
+  /* 站方原生 iconfont（cssraw.js:14 同 URL）——字形即真字形 */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(//ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.90fc2dfc.woff) format("woff"),
+        url(//ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.bdc44d05.ttf) format("truetype")
+  }
+  :root{
+    --acsv-accent:#fd4c5d;           /* cfg.accent 单源 */
+    --acsv-bg:#000;
+    --acsv-line:rgba(255,255,255,.09);
+    --acsv-t1:#fff; --acsv-t2:#cfd3da; --acsv-t3:#8a90a0;
+    --ban-new:#ffba0d;               /* 动态域蕉黄（0.9.287 定稿） */
+    /* ---- 统一动效 token（v5 现状：过渡时长 + 卡面按压；hover 提底走各自的 rgba/hex 字面值。
+       原为 hover 描边准备的 accent 半档色 token 已随环一并撤除，稿内不再出现） ---- */
+    --mo-t:.12s ease;                /* 全卡同一过渡 */
+    --mo-press:.985;                 /* 卡面按压缩放 */
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 90px}
+  h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .hint{color:var(--acsv-t3);font-size:12px;line-height:1.9;margin-bottom:20px}
+  .hint b{color:var(--acsv-t2)}
+  .sec{margin:26px 0 8px;padding-top:16px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px}
+  .st{font-size:12px;color:var(--acsv-t2);font-weight:600;margin:18px 0 6px}
+  .st em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px}
+  .note{color:var(--acsv-t3);font-size:12px;line-height:1.85;margin:6px 0 10px}
+  .note code{background:rgba(255,255,255,.08);border-radius:4px;padding:1px 6px;font-size:12px}
+  .verdict{display:inline-block;background:rgba(253,76,93,.16);color:#ff9aa5;border-radius:10px;
+    padding:1px 10px;font-size:11px;margin-left:6px;vertical-align:1px}
+  table{border-collapse:collapse;font-size:12px;margin:10px 0}
+  th,td{border:1px solid rgba(255,255,255,.12);padding:6px 10px;text-align:left;line-height:1.6}
+  th{color:var(--acsv-t2);background:rgba(255,255,255,.04);font-weight:600}
+  td{color:#b9bec7}
+
+  /* 两场景并排（<1200 折叠成纵向） */
+  .cmp{display:flex;gap:18px;align-items:flex-start}
+  .cmp>div{flex:1;min-width:0}
+  @media (max-width:1200px){.cmp{flex-direction:column}}
+
+  /* ================= 行卡族（暗色基座：cssraw 1582–1660 / 1547–1562 / 1599–1612 逐值照抄） ================= */
+  .acsv-frows{max-width:870px;margin:0 auto}
+  .acsv-frow{position:relative;padding:0 20px}
+  .acsv-frow + .acsv-frow{border-top:10px solid rgba(255,255,255,.05)}
+  .acsv-frow-head{display:flex;gap:10px}
+  .acsv-frow-av{flex:none;width:50px;height:50px;border-radius:50%;overflow:hidden;
+    background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;
+    font-size:16px;font-weight:600;color:var(--acsv-t3)}
+  .acsv-frow-info{min-width:0}
+  .acsv-frow-name{display:block;margin:5px 0 6px;max-width:380px;font-size:16px;line-height:18px;
+    color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .acsv-frow-time{display:block;font-size:12px;line-height:12px;color:#8a90a0}
+  .acsv-frow-content{padding:6px 0 0 60px}
+  .acsv-frow-text{margin-bottom:10px;font-size:14px;line-height:21px;color:#e8eaee;
+    word-break:break-word;white-space:pre-line}
+  .acsv-frow-text.clamp{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+  .acsv-fmore{font-size:12px;color:var(--acsv-accent);cursor:pointer}
+  /* 九宫格（cssraw 1605–1612） */
+  .acsv-frow-imgs{margin:10px 0 -4px;width:342px}
+  .acsv-frow-imgs.n1{width:299px}
+  .acsv-frow-imgs.n24{width:228px}
+  .acsv-frow-img{display:inline-block;vertical-align:top;width:110px;height:110px;margin:0 4px 4px 0;
+    border-radius:3px;overflow:hidden;background:rgba(255,255,255,.06);cursor:pointer}
+  .acsv-frow-img i{display:block;width:100%;height:100%}
+  .acsv-frow-imgs.n1 .acsv-frow-img{width:auto;height:auto;max-width:299px;max-height:299px}
+  .acsv-frow-imgs.n1 .acsv-frow-img i{width:220px;height:150px;max-width:299px;max-height:299px}
+  /* 资源横条（cssraw 1613–1637）：信息位 = iconfont 码点 rankView(E164)+views（cards.js:204 真值） */
+  .acsv-frow-strip{display:flex;min-width:0}
+  .acsv-frow-scover{position:relative;flex:none;width:204px;background:rgba(255,255,255,.06);
+    border-radius:3px;overflow:hidden}
+  .acsv-frow-scover i{display:block;width:204px;height:128px}
+  .acsv-frow-tag{position:absolute;top:6px;right:6px;width:34px;height:18px;line-height:18px;
+    text-align:center;background:var(--acsv-accent);border-radius:3px;font-size:12px;color:#fff}
+  .acsv-frow-mdur{display:none;position:absolute;inset:0;padding:108px 8px 0 0;
+    background:rgba(0,0,0,.7);color:#fff;font-size:12px;text-align:right}
+  .acsv-frow-scover:hover .acsv-frow-mdur,.mdur-show .acsv-frow-mdur{display:block}
+  .acsv-frow-sbody{position:relative;flex:1 1 auto;min-width:0;padding:10px 10px 10px 14px;
+    background:rgba(255,255,255,.06);border-radius:0 3px 3px 0}
+  .acsv-frow-stitle{margin-bottom:12px;font-size:16px;font-weight:600;line-height:22px;color:#e8eaee;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .acsv-frow-sdesc{font-size:12px;line-height:18px;color:#cfd3da;overflow:hidden;text-overflow:ellipsis;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+  .acsv-frow-sinfo{position:absolute;bottom:13px;left:14px;display:inline-flex;align-items:center;
+    gap:4px;font-size:14px;line-height:14px;color:#8a90a0}
+  /* 引用卡（cssraw 1547–1562）：灰块 padding 10 左出血 -10、无圆角无竖线 */
+  .acsv-gquote{margin:10px 0 10px -10px;padding:10px;background:rgba(255,255,255,.06)}
+  .acsv-gquote-up{font-size:14px;line-height:22px;color:#8a90a0;margin-bottom:12px}
+  .acsv-gquote-upname{color:#fff;text-decoration:none}
+  .acsv-gquote-upname:hover{text-decoration:underline}
+  .acsv-gquote-textbody{font-size:14px;line-height:21px;color:#e8eaee;word-break:break-word;
+    max-height:63px;overflow:hidden;white-space:pre-line}
+  .acsv-gquote .acsv-frow-stitle{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;
+    -webkit-line-clamp:2;overflow:hidden;margin-bottom:8px}
+  .acsv-gquote .acsv-frow-sdesc{display:none}
+  .acsv-gquote .acsv-frow-imgs{max-width:100%}
+  .acsv-gquote-on{cursor:pointer}
+  /* 互动行（cssraw 1638–1653） */
+  .acsv-frow-acts{margin:4px 0 0 60px;display:flex}
+  .acsv-frow-acts .acsv-fact{display:inline-flex;align-items:center;gap:5px;height:48px;margin-right:42px;
+    font-size:12px;color:#8a90a0;cursor:pointer;user-select:none}
+  .acsv-frow-acts .acsv-fact:hover{color:var(--acsv-accent)}
+  .acsv-frow-acts .acsv-fact.on{color:var(--acsv-accent)}
+  .acsv-frow-acts .acsv-fact.thrown{color:var(--ban-new)}
+  .acsv-fact.acsv-k-banana:hover{color:var(--ban-new)}
+  .acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-weight:400;line-height:1}
+  .acsv-fact .acsvg-glyph{font-size:14px}
+  .acsvg-dual{position:relative;display:inline-flex;width:14px;height:14px}
+  .acsvg-dual .acsvg-glyph{position:absolute;left:0;top:0;width:14px;height:14px;line-height:14px}
+  .acsvg-dual .gfill{display:none}
+  .acsv-fact:hover .gfill,.acsv-fact.on .gfill,.acsv-fact.thrown .gfill{display:inline-block}
+  .acsv-fact:hover .gpath,.acsv-fact.on .gpath,.acsv-fact.thrown .gpath{display:none}
+
+  /* 封面/宫格占位渐变（类规则，零内联色） */
+  .cv-a i{background:linear-gradient(135deg,#2f4a6a,#16233a)}
+  .cv-b i{background:linear-gradient(135deg,#6a3a52,#33192a)}
+  .cv-c i{background:linear-gradient(135deg,#3a5a4a,#1a2f22)}
+  .cv-d i{background:linear-gradient(135deg,#5a4a2a,#2a2216)}
+
+  /* ================= 统一动效（.new 作用域内真 hover/真 :active 可验；v5 现状＝提底 + 按压 + 宫格放大） =========
+     token：--mo-t .12s ease / hover 提底一档（暗皮 .06→.10）/ 卡面按压 scale(.985) / 行按压 translateY(1px)。
+     可点面集合：条卡 .acsv-frow-strip、引用卡 .acsv-gquote-on、宫格格子 .acsv-frow-img（已有 cursor:pointer）；
+     行级按压给整行（动态行整行可点：脚本页→详情面板 / 原生页→站方原址）。正文/名字/时间保持文本光标（0.9.153 划选语义），不给 hover 上色。
+     【hover 描边环已撤除（0.9.314，v5 修订 ①）】原案的 accent 半档 .55 overlay 环，连同专为环加的
+     border-radius:3px 与 position:relative、静态常显环定格，一并删除——用户实看暗皮后判「红框突兀」，
+     hover 的可见反馈改由下面的提底承担。教训留档（另见 token 表）：将来若再加框，不许退回 outline / inset 阴影。 */
+  .new .acsv-frow-strip,.new .acsv-gquote-on,.new .acsv-frow-img{transition:transform var(--mo-t),background var(--mo-t)}
+  .new .acsv-frow-strip{cursor:pointer}
+  /* hover 提底一档：条卡两块灰底 + 引用卡灰块 .06→.10（撤环后这就是 hover 的唯一可见反馈；宫格无提底，走图元放大） */
+  .new .acsv-frow-strip:hover .acsv-frow-scover,
+  .new .acsv-frow-strip:hover .acsv-frow-sbody{background:rgba(255,255,255,.10)}
+  .new .acsv-gquote-on:hover{background:rgba(255,255,255,.10)}
+  .new .acsv-frow-strip:active,.new .acsv-gquote-on:active,.new .acsv-frow-img:active{transform:scale(var(--mo-press))}
+  .new .acsv-frow{transition:transform var(--mo-t)}
+  .new .acsv-frow:active{transform:translateY(1px)}
+  /* 已裁（v4 ①）：宫格 hover 时 img 微放大 1.05——与网格卡族先例同值（cssraw 1273
+     .acsv-gcell:hover .acsv-gcover img{transform:scale(1.05)}），两族手感一致；
+     实装规则进 .new 作用域，.sim-zoom 只负责静态定格（A② 左格）；格子自带 overflow:hidden，放大裁在格内不出格 */
+  .new .acsv-frow-img i{transition:transform var(--mo-t)}
+  .new .acsv-frow-img:hover i,.sim-zoom i{transform:scale(1.05)}
+
+  /* 静态摆态（画出来给肉眼定格；真悬停/真按压另由上面规则兜住。v5：只摆提底色，环不再画） */
+  .sim-hover-strip .acsv-frow-scover,.sim-hover-strip .acsv-frow-sbody{background:rgba(255,255,255,.10)}
+  .sim-hover-quote{background:rgba(255,255,255,.10)}
+  .sim-press{transform:scale(var(--mo-press))}
+  .sim-row-press{transform:translateY(1px)}
+
+  /* ================= 场景 B：浅皮（.acsv-mp 语境，cssraw 1700–1730 / 1886–1893 照抄） ================= */
+  .lighthost{background:#fff;color:#333;border-radius:8px;padding:2px 0}
+  /* 稿内标注可读性（v4 ③）：.st 默认 var(--acsv-t2)=#cfd3da 是给暗底用的，落白底 .lighthost 内
+     几乎不可见（v2 既有，对比度约 1.5:1）——浅色宿主内把段落小标题提深一档（#555 ≈ 7.5:1），
+     括注相应提深但仍比标题浅一档（#6b6b6b ≈ 5.3:1）。
+     **只改本稿标注**，不碰任何卡面配色；B④ 的 .st 在 .lighthost 之外（暗底）仍走原色。 */
+  .lighthost .st{color:#555}
+  .lighthost .st em{color:#6b6b6b}
+  .acsv-mp{position:relative;color:#333}
+  .acsv-mp .acsv-frow{position:relative}
+  .acsv-mp .acsv-frow + .acsv-frow{border-top:10px solid #f7f7f7}
+  .acsv-mp .acsv-frow-av{background:#f0f0f0;color:#bbb}
+  .acsv-mp .acsv-frow-name{color:#333}
+  .acsv-mp .acsv-frow-name:hover{color:var(--acsv-accent)}
+  .acsv-mp .acsv-frow-time{color:#999}
+  .acsv-mp .acsv-frow-text{color:#333}
+  .acsv-mp .acsv-frow-img{background:#f0f0f0}
+  .acsv-mp .acsv-frow-scover{background:#f0f0f0}
+  .acsv-mp .acsv-frow-sbody{background:#f7f7f7}
+  .acsv-mp .acsv-frow-stitle{color:#333}
+  .acsv-mp .acsv-frow-sdesc{color:#666}
+  .acsv-mp .acsv-frow-sinfo{color:#999}
+  .acsv-mp .acsv-frow-acts .acsv-fact{color:#999}
+  .acsv-mp .acsv-frow-acts .acsv-fact:hover{color:var(--acsv-accent)}
+  .acsv-mp .acsv-fact.acsv-k-banana:hover{color:var(--ban-new)}
+  .acsv-mp .acsv-frow-mdur{background:rgba(0,0,0,.7);color:#fff}
+  .acsv-mp .acsv-gquote{background:#f5f5f5}
+  .acsv-mp .acsv-gquote-up{color:#999}
+  .acsv-mp .acsv-gquote-upname{color:#409bef}
+  .acsv-mp .acsv-gquote-textbody{color:#333}
+  /* 浅皮统一动效（与暗皮同 token；提底色取浅皮同档） */
+  .lighthost.new .acsv-frow-strip:hover .acsv-frow-scover{background:#ececec}
+  .lighthost.new .acsv-frow-strip:hover .acsv-frow-sbody{background:#f0f0f0}
+  .lighthost.new .acsv-gquote-on:hover{background:#ececec}
+  .lighthost .sim-hover-strip .acsv-frow-scover{background:#ececec}
+  .lighthost .sim-hover-strip .acsv-frow-sbody{background:#f0f0f0}
+  .lighthost .sim-hover-quote{background:#ececec}
+  /* 病灶对照（.old＝线上现状：点亮被 1724 的 #999 压成灰；!important 只为止住稿内祖先 .fixed 的干扰） */
+  .acsv-mp.old .acsv-frow-acts .acsv-fact.on,
+  .acsv-mp.old .acsv-frow-acts .acsv-fact.thrown{color:#999 !important}
+  /* 修复（.fixed＝本次要补进 cssraw 的两行，.acsv-mp 作用域特异性 (0,4,0) 压回） */
+  .acsv-mp.fixed .acsv-frow-acts .acsv-fact.on{color:var(--acsv-accent)}
+  .acsv-mp.fixed .acsv-frow-acts .acsv-fact.thrown{color:var(--ban-new)}
+
+  /* 窄宽自检 */
+  .narrow{width:540px;border:1px dashed rgba(255,255,255,.2);padding:0 0 10px;margin-top:8px}
+  .lighthost.narrow{border-color:rgba(0,0,0,.25);padding:0 14px 10px}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>动态行卡全类型交互态统一 —— 静态预览 v6（确认后才进 src 实现）<em style="font-style:normal;font-weight:400;font-size:12px;color:var(--acsv-t3);margin-left:8px">v6＝原生页两处不接脚本大图查看器（宿主开关 siteOnly）：点宫格/正文配图落到行默认 → 出站站方原址；脚本页查看器照旧（v5 的「撤环」现状不变）</em></h1>
+  <p class="hint">
+    量值全部照抄 <b>src/cssraw.js</b> 行卡族 / 引用卡 / 九宫格 / <code>.acsv-mp</code> 浅皮块真值；
+    图标全部站方 <b>iconfont 码点</b>（<code>imicons.GLYPHS</code>：互动键 e628/e627/e62a+e65f/e629+e660、
+    条卡信息位 rankView <b>E164</b>）；键序与双字形机制照 <b>src/momentbar.js</b>；
+    点击分派口径照 <b>src/rowkit.js</b> wireRowList —— 脚本页三处：整行 → 脚本内动态详情面板（openRowDefault）；
+    <b>原生页两处（/member 内嵌广场 · 空间页动态）：整行可点＝站方原址新标签</b>（<code>openRowSource</code> →
+    <code>window.open(pi.href,'_blank')</code>，<b>不开脚本面板</b>；反转 0.9.218）。<br>
+    <b>开关收成一枚 <code>siteOnly</code>（语义＝原生页不开脚本浮层）</b>，管原生页两处宿主的两类行为：
+    ① <b>引用卡（转发卡）同口径出站</b>——<code>createSquareFeed({…, siteOnly:true})</code> →
+    <code>feedRowOf</code> → <code>momentMediaOf(pi, opts)</code> → <code>quoteBlockOf(repost, {siteOnly:true})</code>，
+    点<b>任意源</b>一律出站站方原址新标签（源视频 <code>CFG.api.videoBase</code> · 源文章 <code>articleBase</code> ·
+    源动态 <code>momentBase</code>），<b>不进脚本播放层、不开详情面板</b>；脚本页行流 / 详情面板 / 转发编辑器的引用卡按源分派<b>不变</b>。<br>
+    ② <b>不接脚本大图查看器（本批新裁，0.9.314）</b>——原生页两处宫格格子与正文配图点下去<b>不得再弹 <code>.acsv-imgview</code></b>，
+    落到行默认 → 站方原址新标签（用户在官方页拿到站方那套查看器：查看原图 / 下载 / 翻页 / 缩略图条）；
+    <b>脚本页三宿主查看器照旧</b>。实测依据 <code>docs/api-research.md §18</code>（仅本离线稿引注，不新增外链）。<br>
+    <b>五类动态形态全摆</b>：纯文字（clamp/展开）· 图文九宫格 / 视频条卡 / 文章条卡 / 引用卡（源=视频·文章·动态）。
+    标注<span class="verdict">新增·待裁决</span>的是本稿要拍板的形态（<b>宫格 img 微放大已裁 1.05</b>，见 token 表）；其余为既有语义照摆。<br>
+    本批范围＝<b>只行卡族 + 浅皮点亮修复</b>（榜单/分区/搜索/网格卡的按压留后批）；行右上的 ac 号直达角标<b>整件撤除</b>。<br>
+    【病灶】浅皮点亮态显灰：<code>.acsv-mp .acsv-frow-acts .acsv-fact{color:#999}</code>（cssraw 1724）特异性压过
+    <code>.on/.thrown</code>（1646/1647），线上浅皮已赞/已投全灰；修法＝补两行 <code>.acsv-mp</code> 作用域点亮规则（B② 按修复后画）。<br>
+    A / B 两个演示区各包 <code>.new</code> 作用域，<b>真悬停/真按压任意卡即可验</b>；封面与宫格为灰底渐变占位，码点为站方真字形。
+    动效规则实现时一律限定 <code>.acsv-frow</code> 作用域内（见 token 表段注）。
+  </p>
+
+  <!-- ================= 动效 token 表 ================= -->
+  <div class="sec" style="border-top:none;margin-top:0">
+    <h2>统一动效语言（一张 token 表）<em>新增提案值；全类型同一套，不割裂</em></h2>
+    <table>
+      <tr><th>token</th><th>建议值</th><th>作用面</th><th>语义</th></tr>
+      <tr><td><code>--mo-t</code></td><td>.12s ease</td><td>全部可点面</td><td>全卡同一过渡时长/曲线</td></tr>
+      <tr><td>hover 描边环<span class="verdict">已撤除 0.9.314</span></td><td>原值（仅存档，稿内不再画）：overlay 伪元素环——<code>::after</code> <code>inset:0</code> + 1px border <code>rgba(253,76,93,.55)</code>（accent 半档）</td><td>—（条卡 / 引用卡 / 宫格格子三面对它不再有任何规则）</td><td><b>全场景撤除</b>：用户实看暗色界面后判「红框突兀」，与 0.9.314 同批撤（v5 修订 ①）。撤后 hover 的可见反馈由下一行<b>提底</b>单独承担，宫格另加图元放大 1.05。<b>教训留档、仍然有效</b>：将来若再加框，<b>不许退回 <code>outline</code> / inset 阴影</b>——它们画在卡根自己的装饰层，会被封面与宫格的不透明图元整条吃掉（只剩封面圆角外 1px 角点，确认稿 v1 实测即此病），必须走 overlay 压在内容之上。防回潮闸＝harness <code>sm-frow-no-ring</code>（三可点面不得再出现边框环或 outline）。另：accent 半档变量 <code>--acsv-accent-dim</code>（<code>src/styles.js</code> 单源）<b>保留</b>，现由 <code>.acsv-jx-card:hover</code>（cssraw 288）独用，行卡族不再引用它。</td></tr>
+      <tr><td>hover 提底<span class="verdict">v5 现况</span></td><td>暗皮 .06→.10（rgba(255,255,255,.10)）；浅皮条卡体 #f7f7f7→#f0f0f0、封面块 #f0f0f0→#ececec、引用卡 #f5f5f5→#ececec</td><td>条卡两块 / 引用卡灰块（宫格格子不提底，走图元放大）</td><td><b>撤环后 hover 的唯一可见反馈</b>：只提一档，不整卡发白；暗皮/浅皮同档换算（cssraw 1652–1654 / 1751–1753 已落地）</td></tr>
+      <tr><td>press 卡面</td><td>transform: scale(.985)</td><td>条卡 / 引用卡 / 宫格格子</td><td>「点中了」手感；幅度克制不抢戏</td></tr>
+      <tr><td>press 行级</td><td>transform: translateY(1px)</td><td>整行（含纯文字/图文行）</td><td>行整面可点（wireRowList）：脚本页 → 详情面板 / 原生页 → 站方原址新标签；落在正文/空白也给确认感</td></tr>
+      <tr><td>宫格 img 微放大<span class="verdict">用户已裁</span></td><td>scale(1.05)（<code>.acsv-frow-img:hover i</code>，过渡同 <code>--mo-t</code>）</td><td>仅宫格格子（含引用卡内动态源配图宫格）</td><td>与网格卡族<b>同值</b>：<code>.acsv-gcell:hover .acsv-gcover img{transform:scale(1.05)}</code>（cssraw 1273）——族间手感一致，「同一套动效语言」不割裂；<code>.sim-zoom</code> 只作静态定格（A② 左格）</td></tr>
+    </table>
+    <p class="note">按压层级：按在<b>卡面上</b>＝卡面 scale(.985)（行级 1px 同帧叠加）；按在行其它区域（正文/空白）＝整行下沉 1px。
+    互动键/内链/宫格各自 stopPropagation（momentbar / wireRowList 既有），不触发宿主按压语义之外的跳转。
+    正文与名字区保持文本光标（0.9.153 划选复制语义），<b>不给 hover 上色</b>。<br>
+    <b>作用域口径</b>：以上规则实现时一律写成 <code>.acsv-frow .acsv-frow-strip …</code> 这一形制，只作用于<b>行卡族</b>；
+    详情面板与转发编辑器里的引用卡复用同批类名（<code>.acsv-frow-strip</code> / <code>.acsv-gquote-on</code>），
+    <b>不获得该提底与按压</b>（否则面板里会出现本不该有的「可点卡面」手感）。此口径已进 cssraw，并由 harness
+    <code>sm-frow-scope</code> 钉住「提底族与按压族每一段选择器都带 <code>.acsv-frow</code> 本体」。</p>
+  </div>
+
+  <div class="cmp">
+  <!-- ==================== 场景 A · 深色脚本壳 ==================== -->
+  <div>
+    <div class="sec" style="border-top:none;margin-top:0">
+      <h2>场景 A · 深色脚本壳（关注/广场/我的页动态行）<em>cssraw 真值；新增态标建议值</em></h2>
+
+      <div class="frows new">
+        <!-- A① 五型基态 -->
+        <div class="st">① 五型基态<em>纯文字 · 九宫格 · 视频条卡 · 文章条卡 · 引用卡×3（码点全真：信息位 E164）</em></div>
+        <div class="acsv-frows">
+          <div class="acsv-frow">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">丸</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">渣丸子</a>
+                <span class="acsv-frow-time">23 分钟前</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-text clamp">跑了一晚上参数总算出片了，提示词逐段拆开放在简介，照抄就能复现。这次的灯光关键词是「黄昏侧逆光 + 体积雾」，镜头关键词走「手持轻晃 + 浅景深」，别叠太多风格词，两个维度各一句就够。第五行开始被 clamp 钳掉，溢出才出「展开」。</div>
+              <span class="acsv-fmore">展开</span>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>36</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>21</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>402</span></span>
+            </div>
+          </div>
+          <div class="acsv-frow">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">蝉</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">阿蝉不是蝉</a>
+                <span class="acsv-frow-time">1 小时前</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-text">天台三连拍，风大到怀疑人生。</div>
+              <div class="acsv-frow-imgs">
+                <div class="acsv-frow-img cv-a"><i></i></div>
+                <div class="acsv-frow-img cv-b"><i></i></div>
+                <div class="acsv-frow-img cv-c"><i></i></div>
+              </div>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>8</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>3</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>57</span></span>
+            </div>
+          </div>
+          <div class="acsv-frow">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">丸</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">渣丸子</a>
+                <span class="acsv-frow-time">23 分钟前</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-text">跑了一晚上参数总算出片了，提示词逐段拆开放在简介，照抄就能复现。</div>
+              <div class="acsv-frow-strip cv-a">
+                <div class="acsv-frow-scover"><i></i><span class="acsv-frow-mdur">12:47</span></div>
+                <div class="acsv-frow-sbody">
+                  <div class="acsv-frow-stitle">哪怕是minimax，提示词写好细节也是能做好的效果…</div>
+                  <div class="acsv-frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>1.8万</div>
+                </div>
+              </div>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>36</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>21</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>402</span></span>
+            </div>
+          </div>
+          <div class="acsv-frow">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">AC</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">AC娘本体</a>
+                <span class="acsv-frow-time">昨天 20:14</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-strip cv-b">
+                <div class="acsv-frow-scover"><i></i><span class="acsv-frow-tag">文章</span></div>
+                <div class="acsv-frow-sbody">
+                  <div class="acsv-frow-stitle">天涯此时共明月 DD歌回唱团圆</div>
+                  <div class="acsv-frow-sdesc">文化遗产不该只躺在名录里。中秋前夜，我们把戏腔搬上老戏台，用一场 DD 歌回，把「天涯共此时」唱给每一个还在听的人。</div>
+                  <div class="acsv-frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>6428</div>
+                </div>
+              </div>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>52</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>88</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>1104</span></span>
+            </div>
+          </div>
+          <div class="acsv-frow">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">芸</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">一只芸喵喵</a>
+                <span class="acsv-frow-time">2 小时前</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-text">这期混剪的转场教科书级别，转需。</div>
+              <div class="acsv-gquote acsv-gquote-on">
+                <div class="acsv-gquote-up"><a class="acsv-gquote-upname" href="#">@剪辑手老白</a></div>
+                <div class="acsv-frow-strip cv-d">
+                  <div class="acsv-frow-scover"><i></i><span class="acsv-frow-mdur">08:02</span></div>
+                  <div class="acsv-frow-sbody">
+                    <div class="acsv-frow-stitle">三分钟学会无缝转场：遮挡物剪辑全拆解</div>
+                    <div class="acsv-frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>4271</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>12</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>6</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>98</span></span>
+            </div>
+          </div>
+          <div class="acsv-frow">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">弹</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">弹幕护体</a>
+                <span class="acsv-frow-time">3 小时前</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-text">今年最喜欢的专栏，没有之一。</div>
+              <div class="acsv-gquote acsv-gquote-on">
+                <div class="acsv-gquote-up"><a class="acsv-gquote-upname" href="#">@AC娘本体</a></div>
+                <div class="acsv-frow-strip cv-b">
+                  <div class="acsv-frow-scover"><i></i><span class="acsv-frow-tag">文章</span></div>
+                  <div class="acsv-frow-sbody">
+                    <div class="acsv-frow-stitle">天涯此时共明月 DD歌回唱团圆（引用卡内标题两行 clamp、摘要隐藏，cssraw 1630–1632 真值）</div>
+                    <div class="acsv-frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>6428</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>4</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>2</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>31</span></span>
+            </div>
+          </div>
+          <div class="acsv-frow">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">鹿</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">鹿目圆不圆</a>
+                <span class="acsv-frow-time">5 小时前</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-text">这条说得在理，存了。</div>
+              <div class="acsv-gquote acsv-gquote-on">
+                <div class="acsv-gquote-up"><a class="acsv-gquote-upname" href="#">@渣丸子</a></div>
+                <div class="acsv-gquote-text">
+                  <div class="acsv-gquote-textbody">动态源的引用＝UBB 正文（钳 3 行）+ 配图九宫格同款套件。熬夜党的胜利：新渲染管线帧生成时间砍掉 40%，长视频再也不用心疼风扇。</div>
+                </div>
+                <div class="acsv-frow-imgs">
+                  <div class="acsv-frow-img cv-a"><i></i></div>
+                  <div class="acsv-frow-img cv-c"><i></i></div>
+                </div>
+              </div>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>2</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>1</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>17</span></span>
+            </div>
+          </div>
+        </div>
+        <p class="note">基态线上已有，量值未动。既有形制提醒：视频封面<b>时长是悬停浮层</b>（<code>.acsv-frow-mdur</code>
+        压黑右下）；文章角标「文章」34×18 accent 红右上；引用卡内标题两行 clamp、摘要隐藏；动态源引用＝UBB 正文钳 3 行+配图宫格。
+        <b>文章条卡信息位＝E164 码点+播放数</b>（stripOf 真值，无「阅读/评论」文本行——v1 稿自造已撤）。</p>
+
+        <!-- A② 悬停定格 -->
+        <div class="st">② 悬停定格<span class="verdict">新增·待裁决</span><em>三个可点面同一套：提底一档（暗皮 .06→.10）；宫格另加图元放大 1.05。原 hover 描边环已撤除（0.9.314，v5 修订 ①）</em></div>
+        <div class="acsv-frows">
+          <div class="acsv-frow">
+            <div class="acsv-frow-content" style="padding-left:0">
+              <div class="acsv-frow-strip sim-hover-strip cv-a mdur-show">
+                <div class="acsv-frow-scover"><i></i><span class="acsv-frow-mdur">12:47</span></div>
+                <div class="acsv-frow-sbody">
+                  <div class="acsv-frow-stitle">条卡悬停＝提底定格：两块灰底 .06→.10 + 时长浮层同现（cursor:pointer 静态画不出，真悬停可验；原红描边已撤除 0.9.314）</div>
+                  <div class="acsv-frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>1.8万</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="acsv-frow">
+            <div class="acsv-frow-content" style="padding-left:0">
+              <div class="acsv-gquote acsv-gquote-on sim-hover-quote">
+                <div class="acsv-gquote-up"><a class="acsv-gquote-upname" href="#">@剪辑手老白</a></div>
+                <div class="acsv-frow-strip cv-d">
+                  <div class="acsv-frow-scover"><i></i><span class="acsv-frow-mdur">08:02</span></div>
+                  <div class="acsv-frow-sbody">
+                    <div class="acsv-frow-stitle">引用卡悬停＝提底定格：灰块 .06→.10（内嵌条卡悬停仍走条卡自己的提底，同一档）</div>
+                    <div class="acsv-frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>4271</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="acsv-frow">
+            <div class="acsv-frow-content" style="padding-left:0">
+              <div class="acsv-frow-imgs">
+                <div class="acsv-frow-img cv-a sim-zoom"><i></i></div>
+                <div class="acsv-frow-img cv-b"><i></i></div>
+                <div class="acsv-frow-img cv-c"><i></i></div>
+              </div>
+              <p class="note" style="margin-left:0">↑ 宫格格子悬停＝<b>img 微放大 1.05</b>
+              <span class="verdict">用户已裁</span>（与网格卡族同值，cssraw 1273）——格子 cursor:pointer 既有、<b>不提底</b>
+              （cssraw 1652–1654 只给条卡两块与引用卡灰块提底），原描边已撤除（0.9.314）；左格 <code>.sim-zoom</code> 为静态定格，
+              其余两格真悬停即见同一效果。格子自带 <code>overflow:hidden</code>，放大裁在格内、不出格。</p>
+            </div>
+          </div>
+        </div>
+        <p class="note"><b>hover 描边环已撤除（0.9.314，本稿 v5 同步）</b>：原案给条卡 / 引用卡 / 宫格三个可点面加的
+        accent 半档 .55 overlay 描边环，用户实看暗色界面后判「红框突兀」→ <b>全场景撤除</b>，稿内与 cssraw 都不再画环；
+        撤后 hover 的可见反馈只剩上面的<b>提底一档</b>与宫格 1.05 放大（防回潮闸：harness <code>sm-frow-no-ring</code>，
+        正向钉则改成 <code>sm-frow-hover-lift</code> 钉提底规则载量）。<br>
+        一条技术结论仍然有效，只是这次用不上——<b>若将来再加框，不许退回 <code>outline</code> / inset 阴影</b>：它们画在
+        卡根自己的装饰层，封面与宫格的不透明 <code>&lt;i&gt;</code> 会在自己这层把边线整条盖掉（只剩封面圆角外 1px 角点），
+        肉眼就是「红框没框住左边的图」——本稿 v1 实测即此病；真要加框必须走 overlay 压在内容之上、圆角随宿主继承。</p>
+        <p class="note">纯文字行悬停<b>不上色</b>：正文是划选复制区（0.9.153），大面积底色会干扰文本光标语义；
+        它的可点反馈由按压态（③）承担。线上现状＝条卡/引用卡/行全零 hover 反馈，可点只能靠猜。</p>
+
+        <!-- A③ 按压定格 -->
+        <div class="st">③ 按压 :active 定格<span class="verdict">新增·待裁决</span><em>卡面 scale(.985) / 行级 translateY(1px)，transition .12s ease 全同</em></div>
+        <div class="acsv-frows">
+          <div class="acsv-frow">
+            <div class="acsv-frow-content" style="padding-left:0">
+              <div class="acsv-frow-strip sim-press sim-hover-strip cv-c">
+                <div class="acsv-frow-scover"><i></i><span class="acsv-frow-mdur">08:02</span></div>
+                <div class="acsv-frow-sbody">
+                  <div class="acsv-frow-stitle">条卡按压：整条缩至 .985，提底不撤——按下即「点中了」</div>
+                  <div class="acsv-frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>4271</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="acsv-frow sim-row-press">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">丸</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">渣丸子</a>
+                <span class="acsv-frow-time">23 分钟前</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-text">行卡按压定格：按在正文/空白＝整卡下沉 1px（静态稿肉眼难辨，真按压可验）——纯文字/图文行也有手感。</div>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>36</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>21</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>402</span></span>
+            </div>
+          </div>
+        </div>
+        <p class="note">缩放比 0.985 是克制档；若嫌幅度小可升 0.98，不建议再大。引用卡与宫格格子同一 .985。
+        真按压：全页 <code>.new</code> 作用域内任意卡按住可见（行级 1px 同帧叠加）。</p>
+
+        <!-- A④ 互动键 -->
+        <div class="st">④ 互动键悬停 + 点亮<em>既有语义照摆：分享/评论/赞悬停红、蕉悬停黄 #FFBA0D；点亮同色；蕉/赞换实心字形</em></div>
+        <div class="acsv-frows" style="max-width:640px">
+          <div class="acsv-frow" style="padding-top:0">
+            <div class="acsv-frow-acts" style="margin-left:0;border-bottom:1px solid var(--acsv-line)">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>36</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>21</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>402</span></span>
+            </div>
+            <p class="note">↑ 基态（线框字形灰 #8a90a0）——真悬停试：红三键、蕉黄，蕉/赞悬停切实心。</p>
+            <div class="acsv-frow-acts" style="margin-left:0;border-bottom:1px solid var(--acsv-line)">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>37</span></span>
+              <span class="acsv-fact acsv-k-banana thrown"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>22</span></span>
+              <span class="acsv-fact acsv-k-like on"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>403</span></span>
+            </div>
+            <p class="note">↑ 点亮定格：已赞 <code>.on</code> 红、已投 <code>.thrown</code> 黄 #FFBA0D，实心字形常驻（0.9.287 定稿机制，未动）。
+            例外面一条：<b>文章行赞键只读</b>——momentbar wireLike 对 ct=article 直接 return（写链未实测），文章行不出现红点亮。</p>
+          </div>
+        </div>
+
+        <!-- A⑤ 点击落点全表 -->
+        <div class="st">⑤ 点击落点全表<em>口径照 rowkit.wireRowList / rowkit.openRowSource / cards.quoteBlockOf(x, {siteOnly}) / createSquareFeed(opts) 真语义；脚本页与原生页两域分栏写清（v1 稿「纯图行行体无落点」有误，已改正）</em></div>
+        <table>
+          <tr><th>落点</th><th>行为</th><th>hover/按压反馈（本稿新增）</th></tr>
+          <tr><td>动态行整面（纯文字/图文/转发行的正文与空白）</td><td>脚本页＝开动态详情面板（openRowDefault → momentdetail）；<b>原生页两处（/member 内嵌广场、空间页动态）＝整行可点 → 站方原址新标签（<code>rowkit.openRowSource</code> → <code>window.open(pi.href,'_blank')</code>），不开脚本面板</b>——<b>反转 0.9.218</b>「原生页点行无动作」；行右上 ac 号直达角标已撤（附 ⑨⑩⑪）</td><td>hover 不上色（划选语义）；按压整行 translateY(1px)（原生页同样生效）</td></tr>
+          <tr><td>视频条卡</td><td><b>脚本页关注流</b>＝播放层单条（0.9.173 裁决）；<b>原生页两处</b>＝随整行默认出站站方原址新标签（<code>CFG.api.videoBase</code>+acId，0.9.314 补——视频条目契约层无 <code>href</code>，由 <code>rowkit.openRowSource</code> 按 ct 兜）；<b>广场 / 我的页动态</b>＝当前点了无落点（既有缺口，非本批引入，另议）</td><td>提底一档（.06→.10）/ scale(.985)</td></tr>
+          <tr><td>文章条卡</td><td>脚本页现况外链官方页；文章正文浮层（article-reader 稿）落地后改浮层。<b>原生页随整行默认出站原址</b>（契约层已有 <code>href</code>）</td><td>提底一档（.06→.10）/ scale(.985)</td></tr>
+          <tr><td>引用卡（转发卡）整体</td><td><b>脚本页</b>（关注流 · 广场 · 我的页动态，以及详情面板 <code>momentdetail</code> / 转发编辑器 <code>momenteditor</code>）＝维持现况<b>按源分派</b>：源视频→播放层 / 源文章→官方页 / 源动态→详情面板；@源UP 走自家锚（<code>/u/uid</code>，<code>stopPropagation</code> 不冒泡）。<br><b>原生页两处</b>（/member 内嵌广场 · 空间页动态，宿主传 <code>createSquareFeed({…, siteOnly:true})</code>）＝<b>点任意源一律出站站方原址新标签</b>——源视频 <code>CFG.api.videoBase+m</code>（<code>/v/ac…</code>）· 源文章 <code>articleBase</code>（<code>/a/ac…</code>）· 源动态 <code>momentBase</code>（<code>/moment/am…</code>），<b>不进脚本播放层、不开详情面板</b>，与「原生页点行 → 站方原址」同口径（用户裁决 ④；开关一枚 <code>siteOnly</code>＝原生页不开脚本浮层，一路 <code>feedRowOf → momentMediaOf → quoteBlockOf</code>）</td><td>提底一档（灰块 .06→.10）/ scale(.985)（内嵌条卡悬停仍走条卡自己的提底）</td></tr>
+          <tr><td>九宫格格子 / 正文配图</td><td><b>脚本页</b>（关注流 · 广场 · 我的页动态）＝<b>脚本大图查看器，照旧</b>（<code>cards.momentCellOf</code> / <code>comments.commentPicClick</code> 单源）。<br><b>原生页两处</b>（/member 内嵌广场 · 空间页动态）＝<b>不接脚本查看器</b>：宫格格子不接查看器、也不再 <code>stopPropagation</code>，正文配图（<code>.ubb-imgc</code>）同样跳过——两者一律落到行默认 → <b>出站站方原址新标签</b>（<code>rowkit.openRowSource</code>），用户在官方页可拿到<b>站方那套查看器</b>（查看原图 / 下载 / 翻页 / 缩略图条）。<b>0.9.314 裁决</b>；实测依据 <code>docs/api-research.md §18</code>（官方关注动态流点动态卡配图＝站方自有查看器，叠在「动态详情」路由之上；官方空间页无「动态」档，那档是自建）。开关＝宿主 <code>siteOnly</code>（见附 ⑭）</td><td><b>img 微放大 1.05</b>（已裁，对齐网格卡先例；格不提底）/ scale(.985)</td></tr>
+          <tr><td>互动键 / 「展开」/ 名字等内链</td><td>各自行行为，stopPropagation 不冒泡</td><td>既有语义不动</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 场景 B · 浅色内嵌宿主 ==================== -->
+  <div>
+    <div class="sec" style="border-top:none;margin-top:0">
+      <h2>场景 B · 浅色内嵌宿主（.acsv-mp 皮肤：白底 / 基色 #999 / 悬停红）<em>空间页动态标签语境</em></h2>
+
+      <div class="lighthost new">
+      <div class="acsv-mp fixed">
+        <!-- B① 浅皮基态（五型全摆，同 token 动效） -->
+        <div class="st">① 五型浅色版基态<em>同一套 DOM 只换色；动效 token 与暗皮同一套</em></div>
+        <div class="acsv-frows">
+          <div class="acsv-frow">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">丸</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">渣丸子</a>
+                <span class="acsv-frow-time">23 分钟前</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-text">跑了一晚上参数总算出片了，提示词逐段拆开放在简介，照抄就能复现。</div>
+              <div class="acsv-frow-strip cv-a">
+                <div class="acsv-frow-scover"><i></i><span class="acsv-frow-mdur">12:47</span></div>
+                <div class="acsv-frow-sbody">
+                  <div class="acsv-frow-stitle">哪怕是minimax，提示词写好细节也是能做好的效果…</div>
+                  <div class="acsv-frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>1.8万</div>
+                </div>
+              </div>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>36</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>21</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>402</span></span>
+            </div>
+          </div>
+          <div class="acsv-frow">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">蝉</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">阿蝉不是蝉</a>
+                <span class="acsv-frow-time">1 小时前</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-text">天台三连拍，风大到怀疑人生。</div>
+              <div class="acsv-frow-imgs">
+                <div class="acsv-frow-img cv-a"><i></i></div>
+                <div class="acsv-frow-img cv-b"><i></i></div>
+                <div class="acsv-frow-img cv-c"><i></i></div>
+              </div>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>8</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>3</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>57</span></span>
+            </div>
+          </div>
+          <div class="acsv-frow">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">AC</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">AC娘本体</a>
+                <span class="acsv-frow-time">昨天 20:14</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-strip cv-b">
+                <div class="acsv-frow-scover"><i></i><span class="acsv-frow-tag">文章</span></div>
+                <div class="acsv-frow-sbody">
+                  <div class="acsv-frow-stitle">天涯此时共明月 DD歌回唱团圆</div>
+                  <div class="acsv-frow-sdesc">文化遗产不该只躺在名录里。中秋前夜，我们把戏腔搬上老戏台。</div>
+                  <div class="acsv-frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>6428</div>
+                </div>
+              </div>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>52</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>88</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>1104</span></span>
+            </div>
+          </div>
+          <div class="acsv-frow">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">鹿</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">鹿目圆不圆</a>
+                <span class="acsv-frow-time">5 小时前</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-text">这条说得在理，存了。</div>
+              <div class="acsv-gquote acsv-gquote-on">
+                <div class="acsv-gquote-up"><a class="acsv-gquote-upname" href="#">@渣丸子</a></div>
+                <div class="acsv-gquote-text">
+                  <div class="acsv-gquote-textbody">浅皮引用卡：#f5f5f5 灰块 / upname 原生蓝 #409bef / 正文 #333（cssraw 1886–1890 真值）。</div>
+                </div>
+              </div>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>2</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>1</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>17</span></span>
+            </div>
+          </div>
+        </div>
+        <p class="note">浅皮动效同 token：hover＝<b>提底一档</b>（浅皮同档：条卡体 #f7f7f7→#f0f0f0、封面块 #f0f0f0→#ececec、
+        引用卡 #f5f5f5→#ececec；cssraw 1751–1753 已落地），<b>原 hover 描边环已随暗皮一并撤除（0.9.314，v5 修订 ①）</b>；
+        按压同 scale(.985)/translateY(1px)。真悬停/按压可验。</p>
+
+        <!-- B② 浅皮点亮态：病灶 vs 修复 -->
+        <div class="st">② 点亮态：线上病灶 vs 修复后<em>病灶＝.acsv-mp 基色 #999（1724）特异性压过 .on/.thrown（1646/1647）；修复＝mp 作用域补两行</em></div>
+        <div class="acsv-mp old" style="border-bottom:1px dashed #e6e6e6;padding-bottom:4px">
+          <div class="acsv-frow-acts" style="margin-left:0">
+            <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+            <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>37</span></span>
+            <span class="acsv-fact acsv-k-banana thrown"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>22</span></span>
+            <span class="acsv-fact acsv-k-like on"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>403</span></span>
+          </div>
+          <p class="note" style="color:#999;margin-left:0">↑ 线上现状（.old）：已赞/已投被压成 #999 灰——字形切实心了，颜色没跟上。</p>
+        </div>
+        <div class="acsv-frow-acts" style="margin-left:0">
+          <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+          <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>37</span></span>
+          <span class="acsv-fact acsv-k-banana thrown"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>22</span></span>
+          <span class="acsv-fact acsv-k-like on"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>403</span></span>
+        </div>
+        <p class="note" style="color:#999;margin-left:0">↑ 修复后（.fixed）：已赞 accent 红、已投蕉黄 #FFBA0D，与暗皮同语义。</p>
+
+        <!-- B③ 行整面 → 站方原址（v3 ①：原「ac 号直达角标」演示整段撤除，不再画该元素） -->
+        <div class="st">③ 行整面 → 站方原址（新标签）<em>原生页两处（/member 内嵌广场 · 空间页动态）的唯一行落点</em></div>
+        <p class="note" style="color:#333">原生页<b>不引入脚本内详情面板</b>：整行可点＝<code>window.open(pi.href, '_blank')</code>
+        （<code>rowkit.openRowSource</code>）。契约层已把 <code>pi.href</code> 拼成站方原址——动态＝
+        <code>CFG.api.momentBase + momentId</code>（即 <code>https://www.acfun.cn/moment/am…</code>），视频/文章条目 href 亦齐。
+        纯导航：<b>不开面板、不关行内评论区</b>，也不改互动键/内链/宫格各自的 stopPropagation 语义；
+        按压反馈仍是整行 <code>translateY(1px)</code>（A③ 同款，hover 不上色＝划选语义）。
+        行右上的 ac 号直达角标<b>整件撤除</b>（挂点 + 样式两行一并删，附 ⑪）：行已整面可点后，它只是重复出口。</p>
+        <p class="note" style="color:#333">落到脚本页则仍是「开详情面板」（openRowDefault → momentdetail）——<b>两条落点不同域</b>：
+        脚本壳有面板可用，原生页走站方原址，避免浅色宿主上弹深色浮层。<br>
+        同口径延伸（用户裁决 ④）：宿主开关 <code>siteOnly:true</code>（语义＝原生页不开脚本浮层）时<b>引用卡（转发卡）点任意源也一律出站原址新标签</b>
+        （源视频 <code>/v/ac…</code> · 源文章 <code>/a/ac…</code> · 源动态 <code>/moment/am…</code>，取 CFG 基址单源，不手拼第二份）。
+        引用卡自带 <code>stopPropagation</code>（不进宿主行默认），所以必须由它自己出站，才与「原生页点行出新标签」一致；
+        <b>脚本页行流 / 详情面板 / 转发编辑器</b>里的引用卡仍按源分派（播放层 / 官方页 / 详情面板），不变（见 A⑤ 落点表）。
+        同批（0.9.314，附 ⑭）：同这枚 <code>siteOnly</code> 管<b>原生页两处点图不接脚本查看器</b>——宫格格子与正文配图落到行默认出站，
+        <b>不得再弹 <code>.acsv-imgview</code></b>（脚本页查看器照旧）；依据 <code>docs/api-research.md §18</code>。</p>
+      </div>
+      </div>
+
+      <!-- B④ 窄宽自检 -->
+      <div class="st">④ 540 窄宽自检<em>行卡左右 20 内距、条卡自适应、宫格 228/110 不溢出、互动行四键放得下</em></div>
+      <div class="lighthost narrow new">
+      <div class="acsv-mp fixed">
+        <div class="acsv-frows" style="max-width:100%">
+          <div class="acsv-frow">
+            <div class="acsv-frow-head">
+              <span class="acsv-frow-av">丸</span>
+              <div class="acsv-frow-info">
+                <a class="acsv-frow-name" href="#">渣丸子</a>
+                <span class="acsv-frow-time">23 分钟前</span>
+              </div>
+            </div>
+            <div class="acsv-frow-content">
+              <div class="acsv-frow-text">窄态验证：长中文整词换行不逐字断；条卡标题单行省略兜底。</div>
+              <div class="acsv-frow-strip cv-a">
+                <div class="acsv-frow-scover"><i></i><span class="acsv-frow-mdur">12:47</span></div>
+                <div class="acsv-frow-sbody">
+                  <div class="acsv-frow-stitle">窄态下条卡标题单行省略号兜底验证，这段足够长一定会被截断</div>
+                  <div class="acsv-frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>1.8万</div>
+                </div>
+              </div>
+            </div>
+            <div class="acsv-frow-acts">
+              <span class="acsv-fact acsv-k-share"><i class="acsvg-glyph">&#xe628;</i><span>分享</span></span>
+              <span class="acsv-fact acsv-k-comment"><i class="acsvg-glyph">&#xe627;</i><span>36</span></span>
+              <span class="acsv-fact acsv-k-banana"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span>21</span></span>
+              <span class="acsv-fact acsv-k-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span>402</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- ================= 附：裁决点登记 ================= -->
+  <div class="sec">
+    <h2>附：裁决点登记</h2>
+    <table>
+      <tr><th>#</th><th>裁决点</th><th>建议值</th><th>说明</th></tr>
+      <tr><td>1</td><td>hover 描边色/透明度<span class="verdict">已裁撤除</span></td><td>不适用——0.9.314 全场景撤除（v5 修订 ①）</td><td>用户实看暗色界面后判「红框突兀」，裁决撤除：条卡 / 引用卡 / 宫格三个可点面一律不画框，hover 反馈改由<b>提底一档</b>承担（暗皮 .06→.10 / 浅皮同档）。原值（accent 半档 .55 的 overlay 环）与「加框不许退回 <code>outline</code> / inset 阴影」的教训见上方 token 表；防回潮闸＝harness <code>sm-frow-no-ring</code></td></tr>
+      <tr><td>2</td><td>卡面按压缩放</td><td>scale(.985)</td><td>克制档；嫌小可升 .98，不建议更大</td></tr>
+      <tr><td>3</td><td>行级按压位移</td><td>translateY(1px)</td><td>纯文字/图文行的唯一反馈（hover 不上色＝划选语义）</td></tr>
+      <tr><td>4</td><td>宫格 hover img 微放大<span class="verdict">用户已裁</span></td><td>scale(1.05)——对齐网格卡既有先例</td><td>与网格卡族<b>同值</b>：<code>.acsv-gcell:hover .acsv-gcover img{transform:scale(1.05)}</code>（cssraw 1273）——两族手感一致＝同一套动效语言；实现即按 1.05 落地（v4 ①），A② 左格 <code>.sim-zoom</code> 静态定格、其余格真悬停即见</td></tr>
+      <tr><td>5</td><td>过渡时长</td><td>.12s ease 全卡同一</td><td>与 .acsv-tbtn(.15s) 同量级，不新开一族</td></tr>
+      <tr><td>6</td><td>浅皮点亮态修复</td><td>补 .acsv-mp 作用域 .on/.thrown 两行</td><td>无取舍，纯病灶修复（B② 对照）</td></tr>
+      <tr><td>7</td><td>视频/文章行挂行右上角标（ac 号直达）<span class="verdict">用户已裁</span></td><td>不适用——本批整件撤除（见 ⑪）</td><td>原议把动态行右上的 ac 号直达角标扩到视频/文章行（与动态行同语义）；裁决 ③ 改为整件撤除，故不再扩型</td></tr>
+      <tr><td>8</td><td>文章条卡信息位</td><td>维持 E164+views（真值）</td><td>若要阅读/评论双计数＝新功能另立裁决（需查数据源）</td></tr>
+      <tr><td>9</td><td>原生页两处行落点<span class="verdict">用户已裁</span></td><td>点行 → 站方原址（新标签），不开面板</td><td><b>反转 0.9.218</b>「原生页点行无动作」：撤 <code>onOpen:noop</code>（<code>memberplaza.js</code> / <code>spacemoments.js</code>），换成 <code>rowkit.openRowSource</code>（<code>window.open(pi.href,'_blank')</code>）——面板只留脚本页；收益＝四场景同一套「整行→原址」落点、免维护两套，且浅色宿主上不再弹深色浮层</td></tr>
+      <tr><td>10</td><td>对齐哪一套行默认落点</td><td>不适用——原生页不引入面板落点</td><td>裁决 ⑨ 已定「跳原址」，无需在关注流 / 广场两套 <code>openRowDefault</code> 之间选；视频/文章/动态三型一律走 <code>pi.href</code>（契约层已拼齐）</td></tr>
+      <tr><td>11</td><td>行右上角标去留（对齐后）<span class="verdict">用户已裁</span></td><td>撤除号锚</td><td>行已整面可点（脚本页→面板 / 原生页→原址），右上角小链接从「唯一出口」降为重复出口＝噪音；挂点与 cssraw 样式两行一并删（B③ 段改为「行整面 → 站方原址」说明）</td></tr>
+      <tr><td>12</td><td>原生页引用卡（转发卡）落点<span class="verdict">用户已裁</span></td><td>点任意源一律出站站方原址新标签</td><td>裁决 ④：宿主传 <code>createSquareFeed({…, siteOnly:true})</code>（<code>memberplaza.js</code> / <code>spacemoments.js</code>）→ <code>rowkit.feedRowOf(pi, opt)</code> → <code>cards.momentMediaOf(pi, opts)</code> → <code>cards.quoteBlockOf(repost, {siteOnly:true})</code>——源视频 <code>CFG.api.videoBase</code>（<code>/v/ac…</code>）· 源文章 <code>articleBase</code>（<code>/a/ac…</code>）· 源动态 <code>momentBase</code>（<code>/moment/am…</code>）；<b>不进播放层、不开详情面板</b>，与裁决 ⑨ 同口径。引用卡自带 <code>stopPropagation</code>（不进宿主行默认），不自己出站就会「点源卡没反应」，故必须随宿主开关出站；脚本页行流 / 详情面板 / 转发编辑器<b>按源分派不变</b>（缺省 <code>undefined</code> ＝现况）。<b>该开关＝ v6 收口后的「原生页不开脚本浮层」总开关 <code>siteOnly</code>（一枚同时管本条出站与 ⑭ 的点图不接查看器）</b></td></tr>
+      <tr><td>14</td><td>原生页不接脚本图片查看器<span class="verdict">用户已裁</span></td><td>原生页两处点图不弹脚本查看器；落到行默认 → 出站站方原址</td><td><b>裁决（0.9.314）</b>：实现＝宿主开关 <code>siteOnly</code>（语义＝原生页不开脚本浮层，与 ⑫ 为同一枚）。<code>cards.momentCellOf</code> 的宫格格子在原生页<b>不接查看器、也不再 <code>stopPropagation</code></b>（否则冒不到宿主行、行默认出站失效），正文内配图（<code>comments.commentPicClick</code> 消费的 <code>.ubb-imgc</code>）同样跳过——两者一律落到行默认 → <code>rowkit.openRowSource</code> 出站站方原址新标签；<b>脚本页三宿主查看器照旧</b>（缺省 <code>undefined</code> ＝现况）。<br><b>实测依据 <code>docs/api-research.md §18</code></b>：官方「关注动态」流点动态卡配图＝站方自有查看器（返回 / 查看原图 / 下载 / 翻页 / 底部缩略图条），且叠在「动态详情」路由之上——我们自建的原生面不必再叠一层脚本浮层；官方空间页<b>无「动态」档</b>（那档我们自建），无站方查看器可对照。<br><b>代价</b>：原生页点图由「原地弹脚本查看器」变成<b>一次出站跳转</b>（新标签到站方原址，用户在该页用站方查看器）；换来原生面不再弹深色脚本浮层，与「详情面板只留脚本页」（裁决 ⑨）同向</td></tr>
+    </table>
+    <p class="note">实现面（v5 已按此进 src，cssraw 行卡族区；v6 另把宿主开关收成 <code>siteOnly</code>、撤原生页看图）：① <b>CSS</b>——动效段落共 <b>13 条规则</b>：暗皮 8 条
+    （1649–1662：transition 组 1 / hover 提底 2 / 卡面按压 1 / 行级 transition 与按压 2 / 宫格图元 transition 与放大 2），
+    .acsv-mp 浅皮同档 3 条（1751–1753），点亮修复 2 条（1758–1759）；<b>原案的 overlay 描边环 5 行随 0.9.314 撤除</b>，
+    选择器一律限定 <code>.acsv-frow</code> 作用域（详情面板 / 转发编辑器的引用卡复用同批类名，不得获得该提底与按压）；
+    ② <b>JS</b>——裁决 ⑨ 落地时，<code>memberplaza.js</code> / <code>spacemoments.js</code> 的 <code>onOpen:noop</code> 换成
+    <code>rowkit.openRowSource</code>（<code>window.open(pi.href,'_blank')</code>），属<b>行为反转</b>不是纯样式，
+    CHANGELOG 须写清病灶→修法→证据；同批撤除 <code>memberplaza.js</code> 的行右上角标挂载与 cssraw 的两行样式（净减法）。
+    ③ <b>JS（裁决 ④ / ⑫）</b>——宿主开关<b>收成一枚 <code>siteOnly</code></b>（语义＝原生页不开脚本浮层），搭 opts 一路透传
+    （<code>createSquareFeed(opts.siteOnly)</code> → <code>feedRowOf(pi, opt)</code> → <code>momentMediaOf(pi, opts)</code> →
+    <code>quoteBlockOf(repost, opt)</code>），出站 URL <b>一律取既有 CFG 基址</b>（<code>videoBase</code> / <code>articleBase</code> /
+    <code>momentBase</code>），<b>禁止第二份手拼</b>；缺省 <code>undefined</code> ＝现况，脚本页三宿主零改动。
+    ④ <b>JS（裁决 ⑭，本批新裁）</b>——原生页两处（<code>memberplaza.js</code> / <code>spacemoments.js</code>，宿主传
+    <code>siteOnly:true</code>）<b>点图不得再弹 <code>.acsv-imgview</code>；脚本页照旧</b>：<code>cards.momentCellOf</code> 的宫格格子
+    在原生页<b>不接 <code>openImageViewer</code>、也不再 <code>stopPropagation</code></b>（否则事件冒不到宿主行、行默认出站失效），
+    正文内配图（<code>.ubb-imgc</code>，由 <code>comments.commentPicClick</code> 消费）同样跳过——两者一律落到行默认 →
+    <code>rowkit.openRowSource</code> 出站站方原址（用户在官方页拿到站方查看器）。证据 <code>docs/api-research.md §18</code>。
+    选择器全部挂既有类名，<b>零 DOM 结构变更</b>。
+    harness 钉（space-moments 族闸门）：浅皮点亮 computed 色；行卡族交互态改钉<b>规则载量</b>而非 computed
+    ——合成事件不触发 <code>:hover/:active</code>，故扫 <code>document.styleSheets</code> 断言规则存在：
+    <b><code>sm-frow-hover-lift</code></b>（条卡与引用卡的 hover 提底规则必须在，撤修复即转红）、
+    <b><code>sm-frow-no-ring</code></b>（防回潮<b>负钉</b>：条卡 / 引用卡 / 宫格三条可点面不得再出现带 border 的
+    <code>::after</code> 环或 <code>outline</code> 替身——形态问题肉眼不易察觉，须机械拦截「把框加回来」）、
+    <code>sm-frow-press</code>（卡面 scale(.985) + 行级 translateY(1px)）与 <code>sm-frow-scope</code>
+    （提底族与按压族每一段选择器都必须带 <code>.acsv-frow</code> 本体）；
+    原生页两宿主的引用卡三源出站断言（拦截 <code>window.open</code>，URL 必须＝CFG 基址 + 源 id，防回落成播放层/面板；<code>test/cases/space.js</code> 现钉着该条，开关改名后其断言名可视情同步收口）；
+    <b>本批（裁决 ⑭）新增看图断言</b>（拦截 <code>document.querySelector('.acsv-imgview')</code>）：<b><code>mp-no-imgview</code></b>（member-plaza：
+    原生页点宫格 / 点正文配图后 <code>.acsv-imgview</code> 必须<b>不出现</b>——摘掉「原生页不接查看器」的修复即转红）、
+    <b><code>sm-no-imgview</code></b> + <b><code>sm-imgview-source</code></b>（space-moments：查看器不出现，且同一次点击确实落到行默认
+    → 出站站方原址，URL＝CFG 基址 + 源 id）；原有 <code>mp-imgview</code> / <code>mp-imgview-close</code>（<code>test/cases/member.js</code> 现仍
+    钉着「原生页点格弹脚本查看器」的正向期望）按本裁决<b>改写 / 退役</b>——不再保留「原生页必须弹查看器」这一项。
+    cursor 不另立断言：引用卡 <code>.acsv-gquote-on</code> 与宫格 <code>.acsv-frow-img</code> 基态 CSS 已带
+    <code>cursor:pointer</code>，条卡那条是本稿的提案行。</p>
+  </div>
+</div>
+</body>
+</html>

@@ -5,6 +5,116 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.314（2026-11-02）· 动态行卡交互态统一——hover 提底/按压落位（红框同批撤除）+ 原生页点行出站（反转 0.9.218）+ 浅皮点亮态修复 + 原生页不接脚本图片查看器
+
+**病灶**（三处新鲜肉 + 原生页「不开脚本浮层」这道缝的又一处出血）：
+
+1. **行卡族「可点不可见」**：条卡（视频/文章）、引用卡、宫格格子都是可点面（进播放层/详情/大图），
+   纯文字/图文行整面也可点（开详情面板）——但线上**零 hover、零按压反馈**，可点只能靠猜。
+2. **浅皮点亮态显灰**（0.9.314 复核确证）：`cssraw.js` 的 `.acsv-mp .acsv-frow-acts .acsv-fact{color:#999}`
+   与深皮 `.acsv-frow-acts .acsv-fact.on/.thrown` **同为 (0,3,0) 特异性**、且 `.acsv-mp` 块在源码顺序
+   更后 ⇒ 原生页两处（/member 内嵌广场、空间页「动态」标签）**已赞/已投常驻 #999 灰**（字形切实心了、
+   颜色没跟上）。
+3. **原生页落点病**：0.9.218 给原生页两处的语义是 `onOpen: noop`（点行无动作）+ 行右上 am 号锚作唯一
+   出口——行给了按压手感却不响应＝误导；号锚同时是并行噪音。
+4. **原生页点动态卡配图弹脚本查看器**（原生页「不开脚本浮层」这道缝的又一处出血）：两处原生宿主的
+   行内格子经 `cards.momentCellOf` 无条件 `stopPropagation` + `openImageViewer`，正文内配图经
+   `rowkit.wireRowList` 里的 `comments.commentPicClick` 同源——**原生页本不该开脚本浮层**
+   （与已撤的 hover 红框、已裁的「面板只留脚本页」同一道缝）。实测（`docs/api-research.md` §18，
+   2026-11-02 内置浏览器带登录态）：官方关注动态流（`/member/feeds`）点动态卡配图，**站方自带查看器**
+   （查看原图 / 下载 / 翻页 / 底部缩略图条，叠在动态详情路由之上），功能**多于**我方那份——拿更弱的
+   顶替站方路径＝降级；官方空间页只有 视频/文章/合辑，**没有动态档**（该档是我们自建，站方无对照面）。
+
+**修法**：
+
+- **行卡族交互态**（`cssraw.js` 行卡族区）：过渡 `.12s ease` + **hover 提底一档**（深皮条卡两块与
+  引用卡灰块 `.06→.10`；浅皮同档在 `.acsv-mp` 块）+ **按压**（卡面 `scale(.985)`、行级
+  `translateY(1px)`）+ 宫格图元微放大 **1.05**（对齐 `.acsv-gcell:hover .acsv-gcover img` 既有先例，
+  取裁决「对齐网格卡」而非稿初的 1.03）。**选择器一律限定 `.acsv-frow` 作用域**——详情面板与转发
+  编辑器复用同批类名（`.acsv-frow-strip`/`.acsv-gquote-on`），不获得提底与按压。
+  **〔同批撤除：hover 红框〕** 原案另加 accent 半档（`var(--acsv-accent-dim)`）的 overlay `::after`
+  描边环；用户实看暗色界面后判**「红框突兀」**，遂**全场景撤除**（类名零变、只删规则），hover 反馈
+  由提底承担。留档一条仍有效的技术结论：**若将来再加框，不许退回 outline / inset box-shadow**——
+  它们画在卡根自己的装饰层，会被封面与宫格的不透明图元整条吃掉（确认稿 v1 实测即此病）。防回潮闸：
+  harness `sm-frow-no-ring`（三条可点面不得再出现边框环或 outline 替身）。
+- **浅皮点亮修复**：`.acsv-mp` 作用域补 `.on`/`.thrown` 两行（回到 0,4,0 压过 `#999`，无 `!important`）。
+- **同值字面收口**（卫生口径①：同一外部事实字面 ≥2 处即病灶）：accent 半档描边 `rgba(253,76,93,.55)`
+  与既有 `.acsv-jx-card:hover` 同值、动态域蕉黄 `#ffba0d` 三处 → `styles.js` `:root` 新增
+  `--acsv-accent-dim` / `--acsv-ban-new`，消费点改 `var(...)`（视频侧 `#ffb323` 是另一档，不动）。
+  红框撤除后 `--acsv-accent-dim` 现由 `.acsv-jx-card:hover` 独用——变量保留为「accent 半档」的单源出口，
+  消费面注释已同步。
+- **原生页落点单源**：`rowkit.openRowSource(pi)`＝行 → 站方原址新标签（纯导航：不开面板、不关行内
+  评论区）；视频条目在契约层**没有 `href`**（`href` 是「站外页落点」字段，视频在脚本页走播放层/列表
+  会话）⇒ 函数内按 ct 兜 `CFG.api.videoBase`（基址仍 CFG 单源，不另立手拼）。两处原生页宿主
+  `onOpen: noop → openRowSource`。
+- **号锚撤除**：`memberplaza.addAmAnchor` 整函数、两处 `onRow` 挂载、`cssraw` 的 `.acsv-mp-am` 两行全撤。
+- **宿主开关收成一枚 `siteOnly`**（原 `outbound` 改名并扩义）：原生页两宿主（memberplaza / spacemoments）
+  的**唯一**开关位，表达「原生页不开脚本浮层」——原开关只管引用卡出站，本批把同缝的「不接图片查看器」
+  一并收进这枚，避免同一条缝长出散开关；开关随行卡构建链整包透传
+  `createSquareFeed(opts.siteOnly) → feedRowOf(pi, opt) → momentMediaOf → quoteBlockOf / momentCellOf`，
+  列表级委托另经 `wireRowList(list, onOpen, { siteOnly })` 下传（正文配图那条腿）。脚本页宿主不传＝逐字现状。
+- **引用卡出站**（同缝出血点之一，`siteOnly` 既义）：`siteOnly` 下 `quoteBlockOf(repost, opt)` 的
+  **三源（视频/文章/动态）**一律出站站方原址，**不进播放层、不开详情面板**（开关一路见上）。
+- **点图不接查看器**（同缝出血点之二，本批新义）：`siteOnly` 下格子 (`momentCellOf`) **不挂
+  `openImageViewer`、也不 `stopPropagation`**，正文内配图的 `comments.commentPicClick` 消费同批跳过
+  ——两路点击都自然冒泡，落点交回行默认＝`rowkit.openRowSource` 出站站方原址；脚本页宿主照旧
+  （格子 / 正文内配图点图仍进脚本查看器）。
+- **工程面（同批）**：补 `test/check-preview.mjs`——**确认稿↔实现取值闸**（规矩 1 的机械守卫，
+  0.9.314 用户裁决 A 案）：注册表登记「稿文件 + 取值字面 + src 文件 + **实现侧出现次数**」，两侧
+  必须逐字都有、且实现侧次数与注册相符；已接入 `npm run check`。来历是两起**静默出入**——条卡
+  `cursor:pointer` 稿里有、实现里没有；宫格放大稿写 1.03、实现取 1.05（方向相反）——稿与实现此前
+  **没有任何机械闸**（`grep -rn preview test/*.mjs` = 0），出入只能靠人偶然发现。钉次数是反跑逼出来的：
+  `scale(1.05)` 在 cssraw 有两处（本批行卡一条 + 既有网格卡先例 `.acsv-gcell:hover .acsv-gcover img`），
+  只摘本批那条时「≥1 处」判据**照绿**（实测）；钉住次数后摘任一条即红（两变体反跑均在册）。
+  同批把该口径写进 README 规矩 1 与 `AGENTS.md` 规矩 1。
+- **自动签到链补可观测（同批；用户实报「开了开关却不签」的诊断收口）**：该链原有四道**静默**出口
+  ——压根没触发 / 开关关 / 取不到 uid / 查询回包被判非 0（`signStateOf` 返回 null ⇒ `tryAutoSign`
+  直接 return，连 `sign.fail` 都不落）——用户侧与 debug 计数里都是「什么都看不见」，所以「没跑」
+  与「已签跳过」长得一样。现每道出口各落一枚计数：`sign.try` / `sign.skip.off` / `sign.skip.nouid` /
+  `sign.readFail` / `sign.already`（写链沿用 `sign.auto` / `sign.repeat` / `sign.fail`）。**真机复现
+  结论（debug 构建，用户账号）**：`sign.try:1` + `sign.already:1` ⇒ 触发、查询、判定三段全通，当天
+  「不签」＝已签跳过（设计内）；写腿另由黄历面板手动签到验证——面板按钮与自动链**共用同一个
+  `signIn()`**。故本条**不是 bug 修复，是可观测性收口**；自动链保持纯静默（不刷 toast），但跳过/
+  失败从此有计数可查。
+
+**测试证据**：
+
+- 断言：`space-moments` 现 **28 条**（本批新增 3 条看图钉：**`sm-no-imgview`**〔点九宫格不得出现
+  `.acsv-imgview`〕、**`sm-imgview-source`**〔点格 → `window.open` 收到该条目原址，即落点确实交回了行默认〕、
+  **`sm-textpic-no-imgview`**〔正文内配图 `.ubb-imgc` 同样不弹、同样落行默认——这条单独成钉，因为它走的是
+  `wireRowList` 里另一条腿 `commentPicClick`〕；另有前批的落点三型出站、引用卡出站、号锚负钉、
+  浅皮点亮 computed 色、提底/press/作用域三条载量钉与撤框负钉 `sm-frow-no-ring`）；
+  `member-plaza` 现 **43 条**（条数不变：原 **`mp-imgview` / `mp-imgview-close`** 两条按本裁决退役——
+  不再有脚本查看器可开、可关——改为 **`mp-no-imgview`** 与 **`mp-imgview-source`**）。
+  载量钉照 `views.js:169-183` 既有手法：合成事件不触发原生 `:hover`/`:active`，故钉「规则存在」而非钉真悬停。
+- 摘修复反跑（既有 10 项〔含夹具侧 1 项〕 + 本批新钉 3 项，逐条「摘掉即转红、还原即绿」，判据互不串）：
+  浅皮点亮两行 → `sm-skin-light-on`
+  与 `mp-light-lit-colors` 回 `rgb(153,153,153)`；提底两条规则删 → `sm-frow-hover-lift`；
+  **把红框加回去 → `sm-frow-no-ring`**；按压两条规则删 → `sm-frow-press`；提底选择器去 `.acsv-frow ` 前缀 →
+  `sm-frow-scope`；`openRowSource` 掏空 →
+  `sm-row-source-open/-video/-article` 三条同红（`mp-row-open-source` 随同源连带红，属共享单源的必然）；
+  只摘视频兜底 → 仅 `sm-row-source-video` 红；`cards` 出站分支删 或 宿主 `siteOnly` 删 → `sm-quote-outbound`；
+  `memberplaza` 的 `onOpen` 回 `noop` → `mp-row-open-source`；夹具转发条置为未知类型 → 三条行数钉 +
+  `sm-quote-outbound` 同红。**本批看图钉两条反跑变体（实测）**：
+  ① 摘掉 `cards.momentCellOf` 的 `siteOnly` 提前 return（格子又接回 `openImageViewer`）→
+  `member-plaza` 41/43（`mp-no-imgview` + `mp-imgview-source` 同红）、`space-moments` 26/28
+  （`sm-no-imgview` + `sm-imgview-source` 同红）；
+  ② 摘掉 `rowkit.wireRowList` 的 `!(opt && opt.siteOnly) &&` 守卫（正文配图又被 `commentPicClick` 吞掉）→
+  仅 `space-moments` 27/28（`sm-textpic-no-imgview` 红）；`member-plaza` 43/43 全绿——其夹具无内嵌 `[img]`，
+  这是**预期**（该腿在 member 侧夹具里无从触发），不是漏钉。
+  两变体后逐字还原，两场景复跑全绿（28 / 43）。
+- 全链绿：lint / `npm run check`（cases·release·deps·docs·no-leak·direction·listeners·overlay·liststate·
+  zlayers·dialect·hygiene·structure·lifecycle·pref·contract）+ 单测 483 + harness **91 场景全绿**。
+- 结构基线按事实重排尺寸 key（cards/rowkit/squarefeed/styles/cssraw/spacemoments/memberplaza 均按本批
+  事实重排；cssraw 先增后撤；memberplaza 号锚撤除后净减、导出 2→1，本批 `siteOnly` 透传小幅回增、
+  仍低于 0.9.314 前水位）。
+- 签到埋点真机读数（debug 构建 `localStorage['acsv-stats']`）：`sign.try:1` + `sign.already:1`，
+  无 `skip.*`/`readFail`/`fail` ⇒ 触发·查询·判定三段均通（当天已签跳过属正常）；写腿由黄历面板
+  手动签到（同一 `signIn()`）验证。
+- 确认稿 `docs/preview/moment-strip-actions.html` 同批至 **v6**（v5＝红框撤除的记录与摆态、宫格放大 1.05
+  定案、视频条卡两域分栏、号锚段与演示删除；v6＝原生页两处不接脚本大图查看器 + 宿主开关收成一枚
+  `siteOnly` 的口径标注，只改口径与开关名，DOM 与动效取值未动）。
+
 ### 0.9.313（2026-11-02）· 黄历规则页如实声明——APP 数额口径与网页端签到档位脱钩告知
 
 **病灶**：黄历弹窗「签到规则」翻面页 1:1 搬了 APP 侧 5 条规则原文（含「连续签到 7 天最高奖励

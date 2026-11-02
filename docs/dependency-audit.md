@@ -271,19 +271,24 @@ feedstore.js → player.js → input.js → feedstore.js
   `spacemoments.js`（空间页「动态」标签特性件）。
 - **新增边**（全部层内互调，口径 A/B 均 0 未登记）：
   - `spacemoments → cfg / ui / spacetab / squarefeed / momentapi / memberplaza`
+    （**0.9.314 更**：末位 `memberplaza` → `rowkit`——原生页落点收口 `rowkit.openRowSource`，
+    两原生页宿主不再互相 import；见本节末两条）
   - `spacetab → ui`
   - `uppage → spacetab`（**uppage 借此从 `others` 聚合升为独立节点**——聚合名单会漏检指向它的边，
     升节点后 `boot → uppage`、`player → uppage` 两条此前不可见的边一并入图）
   - `mypage → momentapi / rowkit / squarefeed`；`rowkit → momentdetail`；`boot → spacemoments`
 - **为什么把落点策略下沉 rowkit**（`openRowDefault`）：广场视图与我的页动态两处原本各写一份
   「动态→详情面板 / 非动态→href」的策略（同一含义两处定义=漂移源）。下沉后 `squareview` 与
-  `mypage` 共用一份，工厂的 `onOpen` 仍可覆盖（`memberplaza`/`spacemoments` 传 noop = 原生页语义）。
+  `mypage` 共用一份，工厂的 `onOpen` 仍可覆盖（0.9.218 时 `memberplaza`/`spacemoments` 传 noop =
+  原生页语义；**0.9.314 起改传 `rowkit.openRowSource`**＝行 → 站方原址新标签，见本节末）。
   环检查：`momentdetail` 不 import `rowkit`，新边不成环（check-deps 规则⑤ 已复核）。
 - **为什么 `spacetab` 要抽**：两个自建标签（小视频 order2 / 动态 order1）共存需要**一套**切换/
   互斥/排序逻辑——各写一份就是「两份看着一样」（单源收口不允许）。抽出时 uppage 侧只保留
   面板内容与启动链，零行为变化（空间页场景 `space-moments` 的位次/切换断言即其闸门）。
-- **为什么 `addAmAnchor` 从 memberplaza 导出**：两个原生页宿主（/member 内嵌广场、/u/ 空间页动态）
-  的落点出口同形，导出复用可避免第二份实现；属特性层内互调（非反向）。
+- **`addAmAnchor` 的来去（0.9.218 导出 → 0.9.314 整件撤除）**：0.9.218 曾把两个原生页宿主
+  （/member 内嵌广场、/u/ 空间页动态）的行尾「am 号锚」出口从 memberplaza 导出复用（属特性层内互调）；
+  0.9.314 用户裁决「号锚撤除、行落点=站方原址新标签」后**整件撤除**——落点改由 `rowkit.openRowSource`
+  单出口承载，两原生页宿主不再互相 import（`spacemoments` 入边 `memberplaza` → `rowkit`）。
 - **`spacemoments → squarefeed` 的复用代价与代价的定价**：列表机械（加载/三态/骨架/触底/回顶/
   新鲜度回填）全部来自广场工厂；为此给工厂加了四个可注入项（`fetchPage/emptyText/poll/view`），
   **默认值＝改造前行为**——零漂移证据＝`view-square` 与 `member-plaza` 场景全绿（既有断言未动）。

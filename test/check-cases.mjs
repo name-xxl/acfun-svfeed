@@ -72,7 +72,9 @@ for (const f of fs.readdirSync(path.join(ROOT, 'test', 'cases'))) {
 }
 
 // cases 里的 .acsv-* 类名必须真实存在于 src（负存在断言的白名单单独列）
-const NEGATIVE_SENTINEL = new Set(['acsv-np-ihint', 'acsv-np-group', 'acsv-me-entry', 'acsv-sq-tools']);
+// acsv-mp-am（0.9.314）：号锚整件撤除后，cases 里对它的断言恰是**负存在**断言（行内不得再有号锚）
+// ——白名单登记，不再靠 cssraw 里那句退役注释的字面充数（假注释比没注释更坏）
+const NEGATIVE_SENTINEL = new Set(['acsv-np-ihint', 'acsv-np-group', 'acsv-me-entry', 'acsv-sq-tools', 'acsv-mp-am']);
 const srcText = fs.readdirSync(path.join(ROOT, 'src')).filter((f) => f.endsWith('.js'))
   .map((f) => fs.readFileSync(path.join(ROOT, 'src', f), 'utf8')).join('\n');
 const caseClasses = new Set();

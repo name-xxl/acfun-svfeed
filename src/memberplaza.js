@@ -13,7 +13,7 @@ import { CFG } from './cfg.js';
 import { el, ensureStyle } from './ui.js';
 import { testHook } from './dbg.js';
 import { createSquareFeed } from './squarefeed.js';
-import { closeInlineComments } from './rowkit.js';
+import { closeInlineComments, openRowSource } from './rowkit.js';
 import { mountPubFab } from './pubfab.js'; // 内嵌广场内的发布浮标（0.9.225）
 import { memberCenterPath } from './pagekind.js'; // 判据单源（0.9.303 收编：此前本件与 boot 各写一份裸正则）
 
@@ -33,8 +33,6 @@ function memberPath() { return memberCenterPath(location.pathname); } // 判据�
 // → 在子页上走"等宿主"分支静默放弃 = 实报「点了没反应」（2026-10-04 真机复现）
 function feedsPath() { return /^\/member\/feeds\/?$/.test(location.pathname); }
 function hostEl() { return document.querySelector(SEL_MAIN_FEEDS); }
-function noop() { }
-
 function autoFlag() {
   try { if (typeof GM_getValue === 'function') return !!GM_getValue(AUTO_KEY, false); } catch (e) { /* best-effort: storage */ }
   return memAuto;
@@ -42,19 +40,6 @@ function autoFlag() {
 function setAutoFlag(v) {
   memAuto = v;
   try { if (typeof GM_setValue === 'function') GM_setValue(AUTO_KEY, v); } catch (e) { /* best-effort: storage */ }
-}
-
-// 行右上 am 号锚（plaza 原物）：宿主侧后处理——rowkit 行卡本体不动，仅内嵌宿主消费。
-// 0.9.218 起导出：空间页「动态」标签（spacemoments）共用同一份（两处原生页宿主单源，
-// 免得第二份「看着一样」的锚实现）
-export function addAmAnchor(row, pi) {
-  if (!pi || pi.ct !== 'moment' || !pi.momentId) return;
-  var a = el('a', 'acsv-mp-am', 'am' + pi.momentId);
-  a.href = CFG.api.momentBase + pi.momentId;
-  a.target = '_blank';
-  a.rel = 'noopener';
-  a.title = 'am' + pi.momentId;
-  row.appendChild(a);
 }
 
 // 入口选中态（0.9.131 真机实报修复「选中后字体样式和原生不一致」）：此前自绘 .acsv-mnav-active
@@ -87,8 +72,17 @@ function openPlaza() {
     root: mpRoot,
     scrollEl: window,   // 原生页整页滚动（plaza controller 同款 window 滚动语义）
     backTopHost: mpRoot,
-    onOpen: noop,       // 原页语义（plaza 行点击无动作）：不穿越深色详情面板；互动/评论/配图照常
-    onRow: addAmAnchor
+    onOpen: openRowSource, // 原生页语义（0.9.314 用户裁决）：行→站方原址新标签；面板只留脚本页
+    // **宿主总开关 siteOnly（0.9.314）**：本宿主是原生页——一律走站方路径、不开任何脚本浮层。
+    // 三处同源：① 行内格子（.acsv-frow-img）不接脚本大图查看器、不 stopPropagation（点击冒泡到
+    // 行默认=站方原址新标签）；② 行内引用卡三源（视频/文章/动态）出站站方原址，不在脚本内开页面；
+    // ③ 正文内配图（.ubb-imgc）跳过脚本查看器消费（同落行默认）。URL 取既有 CFG 基址（cards 侧
+    // 拼装），本处不另立第二份手拼。**若将来还要给原生页加第三处例外，先进这枚开关，别再加散开关**。
+    // **如实注记（0.9.314 反跑实测）**：本宿主数据源 feedSquare 今日**不含转发条**——服务端已过滤，
+    // 且契约层 `PANEL_PARSERS.square` 只收 rt10、不解析 `repostSource`（转发行会按原创渲染）。
+    // 故「引用卡出站」在此宿主当前无可见面：保留为与 spacemoments 同口径，待源或解析器扩型即自动生效；
+    // 其机器证据由 space 侧（spacemoments 宿主，混排含转发）的 `sm-quote-outbound` 承载。
+    siteOnly: true
   });
   if (itemEl) setActive(true);
   return true;

@@ -211,10 +211,16 @@ export function stripOf(item) {
 // 可点图片单元（0.9.102 大图挂法单源）：imgInto 缩略 + `_big`（expandedUrl）+ 点击开
 // imgview；stopPropagation 防冒泡成宿主（行默认/背板关闭）。行宫格与引用卡源配图共用
 //（0.9.109 订正：详情面板自带大图挂法，不经此件——原注释"面板宫格共用"已过期）
-export function momentCellOf(cls, im) {
+// 第三参 opt = **宿主总开关**（0.9.314）：opt.siteOnly 为真＝本宿主是原生页 → **不接**脚本大图
+// 查看器（原生页用站方自有查看器，脚本浮层既非原生观感又多余），且**不 stopPropagation**——
+// 点击原样交给宿主行默认（rowkit.openRowSource → 站方原址新标签）。这就是"把落点交回行默认"：
+// 不拦冒泡，wireRowList 的委托才接得到这一击。`_big` 照挂（纯数据属性，无行为）。
+// 脚本页宿主（关注流/广场/我的页动态）不传 → 逐字现状（格子自挂查看器 + stopPropagation）。
+export function momentCellOf(cls, im, opt) {
   var cell = el('div', cls);
   cell._big = im.big || im.url; // 大图转呈 expandedUrl（点缩略看大图，原生同款）
   imgInto(cell, im.url, 'grid');
+  if (opt && opt.siteOnly) return cell; // 原生页：不挂查看器、不拦冒泡（落点归行默认）
   cell.addEventListener('click', function (ev) {
     ev.stopPropagation();
     openImageViewer(cell._big);
@@ -222,15 +228,18 @@ export function momentCellOf(cls, im) {
   return cell;
 }
 
-// 动态媒体块 dispatcher（0.9.102 收口）：repost→引用卡；imgs≥opts.gridMin→opts.grid(pi)；
-// 有 cover→opts.single(pi, im0)。行流=原生固定 px 形制（gridMin=1，单图也走宫格容器拿 299
+// 动态媒体块 dispatcher（0.9.102 收口）：repost→引用卡；imgs≥opts.gridMin→opts.grid(pi, opts)；
+// 有 cover→opts.single(pi, im0, opts)。行流=原生固定 px 形制（gridMin=1，单图也走宫格容器拿 299
 // 自适应）——0.9.109 订正：唯一消费者是 followview（详情面板自带轮播/单图构建器，0.9.103
 // 起不经本函数）；dispatcher 本身单源（0.9.100 时是两份复制）
+// opts 是调用方的选项包（gridMin/grid/single/siteOnly），**整包透传**：siteOnly（0.9.314 宿主
+// 总开关）由行流宿主（rowkit.feedRowOf 的 opt）经此一路到底——引用卡（quoteBlockOf）与内嵌格子
+//（momentCellOf）同认；grid/single 回调另接本包作第二/第三参（0.9.314 起，供格子下传同一开关）
 export function momentMediaOf(pi, opts) {
-  if (pi.repost) return quoteBlockOf(pi.repost);
+  if (pi.repost) return quoteBlockOf(pi.repost, opts);
   var n = pi.imgs ? pi.imgs.length : 0;
-  if (n >= opts.gridMin) return opts.grid(pi);
-  if (pi.cover || n) return opts.single(pi, n ? pi.imgs[0] : null);
+  if (n >= opts.gridMin) return opts.grid(pi, opts);
+  if (pi.cover || n) return opts.single(pi, n ? pi.imgs[0] : null, opts);
   return null;
 }
 
@@ -243,7 +252,17 @@ export function momentMediaOf(pi, opts) {
 //      → 有图则首图最小形态，标未实测）。
 // 点击语义（0.9.101 起）：@源UP → 源UP主页（锚点自导航，不冒泡）；源卡 → 视频播放层 /
 // 文章官方页 / 动态详情面板（setMomentOpener 注入，未注册外链兜底）；源 id 缺席保持静展示
-export function quoteBlockOf(repost) {
+// 第二参 opt = **宿主总开关**（0.9.314 用户裁决；本批由 `outbound` 升名为 `siteOnly`）：为真＝
+// 本宿主是原生页——一律走站方路径、不开任何脚本浮层。本件据此管两件事：① 三种源一律出站站方
+// 原址新标签，不再走脚本内出口（播放层 / 动态详情面板）；② 源动态的内嵌配图格子走
+// momentCellOf(..., opt) → 同样不接大图查看器。为什么需要这枚开关：原生页（memberplaza /
+// spacemoments）整页是站方自己的 DOM，脚本只在其中插了行卡——在那里开脚本面板既非原生观感、
+// 又把用户带离原页。**若将来还要给原生页加第三处例外，先进这枚开关，别再加散开关**。开关经
+// rowkit.feedRowOf → cards.momentMediaOf 整包透传；脚本自绘页（关注流/我的页动态）缺省不传
+// → 行为与 0.9.314 前逐字一致。
+// 出站 URL 只由 CFG 基址拼装（videoBase / articleBase / momentBase，cfg.js 单源在册），
+// 本模块不另立第二份手拼地址
+export function quoteBlockOf(repost, opt) {
   var q = el('div', 'acsv-gquote');
   // ① @源UP 行
   var up = el('div', 'acsv-gquote-up');
@@ -274,7 +293,8 @@ export function quoteBlockOf(repost) {
       var box = el('div', 'acsv-frow-imgs');
       if (rImgs.length === 1) box.classList.add('n1');
       else if (rImgs.length === 2 || rImgs.length === 4) box.classList.add('n24');
-      rImgs.forEach(function (im) { box.appendChild(momentCellOf('acsv-frow-img', im)); });
+      // opt 下传（0.9.314）：siteOnly 宿主下格子不接查看器（与主动态行格子同口径）
+      rImgs.forEach(function (im) { box.appendChild(momentCellOf('acsv-frow-img', im, opt)); });
       q.appendChild(box);
     } else if (repost.cover) {
       var img = el('div', 'acsv-gquote-img');
@@ -287,6 +307,15 @@ export function quoteBlockOf(repost) {
     q.addEventListener('click', function (ev) {
       if (ev.target.closest('.acsv-gquote-upname')) return; // @源UP 走自己的锚点
       ev.stopPropagation(); // 不冒泡成宿主行/卡的行默认动作（开转发本身）
+      if (opt && opt.siteOnly) {
+        // 出站分支（0.9.314，原生页总开关）：三源同一条路——站方原址新标签，脚本面板一律不开
+        //（视频不进播放层、动态不进详情面板）。ct 未知则无落点，静默（与缺省分支同款）
+        var ob = repost.ct === 'video' ? CFG.api.videoBase
+          : repost.ct === 'article' ? CFG.api.articleBase
+            : repost.ct === 'moment' ? CFG.api.momentBase : '';
+        if (ob) window.open(ob + repost.id, '_blank');
+        return;
+      }
       if (repost.ct === 'video') {
         openPanelItem({ acId: Number(repost.id) || 0, title: repost.title || '', cover: repost.cover || '', up: repost.up || null });
       } else if (repost.ct === 'article') {
