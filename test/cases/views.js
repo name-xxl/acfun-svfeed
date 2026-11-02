@@ -357,6 +357,26 @@ rec('no-overflow', (function () {
   var b = q('.acsv-view-body');
   return !!b && b.scrollWidth <= b.clientWidth + 1;
 })());
+// ---- 网格卡交互态（0.9.317 抽表批；表源 src/csshover.js 行 grid）----
+// 尖刀＝**计算值钉**：合成事件点不出真 :hover，故把目标伪类规则原地复制成同特异度替身
+// （:hover→标记类，0,1,0 与 0,1,0 等值），挂类后读 getComputedStyle——载量钉钉不到的
+// 「变量名写错／同特异度被顶掉／过渡起点冒充终值」在这里会转红。机制与来历见 test/cases/_probe.js。
+// 0.9.317 是**搬表零视觉变化**批 ⇒ 本段钉的即当天线上值（0.9.318 统一批改值时同步改钉）。
+(function () {
+  var HP = window.__ACSV_HPROBE__;
+  var cellOf = function () { return q('.acsv-vlist.hist .acsv-gcell'); };
+  var r = HP.cv({ host: cellOf(), read: cellOf() && cellOf().querySelector('.acsv-gcover img'),
+    sel: /\.acsv-gcell:hover\s\.acsv-gcover\simg$/, prop: 'transform',
+    expect: 'matrix(1.05, 0, 0, 1.05, 0, 0)' });
+  rec('grid-hover-cv-img', r.ok, r.info);
+  var t = HP.cv({ host: cellOf(), read: cellOf() && cellOf().querySelector('.acsv-gtitle'),
+    sel: /\.acsv-gcell:hover\s\.acsv-gtitle$/, prop: 'color', expect: 'rgb(253, 76, 93)' });
+  rec('grid-hover-cv-title', t.ok, t.info);
+  // 载量腿（同 0.9.314 口径）：表行 grid 的两条 hover 规则必须在册，且**只有**这两条
+  // ——摘掉表里任一条即转红（计算值钉同样会红，两条腿各指一类失效）
+  var l = HP.load(/\.acsv-gcell:hover/, 2, ['transform:scale(1.05)', 'color:var(--acsv-accent)']);
+  rec('grid-hover-load', l.ok, l.info);
+})();
 // 0.9.219：我的页三档改 listtail 自动触底（「加载更多」按钮退役）——续页靠滚到底触发，
 // 到底改由状态行表达（此前是按钮文案）；回顶按钮也在本批挂上
 rec('hist-morebtn-retired', q('.acsv-mepanel[data-tab="hist"] .acsv-vmore') === null);
@@ -918,6 +938,23 @@ if (weekChip) weekChip.click();
 rec('zone-backtop-tall', !!(await waitFor(function () {
   return document.querySelectorAll('.acsv-rlist .acsv-vrow').length >= 12;
 }, 8000)), 'rows=' + document.querySelectorAll('.acsv-rlist .acsv-vrow').length);
+// ---- 榜单行交互态（0.9.317 抽表批；表源 src/csshover.js 行 rank）----
+// 搬表批 ⇒ 钉当天线上值：提底 .07（大小行同一条）+ 大卡档标题变 accent（原 1124 那条已并入本表行）
+(function () {
+  var HP = window.__ACSV_HPROBE__;
+  var row = q('.acsv-rlist .acsv-vrow');
+  var big = q('.acsv-rlist .acsv-vrow.big') || row;
+  var title = big && big.querySelector('.acsv-vrow-title');
+  var lift = HP.cv({ host: row, sel: /^\.acsv-vrow:hover$/, prop: 'background-color',
+    expect: 'rgba(255, 255, 255, 0.07)' });
+  var tt = HP.cv({ host: big, read: title, sel: /^\.acsv-vrow\.big:hover\s\.acsv-vrow-title$/,
+    prop: 'color', expect: 'rgb(253, 76, 93)' });
+  var l = HP.load(/\.acsv-vrow(\.big)?:hover/, 2, [/background:rgba\(255,255,255,0?\.07\)/,
+    /color:var\(--acsv-accent\)/]);
+  rec('rank-hover-cv-lift', lift.ok, lift.info);
+  rec('rank-hover-cv-title', tt.ok, tt.info);
+  rec('rank-hover-load', l.ok, l.info);
+})();
 (function () { var b = q('.acsv-view-body'); if (b) b.scrollTop = b.scrollHeight; })();
 rec('zone-backtop-shown', !!(await waitFor(function () {
   return q('.acsv-backtop') && q('.acsv-backtop').classList.contains('on')
@@ -1209,7 +1246,20 @@ rec('search-article-fields', (function () {
 })(), (function () {
   var r = q('.acsv-sarow');
   return r ? (r.querySelector('.acsv-satt') || {}).textContent : 'no-row';
+})(), (function () {
+  var r = q('.acsv-sarow');
+  return r ? (r.querySelector('.acsv-satt') || {}).textContent : 'no-row';
 })());
+// ---- 搜索行交互态（0.9.317 抽表批；表源 src/csshover.js 行 search）----
+// 搬表批 ⇒ 钉当天线上值（提底 .03；0.9.318 统一批改档后同步改钉）
+(function () {
+  var HP = window.__ACSV_HPROBE__;
+  var l = HP.load(/^\.acsv-sarow:hover$/, 1, ['background:rgba(255,255,255,0.03)']);
+  var v = HP.cv({ host: q('.acsv-sarow'), sel: /^\.acsv-sarow:hover$/, prop: 'background-color',
+    expect: 'rgba(255, 255, 255, 0.03)' });
+  rec('search-hover-cv-lift', v.ok, v.info); // 提底真的算出来了（变量名写错/被顶掉即红）
+  rec('search-hover-load', l.ok, l.info);    // 规则在册且只有一条（手写副本回潮即红）
+})();
 (function () { // 点文章行 → 新标签打开 /a/ac（window 桩接住）
   window.__ACSV_OPEN__ = null;
   var orig = window.open;

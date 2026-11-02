@@ -11,6 +11,10 @@
 // settingspanel/imnative 影子根与这里取同一常量——改这类段值去 cssseg，改这里不生效。
 import { SHEET_BG, BASE_FONT, SECT_LINE, CLOSE_BTN, SCROLL_TAIL, POP_SHADOW, FOOT_BAR,
   EMO_TAIL, IMG_ZOOM_TAIL } from './cssseg.js';
+// 卡族交互态（transition/hover/press）单源表 + 生成器（0.9.317）：五族各写一套反馈语言的病灶
+// 收口到 csshover 一张表，本件在各族**原规则所在位置**插 hoverSlot('<slot>')——块内顺序由生成器
+// 统一，规则集与改前逐条等价（逐条 diff 见 CHANGELOG 0.9.317）。改交互档去 csshover，改这里不生效。
+import { hoverSlot } from './csshover.js';
 export var CSS_TEMPLATE = ''
   // A 站原生 iconfont（acfun-frontend-next）：动态页等站内页面同款字体（src 取自
   // member/feeds 页面样式，0.9.55），小视频/推荐页不加载，抽屉内自注入；码点登记在
@@ -285,7 +289,7 @@ export var CSS_TEMPLATE = ''
   + 'grid-auto-flow:dense;gap:' + '{{jxgridGap}}' + 'px}'
   + '.acsv-jx-card{background:rgba(255,255,255,.04);border:1px solid transparent;border-radius:10px;'
   + 'overflow:hidden;cursor:pointer;display:flex;flex-direction:column}'
-  + '.acsv-jx-card:hover{border-color:var(--acsv-accent-dim);background:rgba(255,255,255,.07)}'
+  + hoverSlot('jx') // 分区卡 hover（描边 + 提底）＝csshover 表行 jx（0.9.317 搬表）
   + '.acsv-jx-cv{position:relative;aspect-ratio:16/9;background:linear-gradient(135deg,#22242e,#2e2a38)}'
   + '.acsv-jx-cv img{width:100%;height:100%;object-fit:cover;display:block}'
   + '.acsv-jx-dur{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.72);border-radius:4px;'
@@ -1100,7 +1104,8 @@ export var CSS_TEMPLATE = ''
   + '.acsv-vlist{min-height:60px}'
   + '.acsv-vrow{display:flex;gap:12px;align-items:center;padding:8px;border-radius:10px;cursor:pointer;'
   + 'transition:background .15s}'
-  + '.acsv-vrow:hover{background:rgba(255,255,255,.07)}'
+  + hoverSlot('rank') // 榜单行族（提底 .07 ＋ .big 档标题变 accent）＝csshover 表行 rank（0.9.317 搬表；
+  // 原 1124 那条 .big:hover 标题规则同批并入本块，族内两档一条表行管）
   + '.acsv-vrow-rank{width:24px;text-align:center;font-size:15px;font-weight:700;color:#8a90a0;flex:none}'
   + '.acsv-vrow-rank.top{color:var(--acsv-accent)}'
   + '.acsv-vrow-thumb{width:110px;height:66px;border-radius:8px;background:rgba(255,255,255,.06);'
@@ -1121,7 +1126,7 @@ export var CSS_TEMPLATE = ''
   + '.acsv-vrow.big .acsv-vrow-main{display:flex;flex-direction:column}'
   + '.acsv-vrow.big .acsv-vrow-title{font-size:16px;font-weight:400;line-height:18px;max-height:none;'
   + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px}'
-  + '.acsv-vrow.big:hover .acsv-vrow-title{color:var(--acsv-accent)}'
+  // 大卡档标题 hover 变 accent 已并入上方 hoverSlot('rank') 块（0.9.317 搬表）
   + '.acsv-vrow.big .acsv-vrow-desc{font-size:12px;line-height:16px;white-space:pre-line;'
   + 'display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;margin-top:0}'
   // meta 贴底机制（0.9.69）：main 拉伸高=封面 90（标题 18+6 / 简介峰值 48 / meta 12，合计 84
@@ -1273,12 +1278,13 @@ export var CSS_TEMPLATE = ''
   // 重复实现会掩盖脚本分支被改坏，harness 的降级断言必须钉在脚本行为上）；.acsv-imgfail 类
   // 是断言/钩子用的标记
   + '.acsv-gph{position:absolute;inset:0;display:grid;place-items:center;color:#8a90a0;font-size:12px;pointer-events:none}'
-  + '.acsv-gcell:hover .acsv-gcover img{transform:scale(1.05)}'
+  + hoverSlot('grid') // 网格卡族（图元 1.05 ＋ 标题变 accent）＝csshover 表行 grid（0.9.317 搬表；
+  // 原 1281 那条标题规则同批并入本块。图元过渡 .2s 仍在下方基态规则里，0.9.318 拆条时收表）
   + '.acsv-gtag{position:absolute;left:8px;bottom:8px;max-width:calc(100% - 16px);padding:2px 8px;'
   + 'border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;line-height:18px;'
   + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
   + '.acsv-gtitle{margin-top:8px;font-size:14px;line-height:20px;color:#fff;max-height:40px;overflow:hidden;flex:none}'
-  + '.acsv-gcell:hover .acsv-gtitle{color:var(--acsv-accent)}'
+  // 标题 hover 变 accent 已并入上方 hoverSlot('grid') 块（0.9.317 搬表）
   // .acsv-gmeta 于 0.9.83 删除：卡面收口后作者只走脚行（.acsv-gfoot）、进度只留封面角标，
   // 该行没有生产者了（唯一消费者 cards.gridCardOf 已移除）
   // 首屏骨架（独立类名：绝不与行/卡计数选择器同构；成功/失败/空三路径都移除）
@@ -1525,7 +1531,7 @@ export var CSS_TEMPLATE = ''
   + '.acsv-srectt{margin-top:4px;font-size:12px;color:#cfd3da;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
   + '.acsv-srectm{font-size:11px;color:#8a90a0}'
   + '.acsv-sarow{padding:12px 2px;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer}'
-  + '.acsv-sarow:hover{background:rgba(255,255,255,.03)}'
+  + hoverSlot('search') // 搜索行 hover 提底＝csshover 表行 search（0.9.317 搬表）
   + '.acsv-satt{font-size:15px;line-height:1.5;color:#fff}'
   + '.acsv-sadecr{font-size:12px;color:#8a90a0;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;'
   + '-webkit-box-orient:vertical;overflow:hidden}'
@@ -1639,33 +1645,26 @@ export var CSS_TEMPLATE = ''
   + '.acsv-frow-sinfo{position:absolute;bottom:13px;left:14px;display:inline-flex;align-items:center;'
   + 'gap:4px;font-size:14px;line-height:14px;color:#8a90a0}'
   // ---- 行卡族交互态统一（0.9.314 用户裁决；确认稿 docs/preview/moment-strip-actions.html）----
-  // 两套反馈：① **hover 提底一档**——暗皮 .06→.10（条卡两块 + 引用卡灰块）；浅皮同档在 .acsv-mp 块
-  // ② **按压**——卡面 scale(.985) / 行级 translateY(1px)；宫格另有图元微放大 1.05（对齐网格卡先例）。
+  // 两套反馈：① **hover 提底一档**——暗皮条卡两块 + 引用卡灰块（浅皮同档在 .acsv-mp 块）；
+  // ② **按压**——卡面一档缩放 / 行级一档下沉；宫格另有一档图元微放大（对齐网格卡先例）。
   // 可点面三条——条卡 .acsv-frow-strip、引用卡 .acsv-gquote-on、宫格格子 .acsv-frow-img；
   // **全部限定在 .acsv-frow 作用域内**：详情面板与转发编辑器复用同批类名
   //（.acsv-frow-strip/.acsv-gquote-on），不获得提底与按压。
+  // 【0.9.317 搬到单源表】**取值与这些规则的本体已整段移入 src/csshover.js**（表行 frow /
+  // frow-line / frow-mp），本段只留拼接位与语义说明——值不在这里写第二份（字面两处＝漂移温床，
+  // 且 0.9.314 那批正是「四段各写一套、改一档动四处」的病灶），改交互档去 csshover 改这里不生效。
   // 【0.9.314 同批撤除：hover 红框】原案是 accent 半档（var(--acsv-accent-dim)）的 overlay ::after
   // 描边环；用户实看暗皮后判「红框突兀」，遂全场景撤除，hover 反馈改由上面的提底承担。
   // 留档一条教训：环当年之所以必须用 overlay 而不能用 outline / inset box-shadow——后者画在卡根
   // 自己的装饰层，会被封面与宫格的不透明图元整条吃掉（确认稿 v1 即此病）。将来若再加框，别退回 outline。
   // 防回潮闸：harness `sm-frow-no-ring`（三条可点面不得再出现边框环或 outline）。
-  + '.acsv-frow .acsv-frow-strip,.acsv-frow .acsv-gquote-on,.acsv-frow .acsv-frow-img{'
-  + 'transition:transform .12s ease,background .12s ease}'
+  + hoverSlot('frow') // 行卡族可点面 + 行根（trans/提底/宫格图元/按压）＝csshover 表行 frow 与
+  // frow-line（0.9.317 搬表；块内顺序由生成器统一 trans→lift→img→title→press，与改前逐条等价）
   // 条卡 hover 手型（确认稿 v5 的提案行）：撤环后它是条卡「可点」的主要提示——引用卡
   // .acsv-gquote-on 与宫格 .acsv-frow-img 基态本来就带 cursor:pointer，条卡此前是 auto（实测在册）
   + '.acsv-frow .acsv-frow-strip{cursor:pointer}'
-  // hover 提底一档（暗皮 .06→.10）：条卡两块与引用卡灰块——撤框后这是 hover 的唯一视觉反馈
-  + '.acsv-frow .acsv-frow-strip:hover .acsv-frow-scover,.acsv-frow .acsv-frow-strip:hover .acsv-frow-sbody{'
-  + 'background:rgba(255,255,255,.10)}'
-  + '.acsv-frow .acsv-gquote-on:hover{background:rgba(255,255,255,.10)}'
-  + '.acsv-frow .acsv-frow-strip:active,.acsv-frow .acsv-gquote-on:active,.acsv-frow .acsv-frow-img:active{'
-  + 'transform:scale(.985)}'
-  + '.acsv-frow{transition:transform .12s ease}'
-  + '.acsv-frow:active{transform:translateY(1px)}'
-  // 宫格 hover 图元微放大对齐既有网格卡（.acsv-gcell:hover .acsv-gcover img 的 1.05）；
-  // 承载图元是 imgInto 出的 <img>（不是 <i>）——缩放加在它身上，格子 overflow:hidden 裁形
-  + '.acsv-frow .acsv-frow-img img{transition:transform .12s ease}'
-  + '.acsv-frow .acsv-frow-img:hover img{transform:scale(1.05)}'
+  // 宫格图元的承载是 imgInto 出的 <img>（不是 <i>）——缩放加在它身上，格子 overflow:hidden 裁形；
+  // 1.05 对齐既有网格卡先例（表行 grid）
   // 互动行（feed-interactive 形制）：margin 4px 0 0 60px、行高 48、item 12px 右距 42、
   // hover/点亮 accent；分享=icon+「分享」文字（原生无数字），评论/蕉/赞=icon+数字
   // 互动键（0.9.105 起 .acsv-fact 是**两皮肤共用键类**：行流在这里定尺寸/间距，面板在
@@ -1754,9 +1753,7 @@ export var CSS_TEMPLATE = ''
   + '.acsv-mp .acsv-frow-sinfo{color:#999}'
   // 浅皮 hover 提底同档（0.9.314；深皮 .06→.10 的浅皮换算）：条卡两块 + 引用卡灰块。
   // 选择器同样限定 .acsv-frow 作用域内，与深皮那组一一对应（0,4,0 压过深皮组，不靠源码顺序）
-  + '.acsv-mp .acsv-frow .acsv-frow-strip:hover .acsv-frow-scover{background:#ececec}'
-  + '.acsv-mp .acsv-frow .acsv-frow-strip:hover .acsv-frow-sbody{background:#f0f0f0}'
-  + '.acsv-mp .acsv-frow .acsv-gquote-on:hover{background:#ececec}'
+  + hoverSlot('mp') // 浅皮提底三条＝csshover 表行 frow-mp（0.9.317 搬表；一一对应深皮那组）
   + '.acsv-mp .acsv-frow-acts .acsv-fact{color:#999}'
   + '.acsv-mp .acsv-frow-acts .acsv-fact:hover{color:var(--acsv-accent)}'
   // 点亮态补课（0.9.314 真病灶）：本块 0,3,0 的 #999 与深皮 .on/.thrown（0,3,0）打平且源码更后

@@ -5,6 +5,79 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.317（2026-11-02）· 卡族交互态收口到单源表——五族一套反馈语言搬表（零视觉变化）+ CSS 变量失配闸
+
+**病灶**（用户实报「分区页卡片和我的页卡片动画交互不统一啊」；确认稿 `docs/preview/card-hover-unified.html`）：
+同一件事——「这块内容可点」——在**五个卡族**各说一套，规则散在 `cssraw.js` 四段（分区 `.acsv-jx-card` /
+网格 `.acsv-gcell` / 榜单行 `.acsv-vrow` / 搜索行 `.acsv-sarow`）加行卡族 `.acsv-frow` 与浅皮 `.acsv-mp`
+两处：分区卡画 accent 半档描边 + 提底 `.07`；网格卡走「封面图元 `1.05` + 标题变 accent」；榜单行只提底
+`.07`（大卡档另有标题变 accent）；搜索行提底 `.03`；行卡族提底 `.10` + 按压两档（0.9.314 那批**只统一了
+这一族**，本轮即它留下的「后批」）。后果两条：① **改一档要动四处、四处必漂**；② 分区卡与搜索行整段
+**无 transition**（hover 硬切），四族里五处过渡缺失。文档面还留了一处假守卫的引子:`styles.js` 189–193
+自称 `--acsv-accent-dim` 由 `.acsv-jx-card:hover` 独用、别再写第二份字面——但**零机械守卫**，
+而 CSS 变量名写错是**静默失效**（`var(--acsv-accent-dimmm)` 不报错，只是那条声明退回初始值）。
+
+**修法**（规矩 3 单源收口 + 规矩 7「同一道缝反复出血即结构裁决」）——三层收口：
+① **值层**：`styles.js` 的 `:root` 变量（一档一个出口）；新增 [`test/check-cssvar.mjs`](test/check-cssvar.mjs)
+把「每个 `var(--acsv-…)` 使用点都必须有定义处」做成闸（CSS 声明 `--acsv-…:` 或 JS `setProperty`；
+零消费变量只报告不判红，取舍交人）。
+② **生成器层**：[`src/csshover.js`](src/csshover.js) 的 `hoverRules(rows)` **纯函数**（零 DOM、零依赖、
+不读环境 ⇒ node 单测可直采），组序固定 `trans → lift → img → title → press`。
+③ **族表层**：`HOVER_ROWS` **一行一族**（7 行：分区卡/网格卡/榜单行/搜索行 + 行卡族三行），
+`cssraw.js` 在**各族原规则所在位置**插 `hoverSlot('<slot>')`——slot 与族表漂移＝**构建期抛错**
+（静默少产一段 CSS 正是本批要灭的病灶，不能由它自己开门）；随产物发布的模块一律不得 import 它
+（同 cssraw 纪律，`check-release` 的「产物零 CSS 原文」闸自然管住）。
+
+本批**只搬表、不改值**：表里每个字面＝当天线上值（含分区卡那圈 `var(--acsv-accent-dim)`），
+规则集逐条等价 ⇒ 零视觉变化；值层面的统一（提底档、图元/标题语言推广、按压与过渡补齐）留 0.9.318。
+
+**测试证据**：
+- **逐条规则级 diff（零视觉变化证明）**：`git show cab2c2c:acfun-svfeed.debug.user.js`（0.9.316 产物）
+  与本批产物各自解出内嵌 CSS 模板对比，**规则多重集逐条一字不差**（1133 : 1133 条、差 0 条）、
+  **解包字节数相同**（104,921 B）。有序 diff 只出现在三处**块内换位**——榜单行 `.acsv-vrow.big:hover
+  .acsv-vrow-title`（636 → 623，挪到同族提底规则之后）、网格卡 `.acsv-gcell:hover .acsv-gtitle`
+  （742 → 740）、行卡族块内 948–955 段按生成器组序重排；分区卡两条原地不动。换位只跨过
+  「不同选择器/不同属性」的规则（逐位核对过），同特异度同属性的胜者不变——harness 计算值钉在改后
+  产物上读到的仍是**改前那批值**（见下）。
+- **harness 升「计算值钉」**（尖刀，用户点名要求的测试强度）：`test/cases/_probe.js` 把目标 `:hover`/
+  `:active` 规则**原地复制成同特异度替身**（伪类→标记类，`0,1,0` 与 `0,1,0` 等值）→ `insertRule` →
+  挂类 → 读 `getComputedStyle`。**机制先说跑到哪一步**：首跑 `grid-hover-cv-img` 红在
+  `matrix(1,0,0,1,0,0)`——探针确实找到了规则、确实挂了类，但读回的是**过渡起点**：基态
+  `.acsv-gcover img{transition:transform .2s}` 让「挂类瞬间」的计算值＝旧值（恒等）。实证：给替身块补
+  `transition:none` 后同一读得 `matrix(1.05, 0, 0, 1.05, 0, 0)`。修法＝替身块尾恒写 `transition:none`
+  （过渡本身另由 `trans()` 腿读基态，不丢覆盖）。修好后逐族铺开：分区卡 `jx-hover-cv-ring/cv-lift/load`、
+  网格卡 `grid-hover-cv-img/cv-title/load`、榜单行 `rank-hover-cv-lift/cv-title/load`、
+  搜索行 `search-hover-cv-lift/load`——每族「计算值 + 规则载量」**两条腿**（载量钉抓「规则没了/多写一份」，
+  计算值钉抓「变量名写错/同特异度被顶掉/过渡起点冒充终值」）；行卡族沿用 0.9.314 的 `sm-frow-*` 载量钉。
+- **每族摘修复反跑矩阵**（摘的是**族表**里那一条，重建产物后跑 harness）：
+
+  | 族 | 摘掉 | 转红的钉（实测输出） | 还原 |
+  |---|---|---|---|
+  | jx | `lift[0].ring` | `jx-hover-cv-ring`（`rgba(0,0,0,0)` ← `.acsv-jx-card:hover`）+ `jx-hover-load` | 复绿 |
+  | grid | `img` 组整条 | `grid-hover-cv-img`（rule-not-found）+ `grid-hover-load` | 复绿 |
+  | rank | `title` 组整条 | `rank-hover-cv-title`（rule-not-found）+ `rank-hover-load` | 复绿 |
+  | search | `lift` 组整条 | `search-hover-cv-lift`（rule-not-found）+ `search-hover-load` | 复绿 |
+  | frow | `press` 组整条 | `sm-frow-press`（`press=1`） | 复绿 |
+
+- **族表闸（unit，双向）**：`test/unit/csshover.test.js` 9 条——正向「表→产物每条落地 + 组序恒为
+  trans→lift→img→title→press + scope 拼装 + press kind 值形态」、反向「产物里本表所辖族的交互规则
+  必须逐条有表出处（手写副本回潮即红）」与「每族产出确实拼进模板（漏拼＝该族交互态静默消失）」、
+  纯函数钉（同表连调两次同文、不被就地改写）、棘轮钉（本批四新族取值＝搬表前线上值，0.9.318 改值须同批改它）。
+  反跑：往 cssraw 手写一条 `.acsv-jx-card:hover{…}` 副本 ⇒ 反向第 7 条转红；删掉 ⇒ 9 条全绿。
+- **新闸 `check-cssvar`**：接进 `npm run check`。反跑两向——① 把表里的 `var(--acsv-accent-dim)` 写成
+  `var(--acsv-accent-dimmm)` ⇒ 红（并同时打出 `⚠ 零消费变量 --acsv-accent-dim`）；② 把 `styles.js` 的
+  `--acsv-accent:` 改名 ⇒ 该变量全部使用点失配、红；两次还原后复绿。
+- **连带同步**（搬表动了值的位置，各闸按「同步改注册」办）：`check-preview` 注册表四条行卡族值
+  `src: src/cssraw.js` → **`src: src/csshover.js`** 且次数按新宿主校正（`.10`×2 / `1.05`×2 / `.985`×1 /
+  `1px`×1）；`check-deps` 补 `csshover` 图节点 + `cssraw --> csshover` 边；`check-docs` 补 README 模块表行；
+  `check-direction` 把 csshover 登记进 EXEMPT（构建期输入，同 cssraw 定位，附理由）；`check-hygiene`
+  基线登记一条跨件类名契约 `dup:.acsv-jx-card@csshover.js,jingxuanview.js`；`check-structure` 基线补
+  `size:csshover.js`；`cssraw` 里那处复述取值（`.985`/`translateY(1px)`）的注释改写为指向表中出处，
+  不再留第二份字面。
+- 全链绿：`npx eslint .` / `npm run check`（含两条新闸）/ `npm test`（check + 单测 492 + harness 91 场景）。
+  **未验证**（如实挂账）：「分区卡与搜索行现状无 transition ⇒ hover 硬切」的**观感**仍是读码得
+  （本批不改值，硬切原样保留），分辨率真机 hover 复看留 0.9.318 统一批一起看。
+
 ### 0.9.316（2026-11-02）· 确认弹「宽宿主」余下四处出血收口——几何宿主声明上闸（check-popgeom）
 
 **病灶**（用户实报「删除动态的确认浮窗定位有问题」）：这是 0.9.312 那道缝的**同类出血**——`pickpop.place`

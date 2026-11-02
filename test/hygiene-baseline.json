@@ -18,6 +18,10 @@
       "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
     },
     {
+      "key": "dup:.acsv-jx-card@csshover.js,jingxuanview.js",
+      "why": "跨件类名契约（0.9.317 新增第二类宿主）：字面在 csshover.js 是**族表选择器**（CSS 单一源、构建期输入），在 jingxuanview.js 是**造卡建方**——与既有 querySelector 双写同性质（建方×消费方各写一次）；类名存在性由 check-cases 钉（.acsv-* 须在 src 出现）。任一方换类名/扩第三处即换 key 转 NEW"
+    },
+    {
       "key": "dup:.acsv-cinput-edit@imdrawer.js,momentdetail.js",
       "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
     },
