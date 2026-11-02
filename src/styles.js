@@ -187,9 +187,11 @@ if (seamMiss) stat('css.seamLeft');
 // 抽屉贴右、让位量按它插值，只有同曲线同时长才逐帧贴合（styles.js 让位组注释同契约）。
 // 改这一处＝抽屉与让位同步改，禁止各自取值
 // --acsv-accent-dim / --acsv-ban-new（0.9.314 单源）：accent 半档 .55 与**动态域**蕉黄。
-// 前者原为「行卡族 hover 红框」与 `.acsv-jx-card:hover` 描边同值收口而建；**行卡族红框已于
-// 0.9.314 同批撤除**（用户实看暗皮后判突兀），该值现由 `.acsv-jx-card:hover` 独用——留着作
-// 「accent 半档」的唯一出口，别再写第二份 rgba 字面。后者是行卡 .thrown/蕉键悬停与详情面板
+// 前者原为「行卡族 hover 红框」与 `.acsv-jx-card:hover` 描边同值收口而建；**两处红框已先后撤除**
+//（行卡族 0.9.314、分区卡 0.9.318——同一句实看裁决「红框突兀」的两批落地）⇒ **本变量现零消费**，
+// `test/check-cssvar.mjs` 会打一行 ⚠ 零消费（只报告不判红）。留或删是确认稿 docs/preview/
+// card-hover-unified.html ④ 的裁决点 ⑥、**尚未拍板**：当前处理＝留着作「accent 半档」的唯一出口，
+// 别再写第二份 rgba 字面；拍板删则连本段注释一起删。后者是行卡 .thrown/蕉键悬停与详情面板
 // `.acsv-mdl-ban` 三处同值字面收口。视频侧 rail/banpop 的 #ffb323 是另一档，不进本变量
 export var CSS = ':root{--acsv-accent:' + CFG.accent + ';--acsv-top-h:72px;--acsv-dw-t:.28s'
   + ';--acsv-accent-dim:rgba(253,76,93,.55);--acsv-ban-new:#ffba0d}'

@@ -5,6 +5,74 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.318（2026-11-02）· 卡片悬停/按压反馈语言统一——四族收口到一张表（提底「基色 +.04」一刀切 / 分区卡撤描边 / 按压与过渡补齐）
+
+**病灶**（用户实报「分区页卡片和我的页卡片动画交互不统一啊」的**收口批**；确认稿
+`docs/preview/card-hover-unified.html` ④ 已逐条拍板）：0.9.317 把五族交互态收进单源表，但**只搬不改值**
+——反馈语言本身仍是四套：分区卡画 accent 描边、网格卡只动图元＋标题、榜单/搜索行只提底、按压**只有**
+行卡族有；过渡也散着（分区卡与搜索行整段无 transition ＝硬切、榜单 `.15s`、网格图元 `.2s` 与首帧淡入
+同写一条）。
+
+**修法**（改值只在表里一处，落全族；三层结构承 0.9.317 不变）：
+- **提底＝「基色 +.04」一刀切**（暗皮）：分区卡 `.04→.08`；网格卡 `0→.04`（由「无提底」补上一条）；
+  榜单行 `.07→.04`；搜索行 `.03→.04`；行卡族 `.06→.10` 已符合不动。
+- **封面卡 hover＝封面图元 `scale(1.05)` ＋ 标题 `var(--acsv-accent)`**，推广到分区卡（网格卡已有；
+  榜单行只在大卡档 `.acsv-vrow.big` 保留———那是信息层级差，不是反馈语言差）。
+- **按压全族两档**：封面卡 `:active{transform:scale(.985)}`（挂**卡根**，不挂 `.acsv-favcell` wrapper
+  ——管理键 absolute 在 wrapper 上，压缩放会让按钮跑掉）；行式卡 `:active{transform:translateY(1px)}`。
+  方向纪律仍是「缩放向内、位移向下」。
+- **过渡统一 `.12s ease`**，每组 `trans` 补齐（含标题变色两处）；网格卡图元那条**拆条**：
+  `transform .12s ease,opacity .2s`（后者管首帧淡入，与交互反馈本就不同时标，同批拆开）。
+- **分区卡撤 accent 描边**（删表里的 `ring` 字段与生成器那一支）：与 0.9.314 撤行卡族红环**同一句实看
+  裁决**（用户实看暗皮判「红框突兀」）。基态 `border:1px solid transparent` 保留（撤边框会带来 1px 位移）。
+- **必修三条**：`.acsv-jx-cv` 补 `overflow:hidden`（裁决 ⑨：卡根 hidden 只裁卡的外形、不裁封面盒的内形，
+  不补则 1.05 的图元下溢到标题区）；网格卡图元过渡自基态规则拆出（见上）；标题变色补过渡（分区/网格/榜单）。
+- **不做**（按裁决逐条）：`.acsv-favcell:hover`（管理键显形）与行卡族 `.acsv-fact:hover`（点亮预览）**不进表**
+  ——它们是操作入口可见性/点赞态，不是「这块可点」的反馈语言；**不补浅皮**（四族不在 `.acsv-mp` 域，
+  浅皮宿主只有 memberplaza/spacemoments 两处行卡族）；`.acsv-favacts`/`.acsv-vchip` 的 `.15s` **不并**。
+
+**测试证据**：
+- **harness 计算值钉铺满五族**（口径＝替身探针，见 0.9.317）：分区卡 `jx-hover-cv-noring/cv-lift/cv-img/cv-title`、
+  `jx-press-cv`、`jx-trans-cv`；网格卡 `grid-hover-cv-lift`、`grid-press-cv`、`grid-trans-cv`（含图元两段
+  `0.12s / 0.2s` 的拆分证明）；榜单行 `rank-press-cv`、`rank-trans-cv`；搜索行 `search-press-cv`、`search-trans-cv`；
+  行卡族 `sm-frow-hover-cv`、`sm-frow-press-cv`、`sm-frow-press-row-cv`、`sm-frow-trans-cv`。**要钉的四类**：
+  ① 分区卡 hover `border-color` **不再是 accent**（读到基态 `rgba(0, 0, 0, 0)`）；② 分区/网格封面图元 hover
+  `transform` 解析为 `matrix(1.05, …)`；③ 各族 `:active` 替身下 `transform` ＝ `matrix(0.985,…)`（封面卡）
+  或 `matrix(1, 0, 0, 1, 0, 1)`（行式卡）；④ 各族 `transition-duration` ＝ `0.12s`（网格图元为 `0.12s, 0.2s`）。
+  **变量解析链**同证：标题色读回 `rgb(253, 76, 93)` 即 `var(--acsv-accent)` 经 `:root` 解析到底。
+- **逐条反跑矩阵**（摘族表条目 → 重建产物 → 转红 → 还原复绿；逐条都跑过）：
+  | 摘掉 | 转红的钉 |
+  |---|---|
+  | `jx.press` | `jx-press-cv` |
+  | `jx.img` + `jx.title` | `jx-hover-cv-img`、`jx-hover-cv-title` |
+  | `jx.trans` | `jx-trans-cv` |
+  | `grid.lift` | `grid-hover-cv-lift`、`grid-hover-load` |
+  | `grid.press` | `grid-press-cv` |
+  | `grid.trans` | `grid-trans-cv`（cell=0s） |
+  | `rank.lift` / `rank.press` / `rank.trans` | `rank-hover-cv-lift`＋`rank-hover-load` / `rank-press-cv` / `rank-trans-cv` |
+  | `search.lift` / `search.press` / `search.trans` | `search-hover-cv-lift`＋`search-hover-load` / `search-press-cv` / `search-trans-cv` |
+  | `frow.lift` / `frow.press` / `frow-line.press` / `frow.trans` | `sm-frow-hover-cv`（并连带 0.9.314 的 `sm-frow-hover-lift`/`sm-frow-scope`）/ `sm-frow-press-cv` / `sm-frow-press-row-cv` / `sm-frow-trans-cv` |
+  | **描边回流**（把 `.acsv-jx-card:hover{border-color:var(--acsv-accent-dim)}` 手写回 cssraw） | `jx-hover-cv-noring`（读到 `rgba(253, 76, 93, 0.55)`）＋ `jx-hover-cv-lift`（同特异度后者胜、把提底挤出）＋ `jx-hover-load`＋ unit 反向腿「手写副本回潮」 |
+  反跑里的两处**意外收获**（说明计算值钉确实咬在渲染结果上，而不是咬字面）：摘掉深皮提底后 `sm-frow-hover-cv`
+  读到的是浅皮那条 `rgb(236, 236, 236)`（级联里下一条同族规则顶上）；描边回流时 `jx-hover-cv-lift` 也被挤红。
+- **族表闸（unit 9 条）**：棘轮钉改为本批口径（提底四族值、`ring` 必须不存在、`hoverRules([jx])` 不得再产
+  `border-color`、封面语言与按压两档、五族 `trans` 每条必带 `.12s ease`）——改值批显式改口，改错一侧即红。
+- **稿↔实现取值闸**：`test/check-preview.mjs` 注册项 5→12 条（新增确认稿 `card-hover-unified.html` 的
+  7 条承诺值：`rgba(255,255,255,.08)`×1 / `rgba(255,255,255,.04)`×3 / `var(--acsv-accent)`×3 /
+  `.12s ease`×17 / `scale(1.05)`×3 / `scale(.985)`×3 / `translateY(1px)`×3；四条旧注册按新宿主与次数校正）。
+  反跑：实现侧把 `.08` 改成 `.07`、稿侧把 `.08` 删掉 ⇒ **两侧同红**，还原复绿。
+- **确认稿同步更新**（规矩 1：稿与实现同批）：④ 裁决点表逐条标「已裁」（写明落地值）／⑥ 标<b>待拍板</b>；
+  ②附 token 表按**实际落地值**校正并列出 0.9.318 相对 v1 的三处改口（榜单 `.07→.04`、搜索 `.03→.04`、
+  网格卡新增 `.04`）；①/②/③ 段的演示块仍画 v1 提案值，稿内已显式声明「以上表与 CHANGELOG 为准」。
+- **连带同步**：`styles.js` 里 `--acsv-accent-dim` 的注释如实改写（两处红框撤除后该变量**零消费**，
+  `check-cssvar` 会打 ⚠ 零消费行；去留＝裁决 ⑥，**未拍板，故本批不删**）；`cssraw` 里复述取值的注释
+  继续收敛到表（本批改正一处）；README 模块表/守卫对照表同步；`structure` 基线重排 3 条 size。
+- 全链绿：`npx eslint .` / `npm run check` / `npm test`（check + 单测 + harness 全场景）。
+  **未验证（如实挂账）**：本批是**纯 CSS 值/规则**改动（零 DOM、零 JS 行为），harness 钉的是计算值与规则载量，
+  **真机 hover 手感**（分区卡 .08 提底＋1.05 图元＋标题红三件同帧、榜单行提底由 .07 降到 .04 的观感、
+  搜索行由 .03 升到 .04、网格卡新增整卡提底的观感）**仍需人眼过一次**——尤其榜单行提底**下调**与网格卡
+  **从无到有**这两条，是用户点名要复核的连带后果。
+
 ### 0.9.317（2026-11-02）· 卡族交互态收口到单源表——五族一套反馈语言搬表（零视觉变化）+ CSS 变量失配闸
 
 **病灶**（用户实报「分区页卡片和我的页卡片动画交互不统一啊」；确认稿 `docs/preview/card-hover-unified.html`）：

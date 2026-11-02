@@ -357,24 +357,38 @@ rec('no-overflow', (function () {
   var b = q('.acsv-view-body');
   return !!b && b.scrollWidth <= b.clientWidth + 1;
 })());
-// ---- 网格卡交互态（0.9.317 抽表批；表源 src/csshover.js 行 grid）----
+// ---- 网格卡交互态（0.9.317 抽表批 + 0.9.318 统一批；表源 src/csshover.js 行 grid）----
 // 尖刀＝**计算值钉**：合成事件点不出真 :hover，故把目标伪类规则原地复制成同特异度替身
 // （:hover→标记类，0,1,0 与 0,1,0 等值），挂类后读 getComputedStyle——载量钉钉不到的
 // 「变量名写错／同特异度被顶掉／过渡起点冒充终值」在这里会转红。机制与来历见 test/cases/_probe.js。
-// 0.9.317 是**搬表零视觉变化**批 ⇒ 本段钉的即当天线上值（0.9.318 统一批改值时同步改钉）。
+// 统一批后的语言：hover ＝ 提底 .04 ＋ 图元 1.05 ＋ 标题 accent；按压卡面 scale(.985)（挂卡根，
+// 不挂 .acsv-favcell wrapper：管理键 absolute 在 wrapper 上，压缩放会让按钮跑掉）；
+// 过渡 = 卡根 transform .12s ease / 图元 transform .12s ease ＋ opacity .2s（后者管首帧淡入）。
 (function () {
   var HP = window.__ACSV_HPROBE__;
-  var cellOf = function () { return q('.acsv-vlist.hist .acsv-gcell'); };
-  var r = HP.cv({ host: cellOf(), read: cellOf() && cellOf().querySelector('.acsv-gcover img'),
-    sel: /\.acsv-gcell:hover\s\.acsv-gcover\simg$/, prop: 'transform',
-    expect: 'matrix(1.05, 0, 0, 1.05, 0, 0)' });
+  var cell = q('.acsv-vlist.hist .acsv-gcell');
+  var img = cell && cell.querySelector('.acsv-gcover img');
+  var title = cell && cell.querySelector('.acsv-gtitle');
+  var lift = HP.cv({ host: cell, sel: /^\.acsv-gcell:hover$/, prop: 'background-color',
+    expect: 'rgba(255, 255, 255, 0.04)' });
+  var r = HP.cv({ host: cell, read: img, sel: /\.acsv-gcell:hover\s\.acsv-gcover\simg$/,
+    prop: 'transform', expect: 'matrix(1.05, 0, 0, 1.05, 0, 0)' });
+  var t = HP.cv({ host: cell, read: title, sel: /\.acsv-gcell:hover\s\.acsv-gtitle$/,
+    prop: 'color', expect: 'rgb(253, 76, 93)' });
+  var press = HP.cv({ host: cell, pseudo: ':active', sel: /^\.acsv-gcell:active$/,
+    prop: 'transform', expect: 'matrix(0.985, 0, 0, 0.985, 0, 0)' });
+  var trCell = HP.trans(cell).dur;
+  var trImg = img ? HP.trans(img).dur : 'no-img';
+  // 载量腿：表行 grid 的三条 hover 规则必须在册，且**只有**这三条——摘掉表里任一条即转红
+  var l = HP.load(/\.acsv-gcell:hover/, 3,
+    ['transform:scale(1.05)', 'color:var(--acsv-accent)', /background:rgba\(255,255,255,0?\.04\)/]);
   rec('grid-hover-cv-img', r.ok, r.info);
-  var t = HP.cv({ host: cellOf(), read: cellOf() && cellOf().querySelector('.acsv-gtitle'),
-    sel: /\.acsv-gcell:hover\s\.acsv-gtitle$/, prop: 'color', expect: 'rgb(253, 76, 93)' });
   rec('grid-hover-cv-title', t.ok, t.info);
-  // 载量腿（同 0.9.314 口径）：表行 grid 的两条 hover 规则必须在册，且**只有**这两条
-  // ——摘掉表里任一条即转红（计算值钉同样会红，两条腿各指一类失效）
-  var l = HP.load(/\.acsv-gcell:hover/, 2, ['transform:scale(1.05)', 'color:var(--acsv-accent)']);
+  rec('grid-hover-cv-lift', lift.ok, lift.info);
+  rec('grid-press-cv', press.ok, press.info);
+  // 图元两段：transform 段必须收进 .12s（统一），opacity 段保留 .2s（首帧淡入，不属交互反馈）
+  rec('grid-trans-cv', trCell === '0.12s' && trImg === '0.12s, 0.2s',
+    'cell=' + trCell + ' img=' + trImg);
   rec('grid-hover-load', l.ok, l.info);
 })();
 // 0.9.219：我的页三档改 listtail 自动触底（「加载更多」按钮退役）——续页靠滚到底触发，
@@ -938,21 +952,27 @@ if (weekChip) weekChip.click();
 rec('zone-backtop-tall', !!(await waitFor(function () {
   return document.querySelectorAll('.acsv-rlist .acsv-vrow').length >= 12;
 }, 8000)), 'rows=' + document.querySelectorAll('.acsv-rlist .acsv-vrow').length);
-// ---- 榜单行交互态（0.9.317 抽表批；表源 src/csshover.js 行 rank）----
-// 搬表批 ⇒ 钉当天线上值：提底 .07（大小行同一条）+ 大卡档标题变 accent（原 1124 那条已并入本表行）
+// ---- 榜单行交互态（0.9.317 抽表批 + 0.9.318 统一批；表源 src/csshover.js 行 rank）----
+// 统一批后：提底按「基色 +.04」落到 .04（**原 .07 下调**——需用户复核的连带后果，见 CHANGELOG）；
+// 大卡档标题 accent 保留；按压行式 translateY(1px)；过渡 .12s ease（原 .15s）
 (function () {
   var HP = window.__ACSV_HPROBE__;
   var row = q('.acsv-rlist .acsv-vrow');
   var big = q('.acsv-rlist .acsv-vrow.big') || row;
   var title = big && big.querySelector('.acsv-vrow-title');
   var lift = HP.cv({ host: row, sel: /^\.acsv-vrow:hover$/, prop: 'background-color',
-    expect: 'rgba(255, 255, 255, 0.07)' });
+    expect: 'rgba(255, 255, 255, 0.04)' });
   var tt = HP.cv({ host: big, read: title, sel: /^\.acsv-vrow\.big:hover\s\.acsv-vrow-title$/,
     prop: 'color', expect: 'rgb(253, 76, 93)' });
-  var l = HP.load(/\.acsv-vrow(\.big)?:hover/, 2, [/background:rgba\(255,255,255,0?\.07\)/,
+  var press = HP.cv({ host: row, pseudo: ':active', sel: /^\.acsv-vrow:active$/,
+    prop: 'transform', expect: 'matrix(1, 0, 0, 1, 0, 1)' });
+  var trRow = HP.trans(row).dur;
+  var l = HP.load(/\.acsv-vrow(\.big)?:hover/, 2, [/background:rgba\(255,255,255,0?\.04\)/,
     /color:var\(--acsv-accent\)/]);
   rec('rank-hover-cv-lift', lift.ok, lift.info);
   rec('rank-hover-cv-title', tt.ok, tt.info);
+  rec('rank-press-cv', press.ok, press.info);
+  rec('rank-trans-cv', trRow === '0.12s, 0.12s', 'row=' + trRow);
   rec('rank-hover-load', l.ok, l.info);
 })();
 (function () { var b = q('.acsv-view-body'); if (b) b.scrollTop = b.scrollHeight; })();
@@ -1246,19 +1266,23 @@ rec('search-article-fields', (function () {
 })(), (function () {
   var r = q('.acsv-sarow');
   return r ? (r.querySelector('.acsv-satt') || {}).textContent : 'no-row';
-})(), (function () {
-  var r = q('.acsv-sarow');
-  return r ? (r.querySelector('.acsv-satt') || {}).textContent : 'no-row';
 })());
-// ---- 搜索行交互态（0.9.317 抽表批；表源 src/csshover.js 行 search）----
-// 搬表批 ⇒ 钉当天线上值（提底 .03；0.9.318 统一批改档后同步改钉）
+// ---- 搜索行交互态（0.9.317 抽表批 + 0.9.318 统一批；表源 src/csshover.js 行 search）----
+// 统一批后：提底按「基色 +.04」由 .03 上调到 .04（需复核的连带后果）；补过渡（现状整条无
+// transition＝硬切）与行式按压（translateY 1px）
 (function () {
   var HP = window.__ACSV_HPROBE__;
-  var l = HP.load(/^\.acsv-sarow:hover$/, 1, ['background:rgba(255,255,255,0.03)']);
-  var v = HP.cv({ host: q('.acsv-sarow'), sel: /^\.acsv-sarow:hover$/, prop: 'background-color',
-    expect: 'rgba(255, 255, 255, 0.03)' });
-  rec('search-hover-cv-lift', v.ok, v.info); // 提底真的算出来了（变量名写错/被顶掉即红）
-  rec('search-hover-load', l.ok, l.info);    // 规则在册且只有一条（手写副本回潮即红）
+  var row = q('.acsv-sarow');
+  var l = HP.load(/^\.acsv-sarow:hover$/, 1, [/background:rgba\(255,255,255,0?\.04\)/]);
+  var v = HP.cv({ host: row, sel: /^\.acsv-sarow:hover$/, prop: 'background-color',
+    expect: 'rgba(255, 255, 255, 0.04)' });
+  var press = HP.cv({ host: row, pseudo: ':active', sel: /^\.acsv-sarow:active$/,
+    prop: 'transform', expect: 'matrix(1, 0, 0, 1, 0, 1)' });
+  var trRow = HP.trans(row).dur;
+  rec('search-hover-cv-lift', v.ok, v.info);  // 提底真的算出来了（变量名写错/被顶掉即红）
+  rec('search-press-cv', press.ok, press.info); // 行式按压替身下 transform=translateY(1px)
+  rec('search-trans-cv', trRow === '0.12s, 0.12s', 'row=' + trRow);
+  rec('search-hover-load', l.ok, l.info);     // 规则在册且只有一条（手写副本回潮即红）
 })();
 (function () { // 点文章行 → 新标签打开 /a/ac（window 桩接住）
   window.__ACSV_OPEN__ = null;

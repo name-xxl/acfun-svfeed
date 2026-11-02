@@ -300,6 +300,36 @@
       && pressRules.every(frowScoped),
       'liftSel=' + liftRules.map(function (r) { return r.sel; }).join('|'));
 
+    // 7d) 行卡族交互态「**计算值**腿」（0.9.318 统一批补）：载量钉只证规则在册，钉不出
+    //    「变量名写错 / 同特异度被顶掉 / 过渡起点冒充终值」。走 test/cases/_probe.js 的替身探针
+    //    （伪类原地复制成同特异度标记类后读 getComputedStyle）——与 views/jingxuan 四族同一口径，
+    //    这样「各族 :active 替身下卡 transform」「各族 transition-duration」在同一批里齐活：
+    //      sm-frow-hover-cv：提底一档真的算出来（.10，暗皮）
+    //      sm-frow-press-cv / sm-frow-press-row-cv：卡面 scale(.985) / 行级 translateY(1px)
+    //      sm-frow-trans-cv：过渡 .12s ease（条卡两块两段、行根一段）
+    (function () {
+      var HP = window.__ACSV_HPROBE__;
+      var strip = q(panelSel + ' .acsv-frow .acsv-frow-strip');
+      var row = q(panelSel + ' .acsv-frow');
+      var cover = strip && strip.querySelector('.acsv-frow-scover');
+      var lift = (strip && cover) ? HP.cv({ host: strip, read: cover,
+        sel: /\.acsv-frow-strip:hover\s\.acsv-frow-scover/, prop: 'background-color',
+        expect: 'rgba(255, 255, 255, 0.1)' })
+        : { ok: false, info: 'no-strip/cover' };
+      var press = strip ? HP.cv({ host: strip, pseudo: ':active',
+        sel: /\.acsv-frow-strip:active/, prop: 'transform',
+        expect: 'matrix(0.985, 0, 0, 0.985, 0, 0)' }) : { ok: false, info: 'no-strip' };
+      var pressRow = row ? HP.cv({ host: row, pseudo: ':active', sel: /^\.acsv-frow:active$/,
+        prop: 'transform', expect: 'matrix(1, 0, 0, 1, 0, 1)' }) : { ok: false, info: 'no-row' };
+      var trStrip = strip ? HP.trans(strip).dur : 'no-strip';
+      var trRow = row ? HP.trans(row).dur : 'no-row';
+      rec('sm-frow-hover-cv', lift.ok, lift.info);
+      rec('sm-frow-press-cv', press.ok, press.info);
+      rec('sm-frow-press-row-cv', pressRow.ok, pressRow.info);
+      rec('sm-frow-trans-cv', trStrip === '0.12s, 0.12s' && trRow === '0.12s',
+        'strip=' + trStrip + ' row=' + trRow);
+    })();
+
     // 8) 点原生标签 → 站点排序控件恢复显形（共享注入件的 ④ 分支）
     q('#sm-n-video').click();
     rec('sm-sort-restore', !!(await waitFor(function () {

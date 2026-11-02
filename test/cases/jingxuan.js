@@ -61,21 +61,41 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
         return g.textContent.charCodeAt(0).toString(16);
       }).join(',');
     })());
-    // ---- 分区卡交互态（0.9.317 抽表批；表源 src/csshover.js 行 jx）----
-    // 搬表批 ⇒ 钉当天线上值：hover ＝ accent 半档描边（var(--acsv-accent-dim)）+ 底板 .04→.07。
-    // 计算值腿走探针（test/cases/_probe.js）：真读 border-color / background-color，
-    // 「变量名写错（--acsv-accent-dimm）」「描边被同特异度顶掉」这类载量钉看不见的失效在此转红。
+    // ---- 分区卡交互态（0.9.317 抽表批 + 0.9.318 统一批；表源 src/csshover.js 行 jx）----
+    // 统一批后的语言：hover ＝ 提底 .08 ＋ 封面图元 1.05 ＋ 标题 accent，**描边已撤**；按压卡面
+    // scale(.985)；过渡 .12s ease。计算值腿走探针（test/cases/_probe.js）：真读 border-color /
+    // background-color / transform / color，「变量名写错」「描边回流」「被同特异度顶掉」这类载量钉
+    // 看不见的失效在此转红。
     (function () {
       var HP = window.__ACSV_HPROBE__;
       var card = q('.acsv-jx-grid .acsv-jx-card');
-      var ring = HP.cv({ host: card, sel: /^\.acsv-jx-card:hover$/, prop: 'border-color',
-        expect: 'rgba(253, 76, 93, 0.55)' });
+      var img = card && card.querySelector('.acsv-jx-cv img');
+      var title = card && card.querySelector('.acsv-jx-ct');
+      // 负钉：hover 的 border-color 必须**不再是 accent**（撤到基态的透明）
+      var noRing = HP.cv({ host: card, sel: /^\.acsv-jx-card:hover$/, prop: 'border-color',
+        expect: 'rgba(0, 0, 0, 0)' });
       var lift = HP.cv({ host: card, sel: /^\.acsv-jx-card:hover$/, prop: 'background-color',
-        expect: 'rgba(255, 255, 255, 0.07)' });
-      var l = HP.load(/^\.acsv-jx-card:hover$/, 1, [/border-color:var\(--acsv-accent-dim\)/,
-        /background:rgba\(255,255,255,0?\.07\)/]);
-      rec('jx-hover-cv-ring', ring.ok, ring.info);
+        expect: 'rgba(255, 255, 255, 0.08)' });
+      var ci = img ? HP.cv({ host: card, read: img, sel: /\.acsv-jx-card:hover\s\.acsv-jx-cv\simg$/,
+        prop: 'transform', expect: 'matrix(1.05, 0, 0, 1.05, 0, 0)' })
+        : { ok: false, info: 'no-img（.acsv-jx-cv img 不在 DOM）' };
+      var ct = title ? HP.cv({ host: card, read: title, sel: /^\.acsv-jx-card:hover\s\.acsv-jx-ct$/,
+        prop: 'color', expect: 'rgb(253, 76, 93)' })
+        : { ok: false, info: 'no-ct（.acsv-jx-ct 不在 DOM）' };
+      var press = HP.cv({ host: card, pseudo: ':active', sel: /^\.acsv-jx-card:active$/,
+        prop: 'transform', expect: 'matrix(0.985, 0, 0, 0.985, 0, 0)' });
+      var trCard = HP.trans(card).dur;
+      var trImg = img ? HP.trans(img).dur : 'no-img';
+      // 规则载量：hover 只许一条（提底 .08），且**不得**再出现 border-color / outline（防回潮）
+      var l = HP.load(/^\.acsv-jx-card:hover$/, 1, [/background:rgba\(255,255,255,0?\.08\)/],
+        [/border-color/, /outline/]);
+      rec('jx-hover-cv-noring', noRing.ok, noRing.info);
       rec('jx-hover-cv-lift', lift.ok, lift.info);
+      rec('jx-hover-cv-img', ci.ok, ci.info);
+      rec('jx-hover-cv-title', ct.ok, ct.info);
+      rec('jx-press-cv', press.ok, press.info);
+      rec('jx-trans-cv', trCard === '0.12s, 0.12s' && trImg === '0.12s',
+        'card=' + trCard + ' img=' + trImg);
       rec('jx-hover-load', l.ok, l.info);
     })();
     // 大卡四行信息区结构（0.9.170）：标题 + 分区标签（home 卡取契约 channelInfo）+ UP 行 + 数据行

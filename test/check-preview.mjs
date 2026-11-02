@@ -37,16 +37,47 @@ const PINS = [
     why: '行卡 hover 提底一档（暗皮 .06→.10；浅皮同档另在 .acsv-mp 块）——0.9.317 起值层搬到单源表 src/csshover.js（此前指 src/cssraw.js）'
   },
   {
-    draft: 'docs/preview/moment-strip-actions.html', value: 'scale(1.05)', src: 'src/csshover.js', srcCount: 2,
-    why: '宫格图元微放大（对齐网格卡 .acsv-gcell 先例；稿初标 1.03 已按裁决统一为 1.05）——表行 grid 与 frow 各一处'
+    draft: 'docs/preview/moment-strip-actions.html', value: 'scale(1.05)', src: 'src/csshover.js', srcCount: 3,
+    why: '宫格图元微放大（对齐网格卡 .acsv-gcell 先例；稿初标 1.03 已按裁决统一为 1.05）——0.9.318 起表行 jx/grid/frow 各一处'
   },
   {
-    draft: 'docs/preview/moment-strip-actions.html', value: 'scale(.985)', src: 'src/csshover.js', srcCount: 1,
-    why: '卡面按压（条卡/引用卡/宫格格子）——0.9.317 搬表：值在表行 frow.press'
+    draft: 'docs/preview/moment-strip-actions.html', value: 'scale(.985)', src: 'src/csshover.js', srcCount: 3,
+    why: '卡面按压（条卡/引用卡/宫格格子）——0.9.318 起表里 press=card 档共三处（jx/grid/frow）'
   },
   {
-    draft: 'docs/preview/moment-strip-actions.html', value: 'translateY(1px)', src: 'src/csshover.js', srcCount: 1,
-    why: '行级按压（整行）——0.9.317 搬表：值在表行 frow-line.press'
+    draft: 'docs/preview/moment-strip-actions.html', value: 'translateY(1px)', src: 'src/csshover.js', srcCount: 3,
+    why: '行级按压（整行）——0.9.318 起表里 press=row 档共三处（rank/search/frow-line）'
+  },
+  // ---- 0.9.318（卡片悬停/按压语言统一批；确认稿 docs/preview/card-hover-unified.html）----
+  // 与上四条同值者另立一行：闸是「**该稿**承诺的取值在该侧逐字存在」，稿文件不同即两条事实
+  //（稿侧各查一次；实现侧共享同一出处 ⇒ 改值/增删族时这几条必须同批改）
+  {
+    draft: 'docs/preview/card-hover-unified.html', value: 'rgba(255,255,255,.08)', src: 'src/csshover.js', srcCount: 1,
+    why: '分区卡 hover 提底（基色 .04 +.04 ⇒ .08）——本批唯一改值处的一侧'
+  },
+  {
+    draft: 'docs/preview/card-hover-unified.html', value: 'rgba(255,255,255,.04)', src: 'src/csshover.js', srcCount: 3,
+    why: '行式三族 hover 提底（基色 0 +.04 ⇒ .04）：网格卡由无到有、榜单由 .07 下调、搜索由 .03 上调'
+  },
+  {
+    draft: 'docs/preview/card-hover-unified.html', value: 'var(--acsv-accent)', src: 'src/csshover.js', srcCount: 3,
+    why: '标题点亮（分区卡 .acsv-jx-ct / 网格卡 .acsv-gtitle / 榜单大卡 .acsv-vrow-title）——变量解析链由 harness 计算值钉同证'
+  },
+  {
+    draft: 'docs/preview/card-hover-unified.html', value: '.12s ease', src: 'src/csshover.js', srcCount: 17,
+    why: '过渡统一 .12s ease（四族交互态）——次数＝当前族表 trans 条目里出现的次数，新增族/条目须同步改本注册'
+  },
+  {
+    draft: 'docs/preview/card-hover-unified.html', value: 'scale(1.05)', src: 'src/csshover.js', srcCount: 3,
+    why: '封面图元放大（分区卡 .acsv-jx-cv img ＋ 网格卡 .acsv-gcover img ＋ 行卡族宫格）'
+  },
+  {
+    draft: 'docs/preview/card-hover-unified.html', value: 'scale(.985)', src: 'src/csshover.js', srcCount: 3,
+    why: '封面卡按压（分区卡 / 网格卡 / 行卡族可点面同值）'
+  },
+  {
+    draft: 'docs/preview/card-hover-unified.html', value: 'translateY(1px)', src: 'src/csshover.js', srcCount: 3,
+    why: '行式卡按压（榜单行 / 搜索行 / 行卡族行根同值）'
   },
   {
     draft: 'docs/preview/moment-detail-close.html', value: 'width:28px;height:28px;border-radius:50%', src: 'src/cssraw.js', srcCount: 1,
