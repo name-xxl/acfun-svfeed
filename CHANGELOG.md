@@ -5,6 +5,134 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.320（2026-11-03）· 体积零风险批：私信按钮手抄 SVG 归一单源 + hygiene 开第六扫（跨文件重复 `<svg>`）；`mangleProps` 评估后否决
+
+**病灶**：`src/topbar.js:193`（HEAD 行号＝归一后行号，本批该文件 1 行换 1 行、净增 0 行）的私信按钮把 `src/styles.js:204` 的 `ICONS.comment` 整段 `<svg>`（130B）**手抄**
+进自己的 `innerHTML` 串，尾部再拼 badge `<span>` ——同一事实写两遍（AGENTS 规矩 3 单源收口）。
+**为什么活到今天**（两网都够不着，不是没人看过）：hygiene ① 比的是**整条字面量**，本处那条比 `styles.js`
+多出尾部 56B 的 `<span>`，不是同一条串；③ 只比**同文件**内 ≥3 写，副本跨文件 ⇒ 子串级同形副本正好落在两道
+网的夹缝里。同文件 `:198` 的 `updBtn` 早就写成 `ICONS.upd + '<span …>'`，本处属漏改，不是另一种写法。
+
+**修法**（两件事，都零风险面）：
+
+- **归一**：`imBtn.innerHTML = ICONS.comment + '<span class="acsv-im-badge" style="display:none"></span>';`
+  ——逐字等价**脚本核对**（非目测）：`ICONS.comment` 130B + span 56B ＝ 186B，与 `git show HEAD:src/topbar.js`
+  里那条手抄整串一字不差。`ICONS` 本件已在 import（`src/topbar.js:3`），无新增依赖、无新 DOM 形态。
+- **补网**：`test/check-hygiene.mjs` 新增**第六扫**（扫描段 / `svgKey` 生成式 / `--emit` 清单 / 报告四处
+  共用同一 `svgKey`，不存在「报告说 0 组、闸却另算一本账」）——用 `/<svg[\s\S]*?<\/svg>/g` 抽运行串，
+  **长度 ≥40 字节**且**出现在 ≥2 个 src 文件**即病灶；`kind=svg`，`key=svg:运行串@文件,文件`（全串进 key、
+  不截断；文件集变化即换 key 转 NEW，承 0.9.309「登记项扩张由闸看见、不靠眼过」口径）。字节口径走唯一
+  出口 `svgBytes()`（`Buffer.byteLength`）——判定、排序、报告三处同源；草稿曾按 `run.length` 写 64，那是
+  UTF-16 码元，含 CJK 的 svg 会被算短（复核实测：一条 63 码元 / 137 字节的 svg 在码元口径下被放行，而
+  头注当时宣称的正是「字节」）。
+  **注释层由 ⑥ 自持**（自带的 `stripSvgComments`，不复用 ①②③ 的 `stripComments`）：共用那版的行尾判据
+  `\s+//[^'"\n]*$` 不容引号，而 svg 串必含 `"` ⇒ 行尾注释里的 svg 剥不掉、被当代码扫出**假阳**（复核
+  实测：两文件各一行 `var E=1; // 参考 <svg…>` 曾被报成 1 组；本棒同一 fixture 复现——共用层 1 组、
+  自持层 0 组）。阈值依据（HEAD 手抄版全仓统计）：≥40B 的 distinct 运行串 26 条、≥64B 档 25 条——多的那条
+  是 `styles.js` 的 `play` 图标 56B，降到 40 正是为把它纳入网内（旧阈值等于让这条图标处在「抄了没人管」
+  的状态）；两档的跨文件重复都恰 1 条（＝本批收口的这条 `ICONS.comment` 副本）⇒ 下调阈值只扩覆盖、不添
+  噪声。**基线不新增登记**（归一后上线即 0 候选）。
+  **③ 的胶水/骨架排除同时开例外**（本批）：③ 用 `/^\W|\W$/` 粗判「胶水/骨架串」，而 `<svg…></svg>` 字面量
+  首字符 `<`、尾字符 `>` 都属 `\W` ⇒ 图标字面量被 ③ **整类丢掉**；② 要 ≥6 行同形窗口，单行
+  `innerHTML = '…'` 也够不着 ⇒ 复核实测：**同一文件里把图标抄 5 遍，六扫全瞎**。本批给那条排除加
+  `&& !/^<svg/.test(lit)`，同件 ≥3 写归回 ③（实测改后真仓新候选 **0 项**——26 条图标串各自在文件内只写
+  1 次，故只扩覆盖、不翻账；③ 保持 0 项）。
+
+**测试证据**（本批实跑，命令与输出行照抄）：
+
+- 报告模式 `node test/check-hygiene.mjs`：`—— ⑥ 跨文件重复 <svg> 标记串 0 组（≥40B 运行串 × ≥2 件） ——`、
+  `[check-hygiene] 未登记候选 0 项（报告模式不判红；--gate 转棘轮）`。
+- 棘轮 `node test/check-hygiene.mjs --gate`：`[check-hygiene] 棘轮模式 · src 136 件 · 克隆阈值 6 行` …
+  `未登记候选 0 项`，**exit 0**（① 9 组 / ② 0 簇 / ③ 0 项 / ④ 12 项 / ⑤ 4 项，登记项一字未动）。
+- **反跑一（抓得住）**（AGENTS 规矩 4：摘修复断言必须转红）：把 `git archive HEAD src`（手抄版）解到仓库外的
+  临时目录，用该扫自带的 `--src <dir>` 指过去跑 `--gate`（**仓库文件一字未改**）→ **exit 1**，且**只报 ⑥**：
+  `[NEW ] 130B ×2  "<svg viewBox=\"0 0 24 24\"><path d=\"M20 2H…"  styles.js,topbar.js`、
+  `—— ⑥ 跨文件重复 <svg> 标记串 1 组（≥40B 运行串 × ≥2 件） ——`、`未登记候选 1 项`（其余五扫计数
+  ① 9 / ② 0 / ③ 0 / ④ 12 / ⑤ 4 与正跑逐字相同）。
+- **反跑二（⑥ 自持注释层，防假阳）**：两文件各一行 `var E = 1; // 参考 <svg …130B…></svg>`（svg 只住在
+  行尾注释里）放进 /tmp fixture，`--gate --src <fixture>` → `⑥ … 0 组`（自持层把注释剥净）；同一 fixture
+  若沿用 ①②③ 共用的 `stripComments`（行尾判据 `\s+//[^'"\n]*$` 不容引号 ⇒ 含 `"` 的 svg 注释失配、原样
+  留在文本里）则报 **1 组**（复核实测的正是这条假阳）。fixture 目录之外仓库一字未动。
+- `npx eslint .` 干净（无输出，exit 0）。
+- `npm test`（三段并行，**最终态实跑**）：`[check] exit=0`、`[unit] exit=0`、
+  `[harness] —— 91 个场景，失败 0 ——` `exit=0`、`[run-all] 三段并行全绿（72.3s）`。过程中 check 段曾
+  `exit=1`（本批内已消红）。`npm run check` 20 步里第 16 步 `check-structure --gate` 曾报
+  `—— ⑤ 尺寸棘轮 超基线 1 件 ——` `[NEW ] topbar.js  行273>基线270  导出9>基线9`
+  （该行打印固定用 `>` 分隔，**只有行数超**，导出 9 与基线相等；基线登记
+  `size:topbar.js:行270:导出9` 在 `test/structure-baseline.json:725`）。**根因是修法 A 那段注释、不是代码
+  形态**，裁决取「删注释」：同一来历在本小节与 `test/check-hygiene.mjs` 头部 ⑥ bullet 已写全，topbar 处属
+  重复叙述，且代码行紧挨 `:198` 的同款 `updBtn` 写法、语义自明。注释删净后该文件回到 1 行换 1 行、
+  **未重裁基线**（`test/structure-baseline.json` 一字未动）——实跑
+  `node test/check-structure.mjs --gate` → `—— ⑤ 尺寸棘轮 超基线 0 件（行数+导出任一超即 NEW；缩小合法）——`
+  `[check-structure] 未登记候选 0 项 + 超基线尺寸 0 件`，**exit 0**（`wc -l src/topbar.js`＝269＝HEAD 同值，
+  该闸行口径 270 与基线齐平；`git diff --stat src/topbar.js` ＝ `1 insertion(+), 1 deletion(-)`）。删的是
+  注释 ⇒ 两份产物不受影响（`grep -c 图标取单源 acfun-svfeed.user.js acfun-svfeed.debug.user.js` ＝ 0/0，
+  esbuild 两侧都剥注释；「重建后产物一字不差」这条严格等价留给主流程用 `node build.js` + `git diff
+  --exit-code` 两产物来钉，本棒按令未跑构建）。注释删除后本棒复跑：`check-hygiene --gate` **exit 0**
+  （① 9 组 / ② 0 簇 / ③ 0 项 / ④ 12 项 / ⑤ 4 项 / ⑥ 0 组）、`check-lifecycle2 --gate` / `check-pref` /
+  `check-contract` / `tsc` 四步各 **exit 0**、`check-docs` OK、`check-release` OK
+  （`package.json=0.9.320 产物=0.9.320/0.9.320 changelog=有`）、`npx eslint .` 无输出 exit 0；单测与
+  harness 91 场景沿用上一棒读数（产物文件本棒未变，故未重跑）。
+
+**体积读数**（`node build.js` 后 `node test/check-release.mjs` 分段实测；格式＝值/上限（基线×1.02））：
+
+```
+release total 611349/623669 · head 1816/1852 · hls 120340/122747 · css 24736/24921 · rest 464457/474150
+debug   total 1001294/1008071 · head 1886/1923 · hls 120340/122747 · css 24736/24921 · rest 854332/858479
+```
+
+与 0.9.319 产物逐段相减：**release −119B、debug −114B，全部落在 `rest`（代码体）**，`head`/`hls`/`css` 三段
+一字未动（版本串同长；SVG 现在全产物只留一份）。省的正是那份 130B 副本，扣掉 `ICONS.comment + ` 的引用开销。
+
+**本批评估并否决候选 C：给 esbuild 开 `mangleProps`（混淆内部 `_xxx` 属性名）——不启用**：
+
+- **分叉实证**（不是理论担忧）：`src/feedstore.js:85` 的护栏 `if ('_qualitiesAll' in it) it._qualitiesAll = null;`
+  在开混淆的产物里编译成 `"_qualitiesAll" in o && (o.K = null)`（本批复跑实测，短名每次随机）——esbuild
+  **不改写字符串字面量**，却把属性引用改了名 ⇒ `in` 恒假 ⇒ 瘦条目回滑时 `_qualitiesAll` 不再复位，**护栏静默
+  失效**，且这条路径**无测试覆盖**（单测/harness 读的是源码语义，产物的属性名分叉只有真机长会话才暴露）。
+- **独立复核补强三条**（同一复核也同意否决，非本棒自证）：① `build.js:103` 的 `buildOptions()` 是 debug 与
+  release **共用的一份 options 对象**（返回值里随构建分叉的只有 `minify`/`outfile`/`define` 三处），
+  `mangleProps` 一旦塞进其余公共字段，**debug 产物同样被改名**（复核实测 92 条）——`build.js:127` 立的「调试版
+  保持可读（DevTools 读 `__dbg`/对照源码）」理由当场失效，而且**没有任何闸挡得住**这种「只改公共对象」的走法；
+  ② 产出的短名**两次构建互不相同**（复核实测 90/92 条不一致），`_acsvWired` 这类「只接一次线」的幂等标记
+  （`src/comments.js:89`）在 release/debug 同页时**互相看不见 ⇒ 双重接线**——两版同页不是假想：README
+  发布章记着真有人误下 debug 版（README:444），而 debug 版的 `__dbg` 埋点/`acsv-stats` 自诊通道正是
+  鼓励用户装它排查问题；③ `_acsv*` 前缀是「往站点自有 DOM 上挂东西」的命名空间保险，改名后被压成 1–2
+  字符短名，与站点自身或其他脚本写在同一批元素上的短名**无法避让**——撞名踩的是别人的字段，查无可查。
+- **增益不值**：全量开 −2,446B（611KB 产物的 0.4%；复跑按正则口径分别 −3,041B `/^_/`、−3,444B `/_/`，同一
+  量级）。而**契约安全**的窄口径（保留 `src/domfields.js` 的 30 个登记名 + `test/cases/*.js` 读的 `._xxx`）
+  只剩 −1,307B（本棒复跑 −1,905B，保留名单 36 名）：增益对半再对半，代价是一份**要长期维护的保留名单**——
+  新增 `_xxx` 字段忘了登记就是又一次静默失效（与 0.9.296「注释即契约」漏网同型，只是这次坏在产物里，更难查）。
+- **最小安全窄口径实测**（复核另算的口径，比上条更贴「只保必要的」）：仅保留 `_qualitiesAll` ∪ 测试可见名
+  ⇒ **−2,101B**；把 `src/feedstore.js:85` 的护栏与属性名解耦（不再靠字符串 `in` 判存在）后再放它进混淆
+  ⇒ **−2,157B**。即「做对了」也就省 0.35%，而那份保留名单仍要长期养 ⇒ **维持否决**。
+- **裁决**：本批撤回，`build.js` 一字未改；体积门禁（`test/check-release.mjs` 的 `BASE` + 2% 上限）**不删不动**
+  ——它守的是「别悄悄胖」，与本批「实测省 119B」互不冲突。
+
+**本批发现、未修（另议，均不在本批范围）**：
+
+- **`test/check-contract.mjs:30` 的 `stripComments` 在 CRLF 文件上剥不掉行尾注释**：`/\/\/.*$/` 里 `.` 不匹配
+  `\r`，无 `m` 的 `$` 又只认字符串真正的结尾 ⇒ 行尾带 `\r` 时整条正则失配、注释原样留在「代码」里，能把注释
+  文字当字段扫出**假红**。本批在**仓库外**的源码副本上实跑：CRLF 件（`advdm.js`）末尾加一条纯注释
+  `// x slide._zzzProbeCrlf y` → `字段扫描 133 处，未登记 1 处`、**exit 1**；同一条注释放进 LF 件
+  （`appapi.js`）→ `132 处，未登记 0 处`、**exit 0**（两条同在时只点 CRLF 那条）。工作区 136 个 src 件里
+  **30 件是 CRLF**，现行 132 处命中按 CRLF 修正口径复算只有 128 处 ⇒ **虚高 4 处**，恰因这 4 处假命中的字段名
+  真在 `domfields.js` 表里才没炸。同一件剥注释工具在 `check-hygiene` / `check-structure` 里还有两版同源实现且
+  工作正常 ⇒ 病灶是「**同一工具三份实现**」，修法应是收口成一份（本批未动，属测试设施改造）。
+- **`check-hygiene --src` 指向空目录时静默假绿**：`node test/check-hygiene.mjs --gate --src <空目录>` 打出
+  `[check-hygiene] 棘轮模式 · src 0 件` ＋ `未登记候选 0 项`、**exit 0**；只有指向**不存在**的目录才抛
+  `ENOENT`（exit 1）。本批两处反跑都靠 `--src` 指仓库外副本，任何一次指错成空目录都会「跑了个空目录还自称
+  绿」——修法应是零 `.js` 文件即红。
+- **`src/` 里还有 7 条 `<svg>` 内联在 `ICONS` 表之外**（`followview.js` 318B / `jingxuanview.js` 119B /
+  `mypage.js` 183B / `sidebar.js` 164B + 685B / `squareview.js` 102B / `zone.js` 89B）：它们没住进
+  `src/styles.js` 的 `ICONS` 表，第六扫是**重复网**、不是**归属网**，只能等它们被抄第二遍才响——真要收口
+  得另立「图标字面只许出现在 `ICONS`/`SITE_ICONS`/`VIDEO_ICONS`/`PLAYER_ICONS` 表内」的归属闸（本批未立）。
+- **① 的行尾注释同样漏剥**（本批复核顺带实测）：⑥ 换成自持注释层后假阳已消，但 ① 仍在用共用
+  `stripComments`——同一 fixture（两文件各一行 `var E = 1; // 参考 <svg…></svg>`）下 ⑥ 报 **0 组**，① 却报
+  **1 组**：注释没剥掉，注释里那条 svg 的 `path d` 值（`M20 2H4c-1.1 …`，≥12 字符且含 `/`、`.`）被 ① 当成
+  「协议串」记账。修它要动 `stripComments` 本体（①②③⑤ 共用），会让既有棘轮账翻页、需按 `--emit` 重排基线
+  ⇒ 属后批裁决（已如实记在 `test/check-hygiene.mjs` 自持注释层的旁注里，本批不动）。
+
 ### 0.9.319（2026-11-02）· 删掉零消费变量 --acsv-accent-dim + 清掉结构基线的过期登记
 
 **病灶**（两条，都是「收口之后的残渣」）：
