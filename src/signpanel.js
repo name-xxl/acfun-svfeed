@@ -30,6 +30,10 @@ function rulePage() {
   var t = el('div', 'acsv-salm-rt', '签到规则');
   var ul = el('ul', 'acsv-salm-ul');
   RULES.forEach(function (s) { ul.appendChild(el('li', '', s)); });
+  // 0.9.313 如实声明：上 5 条是 APP 侧规则原文（含「连签 7 天 666 蕉」），而脚本走网页端签到
+  // （mobile-direct/pc-direct，§10.17），档位低于 APP——官方网页签到弹窗自认「APP 签到可得更多
+  // 香蕉」，照此口径声明，避免把 APP 数额误示为网页端可得。视觉降级（li.note 小字灰无红点）。
+  ul.appendChild(el('li', 'note', '※ 以上数额为 APP 侧规则；脚本经网页端签到，所得香蕉通常少于 APP，以签到回执为准'));
   page.appendChild(bk);
   page.appendChild(t);
   page.appendChild(ul);
