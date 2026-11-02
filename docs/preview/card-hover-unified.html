@@ -62,6 +62,11 @@
                                收藏（移动 + 移除收藏）——wrapper 是 .acsv-favcell，卡面仍是 gridCardOf
        src/panelitem.js 36–96  角标语义真值：历史 sub=「观看至xx:xx」／收藏 progress=「看到 xx:xx」／
                                稍后再看出 dur（右下）+ views（左下）
+     【落地值来源（0.9.318 落地后追补）】上面列的是**改前** cssraw 真值（① 现状历史档的口径）；
+       ② 提案矩阵 / ②附 token 表 / ③ 逐族三态 / ③附 的定格已逐格改成**落地值**，值层单源＝
+       src/csshover.js 的 HOVER_ROWS 族表（一行一族：cards / lift / img / title / press + trans）——
+       行号见各格 src 标注，本稿不再复述第二份值。落地批 commit：584b47f（0.9.317 搬表零变化）／
+       4be0c74（0.9.318 统一）。
      【纪律】单文件 / 零新增外链（唯一的 @font-face 是站方 iconfont，URL 与 cssraw.js:18–20 同串，
        协议相对写法，无 http(s) 字面）/ 真实中文文案（取自 jingxuan.html 与契约语义，非 Lorem）/
        **元素零内联色**（颜色一律走类规则；内联色会压住 :hover 并掩盖规则缺失）/
@@ -238,10 +243,12 @@
 <style>
   /* ======================================================================
      以下三段是**演示状态层**：
-       .cur  ＝ 现状规则照抄（cssraw 真值，真 :hover 可点验；现状无 :active，故不写按压）
-       .prop ＝ 提案规则（真 :hover / 真 :active 可点验）
-       .hv-* / .pr-* ＝ 静态定格（合成事件不触发真 :hover，故画出来给肉眼验收）
-     作用域隔离（0.9.314 同批撤环教训的延续）：现状与提案两套各挂各的作用域，互不打架。
+       .cur  ＝ 现状规则照抄（**改前** cssraw 真值，行号＝改前 1932 行版；真 :hover 可点验——现状无 :active，故不写按压）
+       .prop ＝ 落地规则（＝0.9.318 落地值，与 src/csshover.js 的 HOVER_ROWS 族表同值；真 :hover / 真 :active 可点验）
+       .hv-* / .pr-* ＝ 静态定格（合成事件不触发真 :hover，故画出来给肉眼验收）；同名类在 .cur / .prop 两作用域内分两套值
+     作用域隔离（0.9.314 同批撤环教训的延续）：现状与落地两套各挂各的作用域，互不打架。
+     **行号口径**：.cur 段（现状照抄）沿用**改前** cssraw 行号；.prop 段与 ②③ 正文里的结构行号一律标「（现行）」，
+     取值行号一律指 src/csshover.js 的族表——别拿两套行号互相对照。
      ====================================================================== */
 
   /* ---------------- ① 现状照抄 ---------------- */
@@ -259,8 +266,8 @@
   .cur .acsv-sarow:hover{background:rgba(255,255,255,.03)}
   /* 现状四族**都没有按压**（cssraw 1101/1267/1527/286 四处无 :active），故 .cur 内不写按压规则 */
 
-  /* ---------------- ② 提案 ---------------- */
-  /* (a) 分区卡：撤 accent 描边（基态 cssraw 286 的 1px 透明边框**保留**，避免撤边框引起 1px 位移；
+  /* ---------------- ② 提案（＝0.9.318 已落地值；值层单源＝src/csshover.js 的 HOVER_ROWS 族表） ---------------- */
+  /* (a) 分区卡：撤 accent 描边（基态 cssraw.js 290（现行）的 1px 透明边框**保留**，避免撤边框引起 1px 位移；
          撤的只是 hover 改 border-color 那一条）；底板提底保留但由 .07 对齐到 .08（＝基色 .04 +.04）；
          补上封面卡族的两种语言：图元 scale(1.05) + 标题变 accent */
   .prop .acsv-jx-card{transition:transform var(--cu-t),background var(--cu-t)}
@@ -272,43 +279,51 @@
   .prop .acsv-jx-card:hover .acsv-jx-cv i{transform:scale(1.05)}
   .prop .acsv-jx-card:hover .acsv-jx-ct{color:var(--acsv-accent)}
   .prop .acsv-jx-card:active{transform:scale(var(--cu-press))}
-  /* (b) 网格卡：现有语言不动（图元 1.05 / 标题 accent 即提案基准），只做两件事——
-         ① 过渡由混在一条里的 .2s 收成一枚 .12s ease；**opacity .2s 保持不动**（它管首帧淡入
-            cssraw 1271 .ld，不是交互反馈，不该跟 hover 一起改）
-         ② 补按压 scale(.985)（现状无） */
+  /* (b) 网格卡（族表行 grid，src/csshover.js 56–71）：图元 1.05 ＋ 标题 accent 保持；
+         **新增提底 rgba(255,255,255,.04)**（零基色族按「基色 +.04」补一块底板，真机会多出一块矩形底板）；
+         过渡由混在一条里的 .2s 拆条成「transform .12s ease ＋ opacity .2s」——后者管首帧淡入
+         （cssraw.js 1280（现行）的 .acsv-gcover img.ld{opacity:1}），不是交互反馈；再补按压 scale(.985)（现状无） */
   .prop .acsv-gcell{transition:transform var(--cu-t)}
   .prop .acsv-gcover i{transition:transform var(--cu-t),opacity .2s}
   .prop .acsv-gtitle{transition:color var(--cu-t)}
+  .prop .acsv-gcell:hover{background:rgba(255,255,255,.04)}
   .prop .acsv-gcell:hover .acsv-gcover i{transform:scale(1.05)}
   .prop .acsv-gcell:hover .acsv-gtitle{color:var(--acsv-accent)}
   .prop .acsv-gcell:active{transform:scale(var(--cu-press))}
   .prop .acsv-favcell:hover .acsv-favacts{opacity:1}
-  /* (c) 榜单行：提底 .07 保留（是否统一到「基色 +.04」见裁决 ③）；按压给行式口径 translateY(1px)；
-         大卡档的标题变 accent（cssraw 1124 现状已有）**保留**——它本来就是提案语言的一部分 */
+  /* (c) 榜单行（族表行 rank，src/csshover.js 72–86）：提底按「基色 +.04」落到 .04（原 .07 **下调**）；
+         按压给行式口径 translateY(1px)；标题变 accent **仍只在大卡档**（族表 title 组的 card 是
+         `.acsv-vrow.big`，src/csshover.js:84）——小行档按裁决 ⑩/⑬ 不补 */
   .prop .acsv-vrow{transition:background var(--cu-t),transform var(--cu-t)}
-  .prop .acsv-vrow:hover{background:rgba(255,255,255,.07)}
+  .prop .acsv-vrow:hover{background:rgba(255,255,255,.04)}
   .prop .acsv-vrow.big:hover .acsv-vrow-title{color:var(--acsv-accent)}
   .prop .acsv-vrow:active{transform:translateY(var(--cu-row-press))}
-  /* (d) 搜索行：现状**整条无 transition**（cssraw 1527）⇒ 提底是硬切；提案补过渡。
-         提底 .03 保留（是否统一到「基色 +.04」见裁决 ③）；按压同 translateY(1px) */
+  /* (d) 搜索行（族表行 search，src/csshover.js 87–95）：现状**整条无 transition**（改前 cssraw 1527）⇒ 提底是硬切；
+         补过渡；提底按「基色 +.04」落到 .04（原 .03 **上调**）；按压同 translateY(1px) */
   .prop .acsv-sarow{transition:background var(--cu-t),transform var(--cu-t)}
-  .prop .acsv-sarow:hover{background:rgba(255,255,255,.03)}
+  .prop .acsv-sarow:hover{background:rgba(255,255,255,.04)}
   .prop .acsv-sarow:active{transform:translateY(var(--cu-row-press))}
 
   /* ---------------- ③ 静态定格 ---------------- */
-  /* 现状定格 */
+  /* 格局：①附 实摆段在 .cur 作用域内 ⇒ 定格取**改前值**（改前历史档，保持不动）；
+     ③ 三态段在 .prop 作用域内 ⇒ 定格取**0.9.318 落地值**。同名 .hv-* 靠作用域前缀分两套，互不打架
+     （静态类只是把合成事件触发不了的态画出来，本身不是实现——取值出处见各格 src 标注） */
+  /* 现状定格（.cur 内） */
   .hv-jx-now{border-color:var(--acsv-accent-dim);background:rgba(255,255,255,.07)}
   .hv-gcell .acsv-gcover i{transform:scale(1.05)}
   .hv-gcell .acsv-gtitle{color:var(--acsv-accent)}
   .hv-fav .acsv-favacts{opacity:1}
-  .hv-vrow{background:rgba(255,255,255,.07)}
+  .cur .hv-vrow{background:rgba(255,255,255,.07)}
   .hv-vrow.big .acsv-vrow-title{color:var(--acsv-accent)}
-  .hv-sarow{background:rgba(255,255,255,.03)}
-  /* 提案定格 */
+  .cur .hv-sarow{background:rgba(255,255,255,.03)}
+  /* 落地定格（.prop 内）＝ src/csshover.js 的 HOVER_ROWS 族表值 */
   .hv-jx-prop{background:rgba(255,255,255,.08)}
   .hv-jx-prop .acsv-jx-cv i{transform:scale(1.05)}
   .hv-jx-prop .acsv-jx-ct{color:var(--acsv-accent)}
-  /* 按压定格（提案）：封面卡走卡面缩放，行式卡走行级下沉——与行卡族 0.9.314 同两档 */
+  .prop .hv-gcell{background:rgba(255,255,255,.04)}  /* 网格卡：零基色族按「基色 +.04」新增一块底板（src/csshover.js:67） */
+  .prop .hv-vrow{background:rgba(255,255,255,.04)}   /* 榜单行：原 .07 下调（src/csshover.js:80） */
+  .prop .hv-sarow{background:rgba(255,255,255,.04)}  /* 搜索行：原 .03 上调（src/csshover.js:93） */
+  /* 按压定格：封面卡走卡面缩放，行式卡走行级下沉——与行卡族 0.9.314 同两档 */
   .pr-card{transform:scale(var(--cu-press))}
   .pr-row{transform:translateY(var(--cu-row-press))}
 
@@ -324,14 +339,16 @@
 </head>
 <body>
 <div class="board">
-  <h1>卡片悬停/按压反馈语言统一 —— 静态预览 v1（确认后才进 src 实现）<em>四族：分区卡 .acsv-jx-card · 网格卡 .acsv-gcell · 榜单行 .acsv-vrow · 搜索行 .acsv-sarow（行卡族 .acsv-frow 作参照系）</em></h1>
+  <h1>卡片悬停/按压反馈语言统一 —— 静态预览 v1（0.9.318 已落地：②③ 段定格已按落地值校正）<em>四族：分区卡 .acsv-jx-card · 网格卡 .acsv-gcell · 榜单行 .acsv-vrow · 搜索行 .acsv-sarow（行卡族 .acsv-frow 作参照系）</em></h1>
   <p class="hint">
     <b>病灶（用户实报）</b>：「分区页卡片和我的页卡片动画交互不统一啊」。同一套「可点内容卡」在四个卡族里
     说四种语言：分区卡画一圈 accent 半档描边、网格卡走「封面图元放大 + 标题变红」、榜单行与搜索行只提底一档、
     而<b>按压只有行卡族有</b>（0.9.314 那批）。分区卡那圈描边正是 0.9.314 给行卡族撤掉的「红框突兀」（用户实看暗皮后裁决），
     同类病灶在分区卡上还留着。<br>
-    <b>量值</b>：本稿一切取值逐字抄 <b>src/cssraw.js</b>（行号见文件头注与每格 <span class="src">cssraw 行号</span>），
-    未自编任何值；提案新值只有<b>分区卡底板 .07→.08</b> 一处（其余提案值全部是行卡族 0.9.314 的<b>已定值推广</b>）。<br>
+    <b>量值</b>：① 现状矩阵 / ①附 实摆是<b>改前历史档</b>，取值逐字抄 <b>src/cssraw.js</b>（改前 1932 行版）；
+    ② 提案矩阵 / ②附 token 表 / ③ 逐族三态 / ③附 的定格＝<b>0.9.318 已落地值</b>，值层单源＝
+    <b>src/csshover.js</b> 的 <code>HOVER_ROWS</code> 族表（每格标 <span class="src">csshover.js 行号</span>）——
+    稿里未自编任何值。<br>
     <b>怎么看</b>：① 摆现状（每格标 cssraw 行号，四族并排 + 悬停定格），②摆提案（与①<b>逐格对应</b>，一眼看出改了什么），
     ③逐族三态（默认 / 悬停定格 / 按压定格），④ 540 窄宽自检，⑤ 裁决点登记。<br>
     每个演示区都<b>保留真 :hover / 真 :active</b>（<code>.cur</code>＝现状作用域、<code>.prop</code>＝提案作用域），
@@ -470,9 +487,9 @@
        ② 提案
        ================================================================ -->
   <div class="sec">
-    <h2>② 提案矩阵<em>与 ① 逐格对应：红底「改」＝本批动作（沿用确认稿的 <code>.verdict</code> 标记），「不动」＝现状已符合提案语言；提案值全部取自行卡族 0.9.314 已定值，唯一新值是分区卡底板 .08</em></h2>
+    <h2>② 提案矩阵<em>与 ① 逐格对应：红底「改」＝本批动作（沿用确认稿的 <code>.verdict</code> 标记），「不动」＝现状已符合；<b>本表＝ 0.9.318 已落地值</b>，值层单源＝<code>src/csshover.js</code> 的 <code>HOVER_ROWS</code> 族表（每格标行号）</em></h2>
     <table>
-      <tr><th>卡族</th><th>hover 提案</th><th>按压提案</th><th>过渡提案</th><th>相对 ① 的变化</th></tr>
+      <tr><th>卡族</th><th>hover（＝落地）</th><th>按压（＝落地）</th><th>过渡（＝落地）</th><th>相对 ① 的变化</th></tr>
       <tr>
         <td><code>.acsv-frow</code> 行卡族<span class="same">参照系</span></td>
         <td>提底 .06→.10 ＋ 宫格图元 1.05<b>（不动）</b></td>
@@ -482,40 +499,43 @@
       </tr>
       <tr>
         <td><code>.acsv-gcell</code> 网格卡<br><span class="src">＝我的页 / 搜索视频网格 / 关注流视频卡</span></td>
-        <td>图元 <code>scale(1.05)</code> ＋ 标题 <code>var(--acsv-accent)</code><b>（不动，现状已是提案语言）</b><span class="src">cssraw 1276 / 1281</span></td>
-        <td><span class="verdict">改</span><b>新增</b> <code>:active{transform:scale(.985)}</code>（挂卡根 <code>.acsv-gcell</code>）</td>
-        <td><span class="verdict">改</span>图元 <code>.2s</code> → <code>.12s ease</code>；<b>同条里的 <code>opacity .2s</code> 保持不动</b>（它管首帧淡入 cssraw 1271，不是交互反馈）；标题补 <code>color .12s ease</code></td>
-        <td>hover 语义零变化，只是<b>按压从无到有</b>＋过渡收口。搜索视频网格与关注流视频卡<b>随这一条自动统一</b>（同一 <code>.acsv-gcell</code>，<code>.acsv-scell</code> 无自有规则）</td>
+        <td><span class="verdict">改</span><b>新增提底</b> <code>rgba(255,255,255,.04)</code>（零基色族按「基色 +.04」，真机会多出一块底板）<br>
+          图元 <code>scale(1.05)</code> ＋ 标题 <code>var(--acsv-accent)</code><b>（不动）</b><span class="src">csshover.js 56–71（lift 67 / img 68 / title 69）</span></td>
+        <td><span class="verdict">改</span><b>新增</b> <code>:active{transform:scale(.985)}</code>（挂卡根 <code>.acsv-gcell</code>，<span class="src">csshover.js 70</span>）</td>
+        <td><span class="verdict">改</span>图元拆条 <code>transform .12s ease,opacity .2s</code>（<b>后者管首帧淡入</b> cssraw.js 1280（现行），不是交互反馈）；标题补 <code>color .12s ease</code>；卡根 <code>transform .12s ease</code><span class="src">csshover.js 64–66</span></td>
+        <td>hover 由「只动图元与标题」变为<b>多出一块底板</b>＋<b>按压从无到有</b>＋过渡收口。搜索视频网格与关注流视频卡<b>随这一条自动统一</b>（同一 <code>.acsv-gcell</code>，<code>.acsv-scell</code> 无自有规则）</td>
       </tr>
       <tr>
         <td><code>.acsv-jx-card</code> 分区卡</td>
-        <td><span class="verdict">撤描边</span> <code>border-color:var(--acsv-accent-dim)</code> 整条删（<b>基态 1px 透明边框保留</b>，撤的只是 hover 改色那条，否则撤边框会带来 1px 位移）<span class="src">cssraw 286–288</span><br>
-          <span class="verdict">改</span>底板提底 <code>.07 → .08</code>（＝基色 .04 +.04，见裁决 ③）<br>
-          <span class="verdict">改</span><b>补封面卡语言</b>：图元 <code>scale(1.05)</code> ＋ 标题 <code>var(--acsv-accent)</code></td>
-        <td><span class="verdict">改</span><b>新增</b> <code>:active{transform:scale(.985)}</code></td>
-        <td><span class="verdict">改</span>补 <code>.12s ease</code>（现状整段无 transition，见 ① 的自白）</td>
+        <td><span class="verdict">撤描边</span> <code>border-color:var(--acsv-accent-dim)</code> 整条删（<b>基态 1px 透明边框保留</b>，撤的只是 hover 改色那条，否则撤边框会带来 1px 位移）<br>
+          <span class="verdict">改</span>底板提底 <code>.04 → .08</code>（＝基色 +.04）<br>
+          <span class="verdict">改</span><b>接封面卡语言</b>：图元 <code>scale(1.05)</code> ＋ 标题 <code>var(--acsv-accent)</code><span class="src">csshover.js 43–55（lift 51 / img 52 / title 53）</span></td>
+        <td><span class="verdict">改</span><b>新增</b> <code>:active{transform:scale(.985)}</code><span class="src">csshover.js 54</span></td>
+        <td><span class="verdict">改</span>补 <code>.12s ease</code>（现状整段无 transition，见 ① 的自白）<span class="src">csshover.js 48–50</span></td>
         <td><b>本批动作最大的一族</b>：撤一形态（描边）＋补两形态（图元放大 / 标题红）＋补按压＋补过渡。撤描边的理由与 0.9.314 撤行卡族红框<b>同一</b>：用户实看暗皮判「红框突兀」</td>
       </tr>
       <tr>
         <td><code>.acsv-vrow</code> 榜单行</td>
-        <td>提底 <code>.07</code><b>（是否并档见裁决 ③）</b>；大卡档标题变 accent <b>保留</b>（cssraw 1124 现状已有，它本就是提案语言）<span class="verdict">建议不动</span></td>
-        <td><span class="verdict">改</span><b>新增</b> 行式口径 <code>:active{transform:translateY(1px)}</code>（与行卡族行级一致，<b>不给 1px 圆角条加缩放</b>）</td>
-        <td><span class="verdict">改</span><code>.15s</code> → <code>.12s ease</code>；标题变色补 <code>color .12s ease</code></td>
-        <td>行式卡＝下沉 1px（不是缩放）；改动集中在过渡与按压两栏</td>
+        <td><span class="verdict">改</span>提底 <code>.07 → .04</code>（＝基色 +.04，<b>下调</b>一档）；标题变 accent <b>仍只在大卡档</b> <code>.acsv-vrow.big</code><b>（不动）</b><span class="src">csshover.js 72–86（lift 80 / title 84）</span><br>
+          <span class="same">小行档不补</span>（裁决 ⑩/⑬：行式形态不接封面语言，且小行本是休眠分支）</td>
+        <td><span class="verdict">改</span><b>新增</b> 行式口径 <code>:active{transform:translateY(1px)}</code>（与行卡族行级一致，<b>不给 1px 圆角条加缩放</b>）<span class="src">csshover.js 85</span></td>
+        <td><span class="verdict">改</span><code>.15s</code> → <code>.12s ease</code>（background ＋ transform 两段）；标题补 <code>color .12s ease</code><span class="src">csshover.js 78–79</span></td>
+        <td>行式卡＝下沉 1px（不是缩放）；提底由 .07 <b>下调</b>到 .04——本批<b>唯一变淡</b>的一族，观感须真机复核（CHANGELOG 0.9.318 已登记）</td>
       </tr>
       <tr>
         <td><code>.acsv-sarow</code> 搜索行</td>
-        <td>提底 <code>.03</code><b>（是否并档见裁决 ③）</b>；其余不动</td>
-        <td><span class="verdict">改</span><b>新增</b> <code>:active{transform:translateY(1px)}</code></td>
-        <td><span class="verdict">改</span>补 <code>.12s ease</code>（现状无）</td>
-        <td>同榜单行；另 .03 是四族最浅档，本稿<b>不建议</b>擅自加深（属裁决 ③ 范围）</td>
+        <td><span class="verdict">改</span>提底 <code>.03 → .04</code>（＝基色 +.04，<b>上调</b>一档）；其余不动<span class="src">csshover.js 87–95（lift 93）</span></td>
+        <td><span class="verdict">改</span><b>新增</b> <code>:active{transform:translateY(1px)}</code><span class="src">csshover.js 94</span></td>
+        <td><span class="verdict">改</span>补 <code>.12s ease</code>（现状整条无 transition）<span class="src">csshover.js 92</span></td>
+        <td>同榜单行（下沉 1px）；提底由 .03 <b>上调</b>到 .04 ⇒ 与榜单行、网格卡同为「零基色 +.04」一档</td>
       </tr>
     </table>
     <p class="note"><b>为什么不统一成「一种反馈」而是「两类语言」</b>：本提案的分工是<b>按卡的形态</b>分，不是按页面分——
-      <b>封面卡</b>（有封面图元：分区卡 / 网格卡）＝<b>图元 1.05 ＋ 标题红 ＋（有底板者）提底 ＋ 卡面缩放 .985</b>；
-      <b>行式卡</b>（整条是行：榜单行 / 搜索行 / 行卡族整行）＝<b>提底 ＋ 行级下沉 1px</b>。
+      <b>封面卡</b>（有封面图元：分区卡 / 网格卡）＝<b>图元 1.05 ＋ 标题红 ＋ 提底 ＋ 卡面缩放 .985</b>（四件齐）；
+      <b>行式卡</b>（整条是行：榜单行 / 搜索行 / 行卡族整行）＝<b>提底 ＋ 行级下沉 1px</b>（两件齐，不给缩放）。
       行式不给缩放的理由与 0.9.314 一致：整行缩放会牵动行内文本重排、且行间分隔线会跟着抖；下沉 1px 是既有的克制档。
-      分区卡提底<b>保留</b>（它有底板 .04，与网格卡的透明底不同），所以分区卡＝封面语言＋提底，是三套里最满的一格。</p>
+      两族封面卡的提底是<b>同一口径</b>（基色 +.04）算出的不同字面：分区卡基色 .04 ⇒ hover .08、网格卡基色 0 ⇒ hover .04
+      ——观感一致、取值不一，别把「值不同」读成「语言不同」（0.9.318 起网格卡也提底，不再是「透明底只动图元与标题」）。</p>
   </div>
 
   <!-- ② 附：提案 token 表（0.9.318 落地后按**实际落地值**校正；「裁决」列＝确认稿 ④ 的结果） -->
@@ -567,8 +587,9 @@
       摘实现任一条即转红（<code>.12s ease</code> 的次数＝当前族表 trans 条目数，新增族/条目须同步改注册）。</p>
     <p class="note"><b>0.9.318 落地批的三处改口</b>（相对本稿 v1 所画，均为裁决所致）：① 榜单行提底由「保留 .07」改为
       <b>.04</b>（③ 的一刀切口径落到零基色行族）；② 搜索行由「保留 .03」改为 <b>.04</b>；③ 网格卡<b>新增</b>一条提底
-      <code>rgba(255,255,255,.04)</code>（原稿「透明底只动图元与标题」按 ③ 一并纳入）。<b>本文件 ①／②／③ 段的演示块仍画的是
-      v1 提案值</b>（未逐格重绘），以上表与 CHANGELOG 0.9.318 为准。</p>
+      <code>rgba(255,255,255,.04)</code>（原稿「透明底只动图元与标题」按 ③ 一并纳入）。<b>本稿 ② 提案矩阵与 ③ 逐族三态的定格
+      已按上表落地值逐格重绘</b>（① 现状矩阵 / ①附 实摆是改前历史档，保持不动）——本稿定格＝落地值，
+      出处见各格 <code>src</code> 标注，值层单源＝<code>src/csshover.js</code> 的 <code>HOVER_ROWS</code> 族表。</p>
   </div>
 
   <!-- ================================================================
@@ -578,7 +599,7 @@
     <h2>③ 逐族三态<em>默认 / 悬停定格 / 按压定格（后两列是画出来的定格；整段在 .prop 作用域，真悬停真按压照常可验）</em></h2>
 
     <div class="prop">
-      <div class="st">A 网格卡<em>我的页三档消费点各一例（mytabs.js 152–161 / 243–251 / 383–421）；角标语义取契约真值（panelitem.js 36–96）</em></div>
+      <div class="st">A 网格卡<em>我的页三档消费点各一例（mytabs.js 152–161 / 243–251 / 383–421）；角标语义取契约真值（panelitem.js 36–96）；<b>0.9.318 起悬停新增一块 <code>.04</code> 底板</b>（零基色族按「基色 +.04」）</em></div>
       <table>
         <tr><th>档</th><th>角标语义（契约真值）</th><th>默认态</th><th>悬停定格</th><th>按压定格</th></tr>
         <tr>
@@ -590,7 +611,9 @@
           <td><div class="acsv-gcell hv-gcell ph-c" style="width:250px"><div class="acsv-gcover"><i></i><div class="acsv-gtag">观看至 03:12</div></div>
             <div class="acsv-gtitle">琵琶曲·AC娘VS高坂桐乃？</div>
             <div class="acsv-gfoot"><span class="acsv-gup">@紫嘉儿~</span><span class="acsv-gtime">昨天20时36分</span></div></div>
-            <p class="note">图元 1.05 ＋ 标题红（<span class="src">cssraw 1276/1281</span>）；本档<b>无管理键</b>？不——历史档有「删除」键，但只在有 <code>comboId</code> 时挂（<span class="src">mytabs.js:155</span>），此处按<b>无 comboId</b> 的降级条目摆。</p></td>
+            <p class="note"><b>新增提底 <code>.04</code></b>（零基色族按「基色 +.04」多出一块底板）＋ 图元 <code>scale(1.05)</code> ＋ 标题 <code>var(--acsv-accent)</code>，
+              三者同帧、过渡 <code>.12s ease</code>（<span class="src">csshover.js 64–70（trans 64 / lift 67 / img 68 / title 69）</span>）；
+              本档<b>无管理键</b>？不——历史档有「删除」键，但只在有 <code>comboId</code> 时挂（<span class="src">mytabs.js:155</span>），此处按<b>无 comboId</b> 的降级条目摆。</p></td>
           <td><div class="acsv-gcell pr-card hv-gcell ph-c" style="width:250px"><div class="acsv-gcover"><i></i><div class="acsv-gtag">观看至 03:12</div></div>
             <div class="acsv-gtitle">琵琶曲·AC娘VS高坂桐乃？</div>
             <div class="acsv-gfoot"><span class="acsv-gup">@紫嘉儿~</span><span class="acsv-gtime">昨天20时36分</span></div></div>
@@ -610,8 +633,8 @@
             <div class="acsv-gtitle">什么活动还要真珠总监亲自营业！？</div>
             <div class="acsv-gfoot"><span class="acsv-gup">@咖纳纳纳o</span><span class="acsv-gtime">3天前</span></div></div>
             <div class="acsv-favacts"><button class="acsv-vchip" type="button">移出</button></div></div>
-            <p class="note">三件事同帧：图元 1.05 ＋ 标题红 ＋ <b>管理键显形</b>（<span class="src">cssraw 1450</span>）。
-              键显形<b>本批不动</b>（它是操作入口的可见性，不是「可点」反馈语言；过渡 .15s 是否并到 .12s 见裁决 ⑦）。</p></td>
+            <p class="note">四件事同帧：<b>提底 <code>.04</code></b>（新增底板）＋ 图元 1.05 ＋ 标题红 ＋ <b>管理键显形</b>（<span class="src">cssraw 1450</span>）。
+              键显形<b>本批不动</b>（它是操作入口的可见性，不是「可点」反馈语言；过渡 .15s 不并到 .12s，见裁决 ⑦）。</p></td>
           <td><div class="acsv-favcell hv-fav" style="width:250px"><div class="acsv-gcell pr-card hv-gcell ph-d"><div class="acsv-gcover"><i></i>
             <div class="acsv-gtag acsv-gviews"><i class="acsvg-glyph">&#xe164;</i>2.3万</div><div class="acsv-gdur">4:16</div></div>
             <div class="acsv-gtitle">什么活动还要真珠总监亲自营业！？</div>
@@ -634,7 +657,8 @@
             <div class="acsv-gtitle">每个coser都会遇到的困难..</div>
             <div class="acsv-gfoot"><span class="acsv-gup">@潇湘huya</span><span class="acsv-gtime">2026-09-26</span></div></div>
             <div class="acsv-favacts"><button class="acsv-vchip sm" type="button">移动</button><button class="acsv-vchip sm" type="button">移除收藏</button></div></div>
-            <p class="note">两键并排 <code>gap:6px</code>（<span class="src">cssraw 1448</span>）在 250 宽卡上<b>不溢出</b>——本段右缘即自检位。</p></td>
+            <p class="note">两键并排 <code>gap:6px</code>（<span class="src">cssraw 1448</span>）在 250 宽卡上<b>不溢出</b>——本段右缘即自检位；
+              本格同时叠了 0.9.318 新增的 <code>.04</code> 底板。</p></td>
           <td><div class="acsv-favcell hv-fav" style="width:250px"><div class="acsv-gcell pr-card hv-gcell ph-a"><div class="acsv-gcover"><i></i>
             <div class="acsv-gtag">看到 00:41</div></div>
             <div class="acsv-gtitle">每个coser都会遇到的困难..</div>
@@ -643,10 +667,15 @@
             <p class="note">卡面缩、键不缩（同上格）；悬停定格同帧。</p></td>
         </tr>
       </table>
+      <p class="note"><b>上面每格悬停定格里多出来的那块底板的由来</b>：落地规则是 <code>.acsv-gcell:hover{background:rgba(255,255,255,.04)}</code>
+        （<span class="src">csshover.js:67</span>）——挂<b>卡根</b>，故底板垫住「封面 ＋ 标题 ＋ 脚行」整块卡面；且 <code>.acsv-gcell</code> 基态
+        <b>没有 border-radius</b>（<span class="src">cssraw.js 1274（现行）</span>，圆角只属于封面盒 <code>.acsv-gcover</code>）⇒
+        真机多出来的是一块<b>直角底板</b>，不随封面圆角走。<b>零基色族按「基色 +.04」一刀切</b>故有此一条；它不改图元与标题两件既有语言，
+        只把 hover 的「可点感」从 2 件补到 3 件（真机观感请在此格复看一次）。</p>
 
       <div class="st">B 分区卡<em>普通卡 ＋ 2×2 大卡；每态两例；B② 是<b>撤描边前后对照</b></em></div>
       <table>
-        <tr><th>态</th><th>普通卡（cssraw 286–298）</th><th>大卡 <code>.acsv-jx-big</code>（cssraw 299–303）</th><th>说明</th></tr>
+        <tr><th>态</th><th>普通卡（<span class="src">cssraw.js 290–304（现行）</span>）</th><th>大卡 <code>.acsv-jx-big</code>（<span class="src">cssraw.js 305–309（现行）</span>）</th><th>说明</th></tr>
         <tr>
           <td>默认</td>
           <td><div class="acsv-jx-grid" style="max-width:260px"><div class="acsv-jx-card ph-e"><div class="acsv-jx-cv"><i></i><span class="acsv-jx-dur">1:58</span></div>
@@ -657,7 +686,7 @@
               <div class="acsv-jx-tags"><span class="acsv-jxtag">游戏</span><span class="acsv-jxtag">主机单机</span></div>
               <div class="acsv-jx-up"><span class="acsv-jx-ava"></span><span>潇湘huya</span></div>
               <div class="acsv-jx-cm"><span class="acsv-jx-stat"><i class="acsvg-glyph">&#xe164;</i> 1.2万</span><span class="acsv-jx-stat"><i class="acsvg-glyph">&#xe629;</i> 318</span><span>7:25</span></div></div></div></div></td>
-          <td>底板 <code>.04</code>、边框透明（<span class="src">cssraw 286–287</span>）。大卡跨 2 列 × 2 行、封面锁 16:9、信息区 4 行 <code>space-between</code> 摊余量——本批<b>零改动</b>，只换反馈。</td>
+          <td>底板 <code>.04</code>、边框透明（<span class="src">cssraw.js 290（现行）</span>）。大卡跨 2 列 × 2 行、封面锁 16:9、信息区 4 行 <code>space-between</code> 摊余量——本批<b>零改动</b>，只换反馈。</td>
         </tr>
         <tr>
           <td>悬停<br>定格</td>
@@ -669,10 +698,12 @@
               <div class="acsv-jx-tags"><span class="acsv-jxtag">游戏</span><span class="acsv-jxtag">主机单机</span></div>
               <div class="acsv-jx-up"><span class="acsv-jx-ava"></span><span>潇湘huya</span></div>
               <div class="acsv-jx-cm"><span class="acsv-jx-stat"><i class="acsvg-glyph">&#xe164;</i> 1.2万</span><span class="acsv-jx-stat"><i class="acsvg-glyph">&#xe629;</i> 318</span><span>7:25</span></div></div></div></div></td>
-          <td><b>提案态</b>：无描边 ＋ 底板 <code>.08</code> ＋ 封面图元 <code>scale(1.05)</code> ＋ 标题变 <code>var(--acsv-accent)</code>，四者同帧、过渡 <code>.12s ease</code>。<br>
+          <td><b>落地态（0.9.318）</b>：无描边 ＋ 底板 <code>.04→.08</code> ＋ 封面图元 <code>scale(1.05)</code> ＋ 标题变 <code>var(--acsv-accent)</code>，四者同帧、过渡 <code>.12s ease</code>
+            （<span class="src">csshover.js 43–55（trans 48–50 / lift 51 / img 52 / title 53）</span>）。<br>
             大卡封面同样是 16:9 图元 ⇒ 语言照搬，<b>不给大卡另立一档</b>（另立就又是「同一道缝反复出血」）。<br>
-            封面放大不溢出：卡根已有 <code>overflow:hidden</code>（<span class="src">cssraw 287</span>），但 <code>.acsv-jx-cv</code> 自身<b>没有</b> <code>overflow:hidden</code>（<span class="src">cssraw 289</span>）——
-            对比网格卡 <code>.acsv-gcover</code> 是<b>有</b>的（<span class="src">cssraw 1268</span>）。<b>落地须给 <code>.acsv-jx-cv</code> 补 <code>overflow:hidden</code>，否则 1.05 的图元会盖到标题区上</b>（卡根 hidden 只裁卡的外形，不裁封面盒的内形）。<b>见裁决 ⑨。</b></td>
+            封面放大不溢出：卡根已有 <code>overflow:hidden</code>，且按裁决 ⑨ 已给 <code>.acsv-jx-cv</code> <b>自身</b>补上
+            （<span class="src">cssraw.js 295（现行）：<code>.acsv-jx-cv{position:relative;overflow:hidden;aspect-ratio:16/9;…}</code></span>）——
+            该做法抄网格卡 <code>.acsv-gcover</code> 的既有形态；<b>不补则 1.05 的图元会下溢到标题区</b>（卡根 hidden 只裁卡的外形，不裁封面盒的内形）。<b>裁决 ⑨ 已落实现。</b></td>
         </tr>
         <tr>
           <td>按压<br>定格</td>
@@ -684,7 +715,8 @@
               <div class="acsv-jx-tags"><span class="acsv-jxtag">游戏</span><span class="acsv-jxtag">主机单机</span></div>
               <div class="acsv-jx-up"><span class="acsv-jx-ava"></span><span>潇湘huya</span></div>
               <div class="acsv-jx-cm"><span class="acsv-jx-stat"><i class="acsvg-glyph">&#xe164;</i> 1.2万</span><span class="acsv-jx-stat"><i class="acsvg-glyph">&#xe629;</i> 318</span><span>7:25</span></div></div></div></div></td>
-          <td><code>scale(.985)</code> 挂卡根。大卡缩放幅度按<b>同值 .985</b>（不按面积放大档）——大卡视觉尺寸本就大，同比例缩放的<b>绝对位移</b>更大，若嫌夸张见裁决 ④（可另裁 .99，但那是<b>新值</b>，本稿不推荐）。</td>
+          <td><code>scale(.985)</code> 挂卡根（<span class="src">csshover.js:54</span>）。大卡缩放幅度按<b>同值 .985</b>（不按面积放大档；裁决 ④ 已裁同值）——大卡视觉尺寸本就大，
+            同比例缩放的<b>绝对位移</b>更大，<b>这层观感待真机复核</b>（另裁 .99 属新值，本稿不推荐）。</td>
         </tr>
       </table>
 
@@ -695,7 +727,7 @@
           <div class="acsv-jx-grid" style="max-width:270px"><div class="acsv-jx-card hv-jx-now ph-a"><div class="acsv-jx-cv"><i></i><span class="acsv-jx-dur">3:41</span></div>
             <div class="acsv-jx-ci"><div class="acsv-jx-ct">红昭愿</div>
               <div class="acsv-jx-cm"><span class="acsv-jx-stat"><i class="acsvg-glyph">&#xe629;</i> 21</span><span>一只芸喵喵</span></div></div></div></div>
-          <p class="note">框色 <code>rgba(253,76,93,.55)</code>（<span class="src">styles.js 195</span>）在暗底上读作<b>一圈红框</b>——
+          <p class="note">框色 <code>rgba(253,76,93,.55)</code>（<span class="src">styles.js 197（现行）</span>）在暗底上读作<b>一圈红框</b>——
             与 0.9.314 撤掉的行卡族红环同值同形，用户当时判「红框突兀」。<b>封面与标题一动不动</b>，所以「可点感」全靠那圈框。</p>
         </div>
         <div>
@@ -703,8 +735,9 @@
           <div class="acsv-jx-grid" style="max-width:270px"><div class="acsv-jx-card hv-jx-prop ph-a"><div class="acsv-jx-cv"><i></i><span class="acsv-jx-dur">3:41</span></div>
             <div class="acsv-jx-ci"><div class="acsv-jx-ct">红昭愿</div>
               <div class="acsv-jx-cm"><span class="acsv-jx-stat"><i class="acsvg-glyph">&#xe629;</i> 21</span><span>一只芸喵喵</span></div></div></div></div>
-          <p class="note">可见反馈换成<b>三件同时发生</b>：封面被推进一格、标题点亮、底板亮一档。
-            与「我的页卡片」逐像素同一套手感——这正是用户实报的落差被抹平的地方。</p>
+          <p class="note">可见反馈换成<b>三件同时发生</b>：封面被推进一格（图元 <code>scale(1.05)</code>）、标题点亮（<code>var(--acsv-accent)</code>）、底板亮一档（<code>.04→.08</code>）
+            （<span class="src">csshover.js 51–53</span>）——本格三件都画出来了（图元 / 标题 / 底板）。与「我的页卡片」同一套手感，
+            这正是用户实报的落差被抹平的地方。</p>
         </div>
       </div>
       <p class="note"><b>技术教训承接（0.9.314 留档，仍然有效）</b>：将来若<b>再加</b>框，不许退回 <code>outline</code> / inset 阴影——
@@ -713,7 +746,7 @@
 
       <div class="st">C 榜单行<em>大卡档 <code>.big</code>（榜单页唯一实摆形态）＋ 小行（<b>休眠分支</b>，见说明）</em></div>
       <table>
-        <tr><th>态</th><th>小行（cssraw 1101–1112）</th><th>大卡档 <code>.big</code>（cssraw 1119–1135）</th><th>说明</th></tr>
+        <tr><th>态</th><th>小行（<span class="src">cssraw.js 1106–1119（现行）</span>）</th><th>大卡档 <code>.big</code>（<span class="src">cssraw.js 1120–1137（现行）</span>）</th><th>说明</th></tr>
         <tr>
           <td>默认</td>
           <td><div class="acsv-vlist" style="max-width:520px"><div class="acsv-vrow"><div class="acsv-vrow-rank">4</div>
@@ -725,7 +758,7 @@
             <div class="acsv-vrow-main"><div class="acsv-vrow-title">【原创】在ACFun写了三年专栏，我学会了什么</div>
               <div class="acsv-vrow-desc">从选题到配图一路踩坑，把「没人看」的三年拆成可复用的十条经验，附我自己用的检查表。</div>
               <div class="acsv-vrow-meta"><span class="acsv-vmeta-i"><i class="acsvg-glyph">&#xe164;</i>3.4万</span><span class="acsv-vmeta-i"><i class="acsvg-glyph">&#xe161;</i>412</span><span class="acsv-vmeta-i"><i class="acsvg-glyph">&#xe2f5;</i>发布于昨天14时02分 / 疯人院频道</span></div></div></div></div></td>
-          <td><b>大卡档＝榜单页实摆形态</b>（封面 160×90 直角、meta 贴封面底、排名 48px 旋转水印，<span class="src">cssraw 1119–1135</span>）。
+          <td><b>大卡档＝榜单页实摆形态</b>（封面 160×90 直角、meta 贴封面底、排名 48px 旋转水印，<span class="src">cssraw.js 1120–1137（现行）/ 水印 1141</span>）。
             <b>小行这一列是休眠分支</b>：它是 <code>rowOf</code> 的非 rank 路径（<span class="src">cards.js 66–101</span>），但
             <code>cards.rowOf</code> 的<b>唯一活消费方是 zone.js:124</b>，那里恒传 <code>rank</code> 且条目 <code>kind==='rank'</code> ⇒ <b>永远走 .big</b>；
             我的页历史/收藏走的是 <code>gridCardOf</code>（A 段），右侧「相关推荐」用的是 <code>reldrawer.js</code> <b>自己的 <code>.acsv-relrow</code></b>（<span class="src">reldrawer.js:199–200</span>），不是 <code>.acsv-vrow</code>。
@@ -742,8 +775,11 @@
             <div class="acsv-vrow-main"><div class="acsv-vrow-title">【原创】在ACFun写了三年专栏，我学会了什么</div>
               <div class="acsv-vrow-desc">从选题到配图一路踩坑，把「没人看」的三年拆成可复用的十条经验，附我自己用的检查表。</div>
               <div class="acsv-vrow-meta"><span class="acsv-vmeta-i"><i class="acsvg-glyph">&#xe164;</i>3.4万</span><span class="acsv-vmeta-i"><i class="acsvg-glyph">&#xe161;</i>412</span><span class="acsv-vmeta-i"><i class="acsvg-glyph">&#xe2f5;</i>发布于昨天14时02分 / 疯人院频道</span></div></div></div></div></td>
-          <td>提底 <code>.07</code>（<span class="src">cssraw 1103</span>）；<b>大卡档标题变 accent 是现状已有</b>（<span class="src">cssraw 1124</span>）⇒ 提案<b>保留</b>，不动。
-            大卡档<b>不补</b>封面 1.05：它的封面是 160×90 <code>直角</code>、且 thumb 有 <code>overflow:hidden</code>（<span class="src">cssraw 1106</span>），
+          <td><span class="verdict">改</span>提底 <code>.07 → .04</code>（＝基色 0 +.04，<b>下调</b>一档；<span class="src">csshover.js:80</span>）；
+            标题变 accent <b>仍只在大卡档</b>（族表 title 组的 card 就是 <code>.acsv-vrow.big</code>，<span class="src">csshover.js:84</span>）
+            ⇒ <b>小行这一列的标题保持白色</b>、大卡档才点亮——「同族内小行与大行各说一套」本批<b>未改</b>（裁决 ⑩：行式形态不接封面语言）。
+            过渡 <code>background .12s ease,transform .12s ease</code> ＋ 标题 <code>color .12s ease</code>（<span class="src">csshover.js 78–79</span>）。<br>
+            大卡档<b>不补</b>封面 1.05：它的封面是 160×90 <code>直角</code>、且 thumb 有 <code>overflow:hidden</code>（<span class="src">cssraw.js 1114（现行）</span>），
             技术上放得下，但它是<b>行式</b>形态（整条可点、非卡面可点），按 ② 的分工属「提底＋下沉」一侧。<b>见裁决 ⑩。</b></td>
         </tr>
         <tr>
@@ -757,7 +793,7 @@
             <div class="acsv-vrow-main"><div class="acsv-vrow-title">【原创】在ACFun写了三年专栏，我学会了什么</div>
               <div class="acsv-vrow-desc">从选题到配图一路踩坑，把「没人看」的三年拆成可复用的十条经验，附我自己用的检查表。</div>
               <div class="acsv-vrow-meta"><span class="acsv-vmeta-i"><i class="acsvg-glyph">&#xe164;</i>3.4万</span><span class="acsv-vmeta-i"><i class="acsvg-glyph">&#xe161;</i>412</span><span class="acsv-vmeta-i"><i class="acsvg-glyph">&#xe2f5;</i>发布于昨天14时02分 / 疯人院频道</span></div></div></div></div></td>
-          <td><code>translateY(1px)</code>（<span class="verdict">本批新增</span>）＝与行卡族行级<b>同值同向</b>（向下，不是向上浮）。
+          <td><code>translateY(1px)</code>（<span class="verdict">本批新增</span>，<span class="src">csshover.js:85</span>）＝与行卡族行级<b>同值同向</b>（向下，不是向上浮）。
             注意大卡档的 <code>.acsv-rlist-num</code> 水印<b>跟着整行下沉 1px</b>（它在行内 absolute）——这正是想要的效果：整条一起走，水印不与行脱开。</td>
         </tr>
       </table>
@@ -769,18 +805,19 @@
           <td><div class="acsv-vlist" style="max-width:640px"><div class="acsv-sarow"><div class="acsv-satt">【原创设定】关于ACer等级与蕉数的冷知识</div>
             <div class="acsv-sadecr">从香蕉树的产出机制聊到等级系数，顺带整理了一份官方没写全的对照表，供老ACer核对。</div>
             <div class="acsv-sameta"><span>@一只芸喵喵</span><span>阅读 4671</span><span>评论 89</span><span class="acsv-sach">疯人院</span><span>2026-09-28</span></div></div></div></td>
-          <td>行分隔 <code>border-bottom:rgba(255,255,255,.08)</code>（<span class="src">cssraw 1527</span>）；<b>文章行是外链</b>（<span class="src">searchview.js:304–308</span> <code>window.open(articleBase)</code>）⇒ 按压语义同样该有。</td></tr>
+          <td>行分隔 <code>border-bottom:rgba(255,255,255,.08)</code>（<span class="src">cssraw.js 1537（现行）</span>）；<b>文章行是外链</b>（<span class="src">searchview.js:304–308</span> <code>window.open(articleBase)</code>）⇒ 按压语义同样该有。</td></tr>
         <tr><td>悬停<br>定格</td>
           <td><div class="acsv-vlist" style="max-width:640px"><div class="acsv-sarow hv-sarow"><div class="acsv-satt">【原创设定】关于ACer等级与蕉数的冷知识</div>
             <div class="acsv-sadecr">从香蕉树的产出机制聊到等级系数，顺带整理了一份官方没写全的对照表，供老ACer核对。</div>
             <div class="acsv-sameta"><span>@一只芸喵喵</span><span>阅读 4671</span><span>评论 89</span><span class="acsv-sach">疯人院</span><span>2026-09-28</span></div></div></div></td>
-          <td>提底仅 <code>.03</code>（<span class="src">cssraw 1528</span>）——四族最浅，暗底上要眯眼看。是否并档到「基色 +.04」＝<b>裁决 ③</b>，本稿不擅自加深。</td></tr>
+          <td>提底 <code>.03 → .04</code>（＝基色 0 +.04，<b>上调</b>一档；<span class="src">csshover.js:93</span>），过渡 <code>background .12s ease,transform .12s ease</code>（<span class="src">csshover.js:92</span>）。
+            原 .03 是四族最浅档，现与榜单行、网格卡同为「零基色 +.04」一档 ⇒ <b>行式两族提底值从此相等</b>。</td></tr>
         <tr><td>按压<br>定格</td>
           <td><div class="acsv-vlist" style="max-width:640px"><div class="acsv-sarow pr-row hv-sarow"><div class="acsv-satt">【原创设定】关于ACer等级与蕉数的冷知识</div>
             <div class="acsv-sadecr">从香蕉树的产出机制聊到等级系数，顺带整理了一份官方没写全的对照表，供老ACer核对。</div>
             <div class="acsv-sameta"><span>@一只芸喵喵</span><span>阅读 4671</span><span>评论 89</span><span class="acsv-sach">疯人院</span><span>2026-09-28</span></div></div></div></td>
-          <td><code>translateY(1px)</code>；注意行有 <code>border-bottom</code>，整条下沉 1px 会让分隔线跟着走——
-            <b>与行卡族行级按压同形</b>（行卡族相邻行用 <code>border-top:10px solid</code>，<span class="src">cssraw 1587</span>，同现象已在 0.9.314 出货形态里成立），故不另立规则。</td></tr>
+          <td><code>translateY(1px)</code>（<span class="src">csshover.js:94</span>）；注意行有 <code>border-bottom</code>，整条下沉 1px 会让分隔线跟着走——
+            <b>与行卡族行级按压同形</b>（行卡族相邻行用 <code>border-top:10px solid</code>，<span class="src">cssraw.js 1598（现行）</span>，同现象已在 0.9.314 出货形态里成立），故不另立规则。</td></tr>
       </table>
     </div>
   </div>
@@ -789,22 +826,24 @@
        ③附 540 窄宽自检
        ================================================================ -->
   <div class="sec">
-    <h2>③附 540 窄宽自检<em>真实窄态由 @media（缝 narrow1＝720−1，cssraw 1570–1571）接管；本段是<b>静态摆出来的 540 容器</b>，不是真断点</em></h2>
+    <h2>③附 540 窄宽自检<em>真实窄态由 @media（缝 narrow1＝720−1，cssraw.js 1581–1582 现行）接管；本段是<b>静态摆出来的 540 容器</b>，不是真断点</em></h2>
     <div class="prop">
     <div class="narrow">
-      <p class="note" style="margin-top:0"><b>先算列数再摆卡</b>：本段容器 540，左右内边距取 <code>.acsv-jx-wrap</code> 真值 26（<span class="src">cssraw 277</span>）
+      <p class="note" style="margin-top:0"><b>先算列数再摆卡</b>：本段容器 540，左右内边距取 <code>.acsv-jx-wrap</code> 真值 26（<span class="src">cssraw.js 281（现行）</span>）
         ＋ 1px 虚线框 ⇒ <b>内容宽 486</b>（不是 540，按 540 算会多数出一列）。据此：<br>
         ① <b>分区卡落 1 列</b>（<code>minmax(250px,1fr)</code>＋gap 14 ⇒ 两列需 514 &gt; 486）——2×2 大卡 <code>.acsv-jx-big</code> 是
-        <code>grid-column:span 2</code>（<span class="src">cssraw 299</span>），在只有 1 条显式轨道的网格里<b>会撑出第二条隐式轨道</b>
+        <code>grid-column:span 2</code>（<span class="src">cssraw.js 305（现行）</span>），在只有 1 条显式轨道的网格里<b>会撑出第二条隐式轨道</b>
         ⇒ <b>有横向溢出风险，且 <code>cols()</code> 报 1 时「整行补齐」退化成每行 1 张</b>（<span class="src">jingxuanview.js 169–184</span>）。
         <b>这是 0.9.170 起的既有形态、与本批 hover 提案无关，本稿只登记不改</b>；且该条<b>由 CSS 规范推得、未经渲染实测</b>——真机窄宽请重点核这一格。
         对本批的<b>相关处</b>只有一点：大卡若占满整行，悬停提底 .08 会被读成「整页变色」，请确认这层观感可接受。<br>
         ② 网格卡 <code>minmax(280px,1fr)</code> ⇒ 同样 <b>1 列</b>（满宽卡）；图元 1.05 的位移按<b>宽度比例</b>走，满宽卡上的<b>绝对位移</b>比 250 宽时明显更大——
-        这是 <code>scale</code> 的固有性质，不是缺陷，但窄宽下最容易被看成「封面自己动了」，请一并看。<br>
-        ③ 搜索网格在窄宽按 <span class="src">cssraw 1570–1571</span> 回落 <code>minmax(200px,1fr)</code>＋gap 14 10 ⇒ <b>2 列</b>（410 ≤ 486）；
+        这是 <code>scale</code> 的固有性质，不是缺陷，但窄宽下最容易被看成「封面自己动了」，请一并看。
+        ②′ 该格已叠 hover 定格 ⇒ <b>0.9.318 新增的 <code>.04</code> 底板（<span class="src">csshover.js:67</span>）在满宽卡上是一整块通栏底板</b>，
+        与「封面自己动了」叠在一起时最容易显得「整块卡面在闪」，窄宽下请重点扫这一格。<br>
+        ③ 搜索网格在窄宽按 <span class="src">cssraw.js 1581–1582（现行）</span> 回落 <code>minmax(200px,1fr)</code>＋gap 14 10 ⇒ <b>2 列</b>（410 ≤ 486）；
         卡体是 <code>.acsv-gcell</code> ⇒ 悬停语言随 ② 走，本批<b>无需另改</b>。<br>
         ④ 管理键（移动 ＋ 移除收藏）在满宽卡上仍贴右上、<b>不被挤出容器</b>（两键＋gap 按 <code>.acsv-vchip.sm</code> 的 <code>4px 10px</code> 内距算约 118，远小于 486）。<br>
-        ⑤ 长标题在 <code>word-break:break-all</code>（<span class="src">cssraw 295</span>）下逐字断行是<b>分区卡既有形态</b>，本批不改。<br>
+        ⑤ 长标题在 <code>word-break:break-all</code>（<span class="src">cssraw.js 301（现行）</span>）下逐字断行是<b>分区卡既有形态</b>，本批不改。<br>
         ⑥ 行式两族（榜单 / 搜索）在窄宽下文字换行，整条下沉 1px <b>不引发横向溢出</b>（transform 不参与布局）。<br>
         <b>窄态口径说明</b>：真窄态由 <code>@media (max-width:719px)</code>（缝 <code>narrow1</code>＝<code>CFG.view.narrow</code> 720−1，<span class="src">styles.js 144 / cfg.js 317</span>）
         接管，且视口 &lt;720 时左栏隐藏——本段是<b>静态摆出来的 540 容器</b>，只用于人眼扫查，<b>不等于真断点渲染结果</b>。</p>
@@ -822,13 +861,13 @@
           <div class="acsv-jx-ci"><div class="acsv-jx-ct">我自愿给朽叶姐姐送餐</div>
             <div class="acsv-jx-cm"><span class="acsv-jx-stat"><i class="acsvg-glyph">&#xe629;</i> 318</span><span>潇湘huya</span></div></div></div>
       </div>
-      <div class="st">网格卡 1 列（满宽）<em>我的页收藏档，含 hover 管理键</em></div>
+      <div class="st">网格卡 1 列（满宽）<em>我的页收藏档，含 hover 管理键 ＋ 0.9.318 新增的 <code>.04</code> 底板（通栏）</em></div>
       <div class="acsv-favcell hv-fav" style="width:100%"><div class="acsv-gcell hv-gcell ph-c"><div class="acsv-gcover"><i></i>
         <div class="acsv-gtag">看到 00:41</div></div>
         <div class="acsv-gtitle">琵琶曲·AC娘VS高坂桐乃？（窄宽 540 下的满宽卡，标题单行截断）</div>
         <div class="acsv-gfoot"><span class="acsv-gup">@紫嘉儿~</span><span class="acsv-gtime">昨天20时36分</span></div></div>
         <div class="acsv-favacts"><button class="acsv-vchip sm" type="button">移动</button><button class="acsv-vchip sm" type="button">移除收藏</button></div></div>
-      <div class="st">搜索网格（视频类目）<em>窄宽按 cssraw 1570–1571 落 minmax(200px) ⇒ 2 列</em></div>
+      <div class="st">搜索网格（视频类目）<em>窄宽按 cssraw.js 1581–1582（现行）落 minmax(200px) ⇒ 2 列</em></div>
       <div class="acsv-sgrid">
         <div class="acsv-gcell ph-d"><div class="acsv-gcover"><i></i>
           <div class="acsv-gtag acsv-gviews"><i class="acsvg-glyph">&#xe164;</i>856</div><div class="acsv-gdur">4:16</div></div>
@@ -839,7 +878,7 @@
           <div class="acsv-gtitle">眼泪若嫌多就删掉吧（翻唱）</div>
           <div class="acsv-gfoot"><span class="acsv-gup">@付小远brenda</span><span class="acsv-gtime">5天前</span></div></div>
       </div>
-      <div class="st">行式两族<em>榜单小行 ＋ 搜索文章行</em></div>
+      <div class="st">行式两族<em>榜单小行 ＋ 搜索文章行；两格都叠了 0.9.318 的 <code>.04</code> 提底定格</em></div>
       <div class="acsv-vrow hv-vrow" style="max-width:100%"><div class="acsv-vrow-rank top">1</div>
         <div class="acsv-vrow-thumb ph-b"><i></i></div>
         <div class="acsv-vrow-main"><div class="acsv-vrow-title">【原创】在ACFun写了三年专栏，我学会了什么</div>
@@ -854,7 +893,7 @@
        ④ 裁决点登记（稿尾）
        ================================================================ -->
   <div class="sec">
-    <h2>④ 裁决点登记<em>已拍板项标<span class="verdict">已裁</span>并写明落地值（0.9.318 已落实现）；未标者＝尚未拍板、<b>未落地</b></em></h2>
+    <h2>④ 裁决点登记<em>已拍板项标<span class="verdict">已裁</span>并写明落地值（0.9.318 已落实现）；未标者＝尚未拍板、<b>未落地</b>。<b>本段引用的 <code>cssraw</code> 行号为改前编号</b>（那些规则的本体多数已移入 <code>src/csshover.js</code> 族表），现行出处见 ②/③ 各格的 src 标注</em></h2>
     <table>
       <tr><th>#</th><th>裁决点</th><th>建议值</th><th>取舍与代价</th></tr>
       <tr>
@@ -879,12 +918,11 @@
       <tr>
         <td>③<span class="verdict">已裁</span>（一刀切「基色 +.04」：分区 .04→<b>.08</b>；网格 <b>0→.04</b>；榜单 <b>.07→.04</b>；搜索 <b>.03→.04</b>）</td>
         <td>提底档位是否统一到「基色 <b>+.04</b>」</td>
-        <td><b>分区卡 .04→.08</b> 采（本稿所画）；<b>榜单 .07 / 搜索 .03 本批不动</b>，只统一「有提底」这件事</td>
-        <td>行卡族已定值是 .06→.10（<b>+.04</b>，<span class="src">cssraw 1658–1660</span>）；照该档换算，分区卡该是 .04→<b>.08</b>（现状 .07，差 <b>+.03</b> ⇒ 本批把它对齐）。
-          但榜单行与搜索行<b>没有自己的基色底板</b>（行体透明，hover 的 .07 / .03 是<b>绝对值</b>不是档位）⇒「基色 +.04」这条公式对它们<b>无从套用</b>：
-          套上去要先把「行的基色」定义出来，那是<b>结构改动</b>不是取值改动。
-          <b>建议本批只做分区卡的 +.04 对齐，行式两族保留绝对值</b>；若用户要「一眼全一致」，另一条路是把行式提底也定档（榜单 .07→.08、搜索 .03→.04 或 .08），
-          <b>但那是三个新值、且会改变榜单/搜索页的既有观感</b>——本稿把它们照现状画，改动与否听裁决。</td>
+        <td><b>已裁＝「基色 +.04」一刀切</b>：分区卡 <b>.04→.08</b>、网格卡 <b>0→.04</b>、榜单行 <b>.07→.04</b>、搜索行 <b>.03→.04</b>（0.9.318 落地，见 ② 矩阵与 <code>src/csshover.js</code> 族表）</td>
+        <td>行卡族已定值是 .06→.10（<b>+.04</b>，<span class="src">改前 cssraw 1658–1660</span>）；照该档换算，分区卡该是 .04→<b>.08</b>。
+          <b>本稿初版曾建议「只做分区卡、行式两族保留绝对值」</b>（理由：行式行体透明，hover 的 .07 / .03 是绝对值不是档位，套公式要先定义行的基色＝结构改动）——
+          <b>用户裁决取「一刀切」而非该建议</b>：把公式按「基色为 0 的族 ⇒ hover .04」推到底，于是<b>行式两族也进档</b>，连带后果已在 ② 与 CHANGELOG 点名：
+          榜单行 <b>变浅</b>（.07→.04）、搜索行<b>略深</b>（.03→.04）、网格卡<b>新增一块 .04 底板</b>（零基色族的必然结果）；三者都需真机过目。</td>
       </tr>
       <tr>
         <td>④<span class="verdict">已裁</span>（封面卡 .985 ／ 行式卡 1px，两档同 0.9.314 口径）</td>
