@@ -3440,6 +3440,23 @@ rec('square-cmt-namecolor', (function () {
     var del = firstCell && firstCell.querySelector('.acsv-hisacts .acsv-vchip');
     rec('hd-delete-key', !!del);
     if (del) del.click();
+    // 0.9.312 落位钉（实报：确认弹被甩到视口最右）——A 模型口径：弹层右缘 = 几何宿主左缘 −
+    // GAP_H(10)，即必须让开删除钮左缘。摘修复反跑：摘 mytabs 的 placeHost → 弹层翻转到面板
+    // 右缘 → 此钉转红。
+    await waitFor(function () {
+      var p = q('.acsv-confirmpop');
+      return p && p.offsetParent !== null;
+    }, 3000);
+    rec('hd-delete-pop-place', (function () {
+      var p = q('.acsv-confirmpop');
+      if (!p || !del) return false;
+      return p.getBoundingClientRect().right <= del.getBoundingClientRect().left - 8;
+    })(), (function () {
+      var p = q('.acsv-confirmpop');
+      if (!p || !del) return 'no-pop-or-del';
+      return 'popRight=' + Math.round(p.getBoundingClientRect().right)
+        + ' delLeft=' + Math.round(del.getBoundingClientRect().left);
+    })());
     var pop = q('.acsv-confirmpop');
     var ok = pop && pop.querySelector('.acsv-pick-ok');
     if (ok) ok.click();

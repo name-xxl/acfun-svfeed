@@ -161,6 +161,7 @@ export function buildHistory(panel, scroller) {
         ev.preventDefault();
         openConfirmPop(rm, {
           host: panel,
+          placeHost: rm, // 0.9.312：几何宿主=锚点自身——host 传整面板是「宽宿主」病灶（弹层被翻到视口最右）
           title: '删除这条观看记录？',
           text: '只删除观看历史，不会取消收藏，也不影响稿件本身。',
           okLabel: '删除',
@@ -184,6 +185,7 @@ export function buildHistory(panel, scroller) {
   function confirmClear(btn) {
     openConfirmPop(btn, {
       host: panel,
+      placeHost: btn, // 0.9.312：同「宽宿主」病灶——几何按档头钮自身让位
       title: '清空全部观看历史？',
       text: '共 ' + allRows.length + ' 条记录将被移除，操作不可恢复。',
       okLabel: '清空',
