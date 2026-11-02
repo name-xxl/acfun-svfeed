@@ -119,6 +119,9 @@
     text-align:justify}
   .alm .rulepage li::before{content:'';flex:none;width:5px;height:5px;border-radius:50%;
     background:var(--alm-red);margin-top:9px;opacity:.55}
+  /* 0.9.312 新增声明行：与 App 原文 5 条区分（更小更灰、无红点）——网页端签到档位如实告知 */
+  .alm .rulepage li.note{font-size:11px;color:#999;line-height:1.6}
+  .alm .rulepage li.note::before{content:none}
   .mclose{margin:18px auto 0;display:block;background:rgba(255,255,255,.1);color:var(--acsv-t2);
     border:none;border-radius:16px;padding:7px 26px;font-size:13px;font-family:inherit;cursor:pointer}
 
@@ -236,6 +239,7 @@
             <li>如签到中断或连续签满7天，下次连签天数从第1天开始计算</li>
             <li>签到可随机显示AC运势，分享还有概率升级签运，祝好运</li>
             <li>签到显示AC运势可在设置中关闭</li>
+            <li class="note">※ 以上数额为 APP 侧规则；脚本经网页端签到，所得香蕉通常少于 APP，以签到回执为准</li>
           </ul>
         </div>
       </div>
