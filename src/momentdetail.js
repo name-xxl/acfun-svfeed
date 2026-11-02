@@ -125,11 +125,15 @@ export function openMomentDetail(pi, opts) {
     if (ev.target === backdrop) closeMomentDetail(); // 背板点击关（settings 同款）
   });
   var panel = el('div', 'acsv-mdetail-panel');
-  // ✕ 浮于背板右上（XHS 同款：卡片外圆形钮；Esc/背板点击语义不变）
+  // 头部右钮组（0.9.314 用户确认稿 docs/preview/moment-detail-close.html）：⋮（仅自己的动态）与 ✕
+  // 同族 28 圆钮，推右收口到**组层**（margin-left:auto）——两键各带 auto 会互抢空隙，收口一次堵死。
+  // 历史：✕ 原为背板层 40 圆浮钮（0.9.103 XHS「卡片外浮钮」形制）——两栏态 1600 宽屏实测离卡片
+  // 右上角 304px，用户判「位置不合理」；背板点击关 / Esc 关语义不变。
+  var xg = el('div', 'acsv-mdetail-xg');
   var x = el('button', 'acsv-mdetail-x', '✕');
+  x.type = 'button';
   x.title = '关闭';
   x.addEventListener('click', closeMomentDetail);
-  backdrop.appendChild(x);
 
   // 布局判定（0.9.103 裁决「按内容型换布局」；0.9.105 收紧：图像权威=imgs——无图动态的
   // 顶层 coverUrl 是官方默认封面池/源封面，不算自有媒体）：有 imgs → 两栏（左媒体/右内容）；
@@ -186,8 +190,10 @@ export function openMomentDetail(pi, opts) {
         }
       });
     });
-    head.appendChild(more);
+    xg.appendChild(more);
   }
+  xg.appendChild(x); // ✕ 恒在组末（⋮ 内侧、✕ 最外角——破坏性动作离角一步）
+  head.appendChild(xg);
   hostEl.appendChild(head);
 
   // 可滚动体 = 评论管线的 list：正文 pin 在其首（管线清列表重挂，见 comments.resetList），

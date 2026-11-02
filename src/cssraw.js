@@ -971,13 +971,16 @@ export var CSS_TEMPLATE = ''
   + '@keyframes mdetail-in{from{opacity:0}to{opacity:1}}'
   + '.acsv-mdetail{position:absolute;inset:0;z-index:61;background:rgba(0,0,0,.62);display:flex;'
   + 'align-items:center;justify-content:center;animation:mdetail-in .18s ease}'
-  // ✕ 浮于卡片外右上（0.9.103 XHS 同款：40 圆钮在背板层，Esc/背板点击语义不变）
-  + '.acsv-mdetail-x{position:absolute;top:16px;right:16px;z-index:2;border:none;background:rgba(255,255,255,.12);'
-  + 'color:#fff;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1}'
-  + '.acsv-mdetail-x:hover{background:rgba(255,255,255,.22)}'
-  + '.acsv-mdetail-more{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.12);color:#fff;'
-  + 'width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1}'
-  + '.acsv-mdetail-more:hover{background:rgba(255,255,255,.22)}'
+  // 头部右钮组（0.9.314 用户确认稿 moment-detail-close.html）：⋮（仅自己的动态）与 ✕ 同族 28 圆钮，
+  // 推右收口到**组层** margin-left:auto——两键各带 auto 会互抢空隙（单挂/双挂同一活法，一次堵死）。
+  // 历史：✕ 原为背板层 40 圆「卡片外浮钮」（0.9.103 XHS 形制）——两栏态 1600 宽屏实测离卡片右上角
+  // 304px，用户判「位置不合理」；0.9.314 收进头部，背板点击关 / Esc 关语义不变。
+  + '.acsv-mdetail-xg{margin-left:auto;flex:none;display:flex;align-items:center;gap:8px}'
+  // 两键**同一条规则**管（同段同值，不再落两份同形副本）：28 圆、底 .12、hover .22、白字 16
+  + '.acsv-mdetail-xg .acsv-mdetail-more,.acsv-mdetail-xg .acsv-mdetail-x{border:none;'
+  + 'background:rgba(255,255,255,.12);color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;'
+  + 'font-size:16px;line-height:1}'
+  + '.acsv-mdetail-xg .acsv-mdetail-more:hover,.acsv-mdetail-xg .acsv-mdetail-x:hover{background:rgba(255,255,255,.22)}'
   // 面板（单栏态基准；圆角 20 = XHS 实测）
   + '.acsv-mdetail-panel{position:relative;width:min(620px,94vw);max-height:min(84vh,760px);display:flex;flex-direction:column;'
   + SHEET_BG

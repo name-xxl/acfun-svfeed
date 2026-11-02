@@ -5,6 +5,29 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.315（2026-11-02）· 动态详情关闭键收进面板头部——背板浮钮「离卡片 304px」的位置病灶
+
+**病灶**（用户实报「动态详情卡片的关闭按钮位置是不是不合理」）：✕ 挂在**背板层**
+（`momentdetail.js` 的 `backdrop.appendChild(x)`），CSS 为 `.acsv-mdetail-x{top:16px;right:16px}` ⇒
+钉的是**视口右上角**而非卡片角（0.9.103 注释自称「XHS 同款」，但小红书那枚是贴**卡片**角的）。
+实测几何：两栏态面板 `min(920px,94vw)`=920 在 1600 宽屏居中 ⇒ 卡片右缘 x=1260、✕ 中心 x≈1564
+——**横向离卡片右上角 304px**（角点直线 ≈314px），孤零零飘在暗背板角落；单栏态缺口更大（454px）。
+副线：评论让位时 `#acsv-root.acsv-with-comments .acsv-mdetail{padding-right:…}`，抽屉 58 档 vs 面板
+浮层 61 档 ⇒ ✕ 会压在抽屉之上（路径成立，未实测两者同开）。
+
+**修法**（用户确认稿 `docs/preview/moment-detail-close.html`，四取值按稿建议）：✕ **收进面板头部右
+钮组**——新增 `.acsv-mdetail-xg{margin-left:auto;display:flex;align-items:center;gap:8px}`，把推右
+收口到**组层**（两键各带 auto 会互抢空隙，一次堵死）；⋮（仅自己的动态）与 ✕ **同一条规则**管
+（28 圆、底 `rgba(255,255,255,.12)`、hover `.22`、白字 16——不再落两份同形副本；原背板 40 圆钮退役）；
+组内顺序 **⋮ 内侧、✕ 最外角**（破坏性动作离角一步）。背板点击关 / Esc 关语义不变。落点：两栏态 ✕
+中心 (1226,148)、距卡片角横竖各 34px（＝padding 20+半径 14 / 头部行高 68 之半）、直线 ≈48px。
+
+**测试证据**：harness `detail-delete` 新增 `dd-x-in-head`（✕ 的 parentNode 必须是 `.acsv-mdetail-xg`、
+组挂 `.acsv-mdetail-head`、头部挂 `.acsv-mdetail-panel`，且自己的动态下组内恰为 ⋮、✕ 两件且顺序如此）
+——摘修复反跑：把 ✕ 挂回 backdrop → 转红（`x.parent=acsv-mdetail`），还原复绿。`check-preview` 登记
+取值 `width:28px;height:28px;border-radius:50%`（稿×1 / 实现×1，改任一侧即红）。全链绿：lint /
+`npm run check` / 单测 483 / harness 91 场景；结构基线按事实重排（cssraw / momentdetail 有意增长）。
+
 ### 0.9.314（2026-11-02）· 动态行卡交互态统一——hover 提底/按压落位（红框同批撤除）+ 原生页点行出站（反转 0.9.218）+ 浅皮点亮态修复 + 原生页不接脚本图片查看器
 
 **病灶**（三处新鲜肉 + 原生页「不开脚本浮层」这道缝的又一处出血）：

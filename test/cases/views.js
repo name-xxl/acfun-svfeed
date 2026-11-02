@@ -3384,6 +3384,17 @@ rec('square-cmt-namecolor', (function () {
     rec('dd-panel', !!(await waitFor(function () {
       return !!q('.acsv-mdetail-panel') && !!q('.acsv-mdetail-more');
     }, 8000)));
+    // 0.9.314（用户确认稿 docs/preview/moment-detail-close.html）：✕ 收进面板头部右钮组——
+    // 不得再挂背板层；自己的动态两键同组、⋮ 内侧 + ✕ 最外角。摘修复反跑：把 ✕ 挂回 backdrop
+    //（或摘掉 .acsv-mdetail-xg 组包裹）即转红。
+    rec('dd-x-in-head', (function () {
+      var xx = q('.acsv-mdetail-x'), xg = q('.acsv-mdetail-xg'), head = q('.acsv-mdetail-head');
+      var panel = q('.acsv-mdetail-panel');
+      if (!xx || !xg || !head || !panel) return false;
+      var order = xg.children.length === 2 && xg.children[0] === q('.acsv-mdetail-more')
+        && xg.children[1] === xx;
+      return xx.parentNode === xg && xg.parentNode === head && head.parentNode === panel && order;
+    })(), 'x.parent=' + (q('.acsv-mdetail-x') ? q('.acsv-mdetail-x').parentNode.className : 'none'));
     q('.acsv-mdetail-more').click();
     var pop = q('.acsv-mdetail-panel .acsv-confirmpop');
     rec('dd-confirm', !!pop);

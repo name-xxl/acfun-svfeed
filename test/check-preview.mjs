@@ -47,6 +47,10 @@ const PINS = [
   {
     draft: 'docs/preview/moment-strip-actions.html', value: 'translateY(1px)', src: 'src/cssraw.js', srcCount: 2,
     why: '行级按压（整行）'
+  },
+  {
+    draft: 'docs/preview/moment-detail-close.html', value: 'width:28px;height:28px;border-radius:50%', src: 'src/cssraw.js', srcCount: 1,
+    why: '动态详情头部右钮组：⋮ 与 ✕ 同规格 28 圆（原背板 40 圆浮钮撤入头部；两键一条规则管）'
   }
 ];
 
