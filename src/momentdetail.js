@@ -178,6 +178,8 @@ export function openMomentDetail(pi, opts) {
       ev.stopPropagation();
       openConfirmPop(more, {
         host: hostEl,
+        placeHost: more, // 0.9.316：几何宿主=锚点自身——host 传整面板（hostEl 是 920 宽侧栏/面板）是
+        // 「宽宿主」病灶（A 模型把整面板当让位列 ⇒ 弹层被翻到视口最右、与 ⋮ 脱钩），同 0.9.312 三处
         title: '删除这条动态？',
         text: '删除后不可恢复，动态会从列表里消失。',
         okLabel: '删除',

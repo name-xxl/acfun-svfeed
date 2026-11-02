@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.315-debug
+// @version      0.9.316-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 104925;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.315-debug" : "",
+          ver: true ? "0.9.316-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -740,7 +740,7 @@ window.__ACSV_CSS_LEN__ = 104925;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.315-debug" : "";
+  var APP_VERSION = true ? "0.9.316-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -8463,7 +8463,7 @@ window.__ACSV_CSS_LEN__ = 104925;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.315-debug" : "",
+      version: true ? "0.9.316-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -15419,7 +15419,7 @@ window.__ACSV_CSS_LEN__ = 104925;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.315-debug" : "");
+    return normVer(true ? "0.9.316-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -18170,6 +18170,9 @@ window.__ACSV_CSS_LEN__ = 104925;
         ev.stopPropagation();
         openConfirmPop(more, {
           host: hostEl2,
+          placeHost: more,
+          // 0.9.316：几何宿主=锚点自身——host 传整面板（hostEl 是 920 宽侧栏/面板）是
+          // 「宽宿主」病灶（A 模型把整面板当让位列 ⇒ 弹层被翻到视口最右、与 ⋮ 脱钩），同 0.9.312 三处
           title: "删除这条动态？",
           text: "删除后不可恢复，动态会从列表里消失。",
           okLabel: "删除",
@@ -19033,7 +19036,7 @@ window.__ACSV_CSS_LEN__ = 104925;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.315-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.316-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -20498,6 +20501,8 @@ window.__ACSV_CSS_LEN__ = 104925;
           del.addEventListener("click", function() {
             openMmConfirm(del, {
               host: li,
+              placeHost: del,
+              // 0.9.316：几何宿主=锚点自身（li 是整条成员行，按整行让位会把弹层甩出模态）
               title: opts.deleteTitle || "删除",
               text: opts.deleteText(it),
               okLabel: opts.deleteOkLabel || "删除",
@@ -21020,6 +21025,9 @@ window.__ACSV_CSS_LEN__ = 104925;
       rm.addEventListener("click", function(ev) {
         ev.stopPropagation();
         openConfirmPop(rm, {
+          // 0.9.316：几何宿主=锚点自身——不传 host 时 wrap 落在操作行（行宽即让位列宽），
+          // 与 0.9.312 三处同族（让位列该是锚点那一列，不是整行/整面板）
+          placeHost: rm,
           title: "移除收藏",
           text: "把「" + (pi.title || "这条视频") + "」从所有收藏夹移除？",
           okLabel: "移除",
@@ -21452,6 +21460,8 @@ window.__ACSV_CSS_LEN__ = 104925;
             head.closeMenu();
             openMmConfirm(btn, {
               host: acts,
+              placeHost: btn,
+              // 0.9.316：几何宿主=锚点自身（acts 是整组 chip，让位列不该按整组算）
               title: d.title,
               text: d.confirm,
               okLabel: "确定",

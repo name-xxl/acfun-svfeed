@@ -405,6 +405,9 @@ export function buildFav(panel, scroller) {
     rm.addEventListener('click', function (ev) {
       ev.stopPropagation();
       openConfirmPop(rm, {
+        // 0.9.316：几何宿主=锚点自身——不传 host 时 wrap 落在操作行（行宽即让位列宽），
+        // 与 0.9.312 三处同族（让位列该是锚点那一列，不是整行/整面板）
+        placeHost: rm,
         title: '移除收藏',
         text: '把「' + (pi.title || '这条视频') + '」从所有收藏夹移除？',
         okLabel: '移除',
