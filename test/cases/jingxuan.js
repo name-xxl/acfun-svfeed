@@ -61,6 +61,23 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
         return g.textContent.charCodeAt(0).toString(16);
       }).join(',');
     })());
+    // ---- 分区卡交互态（0.9.317 抽表批；表源 src/csshover.js 行 jx）----
+    // 搬表批 ⇒ 钉当天线上值：hover ＝ accent 半档描边（var(--acsv-accent-dim)）+ 底板 .04→.07。
+    // 计算值腿走探针（test/cases/_probe.js）：真读 border-color / background-color，
+    // 「变量名写错（--acsv-accent-dimm）」「描边被同特异度顶掉」这类载量钉看不见的失效在此转红。
+    (function () {
+      var HP = window.__ACSV_HPROBE__;
+      var card = q('.acsv-jx-grid .acsv-jx-card');
+      var ring = HP.cv({ host: card, sel: /^\.acsv-jx-card:hover$/, prop: 'border-color',
+        expect: 'rgba(253, 76, 93, 0.55)' });
+      var lift = HP.cv({ host: card, sel: /^\.acsv-jx-card:hover$/, prop: 'background-color',
+        expect: 'rgba(255, 255, 255, 0.07)' });
+      var l = HP.load(/^\.acsv-jx-card:hover$/, 1, [/border-color:var\(--acsv-accent-dim\)/,
+        /background:rgba\(255,255,255,0?\.07\)/]);
+      rec('jx-hover-cv-ring', ring.ok, ring.info);
+      rec('jx-hover-cv-lift', lift.ok, lift.info);
+      rec('jx-hover-load', l.ok, l.info);
+    })();
     // 大卡四行信息区结构（0.9.170）：标题 + 分区标签（home 卡取契约 channelInfo）+ UP 行 + 数据行
     rec('jx-big-info-rows', (function () {
       var big = q('.acsv-jx-grid .acsv-jx-big');

@@ -293,6 +293,10 @@ const files = fs.readdirSync(SRC).filter((f) => f.endsWith('.js'));
 // 从此是 CI 红，不是 review 漏网。
 const EXEMPT = new Set([
   'cssraw.js',   // 构建期输入，只被根目录 build.js import（src 内零入边）
+  // 0.9.317 同定位：csshover（卡族交互态单源表 + 生成器）也是**构建期输入**——唯一入边来自
+  // cssraw.js，而 cssraw 本身在豁免列（构建期件链不参与运行时方向判定），故两口径同样天然 0 条。
+  // 它自带零 import（纯表 + 纯函数），不是「未定义方向」而是「不在运行时方向图里」。
+  'csshover.js',
   'devicetab.js' // 生成物（tools/gen-device-data.js），数据件不参与方向判定
 ]);
 const buckets = { INFRA, API, LEAF_SHARED, FEATURE, SKIP_B, PLAY };

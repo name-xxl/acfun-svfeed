@@ -33,20 +33,20 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 //    只摘本批那条，字面仍在 ⇒ 闸照绿。钉住次数后，摘任一条即转红；顺带也挡住「同值又添一份」的复发。
 const PINS = [
   {
-    draft: 'docs/preview/moment-strip-actions.html', value: 'background:rgba(255,255,255,.10)', src: 'src/cssraw.js', srcCount: 2,
-    why: '行卡 hover 提底一档（暗皮 .06→.10；浅皮同档另在 .acsv-mp 块）'
+    draft: 'docs/preview/moment-strip-actions.html', value: 'rgba(255,255,255,.10)', src: 'src/csshover.js', srcCount: 2,
+    why: '行卡 hover 提底一档（暗皮 .06→.10；浅皮同档另在 .acsv-mp 块）——0.9.317 起值层搬到单源表 src/csshover.js（此前指 src/cssraw.js）'
   },
   {
-    draft: 'docs/preview/moment-strip-actions.html', value: 'scale(1.05)', src: 'src/cssraw.js', srcCount: 2,
-    why: '宫格图元微放大（对齐网格卡 .acsv-gcell 先例；稿初标 1.03 已按裁决统一为 1.05）'
+    draft: 'docs/preview/moment-strip-actions.html', value: 'scale(1.05)', src: 'src/csshover.js', srcCount: 2,
+    why: '宫格图元微放大（对齐网格卡 .acsv-gcell 先例；稿初标 1.03 已按裁决统一为 1.05）——表行 grid 与 frow 各一处'
   },
   {
-    draft: 'docs/preview/moment-strip-actions.html', value: 'scale(.985)', src: 'src/cssraw.js', srcCount: 2,
-    why: '卡面按压（条卡/引用卡/宫格格子）'
+    draft: 'docs/preview/moment-strip-actions.html', value: 'scale(.985)', src: 'src/csshover.js', srcCount: 1,
+    why: '卡面按压（条卡/引用卡/宫格格子）——0.9.317 搬表：值在表行 frow.press'
   },
   {
-    draft: 'docs/preview/moment-strip-actions.html', value: 'translateY(1px)', src: 'src/cssraw.js', srcCount: 2,
-    why: '行级按压（整行）'
+    draft: 'docs/preview/moment-strip-actions.html', value: 'translateY(1px)', src: 'src/csshover.js', srcCount: 1,
+    why: '行级按压（整行）——0.9.317 搬表：值在表行 frow-line.press'
   },
   {
     draft: 'docs/preview/moment-detail-close.html', value: 'width:28px;height:28px;border-radius:50%', src: 'src/cssraw.js', srcCount: 1,

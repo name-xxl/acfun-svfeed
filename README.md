@@ -426,6 +426,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | 生灭配对（定时器/观察器）/ 静默吞错分诊 | `lifecycle.createScope` + `swallow(e,域)` 计数出口或 `// swallow:` 标记显式表态 | `check-lifecycle2 --gate`（pair=计数配对 + `// singleton-obs:` 放行；swallow=块体无 stat/throw/标记即候选；首轮存量已登记只锁增量；0.9.310） |
 | 债务标记（TODO/未实测）/ 纯叶纯度宣称 | 债务=规矩 2 的显式挂账（消账=真机实测后改注）；纯叶=「参数优先可注入时钟」形态（imgurl rnd 先例） | `check-hygiene` pass④⑤（kind=debt/leaf 与 dup 族同一基线棘轮；叶清单事实源=README class 行；0.9.310） |
 | 行卡交互态（hover 提底 / 按压 / 宫格放大 1.05；**红框已撤除**，见负钉 `sm-frow-no-ring`）· 原生页行落点与看图口径 | 行卡族 CSS 单源 `cssraw.js`（0.9.314 新规则选择器一律 scope 到 `.acsv-frow`，复用既有类名、元素类名零新增；列级/宫格量值仍走既有接缝）；原生页行落点单出口 `rowkit.openRowSource`（memberplaza / spacemoments 以 `onOpen` 注入 + 宿主开关 `siteOnly:true` 一枚管「原生页不开脚本浮层」：引用卡三源出站 + **原生页不接脚本图片查看器**——格子不挂 `openImageViewer`、不 `stopPropagation`，正文配图（`rowkit.wireRowList` 里的 `comments.commentPicClick`）同批跳过消费，两路点击都自然冒泡、落点交回行默认＝出站） | `check-release`（产物 CSS 只许压缩串、零 `{{}}` 缝标记）+ `check-zlayers`（cssraw/styles = z 档与缝实体源）+ `check-cases`（`.acsv-*` 类名须存在于 src）+ `check-deps`（`spacemoments→rowkit`、`memberplaza→rowkit` 图边 + 环检测）+ `check-preview`（**确认稿↔实现取值闸**：稿 `moment-strip-actions.html` 里承诺的提底 `.10` / 宫格 `1.05` / 按压 `.985` / 行级 `translateY(1px)` 必须在实现侧逐字存在且次数与注册相符——0.9.314 用户裁决 A 案，来历是「条卡 `cursor:pointer` 稿有实现无」「宫格稿 1.03 实现 1.05」两起静默出入）；交互面断言＝harness `space-moments`/`member-plaza`（浅皮点亮 computed 色、提底/press/作用域三条载量钉、**撤框负钉 `sm-frow-no-ring`**、行落点三型出站、引用卡出站、**看图不接** `mp-no-imgview`/`sm-no-imgview`、**点图落点** `sm-imgview-source`；每条经摘修复反跑）——原生页两宿主原 `.acsv-mp-am` 两条断言随号锚撤除一并重写、原 `mp-imgview`/`mp-imgview-close` 两条随本裁决退役 |
+| 卡族交互态（同一套「可点内容卡」反馈语言在分区/网格/榜单行/搜索行/行卡族五处各写一套，改一档要动四处、四处必漂） | `csshover.js` **单源表**（`HOVER_ROWS` 一行一族 卡根/提底/图元/标题/按压 + `hoverRules()` 生成器；cssraw 在各族**原规则位**插 `hoverSlot('<slot>')`，slot 漂移＝构建期抛错而非静默少产一段）+ 值层 `styles.js` 的 `:root` 变量（一档一个出口） | `check-cssvar`（**变量使用点必须在定义处有定义**——名写错是静默失效、渲染上看不出锅，0.9.317 新闸）+ `check-preview`（稿↔实现取值闸：承诺值须在 `src/csshover.js` 逐字存在且出现次数与注册相符）+ unit `csshover.test.js`（族表闸**双向**：表→产物每条落地、产物→表每行有出处；棘轮钉搬表批取值）+ harness **计算值钉**（探针 `test/cases/_probe.js`：目标伪类规则原地复制成**同特异度标记类替身**再读 `getComputedStyle`，抓载量钉抓不到的「变量名写错 / 同特异度被顶掉 / **过渡起点冒充终值**」；每族「计算值 + 规则载量」两条腿，摘表任一条即红） |
 | **通用发现层**（不依赖预知的网：跨文件字面 / 同文件≥3写 / ≥6行克隆） | 分诊后收口进上列各行出口；「有意并存」进 `test/hygiene-baseline.json` 带 why（只缩不胖）——**key 携带文件集/次数**（0.9.309）：登记项扩张（×2→×3、换宿主、同件加写）即换 key 转 NEW，登记时写下的触发条件由闸看见 | `check-hygiene --gate`（报告模式 `npm run hygiene`；`--emit` 出 key 清单供基线迁移）——已知不机械化的三面：同值数字（重名噪声）、测试文案手抄（断言即闸）、同义异词（需人判） |
 
 #### 发布（Release）
@@ -572,6 +573,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `listtail.js` | 列表尾部件（0.9.219）：触底哨兵 + 三态状态行 + 回顶按钮单源；消费 followview/followadmin/mytabs/squarefeed/searchview/zone/jingxuanview。 |
 | `liststate.js` | 列表空态行单源（0.9.300，共享 UI 基建）：`setEmpty(list, text)` 统一「建/改/摘」协议，一个容器最多一枚 `.acsv-vempty`；消费 followadmin/followview/meadmin/mypage/mytabs/squarefeed/zone。 |
 | `chipkit.js` | chip 按钮组单源（0.9.305 批⑤，共享 UI 基建）：`mountChipGroup({host,items,isOn,onPick,cls})`——「同项短路→摘 on→点亮→回调」协议唯一定义处；初始高亮与点击短路同问 isOn（DOM on 态恒等数据态——zone 子频道行旧「全部无条件 on」与实选漂移的角由此消失）；cls 默认 'acsv-vchip'（'acsv-vchip sm' 小档、natpanel 段钮 cls:''），选中类名 'on' 固定；返回节点数组供消费点补 data-* 锚；只 import ui.js，零业务；消费 zone/jingxuanview/natpanel。 |
+| `csshover.js` | 卡族交互态（hover / 按压 / 过渡）**单源表 + 生成器**（0.9.317）：`HOVER_ROWS` 一行一族（分区卡 `.acsv-jx-card` / 网格卡 `.acsv-gcell` / 榜单行 `.acsv-vrow` / 搜索行 `.acsv-sarow` / 行卡族三条），`hoverRules(rows)` 纯函数产 CSS、`hoverSlot('<slot>')` 供 cssraw 在**原规则所在位置**拼接（slot 漂移＝构建期抛错，不静默少产一段）。**构建期输入**（同 cssraw 定位，只许 cssraw.js import；随产物发布的模块引它 ⇒ check-release 红）。表值变更须同批同步 `test/check-preview.mjs` 取值登记与 `test/unit/csshover.test.js` 棘轮钉。 |
 | `cssseg.js` | 影子根/文档级共用 CSS 段 token 单源（0.9.309 影子样式缝化，零依赖纯常量）：settingspanel/imnative 影子根吃不到文档级样式，面板同段此前与 cssraw 模板逐字并存、靠「对齐抽屉数值」注释手工同步——现 cssraw（构建期插值）与影子根（运行时）同取本件；段值含块尾 `}`，改值一处生效，字节级同证见 0.9.309 CHANGELOG。 |
 | `ubbattr.js` | UBB 出链/出图 HTML 属性段单源（0.9.309，零依赖叶）：`A_TAIL`（`" target="_blank" rel="noopener">`）/`IMG_TAIL`（`" referrerpolicy="no-referrer">`）——target/rel/referrerpolicy 是策略不是胶水，散写即行为分叉温床；ubb/emoticon/imbubble/commentkit 四面消费。 |
 | `nameval.js` | 组名/夹名校验（零依赖叶）：与原生 bundle 正则逐字符一致；消费 grouppop/favpop/followadmin/mytabs。 |
@@ -613,6 +615,7 @@ flowchart LR
     errbox["errbox.js（错误盒单源·浮出盒）"]
     styles["styles.js（CSS 常量 + 接缝回填）"]
     cssraw["cssraw.js（全量 CSS 模板·构建期输入，只被 build.js import）"]
+    csshover["csshover.js（卡族交互态单源表 hover/按压/过渡·构建期输入，只被 cssraw.js import）"]
     pack["pack.js（内嵌压缩串解包单源·hls/devicetab/CSS 共用）"]
     liststate["liststate.js（列表空态行单源·setEmpty）"]
     chipkit["chipkit.js（chip 按钮组单源·mountChipGroup）"]
@@ -791,6 +794,7 @@ flowchart LR
   devname --> pack
   hls --> pack
   styles --> pack
+  cssraw --> csshover
   nativeip --> dbg & devname & iploc & styles & pagekind
   nativeip --> natpanel
   natpanel --> cfg & chipkit & dbg & devname & iploc & overlay & settings & styles & ui
