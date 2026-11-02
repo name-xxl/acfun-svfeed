@@ -148,10 +148,33 @@ export function fetchAlmanac() {
 
 // 自动签到：进脚本主页触发一次（singleFlight 会话内单飞，失败下一次进页重试）。
 // 开关关闭/未登录直接跳过；已签（服务端判定）不发写请求。静默：不 toast、不弹窗。
+// 0.9.314 补埋点（用户实报「开了开关却不签」）：这条链原有四道**全静默**出口——压根没触发 /
+// 开关关 / 取不到 uid / 查询回包被判非 0（signStateOf 返回 null ⇒ 下面 `!st` 直接 return，
+// 连 sign.fail 都不落）——用户侧完全看不出它到底跑没跑，debug 计数里也是「什么都看不见」。
+// 现每道出口各落一枚计数；debug 构建每秒把它们镜像进 localStorage 的 `acsv-stats`
+// （读法见 dbg.js 头注：JSON.parse(localStorage.getItem('acsv-stats')).stats）：
+//   sign.try（走到自动链）/ sign.skip.off（开关关）/ sign.skip.nouid（未登录）/
+//   sign.readFail（查询非 0/形状不合）/ sign.already（今日已签，正常跳过）/
+//   写链侧沿用 sign.auto（写成功）/ sign.repeat（已签重复）/ sign.fail（写失败）
 var autoFlight = singleFlight(function () {
-  if (!getSetting('autoSign') || !selfUid()) return Promise.resolve(null);
+  stat('sign.try');
+  if (!getSetting('autoSign')) {
+    stat('sign.skip.off');
+    return Promise.resolve(null);
+  }
+  if (!selfUid()) {
+    stat('sign.skip.nouid');
+    return Promise.resolve(null);
+  }
   return getSignInInfos().then(function (st) {
-    if (!st || st.signedToday) return st;
+    if (!st) {
+      stat('sign.readFail');
+      return null;
+    }
+    if (st.signedToday) {
+      stat('sign.already');
+      return st;
+    }
     return signIn().then(function (r) {
       stat('sign.auto');
       if (r.repeat) stat('sign.repeat');

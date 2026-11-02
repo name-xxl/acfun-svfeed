@@ -82,27 +82,32 @@ function headOf(pi) {
 // 本模块只留**行流特有的布局决策**——九宫格 n1/n24 容器类；dispatch 走 cards.momentMediaOf）
 // 九宫格（member-feed-moment-image 等价）：容器 342、图 110 方 margin 0 4 4 0；1 图容器
 // 299（图自适应 max299）；2/4 图容器 228。格上 cursor:pointer（原生同款），点击开大图
-function rowGrid(pi) {
+function rowGrid(pi, opt) {
   var box = el('div', 'acsv-frow-imgs');
   var n = pi.imgs.length;
   if (n === 1) box.classList.add('n1');
   else if (n === 2 || n === 4) box.classList.add('n24');
-  pi.imgs.forEach(function (im) { box.appendChild(momentCellOf('acsv-frow-img', im)); });
+  // opt（0.9.314）：宿主总开关原样交 momentCellOf 第三参——siteOnly 下格子不接查看器、不拦冒泡
+  pi.imgs.forEach(function (im) { box.appendChild(momentCellOf('acsv-frow-img', im, opt)); });
   return box;
 }
 
 // 单图兜底（imgInfos 缺失的老数据）；无图返 null——动态图像权威=imgs（0.9.105，cover 兜底
 // 已退役：无图动态的顶层 coverUrl 是官方默认封面池/源封面，不是本条配图）
-function rowSingle(pi, im0) {
+function rowSingle(pi, im0, opt) {
   if (!im0) return null;
   var box = el('div', 'acsv-frow-imgs n1');
-  box.appendChild(momentCellOf('acsv-frow-img', im0));
+  box.appendChild(momentCellOf('acsv-frow-img', im0, opt)); // opt 同 rowGrid，下传同一份开关
   return box;
 }
 
 // 动态媒体块分派（dispatcher 单源；行流 gridMin=1——单图也走宫格容器拿 299 自适应）
-function momentMedia(pi) {
-  return momentMediaOf(pi, { gridMin: 1, grid: rowGrid, single: rowSingle });
+// opt（0.9.314 冻结接口）：宿主选项包，唯一认得的字段是 `siteOnly`（本宿主是否原生页）——原样
+// 透传进 cards.momentMediaOf：引用源卡依它出站原址新标签（quoteBlockOf）、行内格子依它不接
+// 大图查看器（momentCellOf）；gridMin/grid/single 仍是行流自己的布局决策，缺省 undefined＝现状。
+// grid/single 由 momentMediaOf 回传整包（第二/第三参）→ rowGrid/rowSingle 再下传同一份开关。
+function momentMedia(pi, opt) {
+  return momentMediaOf(pi, { gridMin: 1, grid: rowGrid, single: rowSingle, siteOnly: opt && opt.siteOnly });
 }
 
 // 互动栏（0.9.105 收口共享件 momentbar）：键定义/写链编排单源，行流只提供两个出口——
@@ -132,7 +137,10 @@ function rowBarOf(pi, row) {
   });
 }
 
-export function feedRowOf(pi) {
+// opt（0.9.314 冻结接口）：唯一认得的字段是 `siteOnly`（本宿主是否原生页）——原样转交媒体构建
+//（引用源卡出站 + 行内格子不接查看器），本函数不据此改任何结构；缺省 undefined ＝ 现状。
+// 导出名/首参/返回形状不变，五个宿主照旧直调。
+export function feedRowOf(pi, opt) {
   var row = el('div', 'acsv-frow');
   row._pi = pi; // 行级数据引用：列表级委托按它分派（comments.js commentListClick 同款挂法）
   row.appendChild(headOf(pi));
@@ -142,7 +150,7 @@ export function feedRowOf(pi) {
     content.appendChild(ubbTextOf(pi.text, 'acsv-frow-text clamp'));
   }
   var media = null;
-  if (pi.ct === 'moment') media = momentMedia(pi); // 内含 repost→引用卡 分派（dispatcher 单源）
+  if (pi.ct === 'moment') media = momentMedia(pi, opt); // 内含 repost→引用卡 分派（dispatcher 单源；opt 透传 siteOnly）
   else media = stripOf(pi); // 视频/文章行：与引用卡内嵌源卡共用构建件（原生同款复用）
   if (media) content.appendChild(media);
   row.appendChild(content);
@@ -187,8 +195,8 @@ export function armExpanders(scope) {
 
 // 视图内行落点默认策略（0.9.218 下沉收编）：点行 → 关行内评论区（防双宿主互踩）并开详情面板
 //（动态条目）；非动态条目走 href 新标签。此前该策略在 squareview 与 mypage 各写一份（同一含义
-// 两处定义=漂移源），下沉本 kit 单源。工厂的 onOpen 仍可覆盖——原生页内嵌宿主 memberplaza 传
-// noop（不穿越深色详情面板，原页语义）。
+// 两处定义=漂移源），下沉本 kit 单源。工厂的 onOpen 仍可覆盖——原生页两处宿主（memberplaza 内嵌
+// 广场、spacemoments 空间页动态）传 openRowSource（不穿越深色详情面板，原页语义）。
 export function openRowDefault(pi, row) {
   if (!pi) return;
   if (pi.ct === 'moment') {
@@ -199,9 +207,23 @@ export function openRowDefault(pi, row) {
   } else if (pi.href) window.open(pi.href, '_blank');
 }
 
+// 原生页语义（0.9.314 用户裁决，反转 0.9.218「原生页点行无动作」）：行 → 站方原址新标签，
+// 面板只留在脚本页。纯导航——不开面板、不关行内评论区（行内互动/评论照常可用）。
+// 视频条目在契约层**没有 href**：panelitem 的视频分支只给 acId（href 是「站外页落点」字段，
+// 视频在脚本页走播放层/列表会话，故契约层不赋），而原生页三合一混排实存视频行——不补这一下，
+// 原生页点视频行就是没反应（0.9.314 复核发现）。基址仍取 CFG 单源，不另立第二份手拼。
+export function openRowSource(pi) {
+  if (!pi) return;
+  var url = pi.href || (pi.ct === 'video' && pi.acId ? CFG.api.videoBase + pi.acId : '');
+  if (url) window.open(url, '_blank');
+}
+
 // 列表级委托（commentListClick 同款挂法）：互动键 → 行为分派；展开 → 钳高切换；
 // 正文配图/九宫格 → 大图；内链不劫持；其余落行默认动作。命中即 return，不双触发行默认
-export function wireRowList(list, onOpen) {
+// 第三参 opt（0.9.314 新增）：宿主总开关——opt.siteOnly 为真（本宿主是原生页）时**跳过
+// commentPicClick 消费**：正文内配图（.ubb-imgc）不弹脚本大图，点击自然冒泡落行默认
+//（onOpen=openRowSource → 站方原址新标签）。脚本页宿主不传 → 逐字现状（配图命中即消费）。
+export function wireRowList(list, onOpen, opt) {
   list.addEventListener('click', function (ev) {
     var row = ev.target.closest('.acsv-frow');
     if (!row || !row._pi) return;
@@ -221,9 +243,11 @@ export function wireRowList(list, onOpen) {
       return;
     }
     // 宫格图的大图查看由格子自挂（cards.momentCellOf，含 stopPropagation）——委托不再接
-    //（0.9.102 收口：此前两处各挂一份会双开）
+    //（0.9.102 收口：此前两处各挂一份会双开；0.9.314 起 siteOnly 宿主格子干脆不挂查看器也不拦
+    //  冒泡，那一击就落到下方 onOpen——落点回行默认，即站方原址）
     // 配图弹大图判据单源（0.9.309 下沉 comments.commentPicClick；命中即消费，划选收尾不弹）
-    if (commentPicClick(ev)) return;
+    // siteOnly（原生页）：不接这步——正文内配图点击留给行默认（同落站方原址）
+    if (!(opt && opt.siteOnly) && commentPicClick(ev)) return;
     if (ev.target.closest('a')) return; // 内链（@/资源/名字/文章条）自导航，不冒泡成行默认
     // 划选收尾不触发行默认（0.9.153）：正文开了文字选择（拖动划选复制），drag 结束的 click
     // 会把详情/播放打开——与上方图片「划选收尾不弹大图」同一判据（commentListClick 先例）

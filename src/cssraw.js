@@ -285,7 +285,7 @@ export var CSS_TEMPLATE = ''
   + 'grid-auto-flow:dense;gap:' + '{{jxgridGap}}' + 'px}'
   + '.acsv-jx-card{background:rgba(255,255,255,.04);border:1px solid transparent;border-radius:10px;'
   + 'overflow:hidden;cursor:pointer;display:flex;flex-direction:column}'
-  + '.acsv-jx-card:hover{border-color:rgba(253,76,93,.55);background:rgba(255,255,255,.07)}'
+  + '.acsv-jx-card:hover{border-color:var(--acsv-accent-dim);background:rgba(255,255,255,.07)}'
   + '.acsv-jx-cv{position:relative;aspect-ratio:16/9;background:linear-gradient(135deg,#22242e,#2e2a38)}'
   + '.acsv-jx-cv img{width:100%;height:100%;object-fit:cover;display:block}'
   + '.acsv-jx-dur{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.72);border-radius:4px;'
@@ -1050,9 +1050,9 @@ export var CSS_TEMPLATE = ''
   + '.acsv-mdl-like,.acsv-mdl-ban,.acsv-mdl-cmt,.acsv-mdl-fwd{cursor:pointer}'
   // 0.9.287 对齐原生互动条（api-research §15）：悬停=点亮色预览（红），蕉悬停蕉黄；白悬停退役
   + '.acsv-mdl-like:hover,.acsv-mdl-cmt:hover,.acsv-mdl-fwd:hover{color:var(--acsv-accent)}'
-  + '.acsv-mdl-ban:hover{color:#ffba0d}'
+  + '.acsv-mdl-ban:hover{color:var(--acsv-ban-new)}'
   + '.acsv-mdl-like.on{color:var(--acsv-accent)}'
-  + '.acsv-mdl-ban.thrown{color:#ffba0d}' // 动态域蕉黄（0.9.287 对齐原生互动条 #FFBA0D；视频侧 rail/banpop 仍 #ffb323）
+  + '.acsv-mdl-ban.thrown{color:var(--acsv-ban-new)}' // 动态域蕉黄（0.9.287 对齐原生互动条 #FFBA0D；视频侧 rail/banpop 仍 #ffb323）
   + '.acsv-mdetail-cmthead{margin:16px 0 6px;text-align:center}'
   + '.acsv-mdetail-cmt{font-size:14px;font-weight:400;color:#8a90a0}'
   // 表情悬停大图（0.9.96 4.2）：锚定宿主面板（absolute），预览在条目上方、不挡交互
@@ -1635,6 +1635,34 @@ export var CSS_TEMPLATE = ''
   + 'display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}'
   + '.acsv-frow-sinfo{position:absolute;bottom:13px;left:14px;display:inline-flex;align-items:center;'
   + 'gap:4px;font-size:14px;line-height:14px;color:#8a90a0}'
+  // ---- 行卡族交互态统一（0.9.314 用户裁决；确认稿 docs/preview/moment-strip-actions.html）----
+  // 两套反馈：① **hover 提底一档**——暗皮 .06→.10（条卡两块 + 引用卡灰块）；浅皮同档在 .acsv-mp 块
+  // ② **按压**——卡面 scale(.985) / 行级 translateY(1px)；宫格另有图元微放大 1.05（对齐网格卡先例）。
+  // 可点面三条——条卡 .acsv-frow-strip、引用卡 .acsv-gquote-on、宫格格子 .acsv-frow-img；
+  // **全部限定在 .acsv-frow 作用域内**：详情面板与转发编辑器复用同批类名
+  //（.acsv-frow-strip/.acsv-gquote-on），不获得提底与按压。
+  // 【0.9.314 同批撤除：hover 红框】原案是 accent 半档（var(--acsv-accent-dim)）的 overlay ::after
+  // 描边环；用户实看暗皮后判「红框突兀」，遂全场景撤除，hover 反馈改由上面的提底承担。
+  // 留档一条教训：环当年之所以必须用 overlay 而不能用 outline / inset box-shadow——后者画在卡根
+  // 自己的装饰层，会被封面与宫格的不透明图元整条吃掉（确认稿 v1 即此病）。将来若再加框，别退回 outline。
+  // 防回潮闸：harness `sm-frow-no-ring`（三条可点面不得再出现边框环或 outline）。
+  + '.acsv-frow .acsv-frow-strip,.acsv-frow .acsv-gquote-on,.acsv-frow .acsv-frow-img{'
+  + 'transition:transform .12s ease,background .12s ease}'
+  // 条卡 hover 手型（确认稿 v5 的提案行）：撤环后它是条卡「可点」的主要提示——引用卡
+  // .acsv-gquote-on 与宫格 .acsv-frow-img 基态本来就带 cursor:pointer，条卡此前是 auto（实测在册）
+  + '.acsv-frow .acsv-frow-strip{cursor:pointer}'
+  // hover 提底一档（暗皮 .06→.10）：条卡两块与引用卡灰块——撤框后这是 hover 的唯一视觉反馈
+  + '.acsv-frow .acsv-frow-strip:hover .acsv-frow-scover,.acsv-frow .acsv-frow-strip:hover .acsv-frow-sbody{'
+  + 'background:rgba(255,255,255,.10)}'
+  + '.acsv-frow .acsv-gquote-on:hover{background:rgba(255,255,255,.10)}'
+  + '.acsv-frow .acsv-frow-strip:active,.acsv-frow .acsv-gquote-on:active,.acsv-frow .acsv-frow-img:active{'
+  + 'transform:scale(.985)}'
+  + '.acsv-frow{transition:transform .12s ease}'
+  + '.acsv-frow:active{transform:translateY(1px)}'
+  // 宫格 hover 图元微放大对齐既有网格卡（.acsv-gcell:hover .acsv-gcover img 的 1.05）；
+  // 承载图元是 imgInto 出的 <img>（不是 <i>）——缩放加在它身上，格子 overflow:hidden 裁形
+  + '.acsv-frow .acsv-frow-img img{transition:transform .12s ease}'
+  + '.acsv-frow .acsv-frow-img:hover img{transform:scale(1.05)}'
   // 互动行（feed-interactive 形制）：margin 4px 0 0 60px、行高 48、item 12px 右距 42、
   // hover/点亮 accent；分享=icon+「分享」文字（原生无数字），评论/蕉/赞=icon+数字
   // 互动键（0.9.105 起 .acsv-fact 是**两皮肤共用键类**：行流在这里定尺寸/间距，面板在
@@ -1644,10 +1672,10 @@ export var CSS_TEMPLATE = ''
   + 'font-size:12px;color:#8a90a0;cursor:pointer;user-select:none}'
   + '.acsv-frow-acts .acsv-fact:hover{color:var(--acsv-accent)}'
   + '.acsv-frow-acts .acsv-fact.on{color:var(--acsv-accent)}'
-  + '.acsv-frow-acts .acsv-fact.thrown{color:#ffba0d}' // 动态域蕉黄（0.9.287 对齐原生互动条 #FFBA0D；视频侧 rail/banpop 仍 #ffb323）
+  + '.acsv-frow-acts .acsv-fact.thrown{color:var(--acsv-ban-new)}' // 动态域蕉黄（0.9.287 对齐原生互动条 #FFBA0D；视频侧 rail/banpop 仍 #ffb323）
   // 蕉键悬停黄（0.9.287 原生互动条实测：蕉悬停 #FFBA0D !important、不随红；acsv-k-* 是
   // 键定义表的 CSS 投影，两皮同挂）
-  + '.acsv-fact.acsv-k-banana:hover{color:#ffba0d}'
+  + '.acsv-fact.acsv-k-banana:hover{color:var(--acsv-ban-new)}'
   // 数量层在行内互动行的落位（共享件 acsv-banpop 原为竖刷右栏设计：right:62——行内改锚底部上方）
   + '.acsv-frow-acts .acsv-banpop{right:0;top:auto;bottom:100%;margin-bottom:4px}'
   + '.acsv-fact .acsvg-glyph{font-size:14px}'
@@ -1721,9 +1749,18 @@ export var CSS_TEMPLATE = ''
   + '.acsv-mp .acsv-frow-stitle{color:#333}'
   + '.acsv-mp .acsv-frow-sdesc{color:#666}'
   + '.acsv-mp .acsv-frow-sinfo{color:#999}'
+  // 浅皮 hover 提底同档（0.9.314；深皮 .06→.10 的浅皮换算）：条卡两块 + 引用卡灰块。
+  // 选择器同样限定 .acsv-frow 作用域内，与深皮那组一一对应（0,4,0 压过深皮组，不靠源码顺序）
+  + '.acsv-mp .acsv-frow .acsv-frow-strip:hover .acsv-frow-scover{background:#ececec}'
+  + '.acsv-mp .acsv-frow .acsv-frow-strip:hover .acsv-frow-sbody{background:#f0f0f0}'
+  + '.acsv-mp .acsv-frow .acsv-gquote-on:hover{background:#ececec}'
   + '.acsv-mp .acsv-frow-acts .acsv-fact{color:#999}'
   + '.acsv-mp .acsv-frow-acts .acsv-fact:hover{color:var(--acsv-accent)}'
-  + '.acsv-mp .acsv-fact.acsv-k-banana:hover{color:#ffba0d}' // 蕉键悬停黄（0.9.287，两皮同裁）
+  // 点亮态补课（0.9.314 真病灶）：本块 0,3,0 的 #999 与深皮 .on/.thrown（0,3,0）打平且源码更后
+  // → 浅皮里已赞/已投常驻灰（实心字形切了、颜色没跟上）。作用域进 .acsv-mp 回到 0,4,0，无需 !important
+  + '.acsv-mp .acsv-frow-acts .acsv-fact.on{color:var(--acsv-accent)}'
+  + '.acsv-mp .acsv-frow-acts .acsv-fact.thrown{color:var(--acsv-ban-new)}'
+  + '.acsv-mp .acsv-fact.acsv-k-banana:hover{color:var(--acsv-ban-new)}' // 蕉键悬停黄（0.9.287，两皮同裁）
   + '.acsv-mp .acsv-fstatus{color:#999}'
   + '.acsv-mp .acsv-vempty{color:#999}'
   + '.acsv-mp .acsv-sqskel{background:#f2f2f2}'
@@ -1887,7 +1924,6 @@ export var CSS_TEMPLATE = ''
   + '.acsv-mp .acsv-gquote{background:#f5f5f5}'
   + '.acsv-mp .acsv-gquote-up{color:#999}'
   + '.acsv-mp .acsv-gquote-upname{color:#409bef}'
-  + '.acsv-mp .acsv-gquote-textbody{color:#333}'
-  // am 号锚（plaza 原物，memberplaza 行后处理挂上）：行右上角
-  + '.acsv-mp-am{position:absolute;top:6px;right:0;font-size:12px;color:#bbb;text-decoration:none}'
-  + '.acsv-mp-am:hover{color:var(--acsv-accent)}';
+  + '.acsv-mp .acsv-gquote-textbody{color:#333}';
+  // am 号锚样式（.acsv-mp-am 两行：定位/字号/颜色 + hover）于 0.9.314 撤除（用户裁决「号锚撤除」）
+  // ——随 memberplaza.addAmAnchor 与两处 onRow 挂载整件退役，无生产者；行右上角锚不再存在

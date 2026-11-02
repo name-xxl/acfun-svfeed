@@ -3,7 +3,7 @@ import { el, ensureStyle } from './ui.js';
 import { mountSpaceTab, watchSpaceTabs } from './spacetab.js';
 import { createSquareFeed } from './squarefeed.js';
 import { listProfile } from './momentapi.js';
-import { addAmAnchor } from './memberplaza.js';
+import { openRowSource } from './rowkit.js';
 import { SPACE_UID_RE } from './pagekind.js'; // 空间页判据单源（0.9.303 收编）
 
 // ---------- 空间页「动态」标签（0.9.218） ----------
@@ -13,8 +13,10 @@ import { SPACE_UID_RE } from './pagekind.js'; // 空间页判据单源（0.9.303
 // + comments），差异只在四处注入：取数 / 空态文案 / 关发现态轮询 / 阈值组（CFG.view.moments，
 // **无 24h 窗口**——个人主页是历史流）。
 //
-// 落点＝**原生页语义**（与 memberplaza 同款；用户 0.9.218 裁决确认）：点行不动作，行尾挂 am 锚
-// 去官方动态页——浅色原生页上不弹深色详情浮层；行内互动（赞/蕉/评论/分享）照常可用。
+// 落点＝**原生页语义**（与 memberplaza 同款；0.9.314 用户裁决反转 0.9.218 的「点行无动作」）：
+// 点行用新标签打开站方原址（pi.href）——浅色原生页上不弹深色详情浮层；行内互动（赞/蕉/评论/分享）照常可用。
+// 原生页**不开任何脚本浮层**收成一枚宿主开关 siteOnly（0.9.314）：行内格子（不接查看器）/ 引用卡
+//（三源出站）/ 正文配图（跳过查看器消费）三处同源，详见下方 createSquareFeed 选项块注。
 //
 // 皮肤＝**浅色第二皮肤**：面板内套 `.acsv-mp` 作用域（与 /member 内嵌广场同一个皮肤根，单源），
 // 不另写一套颜色；深色浮层（详情面板/大图）不在射程，与内嵌广场同口径。
@@ -34,8 +36,6 @@ function uidOf() {
   return m ? m[1] : '';
 }
 
-function noop() { }
-
 function ensureList(panel, uid) {
   // 幂等判据从「uid 没变」升级为「列表根仍在这个面板里」（0.9.236）：站点 SPA 重画把面板
   // 带走后 heal 会重挂新面板，旧判据直接早退 ⇒ 新面板永久空白（死标签）
@@ -50,8 +50,13 @@ function ensureList(panel, uid) {
     root: box,
     scrollEl: window, // 原生页整页滚动（memberplaza 同款 window 方言）
     backTopHost: box,
-    onOpen: noop,     // 原生页语义：不穿越深色详情面板
-    onRow: addAmAnchor,
+    onOpen: openRowSource, // 原生页语义（0.9.314 用户裁决）：行→站方原址新标签；面板只留脚本页
+    // **宿主总开关 siteOnly（0.9.314）**：本宿主是原生页——一律走站方路径、不开任何脚本浮层。
+    // 三处同源：① 行内格子不接脚本大图查看器、不 stopPropagation（点击冒泡到行默认=站方原址）；
+    // ② 行内引用卡三源（视频/文章/动态）出站站方原址，不在脚本内开页面；③ 正文内配图（.ubb-imgc）
+    // 跳过脚本查看器消费。URL 取既有 CFG 基址（cards 侧拼装），本处不另立第二份手拼。
+    // **若将来还要给原生页加第三处例外，先进这枚开关，别再加散开关**。
+    siteOnly: true,
     fetchPage: function (pcursor) { return listProfile(uid, pcursor); },
     view: CFG.view.moments,
     emptyText: 'TA 还没有发布过动态',

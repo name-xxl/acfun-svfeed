@@ -113,9 +113,10 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 消费 appapi/channelapi/cards/settings/imicons/relatedapi，无被依赖回边）。两者的方向复核
   // 与新增边清单见 docs/dependency-audit.md「0.9.168–0.178」节
   // 0.9.218 登记：spacetab（空间页标签栏注入共享件，两标签共用注入/切换/排序/自愈，只依赖 ui）/
-  // spacemoments（空间页「动态」标签特性件，消费 spacetab/squarefeed/momentapi/memberplaza/cfg/ui）。
-  // 二者与 rowkit 同属特性层 shared kit + 视图件，与 uppage/memberplaza 的依赖属层内互调
-  //（spacemoments 复用 memberplaza 导出的 addAmAnchor=两个原生页宿主单源，非反向）
+  // spacemoments（空间页「动态」标签特性件，消费 spacetab/squarefeed/momentapi/rowkit/cfg/ui）。
+  // 二者与 rowkit 同属特性层 shared kit + 视图件，与 uppage 的依赖属层内互调
+  //（0.9.314：原生页落点改由 rowkit.openRowSource 单出口承载——spacemoments 不再 import
+  //  memberplaza，memberplaza 的号锚导出 addAmAnchor 整件撤除；两处依赖仍属特性层内互调）
   // 0.9.221 登记：composermirror（输入框镜像层装饰器，消费 emoticon/tokenedit/ui）——把
   // 「输入条要渲染表情」这条边从基建层的 inputbar 挪到特性层（免得新增基建→特性反向边）
   //〔0.9.238 撤除：镜像层与令牌原子化两件随富文本载体退役，条目删除〕

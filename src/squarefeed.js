@@ -6,7 +6,16 @@
 //（生命周期=实例存活期，plaza 常驻语义的收窄在案）、视口回填（momentDetail+syncRowBar）
 // 全部原样；view-square 场景全绿=零漂移机器证据。
 // 宿主注入：root（sup/列表/状态行落点）/ scrollEl（元素或 window）/ backTopHost（默认 root）/
-// onOpen（行默认动作——视图=开详情面板、内嵌=不动作原页语义）/ onRow（行后处理，内嵌补 am 锚）。
+// onOpen（行默认动作——脚本页=开详情面板、原生页两宿主=出站站方原址新标签，见 rowkit.openRowSource）/
+// onRow（行后处理；**0.9.314 起全仓无消费方**——旧用途「内嵌宿主补 am 锚」随号锚整件撤除，
+// 本批不删选项，保留作将来的行后处理缝，如实标注当前无人传递）。
+// siteOnly（0.9.314 新增，**一枚宿主总开关**）：为真＝本宿主是原生页——一律走站方路径、不开
+// 任何脚本浮层。它随行卡构建链整包透传（feedRowOf 第二参 { siteOnly } → rowkit 的 rowGrid/
+// rowSingle/momentMedia → cards.momentMediaOf → momentCellOf/quoteBlockOf），并另交
+// wireRowList 第三参（原生页跳过正文配图 .ubb-imgc 的查看器消费）。管三处：① 行内格子不接
+// 大图查看器（点击冒泡到行默认=站方原址新标签）；② 引用卡三源出站原址；③ 正文内配图跳过
+// 脚本消费。缺省 undefined ＝ 现状（脚本页宿主：查看器照常、引用卡按源分派）。
+// **若将来还要给原生页加第三处例外，先进这枚开关，别再加散开关。**
 // 返回句柄 { stop, refresh, probe }：stop 清轮询并解绑滚动（window 滚动必须显式解绑）。
 // **数据源/文案可注入（0.9.218）**：本工厂原为广场专用（硬接 listSquare + 广场空态文案 + 强制
 // 发现态轮询）；个人动态流（我的页/空间页两宿主）复用同一套机械，故抽出三项 opts——
@@ -33,7 +42,8 @@ function noop() { }
 export function createSquareFeed(opts) {
   var root = opts.root;
   var onOpen = opts.onOpen || noop;
-  var onRow = opts.onRow;
+  var onRow = opts.onRow; // 行后处理缝（0.9.314 起无消费方；见头注，暂留）
+  var siteOnly = opts.siteOnly; // 宿主总开关（0.9.314）：缺省 undefined＝现状（只原生页两宿主传 true）
   var fetchPage = opts.fetchPage || listSquare; // 取数可注入（默认广场流）
   var view = opts.view || CFG.view.square;      // 阈值/骨架组可注入（默认广场档）
   var emptyText = opts.emptyText || '广场暂时没有新动态';
@@ -71,8 +81,8 @@ export function createSquareFeed(opts) {
         if (key && key > latestAmId) latestAmId = key; // 发现态 diff 基准（单调）
         fresh++;
         // append-only：新行只追加尾部（展开态/原位评论区靠它保命）
-        var row = feedRowOf(pi);
-        if (onRow) onRow(row, pi); // 行后处理（内嵌宿主补 am 锚；视图不传）
+        var row = feedRowOf(pi, { siteOnly: siteOnly }); // 原生页宿主整包透传 siteOnly（引用卡出站 + 行内格子不接查看器；缺省 undefined＝现状）
+        if (onRow) onRow(row, pi); // 行后处理缝（0.9.314：无消费方，号锚撤除后无「补 am 锚」用途）
         list.appendChild(row);
         armBackfill(row); // 视口渐进回填的观察挂点（0.9.228）
       });
@@ -96,7 +106,7 @@ export function createSquareFeed(opts) {
     onRetry: pg.load
   });
 
-  wireRowList(list, onOpen); // 列表级委托（rowkit 共享；落点=宿主注入）
+  wireRowList(list, onOpen, { siteOnly: siteOnly }); // 列表级委托（rowkit 共享；落点=宿主注入；siteOnly 让原生页跳过正文配图查看器消费）
 
   // ---------- 视口渐进回填（0.9.228） ----------
   // 触发从"发布时间 ≤3h"换成"**进入视口**"：谁被滚到谁补（不论新旧），**一套规则覆盖四个宿主**
