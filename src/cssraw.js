@@ -289,8 +289,10 @@ export var CSS_TEMPLATE = ''
   + 'grid-auto-flow:dense;gap:' + '{{jxgridGap}}' + 'px}'
   + '.acsv-jx-card{background:rgba(255,255,255,.04);border:1px solid transparent;border-radius:10px;'
   + 'overflow:hidden;cursor:pointer;display:flex;flex-direction:column}'
-  + hoverSlot('jx') // 分区卡 hover（描边 + 提底）＝csshover 表行 jx（0.9.317 搬表）
-  + '.acsv-jx-cv{position:relative;aspect-ratio:16/9;background:linear-gradient(135deg,#22242e,#2e2a38)}'
+  + hoverSlot('jx') // 分区卡 hover（提底 .08 ＋ 封面图元 1.05 ＋ 标题 accent；**描边已撤**）＝csshover 表行 jx
+  // 封面盒必须 overflow:hidden（0.9.318 裁决 ⑨ 形态前提）：卡根的 hidden 只裁卡的外形、不裁封面盒
+  // 的内形，直接上 1.05 会让图元下溢到标题区（对齐网格卡 .acsv-gcover 的既有做法）
+  + '.acsv-jx-cv{position:relative;overflow:hidden;aspect-ratio:16/9;background:linear-gradient(135deg,#22242e,#2e2a38)}'
   + '.acsv-jx-cv img{width:100%;height:100%;object-fit:cover;display:block}'
   + '.acsv-jx-dur{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.72);border-radius:4px;'
   + 'padding:1px 6px;font-size:12px;color:#fff;line-height:16px}'
@@ -1102,10 +1104,10 @@ export var CSS_TEMPLATE = ''
   + '.acsv-vchip.on{background:var(--acsv-accent);color:#fff}'
   + '.acsv-vchip.sm{padding:4px 10px;font-size:12px}'
   + '.acsv-vlist{min-height:60px}'
-  + '.acsv-vrow{display:flex;gap:12px;align-items:center;padding:8px;border-radius:10px;cursor:pointer;'
-  + 'transition:background .15s}'
-  + hoverSlot('rank') // 榜单行族（提底 .07 ＋ .big 档标题变 accent）＝csshover 表行 rank（0.9.317 搬表；
-  // 原 1124 那条 .big:hover 标题规则同批并入本块，族内两档一条表行管）
+  + '.acsv-vrow{display:flex;gap:12px;align-items:center;padding:8px;border-radius:10px;cursor:pointer}'
+  + hoverSlot('rank') // 榜单行族（提底 .04 ＋ 大卡档标题 accent ＋ 行式按压/过渡）＝csshover 表行 rank
+  //（0.9.317 搬表，0.9.318 统一批补按压与过渡、提底按「基色 +.04」落到 .04；基态 transition
+  // background .15s 同批搬进本表并改口 .12s ease——值不在这里写第二份）
   + '.acsv-vrow-rank{width:24px;text-align:center;font-size:15px;font-weight:700;color:#8a90a0;flex:none}'
   + '.acsv-vrow-rank.top{color:var(--acsv-accent)}'
   + '.acsv-vrow-thumb{width:110px;height:66px;border-radius:8px;background:rgba(255,255,255,.06);'
@@ -1272,14 +1274,16 @@ export var CSS_TEMPLATE = ''
   + '.acsv-gcell{cursor:pointer;min-width:0;display:flex;flex-direction:column}'
   + '.acsv-gcover{position:relative;width:100%;aspect-ratio:' + '{{meCoverRatio}}' + ';border-radius:10px;overflow:hidden;'
   + 'flex:none;background:rgba(255,255,255,.06)}'
-  + '.acsv-gcover img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s,opacity .2s;opacity:0}'
+  + '.acsv-gcover img{width:100%;height:100%;object-fit:cover;display:block;opacity:0}' // 过渡不在基态声明：
+  // 0.9.318 起图元过渡由 csshover 表行 grid 出（transform .12s ease,opacity .2s——transform 段是交互
+  // 反馈、opacity 段管首帧淡入，两者本不该同写一条，同批拆开）
   + '.acsv-gcover img.ld{opacity:1}'
   // 终败图（imgload 策略 grid 的降级形态）：隐藏与占位由脚本单源做（不再写同名 CSS 兜底——
   // 重复实现会掩盖脚本分支被改坏，harness 的降级断言必须钉在脚本行为上）；.acsv-imgfail 类
   // 是断言/钩子用的标记
   + '.acsv-gph{position:absolute;inset:0;display:grid;place-items:center;color:#8a90a0;font-size:12px;pointer-events:none}'
-  + hoverSlot('grid') // 网格卡族（图元 1.05 ＋ 标题变 accent）＝csshover 表行 grid（0.9.317 搬表；
-  // 原 1281 那条标题规则同批并入本块。图元过渡 .2s 仍在下方基态规则里，0.9.318 拆条时收表）
+  + hoverSlot('grid') // 网格卡族（提底 .04 ＋ 图元 1.05 ＋ 标题 accent ＋ 卡面按压/过渡）＝csshover 表行 grid
+  //（0.9.317 搬表；0.9.318 统一批补按压、提底与标题过渡，图元过渡自上方基态规则拆出收表）
   + '.acsv-gtag{position:absolute;left:8px;bottom:8px;max-width:calc(100% - 16px);padding:2px 8px;'
   + 'border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;line-height:18px;'
   + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
@@ -1531,7 +1535,8 @@ export var CSS_TEMPLATE = ''
   + '.acsv-srectt{margin-top:4px;font-size:12px;color:#cfd3da;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
   + '.acsv-srectm{font-size:11px;color:#8a90a0}'
   + '.acsv-sarow{padding:12px 2px;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer}'
-  + hoverSlot('search') // 搜索行 hover 提底＝csshover 表行 search（0.9.317 搬表）
+  + hoverSlot('search') // 搜索行（提底 .04 ＋ 行式按压/过渡）＝csshover 表行 search（0.9.317 搬表，
+  // 0.9.318 统一批补过渡与按压、提底按「基色 +.04」由 .03 上调到 .04）
   + '.acsv-satt{font-size:15px;line-height:1.5;color:#fff}'
   + '.acsv-sadecr{font-size:12px;color:#8a90a0;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;'
   + '-webkit-box-orient:vertical;overflow:hidden}'

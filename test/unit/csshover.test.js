@@ -69,7 +69,6 @@ test('正向：每行的每条声明都落到 CSS，组序恒为 trans→lift→
     for (var e of row.trans) assert.ok(txt.indexOf('{transition:' + e.v + '}') >= 0, e.v);
     for (var l of row.lift) {
       assert.ok(txt.indexOf('background:' + l.v) >= 0, row.key + ' 缺提底值 ' + l.v);
-      if (l.ring) assert.ok(txt.indexOf('border-color:' + l.ring + ';') >= 0, row.key + ' 缺描边 ' + l.ring);
     }
     for (var i of row.img) assert.ok(txt.indexOf('{transform:' + i.v + '}') >= 0, row.key + ' 缺图元 ' + i.v);
     for (var t of row.title) assert.ok(txt.indexOf('{color:' + t.v + '}') >= 0, row.key + ' 缺标题 ' + t.v);
@@ -159,16 +158,41 @@ test('反向：每族表产出确实拼进了模板（漏拼＝该族交互态�
   }
 });
 
-test('棘轮：暗皮四新族（分区/网格/榜单行/搜索行）的 hover 值与 0.9.317 搬表前逐字相同', () => {
-  // 搬表批承诺「零视觉变化」，取值逐字钉在这里：0.9.318 统一批改值时**必须同步改本钉**
-  //（改错一侧即红＝改口是显式的，不会静默漂）
+test('棘轮：0.9.318 统一批的取值（提底档 / 封面语言 / 按压 / 过渡）逐字钉住', () => {
+  // 本批是**改值**批 ⇒ 取值钉在这里显式改口：日后谁再动这些值，必须同批改本钉（改错一侧即红，
+  // 改口不会静默漂）。口径出处：用户裁决「提底＝基色 +.04 一刀切 / 封面卡 hover＝图元 1.05 ＋
+  // 标题 accent（推广到分区卡）/ 按压全族两档 / 过渡统一 .12s ease」，见确认稿 card-hover-unified.html ④。
   var byKey = {};
   for (var row of HOVER_ROWS) byKey[row.key] = row;
-  assert.equal(byKey.jx.lift[0].v, 'rgba(255,255,255,.07)');
-  assert.equal(byKey.jx.lift[0].ring, 'var(--acsv-accent-dim)');
-  assert.equal(byKey.search.lift[0].v, 'rgba(255,255,255,.03)');
-  assert.equal(byKey.rank.lift[0].v, 'rgba(255,255,255,.07)');
+  // 提底：分区基色 .04 ⇒ hover .08；行式三族基色 0 ⇒ hover .04（榜单由 .07 下调、搜索由 .03 上调，
+  // 属需复核的连带后果，见 CHANGELOG）；行卡族 .10 已符合不动
+  assert.equal(byKey.jx.lift[0].v, 'rgba(255,255,255,.08)');
+  assert.equal(byKey.grid.lift[0].v, 'rgba(255,255,255,.04)');
+  assert.equal(byKey.rank.lift[0].v, 'rgba(255,255,255,.04)');
+  assert.equal(byKey.search.lift[0].v, 'rgba(255,255,255,.04)');
+  assert.equal(byKey.frow.lift[0].v, 'rgba(255,255,255,.10)');
+  // 分区卡撤描边 ⇒ 表里不留 ring 字段（也不可再产 border-color）
+  assert.equal(byKey.jx.lift[0].ring, undefined);
+  assert.ok(!/border-color/.test(hoverRules([byKey.jx])), 'jx 行不得再产 border-color（描边已撤）');
+  // 封面语言（图元 1.05 ＋ 标题 accent）：分区卡与网格卡同一条；榜单行只在大卡档有标题 accent
+  assert.equal(byKey.jx.img[0].v, 'scale(1.05)');
+  assert.equal(byKey.jx.title[0].v, 'var(--acsv-accent)');
   assert.equal(byKey.grid.img[0].v, 'scale(1.05)');
+  assert.deepEqual(byKey.rank.img, []);
+  assert.equal(byKey.rank.title[0].card, '.acsv-vrow.big');
+  // 按压两档：封面卡缩放 .985、行式卡下沉 1px（方向纪律：缩放向内、位移向下）
+  assert.equal(byKey.jx.press[0].v, 'scale(.985)');
+  assert.equal(byKey.grid.press[0].v, 'scale(.985)');
+  assert.equal(byKey.rank.press[0].v, 'translateY(1px)');
+  assert.equal(byKey.search.press[0].v, 'translateY(1px)');
   assert.equal(byKey.frow.press[0].v, 'scale(.985)');
   assert.equal(byKey['frow-line'].press[0].v, 'translateY(1px)');
+  // 过渡统一 .12s ease：五族每个 trans 条目都必须带（含 frow 两行；frow-mp 浅皮档按裁决不补）
+  for (var key of ['jx', 'grid', 'rank', 'search', 'frow', 'frow-line']) {
+    var row = byKey[key];
+    assert.ok(row.trans.length > 0, key + ' 族必须有 trans 条目（过渡统一批补齐）');
+    for (var e of row.trans) {
+      assert.ok(/\.12s ease/.test(e.v), key + ' 族的过渡不是 .12s ease：' + e.v);
+    }
+  }
 });

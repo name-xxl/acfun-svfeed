@@ -112,20 +112,23 @@
       + (p.sel || String(opt.sel)) };
   }
 
-  // 一条「规则载量钉」：selectorText 命中 selRe 的规则须**恰好** expect 条，且 patterns 每条
-  // 至少被其中一条命中——多一条（又添一份手写副本）也判红。expect 显式传：一族里几条规则是
-  // 族的形状（多条各行一条 / 单条多声明）之别，不该由 patterns.length 反推。
+  // 一条「规则载量钉」：selectorText 命中 selRe 的规则须**恰好** expect 条，patterns 每条至少被其中
+  // 一条命中，且**不得**命中 mustNot 里任何一条（防回潮负钉，如「分区卡 hover 再出现 border-color」）
+  // ——多一条（又添一份手写副本）也判红。expect 显式传：一族里几条规则是族的形状（多条各行一条 /
+  // 单条多声明）之别，不该由 patterns.length 反推。
   // 值口径：flatRules 的块文本已去空白，且**浏览器归一化过**（`.10`→`0.1`、rgba 补空格）⇒
   // pattern 写归一化形态（同 0.9.314 space.js 的 `0?\.1` 手法）；pattern 可为字符串（子串）
   // 或正则（容归一化两形，如 `/background:rgba\(255,255,255,0?\.07\)/`）
-  function load(selRe, expect, patterns) {
+  function load(selRe, expect, patterns, mustNot) {
     var rs = flatRules().filter(function (r) { return selRe.test(r.sel); });
-    var hit = function (pat) {
-      return rs.some(function (r) {
-        return pat instanceof RegExp ? pat.test(r.blk) : r.blk.indexOf(pat) >= 0;
-      });
+    var hit = function (pat, rule) {
+      return pat instanceof RegExp ? pat.test(rule.blk) : rule.blk.indexOf(pat) >= 0;
     };
-    var ok = rs.length === expect && patterns.every(hit);
+    var ok = rs.length === expect
+      && patterns.every(function (pat) { return rs.some(function (r) { return hit(pat, r); }); });
+    (mustNot || []).forEach(function (pat) {
+      if (rs.some(function (r) { return hit(pat, r); })) ok = false;
+    });
     return { ok: ok, info: rs.map(function (r) { return r.sel + '{' + r.blk + '}'; }).join(' | ') };
   }
 

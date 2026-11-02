@@ -290,11 +290,11 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:csshover.js:行174:导出3",
+      "key": "size:csshover.js:行189:导出3",
       "why": "0.9.317 建档：卡族交互态单源表（HOVER_ROWS 族表 + hoverRules/hoverSlot 生成器）——构建期输入件，随产物发布的模块不得引它（同 cssraw 纪律）；表＝一行一族，加族即加行长在这里是设计意图，故按本批实测尺寸立基线"
     },
     {
-      "key": "size:cssraw.js:行1933:导出1",
+      "key": "size:cssraw.js:行1935:导出1",
       "why": "0.9.315 登记：动态详情头部右钮组（.acsv-mdetail-xg + 两键同一条规则；原背板 40 圆 ✕ 规则退役）——净增约 3 行"
     },
     {
@@ -714,7 +714,7 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:styles.js:行251:导出9",
+      "key": "size:styles.js:行253:导出9",
       "why": "0.9.314 登记：:root 追加 --acsv-accent-dim / --acsv-ban-new（同值字面收口）；注记红框撤除后 accent-dim 由 .acsv-jx-card:hover 独用"
     },
     {
