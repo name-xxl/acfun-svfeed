@@ -1658,8 +1658,9 @@ export var CSS_TEMPLATE = ''
   // 【0.9.317 搬到单源表】**取值与这些规则的本体已整段移入 src/csshover.js**（表行 frow /
   // frow-line / frow-mp），本段只留拼接位与语义说明——值不在这里写第二份（字面两处＝漂移温床，
   // 且 0.9.314 那批正是「四段各写一套、改一档动四处」的病灶），改交互档去 csshover 改这里不生效。
-  // 【0.9.314 同批撤除：hover 红框】原案是 accent 半档（var(--acsv-accent-dim)）的 overlay ::after
-  // 描边环；用户实看暗皮后判「红框突兀」，遂全场景撤除，hover 反馈改由上面的提底承担。
+  // 【0.9.314 同批撤除：hover 红框】原案是 accent 半档（`rgba(253,76,93,.55)`——当年走
+  // `--acsv-accent-dim` 变量，该变量已于 0.9.319 删）的 overlay ::after 描边环；用户实看暗皮后判
+  // 「红框突兀」，遂全场景撤除，hover 反馈改由上面的提底承担。
   // 留档一条教训：环当年之所以必须用 overlay 而不能用 outline / inset box-shadow——后者画在卡根
   // 自己的装饰层，会被封面与宫格的不透明图元整条吃掉（确认稿 v1 即此病）。将来若再加框，别退回 outline。
   // 防回潮闸：harness `sm-frow-no-ring`（三条可点面不得再出现边框环或 outline）。

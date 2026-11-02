@@ -6,7 +6,7 @@
 //（0.9.314 只统一了行卡族一族，本批即该裁决当时留下的「后批」）。
 //
 // 修法（规矩 3 单源收口 + 规矩 7「同一道缝反复出血即结构裁决」）：三层——
-//   ① 值层＝styles.js 的 :root 变量（现有 --acsv-accent / --acsv-accent-dim / --acsv-ban-new 等，
+//   ① 值层＝styles.js 的 :root 变量（现有 --acsv-accent / --acsv-top-h / --acsv-dw-t / --acsv-ban-new，
 //      一档一个出口），定义-使用失配由 test/check-cssvar.mjs 钉（CSS 变量名写错是静默失效，
 //      本仓此前无闸管这条）。**本表的值仍以字面书写**：统一批的口径是「同一**规则**（基色 +.04）
 //      族族可比」，各族字面本就不同（分区基色 .04 ⇒ hover .08；行式基色 0 ⇒ hover .04），
@@ -38,6 +38,9 @@
 //   title  [{card, targets, v}]——标题 hover 的 color 值
 //   press  [{cards, kind, v}]——kind='card' 卡面缩放 scale()、'row' 整行下沉 translateY()
 //          （两档都是 0.9.314 行卡族已出货口径；方向纪律：缩放向内、位移向下，不许上浮）
+// 零基色族的 hover 提底值**单源**（0.9.318 裁决「基色 +.04」落到 base 0 的族即此值）：
+// 网格卡 / 榜单行 / 搜索行三行同值——写一次、三行引用（口径①：同一事实字面 ≥2 处即病灶）
+var LIFT0 = 'rgba(255,255,255,.04)';
 export var HOVER_ROWS = [
   {
     key: 'jx', label: '分区卡', slot: 'jx', scope: '',
@@ -64,7 +67,7 @@ export var HOVER_ROWS = [
     trans: [{ sels: ['.acsv-gcell'], v: 'transform .12s ease' },
       { sels: ['.acsv-gcover img'], v: 'transform .12s ease,opacity .2s' },
       { sels: ['.acsv-gtitle'], v: 'color .12s ease' }],
-    lift: [{ card: '.acsv-gcell', targets: [''], v: 'rgba(255,255,255,.04)' }],
+    lift: [{ card: '.acsv-gcell', targets: [''], v: LIFT0 }],
     img: [{ card: '.acsv-gcell', targets: ['.acsv-gcover img'], v: 'scale(1.05)' }],
     title: [{ card: '.acsv-gcell', targets: ['.acsv-gtitle'], v: 'var(--acsv-accent)' }],
     press: [{ cards: ['.acsv-gcell'], kind: 'card', v: 'scale(.985)' }]
@@ -77,7 +80,7 @@ export var HOVER_ROWS = [
     //（基色 0），即原 .07 **下调**一档——属用户点名需复核的连带后果（CHANGELOG 0.9.318 有记）
     trans: [{ sels: ['.acsv-vrow'], v: 'background .12s ease,transform .12s ease' },
       { sels: ['.acsv-vrow-title'], v: 'color .12s ease' }],
-    lift: [{ card: '.acsv-vrow', targets: [''], v: 'rgba(255,255,255,.04)' }],
+    lift: [{ card: '.acsv-vrow', targets: [''], v: LIFT0 }],
     img: [],
     // 大卡档标题 accent 保留现状（cssraw 原 1124 那条，0.9.317 已并入本表行）；小行档按裁决 ⑩/⑬
     // 保持不补（行式形态不接封面语言）
@@ -90,7 +93,7 @@ export var HOVER_ROWS = [
     // 0.9.318 统一批：补过渡（现状整条无 transition＝硬切）；提底按「基色 +.04」（基色 0）落到
     // .04，即原 .03 **上调**一档——同属需复核的连带后果；行式卡按压＝下沉档
     trans: [{ sels: ['.acsv-sarow'], v: 'background .12s ease,transform .12s ease' }],
-    lift: [{ card: '.acsv-sarow', targets: [''], v: 'rgba(255,255,255,.04)' }],
+    lift: [{ card: '.acsv-sarow', targets: [''], v: LIFT0 }],
     img: [], title: [], press: [{ cards: ['.acsv-sarow'], kind: 'row', v: 'translateY(1px)' }]
   },
   {

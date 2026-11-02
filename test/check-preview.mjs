@@ -56,8 +56,9 @@ const PINS = [
     why: '分区卡 hover 提底（基色 .04 +.04 ⇒ .08）——本批唯一改值处的一侧'
   },
   {
-    draft: 'docs/preview/card-hover-unified.html', value: 'rgba(255,255,255,.04)', src: 'src/csshover.js', srcCount: 3,
-    why: '行式三族 hover 提底（基色 0 +.04 ⇒ .04）：网格卡由无到有、榜单由 .07 下调、搜索由 .03 上调'
+    draft: 'docs/preview/card-hover-unified.html', value: 'rgba(255,255,255,.04)', src: 'src/csshover.js', srcCount: 1,
+    why: '零基色族 hover 提底（基色 0 +.04 ⇒ .04）：网格卡由无到有、榜单由 .07 下调、搜索由 .03 上调；'
+      + '实现侧**只 1 处**＝常量 LIFT0 的定义（0.9.319 按口径①把原三处同值字面收成表内单源，故次数由 3 改 1）'
   },
   {
     draft: 'docs/preview/card-hover-unified.html', value: 'var(--acsv-accent)', src: 'src/csshover.js', srcCount: 3,

@@ -30,10 +30,6 @@
       "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
     },
     {
-      "key": "dead:cssraw.js:CSS_TEMPLATE@0",
-      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
-    },
-    {
       "key": "dead:emoticon.js:renderEmotPanel@0",
       "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
     },
@@ -290,12 +286,12 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:csshover.js:行189:导出3",
-      "why": "0.9.317 建档：卡族交互态单源表（HOVER_ROWS 族表 + hoverRules/hoverSlot 生成器）——构建期输入件，随产物发布的模块不得引它（同 cssraw 纪律）；表＝一行一族，加族即加行长在这里是设计意图，故按本批实测尺寸立基线"
+      "key": "size:csshover.js:行192:导出3",
+      "why": "0.9.319 登记：零基色族 hover 提底档收成常量单源 LIFT0（口径①：同值字面 ≥2 处即病灶，网格/榜单行/搜索行三行引用）——+3 行"
     },
     {
-      "key": "size:cssraw.js:行1935:导出1",
-      "why": "0.9.315 登记：动态详情头部右钮组（.acsv-mdetail-xg + 两键同一条规则；原背板 40 圆 ✕ 规则退役）——净增约 3 行"
+      "key": "size:cssraw.js:行1936:导出1",
+      "why": "0.9.319 登记：撤框历史注释把 var(--acsv-accent-dim) 改写成字面值并注明该变量已删（本轮删变量）——+1 行"
     },
     {
       "key": "size:cssseg.js:行32:导出9",
