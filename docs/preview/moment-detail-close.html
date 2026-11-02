@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 动态详情浮层 关闭键收进面板头部（现状 ✕ 飘视口角 → 提案）</title>
+<!-- ============================================================
+     docs/preview/moment-detail-close.html —— 静态 UI 预览（形态确认稿，确认后才进 src 实现）
+     本稿目的：动态详情浮层 .acsv-mdetail 的关闭键 ✕ 从「背板层视口右上角」
+       （现状：src/momentdetail.js:129-132 backdrop.appendChild(x) + src/cssraw.js:975-977
+        position:absolute;top:16px;right:16px 的 40 圆钮 ⇒ 钉在视口角，1600 宽屏上离卡片
+        右上角约 300px）改为「面板头部右侧」（用户已裁：✕ 收进作者行 .acsv-gmom-head
+        acsv-mdetail-head，与同排「⋮」自删键 .acsv-mdetail-more 同族）。
+     量值来源（全部照抄，非自编；逐值行号在样式块与附节内注明）：
+       src/momentdetail.js —— 面板结构与类名（openMomentDetail 118-255：背板 123 / 现状 ✕
+         129-132 / 两栏 -split 139-146 / 头部 -head 151-167 / 自删键 -more 168-190 /
+         列表 -list 195-238 / 评论头 -cmthead 233-236 / titleFmt 253 / 背板点击关 124-126 /
+         Esc（overlay modal）247）
+       src/cssraw.js —— 967-1057 动态详情段（背板 972-973 / 现状 ✕ 975-977 / ⋮ 978-980 /
+         面板 982-985 / 两栏 989 / 媒体列 990-991 / 轮播 994-1006（本稿不动，仅示意）/
+         右栏 1011 / 头部 1014-1019 / 列表 1021-1022 / 正文 1026-1027 / 表情 1030-1034 /
+         窄屏塌缩 1037-1040 / 单图 1041-1043 / 互动条 1045-1055 / 评论头 1056-1057）；
+         gmom 基类 1541-1543；转发引用卡 1551-1562；评论条目 449-520；抽屉 tip 530；
+         尾行三态 534-538 与 acsv-spin 551；输入条 328-431；链接蓝 #57a9f5 段（622-623，
+         同 article-reader.html 引法）；iconfont @font-face 18-20（ali-imgs.acfun.cn，
+         cssraw 头既有 URL，本稿唯一外链）
+       src/cssseg.js —— SHEET_BG 12-13 / BASE_FONT 15-16 / SECT_LINE 18 / SCROLL_TAIL 23 /
+         EMO_TAIL 29 / CLOSE_BTN 20-21（28 圆关闭钮的仓内既有形制出处）
+       src/comments.js —— 空态串 429「还没有评论，去原页抢沙发 →」+「前往原页」430-433 /
+         首屏失败 tip 247+460-474「评论加载失败」+「重试」/ 尾行三态 483-503（加载中… /
+         评论加载失败+重试 / 没有更多评论了）/ titleText 190-193 / 输入条注入 583-599
+         （placeholder「评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)」597、maxLength 1000 598）
+       src/pageloader.js —— 三态文案单源 36-43（加载中… / 已加载全部 / 加载失败，点击重试）
+       src/inputbar.js —— 字数显示规则 495-499（0 字出空、超限或 countMax 才出 n/max；
+         评论宿主未注入 countMax ⇒ 常态空计数）
+       src/momentbar.js —— 详情互动条四键顺序与形态 135-154（分享 e628+文字「分享」/
+         评论 e627+计数 / 蕉 e62a·e65f 双字形 / 赞 e629·e660 双字形）
+       src/imicons.js —— 码点表 24-31；src/styles.js:195 —— --acsv-ban-new:#ffba0d
+     现实 precedent：docs/preview/article-reader.html（同族最新稿——mdetail-head 形制、
+       citem/cinput 真实类名、iconfont 码点、ghostrow 示意件均照其体例起步）。
+     纪律：单文件 / 无新外链（唯一外链＝cssraw 头既有 iconfont 字体）/ 真实文案（界面串
+       全部引自 src，昵称与正文为站内语境的示例内容）/ 元素零内联色（颜色一律走类规则，
+       内联样式只放几何 width/left/top/height）；悬停态既给真 :hover 也给定格类（.fxh）。
+     本稿不含真机截图、未经浏览器实测渲染；确认几何＝cssraw 值的算术推导（见 ① 与附节 A）。
+     ============================================================ -->
+<style>
+  /* 站方原生 iconfont（cssraw.js:18-20 头同 URL）——工具栏/互动键/评论键字形全真 */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(//ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.90fc2dfc.woff) format("woff"),
+        url(//ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.bdc44d05.ttf) format("truetype")
+  }
+  :root{
+    --acsv-accent:#fd4c5d;           /* 主题色（cfg.accent 单源） */
+    --acsv-accent-dim:rgba(253,76,93,.55); /* cssraw/styles.js:195 同源变量 */
+    --acsv-ban-new:#ffba0d;          /* 动态域蕉黄（styles.js:195；cssraw 1053/1055 引用位） */
+    --acsv-bg:#000;                  /* 页面底（#acsv-root 同款） */
+    --acsv-panel:rgba(22,22,27,.97); /* 弹层底 = SHEET_BG（cssseg.js:12-13） */
+    --acsv-line:rgba(255,255,255,.09); /* SECT_LINE（cssseg.js:18） */
+    --acsv-t1:#fff; --acsv-t2:#cfd3da; --acsv-t3:#8a90a0;
+    --guide:#57a9f5;                 /* 稿内测量辅助色＝深色皮肤链接蓝（cssraw 622-623 换算值） */
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 90px}
+  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .hint{color:var(--acsv-t3);font-size:12px;line-height:1.9;margin-bottom:20px}
+  .hint b{color:var(--acsv-t2)}
+  .hint code{color:#ffb323;font-family:ui-monospace,Consolas,monospace;font-size:11px}
+  .sec{margin:30px 0 8px;padding-top:16px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .note{color:var(--acsv-t3);font-size:12px;line-height:1.85;margin:6px 0 14px}
+  .note b{color:var(--acsv-t2)}
+  .note code{background:rgba(255,255,255,.08);border-radius:4px;padding:1px 6px;font-size:12px}
+  .verdict{display:inline-block;background:rgba(253,76,93,.16);color:#ff9aa5;border-radius:10px;
+    padding:1px 10px;font-size:11px;margin-left:6px;vertical-align:1px}
+  /* 1:1 视口示意台：宽 1600×高 900 实大（横向可滚），①两栏几何可当场用尺量。
+     台上把 min(920px,94vw)/min(84vh,672px) 钉死为算术基准值（920×672），否则评审窗口高
+     不足 800 时 84vh 会让面板缩水、图上坐标全部失真；实现仍按真实视口取 min() */
+  .vpwrap{overflow-x:auto;padding-bottom:10px;margin-bottom:10px}
+  .vp{position:relative;width:1600px;height:900px;border:1px dashed rgba(255,255,255,.16);
+    border-radius:6px;background:#101014;overflow:hidden;flex:none}
+  .vp .acsv-mdetail-panel.acsv-mdetail-split{width:920px;height:672px}
+  /* 头像/媒体图占位块（示意件）：真实为 imgs.aixifan.com 直链；颜色走类规则 */
+  .phimg{background:linear-gradient(135deg,#3a3f52,#232634)}
+  .vp.mid{height:760px}
+  .stage{position:relative;height:840px;border:1px dashed rgba(255,255,255,.16);
+    border-radius:6px;background:#101014;overflow:hidden}
+  .stage.short{height:560px}
+  .stage.narrow{width:540px;height:760px}
+  .row2{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+  /* 蒙层下的底层流残影（示意「背板半透、余光见底层」，非实现件——article-reader 同款） */
+  .ghostrow{display:flex;gap:12px;padding:16px 22px;border-bottom:1px solid rgba(255,255,255,.05)}
+  .ghostrow .av{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.06);flex:none}
+  .ghostrow .ln{height:14px;border-radius:4px;background:rgba(255,255,255,.06);margin-bottom:8px}
+  /* 测量件（稿内辅助，非实现件）：虚线导引 / 双箭头 / 数字标签 */
+  .meas{position:absolute;inset:0;z-index:8;pointer-events:none}
+  .g-v{position:absolute;top:0;bottom:0;border-left:1px dashed var(--guide)}
+  .g-h{position:absolute;left:0;right:0;border-top:1px dashed var(--guide)}
+  .g-seg-v{position:absolute;width:0;border-left:1px dashed var(--guide)}
+  .marr-h{position:absolute;height:0;border-top:1px solid var(--guide)}
+  .marr-h::before,.marr-h::after{content:"";position:absolute;top:-5px;width:1px;height:9px;background:var(--guide)}
+  .marr-h::before{left:0}.marr-h::after{right:0}
+  .marr-v{position:absolute;width:0;border-left:1px solid var(--guide)}
+  .marr-v::before,.marr-v::after{content:"";position:absolute;left:-5px;width:9px;height:1px;background:var(--guide)}
+  .marr-v::before{top:0}.marr-v::after{bottom:0}
+  .mtag{position:absolute;background:rgba(16,18,26,.9);border:1px solid var(--guide);color:#cfe5ff;
+    font:11px/1.7 ui-monospace,Consolas,monospace;padding:2px 9px;border-radius:999px;white-space:nowrap}
+  .mtag.hot{border-color:var(--acsv-accent);color:#ffc2c8}
+
+  /* ================= 字形基础（cssraw 336-337 / 485-486 真值；article-reader 同块） ================= */
+  .acsv-ic{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-weight:400;
+    display:inline-block;line-height:1}
+  .acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-size:11px;
+    display:inline-block;width:12px;height:12px;line-height:12px;text-align:center;color:currentColor}
+
+  /* ================= 动态详情浮层（cssraw 967-1057 真值逐段照抄） ================= */
+  /* 背板（972-973 + 入层动画 971）：inset 0 / z 61 / rgba(0,0,0,.62) / flex 居中 */
+  @keyframes mdetail-in{from{opacity:0}to{opacity:1}}
+  .acsv-mdetail{position:absolute;inset:0;background:rgba(0,0,0,.62);display:flex;
+    align-items:center;justify-content:center;animation:mdetail-in .18s ease}
+  /* 【现状】✕（975-977）：背板层绝对定位 top16 right16、40 圆钮 —— 钉视口右上角 */
+  .x-old{position:absolute;top:16px;right:16px;z-index:2;border:none;background:rgba(255,255,255,.12);
+    color:#fff;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1}
+  .x-old:hover{background:rgba(255,255,255,.22)}
+  /* 【提案】✕ 头部态：类名仍 .acsv-mdetail-x（实现＝改写 975-977 规则体为头部件），
+     28 圆钮取值全取自同排 ⋮（978-980）；margin-left:auto 为「组内首个时兼管推右」演示值，
+     正式版按 ⑦-B 方案收口；.fxh 仅稿内悬停定格（实现无此类） */
+  .mdx{border:none;background:rgba(255,255,255,.12);color:#fff;width:28px;height:28px;
+    border-radius:50%;cursor:pointer;font-size:16px;line-height:1;flex:none;margin-left:auto;
+    transition:background .15s}
+  .mdx:hover,.mdx.fxh{background:rgba(255,255,255,.22)}
+  .mdx.b32{width:32px;height:32px}
+  .mdx.b40{width:40px;height:40px}
+  /* 【现状保留件】⋮ 自删键（978-980）：margin-left:auto / 28 圆 / .12→.22 —— 不改 */
+  .acsv-mdetail-more{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.12);color:#fff;
+    width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1}
+  .acsv-mdetail-more:hover{background:rgba(255,255,255,.22)}
+  /* 提案按钮组（⑦-B 方案 A 的示意壳：推右收口到组层，组内固定 gap 8） */
+  .mdxg{margin-left:auto;flex:none;display:flex;align-items:center;gap:8px}
+  .mdxg .mdx{margin-left:0}
+  /* 面板（982-985：单栏基准 min(620px,94vw) / max-height min(84vh,760px) / SHEET_BG /
+     圆角 20 / 阴影 0 10px 34px .5 / overflow hidden / BASE_FONT） */
+  .acsv-mdetail-panel{position:relative;width:min(620px,94vw);max-height:min(84vh,760px);display:flex;
+    flex-direction:column;background:var(--acsv-panel);backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 10px 34px rgba(0,0,0,.5);
+    overflow:hidden;color:#fff;
+    font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}
+  /* 两栏态（989）：min(920px,94vw) × min(84vh,672px) */
+  .acsv-mdetail-panel.acsv-mdetail-split{flex-direction:row;width:min(920px,94vw);height:min(84vh,672px)}
+  /* 左媒体列（990-991）：flex:1 / #000 / 圆角 20 0 0 20 */
+  .acsv-mdetail-media{flex:1 1 auto;min-width:0;background:#000;border-radius:20px 0 0 20px;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0}
+  /* 单图（1041-1043 + 媒体列内覆盖 1007-1009：contain、限高 min(78vh,620px)、onbig 才 zoom-in） */
+  .acsv-mdetail-media .acsv-mdetail-img{margin:0;width:auto;max-width:100%;max-height:100%;background:none;overflow:visible}
+  .acsv-mdetail-img{border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06)}
+  .acsv-mdetail-img.onbig{cursor:zoom-in}
+  /* 右栏（1011）：min(400px,46%) 固定 */
+  .acsv-mdetail-side{flex:none;width:min(400px,46%);display:flex;flex-direction:column;min-height:0}
+  /* 头部作者行（1014-1019 + gmom 基类 1541-1543：font12 #8a90a0 / gap 被 1014 覆盖为 10 /
+     padding 14 20 / SECT_LINE 底部分线；头像 40 圆 1016-1017；名 16 白、hover 下划线 1018-1019；
+     时间 .acsv-gmom-time 无独立规则＝继承头部 12px #8a90a0（1541）） */
+  .acsv-mdetail-head{flex:none;display:flex;align-items:center;gap:10px;padding:14px 20px;
+    font-size:12px;color:#8a90a0;border-bottom:1px solid rgba(255,255,255,.09)}
+  .acsv-gmom-av{flex:none;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.08);
+    display:grid;place-items:center;font-size:15px;color:var(--acsv-t3)} /* 占位件：真实为 40 圆头像 img（1016-1017） */
+  .acsv-gmom-name{font-size:16px;color:#fff;text-decoration:none;white-space:nowrap}
+  .acsv-gmom-name:hover{text-decoration:underline}
+  /* 滚动体（1021-1022：flex:1 / overflow-y auto / padding 12 20 10 / 细滚动条 SCROLL_TAIL cssseg:23） */
+  .acsv-mdetail-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px 20px 10px;
+    scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+  .acsv-mdetail-list::-webkit-scrollbar{width:5px}
+  .acsv-mdetail-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
+  /* 正文（1026-1027：16/24 #e8eaee pre-line 开划选） */
+  .acsv-mdetail-text{font-size:16px;line-height:24px;color:#e8eaee;word-break:break-word;white-space:pre-line;
+    user-select:text;-webkit-user-select:text}
+  /* 表情占位（1030-1031 + EMO_TAIL cssseg:29：max 34×68 / 竖排 middle / 边距 1 2 —— 稿内 34 定块示意） */
+  .ubb-emotion{display:inline-block;width:34px;height:34px;max-width:68px;border-radius:4px;
+    vertical-align:middle;margin:1px 2px;background:linear-gradient(135deg,#3a3f52,#232634)}
+  /* 互动条（1045-1055：gap 26 / mt12 / pb12 / 底部分线 / 13px #8a90a0 / 键内 glyph 14px；
+     四键＝分享/评论/蕉/赞（momentbar.js:135-154 顺序）；悬停赞/评论/分享红、蕉黄（1052-1053） */
+  .acsv-mdetail-actions{display:flex;align-items:center;gap:26px;margin-top:12px;padding-bottom:12px;
+    border-bottom:1px solid rgba(255,255,255,.09);font-size:13px;color:#8a90a0}
+  .acsv-mdetail-actions .acsvg-glyph{font-size:14px;width:14px;height:14px;line-height:14px}
+  .acsv-mdl-like,.acsv-mdl-ban,.acsv-mdl-cmt,.acsv-mdl-fwd{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+  .acsv-mdl-like:hover,.acsv-mdl-cmt:hover,.acsv-mdl-fwd:hover{color:var(--acsv-accent)}
+  .acsv-mdl-ban:hover{color:var(--acsv-ban-new)}
+  .acsv-mdl-like.on{color:var(--acsv-accent)}
+  .acsv-mdl-ban.thrown{color:var(--acsv-ban-new)}
+  /* 双字形显隐（momentbar dualIcon 机制，article-reader 稿同块） */
+  .acsvg-dual{position:relative;display:inline-flex;width:14px;height:14px}
+  .acsvg-dual .acsvg-glyph{position:absolute;left:0;top:0}
+  .acsvg-dual .gfill{display:none}
+  .acsv-mdl-like:hover .gfill,.acsv-mdl-ban:hover .gfill,.acsv-mdl-like.on .gfill,.acsv-mdl-ban.thrown .gfill{display:inline-block}
+  .acsv-mdl-like:hover .gpath,.acsv-mdl-ban:hover .gpath,.acsv-mdl-like.on .gpath,.acsv-mdl-ban.thrown .gpath{display:none}
+  /* 评论头（1056-1057：居中 14px #8a90a0；文案 titleFmt「共 N 条评论」momentdetail.js:253） */
+  .acsv-mdetail-cmthead{margin:16px 0 6px;text-align:center}
+  .acsv-mdetail-cmt{font-size:14px;font-weight:400;color:#8a90a0}
+
+  /* ================= 评论条目（commentkit 真实类名；cssraw 449-520 真值） ================= */
+  .acsv-citem{position:relative;margin-top:18px;display:flex;gap:30px;padding:0 16px}
+  .acsv-avlink{position:relative;flex:none;display:block}
+  .acsv-citem .av{display:block;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.08);
+    text-align:center;line-height:50px;font-size:16px;color:var(--acsv-t3)} /* 占位件：真实为 50 圆头像 img（451） */
+  .acsv-cavframe{position:absolute;left:-15px;top:-15px;width:80px;height:70px;max-width:none;
+    pointer-events:none;border:1px solid rgba(255,255,255,.22);border-radius:6px 6px 10px 6px} /* 几何=509；描边为占位示意 */
+  .acsv-cbody{flex:1;min-width:0}
+  .acsv-cname{font-size:12px;color:#9aa0ab;margin-bottom:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .acsv-cname a{color:#9aa0ab;text-decoration:none}
+  .acsv-cname a:hover{color:#e8eaed;text-decoration:underline}
+  .acsv-cdate{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+  .acsv-cpostday,.acsv-cposttime{font-size:12px;color:#7a7f8a;white-space:nowrap}
+  .acsv-ctext{font-size:14px;line-height:1.6;word-break:break-word;white-space:pre-wrap;color:#f0f1f3;
+    margin-bottom:13px;user-select:text;-webkit-user-select:text}
+  .acsv-cmeta{font-size:12px;color:#7a7f8a;margin-bottom:17px;display:flex;gap:12px;align-items:center;
+    flex-wrap:wrap;row-gap:6px}
+  .acsv-cmeta>*{white-space:nowrap}
+  .acsv-clike{display:inline-flex;align-items:center;gap:3px;color:#7a7f8a;cursor:pointer}
+  .acsv-clike:hover{color:var(--acsv-accent)}
+  .acsv-creplybtn{cursor:pointer;color:#7a7f8a;font-size:12px;display:inline-flex;align-items:center;gap:3px}
+  .acsv-creplybtn:hover{color:var(--acsv-accent)}
+  .acsv-cattr{display:inline-flex;align-items:center;gap:12px;flex-wrap:wrap;row-gap:6px;
+    white-space:normal;font-size:11px;color:#5c616b}
+  .acsv-cattr>*{white-space:nowrap}
+  .acsv-citem>.acsv-chr{position:absolute;left:0;right:0;bottom:0;border:none;
+    border-top:1px solid rgba(255,255,255,.07);margin:0}
+  .acsv-cfloor{position:absolute;right:0;top:12px;font-size:12px;color:#7a7f8a}
+
+  /* ================= 评论状态件（cssraw 530 / 534-538 / 551；串=comments.js 真值） ================= */
+  /* 空态/首屏失败 tip（530：padding 46 0 居中 #888 13px；comments.js:429/247/460-474） */
+  .acsv-drawer-tip{padding:46px 0;text-align:center;color:#888;font-size:13px}
+  .acsv-cmore{display:block;width:100%;padding:14px 0;text-align:center;font-size:13px;color:#7a7f8a;
+    background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:none} /* 500-502；空态「前往原页」= a.acsv-cmore 元素（comments.js:430-433） */
+  .acsv-cmore:hover{color:var(--acsv-accent);text-decoration:underline}
+  /* 列表尾行三态（534-538；comments.js:483-503） */
+  .acsv-ctail{padding:18px 16px;text-align:center;color:#7a8394;font-size:12px}
+  .acsv-ctail-sp{display:inline-block;width:14px;height:14px;border:2px solid rgba(128,128,128,.35);
+    border-top-color:#cfd3da;border-radius:50%;animation:acsv-spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes acsv-spin{to{transform:rotate(360deg)}} /* 551 */
+  .acsv-ctail-rt{color:var(--acsv-accent);cursor:pointer;text-decoration:none;margin-left:8px} /* 537-538 */
+  .acsv-ctail-rt:hover{text-decoration:underline}
+
+  /* ================= 转发引用卡（单栏态；cssraw 1551-1562 真值） ================= */
+  .acsv-gquote{margin:10px 0 10px -10px;padding:10px;background:rgba(255,255,255,.06)}
+  .acsv-gquote-up{font-size:14px;line-height:22px;color:#8a90a0;margin-bottom:12px}
+  .acsv-gquote-upname{color:#fff;text-decoration:none}
+  .acsv-gquote-upname:hover{text-decoration:underline}
+  .acsv-gquote-textbody{font-size:14px;line-height:21px;color:#e8eaee;word-break:break-word;
+    max-height:63px;overflow:hidden;white-space:pre-line;user-select:text;-webkit-user-select:text}
+  .acsv-gquote-img{margin-top:10px;max-width:299px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.06)}
+  .acsv-gquote-img .ph{width:180px;height:180px;display:block;background:linear-gradient(135deg,#3a3f52,#232634)}
+
+  /* ================= 输入条（inputbar 真实类名；cssraw 328-431 真值；article-reader 同块） ================= */
+  .acsv-cinput{--acsv-edit-fg:#e8eaee;flex:none;display:flex;flex-direction:column;align-items:stretch;
+    gap:0;padding:8px 12px;border-top:1px solid rgba(255,255,255,.09);background:rgba(22,22,27,.98)}
+  .acsv-cinput-top{display:flex;align-items:center;min-height:24px;padding-bottom:3px;
+    border-bottom:1px solid rgba(255,255,255,.06)}
+  .acsv-cinput-main{display:flex;align-items:flex-end;gap:8px;padding-top:3px}
+  .acsv-cinput-fmt{width:18px;height:18px;border:none;background:none;border-radius:2px;cursor:pointer;
+    flex:none;padding:0;margin-right:8px;position:relative;text-align:center;color:#cfd3da}
+  .acsv-cinput-fmt .acsv-ic{font-size:18px}
+  .acsv-cinput-fmt:hover{color:#fff}
+  .acsv-fmtsep{flex:none;width:1px;height:18px;background:rgba(255,255,255,.18);margin:0 10px 0 0}
+  .acsv-cinput-colkey{position:relative;flex:none;display:flex;align-items:center;margin-right:8px}
+  .acsv-cinput-colkey .acsv-cinput-fmt{margin-right:0}
+  .acsv-cinput-collabel{position:absolute;bottom:2px;left:50%;width:16px;height:2px;margin-left:-8px;
+    border-radius:1px;background:var(--acsv-edit-fg);pointer-events:none}
+  .acsv-cinput-colcaret .acsv-ic{font-size:12px;transform:scale(.6)}
+  .acsv-cinput-count{flex:none;margin-left:auto;padding-right:1px;font-size:12px;color:#7a7f8a;
+    font-variant-numeric:tabular-nums} /* 0 字出空（inputbar.js:495-499；宿主 maxLength 1000 无 countMax，comments.js:598） */
+  .acsv-cinput-wrap{flex:1;min-width:0;position:relative;display:flex;background:rgba(255,255,255,.1);
+    border-radius:8px;overflow:hidden}
+  .acsv-cinput-wrap:focus-within{background:rgba(255,255,255,.16)}
+  .acsv-cinput-edit{flex:1;min-width:0;min-height:18px;max-height:96px;overflow-y:auto;outline:none;
+    font-size:13px;line-height:18px;padding:9px 12px;color:#e8eaee;white-space:pre-wrap;word-break:break-word;
+    caret-color:#fd4c5d;user-select:text;-webkit-user-select:text}
+  .acsv-cinput-edit:empty::before{content:attr(data-ph);color:#8a90a0;pointer-events:none}
+  .acsv-cinput-emot,.acsv-cinput-img{border:none;background:none;padding:2px;cursor:pointer;flex:none;
+    line-height:0;color:#999;transition:color .15s,transform .15s}
+  .acsv-cinput-emot .acsv-ic,.acsv-cinput-img .acsv-ic{font-size:20px}
+  .acsv-cinput-emot:hover,.acsv-cinput-img:hover{transform:scale(1.12);color:#fd4c5d}
+  .acsv-cinput-send{flex:none;border:none;background:#fd4c5d;color:#fff;font-size:13px;padding:8px 16px;
+    border-radius:999px;cursor:pointer;font-family:inherit}
+  .acsv-cinput-send:hover{background:#ff6b7a}
+  .acsv-cinput-send.disabled,.acsv-cinput-send.disabled:hover{background:rgba(255,255,255,.14);color:#7a7f8a;
+    cursor:not-allowed}
+
+  /* ================= 头部裁片（②③ 用的放大展示台：head 原规则 + 外框） ================= */
+  .headslice{border:1px dashed rgba(255,255,255,.16);border-radius:6px;background:#101014;
+    width:760px;overflow:hidden}
+  .headslice .acsv-mdetail-head{border-bottom:none}
+  .slicetag{font-size:11px;color:var(--acsv-t3);padding:6px 20px;background:rgba(255,255,255,.04)}
+  .slicetag b{color:var(--acsv-t2)}
+  /* 规格行：三档尺寸对照 */
+  .specline{display:flex;align-items:center;gap:14px;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,.07);
+    font-size:12px;color:var(--acsv-t3)}
+  .specline .btnslot{display:flex;align-items:center;gap:8px;flex:none}
+  .specline .cap{width:190px;flex:none;color:var(--acsv-t2)}
+
+  /* 窄屏塌缩（cssraw 1037-1040 真值）：860 断点、面板 min(560px,94vw)、媒体转上方 38vh */
+  .stage.narrow .acsv-mdetail-panel.acsv-mdetail-split{flex-direction:column;width:min(560px,94%);
+    height:auto;max-height:668px} /* 668＝88%×台高 760 的演示钉值；实现取 min(88vh,780px)（cssraw 1038） */
+  .stage.narrow .acsv-mdetail-media{width:100%;height:288px;flex:none;border-radius:20px 20px 0 0} /* 38vh 演示值＝760×38%≈288（实现按实际视口） */
+  .stage.narrow .acsv-mdetail-side{width:100%;flex:1 1 auto;min-height:0}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>动态详情浮层 · 关闭键收进面板头部 —— 静态预览（确认后才进 src 实现）</h1>
+  <p class="hint">
+    <b>本稿只裁一件事</b>：<code>.acsv-mdetail</code> 的 ✕ 从「背板层视口右上角」（现状 <code>src/momentdetail.js:129-132</code>
+    + <code>src/cssraw.js:975-977</code> 的 40 圆 <code>position:absolute;top:16px;right:16px</code>）
+    改为「<b>面板头部右侧</b>」（作者行 <code>.acsv-gmom-head acsv-mdetail-head</code>，与自删键「⋮」
+    <code>.acsv-mdetail-more</code>（<code>cssraw.js:978-980</code>）同排同族）。<br>
+    <b>不动</b>：背板点击关（<code>momentdetail.js:124-126</code>）、Esc 关（<code>momentdetail.js:247</code> modal 入栈）、
+    ⋮ 删除行为（<code>momentdetail.js:168-190</code> 确认弹）、两栏/单栏布局判定（<code>momentdetail.js:137-146</code>）、
+    轮播（<code>cssraw.js:994-1006</code>）、评论管线与输入条。<br>
+    量值全部照抄 <code>src/cssraw.js</code> 967-1057 段与评论/输入条段（逐值行号注在样式与附节），类名全真；
+    ① 的两张示意台按 <b>1600×900 视口 1:1 实大</b>绘制（横向可滚），几何数字可当场复核。
+    悬停态给了真 <code>:hover</code> 也给了定格类 <code>.fxh</code>。纪律：单文件 / 无新外链（唯一外链＝cssraw 头既有 iconfont）/
+    元素零内联色（内联只放几何）。
+  </p>
+
+  <!-- ================= ① 对比 ================= -->
+  <div class="sec">
+    <h2>① 对比 —— 现状 vs 提案<em>1600×900 视口 · 1:1 实大（台子比窗口宽，横向滚动即可）· 两栏态「自己的动态」</em></h2>
+    <p class="note">
+      面板两栏态基准（<code>cssraw.js:989</code>）：<code>width:min(920px,94vw)=920</code>、<code>height:min(84vh,672px)=672</code>、
+      flex 居中 ⇒ 左缘 x=340 / <b>右缘 x=1260</b> / 顶 y=114。现状 ✕ 40 圆挂背板 <code>top:16 right:16</code>
+      ⇒ 中心 x=1600−16−20=<b>1564</b>、y=36。
+    </p>
+    <div class="vpwrap">
+      <div class="vp">
+        <div class="ghostrow"><span class="av"></span><div style="flex:1"><div class="ln" style="width:220px"></div><div class="ln" style="width:340px"></div></div></div>
+        <div class="ghostrow"><span class="av"></span><div style="flex:1"><div class="ln" style="width:260px"></div><div class="ln" style="width:180px"></div></div></div>
+        <div class="acsv-mdetail">
+          <button class="x-old" title="关闭">✕</button>
+          <div class="acsv-mdetail-panel acsv-mdetail-split">
+            <div class="acsv-mdetail-media">
+              <div class="acsv-mdetail-img onbig phimg" style="width:465px;height:620px"></div>
+            </div>
+            <div class="acsv-mdetail-side">
+              <div class="acsv-mdetail-head">
+                <span class="acsv-gmom-av">AC</span>
+                <a class="acsv-gmom-name" href="#">@AC娘</a>
+                <span class="acsv-gmom-time">2小时前</span>
+                <button class="acsv-mdetail-more" title="删除这条动态">⋮</button>
+              </div>
+              <div class="acsv-mdetail-list">
+                <div class="acsv-mdetail-text">今晚 8 点整，「山海共创」企划 PV 正式上线！这次把四格画师、手书大佬和配音全凑齐了<span class="ubb-emotion"></span>评论区抽 3 位送全套设定集，记得回来报到～</div>
+                <div class="acsv-mdetail-actions">
+                  <span class="acsv-mdl-fwd"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                  <span class="acsv-mdl-cmt"><i class="acsvg-glyph">&#xe627;</i>1024</span>
+                  <span class="acsv-mdl-ban"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>6561</span>
+                  <span class="acsv-mdl-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>1.2万</span>
+                </div>
+                <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 1024 条评论</span></div>
+                <div class="acsv-citem">
+                  <span class="acsv-avlink"><span class="av">芸</span></span>
+                  <div class="acsv-cbody">
+                    <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">1小时前</span></span></div>
+                    <div class="acsv-ctext">设定集 +1！PV 那一帧海浪的手感绝了。</div>
+                    <div class="acsv-cmeta"><span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span><span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span></div>
+                  </div>
+                  <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
+                </div>
+              </div>
+              <div class="acsv-cinput">
+                <div class="acsv-cinput-main">
+                  <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                  <button class="acsv-cinput-send disabled">发送</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="meas">
+          <span class="g-v" style="left:1260px"></span>
+          <span class="g-v" style="left:1564px"></span>
+          <span class="g-h" style="top:114px"></span>
+          <span class="marr-h" style="left:1260px;top:86px;width:304px"></span>
+          <span class="mtag hot" style="left:1310px;top:68px">✕ 中心离卡片右缘 304px（≈300px）</span>
+          <span class="mtag" style="left:905px;top:98px">卡片右缘 x=1260</span>
+          <span class="mtag" style="left:1420px;top:12px">✕ 中心 x=1564</span>
+          <span class="mtag" style="left:1574px;top:44px">40 圆钮 · 背板 top16/right16<br>（cssraw 975-977 · momentdetail 129-132）</span>
+          <span class="mtag" style="left:1574px;top:206px">✕ 挂的是背板层 ⇒ 钉<b>视口</b>角<br>不是卡片角；y=36 比卡片顶 114 还高 78px<br>角点 (1260,114)↔(1564,36) 直线距离 ≈314px</span>
+          <span class="mtag" style="left:20px;top:100px">卡片顶 y=114（(900−672)/2）</span>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>现状</b>：✕ 飘在暗背板角落，1600 宽屏上离卡片右上角约 300px（横向 304 / 纵向 78，直线 ≈314）；
+      面板越窄它越远——单栏 620 宽时右缘 x=1110，缺口拉到 454px。头部右侧只有「⋮」。</p>
+    <div class="vpwrap">
+      <div class="vp">
+        <div class="ghostrow"><span class="av"></span><div style="flex:1"><div class="ln" style="width:220px"></div><div class="ln" style="width:340px"></div></div></div>
+        <div class="ghostrow"><span class="av"></span><div style="flex:1"><div class="ln" style="width:260px"></div><div class="ln" style="width:180px"></div></div></div>
+        <div class="acsv-mdetail">
+          <div class="acsv-mdetail-panel acsv-mdetail-split">
+            <div class="acsv-mdetail-media">
+              <div class="acsv-mdetail-img onbig phimg" style="width:465px;height:620px"></div>
+            </div>
+            <div class="acsv-mdetail-side">
+              <div class="acsv-mdetail-head">
+                <span class="acsv-gmom-av">AC</span>
+                <a class="acsv-gmom-name" href="#">@AC娘</a>
+                <span class="acsv-gmom-time">2小时前</span>
+                <span class="mdxg">
+                  <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
+                  <button class="mdx" title="关闭">✕</button>
+                </span>
+              </div>
+              <div class="acsv-mdetail-list">
+                <div class="acsv-mdetail-text">今晚 8 点整，「山海共创」企划 PV 正式上线！这次把四格画师、手书大佬和配音全凑齐了<span class="ubb-emotion"></span>评论区抽 3 位送全套设定集，记得回来报到～</div>
+                <div class="acsv-mdetail-actions">
+                  <span class="acsv-mdl-fwd"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                  <span class="acsv-mdl-cmt"><i class="acsvg-glyph">&#xe627;</i>1024</span>
+                  <span class="acsv-mdl-ban"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>6561</span>
+                  <span class="acsv-mdl-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>1.2万</span>
+                </div>
+                <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 1024 条评论</span></div>
+                <div class="acsv-citem">
+                  <span class="acsv-avlink"><span class="av">芸</span></span>
+                  <div class="acsv-cbody">
+                    <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">1小时前</span></span></div>
+                    <div class="acsv-ctext">设定集 +1！PV 那一帧海浪的手感绝了。</div>
+                    <div class="acsv-cmeta"><span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span><span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span></div>
+                  </div>
+                  <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
+                </div>
+              </div>
+              <div class="acsv-cinput">
+                <div class="acsv-cinput-main">
+                  <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                  <button class="acsv-cinput-send disabled">发送</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="meas">
+          <span class="g-v" style="left:1260px"></span>
+          <span class="g-v" style="left:1226px"></span>
+          <span class="g-h" style="top:114px"></span>
+          <span class="g-h" style="top:148px;left:1150px"></span>
+          <span class="marr-h" style="left:1226px;top:200px;width:34px"></span>
+          <span class="marr-v" style="left:1296px;top:114px;height:34px"></span>
+          <span class="mtag hot" style="left:1006px;top:212px">✕ 中心 (1226,148)：距卡片右缘 34px＝padding 20＋半径 14</span>
+          <span class="mtag" style="left:1330px;top:112px">卡片右缘 x=1260 · 角点 (1260,114)</span>
+          <span class="mtag" style="left:1330px;top:140px">✕ 中心 y=148 ＝顶 114＋头部半高 34（头像 40＋上下 14 ⇒ 行高 68，钮居中）</span>
+          <span class="mtag" style="left:1460px;top:100px">角点↔✕ 中心：横 34 / 纵 34<br>直线距离 ≈48px（现状 ≈314px）</span>
+          <span class="mtag" style="left:152px;top:98px">两栏态头部在<b>右栏顶部</b><br>⇒ ✕ 落点即卡片右上角一带（右栏 400，cssraw 1011）</span>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>提案</b>：✕ 进头部（<code>head.appendChild(x)</code> 取代 <code>backdrop.appendChild(x)</code>），
+      28 圆钮与 ⋮ 同排同族；<b>背板点击关 / Esc 关语义原样保留</b>（见 ③ 与附节 C）。头部规则不动
+      （<code>cssraw.js:1014-1019</code>），✕ 作为头部 flex 件自然居中。</p>
+  </div>
+
+  <!-- ================= ② ✕ 形态 ================= -->
+  <div class="sec">
+    <h2>② 提案 ✕ 形态<em>与同排「⋮」同族：28 圆钮（建议值）· 底 rgba(255,255,255,.12) · hover .22 · color:#fff · 字号 16 —— 全值即 cssraw 978-980 ⋮ 的既有规格</em></h2>
+    <p class="note">
+      建议值与理由：<b>28 圆</b>。① 同排 ⋮ 就是 28 圆（<code>cssraw.js:978-980</code>），仓内另有 28 圆关闭钮单源
+      <code>CLOSE_BTN</code>（<code>cssseg.js:20-21</code>）——头部右侧钮组同尺寸同底色，是一套语言；
+      ② 现背板钮 40 圆（<code>cssraw.js:975-976</code>）是「卡片外浮钮」的 XHS 形制（974 注释在册），收进卡片后与
+      40 圆头像同尺对撞、头部行高 68 里显大，<b>不再沿用</b>；③ 32 圆为候选档（触控面积每边 +2px，观感仍成立）。
+      <code>title="关闭"</code> 沿用（<code>momentdetail.js:130</code>）。每行都带真 <code>:hover</code>（可点验），
+      第二枚为 <code>.fxh</code> 定格悬停（实现无此类，稿内展示用）。
+    </p>
+    <div class="headslice">
+      <div class="acsv-mdetail-head">
+        <span class="acsv-gmom-av">AC</span>
+        <a class="acsv-gmom-name" href="#">@AC娘</a>
+        <span class="acsv-gmom-time">2小时前</span>
+        <button class="mdx" title="关闭">✕</button>
+      </div>
+      <div class="slicetag"><b>建议 28 圆 · 别人的动态（无 ⋮，✕ 兼管推右落位）</b> —— 左：默认态；悬停此钮验真 :hover；此即 ① 下图头部原尺。</div>
+      <div class="acsv-mdetail-head">
+        <span class="acsv-gmom-av">AC</span>
+        <a class="acsv-gmom-name" href="#">@AC娘</a>
+        <span class="acsv-gmom-time">2小时前</span>
+        <span class="mdxg">
+          <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
+          <button class="mdx" title="关闭">✕</button>
+        </span>
+      </div>
+      <div class="slicetag"><b>建议 28 圆 · 自己的动态（⋮ + ✕ 组，gap 8 提案值）</b> —— 悬停任一键验真 :hover。</div>
+      <div class="acsv-mdetail-head">
+        <span class="acsv-gmom-av">AC</span>
+        <a class="acsv-gmom-name" href="#">@AC娘</a>
+        <span class="acsv-gmom-time">2小时前</span>
+        <span class="mdxg">
+          <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
+          <button class="mdx fxh" title="关闭">✕</button>
+        </span>
+      </div>
+      <div class="slicetag"><b>悬停定格</b> —— ✕ 底 .12→<b>.22</b>（与 ⋮ hover 同值，cssraw 980）；此行为 <code>.fxh</code> 类定格，静态稿/打印可见。</div>
+      <div class="acsv-mdetail-head">
+        <span class="acsv-gmom-av">AC</span>
+        <a class="acsv-gmom-name" href="#">@AC娘</a>
+        <span class="acsv-gmom-time">2小时前</span>
+        <span class="mdxg">
+          <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
+          <button class="mdx b32" title="关闭">✕</button>
+        </span>
+      </div>
+      <div class="slicetag"><b>候选 32 圆</b> —— 其余值同（.12→.22 / #fff / 16 号字），触区每边 +2px；落位中心仅内移 2px（1224↔1226），观感接近建议值。</div>
+      <div class="acsv-mdetail-head">
+        <span class="acsv-gmom-av">AC</span>
+        <a class="acsv-gmom-name" href="#">@AC娘</a>
+        <span class="acsv-gmom-time">2小时前</span>
+        <span class="mdxg">
+          <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
+          <button class="mdx b40" title="关闭">✕</button>
+        </span>
+      </div>
+      <div class="slicetag"><b>退役对照 · 现 40 圆硬放进头部</b> —— 与 40 圆头像对撞、把头部行顶满，说明背板 40 制式不能整体搬进卡；本档仅示警，非提案。</div>
+    </div>
+  </div>
+
+  <!-- ================= ③ 两种归属 ================= -->
+  <div class="sec">
+    <h2>③ 两种归属 —— 别人 / 自己<em>头部右侧钮组的两种成员；顺序与间距提案</em></h2>
+    <div class="row2">
+      <div class="headslice">
+        <div class="acsv-mdetail-head">
+          <span class="acsv-gmom-av">芸</span>
+          <a class="acsv-gmom-name" href="#">@一只芸喵喵</a>
+          <span class="acsv-gmom-time">5小时前</span>
+          <button class="mdx" title="关闭">✕</button>
+        </div>
+        <div class="slicetag"><b>别人的动态</b>（无自删键，<code>momentdetail.js:169</code> 的 self 判定不成立）——
+          头部右侧<b>只有 ✕</b>；✕ 自己承担推右（附节 B 方案 A/B 其一）。</div>
+        <div class="acsv-mdetail-head">
+          <span class="acsv-gmom-av">AC</span>
+          <a class="acsv-gmom-name" href="#">@AC娘</a>
+          <span class="acsv-gmom-time">2小时前</span>
+          <span class="mdxg">
+            <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
+            <button class="mdx" title="关闭" style="margin-left:0">✕</button>
+          </span>
+        </div>
+        <div class="slicetag"><b>自己的动态</b> —— 顺序提案 <b>⋮ 在内侧、✕ 在最外角</b>：① 关闭是整层的固定出口，
+          钉卡片右上角做视觉锚（与各家弹层「✕ 在角」惯例一致）；② ⋮ 是动态本体动作且属破坏性（确认后删除，
+          <code>momentdetail.js:175-187</code>），放内侧离鼠标惯用的外角一步，降误触。间距提案 <b>gap 8</b>：
+          钮组内比头部通用 gap 10（<code>cssraw.js:1014</code>）收紧一档以示「同组」，8 为提案值、可裁 10 对齐 gap。
+          两键同 28 圆同底 .12→.22，无需再分主次色。</div>
+      </div>
+    </div>
+    <p class="note">
+      <b>语义不变声明（本稿只挪 ✕ 的归属，不碰关闭通道）</b>：
+      ① 背板点击关＝点 <code>.acsv-mdetail</code> 空白处收层（<code>momentdetail.js:124-126</code>，提案后面板内点击照旧不关）；
+      ② Esc 关＝overlay 栈 modal 层（<code>momentdetail.js:247</code>）；
+      ③ ⋮ 行为原样（确认弹文案「删除这条动态？」/「删除后不可恢复，动态会从列表里消失。」/按钮「删除」，
+      <code>momentdetail.js:176-179</code>），删除成功仍收面板并回调列表摘行；
+      ④ 面板内开大图/分享面板等层级行为不动。
+    </p>
+  </div>
+
+  <!-- ================= ④ 两种布局 ================= -->
+  <div class="sec">
+    <h2>④ 两种布局 —— 有图两栏 / 无图·纯文字·转发单栏<em>✕ 在两种形态里都只认「头部右侧」这一个落点</em></h2>
+    <p class="note">
+      两栏态（有自有图，<code>momentdetail.js:137-146</code> 判 <code>hasMedia</code>）：面板 <code>min(920px,94vw)</code>、
+      头部在<b>右栏顶部</b>——右栏固定 400（<code>cssraw.js:1011</code>）贴面板右缘，故 ✕ 天然落在<b>卡片右上角一带</b>
+      （①下图已 1:1 画出并标注：中心距角点横 34/纵 34）。<br>
+      单栏态（无图/纯文字/转发）：面板收窄 <code>min(620px,94vw)</code>（<code>cssraw.js:982</code>），头部横跨全宽，
+      ✕ 直接就是卡片右上角件。下面摆单栏两例（正文+评论已加载 / 转发带引用卡）；正文 16/24、互动条四键、
+      评论头「共 N 条评论」、尾行「没有更多评论了」、输入条 placeholder 均为仓内真实串。
+    </p>
+    <div class="row2">
+      <div class="stage short" style="width:680px">
+        <div class="acsv-mdetail">
+          <div class="acsv-mdetail-panel" style="height:520px">
+            <div class="acsv-mdetail-head">
+              <span class="acsv-gmom-av">墨</span>
+              <a class="acsv-gmom-name" href="#">@墨色三分</a>
+              <span class="acsv-gmom-time">昨天 22:14</span>
+              <button class="mdx" title="关闭">✕</button>
+            </div>
+            <div class="acsv-mdetail-list">
+              <div class="acsv-mdetail-text">纯文字动态示例：今晚把第三章的线稿收尾了，明早扫线上色。这页想试试大逆光，有懂的师傅评论区聊聊<span class="ubb-emotion"></span></div>
+              <div class="acsv-mdetail-actions">
+                <span class="acsv-mdl-fwd"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                <span class="acsv-mdl-cmt"><i class="acsvg-glyph">&#xe627;</i>26</span>
+                <span class="acsv-mdl-ban"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>88</span>
+                <span class="acsv-mdl-like on"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>341</span>
+              </div>
+              <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 26 条评论</span></div>
+              <div class="acsv-citem">
+                <span class="acsv-avlink"><span class="av">手</span><span class="acsv-cavframe"></span></span>
+                <div class="acsv-cbody">
+                  <div class="acsv-cname"><a href="#">手书区混子</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">3小时前</span></span></div>
+                  <div class="acsv-ctext">大逆光记得压一下暗部噪点，上次那页高光边缘有点飘。</div>
+                  <div class="acsv-cmeta">
+                    <span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>12</span>
+                    <span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span>
+                    <span class="acsv-cattr"><span>来自 Android</span><span>IP属地 广东</span></span>
+                  </div>
+                </div>
+                <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
+              </div>
+              <div class="acsv-ctail"><span>没有更多评论了</span></div>
+            </div>
+            <div class="acsv-cinput">
+              <div class="acsv-cinput-main">
+                <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                <button class="acsv-cinput-send disabled">发送</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="meas">
+          <span class="g-v" style="left:640px"></span>
+          <span class="mtag" style="left:390px;top:18px">单栏态：✕ 即卡片右上角件</span>
+        </div>
+      </div>
+      <div class="stage short" style="width:680px">
+        <div class="acsv-mdetail">
+          <div class="acsv-mdetail-panel" style="height:520px">
+            <div class="acsv-mdetail-head">
+              <span class="acsv-gmom-av">AC</span>
+              <a class="acsv-gmom-name" href="#">@AC娘</a>
+              <span class="acsv-gmom-time">1小时前</span>
+              <span class="mdxg">
+                <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
+                <button class="mdx" title="关闭" style="margin-left:0">✕</button>
+              </span>
+            </div>
+            <div class="acsv-mdetail-list">
+              <div class="acsv-mdetail-text">转个场，这个企划开坑两年终于填上了……</div>
+              <div class="acsv-gquote">
+                <div class="acsv-gquote-up">转发@快递星迟到的续章：<span class="acsv-gquote-upname">「山海共创」企划</span></div>
+                <div class="acsv-gquote-textbody">第一弹：PV 分镜手稿全公开！这次我们把四格画师、手书大佬和配音全凑齐了，从分镜到成片一共迭代了十一版，本文先贴前十版废稿对比，正片链接在文末。先来看一帧海浪的原始草图，那时候还没定调色方向。</div>
+                <div class="acsv-gquote-img"><span class="ph"></span></div>
+              </div>
+              <div class="acsv-mdetail-actions">
+                <span class="acsv-mdl-fwd"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                <span class="acsv-mdl-cmt"><i class="acsvg-glyph">&#xe627;</i>7</span>
+                <span class="acsv-mdl-ban"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>15</span>
+                <span class="acsv-mdl-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>63</span>
+              </div>
+              <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 7 条评论</span></div>
+              <div class="acsv-citem">
+                <span class="acsv-avlink"><span class="av">蝉</span></span>
+                <div class="acsv-cbody">
+                  <div class="acsv-cname"><a href="#">阿蝉不是蝉</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">40分钟前</span></span></div>
+                  <div class="acsv-ctext">十一版废稿都舍不得删，这就是创作者吗<span class="ubb-emotion"></span></div>
+                  <div class="acsv-cmeta"><span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>3</span><span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span></div>
+                </div>
+                <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
+              </div>
+            </div>
+            <div class="acsv-cinput">
+              <div class="acsv-cinput-main">
+                <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                <button class="acsv-cinput-send disabled">发送</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="meas">
+          <span class="g-v" style="left:640px"></span>
+          <span class="mtag" style="left:376px;top:18px">转发单栏：自带引用缩略图，不再开两栏</span>
+        </div>
+      </div>
+    </div>
+    <p class="note">转发卡形制＝<code>cssraw.js:1551-1562</code>（灰块 padding 10 / 左出血 −10 / 无圆角；@源UP 14/22；
+      源正文钳 3 行 63px——上图正文超三行即钳，属既有行为）；单栏态布局判定与媒体缺席＝
+      <code>momentdetail.js:134-137</code> 注释在册（顶层 coverUrl 不算自有媒体）。两栏态多图的轮播件
+      （左右箭头 60 圆 / 底部小点，<code>cssraw.js:994-1006</code>）与本改动无关，未画。</p>
+  </div>
+
+  <!-- ================= ⑤ 评论状态 ================= -->
+  <div class="sec">
+    <h2>⑤ 评论区状态<em>空态 / 首屏失败 / 尾行三态 —— 全部用 comments.js 真实串</em></h2>
+    <div class="row2">
+      <div class="stage short" style="width:680px">
+        <div class="acsv-mdetail">
+          <div class="acsv-mdetail-panel" style="height:460px">
+            <div class="acsv-mdetail-head">
+              <span class="acsv-gmom-av">星</span>
+              <a class="acsv-gmom-name" href="#">@夜航星不发短信</a>
+              <span class="acsv-gmom-time">18分钟前</span>
+              <button class="mdx" title="关闭">✕</button>
+            </div>
+            <div class="acsv-mdetail-list">
+              <div class="acsv-mdetail-text">新坑预告：下周开一期的语音整活，先占个楼。</div>
+              <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 0 条评论</span></div>
+              <div class="acsv-drawer-tip">还没有评论，去原页抢沙发 →<a class="acsv-cmore" href="#">前往原页</a></div>
+            </div>
+            <div class="acsv-cinput">
+              <div class="acsv-cinput-main">
+                <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                <button class="acsv-cinput-send disabled">发送</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="meas"><span class="mtag" style="left:20px;top:18px">空态（评论已加载=0）</span></div>
+      </div>
+      <div class="stage short" style="width:680px">
+        <div class="acsv-mdetail">
+          <div class="acsv-mdetail-panel" style="height:460px">
+            <div class="acsv-mdetail-head">
+              <span class="acsv-gmom-av">星</span>
+              <a class="acsv-gmom-name" href="#">@夜航星不发短信</a>
+              <span class="acsv-gmom-time">18分钟前</span>
+              <button class="mdx" title="关闭">✕</button>
+            </div>
+            <div class="acsv-mdetail-list">
+              <div class="acsv-mdetail-text">新坑预告：下周开一期的语音整活，先占个楼。</div>
+              <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">评论</span></div>
+              <div class="acsv-drawer-tip">评论加载失败<a class="acsv-ctail-rt">重试</a></div>
+            </div>
+            <div class="acsv-cinput">
+              <div class="acsv-cinput-main">
+                <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                <button class="acsv-cinput-send disabled">发送</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="meas"><span class="mtag" style="left:20px;top:18px">失败态（首屏）</span></div>
+      </div>
+    </div>
+    <p class="note">
+      <b>空态</b>＝评论拉成功且 0 条：标题走 <code>titleFmt(0)</code> 出「共 0 条评论」（<code>momentdetail.js:253</code>），
+      tip 串「还没有评论，去原页抢沙发 →」+ 块级链接「前往原页」（新窗开官方页，<code>comments.js:429-436</code>）；
+      正文 pin 保留（管线清列表重挂不动 pin，<code>comments.js:196</code> 注）。<br>
+      <b>失败态</b>＝首屏拉挂：tip 串「评论加载失败」+ 红字「重试」（<code>comments.js:247/460-474</code>），点重试清闸重拉；
+      此时计数未到，标题停在初始「评论」（<code>momentdetail.js:234</code>）。两态 <b>✕ 均常驻头部右侧、可点</b>——
+      这正是收进头部的收益：失败/空态下面板只剩半屏内容，视口角的 ✕ 离卡片更远，头部的 ✕ 始终贴着内容右上角。<br>
+      <b>尾行三态</b>（续拉中/追加失败/到底，<code>comments.js:483-503</code>，样式 <code>cssraw.js:534-538</code>）实样：
+    </p>
+    <div class="headslice" style="width:620px">
+      <div class="acsv-ctail"><span class="acsv-ctail-sp"></span><span>加载中…</span></div>
+      <div class="acsv-ctail"><span>评论加载失败</span><a class="acsv-ctail-rt">重试</a></div>
+      <div class="acsv-ctail" style="border-bottom:none"><span>没有更多评论了</span></div>
+    </div>
+  </div>
+
+  <!-- ================= ⑥ 540 窄宽 ================= -->
+  <div class="sec">
+    <h2>⑥ 540 窄宽自检<em>@media (max-width:860px) 两栏塌上下堆叠（cssraw 1037-1040）——✕ 仍在头部右侧、不溢出</em></h2>
+    <div class="stage narrow">
+      <div class="acsv-mdetail">
+        <div class="acsv-mdetail-panel acsv-mdetail-split">
+          <div class="acsv-mdetail-media">
+            <div class="acsv-mdetail-img onbig phimg" style="width:216px;height:288px"></div>
+          </div>
+          <div class="acsv-mdetail-side">
+            <div class="acsv-mdetail-head">
+              <span class="acsv-gmom-av">AC</span>
+              <a class="acsv-gmom-name" href="#">@AC娘</a>
+              <span class="acsv-gmom-time">2小时前</span>
+              <span class="mdxg">
+                <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
+                <button class="mdx" title="关闭" style="margin-left:0">✕</button>
+              </span>
+            </div>
+            <div class="acsv-mdetail-list">
+              <div class="acsv-mdetail-text">今晚 8 点整，「山海共创」企划 PV 正式上线！这次把四格画师、手书大佬和配音全凑齐了<span class="ubb-emotion"></span>评论区抽 3 位送全套设定集，记得回来报到～</div>
+              <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 1024 条评论</span></div>
+              <div class="acsv-citem">
+                <span class="acsv-avlink"><span class="av">芸</span></span>
+                <div class="acsv-cbody">
+                  <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">1小时前</span></span></div>
+                  <div class="acsv-ctext">窄态自检：头部 ⋮+✕ 同排不挤、钮组不溢出面板；正文整词换行不逐字断行。</div>
+                  <div class="acsv-cmeta">
+                    <span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span>
+                    <span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span>
+                    <span class="acsv-cattr"><span>来自 Android</span><span>IP属地 广东</span></span>
+                  </div>
+                </div>
+                <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
+              </div>
+              <div class="acsv-ctail"><span>没有更多评论了</span></div>
+            </div>
+            <div class="acsv-cinput">
+              <div class="acsv-cinput-top">
+                <button class="acsv-cinput-fmt" title="加粗"><i class="acsv-ic">&#xe18f;</i></button>
+                <button class="acsv-cinput-fmt" title="斜体"><i class="acsv-ic">&#xe19a;</i></button>
+                <button class="acsv-cinput-fmt" title="下划线"><i class="acsv-ic">&#xe1ea;</i></button>
+                <button class="acsv-cinput-fmt" title="删除线"><i class="acsv-ic">&#xe1e9;</i></button>
+                <span class="acsv-fmtsep"></span>
+                <span class="acsv-cinput-colkey">
+                  <button class="acsv-cinput-fmt" title="文字颜色"><i class="acsv-ic">&#xe1eb;</i><span class="acsv-cinput-collabel"></span></button>
+                  <button class="acsv-cinput-fmt acsv-cinput-colcaret" title="颜色面板"><i class="acsv-ic">&#xe166;</i></button>
+                </span>
+                <span class="acsv-fmtsep"></span>
+                <button class="acsv-cinput-emot" title="表情"><i class="acsv-ic">&#xe18b;</i></button>
+                <button class="acsv-cinput-img" title="图片"><i class="acsv-ic">&#xe18a;</i></button>
+                <span class="acsv-cinput-count"></span>
+              </div>
+              <div class="acsv-cinput-main">
+                <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                <button class="acsv-cinput-send disabled">发送</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="meas">
+        <span class="mtag" style="left:20px;top:326px">塌缩后头部＝面板全宽（内宽 507−40=467.6）<br>40 头像+名字+时间+⋮28+8+✕28 ＝224 实占，余裕 243.6 ⇒ 不溢出</span>
+      </div>
+    </div>
+    <p class="note">检查项：塌缩态（媒体 38vh 转上方、圆角 20 20 0 0，<code>cssraw.js:1039</code>）下 <b>✕ 仍贴头部右侧</b>，
+      距面板右缘仍是 padding 20（<code>cssraw.js:1014</code> 头部规则不随断点变）；540 视口下面板
+      <code>min(560px,94vw)=507.6</code>；评论行 gap 30 + 左右 16 在 507 内仍余裕、属性组（设备/IP）整组换行不折字；
+      输入条工具行九件不折行；长名字超出后的头部溢出处理不在本稿裁决范围（✕ 收头部不改变既有换行行为）。
+      稿台 540×760：媒体固定 288px＝38vh 演示值（实现按实际视口高）。</p>
+  </div>
+
+  <!-- ================= ⑦ 附 ================= -->
+  <div class="sec">
+    <h2>附：真值登记 · 实现落点 · 待拍板 · 示意件</h2>
+    <p class="note" style="line-height:2.1">
+      <b>A. 关键几何推导（1600×900，两栏态）</b>：面板 <code>min(920px,94vw)=920</code> × <code>min(84vh,672px)=672</code>
+      居中 ⇒ (340,114)-(1260,786)；背板钮 <code>top:16 right:16</code> 40 圆 ⇒ 中心 (1564,36)，
+      <b>横向离卡片右缘 304px（即「约 300px」）、角点直线 ≈314px</b>；提案 28 圆居头部 ⇒ 中心 (1226,148)，
+      距角点 <b>横 34 ＝ padding 20 + 半径 14、纵 34 ＝ 头部行高 68 的一半</b>，直线 ≈48px。
+      单栏态 620 宽 ⇒ 卡片右缘 x=1110，现状缺口更大（454px），提案同样收敛。<br>
+      <b>B. 推右（margin-left:auto）收口——两种实现案，观感一致，本稿画 A 案形态</b>：现状 auto 挂在 ⋮
+      （<code>cssraw.js:978</code>），别人的动态只有 ✕ 时没人推右。方案 A＝头部右钮组加包裹件
+      <code>.acsv-mdetail-xg{margin-left:auto;display:flex;gap:8px}</code>（稿内 <code>.mdxg</code> 即其形），
+      推右收口到组层，✕ 单挂/⋮✕ 双挂同一活法（病灶上溯结构：规则 7，两键「各带 auto 会互抢空隙」这类缝一次堵死）；
+      方案 B＝最小改动——✕ 恒 <code>margin-left:auto</code>、⋮ 的 auto 摘除改 <code>margin-left:0</code>，
+      代价是 ⋮ 与 ✕ 之间只剩 gap 10 语义、分组感弱一档。<br>
+      <b>C. 实现落点备忘（确认后另批进 src，本稿不动代码）</b>：DOM——<code>momentdetail.js:129-132</code>
+      的 <code>backdrop.appendChild(x)</code> 改头部挂载（顺序按 ③），<code>momentdetail.js:150</code>「✕ 已移至背板浮层」
+      注释同步翻案；CSS——<code>cssraw.js:975-977</code> 由背板绝对定位改写为头部件（28/32 圆 + .12→.22 值组，
+      与 978-980 ⋮ 同段并置）；harness 配反跑守卫（规矩 4）——断言 <code>.acsv-mdetail-x</code> 的 parentNode
+      即 <code>.acsv-mdetail-head</code> 且背板层查无此钮（临时还原挂背板 ⇒ 断言必须转红）。<br>
+      <b>D. 待拍板取值</b>：① 尺寸 <b>28（建议，与 ⋮ 同族同尺）vs 32（候选，触区大）</b>；
+      ② 顺序 <b>⋮ 内 / ✕ 最外角（建议）vs ✕ 内 / ⋮ 外</b>；③ 钮组间距 <b>8（建议）vs 10（对齐头部 gap）</b>；
+      ④ 推右收口方案 A vs B（纯实现选择，若不关心可默认 A）。<br>
+      <b>E. 示意件登记（非实现件）</b>：头像/媒体图/转发缩略图的色块占位、表情 34 定块、ghostrow 底层残影、
+      测量导引线/双箭头/数字标签、悬停定格类 <code>.fxh</code>、稿名 <code>.mdx/.x-old/.mdxg</code>（实现沿用真类
+      <code>.acsv-mdetail-x/.acsv-mdetail-more</code>）；① 台子输入条只画了 main 行（top 工具行全形见 ⑥）。
+      其余类名、色值、码点（分享 e628 / 评论 e627 / 蕉 e62a·e65f / 赞 e629·e660，<code>imicons.js:26-31</code>；
+      输入条 ed* 码点 <code>cssraw.js:328-431</code>）全真。<br>
+      <b>F. 口径出处速查</b>：背板 <code>cssraw.js:972-973</code>；面板 982-985＋<code>cssseg.js:12-16</code>；
+      两栏 989-991/1011；头部 1014-1019＋1541-1543；正文 1026-1027；互动条 1045-1055＋<code>momentbar.js:135-154</code>；
+      评论头 1056-1057；空态/失败 tip 530＋<code>comments.js:429/460-474</code>；尾行 534-538＋<code>comments.js:483-503</code>；
+      评论条目 449-520；输入条 328-431＋<code>comments.js:583-599</code>；塌缩 1037-1040；
+      自删键文案 <code>momentdetail.js:176-179</code>。
+    </p>
+  </div>
+</div>
+</body>
+</html>
