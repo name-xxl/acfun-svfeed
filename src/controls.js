@@ -241,7 +241,7 @@ export function buildControls(slide, idx, item) {
       }
       item.waiting = next;
       paint();
-      (next ? addWaiting(item) : cancelWaiting(item)).then(function (ok) {
+      (next ? addWaiting(item.id) : cancelWaiting(item.id)).then(function (ok) {
         item.waitingBusy = false;
         if (ok) { if (next) okWaitingAdd(); else okWaitingRemove(); return; }
         item.waiting = !next;

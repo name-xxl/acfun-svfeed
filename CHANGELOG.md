@@ -5,6 +5,33 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.311（2026-11-02）· 稍后再看写链复核半推翻旧结论 + 面板「移出」resourceId=undefined 契约收口
+
+**背景**：复核「稍后再看移除接口失效」判断（0.9.279 病灶：面板移出假成功）。2026-11-02 内置浏览器
+登录态实测：add **复活**（正确形状 `addWaiting` 真写入、列表 5→6）、cancel **仍灭**（单 id / APP 逗号形 /
+undefined 三形状全空转）、服务端 **result:0 恒真**（连 `resourceId=undefined` 都回 0）。§14.2「整族空转」
+结论半推翻：门禁按端点各自波动，非「会话本体一刀切」（docs/api-research.md §14.3，该档不入仓）。
+
+**病灶**（两处独立叠加，单发其一即现「假成功」）：
+- 调用面断层：`mytabs.js` 稍后再看档把 `panelItem('waiting')` 产物直传 `cancelWaiting(pi)`，写链取
+  `item.id`，而面板条目契约只有 `acId` → 实发 `resourceId=undefined`；服务端恒回 result:0 → 乐观移除
+  假成功 → 刷新条目回来。与 cancel 门禁无关，任何时刻都在发作。
+- 观测面断层：harness `wait-remove-body` 只钉「body 非空」，钉不住上述调用面错误。
+
+**修法**（病灶上溯结构：收口到签名层，不再猜对象字段）：
+- `watchlaterapi.writeWaiting(url, item→rid)`：入参改**显式 resourceId 标量**；`Number(rid)` 非正整数
+  守卫——不发请求、`stat('wl.fail')`、返回 false（消灭 undefined 垃圾请求）。
+- 调用面各取对字段：`controls.js`（home PlayItem）传 `item.id`；`mytabs.js`（PanelItem）传 `pi.acId`。
+- 观测面：`wait-remove-body` 升级**精确等值**钉 `resourceId=489100&resourceType=2`；单测补守卫用例
+  （undefined/'abc'/0/-5 → false 且零 GM 调用）。
+
+**测试证据**：
+- 单测 `watchlater.test.js` 5/5 绿（含新守卫用例）。
+- harness `view-my` 90/90、`ctl-waiting` 11/11 绿。
+- 摘修复反跑：临时还原 `mytabs` 传整个 `pi` → `view-my` `wait-remove-body` 转红（87/90）→ 改回转绿。
+- 真机（2026-11-02）：服务端行为入档 §14.3；「网页端移除」专项＝PC 网页零原生入口，账密造 APP 会话
+  路线探针 `test/tmp-probe/acwl-cancel-probe.mjs` 待用户本机定生死（产品化另裁）。
+
 ### 0.9.310（2026-10-30）· 机械筛选+人工判定体系扩闸——结构面/生灭面两新闸 + hygiene 两 pass + 方向两口径，首批存量登记
 
 **背景**：用户裁决把「正确性/简洁性」拆成可机械筛选的**结构前件**，按「机械网捞候选 →

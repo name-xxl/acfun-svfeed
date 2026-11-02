@@ -244,7 +244,10 @@ window.__ACSV_MOCK_FORM__['app/cancelWaiting'] = function (body, url) {
 };
 var waitRm = q('.acsv-mepanel[data-tab="wait"] .acsv-wlacts .acsv-vchip');
 if (waitRm) waitRm.click();
-rec('wait-remove-body', !!(await waitFor(function () { return !!waitBody; }, 3000)), waitBody);
+// 0.9.311 钉请求体精确等值（mock 条目 dougaId=489100）：此前只钉「非空」，钉不住 mytabs
+// 直传 PanelItem 而写链取 item.id 的调用面断层（实发 resourceId=undefined，§14.3 病灶）。
+await waitFor(function () { return !!waitBody; }, 3000);
+rec('wait-remove-body', waitBody === 'resourceId=489100&resourceType=2', waitBody);
 rec('wait-remove-gone', !!(await waitFor(function () {
   return document.querySelectorAll('.acsv-mepanel[data-tab="wait"] .acsv-gcell').length === 0;
 }, 3000)));
