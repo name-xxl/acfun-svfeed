@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.311-debug
+// @version      0.9.312-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 103928;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.311-debug" : "",
+          ver: true ? "0.9.312-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -740,7 +740,7 @@ window.__ACSV_CSS_LEN__ = 103928;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.311-debug" : "";
+  var APP_VERSION = true ? "0.9.312-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -7648,18 +7648,26 @@ window.__ACSV_CSS_LEN__ = 103928;
   });
 
   // src/pickpop.js
-  function place(pop2, btn) {
+  function place(pop2, btn, placeHost) {
     var wrap = pop2.parentNode;
     if (!wrap) return;
     if (getComputedStyle(wrap).position === "static") wrap.style.position = "relative";
     var b = btn.getBoundingClientRect(), h = wrap.getBoundingClientRect();
-    applyPlace(pop2, anchorPlaceOf(
+    var g = placeHost ? placeHost.getBoundingClientRect() : h;
+    var gsl = placeHost ? placeHost.scrollLeft || 0 : wrap.scrollLeft || 0;
+    var gst = placeHost ? placeHost.scrollTop || 0 : wrap.scrollTop || 0;
+    var pos = anchorPlaceOf(
       { left: b.left, top: b.top, right: b.right, bottom: b.bottom },
-      { left: h.left, top: h.top, right: h.right, sl: wrap.scrollLeft || 0, st: wrap.scrollTop || 0 },
+      { left: g.left, top: g.top, right: g.right, sl: gsl, st: gst },
       { w: window.innerWidth, h: window.innerHeight },
       pop2.offsetWidth,
       pop2.offsetHeight
-    ));
+    );
+    if (placeHost) {
+      pos.left += g.left - gsl - (h.left - (wrap.scrollLeft || 0));
+      pos.top += g.top - gst - (h.top - (wrap.scrollTop || 0));
+    }
+    applyPlace(pop2, pos);
   }
   function guardOutside(pop2, btn) {
     closeOnOutsideClick(pop2, [btn], function() {
@@ -7893,9 +7901,9 @@ window.__ACSV_CSS_LEN__ = 103928;
       pop2.remove();
     });
     host5.appendChild(pop2);
-    place(pop2, btn);
+    place(pop2, btn, opts.placeHost);
     watchPlace(pop2, function() {
-      place(pop2, btn);
+      place(pop2, btn, opts.placeHost);
     });
     guardOutside(pop2, btn);
     refresh("");
@@ -7950,9 +7958,9 @@ window.__ACSV_CSS_LEN__ = 103928;
       pop2.remove();
     });
     host5.appendChild(pop2);
-    place(pop2, btn);
+    place(pop2, btn, opts.placeHost);
     watchPlace(pop2, function() {
-      place(pop2, btn);
+      place(pop2, btn, opts.placeHost);
     });
     guardOutside(pop2, btn);
     return pop2;
@@ -8449,7 +8457,7 @@ window.__ACSV_CSS_LEN__ = 103928;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.311-debug" : "",
+      version: true ? "0.9.312-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -9364,6 +9372,8 @@ window.__ACSV_CSS_LEN__ = 103928;
       openConfirmPop(del, {
         host: curHost().el,
         // 评论行在滚动列表内，确认弹挂宿主根防裁剪
+        placeHost: del,
+        // 0.9.312：几何宿主=删除钮自身（宿主根是宽容器，同「宽宿主」病灶）
         title: "删除这条评论？",
         text: "删除后不可恢复，评论计数会同步减一。",
         okLabel: "删除",
@@ -15403,7 +15413,7 @@ window.__ACSV_CSS_LEN__ = 103928;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.311-debug" : "");
+    return normVer(true ? "0.9.312-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -19007,7 +19017,7 @@ window.__ACSV_CSS_LEN__ = 103928;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.311-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.312-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -20685,6 +20695,8 @@ window.__ACSV_CSS_LEN__ = 103928;
           ev.preventDefault();
           openConfirmPop(rm, {
             host: panel2,
+            placeHost: rm,
+            // 0.9.312：几何宿主=锚点自身——host 传整面板是「宽宿主」病灶（弹层被翻到视口最右）
             title: "删除这条观看记录？",
             text: "只删除观看历史，不会取消收藏，也不影响稿件本身。",
             okLabel: "删除",
@@ -20708,6 +20720,8 @@ window.__ACSV_CSS_LEN__ = 103928;
     function confirmClear(btn) {
       openConfirmPop(btn, {
         host: panel2,
+        placeHost: btn,
+        // 0.9.312：同「宽宿主」病灶——几何按档头钮自身让位
         title: "清空全部观看历史？",
         text: "共 " + allRows.length + " 条记录将被移除，操作不可恢复。",
         okLabel: "清空",

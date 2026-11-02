@@ -323,6 +323,7 @@ export function commentListClick(ev) {
     var dc = del._del;
     openConfirmPop(del, {
       host: curHost().el, // 评论行在滚动列表内，确认弹挂宿主根防裁剪
+      placeHost: del, // 0.9.312：几何宿主=删除钮自身（宿主根是宽容器，同「宽宿主」病灶）
       title: '删除这条评论？',
       text: '删除后不可恢复，评论计数会同步减一。',
       okLabel: '删除',

@@ -28,17 +28,31 @@ import { FAIL_NOTLOGIN_TEXT } from './toastmsg.js'; // 层内 hint 与 toast 话
 
 // 定位（0.9.149 收口 popplace）：本件只负责取 rect + 落位，几何决策全在 popplace.anchorPlaceOf
 // （纯函数、单测直采）；内容到达后重算与尺寸守望由 popplace.watchPlace 统一提供。
-function place(pop, btn) {
+// 定位（0.9.149 收口 popplace）：本件只负责取 rect + 落位，几何决策全在 popplace.anchorPlaceOf
+//（纯函数、单测直采）；内容到达后重算与尺寸守望由 popplace.watchPlace 统一提供。
+// 0.9.312 新增 placeHost（几何宿主）：「让位列」与坐标换算按 placeHost 算，DOM 仍挂 wrap——
+// 实报病灶（历史档删除确认弹被甩到视口最右）：调用方传了**宽宿主**（整个面板），A 模型的
+// 「右缘=min(宿主左缘,锚点左缘)−GAP_H」把整面板当一列让，左侧放不下 → 翻到宿主右缘，与锚点
+// 脱钩。缺省=wrap（原行为不变）；anchorPlaceOf 返回几何宿主内容坐标，此处平移回 wrap 内容坐标。
+function place(pop, btn, placeHost) {
   var wrap = pop.parentNode;
   if (!wrap) return;
   if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
   var b = btn.getBoundingClientRect(), h = wrap.getBoundingClientRect();
-  applyPlace(pop, anchorPlaceOf(
+  var g = placeHost ? placeHost.getBoundingClientRect() : h;
+  var gsl = placeHost ? (placeHost.scrollLeft || 0) : (wrap.scrollLeft || 0);
+  var gst = placeHost ? (placeHost.scrollTop || 0) : (wrap.scrollTop || 0);
+  var pos = anchorPlaceOf(
     { left: b.left, top: b.top, right: b.right, bottom: b.bottom },
-    { left: h.left, top: h.top, right: h.right, sl: wrap.scrollLeft || 0, st: wrap.scrollTop || 0 },
+    { left: g.left, top: g.top, right: g.right, sl: gsl, st: gst },
     { w: window.innerWidth, h: window.innerHeight },
     pop.offsetWidth, pop.offsetHeight
-  ));
+  );
+  if (placeHost) {
+    pos.left += (g.left - gsl) - (h.left - (wrap.scrollLeft || 0));
+    pos.top += (g.top - gst) - (h.top - (wrap.scrollTop || 0));
+  }
+  applyPlace(pop, pos);
 }
 // 外点收起：与分享面板/投蕉弹层/表情面板共用 ui.closeOnOutsideClick（0.9.147 收口）
 // —— 旧内联实现是"一次性监听 + 先摘监听再判内点 + 冒泡相"：点面板内部一下就把监听吃掉、
@@ -252,8 +266,8 @@ export function openPickPop(btn, opts) {
   cancel.addEventListener('click', function () { pop.remove(); });
 
   host.appendChild(pop);
-  place(pop, btn);
-  watchPlace(pop, function () { place(pop, btn); }); // 内容到达/新建刷新/窗口缩放自会重算
+  place(pop, btn, opts.placeHost);
+  watchPlace(pop, function () { place(pop, btn, opts.placeHost); }); // 内容到达/新建刷新/窗口缩放自会重算
   guardOutside(pop, btn);
   refresh('');
   return pop;
@@ -311,8 +325,8 @@ export function openConfirmPop(btn, opts) {
   });
   cancel.addEventListener('click', function () { pop.remove(); });
   host.appendChild(pop);
-  place(pop, btn);
-  watchPlace(pop, function () { place(pop, btn); });
+  place(pop, btn, opts.placeHost);
+  watchPlace(pop, function () { place(pop, btn, opts.placeHost); });
   guardOutside(pop, btn);
   return pop;
 }
