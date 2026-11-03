@@ -678,8 +678,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:signapi.js:行193:导出8",
-      "why": "0.9.314 登记：自动签到链补可观测埋点（sign.try / skip.off / skip.nouid / readFail / already）——原四道静默出口用户与 debug 计数都看不出跑没跑；用户实报「开了开关却不签」的诊断前置"
+      "key": "size:signapi.js:行206:导出8",
+      "why": "0.9.321 登记：自动签到链补第二层诊断（sign.readCode/readMsg + 写链 failCode/failMsg 四类计数）——只加观测、不改行为"
     },
     {
       "key": "size:signpanel.js:行119:导出2",
