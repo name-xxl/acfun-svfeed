@@ -14,6 +14,7 @@ import { stat, swallow } from './dbg.js';
 import { singleFlight, selfUid } from './ui.js';
 import { getSetting } from './settings.js';
 import { pad2 } from './timefmt.js';
+import { isSignNotYet } from './contract.js'; // 未签日状态码单源（0.9.322，见 contract 注释）
 
 var FORM = { 'Content-Type': 'application/x-www-form-urlencoded' };
 
@@ -71,9 +72,14 @@ export function almanacOf(j) {
 }
 
 // getSignInInfos 回包 → 签到态 + 7 天日历（按钮与 reopen 奖励行共用）。
-// signedToday 判定：日历里 signInDate=今天且 hasSignIn=true；无日期命中但有 hasSignedIn 字段时以它为准。
+// 判据（0.9.322 修正）：`result===0`＝**已签日**回包（带 7 天日历）；`SIGN_NOT_YET`(102008)＝**未签日**
+// 回包（不带日历，error_msg「今天尚未签到」）——**两者都是有效状态**；其余（未登录 / 网关 / 形状不合）
+// 才 null。0.9.322 前只认 `result===0` ⇒ 未签日判 null ⇒ 自动链在「该签的那天」早退（真机在案）。
+// signedToday 判定：未签日码直接 false；否则以日历里 signInDate=今天且 hasSignIn=true 的命中为准，
+// 无日期命中但有 hasSignedIn 字段时以它为准。
 export function signStateOf(j, ymd) {
-  if (!j || j.result !== 0) return null;
+  var notYet = isSignNotYet(j);
+  if (!notYet && (!j || j.result !== 0)) return null;
   var today = ymd || ymdOf();
   var infos = Array.isArray(j.infos) ? j.infos : [];
   var items = [];
@@ -92,7 +98,7 @@ export function signStateOf(j, ymd) {
     items.push(item);
     if (date && date === today) hit = item;
   }
-  var signedToday = hit ? hit.signed : j.hasSignedIn === true;
+  var signedToday = notYet ? false : (hit ? hit.signed : j.hasSignedIn === true);
   return {
     signedToday: signedToday,
     // 今日奖励：日历条目为 App 档位表（与实签 bananaDelta 对照即知档位是否对齐）

@@ -83,3 +83,14 @@ export var ST = { SV: 5, VIDEO: 3, MOMENT: 4 };
 // APP 网关 result 0/失败非 0 语义不同，不在本谓词射程——那属各域判定，勿混）。
 /** @param {any} j @returns {boolean} */
 export function okResult0(j) { return !!(j && j.result === 0); }
+
+// 签到读链的「今天尚未签到」状态码（0.9.322，真机实测）：未签日 `getSignInInfos` 回
+// `{result:102008, error_msg:"今天尚未签到"}` 且**不带 infos 日历**——7 天日历只在**已签日**的
+// `result:0` 回包里出现。**它是正常状态、不是失败**：0.9.322 前 `signStateOf` 只认 `result===0`，
+// 未签日一律判 null ⇒ **自动签到恰好在「该签的那一天」早退**（真机在案：sign.try + sign.readFail
+// + readCode.102008；已签日才回 result:0，所以历史上只在「已手动签过」时看到它正确地跳过）。
+// 本件内部常量、**不外导**（只经 isSignNotYet 出口）——外导会成一个「声明后无消费」的死导出候选
+//（结构闸口径：dead:contract.js:SIGN_NOT_YET），而它本就只是谓词的料、不是对外契约。
+var SIGN_NOT_YET = 102008;
+/** @param {any} j @returns {boolean} */
+export function isSignNotYet(j) { return !!(j && j.result === SIGN_NOT_YET); }
