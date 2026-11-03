@@ -140,12 +140,16 @@ export function signIn() {
 // 四种可能（端点门禁波动 / UA·Referer 差异 / APP 域风控脸 / 回包形状变迁）需要码值才能分辨，故补此点。
 export function getSignInInfos() {
   return request(CFG.api.signInInfos, 'GET', {}).then(function (j) {
-    if (!j || j.result !== 0) {
+    var st = signStateOf(j);
+    // 只在该次读取**被判失败**时才记服务端原话：0.9.322 起 102008（今天尚未签到）是**有效态**，
+    // 若照「非 0 即记」就会把正常态当异常刷计数——真机复验（2026-11-03，0.9.322-debug）里
+    // `sign.auto:1` 已写成功，而 `readCode.102008` 仍在刷，正是这个语义错（0.9.323 修正）。
+    if (!st && (!j || j.result !== 0)) {
       stat('sign.readCode.' + String(j && j.result != null ? j.result : 'shape'));
       var m = j && (j.msg || j.error_msg || j.errorMsg || j.error);
       if (m) stat('sign.readMsg.' + String(m).slice(0, 40).replace(/\s+/g, ' '));
     }
-    return signStateOf(j);
+    return st;
   });
 }
 
