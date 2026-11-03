@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
 globalThis.location = { href: 'https://www.acfun.cn/', pathname: '/' };
-var { signInResultOf, almanacOf, signStateOf, ymdOf } = await import('../../src/signapi.js');
+var { signInResultOf, almanacOf, signStateOf, ymdOf, signedThisRun } = await import('../../src/signapi.js');
 
 // 实测样本（§10.17）：updateAlmanacFortune 回包
 var ALM = {
@@ -78,6 +78,20 @@ test('almanacOf：实测样本全字段映射；缺 fortune/宜忌即 null（App
   assert.equal(almanacOf({ result: 0 }), null);
   assert.equal(almanacOf({ result: 0, almanac: { fortune: '大吉' } }), null);
   assert.equal(almanacOf({ result: 0, almanac: { fortune: '', suits: ['a'], avoids: ['b'] } }), null);
+});
+
+// 0.9.324 用户裁决：自动签成 → 弹黄历卡。判据＝「本次真的签上」——三种返回要分得开，
+// 摘修复反跑（判据改回 `!!(r && r.ok)`）⇒ 122 那条断言必须转红
+test('signedThisRun：只有本次写成功为 true；122 已签重复 / 状态对象 / 失败 / null 均 false', () => {
+  assert.equal(signedThisRun(signInResultOf({ result: 0, bananaDelta: 6 })), true);
+  assert.equal(signedThisRun({ ok: true, repeat: false }), true);
+  assert.equal(signedThisRun({ ok: true, repeat: true }), false); // 122「今日已签到」：不该弹
+  assert.equal(signedThisRun(signStateOf(INFOS, '20261018')), false); // 已签跳过的状态对象（无 ok）
+  assert.equal(signedThisRun(signStateOf({ result: 102008, error_msg: '今天尚未签到' })), false);
+  assert.equal(signedThisRun(signInResultOf({ result: -401, error_msg: 'user not login' })), false);
+  assert.equal(signedThisRun({ ok: false, code: 708 }), false);
+  assert.equal(signedThisRun(null), false);
+  assert.equal(signedThisRun(undefined), false);
 });
 
 test('signStateOf：今日命中 → signedToday + 当日档位奖励；未来日为未签', () => {

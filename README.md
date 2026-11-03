@@ -581,6 +581,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `nameval.js` | 组名/夹名校验（零依赖叶）：与原生 bundle 正则逐字符一致；消费 grouppop/favpop/followadmin/mytabs。 |
 | `signapi.js` | 签到域（0.9.277）：双链写 + 签到日历 + 黄历；消费 mypage。 |
 | `signpanel.js` | 签到黄历弹窗（0.9.277）：App 式 3:4 卡 + 规则翻面；0.9.298 起入 overlay 栈，关闭归视图 teardown。 |
+| `signpop.js` | 签到结果落地动作单源（0.9.324）：`popSignAlmanac(r, state)` —— 有 `r.almanac` 直用，否则实时 `fetchAlmanac` → 弹；香蕉数按「实拿 banana → 当日档位 reward」兜底；拉不到只走 `toastmsg.errSignAlmanac`。手动（mypage）与自动（boot home，仅本次真签上）两条签到路共用。 |
 | `timefmt.js` | 时间/计数文案纯函数（零依赖叶）：`relTime`/`fmtDate`/`fmtAgo`/`fmtWan` + 播放面文案 `fmtTime`（mm:ss，自 ui.js 下沉、ui 门面再导保旧引用）/`timeText`（「x / y」单源，onMeta/onTime 同值短路依赖两侧同式）/`timeRateLabel`（「N.Nx」单源）（0.9.305 批④②⑥）。契约层、卡片与评论、播放控制面共用。 |
 | `ui.js` | `el`/`esc`/`toast`/`a11y`/剪贴板/样式注入等工具（被几乎全部 UI 模块引用）。 |
 | `uplook.js` | 作者观感映射（等级色/署名颜色，零依赖叶）；消费 rowkit/commentkit/momentdetail。 |
@@ -690,6 +691,7 @@ flowchart LR
   rankapi["rankapi.js（三榜域·hot/banana/youngStar 传输+规整）"]
   signapi["signapi.js（签到域·双链写+日历+黄历·0.9.277）"]
   signpanel["signpanel.js（签到黄历弹窗·App 式 3:4 卡+规则翻面）"]
+  signpop["signpop.js（签到结果落地动作单源·弹卡/失败 toast）"]
   spacetab["spacetab.js（空间页标签栏注入件·两标签共用+自愈）"]
   spacemoments["spacemoments.js（空间页动态标签·feed/profile 混排流）"]
   inputbar["inputbar.js（三宿主共用输入条·contenteditable 编辑期 + 出口 UBB 序列化）"]
@@ -739,6 +741,7 @@ flowchart LR
   momentapi --> cfg & net & panelitem
   signapi --> appapi & contract & settings & timefmt
   signpanel --> overlay
+  signpop --> signapi & signpanel & toastmsg
   momentpost --> appapi & cfg & net
   inputbar --> emoticon & imicons
   momenteditor --> cards & cfg & dbg & emoticon & imgload & inputbar & momentapi & momentpost & overlay & toastmsg & ui & upload
@@ -763,7 +766,7 @@ flowchart LR
   imbubble --> appapi & emoticon & imcard & imimage & imgload & imgview & immsg & imicons & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & immsg
-  boot --> followview & imnative & jingxuanview & memberplaza & mypage & pagekind & player & playlayer & searchview & spacemoments & squareview & uppage & zone & signapi
+  boot --> followview & imnative & jingxuanview & memberplaza & mypage & pagekind & player & playlayer & searchview & spacemoments & squareview & uppage & zone & signapi & signpop
   views --> feedstore & overlay & sidebar & topbar & viewreg
   cards --> imgload & imgview & imicons & ubb & uplook
   sidebar --> viewreg
@@ -805,7 +808,7 @@ flowchart LR
   commentkit --> imicons & imgload & timefmt & ubb & uplook
   interact --> appapi
   release --> overlay & settings
-  mypage --> appapi & followadmin & imgload & imgurl & momentapi & rowkit & squarefeed & timefmt & viewreg & mytabs & signapi & signpanel & toastmsg
+  mypage --> appapi & followadmin & imgload & imgurl & momentapi & rowkit & squarefeed & timefmt & viewreg & mytabs & signapi & signpanel & signpop & toastmsg
   mytabs --> chipkit & appapi & cards & favapi & favpop & listtail & meadmin & nameval & pageloader & pickpop & watchlaterapi & historyapi
   meadmin --> dbg & imicons & overlay & pickpop & state
   followadmin --> cards & imicons & imgload & listtail & meadmin & nameval & overlay & pageloader & pickpop & relationapi & toastmsg

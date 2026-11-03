@@ -12,10 +12,12 @@ import { imgInto } from './imgload.js';
 import { buildHistory, buildFav, buildWatchLater } from './mytabs.js'; // 我的页管理档（0.9.265 拆件）
 import { buildFollowAdmin } from './followadmin.js'; // 关注列表档（0.9.289 对齐原生 /member/feeds/following）
 import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
-// 签到（0.9.277）：资料头右侧按钮（App「已签到」药丸同位）+ 黄历弹窗；数据/写链全在 signapi
-import { signIn, getSignInInfos, fetchAlmanac } from './signapi.js';
-import { openSignAlmanac, closeSignAlmanac } from './signpanel.js';
-import { errSignLogin, errSignFail, errSignAlmanac } from './toastmsg.js';
+// 签到（0.9.277）：资料头右侧按钮（App「已签到」药丸同位）+ 黄历弹窗；数据/写链全在 signapi，
+// 成功落地（弹卡 / 拉不到黄历的 toast）单源在 signpop（0.9.324，自动链同用）
+import { signIn, getSignInInfos } from './signapi.js';
+import { closeSignAlmanac } from './signpanel.js';
+import { errSignLogin, errSignFail, errSignAlmanac } from './toastmsg.js'; // errSignAlmanac：reopen 两腿失败收尾
+import { popSignAlmanac } from './signpop.js';
 
 // ---------- 我的视图（0.9.62 起；0.9.69 抖音式个人主页改造）----------
 // 布局：资料头（头像/昵称/关注·粉丝·投稿/签名）→ Tab（**动态**｜观看历史｜稍后再看｜收藏夹｜关注列表；
@@ -103,8 +105,8 @@ function buildMeCard(slot) {
 // ---- 签到按钮（0.9.277，用户裁决：我的页资料头只留一枚按钮，不做签到栏）----
 // 三态：签到（红可点）/ 签到中…（禁用防连点）/ 今日已签（灰药丸，可点→实时重拉黄历卡）。
 // 初始态以 getSignInInfos 为准（失败静默保持「签到」——点击时服务端仍按真实态回 122）。
-// 签到成功：回包带 almanac 直用（App 侧 SinginResult 设计），否则实时 fetchAlmanac；
-// 弹窗本身即成功反馈（不另 toast）。黄历拉取失败只 toast，按钮仍进已签态（签到已成立）。
+// 签到成功：落地动作（回包带 almanac 直用，否则实时 fetchAlmanac → 弹卡；拉不到只 toast）
+// 收在 signpop 单源（0.9.324，与自动链同一条），按钮仍进已签态（签到已成立）。
 function mountSign(host) {
   var btn = el('button', 'acsv-signbtn go', '签到');
   btn.type = 'button';
@@ -131,18 +133,19 @@ function mountSign(host) {
     btn.textContent = '签到中…';
   }
 
-  // 已签态点击：实时重拉黄历（用户 2026-10-18 裁决：不缓存）
+  // 已签态点击：实时重拉黄历（用户 2026-10-18 裁决：不缓存）；写链结果传 null＝只落地黄历
   function reopen() {
     busy = true;
     paintBusy();
-    Promise.all([
-      getSignInInfos().then(function (st) { state = st; return st; }, function () { return null; }),
-      fetchAlmanac()
-    ]).then(function (arr) {
+    getSignInInfos().then(function (st) {
+      state = st;
+      return popSignAlmanac(null, st);
+    }).then(function () {
       busy = false;
       paintSigned();
-      openSignAlmanac(arr[1], { banana: arr[0] ? arr[0].reward : null });
     }, function () {
+      // 失败收尾：读档腿或黄历腿失败都走同一话术（0.9.324 起读档腿不再单独吞掉——原 Promise.all
+      // 对它的 reject 给了 null 回落，两腿归一到此处收尾；读档腿只可能因网络错 reject）
       busy = false;
       paintSigned();
       errSignAlmanac();
@@ -155,13 +158,7 @@ function mountSign(host) {
     signIn().then(function (r) {
       busy = false;
       paintSigned();
-      if (r.almanac) { openSignAlmanac(r.almanac, { banana: r.banana }); return; }
-      var banana = r.banana || (state && state.reward) || null;
-      fetchAlmanac().then(function (a) {
-        openSignAlmanac(a, { banana: banana });
-      }, function () {
-        errSignAlmanac();
-      });
+      popSignAlmanac(r, state); // 弹卡 / 拉不到黄历的 toast 全在单源件，本处只管按钮收尾
     }, function (e) {
       busy = false;
       paintGo();

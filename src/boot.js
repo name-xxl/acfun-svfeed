@@ -8,7 +8,8 @@ import { watchMemberNav } from './memberplaza.js';
 import { bootNativeIm } from './imnative.js';
 import { mountNativeIp } from './nativeip.js'; // 原生页评论 IP+设备（0.9.248，Phase 6·6a）
 import { mountNatPanel } from './natpanel.js'; // IP 标签点击面板（0.9.253：脚本页 .acsv-cip 入口）
-import { tryAutoSign } from './signapi.js'; // 自动签到（0.9.277）：进脚本主页静默一次
+import { tryAutoSign, signedThisRun } from './signapi.js'; // 自动签到（0.9.277）：进脚本主页静默一次
+import { popSignAlmanac } from './signpop.js'; // 签到落地动作单源（0.9.324）：本次真签上才弹黄历卡
 import { setRoot } from './state.js';
 import { IMGVIEW_CSS } from './styles.js';
 import { pageKind } from './pagekind.js';
@@ -51,7 +52,12 @@ if (kind === 'native') {
   window.addEventListener('hashchange', toggle); // singleton-listener: SPA 路由入口，页面级
   if (kind === 'home') {
     mountNatPanel(); // 脚本页 IP 标签点击入口（0.9.253）：抽屉里点 .acsv-cip 弹 IP 面板（暗色主题）
-    tryAutoSign();   // 自动签到（0.9.277）：首页进脚本即静默签一次；设置可关、已签跳过、失败静默
+    tryAutoSign().then(function (r) {
+      // 自动签到（0.9.277）：首页进脚本即静默签一次；设置可关、已签跳过、失败静默。
+      // 0.9.324 用户裁决：**只有本次真的签上**才弹黄历卡（已签跳过返回状态对象、失败返回 null，
+      // 两者都不弹也不 toast）——判据 signedThisRun 与弹卡动作 popSignAlmanac 均各自单源。
+      if (signedThisRun(r)) popSignAlmanac(r, null);
+    });
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', watchNav); // singleton-listener: 首屏导航注入，页面级
     } else {

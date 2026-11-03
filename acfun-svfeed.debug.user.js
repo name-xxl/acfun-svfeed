@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.323-debug
+// @version      0.9.324-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 105646;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.323-debug" : "",
+          ver: true ? "0.9.324-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -740,7 +740,7 @@ window.__ACSV_CSS_LEN__ = 105646;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.323-debug" : "";
+  var APP_VERSION = true ? "0.9.324-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -8467,7 +8467,7 @@ window.__ACSV_CSS_LEN__ = 105646;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.323-debug" : "",
+      version: true ? "0.9.324-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -15423,7 +15423,7 @@ window.__ACSV_CSS_LEN__ = 105646;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.323-debug" : "");
+    return normVer(true ? "0.9.324-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -19040,7 +19040,7 @@ window.__ACSV_CSS_LEN__ = 105646;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.323-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.324-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -20146,6 +20146,9 @@ window.__ACSV_CSS_LEN__ = 105646;
       msg: String(j && (j.error_msg || j.msg) || "")
     };
   }
+  function signedThisRun(r) {
+    return !!(r && r.ok && !r.repeat);
+  }
   function threeOf(v) {
     if (!Array.isArray(v)) return [];
     return v.filter(function(s) {
@@ -20273,6 +20276,121 @@ window.__ACSV_CSS_LEN__ = 105646;
   });
   function tryAutoSign() {
     return autoFlight.get();
+  }
+
+  // src/signpanel.js
+  var RULES = [
+    "签到即可获得香蕉奖励；连续签到可获得随机香蕉礼包",
+    "连续签到7天最高奖励666蕉",
+    "如签到中断或连续签满7天，下次连签天数从第1天开始计算",
+    "签到可随机显示AC运势，分享还有概率升级签运，祝好运",
+    "签到显示AC运势可在设置中关闭"
+  ];
+  var MONTH_ZH = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"];
+  var MONTH_EN = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  var host4 = null;
+  var LAYER_ID = "signalmanac";
+  function rulePage() {
+    var page = el("div", "acsv-salm-rules");
+    var bk = el("span", "acsv-salm-bk", "返回");
+    bk.addEventListener("click", function() {
+      host4.querySelector(".acsv-salm").classList.remove("flip");
+    });
+    var t = el("div", "acsv-salm-rt", "签到规则");
+    var ul = el("ul", "acsv-salm-ul");
+    RULES.forEach(function(s) {
+      ul.appendChild(el("li", "", s));
+    });
+    ul.appendChild(el("li", "note", "※ 以上数额为 APP 侧规则；脚本经网页端签到，所得香蕉通常少于 APP，以签到回执为准"));
+    page.appendChild(bk);
+    page.appendChild(t);
+    page.appendChild(ul);
+    return page;
+  }
+  function almanacFace(alm, banana) {
+    var face = el("div", "acsv-salm-face");
+    var d = /* @__PURE__ */ new Date();
+    var date = el("div", "acsv-salm-date");
+    date.appendChild(el("span", "zh", MONTH_ZH[d.getMonth()] + "月"));
+    date.appendChild(el("span", "num", String(d.getDate())));
+    date.appendChild(el("span", "en", MONTH_EN[d.getMonth()]));
+    face.appendChild(date);
+    var ban = el("div", "acsv-salm-ban", "AC·运势");
+    ["s1", "s2", "s3", "s4", "s5"].forEach(function(c) {
+      ban.appendChild(el("i", "st " + c, "✦"));
+    });
+    face.appendChild(ban);
+    var cols2 = el("div", "acsv-salm-cols");
+    function strip(cls, sealText, items) {
+      var s = el("div", "acsv-salm-strip " + cls);
+      s.appendChild(el("div", "acsv-salm-seal", sealText));
+      var its = el("div", "acsv-salm-its");
+      items.forEach(function(t) {
+        its.appendChild(el("span", "", t));
+      });
+      s.appendChild(its);
+      return s;
+    }
+    cols2.appendChild(strip("yi", "宜", alm.suits));
+    var f = el("div", "acsv-salm-fortune");
+    f.appendChild(el("span", "fnum", alm.fortune.length > 1 ? alm.fortune.charAt(0) + "\n" + alm.fortune.slice(1) : alm.fortune));
+    f.querySelector(".fnum").style.whiteSpace = "pre-line";
+    cols2.appendChild(f);
+    cols2.appendChild(strip("ji", "忌", alm.avoids));
+    face.appendChild(cols2);
+    var meta = el("div", "acsv-salm-meta");
+    if (banana != null && banana !== 0) meta.appendChild(el("span", "reward", "今日奖励：香蕉x" + banana));
+    else meta.appendChild(el("span", "reward"));
+    var rule = el("span", "acsv-salm-rule", "签到规则");
+    rule.addEventListener("click", function() {
+      face.parentNode.classList.add("flip");
+    });
+    meta.appendChild(rule);
+    face.appendChild(meta);
+    return face;
+  }
+  function openSignAlmanac(alm, opts) {
+    if (!alm || host4) return false;
+    opts = opts || {};
+    host4 = el("div", "acsv-salm-host");
+    var card = el("div", "acsv-salm");
+    ["tl", "tr", "bl", "br"].forEach(function(c) {
+      card.appendChild(el("i", "acsv-salm-corner " + c));
+    });
+    card.appendChild(almanacFace(alm, opts.banana == null ? null : Number(opts.banana)));
+    card.appendChild(rulePage());
+    var cancel = el("button", "acsv-salm-close", "取消");
+    cancel.type = "button";
+    cancel.addEventListener("click", closeSignAlmanac);
+    host4.appendChild(card);
+    host4.appendChild(cancel);
+    host4.addEventListener("click", function(e) {
+      if (e.target === host4) closeSignAlmanac();
+    });
+    (document.getElementById("acsv-root") || document.body).appendChild(host4);
+    overlayOpen({ id: LAYER_ID, modal: true, close });
+    return true;
+  }
+  function closeSignAlmanac() {
+    overlayClose(LAYER_ID);
+  }
+  function close() {
+    if (host4) {
+      if (host4.parentNode) host4.parentNode.removeChild(host4);
+      host4 = null;
+    }
+  }
+
+  // src/signpop.js
+  function popSignAlmanac(r, state) {
+    var banana = r && r.banana || (state && state.reward != null ? state.reward : null);
+    if (r && r.almanac) return Promise.resolve(openSignAlmanac(r.almanac, { banana }));
+    return fetchAlmanac().then(function(a) {
+      return openSignAlmanac(a, { banana });
+    }, function() {
+      errSignAlmanac();
+      return false;
+    });
   }
 
   // src/historyapi.js
@@ -21512,109 +21630,6 @@ window.__ACSV_CSS_LEN__ = 105646;
     pg.load();
   }
 
-  // src/signpanel.js
-  var RULES = [
-    "签到即可获得香蕉奖励；连续签到可获得随机香蕉礼包",
-    "连续签到7天最高奖励666蕉",
-    "如签到中断或连续签满7天，下次连签天数从第1天开始计算",
-    "签到可随机显示AC运势，分享还有概率升级签运，祝好运",
-    "签到显示AC运势可在设置中关闭"
-  ];
-  var MONTH_ZH = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"];
-  var MONTH_EN = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-  var host4 = null;
-  var LAYER_ID = "signalmanac";
-  function rulePage() {
-    var page = el("div", "acsv-salm-rules");
-    var bk = el("span", "acsv-salm-bk", "返回");
-    bk.addEventListener("click", function() {
-      host4.querySelector(".acsv-salm").classList.remove("flip");
-    });
-    var t = el("div", "acsv-salm-rt", "签到规则");
-    var ul = el("ul", "acsv-salm-ul");
-    RULES.forEach(function(s) {
-      ul.appendChild(el("li", "", s));
-    });
-    ul.appendChild(el("li", "note", "※ 以上数额为 APP 侧规则；脚本经网页端签到，所得香蕉通常少于 APP，以签到回执为准"));
-    page.appendChild(bk);
-    page.appendChild(t);
-    page.appendChild(ul);
-    return page;
-  }
-  function almanacFace(alm, banana) {
-    var face = el("div", "acsv-salm-face");
-    var d = /* @__PURE__ */ new Date();
-    var date = el("div", "acsv-salm-date");
-    date.appendChild(el("span", "zh", MONTH_ZH[d.getMonth()] + "月"));
-    date.appendChild(el("span", "num", String(d.getDate())));
-    date.appendChild(el("span", "en", MONTH_EN[d.getMonth()]));
-    face.appendChild(date);
-    var ban = el("div", "acsv-salm-ban", "AC·运势");
-    ["s1", "s2", "s3", "s4", "s5"].forEach(function(c) {
-      ban.appendChild(el("i", "st " + c, "✦"));
-    });
-    face.appendChild(ban);
-    var cols2 = el("div", "acsv-salm-cols");
-    function strip(cls, sealText, items) {
-      var s = el("div", "acsv-salm-strip " + cls);
-      s.appendChild(el("div", "acsv-salm-seal", sealText));
-      var its = el("div", "acsv-salm-its");
-      items.forEach(function(t) {
-        its.appendChild(el("span", "", t));
-      });
-      s.appendChild(its);
-      return s;
-    }
-    cols2.appendChild(strip("yi", "宜", alm.suits));
-    var f = el("div", "acsv-salm-fortune");
-    f.appendChild(el("span", "fnum", alm.fortune.length > 1 ? alm.fortune.charAt(0) + "\n" + alm.fortune.slice(1) : alm.fortune));
-    f.querySelector(".fnum").style.whiteSpace = "pre-line";
-    cols2.appendChild(f);
-    cols2.appendChild(strip("ji", "忌", alm.avoids));
-    face.appendChild(cols2);
-    var meta = el("div", "acsv-salm-meta");
-    if (banana != null && banana !== 0) meta.appendChild(el("span", "reward", "今日奖励：香蕉x" + banana));
-    else meta.appendChild(el("span", "reward"));
-    var rule = el("span", "acsv-salm-rule", "签到规则");
-    rule.addEventListener("click", function() {
-      face.parentNode.classList.add("flip");
-    });
-    meta.appendChild(rule);
-    face.appendChild(meta);
-    return face;
-  }
-  function openSignAlmanac(alm, opts) {
-    if (!alm || host4) return false;
-    opts = opts || {};
-    host4 = el("div", "acsv-salm-host");
-    var card = el("div", "acsv-salm");
-    ["tl", "tr", "bl", "br"].forEach(function(c) {
-      card.appendChild(el("i", "acsv-salm-corner " + c));
-    });
-    card.appendChild(almanacFace(alm, opts.banana == null ? null : Number(opts.banana)));
-    card.appendChild(rulePage());
-    var cancel = el("button", "acsv-salm-close", "取消");
-    cancel.type = "button";
-    cancel.addEventListener("click", closeSignAlmanac);
-    host4.appendChild(card);
-    host4.appendChild(cancel);
-    host4.addEventListener("click", function(e) {
-      if (e.target === host4) closeSignAlmanac();
-    });
-    (document.getElementById("acsv-root") || document.body).appendChild(host4);
-    overlayOpen({ id: LAYER_ID, modal: true, close });
-    return true;
-  }
-  function closeSignAlmanac() {
-    overlayClose(LAYER_ID);
-  }
-  function close() {
-    if (host4) {
-      if (host4.parentNode) host4.parentNode.removeChild(host4);
-      host4 = null;
-    }
-  }
-
   // src/mypage.js
   var meCache = null;
   function meCardOf(j, uid) {
@@ -21708,18 +21723,12 @@ window.__ACSV_CSS_LEN__ = 105646;
     function reopen() {
       busy = true;
       paintBusy();
-      Promise.all([
-        getSignInInfos().then(function(st2) {
-          state = st2;
-          return st2;
-        }, function() {
-          return null;
-        }),
-        fetchAlmanac()
-      ]).then(function(arr) {
+      getSignInInfos().then(function(st2) {
+        state = st2;
+        return popSignAlmanac(null, st2);
+      }).then(function() {
         busy = false;
         paintSigned();
-        openSignAlmanac(arr[1], { banana: arr[0] ? arr[0].reward : null });
       }, function() {
         busy = false;
         paintSigned();
@@ -21732,16 +21741,7 @@ window.__ACSV_CSS_LEN__ = 105646;
       signIn().then(function(r) {
         busy = false;
         paintSigned();
-        if (r.almanac) {
-          openSignAlmanac(r.almanac, { banana: r.banana });
-          return;
-        }
-        var banana = r.banana || state && state.reward || null;
-        fetchAlmanac().then(function(a) {
-          openSignAlmanac(a, { banana });
-        }, function() {
-          errSignAlmanac();
-        });
+        popSignAlmanac(r, state);
       }, function(e) {
         busy = false;
         paintGo();
@@ -23173,7 +23173,9 @@ window.__ACSV_CSS_LEN__ = 105646;
     window.addEventListener("hashchange", toggle);
     if (kind === "home") {
       mountNatPanel();
-      tryAutoSign();
+      tryAutoSign().then(function(r) {
+        if (signedThisRun(r)) popSignAlmanac(r, null);
+      });
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", watchNav);
       } else {
