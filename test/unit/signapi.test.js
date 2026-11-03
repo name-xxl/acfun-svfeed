@@ -94,7 +94,15 @@ test('signStateOf：今日命中 → signedToday + 当日档位奖励；未来�
   assert.equal(st2.reward, 6); // 该日档位（对照实签回包用）
 });
 
-test('signStateOf：非 0 / 空回包 → null（调用方保持原按钮态）', () => {
+test('signStateOf：未签日码 102008 → 未签态（**不是** null）；未登录 / 空回包 → null', () => {
+  // 0.9.322 真机：未签日 getSignInInfos 回 {result:102008, error_msg:'今天尚未签到'} 且不带 infos —
+  // 这是正常状态；0.9.322 前被判 null ⇒ 自动签到在「该签的那天」早退（本断言即该病灶的反跑钉）
+  var ny = signStateOf({ result: 102008, error_msg: '今天尚未签到' });
+  assert.equal(ny.signedToday, false);
+  assert.equal(ny.reward, null);
+  assert.equal(ny.continuousDays, 0);
+  assert.equal(ny.cumulativeDays, 0);
+  assert.deepEqual(ny.items, []);
   assert.equal(signStateOf({ result: -401 }), null);
   assert.equal(signStateOf(null), null);
   var st = signStateOf({ result: 0 }, '20261018');

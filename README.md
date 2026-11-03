@@ -737,7 +737,7 @@ flowchart LR
   sessionhooks --> attach & danmaku & feedstore & pb & playlayer & views & timefmt
   feedstore --> api & feedctx
   momentapi --> cfg & net & panelitem
-  signapi --> appapi & settings & timefmt
+  signapi --> appapi & contract & settings & timefmt
   signpanel --> overlay
   momentpost --> appapi & cfg & net
   inputbar --> emoticon & imicons
