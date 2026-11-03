@@ -48,6 +48,11 @@ export function signInResultOf(j) {
   };
 }
 
+// 本次运行是否**真的签成功**（区分三种返回：写成功 / 已签重复 122 / 未触发或失败）——
+// 自动链据此决定弹不弹黄历卡（0.9.324 用户裁决）；纯函数，单测直采。
+// （为什么不是 r.ok：122「今日已签到」也 ok=true，那不是「本次签成」，不该弹。）
+export function signedThisRun(r) { return !!(r && r.ok && !r.repeat); }
+
 function threeOf(v) {
   if (!Array.isArray(v)) return [];
   return v.filter(function (s) { return typeof s === 'string' && s; }).slice(0, 3);
@@ -166,7 +171,8 @@ export function fetchAlmanac() {
 }
 
 // 自动签到：进脚本主页触发一次（singleFlight 会话内单飞，失败下一次进页重试）。
-// 开关关闭/未登录直接跳过；已签（服务端判定）不发写请求。静默：不 toast、不弹窗。
+// 开关关闭/未登录直接跳过；已签（服务端判定）不发写请求。静默：不 toast、不弹窗——
+// 唯一例外是**本次真的签上**：boot 分支据 signedThisRun 弹黄历卡（0.9.324 用户裁决）。
 // 0.9.314 补埋点（用户实报「开了开关却不签」）：这条链原有四道**全静默**出口——压根没触发 /
 // 开关关 / 取不到 uid / 查询回包被判非 0（signStateOf 返回 null ⇒ 下面 `!st` 直接 return，
 // 连 sign.fail 都不落）——用户侧完全看不出它到底跑没跑，debug 计数里也是「什么都看不见」。

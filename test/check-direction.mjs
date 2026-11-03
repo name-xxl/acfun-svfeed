@@ -228,6 +228,14 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 归 FEATURE：消费方 mypage 在表内，层内互调；自身只 import ui/overlay（基建）与
   // signapi 回包（由 mypage 传入，不反向 import 接口层）⇒ 口径 A/B 0 条。
   'signpanel.js',
+  // 0.9.324 登记：signpop（签到结果落地动作单源——有 almanac 直用/否则实时拉，拉不到走话术；
+  // 手动 mypage 与自动 boot home 两条签到路共用，弹卡时机由 signapi.signedThisRun 判）。
+  // 它是**编排件**（自己不建 DOM，只把「定香蕉数→取黄历→弹卡/失败 toast」串成一件事），
+  // 但不是纯视图；仍取 FEATURE 而非 SKIP_B，两条理由：① 出边 signpop→signpanel 要求它必须
+  // 落在 FEATURE（否则口径 B 报「非特性→特性」）；② 入边 mypage 在表内属层内互调、boot 是
+  // 组合根（口径 B 对来源豁免）——取更严的桶：将来任何非特性件反向依赖它照样翻红
+  //（同 views.js 0.9.259「两桶都绿时取更严的」取桶先例）。
+  'signpop.js',
   ]);
 const SKIP_B = new Set(['boot.js', 'player.js', 'sessionhooks.js']);
 // 0.9.271：sessionhooks（会话回接钩子）与 player 同属组合根/编排层——它 import rail/playlayer/

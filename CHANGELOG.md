@@ -5,6 +5,57 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.324（2026-11-03）· 自动签到签成后弹黄历卡——落地动作抽跨面单源 + 「本次真签上」判据
+
+**病灶（用户裁决的功能缺口，非 bug）**：0.9.322/0.9.323 修好自动签到链后，**签到成功却什么都不弹**
+（0.9.277 的「静默」设计：不 toast、不弹窗），而**同一件事手动做**——在我的页资料头点「签到」按钮
+——会弹黄历卡。同一条链的两种触发方式行为不一致；用户裁决「自动签到成功应该弹出黄历卡」。
+
+**结构病灶上溯（AGENTS 规矩 7 的第一问：孤例还是同类？）**：不是孤例，是**同形副本的温床**——
+`mypage.js` 的 `doSign()`（写成功后弹卡）与 `reopen()`（已签态重拉黄历）各自逐字写了一遍
+「有 `r.almanac` 直用 → 否则 `fetchAlmanac()` → 弹 / 失败 `errSignAlmanac()`」；自动链若要弹卡，
+就得写**第三份**。第二问「什么结构放它进来」：**签到结果的落地动作**（取黄历 → 弹卡 → 失败话术）
+此前没有单源出口，它散在「我的页」这一个视图里，于是视图之外的另一条链只能重写。第三问「修法灭的是
+这一例还是这一类」：**收口到结构层**——新增跨面单源件 `src/signpop.js`，两条链共用同一个
+`popSignAlmanac(r, state)`，自动链只补一行接线。
+
+**修法**（三件，全无 UI 形态变化——不属 AGENTS 规矩 1 的预览范畴，无新增/改动控件与面板形状）：
+
+- **`src/signpop.js`（新件，签到结果落地动作单源）**：`popSignAlmanac(r, state)` —— 香蕉数
+  `(r && r.banana) || (state && state.reward != null ? state.reward : null)`（照抄原口径：repeat
+  回包 `banana` 为 0 时退到当日档位）；有 `r.almanac` 直用，否则实时 `fetchAlmanac()` → 弹；拉不到
+  只走 `toastmsg.errSignAlmanac`（弹窗本身即成功反馈，不另 toast——话术单源不变）。返回
+  `Promise<boolean>`（true＝卡弹出来了），不抛。
+- **`src/mypage.js`**：`doSign()` 尾部那 8 行弹卡逻辑 → `popSignAlmanac(r, state)`；`reopen()` 的
+  `Promise.all([...])` → `getSignInInfos().then(st => { state = st; return popSignAlmanac(null, st); })`，
+  收尾（busy/paintSigned）保持。两处**时序口径差异如实记录**：① 两腿由并行（`Promise.all`）改串行
+  （读档先出、再拉黄历），端到端时长由 `max` 变 `sum`（同一动作内的等待差异，不改变结果）；② 读档腿
+  （只可能因网络错 reject）的失败此前被单独吞掉、现与黄历腿归一走 `errSignAlmanac`。不再消费的 import
+  （`fetchAlmanac` / `openSignAlmanac`）撤除；`closeSignAlmanac`（视图 teardown）与 `errSignAlmanac`
+  （reopen 失败收尾）仍在本件消费，保留。
+- **`src/signapi.js`**：新增纯函数判据 `signedThisRun(r) = !!(r && r.ok && !r.repeat)`——写链三种
+  返回要分得开：**写成功**（result 0）/ **已签重复 122**（`ok:true, repeat:true`，不是「本次签成」）/
+  **未触发或失败**（null 或 `ok:false`）。
+- **`src/boot.js`** home 分支：`tryAutoSign().then(r => { if (signedThisRun(r)) popSignAlmanac(r, null); })`
+  ——**只有本次真的签上才弹**；已签跳过（返回状态对象，无 `ok` 字段）、失败（null）、开关关、未登录
+  一律不弹、不 toast（自动链的静默性只为这一件事让路）。
+
+**测试证据**：单测 `test/unit/signapi.test.js` 增 `signedThisRun` 用例（写成功 → true；122 → false；
+状态对象 / null / `{ok:false}` → false）。**摘修复反跑**：判据改回 `!!(r && r.ok)` ⇒
+`signapi.test.js:88` 断言转红（`Expected values to be strictly equal: true !== false`，
+`# fail 1`，exit 1）、还原复绿（`# pass 8 / # fail 0`，exit 0）。三段全绿见提交信息。
+工程面：README 模块表 + 依赖图（`signpop` 节点、`signpop --> signapi & signpanel & toastmsg`、
+`boot →` 与 `mypage →` 各补 `signpop` 边）；`check-direction` 给 `signpop` 显式入 **FEATURE** 桶
+（编排件，但出边 `signpop→signpanel` 要求它必落 FEATURE；两桶都绿时取更严的那只，同 views.js
+0.9.259 取桶先例）；`structure-baseline.json` 按事实重排（boot 行 75→81、signapi 行 216→222 导出
+8→9、signpop 新件建档 行 22 导出 1）。
+
+**未验证 / 真机复验待办**：**弹卡时机在 `boot` 里，harness 无法重放 boot 分支**（harness 只跑已挂载
+的视图/浮层，不重放页面级初始化），故「自动签成 → 黄历卡弹出」这条**只有真机能验**；本批只以单测钉住
+判据 `signedThisRun`、以 `check-deps` 钉住接线边，**未做真机验证**。复验步骤：下一个未签日装
+`0.9.324-debug` 开一次竖刷页 —— 应**直接弹出黄历卡**（同时 `acsv-stats` 读数为 `sign.try:1` →
+`sign.auto:1`）；若当天已签，则开页应仍**静默无卡**（读数 `sign.already:1`）。
+
 ### 0.9.322（2026-11-03）· 自动签到真 bug 收口——未签日回包码 102008 被误判为失败（0.9.277 起从未自动签过）
 
 **病灶（用户实报「自动签到开关不生效」的真凶）**：`getSignInInfos` 在**当天未签**时回
