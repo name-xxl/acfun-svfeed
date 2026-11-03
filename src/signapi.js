@@ -127,9 +127,18 @@ export function signIn() {
   });
 }
 
-// 签到查询（今日状态 + 日历）
+// 签到查询（今日状态 + 日历）。0.9.321 诊断补点：回包非 0 时把**服务端原话**记进计数——
+// 0.9.314 的 `sign.readFail` 只能说明「被判非 0 / 形状不合」，说不出服务端到底说了什么。
+// 真机复现（2026-11-03 用户 debug 读数）：`sign.try:1` + `sign.readFail:1` —— 触发到了、读判非 0、
+// 于是早退（连写请求都没发）；而**同一天**用登录态内置浏览器直打同一端点却回 `result:0` + 完整日历。
+// 四种可能（端点门禁波动 / UA·Referer 差异 / APP 域风控脸 / 回包形状变迁）需要码值才能分辨，故补此点。
 export function getSignInInfos() {
   return request(CFG.api.signInInfos, 'GET', {}).then(function (j) {
+    if (!j || j.result !== 0) {
+      stat('sign.readCode.' + String(j && j.result != null ? j.result : 'shape'));
+      var m = j && (j.msg || j.error_msg || j.errorMsg || j.error);
+      if (m) stat('sign.readMsg.' + String(m).slice(0, 40).replace(/\s+/g, ' '));
+    }
     return signStateOf(j);
   });
 }
@@ -182,6 +191,10 @@ var autoFlight = singleFlight(function () {
     });
   }).catch(function (e) {
     stat('sign.fail');
+    // 0.9.321 同批补点：写链失败也留**服务端原话**（signInResultOf 的 {code,kind,msg} 会被这里吃掉，
+    // 只留一个 sign.fail 太粗——9.311 复核已证「门禁按端点各自波动」，码值本身就是线索）
+    if (e && e.code != null) stat('sign.failCode.' + String(e.code));
+    if (e && e.msg) stat('sign.failMsg.' + String(e.msg).slice(0, 40).replace(/\s+/g, ' '));
     swallow(e, 'sign');
     return null;
   });
