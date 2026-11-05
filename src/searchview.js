@@ -44,7 +44,9 @@ var FOLLOW_ON_LABEL = '已关注';
 
 // 模块级缓存（跨视图重建存活：类目切换/前进后退/换词回来都读它，不再打接口）：
 // { kw, kinds: { video|up|article: { items, total, page, done, loading, err } } }。同一时刻只
-// 缓存一个关键词——换词即整组丢弃（旧在途回包写旧对象，天然作废）
+// 缓存一个关键词——换词即整组丢弃（旧在途回包写旧对象，天然作废）；
+// **同词重建共享同一份 state**（0.9.325 实报修）：规范化/切类目重建后新构建读旧 state，
+// 在途回包的渲染经 liveRender 收口到活视图（见下）
 var cache = null;
 
 function newState() { return { items: [], total: 0, page: 0, done: false, loading: false, err: false }; }
@@ -74,6 +76,12 @@ function hashOf(kind, kw) {
 var activeSubmit = null;
 var activeIO = null; // 当前视图的续页哨兵观察器（teardown 断开；同一时刻只有一个搜索视图）
 var histScope = null; // 共享历史清空广播的订阅作用域（0.9.158；teardown 一次摘净）
+// 在途回包的渲染落点（0.9.325 实报修「视频结果骨架永驻」）：同词重建（无类目段地址挂载时
+// location.replace 规范化会触发 hashchange 重建视图；预拉在途期点 chips 切类目同型）后，
+// 回包落在旧构建闭包上、render 因旧 DOM 已摘除早退，新构建 ensure 又被 st.loading 短路——
+// 骨架永驻。回包完成一律经 liveRender 落到**当前活视图**的 render（从共享缓存画），
+// 构建时登记、teardown 摘除；视图彻底关闭后的迟到回包不动 DOM
+var liveRender = null;
 
 function buildSearchView(body, arg, kind) {
   var kw = String(arg || '').trim();
@@ -81,7 +89,9 @@ function buildSearchView(body, arg, kind) {
   var c = cacheFor(kw);
   // 规范地址（0.9.151）：类目段缺席的形态（#svfeed/search/<kw>——0.9.72 历史链接与"顶栏默认
   // 提交"的首跳）挂载时规范化为 /search/<kind>/<kw>。用 replace 不留历史条目：back 不套娃。
-  // 回跳后 syncRouteView 比 view/arg/kind 全等（kind 已随本次构建对齐）→ 不会重进不循环
+  // 注意（0.9.325 修正失实注释）：replace 触发的 hashchange 会让 syncRouteView 按 kind 段
+  // 补齐判定「不同屏」**销毁本视图重建**——在途回包由 liveRender 收口到重建后的活视图，
+  // 不会因本闭包 DOM 被拆而丢渲染
   if (kw && !kind) {
     try { location.replace('#' + hashOf(curKind, kw)); }
     catch (e) { location.hash = hashOf(curKind, kw); }
@@ -133,7 +143,8 @@ function buildSearchView(body, arg, kind) {
   }
 
   // 取一页（page 1 起）：短路已取过/在途/失败待重试/中间页未到；成功后落缓存并重绘。
-  // 失败标 err 停在当前页，由「点击重试」清位重取（自动续页不静默重试——避免失败风暴）
+  // 失败标 err 停在当前页，由「点击重试」清位重取（自动续页不静默重试——避免失败风暴）。
+  // 重绘一律经 liveRender（0.9.325）：同词重建后本闭包的 DOM 已拆，直接 render() 会丢帧
   function ensure(k, page) {
     var st = c.kinds[k];
     if (!c.kw || st.loading || st.err) return;
@@ -143,7 +154,7 @@ function buildSearchView(body, arg, kind) {
     (k === 'up' ? request : requestRead)(apiOf(k) + '?keyword=' + encodeURIComponent(c.kw)
       + '&pCursor=' + page).then(function (j) {
       st.loading = false;
-      if (!j || j.result !== 0) { st.err = true; render(); return; }
+      if (!j || j.result !== 0) { st.err = true; if (liveRender) liveRender(); return; }
       var pg = normOf(k, j);
       if (pg.total) st.total = pg.total;
       pg.items.forEach(function (it) { st.items.push(it); });
@@ -151,11 +162,11 @@ function buildSearchView(body, arg, kind) {
       // 到底判定：空页 / 短页 / 已积满 totalNum（三者任一——与收藏侧"列表与总数自洽"同口径）
       if (!pg.items.length || pg.items.length < PAGE_SIZE
         || (st.total && st.items.length >= st.total)) st.done = true;
-      render();
+      if (liveRender) liveRender();
     }, function () {
       st.loading = false;
       st.err = true;
-      render();
+      if (liveRender) liveRender();
     });
   }
 
@@ -406,6 +417,7 @@ function buildSearchView(body, arg, kind) {
   } else {
     focusSearch();
   }
+  liveRender = render; // 登记渲染落点（0.9.325）：在途回包始终落到最后构建的活视图
   render();
 }
 
@@ -416,6 +428,7 @@ function teardownSearchView() {
   setSearchHandler(null);
   if (activeIO) { activeIO.disconnect(); activeIO = null; }
   if (histScope) { histScope.dispose(); histScope = null; }
+  liveRender = null;
 }
 
 registerView({

@@ -1557,6 +1557,71 @@ rec('search-pop-clear-chips', !!(await waitFor(function () { // 清空后空词�
   return document.querySelectorAll('.acsv-shchip').length === 0
     && /输入关键词/.test(document.body.textContent || '');
 }, 8000)));
+// ---- 在途回包竞态（0.9.325 实报修「搜索结果骨架永驻」）：可释放延迟夹具复现真机时序。
+// 前段 mock 是 Promise.resolve 微任务即回，永远抢在 hashchange（宏任务）重建前落地，盖住了
+// 「同词重建丢在途渲染」的缝；真机网络延迟必跨拍。夹具把回包挂进 __ACSV_DEFERRED__ 择机放行。
+window.__ACSV_DEFERRED__ = [];
+var baseMock = window.__ACSV_MOCK_FORM__;
+(function () {
+  var defer = function (fn) {
+    return function (body, url) {
+      return new Promise(function (res) {
+        window.__ACSV_DEFERRED__.push(function () { res(fn(body, url)); });
+      });
+    };
+  };
+  var spec = {};
+  ['延迟词甲', '延迟词乙'].forEach(function (w) {
+    var kw = encodeURIComponent(w);
+    spec['/search/video?keyword=' + kw] = defer(baseMock['/search/video?']);
+    spec['/search/user?keyword=' + kw] = defer(baseMock['/search/user?']);
+    spec['/search/article?keyword=' + kw] = defer(baseMock['/search/article?']);
+  });
+  // 具体键必须排在基键前面（mockHit 按 for..in 顺序子串匹配，先命中先赢）
+  window.__ACSV_MOCK_FORM__ = Object.assign({}, spec, baseMock);
+})();
+var flushDeferred = function () { window.__ACSV_DEFERRED__.splice(0).forEach(function (f) { f(); }); };
+// A：主入口竞态——竖刷态顶栏 Enter（navSearch 写**无类目段**地址）→ 挂载即 replace 规范化
+// → hashchange 销毁重建；回包放行在重建之后，修复前落旧闭包、新视图骨架永驻
+key('Escape');
+rec('search-race-exit', !!(await waitFor(function () { return q('.acsv-view') === null; }, 8000)));
+(function () {
+  var i = q('.acsv-top .acsv-sbox input');
+  i.value = '延迟词甲';
+  i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+})();
+rec('search-race-a-rebuilt', !!(await waitFor(function () { // replace 同步发生：规范化已落
+  return location.hash === '#svfeed/search/video/' + encodeURIComponent('延迟词甲');
+}, 8000)), location.hash);
+await wait(150); // 让 hashchange 重建任务跑完再放行（真机时序：回包必在重建之后到）
+flushDeferred();
+rec('search-race-a-cards', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-sgrid .acsv-scell').length === 30;
+}, 8000)), 'cells=' + document.querySelectorAll('.acsv-sgrid .acsv-scell').length
+  + ' hash=' + location.hash);
+// B：预拉在途期切类目——类目段地址进新词（无规范化），立即点「UP主」chip 触发同词重建；
+// 放行后修复前同类骨架永驻
+location.hash = 'svfeed/search/video/' + encodeURIComponent('延迟词乙');
+rec('search-race-b-enter', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-schip').length === 3
+    && (q('.acsv-top .acsv-sbox input') || {}).value === '延迟词乙';
+}, 8000)), 'v=' + ((q('.acsv-top .acsv-sbox input') || {}).value));
+(function () {
+  var up = null;
+  [].forEach.call(document.querySelectorAll('.acsv-schip'), function (b) {
+    if (/UP主/.test(b.textContent) && !up) up = b;
+  });
+  if (up) up.click();
+})();
+rec('search-race-b-rebuilt', !!(await waitFor(function () {
+  return location.hash === '#svfeed/search/up/' + encodeURIComponent('延迟词乙');
+}, 8000)), location.hash);
+await wait(150); // 等类目重建落定再放行
+flushDeferred();
+rec('search-race-b-cards', !!(await waitFor(function () {
+  return document.querySelectorAll('.acsv-supcard').length === 3;
+}, 8000)), 'cards=' + document.querySelectorAll('.acsv-supcard').length);
+window.__ACSV_MOCK_FORM__ = baseMock; // 还原（夹具键只服务本段）
   };
   // ---- cover-fallback ----
   C['cover-fallback'] = async function (h) {
