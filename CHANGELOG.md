@@ -5,6 +5,40 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.325（2026-11-05）· 搜索结果骨架永驻——在途回包渲染收口 liveRender（同词重建竞态类级修复）
+
+**病灶（用户实报）**：搜索结果界面视频结果一直播放加载动画（骨架屏 shimmer），不出现内容。
+真机实测（内置浏览器 + curl 双验，docs/api-research.md §4.10 补记）：搜索三端点 GET/POST 均
+`result:0`、回包形状与规整器一致——接口无恙，锅在客户端竞态：
+
+1. 顶栏首搜（`player.navSearch`）写**无类目段**地址 `#svfeed/search/<kw>`；
+2. `buildSearchView` 挂载时 `location.replace` 规范化成 `/search/video/<kw>` → 触发 hashchange
+   （宏任务）→ `syncRouteView` 按 kind 段补齐判定「不同屏」→ **销毁视图重建**（旧 DOM 摘除）；
+3. 首次构建已发出三类目预拉，真机网络延迟（≥100ms）远大于宏任务间隔——回包落在**旧构建闭包**
+   上，`render()` 首行 `!res.isConnected` 早退；
+4. 新构建 `ensure` 被 `st.loading=true` 短路，自己的 render 再无触发机会 ⇒ **骨架屏永驻**。
+
+**结构病灶上溯（三问）**：① 非孤例——首屏预拉在途期点 chips 切类目（同样走 hash 重建）→
+UP/文章回包同样丢渲染、该类目骨架永驻，是「同词重建顶掉旧视图后共享缓存的在途回包 render 丢失」
+一整类；② 放进来的结构：渲染落点写死为**构建期闭包**的 `render`，而视图生命周期允许同词重建
+（规范化/切类目/前进后退）；③ 修法灭这一类——渲染落点收口到**当前活视图**。
+**为何 harness 此前全绿**：mock 回包是 `Promise.resolve`（微任务），总抢在 hashchange（宏任务）
+前落地，旧视图 DOM 还在时 render 已完成——时序被 mock 盖住。
+
+**修法**（零视觉变化，不属预览范畴；`searchview.js` 唯一实现改动）：模块级 `liveRender` 指针——
+每次构建登记自己的 `render`、teardown 摘除；`ensure` 回包完成（成功/失败/result≠0 三分支）一律
+经 `liveRender()` 落到当前活视图，从共享缓存重画。`location.replace` 规范化行为不变、
+`!res.isConnected` 守卫保留（视图彻底关闭后的迟到回包仍不写 DOM）；顺带修正 0.9.151 两处失实注释
+（「不会重进不循环」与实际相反——实际会重建，现由 liveRender 兜住）。
+
+**测试证据**：harness `view-search` 81→87 断言——新增「可释放延迟回包」夹具（回包挂
+`__ACSV_DEFERRED__` 择机放行，复现真机「回包必在重建之后到」时序）+ 两组竞态断言：
+search-race-a（竖刷态顶栏 Enter 首搜 → 重建落定后放行 → 30 卡出齐）、search-race-b（预拉在途期
+点 UP主 chip → 放行 → 3 UP 卡出齐）。**反跑实证**：`liveRender()` 三处还原为 `render()` →
+search-race-a-cards（cells=0）/search-race-b-cards（cards=0）转红、其余 85 条绿——正是线上
+「骨架永驻」复现；恢复后全绿。单测/lint/check（check-structure 基线 +13 行带 why 登记）/全量
+harness 场景全绿。
+
 ### 0.9.324（2026-11-03）· 自动签到签成后弹黄历卡——落地动作抽跨面单源 + 「本次真签上」判据
 
 **病灶（用户裁决的功能缺口，非 bug）**：0.9.322/0.9.323 修好自动签到链后，**签到成功却什么都不弹**
