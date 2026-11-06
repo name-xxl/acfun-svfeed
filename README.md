@@ -785,7 +785,7 @@ flowchart LR
   momentbar --> banpop & imicons & immsg & interact & panelitem & styles & timefmt & toastmsg & ubbtext & ui
   followbadge --> followstream & followseen & momentapi
   momentdetail --> comments & emoticon & imgload & imgview & sharepanel & momentbar & overlay & cards & timefmt & uplook & momentpost & pickpop
-  articleread --> comments & imgload & imgurl & imgview & sharepanel & momentbar & overlay & relationapi & timefmt & imicons
+  articleread --> comments & imgload & imgurl & imgview & sharepanel & momentbar & overlay & relationapi & timefmt & imicons & banpop & favapi & interact & toastmsg
   followbadge --> net & sidebar
   player --> followbadge
   settingspanel --> settings & overlay

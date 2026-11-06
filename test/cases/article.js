@@ -95,7 +95,7 @@
       viewCount: 123456, formatViewCount: '12.3万',
       isLike: false, isThrowBanana: false,
       tagList: [{ id: 1, name: '活动' }, { id: 2, name: 'AC娘' }, { id: 3, name: '中秋' }],
-      user: { userId: AR_UP_ID, userName: AR_UP_NAME, userHead: '', isFollowing: false },
+      user: { userId: AR_UP_ID, userName: AR_UP_NAME, userHead: '', headUrl: '', isFollowing: false },
       createTime: '2026-09-25', createTimeMillis: 1758775200000,
       shareUrl: 'https://www.acfun.cn/a/ac' + acId
     };
@@ -140,6 +140,25 @@
     // 属地/设备与表情包桩：断言期不吃真网、不异步回填
     spec['user/userInfo'] = function () { return { result: 0, user_id: 0, user_name: '', profile: {} }; };
     spec['emotion/getUserEmotion'] = function () { return { result: 0, emotionPackageList: [] }; };
+    // 写链桩（0.9.327 互动接通）：api_st 令牌 + interact 两向 + 文章收藏两向——两族成功码
+    // 方言不同（interact=1、favorite=0，contract okResult0 在册），桩各自如实
+    spec['token/get'] = function () { return { result: 0, 'acfun.midground.api_st': 'mock-st' }; };
+    spec['interact/add'] = function () {
+      window.__ACSV_IA_HITS__ = (window.__ACSV_IA_HITS__ || 0) + 1;
+      return { result: window.__ACSV_LIKE_FAIL__ ? 0 : 1 };
+    };
+    spec['interact/delete'] = function () {
+      window.__ACSV_ID_HITS__ = (window.__ACSV_ID_HITS__ || 0) + 1;
+      return { result: 1 };
+    };
+    spec['pc-direct/favorite'] = function () {
+      window.__ACSV_SF_HITS__ = (window.__ACSF_SF_HITS__ || window.__ACSV_SF_HITS__ || 0) + 1;
+      return { result: window.__ACSV_STOW_FAIL__ ? 1 : 0 };
+    };
+    spec['pc-direct/unFavorite'] = function () {
+      window.__ACSV_SUR_HITS__ = (window.__ACSV_SUR_HITS__ || 0) + 1;
+      return { result: 0 };
+    };
     // 文章页：主样本（可延迟）与失败样本（可切失败），基键 '/a/ac' 排最后
     var main = function () {
       window.__ACSV_ART_HITS__ = (window.__ACSV_ART_HITS__ || 0) + 1;
@@ -405,18 +424,23 @@
       }
       return out.join(' > ');
     })());
-    rec('article-open-full-bleed', (function () {
-      var n = h1 || rq('.arhd');
-      while (n && n.parentElement !== document.body && n.parentElement !== document.documentElement) n = n.parentElement;
-      if (!n || n === document.body || n === document.documentElement) return false;
-      var r = n.getBoundingClientRect();
-      return r.width >= innerWidth - 1 && r.height >= innerHeight - 1;
+    rec('article-open-below-top', (function () {
+      // 0.9.327 真机反馈批裁决：壳不覆盖常驻顶栏（playlayer/视图体同款 top 让位）——
+      // 直接量壳实体（.acsv-artread；此前量 #acsv-root 恒满视口，是测量错位不是实现错位）
+      var sh = rq('.acsv-artread');
+      if (!sh) return false;
+      var r = sh.getBoundingClientRect();
+      var topH = parseFloat(getComputedStyle(document.documentElement)
+        .getPropertyValue('--acsv-top-h')) || 72;
+      return r.top >= topH - 1 && r.width >= innerWidth - 1 && r.height >= innerHeight - topH - 1;
     })(), (function () {
-      var n = h1 || rq('.arhd');
-      while (n && n.parentElement !== document.body && n.parentElement !== document.documentElement) n = n.parentElement;
-      if (!n || n === document.body || n === document.documentElement) return 'no-shell';
-      var r = n.getBoundingClientRect();
-      return 'shell=' + Math.round(r.width) + '×' + Math.round(r.height) + ' 视口=' + innerWidth + '×' + innerHeight;
+      var sh = rq('.acsv-artread');
+      if (!sh) return 'no-shell';
+      var r = sh.getBoundingClientRect();
+      var topH = parseFloat(getComputedStyle(document.documentElement)
+        .getPropertyValue('--acsv-top-h')) || 72;
+      return 'shell=' + Math.round(r.width) + '×' + Math.round(r.height)
+        + ' top=' + Math.round(r.top) + ' 顶栏=' + topH + ' 视口=' + innerWidth + '×' + innerHeight;
     })());
     // 稿量值三件：760 版心 / 正文 16-28 / 标题 28（新增提案在册值）
     rec('article-open-metrics', (function () {
@@ -611,7 +635,56 @@
       rec('article-dim-undim', false, 'no-covbd');
     }
 
-    // ---- ⑥ composer（点 pill 展开 / 轻条藏 / Esc 与外点收回）----
+    // ---- ④+ 写链：赞乐观/回滚 + 藏收藏/取消/回滚（0.9.327 互动接通；§17.2 首跑验证的机械钉）。
+    // 每次点击先等桩命中计数 +1（回包已落地、busy 已清），再断言类态——不然乐观类在 promise
+    // 落定前就被读，时序竞态会把「成功」误判成「回滚没生效」。
+    var endActs = rq('.covin .acsv-mdetail-actions');
+    var likeBtn = endActs ? endActs.querySelector('.aract') : null; // 首键=赞（键序 赞/蕉/藏/评/享）
+    rec('article-like-btn', !!likeBtn, 'likeBtn=' + !!likeBtn);
+    if (likeBtn) {
+      var ia0 = window.__ACSV_IA_HITS__ || 0;
+      likeBtn.click();
+      await poll(function () { return (window.__ACSV_IA_HITS__ || 0) > ia0; }, 6000);
+      var liked = await poll(function () { return likeBtn.classList.contains('on') || null; }, 6000);
+      rec('article-like-on', !!liked, 'on=' + !!liked + ' title=' + likeBtn.title);
+      window.__ACSV_LIKE_FAIL__ = true;
+      var id0 = window.__ACSV_ID_HITS__ || 0;
+      likeBtn.click(); // 取消赞：delete 桩成功 → off
+      await poll(function () { return (window.__ACSV_ID_HITS__ || 0) > id0; }, 6000);
+      var lOff = await poll(function () { return !likeBtn.classList.contains('on') || null; }, 6000);
+      rec('article-like-off', !!lOff, 'off=' + !!lOff);
+      // 再点亮：add 桩失败 → 乐观回滚 + errNotLogin
+      var ia2 = window.__ACSV_IA_HITS__ || 0;
+      likeBtn.click();
+      await poll(function () { return (window.__ACSV_IA_HITS__ || 0) > ia2; }, 6000);
+      var lRoll = await poll(function () { return !likeBtn.classList.contains('on') || null; }, 6000);
+      rec('article-like-rollback', !!lRoll, '失败点亮被回滚=' + !!lRoll);
+      window.__ACSV_LIKE_FAIL__ = false;
+    }
+    var stowBtn = endActs ? endActs.querySelector('.stow') : null;
+    rec('article-stow-btn', !!stowBtn, 'stowBtn=' + !!stowBtn);
+    if (stowBtn) {
+      var sf0 = window.__ACSV_SF_HITS__ || 0;
+      stowBtn.click();
+      await poll(function () { return (window.__ACSV_SF_HITS__ || 0) > sf0; }, 6000);
+      var stowed = await poll(function () { return stowBtn.classList.contains('on') || null; }, 6000);
+      rec('article-stow-on', !!stowed, 'on=' + !!stowed);
+      window.__ACSV_STOW_FAIL__ = true;
+      var su0 = window.__ACSV_SUR_HITS__ || 0;
+      stowBtn.click(); // 取消收藏：unFavorite 桩成功 → off
+      await poll(function () { return (window.__ACSV_SUR_HITS__ || 0) > su0; }, 6000);
+      var sOff = await poll(function () { return !stowBtn.classList.contains('on') || null; }, 6000);
+      rec('article-stow-off', !!sOff, 'off=' + !!sOff);
+      // 再收藏：favorite 桩失败 → 乐观回滚
+      var sf2 = window.__ACSV_SF_HITS__ || 0;
+      stowBtn.click();
+      await poll(function () { return (window.__ACSV_SF_HITS__ || 0) > sf2; }, 6000);
+      var sRoll = await poll(function () { return !stowBtn.classList.contains('on') || null; }, 6000);
+      rec('article-stow-rollback', !!sRoll, '失败收藏被回滚=' + !!sRoll);
+      window.__ACSV_STOW_FAIL__ = false;
+    }
+
+    // ---- ⑤ composer（点 pill 展开 / 轻条藏 / Esc 与外点收回）----
     pill = rq('.aractbar-input');
     rec('article-composer-pre', !!pill && !vis(rq('.acsv-cinput')),
       'pill=' + !!pill + ' 收起态 composer 可见=' + vis(rq('.acsv-cinput')));
@@ -831,7 +904,8 @@
 // article-open-tags           ：tagList 不接 / 胶囊改名 ⇒ chips≠3 ⇒ 红。
 // article-open-head           ：阅读量不吃 viewCount/formatViewCount、关注键不挂 .ar-follow ⇒ 红。
 // article-open-z60            ：浮层档位从 60 改成 55/58/61（撞顶栏或编辑器）⇒ 红。
-// article-open-full-bleed     ：壳退成 620 浮层（A 案形态）⇒ 尺寸不满视口 ⇒ 红。
+// article-open-below-top      ：壳改回 inset:0 盖顶栏（0.9.327 真机反馈批裁决的反面）⇒ top
+//                               ≠ 顶栏高 ⇒ 红。
 // article-open-metrics        ：版心 760 / 正文 16-28 / 标题 28 任一件漂 ⇒ 红（稿附节 2 新增提案）。
 // article-open-mdetail-actions：文末动作条不沿用 .acsv-mdetail-actions，或三值漂 ⇒ 红。
 // article-sanitize-script     ：白名单放进 script（或只脱标签留下文本体）⇒ 计数≠0；若真执行，
@@ -847,8 +921,7 @@
 // article-emot-ph             ：方言件原样漏出（raw=y）/占位不挂 data 属性/擅自回填未实测 zt 图源
 //                               ⇒ 三者任一 ⇒ 红。
 // article-whitelist-keep      ：白名单里漏掉 ol/br/figcaption/table 等任一件 ⇒ 红。
-// article-comments            ：评论管线未进浮层（.acsv-citem=0）或 .ar-cmhead 不建 ⇒ 红。
-// article-comments-head       ：计数文案不是「共 N 条评论」或不回写 ⇒ 红（稿节⑤）。
+// article-comments            ：评论管线未进浮层（.acsv-citem=0）或 .ar-cmhead 不建 ⇒ 红。// article-comments-head       ：计数文案不是「共 N 条评论」或不回写 ⇒ 红（稿节⑤）。
 // article-comments-stype3     ：stype 传成 4/5（照抄动态或视频缺省）⇒ 记账 URL 无 sourceType=3 ⇒ 红。
 // article-comments-text       ：条目不走 commentkit（正文/昵称不落 .acsv-citem 子树）⇒ 红。
 // article-comments-input      ：输入条不挂进浮层（.acsv-cinput 不在场或展开后仍不可见）⇒ 红。
@@ -883,3 +956,7 @@
 // article-narrow-no-direct    ：底栏直排里仍有 收藏/投蕉 ⇒ 红。
 // article-narrow-pop          ：点 ⋯ 不展开弹层，或弹层里藏/蕉不齐 ⇒ 红。
 // article-narrow-acts-reachable：窄态把文末动作条整个撤掉（稿：文末仍全量直排可达）⇒ 红。
+// article-like-btn/on/off/rollback：赞写链未接（点赞无反应=0.9.326 真机反馈病灶）/乐观不翻转/
+//                               取消不回落/add 失败不回滚 ⇒ 各自红（§17.2 首跑验证机械钉）。
+// article-stow-btn/on/off/rollback：收藏写链未接（同病灶）/收藏态不翻转/unFavorite 失效/
+//                               favorite 失败不回滚 ⇒ 各自红（官方端点源码级反查 favapi.articleStow*）。

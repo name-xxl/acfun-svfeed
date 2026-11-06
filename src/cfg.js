@@ -95,6 +95,9 @@ export var CFG = {
     // ---- 收藏（www.acfun.cn PC 端收藏夹体系，网页 Cookie 鉴权） ----
     favoriteAdd: 'https://www.acfun.cn/rest/pc-direct/favorite/resource/add',
     favoriteRemove: 'https://www.acfun.cn/rest/pc-direct/favorite/resource/remove',
+    // 文章收藏（0.9.327：官方文章页源码反查——直投单夹语义，与视频 resource/选夹族不同端点）
+    articleFavorite: 'https://www.acfun.cn/rest/pc-direct/favorite',
+    articleUnfavorite: 'https://www.acfun.cn/rest/pc-direct/unFavorite',
     favFolderList: 'https://www.acfun.cn/rest/pc-direct/favorite/folder/list',
     favDougaList: 'https://www.acfun.cn/rest/pc-direct/favorite/resource/dougaList',
     // 收藏夹管理（0.9.143；docs/api-research.md §4.2 写侧全实测）：建夹（响应 data.folderId）/
