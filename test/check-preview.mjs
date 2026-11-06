@@ -85,8 +85,8 @@ const PINS = [
     why: '动态详情头部右钮组：⋮ 与 ✕ 同规格 28 圆（原背板 40 圆浮钮撤入头部；两键一条规则管）'
   },
   {
-    draft: 'docs/preview/article-reader-v3.html', value: 'min(760px,100%)', src: 'src/cssraw.js', srcCount: 3,
-    why: '文章阅读浮层 760 版心（头部内/正文列/底栏内三处同值，0.9.326 起实现三处；新增提案取值在稿附节 1/2 登记）'
+    draft: 'docs/preview/article-reader-v3.html', value: 'min(760px,100%)', src: 'src/cssraw.js', srcCount: 5,
+    why: '文章阅读浮层 760 版心（头部内/正文列/底栏内三处 + composer 上行/下行居中两处＝0.9.327 真机反馈批补齐稿 .covinput 同款；新增提案取值在稿附节 1/2 登记）'
   },
   {
     draft: 'docs/preview/article-reader-v3.html', value: 'font-size:16px;line-height:28px', src: 'src/cssraw.js', srcCount: 1,
