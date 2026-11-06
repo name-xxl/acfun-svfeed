@@ -15,12 +15,14 @@ import { imgInto } from './imgload.js';
 import { openCommentsHost, closeCommentsHost, commentListClick, commentPicClick } from './comments.js';
 import { releaseDrawer } from './state.js';
 import { openMomentDetail } from './momentdetail.js'; // 行落点默认策略（0.9.218 单源下沉）
+import { openArticleReader } from './articleread.js'; // 文章行落点（0.9.326：脚本页宿主开阅读浮层；原生页宿主仍走外链）
 
 // ---------- 原位评论区（0.9.100）：行内开合的宿主状态（模块级——teardown 要能收拾它） ----------
 // 开新行前必须**显式关旧行**：claimDrawer 同槽重入不互收（comments.js 注释在册），不关的话
 // 旧容器还挂着管线 DOM、commentState 却已指向新行——列表更新串台。
 // 0.9.101：视频行也原位展开（原生 member-feed 三类条目都是原地开评论；sv=5 是 meow，
-// www 视频=3——playitem.js normalizeHome 同值）；文章评论 stype 未实测，仍外链官方页
+// www 视频=3——playitem.js normalizeHome 同值）；文章评论＝3 已实测（§17.1，0.9.326 起
+// 脚本页宿主开阅读浮层，原生页宿主仍外链——见 rowBarOf/openRowDefault 分派）
 var openCmt = null; // { pi, box, list }
 
 export function closeInlineComments() {
@@ -113,7 +115,7 @@ function momentMedia(pi, opt) {
 // 互动栏（0.9.105 收口共享件 momentbar）：键定义/写链编排单源，行流只提供两个出口——
 // 分享（place=左贴行：右缘挨行左缘、底部对齐，0.9.105 裁决几何）与评论（动态/视频行内
 // 原位展开、文章外链官方页）
-function rowBarOf(pi, row) {
+function rowBarOf(pi, row, opt) {
   return momentBarOf(pi, {
     skin: 'row',
     onShare: function (btn) {
@@ -130,8 +132,13 @@ function rowBarOf(pi, row) {
         toggleInlineComments(pi, btn, { sourceId: pi.momentId, stype: 4, shareUrl: pi.href });
       } else if (pi.ct === 'video') {
         toggleInlineComments(pi, btn, { sourceId: pi.acId, stype: 3, shareUrl: CFG.api.videoBase + pi.acId });
+      } else if (pi.ct === 'article') {
+        // 0.9.326：文章评论 stype=3 已实测（§17.1）——脚本页宿主开阅读浮层（评论区行内）；
+        // 原生页宿主维持站方原址外链（0.9.314 siteOnly 裁决精神，深色浮层不进原生页）
+        if (opt && opt.siteOnly) { if (pi.href) window.open(pi.href, '_blank'); }
+        else openArticleReader(pi);
       } else if (pi.href) {
-        window.open(pi.href, '_blank'); // 文章评论 stype 未实测：外链官方页（宁可漏不错）
+        window.open(pi.href, '_blank');
       }
     }
   });
@@ -154,7 +161,7 @@ export function feedRowOf(pi, opt) {
   else media = stripOf(pi); // 视频/文章行：与引用卡内嵌源卡共用构建件（原生同款复用）
   if (media) content.appendChild(media);
   row.appendChild(content);
-  row.appendChild(rowBarOf(pi, row));
+  row.appendChild(rowBarOf(pi, row, opt));
   return row;
 }
 
@@ -204,6 +211,8 @@ export function openRowDefault(pi, row) {
     openMomentDetail(pi, {
       onDeleted: function () { if (row && row.parentNode) row.remove(); }
     });
+  } else if (pi.ct === 'article') {
+    openArticleReader(pi); // 0.9.326：脚本页行落点＝阅读浮层（原生页宿主传的是 openRowSource，不经此层）
   } else if (pi.href) window.open(pi.href, '_blank');
 }
 

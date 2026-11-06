@@ -6,6 +6,10 @@
       "why": "宿主级观察器（评论哨兵），随宿主 teardown"
     },
     {
+      "key": "pair:articleread.js:obs 1/2",
+      "why": "0.9.326 dim 去重观察器：随浮层开建、close 断一次；armDim 重臂前先断一次（旧观察器防泄漏）——双断有意"
+    },
+    {
       "key": "pair:danmaku.js:iv 1/2",
       "why": "防御式双清（tick 自清 + teardown 清）——计数差有意"
     },
@@ -180,6 +184,10 @@
     {
       "key": "swallow:appapi.js:(空块体)@1",
       "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "swallow:articleread.js:return null;@1",
+      "why": "0.9.326 挂账：extractArticleInfo 的 JSON.parse 失败/无 articleInfo 段两路 return null——结构性兜底（降级 DOM 路或失败态会接住），无链可断；与 advdm 同款首轮分诊"
     },
     {
       "key": "swallow:attach.js:(空块体)@1",

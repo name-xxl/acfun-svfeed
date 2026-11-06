@@ -83,6 +83,22 @@ const PINS = [
   {
     draft: 'docs/preview/moment-detail-close.html', value: 'width:28px;height:28px;border-radius:50%', src: 'src/cssraw.js', srcCount: 1,
     why: '动态详情头部右钮组：⋮ 与 ✕ 同规格 28 圆（原背板 40 圆浮钮撤入头部；两键一条规则管）'
+  },
+  {
+    draft: 'docs/preview/article-reader-v3.html', value: 'min(760px,100%)', src: 'src/cssraw.js', srcCount: 3,
+    why: '文章阅读浮层 760 版心（头部内/正文列/底栏内三处同值，0.9.326 起实现三处；新增提案取值在稿附节 1/2 登记）'
+  },
+  {
+    draft: 'docs/preview/article-reader-v3.html', value: 'font-size:16px;line-height:28px', src: 'src/cssraw.js', srcCount: 1,
+    why: '文章正文 16/28（1.75，向长文阅读靠拢；稿附节 2 新增提案）'
+  },
+  {
+    draft: 'docs/preview/article-reader-v3.html', value: 'font-size:28px;line-height:1.35', src: 'src/cssraw.js', srcCount: 1,
+    why: '文章标题 28/1.35（B 案大标题一次；窄态 24/1.4 另值不入本条）'
+  },
+  {
+    draft: 'docs/preview/article-reader-v3.html', value: 'max-height:75vh', src: 'src/cssraw.js', srcCount: 2,
+    why: '长图超高兜底（>75vh 折算高截住+渐变压暗+chip；稿节⑥。容器与 img 各一处）'
   }
 ];
 

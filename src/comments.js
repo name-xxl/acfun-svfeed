@@ -187,6 +187,21 @@ export function openCommentsHost(h, sourceId, stype, shareUrl, kind) {
 // 面板关闭时复位管线宿主（宿主 DOM 已随面板拆除，残留引用会让 curHost() 读到死节点）
 export function closeCommentsHost() { host = null; }
 
+// 宿主内聚焦编辑区（0.9.326：`.acsv-cinput-edit` 选择器字面此前三处同形——详情面板/
+// 文章浮层/私信抽屉各查一遍；详情与浮层两消费点收此单源，字面只留在本件）
+export function focusEditOf(hostEl) {
+  var e = hostEl && hostEl.querySelector('.acsv-cinput-edit');
+  if (e) e.focus();
+  return e;
+}
+
+// 回复键定位（0.9.326：`.acsv-creplybtn` 选择器字面委托/文章浮层 capture 各写一次——
+// 同类同形收口；返回命中键或 null，调用方判空）
+export function replyBtnOf(ev) {
+  var t = ev.target;
+  return t && t.closest ? t.closest('.acsv-creplybtn') : null;
+}
+
 // 评论计数标题文案（0.9.103）：宿主可选 titleFmt 定制（小红书式详情面板用「共 N 条评论」）；
 // 缺省维持「评论 N」——抽屉/行内不传，行为零变化
 function titleText(h, n) {
@@ -291,7 +306,7 @@ export function commentListClick(ev) {
     toggleCommentLike(like);
     return;
   }
-  var rb = ev.target.closest('.acsv-creplybtn');
+  var rb = replyBtnOf(ev);
   if (rb && rb._target) {
     ev.stopPropagation();
     setReply(rb._target);
@@ -519,7 +534,7 @@ function setReply(target) {
   if (!bar) return;
   if (commentState.replyTo) {
     replyChip.box.style.display = 'flex';
-    replyChip.label.textContent = '回复：@' + commentState.replyTo.name;
+    replyChip.label.textContent = '回复 @' + commentState.replyTo.name; // 0.9.326 对齐确认稿口径（稿无全角冒号，article-reader-v3 附节 12）
     bar.setPlaceholder('回复 @' + commentState.replyTo.name + '…');
   } else {
     replyChip.box.style.display = 'none';

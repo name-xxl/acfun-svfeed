@@ -563,6 +563,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `favpop.js` | 收藏夹选择层语义件（0.9.143）：多选勾选 + 行内新建 + **三分支提交**（未收藏=add（默认勾第一个夹）/ 有改动=updateFolder 差集 / 全取消=remove）；`done(res)` 回 `{ favorited, ids }`（0.9.148 实锤：缺 ids 时我的页「移动」会抛且卡不摘除） |
 | `momentapi.js` | 动态域读接口（0.9.106 收口；0.9.107 unreadCount 退役）：listMoments（followFeedV2）/listVideos（followDougaFeed，规整走本域 followVideoPageOf）/listSquare（feedSquare 免登录广场流，首页不传游标；规整走本域 squarePageOf，0.9.125）/**listProfile（0.9.218：feed/profile UP 个人主页动态流——免登录、任意 uid、三合一混排，规整走本域 profilePageOf：**无 24h 窗口**，条目复用契约层 follow 解析器）**/momentDetail（单条详情，pc-direct 带 Cookie；**回填**用：0.9.228 起视口触发、0.9.230 起唯一触发——正文与互动态一起补，≤3h 新鲜度已退役）/momentPageUrl；URL 形态逐字保持（mock 缝）；评论管线/写链不入（边界登记） |
 | `momentdetail.js` | 动态详情面板（0.9.96 起；0.9.103 小红书式两栏；0.9.105 轮播+共存）：按内容型换布局——有 imgs（**图像权威=imgs**，0.9.105）两栏（左媒体黑底台 / 右 `.acsv-mdetail-side` 400）+**多图轮播**（track translate3d/60×60 箭头/底点/滚轮 preventDefault 逐格，XHS 实测 2026-10-04），无图/转发单栏 min(620px)；✕ 浮卡片外右上；正文 16/24；评论标题「共 N 条评论」（comments 管线 titleFmt）；互动栏（momentbar 共享件 skin=detail 四键）留内容底部；管线 host.el 两栏态指右栏（stype=4）；**不占 claimDrawer 槽**（私信抽屉共存+acsv-with-comments 左移避让，0.9.105）。**光 DOM 有意偏离 intake**（评论 CSS 单源，登记在模块头）；与评论抽屉共用 overlay 'comments' 层位 |
+| `articleread.js` | 文章阅读浮层（0.9.326；确认稿 docs/preview/article-reader-v3.html）：B 案整视口全覆盖 z60 + 760 版心 + 常驻轻动作条（dim 去重收缩）；数据＝文章页 SSR `window.articleInfo` 括号配平截取（降级 #article-content DOM，再败＝失败态重试/前往原页）；正文＝**字符串白名单清洗** `sanitizeArticleBody`（标签/属性/URL 三层白名单，img/a 过 imgurl.CDN_URL_OK 单源；[emot=zt,*] 占位不回填）+ 长图 75vh 折算兜底；评论区＝comments 管线 stype=3 宿主化复用（pin＝正文区）；互动首版只读（写链未实测）；关注 relationapi、分享 momentShareItemOf 单源；入口＝rowkit 行落点/评论键（脚本页宿主；原生页宿主仍走外链 siteOnly 裁决） |
 | `momentpost.js` | 动态发布域（0.9.220 数据面）：`momentParams(content, opts)`＝组 params JSON（content/imgs/shareResourceType/visibleForFans + 转发族 repost*：动态=repostMomentId、视频/文章=repostResourceType+repostResourceId）/ `momentCharCount`（**原始长度**口径，服务端 140000 为准）/ `dimsOf`（写侧自量尺寸）/ `postResultOf`（错误码 0/21/-401/140000/140002 → 话术键）/ `addMoment`+`deleteMoment`（走 `net.request`：真机＝GM 通道且命中 harness mock 缝）。契约 docs §11；**未实测项**：bizFlag 复用、转发字段必填组合、风控 |
 | `momentbar.js` | 动态互动栏共享件（0.9.105）：行流卡与详情面板同键定义表（分享/评论/蕉/赞）+ 写链编排单源（乐观回滚/投蕉锁/动态单蕉/视频文章数量层），skin 分皮肤（尺寸/类名由 CSS 按根类作用域）；键出口经 opts 注入（行流=原位评论+place 分享；面板=滚动聚焦评论+右贴分享） |
 | `followbadge.js` | 关注未读徽标（0.9.97；0.9.107 时间水位线；**0.9.139 水位抽件 followseen**）：徽标=自水位（GM）以来 followFeedV2 首屏 `createTime > 水位` 的新条数——旧 webPush followUpers 布尔是服务端长期不清标记（实测清不掉⇒固定数字复亮），已退役；**正式推进点=各入口首屏到达时 `followseen.markSeen`**（followview 首屏成功 / followstream 进视频侧），poll 的 in-view 分支退化为兜底（吸收停留期新内容）；退避真逐次翻倍 60s→10min 纯函数；hidden 短路/未登录静默；挂 player.mount/unmount |
@@ -684,6 +685,7 @@ flowchart LR
   memberplaza["memberplaza.js（原生 /member 页入口·内嵌广场）"]
   followstream["followstream.js（关注视频流·列表上下文+分页链）"]
   momentdetail["momentdetail.js（动态详情面板·小红书式两栏+评论区复用+写链）"]
+  articleread["articleread.js（文章阅读浮层·B 案 760 版心+轻动作条+评论区复用）"]
   momentbar["momentbar.js（动态互动栏·两皮肤共享件）"]
   feedctx["feedctx.js（列表上下文工厂·单活互斥）"]
   momentapi["momentapi.js（动态域读接口）"]
@@ -778,11 +780,12 @@ flowchart LR
   spacetab --> ui
   spacemoments --> cfg & rowkit & momentapi & pagekind & spacetab & squarefeed & ui
   uppage --> api & cfg & feedctx & feedstore & imgload & net & pagekind & pageloader & spacetab & timefmt & ui
-  rowkit --> cards & comments & imgload & imgview & momentbar & momentdetail & sharepanel & uplook
+  rowkit --> cards & comments & imgload & imgview & momentbar & momentdetail & sharepanel & uplook & articleread
   followstream --> appapi & feedctx & feedstore & followseen & momentapi & playitem & sidebar
   momentbar --> banpop & imicons & immsg & interact & panelitem & styles & timefmt & toastmsg & ubbtext & ui
   followbadge --> followstream & followseen & momentapi
   momentdetail --> comments & emoticon & imgload & imgview & sharepanel & momentbar & overlay & cards & timefmt & uplook & momentpost & pickpop
+  articleread --> comments & imgload & imgurl & imgview & sharepanel & momentbar & overlay & relationapi & timefmt & imicons
   followbadge --> net & sidebar
   player --> followbadge
   settingspanel --> settings & overlay

@@ -62,6 +62,7 @@ const ZLAYER = {
   'acsv-dock': 56,
   'acsv-top--view': 57, 'acsv-pubfab': 57,          // 浮标与视图态顶栏同档（tie，DOM 序定叠）
   'acsv-drawer': 58,                                 // 评论抽屉
+  'acsv-artread': 60,                                // 文章阅读浮层
   'acsv-mdetail': 61,                                // 动态详情
   'acsv-msgdrawer': 62, 'acsv-set-host': 62, 'acsv-salm-host': 62, 'acsv-me-host': 62,
   'acsv-imgview': 63, 'acsv-mmask': 63,              // 大图 / 动态编辑器遮罩

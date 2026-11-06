@@ -56,9 +56,11 @@ function sections(file) {
 // 0.9.289 重裁 css+total+rest：关注列表对齐原生（新档位域件 followadmin + 原生模态壳
 // + select/关系钮/确认弹层/警示条 CSS 家族）——增量本批功能量级，四段取本批实测值；
 // head/hls 基线不动，+2% 门禁不变。
+// 0.9.326 重裁 css+total+rest：文章阅读浮层新批（articleread 27KB 源 + CSS 段 ~2.4KB
+// + 测试缝/登记面）——单批功能量级，六段取本批实测值；head/hls 基线不动，+2% 门禁不变。
 const BASE = {
-  release: { total: 611440, head: 1815, hls: 120340, css: 24432, rest: 464852 },
-  debug: { total: 988304, head: 1885, hls: 120340, css: 24432, rest: 841646 }
+  release: { total: 626662, head: 1815, hls: 120340, css: 26920, rest: 477586 },
+  debug: { total: 1026817, head: 1885, hls: 120340, css: 26920, rest: 877671 }
 };
 const relSec = sections('acfun-svfeed.user.js');
 const dbgSec = sections('acfun-svfeed.debug.user.js');

@@ -22,8 +22,12 @@
       "why": "跨件类名契约（0.9.317 新增第二类宿主）：字面在 csshover.js 是**族表选择器**（CSS 单一源、构建期输入），在 jingxuanview.js 是**造卡建方**——与既有 querySelector 双写同性质（建方×消费方各写一次）；类名存在性由 check-cases 钉（.acsv-* 须在 src 出现）。任一方换类名/扩第三处即换 key 转 NEW"
     },
     {
-      "key": "dup:.acsv-cinput-edit@imdrawer.js,momentdetail.js",
-      "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉，JS 侧双写属 DOM 常态。0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW，触发条件由闸看见"
+      "key": "dup:.acsv-cinput-edit@comments.js,imdrawer.js",
+      "why": "跨件 querySelector 类名契约（建方/查方各写一次）——类名存在性已由 check-cases 钉。0.9.326 详情/文章浮两消费点收口 comments.focusEditOf（单源），字面只剩 comments（建/查同件）与 imdrawer（私信宿主自查）；0.9.309 起 key 携带文件集：任一方换宿主/扩第三处即换 key 转 NEW"
+    },
+    {
+      "key": "dup:font:14px/1.6 -apple-system,BlinkMacSystemFont,\"Segoe UI\",\"Microsoft YaHei\",sans-serif}@cssraw.js,cssseg.js",
+      "why": "0.9.326 文章浮层壳 font 栈：本应引 cssseg BASE_FONT token，但该 token 自带块尾 '}'，进 cssraw 拼接模板会被 z 展平器（按字面拼接、不认标识符）把规则切半——直写字面是有意并存，段头注释已写明缘由"
     },
     {
       "key": "dup:.acsv-frow-text@rowkit.js,squarefeed.js",
@@ -46,8 +50,12 @@
       "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
     },
     {
-      "key": "debt:cssraw.js:未实测@1",
-      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注"
+      "key": "debt:cssraw.js:未实测@2",
+      "why": "『未实测』＝规矩 2 的显式挂账（真机先行、宁空白不编造）——台账化防静默增长，消账＝真机实测后改注；0.9.326 +1＝文章浮层段 zt 表情占位「图源未实测」（稿附节 7 占位居留）"
+    },
+    {
+      "key": "debt:articleread.js:未实测@4",
+      "why": "0.9.326 文章阅读浮层显式挂账：赞/蕉/藏写链未实测（稿附节 6 首版只读）×2、zt 表情图源未实测不回填（稿附节 7）×2；验收单在 docs/api-research.md §20"
     },
     {
       "key": "debt:inputbar.js:未实测@2",

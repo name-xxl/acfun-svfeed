@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · 文章阅读浮层 v3.1（B 案全覆盖 / 760 版心 / 常驻轻动作条 / 收口批）</title>
+<!-- ============================================================
+     docs/preview/article-reader-v3.html —— 静态 UI 预览（形态确认稿，确认后才进 src 实现）
+     v3 依据（2026-11-05，对照主流文章社区实测后修订）：
+       ① 壳定 B：整视口全覆盖 + 760 版心；v2 的 A（620 浮层、正文 578）作为历史对照留在
+          article-reader.html，不再实现。实测主流正文列：掘金 756 / 少数派 680 / AcFun 原生 732。
+       ② 长文排版：正文 16/28（1.75）、标题 28/1.35；段落 16px、h2 21、h3 18；
+          ul/ol/blockquote/table、图注补规则；不再用 pre-line 撑段距。
+       ③ 阅读式底栏：常驻轻动作条（赞/蕉/藏/评论/分享 + 「说点什么…」），点输入才展开完整
+          composer（84px 常驻输入条会吃掉 11% 面板高度，主流文章页均用收起态/弹层）。
+       ④ 头部：作者行 + 关注 + 真实阅读量（articleInfo.viewCount；原生页也只显示阅读量，
+          不做估算阅读时长与目录——A 站原生文章页没有目录，实测 SSR 无 catalog/toc 节点）。
+          B 案头部限宽 760，与正文左缘对齐。
+       ⑤ 评论：左标题 + 计数 + 触底自动续翻；评论区仍用 commentkit 真实类名
+          （「加载更多」按钮 0.9.141 已退役，不得加回；排序接口未实测，不做 tabs）。
+       ⑥ 配图：width 100% / height auto 等比缩放、不裁切；点击可进大图。
+       ⑦ 失败态主次调整：重试为主、前往原页为辅（新窗打开、浮层不拆）。
+     v3.1 收口批（2026-11-05 评审）：
+       ① 双动作条同屏去重收缩（.aracts 入视口 → 底栏 --dim，口径见附节 10）；
+       ② 评论键锚定（smooth scroll 到 .ar-cmhead，纯行为、形态零变化，附节 11）；
+       ③ 长图超高兜底（.arimg--tall：75vh 居中截住 + 底部渐变 + .artall chip，新增节⑥）；
+       ④ 窄态藏/蕉收纳进 ⋯ 弹层（.aractbar-more，节④改摆）；
+       ⑤ 分享键 icon-only 统一（文末动作条与底栏一致，撤「分享」文字）；
+       ⑥ 回复交互口径（.acsv-quotechip 沿用 comments.js setReply 现成机制，新增节⑦、附节 12）。
+     数据源（已实测，docs/api-research.md §17）：文章页 SSR window.articleInfo——
+       title / parts[{content:正文HTML}] / likeCount bananaCount stowCount commentCount /
+       isLike isThrowBanana / tagList / user / createTime / shareUrl；评论 stype=3 可行内；
+       正文表情 [emot=zt,*] 方言、配图 imgs.aixifan.com 直链。
+     量值来源（按类名引用，行号易漂）：
+       src/cssraw.js —— .acsv-tbtn / .acsv-citem 家族 / .acsv-cinput / .acsv-upd-act /
+       .acsv-view-body / .acsv-mdetail-actions / 暗滚动条段 / .acsv-cmore-sentinel + .acsv-ctail；
+       src/commentkit.js —— commentItemOf 条目结构；src/inputbar.js —— .acsv-cinput 结构；
+       src/styles.js —— ICONS.chevLt；src/imicons.js —— GLYPHS 码点表。
+       新增提案（稿内附节逐条登记）：760 版心 / 16-28 / 28 标题 / 轻动作条 / 关注键 /
+       独立阅读头。不新增原生没有的阅读时长与目录。
+     纪律：单文件/无依赖/真实文案；颜色走类规则；关键状态全摆；确认后才进 src。
+     ============================================================ -->
+<style>
+  /* 站方原生 iconfont（cssraw.js 头同 URL）——动作键/评论键字形全真 */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(https://ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.90fc2dfc.woff) format("woff"),
+        url(https://ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.bdc44d05.ttf) format("truetype")
+  }
+  :root{
+    --acsv-accent:#fd4c5d;
+    --acsv-bg:#000;
+    --acsv-panel:#16161b;
+    --acsv-line:rgba(255,255,255,.09);
+    --acsv-ban:#ffba0d;
+    --acsv-t1:#fff; --acsv-t2:#cfd3da; --acsv-t3:#8a90a0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 90px}
+  .board>h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  @media (max-width:620px){
+    .board{padding-left:0;padding-right:0}
+    .board>h1,.board>.hint,.sec>h2,.sec>.note{padding-left:16px;padding-right:16px}
+  }
+  .hint{color:var(--acsv-t3);font-size:12px;line-height:1.9;margin-bottom:20px}
+  .hint b{color:var(--acsv-t2)}
+  .hint code{color:#ffb323;font-family:ui-monospace,Consolas,monospace;font-size:11px}
+  .sec{margin:30px 0 8px;padding-top:16px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .note{color:var(--acsv-t3);font-size:12px;line-height:1.85;margin:6px 0 14px}
+  .note b{color:var(--acsv-t2)}
+  .note code{background:rgba(255,255,255,.08);border-radius:4px;padding:1px 6px;font-size:12px}
+  .verdict{display:inline-block;background:rgba(253,76,93,.16);color:#ff9aa5;border-radius:10px;
+    padding:1px 10px;font-size:11px;margin-left:6px;vertical-align:1px}
+  .stage{position:relative;height:820px;border:1px dashed rgba(255,255,255,.16);
+    border-radius:6px;background:#101014;overflow:hidden}
+  .stage.short{height:620px}
+  .stage.narrow{width:min(540px,100%);height:720px}
+
+  /* ================= 字形基础（cssraw .acsvg-glyph 真值） ================= */
+  .acsv-ic{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-weight:400;
+    display:inline-block;line-height:1}
+  .acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-size:11px;
+    display:inline-block;width:12px;height:12px;line-height:12px;text-align:center;color:currentColor}
+  .acsvg-dual{position:relative;display:inline-flex;width:14px;height:14px}
+  .acsvg-dual .acsvg-glyph{position:absolute;left:0;top:0}
+  .acsvg-dual .gfill{display:none}
+  .aract:hover .gfill,.aract.on .gfill,.aract.thrown .gfill{display:inline-block}
+  .aract:hover .gpath,.aract.on .gpath,.aract.thrown .gpath{display:none}
+
+  /* ================= B 壳：全覆盖 + 760 版心（.acsv-view 同栈） ================= */
+  .cov{position:absolute;inset:0;background:var(--acsv-panel);display:flex;flex-direction:column;
+    overflow:hidden;color:#fff;
+    font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}
+  .arhd{flex:none;background:var(--acsv-panel);border-bottom:1px solid rgba(255,255,255,.08);
+    padding:10px 24px}
+  .arhd-in{width:min(760px,100%);margin:0 auto;display:flex;align-items:center;gap:12px}
+  .acsv-tbtn{width:36px;height:36px;border:none;border-radius:50%;background:rgba(255,255,255,.14);
+    color:#fff;cursor:pointer;display:grid;place-items:center;font-size:16px;
+    transition:transform .15s,background .15s;flex:none}
+  .acsv-tbtn:hover{transform:scale(1.08);background:rgba(255,255,255,.25)}
+  .acsv-tbtn svg{width:22px;height:22px;fill:currentColor;display:block}
+  .arauthor{flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:10px}
+  .arav{flex:none;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.08);
+    display:grid;place-items:center;font-size:15px;color:var(--acsv-t3)}
+  .arname{display:block;font-size:16px;color:#fff;text-decoration:none;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .arname:hover{text-decoration:underline}
+  .ar-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--acsv-t3);white-space:nowrap}
+  .ar-date-sep{color:rgba(255,255,255,.22)}
+  .ar-read{color:#9aa0ab}
+  .ar-follow{flex:none;border:none;border-radius:999px;background:var(--acsv-accent);color:#fff;
+    font:12px/1 inherit;padding:6px 12px;cursor:pointer;transition:opacity .15s}
+  .ar-follow:hover{opacity:.88}
+  .ar-follow.on{background:rgba(255,255,255,.14);color:#cfd3da}
+
+  /* 可滚动正文：横距 24 与暗滚动条沿用 .acsv-view-body；上下 18/40 为文章版心新增提案
+     （真值 top 由共享顶栏承担、left 含 dock 避让，本壳不适用） */
+  .covbd{flex:1 1 auto;min-height:0;overflow-y:auto;padding:18px 24px 40px;
+    scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+  .covbd::-webkit-scrollbar{width:8px;height:8px}
+  .covbd::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:4px}
+  .covbd::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.3)}
+  .covbd::-webkit-scrollbar-track{background:transparent}
+  .covin{width:min(760px,100%);margin:0 auto}
+
+  /* 标题一次（B：28/1.35；窄态 24/1.4） */
+  .arh1{font-size:28px;line-height:1.35;font-weight:600;color:#fff;margin:6px 0 12px;
+    letter-spacing:-.01em;word-break:break-word}
+  .artags{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+  .artag{padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.1);
+    color:var(--acsv-t2);font-size:12px}
+
+  /* ================= 正文富文本（新增提案；不再复用 .acsv-mdetail-text 的 pre-line） ================= */
+  .arbody{font-size:16px;line-height:28px;color:#e8eaee;word-break:break-word;overflow-wrap:anywhere;
+    white-space:normal;user-select:text;-webkit-user-select:text}
+  .arbody p{margin:0 0 16px}
+  .arbody p:last-child{margin-bottom:0}
+  .arbody h2{font-size:21px;line-height:1.5;font-weight:600;color:#fff;margin:28px 0 12px}
+  .arbody h3{font-size:18px;line-height:1.5;font-weight:600;color:#fff;margin:22px 0 10px}
+  .arbody ul,.arbody ol{margin:0 0 16px;padding-left:1.5em}
+  .arbody li{margin:4px 0}
+  .arbody blockquote{margin:0 0 16px;padding:10px 14px;border-left:3px solid rgba(253,76,93,.55);
+    background:rgba(255,255,255,.04);border-radius:0 6px 6px 0;color:#cfd3da}
+  .arbody code{background:rgba(255,255,255,.09);border-radius:4px;padding:1px 5px;
+    font-size:14px;font-family:ui-monospace,Consolas,monospace}
+  .arbody pre{margin:0 0 16px;padding:14px 16px;background:#0f0f13;
+    border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow-x:auto}
+  .arbody pre code{background:none;padding:0}
+  .arbody table{width:100%;border-collapse:collapse;font-size:14px}
+  .arbody th,.arbody td{border-bottom:1px solid rgba(255,255,255,.09);padding:8px 10px;
+    text-align:left;vertical-align:top}
+  .arbody th{color:#fff;font-weight:600;background:rgba(255,255,255,.04)}
+  .arbody figure{margin:0 0 16px}
+  .arbody figcaption{font-size:12px;line-height:1.6;color:var(--acsv-t3);margin-top:6px;text-align:center}
+  .arbody a{color:#57a9f5;text-decoration:none}
+  .arbody a:hover{text-decoration:underline}
+  .arbody .arimg{display:block;margin:0 0 16px;border-radius:8px;overflow:hidden;
+    background:rgba(255,255,255,.06);cursor:zoom-in}
+  /* 等比缩放：height:auto 下 object-fit 空转，故不写；长图顺排完整展开（贴近原生文章页） */
+  .arbody .arimg img{width:100%;height:auto;display:block}
+  .arbody .artbl{overflow-x:auto;margin:0 0 16px}
+  .arem{display:inline-flex;align-items:center;justify-content:center;vertical-align:-6px;width:34px;height:34px;border-radius:4px;
+    background:linear-gradient(135deg,#3a3f52,#232634);margin:0 1px;font-size:9px;color:#8a90a0;font-style:normal}
+  .arem::after{content:"表情"}
+
+  /* ================= 文末动作条（读完即互动；与底栏同源） ================= */
+  /* 沿用 .acsv-mdetail-actions 真值：gap 26 / margin-top 12 / padding-bottom 12 */
+  .aracts{display:flex;align-items:center;gap:26px;margin-top:12px;padding:0 0 12px;
+    border-bottom:1px solid rgba(255,255,255,.09);font-size:13px;color:#8a90a0}
+  .aract{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+  .aract .acsvg-glyph{font-size:14px;width:14px;height:14px;line-height:14px}
+  .aract:hover{color:var(--acsv-accent)}
+  .aract.ban:hover{color:var(--acsv-ban)}
+  .aract.on{color:var(--acsv-accent)}
+  .aract.thrown{color:var(--acsv-ban)}
+  .aract .n{font-variant-numeric:tabular-nums}
+
+  /* ================= 评论头 ================= */
+  .ar-cmhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 2px}
+  .ar-cmtitle{font-size:15px;font-weight:600;color:#fff}
+  /* 评论续翻：触底哨兵自动加载（.acsv-cmore-sentinel），不再有「加载更多」按钮；排序接口未实测，不做 tabs */
+
+  /* ================= 底部轻动作条（新增提案） ================= */
+  .aractbar{flex:none;background:var(--acsv-panel);border-top:1px solid rgba(255,255,255,.09);
+    padding:8px 24px}
+  .aractbar-in{width:min(760px,100%);margin:0 auto;display:flex;align-items:center;gap:14px}
+  .aractbar-input{flex:1 1 auto;min-width:0;text-align:left;border:none;border-radius:999px;
+    background:rgba(255,255,255,.10);color:#8a90a0;font:13px/1.4 inherit;padding:9px 14px;cursor:text;
+    transition:background .15s,color .15s}
+  .aractbar-input:hover{background:rgba(255,255,255,.16);color:#cfd3da}
+  .aractbar .aract{flex:none;color:#8a90a0;font-size:12px;gap:4px}
+  .aractbar .aract .acsvg-glyph{font-size:16px;width:16px;height:16px;line-height:16px}
+  .aractbar .aract:hover{color:var(--acsv-accent)}
+  .aractbar .aract.ban:hover{color:var(--acsv-ban)}
+
+  /* 回到顶部：视觉沿用 .acsv-tbtn（与 listtail 的 .acsv-tbtn.acsv-backtop 同源），本类只管定位 */
+  .ar-backtop{position:absolute;right:20px;bottom:64px}
+
+  /* ================= v3.1 收口：去重收缩 / 长图兜底 / 窄态 ⋯ 收纳 / 回复 chip ================= */
+  /* 去重收缩：IO 盯 .aracts，入视口给底栏挂 --dim（状态单源，双栏共用）——附节 10 */
+  .aractbar .aract{transition:opacity .2s}
+  .aractbar--dim .aract{opacity:0;pointer-events:none}
+  /* 长图超高兜底：>75vh 图 flex 居中截住 + 底部渐变压暗 + 「长图 · 点击查看全图」chip；
+     普通 .arimg（≤75vh）行为完全不变（本节只挂 --tall 修饰类） */
+  .arbody .arimg--tall{position:relative;display:flex;align-items:center;justify-content:center;
+    max-height:75vh}
+  .arbody .arimg--tall img{width:auto;max-width:100%;max-height:75vh}
+  .arbody .arimg--tall::after{content:"";position:absolute;left:0;right:0;bottom:0;height:110px;
+    background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.78));pointer-events:none}
+  .arbody .arimg--tall .artall{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+    display:inline-flex;align-items:center;padding:5px 12px;border-radius:999px;z-index:1;
+    background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.85);color:#fff;
+    font-size:12px;line-height:1.4;white-space:nowrap;pointer-events:none}
+  /* 窄态收纳：藏/蕉撤出底栏直排，收进 ⋯ 弹层；.aractbar-more 默认隐藏、窄态显示（见 540 段），
+     .open 仅本稿摆展开态用，实现由 ⋯ 点击切换 */
+  .aractbar-more{position:relative;display:none;flex:none}
+  .aractbar-morebtn{width:32px;height:32px;border:none;border-radius:50%;background:transparent;
+    color:#8a90a0;font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;
+    transition:color .15s}
+  .aractbar-morebtn:hover{color:var(--acsv-accent)}
+  .aractbar-pop{display:none;position:absolute;bottom:44px;right:0;min-width:158px;padding:6px;
+    background:#1e1e24;border:1px solid rgba(255,255,255,.12);border-radius:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  .aractbar-more.open .aractbar-pop{display:block}
+  .aractbar-pop .aract{display:flex;width:100%;align-items:center;gap:6px;padding:8px 10px;
+    border-radius:8px;font-size:12px;color:#cfd3da}
+  .aractbar-pop .aract:hover{background:rgba(255,255,255,.08);color:var(--acsv-accent)}
+  .aractbar-pop .aract.ban:hover{background:rgba(255,255,255,.08);color:var(--acsv-ban)}
+  /* 回复 chip：照抄 src/cssraw.js:810–815 真值（DOM 由 src/inputbar.js:611 buildQuoteChip 产出，
+     显隐与文案由 src/comments.js:517 setReply 驱动） */
+  .acsv-quotechip{flex:none;display:flex;align-items:center;gap:8px;margin:8px 12px 0;
+    padding:5px 8px 5px 12px;background:rgba(255,255,255,.08);border-radius:8px;font-size:12px;color:#b8bdc7}
+  .acsv-quotechip-label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .acsv-quotechip-x{flex:none;border:none;background:transparent;color:#8b909a;cursor:pointer;
+    font-size:12px;padding:2px 4px;font-family:inherit}
+  .acsv-quotechip-x:hover{color:#fff}
+
+  /* ================= 评论区（commentkit 真实类名；cssraw .acsv-citem 家族真值） ================= */
+  .acsv-citem{position:relative;margin-top:18px;display:flex;gap:30px;padding:0 16px}
+  .acsv-avlink{position:relative;flex:none;display:block}
+  .acsv-citem .av{display:block;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.08);
+    text-align:center;line-height:50px;font-size:16px;color:var(--acsv-t3)}
+  /* 真值是原生头像框图（img），预览无图源故留结构位、不加自造边框 */
+  .acsv-cavframe{position:absolute;left:-15px;top:-15px;width:80px;height:70px;max-width:none;
+    pointer-events:none}
+  .acsv-cbody{flex:1;min-width:0}
+  .acsv-cname{font-size:12px;color:#9aa0ab;margin-bottom:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .acsv-cname a{color:#9aa0ab;text-decoration:none}
+  .acsv-cname a:hover{color:#e8eaed;text-decoration:underline}
+  .acsv-cdate{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+  .acsv-cpostday,.acsv-cposttime{font-size:12px;color:#7a7f8a;white-space:nowrap}
+  .acsv-ctext{font-size:14px;line-height:1.6;word-break:break-word;white-space:pre-wrap;
+    color:#f0f1f3;margin-bottom:13px;user-select:text;-webkit-user-select:text}
+  .acsv-ctext .arem{vertical-align:-7px}
+  .acsv-cmeta{font-size:12px;color:#7a7f8a;margin-bottom:17px;display:flex;gap:12px;
+    align-items:center;flex-wrap:wrap;row-gap:6px}
+  .acsv-cmeta>*{white-space:nowrap}
+  .acsv-clike{display:inline-flex;align-items:center;gap:3px;color:#7a7f8a;cursor:pointer}
+  .acsv-clike:hover{color:var(--acsv-accent)}
+  .acsv-clike.on{color:var(--acsv-accent)}
+  .acsv-creplybtn,.acsv-cfwdbtn{cursor:pointer;color:#7a7f8a;font-size:12px;display:inline-flex;align-items:center;gap:3px}
+  .acsv-creplybtn:hover,.acsv-cfwdbtn:hover{color:var(--acsv-accent)}
+  .acsv-cattr{display:inline-flex;align-items:center;gap:12px;flex-wrap:wrap;row-gap:6px;
+    white-space:normal;font-size:11px;color:#5c616b}
+  .acsv-cattr .acsv-cip{color:#7a7f8a;cursor:pointer}
+  .acsv-cattr .acsv-cip:hover{color:var(--acsv-accent)}
+  .acsv-cattr>*{white-space:nowrap}
+  .acsv-citem>.acsv-chr{position:absolute;left:0;right:0;bottom:0;border:none;
+    border-top:1px solid rgba(255,255,255,.07);margin:0}
+  .acsv-cfloor{position:absolute;right:0;top:12px;font-size:12px;color:#7a7f8a}
+  .acsv-csub{margin:8px 0 16px 8px;padding:14px 12px 2px;background:rgba(255,255,255,.05);border-radius:0}
+  .acsv-csub .acsv-citem{margin-top:15px;padding:0;gap:10px}
+  .acsv-csub .acsv-citem:first-child{margin-top:0}
+  .acsv-csub .acsv-citem .av{width:30px;height:30px;line-height:30px;font-size:12px}
+  .acsv-csub .acsv-cname{margin-bottom:4px;font-weight:700}
+  .acsv-csub .acsv-ctext{margin-bottom:8px}
+  .acsv-csub .acsv-cmeta{margin-bottom:8px}
+  .acsv-creplyto{color:#9fd0ff;text-decoration:none}
+  .acsv-cmore{display:block;width:100%;padding:14px 0;text-align:center;font-size:13px;color:#7a7f8a;
+    background:none;border:none;cursor:pointer;font-family:inherit}
+  .acsv-cmore:hover{color:var(--acsv-accent);text-decoration:underline}
+
+  /* ================= 输入条（inputbar 真实类名；cssraw .acsv-cinput 家族真值） ================= */
+  .acsv-cinput{--acsv-edit-fg:#e8eaee;flex:none;display:flex;flex-direction:column;align-items:stretch;
+    gap:0;padding:8px 12px;border-top:1px solid rgba(255,255,255,.09);background:rgba(22,22,27,.98)}
+  .acsv-cinput-top{display:flex;align-items:center;min-height:24px;padding-bottom:3px;
+    border-bottom:1px solid rgba(255,255,255,.06)}
+  .acsv-cinput-main{display:flex;align-items:flex-end;gap:8px;padding-top:3px}
+  .acsv-cinput-fmt{width:18px;height:18px;border:none;background:none;border-radius:2px;cursor:pointer;
+    flex:none;padding:0;margin-right:8px;position:relative;text-align:center;color:#cfd3da}
+  .acsv-cinput-fmt .acsv-ic{font-size:18px}
+  .acsv-cinput-fmt:hover{color:#fff}
+  .acsv-cinput-fmt.on{background:rgba(255,255,255,.12);color:#fff}
+  .acsv-fmtsep{flex:none;width:1px;height:18px;background:rgba(255,255,255,.18);margin:0 10px 0 0}
+  .acsv-cinput-colkey{position:relative;flex:none;display:flex;align-items:center;margin-right:8px}
+  .acsv-cinput-colkey .acsv-cinput-fmt{margin-right:0}
+  .acsv-cinput-collabel{position:absolute;bottom:2px;left:50%;width:16px;height:2px;margin-left:-8px;
+    border-radius:1px;background:var(--acsv-edit-fg);pointer-events:none}
+  .acsv-cinput-colcaret{width:14px}
+  .acsv-cinput-colcaret .acsv-ic{font-size:12px;transform:scale(.6)}
+  .acsv-cinput-count{flex:none;margin-left:auto;padding-right:1px;font-size:12px;color:#7a7f8a;
+    font-variant-numeric:tabular-nums}
+  .acsv-cinput-wrap{flex:1;min-width:0;position:relative;display:flex;background:rgba(255,255,255,.1);
+    border-radius:8px;overflow:hidden}
+  .acsv-cinput-wrap:focus-within{background:rgba(255,255,255,.16)}
+  .acsv-cinput-edit{flex:1;min-width:0;min-height:18px;max-height:96px;overflow-y:auto;outline:none;
+    font-size:13px;line-height:18px;padding:9px 12px;color:#e8eaee;white-space:pre-wrap;word-break:break-word;
+    overflow-wrap:anywhere;caret-color:#fd4c5d;user-select:text;-webkit-user-select:text}
+  .acsv-cinput-edit:empty::before{content:attr(data-ph);color:#8a90a0;pointer-events:none}
+  .acsv-cinput-emot,.acsv-cinput-img{border:none;background:none;padding:2px;cursor:pointer;flex:none;
+    line-height:0;color:#999;transition:color .15s,transform .15s}
+  .acsv-cinput-emot .acsv-ic,.acsv-cinput-img .acsv-ic{font-size:20px}
+  .acsv-cinput-emot:hover,.acsv-cinput-img:hover{transform:scale(1.12);color:#fd4c5d}
+  .acsv-cinput-send{flex:none;border:none;background:#fd4c5d;color:#fff;font-size:13px;padding:8px 16px;
+    border-radius:999px;cursor:pointer;font-family:inherit}
+  .acsv-cinput-send:hover{background:#ff6b7a}
+  .acsv-cinput-send.disabled,.acsv-cinput-send.disabled:hover{background:rgba(255,255,255,.14);color:#7a7f8a;
+    cursor:not-allowed}
+  .covinput .acsv-cinput-top,.covinput .acsv-cinput-main{width:min(760px,100%);margin-left:auto;margin-right:auto}
+
+  /* ================= 骨架 / 失败态 ================= */
+  .arskel{border-radius:8px;background-color:rgba(255,255,255,.05);
+    background-image:linear-gradient(100deg,rgba(255,255,255,0) 40%,rgba(255,255,255,.07) 50%,rgba(255,255,255,0) 60%);
+    background-size:200% 100%;animation:arskel 1.4s linear infinite}
+  @keyframes arskel{0%{background-position:120% 0}100%{background-position:-20% 0}}
+  .arskel.t{height:34px;margin:6px 0 14px}
+  .arskel.av{width:40px;height:40px;border-radius:50%}
+  .arskel.ln{height:16px;margin:10px 0}
+  .arskel.img{height:300px;margin:10px 0}
+  .ar-empty{padding:44px 0;text-align:center;color:#7a8394}
+  .ar-empty .t{font-size:14px;font-weight:600;color:#cfd3da}
+  .ar-empty .d{font-size:12px;line-height:1.8;margin-top:6px}
+  .arerr{padding:56px 28px;text-align:center}
+  .arerr .t{font-size:15px;font-weight:600;color:#fff}
+  .arerr .d{font-size:13px;line-height:1.8;color:var(--acsv-t3);margin:10px auto 20px;max-width:420px}
+  .arerr .btns{display:flex;gap:10px;justify-content:center}
+  .acsv-upd-act{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;
+    cursor:pointer;background:rgba(255,255,255,.12);color:#fff;transition:background .15s,opacity .15s;
+    text-decoration:none;display:inline-block}
+  .acsv-upd-act:hover{background:rgba(255,255,255,.2)}
+  .acsv-upd-act.primary{background:var(--acsv-accent);color:#fff}
+  .acsv-upd-act.primary:hover{background:var(--acsv-accent);opacity:.88}
+
+  /* ================= 540 窄宽 ================= */
+  .stage.narrow .arhd{padding:10px 16px}
+  .stage.narrow .arhd-in{gap:8px}
+  .stage.narrow .arav{width:34px;height:34px;font-size:13px}
+  .stage.narrow .arname{font-size:14px}
+  .stage.narrow .ar-meta{font-size:11px;gap:5px}
+  .stage.narrow .ar-read{color:#8a90a0}
+  .stage.narrow .ar-follow{padding:6px 10px}
+  .stage.narrow .covbd{padding:14px 16px 28px}
+  .stage.narrow .arh1{font-size:24px;line-height:1.4}
+  .stage.narrow .aracts{gap:18px;flex-wrap:wrap}
+  .stage.narrow .acsv-citem{gap:20px;padding:0 4px}
+  .stage.narrow .acsv-citem .av{width:40px;height:40px;line-height:40px;font-size:14px}
+  .stage.narrow .acsv-cavframe{display:none}
+  .stage.narrow .aractbar{padding:8px 16px}
+  .stage.narrow .aractbar-in{gap:10px}
+  .stage.narrow .aractbar-more{display:block}
+  .stage.narrow .ar-backtop{right:14px;bottom:62px}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>文章阅读浮层 v3.1 —— B 案全覆盖（760 版心 / 16–28 / 常驻轻动作条 + 收口批）</h1>
+  <p class="hint">
+    <b>结论</b>：v2 的 A/B 双壳收敛为 <b>B 全覆盖</b>；A（620 浮层、正文 578）作为历史对照留在
+    <code>article-reader.html</code>，不再实现。实测主流正文列宽：掘金 756 / 少数派 680 / AcFun 原生 732；
+    本稿取 760 版心、16/28 正文、28px 标题。<br>
+    <b>v3 改动</b>：① 长文排版（段距/标题/列表/引用/表格/图注全补，正文图等比不裁切）；
+    ② 底部常驻轻动作条 + 「说点什么…」收起态（点击才展开完整 composer）；
+    ③ 头部补关注 + 真实阅读量（不造阅读时长/目录）；④ 评论左标题 + 计数 + 触底续翻 + 空态；
+    ⑤ 失败态重试为主、前往原页为辅。<br>
+    <b>数据源（已实测）</b>：<code>window.articleInfo</code>——title / parts[{content:正文HTML}] /
+    likeCount bananaCount stowCount commentCount / isLike isThrowBanana / tagList / user / createTime / shareUrl；
+    评论 <code>stype=3</code> 可行内；正文表情 <code>[emot=zt,*]</code> 方言、配图 imgs.aixifan.com 直链。<br>
+    <b>量值来源</b>：评论/输入条/骨架/顶栏圆钮/失败按钮照抄 <code>src/cssraw.js</code> 既有真值；
+    760 版心、16/28、28 标题、轻动作条、关注键、独立阅读头为<b>新增提案</b>，
+    在附节逐条登记。正文新增的 h2/列表/引用/表格为<b>排版示例</b>，非原文。
+  </p>
+
+  <!-- ================= ① B 默认态 ================= -->
+  <div class="sec">
+    <h2>① B · 默认态<em>全覆盖 + 760 版心；底部轻动作条常驻，正文滚到底才见文末同源动作条</em></h2>
+    <p class="note">
+      头部＝返回 + 作者行（头像 40 / 名 16 / 日期 + 阅读量 12）+ 关注；大标题只在正文区出现一次。
+      正文 16/28、段距 16、h2 21、h3 18；配图宽度 100%、等比缩放不裁切，点击进大图。
+      底部动作条为「说点什么… + 赞/蕉/藏/评论/分享」，点输入才展开完整 composer。
+    </p>
+    <div class="stage">
+      <div class="cov">
+        <div class="arhd">
+          <div class="arhd-in">
+            <button class="acsv-tbtn" title="返回" aria-label="返回"><svg viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
+            <div class="arauthor">
+              <span class="arav">AC</span>
+              <div style="min-width:0;flex:1">
+                <a class="arname" href="#">AC娘本体</a>
+                <div class="ar-meta"><span>2026-09-25</span><span class="ar-date-sep">·</span><span class="ar-read">阅读 1.2万</span></div>
+              </div>
+            </div>
+            <button class="ar-follow">关注</button>
+          </div>
+        </div>
+        <div class="covbd">
+          <div class="covin">
+            <h1 class="arh1">天涯此时共明月 DD歌回唱团圆</h1>
+            <div class="artags">
+              <span class="artag">活动</span>
+              <span class="artag">AC娘</span>
+              <span class="artag">中秋</span>
+            </div>
+            <div class="arbody">
+              <p>又是一年团圆时节，AC娘在这里祝大家中秋快乐呀～今年 DD 歌回的主题就定为「唱团圆」，欢迎各位歌手报名，把自己心里的那首「团圆」唱给大家听。</p>
+              <p>本篇文章下留言许愿你喜欢吃的月饼口味，因为想让你在中秋吃上本娘送的月饼呀<span class="arem"></span>五仁党和流心党都别吵了，小孩子才做选择，本娘全都要<span class="arem"></span></p>
+              <div class="arimg onbig"><img src="https://imgs.aixifan.com/newUpload/23682490_3870ea2d5c7e4bcfb09b6b3699f6a560.jpg" alt="中秋 DD 歌回活动配图"></div>
+              <h2>参与方式</h2>
+              <p>在文章下方留言，说出你最想吃的月饼口味和理由；9 月 30 日晚 8 点来 DD 歌回直播间，就有机会拿走本娘准备的月饼礼盒。</p>
+              <ul>
+                <li>留言许愿喜欢的月饼口味，口味不限、理由不限；</li>
+                <li>9 月 30 日晚 8 点，DD 歌回直播间不见不散；</li>
+                <li>留言点赞最高的三位小伙伴，会收到月饼礼盒一份。</li>
+              </ul>
+              <blockquote>小孩子才做选择，本娘全都要。五仁和流心，都可以是好月饼。</blockquote>
+              <h2>活动时间</h2>
+              <div class="artbl">
+                <table>
+                  <tr><th>节点</th><th>时间</th></tr>
+                  <tr><td>留言截止</td><td>9 月 28 日 23:59</td></tr>
+                  <tr><td>DD 歌回直播</td><td>9 月 30 日 20:00</td></tr>
+                  <tr><td>礼盒寄出</td><td>10 月 8 日前</td></tr>
+                </table>
+              </div>
+              <h3>留言小贴士</h3>
+              <p>别只写「流心」两个字——写清楚为什么喜欢，才更容易被本娘看见。留言点赞最高的三位小伙伴，记得留意站内私信。</p>
+            </div>
+            <div class="aracts">
+              <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
+              <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
+              <span class="aract" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
+              <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
+              <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
+            </div>
+            <div class="ar-cmhead">
+              <span class="ar-cmtitle">共 1024 条评论</span>
+            </div>
+            <div class="acsv-citem">
+              <a class="acsv-avlink"><span class="av">芸</span><span class="acsv-cavframe"></span></a>
+              <div class="acsv-cbody">
+                <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">2小时前</span></span></div>
+                <div class="acsv-ctext">先占楼许愿流心奶黄！去年的蛋黄莲蓉到现在还想，AC娘大气！<span class="arem"></span></div>
+                <div class="acsv-cmeta">
+                  <span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span>
+                  <span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span>
+                  <span class="acsv-cattr"><span>来自 iPhone 4</span><span class="acsv-cip">江苏</span></span>
+                </div>
+                <div class="acsv-csub">
+                  <div class="acsv-citem">
+                    <a class="acsv-avlink"><span class="av">蝉</span></a>
+                    <div class="acsv-cbody">
+                      <div class="acsv-cname"><a href="#">阿蝉不是蝉</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">1小时前</span></span></div>
+                      <div class="acsv-ctext"><span class="acsv-creplyto">回复 @一只芸喵喵</span> : 流心奶黄 +1，去年没抢到礼盒今年势在必得</div>
+                      <div class="acsv-cmeta"><span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>12</span><span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span></div>
+                    </div>
+                  </div>
+                  <button class="acsv-cmore">共 5 条回复, 点击查看</button>
+                </div>
+              </div>
+              <hr class="acsv-chr">
+              <span class="acsv-cfloor">#1</span>
+            </div>
+            <div class="acsv-citem">
+              <a class="acsv-avlink"><span class="av">弹</span></a>
+              <div class="acsv-cbody">
+                <div class="acsv-cname"><a href="#">弹幕护体</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">昨天 21:47</span></span></div>
+                <div class="acsv-ctext">歌单已经搓手期待了，《但愿人长久》求安排，中秋夜必到直播间。</div>
+                <div class="acsv-cmeta">
+                  <span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>54</span>
+                  <span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span>
+                </div>
+              </div>
+              <hr class="acsv-chr">
+              <span class="acsv-cfloor">#2</span>
+            </div>
+          </div>
+        </div>
+        <div class="aractbar">
+          <div class="aractbar-in">
+            <button class="aractbar-input" title="写评论">说点什么…</button>
+            <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
+            <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
+            <span class="aract stow" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
+            <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
+            <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
+          </div>
+        </div>
+        <button class="acsv-tbtn ar-backtop" title="回到顶部" aria-label="回到顶部"><svg viewBox="0 0 24 24"><path d="M7.4 15.4L6 14l6-6 6 6-1.4 1.4L12 10.8z"/></svg></button>
+      </div>
+    </div>
+    <p class="note" style="margin-top:10px">
+      已赞/已投蕉回显：<span class="aract on"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>1.2万</span>
+      （accent 红·实心常驻）
+      <span class="aract thrown"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>6561</span>
+      （蕉黄 #ffba0d·实心常驻）——悬停色同动态详情：赞/藏/评论悬停红、蕉悬停黄，悬停切实心。
+    </p>
+  </div>
+
+  <!-- ================= ② 输入展开态 ================= -->
+  <div class="sec">
+    <h2>② B · 输入展开态<em>点「说点什么…」后轻动作条收起，完整 composer 贴底；点外部/Esc 收起</em></h2>
+    <p class="note">展开后阅读区相应缩短；composer 仍是 inputbar 真实结构（B/I/U/S + 颜色 + 表情 + 图片），不另造一套。</p>
+    <div class="stage short">
+      <div class="cov">
+        <div class="arhd">
+          <div class="arhd-in">
+            <button class="acsv-tbtn" title="返回" aria-label="返回"><svg viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
+            <div class="arauthor">
+              <span class="arav">AC</span>
+              <div style="min-width:0;flex:1">
+                <a class="arname" href="#">AC娘本体</a>
+                <div class="ar-meta"><span>2026-09-25</span><span class="ar-date-sep">·</span><span class="ar-read">阅读 1.2万</span></div>
+              </div>
+            </div>
+            <button class="ar-follow">关注</button>
+          </div>
+        </div>
+        <div class="covbd">
+          <div class="covin">
+            <h1 class="arh1">天涯此时共明月 DD歌回唱团圆</h1>
+            <div class="artags"><span class="artag">活动</span><span class="artag">AC娘</span><span class="artag">中秋</span></div>
+            <div class="arbody">
+              <p>又是一年团圆时节，AC娘在这里祝大家中秋快乐呀～今年 DD 歌回的主题就定为「唱团圆」。</p>
+              <p>本篇文章下留言许愿你喜欢吃的月饼口味，因为想让你在中秋吃上本娘送的月饼呀<span class="arem"></span></p>
+              <div class="arimg onbig"><img src="https://imgs.aixifan.com/newUpload/23682490_3870ea2d5c7e4bcfb09b6b3699f6a560.jpg" alt="中秋 DD 歌回活动配图"></div>
+            </div>
+          </div>
+        </div>
+        <div class="acsv-cinput covinput">
+          <div class="acsv-cinput-top">
+            <button class="acsv-cinput-fmt" title="加粗"><i class="acsv-ic">&#xe18f;</i></button>
+            <button class="acsv-cinput-fmt" title="斜体"><i class="acsv-ic">&#xe19a;</i></button>
+            <button class="acsv-cinput-fmt" title="下划线"><i class="acsv-ic">&#xe1ea;</i></button>
+            <button class="acsv-cinput-fmt" title="删除线"><i class="acsv-ic">&#xe1e9;</i></button>
+            <span class="acsv-fmtsep"></span>
+            <span class="acsv-cinput-colkey">
+              <button class="acsv-cinput-fmt" title="文字颜色"><i class="acsv-ic">&#xe1eb;</i><span class="acsv-cinput-collabel"></span></button>
+              <button class="acsv-cinput-fmt acsv-cinput-colcaret" title="颜色面板"><i class="acsv-ic">&#xe166;</i></button>
+            </span>
+            <span class="acsv-fmtsep"></span>
+            <button class="acsv-cinput-emot" title="表情"><i class="acsv-ic">&#xe18b;</i></button>
+            <button class="acsv-cinput-img" title="图片"><i class="acsv-ic">&#xe18a;</i></button>
+            <span class="acsv-cinput-count">0/233</span>
+          </div>
+          <div class="acsv-cinput-main">
+            <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="说点什么，或发表情…"></div></div>
+            <button class="acsv-cinput-send disabled">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">收起态不占常驻高度；只有用户点击输入入口才展开。长文阅读时阅读区不再被 84px 输入条长期挤占。</p>
+  </div>
+
+  <!-- ================= ③ 骨架 / 空态 / 失败态 ================= -->
+  <div class="sec">
+    <h2>③ B · 骨架 / 空态 / 失败态<em>骨架期不显示动作条；空态给「抢沙发」出口；失败态重试为主、前往原页为辅</em></h2>
+    <div class="stage short">
+      <div class="cov">
+        <div class="arhd">
+          <div class="arhd-in">
+            <button class="acsv-tbtn" title="返回" aria-label="返回"><svg viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
+            <div class="arauthor">
+              <span class="arskel av"></span>
+              <div style="flex:1"><div class="arskel ln" style="width:120px;margin:0 0 8px"></div><div class="arskel ln" style="width:90px;margin:0"></div></div>
+            </div>
+            <button class="ar-follow" style="visibility:hidden">关注</button>
+          </div>
+        </div>
+        <div class="covbd">
+          <div class="covin">
+            <div class="arskel t" style="width:70%"></div>
+            <div class="arskel ln" style="width:100%"></div>
+            <div class="arskel ln" style="width:100%"></div>
+            <div class="arskel ln" style="width:92%"></div>
+            <div class="arskel ln" style="width:96%"></div>
+            <div class="arskel img" style="width:100%"></div>
+            <div class="arskel ln" style="width:100%"></div>
+            <div class="arskel ln" style="width:60%;margin-bottom:0"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="stage short" style="margin-top:14px">
+      <div class="cov">
+        <div class="arhd">
+          <div class="arhd-in">
+            <button class="acsv-tbtn" title="返回" aria-label="返回"><svg viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
+            <div class="arauthor">
+              <span class="arav">AC</span>
+              <div style="min-width:0;flex:1">
+                <a class="arname" href="#">AC娘本体</a>
+                <div class="ar-meta"><span>2026-09-25</span><span class="ar-date-sep">·</span><span class="ar-read">阅读 1.2万</span></div>
+              </div>
+            </div>
+            <button class="ar-follow on" aria-pressed="true">已关注</button>
+          </div>
+        </div>
+        <div class="covbd">
+          <div class="covin">
+            <h1 class="arh1">天涯此时共明月 DD歌回唱团圆</h1>
+            <div class="artags"><span class="artag">活动</span><span class="artag">AC娘</span></div>
+            <div class="arbody">
+              <p>又是一年团圆时节，AC娘在这里祝大家中秋快乐呀～今年 DD 歌回的主题就定为「唱团圆」。</p>
+            </div>
+            <div class="aracts">
+              <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
+              <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
+              <span class="aract" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
+              <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">0</span></span>
+              <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
+            </div>
+            <div class="ar-cmhead">
+              <span class="ar-cmtitle">共 0 条评论</span>
+            </div>
+            <div class="ar-empty"><div class="t">还没有评论</div><div class="d">来抢个沙发，说点什么吧～</div></div>
+          </div>
+        </div>
+        <div class="aractbar">
+          <div class="aractbar-in">
+            <button class="aractbar-input" title="写评论" aria-label="写评论">说点什么…</button>
+            <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
+            <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">0</span></span>
+            <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="stage short" style="margin-top:14px">
+      <div class="cov">
+        <div class="arhd">
+          <div class="arhd-in">
+            <button class="acsv-tbtn" title="返回" aria-label="返回"><svg viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
+            <div class="arauthor">
+              <span class="arav">AC</span>
+              <div style="min-width:0;flex:1">
+                <a class="arname" href="#">AC娘本体</a>
+                <div class="ar-meta"><span>2026-09-25</span><span class="ar-date-sep">·</span><span class="ar-read">阅读 1.2万</span></div>
+              </div>
+            </div>
+            <button class="ar-follow">关注</button>
+          </div>
+        </div>
+        <div class="covbd">
+          <div class="covin">
+            <div class="arerr">
+              <div class="t">正文拉取失败</div>
+              <div class="d">网络开小差了，这篇文章暂时读不到。可以重试，或去原页阅读。</div>
+              <div class="btns">
+                <button class="acsv-upd-act primary">重试</button>
+                <a class="acsv-upd-act" href="https://www.acfun.cn/a/ac48000000" target="_blank" rel="noopener"
+                  title="示意地址；实现取当前文章 URL / articleInfo.shareUrl，新窗打开、浮层不拆">前往原页</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">骨架期作者位走骨架块；空态展示「已关注 + 0 条评论 + 抢沙发」（关注键 <code>.on</code> 态在此摆出）；失败态保留头部作者行（卡片已有 up 字段），「前往原页」新窗打开、浮层不拆。失败时不出动作条，避免空互动。</p>
+  </div>
+
+  <!-- ================= ④ 540 窄宽 ================= -->
+  <div class="sec">
+    <h2>④ B · 540 窄宽自检<em>壳 inset 0 即满视口；版心吃满，底栏收成 3 键 + 输入 + ⋯（藏/蕉收纳进弹层，本稿摆展开态）</em></h2>
+    <div class="stage narrow">
+      <div class="cov">
+        <div class="arhd">
+          <div class="arhd-in">
+            <button class="acsv-tbtn" title="返回" aria-label="返回"><svg viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
+            <div class="arauthor">
+              <span class="arav">AC</span>
+              <div style="min-width:0;flex:1">
+                <a class="arname" href="#">AC娘本体</a>
+                <div class="ar-meta"><span>2026-09-25</span><span class="ar-date-sep">·</span><span class="ar-read">阅读 1.2万</span></div>
+              </div>
+            </div>
+            <button class="ar-follow">关注</button>
+          </div>
+        </div>
+        <div class="covbd">
+          <div class="covin">
+            <h1 class="arh1">天涯此时共明月 DD歌回唱团圆（长标题窄态折行验证）</h1>
+            <div class="artags"><span class="artag">活动</span><span class="artag">AC娘</span><span class="artag">中秋</span></div>
+            <div class="arbody">
+              <p>窄态正文长句验证：又是一年团圆时节，AC娘在这里祝大家中秋快乐呀～本篇文章下留言许愿你喜欢吃的月饼口味，长中文要整词换行而不是逐字断行。</p>
+              <p>本篇文章下留言许愿你喜欢吃的月饼口味，因为想让你在中秋吃上本娘送的月饼呀<span class="arem"></span>五仁党和流心党都别吵了。</p>
+              <div class="arimg onbig"><img src="https://imgs.aixifan.com/newUpload/23682490_3870ea2d5c7e4bcfb09b6b3699f6a560.jpg" alt="配图窄态自适应宽"></div>
+              <h2>参与方式</h2>
+              <p>在文章下方留言，说出你最想吃的月饼口味和理由。</p>
+            </div>
+            <div class="aracts">
+              <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
+              <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
+              <span class="aract" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
+              <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
+              <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
+            </div>
+            <div class="ar-cmhead">
+              <span class="ar-cmtitle">共 1024 条评论</span>
+            </div>
+            <div class="acsv-citem">
+              <a class="acsv-avlink"><span class="av">芸</span></a>
+              <div class="acsv-cbody">
+                <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">2小时前</span></span></div>
+                <div class="acsv-ctext">窄态评论：先占楼许愿流心奶黄！AC娘大气！</div>
+                <div class="acsv-cmeta">
+                  <span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span>
+                  <span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span>
+                  <span class="acsv-cattr"><span>来自 iPhone 4</span><span class="acsv-cip">江苏</span></span>
+                </div>
+              </div>
+              <hr class="acsv-chr">
+            </div>
+          </div>
+        </div>
+        <div class="aractbar">
+          <div class="aractbar-in">
+            <button class="aractbar-input" title="写评论">说点什么…</button>
+            <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
+            <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
+            <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
+            <span class="aractbar-more open">
+              <button class="aractbar-morebtn" title="更多操作" aria-label="更多操作">⋯</button>
+              <div class="aractbar-pop">
+                <span class="aract" title="收藏"><i class="acsvg-glyph">&#xe155;</i>收藏<span class="n">8924</span></span>
+                <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>投蕉<span class="n">6561</span></span>
+              </div>
+            </span>
+          </div>
+        </div>
+        <button class="acsv-tbtn ar-backtop" title="回到顶部" aria-label="回到顶部"><svg viewBox="0 0 24 24"><path d="M7.4 15.4L6 14l6-6 6 6-1.4 1.4L12 10.8z"/></svg></button>
+      </div>
+    </div>
+    <p class="note">窄态检查项：头部 返回/作者/关注 同行不挤（名字省略号兜底）；标题 24px 折行自然；正文 16/28 整词换行；
+      评论头像 40、gap 20；文末动作条自动换行；底栏留 赞/评论/分享 + 输入 + ⋯，藏/蕉收进 ⋯ 弹层（本稿以 <code>.open</code>
+      摆展开态，实现默认收起、点 ⋯ 切换），文末动作条仍全量直排可达。</p>
+  </div>
+
+  <!-- ================= ⑤ 双动作条去重收缩态（v3.1） ================= -->
+  <div class="sec">
+    <h2>⑤ 双动作条去重收缩态<em>文末动作条入视口 → 底栏挂 .aractbar--dim，只剩「说点什么…」pill</em></h2>
+    <p class="note">
+      口径：<code>IntersectionObserver</code> 盯文末动作条 <code>.aracts</code>，入视口给底栏挂
+      <code>.aractbar--dim</code>（<code>.aract</code> 以 opacity .2s 渐隐并 <code>pointer-events:none</code>），
+      出视口摘除；<b>状态单源</b>——两条栏的计数与点亮态共用同一数据源，只收缩可见性、不改状态。
+      底栏高度不折叠，避免滚动跳动；pill 始终可用。
+    </p>
+    <div class="stage short">
+      <div class="cov">
+        <div class="arhd">
+          <div class="arhd-in">
+            <button class="acsv-tbtn" title="返回" aria-label="返回"><svg viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
+            <div class="arauthor">
+              <span class="arav">AC</span>
+              <div style="min-width:0;flex:1">
+                <a class="arname" href="#">AC娘本体</a>
+                <div class="ar-meta"><span>2026-09-25</span><span class="ar-date-sep">·</span><span class="ar-read">阅读 1.2万</span></div>
+              </div>
+            </div>
+            <button class="ar-follow">关注</button>
+          </div>
+        </div>
+        <div class="covbd">
+          <div class="covin">
+            <h1 class="arh1">天涯此时共明月 DD歌回唱团圆</h1>
+            <div class="arbody">
+              <p>文章读到末尾，文末动作条进入视口——同一组互动键与底栏重复，底栏就此屏收缩去重。</p>
+            </div>
+            <div class="aracts">
+              <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
+              <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
+              <span class="aract" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
+              <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
+              <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
+            </div>
+            <div class="ar-cmhead">
+              <span class="ar-cmtitle">共 1024 条评论</span>
+            </div>
+            <div class="acsv-citem">
+              <a class="acsv-avlink"><span class="av">芸</span></a>
+              <div class="acsv-cbody">
+                <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">2小时前</span></span></div>
+                <div class="acsv-ctext">这时候底栏应该已经淡下去了，别撞车。</div>
+                <div class="acsv-cmeta">
+                  <span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span>
+                  <span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span>
+                </div>
+              </div>
+              <hr class="acsv-chr">
+            </div>
+          </div>
+        </div>
+        <div class="aractbar aractbar--dim">
+          <div class="aractbar-in">
+            <button class="aractbar-input" title="写评论">说点什么…</button>
+            <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
+            <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
+            <span class="aract stow" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
+            <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
+            <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ⑥ 长图超高兜底（v3.1） ================= -->
+  <div class="sec">
+    <h2>⑥ 长图超高兜底<em>&gt;75vh 配图：flex 居中截住 + 底部渐变压暗 + 「长图 · 点击查看全图」chip；普通图（≤75vh）行为完全不变</em></h2>
+    <p class="note">
+      <code>.arimg--tall</code>（修饰类，实现按图片自然高判定后加）：容器 <code>max-height:75vh</code> + flex 居中，
+      <code>img</code> 取 <code>width:auto;max-width:100%;max-height:75vh</code>；<code>::after</code> 底部线性渐变压至
+      <code>rgba(0,0,0,.78)</code>；chip <code>.artall</code> 圆角胶囊、半透明黑底、白边、12px、
+      <code>pointer-events:none</code>（点击仍落回 zoom-in 进大图）。下方为 700×1800 SVG 示意长图，普通
+      <code>.arimg</code> 规则一字未动，≤75vh 时仍是顺排等比展开。
+    </p>
+    <div class="stage">
+      <div class="cov">
+        <div class="arhd">
+          <div class="arhd-in">
+            <button class="acsv-tbtn" title="返回" aria-label="返回"><svg viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
+            <div class="arauthor">
+              <span class="arav">AC</span>
+              <div style="min-width:0;flex:1">
+                <a class="arname" href="#">AC娘本体</a>
+                <div class="ar-meta"><span>2026-09-25</span><span class="ar-date-sep">·</span><span class="ar-read">阅读 1.2万</span></div>
+              </div>
+            </div>
+            <button class="ar-follow">关注</button>
+          </div>
+        </div>
+        <div class="covbd">
+          <div class="covin">
+            <h1 class="arh1">【长图勿刷】AC娘中秋摸鱼图鉴全公开</h1>
+            <div class="arbody">
+              <p>本娘把这次活动的十四宫格拼成了一张长图——抱歉，是三百格。顺排会拖出三屏多，超高兜底就在这种图身上生效。</p>
+              <div class="arimg arimg--tall">
+                <img src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='700'%20height='1800'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='0'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%233a3f52'/%3E%3Cstop%20offset='.55'%20stop-color='%2350303c'/%3E%3Cstop%20offset='1'%20stop-color='%2314141c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='700'%20height='1800'%20fill='url(%23g)'/%3E%3Ctext%20x='350'%20y='150'%20fill='%23cfd3da'%20font-size='56'%20text-anchor='middle'%3E%E9%95%BF%E5%9B%BE%E7%A4%BA%E6%84%8F%3C/text%3E%3Ctext%20x='350'%20y='900'%20fill='%238a90a0'%20font-size='40'%20text-anchor='middle'%3E700%20%C3%97%201800%3C/text%3E%3Ctext%20x='350'%20y='1720'%20fill='%23aeb4c0'%20font-size='34'%20text-anchor='middle'%3E%E5%9B%BE%E7%89%87%E5%BA%95%E8%BE%B9%EF%BC%9A%E6%B8%90%E5%8F%98%E4%B8%8E%20chip%20%E5%9C%A8%E6%AD%A4%3C/text%3E%3C/svg%3E" alt="超长配图示意图（700×1800）">
+                <span class="artall">长图 · 点击查看全图</span>
+              </div>
+              <p>上面这张被 75vh 截住；下面这张不到 75vh，保持原有顺排等比展开。</p>
+              <div class="arimg onbig"><img src="https://imgs.aixifan.com/newUpload/23682490_3870ea2d5c7e4bcfb09b6b3699f6a560.jpg" alt="普通高度配图不受影响"></div>
+            </div>
+            <div class="aracts">
+              <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
+              <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
+              <span class="aract" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
+              <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
+              <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
+            </div>
+          </div>
+        </div>
+        <div class="aractbar">
+          <div class="aractbar-in">
+            <button class="aractbar-input" title="写评论">说点什么…</button>
+            <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
+            <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
+            <span class="aract stow" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
+            <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
+            <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ⑦ 回复展开态（v3.1） ================= -->
+  <div class="sec">
+    <h2>⑦ 回复展开态<em>composer 顶部挂 .acsv-quotechip（「回复 @一只芸喵喵」+ ✕），placeholder 联动；全部沿用现成机制</em></h2>
+    <p class="note">
+      沿用 <code>src/comments.js:517</code> <code>setReply</code> 现成机制：chip 由
+      <code>inputbar.js:611 buildQuoteChip</code> 产出（类名真值 <code>cssraw.js:810–815</code>），label 文案与
+      编辑区 <code>data-ph</code> 联动都收敛在 setReply；点条目「回复」→ 挂 chip + 聚焦，✕/Esc 取消、焦点回入口，
+      成功乐观上屏——本壳只是把同一套搬进文章 composer，不新造。
+    </p>
+    <div class="stage short">
+      <div class="cov">
+        <div class="arhd">
+          <div class="arhd-in">
+            <button class="acsv-tbtn" title="返回" aria-label="返回"><svg viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
+            <div class="arauthor">
+              <span class="arav">AC</span>
+              <div style="min-width:0;flex:1">
+                <a class="arname" href="#">AC娘本体</a>
+                <div class="ar-meta"><span>2026-09-25</span><span class="ar-date-sep">·</span><span class="ar-read">阅读 1.2万</span></div>
+              </div>
+            </div>
+            <button class="ar-follow">关注</button>
+          </div>
+        </div>
+        <div class="covbd">
+          <div class="covin">
+            <h1 class="arh1">天涯此时共明月 DD歌回唱团圆</h1>
+            <div class="arbody">
+              <p>点某条评论的「回复」后：轻动作条收起、composer 展开，顶部多一行引用 chip，编辑区占位联动为「回复 @一只芸喵喵…」。</p>
+            </div>
+          </div>
+        </div>
+        <div class="acsv-cinput covinput">
+          <div style="width:min(760px,100%);margin-left:auto;margin-right:auto">
+            <div class="acsv-quotechip">
+              <span class="acsv-quotechip-label">回复 @一只芸喵喵</span>
+              <button class="acsv-quotechip-x" title="取消回复" aria-label="取消回复">✕</button>
+            </div>
+          </div>
+          <div class="acsv-cinput-top">
+            <button class="acsv-cinput-fmt" title="加粗"><i class="acsv-ic">&#xe18f;</i></button>
+            <button class="acsv-cinput-fmt" title="斜体"><i class="acsv-ic">&#xe19a;</i></button>
+            <button class="acsv-cinput-fmt" title="下划线"><i class="acsv-ic">&#xe1ea;</i></button>
+            <button class="acsv-cinput-fmt" title="删除线"><i class="acsv-ic">&#xe1e9;</i></button>
+            <span class="acsv-fmtsep"></span>
+            <span class="acsv-cinput-colkey">
+              <button class="acsv-cinput-fmt" title="文字颜色"><i class="acsv-ic">&#xe1eb;</i><span class="acsv-cinput-collabel"></span></button>
+              <button class="acsv-cinput-fmt acsv-cinput-colcaret" title="颜色面板"><i class="acsv-ic">&#xe166;</i></button>
+            </span>
+            <span class="acsv-fmtsep"></span>
+            <button class="acsv-cinput-emot" title="表情"><i class="acsv-ic">&#xe18b;</i></button>
+            <button class="acsv-cinput-img" title="图片"><i class="acsv-ic">&#xe18a;</i></button>
+            <span class="acsv-cinput-count">0/233</span>
+          </div>
+          <div class="acsv-cinput-main">
+            <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="回复 @一只芸喵喵…"></div></div>
+            <button class="acsv-cinput-send disabled">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 附：口径登记 ================= -->
+  <div class="sec">
+    <h2>附：口径登记与待裁决项</h2>
+    <p class="note" style="line-height:2.1">
+      1. <b>B 案唯一实现</b>：760 版心、整视口全覆盖；A 案（620 浮层 / 正文 578）只作 v2 历史对照，不实现。
+      实测主流正文列宽：掘金 756 / 少数派 680 / AcFun 原生 732；行高分别 1.75 / 1.8 / 1.5。
+      本稿取 760 + 16/28，向长文阅读靠拢，同时保持与 AcFun 原生的视觉连续性。<br>
+      2. <b>正文排版新增提案</b>：16/28、段距 16、标题 28/1.35、h2 21、h3 18；
+      ul/ol/blockquote/table/pre/code/figcaption 补规则；正文图 <code>width:100%;height:auto</code>
+      等比缩放、不裁切（<code>height:auto</code> 下 object-fit 空转，故不写；不设 320 上限，长图顺排）；
+      宽表外层 <code>.artbl</code> 横向滚动。这些值实现时在 <code>src/cssraw.js</code> 新增文章正文作用域，
+      并登记进 <code>test/check-preview.mjs</code>。<br>
+      3. <b>轻动作条</b>：底栏常驻「说点什么… + 赞/蕉/藏/评论/分享」；点输入才展开完整 composer。
+      收起态 52px（本稿实测）、展开态 84px（composer 真值）；文末动作条沿用
+      <code>.acsv-mdetail-actions</code> 真值 gap 26 / margin-top 12 / padding-bottom 12，两处共用同一状态源。<br>
+      4. <b>头部</b>：返回 + 作者行 + 关注 + 阅读量。阅读量取
+      <code>articleInfo.viewCount / formatViewCount</code>——原生页也只显示「阅读量:」，故不做估算阅读时长；
+      A 站原生文章页没有目录（2026-11-05 抓 ac48868671 SSR 核验：无 catalog/toc/目录节点），本稿不造。
+      头部/正文/底栏同一 24px 横距，760 版心对齐。<b>实现口径待定</b>：阅读态独立头（约 60px）与共享视图顶栏
+      （<code>.acsv-top--view</code>，z57）不能叠成双头——进入阅读态隐藏共享顶栏、退出还原，
+      或把阅读头做成顶栏变体，二选一。<br>
+      5. <b>评论</b>：左标题 + 计数；排序 tabs 不做——现评论接口固定
+      <code>showHotComments=1</code>、无 sort 参数（§17 未实测），待实测后再议；
+      续翻走 <code>.acsv-cmore-sentinel</code> 触底自动翻页（0.9.141 已撤「加载更多」按钮，勿加回）。
+      条目仍用 commentkit 真实类名，不另造。<br>
+      6. <b>失败态</b>：重试为主、前往原页为辅（新窗打开、浮层不拆）；失败时不出动作条，
+      作者行保留（卡片已有 up）。赞/蕉/藏首版按只读渲染（momentbar 已有 article 只读先例），
+      写链点亮与失败回滚后补。<br>
+      7. <b>仍待实测/裁决</b>：<b>收藏键码点已取（v3.1）</b>——acfun-frontend-next 的
+      <code>e155</code>（字形名 <code>icon-icon_follow</code>，实心圆角星），渲染比对与官方收藏 SVG
+      （文章页 <code>collectcount .icon</code> 与视频页同哈希资产 <code>VIDEO_ICONS.favorite</code>）
+      同形同源；字体内无描边变体（e160/e3c8 均带 A 字标，非纯星，不取），藏键按单字形+变色
+      （悬停/点亮红，同评论键模式）；<code>GLYPHS</code> 登记随实现批进 src/imicons.js。文章点赞原生可用、
+      脚本参数首跑验证；投蕉不对他人文章实测；正文是 HTML（§17.3），先按白名单清洗再渲染，
+      <b>不能喂 renderCommentHtml</b>（会把 <code>&lt;p&gt;</code>/<code>&lt;img&gt;</code> 转义）；
+      <code>[emot=zt,*]</code> 需在清洗后单独过表情图管线——emoticon.js 的非 acfun 包虽走 umeditor 路径，
+      但 <code>zt/1.gif</code> 实测 404，图源须先实测，未通前保留占位；
+      入口范围（关注流文章行 / 搜索文章行 / 动态源卡）实现前列清。<br>
+      8. <b>无障碍口径</b>：互动键实现为 <code>button</code> + <code>aria-pressed</code>（稿内 span 仅静态示意）；
+      展开 composer 时 Esc/点外部收起，焦点回入口。<br>
+      9. <b>静态稿示意件</b>：头像色块、头像框图、表情占位块、「前往原页」示意 URL；
+      其余类名与码点全真。<br>
+      10. <b>去重口径（v3.1）</b>：<code>IntersectionObserver</code> 盯文末动作条 <code>.aracts</code>，入视口给底栏挂
+      <code>.aractbar--dim</code>（<code>.aract</code> opacity .2s 渐隐 + <code>pointer-events:none</code>），出视口摘除；
+      双栏（文末条 / 底栏）共用同一状态源，计数与点亮单源、只收缩可见性（节⑤摆出）。<br>
+      11. <b>评论键锚定（v3.1，纯行为）</b>：文末动作条与底栏两处评论键点击均 smooth scroll 锚到评论头
+      <code>.ar-cmhead</code>——沿用 <code>src/momentdetail.js:232</code> <code>onComment</code> 的
+      <code>scrollIntoView({behavior:'smooth'})</code> 先例；形态零变化，本稿不摆状态节。<br>
+      12. <b>回复口径（v3.1）</b>：<code>replyToCommentId</code> 语义——0=回复文章/根评论、id=回复楼主、子评论
+      id=楼中楼；✕/Esc 取消回复、焦点回入口；成功乐观上屏沿用 <code>src/comments.js</code>
+      （setReply / insertLocalComment）。文章 stype=3 写链首跑验证见 api-research §20（待归档）。
+    </p>
+  </div>
+</div>
+</body>
+</html>

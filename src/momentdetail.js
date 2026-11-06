@@ -7,7 +7,7 @@ import { imgInto } from './imgload.js';
 import { ubbTextOf, quoteBlockOf } from './cards.js';
 import { nameColorCss } from './uplook.js'; // 名字等级色（0.9.157；0.9.160 叶子出库）
 import { ICONS } from './styles.js';
-import { openCommentsHost, closeCommentsHost, commentListClick } from './comments.js';
+import { openCommentsHost, closeCommentsHost, commentListClick, focusEditOf } from './comments.js';
 import { openImageViewer } from './imgview.js';
 import { openSharePanel } from './sharepanel.js';
 import { momentBarOf, momentShareItemOf } from './momentbar.js';
@@ -233,8 +233,7 @@ export function openMomentDetail(pi, opts) {
       // 评论区就在本面板（滚动体内）：滚到评论头并聚焦输入框
       var c = list.querySelector('.acsv-mdetail-cmthead');
       if (c) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      var inp = hostEl.querySelector('.acsv-cinput-edit');
-      if (inp) inp.focus();
+      focusEditOf(hostEl);
     }
   }));
   // 评论区标题 = 管线的 title（insertLocalComment/renderComments 会重写计数；titleFmt=XHS 文案）

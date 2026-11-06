@@ -29,6 +29,10 @@ export var GLYPHS = {
   feedLikeFill: '\ue660',   // 点赞（点亮实心）
   feedBanana: '\ue62a',     // 投蕉（未点亮；0.9.101 采样补——此前误用 GLYPHS.banana E2EA）
   feedBananaFill: '\ue65f', // 投蕉（点亮实心；0.9.101 采样补）
+  // 收藏（0.9.326 文章浮层批）：e155 字形名 icon-icon_follow，实心圆角星——渲染比对与
+  // 官方收藏 SVG 同形（文章页 collectcount .icon 与视频页同哈希资产 VIDEO_ICONS.favorite）；
+  // 字体内无描边变体（e160/e3c8 均带 A 字标，不取），故按单字形+变色用（悬停/点亮红）
+  feedStow: '\ue155',
   phone: '\ue242',      // 手机
   monitor: '\ue184',    // 电脑
   tablet: '\ue185',     // 平板
