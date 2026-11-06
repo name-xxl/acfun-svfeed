@@ -98,10 +98,6 @@
       "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
     },
     {
-      "key": "dead:net.js:requestText@0",
-      "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
-    },
-    {
       "key": "dead:pageloader.js:DONE_LABEL@0",
       "why": "首轮盘点挂账：声明后无外部消费（语料=src+test 剥注释词边界；cssraw.CSS_TEMPLATE 类构建期消费不在此口径）——收口批逐条裁决：删 / 转私有 / 立为公开契约"
     },
@@ -238,6 +234,10 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
+      "key": "size:articleread.js:行627:导出4",
+      "why": "0.9.326 首轮建档：文章阅读浮层新件（openArticleReader/closeArticleReader/sanitizeArticleBody/isTallImg；确认稿 article-reader-v3 落地，导出 4 即本批实测值；行 627＝replyBtnOf 收口后回填）"
+    },
+    {
       "key": "size:appapi.js:行476:导出8",
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
@@ -274,8 +274,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:comments.js:行645:导出13",
-      "why": "0.9.312 登记：评论删除确认弹补 placeHost（宽宿主落位病灶同类收口）——+1 行"
+      "key": "size:comments.js:行660:导出15",
+      "why": "0.9.312 登记：评论删除确认弹补 placeHost（宽宿主落位病灶同类收口）——+1 行；0.9.326 导出 13→14＝focusEditOf（宿主内聚焦编辑区单源——.acsv-cinput-edit 字面三处同形收口，详情/文章浮两消费点共用）"
     },
     {
       "key": "size:contract.js:行97:导出8",
@@ -290,8 +290,8 @@
       "why": "0.9.319 登记：零基色族 hover 提底档收成常量单源 LIFT0（口径①：同值字面 ≥2 处即病灶，网格/榜单行/搜索行三行引用）——+3 行"
     },
     {
-      "key": "size:cssraw.js:行1936:导出1",
-      "why": "0.9.319 登记：撤框历史注释把 var(--acsv-accent-dim) 改写成字面值并注明该变量已删（本轮删变量）——+1 行"
+      "key": "size:cssraw.js:行2095:导出1",
+      "why": "0.9.319 登记：撤框历史注释把 var(--acsv-accent-dim) 改写成字面值并注明该变量已删（本轮删变量）——+1 行；0.9.326 +159 行＝文章阅读浮层 CSS 段（确认稿 article-reader-v3 取值落地，含 620 窄态块）"
     },
     {
       "key": "size:cssseg.js:行32:导出9",
@@ -418,8 +418,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:imicons.js:行71:导出2",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:imicons.js:行75:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）；0.9.326 +4 行＝GLYPHS 增 feedStow（收藏码点 e155，依据稿附节 7 已取）"
     },
     {
       "key": "size:imimage.js:行217:导出4",
@@ -638,8 +638,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:rowkit.js:行259:导出7",
-      "why": "0.9.314 登记：新增 openRowSource + feedRowOf/wireRowList 的 opt 透传（siteOnly）与注释——导出 6→7"
+      "key": "size:rowkit.js:行268:导出7",
+      "why": "0.9.314 登记：新增 openRowSource + feedRowOf/wireRowList 的 opt 透传（siteOnly）与注释——导出 6→7；0.9.326 +9 行＝文章行两个落点接 articleread（onComment 文章分支 + openRowDefault），opt 透传给 rowBarOf"
     },
     {
       "key": "size:searchfmt.js:行92:导出3",

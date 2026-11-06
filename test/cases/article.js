@@ -1,0 +1,885 @@
+// test/cases/article.js —— harness 场景：文章阅读浮层（0.9.326 批；形态真源
+// docs/preview/article-reader-v3.html）。两个登记场景（视口在 run-harness.mjs 钉）：
+//   · article-reader        1600×900：开层 / 骨架 / 评论 stype=3 / 去重收缩 / composer / 回复 chip / 失败重试
+//   · article-reader-narrow  540×900：窄态底栏收纳（⋯ 键 + 藏/蕉进弹层）+ 文末动作条仍可达
+//
+// 【开层接缝】契约钉死了模块与导出名（src/articleread.js ⇒ openArticleReader(pi) / closeArticleReader()），
+// 未钉 harness 侧的触发口（入口范围稿内标「实现前列清」）。本场景体按序自行寻缝并把命中的缝名回写进
+// rec info（寻不到缝 ⇒ article-* 全红且 info 直接列出候选，不靠猜）：
+//   ① 句柄形态 testHook('articleread'|'articleReader'|…) ⇒ TEST.call(name) 返回 {open, close}
+//      （imdrawer / momentdetail / playlayer 先例）；
+//   ② 直调形态 TEST.call(name, pi)（momentEdit 先例：钩子体就是开层函数）；
+//   ③ 全局形态 window.__ACSV_ARTICLE_SEAM__ = {open: openArticleReader, close: closeArticleReader}；
+//   ④ 兜底 页面内 import('/src/articleread.js') 直调导出——该件依赖图只要牵到 styles.js→pack.js→
+//      裸包名 'fflate'，浏览器解析必失败，故排最后（relation.js:19 的 popplace 先例是纯叶件才行）。
+// 实现批最省事的一条：src/articleread.js 尾部加
+//   testHook('articleread', function () { return { open: openArticleReader, close: closeArticleReader }; });
+//
+// 【数据 mock】文章页 HTML 走 net.requestText 的文本通道（net.js:96 契约：mock 命中吃字符串或 {html}），
+// 故 __ACSV_MOCK_FORM__ 按 URL 子串桩掉；桩值里同时给 **window.articleInfo JSON**（§17.3 主路）与
+// **#article-content 容器**（§17.3 DOM 兜底路），两条取数实现都吃得下。
+// 两条夹具纪律（都是踩过的坑，别改）：
+//   · 内嵌 JSON 里绝不出现分号 ⇒ 取数正则若是 uppage 那种非贪婪 `=\s*([\s\S]*?);` 会被正文里的
+//     分号截断（夹具文案全用全角标点；探针件也刻意不带 ';'）；
+//   · 内嵌 JSON 里的 </script> 一律转义成 <\/script>（JSON 合法转义，parse 后仍是真标签）⇒
+//     DOMParser 路线不会提前终结内联脚本。
+// 【评论管线】桩 comment/list 前先 delete window.__ACSV_MOCK__，否则 comments.js:219 直接吃内置
+// mockComments（video 域夹具），stype=3 的定向桩与 sourceType 断言双双落空（detail-open 同款处置）。
+// 【反跑】每条 rec 的「临时还原什么会转红」见文件末尾登记表。
+(function () {
+  var C = window.__ACSV_CASES__ = window.__ACSV_CASES__ || {};
+
+  // ---------- 夹具常量（文案/计数/图链逐字取自确认稿；样本号取 §17.3 实测的 ac48868671） ----------
+  var AR_ID = 48868671;
+  var AR_ERR_ID = 48000000;            // 稿「前往原页」示意地址用的号，本场景当失败样本
+  var AR_TITLE = '天涯此时共明月 DD歌回唱团圆';
+  var AR_TITLE2 = '【长图勿刷】AC娘中秋摸鱼图鉴全公开';
+  var AR_UP_NAME = 'AC娘本体';
+  var AR_UP_ID = 23682490;
+  var AR_PIC = 'https://imgs.aixifan.com/newUpload/23682490_3870ea2d5c7e4bcfb09b6b3699f6a560.jpg';
+  var CMT_NAME1 = '一只芸喵喵';
+  var CMT_TEXT1 = '先占楼许愿流心奶黄！去年的蛋黄莲蓉到现在还想，AC娘大气！';
+  var CMT_TEXT2 = '歌单已经搓手期待了，《但愿人长久》求安排，中秋夜必到直播间。';
+  var CMT_COUNT = 1024;               // 稿：共 1024 条评论
+  var BAD_PIC_ALT = '坏图源留字';
+  var BAD_LINK_TEXT = '坏链文字';
+  var NESTED_TEXT = '嵌套脏件文字';
+  var DIV_TEXT = '容器内正文';
+
+  // ---------- 正文 SSR 夹具（白名单件 + 净化探针件混排） ----------
+  function bodyHtml() {
+    return '<p>又是一年团圆时节，AC娘在这里祝大家中秋快乐呀～今年 DD 歌回的主题就定为「唱团圆」，'
+      + '欢迎各位歌手报名，把自己心里的那首「团圆」唱给大家听。</p>'
+      + '<p>本篇文章下留言许愿你喜欢吃的月饼口味，因为想让你在中秋吃上本娘送的月饼呀[emot=zt,23/]'
+      + '五仁党和流心党都别吵了，小孩子才做选择，本娘全都要。</p>'
+      + '<h2>参与方式</h2>'
+      + '<p>在文章下方留言，说出你最想吃的月饼口味和理由；9 月 30 日晚 8 点来 DD 歌回直播间，'
+      + '就有机会拿走本娘准备的月饼礼盒。</p>'
+      + '<ul><li>留言许愿喜欢的月饼口味，口味不限、理由不限；</li>'
+      + '<li>9 月 30 日晚 8 点，DD 歌回直播间不见不散；</li>'
+      + '<li>留言点赞最高的三位小伙伴，会收到月饼礼盒一份。</li></ul>'
+      + '<ol><li>有序清单一</li><li>清单二</li></ol>'
+      + '<p>第一行<br>第二行</p>'
+      + '<blockquote>小孩子才做选择，本娘全都要。五仁和流心，都可以是好月饼。</blockquote>'
+      // 非白名单容器（div）：整件摘除，里头的白名单件与文字要留住
+      + '<div data-ar-probe="div"><p>' + DIV_TEXT + '</p></div>'
+      + '<img src="' + AR_PIC + '" alt="中秋 DD 歌回活动配图" data-ar-probe="img" loading="lazy">'
+      + '<h2>活动时间</h2>'
+      + '<table><thead><tr><th>节点</th><th>时间</th></tr></thead>'
+      + '<tbody><tr><td>留言截止</td><td>9 月 28 日 23:59</td></tr>'
+      + '<tr><td>DD 歌回直播</td><td>9 月 30 日 20:00</td></tr></tbody></table>'
+      + '<figure><figcaption>图注：AC娘月饼礼盒</figcaption></figure>'
+      + '<pre><code>echo 中秋快乐</code></pre>'
+      // ↓ 净化分支探针（契约在册：script/iframe/on* 内联事件/style 全摘；img/a 的 URL 须过
+      //   imgurl.CDN_URL_OK，不过 ⇒ 摘除元素留 alt/文本）
+      + '<script data-ar-probe="script">window.__AR_XSS__=1</scr' + 'ipt>'
+      + '<iframe src="https://evil.example/if"></iframe>'
+      + '<img src="https://evil.example/x.png" alt="' + BAD_PIC_ALT + '">'
+      + '<a href="https://evil.example/go" target="_blank" rel="noopener">' + BAD_LINK_TEXT + '</a>'
+      + '<blockquote><script>bad()</script><p><a href="javascript:void(0)" onmouseover="bad()">'
+      + NESTED_TEXT + '</a></p></blockquote>'
+      + '<p style="color:red" onclick="bad()">带内联样式的段落</p>'
+      + '<h3>留言小贴士</h3>'
+      + '<p>别只写「流心」两个字——写清楚为什么喜欢，才更容易被本娘看见。留言点赞最高的三位小伙伴，'
+      + '记得留意站内私信。</p>';
+  }
+
+  function articleInfoOf(acId, title) {
+    return {
+      articleId: acId, title: title,
+      // 内嵌前把 </ 与分号问题一并解掉（见文件头夹具纪律）
+      parts: [{ title: title, content: bodyHtml() }],
+      coverImage: AR_PIC,
+      channelId: 63, channelName: '生活',
+      likeCount: 12345, bananaCount: 6561, stowCount: 8924, commentCount: CMT_COUNT,
+      viewCount: 123456, formatViewCount: '12.3万',
+      isLike: false, isThrowBanana: false,
+      tagList: [{ id: 1, name: '活动' }, { id: 2, name: 'AC娘' }, { id: 3, name: '中秋' }],
+      user: { userId: AR_UP_ID, userName: AR_UP_NAME, userHead: '', isFollowing: false },
+      createTime: '2026-09-25', createTimeMillis: 1758775200000,
+      shareUrl: 'https://www.acfun.cn/a/ac' + acId
+    };
+  }
+
+  function articleHtmlOf(acId, title) {
+    var info = JSON.stringify(articleInfoOf(acId, title))
+      .replace(/<\//g, '<\\/')      // JSON 合法的 \/ 转义：parse 后仍是真 '</'
+      .replace(/;/g, '；');          // 内嵌段零分号（正则截断风险；中文正文本该用全角）
+    return '<!doctype html><html><head><meta charset="utf-8"><title>' + title
+      + ' - AcFun弹幕视频网</title></head><body>'
+      + '<div id="article-content">' + bodyHtml() + '</div>'   // §17.3 DOM 兜底容器
+      + '<scr' + 'ipt>window.articleInfo = ' + info + ';</scr' + 'ipt>'
+      + '</div></body></html>';
+  }
+
+  // ---------- mock 表：具体键排基键前（mockHit 按 for..in 子串首命中；views.js:1577 教训） ----------
+  function armMocks(opt) {
+    opt = opt || {};
+    window.__ACSV_DEFERRED__ = window.__ACSV_DEFERRED__ || [];
+    var spec = {};
+    // 评论：定向桩 + URL 记账（供 sourceType=3 断言）。基键 'comment/list' 位置由 MY_MOCK 决定，
+    // 值被这里覆盖（Object.assign 同名保位换值），故 MY_MOCK 先并、spec 后并
+    spec['comment/list'] = function (body, url) {
+      window.__ACSV_AR_CMT_URL__ = String(url || '');
+      return {
+        result: 0, commentCount: CMT_COUNT, curPage: 1, totalPage: 1, pcursor: 'no_more',
+        hotComments: [],
+        rootComments: [
+          { commentId: 'ar1', userId: 71, userName: CMT_NAME1, headUrl: '', sourceType: 3,
+            content: CMT_TEXT1, postDate: '2小时前', likeCount: 128, isLike: false,
+            subCommentCount: 5, deviceModel: 'iPhone 4' },
+          { commentId: 'ar2', userId: 72, userName: '弹幕护体', headUrl: '', sourceType: 3,
+            content: CMT_TEXT2, postDate: '昨天 21:47', likeCount: 54, isLike: false,
+            subCommentCount: 0 }
+        ],
+        subCommentsMap: { ar1: [{ commentId: 'ar11', userId: 73, userName: '阿蝉不是蝉',
+          replyTo: 'ar1', replyToUserName: CMT_NAME1, sourceType: 3,
+          content: '流心奶黄 +1，去年没抢到礼盒今年势在必得', postDate: '1小时前', likeCount: 12 }] }
+      };
+    };
+    // 属地/设备与表情包桩：断言期不吃真网、不异步回填
+    spec['user/userInfo'] = function () { return { result: 0, user_id: 0, user_name: '', profile: {} }; };
+    spec['emotion/getUserEmotion'] = function () { return { result: 0, emotionPackageList: [] }; };
+    // 文章页：主样本（可延迟）与失败样本（可切失败），基键 '/a/ac' 排最后
+    var main = function () {
+      window.__ACSV_ART_HITS__ = (window.__ACSV_ART_HITS__ || 0) + 1;
+      if (opt.defer) {
+        return new Promise(function (res) {
+          window.__ACSV_DEFERRED__.push(function () { res(articleHtmlOf(AR_ID, AR_TITLE)); });
+        });
+      }
+      return articleHtmlOf(AR_ID, AR_TITLE);
+    };
+    var failing = function () {
+      window.__ACSV_ART_ERR_HITS__ = (window.__ACSV_ART_ERR_HITS__ || 0) + 1;
+      if (window.__ACSV_ART_ERR_FAIL__) return Promise.reject(new Error('mock 404'));
+      return articleHtmlOf(AR_ERR_ID, AR_TITLE2);
+    };
+    spec['/a/ac' + AR_ID] = main;
+    spec['/a/ac' + AR_ERR_ID] = failing;
+    spec['/a/ac'] = main;              // 基键：任何未列举的文章号一律回主样本
+    window.__ACSV_MOCK_FORM__ = Object.assign({}, window.__ACSV_MY_MOCK__, spec);
+  }
+
+  // ---------- 定位与读数小件 ----------
+  function readerEl() {
+    return document.querySelector('.covbd') || document.querySelector('.arh1')
+      || document.querySelector('.arhd') || document.querySelector('.aractbar');
+  }
+  function readerScope() {
+    // 浮层内查找：从锚点往上找到 body 下的第一层（浮层根），退回 document
+    var a = document.querySelector('.covbd') || document.querySelector('.arhd')
+      || document.querySelector('.arh1') || document.querySelector('.arerr');
+    if (!a) return document;
+    var n = a;
+    while (n.parentElement && n.parentElement !== document.body && n.parentElement !== document.documentElement) {
+      n = n.parentElement;
+    }
+    return (n === document.body || n === document.documentElement || !n) ? document : n;
+  }
+  function rq(sel) { return readerScope().querySelector(sel); }
+  function rqAll(sel) { return [].slice.call(readerScope().querySelectorAll(sel)); }
+  function vis(el) {
+    return !!el && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+  }
+  function waitGone() {
+    return new Promise(function (res) {
+      var t0 = Date.now();
+      (function tick() {
+        if (!readerEl()) return res(true);
+        if (Date.now() - t0 > 6000) return res(false);
+        setTimeout(tick, 120);
+      })();
+    });
+  }
+  function attrDump(el) {
+    var out = [];
+    if (el) [].forEach.call(el.attributes, function (a) { out.push(a.name); });
+    return out.join(',');
+  }
+  // 白名单标签集合的「脏属性」扫描（img 仅 src/alt；a 仅 href）
+  function dirtyAttrs(root, allow) {
+    var bad = [];
+    [].forEach.call(root.querySelectorAll('img,a'), function (el) {
+      [].forEach.call(el.attributes, function (a) {
+        if (allow.indexOf(el.tagName.toLowerCase() + '.' + a.name) < 0) {
+          bad.push(el.tagName.toLowerCase() + '.' + a.name);
+        }
+      });
+    });
+    return bad;
+  }
+  // 全属性脏扫描：on* 内联事件与 style 一律不许活下来
+  function eventStyleAttrs(root) {
+    var bad = [];
+    [].forEach.call(root.querySelectorAll('*'), function (el) {
+      [].forEach.call(el.attributes, function (a) {
+        if (/^on/i.test(a.name) || a.name === 'style') bad.push(el.tagName.toLowerCase() + '.' + a.name);
+      });
+    });
+    return bad;
+  }
+
+  // ---------- 开层接缝（见文件头约定） ----------
+  var SEAM = null;   // {name, open(pi), close()|null}
+  var HOOK_NAMES = ['articleread', 'articleReader', 'articleread-open', 'openArticleReader', 'article'];
+
+  function callHook(name, args) {
+    try {
+      var T = window.__ACSV_TEST__;
+      if (!T) return { err: 'no-TEST' };
+      return { v: T.call.apply(T, [name].concat(args)) };
+    } catch (e) { return { err: String((e && e.message) || e) }; }
+  }
+  // ① 句柄形态
+  function handleSeam(name) {
+    var r = callHook(name, []);
+    var v = r.v;
+    if (v && typeof v.open === 'function') {
+      return { name: 'hook:' + name + '.handle',
+        open: function (pi) { v.open(pi); },
+        close: typeof v.close === 'function' ? function () { v.close(); } : null };
+    }
+    return null;
+  }
+  // ②/③/④ 见 openReader
+  async function openReader(pi) {
+    if (SEAM) { SEAM.open(pi); return SEAM.name; }
+    var i;
+    for (i = 0; i < HOOK_NAMES.length; i++) {
+      var s = handleSeam(HOOK_NAMES[i]);
+      if (s) { SEAM = s; s.open(pi); return s.name; }
+    }
+    for (i = 0; i < HOOK_NAMES.length; i++) {
+      var nm = HOOK_NAMES[i];
+      callHook(nm, [pi]);                     // ② 直调形态（未注册则空转，不抛）
+      if (await poll(readerEl, 900)) {
+        SEAM = { name: 'hook:' + nm + '(pi)', open: function (p) { callHook(nm, [p]); }, close: null };
+        return SEAM.name;
+      }
+    }
+    var g = window.__ACSV_ARTICLE_SEAM__;    // ③ 全局形态
+    if (g && typeof g.open === 'function') {
+      SEAM = { name: 'global:__ACSV_ARTICLE_SEAM__', open: function (p) { g.open(p); },
+        close: typeof g.close === 'function' ? function () { g.close(); } : null };
+      SEAM.open(pi);
+      return SEAM.name;
+    }
+    try {                                     // ④ 兜底：源码件直调（裸包名链必废）
+      var m = await import('/src/articleread.js');
+      if (m && typeof m.openArticleReader === 'function') {
+        m.openArticleReader(pi);
+        if (await poll(readerEl, 900)) {
+          SEAM = { name: 'srcimport:articleread', open: function (p) { m.openArticleReader(p); },
+            close: typeof m.closeArticleReader === 'function' ? function () { m.closeArticleReader(); } : null };
+          return SEAM.name;
+        }
+      }
+    } catch (e) { }
+    return null;
+  }
+  function poll(fn, ms) {
+    return new Promise(function (res) {
+      var t0 = Date.now();
+      (function tick() {
+        var v = null;
+        try { v = fn(); } catch (e) { }
+        if (v) return res(v);
+        if (Date.now() - t0 > ms) return res(null);
+        setTimeout(tick, 120);
+      })();
+    });
+  }
+  var SEAM_NOTE = '候选缝：testHook(' + HOOK_NAMES.join('|') + ')→{open,close} 或 (pi) 直调 / '
+    + 'window.__ACSV_ARTICLE_SEAM__ / import("/src/articleread.js")';
+  async function closeReader() {
+    if (SEAM && SEAM.close) SEAM.close();
+    else {
+      var btn = rq('.arhd .acsv-tbtn');
+      if (btn) btn.click();
+      else if (!document.querySelector('.arhd .acsv-tbtn')) {
+        var any = document.querySelector('.acsv-tbtn');
+        if (any) any.click();
+      }
+    }
+    return await waitGone();
+  }
+  async function collapseComposer(h) {
+    if (!vis(rq('.acsv-cinput'))) return true;
+    h.key('Escape');
+    var e = rq('.acsv-cinput-edit');
+    if (vis(rq('.acsv-cinput')) && e) {
+      e.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    }
+    return !!(await poll(function () { return !vis(rq('.acsv-cinput')); }, 4000));
+  }
+
+  // pi 走契约件产（不手抄契约字段）
+  async function makePi(acId, title, begin) {
+    var PI = await import('/src/panelitem.js');
+    return PI.panelItem('follow', {
+      resourceType: 3, resourceId: acId, articleTitle: title, beginParagraph: begin,
+      coverUrl: AR_PIC, viewCount: 123456, likeCount: 12345, commentCount: CMT_COUNT,
+      bananaCount: 6561, shareCount: 66, createTime: 1758775200000,
+      user: { userId: AR_UP_ID, userName: AR_UP_NAME, userHead: '', isFollowing: false }
+    });
+  }
+
+  // ======================= article-reader（1600×900 全形态） =======================
+  C['article-reader'] = async function (h) {
+    var rec = h.rec, wait = h.wait, waitFor = h.waitFor, key = h.key;
+    var seam = null;
+    try {
+      armMocks({ defer: true });
+      delete window.__ACSV_MOCK__;          // 评论走定向桩（detail-open 先例）
+      var pi = await makePi(AR_ID, AR_TITLE, '又是一年团圆时节，AC娘在这里祝大家中秋快乐呀～');
+      if (pi) seam = await openReader(pi);
+    } catch (e) { seam = null; rec('article-open-throw', false, String((e && e.message) || e)); }
+
+    if (!seam) {
+      // 缝没接上：七组钉全部按「未开层」显式红，info 直接给接法（不许静默零断言）
+      var why = 'seam=none（' + SEAM_NOTE + '）';
+      rec('article-open', false, why);
+      rec('article-skeleton', false, why);
+      rec('article-comments', false, why);
+      rec('article-dim', false, why);
+      rec('article-composer', false, why);
+      rec('article-reply-chip', false, why);
+      rec('article-error', false, why);
+      return;
+    }
+
+    // ---- ① 骨架期（延迟回包未放行）----
+    var skel0 = rqAll('.arskel').length;
+    var body0 = rq('.arbody');
+    // 「.arbody 空」＝不在场，或在场但没有一个子节点（骨架只吃 .arskel 块）
+    rec('article-skeleton', skel0 >= 3 && (!body0 || body0.children.length === 0),
+      seam + ' skel=' + skel0 + ' arbody儿童=' + (body0 ? body0.children.length : 'no-arbody')
+      + ' h1=' + (rq('.arh1') ? 'y' : 'n'));
+    rec('article-skeleton-head', !!(rq('.arhd') && rq('.arhd').querySelector('.arskel')),
+      '作者位骨架块=' + (rq('.arhd') ? rqAll('.arhd .arskel').length : 'no-arhd'));
+    rec('article-skeleton-no-bar', !vis(rq('.aractbar')),
+      '骨架期底栏在场=' + vis(rq('.aractbar')) + '（稿节③：骨架期不显示动作条）');
+    window.__ACSV_DEFERRED__.splice(0).forEach(function (f) { f(); });   // flushDeferred
+    var got = await waitFor(function () { return rq('.arh1'); }, 9000);
+    rec('article-skeleton-gone', !!got && rqAll('.arskel').length === 0,
+      'flush 后 .arh1=' + !!got + ' 残留骨架=' + rqAll('.arskel').length);
+
+    // ---- ② 开层与形态 ----
+    var h1 = rq('.arh1');
+    var body = rq('.arbody');
+    var covbd = rq('.covbd');
+    rec('article-open', !!(h1 && body && covbd && vis(covbd)),
+      seam + ' h1=' + (h1 ? JSON.stringify(h1.textContent.slice(0, 20)) : 'none')
+      + ' body=' + !!body + ' covbd=' + !!covbd + ' vis=' + vis(covbd));
+    rec('article-open-title', !!h1 && h1.textContent.trim() === AR_TITLE,
+      (h1 || {}).textContent || 'none');
+    rec('article-open-body-children', !!body && body.children.length >= 6,
+      'children=' + (body ? body.children.length : -1)
+      + ' text=' + JSON.stringify(((body || {}).textContent || '').slice(0, 20)));
+    rec('article-open-tags', (function () {
+      var chips = rqAll('.artags .artag');
+      var txt = chips.map(function (c) { return c.textContent; }).join(',');
+      return chips.length === 3 && txt.indexOf('活动') >= 0 && txt.indexOf('中秋') >= 0;
+    })(), 'chips=' + rqAll('.artags .artag').length);
+    rec('article-open-head', (function () {
+      var name = rq('.arhd .arname');
+      return !!name && !!rq('.arhd .arav') && !!rq('.arhd .ar-meta')
+        && !!rq('.arhd .ar-read') && !!rq('.arhd .ar-follow')
+        && name.textContent.indexOf(AR_UP_NAME) >= 0;
+    })(), 'name=' + ((rq('.arhd .arname') || {}).textContent || 'none')
+      + ' read=' + ((rq('.arhd .ar-read') || {}).textContent || 'none')
+      + ' follow=' + ((rq('.arhd .ar-follow') || {}).textContent || 'none'));
+    rec('article-open-z60', (function () {
+      var n = h1 || rq('.arhd');
+      while (n) {
+        if (getComputedStyle(n).zIndex === '60') return true;
+        n = n.parentElement;
+      }
+      return false;
+    })(), 'z链=' + (function () {
+      var out = [], n = h1 || rq('.arhd');
+      while (n && out.length < 8) {
+        out.push((n.className || n.tagName) + ':' + getComputedStyle(n).zIndex);
+        n = n.parentElement;
+      }
+      return out.join(' > ');
+    })());
+    rec('article-open-full-bleed', (function () {
+      var n = h1 || rq('.arhd');
+      while (n && n.parentElement !== document.body && n.parentElement !== document.documentElement) n = n.parentElement;
+      if (!n || n === document.body || n === document.documentElement) return false;
+      var r = n.getBoundingClientRect();
+      return r.width >= innerWidth - 1 && r.height >= innerHeight - 1;
+    })(), (function () {
+      var n = h1 || rq('.arhd');
+      while (n && n.parentElement !== document.body && n.parentElement !== document.documentElement) n = n.parentElement;
+      if (!n || n === document.body || n === document.documentElement) return 'no-shell';
+      var r = n.getBoundingClientRect();
+      return 'shell=' + Math.round(r.width) + '×' + Math.round(r.height) + ' 视口=' + innerWidth + '×' + innerHeight;
+    })());
+    // 稿量值三件：760 版心 / 正文 16-28 / 标题 28（新增提案在册值）
+    rec('article-open-metrics', (function () {
+      var ci = rq('.covin');
+      if (!ci || !body || !h1) return false;
+      var cs = getComputedStyle(body);
+      return Math.round(ci.getBoundingClientRect().width) === 760
+        && cs.fontSize === '16px' && cs.lineHeight === '28px'
+        && getComputedStyle(h1).fontSize === '28px';
+    })(), (function () {
+      var ci = rq('.covin');
+      return 'covin=' + (ci ? Math.round(ci.getBoundingClientRect().width) : 'none')
+        + ' body=' + (body ? getComputedStyle(body).fontSize + '/' + getComputedStyle(body).lineHeight : 'none')
+        + ' h1=' + (h1 ? getComputedStyle(h1).fontSize : 'none');
+    })());
+    // 文末动作条沿用既有类 .acsv-mdetail-actions（真值 gap 26 / margin-top 12 / padding-bottom 12）
+    rec('article-open-mdetail-actions', (function () {
+      var acts = rq('.covin .acsv-mdetail-actions');
+      if (!acts) return false;
+      var cs = getComputedStyle(acts);
+      return cs.columnGap === '26px' && cs.marginTop === '12px' && cs.paddingBottom === '12px';
+    })(), (function () {
+      var acts = rq('.covin .acsv-mdetail-actions');
+      if (!acts) return 'none（covin 内无 .acsv-mdetail-actions）';
+      var cs = getComputedStyle(acts);
+      return 'gap=' + cs.columnGap + ' mt=' + cs.marginTop + ' pb=' + cs.paddingBottom;
+    })());
+
+    // ---- ③ 净化在真 DOM 上的落地（unit 侧 sanitize 若牵 DOM 跑不动，这组就是主钉）----
+    rec('article-sanitize-script', !!(body && body.querySelectorAll('script').length === 0
+      && window.__AR_XSS__ === undefined),
+      'script=' + (body ? body.querySelectorAll('script').length : -1)
+      + ' 已执行=' + (window.__AR_XSS__ === undefined ? 'n' : 'y'));
+    rec('article-sanitize-iframe', !!(body && body.querySelectorAll('iframe').length === 0),
+      'iframe=' + (body ? body.querySelectorAll('iframe').length : -1));
+    rec('article-sanitize-onstyle', !!(body && eventStyleAttrs(body).length === 0),
+      '脏属性=' + (body ? eventStyleAttrs(body).slice(0, 6).join(',') : 'no-body'));
+    rec('article-sanitize-imgurl', (function () {
+      if (!body) return false;
+      var imgs = [].slice.call(body.querySelectorAll('img'));
+      var evil = imgs.filter(function (i) { return /evil\.example/.test(i.getAttribute('src') || ''); });
+      var kept = imgs.some(function (i) { return /aixifan\.com/.test(i.getAttribute('src') || ''); });
+      var altKept = (body.textContent || '').indexOf(BAD_PIC_ALT) >= 0;
+      return evil.length === 0 && kept && altKept;
+    })(), (function () {
+      if (!body) return 'no-body';
+      var imgs = [].slice.call(body.querySelectorAll('img'));
+      return 'imgs=' + imgs.map(function (i) { return (i.getAttribute('src') || '').slice(0, 26); }).join('|')
+        + ' 留alt=' + ((body.textContent || '').indexOf(BAD_PIC_ALT) >= 0 ? 'y' : 'n');
+    })());
+    rec('article-sanitize-aurl', (function () {
+      if (!body) return false;
+      var as = [].slice.call(body.querySelectorAll('a'));
+      var bad = as.filter(function (a) {
+        var href = a.getAttribute('href') || '';
+        return /evil\.example/.test(href) || /^javascript:/i.test(href);
+      });
+      return bad.length === 0 && (body.textContent || '').indexOf(BAD_LINK_TEXT) >= 0
+        && (body.textContent || '').indexOf(NESTED_TEXT) >= 0;
+    })(), (function () {
+      if (!body) return 'no-body';
+      var as = [].slice.call(body.querySelectorAll('a'));
+      return 'a=' + as.map(function (a) { return (a.getAttribute('href') || '').slice(0, 22); }).join('|')
+        + ' 留字=' + ((body.textContent || '').indexOf(BAD_LINK_TEXT) >= 0 ? 'y' : 'n')
+        + '/' + ((body.textContent || '').indexOf(NESTED_TEXT) >= 0 ? 'y' : 'n');
+    })());
+    rec('article-sanitize-nested', (function () {
+      if (!body) return false;
+      var probeLeft = body.querySelectorAll('[data-ar-probe]').length;
+      return probeLeft === 0 && (body.textContent || '').indexOf(DIV_TEXT) >= 0
+        && body.querySelectorAll('blockquote script').length === 0;
+    })(), (function () {
+      if (!body) return 'no-body';
+      return '探针件=' + body.querySelectorAll('[data-ar-probe]').length
+        + ' 容器内正文=' + ((body.textContent || '').indexOf(DIV_TEXT) >= 0 ? 'y' : 'n')
+        + ' bqScript=' + body.querySelectorAll('blockquote script').length
+        + ' div=' + body.querySelectorAll('.arbody div').length;
+    })());
+    rec('article-sanitize-attrs', (function () {
+      if (!body) return false;
+      return dirtyAttrs(body, ['img.src', 'img.alt', 'a.href']).length === 0;
+    })(), '脏属性=' + (body ? dirtyAttrs(body, ['img.src', 'img.alt', 'a.href']).slice(0, 8).join(',') : 'no-body'));
+    rec('article-emot-ph', (function () {
+      // 方言件 ⇒ 占位 span（带 data 属性），且 zt 图源未实测 ⇒ 不回填成 img
+      if (!body) return false;
+      var raw = (body.innerHTML || '').indexOf('[emot=zt') >= 0;
+      var spans = [].slice.call(body.querySelectorAll('span')).filter(function (s) {
+        return [].some.call(s.attributes, function (a) { return /^data-/.test(a.name); });
+      });
+      var backfill = [].slice.call(body.querySelectorAll('img')).some(function (i) {
+        return /umeditor|emotion|emot/i.test(i.getAttribute('src') || '');
+      });
+      return !raw && spans.length >= 1 && !backfill;
+    })(), (function () {
+      if (!body) return 'no-body';
+      var spans = [].slice.call(body.querySelectorAll('span')).filter(function (s) {
+        return [].some.call(s.attributes, function (a) { return /^data-/.test(a.name); });
+      });
+      return 'raw=' + ((body.innerHTML || '').indexOf('[emot=zt') >= 0 ? 'y' : 'n')
+        + ' 占位=' + spans.length + ' 首件=' + (spans[0] ? attrDump(spans[0]) : 'none');
+    })());
+    rec('article-whitelist-keep', (function () {
+      if (!body) return false;
+      var need = ['p', 'br', 'img', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote', 'table',
+        'thead', 'tbody', 'tr', 'th', 'td', 'pre', 'code', 'figcaption', 'figure'];
+      var miss = need.filter(function (s) { return !body.querySelector(s); });
+      return miss.length === 0;
+    })(), (function () {
+      if (!body) return 'no-body';
+      return ['p', 'br', 'img', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote', 'table', 'thead',
+        'tbody', 'th', 'td', 'pre', 'code', 'figcaption', 'figure']
+        .map(function (s) { return s + '=' + body.querySelectorAll(s).length; }).join(' ');
+    })());
+
+    // ---- ④ 评论区（stype=3 定向桩 ⇒ commentkit 真实类名 + inputbar 输入条）----
+    var items = await waitFor(function () { return rqAll('.acsv-citem'); }, 9000);
+    var head = await waitFor(function () { return rq('.ar-cmhead'); }, 6000);
+    rec('article-comments', !!(items && items.length >= 1 && head),
+      'citem=' + (items ? items.length : -1) + ' cmhead=' + !!head);
+    rec('article-comments-head', (function () {
+      if (!head) return false;
+      var t = head.textContent || '';
+      return /共\s*1024\s*条评论/.test(t) && !!head.querySelector('.ar-cmtitle');
+    })(), 'head=' + (head ? JSON.stringify(head.textContent.slice(0, 24)) : 'none'));
+    rec('article-comments-stype3', /sourceType=3/.test(window.__ACSV_AR_CMT_URL__ || ''),
+      'url=' + (window.__ACSV_AR_CMT_URL__ || 'none'));
+    rec('article-comments-text', (function () {
+      var t2 = (items && items[0] ? items[0].textContent : '') || '';
+      return t2.indexOf(CMT_TEXT1) >= 0 && t2.indexOf(CMT_NAME1) >= 0;
+    })(), 'c0=' + JSON.stringify((items && items[0] ? items[0].textContent : '').slice(0, 26)));
+    // 输入条：收起态按稿不显 ⇒ 展开一次再钉「可见」，随后收回还原状态
+    var pill = rq('.aractbar-input');
+    if (pill && !vis(rq('.acsv-cinput'))) pill.click();
+    var cinv = await waitFor(function () { return vis(rq('.acsv-cinput')); }, 6000);
+    rec('article-comments-input', !!cinv && !!rq('.acsv-cinput-edit'),
+      'cinput 展开后可见=' + !!cinv + ' edit=' + !!rq('.acsv-cinput-edit')
+      + ' collapsed可见=' + vis(rq('.acsv-cinput')));
+    await collapseComposer(h);
+    // 「加载更多」按钮 0.9.141 已退役（稿节⑤：续翻走 .acsv-cmore-sentinel 触底）——不得加回
+    rec('article-comments-no-loadmore', (function () {
+      var inReader = rqAll('button').filter(function (b) {
+        return /^\s*加载更多\s*$/.test(b.textContent || '');
+      });
+      return inReader.length === 0;
+    })(), '加载更多钮=' + rqAll('button').filter(function (b) {
+      return /^\s*加载更多\s*$/.test(b.textContent || '');
+    }).length + ' sentinel=' + rqAll('.acsv-cmore-sentinel').length);
+
+    // ---- ⑤ 双动作条去重收缩 ----
+    var bar = rq('.aractbar');
+    var barH0 = bar ? bar.getBoundingClientRect().height : -1;
+    rec('article-dim-pre', !!bar && !bar.classList.contains('aractbar--dim'),
+      '底栏在场=' + !!bar + ' 初态dim=' + (bar ? bar.classList.contains('aractbar--dim') : '?'));
+    if (covbd) {
+      covbd.scrollTop = covbd.scrollHeight;                 // 滚到底 ⇒ 文末动作条入视口
+      var dimmed = await waitFor(function () {
+        var b = rq('.aractbar');
+        return b && b.classList.contains('aractbar--dim') ? b : null;
+      }, 6000);
+      rec('article-dim', !!dimmed, 'scrollTop=' + Math.round(covbd.scrollTop)
+        + ' scroll=' + covbd.scrollHeight + '/' + covbd.clientHeight + ' dim=' + !!dimmed);
+      var op = (function () {
+        var a = rq('.aractbar .aract');
+        return a ? getComputedStyle(a).opacity : 'none';
+      })();
+      rec('article-dim-act-faded', op === '0', '底栏键 opacity=' + op);
+      var barH1 = rq('.aractbar') ? rq('.aractbar').getBoundingClientRect().height : -2;
+      rec('article-dim-bar-height', barH0 > 0 && Math.abs(barH0 - barH1) <= 1,
+        '底栏高 ' + barH0 + '→' + barH1 + '（稿：高度不折叠，避免滚动跳动）');
+      rec('article-dim-pill-alive', vis(rq('.aractbar-input')), 'pill 仍可见=' + vis(rq('.aractbar-input')));
+      var acts2 = rq('.covin .acsv-mdetail-actions');
+      rec('article-dim-state-single', (function () {
+        // 只收缩可见性、不改状态：两条栏计数同源（稿附节 10）
+        if (!acts2) return false;
+        var barN = rqAll('.aractbar .aract .n').map(function (n) { return n.textContent; });
+        var endN = [].slice.call(acts2.querySelectorAll('.n')).map(function (n) { return n.textContent; });
+        return barN.join(',') === endN.join(',') && barN.length >= 3;
+      })(), '底栏计数=' + rqAll('.aractbar .aract .n').map(function (n) { return n.textContent; }).join('|')
+        + ' 文末=' + (acts2 ? [].slice.call(acts2.querySelectorAll('.n')).map(function (n) { return n.textContent; }).join('|') : 'none'));
+      covbd.scrollTop = 0;
+      var undim = await waitFor(function () {
+        var b = rq('.aractbar');
+        return b && !b.classList.contains('aractbar--dim') ? b : null;
+      }, 6000);
+      rec('article-dim-undim', !!undim, '滚回顶摘 dim=' + !!undim);
+    } else {
+      rec('article-dim', false, '无 .covbd 可滚');
+      rec('article-dim-act-faded', false, 'no-covbd');
+      rec('article-dim-bar-height', false, 'no-covbd');
+      rec('article-dim-pill-alive', false, 'no-covbd');
+      rec('article-dim-state-single', false, 'no-covbd');
+      rec('article-dim-undim', false, 'no-covbd');
+    }
+
+    // ---- ⑥ composer（点 pill 展开 / 轻条藏 / Esc 与外点收回）----
+    pill = rq('.aractbar-input');
+    rec('article-composer-pre', !!pill && !vis(rq('.acsv-cinput')),
+      'pill=' + !!pill + ' 收起态 composer 可见=' + vis(rq('.acsv-cinput')));
+    if (pill) pill.click();
+    var opened = await waitFor(function () { return vis(rq('.acsv-cinput')); }, 6000);
+    rec('article-composer', !!opened && !vis(pill),
+      'composer 展开=' + !!opened + ' 轻条藏(pill 不可见)=' + !vis(pill));
+    rec('article-composer-parts', !!(rq('.acsv-cinput-edit') && rq('.acsv-cinput-send')),
+      'edit=' + !!rq('.acsv-cinput-edit') + ' send=' + !!rq('.acsv-cinput-send')
+      + ' fmt=' + rqAll('.acsv-cinput-fmt').length);
+    key('Escape');
+    var escClosed = await poll(function () { return !vis(rq('.acsv-cinput')); }, 4000);
+    rec('article-composer-esc', !!escClosed && !!readerEl(),
+      'Esc 收起=' + !!escClosed + ' 浮层留存=' + !!readerEl());
+    rec('article-composer-focus', (function () {
+      var a = document.activeElement;
+      return !!a && a === rq('.aractbar-input');
+    })(), '焦点=' + (function () {
+      var a = document.activeElement;
+      return a ? (a.className || a.tagName) : 'none';
+    })());
+    if (pill) pill.click();
+    await waitFor(function () { return vis(rq('.acsv-cinput')); }, 6000);
+    if (h1) h1.click();                                     // 点外部（正文标题在 composer 之外）
+    var outClosed = await poll(function () { return !vis(rq('.acsv-cinput')); }, 6000);
+    rec('article-composer-outside', !!outClosed && !!readerEl(),
+      '外点收起=' + !!outClosed + ' 浮层留存=' + !!readerEl());
+
+    // ---- ⑦ 回复 chip（沿用 comments.js setReply 现成机制）----
+    var rb = await waitFor(function () {
+      var it = rq('.acsv-citem');
+      return it ? it.querySelector('.acsv-creplybtn') : null;
+    }, 6000);
+    if (rb) rb.click();
+    var chip = await waitFor(function () {
+      var c = rq('.acsv-quotechip');
+      return vis(c) ? c : null;
+    }, 6000);
+    var label = rq('.acsv-quotechip-label');
+    rec('article-reply-chip', !!chip && !!label,
+      'chip 可见=' + !!chip + ' display=' + (chip ? getComputedStyle(chip).display : 'n/a')
+      + ' label=' + ((label || {}).textContent || 'none'));
+    rec('article-reply-chip-label', (function () {
+      var t3 = (label || {}).textContent || '';
+      return t3.indexOf('回复 @') >= 0 && t3.indexOf(CMT_NAME1) >= 0;
+    })(), 'label=' + ((label || {}).textContent || 'none')
+      + '（稿口径「回复 @」vs comments.js:521 现成「回复：@」，全角冒号差由主代理裁决）');
+    rec('article-reply-chip-ph', (function () {
+      var e2 = rq('.acsv-cinput-edit');
+      return !!e2 && (e2.getAttribute('data-ph') || '').indexOf('回复 @' + CMT_NAME1) >= 0;
+    })(), 'ph=' + ((rq('.acsv-cinput-edit') || {}).getAttribute
+      ? (rq('.acsv-cinput-edit') || {}).getAttribute('data-ph') : 'none'));
+    var xx = rq('.acsv-quotechip-x');
+    if (xx) xx.click();
+    var chipGone = await poll(function () { return !vis(rq('.acsv-quotechip')); }, 6000);
+    rec('article-reply-chip-cancel', !!chipGone, '✕ 后 chip 收起=' + !!chipGone);
+    await collapseComposer(h);
+
+    // ---- ⑧ 失败态（重试为主、前往原页为辅、失败不出动作条、作者行留存）----
+    var closed = await closeReader();
+    rec('article-close-clean', !!closed, seam + ' close 后 DOM 摘净=' + !!closed);
+    window.__ACSV_ART_ERR_FAIL__ = true;
+    var pi2 = await makePi(AR_ERR_ID, AR_TITLE2, '本娘把这次活动的十四宫格拼成了一张长图');
+    var seam2 = SEAM ? (SEAM.open(pi2), SEAM.name) : await openReader(pi2);
+    var err = await waitFor(function () { return vis(rq('.arerr')); }, 9000);
+    rec('article-error', !!err, 'seam=' + seam2 + ' arerr 可见=' + !!err
+      + ' 文章页请求数=' + (window.__ACSV_ART_ERR_HITS__ || 0) + ' mock失败开关=' + window.__ACSV_ART_ERR_FAIL__);
+    rec('article-error-text', (function () {
+      var e3 = rq('.arerr');
+      if (!e3) return false;
+      var t4 = e3.textContent || '';
+      return t4.indexOf('正文拉取失败') >= 0 && t4.indexOf('重试') >= 0;
+    })(), (function () {
+      var e4 = rq('.arerr');
+      return e4 ? JSON.stringify(e4.textContent.slice(0, 40)) : 'none';
+    })());
+    rec('article-error-no-bar', !vis(rq('.aractbar')), '失败态底栏可见=' + vis(rq('.aractbar')));
+    rec('article-error-head-kept', (function () {
+      var n2 = rq('.arhd .arname');
+      return !!n2 && n2.textContent.indexOf(AR_UP_NAME) >= 0;
+    })(), '失败态作者行=' + ((rq('.arhd .arname') || {}).textContent || 'none'));
+    var retry = await waitFor(function () {
+      var e5 = rq('.arerr');
+      if (!e5) return null;
+      var list = [].slice.call(e5.querySelectorAll('button'));
+      for (var j = 0; j < list.length; j++) if (/重试/.test(list[j].textContent)) return list[j];
+      return null;
+    }, 6000);
+    rec('article-error-retry-key', !!retry, '重试键=' + (retry ? retry.className + '|' + retry.textContent : 'none'));
+    rec('article-error-origin-link', (function () {
+      var e6 = rq('.arerr');
+      if (!e6) return false;
+      var a2 = [].slice.call(e6.querySelectorAll('a')).filter(function (x) {
+        return /原页/.test(x.textContent || '');
+      })[0];
+      return !!a2 && /acfun\.cn/.test(a2.getAttribute('href') || '')
+        && a2.getAttribute('target') === '_blank';
+    })(), (function () {
+      var e7 = rq('.arerr');
+      if (!e7) return 'none';
+      var a3 = [].slice.call(e7.querySelectorAll('a'))[0];
+      return a3 ? a3.getAttribute('href') + ' target=' + a3.getAttribute('target') : 'no-a';
+    })());
+    window.__ACSV_ART_ERR_FAIL__ = false;
+    var hitsBefore = window.__ACSV_ART_ERR_HITS__ || 0;
+    if (retry) retry.click();
+    var back = await waitFor(function () {
+      var hh = rq('.arh1');
+      return hh && hh.textContent.indexOf(AR_TITLE2) >= 0 ? hh : null;
+    }, 9000);
+    rec('article-error-recover', !!back && !vis(rq('.arerr')),
+      '重试后 h1=' + ((back || {}).textContent || 'none').slice(0, 20)
+      + ' arerr 退场=' + !vis(rq('.arerr')) + ' 重拉次数=' + ((window.__ACSV_ART_ERR_HITS__ || 0) - hitsBefore));
+    var okClose = await closeReader();
+    rec('article-error-close', !!okClose, '收尾 close=' + !!okClose);
+    await wait(150);
+  };
+
+  // ======================= article-reader-narrow（540×900 窄态收纳） =======================
+  C['article-reader-narrow'] = async function (h) {
+    var rec = h.rec, wait = h.wait, waitFor = h.waitFor;
+    var seam = null;
+    try {
+      armMocks({});
+      delete window.__ACSV_MOCK__;
+      var pi = await makePi(AR_ID, AR_TITLE, '又是一年团圆时节');
+      if (pi) seam = await openReader(pi);
+    } catch (e) { rec('article-narrow-throw', false, String((e && e.message) || e)); }
+    if (!seam) {
+      var why = 'seam=none（' + SEAM_NOTE + '）';
+      rec('article-narrow-more', false, why);
+      rec('article-narrow-no-direct', false, why);
+      rec('article-narrow-pop', false, why);
+      return;
+    }
+    var h1 = await waitFor(function () { return rq('.arh1'); }, 9000);
+    rec('article-narrow-open', !!h1 && !!rq('.covbd') && !!rq('.aractbar'),
+      seam + ' 视口=' + innerWidth + '×' + innerHeight + ' h1=' + !!h1);
+    rec('article-narrow-metrics', (function () {
+      var ci = rq('.covin');
+      return !!h1 && !!ci && getComputedStyle(h1).fontSize === '24px'
+        && Math.round(ci.getBoundingClientRect().width) <= innerWidth;
+    })(), 'h1=' + (h1 ? getComputedStyle(h1).fontSize : 'none')
+      + ' covin=' + (function () { var ci = rq('.covin'); return ci ? Math.round(ci.getBoundingClientRect().width) : 'none'; })());
+    // ⋯ 键可见（稿节④：窄态底栏收成 输入 + 赞/评论/分享 + ⋯）
+    var more = await waitFor(function () { return vis(rq('.aractbar-more')); }, 8000);
+    rec('article-narrow-more', !!more && !!rq('.aractbar-morebtn'),
+      'more 可见=' + !!more + ' btn=' + !!rq('.aractbar-morebtn')
+      + ' more 样式=' + (function () { var m = rq('.aractbar-more'); return m ? getComputedStyle(m).display : 'none'; })());
+    // 直排里不得再有 藏/蕉（它们搬进 ⋯ 弹层）
+    rec('article-narrow-no-direct', (function () {
+      var inBar = rq('.aractbar-in');
+      if (!inBar) return false;
+      var direct = directActs(inBar);
+      var bad = direct.filter(function (a) {
+        var t = (a.getAttribute('title') || '') + ' ' + (a.textContent || '') + ' ' + a.className;
+        return /收藏|投蕉|\bstow\b|\bban\b/.test(t);
+      });
+      return bad.length === 0 && direct.length >= 2;
+    })(), '直排键=' + (function () {
+      var inBar = rq('.aractbar-in');
+      if (!inBar) return 'none';
+      return directActs(inBar).map(function (a) {
+        return a.className + '(' + (a.getAttribute('title') || a.textContent.trim().slice(0, 6)) + ')';
+      }).join(' | ');
+    })());
+    var btn = rq('.aractbar-morebtn');
+    if (btn) btn.click();
+    var popOpen = await waitFor(function () {
+      var p = rq('.aractbar-pop');
+      return vis(p) ? p : null;
+    }, 6000);
+    rec('article-narrow-pop', !!(popOpen && (function () {
+      var keys = [].slice.call(popOpen.querySelectorAll('.aract'));
+      var txt = keys.map(function (k) { return (k.getAttribute('title') || '') + k.textContent; }).join(',');
+      return keys.length >= 2 && /收藏/.test(txt) && /蕉/.test(txt);
+    })()), 'pop 展开=' + !!popOpen + ' 键=' + (popOpen ? [].slice.call(popOpen.querySelectorAll('.aract'))
+      .map(function (k) { return k.getAttribute('title') || k.textContent.trim().slice(0, 6); }).join(' | ') : 'n/a'));
+    // 文末动作条在窄态仍**全量直排可达**（稿节④：收纳只发生在底栏，文末条不动）。
+    // 键＝图标+计数无可见文字，可达性按 title（等价代理：五键齐全且藏/蕉在场）
+    rec('article-narrow-acts-reachable', (function () {
+      var acts = rq('.covin .acsv-mdetail-actions');
+      if (!acts || !vis(acts)) return false;
+      var keys = [].slice.call(acts.children);
+      var txt = keys.map(function (k) {
+        return (k.getAttribute('title') || '') + (k.textContent || '');
+      }).join(',');
+      return keys.length >= 4 && /收藏/.test(txt) && /蕉/.test(txt);
+    })(), (function () {
+      var acts = rq('.covin .acsv-mdetail-actions');
+      if (!acts) return 'none';
+      return 'vis=' + vis(acts) + ' 键数=' + acts.children.length
+        + ' title=' + [].slice.call(acts.children).map(function (k) { return k.getAttribute('title'); }).join('|');
+    })());
+    var okClose = await closeReader();
+    rec('article-narrow-close-clean', !!okClose, 'close 后摘净=' + !!okClose);
+    await wait(150);
+  };
+  // 直排键＝底栏容器内、不在弹层子树里的 .aract
+  function directActs(inBar) {
+    var pop = inBar.querySelector('.aractbar-pop');
+    return [].slice.call(inBar.querySelectorAll('.aract')).filter(function (a) {
+      return !(pop && pop.contains(a));
+    });
+  }
+})();
+
+// ============================ 反跑登记表（临时还原什么 ⇒ 哪条转红） ============================
+// article-skeleton            ：把「先出骨架」改成回包前不渲染骨架（或回包前就塞正文）⇒ .arskel<3 或
+//                               .arbody 提前在场 ⇒ 红。
+// article-skeleton-head       ：作者位不走骨架块（直接空着或吃 pi.up）⇒ 红。
+// article-skeleton-no-bar     ：骨架期就把底栏 .aractbar 挂出来 ⇒ 红（稿节③）。
+// article-skeleton-gone       ：回包落地不换掉骨架（flush 后 .arskel 仍在）⇒ 红。
+// article-open                ：open 不建 .covbd/.arh1（或改名）⇒ 红；z 层未挂也红（vis 判据）。
+// article-open-title          ：标题取 pi.title（列表态）或 SSR title 未剥后缀 ⇒ 与稿逐字不符 ⇒ 红。
+// article-open-body-children  ：正文喂 renderCommentHtml（<p>/<img> 被转义成文本）⇒ children=0 ⇒ 红。
+// article-open-tags           ：tagList 不接 / 胶囊改名 ⇒ chips≠3 ⇒ 红。
+// article-open-head           ：阅读量不吃 viewCount/formatViewCount、关注键不挂 .ar-follow ⇒ 红。
+// article-open-z60            ：浮层档位从 60 改成 55/58/61（撞顶栏或编辑器）⇒ 红。
+// article-open-full-bleed     ：壳退成 620 浮层（A 案形态）⇒ 尺寸不满视口 ⇒ 红。
+// article-open-metrics        ：版心 760 / 正文 16-28 / 标题 28 任一件漂 ⇒ 红（稿附节 2 新增提案）。
+// article-open-mdetail-actions：文末动作条不沿用 .acsv-mdetail-actions，或三值漂 ⇒ 红。
+// article-sanitize-script     ：白名单放进 script（或只脱标签留下文本体）⇒ 计数≠0；若真执行，
+//                               __AR_XSS__ 读数转 'y' ⇒ 双保险都红。
+// article-sanitize-iframe     ：放进 iframe ⇒ 红。
+// article-sanitize-onstyle    ：on* 或 style 不再全摘 ⇒ 红（info 列出 tagName.属性名）。
+// article-sanitize-imgurl     ：img URL 不过 CDN_URL_OK ⇒ 坏图源在场；或「摘除留 alt」改成连字删
+//                               ⇒ 留alt=n ⇒ 红。
+// article-sanitize-aurl       ：a href 不过白名单 / javascript: 未摘 / 锚文本被连坐删 ⇒ 红。
+// article-sanitize-nested     ：非白名单容器留壳（探针 data-ar-probe 仍在）、或把容器里的白名单
+//                               正文连坐删掉（容器内正文=n）、blockquote 内 script 未摘 ⇒ 红。
+// article-sanitize-attrs      ：属性白名单放宽（img 收 data-ar-probe/loading、a 收 target/rel）⇒ 红。
+// article-emot-ph             ：方言件原样漏出（raw=y）/占位不挂 data 属性/擅自回填未实测 zt 图源
+//                               ⇒ 三者任一 ⇒ 红。
+// article-whitelist-keep      ：白名单里漏掉 ol/br/figcaption/table 等任一件 ⇒ 红。
+// article-comments            ：评论管线未进浮层（.acsv-citem=0）或 .ar-cmhead 不建 ⇒ 红。
+// article-comments-head       ：计数文案不是「共 N 条评论」或不回写 ⇒ 红（稿节⑤）。
+// article-comments-stype3     ：stype 传成 4/5（照抄动态或视频缺省）⇒ 记账 URL 无 sourceType=3 ⇒ 红。
+// article-comments-text       ：条目不走 commentkit（正文/昵称不落 .acsv-citem 子树）⇒ 红。
+// article-comments-input      ：输入条不挂进浮层（.acsv-cinput 不在场或展开后仍不可见）⇒ 红。
+// article-comments-no-loadmore：把 0.9.141 退役的「加载更多」按钮加回 ⇒ 红。
+// article-dim                 ：IntersectionObserver 摘掉，或盯错目标（不再盯文末动作条）⇒ 红。
+// article-dim-act-faded       ：--dim 只挂类不给可见性（opacity 非 0）⇒ 红。
+// article-dim-bar-height      ：底栏折叠式收缩（高度随 dim 变化）⇒ 红（稿：避免滚动跳动）。
+// article-dim-pill-alive      ：--dim 把 pill 一起藏掉 ⇒ 红。
+// article-dim-state-single    ：两条栏计数不同源（底栏另拉一份或写死）⇒ 红。
+// article-dim-undim           ：出视口不摘类（单向收缩，淡出后再不回来）⇒ 红。
+// article-composer            ：点 pill 不展开 composer，或展开后轻条不藏 ⇒ 红（稿节②）。
+// article-composer-parts      ：composer 另造一套（无 .acsv-cinput-edit/-send/fmt 键）⇒ 红。
+// article-composer-esc        ：Esc 不收起；或 Esc 把整层拆掉（readerEl 变 null）⇒ 红。
+// article-composer-focus      ：收起后焦点不回 pill（稿附节 8）⇒ 红。
+// article-composer-outside    ：点外部不收起 ⇒ 红。
+// article-reply-chip          ：「回复」不接 setReply ⇒ chip 不显示 ⇒ 红。
+// article-reply-chip-label    ：label 里没有「回复 @」⇒ 红（现成 comments.js:521 出「回复：@」，
+//                               差一个全角冒号：钉稿口径，裁决归主代理）。
+// article-reply-chip-ph       ：占位不联动（未走 bar.setPlaceholder）⇒ 红。
+// article-reply-chip-cancel   ：✕ 不取消回复态 ⇒ 红。
+// article-close-clean         ：closeArticleReader 不摘 DOM（或返回键不关层）⇒ 红。
+// article-error               ：拉取失败不落 .arerr（白屏/静默/直接跳原页）⇒ 红。
+// article-error-text          ：失败话术改名或无「重试」字样 ⇒ 红。
+// article-error-no-bar        ：失败态仍出底栏（空互动）⇒ 红。
+// article-error-head-kept     ：失败态把作者行一起摘掉（卡片 up 未用）⇒ 红。
+// article-error-retry-key     ：重试不做 <button> 主键/文案不叫「重试」⇒ 红。
+// article-error-origin-link   ：前往原页不吃当前 URL、或不新窗 ⇒ 红。
+// article-error-recover       ：点重试不再拉（次数=0）或成功后 .arerr 不摘 ⇒ 红。
+// article-narrow-open         ：窄态不建底栏/标题 ⇒ 红。
+// article-narrow-metrics      ：窄态标题不降 24（稿：窄态 24/1.4）或版心溢出视口 ⇒ 红。
+// article-narrow-more         ：窄态 ⋯ 键不显示（藏/蕉仍直排）⇒ 红。
+// article-narrow-no-direct    ：底栏直排里仍有 收藏/投蕉 ⇒ 红。
+// article-narrow-pop          ：点 ⋯ 不展开弹层，或弹层里藏/蕉不齐 ⇒ 红。
+// article-narrow-acts-reachable：窄态把文末动作条整个撤掉（稿：文末仍全量直排可达）⇒ 红。

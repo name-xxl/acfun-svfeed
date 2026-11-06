@@ -368,7 +368,7 @@
       rec('cr-reply-placeholder', ed.getAttribute('data-ph').indexOf('回复 @') === 0,
         ed.getAttribute('data-ph'));
       var chip = box.querySelector('.acsv-quotechip');
-      rec('cr-reply-chip', !!chip && chip.style.display === 'flex' && /回复：@/.test(chip.textContent),
+      rec('cr-reply-chip', !!chip && chip.style.display === 'flex' && /回复 @/.test(chip.textContent),
         chip && chip.textContent);
       var cx = chip && chip.querySelector('.acsv-quotechip-x');
       if (cx) cx.click();

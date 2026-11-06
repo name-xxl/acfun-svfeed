@@ -236,6 +236,12 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 组合根（口径 B 对来源豁免）——取更严的桶：将来任何非特性件反向依赖它照样翻红
   //（同 views.js 0.9.259「两桶都绿时取更严的」取桶先例）。
   'signpop.js',
+  // 0.9.326 登记：articleread（文章阅读浮层，确认稿 docs/preview/article-reader-v3.html）。
+  // 归 FEATURE：消费方 rowkit 在表内（层内互调）；自身只 import 基建（cfg/ui/timefmt/state/
+  // overlay/net/imgload/imgurl/styles/imicons/dbg）、接口层（relationapi）与特性层共享件
+  // （imgview/sharepanel/momentbar/comments——评论管线宿主形态照 momentdetail 契约）
+  // ⇒ 口径 A/B 均 0 条
+  'articleread.js',
   ]);
 const SKIP_B = new Set(['boot.js', 'player.js', 'sessionhooks.js']);
 // 0.9.271：sessionhooks（会话回接钩子）与 player 同属组合根/编排层——它 import rail/playlayer/

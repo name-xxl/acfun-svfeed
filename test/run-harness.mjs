@@ -183,7 +183,12 @@ const HARNESS_CASES = [
   { name: 'dm-play-gated', serial: true, bundle: 'debug'},      // A4 暂停→恢复同一视频不重建弹幕（home 源）
   { name: 'ctl-detach-stop', serial: true, bundle: 'debug'},    // P1-3 拆壳即停：音量悬停保活链不得永续
   { name: 'pump-chaincapped', serial: true, bundle: 'debug'},   // P1-4 链打满上限必须收口并回落随机流
-  { name: 'badge-listener', serial: true, bundle: 'debug'}      // P2-4 跨挂载只留一份推送监听（假 SDK 夹具）
+  { name: 'badge-listener', serial: true, bundle: 'debug'},      // P2-4 跨挂载只留一份推送监听（假 SDK 夹具）
+  // 0.9.326 文章阅读浮层（确认稿 docs/preview/article-reader-v3.html）：1600×900 全形态
+  // （开层/骨架/净化/stype=3 评论/dim 收缩/composer/回复 chip/失败重试）+ 540 窄态收纳；
+  // 夹具在 cases/article.js（__ACSV_MOCK_FORM__ 桩文章页 SSR + comment/list 定向桩）
+  { name: 'article-reader', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
+  { name: 'article-reader-narrow', viewport: { width: 540, height: 900 }, bundle: 'debug' }
 ];
 
 const ALL_CASES = HARNESS_CASES.map(function (c) {

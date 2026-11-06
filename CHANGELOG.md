@@ -5,6 +5,50 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.326（2026-11-06）· 文章阅读浮层落地——B 案 760 版心 + 轻动作条 + 行内评论区（确认稿 article-reader-v3 v3.1 实现批）
+
+**背景与定位**：评审收口后的确认稿 `docs/preview/article-reader-v3.html`（v3.1）进实现。关注流文章行此前点行/点评论键
+= `window.open` 外链官方页（0.9.101 行内评论扩文章时因「评论 stype 未实测」留的外链分支）；§17.1 已实测文章评论
+= **sourceType 3、与官方页同串**，外链分支可以收口为行内阅读浮层。
+
+**修法**（新件 `src/articleread.js`，FEATURE 桶；确认稿取值经 test/check-preview 四条新钉逐字对齐）：
+
+- **壳**：B 案整视口全覆盖，z60（全仓空档实测；不透明底天然盖死共享顶栏——稿附节 4「双头问题」按浮层家族解，
+  零隐顶栏代码）；760 版心/16-28 正文/28 标题，620 窄态块全量（标题 24、底栏收成 输入+赞/评/享+⋯）。
+- **数据**：`requestText` 拉文章页 HTML → `window.articleInfo` **括号配平**截取（不照抄 uppage 正则版——正文串里的
+  半角分号会截断非贪婪式）→ 降级 `#article-content` DOM → 再败＝失败态（重试为主、前往原页为辅，作者行保留）。
+- **正文**：`sanitizeArticleBody` 纯字符串白名单清洗（node 可单测）——标签/属性/URL 三层白名单，img/a 过
+  imgurl.CDN_URL_OK 单源、不过摘元素留 alt/锚文本，script/iframe/on*/style 全摘；`[emot=zt,*]` 方言转占位
+  （图源未实测不回填，稿附节 7）；**不走评论域 UBB 渲染器**（全文转义会把 `<p>/<img>` 变字面）。配图升级
+  `.arimg` 容器：imgload 重试链 + 点击大图（imgview 单源）+ 长图 75vh **折算高**兜底（`isTallImg` 纯函数，
+  宽横幅不误判）。
+- **评论区**：comments.js 管线宿主化复用（stype=3、kind='home'、pin＝正文区、titleFmt「共 N 条评论」）；
+  输入条三件套随宿主迁移，表情面板/回复 chip/富文本 composer 全部既有件。点「回复」capture 先展 composer
+  再交管线 setReply（chip 不挂隐藏宿主）。
+- **互动首版只读**（稿附节 6：赞/蕉/藏写链未实测）：文末条**直接复用 .acsv-mdetail-actions 类**（真值单源，
+  不新写 .aracts 副本）；底栏轻动作条五键与文末条**同一份 counts 计数源**；dim 去重收缩＝IntersectionObserver
+  盯文末条挂 `.aractbar--dim`（动作键渐隐、pill 保留、栏高不折叠）；收藏键码点 **e155**（icon-icon_follow，
+  与官方 icon_follow SVG 同形，登记 GLYPHS.feedStow）；窄态藏/蕉同一批键 DOM 不动、宽屏 display:contents
+  摊回直排、窄屏 ⋯ 弹层化。评论键锚定评论头 + 唤起 composer（附节 11）；关注键 relationapi 单源。
+- **Esc 语义**：overlay `onEsc` 裁决——composer 开先收 composer（焦点回 pill）、⋯ 弹层开先收弹层、都没开才
+  关层（真实键盘与 harness 合成键两路同走 overlayEsc）。
+- **入口**（rowkit）：行落点 `openRowDefault` 与评论键文章分支→脚本页宿主开浮层；**原生页宿主维持站方外链**
+  （0.9.314 siteOnly 裁决精神，`openRowSource` 不动）。
+- **共享件改版**：comments.js 回复 chip 文案「回复：@」→「回复 @」（对齐确认稿口径；composer-rich 钉子同步）；
+  新增 `focusEditOf` 单源（`.acsv-cinput-edit` 字面三处同形收口，详情面板/文章浮层共用）；
+  imicons GLYPHS.feedStow；overlay.js 档位摘要补 60。
+
+**测试证据**：单测 `articleread.test.js` 15 条（导出契约/sanitize 分支矩阵/tallImg 双读法+单源防复制字面守卫/
+不喂评论渲染器）；harness 新场景 **article-reader 57 断言 + article-reader-narrow 10 断言**（骨架延迟回包/
+净化探针全矩阵/stype=3 定向桩/dim 双向/composer 三出口/回复 chip/失败重试恢复/窄态收纳），全量 93 场景绿；
+check-preview +4 条（760 版心×3、16/28、28/1.35、75vh×2）、check-zlayers ZLAYER +1（60）、check-direction
+FEATURE 桶、structure/hygiene/lifecycle 基线同批登记（含 requestText 死导出消账——articleread 是它的首个消费方）。
+
+**未实测（显式挂账，验收单 docs/api-research.md §20）**：文章评论 **写链**（add/delete 三形态——顶级/回楼主/
+楼中楼，须自有文章或用户指定目标，不对他人文章发测试评论）；zt 表情图源；赞/蕉/藏写链点亮（首版只读）。
+
+**体积**：撞线属单批功能量级（新件 27KB 源 + CSS 段 2.4KB），check-release 基线同批重裁，注释写明本批理由。
+
 ### 0.9.325（2026-11-05）· 搜索结果骨架永驻——在途回包渲染收口 liveRender（同词重建竞态类级修复）
 
 **病灶（用户实报）**：搜索结果界面视频结果一直播放加载动画（骨架屏 shimmer），不出现内容。
