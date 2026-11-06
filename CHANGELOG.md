@@ -5,6 +5,42 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.327（2026-11-06）· 文章浮层真机反馈五连修——互动写链接通 + 顶栏让位 + 头像字段真名
+
+**病灶（用户真机实报，0.9.326 首装五条）**：① 点赞/投蕉/收藏点了没反应（首版只读，用户预期可交互）；
+② 点「评论」直接弹出 composer 铺满底部整条，不合理；③ 作者头像获取失败；④ 浮层把常驻顶栏整个盖掉
+（「看看 playlayer 怎么处理的」）；⑤ 收藏图标与其它键大小不齐、图标变色不对。
+
+**逐条修法**：
+
+1. **互动写链接通**（`articleread.js`）：赞＝`likePi`（文章走 home 形状 objectType=2+kpf——§17.2
+   大概率成立标首跑验证）；蕉＝`toggleBananaPop` 数量层（文章 resourceType=3，momentbar 文章行同款
+   路径）；藏＝**官方文章页 content chunk 源码反查**出新端点——`POST /rest/pc-direct/favorite`
+   （`resourceId+resourceType=3`）/ `unFavorite`（`resourceIds` 复数形，注意与视频 resource/选夹族
+   不同端点不同参数）→ `favapi.articleStowAdd/Remove`。全部乐观 + 失败回滚 + toast，乐观值回写
+   pi（行卡 syncRowBar 自然跟随）。首版只读的两条纪律注（momentbar 行卡保持只读不变）。
+2. **评论键不再弹 composer**：只 smooth scroll 到评论头（`momentdetail.onComment` 同款语义）；
+   composer 仅输入 pill 触发（用户意图明确才展开）。
+3. **头像字段真名**：真机 SSR 抓 `articleInfo.user` 全字段核对——头像叫 **`headUrl`**（另有
+   headCdnUrls/userHeadImgInfo），**没有**关注流形状的 `userHead`——0.9.326 照关注流形状猜字段
+   即头像失败病灶；取数改 `headUrl || userHead || img` 兜底链。
+4. **顶栏让位**：壳 `inset:0` → `top:var(--acsv-top-h)`（视图体/playlayer 同款让位写法，
+   cssraw.js:1093 先例）——常驻顶栏可见可交互，浮层只占顶栏以下区域；真机量测脚本同步改为直量
+   壳实体（0.9.326 的断言量的是 `#acsv-root` 恒满视口，测量错位掩盖了让位缺失）。
+5. **图标修正**：底栏蕉键悬停被 `.aractbar .aract:hover`（特异度更高）抢成红——补
+   `.aractbar .aract.ban:hover` 蕉黄专条；藏键 e155 实心星视觉偏大 → 13px/窄态 15px 对齐双字形观感。
+
+**测试证据**：article-reader 57→65 断言——新增写链四钉（like on/off/失败回滚、stow on/off/
+失败回滚，桩命中计数同步避乐观类竞态）+ 顶栏让位断言（直量壳实体）；全量 93 场景失败 0；
+lint/tsc/check 20 闸全绿（依赖图 +4 边、hygiene 债务 4→3 消账重登记、structure 基线四件带
+why 重排）。
+
+**未实测（挂账更新）**：likePi 文章形状（§17.2 首跑验证——本次真机操作即首跑，失败走回滚
++toast 不静默）；favapi.articleStow*（〔源码级反查〕未真机首跑，失败同款兜底）；文章收藏
+SSR 不回显收藏态（stowed 初始恒 false，会话内翻转）。
+
+
+
 ### 0.9.326（2026-11-06）· 文章阅读浮层落地——B 案 760 版心 + 轻动作条 + 行内评论区（确认稿 article-reader-v3 v3.1 实现批）
 
 **背景与定位**：评审收口后的确认稿 `docs/preview/article-reader-v3.html`（v3.1）进实现。关注流文章行此前点行/点评论键

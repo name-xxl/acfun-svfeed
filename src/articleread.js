@@ -6,14 +6,15 @@
 // #article-content，再败＝失败态。评论区＝comments.js 管线复用（stype=3 已实测
 // §17.1，与视频同族同串），宿主形态照 momentdetail 的 openCommentsHost 契约
 // （pin＝正文区，输入条三件套随宿主迁移；宿主 el 必须 flex 列 + position:relative，
-// 表情面板 bottom:84px 定位要求）。互动首版只读（稿附节 6：赞/蕉/藏写链未实测，
-// momentbar article 只读先例）；关注键经 relationapi 单源；分享经
-// momentShareItemOf/openSharePanel 单源；正文图点大图经 imgview 单源、加载走
-// imgload 重试链。正文渲染不走评论域 UBB 渲染器（它全文先转义，<p>/<img> 会变
-// 可见字面文本，稿附节 7）
-// ——sanitizeArticleBody 是纯字符串白名单清洗（node 可单测），[emot=zt,*] 方言转
-// 占位（zt 图源未实测，不回填，稿附节 7）。窄态藏/蕉收纳：同一批键 DOM 不动，
+// 表情面板 bottom:84px 定位要求）。互动写链（赞/蕉/藏）0.9.327 起接通——端点出处与
+// 未实测标注见各写链函数注（likePi 文章形状 / favapi.articleStow*）。
+// 正文渲染不走评论域 UBB 渲染器（它全文先转义，<p>/<img> 会变可见字面文本，稿附节 7）
+// ——sanitizeArticleBody 是纯字符串白名单清洗（node 可单测），[emot=zt,*] 方言转占位
+// （zt 图源未实测，不回填，稿附节 7）。窄态藏/蕉收纳：同一批键 DOM 不动，
 // 宽屏 display:contents 摊回底栏直排、窄屏弹层化（值仍单源）。
+// 壳不覆盖常驻顶栏：top 让位 var(--acsv-top-h)（0.9.327 真机反馈批裁决，playlayer/视图体
+// 同款；顶栏保持可见可交互）。作者头像字段＝articleInfo.user.headUrl（真机 SSR 核对——
+// 关注流形状的 userHead 在文章域不存在，0.9.326 误用即头像获取失败病灶）。
 import { CFG } from './cfg.js';
 import { el, elHtml, esc, toast, a11y, closeOnOutsideClick } from './ui.js';
 import { fmtWan } from './timefmt.js';
@@ -27,6 +28,10 @@ import { openSharePanel } from './sharepanel.js';
 import { momentShareItemOf } from './momentbar.js';
 import { openCommentsHost, closeCommentsHost, commentListClick, focusEditOf, replyBtnOf } from './comments.js';
 import { followUser, unfollowUser } from './relationapi.js';
+import { likePi, throwBananaPi } from './interact.js';
+import { articleStowAdd, articleStowRemove } from './favapi.js';
+import { toggleBananaPop } from './banpop.js';
+import { errNotLogin, errBananaThrown } from './toastmsg.js';
 import { GLYPHS } from './imicons.js';
 import { ICONS } from './styles.js';
 import { testHook } from './dbg.js';
@@ -233,7 +238,7 @@ function renderHead(info, failed) {
   var u = (info && info.user) || (curPi && curPi.up) || null;
   var author = el('div', 'arauthor');
   var av = el('span', 'arav');
-  imgInto(av, (u && (u.userHead || u.img)) || CFG.api.defaultAvatar, 'avatar');
+  imgInto(av, (u && (u.headUrl || u.userHead || u.img)) || CFG.api.defaultAvatar, 'avatar');
   author.appendChild(av);
   var mid = el('div', 'ar-mid');
   var name = el('a', 'arname', (u && (u.userName || u.name)) || '');
@@ -285,10 +290,10 @@ function renderHead(info, failed) {
   }
 }
 
-// 互动键（赞/蕉/藏/评论/分享；首版只读——写链未实测，稿附节 6，momentbar article
-// 只读先例）。文末条与底栏的计数文本出自同一份 counts（稿附节 10 状态单源——
-// dim 只收缩可见性，两份 .n 恒等）；comment 键锚到评论头并唤起 composer
-// （稿附节 11），分享走 momentShareItemOf 单源。
+// 互动键（赞/蕉/藏/评论/分享）。文末条与底栏出自同一份 nums 数值态 + st 点亮态
+// （稿附节 10 状态单源——dim 只收缩可见性，两份 .n 恒等）；写链编排见 toggleLike/
+// openBanana/toggleStow；comment 键只锚到评论头（composer 仅 pill 触发，0.9.327 真机
+// 反馈批裁决），分享走 momentShareItemOf 单源。
 function dualGlyph(a, b) {
   return '<span class="acsvg-dual"><i class="acsvg-glyph gpath">' + a + '</i>'
     + '<i class="acsvg-glyph gfill">' + b + '</i></span>';
@@ -306,37 +311,114 @@ function actOf(mount, o) {
 }
 function syncActs() {
   if (!refs) return;
-  var c = refs.counts;
+  var n = refs.nums, st = refs.st;
+  var fmt = {
+    like: fmtWan(n.like), banana: fmtWan(n.banana),
+    stow: n.stow ? fmtWan(n.stow) : '', comment: fmtWan(n.comment)
+  };
   ['like', 'banana', 'stow', 'comment'].forEach(function (k) {
     [refs.acts, refs.barActs].forEach(function (pair) {
-      if (pair && pair[k] && pair[k].n) pair[k].n.textContent = c[k];
+      var h = pair && pair[k];
+      if (!h) return;
+      if (h.n) h.n.textContent = fmt[k];
+      if (k === 'like') {
+        h.node.classList.toggle('on', st.liked);
+        h.node.title = st.liked ? '已赞' : '点赞';
+      } else if (k === 'banana') {
+        h.node.classList.toggle('thrown', st.thrown);
+        h.node.title = st.thrown ? '已投蕉' : '投蕉';
+      } else if (k === 'stow') {
+        h.node.classList.toggle('on', st.stowed);
+        h.node.title = st.stowed ? '已收藏' : '收藏';
+      }
     });
+  });
+  // 同步行卡 pi（同一引用）：浮层乐观值回写后，行卡侧 syncRowBar/视口回填机制自然跟随
+  if (curPi) {
+    curPi.like = n.like; curPi.banana = n.banana; curPi.comment = n.comment;
+    curPi.liked = st.liked; curPi.thrown = st.thrown;
+  }
+}
+
+// ---- 写链（0.9.327 真机反馈批：首版只读改全接通） ----
+// 赞＝likePi（文章走 home 形状 objectType=2+kpf，§17.2 大概率成立标首跑验证）；
+// 蕉＝banpop 数量层（文章 resourceType=3，momentbar 文章行同款路径）；
+// 藏＝favapi.articleStowAdd/Remove（官方文章页源码反查端点，标〔源码级反查〕未真机首跑）。
+// 全部乐观 + 失败回滚 + toast（momentbar wireLike 同款编排）；乐观值回写 pi（行卡同步）。
+function toggleLike() {
+  if (!refs || refs.st.busy.like) return;
+  var st = refs.st, on = !st.liked;
+  st.liked = on;
+  refs.nums.like += on ? 1 : -1;
+  st.busy.like = true;
+  syncActs();
+  likePi(curPi, on).then(function (ok) {
+    if (!refs) return;
+    refs.st.busy.like = false;
+    if (ok) return;
+    refs.st.liked = !on;
+    refs.nums.like += on ? -1 : 1;
+    syncActs();
+    errNotLogin();
+  });
+}
+function openBanana(btn) {
+  if (!refs || refs.st.busy.ban) return;
+  if (refs.st.thrown) { errBananaThrown(); return; }
+  toggleBananaPop(btn, {
+    anchorBtn: true, // 底栏横贯整宽 ⇒ 弹层按按钮矩形锚（momentbar 0.9.207 同款）
+    send: function (n) { return throwBananaPi(curPi, n); },
+    applied: function (n) {
+      refs.nums.banana += n;
+      refs.st.thrown = true;
+      syncActs();
+      toast('投蕉成功');
+    }
+  });
+}
+function toggleStow() {
+  if (!refs || refs.st.busy.stow) return;
+  var st = refs.st, on = !st.stowed;
+  st.stowed = on;
+  refs.nums.stow += on ? 1 : -1;
+  st.busy.stow = true;
+  syncActs();
+  (on ? articleStowAdd(curPi.acId) : articleStowRemove(curPi.acId)).then(function (ok) {
+    if (!refs) return;
+    refs.st.busy.stow = false;
+    if (ok) return;
+    refs.st.stowed = !on;
+    refs.nums.stow += on ? -1 : 1;
+    syncActs();
+    toast(on ? '收藏失败' : '取消收藏失败');
   });
 }
 // 键序统一 赞/蕉/藏/评论/分享（稿节①）——底栏 DOM 序与文末条一致，dim 态两份 .n
 // 逐字相等才成立（测试钉）；窄态把 蕉/藏 两键挂进 ⋯ 弹层（DOM 序不变，CSS 摆位）
-function actKeys(mount, pi, info, ctx) {
-  var c = ctx.counts;
+function actKeys(mount, ctx) {
   var out = {};
-  var likeOn = info ? !!info.isLike : !!pi.liked;
-  var thrown = info ? !!info.isThrowBanana : !!pi.thrown;
+  var st = ctx.st;
   out.like = actOf(mount, {
     glyphs: [GLYPHS.feedLike, GLYPHS.feedLikeFill],
-    title: likeOn ? '已赞' : '点赞', n: c.like, cls: likeOn ? 'on' : ''
+    title: st.liked ? '已赞' : '点赞', n: fmtWan(ctx.nums.like), cls: st.liked ? 'on' : '',
+    onClick: function () { toggleLike(); }
   });
   out.banana = actOf(mount, {
     glyphs: [GLYPHS.feedBanana, GLYPHS.feedBananaFill],
-    title: thrown ? '已投蕉' : '投蕉', n: c.banana, cls: thrown ? 'thrown ban' : 'ban'
+    title: st.thrown ? '已投蕉' : '投蕉', n: fmtWan(ctx.nums.banana),
+    cls: st.thrown ? 'thrown ban' : 'ban',
+    onClick: function (btn) { openBanana(btn); }
   });
   out.stow = actOf(mount, {
-    glyph: GLYPHS.feedStow, title: '收藏', n: c.stow, cls: 'stow'
+    glyph: GLYPHS.feedStow, title: '收藏', n: ctx.nums.stow ? fmtWan(ctx.nums.stow) : '',
+    cls: 'stow' + (st.stowed ? ' on' : ''),
+    onClick: function () { toggleStow(); }
   });
   out.comment = actOf(mount, {
-    glyph: GLYPHS.feedComment, title: '评论', n: c.comment,
+    glyph: GLYPHS.feedComment, title: '评论', n: fmtWan(ctx.nums.comment),
     onClick: function () {
       var head = refs.pin.querySelector('.ar-cmhead');
       if (head) head.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      composerMode(true);
     }
   });
   out.share = actOf(mount, {
@@ -429,7 +511,7 @@ function renderArticle(info) {
   // 文末动作条沿用 .acsv-mdetail-actions 真值（gap 26 / margin-top 12 / padding-bottom
   // 12 单源在 cssraw）——稿承诺的是取值，类名直接复用，不新写 .aracts 副本
   var acts = el('div', 'acsv-mdetail-actions');
-  refs.acts = actKeys(acts, curPi, info, refs);
+  refs.acts = actKeys(acts, refs);
   pin.appendChild(acts);
   var cmhead = el('div', 'ar-cmhead');
   refs.title = el('span', 'ar-cmtitle', '评论');
@@ -509,11 +591,13 @@ function loadArticle() {
   fetchArticle(curPi.acId).then(function (info) {
     if (!shell) return; // 回包前已关层：防回填死节点（momentdetail 同款判据）
     // 计数取 SSR 真值（缺省回落 pi 的列表载荷）
-    var c = refs.counts;
-    c.like = info.likeCount != null ? fmtWan(info.likeCount) : fmtWan(curPi.like);
-    c.banana = info.bananaCount != null ? fmtWan(info.bananaCount) : fmtWan(curPi.banana);
-    c.stow = info.stowCount != null ? fmtWan(info.stowCount) : '';
-    c.comment = info.commentCount != null ? fmtWan(info.commentCount) : fmtWan(curPi.comment);
+    var n = refs.nums;
+    n.like = info.likeCount != null ? (Number(info.likeCount) || 0) : (curPi.like || 0);
+    n.banana = info.bananaCount != null ? (Number(info.bananaCount) || 0) : (curPi.banana || 0);
+    n.stow = info.stowCount != null ? (Number(info.stowCount) || 0) : 0;
+    n.comment = info.commentCount != null ? (Number(info.commentCount) || 0) : (curPi.comment || 0);
+    refs.st.liked = info.isLike != null ? !!info.isLike : !!curPi.liked;
+    refs.st.thrown = info.isThrowBanana != null ? !!info.isThrowBanana : !!curPi.thrown;
     renderArticle(info);
     // 评论管线灌进宿主（stype=3 已实测 §17.1；shareUrl 给评论转发锚点与空态出口；
     // pin＝正文区，resetList 清列表后由管线重挂）
@@ -535,10 +619,11 @@ export function openArticleReader(pi) {
   if (!pi || pi.ct !== 'article' || !pi.acId) return;
   closeArticleReader();
   curPi = pi;
-  var counts = {
-    like: fmtWan(pi.like), banana: fmtWan(pi.banana),
-    stow: '', comment: fmtWan(pi.comment)
+  var nums = {
+    like: Number(pi.like) || 0, banana: Number(pi.banana) || 0,
+    stow: 0, comment: Number(pi.comment) || 0
   };
+  var st = { liked: !!pi.liked, thrown: !!pi.thrown, stowed: false, busy: {} };
   var s = el('div', 'acsv-artread');
   s.addEventListener('click', function (ev) {
     if (ev.target === s) closeArticleReader(); // 壳底即背板：点底关（mdetail 同款）
@@ -602,7 +687,7 @@ export function openArticleReader(pi) {
   refs = {
     head: head, covbd: covbd, covin: covin, list: list, pin: pin,
     hostEl: hostEl, bar: bar, barIn: barIn, pill: pill,
-    more: more, pop: pop, counts: counts, acts: null, barActs: null, title: null
+    more: more, pop: pop, nums: nums, st: st, acts: null, barActs: null, title: null
   };
   composerOpen = false;
   pill.addEventListener('click', function (ev) { ev.stopPropagation(); composerMode(true); });
@@ -610,7 +695,7 @@ export function openArticleReader(pi) {
   // 底栏直排键 + ⋯ 弹层键：同一批节点。more 插到「评论」键之前（DOM 序 =
   // 赞/蕉/藏/评论/分享，与文末条逐字对齐——dim 态两份 .n 恒等测试钉）；蕉/藏两键
   // 挂进弹层，宽屏 display:contents 摊回直排、窄屏弹层化（值仍单源，稿节④）
-  refs.barActs = actKeys(barIn, pi, null, refs);
+  refs.barActs = actKeys(barIn, refs);
   barIn.insertBefore(more, refs.barActs.comment.node);
   pop.appendChild(refs.barActs.banana.node);
   pop.appendChild(refs.barActs.stow.node);

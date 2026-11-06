@@ -100,3 +100,16 @@ export function favRemove(acId, delIds) {
   return postForm(CFG.api.favoriteRemove,
     'resourceId=' + acId + '&resourceType=' + RT.DOUGA + '&delFolderIds=' + delIds.join(',')).then(ok0);
 }
+
+// ---------- 文章收藏（0.9.327：官方文章页 content chunk 源码反查——favorite/unFavorite
+// 直投单夹语义，与视频 favorite/resource+rt9 选夹族**不同端点不同参数**；resourceType=3、
+// result===0；取消是 resource**Ids** 复数形。标〔官方源码级反查〕未真机首跑——失败态由
+// 调用方回滚 + toast 兜底（§17.2 点赞同款纪律））
+export function articleStowAdd(articleId) {
+  return postForm(CFG.api.articleFavorite,
+    'resourceId=' + articleId + '&resourceType=' + RT.ARTICLE).then(ok0);
+}
+export function articleStowRemove(articleId) {
+  return postForm(CFG.api.articleUnfavorite,
+    'resourceIds=' + articleId + '&resourceType=' + RT.ARTICLE).then(ok0);
+}
