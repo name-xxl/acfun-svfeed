@@ -2049,8 +2049,11 @@ export var CSS_TEMPLATE = ''
   + '.aractbar .aract.on{color:var(--acsv-accent)}'
   + '.aractbar .aract.thrown{color:var(--acsv-ban-new)}'
   + '.aractbar .aract.ban:hover{color:var(--acsv-ban-new)}'
-  + '.aract.stow .acsvg-glyph{font-size:13px}'
-  + '.aractbar .aract.stow .acsvg-glyph{font-size:14px}'
+  // 藏键 e155 字形墨迹仅 0.749×0.703 em（fontTools 轮廓实测；赞/蕉族≈1.0 em）——
+  // 同字号视觉只有七成，按墨迹高度精确补偿：14/16px 槽位 → 20/23px（墨迹宽 15px 在
+  // 14px 框内居中溢出 0.5px/侧，可忽略；框定行高布局不变）
+  + '.aract.stow .acsvg-glyph{font-size:20px}'
+  + '.aractbar .aract.stow .acsvg-glyph{font-size:23px}'
   + '.aractbar .aract .acsvg-glyph{font-size:16px;width:16px;height:16px;line-height:16px}'
   + '.aractbar-more{display:contents}'
   + '.aractbar-morebtn{display:none}'
