@@ -32,10 +32,11 @@ import { CFG } from './cfg.js';
 export var SCHEMA = [
   { key: 'updCheck', type: 'bool', def: true, panel: true, group: '通用',
     label: '自动检查更新', hint: '关掉后不再自动拉取 release 说明（顶栏「更新」仍可手动看）' },
-  // 自动签到（0.9.277）：进脚本主页（/）静默签到一次；当天已签服务端判定跳过。聊天入口为
-  // 我的页资料头按钮（signapi/signpanel）——本项只控自动链，手动按钮始终可用
+  // 自动签到（0.9.277 建立；0.9.345 时机复审：触发面=进入脚本页（竖刷首挂），原生页零行为
+  // 零弹窗——旧注「脚本主页（/）」实为官方首页 URL 判据，与竖刷挂载态无关，本次一并纠正）。
+  // 手动入口为我的页资料头按钮（signapi/signpanel）——本项只控自动链，手动按钮始终可用
   { key: 'autoSign', type: 'bool', def: true, panel: true, group: '通用',
-    label: '自动签到', hint: '进入脚本主页时自动签到，当天已签自动跳过，不弹黄历' },
+    label: '自动签到', hint: '进入脚本页（竖刷）时自动签到，当天已签自动跳过；签成功弹黄历卡' },
   // 官方页面增强总闸（0.9.341，确认稿 docs/preview/native-inject-switch.html）：manage 标记
   // ＝皮肤把本行渲成「开关+管理钮」双控件行（type 仍 bool，不扩类型词表）；hintOff＝关态
   // 话术（sync 随值切换）。子项＝SCHEMA 末尾 sub:'inject' 五键（0.9.343 复审：首页导航入口

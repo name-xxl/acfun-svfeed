@@ -1,6 +1,7 @@
 // ---------- 签到结果的落地动作单源（0.9.324）----------
-// 跨面两处：① 我的页资料头按钮的手动签到（mypage.doSign / reopen）② 进脚本主页的自动签到
-//（boot home 分支；用户裁决「自动签到成功应该弹出黄历」）。各写一遍＝同形副本且必然漂。
+// 跨面两处：① 我的页资料头按钮的手动签到（mypage.doSign / reopen）② 进入脚本页的自动签到
+//（0.9.345 起挂 player.mount 首挂旗标，旧 boot home 分支撤除——原生页零行为零弹窗；用户裁决
+//「自动签到成功应该弹出黄历」不变）。各写一遍＝同形副本且必然漂。
 // 依赖方向：本件只 import 视图件（signpanel）/ 域件（signapi）/ 话术件（toastmsg），不反向被它们 import。
 import { fetchAlmanac } from './signapi.js';
 import { openSignAlmanac } from './signpanel.js';

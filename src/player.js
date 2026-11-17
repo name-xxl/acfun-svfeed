@@ -21,6 +21,8 @@ import { toggleImDrawer, teardownIm } from './imdrawer.js';
 import { mountBadge } from './imbadge.js'; // 未读徽标（0.9.163 自 imdrawer 拆出）
 import { releaseCheck, openReleaseNotes, teardownRelease } from './release.js';
 import { openSettings } from './settingspanel.js';
+import { tryAutoSign, signedThisRun } from './signapi.js'; // 自动签到（0.9.345 时机复审：从 boot home 迁进首挂——原生页零行为零弹窗）
+import { popSignAlmanac } from './signpop.js';             // 签到落地动作单源（0.9.324 语义不动：真签上才弹黄历）
 import { overlayTeardown } from './overlay.js';
 import { syncRouteView, teardownViews, currentView, backFromOrigin } from './views.js';
 import { buildDock, teardownDock, setFeedHomeHandler } from './sidebar.js';
@@ -297,6 +299,23 @@ function loadDeepLink(mid, src) {
   });
 }
 
+// 自动签到（0.9.277 建立；0.9.345 时机复审迁自 boot home）：**首次进入脚本页**静默签一次。
+// 判据面=挂载态而非 URL——旧实现在 boot home 分支（kind 'home'＝官方首页 pathname '/'，与
+// hash 无关），裸 '/' 也会签、黄历卡还会经 signpanel 的 body 兜底盖上官方首页（用户复审：
+// 设计计划＝进脚本页才签才弹，原生页零行为零弹窗）。迁到首挂后，任何页面（含粘 #svfeed
+// 深链的非首页）进竖刷都算「进入脚本页」，与语义更贴；弹卡宿主天然落 #acsv-root。
+// 一次性三层各司其职：本旗标＝本页面生命周期只在首挂发起（重进不重复弹/不重试——与旧
+// boot 口径「一次」等值）；autoFlight＝会话内单飞（并发去重）；signedThisRun+服务端判定＝
+// 当天已签不重签不弹（0.9.277/0.9.324 裁决不变）。
+var autoSignFired = false;
+function autoSignOnFirstMount() {
+  if (autoSignFired) return;
+  autoSignFired = true;
+  tryAutoSign().then(function (r) {
+    if (signedThisRun(r)) popSignAlmanac(r, null);
+  });
+}
+
 function mount() {
   dbg('mount-enter');
   if (root) return;
@@ -352,6 +371,7 @@ function mount() {
   mountBadge(tb.imBtn, tb.imBtn.querySelector('.acsv-im-badge'));
   dbg('root-appended');
   releaseCheck(); // 每次打开竖刷页检查一次更新（内部带最小间隔节流，失败静默）
+  autoSignOnFirstMount(); // 自动签到（0.9.345）：首挂一次——设置关/未登录/已签/失败全静默，仅真签上弹黄历
 
   io = makeIO();
   land.startSnapWatch(); // 落位兜底（0.9.231）：舞台生命周期内常驻，unmount 停

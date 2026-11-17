@@ -602,9 +602,9 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `cssseg.js` | 影子根/文档级共用 CSS 段 token 单源（0.9.309 影子样式缝化，零依赖纯常量）：settingspanel/imnative 影子根吃不到文档级样式，面板同段此前与 cssraw 模板逐字并存、靠「对齐抽屉数值」注释手工同步——现 cssraw（构建期插值）与影子根（运行时）同取本件；段值含块尾 `}`，改值一处生效，字节级同证见 0.9.309 CHANGELOG。 |
 | `ubbattr.js` | UBB 出链/出图 HTML 属性段单源（0.9.309，零依赖叶）：`A_TAIL`（`" target="_blank" rel="noopener">`）/`IMG_TAIL`（`" referrerpolicy="no-referrer">`）——target/rel/referrerpolicy 是策略不是胶水，散写即行为分叉温床；ubb/emoticon/imbubble/commentkit 四面消费。 |
 | `nameval.js` | 组名/夹名校验（零依赖叶）：与原生 bundle 正则逐字符一致；消费 grouppop/favpop/followadmin/mytabs。 |
-| `signapi.js` | 签到域（0.9.277）：双链写 + 签到日历 + 黄历；消费 mypage。 |
+| `signapi.js` | 签到域（0.9.277）：双链写 + 签到日历 + 黄历；消费 mypage（手动入口）与 player（自动链首挂触发，0.9.345 时机复审自 boot 迁入）。 |
 | `signpanel.js` | 签到黄历弹窗（0.9.277）：App 式 3:4 卡 + 规则翻面；0.9.298 起入 overlay 栈，关闭归视图 teardown。 |
-| `signpop.js` | 签到结果落地动作单源（0.9.324）：`popSignAlmanac(r, state)` —— 有 `r.almanac` 直用，否则实时 `fetchAlmanac` → 弹；香蕉数按「实拿 banana → 当日档位 reward」兜底；拉不到只走 `toastmsg.errSignAlmanac`。手动（mypage）与自动（boot home，仅本次真签上）两条签到路共用。 |
+| `signpop.js` | 签到结果落地动作单源（0.9.324）：`popSignAlmanac(r, state)` —— 有 `r.almanac` 直用，否则实时 `fetchAlmanac` → 弹；香蕉数按「实拿 banana → 当日档位 reward」兜底；拉不到只走 `toastmsg.errSignAlmanac`。手动（mypage）与自动（player 首挂，0.9.345；仅本次真签上）两条签到路共用。 |
 | `timefmt.js` | 时间/计数文案纯函数（零依赖叶）：`relTime`/`fmtDate`/`fmtAgo`/`fmtWan` + 播放面文案 `fmtTime`（mm:ss，自 ui.js 下沉、ui 门面再导保旧引用）/`timeText`（「x / y」单源，onMeta/onTime 同值短路依赖两侧同式）/`timeRateLabel`（「N.Nx」单源）（0.9.305 批④②⑥）。契约层、卡片与评论、播放控制面共用。 |
 | `ui.js` | `el`/`esc`/`toast`/`a11y`/剪贴板/样式注入等工具（被几乎全部 UI 模块引用）。 |
 | `uplook.js` | 作者观感映射（等级色/署名颜色，零依赖叶）；消费 rowkit/commentkit/momentdetail。 |
@@ -762,7 +762,7 @@ flowchart LR
   appapi --> imgurl & timefmt
   session --> api & hls & settings & quality
   attach --> feedstore & quality & session & settings & domfields
-  player --> api & attach & comments & danmaku & errbox & feedland & feedstore & followstream & imbadge & imdrawer & input & overlay & pb & playlayer & release & sessionhooks & settingspanel & sidebar & topbar & uppage & views
+  player --> api & attach & comments & danmaku & errbox & feedland & feedstore & followstream & imbadge & imdrawer & input & overlay & pb & playlayer & release & sessionhooks & settingspanel & sidebar & signapi & signpop & topbar & uppage & views
   sessionhooks --> attach & danmaku & feedstore & pb & playlayer & views & timefmt
   feedstore --> api & feedctx
   momentapi --> cfg & net & panelitem
@@ -793,7 +793,7 @@ flowchart LR
   imbubble --> appapi & emoticon & imcard & imimage & imgload & imgview & immsg & imicons & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & imicons & immsg
-  boot --> followview & imnative & injects & jingxuanview & memberplaza & mypage & pagekind & player & playlayer & searchview & spacemoments & squareview & uppage & zone & signapi & signpop
+  boot --> followview & imnative & injects & jingxuanview & memberplaza & mypage & pagekind & player & playlayer & searchview & spacemoments & squareview & uppage & zone
   injects --> settings
   views --> feedstore & overlay & sidebar & topbar & viewreg
   cards --> imgload & imgview & imicons & ubb & uplook

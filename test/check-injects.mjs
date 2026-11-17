@@ -109,8 +109,8 @@ const BOOT_ROLES = {
   // SCRIPT：脚本自有世界（竖刷壳/dock 自注册视图/页内行为），不在注入闸射程（用户裁决 0.9.341）
   './player.js': { role: 'SCRIPT' },   // 竖刷壳本体（toggle/mount）
   './natpanel.js': { role: 'SCRIPT' }, // 脚本页 IP 面板（原生页 IP 文本注入在 nativeip＝闸内）
-  './signapi.js': { role: 'SCRIPT' },  // 自动签=行为链非 DOM 注入；弹层落位时机另批裁决（勿借本行夹带）
-  './signpop.js': { role: 'SCRIPT' },
+  './signapi.js': { role: 'SCRIPT' },  // 签到=行为链非 DOM 注入；0.9.345 起自动链挂 player 首挂（原生页零行为零弹窗）
+  './signpop.js': { role: 'SCRIPT' },  // 落地动作单源；卡宿主随首挂恒 #acsv-root
   './mypage.js': { role: 'SCRIPT' },   // 以下六件＝registerView 自注册（脚本页 dock 世界）
   './zone.js': { role: 'SCRIPT' },
   './searchview.js': { role: 'SCRIPT' },
