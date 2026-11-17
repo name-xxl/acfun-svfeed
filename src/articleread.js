@@ -288,8 +288,10 @@ function actOf(mount, o) {
   b.title = o.title;
   if (o.glyphs) b.appendChild(elHtml('span', null, dualGlyph(o.glyphs[0], o.glyphs[1])));
   else if (o.svgIdle) {
-    // 描边 SVG（idle）+ 实心字形（点亮）双件并存，显隐归 cssraw（.aract.stow/.on 切换）
-    b.appendChild(elHtml('span', null, o.svgIdle));
+    // 描边 SVG（idle）+ 实心字形（点亮）双件并存，显隐归 cssraw（.aract.stow/.on 切换）；
+    // 槽位类 arstow-slot（0.9.335）：两态共用 23×23 盒——此前 idle 是裸 span 包 block SVG、
+    // 点亮是 23px 字体挤 16px 行盒，槽位差 7px＝点收藏图标跳动病灶
+    b.appendChild(elHtml('span', 'arstow-slot', o.svgIdle));
     b.appendChild(el('i', 'acsvg-glyph', o.glyph));
   } else b.appendChild(el('i', 'acsvg-glyph', o.glyph));
   var n = null;

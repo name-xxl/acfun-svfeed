@@ -182,8 +182,11 @@
   .aract.on{color:var(--acsv-accent)}
   .aract.thrown{color:var(--acsv-ban)}
   .aract .n{font-variant-numeric:tabular-nums}
-  /* 藏键 idle 描边星（v3.2）：字体内无纯描边星（e160/e3c8 带 A 字标），取 e155 同几何轮廓
-     stroke 55/1024 描边；点亮态换 e155 实心 accent（见附节 7）。槽位沿用 0.9.329 补偿 20/23px */
+  /* 藏键 idle 描边星（v3.2；v3.3 槽位统一）：字体内无纯描边星（e160/e3c8 带 A 字标），取
+     e155 同几何轮廓 stroke 55/1024 描边，viewBox y 起点 105＝墨迹中心化（整字框下墨迹偏低
+     ≈2.4px，v3.3 真机实报修复）；点亮态换 e155 实心 accent（见附节 7）。槽位沿用 0.9.329
+     补偿 23px，v3.3 起 idle 槽（.arstow-slot）与点亮实心字形同占 23×23 盒——点收藏不跳动 */
+  .arstow-slot{display:block;width:23px;height:23px;line-height:0}
   .arstow{width:23px;height:23px;display:block}
 
 
@@ -493,7 +496,7 @@
             <button class="aractbar-input" title="写评论">说点什么…</button>
             <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
             <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
-            <span class="aract stow" title="收藏"><svg class="arstow" viewBox="0 0 1024 1024" aria-hidden="true"><g transform="translate(0,1024) scale(1,-1)"><path d="M675 597 570 734Q561 749 545.5 758.0Q530 767 512.0 767.0Q494 767 478.5 758.5Q463 750 454 734L349 597L182 541Q165 538 151.5 526.0Q138 514 132.0 497.0Q126 480 130.0 462.5Q134 445 147 432L247 291L250 121Q248 103 255.5 86.5Q263 70 277.5 59.5Q292 49 310.0 47.5Q328 46 344 53L512 103L680 53Q697 46 714.5 47.5Q732 49 746.5 59.5Q761 70 768.5 86.5Q776 103 774 121L777 291L878 432Q890 445 894.0 462.5Q898 480 892.0 497.0Q886 514 872.5 526.0Q859 538 842 541Z" fill="none" stroke="currentColor" stroke-width="55" stroke-linejoin="round"/></g></svg><span class="n">8924</span></span>
+            <span class="aract stow" title="收藏"><span class="arstow-slot"><svg class="arstow" viewBox="0 105 1024 1024" aria-hidden="true"><g transform="translate(0,1024) scale(1,-1)"><path d="M675 597 570 734Q561 749 545.5 758.0Q530 767 512.0 767.0Q494 767 478.5 758.5Q463 750 454 734L349 597L182 541Q165 538 151.5 526.0Q138 514 132.0 497.0Q126 480 130.0 462.5Q134 445 147 432L247 291L250 121Q248 103 255.5 86.5Q263 70 277.5 59.5Q292 49 310.0 47.5Q328 46 344 53L512 103L680 53Q697 46 714.5 47.5Q732 49 746.5 59.5Q761 70 768.5 86.5Q776 103 774 121L777 291L878 432Q890 445 894.0 462.5Q898 480 892.0 497.0Q886 514 872.5 526.0Q859 538 842 541Z" fill="none" stroke="currentColor" stroke-width="55" stroke-linejoin="round"/></g></svg></span><span class="n">8924</span></span>
             <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
             <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
           </div>
@@ -780,7 +783,7 @@
             <button class="aractbar-input" title="写评论">说点什么…</button>
             <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
             <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
-            <span class="aract stow" title="收藏"><svg class="arstow" viewBox="0 0 1024 1024" aria-hidden="true"><g transform="translate(0,1024) scale(1,-1)"><path d="M675 597 570 734Q561 749 545.5 758.0Q530 767 512.0 767.0Q494 767 478.5 758.5Q463 750 454 734L349 597L182 541Q165 538 151.5 526.0Q138 514 132.0 497.0Q126 480 130.0 462.5Q134 445 147 432L247 291L250 121Q248 103 255.5 86.5Q263 70 277.5 59.5Q292 49 310.0 47.5Q328 46 344 53L512 103L680 53Q697 46 714.5 47.5Q732 49 746.5 59.5Q761 70 768.5 86.5Q776 103 774 121L777 291L878 432Q890 445 894.0 462.5Q898 480 892.0 497.0Q886 514 872.5 526.0Q859 538 842 541Z" fill="none" stroke="currentColor" stroke-width="55" stroke-linejoin="round"/></g></svg><span class="n">8924</span></span>
+            <span class="aract stow" title="收藏"><span class="arstow-slot"><svg class="arstow" viewBox="0 105 1024 1024" aria-hidden="true"><g transform="translate(0,1024) scale(1,-1)"><path d="M675 597 570 734Q561 749 545.5 758.0Q530 767 512.0 767.0Q494 767 478.5 758.5Q463 750 454 734L349 597L182 541Q165 538 151.5 526.0Q138 514 132.0 497.0Q126 480 130.0 462.5Q134 445 147 432L247 291L250 121Q248 103 255.5 86.5Q263 70 277.5 59.5Q292 49 310.0 47.5Q328 46 344 53L512 103L680 53Q697 46 714.5 47.5Q732 49 746.5 59.5Q761 70 768.5 86.5Q776 103 774 121L777 291L878 432Q890 445 894.0 462.5Q898 480 892.0 497.0Q886 514 872.5 526.0Q859 538 842 541Z" fill="none" stroke="currentColor" stroke-width="55" stroke-linejoin="round"/></g></svg></span><span class="n">8924</span></span>
             <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
             <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
           </div>

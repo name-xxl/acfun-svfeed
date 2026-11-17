@@ -5,6 +5,27 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.335（2026-11-17）· 文章浮层藏键几何双修——图标墨迹偏低 ≈2.4px（viewBox 中心化）+ 点收藏跳动（两态槽位差 7px 统一）
+
+**病灶（用户真机实报两条）**：① 收藏图标视觉上低了几个像素——stowOutline viewBox 用整字框
+`0 0 1024 1024`，但星形墨迹（y-up 坐标系）只占 46.5..767，翻转后落 257..977：墨迹中心比框
+中心低 105/1024 × 23px ≈ **2.4px**（纯几何实算，非猜测）；② 点收藏后图标跳动——idle 态是
+裸 span 包 23×23 block SVG，点亮态切 e155 字体只改了 `font-size:23px`，外盒仍吃通用规则
+16×16/line-height:16（cssraw 通用盒）→ 两态槽位差 7px，flex 行高变化即跳。
+
+**修法（稿 article-reader-v3 同批改版 v3.3——改版先改稿）**：
+① `ICONS.stowOutline` viewBox 改 `0 105 1024 1024`：框随墨迹中心平移、缩放不变（23/1024），
+墨迹即盒中居中；② actOf 的 svgIdle 包装加槽位类 `.arstow-slot`，cssraw 两态同占 23×23 盒
+（idle `line-height:0` 吃掉行盒余量；点亮字形盒 23/23/23 + text-align 居中）——盒规则不带
+display，显隐仍归两条 `.on` 切换（首版失误把 display:block 写进盒规则压过 idle 隐藏，
+article-stow-outline 断言当场转红抓回——闸在干活）；稿侧同步：附节 SVG 两处 viewBox + CSS
+块加槽位线 + 标本加包装。
+
+**测试证据**：article-stow-outline 断言首跑转红（显隐被特异度压过）→ 修正复绿；article-
+reader 69 断言 / article-reader-narrow 10 断言全绿；check-preview 全绿（稿改版未动任何在册
+取值字面）。结构基线 cssraw/styles 两件随批登记。点亮态实心字形（字体渲染）如有 1–2px 残
+差属字体基线放置，待用户真机复检后决定是否加量测补偿。
+
 ### 0.9.334（2026-11-17）· T4 IM 接收链批——文章分享出文章卡（F3 收口）+ 行流视频分享不再被降级评论卡（裁决④）
 
 **病灶**：① 文章评论转发 shareUrl 是 `/a/ac` 链，接收端 `RE_AC_URL` 只认 `/v/ac` → parseShare

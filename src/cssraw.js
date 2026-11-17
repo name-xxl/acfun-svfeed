@@ -2079,8 +2079,12 @@ export var CSS_TEMPLATE = ''
   // 藏键只存在于文章底栏（文末条已删、momentbar 无藏键）——补偿槽位（0.9.329 实测 23px）延续：
   // 描边星与实心星同几何同框；0.9.329 的 14px 档随文末条一并退役
   + '.aract.stow .acsvg-glyph{display:none}'
+  // 槽位统一（0.9.335 跳动病灶修复）：idle 的裸 span 包 block SVG 会多出行盒、点亮是 23px
+  // 字体挤 16px 行盒（2087 通用盒）——两态槽位差 7px＝点收藏图标跳动；现两态同占 23×23 盒
+  //（盒规则不带 display——显隐仍归上下两条 .on 切换，特异度勿压）
+  + '.aract.stow .arstow-slot{display:block;width:23px;height:23px;line-height:0}'
   + '.aractbar .aract.stow .arstow{width:23px;height:23px;display:block}'
-  + '.aractbar .aract.stow .acsvg-glyph{font-size:23px}'
+  + '.aractbar .aract.stow .acsvg-glyph{font-size:23px;width:23px;height:23px;line-height:23px;text-align:center}'
   // .on 切换（后置压同特异度的 bar 规则）：点亮露实心字形、收描边
   + '.aract.stow.on .arstow{display:none}'
   + '.aract.stow.on .acsvg-glyph{display:block}'
