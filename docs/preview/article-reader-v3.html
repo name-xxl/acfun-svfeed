@@ -182,11 +182,13 @@
   .aract.on{color:var(--acsv-accent)}
   .aract.thrown{color:var(--acsv-ban)}
   .aract .n{font-variant-numeric:tabular-nums}
-  /* 藏键 idle 描边星（v3.2；v3.3 槽位统一）：字体内无纯描边星（e160/e3c8 带 A 字标），取
-     e155 同几何轮廓 stroke 55/1024 描边，viewBox y 起点 105＝墨迹中心化（整字框下墨迹偏低
-     ≈2.4px，v3.3 真机实报修复）；点亮态换 e155 实心 accent（见附节 7）。槽位沿用 0.9.329
-     补偿 23px，v3.3 起 idle 槽（.arstow-slot）与点亮实心字形同占 23×23 盒——点收藏不跳动 */
-  .arstow-slot{display:block;width:23px;height:23px;line-height:0}
+  /* 藏键 idle 描边星（v3.2；v3.3 槽位统一；v3.4 底对齐）：字体内无纯描边星（e160/e3c8 带
+     A 字标），取 e155 同几何轮廓 stroke 55/1024 描边，viewBox y 起点 105＝墨迹中心化（整字框
+     下墨迹偏低 ≈2.4px，v3.3 真机实报修复）；点亮态换 e155 实心 accent（见附节 7）。槽位沿用
+     0.9.329 补偿 23px，v3.3 起 idle 槽（.arstow-slot）与点亮实心字形同占 23×23 盒——点收藏
+     不跳动；v3.4 用户裁决「按其他图标底部对齐」：canvas 实测邻键墨迹底＝盒底+1px、藏键＝
+     +1.5px，居中后墨迹底差 4px → 两态整体 translateY(-4px)，多出高度向上（星形显高不显坠） */
+  .arstow-slot{display:block;width:23px;height:23px;line-height:0;transform:translateY(-4px)}
   .arstow{width:23px;height:23px;display:block}
 
 

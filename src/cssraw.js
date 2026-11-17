@@ -2091,9 +2091,11 @@ export var CSS_TEMPLATE = ''
   // 槽位统一（0.9.335 跳动病灶修复）：idle 的裸 span 包 block SVG 会多出行盒、点亮是 23px
   // 字体挤 16px 行盒（2087 通用盒）——两态槽位差 7px＝点收藏图标跳动；现两态同占 23×23 盒
   //（盒规则不带 display——显隐仍归上下两条 .on 切换，特异度勿压）
-  + '.aract.stow .arstow-slot{display:block;width:23px;height:23px;line-height:0}'
+  // 底对齐补偿（0.9.339 用户裁决「按其他图标底部对齐」）：canvas 实测邻键墨迹底＝盒底+1px、
+  // 藏键墨迹底＝盒底+1.5px，居中后两盒墨迹底差 23/16 盒高差＝4px——藏键整体上移 4px 底对齐
+  + '.aract.stow .arstow-slot{display:block;width:23px;height:23px;line-height:0;transform:translateY(-4px)}'
   + '.aractbar .aract.stow .arstow{width:23px;height:23px;display:block}'
-  + '.aractbar .aract.stow .acsvg-glyph{font-size:23px;width:23px;height:23px;line-height:23px;text-align:center}'
+  + '.aractbar .aract.stow .acsvg-glyph{font-size:23px;width:23px;height:23px;line-height:23px;text-align:center;transform:translateY(-4px)}'
   // .on 切换（后置压同特异度的 bar 规则）：点亮露实心字形、收描边
   + '.aract.stow.on .arstow{display:none}'
   + '.aract.stow.on .acsvg-glyph{display:block}'
