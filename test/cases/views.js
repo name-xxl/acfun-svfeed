@@ -149,6 +149,17 @@ rec('moments-rows', !!(await waitFor(function () {
   return rows.length === 3 && !!rows[0].querySelector('.acsv-frow-text')
     && !!rows[1].querySelector('.acsv-frow-strip') && !!rows[2].querySelector('.acsv-frow-strip');
 }, 8000)), 'rows=' + document.querySelectorAll('.acsv-mepanel[data-tab="moments"] .acsv-frow').length);
+// 动态 tab 视频行点击=播放层单条（0.9.332：openRowDefault 补 video 分支——视频 pi 契约层无 href，
+// 此前 else 兜底静默吞点击=死点击；摘单源 video 分支回退 followview 本地副本形状即红）
+var vidRow = document.querySelectorAll('.acsv-mepanel[data-tab="moments"] .acsv-frow')[1];
+if (vidRow) vidRow.click();
+rec('moments-video-row-open', !!(await waitFor(function () {
+  return !!q('.acsv-slide[data-ovl="1"]');
+}, 8000)), 'slide=' + !!q('.acsv-slide[data-ovl="1"]'));
+key('Escape');
+rec('moments-video-row-back', !!(await waitFor(function () {
+  return location.hash === '#svfeed/my' && !q('.acsv-slide[data-ovl="1"]');
+}, 8000)), location.hash);
 // ---- 稍后再看第 5 档（0.9.279）----
 // 发布浮标 C2+（0.9.294，确认稿 docs/preview/pubfab-backtop.html）：在切走前先钉「动态档」形态——
 // SVG 铅笔（非文本 ✎）+ 「发动态」文案位 + 折叠 36 与回顶等大 + right 30 与回顶同线

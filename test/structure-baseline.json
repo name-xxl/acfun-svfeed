@@ -282,6 +282,10 @@
       "why": "0.9.322 登记：契约件新增未签日状态码谓词 isSignNotYet（102008 单源常量，不外导以免成死导出候选）+ 判据来历注释——+11 行"
     },
     {
+      "key": "size:dest.js:行114:导出3",
+      "why": "0.9.332 首轮建档：落点策略注册表骨架（(ct×宿主)→出口表 + destOf 单查询 + sourceUrlOf 出站 URL 单源）——行为分派收口批先行入库，批 2 裁决后接线 rowkit/cards/searchview 四处消费点"
+    },
+    {
       "key": "size:controls.js:行629:导出6",
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
@@ -638,8 +642,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:rowkit.js:行273:导出7",
-      "why": "0.9.314 登记：新增 openRowSource + feedRowOf/wireRowList 的 opt 透传（siteOnly）与注释——导出 6→7；0.9.326 +9 行＝文章行两个落点接 articleread（onComment 文章分支 + openRowDefault），opt 透传给 rowBarOf；0.9.330 +5 行＝文章评论键改行内原地展开（onComment 三型同构）+ openRowDefault 文章分支补 closeInlineComments（防行内评论宿主被阅读浮层抢注留死 DOM）"
+      "key": "size:rowkit.js:行280:导出7",
+      "why": "0.9.314 登记：新增 openRowSource + feedRowOf/wireRowList 的 opt 透传（siteOnly）与注释——导出 6→7；0.9.326 +9 行＝文章行两个落点接 articleread（onComment 文章分支 + openRowDefault），opt 透传给 rowBarOf；0.9.330 +5 行＝文章评论键改行内原地展开（onComment 三型同构）+ openRowDefault 文章分支补 closeInlineComments（防行内评论宿主被阅读浮层抢注留死 DOM）；0.9.332 +7 行＝openRowDefault 补 video 分支（0.9.173「动态视频=显式单条」裁决收编单源，我的页动态 tab 视频行死点击随批修）+ 收编注释"
     },
     {
       "key": "size:searchfmt.js:行92:导出3",

@@ -7,7 +7,7 @@
 // 行内评论宿主是模块级单例（一次只有一个视图存活）；teardown 归属=各视图调 closeInlineComments。
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
-import { ubbTextOf, stripOf, momentCellOf, momentMediaOf } from './cards.js';
+import { ubbTextOf, stripOf, momentCellOf, momentMediaOf, openPanelItem } from './cards.js';
 import { nameColorCss } from './uplook.js'; // 行名等级色（0.9.134；字段真机在册；0.9.160 叶子出库）
 import { openSharePanel } from './sharepanel.js';
 import { momentBarOf, momentShareItemOf } from './momentbar.js';
@@ -203,9 +203,10 @@ export function armExpanders(scope) {
 }
 
 // 视图内行落点默认策略（0.9.218 下沉收编）：点行 → 关行内评论区（防双宿主互踩）并开详情面板
-//（动态条目）；非动态条目走 href 新标签。此前该策略在 squareview 与 mypage 各写一份（同一含义
-// 两处定义=漂移源），下沉本 kit 单源。工厂的 onOpen 仍可覆盖——原生页两处宿主（memberplaza 内嵌
-// 广场、spacemoments 空间页动态）传 openRowSource（不穿越深色详情面板，原页语义）。
+//（动态条目）；视频=显式单条会话（0.9.332 收编）；文章=阅读浮层（0.9.326）；其余走 href 新标签。
+// 此前该策略在 squareview 与 mypage 各写一份（同一含义两处定义=漂移源），下沉本 kit 单源。
+// 工厂的 onOpen 仍可覆盖——原生页两处宿主（memberplaza 内嵌广场、spacemoments 空间页动态）传
+// openRowSource（不穿越深色详情面板，原页语义）。
 export function openRowDefault(pi, row) {
   if (!pi) return;
   if (pi.ct === 'moment') {
@@ -213,6 +214,12 @@ export function openRowDefault(pi, row) {
     openMomentDetail(pi, {
       onDeleted: function () { if (row && row.parentNode) row.remove(); }
     });
+  } else if (pi.ct === 'video') {
+    // 0.9.332 收编：视频行=显式单条会话（0.9.173 用户裁决「仅播放单条就只剩动态里的视频卡片」
+    // ——不出右栏箭头、↓ 无下一条；其余来源才带列表/游走上下文）。此前该分支只在 followview
+    // 自持副本里有，我的页动态 tab 走单源＝视频行落 href 兜底，而视频 pi 契约层无 href＝死点击
+    // （同缝第三处出血：0.9.314 原生页、0.9.331 followview 副本漏文章、本处——落点单源分派）
+    openPanelItem(pi, { kind: 'single' });
   } else if (pi.ct === 'article') {
     // 0.9.328：行内评论区改在本行展开后，行落点开阅读浮层前须显式收旧行——防行内评论宿主
     // 被浮层 openCommentsHost 抢注后留死 DOM（动态分支同款判据；此前文章走外链无此缝）

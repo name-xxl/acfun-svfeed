@@ -127,6 +127,10 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // imicons/ui）——由基建层改入特性层（口径 A 的注释见上）；消费方 comments/imdrawer/momenteditor
   // 三件均在本表内，属层内互调，两口径 0 条（反跑证据见 docs/dependency-audit.md「0.9.238」节）
   'inputbar.js',
+  // 0.9.332 登记：dest（条目落点策略注册表，(ct×宿主)→出口表；消费 articleread/cards/
+  // momentdetail——落点收口批的骨架先行入库，批 2 裁决后接线 rowkit/cards/searchview。
+  // 与 rowkit 同层：策略表持有三个特性域出口属层内互调，非反向；接线谱系见文件头注）
+  'dest.js',
   // 分享面板的登记史（0.9.222 → 0.9.233）：0.9.222 它新增 → momenteditor 边，当批只把该边
   // 入 KNOWN 放行（sharepanel/rail/slide 三件分类债未定）；0.9.233 专项一次登记，见下
   // 0.9.224 登记：pubfab（发布常驻浮标共用件，消费 momenteditor/ui）——与 composermirror 同类的

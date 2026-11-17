@@ -11,13 +11,13 @@
 // 到底/loading 代数保护），出处与退化说明见下方 load() 注释。
 // 光 DOM 有意偏离 intake 的「el()+Shadow DOM」（0.9.96 登记同款理由：评论/引用块族样式
 // 单源在全局 styles.js，进影子根=复制 CSS 造漂移源）。
-// 行卡构建件与行内评论控制器 0.9.124 下沉 rowkit.js（关注/广场共用）——本文件只留视图壳、
-// 游标方言与落点策略（rowDefault；0.9.331 起 moment/article 委托 rowkit.openRowDefault 单源
-// ——本地副本曾漏 0.9.326 的文章→阅读浮层分支，文章行点击按 href 兜底跳原址，同形副本漂移病灶）。
+// 行卡构建件与行内评论控制器 0.9.124 下沉 rowkit.js（关注/广场共用）——本文件只留视图壳与
+// 游标方言；行落点 0.9.332 起全量委托 rowkit.openRowDefault 单源（视频分支一并收编——本地副本
+// 曾两度漂移：0.9.331 漏文章分支跳原址；单源侧漏视频分支致我的页动态 tab 视频行死点击）。
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { followPanelOf, momentPiOfRepost } from './panelitem.js';
-import { openPanelItem, setMomentOpener, skeletonRows } from './cards.js';
+import { setMomentOpener, skeletonRows } from './cards.js';
 import { createListTail } from './listtail.js'; // 尾部件单源（0.9.219）
 import { listMoments } from './momentapi.js';
 import { markSeen } from './followseen.js'; // 首屏到达=已读（0.9.139；水位叶子件，勿在本模块自持水位）
@@ -29,21 +29,6 @@ import { closeInlineComments, feedRowOf, armExpanders, wireRowList, openRowDefau
 import { createPageLoader, DONE_LABEL_MOMENTS } from './pageloader.js'; // 翻页骨架单源（0.9.259）；到底文案 0.9.305 批⑤②出库
 import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 import { isEndCursor } from './contract.js'; // 游标方言单源（0.9.304；与 followDougaFeed 同族语义）
-
-// ---------- 互动行为（乐观更新照 rail.js:154-177 范式；pi 与详情面板同引用——
-// 面板里再操作计数，行内 DOM 不自动跟新：v1 不做跨面实时同步，低频场景，注释防误判） ----------
-
-function rowDefault(pi, row) {
-  if (pi.ct === 'video') {
-    // 用户裁决（0.9.173）：「仅播放单条就只剩**动态里的视频卡片**」——动态语境的视频条目
-    // 显式声明单条会话（不出右栏箭头、↓ 无下一条）；其余来源一律带列表/游走上下文
-    openPanelItem(pi, { kind: 'single' });
-    return;
-  }
-  // moment/article/其余：rowkit.openRowDefault 单源（0.9.331 收口——本地副本曾漏文章分支，
-  // 关注页文章行点击跳原址；动态分支的 closeInlineComments + 详情面板同款语义在单源内）
-  openRowDefault(pi, row);
-}
 
 // ---------- 视图组装 ----------
 
@@ -113,7 +98,7 @@ function buildFollowView(body) {
     }
   });
 
-  wireRowList(list, rowDefault); // 列表级委托（commentListClick 同款挂法；0.9.124 收口 rowkit，落点经 onOpen）
+  wireRowList(list, openRowDefault); // 列表级委托（commentListClick 同款挂法；落点全量走单源，0.9.332）
 
   // 表情 map 预热 + 占位回填（0.9.105）：行流渲染不等 map（列表量大），先出占位灰字，
   // map 就绪后把占位回填成真表情——此前依赖"别处先加载过"的运气，冷启动首开表情全是 [表情]
