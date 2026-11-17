@@ -2,20 +2,23 @@
 // 行卡（原生骨架四段 head/content/acts）+ 九宫格/媒体分派 + 互动栏接线 + 行内评论区宿主
 // 控制器 + 列表级点击委托。消费方：followview（关注·全部）与 squareview（广场，0.9.126 起）。
 // 拆出纪律（同 cards.js 0.9.109）：逐字搬运零逻辑改动——类名与挂法被 harness 大量
-// .acsv-frow* 断言钉着；view 特有的落点策略（rowDefault）与列表壳/游标方言留在各视图。
-// 依赖方向：本模块不 import 任何视图（详情/播放出口由各视图以 wireRowList 的 onOpen 注入）。
+// .acsv-frow* 断言钉着；列表壳/游标方言留在各视图，落点策略 0.9.333 起收口 dest 表
+//（本件经 destOf 出口，视图只注入宿主语义：openRowDefault=script 格 / openRowSource=native 格）。
+// 依赖方向：本模块不 import 任何视图，也不直接 import 落点出口件（momentdetail/articleread/
+// 播放层出口都在 dest 表内；列表级委托 wireRowList 的 onOpen 注入维持）。
 // 行内评论宿主是模块级单例（一次只有一个视图存活）；teardown 归属=各视图调 closeInlineComments。
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
-import { ubbTextOf, stripOf, momentCellOf, momentMediaOf, openPanelItem } from './cards.js';
+import { ubbTextOf, stripOf, momentCellOf, momentMediaOf } from './cards.js';
+import { destOf } from './dest.js'; // 落点策略注册表（0.9.333：行落点决策单源收口）
 import { nameColorCss } from './uplook.js'; // 行名等级色（0.9.134；字段真机在册；0.9.160 叶子出库）
 import { openSharePanel } from './sharepanel.js';
 import { momentBarOf, momentShareItemOf } from './momentbar.js';
 import { imgInto } from './imgload.js';
 import { openCommentsHost, closeCommentsHost, commentListClick, commentPicClick } from './comments.js';
 import { releaseDrawer } from './state.js';
-import { openMomentDetail } from './momentdetail.js'; // 行落点默认策略（0.9.218 单源下沉）
-import { openArticleReader } from './articleread.js'; // 文章行落点（0.9.326：脚本页宿主开阅读浮层；原生页宿主仍走外链）
+// 行落点三出口（momentdetail/articleread/播放层）0.9.333 起经 dest 表间接持有——本件不再
+// 直接 import 出口件（决策与出口都在 dest.js，本件只保留行级前置与 env 转发）
 
 // ---------- 原位评论区（0.9.100）：行内开合的宿主状态（模块级——teardown 要能收拾它） ----------
 // 开新行前必须**显式关旧行**：claimDrawer 同槽重入不互收（comments.js 注释在册），不关的话
@@ -135,13 +138,16 @@ function rowBarOf(pi, row, opt) {
         toggleInlineComments(pi, btn, { sourceId: pi.acId, stype: 3, shareUrl: CFG.api.videoBase + pi.acId });
       } else if (pi.ct === 'article') {
         // 0.9.326：文章评论 stype=3 已实测（§17.1）——原生页宿主维持站方原址外链（0.9.314
-        // siteOnly 裁决精神，深色浮层不进原生页）；脚本页宿主 0.9.328 起与动态/视频行同构：
-        // 行内原地展开评论区（stype=3 同视频值）——评论键只管评论区，读文章走行落点
-        if (opt && opt.siteOnly) { if (pi.href) window.open(pi.href, '_blank'); }
-        else toggleInlineComments(pi, btn, { sourceId: pi.acId, stype: 3, shareUrl: pi.href });
-      } else if (pi.href) {
-        window.open(pi.href, '_blank');
+        // siteOnly 裁决精神，深色浮层不进原生页；0.9.333 撤入 dest native 格单出口）；
+        // 脚本页宿主 0.9.328 起与动态/视频行同构：行内原地展开评论区（stype=3 同视频值）
+        // ——评论键只管评论区，读文章走行落点
+        if (opt && opt.siteOnly) {
+          var dn = destOf('article', true);
+          if (dn) dn(pi);
+        } else toggleInlineComments(pi, btn, { sourceId: pi.acId, stype: 3, shareUrl: pi.href });
       }
+      // 未知 ct＝无落点显式降级（0.9.333：原 href 兜底撤除——契约层只产三型，兜底只会
+      // 掩盖表漏格，0.9.331 病灶形态）
     }
   });
 }
@@ -202,41 +208,30 @@ export function armExpanders(scope) {
   });
 }
 
-// 视图内行落点默认策略（0.9.218 下沉收编）：点行 → 关行内评论区（防双宿主互踩）并开详情面板
-//（动态条目）；视频=显式单条会话（0.9.332 收编）；文章=阅读浮层（0.9.326）；其余走 href 新标签。
-// 此前该策略在 squareview 与 mypage 各写一份（同一含义两处定义=漂移源），下沉本 kit 单源。
-// 工厂的 onOpen 仍可覆盖——原生页两处宿主（memberplaza 内嵌广场、spacemoments 空间页动态）传
-// openRowSource（不穿越深色详情面板，原页语义）。
+// 视图内行落点默认策略（0.9.218 下沉收编；0.9.333 决策收口 dest 表）：点行 → 按表的
+// script 格出落点（动态=详情面板 / 视频=显式单条会话 / 文章=阅读浮层）；未知 ct＝无落点
+// 显式降级——**不静默 href 兜底**（0.9.331 病灶形态反转：兜底把漏分支掩盖成"能点"）。
+// 工厂的 onOpen 仍可覆盖——原生页两处宿主（memberplaza 内嵌广场、spacemoments 空间页动态）
+// 传 openRowSource（不穿越深色详情面板，原页语义）。
 export function openRowDefault(pi, row) {
   if (!pi) return;
-  if (pi.ct === 'moment') {
-    closeInlineComments();
-    openMomentDetail(pi, {
-      onDeleted: function () { if (row && row.parentNode) row.remove(); }
-    });
-  } else if (pi.ct === 'video') {
-    // 0.9.332 收编：视频行=显式单条会话（0.9.173 用户裁决「仅播放单条就只剩动态里的视频卡片」
-    // ——不出右栏箭头、↓ 无下一条；其余来源才带列表/游走上下文）。此前该分支只在 followview
-    // 自持副本里有，我的页动态 tab 走单源＝视频行落 href 兜底，而视频 pi 契约层无 href＝死点击
-    // （同缝第三处出血：0.9.314 原生页、0.9.331 followview 副本漏文章、本处——落点单源分派）
-    openPanelItem(pi, { kind: 'single' });
-  } else if (pi.ct === 'article') {
-    // 0.9.328：行内评论区改在本行展开后，行落点开阅读浮层前须显式收旧行——防行内评论宿主
-    // 被浮层 openCommentsHost 抢注后留死 DOM（动态分支同款判据；此前文章走外链无此缝）
-    closeInlineComments();
-    openArticleReader(pi); // 0.9.326：脚本页行落点＝阅读浮层（原生页宿主传的是 openRowSource，不经此层）
-  } else if (pi.href) window.open(pi.href, '_blank');
+  var d = destOf(pi.ct, false);
+  if (!d) return; // 未知 ct＝无落点：显式降级（契约层只产三型，此路常态不可达；可达即表漏格）
+  // 行级前置留消费方（dest.js 食谱在册）：详情面板/阅读浮层会接管评论区宿主（claimDrawer
+  // 同槽语义），开新落点前显式关旧行内评论区——openCmt 是本 kit 私有单例，不进表
+  if (pi.ct === 'moment' || pi.ct === 'article') closeInlineComments();
+  d(pi, { onDeleted: function () { if (row && row.parentNode) row.remove(); } });
 }
 
 // 原生页语义（0.9.314 用户裁决，反转 0.9.218「原生页点行无动作」）：行 → 站方原址新标签，
 // 面板只留在脚本页。纯导航——不开面板、不关行内评论区（行内互动/评论照常可用）。
-// 视频条目在契约层**没有 href**：panelitem 的视频分支只给 acId（href 是「站外页落点」字段，
-// 视频在脚本页走播放层/列表会话，故契约层不赋），而原生页三合一混排实存视频行——不补这一下，
-// 原生页点视频行就是没反应（0.9.314 复核发现）。基址仍取 CFG 单源，不另立第二份手拼。
+// 0.9.333：函数体收口 dest native 格（三源同一 siteOut 出口；URL=sourceUrlOf 单源——
+// href 优先、视频无 href 补 videoBase+acId，原手拼撤除）。memberplaza/spacemoments 的
+// onOpen 注入与 squarefeed 契约零改动。
 export function openRowSource(pi) {
   if (!pi) return;
-  var url = pi.href || (pi.ct === 'video' && pi.acId ? CFG.api.videoBase + pi.acId : '');
-  if (url) window.open(url, '_blank');
+  var d = destOf(pi.ct, true);
+  if (d) d(pi);
 }
 
 // 列表级委托（commentListClick 同款挂法）：互动键 → 行为分派；展开 → 钳高切换；

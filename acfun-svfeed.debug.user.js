@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.332-debug
+// @version      0.9.333-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 114895;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.332-debug" : "",
+          ver: true ? "0.9.333-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -743,7 +743,7 @@ window.__ACSV_CSS_LEN__ = 114895;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.332-debug" : "";
+  var APP_VERSION = true ? "0.9.333-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -6140,6 +6140,10 @@ window.__ACSV_CSS_LEN__ = 114895;
   function setMomentOpener(fn) {
     momentOpener = typeof fn === "function" ? fn : null;
   }
+  var articleOpener = null;
+  function setArticleOpener(fn) {
+    articleOpener = typeof fn === "function" ? fn : null;
+  }
   function skeletonRows(listEl, n, cls) {
     var nodes = [];
     for (var i = 0; i < n; i++) {
@@ -6329,7 +6333,8 @@ window.__ACSV_CSS_LEN__ = 114895;
         if (repost.ct === "video") {
           openPanelItem({ acId: Number(repost.id) || 0, title: repost.title || "", cover: repost.cover || "", up: repost.up || null });
         } else if (repost.ct === "article") {
-          window.open(CFG.api.articleBase + repost.id, "_blank");
+          if (articleOpener) articleOpener(repost);
+          else window.open(CFG.api.articleBase + repost.id, "_blank");
         } else if (repost.ct === "moment") {
           if (momentOpener) {
             momentOpener(repost);
@@ -6696,6 +6701,22 @@ window.__ACSV_CSS_LEN__ = 114895;
       dateText: "",
       // 源配图透传（0.9.107 实报：从引用卡点进详情"纯文字样式、实际有图"——hasMedia 看 imgs）
       imgs: rp.imgs || [],
+      like: 0,
+      comment: 0,
+      banana: 0,
+      liked: false,
+      thrown: false
+    };
+  }
+  function articlePiOfRepost(rp) {
+    var acId = Number(rp && rp.id) || 0;
+    return {
+      ct: "article",
+      acId,
+      title: rp && rp.title || "",
+      cover: rp && rp.cover || "",
+      up: rp && rp.up || null,
+      href: CFG.api.articleBase + acId,
       like: 0,
       comment: 0,
       banana: 0,
@@ -8510,7 +8531,7 @@ window.__ACSV_CSS_LEN__ = 114895;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.332-debug" : "",
+      version: true ? "0.9.333-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -15487,7 +15508,7 @@ window.__ACSV_CSS_LEN__ = 114895;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.332-debug" : "");
+    return normVer(true ? "0.9.333-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -17986,7 +18007,6 @@ window.__ACSV_CSS_LEN__ = 114895;
   function wireLike(btn, pi) {
     btn.addEventListener("click", function(ev) {
       ev.stopPropagation();
-      if (pi.ct === "article") return;
       if (pi.likeBusy) return;
       pi.likeBusy = true;
       var on = !pi.liked;
@@ -19045,6 +19065,53 @@ window.__ACSV_CSS_LEN__ = 114895;
     } };
   });
 
+  // src/dest.js
+  function sourceUrlOf(pi) {
+    if (!pi) return "";
+    if (pi.href) return String(pi.href);
+    var base = pi.ct === "video" ? CFG.api.videoBase : pi.ct === "article" ? CFG.api.articleBase : pi.ct === "moment" ? CFG.api.momentBase : "";
+    var id = Number(pi.acId || pi.momentId || pi.id) || 0;
+    return base && id ? base + id : "";
+  }
+  function siteOut(pi) {
+    var url = sourceUrlOf(pi);
+    if (url) window.open(url, "_blank");
+  }
+  function videoSingle(pi) {
+    openPanelItem(pi, { kind: "single" });
+  }
+  var DEST = {
+    moment: {
+      script: openMomentDetail,
+      // 详情面板（0.9.218 行落点单源；引用卡经 momentOpener 注入缝同落点，0.9.102）
+      native: siteOut
+      // 站方原址新标签（0.9.314：原生页不开脚本面板）
+    },
+    video: {
+      script: videoSingle,
+      // 显式单条会话（0.9.173；0.9.332 收编 openRowDefault＝我的页视频行死点击随批修）
+      native: siteOut
+      // 同 0.9.314（契约层视频无 href，URL 由 sourceUrlOf 补 videoBase+acId）
+    },
+    article: {
+      script: openArticleReader,
+      // 阅读浮层（0.9.326 行落点；0.9.333 批 2 裁决：搜索文章行与引用源卡一并收编本格——散布残余清零）
+      native: siteOut
+      // 站方原址（0.9.314：深色浮层不进原生页）
+    }
+  };
+  setArticleOpener(function(rp) {
+    DEST.article.script(articlePiOfRepost(rp));
+  });
+  function destOf(ct, siteOnly) {
+    var row = DEST[ct];
+    var cell = row && (siteOnly ? row.native : row.script);
+    if (!cell) {
+      return null;
+    }
+    return cell;
+  }
+
   // src/rowkit.js
   var openCmt = null;
   function closeInlineComments() {
@@ -19134,10 +19201,9 @@ window.__ACSV_CSS_LEN__ = 114895;
           toggleInlineComments(pi, btn, { sourceId: pi.acId, stype: 3, shareUrl: CFG.api.videoBase + pi.acId });
         } else if (pi.ct === "article") {
           if (opt && opt.siteOnly) {
-            if (pi.href) window.open(pi.href, "_blank");
+            var dn = destOf("article", true);
+            if (dn) dn(pi);
           } else toggleInlineComments(pi, btn, { sourceId: pi.acId, stype: 3, shareUrl: pi.href });
-        } else if (pi.href) {
-          window.open(pi.href, "_blank");
         }
       }
     });
@@ -19191,24 +19257,17 @@ window.__ACSV_CSS_LEN__ = 114895;
   }
   function openRowDefault(pi, row) {
     if (!pi) return;
-    if (pi.ct === "moment") {
-      closeInlineComments();
-      openMomentDetail(pi, {
-        onDeleted: function() {
-          if (row && row.parentNode) row.remove();
-        }
-      });
-    } else if (pi.ct === "video") {
-      openPanelItem(pi, { kind: "single" });
-    } else if (pi.ct === "article") {
-      closeInlineComments();
-      openArticleReader(pi);
-    } else if (pi.href) window.open(pi.href, "_blank");
+    var d = destOf(pi.ct, false);
+    if (!d) return;
+    if (pi.ct === "moment" || pi.ct === "article") closeInlineComments();
+    d(pi, { onDeleted: function() {
+      if (row && row.parentNode) row.remove();
+    } });
   }
   function openRowSource(pi) {
     if (!pi) return;
-    var url = pi.href || (pi.ct === "video" && pi.acId ? CFG.api.videoBase + pi.acId : "");
-    if (url) window.open(url, "_blank");
+    var d = destOf(pi.ct, true);
+    if (d) d(pi);
   }
   function wireRowList(list, onOpen, opt) {
     list.addEventListener("click", function(ev) {
@@ -19841,7 +19900,7 @@ window.__ACSV_CSS_LEN__ = 114895;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.332-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.333-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -23251,8 +23310,14 @@ window.__ACSV_CSS_LEN__ = 114895;
       if (a.dateText) meta.appendChild(el("span", null, a.dateText));
       row.appendChild(meta);
       row.addEventListener("click", function() {
-        var w = window.open(CFG.api.articleBase + a.id, "_blank");
-        if (w) w.opener = null;
+        var d = destOf("article", false);
+        if (d) d({
+          ct: "article",
+          acId: a.id,
+          title: a.title || "",
+          href: CFG.api.articleBase + a.id,
+          up: a.name ? { name: a.name } : null
+        });
       });
       return row;
     }

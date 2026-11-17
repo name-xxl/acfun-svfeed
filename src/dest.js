@@ -1,4 +1,4 @@
-// ---------- 落点策略注册表（落点收口结构批·前置骨架件；本批只立表与配闸，四个消费方一行未动） ----------
+// ---------- 落点策略注册表（0.9.332 骨架入库；0.9.333 批 2 裁决后接线：rowkit 两出口/引用卡缝/搜索行全走本表） ----------
 // 形态：(ct × 宿主语义) → 出口 的表（DEST）+ 单一查询出口（destOf）。行/卡点击后「去哪」的
 // 决策此前散布五处 if 链（rowkit.openRowDefault / openRowSource / rowBarOf 评论键、
 // cards.quoteBlockOf 源卡点击、searchview.articleRowOf）——同一道缝反复出血即结构裁决
@@ -15,9 +15,10 @@
 // 依赖方向：本件 → 三出口件（cards/momentdetail/articleread）是「落点知道出口」的正向边，
 // 出口件不回头 import 本件；批 2 接线时消费方只 import destOf（文末接线食谱）。
 import { CFG } from './cfg.js';
-import { openPanelItem } from './cards.js'; // 播放层出口（setItemOpener 注入缝，0.9.74）
+import { openPanelItem, setArticleOpener } from './cards.js'; // 播放层出口（setItemOpener 注入缝，0.9.74）；引用卡文章缝（0.9.333）
 import { openMomentDetail } from './momentdetail.js'; // 动态详情面板（0.9.96；0.9.218 行落点单源）
 import { openArticleReader } from './articleread.js'; // 文章阅读浮层（0.9.326 行落点）
+import { articlePiOfRepost } from './panelitem.js'; // 引用卡文章 pi 构造（契约层，0.9.333）
 
 // 站方原址 URL 单源（出站落点唯一拼装处；cards.js「出站 URL 只由 CFG 基址拼装、不另立
 // 第二份手拼地址」同款纪律）：
@@ -61,18 +62,27 @@ function videoSingle(pi) {
 // 每格标「现状默认，批 2 裁决后调整」：格值 = 该 ct×宿主今天的真实落点，分叉残留在格注点名。
 export var DEST = {
   moment: {
-    script: openMomentDetail, // 现状默认，批 2 裁决后调整——详情面板（0.9.218 行落点单源；引用卡经 momentOpener 注入缝同落点，0.9.102）
-    native: siteOut           // 现状默认，批 2 裁决后调整——站方原址新标签（0.9.314：原生页不开脚本面板）
+    script: openMomentDetail, // 详情面板（0.9.218 行落点单源；引用卡经 momentOpener 注入缝同落点，0.9.102）
+    native: siteOut           // 站方原址新标签（0.9.314：原生页不开脚本面板）
   },
   video: {
-    script: videoSingle, // 现状默认，批 2 裁决后调整——显式单条会话（0.9.173；现状只在 followview 本地分支，openRowDefault 缺此格＝我的页视频行死点击病灶本体）
-    native: siteOut      // 现状默认，批 2 裁决后调整——同 0.9.314（契约层视频无 href，URL 由 sourceUrlOf 补 videoBase+acId，openRowSource 现状同款）
+    script: videoSingle, // 显式单条会话（0.9.173；0.9.332 收编 openRowDefault＝我的页视频行死点击随批修）
+    native: siteOut      // 同 0.9.314（契约层视频无 href，URL 由 sourceUrlOf 补 videoBase+acId）
   },
   article: {
-    script: openArticleReader, // 现状默认，批 2 裁决后调整——阅读浮层（0.9.326 行落点最新裁决；搜索文章行 / 引用卡现状仍各自外链＝散布残余，收编与否批 2 定）
-    native: siteOut            // 现状默认，批 2 裁决后调整——站方原址（0.9.314：深色浮层不进原生页）
+    script: openArticleReader, // 阅读浮层（0.9.326 行落点；0.9.333 批 2 裁决：搜索文章行与引用源卡一并收编本格——散布残余清零）
+    native: siteOut            // 站方原址（0.9.314：深色浮层不进原生页）
   }
 };
+
+// 引用卡文章落点注册（0.9.333 批 2 裁决：脚本页引用源卡文章=阅读浮层，与行落点同格）。
+// cards.quoteBlockOf 不反向 import 本件——本件已 import cards（openPanelItem），反向即环
+//（check-deps 环检测在册），走 setArticleOpener 注入缝：注册闭包=本表 script×article 格，
+// **决策仍单源在表内**；pi 构造下沉 panelitem.articlePiOfRepost（契约字段不出 UI 层）。
+// 加载序：本件随 rowkit 首用即载（rowkit import destOf），引用卡三个宿主（行流/详情面板/
+// 转发编辑器）的可达路径此前必经 rowkit 或已注册缝的视图——momentOpener「followview 随
+// bundle 加载」同款论证；未注册时 quoteBlockOf 回落外链（0.9.102 兜底先例）。
+setArticleOpener(function (rp) { DEST.article.script(articlePiOfRepost(rp)); });
 
 // 单一查询出口：落点决策唯一入口（批 2 后 rowkit/cards/searchview 全走这里，见文末食谱）。
 //   destOf(ct, siteOnly) → 出口函数 | null
@@ -92,22 +102,15 @@ export function destOf(ct, siteOnly) {
   return cell;
 }
 
-// ---------- 批 2 接线食谱（本批一行都不接——只登记改法：摘 if 链换 destOf，闸同步减注册） ----------
-// · rowkit.openRowDefault（script 行落点，0.9.218 下沉 / 0.9.331 收编过的那处）：分支链换
-//   `var d = destOf(pi.ct, false); if (d) d(pi);`。行级前置留在消费方：moment/article 调用前
-//   closeInlineComments（openCmt 是 rowkit 私有单例，不进表）；onDeleted 摘行回调经
-//   cell(pi, env) 的 env 带入（moment 格 = openMomentDetail，第二参收 opts，env 即转发）。
-//   收编 script×video 格后，共用 openRowDefault 的我的页/广场行流自动获得视频落点＝顺带修死点击。
-// · rowkit.openRowSource（native 行落点，0.9.314）：函数体换
-//   `var d = destOf(pi.ct, true); if (d) d(pi);`——memberplaza/spacemoments 两宿主的
-//   onOpen 注入与 squarefeed 契约零改动；rowBarOf 文章评论键的 siteOnly 外链（rowkit 现状
-//   0.9.328 注在册）随本条一起收 native 格。
-// · cards.quoteBlockOf 源卡点击：siteOnly 出站分支与缺省分支同换
-//   `destOf(repost.ct, opt && opt.siteOnly)`——repost 是 id 形状：native 走 sourceUrlOf 的
-//   id 兼容（已表内）；script×video 沿用现有 {acId:Number(repost.id)} 映射（0.9.102 在册）
-//   再进格；momentOpener 注入缝未注册时的外链兜底即 native 格语义（现状写在缺省分支 else 里）。
-// · searchview.articleRowOf（搜索文章行）：现状自拼 articleBase 外链（「文章落原生页」老口径，
-//   与 0.9.326 行落点已分叉）。**不是机械替换**：收编 script×article 格＝搜索行也开阅读浮层，
-//   是行为改口，批 2 裁决后才许动；闸（test/check-dest.mjs）只负责它不许再长出第二份决策。
-// · release.js「前往更新」×2：非内容落点（脚本自身更新域，无 ct/宿主语义），永久表外——
-//   只在 check-dest.mjs WHITE 登记，不进本表。
+// ---------- 接线实录（0.9.333 批 2 裁决落地；食谱已执行，留档消费点清单） ----------
+// · rowkit.openRowDefault：分支链换 destOf(ct,false)；行级前置（closeInlineComments）留消费方
+//   （openCmt 是 rowkit 私有单例）；onDeleted 摘行回调经 env 转发（moment 格=详情面板 opts 形状）。
+// · rowkit.openRowSource：函数体换 destOf(ct,true)——memberplaza/spacemoments 的 onOpen 注入
+//   与 squarefeed 契约零改动。
+// · rowkit.rowBarOf 文章评论键 siteOnly 外链：撤入 native 格（原按 pi.href 直开外链的手拼撤除）。
+// · cards.quoteBlockOf：**不走 destOf**（本件已 import cards，反向即环）——文章 script 分支走
+//   setArticleOpener 注入缝（本件模块加载时注册 script×article 格，见上）；video/moment 分支
+//   维持 itemOpener/momentOpener 缝（先例 0.9.74/0.9.102）；siteOnly 出站分支维持原 window.open
+//   （check-dest WHITE 登记）。
+// · searchview.articleRowOf：换 destOf('article',false)——「文章落原生页」老口径作废（批 2 裁决）。
+// · release.js「前往更新」×2：非内容落点（脚本自身更新域），永久表外——WHITE 登记，不进本表。

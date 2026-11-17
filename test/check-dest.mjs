@@ -41,16 +41,8 @@ const WHITE = [
     why: '落点注册表 native 宿主单出口 siteOut（0.9.314 站方原址新标签）——收口后全仓「内容落点」唯一合法外链；单测另有棘轮钉 dest.js 恰 1 处'
   },
   {
-    file: 'src/rowkit.js', count: 4,
-    why: '落点决策散布本体（批 2 逐条撤入 destOf 后同步减注册）：openRowSource 出站(1) / openRowDefault 未知 ct href 兜底(1) / rowBarOf 文章评论键 siteOnly 外链(1) / rowBarOf 未知 ct href 兜底(1)'
-  },
-  {
     file: 'src/cards.js', count: 3,
-    why: 'quoteBlockOf 源卡点击三分支（批 2 收编 destOf 后同步减注册）：siteOnly 三源出站(1) / script 宿主文章外链(1) / momentOpener 未注册外链兜底(1)'
-  },
-  {
-    file: 'src/searchview.js', count: 1,
-    why: 'articleRowOf 搜索文章行自拼 articleBase 外链（「文章落原生页」老口径，与 0.9.326 行落点已分叉）——收编 script×article 格是行为改口，批 2 裁决后才动'
+    why: 'quoteBlockOf 三处兜底（0.9.333 接线后正常态三分支均不走外链：video→itemOpener 缝 / article→articleOpener 缝（dest 注册格）/ moment→momentOpener 缝）——本件不反向 import dest（环），缝未注册的外链是安全网非决策：siteOnly 三源出站(1) / script 文章缝未注册兜底(1) / moment 缝未注册兜底(1)'
   },
   {
     file: 'src/release.js', count: 2,

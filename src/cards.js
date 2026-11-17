@@ -38,6 +38,14 @@ export function openPanelItem(pi, ctx) {
 var momentOpener = null;
 export function setMomentOpener(fn) { momentOpener = typeof fn === 'function' ? fn : null; }
 
+// 文章阅读出口（0.9.333 批 2 裁决：脚本页引用源卡文章=阅读浮层，与行落点同口径）。同款
+// 注入缝——本件不反向 import articleread/dest（dest 已 import 本件 openPanelItem，反向即环，
+// check-deps 环检测在册）；注册方=dest.js 模块加载时把自己的 script×article 格注入
+//（决策仍单源在表内，pi 构造=panelitem.articlePiOfRepost）。未注册时外链官方页兜底
+//（momentOpener 兜底先例）
+var articleOpener = null;
+export function setArticleOpener(fn) { articleOpener = typeof fn === 'function' ? fn : null; }
+
 // 骨架行共享件（0.9.102 收口）：N 个占位 div + 移除闭包；**类名必传且各视图独立**
 //（acsv-gskel/acsv-fskel——绝不与行/卡计数选择器同构，0.9.66 同构元素污染计数断言）
 export function skeletonRows(listEl, n, cls) {
@@ -250,8 +258,9 @@ export function momentMediaOf(pi, opts) {
 //   ② 源内容卡：视频/文章 = 与行内同款 stripOf（原生就是同款 markup 复用）；
 //      动态（rs10）= **纯正文**（原生实测样本 UBB 已渲染、含表情图 48×48；配图动态源未观察
 //      → 有图则首图最小形态，标未实测）。
-// 点击语义（0.9.101 起）：@源UP → 源UP主页（锚点自导航，不冒泡）；源卡 → 视频播放层 /
-// 文章官方页 / 动态详情面板（setMomentOpener 注入，未注册外链兜底）；源 id 缺席保持静展示
+// 点击语义（0.9.101 起；0.9.333 文章改口）：@源UP → 源UP主页（锚点自导航，不冒泡）；源卡 →
+// 视频播放层（itemOpener 直挂缝）/ 文章阅读浮层（setArticleOpener 缝，dest 注册格）/
+// 动态详情面板（setMomentOpener 注入）；缝未注册时外链官方页兜底；源 id 缺席保持静展示
 // 第二参 opt = **宿主总开关**（0.9.314 用户裁决；本批由 `outbound` 升名为 `siteOnly`）：为真＝
 // 本宿主是原生页——一律走站方路径、不开任何脚本浮层。本件据此管两件事：① 三种源一律出站站方
 // 原址新标签，不再走脚本内出口（播放层 / 动态详情面板）；② 源动态的内嵌配图格子走
@@ -319,7 +328,10 @@ export function quoteBlockOf(repost, opt) {
       if (repost.ct === 'video') {
         openPanelItem({ acId: Number(repost.id) || 0, title: repost.title || '', cover: repost.cover || '', up: repost.up || null });
       } else if (repost.ct === 'article') {
-        window.open(CFG.api.articleBase + repost.id, '_blank');
+        // 0.9.333：脚本页浮层（dest 注册格经 articleOpener 缝，pi 构造=articlePiOfRepost）；
+        // 未注册回落外链（0.9.102 兜底先例——「转发卡零逻辑改动」时代的旧口径）
+        if (articleOpener) articleOpener(repost);
+        else window.open(CFG.api.articleBase + repost.id, '_blank');
       } else if (repost.ct === 'moment') {
         if (momentOpener) {
           // 源动态 → 详情面板（pi 构造下沉 data.momentPiOfRepost，契约字段出 UI 层）
