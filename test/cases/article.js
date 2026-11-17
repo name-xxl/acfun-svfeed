@@ -776,23 +776,18 @@
       var pr = bpop.getBoundingClientRect(), br = barIn.getBoundingClientRect();
       return 'popBottom=' + Math.round(pr.bottom) + ' barTop=' + Math.round(br.top);
     })());
-    // 可见性实测（0.9.336 补强）：壳在视口内（无 harness 舞台 transform 偏移）时，elementFromPoint
-    // 打弹层中心必须命中弹层自身——几何过但被遮挡/裁剪时本条红。elementFromPoint 是视口坐标系，
-    // harness 把浮层壳挂进带 translate3d 的竖刷舞台（rect.left≈2000）时该判据失真 ⇒ 语境门禁跳过
+    // 可见性实测（0.9.337 补强）：elementFromPoint 打弹层中心必须命中弹层自身——几何过但被
+    // 甩出视口/遮挡时本条红（0.9.336 用户实报「还是没出现」的第二层病灶：display:contents
+    // 宿主 rect 全零 → anchorBtn 算出大负 right → 弹层甩出视口右侧，hit=null 实测在案）
     rec('article-banpop-hit', !!(bpop && (function () {
-      var shellR = rq('.acsv-artread').getBoundingClientRect();
-      if (shellR.left > 100 || shellR.left < -100) return true; // 偏移语境：判据不适用，显式跳过
       var pr = bpop.getBoundingClientRect();
       var hit = document.elementFromPoint(pr.left + pr.width / 2, pr.top + pr.height / 2);
       return !!hit && (hit === bpop || bpop.contains(hit) || hit.closest('.acsv-banpop') === bpop);
     })()), (function () {
       if (!bpop) return 'no-pop';
-      var shellR = rq('.acsv-artread').getBoundingClientRect();
       var pr = bpop.getBoundingClientRect();
-      var hit = shellR.left > 100 || shellR.left < -100 ? null
-        : document.elementFromPoint(pr.left + pr.width / 2, pr.top + pr.height / 2);
-      return (shellR.left > 100 || shellR.left < -100 ? 'offset-context ' : '')
-        + 'hit=' + (hit ? (hit.className || hit.tagName) : 'null')
+      var hit = document.elementFromPoint(pr.left + pr.width / 2, pr.top + pr.height / 2);
+      return 'hit=' + (hit ? (hit.className || hit.tagName) : 'null')
         + ' rect=' + Math.round(pr.left) + ',' + Math.round(pr.top)
         + '+' + Math.round(pr.width) + 'x' + Math.round(pr.height)
         + ' vh=' + window.innerHeight;
