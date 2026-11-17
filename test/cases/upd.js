@@ -36,11 +36,12 @@ function updAtom(tag, title) {
 var remountFails = 0;
 var remountMaxMs = 0;
 var remountNote = ''; // 失败/最慢那轮的分解（unmount/mount 各自耗时与失守步）
-async function remountStep(fn, tag, note) { // 每步允许重试一次：全量跑尾部负载抖动（实测偶发一步 >15s，
-                                 // 真机同路径 3.5s 内完成）与真卡死分开——两步都超窗才计数
+async function remountStep(fn, tag, note) { // 每步允许重试一次：全量跑尾部负载抖动（实测偶发一步 >15s；
+                                 // 0.9.348 起窗口翻倍到 30s——11-17 CI（ubuntu 26.04 WebKit）实测
+                                 // mount 33.6s 越窗假红，真机同路径 3.5s 内完成）与真卡死分开——两步都超窗才计数
   var t = performance.now();
-  if (await waitFor(fn, 15000)) { note[tag] = Math.round(performance.now() - t); return true; }
-  if (await waitFor(fn, 15000)) { note[tag] = Math.round(performance.now() - t); return true; }
+  if (await waitFor(fn, 30000)) { note[tag] = Math.round(performance.now() - t); return true; }
+  if (await waitFor(fn, 30000)) { note[tag] = Math.round(performance.now() - t); return true; }
   note[tag] = 'FAIL@' + location.hash;
   return false;
 }
@@ -60,7 +61,7 @@ async function remount() { // 模拟用户退出再进竖刷页（unmount→moun
   if (!(await remountStep(function () { return document.getElementById('acsv-root'); }, 'mount', note))) remountFails++;
   var ms = Math.round(performance.now() - t0);
   remountMaxMs = Math.max(remountMaxMs, ms);
-  if (remountFails || ms > 15000) remountNote = JSON.stringify(note) + ' total=' + ms;
+  if (remountFails || ms > 30000) remountNote = JSON.stringify(note) + ' total=' + ms;
 }
 function updModal() { return document.querySelector('.acsv-upd'); }
 function updDot() { return document.querySelector('.acsv-upd-dot'); }

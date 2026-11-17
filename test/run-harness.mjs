@@ -361,7 +361,13 @@ var browser = await launch();
 var failed = 0, ran = 0, retried = 0, skipped = 0;
 var ALLOW_SKIP = !!process.env.HARNESS_ALLOW_SKIP;
 
-// 单次尝试的结局：'pass' | 'assert'（断言红，**不重试**）| 'driver'（驱动层失败，可重试一次）
+// 驱动层尝试预算（0.9.348 加固）：ubuntu-latest 滚到 26.04 后观测到「连续两轮 goto 双双
+// 卡满 60s」（2026-11-17 deeplink-miss，重试 1 次仍栽）——坏窗口比 10 月那批更黏。
+// 默认共 3 次尝试（初跑 + 驱动层重试 2 次），HARNESS_ATTEMPTS 覆盖做对照诊断；只放宽
+// 驱动重试，断言仍零重试。
+var ATTEMPTS = Math.max(1, Math.min(5, Number(process.env.HARNESS_ATTEMPTS) || 3));
+
+// 单次尝试的结局：'pass' | 'assert'（断言红，**不重试**）| 'driver'（驱动层失败，按 ATTEMPTS 预算重试）
 async function runOnce(c) {
   var t0 = Date.now();
   var page = await browser.newPage(c.viewport ? { viewport: c.viewport } : undefined);
@@ -404,12 +410,14 @@ async function runOne(c) {
   var skip = HEADLESS_SKIP.filter(function (s) { return s.name === c.name; })[0];
   if (skip) { skipped++; console.log('SKIP ' + c.name + ' — ' + skip.reason); return; }
   var r = await runOnce(c);
-  if (r === 'driver') {
-    // 驱动层失败＝环境级偶发（页面子资源卡住，见下方归因更正）——重试一次；
+  var tries = 1;
+  while (r === 'driver' && tries < ATTEMPTS) {
+    // 驱动层失败＝环境级偶发（页面子资源卡住，见下方归因更正），重试到预算用尽；
     // 断言失败（'assert'）绝不重试，不拿重试掩盖真回归
     retried++;
-    console.log('RETRY ' + c.name + '（驱动层失败，重试一次）');
+    console.log('RETRY ' + c.name + '（驱动层失败，第 ' + tries + '/' + (ATTEMPTS - 1) + ' 次重试）');
     r = await runOnce(c);
+    tries++;
   }
   ran++;
   if (r === 'pass') return;
@@ -434,7 +442,8 @@ async function runOne(c) {
 // ① 回退后那次 CI 照栽同一个 play-cold；② 翻历史，2026-10-05 那次失败的 CI（本批之前、并发改动之前）
 // 栽的是**同样这三个场景、同样只有驱动层超时**，当时重跑即过。⇒ 这是**既有的环境级偶发**
 // （现象：某个页面的子资源拉取偶发卡住），与并发度、与本批改动无关。
-// 处置：不再按 CI 分流（全平台同池并发），改为**驱动层失败自动重试一次**（见 runOne）。
+// 处置：不再按 CI 分流（全平台同池并发），改为**驱动层失败自动重试**（默认共 3 次尝试，
+// 0.9.348 起——26.04 镜像上连两轮双双卡满 60s 的黏窗口出现过，重试 1 次不够用；见 ATTEMPTS）。
 const ALL_PARALLEL = !process.env.HARNESS_SERIAL;
 // CI 恒串行（0.9.209 实测）：GitHub 跑机上"某页子资源偶发拉不动"的根子是**争抢**——
 // 现象是驱动层 page.goto 超时、断言零失败、重试常能救回（重试仍失败的并发窗口约 1 分钟），
@@ -460,5 +469,5 @@ await browser.close();
 server.close();
 console.log('—— ' + ran + ' 个场景，失败 ' + failed
   + (skipped ? ('，跳过 ' + skipped + (ALLOW_SKIP ? '（HARNESS_ALLOW_SKIP 放行）' : '（按失败计）')) : '')
-  + (retried ? ('（' + retried + ' 个驱动层偶发已重试）') : '') + ' ——');
+  + (retried ? ('（驱动层重试 ' + retried + ' 次）') : '') + ' ——');
 process.exit(failed ? 1 : 0);
