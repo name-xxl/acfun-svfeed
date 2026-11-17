@@ -12,7 +12,14 @@
  *   ③ settingspanel 不得出现任何子项键字面（二级清单必须 settings.injectItems() 派生，
  *      人工抄表=本闸存在的理由本身）；
  *   ④ 总闸项形态：type bool ∧ def true ∧ panel true ∧ manage 'inject' ∧ hintOff 在位；
- *   ⑤ 子项形态：type bool ∧ def true（全开=现状零行为变化）∧ panel false ∧ label/hint 齐。
+ *      子项形态：type bool ∧ def true（全开=现状零行为变化）∧ panel false ∧ label/hint 齐；
+ *   ⑤ **模块分闸（0.9.344 用户裁决「原生页新功能要进设置面板可开关，闸保后来者按规范」）**：
+ *     boot 的每一个 import 模块必须在 BOOT_ROLES 显式落籍——NATIVE_GATED（原生面注入：必须
+ *     给 key，key 与 SCHEMA sub:'inject' 及 boot injectOn 字面三方互锁）/ SCRIPT（脚本自有
+ *     世界，不在射程）/ INFRA（boot 自身设施）/ EXEMPT（**只许一个**：nav.js 进门键，
+ *     0.9.343 复审钉「闸不吞入口」——挪它进 GATED 或让豁免席扩编都红）。
+ *     诚实边界：静态判不出「这个功能到底注不注入原生页」，本闸把默认路堵死——新模块想进
+ *     boot 必须来此签字分类，漏分类=红；把原生注入谎标成 SCRIPT 属人的裁决，评审可见。
  *
  *   node test/check-injects.mjs
  */
@@ -78,7 +85,71 @@ SCHEMA.forEach(function (it) {
   if (!it.label || !it.hint) bad.push(it.key + '：二级行缺 label/hint 文案');
 });
 
-console.log('[check-injects] 注入闸配对钉（0.9.341）——稿 docs/preview/native-inject-switch.html');
+// ---------- ⑤ 模块分闸（0.9.344）：boot 每个 import 必须显式落籍 ----------
+// 原生页新功能三保险规范（README「开发」章）：①SCHEMA sub:'inject' 一行（存储+文案）
+// ②boot injectOn(key) 短路 ③本表 NATIVE_GATED 落籍——三处缺一即红（①↔②由规则①钉，
+// ③↔①②由本节的 ⑤a/⑤b 钉）。豁免席只许 nav.js（进门键，0.9.343）；谎标角色属人的
+// 裁决，评审面由本表逐行显式化。
+const BOOT_ROLES = {
+  // INFRA：boot 自身分流/供件（非特性注入）
+  './dbg.js': { role: 'INFRA' },
+  './ui.js': { role: 'INFRA' },        // ensureStyle 样式供给（脚本页/原生页共用，注入与否由被闸件决定）
+  './state.js': { role: 'INFRA' },     // setRoot
+  './styles.js': { role: 'INFRA' },    // IMGVIEW_CSS 常量
+  './pagekind.js': { role: 'INFRA' },  // 分流判据
+  './injects.js': { role: 'INFRA' },   // 闸门层自身
+  // EXEMPT：脚本唯一进门键——0.9.343 复审「闸不吞入口」，此席锁死单元素（扩编=红）
+  './nav.js': { role: 'EXEMPT', why: '首页顶导航入口+兜底胶囊＝进设置面板的门（0.9.343）' },
+  // NATIVE_GATED：原生页注入特性（keys 必须 ∈ SCHEMA sub:'inject'，且 boot 字面配对由规则①管）
+  './uppage.js': { role: 'NATIVE_GATED', k: ['injectSpaceShortVideo'] },
+  './spacemoments.js': { role: 'NATIVE_GATED', k: ['injectSpaceMoments'] },
+  './memberplaza.js': { role: 'NATIVE_GATED', k: ['injectMemberPlaza'] },
+  './imnative.js': { role: 'NATIVE_GATED', k: ['injectPageIm'] },
+  './nativeip.js': { role: 'NATIVE_GATED', k: ['injectPageIp'] },
+  // SCRIPT：脚本自有世界（竖刷壳/dock 自注册视图/页内行为），不在注入闸射程（用户裁决 0.9.341）
+  './player.js': { role: 'SCRIPT' },   // 竖刷壳本体（toggle/mount）
+  './natpanel.js': { role: 'SCRIPT' }, // 脚本页 IP 面板（原生页 IP 文本注入在 nativeip＝闸内）
+  './signapi.js': { role: 'SCRIPT' },  // 自动签=行为链非 DOM 注入；弹层落位时机另批裁决（勿借本行夹带）
+  './signpop.js': { role: 'SCRIPT' },
+  './mypage.js': { role: 'SCRIPT' },   // 以下六件＝registerView 自注册（脚本页 dock 世界）
+  './zone.js': { role: 'SCRIPT' },
+  './searchview.js': { role: 'SCRIPT' },
+  './followview.js': { role: 'SCRIPT' },
+  './squareview.js': { role: 'SCRIPT' },
+  './jingxuanview.js': { role: 'SCRIPT' },
+  './playlayer.js': { role: 'SCRIPT' }
+};
+const bootImports = new Set();
+var reNamed = /from '(\.\/[^']+)'/g, mN;
+while ((mN = reNamed.exec(bootSrc))) bootImports.add(mN[1]);
+var reSide = /^import '(\.\/[^']+)'/gm, mS; // 自注册视图的副作用 import（行首）
+while ((mS = reSide.exec(bootSrc))) bootImports.add(mS[1]);
+// ⑤a 落籍检查：boot 新增 import 未分类＝红——来 BOOT_ROLES 签字才能进
+for (const mod of bootImports) {
+  if (!BOOT_ROLES[mod]) bad.push('boot.js 引了未落籍模块 ' + mod + '——原生页新特性须按三保险规范（README「开发」章）：SCHEMA sub:\'inject\' 一行 + boot injectOn 短路 + BOOT_ROLES 标 NATIVE_GATED；脚本世界标 SCRIPT；设施标 INFRA；EXEMPT 只许进门键');
+}
+// ⑤b NATIVE_GATED 的 key 必须都在 SCHEMA 登记（标了闸没上表=红；表↔调用字面由规则①管）
+const gatedKeys = [];
+for (const mod of Object.keys(BOOT_ROLES)) {
+  const r = BOOT_ROLES[mod];
+  if (r.role !== 'NATIVE_GATED') continue;
+  for (const k of r.k) {
+    gatedKeys.push(k);
+    if (schemaKeys.indexOf(k) < 0) bad.push('BOOT_ROLES ' + mod + ' 声称闸 key ' + k + '，但 SCHEMA 无此 sub:\'inject\' 项（键不得复活/漏登记）');
+    if (!bootImports.has(mod)) bad.push('BOOT_ROLES 登记了 ' + mod + ' 为闸内注入件，但 boot 已不引它（撤件请同批撤籍）');
+  }
+}
+// ⑤c SCHEMA 键必须有闸籍（三列表互锁：SCHEMA↔boot 字面↔BOOT_ROLES）
+for (const k of schemaKeys) {
+  if (gatedKeys.indexOf(k) < 0) bad.push('SCHEMA 子项 ' + k + ' 无 BOOT_ROLES 归属（上表不接线=假开关；接线请落籍）');
+}
+// ⑤d 豁免席锁死：恰 nav.js 一家，且 nav.js 只能是 EXEMPT（把门划进闸=0.9.343 回潮，红）
+const exempts = Object.keys(BOOT_ROLES).filter(function (m) { return BOOT_ROLES[m].role === 'EXEMPT'; });
+if (exempts.length !== 1 || exempts[0] !== './nav.js') bad.push('EXEMPT 豁免席变形：' + JSON.stringify(exempts) + '——只许 ./nav.js（进门键不可被闸吞，扩编需用户裁决）');
+if (BOOT_ROLES['./nav.js'].role !== 'EXEMPT') bad.push('nav.js 被挪出豁免席——进门键豁免是 0.9.343 用户复审钉，动它先过用户');
+rows.push('BOOT_ROLES 落籍：' + bootImports.size + ' 个 boot import 全覆盖（GATED×' + gatedKeys.length + ' / EXEMPT×1 / SCRIPT/INFRA 其余）');
+
+console.log('[check-injects] 注入闸配对钉 + 模块分闸（0.9.341/0.9.344）——稿 docs/preview/native-inject-switch.html');
 for (const r of rows) console.log('  ' + r);
 if (bad.length) {
   for (const b of bad) console.log('  ✗ ' + b);

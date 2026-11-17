@@ -393,6 +393,10 @@ npm run check        # 仅静态校验（CI 在 build 后跑）：场景登记�
                      #   slide/item 字段契约（唯 domfields.js 可登记，0.9.297 起）/
                      #   确认稿↔实现 取值一致（稿承诺的取值必须在两侧逐字出现、且实现侧出现次数与注册相符，
                      #   摘实现任一条即红；形态/行为类承诺仍由 harness 钉，check-preview，0.9.314 起）/
+                     #   注入闸配对+分闸（SCHEMA sub:'inject' 键↔boot injectOn 字面双向 1:1；皮肤零抄表；
+                     #   boot 每个 import 必须按 INFRA/SCRIPT/NATIVE_GATED/EXEMPT 落籍——原生页新功能
+                     #   不落闸不可关，落籍谎报需人签字；豁免席锁死 nav.js 进门键，check-injects，
+                     #   0.9.341 起、0.9.344 扩分闸）/
                      #   确认弹几何宿主声明（pickpop 确认弹族每个调用点必须显式 placeHost；宽宿主会让整宿主当
                      #   让位列、弹层与锚点脱钩；透传须带 popgeom-ok 标记，check-popgeom，0.9.316 起）/
                      #   契约面类型检查（tsc，0.9.188 起）
@@ -400,6 +404,13 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 ```
 
 测试设施（0.9.81 工程化）：
+- **原生页新功能三保险（用户裁决 2026-11-17「原生页新加的功能要进设置面板可开关」）**：凡在
+  **非脚本页**新增注入特性，进 boot 前必须三处齐落——① SCHEMA `sub:'inject'` 一行（存储+文案，
+  def true=现状）；② boot 以 `injectOn(key)` 短路包住调用点（关＝不注入不加载整链）；
+  ③ `check-injects.mjs` 的 BOOT_ROLES 把新模块标 `NATIVE_GATED` 并带键。三列表互锁 +
+  「boot 新 import 未落籍即红」由该闸机械钉；`EXEMPT` 豁免席只许**进门键** nav.js（首页导航
+  入口+兜底胶囊＝进设置面板的门，闸不吞入口，0.9.343）。脚本自有世界标 `SCRIPT`、设施标
+  `INFRA`——谎标角色属人的裁决，评审面逐行显式化。确认稿仍按规矩 1 先行。
 - `test/cases/*.js`——harness 场景体（按域拆分，文件清单以目录为准：feed/stall/views/play/deeplink/upd/msg/boot/settings/member/relation/favfolders/hls/jingxuan/layer-list/related 等），
   `test/harness.html` 只留公共件与分发器；场景里加断言改 cases 文件，新增场景记得
   同步 `run-harness.mjs` 的 HARNESS_CASES（双向漏登记由 `test/check-cases.mjs` 拦截）。
@@ -578,7 +589,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `followbadge.js` | 关注未读徽标（0.9.97；0.9.107 时间水位线；**0.9.139 水位抽件 followseen**）：徽标=自水位（GM）以来 followFeedV2 首屏 `createTime > 水位` 的新条数——旧 webPush followUpers 布尔是服务端长期不清标记（实测清不掉⇒固定数字复亮），已退役；**正式推进点=各入口首屏到达时 `followseen.markSeen`**（followview 首屏成功 / followstream 进视频侧），poll 的 in-view 分支退化为兜底（吸收停留期新内容）；退避真逐次翻倍 60s→10min 纯函数；hidden 短路/未登录静默；挂 player.mount/unmount |
 | `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；`/member/*` 页加原生页入口（0.9.128：ensureStyle + setRoot(document.body) + watchMemberNav——memberplaza，0.9.47 决策的限定反转）；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷）。**0.9.341 起原生面注入点统一经 `injects.injectOn(key)` 判读**（关＝整支短路；boot 只判一次、无即时摘除义务；memberCenter 支样式/root 前置由 plaza∨IP 两闸共用；**0.9.343 豁免**：home 的 watchNav 顶导航入口＝进门键，不判任何闸） |
 | `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/**memberCenter**/other——boot 运行分流的唯一判据。0.9.303 起判据导出单源：`SPACE_UID_RE`（uppage/spacemoments 注入判据共用）、`memberCenterPath`（boot/memberplaza 共用）；防复制=pagekind.test 字面扫描（旧「与 uppage 逐字一致+单测钉」实为只钉 pageKind 自己的假守卫） |
-| `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）＋0.9.278 `guestRead`（非个性化推荐，隐私组）；`onChange` 订阅让消费方零反向依赖地即时生效；**0.9.341 注入闸七键**（总闸 `injectNative`（panel:true，manage 行）+ `sub:'inject'` 六键 def 全 true=现状，`injectItems()` 派生二级清单；键↔boot 短路配对由 check-injects.mjs 双向钉） |
+| `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）＋0.9.278 `guestRead`（非个性化推荐，隐私组）；`onChange` 订阅让消费方零反向依赖地即时生效；**0.9.341 注入闸六键**（总闸 `injectNative`（panel:true，manage 行）+ `sub:'inject'` 五键 def 全 true=现状——0.9.343 复审撤 `injectNavEntry`（进门键豁免）；`injectItems()` 派生二级清单；键↔boot 短路配对 + boot import 落籍分类由 check-injects.mjs 双向钉，0.9.344 起新原生面特性不落籍不可进 boot） |
 | `injects.js` | 官方页面增强门层（0.9.341，确认稿 docs/preview/native-inject-switch.html）：`injectOn(key)`＝「要不要注入原生面」唯一判读口（总闸短路在前、子项在后，未登记键 fail-closed 不注入）；关＝不注入不加载整链短路（0.9.47 白名单短路先例），生效=重新加载后（boot 一次判读，无 unmount 义务——用户裁决明示）。消费方只有 boot（五个短路点；0.9.343 起首页导航入口豁免在外——进门键不可关）与 settingspanel（总闸键常量+置灰判定）；出边仅 settings.js |
 | `watchhost.js` | 宿主等待原语（0.9.342 批B，零依赖）：「等宿主渲染→成一次即停→有界重试」四份同形环（nav MO+6s 兜底胶囊 / memberplaza setInterval+点击重启 / spacemoments、uppage 递归 setTimeout）的单源收口处。语义面：首拍同步、tries=计划内补拍条数、observe 观察补拍成则自动摘、deadline 到点结束观察窗交兜底件、onEnd 告知预算耗尽（memberplaza 单环旗标复位依赖）。**常驻自愈观察器不并表**（spacetab/memberplaza heal/nativeip 重扫无 settled 概念——语义不同，并表即被否决的大一统） |
 | `settingspanel.js` | 脚本页设置皮肤（0.9.89）：dock 齿轮 → `openSettings()` → overlay 栈（modal，Esc 白拿）；host + **Shadow DOM** 作用域样式（量取值与日期在文件头注释）；控件按 schema 表驱动（bool 开关 / select 下拉 / number 步进器）；**0.9.253 页脚补版本号**（`v{APP_VERSION}` 左置 + 「完成」右置，与 IP 面板页脚同源）；原生页皮肤＝`natpanel.js`（见其行）；**0.9.341 同壳二级**（manage 行=开关+「管理」钮；`mode` 换页不新开 overlay 层——零新 z 档，Esc 经 onPanelEsc 先回一级；置灰态 CSS pointer-events 停用、不回写值） |
