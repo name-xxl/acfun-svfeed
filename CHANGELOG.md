@@ -5,6 +5,53 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.331（2026-11-09）· 文章浮层 v3.2 落地（删文末条 + 藏键描边化）+ 关注页文章行落点漂移收口
+
+**病灶（确认稿评审 + 用户实报三条）**：① 底栏避让文末条的 dim 去重机构是「两份相同五键并存」的
+衍生成本——用户裁决直接删文末条，避让整套多此一举；② 底栏收藏键实心星与赞/评论/分享描边族
+不协调；③ 脚本关注页文章行点击跳原址——阅读浮层（0.9.326）只收编进了 rowkit.openRowDefault
+单源，followview 自持的 rowDefault 本地副本（0.9.218 下沉时遗留）漏了文章分支，文章行按
+href 兜底出站。
+
+**逐条修法（确认稿 docs/preview/article-reader-v3.html v3.2，用户已确认）**：
+① `renderArticle` 撤文末动作条构建（正文结尾直接接评论头）；`armDim`/`dimIO`/
+`.aractbar--dim` 整体退役（cssraw 同步摘），`syncActs` 只写底栏一份（「两份 .n 恒等」不变式
+随之消亡）；② 藏键 idle 改 e155 同几何轮廓内联 SVG（styles.js `ICONS.stowOutline`，稿内件
+逐字真源：fontTools 导出实心星 path + stroke 55/1024，y-up→y-down 翻转；字体内无纯描边星——
+e160/e3c8 带 A 字标，151 枚全量枚举复核），点亮态切 e155 实心 accent（cssraw `.aract.stow(.on)`
+显隐切换）；③ followview.rowDefault 只自留视频分支（`{kind:'single'}` 会话语境），moment/
+article 委托 rowkit.openRowDefault 单源。
+
+**测试证据**：harness article-reader 重排——`article-open-mdetail-actions`（covin 无文末条 +
+底栏五键稿序）、`article-dim` 族改口径（滚到底动作键 opacity=1 即无渐隐，恢复 dim 即红）、
+`article-narrow-acts-reachable` 按「⋯ 为窄态藏/蕉唯一入口」改口径、新增 `article-stow-outline`
+/`article-stow-outline-on`（idle 描边在着实心隐 / 点亮反转）；harness view-follow 新增
+`follow-article-row-reader`（点文章行=浮层开 + window.open 零命中，行落点副本回退即红）。
+摘修复反跑三处各转红（恢复文末条 / 回退 followview 副本 / 摘 svgIdle 接线）。
+
+### 0.9.330（2026-11-09）· 文章域两病灶：正文 acfun 表情接通回填管线 + 行卡文章评论键原地展开
+
+**病灶（用户实报两条）**：① 文章详情正文里表情全是「表情」灰字占位——评论/行流/面板同一套
+EmotionMap 映射管线健在，唯独文章正文没接；② 关注流/广场行卡上点文章的评论键整个打开阅读浮层，
+与动态/视频行「行内原地展开评论区」的交互不一致。
+
+**逐条修法**：
+① `sanitizeArticleBody` 的方言替换分包待遇——acfun 件改出 `emotPlaceholderHtml` 单源的可回填占位
+（data-pkg/id），`refillBodyEmots` 在 `upgradeBodyImgs` 之后接 `refillEmoticons` 管线回填真图
+（顺序关键：回填小图绝不进 .arimg 升级/长图管线；map 未就绪走 ensureEmotionMap 异步补一次，
+关层后不回填死节点）；zt 等未实测包维持死占位（图源未实测不猜测，稿附节 7 原判据不动）。
+cssraw 34/68 表情尺寸档共享选择器组追加 `.arbody .ubb-emotion`（取值单源不动，只加作用域）。
+② `rowkit.rowBarOf.onComment` 文章分支脚本页路径改 `toggleInlineComments`（stype=3 同视频值，
+已实测 §17.1；sourceId=acId）——三型条目行内全部原地展开；原生页宿主 siteOnly 外链不动。
+连带结构收口：`openRowDefault` 文章分支补 `closeInlineComments()`（动态分支早有此步——防行内
+评论宿主被阅读浮层 openCommentsHost 抢注后留死 DOM；文章改行内展开后同缝同患）。
+
+**测试证据**：unit articleread「emot 方言分包待遇」断言（acfun=ubb-emot-ph 可回填形态 / zt=ar-em
+死占位）；harness article 场景 emotion 桩改真包 + 新增 `article-emot-refill`（acfun 回填
+img.ubb-emotion、zt 占位原样、方言字面零漏出）；harness view-follow 新增
+`follow-article-cmts-inline`（文章行点评论键行内出评论区+输入条，旧病灶开浮层即红）。
+摘任一半修复（占位改回死 span / renderArticle 摘回填 / rowkit 回退开浮层）对应断言各转红。
+
 ### 0.9.329（2026-11-07）· 藏键字号从目测改量测——字形墨迹量化补偿（20/23px）
 
 **病灶（用户真机三连报「收藏图标还是小了」）**：0.9.327/328 两轮字号微调（13→15→14px）都靠目测猜——

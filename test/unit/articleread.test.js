@@ -4,7 +4,8 @@
 //   sanitizeArticleBody：标签白名单 p/br/img/h2/h3/ul/ol/li/blockquote/table/thead/tbody/tr/th/td/
 //   pre/code/figcaption/figure/a；属性白名单 img 仅 src/alt、a 仅 href；img/a 的 URL 须过
 //   src/imgurl.js 的 CDN_URL_OK（不过 ⇒ 摘除元素、留 alt/文本）；script/iframe/on* 内联事件/style 全摘；
-//   [emot=zt,<id>/] ⇒ 占位 span（带 data 属性；zt 图源未实测 ⇒ 不回填）。
+//   [emot=zt,<id>/] ⇒ 死占位 span（带 data 属性；zt 图源未实测 ⇒ 不回填）；
+//   [emot=acfun,<id>/] ⇒ 可回填占位 ubb-emot-ph（data-pkg/id，refillBodyEmots 渲染侧回填真图，0.9.328）。
 //
 // 【两组用例的分工，为什么这样切】
 //   A) 导出契约组：**必须跑**。模块不落地 ⇒ 本组红（并行批的显式待办，不许静默绿）。
@@ -24,6 +25,7 @@
 //   · 摘除元素时连 alt/文本一起删掉 ⇒「坏 URL 件摘除但留 alt/文本」红；
 //   · script/iframe/on*/style 任一放行 ⇒「脏件全摘」红；
 //   · emot 方言件不转占位、或占位不带 data 属性、或擅自回填 zt 图源 ⇒ 三条 emot 用例各红；
+//   · acfun 件改回死占位（回填接线被摘）或净化阶段直出 img ⇒「emot 方言分包待遇」红。
 //   · 把 sanitize 改成会抛错（如未防 null/非串入参）⇒「任何输入不抛错」红。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -239,12 +241,18 @@ test('emot 方言件转占位 span（带 data 属性），且 zt 图源不回填
     'zt 图源未实测却被回填成 img ⇒ ' + out);
 });
 
-test('emot 方言：acfun 包与 zt 包同走占位件（不分包漏件）', { skip: SKIP }, () => {
-  var out = SAN('<p>甲[emot=acfun,1/]乙[emot=zt,7/]丙</p>');
+test('emot 方言分包待遇：acfun 出可回填占位（ubb-emot-ph + data-pkg/id），zt 仍死占位（0.9.328）', { skip: SKIP }, () => {
+  var out = SAN('<p>甲[emot=acfun,7/]乙[emot=zt,23/]丙</p>');
   assert.ok(out.indexOf('[emot=') < 0, '仍有未转的方言件 ⇒ ' + out);
-  assert.equal((out.match(/<span\b/g) || []).length, 2, '两件表情应各出一个占位 span ⇒ ' + out);
   assert.ok(out.indexOf('甲') >= 0 && out.indexOf('乙') >= 0 && out.indexOf('丙') >= 0,
     '占位转换吃掉了邻文本 ⇒ ' + out);
+  // acfun：可回填占位（refillEmoticons 回填定位靠 data-pkg="acfun" data-id）
+  var ac = /<span class="ubb-emot-ph" data-pkg="acfun" data-id="7">\[表情\]<\/span>/.test(out);
+  assert.ok(ac, 'acfun 件未出可回填占位（摘了 0.9.328 回填接线即红）⇒ ' + out);
+  assert.ok(!/<img/i.test(out), '净化阶段不许直接回填 img（回填归 refillBodyEmots 渲染侧）⇒ ' + out);
+  // zt：死占位（ar-em，data-emot-*），不经可回填管线
+  var zt = /<span class="ar-em" data-emot-pkg="zt" data-emot-id="23">表情<\/span>/.test(out);
+  assert.ok(zt, 'zt 件应维持 ar-em 死占位（图源未实测不回填）⇒ ' + out);
 });
 
 test('任何输入不抛错、返回恒为字符串（空/非串/破碎标签/深嵌套）', { skip: SKIP }, () => {

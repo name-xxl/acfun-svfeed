@@ -2130,6 +2130,32 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       && /团圆时节/.test((aRow.querySelector('.acsv-frow-sdesc') || {}).textContent || '')
       && !aRow.querySelector('.acsv-frow-mdur')),
       aRow ? 'tag/desc' : 'no-row');
+    // ---- 文章行评论键原地展开（0.9.328）：三型行同构——行内 .acsv-frow-cmts + 管线进列表。
+    // 旧病灶（评论键开阅读浮层）⇒ 行内永无 cmts ⇒ 本条红（摘修复反跑即红）；
+    // stype=3 与阅读浮层评论区同值（§17.1），sourceId=文章 acId（夹具 488603）
+    var aActs = aRow ? aRow.querySelectorAll('.acsv-fact') : [];
+    if (aActs[1]) aActs[1].click();
+    rec('follow-article-cmts-inline', !!(aRow && aActs.length === 4 && (await waitFor(function () {
+      var box = aRow.querySelector('.acsv-frow-cmts');
+      return box && box.querySelectorAll('.acsv-citem').length >= 2
+        && !!box.querySelector('.acsv-cinput');
+    }, 8000))), 'acts=' + aActs.length
+      + ' items=' + (aRow ? aRow.querySelectorAll('.acsv-frow-cmts .acsv-citem').length : -1)
+      + ' 浮层=' + !!q('.acsv-artread'));
+    if (aActs[1]) aActs[1].click(); // 收起，防污染后续互斥/冒泡断言
+    // ---- 文章行落点（0.9.331 收口）：点行本体=阅读浮层，不跳原址——关注页 rowDefault
+    // 本地副本曾漏文章分支按 href 出站 ⇒ 本条红（浮层不开 + window.open 被打）
+    var realOpen = window.open;
+    window.__ACSV_OPEN_HITS__ = 0;
+    window.open = function () { window.__ACSV_OPEN_HITS__ = (window.__ACSV_OPEN_HITS__ || 0) + 1; return null; };
+    if (aRow) aRow.click();
+    var rdOpen = await waitFor(function () { return q('.acsv-artread'); }, 6000);
+    rec('follow-article-row-reader', !!rdOpen && (window.__ACSV_OPEN_HITS__ || 0) === 0,
+      '浮层=' + !!rdOpen + ' window.open=' + (window.__ACSV_OPEN_HITS__ || 0));
+    window.open = realOpen;
+    var rdBack = rdOpen && rdOpen.querySelector('.arhd .acsv-tbtn');
+    if (rdBack) rdBack.click();
+    await waitFor(function () { return !q('.acsv-artread'); }, 4000);
     // ---- 动态行：正文（pre-line）+ 单图 n1 + 互动行四键（分享带文字无数字）----
     var mRow = rowOf('动态正文带 UBB');
     rec('follow-moment-ubb', !!(mRow && mRow.querySelector('.acsv-frow-text a.ubb-at')),

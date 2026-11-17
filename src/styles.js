@@ -222,7 +222,12 @@ export var ICONS = {
   // 稍后再看（0.9.279）：底栏时钟，仅图标
   clock: '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg>',
   // 更新入口（0.9.60）：下载箭头入托盘（Material download）
-  upd: '<svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>'
+  upd: '<svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>',
+  // 文章底栏藏键 idle 描边星（0.9.331，确认稿 article-reader-v3 附节 7 形态真源）：e155
+  // 同几何轮廓——字体内无纯描边星（e160/e3c8 带 A 字标），fontTools 导出实心星 path 加
+  // stroke（55/1024，round join）；字形坐标 y-up、SVG y-down，g 上的翻转变换不可省。
+  // 点亮态换 e155 实心 accent（imicons.GLYPHS.feedStow），切换 CSS 在 cssraw .aract.stow
+  stowOutline: '<svg class="arstow" viewBox="0 0 1024 1024" aria-hidden="true"><g transform="translate(0,1024) scale(1,-1)"><path d="M675 597 570 734Q561 749 545.5 758.0Q530 767 512.0 767.0Q494 767 478.5 758.5Q463 750 454 734L349 597L182 541Q165 538 151.5 526.0Q138 514 132.0 497.0Q126 480 130.0 462.5Q134 445 147 432L247 291L250 121Q248 103 255.5 86.5Q263 70 277.5 59.5Q292 49 310.0 47.5Q328 46 344 53L512 103L680 53Q697 46 714.5 47.5Q732 49 746.5 59.5Q761 70 768.5 86.5Q776 103 774 121L777 291L878 432Q890 445 894.0 462.5Q898 480 892.0 497.0Q886 514 872.5 526.0Q859 538 842 541Z" fill="none" stroke="currentColor" stroke-width="55" stroke-linejoin="round"/></g></svg>'
 };
 
 // A 站小视频页面自带的操作图标（加载失败自动回退到手绘 SVG）

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>UI 预览 · 文章阅读浮层 v3.1（B 案全覆盖 / 760 版心 / 常驻轻动作条 / 收口批）</title>
+<title>UI 预览 · 文章阅读浮层 v3.2（B 案全覆盖 / 760 版心 / 常驻轻动作条 / 删文末条收口）</title>
 <!-- ============================================================
      docs/preview/article-reader-v3.html —— 静态 UI 预览（形态确认稿，确认后才进 src 实现）
      v3 依据（2026-11-05，对照主流文章社区实测后修订）：
@@ -20,12 +20,20 @@
        ⑥ 配图：width 100% / height auto 等比缩放、不裁切；点击可进大图。
        ⑦ 失败态主次调整：重试为主、前往原页为辅（新窗打开、浮层不拆）。
      v3.1 收口批（2026-11-05 评审）：
-       ① 双动作条同屏去重收缩（.aracts 入视口 → 底栏 --dim，口径见附节 10）；
+       ① 双动作条同屏去重收缩（.aracts 入视口 → 底栏 --dim，口径见附节 10）〔v3.2 撤〕；
        ② 评论键锚定（smooth scroll 到 .ar-cmhead，纯行为、形态零变化，附节 11）；
-       ③ 长图超高兜底（.arimg--tall：75vh 居中截住 + 底部渐变 + .artall chip，新增节⑥）；
+       ③ 长图超高兜底（.arimg--tall：75vh 居中截住 + 底部渐变 + .artall chip，新增节⑤）；
        ④ 窄态藏/蕉收纳进 ⋯ 弹层（.aractbar-more，节④改摆）；
-       ⑤ 分享键 icon-only 统一（文末动作条与底栏一致，撤「分享」文字）；
-       ⑥ 回复交互口径（.acsv-quotechip 沿用 comments.js setReply 现成机制，新增节⑦、附节 12）。
+       ⑤ 分享键 icon-only 统一（底栏撤「分享」文字）；
+       ⑥ 回复交互口径（.acsv-quotechip 沿用 comments.js setReply 现成机制，新增节⑥、附节 12）。
+     v3.2 改版（2026-11-09 用户裁决「删文末条」）：
+       ① 文末动作条 .aracts 整体删除——底栏成为唯一动作条（五键常亮）；
+       ② v3.1 的去重收缩机构随之整体退役：.aractbar--dim / IntersectionObserver /
+          「两份 .n 恒等」不变式全撤（无重复可去），原节⑤撤销、⑥⑦顺移为⑤⑥；
+       ③ 窄态 ⋯ 收纳维持 v3.1 形态——蕉/藏窄态唯一入口＝⋯ 弹层（文末直排可达随文末条
+          一并消失，裁决时明知的代价，宽态五键照常直排）；
+       ④ 藏键 idle 描边化（用户裁决「实心星与整体不协调」）：e155 同几何轮廓 SVG（stroke
+          55/1024）作 idle，点亮换 e155 实心 accent（附节 7）。
      数据源（已实测，docs/api-research.md §17）：文章页 SSR window.articleInfo——
        title / parts[{content:正文HTML}] / likeCount bananaCount stowCount commentCount /
        isLike isThrowBanana / tagList / user / createTime / shareUrl；评论 stype=3 可行内；
@@ -166,10 +174,7 @@
     background:linear-gradient(135deg,#3a3f52,#232634);margin:0 1px;font-size:9px;color:#8a90a0;font-style:normal}
   .arem::after{content:"表情"}
 
-  /* ================= 文末动作条（读完即互动；与底栏同源） ================= */
-  /* 沿用 .acsv-mdetail-actions 真值：gap 26 / margin-top 12 / padding-bottom 12 */
-  .aracts{display:flex;align-items:center;gap:26px;margin-top:12px;padding:0 0 12px;
-    border-bottom:1px solid rgba(255,255,255,.09);font-size:13px;color:#8a90a0}
+  /* ================= 动作键（底栏唯一动作条；v3.2 删文末条，.aracts 不存在） ================= */
   .aract{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
   .aract .acsvg-glyph{font-size:14px;width:14px;height:14px;line-height:14px}
   .aract:hover{color:var(--acsv-accent)}
@@ -177,6 +182,10 @@
   .aract.on{color:var(--acsv-accent)}
   .aract.thrown{color:var(--acsv-ban)}
   .aract .n{font-variant-numeric:tabular-nums}
+  /* 藏键 idle 描边星（v3.2）：字体内无纯描边星（e160/e3c8 带 A 字标），取 e155 同几何轮廓
+     stroke 55/1024 描边；点亮态换 e155 实心 accent（见附节 7）。槽位沿用 0.9.329 补偿 20/23px */
+  .arstow{width:23px;height:23px;display:block}
+
 
   /* ================= 评论头 ================= */
   .ar-cmhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 2px}
@@ -199,10 +208,7 @@
   /* 回到顶部：视觉沿用 .acsv-tbtn（与 listtail 的 .acsv-tbtn.acsv-backtop 同源），本类只管定位 */
   .ar-backtop{position:absolute;right:20px;bottom:64px}
 
-  /* ================= v3.1 收口：去重收缩 / 长图兜底 / 窄态 ⋯ 收纳 / 回复 chip ================= */
-  /* 去重收缩：IO 盯 .aracts，入视口给底栏挂 --dim（状态单源，双栏共用）——附节 10 */
-  .aractbar .aract{transition:opacity .2s}
-  .aractbar--dim .aract{opacity:0;pointer-events:none}
+  /* ================= v3.1 收口：长图兜底 / 窄态 ⋯ 收纳 / 回复 chip（v3.2 撤去重收缩） ================= */
   /* 长图超高兜底：>75vh 图 flex 居中截住 + 底部渐变压暗 + 「长图 · 点击查看全图」chip；
      普通 .arimg（≤75vh）行为完全不变（本节只挂 --tall 修饰类） */
   .arbody .arimg--tall{position:relative;display:flex;align-items:center;justify-content:center;
@@ -354,7 +360,6 @@
   .stage.narrow .ar-follow{padding:6px 10px}
   .stage.narrow .covbd{padding:14px 16px 28px}
   .stage.narrow .arh1{font-size:24px;line-height:1.4}
-  .stage.narrow .aracts{gap:18px;flex-wrap:wrap}
   .stage.narrow .acsv-citem{gap:20px;padding:0 4px}
   .stage.narrow .acsv-citem .av{width:40px;height:40px;line-height:40px;font-size:14px}
   .stage.narrow .acsv-cavframe{display:none}
@@ -366,7 +371,7 @@
 </head>
 <body>
 <div class="board">
-  <h1>文章阅读浮层 v3.1 —— B 案全覆盖（760 版心 / 16–28 / 常驻轻动作条 + 收口批）</h1>
+  <h1>文章阅读浮层 v3.2 —— B 案全覆盖（760 版心 / 16–28 / 常驻轻动作条 · 删文末条收口）</h1>
   <p class="hint">
     <b>结论</b>：v2 的 A/B 双壳收敛为 <b>B 全覆盖</b>；A（620 浮层、正文 578）作为历史对照留在
     <code>article-reader.html</code>，不再实现。实测主流正文列宽：掘金 756 / 少数派 680 / AcFun 原生 732；
@@ -375,6 +380,8 @@
     ② 底部常驻轻动作条 + 「说点什么…」收起态（点击才展开完整 composer）；
     ③ 头部补关注 + 真实阅读量（不造阅读时长/目录）；④ 评论左标题 + 计数 + 触底续翻 + 空态；
     ⑤ 失败态重试为主、前往原页为辅。<br>
+    <b>v3.2 改动（2026-11-09 用户裁决）</b>：删文末动作条——底栏五键常亮为唯一动作条，
+    去重收缩机构（dim/IO/两份 .n 不变式）整体退役；窄态 ⋯ 收纳维持，⋯ 为窄态藏/蕉唯一入口。<br>
     <b>数据源（已实测）</b>：<code>window.articleInfo</code>——title / parts[{content:正文HTML}] /
     likeCount bananaCount stowCount commentCount / isLike isThrowBanana / tagList / user / createTime / shareUrl；
     评论 <code>stype=3</code> 可行内；正文表情 <code>[emot=zt,*]</code> 方言、配图 imgs.aixifan.com 直链。<br>
@@ -385,7 +392,7 @@
 
   <!-- ================= ① B 默认态 ================= -->
   <div class="sec">
-    <h2>① B · 默认态<em>全覆盖 + 760 版心；底部轻动作条常驻，正文滚到底才见文末同源动作条</em></h2>
+    <h2>① B · 默认态<em>全覆盖 + 760 版心；底部轻动作条常驻，为唯一动作条（v3.2 删文末条）</em></h2>
     <p class="note">
       头部＝返回 + 作者行（头像 40 / 名 16 / 日期 + 阅读量 12）+ 关注；大标题只在正文区出现一次。
       正文 16/28、段距 16、h2 21、h3 18；配图宽度 100%、等比缩放不裁切，点击进大图。
@@ -438,13 +445,6 @@
               <h3>留言小贴士</h3>
               <p>别只写「流心」两个字——写清楚为什么喜欢，才更容易被本娘看见。留言点赞最高的三位小伙伴，记得留意站内私信。</p>
             </div>
-            <div class="aracts">
-              <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
-              <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
-              <span class="aract" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
-              <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
-              <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
-            </div>
             <div class="ar-cmhead">
               <span class="ar-cmtitle">共 1024 条评论</span>
             </div>
@@ -493,7 +493,7 @@
             <button class="aractbar-input" title="写评论">说点什么…</button>
             <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
             <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
-            <span class="aract stow" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
+            <span class="aract stow" title="收藏"><svg class="arstow" viewBox="0 0 1024 1024" aria-hidden="true"><g transform="translate(0,1024) scale(1,-1)"><path d="M675 597 570 734Q561 749 545.5 758.0Q530 767 512.0 767.0Q494 767 478.5 758.5Q463 750 454 734L349 597L182 541Q165 538 151.5 526.0Q138 514 132.0 497.0Q126 480 130.0 462.5Q134 445 147 432L247 291L250 121Q248 103 255.5 86.5Q263 70 277.5 59.5Q292 49 310.0 47.5Q328 46 344 53L512 103L680 53Q697 46 714.5 47.5Q732 49 746.5 59.5Q761 70 768.5 86.5Q776 103 774 121L777 291L878 432Q890 445 894.0 462.5Q898 480 892.0 497.0Q886 514 872.5 526.0Q859 538 842 541Z" fill="none" stroke="currentColor" stroke-width="55" stroke-linejoin="round"/></g></svg><span class="n">8924</span></span>
             <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
             <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
           </div>
@@ -505,7 +505,8 @@
       已赞/已投蕉回显：<span class="aract on"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>1.2万</span>
       （accent 红·实心常驻）
       <span class="aract thrown"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>6561</span>
-      （蕉黄 #ffba0d·实心常驻）——悬停色同动态详情：赞/藏/评论悬停红、蕉悬停黄，悬停切实心。
+      （蕉黄 #ffba0d·实心常驻）；已收藏回显＝<i class="acsvg-glyph" style="font-style:normal">&#xe155;</i>8924
+      （e155 实心 accent 红）——idle 为同几何描边星（.arstow），悬停色同动态详情：赞/藏/评论悬停红、蕉悬停黄，悬停切实心。
     </p>
   </div>
 
@@ -616,13 +617,6 @@
             <div class="arbody">
               <p>又是一年团圆时节，AC娘在这里祝大家中秋快乐呀～今年 DD 歌回的主题就定为「唱团圆」。</p>
             </div>
-            <div class="aracts">
-              <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
-              <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
-              <span class="aract" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
-              <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">0</span></span>
-              <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
-            </div>
             <div class="ar-cmhead">
               <span class="ar-cmtitle">共 0 条评论</span>
             </div>
@@ -701,13 +695,6 @@
               <h2>参与方式</h2>
               <p>在文章下方留言，说出你最想吃的月饼口味和理由。</p>
             </div>
-            <div class="aracts">
-              <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
-              <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
-              <span class="aract" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
-              <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
-              <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
-            </div>
             <div class="ar-cmhead">
               <span class="ar-cmtitle">共 1024 条评论</span>
             </div>
@@ -735,7 +722,7 @@
             <span class="aractbar-more open">
               <button class="aractbar-morebtn" title="更多操作" aria-label="更多操作">⋯</button>
               <div class="aractbar-pop">
-                <span class="aract" title="收藏"><i class="acsvg-glyph">&#xe155;</i>收藏<span class="n">8924</span></span>
+                <span class="aract" title="收藏"><svg class="arstow" viewBox="0 0 1024 1024" aria-hidden="true"><g transform="translate(0,1024) scale(1,-1)"><path d="M675 597 570 734Q561 749 545.5 758.0Q530 767 512.0 767.0Q494 767 478.5 758.5Q463 750 454 734L349 597L182 541Q165 538 151.5 526.0Q138 514 132.0 497.0Q126 480 130.0 462.5Q134 445 147 432L247 291L250 121Q248 103 255.5 86.5Q263 70 277.5 59.5Q292 49 310.0 47.5Q328 46 344 53L512 103L680 53Q697 46 714.5 47.5Q732 49 746.5 59.5Q761 70 768.5 86.5Q776 103 774 121L777 291L878 432Q890 445 894.0 462.5Q898 480 892.0 497.0Q886 514 872.5 526.0Q859 538 842 541Z" fill="none" stroke="currentColor" stroke-width="55" stroke-linejoin="round"/></g></svg>收藏<span class="n">8924</span></span>
                 <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>投蕉<span class="n">6561</span></span>
               </div>
             </span>
@@ -745,81 +732,13 @@
       </div>
     </div>
     <p class="note">窄态检查项：头部 返回/作者/关注 同行不挤（名字省略号兜底）；标题 24px 折行自然；正文 16/28 整词换行；
-      评论头像 40、gap 20；文末动作条自动换行；底栏留 赞/评论/分享 + 输入 + ⋯，藏/蕉收进 ⋯ 弹层（本稿以 <code>.open</code>
-      摆展开态，实现默认收起、点 ⋯ 切换），文末动作条仍全量直排可达。</p>
+      评论头像 40、gap 20；底栏留 赞/评论/分享 + 输入 + ⋯，藏/蕉收进 ⋯ 弹层（本稿以 <code>.open</code>
+      摆展开态，实现默认收起、点 ⋯ 切换；v3.2 删文末条后，⋯ 是窄态藏/蕉唯一入口）。</p>
   </div>
 
-  <!-- ================= ⑤ 双动作条去重收缩态（v3.1） ================= -->
+  <!-- ================= ⑤ 长图超高兜底（v3.1；原⑥，v3.2 撤原⑤去重收缩节后顺移） ================= -->
   <div class="sec">
-    <h2>⑤ 双动作条去重收缩态<em>文末动作条入视口 → 底栏挂 .aractbar--dim，只剩「说点什么…」pill</em></h2>
-    <p class="note">
-      口径：<code>IntersectionObserver</code> 盯文末动作条 <code>.aracts</code>，入视口给底栏挂
-      <code>.aractbar--dim</code>（<code>.aract</code> 以 opacity .2s 渐隐并 <code>pointer-events:none</code>），
-      出视口摘除；<b>状态单源</b>——两条栏的计数与点亮态共用同一数据源，只收缩可见性、不改状态。
-      底栏高度不折叠，避免滚动跳动；pill 始终可用。
-    </p>
-    <div class="stage short">
-      <div class="cov">
-        <div class="arhd">
-          <div class="arhd-in">
-            <button class="acsv-tbtn" title="返回" aria-label="返回"><svg viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
-            <div class="arauthor">
-              <span class="arav">AC</span>
-              <div style="min-width:0;flex:1">
-                <a class="arname" href="#">AC娘本体</a>
-                <div class="ar-meta"><span>2026-09-25</span><span class="ar-date-sep">·</span><span class="ar-read">阅读 1.2万</span></div>
-              </div>
-            </div>
-            <button class="ar-follow">关注</button>
-          </div>
-        </div>
-        <div class="covbd">
-          <div class="covin">
-            <h1 class="arh1">天涯此时共明月 DD歌回唱团圆</h1>
-            <div class="arbody">
-              <p>文章读到末尾，文末动作条进入视口——同一组互动键与底栏重复，底栏就此屏收缩去重。</p>
-            </div>
-            <div class="aracts">
-              <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
-              <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
-              <span class="aract" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
-              <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
-              <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
-            </div>
-            <div class="ar-cmhead">
-              <span class="ar-cmtitle">共 1024 条评论</span>
-            </div>
-            <div class="acsv-citem">
-              <a class="acsv-avlink"><span class="av">芸</span></a>
-              <div class="acsv-cbody">
-                <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">2小时前</span></span></div>
-                <div class="acsv-ctext">这时候底栏应该已经淡下去了，别撞车。</div>
-                <div class="acsv-cmeta">
-                  <span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span>
-                  <span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span>
-                </div>
-              </div>
-              <hr class="acsv-chr">
-            </div>
-          </div>
-        </div>
-        <div class="aractbar aractbar--dim">
-          <div class="aractbar-in">
-            <button class="aractbar-input" title="写评论">说点什么…</button>
-            <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
-            <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
-            <span class="aract stow" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
-            <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
-            <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= ⑥ 长图超高兜底（v3.1） ================= -->
-  <div class="sec">
-    <h2>⑥ 长图超高兜底<em>&gt;75vh 配图：flex 居中截住 + 底部渐变压暗 + 「长图 · 点击查看全图」chip；普通图（≤75vh）行为完全不变</em></h2>
+    <h2>⑤ 长图超高兜底<em>&gt;75vh 配图：flex 居中截住 + 底部渐变压暗 + 「长图 · 点击查看全图」chip；普通图（≤75vh）行为完全不变</em></h2>
     <p class="note">
       <code>.arimg--tall</code>（修饰类，实现按图片自然高判定后加）：容器 <code>max-height:75vh</code> + flex 居中，
       <code>img</code> 取 <code>width:auto;max-width:100%;max-height:75vh</code>；<code>::after</code> 底部线性渐变压至
@@ -854,13 +773,6 @@
               <p>上面这张被 75vh 截住；下面这张不到 75vh，保持原有顺排等比展开。</p>
               <div class="arimg onbig"><img src="https://imgs.aixifan.com/newUpload/23682490_3870ea2d5c7e4bcfb09b6b3699f6a560.jpg" alt="普通高度配图不受影响"></div>
             </div>
-            <div class="aracts">
-              <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
-              <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
-              <span class="aract" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
-              <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
-              <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
-            </div>
           </div>
         </div>
         <div class="aractbar">
@@ -868,7 +780,7 @@
             <button class="aractbar-input" title="写评论">说点什么…</button>
             <span class="aract" title="点赞"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span><span class="n">1.2万</span></span>
             <span class="aract ban" title="投蕉"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span><span class="n">6561</span></span>
-            <span class="aract stow" title="收藏"><i class="acsvg-glyph">&#xe155;</i><span class="n">8924</span></span>
+            <span class="aract stow" title="收藏"><svg class="arstow" viewBox="0 0 1024 1024" aria-hidden="true"><g transform="translate(0,1024) scale(1,-1)"><path d="M675 597 570 734Q561 749 545.5 758.0Q530 767 512.0 767.0Q494 767 478.5 758.5Q463 750 454 734L349 597L182 541Q165 538 151.5 526.0Q138 514 132.0 497.0Q126 480 130.0 462.5Q134 445 147 432L247 291L250 121Q248 103 255.5 86.5Q263 70 277.5 59.5Q292 49 310.0 47.5Q328 46 344 53L512 103L680 53Q697 46 714.5 47.5Q732 49 746.5 59.5Q761 70 768.5 86.5Q776 103 774 121L777 291L878 432Q890 445 894.0 462.5Q898 480 892.0 497.0Q886 514 872.5 526.0Q859 538 842 541Z" fill="none" stroke="currentColor" stroke-width="55" stroke-linejoin="round"/></g></svg><span class="n">8924</span></span>
             <span class="aract" title="评论"><i class="acsvg-glyph">&#xe627;</i><span class="n">1024</span></span>
             <span class="aract" title="分享"><i class="acsvg-glyph">&#xe628;</i></span>
           </div>
@@ -877,9 +789,9 @@
     </div>
   </div>
 
-  <!-- ================= ⑦ 回复展开态（v3.1） ================= -->
+  <!-- ================= ⑥ 回复展开态（v3.1；原⑦，v3.2 顺移） ================= -->
   <div class="sec">
-    <h2>⑦ 回复展开态<em>composer 顶部挂 .acsv-quotechip（「回复 @一只芸喵喵」+ ✕），placeholder 联动；全部沿用现成机制</em></h2>
+    <h2>⑥ 回复展开态<em>composer 顶部挂 .acsv-quotechip（「回复 @一只芸喵喵」+ ✕），placeholder 联动；全部沿用现成机制</em></h2>
     <p class="note">
       沿用 <code>src/comments.js:517</code> <code>setReply</code> 现成机制：chip 由
       <code>inputbar.js:611 buildQuoteChip</code> 产出（类名真值 <code>cssraw.js:810–815</code>），label 文案与
@@ -953,8 +865,8 @@
       宽表外层 <code>.artbl</code> 横向滚动。这些值实现时在 <code>src/cssraw.js</code> 新增文章正文作用域，
       并登记进 <code>test/check-preview.mjs</code>。<br>
       3. <b>轻动作条</b>：底栏常驻「说点什么… + 赞/蕉/藏/评论/分享」；点输入才展开完整 composer。
-      收起态 52px（本稿实测）、展开态 84px（composer 真值）；文末动作条沿用
-      <code>.acsv-mdetail-actions</code> 真值 gap 26 / margin-top 12 / padding-bottom 12，两处共用同一状态源。<br>
+      收起态 52px（本稿实测）、展开态 84px（composer 真值）。<b>v3.2 删文末条</b>：底栏是唯一动作条，
+      状态单源天然成立（一份 DOM，无「两份 .n 恒等」不变式）。<br>
       4. <b>头部</b>：返回 + 作者行 + 关注 + 阅读量。阅读量取
       <code>articleInfo.viewCount / formatViewCount</code>——原生页也只显示「阅读量:」，故不做估算阅读时长；
       A 站原生文章页没有目录（2026-11-05 抓 ac48868671 SSR 核验：无 catalog/toc/目录节点），本稿不造。
@@ -971,8 +883,13 @@
       7. <b>仍待实测/裁决</b>：<b>收藏键码点已取（v3.1）</b>——acfun-frontend-next 的
       <code>e155</code>（字形名 <code>icon-icon_follow</code>，实心圆角星），渲染比对与官方收藏 SVG
       （文章页 <code>collectcount .icon</code> 与视频页同哈希资产 <code>VIDEO_ICONS.favorite</code>）
-      同形同源；字体内无描边变体（e160/e3c8 均带 A 字标，非纯星，不取），藏键按单字形+变色
-      （悬停/点亮红，同评论键模式）；<code>GLYPHS</code> 登记随实现批进 src/imicons.js。文章点赞原生可用、
+      同形同源；字体内无描边变体（e160/e3c8 均带 A 字标，非纯星，不取——v3.2 全字型 151 枚枚举复核仍无）。
+      <b>藏键描边化（v3.2）</b>：用户裁决「实心星与描边族不协调」——idle 态改用 e155 同几何轮廓
+      （fontTools 导出 path，<code>fill:none;stroke:55/1024;stroke-linejoin:round</code> 的内联 SVG；
+      <b>字形坐标 y-up、SVG y-down，path 须包 <code>transform="translate(0,1024) scale(1,-1)"</code>
+      翻转，稿内件即形态真源，实现逐字照抄</b>），
+      与赞/蕉「描边闲置」同构；点亮态换 e155 实心 accent（悬停红同评论键模式）；槽位沿用 0.9.329
+      补偿 20/23px。<code>GLYPHS</code> 登记随实现批进 src/imicons.js。文章点赞原生可用、
       脚本参数首跑验证；投蕉不对他人文章实测；正文是 HTML（§17.3），先按白名单清洗再渲染，
       <b>不能喂 renderCommentHtml</b>（会把 <code>&lt;p&gt;</code>/<code>&lt;img&gt;</code> 转义）；
       <code>[emot=zt,*]</code> 需在清洗后单独过表情图管线——emoticon.js 的非 acfun 包虽走 umeditor 路径，
@@ -982,10 +899,10 @@
       展开 composer 时 Esc/点外部收起，焦点回入口。<br>
       9. <b>静态稿示意件</b>：头像色块、头像框图、表情占位块、「前往原页」示意 URL；
       其余类名与码点全真。<br>
-      10. <b>去重口径（v3.1）</b>：<code>IntersectionObserver</code> 盯文末动作条 <code>.aracts</code>，入视口给底栏挂
-      <code>.aractbar--dim</code>（<code>.aract</code> opacity .2s 渐隐 + <code>pointer-events:none</code>），出视口摘除；
-      双栏（文末条 / 底栏）共用同一状态源，计数与点亮单源、只收缩可见性（节⑤摆出）。<br>
-      11. <b>评论键锚定（v3.1，纯行为）</b>：文末动作条与底栏两处评论键点击均 smooth scroll 锚到评论头
+      10. <b>去重口径（v3.1 引入，v3.2 撤销）</b>：0.9.330 用户裁决「删文末条」——<code>.aracts</code> 与整套
+      去重机构（IntersectionObserver + <code>.aractbar--dim</code> + 「两份 .n 恒等」断言）随之退役：
+      底栏成为唯一动作条，无重复可去；底栏五键恒常亮、高度不折叠、pill 常在（原节⑤撤销，⑥⑦顺移为⑤⑥）。<br>
+      11. <b>评论键锚定（v3.1，纯行为）</b>：底栏评论键点击 smooth scroll 锚到评论头
       <code>.ar-cmhead</code>——沿用 <code>src/momentdetail.js:232</code> <code>onComment</code> 的
       <code>scrollIntoView({behavior:'smooth'})</code> 先例；形态零变化，本稿不摆状态节。<br>
       12. <b>回复口径（v3.1）</b>：<code>replyToCommentId</code> 语义——0=回复文章/根评论、id=回复楼主、子评论
