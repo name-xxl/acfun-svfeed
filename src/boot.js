@@ -13,6 +13,7 @@ import { popSignAlmanac } from './signpop.js'; // 签到落地动作单源（0.9
 import { setRoot } from './state.js';
 import { IMGVIEW_CSS } from './styles.js';
 import { pageKind } from './pagekind.js';
+import { injectOn } from './injects.js'; // 官方页面增强总闸（0.9.341）：原生面注入的唯一判读口
 import './mypage.js'; // 子视图自注册（registerView）：import 即入册，boot 链统一收口
 import './zone.js';
 import './searchview.js';
@@ -37,16 +38,31 @@ import './playlayer.js'; // 播放层（0.9.74）：注册 play 视图 + 注入�
 // 路由监听（toggle + hashchange）全 www 保留：任何页面粘 #svfeed 深链都能进竖刷（0.9.72 起
 // 性质；route.js 的 /svfeed 路径别名同样依赖它），不挂载时零成本。
 // 注意：上报链路（report.js 信封嗅探 / pagehide 监听 / 账本补报）是模块求值期行为，不经本表
+// 注入闸门总注（0.9.341，确认稿 docs/preview/native-inject-switch.html）：下表各原生面
+// 注入点统一判 injectOn(key)——关＝不注入不加载整链短路（含样式/观察器/定时器），观感恢复
+// 原生；**只在此处判读一次**，当前页不做即时摘除（生效＝重新加载后，键清单 ↔ 本表配对由
+// check-injects.mjs 钉）。竖刷世界（toggle/hashchange/mountNatPanel 等脚本自有界面）不在射程。
+// 首页顶导航入口链（闸在调用侧，watchNav 不改签名）：0.9.47 页面白名单仍管「往哪张页注入」，
+// injectOn 管「到底注不注入」——两闸语义分层，不合并
+function navGate() { if (injectOn('injectNavEntry')) watchNav(); }
 var kind = pageKind(location);
 if (kind === 'native') {
-  setRoot(document.body);
-  var ivSt = document.createElement('style');
-  ivSt.textContent = IMGVIEW_CSS;
-  document.head.appendChild(ivSt);
-  bootNativeIm();
+  // 私信页增强整支受 injectPageIm 管（0.9.341）：关时连 setRoot/IMGVIEW_CSS 都不落——
+  // 该支的 root 与大图样式只为 imnative 服务，关掉后无消费者
+  if (injectOn('injectPageIm')) {
+    setRoot(document.body);
+    var ivSt = document.createElement('style');
+    ivSt.textContent = IMGVIEW_CSS;
+    document.head.appendChild(ivSt);
+    bootNativeIm();
+  }
 } else {
   dbgInit();
   dbg('boot:' + kind); // harness boot-home / boot-video 断言点（正式构建死码消除）
+  // 闸判读每键恰一次（check-injects 配对钉 1:1）：injectPageIp 两分支共用——/member 样式
+  // 前置与尾行 mountNativeIp；判两遍＝两个消费点，正是闸要灭的漂移源，故在此一次读、两处用
+  var ipOn = injectOn('injectPageIp');
+  var mpOn = injectOn('injectMemberPlaza');
   if (kind === 'home') ensureStyle();
   toggle();
   window.addEventListener('hashchange', toggle); // singleton-listener: SPA 路由入口，页面级
@@ -59,22 +75,28 @@ if (kind === 'native') {
       if (signedThisRun(r)) popSignAlmanac(r, null);
     });
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', watchNav); // singleton-listener: 首屏导航注入，页面级
+      document.addEventListener('DOMContentLoaded', navGate); // singleton-listener: 首屏导航注入，页面级
     } else {
-      watchNav();
+      navGate();
     }
   } else if (kind === 'member') {
-    tryInjectSpaceMoments(); // 空间页「动态」标签（0.9.218，order=1 ⇒ 排在「小视频」之前）
-    tryInjectSpace();        // 空间页「小视频」标签（0.9.36）
+    // 空间页两自建标签各有一闸（0.9.341）；全关＝watchSpaceTabs 共享观察器也不起（注入件不被调用）
+    if (injectOn('injectSpaceMoments')) tryInjectSpaceMoments(); // 「动态」标签（0.9.218，order=1）
+    if (injectOn('injectSpaceShortVideo')) tryInjectSpace();      // 「小视频」标签（0.9.36）
   } else if (kind === 'memberCenter') {
   // 判据 0.9.303 收编进 pageKind（旧此处裸正则与 memberplaza.memberPath 逐字两份）
     // 个人中心 /member（0.9.128）：0.9.47 决策的限定反转（只此一路径参加，其余页维持不注入）。
     // 样式先就位（浅色皮肤 + 注入件），root 指到 body（无壳浮层：大图查看器等，native 分支同款先例）
-    ensureStyle();
-    setRoot(document.body);
-    watchMemberNav();
+    // 0.9.341 双闸口径：广场接管链自有闸；样式/root 前置与 IP 面**共用**（成员页 .feed-time
+    // 挂点吃 .acsv-cip 样式）——两闸全关时本支一行不跑。判读值取自表头一次性 ipOn/mpOn。
+    // cssraw 大表按域分段另批挂账（确认稿口径钉死），本批混开仍走整表，与现状同口径
+    if (mpOn || ipOn) {
+      ensureStyle();
+      setRoot(document.body);
+    }
+    if (mpOn) watchMemberNav();
   }
   // 原生页评论 IP + 设备（0.9.248，Phase 6·6a）：video/article/other（含 /moment）/member/
-  // 个人中心全入住；home 竖刷自己就是脚本页，不吃。幂等
-  if (kind !== 'home') mountNativeIp();
+  // 个人中心全入住；home 竖刷自己就是脚本页，不吃。幂等。0.9.341：整支受 ipOn 闸管
+  if (kind !== 'home' && ipOn) mountNativeIp();
 }

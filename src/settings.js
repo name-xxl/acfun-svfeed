@@ -36,6 +36,13 @@ export var SCHEMA = [
   // 我的页资料头按钮（signapi/signpanel）——本项只控自动链，手动按钮始终可用
   { key: 'autoSign', type: 'bool', def: true, panel: true, group: '通用',
     label: '自动签到', hint: '进入脚本主页时自动签到，当天已签自动跳过，不弹黄历' },
+  // 官方页面增强总闸（0.9.341，确认稿 docs/preview/native-inject-switch.html）：manage 标记
+  // ＝皮肤把本行渲成「开关+管理钮」双控件行（type 仍 bool，不扩类型词表）；hintOff＝关态
+  // 话术（sync 随值切换）。子项＝SCHEMA 末尾 sub:'inject' 六键，二级清单由 injectItems() 派生。
+  // **注意**：本行落在通用组内，主面板开关索引整体后移一位——harness settings 场景同步改
+  { key: 'injectNative', type: 'bool', def: true, panel: true, group: '通用', manage: 'inject',
+    label: '官方页面增强', hint: '官方页上的广场接管、空间标签、评论 IP、私信卡片；重新加载后生效',
+    hintOff: '已整体关闭：官方页面恢复原样；重新加载后生效' },
   { key: 'dmDefault', type: 'bool', def: true, panel: true, group: '播放',
     label: '弹幕默认开启', legacy: CFG.lsDm, hint: '立即生效' },
   // 音量真值（0.9.199）：0~1；0 即静音（与 soundOn 联动）。控制栏竖条滑杆是它的唯一入口，
@@ -108,7 +115,30 @@ export var SCHEMA = [
   // 放 SCHEMA 末尾：现有面板开关索引不变；native 不标——原生页 IP 面板不显示浏览项。
   { key: 'guestRead', type: 'bool', def: false, panel: true, group: '隐私',
     label: '非个性化推荐',
-    hint: '换用游客身份拉取推荐、小视频与发现内容；互动与观看上报照常，下次加载生效' }
+    hint: '换用游客身份拉取推荐、小视频与发现内容；互动与观看上报照常，下次加载生效' },
+  // ---- 官方页面增强子项（0.9.341，确认稿 docs/preview/native-inject-switch.html）----
+  // sub:'inject' 标记 + panel:false＝不上主面板，二级清单由 injectItems() 派生；消费侧
+  // 只在 boot.js 判 injectOn(key)（总闸短路在前），顺序＝稿钉消费链顺序（首页→我的→空间×2→
+  // 评论→私信）。**键 ↔ boot 短路点配对由 test/check-injects.mjs 双向钉死**。def 全 true＝保持现状。
+  // label/hint 逐字照稿（稿是用户确认过的界面事实，改词必须改稿先）。
+  { key: 'injectNavEntry', type: 'bool', def: true, panel: false, sub: 'inject',
+    label: '首页导航「小视频」入口',
+    hint: '在官方顶部导航加一个竖刷入口；关闭后悬浮兜底按钮一并去除' },
+  { key: 'injectMemberPlaza', type: 'bool', def: true, panel: false, sub: 'inject',
+    label: '个人中心「动态广场」',
+    hint: '在个人中心加「动态广场」导航项并就地展开动态流；关闭后「关注动态」页保持官方原样' },
+  { key: 'injectSpaceMoments', type: 'bool', def: true, panel: false, sub: 'inject',
+    label: 'UP 主空间页「动态」标签',
+    hint: '在 TA 的官方主页浏览图文 / 视频 / 文章投稿；关闭后不追加标签' },
+  { key: 'injectSpaceShortVideo', type: 'bool', def: true, panel: false, sub: 'inject',
+    label: 'UP 主空间页「小视频」标签',
+    hint: '在 TA 的官方主页浏览小视频投稿；关闭后不追加标签' },
+  { key: 'injectPageIp', type: 'bool', def: true, panel: false, sub: 'inject',
+    label: '官方页评论 IP 属地与设备型号',
+    hint: '视频页、文章页、动态页等官方页评论显示 IP 与设备；竖刷内的显示归「评论」组设置单独管理' },
+  { key: 'injectPageIm', type: 'bool', def: true, panel: false, sub: 'inject',
+    label: '官方私信卡片显示',
+    hint: '私信网页端显示不了的图片卡、作品卡等按原卡面渲染；关闭后保持「不支持查看此消息」' }
 ];
 
 var STORE_PREFIX = 'acsv.s.'; // 逐键命名空间（路线图 1.1）
@@ -129,6 +159,12 @@ export function panelItems() {
 // 契约仍本表单源（加项时在同一行顺手打 native 标记即可，两侧都不漏）
 export function nativeItems() {
   return SCHEMA.filter(function (it) { return it.panel === true && it.native === true; });
+}
+
+// 注入管理二级项（0.9.341）：sub==='inject' 全集——设置面板二级清单的唯一派生源
+// （顺序即 SCHEMA 行序）；键 ↔ boot 短路点配对由 check-injects.mjs 双向钉
+export function injectItems() {
+  return SCHEMA.filter(function (it) { return it.sub === 'inject'; });
 }
 
 // ---------- 纯函数（单测直采） ----------

@@ -17,7 +17,7 @@ globalThis.localStorage = {
 };
 
 var {
-  SCHEMA, storeKey, findItem, panelItems, nativeItems, validateValue, clampNumber,
+  SCHEMA, storeKey, findItem, panelItems, nativeItems, injectItems, validateValue, clampNumber,
   coerceValue, fromLegacy, defaultsSnapshot
 } = await import('../../src/settings.js');
 var { CFG } = await import('../../src/cfg.js');
@@ -132,6 +132,31 @@ test('SCHEMA：guestRead 是非个性化推荐开关（0.9.278）', () => {
   assert.equal(it.native, undefined); // 原生页 IP 面板不显示浏览项
   assert.equal(it.group, '隐私');
   assert.equal(it.label, '非个性化推荐');
+});
+
+test('SCHEMA：注入闸七键（0.9.341，确认稿 native-inject-switch）——总闸 manage 行 + injectItems 六项表', () => {
+  // 摘 def:true（改默认关=行为变化）或摘 manage/hintOff/sub 标记，本断言与 check-injects 双红
+  var master = findItem('injectNative');
+  assert.ok(master);
+  assert.equal(master.type, 'bool');
+  assert.equal(master.def, true); // 全开=现状零行为变化（开关批不夹带默认口径变化）
+  assert.equal(master.panel, true);
+  assert.equal(master.manage, 'inject'); // 皮肤据此渲「开关+管理钮」双控件行（type 词表不扩）
+  assert.ok(typeof master.hintOff === 'string' && master.hintOff.length > 0, '关态话术（hint 随值切换的单源）');
+  var subs = injectItems();
+  assert.deepEqual(subs.map(function (it) { return it.key; }),
+    ['injectNavEntry', 'injectMemberPlaza', 'injectSpaceMoments', 'injectSpaceShortVideo',
+      'injectPageIp', 'injectPageIm']);
+  subs.forEach(function (it) {
+    assert.equal(it.type, 'bool');
+    assert.equal(it.def, true, it.key + ' 默认必须开（现状保持）');
+    assert.equal(it.panel, false, it.key + ' 不上主面板（二级清单专用，panelItems 计数不含它）');
+    assert.equal(it.sub, 'inject');
+    assert.ok(it.label && it.hint, it.key + ' 二级行文案齐');
+  });
+  // injectItems 与 panelItems 零交集（二级不进一级列表——settings-open 行数钉子同源互证）
+  var pk = panelItems().map(function (it) { return it.key; });
+  subs.forEach(function (it) { assert.equal(pk.indexOf(it.key), -1, it.key + ' 混进主面板'); });
 });
 
 test('SCHEMA 不变量：legacy 只对内部/收编项声明，且键名非空', () => {

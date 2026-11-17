@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.340-debug
+// @version      0.9.341-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 116740;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.340-debug" : "",
+          ver: true ? "0.9.341-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -743,7 +743,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.340-debug" : "";
+  var APP_VERSION = true ? "0.9.341-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -1712,6 +1712,21 @@ window.__ACSV_CSS_LEN__ = 116740;
       label: "自动签到",
       hint: "进入脚本主页时自动签到，当天已签自动跳过，不弹黄历"
     },
+    // 官方页面增强总闸（0.9.341，确认稿 docs/preview/native-inject-switch.html）：manage 标记
+    // ＝皮肤把本行渲成「开关+管理钮」双控件行（type 仍 bool，不扩类型词表）；hintOff＝关态
+    // 话术（sync 随值切换）。子项＝SCHEMA 末尾 sub:'inject' 六键，二级清单由 injectItems() 派生。
+    // **注意**：本行落在通用组内，主面板开关索引整体后移一位——harness settings 场景同步改
+    {
+      key: "injectNative",
+      type: "bool",
+      def: true,
+      panel: true,
+      group: "通用",
+      manage: "inject",
+      label: "官方页面增强",
+      hint: "官方页上的广场接管、空间标签、评论 IP、私信卡片；重新加载后生效",
+      hintOff: "已整体关闭：官方页面恢复原样；重新加载后生效"
+    },
     {
       key: "dmDefault",
       type: "bool",
@@ -1875,6 +1890,65 @@ window.__ACSV_CSS_LEN__ = 116740;
       group: "隐私",
       label: "非个性化推荐",
       hint: "换用游客身份拉取推荐、小视频与发现内容；互动与观看上报照常，下次加载生效"
+    },
+    // ---- 官方页面增强子项（0.9.341，确认稿 docs/preview/native-inject-switch.html）----
+    // sub:'inject' 标记 + panel:false＝不上主面板，二级清单由 injectItems() 派生；消费侧
+    // 只在 boot.js 判 injectOn(key)（总闸短路在前），顺序＝稿钉消费链顺序（首页→我的→空间×2→
+    // 评论→私信）。**键 ↔ boot 短路点配对由 test/check-injects.mjs 双向钉死**。def 全 true＝保持现状。
+    // label/hint 逐字照稿（稿是用户确认过的界面事实，改词必须改稿先）。
+    {
+      key: "injectNavEntry",
+      type: "bool",
+      def: true,
+      panel: false,
+      sub: "inject",
+      label: "首页导航「小视频」入口",
+      hint: "在官方顶部导航加一个竖刷入口；关闭后悬浮兜底按钮一并去除"
+    },
+    {
+      key: "injectMemberPlaza",
+      type: "bool",
+      def: true,
+      panel: false,
+      sub: "inject",
+      label: "个人中心「动态广场」",
+      hint: "在个人中心加「动态广场」导航项并就地展开动态流；关闭后「关注动态」页保持官方原样"
+    },
+    {
+      key: "injectSpaceMoments",
+      type: "bool",
+      def: true,
+      panel: false,
+      sub: "inject",
+      label: "UP 主空间页「动态」标签",
+      hint: "在 TA 的官方主页浏览图文 / 视频 / 文章投稿；关闭后不追加标签"
+    },
+    {
+      key: "injectSpaceShortVideo",
+      type: "bool",
+      def: true,
+      panel: false,
+      sub: "inject",
+      label: "UP 主空间页「小视频」标签",
+      hint: "在 TA 的官方主页浏览小视频投稿；关闭后不追加标签"
+    },
+    {
+      key: "injectPageIp",
+      type: "bool",
+      def: true,
+      panel: false,
+      sub: "inject",
+      label: "官方页评论 IP 属地与设备型号",
+      hint: "视频页、文章页、动态页等官方页评论显示 IP 与设备；竖刷内的显示归「评论」组设置单独管理"
+    },
+    {
+      key: "injectPageIm",
+      type: "bool",
+      def: true,
+      panel: false,
+      sub: "inject",
+      label: "官方私信卡片显示",
+      hint: "私信网页端显示不了的图片卡、作品卡等按原卡面渲染；关闭后保持「不支持查看此消息」"
     }
   ];
   var STORE_PREFIX = "acsv.s.";
@@ -1893,6 +1967,11 @@ window.__ACSV_CSS_LEN__ = 116740;
   function nativeItems() {
     return SCHEMA.filter(function(it) {
       return it.panel === true && it.native === true;
+    });
+  }
+  function injectItems() {
+    return SCHEMA.filter(function(it) {
+      return it.sub === "inject";
     });
   }
   function validateValue(item, v) {
@@ -5416,9 +5495,9 @@ window.__ACSV_CSS_LEN__ = 116740;
     if (left > maxL || left < minL) left = Math.max(minL, Math.min(maxL, left));
     return { up, left, top, maxH };
   }
-  function rowPlaceOf(a, host5, vp, popW, popH, mode, gap) {
+  function rowPlaceOf(a, host5, vp, popW, popH, mode2, gap) {
     var g = gap > 0 ? gap : ROW_GAP;
-    var leftOf = mode !== "right-of";
+    var leftOf = mode2 !== "right-of";
     var maxH = Math.max(ROW_MIN_H, Math.min(a.bottom - host5.top + host5.st - ROW_PAD, ROW_MAX_H, vp.h * ROW_MAX_VH));
     function leftAt(isLeft) {
       return isLeft ? a.left - host5.left + host5.sl - popW - g : a.right - host5.left + host5.sl + g;
@@ -7824,10 +7903,10 @@ window.__ACSV_CSS_LEN__ = 116740;
       pop2.remove();
     });
   }
-  function pickItem(item, mode, isOn, onToggle2) {
+  function pickItem(item, mode2, isOn, onToggle2) {
     var b = el("button", "acsv-pick-item" + (isOn ? " on" : ""));
     b.type = "button";
-    if (mode === "multi") b.appendChild(el("i", "acsv-pick-tick", isOn ? "✓" : ""));
+    if (mode2 === "multi") b.appendChild(el("i", "acsv-pick-tick", isOn ? "✓" : ""));
     b.appendChild(el("span", null, item.name + (item.count != null ? " (" + item.count + ")" : "")));
     b.addEventListener("click", function() {
       onToggle2(b);
@@ -8607,7 +8686,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.340-debug" : "",
+      version: true ? "0.9.341-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -8959,13 +9038,13 @@ window.__ACSV_CSS_LEN__ = 116740;
     if (id != null && id !== "") _seen[String(id)] = 1;
     stat("rel.seed");
   }
-  function pickFresh(dvs, seen, mode, rand) {
+  function pickFresh(dvs, seen, mode2, rand) {
     var fresh = [];
     for (var i = 0; i < dvs.length; i++) {
       if (!seen[String(idOf(dvs[i]))]) fresh.push(dvs[i]);
     }
     if (!fresh.length) return [];
-    if (mode !== "seq") {
+    if (mode2 !== "seq") {
       var r = typeof rand === "function" ? rand : Math.random;
       var k = Math.floor(r() * fresh.length) % fresh.length;
       return [fresh[k]];
@@ -8976,14 +9055,14 @@ window.__ACSV_CSS_LEN__ = 116740;
     var tip = tipId != null ? String(tipId) : "";
     if (!tip) return Promise.resolve([]);
     var tries2 = 0;
-    var mode = getSetting("relSequential") ? "seq" : "walk";
+    var mode2 = getSetting("relSequential") ? "seq" : "walk";
     function attempt2() {
       tries2++;
       return listRelated(tip).then(function(dvs) {
-        var picked = pickFresh(dvs, _seen, mode);
+        var picked = pickFresh(dvs, _seen, mode2);
         if (!picked.length) {
           if (tries2 < MAX_REFETCH) return attempt2();
-          picked = pickFresh(dvs, {}, mode);
+          picked = pickFresh(dvs, {}, mode2);
           stat("rel.replay");
         }
         var out = [];
@@ -9069,18 +9148,18 @@ window.__ACSV_CSS_LEN__ = 116740;
     });
     return true;
   }
-  function showTab(mode) {
+  function showTab(mode2) {
     var d = commentDrawer;
     if (!d) return;
-    d.tabC.classList.toggle("on", mode === "cmt");
-    d.tabR.classList.toggle("on", mode === "rel");
-    if (d.tabL) d.tabL.classList.toggle("on", mode === "list");
-    d.list.style.display = mode === "cmt" ? "" : "none";
-    d.relList.style.display = mode === "rel" ? "" : "none";
-    if (d.listList) d.listList.style.display = mode === "list" ? "" : "none";
+    d.tabC.classList.toggle("on", mode2 === "cmt");
+    d.tabR.classList.toggle("on", mode2 === "rel");
+    if (d.tabL) d.tabL.classList.toggle("on", mode2 === "list");
+    d.list.style.display = mode2 === "cmt" ? "" : "none";
+    d.relList.style.display = mode2 === "rel" ? "" : "none";
+    if (d.listList) d.listList.style.display = mode2 === "list" ? "" : "none";
     var input = d.el.querySelector(".acsv-cinput");
     if (input) {
-      if (mode !== "cmt") {
+      if (mode2 !== "cmt") {
         input._acsvDisp = input.style.display;
         input.style.display = "none";
       } else if (input.style.display === "none") input.style.display = input._acsvDisp || "";
@@ -10027,10 +10106,10 @@ window.__ACSV_CSS_LEN__ = 116740;
       });
       for (i = 0; i < items.length; i++) {
         it = items[i];
-        var mode = normMode(it.mode);
-        it.mode = mode;
-        var arr = busy[mode] || (busy[mode] = []);
-        var limit = isScrollMode(mode) ? scrollLanes : sideLanes;
+        var mode2 = normMode(it.mode);
+        it.mode = mode2;
+        var arr = busy[mode2] || (busy[mode2] = []);
+        var limit = isScrollMode(mode2) ? scrollLanes : sideLanes;
         var pick = -1, minAt = Infinity, minIdx = 0;
         for (var l = 0; l < limit; l++) {
           var freeAt = arr[l] || 0;
@@ -10045,7 +10124,7 @@ window.__ACSV_CSS_LEN__ = 116740;
         }
         if (pick < 0) pick = minIdx;
         it._lane = pick;
-        if (isScrollMode(mode)) {
+        if (isScrollMode(mode2)) {
           var speed = (cssW + it._w) / it._dur;
           arr[pick] = it.at + it._w / speed;
         } else {
@@ -15585,10 +15664,10 @@ window.__ACSV_CSS_LEN__ = 116740;
       drawerConnected: drawer.el.isConnected
     };
   });
-  testHook("imPaneSmoke", function(mode) {
+  testHook("imPaneSmoke", function(mode2) {
     if (!root) setRoot(document.body);
     ensureDrawerDom();
-    setPane(mode === "chat" ? "chat" : "list");
+    setPane(mode2 === "chat" ? "chat" : "list");
     return {
       view,
       chatOn: drawer.el.classList.contains("chat-on"),
@@ -15720,7 +15799,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.340-debug" : "");
+    return normVer(true ? "0.9.341-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -15930,16 +16009,42 @@ window.__ACSV_CSS_LEN__ = 116740;
   var EMO_TAIL = "vertical-align:middle;margin:1px 2px}";
   var IMG_ZOOM_TAIL = "border-radius:8px;margin-top:6px;cursor:zoom-in}";
 
+  // src/injects.js
+  var INJECT_MASTER = "injectNative";
+  function injectOn(key) {
+    if (getSetting(INJECT_MASTER) !== true) return false;
+    return getSetting(key) === true;
+  }
+
   // src/settingspanel.js
-  var SET_CSS = ".set{position:absolute;inset:0;z-index:62;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;animation:set-in .18s ease}@keyframes set-in{from{opacity:0}to{opacity:1}}.set-panel{width:min(400px,92vw);max-height:min(76vh,640px);display:flex;flex-direction:column;" + SHEET_BG + "border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden;color:#fff;" + BASE_FONT + ".set-head{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px;" + SECT_LINE + ".set-title{font-size:15px;font-weight:600}.set-x{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;" + CLOSE_BTN + ".set-x:hover{background:rgba(255,255,255,.22)}.set-body{flex:1 1 auto;min-height:64px;overflow-y:auto;padding:20px;scrollbar-width:thin;" + SCROLL_TAIL + ".set-group{font-size:12px;color:#8b909a;margin:0 0 6px}.set-group + .set-row:last-child{margin-bottom:0}.set-row{display:flex;align-items:center;gap:20px;min-height:18px;margin:0 0 20px}.set-row-main{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:2px}.set-label{font-size:14px;line-height:18px}.set-hint{font-size:12px;line-height:16px;color:#8b909a}.set-sel{flex:none;position:relative}.set-sel-btn{min-width:88px;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;font-size:13px;line-height:1.4;font-family:inherit;text-align:center}.set-sel-btn:hover{background:rgba(255,255,255,.2)}.set-sel-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;min-width:120px;background:rgba(21,21,21,.92);border-radius:4px;padding:0;display:flex;flex-direction:column;" + POP_SHADOW + ".set-sel-menu.up{top:auto;bottom:calc(100% + 6px)}.set-sel-item{border:none;background:none;color:#fff;font-size:14px;line-height:36px;font-family:inherit;cursor:pointer;padding:0 14px;text-align:left;white-space:nowrap}.set-sel-item:hover{background:rgba(255,255,255,.12)}.set-sel-item.on{color:var(--acsv-accent)}.set-num{flex:none;display:flex;align-items:center;gap:8px}.set-num-btn{width:26px;height:26px;border:1px solid rgba(255,255,255,.2);border-radius:3px;background:none;color:#fff;font-size:14px;line-height:1;font-family:inherit;cursor:pointer}.set-num-btn:hover:not(:disabled){background:rgba(255,255,255,.12)}.set-num-btn:disabled{opacity:.35;cursor:default}.set-num-val{min-width:56px;text-align:center;font-size:14px}.set-foot{flex:none;display:flex;align-items:center;gap:8px;justify-content:space-between;" + FOOT_BAR + ".set-ver{font-size:12px;color:#8b909a}.set-act{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;transition:background .15s}.set-act:hover{background:rgba(255,255,255,.2)}.set-act.primary{background:var(--acsv-accent)}";
+  var SET_CSS = ".set{position:absolute;inset:0;z-index:62;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;animation:set-in .18s ease}@keyframes set-in{from{opacity:0}to{opacity:1}}.set-panel{width:min(400px,92vw);max-height:min(76vh,640px);display:flex;flex-direction:column;" + SHEET_BG + "border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden;color:#fff;" + BASE_FONT + ".set-head{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px;" + SECT_LINE + ".set-title{font-size:15px;font-weight:600}.set-x,.set-back{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;" + CLOSE_BTN + ".set-back{margin-left:0}.set-x:hover,.set-back:hover{background:rgba(255,255,255,.22)}.set-body{flex:1 1 auto;min-height:64px;overflow-y:auto;padding:20px;scrollbar-width:thin;" + SCROLL_TAIL + ".set-group{font-size:12px;color:#8b909a;margin:0 0 6px}.set-group + .set-row:last-child{margin-bottom:0}.set-row{display:flex;align-items:center;gap:20px;min-height:18px;margin:0 0 20px}.set-row-main{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:2px}.set-label{font-size:14px;line-height:18px}.set-hint{font-size:12px;line-height:16px;color:#8b909a}.set-sel{flex:none;position:relative}.set-sel-btn{min-width:88px;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;font-size:13px;line-height:1.4;font-family:inherit;text-align:center}.set-sel-btn:hover{background:rgba(255,255,255,.2)}.set-sel-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;min-width:120px;background:rgba(21,21,21,.92);border-radius:4px;padding:0;display:flex;flex-direction:column;" + POP_SHADOW + ".set-sel-menu.up{top:auto;bottom:calc(100% + 6px)}.set-sel-item{border:none;background:none;color:#fff;font-size:14px;line-height:36px;font-family:inherit;cursor:pointer;padding:0 14px;text-align:left;white-space:nowrap}.set-sel-item:hover{background:rgba(255,255,255,.12)}.set-sel-item.on{color:var(--acsv-accent)}.set-num{flex:none;display:flex;align-items:center;gap:8px}.set-num-btn{width:26px;height:26px;border:1px solid rgba(255,255,255,.2);border-radius:3px;background:none;color:#fff;font-size:14px;line-height:1;font-family:inherit;cursor:pointer}.set-num-btn:hover:not(:disabled){background:rgba(255,255,255,.12)}.set-num-btn:disabled{opacity:.35;cursor:default}.set-num-val{min-width:56px;text-align:center;font-size:14px}.set-pair{flex:none;display:flex;align-items:center;gap:12px}.set-pair .set-act{padding:7px 14px}.set-note{font-size:12px;line-height:16px;color:#8b909a;margin:0 0 16px}.set-row.dim{opacity:.35}.set-row.dim .acsv-sw{cursor:default;pointer-events:none}.set-row.dim .set-label{cursor:default}.set-foot{flex:none;display:flex;align-items:center;gap:8px;justify-content:space-between;" + FOOT_BAR + ".set-ver{font-size:12px;color:#8b909a}.set-act{border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-family:inherit;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;transition:background .15s}.set-act:hover{background:rgba(255,255,255,.2)}.set-act.primary{background:var(--acsv-accent)}";
   var host3 = null;
   var panel = null;
   var offs = [];
   var menuCloser = null;
+  var headEl = null;
+  var bodyEl = null;
+  var mode = null;
+  function clearSubs() {
+    for (var i = 0; i < offs.length; i++) {
+      try {
+        offs[i]();
+      } catch (e) {
+      }
+    }
+    offs = [];
+  }
   function dismissMenu() {
     if (!menuCloser) return false;
     menuCloser();
     return true;
+  }
+  function onPanelEsc() {
+    if (mode === "inject") {
+      showMain();
+      return true;
+    }
+    return dismissMenu();
   }
   function closeSettings() {
     if (!panel) return;
@@ -15950,13 +16055,10 @@ window.__ACSV_CSS_LEN__ = 116740;
     host3 = null;
     p.remove();
     if (h) h.remove();
-    for (var i = 0; i < offs.length; i++) {
-      try {
-        offs[i]();
-      } catch (e) {
-      }
-    }
-    offs = [];
+    clearSubs();
+    headEl = null;
+    bodyEl = null;
+    mode = null;
     flushSettings();
     overlayClose("settings");
   }
@@ -16043,10 +16145,29 @@ window.__ACSV_CSS_LEN__ = 116740;
     return { node: wrap, sync };
   }
   var FACTORY = { bool: boolControl, select: selectControl, number: numControl };
+  function manageControl(item) {
+    var wrap = el("span", "set-pair");
+    var sw = makeSwitch(getSetting(item.key) === true, function(next) {
+      setSetting(item.key, next);
+    }, "dark");
+    sw.node.title = item.label || item.key;
+    var btn = el("button", "set-act", "管理");
+    btn.title = "逐项管理官方页面功能";
+    btn.addEventListener("click", function(ev) {
+      ev.stopPropagation();
+      openInject();
+    });
+    wrap.appendChild(sw.node);
+    wrap.appendChild(btn);
+    var sync = function() {
+      sw.sync(getSetting(item.key) === true);
+    };
+    return { node: wrap, sync };
+  }
   function buildBody(body) {
     var group = null;
     panelItems().forEach(function(item) {
-      var f = FACTORY[item.type];
+      var f = item.manage ? manageControl : FACTORY[item.type];
       if (!f) return;
       if (item.group !== group) {
         group = item.group;
@@ -16055,13 +16176,78 @@ window.__ACSV_CSS_LEN__ = 116740;
       var row = el("div", "set-row");
       var main = el("div", "set-row-main");
       main.appendChild(el("div", "set-label", item.label));
-      if (item.hint) main.appendChild(el("div", "set-hint", item.hint));
+      var hintEl = null;
+      if (item.hint) {
+        hintEl = el("div", "set-hint", item.hint);
+        main.appendChild(hintEl);
+      }
       row.appendChild(main);
       var c = f(item);
       row.appendChild(c.node);
       body.appendChild(row);
+      if (item.hintOff && hintEl) {
+        offs.push(onChange(item.key, function() {
+          hintEl.textContent = getSetting(item.key) === true ? item.hint : item.hintOff;
+        }));
+      }
       offs.push(onChange(item.key, c.sync));
     });
+  }
+  var INJ_NOTE_ON = "关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。";
+  var INJ_NOTE_OFF = "官方页面增强已整体关闭；先回一级打开总开关，再逐项管理。";
+  function buildInjectBody(body) {
+    var masterOn = getSetting(INJECT_MASTER) === true;
+    body.appendChild(el("div", "set-note", masterOn ? INJ_NOTE_ON : INJ_NOTE_OFF));
+    injectItems().forEach(function(item) {
+      var row = el("div", "set-row" + (masterOn ? "" : " dim"));
+      var main = el("div", "set-row-main");
+      main.appendChild(el("div", "set-label", item.label));
+      if (item.hint) main.appendChild(el("div", "set-hint", item.hint));
+      row.appendChild(main);
+      var sw = makeSwitch(masterOn && getSetting(item.key) === true, function(next) {
+        setSetting(item.key, next);
+      }, "dark");
+      sw.node.title = item.label || item.key;
+      if (masterOn) {
+        offs.push(onChange(item.key, function() {
+          sw.sync(getSetting(item.key) === true);
+        }));
+      }
+      row.appendChild(sw.node);
+      body.appendChild(row);
+    });
+  }
+  function renderHead() {
+    headEl.textContent = "";
+    if (mode === "inject") {
+      var back = el("button", "set-back", "‹");
+      back.title = "返回";
+      back.addEventListener("click", showMain);
+      headEl.appendChild(back);
+      var masterItem = findItem(INJECT_MASTER);
+      headEl.appendChild(el("div", "set-title", masterItem && masterItem.label || "设置"));
+    } else {
+      headEl.appendChild(el("div", "set-title", "设置"));
+      var x = el("button", "set-x", "✕");
+      x.title = "关闭";
+      x.addEventListener("click", closeSettings);
+      headEl.appendChild(x);
+    }
+  }
+  function renderView() {
+    clearSubs();
+    renderHead();
+    bodyEl.textContent = "";
+    if (mode === "inject") buildInjectBody(bodyEl);
+    else buildBody(bodyEl);
+  }
+  function openInject() {
+    mode = "inject";
+    renderView();
+  }
+  function showMain() {
+    mode = null;
+    renderView();
   }
   function openSettings() {
     closeSettings();
@@ -16073,16 +16259,12 @@ window.__ACSV_CSS_LEN__ = 116740;
     shadow.appendChild(style);
     panel = el("div", "set");
     var pnl = el("div", "set-panel");
-    var head = el("div", "set-head");
-    head.appendChild(el("div", "set-title", "设置"));
-    var x = el("button", "set-x", "✕");
-    x.title = "关闭";
-    x.addEventListener("click", closeSettings);
-    head.appendChild(x);
-    pnl.appendChild(head);
-    var body = el("div", "set-body");
-    buildBody(body);
-    pnl.appendChild(body);
+    headEl = el("div", "set-head");
+    bodyEl = el("div", "set-body");
+    pnl.appendChild(headEl);
+    pnl.appendChild(bodyEl);
+    mode = null;
+    renderView();
     var foot = el("div", "set-foot");
     foot.appendChild(el("span", "set-ver", "v" + APP_VERSION));
     var done = el("button", "set-act primary", "完成");
@@ -16095,7 +16277,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     });
     shadow.appendChild(panel);
     root.appendChild(host3);
-    overlayOpen({ id: "settings", modal: true, close: closeSettings, onEsc: dismissMenu });
+    overlayOpen({ id: "settings", modal: true, close: closeSettings, onEsc: onPanelEsc });
   }
 
   // src/searchhist.js
@@ -18744,7 +18926,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     }
     return false;
   }
-  function renderHead(info, failed) {
+  function renderHead2(info, failed) {
     var inr = refs.head.querySelector(".arhd-in");
     if (!inr) return;
     inr.innerHTML = "";
@@ -19039,7 +19221,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     refs.title = el("span", "ar-cmtitle", "评论");
     cmhead.appendChild(refs.title);
     pin.appendChild(cmhead);
-    renderHead(info, false);
+    renderHead2(info, false);
     refs.bar.style.display = "";
     syncActs();
     refs.covbd.scrollTop = 0;
@@ -19047,7 +19229,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   function renderError() {
     clearSkels();
     refs.pin.innerHTML = "";
-    renderHead(null, true);
+    renderHead2(null, true);
     var box = el("div", "arerr");
     box.appendChild(el("div", "t", "正文拉取失败"));
     box.appendChild(el("div", "d", "网络开小差了，这篇文章暂时读不到。可以重试，或去原页阅读。"));
@@ -20076,7 +20258,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.340-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.341-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -24219,16 +24401,23 @@ window.__ACSV_CSS_LEN__ = 116740;
   });
 
   // src/boot.js
+  function navGate() {
+    if (injectOn("injectNavEntry")) watchNav();
+  }
   var kind = pageKind(location);
   if (kind === "native") {
-    setRoot(document.body);
-    ivSt = document.createElement("style");
-    ivSt.textContent = IMGVIEW_CSS;
-    document.head.appendChild(ivSt);
-    bootNativeIm();
+    if (injectOn("injectPageIm")) {
+      setRoot(document.body);
+      ivSt = document.createElement("style");
+      ivSt.textContent = IMGVIEW_CSS;
+      document.head.appendChild(ivSt);
+      bootNativeIm();
+    }
   } else {
     dbgInit();
     dbg("boot:" + kind);
+    ipOn = injectOn("injectPageIp");
+    mpOn = injectOn("injectMemberPlaza");
     if (kind === "home") ensureStyle();
     toggle();
     window.addEventListener("hashchange", toggle);
@@ -24238,21 +24427,25 @@ window.__ACSV_CSS_LEN__ = 116740;
         if (signedThisRun(r)) popSignAlmanac(r, null);
       });
       if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", watchNav);
+        document.addEventListener("DOMContentLoaded", navGate);
       } else {
-        watchNav();
+        navGate();
       }
     } else if (kind === "member") {
-      tryInjectSpaceMoments();
-      tryInjectSpace();
+      if (injectOn("injectSpaceMoments")) tryInjectSpaceMoments();
+      if (injectOn("injectSpaceShortVideo")) tryInjectSpace();
     } else if (kind === "memberCenter") {
-      ensureStyle();
-      setRoot(document.body);
-      watchMemberNav();
+      if (mpOn || ipOn) {
+        ensureStyle();
+        setRoot(document.body);
+      }
+      if (mpOn) watchMemberNav();
     }
-    if (kind !== "home") mountNativeIp();
+    if (kind !== "home" && ipOn) mountNativeIp();
   }
   var ivSt;
+  var ipOn;
+  var mpOn;
 })();
 
 })();

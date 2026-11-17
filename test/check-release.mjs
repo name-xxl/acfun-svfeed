@@ -58,9 +58,11 @@ function sections(file) {
 // head/hls 基线不动，+2% 门禁不变。
 // 0.9.326 重裁 css+total+rest：文章阅读浮层新批（articleread 27KB 源 + CSS 段 ~2.4KB
 // + 测试缝/登记面）——单批功能量级，六段取本批实测值；head/hls 基线不动，+2% 门禁不变。
+// 0.9.341 重裁 total+rest（注入闸批：injects 门层 + SCHEMA 七键 + boot 短路 + 同壳二级
+// 皮肤件）——单批功能量级；head/hls/css 基线不动，+2% 门禁不变。
 const BASE = {
-  release: { total: 626662, head: 1815, hls: 120340, css: 26920, rest: 477586 },
-  debug: { total: 1026817, head: 1885, hls: 120340, css: 26920, rest: 877671 }
+  release: { total: 639437, head: 1815, hls: 120340, css: 26920, rest: 489941 },
+  debug: { total: 1050961, head: 1885, hls: 120340, css: 26920, rest: 901395 }
 };
 const relSec = sections('acfun-svfeed.user.js');
 const dbgSec = sections('acfun-svfeed.debug.user.js');

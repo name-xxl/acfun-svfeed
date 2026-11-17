@@ -112,10 +112,17 @@ const HARNESS_CASES = [
   // 挂载前快照（__BOOT_SNAP__）断言样式注入差异与 dbg 埋点，故为 debug 构建
   { name: 'boot-home', serial: true, bundle: 'debug'},  // '/'：全量初始化（样式先就位）
   { name: 'boot-video', serial: true, bundle: 'debug'}, // '/v/…'：仅基础设施（全量 CSS 不得注入）+ 深链仍可挂载
+  // 0.9.341 注入闸场景（cases/injects.js；关值 bundle 前预置见 harness.html）——正反双腿：
+  // 开态腿证「本可注入」，关态腿证短路；摘 boot 任一处 injectOn 即关态腿转红
+  { name: 'inject-home-nav', serial: true, bundle: 'debug' },   // 开态对照：首页顶导航克隆照注
+  { name: 'inject-off-home', serial: true, bundle: 'debug' },   // 总闸关：导航不注 + 竖刷壳照常（脚本世界不在射程）
+  { name: 'inject-off-member', viewport: { width: 1600, height: 900 }, bundle: 'debug' }, // plaza+IP 双关：memberCenter 支一行不跑（样式/root/入口全缺）
+  { name: 'inject-off-space', viewport: { width: 1600, height: 900 }, bundle: 'debug' },  // /u 分项关（总闸仍开）：两自建标签都不追加
   // 0.9.89 设置面板（Shadow DOM 断言走 host.shadowRoot）：开/关/持久化 + 老键收养，
   // settings-migrate 依赖 bundle 前预置老键（见 harness.html），故为 debug 构建
   { name: 'settings-open', serial: true, bundle: 'debug' },
   { name: 'settings-migrate', serial: true, bundle: 'debug' },
+  { name: 'settings-inject', serial: true, bundle: 'debug' }, // 0.9.341 二级「官方页面增强」全流程（管理钮进/Esc 回一级/置灰不回写/完成直关）
   // 0.9.91 关注视图（followFeedV2 混合流；0.9.99 重构为仿原生单列无限流：三类行判别位 +
   // 行内写链乐观两向 + 展开/收起 + 滚动触底翻页/状态行；mock 缝依赖 debug 构建，夹具在 my-sample.js）
   { name: 'view-follow', viewport: { width: 1600, height: 900 }, bundle: 'debug' },

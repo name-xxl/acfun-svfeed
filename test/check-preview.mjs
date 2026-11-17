@@ -130,6 +130,32 @@ const PINS = [
   {
     draft: 'docs/preview/im-article-card.html', value: '-webkit-line-clamp:6', src: 'src/cssraw.js', srcCount: 2,
     why: '评论区转发宿主引用块 6 行钳（cshare-quote 真值逐字复用——cshare+acard 各一处）'
+  },
+  // ---- 0.9.341（官方页面增强注入闸；确认稿 docs/preview/native-inject-switch.html 用户已确认）----
+  // 行为/形态腿在 harness（settings-inject / inject-off-* 场景族），本闸只钉稿承诺的取值字面
+  {
+    draft: 'docs/preview/native-inject-switch.html', value: 'width:28px;height:28px', src: 'src/cssseg.js', srcCount: 1,
+    why: '‹ 回退钮与 ✕ 同 28 圆（CLOSE_BTN token 复用，不另立钮规格）'
+  },
+  {
+    draft: 'docs/preview/native-inject-switch.html', value: 'flex:none;display:flex;align-items:center;gap:12px', src: 'src/settingspanel.js', srcCount: 1,
+    why: '.set-pair 双控件对（总开关+管理钮同排）'
+  },
+  {
+    draft: 'docs/preview/native-inject-switch.html', value: 'padding:7px 14px', src: 'src/settingspanel.js', srcCount: 1,
+    why: '「管理」钮内边距（.set-act 族唯一新值一档：16→14，行右窄位专用）'
+  },
+  {
+    draft: 'docs/preview/native-inject-switch.html', value: 'font-size:12px;line-height:16px;color:#8b909a', src: 'src/settingspanel.js', srcCount: 2,
+    why: '弱字族（.set-hint 既有 + .set-note 二级说明条同值复用）'
+  },
+  {
+    draft: 'docs/preview/native-inject-switch.html', value: 'margin:0 0 16px', src: 'src/settingspanel.js', srcCount: 1,
+    why: '.set-note 说明条下间距'
+  },
+  {
+    draft: 'docs/preview/native-inject-switch.html', value: 'opacity:.35', src: 'src/settingspanel.js', srcCount: 2,
+    why: '置灰态（.set-num-btn:disabled 既有 + .set-row.dim 总闸关态同值复用，不新立档位）'
   }
 ];
 

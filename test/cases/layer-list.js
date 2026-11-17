@@ -117,13 +117,14 @@ window.__ACSV_MOCK_FORM__ = window.__ACSV_MY_MOCK__;
     })());
     key('Escape');
     await waitFor(function () { return TEST.call('view') === 'jingxuan'; }, 6000);
-    // 开设置（第 3 个布尔开关 = relSequential）→ 再点卡片 = 列表会话（网格顺序 + 可续拉）
+    // 开设置（第 5 个布尔开关 = relSequential；0.9.341 injectNative 占 idx2，其后 +1）
+    // → 再点卡片 = 列表会话（网格顺序 + 可续拉）
     var gear = q('.acsv-dock-gear');
     if (gear) gear.click();
     var host = await waitFor(function () { return q('.acsv-set-host'); }, 5000);
     rec('ll-set-open', !!host);
     var sh = host && host.shadowRoot;
-    var sw = sh && sh.querySelectorAll('.acsv-sw')[3];
+    var sw = sh && sh.querySelectorAll('.acsv-sw')[4];
     rec('ll-set-sw', !!sw);
     if (sw) sw.click();
     key('Escape');
