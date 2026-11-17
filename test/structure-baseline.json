@@ -790,8 +790,8 @@
       "why": "0.9.346 动态表情批（dynemot 建档 + settings 第六键/hint 随增）重排：本批实测"
     },
     {
-      "key": "size:dynemot.js:行110:导出2",
-      "why": "0.9.346 建档（lifecycle 注记随修加一行）：本批实测"
+      "key": "size:dynemot.js:行114:导出2",
+      "why": "0.9.347 尺寸并档注记加行重排：本批实测"
     }
   ]
 }
