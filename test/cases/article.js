@@ -764,6 +764,39 @@
     if (mo) mo.observe(toastNode, { childList: true, characterData: true, subtree: true });
     if (banBtn) banBtn.click();
     var bpop = await waitFor(function () { return rq('.aractbar .acsv-banpop'); }, 6000);
+    // 弹层可见位（0.9.336 病灶钉）：必须在底栏**上方**——top:-4px 是行卡语境摆位，浮层底栏
+    // 宿主 .aractbar-in 下弹层落进栏内＝深底同色近乎隐身（用户实报「没弹出投蕉弹层」）；
+    // 摘 .acsv-artread .aractbar-in .acsv-banpop 摆位规则反跑即红
+    var barIn = rq('.aractbar-in');
+    rec('article-banpop-above-bar', !!(bpop && barIn && (function () {
+      var pr = bpop.getBoundingClientRect(), br = barIn.getBoundingClientRect();
+      return pr.height > 0 && pr.bottom <= br.top + 4;
+    })()), (function () {
+      if (!bpop || !barIn) return 'no-pop';
+      var pr = bpop.getBoundingClientRect(), br = barIn.getBoundingClientRect();
+      return 'popBottom=' + Math.round(pr.bottom) + ' barTop=' + Math.round(br.top);
+    })());
+    // 可见性实测（0.9.336 补强）：壳在视口内（无 harness 舞台 transform 偏移）时，elementFromPoint
+    // 打弹层中心必须命中弹层自身——几何过但被遮挡/裁剪时本条红。elementFromPoint 是视口坐标系，
+    // harness 把浮层壳挂进带 translate3d 的竖刷舞台（rect.left≈2000）时该判据失真 ⇒ 语境门禁跳过
+    rec('article-banpop-hit', !!(bpop && (function () {
+      var shellR = rq('.acsv-artread').getBoundingClientRect();
+      if (shellR.left > 100 || shellR.left < -100) return true; // 偏移语境：判据不适用，显式跳过
+      var pr = bpop.getBoundingClientRect();
+      var hit = document.elementFromPoint(pr.left + pr.width / 2, pr.top + pr.height / 2);
+      return !!hit && (hit === bpop || bpop.contains(hit) || hit.closest('.acsv-banpop') === bpop);
+    })()), (function () {
+      if (!bpop) return 'no-pop';
+      var shellR = rq('.acsv-artread').getBoundingClientRect();
+      var pr = bpop.getBoundingClientRect();
+      var hit = shellR.left > 100 || shellR.left < -100 ? null
+        : document.elementFromPoint(pr.left + pr.width / 2, pr.top + pr.height / 2);
+      return (shellR.left > 100 || shellR.left < -100 ? 'offset-context ' : '')
+        + 'hit=' + (hit ? (hit.className || hit.tagName) : 'null')
+        + ' rect=' + Math.round(pr.left) + ',' + Math.round(pr.top)
+        + '+' + Math.round(pr.width) + 'x' + Math.round(pr.height)
+        + ' vh=' + window.innerHeight;
+    })());
     var ban1 = bpop && bpop.querySelector('button');
     if (ban1) ban1.click();
     var bThrown = await poll(function () {

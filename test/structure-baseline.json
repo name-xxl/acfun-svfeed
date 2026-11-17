@@ -294,8 +294,8 @@
       "why": "0.9.319 登记：零基色族 hover 提底档收成常量单源 LIFT0（口径①：同值字面 ≥2 处即病灶，网格/榜单行/搜索行三行引用）——+3 行"
     },
     {
-      "key": "size:cssraw.js:行2143:导出1",
-      "why": "0.9.319 登记：撤框历史注释把 var(--acsv-accent-dim) 改写成字面值并注明该变量已删（本轮删变量）——+1 行；0.9.326 +159 行＝文章阅读浮层 CSS 段（确认稿 article-reader-v3 取值落地，含 620 窄态块）；0.9.327 +13 行＝壳顶栏让位/底栏点亮悬停色四条/蕉 hover 黄/藏键字号/banpop 锚点上下文/composer 760 居中（真机反馈批）；0.9.329 +3 行＝藏键墨迹量化补偿 20/23px（fontTools 轮廓实测）；0.9.330 +1 行＝34/68 表情尺寸档共享选择器组追加 .arbody 作用域（注释一行，取值不动）；0.9.331 净 +3 行＝藏键描边化切换五条 + .aractbar--dim 撤除 + 文末条 14px 档退役（确认稿 v3.2）；0.9.334 +24 行＝.acsv-im-acard 暗皮块（确认稿 im-article-card 取值逐字，check-preview +7 钉同批）；0.9.334 +24 行＝.acsv-im-acard 暗皮块（确认稿 im-article-card 取值逐字，check-preview +7 钉同批）；0.9.335 +4 行＝藏键槽位统一（0.9.335 跳动修复：.arstow-slot 盒 + stow 字形 23×23 盒规则，显隐仍归 .on 切换）"
+      "key": "size:cssraw.js:行2150:导出1",
+      "why": "0.9.319 登记：撤框历史注释把 var(--acsv-accent-dim) 改写成字面值并注明该变量已删（本轮删变量）——+1 行；0.9.326 +159 行＝文章阅读浮层 CSS 段（确认稿 article-reader-v3 取值落地，含 620 窄态块）；0.9.327 +13 行＝壳顶栏让位/底栏点亮悬停色四条/蕉 hover 黄/藏键字号/banpop 锚点上下文/composer 760 居中（真机反馈批）；0.9.329 +3 行＝藏键墨迹量化补偿 20/23px（fontTools 轮廓实测）；0.9.330 +1 行＝34/68 表情尺寸档共享选择器组追加 .arbody 作用域（注释一行，取值不动）；0.9.331 净 +3 行＝藏键描边化切换五条 + .aractbar--dim 撤除 + 文末条 14px 档退役（确认稿 v3.2）；0.9.334 +24 行＝.acsv-im-acard 暗皮块（确认稿 im-article-card 取值逐字，check-preview +7 钉同批）；0.9.334 +24 行＝.acsv-im-acard 暗皮块（确认稿 im-article-card 取值逐字，check-preview +7 钉同批）；0.9.335 +4 行＝藏键槽位统一（0.9.335 跳动修复：.arstow-slot 盒 + stow 字形 23×23 盒规则，显隐仍归 .on 切换）；0.9.336 +7 行＝投蕉弹层浮层语境摆位规则（top:-4px 行卡语境落进底栏＝深底同色隐身病灶，改锚栏上方 + 可见位断言 article-banpop-above-bar）"
     },
     {
       "key": "size:cssseg.js:行32:导出9",

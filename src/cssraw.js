@@ -2064,6 +2064,11 @@ export var CSS_TEMPLATE = ''
   + 'padding:8px 24px}'
   + '.aractbar-in{width:min(760px,100%);margin:0 auto;display:flex;align-items:center;gap:14px;'
   + 'position:relative}'
+  // 投蕉弹层浮层语境摆位（0.9.336 病灶修复）：.acsv-banpop 的 top:-4px 是行卡语境（宿主=
+  // 行互动条，抬到按钮上方）；浮层底栏宿主是 position:relative 的 .aractbar-in——弹层落进
+  // 栏内部、深底同色近乎隐身＝用户实报「没弹出投蕉弹层」。改锚栏上方（横向仍由 anchorBtn
+  // 内联 right 对齐蕉键），行卡语境不带本作用域不受影响
+  + '.acsv-artread .aractbar-in .acsv-banpop{top:auto;bottom:calc(100% + 8px)}'
   + '.acsv-artread .acsv-mdetail-actions{position:relative}'
   + '.aractbar-input{flex:1 1 auto;min-width:0;text-align:left;border:none;border-radius:999px;'
   + 'background:rgba(255,255,255,.10);color:#8a90a0;font:13px/1.4 inherit;padding:9px 14px;cursor:text;'
