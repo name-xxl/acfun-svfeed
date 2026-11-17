@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
 import { el, ensureStyle } from './ui.js';
+import { watchHost } from './watchhost.js'; // 0.9.342 批B：等宿主环收口原语
 import { mountSpaceTab, watchSpaceTabs } from './spacetab.js';
 import { createSquareFeed } from './squarefeed.js';
 import { listProfile } from './momentapi.js';
@@ -93,11 +94,8 @@ export function healSpaceMoments() { inject(); }
 export function tryInjectSpaceMoments() {
   if (!uidOf()) return;
   watchSpaceTabs(healSpaceMoments);
-  if (inject()) return;
-  // 标签栏渲染晚于空间页根（SPA）：轮询补注，节拍与 uppage 同档
-  var tries = 0;
-  (function attempt() {
-    if (inject()) return;
-    if (tries++ < CFG.nav.tries) setTimeout(attempt, CFG.nav.retryMs);
-  })();
+  // 标签栏渲染晚于空间页根（SPA）：有界补拍走 watchHost，节拍与 uppage 同源同形。
+  // 0.9.342 批B 有意收敛的一处：原件「boot 试一次 + 立即再试一次 + 有界补拍」的同步双拍
+  // 归并为原语首拍一次——inject 幂等（已注入即真），两拍无行为差
+  watchHost({ apply: inject, tries: CFG.nav.tries, stepMs: CFG.nav.retryMs });
 }

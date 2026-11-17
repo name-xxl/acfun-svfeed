@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.341-debug
+// @version      0.9.342-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 116740;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.341-debug" : "",
+          ver: true ? "0.9.342-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -743,7 +743,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.341-debug" : "";
+  var APP_VERSION = true ? "0.9.342-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -3137,7 +3137,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     var mocked = mockHit(url, body);
     if (mocked) return mocked;
     var ctl = typeof AbortController === "function" ? new AbortController() : null;
-    var timer3 = ctl ? setTimeout(function() {
+    var timer2 = ctl ? setTimeout(function() {
       try {
         ctl.abort();
       } catch (e) {
@@ -3150,11 +3150,11 @@ window.__ACSV_CSS_LEN__ = 116740;
       body,
       signal: ctl ? ctl.signal : void 0
     }).then(function(r) {
-      clearTimeout(timer3);
+      clearTimeout(timer2);
       if (r.status < 200 || r.status >= 300) throw new Error("http-" + r.status);
       return r.json();
     }).catch(function(e) {
-      clearTimeout(timer3);
+      clearTimeout(timer2);
       if (e && e.name === "AbortError") e = new Error("timeout");
       stat("net.fail");
       throw e;
@@ -5587,7 +5587,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     host5.appendChild(img);
     var primary = plan[0].url;
     var fb = pol.fallback && coverUrl(pol.fallback) !== primary ? coverUrl(pol.fallback) : "";
-    var i = 0, timer3 = null, fbUsed = false;
+    var i = 0, timer2 = null, fbUsed = false;
     var memo = memoState(failMemo, primary, Date.now(), MEMO_TTL);
     if (memo === "dead") {
       stat("img.memoHit");
@@ -5599,9 +5599,9 @@ window.__ACSV_CSS_LEN__ = 116740;
       }
     }
     img.addEventListener("load", function() {
-      if (timer3) {
-        clearTimeout(timer3);
-        timer3 = null;
+      if (timer2) {
+        clearTimeout(timer2);
+        timer2 = null;
       }
       if (pol.fade) img.classList.add("ld");
     });
@@ -5628,8 +5628,8 @@ window.__ACSV_CSS_LEN__ = 116740;
       var a = plan[i];
       img.referrerPolicy = a.ref;
       if (a.delay) {
-        timer3 = setTimeout(function() {
-          timer3 = null;
+        timer2 = setTimeout(function() {
+          timer2 = null;
           if (img.isConnected) img.src = a.url;
         }, a.delay);
       } else {
@@ -5891,20 +5891,20 @@ window.__ACSV_CSS_LEN__ = 116740;
       }
       function injectScript(url, onok, onfail) {
         var s = document.createElement("script");
-        var timer3 = setTimeout(function() {
-          clearTimeout(timer3);
+        var timer2 = setTimeout(function() {
+          clearTimeout(timer2);
           s.remove();
           if (url.indexOf("blob:") === 0) URL.revokeObjectURL(url);
           onfail();
         }, CFG.im.loadT);
         s.onload = function() {
-          clearTimeout(timer3);
+          clearTimeout(timer2);
           var Ctor = pageWin().ImSdk;
           if (Ctor) onok(Ctor);
           else onfail();
         };
         s.onerror = function() {
-          clearTimeout(timer3);
+          clearTimeout(timer2);
           s.remove();
           if (url.indexOf("blob:") === 0) URL.revokeObjectURL(url);
           onfail();
@@ -6142,7 +6142,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     var mark = imLogMark();
     return new Promise(function(resolve, reject) {
       var done = false;
-      var timer3 = setTimeout(function() {
+      var timer2 = setTimeout(function() {
         finish(new Error(SEND_TIMEOUT));
       }, CFG.im.sendT);
       function settle() {
@@ -6151,7 +6151,7 @@ window.__ACSV_CSS_LEN__ = 116740;
       function finish(err2) {
         if (done) return;
         done = true;
-        clearTimeout(timer3);
+        clearTimeout(timer2);
         try {
           inst.off("sendSucceed", onEvt);
         } catch (e) {
@@ -6243,11 +6243,11 @@ window.__ACSV_CSS_LEN__ = 116740;
       function finish(err2) {
         if (done) return;
         done = true;
-        clearTimeout(timer3);
+        clearTimeout(timer2);
         if (err2) reject(err2);
         else resolve();
       }
-      var timer3 = setTimeout(function() {
+      var timer2 = setTimeout(function() {
         finish(new Error(SEND_TIMEOUT));
       }, limit);
       var r;
@@ -8686,7 +8686,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.341-debug" : "",
+      version: true ? "0.9.342-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -9054,14 +9054,14 @@ window.__ACSV_CSS_LEN__ = 116740;
   function batch(tipId) {
     var tip = tipId != null ? String(tipId) : "";
     if (!tip) return Promise.resolve([]);
-    var tries2 = 0;
+    var tries = 0;
     var mode2 = getSetting("relSequential") ? "seq" : "walk";
     function attempt2() {
-      tries2++;
+      tries++;
       return listRelated(tip).then(function(dvs) {
         var picked = pickFresh(dvs, _seen, mode2);
         if (!picked.length) {
-          if (tries2 < MAX_REFETCH) return attempt2();
+          if (tries < MAX_REFETCH) return attempt2();
           picked = pickFresh(dvs, {}, mode2);
           stat("rel.replay");
         }
@@ -10560,6 +10560,59 @@ window.__ACSV_CSS_LEN__ = 116740;
     return box;
   }
 
+  // src/watchhost.js
+  function watchHost(opts) {
+    var tries = opts.tries | 0;
+    var stepMs = opts.stepMs || 0;
+    var settled = false;
+    var pollTimer = null, pollCount = 0, observer = null, deadlineTimer = null;
+    function stopAll2() {
+      if (pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+      }
+      if (deadlineTimer) {
+        clearTimeout(deadlineTimer);
+        deadlineTimer = null;
+      }
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+    }
+    function shot() {
+      if (settled) return;
+      if (opts.apply() !== true) return;
+      settled = true;
+      stopAll2();
+      if (opts.onDone) opts.onDone();
+    }
+    shot();
+    if (settled) return;
+    if (tries > 0 && stepMs > 0) {
+      pollTimer = setTimeout(function pump() {
+        pollCount++;
+        pollTimer = null;
+        shot();
+        if (settled) return;
+        if (pollCount < tries) pollTimer = setTimeout(pump, stepMs);
+        else if (opts.onEnd) opts.onEnd();
+      }, stepMs);
+    }
+    if (opts.observe) {
+      observer = new MutationObserver(shot);
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+    if (opts.deadlineMs > 0) {
+      deadlineTimer = setTimeout(function() {
+        deadlineTimer = null;
+        if (settled) return;
+        stopAll2();
+        if (opts.onDeadline) opts.onDeadline();
+      }, opts.deadlineMs);
+    }
+  }
+
   // src/spacetab.js
   function mountSpaceTab(opts) {
     var cl = opts.cl;
@@ -11045,16 +11098,18 @@ window.__ACSV_CSS_LEN__ = 116740;
     var mU = location.pathname.match(SPACE_UID_RE);
     if (!mU) return;
     watchSpaceTabs(healSpaceVideos);
-    var tries2 = 0;
-    var attempt2 = function() {
-      if (document.getElementById("acsv-space") || document.getElementById("acsv-space-grid")) return;
-      if (document.getElementById("ac-space")) {
-        injectSpaceVideos(mU[1]);
-        return;
-      }
-      if (tries2++ < CFG.nav.tries) setTimeout(attempt2, CFG.nav.retryMs);
-    };
-    attempt2();
+    watchHost({
+      apply: function() {
+        if (document.getElementById("acsv-space") || document.getElementById("acsv-space-grid")) return true;
+        if (document.getElementById("ac-space")) {
+          injectSpaceVideos(mU[1]);
+          return true;
+        }
+        return false;
+      },
+      tries: CFG.nav.tries,
+      stepMs: CFG.nav.retryMs
+    });
   }
   testHook("upvideos", function(op, ids) {
     if (op === "activate") {
@@ -11616,13 +11671,13 @@ window.__ACSV_CSS_LEN__ = 116740;
       }
       var s = document.createElement("script");
       var done = false;
-      var timer3 = setTimeout(function() {
+      var timer2 = setTimeout(function() {
         fin(null, "hls.blobTimeout");
       }, CFG.time.gm);
       function fin(G, failKey) {
         if (done) return;
         done = true;
-        clearTimeout(timer3);
+        clearTimeout(timer2);
         try {
           URL.revokeObjectURL(url);
         } catch (e) {
@@ -15799,7 +15854,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.341-debug" : "");
+    return normVer(true ? "0.9.342-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -17729,11 +17784,11 @@ window.__ACSV_CSS_LEN__ = 116740;
       var target = slide.offsetTop;
       scroller2.scrollTo({ top: target, behavior: "auto" });
       setActive3(idx2);
-      var tries2 = 8;
+      var tries = 8;
       var my = ++settleSeq;
       (function settle() {
         var sc = getScroller();
-        if (!sc || my !== settleSeq || tries2-- <= 0) return;
+        if (!sc || my !== settleSeq || tries-- <= 0) return;
         var s = slideAt2(idx2);
         if (!s) return;
         var d = s.offsetTop - sc.scrollTop;
@@ -17800,14 +17855,14 @@ window.__ACSV_CSS_LEN__ = 116740;
     if (true) {
       stat("land.watch");
     }
-    function landWhenVisible(idx2, near, tries2) {
+    function landWhenVisible(idx2, near, tries) {
       var scroller2 = getScroller();
       if (!scroller2) return;
       if (!stageVisible2()) {
-        if (tries2 <= 0) return;
+        if (tries <= 0) return;
         landTimer = setTimeout(function() {
           landTimer = null;
-          landWhenVisible(idx2, near, tries2 - 1);
+          landWhenVisible(idx2, near, tries - 1);
         }, 16);
         return;
       }
@@ -18288,7 +18343,6 @@ window.__ACSV_CSS_LEN__ = 116740;
     li.parentNode.insertBefore(clone, li.nextSibling);
     return true;
   }
-  var navObserver = null;
   function watchNav() {
     var ok = false;
     for (var i = 0; i < CFG.nav.pages.length; i++) {
@@ -18298,27 +18352,20 @@ window.__ACSV_CSS_LEN__ = 116740;
       }
     }
     if (!ok) return;
-    if (tryInjectNav()) return;
-    navObserver = new MutationObserver(function() {
-      if (tryInjectNav()) {
-        navObserver.disconnect();
-        navObserver = null;
+    watchHost({
+      apply: tryInjectNav,
+      observe: true,
+      deadlineMs: CFG.time.navWait,
+      onDeadline: function() {
+        if (document.getElementById("acsv-fab") || document.querySelector("[data-acsv-nav]")) return;
+        var fab = el("button", "acsv-fab", "▶ AcFun 小视频");
+        fab.id = "acsv-fab";
+        fab.addEventListener("click", function() {
+          location.hash = CFG.hash;
+        });
+        document.body.appendChild(fab);
       }
     });
-    navObserver.observe(document.body, { childList: true, subtree: true });
-    setTimeout(function() {
-      if (navObserver) {
-        navObserver.disconnect();
-        navObserver = null;
-      }
-      if (document.getElementById("acsv-fab") || document.querySelector("[data-acsv-nav]")) return;
-      var fab = el("button", "acsv-fab", "▶ AcFun 小视频");
-      fab.id = "acsv-fab";
-      fab.addEventListener("click", function() {
-        location.hash = CFG.hash;
-      });
-      document.body.appendChild(fab);
-    }, CFG.time.navWait);
   }
 
   // src/listtail.js
@@ -19933,12 +19980,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   function tryInjectSpaceMoments() {
     if (!uidOf()) return;
     watchSpaceTabs(healSpaceMoments);
-    if (inject()) return;
-    var tries2 = 0;
-    (function attempt2() {
-      if (inject()) return;
-      if (tries2++ < CFG.nav.tries) setTimeout(attempt2, CFG.nav.retryMs);
-    })();
+    watchHost({ apply: inject, tries: CFG.nav.tries, stepMs: CFG.nav.retryMs });
   }
 
   // src/pubfab.js
@@ -20002,8 +20044,6 @@ window.__ACSV_CSS_LEN__ = 116740;
   var mpRoot = null;
   var feed2 = null;
   var hiddenNative = [];
-  var timer2 = null;
-  var tries = 0;
   var pendingOpen = false;
   var memAuto = false;
   function memberPath() {
@@ -20120,13 +20160,13 @@ window.__ACSV_CSS_LEN__ = 116740;
     if (plan === "open") {
       if (!openPlaza()) {
         pendingOpen = true;
-        startTimer();
+        ensurePolling();
       }
       return;
     }
     if (plan === "wait") {
       pendingOpen = true;
-      startTimer();
+      ensurePolling();
       return;
     }
     setAutoFlag(true);
@@ -20186,18 +20226,22 @@ window.__ACSV_CSS_LEN__ = 116740;
     if (pendingOpen && openPlaza()) pendingOpen = false;
     return navOk && autoOk && !pendingOpen;
   }
-  function stopTimer() {
-    if (timer2) {
-      clearInterval(timer2);
-      timer2 = null;
-    }
-  }
-  function startTimer() {
-    if (timer2) return;
-    tries = 0;
-    timer2 = setInterval(function() {
-      if (attempt() || ++tries >= CFG.nav.tries) stopTimer();
-    }, CFG.nav.retryMs);
+  var polling = false;
+  function ensurePolling() {
+    if (polling) return;
+    polling = true;
+    watchHost({
+      apply: function() {
+        var done = attempt();
+        if (done) polling = false;
+        return done;
+      },
+      tries: CFG.nav.tries,
+      stepMs: CFG.nav.retryMs,
+      onEnd: function() {
+        polling = false;
+      }
+    });
   }
   var healObserver = null;
   var healTimer = null;
@@ -20221,8 +20265,7 @@ window.__ACSV_CSS_LEN__ = 116740;
       healObserver = new MutationObserver(guardHeal);
       healObserver.observe(document.body, { childList: true, subtree: true });
     }
-    if (attempt()) return;
-    startTimer();
+    ensurePolling();
   }
   testHook("memberMp", function() {
     return {
@@ -20258,7 +20301,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.341-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.342-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -21181,10 +21224,10 @@ window.__ACSV_CSS_LEN__ = 116740;
     }
     var uid = uidOf2(el2);
     if (!uid) {
-      var tries2 = (el2._acsvNipTries || 0) + 1;
-      el2._acsvNipTries = tries2;
+      var tries = (el2._acsvNipTries || 0) + 1;
+      el2._acsvNipTries = tries;
       viewIO2.unobserve(el2);
-      if (tries2 <= 8) {
+      if (tries <= 8) {
         setTimeout(function() {
           if (viewIO2 && el2.isConnected && !el2.querySelector("." + NIP)) viewIO2.observe(el2);
         }, 600);
