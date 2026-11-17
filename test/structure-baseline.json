@@ -490,10 +490,6 @@
       "why": "0.9.316 登记：成员行删除确认补 placeHost: del（原按整条 li 让位）＋ 透传点加 popgeom-ok 标记——+2 行"
     },
     {
-      "key": "size:memberplaza.js:行259:导出1",
-      "why": "0.9.314 登记：号锚 addAmAnchor 整件撤除 + onOpen 改 openRowSource + 一枚 siteOnly 总开关（含其注释）——导出 2→1"
-    },
-    {
       "key": "size:momentapi.js:行127:导出9",
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
@@ -746,10 +742,6 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:uppage.js:行404:导出3",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
-    },
-    {
       "key": "size:viewreg.js:行48:导出3",
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
@@ -784,6 +776,18 @@
     {
       "key": "size:settingspanel.js:行353:导出2",
       "why": "0.9.341 注入闸批重排：总闸/子项表/门层/同壳二级，行数与导出为本批实测"
+    },
+    {
+      "key": "size:memberplaza.js:行271:导出1",
+      "why": "0.9.342 批B（watchHost 环收口）重排：本批实测"
+    },
+    {
+      "key": "size:uppage.js:行406:导出3",
+      "why": "0.9.342 批B（watchHost 环收口）重排：本批实测"
+    },
+    {
+      "key": "size:watchhost.js:行71:导出1",
+      "why": "0.9.342 批B（watchHost 环收口）重排：本批实测"
     }
   ]
 }

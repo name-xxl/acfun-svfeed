@@ -11,6 +11,7 @@
 //   ③ 接管旧 plaza 脚本：移除其入口/推广条后注入自有（静态让位会让用户点到已 sunset 的旧脚本）
 import { CFG } from './cfg.js';
 import { el, ensureStyle } from './ui.js';
+import { watchHost } from './watchhost.js'; // 0.9.342 批B：等宿主环收口原语
 import { testHook } from './dbg.js';
 import { createSquareFeed } from './squarefeed.js';
 import { closeInlineComments, openRowSource } from './rowkit.js';
@@ -24,7 +25,7 @@ var itemEl = null;     // 注入的导航项
 var mpRoot = null;     // 内嵌根（展开态；null=未展开）
 var feed = null;       // squarefeed 实例
 var hiddenNative = []; // 展开时隐藏的原生子节点 [{el, display}]（收回即复原）
-var timer = null, tries = 0, pendingOpen = false;
+var pendingOpen = false; // 等宿主的定时器句柄不在本件（0.9.342：归 watchHost 原语自管）
 var memAuto = false;   // 无 GM（harness/降级）时的内存旗标
 
 function memberPath() { return memberCenterPath(location.pathname); } // 判据单源=pagekind（0.9.303）
@@ -131,8 +132,8 @@ function onEntry() {
   if (mpRoot && !mpRoot.isConnected) dropStaleState();
   var plan = entryPlan();
   if (plan === 'refresh') { refreshPlaza(); return; } // 已展开再点=刷新（plaza refreshPlaza 语义）
-  if (plan === 'open') { if (!openPlaza()) { pendingOpen = true; startTimer(); } return; }
-  if (plan === 'wait') { pendingOpen = true; startTimer(); return; } // feeds 页宿主未就绪：轮询补开
+  if (plan === 'open') { if (!openPlaza()) { pendingOpen = true; ensurePolling(); } return; }
+  if (plan === 'wait') { pendingOpen = true; ensurePolling(); return; } // feeds 页宿主未就绪：轮询补开
   setAutoFlag(true); // plaza auto_enter 语义（旗标 + 跳转，落地自动展开）
   location.href = '/member/feeds';
 }
@@ -187,20 +188,29 @@ function tryAutoEnter() {
   return false; // 宿主未就绪：继续轮询
 }
 
-// ---------- 轮询驱动（两件共用一拍：注入/自动展开） ----------
+// ---------- 一拍驱动（两件共用：注入/自动展开） ----------
 function attempt() {
   var navOk = tryInjectNav();
   var autoOk = tryAutoEnter();
   if (pendingOpen && openPlaza()) pendingOpen = false;
   return navOk && autoOk && !pendingOpen;
 }
-function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
-function startTimer() {
-  if (timer) return;
-  tries = 0;
-  timer = setInterval(function () {
-    if (attempt() || ++tries >= CFG.nav.tries) stopTimer();
-  }, CFG.nav.retryMs);
+// 单环 + 点击可重启（0.9.342 批B，逐条对应原 startTimer 三性：`if (timer) return;` 防叠环 /
+// 成即摘 / tries 到顶自停后 `timer=null` 让下次点击能重新起环——后两性由 watchHost 自管，
+// 「到顶复位」经 onEnd 信号落回 polling 旗标；环体副作用全程幂等，这是 0.9.129 立好的纪律）
+var polling = false;
+function ensurePolling() {
+  if (polling) return;
+  polling = true;
+  watchHost({
+    apply: function () {
+      var done = attempt();
+      if (done) polling = false;
+      return done;
+    },
+    tries: CFG.nav.tries, stepMs: CFG.nav.retryMs,
+    onEnd: function () { polling = false; }
+  });
 }
 
 // ---------- SPA 自愈（0.9.129 真机加固；0.9.132 随推广条撤除收窄为入口看护） ----------
@@ -231,8 +241,10 @@ export function watchMemberNav() {
     healObserver = new MutationObserver(guardHeal);
     healObserver.observe(document.body, { childList: true, subtree: true });
   }
-  if (attempt()) return; // 首拍即成（同步渲染的页面不走轮询）
-  startTimer();
+  // 0.9.342 批B：有界补拍走 ensurePolling→watchHost（首拍同步=原 `if (attempt()) return;`，
+  // 此后 CFG.nav.tries×retryMs=原 startTimer 一拍不差；healObserver 常驻自愈不在本环语义内，
+  // 保持独立——两件事别并成一件）
+  ensurePolling();
 }
 
 // debug 构建测试钩子（harness 直驱一次注入/开合；真实轮询 500ms×20 场景等得起，这组供确定性路径）

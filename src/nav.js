@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
+import { watchHost } from './watchhost.js'; // 0.9.342 批B：等宿主环收口原语
 
 // ---------- 导航入口注入 ----------
 var NAV_LABELS = CFG.nav.labels;
@@ -39,9 +40,8 @@ function tryInjectNav() {
   return true;
 }
 
-var navObserver = null;
 export function watchNav() {
-  // 页面白名单闸门：白名单外不注入、不观察、不弹兜底胶囊（0.9.47 起仅首页）。
+  // 页面白名单闸门：白名单外不注入、不起 MutationObserver、不挂 6 秒兜底定时器，整条链路直接短路。
   // 注意这是**显示闸门**（导航入口往哪张页面注入），不是运行门槛——boot 的运行分流
   // 由 pagekind.pageKind 总表决定（0.9.88），扩 @match 不改本表语义，防误删防误扩
   var ok = false;
@@ -49,21 +49,19 @@ export function watchNav() {
     if (CFG.nav.pages[i].test(location.pathname)) { ok = true; break; }
   }
   if (!ok) return;
-  if (tryInjectNav()) return;
-  navObserver = new MutationObserver(function () {
-    if (tryInjectNav()) {
-      navObserver.disconnect();
-      navObserver = null;
+  // 0.9.342 批B（watchHost 收编）：等宿主（observe）+ 未 settles 到 navWait 摘观察器、
+  // 出兜底胶囊——原三件各持句柄（navObserver 闭包 + 匿名 setTimeout 无句柄，优化批④在案），
+  // 现统一由原语 stopAll 回收；胶囊内存在性双判保留（原件防御，语义零变化）
+  watchHost({
+    apply: tryInjectNav,
+    observe: true,
+    deadlineMs: CFG.time.navWait,
+    onDeadline: function () {
+      if (document.getElementById('acsv-fab') || document.querySelector('[data-acsv-nav]')) return;
+      var fab = el('button', 'acsv-fab', '▶ AcFun 小视频');
+      fab.id = 'acsv-fab';
+      fab.addEventListener('click', function () { location.hash = CFG.hash; });
+      document.body.appendChild(fab);
     }
   });
-  navObserver.observe(document.body, { childList: true, subtree: true });
-  // 兜底：导航一直没渲染出来（或结构变了），给个悬浮入口
-  setTimeout(function () {
-    if (navObserver) { navObserver.disconnect(); navObserver = null; }
-    if (document.getElementById('acsv-fab') || document.querySelector('[data-acsv-nav]')) return;
-    var fab = el('button', 'acsv-fab', '▶ AcFun 小视频');
-    fab.id = 'acsv-fab';
-    fab.addEventListener('click', function () { location.hash = CFG.hash; });
-    document.body.appendChild(fab);
-  }, CFG.time.navWait);
 }

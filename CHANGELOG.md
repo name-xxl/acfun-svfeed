@@ -5,6 +5,35 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.342（2026-11-17）· 宿主等待原语收编四份同形环（批B 结构收口，零行为变化）——watchHost + nav 兜底定时器句柄归位
+
+**病灶（卫生审计口径①「同形副本」，非用户可见 bug）**：「等宿主渲染 → 成一次即停 → 有界重试」
+同一个环体在 src 写了四份三套写法——nav.js（MO + 匿名 `setTimeout(navWait)` 兜底胶囊，**句柄
+不存即不可撤**，优化批④在案）、memberplaza.js（`setInterval` + tries 上限 + `if (timer) return;`
+单环旗标 + 点击重启）、spacemoments.js 与 uppage.js（各一份递归 `setTimeout` 链）。常数同取
+`CFG.nav.tries/retryMs`，改节拍要碰四处——正是规矩 7 要灭的「这一类」。
+
+**修法（收口到结构层）**：新件 `src/watchhost.js`（零依赖，INFRA 桶）：`watchHost({apply,
+tries, stepMs, observe, deadlineMs, onDeadline, onDone, onEnd})`——首拍同步、tries=计划内补拍
+条数、observe 成则自动摘、deadline 到点结束观察窗交兜底件（nav 6s 原件语义）、onEnd 在轮询
+预算耗尽且未 settled 时恰一次（memberplaza 单环旗标复位依赖此信号复现原三性：防叠环/成即摘/
+到顶后可重启）。四件消费端各删自环换调用；nav 胶囊改挂 onDeadline 腿，匿名定时器病灶随原语
+stopAll 一并灭。**刻意不并表**：常驻自愈观察器（spacetab/memberplaza healObserver/nativeip
+防抖重扫）无 settled 概念、imnative waitKernel 等非 DOM 宿主——并表即批A 已裁决不做的「大一统」。
+一处有意收敛：spacemoments 原件「boot 试 + 立即再试 + 补拍」的同步双拍归并为首拍一次（inject
+幂等，两拍无行为差，注记在册）。
+
+**测试证据**：新单测 `watchhost.test.js` 4 例钉语义面（首拍同步/定居后预算全停/补拍条数
+=tries/onEnd 恰一次/deadline 独立且成则不响）。行为面零新场景——既有腿覆盖：inject-home-nav/
+off-home（observe+deadline 双腿）、member-plaza（43 断言含真实轮询节拍）、space-moments
+（32 断言：自愈+惰性+位次）、boot 族，定向 8/8 绿。反跑实录（规矩 4）：
+① 摘 pump「成即定居」early-return → 单测 2 独红 ✓（该腿有红点）；
+② 「成则 deadline 不响」查实为**双保险 OR 腿**（stopAll 清 deadlineTimer 与 deadline 回调内
+   settled 守卫各自独立成立）——单摘任一层测试仍绿，promise 由单测钉、两实现层皆守；同款
+   先例即 nav 原件（胶囊存在性双判 + MO disconnect）。注记在册，不当「有红点」宣传。
+全量 harness 98/98、单测 524/524、check 链+tsc 全绿；结构棘轮 3 件重裁（memberplaza/uppage/
+watchhost），缩小两腿（nav/spacemoments）依法不放宽。
+
 ### 0.9.341（2026-11-17）· 官方页面增强注入闸（用户裁决「用户角度就是功能开关；只治非脚本页，关＝不注入不加载」）——injects 门层 + SCHEMA 七键 + 同壳二级
 
 **来历（非病灶，是新外因）**：开发期内官方上架网页端动态广场，与本脚本**原生面**功能重合

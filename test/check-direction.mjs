@@ -62,6 +62,7 @@ const INFRA = new Set(['cfg.js', 'net.js', 'playitem.js', 'panelitem.js', 'state
   'cssseg.js', // 0.9.309 影子样式缝化：影子根/文档级共用 CSS 段 token（零依赖纯常量；cssraw 构建期插值 + settingspanel/imnative 影子根运行时共用）
   'imgurl.js', 'pagekind.js', 'settings.js', 'viewreg.js', 'imgload.js', 'overlay.js', 'topbar.js',
   'injects.js', // 0.9.341 注入闸门层：injectOn 唯一判读口（总闸×子项）；出边只 settings.js（基建→基建），消费点在 boot 装配处
+  'watchhost.js', // 0.9.342 批B：宿主等待原语（零依赖纯函数；nav/memberplaza/spacemoments/uppage 四份同形环的单源收口处）
   'ui.js', 'errbox.js', 'styles.js', 'dbg.js', 'timefmt.js', 'uplook.js', 'nameval.js',
   // 0.9.258 登记：pack（内嵌压缩串解包**单源**，hls/devname/styles 三处共用）。归基建件是因为
   // 消费方 styles 属基建层（不登记就会在口径 A 报「styles→pack 越层」）；pack 自身零内部依赖

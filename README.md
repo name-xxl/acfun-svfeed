@@ -510,7 +510,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `watchledger.js` | 观看上报纯逻辑层（0.9.87）：持久账本 reconcile（TTL/账平/容量/单调守卫）、上报参数与直发信封构造——node --test 直测，环境触点留在 report.js |
 | `prewarm.js` | 预热：索引稳定 500ms 后预解析 cur+1/2、媒体域动态 preconnect（上限 6 + 静态种子） |
 | `dbg.js` | 调试埋点（仅 debug 构建存活）：stat 计数、testHook、`acsv-stats` localStorage 镜像 |
-| `nav.js` / `uppage.js` | 导航入口注入；UP 主空间页小视频标签（0.9.218 起注入/切换/排序/自愈收口 spacetab） |
+| `nav.js` / `uppage.js` | 导航入口注入；UP 主空间页小视频标签（0.9.218 起注入/切换/排序/自愈收口 spacetab；0.9.342 等宿主重试环收口 watchHost，nav 兜底胶囊改由原语 deadline 腿驱动） |
 | `spacetab.js` | 空间页内容标签栏注入共享件（0.9.218 自 uppage 抽出）：自建 `li[data-index]` + 兄弟 `.tag-content` 面板 + 手动切换（stopPropagation 阻断站点委托、同步 li/panel 的 active、隐藏站点排序控件 `#ac-space-contribute-sort`）+ 点原生标签恢复排序显示；**确定性插入位**（原生三标签之后按 order 升序——与两模块注入先后无关，否则顺序会随轮询时序漂移）；**共享 MutationObserver 自愈**（SPA 重渲染冲掉注入项后回补；回调契约=单次同步尝试、不得起定时器）。消费方：uppage（小视频 order2）/ spacemoments（动态 order1） |
 | `spacemoments.js` | 空间页「动态」标签（0.9.218）：`/u/<uid>` 注入「动态」（数据=feed/profile **三合一混排**：图文动态+视频+文章），列表机械/行卡/详情/评论全线复用（squarefeed 工厂 + rowkit + momentbar + comments）——差异只在四处注入（取数/空态文案/关发现态轮询/阈值组 CFG.view.moments，**无 24h 窗口**）；**落点=原生页语义（0.9.314 反转 0.9.218）**（行 → 站方原址新标签，经 rowkit.openRowSource 单出口；不穿越深色详情面板、浅色原生页不弹深色详情浮层，行内互动/评论照常；旧「行尾 am 号锚」随 addAmAnchor 整件撤除。**引用卡（转发卡）同批一并出站**站方原址、**行内格子与正文内配图不接脚本大图查看器**（点图落回行默认＝出站站方原址；实测 `docs/api-research.md` §18：站方在动态面自带功能更全的查看器）——两项同由**宿主开关 `createSquareFeed({siteOnly:true})`** 透传进媒体构建与格子接线）；皮肤=内套 `.acsv-mp` **浅色第二皮肤**（与 /member 内嵌广场同根）；**惰性**（标签首次显形才建列表）；自愈走 spacetab 共享观察器；有意收窄=标签栏始终不出现时不退回底部区块 |
 | `imsend.js` | 私信发送核心（0.9.123 自 imshare.js 拆出，协议核心 ↔ 面板 UI 分居）：联系人/头像（getContacts/mapSessions/fetchCards）+ 发送核心（doSend 轮询式日志确认 / withSendRecovery 恢复链 / 内核直发 sendKernel 引用/图片/评论转发/动态转发 extra 通道，clientSeqId 对账）；**0.9.266 图片管线拆至 imimage.js**（字节 midground 令牌/LRU/限流/在飞去重 + URL 换链 imageUrlOf）；**0.9.270 SDK 基建拆至 imsdk.js**（加载/补丁/日志黑匣子/单例连接/崩溃水位——本件只经其出口读状态，不持副本）。分享面板 UI 在 sharepanel.js（单向依赖本模块出口） |
@@ -578,6 +578,7 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/**memberCenter**/other——boot 运行分流的唯一判据。0.9.303 起判据导出单源：`SPACE_UID_RE`（uppage/spacemoments 注入判据共用）、`memberCenterPath`（boot/memberplaza 共用）；防复制=pagekind.test 字面扫描（旧「与 uppage 逐字一致+单测钉」实为只钉 pageKind 自己的假守卫） |
 | `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）＋0.9.278 `guestRead`（非个性化推荐，隐私组）；`onChange` 订阅让消费方零反向依赖地即时生效；**0.9.341 注入闸七键**（总闸 `injectNative`（panel:true，manage 行）+ `sub:'inject'` 六键 def 全 true=现状，`injectItems()` 派生二级清单；键↔boot 短路配对由 check-injects.mjs 双向钉） |
 | `injects.js` | 官方页面增强门层（0.9.341，确认稿 docs/preview/native-inject-switch.html）：`injectOn(key)`＝「要不要注入原生面」唯一判读口（总闸短路在前、子项在后，未登记键 fail-closed 不注入）；关＝不注入不加载整链短路（0.9.47 白名单短路先例），生效=重新加载后（boot 一次判读，无 unmount 义务——用户裁决明示）。消费方只有 boot（六个短路点）与 settingspanel（总闸键常量+置灰判定）；出边仅 settings.js |
+| `watchhost.js` | 宿主等待原语（0.9.342 批B，零依赖）：「等宿主渲染→成一次即停→有界重试」四份同形环（nav MO+6s 兜底胶囊 / memberplaza setInterval+点击重启 / spacemoments、uppage 递归 setTimeout）的单源收口处。语义面：首拍同步、tries=计划内补拍条数、observe 观察补拍成则自动摘、deadline 到点结束观察窗交兜底件、onEnd 告知预算耗尽（memberplaza 单环旗标复位依赖）。**常驻自愈观察器不并表**（spacetab/memberplaza heal/nativeip 重扫无 settled 概念——语义不同，并表即被否决的大一统） |
 | `settingspanel.js` | 脚本页设置皮肤（0.9.89）：dock 齿轮 → `openSettings()` → overlay 栈（modal，Esc 白拿）；host + **Shadow DOM** 作用域样式（量取值与日期在文件头注释）；控件按 schema 表驱动（bool 开关 / select 下拉 / number 步进器）；**0.9.253 页脚补版本号**（`v{APP_VERSION}` 左置 + 「完成」右置，与 IP 面板页脚同源）；原生页皮肤＝`natpanel.js`（见其行）；**0.9.341 同壳二级**（manage 行=开关+「管理」钮；`mode` 换页不新开 overlay 层——零新 z 档，Esc 经 onPanelEsc 先回一级；置灰态 CSS pointer-events 停用、不回写值） |
 | `banpop.js` | 投蕉数量层（0.9.104 自 rail 抽出）：默认全灰，悬停第 N 根点亮 1~N，点第 N 根投 N；已投锁定蕉黄。消费 rail/followview/momentbar。 |
 | `domfields.js` | slide/item 跨模块 `_xxx` 字段的**唯一登记处**（0.9.297，零依赖）：`SLIDE_FIELDS`/`ITEM_FIELDS` 数据表；`check-contract` 扫源码未登记字段即红。读/写方说明仍在 attach.js。 |
@@ -686,6 +687,7 @@ flowchart LR
 
   boot["boot.js（入口）"]
   injects["injects.js（官方页面增强注入闸·injectOn 唯一判读口）"]
+  watchhost["watchhost.js（宿主等待原语·零依赖）"]
   settingspanel["settingspanel.js（脚本页设置皮肤·Shadow DOM·0.9.341 同壳二级）"]
   followview["followview.js（关注视图·仿原生单列无限流）"]
   squareview["squareview.js（广场视图·feedSquare 全站动态流）"]
@@ -786,11 +788,11 @@ flowchart LR
   followview --> cards & emoticon & followseen & listtail & momentapi & momentdetail & pageloader & rowkit & sidebar & viewreg
   squareview --> cards & momentdetail & rowkit & squarefeed & viewreg
   squarefeed --> cards & emoticon & followbadge & listtail & momentapi & momentbar & pageloader & rowkit & ubb
-  memberplaza --> pagekind & rowkit & squarefeed
+  memberplaza --> pagekind & rowkit & squarefeed & watchhost
   listtail --> styles & ui
   spacetab --> ui
-  spacemoments --> cfg & rowkit & momentapi & pagekind & spacetab & squarefeed & ui
-  uppage --> api & cfg & feedctx & feedstore & imgload & net & pagekind & pageloader & spacetab & timefmt & ui
+  spacemoments --> cfg & rowkit & momentapi & pagekind & spacetab & squarefeed & ui & watchhost
+  uppage --> api & cfg & feedctx & feedstore & imgload & net & pagekind & pageloader & spacetab & timefmt & ui & watchhost
   rowkit --> cards & comments & dest & imgload & imgview & momentbar & sharepanel & uplook
   dest --> articleread & cards & momentdetail & panelitem
   followstream --> appapi & feedctx & feedstore & followseen & momentapi & playitem & sidebar

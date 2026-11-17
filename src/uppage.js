@@ -1,5 +1,6 @@
 import { CFG } from './cfg.js';
 import { gmRequest } from './net.js';
+import { watchHost } from './watchhost.js'; // 0.9.342 批B：等宿主环收口原语
 import { createFeedContext, runChain, registerContext, activateContext } from './feedctx.js';
 import { el, ensureStyle, closeOnOutsideClick } from './ui.js';
 import { fmtWan } from './timefmt.js';
@@ -369,18 +370,19 @@ export function tryInjectSpace() {
   var mU = location.pathname.match(SPACE_UID_RE);
   if (!mU) return;
   watchSpaceTabs(healSpaceVideos); // 自愈：SPA 重渲染冲掉注入项后回补（0.9.218 共享观察器）
-  var tries = 0;
-  var attempt = function () {
-    // 主路径产物是 grid（tab 注入），兜底路径产物才是 section——两个哨兵都要查，
-    // 否则主路径成功后 attempt 会反复重入（此前靠 injectSpaceVideos 内层守卫兜住，0.9.36 收口）
-    if (document.getElementById('acsv-space') || document.getElementById('acsv-space-grid')) return;
-    if (document.getElementById('ac-space')) {
-      injectSpaceVideos(mU[1]);
-      return;
-    }
-    if (tries++ < CFG.nav.tries) setTimeout(attempt, CFG.nav.retryMs);
-  };
-  attempt();
+  // 0.9.342 批B：重试环归 watchHost。哨兵双查语义原样保留（主路径产物 grid、兜底产物
+  // section——两形态都算成，原件 0.9.36 收口的「防反复重入」判据一字不动）
+  watchHost({
+    apply: function () {
+      if (document.getElementById('acsv-space') || document.getElementById('acsv-space-grid')) return true;
+      if (document.getElementById('ac-space')) {
+        injectSpaceVideos(mU[1]);
+        return true;
+      }
+      return false;
+    },
+    tries: CFG.nav.tries, stepMs: CFG.nav.retryMs
+  });
 }
 
 // debug 测试钩子（0.9.257，harness 专用）：空间页列表上下文的造态 + 快照。
