@@ -2,6 +2,8 @@
 // docs/preview/native-inject-switch.html）
 // 语义钉子（稿⑥行为承诺的形态/行为腿，取值腿在 check-preview）：
 //   · 关＝不注入不加载整链短路——断言全用「缺席」形态：入口不在、宿主未被吃、样式未落；
+//   · 例外反钉（0.9.343 用户复审）：首页顶导航入口＝进门键，豁免于一切闸——inject-off-home
+//     腿**正着断言注入在场**（关闸吞入口=自锁悖论；此腿防回潮，闸错接回 watchNav 即红）；
 //   · 生效＝冷启动判读：关值在 harness.html **bundle 前**预置（同 ip-tags-off 先例），
 //     运行中改设置不动当前页——不测「即时摘除」是因为根本没承诺（无 unmount 义务）；
 //   · 竖刷世界不在射程：off 场景里壳照常挂载/路由照常（nav-off-shell-alive 钉反例——
@@ -36,17 +38,22 @@
     rec('nav-on-sentinel', !!(nav && nav.getAttribute('data-acsv-nav') === '1'));
   };
 
-  // ---------- 关态①：总闸关 × 首页（短路点 boot home→navGate）----------
+  // ---------- 不变式钉①：总闸关 × 首页——进门键必须照注（0.9.343 用户复审豁免） ----------
+  // 反着钉：本场景预置 acsv.s.injectNative=false；若将来有人把 injectOn 错接回 watchNav
+  // （或复活 injectNavEntry 键），关态下克隆不注入 → 本 waitFor 超时转红。
+  // 静态腿同款：settings.test「injectNavEntry 键不得复活」+ check-injects「boot 判未登记键即红」。
   C['inject-off-home'] = async function (h) {
-    var rec = h.rec, q = h.q, wait = h.wait;
+    var rec = h.rec, q = h.q, waitFor = h.waitFor;
     // 反例钉：脚本世界不随闸关——竖刷壳（boot 无关的 toggle/mount 链）照常挂载
     rec('nav-off-shell-alive', !!q('#acsv-root'));
-    seedTopNav(q);
-    // MO 补拍时序：开态下注入是「夹具插入→亚秒级」；等满 1500ms 仍缺席即判短路生效
-    //（摘 boot 的 injectOn('injectNavEntry') 短路 → 这里被注入 → 转红）
-    await wait(1500);
-    rec('nav-off-no-clone', !q('[data-acsv-nav]'));
-    rec('nav-off-native-untouched', !!(q('#nv-li-home') && q('#nv-li-home').nextElementSibling === null));
+    seedTopNav();
+    var nav = await waitFor(function () {
+      var it = q('[data-acsv-nav]');
+      return it && it.textContent.indexOf('小视频') >= 0 && it;
+    }, 5000);
+    rec('nav-master-off-still-injected', !!nav);
+    rec('nav-master-off-native-pos', !!(nav && nav.previousElementSibling
+      && nav.previousElementSibling.id === 'nv-li-home'));
   };
 
   // ---------- 关态②：plaza+IP 双关 × /member/feeds（memberCenter 支整支短路）----------

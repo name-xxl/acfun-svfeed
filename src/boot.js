@@ -42,9 +42,9 @@ import './playlayer.js'; // 播放层（0.9.74）：注册 play 视图 + 注入�
 // 注入点统一判 injectOn(key)——关＝不注入不加载整链短路（含样式/观察器/定时器），观感恢复
 // 原生；**只在此处判读一次**，当前页不做即时摘除（生效＝重新加载后，键清单 ↔ 本表配对由
 // check-injects.mjs 钉）。竖刷世界（toggle/hashchange/mountNatPanel 等脚本自有界面）不在射程。
-// 首页顶导航入口链（闸在调用侧，watchNav 不改签名）：0.9.47 页面白名单仍管「往哪张页注入」，
-// injectOn 管「到底注不注入」——两闸语义分层，不合并
-function navGate() { if (injectOn('injectNavEntry')) watchNav(); }
+// **豁免（0.9.343 用户复审）**：首页顶导航入口（watchNav + 兜底胶囊）不判任何闸——它是进
+// 脚本页、进而进开关面板的唯一进门键，闸吞入口＝自锁悖论；harness inject-off-home 腿反钉
+// （总闸关态下入口必须照注，错接回闸即红）。0.9.47 页面白名单照旧管「往哪张页注入」。
 var kind = pageKind(location);
 if (kind === 'native') {
   // 私信页增强整支受 injectPageIm 管（0.9.341）：关时连 setRoot/IMGVIEW_CSS 都不落——
@@ -75,9 +75,9 @@ if (kind === 'native') {
       if (signedThisRun(r)) popSignAlmanac(r, null);
     });
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', navGate); // singleton-listener: 首屏导航注入，页面级
+      document.addEventListener('DOMContentLoaded', watchNav); // singleton-listener: 首屏导航注入，页面级
     } else {
-      navGate();
+      watchNav();
     }
   } else if (kind === 'member') {
     // 空间页两自建标签各有一闸（0.9.341）；全关＝watchSpaceTabs 共享观察器也不起（注入件不被调用）

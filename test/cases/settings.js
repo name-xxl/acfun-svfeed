@@ -209,7 +209,7 @@
     // 文案逐字取自确认稿（稿=界面事实的唯一真源；改词必须先改稿）
     var NOTE_ON = '关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。';
     var NOTE_OFF = '官方页面增强已整体关闭；先回一级打开总开关，再逐项管理。';
-    var LABELS6 = '首页导航「小视频」入口|个人中心「动态广场」|UP 主空间页「动态」标签|UP 主空间页「小视频」标签|官方页评论 IP 属地与设备型号|官方私信卡片显示';
+    var LABELS5 = '个人中心「动态广场」|UP 主空间页「动态」标签|UP 主空间页「小视频」标签|官方页评论 IP 属地与设备型号|官方私信卡片显示';
     rec('inj-ctl-ready', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
     var host = await openPanel(h);
     var sh = shadowOf(host);
@@ -223,12 +223,12 @@
     rec('inj-sub-head', !!sh.querySelector('.set-back') && !sh.querySelector('.set-x'));
     rec('inj-note-on', ((sh.querySelector('.set-note') || {}).textContent) === NOTE_ON);
     var inLabels = Array.prototype.map.call(sh.querySelectorAll('.set-body .set-label'), function (x2) { return x2.textContent; });
-    rec('inj-rows-6', sh.querySelectorAll('.set-body .set-row').length === 6, inLabels.join('/'));
-    rec('inj-labels-order', inLabels.join('|') === LABELS6, inLabels.join('|'));
+    rec('inj-rows-5', sh.querySelectorAll('.set-body .set-row').length === 5, inLabels.join('/'));
+    rec('inj-labels-order', inLabels.join('|') === LABELS5, inLabels.join('|'));
     var swAll = sh.querySelectorAll('.set-body .acsv-sw');
     rec('inj-def-all-on', Array.prototype.every.call(swAll, function (s) { return s.classList.contains('on'); }));
-    // 2) 逐项关（injectMemberPlaza=第 2 行）→ 落盘 JSON 裸串 'false'
-    if (swAll[1]) swAll[1].click();
+    // 2) 逐项关（injectMemberPlaza=第 1 行；0.9.343 撤首页导航入口行后左移）→ 落盘 JSON 裸串 'false'
+    if (swAll[0]) swAll[0].click();
     rec('inj-plaza-persist-off', !!(await waitFor(function () {
       return ls('acsv.s.injectMemberPlaza') === 'false';
     }, 3000)), 'raw=' + ls('acsv.s.injectMemberPlaza'));
@@ -242,7 +242,7 @@
     var mb2 = sh.querySelector('.set-pair .set-act');
     if (mb2) mb2.click();
     var swA2 = sh.querySelectorAll('.set-body .acsv-sw');
-    rec('inj-reopen-kept', !!swA2[1] && !swA2[1].classList.contains('on') && !!swA2[0] && swA2[0].classList.contains('on'));
+    rec('inj-reopen-kept', !!swA2[0] && !swA2[0].classList.contains('on') && !!swA2[1] && swA2[1].classList.contains('on'));
     // 5) ‹ 回一级 → 拨总闸关：行 hint 换关态话术（hintOff 单源 SCHEMA）
     var back = sh.querySelector('.set-back');
     if (back) back.click();
@@ -256,12 +256,12 @@
     var mb3 = sh.querySelector('.set-pair .set-act');
     if (mb3) mb3.click();
     rec('inj-dim-note', ((sh.querySelector('.set-note') || {}).textContent) === NOTE_OFF);
-    rec('inj-dim-rows', sh.querySelectorAll('.set-body .set-row.dim').length === 6);
+    rec('inj-dim-rows', sh.querySelectorAll('.set-body .set-row.dim').length === 5);
     var dimSw = sh.querySelectorAll('.set-row.dim .acsv-sw');
     rec('inj-dim-vis-off', !!dimSw[0] && Array.prototype.every.call(dimSw, function (s) { return !s.classList.contains('on'); }));
     rec('inj-dim-ptr', !!dimSw[0] && getComputedStyle(dimSw[0]).pointerEvents === 'none');
-    rec('inj-dim-value-untouched', ls('acsv.s.injectNavEntry') === null && ls('acsv.s.injectMemberPlaza') === 'false',
-      'nav=' + ls('acsv.s.injectNavEntry') + ' plaza=' + ls('acsv.s.injectMemberPlaza'));
+    rec('inj-dim-value-untouched', ls('acsv.s.injectSpaceMoments') === null && ls('acsv.s.injectMemberPlaza') === 'false',
+      'moments=' + ls('acsv.s.injectSpaceMoments') + ' plaza=' + ls('acsv.s.injectMemberPlaza'));
     // 7) 回一级把总闸开回 → 再进二级：各项还原自身状态（nav 默认开、plaza 仍关）
     var back2 = sh.querySelector('.set-back');
     if (back2) back2.click();
@@ -272,7 +272,7 @@
     var mb4 = sh.querySelector('.set-pair .set-act');
     if (mb4) mb4.click();
     var swA4 = sh.querySelectorAll('.set-body .acsv-sw');
-    rec('inj-restore-visual', !!swA4[0] && swA4[0].classList.contains('on') && !!swA4[1] && !swA4[1].classList.contains('on'));
+    rec('inj-restore-visual', !!swA4[0] && !swA4[0].classList.contains('on') && !!swA4[1] && swA4[1].classList.contains('on'));
     // 8) 二级「完成」=直关整面板（不做两步退出；关即 flush）+ 栈空 + 总闸值落盘
     var done = sh.querySelector('.set-foot .set-act.primary');
     if (done) done.click();
@@ -289,7 +289,7 @@
       var mb5 = sh5.querySelector('.set-pair .set-act');
       if (mb5) mb5.click();
       var sw5 = sh5.querySelectorAll('.set-body .acsv-sw');
-      if (sw5[1]) sw5[1].click(); // plaza 点回开
+      if (sw5[0]) sw5[0].click(); // plaza 点回开
       var done5 = sh5.querySelector('.set-foot .set-act.primary');
       if (done5) done5.click();
       await waitFor(function () { return !q('.acsv-set-host'); }, 3000);

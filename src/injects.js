@@ -6,10 +6,12 @@
 // 作用域只限非脚本页：#svfeed 竖刷世界是独立新界面、不寄生官方页，不在本闸射程（用户明示）。
 //
 // 单源纪律（AGENTS 规矩 3/7）：本件是「要不要注入」的**唯一判读出口**，形态同 dest.js
-// destOf——总闸短路在前，子项判读在后。键清单＝SCHEMA 里 sub:'inject' 六键 + 总闸键
+// destOf——总闸 × 子项二维布尔，单源。键清单＝SCHEMA 里 sub:'inject' 五键 + 总闸键
 // injectNative；二级面板行从 settings.injectItems() 派生，**boot 调用点 ↔ SCHEMA 键**的
 // 配对由 test/check-injects.mjs 双向钉死（摘一侧短路/漏一侧登记即红）——不许长出人工第二份清单。
 // 未登记键一律 false（fail-closed）：拼错键名＝功能不注入，而不是静默全开。
+// **豁免（0.9.343 用户复审）**：首页顶导航入口（watchNav+兜底胶囊）不在本闸射程——脚本唯一
+// 进门键，闸吞入口＝用户关掉后无门可回（自锁悖论实报）；boot 总注与 harness off-home 腿反钉。
 import { getSetting } from './settings.js';
 
 // 总闸键（一级面板「官方页面增强」行）：关时 injectOn 恒 false 且不读子项——

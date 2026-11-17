@@ -38,8 +38,9 @@ export var SCHEMA = [
     label: '自动签到', hint: '进入脚本主页时自动签到，当天已签自动跳过，不弹黄历' },
   // 官方页面增强总闸（0.9.341，确认稿 docs/preview/native-inject-switch.html）：manage 标记
   // ＝皮肤把本行渲成「开关+管理钮」双控件行（type 仍 bool，不扩类型词表）；hintOff＝关态
-  // 话术（sync 随值切换）。子项＝SCHEMA 末尾 sub:'inject' 六键，二级清单由 injectItems() 派生。
-  // **注意**：本行落在通用组内，主面板开关索引整体后移一位——harness settings 场景同步改
+  // 话术（sync 随值切换）。子项＝SCHEMA 末尾 sub:'inject' 五键（0.9.343 复审：首页导航入口
+  // 撤出——进门键豁免闸），二级清单由 injectItems() 派生。总闸管辖范围不含豁免项（injects.js
+  // 头注定源）。**注意**：本行落在通用组内，主面板开关索引整体后移一位——harness settings 场景同步改
   { key: 'injectNative', type: 'bool', def: true, panel: true, group: '通用', manage: 'inject',
     label: '官方页面增强', hint: '官方页上的广场接管、空间标签、评论 IP、私信卡片；重新加载后生效',
     hintOff: '已整体关闭：官方页面恢复原样；重新加载后生效' },
@@ -118,12 +119,11 @@ export var SCHEMA = [
     hint: '换用游客身份拉取推荐、小视频与发现内容；互动与观看上报照常，下次加载生效' },
   // ---- 官方页面增强子项（0.9.341，确认稿 docs/preview/native-inject-switch.html）----
   // sub:'inject' 标记 + panel:false＝不上主面板，二级清单由 injectItems() 派生；消费侧
-  // 只在 boot.js 判 injectOn(key)（总闸短路在前），顺序＝稿钉消费链顺序（首页→我的→空间×2→
+  // 只在 boot.js 判 injectOn(key)（总闸短路在前），顺序＝稿钉消费链顺序（我的→空间×2→
   // 评论→私信）。**键 ↔ boot 短路点配对由 test/check-injects.mjs 双向钉死**。def 全 true＝保持现状。
   // label/hint 逐字照稿（稿是用户确认过的界面事实，改词必须改稿先）。
-  { key: 'injectNavEntry', type: 'bool', def: true, panel: false, sub: 'inject',
-    label: '首页导航「小视频」入口',
-    hint: '在官方顶部导航加一个竖刷入口；关闭后悬浮兜底按钮一并去除' },
+  // **豁免注（0.9.343 用户复审）**：首页顶导航入口（watchNav + 兜底胶囊）不入清单也不受总闸
+  // 管辖——它是进脚本页、进而进本面板的唯一进门键，「可关入口」＝开关吞掉自己的入口（自锁）。
   { key: 'injectMemberPlaza', type: 'bool', def: true, panel: false, sub: 'inject',
     label: '个人中心「动态广场」',
     hint: '在个人中心加「动态广场」导航项并就地展开动态流；关闭后「关注动态」页保持官方原样' },
