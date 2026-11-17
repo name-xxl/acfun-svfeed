@@ -254,8 +254,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:cards.js:行366:导出13",
-      "why": "0.9.314 登记：宿主开关 siteOnly 收口（引用卡出站 + 原生页不接脚本查看器）与 momentMediaOf 回调带 opts 透传——有意增长"
+      "key": "size:cards.js:行378:导出14",
+      "why": "0.9.314 登记：宿主开关 siteOnly 收口（引用卡出站 + 原生页不接脚本查看器）与 momentMediaOf 回调带 opts 透传——有意增长；0.9.333 +12 行导出 13→14＝setArticleOpener 注入缝（引用源卡文章=阅读浮层，dest 注册格；本件不反向 import dest 即环）+ quoteBlockOf 文章分支缝调用与注释"
     },
     {
       "key": "size:cfg.js:行533:导出2",
@@ -282,8 +282,8 @@
       "why": "0.9.322 登记：契约件新增未签日状态码谓词 isSignNotYet（102008 单源常量，不外导以免成死导出候选）+ 判据来历注释——+11 行"
     },
     {
-      "key": "size:dest.js:行114:导出3",
-      "why": "0.9.332 首轮建档：落点策略注册表骨架（(ct×宿主)→出口表 + destOf 单查询 + sourceUrlOf 出站 URL 单源）——行为分派收口批先行入库，批 2 裁决后接线 rowkit/cards/searchview 四处消费点"
+      "key": "size:dest.js:行117:导出3",
+      "why": "0.9.332 首轮建档：落点策略注册表骨架；0.9.333 +3 行＝批 2 裁决接线——setArticleOpener 注册闭包（script×article 格进引用卡缝，决策仍单源在表）+ articlePiOfRepost import + 表注/食谱改接线实录"
     },
     {
       "key": "size:controls.js:行629:导出6",
@@ -502,8 +502,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:momentbar.js:行157:导出3",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:momentbar.js:行159:导出3",
+      "why": "首轮尺寸建档；0.9.333 +2 行＝文章赞写链接通（批 2 裁决：「未实测只读」守卫摘除，likePi home 形状 §17.2 首跑在账）+ 头注口径改口"
     },
     {
       "key": "size:momentdetail.js:行269:导出2",
@@ -562,8 +562,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:panelitem.js:行392:导出6",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:panelitem.js:行406:导出7",
+      "why": "首轮尺寸建档；0.9.333 +14 行导出 6→7＝articlePiOfRepost 契约件（引用源卡文章 pi 构造单源，momentPiOfRepost 同款纪律；cards.articleOpener 缝消费）+ :172 假注改口（赞写链 0.9.333 接通）"
     },
     {
       "key": "size:pickpop.js:行333:导出3",
@@ -654,8 +654,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:searchview.js:行445:导出0",
-      "why": "0.9.325 实报修登记（+13 行）：骨架永驻竞态修复——liveRender 模块级渲染落点（在途回包收口到同词重建后的活视图）+ 失实注释修正；视图层职责内增长，无新出边，拆件无对象"
+      "key": "size:searchview.js:行451:导出0",
+      "why": "0.9.325 实报修登记（+13 行）：骨架永驻竞态修复——liveRender 模块级渲染落点（在途回包收口到同词重建后的活视图）+ 失实注释修正；视图层职责内增长，无新出边，拆件无对象；0.9.333 +6 行＝articleRowOf 换 destOf('article',false)（搜索文章行收编阅读浮层，「文章落原生页」旧口径作废）"
     },
     {
       "key": "size:session.js:行700:导出1",

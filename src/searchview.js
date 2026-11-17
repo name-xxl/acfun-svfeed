@@ -5,6 +5,7 @@ import { upOf } from './playitem.js';
 import { searchVideoPageOf, searchUserPageOf, searchArticlePageOf } from './searchfmt.js'; // 回包规整（0.9.161 出库）
 import { viewPiOf } from './panelitem.js'; // 域条目→面板 pi 投影（0.9.211 批⑦收编）
 import { gridCardOf, openPanelItem, skeletonRows } from './cards.js';
+import { destOf } from './dest.js'; // 落点策略注册表（0.9.333：搜索文章行收编 script×article 格）
 import { createListTail } from './listtail.js'; // 尾部件（0.9.219：只借回顶）
 import { FAIL_RETRY } from './pageloader.js'; // 失败重试文案单源（0.9.300）
 import { imgInto } from './imgload.js';
@@ -313,9 +314,14 @@ function buildSearchView(body, arg, kind) {
     if (a.dateText) meta.appendChild(el('span', null, a.dateText));
     row.appendChild(meta);
     row.addEventListener('click', function () {
-      // 文章落原生页（脚本无文章播放，与关注流文章卡同口径）
-      var w = window.open(CFG.api.articleBase + a.id, '_blank');
-      if (w) w.opener = null;
+      // 文章落点=阅读浮层（0.9.333 批 2 裁决：搜索行收编 dest script×article 格，与关注流
+      // 行落点同口径——「文章落原生页」老口径随浮层存在作废；pi 按契约形状就地合成）
+      var d = destOf('article', false);
+      if (d) d({
+        ct: 'article', acId: a.id, title: a.title || '',
+        href: CFG.api.articleBase + a.id,
+        up: a.name ? { name: a.name } : null
+      });
     });
     return row;
   }

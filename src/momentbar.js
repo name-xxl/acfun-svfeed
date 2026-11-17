@@ -16,7 +16,8 @@ import { errBanana, errBananaThrown, errNotLogin } from './toastmsg.js'; // 话�
 //   行流   skin='row'    → 根 .acsv-frow-acts，键带 .acsv-fact（行 CSS 已 scope 到该根）
 //   面板   skin='detail' → 根 .acsv-mdetail-actions，键带 .acsv-mdl-* 旧类名（同挂 .acsv-fact）
 // 键序统一为原生四件套：分享 / 评论 / 蕉 / 赞。图标码点=原生（0.9.101 采样在册）。
-// 写链语义：点赞乐观+回滚（文章只读——写链未实测）；投蕉不可逆锁、已投 toast、动态单蕉直投、
+// 写链语义：点赞乐观+回滚（0.9.333 起三型全接通——文章走 likePi home 形状，§17.2 首跑在账，
+// 「写链未实测只读」旧裁决随浮层接通作废）；投蕉不可逆锁、已投 toast、动态单蕉直投、
 // 视频/文章走数量层（banpop 共享件）；全部经 interact.likePi/throwBananaPi（pi 级写路径单源）。
 
 // 分享 wire（0.9.105 自 followview.actShare 下沉）：标题=@作者：正文/标题明文（parseShare
@@ -56,7 +57,8 @@ export function syncRowBar(row, pi) {
 function wireLike(btn, pi) {
   btn.addEventListener('click', function (ev) {
     ev.stopPropagation();
-    if (pi.ct === 'article') return; // 文章点赞写链未实测：只读（动态/视频照常）
+    // 0.9.333：文章赞写链接通（批 2 裁决）——「未实测只读」守卫摘除；likePi 文章形状
+    // 0.9.327 浮层侧已真机首跑（§17.2 在账），行卡与浮层同口径
     if (pi.likeBusy) return;
     pi.likeBusy = true;
     var on = !pi.liked;

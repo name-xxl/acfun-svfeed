@@ -169,7 +169,8 @@ var PANEL_PARSERS = {
         it.cover = coverUrl(raw.coverUrl);
         it.views = fmtWan(raw.viewCount);
         it.share = Number(raw.shareCount) || 0;
-        // 互动行数值态只作**展示**（0.9.99）：文章赞/蕉写链未实测，行内不接写链（渲染层裁决）
+        // 互动行数值态（0.9.99 展示口径；0.9.333 起赞写链接通——likePi home 形状 §17.2 首跑
+        // 在账，「文章写链未实测只读」旧裁决随浮层接通作废；蕉 0.9.104 起已接数量层）
         it.like = Number(raw.likeCount) || 0;
         it.comment = Number(raw.commentCount) || 0;
         it.banana = Number(raw.bananaCount) || 0;
@@ -328,6 +329,19 @@ export function momentPiOfRepost(rp) {
     href: CFG.api.momentBase + rp.id, up: rp.up || null, cover: rp.cover || '', dateText: '',
     // 源配图透传（0.9.107 实报：从引用卡点进详情"纯文字样式、实际有图"——hasMedia 看 imgs）
     imgs: rp.imgs || [],
+    like: 0, comment: 0, banana: 0, liked: false, thrown: false
+  };
+}
+
+// 转发源（文章）→ 可开阅读浮层的 pi（0.9.333）：引用卡文章落点收编阅读浮层（批 2 裁决，
+// 与行落点同口径）——cards.articleOpener 注入缝的 pi 构造单源，momentPiOfRepost 同款纪律：
+// 契约字段不出 UI 层拼装；href 按文章 case 同款赋 articleBase+acId
+export function articlePiOfRepost(rp) {
+  var acId = Number(rp && rp.id) || 0;
+  return {
+    ct: 'article', acId: acId, title: (rp && rp.title) || '',
+    cover: (rp && rp.cover) || '', up: (rp && rp.up) || null,
+    href: CFG.api.articleBase + acId,
     like: 0, comment: 0, banana: 0, liked: false, thrown: false
   };
 }

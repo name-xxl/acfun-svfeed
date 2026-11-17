@@ -5,6 +5,38 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.333（2026-11-17）· 批 2 裁决落地 + dest 落点注册表接线——引用卡/搜索文章行收编浮层 + 行卡文章赞接通
+
+**裁决（批 2 五项过会，用户裁决「按推荐」）**：① 行卡文章赞「未实测只读」→**接通**（likePi
+home 形状 §17.2 首跑在账，行卡与浮层同口径）；② 引用源卡文章落点→脚本页**进阅读浮层**（与行
+落点同口径；siteOnly 原生页出站不动）；③ 搜索文章行落点→**进阅读浮层**（同上）；④ 行流视频
+分享被降级评论卡→接收端加视频链优先判据（**随 T4 IM 接收链批实现**，本批不动 immsg）；⑤
+pickpop 确认卡不入浮层栈→**维持现状入册**（「锚定件不入栈」范式边界）。另登记：关注交互三
+口径（rail 角标分组层/浮层直接 toggle）维持——浮层无角标语境，分组层是重交互。
+
+**接线（批 3 结构收口本批完成，dest 表成为落点唯一事实源）**：
+· rowkit.openRowDefault/openRowSource 分支链换 `destOf`（行级前置 closeInlineComments 与
+ onDeleted env 留消费方——openCmt 是 kit 私有单例不进表）；rowBarOf 文章评论键 siteOnly 外链
+ 撤入 native 格；三处未知 ct 的 href 兜底全部摘除＝**显式降级**（0.9.331「兜底掩盖漏分支」
+ 病灶形态反转，契约层只产三型、兜底只会掩盖表漏格）。
+· cards.quoteBlockOf 文章分支走新注入缝 `setArticleOpener`——本件已 import cards（openPanelItem），
+ cards 反向 import dest 即环（环检测在册）；注册方=dest.js 模块加载时把自己的 script×article
+ 格注入（**决策仍单源在表内**）；pi 构造下沉新契约件 `panelitem.articlePiOfRepost`
+（momentPiOfRepost 同款纪律：契约字段不出 UI 层拼装）。
+· searchview.articleRowOf 换 `destOf('article', false)`——「文章落原生页」老口径作废。
+· check-dest 白名单减注册：rowkit 4→0（撤行）、searchview 1→0（撤行）、cards 3 处改记为
+ 「缝未注册兜底」口径（正常态三分支均不出外链）。
+· 注释漂移随裁决消亡：momentbar「文章只读」守卫与头注、panelitem.js:172「行内不接写链」
+ 假注（蕉 0.9.104 已接、赞本批接通）改口；README 模块表六行口径同步。
+
+**测试证据**：view-follow `follow-quote-article` 改口径（点引用源卡=浮层开 + window.open=0；
+绕缝强制回落外链反跑转红：浮层=false、外链=1）、新增 `follow-article-like`（文章行赞点亮；
+恢复只读守卫反跑转红：on=false）；view-search `search-article-open` 改口径为
+`search-article-reader`(+close)（浮层开 + 不出站；回落外链反跑转红）。回归 space-moments/
+member-plaza（openRowSource native 格语义不变）/view-my/detail-open/article-reader 全绿；
+unit dest.test.js 9 用例全绿（表穷举/恒等出口在格不变）。npm test 93 场景全绿、npm run check
+全链+tsc 真实退出码 0、build 产物同步。
+
 ### 0.9.332（2026-11-17）· 活病灶三连修——我的页动态视频行死点击 + 文章浮层投蕉双 toast + 关注键连点双发；dest 落点注册表骨架入库
 
 **病灶（全项目行为分派审查三处用户可感知项）**：① `openRowDefault` 无 video 分支——视频 pi

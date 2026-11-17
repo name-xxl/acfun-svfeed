@@ -1295,14 +1295,21 @@ rec('search-article-fields', (function () {
   rec('search-trans-cv', trRow === '0.12s, 0.12s', 'row=' + trRow);
   rec('search-hover-load', l.ok, l.info);     // 规则在册且只有一条（手写副本回潮即红）
 })();
-(function () { // 点文章行 → 新标签打开 /a/ac（window 桩接住）
-  window.__ACSV_OPEN__ = null;
-  var orig = window.open;
-  window.open = function (u) { window.__ACSV_OPEN__ = u; return null; };
+(function () { // 点文章行 → 阅读浮层（0.9.333 收编 dest script×article 格；window 桩钉不出站）
+  window.__ACSV_OPEN_HITS__ = 0;
+  window.__ACSV_SAROW_ORIG__ = window.open;
+  window.open = function () { window.__ACSV_OPEN_HITS__ = (window.__ACSV_OPEN_HITS__ || 0) + 1; return null; };
   q('.acsv-sarow').click();
-  window.open = orig;
 })();
-rec('search-article-open', /\/a\/ac3231907$/.test(window.__ACSV_OPEN__ || ''), 'u=' + window.__ACSV_OPEN__);
+rec('search-article-reader', !!(await waitFor(function () {
+  return !!q('.acsv-artread') && (window.__ACSV_OPEN_HITS__ || 0) === 0;
+}, 6000)), '浮层=' + !!q('.acsv-artread') + ' window.open=' + (window.__ACSV_OPEN_HITS__ || 0)
+  + '（旧口径外链即红）');
+key('Escape');
+rec('search-article-reader-close', !!(await waitFor(function () {
+  return !q('.acsv-artread');
+}, 4000)));
+window.open = window.__ACSV_SAROW_ORIG__;
 // ---- 回视频类目 + 哨兵续页（只打当前类目；到底出「已显示全部 N 条」）----
 (function () {
   document.querySelectorAll('.acsv-schip')[0].click();
@@ -2141,6 +2148,15 @@ rec('imview-i-toggle-close', !!(await waitFor(function () {
       && /团圆时节/.test((aRow.querySelector('.acsv-frow-sdesc') || {}).textContent || '')
       && !aRow.querySelector('.acsv-frow-mdur')),
       aRow ? 'tag/desc' : 'no-row');
+    // ---- 文章行赞写链（0.9.333 批 2 裁决接通）：「未实测只读」守卫摘除，行卡与浮层同口径
+    //（likePi home 形状 §17.2 首跑在账）——恢复 momentbar wireLike 的 article 守卫反跑即红
+    var aLike = null;
+    [].forEach.call(aRow.querySelectorAll('.acsv-fact'), function (x) { if (x._act === 'like') aLike = x; });
+    if (aLike) aLike.click();
+    rec('follow-article-like', !!(aLike && (await waitFor(function () {
+      return aLike.classList.contains('on');
+    }, 5000))), 'on=' + (aLike ? aLike.classList.contains('on') : 'n/a'));
+    if (aLike) aLike.click(); // 取消还原（乐观回写 pi），防污染后续互动断言
     // ---- 文章行评论键原地展开（0.9.328）：三型行同构——行内 .acsv-frow-cmts + 管线进列表。
     // 旧病灶（评论键开阅读浮层）⇒ 行内永无 cmts ⇒ 本条红（摘修复反跑即红）；
     // stype=3 与阅读浮层评论区同值（§17.1），sourceId=文章 acId（夹具 488603）
@@ -2481,7 +2497,8 @@ rec('follow-ban-yellow', getComputedStyle(vBan).color === 'rgb(255, 186, 13)',
       && rRow3.querySelectorAll('.acsv-gquote .acsv-frow-img').length === 2),
       'n=' + (rRow3 ? rRow3.querySelectorAll('.acsv-gquote .acsv-frow-img').length : 'n/a'));
     // 引用块可点（0.9.101 实报「点转发的内容小卡不会打开播放」）：三落点分别验证——
-    // 视频源→播放层（直挂缝）、文章源→官方页新窗（window.open 桩）、动态源→详情面板
+    // 视频源→播放层（直挂缝）、文章源→阅读浮层（0.9.333 收编 dest script×article 格，与行
+    // 落点同口径——旧口径「官方页新窗」随批作废）、动态源→详情面板
     window.__ACSV_MOCK_DIRECT__ = { '488900': 1 };
     var qVideo = rRow.querySelector('.acsv-gquote');
     if (qVideo) qVideo.click();
@@ -2501,12 +2518,18 @@ rec('follow-ban-yellow', getComputedStyle(vBan).color === 'rgb(255, 186, 13)',
         && !q('.acsv-view-held');
     }, 8000)), location.hash + ' view=' + TEST.call('view'));
     var rRow2 = rowOf('转发文章的动态');
-    window.__ACSV_LAST_OPEN__ = '';
-    window.open = function (u) { window.__ACSV_LAST_OPEN__ = String(u); return null; };
+    window.__ACSV_OPEN_HITS__ = 0;
+    var realOpenQ = window.open;
+    window.open = function () { window.__ACSV_OPEN_HITS__ = (window.__ACSV_OPEN_HITS__ || 0) + 1; return null; };
     var qArt = rRow2 && rRow2.querySelector('.acsv-gquote');
     if (qArt) qArt.click();
-    rec('follow-quote-article', /\/a\/ac488700$/.test(window.__ACSV_LAST_OPEN__ || ''),
-      window.__ACSV_LAST_OPEN__);
+    var qaRd = await waitFor(function () { return q('.acsv-artread'); }, 6000);
+    rec('follow-quote-article', !!qaRd && (window.__ACSV_OPEN_HITS__ || 0) === 0,
+      '浮层=' + !!qaRd + ' window.open=' + (window.__ACSV_OPEN_HITS__ || 0) + '（旧口径外链即红）');
+    window.open = realOpenQ;
+    var qaBack = qaRd && qaRd.querySelector('.arhd .acsv-tbtn');
+    if (qaBack) qaBack.click();
+    await waitFor(function () { return !q('.acsv-artread'); }, 4000);
     var qMom = rRow3.querySelector('.acsv-gquote');
     if (qMom) qMom.click();
     rec('follow-quote-moment', !!(await waitFor(function () {
