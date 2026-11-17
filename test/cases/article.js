@@ -50,7 +50,7 @@
   function bodyHtml() {
     return '<p>又是一年团圆时节，AC娘在这里祝大家中秋快乐呀～今年 DD 歌回的主题就定为「唱团圆」，'
       + '欢迎各位歌手报名，把自己心里的那首「团圆」唱给大家听。</p>'
-      + '<p>本篇文章下留言许愿你喜欢吃的月饼口味，因为想让你在中秋吃上本娘送的月饼呀[emot=zt,23/]'
+      + '<p>本篇文章下留言许愿你喜欢吃的月饼口味，因为想让你在中秋吃上本娘送的月饼呀[emot=acfun,95/][emot=zt,23/]'
       + '五仁党和流心党都别吵了，小孩子才做选择，本娘全都要。</p>'
       + '<h2>参与方式</h2>'
       + '<p>在文章下方留言，说出你最想吃的月饼口味和理由；9 月 30 日晚 8 点来 DD 歌回直播间，'
@@ -137,9 +137,16 @@
           content: '流心奶黄 +1，去年没抢到礼盒今年势在必得', postDate: '1小时前', likeCount: 12 }] }
       };
     };
-    // 属地/设备与表情包桩：断言期不吃真网、不异步回填
+    // 属地/设备与表情包桩：断言期不吃真网。表情桩给一枚 acfun 包（id 95，URL 不含
+    // emot/umeditor 字样——article-emot-ph 的「未回填」判据按 URL 形态扫，别让它误红）：
+    // acfun 件走 refillBodyEmots 回填成 img.ubb-emotion（0.9.328），zt 件占位不动
     spec['user/userInfo'] = function () { return { result: 0, user_id: 0, user_name: '', profile: {} }; };
-    spec['emotion/getUserEmotion'] = function () { return { result: 0, emotionPackageList: [] }; };
+    spec['emotion/getUserEmotion'] = function () {
+      return { result: 0, emotionPackageList: [{ name: 'AC娘', emotions: [
+        { id: '95', name: '月饼AC', emotionImageSmallUrl: 'https://imgs.aixifan.com/face95.png',
+          emotionImageBigUrl: 'https://imgs.aixifan.com/face95.png' }
+      ] }] };
+    };
     // 写链桩（0.9.327 互动接通）：api_st 令牌 + interact 两向 + 文章收藏两向——两族成功码
     // 方言不同（interact=1、favorite=0，contract okResult0 在册），桩各自如实
     spec['token/get'] = function () { return { result: 0, 'acfun.midground.api_st': 'mock-st' }; };
@@ -216,10 +223,15 @@
     if (el) [].forEach.call(el.attributes, function (a) { out.push(a.name); });
     return out.join(',');
   }
-  // 白名单标签集合的「脏属性」扫描（img 仅 src/alt；a 仅 href）
+  // 白名单标签集合的「脏属性」扫描（img 仅 src/alt；a 仅 href）。
+  // 0.9.330：img.ubb-emotion 是 refillBodyEmots 回填件（非净化产物，class/referrerpolicy
+  // 出自 emoticon.emotImgOf 单源）；ld/acsv-imgfail 是 imgload 的加载态类（grid fade/终败，
+  // load 事件晚于渲染、早于本轮断言 tick 时即在场）——三者均非净化产物，排除后本判据才时序无关
   function dirtyAttrs(root, allow) {
     var bad = [];
     [].forEach.call(root.querySelectorAll('img,a'), function (el) {
+      var cl = el.classList;
+      if (cl && (cl.contains('ubb-emotion') || cl.contains('ld') || cl.contains('acsv-imgfail'))) return;
       [].forEach.call(el.attributes, function (a) {
         if (allow.indexOf(el.tagName.toLowerCase() + '.' + a.name) < 0) {
           bad.push(el.tagName.toLowerCase() + '.' + a.name);
@@ -456,17 +468,19 @@
         + ' body=' + (body ? getComputedStyle(body).fontSize + '/' + getComputedStyle(body).lineHeight : 'none')
         + ' h1=' + (h1 ? getComputedStyle(h1).fontSize : 'none');
     })());
-    // 文末动作条沿用既有类 .acsv-mdetail-actions（真值 gap 26 / margin-top 12 / padding-bottom 12）
+    // 底栏为唯一动作条（v3.2 确认稿裁决「删文末条」）：covin 内不得再出动作条容器，
+    // 底栏五键齐全（键序 赞/蕉/藏/评论/分享，即稿节①承诺序）
     rec('article-open-mdetail-actions', (function () {
       var acts = rq('.covin .acsv-mdetail-actions');
-      if (!acts) return false;
-      var cs = getComputedStyle(acts);
-      return cs.columnGap === '26px' && cs.marginTop === '12px' && cs.paddingBottom === '12px';
+      // 键序=DOM 序（蕉/藏节点常驻 ⋯ 弹层子树，宽态 display:contents 摊回直排——
+      // 不需要也不能按子树过滤，DOM 序天然是稿节①承诺序）
+      var keys = rqAll('.aractbar-in .aract')
+        .map(function (a) { return a.getAttribute('title') || ''; }).join('|');
+      return !acts && /^点赞\|投蕉\|收藏\|评论\|分享$/.test(keys);
     })(), (function () {
       var acts = rq('.covin .acsv-mdetail-actions');
-      if (!acts) return 'none（covin 内无 .acsv-mdetail-actions）';
-      var cs = getComputedStyle(acts);
-      return 'gap=' + cs.columnGap + ' mt=' + cs.marginTop + ' pb=' + cs.paddingBottom;
+      return '文末残留=' + !!acts + ' keys=' + JSON.stringify(rqAll('.aractbar-in .aract')
+        .map(function (a) { return a.getAttribute('title'); }));
     })());
 
     // ---- ③ 净化在真 DOM 上的落地（unit 侧 sanitize 若牵 DOM 跑不动，这组就是主钉）----
@@ -542,6 +556,26 @@
       return 'raw=' + ((body.innerHTML || '').indexOf('[emot=zt') >= 0 ? 'y' : 'n')
         + ' 占位=' + spans.length + ' 首件=' + (spans[0] ? attrDump(spans[0]) : 'none');
     })());
+    // 回填是异步的（map 就绪晚于首屏）：等真图到位再断言；摘修复 ⇒ 等超时返 null、断言红不吊死
+    var emotIm = await waitFor(function () {
+      return body && body.querySelector('img.ubb-emotion') || null;
+    }, 9000);
+    rec('article-emot-refill', (function () {
+      // 0.9.328 回填钉：acfun 件 map 就绪后占位 → img.ubb-emotion；zt 件占位原样（不回填）；
+      // 方言字面零漏出。摘掉 refillBodyEmots / sanitize 的 acfun 可回填占位任一半 ⇒ 本条红
+      if (!body) return false;
+      var im = body.querySelector('img.ubb-emotion');
+      return !!im && /face95\.png/.test(im.getAttribute('src') || '')
+        && !!body.querySelector('.ar-em[data-emot-pkg="zt"][data-emot-id="23"]')
+        && body.querySelector('.ubb-emot-ph[data-pkg="acfun"]') == null
+        && (body.innerHTML || '').indexOf('[emot=') < 0;
+    })(), (function () {
+      if (!body) return 'no-body';
+      var im = body.querySelector('img.ubb-emotion');
+      return 'refill=' + (im ? (im.getAttribute('src') || '').slice(0, 40) : 'none')
+        + ' zt占位=' + (body.querySelector('.ar-em[data-emot-pkg="zt"]') ? 'y' : 'n')
+        + ' acfun残留占位=' + body.querySelectorAll('.ubb-emot-ph[data-pkg="acfun"]').length;
+    })());
     rec('article-whitelist-keep', (function () {
       if (!body) return false;
       var need = ['p', 'br', 'img', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote', 'table',
@@ -589,56 +623,43 @@
       return /^\s*加载更多\s*$/.test(b.textContent || '');
     }).length + ' sentinel=' + rqAll('.acsv-cmore-sentinel').length);
 
-    // ---- ⑤ 双动作条去重收缩 ----
+    // ---- ⑤ 唯一动作条：底栏恒常亮（v3.2 删文末条，dim 去重机构退役）----
     var bar = rq('.aractbar');
     var barH0 = bar ? bar.getBoundingClientRect().height : -1;
-    rec('article-dim-pre', !!bar && !bar.classList.contains('aractbar--dim'),
-      '底栏在场=' + !!bar + ' 初态dim=' + (bar ? bar.classList.contains('aractbar--dim') : '?'));
+    rec('article-dim-pre', !!bar, '底栏在场=' + !!bar);
     if (covbd) {
-      covbd.scrollTop = covbd.scrollHeight;                 // 滚到底 ⇒ 文末动作条入视口
-      var dimmed = await waitFor(function () {
-        var b = rq('.aractbar');
-        return b && b.classList.contains('aractbar--dim') ? b : null;
-      }, 6000);
-      rec('article-dim', !!dimmed, 'scrollTop=' + Math.round(covbd.scrollTop)
-        + ' scroll=' + covbd.scrollHeight + '/' + covbd.clientHeight + ' dim=' + !!dimmed);
+      covbd.scrollTop = covbd.scrollHeight;                 // 滚到底（原 dim 触发位）
+      await wait(400);                                      // IO 节拍——若 dim 残留此刻必现身
+      var barEnd = rq('.aractbar');
       var op = (function () {
         var a = rq('.aractbar .aract');
         return a ? getComputedStyle(a).opacity : 'none';
       })();
-      rec('article-dim-act-faded', op === '0', '底栏键 opacity=' + op);
-      var barH1 = rq('.aractbar') ? rq('.aractbar').getBoundingClientRect().height : -2;
-      rec('article-dim-bar-height', barH0 > 0 && Math.abs(barH0 - barH1) <= 1,
-        '底栏高 ' + barH0 + '→' + barH1 + '（稿：高度不折叠，避免滚动跳动）');
-      rec('article-dim-pill-alive', vis(rq('.aractbar-input')), 'pill 仍可见=' + vis(rq('.aractbar-input')));
-      var acts2 = rq('.covin .acsv-mdetail-actions');
-      rec('article-dim-state-single', (function () {
-        // 只收缩可见性、不改状态：两条栏计数同源（稿附节 10）
-        if (!acts2) return false;
-        var barN = rqAll('.aractbar .aract .n').map(function (n) { return n.textContent; });
-        var endN = [].slice.call(acts2.querySelectorAll('.n')).map(function (n) { return n.textContent; });
-        return barN.join(',') === endN.join(',') && barN.length >= 3;
-      })(), '底栏计数=' + rqAll('.aractbar .aract .n').map(function (n) { return n.textContent; }).join('|')
-        + ' 文末=' + (acts2 ? [].slice.call(acts2.querySelectorAll('.n')).map(function (n) { return n.textContent; }).join('|') : 'none'));
+      rec('article-dim', !!barEnd && op === '1',
+        '滚到底动作键 opacity=' + op + '（v3.2：无渐隐；摘掉「删文末条」恢复 dim ⇒ 红）');
+      var barH1 = barEnd ? barEnd.getBoundingClientRect().height : -2;
+      rec('article-dim-act-faded', barH0 > 0 && Math.abs(barH0 - barH1) <= 1,
+        '底栏高 ' + barH0 + '→' + barH1 + '（高度不折叠，避免滚动跳动）');
+      rec('article-dim-bar-height', vis(rq('.aractbar-input')), 'pill 仍可见=' + vis(rq('.aractbar-input')));
+      var mdEnd = rq('.covin .acsv-mdetail-actions');
+      rec('article-dim-pill-alive', !mdEnd, '文末条残留=' + !!mdEnd + '（v3.2：正文结尾直接接评论头）');
       covbd.scrollTop = 0;
-      var undim = await waitFor(function () {
-        var b = rq('.aractbar');
-        return b && !b.classList.contains('aractbar--dim') ? b : null;
-      }, 6000);
-      rec('article-dim-undim', !!undim, '滚回顶摘 dim=' + !!undim);
+      await wait(150);
+      rec('article-dim-state-single', !!(barEnd && barEnd.querySelector('.aract')),
+        '滚回顶底栏仍在=' + !!(barEnd && barEnd.querySelector('.aract')));
     } else {
       rec('article-dim', false, '无 .covbd 可滚');
       rec('article-dim-act-faded', false, 'no-covbd');
       rec('article-dim-bar-height', false, 'no-covbd');
       rec('article-dim-pill-alive', false, 'no-covbd');
       rec('article-dim-state-single', false, 'no-covbd');
-      rec('article-dim-undim', false, 'no-covbd');
     }
 
     // ---- ④+ 写链：赞乐观/回滚 + 藏收藏/取消/回滚（0.9.327 互动接通；§17.2 首跑验证的机械钉）。
     // 每次点击先等桩命中计数 +1（回包已落地、busy 已清），再断言类态——不然乐观类在 promise
-    // 落定前就被读，时序竞态会把「成功」误判成「回滚没生效」。
-    var endActs = rq('.covin .acsv-mdetail-actions');
+    // 落定前就被读，时序竞态会把「成功」误判成「回滚没生效」。0.9.331 起按钮=底栏唯一动作条
+    //（文末条已删；宽态 display:contents 五键直排，首键=赞）
+    var endActs = rq('.aractbar-in');
     var likeBtn = endActs ? endActs.querySelector('.aract') : null; // 首键=赞（键序 赞/蕉/藏/评/享）
     rec('article-like-btn', !!likeBtn, 'likeBtn=' + !!likeBtn);
     if (likeBtn) {
@@ -664,11 +685,38 @@
     var stowBtn = endActs ? endActs.querySelector('.stow') : null;
     rec('article-stow-btn', !!stowBtn, 'stowBtn=' + !!stowBtn);
     if (stowBtn) {
+      // 藏键描边化（v3.2）：idle=描边 SVG 在场、实心字形隐藏；点亮反转（摘掉 svgIdle
+      // 接线/切换 CSS 任一半 ⇒ 本条红）
+      rec('article-stow-outline', (function () {
+        var svg = stowBtn.querySelector('svg.arstow');
+        var gl = stowBtn.querySelector('.acsvg-glyph');
+        if (!svg || !gl) return false;
+        return getComputedStyle(svg).display !== 'none'
+          && getComputedStyle(gl).display === 'none';
+      })(), 'idle svg=' + !!(stowBtn.querySelector('svg.arstow'))
+        + ' 实心隐=' + (function () {
+          var gl = stowBtn.querySelector('.acsvg-glyph');
+          return gl ? getComputedStyle(gl).display === 'none' : 'no-glyph';
+        })());
       var sf0 = window.__ACSV_SF_HITS__ || 0;
       stowBtn.click();
       await poll(function () { return (window.__ACSV_SF_HITS__ || 0) > sf0; }, 6000);
       var stowed = await poll(function () { return stowBtn.classList.contains('on') || null; }, 6000);
       rec('article-stow-on', !!stowed, 'on=' + !!stowed);
+      // 点亮态形态反转：实心字形露、描边星收（同上，摘切换 CSS ⇒ 红）
+      rec('article-stow-outline-on', (function () {
+        var svg = stowBtn.querySelector('svg.arstow');
+        var gl = stowBtn.querySelector('.acsvg-glyph');
+        if (!svg || !gl) return false;
+        return getComputedStyle(svg).display === 'none'
+          && getComputedStyle(gl).display !== 'none';
+      })(), (function () {
+        var svg = stowBtn.querySelector('svg.arstow');
+        var gl = stowBtn.querySelector('.acsvg-glyph');
+        if (!svg || !gl) return '缺件 svg=' + !!svg + ' glyph=' + !!gl;
+        return 'on svg隐=' + (getComputedStyle(svg).display === 'none')
+          + ' 实心露=' + (getComputedStyle(gl).display !== 'none');
+      })());
       window.__ACSV_STOW_FAIL__ = true;
       var su0 = window.__ACSV_SUR_HITS__ || 0;
       stowBtn.click(); // 取消收藏：unFavorite 桩成功 → off
@@ -863,21 +911,21 @@
       return keys.length >= 2 && /收藏/.test(txt) && /蕉/.test(txt);
     })()), 'pop 展开=' + !!popOpen + ' 键=' + (popOpen ? [].slice.call(popOpen.querySelectorAll('.aract'))
       .map(function (k) { return k.getAttribute('title') || k.textContent.trim().slice(0, 6); }).join(' | ') : 'n/a'));
-    // 文末动作条在窄态仍**全量直排可达**（稿节④：收纳只发生在底栏，文末条不动）。
-    // 键＝图标+计数无可见文字，可达性按 title（等价代理：五键齐全且藏/蕉在场）
+    // ⋯ 是窄态藏/蕉唯一入口（v3.2 删文末条：文末直排可达随文末条一并撤销，裁决时明知的
+    // 代价）——按 title 断言弹层键（图标+计数无可见文字，可达性按 title 等价代理）
     rec('article-narrow-acts-reachable', (function () {
       var acts = rq('.covin .acsv-mdetail-actions');
-      if (!acts || !vis(acts)) return false;
-      var keys = [].slice.call(acts.children);
-      var txt = keys.map(function (k) {
+      var pop = rq('.aractbar-pop');
+      if (!pop) return false;
+      var txt = [].slice.call(pop.querySelectorAll('.aract')).map(function (k) {
         return (k.getAttribute('title') || '') + (k.textContent || '');
       }).join(',');
-      return keys.length >= 4 && /收藏/.test(txt) && /蕉/.test(txt);
+      return !acts && /收藏/.test(txt) && /蕉/.test(txt);
     })(), (function () {
       var acts = rq('.covin .acsv-mdetail-actions');
-      if (!acts) return 'none';
-      return 'vis=' + vis(acts) + ' 键数=' + acts.children.length
-        + ' title=' + [].slice.call(acts.children).map(function (k) { return k.getAttribute('title'); }).join('|');
+      var pop = rq('.aractbar-pop');
+      return '文末残留=' + !!acts + ' pop=' + (pop ? [].slice.call(pop.querySelectorAll('.aract'))
+        .map(function (k) { return k.getAttribute('title'); }).join('|') : 'none');
     })());
     var okClose = await closeReader();
     rec('article-narrow-close-clean', !!okClose, 'close 后摘净=' + !!okClose);
@@ -907,7 +955,8 @@
 // article-open-below-top      ：壳改回 inset:0 盖顶栏（0.9.327 真机反馈批裁决的反面）⇒ top
 //                               ≠ 顶栏高 ⇒ 红。
 // article-open-metrics        ：版心 760 / 正文 16-28 / 标题 28 任一件漂 ⇒ 红（稿附节 2 新增提案）。
-// article-open-mdetail-actions：文末动作条不沿用 .acsv-mdetail-actions，或三值漂 ⇒ 红。
+// article-open-mdetail-actions：covin 内残留文末动作条，或底栏五键缺件/键序漂 ⇒ 红
+//                               （v3.2 删文末条：底栏唯一动作条，键序=稿节①）。
 // article-sanitize-script     ：白名单放进 script（或只脱标签留下文本体）⇒ 计数≠0；若真执行，
 //                               __AR_XSS__ 读数转 'y' ⇒ 双保险都红。
 // article-sanitize-iframe     ：放进 iframe ⇒ 红。
@@ -920,18 +969,21 @@
 // article-sanitize-attrs      ：属性白名单放宽（img 收 data-ar-probe/loading、a 收 target/rel）⇒ 红。
 // article-emot-ph             ：方言件原样漏出（raw=y）/占位不挂 data 属性/擅自回填未实测 zt 图源
 //                               ⇒ 三者任一 ⇒ 红。
+// article-emot-refill         ：acfun 件不出 img.ubb-emotion（回填接线被摘/占位不可回填）、zt 件
+//                               被连坐回填、acfun 占位残留、方言字面漏出 ⇒ 任一 ⇒ 红（0.9.328）。
 // article-whitelist-keep      ：白名单里漏掉 ol/br/figcaption/table 等任一件 ⇒ 红。
 // article-comments            ：评论管线未进浮层（.acsv-citem=0）或 .ar-cmhead 不建 ⇒ 红。// article-comments-head       ：计数文案不是「共 N 条评论」或不回写 ⇒ 红（稿节⑤）。
 // article-comments-stype3     ：stype 传成 4/5（照抄动态或视频缺省）⇒ 记账 URL 无 sourceType=3 ⇒ 红。
 // article-comments-text       ：条目不走 commentkit（正文/昵称不落 .acsv-citem 子树）⇒ 红。
 // article-comments-input      ：输入条不挂进浮层（.acsv-cinput 不在场或展开后仍不可见）⇒ 红。
 // article-comments-no-loadmore：把 0.9.141 退役的「加载更多」按钮加回 ⇒ 红。
-// article-dim                 ：IntersectionObserver 摘掉，或盯错目标（不再盯文末动作条）⇒ 红。
-// article-dim-act-faded       ：--dim 只挂类不给可见性（opacity 非 0）⇒ 红。
-// article-dim-bar-height      ：底栏折叠式收缩（高度随 dim 变化）⇒ 红（稿：避免滚动跳动）。
-// article-dim-pill-alive      ：--dim 把 pill 一起藏掉 ⇒ 红。
-// article-dim-state-single    ：两条栏计数不同源（底栏另拉一份或写死）⇒ 红。
-// article-dim-undim           ：出视口不摘类（单向收缩，淡出后再不回来）⇒ 红。
+// article-dim                 ：滚到底底栏动作键被渐隐（dim 残留）⇒ 红——v3.2 删文末条后
+//                               底栏恒常亮，摘掉「删文末条」恢复 dim 即红。
+// article-dim-act-faded       ：底栏滚动前后高度折叠 ⇒ 红（稿：避免滚动跳动）。
+// article-dim-bar-height      ：pill 不可见 ⇒ 红。
+// article-dim-pill-alive      ：covin 内残留 .acsv-mdetail-actions 文末条 ⇒ 红（正文结尾直
+//                               接接评论头）。
+// article-dim-state-single    ：滚回顶底栏动作键不在场 ⇒ 红。
 // article-composer            ：点 pill 不展开 composer，或展开后轻条不藏 ⇒ 红（稿节②）。
 // article-composer-parts      ：composer 另造一套（无 .acsv-cinput-edit/-send/fmt 键）⇒ 红。
 // article-composer-esc        ：Esc 不收起；或 Esc 把整层拆掉（readerEl 变 null）⇒ 红。
@@ -955,7 +1007,11 @@
 // article-narrow-more         ：窄态 ⋯ 键不显示（藏/蕉仍直排）⇒ 红。
 // article-narrow-no-direct    ：底栏直排里仍有 收藏/投蕉 ⇒ 红。
 // article-narrow-pop          ：点 ⋯ 不展开弹层，或弹层里藏/蕉不齐 ⇒ 红。
-// article-narrow-acts-reachable：窄态把文末动作条整个撤掉（稿：文末仍全量直排可达）⇒ 红。
+// article-narrow-acts-reachable：文末动作条残留（v3.2：⋯ 是窄态藏/蕉唯一入口）或弹层缺
+//                               藏/蕉任一键 ⇒ 红。
+// article-stow-outline         ：藏键 idle 实心（svg.arstow 不在场或未隐藏实心字形）⇒ 红
+//                               （0.9.331 描边化；摘 actOf 的 svgIdle 接线即红）。
+// article-stow-outline-on      ：点亮态不反转（描边未收/实心未露）⇒ 红（摘 .on 切换 CSS 即红）。
 // article-like-btn/on/off/rollback：赞写链未接（点赞无反应=0.9.326 真机反馈病灶）/乐观不翻转/
 //                               取消不回落/add 失败不回滚 ⇒ 各自红（§17.2 首跑验证机械钉）。
 // article-stow-btn/on/off/rollback：收藏写链未接（同病灶）/收藏态不翻转/unFavorite 失效/

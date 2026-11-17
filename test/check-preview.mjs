@@ -98,7 +98,7 @@ const PINS = [
   },
   {
     draft: 'docs/preview/article-reader-v3.html', value: 'max-height:75vh', src: 'src/cssraw.js', srcCount: 2,
-    why: '长图超高兜底（>75vh 折算高截住+渐变压暗+chip；稿节⑥。容器与 img 各一处）'
+    why: '长图超高兜底（>75vh 折算高截住+渐变压暗+chip；稿节⑤，v3.2 原节⑥顺移。容器与 img 各一处）'
   }
 ];
 

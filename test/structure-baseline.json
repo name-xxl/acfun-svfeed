@@ -234,8 +234,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:articleread.js:行712:导出4",
-      "why": "0.9.326 首轮建档：文章阅读浮层新件（openArticleReader/closeArticleReader/sanitizeArticleBody/isTallImg；确认稿 article-reader-v3 落地，导出 4 即本批实测值；行 627＝replyBtnOf 收口后回填）；0.9.327 +85 行＝互动写链接通（toggleLike/openBanana/toggleStow+nums/st 数值态+顶栏让位）"
+      "key": "size:articleread.js:行731:导出4",
+      "why": "0.9.326 首轮建档：文章阅读浮层新件（openArticleReader/closeArticleReader/sanitizeArticleBody/isTallImg；确认稿 article-reader-v3 落地，导出 4 即本批实测值；行 627＝replyBtnOf 收口后回填）；0.9.327 +85 行＝互动写链接通（toggleLike/openBanana/toggleStow+nums/st 数值态+顶栏让位）；0.9.330 +19 行＝正文 acfun 表情接通回填管线（sanitize 分包待遇 + refillBodyEmots，头注同步）"
     },
     {
       "key": "size:appapi.js:行476:导出8",
@@ -290,8 +290,8 @@
       "why": "0.9.319 登记：零基色族 hover 提底档收成常量单源 LIFT0（口径①：同值字面 ≥2 处即病灶，网格/榜单行/搜索行三行引用）——+3 行"
     },
     {
-      "key": "size:cssraw.js:行2111:导出1",
-      "why": "0.9.319 登记：撤框历史注释把 var(--acsv-accent-dim) 改写成字面值并注明该变量已删（本轮删变量）——+1 行；0.9.326 +159 行＝文章阅读浮层 CSS 段（确认稿 article-reader-v3 取值落地，含 620 窄态块）；0.9.327 +13 行＝壳顶栏让位/底栏点亮悬停色四条/蕉 hover 黄/藏键字号/banpop 锚点上下文/composer 760 居中（真机反馈批）；0.9.329 +3 行＝藏键墨迹量化补偿 20/23px（fontTools 轮廓实测）"
+      "key": "size:cssraw.js:行2115:导出1",
+      "why": "0.9.319 登记：撤框历史注释把 var(--acsv-accent-dim) 改写成字面值并注明该变量已删（本轮删变量）——+1 行；0.9.326 +159 行＝文章阅读浮层 CSS 段（确认稿 article-reader-v3 取值落地，含 620 窄态块）；0.9.327 +13 行＝壳顶栏让位/底栏点亮悬停色四条/蕉 hover 黄/藏键字号/banpop 锚点上下文/composer 760 居中（真机反馈批）；0.9.329 +3 行＝藏键墨迹量化补偿 20/23px（fontTools 轮廓实测）；0.9.330 +1 行＝34/68 表情尺寸档共享选择器组追加 .arbody 作用域（注释一行，取值不动）；0.9.331 净 +3 行＝藏键描边化切换五条 + .aractbar--dim 撤除 + 文末条 14px 档退役（确认稿 v3.2）"
     },
     {
       "key": "size:cssseg.js:行32:导出9",
@@ -638,8 +638,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:rowkit.js:行268:导出7",
-      "why": "0.9.314 登记：新增 openRowSource + feedRowOf/wireRowList 的 opt 透传（siteOnly）与注释——导出 6→7；0.9.326 +9 行＝文章行两个落点接 articleread（onComment 文章分支 + openRowDefault），opt 透传给 rowBarOf"
+      "key": "size:rowkit.js:行273:导出7",
+      "why": "0.9.314 登记：新增 openRowSource + feedRowOf/wireRowList 的 opt 透传（siteOnly）与注释——导出 6→7；0.9.326 +9 行＝文章行两个落点接 articleread（onComment 文章分支 + openRowDefault），opt 透传给 rowBarOf；0.9.330 +5 行＝文章评论键改行内原地展开（onComment 三型同构）+ openRowDefault 文章分支补 closeInlineComments（防行内评论宿主被阅读浮层抢注留死 DOM）"
     },
     {
       "key": "size:searchfmt.js:行92:导出3",
@@ -714,8 +714,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:styles.js:行253:导出9",
-      "why": "0.9.314 登记：:root 追加 --acsv-accent-dim / --acsv-ban-new（同值字面收口）；注记红框撤除后 accent-dim 由 .acsv-jx-card:hover 独用"
+      "key": "size:styles.js:行258:导出9",
+      "why": "0.9.314 登记：:root 追加 --acsv-accent-dim / --acsv-ban-new（同值字面收口）；注记红框撤除后 accent-dim 由 .acsv-jx-card:hover 独用；0.9.331 +5 行＝ICONS.stowOutline（文章底栏藏键 idle 描边星，e155 同几何轮廓 SVG，确认稿 v3.2 形态真源逐字，附节 7 登记）"
     },
     {
       "key": "size:timefmt.js:行89:导出8",

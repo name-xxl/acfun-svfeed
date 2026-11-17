@@ -9,9 +9,11 @@
 // 表情面板 bottom:84px 定位要求）。互动写链（赞/蕉/藏）0.9.327 起接通——端点出处与
 // 未实测标注见各写链函数注（likePi 文章形状 / favapi.articleStow*）。
 // 正文渲染不走评论域 UBB 渲染器（它全文先转义，<p>/<img> 会变可见字面文本，稿附节 7）
-// ——sanitizeArticleBody 是纯字符串白名单清洗（node 可单测），[emot=zt,*] 方言转占位
+// ——sanitizeArticleBody 是纯字符串白名单清洗（node 可单测），表情方言分包待遇：acfun 出
+// 可回填占位（refillBodyEmots 接 refillEmoticons 管线回填真图），[emot=zt,*] 方言转死占位
 // （zt 图源未实测，不回填，稿附节 7）。窄态藏/蕉收纳：同一批键 DOM 不动，
 // 宽屏 display:contents 摊回底栏直排、窄屏弹层化（值仍单源）。
+// 底栏为唯一动作条（v3.2 确认稿裁决「删文末条」）：v3.1 的双条 + dim 去重机构随批退役。
 // 壳不覆盖常驻顶栏：top 让位 var(--acsv-top-h)（0.9.327 真机反馈批裁决，playlayer/视图体
 // 同款；顶栏保持可见可交互）。作者头像字段＝articleInfo.user.headUrl（真机 SSR 核对——
 // 关注流形状的 userHead 在文章域不存在，0.9.326 误用即头像获取失败病灶）。
@@ -32,6 +34,7 @@ import { likePi, throwBananaPi } from './interact.js';
 import { articleStowAdd, articleStowRemove } from './favapi.js';
 import { toggleBananaPop } from './banpop.js';
 import { errNotLogin, errBananaThrown } from './toastmsg.js';
+import { ensureEmotionMap, EmotionMap, refillEmoticons, emotPlaceholderHtml } from './emoticon.js';
 import { GLYPHS } from './imicons.js';
 import { ICONS } from './styles.js';
 import { testHook } from './dbg.js';
@@ -41,9 +44,10 @@ import { testHook } from './dbg.js';
 // iframe 这类「内容也不能留」的件连文本一起丢（深度扫到配对闭合）。属性白名单：
 // img 仅 src/alt、a 仅 href，URL 一律过 imgurl.CDN_URL_OK 单源（不手抄第二份网）；
 // 不过 ⇒ 摘除元素留 alt/锚文本。文本节点一律经 ui.esc 转义（先解五种标准实体再转义
-// ＝规范化单转义，内容里的 &amp; 不会变成可见的 &amp;amp;）。表情方言（acfun/zt
-// 同待遇）转占位 span——zt 图源未实测，不做回填管线（稿附节 7；refillEmoticons
-// 只认 acfun 包，指望不上）。
+// ＝规范化单转义，内容里的 &amp; 不会变成可见的 &amp;amp;）。表情方言分包待遇（0.9.328）：
+// acfun 走 emotPlaceholderHtml 单源出可回填占位（refillBodyEmots 回填真图）；zt 等包
+// 转死占位 span——不做回填管线（图源无实测在账，账目见下与稿附节 7；refillEmoticons
+// 只认 acfun 包）。
 var AR_KEEP = {
   p: 1, br: 1, img: 1, h2: 1, h3: 1, ul: 1, ol: 1, li: 1, blockquote: 1,
   table: 1, thead: 1, tbody: 1, tr: 1, th: 1, td: 1, pre: 1, code: 1,
@@ -120,7 +124,11 @@ export function sanitizeArticleBody(html) {
     }
     out += '<' + tag + '>'; // 其余白名单件无属性（属性白名单外全摘的最简形态）
   }
+  // 表情方言分包待遇（0.9.328）：acfun 走 emotPlaceholderHtml 单源——带 data-pkg/id 的
+  // 可回填占位（refillEmoticons 在 map 就绪后回填真图，管线与评论/行流同一条）；其余包
+  // （zt 等）维持死占位——图源未实测不回填（稿附节 7），本函数仍纯字符串可 node 单测
   return out.replace(/\[emot=(\w+),(\d+)\/?\]/g, function (m, pkg, id) {
+    if (pkg === 'acfun') return emotPlaceholderHtml(pkg, id);
     return '<span class="ar-em" data-emot-pkg="' + esc(pkg) + '" data-emot-id="' + esc(id) + '">表情</span>';
   });
 }
@@ -181,7 +189,6 @@ function fetchArticle(acId) {
 // ==================== 浮层本体 ====================
 var shell = null;        // .acsv-artread 根（open 先 close 的单例）
 var curPi = null;        // 当前 pi（失败态作者行/分享都从它拿）
-var dimIO = null;        // 双动作条去重观察器（关闭即断；元素级，不涉监听闸）
 var composerOpen = false;
 var refs = null;         // 壳内句柄集（见 openArticleReader 末尾）
 
@@ -191,7 +198,6 @@ export function closeArticleReader() {
   shell = null;
   curPi = null;
   composerOpen = false;
-  if (dimIO) { dimIO.disconnect(); dimIO = null; }
   s.remove();
   closeCommentsHost();   // 管线宿主复位（DOM 已拆，残留引用读死节点——momentdetail 同款）
   releaseDrawer('comments');
@@ -290,8 +296,8 @@ function renderHead(info, failed) {
   }
 }
 
-// 互动键（赞/蕉/藏/评论/分享）。文末条与底栏出自同一份 nums 数值态 + st 点亮态
-// （稿附节 10 状态单源——dim 只收缩可见性，两份 .n 恒等）；写链编排见 toggleLike/
+// 互动键（赞/蕉/藏/评论/分享），底栏唯一动作条（v3.2 删文末条）：一份 nums 数值态 + st
+// 点亮态写一份 DOM（无「两份 .n 恒等」不变式）；写链编排见 toggleLike/
 // openBanana/toggleStow；comment 键只锚到评论头（composer 仅 pill 触发，0.9.327 真机
 // 反馈批裁决），分享走 momentShareItemOf 单源。
 function dualGlyph(a, b) {
@@ -302,7 +308,11 @@ function actOf(mount, o) {
   var b = el('span', 'aract' + (o.cls ? ' ' + o.cls : ''));
   b.title = o.title;
   if (o.glyphs) b.appendChild(elHtml('span', null, dualGlyph(o.glyphs[0], o.glyphs[1])));
-  else b.appendChild(el('i', 'acsvg-glyph', o.glyph));
+  else if (o.svgIdle) {
+    // 描边 SVG（idle）+ 实心字形（点亮）双件并存，显隐归 cssraw（.aract.stow/.on 切换）
+    b.appendChild(elHtml('span', null, o.svgIdle));
+    b.appendChild(el('i', 'acsvg-glyph', o.glyph));
+  } else b.appendChild(el('i', 'acsvg-glyph', o.glyph));
   var n = null;
   if (o.n != null) { n = el('span', 'n', o.n); b.appendChild(n); }
   if (o.onClick) b.addEventListener('click', function (ev) { ev.stopPropagation(); o.onClick(b, ev); });
@@ -317,21 +327,19 @@ function syncActs() {
     stow: n.stow ? fmtWan(n.stow) : '', comment: fmtWan(n.comment)
   };
   ['like', 'banana', 'stow', 'comment'].forEach(function (k) {
-    [refs.acts, refs.barActs].forEach(function (pair) {
-      var h = pair && pair[k];
-      if (!h) return;
-      if (h.n) h.n.textContent = fmt[k];
-      if (k === 'like') {
-        h.node.classList.toggle('on', st.liked);
-        h.node.title = st.liked ? '已赞' : '点赞';
-      } else if (k === 'banana') {
-        h.node.classList.toggle('thrown', st.thrown);
-        h.node.title = st.thrown ? '已投蕉' : '投蕉';
-      } else if (k === 'stow') {
-        h.node.classList.toggle('on', st.stowed);
-        h.node.title = st.stowed ? '已收藏' : '收藏';
-      }
-    });
+    var h = refs.barActs && refs.barActs[k];
+    if (!h) return;
+    if (h.n) h.n.textContent = fmt[k];
+    if (k === 'like') {
+      h.node.classList.toggle('on', st.liked);
+      h.node.title = st.liked ? '已赞' : '点赞';
+    } else if (k === 'banana') {
+      h.node.classList.toggle('thrown', st.thrown);
+      h.node.title = st.thrown ? '已投蕉' : '投蕉';
+    } else if (k === 'stow') {
+      h.node.classList.toggle('on', st.stowed);
+      h.node.title = st.stowed ? '已收藏' : '收藏';
+    }
   });
   // 同步行卡 pi（同一引用）：浮层乐观值回写后，行卡侧 syncRowBar/视口回填机制自然跟随
   if (curPi) {
@@ -393,8 +401,8 @@ function toggleStow() {
     toast(on ? '收藏失败' : '取消收藏失败');
   });
 }
-// 键序统一 赞/蕉/藏/评论/分享（稿节①）——底栏 DOM 序与文末条一致，dim 态两份 .n
-// 逐字相等才成立（测试钉）；窄态把 蕉/藏 两键挂进 ⋯ 弹层（DOM 序不变，CSS 摆位）
+// 键序统一 赞/蕉/藏/评论/分享（稿节①）——唯一动作条（v3.2 删文末条，序即稿承诺）；
+// 窄态把 蕉/藏 两键挂进 ⋯ 弹层（DOM 序不变，CSS 摆位）
 function actKeys(mount, ctx) {
   var out = {};
   var st = ctx.st;
@@ -410,7 +418,8 @@ function actKeys(mount, ctx) {
     onClick: function (btn) { openBanana(btn); }
   });
   out.stow = actOf(mount, {
-    glyph: GLYPHS.feedStow, title: '收藏', n: ctx.nums.stow ? fmtWan(ctx.nums.stow) : '',
+    svgIdle: ICONS.stowOutline, glyph: GLYPHS.feedStow, title: '收藏',
+    n: ctx.nums.stow ? fmtWan(ctx.nums.stow) : '',
     cls: 'stow' + (st.stowed ? ' on' : ''),
     onClick: function () { toggleStow(); }
   });
@@ -473,18 +482,18 @@ function upgradeBodyImgs(scope) {
   });
 }
 
-function armDim() {
-  if (dimIO) { dimIO.disconnect(); dimIO = null; }
-  var acts = refs.pin.querySelector('.acsv-mdetail-actions');
-  if (!acts || !window.IntersectionObserver) return;
-  // root＝滚动容器 covbd：入视口挂 .aractbar--dim（动作键渐隐、栏高不折叠、pill 保留），
-  // 出视口摘除（稿附节 10；状态仍单源——只动可见性）
-  dimIO = new IntersectionObserver(function (entries) {
-    entries.forEach(function (en) {
-      if (refs) refs.bar.classList.toggle('aractbar--dim', en.isIntersecting);
-    });
-  }, { root: refs.covbd, threshold: 0 });
-  dimIO.observe(acts);
+// 底栏为唯一动作条（v3.2 确认稿裁决「删文末条」）：无第二份可去重，dim/IO 已整体退役——
+// 五键恒常亮、栏高不折叠、pill 常在（v3.1 的 armDim/.aractbar--dim 随文末条一并撤销）。
+
+// 正文表情回填（0.9.328）：acfun 占位 → 真图（refillEmoticons 单源）。必须跑在
+// upgradeBodyImgs 之后——回填插入的 img 是直出小图，进 .arimg 升级/长图/大图管线就坏了。
+// map 就绪晚于正文渲染时走 ensureEmotionMap 异步补一次；关层后不回填死节点（loadArticle 同款判据）
+function refillBodyEmots(pin) {
+  if (EmotionMap.loaded) { refillEmoticons(pin); return; }
+  ensureEmotionMap().then(function () {
+    if (!shell || !refs || !refs.pin || refs.pin !== pin) return;
+    refillEmoticons(pin);
+  });
 }
 
 function renderArticle(info) {
@@ -508,11 +517,9 @@ function renderArticle(info) {
   var body = elHtml('div', 'arbody', sanitizeArticleBody(bodyHtml));
   pin.appendChild(body);
   upgradeBodyImgs(pin);
-  // 文末动作条沿用 .acsv-mdetail-actions 真值（gap 26 / margin-top 12 / padding-bottom
-  // 12 单源在 cssraw）——稿承诺的是取值，类名直接复用，不新写 .aracts 副本
-  var acts = el('div', 'acsv-mdetail-actions');
-  refs.acts = actKeys(acts, refs);
-  pin.appendChild(acts);
+  refillBodyEmots(pin);
+  // 底栏为唯一动作条（v3.2 确认稿裁决：删文末动作条，dim 去重机构整体退役）——
+  // 正文结尾直接接评论头；refs.acts 不再存在，syncActs 只写底栏一份
   var cmhead = el('div', 'ar-cmhead');
   refs.title = el('span', 'ar-cmtitle', '评论');
   cmhead.appendChild(refs.title);
@@ -521,7 +528,6 @@ function renderArticle(info) {
   refs.bar.style.display = '';
   syncActs();
   refs.covbd.scrollTop = 0;
-  armDim();
 }
 
 function renderError() {
@@ -687,14 +693,14 @@ export function openArticleReader(pi) {
   refs = {
     head: head, covbd: covbd, covin: covin, list: list, pin: pin,
     hostEl: hostEl, bar: bar, barIn: barIn, pill: pill,
-    more: more, pop: pop, nums: nums, st: st, acts: null, barActs: null, title: null
+    more: more, pop: pop, nums: nums, st: st, barActs: null, title: null
   };
   composerOpen = false;
   pill.addEventListener('click', function (ev) { ev.stopPropagation(); composerMode(true); });
   closeOnOutsideClick(hostEl, [pill], function () { if (composerOpen) composerMode(false); });
-  // 底栏直排键 + ⋯ 弹层键：同一批节点。more 插到「评论」键之前（DOM 序 =
-  // 赞/蕉/藏/评论/分享，与文末条逐字对齐——dim 态两份 .n 恒等测试钉）；蕉/藏两键
-  // 挂进弹层，宽屏 display:contents 摊回直排、窄屏弹层化（值仍单源，稿节④）
+  // 底栏直排键 + ⋯ 弹层键：同一批节点，唯一动作条（v3.2 删文末条）。more 插到「评论」键
+  // 之前（DOM 序 = 赞/蕉/藏/评论/分享，即稿节①键序）；蕉/藏两键挂进弹层，宽屏
+  // display:contents 摊回直排、窄屏弹层化（值仍单源，稿节④）
   refs.barActs = actKeys(barIn, refs);
   barIn.insertBefore(more, refs.barActs.comment.node);
   pop.appendChild(refs.barActs.banana.node);

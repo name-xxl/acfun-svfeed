@@ -12,7 +12,8 @@
 // 光 DOM 有意偏离 intake 的「el()+Shadow DOM」（0.9.96 登记同款理由：评论/引用块族样式
 // 单源在全局 styles.js，进影子根=复制 CSS 造漂移源）。
 // 行卡构建件与行内评论控制器 0.9.124 下沉 rowkit.js（关注/广场共用）——本文件只留视图壳、
-// 游标方言与落点策略（rowDefault）。
+// 游标方言与落点策略（rowDefault；0.9.331 起 moment/article 委托 rowkit.openRowDefault 单源
+// ——本地副本曾漏 0.9.326 的文章→阅读浮层分支，文章行点击按 href 兜底跳原址，同形副本漂移病灶）。
 import { CFG } from './cfg.js';
 import { el } from './ui.js';
 import { followPanelOf, momentPiOfRepost } from './panelitem.js';
@@ -22,9 +23,9 @@ import { listMoments } from './momentapi.js';
 import { markSeen } from './followseen.js'; // 首屏到达=已读（0.9.139；水位叶子件，勿在本模块自持水位）
 import { registerView } from './viewreg.js';
 import { setDockBadge } from './sidebar.js';
-import { openMomentDetail } from './momentdetail.js';
 import { ensureEmotionMap, refillEmoticons } from './emoticon.js';
-import { closeInlineComments, feedRowOf, armExpanders, wireRowList } from './rowkit.js';
+import { openMomentDetail } from './momentdetail.js'; // setMomentOpener 转发引用卡落点（下方注册）
+import { closeInlineComments, feedRowOf, armExpanders, wireRowList, openRowDefault } from './rowkit.js';
 import { createPageLoader, DONE_LABEL_MOMENTS } from './pageloader.js'; // 翻页骨架单源（0.9.259）；到底文案 0.9.305 批⑤②出库
 import { setEmpty } from './liststate.js'; // 空态行单源（0.9.300）
 import { isEndCursor } from './contract.js'; // 游标方言单源（0.9.304；与 followDougaFeed 同族语义）
@@ -33,16 +34,15 @@ import { isEndCursor } from './contract.js'; // 游标方言单源（0.9.304；�
 // 面板里再操作计数，行内 DOM 不自动跟新：v1 不做跨面实时同步，低频场景，注释防误判） ----------
 
 function rowDefault(pi, row) {
-  if (pi.ct === 'moment') {
-    closeInlineComments(); // 面板接管评论区（claimDrawer 同槽，先关行内防两份宿主互踩）
-    openMomentDetail(pi, {
-      onDeleted: function () { if (row && row.parentNode) row.remove(); }
-    });
-  } else if (pi.ct === 'video') {
+  if (pi.ct === 'video') {
     // 用户裁决（0.9.173）：「仅播放单条就只剩**动态里的视频卡片**」——动态语境的视频条目
     // 显式声明单条会话（不出右栏箭头、↓ 无下一条）；其余来源一律带列表/游走上下文
     openPanelItem(pi, { kind: 'single' });
-  } else if (pi.href) window.open(pi.href, '_blank');
+    return;
+  }
+  // moment/article/其余：rowkit.openRowDefault 单源（0.9.331 收口——本地副本曾漏文章分支，
+  // 关注页文章行点击跳原址；动态分支的 closeInlineComments + 详情面板同款语义在单源内）
+  openRowDefault(pi, row);
 }
 
 // ---------- 视图组装 ----------

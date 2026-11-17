@@ -21,8 +21,9 @@ import { openArticleReader } from './articleread.js'; // 文章行落点（0.9.3
 // 开新行前必须**显式关旧行**：claimDrawer 同槽重入不互收（comments.js 注释在册），不关的话
 // 旧容器还挂着管线 DOM、commentState 却已指向新行——列表更新串台。
 // 0.9.101：视频行也原位展开（原生 member-feed 三类条目都是原地开评论；sv=5 是 meow，
-// www 视频=3——playitem.js normalizeHome 同值）；文章评论＝3 已实测（§17.1，0.9.326 起
-// 脚本页宿主开阅读浮层，原生页宿主仍外链——见 rowBarOf/openRowDefault 分派）
+// www 视频=3——playitem.js normalizeHome 同值）；文章评论＝3 已实测（§17.1，0.9.328 起
+// 三型条目行内全部原地展开——文章此前开阅读浮层与其它卡不一致，用户实报即收口；
+// 原生页宿主仍外链——见 rowBarOf/openRowDefault 分派）
 var openCmt = null; // { pi, box, list }
 
 export function closeInlineComments() {
@@ -113,8 +114,8 @@ function momentMedia(pi, opt) {
 }
 
 // 互动栏（0.9.105 收口共享件 momentbar）：键定义/写链编排单源，行流只提供两个出口——
-// 分享（place=左贴行：右缘挨行左缘、底部对齐，0.9.105 裁决几何）与评论（动态/视频行内
-// 原位展开、文章外链官方页）
+// 分享（place=左贴行：右缘挨行左缘、底部对齐，0.9.105 裁决几何）与评论（动态/视频/文章行内
+// 原位展开，0.9.328 起三型同构；原生页宿主文章仍外链）
 function rowBarOf(pi, row, opt) {
   return momentBarOf(pi, {
     skin: 'row',
@@ -133,10 +134,11 @@ function rowBarOf(pi, row, opt) {
       } else if (pi.ct === 'video') {
         toggleInlineComments(pi, btn, { sourceId: pi.acId, stype: 3, shareUrl: CFG.api.videoBase + pi.acId });
       } else if (pi.ct === 'article') {
-        // 0.9.326：文章评论 stype=3 已实测（§17.1）——脚本页宿主开阅读浮层（评论区行内）；
-        // 原生页宿主维持站方原址外链（0.9.314 siteOnly 裁决精神，深色浮层不进原生页）
+        // 0.9.326：文章评论 stype=3 已实测（§17.1）——原生页宿主维持站方原址外链（0.9.314
+        // siteOnly 裁决精神，深色浮层不进原生页）；脚本页宿主 0.9.328 起与动态/视频行同构：
+        // 行内原地展开评论区（stype=3 同视频值）——评论键只管评论区，读文章走行落点
         if (opt && opt.siteOnly) { if (pi.href) window.open(pi.href, '_blank'); }
-        else openArticleReader(pi);
+        else toggleInlineComments(pi, btn, { sourceId: pi.acId, stype: 3, shareUrl: pi.href });
       } else if (pi.href) {
         window.open(pi.href, '_blank');
       }
@@ -212,6 +214,9 @@ export function openRowDefault(pi, row) {
       onDeleted: function () { if (row && row.parentNode) row.remove(); }
     });
   } else if (pi.ct === 'article') {
+    // 0.9.328：行内评论区改在本行展开后，行落点开阅读浮层前须显式收旧行——防行内评论宿主
+    // 被浮层 openCommentsHost 抢注后留死 DOM（动态分支同款判据；此前文章走外链无此缝）
+    closeInlineComments();
     openArticleReader(pi); // 0.9.326：脚本页行落点＝阅读浮层（原生页宿主传的是 openRowSource，不经此层）
   } else if (pi.href) window.open(pi.href, '_blank');
 }

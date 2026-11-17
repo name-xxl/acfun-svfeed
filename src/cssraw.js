@@ -1036,7 +1036,8 @@ export var CSS_TEMPLATE = ''
   + 'user-select:text;-webkit-user-select:text}' // pre-line：保留手打换行（0.9.105 对齐行流/广场）
   // 正文表情/配图尺寸作用域（0.9.105：此前只在 .acsv-cbody 下有限制，行流/面板/引用卡内
   // 表情图以自然尺寸显示≈80px——实报「动态卡片不支持 ubb 解析吗」的真凶）；34/68 与评论同源
-  + '.acsv-frow-text .ubb-emotion,.acsv-mdetail-text .ubb-emotion,.acsv-gquote-textbody .ubb-emotion'
+  // 0.9.328 追加 .arbody：文章正文 acfun 表情接通回填管线后同档（回填产出与评论同款 ubb-emotion）
+  + '.acsv-frow-text .ubb-emotion,.acsv-mdetail-text .ubb-emotion,.acsv-gquote-textbody .ubb-emotion,.arbody .ubb-emotion'
   + '{display:inline-block;max-height:34px;max-width:68px;' + EMO_TAIL
   + '.acsv-frow-text .ubb-imgc,.acsv-mdetail-text .ubb-imgc,.acsv-gquote-textbody .ubb-imgc'
   + '{max-width:100%;border-radius:6px;vertical-align:middle}'
@@ -2049,17 +2050,20 @@ export var CSS_TEMPLATE = ''
   + '.aractbar .aract.on{color:var(--acsv-accent)}'
   + '.aractbar .aract.thrown{color:var(--acsv-ban-new)}'
   + '.aractbar .aract.ban:hover{color:var(--acsv-ban-new)}'
-  // 藏键 e155 字形墨迹仅 0.749×0.703 em（fontTools 轮廓实测；赞/蕉族≈1.0 em）——
-  // 同字号视觉只有七成，按墨迹高度精确补偿：14/16px 槽位 → 20/23px（墨迹宽 15px 在
-  // 14px 框内居中溢出 0.5px/侧，可忽略；框定行高布局不变）
-  + '.aract.stow .acsvg-glyph{font-size:20px}'
+  // 藏键（v3.2 描边化，确认稿附节 7）：字体内无纯描边星（e160/e3c8 带 A 字标，151 枚枚举复核）
+  // → idle 用 e155 同几何轮廓 SVG（稿内件逐字真源，y-up→y-down 已翻）；点亮切 e155 实心 accent。
+  // 藏键只存在于文章底栏（文末条已删、momentbar 无藏键）——补偿槽位（0.9.329 实测 23px）延续：
+  // 描边星与实心星同几何同框；0.9.329 的 14px 档随文末条一并退役
+  + '.aract.stow .acsvg-glyph{display:none}'
+  + '.aractbar .aract.stow .arstow{width:23px;height:23px;display:block}'
   + '.aractbar .aract.stow .acsvg-glyph{font-size:23px}'
+  // .on 切换（后置压同特异度的 bar 规则）：点亮露实心字形、收描边
+  + '.aract.stow.on .arstow{display:none}'
+  + '.aract.stow.on .acsvg-glyph{display:block}'
   + '.aractbar .aract .acsvg-glyph{font-size:16px;width:16px;height:16px;line-height:16px}'
   + '.aractbar-more{display:contents}'
   + '.aractbar-morebtn{display:none}'
   + '.aractbar-pop{display:contents}'
-  // 去重收缩（稿附节 10）：文末条入视口 ⇒ 动作键渐隐、栏高不折叠、pill 保留，状态单源
-  + '.aractbar--dim .aract{opacity:0;pointer-events:none}'
   + '.ar-backtop{position:absolute;right:20px;bottom:64px}'
   // 骨架（稿节③）：作者位 + 正文位 shimmer 块
   + '.arskel{border-radius:8px;background-color:rgba(255,255,255,.05);'
