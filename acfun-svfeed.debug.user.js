@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.344-debug
+// @version      0.9.345-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 116740;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.344-debug" : "",
+          ver: true ? "0.9.345-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -743,7 +743,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.344-debug" : "";
+  var APP_VERSION = true ? "0.9.345-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -1701,8 +1701,9 @@ window.__ACSV_CSS_LEN__ = 116740;
       label: "自动检查更新",
       hint: "关掉后不再自动拉取 release 说明（顶栏「更新」仍可手动看）"
     },
-    // 自动签到（0.9.277）：进脚本主页（/）静默签到一次；当天已签服务端判定跳过。聊天入口为
-    // 我的页资料头按钮（signapi/signpanel）——本项只控自动链，手动按钮始终可用
+    // 自动签到（0.9.277 建立；0.9.345 时机复审：触发面=进入脚本页（竖刷首挂），原生页零行为
+    // 零弹窗——旧注「脚本主页（/）」实为官方首页 URL 判据，与竖刷挂载态无关，本次一并纠正）。
+    // 手动入口为我的页资料头按钮（signapi/signpanel）——本项只控自动链，手动按钮始终可用
     {
       key: "autoSign",
       type: "bool",
@@ -1710,7 +1711,7 @@ window.__ACSV_CSS_LEN__ = 116740;
       panel: true,
       group: "通用",
       label: "自动签到",
-      hint: "进入脚本主页时自动签到，当天已签自动跳过，不弹黄历"
+      hint: "进入脚本页（竖刷）时自动签到，当天已签自动跳过；签成功弹黄历卡"
     },
     // 官方页面增强总闸（0.9.341，确认稿 docs/preview/native-inject-switch.html）：manage 标记
     // ＝皮肤把本行渲成「开关+管理钮」双控件行（type 仍 bool，不扩类型词表）；hintOff＝关态
@@ -8680,7 +8681,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.344-debug" : "",
+      version: true ? "0.9.345-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -15848,7 +15849,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.344-debug" : "");
+    return normVer(true ? "0.9.345-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -16327,6 +16328,288 @@ window.__ACSV_CSS_LEN__ = 116740;
     shadow.appendChild(panel);
     root.appendChild(host3);
     overlayOpen({ id: "settings", modal: true, close: closeSettings, onEsc: onPanelEsc });
+  }
+
+  // src/signapi.js
+  var FORM = { "Content-Type": "application/x-www-form-urlencoded" };
+  function ymdOf(d) {
+    d = d || /* @__PURE__ */ new Date();
+    return String(d.getFullYear()) + pad2(d.getMonth() + 1) + pad2(d.getDate());
+  }
+  function signInResultOf(j) {
+    var r = j && j.result;
+    if (r === 0) {
+      return {
+        ok: true,
+        repeat: false,
+        banana: Number(j.bananaDelta) || 0,
+        continuousDays: Number(j.continuousDays) || 0,
+        almanac: almanacOf(j),
+        msg: String(j.msg || j.signInSuccessMsg || "")
+      };
+    }
+    if (r === 122) {
+      return {
+        ok: true,
+        repeat: true,
+        banana: 0,
+        continuousDays: 0,
+        almanac: almanacOf(j),
+        msg: String(j.msg || j.error_msg || "今日已签到")
+      };
+    }
+    return {
+      ok: false,
+      code: Number(r) || 0,
+      kind: r === -401 || r === 401 ? "notlogin" : "other",
+      msg: String(j && (j.error_msg || j.msg) || "")
+    };
+  }
+  function signedThisRun(r) {
+    return !!(r && r.ok && !r.repeat);
+  }
+  function threeOf(v) {
+    if (!Array.isArray(v)) return [];
+    return v.filter(function(s) {
+      return typeof s === "string" && s;
+    }).slice(0, 3);
+  }
+  function almanacOf(j) {
+    var a = j && j.almanac;
+    if (!a || typeof a.fortune !== "string" || !a.fortune) return null;
+    var suits = threeOf(a.suits), avoids = threeOf(a.avoids);
+    if (!suits.length || !avoids.length) return null;
+    return {
+      fortune: a.fortune,
+      suits,
+      avoids,
+      guide: String(a.guideMsg || ""),
+      recoGuide: String(a.todayRecoGuideMsg || ""),
+      recoId: Number(a.todayRecoResourceId) || 0,
+      recoType: Number(a.todayRecoResourceType) || 0
+    };
+  }
+  function signStateOf(j, ymd) {
+    var notYet = isSignNotYet(j);
+    if (!notYet && (!j || j.result !== 0)) return null;
+    var today = ymd || ymdOf();
+    var infos = Array.isArray(j.infos) ? j.infos : [];
+    var items = [];
+    var hit = null;
+    for (var i = 0; i < infos.length; i++) {
+      var it = infos[i] || {};
+      var date = String(it.signInDate || "");
+      var item = {
+        title: String(it.showTitle || "第" + (Number(it.continuousDays) || i + 1) + "天"),
+        date,
+        banana: Number(it.bananaDelta) || 0,
+        continuousDays: Number(it.continuousDays) || 0,
+        signed: it.hasSignIn === true,
+        gift: String(it.showTitle || "") === "7日大礼包"
+      };
+      items.push(item);
+      if (date && date === today) hit = item;
+    }
+    var signedToday = notYet ? false : hit ? hit.signed : j.hasSignedIn === true;
+    return {
+      signedToday,
+      // 今日奖励：日历条目为 App 档位表（与实签 bananaDelta 对照即知档位是否对齐）
+      reward: hit && hit.banana ? hit.banana : null,
+      continuousDays: hit ? Number(hit.continuousDays) || 0 : 0,
+      cumulativeDays: Number(j.cumulativeDays) || 0,
+      items
+    };
+  }
+  function pcFallback(prev) {
+    return postForm(CFG.api.signInPc, "").then(function(j) {
+      var r = signInResultOf(j);
+      if (!r.ok) throw r;
+      return r;
+    }, function(e) {
+      if (prev) throw prev;
+      throw { ok: false, code: 0, kind: "other", msg: String(e && e.message || "") };
+    });
+  }
+  function signIn() {
+    return request(CFG.api.signInMobile, "POST", FORM, "").then(function(j) {
+      var r = signInResultOf(j);
+      if (r.ok) return r;
+      if (r.kind === "notlogin") throw r;
+      return pcFallback(r);
+    }, function() {
+      return pcFallback(null);
+    });
+  }
+  function getSignInInfos() {
+    return request(CFG.api.signInInfos, "GET", {}).then(function(j) {
+      var st2 = signStateOf(j);
+      if (!st2 && (!j || j.result !== 0)) {
+        stat("sign.readCode." + String(j && j.result != null ? j.result : "shape"));
+        var m = j && (j.msg || j.error_msg || j.errorMsg || j.error);
+        if (m) stat("sign.readMsg." + String(m).slice(0, 40).replace(/\s+/g, " "));
+      }
+      return st2;
+    });
+  }
+  function fetchAlmanac() {
+    return request(CFG.api.almanac, "POST", FORM, "").then(function(j) {
+      var a = almanacOf(j);
+      if (!a) {
+        stat("sign.almanacFail");
+        throw new Error("almanac-empty");
+      }
+      return a;
+    });
+  }
+  var autoFlight = singleFlight(function() {
+    stat("sign.try");
+    if (!getSetting("autoSign")) {
+      stat("sign.skip.off");
+      return Promise.resolve(null);
+    }
+    if (!selfUid()) {
+      stat("sign.skip.nouid");
+      return Promise.resolve(null);
+    }
+    return getSignInInfos().then(function(st2) {
+      if (!st2) {
+        stat("sign.readFail");
+        return null;
+      }
+      if (st2.signedToday) {
+        stat("sign.already");
+        return st2;
+      }
+      return signIn().then(function(r) {
+        stat("sign.auto");
+        if (r.repeat) stat("sign.repeat");
+        return r;
+      });
+    }).catch(function(e) {
+      stat("sign.fail");
+      if (e && e.code != null) stat("sign.failCode." + String(e.code));
+      if (e && e.msg) stat("sign.failMsg." + String(e.msg).slice(0, 40).replace(/\s+/g, " "));
+      swallow(e, "sign");
+      return null;
+    });
+  });
+  function tryAutoSign() {
+    return autoFlight.get();
+  }
+
+  // src/signpanel.js
+  var RULES = [
+    "签到即可获得香蕉奖励；连续签到可获得随机香蕉礼包",
+    "连续签到7天最高奖励666蕉",
+    "如签到中断或连续签满7天，下次连签天数从第1天开始计算",
+    "签到可随机显示AC运势，分享还有概率升级签运，祝好运",
+    "签到显示AC运势可在设置中关闭"
+  ];
+  var MONTH_ZH = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"];
+  var MONTH_EN = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  var host4 = null;
+  var LAYER_ID = "signalmanac";
+  function rulePage() {
+    var page = el("div", "acsv-salm-rules");
+    var bk = el("span", "acsv-salm-bk", "返回");
+    bk.addEventListener("click", function() {
+      host4.querySelector(".acsv-salm").classList.remove("flip");
+    });
+    var t = el("div", "acsv-salm-rt", "签到规则");
+    var ul = el("ul", "acsv-salm-ul");
+    RULES.forEach(function(s) {
+      ul.appendChild(el("li", "", s));
+    });
+    ul.appendChild(el("li", "note", "※ 以上数额为 APP 侧规则；脚本经网页端签到，所得香蕉通常少于 APP，以签到回执为准"));
+    page.appendChild(bk);
+    page.appendChild(t);
+    page.appendChild(ul);
+    return page;
+  }
+  function almanacFace(alm, banana) {
+    var face = el("div", "acsv-salm-face");
+    var d = /* @__PURE__ */ new Date();
+    var date = el("div", "acsv-salm-date");
+    date.appendChild(el("span", "zh", MONTH_ZH[d.getMonth()] + "月"));
+    date.appendChild(el("span", "num", String(d.getDate())));
+    date.appendChild(el("span", "en", MONTH_EN[d.getMonth()]));
+    face.appendChild(date);
+    var ban = el("div", "acsv-salm-ban", "AC·运势");
+    ["s1", "s2", "s3", "s4", "s5"].forEach(function(c) {
+      ban.appendChild(el("i", "st " + c, "✦"));
+    });
+    face.appendChild(ban);
+    var cols2 = el("div", "acsv-salm-cols");
+    function strip(cls, sealText, items) {
+      var s = el("div", "acsv-salm-strip " + cls);
+      s.appendChild(el("div", "acsv-salm-seal", sealText));
+      var its = el("div", "acsv-salm-its");
+      items.forEach(function(t) {
+        its.appendChild(el("span", "", t));
+      });
+      s.appendChild(its);
+      return s;
+    }
+    cols2.appendChild(strip("yi", "宜", alm.suits));
+    var f = el("div", "acsv-salm-fortune");
+    f.appendChild(el("span", "fnum", alm.fortune.length > 1 ? alm.fortune.charAt(0) + "\n" + alm.fortune.slice(1) : alm.fortune));
+    f.querySelector(".fnum").style.whiteSpace = "pre-line";
+    cols2.appendChild(f);
+    cols2.appendChild(strip("ji", "忌", alm.avoids));
+    face.appendChild(cols2);
+    var meta = el("div", "acsv-salm-meta");
+    if (banana != null && banana !== 0) meta.appendChild(el("span", "reward", "今日奖励：香蕉x" + banana));
+    else meta.appendChild(el("span", "reward"));
+    var rule = el("span", "acsv-salm-rule", "签到规则");
+    rule.addEventListener("click", function() {
+      face.parentNode.classList.add("flip");
+    });
+    meta.appendChild(rule);
+    face.appendChild(meta);
+    return face;
+  }
+  function openSignAlmanac(alm, opts) {
+    if (!alm || host4) return false;
+    opts = opts || {};
+    host4 = el("div", "acsv-salm-host");
+    var card = el("div", "acsv-salm");
+    ["tl", "tr", "bl", "br"].forEach(function(c) {
+      card.appendChild(el("i", "acsv-salm-corner " + c));
+    });
+    card.appendChild(almanacFace(alm, opts.banana == null ? null : Number(opts.banana)));
+    card.appendChild(rulePage());
+    var cancel = el("button", "acsv-salm-close", "取消");
+    cancel.type = "button";
+    cancel.addEventListener("click", closeSignAlmanac);
+    host4.appendChild(card);
+    host4.appendChild(cancel);
+    host4.addEventListener("click", function(e) {
+      if (e.target === host4) closeSignAlmanac();
+    });
+    (document.getElementById("acsv-root") || document.body).appendChild(host4);
+    overlayOpen({ id: LAYER_ID, modal: true, close });
+    return true;
+  }
+  function closeSignAlmanac() {
+    overlayClose(LAYER_ID);
+  }
+  function close() {
+    if (host4) {
+      if (host4.parentNode) host4.parentNode.removeChild(host4);
+      host4 = null;
+    }
+  }
+
+  // src/signpop.js
+  function popSignAlmanac(r, state) {
+    var banana = r && r.banana || (state && state.reward != null ? state.reward : null);
+    if (r && r.almanac) return Promise.resolve(openSignAlmanac(r.almanac, { banana }));
+    return fetchAlmanac().then(function(a) {
+      return openSignAlmanac(a, { banana });
+    }, function() {
+      errSignAlmanac();
+      return false;
+    });
   }
 
   // src/searchhist.js
@@ -18092,6 +18375,14 @@ window.__ACSV_CSS_LEN__ = 116740;
       setActive(0);
     });
   }
+  var autoSignFired = false;
+  function autoSignOnFirstMount() {
+    if (autoSignFired) return;
+    autoSignFired = true;
+    tryAutoSign().then(function(r) {
+      if (signedThisRun(r)) popSignAlmanac(r, null);
+    });
+  }
   function mount() {
     dbg("mount-enter");
     if (root) return;
@@ -18145,6 +18436,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     mountBadge(tb.imBtn, tb.imBtn.querySelector(".acsv-im-badge"));
     dbg("root-appended");
     releaseCheck();
+    autoSignOnFirstMount();
     io2 = makeIO();
     land.startSnapWatch();
     setupInputHandlers({ scrollToIndex: land.scrollToIndex, exitFeed, getView: currentView, toggleImDrawer, toggleComments: toggleItemComments, playStep, playEscape });
@@ -20295,7 +20587,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.344-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.345-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -21393,288 +21685,6 @@ window.__ACSV_CSS_LEN__ = 116740;
   testHook("nativeip", function() {
     return { map: commentUserMap.size, mounted: mounted3 };
   });
-
-  // src/signapi.js
-  var FORM = { "Content-Type": "application/x-www-form-urlencoded" };
-  function ymdOf(d) {
-    d = d || /* @__PURE__ */ new Date();
-    return String(d.getFullYear()) + pad2(d.getMonth() + 1) + pad2(d.getDate());
-  }
-  function signInResultOf(j) {
-    var r = j && j.result;
-    if (r === 0) {
-      return {
-        ok: true,
-        repeat: false,
-        banana: Number(j.bananaDelta) || 0,
-        continuousDays: Number(j.continuousDays) || 0,
-        almanac: almanacOf(j),
-        msg: String(j.msg || j.signInSuccessMsg || "")
-      };
-    }
-    if (r === 122) {
-      return {
-        ok: true,
-        repeat: true,
-        banana: 0,
-        continuousDays: 0,
-        almanac: almanacOf(j),
-        msg: String(j.msg || j.error_msg || "今日已签到")
-      };
-    }
-    return {
-      ok: false,
-      code: Number(r) || 0,
-      kind: r === -401 || r === 401 ? "notlogin" : "other",
-      msg: String(j && (j.error_msg || j.msg) || "")
-    };
-  }
-  function signedThisRun(r) {
-    return !!(r && r.ok && !r.repeat);
-  }
-  function threeOf(v) {
-    if (!Array.isArray(v)) return [];
-    return v.filter(function(s) {
-      return typeof s === "string" && s;
-    }).slice(0, 3);
-  }
-  function almanacOf(j) {
-    var a = j && j.almanac;
-    if (!a || typeof a.fortune !== "string" || !a.fortune) return null;
-    var suits = threeOf(a.suits), avoids = threeOf(a.avoids);
-    if (!suits.length || !avoids.length) return null;
-    return {
-      fortune: a.fortune,
-      suits,
-      avoids,
-      guide: String(a.guideMsg || ""),
-      recoGuide: String(a.todayRecoGuideMsg || ""),
-      recoId: Number(a.todayRecoResourceId) || 0,
-      recoType: Number(a.todayRecoResourceType) || 0
-    };
-  }
-  function signStateOf(j, ymd) {
-    var notYet = isSignNotYet(j);
-    if (!notYet && (!j || j.result !== 0)) return null;
-    var today = ymd || ymdOf();
-    var infos = Array.isArray(j.infos) ? j.infos : [];
-    var items = [];
-    var hit = null;
-    for (var i = 0; i < infos.length; i++) {
-      var it = infos[i] || {};
-      var date = String(it.signInDate || "");
-      var item = {
-        title: String(it.showTitle || "第" + (Number(it.continuousDays) || i + 1) + "天"),
-        date,
-        banana: Number(it.bananaDelta) || 0,
-        continuousDays: Number(it.continuousDays) || 0,
-        signed: it.hasSignIn === true,
-        gift: String(it.showTitle || "") === "7日大礼包"
-      };
-      items.push(item);
-      if (date && date === today) hit = item;
-    }
-    var signedToday = notYet ? false : hit ? hit.signed : j.hasSignedIn === true;
-    return {
-      signedToday,
-      // 今日奖励：日历条目为 App 档位表（与实签 bananaDelta 对照即知档位是否对齐）
-      reward: hit && hit.banana ? hit.banana : null,
-      continuousDays: hit ? Number(hit.continuousDays) || 0 : 0,
-      cumulativeDays: Number(j.cumulativeDays) || 0,
-      items
-    };
-  }
-  function pcFallback(prev) {
-    return postForm(CFG.api.signInPc, "").then(function(j) {
-      var r = signInResultOf(j);
-      if (!r.ok) throw r;
-      return r;
-    }, function(e) {
-      if (prev) throw prev;
-      throw { ok: false, code: 0, kind: "other", msg: String(e && e.message || "") };
-    });
-  }
-  function signIn() {
-    return request(CFG.api.signInMobile, "POST", FORM, "").then(function(j) {
-      var r = signInResultOf(j);
-      if (r.ok) return r;
-      if (r.kind === "notlogin") throw r;
-      return pcFallback(r);
-    }, function() {
-      return pcFallback(null);
-    });
-  }
-  function getSignInInfos() {
-    return request(CFG.api.signInInfos, "GET", {}).then(function(j) {
-      var st2 = signStateOf(j);
-      if (!st2 && (!j || j.result !== 0)) {
-        stat("sign.readCode." + String(j && j.result != null ? j.result : "shape"));
-        var m = j && (j.msg || j.error_msg || j.errorMsg || j.error);
-        if (m) stat("sign.readMsg." + String(m).slice(0, 40).replace(/\s+/g, " "));
-      }
-      return st2;
-    });
-  }
-  function fetchAlmanac() {
-    return request(CFG.api.almanac, "POST", FORM, "").then(function(j) {
-      var a = almanacOf(j);
-      if (!a) {
-        stat("sign.almanacFail");
-        throw new Error("almanac-empty");
-      }
-      return a;
-    });
-  }
-  var autoFlight = singleFlight(function() {
-    stat("sign.try");
-    if (!getSetting("autoSign")) {
-      stat("sign.skip.off");
-      return Promise.resolve(null);
-    }
-    if (!selfUid()) {
-      stat("sign.skip.nouid");
-      return Promise.resolve(null);
-    }
-    return getSignInInfos().then(function(st2) {
-      if (!st2) {
-        stat("sign.readFail");
-        return null;
-      }
-      if (st2.signedToday) {
-        stat("sign.already");
-        return st2;
-      }
-      return signIn().then(function(r) {
-        stat("sign.auto");
-        if (r.repeat) stat("sign.repeat");
-        return r;
-      });
-    }).catch(function(e) {
-      stat("sign.fail");
-      if (e && e.code != null) stat("sign.failCode." + String(e.code));
-      if (e && e.msg) stat("sign.failMsg." + String(e.msg).slice(0, 40).replace(/\s+/g, " "));
-      swallow(e, "sign");
-      return null;
-    });
-  });
-  function tryAutoSign() {
-    return autoFlight.get();
-  }
-
-  // src/signpanel.js
-  var RULES = [
-    "签到即可获得香蕉奖励；连续签到可获得随机香蕉礼包",
-    "连续签到7天最高奖励666蕉",
-    "如签到中断或连续签满7天，下次连签天数从第1天开始计算",
-    "签到可随机显示AC运势，分享还有概率升级签运，祝好运",
-    "签到显示AC运势可在设置中关闭"
-  ];
-  var MONTH_ZH = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"];
-  var MONTH_EN = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-  var host4 = null;
-  var LAYER_ID = "signalmanac";
-  function rulePage() {
-    var page = el("div", "acsv-salm-rules");
-    var bk = el("span", "acsv-salm-bk", "返回");
-    bk.addEventListener("click", function() {
-      host4.querySelector(".acsv-salm").classList.remove("flip");
-    });
-    var t = el("div", "acsv-salm-rt", "签到规则");
-    var ul = el("ul", "acsv-salm-ul");
-    RULES.forEach(function(s) {
-      ul.appendChild(el("li", "", s));
-    });
-    ul.appendChild(el("li", "note", "※ 以上数额为 APP 侧规则；脚本经网页端签到，所得香蕉通常少于 APP，以签到回执为准"));
-    page.appendChild(bk);
-    page.appendChild(t);
-    page.appendChild(ul);
-    return page;
-  }
-  function almanacFace(alm, banana) {
-    var face = el("div", "acsv-salm-face");
-    var d = /* @__PURE__ */ new Date();
-    var date = el("div", "acsv-salm-date");
-    date.appendChild(el("span", "zh", MONTH_ZH[d.getMonth()] + "月"));
-    date.appendChild(el("span", "num", String(d.getDate())));
-    date.appendChild(el("span", "en", MONTH_EN[d.getMonth()]));
-    face.appendChild(date);
-    var ban = el("div", "acsv-salm-ban", "AC·运势");
-    ["s1", "s2", "s3", "s4", "s5"].forEach(function(c) {
-      ban.appendChild(el("i", "st " + c, "✦"));
-    });
-    face.appendChild(ban);
-    var cols2 = el("div", "acsv-salm-cols");
-    function strip(cls, sealText, items) {
-      var s = el("div", "acsv-salm-strip " + cls);
-      s.appendChild(el("div", "acsv-salm-seal", sealText));
-      var its = el("div", "acsv-salm-its");
-      items.forEach(function(t) {
-        its.appendChild(el("span", "", t));
-      });
-      s.appendChild(its);
-      return s;
-    }
-    cols2.appendChild(strip("yi", "宜", alm.suits));
-    var f = el("div", "acsv-salm-fortune");
-    f.appendChild(el("span", "fnum", alm.fortune.length > 1 ? alm.fortune.charAt(0) + "\n" + alm.fortune.slice(1) : alm.fortune));
-    f.querySelector(".fnum").style.whiteSpace = "pre-line";
-    cols2.appendChild(f);
-    cols2.appendChild(strip("ji", "忌", alm.avoids));
-    face.appendChild(cols2);
-    var meta = el("div", "acsv-salm-meta");
-    if (banana != null && banana !== 0) meta.appendChild(el("span", "reward", "今日奖励：香蕉x" + banana));
-    else meta.appendChild(el("span", "reward"));
-    var rule = el("span", "acsv-salm-rule", "签到规则");
-    rule.addEventListener("click", function() {
-      face.parentNode.classList.add("flip");
-    });
-    meta.appendChild(rule);
-    face.appendChild(meta);
-    return face;
-  }
-  function openSignAlmanac(alm, opts) {
-    if (!alm || host4) return false;
-    opts = opts || {};
-    host4 = el("div", "acsv-salm-host");
-    var card = el("div", "acsv-salm");
-    ["tl", "tr", "bl", "br"].forEach(function(c) {
-      card.appendChild(el("i", "acsv-salm-corner " + c));
-    });
-    card.appendChild(almanacFace(alm, opts.banana == null ? null : Number(opts.banana)));
-    card.appendChild(rulePage());
-    var cancel = el("button", "acsv-salm-close", "取消");
-    cancel.type = "button";
-    cancel.addEventListener("click", closeSignAlmanac);
-    host4.appendChild(card);
-    host4.appendChild(cancel);
-    host4.addEventListener("click", function(e) {
-      if (e.target === host4) closeSignAlmanac();
-    });
-    (document.getElementById("acsv-root") || document.body).appendChild(host4);
-    overlayOpen({ id: LAYER_ID, modal: true, close });
-    return true;
-  }
-  function closeSignAlmanac() {
-    overlayClose(LAYER_ID);
-  }
-  function close() {
-    if (host4) {
-      if (host4.parentNode) host4.parentNode.removeChild(host4);
-      host4 = null;
-    }
-  }
-
-  // src/signpop.js
-  function popSignAlmanac(r, state) {
-    var banana = r && r.banana || (state && state.reward != null ? state.reward : null);
-    if (r && r.almanac) return Promise.resolve(openSignAlmanac(r.almanac, { banana }));
-    return fetchAlmanac().then(function(a) {
-      return openSignAlmanac(a, { banana });
-    }, function() {
-      errSignAlmanac();
-      return false;
-    });
-  }
 
   // src/historyapi.js
   var HISTORY_TYPES_FORM = "resourceTypes=1&resourceTypes=2";
@@ -24457,9 +24467,6 @@ window.__ACSV_CSS_LEN__ = 116740;
     window.addEventListener("hashchange", toggle);
     if (kind === "home") {
       mountNatPanel();
-      tryAutoSign().then(function(r) {
-        if (signedThisRun(r)) popSignAlmanac(r, null);
-      });
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", watchNav);
       } else {

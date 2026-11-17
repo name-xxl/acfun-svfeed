@@ -54,7 +54,9 @@
   // hash='svfeed'（否则会把壳意外挂起来）
   var NO_AUTOMOUNT = ['member-plaza', 'space-moments', 'native-ip', 'native-surfaces', 'nat-panel',
     // 0.9.341 注入闸关态场景：验证的是原生面「不注入」形态，壳挂起来反成噪音（无壳前提同款）
-    'inject-off-member', 'inject-off-space'];
+    'inject-off-member', 'inject-off-space',
+    // 0.9.345 签到时机场景的裸 '/' 相位需要无壳（挂载由场景体自行触发）
+    'sign-auto-timing'];
   // 官方 weblog 管道 stub：debug 构建 unsafeWindow===window，reportLeave 读 window.weblog。
   // 所有场景无条件 stub——非 home 场景 cap.watchReport=false 不会触达；调用记录供断言
   window.__WL_CALLS = [];
@@ -164,11 +166,24 @@
     } catch (e) { }
   }
   if (CASE === 'inject-off-space') {
-    // 分项关（总闸保持默认开）——证明子项各自有闸，总闸不是唯一形态
+    // 分项关（总闸保持默认开）——证明子项各自有闸、总闸语义不是唯一形态
     try {
       localStorage.setItem('acsv.s.injectSpaceMoments', 'false');
       localStorage.setItem('acsv.s.injectSpaceShortVideo', 'false');
     } catch (e) { }
+  }
+  // 签到时机场景（0.9.345）：cookie+mock 必须在 **bundle 前**就位——boot 求值期若有任何
+  // 签到发起（R1 反跑实测教训：mock 晚装会把旧形态的裸页早启动掩盖成「静默失败」假绿），
+  // 相位①的 sat-bare-no-read 才真能抓红。cookie 带 path=/：BOOT_PATH replaceState 到 '/' 后
+  // 默认定域 /test 的 cookie 读不到（audit257 同款）。
+  if (CASE === 'sign-auto-timing') {
+    document.cookie = 'auth_key=42_deadbeef; path=/';
+    window.__SIGN345__ = { read: 0, write: 0 };
+    var SIGN345_ALM = { fortune: '大吉', suits: ['宜一', '宜二', '宜三'], avoids: ['忌一', '忌二', '忌三'] };
+    window.__ACSV_MOCK_FORM__ = {
+      'user/getSignInInfos': function () { window.__SIGN345__.read++; return { result: 0, infos: [] }; },
+      'user/signIn': function () { window.__SIGN345__.write++; return { result: 0, bananaDelta: 6, continuousDays: 1, almanac: SIGN345_ALM }; }
+    };
   }
   // 深链的 hash 必须在本 bundle 求值前写好——boot 的 toggle 在 document-end 读 location.hash。
   // 其余场景一律是 bundle 加载后 300ms 才设 hash（见文件尾），那种时序走不到「冷启动深链」路径。
@@ -286,7 +301,9 @@
     'inject-home-nav': '/',
     'inject-off-home': '/',
     'inject-off-member': '/member/feeds',
-    'inject-off-space': '/u/12345'
+    'inject-off-space': '/u/12345',
+    // 0.9.345 签到时机：裸官方首页起步（无 hash），场景体自行进/退竖刷
+    'sign-auto-timing': '/'
   };
   if (BOOT_PATH[CASE]) {
     try { history.replaceState(null, '', BOOT_PATH[CASE] + location.search + location.hash); } catch (e) { }

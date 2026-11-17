@@ -118,6 +118,8 @@ const HARNESS_CASES = [
   { name: 'inject-off-home', serial: true, bundle: 'debug' },   // 总闸关×home：进门键照注（0.9.343 豁免反钉）+ 竖刷壳照常
   { name: 'inject-off-member', viewport: { width: 1600, height: 900 }, bundle: 'debug' }, // plaza+IP 双关：memberCenter 支一行不跑（样式/root/入口全缺）
   { name: 'inject-off-space', viewport: { width: 1600, height: 900 }, bundle: 'debug' },  // /u 分项关（总闸仍开）：两自建标签都不追加
+  // 0.9.345 签到时机复审：自动链只随脚本页首挂发起——裸 '/' 零行为、挂载弹入 root、重进不重复
+  { name: 'sign-auto-timing', serial: true, bundle: 'debug' },
   // 0.9.89 设置面板（Shadow DOM 断言走 host.shadowRoot）：开/关/持久化 + 老键收养，
   // settings-migrate 依赖 bundle 前预置老键（见 harness.html），故为 debug 构建
   { name: 'settings-open', serial: true, bundle: 'debug' },

@@ -5,6 +5,37 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.345（2026-11-17）· 自动签到时机复审（用户实报「弹窗会在主页出现，设计计划应是进脚本页才签才弹，原生页零行为零弹窗」）——链从 boot home 迁至 player 首挂
+
+**病灶（实现把判据落错层，设计承诺无误）**：0.9.277 起自动链挂在 boot home 分支，而
+`pageKind` 的 `home`＝官方首页 `pathname '/'`（pagekind.js:25，与 hash 无关）——裸 `/`
+不进竖刷也静默签；0.9.324 又让「真签上弹黄历卡」，卡宿主 signpanel
+`getElementById('acsv-root') || document.body` 的 body 兜底在裸页生效 → 黄历卡直接盖上
+官方首页。CHANGELOG 通篇复验口径都是「**开竖刷页**」（0.9.322/0.9.324 白纸黑字），历史
+验证都在 `/#svfeed` 下做——两种判据恰好重合，分叉从未暴露。无任何原文承诺「原生页也要
+弹」，反向钉零存在，修复为纯净增。
+
+**修法**：① boot 撤 tryAutoSign/popSignAlmanac 块与两 import（表不再认识签到）；② player
+新增 `autoSignFired` 旗标 + `autoSignOnFirstMount()`，挂 `mount()` 的 `releaseCheck()` 同位
+（首挂一次；「一次」三层=旗标·本页面生命周期／autoFlight·会话单飞／服务端判定·当天已签）；
+弹卡宿主自此恒为 #acsv-root，body 兜底保留（memberCenter 无壳浮层先例仍依赖）；③ 覆盖
+微扩为「任何页面进脚本页都签」（#svfeed 深链非首页也触发）——恰是「进入脚本页才签」的
+语义本体，知情注记；④ 文案随迁并清存量债：settings autoSign hint 原「不弹黄历」已被
+0.9.324 打脸（文案债一并还）→「进入脚本页（竖刷）时自动签到，当天已签自动跳过；签成功
+弹黄历卡」，signapi 头注/signpop 头注/README 模块行+mermaid 边（boot→sign* 改
+player→sign*）/check-injects BOOT_ROLES 注记同步；确认稿两份按改版纪律先改
+（signin-almanac：触发时机+「签成功弹卡」双口径入修订记录，0.9.324 期未同步的稿债随清；
+guest-read：上下文行 hint 逐字同步）。
+
+**测试证据**：新场景 `sign-auto-timing`（BOOT_PATH '/' + NO_AUTOMOUNT，14 断言）三相位——
+裸 '/' 读/写/卡全零（用户病灶的直接反钉）、挂载触发一次读写且卡入 #acsv-root+入浮层栈、
+Esc 关后重进不重发不再弹。mock+cookie（path=/，BOOT_PATH 改域教训）**预置在 harness.html
+bundle 前**——第一版把 mock 装在场景体，R1 反跑时 boot 早发起撞在「mock 未装→静默失败」
+上把旧形态掩盖成假绿，预置改造后 R1 如约三红（sat-bare-no-read read=1 / sat-bare-no-pop /
+sat-pop-in-root——裸页真签真弹被逐条现形），R2 摘首挂旗标 → sat-no-repop 独红；还原 14/14。
+view-my 98 断言、fav-folders 48 断言无恙（已签态 signedThisRun=false 不弹、未 mock 端点
+静默失败不碍事——受波面实测在案）。全量 harness、单测、check 链+tsc 全绿随批。
+
 ### 0.9.344（2026-11-17）· 模块分闸（用户裁决「原生页新加的功能要进设置面板可开关，顺便写个闸保证后来者按规范」）——check-injects 扩 BOOT_ROLES 落籍 + README 立三保险规范
 
 **来历（制度固化，非病灶）**：批A 把既有原生面注入收进开关后，「新功能要不要接闸」只剩
