@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>UI 预览 · IM 文章卡（私信气泡 /a/ac 链 · 接收端识别扩展）</title>
+<!-- ============================================================
+     docs/preview/im-article-card.html —— 静态 UI 预览（形态确认稿，确认后才进 src 实现）
+     2026-11-17 初稿。
+
+     背景病灶：文章评论转发 shareUrl 是 /a/ac 链，接收端 RE_AC_URL（src/immsg.js 只认
+     /v/ac）扫不中 → parseShare 返 null → 落地纯文本气泡，丢卡、丢 #ncid 评论锚。
+     修法方向：接收端扩文章链识别（kind='article'）+ 出文章卡；发送侧 wire 不动。
+
+     本稿只管「长什么样」。数据可用性逐字段标注（详见附节表）：
+       · URL 直得：文章 id、卡 href（含 #ncid 锚）、「文章」标签字面——0 取数；
+       · 标题/阅读/评论/UP：需二次取数。文章页 SSR window.articleInfo 已实测
+         （docs/api-research.md §17.3，article-reader-v3 同源在账）；douga/info 端点
+         对**文章 id** 未实测（appapi.dougaCard 现仅视频 id 在账）；
+       · 封面：§17 实测字段清单无一档 cover 字段——文字型卡是缺省/降级形态，
+         封面段为「正文首图推导」提案示意。
+     【占位示意，实现前须真机核字段】——稿内标题/计数数字均为摆样占位，不是承诺数据
+     （AGENTS 第 2 条：不写猜测性实现）。
+
+     量值来源（逐字，实现侧须兑现并登记进 test/check-preview.mjs）：
+       src/cssraw.js .acsv-im-vcard 族（845–890）/ .acsv-im-cshare-quote（857–859）/
+       .acsv-frow-tag（1635–1636）/ .acsv-im-bubble 族（779–807）/ .acsv-im-rowwrap.cardrow（789–795）；
+       src/imicons.js GLYPHS.rankView e164 / rankComment e161；
+       新增提案（稿内附节 B 段逐条登记）：封面缺失占位条 40 高、数据行（流内）、占位标题弱色。
+     纪律：单文件/无依赖/真实文案；颜色走类规则、元素零内联色；关键状态全摆；
+     确认后才进 src；改版先改本稿。
+     ============================================================ -->
+<style>
+  /* 站方原生 iconfont（cssraw/styles 头同 URL）——数据行字形全真 */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(https://ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.90fc2dfc.woff) format("woff"),
+        url(https://ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.bdc44d05.ttf) format("truetype")
+  }
+  :root{
+    --acsv-accent:#fd4c5d;           /* 主题色（cfg.accent 单源） */
+    --acsv-bg:#000;
+    --acsv-panel:rgba(22,22,27,.97); /* 私信抽屉底（.acsv-msgdrawer 同款真值） */
+    --acsv-line:rgba(255,255,255,.09);
+    --acsv-t1:#fff; --acsv-t2:#cfd3da; --acsv-t3:#8a90a0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+  .board{max-width:1600px;margin:0 auto;padding:28px 24px 90px}
+  .board>h1{font-size:18px;font-weight:600;margin-bottom:6px}
+  .hint{color:var(--acsv-t3);font-size:12px;line-height:1.9;margin-bottom:20px}
+  .hint b{color:var(--acsv-t2)}
+  .hint code{color:#ffb323;font-family:ui-monospace,Consolas,monospace;font-size:11px}
+  .sec{margin:30px 0 8px;padding-top:16px;border-top:1px solid var(--acsv-line)}
+  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
+  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  .note{color:var(--acsv-t3);font-size:12px;line-height:1.85;margin:8px 0 14px}
+  .note b{color:var(--acsv-t2)}
+  .note code{background:rgba(255,255,255,.08);border-radius:4px;padding:1px 6px;font-size:12px}
+  .notmeas{color:#ff8a95;font-weight:600} /* 未实测/风险标注（模板 .chip.danger 同款警示色） */
+
+  /* ---- 会话舞台（抽屉真值：宽 412 = cfg.comments.drawerW；底=抽屉真值） ---- */
+  .stage{position:relative;width:412px;max-width:100%;background:var(--acsv-panel);
+    border:1px dashed rgba(255,255,255,.16);border-radius:6px;overflow:hidden}
+  .narrow-frame{width:min(540px,100%);border:1px dashed rgba(255,255,255,.16);
+    border-radius:6px;padding:14px;display:flex;justify-content:center}
+  /* wire 脚手架：稿内标注「这条消息线上长什么样」，非实现件 */
+  .wire{font:11px/1.7 ui-monospace,Consolas,monospace;color:var(--acsv-t3);margin:0 0 8px;
+    white-space:pre-wrap;word-break:break-all}
+
+  /* ---- 宿主件（cssraw 真值逐字：气泡/行包裹/引用钮/日分割） ---- */
+  .acsv-im-head{display:flex;align-items:center;gap:8px;padding:14px 16px;font-size:15px;
+    font-weight:600;color:#fff;border-bottom:1px solid var(--acsv-line)}
+  .acsv-im-bubbles{display:flex;flex-direction:column;padding:4px 8px 12px}
+  .acsv-im-daydiv{margin:10px 0 4px;text-align:center;font-size:11px;color:#7a7f8a}
+  .acsv-im-bubble{max-width:78%;margin:4px 10px;padding:8px 12px;border-radius:14px;
+    font-size:13px;line-height:1.6;word-break:break-word;color:#f0f1f3;background:rgba(255,255,255,.1);
+    align-self:flex-start}
+  .acsv-im-rowwrap{display:flex;align-items:center;gap:6px;align-self:flex-start;margin:4px 10px;max-width:96%}
+  .acsv-im-rowwrap.cardrow{width:min(294px,96%)}
+  .acsv-im-quotebtn{flex:none;width:24px;height:24px;border:none;border-radius:50%;
+    background:rgba(255,255,255,.08);color:#8b909a;font-size:13px;line-height:1;padding:0;
+    cursor:pointer;opacity:0;transition:opacity .12s}
+  .acsv-im-rowwrap:hover .acsv-im-quotebtn,.acsv-im-quotebtn:focus{opacity:1}
+  .acsv-im-quotebtn:hover{background:rgba(255,255,255,.18);color:#fff}
+  .acsv-im-quotebtn.show{opacity:1} /* 稿内摆显形用（真机默认隐身、行 hover 才现） */
+
+  /* ---- 文章卡（新增件）：根值=cssraw .acsv-im-vcard 真值逐字（845–848）——实现侧
+     复用/并类裁决，值不写第二份；本稿用独立演示类名（闸只钉取值字面，不钉选择器） ---- */
+  .acsv-im-acard{flex:none;display:block;width:min(260px,78%);border-radius:12px;overflow:hidden;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);cursor:pointer;
+    text-decoration:none;transition:border-color .15s}
+  .acsv-im-rowwrap.cardrow .acsv-im-acard{margin:0;width:auto;flex:1 1 auto;min-width:0}
+  .acsv-im-acard:hover,.acsv-im-acard.hovered{border-color:rgba(255,255,255,.22)}
+  .acsv-im-acard-coverbox{position:relative;display:block}
+  /* 封面：值=cssraw .acsv-im-vcard-cover 真值逐字（881–882） */
+  .acsv-im-acard-cover{display:block;width:100%;height:auto;max-height:190px;
+    object-fit:cover;object-position:center;background:rgba(255,255,255,.05)}
+  /* 封面缺失占位条（新增提案 B-1）：槽位保留收 40 高灰底——灰值=.acsv-im-cshare-cover
+     同款 rgba(255,255,255,.05)；高度 40 对齐该族缩略高。标签安放机制恒一（见角标） */
+  .acsv-im-acard-coverbox.nocover{height:40px;background:rgba(255,255,255,.05)}
+  /* 「文章」角标：值=cssraw .acsv-frow-tag 真值逐字（1635–1636）——位置恒 coverbox 右上，
+     有封面落在封面、无封面落在占位条，一套 absolute 两态通用 */
+  .acsv-im-acard-tag{position:absolute;top:6px;right:6px;width:34px;height:18px;line-height:18px;
+    text-align:center;background:var(--acsv-accent);border-radius:3px;font-size:12px;color:#fff}
+  /* 标题：值=cssraw .acsv-im-vcard-title 真值逐字（889–890，两行钳制照全站 line-clamp 族）；
+     --ph 弱色变体为占位标题提案（B-3） */
+  .acsv-im-acard-title{padding:7px 10px 9px;font-size:12px;line-height:1.5;color:#f0f1f3;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .acsv-im-acard-title--ph{color:#8a90a0}
+  /* 评论转发宿主：quote=评论正文主视觉，值=cssraw .acsv-im-cshare-quote 真值逐字（857–859） */
+  .acsv-im-acard-quote{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;
+    padding:10px 12px 9px;border-left:3px solid var(--acsv-accent);margin:8px 0 2px 8px;
+    font-size:13px;line-height:1.55;color:#f0f1f3;white-space:pre-wrap;word-break:break-word}
+  /* 数据行（新增提案 B-2）：字号 11 对齐 .acsv-im-vcard-bar 字面、弱字 t3、数字 tabular-nums
+     对齐 .acsv-im-vcard-dur 形制；**流内行不走封面浮层**——封面是二次取数且无首类字段，
+     缺省态占多数，浮层版在无封面时无处安放（裁决 1） */
+  .acsv-im-acard-meta{display:flex;align-items:center;gap:12px;padding:0 10px 9px;
+    font-size:11px;color:#8a90a0}
+  .acsv-im-acard-n{display:inline-flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}
+  .acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-size:12px;
+    display:inline-block;width:12px;height:12px;line-height:12px;text-align:center;color:currentColor}
+  /* 表情占位块：article-reader-v3 稿 .arem 同款示意件（真机=ubb 真表情图） */
+  .acsv-emph{display:inline-flex;align-items:center;justify-content:center;vertical-align:-6px;
+    width:34px;height:34px;border-radius:4px;background:linear-gradient(135deg,#3a3f52,#232634);
+    margin:0 1px;font-size:9px;color:#8a90a0;font-style:normal}
+  .acsv-emph::after{content:"表情"}
+
+  /* ---- 附节数据表 ---- */
+  .dtab{width:100%;border-collapse:collapse;font-size:12px;line-height:1.7;color:var(--acsv-t2);margin:8px 0 14px}
+  .dtab th,.dtab td{border:1px solid var(--acsv-line);padding:6px 10px;text-align:left;vertical-align:top}
+  .dtab th{color:#fff;background:rgba(255,255,255,.04);font-weight:600;white-space:nowrap}
+  .dtab code{background:rgba(255,255,255,.08);border-radius:4px;padding:1px 5px;font-size:11px;
+    font-family:ui-monospace,Consolas,monospace;color:#ffb323}
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>IM 文章卡 —— 私信气泡 /a/ac 链（接收端识别扩展 + 出文章卡）静态预览</h1>
+  <p class="hint">
+    <b>病灶</b>：文章评论转发 shareUrl 是 <code>/a/ac</code> 链，接收端 <code>RE_AC_URL</code>（src/immsg.js）只认
+    <code>/v/ac</code> → <code>parseShare</code> 返 null → 纯文本气泡，丢卡、丢 <code>#ncid</code> 评论锚。<br>
+    <b>修法方向</b>：接收端扩文章链识别（<code>kind='article'</code>）+ 出文章卡；发送侧 wire 与 0.9.88 评论转发
+    「末链挑选」逻辑不动；卡 href 保留 <code>#ncid</code>（0.9.52 契约：# 片段随 URL）。<br>
+    <b>卡形</b>：与视频卡（<code>.acsv-im-vcard</code>）同族——封面 / 两行标题 / 「文章」角标（行流
+    <code>.acsv-frow-tag</code> 形制）/ 阅读·评论数据行；评论区转发宿主另带引用块（评论正文主视觉，
+    <code>.acsv-im-cshare-quote</code> 真值）。<br>
+    <b class="notmeas">占位示意，实现前须真机核字段</b>：稿内标题/计数数字均为摆样，不是承诺数据；
+    逐字段来源与实测状态见附节表。封面段是「正文首图推导」提案示意——SSR 实测字段清单无一档 cover。<br>
+    <b>量值来源</b>：<code>src/cssraw.js</code> .acsv-im-* / .acsv-frow-tag 真值逐字；复用值与新增提案在附节
+    分列，<b>实现侧须逐字兑现、登记进 check-preview 注册表</b>。确认后才进 src 实现；改版先改本稿。
+  </p>
+
+  <!-- ================= ① 宿主A · 普通消息气泡 · 默认态 ================= -->
+  <div class="sec">
+    <h2>① 宿主A · 普通消息气泡 · 默认态<em>二次取数回包后的完整形态：封面 + 「文章」角标 + 两行标题 + 数据行；附言独立文本气泡先行；引用钮行 hover 显形（稿内以 .show 摆出）</em></h2>
+    <p class="wire">wire（普通分享）：「天涯此时共明月 DD歌回唱团圆\nhttps://www.acfun.cn/a/ac48868671」＋附言「这篇写得是真不错，安利」</p>
+    <div class="stage">
+      <div class="acsv-im-head">阿蝉不是蝉</div>
+      <div class="acsv-im-bubbles">
+        <div class="acsv-im-daydiv">今天 14:02</div>
+        <div class="acsv-im-bubble">这篇写得是真不错，安利</div>
+        <div class="acsv-im-rowwrap cardrow">
+          <a class="acsv-im-acard" href="https://www.acfun.cn/a/ac48868671" target="_blank" rel="noopener">
+            <span class="acsv-im-acard-coverbox">
+              <img class="acsv-im-acard-cover" src="https://imgs.aixifan.com/newUpload/23682490_3870ea2d5c7e4bcfb09b6b3699f6a560.jpg" alt="">
+              <span class="acsv-im-acard-tag">文章</span>
+            </span>
+            <span class="acsv-im-acard-title">天涯此时共明月 DD歌回唱团圆</span>
+            <span class="acsv-im-acard-meta"><span class="acsv-im-acard-n"><i class="acsvg-glyph">&#xe164;</i>1.2万</span><span class="acsv-im-acard-n"><i class="acsvg-glyph">&#xe161;</i>1024</span></span>
+          </a>
+          <button class="acsv-im-quotebtn show" title="引用这条消息">↩</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      数据行语义：字形 <code>e164</code>=阅读（GLYPHS.rankView，行流文章行 views 同字）、<code>e161</code>=评论
+      （GLYPHS.rankComment）；只摆「字形+数」不摆文字标签（vcard 计数条/行流 sinfo 同款家族形制）。
+      标题/阅读/评论均为二次取数回包示意（<span class="notmeas">占位示意，实现前须真机核字段</span>）；
+      封面取「正文首图」为提案示意，SSR 无一档 cover 字段。卡 <code>href</code> 即分享链原样（普通分享无锚）。
+    </p>
+  </div>
+
+  <!-- ================= ② 悬停态 ================= -->
+  <div class="sec">
+    <h2>② 悬停态<em>复用视频卡 hover 真值：border-color 升至 rgba(255,255,255,.22)；引用钮同行显形；无其它形变（不加底/不加环，对齐 0.9.314「撤环」裁决口径）</em></h2>
+    <p class="wire">同①；稿内以 .hovered 类模拟 :hover（真值规则 <code>.acsv-im-acard:hover</code> 已并写，真机悬停即此形）</p>
+    <div class="stage">
+      <div class="acsv-im-head">阿蝉不是蝉</div>
+      <div class="acsv-im-bubbles">
+        <div class="acsv-im-rowwrap cardrow">
+          <a class="acsv-im-acard hovered" href="https://www.acfun.cn/a/ac48868671" target="_blank" rel="noopener">
+            <span class="acsv-im-acard-coverbox">
+              <img class="acsv-im-acard-cover" src="https://imgs.aixifan.com/newUpload/23682490_3870ea2d5c7e4bcfb09b6b3699f6a560.jpg" alt="">
+              <span class="acsv-im-acard-tag">文章</span>
+            </span>
+            <span class="acsv-im-acard-title">天涯此时共明月 DD歌回唱团圆</span>
+            <span class="acsv-im-acard-meta"><span class="acsv-im-acard-n"><i class="acsvg-glyph">&#xe164;</i>1.2万</span><span class="acsv-im-acard-n"><i class="acsvg-glyph">&#xe161;</i>1024</span></span>
+          </a>
+          <button class="acsv-im-quotebtn show" title="引用这条消息">↩</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">hover 只动描边一档（<code>rgba(255,255,255,.22)</code>＝vcard/cshare 现值逐字）；引用钮
+      <code>opacity 0→1</code>（.12s）为行级真值、随行悬停显形，非卡自身动效。文章卡不引入新的悬停反馈档。</p>
+  </div>
+
+  <!-- ================= ③ 超长标题 · 两行钳制 ================= -->
+  <div class="sec">
+    <h2>③ 超长标题 · 两行钳制<em>形制照全站 -webkit-line-clamp 族：-webkit-box + line-clamp:2（.acsv-im-vcard-title 真值逐字）；截断出省略号，卡高不炸</em></h2>
+    <div class="stage">
+      <div class="acsv-im-head">阿蝉不是蝉</div>
+      <div class="acsv-im-bubbles">
+        <div class="acsv-im-rowwrap cardrow">
+          <a class="acsv-im-acard" href="https://www.acfun.cn/a/ac48868671" target="_blank" rel="noopener">
+            <span class="acsv-im-acard-coverbox">
+              <img class="acsv-im-acard-cover" src="https://imgs.aixifan.com/newUpload/23682490_3870ea2d5c7e4bcfb09b6b3699f6a560.jpg" alt="">
+              <span class="acsv-im-acard-tag">文章</span>
+            </span>
+            <span class="acsv-im-acard-title">天涯此时共明月 DD歌回唱团圆——中秋 DD 歌回活动全记录，附月饼口味许愿指南与直播间抽奖细则，文末留言抽三位小伙伴送月饼礼盒</span>
+            <span class="acsv-im-acard-meta"><span class="acsv-im-acard-n"><i class="acsvg-glyph">&#xe164;</i>1.2万</span><span class="acsv-im-acard-n"><i class="acsvg-glyph">&#xe161;</i>1024</span></span>
+          </a>
+        </div>
+      </div>
+    </div>
+    <p class="note">钳制值与视频卡同一条（<code>-webkit-line-clamp:2</code>）：标题溢出即省略号截断，
+      数据行恒在标题下方不被推走。实现侧该值复用 <code>.acsv-im-vcard-title</code> 既有规则，不新写第二份。
+      本段在新 Chromium（152）上若见多画一行，见附节 <b>D 渲染自检备注</b>（内核缺陷嫌疑，非稿面错误）。</p>
+  </div>
+
+  <!-- ================= ④ 封面缺失降级 · 文字型卡 ================= -->
+  <div class="sec">
+    <h2>④ 封面缺失降级 · 文字型卡<em>封面槽位保留、收 40 高灰底占位条；「文章」角标安放机制恒一（恒 coverbox 右上 absolute）；此形态同时是取数前的缺省骨架</em></h2>
+    <p class="note" style="margin-top:0">
+      依据：文章页 SSR <code>window.articleInfo</code> 实测字段清单（§17）<b>无一档 cover 字段</b>；
+      「正文首图当卡封面」是提案且<span class="notmeas">未实测</span>——故<b>文字型卡是缺省形态</b>，
+      封面是增强态。槽位保留（灰条）让角标安放机制恒一，且与 cshare 来源缩略的灰底形制
+      （<code>rgba(255,255,255,.05)</code>）同族。
+    </p>
+    <div class="stage">
+      <div class="acsv-im-head">阿蝉不是蝉</div>
+      <div class="acsv-im-bubbles">
+        <div class="acsv-im-rowwrap cardrow">
+          <a class="acsv-im-acard" href="https://www.acfun.cn/a/ac48868671" target="_blank" rel="noopener">
+            <span class="acsv-im-acard-coverbox nocover">
+              <span class="acsv-im-acard-tag">文章</span>
+            </span>
+            <span class="acsv-im-acard-title">天涯此时共明月 DD歌回唱团圆</span>
+            <span class="acsv-im-acard-meta"><span class="acsv-im-acard-n"><i class="acsvg-glyph">&#xe164;</i>1.2万</span><span class="acsv-im-acard-n"><i class="acsvg-glyph">&#xe161;</i>1024</span></span>
+          </a>
+        </div>
+      </div>
+    </div>
+    <p class="note">灰条高 40（对齐 cshare 缩略 40 高形制；新增提案 B-1）。备选形态「不留槽、角标转标题行内」
+      见附节裁决 2——两态一套安放机制是本稿推荐案的理由。</p>
+  </div>
+
+  <!-- ================= ⑤ 无数据失败态 ================= -->
+  <div class="sec">
+    <h2>⑤ 无数据失败态 · 文字型卡<em>二次取数失败/超时：静默保持可读可点（现 vcard/cshare 同款不弹错）；数据行不渲染（缺字段不摆 0）；纯 URL 消息标题槽落「文章 ac&lt;id&gt;」占位</em></h2>
+    <p class="wire">wire（纯链接消息）：「https://www.acfun.cn/a/ac48868671」——share.title 为空，标题槽走占位</p>
+    <div class="stage">
+      <div class="acsv-im-head">阿蝉不是蝉</div>
+      <div class="acsv-im-bubbles">
+        <div class="acsv-im-rowwrap cardrow">
+          <a class="acsv-im-acard" href="https://www.acfun.cn/a/ac48868671" target="_blank" rel="noopener">
+            <span class="acsv-im-acard-coverbox nocover">
+              <span class="acsv-im-acard-tag">文章</span>
+            </span>
+            <span class="acsv-im-acard-title acsv-im-acard-title--ph">文章 ac48868671</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      占位标题「文章 <code>ac&lt;id&gt;</code>」＝URL 直得的真值（id 真实、非编造内容），对齐
+      <code>immsg.fallbackName</code>（「用户 +id」）先例（新增提案 B-3）；手打标题在 wire 里时
+      （宿主A）失败态标题槽回落 wire 文本、不强占位（vcard「标题元素恒建」同款）。数据行整行不渲染——
+      「没这个数」不写成 0（patchVcard 原则）。角标「文章」来自链识别（<code>kind='article'</code>），
+      与取数成败无关，恒在。
+    </p>
+  </div>
+
+  <!-- ================= ⑥ 宿主B · 评论区转发卡 ================= -->
+  <div class="sec">
+    <h2>⑥ 宿主B · 评论区转发卡<em>评论正文主视觉（引用块 6 行钳）+ 文章卡同族段；标题槽绝不进评论文本（0.9.51 教训）；href 保留 #ncid 锚——病灶「丢卡丢锚」在本形态收口</em></h2>
+    <p class="wire">wire（评论转发）：「@阿蝉不是蝉：先占楼许愿流心奶黄！去年的蛋黄莲蓉到现在还想，AC娘大气！\nhttps://www.acfun.cn/a/ac48868671#ncid=36219456」</p>
+    <div class="stage">
+      <div class="acsv-im-head">阿蝉不是蝉</div>
+      <div class="acsv-im-bubbles">
+        <div class="acsv-im-daydiv">今天 09:41</div>
+        <div class="acsv-im-rowwrap cardrow">
+          <a class="acsv-im-acard" href="https://www.acfun.cn/a/ac48868671#ncid=36219456" target="_blank" rel="noopener">
+            <span class="acsv-im-acard-quote">先占楼许愿流心奶黄！去年的蛋黄莲蓉到现在还想，AC娘大气！<i class="acsv-emph"></i></span>
+            <span class="acsv-im-acard-coverbox">
+              <img class="acsv-im-acard-cover" src="https://imgs.aixifan.com/newUpload/23682490_3870ea2d5c7e4bcfb09b6b3699f6a560.jpg" alt="">
+              <span class="acsv-im-acard-tag">文章</span>
+            </span>
+            <span class="acsv-im-acard-title">天涯此时共明月 DD歌回唱团圆</span>
+            <span class="acsv-im-acard-meta"><span class="acsv-im-acard-n"><i class="acsvg-glyph">&#xe164;</i>1.2万</span><span class="acsv-im-acard-n"><i class="acsvg-glyph">&#xe161;</i>1024</span></span>
+          </a>
+          <button class="acsv-im-quotebtn" title="引用这条消息">↩</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      引用块＝评论正文主视觉：extra 载荷（<code>cmtShareOf</code>/acsvCmt）命中走富渲染（真表情，稿内以占位块示意），
+      被服务端剥掉回落 wire 文本（现成降级链，两端同款）。文章卡段与宿主A<b>同一个组件</b>——一卡两宿主复用，
+      不做第二份「看着一样」的细条卡。评论转发宿主下 wire 首行「@作者：正文」不进标题槽（0.9.51 评论被
+      enrich 标题覆盖病灶），标题槽留空等二次取数，失败落⑤的占位标题。整卡一个 <code>&lt;a&gt;</code>，
+      href 含 <code>#ncid=36219456</code>（病灶丢的锚在此收口）；0.9.88 末链挑选逻辑不动（正文嵌链不劫持末行推荐链）。
+    </p>
+  </div>
+
+  <!-- ================= ⑦ 540 窄宽自检 ================= -->
+  <div class="sec">
+    <h2>⑦ 540 窄宽自检<em>540 视口下抽屉实宽 = min(412, 88vw) = 412；卡行恒 min(294px,96%)；长标题两行钳、角标 34×18 不缩放</em></h2>
+    <div class="narrow-frame">
+      <div class="stage">
+        <div class="acsv-im-head">阿蝉不是蝉</div>
+        <div class="acsv-im-bubbles">
+          <div class="acsv-im-rowwrap cardrow">
+            <a class="acsv-im-acard" href="https://www.acfun.cn/a/ac48868671" target="_blank" rel="noopener">
+              <span class="acsv-im-acard-coverbox">
+                <img class="acsv-im-acard-cover" src="https://imgs.aixifan.com/newUpload/23682490_3870ea2d5c7e4bcfb09b6b3699f6a560.jpg" alt="">
+                <span class="acsv-im-acard-tag">文章</span>
+              </span>
+              <span class="acsv-im-acard-title">天涯此时共明月 DD歌回唱团圆——中秋 DD 歌回活动全记录，附月饼口味许愿指南与直播间抽奖细则，文末留言抽三位小伙伴送月饼礼盒</span>
+              <span class="acsv-im-acard-meta"><span class="acsv-im-acard-n"><i class="acsvg-glyph">&#xe164;</i>1.2万</span><span class="acsv-im-acard-n"><i class="acsvg-glyph">&#xe161;</i>1024</span></span>
+            </a>
+            <button class="acsv-im-quotebtn show" title="引用这条消息">↩</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">窄态检查项：卡行宽 <code>min(294px,96%)</code> 恒定、引用钮不被挤出容器；标题两行钳不逐字断行；
+      角标定值 34×18、不随宽度伸缩。更窄（360 级）时 96% 生效（294 &lt; 视口×96% 仍成立），卡形不破。</p>
+  </div>
+
+  <!-- ================= 附：口径登记与数据可用性 ================= -->
+  <div class="sec">
+    <h2>附：数据可用性逐字段清单 + 取值登记 + 待裁决项</h2>
+    <p class="note" style="margin-top:0">
+      <b>数据可用性</b>（AGENTS 第 2 条：<span class="notmeas">未实测不写猜测实现</span>；
+      <b>占位示意，实现前须真机核字段</b>）：
+    </p>
+    <table class="dtab">
+      <tr><th>字段</th><th>来源</th><th>实测状态</th><th>说明</th></tr>
+      <tr><td>kind='article' / 文章 id</td><td>URL 直得（接收端 RE 扩 <code>/a/ac&lt;id&gt;</code>）</td>
+        <td>链形已实测（文章 shareUrl 即 /a/ac 形，v3 稿在册）</td><td>0 取数；发送侧不动</td></tr>
+      <tr><td>卡 href（含 #ncid 锚）</td><td>URL 直得</td><td>已实测（0.9.52：# 片段随 URL 保留）</td>
+        <td>锚不显示在卡面；普通分享无锚</td></tr>
+      <tr><td>「文章」标签</td><td>静态字面</td><td>—</td><td>0 取数；kind 识别即有，恒在（含失败态）</td></tr>
+      <tr><td>标题</td><td>二次取数：① 文章页 SSR <code>window.articleInfo.title</code>；② douga/info 文章 id</td>
+        <td>① §17.3 <b>已实测</b>；② <span class="notmeas">未实测</span>（appapi.dougaCard 现仅视频 id 在账 2026-09-29）</td>
+        <td>取数路二选一＝实现裁决（裁决 3）；骨架先上、回包原位补全（vcard 同款时序）</td></tr>
+      <tr><td>封面</td><td>无一档字段；提案＝正文首图（parts 内 imgs.aixifan.com 直链）</td>
+        <td>直链本身已实测；「取首图当卡封面」<span class="notmeas">未实测</span></td>
+        <td>缺省＝文字型卡（节④）；封面只是增强态</td></tr>
+      <tr><td>阅读数</td><td>二次取数：<code>articleInfo.viewCount</code></td><td>§17.3 已实测（v3 稿头部同字段）</td>
+        <td>万化显示（formatWan）；失败不渲染（不摆 0）</td></tr>
+      <tr><td>评论数</td><td>二次取数：<code>articleInfo.commentCount</code></td><td>§17.3 已实测</td><td>同上</td></tr>
+      <tr><td>UP 名/头像</td><td>二次取数：<code>articleInfo.user.name / headUrl</code></td><td>§17.3 已实测</td>
+        <td><b>本卡不摆 UP 行</b>（裁决 4）</td></tr>
+      <tr><td>评论转发宿主评论正文</td><td>extra <code>acsvCmt</code>（cmtShareOf）富渲染</td>
+        <td>0.9.51/0.9.52 已实测</td><td>被剥→wire 文本降级（现成链）</td></tr>
+      <tr><td>失败兜底</td><td>—</td><td>—</td><td>取数失败→文字型骨架卡可读可点、静默不弹错（现 vcard/cshare 同款）</td></tr>
+    </table>
+    <p class="note">
+      <b>取值登记清单</b>（实现侧须逐字兑现、登记进 <code>test/check-preview.mjs</code> 注册表；
+      摘任一条即红）——
+    </p>
+    <p class="note" style="line-height:2.05">
+      <b>A · 复用既有真值</b>（值已在 cssraw，实现侧复用/并类、不写第二份）：<br>
+      1. 卡容器 <code>width:min(260px,78%)</code> + <code>border-radius:12px</code> +
+         <code>background:rgba(255,255,255,.06)</code> + <code>border:1px solid rgba(255,255,255,.08)</code>
+         ＝.acsv-im-vcard 真值（cssraw 845–847）；hover <code>rgba(255,255,255,.22)</code>（848）。<br>
+      2. 封面 <code>width:100%;height:auto;max-height:190px</code> + <code>object-fit:cover</code>
+         ＝.acsv-im-vcard-cover 真值（881–882）。<br>
+      3. 标题 <code>padding:7px 10px 9px;font-size:12px;line-height:1.5;color:#f0f1f3</code> +
+         <code>-webkit-line-clamp:2</code>（全站 line-clamp 族）＝.acsv-im-vcard-title 真值（889–890）。<br>
+      4. 「文章」角标 <code>top:6px;right:6px;width:34px;height:18px;line-height:18px</code> +
+         <code>background:var(--acsv-accent);border-radius:3px;font-size:12px;color:#fff</code>
+         ＝.acsv-frow-tag 真值移用（1635–1636）；安放机制恒一：恒 coverbox 右上 absolute，
+         有封面落封面、无封面落占位条。<br>
+      5. 引用块 <code>padding:10px 12px 9px;border-left:3px solid var(--acsv-accent);margin:8px 0 2px 8px</code> +
+         <code>font-size:13px;line-height:1.55</code> + <code>-webkit-line-clamp:6</code>
+         ＝.acsv-im-cshare-quote 真值（857–859）。<br>
+      6. 宿主零改动纯复用：cardrow <code>width:min(294px,96%)</code>、rowwrap <code>gap:6px</code>、
+         引用钮 24×24 圆 + <code>opacity 0→1</code>（.12s）、气泡 8/12/14 族、日分割 11px——
+         全部 cssraw 既有真值，本批不新增。<br>
+      <b>B · 新增提案</b>（实现时新增规则并登记注册表）：<br>
+      7. 封面缺失占位条：<code>height:40px</code> + <code>background:rgba(255,255,255,.05)</code>
+         （灰值＝cshare 缩略同款；40 高对齐该族缩略高）。<br>
+      8. 数据行（流内）：<code>font-size:11px;color:#8a90a0</code>、行 <code>gap:12px</code>、
+         <code>padding:0 10px 9px</code>、项内 <code>gap:4px</code>、数字 <code>font-variant-numeric:tabular-nums</code>
+         （11px 对齐 vcard-bar 字面、数字形制对齐 vcard-dur；不走封面浮层——裁决 1）。
+         字形 GLYPHS.rankView <code>e164</code>（阅读）/ rankComment <code>e161</code>（评论），
+         imicons.js 在册码点，零新增图标资产。<br>
+      9. 占位标题弱色变体：<code>color:#8a90a0</code>（t3 单源）＋文案「文章 <code>ac&lt;id&gt;</code>」
+         （fallbackName 先例）。<br>
+      <b>C · 行为类承诺</b>（归 harness 断言，不入取值闸）：<br>
+      10. 评论转发宿主标题槽绝不进评论文本（0.9.51 病灶防回潮）；回包原位补全、缺字段不摆 0；
+          取数失败静默可读可点；卡 href 原样保留 <code>#ncid</code>；0.9.88 末链挑选不动；
+          列表预览补「[文章] 」前缀（sharePreviewOf 扩一支，形态零变化）。<br>
+      <b>D · 渲染自检备注（2026-11-17，内嵌 Chromium 152 实测）</b>：全站钳制组合
+          <code>display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden</code>
+          在该内核上<b>钳高与省略号正确</b>（计算样式 ch=52=7+2×18+9、行数钳住），但被钳出的行
+          <b>仍多画一行</b>，且不受自身/祖先 overflow 剪裁（游离 div 与 &lt;a&gt; 内 div 同灶，最小对照坐实）——
+          属内核对旧组合的渲染缺陷嫌疑，非本稿取值错误；③⑦ 段在 152 上所见溢行即此。
+          <b>请在自有 Chrome/真机复核本稿</b>；若坐实，按规矩 7 应作<b>全站 line-clamp 族结构专项</b>
+          （受影响面：评论/榜单/搜索/宫格/私信卡等一切钳制件），不归本稿私补。
+    </p>
+    <p class="note" style="line-height:2.05">
+      <b>待裁决项</b>（推荐案在稿，改裁决先改本稿）：<br>
+      1. <b>数据行位置</b>——<b>推荐：流内行</b>（标题下方，两态通用一套形制）；备选：封面浮层
+         （vcard-bar 同位更「同族」，但封面是二次取数且无首类字段，无封面态无处安放→两套形制＝漂移温床）。<br>
+      2. <b>封面缺失形态</b>——<b>推荐：槽位保留</b>（40 高灰条，角标安放机制恒一）；备选：不留槽、
+         角标转标题行内首元素（卡更矮，但角标两处安放）。若真机核出「首图当封面」不可行，本节④即恒定形态。<br>
+      3. <b>标题/计数取数路</b>——<b>推荐：首跑真机核 douga/info 对文章 id 是否返数据</b>（轻、且有
+         Promise 级缓存现成）；无效→复用 articleread.fetchArticle SSR 路（现成实现、字段全实测，但整页较重）。<br>
+      4. <b>UP 行</b>——<b>推荐：不摆</b>（转发语境主信息是文章本体；UP 字段需二次取数收益低）。
+         若要摆需另出小稿（头像行 40px 级，对齐 article-reader 头部形制）。<br>
+      5. <b>链域范围</b>——首版 RE 只认 <code>www.acfun.cn/a/ac</code>；<span class="notmeas">m.acfun.cn
+         文章短链形态未实测</span>，实测后再扩（对齐动态链两形态先例），首版不写猜测分支。
+    </p>
+  </div>
+</div>
+</body>
+</html>

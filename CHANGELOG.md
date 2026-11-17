@@ -5,6 +5,37 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.334（2026-11-17）· T4 IM 接收链批——文章分享出文章卡（F3 收口）+ 行流视频分享不再被降级评论卡（裁决④）
+
+**病灶**：① 文章评论转发 shareUrl 是 `/a/ac` 链，接收端 `RE_AC_URL` 只认 `/v/ac` → parseShare
+返 null → 纯文本气泡，丢卡、丢 `#ncid` 评论锚（四路审查 F3 活病灶）；② 行流视频分享 wire
+「@作者：标题\n链接」在接收端被 `isCommentShare` 降级成评论卡——同一视频两种接收观感（待裁
+决④，用户批「按推荐」）。**真机先行**（api-research §21）：douga/info 对文章 id 返 result
+109021（不服务）→ enrich 走文章页 SSR articleInfo（title/viewCount/commentCount/user.name/
+headUrl 在账；coverImage 仅部分文章有 → 文字型卡=缺省态，确认稿 B-1 分级）；「正文首图当
+封面」提案不做（推导链未实测）。
+
+**修法（确认稿 docs/preview/im-article-card.html 用户已确认）**：
+① `immsg` 加 `RE_ARTICLE_URL`（www 域 `/a/ac` 族；m 站短链未实测挂账）+ `shareAt.articleId`；
+② 评论卡分流收口新判据 `isCmtShareCard(title, url)`＝@首行 **+ #ncid 锚**两件齐——行流视频
+分享（@首行无锚）回到视频卡，两端同卡；parseShare 选链用的一参形态检测 `isCommentShare`
+保持不动（各管各层）；③ 新件 `imcard.acard/patchAcard`：vcard 同族骨架（封面 190/两行标题/
+hover .22 真值逐字）+「文章」角标（frow-tag 34×18 形制恒 coverbox 右上）+ nocover 占位条 40
+（B-1）+ 数据行（B-2：rankView/rankComment 字形+数）+ 占位标题弱色（B-3，「文章 ac<id>」
+imcard 单源拼装）+ 评论区转发宿主引用块（评论正文主视觉，标题槽绝不进评论文本——0.9.51
+教训同源）；双皮肤：抽屉暗皮 cssraw acard 块、原生页 SHADOW_CSS 骨架复用 .item 族只补五名；
+④ enrich 双源：`appapi.articleCard`（SSR 提取走下沉契约件 `panelitem.articleInfoOfSSR`——
+articleread 同消费，appapi 反向 import 特性件即红的方向豁免收口；Promise 缓存同 dougaCard
+纪律）；⑤ 消费分支：imbubble `appendArticleBubble` + imnative enrichShare 文章路。
+check-preview +7 钉（新值逐条：nocover 40/tag 34×18/meta/ph 弱色/复用值计数钉）。
+
+**测试证据**：unit immsg「文章链识别+评论卡判别」（/a/ac 出 kind=article、#ncid 随链、判别
+两件齐、脏输入不抛）；unit panelitem `articleInfoOfSSR` 括号配平矩阵（分号/转义/嵌套/坏
+JSON/null）；im-open `imCardSmoke` 文章卡标本两态 +7 断言（根类/角标/数据行/占位弱色/引用块
+不进标题槽）。回归 im-open/view-im/view-im-narrow 全绿；摘修复反跑：占位串改双写 → 卫生闸红
+（已按裁决收口 imcard 单源）；immsg 摘 RE_ARTICLE_URL → unit 文章链用例红；check-preview 摘
+任一取值 → 闸红（A 案机械保证）。npm test 93 场景全绿、npm run check 全链+tsc 真实退出码 0。
+
 ### 0.9.333（2026-11-17）· 批 2 裁决落地 + dest 落点注册表接线——引用卡/搜索文章行收编浮层 + 行卡文章赞接通
 
 **裁决（批 2 五项过会，用户裁决「按推荐」）**：① 行卡文章赞「未实测只读」→**接通**（likePi

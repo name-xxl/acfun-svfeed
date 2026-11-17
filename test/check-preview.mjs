@@ -99,6 +99,37 @@ const PINS = [
   {
     draft: 'docs/preview/article-reader-v3.html', value: 'max-height:75vh', src: 'src/cssraw.js', srcCount: 2,
     why: '长图超高兜底（>75vh 折算高截住+渐变压暗+chip；稿节⑤，v3.2 原节⑥顺移。容器与 img 各一处）'
+  },
+  // ---- 0.9.334（IM 文章卡；确认稿 docs/preview/im-article-card.html 用户已确认）----
+  // 新增值逐条入闸（复用值 max-height:190px 等与 vcard 同值——稿侧各查一次是两条事实，
+  // 同批同管）；srcCount 钉死出现次数，摘任一条即红
+  {
+    draft: 'docs/preview/im-article-card.html', value: 'max-height:190px', src: 'src/cssraw.js', srcCount: 2,
+    why: '卡封面上限（vcard 真值逐字复用——vcard+acard 各一处）'
+  },
+  {
+    draft: 'docs/preview/im-article-card.html', value: 'height:40px;background:rgba(255,255,255,.05)', src: 'src/cssraw.js', srcCount: 1,
+    why: '封面缺失占位条（新增提案 B-1：槽位保留收 40 高灰底，文字型卡=缺省态）'
+  },
+  {
+    draft: 'docs/preview/im-article-card.html', value: 'top:6px;right:6px;width:34px;height:18px', src: 'src/cssraw.js', srcCount: 2,
+    why: '「文章」角标安放（frow-tag 34×18 形制；右上 absolute 两态通用——稿 CSS 块+注释引值各一处）'
+  },
+  {
+    draft: 'docs/preview/im-article-card.html', value: 'padding:7px 10px 9px;font-size:12px;line-height:1.5', src: 'src/cssraw.js', srcCount: 2,
+    why: '标题内距/字号（vcard-title 真值逐字复用；两行钳制）'
+  },
+  {
+    draft: 'docs/preview/im-article-card.html', value: 'gap:12px;padding:0 10px 9px', src: 'src/cssraw.js', srcCount: 1,
+    why: '数据行（新增提案 B-2：字形+数 11px t3 流内行，不走封面浮层）'
+  },
+  {
+    draft: 'docs/preview/im-article-card.html', value: 'acsv-im-acard-title--ph{color:#8a90a0', src: 'src/cssraw.js', srcCount: 1,
+    why: '占位标题弱色（新增提案 B-3：纯 URL 消息标题槽落「文章 ac<id>」）'
+  },
+  {
+    draft: 'docs/preview/im-article-card.html', value: '-webkit-line-clamp:6', src: 'src/cssraw.js', srcCount: 2,
+    why: '评论区转发宿主引用块 6 行钳（cshare-quote 真值逐字复用——cshare+acard 各一处）'
   }
 ];
 

@@ -93,6 +93,14 @@ var RE_CMT_SHARE = /^@([^\n：]{1,40})：/;
 export function isCommentShare(title) {
   return RE_CMT_SHARE.test(String(title || ''));
 }
+// 评论转发**卡片分流**判据（0.9.334 批 2 裁决④收口）：@首行 + **#ncid 锚**两件齐才算评论
+// 转发——0.9.52 起评论 wire 恒带 #ncid（comments.js 组装在册），而行流视频分享
+// （momentShareItemOf）是「@作者：标题\n链接」无锚。此前只看 @首行，行流视频分享在接收端
+// 被降级成评论卡（同一视频两种接收观感）；#ncid 判别后两端同卡。判别单源在此：parseShare
+// 选链用的一参形态检测（isCommentShare）与卡片分流的两参判据各管各层，勿混用
+export function isCmtShareCard(title, url) {
+  return isCommentShare(title) && /#ncid=/.test(String(url || ''));
+}
 // 从 wire 标题拆评论作者（「@作者：」首段）；检测未命中返回 ''。收口说明：检测与拆分
 // 共用同一正则（0.9.54 前 imdrawer.cmtHtml 各写一份，靠「拆分仅在检测通过后运行」的
 // 隐式约束保持一致）
@@ -115,6 +123,10 @@ export function commentShareWire(name, text) {
 // #片段（0.9.52，评论转发带 #ncid= 评论锚点）属 URL 一并保留进 url——卡片/复制链接
 // 都要能定位到楼层
 var RE_AC_URL = /https?:\/\/www\.acfun\.cn\/v\/ac(\d+)(?:\/?\?[^\s]*)?(?:#[^\s]*)?/ig;
+// 文章链（0.9.334，F3 病灶：文章评论转发 shareUrl 是 /a/ac 族——旧正则只认 /v/ac，
+// parseShare 返 null 落纯文本气泡丢卡丢 #ncid 锚）。首版只认 www 域（m 站形态未实测，
+// 确认稿附节挂账，真机核后再扩）
+var RE_ARTICLE_URL = /https?:\/\/www\.acfun\.cn\/a\/ac(\d+)(?:\/?\?[^\s]*)?(?:#[^\s]*)?/ig;
 // 动态链两形态（0.9.122）：PC 页 www /moment/am<id>（脚本分享面板发这个）+ 官方分享短链
 // m.acfun.cn/communityCircle/moment/<id>（官方客户端转发进来的是这个，0.9.105 实测在册）
 var RE_MOMENT_URL = /(?:https?:\/\/www\.acfun\.cn\/moment\/am|https?:\/\/m\.acfun\.cn\/communityCircle\/moment\/)(\d+)(?:\/?\?[^\s]*)?(?:#[^\s]*)?/ig;
@@ -122,9 +134,9 @@ var RE_TAIL_PUNCT = /[\s.,;:!?)\]】」』。、！？；：]+$/;
 var RE_HEAD_PUNCT = /^[\s.,;:!?(\[【「『。、！？；：]+/;
 
 // 单匹配 → 解析结果。句读贴着链接写（「给你 https://…。」）时两侧标点都不归属：
-// URL 剥尾、附言剥头。kind='video'|'moment'（0.9.122）：moment 出 momentId、acId 置空——
-// 消费方必须先看 kind 再取 id（动态 wire 首行是 @作者： 形态、会过 isCommentShare，
-// 不按 kind 优先会被评论卡分流抢走）
+// URL 剥尾、附言剥头。kind='video'|'moment'|'article'（0.9.122/0.9.334）：各 kind 出自家
+// id 字段、其余置空——消费方必须先看 kind 再取 id（动态/文章 wire 首行也是 @作者： 形态、
+// 会过 isCommentShare，不按 kind 优先会被评论卡分流抢走）
 function shareAt(t, m, kind, id) {
   return {
     title: t.slice(0, m.index).trim().slice(0, 400),
@@ -132,6 +144,7 @@ function shareAt(t, m, kind, id) {
     kind: kind,
     acId: kind === 'video' ? id : '',
     momentId: kind === 'moment' ? id : '',
+    articleId: kind === 'article' ? id : '',
     url: m[0].replace(RE_TAIL_PUNCT, '')
   };
 }
@@ -140,12 +153,14 @@ function noteOf(t, m) {
 }
 export function parseShare(text) {
   var t = String(text == null ? '' : text);
-  // 全量候选（视频链 + 动态链两类混扫，按出现序合并；上界 8 个是纯防御）
+  // 全量候选（视频链 + 动态链 + 文章链三类混扫，按出现序合并；上界 8 个是纯防御）
   var ms = [], m;
   RE_AC_URL.lastIndex = 0;
   while (ms.length < 8 && (m = RE_AC_URL.exec(t))) ms.push({ m: m, kind: 'video', id: m[1] });
   RE_MOMENT_URL.lastIndex = 0;
   while (ms.length < 8 && (m = RE_MOMENT_URL.exec(t))) ms.push({ m: m, kind: 'moment', id: m[1] });
+  RE_ARTICLE_URL.lastIndex = 0;
+  while (ms.length < 8 && (m = RE_ARTICLE_URL.exec(t))) ms.push({ m: m, kind: 'article', id: m[1] });
   if (!ms.length) return null;
   ms.sort(function (a, b) { return a.m.index - b.m.index; });
   var pick = ms[0];

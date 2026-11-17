@@ -186,8 +186,8 @@
       "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
     },
     {
-      "key": "swallow:articleread.js:return null;@1",
-      "why": "0.9.326 挂账：extractArticleInfo 的 JSON.parse 失败/无 articleInfo 段两路 return null——结构性兜底（降级 DOM 路或失败态会接住），无链可断；与 advdm 同款首轮分诊"
+      "key": "swallow:panelitem.js:return null;@1",
+      "why": "0.9.334 迁账：articleInfoOfSSR 的 JSON.parse 失败/无 articleInfo 段 return null（自 articleread 下沉契约件，articleread 旧账随迁撤销）——结构性兜底（调用方降级 DOM 路或占位标题，unit 矩阵钉着），无链可断"
     },
     {
       "key": "swallow:attach.js:(空块体)@1",
