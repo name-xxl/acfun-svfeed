@@ -279,11 +279,14 @@ function renderHead(info, failed) {
     if (isFollowing) fb.classList.add('on');
     fb.addEventListener('click', function (ev) {
       ev.stopPropagation();
+      if (fb._busy) return; // 连点单发锁（0.9.332）：在途回包期间再点直接忽略——无锁时连点会
+      fb._busy = true;      // 连发关注+取关一对请求（编排对齐 rail withBusy 语义）
       var on = fb.classList.contains('on');
       fb.classList.toggle('on', !on);
       fb.textContent = !on ? '已关注' : '关注';
       fb.setAttribute('aria-pressed', !on ? 'true' : 'false');
       (on ? unfollowUser(String(uid)) : followUser(String(uid))).then(function (ok) {
+        fb._busy = false;
         if (!ok) {
           fb.classList.toggle('on', on);
           fb.textContent = on ? '已关注' : '关注';
@@ -380,7 +383,8 @@ function openBanana(btn) {
       refs.nums.banana += n;
       refs.st.thrown = true;
       syncActs();
-      toast('投蕉成功');
+      // 成功话术单源 banpop（0.9.332）：「投出 N 根香蕉」由弹层统一弹，applied 再补即双提示
+      // （行流/右栏消费面的 applied 均不 toast，本面对齐；失败路径 errBananaThrown/errBanana 不变）
     }
   });
 }

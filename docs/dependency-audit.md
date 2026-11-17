@@ -668,3 +668,20 @@ feedstore.js → player.js → input.js → feedstore.js
   病灶同源：singleFlight/selfUid 并发/鉴权纯工具误居 ui.js（历史归置），接口族被迫触 UI 件。
   **撤行条件**：ui 拆件把纯工具迁出（落点候选：并发原语归 net/lifecycle 族、selfUid 归 session
   族），迁出后从 KNOWN 删除。在册=可见的债，不是赦免。
+
+## 0.9.332 —— dest.js 骨架入库（落点策略注册表，未接线）
+
+行为分派收口批的**骨架先行**（全项目行为审查：落点散布五处 if 链 → 0.9.331 followview
+副本漏文章 + 我的页动态 tab 视频行死点击，同缝第三处出血）。本批只入库骨架与闸，不改任何
+消费面：
+
+- **src/dest.js**：`(ct × 宿主) → 出口` 表（六格现状默认值，格上注明批 2 裁决调整点）+
+  `destOf(ct, siteOnly)` 单查询出口（未知 ct 出 null＝显式降级，stat 打点留位）+
+  `sourceUrlOf(pi)` 出站 URL 单源。全模块唯一 `window.open` 在 native 出口 siteOut。
+- **test/unit/dest.test.js**：表穷举/恒等出口/未知 ct 降级/防复制棘轮（源内 `window.open(`
+  恰 1 处）9 用例。
+- **test/check-dest.mjs**：`window.open` 白名单闸（11 处/5 文件，双向计数：白名单外新增、
+  登记实数不符皆红；射程划界：锚点出链走 ubbattr.A_TAIL 不属本闸）。批 2 接线时同批减注册。
+- **分类**：FEATURE 桶（与 rowkit 同层——策略表持有 articleread/cards/momentdetail 三个
+  特性域出口属层内互调）；README 依赖图加 `dest` 节点与三边。接线在批 2 裁决后（rowkit/
+  cards/searchview 四处消费点改调 destOf，闸 WHITE 同批减 rowkit −4 / cards −3 / searchview −1）。

@@ -166,6 +166,16 @@
       window.__ACSV_SUR_HITS__ = (window.__ACSV_SUR_HITS__ || 0) + 1;
       return { result: 0 };
     };
+    // 投蕉桩（0.9.332 单 toast 断言）：bananaPc 成功码方言 result=0（contract okResult0 在册）
+    spec['banana/throwBanana'] = function () {
+      window.__ACSV_BAN_HITS__ = (window.__ACSV_BAN_HITS__ || 0) + 1;
+      return { result: 0 };
+    };
+    // 关注/取关桩（0.9.332 连点单发锁断言）：relation/follow 成功码 result=0（ok0 方言在册）
+    spec['relation/follow'] = function () {
+      window.__ACSV_FU_HITS__ = (window.__ACSV_FU_HITS__ || 0) + 1;
+      return { result: 0 };
+    };
     // 文章页：主样本（可延迟）与失败样本（可切失败），基键 '/a/ac' 排最后
     var main = function () {
       window.__ACSV_ART_HITS__ = (window.__ACSV_ART_HITS__ || 0) + 1;
@@ -421,6 +431,15 @@
     })(), 'name=' + ((rq('.arhd .arname') || {}).textContent || 'none')
       + ' read=' + ((rq('.arhd .ar-read') || {}).textContent || 'none')
       + ' follow=' + ((rq('.arhd .ar-follow') || {}).textContent || 'none'));
+    // 关注键连点单发锁（0.9.332）：在途回包期连点两次仅 1 次请求、终态「已关注」——
+    // 摘 fb._busy 锁（articleread renderHead）反跑：第 2 击翻转 DOM 且补发取关 ⇒ 请求=2、终态「关注」即红
+    var fbtn = rq('.arhd .ar-follow');
+    var fu0 = window.__ACSV_FU_HITS__ || 0;
+    if (fbtn) { fbtn.click(); fbtn.click(); }
+    rec('article-follow-busy-lock', !!(await waitFor(function () {
+      return (window.__ACSV_FU_HITS__ || 0) === fu0 + 1 && fbtn && fbtn.textContent === '已关注';
+    }, 6000)), 'follow请求=' + ((window.__ACSV_FU_HITS__ || 0) - fu0)
+      + ' 终态=' + ((fbtn || {}).textContent || 'none'));
     rec('article-open-z60', (function () {
       var n = h1 || rq('.arhd');
       while (n) {
@@ -732,6 +751,29 @@
       window.__ACSV_STOW_FAIL__ = false;
     }
 
+    // ---- ④' 投蕉单 toast（0.9.332）：成功话术单源 banpop「投出 N 根香蕉」——浮层 applied
+    // 不得再补第二条（恢复 articleread applied 内 toast('投蕉成功') 反跑 ⇒ .acsv-toast
+    // 文本变更 2 次 ⇒ 红；顺带首钉投蕉写链全链：开层→选 1 根→thrown 点亮→蕉桩命中）
+    var banBtn = rq('.aractbar .aract.ban');
+    var toastMoN = 0;
+    var toastNode = document.querySelector('.acsv-toast');
+    var mo = typeof MutationObserver === 'function' && toastNode
+      ? new MutationObserver(function (muts) {
+        muts.forEach(function (m) { if (m.type === 'childList' || m.type === 'characterData') toastMoN++; });
+      }) : null;
+    if (mo) mo.observe(toastNode, { childList: true, characterData: true, subtree: true });
+    if (banBtn) banBtn.click();
+    var bpop = await waitFor(function () { return rq('.aractbar .acsv-banpop'); }, 6000);
+    var ban1 = bpop && bpop.querySelector('button');
+    if (ban1) ban1.click();
+    var bThrown = await poll(function () {
+      return banBtn && banBtn.classList.contains('thrown') || null;
+    }, 6000);
+    if (mo) mo.disconnect();
+    rec('article-banana-single-toast', !!bThrown && toastMoN === 1,
+      'thrown=' + !!bThrown + ' 蕉桩=' + (window.__ACSV_BAN_HITS__ || 0)
+      + ' toast变更=' + toastMoN + '（期望 1：仅 banpop 成功话术）');
+
     // ---- ⑤ composer（点 pill 展开 / 轻条藏 / Esc 与外点收回）----
     pill = rq('.aractbar-input');
     rec('article-composer-pre', !!pill && !vis(rq('.acsv-cinput')),
@@ -1016,3 +1058,7 @@
 //                               取消不回落/add 失败不回滚 ⇒ 各自红（§17.2 首跑验证机械钉）。
 // article-stow-btn/on/off/rollback：收藏写链未接（同病灶）/收藏态不翻转/unFavorite 失效/
 //                               favorite 失败不回滚 ⇒ 各自红（官方端点源码级反查 favapi.articleStow*）。
+// article-follow-busy-lock    ：关注键连点单发锁缺失（在途回包期连点补发请求+终态回翻）⇒ 红
+//                               （摘 renderHead fb._busy 反跑；relation/follow 桩计数）。
+// article-banana-single-toast ：投蕉写链断裂（banpop 不开/选根无效/thrown 不亮）或浮层 applied
+//                               补第二话术（.acsv-toast 文本变更 2 次）⇒ 红（话术单源 banpop，0.9.332）。

@@ -5,6 +5,35 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.332（2026-11-17）· 活病灶三连修——我的页动态视频行死点击 + 文章浮层投蕉双 toast + 关注键连点双发；dest 落点注册表骨架入库
+
+**病灶（全项目行为分派审查三处用户可感知项）**：① `openRowDefault` 无 video 分支——视频 pi
+契约层无 href，我的页动态 tab（三合一混排实存视频行）点击落 else 静默吞掉＝死点击；同缝第三处
+出血（0.9.314 修原生页、0.9.331 修 followview fork，两次都没回头扫单源本体）。② 文章浮层投蕉
+双 toast——`openBanana` 的 applied 补弹第二条「投蕉成功」，而 banpop 弹层本身必弹「投出 N 根
+香蕉」，其余消费面（rail/momentbar）applied 均不补——0.9.327 手抄编排的顺带偏差。③ 关注键无
+busy 锁——在途回包期连点会连发关注+取关一对请求且终态回翻（浮层简化时未对齐 rail withBusy 编排）。
+
+**修法**：① 单源 `openRowDefault` 补 video 分支（`openPanelItem(pi, {kind:'single'})`，0.9.173
+「动态视频=显式单条」裁决语境）+ **followview 本地 rowDefault fork 整体退役**（wireRowList 直通
+单源，视图零落点残留）；② 删 applied 内 toast，成功话术单源 banpop；③ renderHead 关注键加
+`fb._busy` 单发锁。
+
+**配套批（批 3 结构收口的骨架先行，未接线）**：新件 `src/dest.js`——`(ct×宿主)→出口` 注册表
+六格现状默认值 + `destOf` 单查询出口（未知 ct 显式降级出 null，stat 打点挂账批 2）+
+`sourceUrlOf` 出站 URL 单源（全模块唯一 `window.open` 在 native 出口）；`test/unit/dest.test.js`
+9 用例（表穷举/恒等出口/未知 ct 降级/防复制棘轮）；新闸 `test/check-dest.mjs`——`window.open`
+白名单双向计数（白名单外新增/登记实数不符皆红；射程划界：锚点出链走 ubbattr.A_TAIL 不属本闸，
+11 处/5 文件登记）。README 模块表+依赖图、check-direction FEATURE 桶、structure-baseline、
+dependency-audit 台账同批登记。
+
+**测试证据**：harness view-my 新增 `moments-video-row-open/back`（死点击＝slide 永不出现，
+摘单源 video 分支反跑转红）；article 场景新增 `article-banana-single-toast`（MutationObserver
+数 .acsv-toast 文本变更，双话术即红，顺带首钉投蕉写链全链）与 `article-follow-busy-lock`
+（relation/follow 桩计数，请求=2 或终态回翻即红）；三处摘修复反跑各转红（摘 video 分支 /
+恢复 applied toast / 摘 _busy 锁）。npm test 93 场景全绿、npm run check 全链+tsc 真实退出码
+0、build 产物同步。
+
 ### 0.9.331（2026-11-09）· 文章浮层 v3.2 落地（删文末条 + 藏键描边化）+ 关注页文章行落点漂移收口
 
 **病灶（确认稿评审 + 用户实报三条）**：① 底栏避让文末条的 dim 去重机构是「两份相同五键并存」的

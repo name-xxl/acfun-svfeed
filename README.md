@@ -528,7 +528,8 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `ubbtext.js` | UBB 纯文本投影族（0.9.119 自 data.js 下沉；**零依赖叶子**）：`ubbImText`/`ubbPlain`——把 UBB 方言投影成纯文本（私信/预览/分享摘要用），**契约层与预览层只碰纯逻辑**；渲染侧（表情/图片/@/引用）留在 `ubb.js`。消费方：panelitem（面板摘要）、momentbar（互动栏预览）、comments、immsg 族 |
 | `views.js` | 子视图框架（0.9.62；0.9.74 来源保活）：#svfeed/&lt;view&gt;/&lt;arg&gt; 路由宿主（注册表自 0.9.78 独立为 viewreg.js）、竖刷保活（scroller 隐藏+暂停，返回恢复播放）、**深界面（def.deep）来源链 + 来源视图挂起保活**（非 volatile：换类名 acsv-view-held + visibility 挂起，回来原位复原；同屏换参替换链顶）；卡面 kit 与点击出口注入缝自 0.9.109 拆出（→ cards.js，本模块只管编排） |
 | `cards.js` | 卡面 kit（0.9.109 自 views.js 拆出，逐字搬运零逻辑改动）：网格卡 gridCardOf / 行卡 rowOf / 资源横条 stripOf / 引用卡 quoteBlockOf / UP 卡 upCardOf / 计数行 statRowOf / 骨架 skeletonRows / 加载更多 moreBtn 单源；**宿主开关 `siteOnly`（0.9.314）**：原生页宿主下 `quoteBlockOf` 三源出站站方原址、`momentCellOf`（行内格子）不挂 `openImageViewer` 也不 `stopPropagation`（点图落回行默认＝出站）——一枚开关管「原生页不开脚本浮层」；点击出口注入缝（setItemOpener/openPanelItem——**第二参=来源会话语境**（0.9.173），rowOf/gridCardOf 亦带可选 openCtx；setMomentOpener）——本模块不反向 import 播放层/详情面板。消费方：mytabs/zone/searchview/followview/momentdetail/playlayer/jingxuanview |
-| `rowkit.js` | 动态行卡 kit（0.9.124 自 followview.js 拆出，逐字搬运零逻辑改动）：行卡（原生骨架四段）+ 九宫格/媒体分派 + 互动栏接线（momentbar）+ 行内评论控制器（宿主单例，teardown 归各视图）+ 列表级委托 wireRowList（落点经 onOpen 注入）；**落点出口两枚**（0.9.218 下沉 `openRowDefault`＝脚本页默认：动态→详情面板 / 非动态→href 新标签；0.9.314 新增 `openRowSource`＝原生页语义：行 → 站方原址新标签、不开脚本面板）；不 import 任何视图。消费方：followview 与 squareview（广场，0.9.126 起）+ 原生页两宿主 memberplaza / spacemoments（0.9.314 起 `onOpen=openRowSource`，宿主开关 `siteOnly:true`＝**原生页不开脚本浮层**：引用卡出站 + 行内格子不接脚本查看器、不 `stopPropagation`，正文配图跳过 `commentPicClick` 消费） ；**名字三色体系**（0.9.157：默认白 / 等级 1 红 / 等级 2 紫——`uplook.nameColorCss`（0.9.160 叶子出库）内联覆盖，与引用卡/详情面板同码；蓝只给正文链接） |
+| `rowkit.js` | 动态行卡 kit（0.9.124 自 followview.js 拆出，逐字搬运零逻辑改动）：行卡（原生骨架四段）+ 九宫格/媒体分派 + 互动栏接线（momentbar）+ 行内评论控制器（宿主单例，teardown 归各视图）+ 列表级委托 wireRowList（落点经 onOpen 注入）；**落点出口两枚**（0.9.218 下沉 `openRowDefault`＝脚本页默认：动态→详情面板 / **视频→显式单条会话**（0.9.332 收编——0.9.173 裁决语境，我的页动态 tab 视频行死点击随批修）/ 文章→阅读浮层（0.9.326）/ 其余→href 新标签；0.9.314 新增 `openRowSource`＝原生页语义：行 → 站方原址新标签、不开脚本面板）；不 import 任何视图。消费方：followview（0.9.332 起落点**全量委托**单源——本地 rowDefault fork 退役，曾两度漏单源分支）与 squareview（广场，0.9.126 起）+ 原生页两宿主 memberplaza / spacemoments（0.9.314 起 `onOpen=openRowSource`，宿主开关 `siteOnly:true`＝**原生页不开脚本浮层**：引用卡出站 + 行内格子不接脚本查看器、不 `stopPropagation`，正文配图跳过 `commentPicClick` 消费） ；**名字三色体系**（0.9.157：默认白 / 等级 1 红 / 等级 2 紫——`uplook.nameColorCss`（0.9.160 叶子出库）内联覆盖，与引用卡/详情面板同码；蓝只给正文链接） |
+| `dest.js` | 条目落点策略注册表（0.9.332 骨架入库，批 2 裁决后接线）：`(ct × 宿主) → 出口` 表六格现状默认值（格上注明裁决调整点）+ `destOf(ct, siteOnly)` 单查询出口（未知 ct 显式降级出 null，stat 打点留位不接）+ `sourceUrlOf(pi)` 出站 URL 单源（href 优先、三形状 id 兼容）；全模块唯一 `window.open` 在 native 出口 siteOut（0.9.314 站方原址）。接线目标＝四处散布分派收口成表：rowkit.openRowDefault/openRowSource、cards.quoteBlockOf、searchview.articleRowOf（`check-dest` 白名单闸钉「不许第二份落点决策」，接线同批减注册）；9 单测钉表穷举/恒等出口/未知 ct 降级/防复制棘轮 |
 | `sidebar.js` | 左栏 dock（0.9.62；0.9.78 起条目从 viewreg 的 dock 元数据派生——此前是第二份人工清单，加视图要改两处）：「推荐」+ 各视图入口（**顺序=order 升序**：分区/推荐/榜单/广场 ｜ 关注/我的——0.9.155 用户裁决「我的」与「关注」互换、我的沉底；0.9.170 分区（时名精选）order 5 置顶于推荐之上（**推荐也进统一排序**，order 10 与榜单同序按 id 兜底）；group 变处在 广场→关注 之间插分隔线），当前视图高亮，窄屏隐藏，随 unmount 拆除 |
 | `viewreg.js` | 视图注册表（0.9.78，零依赖叶子）：`registerView`/`viewDef`/`dockEntries`——视图清单的唯一真源；dock 元数据（label/svg/order/group）随视图声明，sidebar 只读派生 |
 | `topbar.js` | 共享顶栏（0.9.72 抽离；0.9.73 四界面复用；0.9.74 ✕ 单一意义+向左返回；**0.9.158 搜索框挂聚焦历史面板**——照站方 searchBox 组件：focus 空框展开、mouseleave/外点/Esc 收起、点词即搜、清除历史=移除 searchCache 键并广播 `acsv-searchhist`（搜索视图据此重画 chips）；无历史不弹；联想/热搜不做）：搜索框（居中常驻；视图态按地址关键词回填，搜索视图经 setSearchHandler 挂载期接管提交、teardown 还原）+ 左缘「向左返回」（仅深界面，onBack hooks）+ 右侧按钮组（源切换/私信/更新/退出，行为 hooks 注入不反向 import player）；syncTopbar(view,arg,{deep})：**✕ 永远=退出脚本**（普通界面 Esc 另义），深界面出返回键 |
@@ -686,6 +687,7 @@ flowchart LR
   followstream["followstream.js（关注视频流·列表上下文+分页链）"]
   momentdetail["momentdetail.js（动态详情面板·小红书式两栏+评论区复用+写链）"]
   articleread["articleread.js（文章阅读浮层·B 案 760 版心+轻动作条+评论区复用）"]
+  dest["dest.js（条目落点策略注册表·(ct×宿主)→出口表，0.9.332 骨架入库待接线）"]
   momentbar["momentbar.js（动态互动栏·两皮肤共享件）"]
   feedctx["feedctx.js（列表上下文工厂·单活互斥）"]
   momentapi["momentapi.js（动态域读接口）"]
@@ -781,6 +783,7 @@ flowchart LR
   spacemoments --> cfg & rowkit & momentapi & pagekind & spacetab & squarefeed & ui
   uppage --> api & cfg & feedctx & feedstore & imgload & net & pagekind & pageloader & spacetab & timefmt & ui
   rowkit --> cards & comments & imgload & imgview & momentbar & momentdetail & sharepanel & uplook & articleread
+  dest --> articleread & cards & momentdetail
   followstream --> appapi & feedctx & feedstore & followseen & momentapi & playitem & sidebar
   momentbar --> banpop & imicons & immsg & interact & panelitem & styles & timefmt & toastmsg & ubbtext & ui
   followbadge --> followstream & followseen & momentapi
