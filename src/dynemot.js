@@ -23,7 +23,11 @@ var SEL_HOST = '.ac-space-dynamic-list';       // 官方动态列表容器（§2
 var SEL_TEXT = '.ac-dynamic-text';             // 正文挂点（纯图卡无此节点，自然跳过）
 var CODE_RE = /\[emot=(\w+),(\d+)\/\]/g;       // 唯一未映射方言（§22：括号老式 0 命中，不接）
 var SCAN_DEBOUNCE_MS = 300;                    // 与 nativeip OBS.domDebounceMs 同档
-var IMG_STYLE = 'height:1.15em;vertical-align:-0.18em;margin:0 1px';
+// 出图尺寸=全家统一 34×68 档（cssraw.js:624 评论正文 .ubb-emotion 同串，834 注释「尺寸对齐
+// 34px 档」先例=各面同码同尺寸的既立原则；0.9.347 用户点验「和以往统一了吗」纠正首版自造
+// 1.15em 平行标准）。垂直/边距取 cssseg EMO_TAIL 值文（inline 形态无块尾}）。官方页吃不到
+// cssraw 类规则，故同一数值以 style 属性随图落——字面第三处由 dynemot 场景腿钉住（改档必同批）。
+var IMG_STYLE = 'max-height:34px;max-width:68px;vertical-align:middle;margin:1px 2px';
 
 // 纯函数：文本 → 段表（text/emot 交替）；codes>0 才值得动 DOM。单测直采。
 export function splitCodes(str) {

@@ -37,7 +37,8 @@
     var img = await waitFor(function () { return cell.querySelector('img'); }, 5000);
     rec('dm-img-in', !!img);
     rec('dm-img-src', !!img && img.getAttribute('src').indexOf('e1656') >= 0, img ? img.getAttribute('src') : 'none');
-    rec('dm-img-inline-style', !!img && !!img.getAttribute('style'), img ? img.getAttribute('style') : 'none'); // 零样式表依赖的机器证据
+    rec('dm-img-inline-style', !!img && img.getAttribute('style').indexOf('max-height:34px') >= 0
+      && img.getAttribute('style').indexOf('max-width:68px') >= 0, img ? img.getAttribute('style') : 'none'); // 全家 34×68 统一档（0.9.347），数值钉死防平行标准
     rec('dm-img-title', !!img && img.getAttribute('title') === '[emot=acfun,1656/]'); // 悬停见原码
     // 2) 未知 id 字面保留（不销毁信息；表后续到位靠重扫补）
     rec('dm-unknown-kept', (cell.textContent || '').indexOf('[emot=acfun,9999999/]') >= 0);
