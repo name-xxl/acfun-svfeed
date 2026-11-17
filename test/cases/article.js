@@ -703,59 +703,53 @@
     }
     var stowBtn = endActs ? endActs.querySelector('.stow') : null;
     rec('article-stow-btn', !!stowBtn, 'stowBtn=' + !!stowBtn);
-    if (stowBtn) {
-      // 藏键描边化（v3.2）：idle=描边 SVG 在场、实心字形隐藏；点亮反转（摘掉 svgIdle
-      // 接线/切换 CSS 任一半 ⇒ 本条红）
-      rec('article-stow-outline', (function () {
-        var svg = stowBtn.querySelector('svg.arstow');
-        var gl = stowBtn.querySelector('.acsvg-glyph');
-        if (!svg || !gl) return false;
-        return getComputedStyle(svg).display !== 'none'
-          && getComputedStyle(gl).display === 'none';
-      })(), 'idle svg=' + !!(stowBtn.querySelector('svg.arstow'))
-        + ' 实心隐=' + (function () {
-          var gl = stowBtn.querySelector('.acsvg-glyph');
-          return gl ? getComputedStyle(gl).display === 'none' : 'no-glyph';
-        })());
-      // 底对齐补偿（0.9.339 用户裁决「按其他图标底部对齐」）：idle 槽 translateY(-4px)，
-      // canvas 实测邻键墨迹底比藏键高 4px；点亮字形那条在 stow-on 段查（display:none 时
-      // Chrome 不解析 transform，读不到）——摘槽位 transform 反跑即红
-      rec('article-stow-bottom-align', (function () {
+    {
+      // 藏键单 SVG 两态（0.9.340 统一规则）：idle=路径描边（fill none / stroke 非 none），
+      // 点亮与悬停=填实（fill=currentColor）。**不再有字体字形第二件**（两件并置是缩放/对齐/
+      // 跳动三病灶的共同根源）——DOM 里 .acsvg-glyph 残留或 fill/stroke 不切 ⇒ 红
+      var stowPath = stowBtn && stowBtn.querySelector('svg.arstow path');
+      rec('article-stow-outline', !!stowPath && (function () {
+        var cs = getComputedStyle(stowPath);
+        return cs.fill === 'none' && cs.stroke !== 'none'
+          && !stowBtn.querySelector('.acsvg-glyph');
+      })(), 'path=' + !!stowPath + ' fill=' + (stowPath ? getComputedStyle(stowPath).fill : 'n/a')
+        + ' stroke=' + (stowPath ? getComputedStyle(stowPath).stroke : 'n/a')
+        + ' 字体字形残留=' + !!(stowBtn && stowBtn.querySelector('.acsvg-glyph')));
+      // 统一对齐（0.9.340）：槽位盒 16×16 与邻键字形盒同族，且**同一行中心**（零位移）——
+      // 盒高不等/位移残留（0.9.329 的 23px、0.9.335 槽位、0.9.339 translateY 任一归来）即红
+      rec('article-stow-align', (function () {
+        var slot = stowBtn && stowBtn.querySelector('.arstow-slot');
+        var likeGlyph = endActs && endActs.querySelector('.acsvg-dual, .acsvg-glyph');
+        if (!slot || !likeGlyph) return false;
+        var sr = slot.getBoundingClientRect(), lr = likeGlyph.getBoundingClientRect();
+        return Math.abs(sr.height - 16) < 0.6 && Math.abs(lr.height - 16) < 0.6
+          && Math.abs((sr.top + sr.height / 2) - (lr.top + lr.height / 2)) < 1
+          && /none/.test(getComputedStyle(slot).transform);
+      })(), (function () {
         var slot = stowBtn.querySelector('.arstow-slot');
-        if (!slot) return false;
-        return /matrix\(1,\s*0,\s*0,\s*1,\s*0,\s*-4\)/.test(getComputedStyle(slot).transform);
-      })(), 'slot=' + (function () {
-        var slot = stowBtn.querySelector('.arstow-slot');
-        return slot ? getComputedStyle(slot).transform : 'no-slot';
+        var likeGlyph = endActs && endActs.querySelector('.acsvg-dual, .acsvg-glyph');
+        if (!slot || !likeGlyph) return '缺件';
+        var sr = slot.getBoundingClientRect(), lr = likeGlyph.getBoundingClientRect();
+        return 'slotH=' + sr.height.toFixed(1) + ' 邻键H=' + lr.height.toFixed(1)
+          + ' 中心差=' + Math.abs((sr.top + sr.height / 2) - (lr.top + lr.height / 2)).toFixed(2)
+          + ' transform=' + getComputedStyle(slot).transform;
       })());
       var sf0 = window.__ACSV_SF_HITS__ || 0;
       stowBtn.click();
       await poll(function () { return (window.__ACSV_SF_HITS__ || 0) > sf0; }, 6000);
       var stowed = await poll(function () { return stowBtn.classList.contains('on') || null; }, 6000);
       rec('article-stow-on', !!stowed, 'on=' + !!stowed);
-      // 点亮态形态反转：实心字形露、描边星收（同上，摘切换 CSS ⇒ 红）
+      // 点亮态：同一路径切填实（fill=currentColor → accent 红；stroke 收）（摘 .on 切换规则 ⇒ 红）
       rec('article-stow-outline-on', (function () {
-        var svg = stowBtn.querySelector('svg.arstow');
-        var gl = stowBtn.querySelector('.acsvg-glyph');
-        if (!svg || !gl) return false;
-        return getComputedStyle(svg).display === 'none'
-          && getComputedStyle(gl).display !== 'none';
+        var p = stowBtn.querySelector('svg.arstow path');
+        if (!p) return false;
+        var cs = getComputedStyle(p);
+        return cs.fill !== 'none' && cs.stroke === 'none';
       })(), (function () {
-        var svg = stowBtn.querySelector('svg.arstow');
-        var gl = stowBtn.querySelector('.acsvg-glyph');
-        if (!svg || !gl) return '缺件 svg=' + !!svg + ' glyph=' + !!gl;
-        return 'on svg隐=' + (getComputedStyle(svg).display === 'none')
-          + ' 实心露=' + (getComputedStyle(gl).display !== 'none');
-      })());
-      // 点亮态字形同步底对齐（0.9.339）：字形此刻 display:block，transform 才可读——
-      // 摘 `.aractbar .aract.stow .acsvg-glyph` 的 transform 反跑即红（两态位移不一致＝跳）
-      rec('article-stow-bottom-align-on', (function () {
-        var gl = stowBtn.querySelector('.acsvg-glyph');
-        if (!gl) return false;
-        return /matrix\(1,\s*0,\s*0,\s*1,\s*0,\s*-4\)/.test(getComputedStyle(gl).transform);
-      })(), 'glyph=' + (function () {
-        var gl = stowBtn.querySelector('.acsvg-glyph');
-        return gl ? getComputedStyle(gl).transform : 'no-glyph';
+        var p = stowBtn.querySelector('svg.arstow path');
+        if (!p) return 'no-path';
+        var cs = getComputedStyle(p);
+        return 'on fill=' + cs.fill + ' stroke=' + cs.stroke;
       })());
       window.__ACSV_STOW_FAIL__ = true;
       var su0 = window.__ACSV_SUR_HITS__ || 0;

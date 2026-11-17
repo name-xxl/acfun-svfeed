@@ -5,6 +5,33 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.340（2026-11-17）· 藏键统一规则（用户裁决「缩放至一致高度、统一对齐规则」）——单 SVG 两态 + 五键同结构同盒
+
+**病灶（用户实报 0.9.339 底对齐「又有点高了」＋要求统一规则）**：前几版一直在「补偿」而不是
+「统一」——0.9.329 字号 23px 补偿、0.9.335 槽位、0.9.339 translateY(-4)，每轮都在挪像素。
+量测揭示根因是**三套不统一**：
+① 图标件数不同（藏＝描边 SVG + 字体实心字形两件并置＝两套盒与度量）；
+② 盒高不同（赞/蕉的 .acsvg-dual 14×14、评论/藏 16×16）；
+③ **DOM 结构不同**——赞/蕉的字形被多包一层裸 span（行盒撑到 21.2px、图标贴行顶），
+   评论/藏是 .aract 直接子（19.2px 行、居中）⇒ 图标中心差实测 2.59px（harness 在案）。
+
+**修法（统一，不再补偿）**：
+① 藏键改**单 SVG 两态**：同一路径 idle 描边 / 点亮与悬停填实（cssraw 的 fill/stroke 切换，
+   `.aract.stow.on .arstow path,.aract.stow:hover .arstow path{fill:currentColor;stroke:none}`）；
+   GLYPHS.feedStow 字体字形退役（码点注记保留在 styles.js）；
+② viewBox 收紧到**墨迹外框**（x 98.5..925.5 / y_svg 229.5..1005.5，827×776，含 stroke 55
+   半宽，脚本实算）——16×16 盒内墨迹≈15px＝邻键字形（≈1em）同高，0.9.329 的 23px 补偿退役；
+③ 五键 DOM 结构统一：actOf 的 dualGlyph 分支去掉冗余包裹 span（`insertAdjacentHTML` 直挂
+   .acsvg-dual）；文章底栏作用域内 `.acsvg-dual` 盒统一 16×16（视频右栏 14px 历史值不动）。
+结果：五键同一结构、同一 16×16 盒、同一行中心、零位移。确认稿 article-reader-v3 同批改版 v3.5。
+
+**测试证据**：断言改口径并重钉——`article-stow-outline`（idle path fill=none/stroke 在、
+且 DOM 无字体字形残留）、`article-stow-outline-on`（点亮 fill=currentColor/stroke=none）、
+`article-stow-align`（槽位盒 16 与邻键盒 16、垂直中心差 <1px、transform=none——0.9.329/
+335/339 任一补偿归来即红）。反跑两条：摘填实切换 ⇒ outline-on 红（fill=none stroke=accent）；
+恢复冗余包裹 span ⇒ align 红（中心差 2.59 实测复活），复修双绿。article-reader 74 断言 /
+narrow 10 断言全绿；93 场景全绿；check 链 + tsc 真实退出码 0。
+
 ### 0.9.339（2026-11-17）· 藏键底对齐——按邻键墨迹底对齐（用户裁决「再高几个像素，按其他图标底部对齐」）
 
 **病灶（用户真机实报）**：0.9.335 中心化后藏键仍偏低——因为**居中不等于视觉对齐**：邻键
