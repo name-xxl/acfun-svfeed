@@ -5,6 +5,24 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.338（2026-11-17）· 文章浮层分享面板锚定修正——挂载点 shell → 栏内 barIn，作用域摆位「锚栏上方」（banpop 同族第三层）
+
+**病灶（用户复测实报「分享卡的锚点也可以修正一下」）**：分享面板默认摆位
+`bottom:-6px;right:66px` 是抽屉 meta 行语境；文章浮层的调用传了 `host: shell`——面板钉在
+壳右缘、脚部被壳 overflow:hidden 裁 6px、且完全不锚分享键（与 banpop 0.9.336/337 同族：
+浮层语境吃行卡/抽屉语境的摆位与挂载假设）。
+
+**修法**：挂载点 `host: shell → refs.barIn`（barIn 有定位盒），配作用域摆位
+`.acsv-artread .aractbar-in .acsv-sharepop{bottom:calc(100%+8px)}`——面板锚到栏上方 8px、
+横向 right:66 恰在末键分享附近；抽屉/行卡语境不带本作用域不受影响。banpop（0.9.337
+offsetParent）+ 分享面板（挂载点换语境）两族浮层摆位至此口径统一：「浮层底栏的弹层一律
+锚栏上方」。
+
+**测试证据**：新断言 `article-sharepop-above-bar`（面板底 ≤ 栏顶+4px）+ `article-sharepop-hit`
+（elementFromPoint 命中面板自身）双钉；摘挂载点修复反跑转红（popBottom=906/barTop=857，
+脚部裁剪+不锚键的病灶形态实测）；article-reader 73 断言全绿。npm test 93 场景全绿、
+npm run check+tsc 真实退出码 0。
+
 ### 0.9.337（2026-11-17）· 投蕉弹层横向锚点修复——display:contents 宿主 rect 全零 → 弹层甩出视口右侧（0.9.336 纵向修后的第二层病灶）
 
 **病灶（用户复测实报「浮层还是没出现」）**：0.9.336 修了纵向（弹层已到栏上方，top 803 <

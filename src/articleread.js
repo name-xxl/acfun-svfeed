@@ -415,7 +415,9 @@ function actKeys(mount, ctx) {
   out.share = actOf(mount, {
     glyph: GLYPHS.feedRepost, title: '分享',
     onClick: function (btn) {
-      openSharePanel(btn, momentShareItemOf(curPi), { host: shell, pi: curPi });
+      // 挂载点＝栏内 barIn（0.9.338：旧 host: shell 把面板钉壳右缘+脚部被壳裁 6px、不锚分享
+      // 键——barIn 有定位盒，作用域摆位「锚栏上方」与 banpop 同族；横向 right:66 恰在末键附近）
+      openSharePanel(btn, momentShareItemOf(curPi), { host: refs.barIn, pi: curPi });
     }
   });
   return out;
