@@ -5,6 +5,24 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.336（2026-11-17）· 文章浮层投蕉弹层摆位修复——弹层落进底栏内部深底同色近乎隐身（用户实报「没弹出投蕉弹层」）
+
+**病灶（用户真机实报）**：浮层底栏点投蕉，弹层**有开但看不见**——`.acsv-banpop` 的
+`top:-4px` 是行卡语境摆位（宿主＝行互动条，抬到按钮上方）；浮层底栏的宿主是
+`position:relative` 的 `.aractbar-in`，同一摆位把弹层放进了栏内部（popBottom=899 vs
+barTop=857，量测在案），且弹层底色 rgba(22,22,27,.96) 与栏底色 #16161b 近乎同色——贴在栏
+上等于隐身。harness 此前只钉 DOM 存在不钉可见位＝断言盲区（本批补上）。
+
+**修法**：作用域规则 `.acsv-artread .aractbar-in .acsv-banpop{top:auto;bottom:calc(100%+8px)}`
+——浮层语境弹层锚到栏上方 8px（横向仍由 banpop anchorBtn 内联 right 对齐蕉键），行卡语境
+不带本作用域不受影响。**首版失误如实报**：规则插进了 620 窄态 @media 块（宽态不生效、断言
+当场抓住），搬到全局段复绿。
+
+**测试证据**：新断言 `article-banpop-above-bar`（弹层 bottom ≤ 栏 top+4px；摘摆位规则反跑
+转红 popBottom=899/barTop=857，复修复绿）；article-reader 70 断言 / article-reader-narrow
+10 断言全绿。npm test 93 场景全绿、npm run check+tsc 真实退出码 0。**投蕉接口（RT=3）的真机
+首跑在弹层可见后由用户复测执行**（0.9.327 挂账），结论将入 api-research §22。
+
 ### 0.9.335（2026-11-17）· 文章浮层藏键几何双修——图标墨迹偏低 ≈2.4px（viewBox 中心化）+ 点收藏跳动（两态槽位差 7px 统一）
 
 **病灶（用户真机实报两条）**：① 收藏图标视觉上低了几个像素——stowOutline viewBox 用整字框
