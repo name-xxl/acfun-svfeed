@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.345-debug
+// @version      0.9.346-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 116740;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.345-debug" : "",
+          ver: true ? "0.9.346-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -743,7 +743,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.345-debug" : "";
+  var APP_VERSION = true ? "0.9.346-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -1726,7 +1726,7 @@ window.__ACSV_CSS_LEN__ = 116740;
       group: "通用",
       manage: "inject",
       label: "官方页面增强",
-      hint: "官方页上的广场接管、空间标签、评论 IP、私信卡片；重新加载后生效",
+      hint: "官方页上的广场接管、空间标签、评论 IP、动态表情、私信卡片；重新加载后生效",
       hintOff: "已整体关闭：官方页面恢复原样；重新加载后生效"
     },
     {
@@ -1896,7 +1896,9 @@ window.__ACSV_CSS_LEN__ = 116740;
     // ---- 官方页面增强子项（0.9.341，确认稿 docs/preview/native-inject-switch.html）----
     // sub:'inject' 标记 + panel:false＝不上主面板，二级清单由 injectItems() 派生；消费侧
     // 只在 boot.js 判 injectOn(key)（总闸短路在前），顺序＝稿钉消费链顺序（我的→空间×2→
-    // 评论→私信）。**键 ↔ boot 短路点配对由 test/check-injects.mjs 双向钉死**。def 全 true＝保持现状。
+    // 评论→动态表情→私信）。**键 ↔ boot 短路点配对由 test/check-injects.mjs 双向钉死**。
+    // def 全 true 的含义分两层：存量五键＝保持现状零行为变化；0.9.346 新增 dynemot 键的
+    // 「现状」＝补上官方缺失的映射能力（该功能出厂即生效，用户可关——知情口径入 CHANGELOG）。
     // label/hint 逐字照稿（稿是用户确认过的界面事实，改词必须改稿先）。
     // **豁免注（0.9.343 用户复审）**：首页顶导航入口（watchNav + 兜底胶囊）不入清单也不受总闸
     // 管辖——它是进脚本页、进而进本面板的唯一进门键，「可关入口」＝开关吞掉自己的入口（自锁）。
@@ -1935,6 +1937,16 @@ window.__ACSV_CSS_LEN__ = 116740;
       sub: "inject",
       label: "官方页评论 IP 属地与设备型号",
       hint: "视频页、文章页、动态页等官方页评论显示 IP 与设备；竖刷内的显示归「评论」组设置单独管理"
+    },
+    // 0.9.346 二修新增（确认稿修订记录）：官方个人主页动态区表情码补映射（api-research §22 取证）
+    {
+      key: "injectPageDynEmot",
+      type: "bool",
+      def: true,
+      panel: false,
+      sub: "inject",
+      label: "官方主页动态表情显示",
+      hint: "个人主页动态正文里的表情码显示成表情图（官方渲染缺的能力）；关闭后保持官方原样"
     },
     {
       key: "injectPageIm",
@@ -3132,7 +3144,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     var mocked = mockHit(url, body);
     if (mocked) return mocked;
     var ctl = typeof AbortController === "function" ? new AbortController() : null;
-    var timer2 = ctl ? setTimeout(function() {
+    var timer3 = ctl ? setTimeout(function() {
       try {
         ctl.abort();
       } catch (e) {
@@ -3145,11 +3157,11 @@ window.__ACSV_CSS_LEN__ = 116740;
       body,
       signal: ctl ? ctl.signal : void 0
     }).then(function(r) {
-      clearTimeout(timer2);
+      clearTimeout(timer3);
       if (r.status < 200 || r.status >= 300) throw new Error("http-" + r.status);
       return r.json();
     }).catch(function(e) {
-      clearTimeout(timer2);
+      clearTimeout(timer3);
       if (e && e.name === "AbortError") e = new Error("timeout");
       stat("net.fail");
       throw e;
@@ -5582,7 +5594,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     host5.appendChild(img);
     var primary = plan[0].url;
     var fb = pol.fallback && coverUrl(pol.fallback) !== primary ? coverUrl(pol.fallback) : "";
-    var i = 0, timer2 = null, fbUsed = false;
+    var i = 0, timer3 = null, fbUsed = false;
     var memo = memoState(failMemo, primary, Date.now(), MEMO_TTL);
     if (memo === "dead") {
       stat("img.memoHit");
@@ -5594,9 +5606,9 @@ window.__ACSV_CSS_LEN__ = 116740;
       }
     }
     img.addEventListener("load", function() {
-      if (timer2) {
-        clearTimeout(timer2);
-        timer2 = null;
+      if (timer3) {
+        clearTimeout(timer3);
+        timer3 = null;
       }
       if (pol.fade) img.classList.add("ld");
     });
@@ -5623,8 +5635,8 @@ window.__ACSV_CSS_LEN__ = 116740;
       var a = plan[i];
       img.referrerPolicy = a.ref;
       if (a.delay) {
-        timer2 = setTimeout(function() {
-          timer2 = null;
+        timer3 = setTimeout(function() {
+          timer3 = null;
           if (img.isConnected) img.src = a.url;
         }, a.delay);
       } else {
@@ -5886,20 +5898,20 @@ window.__ACSV_CSS_LEN__ = 116740;
       }
       function injectScript(url, onok, onfail) {
         var s = document.createElement("script");
-        var timer2 = setTimeout(function() {
-          clearTimeout(timer2);
+        var timer3 = setTimeout(function() {
+          clearTimeout(timer3);
           s.remove();
           if (url.indexOf("blob:") === 0) URL.revokeObjectURL(url);
           onfail();
         }, CFG.im.loadT);
         s.onload = function() {
-          clearTimeout(timer2);
+          clearTimeout(timer3);
           var Ctor = pageWin().ImSdk;
           if (Ctor) onok(Ctor);
           else onfail();
         };
         s.onerror = function() {
-          clearTimeout(timer2);
+          clearTimeout(timer3);
           s.remove();
           if (url.indexOf("blob:") === 0) URL.revokeObjectURL(url);
           onfail();
@@ -6137,7 +6149,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     var mark = imLogMark();
     return new Promise(function(resolve, reject) {
       var done = false;
-      var timer2 = setTimeout(function() {
+      var timer3 = setTimeout(function() {
         finish(new Error(SEND_TIMEOUT));
       }, CFG.im.sendT);
       function settle() {
@@ -6146,7 +6158,7 @@ window.__ACSV_CSS_LEN__ = 116740;
       function finish(err2) {
         if (done) return;
         done = true;
-        clearTimeout(timer2);
+        clearTimeout(timer3);
         try {
           inst.off("sendSucceed", onEvt);
         } catch (e) {
@@ -6238,11 +6250,11 @@ window.__ACSV_CSS_LEN__ = 116740;
       function finish(err2) {
         if (done) return;
         done = true;
-        clearTimeout(timer2);
+        clearTimeout(timer3);
         if (err2) reject(err2);
         else resolve();
       }
-      var timer2 = setTimeout(function() {
+      var timer3 = setTimeout(function() {
         finish(new Error(SEND_TIMEOUT));
       }, limit);
       var r;
@@ -8681,7 +8693,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.345-debug" : "",
+      version: true ? "0.9.346-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -10560,7 +10572,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     var tries = opts.tries | 0;
     var stepMs = opts.stepMs || 0;
     var settled = false;
-    var pollTimer = null, pollCount = 0, observer = null, deadlineTimer = null;
+    var pollTimer = null, pollCount = 0, observer2 = null, deadlineTimer = null;
     function stopAll2() {
       if (pollTimer) {
         clearTimeout(pollTimer);
@@ -10570,9 +10582,9 @@ window.__ACSV_CSS_LEN__ = 116740;
         clearTimeout(deadlineTimer);
         deadlineTimer = null;
       }
-      if (observer) {
-        observer.disconnect();
-        observer = null;
+      if (observer2) {
+        observer2.disconnect();
+        observer2 = null;
       }
     }
     function shot() {
@@ -10595,8 +10607,8 @@ window.__ACSV_CSS_LEN__ = 116740;
       }, stepMs);
     }
     if (opts.observe) {
-      observer = new MutationObserver(shot);
-      observer.observe(document.body, { childList: true, subtree: true });
+      observer2 = new MutationObserver(shot);
+      observer2.observe(document.body, { childList: true, subtree: true });
     }
     if (opts.deadlineMs > 0) {
       deadlineTimer = setTimeout(function() {
@@ -11046,7 +11058,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     var cl = document.querySelector(".ac-space-contribute-list");
     var tagsUl = cl && cl.querySelector("ul.tags");
     if (cl && tagsUl) {
-      var mounted4 = mountSpaceTab({
+      var mounted5 = mountSpaceTab({
         cl,
         tagsUl,
         index: "svideo",
@@ -11060,8 +11072,8 @@ window.__ACSV_CSS_LEN__ = 116740;
           panel2.appendChild(pagebar);
         }
       });
-      if (mounted4) {
-        UpVideos.countSpan = mounted4.li.querySelector("span");
+      if (mounted5) {
+        UpVideos.countSpan = mounted5.li.querySelector("span");
         startUpChain();
       }
       return;
@@ -11666,13 +11678,13 @@ window.__ACSV_CSS_LEN__ = 116740;
       }
       var s = document.createElement("script");
       var done = false;
-      var timer2 = setTimeout(function() {
+      var timer3 = setTimeout(function() {
         fin(null, "hls.blobTimeout");
       }, CFG.time.gm);
       function fin(G, failKey) {
         if (done) return;
         done = true;
-        clearTimeout(timer2);
+        clearTimeout(timer3);
         try {
           URL.revokeObjectURL(url);
         } catch (e) {
@@ -15849,7 +15861,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.345-debug" : "");
+    return normVer(true ? "0.9.346-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -16243,7 +16255,7 @@ window.__ACSV_CSS_LEN__ = 116740;
       offs.push(onChange(item.key, c.sync));
     });
   }
-  var INJ_NOTE_ON = "关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。";
+  var INJ_NOTE_ON = "关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。首页顶导航入口是脚本进门键，不入本清单、不受总闸管辖。";
   var INJ_NOTE_OFF = "官方页面增强已整体关闭；先回一级打开总开关，再逐项管理。";
   function buildInjectBody(body) {
     var masterOn = getSetting(INJECT_MASTER) === true;
@@ -20269,6 +20281,100 @@ window.__ACSV_CSS_LEN__ = 116740;
     watchHost({ apply: inject, tries: CFG.nav.tries, stepMs: CFG.nav.retryMs });
   }
 
+  // src/dynemot.js
+  var SEL_HOST = ".ac-space-dynamic-list";
+  var SEL_TEXT = ".ac-dynamic-text";
+  var CODE_RE = /\[emot=(\w+),(\d+)\/\]/g;
+  var SCAN_DEBOUNCE_MS = 300;
+  var IMG_STYLE = "height:1.15em;vertical-align:-0.18em;margin:0 1px";
+  function splitCodes(str) {
+    var segs = [];
+    var last = 0;
+    var hits = 0;
+    var m;
+    CODE_RE.lastIndex = 0;
+    while (m = CODE_RE.exec(str)) {
+      if (m.index > last) segs.push({ t: "text", v: str.slice(last, m.index) });
+      segs.push({ t: "emot", pkg: m[1], id: m[2], raw: m[0] });
+      hits++;
+      last = m.index + m[0].length;
+    }
+    if (last < str.length) segs.push({ t: "text", v: str.slice(last) });
+    return { segs, codes: hits };
+  }
+  function replaceIn(node) {
+    var split = splitCodes(node.nodeValue || "");
+    if (!split.codes) return false;
+    var frag = document.createDocumentFragment();
+    var touched = false;
+    for (var i = 0; i < split.segs.length; i++) {
+      var s = split.segs[i];
+      if (s.t === "text") {
+        frag.appendChild(document.createTextNode(s.v));
+        continue;
+      }
+      var hit = emotImgOf(s.pkg, s.id);
+      if (!hit) {
+        frag.appendChild(document.createTextNode(s.raw));
+        continue;
+      }
+      var box = document.createElement("span");
+      box.innerHTML = hit.html;
+      var img = box.firstChild;
+      if (!img) {
+        frag.appendChild(document.createTextNode(s.raw));
+        continue;
+      }
+      img.setAttribute("style", IMG_STYLE);
+      img.setAttribute("title", s.raw);
+      img.setAttribute("alt", "[表情]");
+      frag.appendChild(img);
+      touched = true;
+    }
+    if (!touched) return false;
+    node.parentNode.replaceChild(frag, node);
+    return true;
+  }
+  function scanAll() {
+    var hosts = document.querySelectorAll(SEL_HOST);
+    if (!hosts.length) return;
+    var done = 0;
+    Array.prototype.forEach.call(hosts, function(host5) {
+      Array.prototype.forEach.call(host5.querySelectorAll(SEL_TEXT), function(cell) {
+        var walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT, function(tn) {
+          return tn.nodeValue.indexOf("[emot=") >= 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        });
+        var pending4 = [];
+        while (walker.nextNode()) pending4.push(walker.currentNode);
+        for (var j = 0; j < pending4.length; j++) {
+          if (pending4[j].parentNode && replaceIn(pending4[j])) done++;
+        }
+      });
+    });
+    if (done) stat("dynemot.nodes." + done);
+  }
+  var mounted3 = false;
+  var timer2 = null;
+  var observer = null;
+  function mountDynEmot() {
+    if (mounted3) return;
+    mounted3 = true;
+    ensureEmotionMap().then(function() {
+      scanAll();
+    }, function(e) {
+      swallow(e, "dynemot");
+    });
+    scanAll();
+    observer = new MutationObserver(function() {
+      if (timer2) return;
+      timer2 = setTimeout(function() {
+        timer2 = null;
+        scanAll();
+      }, SCAN_DEBOUNCE_MS);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
   // src/pubfab.js
   function mountPubFab(host5, opts) {
     opts = opts || {};
@@ -20587,7 +20693,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.345-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.346-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -21653,10 +21759,10 @@ window.__ACSV_CSS_LEN__ = 116740;
     };
     window.addEventListener("popstate", checkUrl);
   }
-  var mounted3 = false;
+  var mounted4 = false;
   function mountNativeIp() {
-    if (mounted3) return;
-    mounted3 = true;
+    if (mounted4) return;
+    mounted4 = true;
     stat("nip.mount");
     var st2 = document.createElement("style");
     st2.id = "acsv-nip-css";
@@ -21683,7 +21789,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     onDomChange();
   }
   testHook("nativeip", function() {
-    return { map: commentUserMap.size, mounted: mounted3 };
+    return { map: commentUserMap.size, mounted: mounted4 };
   });
 
   // src/historyapi.js
@@ -24475,6 +24581,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     } else if (kind === "member") {
       if (injectOn("injectSpaceMoments")) tryInjectSpaceMoments();
       if (injectOn("injectSpaceShortVideo")) tryInjectSpace();
+      if (injectOn("injectPageDynEmot")) mountDynEmot();
     } else if (kind === "memberCenter") {
       if (mpOn || ipOn) {
         ensureStyle();

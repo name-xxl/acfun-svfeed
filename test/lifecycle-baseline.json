@@ -384,6 +384,10 @@
     {
       "key": "swallow:watchledger.js:return out;@1",
       "why": "首轮分诊挂账：块体无 stat/throw/标记——多为既有 /* best-effort: <域> */ 约定或 return 兜底，分诊批逐条迁移 swallow() 出口或补标记"
+    },
+    {
+      "key": "pair:dynemot.js:obs 1/0",
+      "why": "0.9.346 页面级表情重扫观察器：boot 闸内一次性挂载、随页面常驻（关＝不创建）；防抖 timer 只延迟 scanAll，无需生灭配对——imnative/nativeip 同款"
     }
   ]
 }

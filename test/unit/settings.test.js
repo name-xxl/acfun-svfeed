@@ -144,10 +144,10 @@ test('SCHEMA：注入闸七键（0.9.341，确认稿 native-inject-switch）—�
   assert.equal(master.manage, 'inject'); // 皮肤据此渲「开关+管理钮」双控件行（type 词表不扩）
   assert.ok(typeof master.hintOff === 'string' && master.hintOff.length > 0, '关态话术（hint 随值切换的单源）');
   var subs = injectItems();
-  // 0.9.343 复审：首页导航入口退出清单（进门键豁免闸）——五项，曾有的 injectNavEntry 撤行
+  // 0.9.343 一修撤入口项（进门键豁免闸）；0.9.346 二修增动态表情项（三保险规范实战件）
   assert.deepEqual(subs.map(function (it) { return it.key; }),
     ['injectMemberPlaza', 'injectSpaceMoments', 'injectSpaceShortVideo',
-      'injectPageIp', 'injectPageIm']);
+      'injectPageIp', 'injectPageDynEmot', 'injectPageIm']);
   assert.equal(findItem('injectNavEntry'), null, '入口键不得复活（复活=自锁悖论回潮）');
   subs.forEach(function (it) {
     assert.equal(it.type, 'bool');

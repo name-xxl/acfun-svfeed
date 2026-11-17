@@ -59,8 +59,8 @@ for (const k of schemaKeys) {
 for (const k of usedSet) {
   if (schemaKeys.indexOf(k) < 0) bad.push(k + '：boot 判了未登记键（getSetting 恒 undefined=fail-closed 不注入，实报"关了但没人关它"级幽灵）');
 }
-// 0.9.343 复审：首页导航入口退出清单（进门键豁免）——六项改五项，改此项必先改稿
-if (schemaKeys.length !== 5) bad.push('子项数=' + schemaKeys.length + '，与确认稿（五项，0.9.343 修订）不符——改稿先，改表随');
+// 0.9.343 一修撤入口项（六→五）；0.9.346 二修增动态表情项（五→六）——改此项必先改稿
+if (schemaKeys.length !== 6) bad.push('子项数=' + schemaKeys.length + '，与确认稿（六项，0.9.346 二修）不符——改稿先，改表随');
 
 // ② boot 不手写总闸键（总闸短路在 injectOn 内部，boot 只见子项）
 if (/['"]injectNative['"]/.test(bootSrc)) bad.push('boot.js 出现 injectNative 字面（总闸只许经 injects.js INJECT_MASTER）');
@@ -106,11 +106,10 @@ const BOOT_ROLES = {
   './memberplaza.js': { role: 'NATIVE_GATED', k: ['injectMemberPlaza'] },
   './imnative.js': { role: 'NATIVE_GATED', k: ['injectPageIm'] },
   './nativeip.js': { role: 'NATIVE_GATED', k: ['injectPageIp'] },
+  './dynemot.js': { role: 'NATIVE_GATED', k: ['injectPageDynEmot'] }, // 0.9.346 三保险规范首个实战件：新功能=一行 SCHEMA+一处闸+一籍
   // SCRIPT：脚本自有世界（竖刷壳/dock 自注册视图/页内行为），不在注入闸射程（用户裁决 0.9.341）
-  './player.js': { role: 'SCRIPT' },   // 竖刷壳本体（toggle/mount）
+  './player.js': { role: 'SCRIPT' },   // 竖刷壳本体（toggle/mount；0.9.345 起签到链在此首挂——不经 boot，不占本表）
   './natpanel.js': { role: 'SCRIPT' }, // 脚本页 IP 面板（原生页 IP 文本注入在 nativeip＝闸内）
-  './signapi.js': { role: 'SCRIPT' },  // 签到=行为链非 DOM 注入；0.9.345 起自动链挂 player 首挂（原生页零行为零弹窗）
-  './signpop.js': { role: 'SCRIPT' },  // 落地动作单源；卡宿主随首挂恒 #acsv-root
   './mypage.js': { role: 'SCRIPT' },   // 以下六件＝registerView 自注册（脚本页 dock 世界）
   './zone.js': { role: 'SCRIPT' },
   './searchview.js': { role: 'SCRIPT' },

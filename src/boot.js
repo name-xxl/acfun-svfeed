@@ -4,6 +4,7 @@ import { toggle } from './player.js';
 import { watchNav } from './nav.js';
 import { tryInjectSpace } from './uppage.js';
 import { tryInjectSpaceMoments } from './spacemoments.js'; // 空间页「动态」标签（0.9.218）
+import { mountDynEmot } from './dynemot.js'; // 官方主页动态表情码补映射（0.9.346，确认稿二修第六项）
 import { watchMemberNav } from './memberplaza.js';
 import { bootNativeIm } from './imnative.js';
 import { mountNativeIp } from './nativeip.js'; // 原生页评论 IP+设备（0.9.248，Phase 6·6a）
@@ -79,6 +80,9 @@ if (kind === 'native') {
     // 空间页两自建标签各有一闸（0.9.341）；全关＝watchSpaceTabs 共享观察器也不起（注入件不被调用）
     if (injectOn('injectSpaceMoments')) tryInjectSpaceMoments(); // 「动态」标签（0.9.218，order=1）
     if (injectOn('injectSpaceShortVideo')) tryInjectSpace();      // 「小视频」标签（0.9.36）
+    // 官方动态区表情码→表情图补映射（0.9.346，dynemot.js）：自有闸、零样式前置（出图内联
+    // 属性），与自建标签两支互不依赖——官方 tab 在场与否都各管各的
+    if (injectOn('injectPageDynEmot')) mountDynEmot();
   } else if (kind === 'memberCenter') {
   // 判据 0.9.303 收编进 pageKind（旧此处裸正则与 memberplaza.memberPath 逐字两份）
     // 个人中心 /member（0.9.128）：0.9.47 决策的限定反转（只此一路径参加，其余页维持不注入）。

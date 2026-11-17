@@ -207,9 +207,9 @@
       firstVideoReady = h.firstVideoReady, TEST = h.TEST;
     function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     // 文案逐字取自确认稿（稿=界面事实的唯一真源；改词必须先改稿）
-    var NOTE_ON = '关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。';
+    var NOTE_ON = '关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。首页顶导航入口是脚本进门键，不入本清单、不受总闸管辖。';
     var NOTE_OFF = '官方页面增强已整体关闭；先回一级打开总开关，再逐项管理。';
-    var LABELS5 = '个人中心「动态广场」|UP 主空间页「动态」标签|UP 主空间页「小视频」标签|官方页评论 IP 属地与设备型号|官方私信卡片显示';
+    var LABELS6 = '个人中心「动态广场」|UP 主空间页「动态」标签|UP 主空间页「小视频」标签|官方页评论 IP 属地与设备型号|官方主页动态表情显示|官方私信卡片显示';
     rec('inj-ctl-ready', !!(await waitFor(function () { return firstVideoReady(0); }, 25000)));
     var host = await openPanel(h);
     var sh = shadowOf(host);
@@ -223,8 +223,8 @@
     rec('inj-sub-head', !!sh.querySelector('.set-back') && !sh.querySelector('.set-x'));
     rec('inj-note-on', ((sh.querySelector('.set-note') || {}).textContent) === NOTE_ON);
     var inLabels = Array.prototype.map.call(sh.querySelectorAll('.set-body .set-label'), function (x2) { return x2.textContent; });
-    rec('inj-rows-5', sh.querySelectorAll('.set-body .set-row').length === 5, inLabels.join('/'));
-    rec('inj-labels-order', inLabels.join('|') === LABELS5, inLabels.join('|'));
+    rec('inj-rows-6', sh.querySelectorAll('.set-body .set-row').length === 6, inLabels.join('/'));
+    rec('inj-labels-order', inLabels.join('|') === LABELS6, inLabels.join('|'));
     var swAll = sh.querySelectorAll('.set-body .acsv-sw');
     rec('inj-def-all-on', Array.prototype.every.call(swAll, function (s) { return s.classList.contains('on'); }));
     // 2) 逐项关（injectMemberPlaza=第 1 行；0.9.343 撤首页导航入口行后左移）→ 落盘 JSON 裸串 'false'
@@ -256,7 +256,7 @@
     var mb3 = sh.querySelector('.set-pair .set-act');
     if (mb3) mb3.click();
     rec('inj-dim-note', ((sh.querySelector('.set-note') || {}).textContent) === NOTE_OFF);
-    rec('inj-dim-rows', sh.querySelectorAll('.set-body .set-row.dim').length === 5);
+    rec('inj-dim-rows', sh.querySelectorAll('.set-body .set-row.dim').length === 6);
     var dimSw = sh.querySelectorAll('.set-row.dim .acsv-sw');
     rec('inj-dim-vis-off', !!dimSw[0] && Array.prototype.every.call(dimSw, function (s) { return !s.classList.contains('on'); }));
     rec('inj-dim-ptr', !!dimSw[0] && getComputedStyle(dimSw[0]).pointerEvents === 'none');
@@ -268,7 +268,7 @@
     var swMaster2 = swOf(sh, 2);
     if (swMaster2) swMaster2.click();
     rec('inj-master-hint-on', !!sh.querySelectorAll('.set-body .set-hint')[2]
-      && sh.querySelectorAll('.set-body .set-hint')[2].textContent === '官方页上的广场接管、空间标签、评论 IP、私信卡片；重新加载后生效');
+      && sh.querySelectorAll('.set-body .set-hint')[2].textContent === '官方页上的广场接管、空间标签、评论 IP、动态表情、私信卡片；重新加载后生效');
     var mb4 = sh.querySelector('.set-pair .set-act');
     if (mb4) mb4.click();
     var swA4 = sh.querySelectorAll('.set-body .acsv-sw');

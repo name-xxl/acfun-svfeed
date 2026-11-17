@@ -160,6 +160,9 @@ const FEATURE = new Set(['followview.js', 'followstream.js', 'momentdetail.js', 
   // 0.9.248 登记：nativeip（原生页评论 IP+设备，Web-IP 吸收 6a）——消费 dbg/devname/iploc/styles；
   // 消费方 boot 是组合根（SKIP_B，装配向下不计）
   'nativeip.js',
+  // 0.9.346 登记：dynemot（官方主页动态表情映射，三保险实战件）——消费 emoticon(FEATURE 层内互调)
+  // + dbg(INFRA)；消费方 boot 是组合根（SKIP_B）。出图走 emotImgOf 白名单，无越层
+  'dynemot.js',
   // 0.9.250 登记：natpanel（原生页设置面板皮肤，Web-IP 吸收 6c）——消费 dbg/devname/iploc/
   // settings/styles/ui；消费方 nativeip 同在表内（层内互调）
   'natpanel.js',
