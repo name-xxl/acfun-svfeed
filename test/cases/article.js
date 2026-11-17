@@ -717,6 +717,17 @@
           var gl = stowBtn.querySelector('.acsvg-glyph');
           return gl ? getComputedStyle(gl).display === 'none' : 'no-glyph';
         })());
+      // 底对齐补偿（0.9.339 用户裁决「按其他图标底部对齐」）：idle 槽 translateY(-4px)，
+      // canvas 实测邻键墨迹底比藏键高 4px；点亮字形那条在 stow-on 段查（display:none 时
+      // Chrome 不解析 transform，读不到）——摘槽位 transform 反跑即红
+      rec('article-stow-bottom-align', (function () {
+        var slot = stowBtn.querySelector('.arstow-slot');
+        if (!slot) return false;
+        return /matrix\(1,\s*0,\s*0,\s*1,\s*0,\s*-4\)/.test(getComputedStyle(slot).transform);
+      })(), 'slot=' + (function () {
+        var slot = stowBtn.querySelector('.arstow-slot');
+        return slot ? getComputedStyle(slot).transform : 'no-slot';
+      })());
       var sf0 = window.__ACSV_SF_HITS__ || 0;
       stowBtn.click();
       await poll(function () { return (window.__ACSV_SF_HITS__ || 0) > sf0; }, 6000);
@@ -735,6 +746,16 @@
         if (!svg || !gl) return '缺件 svg=' + !!svg + ' glyph=' + !!gl;
         return 'on svg隐=' + (getComputedStyle(svg).display === 'none')
           + ' 实心露=' + (getComputedStyle(gl).display !== 'none');
+      })());
+      // 点亮态字形同步底对齐（0.9.339）：字形此刻 display:block，transform 才可读——
+      // 摘 `.aractbar .aract.stow .acsvg-glyph` 的 transform 反跑即红（两态位移不一致＝跳）
+      rec('article-stow-bottom-align-on', (function () {
+        var gl = stowBtn.querySelector('.acsvg-glyph');
+        if (!gl) return false;
+        return /matrix\(1,\s*0,\s*0,\s*1,\s*0,\s*-4\)/.test(getComputedStyle(gl).transform);
+      })(), 'glyph=' + (function () {
+        var gl = stowBtn.querySelector('.acsvg-glyph');
+        return gl ? getComputedStyle(gl).transform : 'no-glyph';
       })());
       window.__ACSV_STOW_FAIL__ = true;
       var su0 = window.__ACSV_SUR_HITS__ || 0;

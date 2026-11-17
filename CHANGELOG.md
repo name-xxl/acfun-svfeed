@@ -5,6 +5,34 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.339（2026-11-17）· 藏键底对齐——按邻键墨迹底对齐（用户裁决「再高几个像素，按其他图标底部对齐」）
+
+**病灶（用户真机实报）**：0.9.335 中心化后藏键仍偏低——因为**居中不等于视觉对齐**：邻键
+（赞/蕉/评论）16px 盒、藏键 23px 盒，两盒各自居中 ⇒ 墨迹底相差盒高差的那一截。canvas
+实测（内置浏览器登录态，真字体 acfun-frontend-next 像素扫描）：
+
+| 键 | 盒高 | 墨迹底（盒内） | 居中后墨迹底 |
+|---|---|---|---|
+| 赞/蕉/评论 | 16px | 盒底 +1px | 行中心 +9px |
+| 藏（23px） | 23px | 盒底 +1.5px | 行中心 +13px |
+
+**差 4px**＝用户看到的「再高几个像素」。
+
+**修法（用户裁决方向：底对齐）**：两态同加 `transform:translateY(-4px)`——idle 槽
+`.aract.stow .arstow-slot` 与点亮字形 `.aractbar .aract.stow .acsvg-glyph`；墨迹底与邻键
+齐平，多出的高度全部向上（星形显高不显坠）。确认稿 article-reader-v3 同批改版 v3.4（CSS
+块注释 + 槽位 transform），取值规则随稿登记。
+
+**测试证据**：新断言 `article-stow-bottom-align`（idle 槽 computed matrix 位移 -4）+
+`article-stow-bottom-align-on`（点亮字形同位移——display:none 时 Chrome 不解析 transform，
+故分段在点亮后查）；摘两处 transform 反跑双红（slot=none / glyph=none），复修复绿；
+article-reader 75 断言、article-reader-narrow 10 断言全绿。npm test 93 场景全绿、
+npm run check+tsc 真实退出码 0。结构基线 cssraw 同批登记。
+
+**过程如实报**：中段曾误判「CSS 没进产物」（grep 明文搜不到）——实际是构建期
+deflateRaw+base64 内嵌（build.js 在册），产物正常，是我 grep 方式错；同段发现首版断言
+在 idle 态读隐藏字形的 transform 恒为 none，已拆两段修正。
+
 ### 0.9.338（2026-11-17）· 文章浮层分享面板锚定修正——挂载点 shell → 栏内 barIn，作用域摆位「锚栏上方」（banpop 同族第三层）
 
 **病灶（用户复测实报「分享卡的锚点也可以修正一下」）**：分享面板默认摆位
