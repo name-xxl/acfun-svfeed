@@ -43,7 +43,7 @@ export var SCHEMA = [
   // 撤出——进门键豁免闸），二级清单由 injectItems() 派生。总闸管辖范围不含豁免项（injects.js
   // 头注定源）。**注意**：本行落在通用组内，主面板开关索引整体后移一位——harness settings 场景同步改
   { key: 'injectNative', type: 'bool', def: true, panel: true, group: '通用', manage: 'inject',
-    label: '官方页面增强', hint: '官方页上的广场接管、空间标签、评论 IP、私信卡片；重新加载后生效',
+    label: '官方页面增强', hint: '官方页上的广场接管、空间标签、评论 IP、动态表情、私信卡片；重新加载后生效',
     hintOff: '已整体关闭：官方页面恢复原样；重新加载后生效' },
   { key: 'dmDefault', type: 'bool', def: true, panel: true, group: '播放',
     label: '弹幕默认开启', legacy: CFG.lsDm, hint: '立即生效' },
@@ -121,7 +121,9 @@ export var SCHEMA = [
   // ---- 官方页面增强子项（0.9.341，确认稿 docs/preview/native-inject-switch.html）----
   // sub:'inject' 标记 + panel:false＝不上主面板，二级清单由 injectItems() 派生；消费侧
   // 只在 boot.js 判 injectOn(key)（总闸短路在前），顺序＝稿钉消费链顺序（我的→空间×2→
-  // 评论→私信）。**键 ↔ boot 短路点配对由 test/check-injects.mjs 双向钉死**。def 全 true＝保持现状。
+  // 评论→动态表情→私信）。**键 ↔ boot 短路点配对由 test/check-injects.mjs 双向钉死**。
+  // def 全 true 的含义分两层：存量五键＝保持现状零行为变化；0.9.346 新增 dynemot 键的
+  // 「现状」＝补上官方缺失的映射能力（该功能出厂即生效，用户可关——知情口径入 CHANGELOG）。
   // label/hint 逐字照稿（稿是用户确认过的界面事实，改词必须改稿先）。
   // **豁免注（0.9.343 用户复审）**：首页顶导航入口（watchNav + 兜底胶囊）不入清单也不受总闸
   // 管辖——它是进脚本页、进而进本面板的唯一进门键，「可关入口」＝开关吞掉自己的入口（自锁）。
@@ -137,6 +139,10 @@ export var SCHEMA = [
   { key: 'injectPageIp', type: 'bool', def: true, panel: false, sub: 'inject',
     label: '官方页评论 IP 属地与设备型号',
     hint: '视频页、文章页、动态页等官方页评论显示 IP 与设备；竖刷内的显示归「评论」组设置单独管理' },
+  // 0.9.346 二修新增（确认稿修订记录）：官方个人主页动态区表情码补映射（api-research §22 取证）
+  { key: 'injectPageDynEmot', type: 'bool', def: true, panel: false, sub: 'inject',
+    label: '官方主页动态表情显示',
+    hint: '个人主页动态正文里的表情码显示成表情图（官方渲染缺的能力）；关闭后保持官方原样' },
   { key: 'injectPageIm', type: 'bool', def: true, panel: false, sub: 'inject',
     label: '官方私信卡片显示',
     hint: '私信网页端显示不了的图片卡、作品卡等按原卡面渲染；关闭后保持「不支持查看此消息」' }

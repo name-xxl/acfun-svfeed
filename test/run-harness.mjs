@@ -120,6 +120,10 @@ const HARNESS_CASES = [
   { name: 'inject-off-space', viewport: { width: 1600, height: 900 }, bundle: 'debug' },  // /u 分项关（总闸仍开）：两自建标签都不追加
   // 0.9.345 签到时机复审：自动链只随脚本页首挂发起——裸 '/' 零行为、挂载弹入 root、重进不重复
   { name: 'sign-auto-timing', serial: true, bundle: 'debug' },
+  // 0.9.346 动态表情映射（三保险规范实战件）：开关注入+预热表+文本节点手术+MO 增量重扫；
+  // dynemot-off 预置分项关值（bundle 前）证「不注入不加载零请求」
+  { name: 'dynemot', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
+  { name: 'dynemot-off', viewport: { width: 1600, height: 900 }, bundle: 'debug' },
   // 0.9.89 设置面板（Shadow DOM 断言走 host.shadowRoot）：开/关/持久化 + 老键收养，
   // settings-migrate 依赖 bundle 前预置老键（见 harness.html），故为 debug 构建
   { name: 'settings-open', serial: true, bundle: 'debug' },

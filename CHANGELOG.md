@@ -5,6 +5,44 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.346（2026-11-17）· 官方主页动态表情映射（用户裁决「问题二也要解决」+「原生页新功能要可开关、闸保规范」）——dynemot 三保险规范实战件 + 确认稿二修第六项
+
+**来历（真机取证先行，规矩 2）**：官方个人主页顶层新增「动态」区（`li[data-index=dynamic]`
+→ `.ac-space-dynamic-list`），但其渲染器吞了其余 UBB 包裹、唯独把 `[emot=组,/]` 表情码
+字面漏出（/u/51737407 实测 9 条动态 8 条含码、括号老式 0 命中、`ubb-icon/ubb-ac` 官方
+自己已映射——2026-11-17 取证入 api-research §22，本批判据全部实测无猜测）。同帧实证：
+我方 spacemoments 标签对同一条数据表情映射正常——「照搬」不成立（映射活在自建渲染管线），
+「复用」成立且面窄（一种语法 × 一个挂点）。
+
+**修法（三保险规范首战：SCHEMA 一行 + boot 一闸 + BOOT_ROLES 一籍）**：
+① 新件 `src/dynemot.js`：**文本节点手术式替换**——TreeWalker 只收含码文本节点，码段换
+`emotImgOf` 白名单出图（URL 双正则校验同源），**官方已有元素零触碰**；表查无 id 字面保留
+（不销毁信息，表到位后重扫补上）；出图自带内联尺寸/title/alt——member 支不灌脚本 CSS 也
+成立（确认稿接线表钉死「零样式依赖」）；MO+300ms 防抖增卡重扫、自然幂等（码变 img 后不再
+是文本节点，无需逐节点哨兵）；表走 ensureEmotionMap 三级预热（官方同源 localStorage
+emoticonList→GM→接口，游客态一二三级皆命中）。
+② SCHEMA 第六键 `injectPageDynEmot`（panel:false sub:'inject'，位序评论 IP 之后、私信之前
+=稿钉消费链）；总闸 hint 列表随稿加「动态表情」；boot member 分支一闸。
+③ BOOT_ROLES 落籍 NATIVE_GATED、check-injects 期望五→六；顺清 345 遗留：boot 不再 import
+signapi/signpop，其两行挂账籍删除（闸只认识 boot 实际 import）。
+④ 确认稿二修先行（新增第六项两态行、置灰态、接线表、修订记录、总闸话术），实现逐字对齐；
+settingspanel 二级说明条同步补进门键豁免句（343 稿快一步的存量差随批追平）。
+默认开=知情选择：该功能语义即「补官方缺失」，出厂即生效、可关（与存量五键「默认开=保现状」
+语义分层，注记在 SCHEMA 子块）。
+
+**测试证据**：新场景 `dynemot`（11 断言：表内码→img+src/title/内联 style、未知 id 字面
+保留、文本码零残留、**a.ubb-ac 节点同一性反证「官方元素不碰」**、追卡增量重扫、无壳前提）
+与 `dynemot-off`（5 断言：零 img+文本逐字原样；表/空间键预置 bundle 前，冷启动短路语义）；
+单测 dynemot.test 六例钉 splitCodes 方言边界（`]` 紧邻双码、id 非全数字不匹配、大写包名
+合法、空串零段）。反跑三发实录：①boot 摘闸（无条件 mountDynEmot）→ dynemot-off 双腿红
+（no-img 计数破 + text-raw 逐字比对破）；②**摘 MO observe 主腿 → dynemot 六断言红**
+（承重路坐实）；③摘首拍 scanAll → 场景仍全绿——诚实注记：harness 夹具晚于 boot，首拍
+在本场景不可见，其存在意义是 SSR 预置内容的防御腿（真实站点动态区随 tab 点击惰性渲染，
+首拍大概率空跑——留着廉价、删了没证据，知情保留）。闸自证：check-injects GATED×6 绿、
+谎标/漏籍路径 344 已锁。settings-inject 29 断言随六项清单同步（LABELS6/rows6/dim6/hint
+话术；顺追平 343 遗留的说明条豁免句稿↔实现差）。全量 harness、单测 530、check 链+tsc+
+lint 全绿随批；棘轮/lifecycle 基线重裁（dynemot 建档，常驻 observer 按 imnative 先例登记）。
+
 ### 0.9.345（2026-11-17）· 自动签到时机复审（用户实报「弹窗会在主页出现，设计计划应是进脚本页才签才弹，原生页零行为零弹窗」）——链从 boot home 迁至 player 首挂
 
 **病灶（实现把判据落错层，设计承诺无误）**：0.9.277 起自动链挂在 boot home 分支，而

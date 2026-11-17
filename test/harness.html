@@ -45,6 +45,7 @@
 <script src="cases/audit257.js"></script><!-- 0.9.257 批①六修 + 徽标监听（P2-4）的摘修复反跑钉子 -->
 <script src="cases/article.js"></script><!-- 0.9.326 文章阅读浮层（确认稿 article-reader-v3：开层/骨架/净化/stype=3 评论/dim/composer/回复 chip/失败/窄态） -->
 <script src="cases/injects.js"></script><!-- 0.9.341 官方页面增强注入闸（确认稿 native-inject-switch：导航/我的/空间关态 + 导航开态对照） -->
+<script src="cases/dynemot.js"></script><!-- 0.9.346 官方主页动态表情映射（三保险规范首个实战件；开关注入+表预热+节点同一性） -->
 <script>
   // ============ 场景预处理（须在 bundle 加载前：改 mock / 写 localStorage） ============
   var CASE = (location.search.match(/[?&]case=([\w-]+)/) || [])[1] || 'smoke';
@@ -56,7 +57,9 @@
     // 0.9.341 注入闸关态场景：验证的是原生面「不注入」形态，壳挂起来反成噪音（无壳前提同款）
     'inject-off-member', 'inject-off-space',
     // 0.9.345 签到时机场景的裸 '/' 相位需要无壳（挂载由场景体自行触发）
-    'sign-auto-timing'];
+    'sign-auto-timing',
+    // 0.9.346 动态表情映射：原生 /u 面场景，无壳前提（壳会把竖刷盖到动态夹具上，dm-no-shell 即红）
+    'dynemot', 'dynemot-off'];
   // 官方 weblog 管道 stub：debug 构建 unsafeWindow===window，reportLeave 读 window.weblog。
   // 所有场景无条件 stub——非 home 场景 cap.watchReport=false 不会触达；调用记录供断言
   window.__WL_CALLS = [];
@@ -185,6 +188,24 @@
       'user/signIn': function () { window.__SIGN345__.write++; return { result: 0, bananaDelta: 6, continuousDays: 1, almanac: SIGN345_ALM }; }
     };
   }
+  // 动态表情映射场景（0.9.346）：表 tier-①（官方同源 localStorage 'emoticonList' 扁平形状，
+  // emoticon.js applyEmotPacks 认）bundle 前预置——预热零网络、游客态同款路径；两场景都关
+  // 空间两标签（聚焦 dynemot 腿，免造标签栏夹具）；dynemot-off 另预置分项关值（冷启动短路）。
+  if (CASE === 'dynemot' || CASE === 'dynemot-off') {
+    try {
+      localStorage.setItem('emoticonList', JSON.stringify([
+        { emotionId: '1656', emotionImageUrl: 'https://ali-imgs.acfun.cn/kos/e1656.png',
+          emotionBigUrl: 'https://ali-imgs.acfun.cn/kos/e1656.png', emotionName: '笑cry', emotionPkgName: 'acfun' },
+        { emotionId: '1673', emotionImageUrl: 'https://ali-imgs.acfun.cn/kos/e1673.png',
+          emotionBigUrl: 'https://ali-imgs.acfun.cn/kos/e1673.png', emotionName: '脱单弹幕', emotionPkgName: 'acfun' }
+      ]));
+      localStorage.setItem('acsv.s.injectSpaceMoments', 'false');
+      localStorage.setItem('acsv.s.injectSpaceShortVideo', 'false');
+    } catch (e) { }
+  }
+  if (CASE === 'dynemot-off') {
+    try { localStorage.setItem('acsv.s.injectPageDynEmot', 'false'); } catch (e) { }
+  }
   // 深链的 hash 必须在本 bundle 求值前写好——boot 的 toggle 在 document-end 读 location.hash。
   // 其余场景一律是 bundle 加载后 300ms 才设 hash（见文件尾），那种时序走不到「冷启动深链」路径。
   // 目标 id 都取样例里**非首条**（首条会被随机流首条蒙对，断言失去意义）
@@ -303,7 +324,10 @@
     'inject-off-member': '/member/feeds',
     'inject-off-space': '/u/12345',
     // 0.9.345 签到时机：裸官方首页起步（无 hash），场景体自行进/退竖刷
-    'sign-auto-timing': '/'
+    'sign-auto-timing': '/',
+    // 0.9.346 动态表情映射：官方 /u 页顶层动态区（kind=member；无壳前提见 NO_AUTOMOUNT）
+    'dynemot': '/u/51345',
+    'dynemot-off': '/u/51345'
   };
   if (BOOT_PATH[CASE]) {
     try { history.replaceState(null, '', BOOT_PATH[CASE] + location.search + location.hash); } catch (e) { }

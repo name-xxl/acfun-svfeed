@@ -106,9 +106,11 @@
   状态）、UP 主搜索、评论、动态、我的页、关注、IP、签到仍走登录态，写链与观看上报不变。需
   Tampermonkey；只控制脚本请求，页面自身请求仍带 Cookie，`udid`/IP 仍可能被服务端识别；下次
   加载/翻页生效。小视频游客态 `isLike` 为 false（红心初始未赞），本轮不做登录态回填。
-- 官方页面增强（0.9.341；0.9.343 修订）：设置 → 通用 → 「官方页面增强」（总开关 + 「管理」钮进二级）。
+- 官方页面增强（0.9.341；0.9.343/0.9.346 两次修订）：设置 → 通用 → 「官方页面增强」（总开关 + 「管理」钮进二级）。
   管理脚本在**非脚本页**（官方界面）上添加的功能：个人中心动态广场、空间页动态/小视频标签、
-  原生页评论 IP 与设备、私信页卡片显示。关闭＝不注入不加载、重新加载页面后官方界面与未装脚本
+  原生页评论 IP 与设备、官方主页动态表情显示（0.9.346 增——官方动态区渲染器漏映射
+  `[emot=…]` 表情码，脚本以文本节点手术式替换补位，官方已有元素一律不碰，查无此码原样
+  保留；取证 `api-research §22`）、私信页卡片显示。关闭＝不注入不加载、重新加载页面后官方界面与未装脚本
   一致（无当前页即时摘除承诺——生效时机是承诺不是缺陷）；总闸关掉时二级置灰但不回写各项值。
   竖刷世界（`#svfeed`）是脚本自有界面、不寄生官方页，不在本开关射程。**豁免（0.9.343 复审）**：
   首页顶导航入口与兜底胶囊是进脚本页、进而进本面板的唯一进门键——不入清单、不受总闸管辖
@@ -589,8 +591,9 @@ npm run typecheck    # 仅契约面类型检查（tsc -p jsconfig.json，读 JSD
 | `followbadge.js` | 关注未读徽标（0.9.97；0.9.107 时间水位线；**0.9.139 水位抽件 followseen**）：徽标=自水位（GM）以来 followFeedV2 首屏 `createTime > 水位` 的新条数——旧 webPush followUpers 布尔是服务端长期不清标记（实测清不掉⇒固定数字复亮），已退役；**正式推进点=各入口首屏到达时 `followseen.markSeen`**（followview 首屏成功 / followstream 进视频侧），poll 的 in-view 分支退化为兜底（吸收停留期新内容）；退避真逐次翻倍 60s→10min 纯函数；hidden 短路/未登录静默；挂 player.mount/unmount |
 | `boot.js` | 启动入口（构建 entry）：按 `pagekind.js` 分类分流——原生私信页只跑消息增强；首页全量初始化（样式先就位）；`/u/<数字>` 页加空间页注入；`/member/*` 页加原生页入口（0.9.128：ensureStyle + setRoot(document.body) + watchMemberNav——memberplaza，0.9.47 决策的限定反转）；其余 www 页仅基础设施（不无条件注入全量 CSS，挂载时自持）。路由监听全 www 保留（任何页面粘 `#svfeed` 深链都能进竖刷）。**0.9.341 起原生面注入点统一经 `injects.injectOn(key)` 判读**（关＝整支短路；boot 只判一次、无即时摘除义务；memberCenter 支样式/root 前置由 plaza∨IP 两闸共用；**0.9.343 豁免**：home 的 watchNav 顶导航入口＝进门键，不判任何闸） |
 | `pagekind.js` | 页面类型分类器（0.9.88，零依赖叶子）：`pageKind({hostname,pathname})` → native/home/video/article/member/**memberCenter**/other——boot 运行分流的唯一判据。0.9.303 起判据导出单源：`SPACE_UID_RE`（uppage/spacemoments 注入判据共用）、`memberCenterPath`（boot/memberplaza 共用）；防复制=pagekind.test 字面扫描（旧「与 uppage 逐字一致+单测钉」实为只钉 pageKind 自己的假守卫） |
-| `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）＋0.9.278 `guestRead`（非个性化推荐，隐私组）；`onChange` 订阅让消费方零反向依赖地即时生效；**0.9.341 注入闸六键**（总闸 `injectNative`（panel:true，manage 行）+ `sub:'inject'` 五键 def 全 true=现状——0.9.343 复审撤 `injectNavEntry`（进门键豁免）；`injectItems()` 派生二级清单；键↔boot 短路配对 + boot import 落籍分类由 check-injects.mjs 双向钉，0.9.344 起新原生面特性不落籍不可进 boot） |
-| `injects.js` | 官方页面增强门层（0.9.341，确认稿 docs/preview/native-inject-switch.html）：`injectOn(key)`＝「要不要注入原生面」唯一判读口（总闸短路在前、子项在后，未登记键 fail-closed 不注入）；关＝不注入不加载整链短路（0.9.47 白名单短路先例），生效=重新加载后（boot 一次判读，无 unmount 义务——用户裁决明示）。消费方只有 boot（五个短路点；0.9.343 起首页导航入口豁免在外——进门键不可关）与 settingspanel（总闸键常量+置灰判定）；出边仅 settings.js |
+| `settings.js` | 设置共享层（0.9.89，零 UI，只许 import cfg——eslint 定向禁令守着）：SCHEMA 是唯一契约（两皮肤表驱动同源），存储逐键 `acsv.s.<key>`（GM 优先/LS 回落、写防抖、无 TTL——偏好不是缓存，理由在模块头）＋六项老偏好首读收养（老键不删）＋0.9.278 `guestRead`（非个性化推荐，隐私组）；`onChange` 订阅让消费方零反向依赖地即时生效；**0.9.341 注入闸七键**（总闸 `injectNative`（panel:true，manage 行）+ `sub:'inject'` 六键 def 全 true——0.9.343 复审撤 `injectNavEntry`（进门键豁免）成五、0.9.346 二修增 `injectPageDynEmot` 回六；`injectItems()` 派生二级清单；键↔boot 短路配对 + boot import 落籍分类由 check-injects.mjs 双向钉，0.9.344 起新原生面特性不落籍不可进 boot） |
+| `dynemot.js` | 官方主页动态表情映射（0.9.346，三保险规范首个实战件：SCHEMA 一行+boot 一闸+BOOT_ROLES 一籍）：官方 /u 页动态区渲染器漏接 `[emot=组,/]` 表情码（真机取证 api-research §22，唯一未映射方言），本件在 `.ac-dynamic-text` 做**文本节点手术式替换**——只切含码文本、官方已有元素（ubb-ac 链接等）节点同一性不碰、未知 id 字面保留待表到位补换；出图自带内联尺寸属性（member 支零脚本 CSS，不依赖样式表）；表三级预热（官方同源 localStorage `emoticonList`→GM 缓存→接口），MO+300ms 防抖增卡重扫、自然幂等。闸 `injectPageDynEmot`（关＝不挂观察器不预热零请求）。 |
+| `injects.js` | 官方页面增强门层（0.9.341，确认稿 docs/preview/native-inject-switch.html）：`injectOn(key)`＝「要不要注入原生面」唯一判读口（总闸短路在前、子项在后，未登记键 fail-closed 不注入）；关＝不注入不加载整链短路（0.9.47 白名单短路先例），生效=重新加载后（boot 一次判读，无 unmount 义务——用户裁决明示）。消费方只有 boot（六个短路点；0.9.343 起首页导航入口豁免在外——进门键不可关）与 settingspanel（总闸键常量+置灰判定）；出边仅 settings.js |
 | `watchhost.js` | 宿主等待原语（0.9.342 批B，零依赖）：「等宿主渲染→成一次即停→有界重试」四份同形环（nav MO+6s 兜底胶囊 / memberplaza setInterval+点击重启 / spacemoments、uppage 递归 setTimeout）的单源收口处。语义面：首拍同步、tries=计划内补拍条数、observe 观察补拍成则自动摘、deadline 到点结束观察窗交兜底件、onEnd 告知预算耗尽（memberplaza 单环旗标复位依赖）。**常驻自愈观察器不并表**（spacetab/memberplaza heal/nativeip 重扫无 settled 概念——语义不同，并表即被否决的大一统） |
 | `settingspanel.js` | 脚本页设置皮肤（0.9.89）：dock 齿轮 → `openSettings()` → overlay 栈（modal，Esc 白拿）；host + **Shadow DOM** 作用域样式（量取值与日期在文件头注释）；控件按 schema 表驱动（bool 开关 / select 下拉 / number 步进器）；**0.9.253 页脚补版本号**（`v{APP_VERSION}` 左置 + 「完成」右置，与 IP 面板页脚同源）；原生页皮肤＝`natpanel.js`（见其行）；**0.9.341 同壳二级**（manage 行=开关+「管理」钮；`mode` 换页不新开 overlay 层——零新 z 档，Esc 经 onPanelEsc 先回一级；置灰态 CSS pointer-events 停用、不回写值） |
 | `banpop.js` | 投蕉数量层（0.9.104 自 rail 抽出）：默认全灰，悬停第 N 根点亮 1~N，点第 N 根投 N；已投锁定蕉黄。消费 rail/followview/momentbar。 |
@@ -700,6 +703,7 @@ flowchart LR
 
   boot["boot.js（入口）"]
   injects["injects.js（官方页面增强注入闸·injectOn 唯一判读口）"]
+  dynemot["dynemot.js（官方主页动态表情映射·文本节点手术式，0.9.346）"]
   watchhost["watchhost.js（宿主等待原语·零依赖）"]
   settingspanel["settingspanel.js（脚本页设置皮肤·Shadow DOM·0.9.341 同壳二级）"]
   followview["followview.js（关注视图·仿原生单列无限流）"]
@@ -793,7 +797,8 @@ flowchart LR
   imbubble --> appapi & emoticon & imcard & imimage & imgload & imgview & immsg & imicons & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
   imcard --> emoticon & imgview & imicons & immsg
-  boot --> followview & imnative & injects & jingxuanview & memberplaza & mypage & pagekind & player & playlayer & searchview & spacemoments & squareview & uppage & zone
+  boot --> dynemot & followview & imnative & injects & jingxuanview & memberplaza & mypage & pagekind & player & playlayer & searchview & spacemoments & squareview & uppage & zone
+  dynemot --> dbg & emoticon
   injects --> settings
   views --> feedstore & overlay & sidebar & topbar & viewreg
   cards --> imgload & imgview & imicons & ubb & uplook
