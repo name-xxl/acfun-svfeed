@@ -1,6 +1,9 @@
 // ---------- 脚本页设置面板（0.9.89，路线图 1.2）：settings 共享层的第二张脸 ----------
 // 结构（D4 双 UI 体系）：本模块只是**脚本页皮肤**——只依赖 settings.js（皮肤→共享层单向），
 // 控件表驱动出自 settings.SCHEMA（原生页皮肤 Phase 6 是兄弟模块，同一份 schema）。
+// 0.9.341 起同壳两层视图：一级平铺 + 二级「官方页面增强」（mode 换页，不新开 overlay 层——
+// 零新 z 档，Esc 经 onPanelEsc 预处理先回一级；清单=settings.injectItems() 派生，确认稿
+// docs/preview/native-inject-switch.html）。
 // 浮层语义照 imgview/release 骨架：单例、open 先 close、host 挂 root、背景点击关、✕ 关；
 // Esc 与模态键语义交给 overlay 栈（modal:true），零改 input.js。
 // Shadow DOM（intake 清单「el() 构建 + Shadow DOM」）：面板内容整体开影子根 + 作用域内 <style>
@@ -29,7 +32,8 @@ import { SHEET_BG, BASE_FONT, SECT_LINE, CLOSE_BTN, SCROLL_TAIL, POP_SHADOW, FOO
   from './cssseg.js'; // 影子根/文档级共用段 token（0.9.309 缝化）：同值段与 cssraw 同源
 import { root } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
-import { panelItems, getSetting, setSetting, flushSettings, onChange } from './settings.js';
+import { panelItems, injectItems, findItem, getSetting, setSetting, flushSettings, onChange } from './settings.js';
+import { INJECT_MASTER } from './injects.js'; // 总闸键单源（0.9.341）：置灰判定读它，不手写字符串
 import { APP_VERSION } from './cfg.js'; // UI 版本号单源（0.9.253）：页脚左置展示
 
 var SET_CSS = ''
@@ -43,9 +47,11 @@ var SET_CSS = ''
   + '.set-head{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px;'
   + SECT_LINE
   + '.set-title{font-size:15px;font-weight:600}'
-  + '.set-x{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;'
+  // ✕ 与 ‹ 同规格圆钮（0.9.341 二级换页；‹ 靠左故 margin-left 归零覆回）
+  + '.set-x,.set-back{margin-left:auto;flex:none;border:none;background:rgba(255,255,255,.1);color:#fff;'
   + CLOSE_BTN
-  + '.set-x:hover{background:rgba(255,255,255,.22)}'
+  + '.set-back{margin-left:0}'
+  + '.set-x:hover,.set-back:hover{background:rgba(255,255,255,.22)}'
   + '.set-body{flex:1 1 auto;min-height:64px;overflow-y:auto;padding:20px;scrollbar-width:thin;'
   + SCROLL_TAIL
   + '.set-group{font-size:12px;color:#8b909a;margin:0 0 6px}'
@@ -76,6 +82,15 @@ var SET_CSS = ''
   + '.set-num-btn:hover:not(:disabled){background:rgba(255,255,255,.12)}'
   + '.set-num-btn:disabled{opacity:.35;cursor:default}'
   + '.set-num-val{min-width:56px;text-align:center;font-size:14px}'
+  // ---- 注入管理（0.9.341，确认稿 docs/preview/native-inject-switch.html）----
+  // 一级行双控件对（开关+管理钮）；二级说明条；总闸关时整行置灰（opacity 取 :disabled 同值，
+  // 不新立档位——稿⑥钉的取值映射；置灰行开关不可点、值不回写）
+  + '.set-pair{flex:none;display:flex;align-items:center;gap:12px}'
+  + '.set-pair .set-act{padding:7px 14px}'
+  + '.set-note{font-size:12px;line-height:16px;color:#8b909a;margin:0 0 16px}'
+  + '.set-row.dim{opacity:.35}'
+  + '.set-row.dim .acsv-sw{cursor:default;pointer-events:none}'
+  + '.set-row.dim .set-label{cursor:default}'
   // 页脚（0.9.253）：版本号左置 + 「完成」右置（space-between）；与 IP 面板页脚同型（APP_VERSION 单源）
   + '.set-foot{flex:none;display:flex;align-items:center;gap:8px;justify-content:space-between;'
   + FOOT_BAR
@@ -86,13 +101,26 @@ var SET_CSS = ''
   + '.set-act.primary{background:var(--acsv-accent)}';
 
 var host = null, panel = null;
-var offs = []; // open 期间注册的 onChange 订阅：close 全部退订（面板是短命对象，不留监听）
+var offs = []; // 当前视图的 onChange 订阅：换页/关面板均先全退再重订（面板是短命对象，不留监听）
 var menuCloser = null; // 当前打开的下拉菜单收起函数（0.9.237：overlay 的 Esc 先收菜单、不关整面板）
+var headEl = null, bodyEl = null; // 换页重绘的两落点（0.9.341）
+var mode = null; // null=一级；'inject'=二级官方页面增强（同壳换页，不新开 overlay 层）
+
+function clearSubs() {
+  for (var i = 0; i < offs.length; i++) { try { offs[i](); } catch (e) { /* best-effort: cleanup */ } }
+  offs = [];
+}
 
 function dismissMenu() {
   if (!menuCloser) return false;
   menuCloser();
   return true;
+}
+
+// Esc 预处理单点（0.9.341 扩语义）：二级先回一级（消费、不关面板）；一级维持收下拉菜单在先
+function onPanelEsc() {
+  if (mode === 'inject') { showMain(); return true; }
+  return dismissMenu();
 }
 
 export function closeSettings() {
@@ -104,8 +132,8 @@ export function closeSettings() {
   host = null;
   p.remove();
   if (h) h.remove();
-  for (var i = 0; i < offs.length; i++) { try { offs[i](); } catch (e) { /* best-effort: cleanup */ } }
-  offs = [];
+  clearSubs();
+  headEl = null; bodyEl = null; mode = null; // 视图态随面板清零（下次 open 恒回一级）
   flushSettings(); // 关面板即落盘：不等防抖窗（用户改完就关是最常见路径）
   overlayClose('settings'); // 已出栈（Esc 路径）时空转；显式关闭路径由此同步栈
 }
@@ -186,11 +214,28 @@ function numControl(item) {
 
 var FACTORY = { bool: boolControl, select: selectControl, number: numControl };
 
+// manage 标记行（0.9.341）：bool 语义 + 右侧「管理」钮进二级——SCHEMA type 不扩词表，
+// 变体走标记位（boolControl 的 sync/退订语义在此原样复用，只加钮与 pair 壳）
+function manageControl(item) {
+  var wrap = el('span', 'set-pair');
+  var sw = makeSwitch(getSetting(item.key) === true, function (next) {
+    setSetting(item.key, next);
+  }, 'dark');
+  sw.node.title = item.label || item.key;
+  var btn = el('button', 'set-act', '管理');
+  btn.title = '逐项管理官方页面功能';
+  btn.addEventListener('click', function (ev) { ev.stopPropagation(); openInject(); });
+  wrap.appendChild(sw.node);
+  wrap.appendChild(btn);
+  var sync = function () { sw.sync(getSetting(item.key) === true); };
+  return { node: wrap, sync: sync };
+}
+
 // 表驱动出控件（settings.test.js 钉着「panel:true 的类型必须在实现集内」——漏控件会红）
 function buildBody(body) {
   var group = null;
   panelItems().forEach(function (item) {
-    var f = FACTORY[item.type];
+    var f = item.manage ? manageControl : FACTORY[item.type];
     if (!f) return;
     if (item.group !== group) {
       group = item.group;
@@ -199,15 +244,83 @@ function buildBody(body) {
     var row = el('div', 'set-row');
     var main = el('div', 'set-row-main');
     main.appendChild(el('div', 'set-label', item.label));
-    if (item.hint) main.appendChild(el('div', 'set-hint', item.hint));
+    var hintEl = null;
+    if (item.hint) {
+      hintEl = el('div', 'set-hint', item.hint);
+      main.appendChild(hintEl);
+    }
     row.appendChild(main);
     var c = f(item);
     row.appendChild(c.node);
     body.appendChild(row);
+    // hintOff（0.9.341 总闸行）：开态讲范围、关态讲结果——文案随值切，键仍单源 SCHEMA
+    if (item.hintOff && hintEl) {
+      offs.push(onChange(item.key, function () {
+        hintEl.textContent = getSetting(item.key) === true ? item.hint : item.hintOff;
+      }));
+    }
     // 外部入口改了同一个键（如控制栏「弹」按钮）时面板态跟着走
     offs.push(onChange(item.key, c.sync));
   });
 }
+
+// ---------- 二级 · 官方页面增强（0.9.341，同壳换页；清单=settings.injectItems() 派生，禁人工第二份） ----------
+// 文案两态逐字照确认稿；置灰态=总闸短路的观感表达：开关画「关位灰态」但**不回写各项存储**
+//（总闸开回后各子项还原各自状态——稿④钉）；置灰行开关靠 CSS pointer-events 停用，零 JS 判。
+var INJ_NOTE_ON = '关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。';
+var INJ_NOTE_OFF = '官方页面增强已整体关闭；先回一级打开总开关，再逐项管理。';
+
+function buildInjectBody(body) {
+  var masterOn = getSetting(INJECT_MASTER) === true;
+  body.appendChild(el('div', 'set-note', masterOn ? INJ_NOTE_ON : INJ_NOTE_OFF));
+  injectItems().forEach(function (item) {
+    var row = el('div', 'set-row' + (masterOn ? '' : ' dim'));
+    var main = el('div', 'set-row-main');
+    main.appendChild(el('div', 'set-label', item.label));
+    if (item.hint) main.appendChild(el('div', 'set-hint', item.hint));
+    row.appendChild(main);
+    var sw = makeSwitch(masterOn && getSetting(item.key) === true, function (next) {
+      setSetting(item.key, next);
+    }, 'dark');
+    sw.node.title = item.label || item.key;
+    if (masterOn) { // 置灰态无需订阅：总闸不能在二级翻，回一级重开时整视图重建
+      offs.push(onChange(item.key, function () { sw.sync(getSetting(item.key) === true); }));
+    }
+    row.appendChild(sw.node);
+    body.appendChild(row);
+  });
+}
+
+// 头部随视图重绘（‹ 只在二级、✕ 只在一级——稿③钉：二级关面板由「完成」承担，不做两步退出）
+function renderHead() {
+  headEl.textContent = '';
+  if (mode === 'inject') {
+    var back = el('button', 'set-back', '‹');
+    back.title = '返回';
+    back.addEventListener('click', showMain);
+    headEl.appendChild(back);
+    // 二级标题=总闸 SCHEMA 项 label 派生（0.9.341 单源：改口语只改 SCHEMA 一处，两侧同动）
+    var masterItem = findItem(INJECT_MASTER);
+    headEl.appendChild(el('div', 'set-title', (masterItem && masterItem.label) || '设置'));
+  } else {
+    headEl.appendChild(el('div', 'set-title', '设置'));
+    var x = el('button', 'set-x', '✕');
+    x.title = '关闭';
+    x.addEventListener('click', closeSettings);
+    headEl.appendChild(x);
+  }
+}
+
+function renderView() {
+  clearSubs(); // 订阅随视图走：换页先退干净再重订，防重开累积
+  renderHead();
+  bodyEl.textContent = '';
+  if (mode === 'inject') buildInjectBody(bodyEl);
+  else buildBody(bodyEl);
+}
+
+function openInject() { mode = 'inject'; renderView(); }
+function showMain() { mode = null; renderView(); }
 
 export function openSettings() {
   closeSettings();
@@ -219,16 +332,12 @@ export function openSettings() {
   shadow.appendChild(style);
   panel = el('div', 'set');
   var pnl = el('div', 'set-panel');
-  var head = el('div', 'set-head');
-  head.appendChild(el('div', 'set-title', '设置'));
-  var x = el('button', 'set-x', '✕');
-  x.title = '关闭';
-  x.addEventListener('click', closeSettings);
-  head.appendChild(x);
-  pnl.appendChild(head);
-  var body = el('div', 'set-body');
-  buildBody(body);
-  pnl.appendChild(body);
+  headEl = el('div', 'set-head');
+  bodyEl = el('div', 'set-body');
+  pnl.appendChild(headEl);
+  pnl.appendChild(bodyEl);
+  mode = null;
+  renderView(); // 头部/首屏视图统一走换页管线（0.9.341 后 open 与换页同一条渲染路）
   var foot = el('div', 'set-foot');
   foot.appendChild(el('span', 'set-ver', 'v' + APP_VERSION));
   var done = el('button', 'set-act primary', '完成');
@@ -239,5 +348,5 @@ export function openSettings() {
   panel.addEventListener('click', function (ev) { if (ev.target === panel) closeSettings(); });
   shadow.appendChild(panel);
   root.appendChild(host);
-  overlayOpen({ id: 'settings', modal: true, close: closeSettings, onEsc: dismissMenu });
+  overlayOpen({ id: 'settings', modal: true, close: closeSettings, onEsc: onPanelEsc });
 }

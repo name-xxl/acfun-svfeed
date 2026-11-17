@@ -5,6 +5,50 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.341（2026-11-17）· 官方页面增强注入闸（用户裁决「用户角度就是功能开关；只治非脚本页，关＝不注入不加载」）——injects 门层 + SCHEMA 七键 + 同壳二级
+
+**来历（非病灶，是新外因）**：开发期内官方上架网页端动态广场，与本脚本**原生面**功能重合
+（memberplaza 广场接管 / spacemoments 空间动态标签 / nativeip 原生评论 IP / imnative 私信卡
+渲染 / nav 首页入口）。此前这些注入件**没有任何用户可关的闸**——仓库历史上功能处置全走
+「裁决→整体撤除/收窄」（0.9.132 推广条、0.9.225 浮标、0.9.314 siteOnly），没有「用户自选」
+形态；重合面处置权该交给用户，遂建开关。用户口径钉死：作用域只限非脚本页（竖刷世界是独立
+界面不寄生官方页，明示不在射程）、关＝不注入不加载整链短路（省性能，非仅隐藏）、生效=重新
+加载后（**无即时摘除承诺，各件因此零 unmount 义务——裁决不是欠账**）、免真机实测（重合
+处置由用户经开关自选）。
+
+**修法（注册表式收口，规矩 3/7）**：
+① `src/injects.js` 门层：`injectOn(key)`＝「要不要注入原生面」唯一判读口（总闸
+  `injectNative` 短路在前、子项在后；未登记键 fail-closed＝不注入）；形态同 dest.js 表出口纪律。
+② SCHEMA 七键：总闸 `injectNative`（type 仍 bool，`manage:'inject'` 标记驱动皮肤双控件行——
+  **不扩类型词表**，settings.test TYPES 不变量不动；`hintOff` 关态话术随值切换）+ 六子项
+  （`sub:'inject'`、panel:false、def 全 true=现状零行为变化），二级清单 `injectItems()` 派生。
+③ boot 六处短路：home→navGate（页白名单闸与注入闸两义分层）、member→两标签各闸（全关则
+  spacetab 共享观察器不起）、memberCenter→`mpOn ∨ ipOn` 才落样式/root（IP 挂点吃 .acsv-cip
+  样式，两闸全关本支一行不跑；cssraw 分段**另批挂账**）、native→`injectPageIm` 整支、
+  非 home 尾行→`injectPageIp`。toggle/hashchange/mountNatPanel 等脚本自有链一律不吃闸。
+④ settingspanel 同壳二级（`mode` 换页，**不新开 overlay 层**——零新 z 档不触 check-zlayers）：
+  manage 行=开关+「管理」钮（.set-pair）；‹ 回退钮复用 CLOSE_BTN；标题从总闸 label 派生；
+  Esc 经 `onPanelEsc` 预处理先回一级（0.9.237 收菜单同款语义）；总闸关时二级整页
+  `.dim` 置灰（opacity 取 :disabled 同值 .35；CSS pointer-events 停用、不回写各项值）；
+  订阅随视图切换先退再订（renderView→clearSubs），「完成」在二级直关整面板。
+
+**测试证据（双闸+反跑，规矩 1 配闸/规矩 4/7）**：
+· `check-preview.mjs` 登记 6 条取值字面（.set-pair/.set-note/.dim/CLOSE_BTN/钮内距——摘一侧即红）；
+· 新闸 `check-injects.mjs`：SCHEMA `sub:'inject'` 键集 ↔ boot `injectOn('…')` 调用**双向配对**
+  （各恰一次；摘短路=面板有行而闸缺位即红；boot 手抄总闸键/皮肤手抄子项键=第二清单病灶即红）；
+  入 package.json check 链。
+· harness 新场景 5：`inject-home-nav`（开态对照腿：顶导航克隆照注——本件首次获得正腿覆盖）、
+  `inject-off-home`（总闸关：不注入 + 竖刷壳照常在位=「脚本世界不在射程」反例钉）、
+  `inject-off-member`（plaza+IP 双关：`__BOOT_SNAP__` 样式/root 假 + 入口/.acsv-mp/toast 三缺席）、
+  `inject-off-space`（分项关而总闸仍开：两自建标签均不追加、原生三标签完好、零样式）、
+  `settings-inject`（二级全流程：管理钮进/Esc 回一级/逐项持久化/置灰不回写/pointer-events 停用/
+  开回还原/完成直关）。反跑口径写进各断言注释。
+· settings-open/settings-migrate 行数 11→12、label 序、开关索引 +1 随批适配（injectNative
+  落通用组自动签到之后=稿钉位）；settings.test 新增七键形态钉子。
+· 确认稿 docs/preview/native-inject-switch.html（用户 2026-11-17 确认；改版先改稿）。
+
+**顺带**：README 依赖图 dest 节点滞后标注「待接线」修正为 0.9.333 已接线（口径两处漂移，doc 卫生）。
+
 ### 0.9.340（2026-11-17）· 藏键统一规则（用户裁决「缩放至一致高度、统一对齐规则」）——单 SVG 两态 + 五键同结构同盒
 
 **病灶（用户实报 0.9.339 底对齐「又有点高了」＋要求统一规则）**：前几版一直在「补偿」而不是

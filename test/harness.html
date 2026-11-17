@@ -44,6 +44,7 @@
 <script src="cases/nativeip.js"></script><!-- 0.9.248 原生页评论 IP+设备（Web-IP 吸收 6a：注入/切换/拦截/路由） -->
 <script src="cases/audit257.js"></script><!-- 0.9.257 批①六修 + 徽标监听（P2-4）的摘修复反跑钉子 -->
 <script src="cases/article.js"></script><!-- 0.9.326 文章阅读浮层（确认稿 article-reader-v3：开层/骨架/净化/stype=3 评论/dim/composer/回复 chip/失败/窄态） -->
+<script src="cases/injects.js"></script><!-- 0.9.341 官方页面增强注入闸（确认稿 native-inject-switch：导航/我的/空间关态 + 导航开态对照） -->
 <script>
   // ============ 场景预处理（须在 bundle 加载前：改 mock / 写 localStorage） ============
   var CASE = (location.search.match(/[?&]case=([\w-]+)/) || [])[1] || 'smoke';
@@ -51,7 +52,9 @@
   // 不自动挂壳的场景（0.9.128）：在**无壳**条件下验证原生页行为（boot 分流/入口注入/内嵌）。
   // 该名单约束两处：run() 不等待 #acsv-root 挂载（无壳=场景前提，由场景体自证）；文末不强制
   // hash='svfeed'（否则会把壳意外挂起来）
-  var NO_AUTOMOUNT = ['member-plaza', 'space-moments', 'native-ip', 'native-surfaces', 'nat-panel'];
+  var NO_AUTOMOUNT = ['member-plaza', 'space-moments', 'native-ip', 'native-surfaces', 'nat-panel',
+    // 0.9.341 注入闸关态场景：验证的是原生面「不注入」形态，壳挂起来反成噪音（无壳前提同款）
+    'inject-off-member', 'inject-off-space'];
   // 官方 weblog 管道 stub：debug 构建 unsafeWindow===window，reportLeave 读 window.weblog。
   // 所有场景无条件 stub——非 home 场景 cap.watchReport=false 不会触达；调用记录供断言
   window.__WL_CALLS = [];
@@ -101,7 +104,7 @@
 
   // 走 home mock 的场景（其余默认 sv；显式 ?src=home 保持人工预览语义）
   // 0.9.89 起源记忆收编进设置层：写新键 acsv.s.source（JSON 标量）
-  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1, 'watch-playlayer-pagehide': 1, 'watch-pagehide-beacon': 1, 'settings-open': 1, 'settings-migrate': 1, 'rel-drawer': 1, 'rel-layer': 1, 'layer-list': 1, 'dm-ime': 1, 'ctl-typing': 1, 'ctl-narrow': 1, 'ctl-waiting': 1, 'dm-play-gated': 1, 'feed-slim-home': 1 };
+  var HOME_CASES = { homeswitch: 1, resolvefail: 1, prewarm: 1, 'quality-switch': 1, 'watch-report': 1, 'watch-playlayer-pagehide': 1, 'watch-pagehide-beacon': 1, 'settings-open': 1, 'settings-migrate': 1, 'settings-inject': 1, 'rel-drawer': 1, 'rel-layer': 1, 'layer-list': 1, 'dm-ime': 1, 'ctl-typing': 1, 'ctl-narrow': 1, 'ctl-waiting': 1, 'dm-play-gated': 1, 'feed-slim-home': 1 };
   try {
     if (HOME_CASES[CASE] || /[?&]src=home/.test(location.search)) localStorage.setItem('acsv.s.source', '"home"');
     else localStorage.removeItem('acsv.s.source');
@@ -145,6 +148,26 @@
     try {
       localStorage.setItem('acsv.s.loop', 'true');
       localStorage.setItem('acsv.s.rate', '1.5');
+    } catch (e) { }
+  }
+  // 注入闸关态场景（0.9.341，确认稿 docs/preview/native-inject-switch.html）：**bundle 前**
+  // 预置关值＝冷启动短路语义（injectOn 只在 boot 判读一次；运行中改设置不动当前页是承诺
+  // 不是缺陷）。对照开态 inject-home-nav 零预置（默认全开=现状）。
+  if (CASE === 'inject-off-home') {
+    try { localStorage.setItem('acsv.s.injectNative', 'false'); } catch (e) { }
+  }
+  if (CASE === 'inject-off-member') {
+    // 双关取全关形态：plaza 链与 IP 面都关 → memberCenter 支连样式/root 前置都不落（稿⑥钉）
+    try {
+      localStorage.setItem('acsv.s.injectMemberPlaza', 'false');
+      localStorage.setItem('acsv.s.injectPageIp', 'false');
+    } catch (e) { }
+  }
+  if (CASE === 'inject-off-space') {
+    // 分项关（总闸保持默认开）——证明子项各自有闸，总闸不是唯一形态
+    try {
+      localStorage.setItem('acsv.s.injectSpaceMoments', 'false');
+      localStorage.setItem('acsv.s.injectSpaceShortVideo', 'false');
     } catch (e) { }
   }
   // 深链的 hash 必须在本 bundle 求值前写好——boot 的 toggle 在 document-end 读 location.hash。
@@ -258,7 +281,12 @@
     // 0.9.249 原生页专属挂点（6b）：同起 /v/，场景体内 pushState 到 /u/、/member/feeds
     'native-surfaces': '/v/ac777777',
     // 0.9.250 原生页设置面板（6c）：同起 /v/
-    'nat-panel': '/v/ac777777'
+    'nat-panel': '/v/ac777777',
+    // 0.9.341 注入闸：首页导航注入对照（开）/关态、/member 双关、/u 分项关
+    'inject-home-nav': '/',
+    'inject-off-home': '/',
+    'inject-off-member': '/member/feeds',
+    'inject-off-space': '/u/12345'
   };
   if (BOOT_PATH[CASE]) {
     try { history.replaceState(null, '', BOOT_PATH[CASE] + location.search + location.hash); } catch (e) { }
