@@ -5,6 +5,27 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.337（2026-11-17）· 投蕉弹层横向锚点修复——display:contents 宿主 rect 全零 → 弹层甩出视口右侧（0.9.336 纵向修后的第二层病灶）
+
+**病灶（用户复测实报「浮层还是没出现」）**：0.9.336 修了纵向（弹层已到栏上方，top 803 <
+857），但横向 anchorBtn 的量测基准是 `host.getBoundingClientRect()`——v3.2 后蕉键的 DOM
+父级是 `.aractbar-more`（宽态 `display:contents`＝**无盒**），rect 全零 → `right = 0 −
+蕉键右缘 ≈ 大负数` → 弹层被甩出视口右侧（harness 实测 rect.left=2023 / vh=1280、
+elementFromPoint=null 在案）。两层病灶叠加＝「没弹出」：纵向贴栏隐身（0.9.336 修）+ 横向
+甩出屏外（本批修）。**诊断插曲如实报**：中段曾误判为「harness 舞台 transform 偏移语境」
+并给可见性断言加语境门禁——宿主量测打印（barIn=420,857 正常坐标）证伪后撤门禁还原无条件。
+
+**修法**：banpop anchorBtn 量测基准改 **`pop.offsetParent`**（弹层真实包含块，按定义正确）：
+display:contents 宿主被正确跳到 `.aractbar-in`；行卡/右栏/详情面板各消费面的宿主本就是
+定位盒，offsetParent＝自身语义等价零回归（窄态 more 有盒回到自身）；anchor 计算保持在
+append 之后（offsetParent 需在 DOM 内）。
+
+**测试证据**：article-reader 71 断言全绿（含新 `article-banpop-hit`：elementFromPoint 命中
+弹层自身——几何过但甩出视口/被遮挡即红，本批前的病灶形态实测 hit=null）；回归
+article-reader-narrow / follow-videos（rail）/ detail-open（详情面板）/ view-follow /
+view-my（行流蕉）全绿。npm test 93 场景全绿、npm run check+tsc 真实退出码 0。投蕉接口
+（RT=3）真机首跑待用户在弹层可见后复测执行。
+
 ### 0.9.336（2026-11-17）· 文章浮层投蕉弹层摆位修复——弹层落进底栏内部深底同色近乎隐身（用户实报「没弹出投蕉弹层」）
 
 **病灶（用户真机实报）**：浮层底栏点投蕉，弹层**有开但看不见**——`.acsv-banpop` 的

@@ -58,8 +58,14 @@ export function toggleBananaPop(btn, opts) {
   // ——竖刷右栏是紧贴按钮的小壳（CSS 的 right:62 就是"离宿主右缘 62"），关注行的动作条却是横贯整卡的
   // 宽条，同一个 right:0 在后者把弹层顶到卡片最右端，离按钮几百像素。声明 anchorBtn 的消费面改按
   // 矩形算：弹层右缘＝按钮右缘（纵向仍由各自 CSS 管——行内抬到按钮上方、右栏与按钮齐平）。
+  // 0.9.337 量测基准改 **offsetParent**（弹层真实包含块）：文章浮层 v3.2 后蕉键的 DOM 父级是
+  // .aractbar-more（宽态 display:contents＝无盒），getBoundingClientRect 全零 → right 算出大负数
+  // → 弹层甩出视口右侧（用户实报「没弹出投蕉弹层」的第二层病灶；第一层＝纵向摆位 0.9.336）。
+  // offsetParent 按定义就是包含块——行卡/右栏/详情面板/浮层四消费面语义等价，窄态 more
+  // （display:block+relative）回到自身，全部不回归
   if (opts.anchorBtn) {
-    var hl = host.getBoundingClientRect(), bl = btn.getBoundingClientRect();
+    var anchor = pop.offsetParent || host;
+    var hl = anchor.getBoundingClientRect(), bl = btn.getBoundingClientRect();
     pop.style.right = Math.round(hl.right - bl.right) + 'px';
   }
   // 外点收起（0.9.147 收口）：捕获相 + 常驻到拆除；面板内点击不算外点
