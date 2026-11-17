@@ -346,6 +346,38 @@ export function articlePiOfRepost(rp) {
   };
 }
 
+// ---------- 文章页 SSR articleInfo 提取（0.9.334 自 articleread 下沉契约件） ----------
+// window.articleInfo＝整页里的一条 JSON（§17.3）。从首个 '{' 做**括号配平**（字符串/转义
+// 感知）——正文串里的半角分号不影响；JSON.parse 失败＝null 走降级。纯字符串函数（node 可单测）。
+// 消费方两处：articleread.fetchArticle（阅读浮层主路）与 appapi.articleCard（IM 文章卡 enrich
+// 0.9.334——douga/info 不服务文章 id，api-research §21 真机在账）。收口理由：同一段提取逻辑
+// 两域要用，留 articleread 私有会逼 appapi 反向 import 特性件（方向口径 B 即红）
+export function articleInfoOfSSR(text) {
+  var k = String(text == null ? '' : text).indexOf('window.articleInfo');
+  if (k < 0) return null;
+  var st = text.indexOf('{', k);
+  if (st < 0) return null;
+  var depth = 0, inStr = false, q = '', bs = false;
+  for (var j = st; j < text.length; j++) {
+    var ch = text.charAt(j);
+    if (inStr) {
+      if (bs) bs = false;
+      else if (ch === '\\') bs = true;
+      else if (ch === q) inStr = false;
+      continue;
+    }
+    if (ch === '"' || ch === "'") { inStr = true; q = ch; continue; }
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        try { return JSON.parse(text.slice(st, j + 1)); } catch (e) { return null; }
+      }
+    }
+  }
+  return null;
+}
+
 // 动态 pi → 私信转发 extra 载荷（0.9.122）：发送侧（momentbar.momentShareItemOf）唯一拼装处。
 // wire 走 ubbPlain 明文（官方客户端可读），本载荷带原始 UBB 正文/配图（限 9）/UP 供接收端
 // 脚本富渲染真表情真图——extra 是脚本↔脚本通道，被服务端剥掉则降级文本动态卡（同 0.9.52

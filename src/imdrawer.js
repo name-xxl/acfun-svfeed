@@ -10,7 +10,7 @@ import { fallbackName , CHAT_PLACEHOLDER} from './immsg.js'; // 回落名口径�
 import { setChatOpener } from './sharepanel.js';
 import { syncCommentVars } from './comments.js';
 import { mountEmotButton, EmotionMap, ensureEmotionMap } from './emoticon.js';
-import { vcard, cshareCard, mcard } from './imcard.js';
+import { vcard, cshareCard, mcard, acard } from './imcard.js';
 import { buildInputBar, buildQuoteChip } from './inputbar.js';
 import { createBubbleKit } from './imbubble.js';
 import { createSendKit } from './imsendui.js';
@@ -252,6 +252,14 @@ testHook('imCardSmoke', function () {
     imgs: [{ url: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==', big: 'https://imgs.aixifan.com/big.jpg' }]
   }, false);
   var md = mcard(bubble.SKIN, { href: '', text: '@李四：动态正文', imgs: [] }, true); // 降级态（extra 被剥）
+  var a1 = acard(bubble.SKIN, { // 文章卡（0.9.334，确认稿 im-article-card）：默认态（标题+数据行）
+    href: 'https://www.acfun.cn/a/ac48868671', title: '文章标题',
+    view: '1.2万', comment: '1024'
+  }, false);
+  var a2 = acard(bubble.SKIN, { // 评论区转发宿主 + 纯 URL 占位（标题槽落「文章 ac9」弱色，绝不进评论文本）
+    href: 'https://www.acfun.cn/a/ac9#ncid=42', title: '', phId: 9,
+    quoteHtml: '<span>评论正文富渲染</span>'
+  }, false);
   drawer.bubbles.appendChild(v.el);
   drawer.bubbles.appendChild(c.el);
   drawer.bubbles.appendChild(mt.el);
@@ -279,7 +287,21 @@ testHook('imCardSmoke', function () {
     mcardQuoteHtml: mt.quote.querySelector('.ubb-emotion') !== null,
     mcardSrct: mt.el.querySelector('.' + bubble.SKIN.srct).textContent,
     mcardDegraded: md.el.classList.contains('mine') && md.quote.textContent.indexOf('动态正文') > -1
-      && md.el.querySelector('.' + bubble.SKIN.mimg) === null
+      && md.el.querySelector('.' + bubble.SKIN.mimg) === null,
+    // 文章卡（0.9.334）：角标/标题/数据行/占位弱色/引用块五件
+    acardCls: a1.el.className,
+    acardHref: a1.el.getAttribute('href'),
+    acardTag: (function () {
+      var t = a1.el.querySelector('.' + bubble.SKIN.acardTag);
+      return t ? t.textContent : '';
+    })(),
+    acardTitle: a1.title.className + '|' + a1.title.textContent,
+    acardView: a1.view.textContent,
+    acardPhCls: a2.title.className + '|' + a2.title.textContent,
+    acardQuote: (function () {
+      var qt = a2.el.querySelector('.' + bubble.SKIN.acardQuote);
+      return !!qt && qt.textContent.indexOf('文章 ac9') === -1 && qt.textContent.length > 0;
+    })()
   };
 });
 // 气泡渲染冒烟（0.9.268）：拆件前先钉住 appendBubble 的分流产物——己方/对方文本、extra 引用条、

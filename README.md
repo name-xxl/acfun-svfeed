@@ -769,7 +769,7 @@ flowchart LR
   imsendui --> imsend & imsdk & immsg & toastmsg
   imbubble --> appapi & emoticon & imcard & imimage & imgload & imgview & immsg & imicons & ubb
   imnative --> appapi & emoticon & imcard & imicons & immsg & ubb
-  imcard --> emoticon & imgview & immsg
+  imcard --> emoticon & imgview & imicons & immsg
   boot --> followview & imnative & jingxuanview & memberplaza & mypage & pagekind & player & playlayer & searchview & spacemoments & squareview & uppage & zone & signapi & signpop
   views --> feedstore & overlay & sidebar & topbar & viewreg
   cards --> imgload & imgview & imicons & ubb & uplook

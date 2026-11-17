@@ -1,13 +1,14 @@
 import { CFG } from './cfg.js';
-import { request, requestRead, mockHit } from './net.js';
+import { request, requestText, requestRead, mockHit } from './net.js';
 import { stat } from './dbg.js';
 import { singleFlight } from './ui.js';
 import { normalizeHome, foldBr } from './playitem.js';
-import { fmtDate, pad2 } from './timefmt.js';
+import { fmtDate, pad2, fmtWan } from './timefmt.js';
 import { coverUrl } from './imgurl.js';
 import { applyQuality } from './quality.js';
 import { parseAdvanced } from './advdm.js';
 import { hasShape, isArray, isEndCursor, RT, okResult0 } from './contract.js';
+import { articleInfoOfSSR } from './panelitem.js'; // 文章 SSR 提取（0.9.334 契约件，IM 文章卡 enrich）
 
 // ---------- APP 家族接口层 ----------
 // 读接口走 api-new.app.acfun.cn（与 acfunchina.com 同后端），固定 mkey 免登录：
@@ -319,6 +320,34 @@ export var AppAPI = {
       };
     }, function () { delete self.cardCache[key]; return null; });
     self.cardCache[key] = p;
+    return p;
+  },
+
+  // 文章卡详情（0.9.334，IM 文章卡 enrich）：douga/info **不服务文章 id**（api-research §21
+  // 真机：result 109021）——走文章页 SSR window.articleInfo 提取（契约件 panelitem.articleInfoOfSSR，
+  // 与阅读浮层同源）。字段真机在账：title/viewCount/commentCount/user.name/user.headUrl；
+  // coverImage 仅部分文章有（缺省即文字型卡，调用方降级不摆 0）。Promise 级缓存同 dougaCard
+  // 纪律——同一文章号的多条分享消息只发一请求；失败弃缓存下条可重试（调用方降级占位标题）
+  articleCardCache: {},
+  articleCard: function (acId) {
+    var self = this;
+    var key = String(acId);
+    if (self.articleCardCache[key]) return self.articleCardCache[key];
+    var p = requestText(CFG.api.articleBase + key).then(function (html) {
+      var d = articleInfoOfSSR(html);
+      if (!d || !d.title) { delete self.articleCardCache[key]; return null; }
+      var u = d.user || {};
+      return {
+        title: String(d.title || ''),
+        cover: String(d.coverImage || ''),
+        view: d.viewCount != null ? fmtWan(d.viewCount) : '',
+        comment: d.commentCount != null ? fmtWan(d.commentCount) : '',
+        userName: String(u.name || u.userName || ''),
+        headUrl: String(u.headUrl || ''),
+        url: CFG.api.articleBase + key
+      };
+    }, function () { delete self.articleCardCache[key]; return null; });
+    self.articleCardCache[key] = p;
     return p;
   },
 

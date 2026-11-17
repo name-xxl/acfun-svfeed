@@ -6,7 +6,7 @@
 import { CFG } from './cfg.js';
 import { el, esc, toast, selfUid } from './ui.js';
 import { emotify } from './emoticon.js';
-import { vcard, patchVcard, cshareCard, patchCshare, mcard, videoHrefOf } from './imcard.js';
+import { vcard, patchVcard, cshareCard, patchCshare, mcard, acard, patchAcard, videoHrefOf } from './imcard.js';
 import { lazyObserve } from './imgload.js';
 import { fetchImImageBlob, peekImImageBlob, imageUrlOf } from './imimage.js';
 import { openImageViewer } from './imgview.js';
@@ -14,7 +14,7 @@ import { ubbQuoteHtml } from './ubb.js';
 import { A_TAIL } from './ubbattr.js'; // 出链属性段单源（0.9.309 缝化）
 import {
   parseCard, parseShare, msgTextOf, previewOfMessage,
-  isCommentShare, commentShareAuthor, cmtShareOf, momentShareOf,
+  isCmtShareCard, commentShareAuthor, cmtShareOf, momentShareOf,
   msgContentType, isQuotable, quoteOf, quoteExtraOf,
   CT, IMG_PLACEHOLDER, QUOTE_STRIP_FALLBACK
 } from './immsg.js';
@@ -188,6 +188,13 @@ export function createBubbleKit(env) {
     cshare: 'acsv-im-cshare', quote: 'acsv-im-cshare-quote', src: 'acsv-im-cshare-src',
     srct: 'acsv-im-cshare-srctitle', srcimg: 'acsv-im-cshare-cover',
     mimgs: 'acsv-im-cshare-mimgs', mimg: 'acsv-im-cshare-mimg', // 动态卡配图行（0.9.122）
+    // 文章卡（0.9.334，确认稿 im-article-card）：类名族独立 acard-*（复用值在 CSS 侧对齐
+    // vcard 真值，不共享类名——两卡 enrich 路径不同，类名同源会互相误伤 patch 选择器）
+    acard: 'acsv-im-acard', acardCoverbox: 'acsv-im-acard-coverbox',
+    acardCover: 'acsv-im-acard-cover', acardNocover: 'nocover',
+    acardTag: 'acsv-im-acard-tag', acardTitle: 'acsv-im-acard-title',
+    acardPh: 'acsv-im-acard-title--ph', acardQuote: 'acsv-im-acard-quote',
+    acardMeta: 'acsv-im-acard-meta', acardN: 'acsv-im-acard-n',
     coverHidden: 'visibility', // 沿用 0.9.51 真机验收形态（盒子保留，防布局跳动）
     icon: function (kind) {
       var i = document.createElement('i');
@@ -223,12 +230,15 @@ export function createBubbleKit(env) {
   // 必须按 kind 先分流（否则被评论卡抢走）；动态无按 id 的读接口，不回拉 enrich
   function appendShareBubble(share, mine, m, cmt, moment) {
     if (share.kind === 'moment') return appendMomentBubble(share, mine, m, moment);
+    if (share.kind === 'article') return appendArticleBubble(share, mine, m, cmt);
     if (share.note) {
       var note = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
       note.textContent = share.note;
       getDrawer().bubbles.appendChild(note);
     }
-    var isCmt = isCommentShare(share.title);
+    // 评论转发卡片分流（0.9.334 收口 isCmtShareCard）：@首行 + #ncid 两件齐才算评论转发——
+    // 行流视频分享（@首行无锚）不再被降级成评论卡（批 2 裁决④）
+    var isCmt = isCmtShareCard(share.title, share.url);
     var parts = isCmt
       ? cshareCard(SKIN, {
           href: share.url, text: share.title,
@@ -244,6 +254,36 @@ export function createBubbleKit(env) {
         || !getChat() || getChat().targetId !== tid) return;
       if (isCmt) patchCshare(parts, c);
       else patchVcard(parts, c);
+      getDrawer().bubbles.scrollTop = getDrawer().bubbles.scrollHeight;
+    });
+  }
+  // 文章分享气泡（0.9.334，F3 收口）：确认稿 im-article-card 用户已确认——文章卡（vcard
+  // 同族骨架 +「文章」角标 + 数据行），enrich 走 SSR articleCard（douga/info 不服务文章 id，
+  // api-research §21）。评论区转发宿主（cmt extra 命中）带引用块：评论正文主视觉、标题槽
+  // 起步落「文章 ac<id>」占位弱色、绝不进评论文本（0.9.51 教训同源）；href 保留 #ncid 锚。
+  // enrich 回包原位 patch（真题/真数/封面增强）；等待期间切走会话/视图则放弃
+  function appendArticleBubble(share, mine, m, cmt) {
+    if (share.note) {
+      var note = el('div', 'acsv-im-bubble' + (mine ? ' mine' : ''));
+      note.textContent = share.note;
+      getDrawer().bubbles.appendChild(note);
+    }
+    var isFwd = !!(cmt && cmt.content); // 评论区转发宿主（extra 载荷命中）
+    var acId = Number(share.articleId) || 0;
+    var parts = acard(SKIN, {
+      href: share.url,
+      title: isFwd ? '' : share.title || '',
+      phId: isFwd || !share.title ? acId : null,
+      quoteHtml: isFwd ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : ''
+    }, mine);
+    var cardEl = parts.el;
+    getDrawer().bubbles.appendChild(bubbleRow(cardEl, mine, m, 'cardrow'));
+    var bubbles = getDrawer().bubbles;
+    var tid = getChat() && getChat().targetId;
+    AppAPI.articleCard(acId).then(function (c) {
+      if (!c || !cardEl.isConnected || !getDrawer() || getDrawer().bubbles !== bubbles
+        || !getChat() || getChat().targetId !== tid) return;
+      patchAcard(parts, c, SKIN);
       getDrawer().bubbles.scrollTop = getDrawer().bubbles.scrollHeight;
     });
   }

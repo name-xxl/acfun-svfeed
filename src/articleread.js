@@ -23,6 +23,7 @@ import { fmtWan } from './timefmt.js';
 import { root, releaseDrawer } from './state.js';
 import { overlayOpen, overlayClose } from './overlay.js';
 import { requestText } from './net.js';
+import { articleInfoOfSSR } from './panelitem.js'; // SSR 提取（0.9.334 下沉契约件，IM 文章卡同消费）
 import { imgInto } from './imgload.js';
 import { CDN_URL_OK } from './imgurl.js';
 import { openImageViewer } from './imgview.js';
@@ -147,37 +148,12 @@ export function isTallImg(w, h, vhPx, colW) {
 }
 
 // ==================== 文章页 SSR 取数 ====================
-// window.articleInfo＝整页里的一条 JSON（§17.3）。从首个 '{' 做**括号配平**
-// （字符串/转义感知）——正文串里的半角分号不影响；JSON.parse 失败＝null 走降级。
-function extractArticleInfo(text) {
-  var k = String(text == null ? '' : text).indexOf('window.articleInfo');
-  if (k < 0) return null;
-  var st = text.indexOf('{', k);
-  if (st < 0) return null;
-  var depth = 0, inStr = false, q = '', bs = false;
-  for (var j = st; j < text.length; j++) {
-    var ch = text.charAt(j);
-    if (inStr) {
-      if (bs) bs = false;
-      else if (ch === '\\') bs = true;
-      else if (ch === q) inStr = false;
-      continue;
-    }
-    if (ch === '"' || ch === "'") { inStr = true; q = ch; continue; }
-    if (ch === '{') depth++;
-    else if (ch === '}') {
-      depth--;
-      if (depth === 0) {
-        try { return JSON.parse(text.slice(st, j + 1)); } catch (e) { return null; }
-      }
-    }
-  }
-  return null;
-}
-// 主路＝SSR JSON；降级＝DOM 取 #article-content innerHTML；两路都败＝reject（失败态）
+// SSR 提取 0.9.334 下沉契约件 panelitem.articleInfoOfSSR（IM 文章卡 enrich 同消费——
+// 同一段括号配平两域要用，留本件私有会逼 appapi 反向 import 特性件，方向口径 B 即红）；
+// 本件保留「主路 SSR JSON + 降级 DOM #article-content」的浮层取数编排
 function fetchArticle(acId) {
   return requestText(CFG.api.articleBase + acId).then(function (html) {
-    var info = extractArticleInfo(html);
+    var info = articleInfoOfSSR(html);
     if (info && (info.title || (info.parts && info.parts.length))) return info;
     var doc = new DOMParser().parseFromString(String(html == null ? '' : html), 'text/html');
     var c = doc.querySelector('#article-content');

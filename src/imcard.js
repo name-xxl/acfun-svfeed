@@ -10,6 +10,7 @@ import { CFG } from './cfg.js';
 import { fmtDur } from './immsg.js';
 import { emotify } from './emoticon.js';
 import { openImageViewer } from './imgview.js';
+import { GLYPHS } from './imicons.js'; // 文章卡数据行字形（阅读 rankView/评论 rankComment，0.9.334）
 
 // 稿件资源类型：本文件局部常数（0.9.305 批6）——**不 import contract**（contract.RT 属主
 // 会话的跨域契约件，卡片装配域按纪律自带同值常数），值 = RT.VIDEO 同字面
@@ -90,6 +91,84 @@ export function patchVcard(parts, c) {
   }
   if (parts.title && c.title) {
     parts.title.textContent = c.title;
+    parts.title.style.display = '';
+  }
+}
+
+// 文章卡（0.9.334，确认稿 docs/preview/im-article-card.html 用户已确认）：vcard 同族骨架
+//（封面 max-height 190 / 两行标题 / hover 提底 .22 全部真值逐字）+「文章」角标（行流
+// frow-tag 形制，恒 coverbox 右上——有封面落封面、无封面落 nocover 占位条，一套 absolute
+// 两态通用）+ 数据行（字形+数不摆文字标签：阅读 rankView/评论 rankComment，vcard 计数条
+// 同族形制）+ nocover 占位条 40 高（确认稿 B-1：文字型卡=缺省态，封面只是增强——douga/
+// info 不服务文章 id、SSR coverImage 仅部分文章有，api-research §21 在账）。
+// spec = { href?, coverUrl?, view?, comment?, title?, phId?, quoteHtml? }：phId=文章号——
+// 占位标题「文章 ac<id>」在本件单源拼装（弱色 B-3；纯 URL 消息/评论区转发宿主标题槽起步态）；
+// quoteHtml=评论区转发宿主的评论正文主视觉（稿⑥：标题槽绝不进评论文本，0.9.51 教训同源）
+export function acard(skin, spec, mine) {
+  var a = el(spec.href ? 'a' : 'div', skin.acard + (mine && skin.rootMine ? ' ' + skin.rootMine : ''));
+  if (spec.href) {
+    a.href = spec.href;
+    a.target = '_blank';
+    a.rel = 'noopener';
+  }
+  a.addEventListener('click', function (ev) { ev.stopPropagation(); });
+  var box = el(skin.tag, skin.acardCoverbox);
+  var cover = el('img', skin.acardCover);
+  cover.alt = '';
+  cover.referrerPolicy = 'no-referrer';
+  cover.addEventListener('load', function () { showCover(cover, skin); });
+  cover.addEventListener('error', function () { hideCover(cover, skin); });
+  if (spec.coverUrl) cover.src = spec.coverUrl;
+  else {
+    hideCover(cover, skin); // 无封面不设 src——占位条收口（B-1 槽位保留 40 高）
+    box.classList.add(skin.acardNocover);
+  }
+  box.appendChild(cover);
+  box.appendChild(el(skin.tag, skin.acardTag, '文章'));
+  a.appendChild(box);
+  if (spec.quoteHtml) {
+    var quote = el(skin.tag, skin.acardQuote);
+    quote.innerHTML = spec.quoteHtml; // 发送侧 ubbQuoteHtml 富渲染产物（真表情/[img] 真图）
+    // [img] 点击看大图：整卡是 <a>，preventDefault 防跳来源页（quoteCardCore 同款交互）
+    quote.addEventListener('click', function (ev) {
+      var im = ev.target && ev.target.closest ? ev.target.closest('.ubb-imgc') : null;
+      if (!im) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      openImageViewer(im.getAttribute('src') || '');
+    });
+    a.appendChild(quote);
+  }
+  var ph = spec.phId != null ? '文章 ac' + spec.phId : ''; // 占位标题单源拼装（B-3）
+  var title = el(skin.tag, skin.acardTitle, spec.title || ph);
+  if (!spec.title && ph) title.classList.add(skin.acardPh); // 占位标题弱色（确认稿 B-3）
+  if (!spec.title && !spec.ph) title.style.display = 'none';
+  a.appendChild(title);
+  var meta = el(skin.tag, skin.acardMeta);
+  var view = el(skin.tag, skin.acardN);
+  view.appendChild(el('i', 'acsvg-glyph', GLYPHS.rankView));
+  var vn = el(skin.tag, null, spec.view || '');
+  view.appendChild(vn);
+  var cmt = el(skin.tag, skin.acardN);
+  cmt.appendChild(el('i', 'acsvg-glyph', GLYPHS.rankComment));
+  var cn = el(skin.tag, null, spec.comment || '');
+  cmt.appendChild(cn);
+  meta.appendChild(view);
+  meta.appendChild(cmt);
+  if (!spec.view && !spec.comment) meta.style.display = 'none'; // 缺字段不摆 0（双保险）
+  a.appendChild(meta);
+  return { el: a, cover: cover, view: vn, cmt: cn, title: title, titleEl: title };
+}
+
+// 文章卡 enrich 原位补全（SSR articleCard 回包）：同 patchVcard 契约——字段在位才覆盖，
+// 标题回填时摘占位弱色（ph → 真题）。skin 只为摘 ph 类
+export function patchAcard(parts, c, skin) {
+  if (parts.cover && c.cover) parts.cover.src = c.cover;
+  if (parts.view && c.view !== '' && c.view != null) parts.view.textContent = c.view;
+  if (parts.cmt && c.comment !== '' && c.comment != null) parts.cmt.textContent = c.comment;
+  if (parts.title && c.title) {
+    parts.title.textContent = c.title;
+    parts.title.classList.remove(skin.acardPh);
     parts.title.style.display = '';
   }
 }

@@ -137,6 +137,16 @@
       && cs.mcardQuoteHtml === true && cs.mcardSrct === '查看动态'),
       cs && JSON.stringify([cs.mcardCls, cs.mcardHref, cs.mcardImgs, cs.mcardSrct]).slice(0, 140));
     rec('动态卡降级（extra 被剥）：wire 文本可读 + 己方类 + 无配图行', !!(cs && cs.mcardDegraded === true));
+    // 文章卡（0.9.334，确认稿 im-article-card）：根类独立 acard-* / 角标「文章」/ 数据行 /
+    // 占位标题弱色类（ph 路径）/ 引用块带富渲染且不进标题槽
+    rec('文章卡皮肤：根类/链接/角标/标题', !!(cs && cs.acardCls === 'acsv-im-acard'
+      && cs.acardHref === 'https://www.acfun.cn/a/ac48868671' && cs.acardTag === '文章'
+      && cs.acardTitle === 'acsv-im-acard-title|文章标题'),
+      cs && JSON.stringify([cs.acardCls, cs.acardHref, cs.acardTag, cs.acardTitle]).slice(0, 160));
+    rec('文章卡皮肤：数据行/占位弱色/引用块', !!(cs && cs.acardView === '1.2万'
+      && cs.acardPhCls === 'acsv-im-acard-title acsv-im-acard-title--ph|文章 ac9'
+      && cs.acardQuote === true),
+      cs && JSON.stringify([cs.acardView, cs.acardPhCls, cs.acardQuote]).slice(0, 160));
     window.__IM_RESULTS__.done = true;
   }
 </script>

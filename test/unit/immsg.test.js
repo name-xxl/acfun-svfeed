@@ -7,7 +7,7 @@ import {
   msgContentType, parseCard, parseShare, fmtDur,
   degradeText, msgTextOf, previewOfMessage, sharePreviewOf,
   isQuotable, quoteOf, quoteExtraOf, quoteWireText, quoteWireTrimLen,
-  isCommentShare, commentShareWire, commentShareAuthor, cmtShareOf, momentShareOf,
+  isCommentShare, isCmtShareCard, commentShareWire, commentShareAuthor, cmtShareOf, momentShareOf,
   QUOTE_EXTRA_KEY, CMT_EXTRA_KEY, MOMENT_EXTRA_KEY,
   CT, QUOTABLE_CT, fallbackName, IMG_PLACEHOLDER, QUOTE_STRIP_FALLBACK,
   decodeExtra, encodeExtra, findSession
@@ -496,4 +496,29 @@ test('findSession：String 全等匹配数字/字符串混布 targetId；无命�
   assert.equal(findSession([], undefined), null); // String(undefined) 不匹配真实 targetId
   var poisoned = [{ get targetId() { throw new Error('boom'); } }];
   assert.equal(findSession(poisoned, 1), null); // 容错契约：不抛
+});
+
+test('文章链识别 + 评论卡判别（0.9.334，F3 收口）', () => {
+  // /a/ac 链出 kind='article'（旧正则只认 /v/ac → parseShare 返 null 落纯文本气泡＝病灶本体）
+  var a = parseShare('好文\nhttps://www.acfun.cn/a/ac48868671');
+  assert.equal(a.kind, 'article');
+  assert.equal(a.articleId, '48868671');
+  assert.equal(a.acId, '');
+  assert.equal(a.url, 'https://www.acfun.cn/a/ac48868671');
+  // #ncid 锚随 URL 保留（0.9.52 契约：# 片段随链）
+  var f = parseShare('@张三：写得好\nhttps://www.acfun.cn/a/ac9#ncid=42');
+  assert.equal(f.kind, 'article');
+  assert.equal(f.articleId, '9');
+  assert.equal(/#ncid=42$/.test(f.url), true);
+  // 视频链形态不串（回归）：/v/ac 仍出 video
+  assert.equal(parseShare('https://www.acfun.cn/v/ac77').kind, 'video');
+  // 卡片分流判据：@首行 + #ncid 两件齐才算评论转发——行流视频分享（@首行无锚）出 false
+  //（批 2 裁决④：同一视频两种接收观感的病灶判据）；文章评论转发出 true
+  assert.equal(isCmtShareCard('@张三：好看', 'https://www.acfun.cn/v/ac1#ncid=9'), true);
+  assert.equal(isCmtShareCard('@张三：好看', 'https://www.acfun.cn/v/ac1'), false);
+  assert.equal(isCmtShareCard('@张三：写得好', 'https://www.acfun.cn/a/ac9#ncid=42'), true);
+  assert.equal(isCmtShareCard('手打标题', 'https://www.acfun.cn/v/ac1'), false);
+  assert.equal(isCmtShareCard('@张三：好看', ''), false);
+  // 脏输入不抛
+  assert.equal(isCmtShareCard(null, null), false);
 });

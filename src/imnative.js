@@ -11,10 +11,10 @@ import { el } from './ui.js';
 import { testHook, stat } from './dbg.js';
 import { ICON_SVGS } from './imicons.js';
 import { ensureEmotionMap } from './emoticon.js';
-import { parseCard, parseShare, isCommentShare, commentShareAuthor, cmtShareOf, momentShareOf, degradeText, previewOfMessage, sharePreviewOf, msgContentType, msgTextOf, quoteOf, quoteExtraOf, quoteWireTrimLen, CT, findSession, QUOTE_STRIP_FALLBACK } from './immsg.js';
+import { parseCard, parseShare, isCmtShareCard, commentShareAuthor, cmtShareOf, momentShareOf, degradeText, previewOfMessage, sharePreviewOf, msgContentType, msgTextOf, quoteOf, quoteExtraOf, quoteWireTrimLen, CT, findSession, QUOTE_STRIP_FALLBACK } from './immsg.js';
 import { ubbQuoteHtml } from './ubb.js';
 import { EMO_TAIL, IMG_ZOOM_TAIL } from './cssseg.js'; // 影子段 token（0.9.309 缝化）：与 cssraw 同源，「对齐抽屉数值」由同值常量保证
-import { vcard, cshareCard, patchCshare, mcard, videoHrefOf } from './imcard.js';
+import { vcard, cshareCard, patchCshare, mcard, acard, patchAcard, videoHrefOf } from './imcard.js';
 import { AppAPI } from './appapi.js';
 
 var UNSUPPORTED = '不支持查看此消息，请前往最新版客户端查看。';
@@ -73,6 +73,20 @@ var SHADOW_CSS = ''
   + '.cshare .src{display:flex;align-items:center;gap:8px;padding:7px 9px;border-top:1px solid #efefef}'
   + '.cshare .srcimg{flex:none;width:56px;height:36px;object-fit:cover;border-radius:4px;background:#f2f2f2}'
   + '.cshare .srct{flex:1;min-width:0;font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+  // 文章卡（0.9.334，浅皮）：骨架类复用 .item 族真值直接继承，仅补新增五名——角标（暗皮
+  // frow-tag 形制、accent 用本页主题红对齐 qstrip 语言）/ nocover 占位条 / 占位标题弱色 /
+  // 数据行（字形+数）；quote 限定 .item 直子（.cshare .quote 是评论卡域，不互染）
+  + '.item > .atag{position:absolute;top:6px;right:6px;width:34px;height:18px;line-height:18px;'
+  + 'text-align:center;background:#fd4c5d;border-radius:3px;font-size:12px;color:#fff}'
+  + '.coverbox.nocover{height:40px;background:#f2f2f2}'
+  + '.title.title-ph{color:#999}'
+  + '.item > .quote{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;'
+  + 'padding:8px 10px;border-left:2px solid #fd4c5d;margin:6px 8px 0;font-size:13px;line-height:1.55;'
+  + 'color:#333;white-space:pre-wrap;word-break:break-word}'
+  + '.item > .ameta{display:flex;align-items:center;gap:12px;padding:0 9px 8px;'
+  + 'font-size:11px;color:#999}'
+  + '.item > .ameta .an{display:inline-flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}'
+  + '.item > .ameta .an .acsvg-glyph{font-size:12px;line-height:1;font-style:normal}'
   // 动态卡配图行（0.9.122，骨架根类复用评论卡）：缩略网格，点图开大图
   + '.cshare .mimgs{display:flex;flex-wrap:wrap;gap:4px;padding:8px 10px 0}'
   + '.cshare .mimg{display:block;width:92px;height:92px;border-radius:6px;overflow:hidden;cursor:zoom-in;flex:none;background:#f2f2f2}'
@@ -323,12 +337,16 @@ function renderCard(content, card) {
   appendShadow(content, card.resourceBody.map(function (r) { return cardItemOf(r); }), card.prologue);
 }
 
-// 分享识别 → dougaCard 富化 → 渲染，公共尾部。dougaCard 失败打一次 warn
-//（恒为 resolve(null)，不 warn 出问题时零线索）；解析命中即打标记防 observer 重复请求
+// 分享识别 → 卡片详情富化 → 渲染，公共尾部。拉取失败打一次 warn
+//（恒为 resolve(null)，不 warn 出问题时零线索）；解析命中即打标记防 observer 重复请求。
+// 0.9.334：文章分享走 articleCard（SSR；douga/info 不服务文章 id，api-research §21）
 function enrichShare(share, mount) {
-  AppAPI.dougaCard(share.acId).then(function (c) {
+  var pull = share.kind === 'article'
+    ? AppAPI.articleCard(Number(share.articleId) || 0)
+    : AppAPI.dougaCard(share.acId);
+  pull.then(function (c) {
     if (!c) {
-      console.warn('[acsv-im] 分享卡详情拉取失败 ac' + share.acId + '（保持纯文本）');
+      console.warn('[acsv-im] 分享卡详情拉取失败 ac' + (share.acId || share.articleId) + '（保持纯文本）');
       return;
     }
     mount(c);
@@ -366,10 +384,29 @@ function tryShareCard(msgEl, content, msgCache) {
     }, false).el]);
     return;
   }
-  console.info('[acsv-im] 识别到分享消息 ac' + share.acId + '，拉取卡片详情');
+  console.info('[acsv-im] 识别到分享消息 ac' + (share.acId || share.articleId) + '，拉取卡片详情');
   enrichShare(share, function (c) {
     if (!content.isConnected) return;
-    if (isCommentShare(share.title)) {
+    if (share.kind === 'article') {
+      // 文章分享（0.9.334，F3 收口）：文章卡（vcard 同族骨架 +「文章」角标 + 数据行）；
+      // 评论区转发（isCmtShareCard：@首行 + #ncid）带引用块——评论正文主视觉，标题槽落
+      // 「文章 ac<id>」占位弱色、绝不进评论文本（0.9.51 教训同源）；href 保留 #ncid 锚。
+      // enrich 失败 enrichShare 已 warn 并保持原文本（可读可点由纯文本链承担）
+      var fwd = isCmtShareCard(share.title, share.url);
+      var acId = Number(share.articleId) || 0;
+      var cmt = fwd ? cmtShareOf(pairMessage(msgEl, msgCache)) : null;
+      var ap = acard(SKIN, {
+        href: share.url,
+        title: fwd ? '' : (share.title || ''),
+        phId: fwd || !share.title ? acId : null,
+        quoteHtml: cmt && cmt.content ? ubbQuoteHtml(commentShareAuthor(share.title), cmt.content) : ''
+      }, false);
+      patchAcard(ap, c, SKIN); // 只补标题/数据行/封面，评论正文永不碰（0.9.51 教训同源）
+      content.textContent = share.note || '';
+      appendShadow(content, [ap.el]);
+      return;
+    }
+    if (isCmtShareCard(share.title, share.url)) {
       // 评论转发：原文（引用行+URL 行）整体由卡片承载，官方气泡只留附言——保留原文本会与
       // 卡片引用块重复（0.9.52 真机截图实证）。extra 载荷命中（pairMessage 配对内核消息，
       // 0.9.57）时引用块富渲染原始 UBB：真表情/[img] 真图可点看大图；被剥则 wire 文本降级
@@ -501,6 +538,11 @@ var SKIN = {
   rootMine: '', // 原生页不分己方/对方（气泡方向由站方外壳决定）
   cshare: 'cshare', quote: 'quote', src: 'src', srct: 'srct', srcimg: 'srcimg',
   mimgs: 'mimgs', mimg: 'mimg', // 动态卡配图行（0.9.122）
+  // 文章卡（0.9.334）：骨架复用本皮肤 vcard 族类（item/coverbox/cover/title 浅皮真值直接
+  // 继承），新增仅 atag/title-ph/quote/ameta/an/nocover 六名——浅皮 CSS 在本文件 SHADOW_CSS
+  acard: 'item', acardCoverbox: 'coverbox', acardCover: 'cover', acardNocover: 'nocover',
+  acardTag: 'atag', acardTitle: 'title', acardPh: 'title-ph', acardQuote: 'quote',
+  acardMeta: 'ameta', acardN: 'an',
   coverHidden: 'display', // 沿用 0.9.51/0.9.57 真机验收形态（封面不占位、load 才放出）
   icon: function (kind) {
     var i = el('i', 'icon');

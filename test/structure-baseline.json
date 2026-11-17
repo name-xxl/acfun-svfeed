@@ -238,8 +238,8 @@
       "why": "0.9.326 首轮建档：文章阅读浮层新件（openArticleReader/closeArticleReader/sanitizeArticleBody/isTallImg；确认稿 article-reader-v3 落地，导出 4 即本批实测值；行 627＝replyBtnOf 收口后回填）；0.9.327 +85 行＝互动写链接通（toggleLike/openBanana/toggleStow+nums/st 数值态+顶栏让位）；0.9.330 +19 行＝正文 acfun 表情接通回填管线（sanitize 分包待遇 + refillBodyEmots，头注同步）"
     },
     {
-      "key": "size:appapi.js:行476:导出8",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:appapi.js:行505:导出8",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）；0.9.334 +29 行＝articleCard（IM 文章卡 enrich，SSR 路：douga/info 不服务文章 id，api-research §21 真机）+ articleInfoOfSSR import；0.9.334 +29 行＝articleCard（IM 文章卡 enrich，SSR 路：douga/info 不服务文章 id，api-research §21 真机）+ articleInfoOfSSR import"
     },
     {
       "key": "size:attach.js:行138:导出6",
@@ -294,8 +294,8 @@
       "why": "0.9.319 登记：零基色族 hover 提底档收成常量单源 LIFT0（口径①：同值字面 ≥2 处即病灶，网格/榜单行/搜索行三行引用）——+3 行"
     },
     {
-      "key": "size:cssraw.js:行2115:导出1",
-      "why": "0.9.319 登记：撤框历史注释把 var(--acsv-accent-dim) 改写成字面值并注明该变量已删（本轮删变量）——+1 行；0.9.326 +159 行＝文章阅读浮层 CSS 段（确认稿 article-reader-v3 取值落地，含 620 窄态块）；0.9.327 +13 行＝壳顶栏让位/底栏点亮悬停色四条/蕉 hover 黄/藏键字号/banpop 锚点上下文/composer 760 居中（真机反馈批）；0.9.329 +3 行＝藏键墨迹量化补偿 20/23px（fontTools 轮廓实测）；0.9.330 +1 行＝34/68 表情尺寸档共享选择器组追加 .arbody 作用域（注释一行，取值不动）；0.9.331 净 +3 行＝藏键描边化切换五条 + .aractbar--dim 撤除 + 文末条 14px 档退役（确认稿 v3.2）"
+      "key": "size:cssraw.js:行2139:导出1",
+      "why": "0.9.319 登记：撤框历史注释把 var(--acsv-accent-dim) 改写成字面值并注明该变量已删（本轮删变量）——+1 行；0.9.326 +159 行＝文章阅读浮层 CSS 段（确认稿 article-reader-v3 取值落地，含 620 窄态块）；0.9.327 +13 行＝壳顶栏让位/底栏点亮悬停色四条/蕉 hover 黄/藏键字号/banpop 锚点上下文/composer 760 居中（真机反馈批）；0.9.329 +3 行＝藏键墨迹量化补偿 20/23px（fontTools 轮廓实测）；0.9.330 +1 行＝34/68 表情尺寸档共享选择器组追加 .arbody 作用域（注释一行，取值不动）；0.9.331 净 +3 行＝藏键描边化切换五条 + .aractbar--dim 撤除 + 文末条 14px 档退役（确认稿 v3.2）；0.9.334 +24 行＝.acsv-im-acard 暗皮块（确认稿 im-article-card 取值逐字，check-preview +7 钉同批）；0.9.334 +24 行＝.acsv-im-acard 暗皮块（确认稿 im-article-card 取值逐字，check-preview +7 钉同批）"
     },
     {
       "key": "size:cssseg.js:行32:导出9",
@@ -394,20 +394,20 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:imbubble.js:行271:导出1",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:imbubble.js:行311:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）；0.9.334 +40 行＝appendArticleBubble（文章分享气泡：评论区转发宿主带引用块、占位标题 phId 单源）+ isCmtShareCard 换判据（裁决④：行流视频分享不再被降级评论卡）；0.9.334 +40 行＝appendArticleBubble（文章分享气泡：评论区转发宿主带引用块、占位标题 phId 单源）+ isCmtShareCard 换判据（裁决④：行流视频分享不再被降级评论卡）"
     },
     {
-      "key": "size:imcard.js:行193:导出6",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:imcard.js:行272:导出8",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）；0.9.334 +79 行导出 6→8＝acard/patchAcard（vcard 同族骨架+文章角标+nocover 占位条+数据行，确认稿 B-1/B-2/B-3）；0.9.334 +79 行导出 6→8＝acard/patchAcard（vcard 同族骨架+文章角标+nocover 占位条+数据行+占位标题 phId 单源，确认稿 B-1/B-2/B-3）"
     },
     {
       "key": "size:imchat.js:行171:导出1",
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:imdrawer.js:行456:导出6",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:imdrawer.js:行478:导出6",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）；0.9.334 +22 行＝imCardSmoke 文章卡标本两态（默认/评论区转发占位）；0.9.334 +22 行＝imCardSmoke 文章卡标本两态（默认/评论区转发占位）"
     },
     {
       "key": "size:imgload.js:行153:导出4",
@@ -434,12 +434,12 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:immsg.js:行363:导出31",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:immsg.js:行378:导出32",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）；0.9.334 +15 行导出 31→32＝RE_ARTICLE_URL 文章链识别（F3 病灶：旧正则只认 /v/ac）+ shareAt.articleId + isCmtShareCard 判别单源；0.9.334 +15 行导出 31→32＝RE_ARTICLE_URL 文章链识别（F3 病灶：旧正则只认 /v/ac）+ shareAt.articleId + isCmtShareCard 判别单源"
     },
     {
-      "key": "size:imnative.js:行520:导出1",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
+      "key": "size:imnative.js:行562:导出1",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）；0.9.334 +42 行＝enrichShare 文章路 + acard 浅皮分支 + SHADOW_CSS 浅皮 acard 五名（骨架复用 .item 族）；0.9.334 +42 行＝enrichShare 文章路 + acard 浅皮分支 + SHADOW_CSS 浅皮 acard 新名（骨架复用 .item 族）"
     },
     {
       "key": "size:imsdk.js:行416:导出12",
@@ -562,8 +562,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:panelitem.js:行406:导出7",
-      "why": "首轮尺寸建档；0.9.333 +14 行导出 6→7＝articlePiOfRepost 契约件（引用源卡文章 pi 构造单源，momentPiOfRepost 同款纪律；cards.articleOpener 缝消费）+ :172 假注改口（赞写链 0.9.333 接通）"
+      "key": "size:panelitem.js:行438:导出8",
+      "why": "首轮尺寸建档；0.9.333 +14 行导出 6→7＝articlePiOfRepost 契约件（引用源卡文章 pi 构造单源，momentPiOfRepost 同款纪律；cards.articleOpener 缝消费）+ :172 假注改口（赞写链 0.9.333 接通）；0.9.334 +32 行导出 7→8＝articleInfoOfSSR 下沉契约件（articleread/appapi 双消费，方向口径 B 即红的环豁免收口）+ articlePiOfRepost（0.9.333）；0.9.334 +32 行导出 7→8＝articleInfoOfSSR 下沉契约件（articleread/appapi 双消费）+ articlePiOfRepost（0.9.333）"
     },
     {
       "key": "size:pickpop.js:行333:导出3",

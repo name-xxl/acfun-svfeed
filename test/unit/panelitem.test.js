@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = globalThis;
 globalThis.__ACSV_DEBUG__ = false;
-var { panelItem, momentPiOfRepost, momentExtraOf } = await import('../../src/panelitem.js');
+var { panelItem, momentPiOfRepost, momentExtraOf, articleInfoOfSSR } = await import('../../src/panelitem.js');
 
 // ---------- panelItem: history ----------
 test('panelItem history：resourceType=2 且有 videoId 才收，字段逐个落位', () => {
@@ -464,4 +464,22 @@ test('momentExtraOf：momentId 缺省从 href 反推；超 9 图截断；脏输�
   assert.equal(momentExtraOf(null).momentId, '');
   assert.equal(momentExtraOf({}).up, null);
   assert.equal(momentExtraOf({}).text, '');
+});
+
+test('articleInfoOfSSR：括号配平提取 window.articleInfo（0.9.334 自 articleread 下沉契约件）', () => {
+  // 正文串带半角分号/引号转义/嵌套对象——字符串感知配平必须整段吃下
+  var page = '<html><script>var x=1;window.articleInfo={"title":"团圆","viewCount":10558,' +
+    '"commentCount":211,"user":{"name":"AC娘本体","headUrl":"h.png"},"parts":[{"title":"t",' +
+    '"content":"第一;行\\"引\\"文"}]};</script></html>';
+  var d = articleInfoOfSSR(page);
+  assert.equal(d.title, '团圆');
+  assert.equal(d.viewCount, 10558);
+  assert.equal(d.user.name, 'AC娘本体');
+  assert.equal(d.parts.length, 1);
+  // 无标记/无大括号/坏 JSON → null（走调用方降级，不抛）
+  assert.equal(articleInfoOfSSR('<html>没有标记</html>'), null);
+  assert.equal(articleInfoOfSSR('window.articleInfo 没有花括号'), null);
+  assert.equal(articleInfoOfSSR('window.articleInfo={"bad'), null);
+  assert.equal(articleInfoOfSSR(null), null);
+  assert.equal(articleInfoOfSSR(undefined), null);
 });
