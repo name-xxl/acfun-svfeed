@@ -802,6 +802,36 @@
       'thrown=' + !!bThrown + ' 蕉桩=' + (window.__ACSV_BAN_HITS__ || 0)
       + ' toast变更=' + toastMoN + '（期望 1：仅 banpop 成功话术）');
 
+    // ---- ④' 分享面板可见位（0.9.338，与 banpop 同族锚定修正）----：默认摆位 bottom:-6px
+    // 是抽屉 meta 行语境，挂到浮层壳＝钉壳右缘+脚部被壳 overflow:hidden 裁 6px、不锚分享键；
+    // 浮层语境改锚栏上方后，面板底须 ≤ 栏顶 + elementFromPoint 命中面板自身
+    var actsAll = rqAll('.aractbar .aract');
+    var shareBtn = actsAll[actsAll.length - 1]; // 键序 赞/蕉/藏/评论/分享——末键=分享
+    if (shareBtn) shareBtn.click();
+    var spop = await waitFor(function () { return rq('.acsv-artread .acsv-sharepop'); }, 6000);
+    rec('article-sharepop-above-bar', !!(spop && barIn && (function () {
+      var pr = spop.getBoundingClientRect(), br = barIn.getBoundingClientRect();
+      return pr.height > 0 && pr.bottom <= br.top + 4;
+    })()), (function () {
+      if (!spop || !barIn) return 'no-pop';
+      var pr = spop.getBoundingClientRect(), br = barIn.getBoundingClientRect();
+      return 'popBottom=' + Math.round(pr.bottom) + ' barTop=' + Math.round(br.top)
+        + ' h=' + Math.round(pr.height);
+    })());
+    rec('article-sharepop-hit', !!(spop && (function () {
+      var pr = spop.getBoundingClientRect();
+      var hit = document.elementFromPoint(pr.left + pr.width / 2, Math.min(pr.top + 24, pr.bottom - 8));
+      return !!hit && (hit === spop || spop.contains(hit));
+    })()), (function () {
+      if (!spop) return 'no-pop';
+      var pr = spop.getBoundingClientRect();
+      var hit = document.elementFromPoint(pr.left + pr.width / 2, Math.min(pr.top + 24, pr.bottom - 8));
+      return 'hit=' + (hit ? (hit.className || hit.tagName) : 'null');
+    })());
+    var barInX = rq('.aractbar-in');
+    if (barInX) barInX.click(); // 外点（不在 [btn] 白名单）→ 收面板，防污染后续 composer 断言
+    await waitFor(function () { return !rq('.acsv-artread .acsv-sharepop'); }, 4000);
+
     // ---- ⑤ composer（点 pill 展开 / 轻条藏 / Esc 与外点收回）----
     pill = rq('.aractbar-input');
     rec('article-composer-pre', !!pill && !vis(rq('.acsv-cinput')),

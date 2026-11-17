@@ -2069,6 +2069,10 @@ export var CSS_TEMPLATE = ''
   // 栏内部、深底同色近乎隐身＝用户实报「没弹出投蕉弹层」。改锚栏上方（横向仍由 anchorBtn
   // 内联 right 对齐蕉键），行卡语境不带本作用域不受影响
   + '.acsv-artread .aractbar-in .acsv-banpop{top:auto;bottom:calc(100% + 8px)}'
+  // 分享面板浮层语境摆位（0.9.338 同族）：默认 bottom:-6px/right:66px 是抽屉 meta 行语境，
+  // 挂到浮层壳（opts.host: shell）＝面板钉壳右缘、脚部被壳 overflow:hidden 裁 6px、不锚
+  // 分享键——改锚栏上方（横向 right:66 恰在末键分享附近），抽屉语境不带本作用域不受影响
+  + '.acsv-artread .aractbar-in .acsv-sharepop{bottom:calc(100% + 8px)}'
   + '.acsv-artread .acsv-mdetail-actions{position:relative}'
   + '.aractbar-input{flex:1 1 auto;min-width:0;text-align:left;border:none;border-radius:999px;'
   + 'background:rgba(255,255,255,.10);color:#8a90a0;font:13px/1.4 inherit;padding:9px 14px;cursor:text;'
