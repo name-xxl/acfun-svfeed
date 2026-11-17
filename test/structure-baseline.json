@@ -235,7 +235,7 @@
     },
     {
       "key": "size:articleread.js:行731:导出4",
-      "why": "0.9.326 首轮建档：文章阅读浮层新件（openArticleReader/closeArticleReader/sanitizeArticleBody/isTallImg；确认稿 article-reader-v3 落地，导出 4 即本批实测值；行 627＝replyBtnOf 收口后回填）；0.9.327 +85 行＝互动写链接通（toggleLike/openBanana/toggleStow+nums/st 数值态+顶栏让位）；0.9.330 +19 行＝正文 acfun 表情接通回填管线（sanitize 分包待遇 + refillBodyEmots，头注同步）；0.9.338 分享面板挂载点 shell→refs.barIn（锚栏上方同族，行数变化随 0.9.335/336 批并入基线）"
+      "why": "0.9.326 首轮建档：文章阅读浮层新件（openArticleReader/closeArticleReader/sanitizeArticleBody/isTallImg；确认稿 article-reader-v3 落地，导出 4 即本批实测值；行 627＝replyBtnOf 收口后回填）；0.9.327 +85 行＝互动写链接通（toggleLike/openBanana/toggleStow+nums/st 数值态+顶栏让位）；0.9.330 +19 行＝正文 acfun 表情接通回填管线（sanitize 分包待遇 + refillBodyEmots，头注同步）；0.9.338 分享面板挂载点 shell→refs.barIn（锚栏上方同族，行数变化随 0.9.335/336 批并入基线）；0.9.340 actOf 图标槽统一（dualGlyph 去冗余包裹 span 直挂；藏键单 SVG 两态，字体字形件退役——行数基本持平）"
     },
     {
       "key": "size:appapi.js:行505:导出8",
@@ -295,7 +295,7 @@
     },
     {
       "key": "size:cssraw.js:行2154:导出1",
-      "why": "0.9.319 登记：撤框历史注释把 var(--acsv-accent-dim) 改写成字面值并注明该变量已删（本轮删变量）——+1 行；0.9.326 +159 行＝文章阅读浮层 CSS 段（确认稿 article-reader-v3 取值落地，含 620 窄态块）；0.9.327 +13 行＝壳顶栏让位/底栏点亮悬停色四条/蕉 hover 黄/藏键字号/banpop 锚点上下文/composer 760 居中（真机反馈批）；0.9.329 +3 行＝藏键墨迹量化补偿 20/23px（fontTools 轮廓实测）；0.9.330 +1 行＝34/68 表情尺寸档共享选择器组追加 .arbody 作用域（注释一行，取值不动）；0.9.331 净 +3 行＝藏键描边化切换五条 + .aractbar--dim 撤除 + 文末条 14px 档退役（确认稿 v3.2）；0.9.334 +24 行＝.acsv-im-acard 暗皮块（确认稿 im-article-card 取值逐字，check-preview +7 钉同批）；0.9.335 +4 行＝藏键槽位统一（0.9.335 跳动修复：.arstow-slot 盒 + stow 字形 23×23 盒规则，显隐仍归 .on 切换）；0.9.336 +7 行＝投蕉弹层浮层语境摆位规则（top:-4px 行卡语境落进底栏＝深底同色隐身病灶，改锚栏上方 + 可见位断言 article-banpop-above-bar）；0.9.338 +3 行＝分享面板浮层语境摆位（bottom:-6px 抽屉语境挂壳＝钉右缘+裁脚部+不锚键，改锚栏上方，banpop 同族）；0.9.339 +1 行＝藏键底对齐补偿（用户裁决「按其他图标底部对齐」：canvas 实测邻键墨迹底比藏键高 4px → idle 槽与点亮字形两态 translateY(-4px)，断言 article-stow-bottom-align(-on) 双钉）"
+      "why": "0.9.319 登记：撤框历史注释把 var(--acsv-accent-dim) 改写成字面值并注明该变量已删（本轮删变量）——+1 行；0.9.326 +159 行＝文章阅读浮层 CSS 段（确认稿 article-reader-v3 取值落地，含 620 窄态块）；0.9.327 +13 行＝壳顶栏让位/底栏点亮悬停色四条/蕉 hover 黄/藏键字号/banpop 锚点上下文/composer 760 居中（真机反馈批）；0.9.329 +3 行＝藏键墨迹量化补偿 20/23px（fontTools 轮廓实测）；0.9.330 +1 行＝34/68 表情尺寸档共享选择器组追加 .arbody 作用域（注释一行，取值不动）；0.9.331 净 +3 行＝藏键描边化切换五条 + .aractbar--dim 撤除 + 文末条 14px 档退役（确认稿 v3.2）；0.9.334 +24 行＝.acsv-im-acard 暗皮块（确认稿 im-article-card 取值逐字，check-preview +7 钉同批）；0.9.335 +4 行＝藏键槽位统一（0.9.335 跳动修复：.arstow-slot 盒 + stow 字形 23×23 盒规则，显隐仍归 .on 切换）；0.9.336 +7 行＝投蕉弹层浮层语境摆位规则（top:-4px 行卡语境落进底栏＝深底同色隐身病灶，改锚栏上方 + 可见位断言 article-banpop-above-bar）；0.9.338 +3 行＝分享面板浮层语境摆位（bottom:-6px 抽屉语境挂壳＝钉右缘+裁脚部+不锚键，改锚栏上方，banpop 同族）；0.9.339 +1 行＝藏键底对齐补偿（用户裁决「按其他图标底部对齐」：canvas 实测邻键墨迹底比藏键高 4px → idle 槽与点亮字形两态 translateY(-4px)，断言 article-stow-bottom-align(-on) 双钉）；0.9.340 藏键统一规则＝单 SVG 两态 fill/stroke 切换 + 五键 16×16 盒（23px/槽位/位移三档补偿全退役，净行数持平）"
     },
     {
       "key": "size:cssseg.js:行32:导出9",
@@ -422,8 +422,8 @@
       "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）"
     },
     {
-      "key": "size:imicons.js:行75:导出2",
-      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）；0.9.326 +4 行＝GLYPHS 增 feedStow（收藏码点 e155，依据稿附节 7 已取）"
+      "key": "size:imicons.js:行76:导出2",
+      "why": "首轮尺寸建档：增长即红＝逼一次「拆件还是登记」裁决；瘦身合法（收口缩身后重跑 --emit 重排本行）；0.9.326 +4 行＝GLYPHS 增 feedStow（收藏码点 e155，依据稿附节 7 已取）；0.9.340 +1 行＝feedStow 撤除（藏键改单 SVG 两态，字体字形零消费），原位留撤除注记（e155 轮廓真源仍可查 styles ICONS.stowOutline）"
     },
     {
       "key": "size:imimage.js:行217:导出4",

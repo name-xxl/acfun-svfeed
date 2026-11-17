@@ -31,8 +31,9 @@ export var GLYPHS = {
   feedBananaFill: '\ue65f', // 投蕉（点亮实心；0.9.101 采样补）
   // 收藏（0.9.326 文章浮层批）：e155 字形名 icon-icon_follow，实心圆角星——渲染比对与
   // 官方收藏 SVG 同形（文章页 collectcount .icon 与视频页同哈希资产 VIDEO_ICONS.favorite）；
-  // 字体内无描边变体（e160/e3c8 均带 A 字标，不取），故按单字形+变色用（悬停/点亮红）
-  feedStow: '\ue155',
+  // 字体内无描边变体（e160/e3c8 均带 A 字标，不取）。
+  //〔0.9.340 撤除：藏键改「单 SVG 两态」（ICONS.stowOutline 的 e155 轮廓路径，fill/stroke
+  //  切换），字体字形不再消费——码点仍可查 src/styles.js ICONS.stowOutline 注释〕
   phone: '\ue242',      // 手机
   monitor: '\ue184',    // 电脑
   tablet: '\ue185',     // 平板

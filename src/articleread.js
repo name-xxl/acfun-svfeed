@@ -286,14 +286,12 @@ function dualGlyph(a, b) {
 function actOf(mount, o) {
   var b = el('span', 'aract' + (o.cls ? ' ' + o.cls : ''));
   b.title = o.title;
-  if (o.glyphs) b.appendChild(elHtml('span', null, dualGlyph(o.glyphs[0], o.glyphs[1])));
-  else if (o.svgIdle) {
-    // 描边 SVG（idle）+ 实心字形（点亮）双件并存，显隐归 cssraw（.aract.stow/.on 切换）；
-    // 槽位类 arstow-slot（0.9.335）：两态共用 23×23 盒——此前 idle 是裸 span 包 block SVG、
-    // 点亮是 23px 字体挤 16px 行盒，槽位差 7px＝点收藏图标跳动病灶
-    b.appendChild(elHtml('span', 'arstow-slot', o.svgIdle));
-    b.appendChild(el('i', 'acsvg-glyph', o.glyph));
-  } else b.appendChild(el('i', 'acsvg-glyph', o.glyph));
+  // 图标槽统一（0.9.340）：五键同一结构＝.aract 直挂 16×16 图标件、flex 居中、零位移。
+  // 此前赞/蕉的双字形被多包一层裸 span（行盒撑到 21.2px、图标贴行顶），评论/藏是直接子
+  // （居中在 19.2px 行）——两套行盒＝图标基线参差的本源（用户实报「藏键偏高/偏低」多轮）
+  if (o.glyphs) b.insertAdjacentHTML('beforeend', dualGlyph(o.glyphs[0], o.glyphs[1]));
+  else if (o.svgIdle) b.appendChild(elHtml('span', 'arstow-slot', o.svgIdle));
+  else b.appendChild(el('i', 'acsvg-glyph', o.glyph));
   var n = null;
   if (o.n != null) { n = el('span', 'n', o.n); b.appendChild(n); }
   if (o.onClick) b.addEventListener('click', function (ev) { ev.stopPropagation(); o.onClick(b, ev); });
@@ -400,7 +398,7 @@ function actKeys(mount, ctx) {
     onClick: function (btn) { openBanana(btn); }
   });
   out.stow = actOf(mount, {
-    svgIdle: ICONS.stowOutline, glyph: GLYPHS.feedStow, title: '收藏',
+    svgIdle: ICONS.stowOutline, title: '收藏',
     n: ctx.nums.stow ? fmtWan(ctx.nums.stow) : '',
     cls: 'stow' + (st.stowed ? ' on' : ''),
     onClick: function () { toggleStow(); }

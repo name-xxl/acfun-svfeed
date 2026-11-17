@@ -2083,22 +2083,18 @@ export var CSS_TEMPLATE = ''
   + '.aractbar .aract.on{color:var(--acsv-accent)}'
   + '.aractbar .aract.thrown{color:var(--acsv-ban-new)}'
   + '.aractbar .aract.ban:hover{color:var(--acsv-ban-new)}'
-  // 藏键（v3.2 描边化，确认稿附节 7）：字体内无纯描边星（e160/e3c8 带 A 字标，151 枚枚举复核）
-  // → idle 用 e155 同几何轮廓 SVG（稿内件逐字真源，y-up→y-down 已翻）；点亮切 e155 实心 accent。
-  // 藏键只存在于文章底栏（文末条已删、momentbar 无藏键）——补偿槽位（0.9.329 实测 23px）延续：
-  // 描边星与实心星同几何同框；0.9.329 的 14px 档随文末条一并退役
-  + '.aract.stow .acsvg-glyph{display:none}'
-  // 槽位统一（0.9.335 跳动病灶修复）：idle 的裸 span 包 block SVG 会多出行盒、点亮是 23px
-  // 字体挤 16px 行盒（2087 通用盒）——两态槽位差 7px＝点收藏图标跳动；现两态同占 23×23 盒
-  //（盒规则不带 display——显隐仍归上下两条 .on 切换，特异度勿压）
-  // 底对齐补偿（0.9.339 用户裁决「按其他图标底部对齐」）：canvas 实测邻键墨迹底＝盒底+1px、
-  // 藏键墨迹底＝盒底+1.5px，居中后两盒墨迹底差 23/16 盒高差＝4px——藏键整体上移 4px 底对齐
-  + '.aract.stow .arstow-slot{display:block;width:23px;height:23px;line-height:0;transform:translateY(-4px)}'
-  + '.aractbar .aract.stow .arstow{width:23px;height:23px;display:block}'
-  + '.aractbar .aract.stow .acsvg-glyph{font-size:23px;width:23px;height:23px;line-height:23px;text-align:center;transform:translateY(-4px)}'
-  // .on 切换（后置压同特异度的 bar 规则）：点亮露实心字形、收描边
-  + '.aract.stow.on .arstow{display:none}'
-  + '.aract.stow.on .acsvg-glyph{display:block}'
+  // 藏键（0.9.340 统一规则，用户裁决「缩放至一致高度、统一对齐规则」）：**一个 SVG 两态**
+  // ——idle 描边、点亮与悬停填实（fill/stroke 切换，同一路径＝同几何零跳变）；盒 16×16 与
+  // 邻键字形同族（SVG 墨迹收紧后盒内墨迹≈15px＝邻键≈1em 同高）、**零位移**
+  // （0.9.329 的 23px 字号补偿 / 0.9.335 槽位 / 0.9.339 translateY 一并退役——三者的共同
+  // 根源是「描边 SVG + 字体实心字形」两件并置＝两套盒与度量）
+  + '.aract.stow .arstow-slot{display:block;width:16px;height:16px;line-height:0}'
+  + '.aractbar .aract.stow .arstow{width:16px;height:16px;display:block}'
+  + '.aract.stow.on .arstow path,.aract.stow:hover .arstow path{fill:currentColor;stroke:none}'
+  // 图标盒统一 16（0.9.340）：赞/蕉的 .acsvg-dual 历来 14×14（视频右栏历史值），而评论/藏是
+  // 16——族内两档盒高＝视觉基线参差的本源；文章底栏作用域内一律 16，五键同一盒高同一对齐
+  + '.aractbar .acsvg-dual{width:16px;height:16px}'
+  + '.aractbar .acsvg-dual .acsvg-glyph{width:16px;height:16px;line-height:16px}'
   + '.aractbar .aract .acsvg-glyph{font-size:16px;width:16px;height:16px;line-height:16px}'
   + '.aractbar-more{display:contents}'
   + '.aractbar-morebtn{display:none}'
