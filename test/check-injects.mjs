@@ -52,7 +52,8 @@ for (const k of schemaKeys) {
 for (const k of usedSet) {
   if (schemaKeys.indexOf(k) < 0) bad.push(k + '：boot 判了未登记键（getSetting 恒 undefined=fail-closed 不注入，实报"关了但没人关它"级幽灵）');
 }
-if (schemaKeys.length !== 6) bad.push('子项数=' + schemaKeys.length + '，与确认稿（六项）不符——改稿先，改表随');
+// 0.9.343 复审：首页导航入口退出清单（进门键豁免）——六项改五项，改此项必先改稿
+if (schemaKeys.length !== 5) bad.push('子项数=' + schemaKeys.length + '，与确认稿（五项，0.9.343 修订）不符——改稿先，改表随');
 
 // ② boot 不手写总闸键（总闸短路在 injectOn 内部，boot 只见子项）
 if (/['"]injectNative['"]/.test(bootSrc)) bad.push('boot.js 出现 injectNative 字面（总闸只许经 injects.js INJECT_MASTER）');

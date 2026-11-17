@@ -115,7 +115,7 @@ const HARNESS_CASES = [
   // 0.9.341 注入闸场景（cases/injects.js；关值 bundle 前预置见 harness.html）——正反双腿：
   // 开态腿证「本可注入」，关态腿证短路；摘 boot 任一处 injectOn 即关态腿转红
   { name: 'inject-home-nav', serial: true, bundle: 'debug' },   // 开态对照：首页顶导航克隆照注
-  { name: 'inject-off-home', serial: true, bundle: 'debug' },   // 总闸关：导航不注 + 竖刷壳照常（脚本世界不在射程）
+  { name: 'inject-off-home', serial: true, bundle: 'debug' },   // 总闸关×home：进门键照注（0.9.343 豁免反钉）+ 竖刷壳照常
   { name: 'inject-off-member', viewport: { width: 1600, height: 900 }, bundle: 'debug' }, // plaza+IP 双关：memberCenter 支一行不跑（样式/root/入口全缺）
   { name: 'inject-off-space', viewport: { width: 1600, height: 900 }, bundle: 'debug' },  // /u 分项关（总闸仍开）：两自建标签都不追加
   // 0.9.89 设置面板（Shadow DOM 断言走 host.shadowRoot）：开/关/持久化 + 老键收养，

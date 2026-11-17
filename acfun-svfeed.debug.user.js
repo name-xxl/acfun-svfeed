@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.342-debug
+// @version      0.9.343-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 116740;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.342-debug" : "",
+          ver: true ? "0.9.343-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -743,7 +743,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.342-debug" : "";
+  var APP_VERSION = true ? "0.9.343-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -1714,8 +1714,9 @@ window.__ACSV_CSS_LEN__ = 116740;
     },
     // 官方页面增强总闸（0.9.341，确认稿 docs/preview/native-inject-switch.html）：manage 标记
     // ＝皮肤把本行渲成「开关+管理钮」双控件行（type 仍 bool，不扩类型词表）；hintOff＝关态
-    // 话术（sync 随值切换）。子项＝SCHEMA 末尾 sub:'inject' 六键，二级清单由 injectItems() 派生。
-    // **注意**：本行落在通用组内，主面板开关索引整体后移一位——harness settings 场景同步改
+    // 话术（sync 随值切换）。子项＝SCHEMA 末尾 sub:'inject' 五键（0.9.343 复审：首页导航入口
+    // 撤出——进门键豁免闸），二级清单由 injectItems() 派生。总闸管辖范围不含豁免项（injects.js
+    // 头注定源）。**注意**：本行落在通用组内，主面板开关索引整体后移一位——harness settings 场景同步改
     {
       key: "injectNative",
       type: "bool",
@@ -1893,18 +1894,11 @@ window.__ACSV_CSS_LEN__ = 116740;
     },
     // ---- 官方页面增强子项（0.9.341，确认稿 docs/preview/native-inject-switch.html）----
     // sub:'inject' 标记 + panel:false＝不上主面板，二级清单由 injectItems() 派生；消费侧
-    // 只在 boot.js 判 injectOn(key)（总闸短路在前），顺序＝稿钉消费链顺序（首页→我的→空间×2→
+    // 只在 boot.js 判 injectOn(key)（总闸短路在前），顺序＝稿钉消费链顺序（我的→空间×2→
     // 评论→私信）。**键 ↔ boot 短路点配对由 test/check-injects.mjs 双向钉死**。def 全 true＝保持现状。
     // label/hint 逐字照稿（稿是用户确认过的界面事实，改词必须改稿先）。
-    {
-      key: "injectNavEntry",
-      type: "bool",
-      def: true,
-      panel: false,
-      sub: "inject",
-      label: "首页导航「小视频」入口",
-      hint: "在官方顶部导航加一个竖刷入口；关闭后悬浮兜底按钮一并去除"
-    },
+    // **豁免注（0.9.343 用户复审）**：首页顶导航入口（watchNav + 兜底胶囊）不入清单也不受总闸
+    // 管辖——它是进脚本页、进而进本面板的唯一进门键，「可关入口」＝开关吞掉自己的入口（自锁）。
     {
       key: "injectMemberPlaza",
       type: "bool",
@@ -8686,7 +8680,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.342-debug" : "",
+      version: true ? "0.9.343-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -15854,7 +15848,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.342-debug" : "");
+    return normVer(true ? "0.9.343-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -20301,7 +20295,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.342-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.343-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;
@@ -24444,9 +24438,6 @@ window.__ACSV_CSS_LEN__ = 116740;
   });
 
   // src/boot.js
-  function navGate() {
-    if (injectOn("injectNavEntry")) watchNav();
-  }
   var kind = pageKind(location);
   if (kind === "native") {
     if (injectOn("injectPageIm")) {
@@ -24470,9 +24461,9 @@ window.__ACSV_CSS_LEN__ = 116740;
         if (signedThisRun(r)) popSignAlmanac(r, null);
       });
       if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", navGate);
+        document.addEventListener("DOMContentLoaded", watchNav);
       } else {
-        navGate();
+        watchNav();
       }
     } else if (kind === "member") {
       if (injectOn("injectSpaceMoments")) tryInjectSpaceMoments();

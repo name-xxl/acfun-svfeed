@@ -5,6 +5,10 @@
 <title>UI 预览 · 官方页面增强开关（设置 → 通用 → 二级）</title>
 <!-- ============================================================
      docs/preview/native-inject-switch.html —— 源页面注入统一开关静态预览（2026-11-17 起草）
+     **修订记录（2026-11-17 用户复审，本版为准）**：撤掉「首页导航「小视频」入口」子项——
+       该入口（含悬浮兜底胶囊）是进脚本页、进而进本设置面板的唯一门；放进可关清单＝开关
+       吞掉自己的入口（关了下次连「打开开关」都摸不到门）。首页导航入口**退出开关体系**：
+       不入二级清单、也不受总闸管辖（boot 里 watchNav 不判 injectOn）。子项六→五。
      用户口径裁决（2026-11-17，逐条钉住）：
        · 用户视角＝功能开关，不叫「注入」；作用域**只限非脚本页**（脚本竖刷世界是独立
          新界面、不寄生官方页，不进本开关射程）。
@@ -19,14 +23,15 @@
          与「先收下拉菜单」0.9.237 同款语义）；
        · 总开关关＝子项全链不判（零开销），子面板置灰并提示。
      语义映射（实现接线表，登记随实现批进 check-preview.mjs）：
-       injectNative(总) · injectNavEntry(首页导航入口) · injectMemberPlaza(我的动态广场)
+       injectNative(总) · injectMemberPlaza(我的动态广场)
        · injectSpaceMoments(空间动态标签) · injectSpaceShortVideo(空间小视频标签)
        · injectPageIp(原生页评论IP设备) · injectPageIm(原生私信卡片渲染)
-       boot 分流短路点：home→watchNav；member→tryInjectSpace*（两标签全关则
+       boot 分流短路点：member→tryInjectSpace*（两标签全关则
        spacetab.watchSpaceTabs 观察器不启）；memberCenter→ensureStyle/setRoot/toast/
        watchMemberNav（注：仅 injectPageIp 开时样式仍要，性能分段挂账另批）；
        native(message域)→setRoot+IMGVIEW_CSS+bootNativeIm 整支；
-       全 kind(非home)→mountNativeIp。默认**全开**（保持现状零行为变化）。
+       全 kind(非home)→mountNativeIp。**豁免：home→watchNav（顶导航入口+兜底胶囊）
+       不判任何闸**（进门键，修订记录钉死）。默认**全开**（保持现状零行为变化）。
      存储：acsv.s.<key> 逐键（settings.js SCHEMA 吸收；panel:false + sub:'inject' 标记，
      一级面板只出总开关行，子项由二级派生，杜绝双清单漂移——AGENTS 规矩 3）。
      纪律：暗色皮肤 / 真实中文文案 / 1600×900 与 540 宽自检；量值全照 src/settingspanel.js
@@ -199,14 +204,7 @@
       <div class="set-panel">
         <div class="set-head"><button class="set-back">‹</button><span class="set-title">官方页面增强</span><span></span></div>
         <div class="set-body">
-          <div class="set-note">关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。</div>
-          <div class="set-row">
-            <div class="set-row-main">
-              <div class="set-label">首页导航「小视频」入口</div>
-              <div class="set-hint">在官方顶部导航加一个竖刷入口；关闭后悬浮兜底按钮一并去除</div>
-            </div>
-            <div class="sw on"><i></i></div>
-          </div>
+          <div class="set-note">关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。首页顶导航入口是脚本进门键，不入本清单、不受总闸管辖。</div>
           <div class="set-row">
             <div class="set-row-main">
               <div class="set-label">个人中心「动态广场」</div>
@@ -251,8 +249,9 @@
         · 壳不变、换 body：头部左侧「‹」=回一级（28 圆钮，同 ✕ 形态），标题改「官方页面增强」；✕ 位隐去（Esc/‹ 已回一级，✕ 关整面板由底部「完成」承担）。<br>
         · 「完成」在二级时＝直接关整面板（改动即时落盘，flushSettings 现成语义），不做两步退出。<br>
         · Esc：二级→先回一级；一级→关面板（overlay onEsc 预处理缝，0.9.237 收菜单同款）。<br>
-        · 六项顺序=消费链顺序（首页→我的→空间×2→评论→私信），即实现注册表派生顺序，人工清单不得再抄一份。<br>
-        · 摆出的关态样例（第5项）非默认——<b>实现默认全开</b>。
+        · 五项顺序=消费链顺序（我的→空间×2→评论→私信），即实现注册表派生顺序，人工清单不得再抄一份。<br>
+        · 摆出的关态样例（第4项）非默认——<b>实现默认全开</b>。<br>
+        · 首页导航入口**不在清单**（2026-11-17 复审撤除：入口可关＝开关吞掉自己的进门键，自锁悖论）。
       </div>
     </div>
   </section>
@@ -264,13 +263,6 @@
         <div class="set-head"><button class="set-back">‹</button><span class="set-title">官方页面增强</span><span></span></div>
         <div class="set-body">
           <div class="set-note">官方页面增强已整体关闭；先回一级打开总开关，再逐项管理。</div>
-          <div class="set-row dim">
-            <div class="set-row-main">
-              <div class="set-label">首页导航「小视频」入口</div>
-              <div class="set-hint">在官方顶部导航加一个竖刷入口；关闭后悬浮兜底按钮一并去除</div>
-            </div>
-            <div class="sw"><i></i></div>
-          </div>
           <div class="set-row dim">
             <div class="set-row-main">
               <div class="set-label">个人中心「动态广场」</div>
@@ -372,7 +364,9 @@
       · 「管理」钮 7px 14px / 13px / rgba(255,255,255,.12)（hover .2）——.set-act 本体 src/settingspanel.js:83-85，仅内边距一档收 16→14<br>
       · ‹ 回退钮 28 圆——.set-x 同型 src/settingspanel.js:46-48（margin-left 归零、✕ 换 ‹）<br>
       <b>行为承诺（harness 钉，非本稿钉）</b><br>
-      · 总开关关＝boot 全支不判（含样式/观察器/定时器/toast），非 home 各 kind 的 mountNativeIp 亦短路；message 域整支不跑。<br>
+      · 总开关关＝清单内五面整链不判（含样式/观察器/定时器/toast），非 home 各 kind 的 mountNativeIp 亦短路；message 域整支不跑。<br>
+      · 豁免项：首页顶导航入口与兜底胶囊＝脚本进门键，不判总闸也不判子闸（0.9.343 复审钉；
+      harness inject-off-home 腿反着钉——总闸关态下入口必须照注，谁把闸错接回入口即红）。<br>
       · 生效=重新加载后；面板拨动不改当前已渲染页（无即时摘除承诺，无 unmount 义务）——用户口径明示。<br>
       · 子项值与总闸分离存储；置灰态不回写各项。<br>
       · 竖刷世界（#svfeed 路由、广场 dock 视图、抽屉评论 ipShow 等）不在本开关射程，逐条不动。<br>
