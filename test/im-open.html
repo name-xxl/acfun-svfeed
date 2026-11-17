@@ -49,6 +49,30 @@
 
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
+  // 过渡落定等待（0.9.348 harness 加固）：固定 sleep 420ms 在 CI 新镜像（ubuntu 26.04）的
+  // WebKit 无头上会量到「一条腿还没动身」的中间态——节流让两面板 transition 起步错位、
+  // transitionend 迟到（2026-11-17 实红：chat 腿已到位、list 腿钉在 chat-on 位，listDx=-412）。
+  // 改为等两面板 transform 的 transitionend 齐发再量；cap(秒) 兜底——超时也照常返回交给
+  // 断言判，等待本身不放行（真不动画的场景照样红）。翻类后须同步调用（同任务内挂上监听，
+  // 渲染步之前不可能已经完成 280ms 过渡）。
+  async function paneSettle(panes, cap) {
+    var fired = panes.map(function () { return false; });
+    panes.forEach(function (p, i) {
+      if (!p) { fired[i] = true; return; }
+      var onEnd = function (e) {
+        if (e.propertyName !== 'transform') return;
+        fired[i] = true;
+        p.removeEventListener('transitionend', onEnd);
+      };
+      p.addEventListener('transitionend', onEnd);
+    });
+    var t = Date.now();
+    while (Date.now() - t < cap * 1000) {
+      if (fired.every(Boolean)) return;
+      await wait(60);
+    }
+  }
+
   async function run() {
     var s = window.__ACSV_TEST__.call('imDrawerSmoke');
     if (!s) { rec('模拟缝', false, 'imDrawerSmoke hook 缺失'); window.__IM_RESULTS__.done = true; return; }
@@ -105,7 +129,7 @@
       lp0 && cp0 ? ('listR=' + Math.round(lp0.right) + ' chatL=' + Math.round(cp0.left)) : 'n/a');
     var p1 = window.__ACSV_TEST__.call('imPaneSmoke', 'chat');
     rec('切到会话：状态类与返回键', !!(p1 && p1.chatOn && p1.view === 'chat' && p1.backShown), JSON.stringify(p1));
-    await wait(420); // 过渡回落（.28s + 余量）：翻类后立刻量等于量起点（变换是异步的）
+    await paneSettle([listPane, chatPane], 3); // 等两面板 transitionend 齐发（原固定 420ms 会被 WebKit 节流假红）
     var lp1 = listPane.getBoundingClientRect(), cp1 = chatPane.getBoundingClientRect();
     // 双向平移：会话从右缘外滑到「列表原位」（左移 W），列表同步左移 W 退场
     rec('会话归位到列表原位、列表左移 W', Math.abs(cp1.left - lp0.left) <= 3
@@ -113,7 +137,7 @@
       'chatL=' + Math.round(cp1.left) + '/listL0=' + Math.round(lp0.left) + ' listDx=' + Math.round(lp1.left - lp0.left) + ' W=' + Math.round(cp1.width));
     var p2 = window.__ACSV_TEST__.call('imPaneSmoke', 'list');
     rec('切回列表：状态与返回键复位', !!(p2 && !p2.chatOn && p2.view === 'list' && !p2.backShown), JSON.stringify(p2));
-    await wait(420);
+    await paneSettle([listPane, chatPane], 3); // 同切出：等 transitionend 齐发再量（原 wait(420)）
     var lp2 = listPane.getBoundingClientRect(), cp2 = chatPane.getBoundingClientRect();
     rec('切回后列表归位、会话再退右缘外', Math.abs(lp2.left - lp0.left) <= 2 && cp2.left >= lp2.right - 1,
       'listDx=' + Math.round(lp2.left - lp0.left) + ' chatL=' + Math.round(cp2.left) + ' listR=' + Math.round(lp2.right));
