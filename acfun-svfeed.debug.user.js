@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AcFun 小视频 - PC 站抖音式竖滑页
 // @namespace    https://github.com/name-xxl/acfun-svfeed
-// @version      0.9.347-debug
+// @version      0.9.348-debug
 // @description  在 www.acfun.cn 顶部导航加入「小视频」入口，打开全屏抖音式竖滑信息流；支持小视频(meow)与 APP 首页推荐(selection/feed)双内容源、弹幕、清晰度切换【调试构建：window.__dbg 记录启动埋点】
 // @author       name-xxl
 // @homepageURL  https://github.com/name-xxl/acfun-svfeed
@@ -72,7 +72,7 @@ window.__ACSV_CSS_LEN__ = 116740;
       try {
         localStorage.setItem("acsv-stats", JSON.stringify({
           t: Date.now(),
-          ver: true ? "0.9.347-debug" : "",
+          ver: true ? "0.9.348-debug" : "",
           stats,
           dbg: (W.__dbg || []).slice(-60)
         }));
@@ -717,11 +717,21 @@ window.__ACSV_CSS_LEN__ = 116740;
     },
     upload: {
       endpoint: "https://upload.kuaishouzt.com",
-      // 评论图片分片上传图床
+      // 分片上传图床（评论/动态两路共用）
       tokenUrl: "https://www.acfun.cn/rest/pc-direct/image/upload/getToken",
       urlAfterUpload: "https://www.acfun.cn/rest/pc-direct/image/upload/getUrlAfterUpload",
-      // getUrlAfterUpload 的 bizFlag（0.9.220 提为常量：此前写死在 upload.js；动态发布或需另值，未实测）
+      // getUrlAfterUpload 的 bizFlag（0.9.220 提为常量：此前写死在 upload.js）——评论链专用。
+      // 换出的 ksc2 签名 URL 是给 comment/add **服务端改写**成长期地址的中间态，动态不可复用（见下）
       bizFlag: "web-comment-text",
+      // 动态路（0.9.348，docs §11.11 全链真机实测）：**端点域才是决定因素**——pc-direct 换 URL
+      // 即使带 android-moment-text 仍回 ksc2 限时签名（moment/add 不改写 ⇒ pkey 过期图死 + 预览域
+      // 不支持大图处理参数 415）；APP 域 URL 服务在换 URL 时即处理进 newUpload 长期库，存储与原生同形。
+      // bizFlag 取反编译 ACImageUploader$BizFlag.MomentImg 官方值；头集/识别查询串走 appapi 单源
+      moment: {
+        tokenUrl: "https://api-new.app.acfun.cn/rest/app/image/upload/getToken",
+        urlAfterUpload: "https://api-new.app.acfun.cn/rest/app/image/upload/getUrlAfterUpload",
+        bizFlag: "android-moment-text"
+      },
       chunk: 1 << 20,
       // 分片大小（1MB）
       tokenT: 15e3,
@@ -743,7 +753,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     } catch (e) {
     }
   }
-  var APP_VERSION = true ? "0.9.347-debug" : "";
+  var APP_VERSION = true ? "0.9.348-debug" : "";
   dbg("cfg-ok");
 
   // node_modules/fflate/esm/browser.js
@@ -4509,10 +4519,28 @@ window.__ACSV_CSS_LEN__ = 116740;
       timeout: opts.timeout
     });
   }
-  function uploadGetToken(file) {
+  function uploadRouteOf(opts) {
+    if (opts && opts.moment) {
+      var m = CFG.upload.moment;
+      return {
+        tokenUrl: m.tokenUrl + appQuery(),
+        urlAfterUpload: m.urlAfterUpload + appQuery(),
+        bizFlag: m.bizFlag,
+        headers: appDeviceHeaders()
+        // 内含 Content-Type: form（appapi 单源）
+      };
+    }
+    return {
+      tokenUrl: CFG.upload.tokenUrl,
+      urlAfterUpload: CFG.upload.urlAfterUpload,
+      bizFlag: opts && opts.bizFlag || CFG.upload.bizFlag,
+      headers: { "Content-Type": FORM_URLENC }
+    };
+  }
+  function uploadGetToken(file, route) {
     return gmPostJson({
-      url: CFG.upload.tokenUrl,
-      headers: { "Content-Type": FORM_URLENC },
+      url: route.tokenUrl,
+      headers: route.headers,
       data: "fileName=" + encodeURIComponent(file.name || "image.png"),
       timeout: CFG.upload.tokenT
     }).then(function(d) {
@@ -4550,11 +4578,11 @@ window.__ACSV_CSS_LEN__ = 116740;
       if (!d || d.result !== 1) throw new Error("complete");
     });
   }
-  function uploadGetUrl(token, bizFlag) {
+  function uploadGetUrl(token, route) {
     return gmPostJson({
-      url: CFG.upload.urlAfterUpload,
-      headers: { "Content-Type": FORM_URLENC },
-      data: "token=" + encodeURIComponent(token) + "&bizFlag=" + encodeURIComponent(bizFlag || CFG.upload.bizFlag),
+      url: route.urlAfterUpload,
+      headers: route.headers,
+      data: "token=" + encodeURIComponent(token) + "&bizFlag=" + encodeURIComponent(route.bizFlag),
       timeout: CFG.upload.urlT
     }).then(function(d) {
       if (!(d && d.result === 0 && d.url)) throw new Error("no-url");
@@ -4562,9 +4590,9 @@ window.__ACSV_CSS_LEN__ = 116740;
     });
   }
   function uploadImage(file, opts) {
-    var bizFlag = opts && opts.bizFlag || CFG.upload.bizFlag;
+    var route = uploadRouteOf(opts);
     var chunks = Math.max(1, Math.ceil(file.size / CFG.upload.chunk));
-    return uploadGetToken(file).then(function(token) {
+    return uploadGetToken(file, route).then(function(token) {
       return uploadChunks(token, file).then(function() {
         return token;
       });
@@ -4573,7 +4601,7 @@ window.__ACSV_CSS_LEN__ = 116740;
         return token;
       });
     }).then(function(token) {
-      return uploadGetUrl(token, bizFlag);
+      return uploadGetUrl(token, route);
     }).then(function(url) {
       return url || null;
     }, function() {
@@ -6884,14 +6912,29 @@ window.__ACSV_CSS_LEN__ = 116740;
     return n;
   }
   var MOMENT_MAX = 233;
-  function dimsOf(url) {
+  function dimsOf(file) {
+    var zero = { width: 0, height: 0 };
     return new Promise(function(resolve) {
+      if (!file) return resolve(zero);
+      if (typeof createImageBitmap === "function") {
+        createImageBitmap(file).then(function(bm) {
+          var d = { width: bm.width || 0, height: bm.height || 0 };
+          if (bm.close) bm.close();
+          resolve(d);
+        }, function() {
+          resolve(zero);
+        });
+        return;
+      }
+      var url = URL.createObjectURL(file);
       var im = new Image();
       im.onload = function() {
-        resolve({ url, width: im.naturalWidth || 0, height: im.naturalHeight || 0 });
+        resolve({ width: im.naturalWidth || 0, height: im.naturalHeight || 0 });
+        URL.revokeObjectURL(url);
       };
       im.onerror = function() {
-        resolve({ url, width: 0, height: 0 });
+        resolve(zero);
+        URL.revokeObjectURL(url);
       };
       im.src = url;
     });
@@ -7177,10 +7220,8 @@ window.__ACSV_CSS_LEN__ = 116740;
       tip.textContent = "上传中…";
       renderThumbs();
       var failed = false;
-      uploadImage(
-        file
-        /* bizFlag 用默认值；动态能否复用待真机（docs §11.5） */
-      ).then(function(url) {
+      var dimP = dimsOf(file);
+      uploadImage(file, { moment: true }).then(function(url) {
         pending4--;
         if (!url) {
           failed = true;
@@ -7188,8 +7229,8 @@ window.__ACSV_CSS_LEN__ = 116740;
           renderThumbs();
           return;
         }
-        return dimsOf(url).then(function(dim) {
-          imgs.push(dim);
+        return dimP.then(function(dim) {
+          imgs.push({ url, width: dim.width, height: dim.height });
         });
       }).then(function() {
         if (!failed && pending4 === 0) tip.textContent = "";
@@ -8693,7 +8734,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   function exportUids() {
     ensureLoaded();
     return {
-      version: true ? "0.9.347-debug" : "",
+      version: true ? "0.9.348-debug" : "",
       uids: JSON.parse(JSON.stringify(uids))
     };
   }
@@ -15861,7 +15902,7 @@ window.__ACSV_CSS_LEN__ = 116740;
     return gmRequest({ url: CFG.api.ghRelAtom, timeout: CFG.time.upd, responseType: "text", okStatus: true });
   }
   function curVersion() {
-    return normVer(true ? "0.9.347-debug" : "");
+    return normVer(true ? "0.9.348-debug" : "");
   }
   var stateFallback = null;
   function readState() {
@@ -20693,7 +20734,7 @@ window.__ACSV_CSS_LEN__ = 116740;
   var mo = null;
   var moTimer = null;
   function bootNativeIm() {
-    console.info("[acsv-im] 原生页增强挂载 v0.9.347-debug：分享卡走 DOM-only，内核探活中");
+    console.info("[acsv-im] 原生页增强挂载 v0.9.348-debug：分享卡走 DOM-only，内核探活中");
     watch();
     ensureEmotionMap();
     var n = 0;

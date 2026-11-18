@@ -199,6 +199,59 @@
         && j.shareResourceType === 0 && j.visibleForFans === true;
     })(), String(window.__ACSV_ADD_BODY__).slice(0, 100));
 
+    // 3.5) 0.9.348 配图成功链（docs §11.11 全链真机）：动态专用上传路（APP 域端点 +
+    // android-moment-text ⇒ newUpload 长期地址）+ 尺寸量本地文件。GM mock **scoped 注入**
+    // （harness 常态无 GM——前面的失败提示场景与后续场景仍走 no-gm 路径，用完即撤）。
+    // 摘修复反跑：momenteditor 还原 uploadImage(file) 缺省 → getToken 打 pc-direct → 独红；
+    // dimsOf 还原加载上传 URL → mock URL 不可加载 → 0×0 → 尺寸断言独红。
+    var gmCalls = [];
+    window.GM_xmlhttpRequest = function (opts) {
+      gmCalls.push(opts);
+      var u = opts.url;
+      var respond = function (j) { opts.onload({ status: 200, responseText: JSON.stringify(j) }); };
+      if (u.indexOf('getToken') !== -1) return respond({ result: 0, info: { token: 'tok' } });
+      if (u.indexOf('/api/upload/fragment') !== -1) return respond({ result: 1 });
+      if (u.indexOf('/api/upload/complete') !== -1) return respond({ result: 1 });
+      if (u.indexOf('getUrlAfterUpload') !== -1) return respond({ result: 0, url: 'https://imgs.aixifan.com/newUpload/42_probe' });
+      respond({ result: 0 });
+    };
+    q('.acsv-pubfab').click();
+    await waitFor(function () { return !!q('.acsv-me'); }, 5000);
+    // 真 PNG（canvas 生成 64×48）——本地尺寸自量必须量出真值，不依赖上传 URL 可加载性
+    var pngBlob = await new Promise(function (res) {
+      var cv = document.createElement('canvas');
+      cv.width = 64; cv.height = 48;
+      var cx = cv.getContext('2d');
+      cx.fillStyle = '#3a7bd5'; cx.fillRect(0, 0, 64, 48);
+      cv.toBlob(res, 'image/png');
+    });
+    var fileInp2 = q('.acsv-me input[type=file]');
+    var dt2 = new DataTransfer();
+    dt2.items.add(new File([pngBlob], 'probe.png', { type: 'image/png' }));
+    fileInp2.files = dt2.files;
+    fileInp2.dispatchEvent(new Event('change', { bubbles: true }));
+    rec('pub-upload-ok-thumb', !!(await waitFor(function () { return !!q('.acsv-thumbs .acsv-thumb img'); }, 8000)));
+    rec('pub-upload-moment-route', (function () {
+      var tok = gmCalls.filter(function (c) { return c.url.indexOf('getToken') !== -1; })[0];
+      var ex = gmCalls.filter(function (c) { return c.url.indexOf('getUrlAfterUpload') !== -1; })[0];
+      return !!tok && !!ex
+        && /api-new\.app\.acfun\.cn\/rest\/app\/image\/upload\/getToken\?product=ACFUN_APP/.test(tok.url)
+        && /bizFlag=android-moment-text/.test(String(ex.data))
+        && !!tok.headers.acPlatform; // GM 无 Referer ⇒ 设备头集是过网关通行证（§11.4c 同口径）
+    })(), gmCalls.map(function (c) { return c.url.replace(/\?.*/, ''); }).join(' | '));
+    window.__ACSV_ADD_BODY__ = null;
+    q('.acsv-me-ok').click();
+    rec('pub-upload-posted', !!(await waitFor(function () { return !q('.acsv-me-host'); }, 6000)));
+    rec('pub-upload-imgs-shape', (function () {
+      var m = /params=([^&]*)/.exec(String(window.__ACSV_ADD_BODY__));
+      if (!m) return false;
+      var j = JSON.parse(decodeURIComponent(m[1]));
+      return Array.isArray(j.imgs) && j.imgs.length === 1
+        && j.imgs[0].url === 'https://imgs.aixifan.com/newUpload/42_probe'
+        && j.imgs[0].width === 64 && j.imgs[0].height === 48;
+    })(), String(window.__ACSV_ADD_BODY__).slice(0, 160));
+    delete window.GM_xmlhttpRequest; // 撤 scoped mock（后续场景回 no-gm 常态）
+
     // 4) 失败分支：服务端回 140000（内容太长）→ 可读话术 + **内容保留** + 按钮变「重试发布」
     window.__ACSV_ADD_FAIL__ = 140000;
     q('.acsv-pubfab').click();

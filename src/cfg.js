@@ -492,11 +492,21 @@ export var CFG = {
     flashMs: 1200         // 引用定位高亮闪动时长（与 styles 的 acsv-im-flash 动画同源；JS 清类=本值+余量）
   },
   upload: {
-    endpoint: 'https://upload.kuaishouzt.com', // 评论图片分片上传图床
+    endpoint: 'https://upload.kuaishouzt.com', // 分片上传图床（评论/动态两路共用）
     tokenUrl: 'https://www.acfun.cn/rest/pc-direct/image/upload/getToken',
     urlAfterUpload: 'https://www.acfun.cn/rest/pc-direct/image/upload/getUrlAfterUpload',
-    // getUrlAfterUpload 的 bizFlag（0.9.220 提为常量：此前写死在 upload.js；动态发布或需另值，未实测）
+    // getUrlAfterUpload 的 bizFlag（0.9.220 提为常量：此前写死在 upload.js）——评论链专用。
+    // 换出的 ksc2 签名 URL 是给 comment/add **服务端改写**成长期地址的中间态，动态不可复用（见下）
     bizFlag: 'web-comment-text',
+    // 动态路（0.9.348，docs §11.11 全链真机实测）：**端点域才是决定因素**——pc-direct 换 URL
+    // 即使带 android-moment-text 仍回 ksc2 限时签名（moment/add 不改写 ⇒ pkey 过期图死 + 预览域
+    // 不支持大图处理参数 415）；APP 域 URL 服务在换 URL 时即处理进 newUpload 长期库，存储与原生同形。
+    // bizFlag 取反编译 ACImageUploader$BizFlag.MomentImg 官方值；头集/识别查询串走 appapi 单源
+    moment: {
+      tokenUrl: 'https://api-new.app.acfun.cn/rest/app/image/upload/getToken',
+      urlAfterUpload: 'https://api-new.app.acfun.cn/rest/app/image/upload/getUrlAfterUpload',
+      bizFlag: 'android-moment-text'
+    },
     chunk: 1 << 20,   // 分片大小（1MB）
     tokenT: 15000,    // getToken 超时
     chunkT: 60000,    // 单分片超时（二进制大，放宽）

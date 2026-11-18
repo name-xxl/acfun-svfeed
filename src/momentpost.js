@@ -84,13 +84,31 @@ export function momentCharCount(text) {
 
 export var MOMENT_MAX = 233; // 服务端约束（实测 140000「内容长度必须为1-233」）
 
-// 图片尺寸（**写侧必须自量**：upload.js 只回签名 URL，尺寸是服务端下发读侧的字段）。
-// 非纯函数（DOM Image），单测不覆盖；失败给 0×0（服务端会拦，不虚标）
-export function dimsOf(url) {
+// 图片尺寸（**写侧必须自量**，且**量本地文件**——0.9.348，docs §11.11：旧版加载上传 URL
+// 自量，URL 加载失败即 0×0，服务端原样存 0 尺寸（缩略图恒方裁、无宽高比）；官方 APP 选图时
+// 本地解码（ImageUtilsKt.d），同口径对齐：createImageBitmap 直解 File，零网络、与上传 URL
+// 可加载性无关）。非纯函数（DOM 解码），单测不覆盖；失败给 0×0（服务端会拦，不虚标）。
+// 返回 {width,height}，调用方（momenteditor）与上传 URL 组装成 imgs 条目
+export function dimsOf(file) {
+  var zero = { width: 0, height: 0 };
   return new Promise(function (resolve) {
+    if (!file) return resolve(zero);
+    if (typeof createImageBitmap === 'function') {
+      createImageBitmap(file).then(function (bm) {
+        var d = { width: bm.width || 0, height: bm.height || 0 };
+        if (bm.close) bm.close(); // 解码位图即释（九图连传不积内存）
+        resolve(d);
+      }, function () { resolve(zero); });
+      return;
+    }
+    // createImageBitmap 不可得（老 Safari）兜底：objectURL + Image，用完即 revoke
+    var url = URL.createObjectURL(file);
     var im = new Image();
-    im.onload = function () { resolve({ url: url, width: im.naturalWidth || 0, height: im.naturalHeight || 0 }); };
-    im.onerror = function () { resolve({ url: url, width: 0, height: 0 }); };
+    im.onload = function () {
+      resolve({ width: im.naturalWidth || 0, height: im.naturalHeight || 0 });
+      URL.revokeObjectURL(url);
+    };
+    im.onerror = function () { resolve(zero); URL.revokeObjectURL(url); };
     im.src = url;
   });
 }

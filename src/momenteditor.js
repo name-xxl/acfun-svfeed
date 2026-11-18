@@ -24,7 +24,8 @@ import { testHook } from './dbg.js';
 // 重试可能重复发）；失败保留内容并给可读话术；**网络不明/超时**走「先查后补」——用 listProfile
 // 看自己最近一条是否就是这条内容，是则当成功，避免用户重复发。
 //
-// 未实测项（docs §11.5，真机定论）：bizFlag 能否复用、转发 repost* 的必填组合、风控形态。
+// 未实测项（docs §11.5）：转发 repost* 的必填组合、风控形态。
+// 配图上传路已真机定论（0.9.348，docs §11.11）：动态专用 bizFlag + APP 域端点，评论路不可复用。
 
 var host = null;  // 当前宿主（同一时刻只开一个）
 var root = null;  // 根容器（overlay 挂载点；收尾一起删）
@@ -212,11 +213,15 @@ export function openMomentEditor(opts) {
     tip.textContent = '上传中…';
     renderThumbs();
     var failed = false; // 本次上传失败的提示不得被随后的收尾 then 抹掉（0.9.234 病灶）
-    uploadImage(file /* bizFlag 用默认值；动态能否复用待真机（docs §11.5） */)
+    // 0.9.348（docs §11.11 全链真机）：上传走**动态专用路**（APP 域端点 + android-moment-text
+    // ⇒ newUpload 长期地址）——评论路签名 URL 给 moment/add 不改写、pkey 过期即死图
+    // （用户实报 am5144898）；尺寸**量本地文件**（与上传并行、零网络依赖，官方同口径）
+    var dimP = dimsOf(file);
+    uploadImage(file, { moment: true })
       .then(function (url) {
         pending--;
         if (!url) { failed = true; tip.textContent = '图片上传失败，请重试'; renderThumbs(); return; }
-        return dimsOf(url).then(function (dim) { imgs.push(dim); });
+        return dimP.then(function (dim) { imgs.push({ url: url, width: dim.width, height: dim.height }); });
       })
       .then(function () {
         if (!failed && pending === 0) tip.textContent = '';

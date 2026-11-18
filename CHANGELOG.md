@@ -5,6 +5,38 @@ AcFun 小视频竖刷页脚本的版本更新记录（版本号即小节号，�
 
 > 更早版本（0.9.199 及以前，共 199 节）见 [CHANGELOG-archive.md](CHANGELOG-archive.md)。
 
+### 0.9.348（2026-11-18）· 动态配图图床修复（用户实报 am5144898「图片格式是不是有问题」）——动态专用上传路 + 尺寸本地自量
+
+**病灶（用户实报 + 全链真机取证，docs §11.11）**：编辑器配图走评论路缺省 bizFlag=`web-comment-text`，
+换出的 ksc2 **限时签名 URL** 是给 comment/add 服务端改写成长期地址的中间态——`moment/add`
+**不做这层改写**：预览域裸路径原样入库，pkey 过期 → 原图 **403**；预览域不支持大图处理参数 →
+**415**；尺寸 **0×0**（`dimsOf` 加载上传 URL 自量，失败给 0，服务端原样存）→ 缩略图恒方裁无宽高比。
+症状＝网格缩略图能显、点开大图/原图即坏，且签名过期后永久死。脚本内 `imgurl` 重试链剥参数落裸路径
+能救回大图，**掩盖了病灶**（原生页无此重试恒坏）。这正是 docs §11.5 标着「未实测」的 bizFlag
+复用假设——被用户实报证伪。
+
+**修法（四回合探针先真机定论再落地）**：
+- **端点域才是决定因素**（探针①②）：pc-direct 换 URL 即使带 `android-moment-text` 仍回 ksc2 签名；
+  **APP 域** URL 服务在换 URL 时即把图处理进 **newUpload 长期库**。`cfg.upload` 加 `moment` 路表项
+  （APP 域 getToken/getUrlAfterUpload + `android-moment-text`＝反编译 `ACImageUploader$BizFlag.MomentImg`
+  官方值）；`upload.uploadRouteOf` 纯函数决议（单测直采，`publishRequest` 同型），管线只消费决议结果，
+  不认业务名；分片/complete 两路共用图床；**评论路缺省零扰动**。APP 域带设备头集 + 识别查询串
+  （appapi 单源，GM 无 Referer 的过网关通行证，§11.4c 同口径）。
+- **尺寸量本地文件**：`dimsOf(file)` 改 `createImageBitmap` 直解 File（零网络、与上传 URL 可加载性
+  无关；老 Safari 兜底 objectURL+Image），对齐官方 APP `ImageUtilsKt.d` 选图即解码同口径；
+  momenteditor 尺寸与上传并行。
+- **真发验证（探针③，发一条即删）**：测试图 64×48 经新路发布（5145490，仅粉丝）→ 存储与原生
+  **逐字段同形**（tx-free-imgs newUpload + w/h/size/type 全真值 + 按比例缩略），三派生 URL 全 200
+  → 即删（140005 复查）。探针④ GM 形态（no-referrer + 头集）全链过网关。
+
+**测试证据**：`upload.test.js` 6 项（路由形状 + GM mock 接线 + 多分片 + 失败落 null）；publish 场景
++4 断言（真 PNG 走真实入口 → 缩略图/路由接线/body imgs 形状）；**两发摘修复反跑各独红**（还原
+`{moment:true}` → 路由独红；还原 URL 自量 → 尺寸独红）；单测 536、全量 harness 101/101、
+链+tsc+lint 绿；structure 棘轮 4 件随注记加行重裁；README 依赖图 upload 升正式节点（消费边
+comments/momenteditor 补画）。规矩 1：面板形态零变化（纯行为修正），预览范畴外。
+
+**遗留**：已发的 am5144898 无法原地修（服务端存储已定型）——删了重发或留着（缩略图尚能显）。
+
 ### 0.9.347（2026-11-17）· 表情尺寸并档（用户点验「表情尺寸多大，和以往的统一了吗」）——dynemot 出图纠正为全家 34×68 统一档
 
 **病灶（本会话首版自造的平行标准，用户点验抓出）**：0.9.346 的 dynemot 内联尺寸写的是
