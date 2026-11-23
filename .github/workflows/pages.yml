@@ -27,7 +27,7 @@ jobs:
       - name: Stage site (仅站点文件)
         run: |
           mkdir -p _site/docs/preview
-          cp index.html _site/
+          cp index.html robots.txt sitemap.xml _site/
           cp -r docs/preview/. _site/docs/preview/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
