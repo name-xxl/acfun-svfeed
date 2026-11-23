@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 动态浏览（空间页注入 + 我的页双宿主，两套皮肤）</title>
 <!-- ============================================================
      docs/preview/moment-browse.html —— 静态 UI 预览（形态确认稿）
@@ -13,27 +14,31 @@
      浅色块 1418-1433）、src/rowkit.js（DOM 层级）、src/momentbar.js（互动栏）、
      src/uppage.js（空间页注入位）、src/mypage.js（tab 体系）。
      数据源口径：GET rest/app/feed/profile?userId=（免登录、任意 uid、三合一混排）
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     v3（2026-11-23 铺开批）：决策沿革折叠（附口径段收进页尾决策档案）；段内无同形窄 figure 竖排，未栅格化；demo 未动。
+     v4（2026-11-23 图标统一批）：自绘 SVG 全退役（56 处），换站方 iconfont 字形——码点单源 src/imicons.js GLYPHS、
+     与 src/momentbar.js 落地同字：分享 e628 / 评论 e627 / 蕉 e62a / 赞 e629（点亮态 e660）/ 条卡播放数 e164（rankView 同字）；
+     字形 14px 定盒对齐原 SVG 宽高、flex 对齐不变；样式量值 / 布局 / demo 数据零改动。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
-  :root{
-    --accent:#fd4c5d;              /* cfg.accent 单源 */
-    --t1:#fff; --t2:#cfd3da; --t3:#8a90a0;
-    --line:rgba(255,255,255,.09);
+  /* 站方原生 iconfont（cssraw.js 18–20 同 URL；https 绝对地址，file:// 双击可加载） */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(assets/acfun-frontend-next.woff) format("woff"),
+        url(assets/acfun-frontend-next.ttf) format("truetype")
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#0b0b0e;color:var(--t1);font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:28px 24px 90px}
-  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
-  .hint{color:var(--t3);font-size:12px;line-height:1.9;margin-bottom:20px}
-  .hint b{color:var(--t2)}
-  .sec{margin:26px 0 8px;padding-top:16px;border-top:1px solid var(--line)}
-  .sec>h2{font-size:13px;color:var(--t2);font-weight:600;margin-bottom:4px}
-  .sec>h2 em{color:var(--t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
-  .note{color:var(--t3);font-size:12px;line-height:1.85;margin:6px 0 14px}
-  .note code{color:#ffb323;font-family:ui-monospace,Consolas,monospace;font-size:11px}
+  /* 字形基类（cssraw.js 491 .acsvg-glyph 体例；尺寸由消费处规则覆写） */
+  .acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-weight:400;line-height:1;
+    display:inline-block;text-align:center}
+  :root{
+    --accent:var(--dc-accent);     /* cfg.accent 单源（--dc-* 同值收编） */
+    --t1:var(--dc-t1); --t2:var(--dc-t2); --t3:var(--dc-t3);
+    --line:var(--dc-line);
+  }
   .frame{border:1px dashed rgba(255,255,255,.16);padding:14px;border-radius:6px}
   .frame.light{border-color:rgba(0,0,0,.2);background:#fff}
+  .frame.flush{padding:0}
 
   /* ============ 皮肤根：同 DOM，两组色值 ============ */
   [data-skin]{--f-name:#fff;--f-time:#8a90a0;--f-text:#e8eaee;--f-desc:#cfd3da;--f-weak:#8a90a0;
@@ -93,12 +98,14 @@
     -webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
   .frow-sinfo{position:absolute;bottom:13px;left:14px;display:inline-flex;align-items:center;gap:4px;
     font-size:14px;line-height:14px;color:var(--f-weak)}
+  .frow-sinfo .acsvg-glyph{font-size:14px;width:14px;height:14px;line-height:14px}
   /* 引用/转发 */
   .gquote{margin:10px 0 10px -10px;padding:10px;background:var(--f-sub)}
   .gquote-up{font-size:14px;line-height:22px;color:var(--f-weak);margin-bottom:12px}
   .gquote-upname{color:var(--f-name);text-decoration:none}
   .gquote-textbody{font-size:14px;line-height:21px;color:var(--f-text);max-height:63px;overflow:hidden;
     white-space:pre-line}
+  .gquote .frow-imgs{max-width:100%}
   /* 互动栏（键序 分享/评论/蕉/赞；高 48、右距 42） */
   .frow-acts{margin:4px 0 0 60px;display:flex}
   .fact{display:inline-flex;align-items:center;gap:5px;height:48px;margin-right:42px;font-size:12px;
@@ -106,7 +113,7 @@
   .fact:hover{color:var(--accent)}
   .fact.on{color:var(--accent)}
   .fact.thrown{color:#ffb323}
-  .fact svg{width:14px;height:14px;fill:currentColor;flex:none}
+  .fact .acsvg-glyph{font-size:14px;width:14px;height:14px;line-height:14px;flex:none}
   /* 状态行 / 骨架 / 空态 */
   .fstatus{min-height:34px;padding:8px 2px;text-align:center;font-size:12px;color:var(--f-weak);cursor:pointer}
   .fstatus.busy{opacity:.7;cursor:default}
@@ -118,6 +125,7 @@
   .cmp{display:flex;gap:18px;align-items:flex-start}
   .cmp>div{flex:1;min-width:0;border-radius:8px;overflow:hidden}
   .cmp .cap{font-size:12px;padding:6px 10px;background:rgba(255,255,255,.06);color:var(--t3)}
+  [data-skin="l"] .cap{background:rgba(0,0,0,.05);color:#666}
   /* 空间页原生标签栏（站点类，浅色） */
   .sp-tabs{display:flex;gap:0;border-bottom:1px solid #eee;padding:0 4px;background:#fff}
   .sp-tabs a{display:block;padding:12px 16px;font-size:15px;color:#333;text-decoration:none;border-bottom:2px solid transparent}
@@ -139,478 +147,583 @@
   /* 窄宽 */
   .narrow{width:540px;border:1px dashed rgba(255,255,255,.14);padding:12px}
   @media (max-width:900px){.cmp{flex-direction:column}}
+
+  /* ---- 占位图渐变（原内联色收进类，量值逐字未动） ---- */
+  .g1{background:linear-gradient(135deg,#4a5a7a,#22314a)}
+  .g2{background:linear-gradient(135deg,#7a4a5a,#4a2231)}
+  .g3{background:linear-gradient(135deg,#4a7a5a,#224a31)}
+  .g4{background:linear-gradient(135deg,#7a6a4a,#4a3a22)}
+  .g5{background:linear-gradient(135deg,#5a4a7a,#31224a)}
+  .g6{background:linear-gradient(135deg,#4a7a7a,#224a4a)}
+  .g7{background:linear-gradient(135deg,#7a4a4a,#4a2222)}
+  .g8{background:linear-gradient(135deg,#6a7a4a,#3a4a22)}
+  .g9{background:linear-gradient(135deg,#4a5a6a,#22313a)}
+  .gc{background:linear-gradient(135deg,#2f4a6a,#16233a)}
+  .gl1{background:linear-gradient(135deg,#c9d6ea,#e6ecf6)}
+  .gl2{background:linear-gradient(135deg,#ead2d8,#f6e8ec)}
+  .gl3{background:linear-gradient(135deg,#cfe6d6,#e8f4ec)}
+  .glc{background:linear-gradient(135deg,#bcd0e8,#e2ebf6)}
+  /* ---- 原纯布局内联收进类 ---- */
+  .frow.flush{padding-top:0}
+  .frow.bare{padding:0}
+  .frow-content.flush{padding-left:0}
+  .frow-strip.gap{margin-top:10px}
+  .frow-scover.sm{width:140px}
+  .frow-scover.sm i{width:140px;height:88px}
+  .frow-acts.flush{margin-left:0}
+  .fact.tight{margin-right:24px}
+  .doc-note.tight{margin:0 0 10px}
+  .doc-note.on-light{color:#666}
+  .doc-note.loose{line-height:2.1}
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>动态浏览 —— 静态预览（确认后才进 src 实现）</h1>
-  <p class="hint">
-    <b>一处组件、两个宿主、两套皮肤</b>：同一份行卡 DOM 与同一条渲染管线，只按皮肤根类分派颜色
-    （沿用广场已有的 <code>.acsv-mp</code> 惯例）。<br>
-    宿主 A＝空间页 <code>/u/&lt;uid&gt;</code> 注入的「动态」标签（原生浅色页）；宿主 B＝脚本「我的」页新增的「动态」标签（脚本内暗色）。<br>
-    数据＝<code>GET rest/app/feed/profile?userId=</code>（免登录 / 任意 uid / 三合一混排：图文动态 rt=10 + 视频 rt=2 + 文章 rt=3）。
-  </p>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <!-- ================= ① 两套皮肤对照 ================= -->
-  <div class="sec">
-    <h2>① 两套皮肤对照<em>同一份数据、同一套 DOM，并排看色差</em></h2>
-    <p class="note">
-      左＝脚本内暗色（我的页）；右＝原生页浅色（空间页）。行卡几何完全一致：头像 50 圆、内容缩进 60、
-      正文 14/21、九宫格 110 方、互动栏高 48。差异只在色值（正文 / 弱字 / 底纹 / 链接蓝）。
-    </p>
-    <div class="cmp">
-      <div data-skin="d">
-        <div class="cap">暗色皮肤（脚本内）</div>
-        <div class="frows">
-          <div class="frow">
-            <div class="frow-head">
-              <span class="frow-av">喵</span>
-              <div class="frow-info">
-                <a class="frow-name" href="#">一只芸喵喵</a>
-                <span class="frow-time">10 分钟前</span>
-              </div>
-            </div>
-            <div class="frow-content">
-              <div class="frow-text">今天的晚霞有点好看，随手拍了几张。顺便问一句，<a class="ubb-topic" href="#">#秋天的第一杯奶茶#</a> 大家都喝到了吗？</div>
-              <div class="frow-imgs">
-                <span class="fcell"><i style="background:linear-gradient(135deg,#4a5a7a,#22314a)"></i></span>
-                <span class="fcell"><i style="background:linear-gradient(135deg,#7a4a5a,#4a2231)"></i></span>
-                <span class="fcell"><i style="background:linear-gradient(135deg,#4a7a5a,#224a31)"></i></span>
-              </div>
-            </div>
-            <div class="frow-acts">
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>12</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>3</span>
-              <span class="fact on"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4.6 4.6 0 018-3 4.6 4.6 0 018 3c0 6-8 11-8 11z"/></svg>48</span>
-            </div>
-          </div>
-          <div class="frow">
-            <div class="frow-head">
-              <span class="frow-av">阿</span>
-              <div class="frow-info">
-                <a class="frow-name lv6" href="#">阿蝉不是蝉</a>
-                <span class="frow-time">2 小时前</span>
-              </div>
-            </div>
-            <div class="frow-content">
-              <div class="frow-strip">
-                <div class="frow-scover"><i style="background:linear-gradient(135deg,#2f4a6a,#16233a)"></i></div>
-                <div class="frow-sbody">
-                  <div class="frow-stitle">【补番】A 站十年老番补番指南 · 第一期</div>
-                  <div class="frow-sinfo"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M8 5l11 7-11 7z"/></svg>1.8万</div>
-                </div>
-              </div>
-            </div>
-            <div class="frow-acts">
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>86</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>124</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4.6 4.6 0 018-3 4.6 4.6 0 018 3c0 6-8 11-8 11z"/></svg>2301</span>
-            </div>
-          </div>
-        </div>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>动态浏览 —— 静态预览（确认后才进 src 实现）</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-on">默认</span>
+          <span class="doc-badge b-hover">悬停（时长/互动键）</span>
+          <span class="doc-badge">选中（点赞/标签）</span>
+          <span class="doc-badge b-empty">空态</span>
+          <span class="doc-badge b-err">错误态</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">头像50 / 缩进60 / 正文14/21 / 格110 / 栏高48</span><span class="src">src/styles.js 行卡族</span></span>
+        </p>
       </div>
 
-      <div data-skin="l">
-        <div class="cap" style="background:rgba(0,0,0,.05);color:#666">浅色皮肤（原生页内嵌）</div>
-        <div class="frows">
-          <div class="frow">
-            <div class="frow-head">
-              <span class="frow-av">喵</span>
-              <div class="frow-info">
-                <a class="frow-name" href="#">一只芸喵喵</a>
-                <span class="frow-time">10 分钟前</span>
-              </div>
-            </div>
-            <div class="frow-content">
-              <div class="frow-text">今天的晚霞有点好看，随手拍了几张。顺便问一句，<a class="ubb-topic" href="#">#秋天的第一杯奶茶#</a> 大家都喝到了吗？</div>
-              <div class="frow-imgs">
-                <span class="fcell"><i style="background:linear-gradient(135deg,#c9d6ea,#e6ecf6)"></i></span>
-                <span class="fcell"><i style="background:linear-gradient(135deg,#ead2d8,#f6e8ec)"></i></span>
-                <span class="fcell"><i style="background:linear-gradient(135deg,#cfe6d6,#e8f4ec)"></i></span>
-              </div>
-            </div>
-            <div class="frow-acts">
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>12</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>3</span>
-              <span class="fact on"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4.6 4.6 0 018-3 4.6 4.6 0 018 3c0 6-8 11-8 11z"/></svg>48</span>
-            </div>
-          </div>
-          <div class="frow">
-            <div class="frow-head">
-              <span class="frow-av">阿</span>
-              <div class="frow-info">
-                <a class="frow-name lv6" href="#">阿蝉不是蝉</a>
-                <span class="frow-time">2 小时前</span>
-              </div>
-            </div>
-            <div class="frow-content">
-              <div class="frow-strip">
-                <div class="frow-scover"><i style="background:linear-gradient(135deg,#bcd0e8,#e2ebf6)"></i></div>
-                <div class="frow-sbody">
-                  <div class="frow-stitle">【补番】A 站十年老番补番指南 · 第一期</div>
-                  <div class="frow-sinfo"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M8 5l11 7-11 7z"/></svg>1.8万</div>
-                </div>
-              </div>
-            </div>
-            <div class="frow-acts">
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>86</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>124</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4.6 4.6 0 018-3 4.6 4.6 0 018 3c0 6-8 11-8 11z"/></svg>2301</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <p class="note">
-      ⚠ <b>既有缺口（本特性必撞）</b>：现有 <code>.acsv-mp</code> 浅色覆盖只写到 <code>av/name/time/text/img/acts</code>，
-      <b>没有覆盖视频 / 文章条</b>（<code>scover/sbody/stitle/sdesc/sinfo/frow-tag/mdur</code>）——
-      广场是纯动态流所以从没暴露过。右栏这两条我按 <code>#f7f7f7 底 / #333 标题 / #999 计数</code> 画，
-      落地时必须一并补进浅色块。
-    </p>
-  </div>
+      <p class="doc-note">
+        <b>一处组件、两个宿主、两套皮肤</b>：同一份行卡 DOM 与同一条渲染管线，只按皮肤根类分派颜色
+        （沿用广场已有的 <code>.acsv-mp</code> 惯例）。<br>
+        宿主 A＝空间页 <code>/u/&lt;uid&gt;</code> 注入的「动态」标签（原生浅色页）；宿主 B＝脚本「我的」页新增的「动态」标签（脚本内暗色）。<br>
+        数据＝<code>GET rest/app/feed/profile?userId=</code>（免登录 / 任意 uid / 三合一混排：图文动态 rt=10 + 视频 rt=2 + 文章 rt=3）。
+      </p>
 
-  <!-- ================= ② 空间页注入形态 ================= -->
-  <div class="sec">
-    <h2>② 宿主 A —— 空间页 <code>/u/&lt;uid&gt;</code> 注入的「动态」标签<em>浅色；加在原生「视频 / 文章 / 合辑」之后</em></h2>
-    <p class="note">
-      原生标签实测只有 <code>video / article / album</code>（+ 一个排序 li），<b>没有「动态」</b>，所以这是纯新增、不打架。
-      注入位＝<code>.ac-space-contribute-list &gt; ul.tags</code>，形态＝自建 <code>li[data-index="moment"]</code> + 兄弟 <code>.tag-content</code> 面板（同小视频那套）。
-    </p>
-    <div class="frame light" data-skin="l" style="padding:0">
-      <div class="sp-tabs">
-        <a href="#">视频<span class="n">2.0万</span></a>
-        <a href="#">文章<span class="n">0</span></a>
-        <a href="#">合辑<span class="n">0</span></a>
-        <a class="on" href="#">动态</a>
-      </div>
-      <div class="sp-body">
-        <div class="frows">
-          <div class="frow">
-            <div class="frow-head">
-              <span class="frow-av">芸</span>
-              <div class="frow-info">
-                <a class="frow-name" href="#">一只芸喵喵</a>
-                <span class="frow-time">昨天 20:14</span>
-              </div>
-            </div>
-            <div class="frow-content">
-              <div class="frow-text">摸鱼摸了一天，把去年的番补完了。下一部想看《地球防卫少年》，有人一起吗？</div>
-            </div>
-            <div class="frow-acts">
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>5</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>1</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4.6 4.6 0 018-3 4.6 4.6 0 018 3c0 6-8 11-8 11z"/></svg>17</span>
-            </div>
-          </div>
-          <div class="frow">
-            <div class="frow-head">
-              <span class="frow-av">蝉</span>
-              <div class="frow-info">
-                <a class="frow-name" href="#">阿蝉不是蝉</a>
-                <span class="frow-time">3 天前</span>
-              </div>
-            </div>
-            <div class="frow-content">
-              <div class="frow-text">写了篇长文，聊聊为什么我还在用十年前的播放器内核。<a class="ubb-at" href="#">@一只芸喵喵</a> 你可能会感兴趣。</div>
-            </div>
-            <div class="frow-acts">
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>34</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>9</span>
-              <span class="fact"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4.6 4.6 0 018-3 4.6 4.6 0 018 3c0 6-8 11-8 11z"/></svg>205</span>
-            </div>
-          </div>
-          <div class="fstatus">已加载全部动态</div>
-        </div>
-      </div>
-    </div>
-  </div>
+      <p class="doc-note"><b>本稿结论</b>：一处组件、两个宿主、两套皮肤——同一份行卡 DOM 按皮肤根类分派颜色（沿用广场 <code>.acsv-mp</code> 单源惯例，不另立第二份样式）；数据统一走 <code>GET rest/app/feed/profile?userId=</code> 三合一混排；「我的」页「动态」tab 排第 1 且默认选中（稿内已按此画）。其余口径与落地风险收在页尾「决策档案」，待裁决。</p>
 
-  <!-- ================= ③ 我的页 ================= -->
-  <div class="sec">
-    <h2>③ 宿主 B —— 脚本「我的」页新增的「动态」标签<em>暗色；作为第 1 个 tab，排在「观看历史」之前并默认落地</em></h2>
-    <p class="note">
-      现有 tab＝观看历史 / 收藏夹 / 关注分组；「动态」插到<b>最前</b>并作为<b>默认选中项</b>（进「我的」页即停在动态，
-      不再默认落观看历史）。切换机制（面板常驻 DOM + 首次激活惰性构建）完全复用；
-      容器沿用本页既有外壳（<code>.acsv-view-body</code> 自身滚动，不做内滚）。
-    </p>
-    <div class="frame" data-skin="d">
-      <div class="me-wrap">
-        <div class="mecard">
-          <div class="big">喵</div>
-          <div>
-            <div class="mecard-name">一只芸喵喵</div>
-            <div class="mecard-stats"><span>关注 128</span><span>粉丝 1.6万</span><span>投稿 286</span></div>
-          </div>
+      <!-- ================= ① 两套皮肤对照 ================= -->
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>两套皮肤对照</h2>
+          <span class="nt">同一份数据、同一套 DOM，并排看色差</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
         </div>
-        <div class="metabs">
-          <button class="metab sel">动态</button>
-          <button class="metab">观看历史</button>
-          <button class="metab">收藏夹</button>
-          <button class="metab">关注分组</button>
-        </div>
-        <div class="mepanel">
-          <div class="frows">
-            <div class="frow">
-              <div class="frow-head">
-                <span class="frow-av">喵</span>
-                <div class="frow-info">
-                  <a class="frow-name" href="#">一只芸喵喵</a>
-                  <span class="frow-time">10 分钟前</span>
-                </div>
-              </div>
-              <div class="frow-content">
-                <div class="frow-text">今天的晚霞有点好看，随手拍了几张。</div>
-                <div class="frow-imgs n1">
-                  <span class="fcell"><i style="background:linear-gradient(135deg,#4a5a7a,#22314a)"></i></span>
-                </div>
-              </div>
-              <div class="frow-acts">
-                <span class="fact"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-                <span class="fact"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>0</span>
-                <span class="fact"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>0</span>
-                <span class="fact"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4.6 4.6 0 018-3 4.6 4.6 0 018 3c0 6-8 11-8 11z"/></svg>0</span>
-              </div>
-            </div>
-            <div class="frow">
-              <div class="frow-head">
-                <span class="frow-av">喵</span>
-                <div class="frow-info">
-                  <a class="frow-name" href="#">一只芸喵喵</a>
-                  <span class="frow-time">前天 11:02</span>
-                </div>
-              </div>
-              <div class="frow-content">
-                <div class="frow-strip">
-                  <div class="frow-scover">
-                    <i style="background:linear-gradient(135deg,#2f4a6a,#16233a)"></i>
-                    <span class="frow-mdur">12:34</span>
+        <p class="doc-note">
+          左＝脚本内暗色（我的页）；右＝原生页浅色（空间页）。行卡几何完全一致：头像 50 圆、内容缩进 60、
+          正文 14/21、九宫格 110 方、互动栏高 48。差异只在色值（正文 / 弱字 / 底纹 / 链接蓝）。
+        </p>
+        <div class="doc-figure">
+          <div class="cmp">
+            <div data-skin="d">
+              <div class="cap">暗色皮肤（脚本内）</div>
+              <div class="frows">
+                <div class="frow">
+                  <div class="frow-head">
+                    <span class="frow-av">喵</span>
+                    <div class="frow-info">
+                      <a class="frow-name" href="#">一只芸喵喵</a>
+                      <span class="frow-time">10 分钟前</span>
+                    </div>
                   </div>
-                  <div class="frow-sbody">
-                    <div class="frow-stitle">【投稿】自己剪的第一支 MAD，求轻喷</div>
-                    <div class="frow-sinfo"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M8 5l11 7-11 7z"/></svg>3421</div>
+                  <div class="frow-content">
+                    <div class="frow-text">今天的晚霞有点好看，随手拍了几张。顺便问一句，<a class="ubb-topic" href="#">#秋天的第一杯奶茶#</a> 大家都喝到了吗？</div>
+                    <div class="frow-imgs">
+                      <span class="fcell"><i class="g1"></i></span>
+                      <span class="fcell"><i class="g2"></i></span>
+                      <span class="fcell"><i class="g3"></i></span>
+                    </div>
+                  </div>
+                  <div class="frow-acts">
+                    <span class="fact"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe627;</i>12</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe62a;</i>3</span>
+                    <span class="fact on"><i class="acsvg-glyph">&#xe660;</i>48</span>
+                  </div>
+                </div>
+                <div class="frow">
+                  <div class="frow-head">
+                    <span class="frow-av">阿</span>
+                    <div class="frow-info">
+                      <a class="frow-name lv6" href="#">阿蝉不是蝉</a>
+                      <span class="frow-time">2 小时前</span>
+                    </div>
+                  </div>
+                  <div class="frow-content">
+                    <div class="frow-strip">
+                      <div class="frow-scover"><i class="gc"></i></div>
+                      <div class="frow-sbody">
+                        <div class="frow-stitle">【补番】A 站十年老番补番指南 · 第一期</div>
+                        <div class="frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>1.8万</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="frow-acts">
+                    <span class="fact"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe627;</i>86</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe62a;</i>124</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe629;</i>2301</span>
                   </div>
                 </div>
               </div>
-              <div class="frow-acts">
-                <span class="fact"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-                <span class="fact"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>18</span>
-                <span class="fact"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>6</span>
-                <span class="fact"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4.6 4.6 0 018-3 4.6 4.6 0 018 3c0 6-8 11-8 11z"/></svg>92</span>
+            </div>
+
+            <div data-skin="l">
+              <div class="cap">浅色皮肤（原生页内嵌）</div>
+              <div class="frows">
+                <div class="frow">
+                  <div class="frow-head">
+                    <span class="frow-av">喵</span>
+                    <div class="frow-info">
+                      <a class="frow-name" href="#">一只芸喵喵</a>
+                      <span class="frow-time">10 分钟前</span>
+                    </div>
+                  </div>
+                  <div class="frow-content">
+                    <div class="frow-text">今天的晚霞有点好看，随手拍了几张。顺便问一句，<a class="ubb-topic" href="#">#秋天的第一杯奶茶#</a> 大家都喝到了吗？</div>
+                    <div class="frow-imgs">
+                      <span class="fcell"><i class="gl1"></i></span>
+                      <span class="fcell"><i class="gl2"></i></span>
+                      <span class="fcell"><i class="gl3"></i></span>
+                    </div>
+                  </div>
+                  <div class="frow-acts">
+                    <span class="fact"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe627;</i>12</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe62a;</i>3</span>
+                    <span class="fact on"><i class="acsvg-glyph">&#xe660;</i>48</span>
+                  </div>
+                </div>
+                <div class="frow">
+                  <div class="frow-head">
+                    <span class="frow-av">阿</span>
+                    <div class="frow-info">
+                      <a class="frow-name lv6" href="#">阿蝉不是蝉</a>
+                      <span class="frow-time">2 小时前</span>
+                    </div>
+                  </div>
+                  <div class="frow-content">
+                    <div class="frow-strip">
+                      <div class="frow-scover"><i class="glc"></i></div>
+                      <div class="frow-sbody">
+                        <div class="frow-stitle">【补番】A 站十年老番补番指南 · 第一期</div>
+                        <div class="frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>1.8万</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="frow-acts">
+                    <span class="fact"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe627;</i>86</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe62a;</i>124</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe629;</i>2301</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-    <p class="note">
-      口径待裁决：本页「动态」取 <b>我自己的</b> <code>feed/profile?userId=&lt;自己&gt;</code>（三合一混排，与空间页同源同形）；
-      若你想这里只要图文动态（过滤掉视频/文章），形态会退化成单一种行卡，<b>且分页会别扭</b>——建议照服务端口径显示混排。
-    </p>
-  </div>
+        <p class="doc-note">
+          ⚠ <b>既有缺口（本特性必撞）</b>：现有 <code>.acsv-mp</code> 浅色覆盖只写到 <code>av/name/time/text/img/acts</code>，
+          <b>没有覆盖视频 / 文章条</b>（<code>scover/sbody/stitle/sdesc/sinfo/frow-tag/mdur</code>）——
+          广场是纯动态流所以从没暴露过。右栏这两条我按 <code>#f7f7f7 底 / #333 标题 / #999 计数</code> 画，
+          落地时必须一并补进浅色块。
+        </p>
+      </section>
 
-  <!-- ================= ④ 行卡类型细看 ================= -->
-  <div class="sec">
-    <h2>④ 行卡类型细看<em>图文（1 / 3 / 9 图）· 视频条 · 文章条 · 转发引用</em></h2>
-    <div class="frame" data-skin="d">
-      <div class="frows">
-        <div class="frow">
-          <div class="frow-head"><span class="frow-av">喵</span>
-            <div class="frow-info"><a class="frow-name" href="#">一只芸喵喵</a><span class="frow-time">5 分钟前</span></div>
-          </div>
-          <div class="frow-content">
-            <div class="frow-text">九图预警，全是同一只猫。</div>
-            <div class="frow-imgs">
-              <span class="fcell"><i style="background:linear-gradient(135deg,#4a5a7a,#22314a)"></i></span>
-              <span class="fcell"><i style="background:linear-gradient(135deg,#7a4a5a,#4a2231)"></i></span>
-              <span class="fcell"><i style="background:linear-gradient(135deg,#4a7a5a,#224a31)"></i></span>
-              <span class="fcell"><i style="background:linear-gradient(135deg,#7a6a4a,#4a3a22)"></i></span>
-              <span class="fcell"><i style="background:linear-gradient(135deg,#5a4a7a,#31224a)"></i></span>
-              <span class="fcell"><i style="background:linear-gradient(135deg,#4a7a7a,#224a4a)"></i></span>
-              <span class="fcell"><i style="background:linear-gradient(135deg,#7a4a4a,#4a2222)"></i></span>
-              <span class="fcell"><i style="background:linear-gradient(135deg,#6a7a4a,#3a4a22)"></i></span>
-              <span class="fcell"><i style="background:linear-gradient(135deg,#4a5a6a,#22313a)"></i></span>
+      <!-- ================= ② 空间页注入形态 ================= -->
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>宿主 A —— 空间页 <code>/u/&lt;uid&gt;</code> 注入的「动态」标签</h2>
+          <span class="nt">浅色；加在原生「视频 / 文章 / 合辑」之后</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">
+          原生标签实测只有 <code>video / article / album</code>（+ 一个排序 li），<b>没有「动态」</b>，所以这是纯新增、不打架。
+          注入位＝<code>.ac-space-contribute-list &gt; ul.tags</code>，形态＝自建 <code>li[data-index="moment"]</code> + 兄弟 <code>.tag-content</code> 面板（同小视频那套）。
+        </p>
+        <div class="doc-figure">
+          <div class="frame light flush" data-skin="l">
+            <div class="sp-tabs">
+              <a href="#">视频<span class="n">2.0万</span></a>
+              <a href="#">文章<span class="n">0</span></a>
+              <a href="#">合辑<span class="n">0</span></a>
+              <a class="on" href="#">动态</a>
             </div>
-          </div>
-          <div class="frow-acts">
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>7</span>
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>0</span>
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4.6 4.6 0 018-3 4.6 4.6 0 018 3c0 6-8 11-8 11z"/></svg>31</span>
-          </div>
-        </div>
-
-        <div class="frow">
-          <div class="frow-head"><span class="frow-av">蝉</span>
-            <div class="frow-info"><a class="frow-name" href="#">阿蝉不是蝉</a><span class="frow-time">6 小时前</span></div>
-          </div>
-          <div class="frow-content">
-            <div class="frow-strip">
-              <div class="frow-scover"><i style="background:linear-gradient(135deg,#2f4a6a,#16233a)"></i><span class="frow-tag">文章</span></div>
-              <div class="frow-sbody">
-                <div class="frow-stitle">十年后再看《幸运星》：日常番的黄金年代</div>
-                <div class="frow-sdesc">从作画到分镜，聊聊京都动画在这部作品里做对了什么，以及它为什么至今难以复刻。</div>
-                <div class="frow-sinfo"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M8 5l11 7-11 7z"/></svg>6428</div>
-              </div>
-            </div>
-          </div>
-          <div class="frow-acts">
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>52</span>
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>21</span>
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4.6 4.6 0 018-3 4.6 4.6 0 018 3c0 6-8 11-8 11z"/></svg>1104</span>
-          </div>
-        </div>
-
-        <div class="frow">
-          <div class="frow-head"><span class="frow-av">喵</span>
-            <div class="frow-info"><a class="frow-name" href="#">一只芸喵喵</a><span class="frow-time">昨天 09:31</span></div>
-          </div>
-          <div class="frow-content">
-            <div class="frow-text">转发区这位说得比我好：</div>
-            <div class="gquote">
-              <div class="gquote-up">@<a class="gquote-upname" href="#">阿蝉不是蝉</a></div>
-              <div class="gquote-textbody">真正的问题不是内核老，而是没人愿意为「看得舒服」付一点点额外成本。这行字再长一点就会被钳到第三行，用来验证 max-height:63px 的截断。</div>
-              <div class="frow-imgs n24" style="max-width:100%">
-                <span class="fcell"><i style="background:linear-gradient(135deg,#4a5a7a,#22314a)"></i></span>
-                <span class="fcell"><i style="background:linear-gradient(135deg,#7a4a5a,#4a2231)"></i></span>
-              </div>
-            </div>
-          </div>
-          <div class="frow-acts">
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>3</span>
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>1</span>
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4.6 4.6 0 018-3 4.6 4.6 0 018 3c0 6-8 11-8 11z"/></svg>14</span>
-          </div>
-        </div>
-
-        <div class="frow">
-          <div class="frow-head"><span class="frow-av">蝉</span>
-            <div class="frow-info"><a class="frow-name lv7" href="#">阿蝉不是蝉</a><span class="frow-time">3 天前</span></div>
-          </div>
-          <div class="frow-content">
-            <div class="frow-text clamp">这条是超长正文的截断样例：正文按 4 行钳制，超出部分不显示，末尾给一个「展开」——
-              展开后再点收起。正文里的表情是 UBB 令牌 [emot=acfun,123/] 渲染出来的行内小图，长这样：
-              <span class="ubb-emot"></span>，话题是链接 <a class="ubb-topic" href="#">#补番#</a>，@人是 <a class="ubb-at" href="#">@一只芸喵喵</a>。</div>
-            <div class="fmore">展开</div>
-          </div>
-          <div class="frow-acts">
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>1</span>
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>0</span>
-            <span class="fact"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4.6 4.6 0 018-3 4.6 4.6 0 018 3c0 6-8 11-8 11z"/></svg>2</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= ⑤ 状态 ================= -->
-  <div class="sec">
-    <h2>⑤ 状态<em>骨架 / 加载中 / 到底 / 空态 / 错误态 / 发现条 / 悬停态</em></h2>
-    <div class="cmp">
-      <div class="frame" data-skin="d">
-        <p class="note" style="margin:0 0 10px">暗色（我的页）</p>
-        <div class="frows">
-          <div class="skel"></div>
-          <div class="skel"></div>
-          <div class="fstatus busy">加载中…</div>
-          <div class="fstatus sup">↑发现 3 条新动态，点击刷新</div>
-          <div class="fstatus">已加载全部动态</div>
-          <div class="vempty">你还没有发布过动态</div>
-          <div class="fstatus">加载失败，点击重试</div>
-        </div>
-      </div>
-      <div class="frame light" data-skin="l">
-        <p class="note" style="margin:0 0 10px;color:#666">浅色（空间页）</p>
-        <div class="frows">
-          <div class="skel"></div>
-          <div class="skel"></div>
-          <div class="fstatus busy">加载中…</div>
-          <div class="fstatus sup">↑发现 3 条新动态，点击刷新</div>
-          <div class="fstatus">已加载全部动态</div>
-          <div class="vempty">TA 还没有发布过动态</div>
-          <div class="fstatus">加载失败，点击重试</div>
-        </div>
-      </div>
-    </div>
-    <p class="note">
-      空态文案按宿主分派（「你还没…」/「TA 还没…」）；其余状态行沿用广场既有类与文案，仅换色。
-      另：视频条封面**悬停才出时长**（<code>.frow-mdur</code> 默认 display:none），上右图为常态、下图为悬停——
-      下面这条第二个封面是悬停态。
-    </p>
-    <div class="frame" data-skin="d">
-      <div class="frows">
-        <div class="frow" style="padding-top:0">
-          <div class="frow-content" style="padding-left:0">
-            <div class="frow-strip">
-              <div class="frow-scover">
-                <i style="background:linear-gradient(135deg,#2f4a6a,#16233a)"></i>
-                <span class="frow-mdur">12:34</span>
-              </div>
-              <div class="frow-sbody">
-                <div class="frow-stitle">悬停态：封面压黑 + 右下时长 12:34</div>
-                <div class="frow-sinfo"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M8 5l11 7-11 7z"/></svg>3421</div>
+            <div class="sp-body">
+              <div class="frows">
+                <div class="frow">
+                  <div class="frow-head">
+                    <span class="frow-av">芸</span>
+                    <div class="frow-info">
+                      <a class="frow-name" href="#">一只芸喵喵</a>
+                      <span class="frow-time">昨天 20:14</span>
+                    </div>
+                  </div>
+                  <div class="frow-content">
+                    <div class="frow-text">摸鱼摸了一天，把去年的番补完了。下一部想看《地球防卫少年》，有人一起吗？</div>
+                  </div>
+                  <div class="frow-acts">
+                    <span class="fact"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe627;</i>5</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe62a;</i>1</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe629;</i>17</span>
+                  </div>
+                </div>
+                <div class="frow">
+                  <div class="frow-head">
+                    <span class="frow-av">蝉</span>
+                    <div class="frow-info">
+                      <a class="frow-name" href="#">阿蝉不是蝉</a>
+                      <span class="frow-time">3 天前</span>
+                    </div>
+                  </div>
+                  <div class="frow-content">
+                    <div class="frow-text">写了篇长文，聊聊为什么我还在用十年前的播放器内核。<a class="ubb-at" href="#">@一只芸喵喵</a> 你可能会感兴趣。</div>
+                  </div>
+                  <div class="frow-acts">
+                    <span class="fact"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe627;</i>34</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe62a;</i>9</span>
+                    <span class="fact"><i class="acsvg-glyph">&#xe629;</i>205</span>
+                  </div>
+                </div>
+                <div class="fstatus">已加载全部动态</div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
+      </section>
 
-  <!-- ================= ⑥ 窄宽 ================= -->
-  <div class="sec">
-    <h2>⑥ 窄宽 540<em>长中文不许逐字断行 / 九宫格降列 / 视频条不许溢出</em></h2>
-    <div class="narrow" data-skin="d">
-      <div class="frows">
-        <div class="frow" style="padding:0">
-          <div class="frow-head"><span class="frow-av">喵</span>
-            <div class="frow-info"><a class="frow-name" href="#">一只芸喵喵</a><span class="frow-time">10 分钟前</span></div>
-          </div>
-          <div class="frow-content">
-            <div class="frow-text">窄态下的长正文应该正常换行，而不是一个字一行；话题链接也是长中文 <a class="ubb-topic" href="#">#秋天的第一杯奶茶#</a>。</div>
-            <div class="frow-imgs n24">
-              <span class="fcell"><i style="background:linear-gradient(135deg,#4a5a7a,#22314a)"></i></span>
-              <span class="fcell"><i style="background:linear-gradient(135deg,#7a4a5a,#4a2231)"></i></span>
+      <!-- ================= ③ 我的页 ================= -->
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>宿主 B —— 脚本「我的」页新增的「动态」标签</h2>
+          <span class="nt">暗色；作为第 1 个 tab，排在「观看历史」之前并默认落地</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">
+          现有 tab＝观看历史 / 收藏夹 / 关注分组；「动态」插到<b>最前</b>并作为<b>默认选中项</b>（进「我的」页即停在动态，
+          不再默认落观看历史）。切换机制（面板常驻 DOM + 首次激活惰性构建）完全复用；
+          容器沿用本页既有外壳（<code>.acsv-view-body</code> 自身滚动，不做内滚）。
+        </p>
+        <div class="doc-figure">
+          <div class="frame" data-skin="d">
+            <div class="me-wrap">
+              <div class="mecard">
+                <div class="big">喵</div>
+                <div>
+                  <div class="mecard-name">一只芸喵喵</div>
+                  <div class="mecard-stats"><span>关注 128</span><span>粉丝 1.6万</span><span>投稿 286</span></div>
+                </div>
+              </div>
+              <div class="metabs">
+                <button class="metab sel">动态</button>
+                <button class="metab">观看历史</button>
+                <button class="metab">收藏夹</button>
+                <button class="metab">关注分组</button>
+              </div>
+              <div class="mepanel">
+                <div class="frows">
+                  <div class="frow">
+                    <div class="frow-head">
+                      <span class="frow-av">喵</span>
+                      <div class="frow-info">
+                        <a class="frow-name" href="#">一只芸喵喵</a>
+                        <span class="frow-time">10 分钟前</span>
+                      </div>
+                    </div>
+                    <div class="frow-content">
+                      <div class="frow-text">今天的晚霞有点好看，随手拍了几张。</div>
+                      <div class="frow-imgs n1">
+                        <span class="fcell"><i class="g1"></i></span>
+                      </div>
+                    </div>
+                    <div class="frow-acts">
+                      <span class="fact"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                      <span class="fact"><i class="acsvg-glyph">&#xe627;</i>0</span>
+                      <span class="fact"><i class="acsvg-glyph">&#xe62a;</i>0</span>
+                      <span class="fact"><i class="acsvg-glyph">&#xe629;</i>0</span>
+                    </div>
+                  </div>
+                  <div class="frow">
+                    <div class="frow-head">
+                      <span class="frow-av">喵</span>
+                      <div class="frow-info">
+                        <a class="frow-name" href="#">一只芸喵喵</a>
+                        <span class="frow-time">前天 11:02</span>
+                      </div>
+                    </div>
+                    <div class="frow-content">
+                      <div class="frow-strip">
+                        <div class="frow-scover">
+                          <i class="gc"></i>
+                          <span class="frow-mdur">12:34</span>
+                        </div>
+                        <div class="frow-sbody">
+                          <div class="frow-stitle">【投稿】自己剪的第一支 MAD，求轻喷</div>
+                          <div class="frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>3421</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="frow-acts">
+                      <span class="fact"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                      <span class="fact"><i class="acsvg-glyph">&#xe627;</i>18</span>
+                      <span class="fact"><i class="acsvg-glyph">&#xe62a;</i>6</span>
+                      <span class="fact"><i class="acsvg-glyph">&#xe629;</i>92</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="frow-strip" style="margin-top:10px">
-              <div class="frow-scover" style="width:140px"><i style="width:140px;height:88px;background:linear-gradient(135deg,#2f4a6a,#16233a)"></i></div>
-              <div class="frow-sbody"><div class="frow-stitle">窄态视频条：标题单行省略，不能被挤出容器</div></div>
-            </div>
-          </div>
-          <div class="frow-acts" style="margin-left:0">
-            <span class="fact" style="margin-right:24px"><svg viewBox="0 0 24 24"><path d="M13 3l7 7h-4v10h-6V10H6z"/></svg>分享</span>
-            <span class="fact" style="margin-right:24px"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 5z"/></svg>12</span>
-            <span class="fact" style="margin-right:24px"><svg viewBox="0 0 24 24"><path d="M5 19c8 0 13-6 13-14h2c0 10-6 16-15 16z"/></svg>3</span>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
+        <p class="doc-note">
+          口径待裁决：本页「动态」取 <b>我自己的</b> <code>feed/profile?userId=&lt;自己&gt;</code>（三合一混排，与空间页同源同形）；
+          若你想这里只要图文动态（过滤掉视频/文章），形态会退化成单一种行卡，<b>且分页会别扭</b>——建议照服务端口径显示混排。
+        </p>
+      </section>
 
-  <!-- ================= 附：口径待裁决 ================= -->
-  <div class="sec">
-    <h2>附：口径与落地风险（待你裁决 / 已在稿中按此画）</h2>
-    <p class="note" style="line-height:2.1">
-      1. <b>两套皮肤 = 同 DOM + 皮肤根类分派</b>（暗色为基底，浅色走 <code>.acsv-mp</code> 覆盖）——沿用广场单源惯例，不另立第二份样式。<br>
-      2. <b>【已发现的缺口】</b> <code>.acsv-mp</code> 未覆盖视频/文章条（<code>scover/sbody/stitle/sdesc/sinfo/tag/mdur</code>），本特性必撞，落地时补齐；稿中右栏已按补齐后的样子画。<br>
-      3. <b>【复用禁区】</b> 广场取数的规整函数带 <b>24h 窗口 + 3h 新鲜度回填</b>（<code>squarePageOf</code>），那是广场专用；个人动态是历史流，套上去会把 24 小时前的动态全砍掉 ⇒ profile 流必须另写规整（纯 pcursor 翻页）。<br>
-      4. <b>空间页是否要「发现 N 条新动态」轮询</b>：广场有；空间页看的是别人，建议<b>不要</b>（省请求），只在进 tab 时拉一次 + 触底翻页。稿中把发现条画出来了，可删。<br>
-      5. <b>「动态」标签要不要计数</b>：<code>feed/profile</code> 不回总数 ⇒ 无计数（原生标签有计数，这里是唯一不一致处）。<br>
-      6. <b>我的页数据</b>＝我自己的 profile 流（三合一混排）；若只要图文动态需客户端过滤，分页会别扭，建议照服务端口径。<br>
-      7. 空间页注入的幂等/自愈：现有 uppage 只有 20 拍轮询、<b>无 MutationObserver</b>，站点 SPA 重渲染会冲掉注入项 ⇒ 新 tab 应照 memberplaza 补 MO 自愈（顺带把「小视频」标签也救回来）。<br>
-      8. <b>「我的」页 tab 顺序与默认落地</b>（本稿已改）：「动态」排<b>第 1</b>、且<b>默认选中</b>。代码侧＝面板按钮由
-      <code>Object.keys(panels).forEach</code> 派生（键序即按钮序，动态键写在最前即可），默认项＝<code>select('&lt;id&gt;')</code> 的入参；
-      进页即拉一次 profile 流（原本默认落「观看历史」也会拉一次，代价等价，无新增请求量）。
-    </p>
+      <!-- ================= ④ 行卡类型细看 ================= -->
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>行卡类型细看</h2>
+          <span class="nt">图文（1 / 3 / 9 图）· 视频条 · 文章条 · 转发引用</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="frame" data-skin="d">
+            <div class="frows">
+              <div class="frow">
+                <div class="frow-head"><span class="frow-av">喵</span>
+                  <div class="frow-info"><a class="frow-name" href="#">一只芸喵喵</a><span class="frow-time">5 分钟前</span></div>
+                </div>
+                <div class="frow-content">
+                  <div class="frow-text">九图预警，全是同一只猫。</div>
+                  <div class="frow-imgs">
+                    <span class="fcell"><i class="g1"></i></span>
+                    <span class="fcell"><i class="g2"></i></span>
+                    <span class="fcell"><i class="g3"></i></span>
+                    <span class="fcell"><i class="g4"></i></span>
+                    <span class="fcell"><i class="g5"></i></span>
+                    <span class="fcell"><i class="g6"></i></span>
+                    <span class="fcell"><i class="g7"></i></span>
+                    <span class="fcell"><i class="g8"></i></span>
+                    <span class="fcell"><i class="g9"></i></span>
+                  </div>
+                </div>
+                <div class="frow-acts">
+                  <span class="fact"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                  <span class="fact"><i class="acsvg-glyph">&#xe627;</i>7</span>
+                  <span class="fact"><i class="acsvg-glyph">&#xe62a;</i>0</span>
+                  <span class="fact"><i class="acsvg-glyph">&#xe629;</i>31</span>
+                </div>
+              </div>
+
+              <div class="frow">
+                <div class="frow-head"><span class="frow-av">蝉</span>
+                  <div class="frow-info"><a class="frow-name" href="#">阿蝉不是蝉</a><span class="frow-time">6 小时前</span></div>
+                </div>
+                <div class="frow-content">
+                  <div class="frow-strip">
+                    <div class="frow-scover"><i class="gc"></i><span class="frow-tag">文章</span></div>
+                    <div class="frow-sbody">
+                      <div class="frow-stitle">十年后再看《幸运星》：日常番的黄金年代</div>
+                      <div class="frow-sdesc">从作画到分镜，聊聊京都动画在这部作品里做对了什么，以及它为什么至今难以复刻。</div>
+                      <div class="frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>6428</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="frow-acts">
+                  <span class="fact"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                  <span class="fact"><i class="acsvg-glyph">&#xe627;</i>52</span>
+                  <span class="fact"><i class="acsvg-glyph">&#xe62a;</i>21</span>
+                  <span class="fact"><i class="acsvg-glyph">&#xe629;</i>1104</span>
+                </div>
+              </div>
+
+              <div class="frow">
+                <div class="frow-head"><span class="frow-av">喵</span>
+                  <div class="frow-info"><a class="frow-name" href="#">一只芸喵喵</a><span class="frow-time">昨天 09:31</span></div>
+                </div>
+                <div class="frow-content">
+                  <div class="frow-text">转发区这位说得比我好：</div>
+                  <div class="gquote">
+                    <div class="gquote-up">@<a class="gquote-upname" href="#">阿蝉不是蝉</a></div>
+                    <div class="gquote-textbody">真正的问题不是内核老，而是没人愿意为「看得舒服」付一点点额外成本。这行字再长一点就会被钳到第三行，用来验证 max-height:63px 的截断。</div>
+                    <div class="frow-imgs n24">
+                      <span class="fcell"><i class="g1"></i></span>
+                      <span class="fcell"><i class="g2"></i></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="frow-acts">
+                  <span class="fact"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                  <span class="fact"><i class="acsvg-glyph">&#xe627;</i>3</span>
+                  <span class="fact"><i class="acsvg-glyph">&#xe62a;</i>1</span>
+                  <span class="fact"><i class="acsvg-glyph">&#xe629;</i>14</span>
+                </div>
+              </div>
+
+              <div class="frow">
+                <div class="frow-head"><span class="frow-av">蝉</span>
+                  <div class="frow-info"><a class="frow-name lv7" href="#">阿蝉不是蝉</a><span class="frow-time">3 天前</span></div>
+                </div>
+                <div class="frow-content">
+                  <div class="frow-text clamp">这条是超长正文的截断样例：正文按 4 行钳制，超出部分不显示，末尾给一个「展开」——
+                    展开后再点收起。正文里的表情是 UBB 令牌 [emot=acfun,123/] 渲染出来的行内小图，长这样：
+                    <span class="ubb-emot"></span>，话题是链接 <a class="ubb-topic" href="#">#补番#</a>，@人是 <a class="ubb-at" href="#">@一只芸喵喵</a>。</div>
+                  <div class="fmore">展开</div>
+                </div>
+                <div class="frow-acts">
+                  <span class="fact"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                  <span class="fact"><i class="acsvg-glyph">&#xe627;</i>1</span>
+                  <span class="fact"><i class="acsvg-glyph">&#xe62a;</i>0</span>
+                  <span class="fact"><i class="acsvg-glyph">&#xe629;</i>2</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ⑤ 状态 ================= -->
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">05</span>
+          <h2>状态</h2>
+          <span class="nt">骨架 / 加载中 / 到底 / 空态 / 错误态 / 发现条 / 悬停态</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="cmp">
+            <div class="frame" data-skin="d">
+              <p class="doc-note tight">暗色（我的页）</p>
+              <div class="frows">
+                <div class="skel"></div>
+                <div class="skel"></div>
+                <div class="fstatus busy">加载中…</div>
+                <div class="fstatus sup">↑发现 3 条新动态，点击刷新</div>
+                <div class="fstatus">已加载全部动态</div>
+                <div class="vempty">你还没有发布过动态</div>
+                <div class="fstatus">加载失败，点击重试</div>
+              </div>
+            </div>
+            <div class="frame light" data-skin="l">
+              <p class="doc-note tight on-light">浅色（空间页）</p>
+              <div class="frows">
+                <div class="skel"></div>
+                <div class="skel"></div>
+                <div class="fstatus busy">加载中…</div>
+                <div class="fstatus sup">↑发现 3 条新动态，点击刷新</div>
+                <div class="fstatus">已加载全部动态</div>
+                <div class="vempty">TA 还没有发布过动态</div>
+                <div class="fstatus">加载失败，点击重试</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="doc-note">
+          空态文案按宿主分派（「你还没…」/「TA 还没…」）；其余状态行沿用广场既有类与文案，仅换色。
+          另：视频条封面**悬停才出时长**（<code>.frow-mdur</code> 默认 display:none），上右图为常态、下图为悬停——
+          下面这条第二个封面是悬停态。
+        </p>
+        <div class="doc-figure">
+          <div class="frame" data-skin="d">
+            <div class="frows">
+              <div class="frow flush">
+                <div class="frow-content flush">
+                  <div class="frow-strip">
+                    <div class="frow-scover">
+                      <i class="gc"></i>
+                      <span class="frow-mdur">12:34</span>
+                    </div>
+                    <div class="frow-sbody">
+                      <div class="frow-stitle">悬停态：封面压黑 + 右下时长 12:34</div>
+                      <div class="frow-sinfo"><i class="acsvg-glyph">&#xe164;</i>3421</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ⑥ 窄宽 ================= -->
+      <section class="doc-sec" id="s6">
+        <div class="doc-sec-hd">
+          <span class="idx">06</span>
+          <h2>窄宽 540</h2>
+          <span class="nt">长中文不许逐字断行 / 九宫格降列 / 视频条不许溢出</span>
+          <a class="anchor" href="#s6" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="narrow" data-skin="d">
+            <div class="frows">
+              <div class="frow bare">
+                <div class="frow-head"><span class="frow-av">喵</span>
+                  <div class="frow-info"><a class="frow-name" href="#">一只芸喵喵</a><span class="frow-time">10 分钟前</span></div>
+                </div>
+                <div class="frow-content">
+                  <div class="frow-text">窄态下的长正文应该正常换行，而不是一个字一行；话题链接也是长中文 <a class="ubb-topic" href="#">#秋天的第一杯奶茶#</a>。</div>
+                  <div class="frow-imgs n24">
+                    <span class="fcell"><i class="g1"></i></span>
+                    <span class="fcell"><i class="g2"></i></span>
+                  </div>
+                  <div class="frow-strip gap">
+                    <div class="frow-scover sm"><i class="gc"></i></div>
+                    <div class="frow-sbody"><div class="frow-stitle">窄态视频条：标题单行省略，不能被挤出容器</div></div>
+                  </div>
+                </div>
+                <div class="frow-acts flush">
+                  <span class="fact tight"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                  <span class="fact tight"><i class="acsvg-glyph">&#xe627;</i>12</span>
+                  <span class="fact tight"><i class="acsvg-glyph">&#xe62a;</i>3</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p class="doc-arch-cap">决策档案 · 过程沿革（查阅成品可略过）</p>
+      <details class="doc-arch"><summary><span class="ttl">口径与风险</span><span class="hint">附：八条口径与落地风险（待裁决 / 已在稿中按此画）</span><span class="pill">1 节</span></summary>
+      <!-- ================= 附：口径待裁决 ================= -->
+      <section class="doc-sec" id="s7">
+        <div class="doc-sec-hd">
+          <h2>附：口径与落地风险（待你裁决 / 已在稿中按此画）</h2>
+          <span class="nt">八条口径逐条列，落地前裁决</span>
+          <a class="anchor" href="#s7" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note loose">
+          1. <b>两套皮肤 = 同 DOM + 皮肤根类分派</b>（暗色为基底，浅色走 <code>.acsv-mp</code> 覆盖）——沿用广场单源惯例，不另立第二份样式。<br>
+          2. <b>【已发现的缺口】</b> <code>.acsv-mp</code> 未覆盖视频/文章条（<code>scover/sbody/stitle/sdesc/sinfo/tag/mdur</code>），本特性必撞，落地时补齐；稿中右栏已按补齐后的样子画。<br>
+          3. <b>【复用禁区】</b> 广场取数的规整函数带 <b>24h 窗口 + 3h 新鲜度回填</b>（<code>squarePageOf</code>），那是广场专用；个人动态是历史流，套上去会把 24 小时前的动态全砍掉 ⇒ profile 流必须另写规整（纯 pcursor 翻页）。<br>
+          4. <b>空间页是否要「发现 N 条新动态」轮询</b>：广场有；空间页看的是别人，建议<b>不要</b>（省请求），只在进 tab 时拉一次 + 触底翻页。稿中把发现条画出来了，可删。<br>
+          5. <b>「动态」标签要不要计数</b>：<code>feed/profile</code> 不回总数 ⇒ 无计数（原生标签有计数，这里是唯一不一致处）。<br>
+          6. <b>我的页数据</b>＝我自己的 profile 流（三合一混排）；若只要图文动态需客户端过滤，分页会别扭，建议照服务端口径。<br>
+          7. 空间页注入的幂等/自愈：现有 uppage 只有 20 拍轮询、<b>无 MutationObserver</b>，站点 SPA 重渲染会冲掉注入项 ⇒ 新 tab 应照 memberplaza 补 MO 自愈（顺带把「小视频」标签也救回来）。<br>
+          8. <b>「我的」页 tab 顺序与默认落地</b>（本稿已改）：「动态」排<b>第 1</b>、且<b>默认选中</b>。代码侧＝面板按钮由
+          <code>Object.keys(panels).forEach</code> 派生（键序即按钮序，动态键写在最前即可），默认项＝<code>select('&lt;id&gt;')</code> 的入参；
+          进页即拉一次 profile 流（原本默认落「观看历史」也会拉一次，代价等价，无新增请求量）。
+        </p>
+      </section>
+      </details>
+    </main>
   </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

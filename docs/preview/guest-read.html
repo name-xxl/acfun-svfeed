@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 游客浏览开关（设置 → 隐私）</title>
 <!-- ============================================================
      docs/preview/guest-read.html —— 游客浏览开关静态预览（2026-10-18）
@@ -11,7 +12,9 @@
      其余分组只作上下文；不做新面板、不加顶栏指示器。
      口径：暗色皮肤 / 真实中文文案 / 1600×900 与 540 宽自检。
      确认后才进 src；改版先改本稿。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   :root{
     --acsv-accent:#fd4c5d;
@@ -21,16 +24,8 @@
     --acsv-t3:#8a90a0;
     --acsv-line:rgba(255,255,255,.09);
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:32px 40px 100px}
-  .board>h1{font-size:20px;font-weight:600;margin-bottom:8px}
-  .board>.hint{color:var(--acsv-t3);font-size:12px;line-height:1.9;margin-bottom:22px}
-  .board>.hint b{color:#ffb3ba;font-weight:500}
-  .sec{margin:26px 0 0;padding-top:18px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:6px}
-  .sec>.note{color:var(--acsv-t3);font-size:12px;line-height:1.8;margin-bottom:14px}
+  /* 旧稿全局零重置收进 demo 域（chrome 不受影响）：定宽带边框件几何逐字不变 */
+  .doc-figure :where(*:not(.doc-note)){box-sizing:border-box;margin:0;padding:0}
   .panels{display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap}
 
   /* ---- 设置面板（量值照 settingspanel.js：400 宽 / rgba(22,22,27,.97) / radius 14） ---- */
@@ -71,101 +66,142 @@
   .badge{position:absolute;right:-6px;top:-18px;padding:1px 7px;border-radius:999px;
     background:var(--acsv-accent);color:#fff;font-size:10px;line-height:16px}
 
-  .note{width:400px;max-width:92vw;margin-top:14px;padding:12px 14px;border-radius:10px;
-    background:#0a0a0c;border:1px solid rgba(255,255,255,.06);color:var(--acsv-t3);
-    font-size:12px;line-height:1.85}
-  .note b{color:var(--acsv-t2);font-weight:500}
+  /* ---- 原 ③ 段内联布局收进类（零内联纪律） ---- */
+  .narrow-frame{width:540px;max-width:100%;border:1px dashed rgba(255,255,255,.16);border-radius:12px;padding:16px}
+  .set-panel.fit{max-width:100%}
 
   @media (max-width:900px){
-    .board{padding:22px 16px 70px}
     .panels{display:block}
     .panels .set-panel + .set-panel{margin-top:28px}
   }
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>非个性化推荐 · 静态预览</h1>
-  <p class="hint">设置 → 隐私 新增一行；其余分组只作上下文</p>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <section class="sec">
-    <h2>① 关态（默认）</h2>
-    <div class="panels">
-      <div class="set-panel">
-        <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
-        <div class="set-body">
-          <div class="set-group">通用</div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">自动检查更新</div><div class="set-hint">关掉后不再自动拉取 release 说明</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">自动签到</div><div class="set-hint">进入脚本页（竖刷）时自动签到，当天已签自动跳过；签成功弹黄历卡</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-group">播放</div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">弹幕默认开启</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">编码偏好</div></div><button class="set-act">H.264</button></div>
-          <div class="set-group">评论</div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">评论区显示 IP 属地</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-group">隐私</div>
-          <div class="set-row new"><span class="badge">新增</span>
-            <div class="set-row-main">
-              <div class="set-label">非个性化推荐</div>
-              <div class="set-hint">换用游客身份拉取推荐、小视频与发现内容；互动与观看上报照常，下次加载生效</div>
-            </div>
-            <div class="sw"><i></i></div>
-          </div>
-        </div>
-        <div class="set-foot"><span class="set-ver">v0.9.278</span><button class="set-act">完成</button></div>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>非个性化推荐 · 静态预览</h1>
+        <p class="doc-meta">
+          <span class="doc-badge">默认（关态）</span>
+          <span class="doc-badge b-on">开态（选中）</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">面板 400 宽 / 圆角14 / rgba(22,22,27,.97)</span><span class="src">src/settingspanel.js SET_CSS</span></span>
+          <span class="doc-pill"><span class="v">开关 34×18 / 旋钮 14×14 / 关 #9e9e9e 开 accent</span><span class="src">src/styles.js SWITCH_CSS</span></span>
+        </p>
       </div>
 
-    </div>
-  </section>
+      <p class="doc-note">设置 → 隐私 新增一行；其余分组只作上下文</p>
 
-  <section class="sec">
-    <h2>② 开态</h2>
-    <p class="note">只影响下一次加载/翻页，不打断当前播放</p>
-    <div class="panels">
-      <div class="set-panel">
-        <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
-        <div class="set-body">
-          <div class="set-group">通用</div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">自动检查更新</div><div class="set-hint">关掉后不再自动拉取 release 说明</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">自动签到</div><div class="set-hint">进入脚本页（竖刷）时自动签到，当天已签自动跳过；签成功弹黄历卡</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-group">播放</div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">弹幕默认开启</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">编码偏好</div></div><button class="set-act">H.264</button></div>
-          <div class="set-group">评论</div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">评论区显示 IP 属地</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-group">隐私</div>
-          <div class="set-row new"><span class="badge">新增</span>
-            <div class="set-row-main">
-              <div class="set-label">非个性化推荐</div>
-              <div class="set-hint">换用游客身份拉取推荐、小视频与发现内容；互动与观看上报照常，下次加载生效</div>
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>关态（默认）</h2>
+          <span class="nt">虚线框 + 「新增」角标仅预览标注，实现稿没有</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="panels">
+            <div class="set-panel">
+              <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
+              <div class="set-body">
+                <div class="set-group">通用</div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">自动检查更新</div><div class="set-hint">关掉后不再自动拉取 release 说明</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">自动签到</div><div class="set-hint">进入脚本页（竖刷）时自动签到，当天已签自动跳过；签成功弹黄历卡</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-group">播放</div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">弹幕默认开启</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">编码偏好</div></div><button class="set-act">H.264</button></div>
+                <div class="set-group">评论</div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">评论区显示 IP 属地</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-group">隐私</div>
+                <div class="set-row new"><span class="badge">新增</span>
+                  <div class="set-row-main">
+                    <div class="set-label">非个性化推荐</div>
+                    <div class="set-hint">换用游客身份拉取推荐、小视频与发现内容；互动与观看上报照常，下次加载生效</div>
+                  </div>
+                  <div class="sw"><i></i></div>
+                </div>
+              </div>
+              <div class="set-foot"><span class="set-ver">v0.9.278</span><button class="set-act">完成</button></div>
             </div>
-            <div class="sw on"><i></i></div>
+
           </div>
         </div>
-        <div class="set-foot"><span class="set-ver">v0.9.278</span><button class="set-act">完成</button></div>
-      </div>
+      </section>
 
-    </div>
-  </section>
-
-  <section class="sec">
-    <h2>③ 窄宽 540 自检</h2>
-    <div style="width:540px;max-width:100%;border:1px dashed rgba(255,255,255,.16);border-radius:12px;padding:16px">
-      <div class="set-panel" style="max-width:100%">
-        <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
-        <div class="set-body">
-          <div class="set-group">隐私</div>
-          <div class="set-row new">
-            <div class="set-row-main">
-              <div class="set-label">非个性化推荐</div>
-              <div class="set-hint">换用游客身份拉取推荐、小视频与发现内容；互动与观看上报照常，下次加载生效</div>
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>开态</h2>
+          <span class="nt">开=accent 底、旋钮 left:18px</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">只影响下一次加载/翻页，不打断当前播放</p>
+        <div class="doc-figure">
+          <div class="panels">
+            <div class="set-panel">
+              <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
+              <div class="set-body">
+                <div class="set-group">通用</div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">自动检查更新</div><div class="set-hint">关掉后不再自动拉取 release 说明</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">自动签到</div><div class="set-hint">进入脚本页（竖刷）时自动签到，当天已签自动跳过；签成功弹黄历卡</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-group">播放</div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">弹幕默认开启</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">编码偏好</div></div><button class="set-act">H.264</button></div>
+                <div class="set-group">评论</div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">评论区显示 IP 属地</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-group">隐私</div>
+                <div class="set-row new"><span class="badge">新增</span>
+                  <div class="set-row-main">
+                    <div class="set-label">非个性化推荐</div>
+                    <div class="set-hint">换用游客身份拉取推荐、小视频与发现内容；互动与观看上报照常，下次加载生效</div>
+                  </div>
+                  <div class="sw on"><i></i></div>
+                </div>
+              </div>
+              <div class="set-foot"><span class="set-ver">v0.9.278</span><button class="set-act">完成</button></div>
             </div>
-            <div class="sw on"><i></i></div>
+
           </div>
         </div>
-        <div class="set-foot"><span class="set-ver">v0.9.278</span><button class="set-act">完成</button></div>
-      </div>
-    </div>
-  </section>
+      </section>
+
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>窄宽 540 自检</h2>
+          <span class="nt">面板 max-width:100% 生效，长 hint 自然折行不溢出</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="narrow-frame">
+            <div class="set-panel fit">
+              <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
+              <div class="set-body">
+                <div class="set-group">隐私</div>
+                <div class="set-row new">
+                  <div class="set-row-main">
+                    <div class="set-label">非个性化推荐</div>
+                    <div class="set-hint">换用游客身份拉取推荐、小视频与发现内容；互动与观看上报照常，下次加载生效</div>
+                  </div>
+                  <div class="sw on"><i></i></div>
+                </div>
+              </div>
+              <div class="set-foot"><span class="set-ver">v0.9.278</span><button class="set-act">完成</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

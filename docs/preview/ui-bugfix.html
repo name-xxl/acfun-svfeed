@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · UI/Bug 专项 Wave 2（简介 / 窄底栏 / 音量 / 设置面板 / 表情预览 / 弹幕画布 / 抽屉层级 / 面板底栏）</title>
 <!-- ============================================================
      docs/preview/ui-bugfix.html —— UI/Bug 专项 Wave 2 合并预览（2026-10-14，0.9.237 前置）
@@ -21,22 +22,18 @@
      形态待定项（摆出供选）：简介 clamp 2 行 vs 3 行；窄底栏 方案 A 换行 / 方案 B 横滑。
      纪律：单文件/无依赖；量值抄 src/styles.js；确认后才进 src；改版先改本稿。
      自检：1600×900 与 540 宽各过一眼。
+     v3（2026-11-23 图标真资产批）：底栏文本替身换落地原件——播放键＝PLAYER_ICONS.play data-URI mask
+       （controls.js:186 mountIcon 同机制）；静音「–」＝ICONS.volOff、PiP/网全/窗全＝ICONS.pip/webFs/winFs
+       逐字内联（controls.js:265/303/315/322，20px 取当前色＝cssraw .acsv-cbtn 族）；设置下拉钮去 ▾
+       （落地纯文本无 caret，settingspanel.js:165）；✕/‹›/弹/连播/倍速/编码/缓冲/「展开简介 ▾」为落地纯文本保留。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   :root{--acsv-accent:#fd4c5d;--acsv-bg:#000;--acsv-panel:rgba(22,22,27,.97);--acsv-line:rgba(255,255,255,.09);
     --acsv-t1:#fff;--acsv-t2:#cfd3da;--acsv-t3:#8a90a0}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:28px 24px 90px}
-  h1{font-size:18px;font-weight:600;margin-bottom:6px}
-  .hint{color:var(--acsv-t3);font-size:12px;line-height:1.85;margin-bottom:20px}
-  .hint b{color:var(--acsv-t2)}
-  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
-  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
-  .sec>p.d{color:var(--acsv-t3);font-size:12px;line-height:1.7;margin:6px 0 14px}
-  code{background:rgba(255,255,255,.08);border-radius:4px;padding:0 5px;font-size:12px;color:#e8eaee;font-family:Consolas,Menlo,monospace}
+  /* 旧稿全局零重置收进 demo 域（chrome 不受影响）：定宽带边框件几何逐字不变 */
+  .doc-figure :where(*:not(.doc-note)){box-sizing:border-box;margin:0;padding:0}
   .dual{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
   .badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;margin-left:8px;
     border:1px solid rgba(255,255,255,.25);color:var(--acsv-t2)}
@@ -96,6 +93,12 @@
     font-family:inherit;white-space:nowrap;flex:none}
   .cb:hover{background:rgba(255,255,255,.12)}
   .cb.on{color:var(--acsv-accent)}
+  /* 底栏图标真资产：播放键＝PLAYER_ICONS.play 原件 mask（controls.js mountIcon）；
+     静音/PiP/两级全屏＝ICONS 原件内联；20px 取当前色（cssraw .acsv-cbtn svg / .acsvg-icon-mask 同值） */
+  .cb svg{width:20px;height:20px;fill:currentColor}
+  .cb .ic{width:20px;height:20px;display:inline-block;background-color:currentColor;
+    -webkit-mask:var(--u) center/contain no-repeat;mask:var(--u) center/contain no-repeat}
+  .ic-play{--u:url("data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMThweCIgaGVpZ2h0PSIxOHB4IiB2aWV3Qm94PSIwIDAgMTggMTgiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8IS0tIEdlbmVyYXRvcjogU2tldGNoIDUyLjUgKDY3NDY5KSAtIGh0dHA6Ly93d3cuYm9oZW1pYW5jb2RpbmcuY29tL3NrZXRjaCAtLT4KICAgIDx0aXRsZT5iZnFfYmY8L3RpdGxlPgogICAgPGRlc2M+Q3JlYXRlZCB3aXRoIFNrZXRjaC48L2Rlc2M+CiAgICA8ZyBpZD0iYmZxX2JmIiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4KICAgICAgICA8ZyBmaWxsLXJ1bGU9Im5vbnplcm8iPgogICAgICAgICAgICA8cmVjdCBpZD0iUmVjdGFuZ2xlLTgiIHg9IjAiIHk9IjAiIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCI+PC9yZWN0PgogICAgICAgICAgICA8cGF0aCBkPSJNMTAuMzA5MjgyOCwyLjE5MDEyMDM1IEwxNi43Nzg2MDE2LDEzLjc2ODM0MjQgQzE3LjE4MjY4NDksMTQuNDkxNTM1NSAxNi45MjM5OTU0LDE1LjQwNTM3MzUgMTYuMjAwODAyNCwxNS44MDk0NTY4IEMxNS45NzcxODY3LDE1LjkzNDQwMTkgMTUuNzI1Mjk5NSwxNiAxNS40NjkxNDQ4LDE2IEwyLjUzMDUwNzE2LDE2IEMxLjcwMjA4MDA0LDE2IDEuMDMwNTA3MTYsMTUuMzI4NDI3MSAxLjAzMDUwNzE2LDE0LjUgQzEuMDMwNTA3MTYsMTQuMjQzODQ1MyAxLjA5NjEwNTMxLDEzLjk5MTk1ODEgMS4yMjEwNTAzMywxMy43NjgzNDI0IEw3LjY5MDM2OTE0LDIuMTkwMTIwMzUgQzguMDk0NDUyNDUsMS40NjY5MjczIDkuMDA4MjkwNSwxLjIwODIzNzc2IDkuNzMxNDgzNTQsMS42MTIzMjEwNyBDOS45NzM4NDI3MiwxLjc0NzczOSAxMC4xNzM4NjQ5LDEuOTQ3NzYxMTYgMTAuMzA5MjgyOCwyLjE5MDEyMDM1IFoiIGlkPSJQb2x5Z29uIiBmaWxsPSIjRkZGRkZGIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5LjAwMDAwMCwgOS4wMDAwMDApIHJvdGF0ZSg5MC4wMDAwMDApIHRyYW5zbGF0ZSgtOS4wMDAwMDAsIC05LjAwMDAwMCkgIj48L3BhdGg+CiAgICAgICAgPC9nPgogICAgPC9nPgo8L3N2Zz4=")}
   .dmk{margin-left:auto;flex:none;width:150px;height:28px;border-radius:999px;background:rgba(255,255,255,.1);
     color:#8a90a0;font-size:12px;display:flex;align-items:center;padding:0 12px}
   .dmk.send{width:auto;background:#fd4c5d;color:#fff;padding:0 14px}
@@ -147,7 +150,7 @@
     background:rgba(255,255,255,.12);color:#fff}
   .set-act.primary{background:var(--acsv-accent)}
   .shortwin{height:250px;border:1px dashed rgba(255,255,255,.18);border-radius:10px;padding:6px;width:460px;max-width:100%}
-  .shortwin .set-body{max-height:210px}
+  .shortwin .set-body{max-height:210px;padding:0 12px 8px;display:flex;flex-direction:column;justify-content:flex-end}
 
   /* ================= ⑤ 编辑器表情面板 ================= */
   .me{width:560px;max-width:100%;background:rgba(22,22,27,.97);border:1px solid rgba(255,255,255,.12);
@@ -217,380 +220,497 @@
   .barstrip .drag::-webkit-scrollbar{display:none}
   .barstrip .drag:active{cursor:grabbing}
 
-  /* 自检窄段 */
+  /* ---- 布局/状态变体类（原内联样式收编，量值照抄；置于 demo 规则之后保证覆盖） ---- */
+  .note-tight{margin:8px 0 0}
+  .note-lead{margin:14px 0 8px}
+  .dual.mt16{margin-top:16px}
+  .stage.dim{opacity:.55}
+  .phone540.dim{opacity:.6}
+  .desc.f12{font-size:12px}
+  .dmore.f12{font-size:12px}
+  .sinfo.wide{max-width:min(70%,560px)}
+  .desc.wrapany{overflow-wrap:anywhere}
+  .desc.open.cap150{max-height:150px}
+  .planlabel{position:static;display:inline-block;margin-bottom:6px;color:var(--acsv-t2);font-size:12px}
+  .rowm.mb6{margin-bottom:6px}
+  .volslide.v20 .track i{height:20%}
+  .volslide.v20 .track b{bottom:20%}
+  .volslide.v0 .track i{height:0}
+  .volslide.v0 .track b{bottom:0}
+  .set-body.cap330{max-height:330px}
+  .shortwin .setpanel{width:100%;box-shadow:none;border-color:rgba(255,255,255,.09)}
+  .shortwin .set-hd{font-size:13px;padding:10px 12px 6px}
+  .shortwin .filler{height:96px}
+  .shortwin .set-row{padding:8px 0;border-bottom:none}
+  .shortwin .set-lb .t{font-size:13px}
+  .me-bd .inputph{height:36px;border-radius:8px;background:rgba(255,255,255,.1);margin:6px 0 10px}
+  .emot .prev.pos-up{left:38%;top:-140px}
+  .emot .prev.pos-down{left:6%;top:60px}
+  .emot.flush{border-top:none}
+  .dstage .dm.l4{left:4%}
+  .dstage .note.ok{color:#7ee08a}
+
+  /* 自检窄段（demo 宽度自适应；chrome 排版断点归 _docs.css） */
   @media (max-width:700px){
-    .board{padding:18px 12px 70px}
     .stage,.me,.lay{width:100%}
   }
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>UI/Bug 专项 Wave 2 —— 静态预览（确认后才进 src 实现）</h1>
-  <p class="hint">
-    口径：<b>暗色皮肤</b>（变量照 src/styles.js）/ 真实中文文案 / 关键状态全摆。改前/改后并列标注
-    <span class="badge bad">改前</span><span class="badge ok">改后</span>；待定项标
-    <span class="badge warn">待选</span>。<b>1600×900 桌面 + 540 宽</b>各过一眼（②③⑧ 为窄态重点）。<br>
-    <b>决策记录（2026-10-14）</b>：② 窄视口底栏＝<b>方案 B（按钮行横滑，已选）</b>；
-    ① 简介亮底可读性＝<b>衬底 B（全宽轻衬底 .42 + 13px，已选）</b>；简介行数＝<b>2 行（已定）</b>。
-  </p>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <!-- ================= ① 简介 ================= -->
-  <div class="sec">
-    <h2>① 简介（slide 左下信息区）<em>溢出才挂「展开」/ 长串换行 / 亮底衬底 / 字号 13px</em></h2>
-    <p class="d">修复点：短简介不再出现假「展开」按钮；长链接 <code>overflow-wrap:anywhere</code> 不再被裁；
-      「展开」改按钮（加大点击区、可键盘聚焦）；字号 12→13；亮底可读性**三案待选**（见下方对比）。</p>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>UI/Bug 专项 Wave 2 —— 静态预览（确认后才进 src 实现）</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-on">默认</span>
+          <span class="doc-badge b-hover">悬停</span>
+          <span class="doc-badge">选中</span>
+          <span class="doc-badge b-empty">空态（音量空轨）</span>
+          <span class="doc-badge b-err">错误态（上传失败提示）</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-badge">改前/改后对照</span>
+          <span class="doc-pill"><span class="v">简介 clamp 2 行 · 13px · 亮底衬底 .42</span><span class="src">src/cssraw.js .acsv-desc / .acsv-info-scrim</span></span>
+          <span class="doc-pill"><span class="v">下拉项 line-height:36px · 字体继承</span><span class="src">src/settingspanel.js .set-sel-item</span></span>
+          <span class="doc-pill"><span class="v">私信抽屉 z-index:62 ＞ 详情 z61</span><span class="src">src/cssraw.js .acsv-msgdrawer</span></span>
+        </p>
+      </div>
 
-    <div class="dual">
-      <div>
-        <div class="stage">
-          <span class="tagv">暗底 · 短简介（1 行，无按钮）<span class="badge ok">改后</span></span>
-          <div class="sinfo">
-            <div class="meta"><span>@子弹哥</span><span class="views">2026-09-26 · 2.3万次播放</span></div>
-            <div class="title">极限竞速地平线6：0.01 秒绝杀！GMC 反超宝马 X6M 越野赛</div>
-            <div class="desc">正片在 00:12 开始，三台车的胎压都按官方建议下调了 0.2bar。</div>
-          </div>
+      <p class="doc-note">
+        口径：<b>暗色皮肤</b>（变量照 src/styles.js）/ 真实中文文案 / 关键状态全摆。改前/改后并列标注
+        <span class="badge bad">改前</span><span class="badge ok">改后</span>；待定项标
+        <span class="badge warn">待选</span>。<b>1600×900 桌面 + 540 宽</b>各过一眼（②③⑧ 为窄态重点）。<br>
+        <b>决策记录（2026-10-14）</b>：② 窄视口底栏＝<b>方案 B（按钮行横滑，已选）</b>；
+        ① 简介亮底可读性＝<b>衬底 B（全宽轻衬底 .42 + 13px，已选）</b>；简介行数＝<b>2 行（已定）</b>。
+      </p>
+
+      <!-- ================= ① 简介 ================= -->
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>简介（slide 左下信息区）</h2>
+          <span class="nt">溢出才挂「展开」/ 长串换行 / 亮底衬底 / 字号 13px</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
         </div>
-        <p class="d" style="margin:8px 0 0">「展开简介 ▾」仅在溢出时出现（量 <code>scrollHeight &gt; clientHeight</code>）。</p>
-      </div>
+        <p class="doc-note">修复点：短简介不再出现假「展开」按钮；长链接 <code>overflow-wrap:anywhere</code> 不再被裁；
+          「展开」改按钮（加大点击区、可键盘聚焦）；字号 12→13；亮底可读性**三案待选**（见下方对比）。</p>
 
-      <div>
-        <div class="stage">
-          <span class="tagv">暗底 · 长简介默认（clamp 2 行，有按钮）</span>
-          <div class="sinfo">
-            <div class="meta"><span>@子弹哥</span><span class="views">2026-09-26</span></div>
-            <div class="title">极限竞速地平线6：0.01 秒绝杀！GMC 反超宝马 X6M 越野赛</div>
-            <div class="desc clamp2">【正片简介】本期把三台越野车拉到同一条拉力线路上做对照测试，第一段先交代路线与天气：前半段是碎石长上坡，后半段是连续发卡弯，湿滑程度远超预期。第二段说说车况：三台车都换了同规格的全地形胎……</div>
-            <button class="dmore">展开简介 ▾</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <p class="d" style="margin:14px 0 8px"><b>亮底可读性 · 三案对比</b>（同一亮底画面；衬底只在信息区可见时存在，
-      影院态/无信息列表不渲染）：A 全宽渐变 .62（抖音/快手惯例）／ B 全宽轻衬底 .42 + 13px（推荐折中）／
-      C 只垫文字块（画面改动最小，但文字区像"卡"）。</p>
-    <div class="dual">
-      <div>
-        <div class="stage cmp bright">
-          <span class="tagv">改前（无衬底 12px）</span>
-          <div class="sinfo">
-            <div class="meta"><span>@子弹哥</span></div>
-            <div class="title">极限竞速地平线6：0.01 秒绝杀！</div>
-            <div class="desc clamp2" style="font-size:12px">亮底画面上 12px 浅灰字 + 单层投影：远处发灰、贴纸感弱。</div>
-            <button class="dmore" style="font-size:12px">展开简介 ▾</button>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div class="stage cmp bright" style="opacity:.55">
-          <span class="tagv">A · 全宽渐变（.62）<span class="badge">备选（未选）</span></span>
-          <div class="shade a"></div>
-          <div class="sinfo">
-            <div class="meta"><span>@子弹哥</span></div>
-            <div class="title">极限竞速地平线6：0.01 秒绝杀！</div>
-            <div class="desc clamp3">底部整条压暗到 62%，任何亮底都稳；代价是画面下缘一直有一层渐变。</div>
-            <button class="dmore">展开简介 ▾</button>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div class="stage cmp bright">
-          <span class="tagv">B · 全宽轻衬底（.42 + 13px）<span class="badge ok">已选</span></span>
-          <div class="shade b"></div>
-          <div class="sinfo">
-            <div class="meta"><span>@子弹哥</span></div>
-            <div class="title">极限竞速地平线6：0.01 秒绝杀！</div>
-            <div class="desc clamp3">压暗减到 42% + 字号 13：亮底够读、暗底几乎无感，画面损失最小。</div>
-            <button class="dmore">展开简介 ▾</button>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div class="stage cmp bright blockback" style="opacity:.55">
-          <span class="tagv">C · 只垫文字块<span class="badge">备选（未选）</span></span>
-          <div class="sinfo">
-            <div class="meta"><span>@子弹哥</span></div>
-            <div class="title">极限竞速地平线6：0.01 秒绝杀！</div>
-            <div class="desc clamp3">整幅画面零压暗；文字区浮一块圆角半透明底，观感偏"卡片"。</div>
-            <button class="dmore">展开简介 ▾</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="dual" style="margin-top:16px">
-      <div>
-        <div class="stage">
-          <span class="tagv">长串换行（URL 不再被横向裁掉）<span class="badge ok">改后</span></span>
-          <div class="sinfo" style="max-width:min(70%,560px)">
-            <div class="desc clamp2" style="overflow-wrap:anywhere">拍摄场地与车辆信息：https://www.example.com/this/is/a/very/long/link/that/has/no/spaces/so/it/tests/overflow/behavior/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</div>
-            <button class="dmore">展开简介 ▾</button>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div class="stage">
-          <span class="tagv">展开态（限高 34vh 内滚，收起点「收起简介 ▴」）</span>
-          <div class="sinfo" style="max-width:min(70%,560px)">
-            <div class="desc open" style="max-height:150px">【正片简介】本期把三台越野车拉到同一条拉力线路上做对照测试。第一段先交代路线与天气：前半段是碎石长上坡，后半段是连续发卡弯，湿滑程度远超预期。第二段说说车况：三台车都换了同规格的全地形胎，胎压按官方建议下调 0.2bar，电子辅助全关。第三段是彩蛋：片尾有一处 0.01 秒级别的冲线争议，逐帧回放放在分P的 12:34 处。制作不易，点个赞再走吧～</div>
-            <button class="dmore">收起简介 ▴</button>
-          </div>
-        </div>
-        <p class="d" style="margin:8px 0 0">行数已定 <b>2 行</b>（现状 clamp 保留）；展开态同上：限高 34vh 内滚，收起点「收起简介 ▴」。</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= ② 窄底栏 ================= -->
-  <div class="sec">
-    <h2>② 播放控制栏 · 窄视口 540（≤720 断点）<em>已选方案 B（按钮行横滑）；方案 A 保留备查</em></h2>
-    <p class="d">现状：单行十余键不换行、不横滑（<code>flex:none</code>），540 宽右侧 PiP/全屏被裁。
-      <b>实现按方案 B</b>：单行不变，按钮行 <code>overflow-x:auto</code>（滚动条隐藏）——按钮/触控板横向滚动、
-      鼠标按住拖动即可见后面按键；进度条与时间行保持整宽。</p>
-
-    <div class="phone540">
-      <div class="tagv" style="position:static;display:inline-block;margin-bottom:6px;color:var(--acsv-t2);font-size:12px">
-        方案 B · 按钮行横滑<span class="badge ok">已选</span>——单行不变，溢出可拖/滑（滚动条隐藏）
-      </div>
-      <div class="minivideo">
-        <div class="ctl">
-          <div class="trackm"><i></i><span class="kn"></span></div>
-          <div class="rowm scrollx">
-            <button class="cb">▶</button><span class="tm">00:12</span>
-            <button class="cb">弹</button><button class="cb">连播</button><button class="cb">倍速</button><button class="cb">编码</button>
-            <button class="cb">缓冲</button><span class="dmk">发个弹幕呗</span><button class="cb">PiP</button><button class="cb">网全</button><button class="cb">窗全</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="phone540" style="opacity:.6">
-      <div class="tagv" style="position:static;display:inline-block;margin-bottom:6px;color:var(--acsv-t2);font-size:12px">
-        方案 A · 换行两行<span class="badge">备选（未选）</span>——进度行 + 按钮行（可换行）
-      </div>
-      <div class="minivideo">
-        <div class="ctl">
-          <div class="trackm"><i></i><span class="kn"></span></div>
-          <div class="rowm" style="margin-bottom:6px"><span class="tm">00:12 / 00:44</span></div>
-          <div class="rowm wrap">
-            <button class="cb">▶</button><button class="cb">弹</button>
-            <button class="cb">连播</button><button class="cb">倍速 1.0x</button><button class="cb">编码</button><button class="cb">缓冲</button>
-            <span class="dmk">发个弹幕呗，嗷嗷</span><button class="cb on">–</button>
-            <button class="cb">PiP</button><button class="cb">网全</button><button class="cb">窗全</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= ③ 音量竖条 ================= -->
-  <div class="sec">
-    <h2>③ 音量竖条 · 初始态<em>进入即绘制（原实现空轨：填充/手柄不画，首悬停才出现）</em></h2>
-    <div class="volrow">
-      <div class="volbox">
-        <div class="volslide"><div class="track"><i style="height:55%"></i><b style="bottom:55%"></b></div><span class="n">55</span></div>
-        <span class="cap">默认（pb.volume=0.55）<span class="badge ok">改后</span></span>
-      </div>
-      <div class="volbox">
-        <div class="volslide"><div class="track"><i style="height:20%"></i><b style="bottom:20%"></b></div><span class="n">20</span></div>
-        <span class="cap">拖到 20</span>
-      </div>
-      <div class="volbox">
-        <div class="volslide"><div class="track"><i style="height:0"></i><b style="bottom:0"></b></div><span class="n">0</span></div>
-        <span class="cap">拖到底 = 静音（图标联动）</span>
-      </div>
-      <div class="volbox">
-        <div class="volslide empty"><div class="track"><i></i><b></b></div><span class="n">55</span></div>
-        <span class="cap">现状：空轨 + 手柄贴顶<span class="badge bad">改前</span></span>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= ④ 设置面板 ================= -->
-  <div class="sec">
-    <h2>④ 设置面板下拉<em>字体简写修复（36px 行高生效）/ 点外收起 / 矮窗上翻</em></h2>
-    <p class="d">现状病灶：<code>font:13px/1.4 inherit</code> 是非法简写（整条被浏览器丢弃，回退 Arial/normal，
-      官方量取的 36px 行高从未生效）；点面板空白处菜单不收起；窗口矮时菜单下半截被滚动容器裁切。
-      本稿为「改后」形态——行高 36 / 字体继承，外点与 Esc 收起，贴着下缘时自动上翻。可点击试。</p>
-
-    <div class="dual">
-      <div class="setpanel">
-        <div class="set-hd">设置 <button class="x">✕</button></div>
-        <div class="set-body" style="max-height:330px">
-          <div class="set-row">
-            <div class="set-lb"><div class="t">弹幕开关</div><div class="s">关掉后当前视频立即停止渲染弹幕</div></div>
-            <button class="set-sw on"><i></i></button>
-          </div>
-          <div class="set-row">
-            <div class="set-lb"><div class="t">清晰度</div><div class="s">自动＝在可播档位里挑最高</div></div>
-            <div class="set-sel" data-sel>
-              <button class="set-sel-btn">自动 ▾</button>
-              <div class="set-sel-menu">
-                <button class="set-sel-item on">自动</button>
-                <button class="set-sel-item">1080P</button>
-                <button class="set-sel-item">720P</button>
+        <div class="doc-figure">
+          <div class="dual">
+            <div>
+              <div class="stage">
+                <span class="tagv">暗底 · 短简介（1 行，无按钮）<span class="badge ok">改后</span></span>
+                <div class="sinfo">
+                  <div class="meta"><span>@子弹哥</span><span class="views">2026-09-26 · 2.3万次播放</span></div>
+                  <div class="title">极限竞速地平线6：0.01 秒绝杀！GMC 反超宝马 X6M 越野赛</div>
+                  <div class="desc">正片在 00:12 开始，三台车的胎压都按官方建议下调了 0.2bar。</div>
+                </div>
               </div>
+              <p class="doc-note note-tight">「展开简介 ▾」仅在溢出时出现（量 <code>scrollHeight &gt; clientHeight</code>）。</p>
             </div>
-          </div>
-          <div class="set-row">
-            <div class="set-lb"><div class="t">快进步长</div><div class="s">→ 键单次快进的秒数</div></div>
-            <div class="set-sel" data-sel>
-              <button class="set-sel-btn">10 秒 ▾</button>
-              <div class="set-sel-menu">
-                <button class="set-sel-item">5 秒</button>
-                <button class="set-sel-item on">10 秒</button>
-                <button class="set-sel-item">15 秒</button>
-                <button class="set-sel-item">30 秒</button>
-              </div>
-            </div>
-          </div>
-          <div class="set-row">
-            <div class="set-lb"><div class="t">连播</div><div class="s">播完自动播放下一条</div></div>
-            <button class="set-sw"><i></i></button>
-          </div>
-        </div>
-        <div class="set-foot"><button class="set-act primary">完成</button></div>
-      </div>
 
-      <div>
-        <div class="shortwin">
-          <div class="setpanel" style="width:100%;box-shadow:none;border-color:rgba(255,255,255,.09)">
-            <div class="set-hd" style="font-size:13px;padding:10px 12px 6px">矮窗——行贴底，菜单上翻不裁切（常显示意）</div>
-            <div class="set-body" style="padding:0 12px 8px;display:flex;flex-direction:column;justify-content:flex-end">
-              <div style="height:96px"></div>
-              <div class="set-row" style="padding:8px 0;border-bottom:none">
-                <div class="set-lb"><div class="t" style="font-size:13px">快进步长</div></div>
-                <div class="set-sel" data-sel>
-                  <button class="set-sel-btn">10 秒 ▾</button>
-                  <div class="set-sel-menu up show">
-                    <button class="set-sel-item">5 秒</button>
-                    <button class="set-sel-item on">10 秒</button>
-                    <button class="set-sel-item">15 秒</button>
-                  </div>
+            <div>
+              <div class="stage">
+                <span class="tagv">暗底 · 长简介默认（clamp 2 行，有按钮）</span>
+                <div class="sinfo">
+                  <div class="meta"><span>@子弹哥</span><span class="views">2026-09-26</span></div>
+                  <div class="title">极限竞速地平线6：0.01 秒绝杀！GMC 反超宝马 X6M 越野赛</div>
+                  <div class="desc clamp2">【正片简介】本期把三台越野车拉到同一条拉力线路上做对照测试，第一段先交代路线与天气：前半段是碎石长上坡，后半段是连续发卡弯，湿滑程度远超预期。第二段说说车况：三台车都换了同规格的全地形胎……</div>
+                  <button class="dmore">展开简介 ▾</button>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <p class="d" style="margin:8px 0 0">行贴着容器底：菜单向上展开（<code>bottom:100%+6</code>）完整可见；
-          点空白处 / Esc 收起（可交互）。</p>
-      </div>
-    </div>
-  </div>
 
-  <!-- ================= ⑤ 表情预览 ================= -->
-  <div class="sec">
-    <h2>⑤ 编辑器表情面板 · 悬停大图预览<em>锚回面板（改前逃到浮层根）；首行翻到下方</em></h2>
-    <p class="d">病灶：0.9.226 面板改文档流（<code>position:static</code>）后，预览 absolute 锚到了浮层根——
-      实测悬停条目在 (531,408) 时预览跑到屏幕左上 (82,4)。修法：<code>.acsv-me-emot{position:relative}</code>
-      （仍在文档流里），并加「上方放不下 → 翻到条目下方」。</p>
-
-    <div class="dual">
-      <div class="me">
-        <div class="me-hd">发动态 <button class="x">✕</button></div>
-        <div class="me-bd">
-          <div style="height:36px;border-radius:8px;background:rgba(255,255,255,.1);margin:6px 0 10px"></div>
-        </div>
-        <div class="emot">
-          <div class="head">包0</div>
-          <div class="grid">
-            <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
-            <div class="cell"></div><div class="cell"></div><div class="cell hot"></div><div class="cell"></div><div class="cell"></div>
-            <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <p class="doc-note note-lead"><b>亮底可读性 · 三案对比</b>（同一亮底画面；衬底只在信息区可见时存在，
+          影院态/无信息列表不渲染）：A 全宽渐变 .62（抖音/快手惯例）／ B 全宽轻衬底 .42 + 13px（推荐折中）／
+          C 只垫文字块（画面改动最小，但文字区像"卡"）。</p>
+        <div class="doc-figure">
+          <div class="dual">
+            <div>
+              <div class="stage cmp bright">
+                <span class="tagv">改前（无衬底 12px）</span>
+                <div class="sinfo">
+                  <div class="meta"><span>@子弹哥</span></div>
+                  <div class="title">极限竞速地平线6：0.01 秒绝杀！</div>
+                  <div class="desc clamp2 f12">亮底画面上 12px 浅灰字 + 单层投影：远处发灰、贴纸感弱。</div>
+                  <button class="dmore f12">展开简介 ▾</button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="stage cmp bright dim">
+                <span class="tagv">A · 全宽渐变（.62）<span class="badge">备选（未选）</span></span>
+                <div class="shade a"></div>
+                <div class="sinfo">
+                  <div class="meta"><span>@子弹哥</span></div>
+                  <div class="title">极限竞速地平线6：0.01 秒绝杀！</div>
+                  <div class="desc clamp3">底部整条压暗到 62%，任何亮底都稳；代价是画面下缘一直有一层渐变。</div>
+                  <button class="dmore">展开简介 ▾</button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="stage cmp bright">
+                <span class="tagv">B · 全宽轻衬底（.42 + 13px）<span class="badge ok">已选</span></span>
+                <div class="shade b"></div>
+                <div class="sinfo">
+                  <div class="meta"><span>@子弹哥</span></div>
+                  <div class="title">极限竞速地平线6：0.01 秒绝杀！</div>
+                  <div class="desc clamp3">压暗减到 42% + 字号 13：亮底够读、暗底几乎无感，画面损失最小。</div>
+                  <button class="dmore">展开简介 ▾</button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="stage cmp bright blockback dim">
+                <span class="tagv">C · 只垫文字块<span class="badge">备选（未选）</span></span>
+                <div class="sinfo">
+                  <div class="meta"><span>@子弹哥</span></div>
+                  <div class="title">极限竞速地平线6：0.01 秒绝杀！</div>
+                  <div class="desc clamp3">整幅画面零压暗；文字区浮一块圆角半透明底，观感偏"卡片"。</div>
+                  <button class="dmore">展开简介 ▾</button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="prev" style="left:38%;top:-140px">大图预览 ↑（锚在面板，条目上方）</div>
-          <div class="foot"><button class="pg">‹</button>
-            <div class="strip"><span class="thumb on"></span><span class="thumb"></span><span class="thumb"></span><span class="thumb"></span><span class="thumb"></span><span class="thumb"></span></div>
-            <button class="pg">›</button></div>
         </div>
-        <div class="me-tools"><span class="me-vis">公开</span></div>
-        <div class="me-ft"><span class="me-tip">图片上传失败，请重试</span><button class="me-cc">取消</button><button class="me-ok">发布</button></div>
-      </div>
 
-      <div class="me">
-        <div class="me-hd">发动态（首行悬停 → 下翻） <button class="x">✕</button></div>
-        <div class="emot" style="border-top:none">
-          <div class="head">包0</div>
-          <div class="grid">
-            <div class="cell hot"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
-            <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="doc-figure">
+          <div class="dual mt16">
+            <div>
+              <div class="stage">
+                <span class="tagv">长串换行（URL 不再被横向裁掉）<span class="badge ok">改后</span></span>
+                <div class="sinfo wide">
+                  <div class="desc clamp2 wrapany">拍摄场地与车辆信息：https://www.example.com/this/is/a/very/long/link/that/has/no/spaces/so/it/tests/overflow/behavior/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</div>
+                  <button class="dmore">展开简介 ▾</button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="stage">
+                <span class="tagv">展开态（限高 34vh 内滚，收起点「收起简介 ▴」）</span>
+                <div class="sinfo wide">
+                  <div class="desc open cap150">【正片简介】本期把三台越野车拉到同一条拉力线路上做对照测试。第一段先交代路线与天气：前半段是碎石长上坡，后半段是连续发卡弯，湿滑程度远超预期。第二段说说车况：三台车都换了同规格的全地形胎，胎压按官方建议下调 0.2bar，电子辅助全关。第三段是彩蛋：片尾有一处 0.01 秒级别的冲线争议，逐帧回放放在分P的 12:34 处。制作不易，点个赞再走吧～</div>
+                  <button class="dmore">收起简介 ▴</button>
+                </div>
+              </div>
+              <p class="doc-note note-tight">行数已定 <b>2 行</b>（现状 clamp 保留）；展开态同上：限高 34vh 内滚，收起点「收起简介 ▴」。</p>
+            </div>
           </div>
-          <div class="prev" style="left:6%;top:60px">大图预览 ↓（首行上方不够 → 翻到条目下，不越出面板）</div>
-          <div class="foot"><button class="pg">‹</button>
-            <div class="strip"><span class="thumb on"></span><span class="thumb"></span><span class="thumb"></span></div>
-            <button class="pg">›</button></div>
         </div>
-        <div class="me-ft"><span class="me-tip"></span><button class="me-cc">取消</button><button class="me-ok">发布</button></div>
-      </div>
-    </div>
-  </div>
+      </section>
 
-  <!-- ================= ⑥ 弹幕画布 ================= -->
-  <div class="sec">
-    <h2>⑥ 弹幕画布 · 暂停中的重定位<em>开评论抽屉/拉窗口 → 画布跟随视频区</em></h2>
-    <div class="dual">
-      <div>
-        <div class="dstage shift">
-          <div class="vid">视频区（左移让位）</div>
-          <div class="drawer"></div>
-          <div class="dm" style="left:4%">这条弹幕停在旧位置 → 压在黑边/抽屉下</div>
-          <div class="dm d2">画布没跟着视频走</div>
-          <div class="note">暂停 · 错位（现状）</div>
+      <!-- ================= ② 窄底栏 ================= -->
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>播放控制栏 · 窄视口 540（≤720 断点）</h2>
+          <span class="nt">已选方案 B（按钮行横滑）；方案 A 保留备查</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
         </div>
-        <p class="d" style="margin:8px 0 0">align 只在 paint 里跑；暂停时 rVFC/rAF 双停，画布无人重排。</p>
-      </div>
-      <div>
-        <div class="dstage shift">
-          <div class="vid">视频区（左移让位）</div>
-          <div class="drawer"></div>
-          <div class="dm" style="left:4%">弹幕与视频区对齐 ✓</div>
-          <div class="dm d2">抽屉开合/窗口变化即重排</div>
-          <div class="note" style="color:#7ee08a">暂停 · 对齐（改后）</div>
-        </div>
-        <p class="d" style="margin:8px 0 0">修法：抽屉开合 / resize 时对存活图层做一次 align（不依赖播放帧）。</p>
-      </div>
-    </div>
-  </div>
+        <p class="doc-note">现状：单行十余键不换行、不横滑（<code>flex:none</code>），540 宽右侧 PiP/全屏被裁。
+          <b>实现按方案 B</b>：单行不变，按钮行 <code>overflow-x:auto</code>（滚动条隐藏）——按钮/触控板横向滚动、
+          鼠标按住拖动即可见后面按键；进度条与时间行保持整宽。</p>
 
-  <!-- ================= ⑦ 抽屉层级 ================= -->
-  <div class="sec">
-    <h2>⑦ 私信抽屉层级<em>详情面板(z61)之上、可点（原被同权重 58 压住）</em></h2>
-    <div class="dual">
-      <div>
-        <div class="lay">
-          <div class="dpanel"><div class="hd">动态详情</div><div class="line"></div><div class="line sh"></div></div>
-          <div class="msg old"><div class="hd">私信（点在背板上…）</div><div class="line"></div><div class="line sh"></div><span class="z">z-index:58</span></div>
+        <div class="doc-figure">
+          <div class="phone540">
+            <div class="planlabel">
+              方案 B · 按钮行横滑<span class="badge ok">已选</span>——单行不变，溢出可拖/滑（滚动条隐藏）
+            </div>
+            <div class="minivideo">
+              <div class="ctl">
+                <div class="trackm"><i></i><span class="kn"></span></div>
+                <div class="rowm scrollx">
+                  <button class="cb" title="播放/暂停（空格）"><i class="ic ic-play"></i></button><span class="tm">00:12</span>
+                  <button class="cb">弹</button><button class="cb">连播</button><button class="cb">倍速</button><button class="cb">编码</button>
+                  <button class="cb">缓冲</button><span class="dmk">发个弹幕呗</span><button class="cb" title="画中画"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3V5zm2 2v10h14V7H5z"/><path d="M12.5 12.5h6v5h-6v-5z"/></svg></button><button class="cb" title="网页全屏"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3V5zm2 2v10h14V7H5z"/></svg></button><button class="cb" title="窗口全屏"><svg viewBox="0 0 24 24"><path d="M4 9V4h5v2H6v3H4zm11-5h5v5h-2V6h-3V4zM4 15h2v3h3v2H4v-5zm14 0h2v5h-5v-2h3v-3z"/></svg></button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <p class="d" style="margin:8px 0 0"><span class="badge bad">改前</span> 抽屉被详情背板盖住：变暗且点不到，点它命中的是背板。</p>
-      </div>
-      <div>
-        <div class="lay">
-          <div class="dpanel"><div class="hd">动态详情</div><div class="line"></div><div class="line sh"></div></div>
-          <div class="msg"><div class="hd">私信（可点）</div><div class="line"></div><div class="line sh"></div><span class="z">z-index:62</span></div>
-        </div>
-        <p class="d" style="margin:8px 0 0"><span class="badge ok">改后</span> 抽屉在详情之上（0.9.105 裁决原意），
-          「捎句话」进来的会话正常可交互。修法：把 62 挪到共享规则之后（或提权重），与 pubfab 注释口径对齐。</p>
-      </div>
-    </div>
-  </div>
 
-  <!-- ================= ⑧ 面板底栏拖动 ================= -->
-  <div class="sec">
-    <h2>⑧ 表情面板底栏<em>可拖动横滚（原：藏滚动条 + 无拖拽，只能连点 ‹ ›）</em></h2>
-    <p class="d">修法：底栏 strip 加 pointer 拖拽（按住左右拖 = 横滚）+ 竖向滚轮映射为横滚；
-      hover 显示 grab 光标。保留 ‹ › 按钮（点击 120px）。</p>
-    <div class="barstrip">
-      <button class="pg">‹</button>
-      <div class="drag" id="dragstrip">
-        <span class="th on"></span><span class="th"></span><span class="th"></span><span class="th"></span>
-        <span class="th"></span><span class="th"></span><span class="th"></span><span class="th"></span>
-        <span class="th"></span><span class="th"></span><span class="th"></span><span class="th"></span>
-        <span class="th"></span><span class="th"></span><span class="th"></span><span class="th"></span>
-      </div>
-      <button class="pg">›</button>
-    </div>
-    <p class="d" style="margin:8px 0 0">按住条纹区域左右拖动试试（本预览为演示实现，正式实现走 pointer 事件 + 惯性可选）。</p>
+        <div class="doc-figure">
+          <div class="phone540 dim">
+            <div class="planlabel">
+              方案 A · 换行两行<span class="badge">备选（未选）</span>——进度行 + 按钮行（可换行）
+            </div>
+            <div class="minivideo">
+              <div class="ctl">
+                <div class="trackm"><i></i><span class="kn"></span></div>
+                <div class="rowm mb6"><span class="tm">00:12 / 00:44</span></div>
+                <div class="rowm wrap">
+                  <button class="cb" title="播放/暂停（空格）"><i class="ic ic-play"></i></button><button class="cb">弹</button>
+                  <button class="cb">连播</button><button class="cb">倍速 1.0x</button><button class="cb">编码</button><button class="cb">缓冲</button>
+                  <span class="dmk">发个弹幕呗，嗷嗷</span><button class="cb on" title="静音开关（M）"><svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg></button>
+                  <button class="cb" title="画中画"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3V5zm2 2v10h14V7H5z"/><path d="M12.5 12.5h6v5h-6v-5z"/></svg></button><button class="cb" title="网页全屏"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3V5zm2 2v10h14V7H5z"/></svg></button><button class="cb" title="窗口全屏"><svg viewBox="0 0 24 24"><path d="M4 9V4h5v2H6v3H4zm11-5h5v5h-2V6h-3V4zM4 15h2v3h3v2H4v-5zm14 0h2v5h-5v-2h3v-3z"/></svg></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ③ 音量竖条 ================= -->
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>音量竖条 · 初始态</h2>
+          <span class="nt">进入即绘制（原实现空轨：填充/手柄不画，首悬停才出现）</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="volrow">
+            <div class="volbox">
+              <div class="volslide"><div class="track"><i></i><b></b></div><span class="n">55</span></div>
+              <span class="cap">默认（pb.volume=0.55）<span class="badge ok">改后</span></span>
+            </div>
+            <div class="volbox">
+              <div class="volslide v20"><div class="track"><i></i><b></b></div><span class="n">20</span></div>
+              <span class="cap">拖到 20</span>
+            </div>
+            <div class="volbox">
+              <div class="volslide v0"><div class="track"><i></i><b></b></div><span class="n">0</span></div>
+              <span class="cap">拖到底 = 静音（图标联动）</span>
+            </div>
+            <div class="volbox">
+              <div class="volslide empty"><div class="track"><i></i><b></b></div><span class="n">55</span></div>
+              <span class="cap">现状：空轨 + 手柄贴顶<span class="badge bad">改前</span></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ④ 设置面板 ================= -->
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>设置面板下拉</h2>
+          <span class="nt">字体简写修复（36px 行高生效）/ 点外收起 / 矮窗上翻</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">现状病灶：<code>font:13px/1.4 inherit</code> 是非法简写（整条被浏览器丢弃，回退 Arial/normal，
+          官方量取的 36px 行高从未生效）；点面板空白处菜单不收起；窗口矮时菜单下半截被滚动容器裁切。
+          本稿为「改后」形态——行高 36 / 字体继承，外点与 Esc 收起，贴着下缘时自动上翻。可点击试。</p>
+
+        <div class="doc-figure">
+          <div class="dual">
+            <div class="setpanel">
+              <div class="set-hd">设置 <button class="x">✕</button></div>
+              <div class="set-body cap330">
+                <div class="set-row">
+                  <div class="set-lb"><div class="t">弹幕开关</div><div class="s">关掉后当前视频立即停止渲染弹幕</div></div>
+                  <button class="set-sw on"><i></i></button>
+                </div>
+                <div class="set-row">
+                  <div class="set-lb"><div class="t">清晰度</div><div class="s">自动＝在可播档位里挑最高</div></div>
+                  <div class="set-sel" data-sel>
+                    <button class="set-sel-btn">自动</button>
+                    <div class="set-sel-menu">
+                      <button class="set-sel-item on">自动</button>
+                      <button class="set-sel-item">1080P</button>
+                      <button class="set-sel-item">720P</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="set-row">
+                  <div class="set-lb"><div class="t">快进步长</div><div class="s">→ 键单次快进的秒数</div></div>
+                  <div class="set-sel" data-sel>
+                    <button class="set-sel-btn">10 秒</button>
+                    <div class="set-sel-menu">
+                      <button class="set-sel-item">5 秒</button>
+                      <button class="set-sel-item on">10 秒</button>
+                      <button class="set-sel-item">15 秒</button>
+                      <button class="set-sel-item">30 秒</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="set-row">
+                  <div class="set-lb"><div class="t">连播</div><div class="s">播完自动播放下一条</div></div>
+                  <button class="set-sw"><i></i></button>
+                </div>
+              </div>
+              <div class="set-foot"><button class="set-act primary">完成</button></div>
+            </div>
+
+            <div>
+              <div class="shortwin">
+                <div class="setpanel">
+                  <div class="set-hd">矮窗——行贴底，菜单上翻不裁切（常显示意）</div>
+                  <div class="set-body">
+                    <div class="filler"></div>
+                    <div class="set-row">
+                      <div class="set-lb"><div class="t">快进步长</div></div>
+                      <div class="set-sel" data-sel>
+                        <button class="set-sel-btn">10 秒</button>
+                        <div class="set-sel-menu up show">
+                          <button class="set-sel-item">5 秒</button>
+                          <button class="set-sel-item on">10 秒</button>
+                          <button class="set-sel-item">15 秒</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="doc-note note-tight">行贴着容器底：菜单向上展开（<code>bottom:100%+6</code>）完整可见；
+                点空白处 / Esc 收起（可交互）。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ⑤ 表情预览 ================= -->
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">05</span>
+          <h2>编辑器表情面板 · 悬停大图预览</h2>
+          <span class="nt">锚回面板（改前逃到浮层根）；首行翻到下方</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">病灶：0.9.226 面板改文档流（<code>position:static</code>）后，预览 absolute 锚到了浮层根——
+          实测悬停条目在 (531,408) 时预览跑到屏幕左上 (82,4)。修法：<code>.acsv-me-emot{position:relative}</code>
+          （仍在文档流里），并加「上方放不下 → 翻到条目下方」。</p>
+
+        <div class="doc-figure">
+          <div class="dual">
+            <div class="me">
+              <div class="me-hd">发动态 <button class="x">✕</button></div>
+              <div class="me-bd">
+                <div class="inputph"></div>
+              </div>
+              <div class="emot">
+                <div class="head">包0</div>
+                <div class="grid">
+                  <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                  <div class="cell"></div><div class="cell"></div><div class="cell hot"></div><div class="cell"></div><div class="cell"></div>
+                  <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                </div>
+                <div class="prev pos-up">大图预览 ↑（锚在面板，条目上方）</div>
+                <div class="foot"><button class="pg">‹</button>
+                  <div class="strip"><span class="thumb on"></span><span class="thumb"></span><span class="thumb"></span><span class="thumb"></span><span class="thumb"></span><span class="thumb"></span></div>
+                  <button class="pg">›</button></div>
+              </div>
+              <div class="me-tools"><span class="me-vis">公开</span></div>
+              <div class="me-ft"><span class="me-tip">图片上传失败，请重试</span><button class="me-cc">取消</button><button class="me-ok">发布</button></div>
+            </div>
+
+            <div class="me">
+              <div class="me-hd">发动态（首行悬停 → 下翻） <button class="x">✕</button></div>
+              <div class="emot flush">
+                <div class="head">包0</div>
+                <div class="grid">
+                  <div class="cell hot"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                  <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                </div>
+                <div class="prev pos-down">大图预览 ↓（首行上方不够 → 翻到条目下，不越出面板）</div>
+                <div class="foot"><button class="pg">‹</button>
+                  <div class="strip"><span class="thumb on"></span><span class="thumb"></span><span class="thumb"></span></div>
+                  <button class="pg">›</button></div>
+              </div>
+              <div class="me-ft"><span class="me-tip"></span><button class="me-cc">取消</button><button class="me-ok">发布</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ⑥ 弹幕画布 ================= -->
+      <section class="doc-sec" id="s6">
+        <div class="doc-sec-hd">
+          <span class="idx">06</span>
+          <h2>弹幕画布 · 暂停中的重定位</h2>
+          <span class="nt">开评论抽屉/拉窗口 → 画布跟随视频区</span>
+          <a class="anchor" href="#s6" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="dual">
+            <div>
+              <div class="dstage shift">
+                <div class="vid">视频区（左移让位）</div>
+                <div class="drawer"></div>
+                <div class="dm l4">这条弹幕停在旧位置 → 压在黑边/抽屉下</div>
+                <div class="dm d2">画布没跟着视频走</div>
+                <div class="note">暂停 · 错位（现状）</div>
+              </div>
+              <p class="doc-note note-tight">align 只在 paint 里跑；暂停时 rVFC/rAF 双停，画布无人重排。</p>
+            </div>
+            <div>
+              <div class="dstage shift">
+                <div class="vid">视频区（左移让位）</div>
+                <div class="drawer"></div>
+                <div class="dm l4">弹幕与视频区对齐 ✓</div>
+                <div class="dm d2">抽屉开合/窗口变化即重排</div>
+                <div class="note ok">暂停 · 对齐（改后）</div>
+              </div>
+              <p class="doc-note note-tight">修法：抽屉开合 / resize 时对存活图层做一次 align（不依赖播放帧）。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ⑦ 抽屉层级 ================= -->
+      <section class="doc-sec" id="s7">
+        <div class="doc-sec-hd">
+          <span class="idx">07</span>
+          <h2>私信抽屉层级</h2>
+          <span class="nt">详情面板(z61)之上、可点（原被同权重 58 压住）</span>
+          <a class="anchor" href="#s7" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="dual">
+            <div>
+              <div class="lay">
+                <div class="dpanel"><div class="hd">动态详情</div><div class="line"></div><div class="line sh"></div></div>
+                <div class="msg old"><div class="hd">私信（点在背板上…）</div><div class="line"></div><div class="line sh"></div><span class="z">z-index:58</span></div>
+              </div>
+              <p class="doc-note note-tight"><span class="badge bad">改前</span> 抽屉被详情背板盖住：变暗且点不到，点它命中的是背板。</p>
+            </div>
+            <div>
+              <div class="lay">
+                <div class="dpanel"><div class="hd">动态详情</div><div class="line"></div><div class="line sh"></div></div>
+                <div class="msg"><div class="hd">私信（可点）</div><div class="line"></div><div class="line sh"></div><span class="z">z-index:62</span></div>
+              </div>
+              <p class="doc-note note-tight"><span class="badge ok">改后</span> 抽屉在详情之上（0.9.105 裁决原意），
+                「捎句话」进来的会话正常可交互。修法：把 62 挪到共享规则之后（或提权重），与 pubfab 注释口径对齐。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ⑧ 面板底栏拖动 ================= -->
+      <section class="doc-sec" id="s8">
+        <div class="doc-sec-hd">
+          <span class="idx">08</span>
+          <h2>表情面板底栏</h2>
+          <span class="nt">可拖动横滚（原：藏滚动条 + 无拖拽，只能连点 ‹ ›）</span>
+          <a class="anchor" href="#s8" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">修法：底栏 strip 加 pointer 拖拽（按住左右拖 = 横滚）+ 竖向滚轮映射为横滚；
+          hover 显示 grab 光标。保留 ‹ › 按钮（点击 120px）。</p>
+        <div class="doc-figure">
+          <div class="barstrip">
+            <button class="pg">‹</button>
+            <div class="drag" id="dragstrip">
+              <span class="th on"></span><span class="th"></span><span class="th"></span><span class="th"></span>
+              <span class="th"></span><span class="th"></span><span class="th"></span><span class="th"></span>
+              <span class="th"></span><span class="th"></span><span class="th"></span><span class="th"></span>
+              <span class="th"></span><span class="th"></span><span class="th"></span><span class="th"></span>
+            </div>
+            <button class="pg">›</button>
+          </div>
+        </div>
+        <p class="doc-note note-tight">按住条纹区域左右拖动试试（本预览为演示实现，正式实现走 pointer 事件 + 惯性可选）。</p>
+      </section>
+    </main>
   </div>
 </div>
 
@@ -617,7 +737,7 @@
         if (ev.target.classList.contains('set-sel-item')) {
           menu.querySelectorAll('.set-sel-item').forEach(function (x) { x.classList.remove('on'); });
           ev.target.classList.add('on');
-          btn.textContent = ev.target.textContent + ' ▾';
+          btn.textContent = ev.target.textContent;
           close();
         }
       });
@@ -651,5 +771,6 @@
     });
   })();
 </script>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

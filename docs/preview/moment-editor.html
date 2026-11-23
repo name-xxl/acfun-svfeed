@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 发动态编辑器（图文 / 可见范围 / 转发）</title>
 <!-- ============================================================
      docs/preview/moment-editor.html —— 静态 UI 预览（形态确认稿）
@@ -12,24 +13,35 @@
      src/cards.js quoteBlockOf（引用块）、src/momentpost.js（字数 233 / params 契约）。
      数据口径：POST rest/app/moment/add，body 单字段 params(JSON)，只认 Cookie、不校验签名，
      content 1–233，错误码 0/21/-401/140000/140002（docs §11 全链实测）。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     v3（2026-11-23 铺开批）：决策沿革折叠（附口径段收进页尾决策档案）；段内无同形窄 figure 竖排，未栅格化；demo 未动。
+     v5（2026-11-23 图标真资产批）：脚本 UI 图标换 src 落地真资产——工具行 emoji 替身 ☺/🖼 退役，
+     换站方 iconfont 字形 edEmotion e18b / edImage e18a（src/imicons.js:63-64，消费点 src/inputbar.js:438/446，
+     载体 .acsv-ic 同 src/cssraw.js:342-343）；入口钮 ✎ 文本字符退役（src/pubfab.js:21 在册退役），
+     换铅笔内联 SVG＝ICON_PEN_D 逐字（src/pubfab.js:96，24 viewBox 单 path + fill:currentColor）。
+     补本地 @font-face（assets/acfun-frontend-next.woff/.ttf）。✕/＋/› 落地本就是纯文本
+     （src/momenteditor.js:59/172/188、src/emoticon.js:272-273），保留；尺寸/布局/配色量值未动。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   :root{
-    --accent:#fd4c5d; --t1:#fff; --t2:#cfd3da; --t3:#8a90a0; --line:rgba(255,255,255,.09);
+    --accent:var(--dc-accent); --t1:var(--dc-t1); --t2:var(--dc-t2); --t3:var(--dc-t3); --line:var(--dc-line);
     --panel:rgba(22,22,27,.97); --sub:rgba(255,255,255,.06);
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#0b0b0e;color:var(--t1);font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:28px 24px 90px}
-  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
-  .hint{color:var(--t3);font-size:12px;line-height:1.9;margin-bottom:20px}
-  .hint b{color:var(--t2)}
-  .sec{margin:26px 0 8px;padding-top:16px;border-top:1px solid var(--line)}
-  .sec>h2{font-size:13px;color:var(--t2);font-weight:600;margin-bottom:4px}
-  .sec>h2 em{color:var(--t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
-  .note{color:var(--t3);font-size:12px;line-height:1.9;margin:6px 0 14px}
-  .note code{color:#ffb323;font-family:ui-monospace,Consolas,monospace;font-size:11px}
+  /* 站方原生 iconfont（本地入库资产；cssraw.js:18-20 头同族）——工具行表情/图片键字形真资产 */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(assets/acfun-frontend-next.woff) format("woff"),
+        url(assets/acfun-frontend-next.ttf) format("truetype")
+  }
+  /* 字形基类＝src/cssraw.js:342-343 逐字 */
+  .acsv-ic{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-weight:400;
+    display:inline-block;line-height:1}
+  /* 工具行键内字形对齐 13px 文本观感（原 emoji 替身同档） */
+  .tbtn .acsv-ic{font-size:14px;vertical-align:-2px}
+  /* 入口钮铅笔＝src/pubfab.js:96 ICON_PEN_D（24 viewBox 单 path + fill:currentColor，
+     cssraw .acsv-pubfab 段同族语言）；尺寸对齐原 ✎ 字符在 13px 钮内的观感 */
+  .entry .pen{width:13px;height:13px;fill:currentColor;vertical-align:-2px}
   .stage{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
 
   /* ===== 编辑器面板（居中模态 · 视图层之上） ===== */
@@ -53,10 +65,15 @@
   .ed-ta{width:100%;border:none;background:none;color:#e8eaee;font:inherit;font-size:14px;line-height:21px;
     min-height:96px;resize:none;outline:none;white-space:pre-line}
   .ed-ta:empty:before{content:attr(data-ph);color:var(--t3)}
+  .ed-ta img{display:inline-block;vertical-align:-6px;width:34px;height:34px;border-radius:4px;
+    background:linear-gradient(135deg,#3a3f52,#232634)}
+  .ed-ta.locked{opacity:.6}
+  .ed [disabled]{opacity:.5}
   /* 九宫格（88 方 + 删除角标 + ＋添加格） */
   .thumbs{margin:6px 0 2px;font-size:0}
   .thumb{position:relative;display:inline-block;width:88px;height:88px;margin:0 6px 6px 0;border-radius:4px;
     overflow:hidden;background:#2a2f3d}
+  .thumb .ph{display:block;height:100%}
   .thumb .del{position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;
     background:rgba(0,0,0,.66);color:#fff;font-size:11px;line-height:18px;text-align:center;cursor:pointer}
   .thumb.add{background:rgba(255,255,255,.06);border:1px dashed rgba(255,255,255,.22);
@@ -100,16 +117,17 @@
   .entry.ghost{background:rgba(255,255,255,.12);color:var(--t2);font-weight:400}
   .hostbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px dashed rgba(255,255,255,.16);
     border-radius:8px;background:rgba(255,255,255,.02)}
+  .hostbar.w520{width:520px}
   .hostbar .who{font-size:12px;color:var(--t3)}
   .hostbar .sp{margin-left:auto}
   /* 字宽自证（**真窄态**：视口 540 时本框随视口收，不许自身横向溢出——首版固定 540 宽 + 页面
      内边距导致整框被推出视口右缘、字数计数被裁，这是本稿自检抓到的第一处） */
   .narrow{width:100%;max-width:540px;border:1px dashed rgba(255,255,255,.14);padding:12px}
+  .narrow .ed{width:100%}
   /* 窄态：工具行**允许换行**（字数落到第二行），而不是把计数挤出裁掉 */
   .narrow .ed-tools{flex-wrap:wrap;row-gap:2px}
   .narrow .vis{margin-left:0}
   .narrow .count{margin-left:auto}
-  @media (max-width:600px){ .board{padding:18px 12px 60px} }
   /* ---- 输入框内表情渲染：镜像层对照（§⑧） ---- */
   .mir{position:relative;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:#101014;
     padding:10px 12px;font-size:14px;line-height:21px;min-height:64px;overflow:hidden}
@@ -120,6 +138,8 @@
     background:linear-gradient(135deg,#3a3f52,#232634)}
   .mir .caret{display:inline-block;width:1px;height:17px;background:#fd4c5d;vertical-align:-3px}
   .mir34{line-height:34px}          /* C 版：两侧行高一起抬 */
+  .mircol{width:420px}
+  .stage.gap18{gap:18px}
   .tagline{font-size:12px;color:var(--t3);margin:8px 0 4px}
   .tagline b{color:var(--t2)}
   table.geo{border-collapse:collapse;font-size:12px;color:var(--t2);margin-top:8px}
@@ -143,333 +163,434 @@
     font-size:11px;color:var(--t2);background:rgba(255,255,255,.05)}
   .demostat{font-size:12px;color:var(--t3);margin-top:6px}
   .demostat b{color:#2ecc71}
-  
-  
+  /* ---- 占位图渐变（原内联色收进类，量值逐字未动） ---- */
+  .g1{background:linear-gradient(135deg,#4a5a7a,#22314a)}
+  .g2{background:linear-gradient(135deg,#7a4a5a,#4a2231)}
+  .g3{background:linear-gradient(135deg,#4a7a5a,#224a31)}
+  .g4{background:linear-gradient(135deg,#3a4560,#20263a)}
+  .doc-note.loose{line-height:2.1}
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>发动态编辑器 —— 静态预览（确认后才进 src 实现）</h1>
-  <p class="hint">
-    第一版范围：<b>图文 + 公开/仅粉丝 + 转发</b>。入口三处共用同一个编辑器出口。<br>
-    契约：<code>POST rest/app/moment/add</code>，body 单字段 <code>params</code>(JSON)，<b>只认 Cookie、不校验签名</b>；
-    <code>content</code> 1–233；错误码 <code>0/21/-401/140000/140002</code>（docs §11 全链实测）。
-  </p>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <!-- ============ ① 默认态（空） ============ -->
-  <div class="sec">
-    <h2>① 默认态<em>点入口即此形态；无内容时「发布」禁用</em></h2>
-    <p class="note">壳＝居中模态（视图层之上、不占地不抢抽屉槽）；输入区无边框、占位灰；底部常驻工具行「表情 · 图片 · 可见范围 · 字数」。</p>
-    <div class="stage">
-      <div class="ed">
-        <div class="ed-hd">发动态 <button class="x">✕</button></div>
-        <div class="ed-bd">
-          <div class="ed-ta" data-ph="说点什么…（图片动态文字可留空）" contenteditable="true"></div>
-        </div>
-        <div class="ed-tools">
-          <button class="tbtn">☺ 表情</button>
-          <button class="tbtn">🖼 图片</button>
-          <span class="vis">可见范围
-            <button class="vpill on">公开</button>
-            <button class="vpill">仅粉丝</button>
-          </span>
-          <span class="count">0/233</span>
-        </div>
-        <div class="ed-ft">
-          <button class="cc">取消</button>
-          <button class="ok" disabled>发布</button>
-        </div>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>发动态编辑器 —— 静态预览（确认后才进 src 实现）</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-on">默认</span>
+          <span class="doc-badge b-hover">悬停</span>
+          <span class="doc-badge">选中（公开/仅粉丝）</span>
+          <span class="doc-badge b-empty">空态（无内容禁发）</span>
+          <span class="doc-badge b-err">错误态</span>
+          <span class="doc-badge">提交中</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">content 1–233 / 面板 560 / 缩略图 88×88</span><span class="src">src/momentpost.js · src/styles.js</span></span>
+        </p>
       </div>
-    </div>
-  </div>
 
-  <!-- ============ ② 输入中 + 表情面板展开 ============ -->
-  <div class="sec">
-    <h2>② 输入中 · 表情面板展开<em>字数实时计数；表情插成图、提交时序列化成 UBB 令牌</em></h2>
-    <p class="note">
-      表情是「插真图 → 提交时序列化成 <code>[emot=acfun,id/]</code>」，不是插文本令牌（与动态脚本同款）；
-      面板由 <code>emoticon.js</code> 单源渲染（分页 + 网格 + 最近使用），可滚动。
-    </p>
-    <div class="stage">
-      <div class="ed">
-        <div class="ed-hd">发动态 <button class="x">✕</button></div>
-        <div class="ed-bd">
-          <div class="ed-ta" contenteditable="true">今天终于把十年的老番补完了，来点个赞呗<img alt="表情" style="display:inline-block;vertical-align:-6px;width:34px;height:34px;border-radius:4px;background:linear-gradient(135deg,#3a3f52,#232634)"> #补番打卡#</div>
-        </div>
-        <div class="ed-tools">
-          <button class="tbtn on">☺ 表情</button>
-          <button class="tbtn">🖼 图片</button>
-          <span class="vis">可见范围
-            <button class="vpill on">公开</button>
-            <button class="vpill">仅粉丝</button>
-          </span>
-          <span class="count">37/233</span>
-        </div>
-        <div class="emot">
-          <div class="head"><b>最近</b><span>AC娘</span><span>蛆音娘</span><span>颜文字</span><span>包子</span></div>
-          <div class="grid">
-            <span class="item"></span><span class="item"></span><span class="item"></span><span class="item"></span>
-            <span class="item"></span><span class="item"></span><span class="item"></span><span class="item"></span>
-            <span class="item"></span><span class="item"></span><span class="item"></span><span class="item"></span>
-            <span class="item"></span><span class="item"></span><span class="item"></span><span class="item"></span>
-          </div>
-          <div class="foot">共 128 个<button class="page">1/8 ›</button></div>
-        </div>
-        <div class="ed-ft">
-          <button class="cc">取消</button>
-          <button class="ok">发布</button>
-        </div>
-      </div>
-    </div>
-  </div>
+      <p class="doc-note">
+        第一版范围：<b>图文 + 公开/仅粉丝 + 转发</b>。入口三处共用同一个编辑器出口。<br>
+        契约：<code>POST rest/app/moment/add</code>，body 单字段 <code>params</code>(JSON)，<b>只认 Cookie、不校验签名</b>；
+        <code>content</code> 1–233；错误码 <code>0/21/-401/140000/140002</code>（docs §11 全链实测）。
+      </p>
 
-  <!-- ============ ③ 九宫格图片 ============ -->
-  <div class="sec">
-    <h2>③ 图文<em>最多 9 张；单张上传中/失败各自可删；可见范围=仅粉丝</em></h2>
-    <p class="note">
-      缩略图 <b>88×88</b> 方格（3 列 + 添加格，宽 560 面板内每行 5 格不挤）；上传中格底显进度条，
-      失败格角标变红点（点即重试单张）。**上传段在 harness 里无法 mock**（gmRequest 直用方漏缝）⇒ 只测到「拿到尺寸 → 组 params」。
-    </p>
-    <div class="stage">
-      <div class="ed">
-        <div class="ed-hd">发动态 <button class="x">✕</button></div>
-        <div class="ed-bd">
-          <div class="ed-ta" contenteditable="true">三张图，记录一下</div>
-          <div class="thumbs">
-            <span class="thumb"><span style="display:block;height:100%;background:linear-gradient(135deg,#4a5a7a,#22314a)"></span><i class="del">✕</i></span>
-            <span class="thumb"><span style="display:block;height:100%;background:linear-gradient(135deg,#7a4a5a,#4a2231)"></span><i class="del">✕</i></span>
-            <span class="thumb"><span style="display:block;height:100%;background:linear-gradient(135deg,#4a7a5a,#224a31)"></span><i class="del">✕</i></span>
-            <span class="thumb"><span style="display:block;height:100%;background:linear-gradient(135deg,#3a4560,#20263a)"></span><span class="prog"></span><i class="del">✕</i></span>
-            <span class="thumb add">＋</span>
-          </div>
-        </div>
-        <div class="ed-tools">
-          <button class="tbtn">☺ 表情</button>
-          <button class="tbtn">🖼 图片</button>
-          <span class="vis">可见范围
-            <button class="vpill">公开</button>
-            <button class="vpill on">仅粉丝</button>
-          </span>
-          <span class="count">8/233</span>
-        </div>
-        <div class="ed-ft">
-          <span class="tip">图片 3/9 · 1 张上传中</span>
-          <button class="cc">取消</button>
-          <button class="ok" disabled>发布</button>
-        </div>
-      </div>
-    </div>
-  </div>
+      <p class="doc-note"><b>本稿结论</b>：第一版＝图文 + 公开/仅粉丝 + 转发，三处入口共用同一个编辑器出口；契约 <code>POST rest/app/moment/add</code>（body 单字段 <code>params</code>，<code>content</code> 1–233）；误发防护＝提交锁 + 不自动重试 + 失败保留内容 + 超时「先查后补」（稿内已按此画）；输入框表情渲染推荐 B 案镜像层 1em（见 ⑧，待确认）。其余口径与风险收在页尾「决策档案」。</p>
 
-  <!-- ============ ④ 转发（带引用块） ============ -->
-  <div class="sec">
-    <h2>④ 转发<em>从分享面板「转发到动态」进；顶部带源引用块，可加自己的转发语</em></h2>
-    <p class="note">
-      引用块＝行卡引用卡的同一套构件（<code>cards.quoteBlockOf</code>，源正文钳 3 行 + 源图），
-      <b>不新画一套</b>。转发参数按源类型填 <code>repost*</code>（动态=repostMomentId / 视频=repostResourceType 2+Id /
-      文章=3+Id）——<b>必填组合靠真机试错</b>（失败只回 21，不指出缺哪个字段）。
-    </p>
-    <div class="stage">
-      <div class="ed">
-        <div class="ed-hd">转发动态 <button class="x">✕</button></div>
-        <div class="ed-bd">
-          <div class="gquote">
-            <div class="gquote-up">@<a class="gquote-upname" href="#">阿蝉不是蝉</a></div>
-            <div class="gquote-text">真正的问题不是内核老，而是没人愿意为「看得舒服」付一点点额外成本。</div>
-            <div class="gquote-imgs">
-              <span class="c" style="background:linear-gradient(135deg,#4a5a7a,#22314a)"></span>
-              <span class="c" style="background:linear-gradient(135deg,#7a4a5a,#4a2231)"></span>
+      <!-- ============ ① 默认态（空） ============ -->
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>默认态</h2>
+          <span class="nt">点入口即此形态；无内容时「发布」禁用</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">壳＝居中模态（视图层之上、不占地不抢抽屉槽）；输入区无边框、占位灰；底部常驻工具行「表情 · 图片 · 可见范围 · 字数」。</p>
+        <div class="doc-figure">
+          <div class="stage">
+            <div class="ed">
+              <div class="ed-hd">发动态 <button class="x">✕</button></div>
+              <div class="ed-bd">
+                <div class="ed-ta" data-ph="说点什么…（图片动态文字可留空）" contenteditable="true"></div>
+              </div>
+              <div class="ed-tools">
+                <button class="tbtn"><i class="acsv-ic">&#xe18b;</i> 表情</button>
+                <button class="tbtn"><i class="acsv-ic">&#xe18a;</i> 图片</button>
+                <span class="vis">可见范围
+                  <button class="vpill on">公开</button>
+                  <button class="vpill">仅粉丝</button>
+                </span>
+                <span class="count">0/233</span>
+              </div>
+              <div class="ed-ft">
+                <button class="cc">取消</button>
+                <button class="ok" disabled>发布</button>
+              </div>
             </div>
           </div>
-          <div class="ed-ta" contenteditable="true">说得对，转发一下。</div>
         </div>
-        <div class="ed-tools">
-          <button class="tbtn">☺ 表情</button>
-          <button class="tbtn">🖼 图片</button>
-          <span class="vis">可见范围
-            <button class="vpill on">公开</button>
-            <button class="vpill">仅粉丝</button>
-          </span>
-          <span class="count">9/233</span>
+      </section>
+
+      <!-- ============ ② 输入中 + 表情面板展开 ============ -->
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>输入中 · 表情面板展开</h2>
+          <span class="nt">字数实时计数；表情插成图、提交时序列化成 UBB 令牌</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
         </div>
-        <div class="ed-ft">
-          <button class="cc">取消</button>
-          <button class="ok">转发</button>
+        <p class="doc-note">
+          表情是「插真图 → 提交时序列化成 <code>[emot=acfun,id/]</code>」，不是插文本令牌（与动态脚本同款）；
+          面板由 <code>emoticon.js</code> 单源渲染（分页 + 网格 + 最近使用），可滚动。
+        </p>
+        <div class="doc-figure">
+          <div class="stage">
+            <div class="ed">
+              <div class="ed-hd">发动态 <button class="x">✕</button></div>
+              <div class="ed-bd">
+                <div class="ed-ta" contenteditable="true">今天终于把十年的老番补完了，来点个赞呗<img alt="表情"> #补番打卡#</div>
+              </div>
+              <div class="ed-tools">
+                <button class="tbtn on"><i class="acsv-ic">&#xe18b;</i> 表情</button>
+                <button class="tbtn"><i class="acsv-ic">&#xe18a;</i> 图片</button>
+                <span class="vis">可见范围
+                  <button class="vpill on">公开</button>
+                  <button class="vpill">仅粉丝</button>
+                </span>
+                <span class="count">37/233</span>
+              </div>
+              <div class="emot">
+                <div class="head"><b>最近</b><span>AC娘</span><span>蛆音娘</span><span>颜文字</span><span>包子</span></div>
+                <div class="grid">
+                  <span class="item"></span><span class="item"></span><span class="item"></span><span class="item"></span>
+                  <span class="item"></span><span class="item"></span><span class="item"></span><span class="item"></span>
+                  <span class="item"></span><span class="item"></span><span class="item"></span><span class="item"></span>
+                  <span class="item"></span><span class="item"></span><span class="item"></span><span class="item"></span>
+                </div>
+                <div class="foot">共 128 个<button class="page">1/8 ›</button></div>
+              </div>
+              <div class="ed-ft">
+                <button class="cc">取消</button>
+                <button class="ok">发布</button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
+      </section>
 
-  <!-- ============ ⑤ 提交中 / 失败态 ============ -->
-  <div class="sec">
-    <h2>⑤ 提交中 · 失败态<em>提交期锁（防重复发）；失败话术按码分档；超时走「先查后补」</em></h2>
-    <p class="note">
-      <b>提交锁</b>：点发布即禁用按钮与取消键、输入区只读——端点无幂等键，<b>绝不自动重试</b>（重试可能重复发）。
-      失败话术按 <code>postResultOf</code> 的 kind 分档；<code>timeout</code>（网络不明）时用
-      <code>listProfile(selfUid())</code> 先查后补，查到就当已发布，避免用户重复发。
-    </p>
-    <div class="stage">
-      <div class="ed">
-        <div class="ed-hd">发动态 <button class="x">✕</button></div>
-        <div class="ed-bd"><div class="ed-ta" contenteditable="true" style="opacity:.6">正在发布的内容…</div></div>
-        <div class="ed-tools">
-          <button class="tbtn" disabled style="opacity:.5">☺ 表情</button>
-          <button class="tbtn" disabled style="opacity:.5">🖼 图片</button>
-          <span class="count">12/233</span>
+      <!-- ============ ③ 九宫格图片 ============ -->
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>图文</h2>
+          <span class="nt">最多 9 张；单张上传中/失败各自可删；可见范围=仅粉丝</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
         </div>
-        <div class="ed-ft">
-          <span class="tip">发布中…（请勿关闭）</span>
-          <button class="cc" disabled style="opacity:.5">取消</button>
-          <button class="ok" disabled>发布中…</button>
+        <p class="doc-note">
+          缩略图 <b>88×88</b> 方格（3 列 + 添加格，宽 560 面板内每行 5 格不挤）；上传中格底显进度条，
+          失败格角标变红点（点即重试单张）。**上传段在 harness 里无法 mock**（gmRequest 直用方漏缝）⇒ 只测到「拿到尺寸 → 组 params」。
+        </p>
+        <div class="doc-figure">
+          <div class="stage">
+            <div class="ed">
+              <div class="ed-hd">发动态 <button class="x">✕</button></div>
+              <div class="ed-bd">
+                <div class="ed-ta" contenteditable="true">三张图，记录一下</div>
+                <div class="thumbs">
+                  <span class="thumb"><span class="ph g1"></span><i class="del">✕</i></span>
+                  <span class="thumb"><span class="ph g2"></span><i class="del">✕</i></span>
+                  <span class="thumb"><span class="ph g3"></span><i class="del">✕</i></span>
+                  <span class="thumb"><span class="ph g4"></span><span class="prog"></span><i class="del">✕</i></span>
+                  <span class="thumb add">＋</span>
+                </div>
+              </div>
+              <div class="ed-tools">
+                <button class="tbtn"><i class="acsv-ic">&#xe18b;</i> 表情</button>
+                <button class="tbtn"><i class="acsv-ic">&#xe18a;</i> 图片</button>
+                <span class="vis">可见范围
+                  <button class="vpill">公开</button>
+                  <button class="vpill on">仅粉丝</button>
+                </span>
+                <span class="count">8/233</span>
+              </div>
+              <div class="ed-ft">
+                <span class="tip">图片 3/9 · 1 张上传中</span>
+                <button class="cc">取消</button>
+                <button class="ok" disabled>发布</button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="ed">
-        <div class="ed-hd">发动态 <button class="x">✕</button></div>
-        <div class="ed-bd"><div class="ed-ta" contenteditable="true">内容还在，不丢。</div></div>
-        <div class="ed-tools">
-          <button class="tbtn">☺ 表情</button>
-          <button class="tbtn">🖼 图片</button>
-          <span class="count">8/233</span>
+      <!-- ============ ④ 转发（带引用块） ============ -->
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>转发</h2>
+          <span class="nt">从分享面板「转发到动态」进；顶部带源引用块，可加自己的转发语</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
         </div>
-        <div class="ed-ft">
-          <span class="tip err">发布失败：内容太长了（限 233 字）</span>
-          <button class="cc">取消</button>
-          <button class="ok">重试发布</button>
+        <p class="doc-note">
+          引用块＝行卡引用卡的同一套构件（<code>cards.quoteBlockOf</code>，源正文钳 3 行 + 源图），
+          <b>不新画一套</b>。转发参数按源类型填 <code>repost*</code>（动态=repostMomentId / 视频=repostResourceType 2+Id /
+          文章=3+Id）——<b>必填组合靠真机试错</b>（失败只回 21，不指出缺哪个字段）。
+        </p>
+        <div class="doc-figure">
+          <div class="stage">
+            <div class="ed">
+              <div class="ed-hd">转发动态 <button class="x">✕</button></div>
+              <div class="ed-bd">
+                <div class="gquote">
+                  <div class="gquote-up">@<a class="gquote-upname" href="#">阿蝉不是蝉</a></div>
+                  <div class="gquote-text">真正的问题不是内核老，而是没人愿意为「看得舒服」付一点点额外成本。</div>
+                  <div class="gquote-imgs">
+                    <span class="c g1"></span>
+                    <span class="c g2"></span>
+                  </div>
+                </div>
+                <div class="ed-ta" contenteditable="true">说得对，转发一下。</div>
+              </div>
+              <div class="ed-tools">
+                <button class="tbtn"><i class="acsv-ic">&#xe18b;</i> 表情</button>
+                <button class="tbtn"><i class="acsv-ic">&#xe18a;</i> 图片</button>
+                <span class="vis">可见范围
+                  <button class="vpill on">公开</button>
+                  <button class="vpill">仅粉丝</button>
+                </span>
+                <span class="count">9/233</span>
+              </div>
+              <div class="ed-ft">
+                <button class="cc">取消</button>
+                <button class="ok">转发</button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-    <p class="note">
-      话术分档：<code>notlogin</code>→「登录后才能发动态」/ <code>param</code>→「参数不对（可能被服务端风控拦下）」/
-      <code>content</code>→「内容太长了（限 233 字）」/ <code>other</code>→回显 <code>error_msg</code> 原文 /
-      网络/超时→「发布结果未知，正在核对…」。**风控形态未实测**（该端点在二次验证白名单内），真机一枪见分晓。
-    </p>
-  </div>
+      </section>
 
-  <!-- ============ ⑥ 三处入口 ============ -->
-  <div class="sec">
-    <h2>⑥ 三处入口<em>共用同一个编辑器出口；按钮形态按宿主皮肤走</em></h2>
-    <p class="note">入口只是按钮，点开同一个编辑器。原生页用浅色（<code>.acsv-mp</code>），脚本内两处用暗色基底。</p>
-    <div class="stage">
-      <div class="hostbar" style="width:520px">
-        <span class="who">原生 /member/feeds（浅色）</span>
-        <span class="sp"></span>
-        <button class="entry">✎ 发动态</button>
-      </div>
-      <div class="hostbar" style="width:520px">
-        <span class="who">脚本「广场」视图工具条（暗色）</span>
-        <span class="sp"></span>
-        <button class="entry">✎ 发动态</button>
-      </div>
-      <div class="hostbar" style="width:520px">
-        <span class="who">脚本「我的」页资料头右侧（暗色）</span>
-        <span class="sp"></span>
-        <button class="entry ghost">✎ 发动态</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ============ ⑦ 窄宽 ============ -->
-  <div class="sec">
-    <h2>⑦ 窄宽 540<em>面板随视口收；工具行不许换行挤爆；九宫格降列</em></h2>
-    <div class="narrow">
-      <div class="ed" style="width:100%">
-        <div class="ed-hd">发动态 <button class="x">✕</button></div>
-        <div class="ed-bd"><div class="ed-ta" contenteditable="true">窄态下工具行的「表情 / 图片 / 可见范围 / 字数」必须仍在一行里放得下。</div></div>
-        <div class="ed-tools">
-          <button class="tbtn">☺ 表情</button>
-          <button class="tbtn">🖼 图片</button>
-          <span class="vis"><button class="vpill on">公开</button><button class="vpill">仅粉丝</button></span>
-          <span class="count">30/233</span>
+      <!-- ============ ⑤ 提交中 / 失败态 ============ -->
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">05</span>
+          <h2>提交中 · 失败态</h2>
+          <span class="nt">提交期锁（防重复发）；失败话术按码分档；超时走「先查后补」</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
         </div>
-        <div class="ed-ft"><button class="cc">取消</button><button class="ok">发布</button></div>
-      </div>
-    </div>
-  </div>
+        <p class="doc-note">
+          <b>提交锁</b>：点发布即禁用按钮与取消键、输入区只读——端点无幂等键，<b>绝不自动重试</b>（重试可能重复发）。
+          失败话术按 <code>postResultOf</code> 的 kind 分档；<code>timeout</code>（网络不明）时用
+          <code>listProfile(selfUid())</code> 先查后补，查到就当已发布，避免用户重复发。
+        </p>
+        <div class="doc-figure">
+          <div class="stage">
+            <div class="ed">
+              <div class="ed-hd">发动态 <button class="x">✕</button></div>
+              <div class="ed-bd"><div class="ed-ta locked" contenteditable="true">正在发布的内容…</div></div>
+              <div class="ed-tools">
+                <button class="tbtn" disabled><i class="acsv-ic">&#xe18b;</i> 表情</button>
+                <button class="tbtn" disabled><i class="acsv-ic">&#xe18a;</i> 图片</button>
+                <span class="count">12/233</span>
+              </div>
+              <div class="ed-ft">
+                <span class="tip">发布中…（请勿关闭）</span>
+                <button class="cc" disabled>取消</button>
+                <button class="ok" disabled>发布中…</button>
+              </div>
+            </div>
 
-  <!-- ============ ⑧ 输入框内表情渲染 ============ -->
-  <div class="sec">
-    <h2>⑧ 输入框内的表情渲染<em>三处输入框共用同一件（inputbar.js）⇒ 改一处三处生效</em></h2>
-    <p class="note">
-      现状：输入框是 <code>textarea</code>，点表情插入的是**令牌原文** <code>[emot=acfun,123/]</code>（左下图），
-      所以写的时候看到的是一串代码。目标：**写的时候就看见图**。做法＝**镜像层**——textarea 设
-      <code>color:transparent</code> + 只留光标色，下层叠一个**同度量**的渲染层把令牌换成图，textarea 滚动时同步位移。
-      <b>输入法（中文 IME）、选区、撤销、Enter/Shift+Enter、maxLength 全部保持原生</b>——这正是 contenteditable 最容易坏的地方；
-      且**提交内容不变**（仍是令牌文本），服务端契约与字数口径零改动。
-    </p>
-    <p class="note">
-      <b>代价/坑（诚实列）</b>：① 两侧度量必须逐项对齐（字号/行高/内边距/宽度/断行规则），差 1px 就露"字影"；
-      ② 超 4 行滚动要同步；③ 图未加载先出 <code>[表情]</code> 占位、加载后回填（两个件都已有）；
-      ④ 光标落在令牌"内部"时对着的是图片中间（不可分令牌）——可接受；⑤ **下面这个真张力**。
-    </p>
+            <div class="ed">
+              <div class="ed-hd">发动态 <button class="x">✕</button></div>
+              <div class="ed-bd"><div class="ed-ta" contenteditable="true">内容还在，不丢。</div></div>
+              <div class="ed-tools">
+                <button class="tbtn"><i class="acsv-ic">&#xe18b;</i> 表情</button>
+                <button class="tbtn"><i class="acsv-ic">&#xe18a;</i> 图片</button>
+                <span class="count">8/233</span>
+              </div>
+              <div class="ed-ft">
+                <span class="tip err">发布失败：内容太长了（限 233 字）</span>
+                <button class="cc">取消</button>
+                <button class="ok">重试发布</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="doc-note">
+          话术分档：<code>notlogin</code>→「登录后才能发动态」/ <code>param</code>→「参数不对（可能被服务端风控拦下）」/
+          <code>content</code>→「内容太长了（限 233 字）」/ <code>other</code>→回显 <code>error_msg</code> 原文 /
+          网络/超时→「发布结果未知，正在核对…」。**风控形态未实测**（该端点在二次验证白名单内），真机一枪见分晓。
+        </p>
+      </section>
 
-    <div class="stage" style="gap:18px">
-      <div style="width:420px">
-        <div class="tagline">A · 现在（令牌原文）</div>
-        <div class="mir">今天终于把十年的老番补完了 <span class="tok">[emot=acfun,123/]</span> #补番打卡#<span class="caret"></span></div>
-      </div>
-      <div style="width:420px">
-        <div class="tagline"><b>B · 镜像层 · 表情 1em（推荐）</b>——不撑行高 ⇒ 绝不漂移</div>
-        <div class="mir">今天终于把十年的老番补完了 <span class="em1"></span> #补番打卡#<span class="caret"></span></div>
-        <div class="tagline">行高 21px 不变；表情视觉 14px（比发出后的小一圈）</div>
-      </div>
-      <div style="width:420px">
-        <div class="tagline">C · 镜像层 · 表情 34px（所见即所得）——**两侧行高须一起抬**</div>
-        <div class="mir mir34">今天终于把十年的老番补完了 <span class="em34"></span> #补番打卡#<span class="caret"></span></div>
-        <div class="tagline">行高要抬到 34px，整个输入框变高、每行都变松</div>
-      </div>
-    </div>
+      <!-- ============ ⑥ 三处入口 ============ -->
+      <section class="doc-sec" id="s6">
+        <div class="doc-sec-hd">
+          <span class="idx">06</span>
+          <h2>三处入口</h2>
+          <span class="nt">共用同一个编辑器出口；按钮形态按宿主皮肤走</span>
+          <a class="anchor" href="#s6" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">入口只是按钮，点开同一个编辑器。原生页用浅色（<code>.acsv-mp</code>），脚本内两处用暗色基底。</p>
+        <div class="doc-figure">
+          <div class="stage">
+            <div class="hostbar w520">
+              <span class="who">原生 /member/feeds（浅色）</span>
+              <span class="sp"></span>
+              <button class="entry"><svg class="pen" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> 发动态</button>
+            </div>
+            <div class="hostbar w520">
+              <span class="who">脚本「广场」视图工具条（暗色）</span>
+              <span class="sp"></span>
+              <button class="entry"><svg class="pen" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> 发动态</button>
+            </div>
+            <div class="hostbar w520">
+              <span class="who">脚本「我的」页资料头右侧（暗色）</span>
+              <span class="sp"></span>
+              <button class="entry ghost"><svg class="pen" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> 发动态</button>
+            </div>
+          </div>
+        </div>
+      </section>
 
-    <table class="geo">
-      <tr><th>口径</th><th>表情尺寸</th><th>行高</th><th>光标漂移风险</th><th>所见＝所得</th></tr>
-      <tr><td>A 令牌原文（现状）</td><td>—（一串字符）</td><td>21px</td><td>无</td><td>否</td></tr>
-      <tr><td><b>B 镜像 1em</b></td><td>14px（随字号）</td><td>21px（不变）</td><td><b>无</b>（图矮于行框）</td><td>否（发出去更大）</td></tr>
-      <tr><td>C 镜像 34px</td><td>34px（与气泡同档）</td><td>34px（两侧一起抬）</td><td>无（但行高变了）</td><td><b>是</b></td></tr>
-    </table>
-    <p class="note">
-      **为什么图会撑行高**：行框高度 = max(行高, 行内最高元素)。14px 字号配 34px 的图 ⇒ 那一行行框变 34px+，
-      而 textarea 的行高是你设死的 21px —— 两侧每行差 13px，**第三行起光标就偏出去**。
-      所以要么图压到 1em（B，不撑行高、绝不漂移），要么**两侧行高一起抬到 34px**（C，所见即所得但更笨重）。
-      我的建议是 **B**：输入期稳定优先，且"发出去长什么样"在气泡里本来就看得到；若你要完全所见即所得就选 C。
-    </p>
-  </div>
+      <!-- ============ ⑦ 窄宽 ============ -->
+      <section class="doc-sec" id="s7">
+        <div class="doc-sec-hd">
+          <span class="idx">07</span>
+          <h2>窄宽 540</h2>
+          <span class="nt">面板随视口收；工具行不许换行挤爆；九宫格降列</span>
+          <a class="anchor" href="#s7" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="narrow">
+            <div class="ed">
+              <div class="ed-hd">发动态 <button class="x">✕</button></div>
+              <div class="ed-bd"><div class="ed-ta" contenteditable="true">窄态下工具行的「表情 / 图片 / 可见范围 / 字数」必须仍在一行里放得下。</div></div>
+              <div class="ed-tools">
+                <button class="tbtn"><i class="acsv-ic">&#xe18b;</i> 表情</button>
+                <button class="tbtn"><i class="acsv-ic">&#xe18a;</i> 图片</button>
+                <span class="vis"><button class="vpill on">公开</button><button class="vpill">仅粉丝</button></span>
+                <span class="count">30/233</span>
+              </div>
+              <div class="ed-ft"><button class="cc">取消</button><button class="ok">发布</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-  <!-- ============ ⑨ 交互小样（可试） ============ -->
-  <div class="sec">
-    <h2>⑨ 交互小样 · 可试<em>非实现，只为让你摸"退格/拖选/方向键"的手感</em></h2>
-    <p class="note">
-      这是**真 textarea + 真镜像层**（textarea 文字透明、只留光标；下层把令牌画成图），并在上面加了
-      **令牌原子化**处理：删除时整块删、拖选时吸附成整块。你按下面三步试，手感合适我再按这套实现。
-    </p>
-    <div class="demo">
-      <div class="lay mirror" id="dMirror"></div>
-      <textarea class="lay" id="dTa" spellcheck="false"></textarea>
-    </div>
-    <p class="demohint">
-      <b>试三件</b>：① 把光标点到表情<b>中间</b>按 <span class="kbd">退格</span> —— 应该整块消失，而不是剩下
-      <code>[emot=acfun,</code> 这样的碎片；
-      ② 从表情<b>右边往左拖</b>半个身位 —— 选区应<b>吸附成整块</b>（松手后删除也是整块走）；
-      ③ 按 <span class="kbd">←</span>/<span class="kbd">→</span> —— 光标应<b>整块跳过</b>表情，不进入令牌内部。
-    </p>
-    <p class="demostat" id="dStat">当前：<b>0</b> 个表情；令牌碎裂计数 <b>0</b>（碎裂即这套逻辑失效）</p>
-  </div>
+      <!-- ============ ⑧ 输入框内表情渲染 ============ -->
+      <section class="doc-sec" id="s8">
+        <div class="doc-sec-hd">
+          <span class="idx">08</span>
+          <h2>输入框内的表情渲染</h2>
+          <span class="nt">三处输入框共用同一件（inputbar.js）⇒ 改一处三处生效</span>
+          <a class="anchor" href="#s8" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">
+          现状：输入框是 <code>textarea</code>，点表情插入的是**令牌原文** <code>[emot=acfun,123/]</code>（左下图），
+          所以写的时候看到的是一串代码。目标：**写的时候就看见图**。做法＝**镜像层**——textarea 设
+          <code>color:transparent</code> + 只留光标色，下层叠一个**同度量**的渲染层把令牌换成图，textarea 滚动时同步位移。
+          <b>输入法（中文 IME）、选区、撤销、Enter/Shift+Enter、maxLength 全部保持原生</b>——这正是 contenteditable 最容易坏的地方；
+          且**提交内容不变**（仍是令牌文本），服务端契约与字数口径零改动。
+        </p>
+        <p class="doc-note">
+          <b>代价/坑（诚实列）</b>：① 两侧度量必须逐项对齐（字号/行高/内边距/宽度/断行规则），差 1px 就露"字影"；
+          ② 超 4 行滚动要同步；③ 图未加载先出 <code>[表情]</code> 占位、加载后回填（两个件都已有）；
+          ④ 光标落在令牌"内部"时对着的是图片中间（不可分令牌）——可接受；⑤ **下面这个真张力**。
+        </p>
 
-  <!-- ============ 附：口径与风险 ============ -->
-  <div class="sec">
-    <h2>附：口径与风险（按此画，待你确认）</h2>
-    <p class="note" style="line-height:2.1">
-      1. <b>字数口径未定</b>：<code>[emot=acfun,123/]</code> 这类令牌服务端按 1 计还是按串长计**未实测**；
-      客户端先取**从严的原始长度**（宁可少打几字，也不要服务端弹错），真机定论后一行可换。<br>
-      2. <b>图片上传的 bizFlag 未实测</b>：现有 <code>web-comment-text</code>（评论链）能否用于动态未知；
-      参数已提出来，真机试错即可（失败＝发布被拒，不脏数据）。<br>
-      3. <b>转发字段组合未实测</b>：三种源类型各需真发一条试错（失败只回 21，不指出缺哪个字段）。<br>
-      4. <b>风控未知</b>：该端点在二次验证白名单内；且 APP 域写只能走 GM 通道，与 <code>appapi</code> 头注
-      「GM 写操作会被判不可信设备」直接冲突——**真机一枪定生死**（已授权：自己账号真发并删）。<br>
-      5. <b>误发防护</b>：提交锁 + 不自动重试 + 失败保留内容 + 超时「先查后补」；发布成功给成功提示与「查看/删除」出口。<br>
-      6. 合规：只做「用户手动发一条」，不做批量/定时/自动化。
-    </p>
+        <div class="doc-figure">
+          <div class="stage gap18">
+            <div class="mircol">
+              <div class="tagline">A · 现在（令牌原文）</div>
+              <div class="mir">今天终于把十年的老番补完了 <span class="tok">[emot=acfun,123/]</span> #补番打卡#<span class="caret"></span></div>
+            </div>
+            <div class="mircol">
+              <div class="tagline"><b>B · 镜像层 · 表情 1em（推荐）</b>——不撑行高 ⇒ 绝不漂移</div>
+              <div class="mir">今天终于把十年的老番补完了 <span class="em1"></span> #补番打卡#<span class="caret"></span></div>
+              <div class="tagline">行高 21px 不变；表情视觉 14px（比发出后的小一圈）</div>
+            </div>
+            <div class="mircol">
+              <div class="tagline">C · 镜像层 · 表情 34px（所见即所得）——**两侧行高须一起抬**</div>
+              <div class="mir mir34">今天终于把十年的老番补完了 <span class="em34"></span> #补番打卡#<span class="caret"></span></div>
+              <div class="tagline">行高要抬到 34px，整个输入框变高、每行都变松</div>
+            </div>
+          </div>
+        </div>
+
+        <table class="geo">
+          <tr><th>口径</th><th>表情尺寸</th><th>行高</th><th>光标漂移风险</th><th>所见＝所得</th></tr>
+          <tr><td>A 令牌原文（现状）</td><td>—（一串字符）</td><td>21px</td><td>无</td><td>否</td></tr>
+          <tr><td><b>B 镜像 1em</b></td><td>14px（随字号）</td><td>21px（不变）</td><td><b>无</b>（图矮于行框）</td><td>否（发出去更大）</td></tr>
+          <tr><td>C 镜像 34px</td><td>34px（与气泡同档）</td><td>34px（两侧一起抬）</td><td>无（但行高变了）</td><td><b>是</b></td></tr>
+        </table>
+        <p class="doc-note">
+          **为什么图会撑行高**：行框高度 = max(行高, 行内最高元素)。14px 字号配 34px 的图 ⇒ 那一行行框变 34px+，
+          而 textarea 的行高是你设死的 21px —— 两侧每行差 13px，**第三行起光标就偏出去**。
+          所以要么图压到 1em（B，不撑行高、绝不漂移），要么**两侧行高一起抬到 34px**（C，所见即所得但更笨重）。
+          我的建议是 **B**：输入期稳定优先，且"发出去长什么样"在气泡里本来就看得到；若你要完全所见即所得就选 C。
+        </p>
+      </section>
+
+      <!-- ============ ⑨ 交互小样（可试） ============ -->
+      <section class="doc-sec" id="s9">
+        <div class="doc-sec-hd">
+          <span class="idx">09</span>
+          <h2>交互小样 · 可试</h2>
+          <span class="nt">非实现，只为让你摸"退格/拖选/方向键"的手感</span>
+          <a class="anchor" href="#s9" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">
+          这是**真 textarea + 真镜像层**（textarea 文字透明、只留光标；下层把令牌画成图），并在上面加了
+          **令牌原子化**处理：删除时整块删、拖选时吸附成整块。你按下面三步试，手感合适我再按这套实现。
+        </p>
+        <div class="doc-figure">
+          <div class="demo">
+            <div class="lay mirror" id="dMirror"></div>
+            <textarea class="lay" id="dTa" spellcheck="false"></textarea>
+          </div>
+        </div>
+        <p class="demohint">
+          <b>试三件</b>：① 把光标点到表情<b>中间</b>按 <span class="kbd">退格</span> —— 应该整块消失，而不是剩下
+          <code>[emot=acfun,</code> 这样的碎片；
+          ② 从表情<b>右边往左拖</b>半个身位 —— 选区应<b>吸附成整块</b>（松手后删除也是整块走）；
+          ③ 按 <span class="kbd">←</span>/<span class="kbd">→</span> —— 光标应<b>整块跳过</b>表情，不进入令牌内部。
+        </p>
+        <p class="demostat" id="dStat">当前：<b>0</b> 个表情；令牌碎裂计数 <b>0</b>（碎裂即这套逻辑失效）</p>
+      </section>
+
+      <p class="doc-arch-cap">决策档案 · 过程沿革（查阅成品可略过）</p>
+      <details class="doc-arch"><summary><span class="ttl">口径与风险</span><span class="hint">附：六条口径与风险（按此画，待确认）</span><span class="pill">1 节</span></summary>
+      <!-- ============ 附：口径与风险 ============ -->
+      <section class="doc-sec" id="s10">
+        <div class="doc-sec-hd">
+          <h2>附：口径与风险（按此画，待你确认）</h2>
+          <span class="nt">六条口径逐条列，确认后进实现</span>
+          <a class="anchor" href="#s10" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note loose">
+          1. <b>字数口径未定</b>：<code>[emot=acfun,123/]</code> 这类令牌服务端按 1 计还是按串长计**未实测**；
+          客户端先取**从严的原始长度**（宁可少打几字，也不要服务端弹错），真机定论后一行可换。<br>
+          2. <b>图片上传的 bizFlag 未实测</b>：现有 <code>web-comment-text</code>（评论链）能否用于动态未知；
+          参数已提出来，真机试错即可（失败＝发布被拒，不脏数据）。<br>
+          3. <b>转发字段组合未实测</b>：三种源类型各需真发一条试错（失败只回 21，不指出缺哪个字段）。<br>
+          4. <b>风控未知</b>：该端点在二次验证白名单内；且 APP 域写只能走 GM 通道，与 <code>appapi</code> 头注
+          「GM 写操作会被判不可信设备」直接冲突——**真机一枪定生死**（已授权：自己账号真发并删）。<br>
+          5. <b>误发防护</b>：提交锁 + 不自动重试 + 失败保留内容 + 超时「先查后补」；发布成功给成功提示与「查看/删除」出口。<br>
+          6. 合规：只做「用户手动发一条」，不做批量/定时/自动化。
+        </p>
+      </section>
+      </details>
+    </main>
   </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 <script>
 // §⑨ 交互小样（非实现）：令牌原子化的最小可用验证
 (function () {

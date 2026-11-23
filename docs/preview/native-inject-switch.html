@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 官方页面增强开关（设置 → 通用 → 二级）</title>
 <!-- ============================================================
      docs/preview/native-inject-switch.html —— 源页面注入统一开关静态预览（2026-11-17 起草）
@@ -46,7 +47,10 @@
      一级面板只出总开关行，子项由二级派生，杜绝双清单漂移——AGENTS 规矩 3）。
      纪律：暗色皮肤 / 真实中文文案 / 1600×900 与 540 宽自检；量值全照 src/settingspanel.js
      SET_CSS 与 SWITCH_CSS 单源，本稿不另立一套。确认后才进 src；改版先改本稿。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     v3（2026-11-23 铺开批）：决策沿革折叠 + 段内栅格化，demo 未动。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   :root{
     --acsv-accent:#fd4c5d;          /* 主题色（cfg.accent 单源） */
@@ -56,16 +60,8 @@
     --acsv-t3:#8a90a0;
     --acsv-line:rgba(255,255,255,.09);
   }
+  /* demo 几何基线：原全局 * reset 保留——面板/开关量值依赖 border-box 与零默认边距 */
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:32px 40px 100px}
-  .board>h1{font-size:20px;font-weight:600;margin-bottom:8px}
-  .board>.hint{color:var(--acsv-t3);font-size:12px;line-height:1.9;margin-bottom:22px}
-  .board>.hint b{color:#ffb3ba;font-weight:500}
-  .sec{margin:26px 0 0;padding-top:18px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:6px}
-  .sec>.note{color:var(--acsv-t3);font-size:12px;line-height:1.8;margin-bottom:14px}
   .panels{display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap}
 
   /* ---- 设置面板壳（量值照 settingspanel.js SET_CSS:35-86；400 宽 / rgba(22,22,27,.97)+blur12 /
@@ -131,272 +127,350 @@
     font-size:12px;line-height:1.85}
   .note b{color:var(--acsv-t2);font-weight:500}
 
+  /* ---- 窄宽自检框（原 ⑤ 段内联样式收进类） ---- */
+  .narrow-frame{width:540px;max-width:100%;border:1px dashed rgba(255,255,255,.16);border-radius:12px;padding:16px}
+  .set-panel.fit{max-width:100%}
+  .narrow-gap{height:20px}
+
   @media (max-width:900px){
-    .board{padding:22px 16px 70px}
     .panels{display:block}
     .panels .set-panel + .set-panel{margin-top:28px}
   }
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>官方页面增强开关 · 静态预览</h1>
-  <p class="hint">
-    设置 → 通用 新增一行（总开关 + 管理钮）；二级在<b>同一面板壳内换页</b>，不新开浮层。
-    关＝不注入不加载、重新加载页面后原生界面零变化；竖刷世界（脚本自己的界面）不受影响、不在射程。
-    选中/空态/错误态不适用：控件全为二元开关、无动态数据、无失败路径。
-  </p>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <section class="sec">
-    <h2>① 一级面板（开态＝现状默认）<em>「管理」钮悬停一并演示</em></h2>
-    <div class="panels">
-      <div class="set-panel">
-        <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
-        <div class="set-body">
-          <div class="set-group">通用</div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">自动检查更新</div><div class="set-hint">关掉后不再自动拉取 release 说明（顶栏「更新」仍可手动看）</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">自动签到</div><div class="set-hint">进入脚本主页时自动签到，当天已签自动跳过，不弹黄历</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-row new"><span class="badge">新增</span>
-            <div class="set-row-main">
-              <div class="set-label">官方页面增强</div>
-              <div class="set-hint">官方页上的广场接管、空间标签、评论 IP、动态表情、私信卡片；重新加载后生效</div>
-            </div>
-            <div class="set-pair"><div class="sw on"><i></i></div><button class="set-act hov">管理</button></div>
-          </div>
-          <div class="set-group">播放</div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">弹幕默认开启</div><div class="set-hint">立即生效</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">编码偏好</div><div class="set-hint">下次播放生效</div></div><button class="set-act">自动</button></div>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>官方页面增强开关 · 静态预览</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-on">开态＝默认全开</span>
+          <span class="doc-badge">总开关关态</span>
+          <span class="doc-badge b-hover">「管理」钮悬停</span>
+          <span class="doc-badge">置灰暂停态</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">width:28px;height:28px</span><span class="src">src/settingspanel.js:46-48（.set-x 同型）</span></span>
+          <span class="doc-pill"><span class="v">flex:none;display:flex;align-items:center;gap:12px</span><span class="src">本稿 .set-pair（双控件行内布局）</span></span>
+          <span class="doc-pill"><span class="v">padding:7px 14px</span><span class="src">src/settingspanel.js:83-85（16→14 收一档）</span></span>
+          <span class="doc-pill"><span class="v">font-size:12px;line-height:16px;color:#8b909a</span><span class="src">src/settingspanel.js:53-56（hint）</span></span>
+          <span class="doc-pill"><span class="v">margin:0 0 16px</span><span class="src">本稿 .set-note（二级说明条）</span></span>
+          <span class="doc-pill"><span class="v">opacity:.35</span><span class="src">src/settingspanel.js:77（disabled 同值）</span></span>
+        </p>
+      </div>
+
+      <p class="doc-note"><b>本稿结论（用户口径裁决 2026-11-17，已落地）</b>：设置 → 通用新增「官方页面增强」总开关行（总开关 + 「管理」钮），二级同壳换页、六子项由注册表派生；关＝不注入不加载、重新加载页面后生效，总闸关时子面板整页置灰 <code>opacity:.35</code> 且不回写子项存储；首页顶导航入口豁免、不入开关体系；默认全开。取值 → src 出处与行为承诺的口径注记收在页尾「决策档案」，查形态看本页前段即可。</p>
+
+      <p class="doc-note">
+        设置 → 通用 新增一行（总开关 + 管理钮）；二级在<b>同一面板壳内换页</b>，不新开浮层。
+        关＝不注入不加载、重新加载页面后原生界面零变化；竖刷世界（脚本自己的界面）不受影响、不在射程。
+        选中/空态/错误态不适用：控件全为二元开关、无动态数据、无失败路径。
+      </p>
+
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>一级面板（开态＝现状默认）</h2>
+          <span class="nt">「管理」钮悬停一并演示</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
         </div>
-        <div class="set-foot"><span class="set-ver">v0.9.340</span><button class="set-act primary">完成</button></div>
-      </div>
+        <div class="doc-figure">
+          <div class="panels">
+            <div class="set-panel">
+              <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
+              <div class="set-body">
+                <div class="set-group">通用</div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">自动检查更新</div><div class="set-hint">关掉后不再自动拉取 release 说明（顶栏「更新」仍可手动看）</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">自动签到</div><div class="set-hint">进入脚本主页时自动签到，当天已签自动跳过，不弹黄历</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-row new"><span class="badge">新增</span>
+                  <div class="set-row-main">
+                    <div class="set-label">官方页面增强</div>
+                    <div class="set-hint">官方页上的广场接管、空间标签、评论 IP、动态表情、私信卡片；重新加载后生效</div>
+                  </div>
+                  <div class="set-pair"><div class="sw on"><i></i></div><button class="set-act hov">管理</button></div>
+                </div>
+                <div class="set-group">播放</div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">弹幕默认开启</div><div class="set-hint">立即生效</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">编码偏好</div><div class="set-hint">下次播放生效</div></div><button class="set-act">自动</button></div>
+              </div>
+              <div class="set-foot"><span class="set-ver">v0.9.340</span><button class="set-act primary">完成</button></div>
+            </div>
 
-      <div class="note">
-        <b>一级要点</b><br>
-        · 新行落「通用」组内、自动签到之后；组顺序不变，既有开关索引不动。<br>
-        · 总开关默认<b>开</b>＝保持现状，本开关批零行为变化。<br>
-        · 「管理」钮进二级；总开关关掉时钮仍可按（要看清单），二级呈置灰态④。<br>
-        · 悬停演示为「管理」钮 rgba(255,255,255,.2)（.set-act:hover 本体，非新值）。
-      </div>
-    </div>
-  </section>
-
-  <section class="sec">
-    <h2>② 一级面板（总开关关态）</h2>
-    <div class="panels">
-      <div class="set-panel">
-        <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
-        <div class="set-body">
-          <div class="set-group">通用</div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">自动检查更新</div><div class="set-hint">关掉后不再自动拉取 release 说明（顶栏「更新」仍可手动看）</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-row"><div class="set-row-main"><div class="set-label">自动签到</div><div class="set-hint">进入脚本主页时自动签到，当天已签自动跳过，不弹黄历</div></div><div class="sw on"><i></i></div></div>
-          <div class="set-row new">
-            <div class="set-row-main">
-              <div class="set-label">官方页面增强</div>
-              <div class="set-hint">已整体关闭：官方页面恢复原样，重新加载后生效</div>
+            <div class="note">
+              <b>一级要点</b><br>
+              · 新行落「通用」组内、自动签到之后；组顺序不变，既有开关索引不动。<br>
+              · 总开关默认<b>开</b>＝保持现状，本开关批零行为变化。<br>
+              · 「管理」钮进二级；总开关关掉时钮仍可按（要看清单），二级呈置灰态④。<br>
+              · 悬停演示为「管理」钮 rgba(255,255,255,.2)（.set-act:hover 本体，非新值）。
             </div>
-            <div class="set-pair"><div class="sw"><i></i></div><button class="set-act">管理</button></div>
-          </div>
-        </div>
-        <div class="set-foot"><span class="set-ver">v0.9.340</span><button class="set-act primary">完成</button></div>
-      </div>
-
-      <div class="note">
-        <b>关态要点</b><br>
-        · hint 文案切换：开态讲范围，关态讲结果（「已整体关闭：官方页面恢复原样」）。<br>
-        · 关态行 hint 与开关两值皆现成文案族，无新颜色。
-      </div>
-    </div>
-  </section>
-
-  <section class="sec">
-    <h2>③ 二级 · 官方页面增强（总开关开，可逐项管理）<em>混合开关态一并摆出</em></h2>
-    <div class="panels">
-      <div class="set-panel">
-        <div class="set-head"><button class="set-back">‹</button><span class="set-title">官方页面增强</span><span></span></div>
-        <div class="set-body">
-          <div class="set-note">关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。首页顶导航入口是脚本进门键，不入本清单、不受总闸管辖。</div>
-          <div class="set-row">
-            <div class="set-row-main">
-              <div class="set-label">个人中心「动态广场」</div>
-              <div class="set-hint">在个人中心加「动态广场」导航项并就地展开动态流；关闭后「关注动态」页保持官方原样</div>
-            </div>
-            <div class="sw on"><i></i></div>
-          </div>
-          <div class="set-row">
-            <div class="set-row-main">
-              <div class="set-label">UP 主空间页「动态」标签</div>
-              <div class="set-hint">在 TA 的官方主页浏览图文 / 视频 / 文章投稿；关闭后不追加标签</div>
-            </div>
-            <div class="sw on"><i></i></div>
-          </div>
-          <div class="set-row">
-            <div class="set-row-main">
-              <div class="set-label">UP 主空间页「小视频」标签</div>
-              <div class="set-hint">在 TA 的官方主页浏览小视频投稿；关闭后不追加标签</div>
-            </div>
-            <div class="sw on"><i></i></div>
-          </div>
-          <div class="set-row">
-            <div class="set-row-main">
-              <div class="set-label">官方页评论 IP 属地与设备型号</div>
-              <div class="set-hint">视频页、文章页、动态页等官方页评论显示 IP 与设备；竖刷内的显示归「评论」组设置单独管理</div>
-            </div>
-            <div class="sw"><i></i></div>
-          </div>
-          <div class="set-row">
-            <div class="set-row-main">
-              <div class="set-label">官方主页动态表情显示</div>
-              <div class="set-hint">个人主页动态正文里的表情码显示成表情图（官方渲染缺的能力）；关闭后保持官方原样</div>
-            </div>
-            <div class="sw on"><i></i></div>
-          </div>
-          <div class="set-row">
-            <div class="set-row-main">
-              <div class="set-label">官方私信卡片显示</div>
-              <div class="set-hint">私信网页端显示不了的图片卡、作品卡等按原卡面渲染；关闭后保持「不支持查看此消息」</div>
-            </div>
-            <div class="sw on"><i></i></div>
           </div>
         </div>
-        <div class="set-foot"><span class="set-ver">v0.9.340</span><button class="set-act primary">完成</button></div>
-      </div>
+      </section>
 
-      <div class="note">
-        <b>二级要点</b><br>
-        · 壳不变、换 body：头部左侧「‹」=回一级（28 圆钮，同 ✕ 形态），标题改「官方页面增强」；✕ 位隐去（Esc/‹ 已回一级，✕ 关整面板由底部「完成」承担）。<br>
-        · 「完成」在二级时＝直接关整面板（改动即时落盘，flushSettings 现成语义），不做两步退出。<br>
-        · Esc：二级→先回一级；一级→关面板（overlay onEsc 预处理缝，0.9.237 收菜单同款）。<br>
-        · 六项顺序=消费链顺序（我的→空间×2→评论→动态表情→私信），即实现注册表派生顺序，人工清单不得再抄一份。<br>
-        · 摆出的关态样例（第4项）非默认——<b>实现默认全开</b>。<br>
-        · 首页导航入口**不在清单**（2026-11-17 复审撤除：入口可关＝开关吞掉自己的进门键，自锁悖论）。
-      </div>
-    </div>
-  </section>
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>一级面板（总开关关态）</h2>
+          <span class="nt">hint 文案切换：开态讲范围，关态讲结果</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="panels">
+            <div class="set-panel">
+              <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
+              <div class="set-body">
+                <div class="set-group">通用</div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">自动检查更新</div><div class="set-hint">关掉后不再自动拉取 release 说明（顶栏「更新」仍可手动看）</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-row"><div class="set-row-main"><div class="set-label">自动签到</div><div class="set-hint">进入脚本主页时自动签到，当天已签自动跳过，不弹黄历</div></div><div class="sw on"><i></i></div></div>
+                <div class="set-row new">
+                  <div class="set-row-main">
+                    <div class="set-label">官方页面增强</div>
+                    <div class="set-hint">已整体关闭：官方页面恢复原样，重新加载后生效</div>
+                  </div>
+                  <div class="set-pair"><div class="sw"><i></i></div><button class="set-act">管理</button></div>
+                </div>
+              </div>
+              <div class="set-foot"><span class="set-ver">v0.9.340</span><button class="set-act primary">完成</button></div>
+            </div>
 
-  <section class="sec">
-    <h2>④ 二级 · 总开关关时（整页置灰暂停态）</h2>
-    <div class="panels">
-      <div class="set-panel">
-        <div class="set-head"><button class="set-back">‹</button><span class="set-title">官方页面增强</span><span></span></div>
-        <div class="set-body">
-          <div class="set-note">官方页面增强已整体关闭；先回一级打开总开关，再逐项管理。</div>
-          <div class="set-row dim">
-            <div class="set-row-main">
-              <div class="set-label">个人中心「动态广场」</div>
-              <div class="set-hint">在个人中心加「动态广场」导航项并就地展开动态流；关闭后「关注动态」页保持官方原样</div>
+            <div class="note">
+              <b>关态要点</b><br>
+              · hint 文案切换：开态讲范围，关态讲结果（「已整体关闭：官方页面恢复原样」）。<br>
+              · 关态行 hint 与开关两值皆现成文案族，无新颜色。
             </div>
-            <div class="sw"><i></i></div>
-          </div>
-          <div class="set-row dim">
-            <div class="set-row-main">
-              <div class="set-label">UP 主空间页「动态」标签</div>
-              <div class="set-hint">在 TA 的官方主页浏览图文 / 视频 / 文章投稿；关闭后不追加标签</div>
-            </div>
-            <div class="sw"><i></i></div>
-          </div>
-          <div class="set-row dim">
-            <div class="set-row-main">
-              <div class="set-label">UP 主空间页「小视频」标签</div>
-              <div class="set-hint">在 TA 的官方主页浏览小视频投稿；关闭后不追加标签</div>
-            </div>
-            <div class="sw"><i></i></div>
-          </div>
-          <div class="set-row dim">
-            <div class="set-row-main">
-              <div class="set-label">官方页评论 IP 属地与设备型号</div>
-              <div class="set-hint">视频页、文章页、动态页等官方页评论显示 IP 与设备；竖刷内的显示归「评论」组设置单独管理</div>
-            </div>
-            <div class="sw"><i></i></div>
-          </div>
-          <div class="set-row dim">
-            <div class="set-row-main">
-              <div class="set-label">官方主页动态表情显示</div>
-              <div class="set-hint">个人主页动态正文里的表情码显示成表情图（官方渲染缺的能力）；关闭后保持官方原样</div>
-            </div>
-            <div class="sw"><i></i></div>
-          </div>
-          <div class="set-row dim">
-            <div class="set-row-main">
-              <div class="set-label">官方私信卡片显示</div>
-              <div class="set-hint">私信网页端显示不了的图片卡、作品卡等按原卡面渲染；关闭后保持「不支持查看此消息」</div>
-            </div>
-            <div class="sw"><i></i></div>
           </div>
         </div>
-        <div class="set-foot"><span class="set-ver">v0.9.340</span><button class="set-act primary">完成</button></div>
-      </div>
+      </section>
 
-      <div class="note">
-        <b>置灰要点</b><br>
-        · opacity .35 取既有 disabled 量值（.set-num-btn:disabled），不新立透明度；开关子项呈<b>关位灰态</b>是总闸短路的观感表达，不改写各项存储值——总闸开回后各子项还原各自状态。<br>
-        · 置灰区整行 pointer-events 停用（开关与文案均不可点，仅可回一级）。
-      </div>
-    </div>
-  </section>
-
-  <section class="sec">
-    <h2>⑤ 窄宽 540 自检</h2>
-    <div style="width:540px;max-width:100%;border:1px dashed rgba(255,255,255,.16);border-radius:12px;padding:16px">
-      <div class="set-panel" style="max-width:100%">
-        <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
-        <div class="set-body">
-          <div class="set-group">通用</div>
-          <div class="set-row new">
-            <div class="set-row-main">
-              <div class="set-label">官方页面增强</div>
-              <div class="set-hint">官方页上的广场接管、空间标签、评论 IP、动态表情、私信卡片；重新加载后生效</div>
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>二级 · 官方页面增强（总开关开，可逐项管理）</h2>
+          <span class="nt">混合开关态一并摆出</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="panels">
+            <div class="set-panel">
+              <div class="set-head"><button class="set-back">‹</button><span class="set-title">官方页面增强</span><span></span></div>
+              <div class="set-body">
+                <div class="set-note">关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。首页顶导航入口是脚本进门键，不入本清单、不受总闸管辖。</div>
+                <div class="set-row">
+                  <div class="set-row-main">
+                    <div class="set-label">个人中心「动态广场」</div>
+                    <div class="set-hint">在个人中心加「动态广场」导航项并就地展开动态流；关闭后「关注动态」页保持官方原样</div>
+                  </div>
+                  <div class="sw on"><i></i></div>
+                </div>
+                <div class="set-row">
+                  <div class="set-row-main">
+                    <div class="set-label">UP 主空间页「动态」标签</div>
+                    <div class="set-hint">在 TA 的官方主页浏览图文 / 视频 / 文章投稿；关闭后不追加标签</div>
+                  </div>
+                  <div class="sw on"><i></i></div>
+                </div>
+                <div class="set-row">
+                  <div class="set-row-main">
+                    <div class="set-label">UP 主空间页「小视频」标签</div>
+                    <div class="set-hint">在 TA 的官方主页浏览小视频投稿；关闭后不追加标签</div>
+                  </div>
+                  <div class="sw on"><i></i></div>
+                </div>
+                <div class="set-row">
+                  <div class="set-row-main">
+                    <div class="set-label">官方页评论 IP 属地与设备型号</div>
+                    <div class="set-hint">视频页、文章页、动态页等官方页评论显示 IP 与设备；竖刷内的显示归「评论」组设置单独管理</div>
+                  </div>
+                  <div class="sw"><i></i></div>
+                </div>
+                <div class="set-row">
+                  <div class="set-row-main">
+                    <div class="set-label">官方主页动态表情显示</div>
+                    <div class="set-hint">个人主页动态正文里的表情码显示成表情图（官方渲染缺的能力）；关闭后保持官方原样</div>
+                  </div>
+                  <div class="sw on"><i></i></div>
+                </div>
+                <div class="set-row">
+                  <div class="set-row-main">
+                    <div class="set-label">官方私信卡片显示</div>
+                    <div class="set-hint">私信网页端显示不了的图片卡、作品卡等按原卡面渲染；关闭后保持「不支持查看此消息」</div>
+                  </div>
+                  <div class="sw on"><i></i></div>
+                </div>
+              </div>
+              <div class="set-foot"><span class="set-ver">v0.9.340</span><button class="set-act primary">完成</button></div>
             </div>
-            <div class="set-pair"><div class="sw on"><i></i></div><button class="set-act">管理</button></div>
+
+            <div class="note">
+              <b>二级要点</b><br>
+              · 壳不变、换 body：头部左侧「‹」=回一级（28 圆钮，同 ✕ 形态），标题改「官方页面增强」；✕ 位隐去（Esc/‹ 已回一级，✕ 关整面板由底部「完成」承担）。<br>
+              · 「完成」在二级时＝直接关整面板（改动即时落盘，flushSettings 现成语义），不做两步退出。<br>
+              · Esc：二级→先回一级；一级→关面板（overlay onEsc 预处理缝，0.9.237 收菜单同款）。<br>
+              · 六项顺序=消费链顺序（我的→空间×2→评论→动态表情→私信），即实现注册表派生顺序，人工清单不得再抄一份。<br>
+              · 摆出的关态样例（第4项）非默认——<b>实现默认全开</b>。<br>
+              · 首页导航入口**不在清单**（2026-11-17 复审撤除：入口可关＝开关吞掉自己的进门键，自锁悖论）。
+            </div>
           </div>
         </div>
-        <div class="set-foot"><span class="set-ver">v0.9.340</span><button class="set-act primary">完成</button></div>
-      </div>
-      <div style="height:20px"></div>
-      <div class="set-panel" style="max-width:100%">
-        <div class="set-head"><button class="set-back">‹</button><span class="set-title">官方页面增强</span><span></span></div>
-        <div class="set-body">
-          <div class="set-note">关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。</div>
-          <div class="set-row">
-            <div class="set-row-main">
-              <div class="set-label">个人中心「动态广场」</div>
-              <div class="set-hint">在个人中心加「动态广场」导航项并就地展开动态流；关闭后「关注动态」页保持官方原样</div>
+      </section>
+
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>二级 · 总开关关时（整页置灰暂停态）</h2>
+          <span class="nt">opacity .35 同 disabled 量值；不回写子项存储</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="panels">
+            <div class="set-panel">
+              <div class="set-head"><button class="set-back">‹</button><span class="set-title">官方页面增强</span><span></span></div>
+              <div class="set-body">
+                <div class="set-note">官方页面增强已整体关闭；先回一级打开总开关，再逐项管理。</div>
+                <div class="set-row dim">
+                  <div class="set-row-main">
+                    <div class="set-label">个人中心「动态广场」</div>
+                    <div class="set-hint">在个人中心加「动态广场」导航项并就地展开动态流；关闭后「关注动态」页保持官方原样</div>
+                  </div>
+                  <div class="sw"><i></i></div>
+                </div>
+                <div class="set-row dim">
+                  <div class="set-row-main">
+                    <div class="set-label">UP 主空间页「动态」标签</div>
+                    <div class="set-hint">在 TA 的官方主页浏览图文 / 视频 / 文章投稿；关闭后不追加标签</div>
+                  </div>
+                  <div class="sw"><i></i></div>
+                </div>
+                <div class="set-row dim">
+                  <div class="set-row-main">
+                    <div class="set-label">UP 主空间页「小视频」标签</div>
+                    <div class="set-hint">在 TA 的官方主页浏览小视频投稿；关闭后不追加标签</div>
+                  </div>
+                  <div class="sw"><i></i></div>
+                </div>
+                <div class="set-row dim">
+                  <div class="set-row-main">
+                    <div class="set-label">官方页评论 IP 属地与设备型号</div>
+                    <div class="set-hint">视频页、文章页、动态页等官方页评论显示 IP 与设备；竖刷内的显示归「评论」组设置单独管理</div>
+                  </div>
+                  <div class="sw"><i></i></div>
+                </div>
+                <div class="set-row dim">
+                  <div class="set-row-main">
+                    <div class="set-label">官方主页动态表情显示</div>
+                    <div class="set-hint">个人主页动态正文里的表情码显示成表情图（官方渲染缺的能力）；关闭后保持官方原样</div>
+                  </div>
+                  <div class="sw"><i></i></div>
+                </div>
+                <div class="set-row dim">
+                  <div class="set-row-main">
+                    <div class="set-label">官方私信卡片显示</div>
+                    <div class="set-hint">私信网页端显示不了的图片卡、作品卡等按原卡面渲染；关闭后保持「不支持查看此消息」</div>
+                  </div>
+                  <div class="sw"><i></i></div>
+                </div>
+              </div>
+              <div class="set-foot"><span class="set-ver">v0.9.340</span><button class="set-act primary">完成</button></div>
             </div>
-            <div class="sw on"><i></i></div>
-          </div>
-          <div class="set-row">
-            <div class="set-row-main">
-              <div class="set-label">官方页评论 IP 属地与设备型号</div>
-              <div class="set-hint">视频页、文章页、动态页等官方页评论显示 IP 与设备；竖刷内的显示归「评论」组设置单独管理</div>
+
+            <div class="note">
+              <b>置灰要点</b><br>
+              · opacity .35 取既有 disabled 量值（.set-num-btn:disabled），不新立透明度；开关子项呈<b>关位灰态</b>是总闸短路的观感表达，不改写各项存储值——总闸开回后各子项还原各自状态。<br>
+              · 置灰区整行 pointer-events 停用（开关与文案均不可点，仅可回一级）。
             </div>
-            <div class="sw"><i></i></div>
           </div>
         </div>
-        <div class="set-foot"><span class="set-ver">v0.9.340</span><button class="set-act primary">完成</button></div>
-      </div>
-    </div>
-  </section>
+      </section>
 
-  <section class="sec">
-    <h2>⑥ 口径注记（实现批逐项对齐、并登记 check-preview.mjs）</h2>
-    <div class="note">
-      <b>取值 → src 出处</b><br>
-      · 面板壳 400px / radius 14px / rgba(22,22,27,.97)+blur(12px) / 阴影 0 10px 34px rgba(0,0,0,.5) / 边 1px rgba(255,255,255,.1)——src/settingspanel.js:39-42（SET_CSS 本体，零新值）<br>
-      · 行 min-height 18 / 行距 20 / 列距 20 / label 14-18 / hint 12-16 #8b909a——src/settingspanel.js:53-56<br>
-      · 组头 12px #8b909a——src/settingspanel.js:51；页脚 version+primary 完成——src/settingspanel.js:83-86、233-236<br>
-      · 开关 34×18、旋钮 14×14、关 #9e9e9e、开 accent——SWITCH_CSS 单源（src/styles.js，0.9.262；量取来历 src/settingspanel.js:16）<br>
-      · 置灰 opacity .35——同 src/settingspanel.js:77（.set-num-btn:disabled 同值，不另立）<br>
-      · 「管理」钮 7px 14px / 13px / rgba(255,255,255,.12)（hover .2）——.set-act 本体 src/settingspanel.js:83-85，仅内边距一档收 16→14<br>
-      · ‹ 回退钮 28 圆——.set-x 同型 src/settingspanel.js:46-48（margin-left 归零、✕ 换 ‹）<br>
-      <b>行为承诺（harness 钉，非本稿钉）</b><br>
-      · 总开关关＝清单内六面整链不判（含样式/观察器/定时器/toast），非 home 各 kind 的 mountNativeIp 亦短路；message 域整支不跑。<br>
-      · 豁免项：首页顶导航入口与兜底胶囊＝脚本进门键，不判总闸也不判子闸（0.9.343 复审钉；
-      harness inject-off-home 腿反着钉——总闸关态下入口必须照注，谁把闸错接回入口即红）。<br>
-      · 生效=重新加载后；面板拨动不改当前已渲染页（无即时摘除承诺，无 unmount 义务）——用户口径明示。<br>
-      · 子项值与总闸分离存储；置灰态不回写各项。<br>
-      · 竖刷世界（#svfeed 路由、广场 dock 视图、抽屉评论 ipShow 等）不在本开关射程，逐条不动。<br>
-      · 实现随批出注册表（键→label/hint/boot 短路点单源），二级清单由表派生——禁人工第二份（AGENTS 3）。
-    </div>
-  </section>
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">05</span>
+          <h2>窄宽 540 自检</h2>
+          <span class="nt">面板收 100% 宽；一二级纵向堆叠</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="narrow-frame">
+            <div class="set-panel fit">
+              <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
+              <div class="set-body">
+                <div class="set-group">通用</div>
+                <div class="set-row new">
+                  <div class="set-row-main">
+                    <div class="set-label">官方页面增强</div>
+                    <div class="set-hint">官方页上的广场接管、空间标签、评论 IP、动态表情、私信卡片；重新加载后生效</div>
+                  </div>
+                  <div class="set-pair"><div class="sw on"><i></i></div><button class="set-act">管理</button></div>
+                </div>
+              </div>
+              <div class="set-foot"><span class="set-ver">v0.9.340</span><button class="set-act primary">完成</button></div>
+            </div>
+            <div class="narrow-gap"></div>
+            <div class="set-panel fit">
+              <div class="set-head"><button class="set-back">‹</button><span class="set-title">官方页面增强</span><span></span></div>
+              <div class="set-body">
+                <div class="set-note">关闭后不再加载对应功能，重新加载页面后官方界面与未装脚本时一致；脚本竖刷世界不受影响。</div>
+                <div class="set-row">
+                  <div class="set-row-main">
+                    <div class="set-label">个人中心「动态广场」</div>
+                    <div class="set-hint">在个人中心加「动态广场」导航项并就地展开动态流；关闭后「关注动态」页保持官方原样</div>
+                  </div>
+                  <div class="sw on"><i></i></div>
+                </div>
+                <div class="set-row">
+                  <div class="set-row-main">
+                    <div class="set-label">官方页评论 IP 属地与设备型号</div>
+                    <div class="set-hint">视频页、文章页、动态页等官方页评论显示 IP 与设备；竖刷内的显示归「评论」组设置单独管理</div>
+                  </div>
+                  <div class="sw"><i></i></div>
+                </div>
+              </div>
+              <div class="set-foot"><span class="set-ver">v0.9.340</span><button class="set-act primary">完成</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p class="doc-arch-cap">决策档案 · 过程沿革（查阅成品可略过）</p>
+      <details class="doc-arch"><summary><span class="ttl">口径注记</span><span class="hint">取值 → src 出处对照 ＋ 行为承诺（实现批逐项对齐、登记 check-preview.mjs）</span><span class="pill">1 节</span></summary>
+      <section class="doc-sec" id="s6">
+        <div class="doc-sec-hd">
+          <h2>口径注记</h2>
+          <span class="nt">实现批逐项对齐、并登记 check-preview.mjs</span>
+          <a class="anchor" href="#s6" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="note">
+            <b>取值 → src 出处</b><br>
+            · 面板壳 400px / radius 14px / rgba(22,22,27,.97)+blur(12px) / 阴影 0 10px 34px rgba(0,0,0,.5) / 边 1px rgba(255,255,255,.1)——src/settingspanel.js:39-42（SET_CSS 本体，零新值）<br>
+            · 行 min-height 18 / 行距 20 / 列距 20 / label 14-18 / hint 12-16 #8b909a——src/settingspanel.js:53-56<br>
+            · 组头 12px #8b909a——src/settingspanel.js:51；页脚 version+primary 完成——src/settingspanel.js:83-86、233-236<br>
+            · 开关 34×18、旋钮 14×14、关 #9e9e9e、开 accent——SWITCH_CSS 单源（src/styles.js，0.9.262；量取来历 src/settingspanel.js:16）<br>
+            · 置灰 opacity .35——同 src/settingspanel.js:77（.set-num-btn:disabled 同值，不另立）<br>
+            · 「管理」钮 7px 14px / 13px / rgba(255,255,255,.12)（hover .2）——.set-act 本体 src/settingspanel.js:83-85，仅内边距一档收 16→14<br>
+            · ‹ 回退钮 28 圆——.set-x 同型 src/settingspanel.js:46-48（margin-left 归零、✕ 换 ‹）<br>
+            <b>行为承诺（harness 钉，非本稿钉）</b><br>
+            · 总开关关＝清单内六面整链不判（含样式/观察器/定时器/toast），非 home 各 kind 的 mountNativeIp 亦短路；message 域整支不跑。<br>
+            · 豁免项：首页顶导航入口与兜底胶囊＝脚本进门键，不判总闸也不判子闸（0.9.343 复审钉；
+            harness inject-off-home 腿反着钉——总闸关态下入口必须照注，谁把闸错接回入口即红）。<br>
+            · 生效=重新加载后；面板拨动不改当前已渲染页（无即时摘除承诺，无 unmount 义务）——用户口径明示。<br>
+            · 子项值与总闸分离存储；置灰态不回写各项。<br>
+            · 竖刷世界（#svfeed 路由、广场 dock 视图、抽屉评论 ipShow 等）不在本开关射程，逐条不动。<br>
+            · 实现随批出注册表（键→label/hint/boot 短路点单源），二级清单由表派生——禁人工第二份（AGENTS 3）。
+          </div>
+        </div>
+      </section>
+      </details>
+    </main>
+  </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

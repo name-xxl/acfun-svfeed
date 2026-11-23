@@ -4,6 +4,10 @@
 支持**双内容源**（竖刷页顶栏切换）：**小视频**（meow 接口，竖版短视频）与 **推荐**
 （APP 单列精选流 singleColumn，普通视频投稿，带弹幕/清晰度切换/收藏/投蕉），浏览与播放均**无需登录**。
 
+> **项目宣传页 / UI 设计文档站**（2026-11-23 起）：在线地址 <https://name-xxl.github.io/acfun-svfeed/>。
+> 仓库根 [`index.html`](index.html) 是宣传首页；[`docs/preview/`](docs/preview/) 是 36 份界面确认稿的文档站
+> （分组导航、状态徽章、取值标出处）。
+
 ## 安装
 
 1. 浏览器安装 [Tampermonkey](https://www.tampermonkey.net/) 扩展；

@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 v2 · 评论三修：悬停全蓝 + meta 行断行 + 楼中楼收起</title>
 <!-- ============================================================
      docs/preview/comment-meta-polish.html —— 评论三修静态预览 v2（2026-10-26）
@@ -15,13 +16,16 @@
           与收起键及其他键统一。
        v2c（2026-10-26 用户追裁）：**点赞悬停单独走红**（呼应已赞常亮红的身份色，悬停=预览点赞动作）；
           真实件赞/回复/转发带图标（iconfont 字形/mask/svg 全 currentColor），悬停变色自动带上图标——
-          ①demo 以 currentColor 内联 SVG 实证（②③⑤ mock 的 ♡ 仍为占位，真实件为字形图标同机制）。
+          ①demo 与②③⑤ mock 一律用真实件 iconfont 字形（v4 图标统一批，见页尾批注）。
        ② v1 预览稿 DOM 手误修正：楼中楼块误塞进了 meta 行内（真实 commentkit 挂正文区、
           meta 行外）——v1 截图「极宽时互动键与楼中楼并排」即此锅，非设计形态。
           断行方案用三档固定宽并排注解重讲，待用户拍板。
      量取/设计依据：src/cssraw.js 暗色基础规则 / .acsv-mp 浅色块；结构照 src/commentkit.js。
      纪律：单文件/无依赖/真实文案；确认后才进 src/。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     v3（2026-11-23 铺开批）：决策沿革折叠（⑥ 待确认点入页尾档案）；段内无并列窄图，未栅格化；demo 未动。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   :root{
     --acsv-accent:#fd4c5d;--acsv-bg:#000;--acsv-panel:rgba(22,22,27,.97);--acsv-line:rgba(255,255,255,.09);
@@ -29,38 +33,30 @@
     --hov-dark:#9fd0ff;  /* 深色皮肤统一悬停蓝 = 设备链现款 */
     --hov-light:#409bef; /* 浅色皮肤统一悬停蓝 = .acsv-mp 设备链现款 */
   }
+  /* box-model 复位保留：demo 的 412/540 宽与内边距几何按 border-box 量取 */
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:#fff;font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
-  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
-  .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
-  .hint b{color:var(--acsv-t2)}
-  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
-  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
-  .sec>p.desc{color:var(--acsv-t3);font-size:12px;line-height:1.7;margin:6px 0 14px}
-  .dual{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
-  code{background:rgba(255,255,255,.08);border-radius:4px;padding:0 5px;font-size:12px;color:#e8eaee;
-    font-family:Consolas,Menlo,monospace}
-  .badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;margin-left:8px;
-    border:1px solid rgba(255,255,255,.25);color:var(--acsv-t2);vertical-align:1px}
-  .badge.new{color:#7ee08a;border-color:rgba(126,224,138,.5)}
-  .badge.warn{color:#ff8a95;border-color:rgba(253,76,93,.5)}
-  .badge.dim{color:var(--acsv-t3);border-color:rgba(255,255,255,.14)}
 
-  /* ---- 色卡 ---- */
-  .swtbl{border-collapse:collapse;font-size:12px;color:var(--acsv-t2)}
-  .swtbl th,.swtbl td{border:1px solid rgba(255,255,255,.12);padding:6px 12px;text-align:left;
-    font-weight:400;white-space:nowrap}
-  .swtbl th{color:var(--acsv-t3);font-weight:600}
+  /* ---- 色卡（swatch 色收进类，元素零内联色） ---- */
   .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:6px;
     border:1px solid rgba(255,255,255,.25)}
+  .sw-gray{background:#7a7f8a}
+  .sw-accent{background:#fd4c5d}
+  .sw-blue{background:#9fd0ff}
+  .sw-blue-l{background:#409bef}
+  .sw-pink{background:#ff8a95}
 
   /* ---- 抽屉容器 ---- */
   .drawer{width:412px;background:var(--acsv-panel);border:1px solid var(--acsv-line);border-radius:10px;
     overflow:hidden}
   .drawer.fluid{width:100%}
+  .drawer.w620{width:620px}
+  .drawer.edge{padding:2px 0 10px}
+  .drawer.fill{width:100%;margin:0 auto}
+  .mt8{margin-top:8px}
+  .mt10{margin-top:10px}
+  .mt12{margin-top:12px}
+  .mt14{margin-top:14px}
+  .doc-note.loose{line-height:2}
 
   /* ---- 评论行（量取 cssraw.js 暗色基础规则） ---- */
   .citem{position:relative;margin-top:18px;display:flex;gap:30px;padding:0 16px}
@@ -102,8 +98,15 @@
   .hoAll .creplybtn:hover,.hoAll .cfwdbtn:hover,.hoAll .cdelbtn:hover,
   .hoAll .cfrom a:hover,.hoAll .cip:hover{color:var(--hov-dark)}
   .hoAll .clike:hover{color:var(--acsv-accent)}
-  /* 图标占位（currentColor 内联 SVG，实证「容器变色图标跟变」；真实件为 iconfont 字形同机制） */
-  .meta-ic{width:12px;height:12px;fill:currentColor;flex:none}
+  /* 站方原生 iconfont（cssraw.js 头同 URL）——赞/回复/转发字形全真（commentkit 同源） */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(assets/acfun-frontend-next.woff) format("woff"),
+        url(assets/acfun-frontend-next.ttf) format("truetype")
+  }
+  /* 字形基类（cssraw .acsvg-glyph 真值：11px 字号墨迹≈11px，与 12×12 定盒视觉等大） */
+  .acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-size:11px;
+    display:inline-block;width:12px;height:12px;line-height:12px;text-align:center;color:currentColor}
 
   /* ② 方案 A：属性组容器（新增 .acsv-cattr）——设备+IP 归组；组是外层 meta 的一个整件，
      组内再开 flex-wrap 兜底。互动键永不与来源件混排 */
@@ -141,289 +144,333 @@
   .sizer{resize:horizontal;overflow:auto;border:1px dashed rgba(255,255,255,.2);padding:8px;max-width:760px}
   .drawerbox{transition:none}
 
-  .note{max-width:520px;color:var(--acsv-t3);font-size:12px;line-height:1.8}
-  .note b{color:var(--acsv-t2)}
   .narrow{width:540px;border:1px dashed rgba(255,255,255,.14);padding:12px}
 </style>
 </head>
-<body class="board">
-  <h1>评论三修 v2：悬停全蓝 · meta 行断行 · 楼中楼收起 · 静态预览（确认后才进 src 实现）</h1>
-  <p class="hint">
-    <b>已按你裁决改稿</b>：① 悬停<b>全改蓝</b>（与设备链同款：深色 <code>#9fd0ff</code> / 浅色 <code>#409bef</code>，
-    删除基色保留警示色、悬停同蓝；<b>展开键基色也改灰</b>；<b>点赞悬停单独走红</b>——呼应已赞身份色）；
-    ③ 收起为<b>独立灰键</b>、首次展开即挂、<b>分页中途即可收</b>。
-    <b>图标</b>：真实件赞/回复/转发为 iconfont 字形（currentColor），悬停变色自动连图标一起——①demo 用同机制
-    的内联 SVG 实证，可悬停观察图标与文字同变。
-    <b>v1 的「极宽互动键跑到楼中楼旁」是我预览稿 DOM 手误</b>（楼中楼被误塞进 meta 行；真实 kit 挂正文区 meta 行外），
-    本稿已修正。<b>待拍板</b>：② 断行机制（三档并排注解重讲）+ 要不要属性弱化档。
-  </p>
+<body>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <!-- ============ ① 悬停全蓝 ============ -->
-  <div class="sec">
-    <h2>① 悬停色 · 全蓝（定稿）<em>与设备链同款；下方可真悬停体验</em></h2>
-    <p class="desc">
-      现状四套（点赞灰 / 回复转发蓝 / 删除粉 / IP 红）全数收敛为设备链那颗蓝：<b>深色 <code>#9fd0ff</code>、
-      浅色皮肤 <code>#409bef</code></b>（各自皮肤里设备链的现款色）。<b>展开键也一并入列</b>：基色由主题红改灰
-      <code>#7a7f8a</code>（浅色 #999），悬停同蓝。三个不动的：删除<b>基色</b>保留警示粉/红
-      （悬停同蓝）、已赞常亮红（状态色非悬停色）、昵称与回复前缀 @名（链接件非按钮）。
-    </p>
-    <table class="swtbl">
-      <tr><th>控件</th><th>深色·常态</th><th>深色·悬停（定稿）</th><th>浅色·悬停（定稿）</th></tr>
-      <tr><td>点赞</td><td><span class="sw" style="background:#7a7f8a"></span><code>#7a7f8a</code></td>
-          <td><span class="sw" style="background:#fd4c5d"></span><code>accent</code> 红（v2c 单独走红）</td>
-          <td><span class="sw" style="background:#fd4c5d"></span><code>accent</code> 红</td></tr>
-      <tr><td>回复 / 转发</td><td><span class="sw" style="background:#7a7f8a"></span><code>#7a7f8a</code></td>
-          <td><span class="sw" style="background:#9fd0ff"></span><code>#9fd0ff</code></td>
-          <td><span class="sw" style="background:#409bef"></span><code>#409bef</code></td></tr>
-      <tr><td>删除（基色保留警示）</td><td><span class="sw" style="background:#ff8a95"></span><code>#ff8a95</code></td>
-          <td><span class="sw" style="background:#9fd0ff"></span><code>#9fd0ff</code></td>
-          <td><span class="sw" style="background:#409bef"></span><code>#409bef</code></td></tr>
-      <tr><td>设备「来自 x」</td><td><span class="sw" style="background:#7a7f8a"></span><code>继承灰</code></td>
-          <td><span class="sw" style="background:#9fd0ff"></span><code>#9fd0ff</code>（现款不动）</td>
-          <td><span class="sw" style="background:#409bef"></span><code>#409bef</code>（现款不动）</td></tr>
-      <tr><td>IP 属地</td><td><span class="sw" style="background:#7a7f8a"></span><code>#7a7f8a</code></td>
-          <td><span class="sw" style="background:#9fd0ff"></span><code>#9fd0ff</code>（由红改蓝）</td>
-          <td><span class="sw" style="background:#409bef"></span><code>#409bef</code>（由红改蓝）</td></tr>
-      <tr><td>展开键 / 收起键（新）</td><td><span class="sw" style="background:#7a7f8a"></span><code>#7a7f8a</code> 灰（展开键由主题红改灰）</td>
-          <td><span class="sw" style="background:#9fd0ff"></span><code>#9fd0ff</code></td>
-          <td><span class="sw" style="background:#409bef"></span><code>#409bef</code></td></tr>
-    </table>
-    <div class="drawer" style="margin-top:14px">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>一只芸喵喵</a><span class="cdate"><span>发表于</span><span>10-26 11:02</span></span></div>
-          <div class="ctext">把鼠标逐个悬到 赞 / 回复 / 转发 / 删除 / 设备 / IP 上——除点赞走红外全变蓝；<b>图标随容器色同变</b>（下方为 currentColor SVG，真实件是 iconfont 字形、同机制）。已赞态保持常亮红。</div>
-          <div class="cmeta hoAll">
-            <span class="clike on"><svg class="meta-ic" viewBox="0 0 16 16"><path d="M8 14.2S1.6 10.4 1.6 5.9a3.6 3.6 0 0 1 6.4-2.3A3.6 3.6 0 0 1 14.4 5.9c0 4.5-6.4 8.3-6.4 8.3z"/></svg>128</span><span class="creplybtn"><svg class="meta-ic" viewBox="0 0 16 16"><path d="M2.5 2h11A1.5 1.5 0 0 1 15 3.5v6a1.5 1.5 0 0 1-1.5 1.5H6.6L3 14v-3H2.5A1.5 1.5 0 0 1 1 9.5v-6A1.5 1.5 0 0 1 2.5 2z"/></svg>回复</span><span class="cfwdbtn"><svg class="meta-ic" viewBox="0 0 16 16"><path d="M10.5 1.5 14.5 5l-4 3.5V6.2H6.8a2 2 0 0 0-2 2V13H2.5V8.2a4.5 4.5 0 0 1 4.3-4.5h3.7V1.5zM5.2 13v-1.8h2.3V13H5.2z"/></svg>转发</span><span class="cdelbtn">删除</span>
-            <span class="cattr">
-              <span class="cfrom"><span>来自</span><a>iPhone 15 Pro</a></span>
-              <span class="cip">广东</span>
-            </span>
-          </div>
-        </div>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>评论三修 v2：悬停全蓝 · meta 行断行 · 楼中楼收起 · 静态预览（确认后才进 src 实现）</h1>
+        <p class="doc-meta">
+          <span class="doc-badge">默认</span>
+          <span class="doc-badge b-hover">悬停</span>
+          <span class="doc-badge b-on">已赞常亮红</span>
+          <span class="doc-badge b-empty">空态</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-badge">② 断行待拍板</span>
+          <span class="doc-pill"><span class="v">悬停 #9fd0ff / #409bef</span><span class="src">src/cssraw.js 设备链现款</span></span>
+          <span class="doc-pill"><span class="v">点赞悬停 accent 红</span><span class="src">src/cssraw.js --acsv-accent</span></span>
+          <span class="doc-pill"><span class="v">展开/收起基色 #7a7f8a</span><span class="src">结构照 src/commentkit.js</span></span>
+        </p>
       </div>
-    </div>
-    <p class="desc" style="margin-top:8px">
-      ②③⑤ 各档 mock 里的 <code>♡</code> 是占位简写；真实件的赞/回复/转发三键都是字形图标
-      （<code>imicons.GLYPHS</code> 码点，CSS <code>color:currentColor</code>）——实现上颜色挂容器，
-      悬停变色自动连图标，无需逐图标处理。删除键为纯文字，无图标。
-    </p>
-  </div>
 
-  <!-- ============ ② meta 行断行（修正重讲） ============ -->
-  <div class="sec">
-    <h2>② meta 行断行 · 三档注解<em>v1 讲得绕，这次按容器宽度摆三档实物</em></h2>
-    <p class="desc">
-      机制一句话：把「来自设备」和「IP」包进一个<b>属性组</b> <code>.acsv-cattr</code>（新增包裹层），
-      组在外层 meta 行里是<b>一个整件</b>——所以断行只有三种可能，全部受控：
-      <b>放得下就全一行 → 放不下整组去第二行 → 还放不下（楼中楼+长设备名）才在组内分成设备/IP 两线</b>。
-      互动键（赞/回复/转发/删除）在任何一档都占一整行、永不与来源件混排。
-      v1 截图里「互动键跑到楼中楼旁」是预览 DOM 手误，真实结构楼中楼挂在 meta 行<b>外</b>，如下方各档所示。
-    </p>
-    <div class="tiers">
-      <div class="tier">
-        <p class="cap"><b>档一 · 宽</b>（正文区 ≥ 约 420px，搜索/榜单等宽评论区）<i>一行全放下</i></p>
-        <div class="drawer" style="width:620px">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-26 12:00</span></span></div>
-              <div class="cmeta">
-                <span class="clike">♡ 36</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span><span class="cdelbtn">删除</span>
-                <span class="cattr">
-                  <span class="cfrom"><span>来自</span><a>HUAWEI Mate 60 Pro</a></span>
-                  <span class="cip">中国香港</span>
-                </span>
+      <p class="doc-note">
+        <b>已按你裁决改稿</b>：① 悬停<b>全改蓝</b>（与设备链同款：深色 <code>#9fd0ff</code> / 浅色 <code>#409bef</code>，
+        删除基色保留警示色、悬停同蓝；<b>展开键基色也改灰</b>；<b>点赞悬停单独走红</b>——呼应已赞身份色）；
+        ③ 收起为<b>独立灰键</b>、首次展开即挂、<b>分页中途即可收</b>。
+        <b>图标</b>：赞/回复/转发一律真实件 iconfont 字形（currentColor），悬停变色自动连图标一起——
+        下方各 demo 可悬停观察图标与文字同变（赞未点亮 e629 / 点亮 e660、回复 e627、转发 e628）。
+        <b>v1 的「极宽互动键跑到楼中楼旁」是我预览稿 DOM 手误</b>（楼中楼被误塞进 meta 行；真实 kit 挂正文区 meta 行外），
+        本稿已修正。<b>待拍板</b>：② 断行机制（三档并排注解重讲）+ 要不要属性弱化档。
+      </p>
+
+      <p class="doc-note"><b>本稿结论（用户裁决 2026-10-26；② 断行仍待拍板）</b>：① 悬停全蓝——深色 <code>#9fd0ff</code> / 浅色 <code>#409bef</code>（设备链现款），<b>点赞悬停单独走红</b>、已赞常亮红，删除基色保留警示色、悬停同蓝；③ 楼中楼<b>独立灰收起键</b>（<code>#7a7f8a</code>），首次展开即挂、分页中途可收、收起整块移除重拉不走缓存；展开键基色同改灰。② 属性组受控断行与 A+C 弱化档<b>待拍板</b>（三档实物见 ② 段）。待确认点登记收在页尾「决策档案」。</p>
+
+      <!-- ============ ① 悬停全蓝 ============ -->
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>① 悬停色 · 全蓝（定稿）</h2>
+          <span class="nt">与设备链同款；下方可真悬停体验</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">
+          现状四套（点赞灰 / 回复转发蓝 / 删除粉 / IP 红）全数收敛为设备链那颗蓝：<b>深色 <code>#9fd0ff</code>、
+          浅色皮肤 <code>#409bef</code></b>（各自皮肤里设备链的现款色）。<b>展开键也一并入列</b>：基色由主题红改灰
+          <code>#7a7f8a</code>（浅色 #999），悬停同蓝。三个不动的：删除<b>基色</b>保留警示粉/红
+          （悬停同蓝）、已赞常亮红（状态色非悬停色）、昵称与回复前缀 @名（链接件非按钮）。
+        </p>
+        <table class="doc-table">
+          <thead><tr><th>控件</th><th>深色·常态</th><th>深色·悬停（定稿）</th><th>浅色·悬停（定稿）</th></tr></thead>
+          <tbody>
+            <tr><td>点赞</td><td><span class="sw sw-gray"></span><code>#7a7f8a</code></td>
+                <td><span class="sw sw-accent"></span><code>accent</code> 红（v2c 单独走红）</td>
+                <td><span class="sw sw-accent"></span><code>accent</code> 红</td></tr>
+            <tr><td>回复 / 转发</td><td><span class="sw sw-gray"></span><code>#7a7f8a</code></td>
+                <td><span class="sw sw-blue"></span><code>#9fd0ff</code></td>
+                <td><span class="sw sw-blue-l"></span><code>#409bef</code></td></tr>
+            <tr><td>删除（基色保留警示）</td><td><span class="sw sw-pink"></span><code>#ff8a95</code></td>
+                <td><span class="sw sw-blue"></span><code>#9fd0ff</code></td>
+                <td><span class="sw sw-blue-l"></span><code>#409bef</code></td></tr>
+            <tr><td>设备「来自 x」</td><td><span class="sw sw-gray"></span><code>继承灰</code></td>
+                <td><span class="sw sw-blue"></span><code>#9fd0ff</code>（现款不动）</td>
+                <td><span class="sw sw-blue-l"></span><code>#409bef</code>（现款不动）</td></tr>
+            <tr><td>IP 属地</td><td><span class="sw sw-gray"></span><code>#7a7f8a</code></td>
+                <td><span class="sw sw-blue"></span><code>#9fd0ff</code>（由红改蓝）</td>
+                <td><span class="sw sw-blue-l"></span><code>#409bef</code>（由红改蓝）</td></tr>
+            <tr><td>展开键 / 收起键（新）</td><td><span class="sw sw-gray"></span><code>#7a7f8a</code> 灰（展开键由主题红改灰）</td>
+                <td><span class="sw sw-blue"></span><code>#9fd0ff</code></td>
+                <td><span class="sw sw-blue-l"></span><code>#409bef</code></td></tr>
+          </tbody>
+        </table>
+        <div class="doc-figure">
+          <div class="drawer mt14">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>一只芸喵喵</a><span class="cdate"><span>发表于</span><span>10-26 11:02</span></span></div>
+                <div class="ctext">把鼠标逐个悬到 赞 / 回复 / 转发 / 删除 / 设备 / IP 上——除点赞走红外全变蓝；<b>图标随容器色同变</b>（下方即真实件 iconfont 字形，currentColor 随容器）。已赞态保持常亮红。</div>
+                <div class="cmeta hoAll">
+                  <span class="clike on"><i class="acsvg-glyph">&#xe660;</i>128</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span><span class="cdelbtn">删除</span>
+                  <span class="cattr">
+                    <span class="cfrom"><span>来自</span><a>iPhone 15 Pro</a></span>
+                    <span class="cip">广东</span>
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      <div class="tier">
-        <p class="cap"><b>档二 · 中窄</b>（抽屉 412 根评论）<i>互动键一行；设备+IP <b>整组</b>落第二行</i></p>
-        <div class="drawer" style="width:412px">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-26 12:00</span></span></div>
-              <div class="cmeta">
-                <span class="clike">♡ 36</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span><span class="cdelbtn">删除</span>
-                <span class="cattr">
-                  <span class="cfrom"><span>来自</span><a>HUAWEI Mate 60 Pro</a></span>
-                  <span class="cip">中国香港</span>
-                </span>
-              </div>
-            </div>
-          </div>
+        <p class="doc-note mt8">
+          ②③④ 各档 mock 的赞键同用真实件字形（未点亮 <code>e629</code> / 点亮 <code>e660</code>）；赞/回复/转发三键都是字形图标
+          （<code>imicons.GLYPHS</code> 码点，CSS <code>color:currentColor</code>）——实现上颜色挂容器，
+          悬停变色自动连图标，无需逐图标处理。删除键为纯文字，无图标。
+        </p>
+      </section>
+
+      <!-- ============ ② meta 行断行（修正重讲） ============ -->
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>② meta 行断行 · 三档注解</h2>
+          <span class="nt">v1 讲得绕，这次按容器宽度摆三档实物</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
         </div>
-      </div>
-      <div class="tier">
-        <p class="cap"><b>档三 · 楼中楼</b>（抽屉 412 内的子评论）<i>整组落第二行就放下；行内宿主更窄时组内兜底才分设备/IP 两线（滑杆拉到 ~290 可见）</i></p>
-        <div class="drawer" style="width:412px">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname"><a>楼中楼也同规则</a><span class="cdate"><span>发表于</span><span>10-26 12:01</span></span></div>
-              <div class="ctext">楼中楼正文区最窄，是病灶重灾区。</div>
-              <div class="cmeta">
-                <span class="clike">♡ 2</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-              </div>
-              <div class="csub">
+        <p class="doc-note">
+          机制一句话：把「来自设备」和「IP」包进一个<b>属性组</b> <code>.acsv-cattr</code>（新增包裹层），
+          组在外层 meta 行里是<b>一个整件</b>——所以断行只有三种可能，全部受控：
+          <b>放得下就全一行 → 放不下整组去第二行 → 还放不下（楼中楼+长设备名）才在组内分成设备/IP 两线</b>。
+          互动键（赞/回复/转发/删除）在任何一档都占一整行、永不与来源件混排。
+          v1 截图里「互动键跑到楼中楼旁」是预览 DOM 手误，真实结构楼中楼挂在 meta 行<b>外</b>，如下方各档所示。
+        </p>
+        <div class="doc-figure">
+          <div class="tiers">
+            <div class="tier">
+              <p class="cap"><b>档一 · 宽</b>（正文区 ≥ 约 420px，搜索/榜单等宽评论区）<i>一行全放下</i></p>
+              <div class="drawer w620">
                 <div class="citem">
-                  <a class="avlink"><span class="av sm"></span></a>
+                  <a class="avlink"><span class="av"></span></a>
                   <div class="cbody">
-                    <div class="cname"><a>UP主本人</a><span class="cdate"><span>发表于</span><span>10-26 12:05</span></span></div>
-                    <div class="ctext"><span class="creplyto">@楼中楼也同规则</span> : 设备+IP 都在的最窄档。</div>
+                    <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-26 12:00</span></span></div>
                     <div class="cmeta">
-                      <span class="clike">♡ 1</span><span class="creplybtn">回复</span>
+                      <span class="clike"><i class="acsvg-glyph">&#xe629;</i>36</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span><span class="cdelbtn">删除</span>
                       <span class="cattr">
-                        <span class="cfrom"><span>来自</span><a>Redmi K70 至尊版</a></span>
-                        <span class="cip">内蒙古</span>
+                        <span class="cfrom"><span>来自</span><a>HUAWEI Mate 60 Pro</a></span>
+                        <span class="cip">中国香港</span>
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <p class="desc" style="margin-top:14px">
-      对照与选项：<b>「现状」</b>是 v1 你看到的乱断（IP 孤悬、来源件与互动键混排）；
-      <b>「A+C 弱化」</b>在 A 基础上把属性组缩到 11px 弱灰，来源信息退次要层。拉滑杆任意宽度体验。
-    </p>
-    <div class="sliderbox">
-      <label>容器宽度</label>
-      <input type="range" min="280" max="760" value="412" id="wslider">
-      <span class="wv" id="wval">412px</span>
-    </div>
-    <div class="chips">
-      <button class="on" data-v="cur">现状</button>
-      <button data-v="a">方案 A</button>
-      <button data-v="ac">A + C 弱化</button>
-    </div>
-    <div class="sizer">
-      <div id="sizewrap" style="width:412px">
-        <!-- 现状：meta 平铺六件（楼中楼在 meta 行外——v1 手误已修） -->
-        <div class="drawer fluid demo drawerbox" id="v-cur">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-26 12:00</span></span></div>
-              <div class="cmeta">
-                <span class="clike">♡ 36</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span><span class="cdelbtn">删除</span>
-                <span class="cfrom"><span>来自</span><a>HUAWEI Mate 60 Pro</a></span>
-                <span class="cip">中国香港</span>
-              </div>
-            </div>
-          </div>
-          <hr class="chr">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname"><a>楼中楼也同规则</a><span class="cdate"><span>发表于</span><span>10-26 12:01</span></span></div>
-              <div class="ctext">楼中楼正文区最窄，是病灶重灾区。</div>
-              <div class="cmeta">
-                <span class="clike">♡ 2</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-              </div>
-              <div class="csub">
+            <div class="tier">
+              <p class="cap"><b>档二 · 中窄</b>（抽屉 412 根评论）<i>互动键一行；设备+IP <b>整组</b>落第二行</i></p>
+              <div class="drawer">
                 <div class="citem">
-                  <a class="avlink"><span class="av sm"></span></a>
+                  <a class="avlink"><span class="av"></span></a>
                   <div class="cbody">
-                    <div class="cname"><a>UP主本人</a><span class="cdate"><span>发表于</span><span>10-26 12:05</span></span></div>
-                    <div class="ctext"><span class="creplyto">@楼中楼也同规则</span> : 设备+IP 都在的最窄档。</div>
+                    <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-26 12:00</span></span></div>
                     <div class="cmeta">
-                      <span class="clike">♡ 1</span><span class="creplybtn">回复</span>
-                      <span class="cfrom"><span>来自</span><a>Redmi K70 至尊版</a></span>
-                      <span class="cip">内蒙古</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- 方案 A：属性组归组 -->
-        <div class="drawer fluid demo drawerbox" id="v-a" style="display:none">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-26 12:00</span></span></div>
-              <div class="cmeta">
-                <span class="clike">♡ 36</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span><span class="cdelbtn">删除</span>
-                <span class="cattr">
-                  <span class="cfrom"><span>来自</span><a>HUAWEI Mate 60 Pro</a></span>
-                  <span class="cip">中国香港</span>
-                </span>
-              </div>
-            </div>
-          </div>
-          <hr class="chr">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname"><a>楼中楼也同规则</a><span class="cdate"><span>发表于</span><span>10-26 12:01</span></span></div>
-              <div class="ctext">楼中楼正文区最窄，是病灶重灾区。</div>
-              <div class="cmeta">
-                <span class="clike">♡ 2</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-              </div>
-              <div class="csub">
-                <div class="citem">
-                  <a class="avlink"><span class="av sm"></span></a>
-                  <div class="cbody">
-                    <div class="cname"><a>UP主本人</a><span class="cdate"><span>发表于</span><span>10-26 12:05</span></span></div>
-                    <div class="ctext"><span class="creplyto">@楼中楼也同规则</span> : 设备+IP 都在的最窄档。</div>
-                    <div class="cmeta">
-                      <span class="clike">♡ 1</span><span class="creplybtn">回复</span>
+                      <span class="clike"><i class="acsvg-glyph">&#xe629;</i>36</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span><span class="cdelbtn">删除</span>
                       <span class="cattr">
-                        <span class="cfrom"><span>来自</span><a>Redmi K70 至尊版</a></span>
-                        <span class="cip">内蒙古</span>
+                        <span class="cfrom"><span>来自</span><a>HUAWEI Mate 60 Pro</a></span>
+                        <span class="cip">中国香港</span>
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-        <!-- A+C：同 A + attrdim 弱化 -->
-        <div class="drawer fluid demo drawerbox" id="v-ac" style="display:none">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-26 12:00</span></span></div>
-              <div class="cmeta attrdim">
-                <span class="clike">♡ 36</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span><span class="cdelbtn">删除</span>
-                <span class="cattr">
-                  <span class="cfrom"><span>来自</span><a>HUAWEI Mate 60 Pro</a></span>
-                  <span class="cip">中国香港</span>
-                </span>
+            <div class="tier">
+              <p class="cap"><b>档三 · 楼中楼</b>（抽屉 412 内的子评论）<i>整组落第二行就放下；行内宿主更窄时组内兜底才分设备/IP 两线（滑杆拉到 ~290 可见）</i></p>
+              <div class="drawer">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><a>楼中楼也同规则</a><span class="cdate"><span>发表于</span><span>10-26 12:01</span></span></div>
+                    <div class="ctext">楼中楼正文区最窄，是病灶重灾区。</div>
+                    <div class="cmeta">
+                      <span class="clike"><i class="acsvg-glyph">&#xe629;</i>2</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
+                    </div>
+                    <div class="csub">
+                      <div class="citem">
+                        <a class="avlink"><span class="av sm"></span></a>
+                        <div class="cbody">
+                          <div class="cname"><a>UP主本人</a><span class="cdate"><span>发表于</span><span>10-26 12:05</span></span></div>
+                          <div class="ctext"><span class="creplyto">@楼中楼也同规则</span> : 设备+IP 都在的最窄档。</div>
+                          <div class="cmeta">
+                            <span class="clike"><i class="acsvg-glyph">&#xe629;</i>1</span><span class="creplybtn">回复</span>
+                            <span class="cattr">
+                              <span class="cfrom"><span>来自</span><a>Redmi K70 至尊版</a></span>
+                              <span class="cip">内蒙古</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <hr class="chr">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname"><a>楼中楼也同规则</a><span class="cdate"><span>发表于</span><span>10-26 12:01</span></span></div>
-              <div class="ctext">楼中楼正文区最窄，是病灶重灾区。</div>
-              <div class="cmeta">
-                <span class="clike">♡ 2</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-              </div>
-              <div class="csub">
+        </div>
+        <p class="doc-note mt14">
+          对照与选项：<b>「现状」</b>是 v1 你看到的乱断（IP 孤悬、来源件与互动键混排）；
+          <b>「A+C 弱化」</b>在 A 基础上把属性组缩到 11px 弱灰，来源信息退次要层。拉滑杆任意宽度体验。
+        </p>
+        <div class="doc-figure">
+          <div class="sliderbox">
+            <label>容器宽度</label>
+            <input type="range" min="280" max="760" value="412" id="wslider">
+            <span class="wv" id="wval">412px</span>
+          </div>
+          <div class="chips">
+            <button class="on" data-v="cur">现状</button>
+            <button data-v="a">方案 A</button>
+            <button data-v="ac">A + C 弱化</button>
+          </div>
+          <div class="sizer">
+            <div id="sizewrap" style="width:412px">
+              <!-- 现状：meta 平铺六件（楼中楼在 meta 行外——v1 手误已修） -->
+              <div class="drawer fluid demo drawerbox" id="v-cur">
                 <div class="citem">
-                  <a class="avlink"><span class="av sm"></span></a>
+                  <a class="avlink"><span class="av"></span></a>
                   <div class="cbody">
-                    <div class="cname"><a>UP主本人</a><span class="cdate"><span>发表于</span><span>10-26 12:05</span></span></div>
-                    <div class="ctext"><span class="creplyto">@楼中楼也同规则</span> : 设备+IP 都在的最窄档。</div>
+                    <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-26 12:00</span></span></div>
+                    <div class="cmeta">
+                      <span class="clike"><i class="acsvg-glyph">&#xe629;</i>36</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span><span class="cdelbtn">删除</span>
+                      <span class="cfrom"><span>来自</span><a>HUAWEI Mate 60 Pro</a></span>
+                      <span class="cip">中国香港</span>
+                    </div>
+                  </div>
+                </div>
+                <hr class="chr">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><a>楼中楼也同规则</a><span class="cdate"><span>发表于</span><span>10-26 12:01</span></span></div>
+                    <div class="ctext">楼中楼正文区最窄，是病灶重灾区。</div>
+                    <div class="cmeta">
+                      <span class="clike"><i class="acsvg-glyph">&#xe629;</i>2</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
+                    </div>
+                    <div class="csub">
+                      <div class="citem">
+                        <a class="avlink"><span class="av sm"></span></a>
+                        <div class="cbody">
+                          <div class="cname"><a>UP主本人</a><span class="cdate"><span>发表于</span><span>10-26 12:05</span></span></div>
+                          <div class="ctext"><span class="creplyto">@楼中楼也同规则</span> : 设备+IP 都在的最窄档。</div>
+                          <div class="cmeta">
+                            <span class="clike"><i class="acsvg-glyph">&#xe629;</i>1</span><span class="creplybtn">回复</span>
+                            <span class="cfrom"><span>来自</span><a>Redmi K70 至尊版</a></span>
+                            <span class="cip">内蒙古</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- 方案 A：属性组归组 -->
+              <div class="drawer fluid demo drawerbox" id="v-a" style="display:none">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-26 12:00</span></span></div>
+                    <div class="cmeta">
+                      <span class="clike"><i class="acsvg-glyph">&#xe629;</i>36</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span><span class="cdelbtn">删除</span>
+                      <span class="cattr">
+                        <span class="cfrom"><span>来自</span><a>HUAWEI Mate 60 Pro</a></span>
+                        <span class="cip">中国香港</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <hr class="chr">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><a>楼中楼也同规则</a><span class="cdate"><span>发表于</span><span>10-26 12:01</span></span></div>
+                    <div class="ctext">楼中楼正文区最窄，是病灶重灾区。</div>
+                    <div class="cmeta">
+                      <span class="clike"><i class="acsvg-glyph">&#xe629;</i>2</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
+                    </div>
+                    <div class="csub">
+                      <div class="citem">
+                        <a class="avlink"><span class="av sm"></span></a>
+                        <div class="cbody">
+                          <div class="cname"><a>UP主本人</a><span class="cdate"><span>发表于</span><span>10-26 12:05</span></span></div>
+                          <div class="ctext"><span class="creplyto">@楼中楼也同规则</span> : 设备+IP 都在的最窄档。</div>
+                          <div class="cmeta">
+                            <span class="clike"><i class="acsvg-glyph">&#xe629;</i>1</span><span class="creplybtn">回复</span>
+                            <span class="cattr">
+                              <span class="cfrom"><span>来自</span><a>Redmi K70 至尊版</a></span>
+                              <span class="cip">内蒙古</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- A+C：同 A + attrdim 弱化 -->
+              <div class="drawer fluid demo drawerbox" id="v-ac" style="display:none">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-26 12:00</span></span></div>
                     <div class="cmeta attrdim">
-                      <span class="clike">♡ 1</span><span class="creplybtn">回复</span>
+                      <span class="clike"><i class="acsvg-glyph">&#xe629;</i>36</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span><span class="cdelbtn">删除</span>
                       <span class="cattr">
-                        <span class="cfrom"><span>来自</span><a>Redmi K70 至尊版</a></span>
-                        <span class="cip">内蒙古</span>
+                        <span class="cfrom"><span>来自</span><a>HUAWEI Mate 60 Pro</a></span>
+                        <span class="cip">中国香港</span>
                       </span>
+                    </div>
+                  </div>
+                </div>
+                <hr class="chr">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><a>楼中楼也同规则</a><span class="cdate"><span>发表于</span><span>10-26 12:01</span></span></div>
+                    <div class="ctext">楼中楼正文区最窄，是病灶重灾区。</div>
+                    <div class="cmeta">
+                      <span class="clike"><i class="acsvg-glyph">&#xe629;</i>2</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
+                    </div>
+                    <div class="csub">
+                      <div class="citem">
+                        <a class="avlink"><span class="av sm"></span></a>
+                        <div class="cbody">
+                          <div class="cname"><a>UP主本人</a><span class="cdate"><span>发表于</span><span>10-26 12:05</span></span></div>
+                          <div class="ctext"><span class="creplyto">@楼中楼也同规则</span> : 设备+IP 都在的最窄档。</div>
+                          <div class="cmeta attrdim">
+                            <span class="clike"><i class="acsvg-glyph">&#xe629;</i>1</span><span class="creplybtn">回复</span>
+                            <span class="cattr">
+                              <span class="cfrom"><span>来自</span><a>Redmi K70 至尊版</a></span>
+                              <span class="cip">内蒙古</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -431,101 +478,130 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
-    <p class="desc" style="margin-top:10px">空态不占位：无设备且无 IP 的评论不渲染属性组，meta 就是互动键单行（与现状一致）。</p>
-  </div>
+        <p class="doc-note mt10">空态不占位：无设备且无 IP 的评论不渲染属性组，meta 就是互动键单行（与现状一致）。</p>
+      </section>
 
-  <!-- ============ ③ 展开/收起（定稿形态） ============ -->
-  <div class="sec">
-    <h2>③ 楼中楼展开 + 独立灰收起键<em>真点击演示：28 条分两页；首次展开即挂收起键、中途可收</em></h2>
-    <p class="desc">
-      按你裁决定稿：<b>收起是独立按钮</b>（灰 <code>#7a7f8a</code>，悬停同全蓝），首次展开就挂在展开键下方，
-      <b>分页中途随时可收</b>；展开键保持单语义（查看 → 继续展开（剩 N 条）），<b>基色也改灰</b>（原主题红），
-      拉完自摘、只剩灰收起键。
-      收起 = 整块移除回初始态（收起键一并自摘），再点重新拉取（不走缓存）。分页节奏不变（每页 20 条，
-      <code>cfg.comments.subCount</code>）；错误态不动（展开失败，点击重试）。<b>下方可真点。</b>
-    </p>
-    <div class="drawer" id="demoA">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>求 BGM 的</a><span class="cdate"><span>发表于</span><span>10-26 13:10</span></span></div>
-          <div class="ctext">点展开 →「展开中…」→ 20 条 + [继续展开（剩 8 条）] + [收起] 并存 → 点收起任意时刻可收回；拉到底只剩 [收起]。</div>
-          <div class="cmeta">
-            <span class="clike">♡ 4</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-          </div>
+      <!-- ============ ③ 展开/收起（定稿形态） ============ -->
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>③ 楼中楼展开 + 独立灰收起键</h2>
+          <span class="nt">真点击演示：28 条分两页；首次展开即挂收起键、中途可收</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
         </div>
-      </div>
-    </div>
-    <p class="desc" style="margin-top:12px">行内/详情面板宿主走同一 kit 件，三宿主同步生效。</p>
-  </div>
-
-  <!-- ============ ④ 边界与空态 ============ -->
-  <div class="sec">
-    <h2>④ 边界与空态<em>三修叠加后的组合态（悬停均可试）</em></h2>
-    <div class="drawer" style="padding:2px 0 10px">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>无来源件的短评</a><span class="cdate"><span>发表于</span><span>10-26 14:00</span></span></div>
-          <div class="ctext">无设备无 IP：属性组整个不渲染，meta 单行互动键——②的空态。</div>
-          <div class="cmeta hoAll">
-            <span class="clike on">♥ 52</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-          </div>
-        </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>小视频模式</a><span class="cdate"><span>发表于</span><span>10-26 14:02</span></span></div>
-          <div class="ctext">纯浏览态（mode=home）：无回复/转发/删除三键，meta = 赞 + 属性组——悬停统一不触交互分叉。</div>
-          <div class="cmeta hoAll">
-            <span class="clike">♡ 77</span>
-            <span class="cattr"><span class="cip">浙江</span></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ============ ⑤ 窄宽 540 ============ -->
-  <div class="sec">
-    <h2>⑤ 窄宽 540<em>抽屉 412 实嵌；属性组整组第二行</em></h2>
-    <div class="narrow">
-      <div class="drawer" style="width:100%;margin:0 auto">
-        <div class="citem">
-          <a class="avlink"><span class="av"></span></a>
-          <div class="cbody">
-            <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-26 14:30</span></span></div>
-            <div class="ctext">540 视口下抽屉仍 412：设备+IP 整组第二行，不逐字断、不与互动键混排。</div>
-            <div class="cmeta">
-              <span class="clike">♡ 12</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-              <span class="cattr">
-                <span class="cfrom"><span>来自</span><a>真我 V30</a></span>
-                <span class="cip">中国香港</span>
-              </span>
+        <p class="doc-note">
+          按你裁决定稿：<b>收起是独立按钮</b>（灰 <code>#7a7f8a</code>，悬停同全蓝），首次展开就挂在展开键下方，
+          <b>分页中途随时可收</b>；展开键保持单语义（查看 → 继续展开（剩 N 条）），<b>基色也改灰</b>（原主题红），
+          拉完自摘、只剩灰收起键。
+          收起 = 整块移除回初始态（收起键一并自摘），再点重新拉取（不走缓存）。分页节奏不变（每页 20 条，
+          <code>cfg.comments.subCount</code>）；错误态不动（展开失败，点击重试）。<b>下方可真点。</b>
+        </p>
+        <div class="doc-figure">
+          <div class="drawer" id="demoA">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>求 BGM 的</a><span class="cdate"><span>发表于</span><span>10-26 13:10</span></span></div>
+                <div class="ctext">点展开 →「展开中…」→ 20 条 + [继续展开（剩 8 条）] + [收起] 并存 → 点收起任意时刻可收回；拉到底只剩 [收起]。</div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>4</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
+        <p class="doc-note mt12">行内/详情面板宿主走同一 kit 件，三宿主同步生效。</p>
+      </section>
 
-  <!-- ============ ⑥ 待确认 ============ -->
-  <div class="sec">
-    <h2>⑥ 待确认点<em>只剩 ②；你点头后按此稿进 src/</em></h2>
-    <p class="desc" style="line-height:2">
-      1. <b>② 属性组受控断</b>：三档并排（②节上方）是否 OK？嫌复杂可退回「现状自然断」只修其余两项。<br>
-      2. <b>② 弱化档</b>：要不要叠加 A+C（属性组 11px 弱灰）——滑杆区切「A + C 弱化」对比。<br>
-      3. <b>已定不再问</b>：悬停全蓝但<b>点赞悬停单独走红</b>（深 #9fd0ff/浅 #409bef，删除基色警示保留）；
-      <b>展开键基色同改灰</b>；图标随容器 currentColor 自动变色（赞/回复/转发三键带字形图标，无需逐图标改）；
-      独立灰收起键、首次展开即挂、中途可收、收起整块移除重拉不走缓存。<br>
-      4. <b>harness 影响</b>：新增 <code>.acsv-cattr</code> 包裹层与 <code>.acsv-cfold</code> 键，
-      view-follow 68 / detail-open 38 处断言涉及 meta 行与展开件的同步改预期（改断言不改行为钉法）。
-    </p>
+      <!-- ============ ④ 边界与空态 ============ -->
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>④ 边界与空态</h2>
+          <span class="nt">三修叠加后的组合态（悬停均可试）</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="drawer edge">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>无来源件的短评</a><span class="cdate"><span>发表于</span><span>10-26 14:00</span></span></div>
+                <div class="ctext">无设备无 IP：属性组整个不渲染，meta 单行互动键——②的空态。</div>
+                <div class="cmeta hoAll">
+                  <span class="clike on"><i class="acsvg-glyph">&#xe660;</i>52</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>小视频模式</a><span class="cdate"><span>发表于</span><span>10-26 14:02</span></span></div>
+                <div class="ctext">纯浏览态（mode=home）：无回复/转发/删除三键，meta = 赞 + 属性组——悬停统一不触交互分叉。</div>
+                <div class="cmeta hoAll">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>77</span>
+                  <span class="cattr"><span class="cip">浙江</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ ⑤ 窄宽 540 ============ -->
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">05</span>
+          <h2>⑤ 窄宽 540</h2>
+          <span class="nt">抽屉 412 实嵌；属性组整组第二行</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="narrow">
+            <div class="drawer fill">
+              <div class="citem">
+                <a class="avlink"><span class="av"></span></a>
+                <div class="cbody">
+                  <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-26 14:30</span></span></div>
+                  <div class="ctext">540 视口下抽屉仍 412：设备+IP 整组第二行，不逐字断、不与互动键混排。</div>
+                  <div class="cmeta">
+                    <span class="clike"><i class="acsvg-glyph">&#xe629;</i>12</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
+                    <span class="cattr">
+                      <span class="cfrom"><span>来自</span><a>真我 V30</a></span>
+                      <span class="cip">中国香港</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p class="doc-arch-cap">决策档案 · 过程沿革（查阅成品可略过）</p>
+      <details class="doc-arch"><summary><span class="ttl">裁决登记</span><span class="hint">⑥ 待确认点——② 断行与弱化档待拍板、已定项汇总、harness 影响</span><span class="pill">1 节</span></summary>
+      <!-- ============ ⑥ 待确认 ============ -->
+      <section class="doc-sec" id="s6">
+        <div class="doc-sec-hd">
+          <h2>⑥ 待确认点</h2>
+          <span class="nt">只剩 ②；你点头后按此稿进 src/</span>
+          <a class="anchor" href="#s6" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note loose">
+          1. <b>② 属性组受控断</b>：三档并排（②节上方）是否 OK？嫌复杂可退回「现状自然断」只修其余两项。<br>
+          2. <b>② 弱化档</b>：要不要叠加 A+C（属性组 11px 弱灰）——滑杆区切「A + C 弱化」对比。<br>
+          3. <b>已定不再问</b>：悬停全蓝但<b>点赞悬停单独走红</b>（深 #9fd0ff/浅 #409bef，删除基色警示保留）；
+          <b>展开键基色同改灰</b>；图标随容器 currentColor 自动变色（赞/回复/转发三键带字形图标，无需逐图标改）；
+          独立灰收起键、首次展开即挂、中途可收、收起整块移除重拉不走缓存。<br>
+          4. <b>harness 影响</b>：新增 <code>.acsv-cattr</code> 包裹层与 <code>.acsv-cfold</code> 键，
+          view-follow 68 / detail-open 38 处断言涉及 meta 行与展开件的同步改预期（改断言不改行为钉法）。
+        </p>
+      </section>
+      </details>
+    </main>
   </div>
+</div>
 
 <script>
 /* ② 宽度滑杆 + 方案切换（仅预览用） */
@@ -558,7 +634,7 @@
   var PAGE=20;
   function csubItem(s){return '<div class="citem"><a class="avlink"><span class="av sm"></span></a>'+
     '<div class="cbody"><div class="cname"><a>'+s.name+'</a><span class="cdate"><span>发表于</span><span>10-26 13:2x</span></span></div>'+
-    '<div class="ctext">'+s.text+'</div><div class="cmeta"><span class="clike">♡ '+s.like+'</span>'+
+    '<div class="ctext">'+s.text+'</div><div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>'+s.like+'</span>'+
     '<span class="cip">广东</span></div></div></div>';}
   var host=document.getElementById('demoA');
   var cbody=host.querySelector('.cbody');
@@ -594,5 +670,6 @@
   });
 })();
 </script>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

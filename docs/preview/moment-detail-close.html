@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 动态详情浮层 关闭键收进面板头部（现状 ✕ 飘视口角 → 提案）</title>
 <!-- ============================================================
      docs/preview/moment-detail-close.html —— 静态 UI 预览（形态确认稿，确认后才进 src 实现）
@@ -41,13 +42,20 @@
        全部引自 src，昵称与正文为站内语境的示例内容）/ 元素零内联色（颜色一律走类规则，
        内联样式只放几何 width/left/top/height）；悬停态既给真 :hover 也给定格类（.fxh）。
      本稿不含真机截图、未经浏览器实测渲染；确认几何＝cssraw 值的算术推导（见 ① 与附节 A）。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     全局 * 重置收窄至 .vp/.headslice/.stage 演示台内（台内 p/hr/button 默认边距仍归零，chrome 排版不受影响）；
+     原内联几何量（测量坐标/台宽/面板高/占位图尺寸/组内 margin-left:0）收进类（取值逐字未动）；
+     脚手架 body/.board/.sec/.hint/.note/.verdict 由 chrome 接管。
+     v3（2026-11-23 铺开批）：决策沿革折叠（⑦ 附收进页尾决策档案），成品段为主体；demo 未动；
+     段内无 ≥2 同形窄 .doc-figure（台宽均 ≥540），未栅格化。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   /* 站方原生 iconfont（cssraw.js:18-20 头同 URL）——工具栏/互动键/评论键字形全真 */
   @font-face{
     font-family:acfun-frontend-next;
-    src:url(//ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.90fc2dfc.woff) format("woff"),
-        url(//ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.bdc44d05.ttf) format("truetype")
+    src:url(assets/acfun-frontend-next.woff) format("woff"),
+        url(assets/acfun-frontend-next.ttf) format("truetype")
   }
   :root{
     --acsv-accent:#fd4c5d;           /* 主题色（cfg.accent 单源） */
@@ -59,22 +67,8 @@
     --acsv-t1:#fff; --acsv-t2:#cfd3da; --acsv-t3:#8a90a0;
     --guide:#57a9f5;                 /* 稿内测量辅助色＝深色皮肤链接蓝（cssraw 622-623 换算值） */
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:28px 24px 90px}
-  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
-  .hint{color:var(--acsv-t3);font-size:12px;line-height:1.9;margin-bottom:20px}
-  .hint b{color:var(--acsv-t2)}
-  .hint code{color:#ffb323;font-family:ui-monospace,Consolas,monospace;font-size:11px}
-  .sec{margin:30px 0 8px;padding-top:16px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
-  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
-  .note{color:var(--acsv-t3);font-size:12px;line-height:1.85;margin:6px 0 14px}
-  .note b{color:var(--acsv-t2)}
-  .note code{background:rgba(255,255,255,.08);border-radius:4px;padding:1px 6px;font-size:12px}
-  .verdict{display:inline-block;background:rgba(253,76,93,.16);color:#ff9aa5;border-radius:10px;
-    padding:1px 10px;font-size:11px;margin-left:6px;vertical-align:1px}
+  /* 演示台内重置（原全局 * 收窄至此：demo 的 p/hr/button 默认边距归零；须先于 demo 规则） */
+  .vp,.vp *,.headslice,.headslice *,.stage,.stage *{box-sizing:border-box;margin:0;padding:0}
   /* 1:1 视口示意台：宽 1600×高 900 实大（横向可滚），①两栏几何可当场用尺量。
      台上把 min(920px,94vw)/min(84vh,672px) 钉死为算术基准值（920×672），否则评审窗口高
      不足 800 时 84vh 会让面板缩水、图上坐标全部失真；实现仍按真实视口取 min() */
@@ -303,552 +297,660 @@
     height:auto;max-height:668px} /* 668＝88%×台高 760 的演示钉值；实现取 min(88vh,780px)（cssraw 1038） */
   .stage.narrow .acsv-mdetail-media{width:100%;height:288px;flex:none;border-radius:20px 20px 0 0} /* 38vh 演示值＝760×38%≈288（实现按实际视口） */
   .stage.narrow .acsv-mdetail-side{width:100%;flex:1 1 auto;min-height:0}
+
+  /* ================= 原内联布局量收编（取值逐字未动；置于 demo 规则之后，同权重时覆盖基规则） ================= */
+  .mdxg .acsv-mdetail-more{margin-left:0}
+  .grow{flex:1}
+  .w180{width:180px}
+  .w220{width:220px}
+  .w260{width:260px}
+  .w340{width:340px}
+  .phimg.big{width:465px;height:620px}
+  .phimg.nar{width:216px;height:288px}
+  .stage.short.w680{width:680px}
+  .acsv-mdetail-panel.h520{height:520px}
+  .acsv-mdetail-panel.h460{height:460px}
+  .headslice.w620{width:620px}
+  .acsv-ctail.flat{border-bottom:none}
+  .doc-note.loose{line-height:2.1}
+  /* 测量件坐标（① 两台 / ④⑤⑥ 示意台；left/top/width/height 逐字收编） */
+  .l20{left:20px}.l152{left:152px}.l376{left:376px}.l390{left:390px}.l640{left:640px}
+  .l905{left:905px}.l1006{left:1006px}.l1150{left:1150px}.l1226{left:1226px}.l1260{left:1260px}
+  .l1296{left:1296px}.l1310{left:1310px}.l1330{left:1330px}.l1420{left:1420px}.l1460{left:1460px}
+  .l1564{left:1564px}.l1574{left:1574px}
+  .t12{top:12px}.t18{top:18px}.t44{top:44px}.t68{top:68px}.t86{top:86px}.t98{top:98px}
+  .t100{top:100px}.t112{top:112px}.t114{top:114px}.t140{top:140px}.t148{top:148px}
+  .t200{top:200px}.t206{top:206px}.t212{top:212px}.t326{top:326px}
+  .w34{width:34px}.w304{width:304px}.h34{height:34px}
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>动态详情浮层 · 关闭键收进面板头部 —— 静态预览（确认后才进 src 实现）</h1>
-  <p class="hint">
-    <b>本稿只裁一件事</b>：<code>.acsv-mdetail</code> 的 ✕ 从「背板层视口右上角」（现状 <code>src/momentdetail.js:129-132</code>
-    + <code>src/cssraw.js:975-977</code> 的 40 圆 <code>position:absolute;top:16px;right:16px</code>）
-    改为「<b>面板头部右侧</b>」（作者行 <code>.acsv-gmom-head acsv-mdetail-head</code>，与自删键「⋮」
-    <code>.acsv-mdetail-more</code>（<code>cssraw.js:978-980</code>）同排同族）。<br>
-    <b>不动</b>：背板点击关（<code>momentdetail.js:124-126</code>）、Esc 关（<code>momentdetail.js:247</code> modal 入栈）、
-    ⋮ 删除行为（<code>momentdetail.js:168-190</code> 确认弹）、两栏/单栏布局判定（<code>momentdetail.js:137-146</code>）、
-    轮播（<code>cssraw.js:994-1006</code>）、评论管线与输入条。<br>
-    量值全部照抄 <code>src/cssraw.js</code> 967-1057 段与评论/输入条段（逐值行号注在样式与附节），类名全真；
-    ① 的两张示意台按 <b>1600×900 视口 1:1 实大</b>绘制（横向可滚），几何数字可当场复核。
-    悬停态给了真 <code>:hover</code> 也给了定格类 <code>.fxh</code>。纪律：单文件 / 无新外链（唯一外链＝cssraw 头既有 iconfont）/
-    元素零内联色（内联只放几何）。
-  </p>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <!-- ================= ① 对比 ================= -->
-  <div class="sec">
-    <h2>① 对比 —— 现状 vs 提案<em>1600×900 视口 · 1:1 实大（台子比窗口宽，横向滚动即可）· 两栏态「自己的动态」</em></h2>
-    <p class="note">
-      面板两栏态基准（<code>cssraw.js:989</code>）：<code>width:min(920px,94vw)=920</code>、<code>height:min(84vh,672px)=672</code>、
-      flex 居中 ⇒ 左缘 x=340 / <b>右缘 x=1260</b> / 顶 y=114。现状 ✕ 40 圆挂背板 <code>top:16 right:16</code>
-      ⇒ 中心 x=1600−16−20=<b>1564</b>、y=36。
-    </p>
-    <div class="vpwrap">
-      <div class="vp">
-        <div class="ghostrow"><span class="av"></span><div style="flex:1"><div class="ln" style="width:220px"></div><div class="ln" style="width:340px"></div></div></div>
-        <div class="ghostrow"><span class="av"></span><div style="flex:1"><div class="ln" style="width:260px"></div><div class="ln" style="width:180px"></div></div></div>
-        <div class="acsv-mdetail">
-          <button class="x-old" title="关闭">✕</button>
-          <div class="acsv-mdetail-panel acsv-mdetail-split">
-            <div class="acsv-mdetail-media">
-              <div class="acsv-mdetail-img onbig phimg" style="width:465px;height:620px"></div>
-            </div>
-            <div class="acsv-mdetail-side">
-              <div class="acsv-mdetail-head">
-                <span class="acsv-gmom-av">AC</span>
-                <a class="acsv-gmom-name" href="#">@AC娘</a>
-                <span class="acsv-gmom-time">2小时前</span>
-                <button class="acsv-mdetail-more" title="删除这条动态">⋮</button>
-              </div>
-              <div class="acsv-mdetail-list">
-                <div class="acsv-mdetail-text">今晚 8 点整，「山海共创」企划 PV 正式上线！这次把四格画师、手书大佬和配音全凑齐了<span class="ubb-emotion"></span>评论区抽 3 位送全套设定集，记得回来报到～</div>
-                <div class="acsv-mdetail-actions">
-                  <span class="acsv-mdl-fwd"><i class="acsvg-glyph">&#xe628;</i>分享</span>
-                  <span class="acsv-mdl-cmt"><i class="acsvg-glyph">&#xe627;</i>1024</span>
-                  <span class="acsv-mdl-ban"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>6561</span>
-                  <span class="acsv-mdl-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>1.2万</span>
-                </div>
-                <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 1024 条评论</span></div>
-                <div class="acsv-citem">
-                  <span class="acsv-avlink"><span class="av">芸</span></span>
-                  <div class="acsv-cbody">
-                    <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">1小时前</span></span></div>
-                    <div class="acsv-ctext">设定集 +1！PV 那一帧海浪的手感绝了。</div>
-                    <div class="acsv-cmeta"><span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span><span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span></div>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>动态详情浮层 · 关闭键收进面板头部 —— 静态预览（确认后才进 src 实现）</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-on">默认</span>
+          <span class="doc-badge b-hover">悬停（:hover + .fxh 定格）</span>
+          <span class="doc-badge b-on">点亮回显</span>
+          <span class="doc-badge b-empty">空态</span>
+          <span class="doc-badge b-err">错误态</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">width:28px;height:28px;border-radius:50%</span><span class="src">src/cssraw.js:978-980</span></span>
+          <span class="doc-pill"><span class="v">top:16px;right:16px（现状 40 圆）</span><span class="src">src/cssraw.js:975-977</span></span>
+        </p>
+      </div>
+
+      <p class="doc-note">
+        <b>本稿只裁一件事</b>：<code>.acsv-mdetail</code> 的 ✕ 从「背板层视口右上角」（现状 <code>src/momentdetail.js:129-132</code>
+        + <code>src/cssraw.js:975-977</code> 的 40 圆 <code>position:absolute;top:16px;right:16px</code>）
+        改为「<b>面板头部右侧</b>」（作者行 <code>.acsv-gmom-head acsv-mdetail-head</code>，与自删键「⋮」
+        <code>.acsv-mdetail-more</code>（<code>cssraw.js:978-980</code>）同排同族）。<br>
+        <b>不动</b>：背板点击关（<code>momentdetail.js:124-126</code>）、Esc 关（<code>momentdetail.js:247</code> modal 入栈）、
+        ⋮ 删除行为（<code>momentdetail.js:168-190</code> 确认弹）、两栏/单栏布局判定（<code>momentdetail.js:137-146</code>）、
+        轮播（<code>cssraw.js:994-1006</code>）、评论管线与输入条。<br>
+        量值全部照抄 <code>src/cssraw.js</code> 967-1057 段与评论/输入条段（逐值行号注在样式与附节），类名全真；
+        ① 的两张示意台按 <b>1600×900 视口 1:1 实大</b>绘制（横向可滚），几何数字可当场复核。
+        悬停态给了真 <code>:hover</code> 也给了定格类 <code>.fxh</code>。纪律：单文件 / 无新外链（唯一外链＝cssraw 头既有 iconfont）/
+        元素零内联色（内联只放几何）。
+      </p>
+
+      <p class="doc-note"><b>本稿结论（方向已裁，取值待拍板）</b>：✕ 从背板层视口右上角收进<b>面板头部右侧</b>，与自删键 ⋮ 同排同族——
+        28 圆钮（<code>width:28px;height:28px;border-radius:50%</code>，全值即 <code>cssraw.js:978-980</code> ⋮ 的既有规格）；
+        背板点击关 / Esc 关 / ⋮ 删除语义原样保留。尺寸 28 vs 32、钮组间距 8 vs 10、推右收口 A/B 案等取值仍待拍板；
+        几何推导、实现落点与待拍板登记收在页尾「决策档案」，查形态看本页前段即可。</p>
+
+      <!-- ================= ① 对比 ================= -->
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>对比 —— 现状 vs 提案</h2>
+          <span class="nt">1600×900 视口 · 1:1 实大（台子比窗口宽，横向滚动即可）· 两栏态「自己的动态」</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">
+          面板两栏态基准（<code>cssraw.js:989</code>）：<code>width:min(920px,94vw)=920</code>、<code>height:min(84vh,672px)=672</code>、
+          flex 居中 ⇒ 左缘 x=340 / <b>右缘 x=1260</b> / 顶 y=114。现状 ✕ 40 圆挂背板 <code>top:16 right:16</code>
+          ⇒ 中心 x=1600−16−20=<b>1564</b>、y=36。
+        </p>
+        <div class="doc-figure">
+          <div class="vpwrap">
+            <div class="vp">
+              <div class="ghostrow"><span class="av"></span><div class="grow"><div class="ln w220"></div><div class="ln w340"></div></div></div>
+              <div class="ghostrow"><span class="av"></span><div class="grow"><div class="ln w260"></div><div class="ln w180"></div></div></div>
+              <div class="acsv-mdetail">
+                <button class="x-old" title="关闭">✕</button>
+                <div class="acsv-mdetail-panel acsv-mdetail-split">
+                  <div class="acsv-mdetail-media">
+                    <div class="acsv-mdetail-img onbig phimg big"></div>
                   </div>
-                  <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
+                  <div class="acsv-mdetail-side">
+                    <div class="acsv-mdetail-head">
+                      <span class="acsv-gmom-av">AC</span>
+                      <a class="acsv-gmom-name" href="#">@AC娘</a>
+                      <span class="acsv-gmom-time">2小时前</span>
+                      <button class="acsv-mdetail-more" title="删除这条动态">⋮</button>
+                    </div>
+                    <div class="acsv-mdetail-list">
+                      <div class="acsv-mdetail-text">今晚 8 点整，「山海共创」企划 PV 正式上线！这次把四格画师、手书大佬和配音全凑齐了<span class="ubb-emotion"></span>评论区抽 3 位送全套设定集，记得回来报到～</div>
+                      <div class="acsv-mdetail-actions">
+                        <span class="acsv-mdl-fwd"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                        <span class="acsv-mdl-cmt"><i class="acsvg-glyph">&#xe627;</i>1024</span>
+                        <span class="acsv-mdl-ban"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>6561</span>
+                        <span class="acsv-mdl-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>1.2万</span>
+                      </div>
+                      <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 1024 条评论</span></div>
+                      <div class="acsv-citem">
+                        <span class="acsv-avlink"><span class="av">芸</span></span>
+                        <div class="acsv-cbody">
+                          <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">1小时前</span></span></div>
+                          <div class="acsv-ctext">设定集 +1！PV 那一帧海浪的手感绝了。</div>
+                          <div class="acsv-cmeta"><span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span><span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span></div>
+                        </div>
+                        <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
+                      </div>
+                    </div>
+                    <div class="acsv-cinput">
+                      <div class="acsv-cinput-main">
+                        <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                        <button class="acsv-cinput-send disabled">发送</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="acsv-cinput">
-                <div class="acsv-cinput-main">
-                  <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
-                  <button class="acsv-cinput-send disabled">发送</button>
-                </div>
+              <div class="meas">
+                <span class="g-v l1260"></span>
+                <span class="g-v l1564"></span>
+                <span class="g-h t114"></span>
+                <span class="marr-h l1260 t86 w304"></span>
+                <span class="mtag hot l1310 t68">✕ 中心离卡片右缘 304px（≈300px）</span>
+                <span class="mtag l905 t98">卡片右缘 x=1260</span>
+                <span class="mtag l1420 t12">✕ 中心 x=1564</span>
+                <span class="mtag l1574 t44">40 圆钮 · 背板 top16/right16<br>（cssraw 975-977 · momentdetail 129-132）</span>
+                <span class="mtag l1574 t206">✕ 挂的是背板层 ⇒ 钉<b>视口</b>角<br>不是卡片角；y=36 比卡片顶 114 还高 78px<br>角点 (1260,114)↔(1564,36) 直线距离 ≈314px</span>
+                <span class="mtag l20 t100">卡片顶 y=114（(900−672)/2）</span>
               </div>
             </div>
           </div>
         </div>
-        <div class="meas">
-          <span class="g-v" style="left:1260px"></span>
-          <span class="g-v" style="left:1564px"></span>
-          <span class="g-h" style="top:114px"></span>
-          <span class="marr-h" style="left:1260px;top:86px;width:304px"></span>
-          <span class="mtag hot" style="left:1310px;top:68px">✕ 中心离卡片右缘 304px（≈300px）</span>
-          <span class="mtag" style="left:905px;top:98px">卡片右缘 x=1260</span>
-          <span class="mtag" style="left:1420px;top:12px">✕ 中心 x=1564</span>
-          <span class="mtag" style="left:1574px;top:44px">40 圆钮 · 背板 top16/right16<br>（cssraw 975-977 · momentdetail 129-132）</span>
-          <span class="mtag" style="left:1574px;top:206px">✕ 挂的是背板层 ⇒ 钉<b>视口</b>角<br>不是卡片角；y=36 比卡片顶 114 还高 78px<br>角点 (1260,114)↔(1564,36) 直线距离 ≈314px</span>
-          <span class="mtag" style="left:20px;top:100px">卡片顶 y=114（(900−672)/2）</span>
-        </div>
-      </div>
-    </div>
-    <p class="note"><b>现状</b>：✕ 飘在暗背板角落，1600 宽屏上离卡片右上角约 300px（横向 304 / 纵向 78，直线 ≈314）；
-      面板越窄它越远——单栏 620 宽时右缘 x=1110，缺口拉到 454px。头部右侧只有「⋮」。</p>
-    <div class="vpwrap">
-      <div class="vp">
-        <div class="ghostrow"><span class="av"></span><div style="flex:1"><div class="ln" style="width:220px"></div><div class="ln" style="width:340px"></div></div></div>
-        <div class="ghostrow"><span class="av"></span><div style="flex:1"><div class="ln" style="width:260px"></div><div class="ln" style="width:180px"></div></div></div>
-        <div class="acsv-mdetail">
-          <div class="acsv-mdetail-panel acsv-mdetail-split">
-            <div class="acsv-mdetail-media">
-              <div class="acsv-mdetail-img onbig phimg" style="width:465px;height:620px"></div>
-            </div>
-            <div class="acsv-mdetail-side">
-              <div class="acsv-mdetail-head">
-                <span class="acsv-gmom-av">AC</span>
-                <a class="acsv-gmom-name" href="#">@AC娘</a>
-                <span class="acsv-gmom-time">2小时前</span>
-                <span class="mdxg">
-                  <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
-                  <button class="mdx" title="关闭">✕</button>
-                </span>
-              </div>
-              <div class="acsv-mdetail-list">
-                <div class="acsv-mdetail-text">今晚 8 点整，「山海共创」企划 PV 正式上线！这次把四格画师、手书大佬和配音全凑齐了<span class="ubb-emotion"></span>评论区抽 3 位送全套设定集，记得回来报到～</div>
-                <div class="acsv-mdetail-actions">
-                  <span class="acsv-mdl-fwd"><i class="acsvg-glyph">&#xe628;</i>分享</span>
-                  <span class="acsv-mdl-cmt"><i class="acsvg-glyph">&#xe627;</i>1024</span>
-                  <span class="acsv-mdl-ban"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>6561</span>
-                  <span class="acsv-mdl-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>1.2万</span>
-                </div>
-                <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 1024 条评论</span></div>
-                <div class="acsv-citem">
-                  <span class="acsv-avlink"><span class="av">芸</span></span>
-                  <div class="acsv-cbody">
-                    <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">1小时前</span></span></div>
-                    <div class="acsv-ctext">设定集 +1！PV 那一帧海浪的手感绝了。</div>
-                    <div class="acsv-cmeta"><span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span><span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span></div>
+        <p class="doc-note"><b>现状</b>：✕ 飘在暗背板角落，1600 宽屏上离卡片右上角约 300px（横向 304 / 纵向 78，直线 ≈314）；
+          面板越窄它越远——单栏 620 宽时右缘 x=1110，缺口拉到 454px。头部右侧只有「⋮」。</p>
+        <div class="doc-figure">
+          <div class="vpwrap">
+            <div class="vp">
+              <div class="ghostrow"><span class="av"></span><div class="grow"><div class="ln w220"></div><div class="ln w340"></div></div></div>
+              <div class="ghostrow"><span class="av"></span><div class="grow"><div class="ln w260"></div><div class="ln w180"></div></div></div>
+              <div class="acsv-mdetail">
+                <div class="acsv-mdetail-panel acsv-mdetail-split">
+                  <div class="acsv-mdetail-media">
+                    <div class="acsv-mdetail-img onbig phimg big"></div>
                   </div>
-                  <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
+                  <div class="acsv-mdetail-side">
+                    <div class="acsv-mdetail-head">
+                      <span class="acsv-gmom-av">AC</span>
+                      <a class="acsv-gmom-name" href="#">@AC娘</a>
+                      <span class="acsv-gmom-time">2小时前</span>
+                      <span class="mdxg">
+                        <button class="acsv-mdetail-more" title="删除这条动态">⋮</button>
+                        <button class="mdx" title="关闭">✕</button>
+                      </span>
+                    </div>
+                    <div class="acsv-mdetail-list">
+                      <div class="acsv-mdetail-text">今晚 8 点整，「山海共创」企划 PV 正式上线！这次把四格画师、手书大佬和配音全凑齐了<span class="ubb-emotion"></span>评论区抽 3 位送全套设定集，记得回来报到～</div>
+                      <div class="acsv-mdetail-actions">
+                        <span class="acsv-mdl-fwd"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                        <span class="acsv-mdl-cmt"><i class="acsvg-glyph">&#xe627;</i>1024</span>
+                        <span class="acsv-mdl-ban"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>6561</span>
+                        <span class="acsv-mdl-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>1.2万</span>
+                      </div>
+                      <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 1024 条评论</span></div>
+                      <div class="acsv-citem">
+                        <span class="acsv-avlink"><span class="av">芸</span></span>
+                        <div class="acsv-cbody">
+                          <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">1小时前</span></span></div>
+                          <div class="acsv-ctext">设定集 +1！PV 那一帧海浪的手感绝了。</div>
+                          <div class="acsv-cmeta"><span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span><span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span></div>
+                        </div>
+                        <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
+                      </div>
+                    </div>
+                    <div class="acsv-cinput">
+                      <div class="acsv-cinput-main">
+                        <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                        <button class="acsv-cinput-send disabled">发送</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="acsv-cinput">
-                <div class="acsv-cinput-main">
-                  <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
-                  <button class="acsv-cinput-send disabled">发送</button>
-                </div>
+              <div class="meas">
+                <span class="g-v l1260"></span>
+                <span class="g-v l1226"></span>
+                <span class="g-h t114"></span>
+                <span class="g-h t148 l1150"></span>
+                <span class="marr-h l1226 t200 w34"></span>
+                <span class="marr-v l1296 t114 h34"></span>
+                <span class="mtag hot l1006 t212">✕ 中心 (1226,148)：距卡片右缘 34px＝padding 20＋半径 14</span>
+                <span class="mtag l1330 t112">卡片右缘 x=1260 · 角点 (1260,114)</span>
+                <span class="mtag l1330 t140">✕ 中心 y=148 ＝顶 114＋头部半高 34（头像 40＋上下 14 ⇒ 行高 68，钮居中）</span>
+                <span class="mtag l1460 t100">角点↔✕ 中心：横 34 / 纵 34<br>直线距离 ≈48px（现状 ≈314px）</span>
+                <span class="mtag l152 t98">两栏态头部在<b>右栏顶部</b><br>⇒ ✕ 落点即卡片右上角一带（右栏 400，cssraw 1011）</span>
               </div>
             </div>
           </div>
         </div>
-        <div class="meas">
-          <span class="g-v" style="left:1260px"></span>
-          <span class="g-v" style="left:1226px"></span>
-          <span class="g-h" style="top:114px"></span>
-          <span class="g-h" style="top:148px;left:1150px"></span>
-          <span class="marr-h" style="left:1226px;top:200px;width:34px"></span>
-          <span class="marr-v" style="left:1296px;top:114px;height:34px"></span>
-          <span class="mtag hot" style="left:1006px;top:212px">✕ 中心 (1226,148)：距卡片右缘 34px＝padding 20＋半径 14</span>
-          <span class="mtag" style="left:1330px;top:112px">卡片右缘 x=1260 · 角点 (1260,114)</span>
-          <span class="mtag" style="left:1330px;top:140px">✕ 中心 y=148 ＝顶 114＋头部半高 34（头像 40＋上下 14 ⇒ 行高 68，钮居中）</span>
-          <span class="mtag" style="left:1460px;top:100px">角点↔✕ 中心：横 34 / 纵 34<br>直线距离 ≈48px（现状 ≈314px）</span>
-          <span class="mtag" style="left:152px;top:98px">两栏态头部在<b>右栏顶部</b><br>⇒ ✕ 落点即卡片右上角一带（右栏 400，cssraw 1011）</span>
-        </div>
-      </div>
-    </div>
-    <p class="note"><b>提案</b>：✕ 进头部（<code>head.appendChild(x)</code> 取代 <code>backdrop.appendChild(x)</code>），
-      28 圆钮与 ⋮ 同排同族；<b>背板点击关 / Esc 关语义原样保留</b>（见 ③ 与附节 C）。头部规则不动
-      （<code>cssraw.js:1014-1019</code>），✕ 作为头部 flex 件自然居中。</p>
-  </div>
+        <p class="doc-note"><b>提案</b>：✕ 进头部（<code>head.appendChild(x)</code> 取代 <code>backdrop.appendChild(x)</code>），
+          28 圆钮与 ⋮ 同排同族；<b>背板点击关 / Esc 关语义原样保留</b>（见 ③ 与附节 C）。头部规则不动
+          （<code>cssraw.js:1014-1019</code>），✕ 作为头部 flex 件自然居中。</p>
+      </section>
 
-  <!-- ================= ② ✕ 形态 ================= -->
-  <div class="sec">
-    <h2>② 提案 ✕ 形态<em>与同排「⋮」同族：28 圆钮（建议值）· 底 rgba(255,255,255,.12) · hover .22 · color:#fff · 字号 16 —— 全值即 cssraw 978-980 ⋮ 的既有规格</em></h2>
-    <p class="note">
-      建议值与理由：<b>28 圆</b>。① 同排 ⋮ 就是 28 圆（<code>cssraw.js:978-980</code>），仓内另有 28 圆关闭钮单源
-      <code>CLOSE_BTN</code>（<code>cssseg.js:20-21</code>）——头部右侧钮组同尺寸同底色，是一套语言；
-      ② 现背板钮 40 圆（<code>cssraw.js:975-976</code>）是「卡片外浮钮」的 XHS 形制（974 注释在册），收进卡片后与
-      40 圆头像同尺对撞、头部行高 68 里显大，<b>不再沿用</b>；③ 32 圆为候选档（触控面积每边 +2px，观感仍成立）。
-      <code>title="关闭"</code> 沿用（<code>momentdetail.js:130</code>）。每行都带真 <code>:hover</code>（可点验），
-      第二枚为 <code>.fxh</code> 定格悬停（实现无此类，稿内展示用）。
-    </p>
-    <div class="headslice">
-      <div class="acsv-mdetail-head">
-        <span class="acsv-gmom-av">AC</span>
-        <a class="acsv-gmom-name" href="#">@AC娘</a>
-        <span class="acsv-gmom-time">2小时前</span>
-        <button class="mdx" title="关闭">✕</button>
-      </div>
-      <div class="slicetag"><b>建议 28 圆 · 别人的动态（无 ⋮，✕ 兼管推右落位）</b> —— 左：默认态；悬停此钮验真 :hover；此即 ① 下图头部原尺。</div>
-      <div class="acsv-mdetail-head">
-        <span class="acsv-gmom-av">AC</span>
-        <a class="acsv-gmom-name" href="#">@AC娘</a>
-        <span class="acsv-gmom-time">2小时前</span>
-        <span class="mdxg">
-          <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
-          <button class="mdx" title="关闭">✕</button>
-        </span>
-      </div>
-      <div class="slicetag"><b>建议 28 圆 · 自己的动态（⋮ + ✕ 组，gap 8 提案值）</b> —— 悬停任一键验真 :hover。</div>
-      <div class="acsv-mdetail-head">
-        <span class="acsv-gmom-av">AC</span>
-        <a class="acsv-gmom-name" href="#">@AC娘</a>
-        <span class="acsv-gmom-time">2小时前</span>
-        <span class="mdxg">
-          <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
-          <button class="mdx fxh" title="关闭">✕</button>
-        </span>
-      </div>
-      <div class="slicetag"><b>悬停定格</b> —— ✕ 底 .12→<b>.22</b>（与 ⋮ hover 同值，cssraw 980）；此行为 <code>.fxh</code> 类定格，静态稿/打印可见。</div>
-      <div class="acsv-mdetail-head">
-        <span class="acsv-gmom-av">AC</span>
-        <a class="acsv-gmom-name" href="#">@AC娘</a>
-        <span class="acsv-gmom-time">2小时前</span>
-        <span class="mdxg">
-          <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
-          <button class="mdx b32" title="关闭">✕</button>
-        </span>
-      </div>
-      <div class="slicetag"><b>候选 32 圆</b> —— 其余值同（.12→.22 / #fff / 16 号字），触区每边 +2px；落位中心仅内移 2px（1224↔1226），观感接近建议值。</div>
-      <div class="acsv-mdetail-head">
-        <span class="acsv-gmom-av">AC</span>
-        <a class="acsv-gmom-name" href="#">@AC娘</a>
-        <span class="acsv-gmom-time">2小时前</span>
-        <span class="mdxg">
-          <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
-          <button class="mdx b40" title="关闭">✕</button>
-        </span>
-      </div>
-      <div class="slicetag"><b>退役对照 · 现 40 圆硬放进头部</b> —— 与 40 圆头像对撞、把头部行顶满，说明背板 40 制式不能整体搬进卡；本档仅示警，非提案。</div>
-    </div>
-  </div>
-
-  <!-- ================= ③ 两种归属 ================= -->
-  <div class="sec">
-    <h2>③ 两种归属 —— 别人 / 自己<em>头部右侧钮组的两种成员；顺序与间距提案</em></h2>
-    <div class="row2">
-      <div class="headslice">
-        <div class="acsv-mdetail-head">
-          <span class="acsv-gmom-av">芸</span>
-          <a class="acsv-gmom-name" href="#">@一只芸喵喵</a>
-          <span class="acsv-gmom-time">5小时前</span>
-          <button class="mdx" title="关闭">✕</button>
+      <!-- ================= ② ✕ 形态 ================= -->
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>提案 ✕ 形态</h2>
+          <span class="nt">与同排「⋮」同族：28 圆钮（建议值）· 底 rgba(255,255,255,.12) · hover .22 · color:#fff · 字号 16 —— 全值即 cssraw 978-980 ⋮ 的既有规格</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
         </div>
-        <div class="slicetag"><b>别人的动态</b>（无自删键，<code>momentdetail.js:169</code> 的 self 判定不成立）——
-          头部右侧<b>只有 ✕</b>；✕ 自己承担推右（附节 B 方案 A/B 其一）。</div>
-        <div class="acsv-mdetail-head">
-          <span class="acsv-gmom-av">AC</span>
-          <a class="acsv-gmom-name" href="#">@AC娘</a>
-          <span class="acsv-gmom-time">2小时前</span>
-          <span class="mdxg">
-            <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
-            <button class="mdx" title="关闭" style="margin-left:0">✕</button>
-          </span>
-        </div>
-        <div class="slicetag"><b>自己的动态</b> —— 顺序提案 <b>⋮ 在内侧、✕ 在最外角</b>：① 关闭是整层的固定出口，
-          钉卡片右上角做视觉锚（与各家弹层「✕ 在角」惯例一致）；② ⋮ 是动态本体动作且属破坏性（确认后删除，
-          <code>momentdetail.js:175-187</code>），放内侧离鼠标惯用的外角一步，降误触。间距提案 <b>gap 8</b>：
-          钮组内比头部通用 gap 10（<code>cssraw.js:1014</code>）收紧一档以示「同组」，8 为提案值、可裁 10 对齐 gap。
-          两键同 28 圆同底 .12→.22，无需再分主次色。</div>
-      </div>
-    </div>
-    <p class="note">
-      <b>语义不变声明（本稿只挪 ✕ 的归属，不碰关闭通道）</b>：
-      ① 背板点击关＝点 <code>.acsv-mdetail</code> 空白处收层（<code>momentdetail.js:124-126</code>，提案后面板内点击照旧不关）；
-      ② Esc 关＝overlay 栈 modal 层（<code>momentdetail.js:247</code>）；
-      ③ ⋮ 行为原样（确认弹文案「删除这条动态？」/「删除后不可恢复，动态会从列表里消失。」/按钮「删除」，
-      <code>momentdetail.js:176-179</code>），删除成功仍收面板并回调列表摘行；
-      ④ 面板内开大图/分享面板等层级行为不动。
-    </p>
-  </div>
-
-  <!-- ================= ④ 两种布局 ================= -->
-  <div class="sec">
-    <h2>④ 两种布局 —— 有图两栏 / 无图·纯文字·转发单栏<em>✕ 在两种形态里都只认「头部右侧」这一个落点</em></h2>
-    <p class="note">
-      两栏态（有自有图，<code>momentdetail.js:137-146</code> 判 <code>hasMedia</code>）：面板 <code>min(920px,94vw)</code>、
-      头部在<b>右栏顶部</b>——右栏固定 400（<code>cssraw.js:1011</code>）贴面板右缘，故 ✕ 天然落在<b>卡片右上角一带</b>
-      （①下图已 1:1 画出并标注：中心距角点横 34/纵 34）。<br>
-      单栏态（无图/纯文字/转发）：面板收窄 <code>min(620px,94vw)</code>（<code>cssraw.js:982</code>），头部横跨全宽，
-      ✕ 直接就是卡片右上角件。下面摆单栏两例（正文+评论已加载 / 转发带引用卡）；正文 16/24、互动条四键、
-      评论头「共 N 条评论」、尾行「没有更多评论了」、输入条 placeholder 均为仓内真实串。
-    </p>
-    <div class="row2">
-      <div class="stage short" style="width:680px">
-        <div class="acsv-mdetail">
-          <div class="acsv-mdetail-panel" style="height:520px">
-            <div class="acsv-mdetail-head">
-              <span class="acsv-gmom-av">墨</span>
-              <a class="acsv-gmom-name" href="#">@墨色三分</a>
-              <span class="acsv-gmom-time">昨天 22:14</span>
-              <button class="mdx" title="关闭">✕</button>
-            </div>
-            <div class="acsv-mdetail-list">
-              <div class="acsv-mdetail-text">纯文字动态示例：今晚把第三章的线稿收尾了，明早扫线上色。这页想试试大逆光，有懂的师傅评论区聊聊<span class="ubb-emotion"></span></div>
-              <div class="acsv-mdetail-actions">
-                <span class="acsv-mdl-fwd"><i class="acsvg-glyph">&#xe628;</i>分享</span>
-                <span class="acsv-mdl-cmt"><i class="acsvg-glyph">&#xe627;</i>26</span>
-                <span class="acsv-mdl-ban"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>88</span>
-                <span class="acsv-mdl-like on"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>341</span>
-              </div>
-              <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 26 条评论</span></div>
-              <div class="acsv-citem">
-                <span class="acsv-avlink"><span class="av">手</span><span class="acsv-cavframe"></span></span>
-                <div class="acsv-cbody">
-                  <div class="acsv-cname"><a href="#">手书区混子</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">3小时前</span></span></div>
-                  <div class="acsv-ctext">大逆光记得压一下暗部噪点，上次那页高光边缘有点飘。</div>
-                  <div class="acsv-cmeta">
-                    <span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>12</span>
-                    <span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span>
-                    <span class="acsv-cattr"><span>来自 Android</span><span>IP属地 广东</span></span>
-                  </div>
-                </div>
-                <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
-              </div>
-              <div class="acsv-ctail"><span>没有更多评论了</span></div>
-            </div>
-            <div class="acsv-cinput">
-              <div class="acsv-cinput-main">
-                <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
-                <button class="acsv-cinput-send disabled">发送</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="meas">
-          <span class="g-v" style="left:640px"></span>
-          <span class="mtag" style="left:390px;top:18px">单栏态：✕ 即卡片右上角件</span>
-        </div>
-      </div>
-      <div class="stage short" style="width:680px">
-        <div class="acsv-mdetail">
-          <div class="acsv-mdetail-panel" style="height:520px">
+        <p class="doc-note">
+          建议值与理由：<b>28 圆</b>。① 同排 ⋮ 就是 28 圆（<code>cssraw.js:978-980</code>），仓内另有 28 圆关闭钮单源
+          <code>CLOSE_BTN</code>（<code>cssseg.js:20-21</code>）——头部右侧钮组同尺寸同底色，是一套语言；
+          ② 现背板钮 40 圆（<code>cssraw.js:975-976</code>）是「卡片外浮钮」的 XHS 形制（974 注释在册），收进卡片后与
+          40 圆头像同尺对撞、头部行高 68 里显大，<b>不再沿用</b>；③ 32 圆为候选档（触控面积每边 +2px，观感仍成立）。
+          <code>title="关闭"</code> 沿用（<code>momentdetail.js:130</code>）。每行都带真 <code>:hover</code>（可点验），
+          第二枚为 <code>.fxh</code> 定格悬停（实现无此类，稿内展示用）。
+        </p>
+        <div class="doc-figure">
+          <div class="headslice">
             <div class="acsv-mdetail-head">
               <span class="acsv-gmom-av">AC</span>
               <a class="acsv-gmom-name" href="#">@AC娘</a>
-              <span class="acsv-gmom-time">1小时前</span>
-              <span class="mdxg">
-                <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
-                <button class="mdx" title="关闭" style="margin-left:0">✕</button>
-              </span>
-            </div>
-            <div class="acsv-mdetail-list">
-              <div class="acsv-mdetail-text">转个场，这个企划开坑两年终于填上了……</div>
-              <div class="acsv-gquote">
-                <div class="acsv-gquote-up">转发@快递星迟到的续章：<span class="acsv-gquote-upname">「山海共创」企划</span></div>
-                <div class="acsv-gquote-textbody">第一弹：PV 分镜手稿全公开！这次我们把四格画师、手书大佬和配音全凑齐了，从分镜到成片一共迭代了十一版，本文先贴前十版废稿对比，正片链接在文末。先来看一帧海浪的原始草图，那时候还没定调色方向。</div>
-                <div class="acsv-gquote-img"><span class="ph"></span></div>
-              </div>
-              <div class="acsv-mdetail-actions">
-                <span class="acsv-mdl-fwd"><i class="acsvg-glyph">&#xe628;</i>分享</span>
-                <span class="acsv-mdl-cmt"><i class="acsvg-glyph">&#xe627;</i>7</span>
-                <span class="acsv-mdl-ban"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>15</span>
-                <span class="acsv-mdl-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>63</span>
-              </div>
-              <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 7 条评论</span></div>
-              <div class="acsv-citem">
-                <span class="acsv-avlink"><span class="av">蝉</span></span>
-                <div class="acsv-cbody">
-                  <div class="acsv-cname"><a href="#">阿蝉不是蝉</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">40分钟前</span></span></div>
-                  <div class="acsv-ctext">十一版废稿都舍不得删，这就是创作者吗<span class="ubb-emotion"></span></div>
-                  <div class="acsv-cmeta"><span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>3</span><span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span></div>
-                </div>
-                <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
-              </div>
-            </div>
-            <div class="acsv-cinput">
-              <div class="acsv-cinput-main">
-                <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
-                <button class="acsv-cinput-send disabled">发送</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="meas">
-          <span class="g-v" style="left:640px"></span>
-          <span class="mtag" style="left:376px;top:18px">转发单栏：自带引用缩略图，不再开两栏</span>
-        </div>
-      </div>
-    </div>
-    <p class="note">转发卡形制＝<code>cssraw.js:1551-1562</code>（灰块 padding 10 / 左出血 −10 / 无圆角；@源UP 14/22；
-      源正文钳 3 行 63px——上图正文超三行即钳，属既有行为）；单栏态布局判定与媒体缺席＝
-      <code>momentdetail.js:134-137</code> 注释在册（顶层 coverUrl 不算自有媒体）。两栏态多图的轮播件
-      （左右箭头 60 圆 / 底部小点，<code>cssraw.js:994-1006</code>）与本改动无关，未画。</p>
-  </div>
-
-  <!-- ================= ⑤ 评论状态 ================= -->
-  <div class="sec">
-    <h2>⑤ 评论区状态<em>空态 / 首屏失败 / 尾行三态 —— 全部用 comments.js 真实串</em></h2>
-    <div class="row2">
-      <div class="stage short" style="width:680px">
-        <div class="acsv-mdetail">
-          <div class="acsv-mdetail-panel" style="height:460px">
-            <div class="acsv-mdetail-head">
-              <span class="acsv-gmom-av">星</span>
-              <a class="acsv-gmom-name" href="#">@夜航星不发短信</a>
-              <span class="acsv-gmom-time">18分钟前</span>
+              <span class="acsv-gmom-time">2小时前</span>
               <button class="mdx" title="关闭">✕</button>
             </div>
-            <div class="acsv-mdetail-list">
-              <div class="acsv-mdetail-text">新坑预告：下周开一期的语音整活，先占个楼。</div>
-              <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 0 条评论</span></div>
-              <div class="acsv-drawer-tip">还没有评论，去原页抢沙发 →<a class="acsv-cmore" href="#">前往原页</a></div>
-            </div>
-            <div class="acsv-cinput">
-              <div class="acsv-cinput-main">
-                <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
-                <button class="acsv-cinput-send disabled">发送</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="meas"><span class="mtag" style="left:20px;top:18px">空态（评论已加载=0）</span></div>
-      </div>
-      <div class="stage short" style="width:680px">
-        <div class="acsv-mdetail">
-          <div class="acsv-mdetail-panel" style="height:460px">
-            <div class="acsv-mdetail-head">
-              <span class="acsv-gmom-av">星</span>
-              <a class="acsv-gmom-name" href="#">@夜航星不发短信</a>
-              <span class="acsv-gmom-time">18分钟前</span>
-              <button class="mdx" title="关闭">✕</button>
-            </div>
-            <div class="acsv-mdetail-list">
-              <div class="acsv-mdetail-text">新坑预告：下周开一期的语音整活，先占个楼。</div>
-              <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">评论</span></div>
-              <div class="acsv-drawer-tip">评论加载失败<a class="acsv-ctail-rt">重试</a></div>
-            </div>
-            <div class="acsv-cinput">
-              <div class="acsv-cinput-main">
-                <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
-                <button class="acsv-cinput-send disabled">发送</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="meas"><span class="mtag" style="left:20px;top:18px">失败态（首屏）</span></div>
-      </div>
-    </div>
-    <p class="note">
-      <b>空态</b>＝评论拉成功且 0 条：标题走 <code>titleFmt(0)</code> 出「共 0 条评论」（<code>momentdetail.js:253</code>），
-      tip 串「还没有评论，去原页抢沙发 →」+ 块级链接「前往原页」（新窗开官方页，<code>comments.js:429-436</code>）；
-      正文 pin 保留（管线清列表重挂不动 pin，<code>comments.js:196</code> 注）。<br>
-      <b>失败态</b>＝首屏拉挂：tip 串「评论加载失败」+ 红字「重试」（<code>comments.js:247/460-474</code>），点重试清闸重拉；
-      此时计数未到，标题停在初始「评论」（<code>momentdetail.js:234</code>）。两态 <b>✕ 均常驻头部右侧、可点</b>——
-      这正是收进头部的收益：失败/空态下面板只剩半屏内容，视口角的 ✕ 离卡片更远，头部的 ✕ 始终贴着内容右上角。<br>
-      <b>尾行三态</b>（续拉中/追加失败/到底，<code>comments.js:483-503</code>，样式 <code>cssraw.js:534-538</code>）实样：
-    </p>
-    <div class="headslice" style="width:620px">
-      <div class="acsv-ctail"><span class="acsv-ctail-sp"></span><span>加载中…</span></div>
-      <div class="acsv-ctail"><span>评论加载失败</span><a class="acsv-ctail-rt">重试</a></div>
-      <div class="acsv-ctail" style="border-bottom:none"><span>没有更多评论了</span></div>
-    </div>
-  </div>
-
-  <!-- ================= ⑥ 540 窄宽 ================= -->
-  <div class="sec">
-    <h2>⑥ 540 窄宽自检<em>@media (max-width:860px) 两栏塌上下堆叠（cssraw 1037-1040）——✕ 仍在头部右侧、不溢出</em></h2>
-    <div class="stage narrow">
-      <div class="acsv-mdetail">
-        <div class="acsv-mdetail-panel acsv-mdetail-split">
-          <div class="acsv-mdetail-media">
-            <div class="acsv-mdetail-img onbig phimg" style="width:216px;height:288px"></div>
-          </div>
-          <div class="acsv-mdetail-side">
+            <div class="slicetag"><b>建议 28 圆 · 别人的动态（无 ⋮，✕ 兼管推右落位）</b> —— 左：默认态；悬停此钮验真 :hover；此即 ① 下图头部原尺。</div>
             <div class="acsv-mdetail-head">
               <span class="acsv-gmom-av">AC</span>
               <a class="acsv-gmom-name" href="#">@AC娘</a>
               <span class="acsv-gmom-time">2小时前</span>
               <span class="mdxg">
-                <button class="acsv-mdetail-more" title="删除这条动态" style="margin-left:0">⋮</button>
-                <button class="mdx" title="关闭" style="margin-left:0">✕</button>
+                <button class="acsv-mdetail-more" title="删除这条动态">⋮</button>
+                <button class="mdx" title="关闭">✕</button>
               </span>
             </div>
-            <div class="acsv-mdetail-list">
-              <div class="acsv-mdetail-text">今晚 8 点整，「山海共创」企划 PV 正式上线！这次把四格画师、手书大佬和配音全凑齐了<span class="ubb-emotion"></span>评论区抽 3 位送全套设定集，记得回来报到～</div>
-              <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 1024 条评论</span></div>
-              <div class="acsv-citem">
-                <span class="acsv-avlink"><span class="av">芸</span></span>
-                <div class="acsv-cbody">
-                  <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">1小时前</span></span></div>
-                  <div class="acsv-ctext">窄态自检：头部 ⋮+✕ 同排不挤、钮组不溢出面板；正文整词换行不逐字断行。</div>
-                  <div class="acsv-cmeta">
-                    <span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span>
-                    <span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span>
-                    <span class="acsv-cattr"><span>来自 Android</span><span>IP属地 广东</span></span>
+            <div class="slicetag"><b>建议 28 圆 · 自己的动态（⋮ + ✕ 组，gap 8 提案值）</b> —— 悬停任一键验真 :hover。</div>
+            <div class="acsv-mdetail-head">
+              <span class="acsv-gmom-av">AC</span>
+              <a class="acsv-gmom-name" href="#">@AC娘</a>
+              <span class="acsv-gmom-time">2小时前</span>
+              <span class="mdxg">
+                <button class="acsv-mdetail-more" title="删除这条动态">⋮</button>
+                <button class="mdx fxh" title="关闭">✕</button>
+              </span>
+            </div>
+            <div class="slicetag"><b>悬停定格</b> —— ✕ 底 .12→<b>.22</b>（与 ⋮ hover 同值，cssraw 980）；此行为 <code>.fxh</code> 类定格，静态稿/打印可见。</div>
+            <div class="acsv-mdetail-head">
+              <span class="acsv-gmom-av">AC</span>
+              <a class="acsv-gmom-name" href="#">@AC娘</a>
+              <span class="acsv-gmom-time">2小时前</span>
+              <span class="mdxg">
+                <button class="acsv-mdetail-more" title="删除这条动态">⋮</button>
+                <button class="mdx b32" title="关闭">✕</button>
+              </span>
+            </div>
+            <div class="slicetag"><b>候选 32 圆</b> —— 其余值同（.12→.22 / #fff / 16 号字），触区每边 +2px；落位中心仅内移 2px（1224↔1226），观感接近建议值。</div>
+            <div class="acsv-mdetail-head">
+              <span class="acsv-gmom-av">AC</span>
+              <a class="acsv-gmom-name" href="#">@AC娘</a>
+              <span class="acsv-gmom-time">2小时前</span>
+              <span class="mdxg">
+                <button class="acsv-mdetail-more" title="删除这条动态">⋮</button>
+                <button class="mdx b40" title="关闭">✕</button>
+              </span>
+            </div>
+            <div class="slicetag"><b>退役对照 · 现 40 圆硬放进头部</b> —— 与 40 圆头像对撞、把头部行顶满，说明背板 40 制式不能整体搬进卡；本档仅示警，非提案。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ③ 两种归属 ================= -->
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>两种归属 —— 别人 / 自己</h2>
+          <span class="nt">头部右侧钮组的两种成员；顺序与间距提案</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="row2">
+            <div class="headslice">
+              <div class="acsv-mdetail-head">
+                <span class="acsv-gmom-av">芸</span>
+                <a class="acsv-gmom-name" href="#">@一只芸喵喵</a>
+                <span class="acsv-gmom-time">5小时前</span>
+                <button class="mdx" title="关闭">✕</button>
+              </div>
+              <div class="slicetag"><b>别人的动态</b>（无自删键，<code>momentdetail.js:169</code> 的 self 判定不成立）——
+                头部右侧<b>只有 ✕</b>；✕ 自己承担推右（附节 B 方案 A/B 其一）。</div>
+              <div class="acsv-mdetail-head">
+                <span class="acsv-gmom-av">AC</span>
+                <a class="acsv-gmom-name" href="#">@AC娘</a>
+                <span class="acsv-gmom-time">2小时前</span>
+                <span class="mdxg">
+                  <button class="acsv-mdetail-more" title="删除这条动态">⋮</button>
+                  <button class="mdx" title="关闭">✕</button>
+                </span>
+              </div>
+              <div class="slicetag"><b>自己的动态</b> —— 顺序提案 <b>⋮ 在内侧、✕ 在最外角</b>：① 关闭是整层的固定出口，
+                钉卡片右上角做视觉锚（与各家弹层「✕ 在角」惯例一致）；② ⋮ 是动态本体动作且属破坏性（确认后删除，
+                <code>momentdetail.js:175-187</code>），放内侧离鼠标惯用的外角一步，降误触。间距提案 <b>gap 8</b>：
+                钮组内比头部通用 gap 10（<code>cssraw.js:1014</code>）收紧一档以示「同组」，8 为提案值、可裁 10 对齐 gap。
+                两键同 28 圆同底 .12→.22，无需再分主次色。</div>
+            </div>
+          </div>
+        </div>
+        <p class="doc-note">
+          <b>语义不变声明（本稿只挪 ✕ 的归属，不碰关闭通道）</b>：
+          ① 背板点击关＝点 <code>.acsv-mdetail</code> 空白处收层（<code>momentdetail.js:124-126</code>，提案后面板内点击照旧不关）；
+          ② Esc 关＝overlay 栈 modal 层（<code>momentdetail.js:247</code>）；
+          ③ ⋮ 行为原样（确认弹文案「删除这条动态？」/「删除后不可恢复，动态会从列表里消失。」/按钮「删除」，
+          <code>momentdetail.js:176-179</code>），删除成功仍收面板并回调列表摘行；
+          ④ 面板内开大图/分享面板等层级行为不动。
+        </p>
+      </section>
+
+      <!-- ================= ④ 两种布局 ================= -->
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>两种布局 —— 有图两栏 / 无图·纯文字·转发单栏</h2>
+          <span class="nt">✕ 在两种形态里都只认「头部右侧」这一个落点</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">
+          两栏态（有自有图，<code>momentdetail.js:137-146</code> 判 <code>hasMedia</code>）：面板 <code>min(920px,94vw)</code>、
+          头部在<b>右栏顶部</b>——右栏固定 400（<code>cssraw.js:1011</code>）贴面板右缘，故 ✕ 天然落在<b>卡片右上角一带</b>
+          （①下图已 1:1 画出并标注：中心距角点横 34/纵 34）。<br>
+          单栏态（无图/纯文字/转发）：面板收窄 <code>min(620px,94vw)</code>（<code>cssraw.js:982</code>），头部横跨全宽，
+          ✕ 直接就是卡片右上角件。下面摆单栏两例（正文+评论已加载 / 转发带引用卡）；正文 16/24、互动条四键、
+          评论头「共 N 条评论」、尾行「没有更多评论了」、输入条 placeholder 均为仓内真实串。
+        </p>
+        <div class="doc-figure">
+          <div class="row2">
+            <div class="stage short w680">
+              <div class="acsv-mdetail">
+                <div class="acsv-mdetail-panel h520">
+                  <div class="acsv-mdetail-head">
+                    <span class="acsv-gmom-av">墨</span>
+                    <a class="acsv-gmom-name" href="#">@墨色三分</a>
+                    <span class="acsv-gmom-time">昨天 22:14</span>
+                    <button class="mdx" title="关闭">✕</button>
+                  </div>
+                  <div class="acsv-mdetail-list">
+                    <div class="acsv-mdetail-text">纯文字动态示例：今晚把第三章的线稿收尾了，明早扫线上色。这页想试试大逆光，有懂的师傅评论区聊聊<span class="ubb-emotion"></span></div>
+                    <div class="acsv-mdetail-actions">
+                      <span class="acsv-mdl-fwd"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                      <span class="acsv-mdl-cmt"><i class="acsvg-glyph">&#xe627;</i>26</span>
+                      <span class="acsv-mdl-ban"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>88</span>
+                      <span class="acsv-mdl-like on"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>341</span>
+                    </div>
+                    <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 26 条评论</span></div>
+                    <div class="acsv-citem">
+                      <span class="acsv-avlink"><span class="av">手</span><span class="acsv-cavframe"></span></span>
+                      <div class="acsv-cbody">
+                        <div class="acsv-cname"><a href="#">手书区混子</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">3小时前</span></span></div>
+                        <div class="acsv-ctext">大逆光记得压一下暗部噪点，上次那页高光边缘有点飘。</div>
+                        <div class="acsv-cmeta">
+                          <span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>12</span>
+                          <span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span>
+                          <span class="acsv-cattr"><span>来自 Android</span><span>IP属地 广东</span></span>
+                        </div>
+                      </div>
+                      <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
+                    </div>
+                    <div class="acsv-ctail"><span>没有更多评论了</span></div>
+                  </div>
+                  <div class="acsv-cinput">
+                    <div class="acsv-cinput-main">
+                      <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                      <button class="acsv-cinput-send disabled">发送</button>
+                    </div>
                   </div>
                 </div>
-                <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
               </div>
-              <div class="acsv-ctail"><span>没有更多评论了</span></div>
+              <div class="meas">
+                <span class="g-v l640"></span>
+                <span class="mtag l390 t18">单栏态：✕ 即卡片右上角件</span>
+              </div>
             </div>
-            <div class="acsv-cinput">
-              <div class="acsv-cinput-top">
-                <button class="acsv-cinput-fmt" title="加粗"><i class="acsv-ic">&#xe18f;</i></button>
-                <button class="acsv-cinput-fmt" title="斜体"><i class="acsv-ic">&#xe19a;</i></button>
-                <button class="acsv-cinput-fmt" title="下划线"><i class="acsv-ic">&#xe1ea;</i></button>
-                <button class="acsv-cinput-fmt" title="删除线"><i class="acsv-ic">&#xe1e9;</i></button>
-                <span class="acsv-fmtsep"></span>
-                <span class="acsv-cinput-colkey">
-                  <button class="acsv-cinput-fmt" title="文字颜色"><i class="acsv-ic">&#xe1eb;</i><span class="acsv-cinput-collabel"></span></button>
-                  <button class="acsv-cinput-fmt acsv-cinput-colcaret" title="颜色面板"><i class="acsv-ic">&#xe166;</i></button>
-                </span>
-                <span class="acsv-fmtsep"></span>
-                <button class="acsv-cinput-emot" title="表情"><i class="acsv-ic">&#xe18b;</i></button>
-                <button class="acsv-cinput-img" title="图片"><i class="acsv-ic">&#xe18a;</i></button>
-                <span class="acsv-cinput-count"></span>
+            <div class="stage short w680">
+              <div class="acsv-mdetail">
+                <div class="acsv-mdetail-panel h520">
+                  <div class="acsv-mdetail-head">
+                    <span class="acsv-gmom-av">AC</span>
+                    <a class="acsv-gmom-name" href="#">@AC娘</a>
+                    <span class="acsv-gmom-time">1小时前</span>
+                    <span class="mdxg">
+                      <button class="acsv-mdetail-more" title="删除这条动态">⋮</button>
+                      <button class="mdx" title="关闭">✕</button>
+                    </span>
+                  </div>
+                  <div class="acsv-mdetail-list">
+                    <div class="acsv-mdetail-text">转个场，这个企划开坑两年终于填上了……</div>
+                    <div class="acsv-gquote">
+                      <div class="acsv-gquote-up">转发@快递星迟到的续章：<span class="acsv-gquote-upname">「山海共创」企划</span></div>
+                      <div class="acsv-gquote-textbody">第一弹：PV 分镜手稿全公开！这次我们把四格画师、手书大佬和配音全凑齐了，从分镜到成片一共迭代了十一版，本文先贴前十版废稿对比，正片链接在文末。先来看一帧海浪的原始草图，那时候还没定调色方向。</div>
+                      <div class="acsv-gquote-img"><span class="ph"></span></div>
+                    </div>
+                    <div class="acsv-mdetail-actions">
+                      <span class="acsv-mdl-fwd"><i class="acsvg-glyph">&#xe628;</i>分享</span>
+                      <span class="acsv-mdl-cmt"><i class="acsvg-glyph">&#xe627;</i>7</span>
+                      <span class="acsv-mdl-ban"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe62a;</i><i class="acsvg-glyph gfill">&#xe65f;</i></span>15</span>
+                      <span class="acsv-mdl-like"><span class="acsvg-dual"><i class="acsvg-glyph gpath">&#xe629;</i><i class="acsvg-glyph gfill">&#xe660;</i></span>63</span>
+                    </div>
+                    <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 7 条评论</span></div>
+                    <div class="acsv-citem">
+                      <span class="acsv-avlink"><span class="av">蝉</span></span>
+                      <div class="acsv-cbody">
+                        <div class="acsv-cname"><a href="#">阿蝉不是蝉</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">40分钟前</span></span></div>
+                        <div class="acsv-ctext">十一版废稿都舍不得删，这就是创作者吗<span class="ubb-emotion"></span></div>
+                        <div class="acsv-cmeta"><span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>3</span><span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span></div>
+                      </div>
+                      <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
+                    </div>
+                  </div>
+                  <div class="acsv-cinput">
+                    <div class="acsv-cinput-main">
+                      <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                      <button class="acsv-cinput-send disabled">发送</button>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="acsv-cinput-main">
-                <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
-                <button class="acsv-cinput-send disabled">发送</button>
+              <div class="meas">
+                <span class="g-v l640"></span>
+                <span class="mtag l376 t18">转发单栏：自带引用缩略图，不再开两栏</span>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      <div class="meas">
-        <span class="mtag" style="left:20px;top:326px">塌缩后头部＝面板全宽（内宽 507−40=467.6）<br>40 头像+名字+时间+⋮28+8+✕28 ＝224 实占，余裕 243.6 ⇒ 不溢出</span>
-      </div>
-    </div>
-    <p class="note">检查项：塌缩态（媒体 38vh 转上方、圆角 20 20 0 0，<code>cssraw.js:1039</code>）下 <b>✕ 仍贴头部右侧</b>，
-      距面板右缘仍是 padding 20（<code>cssraw.js:1014</code> 头部规则不随断点变）；540 视口下面板
-      <code>min(560px,94vw)=507.6</code>；评论行 gap 30 + 左右 16 在 507 内仍余裕、属性组（设备/IP）整组换行不折字；
-      输入条工具行九件不折行；长名字超出后的头部溢出处理不在本稿裁决范围（✕ 收头部不改变既有换行行为）。
-      稿台 540×760：媒体固定 288px＝38vh 演示值（实现按实际视口高）。</p>
-  </div>
+        <p class="doc-note">转发卡形制＝<code>cssraw.js:1551-1562</code>（灰块 padding 10 / 左出血 −10 / 无圆角；@源UP 14/22；
+          源正文钳 3 行 63px——上图正文超三行即钳，属既有行为）；单栏态布局判定与媒体缺席＝
+          <code>momentdetail.js:134-137</code> 注释在册（顶层 coverUrl 不算自有媒体）。两栏态多图的轮播件
+          （左右箭头 60 圆 / 底部小点，<code>cssraw.js:994-1006</code>）与本改动无关，未画。</p>
+      </section>
 
-  <!-- ================= ⑦ 附 ================= -->
-  <div class="sec">
-    <h2>附：真值登记 · 实现落点 · 待拍板 · 示意件</h2>
-    <p class="note" style="line-height:2.1">
-      <b>A. 关键几何推导（1600×900，两栏态）</b>：面板 <code>min(920px,94vw)=920</code> × <code>min(84vh,672px)=672</code>
-      居中 ⇒ (340,114)-(1260,786)；背板钮 <code>top:16 right:16</code> 40 圆 ⇒ 中心 (1564,36)，
-      <b>横向离卡片右缘 304px（即「约 300px」）、角点直线 ≈314px</b>；提案 28 圆居头部 ⇒ 中心 (1226,148)，
-      距角点 <b>横 34 ＝ padding 20 + 半径 14、纵 34 ＝ 头部行高 68 的一半</b>，直线 ≈48px。
-      单栏态 620 宽 ⇒ 卡片右缘 x=1110，现状缺口更大（454px），提案同样收敛。<br>
-      <b>B. 推右（margin-left:auto）收口——两种实现案，观感一致，本稿画 A 案形态</b>：现状 auto 挂在 ⋮
-      （<code>cssraw.js:978</code>），别人的动态只有 ✕ 时没人推右。方案 A＝头部右钮组加包裹件
-      <code>.acsv-mdetail-xg{margin-left:auto;display:flex;gap:8px}</code>（稿内 <code>.mdxg</code> 即其形），
-      推右收口到组层，✕ 单挂/⋮✕ 双挂同一活法（病灶上溯结构：规则 7，两键「各带 auto 会互抢空隙」这类缝一次堵死）；
-      方案 B＝最小改动——✕ 恒 <code>margin-left:auto</code>、⋮ 的 auto 摘除改 <code>margin-left:0</code>，
-      代价是 ⋮ 与 ✕ 之间只剩 gap 10 语义、分组感弱一档。<br>
-      <b>C. 实现落点备忘（确认后另批进 src，本稿不动代码）</b>：DOM——<code>momentdetail.js:129-132</code>
-      的 <code>backdrop.appendChild(x)</code> 改头部挂载（顺序按 ③），<code>momentdetail.js:150</code>「✕ 已移至背板浮层」
-      注释同步翻案；CSS——<code>cssraw.js:975-977</code> 由背板绝对定位改写为头部件（28/32 圆 + .12→.22 值组，
-      与 978-980 ⋮ 同段并置）；harness 配反跑守卫（规矩 4）——断言 <code>.acsv-mdetail-x</code> 的 parentNode
-      即 <code>.acsv-mdetail-head</code> 且背板层查无此钮（临时还原挂背板 ⇒ 断言必须转红）。<br>
-      <b>D. 待拍板取值</b>：① 尺寸 <b>28（建议，与 ⋮ 同族同尺）vs 32（候选，触区大）</b>；
-      ② 顺序 <b>⋮ 内 / ✕ 最外角（建议）vs ✕ 内 / ⋮ 外</b>；③ 钮组间距 <b>8（建议）vs 10（对齐头部 gap）</b>；
-      ④ 推右收口方案 A vs B（纯实现选择，若不关心可默认 A）。<br>
-      <b>E. 示意件登记（非实现件）</b>：头像/媒体图/转发缩略图的色块占位、表情 34 定块、ghostrow 底层残影、
-      测量导引线/双箭头/数字标签、悬停定格类 <code>.fxh</code>、稿名 <code>.mdx/.x-old/.mdxg</code>（实现沿用真类
-      <code>.acsv-mdetail-x/.acsv-mdetail-more</code>）；① 台子输入条只画了 main 行（top 工具行全形见 ⑥）。
-      其余类名、色值、码点（分享 e628 / 评论 e627 / 蕉 e62a·e65f / 赞 e629·e660，<code>imicons.js:26-31</code>；
-      输入条 ed* 码点 <code>cssraw.js:328-431</code>）全真。<br>
-      <b>F. 口径出处速查</b>：背板 <code>cssraw.js:972-973</code>；面板 982-985＋<code>cssseg.js:12-16</code>；
-      两栏 989-991/1011；头部 1014-1019＋1541-1543；正文 1026-1027；互动条 1045-1055＋<code>momentbar.js:135-154</code>；
-      评论头 1056-1057；空态/失败 tip 530＋<code>comments.js:429/460-474</code>；尾行 534-538＋<code>comments.js:483-503</code>；
-      评论条目 449-520；输入条 328-431＋<code>comments.js:583-599</code>；塌缩 1037-1040；
-      自删键文案 <code>momentdetail.js:176-179</code>。
-    </p>
+      <!-- ================= ⑤ 评论状态 ================= -->
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">05</span>
+          <h2>评论区状态</h2>
+          <span class="nt">空态 / 首屏失败 / 尾行三态 —— 全部用 comments.js 真实串</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="row2">
+            <div class="stage short w680">
+              <div class="acsv-mdetail">
+                <div class="acsv-mdetail-panel h460">
+                  <div class="acsv-mdetail-head">
+                    <span class="acsv-gmom-av">星</span>
+                    <a class="acsv-gmom-name" href="#">@夜航星不发短信</a>
+                    <span class="acsv-gmom-time">18分钟前</span>
+                    <button class="mdx" title="关闭">✕</button>
+                  </div>
+                  <div class="acsv-mdetail-list">
+                    <div class="acsv-mdetail-text">新坑预告：下周开一期的语音整活，先占个楼。</div>
+                    <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 0 条评论</span></div>
+                    <div class="acsv-drawer-tip">还没有评论，去原页抢沙发 →<a class="acsv-cmore" href="#">前往原页</a></div>
+                  </div>
+                  <div class="acsv-cinput">
+                    <div class="acsv-cinput-main">
+                      <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                      <button class="acsv-cinput-send disabled">发送</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="meas"><span class="mtag l20 t18">空态（评论已加载=0）</span></div>
+            </div>
+            <div class="stage short w680">
+              <div class="acsv-mdetail">
+                <div class="acsv-mdetail-panel h460">
+                  <div class="acsv-mdetail-head">
+                    <span class="acsv-gmom-av">星</span>
+                    <a class="acsv-gmom-name" href="#">@夜航星不发短信</a>
+                    <span class="acsv-gmom-time">18分钟前</span>
+                    <button class="mdx" title="关闭">✕</button>
+                  </div>
+                  <div class="acsv-mdetail-list">
+                    <div class="acsv-mdetail-text">新坑预告：下周开一期的语音整活，先占个楼。</div>
+                    <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">评论</span></div>
+                    <div class="acsv-drawer-tip">评论加载失败<a class="acsv-ctail-rt">重试</a></div>
+                  </div>
+                  <div class="acsv-cinput">
+                    <div class="acsv-cinput-main">
+                      <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                      <button class="acsv-cinput-send disabled">发送</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="meas"><span class="mtag l20 t18">失败态（首屏）</span></div>
+            </div>
+          </div>
+        </div>
+        <p class="doc-note">
+          <b>空态</b>＝评论拉成功且 0 条：标题走 <code>titleFmt(0)</code> 出「共 0 条评论」（<code>momentdetail.js:253</code>），
+          tip 串「还没有评论，去原页抢沙发 →」+ 块级链接「前往原页」（新窗开官方页，<code>comments.js:429-436</code>）；
+          正文 pin 保留（管线清列表重挂不动 pin，<code>comments.js:196</code> 注）。<br>
+          <b>失败态</b>＝首屏拉挂：tip 串「评论加载失败」+ 红字「重试」（<code>comments.js:247/460-474</code>），点重试清闸重拉；
+          此时计数未到，标题停在初始「评论」（<code>momentdetail.js:234</code>）。两态 <b>✕ 均常驻头部右侧、可点</b>——
+          这正是收进头部的收益：失败/空态下面板只剩半屏内容，视口角的 ✕ 离卡片更远，头部的 ✕ 始终贴着内容右上角。<br>
+          <b>尾行三态</b>（续拉中/追加失败/到底，<code>comments.js:483-503</code>，样式 <code>cssraw.js:534-538</code>）实样：
+        </p>
+        <div class="doc-figure">
+          <div class="headslice w620">
+            <div class="acsv-ctail"><span class="acsv-ctail-sp"></span><span>加载中…</span></div>
+            <div class="acsv-ctail"><span>评论加载失败</span><a class="acsv-ctail-rt">重试</a></div>
+            <div class="acsv-ctail flat"><span>没有更多评论了</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ⑥ 540 窄宽 ================= -->
+      <section class="doc-sec" id="s6">
+        <div class="doc-sec-hd">
+          <span class="idx">06</span>
+          <h2>540 窄宽自检</h2>
+          <span class="nt">@media (max-width:860px) 两栏塌上下堆叠（cssraw 1037-1040）——✕ 仍在头部右侧、不溢出</span>
+          <a class="anchor" href="#s6" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="stage narrow">
+            <div class="acsv-mdetail">
+              <div class="acsv-mdetail-panel acsv-mdetail-split">
+                <div class="acsv-mdetail-media">
+                  <div class="acsv-mdetail-img onbig phimg nar"></div>
+                </div>
+                <div class="acsv-mdetail-side">
+                  <div class="acsv-mdetail-head">
+                    <span class="acsv-gmom-av">AC</span>
+                    <a class="acsv-gmom-name" href="#">@AC娘</a>
+                    <span class="acsv-gmom-time">2小时前</span>
+                    <span class="mdxg">
+                      <button class="acsv-mdetail-more" title="删除这条动态">⋮</button>
+                      <button class="mdx" title="关闭">✕</button>
+                    </span>
+                  </div>
+                  <div class="acsv-mdetail-list">
+                    <div class="acsv-mdetail-text">今晚 8 点整，「山海共创」企划 PV 正式上线！这次把四格画师、手书大佬和配音全凑齐了<span class="ubb-emotion"></span>评论区抽 3 位送全套设定集，记得回来报到～</div>
+                    <div class="acsv-mdetail-cmthead"><span class="acsv-mdetail-cmt">共 1024 条评论</span></div>
+                    <div class="acsv-citem">
+                      <span class="acsv-avlink"><span class="av">芸</span></span>
+                      <div class="acsv-cbody">
+                        <div class="acsv-cname"><a href="#">一只芸喵喵</a><span class="acsv-cdate"><span class="acsv-cpostday">发表于</span><span class="acsv-cposttime">1小时前</span></span></div>
+                        <div class="acsv-ctext">窄态自检：头部 ⋮+✕ 同排不挤、钮组不溢出面板；正文整词换行不逐字断行。</div>
+                        <div class="acsv-cmeta">
+                          <span class="acsv-clike"><i class="acsvg-glyph">&#xe629;</i>128</span>
+                          <span class="acsv-creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span>
+                          <span class="acsv-cattr"><span>来自 Android</span><span>IP属地 广东</span></span>
+                        </div>
+                      </div>
+                      <hr class="acsv-chr"><span class="acsv-cfloor">#1</span>
+                    </div>
+                    <div class="acsv-ctail"><span>没有更多评论了</span></div>
+                  </div>
+                  <div class="acsv-cinput">
+                    <div class="acsv-cinput-top">
+                      <button class="acsv-cinput-fmt" title="加粗"><i class="acsv-ic">&#xe18f;</i></button>
+                      <button class="acsv-cinput-fmt" title="斜体"><i class="acsv-ic">&#xe19a;</i></button>
+                      <button class="acsv-cinput-fmt" title="下划线"><i class="acsv-ic">&#xe1ea;</i></button>
+                      <button class="acsv-cinput-fmt" title="删除线"><i class="acsv-ic">&#xe1e9;</i></button>
+                      <span class="acsv-fmtsep"></span>
+                      <span class="acsv-cinput-colkey">
+                        <button class="acsv-cinput-fmt" title="文字颜色"><i class="acsv-ic">&#xe1eb;</i><span class="acsv-cinput-collabel"></span></button>
+                        <button class="acsv-cinput-fmt acsv-cinput-colcaret" title="颜色面板"><i class="acsv-ic">&#xe166;</i></button>
+                      </span>
+                      <span class="acsv-fmtsep"></span>
+                      <button class="acsv-cinput-emot" title="表情"><i class="acsv-ic">&#xe18b;</i></button>
+                      <button class="acsv-cinput-img" title="图片"><i class="acsv-ic">&#xe18a;</i></button>
+                      <span class="acsv-cinput-count"></span>
+                    </div>
+                    <div class="acsv-cinput-main">
+                      <div class="acsv-cinput-wrap"><div class="acsv-cinput-edit" data-ph="评论一时爽，一直评论一直爽。(˶‾᷄ ⁻̫ ‾᷅˵)"></div></div>
+                      <button class="acsv-cinput-send disabled">发送</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="meas">
+              <span class="mtag l20 t326">塌缩后头部＝面板全宽（内宽 507−40=467.6）<br>40 头像+名字+时间+⋮28+8+✕28 ＝224 实占，余裕 243.6 ⇒ 不溢出</span>
+            </div>
+          </div>
+        </div>
+        <p class="doc-note">检查项：塌缩态（媒体 38vh 转上方、圆角 20 20 0 0，<code>cssraw.js:1039</code>）下 <b>✕ 仍贴头部右侧</b>，
+          距面板右缘仍是 padding 20（<code>cssraw.js:1014</code> 头部规则不随断点变）；540 视口下面板
+          <code>min(560px,94vw)=507.6</code>；评论行 gap 30 + 左右 16 在 507 内仍余裕、属性组（设备/IP）整组换行不折字；
+          输入条工具行九件不折行；长名字超出后的头部溢出处理不在本稿裁决范围（✕ 收头部不改变既有换行行为）。
+          稿台 540×760：媒体固定 288px＝38vh 演示值（实现按实际视口高）。</p>
+      </section>
+
+      <p class="doc-arch-cap">决策档案 · 过程沿革（查阅成品可略过）</p>
+      <details class="doc-arch"><summary><span class="ttl">真值登记与实现落点</span><span class="hint">⑦ 附：几何推导 / 推右收口两案 / 实现落点备忘 / 待拍板取值 / 示意件登记 / 口径出处速查</span><span class="pill">1 节</span></summary>
+      <!-- ================= ⑦ 附 ================= -->
+      <section class="doc-sec" id="s7">
+        <div class="doc-sec-hd">
+          <h2>附：真值登记 · 实现落点 · 待拍板 · 示意件</h2>
+          <span class="nt">几何推导 / 推右收口两案 / 实现落点备忘 / 待拍板取值 / 示意件登记 / 口径出处速查</span>
+          <a class="anchor" href="#s7" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note loose">
+          <b>A. 关键几何推导（1600×900，两栏态）</b>：面板 <code>min(920px,94vw)=920</code> × <code>min(84vh,672px)=672</code>
+          居中 ⇒ (340,114)-(1260,786)；背板钮 <code>top:16 right:16</code> 40 圆 ⇒ 中心 (1564,36)，
+          <b>横向离卡片右缘 304px（即「约 300px」）、角点直线 ≈314px</b>；提案 28 圆居头部 ⇒ 中心 (1226,148)，
+          距角点 <b>横 34 ＝ padding 20 + 半径 14、纵 34 ＝ 头部行高 68 的一半</b>，直线 ≈48px。
+          单栏态 620 宽 ⇒ 卡片右缘 x=1110，现状缺口更大（454px），提案同样收敛。<br>
+          <b>B. 推右（margin-left:auto）收口——两种实现案，观感一致，本稿画 A 案形态</b>：现状 auto 挂在 ⋮
+          （<code>cssraw.js:978</code>），别人的动态只有 ✕ 时没人推右。方案 A＝头部右钮组加包裹件
+          <code>.acsv-mdetail-xg{margin-left:auto;display:flex;gap:8px}</code>（稿内 <code>.mdxg</code> 即其形），
+          推右收口到组层，✕ 单挂/⋮✕ 双挂同一活法（病灶上溯结构：规则 7，两键「各带 auto 会互抢空隙」这类缝一次堵死）；
+          方案 B＝最小改动——✕ 恒 <code>margin-left:auto</code>、⋮ 的 auto 摘除改 <code>margin-left:0</code>，
+          代价是 ⋮ 与 ✕ 之间只剩 gap 10 语义、分组感弱一档。<br>
+          <b>C. 实现落点备忘（确认后另批进 src，本稿不动代码）</b>：DOM——<code>momentdetail.js:129-132</code>
+          的 <code>backdrop.appendChild(x)</code> 改头部挂载（顺序按 ③），<code>momentdetail.js:150</code>「✕ 已移至背板浮层」
+          注释同步翻案；CSS——<code>cssraw.js:975-977</code> 由背板绝对定位改写为头部件（28/32 圆 + .12→.22 值组，
+          与 978-980 ⋮ 同段并置）；harness 配反跑守卫（规矩 4）——断言 <code>.acsv-mdetail-x</code> 的 parentNode
+          即 <code>.acsv-mdetail-head</code> 且背板层查无此钮（临时还原挂背板 ⇒ 断言必须转红）。<br>
+          <b>D. 待拍板取值</b>：① 尺寸 <b>28（建议，与 ⋮ 同族同尺）vs 32（候选，触区大）</b>；
+          ② 顺序 <b>⋮ 内 / ✕ 最外角（建议）vs ✕ 内 / ⋮ 外</b>；③ 钮组间距 <b>8（建议）vs 10（对齐头部 gap）</b>；
+          ④ 推右收口方案 A vs B（纯实现选择，若不关心可默认 A）。<br>
+          <b>E. 示意件登记（非实现件）</b>：头像/媒体图/转发缩略图的色块占位、表情 34 定块、ghostrow 底层残影、
+          测量导引线/双箭头/数字标签、悬停定格类 <code>.fxh</code>、稿名 <code>.mdx/.x-old/.mdxg</code>（实现沿用真类
+          <code>.acsv-mdetail-x/.acsv-mdetail-more</code>）；① 台子输入条只画了 main 行（top 工具行全形见 ⑥）。
+          其余类名、色值、码点（分享 e628 / 评论 e627 / 蕉 e62a·e65f / 赞 e629·e660，<code>imicons.js:26-31</code>；
+          输入条 ed* 码点 <code>cssraw.js:328-431</code>）全真。<br>
+          <b>F. 口径出处速查</b>：背板 <code>cssraw.js:972-973</code>；面板 982-985＋<code>cssseg.js:12-16</code>；
+          两栏 989-991/1011；头部 1014-1019＋1541-1543；正文 1026-1027；互动条 1045-1055＋<code>momentbar.js:135-154</code>；
+          评论头 1056-1057；空态/失败 tip 530＋<code>comments.js:429/460-474</code>；尾行 534-538＋<code>comments.js:483-503</code>；
+          评论条目 449-520；输入条 328-431＋<code>comments.js:583-599</code>；塌缩 1037-1040；
+          自删键文案 <code>momentdetail.js:176-179</code>。
+        </p>
+      </section>
+      </details>
+    </main>
   </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

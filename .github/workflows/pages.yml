@@ -1,0 +1,37 @@
+name: pages
+
+# 项目站点发布（2026-11-23）：只发「宣传首页 + 确认稿文档站」，仓库其余内容不进 Pages。
+# 站点 = index.html + docs/preview/（含 _docs.css/_docs.js/assets）；推送 main 自动更新。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage site (仅站点文件)
+        run: |
+          mkdir -p _site/docs/preview
+          cp index.html _site/
+          cp -r docs/preview/. _site/docs/preview/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

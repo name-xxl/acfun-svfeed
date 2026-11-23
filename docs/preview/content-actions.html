@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 接线包内容操作（评论 / 动态 / 历史 / 稍后再看 / 榜单）</title>
 <!-- ============================================================
      docs/preview/content-actions.html —— 接线包静态预览（2026-10-18）
@@ -10,8 +11,39 @@
      sv 右栏保持赞 / 评论 / 分享三键原样。
      口径：暗色皮肤、真实中文文案、1600×900 与 540 宽自检。
      确认后才进 src/ 实现；改版先改本稿。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     页面 token --acsv-* 原值保留；原全局 * reset 收进 .doc-figure 域；
+     内联布局收进变体类（.grow420/.col320/.col300/.tiny 间距族等），量值逐字未动。
+     v3（2026-11-23 图标统一批）：脚本 UI 图标一律站方 iconfont 字形（用户裁决）——
+     右栏五键手绘 svg → feedLike e629 / feedComment e627 / feedBanana e62a / 收藏 e155
+     （imicons.js 32–34 实心圆角星，与官方收藏 SVG 同形）/ feedRepost e628；评论行 ♥ → e629
+     （commentkit.js:125 同款）；榜单 meta ▶ → rankView e164（cards.js:70 META_GLYPH.view）。
+     底栏「稍后再看」时钟 svg ×4 保留＝脚本落地真值 ICONS.clock（styles.js:223，
+     controls.js:230 消费，path 逐字相同）——非手绘近似，是脚本自己的单源资产。
+     补 @font-face（https 绝对地址）＋ .acsvg-glyph 基类；字号对齐原 svg（22px）与
+     脚本真值（评论字形 11px/12×12 盒 cssraw.js:491、meta 字形 12px cssraw.js:1165）。
+     v5（2026-11-23 图标真资产批）：复核补全——① 评论行回复/转发补字形 e627/e628
+     （commentkit.js:144/150，与 ♥→e629 同族）；② 榜单 meta「评论」/日期文字标签 →
+     rankComment e161 / rankTime e2f5（cards.js:70 META_GLYPH＋panelitem.js:112-115，
+     原生图标代义无字样）；③ UP 卡粉丝/投稿标签 → fans e155 / share e15b（cards.js:366-370；
+     稿序粉丝在前保留，落地 extra 序为投稿在前——序属布局不动）；④ 舞台中央播放三角 →
+     ICONS.play 原件（styles.js:206，slide.js:63 .acsv-playicon 消费），位置/色值未动。
+     保留项：⋮＝落地纯文本（momentdetail.js:174）；移出/删除确认＝文字钮（mytabs.js:247/157）；
+     封面播放三角＝封面示意装饰（落地网格/榜单封面无播放覆盖件，cards.js:139-153/86-88）；
+     历史卡 × 圆钮＝旧稿形态示意（落地已演进为「删除」文字 chip，mytabs.js:157，形制差非图标载体差）；
+     底栏播放/设置/音量/画中画/两级全屏文字键＝语境示意（落地为图标：controls.js:186/374/265/303/315/322），
+     换载体会改横滑条宽度几何（含钉住的 -190px 偏移），留待裁决未硬改。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
+  /* 站方原生 iconfont（cssraw.js 22–24 同 URL；https 绝对地址——file:// 双击可显） */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(assets/acfun-frontend-next.woff) format("woff"),
+        url(assets/acfun-frontend-next.ttf) format("truetype")
+  }
+  .acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-weight:400;
+    display:inline-block;line-height:1}
   :root{
     --acsv-accent:#fd4c5d;
     --acsv-bg:#000;
@@ -23,17 +55,8 @@
     --acsv-green:#3ddc97;
     --acsv-yellow:#ffb323;
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:32px 40px 100px}
-  .board>h1{font-size:20px;font-weight:600;margin-bottom:8px}
-  .board>.hint{color:var(--acsv-t3);font-size:12px;line-height:1.9;margin-bottom:8px}
-  .board>.hint b{color:#ffb3ba;font-weight:500}
-  .sec{margin:34px 0 0;padding-top:18px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:14px;color:var(--acsv-t2);font-weight:600;margin-bottom:5px}
-  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
-  .sec>.note{color:var(--acsv-t3);font-size:12px;line-height:1.8;margin-bottom:14px}
+  /* 旧稿全局零重置收进 demo 域（chrome 排版归 _docs.css）：demo 几何逐字不变 */
+  .doc-figure :where(*:not(.doc-note)){box-sizing:border-box;margin:0;padding:0}
   .demo{background:#0a0a0c;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:20px 22px}
   .split{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
   .split>*{min-width:0}
@@ -66,6 +89,8 @@
   .ctext{margin-top:7px;font-size:14px;line-height:1.65;color:#f0f1f3}
   .cmeta{margin-top:9px;display:flex;gap:16px;align-items:center;font-size:12px;color:#7a7f8a}
   .cact{display:inline-flex;gap:4px;align-items:center;cursor:pointer}
+  /* 评论字形 11px/12×12 定盒＝cssraw.js:491 真值（墨迹 ≈1.02em，与 svg 图标视觉等大） */
+  .cmeta .acsvg-glyph{font-size:11px;width:12px;height:12px;line-height:12px;text-align:center}
   .cact.del{color:#ff8a95;opacity:0;transition:opacity .15s}
   .crow.hover .cact.del{opacity:1}
   .crow.no-del .cact.del{display:none}
@@ -146,6 +171,7 @@
   .rankdesc{margin-top:6px;font-size:12px;line-height:1.6;color:var(--acsv-t3);
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .rankmeta{margin-top:8px;font-size:12px;color:#7a7f8a;display:flex;gap:14px}
+  .rankmeta .acsvg-glyph{font-size:12px} /* meta 字形 12px＝cssraw.js:1165 .acsv-vmeta-i 真值 */
   .upcard{width:260px;flex:none;border-left:3px solid rgba(255,255,255,.14);padding-left:12px;
     display:flex;gap:10px;align-items:center}
   .upcard .av{width:44px;height:44px}
@@ -158,7 +184,14 @@
   .railbtn{display:flex;flex-direction:column;align-items:center;gap:4px;color:#fff;user-select:none}
   .railbtn .ic{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.1);
     display:grid;place-items:center}
-  .railbtn .ic svg{width:22px;height:22px;fill:currentColor}
+  .railbtn .ic .acsvg-glyph{font-size:22px}
+  /* 右栏真资产（SITE_ICONS PNG / VIDEO_ICONS mask）——与 src 同件 */
+  .railbtn .ic .rimg{display:block;width:26px;height:26px;object-fit:contain}
+  .railbtn .ic .rmask{display:block;width:26px;height:26px;background-color:currentColor;
+    -webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+  .railbtn .ic.m-like .rmask{--m:url(assets/video-like.svg)}
+  .railbtn .ic.m-banana .rmask{--m:url(assets/video-banana.svg)}
+  .railbtn .ic.m-fav .rmask{--m:url(assets/video-favorite.svg)}
   .railbtn .n{font-size:12px;color:#cfd3da}
   .railbtn.on .ic{background:rgba(253,76,93,.18);color:var(--acsv-accent)}
   .railbtn.clock.on .ic{background:rgba(61,220,151,.16);color:var(--acsv-green)}
@@ -170,9 +203,11 @@
   /* ---- ⑥ 播放器底栏 ---- */
   .cstage{position:relative;height:190px;border-radius:12px;overflow:hidden;
     background:linear-gradient(135deg,#1b1b2b,#0a0a0c);border:1px solid rgba(255,255,255,.06)}
+  /* 中央播放图标＝ICONS.play 原件（styles.js:206；slide.js:63 .acsv-playicon 消费）——
+     38×38 盒内墨迹≈17×22，与原三角观感等大；位置/色值未动 */
   .cstage .vplay{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);
-    width:0;height:0;border-left:18px solid rgba(255,255,255,.5);
-    border-top:11px solid transparent;border-bottom:11px solid transparent}
+    width:38px;height:38px;color:rgba(255,255,255,.5)}
+  .cstage .vplay svg{display:block;width:100%;height:100%;fill:currentColor}
   .cbar{position:absolute;left:0;right:0;bottom:0;padding:18px 14px 10px;
     background:linear-gradient(transparent,rgba(0,0,0,.86) 38%)}
   .cctl-row{display:flex;align-items:center;gap:6px;min-width:0}
@@ -203,8 +238,32 @@
   .narrow .upcard{width:100%;border-left:0;padding-left:0;margin-top:8px}
   .narrow .rankhead .col2{display:none}
 
+  /* ---- 布局/状态变体类（原内联样式收编，量值照抄） ---- */
+  .demo.grow420{flex:1;min-width:420px}
+  .col320{width:320px}
+  .col300{width:300px}
+  .detail.mt6{margin-top:6px}
+  .dbody.fs13{font-size:13px}
+  .histhead{display:flex;align-items:center;margin-bottom:12px}
+  .histhead .tt{font-size:15px;font-weight:600}
+  .histhead .chip{margin-left:auto}
+  .split.mt22{margin-top:22px}
+  .half280{flex:1;min-width:280px}
+  .chips.mt16{margin-top:16px}
+  .rankcover.sm{width:120px;height:68px}
+  .tiny.mb2{margin-bottom:2px}
+  .tiny.mb8{margin-bottom:8px}
+  .tiny.mb10{margin-bottom:10px}
+  .tiny.mt10{margin-top:10px}
+  .tiny.mt12{margin-top:12px}
+  .tiny.mt20{margin-top:20px}
+  .tiny.m18-8{margin:18px 0 8px}
+  .tiny.m12-8{margin:12px 0 8px}
+  .tiny.m4-12{margin:4px 0 12px}
+  .tiny.m4-10{margin:4px 0 10px}
+  .tiny.m12-10{margin:12px 0 10px}
+
   @media (max-width:700px){
-    .board{padding:22px 16px 70px}
     .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
     .split{display:block}
     .split>*+*{margin-top:18px}
@@ -212,426 +271,502 @@
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>接线包内容操作 · 静态预览</h1>
-  <p class="hint">
-    范围硬线：<b>小视频源（kind='sv'）零新增交互</b>。本稿只画推荐源（kind='home'）与脚本视图里的新控件；
-    sv 右栏保持「赞 / 评论 / 分享」三键原样，评论行不挂删除。
-  </p>
-  <p class="hint">口径：暗色皮肤 / 1600×900 桌面 / 真实中文文案。每段上方标注状态名；540 窄宽见第 ⑦ 段。</p>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <!-- ================= ① 评论行删除 ================= -->
-  <section class="sec">
-    <h2>① 评论行 · 删除入口<em>仅推荐源；仅自己的评论；hover 才显形</em></h2>
-    <p class="note">默认态只显示点赞 / 回复 / 转发；鼠标移到评论行，自己的评论右侧出现「删除」。他人的评论永远没有这一项。</p>
-    <div class="split">
-      <div class="demo" style="flex:1;min-width:420px">
-        <p class="tiny" style="margin-bottom:2px">默认态 · 自己的评论（删除键未显形）</p>
-        <div class="crow">
-          <div class="av"></div>
-          <div class="cbody">
-            <div class="cname"><b>一只芸喵喵</b><span>发表于 10-18 14:32</span><span class="dev">来自 iPhone 15 Pro</span></div>
-            <div class="ctext">这个转场也太丝滑了，求教程！</div>
-            <div class="cmeta"><span class="cact">♥ 128</span><span class="cact">回复</span><span class="cact">转发</span><span class="cact del">删除</span></div>
-          </div>
-        </div>
-
-        <p class="tiny" style="margin-top:12px">悬停态 · 自己的评论（删除键显形）</p>
-        <div class="crow hover">
-          <div class="av"></div>
-          <div class="cbody">
-            <div class="cname"><b>一只芸喵喵</b><span>发表于 10-18 14:32</span><span class="dev">来自 iPhone 15 Pro</span></div>
-            <div class="ctext">这个转场也太丝滑了，求教程！</div>
-            <div class="cmeta"><span class="cact">♥ 128</span><span class="cact">回复</span><span class="cact">转发</span><span class="cact del">删除</span></div>
-          </div>
-        </div>
-
-        <p class="tiny" style="margin-top:12px">悬停态 · 他人的评论（没有删除）</p>
-        <div class="crow hover no-del">
-          <div class="av a2"></div>
-          <div class="cbody">
-            <div class="cname"><b>夜航船</b><span>发表于 10-18 14:20</span></div>
-            <div class="ctext">同求，蹲一个教程。</div>
-            <div class="cmeta"><span class="cact">♥ 36</span><span class="cact">回复</span><span class="cact">转发</span></div>
-          </div>
-        </div>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>接线包内容操作 · 静态预览</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-on">默认</span>
+          <span class="doc-badge b-hover">悬停（删除/移出显形）</span>
+          <span class="doc-badge">选中（tab/chips/底栏 on）</span>
+          <span class="doc-badge">加载中</span>
+          <span class="doc-badge b-empty">空态（历史/稍后/榜单）</span>
+          <span class="doc-badge b-err">错误态（删除失败可重试）</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">稍后再看键＝倍速之后、音量之前</span><span class="src">src/controls.js:226</span></span>
+          <span class="doc-pill"><span class="v">删除/清空走二次确认 openConfirmPop</span><span class="src">src/pickpop.js:291</span></span>
+          <span class="doc-pill"><span class="v">加入/移出 toast 话术单源</span><span class="src">src/toastmsg.js okWaitingAdd/Remove</span></span>
+        </p>
       </div>
 
-      <div style="width:320px">
-        <p class="tiny" style="margin-bottom:10px">确认层 · 删除前二次确认</p>
-        <div class="confirm">
-          <div class="hd">删除这条评论？</div>
-          <div class="tx">删除后不可恢复，评论计数会同步减一。</div>
-          <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">删除</button></div>
-        </div>
-        <p class="tiny" style="margin:12px 0 10px">删除中 · 按钮进入「处理中…」</p>
-        <div class="confirm busy">
-          <div class="hd">删除这条评论？</div>
-          <div class="tx">删除后不可恢复，评论计数会同步减一。</div>
-          <div class="ft"><button class="btn cancel">取消</button><button class="btn ok">处理中…</button></div>
-        </div>
-        <p class="tiny" style="margin:12px 0 10px">失败态 · 评论保留，可重试</p>
-        <div class="confirm">
-          <div class="hd">删除这条评论？</div>
-          <div class="tx">删除后不可恢复，评论计数会同步减一。</div>
-          <div class="err">操作失败（未登录？）</div>
-          <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">重试</button></div>
-        </div>
-      </div>
-    </div>
-  </section>
+      <p class="doc-note">
+        范围硬线：<b>小视频源（kind='sv'）零新增交互</b>。本稿只画推荐源（kind='home'）与脚本视图里的新控件；
+        sv 右栏保持「赞 / 评论 / 分享」三键原样，评论行不挂删除。
+      </p>
+      <p class="doc-note">口径：暗色皮肤 / 1600×900 桌面 / 真实中文文案。每段上方标注状态名；540 窄宽见第 07 段。</p>
 
-  <!-- ================= ② 动态详情删除 ================= -->
-  <section class="sec">
-    <h2>② 动态详情 · 删除自己的动态<em>只在详情面板内；列表卡面不加入口</em></h2>
-    <p class="note">自己的动态在头部右侧出现「⋮」；点开确认后关闭面板并从列表移除。他人的动态没有这个键。</p>
-    <div class="split">
-      <div class="detail">
-        <div class="dhead">
-          <div class="av"></div>
-          <span class="dname">@一只芸喵喵</span>
-          <span class="dtime">10-18 14:32</span>
-          <button class="dmore" title="更多">⋮</button>
+      <!-- ================= ① 评论行删除 ================= -->
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>评论行 · 删除入口</h2>
+          <span class="nt">仅推荐源；仅自己的评论；hover 才显形</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
         </div>
-        <div class="dbody">今天试了一下新的调色方案，感觉比上一版干净很多。</div>
-        <div class="dmedia"><span></span><span></span><span></span></div>
-        <div class="dactions"><span>分享</span><span>评论 <b>12</b></span><span>香蕉 <b>3</b></span><span>赞 <b>48</b></span></div>
-        <div class="dcmt">共 12 条评论 · 评论区沿用现有面板</div>
-      </div>
-      <div style="width:300px">
-        <p class="tiny" style="margin-bottom:10px">确认层 · 删动态</p>
-        <div class="confirm">
-          <div class="hd">删除这条动态？</div>
-          <div class="tx">删除后不可恢复，动态会从列表里消失。</div>
-          <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">删除</button></div>
-        </div>
-        <p class="tiny" style="margin-top:12px">他人的动态 · 没有「⋮」</p>
-        <div class="detail" style="margin-top:6px">
-          <div class="dhead">
-            <div class="av a3"></div>
-            <span class="dname">@夜航船</span>
-            <span class="dtime">10-18 13:05</span>
-          </div>
-          <div class="dbody" style="font-size:13px">周五了，发一条证明我还活着。</div>
-        </div>
-      </div>
-    </div>
-  </section>
+        <p class="doc-note">默认态只显示点赞 / 回复 / 转发；鼠标移到评论行，自己的评论右侧出现「删除」。他人的评论永远没有这一项。</p>
+        <div class="doc-figure">
+          <div class="split">
+            <div class="demo grow420">
+              <p class="tiny mb2">默认态 · 自己的评论（删除键未显形）</p>
+              <div class="crow">
+                <div class="av"></div>
+                <div class="cbody">
+                  <div class="cname"><b>一只芸喵喵</b><span>发表于 10-18 14:32</span><span class="dev">来自 iPhone 15 Pro</span></div>
+                  <div class="ctext">这个转场也太丝滑了，求教程！</div>
+                  <div class="cmeta"><span class="cact"><i class="acsvg-glyph">&#xe629;</i>128</span><span class="cact"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cact"><i class="acsvg-glyph">&#xe628;</i>转发</span><span class="cact del">删除</span></div>
+                </div>
+              </div>
 
-  <!-- ================= ③ 观看历史删除 / 清空 ================= -->
-  <section class="sec">
-    <h2>③ 观看历史 · 单条删除 / 清空<em>卡面 hover 出「×」；顶部右侧「清空历史」</em></h2>
-    <p class="note">删除与清空都走二次确认；成功后卡面移除，失败保留原样。清空后出空态。</p>
-    <div class="demo">
-      <div style="display:flex;align-items:center;margin-bottom:12px">
-        <span style="font-size:15px;font-weight:600">观看历史</span>
-        <button class="chip sm danger" style="margin-left:auto">清空历史</button>
-      </div>
-      <div class="grid">
-        <div class="gcell hover">
-          <div class="gcover c2"><span class="play"></span><span class="gtag">观看至 03:51</span><span class="gdur">12:08</span><button class="gdel" title="删除这条历史">×</button></div>
-          <div class="gtitle">【4K】这可能是今年最舒服的转场合集</div>
-          <div class="gfoot"><span class="up">@一只芸喵喵</span><span>10-18 14:02</span></div>
-        </div>
-        <div class="gcell">
-          <div class="gcover"><span class="play"></span><span class="gtag">观看至 08:20</span><span class="gdur">21:37</span><button class="gdel" title="删除这条历史">×</button></div>
-          <div class="gtitle">从零开始做一支 A 站风格的开场动画</div>
-          <div class="gfoot"><span class="up">@夜航船</span><span>10-17 22:10</span></div>
-        </div>
-        <div class="gcell">
-          <div class="gcover c3"><span class="play"></span><span class="gdel" title="删除这条历史">×</span><span class="gdur">08:45</span></div>
-          <div class="gtitle">用三个镜头讲完一个故事：分镜入门</div>
-          <div class="gfoot"><span class="up">@纸飞机</span><span>10-16 19:30</span></div>
-        </div>
-      </div>
-      <div class="split" style="margin-top:22px">
-        <div class="confirm">
-          <div class="hd">删除这条观看记录？</div>
-          <div class="tx">只删除观看历史，不会取消收藏，也不影响稿件本身。</div>
-          <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">删除</button></div>
-        </div>
-        <div class="confirm">
-          <div class="hd">清空全部观看历史？</div>
-          <div class="tx">共 268 条记录将被移除，操作不可恢复。</div>
-          <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">清空</button></div>
-        </div>
-      </div>
-      <p class="tiny" style="margin-top:20px">清空后的空态：</p>
-      <div class="empty">暂无观看记录</div>
-    </div>
-  </section>
+              <p class="tiny mt12">悬停态 · 自己的评论（删除键显形）</p>
+              <div class="crow hover">
+                <div class="av"></div>
+                <div class="cbody">
+                  <div class="cname"><b>一只芸喵喵</b><span>发表于 10-18 14:32</span><span class="dev">来自 iPhone 15 Pro</span></div>
+                  <div class="ctext">这个转场也太丝滑了，求教程！</div>
+                  <div class="cmeta"><span class="cact"><i class="acsvg-glyph">&#xe629;</i>128</span><span class="cact"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cact"><i class="acsvg-glyph">&#xe628;</i>转发</span><span class="cact del">删除</span></div>
+                </div>
+              </div>
 
-  <!-- ================= ④ 我的页 · 稍后再看 ================= -->
-  <section class="sec">
-    <h2>④ 我的页 · 第 5 档「稍后再看」<em>放在观看历史与收藏夹之间</em></h2>
-    <p class="note">tab 本身沿用现有样式；卡面 hover 出「移出」。未登录时只出可读空态，不发请求。</p>
-    <div class="demo">
-      <div class="tabs">
-        <button class="tab">动态</button>
-        <button class="tab">观看历史</button>
-        <button class="tab on">稍后再看</button>
-        <button class="tab">收藏夹</button>
-        <button class="tab">关注分组</button>
-      </div>
-      <div class="grid">
-        <div class="gcell hover">
-          <div class="gcover"><span class="play"></span><span class="gdur">09:12</span><button class="gremove">移出</button></div>
-          <div class="gtitle">周末补番：这三部冷门动画值得一口气看完</div>
-          <div class="gfoot"><span class="up">@夜航船</span><span>10-18</span></div>
-        </div>
-        <div class="gcell">
-          <div class="gcover c2"><span class="play"></span><span class="gdur">16:40</span><button class="gremove">移出</button></div>
-          <div class="gtitle">把旧手机改成桌面时钟：完整改造记录</div>
-          <div class="gfoot"><span class="up">@纸飞机</span><span>10-17</span></div>
-        </div>
-        <div class="gcell">
-          <div class="gcover c3"><span class="play"></span><span class="gdur">04:28</span><button class="gremove">移出</button></div>
-          <div class="gtitle">一分钟学会这个转场，剪视频真的不难</div>
-          <div class="gfoot"><span class="up">@一只芸喵喵</span><span>10-16</span></div>
-        </div>
-      </div>
-      <div class="split" style="margin-top:22px">
-        <div style="flex:1;min-width:280px">
-          <p class="tiny">空态 · 登录但列表为空：</p>
-          <div class="empty">还没有稍后再看的内容</div>
-        </div>
-        <div style="flex:1;min-width:280px">
-          <p class="tiny">未登录态 · 不请求列表：</p>
-          <div class="empty">登录后才能查看稍后再看</div>
-        </div>
-      </div>
-    </div>
-  </section>
+              <p class="tiny mt12">悬停态 · 他人的评论（没有删除）</p>
+              <div class="crow hover no-del">
+                <div class="av a2"></div>
+                <div class="cbody">
+                  <div class="cname"><b>夜航船</b><span>发表于 10-18 14:20</span></div>
+                  <div class="ctext">同求，蹲一个教程。</div>
+                  <div class="cmeta"><span class="cact"><i class="acsvg-glyph">&#xe629;</i>36</span><span class="cact"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cact"><i class="acsvg-glyph">&#xe628;</i>转发</span></div>
+                </div>
+              </div>
+            </div>
 
-  <!-- ================= ⑤ 榜单 ================= -->
-  <section class="sec">
-    <h2>⑤ 榜单 · 新增三榜<em>分区榜保持默认；三榜不带子频道 / 榜期</em></h2>
-    <p class="note">顶部多一行榜单 chips；切到全站热榜 / 香蕉榜 / 新秀榜时，子频道与榜期两行隐藏，说明行随榜更新。</p>
-    <div class="demo">
-      <p class="tiny" style="margin-bottom:8px">默认态 · 分区榜（与现在完全一致）</p>
-      <div class="chips">
-        <button class="chip on">分区榜</button>
-        <button class="chip">全站热榜</button>
-        <button class="chip">香蕉榜</button>
-        <button class="chip">新秀榜</button>
-      </div>
-      <div class="chips">
-        <button class="chip sm on">全部</button>
-        <button class="chip sm">动画</button>
-        <button class="chip sm">音乐</button>
-        <button class="chip sm">游戏</button>
-        <button class="chip sm">影视</button>
-      </div>
-      <div class="chips">
-        <button class="chip sm on">今日</button>
-        <button class="chip sm">三日</button>
-        <button class="chip sm">本周</button>
-      </div>
-      <p class="tiny" style="margin:4px 0 12px">全站综合 / 依综合指数排序，每日更新一次</p>
-
-      <p class="tiny" style="margin:18px 0 8px">切到「全站热榜」· 子频道与榜期隐藏</p>
-      <div class="chips">
-        <button class="chip">分区榜</button>
-        <button class="chip on">全站热榜</button>
-        <button class="chip">香蕉榜</button>
-        <button class="chip">新秀榜</button>
-      </div>
-      <p class="tiny" style="margin:4px 0 10px">全站热榜 / 按热度排序</p>
-      <div class="rankhead"><span class="rankno"></span><span class="col">榜单 Rank</span><span class="col2">Up主 Author</span></div>
-      <div class="rankrow">
-        <div class="rankno">1</div>
-        <div class="rankcard">
-          <div class="rankcover"><span class="play"></span></div>
-          <div class="rankinfo">
-            <div class="ranktitle">这可能是今年最舒服的转场合集</div>
-            <div class="rankdesc">整理了半年的素材，终于剪完了。每一段都可以单独拿去用。</div>
-            <div class="rankmeta"><span>▶ 128.6万</span><span>评论 2381</span><span>10-18</span></div>
-          </div>
-        </div>
-        <div class="upcard"><div class="av"></div><div><div class="upname">@一只芸喵喵</div><div class="upmeta">粉丝 16.2万 · 投稿 286</div></div></div>
-      </div>
-      <div class="rankrow">
-        <div class="rankno">2</div>
-        <div class="rankcard">
-          <div class="rankcover"></div>
-          <div class="rankinfo">
-            <div class="ranktitle">从零开始做一支 A 站风格的开场动画</div>
-            <div class="rankdesc">软件是免费的，思路是共通的。</div>
-            <div class="rankmeta"><span>▶ 86.4万</span><span>评论 1204</span><span>10-17</span></div>
-          </div>
-        </div>
-        <div class="upcard"><div class="av a3"></div><div><div class="upname">@夜航船</div><div class="upmeta">粉丝 9.8万 · 投稿 154</div></div></div>
-      </div>
-
-      <p class="tiny" style="margin:18px 0 8px">加载中 / 空态：</p>
-      <div class="loading">加载中…</div>
-      <div class="empty">该榜单暂无数据</div>
-    </div>
-  </section>
-
-  <!-- ================= ⑥ 播放器底栏 · 稍后再看 ================= -->
-  <section class="sec">
-    <h2>⑥ 播放器底栏 · 稍后再看<em>仅推荐源；放在「倍速」之后</em></h2>
-    <p class="note">底栏悬停出现。宽屏单行放下；540 窄屏横向拖动 / 滚轮查看右侧键。右栏不再加时钟键。</p>
-    <div class="demo">
-      <p class="tiny" style="margin-bottom:8px">宽屏 · 未加入（白图标）</p>
-      <div class="cstage">
-        <span class="vplay"></span>
-        <div class="cbar">
-          <div class="cctl-row">
-            <div class="cctl-strip">
-              <button class="cbtn">播放</button>
-              <span class="ctime">00:12 / 03:48</span>
-              <span class="cspacer"></span>
-              <button class="cbtn on">弹</button>
-              <span class="cinput">发个弹幕呗，嗷嗷</span>
-              <button class="cbtn">设置</button>
-              <button class="cbtn">1080P</button>
-              <button class="cbtn">H.264</button>
-              <button class="cbtn">加大</button>
-              <button class="cbtn on"><span class="dot"></span>连播</button>
-              <button class="cbtn">1.0x</button>
-              <button class="cbtn" title="稍后再看"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg></button>
-              <button class="cbtn">音量</button>
-              <button class="cbtn">画中画</button>
-              <button class="cbtn">网页全屏</button>
-              <button class="cbtn">窗口全屏</button>
+            <div class="col320">
+              <p class="tiny mb10">确认层 · 删除前二次确认</p>
+              <div class="confirm">
+                <div class="hd">删除这条评论？</div>
+                <div class="tx">删除后不可恢复，评论计数会同步减一。</div>
+                <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">删除</button></div>
+              </div>
+              <p class="tiny m12-10">删除中 · 按钮进入「处理中…」</p>
+              <div class="confirm busy">
+                <div class="hd">删除这条评论？</div>
+                <div class="tx">删除后不可恢复，评论计数会同步减一。</div>
+                <div class="ft"><button class="btn cancel">取消</button><button class="btn ok">处理中…</button></div>
+              </div>
+              <p class="tiny m12-10">失败态 · 评论保留，可重试</p>
+              <div class="confirm">
+                <div class="hd">删除这条评论？</div>
+                <div class="tx">删除后不可恢复，评论计数会同步减一。</div>
+                <div class="err">操作失败（未登录？）</div>
+                <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">重试</button></div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <p class="tiny" style="margin:18px 0 8px">宽屏 · 已加入（底栏 on 态 / accent 红）</p>
-      <div class="cstage">
-        <span class="vplay"></span>
-        <div class="cbar">
-          <div class="cctl-row">
-            <div class="cctl-strip">
-              <button class="cbtn">播放</button>
-              <span class="ctime">00:12 / 03:48</span>
-              <span class="cspacer"></span>
-              <button class="cbtn on">弹</button>
-              <span class="cinput">发个弹幕呗，嗷嗷</span>
-              <button class="cbtn">设置</button>
-              <button class="cbtn">1080P</button>
-              <button class="cbtn">H.264</button>
-              <button class="cbtn">加大</button>
-              <button class="cbtn on"><span class="dot"></span>连播</button>
-              <button class="cbtn">1.0x</button>
-              <button class="cbtn on" title="已加入稍后再看（点击移出）"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg></button>
-              <button class="cbtn">音量</button>
-              <button class="cbtn">画中画</button>
-              <button class="cbtn">网页全屏</button>
-              <button class="cbtn">窗口全屏</button>
+      <!-- ================= ② 动态详情删除 ================= -->
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>动态详情 · 删除自己的动态</h2>
+          <span class="nt">只在详情面板内；列表卡面不加入口</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">自己的动态在头部右侧出现「⋮」；点开确认后关闭面板并从列表移除。他人的动态没有这个键。</p>
+        <div class="doc-figure">
+          <div class="split">
+            <div class="detail">
+              <div class="dhead">
+                <div class="av"></div>
+                <span class="dname">@一只芸喵喵</span>
+                <span class="dtime">10-18 14:32</span>
+                <button class="dmore" title="更多">⋮</button>
+              </div>
+              <div class="dbody">今天试了一下新的调色方案，感觉比上一版干净很多。</div>
+              <div class="dmedia"><span></span><span></span><span></span></div>
+              <div class="dactions"><span>分享</span><span>评论 <b>12</b></span><span>香蕉 <b>3</b></span><span>赞 <b>48</b></span></div>
+              <div class="dcmt">共 12 条评论 · 评论区沿用现有面板</div>
+            </div>
+            <div class="col300">
+              <p class="tiny mb10">确认层 · 删动态</p>
+              <div class="confirm">
+                <div class="hd">删除这条动态？</div>
+                <div class="tx">删除后不可恢复，动态会从列表里消失。</div>
+                <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">删除</button></div>
+              </div>
+              <p class="tiny mt12">他人的动态 · 没有「⋮」</p>
+              <div class="detail mt6">
+                <div class="dhead">
+                  <div class="av a3"></div>
+                  <span class="dname">@夜航船</span>
+                  <span class="dtime">10-18 13:05</span>
+                </div>
+                <div class="dbody fs13">周五了，发一条证明我还活着。</div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <p class="tiny" style="margin:18px 0 8px">540 窄屏 · 初始视口（右侧键在横滑区）</p>
-      <div class="cnarrow">
-        <div class="cbar">
-          <div class="cctl-row">
-            <div class="cctl-strip">
-              <button class="cbtn">播放</button>
-              <span class="ctime">00:12 / 03:48</span>
-              <span class="cspacer"></span>
-              <button class="cbtn on">弹</button>
-              <span class="cinput">发个弹幕呗</span>
-              <button class="cbtn">设置</button>
-              <button class="cbtn">1080P</button>
-              <button class="cbtn">H.264</button>
-              <button class="cbtn">加大</button>
-              <button class="cbtn on"><span class="dot"></span>连播</button>
-              <button class="cbtn">1.0x</button>
-              <button class="cbtn" title="稍后再看"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg></button>
-              <button class="cbtn">音量</button>
-              <button class="cbtn">画中画</button>
-              <button class="cbtn">网页全屏</button>
-              <button class="cbtn">窗口全屏</button>
+      <!-- ================= ③ 观看历史删除 / 清空 ================= -->
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>观看历史 · 单条删除 / 清空</h2>
+          <span class="nt">卡面 hover 出「×」；顶部右侧「清空历史」</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">删除与清空都走二次确认；成功后卡面移除，失败保留原样。清空后出空态。</p>
+        <div class="doc-figure">
+          <div class="demo">
+            <div class="histhead">
+              <span class="tt">观看历史</span>
+              <button class="chip sm danger">清空历史</button>
+            </div>
+            <div class="grid">
+              <div class="gcell hover">
+                <div class="gcover c2"><span class="play"></span><span class="gtag">观看至 03:51</span><span class="gdur">12:08</span><button class="gdel" title="删除这条历史">×</button></div>
+                <div class="gtitle">【4K】这可能是今年最舒服的转场合集</div>
+                <div class="gfoot"><span class="up">@一只芸喵喵</span><span>10-18 14:02</span></div>
+              </div>
+              <div class="gcell">
+                <div class="gcover"><span class="play"></span><span class="gtag">观看至 08:20</span><span class="gdur">21:37</span><button class="gdel" title="删除这条历史">×</button></div>
+                <div class="gtitle">从零开始做一支 A 站风格的开场动画</div>
+                <div class="gfoot"><span class="up">@夜航船</span><span>10-17 22:10</span></div>
+              </div>
+              <div class="gcell">
+                <div class="gcover c3"><span class="play"></span><span class="gdel" title="删除这条历史">×</span><span class="gdur">08:45</span></div>
+                <div class="gtitle">用三个镜头讲完一个故事：分镜入门</div>
+                <div class="gfoot"><span class="up">@纸飞机</span><span>10-16 19:30</span></div>
+              </div>
+            </div>
+            <div class="split mt22">
+              <div class="confirm">
+                <div class="hd">删除这条观看记录？</div>
+                <div class="tx">只删除观看历史，不会取消收藏，也不影响稿件本身。</div>
+                <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">删除</button></div>
+              </div>
+              <div class="confirm">
+                <div class="hd">清空全部观看历史？</div>
+                <div class="tx">共 268 条记录将被移除，操作不可恢复。</div>
+                <div class="ft"><button class="btn cancel">取消</button><button class="btn ok danger">清空</button></div>
+              </div>
+            </div>
+            <p class="tiny mt20">清空后的空态：</p>
+            <div class="empty">暂无观看记录</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ④ 我的页 · 稍后再看 ================= -->
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>我的页 · 第 5 档「稍后再看」</h2>
+          <span class="nt">放在观看历史与收藏夹之间</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">tab 本身沿用现有样式；卡面 hover 出「移出」。未登录时只出可读空态，不发请求。</p>
+        <div class="doc-figure">
+          <div class="demo">
+            <div class="tabs">
+              <button class="tab">动态</button>
+              <button class="tab">观看历史</button>
+              <button class="tab on">稍后再看</button>
+              <button class="tab">收藏夹</button>
+              <button class="tab">关注分组</button>
+            </div>
+            <div class="grid">
+              <div class="gcell hover">
+                <div class="gcover"><span class="play"></span><span class="gdur">09:12</span><button class="gremove">移出</button></div>
+                <div class="gtitle">周末补番：这三部冷门动画值得一口气看完</div>
+                <div class="gfoot"><span class="up">@夜航船</span><span>10-18</span></div>
+              </div>
+              <div class="gcell">
+                <div class="gcover c2"><span class="play"></span><span class="gdur">16:40</span><button class="gremove">移出</button></div>
+                <div class="gtitle">把旧手机改成桌面时钟：完整改造记录</div>
+                <div class="gfoot"><span class="up">@纸飞机</span><span>10-17</span></div>
+              </div>
+              <div class="gcell">
+                <div class="gcover c3"><span class="play"></span><span class="gdur">04:28</span><button class="gremove">移出</button></div>
+                <div class="gtitle">一分钟学会这个转场，剪视频真的不难</div>
+                <div class="gfoot"><span class="up">@一只芸喵喵</span><span>10-16</span></div>
+              </div>
+            </div>
+            <div class="split mt22">
+              <div class="half280">
+                <p class="tiny">空态 · 登录但列表为空：</p>
+                <div class="empty">还没有稍后再看的内容</div>
+              </div>
+              <div class="half280">
+                <p class="tiny">未登录态 · 不请求列表：</p>
+                <div class="empty">登录后才能查看稍后再看</div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <p class="tiny" style="margin:12px 0 8px">540 窄屏 · 向左拖动后（露出「倍速 / 稍后 / 音量 / 全屏」）</p>
-      <div class="cnarrow pan">
-        <div class="cbar">
-          <div class="cctl-row">
-            <div class="cctl-strip">
-              <button class="cbtn">播放</button>
-              <span class="ctime">00:12 / 03:48</span>
-              <span class="cspacer"></span>
-              <button class="cbtn on">弹</button>
-              <span class="cinput">发个弹幕呗</span>
-              <button class="cbtn">设置</button>
-              <button class="cbtn">1080P</button>
-              <button class="cbtn">H.264</button>
-              <button class="cbtn">加大</button>
-              <button class="cbtn on"><span class="dot"></span>连播</button>
-              <button class="cbtn">1.0x</button>
-              <button class="cbtn" title="稍后再看"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg></button>
-              <button class="cbtn">音量</button>
-              <button class="cbtn">画中画</button>
-              <button class="cbtn">网页全屏</button>
-              <button class="cbtn">窗口全屏</button>
+      </section>
+
+      <!-- ================= ⑤ 榜单 ================= -->
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">05</span>
+          <h2>榜单 · 新增三榜</h2>
+          <span class="nt">分区榜保持默认；三榜不带子频道 / 榜期</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">顶部多一行榜单 chips；切到全站热榜 / 香蕉榜 / 新秀榜时，子频道与榜期两行隐藏，说明行随榜更新。</p>
+        <div class="doc-figure">
+          <div class="demo">
+            <p class="tiny mb8">默认态 · 分区榜（与现在完全一致）</p>
+            <div class="chips">
+              <button class="chip on">分区榜</button>
+              <button class="chip">全站热榜</button>
+              <button class="chip">香蕉榜</button>
+              <button class="chip">新秀榜</button>
+            </div>
+            <div class="chips">
+              <button class="chip sm on">全部</button>
+              <button class="chip sm">动画</button>
+              <button class="chip sm">音乐</button>
+              <button class="chip sm">游戏</button>
+              <button class="chip sm">影视</button>
+            </div>
+            <div class="chips">
+              <button class="chip sm on">今日</button>
+              <button class="chip sm">三日</button>
+              <button class="chip sm">本周</button>
+            </div>
+            <p class="tiny m4-12">全站综合 / 依综合指数排序，每日更新一次</p>
+
+            <p class="tiny m18-8">切到「全站热榜」· 子频道与榜期隐藏</p>
+            <div class="chips">
+              <button class="chip">分区榜</button>
+              <button class="chip on">全站热榜</button>
+              <button class="chip">香蕉榜</button>
+              <button class="chip">新秀榜</button>
+            </div>
+            <p class="tiny m4-10">全站热榜 / 按热度排序</p>
+            <div class="rankhead"><span class="rankno"></span><span class="col">榜单 Rank</span><span class="col2">Up主 Author</span></div>
+            <div class="rankrow">
+              <div class="rankno">1</div>
+              <div class="rankcard">
+                <div class="rankcover"><span class="play"></span></div>
+                <div class="rankinfo">
+                  <div class="ranktitle">这可能是今年最舒服的转场合集</div>
+                  <div class="rankdesc">整理了半年的素材，终于剪完了。每一段都可以单独拿去用。</div>
+                  <div class="rankmeta"><span><i class="acsvg-glyph">&#xe164;</i> 128.6万</span><span><i class="acsvg-glyph">&#xe161;</i> 2381</span><span><i class="acsvg-glyph">&#xe2f5;</i> 10-18</span></div>
+                </div>
+              </div>
+              <div class="upcard"><div class="av"></div><div><div class="upname">@一只芸喵喵</div><div class="upmeta"><i class="acsvg-glyph">&#xe155;</i> 16.2万 · <i class="acsvg-glyph">&#xe15b;</i> 286</div></div></div>
+            </div>
+            <div class="rankrow">
+              <div class="rankno">2</div>
+              <div class="rankcard">
+                <div class="rankcover"></div>
+                <div class="rankinfo">
+                  <div class="ranktitle">从零开始做一支 A 站风格的开场动画</div>
+                  <div class="rankdesc">软件是免费的，思路是共通的。</div>
+                  <div class="rankmeta"><span><i class="acsvg-glyph">&#xe164;</i> 86.4万</span><span><i class="acsvg-glyph">&#xe161;</i> 1204</span><span><i class="acsvg-glyph">&#xe2f5;</i> 10-17</span></div>
+                </div>
+              </div>
+              <div class="upcard"><div class="av a3"></div><div><div class="upname">@夜航船</div><div class="upmeta"><i class="acsvg-glyph">&#xe155;</i> 9.8万 · <i class="acsvg-glyph">&#xe15b;</i> 154</div></div></div>
+            </div>
+
+            <p class="tiny m18-8">加载中 / 空态：</p>
+            <div class="loading">加载中…</div>
+            <div class="empty">该榜单暂无数据</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ⑥ 播放器底栏 · 稍后再看 ================= -->
+      <section class="doc-sec" id="s6">
+        <div class="doc-sec-hd">
+          <span class="idx">06</span>
+          <h2>播放器底栏 · 稍后再看</h2>
+          <span class="nt">仅推荐源；放在「倍速」之后</span>
+          <a class="anchor" href="#s6" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">底栏悬停出现。宽屏单行放下；540 窄屏横向拖动 / 滚轮查看右侧键。右栏不再加时钟键。</p>
+        <div class="doc-figure">
+          <div class="demo">
+            <p class="tiny mb8">宽屏 · 未加入（白图标）</p>
+            <div class="cstage">
+              <span class="vplay"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+              <div class="cbar">
+                <div class="cctl-row">
+                  <div class="cctl-strip">
+                    <button class="cbtn">播放</button>
+                    <span class="ctime">00:12 / 03:48</span>
+                    <span class="cspacer"></span>
+                    <button class="cbtn on">弹</button>
+                    <span class="cinput">发个弹幕呗，嗷嗷</span>
+                    <button class="cbtn">设置</button>
+                    <button class="cbtn">1080P</button>
+                    <button class="cbtn">H.264</button>
+                    <button class="cbtn">加大</button>
+                    <button class="cbtn on"><span class="dot"></span>连播</button>
+                    <button class="cbtn">1.0x</button>
+                    <button class="cbtn" title="稍后再看"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg></button>
+                    <button class="cbtn">音量</button>
+                    <button class="cbtn">画中画</button>
+                    <button class="cbtn">网页全屏</button>
+                    <button class="cbtn">窗口全屏</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p class="tiny m18-8">宽屏 · 已加入（底栏 on 态 / accent 红）</p>
+            <div class="cstage">
+              <span class="vplay"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+              <div class="cbar">
+                <div class="cctl-row">
+                  <div class="cctl-strip">
+                    <button class="cbtn">播放</button>
+                    <span class="ctime">00:12 / 03:48</span>
+                    <span class="cspacer"></span>
+                    <button class="cbtn on">弹</button>
+                    <span class="cinput">发个弹幕呗，嗷嗷</span>
+                    <button class="cbtn">设置</button>
+                    <button class="cbtn">1080P</button>
+                    <button class="cbtn">H.264</button>
+                    <button class="cbtn">加大</button>
+                    <button class="cbtn on"><span class="dot"></span>连播</button>
+                    <button class="cbtn">1.0x</button>
+                    <button class="cbtn on" title="已加入稍后再看（点击移出）"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg></button>
+                    <button class="cbtn">音量</button>
+                    <button class="cbtn">画中画</button>
+                    <button class="cbtn">网页全屏</button>
+                    <button class="cbtn">窗口全屏</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p class="tiny m18-8">540 窄屏 · 初始视口（右侧键在横滑区）</p>
+            <div class="cnarrow">
+              <div class="cbar">
+                <div class="cctl-row">
+                  <div class="cctl-strip">
+                    <button class="cbtn">播放</button>
+                    <span class="ctime">00:12 / 03:48</span>
+                    <span class="cspacer"></span>
+                    <button class="cbtn on">弹</button>
+                    <span class="cinput">发个弹幕呗</span>
+                    <button class="cbtn">设置</button>
+                    <button class="cbtn">1080P</button>
+                    <button class="cbtn">H.264</button>
+                    <button class="cbtn">加大</button>
+                    <button class="cbtn on"><span class="dot"></span>连播</button>
+                    <button class="cbtn">1.0x</button>
+                    <button class="cbtn" title="稍后再看"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg></button>
+                    <button class="cbtn">音量</button>
+                    <button class="cbtn">画中画</button>
+                    <button class="cbtn">网页全屏</button>
+                    <button class="cbtn">窗口全屏</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="tiny m12-8">540 窄屏 · 向左拖动后（露出「倍速 / 稍后 / 音量 / 全屏」）</p>
+            <div class="cnarrow pan">
+              <div class="cbar">
+                <div class="cctl-row">
+                  <div class="cctl-strip">
+                    <button class="cbtn">播放</button>
+                    <span class="ctime">00:12 / 03:48</span>
+                    <span class="cspacer"></span>
+                    <button class="cbtn on">弹</button>
+                    <span class="cinput">发个弹幕呗</span>
+                    <button class="cbtn">设置</button>
+                    <button class="cbtn">1080P</button>
+                    <button class="cbtn">H.264</button>
+                    <button class="cbtn">加大</button>
+                    <button class="cbtn on"><span class="dot"></span>连播</button>
+                    <button class="cbtn">1.0x</button>
+                    <button class="cbtn" title="稍后再看"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v5l3.5 2-1 1.7L11 13V7h2z"/></svg></button>
+                    <button class="cbtn">音量</button>
+                    <button class="cbtn">画中画</button>
+                    <button class="cbtn">网页全屏</button>
+                    <button class="cbtn">窗口全屏</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p class="tiny m18-8">右栏保持原样 · 不再加时钟键</p>
+            <div class="rail">
+              <div class="railbtn"><span class="ic m-like"><i class="rmask"></i></span><span class="n">2.8万</span></div>
+              <div class="railbtn"><span class="ic"><img class="rimg" src="assets/site-comment.png" alt=""></span><span class="n">1362</span></div>
+              <div class="railbtn"><span class="ic m-banana"><i class="rmask"></i></span><span class="n">486</span></div>
+              <div class="railbtn"><span class="ic m-fav"><i class="rmask"></i></span><span class="n">921</span></div>
+              <div class="railbtn"><span class="ic"><img class="rimg" src="assets/site-share.png" alt=""></span><span class="n">分享</span></div>
+            </div>
+            <p class="tiny mt10">失败：保持原态并 toast，不乐观锁死。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ⑦ 窄宽 ================= -->
+      <section class="doc-sec" id="s7">
+        <div class="doc-sec-hd">
+          <span class="idx">07</span>
+          <h2>窄宽 540</h2>
+          <span class="nt">长中文不逐字断、按钮不溢出、tab 可横向滚</span>
+          <a class="anchor" href="#s7" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="narrow">
+            <div class="tabs">
+              <button class="tab">动态</button>
+              <button class="tab">观看历史</button>
+              <button class="tab on">稍后再看</button>
+              <button class="tab">收藏夹</button>
+              <button class="tab">关注分组</button>
+            </div>
+            <div class="grid">
+              <div class="gcell hover">
+                <div class="gcover"><span class="play"></span><span class="gdur">09:12</span><button class="gremove">移出</button></div>
+                <div class="gtitle">周末补番：这三部冷门动画值得一口气看完</div>
+                <div class="gfoot"><span class="up">@夜航船</span><span>10-18</span></div>
+              </div>
+              <div class="gcell">
+                <div class="gcover c2"><span class="play"></span><span class="gdur">16:40</span><button class="gremove">移出</button></div>
+                <div class="gtitle">把旧手机改成桌面时钟：完整改造记录</div>
+                <div class="gfoot"><span class="up">@纸飞机</span><span>10-17</span></div>
+              </div>
+            </div>
+            <div class="chips mt16">
+              <button class="chip">分区榜</button>
+              <button class="chip on">全站热榜</button>
+              <button class="chip">香蕉榜</button>
+            </div>
+            <div class="rankrow">
+              <div class="rankno">1</div>
+              <div class="rankcard">
+                <div class="rankcover sm"></div>
+                <div class="rankinfo">
+                  <div class="ranktitle">这可能是今年最舒服的转场合集</div>
+                  <div class="rankmeta"><span><i class="acsvg-glyph">&#xe164;</i> 128.6万</span><span><i class="acsvg-glyph">&#xe2f5;</i> 10-18</span></div>
+                </div>
+              </div>
+              <div class="upcard"><div class="av"></div><div><div class="upname">@一只芸喵喵</div><div class="upmeta"><i class="acsvg-glyph">&#xe155;</i> 16.2万</div></div></div>
             </div>
           </div>
         </div>
-      </div>
-
-      <p class="tiny" style="margin:18px 0 8px">右栏保持原样 · 不再加时钟键</p>
-      <div class="rail">
-        <div class="railbtn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.4-9.5-8.5C.8 9.2 2.4 5.5 6 5.5c2 0 3.2 1.1 4 2.2.8-1.1 2-2.2 4-2.2 3.6 0 5.2 3.7 3.5 7C19 16.6 12 21 12 21z"/></svg></span><span class="n">2.8万</span></div>
-        <div class="railbtn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4V4z"/></svg></span><span class="n">1362</span></div>
-        <div class="railbtn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M5 5c6 0 10 4 10 10 0 2-1 4-3 4 0-6-4-10-10-10 0-2 1-4 3-4z"/></svg></span><span class="n">486</span></div>
-        <div class="railbtn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.2 6.8.8-5 4.6 1.3 6.7L12 17.8 5.9 20.3 7.2 13.6l-5-4.6 6.8-.8L12 2z"/></svg></span><span class="n">921</span></div>
-        <div class="railbtn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M14 9V5l7 7-7 7v-4C9 15 6 17 4 20c0-6 3-10 10-11z"/></svg></span><span class="n">分享</span></div>
-      </div>
-      <p class="tiny" style="margin-top:10px">失败：保持原态并 toast，不乐观锁死。</p>
-    </div>
-  </section>
-
-  <!-- ================= ⑦ 窄宽 ================= -->
-  <section class="sec">
-    <h2>⑦ 窄宽 540<em>长中文不逐字断、按钮不溢出、tab 可横向滚</em></h2>
-    <div class="narrow">
-      <div class="tabs">
-        <button class="tab">动态</button>
-        <button class="tab">观看历史</button>
-        <button class="tab on">稍后再看</button>
-        <button class="tab">收藏夹</button>
-        <button class="tab">关注分组</button>
-      </div>
-      <div class="grid">
-        <div class="gcell hover">
-          <div class="gcover"><span class="play"></span><span class="gdur">09:12</span><button class="gremove">移出</button></div>
-          <div class="gtitle">周末补番：这三部冷门动画值得一口气看完</div>
-          <div class="gfoot"><span class="up">@夜航船</span><span>10-18</span></div>
-        </div>
-        <div class="gcell">
-          <div class="gcover c2"><span class="play"></span><span class="gdur">16:40</span><button class="gremove">移出</button></div>
-          <div class="gtitle">把旧手机改成桌面时钟：完整改造记录</div>
-          <div class="gfoot"><span class="up">@纸飞机</span><span>10-17</span></div>
-        </div>
-      </div>
-      <div class="chips" style="margin-top:16px">
-        <button class="chip">分区榜</button>
-        <button class="chip on">全站热榜</button>
-        <button class="chip">香蕉榜</button>
-      </div>
-      <div class="rankrow">
-        <div class="rankno">1</div>
-        <div class="rankcard">
-          <div class="rankcover" style="width:120px;height:68px"></div>
-          <div class="rankinfo">
-            <div class="ranktitle">这可能是今年最舒服的转场合集</div>
-            <div class="rankmeta"><span>▶ 128.6万</span><span>10-18</span></div>
-          </div>
-        </div>
-        <div class="upcard"><div class="av"></div><div><div class="upname">@一只芸喵喵</div><div class="upmeta">粉丝 16.2万</div></div></div>
-      </div>
-    </div>
-  </section>
+      </section>
+    </main>
+  </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

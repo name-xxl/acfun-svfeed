@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 我的页「关注列表」对齐原生（待确认）</title>
 <!-- ============================================================
      docs/preview/follow-list-native.html —— 我的页「关注分组」tab 对齐原生
@@ -39,12 +40,15 @@
      select 箭头 U+E166（=imicons.GLYPHS.edCaret）、弹窗叉 U+E182、radio 照原生 CSS 实测值
      （16 圆/off 边 #e5e5e5/选中 8px 红点）——一览表见 docs/api-research.md §16。
      纪律：颜色一律走类规则、元素零内联色；确认后按本稿进 src 实现（新码点登记 imicons.GLYPHS）。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     v3（2026-11-23 铺开批）：段内栅格化（⑤「设置分组」弹窗两态并列进 doc-grid），demo 未动。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   /* 原生 iconfont（与 src/cssraw.js:14 同一 CDN 源；file:// 直开须写全 https） */
   @font-face{font-family:acfun-frontend-next;
-    src:url(https://ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.90fc2dfc.woff) format("woff"),
-        url(https://ali-imgs.acfun.cn/kos/nlav10360/static/img/acfun-frontend-next.bdc44d05.ttf) format("truetype")}
+    src:url(assets/acfun-frontend-next.woff) format("woff"),
+        url(assets/acfun-frontend-next.ttf) format("truetype")}
   :root{
     --acsv-accent:#fd4c5d;
     --acsv-bg:#000;
@@ -59,16 +63,8 @@
     --edge:rgba(255,255,255,.12);       /* 原生边 #d9d9d9 的暗色换算 */
     --name-c:#e8eaee;                   /* 原生 #333 的暗色换算 */
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
-  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
-  .board .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
-  .board .hint b{color:var(--acsv-t2)}
-  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:12px}
-  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  /* 旧稿全局零重置收进 demo 域（chrome 不受影响）：定宽带边框件几何逐字不变 */
+  .doc-figure :where(*:not(.doc-note)){box-sizing:border-box;margin:0;padding:0}
   .stage{border:1px solid var(--edge);border-radius:10px;padding:16px 18px;background:#0b0d12}
   .stage.tall{padding-bottom:230px}    /* ② 展开态：给下拉留own框内空间 */
   .stage.menub{padding-bottom:140px}   /* ④ 菜单展开态：菜单出行走框内 */
@@ -190,304 +186,405 @@
     cursor:pointer;background:rgba(255,255,255,.1);color:var(--acsv-t2)}
   .oldchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
   .oldchip.on{background:var(--acsv-accent);color:#fff}
-  table{border-collapse:collapse;font-size:12px;color:var(--acsv-t2)}
-  td,th{border:1px solid var(--edge);padding:5px 10px;text-align:left;line-height:1.7}
-  th{color:var(--acsv-t3);font-weight:600}
-  td b{color:var(--name-c);font-weight:600}
+
+  /* ---- 布局类（原内联布局收编，量值照抄） ---- */
+  .stage.flex{flex:1;min-width:320px}
+  .stage.flex300{flex:1;min-width:300px}
+  .stage.flex340{flex:1;min-width:340px}
+  .cap.lead4{margin:0 0 4px}
+  .cap.lead8{margin:0 0 8px}
+  .fltop.gap4{margin-bottom:4px}
+  .fltop.gap8{margin-bottom:8px}
+  .oldacts{display:flex;gap:8px}
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>我的页「关注分组」对齐原生「关注列表」—— 静态预览（待确认，确认后才进 src 实现）</h1>
-  <p class="hint">
-    口径：<b>暗色皮肤</b>；结构/字号/间距/信息层级 1:1 照原生 <b>/member/feeds/following</b> 量取值
-    （2026-10-29 真机取证，全量数值入档 docs/api-research.md §16），颜色按暗色换算对照表映射。
-    结构映射：chips 行 → select +「编辑分组」；组头改名/删除 → 编辑分组弹窗；
-    成员行「移组/取关」两 chip → 行内「☰ 已关注」下拉（特别关注/取消关注/设置分组）+ 原生模态壳。
-    <b>不跟</b>：数字分页（0.9.219 尾部统一 listtail）、行内归属标签（原生没有）。
-    待核字段：签名行 /「关注:N」/「已互粉」能否落地取决于 getFollows 回包，缺则降级（§16）。
-  </p>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <div class="sec">
-    <h2>① 顶栏<em>「全部分组」select（142×36 边1圆角4 字14）+ 右上「编辑分组」文字钮——chips 行退役</em></h2>
-    <div class="stage">
-      <div class="fltop">
-        <div class="flselect">全部分组<span class="arw">&#xE166;</span></div>
-        <button class="fledit">编辑分组</button>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>我的页「关注分组」对齐原生「关注列表」—— 静态预览（待确认，确认后才进 src 实现）</h1>
+        <p class="doc-meta">
+          <span class="doc-badge">默认</span>
+          <span class="doc-badge b-hover">悬停</span>
+          <span class="doc-badge b-on">选中</span>
+          <span class="doc-badge b-empty">空态</span>
+          <span class="doc-badge b-err">错误态</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">select 142×36 · 行钮 104×30 · 菜单宽104 项高38</span><span class="src">docs/api-research.md §16 真机实测</span></span>
+          <span class="doc-pill"><span class="v">模态 400 宽 圆角15 · 列表限高203 · 确定 128×36</span><span class="src">docs/api-research.md §16</span></span>
+          <span class="doc-pill"><span class="v">PopConfirm 134 宽 圆角2 · 双钮 22 高</span><span class="src">docs/api-research.md §16</span></span>
+        </p>
       </div>
-      <p class="cap">选档语义与现 chips 一致（全部 / 未分组 / 各组）；建组入口＝⑤⑥弹窗底部的添加输入行（原生同款）。</p>
-    </div>
-  </div>
 
-  <div class="sec">
-    <h2>② select 下拉展开态<em>暗色弹层、项高 32、padding 5×12、字 14；选中档 accent（原生选中类名未截到，标注未实测）</em></h2>
-    <div class="stage tall">
-      <div class="flselect">全部分组<span class="arw arw-u">&#xE166;</span>
-        <div class="opts">
-          <div class="opt on">全部分组</div>
-          <div class="opt">未分组</div>
-          <div class="opt">舞</div>
-          <div class="opt">回</div>
-          <div class="opt">趣</div>
-          <div class="opt">番</div>
-        </div>
-      </div>
-      <p class="cap">原生选项不带计数（现 chips 的「舞 8」计数跟原生口径一并去掉）。</p>
-    </div>
-  </div>
-
-  <div class="sec">
-    <h2>③ 成员行（默认态）<em>头像 60 圆 · 名 16/24 · data「关注:N 粉丝:N 投稿:N」12/18 间距24 · 签名 12/18 上距4 · 行 padding 20×0 分隔线 1px</em></h2>
-    <div class="stage">
-      <div class="grow">
-        <div class="av"></div>
-        <div class="info">
-          <div class="nm">一只芸喵喵</div>
-          <div class="data"><span>关注:31</span><span>粉丝:1.7万</span><span>投稿:309</span></div>
-          <div class="sign">喜欢跳舞～感谢关注！ 各平台同名：一只芸喵喵 不怎么出现的QQ群：985160785</div>
-        </div>
-        <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已关注</button></div>
-      </div>
-      <div class="grow">
-        <div class="av"></div>
-        <div class="info">
-          <div class="nm">二七梦</div>
-          <div class="data"><span>关注:99</span><span>粉丝:11.7万</span><span>投稿:598</span></div>
-          <div class="sign">偶尔晚上直播 |多边形摆烂大王 | 交流群875057713 |其他地方都叫二七梦（希望你一直在ෆ）</div>
-        </div>
-        <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已互粉</button></div>
-      </div>
-      <div class="grow">
-        <div class="av"></div>
-        <div class="info">
-          <div class="nm">绝对呆</div>
-          <div class="data"><span>关注:217</span><span>粉丝:3155</span><span>投稿:168</span></div>
-          <div class="sign">年更UP，此人已死，有事烧纸；小事挖坟，大事招魂。 我叫阿呆，我一个人住，我家的房子还蛮大的，欢迎你们来我家玩。 我们还可以去超商买啤酒和零食，玩累了就直接睡觉，没关系的。</div>
-        </div>
-        <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已互粉</button></div>
-      </div>
-      <p class="cap">
-        签名行按原生完整展示（上面第三行是实测真实长签，原生渲染为两行自然换行）——预览里给了 2 行钳
-        防极端长签破坏行节奏，要 1:1 就去掉钳制，实现时二选一。
-        「已互粉/已关注/特别关注」文案照钮文案状态机落地（followingStatus 1=回粉/关注、
-        2=已关注/已互粉、3=特别关注，字段实测都在回包里）。
-        原生名字行还带认证/学院小图标（official/college 两枚 18×18 SVG，驱动字段
-        verifiedType=2 / isSignedUpCollege）——<b>已拍板不加</b>，资产已采入 §16 备用。
-        行悬停：原生无反馈，不加。
+      <p class="doc-note">
+        口径：<b>暗色皮肤</b>；结构/字号/间距/信息层级 1:1 照原生 <b>/member/feeds/following</b> 量取值
+        （2026-10-29 真机取证，全量数值入档 docs/api-research.md §16），颜色按暗色换算对照表映射。
+        结构映射：chips 行 → select +「编辑分组」；组头改名/删除 → 编辑分组弹窗；
+        成员行「移组/取关」两 chip → 行内「☰ 已关注」下拉（特别关注/取消关注/设置分组）+ 原生模态壳。
+        <b>不跟</b>：数字分页（0.9.219 尾部统一 listtail）、行内归属标签（原生没有）。
+        待核字段：签名行 /「关注:N」/「已互粉」能否落地取决于 getFollows 回包，缺则降级（§16）。
       </p>
-    </div>
-  </div>
 
-  <div class="sec">
-    <h2>④ 行内钮悬停 + 下拉菜单展开态<em>悬停仅底色加深（原生实测）；菜单 = 特别关注 / 取消关注 / 设置分组，宽104 项高38 居中</em></h2>
-    <div class="pair">
-      <div class="stage" style="flex:1;min-width:320px">
-        <div class="grow">
-          <div class="av"></div>
-          <div class="info">
-            <div class="nm">小勒个朵</div>
-            <div class="data"><span>关注:683</span><span>粉丝:1.4万</span><span>投稿:297</span></div>
-            <div class="sign">一只成精的老妖婆 专吃小孩 |隔壁“一只纱朵”｜网易云“纱小朵”|粉丝Q群183736615</div>
-          </div>
-          <div class="gacts"><button class="relbtn hov"><span class="ico">&#xE2CE;</span>已互粉</button></div>
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>顶栏</h2>
+          <span class="nt">「全部分组」select（142×36 边1圆角4 字14）+ 右上「编辑分组」文字钮——chips 行退役</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
         </div>
-        <p class="cap">悬停 = 面亮一档（rgba(255,255,255,.12)），字色不变——原生实测同款。</p>
-      </div>
-      <div class="stage menub" style="flex:1;min-width:320px">
-        <div class="grow">
-          <div class="av"></div>
-          <div class="info">
-            <div class="nm">小勒个朵</div>
-            <div class="data"><span>关注:683</span><span>粉丝:1.4万</span><span>投稿:297</span></div>
-            <div class="sign">一只成精的老妖婆 专吃小孩 |隔壁“一只纱朵”｜网易云“纱小朵”|粉丝Q群183736615</div>
+        <div class="doc-figure">
+          <div class="stage">
+            <div class="fltop">
+              <div class="flselect">全部分组<span class="arw">&#xE166;</span></div>
+              <button class="fledit">编辑分组</button>
+            </div>
+            <p class="cap">选档语义与现 chips 一致（全部 / 未分组 / 各组）；建组入口＝⑤⑥弹窗底部的添加输入行（原生同款）。</p>
           </div>
-          <div class="gacts">
-            <button class="relbtn"><span class="ico">&#xE2CE;</span>已互粉</button>
-            <div class="relmenu">
-              <button class="mi">特别关注</button>
-              <button class="mi">取消关注</button>
-              <button class="mi">设置分组</button>
+        </div>
+      </section>
+
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>select 下拉展开态</h2>
+          <span class="nt">暗色弹层、项高 32、padding 5×12、字 14；选中档 accent（原生选中类名未截到，标注未实测）</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="stage tall">
+            <div class="flselect">全部分组<span class="arw arw-u">&#xE166;</span>
+              <div class="opts">
+                <div class="opt on">全部分组</div>
+                <div class="opt">未分组</div>
+                <div class="opt">舞</div>
+                <div class="opt">回</div>
+                <div class="opt">趣</div>
+                <div class="opt">番</div>
+              </div>
+            </div>
+            <p class="cap">原生选项不带计数（现 chips 的「舞 8」计数跟原生口径一并去掉）。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>成员行（默认态）</h2>
+          <span class="nt">头像 60 圆 · 名 16/24 · data「关注:N 粉丝:N 投稿:N」12/18 间距24 · 签名 12/18 上距4 · 行 padding 20×0 分隔线 1px</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="stage">
+            <div class="grow">
+              <div class="av"></div>
+              <div class="info">
+                <div class="nm">一只芸喵喵</div>
+                <div class="data"><span>关注:31</span><span>粉丝:1.7万</span><span>投稿:309</span></div>
+                <div class="sign">喜欢跳舞～感谢关注！ 各平台同名：一只芸喵喵 不怎么出现的QQ群：985160785</div>
+              </div>
+              <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已关注</button></div>
+            </div>
+            <div class="grow">
+              <div class="av"></div>
+              <div class="info">
+                <div class="nm">二七梦</div>
+                <div class="data"><span>关注:99</span><span>粉丝:11.7万</span><span>投稿:598</span></div>
+                <div class="sign">偶尔晚上直播 |多边形摆烂大王 | 交流群875057713 |其他地方都叫二七梦（希望你一直在ෆ）</div>
+              </div>
+              <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已互粉</button></div>
+            </div>
+            <div class="grow">
+              <div class="av"></div>
+              <div class="info">
+                <div class="nm">绝对呆</div>
+                <div class="data"><span>关注:217</span><span>粉丝:3155</span><span>投稿:168</span></div>
+                <div class="sign">年更UP，此人已死，有事烧纸；小事挖坟，大事招魂。 我叫阿呆，我一个人住，我家的房子还蛮大的，欢迎你们来我家玩。 我们还可以去超商买啤酒和零食，玩累了就直接睡觉，没关系的。</div>
+              </div>
+              <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已互粉</button></div>
+            </div>
+            <p class="cap">
+              签名行按原生完整展示（上面第三行是实测真实长签，原生渲染为两行自然换行）——预览里给了 2 行钳
+              防极端长签破坏行节奏，要 1:1 就去掉钳制，实现时二选一。
+              「已互粉/已关注/特别关注」文案照钮文案状态机落地（followingStatus 1=回粉/关注、
+              2=已关注/已互粉、3=特别关注，字段实测都在回包里）。
+              原生名字行还带认证/学院小图标（official/college 两枚 18×18 SVG，驱动字段
+              verifiedType=2 / isSignedUpCollege）——<b>已拍板不加</b>，资产已采入 §16 备用。
+              行悬停：原生无反馈，不加。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>行内钮悬停 + 下拉菜单展开态</h2>
+          <span class="nt">悬停仅底色加深（原生实测）；菜单 = 特别关注 / 取消关注 / 设置分组，宽104 项高38 居中</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="pair">
+            <div class="stage flex">
+              <div class="grow">
+                <div class="av"></div>
+                <div class="info">
+                  <div class="nm">小勒个朵</div>
+                  <div class="data"><span>关注:683</span><span>粉丝:1.4万</span><span>投稿:297</span></div>
+                  <div class="sign">一只成精的老妖婆 专吃小孩 |隔壁“一只纱朵”｜网易云“纱小朵”|粉丝Q群183736615</div>
+                </div>
+                <div class="gacts"><button class="relbtn hov"><span class="ico">&#xE2CE;</span>已互粉</button></div>
+              </div>
+              <p class="cap">悬停 = 面亮一档（rgba(255,255,255,.12)），字色不变——原生实测同款。</p>
+            </div>
+            <div class="stage menub flex">
+              <div class="grow">
+                <div class="av"></div>
+                <div class="info">
+                  <div class="nm">小勒个朵</div>
+                  <div class="data"><span>关注:683</span><span>粉丝:1.4万</span><span>投稿:297</span></div>
+                  <div class="sign">一只成精的老妖婆 专吃小孩 |隔壁“一只纱朵”｜网易云“纱小朵”|粉丝Q群183736615</div>
+                </div>
+                <div class="gacts">
+                  <button class="relbtn"><span class="ico">&#xE2CE;</span>已互粉</button>
+                  <div class="relmenu">
+                    <button class="mi">特别关注</button>
+                    <button class="mi">取消关注</button>
+                    <button class="mi">设置分组</button>
+                  </div>
+                </div>
+              </div>
+              <p class="cap">三项语义映射（写链已实抓）：特别关注 = relation/follow action=14
+                （独立标记，不动组归属）；取消关注 = action=2（现取关）；设置分组 = 开⑤弹窗（现「移组」）。
+                原生取消类两键套 PopConfirm 确认步（「是否取消特别关注？/是否取消关注？」），加特别关注不确认
+                ——<b>已拍板「模仿原生」，确认步采纳</b>（形态见右侧第三态）。菜单悬停点亮 accent 为惯例推断（原生未实测）。
+                菜单项三串同色（<b>已拍板不要红字</b>，跟原生）。</p>
+            </div>
+            <div class="stage menub flex300">
+              <p class="cap lead4">④b 确认弹层（模仿原生，拍板已定）</p>
+              <div class="grow">
+                <div class="av"></div>
+                <div class="info">
+                  <div class="nm">渣丸子</div>
+                  <div class="data"><span>关注:486</span><span>粉丝:7.1万</span><span>投稿:655</span></div>
+                  <div class="sign">生活工作需要，很难固定直播，一般周②周④晚上直播，具体情况随缘，看动态和群内通知。</div>
+                </div>
+                <div class="gacts">
+                  <button class="relbtn"><span class="ico">&#xE2CE;</span>已关注</button>
+                  <div class="pcf">
+                    <div class="pcfm">是否取消关注？</div>
+                    <div class="pcfb"><button class="pcfc">取消</button><button class="pcfk">确定</button></div>
+                  </div>
+                </div>
+              </div>
+              <p class="cap">原生量取：134 宽 圆角 2、文案 12px 左对齐、双钮右下 22 高 12px
+                （取消=边+灰字、确定=红底白字）；水平以行钮为中心悬于其下；打开时菜单收起、外点关闭；
+                「确定」才发包（action=15 / action=2），「取消」纯关闭。「取消特别关注」同款换文案
+                （是否取消特别关注？→ action=15）。</p>
             </div>
           </div>
         </div>
-        <p class="cap">三项语义映射（写链已实抓）：特别关注 = relation/follow action=14
-          （独立标记，不动组归属）；取消关注 = action=2（现取关）；设置分组 = 开⑤弹窗（现「移组」）。
-          原生取消类两键套 PopConfirm 确认步（「是否取消特别关注？/是否取消关注？」），加特别关注不确认
-          ——<b>已拍板「模仿原生」，确认步采纳</b>（形态见右侧第三态）。菜单悬停点亮 accent 为惯例推断（原生未实测）。
-          菜单项三串同色（<b>已拍板不要红字</b>，跟原生）。</p>
-      </div>
-      <div class="stage menub" style="flex:1;min-width:300px">
-        <p class="cap" style="margin:0 0 4px">④b 确认弹层（模仿原生，拍板已定）</p>
-        <div class="grow">
-          <div class="av"></div>
-          <div class="info">
-            <div class="nm">渣丸子</div>
-            <div class="data"><span>关注:486</span><span>粉丝:7.1万</span><span>投稿:655</span></div>
-            <div class="sign">生活工作需要，很难固定直播，一般周②周④晚上直播，具体情况随缘，看动态和群内通知。</div>
+      </section>
+
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">05</span>
+          <h2>「设置分组」弹窗</h2>
+          <span class="nt">原生壳：400 宽 圆角15、标题 16/600 居中 + ✕、副题居中、组单选列表限高203 滚动（底部常驻添加输入行）、红确定 128×36</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-grid">
+          <div class="doc-figure">
+            <div class="maskdemo">
+              <div class="modal">
+                <div class="hd"><div class="ttl">设置分组</div><button class="x">&#xE182;</button></div>
+                <div class="sub">请选择分组</div>
+                <div class="glist">
+                  <div class="gitem"><span class="radio"></span><span class="gl">未分组</span></div>
+                  <div class="gitem on"><span class="radio"></span><span class="gl">舞</span></div>
+                  <div class="gitem"><span class="radio"></span><span class="gl">回</span></div>
+                  <div class="gitem"><span class="radio"></span><span class="gl">趣</span></div>
+                  <div class="gitem"><span class="radio"></span><span class="gl">番</span></div>
+                  <div class="gitem addrow"><input class="addin" readonly
+                    placeholder="+添加分组，分组名称应在1到8个字符之间，仅支持中文、英文、数字。"></div>
+                </div>
+                <div class="okrow"><button class="ok">确定</button></div>
+              </div>
+            </div>
           </div>
-          <div class="gacts">
-            <button class="relbtn"><span class="ico">&#xE2CE;</span>已关注</button>
-            <div class="pcf">
-              <div class="pcfm">是否取消关注？</div>
-              <div class="pcfb"><button class="pcfc">取消</button><button class="pcfk">确定</button></div>
+          <div class="doc-figure">
+            <div class="maskdemo">
+              <div class="warnstrip"><span class="wicon">&#xE1A0;</span>分组名称应在1到8个字符之间，仅支持中文、英文、数字。</div>
+              <div class="modal">
+                <div class="hd"><div class="ttl">设置分组</div><button class="x">&#xE182;</button></div>
+                <div class="sub">请选择分组</div>
+                <div class="glist">
+                  <div class="gitem"><span class="radio"></span><span class="gl">未分组</span></div>
+                  <div class="gitem on"><span class="radio"></span><span class="gl">舞</span></div>
+                  <div class="gitem addrow"><input class="addin" readonly value="一二三四五六七八九"></div>
+                  <div class="addacts"><button class="pcfc">取消添加</button><button class="pcfk">添加分组</button></div>
+                </div>
+                <div class="okrow"><button class="ok">确定</button></div>
+              </div>
             </div>
           </div>
         </div>
-        <p class="cap">原生量取：134 宽 圆角 2、文案 12px 左对齐、双钮右下 22 高 12px
-          （取消=边+灰字、确定=红底白字）；水平以行钮为中心悬于其下；打开时菜单收起、外点关闭；
-          「确定」才发包（action=15 / action=2），「取消」纯关闭。「取消特别关注」同款换文案
-          （是否取消特别关注？→ action=15）。</p>
-      </div>
-    </div>
-  </div>
+        <p class="doc-note">形态 = 原生 ac-modal 暗色换算；<b>真机落位=视口垂直居中</b>（原生实测重心正中，
+          2026-10-29 用户纠正；本页 maskdemo 框只示意形态、不表达落位）。数据/写链沿用现 grouppop（regroup action=3、未分组 id"0"），
+          只是换壳。rail 角标的选择层（浮层锚定宿主）不在此列、形态不动。
+          底部添加输入行＝原生实测（2026-10-29 补采：与组条同款灰条 34 高、内嵌无边框透明 input，
+          placeholder 即校验文案；原生无独立「新建」钮）。
+          <b>校验口径已核（bundle + 真机失败路径）</b>：原生真实规则 = trim 后
+          <b>/^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$/</b>——下划线放行，与脚本现行完全一致；
+          placeholder 漏写「下划线」是原生文案自己偏窄，照抄即可。保留字「特别关注/未分组」拒绝；
+          失败 = 顶部通栏警示条（icon U+E1A0 金黄 + 文案 14px，~3s 自消，见上）；成功 = toast
+          「添加分组成功！」。聚焦态行下出「取消添加/添加分组」双小钮（上图第二态，9 字超长示例）。</p>
+      </section>
 
-  <div class="sec">
-    <h2>⑤ 「设置分组」弹窗<em>原生壳：400 宽 圆角15、标题 16/600 居中 + ✕、副题居中、组单选列表限高203 滚动（底部常驻添加输入行）、红确定 128×36</em></h2>
-    <div class="maskdemo">
-      <div class="modal">
-        <div class="hd"><div class="ttl">设置分组</div><button class="x">&#xE182;</button></div>
-        <div class="sub">请选择分组</div>
-        <div class="glist">
-          <div class="gitem"><span class="radio"></span><span class="gl">未分组</span></div>
-          <div class="gitem on"><span class="radio"></span><span class="gl">舞</span></div>
-          <div class="gitem"><span class="radio"></span><span class="gl">回</span></div>
-          <div class="gitem"><span class="radio"></span><span class="gl">趣</span></div>
-          <div class="gitem"><span class="radio"></span><span class="gl">番</span></div>
-          <div class="gitem addrow"><input class="addin" readonly
-            placeholder="+添加分组，分组名称应在1到8个字符之间，仅支持中文、英文、数字。"></div>
+      <section class="doc-sec" id="s6">
+        <div class="doc-sec-hd">
+          <span class="idx">06</span>
+          <h2>「编辑分组」弹窗</h2>
+          <span class="nt">同款壳；组条内改名/删除 + 底部同款添加输入行 = 脚本功能填原生壳（原生此弹窗内部交互未逐项取证）</span>
+          <a class="anchor" href="#s6" aria-label="锚点">#</a>
         </div>
-        <div class="okrow"><button class="ok">确定</button></div>
-      </div>
-    </div>
-    <div class="maskdemo" style="margin-top:12px">
-      <div class="warnstrip"><span class="wicon">&#xE1A0;</span>分组名称应在1到8个字符之间，仅支持中文、英文、数字。</div>
-      <div class="modal">
-        <div class="hd"><div class="ttl">设置分组</div><button class="x">&#xE182;</button></div>
-        <div class="sub">请选择分组</div>
-        <div class="glist">
-          <div class="gitem"><span class="radio"></span><span class="gl">未分组</span></div>
-          <div class="gitem on"><span class="radio"></span><span class="gl">舞</span></div>
-          <div class="gitem addrow"><input class="addin" readonly value="一二三四五六七八九"></div>
-          <div class="addacts"><button class="pcfc">取消添加</button><button class="pcfk">添加分组</button></div>
+        <div class="doc-figure">
+          <div class="maskdemo">
+            <div class="modal">
+              <div class="hd"><div class="ttl">编辑分组</div><button class="x">&#xE182;</button></div>
+              <div class="glist">
+                <div class="gitem"><span class="gl">舞</span>
+                  <span class="rops"><button class="rbtn">改名</button><button class="rbtn danger">删除</button></span>
+                </div>
+                <div class="gitem"><span class="gl">回</span>
+                  <span class="rops"><button class="rbtn">改名</button><button class="rbtn danger">删除</button></span>
+                </div>
+                <div class="gitem"><span class="gl">特别关注</span>
+                  <span class="rops"><button class="rbtn">改名</button></span>
+                </div>
+                <div class="gitem addrow"><input class="addin" readonly
+                  placeholder="+添加分组，分组名称应在1到8个字符之间，仅支持中文、英文、数字。"></div>
+              </div>
+              <div class="okrow"><button class="ok">确定</button></div>
+            </div>
+          </div>
         </div>
-        <div class="okrow"><button class="ok">确定</button></div>
-      </div>
-    </div>
-    <p class="cap">形态 = 原生 ac-modal 暗色换算；<b>真机落位=视口垂直居中</b>（原生实测重心正中，
-    2026-10-29 用户纠正；本页 maskdemo 框只示意形态、不表达落位）。数据/写链沿用现 grouppop（regroup action=3、未分组 id"0"），
-      只是换壳。rail 角标的选择层（浮层锚定宿主）不在此列、形态不动。
-      底部添加输入行＝原生实测（2026-10-29 补采：与组条同款灰条 34 高、内嵌无边框透明 input，
-      placeholder 即校验文案；原生无独立「新建」钮）。
-      <b>校验口径已核（bundle + 真机失败路径）</b>：原生真实规则 = trim 后
-      <b>/^[\u4e00-\u9fa5_a-zA-Z0-9_]{1,8}$/</b>——下划线放行，与脚本现行完全一致；
-      placeholder 漏写「下划线」是原生文案自己偏窄，照抄即可。保留字「特别关注/未分组」拒绝；
-      失败 = 顶部通栏警示条（icon U+E1A0 金黄 + 文案 14px，~3s 自消，见上）；成功 = toast
-      「添加分组成功！」。聚焦态行下出「取消添加/添加分组」双小钮（上图第二态，9 字超长示例）。</p>
-  </div>
+        <p class="doc-note">系统组不给删（特别关注只给改名，未分组不进列表）——沿用现 adminTab 豁免规则。
+          建组流程随原生收敛：脚本现「＋新建分组 → 输入 → 新建钮」三步改为常驻输入行直接输入
+          （回车/失焦提交，无独立按钮，与⑤同款）。</p>
+      </section>
 
-  <div class="sec">
-    <h2>⑥ 「编辑分组」弹窗<em>同款壳；组条内改名/删除 + 底部同款添加输入行 = 脚本功能填原生壳（原生此弹窗内部交互未逐项取证）</em></h2>
-    <div class="maskdemo">
-      <div class="modal">
-        <div class="hd"><div class="ttl">编辑分组</div><button class="x">&#xE182;</button></div>
-        <div class="glist">
-          <div class="gitem"><span class="gl">舞</span>
-            <span class="rops"><button class="rbtn">改名</button><button class="rbtn danger">删除</button></span>
-          </div>
-          <div class="gitem"><span class="gl">回</span>
-            <span class="rops"><button class="rbtn">改名</button><button class="rbtn danger">删除</button></span>
-          </div>
-          <div class="gitem"><span class="gl">特别关注</span>
-            <span class="rops"><button class="rbtn">改名</button></span>
-          </div>
-          <div class="gitem addrow"><input class="addin" readonly
-            placeholder="+添加分组，分组名称应在1到8个字符之间，仅支持中文、英文、数字。"></div>
+      <section class="doc-sec" id="s7">
+        <div class="doc-sec-hd">
+          <span class="idx">07</span>
+          <h2>空态</h2>
+          <span class="nt">组内档无成员 / 全部无关注两串</span>
+          <a class="anchor" href="#s7" aria-label="锚点">#</a>
         </div>
-        <div class="okrow"><button class="ok">确定</button></div>
-      </div>
-    </div>
-    <p class="cap">系统组不给删（特别关注只给改名，未分组不进列表）——沿用现 adminTab 豁免规则。
-      建组流程随原生收敛：脚本现「＋新建分组 → 输入 → 新建钮」三步改为常驻输入行直接输入
-      （回车/失焦提交，无独立按钮，与⑤同款）。</p>
-  </div>
+        <div class="doc-figure">
+          <div class="stage">
+            <div class="empty">这个分组还没有成员</div>
+            <div class="empty">还没有关注任何UP，去首页逛逛吧</div>
+          </div>
+        </div>
+      </section>
 
-  <div class="sec">
-    <h2>⑦ 空态<em>组内档无成员 / 全部无关注两串</em></h2>
-    <div class="stage">
-      <div class="empty">这个分组还没有成员</div>
-      <div class="empty">还没有关注任何UP，去首页逛逛吧</div>
-    </div>
-  </div>
-
-  <div class="sec">
-    <h2>⑧ 改前 / 改后对照<em>同一行两种形态并排；下方为量取对照表</em></h2>
-    <div class="pair">
-      <div class="stage old" style="flex:1;min-width:340px">
-        <p class="cap" style="margin:0 0 8px">改前（0.9.142 现状）</p>
-        <div class="oldchips">
-          <button class="oldchip on">全部</button><button class="oldchip">未分组 14</button>
-          <button class="oldchip">舞 8</button><button class="oldchip">＋ 新建分组</button>
+      <section class="doc-sec" id="s8">
+        <div class="doc-sec-hd">
+          <span class="idx">08</span>
+          <h2>改前 / 改后对照</h2>
+          <span class="nt">同一行两种形态并排；下方为量取对照表</span>
+          <a class="anchor" href="#s8" aria-label="锚点">#</a>
         </div>
-        <div class="grow">
-          <div class="av"></div>
-          <div class="info">
-            <div class="nm">一只芸喵喵</div>
-            <div class="data"><span>粉丝 1.6万</span><span>投稿 286</span><span class="oldtag">舞</span></div>
+        <div class="doc-figure">
+          <div class="pair">
+            <div class="stage old flex340">
+              <p class="cap lead8">改前（0.9.142 现状）</p>
+              <div class="oldchips">
+                <button class="oldchip on">全部</button><button class="oldchip">未分组 14</button>
+                <button class="oldchip">舞 8</button><button class="oldchip">＋ 新建分组</button>
+              </div>
+              <div class="grow">
+                <div class="av"></div>
+                <div class="info">
+                  <div class="nm">一只芸喵喵</div>
+                  <div class="data"><span>粉丝 1.6万</span><span>投稿 286</span><span class="oldtag">舞</span></div>
+                </div>
+                <div class="oldacts"><button class="oldchip">移组</button><button class="oldchip">取关</button></div>
+              </div>
+            </div>
+            <div class="stage flex340">
+              <p class="cap lead8">改后（对齐原生）</p>
+              <div class="fltop gap4">
+                <div class="flselect">全部分组<span class="arw">&#xE166;</span></div>
+                <button class="fledit">编辑分组</button>
+              </div>
+              <div class="grow">
+                <div class="av"></div>
+                <div class="info">
+                  <div class="nm">一只芸喵喵</div>
+                  <div class="data"><span>关注:31</span><span>粉丝:1.7万</span><span>投稿:309</span></div>
+                  <div class="sign">喜欢跳舞～感谢关注！ 各平台同名：一只芸喵喵 不怎么出现的QQ群：985160785</div>
+                </div>
+                <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已关注</button></div>
+              </div>
+            </div>
           </div>
-          <div style="display:flex;gap:8px"><button class="oldchip">移组</button><button class="oldchip">取关</button></div>
         </div>
-      </div>
-      <div class="stage" style="flex:1;min-width:340px">
-        <p class="cap" style="margin:0 0 8px">改后（对齐原生）</p>
-        <div class="fltop" style="margin-bottom:4px">
-          <div class="flselect">全部分组<span class="arw">&#xE166;</span></div>
-          <button class="fledit">编辑分组</button>
-        </div>
-        <div class="grow">
-          <div class="av"></div>
-          <div class="info">
-            <div class="nm">一只芸喵喵</div>
-            <div class="data"><span>关注:31</span><span>粉丝:1.7万</span><span>投稿:309</span></div>
-            <div class="sign">喜欢跳舞～感谢关注！ 各平台同名：一只芸喵喵 不怎么出现的QQ群：985160785</div>
-          </div>
-          <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已关注</button></div>
-        </div>
-      </div>
-    </div>
-    <table style="margin-top:14px">
-      <tr><th>节点</th><th>原生实测</th><th>暗色落地</th></tr>
-      <tr><td>行</td><td>padding 20×0，分隔线 1px #f5f5f5</td><td>同值；分隔线 rgba(255,255,255,.06)</td></tr>
-      <tr><td>头像</td><td>60×60 圆，上距 2</td><td>同值（原 50）</td></tr>
-      <tr><td>名字</td><td>16px/24 #333</td><td>16px/24 #e8eaee（原 14px）</td></tr>
-      <tr><td>data 三段</td><td>12px/18 #999，渲染间距 ≈24</td><td>12px/18 #8a90a0，gap 24（新增「关注:N」）</td></tr>
-      <tr><td>签名</td><td>12px/18 #999 上距4，无钳制</td><td>同值 #8a90a0；2 行钳（可去，见③）</td></tr>
-      <tr><td>行内钮</td><td>104×30 bg#f5f5f5 圆角4 字14 #999，悬停 bg→#e5e5e5</td><td>同几何；surf/.12 悬停</td></tr>
-      <tr><td>钮菜单</td><td>宽104 白底圆角4 项高38 居中</td><td>同几何；panel 底+家族阴影</td></tr>
-      <tr><td>select</td><td>142×36 边1 #d9d9d9 圆角4 字14</td><td>同几何；边 rgba(255,255,255,.12)</td></tr>
-      <tr><td>模态</td><td>400 宽 圆角15 列表限高203 组条圆角5</td><td>同几何；panel 底、组条 surf</td></tr>
-      <tr><td>确定钮</td><td>#fd4c5d 白字 圆角4</td><td>同值（accent 单源）</td></tr>
-    </table>
-  </div>
+        <table class="doc-table">
+          <thead><tr><th>节点</th><th>原生实测</th><th>暗色落地</th></tr></thead>
+          <tbody>
+            <tr><td>行</td><td>padding 20×0，分隔线 1px #f5f5f5</td><td>同值；分隔线 rgba(255,255,255,.06)</td></tr>
+            <tr><td>头像</td><td>60×60 圆，上距 2</td><td>同值（原 50）</td></tr>
+            <tr><td>名字</td><td>16px/24 #333</td><td>16px/24 #e8eaee（原 14px）</td></tr>
+            <tr><td>data 三段</td><td>12px/18 #999，渲染间距 ≈24</td><td>12px/18 #8a90a0，gap 24（新增「关注:N」）</td></tr>
+            <tr><td>签名</td><td>12px/18 #999 上距4，无钳制</td><td>同值 #8a90a0；2 行钳（可去，见③）</td></tr>
+            <tr><td>行内钮</td><td>104×30 bg#f5f5f5 圆角4 字14 #999，悬停 bg→#e5e5e5</td><td>同几何；surf/.12 悬停</td></tr>
+            <tr><td>钮菜单</td><td>宽104 白底圆角4 项高38 居中</td><td>同几何；panel 底+家族阴影</td></tr>
+            <tr><td>select</td><td>142×36 边1 #d9d9d9 圆角4 字14</td><td>同几何；边 rgba(255,255,255,.12)</td></tr>
+            <tr><td>模态</td><td>400 宽 圆角15 列表限高203 组条圆角5</td><td>同几何；panel 底、组条 surf</td></tr>
+            <tr><td>确定钮</td><td>#fd4c5d 白字 圆角4</td><td>同值（accent 单源）</td></tr>
+          </tbody>
+        </table>
+      </section>
 
-  <div class="sec">
-    <h2>⑨ 窄宽（540）自检<em>长签名换行不破行、行内钮不被挤出、select 与「编辑分组」同行共存</em></h2>
-    <div class="narrow">
-      <div class="fltop" style="margin-bottom:8px">
-        <div class="flselect">全部分组<span class="arw">&#xE166;</span></div>
-        <button class="fledit">编辑分组</button>
-      </div>
-      <div class="grow">
-        <div class="av"></div>
-        <div class="info">
-          <div class="nm">一只很长很长很长很长很长很长的昵称样例</div>
-          <div class="data"><span>关注:31</span><span>粉丝:1.7万</span><span>投稿:309</span></div>
-          <div class="sign">偶尔晚上直播 |多边形摆烂大王 | 交流群875057713 |其他地方都叫二七梦（希望你一直在ෆ）这是一段特别长的签名用来验证窄宽下两行钳与省略号是否正常工作不破行节奏</div>
+      <section class="doc-sec" id="s9">
+        <div class="doc-sec-hd">
+          <span class="idx">09</span>
+          <h2>窄宽（540）自检</h2>
+          <span class="nt">长签名换行不破行、行内钮不被挤出、select 与「编辑分组」同行共存</span>
+          <a class="anchor" href="#s9" aria-label="锚点">#</a>
         </div>
-        <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已关注</button></div>
-      </div>
-      <p class="cap">窄态检查项：长昵称省略不逐字断行；签名 2 行钳；行内钮 min-width 104 不被挤扁。</p>
-    </div>
+        <div class="doc-figure">
+          <div class="narrow">
+            <div class="fltop gap8">
+              <div class="flselect">全部分组<span class="arw">&#xE166;</span></div>
+              <button class="fledit">编辑分组</button>
+            </div>
+            <div class="grow">
+              <div class="av"></div>
+              <div class="info">
+                <div class="nm">一只很长很长很长很长很长很长的昵称样例</div>
+                <div class="data"><span>关注:31</span><span>粉丝:1.7万</span><span>投稿:309</span></div>
+                <div class="sign">偶尔晚上直播 |多边形摆烂大王 | 交流群875057713 |其他地方都叫二七梦（希望你一直在ෆ）这是一段特别长的签名用来验证窄宽下两行钳与省略号是否正常工作不破行节奏</div>
+              </div>
+              <div class="gacts"><button class="relbtn"><span class="ico">&#xE2CE;</span>已关注</button></div>
+            </div>
+            <p class="cap">窄态检查项：长昵称省略不逐字断行；签名 2 行钳；行内钮 min-width 104 不被挤扁。</p>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

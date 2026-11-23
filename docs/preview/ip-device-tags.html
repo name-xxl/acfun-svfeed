@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 评论 IP 属地标签 + 设备型号美化（Web-IP 吸收 Phase 5）</title>
 <!-- ============================================================
      docs/preview/ip-device-tags.html —— Web-IP 吸收 Phase 5 静态预览（2026-10-15）
@@ -18,25 +19,32 @@
        · 面板控件照 src/settingspanel.js SET_CSS（34×18 开关药丸 / set-sel 下拉 / 暗色 400px 面板）
      待确认点（页尾汇总）：IP 段落位 / hover 色 / tooltip 是否含查询时间 / 设备点击切换是否保留
      纪律：单文件/无依赖/真实文案；1600×900 与 540 宽各过一眼。确认后才进 src/。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     v3（2026-11-23 铺开批）：决策沿革折叠（⑧ 待确认点降级页尾档案），demo 未动。
+     v5（2026-11-23 图标真资产批）：赞/回复/转发三键 ♡/纯文本 → 真实 iconfont 字形（e629/e627/e628，
+       src/commentkit.js:125-151 同源），补本地 @font-face 与 .acsvg-glyph 基类（cssraw.js:491-492 真值）；
+       ✕ 关闭钮＝src 纯文本原样（settingspanel.js:307），头像渐变/tooltip 箭头属装饰保留。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
+  /* 站方原生 iconfont（cssraw.js 头同串，本地资产）——赞/回复/转发字形全真（commentkit 同源） */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(assets/acfun-frontend-next.woff) format("woff"),
+        url(assets/acfun-frontend-next.ttf) format("truetype")
+  }
+  /* 字形基类（cssraw.js:491-492 .acsvg-glyph 真值逐字） */
+  .acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-size:11px;
+    display:inline-block;width:12px;height:12px;line-height:12px;text-align:center;color:currentColor}
   :root{
     --acsv-accent:#fd4c5d;--acsv-bg:#000;--acsv-panel:rgba(22,22,27,.97);--acsv-line:rgba(255,255,255,.09);
     --acsv-t2:#cfd3da;--acsv-t3:#8a90a0}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:#fff;font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
-  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
-  .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
-  .hint b{color:var(--acsv-t2)}
-  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
-  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
-  .sec>p.desc{color:var(--acsv-t3);font-size:12px;line-height:1.7;margin:6px 0 14px}
-  .dual{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
-  code{background:rgba(255,255,255,.08);border-radius:4px;padding:0 5px;font-size:12px;color:#e8eaee;
+  /* 旧稿全局零重置收进 demo 域（chrome 不受影响）：定宽带边框件几何逐字不变 */
+  .doc-figure :where(*:not(.doc-note)){box-sizing:border-box;margin:0;padding:0}
+  /* 旧稿全局 code 样式收进 demo 域（:where 零加权，doc-note 内 code 仍走 chrome） */
+  .doc-figure :where(code){background:rgba(255,255,255,.08);border-radius:4px;padding:0 5px;font-size:12px;color:#e8eaee;
     font-family:Consolas,Menlo,monospace}
+  .dual{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
   .badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;margin-left:8px;
     border:1px solid rgba(255,255,255,.25);color:var(--acsv-t2)}
   .badge.new{color:#7ee08a;border-color:rgba(126,224,138,.5)}
@@ -130,401 +138,496 @@
   .note{max-width:430px;color:var(--acsv-t3);font-size:12px;line-height:1.8}
   .note b{color:var(--acsv-t2)}
   .narrow{width:540px;border:1px dashed rgba(255,255,255,.14);padding:12px}
+
+  /* ---- 布局/状态变体类（原内联样式收编，量值照抄） ---- */
+  .note-mt0{margin-top:0}
+  .note-mb0{margin-bottom:0}
+  .note-lh2{line-height:2}
+  .drawer.padded{padding:2px 0 10px}
+  .drawer.full{width:100%;margin:0 auto}
+  .cmeta.tiproom{margin-bottom:26px}
+  .cip.hov{color:var(--acsv-accent)}
+  .cip.dim{color:var(--acsv-t3)}
+  .cfrom a.hov{color:#9fd0ff}
 </style>
 </head>
-<body class="board">
-  <h1>评论 IP 属地 + 设备型号美化 · 静态预览（确认后才进 src 实现）</h1>
-  <p class="hint">
-    <b>范围</b>：svfeed 评论抽屉（含楼中楼）meta 行加 IP 属地标签 + 「来自 x」四级查表美化 + 设置面板三行开关。
-    <b>不做（Phase 6）</b>：原生 v/a/member 页、commentId→userId 拦截层、点击 IP 弹原生风格面板、老仓归档。
-    <b>数据语义</b>：属地取自用户主页实时资料 <code>profile.ipLocation</code>（登录态才非空），<b>不代表发布评论时的 IP</b>。
-    量值依据见文件头注释；每段上方标状态名；窄宽另见 ⑦。
-  </p>
+<body>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <!-- ① 对照 -->
-  <div class="sec">
-    <h2>① 对照 · 现状 vs 本稿<em>meta 行末尾新增 IP 段；其余结构零改动</em></h2>
-    <div class="dual">
-      <div>
-        <p class="desc" style="margin-top:0">现状（0.9.244）：meta = 赞 / 回复 / 转发 / 来自 x<span class="badge warn">无属地</span></p>
-        <div class="drawer">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname"><a>一只芸喵喵</a><span class="cdate"><span>发表于</span><span>10-14 21:03</span></span></div>
-              <div class="ctext">这期运镜真的舒服，最后那段长镜头看鸡皮疙瘩起来了</div>
-              <div class="cmeta">
-                <span class="clike">♡ 128</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-                <span class="cfrom"><span>来自</span><a>iPhone客户端</a></span>
-              </div>
-            </div>
-          </div>
-        </div>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>评论 IP 属地 + 设备型号美化 · 静态预览（确认后才进 src 实现）</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-on">默认</span>
+          <span class="doc-badge b-hover">悬停（IP 主题色 / 设备蓝字）</span>
+          <span class="doc-badge">选中（设置开关 / 下拉）</span>
+          <span class="doc-badge">查询中（标签未上屏）</span>
+          <span class="doc-badge b-empty">空态（无属地 / 未登录）</span>
+          <span class="doc-badge b-err">错误态（断网静默）</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">meta 12px / #7a7f8a / gap 12 / flex-wrap</span><span class="src">src/styles.js:453-494 .acsv-cmeta</span></span>
+          <span class="doc-pill"><span class="v">开关 34×18 / 面板 400px</span><span class="src">src/settingspanel.js SET_CSS</span></span>
+        </p>
       </div>
-      <div>
-        <p class="desc" style="margin-top:0">本稿：meta 末尾追加 <code>.acsv-cip</code>，文案=ipLocation 原文<span class="badge new">新增</span></p>
-        <div class="drawer">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname"><a>一只芸喵喵</a><span class="cdate"><span>发表于</span><span>10-14 21:03</span></span></div>
-              <div class="ctext">这期运镜真的舒服，最后那段长镜头看鸡皮疙瘩起来了</div>
-              <div class="cmeta">
-                <span class="clike">♡ 128</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-                <span class="cfrom"><span>来自</span><a>iPhone客户端</a></span>
-                <span class="cip">广东</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <p class="desc">落位理由：IP 与设备同属「来源元信息」，排在 <code>.acsv-cfrom</code> 之后语义成组；meta 行 <code>flex-wrap</code> 已备（styles.js:453），窄容器里 IP 段整件换行、不逐字断（<code>.acsv-cmeta&gt;*</code> nowrap 已有）。</p>
-  </div>
 
-  <!-- ② IP 标签形态 -->
-  <div class="sec">
-    <h2>② IP 标签形态<em>默认灰 / 悬停主题色 / tooltip 文案 / 无设备时落位</em></h2>
-    <p class="desc">
-      文案=<code>profile.ipLocation</code> <b>原文直显</b>（Web-IP 同款，不做二次格式化；2026-10-15 真机采样 64 条
-      <b>全部为省级短名</b>——「广东」「内蒙古」「上海」「新疆」「中国香港」，无「省 市」双段；海外国家/地区未采样）。
-      tooltip 用原生 <code>title</code>（Web-IP 同款，零样式成本）——下方静态摆出文案供确认。
-    </p>
-    <div class="drawer" style="padding:2px 0 10px">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>夜航西飞</a><span class="cdate"><span>发表于</span><span>10-15 09:41</span></span></div>
-          <div class="ctext">默认态：灰字、不可点（点击弹面板属 Phase 6）</div>
-          <div class="cmeta">
-            <span class="clike">♡ 36</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cfrom"><span>来自</span><a>Android客户端</a></span>
-            <span class="cip">浙江</span>
-          </div>
-        </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>夜航西飞</a><span class="cdate"><span>发表于</span><span>10-15 09:42</span></span></div>
-          <div class="ctext">悬停态：主题色提示「此标签将来可点」（Phase 6 弹面板）</div>
-          <div class="cmeta">
-            <span class="clike">♡ 3</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cfrom"><span>来自</span><a>Android客户端</a></span>
-            <span class="cip" style="color:var(--acsv-accent)">山东</span>
-          </div>
-        </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>折枝投火</a><span class="cdate"><span>发表于</span><span>10-15 10:12</span></span></div>
-          <div class="ctext">tooltip 静态摆出（真机为原生 title，鼠标悬停于下方红色标签可见）：</div>
-          <div class="cmeta" style="margin-bottom:26px">
-            <span class="clike">♡ 77</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="tipwrap">
-              <span class="cip" style="color:var(--acsv-accent)">中国香港</span>
-              <span class="tiptip">
-                IP属地：中国香港<br>
-                （基于用户主页实时资料，不代表发布时的IP）<br>
-                查询于：2026-10-15 10:12
-              </span>
-            </span>
-          </div>
-        </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>一只梨</a><span class="cdate"><span>发表于</span><span>10-15 10:30</span></span></div>
-          <div class="ctext">无设备型号的评论：IP 段跟在转发后面，不依赖 .acsv-cfrom 在场</div>
-          <div class="cmeta">
-            <span class="clike">♡ 15</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cip">四川</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+      <p class="doc-note">
+        <b>范围</b>：svfeed 评论抽屉（含楼中楼）meta 行加 IP 属地标签 + 「来自 x」四级查表美化 + 设置面板三行开关。
+        <b>不做（Phase 6）</b>：原生 v/a/member 页、commentId→userId 拦截层、点击 IP 弹原生风格面板、老仓归档。
+        <b>数据语义</b>：属地取自用户主页实时资料 <code>profile.ipLocation</code>（登录态才非空），<b>不代表发布评论时的 IP</b>。
+        量值依据见文件头注释；每段上方标状态名；窄宽另见 ⑦。
+      </p>
 
-  <!-- ③ 设备美化 -->
-  <div class="sec">
-    <h2>③ 设备型号美化 · 四级查表<em>精确 → 大小写 → 去尾字母 → 前缀包含；未收录兜底原文</em></h2>
-    <p class="desc">
-      只换 <code>.acsv-cfrom</code> 里的链接文字，<code>href</code>（官方 APP 落点）与结构不动。
-      查表表=内置 ~1000 条（生成器产，CC BY-NC-SA 许可随 README 分声明）+ 用户面板导入合并。
-    </p>
-    <div class="drawer" style="padding:2px 0 10px">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>真我老哥</a><span class="cdate"><span>发表于</span><span>10-15 11:02</span></span></div>
-          <div class="ctext">精确命中：<code>RMX3619</code> → 真我 V30<span class="st ok">level 1</span></div>
-          <div class="cmeta">
-            <span class="clike">♡ 8</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cfrom"><span>来自</span><a>真我 V30</a></span>
-          </div>
+      <!-- ① 对照 -->
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>对照 · 现状 vs 本稿</h2>
+          <span class="nt">meta 行末尾新增 IP 段；其余结构零改动</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
         </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>果园老张</a><span class="cdate"><span>发表于</span><span>10-15 11:06</span></span></div>
-          <div class="ctext">大小写归一：<code>rmx3700</code> → 真我 GT Neo5 SE<span class="st ok">level 2</span></div>
-          <div class="cmeta">
-            <span class="clike">♡ 2</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cfrom"><span>来自</span><a>真我 GT Neo5 SE</a></span>
-          </div>
-        </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>机佬</a><span class="cdate"><span>发表于</span><span>10-15 11:11</span></span></div>
-          <div class="ctext">去尾字母：<code>V2324B</code> → V2324A 命中 → vivo Y36<span class="st ok">level 3</span></div>
-          <div class="cmeta">
-            <span class="clike">♡ 19</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cfrom"><span>来自</span><a>vivo Y36</a></span>
-          </div>
-        </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>果粉小李</a><span class="cdate"><span>发表于</span><span>10-15 11:18</span></span></div>
-          <div class="ctext">精确命中：<code>iPhone3,1</code> → iPhone 4<span class="st ok">level 1</span>；点击可在「iPhone3,1 ⇄ iPhone 4」间切换（见下条）</div>
-          <div class="cmeta">
-            <span class="clike">♡ 45</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cfrom"><span>来自</span><a style="color:#9fd0ff">iPhone 4</a></span>
-          </div>
-        </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>野火</a><span class="cdate"><span>发表于</span><span>10-15 11:25</span></span></div>
-          <div class="ctext">未收录兜底：<code>Pixel 9 Pro XL</code> 原文直显，不瞎猜、不高亮<span class="st dim">miss</span></div>
-          <div class="cmeta">
-            <span class="clike">♡ 5</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cfrom"><span>来自</span><a>Pixel 9 Pro XL</a></span>
-          </div>
-        </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>切换党</a><span class="cdate"><span>发表于</span><span>10-15 11:30</span></span></div>
-          <div class="ctext">点击切换态（悬停示意）：点友好名 ⇄ 回代号；手动切过写 <code>data-acr-manual</code>，原地重渲染不再覆盖用户选择（Web-IP 行为保留）</div>
-          <div class="cmeta">
-            <span class="clike">♡ 1</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cfrom"><span>来自</span><a style="color:#9fd0ff">真我 V30</a></span>
-            <span class="cip" style="color:var(--acsv-t3)">（悬停蓝色＝可点切换）</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ④ 状态覆盖 -->
-  <div class="sec">
-    <h2>④ 状态覆盖<em>查询中 / 无属地 / 网络失败 / 未登录 / 乐观新评</em></h2>
-    <p class="desc">
-      铁律：<b>没有属地就不上标签</b>（不渲染空 span、不显示「未知」字面量——lint 禁令同款纪律）。
-      失败分级负缓存（无属地 6h / 网络错误 10min）避免瞬时故障把标签闪没再闪回。串行队列 200ms 防风控，查询中=标签未上屏。
-    </p>
-    <div class="drawer" style="padding:2px 0 10px">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>查询中</a><span class="cdate"><span>发表于</span><span>10-15 12:00</span></span></div>
-          <div class="ctext">渲染时缓存未命中 → 队列排队中：meta 行与现状完全一致（无占位、无骨架）<span class="st dim">=现状</span></div>
-          <div class="cmeta">
-            <span class="clike">♡ 0</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cfrom"><span>来自</span><a>iPhone客户端</a></span>
-          </div>
-        </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>无属地用户</a><span class="cdate"><span>发表于</span><span>10-15 12:01</span></span></div>
-          <div class="ctext">API 返回空 ipLocation → 不渲染标签 + 负缓存 6h<span class="st dim">空态</span></div>
-          <div class="cmeta">
-            <span class="clike">♡ 0</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cfrom"><span>来自</span><a>Android客户端</a></span>
-          </div>
-        </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>断网时刻</a><span class="cdate"><span>发表于</span><span>10-15 12:02</span></span></div>
-          <div class="ctext">超时/断网/风控 → 静默不渲染 + 瞬时负缓存 10min（不误显、不风暴重试）<span class="st dim">错误态</span></div>
-          <div class="cmeta">
-            <span class="clike">♡ 0</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cfrom"><span>来自</span><a>iPhone客户端</a></span>
-          </div>
-        </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><span>未登录访客</span><span class="cdate"><span>发表于</span><span>10-15 12:03</span></span></div>
-          <div class="ctext">未登录时 API 恒空 ipLocation：全部不渲染；设置开关仍可操作<span class="st dim">空态</span></div>
-          <div class="cmeta">
-            <span class="clike">♡ 0</span>
-            <span class="cfrom"><span>来自</span><a>iPhone客户端</a></span>
-          </div>
-        </div>
-      </div>
-      <hr class="chr">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>乐观新评</a><span class="cdate"><span>发表于</span><span>刚刚</span></span></div>
-          <div class="ctext">刚发出的评论走乐观插入（insertLocalComment）——同路径参与查询，回填后标签原地出现</div>
-          <div class="cmeta">
-            <span class="clike">♡ 0</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cip">广东</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ⑤ 楼中楼 -->
-  <div class="sec">
-    <h2>⑤ 楼中楼<em>子评论 meta 同显 IP；回复前缀与 IP 段互不相扰</em></h2>
-    <p class="desc">子评论渲染走同一 <code>commentItemOf</code> 递归（commentkit.js:167），IP 段自动覆盖，无第二条注入路径。</p>
-    <div class="drawer" style="padding:2px 0 10px">
-      <div class="citem">
-        <a class="avlink"><span class="av"></span></a>
-        <div class="cbody">
-          <div class="cname"><a>楼主</a><span class="cdate"><span>发表于</span><span>10-15 13:10</span></span></div>
-          <div class="ctext">求 BGM</div>
-          <div class="cmeta">
-            <span class="clike">♡ 4</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-            <span class="cip">北京</span>
-          </div>
-          <div class="csub">
-            <div class="citem">
-              <a class="avlink"><span class="av sm"></span></a>
-              <div class="cbody">
-                <div class="cname"><a>UP主本人</a><span class="cdate"><span>发表于</span><span>10-15 13:22</span></span></div>
-                <div class="ctext"><span class="creplyto">@楼主</span> : 网易云歌单里有，搜「夜航」第一条</div>
-                <div class="cmeta">
-                  <span class="clike">♡ 2</span>
-                  <span class="cfrom"><span>来自</span><a>小米 14</a></span>
-                  <span class="cip">上海</span>
+        <div class="doc-figure">
+          <div class="dual">
+            <div>
+              <p class="doc-note note-mt0">现状（0.9.244）：meta = 赞 / 回复 / 转发 / 来自 x<span class="badge warn">无属地</span></p>
+              <div class="drawer">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><a>一只芸喵喵</a><span class="cdate"><span>发表于</span><span>10-14 21:03</span></span></div>
+                    <div class="ctext">这期运镜真的舒服，最后那段长镜头看鸡皮疙瘩起来了</div>
+                    <div class="cmeta">
+                      <span class="clike"><i class="acsvg-glyph">&#xe629;</i>128</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                      <span class="cfrom"><span>来自</span><a>iPhone客户端</a></span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="citem">
-              <a class="avlink"><span class="av sm"></span></a>
-              <div class="cbody">
-                <div class="cname"><a>路过的</a><span class="cdate"><span>发表于</span><span>10-15 13:40</span></span></div>
-                <div class="ctext"><span class="creplyto">@UP主本人</span> : 已三连，顺手把进度条空降点也标了</div>
-                <div class="cmeta">
-                  <span class="clike">♡ 0</span>
-                  <span class="cip">湖南</span>
+            <div>
+              <p class="doc-note note-mt0">本稿：meta 末尾追加 <code>.acsv-cip</code>，文案=ipLocation 原文<span class="badge new">新增</span></p>
+              <div class="drawer">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><a>一只芸喵喵</a><span class="cdate"><span>发表于</span><span>10-14 21:03</span></span></div>
+                    <div class="ctext">这期运镜真的舒服，最后那段长镜头看鸡皮疙瘩起来了</div>
+                    <div class="cmeta">
+                      <span class="clike"><i class="acsvg-glyph">&#xe629;</i>128</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                      <span class="cfrom"><span>来自</span><a>iPhone客户端</a></span>
+                      <span class="cip">广东</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
+        <p class="doc-note">落位理由：IP 与设备同属「来源元信息」，排在 <code>.acsv-cfrom</code> 之后语义成组；meta 行 <code>flex-wrap</code> 已备（styles.js:453），窄容器里 IP 段整件换行、不逐字断（<code>.acsv-cmeta&gt;*</code> nowrap 已有）。</p>
+      </section>
 
-  <!-- ⑥ 设置面板 -->
-  <div class="sec">
-    <h2>⑥ 设置面板新增三行<em>SCHEMA 末尾追加；表驱动，settingspanel 零改</em></h2>
-    <p class="desc">
-      开关进 <code>settings.js</code> SCHEMA（<code>panel:true</code> 自动上屏）；缓存 blob 走独立 GM key
-      <code>acr_uids</code>（<b>兼容 Web-IP 老用户 key</b>，不塞 SCHEMA）。下方为「评论」组新增三行在现有面板中的形态。
-    </p>
-    <div class="set-panel">
-      <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
-      <div class="set-body">
-        <div class="set-group">播放</div>
-        <div class="set-row">
-          <div class="set-row-main"><div class="set-label">缓冲档位</div></div>
-          <span class="set-sel"><button class="set-sel-btn">流畅</button></span>
+      <!-- ② IP 标签形态 -->
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>IP 标签形态</h2>
+          <span class="nt">默认灰 / 悬停主题色 / tooltip 文案 / 无设备时落位</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
         </div>
-        <div class="set-group">评论</div>
-        <div class="set-row">
-          <div class="set-row-main">
-            <div class="set-label">评论区显示 IP 属地</div>
-            <div class="set-hint">来自用户主页实时资料，不代表发布时的 IP；需登录态</div>
-          </div>
-          <button class="set-sw on"><i></i></button>
-        </div>
-        <div class="set-row">
-          <div class="set-row-main">
-            <div class="set-label">设备型号美化</div>
-            <div class="set-hint">把「RMX3619」这类代号替换为「真我 V30」；点击型号可切回代号</div>
-          </div>
-          <button class="set-sw on"><i></i></button>
-        </div>
-        <div class="set-row">
-          <div class="set-row-main">
-            <div class="set-label">属地缓存保留</div>
-            <div class="set-hint">过期后重新查询；「永久」= 不自动过期（上限 5000 用户仍会淘汰）</div>
-          </div>
-          <span class="set-sel"><button class="set-sel-btn">7 天</button></span>
-        </div>
-      </div>
-    </div>
-    <p class="desc">
-      select 选项：<code>永久 / 1 天 / 7 天 / 30 天</code>（默认 7 天——比 Web-IP 的永久更保守，防缓存永驻）。
-      设备数据导入/导出属面板交互形态变更，<b>本稿不含</b>，待实现批次随导入视图另出小稿或直接按既有 overlay 语言实现后走 harness 验收。
-    </p>
-  </div>
-
-  <!-- ⑦ 窄态 -->
-  <div class="sec">
-    <h2>⑦ 窄宽 540<em>抽屉 412px 嵌入；meta 换行不断字 / 属地项整件换行</em></h2>
-    <div class="narrow">
-      <div class="drawer" style="width:100%;margin:0 auto">
-        <div class="citem">
-          <a class="avlink"><span class="av"></span></a>
-          <div class="cbody">
-            <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-15 14:00</span></span></div>
-            <div class="ctext">窄容器里 meta 行应自然换行：赞/回复/转发留在第一行，来自与 IP 段整件落到第二行，任何一件都不逐字断。</div>
-            <div class="cmeta">
-              <span class="clike">♡ 12</span><span class="creplybtn">回复</span><span class="cfwdbtn">转发</span>
-              <span class="cfrom"><span>来自</span><a>真我 V30</a></span>
-              <span class="cip">中国香港</span>
+        <p class="doc-note">
+          文案=<code>profile.ipLocation</code> <b>原文直显</b>（Web-IP 同款，不做二次格式化；2026-10-15 真机采样 64 条
+          <b>全部为省级短名</b>——「广东」「内蒙古」「上海」「新疆」「中国香港」，无「省 市」双段；海外国家/地区未采样）。
+          tooltip 用原生 <code>title</code>（Web-IP 同款，零样式成本）——下方静态摆出文案供确认。
+        </p>
+        <div class="doc-figure">
+          <div class="drawer padded">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>夜航西飞</a><span class="cdate"><span>发表于</span><span>10-15 09:41</span></span></div>
+                <div class="ctext">默认态：灰字、不可点（点击弹面板属 Phase 6）</div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>36</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cfrom"><span>来自</span><a>Android客户端</a></span>
+                  <span class="cip">浙江</span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>夜航西飞</a><span class="cdate"><span>发表于</span><span>10-15 09:42</span></span></div>
+                <div class="ctext">悬停态：主题色提示「此标签将来可点」（Phase 6 弹面板）</div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>3</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cfrom"><span>来自</span><a>Android客户端</a></span>
+                  <span class="cip hov">山东</span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>折枝投火</a><span class="cdate"><span>发表于</span><span>10-15 10:12</span></span></div>
+                <div class="ctext">tooltip 静态摆出（真机为原生 title，鼠标悬停于下方红色标签可见）：</div>
+                <div class="cmeta tiproom">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>77</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="tipwrap">
+                    <span class="cip hov">中国香港</span>
+                    <span class="tiptip">
+                      IP属地：中国香港<br>
+                      （基于用户主页实时资料，不代表发布时的IP）<br>
+                      查询于：2026-10-15 10:12
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>一只梨</a><span class="cdate"><span>发表于</span><span>10-15 10:30</span></span></div>
+                <div class="ctext">无设备型号的评论：IP 段跟在转发后面，不依赖 .acsv-cfrom 在场</div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>15</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cip">四川</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <p class="desc" style="margin-bottom:0">自检：① 窄容器里 meta 项整件 nowrap、不逐字折（实测属地均为省级短名，最长约 4 字如「中国香港」；nowrap 兜底仍守）；②开关/下拉在面板窄态不被挤出（<code>set-row</code> gap 20 + flex-none 既有）。</p>
-    </div>
-  </div>
+      </section>
 
-  <!-- ⑧ 待确认 -->
-  <div class="sec">
-    <h2>⑧ 待确认点<em>你点头后按此稿进 src/；有异议先改本稿</em></h2>
-    <p class="desc" style="line-height:2">
-      1. <b>IP 段落位</b>：meta 行末尾（.acsv-cfrom 之后）——①的方案。<br>
-      2. <b>悬停色</b>：主题色 #fd4c5d（Web-IP 同款）——②的方案。<br>
-      3. <b>tooltip 文案</b>：三行式（属地 / 免责 / 查询时间）——②的方案；若嫌长可砍第三行。<br>
-      4. <b>设备点击切换</b>：保留 Web-IP 行为（友好名⇄代号，手动记忆）——③的方案；若嫌多余可砍，只做单向替换。<br>
-      5. <b>缓存保留默认</b>：7 天（非 Web-IP 的永久）——⑥的方案。<br>
-      6. 设备数据导入/导出 UI：本稿不含，实现批次另行处理。
-    </p>
+      <!-- ③ 设备美化 -->
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>设备型号美化 · 四级查表</h2>
+          <span class="nt">精确 → 大小写 → 去尾字母 → 前缀包含；未收录兜底原文</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">
+          只换 <code>.acsv-cfrom</code> 里的链接文字，<code>href</code>（官方 APP 落点）与结构不动。
+          查表表=内置 ~1000 条（生成器产，CC BY-NC-SA 许可随 README 分声明）+ 用户面板导入合并。
+        </p>
+        <div class="doc-figure">
+          <div class="drawer padded">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>真我老哥</a><span class="cdate"><span>发表于</span><span>10-15 11:02</span></span></div>
+                <div class="ctext">精确命中：<code>RMX3619</code> → 真我 V30<span class="st ok">level 1</span></div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>8</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cfrom"><span>来自</span><a>真我 V30</a></span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>果园老张</a><span class="cdate"><span>发表于</span><span>10-15 11:06</span></span></div>
+                <div class="ctext">大小写归一：<code>rmx3700</code> → 真我 GT Neo5 SE<span class="st ok">level 2</span></div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>2</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cfrom"><span>来自</span><a>真我 GT Neo5 SE</a></span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>机佬</a><span class="cdate"><span>发表于</span><span>10-15 11:11</span></span></div>
+                <div class="ctext">去尾字母：<code>V2324B</code> → V2324A 命中 → vivo Y36<span class="st ok">level 3</span></div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>19</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cfrom"><span>来自</span><a>vivo Y36</a></span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>果粉小李</a><span class="cdate"><span>发表于</span><span>10-15 11:18</span></span></div>
+                <div class="ctext">精确命中：<code>iPhone3,1</code> → iPhone 4<span class="st ok">level 1</span>；点击可在「iPhone3,1 ⇄ iPhone 4」间切换（见下条）</div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>45</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cfrom"><span>来自</span><a class="hov">iPhone 4</a></span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>野火</a><span class="cdate"><span>发表于</span><span>10-15 11:25</span></span></div>
+                <div class="ctext">未收录兜底：<code>Pixel 9 Pro XL</code> 原文直显，不瞎猜、不高亮<span class="st dim">miss</span></div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>5</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cfrom"><span>来自</span><a>Pixel 9 Pro XL</a></span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>切换党</a><span class="cdate"><span>发表于</span><span>10-15 11:30</span></span></div>
+                <div class="ctext">点击切换态（悬停示意）：点友好名 ⇄ 回代号；手动切过写 <code>data-acr-manual</code>，原地重渲染不再覆盖用户选择（Web-IP 行为保留）</div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>1</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cfrom"><span>来自</span><a class="hov">真我 V30</a></span>
+                  <span class="cip dim">（悬停蓝色＝可点切换）</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ④ 状态覆盖 -->
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>状态覆盖</h2>
+          <span class="nt">查询中 / 无属地 / 网络失败 / 未登录 / 乐观新评</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">
+          铁律：<b>没有属地就不上标签</b>（不渲染空 span、不显示「未知」字面量——lint 禁令同款纪律）。
+          失败分级负缓存（无属地 6h / 网络错误 10min）避免瞬时故障把标签闪没再闪回。串行队列 200ms 防风控，查询中=标签未上屏。
+        </p>
+        <div class="doc-figure">
+          <div class="drawer padded">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>查询中</a><span class="cdate"><span>发表于</span><span>10-15 12:00</span></span></div>
+                <div class="ctext">渲染时缓存未命中 → 队列排队中：meta 行与现状完全一致（无占位、无骨架）<span class="st dim">=现状</span></div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cfrom"><span>来自</span><a>iPhone客户端</a></span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>无属地用户</a><span class="cdate"><span>发表于</span><span>10-15 12:01</span></span></div>
+                <div class="ctext">API 返回空 ipLocation → 不渲染标签 + 负缓存 6h<span class="st dim">空态</span></div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cfrom"><span>来自</span><a>Android客户端</a></span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>断网时刻</a><span class="cdate"><span>发表于</span><span>10-15 12:02</span></span></div>
+                <div class="ctext">超时/断网/风控 → 静默不渲染 + 瞬时负缓存 10min（不误显、不风暴重试）<span class="st dim">错误态</span></div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cfrom"><span>来自</span><a>iPhone客户端</a></span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><span>未登录访客</span><span class="cdate"><span>发表于</span><span>10-15 12:03</span></span></div>
+                <div class="ctext">未登录时 API 恒空 ipLocation：全部不渲染；设置开关仍可操作<span class="st dim">空态</span></div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span>
+                  <span class="cfrom"><span>来自</span><a>iPhone客户端</a></span>
+                </div>
+              </div>
+            </div>
+            <hr class="chr">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>乐观新评</a><span class="cdate"><span>发表于</span><span>刚刚</span></span></div>
+                <div class="ctext">刚发出的评论走乐观插入（insertLocalComment）——同路径参与查询，回填后标签原地出现</div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cip">广东</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑤ 楼中楼 -->
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">05</span>
+          <h2>楼中楼</h2>
+          <span class="nt">子评论 meta 同显 IP；回复前缀与 IP 段互不相扰</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">子评论渲染走同一 <code>commentItemOf</code> 递归（commentkit.js:167），IP 段自动覆盖，无第二条注入路径。</p>
+        <div class="doc-figure">
+          <div class="drawer padded">
+            <div class="citem">
+              <a class="avlink"><span class="av"></span></a>
+              <div class="cbody">
+                <div class="cname"><a>楼主</a><span class="cdate"><span>发表于</span><span>10-15 13:10</span></span></div>
+                <div class="ctext">求 BGM</div>
+                <div class="cmeta">
+                  <span class="clike"><i class="acsvg-glyph">&#xe629;</i>4</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                  <span class="cip">北京</span>
+                </div>
+                <div class="csub">
+                  <div class="citem">
+                    <a class="avlink"><span class="av sm"></span></a>
+                    <div class="cbody">
+                      <div class="cname"><a>UP主本人</a><span class="cdate"><span>发表于</span><span>10-15 13:22</span></span></div>
+                      <div class="ctext"><span class="creplyto">@楼主</span> : 网易云歌单里有，搜「夜航」第一条</div>
+                      <div class="cmeta">
+                        <span class="clike"><i class="acsvg-glyph">&#xe629;</i>2</span>
+                        <span class="cfrom"><span>来自</span><a>小米 14</a></span>
+                        <span class="cip">上海</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="citem">
+                    <a class="avlink"><span class="av sm"></span></a>
+                    <div class="cbody">
+                      <div class="cname"><a>路过的</a><span class="cdate"><span>发表于</span><span>10-15 13:40</span></span></div>
+                      <div class="ctext"><span class="creplyto">@UP主本人</span> : 已三连，顺手把进度条空降点也标了</div>
+                      <div class="cmeta">
+                        <span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span>
+                        <span class="cip">湖南</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑥ 设置面板 -->
+      <section class="doc-sec" id="s6">
+        <div class="doc-sec-hd">
+          <span class="idx">06</span>
+          <h2>设置面板新增三行</h2>
+          <span class="nt">SCHEMA 末尾追加；表驱动，settingspanel 零改</span>
+          <a class="anchor" href="#s6" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">
+          开关进 <code>settings.js</code> SCHEMA（<code>panel:true</code> 自动上屏）；缓存 blob 走独立 GM key
+          <code>acr_uids</code>（<b>兼容 Web-IP 老用户 key</b>，不塞 SCHEMA）。下方为「评论」组新增三行在现有面板中的形态。
+        </p>
+        <div class="doc-figure">
+          <div class="set-panel">
+            <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
+            <div class="set-body">
+              <div class="set-group">播放</div>
+              <div class="set-row">
+                <div class="set-row-main"><div class="set-label">缓冲档位</div></div>
+                <span class="set-sel"><button class="set-sel-btn">流畅</button></span>
+              </div>
+              <div class="set-group">评论</div>
+              <div class="set-row">
+                <div class="set-row-main">
+                  <div class="set-label">评论区显示 IP 属地</div>
+                  <div class="set-hint">来自用户主页实时资料，不代表发布时的 IP；需登录态</div>
+                </div>
+                <button class="set-sw on"><i></i></button>
+              </div>
+              <div class="set-row">
+                <div class="set-row-main">
+                  <div class="set-label">设备型号美化</div>
+                  <div class="set-hint">把「RMX3619」这类代号替换为「真我 V30」；点击型号可切回代号</div>
+                </div>
+                <button class="set-sw on"><i></i></button>
+              </div>
+              <div class="set-row">
+                <div class="set-row-main">
+                  <div class="set-label">属地缓存保留</div>
+                  <div class="set-hint">过期后重新查询；「永久」= 不自动过期（上限 5000 用户仍会淘汰）</div>
+                </div>
+                <span class="set-sel"><button class="set-sel-btn">7 天</button></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="doc-note">
+          select 选项：<code>永久 / 1 天 / 7 天 / 30 天</code>（默认 7 天——比 Web-IP 的永久更保守，防缓存永驻）。
+          设备数据导入/导出属面板交互形态变更，<b>本稿不含</b>，待实现批次随导入视图另出小稿或直接按既有 overlay 语言实现后走 harness 验收。
+        </p>
+      </section>
+
+      <!-- ⑦ 窄态 -->
+      <section class="doc-sec" id="s7">
+        <div class="doc-sec-hd">
+          <span class="idx">07</span>
+          <h2>窄宽 540</h2>
+          <span class="nt">抽屉 412px 嵌入；meta 换行不断字 / 属地项整件换行</span>
+          <a class="anchor" href="#s7" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="narrow">
+            <div class="drawer full">
+              <div class="citem">
+                <a class="avlink"><span class="av"></span></a>
+                <div class="cbody">
+                  <div class="cname"><a>超长昵称不逐字断行测试用户甲</a><span class="cdate"><span>发表于</span><span>10-15 14:00</span></span></div>
+                  <div class="ctext">窄容器里 meta 行应自然换行：赞/回复/转发留在第一行，来自与 IP 段整件落到第二行，任何一件都不逐字断。</div>
+                  <div class="cmeta">
+                    <span class="clike"><i class="acsvg-glyph">&#xe629;</i>12</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span>
+                    <span class="cfrom"><span>来自</span><a>真我 V30</a></span>
+                    <span class="cip">中国香港</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="doc-note note-mb0">自检：① 窄容器里 meta 项整件 nowrap、不逐字折（实测属地均为省级短名，最长约 4 字如「中国香港」；nowrap 兜底仍守）；②开关/下拉在面板窄态不被挤出（<code>set-row</code> gap 20 + flex-none 既有）。</p>
+          </div>
+        </div>
+      </section>
+
+      <p class="doc-arch-cap">决策档案 · 过程沿革（查阅成品可略过）</p>
+      <details class="doc-arch"><summary><span class="ttl">待确认</span><span class="hint">⑧ 待确认点——IP 落位 / 悬停色 / tooltip 文案 / 设备切换 / 缓存默认，点头后按此进 src</span><span class="pill">1 节</span></summary>
+      <!-- ⑧ 待确认 -->
+      <section class="doc-sec" id="s8">
+        <div class="doc-sec-hd">
+          <h2>待确认点</h2>
+          <span class="nt">你点头后按此稿进 src/；有异议先改本稿</span>
+          <a class="anchor" href="#s8" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note note-lh2">
+          1. <b>IP 段落位</b>：meta 行末尾（.acsv-cfrom 之后）——①的方案。<br>
+          2. <b>悬停色</b>：主题色 #fd4c5d（Web-IP 同款）——②的方案。<br>
+          3. <b>tooltip 文案</b>：三行式（属地 / 免责 / 查询时间）——②的方案；若嫌长可砍第三行。<br>
+          4. <b>设备点击切换</b>：保留 Web-IP 行为（友好名⇄代号，手动记忆）——③的方案；若嫌多余可砍，只做单向替换。<br>
+          5. <b>缓存保留默认</b>：7 天（非 Web-IP 的永久）——⑥的方案。<br>
+          6. 设备数据导入/导出 UI：本稿不含，实现批次另行处理。
+        </p>
+      </section>
+      </details>
+    </main>
   </div>
+</div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

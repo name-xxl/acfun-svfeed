@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 播放/计数「万」口径统一（fmt vs fmtWan）</title>
 <!-- ============================================================
      docs/preview/views-count-format.html（0.9.241 前置稿）
@@ -10,8 +11,30 @@
      量值抄自 src/styles.js：.acsv-info:105 / .acsv-meta:108 / .acsv-views:109 /
      .acsv-gtag:1177 / .acsv-frow-sinfo:1450。本稿只管文案口径，无版式/交互形态变化。
      1600×900 与 540 宽各过一眼；决策在文末勾选。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     脚手架（body/.board/.hint/.sec）删归 chrome；② 三方案长文矩阵按规矩 8 保留 .plan 线框表，
+     ④ 边界契约表改 doc-table；内联布局/窄态框色收进类；文末 .decision 裁决盒原样保留。
+     v3（2026-11-23 铺开批）：决策沿革折叠（① 落点 / ② 三方案 / 裁决盒收进页尾决策档案）＋成品段提前；demo 未动。
+     v4（2026-11-23 图标统一批）：脚本 UI 图标一律站方 iconfont 字形（用户裁决）——
+     播放量眼睛 ×3 → GLYPHS.rankView e164（cards.js:148/212 同款）；rail 赞/评/蕉 →
+     feedLike e629 / feedComment e627 / feedBanana e62a（imicons.js 26–30；真机 rail 主渲染
+     走 CDN mask，字形为裁决指定的 iconfont 统一口径）。补 @font-face（https 绝对地址，
+     file:// 双击可显）＋ .acsvg-glyph 基类；字号对齐原 svg 尺寸（12/14/20px），量值与布局未动。
+     v5（2026-11-23 图标真资产批）：复核——rail 语境是 sv 播放页，赞键落地＝SITE_ICONS.heart
+     PNG 作 mask（rail.js:155「sv 点赞用小视频站原生心形 PNG」；video-like.svg 是 home 档，
+     content-actions 右栏同款）→ --m 改 assets/site-heart.png；评/蕉资产核对无误。
+     滑卡「N次播放」纯文本＝slide.js:95 落地真值，保留；字形三处（e164）核对无误。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
+  /* 站方原生 iconfont（cssraw.js 22–24 同 URL；https 绝对地址——file:// 双击可显） */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(assets/acfun-frontend-next.woff) format("woff"),
+        url(assets/acfun-frontend-next.ttf) format("truetype")
+  }
+  .acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-weight:400;
+    display:inline-block;line-height:1}
   :root{
     --acsv-accent:#fd4c5d;          /* 主题色（cfg.accent 单源） */
     --acsv-bg:#000;                  /* 页面底（#acsv-root 同款） */
@@ -21,27 +44,21 @@
     --acsv-t2:#cfd3da;               /* 次字 */
     --acsv-t3:#8a90a0;               /* 弱字 */
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
-  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
-  .board .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:2}
-  .board .hint b{color:var(--acsv-t2);font-weight:600}
-  .board .hint code{color:#b9c1cf;font-family:Consolas,monospace}
-  .sec{margin:30px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:14px}
-  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  /* demo 几何基线：原全局 * reset 收进段落作用域（chrome 排版归 _docs.css） */
+  :where(.doc-sec *){box-sizing:border-box;margin:0;padding:0}
   .cols{display:flex;gap:18px;flex-wrap:wrap}
+  .cols.mt16{margin-top:16px}
   .col{flex:1;min-width:340px}
   .colhd{font-size:12px;color:var(--acsv-t3);margin-bottom:10px}
   .colhd b{color:var(--acsv-t2)}
   .box{border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:16px;background:rgba(255,255,255,.02)}
+  .box.railrow{display:flex;gap:26px;justify-content:center;padding:22px}
 
   /* ---- 滑卡左下角信息区（.acsv-info / .acsv-meta / .acsv-views 量值照 styles.js） ---- */
   .slim{position:relative;width:100%;height:210px;border-radius:10px;overflow:hidden;
     background:linear-gradient(160deg,#1c222b 0%,#0b0d10 55%,#000 100%)}
   .slim .acsv-info{position:absolute;left:24px;bottom:24px;max-width:min(70%,520px);color:#fff}
+  .slim.narrow .acsv-info{left:16px;bottom:16px}
   .slim .acsv-meta{font-size:15px;font-weight:600;line-height:21px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
   .slim .acsv-meta .n{opacity:.95}
   .slim .acsv-meta .acsv-views{font-size:13px;font-weight:400;opacity:.85}
@@ -55,7 +72,7 @@
     border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;line-height:18px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .gviews{display:inline-flex;align-items:center;gap:4px}
-  .gviews svg{width:12px;height:12px;fill:#fff;opacity:.9}
+  .gviews .acsvg-glyph{font-size:12px;opacity:.9}
   .gtitle{margin-top:8px;font-size:14px;line-height:20px;color:#fff}
   .gfoot{margin-top:6px;font-size:12px;color:var(--acsv-t3);display:flex;justify-content:space-between}
 
@@ -67,16 +84,22 @@
   .ftitle{font-size:14px;line-height:20px;color:#fff}
   .fsinfo{position:absolute;bottom:0;left:0;display:inline-flex;align-items:center;
     gap:4px;font-size:14px;line-height:14px;color:#8a90a0}
-  .fsinfo svg{width:14px;height:14px;fill:#8a90a0}
+  .fsinfo .acsvg-glyph{font-size:14px}
 
   /* ---- 右侧竖排 rail 计数（圈键 + 数字） ---- */
   .rail{display:inline-flex;flex-direction:column;align-items:center;gap:4px}
   .rail .cbtn{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.10);
     display:grid;place-items:center;color:#fff}
-  .rail .cbtn svg{width:20px;height:20px;fill:#fff}
+  /* 右栏真资产（sv 播放页语境）：赞＝SITE_ICONS.heart PNG 作 mask、评＝SITE_ICONS.comment PNG、
+     蕉＝VIDEO_ICONS.banana mask（rail.js:155/186/192；video-like.svg 是 home 档，见 content-actions） */
+  .rail .cbtn .rimg{display:block;width:26px;height:26px;object-fit:contain}
+  .rail .cbtn .rmask{display:block;width:26px;height:26px;background-color:currentColor;
+    -webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+  .rail .cbtn.m-banana .rmask{--m:url(assets/video-banana.svg)}
+  .rail .cbtn.m-like .rmask{--m:url(assets/site-heart.png)}
   .rail .cnt{font-size:12px;color:#fff;opacity:.92}
 
-  /* ---- 方案对照表 ---- */
+  /* ---- 方案对照表（多列长文矩阵，保留原线框表取值） ---- */
   table.plan{border-collapse:collapse;font-size:13px;color:var(--acsv-t2)}
   .plan th,.plan td{border:1px solid rgba(255,255,255,.10);padding:8px 12px;text-align:left;line-height:1.7}
   .plan th{color:var(--acsv-t3);font-weight:600;font-size:12px}
@@ -90,12 +113,13 @@
   .diff{color:#ffb0b8}
   .same{color:var(--acsv-t3)}
   .muted{color:var(--acsv-t3);font-size:12px;line-height:1.9}
+  .muted.mt10{margin-top:10px}
   .fake{width:100%;height:70px;border-radius:10px;background:linear-gradient(150deg,#1c222b,#0b0d10)}
   .empty-note{color:var(--acsv-t3);font-size:12px;padding:12px 2px;border:1px dashed rgba(255,255,255,.14);border-radius:10px}
+  .narrowbox{max-width:540px;border:1px dashed rgba(255,255,255,.14);padding:12px}
   .decision{margin-top:34px;border:1px solid rgba(253,76,93,.45);border-radius:12px;padding:16px 18px;line-height:2.1}
   .decision b{color:#ff8a95}
   @media (max-width:540px){
-    .board{padding:18px 12px 60px}
     .slim{height:260px}
     .frow{width:100%}
     .col{min-width:0}
@@ -104,226 +128,282 @@
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>播放/计数「万」文案口径统一 —— 静态预览（裁决后进 src 实现）</h1>
-  <p class="hint">
-    现状：同一指标存在两套「万」口径——<b>滑卡/精选网格/点赞计数</b>走 <code>ui.fmt</code>（<code>toFixed(1)</code>，出 <b>1.0万</b>）；
-    <b>面板网格卡/行卡/粉丝数</b>走 <code>timefmt.fmtWan</code>（整数半进位，出 <b>1万</b>）。<br>
-    全量复算 [1万, 300万]：两口径显示不同的数字共 <b>30 万个</b>（约 10%）；其中
-    <b>尾随 .0 样式差 298,804 例</b>（如 10000 → <code>1.0万</code> vs <code>1万</code>），
-    <b>真值分岔仅 1,196 例</b>（全是 x.x5 半值：11500 → <code>1.1万</code> vs <code>1.2万</code>，浮点 vs 半进位）。<br>
-    本稿只决定「文案口径」，无版式与交互形态变化；文末勾选方案 A / B / C。
-  </p>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <!-- ① 两口径现实落点 -->
-  <div class="sec">
-    <h2>① 两口径的落点（现状）<em>数据源：src 全量 grep，2026-10-15</em></h2>
-    <div class="cols">
-      <div class="col box">
-        <div class="colhd"><b>ui.fmt</b>（toFixed 口径，出现 1.0万）</div>
-        <p class="muted">
-          滑卡「N次播放」（slide.js:93）<br>
-          精选分段网格卡计数（jingxuanview.js:85/104/105）<br>
-          播放页右侧 rail：赞/评/蕉/藏/分享（rail.js 多处）<br>
-          评论区计数（comments.js / commentkit.js）<br>
-          我的页统计位（mypage.js:109）、相关推荐计数（reldrawer.js）<br>
-          动态互动行（momentbar.js / momentdetail.js）
+    <main class="doc">
+      <div class="doc-head">
+        <h1>播放/计数「万」文案口径统一 —— 静态预览（裁决后进 src 实现）</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-on">B 已裁决（0.9.241）</span>
+          <span class="doc-badge">现状对照</span>
+          <span class="doc-badge b-empty">边界 / 空态</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">10000→1万 / 11500→1.2万（整数半进位）</span><span class="src">src/timefmt.js fmtWan</span></span>
         </p>
       </div>
-      <div class="col box">
-        <div class="colhd"><b>timefmt.fmtWan</b>（整数半进位口径，出现 1万）</div>
-        <p class="muted">
-          面板网格卡角标「N万」（panelitem.js:127/146 → cards.js:141）<br>
-          行卡 strip 播放数（panelitem.js:199 → cards.js:205）<br>
-          主页 UP 数据位：粉丝/投稿（panelitem.js:103/104）<br>
-          搜索页粉丝数（searchfmt.js:61）<br>
-          <span class="diff">同一张网格卡，精选走 fmt、面板走 fmtWan——眼下网格卡族内部就是分裂的。</span>
+
+      <p class="doc-note"><b>本稿结论（0.9.241 已落地）</b>：播放/计数「万」口径统一到 <code>timefmt.fmtWan</code>（整数半进位）——<code>10000→1万</code>、<code>11500→1.2万</code>，「1.0万」尾随 .0 消失；输家 <code>ui.fmt</code> 退役、单源收口。现状落点 → 三方案 → 裁决的决策沿革收在页尾「决策档案」，查成品看本页前段即可。</p>
+
+      <p class="doc-note">
+        现状：同一指标存在两套「万」口径——<b>滑卡/精选网格/点赞计数</b>走 <code>ui.fmt</code>（<code>toFixed(1)</code>，出 <b>1.0万</b>）；
+        <b>面板网格卡/行卡/粉丝数</b>走 <code>timefmt.fmtWan</code>（整数半进位，出 <b>1万</b>）。<br>
+        全量复算 [1万, 300万]：两口径显示不同的数字共 <b>30 万个</b>（约 10%）；其中
+        <b>尾随 .0 样式差 298,804 例</b>（如 10000 → <code>1.0万</code> vs <code>1万</code>），
+        <b>真值分岔仅 1,196 例</b>（全是 x.x5 半值：11500 → <code>1.1万</code> vs <code>1.2万</code>，浮点 vs 半进位）。<br>
+        本稿只决定「文案口径」，无版式与交互形态变化；文末勾选方案 A / B / C。
+      </p>
+
+      <!-- ③ 真实宿主形态：现状 vs 统一后（B） -->
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>真实宿主形态 —— 现状 vs 方案 B</h2>
+          <span class="nt">左侧＝现在，右侧＝统一到 fmtWan 后</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+
+        <div class="doc-figure">
+          <div class="cols">
+            <div class="col">
+              <div class="colhd">滑卡左下角（11500，真值分岔代表）—— <b>现状 1.1万</b></div>
+              <div class="box">
+                <div class="slim">
+                  <div class="acsv-info">
+                    <div class="acsv-meta"><span class="n">@一只芸喵喵</span><span class="acsv-views">1.1万次播放</span></div>
+                    <div class="t">手工复刻：这块亚克力到底能有多透光</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="colhd">滑卡左下角（11500）—— <b>统一后 1.2万</b><span class="okbadge">B</span></div>
+              <div class="box">
+                <div class="slim">
+                  <div class="acsv-info">
+                    <div class="acsv-meta"><span class="n">@一只芸喵喵</span><span class="acsv-views">1.2万次播放</span></div>
+                    <div class="t">手工复刻：这块亚克力到底能有多透光</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cols mt16">
+            <div class="col">
+              <div class="colhd">滑卡左下角（10000，尾随 .0 代表）—— <b>现状 1.0万</b></div>
+              <div class="box">
+                <div class="slim">
+                  <div class="acsv-info">
+                    <div class="acsv-meta"><span class="n">@一只芸喵喵</span><span class="acsv-views">1.0万次播放</span></div>
+                    <div class="t">手工复刻：这块亚克力到底能有多透光</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="colhd">滑卡左下角（10000）—— <b>统一后 1万</b><span class="okbadge">B</span></div>
+              <div class="box">
+                <div class="slim">
+                  <div class="acsv-info">
+                    <div class="acsv-meta"><span class="n">@一只芸喵喵</span><span class="acsv-views">1万次播放</span></div>
+                    <div class="t">手工复刻：这块亚克力到底能有多透光</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cols mt16">
+            <div class="col">
+              <div class="colhd">面板网格卡角标（10000）—— <b>现状 1万（已是 B 口径，不变）</b></div>
+              <div class="box">
+                <div class="gcard">
+                  <div class="gcover"><span class="gtag gviews"><i class="acsvg-glyph">&#xe164;</i>1万</span></div>
+                  <div class="gtitle">手工复刻：这块亚克力到底能有多透光</div>
+                  <div class="gfoot"><span>@一只芸喵喵</span><span>3天前</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="colhd">精选分段网格卡（jingxuan，10000）—— <b>现状 1.0万</b> / 统一后 1万</div>
+              <div class="box">
+                <div class="gcard">
+                  <div class="gcover"><span class="gtag gviews"><i class="acsvg-glyph">&#xe164;</i>1.0万</span></div>
+                  <div class="gtitle">手工复刻：这块亚克力到底能有多透光</div>
+                  <div class="gfoot"><span>@一只芸喵喵</span><span>3天前</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cols mt16">
+            <div class="col">
+              <div class="colhd">行卡 strip（11500）—— <b>现状已是 B 口径，不变</b></div>
+              <div class="box">
+                <div class="frow">
+                  <div class="fcover"></div>
+                  <div class="fbody">
+                    <div class="ftitle">手工复刻：这块亚克力到底能有多透光</div>
+                    <div class="fsinfo"><i class="acsvg-glyph">&#xe164;</i>1.2万</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="colhd">播放页右侧 rail 计数（10000）—— <b>现状 1.0万</b> / 统一后 1万</div>
+              <div class="box railrow">
+                <div class="rail">
+                  <div class="cbtn m-like"><i class="rmask"></i></div>
+                  <div class="cnt">1.0万</div>
+                </div>
+                <div class="rail">
+                  <div class="cbtn"><img class="rimg" src="assets/site-comment.png" alt=""></div>
+                  <div class="cnt">46.9万</div>
+                </div>
+                <div class="rail">
+                  <div class="cbtn m-banana"><i class="rmask"></i></div>
+                  <div class="cnt">286</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ④ 边界与空态 -->
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>边界与空态</h2>
+          <span class="nt">统一后（B）的逐值契约</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <table class="doc-table">
+          <tr><th>输入</th><th>输出（B 统一后）</th><th>说明</th></tr>
+          <tr><td>0 / 缺数</td><td>0</td><td>滑卡行为「0次播放」；卡片角标因 <code>if (pi.views)</code> 整颗不挂（不变）</td></tr>
+          <tr><td>9999</td><td>9999</td><td>不上万原样（两口径原本一致）</td></tr>
+          <tr><td>10000</td><td>1万</td><td>原滑卡侧 1.0万 → 改</td></tr>
+          <tr><td>11500</td><td>1.2万</td><td>原滑卡侧 1.1万 → 改（半值；原生显示未实测，存档标注）</td></tr>
+          <tr><td>469000</td><td>46.9万</td><td>与原生 up-card 实测一致（不变）</td></tr>
+          <tr><td>999949 / 1000000</td><td>100万</td><td>原 fmt 出 100.0万 → 改；不出现「100.0万」</td></tr>
+        </table>
+      </section>
+
+      <!-- ⑤ 窄宽 -->
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>窄宽（540）</h2>
+          <span class="nt">长文案不许挤出容器/断行异常；文末在 540 宽再扫一眼</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="narrowbox">
+            <div class="slim narrow">
+              <div class="acsv-info">
+                <div class="acsv-meta"><span class="n">@一只芸喵喵</span><span class="acsv-views">1.2万次播放</span></div>
+                <div class="t">手工复刻：这块亚克力到底能有多透光，切割打磨两天两夜的全过程记录</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p class="doc-arch-cap">决策档案 · 过程沿革（查阅成品可略过）</p>
+      <details class="doc-arch"><summary><span class="ttl">决策沿革</span><span class="hint">① 两口径落点（现状）/ ② 三方案与代表值 / 文末裁决勾选</span><span class="pill">3 节</span></summary>
+      <!-- ① 两口径现实落点 -->
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <h2>两口径的落点（现状）</h2>
+          <span class="nt">数据源：src 全量 grep，2026-10-15</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="cols">
+            <div class="col box">
+              <div class="colhd"><b>ui.fmt</b>（toFixed 口径，出现 1.0万）</div>
+              <p class="muted">
+                滑卡「N次播放」（slide.js:93）<br>
+                精选分段网格卡计数（jingxuanview.js:85/104/105）<br>
+                播放页右侧 rail：赞/评/蕉/藏/分享（rail.js 多处）<br>
+                评论区计数（comments.js / commentkit.js）<br>
+                我的页统计位（mypage.js:109）、相关推荐计数（reldrawer.js）<br>
+                动态互动行（momentbar.js / momentdetail.js）
+              </p>
+            </div>
+            <div class="col box">
+              <div class="colhd"><b>timefmt.fmtWan</b>（整数半进位口径，出现 1万）</div>
+              <p class="muted">
+                面板网格卡角标「N万」（panelitem.js:127/146 → cards.js:141）<br>
+                行卡 strip 播放数（panelitem.js:199 → cards.js:205）<br>
+                主页 UP 数据位：粉丝/投稿（panelitem.js:103/104）<br>
+                搜索页粉丝数（searchfmt.js:61）<br>
+                <span class="diff">同一张网格卡，精选走 fmt、面板走 fmtWan——眼下网格卡族内部就是分裂的。</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ② 三方案 -->
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <h2>三个方案与代表值</h2>
+          <span class="nt">以 10000（尾随 .0 型）与 11500（真值分岔型）为例</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
+        </div>
+        <table class="plan">
+          <tr>
+            <th>方案</th><th>改法</th><th>滑卡 10000</th><th>滑卡 11500</th><th>面板卡 10000</th><th>面板卡 11500</th><th>代价</th>
+          </tr>
+          <tr>
+            <td><b>A · 统一到 fmt</b><span class="badge">不推荐</span></td>
+            <td>fmtWan 退役，全部 toFixed 口径</td>
+            <td>1.0万</td><td class="warn">1.1万</td>
+            <td class="warn">1.0万（原 1万）</td><td class="warn">1.1万（原 1.2万）</td>
+            <td>面板卡/粉丝数逆原生实测证据；「1.0万」尾巴全面扩散</td>
+          </tr>
+          <tr>
+            <td><b>B · 统一到 fmtWan</b><span class="okbadge">推荐</span></td>
+            <td>fmt 改走整数半进位（fmtWan 单源收口，如迁入 timefmt 或 ui 二选一）</td>
+            <td class="rec">1万（原 1.0万）</td><td class="rec">1.2万（原 1.1万）</td>
+            <td>1万（不变）</td><td>1.2万（不变）</td>
+            <td>rail/评论/我的页等 ≥1万 的计数跟随变；「1.0万」尾巴消失</td>
+          </tr>
+          <tr>
+            <td><b>C · 只改滑卡一处</b><span class="badge">最小改动</span></td>
+            <td>slide.js:93 改用 fmtWan，其余不动</td>
+            <td class="rec">1万</td><td class="rec">1.2万</td>
+            <td>1万（不变）</td><td>1.2万（不变）</td>
+            <td>两函数继续并存；精选网格（1.0万）与面板网格（1万）依旧分裂</td>
+          </tr>
+        </table>
+        <p class="muted mt10">
+          推荐 B 的三条理由：① fmtWan 有原生实测依据（timefmt.js:61 注释：up-card 33235→3.3万 / 469000→46.9万，本项目唯一有真机背书的万格式）；
+          ② 用户可见差异的 99.6% 是「1.0万」尾巴，B 消除之；③ 整数半进位比 toFixed 的浮点行为可预期（无需解释 1.15→1.1）。
+          注意：x.x5 半值的原生显示本身未实测（两口径半值互斥，真机样本随手一看即可判），此项存档标「未实测」。
         </p>
-      </div>
-    </div>
-  </div>
+      </section>
 
-  <!-- ② 三方案 -->
-  <div class="sec">
-    <h2>② 三个方案与代表值<em>以 10000（尾随 .0 型）与 11500（真值分岔型）为例</em></h2>
-    <table class="plan">
-      <tr>
-        <th>方案</th><th>改法</th><th>滑卡 10000</th><th>滑卡 11500</th><th>面板卡 10000</th><th>面板卡 11500</th><th>代价</th>
-      </tr>
-      <tr>
-        <td><b>A · 统一到 fmt</b><span class="badge">不推荐</span></td>
-        <td>fmtWan 退役，全部 toFixed 口径</td>
-        <td>1.0万</td><td class="warn">1.1万</td>
-        <td class="warn">1.0万（原 1万）</td><td class="warn">1.1万（原 1.2万）</td>
-        <td>面板卡/粉丝数逆原生实测证据；「1.0万」尾巴全面扩散</td>
-      </tr>
-      <tr>
-        <td><b>B · 统一到 fmtWan</b><span class="okbadge">推荐</span></td>
-        <td>fmt 改走整数半进位（fmtWan 单源收口，如迁入 timefmt 或 ui 二选一）</td>
-        <td class="rec">1万（原 1.0万）</td><td class="rec">1.2万（原 1.1万）</td>
-        <td>1万（不变）</td><td>1.2万（不变）</td>
-        <td>rail/评论/我的页等 ≥1万 的计数跟随变；「1.0万」尾巴消失</td>
-      </tr>
-      <tr>
-        <td><b>C · 只改滑卡一处</b><span class="badge">最小改动</span></td>
-        <td>slide.js:93 改用 fmtWan，其余不动</td>
-        <td class="rec">1万</td><td class="rec">1.2万</td>
-        <td>1万（不变）</td><td>1.2万（不变）</td>
-        <td>两函数继续并存；精选网格（1.0万）与面板网格（1万）依旧分裂</td>
-      </tr>
-    </table>
-    <p class="muted" style="margin-top:10px">
-      推荐 B 的三条理由：① fmtWan 有原生实测依据（timefmt.js:61 注释：up-card 33235→3.3万 / 469000→46.9万，本项目唯一有真机背书的万格式）；
-      ② 用户可见差异的 99.6% 是「1.0万」尾巴，B 消除之；③ 整数半进位比 toFixed 的浮点行为可预期（无需解释 1.15→1.1）。
-      注意：x.x5 半值的原生显示本身未实测（两口径半值互斥，真机样本随手一看即可判），此项存档标「未实测」。
-    </p>
-  </div>
-
-  <!-- ③ 真实宿主形态：现状 vs 统一后（B） -->
-  <div class="sec">
-    <h2>③ 真实宿主形态 —— 现状 vs 方案 B<em>左侧＝现在，右侧＝统一到 fmtWan 后</em></h2>
-
-    <div class="cols">
-      <div class="col">
-        <div class="colhd">滑卡左下角（11500，真值分岔代表）—— <b>现状 1.1万</b></div>
-        <div class="box">
-          <div class="slim">
-            <div class="acsv-info">
-              <div class="acsv-meta"><span class="n">@一只芸喵喵</span><span class="acsv-views">1.1万次播放</span></div>
-              <div class="t">手工复刻：这块亚克力到底能有多透光</div>
-            </div>
-          </div>
-        </div>
+      <div class="decision">
+        <b>裁决（勾选一个）：</b><br>
+        ☐ A · 统一到 fmt（toFixed 口径，面板卡开始出现 1.0万）<br>
+        ☐ <b>B · 统一到 fmtWan（整数半进位，滑卡改为 1万/1.2万，推荐）</b> —— ✅ 2026-10-15 用户确认，实现于 0.9.241<br>
+        ☐ C · 只改滑卡一处，其余维持现状<br>
+        确认后实现口径：输家函数退役、只留一份实现（单源）、单测钉 0/9999/10000/11500/999949 五个边界、harness 65 场景复跑。
+        若选 B 且想连「x.x5 半值原生显示」一起钉死：请真机随手抓一个 ≥1万 的点赞/播放样本截图，存档时标来源。
       </div>
-      <div class="col">
-        <div class="colhd">滑卡左下角（11500）—— <b>统一后 1.2万</b><span class="okbadge">B</span></div>
-        <div class="box">
-          <div class="slim">
-            <div class="acsv-info">
-              <div class="acsv-meta"><span class="n">@一只芸喵喵</span><span class="acsv-views">1.2万次播放</span></div>
-              <div class="t">手工复刻：这块亚克力到底能有多透光</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cols" style="margin-top:16px">
-      <div class="col">
-        <div class="colhd">滑卡左下角（10000，尾随 .0 代表）—— <b>现状 1.0万</b></div>
-        <div class="box">
-          <div class="slim">
-            <div class="acsv-info">
-              <div class="acsv-meta"><span class="n">@一只芸喵喵</span><span class="acsv-views">1.0万次播放</span></div>
-              <div class="t">手工复刻：这块亚克力到底能有多透光</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col">
-        <div class="colhd">滑卡左下角（10000）—— <b>统一后 1万</b><span class="okbadge">B</span></div>
-        <div class="box">
-          <div class="slim">
-            <div class="acsv-info">
-              <div class="acsv-meta"><span class="n">@一只芸喵喵</span><span class="acsv-views">1万次播放</span></div>
-              <div class="t">手工复刻：这块亚克力到底能有多透光</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cols" style="margin-top:16px">
-      <div class="col">
-        <div class="colhd">面板网格卡角标（10000）—— <b>现状 1万（已是 B 口径，不变）</b></div>
-        <div class="box">
-          <div class="gcard">
-            <div class="gcover"><span class="gtag gviews"><svg viewBox="0 0 24 24"><path d="M12 5C7 5 2.7 8.1 1 12c1.7 3.9 6 7 11 7s9.3-3.1 11-7c-1.7-3.9-6-7-11-7zm0 12a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 100 6 3 3 0 000-6z"/></svg>1万</span></div>
-            <div class="gtitle">手工复刻：这块亚克力到底能有多透光</div>
-            <div class="gfoot"><span>@一只芸喵喵</span><span>3天前</span></div>
-          </div>
-        </div>
-      </div>
-      <div class="col">
-        <div class="colhd">精选分段网格卡（jingxuan，10000）—— <b>现状 1.0万</b> / 统一后 1万</div>
-        <div class="box">
-          <div class="gcard">
-            <div class="gcover"><span class="gtag gviews"><svg viewBox="0 0 24 24"><path d="M12 5C7 5 2.7 8.1 1 12c1.7 3.9 6 7 11 7s9.3-3.1 11-7c-1.7-3.9-6-7-11-7zm0 12a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 100 6 3 3 0 000-6z"/></svg>1.0万</span></div>
-            <div class="gtitle">手工复刻：这块亚克力到底能有多透光</div>
-            <div class="gfoot"><span>@一只芸喵喵</span><span>3天前</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cols" style="margin-top:16px">
-      <div class="col">
-        <div class="colhd">行卡 strip（11500）—— <b>现状已是 B 口径，不变</b></div>
-        <div class="box">
-          <div class="frow">
-            <div class="fcover"></div>
-            <div class="fbody">
-              <div class="ftitle">手工复刻：这块亚克力到底能有多透光</div>
-              <div class="fsinfo"><svg viewBox="0 0 24 24"><path d="M12 5C7 5 2.7 8.1 1 12c1.7 3.9 6 7 11 7s9.3-3.1 11-7c-1.7-3.9-6-7-11-7zm0 12a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 100 6 3 3 0 000-6z"/></svg>1.2万</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col">
-        <div class="colhd">播放页右侧 rail 计数（10000）—— <b>现状 1.0万</b> / 统一后 1万</div>
-        <div class="box" style="display:flex;gap:26px;justify-content:center;padding:22px">
-          <div class="rail">
-            <div class="cbtn"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></div>
-            <div class="cnt">1.0万</div>
-          </div>
-          <div class="rail">
-            <div class="cbtn"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg></div>
-            <div class="cnt">46.9万</div>
-          </div>
-          <div class="rail">
-            <div class="cbtn"><svg viewBox="0 0 24 24"><path d="M21 18.2c-6.9 0-12.6-5-13.7-11.6C7.1 5.2 6 4.2 4.8 4.5 3.7 4.7 3 5.8 3.2 7 4.6 15.4 12 21.5 20.6 21c1.1-.1 1.9-1 1.9-2.1 0-.4-.6-.7-1.5-.7z"/></svg></div>
-            <div class="cnt">286</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ④ 边界与空态 -->
-  <div class="sec">
-    <h2>④ 边界与空态<em>统一后（B）的逐值契约</em></h2>
-    <table class="plan">
-      <tr><th>输入</th><th>输出（B 统一后）</th><th>说明</th></tr>
-      <tr><td>0 / 缺数</td><td>0</td><td>滑卡行为「0次播放」；卡片角标因 <code>if (pi.views)</code> 整颗不挂（不变）</td></tr>
-      <tr><td>9999</td><td>9999</td><td>不上万原样（两口径原本一致）</td></tr>
-      <tr><td>10000</td><td>1万</td><td>原滑卡侧 1.0万 → 改</td></tr>
-      <tr><td>11500</td><td>1.2万</td><td>原滑卡侧 1.1万 → 改（半值；原生显示未实测，存档标注）</td></tr>
-      <tr><td>469000</td><td>46.9万</td><td>与原生 up-card 实测一致（不变）</td></tr>
-      <tr><td>999949 / 1000000</td><td>100万</td><td>原 fmt 出 100.0万 → 改；不出现「100.0万」</td></tr>
-    </table>
-  </div>
-
-  <!-- ⑤ 窄宽 -->
-  <div class="sec">
-    <h2>⑤ 窄宽（540）<em>长文案不许挤出容器/断行异常；文末在 540 宽再扫一眼</em></h2>
-    <div style="max-width:540px;border:1px dashed rgba(255,255,255,.14);padding:12px">
-      <div class="slim">
-        <div class="acsv-info" style="left:16px;bottom:16px">
-          <div class="acsv-meta"><span class="n">@一只芸喵喵</span><span class="acsv-views">1.2万次播放</span></div>
-          <div class="t">手工复刻：这块亚克力到底能有多透光，切割打磨两天两夜的全过程记录</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="decision">
-    <b>裁决（勾选一个）：</b><br>
-    ☐ A · 统一到 fmt（toFixed 口径，面板卡开始出现 1.0万）<br>
-    ☐ <b>B · 统一到 fmtWan（整数半进位，滑卡改为 1万/1.2万，推荐）</b> —— ✅ 2026-10-15 用户确认，实现于 0.9.241<br>
-    ☐ C · 只改滑卡一处，其余维持现状<br>
-    确认后实现口径：输家函数退役、只留一份实现（单源）、单测钉 0/9999/10000/11500/999949 五个边界、harness 65 场景复跑。
-    若选 B 且想连「x.x5 半值原生显示」一起钉死：请真机随手抓一个 ≥1万 的点赞/播放样本截图，存档时标来源。
+      </details>
+    </main>
   </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

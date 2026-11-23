@@ -2,10 +2,15 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 分区页 v6（浮层播放 + 2×2 首卡 + 左栏挪位 + 列表播放器）</title>
 <!-- ============================================================
      docs/preview/jingxuan.html —— 分区页静态预览（展示名 0.9.171 用户裁决：精选→分区；
      视图 id/路由仍 jingxuan——文件名与 hash 不动）
+     v7（2026-11-23 图标真资产批）：▶/♥/赞 计数替身换落地 iconfont 字形（播放 E164 / 点赞 E629，
+       jingxuanview.js statOf / reldrawer.js relicon / commentkit.js likeGlyph；字体本地 assets）；浮层中央播放键＝ICONS.play
+       原件（slide.js:63）；右栏 ▲▼＝ICONS.chevUp/chevDn 原件（rail.js:253/256）；✕ 与「▶ 播放中」
+       为落地纯文本保留（slide.js:161 / reldrawer.js:101,182）。
      v6（2026-10-06 增补：抽屉第三 tab「列表」+ 列表播放器级别栈；见 ⑥）
      v5（2026-10-05 改版，用户裁决三连）：
        ① 点卡片出口对齐榜单/搜索/动态——走 playlayer 浮层（Esc 回分区原位），
@@ -22,8 +27,20 @@
      数据口径（全部实测）：chips=channel/allChannels；全部=selection/feed；
      分区=channel/secondLevel/resourceList；相关推荐=feed/related/general（§5）。
      纪律：单文件/无依赖/真实文案；确认后才进 src 实现。改版先改本稿。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     内联色/布局收进类规则；⑥⑦ 原共用一个 .sec，按标题拆为两段（内容零删减）。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
+  /* 站方原生 iconfont（本地入库资产；@font-face 与 src/styles.js 注入同族） */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(assets/acfun-frontend-next.woff) format("woff"),
+        url(assets/acfun-frontend-next.ttf) format("truetype")
+  }
+  /* 字形基类（cssraw .acsvg-glyph 真值：11px 字号 / 12×12 定盒） */
+  .acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-size:11px;
+    display:inline-block;width:12px;height:12px;line-height:12px;text-align:center;color:currentColor}
   :root{
     --acsv-accent:#fd4c5d;
     --acsv-bg:#000;
@@ -33,16 +50,17 @@
     --acsv-t2:#cfd3da;
     --acsv-t3:#8a90a0;
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
-  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
-  .board .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
-  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:12px}
-  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  /* 原全局 * 重置收进零特异度作用域：只压 demo 区 UA 默认（按钮 padding/盒模型），
+     不压 chrome（doc-*）与 demo 类规则——chrome 排版仍归 _docs.css */
+  :where(.doc-sec *){box-sizing:border-box;margin:0;padding:0}
   .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .row.top{align-items:flex-start;gap:24px}
+  .row.top.wide{gap:26px}
+  .row.stretch{align-items:stretch;gap:20px}
+  .w420{max-width:420px}
+  .w560{max-width:560px}
+  .w980{max-width:980px}
+  .doc-table.sem{min-width:560px}
 
   /* ---- 页头 + 分区 chips（allChannels 实测树；文章/AC正义不入视频墙） ---- */
   .jh-hd{display:flex;align-items:baseline;gap:14px;margin-bottom:12px}
@@ -50,6 +68,7 @@
   .jh-hd .sub{font-size:12px;color:var(--acsv-t3)}
   .chiprow{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
   .chiprow::-webkit-scrollbar{display:none}
+  .chiprow.w520{max-width:520px}
   .chip{border:none;border-radius:16px;padding:5px 16px;font-size:13px;font-family:inherit;flex:none;
     cursor:pointer;background:rgba(255,255,255,.1);color:var(--acsv-t2)}
   .chip:hover,.chip.hov{background:rgba(255,255,255,.18);color:#fff}
@@ -59,12 +78,30 @@
   .card{background:rgba(255,255,255,.04);border:1px solid transparent;border-radius:10px;overflow:hidden;cursor:pointer;
     display:flex;flex-direction:column}
   .card:hover,.card.hov{border-color:rgba(253,76,93,.55);background:rgba(255,255,255,.07)}
+  .card.w340{width:340px}
+  .card.w260{width:260px}
+  .card.h355{height:355px}
   .cv{position:relative;aspect-ratio:16/9;background:linear-gradient(135deg,#2b2f4a,#4a2b3a);flex:1;min-height:0}
   .cv .dur{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.72);border-radius:4px;
     padding:1px 6px;font-size:12px;color:#fff}
   .cv .pv{position:absolute;left:8px;bottom:6px;font-size:12px;color:rgba(255,255,255,.88);display:flex;gap:3px;align-items:center}
   .cv .chtag{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.55);border-radius:4px;
     padding:1px 7px;font-size:11px;color:rgba(255,255,255,.85)}
+  /* 封面占位渐变（原内联 background 收进类；量值逐字未动） */
+  .cv-a{background:linear-gradient(120deg,#3a2c52,#7a3550 60%,#c05a4a)}
+  .cv-b{background:linear-gradient(135deg,#2b3a4a,#3a5a6a)}
+  .cv-c{background:linear-gradient(135deg,#4a2b4a,#6a3a5a)}
+  .cv-d{background:linear-gradient(135deg,#24424a,#2b6152)}
+  .cv-e{background:linear-gradient(135deg,#4a3b22,#8a6a2a)}
+  .cv-f{background:linear-gradient(135deg,#22432e,#2e6a45)}
+  .cv-g{background:linear-gradient(135deg,#40222a,#6a3540)}
+  .cv-h{background:linear-gradient(135deg,#2a2a40,#44446a)}
+  .cv-i{background:linear-gradient(135deg,#3c3a24,#6a6636)}
+  .cv-j{background:linear-gradient(135deg,#242e3c,#2e4a5c)}
+  .cv-k{background:linear-gradient(135deg,#33222e,#55304a)}
+  .cv-l{background:linear-gradient(135deg,#2e2233,#5c3a55)}
+  .cv-m{background:linear-gradient(135deg,#1f3438,#2f5c52)}
+  .cv-n{background:linear-gradient(120deg,#3a2c52,#7a3550)}
   .ci{padding:8px 10px 10px;flex:none}
   .ct{font-size:13px;line-height:1.45;color:#e8eaee;display:-webkit-box;-webkit-line-clamp:2;
     -webkit-box-orient:vertical;overflow:hidden}
@@ -73,6 +110,7 @@
 
   /* ---- 网格：首卡 2×2 跨格（dense 流，缺口由后续卡回填）；封面统一 16:9 ---- */
   .grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-flow:dense;gap:14px}
+  .grid.mt14{margin-top:14px}
   .grid .big{grid-column:span 2;grid-row:span 2}
   /* 大卡封面锁 16:9（与源图同比例：零裁切零拉伸）；多出的高度给信息区，
      封面/整卡高度比与普通卡一致（≈65%），风格统一 */
@@ -90,8 +128,11 @@
   /* ---- 封面贴合自检（比例/拉伸演示：圆=比例哨兵，角标=裁切哨兵） ---- */
   .coverfit{display:flex;gap:22px;flex-wrap:wrap;margin:16px 0 4px}
   .cf-item{width:260px}
+  .cf-item.w340{width:340px}
   .tbox{position:relative;overflow:hidden;border-radius:10px;border:1px solid rgba(255,255,255,.12);
     background:linear-gradient(135deg,#2b3a4a,#3a5a6a)}
+  .tbox.r169{aspect-ratio:16/9}
+  .tbox.r1510{aspect-ratio:15/10}
   .tcirc{position:absolute;left:50%;top:50%;width:92px;height:92px;border-radius:50%;
     background:rgba(253,76,93,.78);transform:translate(-50%,-50%)}
   .tm{position:absolute;width:16px;height:16px;border:3px solid rgba(255,255,255,.92)}
@@ -132,6 +173,13 @@
   .layer .mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
   .layer .playbtn{width:64px;height:64px;border-radius:50%;background:rgba(253,76,93,.9);display:flex;
     align-items:center;justify-content:center;color:#fff;font-size:22px}
+  .layer .playbtn svg{width:22px;height:22px;fill:currentColor}
+  /* 右栏三态小样（原内联 width/height/bottom/font-size 收进类） */
+  .layer.mini{width:300px;height:190px}
+  .layer.mini .src{font-size:11px}
+  .layer.mini .layrail{bottom:40px}
+  .layer.mini .rar{width:34px;height:34px}
+  .layer.mini .laytip{top:auto;bottom:14px;font-size:12px;padding:6px 12px}
 
   /* ---- 层内右栏上下切换（0.9.173 新增；量值照抄 styles.js .acsv-arrows/.acsv-arrow：
      40px 圆 / rgba(255,255,255,.12) / blur4 / 禁用 0.3 / 竖排 gap10） ---- */
@@ -141,6 +189,7 @@
   .rar:hover{background:rgba(255,255,255,.25)}
   .rar.dis{opacity:.3;cursor:default}
   .rar.hid{visibility:hidden}
+  .rar svg{width:22px;height:22px;fill:currentColor}
   .laytip{position:absolute;left:50%;top:46%;transform:translateX(-50%);background:rgba(0,0,0,.72);
     border-radius:8px;padding:8px 16px;font-size:13px;color:#fff;z-index:4}
 
@@ -181,9 +230,21 @@
   /* 「列表」tab 当前播放项（0.9.174）：描边 + 封面角标（复用 .rel.playing 的封面样式） */
   .rel.lcur{background:rgba(253,76,93,.10);outline:1px solid rgba(253,76,93,.45);outline-offset:-1px}
   .dnote{padding:8px 14px 12px;font-size:12px;color:var(--acsv-t3);border-top:1px solid rgba(255,255,255,.06);line-height:1.7}
+  /* 相关推荐骨架行（原内联 height/width 收进类） */
+  .rel .tt.sk{height:13px}
+  .rel .mm.sk{height:10px}
+  .sk.w90{width:90%}
+  .sk.w82{width:82%}
+  .sk.w52{width:52%}
+  .sk.w44{width:44%}
+  /* 抽屉内骨架说明 / 空态 / 错误态行（原内联收进类） */
+  .dstate{padding:14px;font-size:13px;color:var(--acsv-t3)}
+  .dstate.top{border-top:1px dashed rgba(255,255,255,.1)}
+  .dstate.sknote{padding:16px 14px}
+  .dstate .chip{margin-top:10px}
 
   /* ---- 设置面板（量值照抄 settingspanel.js：400px/blur/radius14，开关 34×18 药丸 旋钮 14px） ---- */
-  .setov{position:relative;border:1px dashed rgba(255,255,255,.14);overflow:hidden}
+  .setov{position:relative;border:1px dashed rgba(255,255,255,.14);overflow:hidden;width:440px;height:230px}
   .setov .set{position:absolute;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center}
   .setp{width:400px;background:rgba(22,22,27,.97);border:1px solid rgba(255,255,255,.1);border-radius:14px;
     box-shadow:0 10px 34px rgba(0,0,0,.5);overflow:hidden}
@@ -207,575 +268,696 @@
 
   /* ---- 骨架 / 错误 / 空态 ---- */
   .sk .cv,.sk .l1,.sk .l2{background:rgba(255,255,255,.06);border-radius:6px}
+  .card.sk .cv{aspect-ratio:16/9}
   .sk .l1{height:13px;margin:10px 10px 0;width:88%}
   .sk .l2{height:11px;margin:8px 10px 12px;width:52%}
   .fail{padding:34px 0;text-align:center;color:var(--acsv-t3);font-size:13px}
   .fail .chip{margin-top:12px}
+  .fail.sep{border-top:1px dashed rgba(255,255,255,.1)}
 
   /* ---- 窄宽 540：2 列 + chips 横滑；首卡 2×2 = 通栏跨两行 ---- */
   .n540{width:540px;border:1px dashed rgba(255,255,255,.14);padding:12px}
-  .n540 .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .n540 .grid{grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
   .n540 .grid .big .ct{font-size:14px}
+  .n540 .jh-hd .t{font-size:18px}
   @media (max-width:600px){
-    .board{padding:16px 10px 60px}
     .grid{grid-template-columns:repeat(2,1fr);gap:10px}
   }
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>分区页 v6（浮层播放 + 2×2 首卡 + 左栏挪位 + 列表播放器）—— 静态预览</h1>
-  <p class="hint">
-    v5 改版（用户裁决）：① 点卡片出口对齐榜单/搜索/动态——playlayer 浮层单条播放，Esc 回分区原位；
-    随机游走搬进层内：层内 <b>↓</b> = 当前视频相关池随机抽下一条（逐级递归），<b>↑</b> = 回上一条；
-    评论抽屉「相关推荐」行在层内点 = 层内换条（不拆视图；舞台竖刷上的行点击照旧=舞台游走，两态并存）。
-    ② 左栏：分区挪到「推荐」上面。③ 首卡 = 网格内 2 列 × 2 行跨格（撤独立 hero 区），
-    封面统一 16:9 —— 不拉伸（object-fit:cover），普通卡与锁比大卡均<b>零裁切</b>（详见 ① 贴合自检）。
-    ④ 拉取量按行补齐：首卡占 4 格（2×2）+ 每张 1 格，渲染到「整行填满」为止，底部不留空卡；
-    不足一行的条目留在缓冲跨批续用（流尽时尾行例外）；全部/分区 tab 同规则。<br>
-    数据口径（全部实测）：分区 chips = channel/allChannels；「全部」= selection/feed；分区流 =
-    channel/secondLevel/resourceList；相关推荐 = feed/related/general（§5）。确认后才进 src 实现。
-  </p>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <!-- ⓪ 左栏 dock 顺序 -->
-  <div class="sec">
-    <h2>⓪ 左栏 dock 顺序（新）<em>分区置顶于推荐之上；其余相对顺序不动；高亮=当前在分区视图</em></h2>
-    <div class="row" style="align-items:flex-start;gap:24px">
-      <div class="dock">
-        <div class="dk on"><span class="ic"></span>分区</div>
-        <div class="dk"><span class="ic"></span>推荐</div>
-        <div class="dk"><span class="ic"></span>榜单</div>
-        <div class="dk"><span class="ic"></span>广场</div>
-        <div class="dk-sep"></div>
-        <div class="dk"><span class="ic"></span>关注</div>
-        <div class="dk"><span class="ic"></span>我的</div>
-      </div>
-      <p class="hint" style="max-width:560px;line-height:2">
-        顺序：分区 → 推荐 → 榜单 → 广场 ｜ 关注 → 我的（order：分区 5 / 推荐 10 / 榜单 10（同序按 id 兜底）/ 广场 15 ｜ 关注 20 / 我的 30）。<br>
-        「推荐」条目仍是裸竖刷路由（回竖刷并重置当前源），仅位置下移一格。<br>
-        徽标/高亮机制不变；分区视图打开时高亮自己，播放层浮层打开时高亮指向来源=分区。<br>
-        （展示名 0.9.171 改口；视图 id / hash 段仍 jingxuan，深链不动）
-      </p>
-    </div>
-  </div>
-
-  <!-- ① 整页形态 -->
-  <div class="sec">
-    <h2>① 整页形态 · 默认态（「全部」tab，1600×900 取景）<em>首卡 2×2 跨格 + 卡片墙 + 触底续页；按行补齐渲染，底部不留空卡</em></h2>
-    <div class="jh-hd"><span class="t">分区</span><span class="sub">大家都在看 · 分区随便刷</span></div>
-    <div class="chiprow">
-      <button class="chip on">全部</button>
-      <button class="chip">动画</button>
-      <button class="chip">音乐</button>
-      <button class="chip">舞蹈·偶像</button>
-      <button class="chip">游戏</button>
-      <button class="chip">娱乐</button>
-      <button class="chip">生活</button>
-      <button class="chip">科技</button>
-      <button class="chip">影视</button>
-      <button class="chip">体育</button>
-      <button class="chip">番剧</button>
-      <button class="chip">鱼塘</button>
-    </div>
-    <div class="grid" style="margin-top:14px">
-      <div class="card big">
-        <div class="cv" style="background:linear-gradient(120deg,#3a2c52,#7a3550 60%,#c05a4a)">
-          <span class="chtag">动画 &gt; COSPLAY·声优</span>
-          <span class="dur">7:25</span>
-          <span class="pv">▶ 467</span>
-        </div>
-        <div class="ci">
-          <div class="ct">我自愿给朽叶姐姐送餐</div>
-          <div class="jx-tags"><span class="jxtag">动画</span><span class="jxtag">COSPLAY·声优</span></div>
-          <div class="jx-up"><span class="jx-ava"></span><span>咖纳纳纳o</span></div>
-          <div class="cm"><span>▶ 467</span><span>♥ 16</span><span>投蕉 50</span><span>7:25</span></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="cv" style="background:linear-gradient(135deg,#2b3a4a,#3a5a6a)"><span class="dur">0:10</span><span class="pv">▶ 2.3万</span></div>
-        <div class="ci"><div class="ct">每个coser都会遇到的困难..</div>
-          <div class="cm"><span class="up">咖纳纳纳o</span><span>赞 16</span></div></div>
-      </div>
-      <div class="card">
-        <div class="cv" style="background:linear-gradient(135deg,#4a2b4a,#6a3a5a)"><span class="dur">3:41</span><span class="pv">▶ 987</span></div>
-        <div class="ci"><div class="ct">红昭愿</div>
-          <div class="cm"><span class="up">一只芸喵喵</span><span>赞 21</span></div></div>
-      </div>
-      <div class="card">
-        <div class="cv" style="background:linear-gradient(135deg,#24424a,#2b6152)"><span class="chtag">游戏 &gt; 主机单机</span><span class="dur">7:25</span><span class="pv">▶ 1.2万</span></div>
-        <div class="ci"><div class="ct">控制共振</div>
-          <div class="cm"><span class="up">潇湘huya</span><span>赞 318</span></div></div>
-      </div>
-      <div class="card">
-        <div class="cv" style="background:linear-gradient(135deg,#4a3b22,#8a6a2a)"><span class="chtag">动画 &gt; 虚拟偶像</span><span class="dur">4:16</span><span class="pv">▶ 856</span></div>
-        <div class="ci"><div class="ct">琵琶曲·AC娘VS高坂桐乃？</div>
-          <div class="cm"><span class="up">紫嘉儿~</span><span>赞 47</span></div></div>
-      </div>
-      <div class="card">
-        <div class="cv" style="background:linear-gradient(135deg,#22432e,#2e6a45)"><span class="dur">5:02</span><span class="pv">▶ 1.1万</span></div>
-        <div class="ci"><div class="ct">【付小远】眼泪若嫌多就删掉吧（翻唱）</div>
-          <div class="cm"><span class="up">付小远brenda</span><span>赞 89</span></div></div>
-      </div>
-      <div class="card">
-        <div class="cv" style="background:linear-gradient(135deg,#40222a,#6a3540)"><span class="dur">1:58</span><span class="pv">▶ 654</span></div>
-        <div class="ci"><div class="ct">无解的眼神 心像海底针～</div>
-          <div class="cm"><span class="up">潇湘huya</span><span>赞 12</span></div></div>
-      </div>
-      <div class="card">
-        <div class="cv" style="background:linear-gradient(135deg,#2a2a40,#44446a)"><span class="dur">12:09</span><span class="pv">▶ 3.4万</span></div>
-        <div class="ci"><div class="ct">什么活动还要真珠总监亲自营业！？</div>
-          <div class="cm"><span class="up">咖纳纳纳o</span><span>赞 210</span></div></div>
-      </div>
-      <div class="card">
-        <div class="cv" style="background:linear-gradient(135deg,#3c3a24,#6a6636)"><span class="dur">8:47</span><span class="pv">▶ 720</span></div>
-        <div class="ci"><div class="ct">【普通话考级真题示范】一篇读完舌头打结</div>
-          <div class="cm"><span class="up">青云zr</span><span>赞 33</span></div></div>
-      </div>
-      <div class="card">
-        <div class="cv" style="background:linear-gradient(135deg,#242e3c,#2e4a5c)"><span class="dur">2:26</span><span class="pv">▶ 4.8万</span></div>
-        <div class="ci"><div class="ct">【4K修复】2008年奥运开幕式片段，弹幕全是回忆</div>
-          <div class="cm"><span class="up">一只芸喵喵</span><span>赞 1024</span></div></div>
-      </div>
-      <div class="card">
-        <div class="cv" style="background:linear-gradient(135deg,#33222e,#55304a)"><span class="dur">6:33</span><span class="pv">▶ 158</span></div>
-        <div class="ci"><div class="ct">阳台种菜三个月，终于吃上了一口（vlog）</div>
-          <div class="cm"><span class="up">付小远brenda</span><span>赞 9</span></div></div>
-      </div>
-      <div class="card">
-        <div class="cv" style="background:linear-gradient(135deg,#2e2233,#5c3a55)"><span class="dur">1:12</span><span class="pv">▶ 3.1万</span></div>
-        <div class="ci"><div class="ct">猫猫踩奶合集：第 4 秒开始笑出声</div>
-          <div class="cm"><span class="up">紫嘉儿~</span><span>赞 156</span></div></div>
-      </div>
-      <div class="card">
-        <div class="cv" style="background:linear-gradient(135deg,#1f3438,#2f5c52)"><span class="dur">9:40</span><span class="pv">▶ 6.7千</span></div>
-        <div class="ci"><div class="ct">【手书】那些年我们追过的番剧 OP</div>
-          <div class="cm"><span class="up">青云zr</span><span>赞 402</span></div></div>
-      </div>
-    </div>
-    <p class="hint" style="margin:6px 0 0">计数位（0.9.171）：卡片 meta 的播放/点赞在生产用<b>原生 iconfont 字形</b>
-      （播放 = rankView 码点 E164、点赞 = feedLike 码点 E629，字体 acfun-frontend-next 由 styles 注入）；
-      本稿以 ▶/♥ 示意（单文件预览不挂字体）。大卡 meta = 播放 + 点赞 + 时长，普通卡 = 点赞 + UP 名。</p>
-    <p class="hint" style="margin:8px 0 0">按行补齐示例：4 列网格下，首卡占 4 格（2×2），其余每张 1 格——渲染量取「整行倍数」，
-      整页正好 4 个满行（4 + 12 = 16 格）。拉回的多余条目留在缓冲，滚到底再续下一整行，任何时刻底部都不落空位；
-      仅当流已拉尽（「已经到底啦」）时尾行可能不满。真实实现列数随窗口自适应（2–5 列），补齐按实际列数计算。</p>
-
-    <div class="coverfit">
-      <div class="cf-item">
-        <div class="tbox" style="aspect-ratio:16/9">
-          <div class="tcirc"></div>
-          <span class="tm tl"></span><span class="tm tr"></span><span class="tm bl"></span><span class="tm br"></span>
-          <span class="tlbl ok">源图 16:9</span>
-        </div>
-        <p class="thint">AcFun 封面源比例。普通卡封面框=16:9 → <b>零裁切零拉伸</b>（圆是圆、四角完好）。</p>
-      </div>
-      <div class="cf-item">
-        <div class="tbox crop" style="aspect-ratio:15/10">
-          <div class="tinner">
-            <div class="tcirc"></div>
-            <span class="tm tl"></span><span class="tm tr"></span><span class="tm bl"></span><span class="tm br"></span>
-          </div>
-          <span class="tlbl ok">cover 等比裁切（撑满型大卡）</span>
-        </div>
-        <p class="thint">框比 16:9 高时 object-fit:cover 的效果：<b>圆仍是圆</b>（不拉伸），两侧角标被裁掉
-          （各 ~8%）——本稿大卡选「锁 16:9」，不出现此裁切。</p>
-      </div>
-      <div class="cf-item">
-        <div class="tbox" style="aspect-ratio:15/10">
-          <div class="tstretch">
-            <div class="tcirc"></div>
-            <span class="tm tl"></span><span class="tm tr"></span><span class="tm bl"></span><span class="tm br"></span>
-          </div>
-          <span class="tlbl bad">✗ 拉伸（本实现不会出现）</span>
-        </div>
-        <p class="thint">圆变椭圆=比例被破坏。实现走 <b>object-fit:cover</b>（styles.js），物理上排除此形态。</p>
-      </div>
-    </div>
-
-    <h3 class="cf-head">大卡封面两种落法对照（340×355 形状示意；文字不随卡宽缩放，裁切比例按生产尺寸标注）</h3>
-    <div class="cmp">
-      <div class="cf-item" style="width:340px">
-        <div class="card big" style="height:355px">
-          <div class="cv" style="background:linear-gradient(120deg,#3a2c52,#7a3550 60%,#c05a4a)"><span class="dur">7:25</span><span class="pv">▶ 467</span></div>
-          <div class="ci">
-            <div class="ct">我自愿给朽叶姐姐送餐</div>
-            <div class="jx-tags"><span class="jxtag">动画</span><span class="jxtag">COSPLAY·声优</span></div>
-            <div class="jx-up"><span class="jx-ava"></span><span>咖纳纳纳o</span></div>
-            <div class="cm"><span>▶ 467</span><span>♥ 16</span><span>投蕉 50</span></div>
-          </div>
-        </div>
-        <p class="thint"><b>落法 A（当前稿，推荐）</b>：封面锁 16:9 完整显示；信息区 4 行（标题/标签/UP/数据）。
-          生产下可用 162px，内容实测 104~140px——<b>标题两行时基本排满</b>；一行短标题时余约 30px，
-          摊入行距呈呼吸感（不是空洞）。</p>
-      </div>
-      <div class="cf-item" style="width:340px">
-        <div class="card big alt" style="height:355px">
-          <div class="cv" style="background:linear-gradient(120deg,#3a2c52,#7a3550 60%,#c05a4a)"><span class="dur">7:25</span><span class="pv">▶ 467</span></div>
-          <div class="ci">
-            <div class="ct">我自愿给朽叶姐姐送餐</div>
-            <div class="cm"><span class="up">咖纳纳纳o</span><span>▶ 467</span><span>♥ 16</span></div>
-          </div>
-        </div>
-        <p class="thint"><b>落法 B（对照）</b>：封面撑满、零留白；生产尺寸下框比 ≈1.37:1 → cover 等比
-          左右各裁 ~11%（合计 ~23%）。圆不变形，但画面两侧内容被切掉。</p>
-      </div>
-    </div>
-    <div class="sentinel">— 上滑加载更多 · 每次续拉按整行补齐，底部不留空卡 —</div>
-  </div>
-
-  <!-- ② 浮层播放（点卡片后） -->
-  <div class="sec">
-    <h2>② 点卡片后的浮层播放（playlayer，与榜单/搜索/动态同出口）<em>单条全屏；↓/滚轮下滑=游走下一条 · ↑/滚轮上滑=回上一条 · Esc=回分区原位</em></h2>
-    <div class="row" style="align-items:flex-start;gap:24px">
-      <div class="layer">
-        <span class="src">来源：分区 · Esc 返回分区（原位保活）</span>
-        <div class="mid"><div class="playbtn">▶</div></div>
-        <div class="gest">
-          <b>↓ / 滚轮下滑 / 触摸上滑</b> 下一条 = 当前视频相关推荐随机抽一条（逐级游走）<br>
-          <b>↑ / 滚轮上滑 / 触摸下滑</b> 回上一条（层内历史）<br>
-          <b>c</b> 评论抽屉 · 相关推荐行点选 = 开列表播放器（压级，见 ⑥）<br>
-          空格 暂停 · ←→ 快进退 · f 全屏<br>
-          右栏 ▲▼ = 上一条/下一条（与 ↓/↑/滚轮/触摸同一动作）
-        </div>
-        <div class="layrail">
-          <button class="rar" title="上一个（↑）">▲</button>
-          <button class="rar" title="下一个（↓）">▼</button>
-        </div>
-      </div>
-      <p class="hint" style="max-width:420px;line-height:2">
-        与旧版差异：不再拆视图进竖刷舞台——分区视图原样保活在底下，Esc 秒回原位（滚动位置不丢）。<br>
-        随机游走语义不变：每步从「当前这条」的相关池（10 条）抽一条，防回头路、看尽换批；
-        设置里「相关推荐按列表顺序续播」开启时，层内 ↓ 按列表 FIFO 走、尽头自动接批。<br>
-        深链地址 <code>#svfeed/play/a/&lt;id&gt;</code> 与榜单出口一致。
-      </p>
-    </div>
-  </div>
-
-  <!-- ③ 悬停/选中 -->
-  <div class="sec">
-    <h2>③ 悬停与选中<em>卡片悬停=描边提亮；首卡跨格同规则；chips 悬停/选中</em></h2>
-    <div class="row" style="align-items:flex-start;gap:24px">
-      <div class="card big hov" style="width:340px;height:355px">
-        <div class="cv" style="background:linear-gradient(120deg,#3a2c52,#7a3550)"><span class="dur">7:25</span><span class="pv">▶ 467</span></div>
-        <div class="ci"><div class="ct">我自愿给朽叶姐姐送餐（2×2 跨格悬停态，尺寸按真实大卡等比缩放：340×355）</div>
-          <div class="jx-tags"><span class="jxtag">动画</span><span class="jxtag">COSPLAY·声优</span></div>
-          <div class="jx-up"><span class="jx-ava"></span><span>咖纳纳纳o</span></div>
-          <div class="cm"><span>▶ 467</span><span>♥ 16</span></div></div>
-      </div>
-      <div class="card hov" style="width:260px">
-        <div class="cv" style="background:linear-gradient(135deg,#2b3a4a,#3a5a6a)"><span class="dur">0:10</span><span class="pv">▶ 2.3万</span></div>
-        <div class="ci"><div class="ct">普通卡悬停态：描边 accent + 底色提亮</div>
-          <div class="cm"><span class="up">咖纳纳纳o</span><span>赞 16</span></div></div>
-      </div>
-      <div>
-        <div class="chiprow" style="max-width:520px">
-          <button class="chip">全部</button>
-          <button class="chip on">游戏</button>
-          <button class="chip hov">生活</button>
-          <button class="chip">影视</button>
-        </div>
-        <p class="hint" style="margin-top:10px">chips 选中=accent 实底；悬停=白 18% 底。切分区即换流（resourceList），
-          chips 行横向滚动不换行。分区 tab 与「全部」同一张网格形态（首卡同样 2×2 跨格）。</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ④ 评论抽屉·评论 tab -->
-  <div class="sec">
-    <h2>④ 评论抽屉 · 评论 tab（现状，tab 行）<em>抽屉骨架量值照抄 styles.js；评论条目正式实现走 commentkit 单源，此处简化示意</em></h2>
-    <div class="drawer">
-      <div class="dhd">
-        <span class="dtab on">评论 12</span>
-        <span class="dtab">相关推荐</span>
-        <span class="dtab">列表</span>
-        <button class="dclose">✕</button>
-      </div>
-      <div class="dlist">
-        <div class="cmt"><div class="av"></div><div><div class="nm">香蕉君</div>
-          <div class="tx">这条视频太棒了，已三连</div>
-          <div class="mt"><span>3楼 · 2026-09-01</span><span>赞 233</span><span>回复</span></div></div></div>
-        <div class="cmt"><div class="av"></div><div><div class="nm">一只芸喵喵</div>
-          <div class="tx">BGM 求个曲名，蹲一个回复</div>
-          <div class="mt"><span>2楼 · 2026-09-01</span><span>赞 12</span><span>回复</span></div></div></div>
-        <div class="cmt"><div class="av"></div><div><div class="nm">青云zr</div>
-          <div class="tx">前排围观，UP 剪辑越来越熟了</div>
-          <div class="mt"><span>1楼 · 2026-08-31</span><span>赞 5</span><span>回复</span></div></div></div>
-      </div>
-      <div class="din"><div class="fake">发一条友好的评论吧…</div></div>
-    </div>
-  </div>
-
-  <!-- ⑤ 评论抽屉·相关推荐 tab -->
-  <div class="sec">
-    <h2>⑤ 评论抽屉 · 相关推荐 tab<em>舞台点行=开层保活（0.9.172）；层内点行=压第 2 级开列表播放器（0.9.174）</em></h2>
-    <div class="row" style="align-items:flex-start;gap:24px">
-      <div class="drawer">
-        <div class="dhd">
-          <span class="dtab">评论 12</span>
-          <span class="dtab on">相关推荐</span>
-          <button class="dclose">✕</button>
-        </div>
-        <div class="dlist">
-          <div class="rel playing">
-            <div class="cv">▶ 播放中</div>
-            <div class="rt"><div class="tt">我自愿给朽叶姐姐送餐</div>
-              <div class="mm"><span>▶ 467</span><span>咖纳纳纳o</span></div></div>
-          </div>
-          <div class="rel hov">
-            <div class="cv" style="background:linear-gradient(135deg,#2b3a4a,#3a5a6a)"><span class="dur">0:10</span></div>
-            <div class="rt"><div class="tt">每个coser都会遇到的困难..（层内点这行=压第 2 级列表播放器）</div>
-              <div class="mm"><span>♥ 16</span><span>咖纳纳纳o</span></div></div>
-          </div>
-          <div class="rel">
-            <div class="cv" style="background:linear-gradient(135deg,#4a3b22,#8a6a2a)"><span class="dur">4:16</span></div>
-            <div class="rt"><div class="tt">琵琶曲·AC娘VS高坂桐乃？</div>
-              <div class="mm"><span>♥ 47</span><span>紫嘉儿~</span></div></div>
-          </div>
-          <div class="rel">
-            <div class="cv" style="background:linear-gradient(135deg,#22432e,#2e6a45)"><span class="dur">5:02</span></div>
-            <div class="rt"><div class="tt">【付小远】眼泪若嫌多就删掉吧（翻唱）</div>
-              <div class="mm"><span>♥ 89</span><span>付小远brenda</span></div></div>
-          </div>
-          <div class="rel">
-            <div class="cv" style="background:linear-gradient(135deg,#40222a,#6a3540)"><span class="dur">1:58</span></div>
-            <div class="rt"><div class="tt">无解的眼神 心像海底针～</div>
-              <div class="mm"><span>♥ 12</span><span>潇湘huya</span></div></div>
-          </div>
-        </div>
-        <div class="dnote">行点击两种归宿：<b>舞台竖刷</b>上 = 开播放层（舞台显式暂停保活，Esc 回当前视频；0.9.172 前的"拆视图进舞台"已废）；
-          <b>播放层浮层</b>内（分区/榜单/搜索来的都算）= **压第 2 级开列表播放器**（0.9.174）。
-          本列表随当前视频每步刷新，抽中已看过的自动重抽，整批看尽再拉一批。</div>
-      </div>
-      <p class="hint" style="max-width:420px;line-height:2">
-        层内点行 = **开第三播放器**（列表播放器）：把那份 10 条按顺序播、自动展开抽屉停在「列表」页签；
-        **关闭（Esc/顶栏返回）= 弹回原来那条视频**（进度原地恢复）——旧实现（换成列表/直接顶掉当前视频）
-        已被用户裁决推翻（0.9.174）。<br>
-        来源不限于分区——榜单/搜索/我的进层后同款；套娃封顶 2 级（0.9.175）。
-      </p>
-    </div>
-
-    <h3 class="cf-head">层内 ↓/↑（含右栏 ▲▼）的会话语义（0.9.173；级别栈见 0.9.174–177）</h3>
-    <div class="row" style="align-items:flex-start;gap:26px;flex-wrap:wrap">
-      <table style="border-collapse:collapse;font-size:12px;color:var(--acsv-t2);min-width:560px">
-        <tr style="color:var(--acsv-t3);text-align:left">
-          <th style="padding:6px 12px 6px 0;font-weight:600">入口</th>
-          <th style="padding:6px 12px 6px 0;font-weight:600">↓ 的语义</th>
-          <th style="padding:6px 0;font-weight:600">走到头</th>
-        </tr>
-        <tr><td style="padding:5px 12px 5px 0">搜索</td><td style="padding:5px 12px 5px 0">结果列表顺序</td><td>停（提示 + ▼ 隐）</td></tr>
-        <tr><td style="padding:5px 12px 5px 0">榜单</td><td style="padding:5px 12px 5px 0">榜单行顺序</td><td>停（提示 + ▼ 隐）</td></tr>
-        <tr><td style="padding:5px 12px 5px 0">我的（投稿/收藏/历史）</td><td style="padding:5px 12px 5px 0">该列表顺序</td><td>有下一页续拉；无则停</td></tr>
-        <tr><td style="padding:5px 12px 5px 0"><b>分区</b>（默认）</td><td style="padding:5px 12px 5px 0"><b>相关池随机</b>（抖音式刷不完）</td><td>换批续命（不封顶）</td></tr>
-        <tr><td style="padding:5px 12px 5px 0"><b>分区</b>（设置开=按列表顺序）</td><td style="padding:5px 12px 5px 0">网格顺序</td><td>续拉下一页</td></tr>
-        <tr><td style="padding:5px 12px 5px 0">相关推荐行跳转（任意来源）</td><td style="padding:5px 12px 5px 0">**压第 2 级**（列表播放器，自动停「列表」页签）</td><td>Esc/顶栏返回=弹回原视频（进度恢复）；封顶 2 级</td></tr>
-        <tr><td style="padding:5px 12px 5px 0">动态里的视频卡片</td><td style="padding:5px 12px 5px 0" colspan="2">单条：不出箭头、不可切</td></tr>
-      </table>
-    </div>
-    <h3 class="cf-head">右栏 ▲▼ 的三种状态</h3>
-    <div class="row" style="align-items:flex-start;gap:26px">
-      <div>
-        <div class="layer" style="width:300px;height:190px">
-          <span class="src" style="font-size:11px">列表中间（两侧都可走）</span>
-          <div class="layrail" style="bottom:40px">
-            <button class="rar" style="width:34px;height:34px">▲</button>
-            <button class="rar" style="width:34px;height:34px">▼</button>
-          </div>
-        </div>
-        <p class="thint">常态：两个圆钮都在（40px / 白 12% / 模糊 4px，量值同竖刷右栏）</p>
-      </div>
-      <div>
-        <div class="layer" style="width:300px;height:190px">
-          <span class="src" style="font-size:11px">第一条</span>
-          <div class="layrail" style="bottom:40px">
-            <button class="rar hid" style="width:34px;height:34px">▲</button>
-            <button class="rar" style="width:34px;height:34px">▼</button>
-          </div>
-        </div>
-        <p class="thint">▲ 隐藏（同竖刷首条语义；键盘/滚轮上滑给「已经是第一条」提示）</p>
-      </div>
-      <div>
-        <div class="layer" style="width:300px;height:190px">
-          <span class="src" style="font-size:11px">最后一条（不可续拉）</span>
-          <div class="layrail" style="bottom:40px">
-            <button class="rar" style="width:34px;height:34px">▲</button>
-            <button class="rar" style="width:34px;height:34px;opacity:.3">▼</button>
-          </div>
-          <div class="laytip" style="top:auto;bottom:14px;font-size:12px;padding:6px 12px">已经是最后一条</div>
-        </div>
-        <p class="thint">▼ 置灰（可续拉的来源如分区/我的：仍亮着，↓ 触发续拉）</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ⑥ 相关推荐 tab 三小态 -->
-  <div class="sec">
-    <h2>⑥ 评论抽屉 · 「列表」tab（新，0.9.174）= 列表播放器<em>点相关推荐行 → 开列表播放器（自动展开抽屉、停在本 tab）；Esc 弹回原视频</em></h2>
-    <div class="row" style="align-items:flex-start;gap:24px">
-      <div class="drawer">
-        <div class="dhd">
-          <span class="dtab">评论 12</span>
-          <span class="dtab on">列表</span>
-          <button class="dclose">✕</button>
-        </div>
-        <div class="dlist">
-          <div class="rel lcur">
-            <div class="cv">▶ 播放中</div>
-            <div class="rt"><div class="tt">每个coser都会遇到的困难..（当前播放项：角标高亮 + 描边）</div>
-              <div class="mm"><span>♥ 16</span><span>咖纳纳纳o</span></div></div>
-          </div>
-          <div class="rel">
-            <div class="cv" style="background:linear-gradient(135deg,#4a3b22,#8a6a2a)"><span class="dur">4:16</span></div>
-            <div class="rt"><div class="tt">琵琶曲·AC娘VS高坂桐乃？</div>
-              <div class="mm"><span>♥ 47</span><span>紫嘉儿~</span></div></div>
-          </div>
-          <div class="rel">
-            <div class="cv" style="background:linear-gradient(135deg,#22432e,#2e6a45)"><span class="dur">5:02</span></div>
-            <div class="rt"><div class="tt">【付小远】眼泪若嫌多就删掉吧（翻唱）</div>
-              <div class="mm"><span>♥ 89</span><span>付小远brenda</span></div></div>
-          </div>
-          <div class="rel">
-            <div class="cv" style="background:linear-gradient(135deg,#40222a,#6a3540)"><span class="dur">1:58</span></div>
-            <div class="rt"><div class="tt">无解的眼神 心像海底针～</div>
-              <div class="mm"><span>♥ 12</span><span>潇湘huya</span></div></div>
-          </div>
-          <div class="rel">
-            <div class="cv" style="background:linear-gradient(135deg,#2a2a40,#44446a)"><span class="dur">12:09</span></div>
-            <div class="rt"><div class="tt">什么活动还要真珠总监亲自营业！？</div>
-              <div class="mm"><span>♥ 210</span><span>咖纳纳纳o</span></div></div>
-          </div>
-        </div>
-        <div class="dnote">列表 = <b>当前正在播放的那份列表</b>（相关推荐 10 条；合辑 / 分P 未来同形接入）：
-          当前项标「▶ 播放中」；点行 = <b>列表内跳转</b>（不新开层）；走到最后一条停并提示。
-          <b>列表播放器里不出现「相关推荐」页签</b>——第三播放器只管自己这份列表，深度封顶 2 级
-          （防无限套娃；「相关推荐」入口只在第 1 级视频播放器里）。</div>
-      </div>
-      <div style="max-width:420px">
-        <p class="hint" style="line-height:2;margin:0">
-          <b>级别栈（0.9.174）</b>：分区/榜单/搜索/我的 →视频 = 第 1 级；点「相关推荐」行 = <b>压第 2 级</b>
-          （列表播放器，自动展开抽屉停在「列表」tab）；<b>Esc</b> = 关抽屉 → 再 Esc = <b>弹回第 1 级原视频</b>
-          （进度原地恢复）→ 再 Esc = 退层回来源视图。<br>
-          同一套也适用于合辑/分P（自带列表的视频）——本轮仅相关推荐（合辑接口未实测）；
-          <b>列表播放器内不再有跳转入口（相关推荐页签收起）</b>，套娃深度封顶 2 级。<br>
-          右栏 ▲▼ / 滚轮 / ↑ 不参与弹级（列表首条 ↑ 仍提示"已经是第一条"）；弹回键 = Esc 与顶栏「向左返回」（0.9.176 同源），弹回时「列表」页签一律收起（0.9.177）。
+    <main class="doc">
+      <div class="doc-head">
+        <h1>分区页 v6（浮层播放 + 2×2 首卡 + 左栏挪位 + 列表播放器）—— 静态预览</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-on">默认</span>
+          <span class="doc-badge b-hover">悬停</span>
+          <span class="doc-badge">选中</span>
+          <span class="doc-badge b-empty">空态</span>
+          <span class="doc-badge b-err">错误态</span>
+          <span class="doc-badge">骨架</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">首卡 2×2 跨格 / 封面 16:9 零裁切</span><span class="src">本稿 v5 裁决③</span></span>
+          <span class="doc-pill"><span class="v">右栏圆钮 40px / 白 12% / 禁用 .3</span><span class="src">src/cssraw.js .acsv-arrow</span></span>
         </p>
       </div>
-    </div>
 
-    <h2>⑦ 相关推荐 · 骨架 / 空态 / 错误态<em>拉流中逐行骨架；空与失败都给出口</em></h2>
-    <div class="drawer">
-      <div class="dhd">
-        <span class="dtab">评论 12</span>
-        <span class="dtab on">相关推荐</span>
-        <button class="dclose">✕</button>
-      </div>
-      <div class="dlist">
-        <div class="rel"><div class="cv sk"></div>
-          <div class="rt"><div class="tt sk" style="height:13px;width:90%"></div>
-            <div class="mm sk" style="height:10px;width:52%"></div></div></div>
-        <div class="rel"><div class="cv sk"></div>
-          <div class="rt"><div class="tt sk" style="height:13px;width:82%"></div>
-            <div class="mm sk" style="height:10px;width:44%"></div></div></div>
-        <div style="padding:16px 14px;font-size:13px;color:var(--acsv-t3);border-top:1px dashed rgba(255,255,255,.1)">
-          ↑ 骨架：拉流中逐行占位</div>
-        <div style="padding:14px;font-size:13px;color:var(--acsv-t3)">这个视频暂时没有相关推荐</div>
-        <div style="padding:14px;font-size:13px;color:var(--acsv-t3);border-top:1px dashed rgba(255,255,255,.1)">
-          加载失败 · 网络或服务不可用<br><button class="chip" style="margin-top:10px">重试</button></div>
-      </div>
-    </div>
-  </div>
+      <p class="doc-note">
+        v5 改版（用户裁决）：① 点卡片出口对齐榜单/搜索/动态——playlayer 浮层单条播放，Esc 回分区原位；
+        随机游走搬进层内：层内 <b>↓</b> = 当前视频相关池随机抽下一条（逐级递归），<b>↑</b> = 回上一条；
+        评论抽屉「相关推荐」行在层内点 = 层内换条（不拆视图；舞台竖刷上的行点击照旧=舞台游走，两态并存）。
+        ② 左栏：分区挪到「推荐」上面。③ 首卡 = 网格内 2 列 × 2 行跨格（撤独立 hero 区），
+        封面统一 16:9 —— 不拉伸（object-fit:cover），普通卡与锁比大卡均<b>零裁切</b>（详见 ① 贴合自检）。
+        ④ 拉取量按行补齐：首卡占 4 格（2×2）+ 每张 1 格，渲染到「整行填满」为止，底部不留空卡；
+        不足一行的条目留在缓冲跨批续用（流尽时尾行例外）；全部/分区 tab 同规则。<br>
+        数据口径（全部实测）：分区 chips = channel/allChannels；「全部」= selection/feed；分区流 =
+        channel/secondLevel/resourceList；相关推荐 = feed/related/general（§5）。确认后才进 src 实现。
+      </p>
 
-  <!-- ⑦ 设置面板·续播方式 -->
-  <div class="sec">
-    <h2>⑧ 设置面板 · 相关推荐续播方式<em>默认关=随机游走；开启=按列表顺序；层内 ↓ 与舞台游走同一开关</em></h2>
-    <div class="row" style="align-items:stretch;gap:20px">
-      <div class="setov" style="width:440px;height:230px">
-        <div class="set"><div class="setp">
-          <div class="hd"><span class="ti">设置</span><button class="x">✕</button></div>
-          <div class="bd">
-            <div class="set-group">播放</div>
-            <div class="set-row">
-              <div class="set-row-main">
-                <div class="set-label">相关推荐按列表顺序续播</div>
-                <div class="set-hint">关闭（默认）：下一条在当前视频的相关推荐池里随机抽，逐级游走；开启：按展示列表顺序播，尽头自动接下一批。播放层浮层内与（分区默认的）相关池随机同一开关；舞台游走链自 0.9.172 起仅剩遗留兜底，无入口</div>
+      <!-- ⓪ 左栏 dock 顺序 -->
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>⓪ 左栏 dock 顺序（新）</h2>
+          <span class="nt">分区置顶于推荐之上；其余相对顺序不动；高亮=当前在分区视图</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="row top">
+            <div class="dock">
+              <div class="dk on"><span class="ic"></span>分区</div>
+              <div class="dk"><span class="ic"></span>推荐</div>
+              <div class="dk"><span class="ic"></span>榜单</div>
+              <div class="dk"><span class="ic"></span>广场</div>
+              <div class="dk-sep"></div>
+              <div class="dk"><span class="ic"></span>关注</div>
+              <div class="dk"><span class="ic"></span>我的</div>
+            </div>
+            <p class="doc-note w560">
+              顺序：分区 → 推荐 → 榜单 → 广场 ｜ 关注 → 我的（order：分区 5 / 推荐 10 / 榜单 10（同序按 id 兜底）/ 广场 15 ｜ 关注 20 / 我的 30）。<br>
+              「推荐」条目仍是裸竖刷路由（回竖刷并重置当前源），仅位置下移一格。<br>
+              徽标/高亮机制不变；分区视图打开时高亮自己，播放层浮层打开时高亮指向来源=分区。<br>
+              （展示名 0.9.171 改口；视图 id / hash 段仍 jingxuan，深链不动）
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ① 整页形态 -->
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>① 整页形态 · 默认态（「全部」tab，1600×900 取景）</h2>
+          <span class="nt">首卡 2×2 跨格 + 卡片墙 + 触底续页；按行补齐渲染，底部不留空卡</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="jh-hd"><span class="t">分区</span><span class="sub">大家都在看 · 分区随便刷</span></div>
+          <div class="chiprow">
+            <button class="chip on">全部</button>
+            <button class="chip">动画</button>
+            <button class="chip">音乐</button>
+            <button class="chip">舞蹈·偶像</button>
+            <button class="chip">游戏</button>
+            <button class="chip">娱乐</button>
+            <button class="chip">生活</button>
+            <button class="chip">科技</button>
+            <button class="chip">影视</button>
+            <button class="chip">体育</button>
+            <button class="chip">番剧</button>
+            <button class="chip">鱼塘</button>
+          </div>
+          <div class="grid mt14">
+            <div class="card big">
+              <div class="cv cv-a">
+                <span class="chtag">动画 &gt; COSPLAY·声优</span>
+                <span class="dur">7:25</span>
+                <span class="pv"><i class="acsvg-glyph">&#xe164;</i>467</span>
               </div>
-              <button class="set-sw"><i></i></button>
+              <div class="ci">
+                <div class="ct">我自愿给朽叶姐姐送餐</div>
+                <div class="jx-tags"><span class="jxtag">动画</span><span class="jxtag">COSPLAY·声优</span></div>
+                <div class="jx-up"><span class="jx-ava"></span><span>咖纳纳纳o</span></div>
+                <div class="cm"><span><i class="acsvg-glyph">&#xe164;</i> 467</span><span><i class="acsvg-glyph">&#xe629;</i> 16</span><span>投蕉 50</span><span>7:25</span></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="cv cv-b"><span class="dur">0:10</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>2.3万</span></div>
+              <div class="ci"><div class="ct">每个coser都会遇到的困难..</div>
+                <div class="cm"><span class="up">咖纳纳纳o</span><span><i class="acsvg-glyph">&#xe629;</i> 16</span></div></div>
+            </div>
+            <div class="card">
+              <div class="cv cv-c"><span class="dur">3:41</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>987</span></div>
+              <div class="ci"><div class="ct">红昭愿</div>
+                <div class="cm"><span class="up">一只芸喵喵</span><span><i class="acsvg-glyph">&#xe629;</i> 21</span></div></div>
+            </div>
+            <div class="card">
+              <div class="cv cv-d"><span class="chtag">游戏 &gt; 主机单机</span><span class="dur">7:25</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>1.2万</span></div>
+              <div class="ci"><div class="ct">控制共振</div>
+                <div class="cm"><span class="up">潇湘huya</span><span><i class="acsvg-glyph">&#xe629;</i> 318</span></div></div>
+            </div>
+            <div class="card">
+              <div class="cv cv-e"><span class="chtag">动画 &gt; 虚拟偶像</span><span class="dur">4:16</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>856</span></div>
+              <div class="ci"><div class="ct">琵琶曲·AC娘VS高坂桐乃？</div>
+                <div class="cm"><span class="up">紫嘉儿~</span><span><i class="acsvg-glyph">&#xe629;</i> 47</span></div></div>
+            </div>
+            <div class="card">
+              <div class="cv cv-f"><span class="dur">5:02</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>1.1万</span></div>
+              <div class="ci"><div class="ct">【付小远】眼泪若嫌多就删掉吧（翻唱）</div>
+                <div class="cm"><span class="up">付小远brenda</span><span><i class="acsvg-glyph">&#xe629;</i> 89</span></div></div>
+            </div>
+            <div class="card">
+              <div class="cv cv-g"><span class="dur">1:58</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>654</span></div>
+              <div class="ci"><div class="ct">无解的眼神 心像海底针～</div>
+                <div class="cm"><span class="up">潇湘huya</span><span><i class="acsvg-glyph">&#xe629;</i> 12</span></div></div>
+            </div>
+            <div class="card">
+              <div class="cv cv-h"><span class="dur">12:09</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>3.4万</span></div>
+              <div class="ci"><div class="ct">什么活动还要真珠总监亲自营业！？</div>
+                <div class="cm"><span class="up">咖纳纳纳o</span><span><i class="acsvg-glyph">&#xe629;</i> 210</span></div></div>
+            </div>
+            <div class="card">
+              <div class="cv cv-i"><span class="dur">8:47</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>720</span></div>
+              <div class="ci"><div class="ct">【普通话考级真题示范】一篇读完舌头打结</div>
+                <div class="cm"><span class="up">青云zr</span><span><i class="acsvg-glyph">&#xe629;</i> 33</span></div></div>
+            </div>
+            <div class="card">
+              <div class="cv cv-j"><span class="dur">2:26</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>4.8万</span></div>
+              <div class="ci"><div class="ct">【4K修复】2008年奥运开幕式片段，弹幕全是回忆</div>
+                <div class="cm"><span class="up">一只芸喵喵</span><span><i class="acsvg-glyph">&#xe629;</i> 1024</span></div></div>
+            </div>
+            <div class="card">
+              <div class="cv cv-k"><span class="dur">6:33</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>158</span></div>
+              <div class="ci"><div class="ct">阳台种菜三个月，终于吃上了一口（vlog）</div>
+                <div class="cm"><span class="up">付小远brenda</span><span><i class="acsvg-glyph">&#xe629;</i> 9</span></div></div>
+            </div>
+            <div class="card">
+              <div class="cv cv-l"><span class="dur">1:12</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>3.1万</span></div>
+              <div class="ci"><div class="ct">猫猫踩奶合集：第 4 秒开始笑出声</div>
+                <div class="cm"><span class="up">紫嘉儿~</span><span><i class="acsvg-glyph">&#xe629;</i> 156</span></div></div>
+            </div>
+            <div class="card">
+              <div class="cv cv-m"><span class="dur">9:40</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>6.7千</span></div>
+              <div class="ci"><div class="ct">【手书】那些年我们追过的番剧 OP</div>
+                <div class="cm"><span class="up">青云zr</span><span><i class="acsvg-glyph">&#xe629;</i> 402</span></div></div>
             </div>
           </div>
-        </div></div>
-      </div>
-      <div class="setov" style="width:440px;height:230px">
-        <div class="set"><div class="setp">
-          <div class="hd"><span class="ti">设置</span><button class="x">✕</button></div>
-          <div class="bd">
-            <div class="set-group">播放</div>
-            <div class="set-row">
-              <div class="set-row-main">
-                <div class="set-label">相关推荐按列表顺序续播（开启态）</div>
-                <div class="set-hint">开启后新链条按列表顺序走；改动即时生效，写入走设置层防抖</div>
+        </div>
+        <p class="doc-note">计数位（0.9.171）：卡片 meta 的播放/点赞用<b>原生 iconfont 字形</b>
+          （播放 = rankView 码点 E164、点赞 = feedLike 码点 E629，字体 acfun-frontend-next 本地 assets 注入）；
+          大卡 meta = 播放 + 点赞 + 时长，普通卡 = 点赞 + UP 名。</p>
+        <p class="doc-note">按行补齐示例：4 列网格下，首卡占 4 格（2×2），其余每张 1 格——渲染量取「整行倍数」，
+          整页正好 4 个满行（4 + 12 = 16 格）。拉回的多余条目留在缓冲，滚到底再续下一整行，任何时刻底部都不落空位；
+          仅当流已拉尽（「已经到底啦」）时尾行可能不满。真实实现列数随窗口自适应（2–5 列），补齐按实际列数计算。</p>
+
+        <div class="doc-figure">
+          <div class="coverfit">
+            <div class="cf-item">
+              <div class="tbox r169">
+                <div class="tcirc"></div>
+                <span class="tm tl"></span><span class="tm tr"></span><span class="tm bl"></span><span class="tm br"></span>
+                <span class="tlbl ok">源图 16:9</span>
               </div>
-              <button class="set-sw on"><i></i></button>
+              <p class="thint">AcFun 封面源比例。普通卡封面框=16:9 → <b>零裁切零拉伸</b>（圆是圆、四角完好）。</p>
+            </div>
+            <div class="cf-item">
+              <div class="tbox crop r1510">
+                <div class="tinner">
+                  <div class="tcirc"></div>
+                  <span class="tm tl"></span><span class="tm tr"></span><span class="tm bl"></span><span class="tm br"></span>
+                </div>
+                <span class="tlbl ok">cover 等比裁切（撑满型大卡）</span>
+              </div>
+              <p class="thint">框比 16:9 高时 object-fit:cover 的效果：<b>圆仍是圆</b>（不拉伸），两侧角标被裁掉
+                （各 ~8%）——本稿大卡选「锁 16:9」，不出现此裁切。</p>
+            </div>
+            <div class="cf-item">
+              <div class="tbox r1510">
+                <div class="tstretch">
+                  <div class="tcirc"></div>
+                  <span class="tm tl"></span><span class="tm tr"></span><span class="tm bl"></span><span class="tm br"></span>
+                </div>
+                <span class="tlbl bad">✗ 拉伸（本实现不会出现）</span>
+              </div>
+              <p class="thint">圆变椭圆=比例被破坏。实现走 <b>object-fit:cover</b>（styles.js），物理上排除此形态。</p>
             </div>
           </div>
-        </div></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ⑧ 骨架 -->
-  <div class="sec">
-    <h2>⑨ 加载骨架<em>切分区/首屏拉流时；首枚骨架同 2×2 跨格，骨架量同样按行补齐（4 + 8 = 3 满行）</em></h2>
-    <div class="grid" style="max-width:980px">
-      <div class="card sk big"><div class="cv"></div><div class="l1"></div><div class="l2"></div></div>
-      <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
-      <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
-      <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
-      <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
-      <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
-      <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
-      <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
-      <div class="card sk"><div class="cv" style="aspect-ratio:16/9"></div><div class="l1"></div><div class="l2"></div></div>
-    </div>
-  </div>
-
-  <!-- ⑨ 错误态 / 空态 -->
-  <div class="sec">
-    <h2>⑩ 错误态与空态<em>整页拉流失败给重试；空态只在分区流真空时出现</em></h2>
-    <div style="max-width:980px">
-      <div class="fail">加载失败 · 网络或服务不可用<br><button class="chip">重试</button></div>
-      <div class="fail" style="border-top:1px dashed rgba(255,255,255,.1)">这个分区暂时没有可看的内容<br><button class="chip">看看别的分区</button></div>
-    </div>
-  </div>
-
-  <!-- ⑩ 窄宽 540 -->
-  <div class="sec">
-    <h2>⑪ 窄宽（540）自检<em>chips 横滑 / 网格两列；首卡 2×2 = 通栏跨两行；抽屉窄档维持 380px</em></h2>
-    <div class="n540">
-      <div class="jh-hd"><span class="t" style="font-size:18px">分区</span><span class="sub">大家都在看 · 分区随便刷</span></div>
-      <div class="chiprow">
-        <button class="chip on">全部</button><button class="chip">动画</button><button class="chip">音乐</button>
-        <button class="chip">舞蹈·偶像</button><button class="chip">游戏</button><button class="chip">娱乐</button>
-        <button class="chip">生活</button>
-      </div>
-      <div class="grid" style="margin-top:12px">
-        <div class="card big">
-          <div class="cv" style="background:linear-gradient(120deg,#3a2c52,#7a3550)"><span class="dur">7:25</span><span class="pv">▶ 467</span></div>
-          <div class="ci"><div class="ct">我自愿给朽叶姐姐送餐（通栏首卡）</div>
-            <div class="jx-tags"><span class="jxtag">动画</span><span class="jxtag">COSPLAY·声优</span></div>
-            <div class="jx-up"><span class="jx-ava"></span><span>咖纳纳纳o</span></div>
-            <div class="cm"><span>▶ 467</span><span>♥ 16</span></div></div>
         </div>
-        <div class="card">
-          <div class="cv" style="background:linear-gradient(135deg,#2b3a4a,#3a5a6a)"><span class="dur">0:10</span></div>
-          <div class="ci"><div class="ct">每个coser都会遇到的困难..窄宽长标题截断检查用占位文案足够长以验证两行截断省略号是否正常生效不错行</div>
-            <div class="cm"><span class="up">咖纳纳纳o</span></div></div>
+
+        <h3 class="cf-head">大卡封面两种落法对照（340×355 形状示意；文字不随卡宽缩放，裁切比例按生产尺寸标注）</h3>
+        <div class="doc-figure">
+          <div class="cmp">
+            <div class="cf-item w340">
+              <div class="card big h355">
+                <div class="cv cv-a"><span class="dur">7:25</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>467</span></div>
+                <div class="ci">
+                  <div class="ct">我自愿给朽叶姐姐送餐</div>
+                  <div class="jx-tags"><span class="jxtag">动画</span><span class="jxtag">COSPLAY·声优</span></div>
+                  <div class="jx-up"><span class="jx-ava"></span><span>咖纳纳纳o</span></div>
+                  <div class="cm"><span><i class="acsvg-glyph">&#xe164;</i> 467</span><span><i class="acsvg-glyph">&#xe629;</i> 16</span><span>投蕉 50</span></div>
+                </div>
+              </div>
+              <p class="thint"><b>落法 A（当前稿，推荐）</b>：封面锁 16:9 完整显示；信息区 4 行（标题/标签/UP/数据）。
+                生产下可用 162px，内容实测 104~140px——<b>标题两行时基本排满</b>；一行短标题时余约 30px，
+                摊入行距呈呼吸感（不是空洞）。</p>
+            </div>
+            <div class="cf-item w340">
+              <div class="card big alt h355">
+                <div class="cv cv-a"><span class="dur">7:25</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>467</span></div>
+                <div class="ci">
+                  <div class="ct">我自愿给朽叶姐姐送餐</div>
+                  <div class="cm"><span class="up">咖纳纳纳o</span><span><i class="acsvg-glyph">&#xe164;</i> 467</span><span><i class="acsvg-glyph">&#xe629;</i> 16</span></div>
+                </div>
+              </div>
+              <p class="thint"><b>落法 B（对照）</b>：封面撑满、零留白；生产尺寸下框比 ≈1.37:1 → cover 等比
+                左右各裁 ~11%（合计 ~23%）。圆不变形，但画面两侧内容被切掉。</p>
+            </div>
+          </div>
+          <div class="sentinel">— 上滑加载更多 · 每次续拉按整行补齐，底部不留空卡 —</div>
         </div>
-        <div class="card">
-          <div class="cv" style="background:linear-gradient(135deg,#4a2b4a,#6a3a5a)"><span class="dur">3:41</span></div>
-          <div class="ci"><div class="ct">红昭愿</div>
-            <div class="cm"><span class="up">一只芸喵喵</span></div></div>
+      </section>
+
+      <!-- ② 浮层播放（点卡片后） -->
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>② 点卡片后的浮层播放（playlayer，与榜单/搜索/动态同出口）</h2>
+          <span class="nt">单条全屏；↓/滚轮下滑=游走下一条 · ↑/滚轮上滑=回上一条 · Esc=回分区原位</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
         </div>
-      </div>
-    </div>
+        <div class="doc-figure">
+          <div class="row top">
+            <div class="layer">
+              <span class="src">来源：分区 · Esc 返回分区（原位保活）</span>
+              <div class="mid"><div class="playbtn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div>
+              <div class="gest">
+                <b>↓ / 滚轮下滑 / 触摸上滑</b> 下一条 = 当前视频相关推荐随机抽一条（逐级游走）<br>
+                <b>↑ / 滚轮上滑 / 触摸下滑</b> 回上一条（层内历史）<br>
+                <b>c</b> 评论抽屉 · 相关推荐行点选 = 开列表播放器（压级，见 ⑥）<br>
+                空格 暂停 · ←→ 快进退 · f 全屏<br>
+                右栏 ▲▼ = 上一条/下一条（与 ↓/↑/滚轮/触摸同一动作）
+              </div>
+              <div class="layrail">
+                <button class="rar" title="上一个（↑）"><svg viewBox="0 0 24 24"><path d="M12 8l-6 6 1.4 1.4L12 10.8l4.6 4.6L18 14z"/></svg></button>
+                <button class="rar" title="下一个（↓）"><svg viewBox="0 0 24 24"><path d="M12 16l-6-6 1.4-1.4L12 13.2l4.6-4.6L18 10z"/></svg></button>
+              </div>
+            </div>
+            <p class="doc-note w420">
+              与旧版差异：不再拆视图进竖刷舞台——分区视图原样保活在底下，Esc 秒回原位（滚动位置不丢）。<br>
+              随机游走语义不变：每步从「当前这条」的相关池（10 条）抽一条，防回头路、看尽换批；
+              设置里「相关推荐按列表顺序续播」开启时，层内 ↓ 按列表 FIFO 走、尽头自动接批。<br>
+              深链地址 <code>#svfeed/play/a/&lt;id&gt;</code> 与榜单出口一致。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ③ 悬停/选中 -->
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>③ 悬停与选中</h2>
+          <span class="nt">卡片悬停=描边提亮；首卡跨格同规则；chips 悬停/选中</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="row top">
+            <div class="card big hov w340 h355">
+              <div class="cv cv-n"><span class="dur">7:25</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>467</span></div>
+              <div class="ci"><div class="ct">我自愿给朽叶姐姐送餐（2×2 跨格悬停态，尺寸按真实大卡等比缩放：340×355）</div>
+                <div class="jx-tags"><span class="jxtag">动画</span><span class="jxtag">COSPLAY·声优</span></div>
+                <div class="jx-up"><span class="jx-ava"></span><span>咖纳纳纳o</span></div>
+                <div class="cm"><span><i class="acsvg-glyph">&#xe164;</i> 467</span><span><i class="acsvg-glyph">&#xe629;</i> 16</span></div></div>
+            </div>
+            <div class="card hov w260">
+              <div class="cv cv-b"><span class="dur">0:10</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>2.3万</span></div>
+              <div class="ci"><div class="ct">普通卡悬停态：描边 accent + 底色提亮</div>
+                <div class="cm"><span class="up">咖纳纳纳o</span><span><i class="acsvg-glyph">&#xe629;</i> 16</span></div></div>
+            </div>
+            <div>
+              <div class="chiprow w520">
+                <button class="chip">全部</button>
+                <button class="chip on">游戏</button>
+                <button class="chip hov">生活</button>
+                <button class="chip">影视</button>
+              </div>
+              <p class="doc-note">chips 选中=accent 实底；悬停=白 18% 底。切分区即换流（resourceList），
+                chips 行横向滚动不换行。分区 tab 与「全部」同一张网格形态（首卡同样 2×2 跨格）。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ④ 评论抽屉·评论 tab -->
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">05</span>
+          <h2>④ 评论抽屉 · 评论 tab（现状，tab 行）</h2>
+          <span class="nt">抽屉骨架量值照抄 styles.js；评论条目正式实现走 commentkit 单源，此处简化示意</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="drawer">
+            <div class="dhd">
+              <span class="dtab on">评论 12</span>
+              <span class="dtab">相关推荐</span>
+              <span class="dtab">列表</span>
+              <button class="dclose">✕</button>
+            </div>
+            <div class="dlist">
+              <div class="cmt"><div class="av"></div><div><div class="nm">香蕉君</div>
+                <div class="tx">这条视频太棒了，已三连</div>
+                <div class="mt"><span>3楼 · 2026-09-01</span><span><i class="acsvg-glyph">&#xe629;</i> 233</span><span>回复</span></div></div></div>
+              <div class="cmt"><div class="av"></div><div><div class="nm">一只芸喵喵</div>
+                <div class="tx">BGM 求个曲名，蹲一个回复</div>
+                <div class="mt"><span>2楼 · 2026-09-01</span><span><i class="acsvg-glyph">&#xe629;</i> 12</span><span>回复</span></div></div></div>
+              <div class="cmt"><div class="av"></div><div><div class="nm">青云zr</div>
+                <div class="tx">前排围观，UP 剪辑越来越熟了</div>
+                <div class="mt"><span>1楼 · 2026-08-31</span><span><i class="acsvg-glyph">&#xe629;</i> 5</span><span>回复</span></div></div></div>
+            </div>
+            <div class="din"><div class="fake">发一条友好的评论吧…</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑤ 评论抽屉·相关推荐 tab -->
+      <section class="doc-sec" id="s6">
+        <div class="doc-sec-hd">
+          <span class="idx">06</span>
+          <h2>⑤ 评论抽屉 · 相关推荐 tab</h2>
+          <span class="nt">舞台点行=开层保活（0.9.172）；层内点行=压第 2 级开列表播放器（0.9.174）</span>
+          <a class="anchor" href="#s6" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="row top">
+            <div class="drawer">
+              <div class="dhd">
+                <span class="dtab">评论 12</span>
+                <span class="dtab on">相关推荐</span>
+                <button class="dclose">✕</button>
+              </div>
+              <div class="dlist">
+                <div class="rel playing">
+                  <div class="cv">▶ 播放中</div>
+                  <div class="rt"><div class="tt">我自愿给朽叶姐姐送餐</div>
+                    <div class="mm"><span><i class="acsvg-glyph">&#xe164;</i> 467</span><span>咖纳纳纳o</span></div></div>
+                </div>
+                <div class="rel hov">
+                  <div class="cv cv-b"><span class="dur">0:10</span></div>
+                  <div class="rt"><div class="tt">每个coser都会遇到的困难..（层内点这行=压第 2 级列表播放器）</div>
+                    <div class="mm"><span><i class="acsvg-glyph">&#xe629;</i> 16</span><span>咖纳纳纳o</span></div></div>
+                </div>
+                <div class="rel">
+                  <div class="cv cv-e"><span class="dur">4:16</span></div>
+                  <div class="rt"><div class="tt">琵琶曲·AC娘VS高坂桐乃？</div>
+                    <div class="mm"><span><i class="acsvg-glyph">&#xe629;</i> 47</span><span>紫嘉儿~</span></div></div>
+                </div>
+                <div class="rel">
+                  <div class="cv cv-f"><span class="dur">5:02</span></div>
+                  <div class="rt"><div class="tt">【付小远】眼泪若嫌多就删掉吧（翻唱）</div>
+                    <div class="mm"><span><i class="acsvg-glyph">&#xe629;</i> 89</span><span>付小远brenda</span></div></div>
+                </div>
+                <div class="rel">
+                  <div class="cv cv-g"><span class="dur">1:58</span></div>
+                  <div class="rt"><div class="tt">无解的眼神 心像海底针～</div>
+                    <div class="mm"><span><i class="acsvg-glyph">&#xe629;</i> 12</span><span>潇湘huya</span></div></div>
+                </div>
+              </div>
+              <div class="dnote">行点击两种归宿：<b>舞台竖刷</b>上 = 开播放层（舞台显式暂停保活，Esc 回当前视频；0.9.172 前的"拆视图进舞台"已废）；
+                <b>播放层浮层</b>内（分区/榜单/搜索来的都算）= **压第 2 级开列表播放器**（0.9.174）。
+                本列表随当前视频每步刷新，抽中已看过的自动重抽，整批看尽再拉一批。</div>
+            </div>
+            <p class="doc-note w420">
+              层内点行 = **开第三播放器**（列表播放器）：把那份 10 条按顺序播、自动展开抽屉停在「列表」页签；
+              **关闭（Esc/顶栏返回）= 弹回原来那条视频**（进度原地恢复）——旧实现（换成列表/直接顶掉当前视频）
+              已被用户裁决推翻（0.9.174）。<br>
+              来源不限于分区——榜单/搜索/我的进层后同款；套娃封顶 2 级（0.9.175）。
+            </p>
+          </div>
+        </div>
+
+        <h3 class="cf-head">层内 ↓/↑（含右栏 ▲▼）的会话语义（0.9.173；级别栈见 0.9.174–177）</h3>
+        <div class="doc-figure">
+          <div class="row top wide">
+            <table class="doc-table sem">
+              <thead>
+                <tr><th>入口</th><th>↓ 的语义</th><th>走到头</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>搜索</td><td>结果列表顺序</td><td>停（提示 + ▼ 隐）</td></tr>
+                <tr><td>榜单</td><td>榜单行顺序</td><td>停（提示 + ▼ 隐）</td></tr>
+                <tr><td>我的（投稿/收藏/历史）</td><td>该列表顺序</td><td>有下一页续拉；无则停</td></tr>
+                <tr><td><b>分区</b>（默认）</td><td><b>相关池随机</b>（抖音式刷不完）</td><td>换批续命（不封顶）</td></tr>
+                <tr><td><b>分区</b>（设置开=按列表顺序）</td><td>网格顺序</td><td>续拉下一页</td></tr>
+                <tr><td>相关推荐行跳转（任意来源）</td><td>**压第 2 级**（列表播放器，自动停「列表」页签）</td><td>Esc/顶栏返回=弹回原视频（进度恢复）；封顶 2 级</td></tr>
+                <tr><td>动态里的视频卡片</td><td colspan="2">单条：不出箭头、不可切</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <h3 class="cf-head">右栏 ▲▼ 的三种状态</h3>
+        <div class="doc-figure">
+          <div class="row top wide">
+            <div>
+              <div class="layer mini">
+                <span class="src">列表中间（两侧都可走）</span>
+                <div class="layrail">
+                  <button class="rar"><svg viewBox="0 0 24 24"><path d="M12 8l-6 6 1.4 1.4L12 10.8l4.6 4.6L18 14z"/></svg></button>
+                  <button class="rar"><svg viewBox="0 0 24 24"><path d="M12 16l-6-6 1.4-1.4L12 13.2l4.6-4.6L18 10z"/></svg></button>
+                </div>
+              </div>
+              <p class="thint">常态：两个圆钮都在（40px / 白 12% / 模糊 4px，量值同竖刷右栏）</p>
+            </div>
+            <div>
+              <div class="layer mini">
+                <span class="src">第一条</span>
+                <div class="layrail">
+                  <button class="rar hid"><svg viewBox="0 0 24 24"><path d="M12 8l-6 6 1.4 1.4L12 10.8l4.6 4.6L18 14z"/></svg></button>
+                  <button class="rar"><svg viewBox="0 0 24 24"><path d="M12 16l-6-6 1.4-1.4L12 13.2l4.6-4.6L18 10z"/></svg></button>
+                </div>
+              </div>
+              <p class="thint">▲ 隐藏（同竖刷首条语义；键盘/滚轮上滑给「已经是第一条」提示）</p>
+            </div>
+            <div>
+              <div class="layer mini">
+                <span class="src">最后一条（不可续拉）</span>
+                <div class="layrail">
+                  <button class="rar"><svg viewBox="0 0 24 24"><path d="M12 8l-6 6 1.4 1.4L12 10.8l4.6 4.6L18 14z"/></svg></button>
+                  <button class="rar dis"><svg viewBox="0 0 24 24"><path d="M12 16l-6-6 1.4-1.4L12 13.2l4.6-4.6L18 10z"/></svg></button>
+                </div>
+                <div class="laytip">已经是最后一条</div>
+              </div>
+              <p class="thint">▼ 置灰（可续拉的来源如分区/我的：仍亮着，↓ 触发续拉）</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑥ 「列表」tab（0.9.174） -->
+      <section class="doc-sec" id="s7">
+        <div class="doc-sec-hd">
+          <span class="idx">07</span>
+          <h2>⑥ 评论抽屉 · 「列表」tab（新，0.9.174）= 列表播放器</h2>
+          <span class="nt">点相关推荐行 → 开列表播放器（自动展开抽屉、停在本 tab）；Esc 弹回原视频</span>
+          <a class="anchor" href="#s7" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="row top">
+            <div class="drawer">
+              <div class="dhd">
+                <span class="dtab">评论 12</span>
+                <span class="dtab on">列表</span>
+                <button class="dclose">✕</button>
+              </div>
+              <div class="dlist">
+                <div class="rel lcur">
+                  <div class="cv">▶ 播放中</div>
+                  <div class="rt"><div class="tt">每个coser都会遇到的困难..（当前播放项：角标高亮 + 描边）</div>
+                    <div class="mm"><span><i class="acsvg-glyph">&#xe629;</i> 16</span><span>咖纳纳纳o</span></div></div>
+                </div>
+                <div class="rel">
+                  <div class="cv cv-e"><span class="dur">4:16</span></div>
+                  <div class="rt"><div class="tt">琵琶曲·AC娘VS高坂桐乃？</div>
+                    <div class="mm"><span><i class="acsvg-glyph">&#xe629;</i> 47</span><span>紫嘉儿~</span></div></div>
+                </div>
+                <div class="rel">
+                  <div class="cv cv-f"><span class="dur">5:02</span></div>
+                  <div class="rt"><div class="tt">【付小远】眼泪若嫌多就删掉吧（翻唱）</div>
+                    <div class="mm"><span><i class="acsvg-glyph">&#xe629;</i> 89</span><span>付小远brenda</span></div></div>
+                </div>
+                <div class="rel">
+                  <div class="cv cv-g"><span class="dur">1:58</span></div>
+                  <div class="rt"><div class="tt">无解的眼神 心像海底针～</div>
+                    <div class="mm"><span><i class="acsvg-glyph">&#xe629;</i> 12</span><span>潇湘huya</span></div></div>
+                </div>
+                <div class="rel">
+                  <div class="cv cv-h"><span class="dur">12:09</span></div>
+                  <div class="rt"><div class="tt">什么活动还要真珠总监亲自营业！？</div>
+                    <div class="mm"><span><i class="acsvg-glyph">&#xe629;</i> 210</span><span>咖纳纳纳o</span></div></div>
+                </div>
+              </div>
+              <div class="dnote">列表 = <b>当前正在播放的那份列表</b>（相关推荐 10 条；合辑 / 分P 未来同形接入）：
+                当前项标「▶ 播放中」；点行 = <b>列表内跳转</b>（不新开层）；走到最后一条停并提示。
+                <b>列表播放器里不出现「相关推荐」页签</b>——第三播放器只管自己这份列表，深度封顶 2 级
+                （防无限套娃；「相关推荐」入口只在第 1 级视频播放器里）。</div>
+            </div>
+            <div class="w420">
+              <p class="doc-note">
+                <b>级别栈（0.9.174）</b>：分区/榜单/搜索/我的 →视频 = 第 1 级；点「相关推荐」行 = <b>压第 2 级</b>
+                （列表播放器，自动展开抽屉停在「列表」tab）；<b>Esc</b> = 关抽屉 → 再 Esc = <b>弹回第 1 级原视频</b>
+                （进度原地恢复）→ 再 Esc = 退层回来源视图。<br>
+                同一套也适用于合辑/分P（自带列表的视频）——本轮仅相关推荐（合辑接口未实测）；
+                <b>列表播放器内不再有跳转入口（相关推荐页签收起）</b>，套娃深度封顶 2 级。<br>
+                右栏 ▲▼ / 滚轮 / ↑ 不参与弹级（列表首条 ↑ 仍提示"已经是第一条"）；弹回键 = Esc 与顶栏「向左返回」（0.9.176 同源），弹回时「列表」页签一律收起（0.9.177）。
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑦ 相关推荐 · 骨架 / 空态 / 错误态 -->
+      <section class="doc-sec" id="s8">
+        <div class="doc-sec-hd">
+          <span class="idx">08</span>
+          <h2>⑦ 相关推荐 · 骨架 / 空态 / 错误态</h2>
+          <span class="nt">拉流中逐行骨架；空与失败都给出口</span>
+          <a class="anchor" href="#s8" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="drawer">
+            <div class="dhd">
+              <span class="dtab">评论 12</span>
+              <span class="dtab on">相关推荐</span>
+              <button class="dclose">✕</button>
+            </div>
+            <div class="dlist">
+              <div class="rel"><div class="cv sk"></div>
+                <div class="rt"><div class="tt sk w90"></div>
+                  <div class="mm sk w52"></div></div></div>
+              <div class="rel"><div class="cv sk"></div>
+                <div class="rt"><div class="tt sk w82"></div>
+                  <div class="mm sk w44"></div></div></div>
+              <div class="dstate top sknote">↑ 骨架：拉流中逐行占位</div>
+              <div class="dstate">这个视频暂时没有相关推荐</div>
+              <div class="dstate top">加载失败 · 网络或服务不可用<br><button class="chip">重试</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑧ 设置面板·续播方式 -->
+      <section class="doc-sec" id="s9">
+        <div class="doc-sec-hd">
+          <span class="idx">09</span>
+          <h2>⑧ 设置面板 · 相关推荐续播方式</h2>
+          <span class="nt">默认关=随机游走；开启=按列表顺序；层内 ↓ 与舞台游走同一开关</span>
+          <a class="anchor" href="#s9" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="row stretch">
+            <div class="setov">
+              <div class="set"><div class="setp">
+                <div class="hd"><span class="ti">设置</span><button class="x">✕</button></div>
+                <div class="bd">
+                  <div class="set-group">播放</div>
+                  <div class="set-row">
+                    <div class="set-row-main">
+                      <div class="set-label">相关推荐按列表顺序续播</div>
+                      <div class="set-hint">关闭（默认）：下一条在当前视频的相关推荐池里随机抽，逐级游走；开启：按展示列表顺序播，尽头自动接下一批。播放层浮层内与（分区默认的）相关池随机同一开关；舞台游走链自 0.9.172 起仅剩遗留兜底，无入口</div>
+                    </div>
+                    <button class="set-sw"><i></i></button>
+                  </div>
+                </div>
+              </div></div>
+            </div>
+            <div class="setov">
+              <div class="set"><div class="setp">
+                <div class="hd"><span class="ti">设置</span><button class="x">✕</button></div>
+                <div class="bd">
+                  <div class="set-group">播放</div>
+                  <div class="set-row">
+                    <div class="set-row-main">
+                      <div class="set-label">相关推荐按列表顺序续播（开启态）</div>
+                      <div class="set-hint">开启后新链条按列表顺序走；改动即时生效，写入走设置层防抖</div>
+                    </div>
+                    <button class="set-sw on"><i></i></button>
+                  </div>
+                </div>
+              </div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑨ 骨架 -->
+      <section class="doc-sec" id="s10">
+        <div class="doc-sec-hd">
+          <span class="idx">10</span>
+          <h2>⑨ 加载骨架</h2>
+          <span class="nt">切分区/首屏拉流时；首枚骨架同 2×2 跨格，骨架量同样按行补齐（4 + 8 = 3 满行）</span>
+          <a class="anchor" href="#s10" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="grid w980">
+            <div class="card sk big"><div class="cv"></div><div class="l1"></div><div class="l2"></div></div>
+            <div class="card sk"><div class="cv"></div><div class="l1"></div><div class="l2"></div></div>
+            <div class="card sk"><div class="cv"></div><div class="l1"></div><div class="l2"></div></div>
+            <div class="card sk"><div class="cv"></div><div class="l1"></div><div class="l2"></div></div>
+            <div class="card sk"><div class="cv"></div><div class="l1"></div><div class="l2"></div></div>
+            <div class="card sk"><div class="cv"></div><div class="l1"></div><div class="l2"></div></div>
+            <div class="card sk"><div class="cv"></div><div class="l1"></div><div class="l2"></div></div>
+            <div class="card sk"><div class="cv"></div><div class="l1"></div><div class="l2"></div></div>
+            <div class="card sk"><div class="cv"></div><div class="l1"></div><div class="l2"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑩ 错误态 / 空态 -->
+      <section class="doc-sec" id="s11">
+        <div class="doc-sec-hd">
+          <span class="idx">11</span>
+          <h2>⑩ 错误态与空态</h2>
+          <span class="nt">整页拉流失败给重试；空态只在分区流真空时出现</span>
+          <a class="anchor" href="#s11" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="w980">
+            <div class="fail">加载失败 · 网络或服务不可用<br><button class="chip">重试</button></div>
+            <div class="fail sep">这个分区暂时没有可看的内容<br><button class="chip">看看别的分区</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑪ 窄宽 540 -->
+      <section class="doc-sec" id="s12">
+        <div class="doc-sec-hd">
+          <span class="idx">12</span>
+          <h2>⑪ 窄宽（540）自检</h2>
+          <span class="nt">chips 横滑 / 网格两列；首卡 2×2 = 通栏跨两行；抽屉窄档维持 380px</span>
+          <a class="anchor" href="#s12" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="n540">
+            <div class="jh-hd"><span class="t">分区</span><span class="sub">大家都在看 · 分区随便刷</span></div>
+            <div class="chiprow">
+              <button class="chip on">全部</button><button class="chip">动画</button><button class="chip">音乐</button>
+              <button class="chip">舞蹈·偶像</button><button class="chip">游戏</button><button class="chip">娱乐</button>
+              <button class="chip">生活</button>
+            </div>
+            <div class="grid">
+              <div class="card big">
+                <div class="cv cv-n"><span class="dur">7:25</span><span class="pv"><i class="acsvg-glyph">&#xe164;</i>467</span></div>
+                <div class="ci"><div class="ct">我自愿给朽叶姐姐送餐（通栏首卡）</div>
+                  <div class="jx-tags"><span class="jxtag">动画</span><span class="jxtag">COSPLAY·声优</span></div>
+                  <div class="jx-up"><span class="jx-ava"></span><span>咖纳纳纳o</span></div>
+                  <div class="cm"><span><i class="acsvg-glyph">&#xe164;</i> 467</span><span><i class="acsvg-glyph">&#xe629;</i> 16</span></div></div>
+              </div>
+              <div class="card">
+                <div class="cv cv-b"><span class="dur">0:10</span></div>
+                <div class="ci"><div class="ct">每个coser都会遇到的困难..窄宽长标题截断检查用占位文案足够长以验证两行截断省略号是否正常生效不错行</div>
+                  <div class="cm"><span class="up">咖纳纳纳o</span></div></div>
+              </div>
+              <div class="card">
+                <div class="cv cv-c"><span class="dur">3:41</span></div>
+                <div class="ci"><div class="ct">红昭愿</div>
+                  <div class="cm"><span class="up">一只芸喵喵</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

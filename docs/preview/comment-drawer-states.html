@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 评论抽屉底部三态（加载中 / 到底 / 失败可重试）</title>
 <!-- ============================================================
      docs/preview/comment-drawer-states.html —— 评论抽屉底部状态预览（2026-10-06）
@@ -19,24 +20,35 @@
      纪律：单文件/无依赖；量值抄 src/styles.js（.acsv-drawer-tip padding 46px/13px、spinner 32px
      环 border 3px rgba(255,255,255,.25)/top #fff、.acsv-cmore accent 13px）；确认后才进 src；
      自检：1600×900 与 540 宽各过一眼。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     v5（2026-11-23 图标真资产批）：评论三键 ♡/回复/转发 → iconfont 字形 e629/e627/e628
+     （commentkit.js:125/144/150＝GLYPHS.feedLike/feedComment/feedRepost，imicons.js:26-28）；
+     表情键 ☺ → GLYPHS.edEmotion e18b（inputbar.js:438 .acsv-ic 载体，imicons.js:63）；
+     补本地 @font-face＋.acsvg-glyph/.acsv-ic 基类（cssraw.js:491/342 真值）。尾行转圈＝CSS 环
+     与 cssraw.js:541 同载体（色值差属量值层，本批不动）；头像渐变占位/重试文字保留。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   :root{--acsv-accent:#fd4c5d;--acsv-bg:#000;--acsv-panel:rgba(22,22,27,.96);--acsv-line:rgba(255,255,255,.09);
     --acsv-t2:#cfd3da;--acsv-t3:#8a90a0}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:#fff;font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
-  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
-  .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
-  .hint b{color:var(--acsv-t2)}
-  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
-  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
-  .sec>p.desc{color:var(--acsv-t3);font-size:12px;line-height:1.7;margin:6px 0 14px}
+  /* 站方原生 iconfont（本地资产，与 cssraw.js:22-24 同字体）——评论三键/表情键字形真资产 */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(assets/acfun-frontend-next.woff) format("woff"),
+        url(assets/acfun-frontend-next.ttf) format("truetype")
+  }
+  /* 字形基类＝cssraw.js:491-492 真值（11px 墨迹≈11px，12×12 定盒） */
+  .acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-size:11px;
+    display:inline-block;width:12px;height:12px;line-height:12px;text-align:center;color:currentColor}
+  /* 表情键字形基类＝cssraw.js:342-343（inputbar.js:438 .acsv-ic 同款载体） */
+  .acsv-ic{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-weight:400;
+    display:inline-block;line-height:1}
+  /* 互动三键＝commentkit.js:134-154 字形载体（gap:3px 照 cssraw.js:485/438） */
+  .clike{display:inline-flex;align-items:center;gap:3px;color:#7a7f8a;cursor:pointer}
+  .creplybtn,.cfwdbtn{cursor:pointer;color:#7a7f8a;font-size:12px;display:inline-flex;align-items:center;gap:3px}
+  /* 旧稿全局零重置收进 demo 域（chrome 不受影响）：定宽带边框件几何逐字不变 */
+  .doc-figure :where(*:not(.doc-note)){box-sizing:border-box;margin:0;padding:0}
   .dual{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
-  code{background:rgba(255,255,255,.08);border-radius:4px;padding:0 5px;font-size:12px;color:#e8eaee;
-    font-family:Consolas,Menlo,monospace}
   .badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;margin-left:8px;
     border:1px solid rgba(255,255,255,.25);color:var(--acsv-t2)}
   .badge.warn{color:#ff8a95;border-color:rgba(253,76,93,.5)}
@@ -80,182 +92,255 @@
   /* 表情面板：唯一会**覆盖**列表底部的件（既有行为，position:absolute;bottom:57px） */
   .emotpanel{position:absolute;left:0;right:0;bottom:57px;z-index:6;max-height:180px;padding:10px;
     background:rgba(22,22,27,.98);border-top:1px solid rgba(255,255,255,.1);color:#6b7080;font-size:12px;text-align:center}
+
+  /* ---- 布局/状态变体类（原内联样式收编，量值照抄） ---- */
+  .tipbig .rt{margin-left:8px;color:var(--acsv-accent);cursor:pointer}
+  .note-w360{max-width:360px}
+  .drawer.w475{width:475px}
+  .drawer.rel{position:relative}
+  .list.cap210{max-height:210px}
 </style>
 </head>
-<body class="board">
-  <h1>评论抽屉底部三态 · 修法对照</h1>
-  <p class="hint">
-    病灶：<b>分页失败会清空整个评论列表</b>并只留一句<b>不可点击</b>的「请重试」，且同一视频重开也不重拉；
-    触底续页无加载指示、到底静默。本稿给出底部三态（加载中 / 到底 / 失败可重试），复用既有
-    <code>.acsv-drawer-tip</code> 家族、新增一条紧凑尾行样式（不造新控件族）。本稿**已含评论输入栏**
-    （flex 兄弟节点、非覆盖层），并单列 ⑥ 节回答「尾行会不会被输入框遮挡」。
-  </p>
+<body>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <div class="sec">
-    <h2>① 现状<span class="badge warn">病灶 · 翻页失败即清空</span></h2>
-    <p class="desc">已读到第 3 页（假设前面已有 40 条）——网络抖一下，整列表被 <code>resetList</code> 清空，
-      只剩这段无法点击的文字；且重开抽屉也回不来（tip 节点占了重开判据的坑）。</p>
-    <div class="dual">
-      <div class="drawer">
-        <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
-        <div class="list">
-          <div class="tipbig">评论加载失败，请重试</div>
-        </div>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>评论抽屉底部三态 · 修法对照</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-on">默认</span>
+          <span class="doc-badge b-hover">悬停（重试下划线）</span>
+          <span class="doc-badge">选中（评论 tab）</span>
+          <span class="doc-badge">加载中</span>
+          <span class="doc-badge b-empty">空态（到底 / 首屏失败）</span>
+          <span class="doc-badge b-err">错误态（失败可重试）</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">大留白 tip padding 46px 0 · 13px</span><span class="src">src/cssraw.js .acsv-drawer-tip</span></span>
+          <span class="doc-pill"><span class="v">紧凑尾行 padding 18px 16px · 转圈 14px/2px/.8s</span><span class="src">src/cssraw.js .acsv-ctail</span></span>
+        </p>
       </div>
-      <p class="desc" style="max-width:360px">
-        注意两点：① 前面 40 条**全没了**；② 这句话没有任何可点的地方，用户无路可走。
+
+      <p class="doc-note">
+        病灶：<b>分页失败会清空整个评论列表</b>并只留一句<b>不可点击</b>的「请重试」，且同一视频重开也不重拉；
+        触底续页无加载指示、到底静默。本稿给出底部三态（加载中 / 到底 / 失败可重试），复用既有
+        <code>.acsv-drawer-tip</code> 家族、新增一条紧凑尾行样式（不造新控件族）。本稿**已含评论输入栏**
+        （flex 兄弟节点、非覆盖层），并单列 ⑥ 节回答「尾行会不会被输入框遮挡」。
       </p>
-    </div>
-  </div>
 
-  <div class="sec">
-    <h2>② 修复后 · 追加失败<span class="badge ok">列表保留 + 尾行可重试</span></h2>
-    <p class="desc">已加载的评论**原样保留**，只在末尾加一行紧凑提示 + 可点的「重试」（点了就续拉这一页）。</p>
-    <div class="dual">
-      <div class="drawer">
-        <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
-        <div class="list">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname">浅夏微凉 发表于 10-01 13:02</div>
-              <div class="ctext">这个画质真的绝了，比上次看的那版清楚太多</div>
-              <div class="cmeta"><span>♡ 0</span><span>回复</span><span>转发</span></div>
-            </div>
-          </div>
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname">花拾 发表于 06-19 01:07</div>
-              <div class="ctext">好旷</div>
-              <div class="cmeta"><span>♡ 1</span><span>回复</span><span>转发</span></div>
-            </div>
-          </div>
-          <!-- 尾行：失败可重试 -->
-          <div class="tail">评论加载失败<a class="rt">重试</a></div>
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>现状<span class="badge warn">病灶 · 翻页失败即清空</span></h2>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
         </div>
-        <div class="cinput"><span class="emot">☺</span><span class="txt">评论一时爽，一直评论一直爽。</span><span class="send">发送</span></div>
-      </div>
-      <p class="desc" style="max-width:360px">
-        尾行措辞候选：「评论加载失败 · 重试」/「加载失败，点击重试」。此处按**短句 + 强调色重试**展示；
-        重试行在场时停用触底自动续拉（防在视口内反复重试成请求风暴）。
-      </p>
-    </div>
-  </div>
+        <p class="doc-note">已读到第 3 页（假设前面已有 40 条）——网络抖一下，整列表被 <code>resetList</code> 清空，
+          只剩这段无法点击的文字；且重开抽屉也回不来（tip 节点占了重开判据的坑）。</p>
+        <div class="doc-figure">
+          <div class="dual">
+            <div class="drawer">
+              <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
+              <div class="list">
+                <div class="tipbig">评论加载失败，请重试</div>
+              </div>
+            </div>
+            <p class="doc-note note-w360">
+              注意两点：① 前面 40 条**全没了**；② 这句话没有任何可点的地方，用户无路可走。
+            </p>
+          </div>
+        </div>
+      </section>
 
-  <div class="sec">
-    <h2>③ 修复后 · 首屏失败<span class="badge ok">整块居中 + 可重试</span></h2>
-    <p class="desc">首屏（还没读到任何评论）失败时，用既有的大留白 tip</p>
-    <div class="dual">
-      <div class="drawer">
-        <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
-        <div class="list">
-          <div class="tipbig">评论加载失败<a class="rt" style="margin-left:8px;color:var(--acsv-accent);cursor:pointer">重试</a></div>
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>修复后 · 追加失败<span class="badge ok">列表保留 + 尾行可重试</span></h2>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
         </div>
-        <div class="cinput"><span class="emot">☺</span><span class="txt">评论一时爽，一直评论一直爽。</span><span class="send">发送</span></div>
-      </div>
-    </div>
-  </div>
+        <p class="doc-note">已加载的评论**原样保留**，只在末尾加一行紧凑提示 + 可点的「重试」（点了就续拉这一页）。</p>
+        <div class="doc-figure">
+          <div class="dual">
+            <div class="drawer">
+              <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
+              <div class="list">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname">浅夏微凉 发表于 10-01 13:02</div>
+                    <div class="ctext">这个画质真的绝了，比上次看的那版清楚太多</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span></div>
+                  </div>
+                </div>
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname">花拾 发表于 06-19 01:07</div>
+                    <div class="ctext">好旷</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>1</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span></div>
+                  </div>
+                </div>
+                <!-- 尾行：失败可重试 -->
+                <div class="tail">评论加载失败<a class="rt">重试</a></div>
+              </div>
+              <div class="cinput"><span class="emot"><i class="acsv-ic">&#xe18b;</i></span><span class="txt">评论一时爽，一直评论一直爽。</span><span class="send">发送</span></div>
+            </div>
+            <p class="doc-note note-w360">
+              尾行措辞候选：「评论加载失败 · 重试」/「加载失败，点击重试」。此处按**短句 + 强调色重试**展示；
+              重试行在场时停用触底自动续拉（防在视口内反复重试成请求风暴）。
+            </p>
+          </div>
+        </div>
+      </section>
 
-  <div class="sec">
-    <h2>④ 修复后 · 触底加载中 / 已到底<span class="badge ok">新增紧凑尾行</span></h2>
-    <p class="desc">左：续页在途（小转圈 + 加载中…）；右：到底（「没有更多评论了」）。两者都是列表最后一行。</p>
-    <div class="dual">
-      <div class="drawer">
-        <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
-        <div class="list">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname">路过的风 发表于 05-18 22:07</div>
-              <div class="ctext">这台设备看着好眼熟，是那个谁的同款吗</div>
-              <div class="cmeta"><span>♡ 0</span><span>回复</span><span>转发</span></div>
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>修复后 · 首屏失败<span class="badge ok">整块居中 + 可重试</span></h2>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">首屏（还没读到任何评论）失败时，用既有的大留白 tip</p>
+        <div class="doc-figure">
+          <div class="dual">
+            <div class="drawer">
+              <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
+              <div class="list">
+                <div class="tipbig">评论加载失败<a class="rt">重试</a></div>
+              </div>
+              <div class="cinput"><span class="emot"><i class="acsv-ic">&#xe18b;</i></span><span class="txt">评论一时爽，一直评论一直爽。</span><span class="send">发送</span></div>
             </div>
           </div>
-          <div class="tail"><span class="sp"></span>加载中…</div>
         </div>
-        <div class="cinput"><span class="emot">☺</span><span class="txt">评论一时爽，一直评论一直爽。</span><span class="send">发送</span></div>
-      </div>
-      <div class="drawer">
-        <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
-        <div class="list">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname">路过的风 发表于 05-18 22:07</div>
-              <div class="ctext">这台设备看着好眼熟，是那个谁的同款吗</div>
-              <div class="cmeta"><span>♡ 0</span><span>回复</span><span>转发</span></div>
-            </div>
-          </div>
-          <div class="tail">没有更多评论了</div>
-        </div>
-        <div class="cinput"><span class="emot">☺</span><span class="txt">评论一时爽，一直评论一直爽。</span><span class="send">发送</span></div>
-      </div>
-    </div>
-  </div>
+      </section>
 
-  <div class="sec">
-    <h2>⑤ 540 窄宽自检<em>抽屉按比例收缩（drawerMaxWp .88 → ≈475）</em></h2>
-    <p class="desc">尾行随抽屉宽度自适应，左右内边距 16 不变。</p>
-    <div class="dual">
-      <div class="drawer" style="width:475px">
-        <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
-        <div class="list">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname">花拾 发表于 06-19 01:07</div>
-              <div class="ctext">窄宽下正文正常折行，尾行居中不变</div>
-              <div class="cmeta"><span>♡ 1</span><span>回复</span><span>转发</span></div>
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>修复后 · 触底加载中 / 已到底<span class="badge ok">新增紧凑尾行</span></h2>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">左：续页在途（小转圈 + 加载中…）；右：到底（「没有更多评论了」）。两者都是列表最后一行。</p>
+        <div class="doc-figure">
+          <div class="dual">
+            <div class="drawer">
+              <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
+              <div class="list">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname">路过的风 发表于 05-18 22:07</div>
+                    <div class="ctext">这台设备看着好眼熟，是那个谁的同款吗</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span></div>
+                  </div>
+                </div>
+                <div class="tail"><span class="sp"></span>加载中…</div>
+              </div>
+              <div class="cinput"><span class="emot"><i class="acsv-ic">&#xe18b;</i></span><span class="txt">评论一时爽，一直评论一直爽。</span><span class="send">发送</span></div>
+            </div>
+            <div class="drawer">
+              <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
+              <div class="list">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname">路过的风 发表于 05-18 22:07</div>
+                    <div class="ctext">这台设备看着好眼熟，是那个谁的同款吗</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span></div>
+                  </div>
+                </div>
+                <div class="tail">没有更多评论了</div>
+              </div>
+              <div class="cinput"><span class="emot"><i class="acsv-ic">&#xe18b;</i></span><span class="txt">评论一时爽，一直评论一直爽。</span><span class="send">发送</span></div>
             </div>
           </div>
-          <div class="tail">评论加载失败<a class="rt">重试</a></div>
         </div>
-      </div>
-    </div>
+      </section>
+
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">05</span>
+          <h2>540 窄宽自检</h2>
+          <span class="nt">抽屉按比例收缩（drawerMaxWp .88 → ≈475）</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">尾行随抽屉宽度自适应，左右内边距 16 不变。</p>
+        <div class="doc-figure">
+          <div class="dual">
+            <div class="drawer w475">
+              <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
+              <div class="list">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname">花拾 发表于 06-19 01:07</div>
+                    <div class="ctext">窄宽下正文正常折行，尾行居中不变</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>1</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span></div>
+                  </div>
+                </div>
+                <div class="tail">评论加载失败<a class="rt">重试</a></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="doc-sec" id="s6">
+        <div class="doc-sec-hd">
+          <span class="idx">06</span>
+          <h2>尾行会不会被评论输入框遮挡？<span class="badge ok">不会（已核实）</span></h2>
+          <a class="anchor" href="#s6" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">
+          抽屉是 <code>display:flex;flex-direction:column</code>：<code>.acsv-drawer-list</code> 为
+          <code>flex:1;overflow-y:auto</code>（滚动区），输入栏 <code>.acsv-cinput{flex:none}</code> 是**挂在抽屉上的
+          flex 兄弟节点、在正常流里**（<code>comments.js</code> 挂 <code>h.el</code>）——不是覆盖层。
+          ⇒ 列表可滚区域**正好止于输入栏上沿**，尾行滚到底就停在输入栏上方（左图虚线=边界）。
+          <b>唯一会盖住列表底部的是表情面板</b>（<code>.acsv-emotpanel{position:absolute;bottom:57px}</code>，右图）——
+          这是**既有行为**（今天最后几条评论同样被盖），且只在"正在选表情"时临时出现，选完/Esc 即收。
+        </p>
+        <div class="doc-figure">
+          <div class="dual">
+            <div class="drawer rel">
+              <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
+              <div class="list cap210">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname">路过的风 发表于 05-18 22:07</div>
+                    <div class="ctext">滚到底后，这行就停在下面输入框的上方</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span></div>
+                  </div>
+                </div>
+                <div class="tail">没有更多评论了</div>
+              </div>
+              <div class="cinput"><span class="emot"><i class="acsv-ic">&#xe18b;</i></span><span class="txt">评论一时爽，一直评论一直爽。</span><span class="send">发送</span></div>
+            </div>
+            <div class="drawer rel">
+              <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
+              <div class="list cap210">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname">花拾 发表于 06-19 01:07</div>
+                    <div class="ctext">表情面板打开时盖住列表底部（既有行为）</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>1</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="emotpanel">表情面板（absolute, bottom:57px）—— 唯一覆盖列表底部的件</div>
+              <div class="cinput"><span class="emot"><i class="acsv-ic">&#xe18b;</i></span><span class="txt">评论一时爽，一直评论一直爽。</span><span class="send">发送</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
-  <div class="sec">
-    <h2>⑥ 尾行会不会被评论输入框遮挡？<span class="badge ok">不会（已核实）</span></h2>
-    <p class="desc">
-      抽屉是 <code>display:flex;flex-direction:column</code>：<code>.acsv-drawer-list</code> 为
-      <code>flex:1;overflow-y:auto</code>（滚动区），输入栏 <code>.acsv-cinput{flex:none}</code> 是**挂在抽屉上的
-      flex 兄弟节点、在正常流里**（<code>comments.js</code> 挂 <code>h.el</code>）——不是覆盖层。
-      ⇒ 列表可滚区域**正好止于输入栏上沿**，尾行滚到底就停在输入栏上方（左图虚线=边界）。
-      <b>唯一会盖住列表底部的是表情面板</b>（<code>.acsv-emotpanel{position:absolute;bottom:57px}</code>，右图）——
-      这是**既有行为**（今天最后几条评论同样被盖），且只在"正在选表情"时临时出现，选完/Esc 即收。
-    </p>
-    <div class="dual">
-      <div class="drawer" style="position:relative">
-        <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
-        <div class="list" style="max-height:210px">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname">路过的风 发表于 05-18 22:07</div>
-              <div class="ctext">滚到底后，这行就停在下面输入框的上方</div>
-              <div class="cmeta"><span>♡ 0</span><span>回复</span><span>转发</span></div>
-            </div>
-          </div>
-          <div class="tail">没有更多评论了</div>
-        </div>
-        <div class="cinput"><span class="emot">☺</span><span class="txt">评论一时爽，一直评论一直爽。</span><span class="send">发送</span></div>
-      </div>
-      <div class="drawer" style="position:relative">
-        <div class="dhead"><span class="tabs"><span class="tab on">评论 42</span><span class="tab">相关推荐</span></span></div>
-        <div class="list" style="max-height:210px">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname">花拾 发表于 06-19 01:07</div>
-              <div class="ctext">表情面板打开时盖住列表底部（既有行为）</div>
-              <div class="cmeta"><span>♡ 1</span><span>回复</span><span>转发</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="emotpanel">表情面板（absolute, bottom:57px）—— 唯一覆盖列表底部的件</div>
-        <div class="cinput"><span class="emot">☺</span><span class="txt">评论一时爽，一直评论一直爽。</span><span class="send">发送</span></div>
-      </div>
-    </div>
-  </div>
+</div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

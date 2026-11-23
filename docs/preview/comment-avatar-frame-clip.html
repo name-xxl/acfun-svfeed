@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 评论头像框左侧被裁（修法对照）</title>
 <!-- ============================================================
      docs/preview/comment-avatar-frame-clip.html —— 评论头像框裁剪修复预览（2026-10-06）
@@ -15,37 +16,41 @@
      选定修法（用户裁决）：评论行左右各 16px 内边距 + 抽屉宽 380→412（正文宽度不变）。
      纪律：单文件/无依赖；量值抄 src/styles.js；确认后才进 src 实现；改版先改本稿。
      自检：1600×900 与 540 宽各过一眼（下方各摆一版）。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     v3（2026-11-23 铺开批）：决策沿革折叠（几何推演入页尾档案）；段内无并列窄图，未栅格化；demo 未动。
+     v5（2026-11-23 图标真资产批）：评论三键 ♡/回复/转发 → iconfont 字形 e629/e627/e628
+     （commentkit.js:125/144/150＝GLYPHS.feedLike/feedComment/feedRepost）；补本地 @font-face＋
+     .acsvg-glyph 基类（cssraw.js:491 真值）。头像框 CSS 环＝几何示意保留（落地是 frameUrlOf
+     逐用户远程 PNG「装饰图」commentkit.js:205-214，无固定入库资产；本页只演裁剪几何）；
+     头像渐变占位/裁剪线/参考尺为标注装饰，保留。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   :root{--acsv-accent:#fd4c5d;--acsv-bg:#000;--acsv-panel:rgba(22,22,27,.96);--acsv-line:rgba(255,255,255,.09);
     --acsv-t1:#fff;--acsv-t2:#cfd3da;--acsv-t3:#8a90a0}
+  /* 站方原生 iconfont（本地资产，与 cssraw.js:22-24 同字体）——评论三键字形真资产 */
+  @font-face{
+    font-family:acfun-frontend-next;
+    src:url(assets/acfun-frontend-next.woff) format("woff"),
+        url(assets/acfun-frontend-next.ttf) format("truetype")
+  }
+  /* 字形基类＝cssraw.js:491-492 真值（11px 墨迹≈11px，12×12 定盒） */
+  .acsvg-glyph{font-family:acfun-frontend-next,sans-serif;font-style:normal;font-size:11px;
+    display:inline-block;width:12px;height:12px;line-height:12px;text-align:center;color:currentColor}
+  /* 互动三键＝commentkit.js:134-154 字形载体（gap:3px 照 cssraw.js:485/438） */
+  .clike{display:inline-flex;align-items:center;gap:3px;color:#7a7f8a;cursor:pointer}
+  .creplybtn,.cfwdbtn{cursor:pointer;color:#7a7f8a;font-size:12px;display:inline-flex;align-items:center;gap:3px}
+  /* box-model 复位保留：demo 的 380/412/475 宽与内边距几何按 border-box 量取 */
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
-  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
-  .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
-  .hint b{color:var(--acsv-t2)}
-  .sec{margin:26px 0 8px;padding-top:14px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
-  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
-  .sec>p.desc{color:var(--acsv-t3);font-size:12px;line-height:1.7;margin:6px 0 14px}
   .dual{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
-  code{background:rgba(255,255,255,.08);border-radius:4px;padding:0 5px;font-size:12px;color:#e8eaee;
-    font-family:Consolas,Menlo,monospace}
-  table.geo{border-collapse:collapse;font-size:12px;color:var(--acsv-t2);min-width:600px}
-  table.geo th{text-align:left;color:var(--acsv-t3);padding:5px 16px 5px 0;border-bottom:1px solid var(--acsv-line)}
-  table.geo td{padding:5px 16px 5px 0;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:top;line-height:1.6}
-  .badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;margin-left:8px;
-    border:1px solid rgba(255,255,255,.25);color:var(--acsv-t2)}
-  .badge.warn{color:#ff8a95;border-color:rgba(253,76,93,.5)}
-  .badge.ok{color:#7ee08a;border-color:rgba(126,224,138,.5)}
+  .cut-t{color:#ff8a95}
 
   /* ---- 抽屉（照 src/styles.js：左边框/底 rgba(22,22,27,.96)/head padding 14px 16px） ---- */
   .drawer{background:var(--acsv-panel);border:1px solid var(--acsv-line);border-radius:10px;
     display:flex;flex-direction:column;overflow:hidden}
   .w380{width:380px}     /* 现状 */
   .w412{width:412px}     /* 选定：380+32 */
+  .w475{width:475px}     /* 540 窄宽：drawerMaxWp .88 → ≈475 */
   .dhead{display:flex;align-items:center;gap:16px;padding:14px 16px;border-bottom:1px solid var(--acsv-line);
     font-size:15px;font-weight:600;flex:none}
   .dhead .tabs{display:flex;gap:16px;font-size:14px}
@@ -76,119 +81,175 @@
   .ruler{font-size:11px;color:var(--acsv-t3);margin-top:8px}
 </style>
 </head>
-<body class="board">
-  <h1>评论头像框左侧被裁 · 修法对照</h1>
-  <p class="hint">
-    病灶：头像是 <b>50×50</b>，头像框是 <b>80×70 覆盖层、偏移 (-15,-15)</b>（向左溢出 <b>15px</b>，plaza 原生复刻值）；
-    评论行无左右内边距、抽屉列表水平内边距 <b>0</b> 且是滚动容器（另一轴被钳成 auto）⇒ 左 15px 被裁。
-    <b>与抽屉宽度无关</b>（绝对定位溢出）。左缘那层 <span style="color:#ff8a95">红色斜纹带</span> 是「被裁区域」标注（真实页面不存在）。
-  </p>
+<body>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <div class="sec">
-    <h2>几何推演<em>为何恰好裁 15px</em></h2>
-    <table class="geo">
-      <tr><th>件</th><th>几何</th><th>覆盖范围（相对头像左上角）</th></tr>
-      <tr><td>头像 <code>img.av</code></td><td>50×50 圆形</td><td>x[0,50] y[0,50]</td></tr>
-      <tr><td>头像框 <code>.acsv-cavframe</code></td><td>80×70，left:-15 top:-15</td><td>x[<b>-15</b>,65] y[-15,55]</td></tr>
-      <tr><td>容器 <code>.acsv-drawer-list</code></td><td>padding 6px 0 14px（水平 0）</td><td>内容左缘 = 裁剪线 x=0</td></tr>
-      <tr><td>结论</td><td>左溢出 15px − 可用内边距 0</td><td><b>裁掉左 15px</b></td></tr>
-      <tr><td>选定修法</td><td>评论行左右 16px + 抽屉 380→412</td><td>框完整，且正文可用宽不变（≈300px）</td></tr>
-    </table>
-  </div>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>评论头像框左侧被裁 · 修法对照</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-err">现状病灶 · 左 15px 被裁</span>
+          <span class="doc-badge b-ok">选定修法 · 框完整</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">80×70 / 偏移 (-15,-15)</span><span class="src">src/styles.js:330 .acsv-cavframe</span></span>
+          <span class="doc-pill"><span class="v">评论行左右 16 + 抽屉 380→412</span><span class="src">选定修法（用户裁决 2026-10-06）</span></span>
+        </p>
+      </div>
 
-  <div class="sec">
-    <h2>① 现状<span class="badge warn">病灶 · 左 15px 被裁</span></h2>
-    <p class="desc">左缘红斜纹带即被裁的 15px——头像框左侧缺口。抽屉宽 380。</p>
-    <div class="dual">
-      <div class="drawer w380">
-        <div class="dhead"><span class="tabs"><span class="tab on">评论 43</span><span class="tab">相关推荐</span></span></div>
-        <div class="list"><div class="cutline"></div>
-          <div class="citem">
-            <a class="avlink"><span class="av"></span><span class="cavframe"></span></a>
-            <div class="cbody">
-              <div class="cname"><span class="n">浅夏微凉</span> 发表于 10-01 13:02</div>
-              <div class="ctext">这个画质真的绝了，比上次看的那版清楚太多</div>
-              <div class="cmeta"><span>♡ 0</span><span>回复</span><span>转发</span><span>来自 HONOR HJC-AN90</span></div>
+      <p class="doc-note">
+        病灶：头像是 <b>50×50</b>，头像框是 <b>80×70 覆盖层、偏移 (-15,-15)</b>（向左溢出 <b>15px</b>，plaza 原生复刻值）；
+        评论行无左右内边距、抽屉列表水平内边距 <b>0</b> 且是滚动容器（另一轴被钳成 auto）⇒ 左 15px 被裁。
+        <b>与抽屉宽度无关</b>（绝对定位溢出）。左缘那层 <span class="cut-t">红色斜纹带</span> 是「被裁区域」标注（真实页面不存在）。
+      </p>
+
+      <p class="doc-note"><b>本稿结论（用户裁决 2026-10-06）</b>：评论行左右各 <code>16px</code> 内边距 ＋ 抽屉宽 <code>380→412</code>——头像框左溢出的 15px 不再被裁，正文可用宽保持 ≈300px 不变。几何推演收在页尾「决策档案」，查形态看下方三段实物即可。</p>
+
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>① 现状</h2>
+          <span class="doc-badge b-err">病灶 · 左 15px 被裁</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">左缘红斜纹带即被裁的 15px——头像框左侧缺口。抽屉宽 380。</p>
+        <div class="doc-figure">
+          <div class="dual">
+            <div class="drawer w380">
+              <div class="dhead"><span class="tabs"><span class="tab on">评论 43</span><span class="tab">相关推荐</span></span></div>
+              <div class="list"><div class="cutline"></div>
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span><span class="cavframe"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><span class="n">浅夏微凉</span> 发表于 10-01 13:02</div>
+                    <div class="ctext">这个画质真的绝了，比上次看的那版清楚太多</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span><span>来自 HONOR HJC-AN90</span></div>
+                  </div>
+                </div>
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span><span class="cavframe"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><span class="n">花拾</span> 发表于 06-19 01:07</div>
+                    <div class="ctext">好旷</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>1</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span><span>来自 vivo V2464A</span></div>
+                  </div>
+                </div>
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname">路过的风 发表于 05-18 22:07</div>
+                    <div class="ctext">这台设备看着好眼熟，是那个谁的同款吗</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span><span>来自 iPhone15,3</span></div>
+                  </div>
+                </div>
+              </div>
             </div>
+            <p class="ruler">正文可用宽 ≈ 380 − 50 − 30 = <b>300px</b></p>
           </div>
-          <div class="citem">
-            <a class="avlink"><span class="av"></span><span class="cavframe"></span></a>
-            <div class="cbody">
-              <div class="cname"><span class="n">花拾</span> 发表于 06-19 01:07</div>
-              <div class="ctext">好旷</div>
-              <div class="cmeta"><span>♡ 1</span><span>回复</span><span>转发</span><span>来自 vivo V2464A</span></div>
+        </div>
+      </section>
+
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>② 选定稿</h2>
+          <span class="doc-badge b-ok">评论行左右 16 + 抽屉 412</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">头像框完整；抽屉加宽 32 正好补回左右各 16 的内边距 ⇒ 正文可用宽仍是 ≈300px（不因修复而变挤）。
+          「相关推荐/列表」行自带 12px 内边距，合计 28 → 落地时把 <code>.acsv-relrow</code> 收敛到同一基准（本轮一并对齐）。</p>
+        <div class="doc-figure">
+          <div class="dual">
+            <div class="drawer w412 fix">
+              <div class="dhead"><span class="tabs"><span class="tab on">评论 43</span><span class="tab">相关推荐</span></span></div>
+              <div class="list">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span><span class="cavframe"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><span class="n">浅夏微凉</span> 发表于 10-01 13:02</div>
+                    <div class="ctext">这个画质真的绝了，比上次看的那版清楚太多</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span><span>来自 HONOR HJC-AN90</span></div>
+                  </div>
+                </div>
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span><span class="cavframe"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><span class="n">花拾</span> 发表于 06-19 01:07</div>
+                    <div class="ctext">好旷</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>1</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span><span>来自 vivo V2464A</span></div>
+                  </div>
+                </div>
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span></a>
+                  <div class="cbody">
+                    <div class="cname">路过的风 发表于 05-18 22:07</div>
+                    <div class="ctext">这台设备看着好眼熟，是那个谁的同款吗</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span><span>来自 iPhone15,3</span></div>
+                  </div>
+                </div>
+              </div>
             </div>
+            <p class="ruler">正文可用宽 ≈ 412 − 16 − 50 − 30 − 16 = <b>300px</b>（与现状持平）</p>
           </div>
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname">路过的风 发表于 05-18 22:07</div>
-              <div class="ctext">这台设备看着好眼熟，是那个谁的同款吗</div>
-              <div class="cmeta"><span>♡ 0</span><span>回复</span><span>转发</span><span>来自 iPhone15,3</span></div>
+        </div>
+      </section>
+
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>③ 540 窄宽自检</h2>
+          <span class="nt">抽屉按比例收缩（drawerMaxWp .88 → ≈475）</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">绝对定位溢出与容器宽度无关——窄宽下只要内边距 ≥15 即不裁（此为窄宽选定稿）。</p>
+        <div class="doc-figure">
+          <div class="dual">
+            <div class="drawer w412 fix w475">
+              <div class="dhead"><span class="tabs"><span class="tab on">评论 43</span><span class="tab">相关推荐</span></span></div>
+              <div class="list">
+                <div class="citem">
+                  <a class="avlink"><span class="av"></span><span class="cavframe"></span></a>
+                  <div class="cbody">
+                    <div class="cname"><span class="n">浅夏微凉</span> 发表于 10-01 13:02</div>
+                    <div class="ctext">窄宽下正文会正常折行，头像框依旧完整（内边距 ≥15 即不裁）</div>
+                    <div class="cmeta"><span class="clike"><i class="acsvg-glyph">&#xe629;</i>0</span><span class="creplybtn"><i class="acsvg-glyph">&#xe627;</i>回复</span><span class="cfwdbtn"><i class="acsvg-glyph">&#xe628;</i>转发</span><span>来自 HONOR HJC-AN90</span></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <p class="ruler">正文可用宽 ≈ 380 − 50 − 30 = <b>300px</b></p>
-    </div>
-  </div>
+      </section>
 
-  <div class="sec">
-    <h2>② 选定稿<span class="badge ok">评论行左右 16 + 抽屉 412</span></h2>
-    <p class="desc">头像框完整；抽屉加宽 32 正好补回左右各 16 的内边距 ⇒ 正文可用宽仍是 ≈300px（不因修复而变挤）。
-      「相关推荐/列表」行自带 12px 内边距，合计 28 → 落地时把 <code>.acsv-relrow</code> 收敛到同一基准（本轮一并对齐）。</p>
-    <div class="dual">
-      <div class="drawer w412 fix">
-        <div class="dhead"><span class="tabs"><span class="tab on">评论 43</span><span class="tab">相关推荐</span></span></div>
-        <div class="list">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span><span class="cavframe"></span></a>
-            <div class="cbody">
-              <div class="cname"><span class="n">浅夏微凉</span> 发表于 10-01 13:02</div>
-              <div class="ctext">这个画质真的绝了，比上次看的那版清楚太多</div>
-              <div class="cmeta"><span>♡ 0</span><span>回复</span><span>转发</span><span>来自 HONOR HJC-AN90</span></div>
-            </div>
-          </div>
-          <div class="citem">
-            <a class="avlink"><span class="av"></span><span class="cavframe"></span></a>
-            <div class="cbody">
-              <div class="cname"><span class="n">花拾</span> 发表于 06-19 01:07</div>
-              <div class="ctext">好旷</div>
-              <div class="cmeta"><span>♡ 1</span><span>回复</span><span>转发</span><span>来自 vivo V2464A</span></div>
-            </div>
-          </div>
-          <div class="citem">
-            <a class="avlink"><span class="av"></span></a>
-            <div class="cbody">
-              <div class="cname">路过的风 发表于 05-18 22:07</div>
-              <div class="ctext">这台设备看着好眼熟，是那个谁的同款吗</div>
-              <div class="cmeta"><span>♡ 0</span><span>回复</span><span>转发</span><span>来自 iPhone15,3</span></div>
-            </div>
-          </div>
+      <p class="doc-arch-cap">决策档案 · 过程沿革（查阅成品可略过）</p>
+      <details class="doc-arch"><summary><span class="ttl">修法推导</span><span class="hint">几何推演——为何恰好裁 15px、选定修法如何补回</span><span class="pill">1 节</span></summary>
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <h2>几何推演</h2>
+          <span class="nt">为何恰好裁 15px</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
         </div>
-      </div>
-      <p class="ruler">正文可用宽 ≈ 412 − 16 − 50 − 30 − 16 = <b>300px</b>（与现状持平）</p>
-    </div>
+        <table class="doc-table">
+          <thead><tr><th>件</th><th>几何</th><th>覆盖范围（相对头像左上角）</th></tr></thead>
+          <tbody>
+            <tr><td>头像 <code>img.av</code></td><td>50×50 圆形</td><td>x[0,50] y[0,50]</td></tr>
+            <tr><td>头像框 <code>.acsv-cavframe</code></td><td>80×70，left:-15 top:-15</td><td>x[<b>-15</b>,65] y[-15,55]</td></tr>
+            <tr><td>容器 <code>.acsv-drawer-list</code></td><td>padding 6px 0 14px（水平 0）</td><td>内容左缘 = 裁剪线 x=0</td></tr>
+            <tr><td>结论</td><td>左溢出 15px − 可用内边距 0</td><td><b>裁掉左 15px</b></td></tr>
+            <tr><td>选定修法</td><td>评论行左右 16px + 抽屉 380→412</td><td>框完整，且正文可用宽不变（≈300px）</td></tr>
+          </tbody>
+        </table>
+      </section>
+      </details>
+    </main>
   </div>
-
-  <div class="sec">
-    <h2>③ 540 窄宽自检<em>抽屉按比例收缩（drawerMaxWp .88 → ≈475）</em></h2>
-    <p class="desc">绝对定位溢出与容器宽度无关——窄宽下只要内边距 ≥15 即不裁（此为窄宽选定稿）。</p>
-    <div class="dual">
-      <div class="drawer w412 fix" style="width:475px">
-        <div class="dhead"><span class="tabs"><span class="tab on">评论 43</span><span class="tab">相关推荐</span></span></div>
-        <div class="list">
-          <div class="citem">
-            <a class="avlink"><span class="av"></span><span class="cavframe"></span></a>
-            <div class="cbody">
-              <div class="cname"><span class="n">浅夏微凉</span> 发表于 10-01 13:02</div>
-              <div class="ctext">窄宽下正文会正常折行，头像框依旧完整（内边距 ≥15 即不裁）</div>
-              <div class="cmeta"><span>♡ 0</span><span>回复</span><span>转发</span><span>来自 HONOR HJC-AN90</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+</div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

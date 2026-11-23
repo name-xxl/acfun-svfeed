@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 开关控件单源（双皮合并）—— 待确认</title>
 <!-- ============================================================
      docs/preview/toggle-unified.html
@@ -11,7 +12,12 @@
      口径来源：scripts 页——src/settingspanel.js 的 SET_CSS；原生页——src/styles.js 的
      NATIVE_PANEL_CSS.；量值逐条抄，未另立一套。
      自检：1600×900 桌面（主视口）+ 540 宽（段⑤）。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     v3（2026-11-23 铺开批）：决策沿革折叠 + 段内栅格化，demo 未动。
+     v5（2026-11-23 图标真资产批）：原生面板关闭钮 ✕ → ×（src/natpanel.js:289 纯文本原样，只换字符不动钮壳）；
+       齿轮面板 ✕＝src 纯文本原样（settingspanel.js:307）；开关旋钮属控件几何非图标。
      ============================================================ -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   :root{
     --acsv-accent:#fd4c5d;
@@ -22,19 +28,8 @@
     --acsv-t2:#cfd3da;
     --acsv-t3:#8a90a0;
   }
+  /* demo 几何基线：原全局 * reset 保留——面板/开关/裁决清单依赖 border-box 与零默认边距 */
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--acsv-bg);color:var(--acsv-t1);font-size:14px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1600px;margin:0 auto;padding:28px 24px 80px}
-  .board h1{font-size:18px;font-weight:600;margin-bottom:6px}
-  .board .hint{color:var(--acsv-t3);font-size:12px;margin-bottom:22px;line-height:1.8}
-  .board .hint b{color:var(--acsv-t2);font-weight:600}
-  .sec{margin:28px 0 8px;padding-top:16px;border-top:1px solid var(--acsv-line)}
-  .sec>h2{font-size:13px;color:var(--acsv-t2);font-weight:600;margin-bottom:4px}
-  .sec>h2 em{color:var(--acsv-t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
-  .sec>.lede{color:var(--acsv-t3);font-size:12px;line-height:1.8;margin:4px 0 14px}
-  .note{color:var(--acsv-t3);font-size:12px;line-height:1.8;margin-top:10px}
-  .note code{background:rgba(255,255,255,.08);border-radius:4px;padding:0 5px;font-size:11px;color:#e8eaee}
   .cols{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
   .col{flex:1 1 320px;min-width:300px}
   .col>h3{font-size:12px;color:var(--acsv-t2);font-weight:600;margin-bottom:10px}
@@ -70,6 +65,8 @@
   .np.dark .np-row{border-bottom-color:rgba(255,255,255,.07)}
   .np.dark .np-label{color:#fff}
   .np.dark .np-foot{background:rgba(255,255,255,.03);border-top-color:rgba(255,255,255,.09);color:#8b909a}
+  .np + .np{margin-top:16px}
+  .np.fit{width:100%}
   /* ============================================================
      现状（逐字照两份实现）——只为对照，勿当实现拷走
      ============================================================ */
@@ -113,7 +110,13 @@
   /* 两套皮只换 token：暗色（齿轮面板）/ 浅色（原生页面板） */
   .acsv-sw.skin-dark{--sw-off:rgb(158,158,158)}
   .acsv-sw.skin-light{--sw-off:#ddd;--sw-knob-sh:0 1px 3px rgba(0,0,0,.2)}
+  /* 静态钉态（原内联样式收进类；实现即 :hover / :focus-visible 本体） */
+  .acsv-sw.hov.skin-dark{background:color-mix(in srgb,rgb(158,158,158) 84%,#fff)}
+  .acsv-sw.hov.skin-light{background:color-mix(in srgb,#ddd 84%,#fff)}
+  .acsv-sw.foc{outline:2px solid var(--acsv-accent);outline-offset:2px}
   /* ---- 状态样例（每行：状态名 + 样例） ---- */
+  .sub-hd{font-size:12px;color:var(--acsv-t2);margin:20px 0 0}
+  .sub-hd.first{margin:14px 0 0}
   .demo{display:flex;flex-wrap:wrap;gap:18px;margin:10px 0 4px}
   .demo .cell{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:74px}
   .demo .cell .cap{font-size:11px;color:var(--acsv-t3);white-space:nowrap}
@@ -136,8 +139,8 @@
   .decide li b{color:#fff;font-weight:600}
   .decide li em{color:var(--acsv-t3);font-style:normal}
   /* ---- 窄宽自检 ---- */
+  .narrow-wrap{max-width:540px}
   @media (max-width:560px){
-    .board{padding:18px 14px 60px}
     .cols{flex-direction:column;gap:22px}
     .np,.set-panel{width:100%}
     .demo{gap:12px}
@@ -145,147 +148,205 @@
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>开关控件单源（双皮合并）—— 静态预览 · 待确认</h1>
-  <p class="hint">
-    审计 P3-3：同一枚 <b>34×18 药丸开关</b>在脚本页与原生页面板各写一份。本稿先把<b>两侧现状</b>并排摆出来，
-    再给<b>统一提案</b>。几何完全不动（像素级同形），差异收进 token；新增的只有<b>悬停/键盘焦点/禁用</b>三个
-    现状没有的状态（段②标了"提案"）。<br>
-    自检：1600×900 桌面（本页）＋ 540 宽（段⑤）。确认后才进 <code>src/</code>。
-  </p>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <!-- ============================================================ -->
-  <div class="sec">
-    <h2>① 现状对照<em>左＝脚本页齿轮面板（.set-sw）／右＝原生页面板（.acsv-np-sw，浅色与深色主题）</em></h2>
-    <p class="lede">几何完全相同（34×18 / r22 / 内衬 2 / 旋钮 14 / 位移 16），差异只在四处——见下方标注。</p>
-    <div class="cols">
-      <div class="col">
-        <h3>脚本页 · 齿轮面板（暗色）<span>.set-sw：button + &lt;i&gt; 旋钮</span></h3>
-        <div class="set-panel">
-          <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
-          <div class="set-body">
-            <div class="set-group">播放</div>
-            <div class="set-row">
-              <div class="set-row-main"><div class="set-label">自动连播</div>
-                <div class="set-hint">滑到下一条时自动播放</div></div>
-              <button class="now-set-sw on" aria-label="自动连播"><i></i></button>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>开关控件单源（双皮合并）—— 静态预览 · 待确认</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-on">开/关（现状）</span>
+          <span class="doc-badge b-hover">悬停（提案）</span>
+          <span class="doc-badge">键盘焦点（提案）</span>
+          <span class="doc-badge">禁用（提案）</span>
+          <span class="doc-badge">窄宽 540</span>
+          <span class="doc-pill"><span class="v">34×18 / r22 / 内衬2 / 旋钮14 / 位移16</span><span class="src">SET_CSS + NATIVE_PANEL_CSS 同几何</span></span>
+        </p>
+      </div>
+
+      <p class="doc-note">
+        审计 P3-3：同一枚 <b>34×18 药丸开关</b>在脚本页与原生页面板各写一份。本稿先把<b>两侧现状</b>并排摆出来，
+        再给<b>统一提案</b>。几何完全不动（像素级同形），差异收进 token；新增的只有<b>悬停/键盘焦点/禁用</b>三个
+        现状没有的状态（段②标了"提案"）。<br>
+        自检：1600×900 桌面（本页）＋ 540 宽（段⑤）。确认后才进 <code>src/</code>。
+      </p>
+
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>现状对照</h2>
+          <span class="nt">左＝脚本页齿轮面板（.set-sw）／右＝原生页面板（.acsv-np-sw，浅色与深色主题）</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">几何完全相同（34×18 / r22 / 内衬 2 / 旋钮 14 / 位移 16），差异只在四处——见下方标注。</p>
+        <div class="doc-figure">
+          <div class="cols">
+            <div class="col">
+              <h3>脚本页 · 齿轮面板（暗色）<span>.set-sw：button + &lt;i&gt; 旋钮</span></h3>
+              <div class="set-panel">
+                <div class="set-head"><span class="set-title">设置</span><button class="set-x">✕</button></div>
+                <div class="set-body">
+                  <div class="set-group">播放</div>
+                  <div class="set-row">
+                    <div class="set-row-main"><div class="set-label">自动连播</div>
+                      <div class="set-hint">滑到下一条时自动播放</div></div>
+                    <button class="now-set-sw on" aria-label="自动连播"><i></i></button>
+                  </div>
+                  <div class="set-row">
+                    <div class="set-row-main"><div class="set-label">弹幕默认开启</div></div>
+                    <button class="now-set-sw" aria-label="弹幕默认开启"><i></i></button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="set-row">
-              <div class="set-row-main"><div class="set-label">弹幕默认开启</div></div>
-              <button class="now-set-sw" aria-label="弹幕默认开启"><i></i></button>
+            <div class="col">
+              <h3>原生页 · 面板（浅色 / 深色两主题同构）<span>.acsv-np-sw：span + ::after 旋钮</span></h3>
+              <div class="np">
+                <div class="np-hd">IP 与设备 <button class="x">×</button></div>
+                <div class="np-body">
+                  <div class="np-row"><span class="np-label">评论 IP 属地</span><span class="now-np-sw on"></span></div>
+                  <div class="np-row"><span class="np-label">设备型号美化</span><span class="now-np-sw"></span></div>
+                </div>
+                <div class="np-foot">v0.9.261</div>
+              </div>
+              <div class="np dark">
+                <div class="np-hd">IP 与设备 <button class="x">×</button></div>
+                <div class="np-body">
+                  <div class="np-row"><span class="np-label">评论 IP 属地</span><span class="now-np-sw on"></span></div>
+                  <div class="np-row"><span class="np-label">设备型号美化</span><span class="now-np-sw"></span></div>
+                </div>
+                <div class="np-foot">v0.9.261</div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <div class="col">
-        <h3>原生页 · 面板（浅色 / 深色两主题同构）<span>.acsv-np-sw：span + ::after 旋钮</span></h3>
-        <div class="np">
-          <div class="np-hd">IP 与设备 <button class="x">✕</button></div>
-          <div class="np-body">
-            <div class="np-row"><span class="np-label">评论 IP 属地</span><span class="now-np-sw on"></span></div>
-            <div class="np-row"><span class="np-label">设备型号美化</span><span class="now-np-sw"></span></div>
+        <p class="doc-note">
+          现状差异（四处）：<code>DOM</code> button+&lt;i&gt; ↔ span+::after（前者可聚焦、可键盘操作，后者不可）；
+          <code>关态底色</code> rgb(158,158,158) ↔ #ddd（浅色面板）；<code>过渡</code> .15s ↔ .2s；
+          <code>旋钮阴影</code> 仅浅色面板有（0 1px 3px rgba(0,0,0,.2)）。<br>
+          注意：<b>深色原生面板的关态也是 rgb(158,158,158)</b>——即"两皮"实际是"暗色 token 相同、浅色 token 不同"。
+        </p>
+      </section>
+
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>统一提案</h2>
+          <span class="nt">.acsv-sw：一套几何变量 + 两套 token（skin-dark / skin-light）</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">
+          几何全部由变量推导（位移 = <code>--sw-w − --sw-knob − 2×--sw-inset = 16px</code>，不再写死魔数）；
+          两皮只换颜色 token。DOM 统一为 <code>&lt;button class="acsv-sw" role="switch" aria-checked&gt;&lt;i&gt;&lt;/i&gt;&lt;/button&gt;</code>。
+        </p>
+
+        <div class="doc-grid">
+        <div class="doc-figure">
+          <h3 class="sub-hd first">齿轮面板（暗色皮）</h3>
+          <div class="demo">
+            <div class="cell"><button class="acsv-sw skin-dark" role="switch" aria-checked="false"><i></i></button><span class="cap"><b>关</b>现状</span></div>
+            <div class="cell"><button class="acsv-sw skin-dark on" role="switch" aria-checked="true"><i></i></button><span class="cap"><b>开</b>现状</span></div>
+            <div class="cell"><button class="acsv-sw skin-dark hov" role="switch" aria-checked="false"><i></i></button><span class="cap"><b>悬停</b>提案</span></div>
+            <div class="cell"><button class="acsv-sw skin-dark foc" role="switch" aria-checked="false"><i></i></button><span class="cap"><b>键盘焦点</b>提案</span></div>
+            <div class="cell"><button class="acsv-sw skin-dark on" role="switch" aria-checked="true" disabled><i></i></button><span class="cap"><b>禁用</b>提案</span></div>
           </div>
-          <div class="np-foot">v0.9.261</div>
         </div>
-        <div class="np dark" style="margin-top:16px">
-          <div class="np-hd">IP 与设备 <button class="x">✕</button></div>
-          <div class="np-body">
-            <div class="np-row"><span class="np-label">评论 IP 属地</span><span class="now-np-sw on"></span></div>
-            <div class="np-row"><span class="np-label">设备型号美化</span><span class="now-np-sw"></span></div>
+
+        <div class="doc-figure">
+          <h3 class="sub-hd">原生页面板 · 浅色皮</h3>
+          <div class="demo">
+            <div class="cell"><button class="acsv-sw skin-light" role="switch" aria-checked="false"><i></i></button><span class="cap"><b>关</b>现状</span></div>
+            <div class="cell"><button class="acsv-sw skin-light on" role="switch" aria-checked="true"><i></i></button><span class="cap"><b>开</b>现状</span></div>
+            <div class="cell"><button class="acsv-sw skin-light hov" role="switch" aria-checked="false"><i></i></button><span class="cap"><b>悬停</b>提案</span></div>
+            <div class="cell"><button class="acsv-sw skin-light foc" role="switch" aria-checked="false"><i></i></button><span class="cap"><b>键盘焦点</b>提案</span></div>
           </div>
-          <div class="np-foot">v0.9.261</div>
         </div>
-      </div>
-    </div>
-    <p class="note">
-      现状差异（四处）：<code>DOM</code> button+&lt;i&gt; ↔ span+::after（前者可聚焦、可键盘操作，后者不可）；
-      <code>关态底色</code> rgb(158,158,158) ↔ #ddd（浅色面板）；<code>过渡</code> .15s ↔ .2s；
-      <code>旋钮阴影</code> 仅浅色面板有（0 1px 3px rgba(0,0,0,.2)）。<br>
-      注意：<b>深色原生面板的关态也是 rgb(158,158,158)</b>——即"两皮"实际是"暗色 token 相同、浅色 token 不同"。
-    </p>
-  </div>
 
-  <!-- ============================================================ -->
-  <div class="sec">
-    <h2>② 统一提案<em>.acsv-sw：一套几何变量 + 两套 token（skin-dark / skin-light）</em></h2>
-    <p class="lede">
-      几何全部由变量推导（位移 = <code>--sw-w − --sw-knob − 2×--sw-inset = 16px</code>，不再写死魔数）；
-      两皮只换颜色 token。DOM 统一为 <code>&lt;button class="acsv-sw" role="switch" aria-checked&gt;&lt;i&gt;&lt;/i&gt;&lt;/button&gt;</code>。
-    </p>
-
-    <h3 style="font-size:12px;color:var(--acsv-t2);margin:14px 0 0">齿轮面板（暗色皮）</h3>
-    <div class="demo">
-      <div class="cell"><button class="acsv-sw skin-dark" role="switch" aria-checked="false"><i></i></button><span class="cap"><b>关</b>现状</span></div>
-      <div class="cell"><button class="acsv-sw skin-dark on" role="switch" aria-checked="true"><i></i></button><span class="cap"><b>开</b>现状</span></div>
-      <div class="cell"><button class="acsv-sw skin-dark" role="switch" aria-checked="false" style="background:color-mix(in srgb,rgb(158,158,158) 84%,#fff)"><i></i></button><span class="cap"><b>悬停</b>提案</span></div>
-      <div class="cell"><button class="acsv-sw skin-dark" role="switch" aria-checked="false" style="outline:2px solid var(--acsv-accent);outline-offset:2px"><i></i></button><span class="cap"><b>键盘焦点</b>提案</span></div>
-      <div class="cell"><button class="acsv-sw skin-dark on" role="switch" aria-checked="true" disabled style="opacity:.45"><i></i></button><span class="cap"><b>禁用</b>提案</span></div>
-    </div>
-
-    <h3 style="font-size:12px;color:var(--acsv-t2);margin:20px 0 0">原生页面板 · 浅色皮</h3>
-    <div class="demo">
-      <div class="cell"><button class="acsv-sw skin-light" role="switch" aria-checked="false"><i></i></button><span class="cap"><b>关</b>现状</span></div>
-      <div class="cell"><button class="acsv-sw skin-light on" role="switch" aria-checked="true"><i></i></button><span class="cap"><b>开</b>现状</span></div>
-      <div class="cell"><button class="acsv-sw skin-light" role="switch" aria-checked="false" style="background:color-mix(in srgb,#ddd 84%,#fff)"><i></i></button><span class="cap"><b>悬停</b>提案</span></div>
-      <div class="cell"><button class="acsv-sw skin-light" role="switch" aria-checked="false" style="outline:2px solid var(--acsv-accent);outline-offset:2px"><i></i></button><span class="cap"><b>键盘焦点</b>提案</span></div>
-    </div>
-
-    <h3 style="font-size:12px;color:var(--acsv-t2);margin:20px 0 0">原生页面板 · 深色主题（token 对齐齿轮家族）</h3>
-    <div class="demo">
-      <div class="cell"><button class="acsv-sw skin-dark" role="switch" aria-checked="false"><i></i></button><span class="cap"><b>关</b>现状</span></div>
-      <div class="cell"><button class="acsv-sw skin-dark on" role="switch" aria-checked="true"><i></i></button><span class="cap"><b>开</b>现状</span></div>
-    </div>
-
-    <p class="note">
-      落地落点（确认后）：<code>.acsv-sw</code> 进 <code>src/styles.js</code> 作**单源**（基建层），
-      SET_CSS 与 NATIVE_PANEL_CSS 删掉各自的开关规则、只留布局；两处控件工厂
-      （<code>settingspanel.boolControl</code> / <code>natpanel.switchOf</code>）共用同一个 builder。
-      <b>不改任何几何</b>，所以逐行几何断言应全等。
-    </p>
-  </div>
-
-  <!-- ============================================================ -->
-  <div class="sec">
-    <h2>③ 几何标注<em>与现状逐项相同，只是改用变量表达</em></h2>
-    <div class="geo">
-      <div class="ruled"><button class="acsv-sw skin-dark on" role="switch" aria-checked="true"><i></i></button></div>
-      <div class="spec">
-        外框 <code>34 × 18</code> · 圆角 <code>22px</code>（药丸）<br>
-        内衬 <span>2px</span> · 旋钮 <code>14 × 14</code> · 圆形<br>
-        位移 <code>16px</code>（= 34 − 14 − 2×2，变量推导）<br>
-        过渡 <code>150ms</code>（现状 .15s/.2s 二选一，建议取 .15s）
-      </div>
-    </div>
-  </div>
-
-  <!-- ============================================================ -->
-  <div class="sec">
-    <h2>④ 需要你裁决的五件事<em>前两条会改变现有观感，后三条只是归并</em></h2>
-    <ul class="decide">
-      <li><span class="no">1</span><span><b>悬停提亮</b>：现状两处都<b>没有</b> hover 态。提案加"轻微提亮"。<em>要不要？不要则删掉这条。</em></span></li>
-      <li><span class="no">2</span><span><b>键盘焦点环</b>：现状没有 focus 样式；统一成 button 后键盘可聚焦，不加环会出现"能聚焦但看不见"。<em>建议加（可访问性最小集，项目已有先例）。</em></span></li>
-      <li><span class="no">3</span><span><b>DOM 形态</b>：统一为 <code>button + &lt;i&gt;</code>（原生页由 span 改 button）。<em>顺带修掉 span 不可聚焦/不可键盘操作。</em></span></li>
-      <li><span class="no">4</span><span><b>过渡时长</b>：.15s（齿轮）与 .2s（原生页）二选一——建议 <code>.15s</code>，原生页会快 50ms。<em>肉眼几乎不可辨。</em></span></li>
-      <li><span class="no">5</span><span><b>旋钮阴影</b>：浅色皮保留（白旋钮压浅底需要），暗色皮保持无阴影。<em>即按皮肤分 token，与现状一致。</em></span></li>
-    </ul>
-    <p class="note">确认后我按本稿实现，并补"逐行几何全等"的断言（摘掉单源、还原双皮 → 断言必须转红）。</p>
-  </div>
-
-  <!-- ============================================================ -->
-  <div class="sec">
-    <h2>⑤ 窄宽自检（540px）<em>开关不缩放；只影响面板宽度与行内换行</em></h2>
-    <p class="lede">把窗口拉到 540 宽看本段：面板变 100% 宽，label 与开关仍同一行两端对齐。</p>
-    <div style="max-width:540px">
-      <div class="np" style="width:100%">
-        <div class="np-hd">IP 与设备 <button class="x">✕</button></div>
-        <div class="np-body">
-          <div class="np-row"><span class="np-label">评论 IP 属地</span><button class="acsv-sw skin-light on" role="switch" aria-checked="true"><i></i></button></div>
-          <div class="np-row"><span class="np-label">设备型号美化（设备数据导入后生效）</span><button class="acsv-sw skin-light" role="switch" aria-checked="false"><i></i></button></div>
+        <div class="doc-figure">
+          <h3 class="sub-hd">原生页面板 · 深色主题（token 对齐齿轮家族）</h3>
+          <div class="demo">
+            <div class="cell"><button class="acsv-sw skin-dark" role="switch" aria-checked="false"><i></i></button><span class="cap"><b>关</b>现状</span></div>
+            <div class="cell"><button class="acsv-sw skin-dark on" role="switch" aria-checked="true"><i></i></button><span class="cap"><b>开</b>现状</span></div>
+          </div>
         </div>
-        <div class="np-foot">v0.9.261</div>
-      </div>
-    </div>
+        </div>
+
+        <p class="doc-note">
+          落地落点（确认后）：<code>.acsv-sw</code> 进 <code>src/styles.js</code> 作**单源**（基建层），
+          SET_CSS 与 NATIVE_PANEL_CSS 删掉各自的开关规则、只留布局；两处控件工厂
+          （<code>settingspanel.boolControl</code> / <code>natpanel.switchOf</code>）共用同一个 builder。
+          <b>不改任何几何</b>，所以逐行几何断言应全等。
+        </p>
+      </section>
+
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>窄宽自检（540px）</h2>
+          <span class="nt">开关不缩放；只影响面板宽度与行内换行</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <p class="doc-note">把窗口拉到 540 宽看本段：面板变 100% 宽，label 与开关仍同一行两端对齐。</p>
+        <div class="doc-figure">
+          <div class="narrow-wrap">
+            <div class="np fit">
+              <div class="np-hd">IP 与设备 <button class="x">×</button></div>
+              <div class="np-body">
+                <div class="np-row"><span class="np-label">评论 IP 属地</span><button class="acsv-sw skin-light on" role="switch" aria-checked="true"><i></i></button></div>
+                <div class="np-row"><span class="np-label">设备型号美化（设备数据导入后生效）</span><button class="acsv-sw skin-light" role="switch" aria-checked="false"><i></i></button></div>
+              </div>
+              <div class="np-foot">v0.9.261</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p class="doc-arch-cap">决策档案 · 过程沿革（查阅成品可略过）</p>
+      <details class="doc-arch"><summary><span class="ttl">取值与裁决</span><span class="hint">几何标注（token/取值对照）／ 需要你裁决的五件事</span><span class="pill">2 节</span></summary>
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <h2>几何标注</h2>
+          <span class="nt">与现状逐项相同，只是改用变量表达</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="geo">
+            <div class="ruled"><button class="acsv-sw skin-dark on" role="switch" aria-checked="true"><i></i></button></div>
+            <div class="spec">
+              外框 <code>34 × 18</code> · 圆角 <code>22px</code>（药丸）<br>
+              内衬 <span>2px</span> · 旋钮 <code>14 × 14</code> · 圆形<br>
+              位移 <code>16px</code>（= 34 − 14 − 2×2，变量推导）<br>
+              过渡 <code>150ms</code>（现状 .15s/.2s 二选一，建议取 .15s）
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <h2>需要你裁决的五件事</h2>
+          <span class="nt">前两条会改变现有观感，后三条只是归并</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <ul class="decide">
+          <li><span class="no">1</span><span><b>悬停提亮</b>：现状两处都<b>没有</b> hover 态。提案加"轻微提亮"。<em>要不要？不要则删掉这条。</em></span></li>
+          <li><span class="no">2</span><span><b>键盘焦点环</b>：现状没有 focus 样式；统一成 button 后键盘可聚焦，不加环会出现"能聚焦但看不见"。<em>建议加（可访问性最小集，项目已有先例）。</em></span></li>
+          <li><span class="no">3</span><span><b>DOM 形态</b>：统一为 <code>button + &lt;i&gt;</code>（原生页由 span 改 button）。<em>顺带修掉 span 不可聚焦/不可键盘操作。</em></span></li>
+          <li><span class="no">4</span><span><b>过渡时长</b>：.15s（齿轮）与 .2s（原生页）二选一——建议 <code>.15s</code>，原生页会快 50ms。<em>肉眼几乎不可辨。</em></span></li>
+          <li><span class="no">5</span><span><b>旋钮阴影</b>：浅色皮保留（白旋钮压浅底需要），暗色皮保持无阴影。<em>即按皮肤分 token，与现状一致。</em></span></li>
+        </ul>
+        <p class="doc-note">确认后我按本稿实现，并补"逐行几何全等"的断言（摘掉单源、还原双皮 → 断言必须转红）。</p>
+      </section>
+      </details>
+    </main>
   </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

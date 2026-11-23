@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 选择层定位修法（纵向/时机；横向已被 pickpop-align 取代）· 已确认</title>
 <!-- docs/preview/pickpop-position.html —— **已确认稿**（2026-10-04 用户选「按预览提案」，0.9.144 落地：
      ⚠ **横向口径已被 0.9.146 取代**（"右缘对齐锚点右缘" → "让开宿主一列"，见 pickpop-align.html）；
@@ -10,19 +11,22 @@
      改版先改本稿——下次调整先看它
      病灶：place() 只在插入瞬间算一次（此时内容还是「加载中…」~110px）⇒ 判定"下方放得下"向下展开，
      内容（7 组 + 新建 + 按钮 ≈ 420px）到达后无人重算 ⇒ 从锚点往下长出视口被裁（用户截图 1）。
-     本稿只画形态：三个尺度场景 + 水平口径，确认后才进 src/pickpop.js。 -->
+     本稿只画形态：三个尺度场景 + 水平口径，确认后才进 src/pickpop.js。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     脚手架（body/.board/.sec/.lead/全局 reset/h1）收编 chrome；demo 几何以 :where(.pair,.rules) 作用域 reset 原样保住；
+     h1 两枚内联色状态签改 doc-badge；③ 段内联宽高校类（.case.w520 / .stage.h240）。
+     v3（2026-11-23 图标真资产批）：rail 键 emoji 替身退役（👍×3 💬×2 ★×5 ⤴×1），换 sv 竖刷落地真资产
+     （src/rail.js:155/186/213/236）：赞＝SITE_ICONS.heart PNG 作 mask（ui.mountIcon 同机制）、
+     评＝SITE_ICONS.comment PNG img、藏＝VIDEO_ICONS.favorite mask、分享＝SITE_ICONS.share PNG img；
+     资产取本地入库件 assets/。✕（pickpop.js:94）/✓ 勾选（pickpop.js:68）为落地纯文本，保留。
+     图标 22px 对齐原 emoji 观感（38px 圆盒内）；样式量值/布局/定位取值零改动。 -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   :root{--accent:#fd4c5d;--t1:#fff;--t2:#cfd3da;--t3:#8a90a0;--panel:rgba(22,22,27,.97)}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#000;color:var(--t1);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1280px;margin:0 auto;padding:26px 22px 80px}
-  h1{font-size:18px;font-weight:600}
-  .lead{color:var(--t3);font-size:12.5px;line-height:1.9;margin:8px 0 20px}
-  .lead b{color:var(--t2)}
-  .sec{margin:26px 0 10px;padding-top:14px;border-top:1px solid rgba(255,255,255,.09)}
-  .sec>h2{font-size:13.5px;font-weight:600;color:var(--t2)}
-  .sec>h2 em{color:var(--t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
-  .sec>h2 .tagbad,.sec>h2 .tagok{font-size:11px;padding:1px 8px;border-radius:999px;margin-left:8px;vertical-align:1px}
+  /* demo 几何保真：原全局 reset 收进演示作用域（:where 零特异性，不压 chrome 与 demo 类规则） */
+  :where(.pair,.rules) *{box-sizing:border-box;margin:0;padding:0}
+  .case.w520{max-width:520px}
+  .stage.h240{height:240px}
   .tagbad{background:rgba(253,76,93,.18);color:#ff8a95}
   .tagok{background:rgba(120,220,150,.14);color:#9fe3a1}
   .pair{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px}
@@ -37,6 +41,12 @@
   .rbtn{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center;
     font-size:15px;color:#fff}
   .rbtn.anchor{outline:2px dashed rgba(253,76,93,.75);outline-offset:3px}
+  /* rail 真资产（SITE_ICONS PNG / VIDEO_ICONS mask）——与 src/rail.js 同件；22px 对齐原 emoji 观感 */
+  .rbtn .rimg{display:block;width:22px;height:22px;object-fit:contain}
+  .rbtn .rmask{display:block;width:22px;height:22px;background-color:currentColor;
+    -webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+  .rbtn.m-like .rmask{--m:url(assets/site-heart.png)}     /* rail.js:155 sv 赞＝SITE_ICONS.heart 作 mask */
+  .rbtn.m-fav .rmask{--m:url(assets/video-favorite.svg)}  /* rail.js:213 VIDEO_ICONS.favorite */
   /* 弹层（视觉照 src/styles.js 的 .acsv-pickpop） */
   .pop{position:absolute;width:212px;display:flex;flex-direction:column;background:var(--panel);
     border:1px solid rgba(255,255,255,.12);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:12.5px}
@@ -60,24 +70,49 @@
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>选择层定位修法（纵向/时机） —— 静态预览<span style="font-size:12px;color:#9fe3a1;margin-left:8px">已确认 · 0.9.144 落地</span><span style="font-size:12px;color:#ff8a95;margin-left:10px">横向口径已被 0.9.146 取代 → pickpop-align.html</span></h1>
-  <p class="lead">
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
+
+    <main class="doc">
+      <div class="doc-head">
+        <h1>选择层定位修法（纵向/时机） —— 静态预览</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-ok">已确认 · 0.9.144 落地</span>
+          <span class="doc-badge b-err">横向口径已被 0.9.146 取代 → pickpop-align.html</span>
+          <span class="doc-badge">纵向定位 + 时机（仍有效）</span>
+          <span class="doc-badge b-on">选中项 .it.on</span>
+          <span class="doc-pill"><span class="v">锚点间距 6px / 上限 min(420px, 64vh)</span><span class="src">src/pickpop.js · popplace</span></span>
+        </p>
+      </div>
+
+      <p class="doc-note">
     <b>病灶</b>：弹层只在插入瞬间算一次位置，那一刻内容还是「加载中…」（约 110px 高），于是判定"锚点下方放得下"
     就向下展开；等列表（7 个分组 + 新建 + 按钮 ≈ 420px）到达，<b>没有人再算一次</b>——弹层从锚点往下长出视口，
     底部被裁（你的截图 1）。<br>
     <b>本稿只画形态</b>（版式/尺寸/规则），确认后才改 <code>src/pickpop.js</code>。
   </p>
 
-  <div class="sec">
-    <h2>① 现状 vs 提案 · 锚点在底部（截图 1 的情形）<em>同一舞台、同一锚点，只有定位规则不同</em></h2>
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>① 现状 vs 提案 · 锚点在底部（截图 1 的情形）</h2>
+          <span class="nt">同一舞台、同一锚点，只有定位规则不同</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
     <div class="pair">
       <div class="case">
         <div class="cap">现状<span class="tagbad">被裁</span>：内容到达后仍按"初始高度"的判定向下展开，超出视口的部分看不到</div>
         <div class="stage">
           <div class="crow">视频画面</div>
           <div class="rail">
-            <div class="rbtn">👍</div><div class="rbtn">💬</div><div class="rbtn anchor">★</div>
+            <div class="rbtn m-like"><i class="rmask"></i></div><div class="rbtn"><img class="rimg" src="assets/site-comment.png" alt=""></div><div class="rbtn anchor m-fav"><i class="rmask"></i></div>
           </div>
           <!-- 现状：top 起于锚点下方，超出舞台底被 overflow 裁掉 -->
           <div class="pop" style="right:66px;bottom:-150px">
@@ -101,7 +136,7 @@
         <div class="stage">
           <div class="crow">视频画面</div>
           <div class="rail">
-            <div class="rbtn">👍</div><div class="rbtn">💬</div><div class="rbtn anchor">★</div>
+            <div class="rbtn m-like"><i class="rmask"></i></div><div class="rbtn"><img class="rimg" src="assets/site-comment.png" alt=""></div><div class="rbtn anchor m-fav"><i class="rmask"></i></div>
           </div>
           <div class="pop" style="right:66px;bottom:120px;max-height:190px">
             <div class="hd">选择收藏夹<button class="x">✕</button></div>
@@ -118,16 +153,23 @@
         </div>
       </div>
     </div>
-  </div>
+        </div>
+      </section>
 
-  <div class="sec">
-    <h2>② 锚点在中部：优先向下，高度按"下方可用空间"封顶<em>不会再顶到视口底</em></h2>
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>② 锚点在中部：优先向下，高度按"下方可用空间"封顶</h2>
+          <span class="nt">不会再顶到视口底</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
     <div class="pair">
       <div class="case">
         <div class="stage">
           <div class="crow">视频画面</div>
           <div class="rail" style="bottom:190px">
-            <div class="rbtn">👍</div><div class="rbtn anchor">★</div><div class="rbtn">⤴</div>
+            <div class="rbtn m-like"><i class="rmask"></i></div><div class="rbtn anchor m-fav"><i class="rmask"></i></div><div class="rbtn"><img class="rimg" src="assets/site-share.png" alt=""></div>
           </div>
           <div class="pop" style="right:66px;top:104px;max-height:172px">
             <div class="hd">选择收藏夹<button class="x">✕</button></div>
@@ -149,7 +191,7 @@
         <div class="stage">
           <div class="crow">视频画面</div>
           <div class="rail" style="bottom:190px">
-            <div class="rbtn anchor">★</div>
+            <div class="rbtn anchor m-fav"><i class="rmask"></i></div>
           </div>
           <div class="pop" style="right:66px;top:104px;max-height:172px">
             <div class="hd">选择分组<button class="x">✕</button></div>
@@ -165,14 +207,21 @@
         </div>
       </div>
     </div>
-  </div>
+        </div>
+      </section>
 
-  <div class="sec">
-    <h2>③ 水平口径变化<em>右缘对齐锚点（弹层整体在按钮左侧展开），并保留 8px 视口内边距</em></h2>
-    <div class="case" style="max-width:520px">
-      <div class="stage" style="height:240px">
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>③ 水平口径变化</h2>
+          <span class="nt">右缘对齐锚点（弹层整体在按钮左侧展开），并保留 8px 视口内边距</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+    <div class="case w520">
+      <div class="stage h240">
         <div class="crow">视频画面</div>
-        <div class="rail" style="bottom:110px"><div class="rbtn anchor">★</div></div>
+        <div class="rail" style="bottom:110px"><div class="rbtn anchor m-fav"><i class="rmask"></i></div></div>
         <div class="pop" style="right:70px;top:24px">
           <div class="hd">选择收藏夹<button class="x">✕</button></div>
           <div class="bd"><div class="it on"><span class="t">✓</span><span>默认收藏夹 (7)</span></div></div>
@@ -182,8 +231,16 @@
         <div class="vlabel">视口底</div>
       </div>
     </div>
-  </div>
+        </div>
+      </section>
 
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>规则小结</h2>
+          <span class="nt">待确认后落地到 pickpop.place（0.9.149 起收口 popplace）</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
   <div class="rules">
     <b>规则小结（待确认后落地到 pickpop.place）</b>
     <ul>
@@ -194,6 +251,10 @@
       <li><b>窄宽 540</b>：宽 260px 的弹层仍贴锚点左展开；垂直规则同上（可用空间更小 → 更常触发翻上/压高）。</li>
     </ul>
   </div>
+      </section>
+    </main>
+  </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

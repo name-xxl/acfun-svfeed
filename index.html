@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AcFun 小视频 · PC 站竖刷页（油猴脚本）</title>
+<meta name="description" content="在 www.acfun.cn 加入抖音式竖滑小视频入口：双内容源、弹幕、互动抽屉、左栏视图，浏览无需登录。附完整 UI 设计确认稿文档站。">
+<!-- ============================================================
+     仓库根 index.html —— 项目宣传首页（2026-11-23 文档站化批新建）
+     单文件自包含（样式内联、零外链依赖）；与 docs/preview 文档站同源
+     暗色气质（--dc-* token 同值）。 galleries 段即 36 份 UI 确认稿的
+     统一出口——「整合预览网页」落在这里：分组卡片直达各稿。
+     ============================================================ -->
+<style>
+  :root{
+    --dc-accent:#fd4c5d;
+    --dc-accent-soft:rgba(253,76,93,.14);
+    --dc-accent-line:rgba(253,76,93,.38);
+    --dc-bg:#000;
+    --dc-panel:#0c0c11;
+    --dc-line:rgba(255,255,255,.09);
+    --dc-line-soft:rgba(255,255,255,.06);
+    --dc-t1:#fff;
+    --dc-t2:#cfd3da;
+    --dc-t3:#8a90a0;
+    --dc-code:#ffb323;
+    --dc-font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    --dc-mono:ui-monospace,"SF Mono",Consolas,"Cascadia Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--dc-bg);color:var(--dc-t1);font-size:15px;line-height:1.7;font-family:var(--dc-font);
+    -webkit-font-smoothing:antialiased}
+  ::selection{background:rgba(253,76,93,.32);color:#fff}
+  a{color:inherit;text-decoration:none}
+  code{font-family:var(--dc-mono);font-size:.92em;color:var(--dc-code);
+    background:rgba(255,255,255,.07);border-radius:5px;padding:1px 7px}
+  .wrap{max-width:1160px;margin:0 auto;padding:0 28px}
+
+  /* ---------- 顶栏 ---------- */
+  .top{position:sticky;top:0;z-index:50;background:rgba(8,8,12,.8);backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--dc-line-soft)}
+  .top .wrap{display:flex;align-items:center;gap:14px;height:58px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+  .brand .logo{width:28px;height:28px;border-radius:8px;background:var(--dc-accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+  .top nav{display:flex;gap:4px;margin-left:auto}
+  .top nav a{font-size:13.5px;color:var(--dc-t2);padding:7px 12px;border-radius:8px}
+  .top nav a:hover{color:#fff;background:rgba(255,255,255,.06)}
+  .top .gh{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--dc-t2);
+    border:1px solid var(--dc-line-soft);border-radius:8px;padding:6px 12px;background:rgba(255,255,255,.03)}
+  .top .gh:hover{color:#fff;border-color:var(--dc-accent-line);background:var(--dc-accent-soft)}
+
+  /* ---------- Hero ---------- */
+  .hero{position:relative;padding:96px 0 72px;overflow:hidden}
+  .hero::before{content:"";position:absolute;inset:-40% -20% auto;height:640px;pointer-events:none;
+    background:radial-gradient(42% 55% at 28% 18%,rgba(253,76,93,.16),transparent 70%),
+      radial-gradient(35% 45% at 74% 8%,rgba(255,179,35,.07),transparent 70%)}
+  .hero .wrap{position:relative}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--dc-t2);
+    border:1px solid var(--dc-accent-line);background:var(--dc-accent-soft);border-radius:999px;
+    padding:5px 14px;margin-bottom:22px}
+  .kicker::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--dc-accent)}
+  .hero h1{font-size:clamp(30px,5vw,48px);font-weight:700;line-height:1.25;letter-spacing:.01em;max-width:760px}
+  .hero h1 em{font-style:normal;background:linear-gradient(92deg,#ff6d7c,var(--dc-accent) 55%,#ffb323);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p.lead{margin-top:18px;font-size:16px;color:var(--dc-t2);max-width:640px;line-height:1.9}
+  .cta{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}
+  .btn{display:inline-flex;align-items:center;gap:9px;font-size:15px;font-weight:600;border-radius:11px;
+    padding:13px 26px;transition:transform .12s ease,box-shadow .12s ease}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--dc-accent);color:#fff;box-shadow:0 8px 28px rgba(253,76,93,.32)}
+  .btn.primary:hover{box-shadow:0 10px 34px rgba(253,76,93,.45);transform:translateY(-1px)}
+  .btn.ghost{border:1px solid var(--dc-line);color:var(--dc-t2);background:rgba(255,255,255,.03)}
+  .btn.ghost:hover{color:#fff;border-color:var(--dc-accent-line);background:var(--dc-accent-soft)}
+  .meta-row{display:flex;flex-wrap:wrap;gap:22px;margin-top:38px;font-size:13px;color:var(--dc-t3)}
+  .meta-row b{color:var(--dc-t2);font-weight:600}
+  .meta-row span{display:flex;align-items:center;gap:7px}
+  .meta-row span::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--dc-accent)}
+
+  /* ---------- 章节 ---------- */
+  .sec{padding:64px 0;border-top:1px solid var(--dc-line-soft)}
+  .sec-hd{margin-bottom:34px}
+  .sec-hd .tag{font-size:12px;color:var(--dc-accent);font-weight:600;letter-spacing:.1em}
+  .sec-hd h2{font-size:26px;font-weight:700;margin-top:8px}
+  .sec-hd p{margin-top:10px;color:var(--dc-t3);font-size:14px;max-width:620px}
+
+  /* ---------- 功能矩阵 ---------- */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .card{position:relative;border:1px solid var(--dc-line-soft);border-radius:14px;padding:24px 22px;
+    background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.008));overflow:hidden}
+  .card::after{content:"";position:absolute;inset:0 0 auto;height:2px;opacity:0;transition:opacity .15s ease;
+    background:linear-gradient(90deg,var(--dc-accent),transparent)}
+  .card:hover::after{opacity:1}
+  .card:hover{border-color:rgba(255,255,255,.14)}
+  .card .ic{width:38px;height:38px;border-radius:10px;background:var(--dc-accent-soft);
+    border:1px solid var(--dc-accent-line);color:#ff9aa5;display:flex;align-items:center;justify-content:center;
+    font-size:17px;margin-bottom:16px}
+  .card h3{font-size:15.5px;font-weight:600;margin-bottom:8px}
+  .card p{font-size:13.5px;color:var(--dc-t3);line-height:1.85}
+
+  /* ---------- UI 画廊（整合确认稿；iframe 走 embed 模式只显内容） ---------- */
+  .frames{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:40px}
+  .frame{border:1px solid var(--dc-line-soft);border-radius:14px;overflow:hidden;background:var(--dc-panel)}
+  .frame .bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--dc-line-soft);
+    font-size:12.5px;color:var(--dc-t2)}
+  .frame .bar .dots{display:flex;gap:5px}
+  .frame .bar .dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.14)}
+  .frame .bar a{margin-left:auto;color:var(--dc-t3);font-size:12px}
+  .frame .bar a:hover{color:var(--dc-accent)}
+  .frame iframe{display:block;width:100%;height:600px;border:0;background:#000}
+  .frame.wide{grid-column:1/-1}
+  .frame.wide iframe{height:520px}
+  .groups{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .group{border:1px solid var(--dc-line-soft);border-radius:14px;padding:20px;background:rgba(255,255,255,.015)}
+  .group h3{font-size:13px;color:var(--dc-t3);font-weight:600;letter-spacing:.06em;margin-bottom:14px;
+    display:flex;align-items:center;gap:8px}
+  .group h3::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--dc-accent)}
+  .group ul{list-style:none}
+  .group li{margin:2px 0}
+  .group a{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13.5px;
+    color:var(--dc-t2);padding:7px 10px;border-radius:8px}
+  .group a:hover{color:#fff;background:rgba(255,255,255,.05)}
+  .group a .ar{color:var(--dc-t3);font-size:12px;transition:color .12s ease,transform .12s ease}
+  .group a:hover .ar{color:var(--dc-accent);transform:translateX(2px)}
+
+  /* ---------- 更新精选 ---------- */
+  .news{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .news .it{border:1px solid var(--dc-line-soft);border-radius:14px;padding:22px;background:rgba(255,255,255,.015)}
+  .news .it .v{display:inline-flex;font-family:var(--dc-mono);font-size:12px;color:var(--dc-code);
+    background:rgba(255,179,35,.1);border-radius:6px;padding:3px 9px;margin-bottom:12px}
+  .news .it .d{font-size:12px;color:var(--dc-t3);margin-left:8px;font-family:inherit}
+  .news .it h3{font-size:14.5px;font-weight:600;margin-bottom:8px}
+  .news .it p{font-size:13px;color:var(--dc-t3);line-height:1.8}
+  .news .more{margin-top:22px;font-size:13.5px}
+  .news .more a{color:var(--dc-t2);border-bottom:1px dashed var(--dc-line);padding-bottom:2px}
+  .news .more a:hover{color:var(--dc-accent);border-color:var(--dc-accent-line)}
+
+  /* ---------- 安装 ---------- */
+  .steps{counter-reset:s;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .step{position:relative;border:1px solid var(--dc-line-soft);border-radius:14px;padding:44px 22px 22px;
+    background:rgba(255,255,255,.015);font-size:13.5px;color:var(--dc-t2);line-height:1.85}
+  .step::before{counter-increment:s;content:counter(s,decimal-leading-zero);position:absolute;top:16px;left:22px;
+    font-family:var(--dc-mono);font-size:13px;color:var(--dc-accent);font-weight:600}
+  .step b{color:var(--dc-t1);font-weight:600}
+  .step a{color:var(--dc-code);border-bottom:1px dashed rgba(255,179,35,.4)}
+
+  /* ---------- 页脚 ---------- */
+  footer{border-top:1px solid var(--dc-line-soft);padding:36px 0 44px;color:var(--dc-t3);font-size:12.5px}
+  footer .wrap{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  footer a{color:var(--dc-t2)}
+  footer a:hover{color:var(--dc-accent)}
+  footer .sp{flex:1}
+  footer .dis{flex-basis:100%;font-size:12px;color:rgba(138,144,160,.7);line-height:1.8}
+
+  @media (max-width:960px){
+    .grid,.frames,.groups,.news,.steps{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (max-width:620px){
+    .wrap{padding:0 18px}
+    .hero{padding:64px 0 52px}
+    .grid,.frames,.groups,.news,.steps{grid-template-columns:1fr}
+    .frame iframe{height:380px}
+    .top nav a:not(.gh){display:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="logo">A</span>AcFun 小视频</a>
+    <nav>
+      <a href="#features">功能</a>
+      <a href="#gallery">设计文档</a>
+      <a href="#news">更新</a>
+      <a href="#install">安装</a>
+      <a class="gh" href="https://github.com/name-xxl/acfun-svfeed" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0Z"/></svg>
+        GitHub
+      </a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <span class="kicker">Tampermonkey 用户脚本 · 免费开源 MIT</span>
+    <h1>给 A 站 PC 网页端<br>加上<em>抖音式竖刷小视频</em></h1>
+    <p class="lead">在 www.acfun.cn 顶部注入「小视频」入口，打开全屏竖滑信息流。双内容源切换、
+      弹幕互动、评论/私信抽屉、左栏榜单分区视图——浏览与播放均无需登录。</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/name-xxl/acfun-svfeed/releases/latest/download/acfun-svfeed.user.js">安装脚本（最新版）</a>
+      <a class="btn ghost" href="#gallery">浏览 UI 设计文档 →</a>
+    </div>
+    <div class="meta-row">
+      <span><b>双内容源</b> 小视频 meow ＋ 推荐 singleColumn</span>
+      <span><b>免登录</b> 浏览 · 播放 · 搜索</span>
+      <span><b>36 份</b> UI 确认稿在线可查</span>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="features">
+  <div class="wrap">
+    <div class="sec-hd">
+      <span class="tag">FEATURES</span>
+      <h2>功能一览</h2>
+      <p>从竖刷播放到左栏视图，一套脚本覆盖 A 站 PC 端的竖版消费场景。</p>
+    </div>
+    <div class="grid">
+      <div class="card"><div class="ic">▶</div><h3>竖滑播放</h3>
+        <p>滚轮/方向键/JK 翻页带吸附；点击开声、悬停浮出控制栏；进度拖带缩略图；三级全屏；0.5–3.0 倍速记忆。</p></div>
+      <div class="card"><div class="ic">‼</div><h3>双源信息流</h3>
+        <p>顶栏「小视频｜推荐」切换：meow 竖版短视频 与 APP 单列精选流；地址栏即分享链接，刷新/粘贴可回跳。</p></div>
+      <div class="card"><div class="ic">弹</div><h3>弹幕与推荐模式</h3>
+        <p>推荐源对齐 APP：高级弹幕、清晰度 360P–1080P60 切换保进度、发弹幕、投蕉收藏。</p></div>
+      <div class="card"><div class="ic">✉</div><h3>评论与私信抽屉</h3>
+        <p>嵌套评论自动续页、划选复制、发评配表情图；私信聊天支持作品卡/引用/图片；两抽屉互斥避让画面。</p></div>
+      <div class="card"><div class="ic">▦</div><h3>左栏视图</h3>
+        <p>榜单/分区/关注/广场/我的/搜索同一套壳内切换；卡片点进就地播放，Esc 逐层返回。</p></div>
+      <div class="card"><div class="ic">✚</div><h3>官方页面增强</h3>
+        <p>个人中心动态广场、空间页小视频/动态标签、原生页评论 IP 与设备标签——总开关管理，可全关。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="gallery">
+  <div class="wrap">
+    <div class="sec-hd">
+      <span class="tag">DESIGN DOCS</span>
+      <h2>UI 设计确认稿（36 份在线文档）</h2>
+      <p>每个界面决策都有静态确认稿存档：状态全覆盖、量值标出处、稿↔实现有机械闸防漂移。下面三组是近期代表性稿件，点标题进全屏稿。</p>
+    </div>
+    <div class="frames">
+      <div class="frame">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span>卡片悬停/按压语言统一
+          <a href="docs/preview/card-hover-unified.html">全屏 ↗</a></div>
+        <iframe src="docs/preview/card-hover-unified.html" loading="lazy" title="卡片悬停/按压语言统一 确认稿"></iframe>
+      </div>
+      <div class="frame">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span>动态行卡交互态统一
+          <a href="docs/preview/moment-strip-actions.html">全屏 ↗</a></div>
+        <iframe src="docs/preview/moment-strip-actions.html" loading="lazy" title="动态行卡交互态统一 确认稿"></iframe>
+      </div>
+      <div class="frame wide">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span>文章阅读浮层 v3
+          <a href="docs/preview/article-reader-v3.html">全屏 ↗</a></div>
+        <iframe src="docs/preview/article-reader-v3.html" loading="lazy" title="文章阅读浮层 v3 确认稿"></iframe>
+      </div>
+    </div>
+    <div class="groups">
+      <div class="group">
+        <h3>播放与播放器</h3>
+        <ul>
+          <li><a href="docs/preview/player-bottombar.html">播放器底栏<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/danmaku-canvas-169.html">弹幕画布 16:9<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/views-count-format.html">计数「万」口径<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/ui-bugfix.html">UI/Bug 专项 Wave 2<span class="ar">→</span></a></li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>评论与互动</h3>
+        <ul>
+          <li><a href="docs/preview/comment-drawer-states.html">评论抽屉三态<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/comment-meta-polish.html">评论三修<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/comment-avatar-frame-clip.html">头像框裁切修法<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/content-actions.html">内容操作接线<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/native-interaction-states.html">交互态对齐原生<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/ip-device-tags.html">IP 属地+设备标签<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/ip-panel-unified.html">IP 面板两主题<span class="ar">→</span></a></li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>动态与广场</h3>
+        <ul>
+          <li><a href="docs/preview/moment-strip-actions.html">行卡交互态统一<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/moment-detail-close.html">详情关闭键收编<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/moment-browse.html">动态浏览双宿主<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/moment-editor.html">发动态编辑器<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/moment-name-colors.html">名字三色<span class="ar">→</span></a></li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>文章与阅读</h3>
+        <ul>
+          <li><a href="docs/preview/article-reader-v3.html">文章阅读浮层 v3<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/im-article-card.html">IM 文章卡<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/composer-richtext.html">富文本输入条<span class="ar">→</span></a></li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>关注 · 我的 · 收藏</h3>
+        <ul>
+          <li><a href="docs/preview/follow-list-native.html">关注列表对齐原生<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/follow-modal-settings.html">关注弹窗对齐设置<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/follow-groups.html">关注分组<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/fav-folders.html">收藏夹<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/me-tabhead.html">我的页档头<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/signin-almanac.html">签到 + 黄历弹窗<span class="ar">→</span></a></li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>搜索 · 分区 · 卡片</h3>
+        <ul>
+          <li><a href="docs/preview/search-v2.html">搜索 2.0<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/search-dropdown.html">搜索聚焦面板<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/pickpop-align.html">选择层横向对齐<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/pickpop-position.html">选择层定位<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/card-hover-unified.html">卡片悬停/按压统一<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/jingxuan.html">分区页 v6<span class="ar">→</span></a></li>
+        </ul>
+      </div>
+      <div class="group">
+        <h3>设置 · 入口 · 其他</h3>
+        <ul>
+          <li><a href="docs/preview/guest-read.html">游客浏览开关<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/native-inject-switch.html">官方页增强开关<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/toggle-unified.html">开关控件单源<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/loading-spinner.html">加载转圈<span class="ar">→</span></a></li>
+          <li><a href="docs/preview/pubfab-backtop.html">浮标 × 回顶协调<span class="ar">→</span></a></li>
+        </ul>
+      </div>
+      <div class="group" style="display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:10px">
+        <h3>体例说明</h3>
+        <p style="font-size:12.5px;color:var(--dc-t3);line-height:1.9">每稿 = 一个界面决策的完整档案：状态全覆盖（默认/悬停/选中/空态/错误态/窄宽 540）、
+          承诺取值标 <code>src</code> 出处、由 <code>test/check-preview.mjs</code> 机械闸盯住「稿 ↔ 实现」不漂移。
+          改版先改稿，确认后才进实现。</p>
+        <a href="docs/preview/README.md" style="font-size:12.5px;color:var(--dc-t2);border-bottom:1px dashed var(--dc-line)">docs/preview/README.md</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="news">
+  <div class="wrap">
+    <div class="sec-hd">
+      <span class="tag">CHANGELOG</span>
+      <h2>最近更新</h2>
+      <p>病灶 → 修法 → 测试证据的完整记录见仓库 CHANGELOG。</p>
+    </div>
+    <div class="news">
+      <div class="it"><span class="v">v0.9.350</span><span class="d">2026-11-18</span>
+        <h3>README 使用章瘦身</h3>
+        <p>操作表只留「操作＋可见效果」，实现细节回归单源；9100 → 2132 字符（−77%）。</p></div>
+      <div class="it"><span class="v">v0.9.349</span><span class="d">2026-11-18</span>
+        <h3>README 模块表瘦身</h3>
+        <p>142 行模块表压成一行摘要＋详情指针，表只当地图不当第二真源（−77%）。</p></div>
+      <div class="it"><span class="v">v0.9.348</span><span class="d">2026-11-18</span>
+        <h3>动态配图图床修复</h3>
+        <p>编辑器配图走动态专用 APP 域上传路，尺寸本地自量，根治大图 403/415 与 0×0。</p></div>
+    </div>
+    <p class="more"><a href="https://github.com/name-xxl/acfun-svfeed/blob/main/CHANGELOG.md" target="_blank" rel="noopener">完整更新日志 →</a></p>
+  </div>
+</section>
+
+<section class="sec" id="install">
+  <div class="wrap">
+    <div class="sec-hd">
+      <span class="tag">INSTALL</span>
+      <h2>三步装上</h2>
+    </div>
+    <div class="steps">
+      <div class="step">浏览器安装 <b>Tampermonkey</b> 扩展（<a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">tampermonkey.net</a>）。</div>
+      <div class="step">打开 <a href="https://github.com/name-xxl/acfun-svfeed/releases/latest/download/acfun-svfeed.user.js" target="_blank" rel="noopener">最新版 acfun-svfeed.user.js</a>，Tampermonkey 会自动弹出安装页，确认即可。</div>
+      <div class="step">打开 <b>A 站首页</b>，顶部导航出现「小视频」项，点进去开始竖刷。</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 <a href="https://github.com/name-xxl" target="_blank" rel="noopener">name-xxl</a> · MIT License</span>
+    <span class="sp"></span>
+    <a href="https://github.com/name-xxl/acfun-svfeed" target="_blank" rel="noopener">GitHub</a> ·
+    <a href="https://github.com/name-xxl/acfun-svfeed/releases" target="_blank" rel="noopener">Releases</a> ·
+    <a href="docs/preview/_template.html">确认稿模板</a>
+    <p class="dis">本项目是与 AcFun 无关的第三方用户脚本，仅于浏览器本地运行；界面设计借鉴快手网页版（new-reco）。
+      「AcFun」「A 站」及相关商标归其权利人所有。</p>
+  </div>
+</footer>
+
+</body>
+</html>

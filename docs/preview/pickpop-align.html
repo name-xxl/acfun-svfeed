@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 选择层横向对齐（让开操作栏图标列）· 已确认</title>
 <!-- docs/preview/pickpop-align.html —— **已确认稿**（2026-10-04 用户裁决「按头像位置算」，0.9.146 落地：
      让位基准 = min(宿主=头像块左缘, 锚点左缘) − 10px；左放不下翻宿主右侧、再不行视口收边；
@@ -10,18 +11,22 @@
      锚点是右侧操作栏里的按钮 ⇒ 弹层整块压在 56px 操作栏列上，把 点赞/评论/收藏/分享 那一列图标盖住。
      对照：分享面板（.acsv-sharepop）口径是「整块让开操作栏」——按钮宽 56，CSS right:66px
      = 右缘落在按钮左缘再往左 10px ⇒ 图标列完全可见。本稿把该口径套到选择层上。
-     ⚠ 仅改**横向**；纵向仍是 0.9.144 确认过的规则（下方优先 → 翻上 → 按可用空间压高）。 -->
+     ⚠ 仅改**横向**；纵向仍是 0.9.144 确认过的规则（下方优先 → 翻上 → 按可用空间压高）。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     脚手架（body/.board/.sec/.lead/全局 reset/h1）收编 chrome；demo 几何以 :where(.pair,.rules) 作用域 reset 原样保住；
+     h1 内联 tagok 确认签改 doc-badge；.colline 两处同值 right:36px 收进类；「移组」小图标内联宽高收 .ic.sm；
+     规则小结头注内联色收 .impl-note；各实例定位内联（每例取值不同）照旧保留。
+     v3（2026-11-23 图标真资产批）：rail 四键 emoji 替身退役（👍💬🍌★ 各×2），换 sv 竖刷落地真资产
+     （src/rail.js:155/186/192/213）：赞＝SITE_ICONS.heart PNG 作 mask（ui.mountIcon 同机制）、
+     评＝SITE_ICONS.comment PNG img、蕉＝VIDEO_ICONS.banana mask、藏＝VIDEO_ICONS.favorite mask；
+     资产取本地入库件 assets/。✕（pickpop.js:94）/＋（rail.js:63）/「移组」为落地纯文本，保留。
+     图标 24px 对齐原 emoji 观感（40px 圆盒内）；样式量值/布局/定位取值零改动。 -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   :root{--accent:#fd4c5d;--t1:#fff;--t2:#cfd3da;--t3:#8a90a0;--panel:rgba(22,22,27,.97)}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#000;color:var(--t1);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1280px;margin:0 auto;padding:26px 22px 80px}
-  h1{font-size:18px;font-weight:600}
-  .lead{color:var(--t3);font-size:12.5px;line-height:1.9;margin:8px 0 20px}
-  .lead b{color:var(--t2)}
-  .sec{margin:24px 0 10px;padding-top:14px;border-top:1px solid rgba(255,255,255,.09)}
-  .sec>h2{font-size:13.5px;font-weight:600;color:var(--t2)}
-  .sec>h2 em{color:var(--t3);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  /* demo 几何保真：原全局 reset 收进演示作用域（:where 零特异性，不压 chrome 与 demo 类规则） */
+  :where(.pair,.rules) *{box-sizing:border-box;margin:0;padding:0}
+  :where(.pair,.rules){line-height:1.6} /* 原 body 14px/1.6 的行高，demo 区照旧 */
   .tagbad,.tagok{font-size:11px;padding:1px 8px;border-radius:999px;margin-left:8px;vertical-align:1px}
   .tagbad{background:rgba(253,76,93,.18);color:#ff8a95}
   .tagok{background:rgba(120,220,150,.14);color:#9fe3a1}
@@ -35,9 +40,17 @@
   .side{position:absolute;right:36px;bottom:40px;width:56px;display:flex;flex-direction:column;align-items:center;gap:14px}
   .rb{width:56px;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#fff}
   .rb .ic{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center;font-size:17px}
+  .rb .ic.sm{width:30px;height:30px;font-size:13px}
+  /* rail 真资产（SITE_ICONS PNG / VIDEO_ICONS mask）——与 src/rail.js 同件；24px 对齐原 emoji 观感 */
+  .rb .ic .rimg{display:block;width:24px;height:24px;object-fit:contain}
+  .rb .ic .rmask{display:block;width:24px;height:24px;background-color:currentColor;
+    -webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+  .rb .ic.m-like .rmask{--m:url(assets/site-heart.png)}      /* rail.js:155 sv 赞＝SITE_ICONS.heart 作 mask */
+  .rb .ic.m-banana .rmask{--m:url(assets/video-banana.svg)}  /* rail.js:192 VIDEO_ICONS.banana */
+  .rb .ic.m-fav .rmask{--m:url(assets/video-favorite.svg)}   /* rail.js:213 VIDEO_ICONS.favorite */
   .rb .n{font-size:11px;color:#dfe3ea}
   .rb.anchor .ic{outline:2px dashed rgba(253,76,93,.75);outline-offset:3px}
-  .colline{position:absolute;top:0;bottom:0;width:56px;border-left:1px dashed rgba(255,255,255,.18);border-right:1px dashed rgba(255,255,255,.18);pointer-events:none}
+  .colline{position:absolute;top:0;bottom:0;right:36px;width:56px;border-left:1px dashed rgba(255,255,255,.18);border-right:1px dashed rgba(255,255,255,.18);pointer-events:none}
   .pop{position:absolute;width:250px;display:flex;flex-direction:column;background:var(--panel);
     border:1px solid rgba(255,255,255,.12);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:12.5px}
   .pop .hd{display:flex;align-items:center;padding:8px 10px 6px;font-weight:600}
@@ -53,13 +66,34 @@
   .rules{margin-top:16px;padding:14px 16px;background:rgba(255,255,255,.04);border-radius:10px;font-size:12.5px;color:var(--t2)}
   .rules li{margin:5px 0 5px 18px}
   .rules b{color:#fff}
+  .rules .impl-note{font-size:11px;color:#8a90a0}
   code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;font-size:11.5px}
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>选择层横向对齐：让开操作栏图标列 —— 静态预览<span class="tagok">已确认 · 0.9.146 落地</span></h1>
-  <p class="lead">
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
+
+    <main class="doc">
+      <div class="doc-head">
+        <h1>选择层横向对齐：让开操作栏图标列 —— 静态预览</h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-ok">已确认 · 0.9.146 落地</span>
+          <span class="doc-badge">默认（提案形态）</span>
+          <span class="doc-badge b-on">选中项 .it.on</span>
+          <span class="doc-badge b-err">现状对照（盖住图标列）</span>
+          <span class="doc-badge">窄宽 540（规则小结覆盖）</span>
+          <span class="doc-pill"><span class="v">右缘 = 宿主左缘 − 10px</span><span class="src">src/popplace.js:18 · GAP_H=10</span></span>
+        </p>
+      </div>
+
+      <p class="doc-note">
     <b>现状（0.9.144）</b>：弹层<b>右缘对齐锚点右缘</b>——锚点是右侧操作栏里的按钮时，弹层整块压在
     56px 的操作栏列上，<b>把 点赞/评论/收藏/分享 那一列图标盖住</b>（你的实报）。<br>
     <b>对照分享面板</b>（用户点名）：按钮宽 56、CSS <code>right:66px</code> ⇒ <b>右缘落在按钮左缘再往左 10px</b>，
@@ -67,19 +101,25 @@
     0.9.144 已确认的规则（下方优先 → 翻上 → 按可用空间压高）。
   </p>
 
-  <div class="sec">
-    <h2>① 现状 vs 提案 · 锚=操作栏里的「收藏」键<em>虚线框=操作栏列（宽 56）</em></h2>
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>① 现状 vs 提案 · 锚=操作栏里的「收藏」键</h2>
+          <span class="nt">虚线框=操作栏列（宽 56）</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
     <div class="pair">
       <div class="case">
         <div class="cap">现状<span class="tagbad">盖住图标</span>：右缘=锚右缘，弹层压在图标列上</div>
         <div class="stage">
           <div class="ctr">视频画面</div>
-          <div class="colline" style="right:36px"></div>
+          <div class="colline"></div>
           <div class="side">
-            <div class="rb"><div class="ic">👍</div><div class="n">934</div></div>
-            <div class="rb"><div class="ic">💬</div><div class="n">116</div></div>
-            <div class="rb"><div class="ic">🍌</div><div class="n">4722</div></div>
-            <div class="rb anchor"><div class="ic">★</div></div>
+            <div class="rb"><div class="ic m-like"><i class="rmask"></i></div><div class="n">934</div></div>
+            <div class="rb"><div class="ic"><img class="rimg" src="assets/site-comment.png" alt=""></div><div class="n">116</div></div>
+            <div class="rb"><div class="ic m-banana"><i class="rmask"></i></div><div class="n">4722</div></div>
+            <div class="rb anchor"><div class="ic m-fav"><i class="rmask"></i></div></div>
           </div>
           <!-- 右缘 = 锚右缘（≈ 操作栏右缘）⇒ 覆盖整条列 -->
           <div class="pop" style="right:36px;bottom:8px">
@@ -98,12 +138,12 @@
         <div class="cap">提案<span class="tagok">让开宿主一列</span>：右缘 = <b>宿主（按钮容器）左缘</b> − 10px（与分享面板同款）</div>
         <div class="stage">
           <div class="ctr">视频画面</div>
-          <div class="colline" style="right:36px"></div>
+          <div class="colline"></div>
           <div class="side">
-            <div class="rb"><div class="ic">👍</div><div class="n">934</div></div>
-            <div class="rb"><div class="ic">💬</div><div class="n">116</div></div>
-            <div class="rb"><div class="ic">🍌</div><div class="n">4722</div></div>
-            <div class="rb anchor"><div class="ic">★</div></div>
+            <div class="rb"><div class="ic m-like"><i class="rmask"></i></div><div class="n">934</div></div>
+            <div class="rb"><div class="ic"><img class="rimg" src="assets/site-comment.png" alt=""></div><div class="n">116</div></div>
+            <div class="rb"><div class="ic m-banana"><i class="rmask"></i></div><div class="n">4722</div></div>
+            <div class="rb anchor"><div class="ic m-fav"><i class="rmask"></i></div></div>
           </div>
           <!-- 右缘 = 操作栏左缘 − 10 ⇒ 列外 -->
           <div class="pop" style="right:102px;bottom:8px">
@@ -119,10 +159,17 @@
         </div>
       </div>
     </div>
-  </div>
+        </div>
+      </section>
 
-  <div class="sec">
-    <h2>② 横向空间不足时的兜底<em>左不够 → 翻到锚点右侧；两侧都不够 → 视口内收边（现行为）</em></h2>
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>② 横向空间不足时的兜底</h2>
+          <span class="nt">左不够 → 翻到锚点右侧；两侧都不够 → 视口内收边（现行为）</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
     <div class="pair">
       <div class="case">
         <div class="cap">锚贴近屏幕左缘：弹层翻到按钮**右侧**展开</div>
@@ -152,15 +199,23 @@
             </div>
             <div class="ft"><span class="cc">取消</span><span class="ok">确定</span></div>
           </div>
-          <div class="rb anchor" style="position:absolute;right:96px;top:130px;width:44px"><div class="ic" style="width:30px;height:30px;font-size:13px">移组</div></div>
+          <div class="rb anchor" style="position:absolute;right:96px;top:130px;width:44px"><div class="ic sm">移组</div></div>
           <div class="anno" style="right:150px;top:92px">↑ 右缘 = 按钮左缘 − 10px</div>
         </div>
       </div>
     </div>
-  </div>
+        </div>
+      </section>
 
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>规则小结</h2>
+          <span class="nt">仅横向 · 0.9.149 起统一收口 popplace.anchorPlaceOf</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
   <div class="rules">
-    <b>规则小结（确认后改进弹层定位，仅横向）</b><span style="font-size:11px;color:#8a90a0">实现位置：0.9.149 起统一收口 <code>popplace.anchorPlaceOf</code>（README 模块表）</span>
+    <b>规则小结（确认后改进弹层定位，仅横向）</b><span class="impl-note">实现位置：0.9.149 起统一收口 <code>popplace.anchorPlaceOf</code>（README 模块表）</span>
     <ul>
       <li><b>水平</b>：优先<b>让开宿主一列</b>——右缘 = <b>宿主（<code>btn.parentNode</code>）左缘 − 10px</b>（与分享面板同款；rail 上 宿主=操作栏列，
         所以即使锚是 20px 的关注角标也能让开整列）；左侧放不下（<code>宿主左缘 − 10 − 弹层宽 &lt; 8px</code>）→
@@ -170,6 +225,10 @@
       <li>窄宽 540：同上（宽 250~260 的弹层左贴锚点；不足时翻右/收边）。</li>
     </ul>
   </div>
+      </section>
+    </main>
+  </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>

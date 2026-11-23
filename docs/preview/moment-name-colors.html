@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 预览 · 动态卡名字三色（默认白 / 等级红紫）· 待确认</title>
 <!-- docs/preview/moment-name-colors.html —— 0.9.157「动态卡名字（ID）三色体系」事前预览稿（已确认：默认纯白 / 顺带项一起修；0.9.157 按本稿落地）。
      用户口径（2026-10-05）：「动态卡 id 不是有三种颜色吗，默认的我们现在是蓝色，原生的是默认黑色，
@@ -9,18 +10,20 @@
      依据（真机实测在册）：nameColor 0/1/2 → 默认/红 #fd4c5c/紫 #964cfd；followFeedV2 20/20、
      followDougaFeed 10/10 的 user 都带 nameColor（此前只有广场链路透传）。
      新分工：**名字=三色（白/红/紫）；蓝 #57a9f5 只给正文里的链接**（@提及/资源链）。
-     浅色内嵌页（.acsv-mp）= 原生皮肤：名字默认仍是原生黑 #333（不动）。 -->
+     浅色内嵌页（.acsv-mp）= 原生皮肤：名字默认仍是原生黑 #333（不动）。
+     v2（2026-11-23 文档站化批）：套共享 chrome，demo 形态与取值未动。
+     全局 * 重置收窄至 .stage/.mp 演示台内（原 body 1.6 行高归演示台继承，文本量值未动）；原内联色（名字三色/链接蓝/现状对照/落地表色块）与
+     内联布局收进类（取值逐字未动）；脚手架 body/.board/h1/.lead/.sec/.note 与通用 table 由 chrome 接管
+     （落地表改 doc-table，code 字色 #ffd479 保留）；.cap 为 demo 内说明件，原样保留。
+     v3（2026-11-23 铺开批）：决策沿革折叠（05 落地表＝取值对照，收进页尾决策档案），成品段为主体；
+     demo 未动；段内无 ≥2 同形窄 .doc-figure 竖排（04 两列已在同 figure 内 .cols 并列），未栅格化。 -->
+<link rel="stylesheet" href="_docs.css?v=20261123b">
 <style>
   :root{--accent:#fd4c5d;--name:#fff;--name-r:#fd4c5c;--name-p:#964cfd;--link:#57a9f5;--tx:#e8eaee;--mut:#8a90a0}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#000;color:#fff;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-  .board{max-width:1240px;margin:0 auto;padding:26px 22px 70px}
-  h1{font-size:18px;font-weight:600}
-  .lead{color:var(--mut);font-size:12.5px;line-height:1.9;margin:8px 0 18px}
-  .lead b{color:#cfd3da}
-  .sec{margin:26px 0 10px;padding-top:14px;border-top:1px solid rgba(255,255,255,.09)}
-  .sec>h2{font-size:13.5px;font-weight:600;color:#cfd3da}
-  .sec>h2 em{color:var(--mut);font-style:normal;font-weight:400;margin-left:8px;font-size:12px}
+  /* 演示台内重置（原全局 * 收窄至此：demo 的 p/hr/button 默认边距归零；须先于 demo 规则） */
+  .stage,.stage *,.mp,.mp *{box-sizing:border-box;margin:0;padding:0}
+  /* 原 body font:14px/1.6 的行高归演示台继承（chrome body 不设行高；demo 文本量值未动） */
+  .stage,.mp,.cols{line-height:1.6}
   .cap{font-size:12px;color:var(--mut);margin:8px 0 8px}
   .stage{border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:16px 18px;background:#0b0d12}
   .cols{display:flex;gap:26px;flex-wrap:wrap}
@@ -70,134 +73,215 @@
   .mp .ftime,.mp .fmeta{color:#999}
   .mp .ftext{color:#333}
   .mp .ftext a{color:#409bef;text-decoration:none}
-  /* ---- 表格 ---- */
-  table{border-collapse:collapse;font-size:12.5px;margin-top:6px}
-  th,td{border:1px solid rgba(255,255,255,.14);padding:6px 10px;text-align:left}
-  th{color:#cfd3da;font-weight:600}
-  td code{color:#ffd479;font-family:ui-monospace,Consolas,monospace}
+  /* ---- 落地表色块 ---- */
   .chip{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:middle;margin-right:6px}
-  .note{font-size:12px;color:var(--mut);margin-top:8px}
   .bad{border-left:3px solid #ff8a95;padding-left:10px}
   .good{border-left:3px solid #57d68a;padding-left:10px}
+
+  /* ================= 原内联色/布局收编（取值逐字未动；置于 demo 规则之后，同权重时覆盖基规则） ================= */
+  .confirmed{font-size:12px;color:#57d68a;margin-left:8px}
+  .doc-note .c-w{color:#fff}
+  .doc-note .c-r,.ftext .c-r{color:#fd4c5c}
+  .doc-note .c-p,.ftext .c-p{color:#964cfd}
+  .doc-note .c-link{color:#57a9f5}
+  .doc-note .c-code{color:#ffd479}
+  .ftext .c-mpcode{color:#c0392b}
+  .cap .c-err{color:#ff8a95}
+  .cap .c-ok{color:#57d68a}
+  .cap.mt14{margin-top:14px}
+  .stage.black{background:#000}
+  .fname.old{color:#57a9f5}
+  .chip.c-w{background:#fff}
+  .chip.c-k{background:#333}
+  .chip.c-r{background:#fd4c5c}
+  .chip.c-p{background:#964cfd}
+  .chip.c-l{background:#57a9f5}
+  .chip.c-ml{background:#409bef}
+  .chip.c-g{background:#9aa0ab}
+  .doc-table code{color:#ffd479}
 </style>
 </head>
 <body>
-<div class="board">
-  <h1>动态卡名字（ID）三色体系<span style="font-size:12px;color:#57d68a;margin-left:8px">已确认（0.9.157 落地）</span></h1>
-  <p class="lead">
-    名字统一成三色：<b style="color:#fff">默认=白</b>、<b style="color:#fd4c5c">等级 1=红 #fd4c5c</b>、
-    <b style="color:#964cfd">等级 2=紫 #964cfd</b>（后两者真机值、覆盖默认）；蓝 <b style="color:#57a9f5">#57a9f5</b>
-    回归"链接专用"（正文里的 @提及/资源链）。浅色内嵌页保持原生黑 <code style="color:#ffd479">#333</code> 不动。
-    下方深/浅两皮肤并排，另附"现状 vs 修后"对照。
-  </p>
+<div class="docs-shell">
+  <aside class="docs-side" id="docsSide"></aside>
+  <div class="docs-mask" id="docsMask"></div>
+  <div class="docs-main">
+    <header class="docs-top">
+      <div class="crumb"></div>
+      <span class="sp"></span>
+    </header>
 
-  <div class="sec">
-    <h2>① 深色·行卡（关注流 / 广场）<em>三种名字同屏；正文里的 @提及/资源链=链接蓝</em></h2>
-    <div class="stage">
-      <div class="frow">
-        <a class="fname d" href="#">默认等级UP</a>
-        <div class="ftime">3小时前</div>
-        <div class="ftext">这条是默认名字（nameColor 0）——白。正文里的 <a href="#">@某位UP</a> 与资源链
-          <a href="#">ac12345678</a> 是链接蓝。</div>
-        <div class="fmeta"><span>12 点赞</span><span>3 评论</span><span>2 投蕉</span></div>
+    <main class="doc">
+      <div class="doc-head">
+        <h1>动态卡名字（ID）三色体系<span class="confirmed">已确认（0.9.157 落地）</span></h1>
+        <p class="doc-meta">
+          <span class="doc-badge b-on">默认=白</span>
+          <span class="doc-badge">等级 1 红 / 等级 2 紫</span>
+          <span class="doc-badge">链接蓝专用</span>
+          <span class="doc-badge">浅色内嵌原生黑</span>
+          <span class="doc-badge b-err">现状（名字蓝/链接默认色）</span>
+          <span class="doc-badge b-ok">修后三色</span>
+          <span class="doc-pill"><span class="v">#fff / #fd4c5c / #964cfd</span><span class="src">src/uplook.js:9-11 nameColorCss</span></span>
+          <span class="doc-pill"><span class="v">链接 #57a9f5</span><span class="src">src/cssraw.js:628</span></span>
+        </p>
       </div>
-      <div class="frow">
-        <a class="fname r" href="#">红名UP（等级 1）</a>
-        <div class="ftime">5小时前</div>
-        <div class="ftext">红名 = <b style="color:#fd4c5c">#fd4c5c</b>（真机值），压过默认白；正文 @提及 照旧蓝。</div>
-        <div class="fmeta"><span>88 点赞</span><span>12 评论</span></div>
-      </div>
-      <div class="frow">
-        <a class="fname p" href="#">紫名UP（等级 2）</a>
-        <div class="ftime">昨天 20:41</div>
-        <div class="ftext">紫名 = <b style="color:#964cfd">#964cfd</b>（真机值）。三种名字之外的一切仍按旧台账：时间/计数=次级灰。</div>
-        <div class="fmeta"><span>301 点赞</span><span>24 评论</span><span>9 投蕉</span></div>
-      </div>
-    </div>
-  </div>
 
-  <div class="sec">
-    <h2>② 深色·引用卡与详情面板<em>同一位 UP 在列表/引用/面板同色（现在面板点开会变蓝）</em></h2>
-    <div class="stage">
-      <div class="gquote">
-        <div class="up">@<a class="p" href="#">紫名UP</a> 转发的动态</div>
-        <div class="body">源正文（引用卡内）：这里的 <a href="#">@别人</a> 同样是链接蓝，不与名字抢色。</div>
-      </div>
-      <div class="gquote">
-        <div class="up">@<a class="d" href="#">默认等级UP</a></div>
-        <div class="body">默认=白（不是蓝）。</div>
-      </div>
-      <p class="cap" style="margin-top:14px">详情面板头（点开动态后的头部名字——与列表同色）：</p>
-      <div class="mdetail">
-        <div class="head">@<a class="r" href="#">红名UP（等级 1）</a><span>· 5小时前</span></div>
-        <div class="text">面板正文（16/24）：<a href="#">@提及</a> 与 <a href="#">[resource]</a> 走链接蓝；
-          评论名是另一个语境（灰，本轮不动）。</div>
-      </div>
-    </div>
-  </div>
+      <p class="doc-note">
+        名字统一成三色：<b class="c-w">默认=白</b>、<b class="c-r">等级 1=红 #fd4c5c</b>、
+        <b class="c-p">等级 2=紫 #964cfd</b>（后两者真机值、覆盖默认）；蓝 <b class="c-link">#57a9f5</b>
+        回归"链接专用"（正文里的 @提及/资源链）。浅色内嵌页保持原生黑 <code class="c-code">#333</code> 不动。
+        下方深/浅两皮肤并排，另附"现状 vs 修后"对照。
+      </p>
 
-  <div class="sec">
-    <h2>③ 浅色内嵌页（原生 /member 内嵌广场）<em>原生皮肤：默认仍是黑 #333（不动）；等级色同值</em></h2>
-    <div class="mp">
-      <div class="frow">
-        <a class="fname" href="#">默认等级UP</a>
-        <div class="ftime">3小时前</div>
-        <div class="ftext">原生默认是黑——保持 <code style="color:#c0392b">#333</code> 不动；正文 @提及 走原生蓝 #409bef。</div>
-        <div class="fmeta"><span>12 点赞</span><span>3 评论</span></div>
-      </div>
-      <div class="frow">
-        <a class="fname r" href="#">红名UP（等级 1）</a>
-        <div class="ftime">5小时前</div>
-        <div class="ftext">等级色在白底上同样显示（内联值，深/浅同源）。</div>
-      </div>
-      <div class="frow">
-        <a class="fname p" href="#">紫名UP（等级 2）</a>
-        <div class="ftime">昨天 20:41</div>
-        <div class="ftext">三种名字：黑（默认）/ 红 / 紫。</div>
-      </div>
-    </div>
-  </div>
+      <p class="doc-note"><b>本稿结论（已确认，0.9.157 落地）</b>：名字统一三色——默认白 <code>#fff</code>、等级 1 红 <code>#fd4c5c</code>、
+        等级 2 紫 <code>#964cfd</code>（真机值，覆盖默认）；蓝 <code>#57a9f5</code> 回归链接专用；浅色内嵌页默认保持原生黑 <code>#333</code>；
+        顺带修正文链接无颜色规则（浏览器默认色、黑底近乎不可见）的问题。语义 → 取值对照（落地表）收在页尾「决策档案」，查形态看本页前段即可。</p>
 
-  <div class="sec">
-    <h2>④ 现状 vs 修后<em>顺带修：动态正文里的链接现在没有颜色规则 → 浏览器默认色（黑底近乎不可见）</em></h2>
-    <div class="cols">
-      <div class="col bad">
-        <p class="cap"><b style="color:#ff8a95">现状</b>：名字=链接蓝（默认等级也蓝，看不出等级）；正文链接=浏览器默认色。</p>
-        <div class="stage" style="background:#000">
-          <div class="frow">
-            <a class="fname" style="color:#57a9f5" href="#">默认等级UP</a>
-            <div class="ftime">3小时前</div>
-            <div class="ftext">看这里：<a class="fixbad" href="#">@某位UP</a>（默认蓝 #0000EE，黑底几乎看不见）</div>
+      <section class="doc-sec" id="s1">
+        <div class="doc-sec-hd">
+          <span class="idx">01</span>
+          <h2>深色·行卡（关注流 / 广场）</h2>
+          <span class="nt">三种名字同屏；正文里的 @提及/资源链=链接蓝</span>
+          <a class="anchor" href="#s1" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="stage">
+            <div class="frow">
+              <a class="fname d" href="#">默认等级UP</a>
+              <div class="ftime">3小时前</div>
+              <div class="ftext">这条是默认名字（nameColor 0）——白。正文里的 <a href="#">@某位UP</a> 与资源链
+                <a href="#">ac12345678</a> 是链接蓝。</div>
+              <div class="fmeta"><span>12 点赞</span><span>3 评论</span><span>2 投蕉</span></div>
+            </div>
+            <div class="frow">
+              <a class="fname r" href="#">红名UP（等级 1）</a>
+              <div class="ftime">5小时前</div>
+              <div class="ftext">红名 = <b class="c-r">#fd4c5c</b>（真机值），压过默认白；正文 @提及 照旧蓝。</div>
+              <div class="fmeta"><span>88 点赞</span><span>12 评论</span></div>
+            </div>
+            <div class="frow">
+              <a class="fname p" href="#">紫名UP（等级 2）</a>
+              <div class="ftime">昨天 20:41</div>
+              <div class="ftext">紫名 = <b class="c-p">#964cfd</b>（真机值）。三种名字之外的一切仍按旧台账：时间/计数=次级灰。</div>
+              <div class="fmeta"><span>301 点赞</span><span>24 评论</span><span>9 投蕉</span></div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="col good">
-        <p class="cap"><b style="color:#57d68a">修后</b>：名字=白/红/紫三色；正文链接=链接蓝。</p>
-        <div class="stage" style="background:#000">
-          <div class="frow">
-            <a class="fname" style="color:#fff" href="#">默认等级UP</a>
-            <div class="ftime">3小时前</div>
-            <div class="ftext">看这里：<a style="color:#57a9f5;text-decoration:none" href="#">@某位UP</a>（链接蓝，#57a9f5）</div>
+      </section>
+
+      <section class="doc-sec" id="s2">
+        <div class="doc-sec-hd">
+          <span class="idx">02</span>
+          <h2>深色·引用卡与详情面板</h2>
+          <span class="nt">同一位 UP 在列表/引用/面板同色（现在面板点开会变蓝）</span>
+          <a class="anchor" href="#s2" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="stage">
+            <div class="gquote">
+              <div class="up">@<a class="p" href="#">紫名UP</a> 转发的动态</div>
+              <div class="body">源正文（引用卡内）：这里的 <a href="#">@别人</a> 同样是链接蓝，不与名字抢色。</div>
+            </div>
+            <div class="gquote">
+              <div class="up">@<a class="d" href="#">默认等级UP</a></div>
+              <div class="body">默认=白（不是蓝）。</div>
+            </div>
+            <p class="cap mt14">详情面板头（点开动态后的头部名字——与列表同色）：</p>
+            <div class="mdetail">
+              <div class="head">@<a class="r" href="#">红名UP（等级 1）</a><span>· 5小时前</span></div>
+              <div class="text">面板正文（16/24）：<a href="#">@提及</a> 与 <a href="#">[resource]</a> 走链接蓝；
+                评论名是另一个语境（灰，本轮不动）。</div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
+      </section>
 
-  <div class="sec">
-    <h2>⑤ 落地表<em>语义 → 深色 / 浅色（内嵌页）</em></h2>
-    <table>
-      <tr><th>语义</th><th>深色皮肤</th><th>浅色内嵌页（原生）</th></tr>
-      <tr><td>名字·默认（nameColor 0/缺失）</td><td><span class="chip" style="background:#fff"></span><code>#fff</code>（本次由蓝改白）</td><td><span class="chip" style="background:#333"></span><code>#333</code>（原生黑，不动）</td></tr>
-      <tr><td>名字·等级 1</td><td><span class="chip" style="background:#fd4c5c"></span><code>#fd4c5c</code>（真机值）</td><td>同值</td></tr>
-      <tr><td>名字·等级 2</td><td><span class="chip" style="background:#964cfd"></span><code>#964cfd</code>（真机值）</td><td>同值</td></tr>
-      <tr><td>链接（正文 @提及/资源链/话题）</td><td><span class="chip" style="background:#57a9f5"></span><code>#57a9f5</code>（名字不再占蓝）</td><td><span class="chip" style="background:#409bef"></span><code>#409bef</code>（原生蓝）</td></tr>
-      <tr><td>评论名（另一语境，本轮不动）</td><td><span class="chip" style="background:#9aa0ab"></span><code>#9aa0ab</code></td><td><span class="chip" style="background:#333"></span><code>#333</code></td></tr>
-      <tr><td>正文 / 次级（时间·计数）</td><td><code>#e8eaee</code> / <code>#8a90a0</code></td><td><code>#333</code> / <code>#999</code></td></tr>
-    </table>
-    <p class="note">覆盖关系：等级色（红/紫，内联）＞ 名字默认（白，CSS）；hover 只加下划线、不再变色。
-      三色体系覆盖范围=行卡名字 / 引用卡 @源UP / 详情面板头名字（同一 UP 同色）；评论名与其它视图名字不在本轮。</p>
+      <section class="doc-sec" id="s3">
+        <div class="doc-sec-hd">
+          <span class="idx">03</span>
+          <h2>浅色内嵌页（原生 /member 内嵌广场）</h2>
+          <span class="nt">原生皮肤：默认仍是黑 #333（不动）；等级色同值</span>
+          <a class="anchor" href="#s3" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="mp">
+            <div class="frow">
+              <a class="fname" href="#">默认等级UP</a>
+              <div class="ftime">3小时前</div>
+              <div class="ftext">原生默认是黑——保持 <code class="c-mpcode">#333</code> 不动；正文 @提及 走原生蓝 #409bef。</div>
+              <div class="fmeta"><span>12 点赞</span><span>3 评论</span></div>
+            </div>
+            <div class="frow">
+              <a class="fname r" href="#">红名UP（等级 1）</a>
+              <div class="ftime">5小时前</div>
+              <div class="ftext">等级色在白底上同样显示（内联值，深/浅同源）。</div>
+            </div>
+            <div class="frow">
+              <a class="fname p" href="#">紫名UP（等级 2）</a>
+              <div class="ftime">昨天 20:41</div>
+              <div class="ftext">三种名字：黑（默认）/ 红 / 紫。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="doc-sec" id="s4">
+        <div class="doc-sec-hd">
+          <span class="idx">04</span>
+          <h2>现状 vs 修后</h2>
+          <span class="nt">顺带修：动态正文里的链接现在没有颜色规则 → 浏览器默认色（黑底近乎不可见）</span>
+          <a class="anchor" href="#s4" aria-label="锚点">#</a>
+        </div>
+        <div class="doc-figure">
+          <div class="cols">
+            <div class="col bad">
+              <p class="cap"><b class="c-err">现状</b>：名字=链接蓝（默认等级也蓝，看不出等级）；正文链接=浏览器默认色。</p>
+              <div class="stage black">
+                <div class="frow">
+                  <a class="fname old" href="#">默认等级UP</a>
+                  <div class="ftime">3小时前</div>
+                  <div class="ftext">看这里：<a class="fixbad" href="#">@某位UP</a>（默认蓝 #0000EE，黑底几乎看不见）</div>
+                </div>
+              </div>
+            </div>
+            <div class="col good">
+              <p class="cap"><b class="c-ok">修后</b>：名字=白/红/紫三色；正文链接=链接蓝。</p>
+              <div class="stage black">
+                <div class="frow">
+                  <a class="fname d" href="#">默认等级UP</a>
+                  <div class="ftime">3小时前</div>
+                  <div class="ftext">看这里：<a href="#">@某位UP</a>（链接蓝，#57a9f5）</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p class="doc-arch-cap">决策档案 · 过程沿革（查阅成品可略过）</p>
+      <details class="doc-arch"><summary><span class="ttl">落地表</span><span class="hint">05 落地表：语义 → 深色 / 浅色取值对照与覆盖关系（0.9.157 落地值）</span><span class="pill">1 节</span></summary>
+      <section class="doc-sec" id="s5">
+        <div class="doc-sec-hd">
+          <h2>落地表</h2>
+          <span class="nt">语义 → 深色 / 浅色（内嵌页）</span>
+          <a class="anchor" href="#s5" aria-label="锚点">#</a>
+        </div>
+        <table class="doc-table">
+          <tr><th>语义</th><th>深色皮肤</th><th>浅色内嵌页（原生）</th></tr>
+          <tr><td>名字·默认（nameColor 0/缺失）</td><td><span class="chip c-w"></span><code>#fff</code>（本次由蓝改白）</td><td><span class="chip c-k"></span><code>#333</code>（原生黑，不动）</td></tr>
+          <tr><td>名字·等级 1</td><td><span class="chip c-r"></span><code>#fd4c5c</code>（真机值）</td><td>同值</td></tr>
+          <tr><td>名字·等级 2</td><td><span class="chip c-p"></span><code>#964cfd</code>（真机值）</td><td>同值</td></tr>
+          <tr><td>链接（正文 @提及/资源链/话题）</td><td><span class="chip c-l"></span><code>#57a9f5</code>（名字不再占蓝）</td><td><span class="chip c-ml"></span><code>#409bef</code>（原生蓝）</td></tr>
+          <tr><td>评论名（另一语境，本轮不动）</td><td><span class="chip c-g"></span><code>#9aa0ab</code></td><td><span class="chip c-k"></span><code>#333</code></td></tr>
+          <tr><td>正文 / 次级（时间·计数）</td><td><code>#e8eaee</code> / <code>#8a90a0</code></td><td><code>#333</code> / <code>#999</code></td></tr>
+        </table>
+        <p class="doc-note">覆盖关系：等级色（红/紫，内联）＞ 名字默认（白，CSS）；hover 只加下划线、不再变色。
+          三色体系覆盖范围=行卡名字 / 引用卡 @源UP / 详情面板头名字（同一 UP 同色）；评论名与其它视图名字不在本轮。</p>
+      </section>
+      </details>
+    </main>
   </div>
 </div>
+<script src="_docs.js?v=20261123b"></script>
 </body>
 </html>
